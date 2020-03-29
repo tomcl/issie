@@ -1,0 +1,17 @@
+source https://nuget.org/api/v2
+storage:none
+
+clitool dotnet-fable
+nuget Fable.Import.Browser
+nuget Fable.Recharts
+nuget FSharp.Core redirects:force
+nuget Fable.Core
+nuget Fable.Elmish
+nuget Fable.Elmish.React
+nuget Fable.Elmish.Debugger
+nuget Fable.Elmish.HMR
+nuget Fable.Import.Electron
+nuget Fable.Import.Node
+nuget Fable.PowerPack
+nuget Fable.React
+nuget Fulma  

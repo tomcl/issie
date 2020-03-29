@@ -1,0 +1,14 @@
+dotnet-fable
+
+
+Fable.Core
+Fable.Import.Browser
+Fable.Import.Electron
+Fable.Elmish
+Fable.Elmish.React
+Fable.Elmish.Debugger
+Fable.Elmish.HMR
+Fable.PowerPack
+Fable.React
+Fulma
+Fable.Recharts

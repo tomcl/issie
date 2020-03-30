@@ -3,9 +3,10 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Types.fs" />
-    <Compile Include="Style.fs" />
-    <Compile Include="DrawLib.fs" />
+    <Compile Include="Diagram/Types.fs" />
+    <Compile Include="Diagram/Style.fs" />
+    <Compile Include="Diagram/DrawLib.fs" />
+    <Compile Include="Diagram/Diagram.fs" />
     <Compile Include="Renderer.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

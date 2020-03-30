@@ -27,73 +27,49 @@ let log msg : unit = jsNative
 [<Emit("alert($0)")>]
 let alert msg : unit = jsNative
 
-[<Emit("
-var writer = new draw2d.io.json.Writer();
-writer.marshal($0,function(json){
-    console.log(JSON.stringify(json, null, 2));
-});
-")>]
-let logCanvas (canvas : Canvas) : unit = jsNative
+type Page =
+    | DiagramPage
 
 type Model = {
-    Canvas : Option<Canvas>; // JS Canvas object.
-    Text : string;
+    Page : Page
+    Diagram : Diagram.Model
 }
-    
+
 type Messages =
-    | NewCanvas of Canvas
-    | NewBox of Box
-    | GetState
+    | PageMsg of Page
+    | DiagramMsg of Diagram.Messages
 
 // -- Init Model
 
-let init() = { Canvas = None; Text = ""}
+let init() = {
+    Page = DiagramPage
+    Diagram = Diagram.init()
+}
 
 // -- Create View
 
-let createCanvasAction model dispatch =
-    match model.Canvas with
-    | Some _ -> alert "Canvas already created"
-    | None -> createAndInitialiseCanvas "canvas" |> NewCanvas |> dispatch
-
-let createBoxAction model dispatch =
-    match model.Canvas with
-    | None -> alert "Canvas not present"
-    | Some canvas -> createBox canvas 100 100 50 50 |> NewBox |> dispatch
-
-let getStateAction model dispatch =
-    match model.Canvas with
-    | None -> alert "Canvas not present"
-    | Some _ -> dispatch GetState
-
-let extractState canvas =
-    canvas |> Option.map logCanvas |> ignore 
-    canvas
-
-let pageHeader model =
-    match model.Canvas with
-    | None -> str "Drawing demo"
-    | Some _ -> str "Drawing demo, Canvas created"
+let pageView model dispatch =
+    match model.Page with
+    | DiagramPage -> Diagram.view model.Diagram (DiagramMsg >> dispatch)
 
 let view model dispatch =
-    Hero.hero [] [
-        Hero.body [] [
-            div [ Id "canvas"; canvasStyle ] []
-            Button.button [ Button.Props [ OnClick (fun _ -> createCanvasAction model dispatch) ] ] [ str "Create canvas" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> createBoxAction model dispatch) ] ] [ str "Add box" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch)] ] [ str "Get state" ]
-            div [ ClassName "block" ] [ Box.box' [] [ str model.Text ] ]
-        ]
+    div [] [
+        //Navbar.navbar [] [
+        //    Navbar.Item.div [ Navbar.Item.IsHoverable ] [
+        //        Navbar.Link.div [ Navbar.Link.IsArrowless; Navbar.Link.Option.Props.OnClick (fun _ -> PageMsg DiagramPage |> dispatch) ] [ str "Diagram" ]
+        //    ]
+        //]
+        Button.button [Button.OnClick (fun _ -> PageMsg DiagramPage |> dispatch )] [str "Diagram"]
+        Button.button [Button.OnClick (fun _ -> PageMsg DiagramPage |> dispatch )] [str "Editor"]
+        pageView model dispatch
     ]
 
 // -- Update Model
 
 let update msg model =
     match msg with
-    | NewCanvas canvas -> { model with Canvas = Some canvas }
-    | NewBox box -> model // Do nothing
-    | GetState -> { model with Text = sprintf "%A" <| extractState model.Canvas }
-
+    | PageMsg page -> { model with Page = page } 
+    | DiagramMsg msg' -> { model with Diagram = Diagram.update msg' model.Diagram }
 
 Program.mkSimple init update view
 |> Program.withReact "electron-app"

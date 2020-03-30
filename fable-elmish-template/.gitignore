@@ -1,8 +1,11 @@
 # Output folder
-app/*
-!app/public
-!app/scss
-!app/index.html
+app/*.eot
+app/*.svg
+app/*.woff
+app/*.woff2
+app/*.ttf
+app/main.js*
+app/renderer.js*
 
 public/bundle.js*
 electron/Content/app/main.js*

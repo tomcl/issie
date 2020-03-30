@@ -1,3 +1,9 @@
+# Output folder
+app/*
+!app/public
+!app/scss
+!app/index.html
+
 public/bundle.js*
 electron/Content/app/main.js*
 electron/Content/app/renderer.js*

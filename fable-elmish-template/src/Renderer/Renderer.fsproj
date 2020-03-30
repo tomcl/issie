@@ -7,6 +7,9 @@
     <Compile Include="Diagram/Style.fs" />
     <Compile Include="Diagram/DrawLib.fs" />
     <Compile Include="Diagram/Diagram.fs" />
+    <Compile Include="Editor/Types.fs" />
+    <Compile Include="Editor/CodeMirrorWrap.fs" />
+    <Compile Include="Editor/Editor.fs" />
     <Compile Include="Renderer.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

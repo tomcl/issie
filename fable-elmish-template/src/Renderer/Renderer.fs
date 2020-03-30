@@ -10,10 +10,6 @@ open Fable.Helpers.React.Props
 open Fable.Core
 open Fable.Core.JsInterop
 
-open Types
-open MyStyle
-open DrawLib
-
 importSideEffects "./../../app/scss/main.scss" 
 
 // TODO move all of these JS functions and interface them properly.
@@ -29,21 +25,25 @@ let alert msg : unit = jsNative
 
 type Page =
     | DiagramPage
+    | EditorPage
 
 type Model = {
     Page : Page
     Diagram : Diagram.Model
+    Editor: Editor.Model
 }
 
 type Messages =
     | PageMsg of Page
     | DiagramMsg of Diagram.Messages
+    | EditorMsg of Editor.Messages
 
 // -- Init Model
 
 let init() = {
     Page = DiagramPage
     Diagram = Diagram.init()
+    Editor = Editor.init()
 }
 
 // -- Create View
@@ -51,6 +51,7 @@ let init() = {
 let pageView model dispatch =
     match model.Page with
     | DiagramPage -> Diagram.view model.Diagram (DiagramMsg >> dispatch)
+    | EditorPage -> Editor.view model.Editor (EditorMsg >> dispatch)
 
 let view model dispatch =
     div [] [
@@ -60,7 +61,7 @@ let view model dispatch =
         //    ]
         //]
         Button.button [Button.OnClick (fun _ -> PageMsg DiagramPage |> dispatch )] [str "Diagram"]
-        Button.button [Button.OnClick (fun _ -> PageMsg DiagramPage |> dispatch )] [str "Editor"]
+        Button.button [Button.OnClick (fun _ -> PageMsg EditorPage |> dispatch )] [str "Editor"]
         pageView model dispatch
     ]
 
@@ -70,6 +71,7 @@ let update msg model =
     match msg with
     | PageMsg page -> { model with Page = page } 
     | DiagramMsg msg' -> { model with Diagram = Diagram.update msg' model.Diagram }
+    | EditorMsg msg' -> {model with Editor = Editor.update msg' model.Editor }
 
 Program.mkSimple init update view
 |> Program.withReact "electron-app"

@@ -4,7 +4,7 @@
 
 module DrawLib
 
-open Types
+open DiagramTypes
 
 open Fable.Core
 open Fable.Core.JsInterop

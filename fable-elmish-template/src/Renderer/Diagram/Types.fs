@@ -1,4 +1,4 @@
-module Types
+module DiagramTypes
 
 // JS objects.
 type Canvas  = | Canvas of obj

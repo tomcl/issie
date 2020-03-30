@@ -10,7 +10,7 @@ open Fable.Helpers.React.Props
 open Fable.Core
 open Fable.Core.JsInterop
 
-open Types
+open DiagramTypes
 open MyStyle
 open DrawLib
 

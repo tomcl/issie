@@ -2,7 +2,7 @@
     f# wrapper for draw_lib library.
 *)
 
-module DrawLib
+module Draw2dWrapper
 
 open DiagramTypes
 

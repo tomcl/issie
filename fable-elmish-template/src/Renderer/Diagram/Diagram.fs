@@ -12,18 +12,8 @@ open Fable.Core.JsInterop
 
 open DiagramTypes
 open MyStyle
-open DrawLib
-
-// TODO move all of these JS functions and interface them properly.
-
-[<Emit("typeof $0")>]
-let jsType (x: obj) : unit = jsNative
-
-[<Emit("console.log($0)")>]
-let log msg : unit = jsNative
-
-[<Emit("alert($0)")>]
-let alert msg : unit = jsNative
+open Draw2dWrapper
+open JSHelpers
 
 [<Emit("
 var writer = new draw2d.io.json.Writer();

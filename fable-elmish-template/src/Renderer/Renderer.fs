@@ -10,18 +10,9 @@ open Fable.Helpers.React.Props
 open Fable.Core
 open Fable.Core.JsInterop
 
+open JSHelpers
+
 importSideEffects "./../../app/scss/main.scss" 
-
-// TODO move all of these JS functions and interface them properly.
-
-[<Emit("typeof $0")>]
-let jsType (x: obj) : unit = jsNative
-
-[<Emit("console.log($0)")>]
-let log msg : unit = jsNative
-
-[<Emit("alert($0)")>]
-let alert msg : unit = jsNative
 
 type Page =
     | DiagramPage

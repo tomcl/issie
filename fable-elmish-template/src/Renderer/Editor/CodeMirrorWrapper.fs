@@ -1,4 +1,4 @@
-module CodeMirrorWrap
+module CodeMirrorWrapper
 
 open EditorTypes
 

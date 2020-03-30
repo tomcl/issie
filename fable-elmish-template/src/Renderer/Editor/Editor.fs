@@ -11,18 +11,8 @@ open Fable.Core
 open Fable.Core.JsInterop
 
 open EditorTypes
-open CodeMirrorWrap
-
-// TODO move all of these JS functions and interface them properly.
-
-[<Emit("typeof $0")>]
-let jsType (x: obj) : unit = jsNative
-
-[<Emit("console.log($0)")>]
-let log msg : unit = jsNative
-
-[<Emit("alert($0)")>]
-let alert msg : unit = jsNative
+open CodeMirrorWrapper
+open JSHelpers
 
 type Model = {
     Editor: Editor option;

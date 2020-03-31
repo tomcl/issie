@@ -22,6 +22,7 @@ type Model = {
 type Messages =
     | CreateEditor
     | ChangeCode of string
+    | GetCode
 
 // -- Init Model
 
@@ -33,11 +34,14 @@ let view model dispatch =
     div [] [
         div [ Id "editor"; Style [ Width "100%"; Height "50%" ]] []
         Button.button [ Button.OnClick (fun _ -> CreateEditor |> dispatch )] [ str "Create Editor" ]
+        Button.button [ Button.OnClick (fun _ -> GetCode |> dispatch )] [ str "Get code" ]
+        div [] [ str model.Code ]
     ]
 
 // -- Update Model
 
 let update msg model =
     match msg with
+    | CreateEditor -> { model with Editor = Some <|createEditor "editor" }
     | ChangeCode code -> { model with Code = code }
-    | CreateEditor -> { model with Editor = Some <| createEditor "editor" }
+    | GetCode -> { model with Code = getCode <| Option.get model.Editor }

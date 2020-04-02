@@ -39,10 +39,21 @@ let init() = {
 
 // -- Create View
 
-let pageView model dispatch =
-    match model.Page with
-    | DiagramPage -> Diagram.view model.Diagram (DiagramMsg >> dispatch)
-    | EditorPage -> Editor.view model.Editor (EditorMsg >> dispatch)
+//let pageView model dispatch =
+//    match model.Page with
+//    | DiagramPage -> Diagram.view model.Diagram (DiagramMsg >> dispatch)
+//    | EditorPage -> Editor.view model.Editor (EditorMsg >> dispatch)
+
+let editorView model dispacth =
+    if model.Page = EditorPage
+    then Editor.displayView
+    else Editor.hideView
+    <|| (model.Editor, (EditorMsg >> dispacth))
+
+let diagramView model dispatch = // TODO
+    if model.Page = DiagramPage
+    then Diagram.view model.Diagram (DiagramMsg >> dispatch)
+    else div [] []
 
 let view model dispatch =
     div [] [
@@ -53,7 +64,8 @@ let view model dispatch =
         //]
         Button.button [Button.OnClick (fun _ -> PageMsg DiagramPage |> dispatch )] [str "Diagram"]
         Button.button [Button.OnClick (fun _ -> PageMsg EditorPage |> dispatch )] [str "Editor"]
-        pageView model dispatch
+        diagramView model dispatch
+        editorView model dispatch
     ]
 
 // -- Update Model

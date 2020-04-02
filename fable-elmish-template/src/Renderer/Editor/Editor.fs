@@ -15,33 +15,40 @@ open CodeMirrorWrapper
 open JSHelpers
 
 type Model = {
-    Editor: Editor option;
+    Editor: CodeMirrorWrapper;
     Code: string;
 }
 
 type Messages =
-    | CreateEditor
-    | ChangeCode of string
+    | InitEditor of Editor // This message has to be dispatched only once.
     | GetCode
 
 // -- Init Model
 
-let init() = { Code = ""; Editor = None }
+let init() = { Code = ""; Editor = new CodeMirrorWrapper() }
 
 // -- Create View
 
-let view model dispatch =
+/// View when the page is selected.
+let displayView model dispatch =
     div [] [
-        div [ Id "editor"; Style [ Width "100%"; Height "50%" ]] []
-        Button.button [ Button.OnClick (fun _ -> CreateEditor |> dispatch )] [ str "Create Editor" ]
+        model.Editor.EditorReactElement (InitEditor >> dispatch) Visible
         Button.button [ Button.OnClick (fun _ -> GetCode |> dispatch )] [ str "Get code" ]
         div [] [ str model.Code ]
+    ]
+
+/// View when the page is hidden. We still display a 0px by 0px editor element
+/// because the editor is attached to it.
+let hideView model dispatch =
+    div [] [
+        model.Editor.EditorReactElement (InitEditor >> dispatch) Hidden
     ]
 
 // -- Update Model
 
 let update msg model =
     match msg with
-    | CreateEditor -> { model with Editor = Some <|createEditor "editor" }
-    | ChangeCode code -> { model with Code = code }
-    | GetCode -> { model with Code = getCode <| Option.get model.Editor }
+    | InitEditor editor ->
+        model.Editor.InitEditor editor
+        model
+    | GetCode -> { model with Code = model.Editor.GetCode() }

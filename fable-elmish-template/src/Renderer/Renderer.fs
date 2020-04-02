@@ -50,10 +50,11 @@ let editorView model dispacth =
     else Editor.hideView
     <|| (model.Editor, (EditorMsg >> dispacth))
 
-let diagramView model dispatch = // TODO
+let diagramView model dispatch =
     if model.Page = DiagramPage
-    then Diagram.view model.Diagram (DiagramMsg >> dispatch)
-    else div [] []
+    then Diagram.displayView
+    else Diagram.hideView
+    <|| (model.Diagram, (DiagramMsg >> dispatch))
 
 let view model dispatch =
     div [] [

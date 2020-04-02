@@ -11,6 +11,8 @@ open Fable.Import.React
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
+// Interface with JS library.
+
 [<Emit("
 CodeMirror(document.getElementById($0), {
   lineNumbers: true,
@@ -22,10 +24,12 @@ CodeMirror(document.getElementById($0), {
 let private createEditor (id : string) : Editor = jsNative
 
 [<Emit("$0.getValue()")>]
-let getCode (editor : Editor) : string = jsNative
+let private getCode (editor : Editor) : string = jsNative
 
 [<Emit("$0.setValue($1)")>]
-let setCode (editor : Editor) (code : string) : unit = jsNative
+let private setCode (editor : Editor) (code : string) : unit = jsNative
+
+// React wrapper.
 
 type DisplayModeType = Hidden | Visible
 
@@ -37,20 +41,21 @@ type CodeMirrorReactProps = {
 type CodeMirrorReact(initialProps) =
     inherit PureStatelessComponent<CodeMirrorReactProps>(initialProps)
 
+    let divId = "codeMirrorEditor"
     let hiddenStyle = Style [ Height "0px"; Width "0px" ]
     let visibleStyle = Style [ Height "auto"; Width "auto" ]
 
     override this.componentDidMount() =
         log "Mounting CodeMirrorReact component"
-        this.props.DispatchFunc <| createEditor "editor"
+        this.props.DispatchFunc <| createEditor divId
 
     override this.render() =
         let style = match this.props.DisplayMode with
                     | Hidden -> hiddenStyle
                     | Visible -> visibleStyle
-        div [ Id "editor"; style ] []
+        div [ Id divId; style ] []
 
-let inline createCodeMirrorReact props = ofType<CodeMirrorReact,_,_> props []
+let inline private createCodeMirrorReact props = ofType<CodeMirrorReact,_,_> props []
 
 type CodeMirrorWrapper() =
     let mutable editor : Editor option = None
@@ -71,4 +76,4 @@ type CodeMirrorWrapper() =
             log "Warning: CodeMirrorWrapper.GetCode called when editor is None"
             ""
         | Some e ->
-            getCode e 
+            getCode e

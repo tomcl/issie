@@ -72,7 +72,16 @@ writer.marshal($0,function(json){
     console.log(JSON.stringify(json, null, 2));
 });
 ")>]
-let logCanvas (canvas : Canvas) : unit = jsNative
+let private logCanvas (canvas : Canvas) : unit = jsNative
+
+[<Emit("
+const dim = new draw2d.geo.Rectangle({x:0,y:0,width:$1,height:$2});
+$0.setDimension(dim);
+")>]
+let private resizeCanvas (canvas : Canvas) (width : int) (height : int) : unit = jsNative
+
+[<Emit("$0.setZoom($1, true);")>]
+let private setZoom (canvas : Canvas) (zoom : float) : unit = jsNative
 
 // React wrapper.
 
@@ -125,3 +134,13 @@ type Draw2dWrapper() =
         match canvas with
         | None -> log "Warning: Draw2dWrapper.CreateBox called when canvas is None"
         | Some c -> createBox c 100 100 50 50 |> ignore
+    
+    member this.ResizeCanvas width height =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.ResizeCanvas called when canvas is None"
+        | Some c -> resizeCanvas c width height
+
+    member this.SetZoom zoom =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.SetZoom called when canvas is None"
+        | Some c -> setZoom c zoom 

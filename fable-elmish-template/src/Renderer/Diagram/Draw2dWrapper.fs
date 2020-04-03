@@ -6,6 +6,7 @@ module Draw2dWrapper
 
 open DiagramTypes
 open JSHelpers
+open DiagramStyle
 
 open Fable.Core
 open Fable.Core.JsInterop
@@ -44,9 +45,16 @@ $0.installEditPolicy( new draw2d.policy.connection.ComposedConnectionCreatePolic
 ")>]
 let private initialiseCanvas (canvas : Canvas) : unit = jsNative
 
+[<Emit("
+const dim = new draw2d.geo.Rectangle({x:0,y:0,width:$1,height:$2});
+$0.setDimension(dim);
+")>]
+let private resizeCanvas (canvas : Canvas) (width : int) (height : int) : unit = jsNative
+
 let private createAndInitialiseCanvas (id : string) : Canvas =
     let canvas = createCanvas id
     initialiseCanvas canvas
+    //resizeCanvas canvas 2000 1000
     canvas
 
 [<Emit("$0.add($1);")>]
@@ -74,12 +82,6 @@ writer.marshal($0,function(json){
 ")>]
 let private logCanvas (canvas : Canvas) : unit = jsNative
 
-[<Emit("
-const dim = new draw2d.geo.Rectangle({x:0,y:0,width:$1,height:$2});
-$0.setDimension(dim);
-")>]
-let private resizeCanvas (canvas : Canvas) (width : int) (height : int) : unit = jsNative
-
 [<Emit("$0.setZoom($1, true);")>]
 let private setZoom (canvas : Canvas) (zoom : float) : unit = jsNative
 
@@ -96,11 +98,6 @@ type Draw2dReact(initialProps) =
     inherit PureStatelessComponent<Draw2dReactProps>(initialProps)
 
     let divId = "Draw2dCanvas"
-    let hiddenStyle = Style [ Width "0px"; Height "0px" ]
-    let visibleStyle = Style [
-        //Width "70%"; Height "500px";
-        Position "absolute"; Top "40px"; Left "0px"; Bottom "100px"; Right "0px"
-    ]
 
     override this.componentDidMount() =
         log "Mounting Draw2dReact component"
@@ -108,8 +105,8 @@ type Draw2dReact(initialProps) =
 
     override this.render() =
         let style = match this.props.DisplayMode with
-                    | Hidden -> hiddenStyle
-                    | Visible -> visibleStyle
+                    | Hidden -> canvasHiddenStyle
+                    | Visible -> canvasVisibleStyle
         div [ Id divId; style ] []
 
 let inline private createDraw2dReact props = ofType<Draw2dReact,_,_> props []

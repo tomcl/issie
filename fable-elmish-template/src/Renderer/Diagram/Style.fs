@@ -1,21 +1,22 @@
-module MyStyle
+module DiagramStyle
+
+open CommonStyle
 
 open Fable.Helpers.React.Props
 
-let bodyStyle =
-    Style [
-        //MarginLeft 20
-    ]
+let canvasHiddenStyle = Style [
+    Display "none"
+]
 
-let canvasStyle =
-    Style [
-        Width "1000px";
-        Height "500px";
-    ]
+let canvasVisibleStyle = Style [
+    Display "block"
+    Position "absolute" // Required to work.
+    Overflow "scroll"
+    // Important is necessary to 
+    Top (important headerHeight) // Placed just under the header.
+    Left (important "0px")
+    Bottom (important "100px") // Leave some space at the bottom. TODO: make this relative to window size?
+    Right (important "400px")
+    Border "2px solid gray"
+]
 
-let titleStyle = 
-    Style [
-        Padding 15
-        VerticalAlign "middle"
-        BackgroundColor "lightgreen"
-    ]

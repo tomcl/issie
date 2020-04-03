@@ -11,7 +11,6 @@ open Fable.Core
 open Fable.Core.JsInterop
 
 open DiagramTypes
-open MyStyle
 open Draw2dWrapper
 open JSHelpers
 
@@ -32,13 +31,11 @@ let init() = { Canvas = new Draw2dWrapper(); Zoom = 1.0 }
 // -- Create View
 
 let hideView model dispatch =
-    model.Canvas.ResizeCanvas 1 1
     div [] [
         model.Canvas.CanvasReactElement (InitCanvas >> dispatch) Hidden
     ]
 
 let displayView model dispatch =
-    model.Canvas.ResizeCanvas 2000 2000
     div [] [
         model.Canvas.CanvasReactElement (InitCanvas >> dispatch) Visible
         Button.button [ Button.Props [ OnClick (fun _ -> model.Canvas.CreateBox()) ] ] [ str "Add box" ]

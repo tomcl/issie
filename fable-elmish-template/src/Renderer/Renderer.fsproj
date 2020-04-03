@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="JSHelpers.fs" />
+    <Compile Include="CommonStyle.fs" />
     <Compile Include="Diagram/Types.fs" />
     <Compile Include="Diagram/Style.fs" />
     <Compile Include="Diagram/Draw2dWrapper.fs" />

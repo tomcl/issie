@@ -11,6 +11,7 @@ open Fable.Core
 open Fable.Core.JsInterop
 
 open JSHelpers
+open CommonStyle
 
 importSideEffects "./../../app/scss/main.scss" 
 
@@ -63,8 +64,10 @@ let view model dispatch =
         //        Navbar.Link.div [ Navbar.Link.IsArrowless; Navbar.Link.Option.Props.OnClick (fun _ -> PageMsg DiagramPage |> dispatch) ] [ str "Diagram" ]
         //    ]
         //]
-        Button.button [Button.OnClick (fun _ -> PageMsg DiagramPage |> dispatch )] [str "Diagram"]
-        Button.button [Button.OnClick (fun _ -> PageMsg EditorPage |> dispatch )] [str "Editor"]
+        div [ navbarStyle ] [
+            Button.button [Button.OnClick (fun _ -> PageMsg DiagramPage |> dispatch )] [str "Diagram"]
+            Button.button [Button.OnClick (fun _ -> PageMsg EditorPage |> dispatch )] [str "Editor"]
+        ]
         diagramView model dispatch
         editorView model dispatch
     ]

@@ -38,7 +38,7 @@ let hideView model dispatch =
     ]
 
 let displayView model dispatch =
-    model.Canvas.ResizeCanvas 1000 500
+    model.Canvas.ResizeCanvas 2000 2000
     div [] [
         model.Canvas.CanvasReactElement (InitCanvas >> dispatch) Visible
         Button.button [ Button.Props [ OnClick (fun _ -> model.Canvas.CreateBox()) ] ] [ str "Add box" ]

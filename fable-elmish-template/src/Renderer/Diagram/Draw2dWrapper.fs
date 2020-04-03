@@ -96,8 +96,11 @@ type Draw2dReact(initialProps) =
     inherit PureStatelessComponent<Draw2dReactProps>(initialProps)
 
     let divId = "Draw2dCanvas"
-    let hiddenStyle = Style [ Height "0px"; Width "0px" ]
-    let visibleStyle = Style [ Height "500px"; Width "1000px" ]
+    let hiddenStyle = Style [ Width "0px"; Height "0px" ]
+    let visibleStyle = Style [
+        //Width "70%"; Height "500px";
+        Position "absolute"; Top "40px"; Left "0px"; Bottom "100px"; Right "0px"
+    ]
 
     override this.componentDidMount() =
         log "Mounting Draw2dReact component"

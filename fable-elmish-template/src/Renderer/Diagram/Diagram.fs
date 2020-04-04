@@ -17,18 +17,26 @@ open JSHelpers
 type Model = {
     Canvas : Draw2dWrapper // JS Canvas object.
     Zoom : float
+    State : Component list * Connection list
 }
 
 type Messages =
     | InitCanvas of Canvas
+    | UpdateState of Component list * Connection list
     //| ZoomIn
     //| ZoomOut
 
 // -- Init Model
 
-let init() = { Canvas = new Draw2dWrapper(); Zoom = 1.0 }
+let init() = { Canvas = new Draw2dWrapper(); Zoom = 1.0; State = [], []}
 
 // -- Create View
+
+let prettyPrintState (components, connections) =
+    [ str "Components:"; br [] ] @
+    List.collect (fun c -> [ str <| sprintf "%A" c; br [] ]) components @
+    [ str "Connections:"; br [] ] @
+    List.collect (fun c -> [ str <| sprintf "%A" c; br [] ]) connections
 
 let extractComponents (jsComponents : JSComponents) : Component list =
     let extractPorts ports portType =
@@ -60,17 +68,18 @@ let extractConnections (jsConnections : JSConnections) : Connection list =
     let connectionsLen : int = jsConnections?length
     List.map (fun (i : int) -> extract jsConnections?(i)) [0..connectionsLen - 1]
 
-let extractState (state : CanvasState) =
+let extractState (state : CanvasState) dispatch =
     log state
     let components : JSComponents = state?components
     let connections : JSConnections = state?connections
     log <| extractComponents components
     log <| extractConnections connections
+    dispatch <| UpdateState (extractComponents components, extractConnections connections)
 
-let getStateAction model =
+let getStateAction model dispatch =
     match model.Canvas.GetCanvasState () with
     | None -> ()
-    | Some state -> extractState state |> ignore
+    | Some state -> extractState state dispatch
 
 let hideView model dispatch =
     div [] [
@@ -81,7 +90,8 @@ let displayView model dispatch =
     div [] [
         model.Canvas.CanvasReactElement (InitCanvas >> dispatch) Visible
         Button.button [ Button.Props [ OnClick (fun _ -> model.Canvas.CreateBox()) ] ] [ str "Add box" ]
-        Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model) ] ] [ str "Get state" ]
+        Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
+        div [ Style [Position "absolute"; Bottom "10px"] ] (prettyPrintState model.State)
         //Button.button [ Button.Props [ OnClick (fun _ -> dispatch ZoomIn)] ] [ str "Zoom in" ]
         //Button.button [ Button.Props [ OnClick (fun _ -> dispatch ZoomOut)] ] [ str "Zoom out" ]
     ]
@@ -93,6 +103,7 @@ let update msg model =
     | InitCanvas canvas ->
         model.Canvas.InitCanvas canvas // Side effect of changing the wrapper state.
         model
+    | UpdateState (com, con) -> {model with State = (com, con)}
     //| ZoomIn ->
     //    model.Canvas.SetZoom <| min (model.Zoom + 0.5) 10.0
     //    { model with Zoom = model.Zoom + 0.5 }

@@ -2,6 +2,7 @@ module CodeMirrorWrapper
 
 open EditorTypes
 open JSHelpers
+open EditorStyle
 
 open Fable.Core
 open Fable.Core.JsInterop
@@ -42,8 +43,6 @@ type CodeMirrorReact(initialProps) =
     inherit PureStatelessComponent<CodeMirrorReactProps>(initialProps)
 
     let divId = "codeMirrorEditor"
-    let hiddenStyle = Style [ Height "0px"; Width "0px" ]
-    let visibleStyle = Style [ Height "auto"; Width "auto" ]
 
     override this.componentDidMount() =
         log "Mounting CodeMirrorReact component"
@@ -51,8 +50,8 @@ type CodeMirrorReact(initialProps) =
 
     override this.render() =
         let style = match this.props.DisplayMode with
-                    | Hidden -> hiddenStyle
-                    | Visible -> visibleStyle
+                    | Hidden -> editorHiddenStyle
+                    | Visible -> editorVisibleStyle
         div [ Id divId; style ] []
 
 let inline private createCodeMirrorReact props = ofType<CodeMirrorReact,_,_> props []

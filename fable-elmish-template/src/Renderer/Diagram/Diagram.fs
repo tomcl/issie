@@ -13,6 +13,7 @@ open Fable.Core.JsInterop
 open DiagramTypes
 open Draw2dWrapper
 open JSHelpers
+open DiagramStyle
 
 type Model = {
     Canvas : Draw2dWrapper // JS Canvas object.
@@ -89,9 +90,12 @@ let hideView model dispatch =
 let displayView model dispatch =
     div [] [
         model.Canvas.CanvasReactElement (InitCanvas >> dispatch) Visible
-        Button.button [ Button.Props [ OnClick (fun _ -> model.Canvas.CreateBox()) ] ] [ str "Add box" ]
-        Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
-        div [ Style [Position "absolute"; Bottom "10px"] ] (prettyPrintState model.State)
+        div [ rightSectionStyle ] [ str "hello" ]
+        div [ bottomSectionStyle ] [
+            Button.button [ Button.Props [ OnClick (fun _ -> model.Canvas.CreateBox()) ] ] [ str "Add box" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
+            div [] (prettyPrintState model.State)
+        ]
         //Button.button [ Button.Props [ OnClick (fun _ -> dispatch ZoomIn)] ] [ str "Zoom in" ]
         //Button.button [ Button.Props [ OnClick (fun _ -> dispatch ZoomOut)] ] [ str "Zoom out" ]
     ]

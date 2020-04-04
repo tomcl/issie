@@ -4,6 +4,29 @@ open CommonStyle
 
 open Fable.Helpers.React.Props
 
+let rightSectionWidth = "400px"
+let bottomSectionHeight = "300px"
+
+let rightSectionStyle = Style [
+    Position "absolute"
+    Right "0px"
+    Height (sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
+    Width rightSectionWidth
+    Overflow "scroll"
+    Border "2px solid gray"
+    //BackgroundColor "red"
+]
+
+let bottomSectionStyle =  Style [
+    Position "absolute"
+    Bottom "0px"
+    Height bottomSectionHeight
+    Width (sprintf "calc(100%s - %s)" "%" rightSectionWidth) // WindowSize - rightSectionWidth
+    Overflow "scroll"
+    Border "2px solid gray"
+    //BackgroundColor "blue"
+]
+
 let canvasHiddenStyle = Style [
     Display "none"
 ]
@@ -12,11 +35,10 @@ let canvasVisibleStyle = Style [
     Display "block"
     Position "absolute" // Required to work.
     Overflow "scroll"
-    // Important is necessary to 
-    Top (important headerHeight) // Placed just under the header.
-    Left (important "0px")
-    Bottom (important "300px") // Leave some space at the bottom. TODO: make this relative to window size?
-    Right (important "400px")
+    // Important is necessary to
+    Top headerHeight // Placed just under the header.
+    Left "0px"
+    Bottom bottomSectionHeight // Leave some space at the bottom.
+    Right rightSectionWidth
     Border "2px solid gray"
 ]
-

@@ -74,6 +74,23 @@ let private createBox (canvas : Canvas) (x : int) (y : int) (width : int) (heigh
     addFigureToCanvas canvas box
     box
 
+// TODO this can be probably made more efficient by only returning the
+// attributes we care about.
+[<Emit("
+(function () {
+    let components = [];
+    $0.getFigures().each(function (i, figure) {
+        components.push(figure.getPersistentAttributes());
+    });
+    let connections = [];
+    $0.getLines().each(function (i, element) {
+        connections.push(element.getPersistentAttributes());
+    });
+    return {components: components, connections: connections};
+})();
+")>]
+let private getCanvasState (canvas : Canvas) : CanvasState = jsNative
+
 [<Emit("
 var writer = new draw2d.io.json.Writer();
 writer.marshal($0,function(json){
@@ -144,3 +161,11 @@ type Draw2dWrapper() =
         match canvas with
         | None -> log "Warning: Draw2dWrapper.SetZoom called when canvas is None"
         | Some c -> setZoom c zoom 
+
+    member this.GetCanvasState () =
+        match canvas with
+        | None ->
+            log "Warning: Draw2dWrapper.GetCanvasState called when canvas is None"
+            None
+        | Some c ->
+            Some <| getCanvasState c

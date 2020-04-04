@@ -58,19 +58,23 @@ let private createAndInitialiseCanvas (id : string) : Canvas =
     canvas
 
 [<Emit("$0.add($1);")>]
-let private addFigureToCanvas (canvas : Canvas) figure : unit = jsNative
+let private addFigureToCanvas (canvas : Canvas) (figure : Figure) : unit = jsNative
 
 [<Emit("$0.createPort($1)")>]
-let private addPort (box : Box) (portName : string) : unit = jsNative
+let private addPort (figure : Figure) (portName : string) : unit = jsNative
 // Only input or output?
 
-[<Emit("new draw2d.shape.basic.Rectangle({x:$0,y:$1,width:$2,height:$3});")>]
-let private createBox' (x : int) (y : int) (width : int) (height : int) : Box = jsNative
+[<Emit("$0.add(new draw2d.shape.basic.Label({text:$1, stroke:0}), new draw2d.layout.locator.TopLocator());")>]
+let private addLabel (figure : Figure) (label : string) : unit = jsNative
 
-let private createBox (canvas : Canvas) (x : int) (y : int) (width : int) (height : int) : Box =
+[<Emit("new draw2d.shape.basic.Rectangle({x:$0,y:$1,width:$2,height:$3,resizeable:false});")>]
+let private createBox' (x : int) (y : int) (width : int) (height : int) : Figure = jsNative
+
+let private createBox (canvas : Canvas) (x : int) (y : int) (width : int) (height : int) : Figure =
     let box = createBox' x y width height
     addPort box "input"
     addPort box "output"
+    addLabel box "box"
     addFigureToCanvas canvas box
     box
 

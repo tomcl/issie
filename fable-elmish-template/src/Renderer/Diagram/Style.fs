@@ -15,7 +15,7 @@ let canvasVisibleStyle = Style [
     // Important is necessary to 
     Top (important headerHeight) // Placed just under the header.
     Left (important "0px")
-    Bottom (important "100px") // Leave some space at the bottom. TODO: make this relative to window size?
+    Bottom (important "300px") // Leave some space at the bottom. TODO: make this relative to window size?
     Right (important "400px")
     Border "2px solid gray"
 ]

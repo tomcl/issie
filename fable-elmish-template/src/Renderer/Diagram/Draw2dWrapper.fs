@@ -84,7 +84,7 @@ let private installSelectionPolicy (figure : JSComponent) (onSelect : JSComponen
 [<Emit("new draw2d.shape.basic.Rectangle({x:$0,y:$1,width:$2,height:$3,resizeable:false});")>]
 let private createBox' (x : int) (y : int) (width : int) (height : int) : JSComponent = jsNative
 
-let private createBox (canvas : JSCanvas) (x : int) (y : int) (width : int) (height : int) (dispatch : JSEditorMsg -> unit): JSComponent =
+let private createBox (canvas : JSCanvas) (x : int) (y : int) (width : int) (height : int) (dispatch : JSDiagramMsg -> unit): JSComponent =
     let box = createBox' x y width height
     addPort box "input"
     addPort box "output"
@@ -118,7 +118,7 @@ let private setZoom (canvas : JSCanvas) (zoom : float) : unit = jsNative
 type DisplayModeType = Hidden | Visible
 
 type Draw2dReactProps = {
-    Dispatch : JSEditorMsg -> unit
+    Dispatch : JSDiagramMsg -> unit
     DisplayMode : DisplayModeType
 }
 
@@ -141,18 +141,18 @@ let inline private createDraw2dReact props = ofType<Draw2dReact,_,_> props []
 
 type Draw2dWrapper() =
     let mutable canvas : JSCanvas option = None
-    let mutable dispatch : (JSEditorMsg -> unit) option = None
+    let mutable dispatch : (JSDiagramMsg -> unit) option = None
 
     /// Returns a react element containing the canvas.
-    /// The dispatch function has to be: JSEditorMsg >> dispatch
-    member this.CanvasReactElement jsEditorMsgDispatch displayMode =
+    /// The dispatch function has to be: JSDiagramMsg >> dispatch
+    member this.CanvasReactElement jsDiagramMsgDispatch displayMode =
         // Initialise dispatch if needed.
         match dispatch with
-        | None -> dispatch <- Some jsEditorMsgDispatch
+        | None -> dispatch <- Some jsDiagramMsgDispatch
         | Some _ -> ()
         // Return react element with relevant props.
         createDraw2dReact {
-            Dispatch = jsEditorMsgDispatch
+            Dispatch = jsDiagramMsgDispatch
             DisplayMode = displayMode
         }
 

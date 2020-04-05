@@ -19,10 +19,6 @@ type Model = {
     Code: string;
 }
 
-type Messages =
-    | InitEditor of Editor // This message has to be dispatched only once.
-    | GetCode
-
 // -- Init Model
 
 let init() = { Code = ""; Editor = new CodeMirrorWrapper() }
@@ -32,7 +28,7 @@ let init() = { Code = ""; Editor = new CodeMirrorWrapper() }
 /// View when the page is selected.
 let displayView model dispatch =
     div [] [
-        model.Editor.EditorReactElement (InitEditor >> dispatch) Visible
+        model.Editor.EditorReactElement (JSEditorMsg >> dispatch) Visible
         Button.button [ Button.OnClick (fun _ -> GetCode |> dispatch )] [ str "Get code" ]
         div [] [ str model.Code ]
     ]
@@ -41,14 +37,18 @@ let displayView model dispatch =
 /// because the editor is attached to it.
 let hideView model dispatch =
     div [] [
-        model.Editor.EditorReactElement (InitEditor >> dispatch) Hidden
+        model.Editor.EditorReactElement (JSEditorMsg >> dispatch) Hidden
     ]
 
 // -- Update Model
 
-let update msg model =
+let handleJSEditorMsg msg model =
     match msg with
     | InitEditor editor ->
         model.Editor.InitEditor editor
         model
+
+let update msg model =
+    match msg with
+    | JSEditorMsg msg' -> handleJSEditorMsg msg' model
     | GetCode -> { model with Code = model.Editor.GetCode() }

@@ -36,13 +36,13 @@ type Connection = {
 //==========//
 
 // Messages that will be sent from JS code.
-type JSEditorMsg =
-    | InitCanvas of JSCanvas
+type JSDiagramMsg =
+    | InitCanvas of JSCanvas // Has to be dispatched only once.
     | SelectFigure of JSComponent
     | UnselectFigure of JSComponent
 
 type Msg =
-    | JSEditorMsg of JSEditorMsg
+    | JSDiagramMsg of JSDiagramMsg
     | UpdateState of Component list * Connection list
     //| ZoomIn
     //| ZoomOut

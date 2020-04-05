@@ -22,20 +22,20 @@ CodeMirror(document.getElementById($0), {
   theme: \"mbo\", // Not working?
   mode: {name: \"verilog\"}
 });")>]
-let private createEditor (id : string) : Editor = jsNative
+let private createEditor (id : string) : JSEditor = jsNative
 
 [<Emit("$0.getValue()")>]
-let private getCode (editor : Editor) : string = jsNative
+let private getCode (editor : JSEditor) : string = jsNative
 
 [<Emit("$0.setValue($1)")>]
-let private setCode (editor : Editor) (code : string) : unit = jsNative
+let private setCode (editor : JSEditor) (code : string) : unit = jsNative
 
 // React wrapper.
 
 type DisplayModeType = Hidden | Visible
 
 type CodeMirrorReactProps = {
-    DispatchFunc : Editor -> unit
+    Dispatch : JSEditorMsg -> unit
     DisplayMode : DisplayModeType
 }
 
@@ -46,7 +46,7 @@ type CodeMirrorReact(initialProps) =
 
     override this.componentDidMount() =
         log "Mounting CodeMirrorReact component"
-        this.props.DispatchFunc <| createEditor divId
+        createEditor divId |> InitEditor |> this.props.Dispatch 
 
     override this.render() =
         let style = match this.props.DisplayMode with
@@ -57,12 +57,16 @@ type CodeMirrorReact(initialProps) =
 let inline private createCodeMirrorReact props = ofType<CodeMirrorReact,_,_> props []
 
 type CodeMirrorWrapper() =
-    let mutable editor : Editor option = None
+    let mutable editor : JSEditor option = None
 
     /// Returns a react element containing the editor.
-    /// The dispatch function has to be: InitEditor >> dispatch
-    member this.EditorReactElement dispatch displayMode =
-        createCodeMirrorReact { DispatchFunc = dispatch; DisplayMode = displayMode } // Already created.
+    /// The dispatch function has to be: JSEditorMsg >> dispatch
+    member this.EditorReactElement jsEditorMsgDispatch displayMode =
+        // Return react element with relevant props.
+        createCodeMirrorReact {
+            Dispatch = jsEditorMsgDispatch
+            DisplayMode = displayMode
+        }
 
     member this.InitEditor newEditor =
         match editor with

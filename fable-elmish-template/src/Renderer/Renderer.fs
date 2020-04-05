@@ -28,7 +28,7 @@ type Model = {
 type Messages =
     | PageMsg of Page
     | DiagramMsg of DiagramTypes.Msg
-    | EditorMsg of Editor.Messages
+    | EditorMsg of EditorTypes.Msg
 
 // -- Init Model
 

@@ -16,14 +16,14 @@ open JSHelpers
 open DiagramStyle
 
 type Model = {
-    Canvas : Draw2dWrapper
+    Diagram : Draw2dWrapper
     Zoom : float
     State : Component list * Connection list
 }
 
 // -- Init Model
 
-let init() = { Canvas = new Draw2dWrapper(); Zoom = 1.0; State = [], []}
+let init() = { Diagram = new Draw2dWrapper(); Zoom = 1.0; State = [], []}
 
 // -- Create View
 
@@ -70,21 +70,21 @@ let extractState (state : JSCanvasState) =
     extractComponents components, extractConnections connections
 
 let getStateAction model dispatch =
-    match model.Canvas.GetCanvasState () with
+    match model.Diagram.GetCanvasState () with
     | None -> ()
     | Some state -> extractState state |> UpdateState |> dispatch
 
 let hideView model dispatch =
     div [] [
-        model.Canvas.CanvasReactElement (JSEditorMsg >> dispatch) Hidden
+        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Hidden
     ]
 
 let displayView model dispatch =
     div [] [
-        model.Canvas.CanvasReactElement (JSEditorMsg >> dispatch) Visible
+        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Visible
         div [ rightSectionStyle ] [ str "hello" ]
         div [ bottomSectionStyle ] [
-            Button.button [ Button.Props [ OnClick (fun _ -> model.Canvas.CreateBox()) ] ] [ str "Add box" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreateBox()) ] ] [ str "Add box" ]
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
             div [] (prettyPrintState model.State)
         ]
@@ -94,10 +94,10 @@ let displayView model dispatch =
 
 // -- Update Model
 
-let handleJSEditorMsgs msg model =
+let handleJSDiagramMsg msg model =
     match msg with
     | InitCanvas canvas -> // Should be triggered only once.
-        model.Canvas.InitCanvas canvas
+        model.Diagram.InitCanvas canvas
         model
     | SelectFigure figure ->
         log "selected"
@@ -110,7 +110,7 @@ let handleJSEditorMsgs msg model =
 
 let update msg model =
     match msg with
-    | JSEditorMsg msg' -> handleJSEditorMsgs msg' model
+    | JSDiagramMsg msg' -> handleJSDiagramMsg msg' model
     | UpdateState (com, con) -> {model with State = (com, con)}
     //| ZoomIn ->
     //    model.Canvas.SetZoom <| min (model.Zoom + 0.5) 10.0

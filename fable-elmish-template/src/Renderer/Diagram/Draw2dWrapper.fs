@@ -95,14 +95,6 @@ let private createBox (canvas : Canvas) (x : int) (y : int) (width : int) (heigh
 ")>]
 let private getCanvasState (canvas : Canvas) : CanvasState = jsNative
 
-[<Emit("
-var writer = new draw2d.io.json.Writer();
-writer.marshal($0,function(json){
-    console.log(JSON.stringify(json, null, 2));
-});
-")>]
-let private logCanvas (canvas : Canvas) : unit = jsNative
-
 [<Emit("$0.setZoom($1, true);")>]
 let private setZoom (canvas : Canvas) (zoom : float) : unit = jsNative
 
@@ -144,12 +136,6 @@ type Draw2dWrapper() =
         match canvas with
         | None -> canvas <- Some newCanvas
         | Some _ -> failwithf "what? InitCanvas should never be called when canvas is already created" 
-
-    member this.GetDiagram () = // TODO
-        match canvas with
-        | None ->
-            log "Warning: Draw2dWrapper.GetDiagram called when canvas is None"
-        | Some c -> logCanvas c
     
     member this.CreateBox () =
         match canvas with

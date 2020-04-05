@@ -4,16 +4,14 @@ module DiagramTypes
 // Types for library interface //
 //=============================//
 
-type Canvas = | Canvas of obj
-type Figure = | Figure of obj
+type JSCanvas      = | JSCanvas of obj
+type JSCanvasState = | JSCanvasState of obj // Only the relevant fields from a JSCanvas.
+type JSComponent   = | JSComponent of obj
+type JSComponents  = | JSComponents of obj // JS list of JSComponent.
+type JSConnection  = | JSConnection of obj
+type JSConnections = | JSConnections of obj // JS list of JSConnection.
 
-//=============================//
-// Types for the diagram state //
-//=============================//
-
-type CanvasState   = | CanvasState of obj // A JSON object.
-type JSComponents  = | JSComponents of obj // A JSON object.
-type JSConnections = | JSConnections of obj // A JSON object.
+// TODO unify the type for ports.
 
 // Component mapped to f# object.
 type Component = {
@@ -29,6 +27,22 @@ type ConnectionPort = {
 }
 type Connection = {
     Id : string
-    Source : ConnectionPort
-    Target : ConnectionPort
+    Source : ConnectionPort // Will always be an output port.
+    Target : ConnectionPort // Will always be an input port.
 }
+
+//==========//
+// Messages //
+//==========//
+
+// Messages that will be sent from JS code.
+type JSEditorMsg =
+    | InitCanvas of JSCanvas
+    | SelectFigure of JSComponent
+    | UnselectFigure of JSComponent
+
+type Msg =
+    | JSEditorMsg of JSEditorMsg
+    | UpdateState of Component list * Connection list
+    //| ZoomIn
+    //| ZoomOut

@@ -16,16 +16,10 @@ open Fable.Import.React
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
-// Messages that will be sent from JS code.
-type JSEditorMsg =
-    | InitCanvas of Canvas
-    | SelectFigure of Figure
-    | UnselectFigure of Figure
-
 // Interface with JS library.
 
 [<Emit("new draw2d.Canvas($0);")>]
-let private createCanvas (id : string) : Canvas = jsNative
+let private createCanvas (id : string) : JSCanvas = jsNative
 
 [<Emit("
 // Show canvas grid.
@@ -49,29 +43,29 @@ $0.installEditPolicy( new draw2d.policy.connection.ComposedConnectionCreatePolic
 );
 // 
 ")>]
-let private initialiseCanvas (canvas : Canvas) : unit = jsNative
+let private initialiseCanvas (canvas : JSCanvas) : unit = jsNative
 
 [<Emit("
 const dim = new draw2d.geo.Rectangle({x:0,y:0,width:$1,height:$2});
 $0.setDimension(dim);
 ")>]
-let private resizeCanvas (canvas : Canvas) (width : int) (height : int) : unit = jsNative
+let private resizeCanvas (canvas : JSCanvas) (width : int) (height : int) : unit = jsNative
 
-let private createAndInitialiseCanvas (id : string) : Canvas =
+let private createAndInitialiseCanvas (id : string) : JSCanvas =
     let canvas = createCanvas id
     initialiseCanvas canvas
     //resizeCanvas canvas 2000 1000
     canvas
 
 [<Emit("$0.add($1);")>]
-let private addFigureToCanvas (canvas : Canvas) (figure : Figure) : unit = jsNative
+let private addFigureToCanvas (canvas : JSCanvas) (figure : JSComponent) : unit = jsNative
 
 [<Emit("$0.createPort($1)")>]
-let private addPort (figure : Figure) (portName : string) : unit = jsNative
+let private addPort (figure : JSComponent) (portName : string) : unit = jsNative
 // Only input or output?
 
 [<Emit("$0.add(new draw2d.shape.basic.Label({text:$1, stroke:0}), new draw2d.layout.locator.TopLocator());")>]
-let private addLabel (figure : Figure) (label : string) : unit = jsNative
+let private addLabel (figure : JSComponent) (label : string) : unit = jsNative
 
 [<Emit("
 $0.installEditPolicy(new draw2d.policy.figure.AntSelectionFeedbackPolicy({
@@ -85,12 +79,12 @@ $0.installEditPolicy(new draw2d.policy.figure.AntSelectionFeedbackPolicy({
     }
 }));
 ")>]
-let private installSelectionPolicy (figure : Figure) (onSelect : Figure -> unit) (onUnselect : Figure -> unit) : unit = jsNative
+let private installSelectionPolicy (figure : JSComponent) (onSelect : JSComponent -> unit) (onUnselect : JSComponent -> unit) : unit = jsNative
 
 [<Emit("new draw2d.shape.basic.Rectangle({x:$0,y:$1,width:$2,height:$3,resizeable:false});")>]
-let private createBox' (x : int) (y : int) (width : int) (height : int) : Figure = jsNative
+let private createBox' (x : int) (y : int) (width : int) (height : int) : JSComponent = jsNative
 
-let private createBox (canvas : Canvas) (x : int) (y : int) (width : int) (height : int) (dispatch : JSEditorMsg -> unit): Figure =
+let private createBox (canvas : JSCanvas) (x : int) (y : int) (width : int) (height : int) (dispatch : JSEditorMsg -> unit): JSComponent =
     let box = createBox' x y width height
     addPort box "input"
     addPort box "output"
@@ -114,10 +108,10 @@ let private createBox (canvas : Canvas) (x : int) (y : int) (width : int) (heigh
     return {components: components, connections: connections};
 })();
 ")>]
-let private getCanvasState (canvas : Canvas) : CanvasState = jsNative
+let private getCanvasState (canvas : JSCanvas) : JSCanvasState = jsNative
 
 [<Emit("$0.setZoom($1, true);")>]
-let private setZoom (canvas : Canvas) (zoom : float) : unit = jsNative
+let private setZoom (canvas : JSCanvas) (zoom : float) : unit = jsNative
 
 // React wrapper.
 
@@ -146,7 +140,7 @@ type Draw2dReact(initialProps) =
 let inline private createDraw2dReact props = ofType<Draw2dReact,_,_> props []
 
 type Draw2dWrapper() =
-    let mutable canvas : Canvas option = None
+    let mutable canvas : JSCanvas option = None
     let mutable dispatch : (JSEditorMsg -> unit) option = None
 
     /// Returns a react element containing the canvas.

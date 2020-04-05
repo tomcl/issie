@@ -16,16 +16,10 @@ open JSHelpers
 open DiagramStyle
 
 type Model = {
-    Canvas : Draw2dWrapper // JS Canvas object.
+    Canvas : Draw2dWrapper
     Zoom : float
     State : Component list * Connection list
 }
-
-type Messages =
-    | JSEditorMsg of JSEditorMsg
-    | UpdateState of Component list * Connection list
-    //| ZoomIn
-    //| ZoomOut
 
 // -- Init Model
 
@@ -69,18 +63,16 @@ let extractConnections (jsConnections : JSConnections) : Connection list =
     let connectionsLen : int = jsConnections?length
     List.map (fun (i : int) -> extract jsConnections?(i)) [0..connectionsLen - 1]
 
-let extractState (state : CanvasState) dispatch =
+let extractState (state : JSCanvasState) =
     log state
     let components : JSComponents = state?components
     let connections : JSConnections = state?connections
-    log <| extractComponents components
-    log <| extractConnections connections
-    dispatch <| UpdateState (extractComponents components, extractConnections connections)
+    extractComponents components, extractConnections connections
 
 let getStateAction model dispatch =
     match model.Canvas.GetCanvasState () with
     | None -> ()
-    | Some state -> extractState state dispatch
+    | Some state -> extractState state |> UpdateState |> dispatch
 
 let hideView model dispatch =
     div [] [

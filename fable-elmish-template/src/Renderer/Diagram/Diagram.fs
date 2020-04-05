@@ -7,6 +7,7 @@ open Elmish.React
 open Elmish.Debug
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
+open Fable.Import.Browser
 open Fable.Core
 open Fable.Core.JsInterop
 
@@ -19,11 +20,17 @@ type Model = {
     Diagram : Draw2dWrapper
     Zoom : float
     State : Component list * Connection list
+    SelectedComponent : (Component * JSComponent) option // Keep a ref to the original jsObject to edit it.
 }
 
 // -- Init Model
 
-let init() = { Diagram = new Draw2dWrapper(); Zoom = 1.0; State = [], []}
+let init() = {
+    Diagram = new Draw2dWrapper()
+    Zoom = 1.0
+    State = [], []
+    SelectedComponent = None
+}
 
 // -- Create View
 
@@ -33,28 +40,30 @@ let prettyPrintState (components, connections) =
     [ str "Connections:"; br [] ] @
     List.collect (fun c -> [ str <| sprintf "%A" c; br [] ]) connections
 
+let extractPorts jsPorts =
+    let extractPort jsPort = jsPort?id
+    let portsLen = jsPorts?length
+    List.map (fun i -> extractPort jsPorts?(i)) [0..portsLen - 1]
+
+let extractComponent (jsComponent : JSComponent) : Component = {
+    Id = jsComponent?id
+    InputPorts = extractPorts jsComponent?inputPorts?data
+    OutputPorts = extractPorts jsComponent?outputPorts?data
+    // Very hacky. Assume every component has a label children which is the
+    // first children of the array. TODO: do properly.
+    Label = jsComponent?children?data?(0)?figure?text
+}
+
 let extractComponents (jsComponents : JSComponents) : Component list =
-    let extractPorts jsPorts =
-        let extractPort jsPort = jsPort?id
-        let portsLen = jsPorts?length
-        List.map (fun i -> extractPort jsPorts?(i)) [0..portsLen - 1]
-    let extract jsComponent : Component = {
-        Id = jsComponent?id
-        InputPorts = extractPorts jsComponent?inputPorts?data
-        OutputPorts = extractPorts jsComponent?outputPorts?data
-        // Very hacky. Assume every component has a label children which is the
-        // first children of the array. TODO: do properly.
-        Label = jsComponent?children?data?(0)?figure?text
-    }
     let componentsLen : int = jsComponents?length
-    List.map (fun i -> extract jsComponents?(i)) [0..componentsLen - 1]
+    List.map (fun i -> extractComponent jsComponents?(i)) [0..componentsLen - 1]
 
 let extractConnections (jsConnections : JSConnections) : Connection list =
     let extractPort jsPort : ConnectionPort = {
         ComponentId = jsPort?node
         PortId = jsPort?port
     }
-    let extract jsConnection : Connection = {
+    let extract (jsConnection : JSConnection) : Connection = {
         Id = jsConnection?id
         Source = extractPort jsConnection?source
         Target = extractPort jsConnection?target
@@ -73,6 +82,44 @@ let getStateAction model dispatch =
     | None -> ()
     | Some state -> extractState state |> UpdateState |> dispatch
 
+let viewSelectedComponent model =
+    match model.SelectedComponent with
+    | None -> div [] [ str "No component selected" ]
+    | Some (comp, jsComp) ->
+        let formId = "component-properties-form-" + comp.Id
+        let readOnlyFormField name value =
+            Field.div [] [
+                Label.label [] [ str name ]
+                Control.div [] [ Input.text [ Input.Props [ ReadOnly true; Name name ]; Input.IsStatic true; Input.Value value ] ] ]
+        let formField name defaultValue =
+            Field.div [] [
+                Label.label [] [ str name ]
+                Control.div [] [ Input.text [ Input.Props [ Name name ]; Input.DefaultValue defaultValue ] ] ]
+        div [] [
+            form [ Id formId ] [
+                readOnlyFormField "Id" comp.Id
+                formField "Label" comp.Label
+                readOnlyFormField "Input ports" comp.InputPorts.[0]
+                readOnlyFormField "Output ports" comp.OutputPorts.[0]
+                // Submit.
+                Field.div [ Field.IsGrouped ] [
+                    Control.div [] [
+                        Button.button [
+                            Button.Color IsPrimary
+                            Button.OnClick (fun e ->
+                                e.preventDefault()
+                                // TODO: dont think this is the right way to do it.
+                                let form = document.getElementById <| formId
+                                let label : string = form?elements?Label?value
+                                // TODO: again, this very hacky.
+                                jsComp?children?data?(0)?figure?setText(label)
+                            )
+                        ] [ str "Update" ]
+                    ]
+                ]
+            ]
+    ]
+
 let hideView model dispatch =
     div [] [
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Hidden
@@ -81,7 +128,12 @@ let hideView model dispatch =
 let displayView model dispatch =
     div [] [
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Visible
-        div [ rightSectionStyle ] [ str "hello" ]
+        div [ rightSectionStyle ] [
+            div [ Style [Width "90%"; MarginLeft "5%"; ] ] [
+                Heading.h4 [] [ str "Component properties" ]
+                viewSelectedComponent model
+            ]
+        ]
         div [ bottomSectionStyle ] [
             Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreateBox()) ] ] [ str "Add box" ]
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
@@ -98,14 +150,10 @@ let handleJSDiagramMsg msg model =
     | InitCanvas canvas -> // Should be triggered only once.
         model.Diagram.InitCanvas canvas
         model
-    | SelectFigure figure ->
-        log "selected"
-        log figure
-        model
-    | UnselectFigure figure ->
-        log "unselected"
-        log figure
-        model
+    | SelectComponent jsComponent ->
+        { model with SelectedComponent = Some (extractComponent jsComponent, jsComponent) }
+    | UnselectComponent jsComponent ->
+         { model with SelectedComponent = None }
 
 let update msg model =
     match msg with

@@ -39,8 +39,8 @@ type Connection = {
 // Messages that will be sent from JS code.
 type JSDiagramMsg =
     | InitCanvas of JSCanvas // Has to be dispatched only once.
-    | SelectFigure of JSComponent
-    | UnselectFigure of JSComponent
+    | SelectComponent of JSComponent
+    | UnselectComponent of JSComponent
 
 type Msg =
     | JSDiagramMsg of JSDiagramMsg

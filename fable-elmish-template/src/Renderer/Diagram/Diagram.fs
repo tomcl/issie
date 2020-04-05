@@ -34,21 +34,20 @@ let prettyPrintState (components, connections) =
     List.collect (fun c -> [ str <| sprintf "%A" c; br [] ]) connections
 
 let extractComponents (jsComponents : JSComponents) : Component list =
-    let extractPorts ports portType =
-        let portsLen = ports?length
-        ([], [0..portsLen - 1]) ||> List.fold (
-            fun state idx ->
-                if ports?(idx)?port = portType // Append only if the portType is what required.
-                then ports?(idx)?name :: state
-                else state
-        )
+    let extractPorts jsPorts =
+        let extractPort jsPort = jsPort?id
+        let portsLen = jsPorts?length
+        List.map (fun i -> extractPort jsPorts?(i)) [0..portsLen - 1]
     let extract jsComponent : Component = {
         Id = jsComponent?id
-        InputPorts = extractPorts jsComponent?ports "draw2d.InputPort"
-        OutputPorts = extractPorts jsComponent?ports "draw2d.OutputPort" 
+        InputPorts = extractPorts jsComponent?inputPorts?data
+        OutputPorts = extractPorts jsComponent?outputPorts?data
+        // Very hacky. Assume every component has a label children which is the
+        // first children of the array. TODO: do properly.
+        Label = jsComponent?children?data?(0)?figure?text
     }
     let componentsLen : int = jsComponents?length
-    List.map (fun (i : int) -> extract jsComponents?(i)) [0..componentsLen - 1]
+    List.map (fun i -> extract jsComponents?(i)) [0..componentsLen - 1]
 
 let extractConnections (jsConnections : JSConnections) : Connection list =
     let extractPort jsPort : ConnectionPort = {
@@ -61,7 +60,7 @@ let extractConnections (jsConnections : JSConnections) : Connection list =
         Target = extractPort jsConnection?target
     }
     let connectionsLen : int = jsConnections?length
-    List.map (fun (i : int) -> extract jsConnections?(i)) [0..connectionsLen - 1]
+    List.map (fun i -> extract jsConnections?(i)) [0..connectionsLen - 1]
 
 let extractState (state : JSCanvasState) =
     log state

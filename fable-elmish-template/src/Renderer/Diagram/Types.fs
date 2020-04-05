@@ -18,6 +18,7 @@ type Component = {
     Id : string
     InputPorts : string list // list of ids.
     OutputPorts : string list // list of ids.
+    Label : string
 }
 
 // Connection mapped to f# object.

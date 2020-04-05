@@ -95,15 +95,20 @@ let private createBox (canvas : JSCanvas) (x : int) (y : int) (width : int) (hei
 
 // TODO this can be probably made more efficient by only returning the
 // attributes we care about.
+// .getPersistentAttributes removes stuff we need (e.g. labels) and include
+// stuff we dont need for runtime processing.
+// Maybe writing a custom function is the right thing to do.
+// When saving the state of a diagram to a file, you want to get the persitent
+// attributes, of both figures and lines.
 [<Emit("
 (function () {
     let components = [];
     $0.getFigures().each(function (i, figure) {
-        components.push(figure.getPersistentAttributes());
+        components.push(figure);
     });
     let connections = [];
-    $0.getLines().each(function (i, element) {
-        connections.push(element.getPersistentAttributes());
+    $0.getLines().each(function (i, line) {
+        connections.push(line.getPersistentAttributes());
     });
     return {components: components, connections: connections};
 })();

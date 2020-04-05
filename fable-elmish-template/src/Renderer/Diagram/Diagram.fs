@@ -22,7 +22,7 @@ type Model = {
 }
 
 type Messages =
-    | InitCanvas of Canvas
+    | JSEditorMsg of JSEditorMsg
     | UpdateState of Component list * Connection list
     //| ZoomIn
     //| ZoomOut
@@ -84,12 +84,12 @@ let getStateAction model dispatch =
 
 let hideView model dispatch =
     div [] [
-        model.Canvas.CanvasReactElement (InitCanvas >> dispatch) Hidden
+        model.Canvas.CanvasReactElement (JSEditorMsg >> dispatch) Hidden
     ]
 
 let displayView model dispatch =
     div [] [
-        model.Canvas.CanvasReactElement (InitCanvas >> dispatch) Visible
+        model.Canvas.CanvasReactElement (JSEditorMsg >> dispatch) Visible
         div [ rightSectionStyle ] [ str "hello" ]
         div [ bottomSectionStyle ] [
             Button.button [ Button.Props [ OnClick (fun _ -> model.Canvas.CreateBox()) ] ] [ str "Add box" ]
@@ -102,11 +102,23 @@ let displayView model dispatch =
 
 // -- Update Model
 
+let handleJSEditorMsgs msg model =
+    match msg with
+    | InitCanvas canvas -> // Should be triggered only once.
+        model.Canvas.InitCanvas canvas
+        model
+    | SelectFigure figure ->
+        log "selected"
+        log figure
+        model
+    | UnselectFigure figure ->
+        log "unselected"
+        log figure
+        model
+
 let update msg model =
     match msg with
-    | InitCanvas canvas ->
-        model.Canvas.InitCanvas canvas // Side effect of changing the wrapper state.
-        model
+    | JSEditorMsg msg' -> handleJSEditorMsgs msg' model
     | UpdateState (com, con) -> {model with State = (com, con)}
     //| ZoomIn ->
     //    model.Canvas.SetZoom <| min (model.Zoom + 0.5) 10.0

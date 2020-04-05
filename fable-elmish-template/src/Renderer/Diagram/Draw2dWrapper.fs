@@ -16,6 +16,12 @@ open Fable.Import.React
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
+// Messages that will be sent from JS code.
+type JSEditorMsg =
+    | InitCanvas of Canvas
+    | SelectFigure of Figure
+    | UnselectFigure of Figure
+
 // Interface with JS library.
 
 [<Emit("new draw2d.Canvas($0);")>]
@@ -67,14 +73,29 @@ let private addPort (figure : Figure) (portName : string) : unit = jsNative
 [<Emit("$0.add(new draw2d.shape.basic.Label({text:$1, stroke:0}), new draw2d.layout.locator.TopLocator());")>]
 let private addLabel (figure : Figure) (label : string) : unit = jsNative
 
+[<Emit("
+$0.installEditPolicy(new draw2d.policy.figure.AntSelectionFeedbackPolicy({
+    onSelect: function(canvas, figure, isPrimarySelection) {
+        figure.setBackgroundColor('#ff675c');
+        $1(figure);
+    },
+    onUnselect: function(canvas, figure) {
+        figure.setBackgroundColor('gray');
+        $2(figure);
+    }
+}));
+")>]
+let private installSelectionPolicy (figure : Figure) (onSelect : Figure -> unit) (onUnselect : Figure -> unit) : unit = jsNative
+
 [<Emit("new draw2d.shape.basic.Rectangle({x:$0,y:$1,width:$2,height:$3,resizeable:false});")>]
 let private createBox' (x : int) (y : int) (width : int) (height : int) : Figure = jsNative
 
-let private createBox (canvas : Canvas) (x : int) (y : int) (width : int) (height : int) : Figure =
+let private createBox (canvas : Canvas) (x : int) (y : int) (width : int) (height : int) (dispatch : JSEditorMsg -> unit): Figure =
     let box = createBox' x y width height
     addPort box "input"
     addPort box "output"
     addLabel box "box"
+    installSelectionPolicy box (SelectFigure >> dispatch) (UnselectFigure >> dispatch)
     addFigureToCanvas canvas box
     box
 
@@ -103,7 +124,7 @@ let private setZoom (canvas : Canvas) (zoom : float) : unit = jsNative
 type DisplayModeType = Hidden | Visible
 
 type Draw2dReactProps = {
-    DispatchFunc : Canvas -> unit
+    Dispatch : JSEditorMsg -> unit
     DisplayMode : DisplayModeType
 }
 
@@ -114,7 +135,7 @@ type Draw2dReact(initialProps) =
 
     override this.componentDidMount() =
         log "Mounting Draw2dReact component"
-        this.props.DispatchFunc <| createAndInitialiseCanvas divId
+        createAndInitialiseCanvas divId |> InitCanvas |> this.props.Dispatch
 
     override this.render() =
         let style = match this.props.DisplayMode with
@@ -126,11 +147,20 @@ let inline private createDraw2dReact props = ofType<Draw2dReact,_,_> props []
 
 type Draw2dWrapper() =
     let mutable canvas : Canvas option = None
+    let mutable dispatch : (JSEditorMsg -> unit) option = None
 
     /// Returns a react element containing the canvas.
-    /// The dispatch function has to be: InitCanvas >> dispatch
-    member this.CanvasReactElement dispatch displayMode =
-        createDraw2dReact { DispatchFunc = dispatch; DisplayMode = displayMode } // Already created.
+    /// The dispatch function has to be: JSEditorMsg >> dispatch
+    member this.CanvasReactElement jsEditorMsgDispatch displayMode =
+        // Initialise dispatch if needed.
+        match dispatch with
+        | None -> dispatch <- Some jsEditorMsgDispatch
+        | Some _ -> ()
+        // Return react element with relevant props.
+        createDraw2dReact {
+            Dispatch = jsEditorMsgDispatch
+            DisplayMode = displayMode
+        }
 
     member this.InitCanvas newCanvas =
         match canvas with
@@ -138,9 +168,9 @@ type Draw2dWrapper() =
         | Some _ -> failwithf "what? InitCanvas should never be called when canvas is already created" 
     
     member this.CreateBox () =
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.CreateBox called when canvas is None"
-        | Some c -> createBox c 100 100 50 50 |> ignore
+        match canvas, dispatch with
+        | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateBox called when canvas or dispatch is None"
+        | Some c, Some d -> createBox c 100 100 50 50 d |> ignore
     
     member this.ResizeCanvas width height =
         match canvas with

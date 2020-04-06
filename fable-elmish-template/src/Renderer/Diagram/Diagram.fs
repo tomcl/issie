@@ -92,9 +92,12 @@ let viewSelectedComponent model =
                 Label.label [] [ str name ]
                 Control.div [] [ Input.text [ Input.Props [ ReadOnly true; Name name ]; Input.IsStatic true; Input.Value value ] ] ]
         let formField name defaultValue =
+            // Use comp.Id as key to refresh. DefaultValue is only updated when
+            // the form is created and not anymore. The Key force the re-rendering
+            // of the element every time the Key value changes.
             Field.div [] [
                 Label.label [] [ str name ]
-                Control.div [] [ Input.text [ Input.Props [ Name name; Key defaultValue ]; Input.DefaultValue defaultValue ] ] ]
+                Control.div [] [ Input.text [ Input.Props [ Name name; Key comp.Id ]; Input.DefaultValue defaultValue ] ] ]
         form [ Id formId ] [
             readOnlyFormField "Id" comp.Id
             formField "Label" comp.Label

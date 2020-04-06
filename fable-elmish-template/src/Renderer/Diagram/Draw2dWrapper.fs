@@ -7,6 +7,7 @@ module Draw2dWrapper
 open DiagramTypes
 open JSHelpers
 open DiagramStyle
+open Shapes
 
 open Fable.Core
 open Fable.Core.JsInterop
@@ -114,7 +115,7 @@ let private installSelectionPolicy (figure : JSComponent) (onSelect : JSComponen
 let private createPoint (x : int) (y : int) : JSComponent = jsNative
 
 [<Emit("new draw2d.shape.basic.Polygon({x:$0,y:$1,resizeable:false});")>]
-let private createPolygon' (x : int) (y : int) : JSComponent = jsNative
+let private createPolygon (x : int) (y : int) : JSComponent = jsNative
 
 [<Emit("$0.addVertex($1);")>]
 let private addVertex (polygon : JSComponent) (point : JSComponent) : JSComponent = jsNative
@@ -122,20 +123,21 @@ let private addVertex (polygon : JSComponent) (point : JSComponent) : JSComponen
 [<Emit("$0.removeVertexAt($1);")>]
 let private removeVertexAt (polygon : JSComponent) (index : int) : JSComponent = jsNative
 
-let private createPolygon (canvas : JSCanvas) (x : int) (y : int) (dispatch : JSDiagramMsg -> unit): JSComponent =
-    let pol = createPolygon' x y
-    addVertex pol (createPoint (x + 0) (y + 0)) |> ignore
-    addVertex pol (createPoint (x + 30) (y + 12)) |> ignore
-    addVertex pol (createPoint (x + 30) (y + 38)) |> ignore
-    addVertex pol (createPoint (x + 0) (y + 50)) |> ignore
+let private createShape (canvas : JSCanvas) (shape : Shape) (x : int) (y : int) (dispatch : JSDiagramMsg -> unit): JSComponent =
+    let pol = createPolygon x y
+    // Add vertices.
+    shape.Vertices
+    |> List.map (fun (vx, vy) -> createPoint (x + vx) (y + vy) |> addVertex pol)
+    |> ignore
     // Remove first three default vertices.
     [0..2] |> List.map (fun _ -> removeVertexAt pol 0) |> ignore
-    log pol
-    addPort pol Input DiagramTypes.Left
-    addPort pol Input DiagramTypes.Left
-    addPort pol Input DiagramTypes.Bottom
-    addPort pol Output DiagramTypes.Right
-    addLabel pol "mux"
+    
+    // Add ports.
+    shape.Ports
+    |> List.map (fun (pType, pLocator) -> addPort pol pType pLocator)
+    |> ignore
+
+    addLabel pol shape.Label
     installSelectionPolicy pol
         (SelectComponent >> dispatch)
         (UnselectComponent >> dispatch)
@@ -212,10 +214,15 @@ type Draw2dWrapper() =
         | None -> canvas <- Some newCanvas
         | Some _ -> failwithf "what? InitCanvas should never be called when canvas is already created" 
 
-    member this.CreatePolygon () =
+    member this.CreateMux2 () =
         match canvas, dispatch with
-        | None, _ | _, None -> log "Warning: Draw2dWrapper.CreatePolygon called when canvas or dispatch is None"
-        | Some c, Some d -> createPolygon c 100 100 d |> ignore
+        | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateMux2 called when canvas or dispatch is None"
+        | Some c, Some d -> createShape c mux2 100 100 d |> ignore
+    
+    member this.CreateBox () =
+        match canvas, dispatch with
+        | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateBox called when canvas or dispatch is None"
+        | Some c, Some d -> createShape c box 100 100 d |> ignore
 
     member this.GetCanvasState () =
         match canvas with

@@ -55,12 +55,6 @@ $0.installEditPolicy(new draw2d.policy.canvas.WheelZoomPolicy());
 ")>]
 let private initialiseCanvas (canvas : JSCanvas) : unit = jsNative
 
-[<Emit("
-const dim = new draw2d.geo.Rectangle({x:0,y:0,width:$1,height:$2});
-$0.setDimension(dim);
-")>]
-let private resizeCanvas (canvas : JSCanvas) (width : int) (height : int) : unit = jsNative
-
 let private createAndInitialiseCanvas (id : string) : JSCanvas =
     let canvas = createCanvas id 3000 2000
     initialiseCanvas canvas
@@ -178,11 +172,6 @@ type Draw2dWrapper() =
         match canvas, dispatch with
         | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateBox called when canvas or dispatch is None"
         | Some c, Some d -> createBox c 100 100 50 50 d |> ignore
-    
-    member this.ResizeCanvas width height =
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.ResizeCanvas called when canvas is None"
-        | Some c -> resizeCanvas c width height
 
     member this.GetCanvasState () =
         match canvas with

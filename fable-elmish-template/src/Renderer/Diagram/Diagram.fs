@@ -137,6 +137,7 @@ let displayView model dispatch =
         ]
         div [ bottomSectionStyle ] [
             Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreateBox()) ] ] [ str "Add box" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreatePolygon()) ] ] [ str "Add polygon" ]
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
             div [] (prettyPrintState model.State)
         ]

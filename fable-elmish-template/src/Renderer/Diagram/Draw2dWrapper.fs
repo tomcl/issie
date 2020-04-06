@@ -98,6 +98,37 @@ let private createBox (canvas : JSCanvas) (x : int) (y : int) (width : int) (hei
     addFigureToCanvas canvas box
     box
 
+[<Emit("new draw2d.geo.Point($0, $1);")>]
+let private createPoint (x : int) (y : int) : JSComponent = jsNative
+
+[<Emit("new draw2d.shape.basic.Polygon({x:$0,y:$1,resizeable:false});")>]
+let private createPolygon' (x : int) (y : int) : JSComponent = jsNative
+
+[<Emit("$0.addVertex($1);")>]
+let private addVertex (polygon : JSComponent) (point : JSComponent) : JSComponent = jsNative
+
+[<Emit("$0.removeVertexAt($1);")>]
+let private removeVertexAt (polygon : JSComponent) (index : int) : JSComponent = jsNative
+
+let private createPolygon (canvas : JSCanvas) (x : int) (y : int) (dispatch : JSDiagramMsg -> unit): JSComponent =
+    let pol = createPolygon' x y
+    addVertex pol (createPoint (x + 0) (y + 0)) |> ignore
+    addVertex pol (createPoint (x + 30) (y + 15)) |> ignore
+    addVertex pol (createPoint (x + 30) (y + 35)) |> ignore
+    addVertex pol (createPoint (x + 0) (y + 50)) |> ignore
+    // Remove first three default vertices.
+    [0..2] |> List.map (fun _ -> log <| removeVertexAt pol 0) |> ignore
+    log pol
+    addPort pol "input"
+    addPort pol "input"
+    addPort pol "output"
+    addLabel pol "mux"
+    installSelectionPolicy pol
+        (SelectComponent >> dispatch)
+        (UnselectComponent >> dispatch)
+    addFigureToCanvas canvas pol
+    pol
+
 // TODO this can be probably made more efficient by only returning the
 // attributes we care about.
 // .getPersistentAttributes removes stuff we need (e.g. labels) and include
@@ -172,6 +203,11 @@ type Draw2dWrapper() =
         match canvas, dispatch with
         | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateBox called when canvas or dispatch is None"
         | Some c, Some d -> createBox c 100 100 50 50 d |> ignore
+
+    member this.CreatePolygon () =
+        match canvas, dispatch with
+        | None, _ | _, None -> log "Warning: Draw2dWrapper.CreatePolygon called when canvas or dispatch is None"
+        | Some c, Some d -> createPolygon c 100 100 d |> ignore
 
     member this.GetCanvasState () =
         match canvas with

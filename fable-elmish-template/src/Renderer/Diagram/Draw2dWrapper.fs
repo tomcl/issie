@@ -89,7 +89,9 @@ let private createBox (canvas : JSCanvas) (x : int) (y : int) (width : int) (hei
     addPort box "input"
     addPort box "output"
     addLabel box "box"
-    installSelectionPolicy box (SelectFigure >> dispatch) (UnselectFigure >> dispatch)
+    installSelectionPolicy box
+        (SelectComponent >> dispatch)
+        (UnselectComponent >> dispatch)
     addFigureToCanvas canvas box
     box
 

@@ -94,31 +94,29 @@ let viewSelectedComponent model =
         let formField name defaultValue =
             Field.div [] [
                 Label.label [] [ str name ]
-                Control.div [] [ Input.text [ Input.Props [ Name name ]; Input.DefaultValue defaultValue ] ] ]
-        div [] [
-            form [ Id formId ] [
-                readOnlyFormField "Id" comp.Id
-                formField "Label" comp.Label
-                readOnlyFormField "Input ports" comp.InputPorts.[0]
-                readOnlyFormField "Output ports" comp.OutputPorts.[0]
-                // Submit.
-                Field.div [ Field.IsGrouped ] [
-                    Control.div [] [
-                        Button.button [
-                            Button.Color IsPrimary
-                            Button.OnClick (fun e ->
-                                e.preventDefault()
-                                // TODO: dont think this is the right way to do it.
-                                let form = document.getElementById <| formId
-                                let label : string = form?elements?Label?value
-                                // TODO: again, this very hacky.
-                                jsComp?children?data?(0)?figure?setText(label)
-                            )
-                        ] [ str "Update" ]
-                    ]
+                Control.div [] [ Input.text [ Input.Props [ Name name; Key defaultValue ]; Input.DefaultValue defaultValue ] ] ]
+        form [ Id formId ] [
+            readOnlyFormField "Id" comp.Id
+            formField "Label" comp.Label
+            readOnlyFormField "Input ports" comp.InputPorts.[0]
+            readOnlyFormField "Output ports" comp.OutputPorts.[0]
+            // Submit.
+            Field.div [ Field.IsGrouped ] [
+                Control.div [] [
+                    Button.button [
+                        Button.Color IsPrimary
+                        Button.OnClick (fun e ->
+                            e.preventDefault()
+                            // TODO: dont think this is the right way to do it.
+                            let form = document.getElementById <| formId
+                            let label : string = form?elements?Label?value
+                            // TODO: again, this very hacky.
+                            jsComp?children?data?(0)?figure?setText(label)
+                        )
+                    ] [ str "Update" ]
                 ]
             ]
-    ]
+        ]
 
 let hideView model dispatch =
     div [] [

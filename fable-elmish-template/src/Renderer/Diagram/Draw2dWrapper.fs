@@ -63,9 +63,35 @@ let private createAndInitialiseCanvas (id : string) : JSCanvas =
 [<Emit("$0.add($1);")>]
 let private addFigureToCanvas (canvas : JSCanvas) (figure : JSComponent) : unit = jsNative
 
-[<Emit("$0.createPort($1)")>]
-let private addPort (figure : JSComponent) (portName : string) : unit = jsNative
-// Only input or output?
+[<Emit("$0.createPort($1, $2)")>]
+let private addPort' (figure : JSComponent) (portName : string) (locator : obj) : unit = jsNative
+
+// InputPortLocator works better than LeftLocator, since it moves the port to
+// make space for new ones (instead of overlapping them).
+[<Emit("new draw2d.layout.locator.InputPortLocator()")>]
+let private leftLocator () = jsNative
+
+// Similarly to InputPortLocator, OutputPortLocator is better than RightLocator.
+[<Emit("new draw2d.layout.locator.OutputPortLocator()")>]
+let private rightLocator () = jsNative
+
+// Using this multiple times in the same figure will produce an overlap.
+[<Emit("new draw2d.layout.locator.BottomLocator()")>]
+let private bottomLocator () = jsNative
+
+// Using this multiple times in the same figure will produce an overlap.
+[<Emit("new draw2d.layout.locator.TopLocator()")>]
+let private topLocator () = jsNative
+
+let private addPort (figure : JSComponent) (pType : PortType) (pLocation : PortLocation) : unit =
+    let locator = match pLocation with
+                  | DiagramTypes.Bottom -> bottomLocator ()
+                  | DiagramTypes.Left -> leftLocator ()
+                  | DiagramTypes.Right -> rightLocator ()
+                  | DiagramTypes.Top -> topLocator ()
+    match pType with
+    | Input -> addPort' figure "input" locator
+    | Output -> addPort' figure "output" locator
 
 [<Emit("$0.add(new draw2d.shape.basic.Label({text:$1, stroke:0}), new draw2d.layout.locator.TopLocator());")>]
 let private addLabel (figure : JSComponent) (label : string) : unit = jsNative
@@ -84,20 +110,6 @@ $0.installEditPolicy(new draw2d.policy.figure.AntSelectionFeedbackPolicy({
 ")>]
 let private installSelectionPolicy (figure : JSComponent) (onSelect : JSComponent -> unit) (onUnselect : JSComponent -> unit) : unit = jsNative
 
-[<Emit("new draw2d.shape.basic.Rectangle({x:$0,y:$1,width:$2,height:$3,resizeable:false});")>]
-let private createBox' (x : int) (y : int) (width : int) (height : int) : JSComponent = jsNative
-
-let private createBox (canvas : JSCanvas) (x : int) (y : int) (width : int) (height : int) (dispatch : JSDiagramMsg -> unit): JSComponent =
-    let box = createBox' x y width height
-    addPort box "input"
-    addPort box "output"
-    addLabel box "box"
-    installSelectionPolicy box
-        (SelectComponent >> dispatch)
-        (UnselectComponent >> dispatch)
-    addFigureToCanvas canvas box
-    box
-
 [<Emit("new draw2d.geo.Point($0, $1);")>]
 let private createPoint (x : int) (y : int) : JSComponent = jsNative
 
@@ -113,15 +125,16 @@ let private removeVertexAt (polygon : JSComponent) (index : int) : JSComponent =
 let private createPolygon (canvas : JSCanvas) (x : int) (y : int) (dispatch : JSDiagramMsg -> unit): JSComponent =
     let pol = createPolygon' x y
     addVertex pol (createPoint (x + 0) (y + 0)) |> ignore
-    addVertex pol (createPoint (x + 30) (y + 15)) |> ignore
-    addVertex pol (createPoint (x + 30) (y + 35)) |> ignore
+    addVertex pol (createPoint (x + 30) (y + 12)) |> ignore
+    addVertex pol (createPoint (x + 30) (y + 38)) |> ignore
     addVertex pol (createPoint (x + 0) (y + 50)) |> ignore
     // Remove first three default vertices.
-    [0..2] |> List.map (fun _ -> log <| removeVertexAt pol 0) |> ignore
+    [0..2] |> List.map (fun _ -> removeVertexAt pol 0) |> ignore
     log pol
-    addPort pol "input"
-    addPort pol "input"
-    addPort pol "output"
+    addPort pol Input DiagramTypes.Left
+    addPort pol Input DiagramTypes.Left
+    addPort pol Input DiagramTypes.Bottom
+    addPort pol Output DiagramTypes.Right
     addLabel pol "mux"
     installSelectionPolicy pol
         (SelectComponent >> dispatch)
@@ -198,11 +211,6 @@ type Draw2dWrapper() =
         match canvas with
         | None -> canvas <- Some newCanvas
         | Some _ -> failwithf "what? InitCanvas should never be called when canvas is already created" 
-    
-    member this.CreateBox () =
-        match canvas, dispatch with
-        | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateBox called when canvas or dispatch is None"
-        | Some c, Some d -> createBox c 100 100 50 50 d |> ignore
 
     member this.CreatePolygon () =
         match canvas, dispatch with

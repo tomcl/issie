@@ -11,6 +11,10 @@ type JSComponents  = | JSComponents of obj // JS list of JSComponent.
 type JSConnection  = | JSConnection of obj
 type JSConnections = | JSConnections of obj // JS list of JSConnection.
 
+// Specify the position and type of a port in a JSComponent.
+type PortType = Input | Output
+type PortLocation = Left | Right | Top | Bottom
+
 // TODO unify the type for ports.
 
 // Component mapped to f# object.

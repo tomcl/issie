@@ -18,8 +18,17 @@ open Fable.Helpers.React.Props
 
 // Interface with JS library.
 
-[<Emit("new draw2d.Canvas($0);")>]
-let private createCanvas (id : string) : JSCanvas = jsNative
+[<Emit("
+(function () {
+    let canvas = new draw2d.Canvas($0, $1, $2);
+    canvas.setScrollArea('#'+$0);
+    // Make sure the canvas does not overflow the parent div.
+    let style = document.getElementById($0).style;
+    style.height = 'auto'; style.width = 'auto';
+    return canvas;
+})()
+")>]
+let private createCanvas (id : string) (width : int) (height : int) : JSCanvas = jsNative
 
 [<Emit("
 // Show canvas grid.
@@ -52,9 +61,8 @@ $0.setDimension(dim);
 let private resizeCanvas (canvas : JSCanvas) (width : int) (height : int) : unit = jsNative
 
 let private createAndInitialiseCanvas (id : string) : JSCanvas =
-    let canvas = createCanvas id
+    let canvas = createCanvas id 3000 2000
     initialiseCanvas canvas
-    //resizeCanvas canvas 2000 1000
     canvas
 
 [<Emit("$0.add($1);")>]

@@ -8,7 +8,7 @@ let rightSectionWidth = "400px"
 let bottomSectionHeight = "300px"
 
 let rightSectionStyle = Style [
-    Position "absolute"
+    Position "fixed"
     Right "0px"
     Height (sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
     Width rightSectionWidth
@@ -18,7 +18,7 @@ let rightSectionStyle = Style [
 ]
 
 let bottomSectionStyle =  Style [
-    Position "absolute"
+    Position "fixed"
     Bottom "0px"
     Height bottomSectionHeight
     Width (sprintf "calc(100%s - %s)" "%" rightSectionWidth) // WindowSize - rightSectionWidth
@@ -35,7 +35,6 @@ let canvasVisibleStyle = Style [
     Display "block"
     Position "absolute" // Required to work.
     Overflow "scroll"
-    // Important is necessary to
     Top headerHeight // Placed just under the header.
     Left "0px"
     Bottom bottomSectionHeight // Leave some space at the bottom.

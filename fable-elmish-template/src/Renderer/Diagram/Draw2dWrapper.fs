@@ -50,7 +50,8 @@ $0.installEditPolicy( new draw2d.policy.connection.ComposedConnectionCreatePolic
         })
     ])
 );
-// 
+// Install policy to allow to zoom with: SHIFT + mouse wheel.
+$0.installEditPolicy(new draw2d.policy.canvas.WheelZoomPolicy());
 ")>]
 let private initialiseCanvas (canvas : JSCanvas) : unit = jsNative
 
@@ -125,9 +126,6 @@ let private createBox (canvas : JSCanvas) (x : int) (y : int) (width : int) (hei
 ")>]
 let private getCanvasState (canvas : JSCanvas) : JSCanvasState = jsNative
 
-[<Emit("$0.setZoom($1, true);")>]
-let private setZoom (canvas : JSCanvas) (zoom : float) : unit = jsNative
-
 // React wrapper.
 
 type DisplayModeType = Hidden | Visible
@@ -185,11 +183,6 @@ type Draw2dWrapper() =
         match canvas with
         | None -> log "Warning: Draw2dWrapper.ResizeCanvas called when canvas is None"
         | Some c -> resizeCanvas c width height
-
-    member this.SetZoom zoom =
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.SetZoom called when canvas is None"
-        | Some c -> setZoom c zoom 
 
     member this.GetCanvasState () =
         match canvas with

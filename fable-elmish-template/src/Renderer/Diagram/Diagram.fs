@@ -138,6 +138,7 @@ let displayView model dispatch =
         div [ bottomSectionStyle ] [
             Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreateMux2()) ] ] [ str "Add mux2" ]
             Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreateBox()) ] ] [ str "Add box" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreateDigitalNot()) ] ] [ str "Add not" ]
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
             div [] (prettyPrintState model.State)
         ]

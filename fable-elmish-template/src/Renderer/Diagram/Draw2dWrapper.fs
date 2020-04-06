@@ -144,6 +144,18 @@ let private createShape (canvas : JSCanvas) (shape : Shape) (x : int) (y : int) 
     addFigureToCanvas canvas pol
     pol
 
+[<Emit("new draw2d.shape.digital_not({x:$0,y:$1,resizeable:false});")>]
+let private createDigitalNot' (x : int) (y : int) : JSComponent = jsNative
+
+let private createDigitalNot (canvas : JSCanvas) (x : int) (y : int) (dispatch : JSDiagramMsg -> unit) : JSComponent =
+    let digitalNot = createDigitalNot' x y
+    addLabel digitalNot "not"
+    installSelectionPolicy digitalNot
+        (SelectComponent >> dispatch)
+        (UnselectComponent >> dispatch)
+    addFigureToCanvas canvas digitalNot
+    digitalNot
+
 // TODO this can be probably made more efficient by only returning the
 // attributes we care about.
 // .getPersistentAttributes removes stuff we need (e.g. labels) and include
@@ -223,6 +235,11 @@ type Draw2dWrapper() =
         match canvas, dispatch with
         | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateBox called when canvas or dispatch is None"
         | Some c, Some d -> createShape c box 100 100 d |> ignore
+
+    member this.CreateDigitalNot () =
+        match canvas, dispatch with
+        | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateDigitalNot called when canvas or dispatch is None"
+        | Some c, Some d -> createDigitalNot c 100 100 d |> ignore
 
     member this.GetCanvasState () =
         match canvas with

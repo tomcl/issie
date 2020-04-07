@@ -98,7 +98,7 @@ let displayView model dispatch =
     div [] [
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Visible
         div [ rightSectionStyle ] [
-            div [ Style [Width "90%"; MarginLeft "5%"; ] ] [
+            div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
                 Heading.h4 [] [ str "Component properties" ]
                 viewSelectedComponent model
             ]

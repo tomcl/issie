@@ -149,7 +149,6 @@ let private createDigitalNot' (x : int) (y : int) : JSComponent = jsNative
 
 let private createDigitalNot (canvas : JSCanvas) (x : int) (y : int) (dispatch : JSDiagramMsg -> unit) : JSComponent =
     let digitalNot = createDigitalNot' x y
-    addLabel digitalNot "not"
     installSelectionPolicy digitalNot
         (SelectComponent >> dispatch)
         (UnselectComponent >> dispatch)
@@ -171,7 +170,7 @@ let private createDigitalNot (canvas : JSCanvas) (x : int) (y : int) (dispatch :
     });
     let connections = [];
     $0.getLines().each(function (i, line) {
-        connections.push(line.getPersistentAttributes());
+        connections.push(line);
     });
     return {components: components, connections: connections};
 })();

@@ -15,6 +15,7 @@ open DiagramTypes
 open Draw2dWrapper
 open JSHelpers
 open DiagramStyle
+open Extractor
 
 type Model = {
     Diagram : Draw2dWrapper
@@ -40,43 +41,6 @@ let prettyPrintState (components, connections) =
     [ str "Connections:"; br [] ] @
     List.collect (fun c -> [ str <| sprintf "%A" c; br [] ]) connections
 
-let extractPorts jsPorts =
-    let extractPort jsPort = jsPort?id
-    let portsLen = jsPorts?length
-    List.map (fun i -> extractPort jsPorts?(i)) [0..portsLen - 1]
-
-let extractComponent (jsComponent : JSComponent) : Component = {
-    Id = jsComponent?id
-    InputPorts = extractPorts jsComponent?inputPorts?data
-    OutputPorts = extractPorts jsComponent?outputPorts?data
-    // Very hacky. Assume every component has a label children which is the
-    // first children of the array. TODO: do properly.
-    Label = jsComponent?children?data?(0)?figure?text
-}
-
-let extractComponents (jsComponents : JSComponents) : Component list =
-    let componentsLen : int = jsComponents?length
-    List.map (fun i -> extractComponent jsComponents?(i)) [0..componentsLen - 1]
-
-let extractConnections (jsConnections : JSConnections) : Connection list =
-    let extractPort jsPort : ConnectionPort = {
-        ComponentId = jsPort?node
-        PortId = jsPort?port
-    }
-    let extract (jsConnection : JSConnection) : Connection = {
-        Id = jsConnection?id
-        Source = extractPort jsConnection?source
-        Target = extractPort jsConnection?target
-    }
-    let connectionsLen : int = jsConnections?length
-    List.map (fun i -> extract jsConnections?(i)) [0..connectionsLen - 1]
-
-let extractState (state : JSCanvasState) =
-    log state
-    let components : JSComponents = state?components
-    let connections : JSConnections = state?connections
-    extractComponents components, extractConnections connections
-
 let getStateAction model dispatch =
     match model.Diagram.GetCanvasState () with
     | None -> ()
@@ -98,11 +62,15 @@ let viewSelectedComponent model =
             Field.div [] [
                 Label.label [] [ str name ]
                 Control.div [] [ Input.text [ Input.Props [ Name name; Key comp.Id ]; Input.DefaultValue defaultValue ] ] ]
+        let readOnlyIfNone name value =
+            match value with
+            | None -> readOnlyFormField name "none"
+            | Some v -> formField name v
         form [ Id formId ] [
             readOnlyFormField "Id" comp.Id
-            formField "Label" comp.Label
-            readOnlyFormField "Input ports" comp.InputPorts.[0]
-            readOnlyFormField "Output ports" comp.OutputPorts.[0]
+            readOnlyIfNone "Label" comp.Label
+            readOnlyFormField "Input ports" <| sprintf "%d" comp.InputPorts.Length
+            readOnlyFormField "Output ports" <| sprintf "%d" comp.OutputPorts.Length
             // Submit.
             Field.div [ Field.IsGrouped ] [
                 Control.div [] [

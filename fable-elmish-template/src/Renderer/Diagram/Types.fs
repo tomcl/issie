@@ -15,25 +15,25 @@ type JSConnections = | JSConnections of obj // JS list of JSConnection.
 type PortType = Input | Output
 type PortLocation = Left | Right | Top | Bottom
 
-// TODO unify the type for ports.
+type Port = {
+    Id : string
+    Label : string option // Not all ports have to be labeled.
+    PortType : PortType
+}
 
-// Component mapped to f# object.
+// JSComponent mapped to f# object.
 type Component = {
     Id : string
-    InputPorts : string list // list of ids.
-    OutputPorts : string list // list of ids.
-    Label : string
+    Label : string option // Not all components have to be labeled.
+    InputPorts : Port list
+    OutputPorts : Port list
 }
 
-// Connection mapped to f# object.
-type ConnectionPort = {
-    ComponentId : string
-    PortId : string
-}
+// JSConnection mapped to f# object.
 type Connection = {
     Id : string
-    Source : ConnectionPort // Will always be an output port.
-    Target : ConnectionPort // Will always be an input port.
+    Source : Port
+    Target : Port
 }
 
 //==========//

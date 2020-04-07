@@ -28,8 +28,8 @@ draw2d.shape.digital_not = draw2d.SVGFigure.extend({
     init: function(attr, setter, getter ){
         this._super($.extend({width:30, height:30},attr), setter, getter);
 
-        this.createPort("hybrid", new this.MyInputPortLocator());
-        this.createPort("hybrid", new this.MyOutputPortLocator());
+        this.createPort("input", new this.MyInputPortLocator());
+        this.createPort("output", new this.MyOutputPortLocator());
     },
 
    getSVG: function(){

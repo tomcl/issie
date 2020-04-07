@@ -3,6 +3,13 @@
 // TODO: add a type attribute so it is possible to understand which type of
 // component this is.
 
+// For every figure it is necessary to define:
+// - width of the svg element
+// - hieght of the svg element
+// - shapes that will form the svg element
+// - userData (data accessible from the outside), containing at least:
+//   - type : string (e.g. "Not", "And", "Mux2", ...)
+
 draw2d.shape.digital = draw2d.SVGFigure.extend({
 
     NAME:"draw2d.shape.digital",
@@ -52,10 +59,14 @@ draw2d.shape.digital.Not = draw2d.shape.digital.extend({
 
     init: function(attr, setter, getter ){
         this._super(
-            $.extend({width:this.svgWidth, height:this.svgHeight, svgElements:this.svgElements}, attr),
+            $.extend({width:this.svgWidth, height:this.svgHeight}, attr),
             setter,
             getter
         );
+
+        this.setUserData({
+            type : "Not",
+        });
 
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
@@ -74,10 +85,14 @@ draw2d.shape.digital.And = draw2d.shape.digital.extend({
 
     init: function(attr, setter, getter ){
         this._super(
-            $.extend({width:this.svgWidth, height:this.svgHeight, svgElements:this.svgElements}, attr),
+            $.extend({width:this.svgWidth, height:this.svgHeight}, attr),
             setter,
             getter
         );
+
+        this.setUserData({
+            type : "And",
+        });
 
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());

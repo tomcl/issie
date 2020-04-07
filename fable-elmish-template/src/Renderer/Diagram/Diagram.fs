@@ -105,10 +105,9 @@ let displayView model dispatch =
             ]
         ]
         div [ bottomSectionStyle ] [
-            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreateMux2()) ] ] [ str "Add mux2" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreateBox()) ] ] [ str "Add box" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreateDigital Not) ] ] [ str "Add not" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreateDigital And) ] ] [ str "Add and" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreateComponent Mux2 "mux2") ] ] [ str "Add mux2" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreateComponent Not "") ] ] [ str "Add not" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreateComponent And "") ] ] [ str "Add and" ]
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
             div [] (prettyPrintState model.State)
         ]

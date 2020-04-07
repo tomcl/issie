@@ -46,6 +46,7 @@ let private extractComponentType (userData : obj) : ComponentType =
     |> function
        | "Not" -> Not
        | "And" -> And
+       | "Mux2" -> Mux2
        | ct -> failwithf "what? Component type %s does not exist" ct
 
 let extractComponent (jsComponent : JSComponent) : Component = {

@@ -7,7 +7,6 @@ module Draw2dWrapper
 open DiagramTypes
 open JSHelpers
 open DiagramStyle
-open Shapes
 
 open Fable.Core
 open Fable.Core.JsInterop
@@ -111,54 +110,35 @@ $0.installEditPolicy(new draw2d.policy.figure.AntSelectionFeedbackPolicy({
 ")>]
 let private installSelectionPolicy (figure : JSComponent) (onSelect : JSComponent -> unit) (onUnselect : JSComponent -> unit) : unit = jsNative
 
-[<Emit("new draw2d.geo.Point($0, $1);")>]
-let private createPoint (x : int) (y : int) : JSComponent = jsNative
-
-[<Emit("new draw2d.shape.basic.Polygon({x:$0,y:$1,resizeable:false});")>]
-let private createPolygon (x : int) (y : int) : JSComponent = jsNative
-
-[<Emit("$0.addVertex($1);")>]
-let private addVertex (polygon : JSComponent) (point : JSComponent) : JSComponent = jsNative
-
-[<Emit("$0.removeVertexAt($1);")>]
-let private removeVertexAt (polygon : JSComponent) (index : int) : JSComponent = jsNative
-
-let private createShape (canvas : JSCanvas) (shape : Shape) (x : int) (y : int) (dispatch : JSDiagramMsg -> unit): JSComponent =
-    let pol = createPolygon x y
-    // Add vertices.
-    shape.Vertices
-    |> List.map (fun (vx, vy) -> createPoint (x + vx) (y + vy) |> addVertex pol)
-    |> ignore
-    // Remove first three default vertices.
-    [0..2] |> List.map (fun _ -> removeVertexAt pol 0) |> ignore
-    
-    // Add ports.
-    shape.Ports
-    |> List.map (fun (pType, pLocator) -> addPort pol pType pLocator)
-    |> ignore
-
-    addLabel pol shape.Label
-    installSelectionPolicy pol
-        (SelectComponent >> dispatch)
-        (UnselectComponent >> dispatch)
-    addFigureToCanvas canvas pol
-    pol
-
 [<Emit("new draw2d.shape.digital.Not({x:$0,y:$1,resizeable:false});")>]
 let private createDigitalNot (x : int) (y : int) : JSComponent = jsNative
 
 [<Emit("new draw2d.shape.digital.And({x:$0,y:$1,resizeable:false});")>]
 let private createDigitalAnd (x : int) (y : int) : JSComponent = jsNative
 
-let private createDigital (canvas : JSCanvas) (componentType : ComponentType) (x : int) (y : int) (dispatch : JSDiagramMsg -> unit) : JSComponent =
-    let digital = match componentType with
-                  | Not -> createDigitalNot x y
-                  | And -> createDigitalAnd x y
-    installSelectionPolicy digital
+[<Emit("new draw2d.shape.digital.Mux2({x:$0,y:$1,resizeable:false});")>]
+let private createDigitalMux2 (x : int) (y : int) : JSComponent = jsNative
+
+let private createComponent
+        (canvas : JSCanvas)
+        (componentType : ComponentType)
+        (defaultLabel : string)
+        (x : int)
+        (y : int)
+        (dispatch : JSDiagramMsg -> unit)
+        : JSComponent =
+    let comp = match componentType with
+               | Not -> createDigitalNot x y
+               | And -> createDigitalAnd x y
+               | Mux2 -> createDigitalMux2 x y
+    // Install the behaviour on selection.
+    installSelectionPolicy comp
         (SelectComponent >> dispatch)
         (UnselectComponent >> dispatch)
-    addFigureToCanvas canvas digital
-    digital
+    // Every component is assumed to have a label (may be empty string).
+    addLabel comp defaultLabel
+    addFigureToCanvas canvas comp
+    comp
 
 // TODO this can be probably made more efficient by only returning the
 // attributes we care about.
@@ -230,20 +210,10 @@ type Draw2dWrapper() =
         | None -> canvas <- Some newCanvas
         | Some _ -> failwithf "what? InitCanvas should never be called when canvas is already created" 
 
-    member this.CreateMux2 () =
+    member this.CreateComponent componentType defaultLabel =
         match canvas, dispatch with
-        | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateMux2 called when canvas or dispatch is None"
-        | Some c, Some d -> createShape c mux2 100 100 d |> ignore
-    
-    member this.CreateBox () =
-        match canvas, dispatch with
-        | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateBox called when canvas or dispatch is None"
-        | Some c, Some d -> createShape c box 100 100 d |> ignore
-
-    member this.CreateDigital componentType =
-        match canvas, dispatch with
-        | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateDigital called when canvas or dispatch is None"
-        | Some c, Some d -> createDigital c componentType 100 100 d |> ignore
+        | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateComponent called when canvas or dispatch is None"
+        | Some c, Some d -> createComponent c componentType defaultLabel 100 100 d |> ignore
 
     member this.GetCanvasState () =
         match canvas with

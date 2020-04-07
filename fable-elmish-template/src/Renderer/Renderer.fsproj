@@ -7,7 +7,6 @@
     <Compile Include="CommonStyle.fs" />
     <Compile Include="Diagram/Types.fs" />
     <Compile Include="Diagram/Style.fs" />
-    <Compile Include="Diagram/Shapes.fs" />
     <Compile Include="Diagram/Draw2dWrapper.fs" />
     <Compile Include="Diagram/Extractor.fs" />
     <Compile Include="Diagram/Diagram.fs" />

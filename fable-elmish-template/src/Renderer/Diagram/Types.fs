@@ -22,13 +22,13 @@ type Port = {
 }
 
 // Types instantiating objects in the Digital extension.
-type ComponentType = | Not | And
+type ComponentType = | Not | And | Mux2
 
 // JSComponent mapped to f# object.
 type Component = {
     Id : string
     Type : ComponentType
-    Label : string option // Not all components have to be labeled.
+    Label : string option // TODO: decide whether or not all components should be labeled.
     InputPorts : Port list
     OutputPorts : Port list
 }

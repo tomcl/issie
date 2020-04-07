@@ -100,3 +100,42 @@ draw2d.shape.digital.And = draw2d.shape.digital.extend({
     },
 });
 
+draw2d.shape.digital.Mux2 = draw2d.shape.digital.extend({
+
+    NAME:"draw2d.shape.digital.Mux2",
+
+    svgHeight : 50,
+    svgWidth : 30,
+    svgElements : [
+        '<path d="M 0 0 L 30 13 L 30 37 L 0 50 Z" stroke="black" stroke-width="1" fill="lightgray"/>'
+    ],
+
+    Mux2BottomPortLocator : draw2d.layout.locator.PortLocator.extend({
+        init: function( ){
+          this._super();
+        },
+        relocate: function(index, figure){
+            var w = figure.getParent().getWidth();
+            var h = figure.getParent().getHeight();
+            figure.setPosition(w / 2, h - 7);
+        }
+    }),
+
+    init: function(attr, setter, getter ){
+        this._super(
+            $.extend({width:this.svgWidth, height:this.svgHeight}, attr),
+            setter,
+            getter
+        );
+
+        this.setUserData({
+            componentType : "Mux2",
+        });
+
+        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
+        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
+        this.createPort("input", new this.Mux2BottomPortLocator());
+        this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
+    },
+});
+

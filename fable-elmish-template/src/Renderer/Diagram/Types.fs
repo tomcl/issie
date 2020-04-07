@@ -36,6 +36,9 @@ type Connection = {
     Target : Port
 }
 
+// Types instantiating objects in the Digital extension.
+type Digital = | Not | And
+
 //==========//
 // Messages //
 //==========//

@@ -1,42 +1,14 @@
-draw2d.shape.digital_not = draw2d.SVGFigure.extend({
+// Extension to draw some of the digital logic components required.
+// If necessary it is possible to override the portLocator class and use it here.
+// TODO: add a type attribute so it is possible to understand which type of
+// component this is.
 
-    NAME:"draw2d.shape.digital_not",
+draw2d.shape.digital = draw2d.SVGFigure.extend({
 
-    svgHeight : 30,
-    svgWidth: 30,
-    svgElements: [
-        '<polygon points="0,0 20,15 0,30" stroke="black" stroke-width="1" fill="lightgray" />',
-        '<circle cx="25" cy="15" r="5" stroke="black" stroke-width="1" fill="lightgray" />',
-    ],
-
-    // Custom locator for the special design of the Input area.
-    MyInputPortLocator : draw2d.layout.locator.PortLocator.extend({
-        init: function( ){
-            this._super();
-        },
-        relocate: function(index, figure){
-            var h = figure.getParent().getHeight();
-            figure.setPosition(0, h/2);
-        }
-    }),
-
-    // custom locator for the special design of the Output area
-    MyOutputPortLocator : draw2d.layout.locator.PortLocator.extend({
-        init: function( ){
-            this._super();
-        },    
-        relocate: function(index, figure){
-            var w = figure.getParent().getWidth();
-            var h = figure.getParent().getHeight();
-            figure.setPosition(w, h/2);
-        }
-    }),
+    NAME:"draw2d.shape.digital",
 
     init: function(attr, setter, getter ){
-        this._super($.extend({width:this.svgWidth, height:this.svgHeight}, attr), setter, getter);
-
-        this.createPort("input", new this.MyInputPortLocator());
-        this.createPort("output", new this.MyOutputPortLocator());
+        this._super(attr, setter, getter);
     },
 
     repaint: function(attributes) {
@@ -66,3 +38,50 @@ draw2d.shape.digital_not = draw2d.SVGFigure.extend({
         return svgFigure;
     }
 });
+
+draw2d.shape.digital.Not = draw2d.shape.digital.extend({
+
+    NAME:"draw2d.shape.digital.Not",
+
+    svgHeight : 30,
+    svgWidth : 30,
+    svgElements : [
+        '<polygon points="0,0 20,15 0,30" stroke="black" stroke-width="1" fill="lightgray" />',
+        '<circle cx="25" cy="15" r="5" stroke="black" stroke-width="1" fill="lightgray" />',
+    ],
+
+    init: function(attr, setter, getter ){
+        this._super(
+            $.extend({width:this.svgWidth, height:this.svgHeight, svgElements:this.svgElements}, attr),
+            setter,
+            getter
+        );
+
+        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
+        this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
+    },
+});
+
+draw2d.shape.digital.And = draw2d.shape.digital.extend({
+
+    NAME:"draw2d.shape.digital.And",
+
+    svgHeight : 30,
+    svgWidth : 30,
+    svgElements : [
+        '<path d="M 0 0 L 15 0 A 15 15, 0, 0, 1, 15 30 L 0 30 Z" stroke="black" stroke-width="1" fill="lightgray"/>'
+    ],
+
+    init: function(attr, setter, getter ){
+        this._super(
+            $.extend({width:this.svgWidth, height:this.svgHeight, svgElements:this.svgElements}, attr),
+            setter,
+            getter
+        );
+
+        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
+        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
+        this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
+    },
+});
+

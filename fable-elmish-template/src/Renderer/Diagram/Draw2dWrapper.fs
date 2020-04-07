@@ -104,7 +104,7 @@ $0.installEditPolicy(new draw2d.policy.figure.AntSelectionFeedbackPolicy({
         $1(figure);
     },
     onUnselect: function(canvas, figure) {
-        figure.setBackgroundColor('gray');
+        figure.setBackgroundColor('lightgray');
         $2(figure);
     }
 }));
@@ -144,16 +144,21 @@ let private createShape (canvas : JSCanvas) (shape : Shape) (x : int) (y : int) 
     addFigureToCanvas canvas pol
     pol
 
-[<Emit("new draw2d.shape.digital_not({x:$0,y:$1,resizeable:false});")>]
-let private createDigitalNot' (x : int) (y : int) : JSComponent = jsNative
+[<Emit("new draw2d.shape.digital.Not({x:$0,y:$1,resizeable:false});")>]
+let private createDigitalNot (x : int) (y : int) : JSComponent = jsNative
 
-let private createDigitalNot (canvas : JSCanvas) (x : int) (y : int) (dispatch : JSDiagramMsg -> unit) : JSComponent =
-    let digitalNot = createDigitalNot' x y
-    installSelectionPolicy digitalNot
+[<Emit("new draw2d.shape.digital.And({x:$0,y:$1,resizeable:false});")>]
+let private createDigitalAnd (x : int) (y : int) : JSComponent = jsNative
+
+let private createDigital (canvas : JSCanvas) (gate : Digital) (x : int) (y : int) (dispatch : JSDiagramMsg -> unit) : JSComponent =
+    let digital = match gate with
+                  | Not -> createDigitalNot x y
+                  | And -> createDigitalAnd x y
+    installSelectionPolicy digital
         (SelectComponent >> dispatch)
         (UnselectComponent >> dispatch)
-    addFigureToCanvas canvas digitalNot
-    digitalNot
+    addFigureToCanvas canvas digital
+    digital
 
 // TODO this can be probably made more efficient by only returning the
 // attributes we care about.
@@ -235,10 +240,10 @@ type Draw2dWrapper() =
         | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateBox called when canvas or dispatch is None"
         | Some c, Some d -> createShape c box 100 100 d |> ignore
 
-    member this.CreateDigitalNot () =
+    member this.CreateDigital gate =
         match canvas, dispatch with
-        | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateDigitalNot called when canvas or dispatch is None"
-        | Some c, Some d -> createDigitalNot c 100 100 d |> ignore
+        | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateDigital called when canvas or dispatch is None"
+        | Some c, Some d -> createDigital c gate 100 100 d |> ignore
 
     member this.GetCanvasState () =
         match canvas with

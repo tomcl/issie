@@ -38,8 +38,19 @@ let private extractPorts jsPorts : Port list =
     let portsLen = jsPorts?length
     List.map (fun i -> extractPort jsPorts?(i)) [0..portsLen - 1]
 
+let private extractComponentType (userData : obj) : ComponentType =
+    // TODO make this nice. Maybe a function: getFailIfNull
+    if isNull userData then failwith "what? userData is null"
+    else if isNull userData?componentType then failwith "what? componentType is null"
+    else userData?componentType
+    |> function
+       | "Not" -> Not
+       | "And" -> And
+       | ct -> failwithf "what? Component type %s does not exist" ct
+
 let extractComponent (jsComponent : JSComponent) : Component = {
     Id = jsComponent?id
+    Type = extractComponentType jsComponent?userData
     InputPorts = extractPorts jsComponent?inputPorts?data
     OutputPorts = extractPorts jsComponent?outputPorts?data
     Label = maybeExtractLabel jsComponent?children?data

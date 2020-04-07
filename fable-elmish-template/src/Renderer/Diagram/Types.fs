@@ -21,9 +21,13 @@ type Port = {
     PortType : PortType
 }
 
+// Types instantiating objects in the Digital extension.
+type ComponentType = | Not | And
+
 // JSComponent mapped to f# object.
 type Component = {
     Id : string
+    Type : ComponentType
     Label : string option // Not all components have to be labeled.
     InputPorts : Port list
     OutputPorts : Port list
@@ -35,9 +39,6 @@ type Connection = {
     Source : Port
     Target : Port
 }
-
-// Types instantiating objects in the Digital extension.
-type Digital = | Not | And
 
 //==========//
 // Messages //

@@ -68,6 +68,7 @@ let viewSelectedComponent model =
             | Some v -> formField name v
         form [ Id formId ] [
             readOnlyFormField "Id" comp.Id
+            readOnlyFormField "Type" <| sprintf "%A" comp.Type
             readOnlyIfNone "Label" comp.Label
             readOnlyFormField "Input ports" <| sprintf "%d" comp.InputPorts.Length
             readOnlyFormField "Output ports" <| sprintf "%d" comp.OutputPorts.Length

@@ -8,7 +8,7 @@
 // - hieght of the svg element
 // - shapes that will form the svg element
 // - userData (data accessible from the outside), containing at least:
-//   - type : string (e.g. "Not", "And", "Mux2", ...)
+//   - componentType : string (e.g. "Not", "And", "Mux2", ...)
 
 draw2d.shape.digital = draw2d.SVGFigure.extend({
 
@@ -65,7 +65,7 @@ draw2d.shape.digital.Not = draw2d.shape.digital.extend({
         );
 
         this.setUserData({
-            type : "Not",
+            componentType : "Not",
         });
 
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
@@ -91,7 +91,7 @@ draw2d.shape.digital.And = draw2d.shape.digital.extend({
         );
 
         this.setUserData({
-            type : "And",
+            componentType : "And",
         });
 
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());

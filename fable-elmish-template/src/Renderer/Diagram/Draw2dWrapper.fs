@@ -150,8 +150,8 @@ let private createDigitalNot (x : int) (y : int) : JSComponent = jsNative
 [<Emit("new draw2d.shape.digital.And({x:$0,y:$1,resizeable:false});")>]
 let private createDigitalAnd (x : int) (y : int) : JSComponent = jsNative
 
-let private createDigital (canvas : JSCanvas) (gate : Digital) (x : int) (y : int) (dispatch : JSDiagramMsg -> unit) : JSComponent =
-    let digital = match gate with
+let private createDigital (canvas : JSCanvas) (componentType : ComponentType) (x : int) (y : int) (dispatch : JSDiagramMsg -> unit) : JSComponent =
+    let digital = match componentType with
                   | Not -> createDigitalNot x y
                   | And -> createDigitalAnd x y
     installSelectionPolicy digital
@@ -240,10 +240,10 @@ type Draw2dWrapper() =
         | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateBox called when canvas or dispatch is None"
         | Some c, Some d -> createShape c box 100 100 d |> ignore
 
-    member this.CreateDigital gate =
+    member this.CreateDigital componentType =
         match canvas, dispatch with
         | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateDigital called when canvas or dispatch is None"
-        | Some c, Some d -> createDigital c gate 100 100 d |> ignore
+        | Some c, Some d -> createDigital c componentType 100 100 d |> ignore
 
     member this.GetCanvasState () =
         match canvas with

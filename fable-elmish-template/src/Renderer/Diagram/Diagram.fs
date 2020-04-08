@@ -81,7 +81,7 @@ let viewSelectedComponent model =
                             e.preventDefault()
                             // TODO: dont think this is the right way to do it.
                             let form = document.getElementById <| formId
-                            let label : string = form?elements?Label?value
+                            let label : string = getFailIfNull form ["elements"; "Label"; "value"]
                             // TODO: again, this very hacky.
                             jsComp?children?data?(0)?figure?setText(label)
                         )

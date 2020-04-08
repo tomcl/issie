@@ -10,8 +10,12 @@ let editorHiddenStyle = Style [
 ]
 
 let editorVisibleStyle = Style [
-    Height "auto"
-    Width "auto"
+    Position "absolute"
+    Overflow "hidden"
+    Top headerHeight // Placed just under the header.
+    Left "0px"
+    Bottom bottomSectionHeight // Leave some space at the bottom.
+    Right rightSectionWidth
     Border "2px solid gray"
 ]
 

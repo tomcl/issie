@@ -13,6 +13,7 @@ open Fable.Core.JsInterop
 open EditorTypes
 open CodeMirrorWrapper
 open JSHelpers
+open CommonStyle
 
 type Model = {
     Editor: CodeMirrorWrapper;
@@ -29,8 +30,11 @@ let init() = { Code = ""; Editor = new CodeMirrorWrapper() }
 let displayView model dispatch =
     div [] [
         model.Editor.EditorReactElement (JSEditorMsg >> dispatch) Visible
-        Button.button [ Button.OnClick (fun _ -> GetCode |> dispatch )] [ str "Get code" ]
-        div [] [ str model.Code ]
+        div [ rightSectionStyle ] []
+        div [ bottomSectionStyle ] [
+            Button.button [ Button.OnClick (fun _ -> GetCode |> dispatch )] [ str "Get code" ]
+            div [] [ str model.Code ]
+        ]
     ]
 
 /// View when the page is hidden. We still display a 0px by 0px editor element

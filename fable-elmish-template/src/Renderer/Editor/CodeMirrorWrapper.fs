@@ -15,13 +15,17 @@ open Fable.Helpers.React.Props
 // Interface with JS library.
 
 [<Emit("
-CodeMirror(document.getElementById($0), {
-  lineNumbers: true,
-  lineWrapping: true,
-  matchBrackets: true,
-  theme: \"mbo\", // Not working?
-  mode: {name: \"verilog\"}
-});")>]
+(function(){
+    let cm = CodeMirror(document.getElementById($0), {
+        lineNumbers: true,
+        lineWrapping: true,
+        matchBrackets: true,
+        mode: {name: 'verilog'},
+        //theme: 'mbo',
+    });
+    cm.setSize(null, '100%');
+    return cm;
+})()")>]
 let private createEditor (id : string) : JSEditor = jsNative
 
 [<Emit("$0.getValue()")>]

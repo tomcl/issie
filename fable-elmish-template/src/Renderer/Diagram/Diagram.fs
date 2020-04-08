@@ -14,6 +14,7 @@ open Fable.Core.JsInterop
 open DiagramTypes
 open Draw2dWrapper
 open JSHelpers
+open CommonStyle
 open DiagramStyle
 open Extractor
 

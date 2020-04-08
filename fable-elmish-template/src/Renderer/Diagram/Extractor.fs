@@ -5,7 +5,7 @@ open JSHelpers
 
 open Fable.Core.JsInterop
 
-let maybeExtractLabel childrenArray : string option =
+let private maybeExtractLabel childrenArray : string option =
     let childrenLen = getFailIfNull childrenArray ["length"]
     let rec maybeExtract idx =
         if idx = childrenLen
@@ -45,6 +45,7 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     | "Mux2" -> Mux2
     | ct -> failwithf "what? Component type %s does not exist" ct
 
+/// Transform a JSComponent into an f# data structure.
 let extractComponent (jsComponent : JSComponent) : Component = {
     Id =  getFailIfNull jsComponent ["id"]
     Type = extractComponentType jsComponent
@@ -67,7 +68,7 @@ let private extractConnections (jsConnections : JSConnections) : Connection list
     let connectionsLen : int = getFailIfNull jsConnections ["length"]
     List.map (fun i -> extractConnection jsConnections?(i)) [0..connectionsLen - 1]
 
-/// Transform the JSCanvasState into a f# data structure.
+/// Transform the JSCanvasState into an f# data structure.
 let extractState (state : JSCanvasState) : Component list * Connection list =
     log state
     let components : JSComponents = getFailIfNull state ["components"]

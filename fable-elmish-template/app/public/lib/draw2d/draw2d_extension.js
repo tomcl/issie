@@ -15,7 +15,7 @@ draw2d.shape.digital = draw2d.SVGFigure.extend({
     NAME:"draw2d.shape.digital",
 
     init: function(attr, setter, getter ){
-        this._super(attr, setter, getter);
+        this._super($.extend({bgColor: "lightgrey"}, attr), setter, getter);
     },
 
     repaint: function(attributes) {

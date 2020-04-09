@@ -16,7 +16,8 @@ let rightSectionStyle = Style [
     Right "0px"
     Height (sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
     Width rightSectionWidth
-    Overflow "scroll"
+    OverflowX "hidden"
+    OverflowY "scroll"
     Border "2px solid gray"
 ]
 
@@ -25,6 +26,7 @@ let bottomSectionStyle =  Style [
     Bottom "0px"
     Height bottomSectionHeight
     Width (sprintf "calc(100%s - %s)" "%" rightSectionWidth) // WindowSize - rightSectionWidth
-    Overflow "scroll"
+    OverflowX "hidden"
+    OverflowY "scroll"
     Border "2px solid gray"
 ]

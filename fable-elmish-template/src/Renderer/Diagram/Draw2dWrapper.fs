@@ -140,6 +140,20 @@ let private createComponent
     addFigureToCanvas canvas comp
     comp
 
+[<Emit("
+$0.getFigures().find(function(figure){
+    return figure.id === $1;
+})
+")>]
+let private getComponentById (canvas : JSCanvas) (id : string) : JSComponent = jsNative
+
+// TODO: for now only supports labels.
+let private editComponent (canvas : JSCanvas) (id : string) (newLabel : string) =
+    let jsComponent = getComponentById canvas id
+    if isNull jsComponent
+    then failwithf "what? could not find diagram component with Id: %s" id
+    else jsComponent?children?data?(0)?figure?setText(newLabel) // TODO: this only works for labels and it is very hacky.
+
 // TODO this can be probably made more efficient by only returning the
 // attributes we care about.
 // .getPersistentAttributes removes stuff we need (e.g. labels) and include
@@ -214,6 +228,12 @@ type Draw2dWrapper() =
         match canvas, dispatch with
         | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateComponent called when canvas or dispatch is None"
         | Some c, Some d -> createComponent c componentType defaultLabel 100 100 d |> ignore
+
+    // For now only changes the label. TODO
+    member this.EditComponent componentId newLabel = 
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.EditComponent called when canvas is None"
+        | Some c -> editComponent c componentId newLabel |> ignore
 
     member this.GetCanvasState () =
         match canvas with

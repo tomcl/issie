@@ -22,7 +22,7 @@ type Model = {
     Diagram : Draw2dWrapper
     Zoom : float
     State : Component list * Connection list
-    SelectedComponent : (Component * JSComponent) option // Keep a ref to the original jsObject to edit it.
+    SelectedComponent : Component option
 }
 
 // -- Init Model
@@ -50,7 +50,7 @@ let getStateAction model dispatch =
 let viewSelectedComponent model =
     match model.SelectedComponent with
     | None -> div [] [ str "No component selected" ]
-    | Some (comp, jsComp) ->
+    | Some comp ->
         let formId = "component-properties-form-" + comp.Id
         let readOnlyFormField name value =
             Field.div [] [
@@ -83,8 +83,7 @@ let viewSelectedComponent model =
                             // TODO: dont think this is the right way to do it.
                             let form = document.getElementById <| formId
                             let label : string = getFailIfNull form ["elements"; "Label"; "value"]
-                            // TODO: again, this very hacky.
-                            jsComp?children?data?(0)?figure?setText(label)
+                            model.Diagram.EditComponent comp.Id label
                         )
                     ] [ str "Update" ]
                 ]
@@ -124,7 +123,7 @@ let handleJSDiagramMsg msg model =
         model.Diagram.InitCanvas canvas
         model
     | SelectComponent jsComponent ->
-        { model with SelectedComponent = Some (extractComponent jsComponent, jsComponent) }
+        { model with SelectedComponent = Some <| extractComponent jsComponent }
     | UnselectComponent jsComponent ->
          { model with SelectedComponent = None }
 

@@ -59,14 +59,15 @@ let diagramView model dispatch =
 
 let view model dispatch =
     div [] [
-        //Navbar.navbar [] [
-        //    Navbar.Item.div [ Navbar.Item.IsHoverable ] [
-        //        Navbar.Link.div [ Navbar.Link.IsArrowless; Navbar.Link.Option.Props.OnClick (fun _ -> PageMsg DiagramPage |> dispatch) ] [ str "Diagram" ]
-        //    ]
-        //]
         div [ navbarStyle ] [
-            Button.button [Button.OnClick (fun _ -> PageMsg DiagramPage |> dispatch )] [str "Diagram"]
-            Button.button [Button.OnClick (fun _ -> PageMsg EditorPage |> dispatch )] [str "Editor"]
+            Tabs.tabs [ Tabs.IsBoxed; Tabs.Props [ ] ] [
+            Tabs.tab
+                [ Tabs.Tab.IsActive (model.Page = DiagramPage) ]
+                [ a [ OnClick (fun _ -> PageMsg DiagramPage |> dispatch ) ] [ str "Diagram" ] ]
+            Tabs.tab
+                [ Tabs.Tab.IsActive (model.Page = EditorPage) ]
+                [ a [ OnClick (fun _ -> PageMsg EditorPage |> dispatch ) ] [ str "Editor" ] ]
+            ]
         ]
         diagramView model dispatch
         editorView model dispatch

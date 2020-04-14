@@ -20,18 +20,18 @@ open Extractor
 
 type Model = {
     Diagram : Draw2dWrapper
-    Zoom : float
     State : Component list * Connection list
     SelectedComponent : Component option
+    RightTab : RightTab
 }
 
 // -- Init Model
 
 let init() = {
     Diagram = new Draw2dWrapper()
-    Zoom = 1.0
     State = [], []
     SelectedComponent = None
+    RightTab = Catalogue
 }
 
 // -- Create View
@@ -49,7 +49,7 @@ let getStateAction model dispatch =
 
 let viewSelectedComponent model =
     match model.SelectedComponent with
-    | None -> div [] [ str "No component selected" ]
+    | None -> div [] [ str "Select a component in the diagram" ]
     | Some comp ->
         let formId = "component-properties-form-" + comp.Id
         let readOnlyFormField name value =
@@ -67,6 +67,18 @@ let viewSelectedComponent model =
             match value with
             | None -> readOnlyFormField name "none"
             | Some v -> formField name v
+        let formButton text onClick =
+            Field.div [ Field.IsGrouped ] [
+                Control.div [] [
+                    Button.button [
+                        Button.Color IsPrimary
+                        Button.OnClick (fun e ->
+                            e.preventDefault()
+                            onClick ()
+                        )
+                    ] [ str text ]
+                ]
+            ]
         form [ Id formId ] [
             readOnlyFormField "Id" comp.Id
             readOnlyFormField "Type" <| sprintf "%A" comp.Type
@@ -74,20 +86,41 @@ let viewSelectedComponent model =
             readOnlyFormField "Input ports" <| sprintf "%d" comp.InputPorts.Length
             readOnlyFormField "Output ports" <| sprintf "%d" comp.OutputPorts.Length
             // Submit.
-            Field.div [ Field.IsGrouped ] [
-                Control.div [] [
-                    Button.button [
-                        Button.Color IsPrimary
-                        Button.OnClick (fun e ->
-                            e.preventDefault()
-                            // TODO: dont think this is the right way to do it.
-                            let form = document.getElementById <| formId
-                            let label : string = getFailIfNull form ["elements"; "Label"; "value"]
-                            model.Diagram.EditComponent comp.Id label
-                        )
-                    ] [ str "Update" ]
-                ]
-            ]
+            formButton "Update" (fun _ ->
+                // TODO: dont think this is the right way to do it.
+                let form = document.getElementById <| formId
+                let label : string = getFailIfNull form ["elements"; "Label"; "value"]
+                model.Diagram.EditComponent comp.Id label
+            )
+        ]
+
+let viewCatalogue model =
+    let menuItem label onClick =
+        Menu.Item.li
+            [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick ] ]
+            [ str label ]
+    Menu.menu [ ] [
+            Menu.label [ ] [ str "Gates" ]
+            Menu.list []
+                [ menuItem "Not" (fun _ -> model.Diagram.CreateComponent Not "")
+                  menuItem "And" (fun _ -> model.Diagram.CreateComponent And "") ]
+            Menu.label [ ] [ str "Mux / Demux" ]
+            Menu.list []
+                [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "mux2") ]
+        ]
+
+let viewRightTab model =
+    match model.RightTab with
+    | Catalogue ->
+        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
+            Heading.h4 [] [ str "Catalogue" ]
+            div [ Style [ MarginBottom "15px" ] ] [ str "Click component to add it to the diagram" ]
+            viewCatalogue model
+        ]
+    | Properties ->
+        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
+            Heading.h4 [] [ str "Component properties" ]
+            viewSelectedComponent model
         ]
 
 let hideView model dispatch =
@@ -99,20 +132,20 @@ let displayView model dispatch =
     div [] [
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Visible
         div [ rightSectionStyle ] [
-            div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
-                Heading.h4 [] [ str "Component properties" ]
-                viewSelectedComponent model
+            Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ ] ] [
+            Tabs.tab
+                [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
+                [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] [ str "Catalogue" ] ]
+            Tabs.tab
+                [ Tabs.Tab.IsActive (model.RightTab = Properties) ]
+                [ a [ OnClick (fun _ -> ChangeRightTab Properties |> dispatch ) ] [ str "Properties" ] ]
             ]
+            viewRightTab model
         ]
         div [ bottomSectionStyle ] [
-            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreateComponent Mux2 "mux2") ] ] [ str "Add mux2" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreateComponent Not "") ] ] [ str "Add not" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.CreateComponent And "") ] ] [ str "Add and" ]
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
             div [] (prettyPrintState model.State)
         ]
-        //Button.button [ Button.Props [ OnClick (fun _ -> dispatch ZoomIn)] ] [ str "Zoom in" ]
-        //Button.button [ Button.Props [ OnClick (fun _ -> dispatch ZoomOut)] ] [ str "Zoom out" ]
     ]
 
 // -- Update Model
@@ -130,10 +163,5 @@ let handleJSDiagramMsg msg model =
 let update msg model =
     match msg with
     | JSDiagramMsg msg' -> handleJSDiagramMsg msg' model
-    | UpdateState (com, con) -> {model with State = (com, con)}
-    //| ZoomIn ->
-    //    model.Canvas.SetZoom <| min (model.Zoom + 0.5) 10.0
-    //    { model with Zoom = model.Zoom + 0.5 }
-    //| ZoomOut ->
-    //    model.Canvas.SetZoom <| max (model.Zoom - 0.5) 0.5
-    //    { model with Zoom = model.Zoom - 0.5 }
+    | UpdateState (com, con) -> { model with State = (com, con) }
+    | ChangeRightTab newTab -> { model with RightTab = newTab }

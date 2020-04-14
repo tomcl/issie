@@ -40,6 +40,14 @@ type Connection = {
     Target : Port
 }
 
+//====================//
+// Types for the page //
+//====================//
+
+type RightTab =
+    | Properties
+    | Catalogue
+
 //==========//
 // Messages //
 //==========//
@@ -53,5 +61,4 @@ type JSDiagramMsg =
 type Msg =
     | JSDiagramMsg of JSDiagramMsg
     | UpdateState of Component list * Connection list
-    //| ZoomIn
-    //| ZoomOut
+    | ChangeRightTab of RightTab

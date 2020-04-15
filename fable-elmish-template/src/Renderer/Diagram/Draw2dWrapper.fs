@@ -116,6 +116,21 @@ let private createDigitalNot (x : int) (y : int) : JSComponent = jsNative
 [<Emit("new draw2d.shape.digital.And({x:$0,y:$1,resizeable:false});")>]
 let private createDigitalAnd (x : int) (y : int) : JSComponent = jsNative
 
+[<Emit("new draw2d.shape.digital.Or({x:$0,y:$1,resizeable:false});")>]
+let private createDigitalOr (x : int) (y : int) : JSComponent = jsNative
+
+[<Emit("new draw2d.shape.digital.Xor({x:$0,y:$1,resizeable:false});")>]
+let private createDigitalXor (x : int) (y : int) : JSComponent = jsNative
+
+[<Emit("new draw2d.shape.digital.Nand({x:$0,y:$1,resizeable:false});")>]
+let private createDigitalNand (x : int) (y : int) : JSComponent = jsNative
+
+[<Emit("new draw2d.shape.digital.Nor({x:$0,y:$1,resizeable:false});")>]
+let private createDigitalNor (x : int) (y : int) : JSComponent = jsNative
+
+[<Emit("new draw2d.shape.digital.Xnor({x:$0,y:$1,resizeable:false});")>]
+let private createDigitalXnor (x : int) (y : int) : JSComponent = jsNative
+
 [<Emit("new draw2d.shape.digital.Mux2({x:$0,y:$1,resizeable:false});")>]
 let private createDigitalMux2 (x : int) (y : int) : JSComponent = jsNative
 
@@ -128,8 +143,13 @@ let private createComponent
         (dispatch : JSDiagramMsg -> unit)
         : JSComponent =
     let comp = match componentType with
-               | Not -> createDigitalNot x y
-               | And -> createDigitalAnd x y
+               | Not  -> createDigitalNot x y
+               | And  -> createDigitalAnd x y
+               | Or   -> createDigitalOr x y
+               | Xor  -> createDigitalXor x y
+               | Nand -> createDigitalNand x y
+               | Nor  -> createDigitalNor x y
+               | Xnor -> createDigitalXnor x y
                | Mux2 -> createDigitalMux2 x y
     // Install the behaviour on selection.
     installSelectionPolicy comp

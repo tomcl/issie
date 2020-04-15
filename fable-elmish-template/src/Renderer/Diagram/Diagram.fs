@@ -102,8 +102,13 @@ let viewCatalogue model =
     Menu.menu [ ] [
             Menu.label [ ] [ str "Gates" ]
             Menu.list []
-                [ menuItem "Not" (fun _ -> model.Diagram.CreateComponent Not "")
-                  menuItem "And" (fun _ -> model.Diagram.CreateComponent And "") ]
+                [ menuItem "Not"  (fun _ -> model.Diagram.CreateComponent Not "")
+                  menuItem "And"  (fun _ -> model.Diagram.CreateComponent And "")
+                  menuItem "Or"   (fun _ -> model.Diagram.CreateComponent Or "")
+                  menuItem "Xor"  (fun _ -> model.Diagram.CreateComponent Xor "")
+                  menuItem "Nand" (fun _ -> model.Diagram.CreateComponent Nand "")
+                  menuItem "Nor"  (fun _ -> model.Diagram.CreateComponent Nor "")
+                  menuItem "Xnor" (fun _ -> model.Diagram.CreateComponent Xnor "") ]
             Menu.label [ ] [ str "Mux / Demux" ]
             Menu.list []
                 [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "mux2") ]

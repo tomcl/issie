@@ -40,8 +40,13 @@ let private extractPorts jsPorts : Port list =
 
 let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     match getFailIfNull jsComponent ["userData"; "componentType"] with
-    | "Not" -> Not
-    | "And" -> And
+    | "Not"  -> Not
+    | "And"  -> And
+    | "Or"   -> Or
+    | "Xor"  -> Xor
+    | "Nand" -> Nand
+    | "Nor"  -> Nor
+    | "Xnor" -> Xnor
     | "Mux2" -> Mux2
     | ct -> failwithf "what? Component type %s does not exist" ct
 

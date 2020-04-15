@@ -100,6 +100,10 @@ let viewCatalogue model =
             [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick ] ]
             [ str label ]
     Menu.menu [ ] [
+            Menu.label [ ] [ str "Input / Output" ]
+            Menu.list []
+                [ menuItem "Input"  (fun _ -> model.Diagram.CreateComponent Input "input")
+                  menuItem "Output" (fun _ -> model.Diagram.CreateComponent Output "output") ]
             Menu.label [ ] [ str "Gates" ]
             Menu.list []
                 [ menuItem "Not"  (fun _ -> model.Diagram.CreateComponent Not "")

@@ -25,8 +25,8 @@ let private maybeExtractLabel childrenArray : string option =
 
 let private extractPort jsPort : Port =
     let portType = match getFailIfNull jsPort ["cssClass"] with
-                   | "draw2d_InputPort" -> Input
-                   | "draw2d_OutputPort" -> Output
+                   | "draw2d_InputPort" -> PortType.Input
+                   | "draw2d_OutputPort" -> PortType.Output
                    | p -> failwithf "what? oprt with cssClass %s" p
     {
         Id = getFailIfNull jsPort ["id"]
@@ -40,6 +40,8 @@ let private extractPorts jsPorts : Port list =
 
 let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     match getFailIfNull jsComponent ["userData"; "componentType"] with
+    | "Input"  -> Input
+    | "Output" -> Output
     | "Not"  -> Not
     | "And"  -> And
     | "Or"   -> Or

@@ -90,8 +90,8 @@ let private addPort (figure : JSComponent) (pType : PortType) (pLocation : PortL
                   | DiagramTypes.Right -> rightLocator ()
                   | DiagramTypes.Top -> topLocator ()
     match pType with
-    | Input -> addPort' figure "input" locator
-    | Output -> addPort' figure "output" locator
+    | PortType.Input -> addPort' figure "input" locator
+    | PortType.Output -> addPort' figure "output" locator
 
 [<Emit("$0.add(new draw2d.shape.basic.Label({text:$1, stroke:0}), new draw2d.layout.locator.TopLocator());")>]
 let private addLabel (figure : JSComponent) (label : string) : unit = jsNative
@@ -109,6 +109,12 @@ $0.installEditPolicy(new draw2d.policy.figure.AntSelectionFeedbackPolicy({
 }));
 ")>]
 let private installSelectionPolicy (figure : JSComponent) (onSelect : JSComponent -> unit) (onUnselect : JSComponent -> unit) : unit = jsNative
+
+[<Emit("new draw2d.shape.digital.Input({x:$0,y:$1,resizeable:false});")>]
+let private createDigitalInput (x : int) (y : int) : JSComponent = jsNative
+
+[<Emit("new draw2d.shape.digital.Output({x:$0,y:$1,resizeable:false});")>]
+let private createDigitalOutput (x : int) (y : int) : JSComponent = jsNative
 
 [<Emit("new draw2d.shape.digital.Not({x:$0,y:$1,resizeable:false});")>]
 let private createDigitalNot (x : int) (y : int) : JSComponent = jsNative
@@ -143,6 +149,8 @@ let private createComponent
         (dispatch : JSDiagramMsg -> unit)
         : JSComponent =
     let comp = match componentType with
+               | Input  -> createDigitalInput x y
+               | Output -> createDigitalOutput x y
                | Not  -> createDigitalNot x y
                | And  -> createDigitalAnd x y
                | Or   -> createDigitalOr x y

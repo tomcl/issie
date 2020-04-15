@@ -48,6 +48,56 @@ draw2d.shape.digital = draw2d.SVGFigure.extend({
     }
 });
 
+draw2d.shape.digital.Input = draw2d.shape.digital.extend({
+
+    NAME:"draw2d.shape.digital.Input",
+
+    svgHeight : 20,
+    svgWidth : 30,
+    svgElements : [
+        {path: '<polygon points="0,0 20,0 30,10 20,20 0,20" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true}
+    ],
+
+    init: function(attr, setter, getter ){
+        this._super(
+            $.extend({width:this.svgWidth, height:this.svgHeight}, attr),
+            setter,
+            getter
+        );
+
+        this.setUserData({
+            componentType : "Input",
+        });
+
+        this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
+    },
+});
+
+draw2d.shape.digital.Output = draw2d.shape.digital.extend({
+
+    NAME:"draw2d.shape.digital.Output",
+
+    svgHeight : 20,
+    svgWidth : 30,
+    svgElements : [
+        {path: '<polygon points="0,10 10,0 30,0 30,20 10,20" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true}
+    ],
+
+    init: function(attr, setter, getter ){
+        this._super(
+            $.extend({width:this.svgWidth, height:this.svgHeight}, attr),
+            setter,
+            getter
+        );
+
+        this.setUserData({
+            componentType : "Output",
+        });
+
+        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
+    },
+});
+
 draw2d.shape.digital.Not = draw2d.shape.digital.extend({
 
     NAME:"draw2d.shape.digital.Not",

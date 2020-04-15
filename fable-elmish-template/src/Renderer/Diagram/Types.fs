@@ -22,7 +22,10 @@ type Port = {
 }
 
 // Types instantiating objects in the Digital extension.
-type ComponentType = | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2
+type ComponentType =
+    | Input | Output
+    | Not | And | Or | Xor | Nand | Nor | Xnor
+    | Mux2
 
 // JSComponent mapped to f# object.
 type Component = {

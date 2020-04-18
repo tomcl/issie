@@ -153,6 +153,8 @@ let displayView model dispatch =
         ]
         div [ bottomSectionStyle ] [
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> log <| model.Diagram.GetCanvasStateAsString()) ] ] [ str "Save diagram" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.LoadCanvasStateFromString "" ) ] ] [ str "Load diagram" ]
             div [] (prettyPrintState model.State)
         ]
     ]

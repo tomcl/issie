@@ -140,6 +140,14 @@ let private createDigitalXnor (x : int) (y : int) : JSComponent = jsNative
 [<Emit("new draw2d.shape.digital.Mux2({x:$0,y:$1,resizeable:false});")>]
 let private createDigitalMux2 (x : int) (y : int) : JSComponent = jsNative
 
+let private initialiseComponent (comp : JSComponent) (dispatch : JSDiagramMsg -> unit) (label : string) : unit =
+    // Install the behaviour on selection.
+    installSelectionPolicy comp
+        (SelectComponent >> dispatch)
+        (UnselectComponent >> dispatch)
+    // Every component is assumed to have a label (may be empty string).
+    addLabel comp label
+
 let private createComponent
         (canvas : JSCanvas)
         (componentType : ComponentType)
@@ -147,7 +155,7 @@ let private createComponent
         (x : int)
         (y : int)
         (dispatch : JSDiagramMsg -> unit)
-        : JSComponent =
+        : unit =
     let comp = match componentType with
                | Input  -> createDigitalInput x y
                | Output -> createDigitalOutput x y
@@ -159,14 +167,8 @@ let private createComponent
                | Nor  -> createDigitalNor x y
                | Xnor -> createDigitalXnor x y
                | Mux2 -> createDigitalMux2 x y
-    // Install the behaviour on selection.
-    installSelectionPolicy comp
-        (SelectComponent >> dispatch)
-        (UnselectComponent >> dispatch)
-    // Every component is assumed to have a label (may be empty string).
-    addLabel comp defaultLabel
+    initialiseComponent comp dispatch defaultLabel
     addFigureToCanvas canvas comp
-    comp
 
 [<Emit("
 $0.getFigures().find(function(figure){
@@ -175,8 +177,12 @@ $0.getFigures().find(function(figure){
 ")>]
 let private getComponentById (canvas : JSCanvas) (id : string) : JSComponent = jsNative
 
+let private getAllComponents (canvas : JSCanvas) : JSComponent list =
+    let figures = canvas?getFigures()?data // JS list of components.
+    [0..figures?length - 1] |> List.map (fun i -> figures?(i))
+
 // TODO: for now only supports labels.
-let private editComponent (canvas : JSCanvas) (id : string) (newLabel : string) =
+let private editComponent (canvas : JSCanvas) (id : string) (newLabel : string) : unit =
     let jsComponent = getComponentById canvas id
     if isNull jsComponent
     then failwithf "what? could not find diagram component with Id: %s" id
@@ -203,6 +209,15 @@ let private editComponent (canvas : JSCanvas) (id : string) (newLabel : string) 
 })();
 ")>]
 let private getCanvasState (canvas : JSCanvas) : JSCanvasState = jsNative
+
+[<Emit("draw2dStateIO.getCanvasStateAsString($0)")>]
+let private getCanvasStateAsString (canvas : JSCanvas) : string = jsNative
+
+// TODO: remove.
+let private testDiagram = "WwogIHsKICAgICJ0eXBlIjogImRyYXcyZC5zaGFwZS5kaWdpdGFsLkFuZCIsCiAgICAiaWQiOiAiNGFiNjA4ZGEtZjUzNS0xY2I3LTI1YzktNzlhODc2ZWEyOTU1IiwKICAgICJ4IjogMTAwLAogICAgInkiOiAxMDAsCiAgICAid2lkdGgiOiA0MCwKICAgICJoZWlnaHQiOiA0MCwKICAgICJhbHBoYSI6IDEsCiAgICAic2VsZWN0YWJsZSI6IHRydWUsCiAgICAiZHJhZ2dhYmxlIjogdHJ1ZSwKICAgICJhbmdsZSI6IDAsCiAgICAidXNlckRhdGEiOiB7CiAgICAgICJjb21wb25lbnRUeXBlIjogIkFuZCIsCiAgICAgICJzdG9yZWQiOiB7fQogICAgfSwKICAgICJjc3NDbGFzcyI6ICJkcmF3MmRfc2hhcGVfZGlnaXRhbF9BbmQiLAogICAgInBvcnRzIjogWwogICAgICB7CiAgICAgICAgInR5cGUiOiAiZHJhdzJkLklucHV0UG9ydCIsCiAgICAgICAgImlkIjogIjc1ZmFmNjNlLTExMDYtMGMwYS02ODBjLTk4NjgzNTc0OTJmYyIsCiAgICAgICAgIndpZHRoIjogMTAsCiAgICAgICAgImhlaWdodCI6IDEwLAogICAgICAgICJhbHBoYSI6IDEsCiAgICAgICAgInNlbGVjdGFibGUiOiBmYWxzZSwKICAgICAgICAiZHJhZ2dhYmxlIjogdHJ1ZSwKICAgICAgICAiYW5nbGUiOiAwLAogICAgICAgICJ1c2VyRGF0YSI6IHt9LAogICAgICAgICJjc3NDbGFzcyI6ICJkcmF3MmRfSW5wdXRQb3J0IiwKICAgICAgICAiYmdDb2xvciI6ICJyZ2JhKDc5LDEwNCwxMTIsMSkiLAogICAgICAgICJjb2xvciI6ICJyZ2JhKDI3LDI3LDI3LDEpIiwKICAgICAgICAic3Ryb2tlIjogMSwKICAgICAgICAiZGFzaGFycmF5IjogbnVsbCwKICAgICAgICAibWF4RmFuT3V0IjogOTAwNzE5OTI1NDc0MDk5MSwKICAgICAgICAibmFtZSI6ICJpbnB1dDAiLAogICAgICAgICJzZW1hbnRpY0dyb3VwIjogImdsb2JhbCIsCiAgICAgICAgInBvcnQiOiAiZHJhdzJkLklucHV0UG9ydCIsCiAgICAgICAgImxvY2F0b3IiOiAiZHJhdzJkLmxheW91dC5sb2NhdG9yLklucHV0UG9ydExvY2F0b3IiLAogICAgICAgICJsb2NhdG9yQXR0ciI6IHt9CiAgICAgIH0sCiAgICAgIHsKICAgICAgICAidHlwZSI6ICJkcmF3MmQuSW5wdXRQb3J0IiwKICAgICAgICAiaWQiOiAiZGI1NTNhYjUtNjhlZC1hYzYxLWQyZDMtZGZkNjlmNTVkNzQ1IiwKICAgICAgICAid2lkdGgiOiAxMCwKICAgICAgICAiaGVpZ2h0IjogMTAsCiAgICAgICAgImFscGhhIjogMSwKICAgICAgICAic2VsZWN0YWJsZSI6IGZhbHNlLAogICAgICAgICJkcmFnZ2FibGUiOiB0cnVlLAogICAgICAgICJhbmdsZSI6IDAsCiAgICAgICAgInVzZXJEYXRhIjoge30sCiAgICAgICAgImNzc0NsYXNzIjogImRyYXcyZF9JbnB1dFBvcnQiLAogICAgICAgICJiZ0NvbG9yIjogInJnYmEoNzksMTA0LDExMiwxKSIsCiAgICAgICAgImNvbG9yIjogInJnYmEoMjcsMjcsMjcsMSkiLAogICAgICAgICJzdHJva2UiOiAxLAogICAgICAgICJkYXNoYXJyYXkiOiBudWxsLAogICAgICAgICJtYXhGYW5PdXQiOiA5MDA3MTk5MjU0NzQwOTkxLAogICAgICAgICJuYW1lIjogImlucHV0MSIsCiAgICAgICAgInNlbWFudGljR3JvdXAiOiAiZ2xvYmFsIiwKICAgICAgICAicG9ydCI6ICJkcmF3MmQuSW5wdXRQb3J0IiwKICAgICAgICAibG9jYXRvciI6ICJkcmF3MmQubGF5b3V0LmxvY2F0b3IuSW5wdXRQb3J0TG9jYXRvciIsCiAgICAgICAgImxvY2F0b3JBdHRyIjoge30KICAgICAgfSwKICAgICAgewogICAgICAgICJ0eXBlIjogImRyYXcyZC5PdXRwdXRQb3J0IiwKICAgICAgICAiaWQiOiAiMzcxMDllODgtYzNkYi1iNDg5LTU5ZTYtYmU0NjQ2YjVmNjA5IiwKICAgICAgICAid2lkdGgiOiAxMCwKICAgICAgICAiaGVpZ2h0IjogMTAsCiAgICAgICAgImFscGhhIjogMSwKICAgICAgICAic2VsZWN0YWJsZSI6IGZhbHNlLAogICAgICAgICJkcmFnZ2FibGUiOiB0cnVlLAogICAgICAgICJhbmdsZSI6IDAsCiAgICAgICAgInVzZXJEYXRhIjoge30sCiAgICAgICAgImNzc0NsYXNzIjogImRyYXcyZF9PdXRwdXRQb3J0IiwKICAgICAgICAiYmdDb2xvciI6ICJyZ2JhKDc5LDEwNCwxMTIsMSkiLAogICAgICAgICJjb2xvciI6ICJyZ2JhKDI3LDI3LDI3LDEpIiwKICAgICAgICAic3Ryb2tlIjogMSwKICAgICAgICAiZGFzaGFycmF5IjogbnVsbCwKICAgICAgICAibWF4RmFuT3V0IjogOTAwNzE5OTI1NDc0MDk5MSwKICAgICAgICAibmFtZSI6ICJvdXRwdXQwIiwKICAgICAgICAic2VtYW50aWNHcm91cCI6ICJnbG9iYWwiLAogICAgICAgICJwb3J0IjogImRyYXcyZC5PdXRwdXRQb3J0IiwKICAgICAgICAibG9jYXRvciI6ICJkcmF3MmQubGF5b3V0LmxvY2F0b3IuT3V0cHV0UG9ydExvY2F0b3IiLAogICAgICAgICJsb2NhdG9yQXR0ciI6IHt9CiAgICAgIH0KICAgIF0sCiAgICAiYmdDb2xvciI6ICJyZ2JhKDIxMSwyMTEsMjExLDEpIiwKICAgICJjb2xvciI6ICJyZ2JhKDI3LDI3LDI3LDEpIiwKICAgICJzdHJva2UiOiAwLAogICAgInJhZGl1cyI6IDAsCiAgICAiZGFzaGFycmF5IjogbnVsbAogIH0KXQ=="
+
+[<Emit("draw2dStateIO.loadCanvasStateFromString($0, $1)")>]
+let private loadCanvasStateFromString (canvas : JSCanvas) (state : string) : unit = jsNative
 
 // React wrapper.
 
@@ -255,13 +270,13 @@ type Draw2dWrapper() =
     member this.CreateComponent componentType defaultLabel =
         match canvas, dispatch with
         | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateComponent called when canvas or dispatch is None"
-        | Some c, Some d -> createComponent c componentType defaultLabel 100 100 d |> ignore
+        | Some c, Some d -> createComponent c componentType defaultLabel 100 100 d
 
     // For now only changes the label. TODO
     member this.EditComponent componentId newLabel = 
         match canvas with
         | None -> log "Warning: Draw2dWrapper.EditComponent called when canvas is None"
-        | Some c -> editComponent c componentId newLabel |> ignore
+        | Some c -> editComponent c componentId newLabel
 
     member this.GetCanvasState () =
         match canvas with
@@ -270,3 +285,23 @@ type Draw2dWrapper() =
             None
         | Some c ->
             Some <| getCanvasState c
+
+    member this.GetCanvasStateAsString () =
+        match canvas with
+        | None ->
+            log "Warning: Draw2dWrapper.GetCanvasStateAsString called when canvas is None"
+            None
+        | Some c ->
+            Some <| getCanvasStateAsString c
+
+    member this.LoadCanvasStateFromString state =
+        match canvas, dispatch with
+        | None, _ | _, None -> log "Warning: Draw2dWrapper.LoadCanvasStateFromString called when canvas or dispatch is None"
+        | Some c, Some d ->
+            // TODO: clearDiagram
+            loadCanvasStateFromString c testDiagram
+            let getLabelFromUserData (comp : JSComponent) : string =
+                getFailIfNull comp ["userData"; "stored"; "label"]
+            getAllComponents c
+            |> List.map (fun comp -> initialiseComponent comp d (getLabelFromUserData comp))
+            |> ignore

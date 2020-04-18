@@ -24,7 +24,10 @@ let isNull (var : obj) : bool = jsNative
 /// with checks against null at every layer.
 let rec getFailIfNull jsObj (fields : string list) =
     match fields with
-    | [lastField] -> jsObj?(lastField)
+    | [lastField] ->
+        if isNull jsObj?(lastField)
+        then failwithf "what? %s is null or undefined" lastField
+        else jsObj?(lastField)
     | nextField :: fields' ->
         if isNull jsObj?(nextField)
         then failwithf "what? %s is null or undefined" nextField

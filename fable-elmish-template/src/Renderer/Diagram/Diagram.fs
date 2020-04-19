@@ -18,6 +18,8 @@ open CommonStyle
 open DiagramStyle
 open Extractor
 
+open StateIO
+
 type Model = {
     Diagram : Draw2dWrapper
     State : Component list * Connection list
@@ -27,7 +29,9 @@ type Model = {
 
 // -- Init Model
 
-let init() = {
+let init() =
+    log json
+    {
     Diagram = new Draw2dWrapper()
     State = [], []
     SelectedComponent = None

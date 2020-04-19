@@ -60,6 +60,9 @@ let private createAndInitialiseCanvas (id : string) : JSCanvas =
     initialiseCanvas canvas
     canvas
 
+[<Emit("$0.clear()")>]
+let private clearCanvas (canvas : JSCanvas) : unit = jsNative
+
 [<Emit("$0.add($1);")>]
 let private addComponentToCanvas (canvas : JSCanvas) (figure : JSComponent) : unit = jsNative
 
@@ -286,6 +289,11 @@ type Draw2dWrapper() =
         match canvas with
         | None -> canvas <- Some newCanvas
         | Some _ -> failwithf "what? InitCanvas should never be called when canvas is already created" 
+    
+    member this.ClearCanvas () =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.ClearCanvas called when canvas is None"
+        | Some c -> clearCanvas c
 
     member this.CreateComponent componentType defaultLabel =
         match canvas, dispatch with

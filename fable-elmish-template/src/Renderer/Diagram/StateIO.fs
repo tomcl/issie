@@ -23,17 +23,27 @@ let private fileFilterOpts =
         ]
     ] |> Some
 
-let saveStateToFile (state : CanvasState) : unit =
+/// Save the state to a file and return the path where it was saved.
+/// TODO: handle errors?
+let saveStateToFile maybePath state =
     let writeToFile str path =
         fs.writeFile (path, str, ignore)
     let stateStr = stateToJsonString state
-    // The next three lines open the window to the save the file.
-    let options = createEmpty<SaveDialogOptions>
-    options.filters <- fileFilterOpts
-    let path = electron.remote.dialog.showSaveDialog (options)
-    writeToFile stateStr path
+    let path =
+        match maybePath with
+        | Some path -> path
+        | Option.None -> // Open dialog window to obtain the path.
+            let options = createEmpty<SaveDialogOptions>
+            options.filters <- fileFilterOpts
+            electron.remote.dialog.showSaveDialog(options)
+    match isNull path with
+    | true -> Option.None // User did not completed the save dialog interaction.
+    | false -> writeToFile stateStr path
+               Some path
 
-let loadStateFromFile (diagramWrapper : Draw2dWrapper) : unit =
+/// Load the state from a file and return the path from where it is loaded.
+/// TODO: handle errors?
+let loadStateFromFile (diagramWrapper : Draw2dWrapper) =
     let loadFromPath path =
         fs.readFile (path, (fun err dataBuffer ->
             let data = dataBuffer.toString ("utf8")
@@ -45,10 +55,13 @@ let loadStateFromFile (diagramWrapper : Draw2dWrapper) : unit =
     let options = createEmpty<OpenDialogOptions>
     options.properties <- ResizeArray([ "openFile" ]) |> Some
     options.filters <- fileFilterOpts
-    electron.remote.dialog.showOpenDialog(options)
-    |> Seq.toList
-    |> List.map loadFromPath
-    |> ignore
+    let paths = electron.remote.dialog.showOpenDialog(options)
+    match isNull paths with
+    | true -> Option.None // User did not completed the load dialog interaction.
+    | false -> match Seq.toList paths with
+               | [path] -> loadFromPath path
+                           Some path
+               | _ -> Option.None
 
 // TODO: move into a test.
 //let comp = {

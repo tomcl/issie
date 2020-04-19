@@ -25,6 +25,9 @@ type Model = {
     State : CanvasState
     SelectedComponent : Component option
     RightTab : RightTab
+    // If the content of the diagram has been loaded or saved from/to file keep
+    // track of the path, instead of reasking every time.
+    OpenPath : string option
 }
 
 // -- Init Model
@@ -34,6 +37,7 @@ let init() = {
     State = [], []
     SelectedComponent = None
     RightTab = Catalogue
+    OpenPath = None
 }
 
 // -- Create View
@@ -49,13 +53,16 @@ let getStateAction model dispatch =
     | None -> ()
     | Some state -> extractState state |> UpdateState |> dispatch
 
-let saveStateAction model =
+let saveStateAction model dispatch =
     match model.Diagram.GetCanvasState () with
     | None -> ()
-    | Some state -> extractState state |> saveStateToFile
+    | Some state -> extractState state
+                    |> saveStateToFile model.OpenPath
+                    |> SetOpenPath
+                    |> dispatch 
 
-let loadStateAction model =
-    loadStateFromFile model.Diagram
+let loadStateAction model dispatch =
+    loadStateFromFile model.Diagram |> SetOpenPath |> dispatch
 
 let viewSelectedComponent model =
     match model.SelectedComponent with
@@ -163,8 +170,8 @@ let displayView model dispatch =
         ]
         div [ bottomSectionStyle ] [
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> saveStateAction model ) ] ] [ str "Save diagram" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> loadStateAction model) ] ] [ str "Load diagram" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> saveStateAction model dispatch ) ] ] [ str "Save diagram" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> loadStateAction model dispatch) ] ] [ str "Load diagram" ]
             div [] (prettyPrintState model.State)
         ]
     ]
@@ -186,3 +193,4 @@ let update msg model =
     | JSDiagramMsg msg' -> handleJSDiagramMsg msg' model
     | UpdateState (com, con) -> { model with State = (com, con) }
     | ChangeRightTab newTab -> { model with RightTab = newTab }
+    | SetOpenPath openPath -> { model with OpenPath = openPath }

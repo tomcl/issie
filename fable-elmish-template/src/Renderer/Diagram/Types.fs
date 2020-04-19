@@ -73,3 +73,4 @@ type Msg =
     | JSDiagramMsg of JSDiagramMsg
     | UpdateState of CanvasState
     | ChangeRightTab of RightTab
+    | SetOpenPath of string option

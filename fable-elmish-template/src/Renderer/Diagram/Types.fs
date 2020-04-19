@@ -10,6 +10,8 @@ type JSComponent   = | JSComponent of obj
 type JSComponents  = | JSComponents of obj // JS list of JSComponent.
 type JSConnection  = | JSConnection of obj
 type JSConnections = | JSConnections of obj // JS list of JSConnection.
+type JSPort        = | JSPort of obj
+type JSPorts       = | JSPorts of obj // JS list of JSPort.
 
 // Specify the position and type of a port in a JSComponent.
 type PortType = Input | Output
@@ -17,7 +19,6 @@ type PortLocation = Left | Right | Top | Bottom
 
 type Port = {
     Id : string
-    Label : string option // Not all ports have to be labeled.
     PortType : PortType
 }
 
@@ -31,7 +32,7 @@ type ComponentType =
 type Component = {
     Id : string
     Type : ComponentType
-    Label : string option // TODO: decide whether or not all components should be labeled.
+    Label : string // All components have a label that may be empty.
     InputPorts : Port list
     OutputPorts : Port list
     X : int

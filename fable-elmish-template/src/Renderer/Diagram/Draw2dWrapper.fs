@@ -63,38 +63,23 @@ let private createAndInitialiseCanvas (id : string) : JSCanvas =
 [<Emit("$0.add($1);")>]
 let private addFigureToCanvas (canvas : JSCanvas) (figure : JSComponent) : unit = jsNative
 
-[<Emit("$0.createPort($1, $2)")>]
-let private addPort' (figure : JSComponent) (portName : string) (locator : obj) : unit = jsNative
-
-// InputPortLocator works better than LeftLocator, since it moves the port to
-// make space for new ones (instead of overlapping them).
-[<Emit("new draw2d.layout.locator.InputPortLocator()")>]
-let private leftLocator () = jsNative
-
-// Similarly to InputPortLocator, OutputPortLocator is better than RightLocator.
-[<Emit("new draw2d.layout.locator.OutputPortLocator()")>]
-let private rightLocator () = jsNative
-
-// Using this multiple times in the same figure will produce an overlap.
-[<Emit("new draw2d.layout.locator.BottomLocator()")>]
-let private bottomLocator () = jsNative
-
-// Using this multiple times in the same figure will produce an overlap.
-[<Emit("new draw2d.layout.locator.TopLocator()")>]
-let private topLocator () = jsNative
-
-let private addPort (figure : JSComponent) (pType : PortType) (pLocation : PortLocation) : unit =
-    let locator = match pLocation with
-                  | DiagramTypes.Bottom -> bottomLocator ()
-                  | DiagramTypes.Left -> leftLocator ()
-                  | DiagramTypes.Right -> rightLocator ()
-                  | DiagramTypes.Top -> topLocator ()
-    match pType with
-    | PortType.Input -> addPort' figure "input" locator
-    | PortType.Output -> addPort' figure "output" locator
-
 [<Emit("$0.add(new draw2d.shape.basic.Label({text:$1, stroke:0}), new draw2d.layout.locator.TopLocator());")>]
 let private addLabel (figure : JSComponent) (label : string) : unit = jsNative
+
+[<Emit("$0.setId($1)")>]
+let private setComponentId (figure : JSComponent) (id : string) : unit = jsNative
+
+[<Emit("$0.getInputPorts().data")>]
+let private getInputPorts (figure : JSComponent) : JSPorts = jsNative
+
+[<Emit("$0.getOutputPorts().data")>]
+let private getOutputPorts (figure : JSComponent) : JSPorts = jsNative
+
+[<Emit("$0.setId($1)")>]
+let private setConnectionId (figure : JSConnection) (id : string) : unit = jsNative
+
+[<Emit("$0.setId($1)")>]
+let private setPortId (figure : JSPort) (id : string) : unit = jsNative
 
 [<Emit("
 $0.installEditPolicy(new draw2d.policy.figure.AntSelectionFeedbackPolicy({
@@ -140,21 +125,25 @@ let private createDigitalXnor (x : int) (y : int) : JSComponent = jsNative
 [<Emit("new draw2d.shape.digital.Mux2({x:$0,y:$1,resizeable:false});")>]
 let private createDigitalMux2 (x : int) (y : int) : JSComponent = jsNative
 
-let private initialiseComponent (comp : JSComponent) (dispatch : JSDiagramMsg -> unit) (label : string) : unit =
-    // Install the behaviour on selection.
-    installSelectionPolicy comp
-        (SelectComponent >> dispatch)
-        (UnselectComponent >> dispatch)
-    // Every component is assumed to have a label (may be empty string).
-    addLabel comp label
+let private setPorts (figure : JSComponent) (ports : Port list) (jsPorts : JSPorts) : unit =
+    let jsPortsLen : int = getFailIfNull jsPorts ["length"]
+    if jsPortsLen <> ports.Length then failwithf "what? setPort called with mismatching number of ports"
+    [0..ports.Length - 1] |> List.map (fun i ->
+        let jsPort : JSPort = jsPorts?(i)
+        let port : Port = ports.[i]
+        setPortId jsPort port.Id
+    ) |> ignore
 
 let private createComponent
         (canvas : JSCanvas)
+        (dispatch : JSDiagramMsg -> unit)
+        (maybeId : string option) // Passing None will let the library decide it.
         (componentType : ComponentType)
-        (defaultLabel : string)
+        (label : string)
+        (maybeInputPorts : (Port list) option) // Passing None will initialise new ports.
+        (maybeOutputPorts : (Port list) option) // Passing None will initialise new ports.
         (x : int)
         (y : int)
-        (dispatch : JSDiagramMsg -> unit)
         : unit =
     let comp = match componentType with
                | Input  -> createDigitalInput x y
@@ -167,7 +156,28 @@ let private createComponent
                | Nor  -> createDigitalNor x y
                | Xnor -> createDigitalXnor x y
                | Mux2 -> createDigitalMux2 x y
-    initialiseComponent comp dispatch defaultLabel
+
+    // Every component is assumed to have a label (may be empty string).
+    addLabel comp label
+
+    // Set Id if one is provided.
+    match maybeId with
+    | None -> ()
+    | Some id -> setComponentId comp id
+
+    // Set ports if provided.
+    match maybeInputPorts, maybeOutputPorts with
+    | None, None -> ()
+    | Some ip, Some op ->
+        setPorts comp ip (getInputPorts comp)
+        setPorts comp op (getOutputPorts comp)
+    | _ -> failwithf "what? createComponent called with incomplete of input/output ports"
+
+    // Install the behaviour on selection.
+    installSelectionPolicy comp
+        (SelectComponent >> dispatch)
+        (UnselectComponent >> dispatch)
+
     addFigureToCanvas canvas comp
 
 [<Emit("
@@ -261,7 +271,17 @@ type Draw2dWrapper() =
     member this.CreateComponent componentType defaultLabel =
         match canvas, dispatch with
         | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateComponent called when canvas or dispatch is None"
-        | Some c, Some d -> createComponent c componentType defaultLabel 100 100 d
+        | Some c, Some d -> createComponent
+                                c d None componentType defaultLabel
+                                None None 100 100
+
+    member this.LoadComponent (comp : Component) =
+        match canvas, dispatch with
+        | None, _ | _, None -> log "Warning: Draw2dWrapper.LoadComponent called when canvas or dispatch is None"
+        | Some c, Some d -> createComponent
+                                c d (Some comp.Id) comp.Type comp.Label
+                                (Some comp.InputPorts) (Some comp.OutputPorts)
+                                comp.X comp.Y
 
     // For now only changes the label. TODO
     member this.EditComponent componentId newLabel = 

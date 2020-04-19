@@ -20,6 +20,7 @@ type PortLocation = Left | Right | Top | Bottom
 type Port = {
     Id : string
     PortType : PortType
+    HostId : string
 }
 
 // Types instantiating objects in the Digital extension.

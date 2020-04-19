@@ -32,6 +32,7 @@ let private extractPort (jsPort : JSPort) : Port =
     {
         Id = getFailIfNull jsPort ["id"]
         PortType = portType
+        HostId = getFailIfNull jsPort ["parent"; "id"]
     }
 
 let private extractPorts (jsPorts : JSPorts) : Port list =

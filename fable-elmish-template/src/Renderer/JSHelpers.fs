@@ -15,7 +15,12 @@ let log msg : unit = jsNative
 let alert msg : unit = jsNative
 
 [<Emit("($0 == null || $0 === 'undefined')")>]
-let isNull (var : obj) : bool = jsNative
+let isNull (obj : obj) : bool = jsNative
+
+let assertNotNull obj msg =
+    if isNull obj
+    then failwithf "what? assertNotNull failed: %s" msg
+    else obj
 
 /// Access nested fields of a js object, failing if at any point of the chain
 /// the requested field is null.

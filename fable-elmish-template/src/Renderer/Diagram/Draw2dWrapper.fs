@@ -42,11 +42,11 @@ $0.installEditPolicy( new draw2d.policy.connection.ComposedConnectionCreatePolic
     [
         // Create a connection via Drag&Drop of ports.
         new draw2d.policy.connection.DragConnectionCreatePolicy({
-            createConnection:createConnection
+            createConnection:createDigitalConnection
         }),
         // Or via click and point.
         new draw2d.policy.connection.OrthogonalConnectionCreatePolicy({
-            createConnection:createConnection
+            createConnection:createDigitalConnection
         })
     ])
 );
@@ -61,7 +61,10 @@ let private createAndInitialiseCanvas (id : string) : JSCanvas =
     canvas
 
 [<Emit("$0.add($1);")>]
-let private addFigureToCanvas (canvas : JSCanvas) (figure : JSComponent) : unit = jsNative
+let private addComponentToCanvas (canvas : JSCanvas) (figure : JSComponent) : unit = jsNative
+
+[<Emit("$0.add($1);")>]
+let private addConnectionToCanvas (canvas : JSCanvas) (figure : JSConnection) : unit = jsNative
 
 [<Emit("$0.add(new draw2d.shape.basic.Label({text:$1, stroke:0}), new draw2d.layout.locator.TopLocator());")>]
 let private addLabel (figure : JSComponent) (label : string) : unit = jsNative
@@ -178,7 +181,16 @@ let private createComponent
         (SelectComponent >> dispatch)
         (UnselectComponent >> dispatch)
 
-    addFigureToCanvas canvas comp
+    addComponentToCanvas canvas comp
+
+// This function is defined in draw2d_setup.js.
+[<Emit("createDigitalConnection($0, $1)")>]
+let private createConnection' (source : JSPort) (target : JSPort) = jsNative
+
+let private createConnection (canvas : JSCanvas) (id : string) (source : JSPort) (target : JSPort) =
+    let conn : JSConnection = createConnection' source target
+    setConnectionId conn id
+    addConnectionToCanvas canvas conn
 
 [<Emit("
 $0.getFigures().find(function(figure){
@@ -186,6 +198,13 @@ $0.getFigures().find(function(figure){
 })
 ")>]
 let private getComponentById (canvas : JSCanvas) (id : string) : JSComponent = jsNative
+
+[<Emit("
+$0.getPorts().find(function(port){         
+    return port.id === $1;
+})
+")>]
+let private getPortById (jsComponent : JSComponent) (id : string) : JSPort = jsNative
 
 let private getAllComponents (canvas : JSCanvas) : JSComponent list =
     let figures = canvas?getFigures()?data // JS list of components.
@@ -282,6 +301,20 @@ type Draw2dWrapper() =
                                 c d (Some comp.Id) comp.Type comp.Label
                                 (Some comp.InputPorts) (Some comp.OutputPorts)
                                 comp.X comp.Y
+
+    member this.LoadConnection (conn : Connection) =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.LoadConnection called when canvas or dispatch is None"
+        | Some c ->
+            let sourceParentNode : JSComponent =
+                assertNotNull (getComponentById c conn.Source.HostId) "sourceParentNode"
+            let sourcePort : JSPort =
+                assertNotNull (getPortById sourceParentNode conn.Source.Id) "sourcePort"
+            let targetParentNode : JSComponent =
+                assertNotNull (getComponentById c conn.Target.HostId) "targetParentNode"
+            let targetPort : JSPort =
+                assertNotNull (getPortById targetParentNode conn.Target.Id) "targetPort"
+            createConnection c conn.Id sourcePort targetPort
 
     // For now only changes the label. TODO
     member this.EditComponent componentId newLabel = 

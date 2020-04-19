@@ -14,20 +14,15 @@ let private jsonStringToState (jsonString : string) : State =
     Json.parseAs<State> jsonString
 
 let saveStateToFile (state : State) : unit =
-    // TODO
-    log "saving"
     log <| stateToJsonString state
 
 let loadStateFromFile (diagramWrapper : Draw2dWrapper) : unit =
-    // TODO
-    log "loading"
     let data = """
-    [[{"Id":"b132a5c3-d136-ee93-0cea-8c1d9cd5567a","Type":"And","Label":"","InputPorts":[{"Id":"c3092d92-1ef3-4aac-b166-2929e3987123","PortType":"Input"},{"Id":"d634c0e2-a897-e919-5aeb-04359ab56a08","PortType":"Input"}],"OutputPorts":[{"Id":"05af7f83-6fad-4a75-28f1-8ff4720d4d34","PortType":"Output"}],"X":100,"Y":100},{"Id":"19e7099d-a9b1-485f-d361-7a5804e90dac","Type":"Xnor","Label":"hello world","InputPorts":[{"Id":"496be2e5-405a-5805-c155-d46b548e1c21","PortType":"Input"},{"Id":"7bf63951-cfc3-7792-7852-c4cc5fb8718d","PortType":"Input"}],"OutputPorts":[{"Id":"79d1f932-1292-1bd1-d997-4d89c73b32d2","PortType":"Output"}],"X":318,"Y":272},{"Id":"226225f6-ba6d-b209-2013-228b2e716291","Type":"Mux2","Label":"mux2","InputPorts":[{"Id":"d00ca0c2-3307-3055-872d-38350ef3b248","PortType":"Input"},{"Id":"6673f69a-9d52-3fe2-2b2e-971c14036c73","PortType":"Input"},{"Id":"4c929fa9-46a3-013f-c629-4494f7253436","PortType":"Input"}],"OutputPorts":[{"Id":"34b58845-fa4a-9e1a-4f48-e0ae4c1bb1cd","PortType":"Output"}],"X":399,"Y":105}],[]]
+    [[{"Id":"a7aed4c1-23f6-6a83-2eb1-a8b673837685","Type":"Or","Label":"hello","InputPorts":[{"Id":"26943173-e9bd-ca8d-3bec-26afa4923936","PortType":"Input","HostId":"a7aed4c1-23f6-6a83-2eb1-a8b673837685"},{"Id":"afe96ac0-b3b6-179f-1c9e-24dd50040d22","PortType":"Input","HostId":"a7aed4c1-23f6-6a83-2eb1-a8b673837685"}],"OutputPorts":[{"Id":"19ddc9cb-6531-cf1e-06ac-5b17bd1694d4","PortType":"Output","HostId":"a7aed4c1-23f6-6a83-2eb1-a8b673837685"}],"X":402,"Y":190},{"Id":"203dd1b9-b4b8-2b30-3c06-635753d84e30","Type":"Or","Label":"","InputPorts":[{"Id":"35a53006-c1db-068e-97da-a5e4f7722863","PortType":"Input","HostId":"203dd1b9-b4b8-2b30-3c06-635753d84e30"},{"Id":"d2cafe14-995c-22db-a99f-cf58b797d766","PortType":"Input","HostId":"203dd1b9-b4b8-2b30-3c06-635753d84e30"}],"OutputPorts":[{"Id":"689ebafe-6043-7f1f-dcba-997f37ebc48f","PortType":"Output","HostId":"203dd1b9-b4b8-2b30-3c06-635753d84e30"}],"X":578,"Y":335},{"Id":"654ae989-43b7-cd24-541e-11e28fad48b7","Type":"Mux2","Label":"mux2","InputPorts":[{"Id":"d1287f4b-b2bd-f889-4e1b-dc0514a76e35","PortType":"Input","HostId":"654ae989-43b7-cd24-541e-11e28fad48b7"},{"Id":"2b10930e-187d-6516-9e08-9e88a6bd2bac","PortType":"Input","HostId":"654ae989-43b7-cd24-541e-11e28fad48b7"},{"Id":"2c1bced8-0a5f-3466-c155-945570e269c9","PortType":"Input","HostId":"654ae989-43b7-cd24-541e-11e28fad48b7"}],"OutputPorts":[{"Id":"25628225-0e1b-db8b-e609-a8201b5ee821","PortType":"Output","HostId":"654ae989-43b7-cd24-541e-11e28fad48b7"}],"X":153,"Y":103}],[{"Id":"c87dc351-a94d-4528-043c-87be346d32fa","Source":{"Id":"2c1bced8-0a5f-3466-c155-945570e269c9","PortType":"Input","HostId":"654ae989-43b7-cd24-541e-11e28fad48b7"},"Target":{"Id":"689ebafe-6043-7f1f-dcba-997f37ebc48f","PortType":"Output","HostId":"203dd1b9-b4b8-2b30-3c06-635753d84e30"}},{"Id":"3ba1d562-acd2-084f-a42e-00329b97458a","Source":{"Id":"26943173-e9bd-ca8d-3bec-26afa4923936","PortType":"Input","HostId":"a7aed4c1-23f6-6a83-2eb1-a8b673837685"},"Target":{"Id":"25628225-0e1b-db8b-e609-a8201b5ee821","PortType":"Output","HostId":"654ae989-43b7-cd24-541e-11e28fad48b7"}},{"Id":"44409c33-402a-157e-243c-f6f1bdda702a","Source":{"Id":"19ddc9cb-6531-cf1e-06ac-5b17bd1694d4","PortType":"Output","HostId":"a7aed4c1-23f6-6a83-2eb1-a8b673837685"},"Target":{"Id":"35a53006-c1db-068e-97da-a5e4f7722863","PortType":"Input","HostId":"203dd1b9-b4b8-2b30-3c06-635753d84e30"}},{"Id":"e2b51695-5b3c-f320-27d8-48d81dd104a6","Source":{"Id":"d1287f4b-b2bd-f889-4e1b-dc0514a76e35","PortType":"Input","HostId":"654ae989-43b7-cd24-541e-11e28fad48b7"},"Target":{"Id":"19ddc9cb-6531-cf1e-06ac-5b17bd1694d4","PortType":"Output","HostId":"a7aed4c1-23f6-6a83-2eb1-a8b673837685"}}]]
     """
     let components, connections = jsonStringToState data
     List.map diagramWrapper.LoadComponent components |> ignore
-    // TODO add connections
-    log connections
+    List.map diagramWrapper.LoadConnection connections |> ignore
 
 // TODO: move into a test.
 //let comp = {

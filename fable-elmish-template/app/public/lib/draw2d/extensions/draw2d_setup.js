@@ -6,8 +6,8 @@
 let router = new draw2d.layout.connection.CircuitConnectionRouter();
 // TODO: use InteractiveManhattanConnectionRouter instead?
 router.abortRoutingOnFirstVertexNode = false;
-var createConnection=function(sourcePort, targetPort){
-    var c = new draw2d.Connection({
+let createDigitalConnection = function(sourcePort, targetPort){
+    let c = new draw2d.Connection({
         outlineColor: '#ffffff',
         outlineStroke: 1,
         color: '#000000',
@@ -16,7 +16,7 @@ var createConnection=function(sourcePort, targetPort){
         radius: 2,
         selectable: true,
     });
-    if(sourcePort) {
+    if (sourcePort) {
         c.setSource(sourcePort);
         c.setTarget(targetPort);
         // TODO: add check to make sure this connection does not exist

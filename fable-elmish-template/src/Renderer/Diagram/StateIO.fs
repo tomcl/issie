@@ -9,13 +9,11 @@ open Fable.Import.Electron
 open Fable.SimpleJson
 open Node.Exports
 
-type private State = Component list * Connection list
-
-let private stateToJsonString (state : State) : string =
+let private stateToJsonString (state : CanvasState) : string =
     Json.stringify state
 
-let private jsonStringToState (jsonString : string) : State =
-    Json.parseAs<State> jsonString
+let private jsonStringToState (jsonString : string) : CanvasState =
+    Json.parseAs<CanvasState> jsonString
 
 let private fileFilterOpts =
     ResizeArray [
@@ -25,7 +23,7 @@ let private fileFilterOpts =
         ]
     ] |> Some
 
-let saveStateToFile (state : State) : unit =
+let saveStateToFile (state : CanvasState) : unit =
     let writeToFile str path =
         fs.writeFile (path, str, ignore)
     let stateStr = stateToJsonString state

@@ -79,8 +79,7 @@ let private extractConnections (jsConnections : JSConnections) : Connection list
     List.map (fun i -> extractConnection jsConnections?(i)) [0..connectionsLen - 1]
 
 /// Transform the JSCanvasState into an f# data structure.
-let extractState (state : JSCanvasState) : Component list * Connection list =
-    log state
+let extractState (state : JSCanvasState) : CanvasState =
     let components : JSComponents = getFailIfNull state ["components"]
     let connections : JSConnections = getFailIfNull state ["connections"]
     extractComponents components, extractConnections connections

@@ -22,7 +22,7 @@ open StateIO
 
 type Model = {
     Diagram : Draw2dWrapper
-    State : Component list * Connection list
+    State : CanvasState
     SelectedComponent : Component option
     RightTab : RightTab
 }

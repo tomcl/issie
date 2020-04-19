@@ -49,6 +49,8 @@ type Connection = {
     Target : Port
 }
 
+type CanvasState = Component list * Connection list
+
 //====================//
 // Types for the page //
 //====================//
@@ -69,5 +71,5 @@ type JSDiagramMsg =
 
 type Msg =
     | JSDiagramMsg of JSDiagramMsg
-    | UpdateState of Component list * Connection list
+    | UpdateState of CanvasState
     | ChangeRightTab of RightTab

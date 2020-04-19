@@ -29,9 +29,7 @@ type Model = {
 
 // -- Init Model
 
-let init() =
-    log json
-    {
+let init() = {
     Diagram = new Draw2dWrapper()
     State = [], []
     SelectedComponent = None
@@ -50,6 +48,14 @@ let getStateAction model dispatch =
     match model.Diagram.GetCanvasState () with
     | None -> ()
     | Some state -> extractState state |> UpdateState |> dispatch
+
+let saveStateAction model =
+    match model.Diagram.GetCanvasState () with
+    | None -> ()
+    | Some state -> extractState state |> saveStateToFile
+
+let loadStateAction model =
+    loadStateFromFile model.Diagram
 
 let viewSelectedComponent model =
     match model.SelectedComponent with
@@ -157,8 +163,8 @@ let displayView model dispatch =
         ]
         div [ bottomSectionStyle ] [
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> log <| model.Diagram.GetCanvasStateAsString()) ] ] [ str "Save diagram" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.LoadCanvasStateFromString "" ) ] ] [ str "Load diagram" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> saveStateAction model ) ] ] [ str "Save diagram" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> loadStateAction model) ] ] [ str "Load diagram" ]
             div [] (prettyPrintState model.State)
         ]
     ]

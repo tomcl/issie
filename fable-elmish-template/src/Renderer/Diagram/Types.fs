@@ -34,6 +34,10 @@ type Component = {
     Label : string option // TODO: decide whether or not all components should be labeled.
     InputPorts : Port list
     OutputPorts : Port list
+    X : int
+    Y : int
+    // Maybe there will be the need for other fields for stateful components
+    // such as RAMs.
 }
 
 // JSConnection mapped to f# object.

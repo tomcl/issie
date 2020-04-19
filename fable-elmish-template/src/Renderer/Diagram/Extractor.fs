@@ -54,11 +54,13 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
 
 /// Transform a JSComponent into an f# data structure.
 let extractComponent (jsComponent : JSComponent) : Component = {
-    Id =  getFailIfNull jsComponent ["id"]
+    Id = getFailIfNull jsComponent ["id"]
     Type = extractComponentType jsComponent
     InputPorts = extractPorts <| getFailIfNull jsComponent ["inputPorts"; "data"]
     OutputPorts = extractPorts <| getFailIfNull jsComponent ["outputPorts"; "data"]
     Label = maybeExtractLabel <| getFailIfNull jsComponent ["children"; "data"]
+    X = getFailIfNull jsComponent ["x"]
+    Y = getFailIfNull jsComponent ["y"]
 }
 
 let private extractConnection (jsConnection : JSConnection) : Connection = {

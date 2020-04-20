@@ -80,10 +80,6 @@ let viewSelectedComponent model =
             Field.div [] [
                 Label.label [] [ str name ]
                 Control.div [] [ Input.text [ Input.Props [ Name name; Key comp.Id ]; Input.DefaultValue defaultValue ] ] ]
-        let readOnlyIfNone name value =
-            match value with
-            | None -> readOnlyFormField name "none"
-            | Some v -> formField name v
         let formButton text onClick =
             Field.div [ Field.IsGrouped ] [
                 Control.div [] [
@@ -99,7 +95,7 @@ let viewSelectedComponent model =
         form [ Id formId ] [
             readOnlyFormField "Id" comp.Id
             readOnlyFormField "Type" <| sprintf "%A" comp.Type
-            readOnlyIfNone "Label" comp.Label
+            formField "Label" comp.Label
             readOnlyFormField "Input ports" <| sprintf "%d" comp.InputPorts.Length
             readOnlyFormField "Output ports" <| sprintf "%d" comp.OutputPorts.Length
             // Submit.

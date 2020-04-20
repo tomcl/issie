@@ -5,7 +5,7 @@ open JSHelpers
 
 open Fable.Core.JsInterop
 
-let private extractLabel childrenArray : string option =
+let private extractLabel childrenArray : string =
     let childrenLen = getFailIfNull childrenArray ["length"]
     let rec extract idx =
         if idx = childrenLen

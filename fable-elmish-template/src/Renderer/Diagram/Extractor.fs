@@ -5,36 +5,37 @@ open JSHelpers
 
 open Fable.Core.JsInterop
 
-let private maybeExtractLabel childrenArray : string option =
+let private extractLabel childrenArray : string =
     let childrenLen = getFailIfNull childrenArray ["length"]
-    let rec maybeExtract idx =
+    let rec extract idx =
         if idx = childrenLen
         then
-            None // No label found among the children.
+            // All components should have labels.
+            failwithf "what? No label found among the when extracting component."
         else
             let child = getFailIfNull childrenArray?(idx) ["figure"]
             match isNull child with
-            | true -> maybeExtract (idx+1) // No figure in this child.
+            | true -> extract (idx+1) // No figure in this child.
             | false -> // Make sure the child is a label.
                 match getFailIfNull child ["cssClass"] with
-                | "draw2d_shape_basic_Label" -> Some <| getFailIfNull child ["text"]
-                | _ -> maybeExtract (idx+1)
+                | "draw2d_shape_basic_Label" -> getFailIfNull child ["text"]
+                | _ -> extract (idx+1)
     // Children can be many things, but we care about the elements where the
     // figure is a label.
-    maybeExtract 0
+    extract 0
 
-let private extractPort jsPort : Port =
+let private extractPort (jsPort : JSPort) : Port =
     let portType = match getFailIfNull jsPort ["cssClass"] with
                    | "draw2d_InputPort" -> PortType.Input
                    | "draw2d_OutputPort" -> PortType.Output
                    | p -> failwithf "what? oprt with cssClass %s" p
     {
         Id = getFailIfNull jsPort ["id"]
-        Label = maybeExtractLabel <| getFailIfNull jsPort ["children"; "data"]
         PortType = portType
+        HostId = getFailIfNull jsPort ["parent"; "id"]
     }
 
-let private extractPorts jsPorts : Port list =
+let private extractPorts (jsPorts : JSPorts) : Port list =
     let portsLen = getFailIfNull jsPorts ["length"]
     List.map (fun i -> extractPort jsPorts?(i)) [0..portsLen - 1]
 
@@ -54,15 +55,17 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
 
 /// Transform a JSComponent into an f# data structure.
 let extractComponent (jsComponent : JSComponent) : Component = {
-    Id =  getFailIfNull jsComponent ["id"]
-    Type = extractComponentType jsComponent
-    InputPorts = extractPorts <| getFailIfNull jsComponent ["inputPorts"; "data"]
+    Id          = getFailIfNull jsComponent ["id"]
+    Type        = extractComponentType jsComponent
+    InputPorts  = extractPorts <| getFailIfNull jsComponent ["inputPorts"; "data"]
     OutputPorts = extractPorts <| getFailIfNull jsComponent ["outputPorts"; "data"]
-    Label = maybeExtractLabel <| getFailIfNull jsComponent ["children"; "data"]
+    Label       = extractLabel <| getFailIfNull jsComponent ["children"; "data"]
+    X           = getFailIfNull jsComponent ["x"]
+    Y           = getFailIfNull jsComponent ["y"]
 }
 
 let private extractConnection (jsConnection : JSConnection) : Connection = {
-    Id = getFailIfNull jsConnection ["id"]
+    Id     = getFailIfNull jsConnection ["id"]
     Source = extractPort <| getFailIfNull jsConnection ["sourcePort"]
     Target = extractPort <| getFailIfNull jsConnection ["targetPort"]
 }
@@ -76,8 +79,7 @@ let private extractConnections (jsConnections : JSConnections) : Connection list
     List.map (fun i -> extractConnection jsConnections?(i)) [0..connectionsLen - 1]
 
 /// Transform the JSCanvasState into an f# data structure.
-let extractState (state : JSCanvasState) : Component list * Connection list =
-    log state
+let extractState (state : JSCanvasState) : CanvasState =
     let components : JSComponents = getFailIfNull state ["components"]
     let connections : JSConnections = getFailIfNull state ["connections"]
     extractComponents components, extractConnections connections

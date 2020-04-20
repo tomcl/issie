@@ -10,6 +10,8 @@ type JSComponent   = | JSComponent of obj
 type JSComponents  = | JSComponents of obj // JS list of JSComponent.
 type JSConnection  = | JSConnection of obj
 type JSConnections = | JSConnections of obj // JS list of JSConnection.
+type JSPort        = | JSPort of obj
+type JSPorts       = | JSPorts of obj // JS list of JSPort.
 
 // Specify the position and type of a port in a JSComponent.
 type PortType = Input | Output
@@ -17,8 +19,8 @@ type PortLocation = Left | Right | Top | Bottom
 
 type Port = {
     Id : string
-    Label : string option // Not all ports have to be labeled.
     PortType : PortType
+    HostId : string
 }
 
 // Types instantiating objects in the Digital extension.
@@ -31,9 +33,13 @@ type ComponentType =
 type Component = {
     Id : string
     Type : ComponentType
-    Label : string option // TODO: decide whether or not all components should be labeled.
+    Label : string // All components have a label that may be empty.
     InputPorts : Port list
     OutputPorts : Port list
+    X : int
+    Y : int
+    // Maybe there will be the need for other fields for stateful components
+    // such as RAMs.
 }
 
 // JSConnection mapped to f# object.
@@ -42,6 +48,8 @@ type Connection = {
     Source : Port
     Target : Port
 }
+
+type CanvasState = Component list * Connection list
 
 //====================//
 // Types for the page //
@@ -63,5 +71,6 @@ type JSDiagramMsg =
 
 type Msg =
     | JSDiagramMsg of JSDiagramMsg
-    | UpdateState of Component list * Connection list
+    | UpdateState of CanvasState
     | ChangeRightTab of RightTab
+    | SetOpenPath of string option

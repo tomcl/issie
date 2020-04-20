@@ -5,7 +5,6 @@ module DiagramTypes
 //=============================//
 
 type JSCanvas      = | JSCanvas of obj
-type JSCanvasState = | JSCanvasState of obj // Only the relevant fields from a JSCanvas.
 type JSComponent   = | JSComponent of obj
 type JSComponents  = | JSComponents of obj // JS list of JSComponent.
 type JSConnection  = | JSConnection of obj
@@ -49,7 +48,8 @@ type Connection = {
     Target : Port
 }
 
-type CanvasState = Component list * Connection list
+type JSCanvasState = JSComponent list * JSConnection list
+type CanvasState   = Component list * Connection list
 
 //====================//
 // Types for the page //

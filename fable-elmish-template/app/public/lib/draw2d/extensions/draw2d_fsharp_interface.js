@@ -160,23 +160,12 @@ function getPortById(comp, id) {
     });
 }
 
-// TODO this can be probably made more efficient by only returning the
-// attributes we care about.
-// .getPersistentAttributes removes stuff we need (e.g. labels) and include
-// stuff we dont need for runtime processing.
-// Maybe writing a custom function is the right thing to do.
-// When saving the state of a diagram to a file, you want to get the persitent
-// attributes, of both figures and lines.
-function getCanvasState(canvas) {
-    let components = [];
-    canvas.getFigures().each(function (i, comp) {
-        components.push(comp);
-    });
-    let connections = [];
-    canvas.getLines().each(function (i, conn) {
-        connections.push(conn);
-    });
-    return {components: components, connections: connections};
+function getAllJsComponents(canvas) {
+    return canvas.getFigures().data;
+}
+
+function getAllJsConnections(canvas) {
+    return canvas.getLines().data;
 }
 
 export {
@@ -205,5 +194,6 @@ export {
     createDigitalConnection,
     getComponentById,
     getPortById,
-    getCanvasState,
+    getAllJsComponents,
+    getAllJsConnections,
 };

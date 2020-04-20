@@ -70,16 +70,7 @@ let private extractConnection (jsConnection : JSConnection) : Connection = {
     Target = extractPort <| getFailIfNull jsConnection ["targetPort"]
 }
 
-let private extractComponents (jsComponents : JSComponents) : Component list =
-    let componentsLen : int = getFailIfNull jsComponents ["length"]
-    List.map (fun i -> extractComponent jsComponents?(i)) [0..componentsLen - 1]
-
-let private extractConnections (jsConnections : JSConnections) : Connection list =
-    let connectionsLen : int = getFailIfNull jsConnections ["length"]
-    List.map (fun i -> extractConnection jsConnections?(i)) [0..connectionsLen - 1]
-
 /// Transform the JSCanvasState into an f# data structure.
 let extractState (state : JSCanvasState) : CanvasState =
-    let components : JSComponents = getFailIfNull state ["components"]
-    let connections : JSConnections = getFailIfNull state ["connections"]
-    extractComponents components, extractConnections connections
+    let (components : JSComponent list), (connections : JSConnection list) = state
+    List.map extractComponent components, List.map extractConnection connections

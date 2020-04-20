@@ -44,7 +44,8 @@ type private IDraw2d =
     abstract createDigitalConnection : source:JSPort -> target:JSPort -> JSConnection
     abstract getComponentById        : canvas:JSCanvas -> id:string -> JSComponent
     abstract getPortById             : comp:JSComponent -> id:string -> JSPort
-    abstract getCanvasState          : canvas:JSCanvas -> JSCanvasState
+    abstract getAllJsComponents      : canvas:JSCanvas -> JSComponents
+    abstract getAllJsConnections     : canvas:JSCanvas -> JSConnections
 
 [<Import("*", "../../../app/public/lib/draw2d/extensions/draw2d_fsharp_interface.js")>]
 let private draw2dLib : IDraw2d = jsNative
@@ -111,10 +112,13 @@ let private createConnection (canvas : JSCanvas) (id : string) (source : JSPort)
     draw2dLib.setConnectionId conn id
     draw2dLib.addConnectionToCanvas canvas conn
 
-// TODO: create a JSHelper to map a js list to a f# list.
 let private getAllComponents (canvas : JSCanvas) : JSComponent list =
-    let figures = canvas?getFigures()?data // JS list of components.
-    [0..figures?length - 1] |> List.map (fun i -> figures?(i))
+    let jsComponents = draw2dLib.getAllJsComponents canvas
+    jsListToFSharpList jsComponents
+
+let private getAllConnections (canvas : JSCanvas) : JSConnection list =
+    let jsConnections = draw2dLib.getAllJsConnections canvas
+    jsListToFSharpList jsConnections
 
 // TODO: for now only supports labels.
 let private editComponent (canvas : JSCanvas) (id : string) (newLabel : string) : unit =
@@ -215,4 +219,4 @@ type Draw2dWrapper() =
             log "Warning: Draw2dWrapper.GetCanvasState called when canvas is None"
             None
         | Some c ->
-            Some <| draw2dLib.getCanvasState c
+            Some (getAllComponents c, getAllConnections c)

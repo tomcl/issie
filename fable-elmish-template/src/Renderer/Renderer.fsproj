@@ -9,6 +9,7 @@
     <Compile Include="Diagram/Style.fs" />
     <Compile Include="Diagram/Draw2dWrapper.fs" />
     <Compile Include="Diagram/Extractor.fs" />
+    <Compile Include="Diagram/StateIO.fs" />
     <Compile Include="Diagram/Diagram.fs" />
     <Compile Include="Editor/Types.fs" />
     <Compile Include="Editor/Style.fs" />

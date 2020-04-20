@@ -42,11 +42,11 @@ $0.installEditPolicy( new draw2d.policy.connection.ComposedConnectionCreatePolic
     [
         // Create a connection via Drag&Drop of ports.
         new draw2d.policy.connection.DragConnectionCreatePolicy({
-            createConnection:createConnection
+            createConnection:createDigitalConnection
         }),
         // Or via click and point.
         new draw2d.policy.connection.OrthogonalConnectionCreatePolicy({
-            createConnection:createConnection
+            createConnection:createDigitalConnection
         })
     ])
 );
@@ -60,41 +60,32 @@ let private createAndInitialiseCanvas (id : string) : JSCanvas =
     initialiseCanvas canvas
     canvas
 
+[<Emit("$0.clear()")>]
+let private clearCanvas (canvas : JSCanvas) : unit = jsNative
+
 [<Emit("$0.add($1);")>]
-let private addFigureToCanvas (canvas : JSCanvas) (figure : JSComponent) : unit = jsNative
+let private addComponentToCanvas (canvas : JSCanvas) (figure : JSComponent) : unit = jsNative
 
-[<Emit("$0.createPort($1, $2)")>]
-let private addPort' (figure : JSComponent) (portName : string) (locator : obj) : unit = jsNative
-
-// InputPortLocator works better than LeftLocator, since it moves the port to
-// make space for new ones (instead of overlapping them).
-[<Emit("new draw2d.layout.locator.InputPortLocator()")>]
-let private leftLocator () = jsNative
-
-// Similarly to InputPortLocator, OutputPortLocator is better than RightLocator.
-[<Emit("new draw2d.layout.locator.OutputPortLocator()")>]
-let private rightLocator () = jsNative
-
-// Using this multiple times in the same figure will produce an overlap.
-[<Emit("new draw2d.layout.locator.BottomLocator()")>]
-let private bottomLocator () = jsNative
-
-// Using this multiple times in the same figure will produce an overlap.
-[<Emit("new draw2d.layout.locator.TopLocator()")>]
-let private topLocator () = jsNative
-
-let private addPort (figure : JSComponent) (pType : PortType) (pLocation : PortLocation) : unit =
-    let locator = match pLocation with
-                  | DiagramTypes.Bottom -> bottomLocator ()
-                  | DiagramTypes.Left -> leftLocator ()
-                  | DiagramTypes.Right -> rightLocator ()
-                  | DiagramTypes.Top -> topLocator ()
-    match pType with
-    | PortType.Input -> addPort' figure "input" locator
-    | PortType.Output -> addPort' figure "output" locator
+[<Emit("$0.add($1);")>]
+let private addConnectionToCanvas (canvas : JSCanvas) (figure : JSConnection) : unit = jsNative
 
 [<Emit("$0.add(new draw2d.shape.basic.Label({text:$1, stroke:0}), new draw2d.layout.locator.TopLocator());")>]
 let private addLabel (figure : JSComponent) (label : string) : unit = jsNative
+
+[<Emit("$0.setId($1)")>]
+let private setComponentId (figure : JSComponent) (id : string) : unit = jsNative
+
+[<Emit("$0.getInputPorts().data")>]
+let private getInputPorts (figure : JSComponent) : JSPorts = jsNative
+
+[<Emit("$0.getOutputPorts().data")>]
+let private getOutputPorts (figure : JSComponent) : JSPorts = jsNative
+
+[<Emit("$0.setId($1)")>]
+let private setConnectionId (figure : JSConnection) (id : string) : unit = jsNative
+
+[<Emit("$0.setId($1)")>]
+let private setPortId (figure : JSPort) (id : string) : unit = jsNative
 
 [<Emit("
 $0.installEditPolicy(new draw2d.policy.figure.AntSelectionFeedbackPolicy({
@@ -140,14 +131,26 @@ let private createDigitalXnor (x : int) (y : int) : JSComponent = jsNative
 [<Emit("new draw2d.shape.digital.Mux2({x:$0,y:$1,resizeable:false});")>]
 let private createDigitalMux2 (x : int) (y : int) : JSComponent = jsNative
 
+let private setPorts (figure : JSComponent) (ports : Port list) (jsPorts : JSPorts) : unit =
+    let jsPortsLen : int = getFailIfNull jsPorts ["length"]
+    if jsPortsLen <> ports.Length then failwithf "what? setPort called with mismatching number of ports"
+    [0..ports.Length - 1] |> List.map (fun i ->
+        let jsPort : JSPort = jsPorts?(i)
+        let port : Port = ports.[i]
+        setPortId jsPort port.Id
+    ) |> ignore
+
 let private createComponent
         (canvas : JSCanvas)
+        (dispatch : JSDiagramMsg -> unit)
+        (maybeId : string option) // Passing None will let the library decide it.
         (componentType : ComponentType)
-        (defaultLabel : string)
+        (label : string)
+        (maybeInputPorts : (Port list) option) // Passing None will initialise new ports.
+        (maybeOutputPorts : (Port list) option) // Passing None will initialise new ports.
         (x : int)
         (y : int)
-        (dispatch : JSDiagramMsg -> unit)
-        : JSComponent =
+        : unit =
     let comp = match componentType with
                | Input  -> createDigitalInput x y
                | Output -> createDigitalOutput x y
@@ -159,14 +162,38 @@ let private createComponent
                | Nor  -> createDigitalNor x y
                | Xnor -> createDigitalXnor x y
                | Mux2 -> createDigitalMux2 x y
+
+    // Every component is assumed to have a label (may be empty string).
+    addLabel comp label
+
+    // Set Id if one is provided.
+    match maybeId with
+    | None -> ()
+    | Some id -> setComponentId comp id
+
+    // Set ports if provided.
+    match maybeInputPorts, maybeOutputPorts with
+    | None, None -> ()
+    | Some ip, Some op ->
+        setPorts comp ip (getInputPorts comp)
+        setPorts comp op (getOutputPorts comp)
+    | _ -> failwithf "what? createComponent called with incomplete of input/output ports"
+
     // Install the behaviour on selection.
     installSelectionPolicy comp
         (SelectComponent >> dispatch)
         (UnselectComponent >> dispatch)
-    // Every component is assumed to have a label (may be empty string).
-    addLabel comp defaultLabel
-    addFigureToCanvas canvas comp
-    comp
+
+    addComponentToCanvas canvas comp
+
+// This function is defined in draw2d_setup.js.
+[<Emit("createDigitalConnection($0, $1)")>]
+let private createConnection' (source : JSPort) (target : JSPort) = jsNative
+
+let private createConnection (canvas : JSCanvas) (id : string) (source : JSPort) (target : JSPort) =
+    let conn : JSConnection = createConnection' source target
+    setConnectionId conn id
+    addConnectionToCanvas canvas conn
 
 [<Emit("
 $0.getFigures().find(function(figure){
@@ -175,8 +202,19 @@ $0.getFigures().find(function(figure){
 ")>]
 let private getComponentById (canvas : JSCanvas) (id : string) : JSComponent = jsNative
 
+[<Emit("
+$0.getPorts().find(function(port){         
+    return port.id === $1;
+})
+")>]
+let private getPortById (jsComponent : JSComponent) (id : string) : JSPort = jsNative
+
+let private getAllComponents (canvas : JSCanvas) : JSComponent list =
+    let figures = canvas?getFigures()?data // JS list of components.
+    [0..figures?length - 1] |> List.map (fun i -> figures?(i))
+
 // TODO: for now only supports labels.
-let private editComponent (canvas : JSCanvas) (id : string) (newLabel : string) =
+let private editComponent (canvas : JSCanvas) (id : string) (newLabel : string) : unit =
     let jsComponent = getComponentById canvas id
     if isNull jsComponent
     then failwithf "what? could not find diagram component with Id: %s" id
@@ -251,17 +289,46 @@ type Draw2dWrapper() =
         match canvas with
         | None -> canvas <- Some newCanvas
         | Some _ -> failwithf "what? InitCanvas should never be called when canvas is already created" 
+    
+    member this.ClearCanvas () =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.ClearCanvas called when canvas is None"
+        | Some c -> clearCanvas c
 
     member this.CreateComponent componentType defaultLabel =
         match canvas, dispatch with
         | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateComponent called when canvas or dispatch is None"
-        | Some c, Some d -> createComponent c componentType defaultLabel 100 100 d |> ignore
+        | Some c, Some d -> createComponent
+                                c d None componentType defaultLabel
+                                None None 100 100
+
+    member this.LoadComponent (comp : Component) =
+        match canvas, dispatch with
+        | None, _ | _, None -> log "Warning: Draw2dWrapper.LoadComponent called when canvas or dispatch is None"
+        | Some c, Some d -> createComponent
+                                c d (Some comp.Id) comp.Type comp.Label
+                                (Some comp.InputPorts) (Some comp.OutputPorts)
+                                comp.X comp.Y
+
+    member this.LoadConnection (conn : Connection) =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.LoadConnection called when canvas or dispatch is None"
+        | Some c ->
+            let sourceParentNode : JSComponent =
+                assertNotNull (getComponentById c conn.Source.HostId) "sourceParentNode"
+            let sourcePort : JSPort =
+                assertNotNull (getPortById sourceParentNode conn.Source.Id) "sourcePort"
+            let targetParentNode : JSComponent =
+                assertNotNull (getComponentById c conn.Target.HostId) "targetParentNode"
+            let targetPort : JSPort =
+                assertNotNull (getPortById targetParentNode conn.Target.Id) "targetPort"
+            createConnection c conn.Id sourcePort targetPort
 
     // For now only changes the label. TODO
     member this.EditComponent componentId newLabel = 
         match canvas with
         | None -> log "Warning: Draw2dWrapper.EditComponent called when canvas is None"
-        | Some c -> editComponent c componentId newLabel |> ignore
+        | Some c -> editComponent c componentId newLabel
 
     member this.GetCanvasState () =
         match canvas with

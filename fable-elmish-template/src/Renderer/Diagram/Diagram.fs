@@ -18,11 +18,16 @@ open CommonStyle
 open DiagramStyle
 open Extractor
 
+open StateIO
+
 type Model = {
     Diagram : Draw2dWrapper
-    State : Component list * Connection list
+    State : CanvasState
     SelectedComponent : Component option
     RightTab : RightTab
+    // If the content of the diagram has been loaded or saved from/to file keep
+    // track of the path, instead of reasking every time.
+    OpenPath : string option
 }
 
 // -- Init Model
@@ -32,6 +37,7 @@ let init() = {
     State = [], []
     SelectedComponent = None
     RightTab = Catalogue
+    OpenPath = None
 }
 
 // -- Create View
@@ -46,6 +52,17 @@ let getStateAction model dispatch =
     match model.Diagram.GetCanvasState () with
     | None -> ()
     | Some state -> extractState state |> UpdateState |> dispatch
+
+let saveStateAction model dispatch =
+    match model.Diagram.GetCanvasState () with
+    | None -> ()
+    | Some state -> extractState state
+                    |> saveStateToFile model.OpenPath
+                    |> SetOpenPath
+                    |> dispatch 
+
+let loadStateAction model dispatch =
+    loadStateFromFile model.Diagram |> SetOpenPath |> dispatch
 
 let viewSelectedComponent model =
     match model.SelectedComponent with
@@ -63,10 +80,6 @@ let viewSelectedComponent model =
             Field.div [] [
                 Label.label [] [ str name ]
                 Control.div [] [ Input.text [ Input.Props [ Name name; Key comp.Id ]; Input.DefaultValue defaultValue ] ] ]
-        let readOnlyIfNone name value =
-            match value with
-            | None -> readOnlyFormField name "none"
-            | Some v -> formField name v
         let formButton text onClick =
             Field.div [ Field.IsGrouped ] [
                 Control.div [] [
@@ -82,7 +95,7 @@ let viewSelectedComponent model =
         form [ Id formId ] [
             readOnlyFormField "Id" comp.Id
             readOnlyFormField "Type" <| sprintf "%A" comp.Type
-            readOnlyIfNone "Label" comp.Label
+            formField "Label" comp.Label
             readOnlyFormField "Input ports" <| sprintf "%d" comp.InputPorts.Length
             readOnlyFormField "Output ports" <| sprintf "%d" comp.OutputPorts.Length
             // Submit.
@@ -153,6 +166,8 @@ let displayView model dispatch =
         ]
         div [ bottomSectionStyle ] [
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> saveStateAction model dispatch ) ] ] [ str "Save diagram" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> loadStateAction model dispatch) ] ] [ str "Load diagram" ]
             div [] (prettyPrintState model.State)
         ]
     ]
@@ -174,3 +189,4 @@ let update msg model =
     | JSDiagramMsg msg' -> handleJSDiagramMsg msg' model
     | UpdateState (com, con) -> { model with State = (com, con) }
     | ChangeRightTab newTab -> { model with RightTab = newTab }
+    | SetOpenPath openPath -> { model with OpenPath = openPath }

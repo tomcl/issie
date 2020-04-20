@@ -18,126 +18,51 @@ open Fable.Helpers.React.Props
 
 // Interface with JS library.
 
-[<Emit("
-(function () {
-    let canvas = new draw2d.Canvas($0, $1, $2);
-    canvas.setScrollArea('#'+$0);
-    // Make sure the canvas does not overflow the parent div.
-    let style = document.getElementById($0).style;
-    style.height = 'auto'; style.width = 'auto';
-    return canvas;
-})()
-")>]
-let private createCanvas (id : string) (width : int) (height : int) : JSCanvas = jsNative
+type private IDraw2d =
+    abstract createCanvas            : id:string -> width:int -> height:int -> JSCanvas
+    abstract initialiseCanvas        : canvas:JSCanvas -> unit
+    abstract clearCanvas             : canvas:JSCanvas -> unit
+    abstract addComponentToCanvas    : canvas:JSCanvas -> comp:JSComponent -> unit
+    abstract addConnectionToCanvas   : canvas:JSCanvas -> conn:JSConnection -> unit
+    abstract addLabel                : comp:JSComponent -> label:string ->  unit
+    abstract setComponentId          : comp:JSComponent -> id:string -> unit
+    abstract setConnectionId         : conn:JSConnection -> id:string -> unit
+    abstract setPortId               : port:JSPort -> id:string -> unit
+    abstract getInputPorts           : comp:JSComponent -> JSPorts
+    abstract getOutputPorts          : comp:JSComponent -> JSPorts
+    abstract installSelectionPolicy  : comp:JSComponent -> onSelect:(JSComponent -> unit) -> onUnselect:(JSComponent -> unit) -> unit
+    abstract createDigitalInput      : x:int -> y:int -> JSComponent
+    abstract createDigitalOutput     : x:int -> y:int -> JSComponent
+    abstract createDigitalNot        : x:int -> y:int -> JSComponent
+    abstract createDigitalAnd        : x:int -> y:int -> JSComponent
+    abstract createDigitalOr         : x:int -> y:int -> JSComponent
+    abstract createDigitalXor        : x:int -> y:int -> JSComponent
+    abstract createDigitalNand       : x:int -> y:int -> JSComponent
+    abstract createDigitalNor        : x:int -> y:int -> JSComponent
+    abstract createDigitalXnor       : x:int -> y:int -> JSComponent
+    abstract createDigitalMux2       : x:int -> y:int -> JSComponent
+    abstract createDigitalConnection : source:JSPort -> target:JSPort -> JSConnection
+    abstract getComponentById        : canvas:JSCanvas -> id:string -> JSComponent
+    abstract getPortById             : comp:JSComponent -> id:string -> JSPort
+    abstract getCanvasState          : canvas:JSCanvas -> JSCanvasState
 
-[<Emit("
-// Show canvas grid.
-$0.installEditPolicy(new draw2d.policy.canvas.ShowGridEditPolicy());
-// Fadeout all decorations like ports, resize handles if the user didn't move
-// the mouse.
-$0.installEditPolicy(new draw2d.policy.canvas.FadeoutDecorationPolicy());
-// Install a Connection create policy which matches to a 'circuit like'
-// connections.
-$0.installEditPolicy( new draw2d.policy.connection.ComposedConnectionCreatePolicy(
-    [
-        // Create a connection via Drag&Drop of ports.
-        new draw2d.policy.connection.DragConnectionCreatePolicy({
-            createConnection:createDigitalConnection
-        }),
-        // Or via click and point.
-        new draw2d.policy.connection.OrthogonalConnectionCreatePolicy({
-            createConnection:createDigitalConnection
-        })
-    ])
-);
-// Install policy to allow to zoom with: SHIFT + mouse wheel.
-$0.installEditPolicy(new draw2d.policy.canvas.WheelZoomPolicy());
-")>]
-let private initialiseCanvas (canvas : JSCanvas) : unit = jsNative
+[<Import("*", "../../../app/public/lib/draw2d/extensions/draw2d_fsharp_interface.js")>]
+let private draw2dLib : IDraw2d = jsNative
+
+// Helpers.
 
 let private createAndInitialiseCanvas (id : string) : JSCanvas =
-    let canvas = createCanvas id 3000 2000
-    initialiseCanvas canvas
+    let canvas = draw2dLib.createCanvas id 3000 2000
+    draw2dLib.initialiseCanvas canvas
     canvas
 
-[<Emit("$0.clear()")>]
-let private clearCanvas (canvas : JSCanvas) : unit = jsNative
-
-[<Emit("$0.add($1);")>]
-let private addComponentToCanvas (canvas : JSCanvas) (figure : JSComponent) : unit = jsNative
-
-[<Emit("$0.add($1);")>]
-let private addConnectionToCanvas (canvas : JSCanvas) (figure : JSConnection) : unit = jsNative
-
-[<Emit("$0.add(new draw2d.shape.basic.Label({text:$1, stroke:0}), new draw2d.layout.locator.TopLocator());")>]
-let private addLabel (figure : JSComponent) (label : string) : unit = jsNative
-
-[<Emit("$0.setId($1)")>]
-let private setComponentId (figure : JSComponent) (id : string) : unit = jsNative
-
-[<Emit("$0.getInputPorts().data")>]
-let private getInputPorts (figure : JSComponent) : JSPorts = jsNative
-
-[<Emit("$0.getOutputPorts().data")>]
-let private getOutputPorts (figure : JSComponent) : JSPorts = jsNative
-
-[<Emit("$0.setId($1)")>]
-let private setConnectionId (figure : JSConnection) (id : string) : unit = jsNative
-
-[<Emit("$0.setId($1)")>]
-let private setPortId (figure : JSPort) (id : string) : unit = jsNative
-
-[<Emit("
-$0.installEditPolicy(new draw2d.policy.figure.AntSelectionFeedbackPolicy({
-    onSelect: function(canvas, figure, isPrimarySelection) {
-        figure.setBackgroundColor('#ff675c');
-        $1(figure);
-    },
-    onUnselect: function(canvas, figure) {
-        figure.setBackgroundColor('lightgray');
-        $2(figure);
-    }
-}));
-")>]
-let private installSelectionPolicy (figure : JSComponent) (onSelect : JSComponent -> unit) (onUnselect : JSComponent -> unit) : unit = jsNative
-
-[<Emit("new draw2d.shape.digital.Input({x:$0,y:$1,resizeable:false});")>]
-let private createDigitalInput (x : int) (y : int) : JSComponent = jsNative
-
-[<Emit("new draw2d.shape.digital.Output({x:$0,y:$1,resizeable:false});")>]
-let private createDigitalOutput (x : int) (y : int) : JSComponent = jsNative
-
-[<Emit("new draw2d.shape.digital.Not({x:$0,y:$1,resizeable:false});")>]
-let private createDigitalNot (x : int) (y : int) : JSComponent = jsNative
-
-[<Emit("new draw2d.shape.digital.And({x:$0,y:$1,resizeable:false});")>]
-let private createDigitalAnd (x : int) (y : int) : JSComponent = jsNative
-
-[<Emit("new draw2d.shape.digital.Or({x:$0,y:$1,resizeable:false});")>]
-let private createDigitalOr (x : int) (y : int) : JSComponent = jsNative
-
-[<Emit("new draw2d.shape.digital.Xor({x:$0,y:$1,resizeable:false});")>]
-let private createDigitalXor (x : int) (y : int) : JSComponent = jsNative
-
-[<Emit("new draw2d.shape.digital.Nand({x:$0,y:$1,resizeable:false});")>]
-let private createDigitalNand (x : int) (y : int) : JSComponent = jsNative
-
-[<Emit("new draw2d.shape.digital.Nor({x:$0,y:$1,resizeable:false});")>]
-let private createDigitalNor (x : int) (y : int) : JSComponent = jsNative
-
-[<Emit("new draw2d.shape.digital.Xnor({x:$0,y:$1,resizeable:false});")>]
-let private createDigitalXnor (x : int) (y : int) : JSComponent = jsNative
-
-[<Emit("new draw2d.shape.digital.Mux2({x:$0,y:$1,resizeable:false});")>]
-let private createDigitalMux2 (x : int) (y : int) : JSComponent = jsNative
-
-let private setPorts (figure : JSComponent) (ports : Port list) (jsPorts : JSPorts) : unit =
+let private setPorts (ports : Port list) (jsPorts : JSPorts) : unit =
     let jsPortsLen : int = getFailIfNull jsPorts ["length"]
     if jsPortsLen <> ports.Length then failwithf "what? setPort called with mismatching number of ports"
     [0..ports.Length - 1] |> List.map (fun i ->
         let jsPort : JSPort = jsPorts?(i)
         let port : Port = ports.[i]
-        setPortId jsPort port.Id
+        draw2dLib.setPortId jsPort port.Id
     ) |> ignore
 
 let private createComponent
@@ -152,106 +77,60 @@ let private createComponent
         (y : int)
         : unit =
     let comp = match componentType with
-               | Input  -> createDigitalInput x y
-               | Output -> createDigitalOutput x y
-               | Not  -> createDigitalNot x y
-               | And  -> createDigitalAnd x y
-               | Or   -> createDigitalOr x y
-               | Xor  -> createDigitalXor x y
-               | Nand -> createDigitalNand x y
-               | Nor  -> createDigitalNor x y
-               | Xnor -> createDigitalXnor x y
-               | Mux2 -> createDigitalMux2 x y
-
+               | Input  -> draw2dLib.createDigitalInput x y
+               | Output -> draw2dLib.createDigitalOutput x y
+               | Not    -> draw2dLib.createDigitalNot x y
+               | And    -> draw2dLib.createDigitalAnd x y
+               | Or     -> draw2dLib.createDigitalOr x y
+               | Xor    -> draw2dLib.createDigitalXor x y
+               | Nand   -> draw2dLib.createDigitalNand x y
+               | Nor    -> draw2dLib.createDigitalNor x y
+               | Xnor   -> draw2dLib.createDigitalXnor x y
+               | Mux2   -> draw2dLib.createDigitalMux2 x y
     // Every component is assumed to have a label (may be empty string).
-    addLabel comp label
-
+    draw2dLib.addLabel comp label
     // Set Id if one is provided.
     match maybeId with
     | None -> ()
-    | Some id -> setComponentId comp id
-
+    | Some id -> draw2dLib.setComponentId comp id
     // Set ports if provided.
     match maybeInputPorts, maybeOutputPorts with
     | None, None -> ()
     | Some ip, Some op ->
-        setPorts comp ip (getInputPorts comp)
-        setPorts comp op (getOutputPorts comp)
+        setPorts ip (draw2dLib.getInputPorts comp)
+        setPorts op (draw2dLib.getOutputPorts comp)
     | _ -> failwithf "what? createComponent called with incomplete of input/output ports"
-
     // Install the behaviour on selection.
-    installSelectionPolicy comp
+    draw2dLib.installSelectionPolicy comp
         (SelectComponent >> dispatch)
         (UnselectComponent >> dispatch)
-
-    addComponentToCanvas canvas comp
-
-// This function is defined in draw2d_setup.js.
-[<Emit("createDigitalConnection($0, $1)")>]
-let private createConnection' (source : JSPort) (target : JSPort) = jsNative
+    draw2dLib.addComponentToCanvas canvas comp
 
 let private createConnection (canvas : JSCanvas) (id : string) (source : JSPort) (target : JSPort) =
-    let conn : JSConnection = createConnection' source target
-    setConnectionId conn id
-    addConnectionToCanvas canvas conn
+    let conn : JSConnection = draw2dLib.createDigitalConnection source target
+    draw2dLib.setConnectionId conn id
+    draw2dLib.addConnectionToCanvas canvas conn
 
-[<Emit("
-$0.getFigures().find(function(figure){
-    return figure.id === $1;
-})
-")>]
-let private getComponentById (canvas : JSCanvas) (id : string) : JSComponent = jsNative
-
-[<Emit("
-$0.getPorts().find(function(port){         
-    return port.id === $1;
-})
-")>]
-let private getPortById (jsComponent : JSComponent) (id : string) : JSPort = jsNative
-
+// TODO: create a JSHelper to map a js list to a f# list.
 let private getAllComponents (canvas : JSCanvas) : JSComponent list =
     let figures = canvas?getFigures()?data // JS list of components.
     [0..figures?length - 1] |> List.map (fun i -> figures?(i))
 
 // TODO: for now only supports labels.
 let private editComponent (canvas : JSCanvas) (id : string) (newLabel : string) : unit =
-    let jsComponent = getComponentById canvas id
+    let jsComponent = draw2dLib.getComponentById canvas id
     if isNull jsComponent
     then failwithf "what? could not find diagram component with Id: %s" id
     else jsComponent?children?data?(0)?figure?setText(newLabel) // TODO: this only works for labels and it is very hacky.
 
-// TODO this can be probably made more efficient by only returning the
-// attributes we care about.
-// .getPersistentAttributes removes stuff we need (e.g. labels) and include
-// stuff we dont need for runtime processing.
-// Maybe writing a custom function is the right thing to do.
-// When saving the state of a diagram to a file, you want to get the persitent
-// attributes, of both figures and lines.
-[<Emit("
-(function () {
-    let components = [];
-    $0.getFigures().each(function (i, figure) {
-        components.push(figure);
-    });
-    let connections = [];
-    $0.getLines().each(function (i, line) {
-        connections.push(line);
-    });
-    return {components: components, connections: connections};
-})();
-")>]
-let private getCanvasState (canvas : JSCanvas) : JSCanvasState = jsNative
-
 // React wrapper.
 
-type DisplayModeType = Hidden | Visible
-
-type Draw2dReactProps = {
+type private Draw2dReactProps = {
     Dispatch : JSDiagramMsg -> unit
     DisplayMode : DisplayModeType
 }
 
-type Draw2dReact(initialProps) =
+type private Draw2dReact(initialProps) =
     inherit PureStatelessComponent<Draw2dReactProps>(initialProps)
 
     let divId = "Draw2dCanvas"
@@ -262,8 +141,8 @@ type Draw2dReact(initialProps) =
 
     override this.render() =
         let style = match this.props.DisplayMode with
-                    | Hidden -> canvasHiddenStyle
-                    | Visible -> canvasVisibleStyle
+                    | DisplayModeType.Hidden -> canvasHiddenStyle
+                    | DisplayModeType.Visible -> canvasVisibleStyle
         div [ Id divId; style ] []
 
 let inline private createDraw2dReact props = ofType<Draw2dReact,_,_> props []
@@ -293,7 +172,7 @@ type Draw2dWrapper() =
     member this.ClearCanvas () =
         match canvas with
         | None -> log "Warning: Draw2dWrapper.ClearCanvas called when canvas is None"
-        | Some c -> clearCanvas c
+        | Some c -> draw2dLib.clearCanvas c
 
     member this.CreateComponent componentType defaultLabel =
         match canvas, dispatch with
@@ -315,13 +194,13 @@ type Draw2dWrapper() =
         | None -> log "Warning: Draw2dWrapper.LoadConnection called when canvas or dispatch is None"
         | Some c ->
             let sourceParentNode : JSComponent =
-                assertNotNull (getComponentById c conn.Source.HostId) "sourceParentNode"
+                assertNotNull (draw2dLib.getComponentById c conn.Source.HostId) "sourceParentNode"
             let sourcePort : JSPort =
-                assertNotNull (getPortById sourceParentNode conn.Source.Id) "sourcePort"
+                assertNotNull (draw2dLib.getPortById sourceParentNode conn.Source.Id) "sourcePort"
             let targetParentNode : JSComponent =
-                assertNotNull (getComponentById c conn.Target.HostId) "targetParentNode"
+                assertNotNull (draw2dLib.getComponentById c conn.Target.HostId) "targetParentNode"
             let targetPort : JSPort =
-                assertNotNull (getPortById targetParentNode conn.Target.Id) "targetPort"
+                assertNotNull (draw2dLib.getPortById targetParentNode conn.Target.Id) "targetPort"
             createConnection c conn.Id sourcePort targetPort
 
     // For now only changes the label. TODO
@@ -336,4 +215,4 @@ type Draw2dWrapper() =
             log "Warning: Draw2dWrapper.GetCanvasState called when canvas is None"
             None
         | Some c ->
-            Some <| getCanvasState c
+            Some <| draw2dLib.getCanvasState c

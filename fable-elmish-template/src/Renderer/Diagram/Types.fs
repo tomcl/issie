@@ -55,6 +55,8 @@ type CanvasState = Component list * Connection list
 // Types for the page //
 //====================//
 
+type DisplayModeType = Hidden | Visible
+
 type RightTab =
     | Properties
     | Catalogue

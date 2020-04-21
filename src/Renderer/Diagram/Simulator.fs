@@ -61,6 +61,7 @@ let private testState : CanvasState = ([
         OutputPorts = [
             {
                 Id = "input0-OP0";
+                PortNumber = Some 0
                 PortType = PortType.Output;
                 HostId = "input0"
             }
@@ -76,6 +77,7 @@ let private testState : CanvasState = ([
         OutputPorts = [
             {
                 Id = "input1-OP0";
+                PortNumber = Some 0
                 PortType = PortType.Output;
                 HostId = "input1"
             }
@@ -90,10 +92,12 @@ let private testState : CanvasState = ([
         InputPorts = [
             {
                 Id = "And-IP0";
+                PortNumber = Some 0
                 PortType = PortType.Input;
                 HostId = "And"};
             {
                 Id = "And-IP1";
+                PortNumber = Some 1
                 PortType = PortType.Input;
                 HostId = "And"
             };
@@ -101,6 +105,7 @@ let private testState : CanvasState = ([
         OutputPorts = [
             {
                 Id = "And-OP0";
+                PortNumber = Some 0
                 PortType = PortType.Output;
                 HostId = "And"
             }
@@ -115,6 +120,7 @@ let private testState : CanvasState = ([
         InputPorts = [
             {
                 Id = "output-IP0";
+                PortNumber = Some 0
                 PortType = PortType.Input;
                 HostId = "output"
             }
@@ -129,11 +135,13 @@ let private testState : CanvasState = ([
         Id = "TopLeft";
         Source = {
             Id = "input0-OP0";
+            PortNumber = None
             PortType = PortType.Output;
             HostId = "input0"
         };
         Target = {
             Id = "And-IP0";
+            PortNumber = None
             PortType = PortType.Input;
             HostId = "And"
         };
@@ -142,11 +150,13 @@ let private testState : CanvasState = ([
         Id = "BottomLeft";
         Source = {
             Id = "input1-OP0";
+            PortNumber = None
             PortType = PortType.Output;
             HostId = "input1"
         }
         Target = {
             Id = "And-IP1";
+            PortNumber = None
             PortType = PortType.Input;
             HostId = "And"
         }
@@ -155,11 +165,13 @@ let private testState : CanvasState = ([
         Id = "Right";
         Source = {
             Id = "And-OP0";
+            PortNumber = None
             PortType = PortType.Output;
             HostId = "And"
         }
         Target = {
             Id = "output-IP0";
+            PortNumber = None
             PortType = PortType.Input;
             HostId = "output"
         }

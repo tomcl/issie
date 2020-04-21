@@ -17,6 +17,7 @@ open JSHelpers
 open CommonStyle
 open DiagramStyle
 open Extractor
+open Simulator
 
 open StateIO
 
@@ -32,7 +33,9 @@ type Model = {
 
 // -- Init Model
 
-let init() = {
+let init() =
+    simulate()
+    {
     Diagram = new Draw2dWrapper()
     State = [], []
     SelectedComponent = None

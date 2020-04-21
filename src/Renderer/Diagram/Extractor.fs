@@ -24,33 +24,34 @@ let private extractLabel childrenArray : string =
     // figure is a label.
     extract 0
 
-let private extractPort (jsPort : JSPort) : Port =
+let private extractPort (maybeNumber : int option) (jsPort : JSPort) : Port =
     let portType = match getFailIfNull jsPort ["cssClass"] with
                    | "draw2d_InputPort" -> PortType.Input
                    | "draw2d_OutputPort" -> PortType.Output
                    | p -> failwithf "what? oprt with cssClass %s" p
     {
-        Id = getFailIfNull jsPort ["id"]
-        PortType = portType
-        HostId = getFailIfNull jsPort ["parent"; "id"]
+        Id         = getFailIfNull jsPort ["id"]
+        PortNumber = maybeNumber
+        PortType   = portType
+        HostId     = getFailIfNull jsPort ["parent"; "id"]
     }
 
 let private extractPorts (jsPorts : JSPorts) : Port list =
-    let portsLen = getFailIfNull jsPorts ["length"]
-    List.map (fun i -> extractPort jsPorts?(i)) [0..portsLen - 1]
+    jsListToFSharpList jsPorts
+    |> List.mapi (fun i jsPort -> extractPort (Some i) jsPort)
 
 let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     match getFailIfNull jsComponent ["userData"; "componentType"] with
     | "Input"  -> Input
     | "Output" -> Output
-    | "Not"  -> Not
-    | "And"  -> And
-    | "Or"   -> Or
-    | "Xor"  -> Xor
-    | "Nand" -> Nand
-    | "Nor"  -> Nor
-    | "Xnor" -> Xnor
-    | "Mux2" -> Mux2
+    | "Not"    -> Not
+    | "And"    -> And
+    | "Or"     -> Or
+    | "Xor"    -> Xor
+    | "Nand"   -> Nand
+    | "Nor"    -> Nor
+    | "Xnor"   -> Xnor
+    | "Mux2"   -> Mux2
     | ct -> failwithf "what? Component type %s does not exist" ct
 
 /// Transform a JSComponent into an f# data structure.
@@ -66,8 +67,8 @@ let extractComponent (jsComponent : JSComponent) : Component = {
 
 let private extractConnection (jsConnection : JSConnection) : Connection = {
     Id     = getFailIfNull jsConnection ["id"]
-    Source = extractPort <| getFailIfNull jsConnection ["sourcePort"]
-    Target = extractPort <| getFailIfNull jsConnection ["targetPort"]
+    Source = extractPort None <| getFailIfNull jsConnection ["sourcePort"]
+    Target = extractPort None <| getFailIfNull jsConnection ["targetPort"]
 }
 
 /// Transform the JSCanvasState into an f# data structure.

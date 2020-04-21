@@ -18,6 +18,9 @@ type PortLocation = Left | Right | Top | Bottom
 
 type Port = {
     Id : string
+    // For example, an And would have input ports 0 and 1, and output port 0.
+    // If the port is used in a connection, the Number is None.
+    PortNumber : int option
     PortType : PortType
     HostId : string
 }

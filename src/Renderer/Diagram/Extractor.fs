@@ -6,23 +6,22 @@ open JSHelpers
 open Fable.Core.JsInterop
 
 let private extractLabel childrenArray : string =
-    let childrenLen = getFailIfNull childrenArray ["length"]
-    let rec extract idx =
-        if idx = childrenLen
-        then
-            // All components should have labels.
+    let rec extract children =
+        match children with
+        | [] -> // All components should have labels.
             failwithf "what? No label found among the when extracting component."
-        else
-            let child = getFailIfNull childrenArray?(idx) ["figure"]
-            match isNull child with
-            | true -> extract (idx+1) // No figure in this child.
+        | child :: children' ->
+            let childFig = child?figure
+            match isNull childFig with
+            | true -> // No figure in this child.
+                extract children'
             | false -> // Make sure the child is a label.
-                match getFailIfNull child ["cssClass"] with
-                | "draw2d_shape_basic_Label" -> getFailIfNull child ["text"]
-                | _ -> extract (idx+1)
+                match getFailIfNull childFig ["cssClass"] with
+                | "draw2d_shape_basic_Label" -> getFailIfNull childFig ["text"]
+                | _ -> extract children'
     // Children can be many things, but we care about the elements where the
     // figure is a label.
-    extract 0
+    extract <| jsListToFSharpList childrenArray
 
 let private extractPort (maybeNumber : int option) (jsPort : JSPort) : Port =
     let portType = match getFailIfNull jsPort ["cssClass"] with

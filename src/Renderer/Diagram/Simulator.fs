@@ -5,24 +5,28 @@ open JSHelpers
 
 type private Bit = Zero | One
 
-type private ComponentId = | ComponentId of string
-type private PortId      = | PortId of string
-type private PortNumber  = | PortNumber of int
+// The next types are not strictly necessary,
+// but help in understanding what is what.
+type private ComponentId      = | ComponentId of string
+type private InputPortId      = | InputPortId of string
+type private OutputPortId     = | OutputPortId of string
+type private InputPortNumber  = | InputPortNumber of int
+type private OutputPortNumber = | OutputPortNumber of int
 
 type private SimulationComponent = {
     Id : ComponentId
     // Mapping from each input port number to its value (it will be set
     // during the simulation process).
     // TODO: maybe using a list would improve performace?
-    Inputs : Map<PortNumber, Bit>
+    Inputs : Map<InputPortNumber, Bit>
     // Mapping from each output port number to all of the ports and
     // Components connected to that port.
-    Outputs : Map<PortNumber, (ComponentId * PortNumber) list>
+    Outputs : Map<OutputPortNumber, (ComponentId * InputPortNumber) list>
     // Function that takes the inputs and transforms them into the outputs.
     // The size of input map, must be as expected by otherwhise the reducer will
     // return None (i.e. keep on waiting for more inputs to arrive).
     // The reducer should fail if more inputs than expected are received.
-    Reducer : Map<PortNumber, Bit> -> Map<PortNumber, Bit> option
+    Reducer : Map<InputPortNumber, Bit> -> Map<OutputPortNumber, Bit> option
 }
 
 // Map every ComponentId to its SimulationComponent.
@@ -191,10 +195,10 @@ let private testState : CanvasState = ([
 // TODO: check all source ports are Outputs, all target ports are Input.
 let private buildSourceToTargetPort
         (connections : Connection list)
-        : Map<PortId, (ComponentId * PortId) list> =
+        : Map<OutputPortId, (ComponentId * InputPortId) list> =
     (Map.empty, connections) ||> List.fold (fun map conn ->
-        let key = PortId conn.Source.Id
-        let target = ComponentId conn.Target.HostId, PortId conn.Target.Id
+        let key = OutputPortId conn.Source.Id
+        let target = ComponentId conn.Target.HostId, InputPortId conn.Target.Id
         // Unfortunately, it makes no sense to extract the PortNumber here as
         // it is always set to None for ports in connections.
         // Append the new target to the list associated with the key.
@@ -208,21 +212,25 @@ let private buildSourceToTargetPort
 // For each input port in each component, map it to its port number.
 let private mapInputPortIdToPortNumber
         (components : Component list)
-        : Map<PortId, PortNumber> =
+        : Map<InputPortId, InputPortNumber> =
     (Map.empty, components) ||> List.fold (fun map comp ->
         (map, comp.InputPorts) ||> List.fold (fun map port ->
-            map.Add (PortId port.Id,
-                     PortNumber (getPortNumberOrFail port.PortNumber))
+            map.Add (InputPortId port.Id,
+                     InputPortNumber (getPortNumberOrFail port.PortNumber))
         )
     )
 
-let private assertNotTooManyInputs (inputs : Map<PortNumber, Bit>) cType expected =
+let private assertNotTooManyInputs
+        (inputs : Map<InputPortNumber, Bit>)
+        (cType : ComponentType)
+        (expected : int)
+        : unit =
     if inputs.Count > expected
     then failwithf "what? assertNotTooManyInputs failed for %A: %d > %d" cType inputs.Count expected  
 
 let rec private getValuesForPorts
-        (inputs : Map<PortNumber, Bit>)
-        (portNumbers : PortNumber list)
+        (inputs : Map<InputPortNumber, Bit>)
+        (portNumbers : InputPortNumber list)
         : (Bit list) option =
     match portNumbers with
     | [] -> Some []
@@ -236,32 +244,39 @@ let rec private getValuesForPorts
 
 let private getReducer
         (componentType : ComponentType)
-        : Map<PortNumber, Bit> -> Map<PortNumber, Bit> option =
+        : Map<InputPortNumber, Bit> -> Map<OutputPortNumber, Bit> option =
     match componentType with
-    | Input -> Some // Simply forward the input. TODO: probably should check the input?
+    | Input -> (fun inputs ->
+            assertNotTooManyInputs inputs Input 1
+            // Simply forward the input.
+            match getValuesForPorts inputs [InputPortNumber 0] with
+            | None -> None // Wait for more inputs.
+            | Some [bit] -> Some <| Map.empty.Add (OutputPortNumber 0, bit)
+            | _ -> failwithf "what? Unexpected inputs to And: %A" inputs
+        )
     | Output -> (fun inputs ->
             log "SIMULATION OUTPUT"
-            log inputs
+            inputs |> sprintf "%A" |> log 
             None // TODO
         )
     | And -> (fun inputs ->
             assertNotTooManyInputs inputs And 2
-            match getValuesForPorts inputs [PortNumber 1; PortNumber 0] with
+            match getValuesForPorts inputs [InputPortNumber 1; InputPortNumber 0] with
             | None -> None // Wait for more inputs.
-            | Some [bit0; bit1] -> Some <| Map.empty.Add (PortNumber 0, bitAnd bit1 bit0)
-            | _ -> failwithf "what? Unexpected inputs to And: %A" inputs 
+            | Some [bit0; bit1] -> Some <| Map.empty.Add (OutputPortNumber 0, bitAnd bit1 bit0)
+            | _ -> failwithf "what? Unexpected inputs to And: %A" inputs
         )
     | _ -> failwithf "what? Reducer for %A not implemented" componentType
 
 let private buildSimulationComponent
-        (sourceToTargetPort : Map<PortId, (ComponentId * PortId) list>)
-        (portIdToPortNumber : Map<PortId, PortNumber>)
+        (sourceToTargetPort : Map<OutputPortId, (ComponentId * InputPortId) list>)
+        (portIdToPortNumber : Map<InputPortId, InputPortNumber>)
         (comp : Component)
         : SimulationComponent =
     // Remove portIds and use portNumbers instead.
     let mapPortIdsToPortNumbers
-            (targets : (ComponentId * PortId) list)
-            : (ComponentId * PortNumber) list =
+            (targets : (ComponentId * InputPortId) list)
+            : (ComponentId * InputPortNumber) list =
         targets |> List.map (fun (compId, portId) ->
             match portIdToPortNumber.TryFind <| portId with
             | None -> failwithf "what? Input port with portId %A has no portNumber associated" portId
@@ -270,9 +285,9 @@ let private buildSimulationComponent
     let outputs =
         comp.OutputPorts
         |> List.map (fun port ->
-            match sourceToTargetPort.TryFind <| PortId port.Id with
+            match sourceToTargetPort.TryFind <| OutputPortId port.Id with
             | None -> failwithf "what? Unconnected output port %s in comp %s" port.Id comp.Id
-            | Some targets -> PortNumber (getPortNumberOrFail port.PortNumber),
+            | Some targets -> OutputPortNumber (getPortNumberOrFail port.PortNumber),
                               mapPortIdsToPortNumbers targets
         )
         |> Map.ofList
@@ -295,7 +310,8 @@ let private buildSimulationGraph (canvasState : CanvasState) : SimulationGraph =
 let rec private simulateStep
         (graph : SimulationGraph)
         (compId : ComponentId)
-        (input : PortNumber * Bit) =
+        (input : InputPortNumber * Bit)
+        : SimulationGraph =
     // Extract component.
     let comp = match graph.TryFind compId with
                | None -> failwithf "what? Could not find component %A in simulationStep" compId
@@ -305,8 +321,10 @@ let rec private simulateStep
     let graph = graph.Add (comp.Id, comp)
     // Try to reduce the component.
     match comp.Reducer comp.Inputs with
-    | None -> graph // Keep on waiting for more inputs to arrive.
+    | None -> graph // Keep on waiting for more inputs.
     | Some outputMap ->
+        // Received enough inputs and produced an output.
+        // Propagate each output produced to all the ports connected.
         (graph, outputMap) ||> Map.fold (fun graph outPortNumber bit ->
             match comp.Outputs.TryFind outPortNumber with
             | None -> failwithf "what? Reducer produced inexistent output portNumber %A in component %A" outPortNumber comp
@@ -319,7 +337,8 @@ let rec private simulateStep
         )
 
 let simulate () =
+    log "START"
     let graph = buildSimulationGraph testState
-    let graph = simulateStep graph (ComponentId "input0") (PortNumber 0, Zero)
-    let graph = simulateStep graph (ComponentId "input1") (PortNumber 0, One)
-    log <| graph
+    let graph = simulateStep graph (ComponentId "input0") (InputPortNumber 0, One)
+    let graph = simulateStep graph (ComponentId "input1") (InputPortNumber 0, Zero)
+    ()

@@ -25,6 +25,8 @@ type private SimulationComponent = {
     // Function that takes the inputs and transforms them into the outputs.
     // The size of input map, must be as expected by otherwhise the reducer will
     // return None (i.e. keep on waiting for more inputs to arrive).
+    // The idea is similar to partial application, keep on providing inputs
+    // until the output can be evaluated.
     // The reducer should fail if more inputs than expected are received.
     Reducer : Map<InputPortNumber, Bit> -> Map<OutputPortNumber, Bit> option
 }
@@ -92,24 +94,26 @@ let private getReducer
         : Map<InputPortNumber, Bit> -> Map<OutputPortNumber, Bit> option =
     match componentType with
     | Input -> (fun inputs ->
-            assertNotTooManyInputs inputs Input 1
+            assertNotTooManyInputs inputs componentType 1
             // Simply forward the input.
+            // Note that the input of and Input node must be feeded manually.
             match getValuesForPorts inputs [InputPortNumber 0] with
             | None -> None // Wait for more inputs.
             | Some [bit] -> Some <| Map.empty.Add (OutputPortNumber 0, bit)
-            | _ -> failwithf "what? Unexpected inputs to And: %A" inputs
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
         )
     | Output -> (fun inputs ->
-            //log "SIMULATION OUTPUT"
-            //inputs |> sprintf "%A" |> log 
-            None // TODO
+            assertNotTooManyInputs inputs componentType 1
+            match getValuesForPorts inputs [InputPortNumber 0] with
+            | None | Some [_] -> None // Do nothing with it. Just make sure it is received.
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
         )
     | And -> (fun inputs ->
-            assertNotTooManyInputs inputs And 2
+            assertNotTooManyInputs inputs componentType 2
             match getValuesForPorts inputs [InputPortNumber 1; InputPortNumber 0] with
             | None -> None // Wait for more inputs.
             | Some [bit0; bit1] -> Some <| Map.empty.Add (OutputPortNumber 0, bitAnd bit1 bit0)
-            | _ -> failwithf "what? Unexpected inputs to And: %A" inputs
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
         )
     | _ -> failwithf "what? Reducer for %A not implemented" componentType
 
@@ -189,11 +193,15 @@ let private buildSimulationGraph (canvasState : CanvasState) : SimulationGraph =
 // Analyse graph //
 //===============//
 
+// TODO
+
 // Ports constraints:
 // - Source ports must be output ports.
 // - Target ports must be input ports.
 // - All ports have at least one connection that touches them.
 // - Input ports have precisely one connection that touches them.
+
+// Check combinatorial loops?
 
 //================//
 // Run simulation //
@@ -362,11 +370,44 @@ let private testState : CanvasState = ([
     }
     ])
 
+/// Get the ComponentIds of all input and output nodes.
+let private getDiagramIO
+        (components : Component list)
+        : ComponentId list * ComponentId list =
+    (([], []), components) ||> List.fold (fun (inputIds, outputIds) comp ->
+        match comp.Type with
+        | Input  -> (ComponentId comp.Id :: inputIds, outputIds)
+        | Output -> (inputIds, ComponentId comp.Id :: outputIds)
+        | _ -> (inputIds, outputIds)
+    )
+
+let private simulateWithAllInputsToZero
+        (inputIds : ComponentId list)
+        (graph : SimulationGraph)
+        : SimulationGraph =
+    (graph, inputIds) ||> List.fold (fun graph inputId ->
+        feedInput graph inputId (InputPortNumber 0, One)
+    )
+
+let private extractOutputs
+        (outputIds : ComponentId list)
+        (graph : SimulationGraph)
+        : (ComponentId * Bit) list =
+    let extractOutputBit (inputs : Map<InputPortNumber, Bit>) : Bit =
+        match inputs.TryFind <| InputPortNumber 0 with
+        | None -> failwith "what? Output bit not set at the end of simulation"
+        | Some bit -> bit
+    ([], outputIds) ||> List.fold (fun outputs outputId ->
+        match graph.TryFind outputId with
+        | None -> failwithf "what? Could not find output with Id: %A" outputId
+        | Some comp -> (outputId, extractOutputBit comp.Inputs) :: outputs
+    )
 
 let simulate () =
     startTimer "simulationPerformance"
     let graph = buildSimulationGraph testState
-    let graph = feedInput graph (ComponentId "input0") (InputPortNumber 0, One)
-    let graph = feedInput graph (ComponentId "input1") (InputPortNumber 0, Zero)
+    let components, _ = testState
+    let inputIds, outputIds = getDiagramIO components
+    let graph = simulateWithAllInputsToZero inputIds graph
     stopAndLogTimer "simulationPerformance"
-    ()
+    extractOutputs outputIds graph |> sprintf "%A" |> log

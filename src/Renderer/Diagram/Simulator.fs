@@ -3,37 +3,6 @@ module Simulator
 open DiagramTypes
 open JSHelpers
 
-type private Bit = Zero | One
-
-// The next types are not strictly necessary,
-// but help in understanding what is what.
-type private ComponentId      = | ComponentId of string
-type private InputPortId      = | InputPortId of string
-type private OutputPortId     = | OutputPortId of string
-type private InputPortNumber  = | InputPortNumber of int
-type private OutputPortNumber = | OutputPortNumber of int
-
-type private SimulationComponent = {
-    Id : ComponentId
-    // Mapping from each input port number to its value (it will be set
-    // during the simulation process).
-    // TODO: maybe using a list would improve performace?
-    Inputs : Map<InputPortNumber, Bit>
-    // Mapping from each output port number to all of the ports and
-    // Components connected to that port.
-    Outputs : Map<OutputPortNumber, (ComponentId * InputPortNumber) list>
-    // Function that takes the inputs and transforms them into the outputs.
-    // The size of input map, must be as expected by otherwhise the reducer will
-    // return None (i.e. keep on waiting for more inputs to arrive).
-    // The idea is similar to partial application, keep on providing inputs
-    // until the output can be evaluated.
-    // The reducer should fail if more inputs than expected are received.
-    Reducer : Map<InputPortNumber, Bit> -> Map<OutputPortNumber, Bit> option
-}
-
-// Map every ComponentId to its SimulationComponent.
-type private SimulationGraph = Map<ComponentId, SimulationComponent>
-
 // Simulating a circuit has three phases:
 // 1. Building a simulation graph made of SimulationComponents.
 // 2. Analyse the graph to look for errors, such as unconnected ports,
@@ -370,44 +339,48 @@ let private testState : CanvasState = ([
     }
     ])
 
-/// Get the ComponentIds of all input and output nodes.
-let private getDiagramIO
-        (components : Component list)
-        : ComponentId list * ComponentId list =
-    (([], []), components) ||> List.fold (fun (inputIds, outputIds) comp ->
-        match comp.Type with
-        | Input  -> (ComponentId comp.Id :: inputIds, outputIds)
-        | Output -> (inputIds, ComponentId comp.Id :: outputIds)
-        | _ -> (inputIds, outputIds)
-    )
-
 let private simulateWithAllInputsToZero
-        (inputIds : ComponentId list)
+        (inputIds : SimulationIO list)
         (graph : SimulationGraph)
         : SimulationGraph =
-    (graph, inputIds) ||> List.fold (fun graph inputId ->
-        feedInput graph inputId (InputPortNumber 0, One)
+    (graph, inputIds) ||> List.fold (fun graph (inputId, _) ->
+        feedInput graph inputId (InputPortNumber 0, Zero)
     )
 
-let private extractOutputs
-        (outputIds : ComponentId list)
+let extractSimulationOutputs
+        (outputIds : SimulationIO list)
         (graph : SimulationGraph)
-        : (ComponentId * Bit) list =
+        : (SimulationIO * Bit) list =
     let extractOutputBit (inputs : Map<InputPortNumber, Bit>) : Bit =
         match inputs.TryFind <| InputPortNumber 0 with
         | None -> failwith "what? Output bit not set at the end of simulation"
         | Some bit -> bit
-    ([], outputIds) ||> List.fold (fun outputs outputId ->
+    ([], outputIds) ||> List.fold (fun outputs (outputId, outputLabel) ->
         match graph.TryFind outputId with
-        | None -> failwithf "what? Could not find output with Id: %A" outputId
-        | Some comp -> (outputId, extractOutputBit comp.Inputs) :: outputs
+        | None -> failwithf "what? Could not find output with Id: %A" (outputId, outputLabel)
+        | Some comp -> ((outputId, outputLabel), extractOutputBit comp.Inputs) :: outputs
     )
 
-let simulate () =
-    startTimer "simulationPerformance"
-    let graph = buildSimulationGraph testState
-    let components, _ = testState
-    let inputIds, outputIds = getDiagramIO components
-    let graph = simulateWithAllInputsToZero inputIds graph
-    stopAndLogTimer "simulationPerformance"
-    extractOutputs outputIds graph |> sprintf "%A" |> log
+/// Get the ComponentIds and ComponentLabels of all input and output nodes.
+let getSimulationIOs
+        (components : Component list)
+        : SimulationIO list * SimulationIO list =
+    (([], []), components) ||> List.fold (fun (inputIds, outputIds) comp ->
+        match comp.Type with
+        | Input  -> ((ComponentId comp.Id, ComponentLabel comp.Label) :: inputIds, outputIds)
+        | Output -> (inputIds, (ComponentId comp.Id, ComponentLabel comp.Label) :: outputIds)
+        | _ -> (inputIds, outputIds)
+    )
+
+/// Builds the graph and simulates it with all inputs zeroed.
+/// TODO run analysis here?
+let prepareSimulationGraph
+        (canvasState : CanvasState)
+        : SimulationGraph * (SimulationIO list) * (SimulationIO list) =
+    let components, _ = canvasState
+    let inputs, outputs = getSimulationIOs components
+    (
+        canvasState |> buildSimulationGraph |> simulateWithAllInputsToZero inputs,
+        inputs,
+        outputs
+    )

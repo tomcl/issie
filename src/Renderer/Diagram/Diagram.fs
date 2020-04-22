@@ -23,8 +23,11 @@ open StateIO
 
 type Model = {
     Diagram : Draw2dWrapper
-    State : CanvasState
-    SelectedComponent : Component option
+    State : CanvasState // TODO: remove
+    SelectedComponent : Component option // None if no component is selected.
+    // None if no simulation is running.
+    // SimulationGraph plus list of inputs and outputs.
+    Simulation : (SimulationGraph * (SimulationIO list) * (SimulationIO list)) option
     RightTab : RightTab
     // If the content of the diagram has been loaded or saved from/to file keep
     // track of the path, instead of reasking every time.
@@ -33,12 +36,11 @@ type Model = {
 
 // -- Init Model
 
-let init() =
-    simulate()
-    {
+let init() = {
     Diagram = new Draw2dWrapper()
     State = [], []
     SelectedComponent = None
+    Simulation = None
     RightTab = Catalogue
     OpenPath = None
 }
@@ -50,6 +52,12 @@ let prettyPrintState (components, connections) =
     List.collect (fun c -> [ str <| sprintf "%A" c; br [] ]) components @
     [ str "Connections:"; br [] ] @
     List.collect (fun c -> [ str <| sprintf "%A" c; br [] ]) connections
+
+let prettyPrintSimulationOutput (simOutputs : (SimulationIO * Bit) list) =
+    simOutputs
+    |> List.collect (fun ((_, ComponentLabel outputLabel), bit) ->
+        [ str <| sprintf "%s\t%A" outputLabel bit; br [] ]
+    ) 
 
 let getStateAction model dispatch =
     match model.Diagram.GetCanvasState () with
@@ -66,6 +74,30 @@ let saveStateAction model dispatch =
 
 let loadStateAction model dispatch =
     loadStateFromFile model.Diagram |> SetOpenPath |> dispatch
+
+let viewCatalogue model =
+    let menuItem label onClick =
+        Menu.Item.li
+            [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick ] ]
+            [ str label ]
+    Menu.menu [ ] [
+            Menu.label [ ] [ str "Input / Output" ]
+            Menu.list []
+                [ menuItem "Input"  (fun _ -> model.Diagram.CreateComponent Input "input")
+                  menuItem "Output" (fun _ -> model.Diagram.CreateComponent Output "output") ]
+            Menu.label [ ] [ str "Gates" ]
+            Menu.list []
+                [ menuItem "Not"  (fun _ -> model.Diagram.CreateComponent Not "")
+                  menuItem "And"  (fun _ -> model.Diagram.CreateComponent And "")
+                  menuItem "Or"   (fun _ -> model.Diagram.CreateComponent Or "")
+                  menuItem "Xor"  (fun _ -> model.Diagram.CreateComponent Xor "")
+                  menuItem "Nand" (fun _ -> model.Diagram.CreateComponent Nand "")
+                  menuItem "Nor"  (fun _ -> model.Diagram.CreateComponent Nor "")
+                  menuItem "Xnor" (fun _ -> model.Diagram.CreateComponent Xnor "") ]
+            Menu.label [ ] [ str "Mux / Demux" ]
+            Menu.list []
+                [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "mux2") ]
+        ]
 
 let viewSelectedComponent model =
     match model.SelectedComponent with
@@ -110,31 +142,33 @@ let viewSelectedComponent model =
             )
         ]
 
-let viewCatalogue model =
-    let menuItem label onClick =
-        Menu.Item.li
-            [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick ] ]
-            [ str label ]
-    Menu.menu [ ] [
-            Menu.label [ ] [ str "Input / Output" ]
-            Menu.list []
-                [ menuItem "Input"  (fun _ -> model.Diagram.CreateComponent Input "input")
-                  menuItem "Output" (fun _ -> model.Diagram.CreateComponent Output "output") ]
-            Menu.label [ ] [ str "Gates" ]
-            Menu.list []
-                [ menuItem "Not"  (fun _ -> model.Diagram.CreateComponent Not "")
-                  menuItem "And"  (fun _ -> model.Diagram.CreateComponent And "")
-                  menuItem "Or"   (fun _ -> model.Diagram.CreateComponent Or "")
-                  menuItem "Xor"  (fun _ -> model.Diagram.CreateComponent Xor "")
-                  menuItem "Nand" (fun _ -> model.Diagram.CreateComponent Nand "")
-                  menuItem "Nor"  (fun _ -> model.Diagram.CreateComponent Nor "")
-                  menuItem "Xnor" (fun _ -> model.Diagram.CreateComponent Xnor "") ]
-            Menu.label [ ] [ str "Mux / Demux" ]
-            Menu.list []
-                [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "mux2") ]
+let viewSimulation model dispatch =
+    let startSimulation () =
+        match model.Diagram.GetCanvasState () with
+        | None -> ()
+        | Some jsState -> extractState jsState
+                         |> prepareSimulationGraph
+                         |> StartSimulation
+                         |> dispatch
+    match model.Simulation with
+    | None ->
+        div [] [
+            Button.button
+                [ Button.Color IsSuccess; Button.OnClick (fun _ -> startSimulation()) ]
+                [ str "Start simulation" ]
+        ]
+    | Some (simulationGraph, inputs, outputs) ->
+        div [] [
+            Button.button
+                [ Button.Color IsDanger; Button.OnClick (fun _ -> dispatch EndSimulation) ]
+                [ str "End simulation" ]
+            Heading.h5 [] [ str "Inputs" ]
+            // TODO: use inputs to create a form that triggers the feedInput function.
+            Heading.h5 [] [ str "Outputs" ]
+            div [] (prettyPrintSimulationOutput <| extractSimulationOutputs outputs simulationGraph)
         ]
 
-let viewRightTab model =
+let viewRightTab model dispatch =
     match model.RightTab with
     | Catalogue ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
@@ -147,6 +181,11 @@ let viewRightTab model =
             Heading.h4 [] [ str "Component properties" ]
             viewSelectedComponent model
         ]
+    | Simulation ->
+        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
+            Heading.h4 [] [ str "Simulation" ]
+            viewSimulation model dispatch
+        ]
 
 let hideView model dispatch =
     div [] [
@@ -158,14 +197,17 @@ let displayView model dispatch =
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Visible
         div [ rightSectionStyle ] [
             Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ ] ] [
-            Tabs.tab
-                [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
-                [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] [ str "Catalogue" ] ]
-            Tabs.tab
-                [ Tabs.Tab.IsActive (model.RightTab = Properties) ]
-                [ a [ OnClick (fun _ -> ChangeRightTab Properties |> dispatch ) ] [ str "Properties" ] ]
+                Tabs.tab
+                    [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
+                    [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] [ str "Catalogue" ] ]
+                Tabs.tab
+                    [ Tabs.Tab.IsActive (model.RightTab = Properties) ]
+                    [ a [ OnClick (fun _ -> ChangeRightTab Properties |> dispatch ) ] [ str "Properties" ] ]
+                Tabs.tab
+                    [ Tabs.Tab.IsActive (model.RightTab = Simulation) ]
+                    [ a [ OnClick (fun _ -> ChangeRightTab Simulation |> dispatch ) ] [ str "Simulation" ] ]
             ]
-            viewRightTab model
+            viewRightTab model dispatch
         ]
         div [ bottomSectionStyle ] [
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
@@ -191,5 +233,7 @@ let update msg model =
     match msg with
     | JSDiagramMsg msg' -> handleJSDiagramMsg msg' model
     | UpdateState (com, con) -> { model with State = (com, con) }
+    | StartSimulation (sg, inp, out) -> { model with Simulation = Some <| (sg, inp, out) }
+    | EndSimulation -> { model with Simulation = None }
     | ChangeRightTab newTab -> { model with RightTab = newTab }
     | SetOpenPath openPath -> { model with OpenPath = openPath }

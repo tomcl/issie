@@ -100,8 +100,8 @@ let private getReducer
             | _ -> failwithf "what? Unexpected inputs to And: %A" inputs
         )
     | Output -> (fun inputs ->
-            log "SIMULATION OUTPUT"
-            inputs |> sprintf "%A" |> log 
+            //log "SIMULATION OUTPUT"
+            //inputs |> sprintf "%A" |> log 
             None // TODO
         )
     | And -> (fun inputs ->
@@ -364,8 +364,9 @@ let private testState : CanvasState = ([
 
 
 let simulate () =
-    log "START"
+    startTimer "simulationPerformance"
     let graph = buildSimulationGraph testState
     let graph = feedInput graph (ComponentId "input0") (InputPortNumber 0, One)
     let graph = feedInput graph (ComponentId "input1") (InputPortNumber 0, Zero)
+    stopAndLogTimer "simulationPerformance"
     ()

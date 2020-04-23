@@ -110,7 +110,7 @@ type SimulationData = {
 
 type SimulationError = {
     Msg : string
-    ComponentAffected : ComponentId list
+    ComponentsAffected : ComponentId list
     ConnectionsAffected : ConnectionId list
 }
 

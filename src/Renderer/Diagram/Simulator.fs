@@ -2,11 +2,12 @@ module Simulator
 
 open DiagramTypes
 open JSHelpers
+open Analyser
 
 // Simulating a circuit has three phases:
 // 1. Building a simulation graph made of SimulationComponents.
 // 2. Analyse the graph to look for errors, such as unconnected ports,
-//    combinatorial loops, etc... TODO
+//    combinatorial loops, etc... In Analyser.fs.
 // 3. Setting the values of the input nodes of the graph to kickstart the
 //    simulation process.
 
@@ -202,20 +203,6 @@ let private buildSimulationGraph (canvasState : CanvasState) : SimulationGraph =
     components
     |> List.map (fun comp -> ComponentId comp.Id, mapper comp)
     |> Map.ofList
-
-//===============//
-// Analyse graph //
-//===============//
-
-// TODO
-
-// Ports constraints:
-// - Source ports must be output ports.
-// - Target ports must be input ports.
-// - All ports have at least one connection that touches them.
-// - Input ports have precisely one connection that touches them.
-
-// Check combinatorial loops?
 
 //================//
 // Run simulation //
@@ -425,13 +412,18 @@ let getSimulationIOs
     )
 
 /// Builds the graph and simulates it with all inputs zeroed.
-/// TODO run analysis here?
 let prepareSimulation
         (canvasState : CanvasState)
         : Result<SimulationData, SimulationError> =
-    let components, _ = canvasState
-    let inputs, outputs = getSimulationIOs components
-    let graph = canvasState
-                |> buildSimulationGraph
-                |> simulateWithAllInputsToZero inputs
-    Ok { Graph = graph; Inputs = inputs; Outputs = outputs }
+    match checkPortTypesAreConsistent canvasState,
+          checkPortsAreConnectedProperly canvasState with
+    | Some err, _ | _, Some err -> Error err
+    | None, None ->
+        let components, _ = canvasState
+        let inputs, outputs = getSimulationIOs components
+        let graph = canvasState
+                    |> buildSimulationGraph
+                    |> simulateWithAllInputsToZero inputs
+        match analyseGraph graph with
+        | Some err -> Error err
+        | None -> Ok { Graph = graph; Inputs = inputs; Outputs = outputs }

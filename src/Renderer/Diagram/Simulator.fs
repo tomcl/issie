@@ -426,13 +426,12 @@ let getSimulationIOs
 
 /// Builds the graph and simulates it with all inputs zeroed.
 /// TODO run analysis here?
-let prepareSimulationGraph
+let prepareSimulation
         (canvasState : CanvasState)
-        : SimulationGraph * (SimulationIO list) * (SimulationIO list) =
+        : Result<SimulationData, SimulationError> =
     let components, _ = canvasState
     let inputs, outputs = getSimulationIOs components
-    (
-        canvasState |> buildSimulationGraph |> simulateWithAllInputsToZero inputs,
-        inputs,
-        outputs
-    )
+    let graph = canvasState
+                |> buildSimulationGraph
+                |> simulateWithAllInputsToZero inputs
+    Ok { Graph = graph; Inputs = inputs; Outputs = outputs }

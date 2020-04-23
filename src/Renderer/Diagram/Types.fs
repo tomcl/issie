@@ -68,6 +68,7 @@ type Bit = Zero | One
 // The next types are not strictly necessary,
 // but help in understanding what is what.
 type ComponentId      = | ComponentId of string
+type ConnectionId     = | ConnectionId of string
 type ComponentLabel   = | ComponentLabel of string
 type InputPortId      = | InputPortId of string
 type OutputPortId     = | OutputPortId of string
@@ -100,6 +101,19 @@ type SimulationGraph = Map<ComponentId, SimulationComponent>
 // - Label: to display a nice form to the user.
 type SimulationIO = ComponentId * ComponentLabel
 
+type SimulationData = {
+    Graph : SimulationGraph
+    // For each input/output, keep its Id and Label to easily access it.
+    Inputs : SimulationIO list
+    Outputs : SimulationIO list
+}
+
+type SimulationError = {
+    Msg : string
+    ComponentAffected : ComponentId list
+    ConnectionsAffected : ConnectionId list
+}
+
 //====================//
 // Types for the page //
 //====================//
@@ -124,7 +138,7 @@ type JSDiagramMsg =
 type Msg =
     | JSDiagramMsg of JSDiagramMsg
     | UpdateState of CanvasState
-    | StartSimulation of SimulationGraph * (SimulationIO list) * (SimulationIO list)
+    | StartSimulation of Result<SimulationData, SimulationError>
     | SetSimulationGraph of SimulationGraph
     | EndSimulation
     | ChangeRightTab of RightTab

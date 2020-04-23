@@ -25,9 +25,7 @@ type Model = {
     Diagram : Draw2dWrapper
     State : CanvasState // TODO: remove
     SelectedComponent : Component option // None if no component is selected.
-    // None if no simulation is running.
-    // SimulationGraph plus list of inputs and outputs.
-    Simulation : (SimulationGraph * (SimulationIO list) * (SimulationIO list)) option
+    Simulation : Result<SimulationData,SimulationError> option // None if no simulation is running.
     RightTab : RightTab
     // If the content of the diagram has been loaded or saved from/to file keep
     // track of the path, instead of reasking every time.
@@ -175,12 +173,29 @@ let viewSimulationOutputs (simOutputs : (SimulationIO * Bit) list) =
         )
     )
 
+let viewSimulationError (simError : SimulationError) =
+    div [] [
+        Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Errors" ]
+        str <| sprintf "%A" simError
+    ]
+
+let viewSimulationData (simData : SimulationData) dispatch =
+    div [] [
+        Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Inputs" ]
+        viewSimulationInputs
+            simData.Graph
+            (extractSimulationIOs simData.Inputs simData.Graph)
+            dispatch
+        Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Outputs" ]
+        viewSimulationOutputs <| extractSimulationIOs simData.Outputs simData.Graph
+    ]
+
 let viewSimulation model dispatch =
     let startSimulation () =
         match model.Diagram.GetCanvasState () with
         | None -> ()
         | Some jsState -> extractState jsState
-                         |> prepareSimulationGraph
+                         |> prepareSimulation
                          |> StartSimulation
                          |> dispatch
     match model.Simulation with
@@ -190,18 +205,15 @@ let viewSimulation model dispatch =
                 [ Button.Color IsSuccess; Button.OnClick (fun _ -> startSimulation()) ]
                 [ str "Start simulation" ]
         ]
-    | Some (simulationGraph, inputs, outputs) ->
+    | Some sim ->
+        let body = match sim with
+                   | Error simError -> viewSimulationError simError
+                   | Ok simData -> viewSimulationData simData dispatch
         div [] [
             Button.button
                 [ Button.Color IsDanger; Button.OnClick (fun _ -> dispatch EndSimulation) ]
                 [ str "End simulation" ]
-            Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Inputs" ]
-            viewSimulationInputs
-                simulationGraph
-                (extractSimulationIOs inputs simulationGraph)
-                dispatch
-            Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Outputs" ]
-            viewSimulationOutputs <| extractSimulationIOs outputs simulationGraph
+            body
         ]
 
 let viewRightTab model dispatch =
@@ -269,12 +281,14 @@ let update msg model =
     match msg with
     | JSDiagramMsg msg' -> handleJSDiagramMsg msg' model
     | UpdateState (com, con) -> { model with State = (com, con) }
-    | StartSimulation (sg, inp, out) -> { model with Simulation = Some <| (sg, inp, out) }
-    | SetSimulationGraph sg ->
+    | StartSimulation simData -> { model with Simulation = Some simData }
+    | SetSimulationGraph graph ->
         match model.Simulation with
-        | None -> log "Warning: simulation graph set when no simulation running"
-                  model
-        | Some (_, inp, out) -> { model with Simulation = Some <| (sg, inp, out) }
+        | None -> failwithf "what? Simulation graph set when no simulation running"
+        | Some sim ->
+            match sim with
+            | Error _ -> failwithf "what? Simulation graph set when simulation is error"
+            | Ok simData -> { model with Simulation = { simData with Graph = graph } |> Ok |> Some }
     | EndSimulation -> { model with Simulation = None }
     | ChangeRightTab newTab -> { model with RightTab = newTab }
     | SetOpenPath openPath -> { model with OpenPath = openPath }

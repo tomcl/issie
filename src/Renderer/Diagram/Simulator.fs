@@ -339,17 +339,21 @@ let private testState : CanvasState = ([
     }
     ])
 
+/// Feed zero to a simulation input.
+let feedSimulationInput graph inputId bit =
+    feedInput graph inputId (InputPortNumber 0, bit)
+
+/// Feed zeros to all simulation inputs.
 let private simulateWithAllInputsToZero
         (inputIds : SimulationIO list)
         (graph : SimulationGraph)
         : SimulationGraph =
     (graph, inputIds) ||> List.fold (fun graph (inputId, _) ->
-        feedInput graph inputId (InputPortNumber 0, Zero)
+        feedSimulationInput graph inputId Zero
     )
 
-let feedSimulationInput graph inputId bit =
-    feedInput graph inputId (InputPortNumber 0, bit)
-
+/// Given a list of IO nodes (i.e. Inputs or outputs) extract their value.
+/// If they dont all have a value, an error is thrown.
 let extractSimulationIOs
         (simulationIOs : SimulationIO list)
         (graph : SimulationGraph)

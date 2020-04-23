@@ -347,18 +347,21 @@ let private simulateWithAllInputsToZero
         feedInput graph inputId (InputPortNumber 0, Zero)
     )
 
-let extractSimulationOutputs
-        (outputIds : SimulationIO list)
+let feedSimulationInput graph inputId bit =
+    feedInput graph inputId (InputPortNumber 0, bit)
+
+let extractSimulationIOs
+        (simulationIOs : SimulationIO list)
         (graph : SimulationGraph)
         : (SimulationIO * Bit) list =
-    let extractOutputBit (inputs : Map<InputPortNumber, Bit>) : Bit =
+    let extractBit (inputs : Map<InputPortNumber, Bit>) : Bit =
         match inputs.TryFind <| InputPortNumber 0 with
-        | None -> failwith "what? Output bit not set at the end of simulation"
+        | None -> failwith "what? IO bit not set"
         | Some bit -> bit
-    ([], outputIds) ||> List.fold (fun outputs (outputId, outputLabel) ->
-        match graph.TryFind outputId with
-        | None -> failwithf "what? Could not find output with Id: %A" (outputId, outputLabel)
-        | Some comp -> ((outputId, outputLabel), extractOutputBit comp.Inputs) :: outputs
+    ([], simulationIOs) ||> List.fold (fun result (ioId, ioLabel) ->
+        match graph.TryFind ioId with
+        | None -> failwithf "what? Could not find io node: %A" (ioId, ioLabel)
+        | Some comp -> ((ioId, ioLabel), extractBit comp.Inputs) :: result
     )
 
 /// Get the ComponentIds and ComponentLabels of all input and output nodes.

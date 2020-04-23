@@ -125,6 +125,7 @@ type Msg =
     | JSDiagramMsg of JSDiagramMsg
     | UpdateState of CanvasState
     | StartSimulation of SimulationGraph * (SimulationIO list) * (SimulationIO list)
+    | SetSimulationGraph of SimulationGraph
     | EndSimulation
     | ChangeRightTab of RightTab
     | SetOpenPath of string option

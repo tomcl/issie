@@ -142,6 +142,27 @@ let viewSelectedComponent model =
             )
         ]
 
+let viewSimulationInputs (simulationGraph : SimulationGraph) (inputs : (SimulationIO * Bit) list) dispatch =
+    let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel), bit) =
+        let inputFieldId = "simulation-input-field-" + inputId
+        let bitButton =
+            Button.button [
+                Button.Color IsPrimary
+                Button.OnClick (fun _ ->
+                    let newBit = match bit with
+                                 | Zero -> One
+                                 | One -> Zero
+                    feedSimulationInput simulationGraph (ComponentId inputId) newBit
+                    |> SetSimulationGraph |> dispatch
+                    // TODO feed it to simulationgraph.
+                )
+            ] [ str <| sprintf "%A" bit ]
+        div [] [
+            Label.label [] [ str inputLabel ]
+            bitButton
+        ]
+    div [] (inputs |> List.map makeInputLine)
+
 let viewSimulation model dispatch =
     let startSimulation () =
         match model.Diagram.GetCanvasState () with
@@ -163,9 +184,12 @@ let viewSimulation model dispatch =
                 [ Button.Color IsDanger; Button.OnClick (fun _ -> dispatch EndSimulation) ]
                 [ str "End simulation" ]
             Heading.h5 [] [ str "Inputs" ]
-            // TODO: use inputs to create a form that triggers the feedInput function.
+            viewSimulationInputs
+                simulationGraph
+                (extractSimulationIOs inputs simulationGraph)
+                dispatch
             Heading.h5 [] [ str "Outputs" ]
-            div [] (prettyPrintSimulationOutput <| extractSimulationOutputs outputs simulationGraph)
+            div [] (prettyPrintSimulationOutput <| extractSimulationIOs outputs simulationGraph)
         ]
 
 let viewRightTab model dispatch =
@@ -234,6 +258,11 @@ let update msg model =
     | JSDiagramMsg msg' -> handleJSDiagramMsg msg' model
     | UpdateState (com, con) -> { model with State = (com, con) }
     | StartSimulation (sg, inp, out) -> { model with Simulation = Some <| (sg, inp, out) }
+    | SetSimulationGraph sg ->
+        match model.Simulation with
+        | None -> log "Warning: simulation graph set when no simulation running"
+                  model
+        | Some (_, inp, out) -> { model with Simulation = Some <| (sg, inp, out) }
     | EndSimulation -> { model with Simulation = None }
     | ChangeRightTab newTab -> { model with RightTab = newTab }
     | SetOpenPath openPath -> { model with OpenPath = openPath }

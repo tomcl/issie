@@ -53,12 +53,6 @@ let prettyPrintState (components, connections) =
     [ str "Connections:"; br [] ] @
     List.collect (fun c -> [ str <| sprintf "%A" c; br [] ]) connections
 
-let prettyPrintSimulationOutput (simOutputs : (SimulationIO * Bit) list) =
-    simOutputs
-    |> List.collect (fun ((_, ComponentLabel outputLabel), bit) ->
-        [ str <| sprintf "%s\t%A" outputLabel bit; br [] ]
-    ) 
-
 let getStateAction model dispatch =
     match model.Diagram.GetCanvasState () with
     | None -> ()
@@ -147,21 +141,35 @@ let viewSimulationInputs (simulationGraph : SimulationGraph) (inputs : (Simulati
         let inputFieldId = "simulation-input-field-" + inputId
         let bitButton =
             Button.button [
-                Button.Color IsPrimary
+                Button.Color (match bit with Zero -> IsBlack | One -> IsPrimary)
+                Button.Size IsSmall
+                Button.IsOutlined
+                Button.IsHovered false
                 Button.OnClick (fun _ ->
                     let newBit = match bit with
                                  | Zero -> One
                                  | One -> Zero
                     feedSimulationInput simulationGraph (ComponentId inputId) newBit
                     |> SetSimulationGraph |> dispatch
-                    // TODO feed it to simulationgraph.
                 )
-            ] [ str <| sprintf "%A" bit ]
-        div [] [
-            Label.label [] [ str inputLabel ]
-            bitButton
+            ] [ str (match bit with Zero -> "0" | One -> "1") ]
+        Level.level [] [
+            Level.left [] [
+                Level.item [] [ str inputLabel ]
+            ]
+            Level.right [] [
+                Level.item [] [ bitButton ]
+            ]
         ]
     div [] (inputs |> List.map makeInputLine)
+
+let viewSimulationOutputs (simOutputs : (SimulationIO * Bit) list) =
+    div [] (
+        simOutputs
+        |> List.collect (fun ((_, ComponentLabel outputLabel), bit) ->
+            [ str <| sprintf "%s\t%A" outputLabel bit; br [] ]
+        )
+    )
 
 let viewSimulation model dispatch =
     let startSimulation () =
@@ -183,13 +191,13 @@ let viewSimulation model dispatch =
             Button.button
                 [ Button.Color IsDanger; Button.OnClick (fun _ -> dispatch EndSimulation) ]
                 [ str "End simulation" ]
-            Heading.h5 [] [ str "Inputs" ]
+            Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Inputs" ]
             viewSimulationInputs
                 simulationGraph
                 (extractSimulationIOs inputs simulationGraph)
                 dispatch
-            Heading.h5 [] [ str "Outputs" ]
-            div [] (prettyPrintSimulationOutput <| extractSimulationIOs outputs simulationGraph)
+            Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Outputs" ]
+            viewSimulationOutputs <| extractSimulationIOs outputs simulationGraph
         ]
 
 let viewRightTab model dispatch =

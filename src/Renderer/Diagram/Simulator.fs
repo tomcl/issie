@@ -22,10 +22,34 @@ let private getPortNumberOrFail port =
     | None -> failwithf "what? Component ports should always have a portNumber"
     | Some p -> p
 
+let private bitNot bit =
+    match bit with
+    | Zero -> One
+    | One -> Zero
+
 let private bitAnd bit0 bit1 =
     match bit0, bit1 with
     | One, One -> One
     | _, _ -> Zero
+
+let private bitOr bit0 bit1 =
+    match bit0, bit1 with
+    | Zero, Zero -> Zero
+    | _, _ -> One
+
+let private bitXor bit0 bit1 =
+    match bit0, bit1 with
+    | Zero, One | One, Zero -> One
+    | _, _ -> Zero
+
+let private bitNand bit0 bit1 =
+    bitAnd bit0 bit1 |> bitNot
+
+let private bitNor bit0 bit1 =
+    bitOr bit0 bit1 |> bitNot
+
+let private bitXnor bit0 bit1 =
+    bitXor bit0 bit1 |> bitNot
 
 /// Make sure that the size of the inputs of a SimulationComponent is as
 /// expected.
@@ -39,8 +63,8 @@ let private assertNotTooManyInputs
 
 /// Extract the values of the inputs of a SimulationComponent.
 /// If any of these inputs is missing, return None.
-/// The values are returned in the reversed order. E.g. if portNumbers is
-/// [2, 1, 0], the returned value will be [bit0, bit1, bit2].
+/// The values are returned in the the passed order. E.g. if portNumbers is
+/// [0, 1, 2], the returned value will be [bit0, bit1, bit2].
 let rec private getValuesForPorts
         (inputs : Map<InputPortNumber, Bit>)
         (portNumbers : InputPortNumber list)
@@ -55,6 +79,14 @@ let rec private getValuesForPorts
             | None -> None
             | Some bits -> Some <| bit :: bits
 
+let getBinaryGateReducer (op : Bit -> Bit -> Bit) componentType =
+    fun inputs ->
+        assertNotTooManyInputs inputs componentType 2
+        match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1] with
+        | None -> None // Wait for more inputs.
+        | Some [bit0; bit1] -> Some <| Map.empty.Add (OutputPortNumber 0, op bit1 bit0)
+        | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
+
 /// Given a component type, return a function takes its inputs and transforms
 /// them into outputs. The reducer should return None if there are not enough
 /// inputs to calculate the outputs.
@@ -62,7 +94,8 @@ let private getReducer
         (componentType : ComponentType)
         : Map<InputPortNumber, Bit> -> Map<OutputPortNumber, Bit> option =
     match componentType with
-    | Input -> (fun inputs ->
+    | Input ->
+        fun inputs ->
             assertNotTooManyInputs inputs componentType 1
             // Simply forward the input.
             // Note that the input of and Input node must be feeded manually.
@@ -70,21 +103,33 @@ let private getReducer
             | None -> None // Wait for more inputs.
             | Some [bit] -> Some <| Map.empty.Add (OutputPortNumber 0, bit)
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
-        )
-    | Output -> (fun inputs ->
+    | Output ->
+        fun inputs ->
             assertNotTooManyInputs inputs componentType 1
             match getValuesForPorts inputs [InputPortNumber 0] with
             | None | Some [_] -> None // Do nothing with it. Just make sure it is received.
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
-        )
-    | And -> (fun inputs ->
-            assertNotTooManyInputs inputs componentType 2
-            match getValuesForPorts inputs [InputPortNumber 1; InputPortNumber 0] with
+    | Not ->
+        fun inputs ->
+            assertNotTooManyInputs inputs componentType 1
+            match getValuesForPorts inputs [InputPortNumber 0] with
             | None -> None // Wait for more inputs.
-            | Some [bit0; bit1] -> Some <| Map.empty.Add (OutputPortNumber 0, bitAnd bit1 bit0)
+            | Some [bit] -> Some <| Map.empty.Add (OutputPortNumber 0, bitNot bit)
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
-        )
-    | _ -> failwithf "what? Reducer for %A not implemented" componentType
+    | And  -> getBinaryGateReducer bitAnd And
+    | Or   -> getBinaryGateReducer bitOr Or
+    | Xor  -> getBinaryGateReducer bitXor Xor
+    | Nand -> getBinaryGateReducer bitNand Nand
+    | Nor  -> getBinaryGateReducer bitNor Nor
+    | Xnor -> getBinaryGateReducer bitXnor Xnor
+    | Mux2 -> fun inputs ->
+        assertNotTooManyInputs inputs componentType 3
+        match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
+        | None -> None // Wait for more inputs.
+        | Some [bit0; bit1; bitSelect] ->
+            let out = if bitSelect = Zero then bit0 else bit1
+            Some <| Map.empty.Add (OutputPortNumber 0, out)
+        | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
 
 /// Build a map that, for each source port in the connections, keep track of
 /// the ports it targets.

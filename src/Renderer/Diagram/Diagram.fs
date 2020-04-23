@@ -138,7 +138,6 @@ let viewSelectedComponent model =
 
 let viewSimulationInputs (simulationGraph : SimulationGraph) (inputs : (SimulationIO * Bit) list) dispatch =
     let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel), bit) =
-        let inputFieldId = "simulation-input-field-" + inputId
         let bitButton =
             Button.button [
                 Button.Color (match bit with Zero -> IsBlack | One -> IsPrimary)
@@ -161,7 +160,12 @@ let viewSimulationInputs (simulationGraph : SimulationGraph) (inputs : (Simulati
                 Level.item [] [ bitButton ]
             ]
         ]
-    div [] (inputs |> List.map makeInputLine)
+    div [] (
+        // Sort inputs by label.
+        inputs
+        |> List.sortBy (fun ((_, ComponentLabel label), _) -> label)
+        |> List.map makeInputLine
+    )
 
 let viewSimulationOutputs (simOutputs : (SimulationIO * Bit) list) =
     div [] (

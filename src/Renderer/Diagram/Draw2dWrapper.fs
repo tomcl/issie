@@ -28,6 +28,7 @@ type private IDraw2d =
     abstract setComponentId          : comp:JSComponent -> id:string -> unit
     abstract setConnectionId         : conn:JSConnection -> id:string -> unit
     abstract setPortId               : port:JSPort -> id:string -> unit
+    abstract setComponentBackground  : comp:JSComponent -> string -> unit
     abstract getInputPorts           : comp:JSComponent -> JSPorts
     abstract getOutputPorts          : comp:JSComponent -> JSPorts
     abstract installSelectionPolicy  : comp:JSComponent -> onSelect:(JSComponent -> unit) -> onUnselect:(JSComponent -> unit) -> unit
@@ -212,6 +213,22 @@ type Draw2dWrapper() =
         match canvas with
         | None -> log "Warning: Draw2dWrapper.EditComponent called when canvas is None"
         | Some c -> editComponent c componentId newLabel
+
+    member this.HighlightComponent componentId = 
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.HighlightComponent called when canvas is None"
+        | Some c ->
+            let comp =
+                assertNotNull (draw2dLib.getComponentById c componentId) "HighlightComponent"
+            draw2dLib.setComponentBackground comp "red"
+
+    member this.UnHighlightComponent componentId = 
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.UnHighlightComponent called when canvas is None"
+        | Some c ->
+            let comp =
+                assertNotNull (draw2dLib.getComponentById c componentId) "UnHighlightComponent"
+            draw2dLib.setComponentBackground comp "lightgray"
 
     member this.GetCanvasState () =
         match canvas with

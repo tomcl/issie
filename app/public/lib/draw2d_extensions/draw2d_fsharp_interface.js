@@ -87,6 +87,10 @@ function setPortId(port, id) {
     port.setId(id);
 }
 
+function setComponentBackground(comp, color) {
+    comp.setBackgroundColor(color);
+}
+
 function getInputPorts(comp) {
     return comp.getInputPorts().data;
 }
@@ -98,7 +102,7 @@ function getOutputPorts(comp) {
 function installSelectionPolicy(comp, onSelect, onUnselect) {
     comp.installEditPolicy(new draw2d.policy.figure.AntSelectionFeedbackPolicy({
         onSelect: function(canvas, comp, isPrimarySelection) {
-            comp.setBackgroundColor('#ff675c');
+            comp.setBackgroundColor('#00D1B2');
             onSelect(comp);
         },
         onUnselect: function(canvas, comp) {
@@ -178,6 +182,7 @@ export {
     setComponentId,
     setConnectionId,
     setPortId,
+    setComponentBackground,
     getInputPorts,
     getOutputPorts,
     installSelectionPolicy,

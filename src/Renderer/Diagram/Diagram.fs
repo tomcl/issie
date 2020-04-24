@@ -30,7 +30,7 @@ type Model = {
     // If the content of the diagram has been loaded or saved from/to file keep
     // track of the path, instead of reasking every time.
     OpenPath : string option
-    HilightedComponents : ComponentId list
+    Hilighted : ComponentId list * ConnectionId list
 }
 
 // -- Init Model
@@ -42,7 +42,7 @@ let init() = {
     Simulation = None
     RightTab = Catalogue
     OpenPath = None
-    HilightedComponents = []
+    Hilighted = [], []
 }
 
 // -- Create View
@@ -67,7 +67,7 @@ let saveStateAction model dispatch =
                     |> dispatch 
 
 let loadStateAction model dispatch =
-    dispatch <| SetHighlightedComponents []
+    dispatch <| SetHighlighted ([],[])
     loadStateFromFile model.Diagram |> SetOpenPath |> dispatch
 
 // Views
@@ -179,7 +179,8 @@ let viewSimulationOutputs (simOutputs : (SimulationIO * Bit) list) =
     )
 
 let viewSimulationError (simError : SimulationError) dispatch =
-    simError.ComponentsAffected |> SetHighlightedComponents |> dispatch
+    (simError.ComponentsAffected, simError.ConnectionsAffected)
+    |> SetHighlighted |> dispatch
     div [] [
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Errors" ]
         str simError.Msg
@@ -216,7 +217,7 @@ let viewSimulation model dispatch =
                    | Error simError -> viewSimulationError simError dispatch
                    | Ok simData -> viewSimulationData simData dispatch
         let endSimulation _ =
-            dispatch <| SetHighlightedComponents []
+            dispatch <| SetHighlighted ([], [])
             dispatch EndSimulation
         div [] [
             Button.button
@@ -301,11 +302,18 @@ let update msg model =
     | EndSimulation -> { model with Simulation = None }
     | ChangeRightTab newTab -> { model with RightTab = newTab }
     | SetOpenPath openPath -> { model with OpenPath = openPath }
-    | SetHighlightedComponents componentIds ->
-        model.HilightedComponents
+    | SetHighlighted (componentIds, connectionIds) ->
+        let oldComponentIds, oldConnectionIds = model.Hilighted
+        oldComponentIds
         |> List.map (fun (ComponentId c) -> model.Diagram.UnHighlightComponent c)
         |> ignore
         componentIds
         |> List.map (fun (ComponentId c) -> model.Diagram.HighlightComponent c)
         |> ignore
-        { model with HilightedComponents = componentIds }
+        oldConnectionIds
+        |> List.map (fun (ConnectionId c) -> model.Diagram.UnHighlightConnection c)
+        |> ignore
+        connectionIds
+        |> List.map (fun (ConnectionId c) -> model.Diagram.HighlightConnection c)
+        |> ignore
+        { model with Hilighted = (componentIds, connectionIds) }

@@ -154,6 +154,83 @@ let checkPortsAreConnectedProperly
         | None, None -> None
         | Some err, _ | _, Some err -> Some err
 
+type private DfsType =
+    // No cycle detected in the subtree. Return the new visited set and keep
+    // on exploring.
+    | NoCycle of Set<ComponentId>
+    // Found a cycle and bactracking to record all components that form the
+    // cycle. Stop recording when the componentId that closes the loop is
+    // reached.
+    | Backtracking of ComponentId list * ComponentId
+    // Done with backtracking. A cycle has been found and all the components
+    // that form the cycle have been recorded.
+    | Cycle of ComponentId list
+
+let rec private dfs
+        (currNodeId : ComponentId)
+        (graph : SimulationGraph)
+        (visited : Set<ComponentId>)
+        (currStack : Set<ComponentId>)
+        : DfsType =
+    let rec exploreChildren visited currStack children : DfsType =
+        match children with
+        | [] -> NoCycle visited
+        | child :: children' ->
+            match dfs child graph visited currStack with
+            | NoCycle visited ->
+                // Keep on exploring other children.
+                exploreChildren visited currStack children'
+            | Backtracking (cycle, cycleEnd) ->
+                match cycleEnd = currNodeId with
+                | true -> Cycle cycle
+                | false -> Backtracking (currNodeId :: cycle, cycleEnd)
+            | Cycle cycle ->
+                Cycle cycle
+
+    match currStack.Contains currNodeId, visited.Contains currNodeId with
+    | true, true ->
+        // Already visited in this subtree: cycle detected.
+        Backtracking ([currNodeId], currNodeId)
+    | false, true ->
+        // Already visited, and this node is part of no cycles.
+        NoCycle visited
+    | false, false ->
+        // New node.
+        let visited = visited.Add currNodeId
+        let currStack = currStack.Add currNodeId
+        let currNode =
+            match graph.TryFind currNodeId with
+            | None -> failwithf "what? Could not find component %A in cycle detection" currNodeId
+            | Some c -> c
+        currNode.Outputs
+        |> Map.toList
+        |> List.collect // Extract all children Ids for all of the ports.
+            (fun (_, portChildren) ->
+                portChildren |> List.map (fun (childId, _) -> childId))
+        |> exploreChildren visited currStack
+    | true, false ->
+        // A node in the stack must always be visited.
+        failwithf "what? Node never visited but in the stack, while detecting cycle: %A" currNodeId
+
+// TODO with clocked components (which can have cycles) you can extend this
+// algorithm by just ignoring a node if it is clocked.
+let private checkCombinatorialCycle (graph : SimulationGraph) : SimulationError option =
+    let rec checkGraphForest nodeIds visited =
+        match nodeIds with
+        | [] -> None
+        | nodeId :: nodeIds' ->
+            match dfs nodeId graph visited Set.empty with
+            | NoCycle visited -> checkGraphForest nodeIds' visited
+            | Cycle cycle -> Some {
+                Msg = "Cycle detected in combinatorial logic"
+                ComponentsAffected = cycle
+                ConnectionsAffected = [] }
+            | Backtracking (c, ce) -> failwithf "what? Dfs should never terminate while backtracking: %A" (c, ce)
+
+    let visited = Set.empty
+    let allIds = graph |> Map.toList |> List.map (fun (id, _) -> id)
+    checkGraphForest allIds visited
+
 /// Analyse the simulation graph and return any error (or None).
 let analyseGraph (graph : SimulationGraph) : SimulationError option =
-    None
+    checkCombinatorialCycle graph

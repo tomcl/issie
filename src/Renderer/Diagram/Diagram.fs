@@ -181,7 +181,7 @@ let viewSimulationError (simError : SimulationError) dispatch =
     simError.ComponentsAffected |> SetHighlightedComponents |> dispatch
     div [] [
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Errors" ]
-        str <| sprintf "%A" simError
+        str simError.Msg
     ]
 
 let viewSimulationData (simData : SimulationData) dispatch =

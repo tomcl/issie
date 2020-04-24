@@ -421,9 +421,10 @@ let prepareSimulation
     | None, None ->
         let components, _ = canvasState
         let inputs, outputs = getSimulationIOs components
-        let graph = canvasState
-                    |> buildSimulationGraph
-                    |> simulateWithAllInputsToZero inputs
+        let graph = canvasState |> buildSimulationGraph
         match analyseGraph graph with
         | Some err -> Error err
-        | None -> Ok { Graph = graph; Inputs = inputs; Outputs = outputs }
+        | None -> Ok {
+            Graph = graph |> simulateWithAllInputsToZero inputs;
+            Inputs = inputs;
+            Outputs = outputs }

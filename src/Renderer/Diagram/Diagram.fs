@@ -67,6 +67,7 @@ let saveStateAction model dispatch =
                     |> dispatch 
 
 let loadStateAction model dispatch =
+    dispatch <| SetHighlightedComponents []
     loadStateFromFile model.Diagram |> SetOpenPath |> dispatch
 
 // Views

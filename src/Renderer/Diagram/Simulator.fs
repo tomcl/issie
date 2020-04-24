@@ -419,10 +419,10 @@ let prepareSimulation
           checkPortsAreConnectedProperly canvasState with
     | Some err, _ | _, Some err -> Error err
     | None, None ->
-        let components, _ = canvasState
+        let components, connections = canvasState
         let inputs, outputs = getSimulationIOs components
         let graph = canvasState |> buildSimulationGraph
-        match analyseGraph graph with
+        match analyseGraph graph connections with
         | Some err -> Error err
         | None -> Ok {
             Graph = graph |> simulateWithAllInputsToZero inputs;

@@ -74,58 +74,67 @@ let checkPortTypesAreConsistent (canvasState : CanvasState) : SimulationError op
     | None, None -> None // All right.
 
 /// Return all the Ids of all input ports across all components.
-let private getAllInputPortIds (components : Component list) : InputPortId list =
+/// Return also the ComponentId which may be used in error messages.
+let private getAllInputPortIds (components : Component list) : (InputPortId * ComponentId) list =
     components |> List.collect
-        (fun comp -> comp.InputPorts |> List.map (fun port -> InputPortId port.Id))
+        (fun comp -> comp.InputPorts |> List.map (fun port -> InputPortId port.Id, ComponentId comp.Id))
 
 /// Return all the Ids of all ouput ports across all components.
-let private getAllOutputPortIds (components : Component list) : OutputPortId list =
+/// Return also the ComponentId which may be used in error messages.
+let private getAllOutputPortIds (components : Component list) : (OutputPortId * ComponentId) list =
     components |> List.collect
-        (fun comp -> comp.OutputPorts |> List.map (fun port -> OutputPortId port.Id))
+        (fun comp -> comp.OutputPorts |> List.map (fun port -> OutputPortId port.Id, ComponentId comp.Id))
 
 let rec countPortsConnections
         (connections : Connection list)
-        (inputCounts : Map<InputPortId, int>)
-        (outputCounts : Map<OutputPortId, int>)
-        : Result< Map<InputPortId, int> * Map<OutputPortId, int>, SimulationError> =
+        (inputCounts : Map<InputPortId * ComponentId, int>)
+        (outputCounts : Map<OutputPortId * ComponentId, int>)
+        : Result< Map<InputPortId * ComponentId, int> * Map<OutputPortId * ComponentId, int>, SimulationError> =
     match connections with
     | [] -> Ok (inputCounts, outputCounts)
     | conn :: connections' ->
         let sourceId = OutputPortId conn.Source.Id
         let targetId = InputPortId conn.Target.Id
+        let sourceHostId = ComponentId conn.Source.HostId
+        let targetHostId = ComponentId conn.Target.HostId
         let outputCountsRes =
-            match outputCounts.TryFind sourceId with
+            match outputCounts.TryFind (sourceId, sourceHostId) with
             | None -> Error { // This should never happen.
                 Msg = sprintf "Connection refers to a source port that does not exist: %s" conn.Source.Id
-                ComponentsAffected = [ComponentId conn.Source.HostId]
+                ComponentsAffected = [sourceHostId]
                 ConnectionsAffected = [ConnectionId conn.Id] }
-            | Some count -> Ok <| outputCounts.Add (sourceId, count + 1)
+            | Some count -> Ok <| outputCounts.Add ((sourceId, sourceHostId), count + 1)
         let inputCountsRes =
-            match inputCounts.TryFind targetId with
+            match inputCounts.TryFind (targetId, targetHostId) with
             | None -> Error { // This should never happen.
                 Msg = sprintf "Connection refers to a target port that does not exist: %s" conn.Target.Id
-                ComponentsAffected = [ComponentId conn.Target.HostId]
+                ComponentsAffected = [targetHostId]
                 ConnectionsAffected = [ConnectionId conn.Id] }
-            | Some count -> Ok <| inputCounts.Add (targetId, count + 1)
+            | Some count -> Ok <| inputCounts.Add ((targetId, targetHostId), count + 1)
         match inputCountsRes, outputCountsRes with
         | Error err, _ | _, Error err -> Error err
         | Ok inputCounts, Ok outputCounts ->
             countPortsConnections connections' inputCounts outputCounts
 
 let private checkEvery
-        (counts : Map<'a, int>) // 'a is either InputPortId or OutputPortId.
+        (counts : Map<'a * ComponentId, int>) // 'a is either InputPortId or OutputPortId.
         (cond : int -> bool)
-        (errMsg : string)
+        errMsg
         : SimulationError option =
-    (None, counts) ||> Map.fold (fun maybeErr portId count ->
+    (None, counts) ||> Map.fold (fun maybeErr (_, componentId) count ->
         match maybeErr with
         | Some err -> Some err
         | None ->
+            // Return special error message if there are zero connections.
             match cond count with
             | true -> None
+            | false when count = 0 -> Some {
+                Msg = "All ports must have at least one connection."
+                ComponentsAffected = [componentId]
+                ConnectionsAffected = [] }
             | false -> Some {
-                Msg = sprintf "%s: %d" errMsg count 
-                ComponentsAffected = [] // TODO: add portId?
+                Msg = sprintf errMsg count 
+                ComponentsAffected = [componentId]
                 ConnectionsAffected = [] }
     )
 
@@ -148,8 +157,8 @@ let checkPortsAreConnectedProperly
     match countPortsConnections connections inputCounts outputCounts with
     | Error err -> Some <| err
     | Ok (inputCounts, outputCounts) ->
-        let inputRes = checkEvery inputCounts ((=) 1) "Input port receives an unexpected number of connections"
-        let outputRes = checkEvery outputCounts ((<=) 1) "Output port receives an unexpected number of connections"
+        let inputRes = checkEvery inputCounts ((=) 1) "Input port receives %d connections. An input port should receive precisely one connection."
+        let outputRes = checkEvery outputCounts ((<=) 1) "Output port receives an unexpected number of connections: %d"
         match inputRes, outputRes with
         | None, None -> None
         | Some err, _ | _, Some err -> Some err

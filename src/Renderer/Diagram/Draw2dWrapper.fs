@@ -29,6 +29,8 @@ type private IDraw2d =
     abstract setConnectionId         : conn:JSConnection -> id:string -> unit
     abstract setPortId               : port:JSPort -> id:string -> unit
     abstract setComponentBackground  : comp:JSComponent -> string -> unit
+    abstract setConnectionColor      : conn:JSConnection -> string -> unit
+    abstract setConnectionStroke     : conn:JSConnection -> int -> unit
     abstract getInputPorts           : comp:JSComponent -> JSPorts
     abstract getOutputPorts          : comp:JSComponent -> JSPorts
     abstract installSelectionPolicy  : comp:JSComponent -> onSelect:(JSComponent -> unit) -> onUnselect:(JSComponent -> unit) -> unit
@@ -44,6 +46,7 @@ type private IDraw2d =
     abstract createDigitalMux2       : x:int -> y:int -> JSComponent
     abstract createDigitalConnection : source:JSPort -> target:JSPort -> JSConnection
     abstract getComponentById        : canvas:JSCanvas -> id:string -> JSComponent
+    abstract getConnectionById       : canvas:JSCanvas -> id:string -> JSConnection
     abstract getPortById             : comp:JSComponent -> id:string -> JSPort
     abstract getAllJsComponents      : canvas:JSCanvas -> JSComponents
     abstract getAllJsConnections     : canvas:JSCanvas -> JSConnections
@@ -229,6 +232,24 @@ type Draw2dWrapper() =
             let comp =
                 assertNotNull (draw2dLib.getComponentById c componentId) "UnHighlightComponent"
             draw2dLib.setComponentBackground comp "lightgray"
+
+    member this.HighlightConnection connectionId = 
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.HighlightConnection called when canvas is None"
+        | Some c ->
+            let conn =
+                assertNotNull (draw2dLib.getConnectionById c connectionId) "HighlightConnection"
+            draw2dLib.setConnectionColor conn "red"
+            draw2dLib.setConnectionStroke conn 3
+
+    member this.UnHighlightConnection connectionId = 
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.UnHighlightConnection called when canvas is None"
+        | Some c ->
+            let conn =
+                assertNotNull (draw2dLib.getConnectionById c connectionId) "UnHighlightConnection"
+            draw2dLib.setConnectionColor conn "black"
+            draw2dLib.setConnectionStroke conn 1
 
     member this.GetCanvasState () =
         match canvas with

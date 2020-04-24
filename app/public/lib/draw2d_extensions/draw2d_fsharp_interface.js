@@ -6,9 +6,9 @@ router.abortRoutingOnFirstVertexNode = false;
 
 function createDigitalConnection(sourcePort, targetPort) {
     let c = new draw2d.Connection({
-        outlineColor: '#ffffff',
+        outlineColor: 'white',
         outlineStroke: 1,
-        color: '#000000',
+        color: 'black',
         router: router,
         stroke: 1,
         radius: 2,
@@ -91,6 +91,14 @@ function setComponentBackground(comp, color) {
     comp.setBackgroundColor(color);
 }
 
+function setConnectionColor(conn, color) {
+    conn.setColor(color);
+}
+
+function setConnectionStroke(conn, w) {
+    conn.setStroke(w);
+}
+
 function getInputPorts(comp) {
     return comp.getInputPorts().data;
 }
@@ -158,6 +166,12 @@ function getComponentById(canvas, id) {
     });
 }
 
+function getConnectionById(canvas, id) {
+    return canvas.getLines().find(function(conn) {
+        return conn.id === id;
+    });
+}
+
 function getPortById(comp, id) {
     return comp.getPorts().find(function(port) {
         return port.id === id;
@@ -183,6 +197,8 @@ export {
     setConnectionId,
     setPortId,
     setComponentBackground,
+    setConnectionColor,
+    setConnectionStroke,
     getInputPorts,
     getOutputPorts,
     installSelectionPolicy,
@@ -198,6 +214,7 @@ export {
     createDigitalMux2,
     createDigitalConnection,
     getComponentById,
+    getConnectionById,
     getPortById,
     getAllJsComponents,
     getAllJsConnections,

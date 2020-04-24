@@ -143,4 +143,4 @@ type Msg =
     | EndSimulation
     | ChangeRightTab of RightTab
     | SetOpenPath of string option
-    | SetHighlightedComponents of ComponentId list
+    | SetHighlighted of ComponentId list * ConnectionId list

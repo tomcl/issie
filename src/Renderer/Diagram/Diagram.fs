@@ -143,10 +143,9 @@ let viewSimulationInputs (simulationGraph : SimulationGraph) (inputs : (Simulati
     let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel), bit) =
         let bitButton =
             Button.button [
+                Button.Props [ Style [ Width "50px" ] ]
                 Button.Color (match bit with Zero -> IsBlack | One -> IsPrimary)
                 Button.Size IsSmall
-                Button.IsOutlined
-                Button.IsHovered false
                 Button.OnClick (fun _ ->
                     let newBit = match bit with
                                  | Zero -> One

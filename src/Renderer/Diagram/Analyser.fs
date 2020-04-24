@@ -9,7 +9,7 @@ open JSHelpers
 // - All ports have at least one connection that touches them.
 // - Input ports have precisely one connection that touches them.
 
-// Check combinatorial loops?
+// Combinatorial logic can have no loops.
 
 /// Check that:
 /// 1- all source ports in connections are Output ports,
@@ -99,17 +99,11 @@ let rec countPortsConnections
         let targetHostId = ComponentId conn.Target.HostId
         let outputCountsRes =
             match outputCounts.TryFind (sourceId, sourceHostId) with
-            | None -> Error { // This should never happen.
-                Msg = sprintf "Connection refers to a source port that does not exist: %s" conn.Source.Id
-                ComponentsAffected = [sourceHostId]
-                ConnectionsAffected = [ConnectionId conn.Id] }
+            | None -> failwithf "Connection refers to a source port that does not exist: %s" conn.Source.Id
             | Some count -> Ok <| outputCounts.Add ((sourceId, sourceHostId), count + 1)
         let inputCountsRes =
             match inputCounts.TryFind (targetId, targetHostId) with
-            | None -> Error { // This should never happen.
-                Msg = sprintf "Connection refers to a target port that does not exist: %s" conn.Target.Id
-                ComponentsAffected = [targetHostId]
-                ConnectionsAffected = [ConnectionId conn.Id] }
+            | None -> failwithf "what? Connection refers to a target port that does not exist: %s" conn.Target.Id
             | Some count -> Ok <| inputCounts.Add ((targetId, targetHostId), count + 1)
         match inputCountsRes, outputCountsRes with
         | Error err, _ | _, Error err -> Error err
@@ -224,8 +218,30 @@ let rec private dfs
 // TODO with clocked components (which can have cycles) you can extend this
 // algorithm by just ignoring a node if it is clocked.
 
+/// Calculate which connections are involved in a cycle.
+let private calculateConnectionsAffected
+        (connections : Connection list) 
+        (cycle : ComponentId list)
+        : ConnectionId list =
+    let rec findConnection connections (compIdFrom, compIdTo) : ConnectionId =
+        match connections with
+        | [] -> failwithf "what? Could not find connection among %A and %A" compIdFrom compIdTo
+        | conn :: connections' ->
+            match ComponentId conn.Source.HostId = compIdFrom,
+                  ComponentId conn.Target.HostId = compIdTo with
+            | true, true -> ConnectionId conn.Id
+            | _ -> findConnection connections' (compIdFrom, compIdTo)
+    if cycle.Length < 2 then failwithf "what? Cycle with length less than 2: %A" cycle
+    // Find a connection among all pairs.
+    cycle
+    |> List.mapi (fun i compId -> (compId, cycle.[(i + 1) % cycle.Length]))
+    |> List.map (findConnection connections)
+
 /// Check that the combinatorial logic contains no cycles.
-let private checkCombinatorialCycle (graph : SimulationGraph) : SimulationError option =
+let private checkCombinatorialCycle
+        (graph : SimulationGraph)
+        (connections : Connection list)
+        : SimulationError option =
     let rec checkGraphForest nodeIds visited =
         match nodeIds with
         | [] -> None
@@ -235,7 +251,7 @@ let private checkCombinatorialCycle (graph : SimulationGraph) : SimulationError 
             | Cycle cycle -> Some {
                 Msg = "Cycle detected in combinatorial logic"
                 ComponentsAffected = cycle
-                ConnectionsAffected = [] }
+                ConnectionsAffected = calculateConnectionsAffected connections cycle }
             | Backtracking (c, ce) -> failwithf "what? Dfs should never terminate while backtracking: %A" (c, ce)
 
     let visited = Set.empty
@@ -243,5 +259,8 @@ let private checkCombinatorialCycle (graph : SimulationGraph) : SimulationError 
     checkGraphForest allIds visited
 
 /// Analyse the simulation graph and return any error (or None).
-let analyseGraph (graph : SimulationGraph) : SimulationError option =
-    checkCombinatorialCycle graph
+let analyseGraph
+        (graph : SimulationGraph)
+        (connections : Connection list)
+        : SimulationError option =
+    checkCombinatorialCycle graph connections

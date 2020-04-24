@@ -30,6 +30,7 @@ type Model = {
     // If the content of the diagram has been loaded or saved from/to file keep
     // track of the path, instead of reasking every time.
     OpenPath : string option
+    HilightedComponents : ComponentId list
 }
 
 // -- Init Model
@@ -41,6 +42,7 @@ let init() = {
     Simulation = None
     RightTab = Catalogue
     OpenPath = None
+    HilightedComponents = []
 }
 
 // -- Create View
@@ -66,6 +68,8 @@ let saveStateAction model dispatch =
 
 let loadStateAction model dispatch =
     loadStateFromFile model.Diagram |> SetOpenPath |> dispatch
+
+// Views
 
 let viewCatalogue model =
     let menuItem label onClick =
@@ -173,7 +177,8 @@ let viewSimulationOutputs (simOutputs : (SimulationIO * Bit) list) =
         )
     )
 
-let viewSimulationError (simError : SimulationError) =
+let viewSimulationError (simError : SimulationError) dispatch =
+    simError.ComponentsAffected |> SetHighlightedComponents |> dispatch
     div [] [
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Errors" ]
         str <| sprintf "%A" simError
@@ -207,11 +212,14 @@ let viewSimulation model dispatch =
         ]
     | Some sim ->
         let body = match sim with
-                   | Error simError -> viewSimulationError simError
+                   | Error simError -> viewSimulationError simError dispatch
                    | Ok simData -> viewSimulationData simData dispatch
+        let endSimulation _ =
+            dispatch <| SetHighlightedComponents []
+            dispatch EndSimulation
         div [] [
             Button.button
-                [ Button.Color IsDanger; Button.OnClick (fun _ -> dispatch EndSimulation) ]
+                [ Button.Color IsDanger; Button.OnClick endSimulation ]
                 [ str "End simulation" ]
             body
         ]
@@ -292,3 +300,11 @@ let update msg model =
     | EndSimulation -> { model with Simulation = None }
     | ChangeRightTab newTab -> { model with RightTab = newTab }
     | SetOpenPath openPath -> { model with OpenPath = openPath }
+    | SetHighlightedComponents componentIds ->
+        model.HilightedComponents
+        |> List.map (fun (ComponentId c) -> model.Diagram.UnHighlightComponent c)
+        |> ignore
+        componentIds
+        |> List.map (fun (ComponentId c) -> model.Diagram.HighlightComponent c)
+        |> ignore
+        { model with HilightedComponents = componentIds }

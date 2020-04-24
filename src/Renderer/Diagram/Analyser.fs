@@ -214,6 +214,8 @@ let rec private dfs
 
 // TODO with clocked components (which can have cycles) you can extend this
 // algorithm by just ignoring a node if it is clocked.
+
+/// Check that the combinatorial logic contains no cycles.
 let private checkCombinatorialCycle (graph : SimulationGraph) : SimulationError option =
     let rec checkGraphForest nodeIds visited =
         match nodeIds with

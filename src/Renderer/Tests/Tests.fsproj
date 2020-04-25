@@ -9,7 +9,6 @@
     <Compile Include="../Diagram/Analyser.fs" />
     <Compile Include="../Diagram/Simulator.fs" />
     <Compile Include="CanvasStates.fs" />
-    <Compile Include="AnalyserTests.fs" />
     <Compile Include="SimulatorTests.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>

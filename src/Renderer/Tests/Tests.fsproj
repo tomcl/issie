@@ -5,6 +5,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="TestLib.fs" />
+    <Compile Include="../Diagram/Types.fs" />
+    <Compile Include="../Diagram/Analyser.fs" />
+    <Compile Include="AnalyserTests.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <ItemGroup>

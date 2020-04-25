@@ -15,6 +15,12 @@ let alert msg : unit = jsNative
 [<Emit("($0 == null || $0 === 'undefined')")>]
 let isNull (obj : obj) : bool = jsNative
 
+[<Emit("console.time($0)")>]
+let startTimer (label : string) : unit = jsNative
+
+[<Emit("console.timeEnd($0)")>]
+let stopAndLogTimer (label : string) : unit = jsNative
+
 /// Assert js object is not null, and return it.
 let assertNotNull obj msg =
     if isNull obj

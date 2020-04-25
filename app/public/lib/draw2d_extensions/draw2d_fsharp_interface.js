@@ -6,9 +6,9 @@ router.abortRoutingOnFirstVertexNode = false;
 
 function createDigitalConnection(sourcePort, targetPort) {
     let c = new draw2d.Connection({
-        outlineColor: '#ffffff',
+        outlineColor: 'white',
         outlineStroke: 1,
-        color: '#000000',
+        color: 'black',
         router: router,
         stroke: 1,
         radius: 2,
@@ -87,6 +87,18 @@ function setPortId(port, id) {
     port.setId(id);
 }
 
+function setComponentBackground(comp, color) {
+    comp.setBackgroundColor(color);
+}
+
+function setConnectionColor(conn, color) {
+    conn.setColor(color);
+}
+
+function setConnectionStroke(conn, w) {
+    conn.setStroke(w);
+}
+
 function getInputPorts(comp) {
     return comp.getInputPorts().data;
 }
@@ -98,7 +110,7 @@ function getOutputPorts(comp) {
 function installSelectionPolicy(comp, onSelect, onUnselect) {
     comp.installEditPolicy(new draw2d.policy.figure.AntSelectionFeedbackPolicy({
         onSelect: function(canvas, comp, isPrimarySelection) {
-            comp.setBackgroundColor('#ff675c');
+            comp.setBackgroundColor('#00D1B2');
             onSelect(comp);
         },
         onUnselect: function(canvas, comp) {
@@ -154,6 +166,12 @@ function getComponentById(canvas, id) {
     });
 }
 
+function getConnectionById(canvas, id) {
+    return canvas.getLines().find(function(conn) {
+        return conn.id === id;
+    });
+}
+
 function getPortById(comp, id) {
     return comp.getPorts().find(function(port) {
         return port.id === id;
@@ -178,6 +196,9 @@ export {
     setComponentId,
     setConnectionId,
     setPortId,
+    setComponentBackground,
+    setConnectionColor,
+    setConnectionStroke,
     getInputPorts,
     getOutputPorts,
     installSelectionPolicy,
@@ -193,6 +214,7 @@ export {
     createDigitalMux2,
     createDigitalConnection,
     getComponentById,
+    getConnectionById,
     getPortById,
     getAllJsComponents,
     getAllJsConnections,

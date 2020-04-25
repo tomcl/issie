@@ -51,7 +51,7 @@ type private IDraw2d =
     abstract getAllJsComponents      : canvas:JSCanvas -> JSComponents
     abstract getAllJsConnections     : canvas:JSCanvas -> JSConnections
 
-[<Import("*", "../../../app/public/lib/draw2d_extensions/draw2d_fsharp_interface.js")>]
+[<Import("*", "./draw2d_fsharp_interface.js")>]
 let private draw2dLib : IDraw2d = jsNative
 
 // Helpers.

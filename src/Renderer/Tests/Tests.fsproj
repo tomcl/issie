@@ -7,6 +7,7 @@
     <Compile Include="TestLib.fs" />
     <Compile Include="../Diagram/Types.fs" />
     <Compile Include="../Diagram/Analyser.fs" />
+    <Compile Include="../Diagram/Simulator.fs" />
     <Compile Include="AnalyserTests.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>

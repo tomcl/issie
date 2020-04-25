@@ -1,7 +1,6 @@
 module Simulator
 
 open DiagramTypes
-open JSHelpers
 open Analyser
 
 // Simulating a circuit has three phases:
@@ -80,7 +79,7 @@ let rec private getValuesForPorts
             | None -> None
             | Some bits -> Some <| bit :: bits
 
-let getBinaryGateReducer (op : Bit -> Bit -> Bit) componentType =
+let private getBinaryGateReducer (op : Bit -> Bit -> Bit) componentType =
     fun inputs ->
         assertNotTooManyInputs inputs componentType 2
         match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1] with
@@ -195,7 +194,7 @@ let private buildSimulationComponent
     }
 
 /// Transforms a canvas state into a simulation graph.
-let private buildSimulationGraph (canvasState : CanvasState) : SimulationGraph =
+let buildSimulationGraph (canvasState : CanvasState) : SimulationGraph =
     let components, connections = canvasState
     let sourceToTargetPort = buildSourceToTargetPort connections
     let portIdToPortNumber = mapInputPortIdToPortNumber components
@@ -244,134 +243,8 @@ let rec private feedInput
                 )
         )
 
-// TODO: remove.
-let private testState : CanvasState = ([
-    {
-        Id = "input0";
-        Type = Input;
-        Label = "input0";
-        InputPorts = [];
-        OutputPorts = [
-            {
-                Id = "input0-OP0";
-                PortNumber = Some 0
-                PortType = PortType.Output;
-                HostId = "input0"
-            }
-        ];
-        X = 326;
-        Y = 440
-    }
-    {
-        Id = "input1";
-        Type = Input;
-        Label = "input1";
-        InputPorts = [];
-        OutputPorts = [
-            {
-                Id = "input1-OP0";
-                PortNumber = Some 0
-                PortType = PortType.Output;
-                HostId = "input1"
-            }
-        ];
-        X = 321;
-        Y = 492
-    }
-    {
-        Id = "And";
-        Type = And;
-        Label = "And";
-        InputPorts = [
-            {
-                Id = "And-IP0";
-                PortNumber = Some 0
-                PortType = PortType.Input;
-                HostId = "And"};
-            {
-                Id = "And-IP1";
-                PortNumber = Some 1
-                PortType = PortType.Input;
-                HostId = "And"
-            };
-        ]
-        OutputPorts = [
-            {
-                Id = "And-OP0";
-                PortNumber = Some 0
-                PortType = PortType.Output;
-                HostId = "And"
-            }
-        ];
-        X = 428;
-        Y = 459
-    }
-    {
-        Id = "output";
-        Type = Output;
-        Label = "output";
-        InputPorts = [
-            {
-                Id = "output-IP0";
-                PortNumber = Some 0
-                PortType = PortType.Input;
-                HostId = "output"
-            }
-        ];
-        OutputPorts = [];
-        X = 610;
-        Y = 469
-    }
-    ],
-    [
-    {
-        Id = "TopLeft";
-        Source = {
-            Id = "input0-OP0";
-            PortNumber = None
-            PortType = PortType.Output;
-            HostId = "input0"
-        };
-        Target = {
-            Id = "And-IP0";
-            PortNumber = None
-            PortType = PortType.Input;
-            HostId = "And"
-        };
-    }
-    {
-        Id = "BottomLeft";
-        Source = {
-            Id = "input1-OP0";
-            PortNumber = None
-            PortType = PortType.Output;
-            HostId = "input1"
-        }
-        Target = {
-            Id = "And-IP1";
-            PortNumber = None
-            PortType = PortType.Input;
-            HostId = "And"
-        }
-    }
-    {
-        Id = "Right";
-        Source = {
-            Id = "And-OP0";
-            PortNumber = None
-            PortType = PortType.Output;
-            HostId = "And"
-        }
-        Target = {
-            Id = "output-IP0";
-            PortNumber = None
-            PortType = PortType.Input;
-            HostId = "output"
-        }
-    }
-    ])
-
 /// Feed zero to a simulation input.
+/// This function is supposed to be used with Components of type Input.
 let feedSimulationInput graph inputId bit =
     feedInput graph inputId (InputPortNumber 0, bit)
 

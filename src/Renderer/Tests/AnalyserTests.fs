@@ -2,6 +2,7 @@ module AnalyserTests
 
 open DiagramTypes
 open Analyser
+open Simulator
 open TestLib
 
 let private makeError msg comps conns =
@@ -141,20 +142,59 @@ let private state9 : CanvasState =
 /// ports are connected prpoerly).
 let private state10 : CanvasState =
     [
-        {Id = "a54fc9bc-c668-1904-3c14-960cba4bd8f7"; Type = And; Label = ""; InputPorts = [{Id = "8e8b684e-664f-5758-15c9-79c84c8fc81a"; PortNumber = Some 0; PortType = PortType.Input; HostId = "a54fc9bc-c668-1904-3c14-960cba4bd8f7"}; {Id = "d9b40581-2587-506d-1868-8201d3802913"; PortNumber = Some 1; PortType = PortType.Input; HostId = "a54fc9bc-c668-1904-3c14-960cba4bd8f7"}]; OutputPorts = [{Id = "edb944e4-1fe8-e9e2-eaf2-e5278277b29d"; PortNumber = Some 0; PortType = PortType.Output; HostId = "a54fc9bc-c668-1904-3c14-960cba4bd8f7"}]; X = 392; Y = 79}
-        {Id = "310578f7-0c5e-4d0a-eaa8-16cfc69ef123"; Type = And; Label = ""; InputPorts = [{Id = "23f32198-bf52-0456-6be2-1fbe92b36bbf"; PortNumber = Some 0; PortType = PortType.Input; HostId = "310578f7-0c5e-4d0a-eaa8-16cfc69ef123"}; {Id = "9697ec8d-b6d3-9f2a-aaaf-0907fd087e05"; PortNumber = Some 1; PortType = PortType.Input; HostId = "310578f7-0c5e-4d0a-eaa8-16cfc69ef123"}]; OutputPorts = [{Id = "41d15996-0838-6a41-e974-ee330fd13607"; PortNumber = Some 0; PortType = PortType.Output; HostId = "310578f7-0c5e-4d0a-eaa8-16cfc69ef123"}]; X = 593; Y = 86}
-        {Id = "6549c3be-5246-ef3f-2110-c4b18fa700c2"; Type = Output; Label = "output"; InputPorts = [{Id = "25886b76-feee-6892-6637-cc2378fe6094"; PortNumber = Some 0; PortType = PortType.Input; HostId = "6549c3be-5246-ef3f-2110-c4b18fa700c2"}]; OutputPorts = []; X = 770; Y = 187}
-        {Id = "4b82319e-8b00-aac3-7100-36d04fcdbca4"; Type = Input; Label = "input"; InputPorts = []; OutputPorts = [{Id = "14344e8e-9448-4933-9004-85756859c64d"; PortNumber = Some 0; PortType = PortType.Output; HostId = "4b82319e-8b00-aac3-7100-36d04fcdbca4"}]; X = 492; Y = 245}
-        {Id = "8c221531-7d35-f5ee-405d-c45afca232a6"; Type = And; Label = ""; InputPorts = [{Id = "aefefef8-61ea-a3cf-49f9-11b858342504"; PortNumber = Some 0; PortType = PortType.Input; HostId = "8c221531-7d35-f5ee-405d-c45afca232a6"}; {Id = "5c4d25e1-c067-79d3-adc7-7e141f5a7905"; PortNumber = Some 1; PortType = PortType.Input; HostId = "8c221531-7d35-f5ee-405d-c45afca232a6"}]; OutputPorts = [{Id = "26de501f-4e60-9f61-fce0-6e5fdb131f87"; PortNumber = Some 0; PortType = PortType.Output; HostId = "8c221531-7d35-f5ee-405d-c45afca232a6"}]; X = 268; Y = 261}
+        {Id = "and0"; Type = And; Label = ""; InputPorts = [{Id = "8e8b684e-664f-5758-15c9-79c84c8fc81a"; PortNumber = Some 0; PortType = PortType.Input; HostId = "and0"}; {Id = "d9b40581-2587-506d-1868-8201d3802913"; PortNumber = Some 1; PortType = PortType.Input; HostId = "and0"}]; OutputPorts = [{Id = "edb944e4-1fe8-e9e2-eaf2-e5278277b29d"; PortNumber = Some 0; PortType = PortType.Output; HostId = "and0"}]; X = 392; Y = 79}
+        {Id = "and1"; Type = And; Label = ""; InputPorts = [{Id = "23f32198-bf52-0456-6be2-1fbe92b36bbf"; PortNumber = Some 0; PortType = PortType.Input; HostId = "and1"}; {Id = "9697ec8d-b6d3-9f2a-aaaf-0907fd087e05"; PortNumber = Some 1; PortType = PortType.Input; HostId = "and1"}]; OutputPorts = [{Id = "41d15996-0838-6a41-e974-ee330fd13607"; PortNumber = Some 0; PortType = PortType.Output; HostId = "and1"}]; X = 593; Y = 86}
+        {Id = "output"; Type = Output; Label = "output"; InputPorts = [{Id = "25886b76-feee-6892-6637-cc2378fe6094"; PortNumber = Some 0; PortType = PortType.Input; HostId = "output"}]; OutputPorts = []; X = 770; Y = 187}
+        {Id = "input"; Type = Input; Label = "input"; InputPorts = []; OutputPorts = [{Id = "14344e8e-9448-4933-9004-85756859c64d"; PortNumber = Some 0; PortType = PortType.Output; HostId = "input"}]; X = 492; Y = 245}
+        {Id = "and2"; Type = And; Label = ""; InputPorts = [{Id = "aefefef8-61ea-a3cf-49f9-11b858342504"; PortNumber = Some 0; PortType = PortType.Input; HostId = "and2"}; {Id = "5c4d25e1-c067-79d3-adc7-7e141f5a7905"; PortNumber = Some 1; PortType = PortType.Input; HostId = "and2"}]; OutputPorts = [{Id = "26de501f-4e60-9f61-fce0-6e5fdb131f87"; PortNumber = Some 0; PortType = PortType.Output; HostId = "and2"}]; X = 268; Y = 261}
     ],
     [
-        {Id = "76f23441-a864-e919-b115-04d8fd0b7e2b"; Source = {Id = "41d15996-0838-6a41-e974-ee330fd13607"; PortNumber = None; PortType = PortType.Output; HostId = "310578f7-0c5e-4d0a-eaa8-16cfc69ef123"}; Target = {Id = "25886b76-feee-6892-6637-cc2378fe6094"; PortNumber = None; PortType = PortType.Input; HostId = "6549c3be-5246-ef3f-2110-c4b18fa700c2"}}
-        {Id = "da42ebd0-ffbd-e544-9aa8-c11dd2dd79d6"; Source = {Id = "41d15996-0838-6a41-e974-ee330fd13607"; PortNumber = None; PortType = PortType.Output; HostId = "310578f7-0c5e-4d0a-eaa8-16cfc69ef123"}; Target = {Id = "5c4d25e1-c067-79d3-adc7-7e141f5a7905"; PortNumber = None; PortType = PortType.Input; HostId = "8c221531-7d35-f5ee-405d-c45afca232a6"}}
-        {Id = "cc444ae2-e563-0c75-5b65-f3353d164db0"; Source = {Id = "14344e8e-9448-4933-9004-85756859c64d"; PortNumber = None; PortType = PortType.Output; HostId = "4b82319e-8b00-aac3-7100-36d04fcdbca4"}; Target = {Id = "9697ec8d-b6d3-9f2a-aaaf-0907fd087e05"; PortNumber = None; PortType = PortType.Input; HostId = "310578f7-0c5e-4d0a-eaa8-16cfc69ef123"}}
-        {Id = "bb489c6b-c506-7348-af33-21e935791c1c"; Source = {Id = "edb944e4-1fe8-e9e2-eaf2-e5278277b29d"; PortNumber = None; PortType = PortType.Output; HostId = "a54fc9bc-c668-1904-3c14-960cba4bd8f7"}; Target = {Id = "23f32198-bf52-0456-6be2-1fbe92b36bbf"; PortNumber = None; PortType = PortType.Input; HostId = "310578f7-0c5e-4d0a-eaa8-16cfc69ef123"}}
-        {Id = "9cc659f7-137b-3939-1f9e-0f7bdbd5889a"; Source = {Id = "edb944e4-1fe8-e9e2-eaf2-e5278277b29d"; PortNumber = None; PortType = PortType.Output; HostId = "a54fc9bc-c668-1904-3c14-960cba4bd8f7"}; Target = {Id = "aefefef8-61ea-a3cf-49f9-11b858342504"; PortNumber = None; PortType = PortType.Input; HostId = "8c221531-7d35-f5ee-405d-c45afca232a6"}}
-        {Id = "e1f47a11-5285-80df-52e3-d204faa81291"; Source = {Id = "26de501f-4e60-9f61-fce0-6e5fdb131f87"; PortNumber = None; PortType = PortType.Output; HostId = "8c221531-7d35-f5ee-405d-c45afca232a6"}; Target = {Id = "8e8b684e-664f-5758-15c9-79c84c8fc81a"; PortNumber = None; PortType = PortType.Input; HostId = "a54fc9bc-c668-1904-3c14-960cba4bd8f7"}}
-        {Id = "8241627f-266e-3bea-d013-bde4971edce3"; Source = {Id = "26de501f-4e60-9f61-fce0-6e5fdb131f87"; PortNumber = None; PortType = PortType.Output; HostId = "8c221531-7d35-f5ee-405d-c45afca232a6"}; Target = {Id = "d9b40581-2587-506d-1868-8201d3802913"; PortNumber = None; PortType = PortType.Input; HostId = "a54fc9bc-c668-1904-3c14-960cba4bd8f7"}}
+        {Id = "conn0"; Source = {Id = "41d15996-0838-6a41-e974-ee330fd13607"; PortNumber = None; PortType = PortType.Output; HostId = "and1"}; Target = {Id = "25886b76-feee-6892-6637-cc2378fe6094"; PortNumber = None; PortType = PortType.Input; HostId = "output"}}
+        {Id = "conn1"; Source = {Id = "41d15996-0838-6a41-e974-ee330fd13607"; PortNumber = None; PortType = PortType.Output; HostId = "and1"}; Target = {Id = "5c4d25e1-c067-79d3-adc7-7e141f5a7905"; PortNumber = None; PortType = PortType.Input; HostId = "and2"}}
+        {Id = "conn2"; Source = {Id = "14344e8e-9448-4933-9004-85756859c64d"; PortNumber = None; PortType = PortType.Output; HostId = "input"}; Target = {Id = "9697ec8d-b6d3-9f2a-aaaf-0907fd087e05"; PortNumber = None; PortType = PortType.Input; HostId = "and1"}}
+        {Id = "conn3"; Source = {Id = "edb944e4-1fe8-e9e2-eaf2-e5278277b29d"; PortNumber = None; PortType = PortType.Output; HostId = "and0"}; Target = {Id = "23f32198-bf52-0456-6be2-1fbe92b36bbf"; PortNumber = None; PortType = PortType.Input; HostId = "and1"}}
+        {Id = "conn4"; Source = {Id = "edb944e4-1fe8-e9e2-eaf2-e5278277b29d"; PortNumber = None; PortType = PortType.Output; HostId = "and0"}; Target = {Id = "aefefef8-61ea-a3cf-49f9-11b858342504"; PortNumber = None; PortType = PortType.Input; HostId = "and2"}}
+        {Id = "conn5"; Source = {Id = "26de501f-4e60-9f61-fce0-6e5fdb131f87"; PortNumber = None; PortType = PortType.Output; HostId = "and2"}; Target = {Id = "8e8b684e-664f-5758-15c9-79c84c8fc81a"; PortNumber = None; PortType = PortType.Input; HostId = "and0"}}
+        {Id = "conn6"; Source = {Id = "26de501f-4e60-9f61-fce0-6e5fdb131f87"; PortNumber = None; PortType = PortType.Output; HostId = "and2"}; Target = {Id = "d9b40581-2587-506d-1868-8201d3802913"; PortNumber = None; PortType = PortType.Input; HostId = "and0"}}
+    ]
+
+/// Complex diagram with 3 Ands, one input, one output and 1 cycles with three
+/// components (yet all ports are connected prpoerly).
+let private state11 : CanvasState =
+    [
+        {Id = "and0"; Type = And; Label = ""; InputPorts = [{Id = "8e8b684e-664f-5758-15c9-79c84c8fc81a"; PortNumber = Some 0; PortType = PortType.Input; HostId = "and0"}; {Id = "d9b40581-2587-506d-1868-8201d3802913"; PortNumber = Some 1; PortType = PortType.Input; HostId = "and0"}]; OutputPorts = [{Id = "edb944e4-1fe8-e9e2-eaf2-e5278277b29d"; PortNumber = Some 0; PortType = PortType.Output; HostId = "and0"}]; X = 392; Y = 79}
+        {Id = "and1"; Type = And; Label = ""; InputPorts = [{Id = "23f32198-bf52-0456-6be2-1fbe92b36bbf"; PortNumber = Some 0; PortType = PortType.Input; HostId = "and1"}; {Id = "9697ec8d-b6d3-9f2a-aaaf-0907fd087e05"; PortNumber = Some 1; PortType = PortType.Input; HostId = "and1"}]; OutputPorts = [{Id = "41d15996-0838-6a41-e974-ee330fd13607"; PortNumber = Some 0; PortType = PortType.Output; HostId = "and1"}]; X = 593; Y = 86}
+        {Id = "output"; Type = Output; Label = "output"; InputPorts = [{Id = "25886b76-feee-6892-6637-cc2378fe6094"; PortNumber = Some 0; PortType = PortType.Input; HostId = "output"}]; OutputPorts = []; X = 770; Y = 187}
+        {Id = "input"; Type = Input; Label = "input"; InputPorts = []; OutputPorts = [{Id = "14344e8e-9448-4933-9004-85756859c64d"; PortNumber = Some 0; PortType = PortType.Output; HostId = "input"}]; X = 492; Y = 245}
+        {Id = "and2"; Type = And; Label = ""; InputPorts = [{Id = "aefefef8-61ea-a3cf-49f9-11b858342504"; PortNumber = Some 0; PortType = PortType.Input; HostId = "and2"}; {Id = "5c4d25e1-c067-79d3-adc7-7e141f5a7905"; PortNumber = Some 1; PortType = PortType.Input; HostId = "and2"}]; OutputPorts = [{Id = "26de501f-4e60-9f61-fce0-6e5fdb131f87"; PortNumber = Some 0; PortType = PortType.Output; HostId = "and2"}]; X = 268; Y = 261}
+    ],
+    [
+        {Id = "conn0"; Source = {Id = "41d15996-0838-6a41-e974-ee330fd13607"; PortNumber = None; PortType = PortType.Output; HostId = "and1"}; Target = {Id = "25886b76-feee-6892-6637-cc2378fe6094"; PortNumber = None; PortType = PortType.Input; HostId = "output"}}
+        {Id = "conn1"; Source = {Id = "41d15996-0838-6a41-e974-ee330fd13607"; PortNumber = None; PortType = PortType.Output; HostId = "and1"}; Target = {Id = "5c4d25e1-c067-79d3-adc7-7e141f5a7905"; PortNumber = None; PortType = PortType.Input; HostId = "and2"}}
+        {Id = "conn2"; Source = {Id = "14344e8e-9448-4933-9004-85756859c64d"; PortNumber = None; PortType = PortType.Output; HostId = "input"}; Target = {Id = "9697ec8d-b6d3-9f2a-aaaf-0907fd087e05"; PortNumber = None; PortType = PortType.Input; HostId = "and1"}}
+        {Id = "conn3"; Source = {Id = "edb944e4-1fe8-e9e2-eaf2-e5278277b29d"; PortNumber = None; PortType = PortType.Output; HostId = "and0"}; Target = {Id = "23f32198-bf52-0456-6be2-1fbe92b36bbf"; PortNumber = None; PortType = PortType.Input; HostId = "and1"}}
+        {Id = "conn4"; Source = {Id = "41d15996-0838-6a41-e974-ee330fd13607"; PortNumber = None; PortType = PortType.Output; HostId = "and1"}; Target = {Id = "aefefef8-61ea-a3cf-49f9-11b858342504"; PortNumber = None; PortType = PortType.Input; HostId = "and2"}}
+        {Id = "conn5"; Source = {Id = "26de501f-4e60-9f61-fce0-6e5fdb131f87"; PortNumber = None; PortType = PortType.Output; HostId = "and2"}; Target = {Id = "8e8b684e-664f-5758-15c9-79c84c8fc81a"; PortNumber = None; PortType = PortType.Input; HostId = "and0"}}
+        {Id = "conn6"; Source = {Id = "26de501f-4e60-9f61-fce0-6e5fdb131f87"; PortNumber = None; PortType = PortType.Output; HostId = "and2"}; Target = {Id = "d9b40581-2587-506d-1868-8201d3802913"; PortNumber = None; PortType = PortType.Input; HostId = "and0"}}
+    ]
+
+/// Complex diagram with 3 Ands, one input, one output and no cycles.
+let private state12 : CanvasState =
+    [
+        {Id = "and0"; Type = And; Label = ""; InputPorts = [{Id = "8e8b684e-664f-5758-15c9-79c84c8fc81a"; PortNumber = Some 0; PortType = PortType.Input; HostId = "and0"}; {Id = "d9b40581-2587-506d-1868-8201d3802913"; PortNumber = Some 1; PortType = PortType.Input; HostId = "and0"}]; OutputPorts = [{Id = "edb944e4-1fe8-e9e2-eaf2-e5278277b29d"; PortNumber = Some 0; PortType = PortType.Output; HostId = "and0"}]; X = 392; Y = 79}
+        {Id = "and1"; Type = And; Label = ""; InputPorts = [{Id = "23f32198-bf52-0456-6be2-1fbe92b36bbf"; PortNumber = Some 0; PortType = PortType.Input; HostId = "and1"}; {Id = "9697ec8d-b6d3-9f2a-aaaf-0907fd087e05"; PortNumber = Some 1; PortType = PortType.Input; HostId = "and1"}]; OutputPorts = [{Id = "41d15996-0838-6a41-e974-ee330fd13607"; PortNumber = Some 0; PortType = PortType.Output; HostId = "and1"}]; X = 593; Y = 86}
+        {Id = "output"; Type = Output; Label = "output"; InputPorts = [{Id = "25886b76-feee-6892-6637-cc2378fe6094"; PortNumber = Some 0; PortType = PortType.Input; HostId = "output"}]; OutputPorts = []; X = 770; Y = 187}
+        {Id = "input"; Type = Input; Label = "input"; InputPorts = []; OutputPorts = [{Id = "14344e8e-9448-4933-9004-85756859c64d"; PortNumber = Some 0; PortType = PortType.Output; HostId = "input"}]; X = 492; Y = 245}
+        {Id = "and2"; Type = And; Label = ""; InputPorts = [{Id = "aefefef8-61ea-a3cf-49f9-11b858342504"; PortNumber = Some 0; PortType = PortType.Input; HostId = "and2"}; {Id = "5c4d25e1-c067-79d3-adc7-7e141f5a7905"; PortNumber = Some 1; PortType = PortType.Input; HostId = "and2"}]; OutputPorts = [{Id = "26de501f-4e60-9f61-fce0-6e5fdb131f87"; PortNumber = Some 0; PortType = PortType.Output; HostId = "and2"}]; X = 268; Y = 261}
+    ],
+    [
+        {Id = "conn0"; Source = {Id = "41d15996-0838-6a41-e974-ee330fd13607"; PortNumber = None; PortType = PortType.Output; HostId = "and1"}; Target = {Id = "25886b76-feee-6892-6637-cc2378fe6094"; PortNumber = None; PortType = PortType.Input; HostId = "output"}}
+        {Id = "conn1"; Source = {Id = "14344e8e-9448-4933-9004-85756859c64d"; PortNumber = None; PortType = PortType.Output; HostId = "input"}; Target = {Id = "5c4d25e1-c067-79d3-adc7-7e141f5a7905"; PortNumber = None; PortType = PortType.Input; HostId = "and2"}}
+        {Id = "conn2"; Source = {Id = "14344e8e-9448-4933-9004-85756859c64d"; PortNumber = None; PortType = PortType.Output; HostId = "input"}; Target = {Id = "9697ec8d-b6d3-9f2a-aaaf-0907fd087e05"; PortNumber = None; PortType = PortType.Input; HostId = "and1"}}
+        {Id = "conn3"; Source = {Id = "edb944e4-1fe8-e9e2-eaf2-e5278277b29d"; PortNumber = None; PortType = PortType.Output; HostId = "and0"}; Target = {Id = "23f32198-bf52-0456-6be2-1fbe92b36bbf"; PortNumber = None; PortType = PortType.Input; HostId = "and1"}}
+        {Id = "conn4"; Source = {Id = "14344e8e-9448-4933-9004-85756859c64d"; PortNumber = None; PortType = PortType.Output; HostId = "input"}; Target = {Id = "aefefef8-61ea-a3cf-49f9-11b858342504"; PortNumber = None; PortType = PortType.Input; HostId = "and2"}}
+        {Id = "conn5"; Source = {Id = "26de501f-4e60-9f61-fce0-6e5fdb131f87"; PortNumber = None; PortType = PortType.Output; HostId = "and2"}; Target = {Id = "8e8b684e-664f-5758-15c9-79c84c8fc81a"; PortNumber = None; PortType = PortType.Input; HostId = "and0"}}
+        {Id = "conn6"; Source = {Id = "26de501f-4e60-9f61-fce0-6e5fdb131f87"; PortNumber = None; PortType = PortType.Output; HostId = "and2"}; Target = {Id = "d9b40581-2587-506d-1868-8201d3802913"; PortNumber = None; PortType = PortType.Input; HostId = "and0"}}
     ]
 
 let testCasesCheckPortsAreConnectedProperly = [
@@ -203,6 +243,37 @@ let testCasesCheckPortsAreConnectedProperly = [
         ["mux"]
         []
 
-    "Complex diagram with two Ands", state10,
+    "Complex diagram with three Ands and two cycles", state10,
+    None
+
+    "Complex diagram with three Ands and one long cycle", state11,
+    None
+
+    "Complex diagram with three Ands and no cycle", state12,
+    None
+]
+
+let private getTestInputs state =
+    let _, connections = state
+    buildSimulationGraph state, connections
+
+// The graph to analyse is assumed to pass the ports checks.
+let testCasesAnalyseGraph = [
+    "One input and one output", getTestInputs state3,
+    None
+
+    "Complex diagram with three Ands and two cycles", getTestInputs state10,
+    makeError
+        "Cycle detected in combinatorial logic"
+        ["and2"; "and0"]
+        ["conn5"; "conn4"]
+    
+    "Complex diagram with three Ands and one long cycle", getTestInputs state11,
+    makeError
+        "Cycle detected in combinatorial logic"
+        ["and1"; "and2"; "and0"]
+        ["conn1"; "conn5"; "conn3"]
+
+    "Complex diagram with three Ands and no cycle", getTestInputs state12,
     None
 ]

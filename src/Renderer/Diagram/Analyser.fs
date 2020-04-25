@@ -1,7 +1,6 @@
 module Analyser
 
 open DiagramTypes
-open JSHelpers
 
 // Ports constraints:
 // - Source ports must be output ports.
@@ -85,7 +84,7 @@ let private getAllOutputPortIds (components : Component list) : (OutputPortId * 
     components |> List.collect
         (fun comp -> comp.OutputPorts |> List.map (fun port -> OutputPortId port.Id, ComponentId comp.Id))
 
-let rec countPortsConnections
+let rec private countPortsConnections
         (connections : Connection list)
         (inputCounts : Map<InputPortId * ComponentId, int>)
         (outputCounts : Map<OutputPortId * ComponentId, int>)

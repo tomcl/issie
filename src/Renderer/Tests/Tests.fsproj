@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="TestLib.fs" />
+    <Compile Include="../Diagram/Types.fs" />
+    <Compile Include="../Diagram/Analyser.fs" />
+    <Compile Include="../Diagram/Simulator.fs" />
+    <Compile Include="CanvasStates.fs" />
+    <Compile Include="SimulatorTests.fs" />
+    <Compile Include="Tests.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Expecto.FsCheck" Version="8.13.1" />
+  </ItemGroup>
+</Project>

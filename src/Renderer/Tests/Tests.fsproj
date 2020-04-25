@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="TestLib.fs" />
+    <Compile Include="Tests.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Expecto.FsCheck" Version="8.13.1" />
+  </ItemGroup>
+</Project>

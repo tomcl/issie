@@ -73,7 +73,9 @@ function addComponentToCanvas(canvas, comp) {
 }
 
 function addConnectionToCanvas(canvas, conn) {
-    canvas.add(conn);
+    // Keep track of the action so it can be undone.
+    let command = new draw2d.command.CommandAdd(canvas, conn, conn.getPosition());
+    canvas.getCommandStack().execute(command);
 }
 
 function addLabel(comp, label) {

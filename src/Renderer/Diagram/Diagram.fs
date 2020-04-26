@@ -270,6 +270,8 @@ let displayView model dispatch =
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
             Button.button [ Button.Props [ OnClick (fun _ -> saveStateAction model dispatch ) ] ] [ str "Save diagram" ]
             Button.button [ Button.Props [ OnClick (fun _ -> loadStateAction model dispatch) ] ] [ str "Load diagram" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.Undo ()) ] ] [ str "Undo" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.Redo ()) ] ] [ str "Redo" ]
             div [] (prettyPrintState model.State)
         ]
     ]

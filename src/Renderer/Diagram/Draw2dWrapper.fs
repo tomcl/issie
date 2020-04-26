@@ -52,6 +52,8 @@ type private IDraw2d =
     abstract getPortById             : comp:JSComponent -> id:string -> JSPort
     abstract getAllJsComponents      : canvas:JSCanvas -> JSComponents
     abstract getAllJsConnections     : canvas:JSCanvas -> JSConnections
+    abstract undoLastAction          : canvas:JSCanvas -> unit
+    abstract redoLastAction          : canvas:JSCanvas -> unit
 
 [<Import("*", "./draw2d_fsharp_interface.js")>]
 let private draw2dLib : IDraw2d = jsNative
@@ -271,3 +273,13 @@ type Draw2dWrapper() =
             None
         | Some c ->
             Some (getAllComponents c, getAllConnections c)
+
+    member this.Undo () =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.Undo called when canvas is None"
+        | Some c -> draw2dLib.undoLastAction c
+
+    member this.Redo () =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.Redo called when canvas is None"
+        | Some c -> draw2dLib.redoLastAction c

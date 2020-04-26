@@ -97,7 +97,7 @@ let mapToNewConnection (portMappings : Map<string,Port>) oldConnection : Connect
         Id = ""
         Source = { (mapGet oldConnection.Source.Id) with PortNumber = None }
         Target = { (mapGet oldConnection.Target.Id) with PortNumber = None }
-        Vertices = oldConnection.Vertices
+        Vertices = oldConnection.Vertices |> List.map (fun (x,y)->x+30.0,y+30.0)
     }
 
 let pasteAction model =
@@ -105,7 +105,7 @@ let pasteAction model =
     let newComponents =
         oldComponents
         |> List.map ((fun comp ->
-            match model.Diagram.CloneComponent comp with
+            match model.Diagram.CreateComponent comp.Type comp.Label (comp.X+30) (comp.Y+30) with
             | None -> failwithf "what? Could not paste component %A" comp
             | Some jsComp -> jsComp) >> extractComponent)
     // Map the old ports to the new ports, to replace them in the connections.
@@ -115,8 +115,7 @@ let pasteAction model =
         |> List.collect id
         |> Map.ofList
     oldConnections // TODO
-    |> List.map (mapToNewConnection portMappings)
-    |> List.map model.Diagram.LoadConnection
+    |> List.map ((mapToNewConnection portMappings) >> (model.Diagram.LoadConnection false))
     |> ignore
 
 // Views
@@ -129,20 +128,20 @@ let viewCatalogue model =
     Menu.menu [ ] [
             Menu.label [ ] [ str "Input / Output" ]
             Menu.list []
-                [ menuItem "Input"  (fun _ -> model.Diagram.CreateComponent Input "input")
-                  menuItem "Output" (fun _ -> model.Diagram.CreateComponent Output "output") ]
+                [ menuItem "Input"  (fun _ -> model.Diagram.CreateComponent Input "input" 100 100 |> ignore)
+                  menuItem "Output" (fun _ -> model.Diagram.CreateComponent Output "output" 100 100 |> ignore) ]
             Menu.label [ ] [ str "Gates" ]
             Menu.list []
-                [ menuItem "Not"  (fun _ -> model.Diagram.CreateComponent Not "")
-                  menuItem "And"  (fun _ -> model.Diagram.CreateComponent And "")
-                  menuItem "Or"   (fun _ -> model.Diagram.CreateComponent Or "")
-                  menuItem "Xor"  (fun _ -> model.Diagram.CreateComponent Xor "")
-                  menuItem "Nand" (fun _ -> model.Diagram.CreateComponent Nand "")
-                  menuItem "Nor"  (fun _ -> model.Diagram.CreateComponent Nor "")
-                  menuItem "Xnor" (fun _ -> model.Diagram.CreateComponent Xnor "") ]
+                [ menuItem "Not"  (fun _ -> model.Diagram.CreateComponent Not "" 100 100 |> ignore)
+                  menuItem "And"  (fun _ -> model.Diagram.CreateComponent And "" 100 100 |> ignore)
+                  menuItem "Or"   (fun _ -> model.Diagram.CreateComponent Or "" 100 100 |> ignore)
+                  menuItem "Xor"  (fun _ -> model.Diagram.CreateComponent Xor "" 100 100 |> ignore)
+                  menuItem "Nand" (fun _ -> model.Diagram.CreateComponent Nand "" 100 100 |> ignore)
+                  menuItem "Nor"  (fun _ -> model.Diagram.CreateComponent Nor "" 100 100 |> ignore)
+                  menuItem "Xnor" (fun _ -> model.Diagram.CreateComponent Xnor "" 100 100 |> ignore) ]
             Menu.label [ ] [ str "Mux / Demux" ]
             Menu.list []
-                [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "mux2") ]
+                [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "mux2" 100 100 |> ignore) ]
         ]
 
 let viewSelectedComponent model =

@@ -196,12 +196,13 @@ type Draw2dWrapper() =
         | Some c -> draw2dLib.clearCanvas c
 
     /// Brand new component.
-    member this.CreateComponent componentType defaultLabel =
+    member this.CreateComponent componentType label x y =
         match canvas, dispatch with
-        | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateComponent called when canvas or dispatch is None"
-        | Some c, Some d -> ignore <| createComponent
-                                c d None componentType defaultLabel
-                                None None 100 100
+        | None, _ | _, None ->
+            log "Warning: Draw2dWrapper.CreateComponent called when canvas or dispatch is None"
+            None
+        | Some c, Some d ->
+            Some <| createComponent c d None componentType label None None x y
 
     /// Create a JS component from the passed component and add it to the canvas.
     member this.LoadComponent (comp : Component) =
@@ -212,17 +213,7 @@ type Draw2dWrapper() =
                                 (Some comp.InputPorts) (Some comp.OutputPorts)
                                 comp.X comp.Y
 
-    /// Create a JS component from the passed component, but with new
-    /// id and ports.
-    member this.CloneComponent (comp : Component) : JSComponent option =
-        match canvas, dispatch with
-        | None, _ | _, None ->
-            log "Warning: Draw2dWrapper.CloneComponent called when canvas or dispatch is None"
-            None
-        | Some c, Some d ->
-            Some <| createComponent c d None comp.Type comp.Label None None (comp.X + 10) (comp.Y + 10)
-
-    member this.LoadConnection (conn : Connection) =
+    member this.LoadConnection (useId : bool) (conn : Connection) =
         match canvas with
         | None -> log "Warning: Draw2dWrapper.LoadConnection called when canvas or dispatch is None"
         | Some c ->
@@ -234,9 +225,7 @@ type Draw2dWrapper() =
                 assertNotNull (draw2dLib.getComponentById c conn.Target.HostId) "targetParentNode"
             let targetPort : JSPort =
                 assertNotNull (draw2dLib.getPortById targetParentNode conn.Target.Id) "targetPort"
-            let connId = match conn.Id with
-                         | "" -> None
-                         | id -> Some id 
+            let connId = if useId then Some conn.Id else None
             createConnection c connId conn.Vertices sourcePort targetPort
 
     // For now only changes the label. TODO

@@ -54,6 +54,7 @@ type private IDraw2d =
     abstract getAllJsConnections     : canvas:JSCanvas -> JSConnections
     abstract undoLastAction          : canvas:JSCanvas -> unit
     abstract redoLastAction          : canvas:JSCanvas -> unit
+    abstract flushCommandStack       : canvas:JSCanvas -> unit
     abstract getSelected             : canvas:JSCanvas -> JSComponents
 
 [<Import("*", "./draw2d_fsharp_interface.js")>]
@@ -291,6 +292,11 @@ type Draw2dWrapper() =
         match canvas with
         | None -> log "Warning: Draw2dWrapper.Redo called when canvas is None"
         | Some c -> draw2dLib.redoLastAction c
+    
+    member this.FlushCommandStack () =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.FlushCommandStack called when canvas is None"
+        | Some c -> draw2dLib.flushCommandStack c
 
     member this.GetSelected () =
         match canvas with

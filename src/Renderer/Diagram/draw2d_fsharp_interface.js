@@ -210,6 +210,10 @@ function redoLastAction(canvas) {
     canvas.getCommandStack().redo();
 }
 
+function flushCommandStack (canvas) {
+    canvas.commandStack = new draw2d.command.CommandStack();
+}
+
 function getSelected (canvas) {
     let components = [];
     canvas.getSelection().each( (i, figure) => {
@@ -256,5 +260,6 @@ export {
     getAllJsConnections,
     undoLastAction,
     redoLastAction,
+    flushCommandStack,
     getSelected,
 };

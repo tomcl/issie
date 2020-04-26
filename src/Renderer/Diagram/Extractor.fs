@@ -68,9 +68,7 @@ let extractComponent (jsComponent : JSComponent) : Component = {
     Y           = getFailIfNull jsComponent ["y"]
 }
 
-let private extractConnection (jsConnection : JSConnection) : Connection =
-    log (extractVertices <| getFailIfNull jsConnection ["vertices"; "data"]) 
-    {
+let private extractConnection (jsConnection : JSConnection) : Connection = {
     Id       = getFailIfNull jsConnection ["id"]
     Source   = extractPort None <| getFailIfNull jsConnection ["sourcePort"]
     Target   = extractPort None <| getFailIfNull jsConnection ["targetPort"]

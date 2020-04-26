@@ -31,6 +31,8 @@ type private IDraw2d =
     abstract setComponentBackground  : comp:JSComponent -> string -> unit
     abstract setConnectionColor      : conn:JSConnection -> string -> unit
     abstract setConnectionStroke     : conn:JSConnection -> int -> unit
+    abstract getConnectionVertices   : conn:JSConnection -> JSVertices
+    abstract setConnectionVertices   : conn:JSConnection -> JSVertices -> unit
     abstract getInputPorts           : comp:JSComponent -> JSPorts
     abstract getOutputPorts          : comp:JSComponent -> JSPorts
     abstract installSelectionPolicy  : comp:JSComponent -> onSelect:(JSComponent -> unit) -> onUnselect:(JSComponent -> unit) -> unit
@@ -111,10 +113,21 @@ let private createComponent
         (UnselectComponent >> dispatch)
     draw2dLib.addComponentToCanvas canvas comp
 
-let private createConnection (canvas : JSCanvas) (id : string) (source : JSPort) (target : JSPort) =
+let private createConnection
+        (canvas : JSCanvas)
+        (id : string)
+        (vertices : (float * float) list)
+        (source : JSPort)
+        (target : JSPort) =
     let conn : JSConnection = draw2dLib.createDigitalConnection source target
     draw2dLib.setConnectionId conn id
     draw2dLib.addConnectionToCanvas canvas conn
+    // Vertices must be set only once the connection is already in the the
+    // canvas, i.e. after the connection has been actually routed.
+    vertices
+    |> List.map (fun (x, y) -> createObj ["x" ==> x; "y" ==> y])
+    |> fshaprListToJsList
+    |> draw2dLib.setConnectionVertices conn
 
 let private getAllComponents (canvas : JSCanvas) : JSComponent list =
     let jsComponents = draw2dLib.getAllJsComponents canvas
@@ -209,7 +222,7 @@ type Draw2dWrapper() =
                 assertNotNull (draw2dLib.getComponentById c conn.Target.HostId) "targetParentNode"
             let targetPort : JSPort =
                 assertNotNull (draw2dLib.getPortById targetParentNode conn.Target.Id) "targetPort"
-            createConnection c conn.Id sourcePort targetPort
+            createConnection c conn.Id conn.Vertices sourcePort targetPort
 
     // For now only changes the label. TODO
     member this.EditComponent componentId newLabel = 

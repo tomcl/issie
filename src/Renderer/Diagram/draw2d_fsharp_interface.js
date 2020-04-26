@@ -1,7 +1,7 @@
 
 /// Setup circuit-like connections in the diagram.
-let router = new draw2d.layout.connection.CircuitConnectionRouter();
-// TODO: use InteractiveManhattanConnectionRouter instead?
+let router = new draw2d.layout.connection.InteractiveManhattanConnectionRouter();
+// TODO: use CircuitConnectionRouter instead?
 router.abortRoutingOnFirstVertexNode = false;
 
 function createDigitalConnection(sourcePort, targetPort) {
@@ -97,6 +97,14 @@ function setConnectionColor(conn, color) {
 
 function setConnectionStroke(conn, w) {
     conn.setStroke(w);
+}
+
+function getConnectionVertices(conn) {
+    return conn.getVertices();
+}
+
+function setConnectionVertices(conn, vertices) {
+    conn.setVertices(vertices);
 }
 
 function getInputPorts(comp) {
@@ -199,6 +207,8 @@ export {
     setComponentBackground,
     setConnectionColor,
     setConnectionStroke,
+    getConnectionVertices,
+    setConnectionVertices,
     getInputPorts,
     getOutputPorts,
     installSelectionPolicy,

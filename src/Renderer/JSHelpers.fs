@@ -47,3 +47,11 @@ let rec getFailIfNull jsObj (fields : string list) =
 let jsListToFSharpList jsList =
     let len = getFailIfNull jsList ["length"]
     [0..len - 1] |> List.map (fun i -> jsList?(i))
+
+[<Emit("[]")>]
+let emptyJsList () = jsNative
+
+let fshaprListToJsList (list : 'a list) =
+    let jsList = emptyJsList ()
+    list |> List.map (fun el -> jsList?push(el)) |> ignore
+    jsList

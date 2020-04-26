@@ -67,7 +67,9 @@ function clearCanvas (canvas) {
 }
 
 function addComponentToCanvas(canvas, comp) {
-    canvas.add(comp);
+    // Keep track of the action so it can be undone.
+    let command = new draw2d.command.CommandAdd(canvas, comp, comp.getPosition());
+    canvas.getCommandStack().execute(command);
 }
 
 function addConnectionToCanvas(canvas, conn) {
@@ -200,6 +202,14 @@ function getAllJsConnections(canvas) {
     return canvas.getLines().data;
 }
 
+function undoLastAction(canvas) {
+    canvas.getCommandStack().undo();
+}
+
+function redoLastAction(canvas) {
+    canvas.getCommandStack().redo();
+}
+
 export {
     createCanvas,
     initialiseCanvas,
@@ -234,4 +244,6 @@ export {
     getPortById,
     getAllJsComponents,
     getAllJsConnections,
+    undoLastAction,
+    redoLastAction,
 };

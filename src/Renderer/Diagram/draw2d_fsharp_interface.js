@@ -11,7 +11,7 @@ function createDigitalConnection(sourcePort, targetPort) {
         color: 'black',
         router: router,
         stroke: 1,
-        radius: 2,
+        radius: 6,
         selectable: true,
     });
     if (sourcePort) {

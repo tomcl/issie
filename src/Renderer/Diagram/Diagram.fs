@@ -300,6 +300,12 @@ let hideView model dispatch =
 let displayView model dispatch =
     div [] [
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Visible
+        div [ canvasSmallMenuStyle ] [
+            Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick (fun _ -> model.Diagram.Undo ()) ] ] [ str "< undo" ]
+            Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick (fun _ -> model.Diagram.Redo ()) ] ] [ str "redo >" ]
+            Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick (fun _ -> copyAction model dispatch) ] ] [ str "copy" ]
+            Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick (fun _ -> pasteAction model); ] ] [ str "paste" ]
+        ]
         div [ rightSectionStyle ] [
             Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ ] ] [
                 Tabs.tab
@@ -318,10 +324,6 @@ let displayView model dispatch =
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
             Button.button [ Button.Props [ OnClick (fun _ -> saveStateAction model dispatch ) ] ] [ str "Save diagram" ]
             Button.button [ Button.Props [ OnClick (fun _ -> loadStateAction model dispatch) ] ] [ str "Load diagram" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.Undo ()) ] ] [ str "Undo" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.Redo ()) ] ] [ str "Redo" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> copyAction model dispatch) ] ] [ str "Copy" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> pasteAction model) ] ] [ str "Paste" ]
             div [] (prettyPrintState model.State)
         ]
     ]

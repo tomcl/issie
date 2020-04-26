@@ -21,7 +21,7 @@ let rightSectionStyle = Style [
     Border "2px solid gray"
 ]
 
-let bottomSectionStyle =  Style [
+let bottomSectionStyle = Style [
     Position "fixed"
     Bottom "0px"
     Height bottomSectionHeight

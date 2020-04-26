@@ -31,7 +31,7 @@ type Model = {
     // track of the path, instead of reasking every time.
     OpenPath : string option
     Hilighted : ComponentId list * ConnectionId list
-    Clipboard : Component list
+    Clipboard : CanvasState // Components and connections that have been selected and copied.
 }
 
 // -- Init Model
@@ -44,7 +44,7 @@ let init() = {
     RightTab = Catalogue
     OpenPath = None
     Hilighted = [], []
-    Clipboard = []
+    Clipboard = [], []
 }
 
 // -- Create View
@@ -75,16 +75,48 @@ let loadStateAction model dispatch =
 let copyAction model dispatch =
     match model.Diagram.GetSelected () with
     | None -> ()
-    | Some jsComponents ->
-        jsComponents
-        |> jsListToFSharpList
-        |> List.map extractComponent
-        |> SetClipboard
-        |> dispatch 
+    | Some jsState -> extractState jsState |> SetClipboard |> dispatch
+
+let mapPorts (oldComp : Component) (newComp : Component) : (string * Port) list =
+    let mapPort oldPort newPort =
+        assertThat (oldPort.PortNumber = newPort.PortNumber) <| "cloned components have different port numbers"
+        assertThat (oldPort.PortType = newPort.PortType) <| "cloned components have different port types"
+        oldPort.Id, newPort
+    assertThat (oldComp.Id <> newComp.Id) "cloned component has same id as old one"
+    assertThat (oldComp.Type = newComp.Type) "cloned components have different types"
+    assertThat (oldComp.Label = newComp.Label) "cloned components have different labels"
+    let inputs = (oldComp.InputPorts, newComp.InputPorts) ||> List.map2 mapPort
+    let outputs = (oldComp.OutputPorts, newComp.OutputPorts) ||> List.map2 mapPort
+    inputs @ outputs
+
+let mapToNewConnection (portMappings : Map<string,Port>) oldConnection : Connection =
+    let mapGet pId = match portMappings.TryFind pId with
+                     | None -> failwithf "what? Could not find port Id %s while cloning" pId
+                     | Some port -> port
+    {
+        Id = ""
+        Source = { (mapGet oldConnection.Source.Id) with PortNumber = None }
+        Target = { (mapGet oldConnection.Target.Id) with PortNumber = None }
+        Vertices = oldConnection.Vertices
+    }
 
 let pasteAction model =
-    model.Clipboard
-    |> List.map model.Diagram.CloneComponent
+    let oldComponents, oldConnections = model.Clipboard
+    let newComponents =
+        oldComponents
+        |> List.map ((fun comp ->
+            match model.Diagram.CloneComponent comp with
+            | None -> failwithf "what? Could not paste component %A" comp
+            | Some jsComp -> jsComp) >> extractComponent)
+    // Map the old ports to the new ports, to replace them in the connections.
+    let portMappings =
+        (oldComponents, newComponents)
+        ||> List.map2 mapPorts
+        |> List.collect id
+        |> Map.ofList
+    oldConnections // TODO
+    |> List.map (mapToNewConnection portMappings)
+    |> List.map model.Diagram.LoadConnection
     |> ignore
 
 // Views

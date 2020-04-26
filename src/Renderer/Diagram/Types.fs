@@ -11,6 +11,7 @@ type JSConnection  = | JSConnection of obj
 type JSConnections = | JSConnections of obj // JS list of JSConnection.
 type JSPort        = | JSPort of obj
 type JSPorts       = | JSPorts of obj // JS list of JSPort.
+type JSVertices    = | JSVertices of obj // Js list of x,y objects.
 
 type JSCanvasState = JSComponent list * JSConnection list
 
@@ -55,6 +56,7 @@ type Connection = {
     Id : string
     Source : Port
     Target : Port
+    Vertices : (float * float) list
 }
 
 type CanvasState   = Component list * Connection list

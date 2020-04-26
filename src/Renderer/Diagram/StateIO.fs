@@ -50,7 +50,8 @@ let loadStateFromFile (diagramWrapper : Draw2dWrapper) =
             let components, connections = jsonStringToState data
             diagramWrapper.ClearCanvas()
             List.map diagramWrapper.LoadComponent components |> ignore
-            List.map diagramWrapper.LoadConnection connections |> ignore
+            List.map (diagramWrapper.LoadConnection true) connections |> ignore
+            diagramWrapper.FlushCommandStack ()
         ))
     let options = createEmpty<OpenDialogOptions>
     options.properties <- ResizeArray([ "openFile" ]) |> Some

@@ -18,3 +18,22 @@ let canvasVisibleStyle = Style [
     Right rightSectionWidth
     Border "2px solid gray"
 ]
+
+let canvasSmallMenuStyle = Style [
+    Display "block"
+    Position "absolute" // Required to work.
+    Overflow "hidden"
+    Left "10px"
+    Bottom (sprintf "calc(%s + 25px)" bottomSectionHeight)
+    Right (sprintf "calc(100%s - 300px)" "%")
+]
+
+let canvasSmallButtonStyle = Style [
+    MarginRight "5px"
+    BackgroundColor "white"
+    BorderRadius "4px"
+    BorderStyle "solid"
+    Outline "none"
+    Padding "4px"
+    Opacity 0.7
+]

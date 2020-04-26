@@ -1,7 +1,7 @@
 
 /// Setup circuit-like connections in the diagram.
-let router = new draw2d.layout.connection.CircuitConnectionRouter();
-// TODO: use InteractiveManhattanConnectionRouter instead?
+let router = new draw2d.layout.connection.InteractiveManhattanConnectionRouter();
+// TODO: use CircuitConnectionRouter instead?
 router.abortRoutingOnFirstVertexNode = false;
 
 function createDigitalConnection(sourcePort, targetPort) {
@@ -11,7 +11,7 @@ function createDigitalConnection(sourcePort, targetPort) {
         color: 'black',
         router: router,
         stroke: 1,
-        radius: 2,
+        radius: 6,
         selectable: true,
     });
     if (sourcePort) {
@@ -54,6 +54,12 @@ function initialiseCanvas (canvas) {
     );
     // Install policy to allow to zoom with: SHIFT + mouse wheel.
     canvas.installEditPolicy(new draw2d.policy.canvas.WheelZoomPolicy());
+    // Make ports visible only when mouse is near them.
+    canvas.installEditPolicy(new draw2d.policy.canvas.CoronaDecorationPolicy({diameterToBeVisible: 70}));
+    // Show guides to align components better.
+    canvas.installEditPolicy(new draw2d.policy.canvas.SnapToGeometryEditPolicy());
+    canvas.installEditPolicy(new draw2d.policy.canvas.SnapToCenterEditPolicy());
+    canvas.installEditPolicy(new draw2d.policy.canvas.SnapToInBetweenEditPolicy());
 }
 
 function clearCanvas (canvas) {
@@ -61,11 +67,15 @@ function clearCanvas (canvas) {
 }
 
 function addComponentToCanvas(canvas, comp) {
-    canvas.add(comp);
+    // Keep track of the action so it can be undone.
+    let command = new draw2d.command.CommandAdd(canvas, comp, comp.getPosition());
+    canvas.getCommandStack().execute(command);
 }
 
 function addConnectionToCanvas(canvas, conn) {
-    canvas.add(conn);
+    // Keep track of the action so it can be undone.
+    let command = new draw2d.command.CommandAdd(canvas, conn, conn.getPosition());
+    canvas.getCommandStack().execute(command);
 }
 
 function addLabel(comp, label) {
@@ -97,6 +107,14 @@ function setConnectionColor(conn, color) {
 
 function setConnectionStroke(conn, w) {
     conn.setStroke(w);
+}
+
+function getConnectionVertices(conn) {
+    return conn.getVertices();
+}
+
+function setConnectionVertices(conn, vertices) {
+    conn.setVertices(vertices);
 }
 
 function getInputPorts(comp) {
@@ -186,6 +204,38 @@ function getAllJsConnections(canvas) {
     return canvas.getLines().data;
 }
 
+function getSelectedJsComponents(canvas) {
+    let components = [];
+    canvas.getSelection().each( (i, figure) => {
+        if (figure instanceof draw2d.shape.digital) {
+            components.push(figure);
+        }
+    });
+    return components;
+}
+
+function getSelectedJsConnections(canvas) {
+    let connections = [];
+    canvas.getSelection().each( (i, figure) => {
+        if (figure instanceof draw2d.Connection) {
+            connections.push(figure);
+        }
+    });
+    return connections;
+}
+
+function undoLastAction(canvas) {
+    canvas.getCommandStack().undo();
+}
+
+function redoLastAction(canvas) {
+    canvas.getCommandStack().redo();
+}
+
+function flushCommandStack (canvas) {
+    canvas.commandStack = new draw2d.command.CommandStack();
+}
+
 export {
     createCanvas,
     initialiseCanvas,
@@ -199,6 +249,8 @@ export {
     setComponentBackground,
     setConnectionColor,
     setConnectionStroke,
+    getConnectionVertices,
+    setConnectionVertices,
     getInputPorts,
     getOutputPorts,
     installSelectionPolicy,
@@ -218,4 +270,9 @@ export {
     getPortById,
     getAllJsComponents,
     getAllJsConnections,
+    getSelectedJsComponents,
+    getSelectedJsConnections,
+    undoLastAction,
+    redoLastAction,
+    flushCommandStack,
 };

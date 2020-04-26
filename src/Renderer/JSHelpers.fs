@@ -21,11 +21,14 @@ let startTimer (label : string) : unit = jsNative
 [<Emit("console.timeEnd($0)")>]
 let stopAndLogTimer (label : string) : unit = jsNative
 
+let assertThat cond msg =
+    if not cond
+    then failwithf "what? assert failed: %s" msg
+
 /// Assert js object is not null, and return it.
 let assertNotNull obj msg =
-    if isNull obj
-    then failwithf "what? assertNotNull failed: %s" msg
-    else obj
+    assertThat (not <| isNull obj) ("(assertNotNull) " + msg)
+    obj
 
 /// Access nested fields of a js object, failing if at any point of the chain
 /// the requested field is null.
@@ -47,3 +50,11 @@ let rec getFailIfNull jsObj (fields : string list) =
 let jsListToFSharpList jsList =
     let len = getFailIfNull jsList ["length"]
     [0..len - 1] |> List.map (fun i -> jsList?(i))
+
+[<Emit("[]")>]
+let emptyJsList () = jsNative
+
+let fshaprListToJsList (list : 'a list) =
+    let jsList = emptyJsList ()
+    list |> List.map (fun el -> jsList?push(el)) |> ignore
+    jsList

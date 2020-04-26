@@ -54,6 +54,12 @@ function initialiseCanvas (canvas) {
     );
     // Install policy to allow to zoom with: SHIFT + mouse wheel.
     canvas.installEditPolicy(new draw2d.policy.canvas.WheelZoomPolicy());
+    // Make ports visible only when mouse is near them.
+    canvas.installEditPolicy(new draw2d.policy.canvas.CoronaDecorationPolicy({diameterToBeVisible: 70}));
+    // Show guides to align components better.
+    canvas.installEditPolicy(new draw2d.policy.canvas.SnapToGeometryEditPolicy())
+    canvas.installEditPolicy(new draw2d.policy.canvas.SnapToCenterEditPolicy())
+    canvas.installEditPolicy(new draw2d.policy.canvas.SnapToInBetweenEditPolicy())
 }
 
 function clearCanvas (canvas) {

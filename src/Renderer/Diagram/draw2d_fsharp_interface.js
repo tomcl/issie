@@ -202,6 +202,26 @@ function getAllJsConnections(canvas) {
     return canvas.getLines().data;
 }
 
+function getSelectedJsComponents(canvas) {
+    let components = [];
+    canvas.getSelection().each( (i, figure) => {
+        if (figure instanceof draw2d.shape.digital) {
+            components.push(figure);
+        }
+    });
+    return components;
+}
+
+function getSelectedJsConnections(canvas) {
+    let connections = [];
+    canvas.getSelection().each( (i, figure) => {
+        if (figure instanceof draw2d.Connection) {
+            connections.push(figure);
+        }
+    });
+    return connections;
+}
+
 function undoLastAction(canvas) {
     canvas.getCommandStack().undo();
 }
@@ -212,16 +232,6 @@ function redoLastAction(canvas) {
 
 function flushCommandStack (canvas) {
     canvas.commandStack = new draw2d.command.CommandStack();
-}
-
-function getSelected (canvas) {
-    let components = [];
-    canvas.getSelection().each( (i, figure) => {
-        if (figure instanceof draw2d.shape.digital) {
-            components.push(figure);
-        }
-    })
-    return components;
 }
 
 export {
@@ -258,8 +268,9 @@ export {
     getPortById,
     getAllJsComponents,
     getAllJsConnections,
+    getSelectedJsComponents,
+    getSelectedJsConnections,
     undoLastAction,
     redoLastAction,
     flushCommandStack,
-    getSelected,
 };

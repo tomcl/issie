@@ -19,43 +19,44 @@ open Fable.Helpers.React.Props
 // Interface with JS library.
 
 type private IDraw2d =
-    abstract createCanvas            : id:string -> width:int -> height:int -> JSCanvas
-    abstract initialiseCanvas        : canvas:JSCanvas -> unit
-    abstract clearCanvas             : canvas:JSCanvas -> unit
-    abstract addComponentToCanvas    : canvas:JSCanvas -> comp:JSComponent -> unit
-    abstract addConnectionToCanvas   : canvas:JSCanvas -> conn:JSConnection -> unit
-    abstract addLabel                : comp:JSComponent -> label:string ->  unit
-    abstract setComponentId          : comp:JSComponent -> id:string -> unit
-    abstract setConnectionId         : conn:JSConnection -> id:string -> unit
-    abstract setPortId               : port:JSPort -> id:string -> unit
-    abstract setComponentBackground  : comp:JSComponent -> string -> unit
-    abstract setConnectionColor      : conn:JSConnection -> string -> unit
-    abstract setConnectionStroke     : conn:JSConnection -> int -> unit
-    abstract getConnectionVertices   : conn:JSConnection -> JSVertices
-    abstract setConnectionVertices   : conn:JSConnection -> JSVertices -> unit
-    abstract getInputPorts           : comp:JSComponent -> JSPorts
-    abstract getOutputPorts          : comp:JSComponent -> JSPorts
-    abstract installSelectionPolicy  : comp:JSComponent -> onSelect:(JSComponent -> unit) -> onUnselect:(JSComponent -> unit) -> unit
-    abstract createDigitalInput      : x:int -> y:int -> JSComponent
-    abstract createDigitalOutput     : x:int -> y:int -> JSComponent
-    abstract createDigitalNot        : x:int -> y:int -> JSComponent
-    abstract createDigitalAnd        : x:int -> y:int -> JSComponent
-    abstract createDigitalOr         : x:int -> y:int -> JSComponent
-    abstract createDigitalXor        : x:int -> y:int -> JSComponent
-    abstract createDigitalNand       : x:int -> y:int -> JSComponent
-    abstract createDigitalNor        : x:int -> y:int -> JSComponent
-    abstract createDigitalXnor       : x:int -> y:int -> JSComponent
-    abstract createDigitalMux2       : x:int -> y:int -> JSComponent
-    abstract createDigitalConnection : source:JSPort -> target:JSPort -> JSConnection
-    abstract getComponentById        : canvas:JSCanvas -> id:string -> JSComponent
-    abstract getConnectionById       : canvas:JSCanvas -> id:string -> JSConnection
-    abstract getPortById             : comp:JSComponent -> id:string -> JSPort
-    abstract getAllJsComponents      : canvas:JSCanvas -> JSComponents
-    abstract getAllJsConnections     : canvas:JSCanvas -> JSConnections
-    abstract undoLastAction          : canvas:JSCanvas -> unit
-    abstract redoLastAction          : canvas:JSCanvas -> unit
-    abstract flushCommandStack       : canvas:JSCanvas -> unit
-    abstract getSelected             : canvas:JSCanvas -> JSComponents
+    abstract createCanvas             : id:string -> width:int -> height:int -> JSCanvas
+    abstract initialiseCanvas         : canvas:JSCanvas -> unit
+    abstract clearCanvas              : canvas:JSCanvas -> unit
+    abstract addComponentToCanvas     : canvas:JSCanvas -> comp:JSComponent -> unit
+    abstract addConnectionToCanvas    : canvas:JSCanvas -> conn:JSConnection -> unit
+    abstract addLabel                 : comp:JSComponent -> label:string ->  unit
+    abstract setComponentId           : comp:JSComponent -> id:string -> unit
+    abstract setConnectionId          : conn:JSConnection -> id:string -> unit
+    abstract setPortId                : port:JSPort -> id:string -> unit
+    abstract setComponentBackground   : comp:JSComponent -> string -> unit
+    abstract setConnectionColor       : conn:JSConnection -> string -> unit
+    abstract setConnectionStroke      : conn:JSConnection -> int -> unit
+    abstract getConnectionVertices    : conn:JSConnection -> JSVertices
+    abstract setConnectionVertices    : conn:JSConnection -> JSVertices -> unit
+    abstract getInputPorts            : comp:JSComponent -> JSPorts
+    abstract getOutputPorts           : comp:JSComponent -> JSPorts
+    abstract installSelectionPolicy   : comp:JSComponent -> onSelect:(JSComponent -> unit) -> onUnselect:(JSComponent -> unit) -> unit
+    abstract createDigitalInput       : x:int -> y:int -> JSComponent
+    abstract createDigitalOutput      : x:int -> y:int -> JSComponent
+    abstract createDigitalNot         : x:int -> y:int -> JSComponent
+    abstract createDigitalAnd         : x:int -> y:int -> JSComponent
+    abstract createDigitalOr          : x:int -> y:int -> JSComponent
+    abstract createDigitalXor         : x:int -> y:int -> JSComponent
+    abstract createDigitalNand        : x:int -> y:int -> JSComponent
+    abstract createDigitalNor         : x:int -> y:int -> JSComponent
+    abstract createDigitalXnor        : x:int -> y:int -> JSComponent
+    abstract createDigitalMux2        : x:int -> y:int -> JSComponent
+    abstract createDigitalConnection  : source:JSPort -> target:JSPort -> JSConnection
+    abstract getComponentById         : canvas:JSCanvas -> id:string -> JSComponent
+    abstract getConnectionById        : canvas:JSCanvas -> id:string -> JSConnection
+    abstract getPortById              : comp:JSComponent -> id:string -> JSPort
+    abstract getAllJsComponents       : canvas:JSCanvas -> JSComponents
+    abstract getAllJsConnections      : canvas:JSCanvas -> JSConnections
+    abstract getSelectedJsComponents  : canvas:JSCanvas -> JSComponents
+    abstract getSelectedJsConnections : canvas:JSCanvas -> JSConnections
+    abstract undoLastAction           : canvas:JSCanvas -> unit
+    abstract redoLastAction           : canvas:JSCanvas -> unit
+    abstract flushCommandStack        : canvas:JSCanvas -> unit
 
 [<Import("*", "./draw2d_fsharp_interface.js")>]
 let private draw2dLib : IDraw2d = jsNative
@@ -86,7 +87,7 @@ let private createComponent
         (maybeOutputPorts : (Port list) option) // Passing None will initialise new ports.
         (x : int)
         (y : int)
-        : unit =
+        : JSComponent =
     let comp = match componentType with
                | Input  -> draw2dLib.createDigitalInput x y
                | Output -> draw2dLib.createDigitalOutput x y
@@ -116,15 +117,18 @@ let private createComponent
         (SelectComponent >> dispatch)
         (UnselectComponent >> dispatch)
     draw2dLib.addComponentToCanvas canvas comp
+    comp
 
 let private createConnection
         (canvas : JSCanvas)
-        (id : string)
+        (maybeId : string option)
         (vertices : (float * float) list)
         (source : JSPort)
         (target : JSPort) =
     let conn : JSConnection = draw2dLib.createDigitalConnection source target
-    draw2dLib.setConnectionId conn id
+    match maybeId with
+    | None -> ()
+    | Some id -> draw2dLib.setConnectionId conn id
     draw2dLib.addConnectionToCanvas canvas conn
     // Vertices must be set only once the connection is already in the the
     // canvas, i.e. after the connection has been actually routed.
@@ -132,14 +136,6 @@ let private createConnection
     |> List.map (fun (x, y) -> createObj ["x" ==> x; "y" ==> y])
     |> fshaprListToJsList
     |> draw2dLib.setConnectionVertices conn
-
-let private getAllComponents (canvas : JSCanvas) : JSComponent list =
-    let jsComponents = draw2dLib.getAllJsComponents canvas
-    jsListToFSharpList jsComponents
-
-let private getAllConnections (canvas : JSCanvas) : JSConnection list =
-    let jsConnections = draw2dLib.getAllJsConnections canvas
-    jsListToFSharpList jsConnections
 
 // TODO: for now only supports labels.
 let private editComponent (canvas : JSCanvas) (id : string) (newLabel : string) : unit =
@@ -199,20 +195,32 @@ type Draw2dWrapper() =
         | None -> log "Warning: Draw2dWrapper.ClearCanvas called when canvas is None"
         | Some c -> draw2dLib.clearCanvas c
 
+    /// Brand new component.
     member this.CreateComponent componentType defaultLabel =
         match canvas, dispatch with
         | None, _ | _, None -> log "Warning: Draw2dWrapper.CreateComponent called when canvas or dispatch is None"
-        | Some c, Some d -> createComponent
+        | Some c, Some d -> ignore <| createComponent
                                 c d None componentType defaultLabel
                                 None None 100 100
 
+    /// Create a JS component from the passed component and add it to the canvas.
     member this.LoadComponent (comp : Component) =
         match canvas, dispatch with
         | None, _ | _, None -> log "Warning: Draw2dWrapper.LoadComponent called when canvas or dispatch is None"
-        | Some c, Some d -> createComponent
+        | Some c, Some d -> ignore <| createComponent
                                 c d (Some comp.Id) comp.Type comp.Label
                                 (Some comp.InputPorts) (Some comp.OutputPorts)
                                 comp.X comp.Y
+
+    /// Create a JS component from the passed component, but with new
+    /// id and ports.
+    member this.CloneComponent (comp : Component) : JSComponent option =
+        match canvas, dispatch with
+        | None, _ | _, None ->
+            log "Warning: Draw2dWrapper.CloneComponent called when canvas or dispatch is None"
+            None
+        | Some c, Some d ->
+            Some <| createComponent c d None comp.Type comp.Label None None (comp.X + 10) (comp.Y + 10)
 
     member this.LoadConnection (conn : Connection) =
         match canvas with
@@ -226,14 +234,10 @@ type Draw2dWrapper() =
                 assertNotNull (draw2dLib.getComponentById c conn.Target.HostId) "targetParentNode"
             let targetPort : JSPort =
                 assertNotNull (draw2dLib.getPortById targetParentNode conn.Target.Id) "targetPort"
-            createConnection c conn.Id conn.Vertices sourcePort targetPort
-
-    member this.CloneComponent (comp : Component) =
-        match canvas, dispatch with
-        | None, _ | _, None -> log "Warning: Draw2dWrapper.CloneComponent called when canvas or dispatch is None"
-        | Some c, Some d -> createComponent
-                                c d None comp.Type comp.Label
-                                None None (comp.X + 10) (comp.Y + 10)
+            let connId = match conn.Id with
+                         | "" -> None
+                         | id -> Some id 
+            createConnection c connId conn.Vertices sourcePort targetPort
 
     // For now only changes the label. TODO
     member this.EditComponent componentId newLabel = 
@@ -281,7 +285,19 @@ type Draw2dWrapper() =
             log "Warning: Draw2dWrapper.GetCanvasState called when canvas is None"
             None
         | Some c ->
-            Some (getAllComponents c, getAllConnections c)
+            let comps = jsListToFSharpList <| draw2dLib.getAllJsComponents c
+            let conns = jsListToFSharpList <| draw2dLib.getAllJsConnections c
+            Some (comps, conns)
+
+    member this.GetSelected () =
+        match canvas with
+        | None ->
+            log "Warning: Draw2dWrapper.GetSelected called when canvas is None"
+            None
+        | Some c ->
+            let comps = jsListToFSharpList <| draw2dLib.getSelectedJsComponents c
+            let conns = jsListToFSharpList <| draw2dLib.getSelectedJsConnections c
+            Some (comps, conns)
 
     member this.Undo () =
         match canvas with
@@ -297,11 +313,3 @@ type Draw2dWrapper() =
         match canvas with
         | None -> log "Warning: Draw2dWrapper.FlushCommandStack called when canvas is None"
         | Some c -> draw2dLib.flushCommandStack c
-
-    member this.GetSelected () =
-        match canvas with
-        | None ->
-            log "Warning: Draw2dWrapper.GetSelected called when canvas is None"
-            None
-        | Some c ->
-            Some <| draw2dLib.getSelected c

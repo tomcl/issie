@@ -53,6 +53,10 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     | "Mux2"   -> Mux2
     | ct -> failwithf "what? Component type %s does not exist" ct
 
+let private extractVertices (jsVertices : JSVertices) : (float * float) list =
+    jsListToFSharpList jsVertices
+    |> List.map (fun jsVertex -> jsVertex?x, jsVertex?y)
+
 /// Transform a JSComponent into an f# data structure.
 let extractComponent (jsComponent : JSComponent) : Component = {
     Id          = getFailIfNull jsComponent ["id"]
@@ -65,9 +69,10 @@ let extractComponent (jsComponent : JSComponent) : Component = {
 }
 
 let private extractConnection (jsConnection : JSConnection) : Connection = {
-    Id     = getFailIfNull jsConnection ["id"]
-    Source = extractPort None <| getFailIfNull jsConnection ["sourcePort"]
-    Target = extractPort None <| getFailIfNull jsConnection ["targetPort"]
+    Id       = getFailIfNull jsConnection ["id"]
+    Source   = extractPort None <| getFailIfNull jsConnection ["sourcePort"]
+    Target   = extractPort None <| getFailIfNull jsConnection ["targetPort"]
+    Vertices = extractVertices <| getFailIfNull jsConnection ["vertices"; "data"]
 }
 
 /// Transform the JSCanvasState into an f# data structure.

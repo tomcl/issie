@@ -31,6 +31,7 @@ type Model = {
     // track of the path, instead of reasking every time.
     OpenPath : string option
     Hilighted : ComponentId list * ConnectionId list
+    Clipboard : CanvasState // Components and connections that have been selected and copied.
 }
 
 // -- Init Model
@@ -43,6 +44,7 @@ let init() = {
     RightTab = Catalogue
     OpenPath = None
     Hilighted = [], []
+    Clipboard = [], []
 }
 
 // -- Create View
@@ -70,6 +72,52 @@ let loadStateAction model dispatch =
     dispatch <| SetHighlighted ([],[])
     loadStateFromFile model.Diagram |> SetOpenPath |> dispatch
 
+let copyAction model dispatch =
+    match model.Diagram.GetSelected () with
+    | None -> ()
+    | Some jsState -> extractState jsState |> SetClipboard |> dispatch
+
+let mapPorts (oldComp : Component) (newComp : Component) : (string * Port) list =
+    let mapPort oldPort newPort =
+        assertThat (oldPort.PortNumber = newPort.PortNumber) <| "cloned components have different port numbers"
+        assertThat (oldPort.PortType = newPort.PortType) <| "cloned components have different port types"
+        oldPort.Id, newPort
+    assertThat (oldComp.Id <> newComp.Id) "cloned component has same id as old one"
+    assertThat (oldComp.Type = newComp.Type) "cloned components have different types"
+    assertThat (oldComp.Label = newComp.Label) "cloned components have different labels"
+    let inputs = (oldComp.InputPorts, newComp.InputPorts) ||> List.map2 mapPort
+    let outputs = (oldComp.OutputPorts, newComp.OutputPorts) ||> List.map2 mapPort
+    inputs @ outputs
+
+let mapToNewConnection (portMappings : Map<string,Port>) oldConnection : Connection =
+    let mapGet pId = match portMappings.TryFind pId with
+                     | None -> failwithf "what? Could not find port Id %s while cloning" pId
+                     | Some port -> port
+    {
+        Id = ""
+        Source = { (mapGet oldConnection.Source.Id) with PortNumber = None }
+        Target = { (mapGet oldConnection.Target.Id) with PortNumber = None }
+        Vertices = oldConnection.Vertices |> List.map (fun (x,y)->x+30.0,y+30.0)
+    }
+
+let pasteAction model =
+    let oldComponents, oldConnections = model.Clipboard
+    let newComponents =
+        oldComponents
+        |> List.map ((fun comp ->
+            match model.Diagram.CreateComponent comp.Type comp.Label (comp.X+30) (comp.Y+30) with
+            | None -> failwithf "what? Could not paste component %A" comp
+            | Some jsComp -> jsComp) >> extractComponent)
+    // Map the old ports to the new ports, to replace them in the connections.
+    let portMappings =
+        (oldComponents, newComponents)
+        ||> List.map2 mapPorts
+        |> List.collect id
+        |> Map.ofList
+    oldConnections // TODO
+    |> List.map ((mapToNewConnection portMappings) >> (model.Diagram.LoadConnection false))
+    |> ignore
+
 // Views
 
 let viewCatalogue model =
@@ -80,20 +128,20 @@ let viewCatalogue model =
     Menu.menu [ ] [
             Menu.label [ ] [ str "Input / Output" ]
             Menu.list []
-                [ menuItem "Input"  (fun _ -> model.Diagram.CreateComponent Input "input")
-                  menuItem "Output" (fun _ -> model.Diagram.CreateComponent Output "output") ]
+                [ menuItem "Input"  (fun _ -> model.Diagram.CreateComponent Input "input" 100 100 |> ignore)
+                  menuItem "Output" (fun _ -> model.Diagram.CreateComponent Output "output" 100 100 |> ignore) ]
             Menu.label [ ] [ str "Gates" ]
             Menu.list []
-                [ menuItem "Not"  (fun _ -> model.Diagram.CreateComponent Not "")
-                  menuItem "And"  (fun _ -> model.Diagram.CreateComponent And "")
-                  menuItem "Or"   (fun _ -> model.Diagram.CreateComponent Or "")
-                  menuItem "Xor"  (fun _ -> model.Diagram.CreateComponent Xor "")
-                  menuItem "Nand" (fun _ -> model.Diagram.CreateComponent Nand "")
-                  menuItem "Nor"  (fun _ -> model.Diagram.CreateComponent Nor "")
-                  menuItem "Xnor" (fun _ -> model.Diagram.CreateComponent Xnor "") ]
+                [ menuItem "Not"  (fun _ -> model.Diagram.CreateComponent Not "" 100 100 |> ignore)
+                  menuItem "And"  (fun _ -> model.Diagram.CreateComponent And "" 100 100 |> ignore)
+                  menuItem "Or"   (fun _ -> model.Diagram.CreateComponent Or "" 100 100 |> ignore)
+                  menuItem "Xor"  (fun _ -> model.Diagram.CreateComponent Xor "" 100 100 |> ignore)
+                  menuItem "Nand" (fun _ -> model.Diagram.CreateComponent Nand "" 100 100 |> ignore)
+                  menuItem "Nor"  (fun _ -> model.Diagram.CreateComponent Nor "" 100 100 |> ignore)
+                  menuItem "Xnor" (fun _ -> model.Diagram.CreateComponent Xnor "" 100 100 |> ignore) ]
             Menu.label [ ] [ str "Mux / Demux" ]
             Menu.list []
-                [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "mux2") ]
+                [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "mux2" 100 100 |> ignore) ]
         ]
 
 let viewSelectedComponent model =
@@ -252,6 +300,12 @@ let hideView model dispatch =
 let displayView model dispatch =
     div [] [
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Visible
+        div [ canvasSmallMenuStyle ] [
+            Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick (fun _ -> model.Diagram.Undo ()) ] ] [ str "< undo" ]
+            Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick (fun _ -> model.Diagram.Redo ()) ] ] [ str "redo >" ]
+            Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick (fun _ -> copyAction model dispatch) ] ] [ str "copy" ]
+            Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick (fun _ -> pasteAction model); ] ] [ str "paste" ]
+        ]
         div [ rightSectionStyle ] [
             Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ ] ] [
                 Tabs.tab
@@ -316,3 +370,4 @@ let update msg model =
         |> List.map (fun (ConnectionId c) -> model.Diagram.HighlightConnection c)
         |> ignore
         { model with Hilighted = (componentIds, connectionIds) }
+    | SetClipboard components -> { model with Clipboard = components }

@@ -31,6 +31,7 @@ type Model = {
     // track of the path, instead of reasking every time.
     OpenPath : string option
     Hilighted : ComponentId list * ConnectionId list
+    Clipboard : Component list
 }
 
 // -- Init Model
@@ -43,6 +44,7 @@ let init() = {
     RightTab = Catalogue
     OpenPath = None
     Hilighted = [], []
+    Clipboard = []
 }
 
 // -- Create View
@@ -69,6 +71,21 @@ let saveStateAction model dispatch =
 let loadStateAction model dispatch =
     dispatch <| SetHighlighted ([],[])
     loadStateFromFile model.Diagram |> SetOpenPath |> dispatch
+
+let copyAction model dispatch =
+    match model.Diagram.GetSelected () with
+    | None -> ()
+    | Some jsComponents ->
+        jsComponents
+        |> jsListToFSharpList
+        |> List.map extractComponent
+        |> SetClipboard
+        |> dispatch 
+
+let pasteAction model =
+    model.Clipboard
+    |> List.map model.Diagram.CloneComponent
+    |> ignore
 
 // Views
 
@@ -272,6 +289,8 @@ let displayView model dispatch =
             Button.button [ Button.Props [ OnClick (fun _ -> loadStateAction model dispatch) ] ] [ str "Load diagram" ]
             Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.Undo ()) ] ] [ str "Undo" ]
             Button.button [ Button.Props [ OnClick (fun _ -> model.Diagram.Redo ()) ] ] [ str "Redo" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> copyAction model dispatch) ] ] [ str "Copy" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> pasteAction model) ] ] [ str "Paste" ]
             div [] (prettyPrintState model.State)
         ]
     ]
@@ -318,3 +337,4 @@ let update msg model =
         |> List.map (fun (ConnectionId c) -> model.Diagram.HighlightConnection c)
         |> ignore
         { model with Hilighted = (componentIds, connectionIds) }
+    | SetClipboard components -> { model with Clipboard = components }

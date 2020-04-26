@@ -54,6 +54,7 @@ type private IDraw2d =
     abstract getAllJsConnections     : canvas:JSCanvas -> JSConnections
     abstract undoLastAction          : canvas:JSCanvas -> unit
     abstract redoLastAction          : canvas:JSCanvas -> unit
+    abstract getSelected             : canvas:JSCanvas -> JSComponents
 
 [<Import("*", "./draw2d_fsharp_interface.js")>]
 let private draw2dLib : IDraw2d = jsNative
@@ -226,6 +227,13 @@ type Draw2dWrapper() =
                 assertNotNull (draw2dLib.getPortById targetParentNode conn.Target.Id) "targetPort"
             createConnection c conn.Id conn.Vertices sourcePort targetPort
 
+    member this.CloneComponent (comp : Component) =
+        match canvas, dispatch with
+        | None, _ | _, None -> log "Warning: Draw2dWrapper.CloneComponent called when canvas or dispatch is None"
+        | Some c, Some d -> createComponent
+                                c d None comp.Type comp.Label
+                                None None (comp.X + 10) (comp.Y + 10)
+
     // For now only changes the label. TODO
     member this.EditComponent componentId newLabel = 
         match canvas with
@@ -283,3 +291,11 @@ type Draw2dWrapper() =
         match canvas with
         | None -> log "Warning: Draw2dWrapper.Redo called when canvas is None"
         | Some c -> draw2dLib.redoLastAction c
+
+    member this.GetSelected () =
+        match canvas with
+        | None ->
+            log "Warning: Draw2dWrapper.GetSelected called when canvas is None"
+            None
+        | Some c ->
+            Some <| draw2dLib.getSelected c

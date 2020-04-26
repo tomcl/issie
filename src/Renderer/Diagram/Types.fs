@@ -146,3 +146,4 @@ type Msg =
     | ChangeRightTab of RightTab
     | SetOpenPath of string option
     | SetHighlighted of ComponentId list * ConnectionId list
+    | SetClipboard of Component list

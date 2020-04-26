@@ -210,6 +210,16 @@ function redoLastAction(canvas) {
     canvas.getCommandStack().redo();
 }
 
+function getSelected (canvas) {
+    let components = [];
+    canvas.getSelection().each( (i, figure) => {
+        if (figure instanceof draw2d.shape.digital) {
+            components.push(figure);
+        }
+    })
+    return components;
+}
+
 export {
     createCanvas,
     initialiseCanvas,
@@ -246,4 +256,5 @@ export {
     getAllJsConnections,
     undoLastAction,
     redoLastAction,
+    getSelected,
 };

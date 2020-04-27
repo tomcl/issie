@@ -178,6 +178,17 @@ function createDigitalMux2(x, y) {
     return new draw2d.shape.digital.Mux2({x:x,y:y,resizeable:false});
 }
 
+function createDigitalCustom(x, y, name, inputs, outputs) {
+    return new draw2d.shape.digital.Custom({
+        x: x,
+        y: y,
+        resizeable: false,
+        name: name,
+        inputs: inputs,
+        outputs: outputs,
+    });
+}
+
 function getComponentById(canvas, id) {
     return canvas.getFigures().find(function(comp) {
         return comp.id === id;
@@ -264,6 +275,7 @@ export {
     createDigitalNor,
     createDigitalXnor,
     createDigitalMux2,
+    createDigitalCustom,
     createDigitalConnection,
     getComponentById,
     getConnectionById,

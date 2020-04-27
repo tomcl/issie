@@ -7,7 +7,7 @@
  * - shapes that will form the svg element
  * - userData (data accessible from the outside), containing at least:
  *   - componentType : string (e.g. "Not", "And", "Mux2", ...)
- * 
+ * TODO: it is no longer necessary to use UserData, remove it.
  * If necessary it is possible to override the portLocator class.
  */
 
@@ -317,8 +317,65 @@ draw2d.shape.digital.Mux2 = draw2d.shape.digital.extend({
 
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
-        this.createPort("input", new draw2d.layout.locator.XYRelPortLocator(50, 90)); // TODO: does not work when reloading the diagram from file: https://github.com/freegroup/draw2d/issues/63
+        this.createPort("input", new draw2d.layout.locator.XYRelPortLocator(50, 90));
         this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
     },
 });
 
+
+draw2d.shape.digital.Custom = draw2d.shape.digital.extend({
+
+    NAME:"draw2d.shape.digital.Custom",
+
+    svgHeight : 0,
+    svgWidth : 0,
+    svgElements : [],
+
+    maxStringLen: function(arr) {
+        let max = 0;
+        for (let i = 0; i < arr.length; i++) {
+            max = Math.max(max, arr[i].length);
+        }
+        return max;
+    },
+
+    init: function(attr, setter, getter){
+        this._super(attr, setter, getter);
+        const inputs = attr.inputs;   // List of strings.
+        const outputs = attr.outputs; // List of strings.
+        const name = attr.name; // String.
+
+        this.setUserData({
+            componentType : "Custom",
+            customComponentName : name,
+        });
+
+        const portSpace = 30;
+        const padding = 7;
+        const fontHeight = 10;
+        const fontWidth = 6;
+        this.svgHeight = Math.max(inputs.length, outputs.length) * portSpace;
+        this.svgWidth = Math.max(50, (this.maxStringLen(inputs) + this.maxStringLen(outputs)) * fontWidth + 30 )
+
+        this.svgElements = [
+            {path: `<rect height="${this.svgHeight}" width="${this.svgWidth}" stroke="black" stroke-width="1" fill="lightgray"/>`, toFill: true}
+        ]
+
+        for (let i = 0; i < inputs.length; i++) {
+            this.createPort("input", new draw2d.layout.locator.InputPortLocator());
+            const x = padding;
+            const y = this.svgHeight / (inputs.length + 1) * (i + 1) - fontHeight / 2;
+            this.svgElements.push(
+                {path: `<text x="${x}" y="${y}" fill="black" font-family="monospace">${inputs[i]}</text>`, toFill: false}
+            );
+        }
+        for (let i = 0; i < outputs.length; i++) {
+            this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
+            const x = this.svgWidth - padding - fontWidth * outputs[i].length;
+            const y = this.svgHeight / (outputs.length + 1) * (i + 1) - fontHeight / 2;
+            this.svgElements.push(
+                {path: `<text x="${x}" y="${y}" fill="black" font-family="monospace">${outputs[i]}</text>`, toFill: false}
+            );
+        }
+    },
+});

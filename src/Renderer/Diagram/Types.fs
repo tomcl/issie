@@ -37,6 +37,7 @@ type ComponentType =
     | Input | Output
     | Not | And | Or | Xor | Nand | Nor | Xnor
     | Mux2
+    | Custom of string * string list * string list
 
 // JSComponent mapped to f# object.
 type Component = {

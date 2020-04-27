@@ -69,8 +69,17 @@ let saveStateAction model dispatch =
                     |> dispatch 
 
 let loadStateAction model dispatch =
-    dispatch <| SetHighlighted ([],[])
-    loadStateFromFile model.Diagram |> SetOpenPath |> dispatch
+    match loadStateFromFile () with
+    | None -> ()
+    | Some (path, canvasState) ->
+        dispatch <| SetHighlighted ([],[]) // Remove current highlights.
+        model.Diagram.FlushCommandStack () // Discard all undo/redo.
+        model.Diagram.ClearCanvas()
+        Some path |> SetOpenPath |> dispatch // Set the new filepath.
+        // Finally load the new state in the canvas.
+        let components, connections = canvasState
+        List.map model.Diagram.LoadComponent components |> ignore
+        List.map (model.Diagram.LoadConnection true) connections |> ignore
 
 let copyAction model dispatch =
     match model.Diagram.GetSelected () with

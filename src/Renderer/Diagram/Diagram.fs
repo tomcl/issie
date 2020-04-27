@@ -142,6 +142,14 @@ let viewCatalogue model =
             Menu.label [ ] [ str "Mux / Demux" ]
             Menu.list []
                 [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "mux2" 100 100 |> ignore) ]
+            Menu.label [ ] [ str "Custom" ]
+            Menu.list [] // TODO
+                [ menuItem "Custom" (fun _ ->
+                    model.Diagram.CreateComponent
+                        (Custom ("test", ["A"; "B"; "C"], ["D"; "E"; "F"; "G"]))
+                        "custom-label" 100 100
+                    |> ignore
+                ) ]
         ]
 
 let viewSelectedComponent model =

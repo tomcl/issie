@@ -51,6 +51,7 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     | "Nor"    -> Nor
     | "Xnor"   -> Xnor
     | "Mux2"   -> Mux2
+    | "Custom" -> Custom (getFailIfNull jsComponent ["userData"; "customComponentName"], [], []) // TODO
     | ct -> failwithf "what? Component type %s does not exist" ct
 
 let private extractVertices (jsVertices : JSVertices) : (float * float) list =

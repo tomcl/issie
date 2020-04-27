@@ -53,6 +53,7 @@ draw2d.shape.digital.Input = draw2d.shape.digital.extend({
 
     NAME:"draw2d.shape.digital.Input",
 
+    componentType : "Input",
     svgHeight : 20,
     svgWidth : 30,
     svgElements : [
@@ -66,10 +67,6 @@ draw2d.shape.digital.Input = draw2d.shape.digital.extend({
             getter
         );
 
-        this.setUserData({
-            componentType : "Input",
-        });
-
         this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
     },
 });
@@ -78,6 +75,7 @@ draw2d.shape.digital.Output = draw2d.shape.digital.extend({
 
     NAME:"draw2d.shape.digital.Output",
 
+    componentType : "Output", 
     svgHeight : 20,
     svgWidth : 30,
     svgElements : [
@@ -91,10 +89,6 @@ draw2d.shape.digital.Output = draw2d.shape.digital.extend({
             getter
         );
 
-        this.setUserData({
-            componentType : "Output",
-        });
-
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
     },
 });
@@ -103,6 +97,7 @@ draw2d.shape.digital.Not = draw2d.shape.digital.extend({
 
     NAME:"draw2d.shape.digital.Not",
 
+    componentType : "Not",
     svgHeight : 30,
     svgWidth : 30,
     svgElements : [
@@ -117,10 +112,6 @@ draw2d.shape.digital.Not = draw2d.shape.digital.extend({
             getter
         );
 
-        this.setUserData({
-            componentType : "Not",
-        });
-
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
     },
@@ -130,6 +121,7 @@ draw2d.shape.digital.And = draw2d.shape.digital.extend({
 
     NAME:"draw2d.shape.digital.And",
 
+    componentType : "And",
     svgHeight : 40,
     svgWidth : 40,
     svgElements : [
@@ -143,10 +135,6 @@ draw2d.shape.digital.And = draw2d.shape.digital.extend({
             getter
         );
 
-        this.setUserData({
-            componentType : "And",
-        });
-
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
@@ -157,6 +145,7 @@ draw2d.shape.digital.Or = draw2d.shape.digital.extend({
 
     NAME:"draw2d.shape.digital.Or",
 
+    componentType : "Or",
     svgHeight : 40,
     svgWidth : 40,
     svgElements : [
@@ -170,10 +159,6 @@ draw2d.shape.digital.Or = draw2d.shape.digital.extend({
             getter
         );
 
-        this.setUserData({
-            componentType : "Or",
-        });
-
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
@@ -184,6 +169,7 @@ draw2d.shape.digital.Xor = draw2d.shape.digital.extend({
 
     NAME:"draw2d.shape.digital.Xor",
 
+    componentType : "Xor",
     svgHeight : 40,
     svgWidth : 40,
     svgElements : [
@@ -198,10 +184,6 @@ draw2d.shape.digital.Xor = draw2d.shape.digital.extend({
             getter
         );
 
-        this.setUserData({
-            componentType : "Xor",
-        });
-
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
@@ -212,6 +194,7 @@ draw2d.shape.digital.Nand = draw2d.shape.digital.extend({
 
     NAME:"draw2d.shape.digital.Nand",
 
+    componentType : "Nand",
     svgHeight : 40,
     svgWidth : 50,
     svgElements : [
@@ -226,10 +209,6 @@ draw2d.shape.digital.Nand = draw2d.shape.digital.extend({
             getter
         );
 
-        this.setUserData({
-            componentType : "Nand",
-        });
-
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
@@ -240,6 +219,7 @@ draw2d.shape.digital.Nor = draw2d.shape.digital.extend({
 
     NAME:"draw2d.shape.digital.Nor",
 
+    componentType : "Nor",
     svgHeight : 40,
     svgWidth : 48,
     svgElements : [
@@ -254,10 +234,6 @@ draw2d.shape.digital.Nor = draw2d.shape.digital.extend({
             getter
         );
 
-        this.setUserData({
-            componentType : "Nor",
-        });
-
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
@@ -268,6 +244,7 @@ draw2d.shape.digital.Xnor = draw2d.shape.digital.extend({
 
     NAME:"draw2d.shape.digital.Xnor",
 
+    componentType : "Xnor",
     svgHeight : 40,
     svgWidth : 48,
     svgElements : [
@@ -283,10 +260,6 @@ draw2d.shape.digital.Xnor = draw2d.shape.digital.extend({
             getter
         );
 
-        this.setUserData({
-            componentType : "Xnor",
-        });
-
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
@@ -298,6 +271,7 @@ draw2d.shape.digital.Mux2 = draw2d.shape.digital.extend({
 
     NAME:"draw2d.shape.digital.Mux2",
 
+    componentType : "Mux2",
     svgHeight : 50,
     svgWidth : 30,
     svgElements : [
@@ -311,10 +285,6 @@ draw2d.shape.digital.Mux2 = draw2d.shape.digital.extend({
             getter
         );
 
-        this.setUserData({
-            componentType : "Mux2",
-        });
-
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("input", new draw2d.layout.locator.InputPortLocator());
         this.createPort("input", new draw2d.layout.locator.XYRelPortLocator(50, 90));
@@ -327,6 +297,7 @@ draw2d.shape.digital.Custom = draw2d.shape.digital.extend({
 
     NAME:"draw2d.shape.digital.Custom",
 
+    componentType : "Custom",
     svgHeight : 0,
     svgWidth : 0,
     svgElements : [],
@@ -341,41 +312,42 @@ draw2d.shape.digital.Custom = draw2d.shape.digital.extend({
 
     init: function(attr, setter, getter){
         this._super(attr, setter, getter);
-        const inputs = attr.inputs;   // List of strings.
-        const outputs = attr.outputs; // List of strings.
-        const name = attr.name; // String.
-
-        this.setUserData({
-            componentType : "Custom",
-            customComponentName : name,
-        });
+        this.inputs = attr.inputs;   // List of strings.
+        this.outputs = attr.outputs; // List of strings.
+        this.customComponentName = attr.name; // String.
 
         const portSpace = 30;
         const padding = 7;
         const fontHeight = 10;
         const fontWidth = 6;
-        this.svgHeight = Math.max(inputs.length, outputs.length) * portSpace;
-        this.svgWidth = Math.max(50, (this.maxStringLen(inputs) + this.maxStringLen(outputs)) * fontWidth + 30 )
+        this.svgHeight = Math.max(this.inputs.length, this.outputs.length) * portSpace;
+        this.svgWidth = Math.max(
+            50,
+            30 + (this.maxStringLen(this.inputs) + this.maxStringLen(this.outputs)) * fontWidth
+        )
 
-        this.svgElements = [
-            {path: `<rect height="${this.svgHeight}" width="${this.svgWidth}" stroke="black" stroke-width="1" fill="lightgray"/>`, toFill: true}
-        ]
+        this.svgElements = [{
+            path: `<rect height="${this.svgHeight}" width="${this.svgWidth}" stroke="black" stroke-width="1" fill="lightgray"/>`,
+            toFill: true
+        }]
 
-        for (let i = 0; i < inputs.length; i++) {
+        for (let i = 0; i < this.inputs.length; i++) {
             this.createPort("input", new draw2d.layout.locator.InputPortLocator());
             const x = padding;
-            const y = this.svgHeight / (inputs.length + 1) * (i + 1) - fontHeight / 2;
-            this.svgElements.push(
-                {path: `<text x="${x}" y="${y}" fill="black" font-family="monospace">${inputs[i]}</text>`, toFill: false}
-            );
+            const y = this.svgHeight / (this.inputs.length + 1) * (i + 1) - fontHeight / 2;
+            this.svgElements.push({
+                path: `<text x="${x}" y="${y}" fill="black" font-family="monospace">${this.inputs[i]}</text>`,
+                toFill: false
+            });
         }
-        for (let i = 0; i < outputs.length; i++) {
+        for (let i = 0; i < this.outputs.length; i++) {
             this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
-            const x = this.svgWidth - padding - fontWidth * outputs[i].length;
-            const y = this.svgHeight / (outputs.length + 1) * (i + 1) - fontHeight / 2;
-            this.svgElements.push(
-                {path: `<text x="${x}" y="${y}" fill="black" font-family="monospace">${outputs[i]}</text>`, toFill: false}
-            );
+            const x = this.svgWidth - padding - fontWidth * this.outputs[i].length;
+            const y = this.svgHeight / (this.outputs.length + 1) * (i + 1) - fontHeight / 2;
+            this.svgElements.push({
+                path: `<text x="${x}" y="${y}" fill="black" font-family="monospace">${this.outputs[i]}</text>`,
+                toFill: false
+            });
         }
     },
 });

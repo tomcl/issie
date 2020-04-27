@@ -2,6 +2,7 @@ module StateIO
 
 open DiagramTypes
 
+open Fable.Core
 open Fable.Core.JsInterop
 open Fable.Import
 open Fable.Import.Electron
@@ -35,17 +36,17 @@ let private writeStateToPath filePath state =
 
 /// Extract the labels of the inputs and outputs nodes.
 /// TODO: should this also extract the port ids?
-//let private parseDiagramSignature canvasState : string list * string list =
-//    let rec extractIO components inputs outputs =
-//        match components with
-//        | [] -> inputs, outputs
-//        | comp :: components' ->
-//            match comp.Type with
-//            | Input  -> extractIO components' (comp.Label :: inputs) outputs
-//            | Output -> extractIO components' inputs (comp.Label :: outputs)
-//            | _ -> extractIO components' inputs outputs
-//    let components, _ = canvasState
-//    extractIO components [] []
+let private parseDiagramSignature canvasState : string list * string list =
+    let rec extractIO components inputs outputs =
+        match components with
+        | [] -> inputs, outputs
+        | comp :: components' ->
+            match comp.Type with
+            | Input  -> extractIO components' (comp.Label :: inputs) outputs
+            | Output -> extractIO components' inputs (comp.Label :: outputs)
+            | _ -> extractIO components' inputs outputs
+    let components, _ = canvasState
+    extractIO components [] []
 
 /// Save the state to a file and return the path where it was saved.
 /// TODO: handle errors?
@@ -76,5 +77,30 @@ let loadStateFromFile () =
                | [path] -> Some (path, loadStateFromPath path)
                | _ -> Option.None
 
-//let parseAllDiagramsInFolder folderPath =
-//    fs.
+let private getFileExtension (filePath : string ) : string =
+    match filePath.Split '.' |> Seq.toList with
+    | [] -> failwithf "what? split at . in a filename should never return empty list"
+    | [_] -> "" // No dots found.
+    | splits -> splits.[splits.Length - 1]
+
+/// All that is before the extension.
+let private getFileBaseName (filePath : string ) : string =
+    match filePath.Split '.' |> Seq.toList with
+    | [] -> failwithf "what? split at . in a filename should never return empty list"
+    | [baseName] -> baseName // No dots found.
+    | splits -> ("", [0..splits.Length - 2]) ||> List.fold (fun baseName i ->
+        baseName + splits.[i]
+    )
+
+let parseAllDiagramsInFolder (folderPath : string) =
+    fs.readdirSync (U2.Case1 folderPath)
+    |> Seq.toList
+    |> List.filter (getFileExtension >> ((=) "dgm"))
+    |> List.map (
+        (fun fileName -> getFileBaseName fileName, loadStateFromPath <| folderPath + fileName)
+        >>
+        (fun (fileName, state) ->
+            let inputs, outputs = parseDiagramSignature state
+            fileName, inputs, outputs
+        )
+    )

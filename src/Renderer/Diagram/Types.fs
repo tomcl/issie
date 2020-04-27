@@ -148,3 +148,4 @@ type Msg =
     | SetOpenPath of string option
     | SetHighlighted of ComponentId list * ConnectionId list
     | SetClipboard of CanvasState
+    | SetCustomComponents of (string * string list * string list) list // TODO: make this legit.

@@ -32,6 +32,7 @@ type Model = {
     OpenPath : string option
     Hilighted : ComponentId list * ConnectionId list
     Clipboard : CanvasState // Components and connections that have been selected and copied.
+    CustomComponents : (string * string list * string list) list // TODO make this type legit.
 }
 
 // -- Init Model
@@ -45,6 +46,7 @@ let init() = {
     OpenPath = None
     Hilighted = [], []
     Clipboard = [], []
+    CustomComponents = []
 }
 
 // -- Create View
@@ -80,6 +82,12 @@ let loadStateAction model dispatch =
         let components, connections = canvasState
         List.map model.Diagram.LoadComponent components |> ignore
         List.map (model.Diagram.LoadConnection true) connections |> ignore
+
+// TODO replace this with an openProject logic.
+let loadComponentsFromFolder dispatch =
+    (parseAllDiagramsInFolder "/home/marco/Documents/Imperial/FYP/diagrams/")
+    |> SetCustomComponents
+    |> dispatch
 
 let copyAction model dispatch =
     match model.Diagram.GetSelected () with
@@ -123,7 +131,7 @@ let pasteAction model =
         ||> List.map2 mapPorts
         |> List.collect id
         |> Map.ofList
-    oldConnections // TODO
+    oldConnections
     |> List.map ((mapToNewConnection portMappings) >> (model.Diagram.LoadConnection false))
     |> ignore
 
@@ -134,6 +142,13 @@ let viewCatalogue model =
         Menu.Item.li
             [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick ] ]
             [ str label ]
+    let makeCustom (name, inputs, outputs) =
+        menuItem name (fun _ ->
+            model.Diagram.CreateComponent
+                (Custom (name, inputs, outputs))
+                name 100 100
+            |> ignore
+        )
     Menu.menu [ ] [
             Menu.label [ ] [ str "Input / Output" ]
             Menu.list []
@@ -152,13 +167,8 @@ let viewCatalogue model =
             Menu.list []
                 [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "mux2" 100 100 |> ignore) ]
             Menu.label [ ] [ str "Custom" ]
-            Menu.list [] // TODO
-                [ menuItem "Custom" (fun _ ->
-                    model.Diagram.CreateComponent
-                        (Custom ("test", ["A"; "B"; "C"], ["D"; "E"; "F"; "G"]))
-                        "custom-label" 100 100
-                    |> ignore
-                ) ]
+            Menu.list []
+                (model.CustomComponents |> List.map makeCustom)
         ]
 
 let viewSelectedComponent model =
@@ -341,6 +351,7 @@ let displayView model dispatch =
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
             Button.button [ Button.Props [ OnClick (fun _ -> saveStateAction model dispatch ) ] ] [ str "Save diagram" ]
             Button.button [ Button.Props [ OnClick (fun _ -> loadStateAction model dispatch) ] ] [ str "Load diagram" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> loadComponentsFromFolder dispatch) ] ] [ str "Load components" ]
             div [] (prettyPrintState model.State)
         ]
     ]
@@ -388,3 +399,4 @@ let update msg model =
         |> ignore
         { model with Hilighted = (componentIds, connectionIds) }
     | SetClipboard components -> { model with Clipboard = components }
+    | SetCustomComponents cc -> { model with CustomComponents = cc }

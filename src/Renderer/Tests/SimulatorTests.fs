@@ -7,9 +7,10 @@ type private SimulatorTestCaseInput = CanvasState * LoadedComponent list * (Comp
 type private SimulatorTestCaseOutput = Result<((ComponentId * ComponentLabel) * Bit) list, SimulationError>
 type private SimulatorTestCase = string * SimulatorTestCaseInput * SimulatorTestCaseOutput
 
-let private makeError msg comps conns =
+let private makeError msg deps comps conns =
     Error {
         Msg = msg
+        InDependency = deps
         ComponentsAffected = comps |> List.map ComponentId
         ConnectionsAffected = conns |> List.map ConnectionId
     }
@@ -26,6 +27,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
     (state1, [], []),
     makeError
         "All ports must have at least one connection."
+        None
         ["input-node0"]
         []
 
@@ -33,6 +35,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
     (state2, [], []),
     makeError
         "All ports must have at least one connection."
+        None
         ["input-node0"]
         []
 
@@ -40,6 +43,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
     (state5, [], []),
     makeError
         "Input port receives 2 connections. An input port should receive precisely one connection."
+        None
         ["output-node0"]
         []
 
@@ -47,6 +51,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
     (state7, [], []),
     makeError
         "Input port receives 2 connections. An input port should receive precisely one connection."
+        None
         ["output"]
         []
 
@@ -54,6 +59,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
     (state8, [], []),
     makeError
         "Input port receives 2 connections. An input port should receive precisely one connection."
+        None
         ["and"]
         []
 
@@ -61,6 +67,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
     (state9, [], []),
     makeError
         "All ports must have at least one connection."
+        None
         ["mux"]
         []
 ]
@@ -70,6 +77,7 @@ let private testCasesSimulatorCycleError : SimulatorTestCase list = [
     (state10, [], []),
     makeError
         "Cycle detected in combinatorial logic"
+        None
         ["and2"; "and0"]
         ["conn5"; "conn4"]
 
@@ -77,6 +85,7 @@ let private testCasesSimulatorCycleError : SimulatorTestCase list = [
     (state11, [], []),
     makeError
         "Cycle detected in combinatorial logic"
+        None
         ["and1"; "and2"; "and0"]
         ["conn1"; "conn5"; "conn3"]
 ]

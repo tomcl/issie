@@ -37,7 +37,10 @@ let private writeStateToPath filePath state =
 /// Extract the labels of the inputs and outputs nodes.
 /// TODO: should this also extract the port ids?
 let private parseDiagramSignature canvasState : string list * string list =
-    let rec extractIO components inputs outputs =
+    let rec extractIO
+            (components : Component list)
+            (inputs : string list)
+            (outputs : string list) =
         match components with
         | [] -> inputs, outputs
         | comp :: components' ->

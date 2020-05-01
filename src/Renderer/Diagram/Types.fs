@@ -131,6 +131,7 @@ type SimulationData = {
 
 type SimulationError = {
     Msg : string
+    InDependency : string option
     ComponentsAffected : ComponentId list
     ConnectionsAffected : ConnectionId list
 }

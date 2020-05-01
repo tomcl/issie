@@ -122,14 +122,18 @@ let private getReducer
     | Nand -> getBinaryGateReducer bitNand Nand
     | Nor  -> getBinaryGateReducer bitNor Nor
     | Xnor -> getBinaryGateReducer bitXnor Xnor
-    | Mux2 -> fun inputs ->
-        assertNotTooManyInputs inputs componentType 3
-        match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
-        | None -> None // Wait for more inputs.
-        | Some [bit0; bit1; bitSelect] ->
-            let out = if bitSelect = Zero then bit0 else bit1
-            Some <| Map.empty.Add (OutputPortNumber 0, out)
-        | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
+    | Mux2 ->
+        fun inputs ->
+            assertNotTooManyInputs inputs componentType 3
+            match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
+            | None -> None // Wait for more inputs.
+            | Some [bit0; bit1; bitSelect] ->
+                let out = if bitSelect = Zero then bit0 else bit1
+                Some <| Map.empty.Add (OutputPortNumber 0, out)
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
+    | Custom c ->
+        fun inputs ->
+            failwithf "what? Custom components used during a simulation: %A" c
 
 /// Build a map that, for each source port in the connections, keeps track of
 /// the ports it targets.

@@ -52,11 +52,11 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     | "Xnor"   -> Xnor
     | "Mux2"   -> Mux2
     | "Custom" ->
-        Custom (
-            getFailIfNull jsComponent ["customComponentName"],
-            jsListToFSharpList (getFailIfNull jsComponent ["inputs"]),
-            jsListToFSharpList (getFailIfNull jsComponent ["outputs"])
-        )
+        Custom {
+            Name         = getFailIfNull jsComponent ["customComponentName"]
+            InputLabels  = jsListToFSharpList (getFailIfNull jsComponent ["inputs"])
+            OutputLabels = jsListToFSharpList (getFailIfNull jsComponent ["outputs"])
+        }
     | ct -> failwithf "what? Component type %s does not exist" ct
 
 let private extractVertices (jsVertices : JSVertices) : (float * float) list =

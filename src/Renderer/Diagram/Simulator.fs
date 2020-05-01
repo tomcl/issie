@@ -131,11 +131,11 @@ let private getReducer
             Some <| Map.empty.Add (OutputPortNumber 0, out)
         | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
 
-/// Build a map that, for each source port in the connections, keep track of
+/// Build a map that, for each source port in the connections, keeps track of
 /// the ports it targets.
 /// It makes no sense to extract the PortNumber in this function as it is always
 /// set to None for ports in connections.
-let private buildSourceToTargetPort
+let private buildSourceToTargetPortMap
         (connections : Connection list)
         : Map<OutputPortId, (ComponentId * InputPortId) list> =
     (Map.empty, connections) ||> List.fold (fun map conn ->
@@ -194,9 +194,9 @@ let private buildSimulationComponent
     }
 
 /// Transforms a canvas state into a simulation graph.
-let buildSimulationGraph (canvasState : CanvasState) : SimulationGraph =
+let private buildSimulationGraph (canvasState : CanvasState) : SimulationGraph =
     let components, connections = canvasState
-    let sourceToTargetPort = buildSourceToTargetPort connections
+    let sourceToTargetPort = buildSourceToTargetPortMap connections
     let portIdToPortNumber = mapInputPortIdToPortNumber components
     let mapper = buildSimulationComponent sourceToTargetPort portIdToPortNumber
     components

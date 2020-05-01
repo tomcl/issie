@@ -27,10 +27,12 @@ let checkPortTypesAreConsistent (canvasState : CanvasState) : SimulationError op
         | [] -> None
         | port :: _ when port.PortNumber = None -> Some {
             Msg = sprintf "%A port appears to not have a port number" correctType
+            InDependency = None
             ComponentsAffected = [ComponentId port.HostId]
             ConnectionsAffected = [] }
         | port :: _ when port.PortType <> correctType -> Some {
             Msg = sprintf "%A port %d appears to be an %A port" correctType (Option.get port.PortNumber) port.PortType
+            InDependency = None
             ComponentsAffected = [ComponentId port.HostId]
             ConnectionsAffected = [] }
         | _ :: ports' ->
@@ -49,10 +51,12 @@ let checkPortTypesAreConsistent (canvasState : CanvasState) : SimulationError op
         match port.PortType = correctType, port.PortNumber with
         | false, _ -> Some {
             Msg = sprintf "%A port appears to be an %A port" correctType port.PortType
+            InDependency = None
             ComponentsAffected = [ComponentId port.HostId]
             ConnectionsAffected = [ConnectionId connId] }
         | _, Some pNumber -> Some {
             Msg = sprintf "%A port appears to have a port number: %d" correctType pNumber
+            InDependency = None
             ComponentsAffected = [ComponentId port.HostId]
             ConnectionsAffected = [ConnectionId connId] }
         | true, None -> None // All right.
@@ -123,10 +127,12 @@ let private checkEvery
             | true -> None
             | false when count = 0 -> Some {
                 Msg = "All ports must have at least one connection."
+                InDependency = None
                 ComponentsAffected = [componentId]
                 ConnectionsAffected = [] }
             | false -> Some {
                 Msg = sprintf errMsg count 
+                InDependency = None
                 ComponentsAffected = [componentId]
                 ConnectionsAffected = [] }
     )
@@ -249,6 +255,7 @@ let private checkCombinatorialCycle
             | NoCycle visited -> checkGraphForest nodeIds' visited
             | Cycle cycle -> Some {
                 Msg = "Cycle detected in combinatorial logic"
+                InDependency = None
                 ComponentsAffected = cycle
                 ConnectionsAffected = calculateConnectionsAffected connections cycle }
             | Backtracking (c, ce) -> failwithf "what? Dfs should never terminate while backtracking: %A" (c, ce)

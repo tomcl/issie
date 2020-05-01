@@ -269,9 +269,19 @@ let viewSimulationOutputs (simOutputs : (SimulationIO * Bit) list) =
 let viewSimulationError (simError : SimulationError) dispatch =
     (simError.ComponentsAffected, simError.ConnectionsAffected)
     |> SetHighlighted |> dispatch
+    let error = 
+        match simError.InDependency with
+        | None -> str simError.Msg
+        | Some dep -> div [] [
+            str <| "Error found in dependency " + dep + ":"
+            br []
+            str simError.Msg
+            br []
+            str <| "Please fix the error in the dependency and retry."
+        ]
     div [] [
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Errors" ]
-        str simError.Msg
+        error
     ]
 
 let viewSimulationData (simData : SimulationData) dispatch =

@@ -21,7 +21,6 @@ type JSCanvasState = JSComponent list * JSConnection list
 
 // Specify the position and type of a port in a JSComponent.
 type PortType = Input | Output
-type PortLocation = Left | Right | Top | Bottom // TODO: remove.
 
 type Port = {
     Id : string
@@ -32,12 +31,18 @@ type Port = {
     HostId : string
 }
 
+type CustomComponentType = {
+    Name: string
+    InputLabels: string list
+    OutputLabels: string list 
+}
+
 // Types instantiating objects in the Digital extension.
 type ComponentType =
     | Input | Output
     | Not | And | Or | Xor | Nand | Nor | Xnor
     | Mux2
-    | Custom of string * string list * string list
+    | Custom of CustomComponentType
 
 // JSComponent mapped to f# object.
 type Component = {
@@ -61,6 +66,18 @@ type Connection = {
 }
 
 type CanvasState   = Component list * Connection list
+
+//================================//
+// Componenents loaded from files //
+//================================//
+
+type LoadedComponent = {
+    Name: string
+    FilePath : string
+    InputLabels : string list
+    OutputLabels : string list
+    CanvasState : CanvasState
+}
 
 //==========================//
 // Types for the simulation //
@@ -148,4 +165,4 @@ type Msg =
     | SetOpenPath of string option
     | SetHighlighted of ComponentId list * ConnectionId list
     | SetClipboard of CanvasState
-    | SetCustomComponents of (string * string list * string list) list // TODO: make this legit.
+    | SetLoadedComponents of LoadedComponent list

@@ -93,14 +93,17 @@ let private getFileBaseName (filePath : string ) : string =
     )
 
 let parseAllDiagramsInFolder (folderPath : string) =
+    let loadComponent fileName =
+        let state = loadStateFromPath <| folderPath + fileName
+        let inputs, outputs = parseDiagramSignature state
+        {
+            Name = getFileBaseName fileName
+            InputLabels = inputs
+            OutputLabels = outputs
+            FilePath = folderPath + fileName
+            CanvasState = state
+        }
     fs.readdirSync (U2.Case1 folderPath)
     |> Seq.toList
     |> List.filter (getFileExtension >> ((=) "dgm"))
-    |> List.map (
-        (fun fileName -> getFileBaseName fileName, loadStateFromPath <| folderPath + fileName)
-        >>
-        (fun (fileName, state) ->
-            let inputs, outputs = parseDiagramSignature state
-            fileName, inputs, outputs
-        )
-    )
+    |> List.map loadComponent

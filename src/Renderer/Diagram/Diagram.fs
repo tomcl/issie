@@ -32,7 +32,7 @@ type Model = {
     OpenPath : string option
     Hilighted : ComponentId list * ConnectionId list
     Clipboard : CanvasState // Components and connections that have been selected and copied.
-    CustomComponents : (string * string list * string list) list // TODO make this type legit.
+    LoadedComponents : LoadedComponent list
 }
 
 // -- Init Model
@@ -46,7 +46,7 @@ let init() = {
     OpenPath = None
     Hilighted = [], []
     Clipboard = [], []
-    CustomComponents = []
+    LoadedComponents = []
 }
 
 // -- Create View
@@ -86,7 +86,7 @@ let loadStateAction model dispatch =
 // TODO replace this with an openProject logic.
 let loadComponentsFromFolder dispatch =
     (parseAllDiagramsInFolder "/home/marco/Documents/Imperial/FYP/diagrams/")
-    |> SetCustomComponents
+    |> SetLoadedComponents
     |> dispatch
 
 let copyAction model dispatch =
@@ -94,6 +94,9 @@ let copyAction model dispatch =
     | None -> ()
     | Some jsState -> extractState jsState |> SetClipboard |> dispatch
 
+/// Map the port Ids of the old component to the equivalent Ports of the new
+/// component. For example, if the component is a Not, the mapping will have two
+/// entries, the input port and the output port.
 let mapPorts (oldComp : Component) (newComp : Component) : (string * Port) list =
     let mapPort oldPort newPort =
         assertThat (oldPort.PortNumber = newPort.PortNumber) <| "cloned components have different port numbers"
@@ -106,12 +109,13 @@ let mapPorts (oldComp : Component) (newComp : Component) : (string * Port) list 
     let outputs = (oldComp.OutputPorts, newComp.OutputPorts) ||> List.map2 mapPort
     inputs @ outputs
 
+/// Transform a connection replacing the ports using the provided mapping.
 let mapToNewConnection (portMappings : Map<string,Port>) oldConnection : Connection =
     let mapGet pId = match portMappings.TryFind pId with
                      | None -> failwithf "what? Could not find port Id %s while cloning" pId
                      | Some port -> port
     {
-        Id = ""
+        Id = "" // This will be ignored and replaced with an actual new Id.
         Source = { (mapGet oldConnection.Source.Id) with PortNumber = None }
         Target = { (mapGet oldConnection.Target.Id) with PortNumber = None }
         Vertices = oldConnection.Vertices |> List.map (fun (x,y)->x+30.0,y+30.0)
@@ -119,20 +123,27 @@ let mapToNewConnection (portMappings : Map<string,Port>) oldConnection : Connect
 
 let pasteAction model =
     let oldComponents, oldConnections = model.Clipboard
+    // Copy the old components and add them to the diagram.
     let newComponents =
         oldComponents
         |> List.map ((fun comp ->
             match model.Diagram.CreateComponent comp.Type comp.Label (comp.X+30) (comp.Y+30) with
             | None -> failwithf "what? Could not paste component %A" comp
             | Some jsComp -> jsComp) >> extractComponent)
-    // Map the old ports to the new ports, to replace them in the connections.
+    // The new (copied) components have been added to the diagram, now we need
+    // to copy the connections among them.
+
+    // Map the old components' ports to the new components' ports.
     let portMappings =
         (oldComponents, newComponents)
         ||> List.map2 mapPorts
         |> List.collect id
         |> Map.ofList
+    // Iterate over the old connections replacing the ports to refer to the new
+    // components, and add the newly created connections to the diagram.
     oldConnections
-    |> List.map ((mapToNewConnection portMappings) >> (model.Diagram.LoadConnection false))
+    |> List.map ((mapToNewConnection portMappings) >>
+                 (model.Diagram.LoadConnection false))
     |> ignore
 
 // Views
@@ -142,11 +153,14 @@ let viewCatalogue model =
         Menu.Item.li
             [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick ] ]
             [ str label ]
-    let makeCustom (name, inputs, outputs) =
-        menuItem name (fun _ ->
-            model.Diagram.CreateComponent
-                (Custom (name, inputs, outputs))
-                name 100 100
+    let makeCustom loadedComponent =
+        menuItem loadedComponent.Name (fun _ ->
+            let custom = Custom {
+                Name = loadedComponent.Name
+                InputLabels = loadedComponent.InputLabels
+                OutputLabels = loadedComponent.OutputLabels
+            }
+            model.Diagram.CreateComponent custom loadedComponent.Name 100 100
             |> ignore
         )
     Menu.menu [ ] [
@@ -168,7 +182,7 @@ let viewCatalogue model =
                 [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "mux2" 100 100 |> ignore) ]
             Menu.label [ ] [ str "Custom" ]
             Menu.list []
-                (model.CustomComponents |> List.map makeCustom)
+                (model.LoadedComponents |> List.map makeCustom)
         ]
 
 let viewSelectedComponent model =
@@ -399,4 +413,4 @@ let update msg model =
         |> ignore
         { model with Hilighted = (componentIds, connectionIds) }
     | SetClipboard components -> { model with Clipboard = components }
-    | SetCustomComponents cc -> { model with CustomComponents = cc }
+    | SetLoadedComponents lc -> { model with LoadedComponents = lc }

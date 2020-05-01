@@ -89,20 +89,22 @@ let private createComponent
         (x : int)
         (y : int)
         : JSComponent =
-    let comp = match componentType with
-               | Input  -> draw2dLib.createDigitalInput x y
-               | Output -> draw2dLib.createDigitalOutput x y
-               | Not    -> draw2dLib.createDigitalNot x y
-               | And    -> draw2dLib.createDigitalAnd x y
-               | Or     -> draw2dLib.createDigitalOr x y
-               | Xor    -> draw2dLib.createDigitalXor x y
-               | Nand   -> draw2dLib.createDigitalNand x y
-               | Nor    -> draw2dLib.createDigitalNor x y
-               | Xnor   -> draw2dLib.createDigitalXnor x y
-               | Mux2   -> draw2dLib.createDigitalMux2 x y
-               | ComponentType.Custom (name, inputs, outputs) ->
-                   draw2dLib.createDigitalCustom x y name (fshaprListToJsList inputs)
-                                                          (fshaprListToJsList outputs)
+    let comp =
+        match componentType with
+        | Input  -> draw2dLib.createDigitalInput x y
+        | Output -> draw2dLib.createDigitalOutput x y
+        | Not    -> draw2dLib.createDigitalNot x y
+        | And    -> draw2dLib.createDigitalAnd x y
+        | Or     -> draw2dLib.createDigitalOr x y
+        | Xor    -> draw2dLib.createDigitalXor x y
+        | Nand   -> draw2dLib.createDigitalNand x y
+        | Nor    -> draw2dLib.createDigitalNor x y
+        | Xnor   -> draw2dLib.createDigitalXnor x y
+        | Mux2   -> draw2dLib.createDigitalMux2 x y
+        | ComponentType.Custom custom ->
+            draw2dLib.createDigitalCustom
+                x y custom.Name (fshaprListToJsList custom.InputLabels)
+                                (fshaprListToJsList custom.OutputLabels)
     // Every component is assumed to have a label (may be empty string).
     draw2dLib.addLabel comp label
     // Set Id if one is provided.

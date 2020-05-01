@@ -97,6 +97,7 @@ type OutputPortNumber = | OutputPortNumber of int
 
 type SimulationComponent = {
     Id : ComponentId
+    Type : ComponentType
     // Mapping from each input port number to its value (it will be set
     // during the simulation process).
     // TODO: maybe using a list would improve performace?

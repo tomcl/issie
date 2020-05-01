@@ -289,10 +289,10 @@ let viewSimulation model dispatch =
     let startSimulation () =
         match model.Diagram.GetCanvasState () with
         | None -> ()
-        | Some jsState -> extractState jsState
-                         |> prepareSimulation
-                         |> StartSimulation
-                         |> dispatch
+        | Some jsState -> (extractState jsState, model.LoadedComponents)
+                          ||> prepareSimulation
+                          |> StartSimulation
+                          |> dispatch
     match model.Simulation with
     | None ->
         div [] [

@@ -188,6 +188,7 @@ let private buildSimulationComponent
         |> Map.ofList
     {
         Id = ComponentId comp.Id
+        Type = comp.Type
         Inputs = Map.empty // The inputs will be set during the simulation.
         Outputs = outputs
         Reducer = getReducer comp.Type
@@ -284,20 +285,108 @@ let getSimulationIOs
         | _ -> (inputIds, outputIds)
     )
 
+/// Validate a diagram and generate its simulation graph.
+let private runChecksAndBuildGraph
+        (canvasState : CanvasState)
+        : Result<SimulationGraph, SimulationError> =
+    match checkPortTypesAreConsistent canvasState,
+          checkPortsAreConnectedProperly canvasState with
+    | Some err, _ | _, Some err -> Error err
+    | None, None ->
+        let _, connections = canvasState
+        let graph = canvasState |> buildSimulationGraph
+        match analyseGraph graph connections with
+        | Some err -> Error err
+        | None -> Ok graph
+
+//====================//
+// Merge dependencies //
+//====================//
+
+/// Map a dependency name to its simulation graph.
+type private DependencyMap = Map<string, SimulationGraph>
+
+/// Validate and get simulation graph for all loaded dependencies.
+let private buildDependencyMap
+        (loadedDependencies : LoadedComponent list)
+        : Result<DependencyMap, SimulationError> =
+    let dependenciesRes =
+        loadedDependencies
+        |> List.map (fun dep -> dep.Name, runChecksAndBuildGraph dep.CanvasState)
+    // Check if any dependency has given an error.
+    let hasError (name, res) = match res with | Error _ -> true | Ok _ -> false
+    let extractOk (name, res) = match res with | Ok d -> name, d | Error e -> failwithf "what? Dependency %s expected to be Ok, but has error %A" name e
+    match List.tryFind hasError dependenciesRes with
+    | Some (name, Error err) -> Error err // TODO: augument error saying that it happened in a dependency, so no affected components or connections will be highlighted.
+    | None ->
+        // All dependencies are Ok.
+        // Create a map from their name to their simulation graph.
+        dependenciesRes |> List.map extractOk |> Map.ofList |> Ok
+    | _ -> failwith "what? Impossible case in buildDependencyMap"
+
+
+// Outer diagram will have connections to ports of the dependency.
+// This connections will target a portId. This portId can be used to find label
+// and portNumber on the custom component.
+// The label can then be matched to the corresponding input node in the
+// dependency, which is a SimulationComponent with some Outputs.
+// At this point, we just need to find all the connections in the outer diagram
+// that target that specific port of the custom component, and replace them with
+// the Outputs of the input node in the dependency.
+
+// Something similar has to be done for the outputs of the custom component.
+
+// Then we need to add all the components of the custom component into the outer
+// simulation graph (map). Note that we need to make sure the ids are unique if
+// a custom component is used multiple times.
+
+/// Top down merger called by mergeDependencies.
+//let rec private merger currGraph dependencyMap =
+//    // Search the current graph for any Custom component that requires merging.
+//    let currGraphCopy = currGraph
+//    (currGraph, currGraphCopy)
+//    ||> Map.fold (fun simComp ->
+//        match simComp.Type with
+//        | Custom _ -> true
+//        | _ -> simComp
+//    )
+
+/// Try to resolve all the dependencies in a graph, creating a single big graph.
+/// For example, if the graph of an ALU refers to custom component such as
+/// adders, replace them with the actual simulation graph for the adders.
+let private mergeDependencies
+        (graph : SimulationGraph)
+        (loadedDependencies : LoadedComponent list)
+        : Result<SimulationGraph, SimulationError> =
+    match buildDependencyMap loadedDependencies with
+    | Error e -> Error e
+    | Ok dependencyMap ->
+        // Recursively replace the dependencies, in a top down fashion.
+        //merger graph dependencyMap
+        Ok graph // TODO: remove
+
+
 /// Builds the graph and simulates it with all inputs zeroed.
 let prepareSimulation
         (canvasState : CanvasState)
+        (loadedDependencies : LoadedComponent list)
         : Result<SimulationData, SimulationError> =
     match checkPortTypesAreConsistent canvasState,
           checkPortsAreConnectedProperly canvasState with
     | Some err, _ | _, Some err -> Error err
     | None, None ->
+        // All ports tests have been passed.
         let components, connections = canvasState
         let inputs, outputs = getSimulationIOs components
         let graph = canvasState |> buildSimulationGraph
         match analyseGraph graph connections with
         | Some err -> Error err
-        | None -> Ok {
-            Graph = graph |> simulateWithAllInputsToZero inputs;
-            Inputs = inputs;
-            Outputs = outputs }
+        | None ->
+            // The current diagram is fine.
+            // Add eventual dependency.
+            match mergeDependencies graph loadedDependencies with
+            | Error e -> Error e
+            | Ok graph -> Ok {
+                Graph = graph |> simulateWithAllInputsToZero inputs;
+                Inputs = inputs;
+                Outputs = outputs }

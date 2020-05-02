@@ -32,71 +32,82 @@ let private buildDependencyMap
         dependenciesRes |> List.map extractOk |> Map.ofList |> Ok
     | _ -> failwith "what? Impossible case in buildDependencyMap"
 
-/// Recursively merge the simulationGraph with its dependencies.
+/// Convert the label of a port on a custom componetnt to its port number.
+let private labelToPortNumber label (outputLabels : string list) =
+    match List.tryFindIndex ((=) label) outputLabels with
+    | None -> failwithf "what? Label %s not present in %A" label outputLabels
+    | Some pNumber -> OutputPortNumber pNumber
+
+/// Convert the portNumber of a custom componetnt to its port lablel.
+let private portNumberToLabel (InputPortNumber pNumber) (inputLabels : string list) =
+    // TODO: assert lenght?
+    inputLabels.[pNumber]
+
+/// Find the ComponentId of the Input node with a given label.
+let private findInputNodeWithLabel graph label : ComponentId =
+    let chooser compId comp =
+        if comp.Type = Input && comp.Label = label
+        then Some compId
+        else None
+    // TODO: I have the feeling Map.tryPick has linear complexity. Maybe
+    // premapping all these information can improve performance.
+    match Map.tryPick chooser graph with
+    | None -> failwithf "what? Input node with label %s could not be found in graph" label
+    | Some compId -> compId
+
+/// Extract pairs label * value for all outputs of the SimulationGraph.
+let private extractOutputs (graph : SimulationGraph) : (string * Bit) list =
+    let extractBit (inputs : Map<InputPortNumber, Bit>) : Bit =
+        match inputs.TryFind <| InputPortNumber 0 with
+        | None -> failwith "what? IO bit not set"
+        | Some bit -> bit
+    graph
+    |> Map.filter (fun compId comp -> match comp.Type with | Output -> true | _ -> false )
+    |> Map.map (fun compId comp -> comp.Label, extractBit comp.Inputs)
+    |> Map.toList
+    |> List.map (fun (compId, res) -> res)
+
+/// Create the Reducer for a custom component.
+let private makeCustomReducer
+        (custom : CustomComponentType)
+        (graph : SimulationGraph)
+        : Map<InputPortNumber, Bit> -> Map<OutputPortNumber, Bit> option =
+    fun inputs ->
+        match inputs.Count = custom.InputLabels.Length with
+        | false -> None // Not enough inputs.
+        | true ->
+            // TODO: feed only new inputs or inputs that changed, for performance.
+            //       for now, we feed all the inputs.
+            let graph =
+                (graph, inputs)
+                ||> Map.fold (fun graph inputPortNumber bit ->
+                    let inputId =
+                        portNumberToLabel inputPortNumber custom.InputLabels
+                        |> findInputNodeWithLabel graph
+                    feedSimulationInput graph inputId bit
+                )
+            extractOutputs graph
+            |> List.map (fun (label, bit) -> labelToPortNumber label custom.OutputLabels, bit)
+            |> Map.ofList
+            |> Some
+
+/// Recursively merge the simulationGraph with its dependencies (a dependecy can
+/// have its own dependencies).
 let rec private merger
         (currGraph : SimulationGraph)
         (dependencyMap : DependencyMap)
         : SimulationGraph =
     // For each custom component, replace the Reducer with one that:
-    // - when receiving an InputPortNumber * Bit entry (i.e. a new input), maps
-    //   the InputPortNumber to the its label.
+    // - when receiving an (InputPortNumber * Bit) entry (i.e. a new input),
+    //   maps the InputPortNumber to the its label.
     // - find the Input node in the dependency simulationGraph with that label.
     // - feed the bit to that Input node.
     // - extracts the outputs.
-    // - map the output labels to OutputPortNumbers and this is the output of
-    //   the reducer.
+    // - map the output labels to OutputPortNumbers, and this is the output of
+    //   the reducer function.
     //
     // A dependency may have dependencies itself, so recursively call the merger
     // as well.
-    let labelToPortNumber label (outputLabels : string list) =
-        match List.tryFindIndex ((=) label) outputLabels with
-        | None -> failwithf "what? Label %s not present in %A" label outputLabels
-        | Some pNumber -> OutputPortNumber pNumber
-    let portNumberToLabel (InputPortNumber pNumber) (inputLabels : string list) =
-        // TODO: assert lenght?
-        inputLabels.[pNumber]
-    let findInputNodeWithLabel graph label : ComponentId =
-        let chooser compId comp =
-            if comp.Type = Input && comp.Label = label
-            then Some compId
-            else None
-        // TODO: I have the feeling Map.tryPick has linear complexity. Maybe
-        // premapping all these information can improve performance.
-        match Map.tryPick chooser graph with
-        | None -> failwithf "what? Input node with label %s could not be found in graph" label
-        | Some compId -> compId
-    let extractOutputs (graph : SimulationGraph) : (string * Bit) list =
-        let extractBit (inputs : Map<InputPortNumber, Bit>) : Bit = // TODO: duplicate.
-            match inputs.TryFind <| InputPortNumber 0 with
-            | None -> failwith "what? IO bit not set"
-            | Some bit -> bit
-        graph
-        |> Map.filter (fun compId comp -> match comp.Type with | Output -> true | _ -> false )
-        |> Map.map (fun compId comp -> comp.Label, extractBit comp.Inputs)
-        |> Map.toList
-        |> List.map (fun (compId, res) -> res)
-    let makeCustomReducer
-            (custom : CustomComponentType)
-            (graph : SimulationGraph)
-            : Map<InputPortNumber, Bit> -> Map<OutputPortNumber, Bit> option =
-        fun inputs ->
-            // TODO: feed only new inputs or inputs that changed, for performance.
-            match inputs.Count = custom.InputLabels.Length with
-            | false -> None // Not enough inputs.
-            | true ->
-                let graph =
-                    (graph, inputs)
-                    ||> Map.fold (fun graph inputPortNumber bit ->
-                        let inputId =
-                            portNumberToLabel inputPortNumber custom.InputLabels
-                            |> findInputNodeWithLabel graph
-                        feedSimulationInput graph inputId bit
-                    )
-                extractOutputs graph
-                |> List.map (fun (label, bit) -> labelToPortNumber label custom.OutputLabels, bit)
-                |> Map.ofList
-                |> Some
-
     let currGraphCopy = currGraph
     (currGraph, currGraphCopy)
     ||> Map.fold (fun currGraph compId comp ->

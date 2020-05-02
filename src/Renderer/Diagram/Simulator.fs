@@ -3,8 +3,6 @@ module Simulator
 open DiagramTypes
 open Analyser
 
-open JSHelpers
-
 // Simulating a circuit has three phases:
 // 1. Building a simulation graph made of SimulationComponents.
 // 2. Analyse the graph to look for errors, such as unconnected ports,
@@ -195,7 +193,6 @@ let private buildSimulationComponent
     {
         Id = ComponentId comp.Id
         Type = comp.Type
-        Label = comp.Label
         Inputs = Map.empty // The inputs will be set during the simulation.
         Outputs = outputs
         Reducer = getReducer comp.Type
@@ -229,7 +226,7 @@ let rec private feedInput
         : SimulationGraph =
     // Extract component.
     let comp = match graph.TryFind compId with
-               | None -> failwithf "what? Could not find component %A in simulation step" compId
+               | None -> failwithf "what? Could not find component %A in simulationStep" compId
                | Some c -> c
     // Add input to the simulation component.
     let comp = { comp with Inputs = comp.Inputs.Add input }
@@ -383,101 +380,16 @@ let private getUniqueGraph
             )
         )
 
-/// Given a custom component (a single component in the outer diagram), its
-/// corresponding simulationGraph and its list of inputs labels; create a
-/// mapping from the ports of the custom component in the outer diagram to the
-/// ports in the components of the simulationGraph.
-/// In essence, create a mapping to connect the two graphs.
-let private mapCustomInputPorts
+let private mapCustomPorts
         (customComp : SimulationComponent)
         (customGraph : SimulationGraph)
-        (inputLabels : string list)
-        : Map<ComponentId * InputPortNumber, (ComponentId * InputPortNumber) list> =
-    // For every input in customComp:
-    // 1. get customComp.InputPortNumber
-    // 2. get label from label arrays at that idx
-    // 3. search label among Input nodes in customGraph
-    // 4. take the (ComponentId * InputPortNumber) list of the Outputs of the
-    //    Input node that matches that label.
-    let extractOutputsFromInputNode (inputNode : SimulationComponent) =
-        // TODO: assert inputNode.Type = Input
-        match inputNode.Outputs.TryFind <| OutputPortNumber 0 with
-        | None -> failwithf "what? extractOnlyOuputFromInputNode called with node without outputPortNumber 0: %A" inputNode
-        | Some outputs -> outputs
-    let getOutputsForInputNodeWithLabel (label : string) : (ComponentId * InputPortNumber) list =
-        let chooser compId comp =
-            if comp.Type = Input && comp.Label = label
-            then Some <| extractOutputsFromInputNode comp
-            else None
-        // TODO: I have the feeling Map.tryPick has linear complexity. Maybe
-        // premapping all these information can improve performance.
-        match Map.tryPick chooser customGraph with
-        | None -> failwithf "what? Input node with label %s could not be found in customGraph" label
-        | Some outputs -> outputs
-
-    (Map.empty, customComp.Inputs)
-    ||> Map.fold (fun mappings (InputPortNumber inputPortNumber) _ ->
-        // Step 2.
-        let portLabel = inputLabels.[inputPortNumber]
-        // Step 3 and 4.
-        mappings.Add(
-            (customComp.Id, InputPortNumber inputPortNumber),
-            getOutputsForInputNodeWithLabel portLabel
-        )
-    )
-
-/// Simular to mapCustomInputPorts but for the output ports of a custom
-/// component.
-let private mapCustomOutputPorts
-        (customComp : SimulationComponent)
-        (customGraph : SimulationGraph)
-        (outputLabels : string list)
-        : Map<ComponentId * InputPortNumber, (ComponentId * InputPortNumber) list> =
-    // For every output in customComp:
-    // 1. get customComp.OutputPortNumber
-    // 2. get label from label arrays at that idx
-    // 3. search label among Output nodes in customGraph and extract its ComponentId
-    // 4. create a mapping from that Output the list of componentId and
-    //    InputPortNumber of the outer diagram
-    let getOutputNodeComponetnId (label : string) : ComponentId =
-        let chooser compId comp =
-            if comp.Type = Output && comp.Label = label
-            then Some <| comp.Id
-            else None
-        // TODO: I have the feeling Map.tryPick has linear complexity. Maybe
-        // premapping all these information can improve performance.
-        match Map.tryPick chooser customGraph with
-        | None -> failwithf "what? Output node with label %s could not be found in customGraph" label
-        | Some outputNodeId -> outputNodeId
-
-    (Map.empty, customComp.Outputs)
-    ||> Map.fold (fun mappings (OutputPortNumber outputPortNumber) targets ->
-        // Step 2.
-        let portLabel = outputLabels.[outputPortNumber]
-        // Step 3.
-        let outputComponentId = getOutputNodeComponetnId portLabel
-        // Step 4.
-        mappings.Add((outputComponentId, InputPortNumber 0), targets)
-    )
-
-/// For every component that was targeting a custom component in the outer
-/// diagram, change the outputs that were targeting the custom component with
-/// new outputs that target components in the custom simulationDiagram.
-let private applyCustomComponentMappings
-        (currGraph : SimulationGraph)
-        (portMappings : Map<ComponentId * InputPortNumber, (ComponentId * InputPortNumber) list>)
-        : SimulationGraph =
-    currGraph |> Map.map (fun compId comp ->
-        let newOutputs =
-            comp.Outputs |> Map.map (fun outPortNumber targets ->
-                targets |> List.collect (fun target ->
-                    match portMappings.TryFind target with
-                    | None -> [target]
-                    | Some newTargets -> newTargets 
-                )
-            )
-        { comp with Outputs = newOutputs }
-    )
+        : Map<ComponentId * InputPortNumber,ComponentId * InputPortNumber> =
+    // for every output in customComp
+    // -> get customComp.InputPortNumber
+    // -> get label from label arrays at that idx (TODO: change DependencyMap to have it).
+    // -> search label on Input node in customGraph
+    // -> take the ComponentId and InputPortNumber of the Outputs of the Input node.
+    Map.empty
 
 /// Join two maps.
 let private joinMaps (map1 : Map<'K,'V>) (map2 : Map<'K,'V>) : Map<'K,'V> =
@@ -503,35 +415,33 @@ let rec private merger
     // 7. Now we have a new graph, with some connections pointing to elements that
     //    do not exist anymore. Apply all the port mapping the new graph and return.
     let currGraphCopy = currGraph
-    let currGraph, mappings, uniqueInt =
-        ((currGraph, Map.empty, uniqueInt), currGraphCopy)
-        ||> Map.fold (fun (currGraph, portMappings, uniqueInt) compId comp ->
-            match comp.Type with
-            | Custom custom ->
-                // Steps 1 and 2.
-                let customGraph = getUniqueGraph dependencyMap custom.Name uniqueInt
-                // Step 3.
-                let customGraph, uniqueInt = merger customGraph dependencyMap uniqueInt
-                // Step 4.
-                let joinedGraph = joinMaps currGraph customGraph
-                // Step 5.
-                // TODO do something similar for the outputs.
-                let newInpPortMappings = mapCustomInputPorts comp customGraph custom.InputLabels
-                let newOutPortMappings = mapCustomOutputPorts comp customGraph custom.OutputLabels
-                let portMappings =
-                    joinMaps newInpPortMappings newOutPortMappings
-                    |> joinMaps portMappings
-                log newInpPortMappings
-                log newOutPortMappings
-                // Step 6.
-                let joinedGraph = joinedGraph.Remove(compId)
+    ((currGraph, Map.empty, uniqueInt), currGraphCopy)
+    ||> Map.fold (fun (currGraph, portMappings, uniqueInt) compId comp ->
+        match comp.Type with
+        | Custom custom ->
+            // Perform steps 1 and 2.
+            let customGraph = getUniqueGraph dependencyMap custom.Name uniqueInt
+            // Perform step 3.
+            let customGraph, uniqueInt = merger customGraph dependencyMap uniqueInt
+            // Perform step 4.
+            let joinedGraph = joinMaps currGraph customGraph
+            // Perform step 5.
+            let newPortMappings = mapCustomPorts comp customGraph
+            let portMappings = joinMaps portMappings newPortMappings
+            // Perform step 6.
+            let joinedGraph = joinedGraph.Remove(compId)
 
-                joinedGraph, portMappings, uniqueInt
-            | _ -> (currGraph, portMappings, uniqueInt) // Ignore non-custom components.
-        )
-    // Step 7.
-    let currGraph = applyCustomComponentMappings currGraph mappings
-    currGraph, uniqueInt
+            joinedGraph, portMappings, uniqueInt
+        | _ -> (currGraph, portMappings, uniqueInt) // Ignore non-custom components.
+    )
+
+    //TODO: use the mappings for step 7.
+
+    |> ignore
+    Map.empty, 0
+
+    // Create mappings: (ComponentId * InputPortNumber) to (ComponentId * InputPortNumber)
+    // Replace mappings in all outputs
 
 /// Try to resolve all the dependencies in a graph, creating a single big graph.
 /// For example, if the graph of an ALU refers to custom component such as
@@ -544,8 +454,9 @@ let private mergeDependencies
     | Error e -> Error e
     | Ok dependencyMap ->
         // Recursively replace the dependencies, in a top down fashion.
-        let mergedGraph, _ = merger graph dependencyMap 0
-        Ok mergedGraph
+        //merger graph dependencyMap
+        Ok graph // TODO: remove
+
 
 /// Builds the graph and simulates it with all inputs zeroed.
 let prepareSimulation

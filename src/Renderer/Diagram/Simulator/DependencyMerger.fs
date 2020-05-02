@@ -70,11 +70,17 @@ let private extractOutputs (graph : SimulationGraph) : (string * Bit) list =
 /// Create the Reducer for a custom component.
 let private makeCustomReducer
         (custom : CustomComponentType)
-        (graph : SimulationGraph)
-        : Map<InputPortNumber, Bit> -> Map<OutputPortNumber, Bit> option =
-    fun inputs ->
+        : Map<InputPortNumber, Bit>               // Inputs.
+          -> SimulationGraph option               // CustomSimulationGraph.
+          -> (Map<OutputPortNumber, Bit> option * // Outputs.
+              SimulationGraph option)             // Updated CustomSimulationGraph.
+        =
+    fun inputs graphOption ->
+        let graph = match graphOption with
+                    | None -> failwithf "what? CustomSimulationGraph should always be Some in Custom component: %s" custom.Name
+                    | Some graph -> graph
         match inputs.Count = custom.InputLabels.Length with
-        | false -> None // Not enough inputs.
+        | false -> None, Some graph // Not enough inputs, return graph unchanged.
         | true ->
             // TODO: feed only new inputs or inputs that changed, for performance.
             //       for now, we feed all the inputs.
@@ -86,10 +92,12 @@ let private makeCustomReducer
                         |> findInputNodeWithLabel graph
                     feedSimulationInput graph inputId bit
                 )
-            extractOutputs graph
-            |> List.map (fun (label, bit) -> labelToPortNumber label custom.OutputLabels, bit)
-            |> Map.ofList
-            |> Some
+            let outputs =
+                extractOutputs graph
+                |> List.map (fun (label, bit) -> labelToPortNumber label custom.OutputLabels, bit)
+                |> Map.ofList
+            // Return the outputs toghether with the updated graph.
+            Some outputs, Some graph
 
 /// Recursively merge the simulationGraph with its dependencies (a dependecy can
 /// have its own dependencies).
@@ -118,7 +126,11 @@ let rec private merger
                 | None -> failwithf "what? Could not find dependency %s in dependencyMap" custom.Name
                 | Some dependencyGraph -> dependencyGraph
             let dependencyGraph = merger dependencyGraph dependencyMap
-            let newComp = { comp with Reducer = makeCustomReducer custom dependencyGraph }
+            // Augment the custom component with the initial
+            // CustomSimulationGraph and the Custom reducer (that allows to use
+            // and update the CustomSimulationGraph).
+            let newComp = { comp with CustomSimulationGraph = Some dependencyGraph
+                                      Reducer = makeCustomReducer custom }
             currGraph.Add(compId, newComp)
         | _ -> currGraph // Ignore non-custom components.
     )

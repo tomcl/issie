@@ -193,6 +193,7 @@ let private buildSimulationComponent
     {
         Id = ComponentId comp.Id
         Type = comp.Type
+        Label = comp.Label
         Inputs = Map.empty // The inputs will be set during the simulation.
         Outputs = outputs
         Reducer = getReducer comp.Type
@@ -328,34 +329,88 @@ let private buildDependencyMap
         dependenciesRes |> List.map extractOk |> Map.ofList |> Ok
     | _ -> failwith "what? Impossible case in buildDependencyMap"
 
+/// Recursively merge the simulationGraph with its dependencies.
+let rec private merger
+        (currGraph : SimulationGraph)
+        (dependencyMap : DependencyMap)
+        : SimulationGraph =
+    // For each custom component, replace the Reducer with one that:
+    // - when receiving an InputPortNumber * Bit entry (i.e. a new input), maps
+    //   the InputPortNumber to the its label.
+    // - find the Input node in the dependency simulationGraph with that label.
+    // - feed the bit to that Input node.
+    // - extracts the outputs.
+    // - map the output labels to OutputPortNumbers and this is the output of
+    //   the reducer.
+    //
+    // A dependency may have dependencies itself, so recursively call the merger
+    // as well.
+    let labelToPortNumber label (outputLabels : string list) =
+        match List.tryFindIndex ((=) label) outputLabels with
+        | None -> failwithf "what? Label %s not present in %A" label outputLabels
+        | Some pNumber -> OutputPortNumber pNumber
+    let portNumberToLabel (InputPortNumber pNumber) (inputLabels : string list) =
+        // TODO: assert lenght?
+        inputLabels.[pNumber]
+    let findInputNodeWithLabel graph label : ComponentId =
+        let chooser compId comp =
+            if comp.Type = Input && comp.Label = label
+            then Some compId
+            else None
+        // TODO: I have the feeling Map.tryPick has linear complexity. Maybe
+        // premapping all these information can improve performance.
+        match Map.tryPick chooser graph with
+        | None -> failwithf "what? Input node with label %s could not be found in graph" label
+        | Some compId -> compId
+    let extractOutputs (graph : SimulationGraph) : (string * Bit) list =
+        let extractBit (inputs : Map<InputPortNumber, Bit>) : Bit = // TODO: duplicate.
+            match inputs.TryFind <| InputPortNumber 0 with
+            | None -> failwith "what? IO bit not set"
+            | Some bit -> bit
+        graph
+        |> Map.filter (fun compId comp -> match comp.Type with | Output -> true | _ -> false )
+        |> Map.map (fun compId comp -> comp.Label, extractBit comp.Inputs)
+        |> Map.toList
+        |> List.map (fun (compId, res) -> res)
+    let makeCustomReducer
+            (custom : CustomComponentType)
+            (graph : SimulationGraph)
+            : Map<InputPortNumber, Bit> -> Map<OutputPortNumber, Bit> option =
+        fun inputs ->
+            // TODO: feed only new inputs or inputs that changed, for performance.
+            match inputs.Count = custom.InputLabels.Length with
+            | false -> None // Not enough inputs.
+            | true ->
+                let graph =
+                    (graph, inputs)
+                    ||> Map.fold (fun graph inputPortNumber bit ->
+                        let inputId =
+                            portNumberToLabel inputPortNumber custom.InputLabels
+                            |> findInputNodeWithLabel graph
+                        feedSimulationInput graph inputId bit
+                    )
+                extractOutputs graph
+                |> List.map (fun (label, bit) -> labelToPortNumber label custom.OutputLabels, bit)
+                |> Map.ofList
+                |> Some
 
-// Outer diagram will have connections to ports of the dependency.
-// This connections will target a portId. This portId can be used to find label
-// and portNumber on the custom component.
-// The label can then be matched to the corresponding input node in the
-// dependency, which is a SimulationComponent with some Outputs.
-// At this point, we just need to find all the connections in the outer diagram
-// that target that specific port of the custom component, and replace them with
-// the Outputs of the input node in the dependency.
+    let currGraphCopy = currGraph
+    (currGraph, currGraphCopy)
+    ||> Map.fold (fun currGraph compId comp ->
+        match comp.Type with
+        | Custom custom ->
+            let dependencyGraph =
+                match dependencyMap.TryFind custom.Name with
+                | None -> failwithf "what? Could not find dependency %s in dependencyMap" custom.Name
+                | Some dependencyGraph -> dependencyGraph
+            let dependencyGraph = merger dependencyGraph dependencyMap
+            let newComp = { comp with Reducer = makeCustomReducer custom dependencyGraph }
+            currGraph.Add(compId, newComp)
+        | _ -> currGraph // Ignore non-custom components.
+    )
 
-// Something similar has to be done for the outputs of the custom component.
-
-// Then we need to add all the components of the custom component into the outer
-// simulation graph (map). Note that we need to make sure the ids are unique if
-// a custom component is used multiple times.
-
-/// Top down merger called by mergeDependencies.
-//let rec private merger currGraph dependencyMap =
-//    // Search the current graph for any Custom component that requires merging.
-//    let currGraphCopy = currGraph
-//    (currGraph, currGraphCopy)
-//    ||> Map.fold (fun simComp ->
-//        match simComp.Type with
-//        | Custom _ -> true
-//        | _ -> simComp
-//    )
-
-/// Try to resolve all the dependencies in a graph, creating a single big graph.
+/// Try to resolve all the dependencies in a graph, and replace the reducer
+/// of the custom components with a simulationgraph.
 /// For example, if the graph of an ALU refers to custom component such as
 /// adders, replace them with the actual simulation graph for the adders.
 let private mergeDependencies
@@ -366,9 +421,7 @@ let private mergeDependencies
     | Error e -> Error e
     | Ok dependencyMap ->
         // Recursively replace the dependencies, in a top down fashion.
-        //merger graph dependencyMap
-        Ok graph // TODO: remove
-
+        Ok <| merger graph dependencyMap
 
 /// Builds the graph and simulates it with all inputs zeroed.
 let prepareSimulation

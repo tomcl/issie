@@ -1,3 +1,10 @@
+(*
+    Analyser.fs
+
+    This module collects a series of functions that perform checks on
+    CanvasState and SimulationGraph.
+*)
+
 module Analyser
 
 open DiagramTypes
@@ -88,6 +95,7 @@ let private getAllOutputPortIds (components : Component list) : (OutputPortId * 
     components |> List.collect
         (fun comp -> comp.OutputPorts |> List.map (fun port -> OutputPortId port.Id, ComponentId comp.Id))
 
+/// Count the number of connections that target each port.
 let rec private countPortsConnections
         (connections : Connection list)
         (inputCounts : Map<InputPortId * ComponentId, int>)
@@ -113,6 +121,8 @@ let rec private countPortsConnections
         | Ok inputCounts, Ok outputCounts ->
             countPortsConnections connections' inputCounts outputCounts
 
+/// Apply condition on evaery element of the map (tailored to this specific
+/// problem).
 let private checkEvery
         (counts : Map<'a * ComponentId, int>) // 'a is either InputPortId or OutputPortId.
         (cond : int -> bool)
@@ -174,6 +184,7 @@ type private DfsType =
     // that form the cycle have been recorded.
     | Cycle of ComponentId list
 
+/// Dfs function that spots cycles in a graph.
 let rec private dfs
         (currNodeId : ComponentId)
         (graph : SimulationGraph)

@@ -10,8 +10,11 @@
     <Compile Include="Diagram/Draw2dWrapper.fs" />
     <Compile Include="Diagram/Extractor.fs" />
     <Compile Include="Diagram/StateIO.fs" />
-    <Compile Include="Diagram/Analyser.fs" />
-    <Compile Include="Diagram/Simulator.fs" />
+    <Compile Include="Diagram/Simulator/Analyser.fs" />
+    <Compile Include="Diagram/Simulator/Builder.fs" />
+    <Compile Include="Diagram/Simulator/Runner.fs" />
+    <Compile Include="Diagram/Simulator/DependencyMerger.fs" />
+    <Compile Include="Diagram/Simulator/Simulator.fs" />
     <Compile Include="Diagram/Diagram.fs" />
     <Compile Include="Editor/Types.fs" />
     <Compile Include="Editor/Style.fs" />

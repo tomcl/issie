@@ -17,6 +17,10 @@ open DiagramTypes
 
 // Combinatorial logic can have no loops.
 
+// Dependencies can have no loops. TODO
+
+// Input/Output components in a simulationgraph must all have unique labels. TODO
+
 /// Check that:
 /// 1- all source ports in connections are Output ports,
 /// 2- all target ports in connections are Input ports,

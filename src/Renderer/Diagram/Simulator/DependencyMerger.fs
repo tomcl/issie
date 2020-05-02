@@ -34,6 +34,7 @@ let private buildDependencyMap
     | _ -> failwith "what? Impossible case in buildDependencyMap"
 
 /// Convert the label of a port on a custom componetnt to its port number.
+/// Assumes that all labels are unique, otherwise it is undefined behaviour.
 let private labelToPortNumber label (labels : string list) =
     match List.tryFindIndex ((=) label) labels with
     | None -> failwithf "what? Label %s not present in %A" label labels

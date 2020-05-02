@@ -29,21 +29,25 @@ let rec private feedInput
     let comp = { comp with Inputs = comp.Inputs.Add input }
     let graph = graph.Add (comp.Id, comp)
     // Try to reduce the component.
-    match comp.Reducer comp.Inputs with
-    | None -> graph // Keep on waiting for more inputs.
-    | Some outputMap ->
+    match comp.Reducer comp.Inputs comp.CustomSimulationGraph with
+    | None, _ -> graph // Keep on waiting for more inputs.
+    | Some outputMap, updatedCustomSimulationGraph ->
         // Received enough inputs and produced an output.
         // Propagate each output produced to all the ports connected.
-        (graph, outputMap) ||> Map.fold (fun graph outPortNumber bit ->
-            match comp.Outputs.TryFind outPortNumber with
-            | None -> failwithf "what? Reducer produced inexistent output portNumber %A in component %A" outPortNumber comp
-            | Some targets ->
-                // Trigger simulation step with the newly produced input in
-                // every target.
-                (graph, targets) ||> List.fold (fun graph (nextCompId, nextPortNumber) ->
-                    feedInput graph nextCompId (nextPortNumber, bit)
-                )
-        )
+        let graph =
+            (graph, outputMap) ||> Map.fold (fun graph outPortNumber bit ->
+                match comp.Outputs.TryFind outPortNumber with
+                | None -> failwithf "what? Reducer produced inexistent output portNumber %A in component %A" outPortNumber comp
+                | Some targets ->
+                    // Trigger simulation step with the newly produced input in
+                    // every target.
+                    (graph, targets) ||> List.fold (fun graph (nextCompId, nextPortNumber) ->
+                        feedInput graph nextCompId (nextPortNumber, bit)
+                    )
+            )
+        // Update the CustomSImulationGraph.
+        let comp = { comp with CustomSimulationGraph = updatedCustomSimulationGraph }
+        graph.Add (comp.Id, comp)
 
 /// Feed zero to a simulation input.
 /// This function is supposed to be used with Components of type Input.

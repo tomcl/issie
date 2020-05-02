@@ -77,41 +77,50 @@ let rec private getValuesForPorts
             | Some bits -> Some <| bit :: bits
 
 let private getBinaryGateReducer (op : Bit -> Bit -> Bit) componentType =
-    fun inputs ->
+    fun inputs _ ->
         assertNotTooManyInputs inputs componentType 2
         match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1] with
-        | None -> None // Wait for more inputs.
-        | Some [bit0; bit1] -> Some <| Map.empty.Add (OutputPortNumber 0, op bit1 bit0)
+        | None -> None, None // Wait for more inputs.
+        | Some [bit0; bit1] -> Some <| Map.empty.Add (OutputPortNumber 0, op bit1 bit0), None
         | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
 
 /// Given a component type, return a function takes its inputs and transforms
 /// them into outputs. The reducer should return None if there are not enough
 /// inputs to calculate the outputs.
+/// For custom components, return a fake version of the reducer, that has to be
+/// replaced when resolving the dependencies.
 let private getReducer
         (componentType : ComponentType)
-        : Map<InputPortNumber, Bit> -> Map<OutputPortNumber, Bit> option =
+        : Map<InputPortNumber, Bit>               // Inputs.
+          -> SimulationGraph option               // CustomSimulationGraph.
+          -> (Map<OutputPortNumber, Bit> option * // Outputs.
+              SimulationGraph option)             // Updated CustomSimulationGraph.
+        =
+    // Always ignore the CustomSimulationGraph here, both in inputs and output.
+    // The Reducer for Custom components, which use it, will be replaced in the
+    // DependencyMerger.
     match componentType with
     | Input ->
-        fun inputs ->
+        fun inputs _ ->
             assertNotTooManyInputs inputs componentType 1
             // Simply forward the input.
             // Note that the input of and Input node must be feeded manually.
             match getValuesForPorts inputs [InputPortNumber 0] with
-            | None -> None // Wait for more inputs.
-            | Some [bit] -> Some <| Map.empty.Add (OutputPortNumber 0, bit)
+            | None -> None, None // Wait for more inputs.
+            | Some [bit] -> Some <| Map.empty.Add (OutputPortNumber 0, bit), None
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
     | Output ->
-        fun inputs ->
+        fun inputs _ ->
             assertNotTooManyInputs inputs componentType 1
             match getValuesForPorts inputs [InputPortNumber 0] with
-            | None | Some [_] -> None // Do nothing with it. Just make sure it is received.
+            | None | Some [_] -> None, None // Do nothing with it. Just make sure it is received.
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
     | Not ->
-        fun inputs ->
+        fun inputs _ ->
             assertNotTooManyInputs inputs componentType 1
             match getValuesForPorts inputs [InputPortNumber 0] with
-            | None -> None // Wait for more inputs.
-            | Some [bit] -> Some <| Map.empty.Add (OutputPortNumber 0, bitNot bit)
+            | None -> None, None // Wait for more inputs.
+            | Some [bit] -> Some <| Map.empty.Add (OutputPortNumber 0, bitNot bit), None
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
     | And  -> getBinaryGateReducer bitAnd And
     | Or   -> getBinaryGateReducer bitOr Or
@@ -120,16 +129,16 @@ let private getReducer
     | Nor  -> getBinaryGateReducer bitNor Nor
     | Xnor -> getBinaryGateReducer bitXnor Xnor
     | Mux2 ->
-        fun inputs ->
+        fun inputs _ ->
             assertNotTooManyInputs inputs componentType 3
             match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
-            | None -> None // Wait for more inputs.
+            | None -> None, None // Wait for more inputs.
             | Some [bit0; bit1; bitSelect] ->
                 let out = if bitSelect = Zero then bit0 else bit1
-                Some <| Map.empty.Add (OutputPortNumber 0, out)
+                Some <| Map.empty.Add (OutputPortNumber 0, out), None
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
     | Custom c ->
-        fun inputs ->
+        fun _ _ ->
             failwithf "what? Custom components reducer should be overridden before using it in a simulation: %A" c
 
 /// Build a map that, for each source port in the connections, keeps track of
@@ -193,6 +202,7 @@ let private buildSimulationComponent
         Label = comp.Label
         Inputs = Map.empty // The inputs will be set during the simulation.
         Outputs = outputs
+        CustomSimulationGraph = None // Custom components will be augumented by the DependencyMerger.
         Reducer = getReducer comp.Type
     }
 

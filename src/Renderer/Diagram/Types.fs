@@ -106,13 +106,22 @@ type SimulationComponent = {
     // Mapping from each output port number to all of the ports and
     // Components connected to that port.
     Outputs : Map<OutputPortNumber, (ComponentId * InputPortNumber) list>
+    // This CustomSimulationGraph should only be Some when the component Type is
+    // Custom. A custom component keeps track of its internal state using this
+    // CustomSimulationGraph. This graph will be passed to the reducer and
+    // updated from the reducer return value.
+    CustomSimulationGraph : Map<ComponentId, SimulationComponent> option
     // Function that takes the inputs and transforms them into the outputs.
     // The size of input map, must be as expected by otherwhise the reducer will
     // return None (i.e. keep on waiting for more inputs to arrive).
     // The idea is similar to partial application, keep on providing inputs
     // until the output can be evaluated.
     // The reducer should fail if more inputs than expected are received.
-    Reducer : Map<InputPortNumber, Bit> -> Map<OutputPortNumber, Bit> option
+    // The reducer accepts a SimulationGraph for custom components only.
+    Reducer : Map<InputPortNumber, Bit>                         // Inputs.
+              -> Map<ComponentId, SimulationComponent> option   // CustomSimulationGraph.
+              -> (Map<OutputPortNumber, Bit> option *           // Outputs.
+                  Map<ComponentId, SimulationComponent> option) // Updated CustomSimulationGraph.
 }
 
 // Map every ComponentId to its SimulationComponent.

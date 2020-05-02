@@ -10,6 +10,7 @@ module DependencyMerger
 open DiagramTypes
 open SimulationRunner
 open SimulationBuilder
+open Helpers
 
 /// Map a dependency name to its simulation graph.
 type private DependencyMap = Map<string, SimulationGraph>
@@ -40,7 +41,7 @@ let private labelToPortNumber label (labels : string list) =
 
 /// Convert the portNumber of a custom componetnt to its port lablel.
 let private portNumberToLabel (InputPortNumber pNumber) (inputLabels : string list) =
-    // TODO: assert lenght?
+    assertThat (inputLabels.Length > pNumber) "portNumberToLabel"
     inputLabels.[pNumber]
 
 /// Extract simulation input values as map.
@@ -67,7 +68,7 @@ let private diffSimulationInputs
     // New inputs either:
     // - has more keys than oldInputs,
     // - has the same keys as oldInput, but their values have changed.
-    // TODO: assert oldInputs.Count <= newInputs.Count?
+    assertThat (oldInputs.Count <= newInputs.Count) "diffSimulationInputs"
     (Map.empty, newInputs)
     ||> Map.fold (fun diff inputPortNumber bit ->
         match oldInputs.TryFind inputPortNumber with
@@ -101,7 +102,6 @@ let private makeCustomReducer
             let oldInputs =
                 extractInputValuesAsMap graph graphInputs custom.InputLabels
             let newInputs = diffSimulationInputs inputs oldInputs
-            // TODO: Assert newInputs is not empty.
             let graph =
                 (graph, newInputs)
                 ||> Map.fold (fun graph inputPortNumber bit ->

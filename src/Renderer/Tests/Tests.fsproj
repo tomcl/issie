@@ -5,6 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="TestLib.fs" />
+    <Compile Include="../Helpers.fs" />
     <Compile Include="../Diagram/Types.fs" />
     <Compile Include="../Diagram/Simulator/Analyser.fs" />
     <Compile Include="../Diagram/Simulator/Builder.fs" />

@@ -33,43 +33,58 @@ let private buildDependencyMap
     | _ -> failwith "what? Impossible case in buildDependencyMap"
 
 /// Convert the label of a port on a custom componetnt to its port number.
-let private labelToPortNumber label (outputLabels : string list) =
-    match List.tryFindIndex ((=) label) outputLabels with
-    | None -> failwithf "what? Label %s not present in %A" label outputLabels
-    | Some pNumber -> OutputPortNumber pNumber
+let private labelToPortNumber label (labels : string list) =
+    match List.tryFindIndex ((=) label) labels with
+    | None -> failwithf "what? Label %s not present in %A" label labels
+    | Some pNumber -> pNumber
 
 /// Convert the portNumber of a custom componetnt to its port lablel.
 let private portNumberToLabel (InputPortNumber pNumber) (inputLabels : string list) =
     // TODO: assert lenght?
     inputLabels.[pNumber]
 
-/// Find the ComponentId of the Input node with a given label.
-let private findInputNodeWithLabel graph label : ComponentId =
-    let chooser compId comp =
-        if comp.Type = Input && comp.Label = label
-        then Some compId
-        else None
-    // TODO: I have the feeling Map.tryPick has linear complexity. Maybe
-    // premapping all these information can improve performance.
-    match Map.tryPick chooser graph with
-    | None -> failwithf "what? Input node with label %s could not be found in graph" label
-    | Some compId -> compId
+/// Extract simulation input values as map.
+let private extractInputValuesAsMap graph graphInputs inputLabels : Map<InputPortNumber, Bit> =
+    extractIncompleteSimulationIOs graphInputs graph
+    |> List.map (
+        fun ((_, ComponentLabel compLabel), bit) ->
+            InputPortNumber <| labelToPortNumber compLabel inputLabels, bit)
+    |> Map.ofList
 
-/// Extract pairs label * value for all outputs of the SimulationGraph.
-let private extractOutputs (graph : SimulationGraph) : (string * Bit) list =
-    let extractBit (inputs : Map<InputPortNumber, Bit>) : Bit =
-        match inputs.TryFind <| InputPortNumber 0 with
-        | None -> failwith "what? IO bit not set"
-        | Some bit -> bit
-    graph
-    |> Map.filter (fun compId comp -> match comp.Type with | Output -> true | _ -> false )
-    |> Map.map (fun compId comp -> comp.Label, extractBit comp.Inputs)
-    |> Map.toList
-    |> List.map (fun (compId, res) -> res)
+/// Extract simulation output values as map.
+let private extractOutputValuesAsMap graph graphOutputs outputLabels : Map<OutputPortNumber, Bit> =
+    extractSimulationIOs graphOutputs graph
+    |> List.map (
+        fun ( (_, ComponentLabel label), bit ) ->
+            OutputPortNumber <| labelToPortNumber label outputLabels, bit)
+    |> Map.ofList
+
+/// Function used in the custom reducer to only feed the inputs that changed.
+let private diffSimulationInputs
+        (newInputs : Map<InputPortNumber, Bit>)
+        (oldInputs : Map<InputPortNumber, Bit>)
+        : Map<InputPortNumber, Bit> =
+    // New inputs either:
+    // - has more keys than oldInputs,
+    // - has the same keys as oldInput, but their values have changed.
+    // TODO: assert oldInputs.Count <= newInputs.Count?
+    (Map.empty, newInputs)
+    ||> Map.fold (fun diff inputPortNumber bit ->
+        match oldInputs.TryFind inputPortNumber with
+        | None -> diff.Add(inputPortNumber, bit)
+        | Some oldBit when oldBit <> bit -> diff.Add(inputPortNumber, bit)
+        | Some oldBit when oldBit = bit -> diff
+        | _ -> failwith "what? Impossible case in diffSimulationInputs"
+    )
 
 /// Create the Reducer for a custom component.
+/// Passing graphInputs and graphOutputs would not be strictly necessary, but it
+/// is good for performance as so the Input and Output nodes don't have to be
+/// searched every time.
 let private makeCustomReducer
         (custom : CustomComponentType)
+        (graphInputs : SimulationIO list)
+        (graphOutputs : SimulationIO list)
         : Map<InputPortNumber, Bit>               // Inputs.
           -> SimulationGraph option               // CustomSimulationGraph.
           -> (Map<OutputPortNumber, Bit> option * // Outputs.
@@ -82,20 +97,24 @@ let private makeCustomReducer
         match inputs.Count = custom.InputLabels.Length with
         | false -> None, Some graph // Not enough inputs, return graph unchanged.
         | true ->
-            // TODO: feed only new inputs or inputs that changed, for performance.
-            //       for now, we feed all the inputs.
+            // Feed only new inputs or inputs that changed, for performance.
+            let oldInputs =
+                extractInputValuesAsMap graph graphInputs custom.InputLabels
+            let newInputs = diffSimulationInputs inputs oldInputs
+            // TODO: Assert newInputs is not empty.
             let graph =
-                (graph, inputs)
+                (graph, newInputs)
                 ||> Map.fold (fun graph inputPortNumber bit ->
-                    let inputId =
+                    let inputLabel =
                         portNumberToLabel inputPortNumber custom.InputLabels
-                        |> findInputNodeWithLabel graph
+                    let inputId, _ =
+                        graphInputs
+                        |> List.find (fun (_, ComponentLabel inpLabel) ->
+                                      inpLabel = inputLabel)
                     feedSimulationInput graph inputId bit
                 )
             let outputs =
-                extractOutputs graph
-                |> List.map (fun (label, bit) -> labelToPortNumber label custom.OutputLabels, bit)
-                |> Map.ofList
+                extractOutputValuesAsMap graph graphOutputs custom.OutputLabels
             // Return the outputs toghether with the updated graph.
             Some outputs, Some graph
 
@@ -129,8 +148,13 @@ let rec private merger
             // Augment the custom component with the initial
             // CustomSimulationGraph and the Custom reducer (that allows to use
             // and update the CustomSimulationGraph).
-            let newComp = { comp with CustomSimulationGraph = Some dependencyGraph
-                                      Reducer = makeCustomReducer custom }
+            let graphInputs, graphOutputs =
+                getSimulationIOsFromGraph dependencyGraph
+            let newComp = {
+                comp with
+                    CustomSimulationGraph = Some dependencyGraph
+                    Reducer = makeCustomReducer custom graphInputs graphOutputs
+            }
             currGraph.Add(compId, newComp)
         | _ -> currGraph // Ignore non-custom components.
     )

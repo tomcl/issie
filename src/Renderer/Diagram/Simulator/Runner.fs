@@ -62,3 +62,58 @@ let simulateWithAllInputsToZero
     (graph, inputIds) ||> List.fold (fun graph (inputId, _) ->
         feedSimulationInput graph inputId Zero
     )
+
+/// Given a list of IO nodes (i.e. Inputs or outputs) extract their value.
+/// If they dont all have a value, an error is thrown.
+let extractSimulationIOs
+        (simulationIOs : SimulationIO list)
+        (graph : SimulationGraph)
+        : (SimulationIO * Bit) list =
+    let extractBit (inputs : Map<InputPortNumber, Bit>) : Bit =
+        match inputs.TryFind <| InputPortNumber 0 with
+        | None -> failwith "what? IO bit not set"
+        | Some bit -> bit
+    ([], simulationIOs) ||> List.fold (fun result (ioId, ioLabel) ->
+        match graph.TryFind ioId with
+        | None -> failwithf "what? Could not find io node: %A" (ioId, ioLabel)
+        | Some comp -> ((ioId, ioLabel), extractBit comp.Inputs) :: result
+    )
+
+/// Simlar to extractSimulationIOs, but do not fail if a bit is not set, just
+/// ignore it.
+let extractIncompleteSimulationIOs
+        (simulationIOs : SimulationIO list)
+        (graph : SimulationGraph)
+        : (SimulationIO * Bit) list =
+    let extractBit (inputs : Map<InputPortNumber, Bit>) : Bit option =
+        inputs.TryFind <| InputPortNumber 0
+    ([], simulationIOs) ||> List.fold (fun result (ioId, ioLabel) ->
+        match graph.TryFind ioId with
+        | None -> failwithf "what? Could not find io node: %A" (ioId, ioLabel)
+        | Some comp -> match extractBit comp.Inputs with
+                       | None -> result
+                       | Some bit -> ((ioId, ioLabel), bit) :: result
+    )
+
+
+/// Get the ComponentIds and ComponentLabels of all input and output nodes.
+let getSimulationIOs
+        (components : Component list)
+        : SimulationIO list * SimulationIO list =
+    (([], []), components) ||> List.fold (fun (inputs, outputs) comp ->
+        match comp.Type with
+        | Input  -> ((ComponentId comp.Id, ComponentLabel comp.Label) :: inputs, outputs)
+        | Output -> (inputs, (ComponentId comp.Id, ComponentLabel comp.Label) :: outputs)
+        | _ -> (inputs, outputs)
+    )
+
+/// Get the ComponentIds and ComponentLabels of all input and output nodes.
+let getSimulationIOsFromGraph
+        (graph : SimulationGraph)
+        : SimulationIO list * SimulationIO list =
+    (([], []), graph) ||> Map.fold (fun (inputs, outputs) compId comp ->
+        match comp.Type with
+        | Input  -> ((comp.Id, ComponentLabel comp.Label) :: inputs, outputs)
+        | Output -> (inputs, (comp.Id, ComponentLabel comp.Label) :: outputs)
+        | _ -> (inputs, outputs)
+    )

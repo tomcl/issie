@@ -344,104 +344,16 @@ let private buildDependencyMap
 // simulation graph (map). Note that we need to make sure the ids are unique if
 // a custom component is used multiple times.
 
-// >> Maybe easier to:
-// create mapping: old custom port -> new port in dependency
-// add all dependency components in the graph, with their unique ids
-// replace the outputs connecting to the old custom components
-
-/// Lookup the simulation graph of a dependency in the dependency map, and
-/// append the uniqueId to all ComponentIds (so that the graph is unique).
-let private getUniqueGraph
-        (dependencyMap : DependencyMap)
-        (dependencyName : string)
-        (uniqueInt : int)
-        : SimulationGraph =
-    let appendUniqueInt (ComponentId compId) : ComponentId =
-        ComponentId <| sprintf "%s-unique-%d" compId uniqueInt
-    let makeUniqueOutputs
-            (oldOutputs : Map<OutputPortNumber, (ComponentId * InputPortNumber) list>)
-            : Map<OutputPortNumber, (ComponentId * InputPortNumber) list> =
-        oldOutputs
-        |> Map.map (fun _ lst ->
-            lst
-            |> List.map (fun (compId, pNumber) -> appendUniqueInt compId, pNumber)
-        )
-    match dependencyMap.TryFind dependencyName with
-    | None -> failwithf "what? Dependencey %s not found in dependencyMap when merging" dependencyName
-    | Some depGraph ->
-        // Copy the map into a new one with all unique Ids.
-        // The only parts of the component that require changes are the Id and
-        // the Outputs (they are the only the contains ComponentIds).
-        (Map.empty, depGraph) ||> Map.fold (fun uniqueGraph compId comp ->
-            uniqueGraph.Add(
-                appendUniqueInt compId,
-                { comp with Id = appendUniqueInt compId;
-                            Outputs = makeUniqueOutputs comp.Outputs }
-            )
-        )
-
-let private mapCustomPorts
-        (customComp : SimulationComponent)
-        (customGraph : SimulationGraph)
-        : Map<ComponentId * InputPortNumber,ComponentId * InputPortNumber> =
-    // for every output in customComp
-    // -> get customComp.InputPortNumber
-    // -> get label from label arrays at that idx (TODO: change DependencyMap to have it).
-    // -> search label on Input node in customGraph
-    // -> take the ComponentId and InputPortNumber of the Outputs of the Input node.
-    Map.empty
-
-/// Join two maps.
-let private joinMaps (map1 : Map<'K,'V>) (map2 : Map<'K,'V>) : Map<'K,'V> =
-    Map.fold (fun joined key value -> joined.Add(key, value)) map1 map2
-
-/// Top down merger called by mergeDependencies. Return the merged graph and the
-/// a new unique integer.
-let rec private merger
-        (currGraph : SimulationGraph)
-        (dependencyMap : DependencyMap)
-        (uniqueInt : int)
-        : SimulationGraph * int =
-    // Search the current graph for any Custom component that requires merging.
-    // When a custom component is found:
-    // 1. lookup the dependency map for the simulation graph of that custom component
-    // 2. make all components id for that graph unique (append the same integer to all)
-    // 3. recur the merger on all custom components of tne new unique graph
-    // 4. add all components of the simulation graph to the current graph
-    // 5. create mapping between ports of the outer simulation graph to ports of the inner
-    // 6. remove the custom component
-    //
-    // (outside the fold)
-    // 7. Now we have a new graph, with some connections pointing to elements that
-    //    do not exist anymore. Apply all the port mapping the new graph and return.
-    let currGraphCopy = currGraph
-    ((currGraph, Map.empty, uniqueInt), currGraphCopy)
-    ||> Map.fold (fun (currGraph, portMappings, uniqueInt) compId comp ->
-        match comp.Type with
-        | Custom custom ->
-            // Perform steps 1 and 2.
-            let customGraph = getUniqueGraph dependencyMap custom.Name uniqueInt
-            // Perform step 3.
-            let customGraph, uniqueInt = merger customGraph dependencyMap uniqueInt
-            // Perform step 4.
-            let joinedGraph = joinMaps currGraph customGraph
-            // Perform step 5.
-            let newPortMappings = mapCustomPorts comp customGraph
-            let portMappings = joinMaps portMappings newPortMappings
-            // Perform step 6.
-            let joinedGraph = joinedGraph.Remove(compId)
-
-            joinedGraph, portMappings, uniqueInt
-        | _ -> (currGraph, portMappings, uniqueInt) // Ignore non-custom components.
-    )
-
-    //TODO: use the mappings for step 7.
-
-    |> ignore
-    Map.empty, 0
-
-    // Create mappings: (ComponentId * InputPortNumber) to (ComponentId * InputPortNumber)
-    // Replace mappings in all outputs
+/// Top down merger called by mergeDependencies.
+//let rec private merger currGraph dependencyMap =
+//    // Search the current graph for any Custom component that requires merging.
+//    let currGraphCopy = currGraph
+//    (currGraph, currGraphCopy)
+//    ||> Map.fold (fun simComp ->
+//        match simComp.Type with
+//        | Custom _ -> true
+//        | _ -> simComp
+//    )
 
 /// Try to resolve all the dependencies in a graph, creating a single big graph.
 /// For example, if the graph of an ALU refers to custom component such as

@@ -198,10 +198,35 @@ let private testCasesSimulatorOkNoDependencies : SimulatorTestCase list = [
     ]
 ]
 
-// TODO add cases with dependencies.
+let testCasesSimulatorOkWithDependencies : SimulatorTestCase list = [
+    "Simple input-output dependency (Zero)",
+    (state16, [state3Dependency], [ComponentId "outer-input-node0", Zero]),
+    Ok [(ComponentId "outer-output-node0", ComponentLabel "outer-output-node0-label"), Zero]
+
+    "Simple input-output dependency (One)",
+    (state16, [state3Dependency], [ComponentId "outer-input-node0", One]),
+    Ok [(ComponentId "outer-output-node0", ComponentLabel "outer-output-node0-label"), One]
+
+    "Nested input-output dependency (Zero)",
+    (state17, [state16Dependency; state3Dependency], [ComponentId "outer-outer-input-node0", Zero]),
+    Ok [(ComponentId "outer-outer-output-node0", ComponentLabel "outer-outer-output-node0-label"), Zero]
+
+    "Nested input-output dependency (One)",
+    (state17, [state16Dependency; state3Dependency], [ComponentId "outer-outer-input-node0", One]),
+    Ok [(ComponentId "outer-outer-output-node0", ComponentLabel "outer-outer-output-node0-label"), One]
+
+    "Doubly nested input-output dependency (Zero)",
+    (state18, [state17Dependency; state16Dependency; state3Dependency], [ComponentId "outer-outer-outer-input-node0", Zero]),
+    Ok [(ComponentId "outer-outer-outer-output-node0", ComponentLabel "outer-outer-outer-output-node0-label"), Zero]
+
+    "Doubly nested input-output dependency (One)",
+    (state18, [state17Dependency; state16Dependency; state3Dependency], [ComponentId "outer-outer-outer-input-node0", One]),
+    Ok [(ComponentId "outer-outer-outer-output-node0", ComponentLabel "outer-outer-outer-output-node0-label"), One]
+]
 
 let testCasesSimulator =
     testCasesSimulatorPortError @
     testCasesSimulatorCycleError @
     testCasesSimulatorDuplicatIOError @
-    testCasesSimulatorOkNoDependencies
+    testCasesSimulatorOkNoDependencies @
+    testCasesSimulatorOkWithDependencies

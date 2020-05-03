@@ -2,6 +2,12 @@ module CanvasStates
 
 open DiagramTypes
 
+let private makeCustomComponent dep = {
+    Name = dep.Name
+    InputLabels = dep.InputLabels
+    OutputLabels = dep.OutputLabels
+}
+
 /// Just a single input node. No conections.
 let state1 : CanvasState =
     [
@@ -224,11 +230,8 @@ let state3Dependency : LoadedComponent = {
 }
 
 /// State3 custom component.
-let state3CustomComponent : CustomComponentType = {
-    Name = "input-output"
-    InputLabels = ["input-node0-label"]
-    OutputLabels = ["output-node0-label"]
-}
+let state3CustomComponent : CustomComponentType = 
+    makeCustomComponent state3Dependency
 
 /// One input and one output, connected to the state3CustomComponent.
 let state16 : CanvasState =
@@ -267,11 +270,8 @@ let state16Dependency : LoadedComponent = {
 }
 
 /// State16 custom component.
-let state16CustomComponent : CustomComponentType = {
-    Name = "nested-input-output"
-    InputLabels = ["outer-input-node0-label"]
-    OutputLabels = ["outer-output-node0-label"]
-}
+let state16CustomComponent : CustomComponentType = 
+    makeCustomComponent state16Dependency
 
 /// One input and one output, connected to the state16CustomComponent, which
 /// contains the state3CustomComponent.
@@ -311,11 +311,8 @@ let state17Dependency : LoadedComponent = {
 }
 
 /// State17 custom component.
-let state17CustomComponent : CustomComponentType = {
-    Name = "doubly-nested-input-output"
-    InputLabels = ["outer-outer-input-node0-label"]
-    OutputLabels = ["outer-outer-output-node0-label"]
-}
+let state17CustomComponent : CustomComponentType =
+    makeCustomComponent state17Dependency
 
 /// One input and one output, connected to the state17CustomComponent, which
 /// contains state16CustomComponent, which contains the state3CustomComponent.
@@ -345,3 +342,106 @@ let state18 : CanvasState =
         }
     ]
 
+// Half adder.
+
+let halfAdderState : CanvasState =
+    [
+        {Id = "50151b16-a5e1-76ca-93d2-c4446a6a6c60"; Type = Input; Label = "B"; InputPorts = []; OutputPorts = [{Id = "0ca8918f-28b0-0892-4335-3a375c35ef15"; PortNumber = Some 0; PortType = PortType.Output; HostId = "50151b16-a5e1-76ca-93d2-c4446a6a6c60"}]; X = 100; Y = 195}
+        {Id = "36c5c713-b731-21d0-c2f9-9e9bf4c79048"; Type = Input; Label = "A"; InputPorts = []; OutputPorts = [{Id = "23fcb523-bd9d-0ca1-cb84-6a37779f2dce"; PortNumber = Some 0; PortType = PortType.Output; HostId = "36c5c713-b731-21d0-c2f9-9e9bf4c79048"}]; X = 100; Y = 100}
+        {Id = "7227d00f-d329-af58-b769-0bf42ee6f2ef"; Type = And; Label = ""; InputPorts = [{Id = "49c3e9ab-4ad5-0c6c-cda9-987a820ad1c5"; PortNumber = Some 0; PortType = PortType.Input; HostId = "7227d00f-d329-af58-b769-0bf42ee6f2ef"}; {Id = "7d121026-401b-72e5-2051-3497b65d99b3"; PortNumber = Some 1; PortType = PortType.Input; HostId = "7227d00f-d329-af58-b769-0bf42ee6f2ef"}]; OutputPorts = [{Id = "45d7d345-38f8-0933-a86c-16159674e4a0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "7227d00f-d329-af58-b769-0bf42ee6f2ef"}]; X = 267; Y = 179}
+        {Id = "5ea2bff6-ee86-e729-5c14-a52b302af517"; Type = Xor; Label = ""; InputPorts = [{Id = "1e8be0a9-1c87-e877-3e7b-a6335f5ddad4"; PortNumber = Some 0; PortType = PortType.Input; HostId = "5ea2bff6-ee86-e729-5c14-a52b302af517"}; {Id = "77dfc4b4-6616-6768-7c35-8c3c1c26acbd"; PortNumber = Some 1; PortType = PortType.Input; HostId = "5ea2bff6-ee86-e729-5c14-a52b302af517"}]; OutputPorts = [{Id = "27537cac-d2b0-dd3d-e0ee-a6f27d2e793e"; PortNumber = Some 0; PortType = PortType.Output; HostId = "5ea2bff6-ee86-e729-5c14-a52b302af517"}]; X = 267; Y = 97}
+        {Id = "0be5c1d8-c5a8-5fad-6e4b-e74e873ce728"; Type = Output; Label = "Sum"; InputPorts = [{Id = "26723054-cb13-f8b2-3a5d-ae8224d532e1"; PortNumber = Some 0; PortType = PortType.Input; HostId = "0be5c1d8-c5a8-5fad-6e4b-e74e873ce728"}]; OutputPorts = []; X = 420; Y = 107}
+        {Id = "56dd9000-1a54-8040-3e90-33e44ce390b9"; Type = Output; Label = "Cout"; InputPorts = [{Id = "617c8ca8-d4b3-182f-b8d1-ce7f4b6a5359"; PortNumber = Some 0; PortType = PortType.Input; HostId = "56dd9000-1a54-8040-3e90-33e44ce390b9"}]; OutputPorts = []; X = 420; Y = 189}
+    ],
+    [
+        {Id = "5751a3dc-26e0-2df2-d797-af37b357f7bd"; Source = {Id = "27537cac-d2b0-dd3d-e0ee-a6f27d2e793e"; PortNumber = None; PortType = PortType.Output; HostId = "5ea2bff6-ee86-e729-5c14-a52b302af517"}; Target = {Id = "26723054-cb13-f8b2-3a5d-ae8224d532e1"; PortNumber = None; PortType = PortType.Input; HostId = "0be5c1d8-c5a8-5fad-6e4b-e74e873ce728"}; Vertices = [307.0,117.0; 420.0,117.0]}
+        {Id = "4d823d53-2991-68a4-a72b-7c3aec1e6b75"; Source = {Id = "0ca8918f-28b0-0892-4335-3a375c35ef15"; PortNumber = None; PortType = PortType.Output; HostId = "50151b16-a5e1-76ca-93d2-c4446a6a6c60"}; Target = {Id = "7d121026-401b-72e5-2051-3497b65d99b3"; PortNumber = None; PortType = PortType.Input; HostId = "7227d00f-d329-af58-b769-0bf42ee6f2ef"}; Vertices = [130.0,205.0; 198.5,205.0; 198.5,205.66666666666666; 267.0,205.66666666666666]}
+        {Id = "3491b238-ea58-d04a-8d55-78b630507094"; Source = {Id = "23fcb523-bd9d-0ca1-cb84-6a37779f2dce"; PortNumber = None; PortType = PortType.Output; HostId = "36c5c713-b731-21d0-c2f9-9e9bf4c79048"}; Target = {Id = "49c3e9ab-4ad5-0c6c-cda9-987a820ad1c5"; PortNumber = None; PortType = PortType.Input; HostId = "7227d00f-d329-af58-b769-0bf42ee6f2ef"}; Vertices = [130.0,110.0; 170.5,110.0; 170.5,192.33333333333334; 267.0,192.33333333333334]}
+        {Id = "9c7f868c-0411-eeaf-eefe-9923ae6a66bd"; Source = {Id = "23fcb523-bd9d-0ca1-cb84-6a37779f2dce"; PortNumber = None; PortType = PortType.Output; HostId = "36c5c713-b731-21d0-c2f9-9e9bf4c79048"}; Target = {Id = "1e8be0a9-1c87-e877-3e7b-a6335f5ddad4"; PortNumber = None; PortType = PortType.Input; HostId = "5ea2bff6-ee86-e729-5c14-a52b302af517"}; Vertices = [130.0,110.0; 198.5,110.0; 198.5,110.33333333333333; 267.0,110.33333333333333]}
+        {Id = "c5c8d60b-712d-b182-aaf1-b902c1eb4b7b"; Source = {Id = "0ca8918f-28b0-0892-4335-3a375c35ef15"; PortNumber = None; PortType = PortType.Output; HostId = "50151b16-a5e1-76ca-93d2-c4446a6a6c60"}; Target = {Id = "77dfc4b4-6616-6768-7c35-8c3c1c26acbd"; PortNumber = None; PortType = PortType.Input; HostId = "5ea2bff6-ee86-e729-5c14-a52b302af517"}; Vertices = [130.0,205.0; 198.5,205.0; 198.5,123.66666666666667; 267.0,123.66666666666667]}
+        {Id = "712471ca-270a-0410-a9e5-a7894a6c2df4"; Source = {Id = "45d7d345-38f8-0933-a86c-16159674e4a0"; PortNumber = None; PortType = PortType.Output; HostId = "7227d00f-d329-af58-b769-0bf42ee6f2ef"}; Target = {Id = "617c8ca8-d4b3-182f-b8d1-ce7f4b6a5359"; PortNumber = None; PortType = PortType.Input; HostId = "56dd9000-1a54-8040-3e90-33e44ce390b9"}; Vertices = [307.0,199.0; 420.0,199.0]}
+    ]
+
+let halfAdderDependency : LoadedComponent = {
+    Name = "half-adder"
+    FilePath = ""
+    CanvasState = halfAdderState
+    InputLabels = ["A"; "B"]
+    OutputLabels = ["Cout"; "Sum"]
+}
+
+let halfAdderCustom : CustomComponentType =
+    makeCustomComponent halfAdderDependency
+
+// Full adder: uses half adder.
+
+let fullAdderState : CanvasState =
+    [
+        {Id = "6d47f06e-e8ac-1554-9304-e549a85eb9f3"; Type = Custom {Name = "half-adder"; InputLabels = ["A"; "B"]; OutputLabels = ["Cout"; "Sum"]}; Label = "half-adder"; InputPorts = [{Id = "bab6da29-c4fe-adae-c94b-ada53dc9b948"; PortNumber = Some 0; PortType = PortType.Input; HostId = "6d47f06e-e8ac-1554-9304-e549a85eb9f3"}; {Id = "6ff179d8-a703-eed2-c948-a214c0aff3a9"; PortNumber = Some 1; PortType = PortType.Input; HostId = "6d47f06e-e8ac-1554-9304-e549a85eb9f3"}]; OutputPorts = [{Id = "0b68efeb-91be-da25-c7c5-dfa1b76b105b"; PortNumber = Some 0; PortType = PortType.Output; HostId = "6d47f06e-e8ac-1554-9304-e549a85eb9f3"}; {Id = "60b550b8-37d9-a0b8-c55c-cfc0044ef147"; PortNumber = Some 1; PortType = PortType.Output; HostId = "6d47f06e-e8ac-1554-9304-e549a85eb9f3"}]; X = 187; Y = 200}
+        {Id = "2c610c78-72b7-2816-fec5-a53d2fa54742"; Type = Input; Label = "A"; InputPorts = []; OutputPorts = [{Id = "51e83d48-e73b-0961-3ebe-f488e7f89326"; PortNumber = Some 0; PortType = PortType.Output; HostId = "2c610c78-72b7-2816-fec5-a53d2fa54742"}]; X = 95; Y = 171}
+        {Id = "7e461ed2-53f6-c225-e184-91d24532ef33"; Type = Input; Label = "B"; InputPorts = []; OutputPorts = [{Id = "1eaa9bb4-0fa1-4fb3-0792-fe36b5d94886"; PortNumber = Some 0; PortType = PortType.Output; HostId = "7e461ed2-53f6-c225-e184-91d24532ef33"}]; X = 95; Y = 265}
+        {Id = "9aacd9e5-45c1-dfdd-5cc2-f464dd3983ec"; Type = Custom {Name = "half-adder"; InputLabels = ["A"; "B"]; OutputLabels = ["Cout"; "Sum"]}; Label = "half-adder"; InputPorts = [{Id = "15575f10-2ec6-6033-cd3a-3ddabda8dbf3"; PortNumber = Some 0; PortType = PortType.Input; HostId = "9aacd9e5-45c1-dfdd-5cc2-f464dd3983ec"}; {Id = "7cdb3ebb-cfa1-6892-9d35-de8f15cb87ac"; PortNumber = Some 1; PortType = PortType.Input; HostId = "9aacd9e5-45c1-dfdd-5cc2-f464dd3983ec"}]; OutputPorts = [{Id = "093b66de-366d-40fc-a3b5-2c2d396d7fb5"; PortNumber = Some 0; PortType = PortType.Output; HostId = "9aacd9e5-45c1-dfdd-5cc2-f464dd3983ec"}; {Id = "8cbfb956-5d53-aa0f-2546-ff32426901d1"; PortNumber = Some 1; PortType = PortType.Output; HostId = "9aacd9e5-45c1-dfdd-5cc2-f464dd3983ec"}]; X = 323; Y = 108}
+        {Id = "eddfd0f6-f06d-5190-3af9-540371a13391"; Type = Input; Label = "Cin"; InputPorts = []; OutputPorts = [{Id = "042a92cb-f8d7-3cca-7519-a0bae85fdb6b"; PortNumber = Some 0; PortType = PortType.Output; HostId = "eddfd0f6-f06d-5190-3af9-540371a13391"}]; X = 100; Y = 70}
+        {Id = "d8087733-5924-4af4-e67a-2c9630173608"; Type = Or; Label = ""; InputPorts = [{Id = "f812e552-daab-73d0-cfa0-de0190279c8d"; PortNumber = Some 0; PortType = PortType.Input; HostId = "d8087733-5924-4af4-e67a-2c9630173608"}; {Id = "d25307aa-412f-d108-0f70-335b4e331f52"; PortNumber = Some 1; PortType = PortType.Input; HostId = "d8087733-5924-4af4-e67a-2c9630173608"}]; OutputPorts = [{Id = "93f988ff-3b92-1904-2dcb-17ec5e88178f"; PortNumber = Some 0; PortType = PortType.Output; HostId = "d8087733-5924-4af4-e67a-2c9630173608"}]; X = 481; Y = 196}
+        {Id = "9bf01350-53a9-bb16-1f02-0df29cb60b0f"; Type = Output; Label = "Cout"; InputPorts = [{Id = "17f9e9e2-3040-65ba-9578-b4ea6a8f8b28"; PortNumber = Some 0; PortType = PortType.Input; HostId = "9bf01350-53a9-bb16-1f02-0df29cb60b0f"}]; OutputPorts = []; X = 567; Y = 206}
+        {Id = "434a7ce9-942f-0939-94eb-8dd7162ad916"; Type = Output; Label = "Sum"; InputPorts = [{Id = "f7ed4610-faf3-e0cb-d985-86f6da5fa148"; PortNumber = Some 0; PortType = PortType.Input; HostId = "434a7ce9-942f-0939-94eb-8dd7162ad916"}]; OutputPorts = []; X = 567; Y = 138}
+    ],
+    [
+        {Id = "67479e2e-468f-ebe6-7fa8-fe4e7e25efac"; Source = {Id = "51e83d48-e73b-0961-3ebe-f488e7f89326"; PortNumber = None; PortType = PortType.Output; HostId = "2c610c78-72b7-2816-fec5-a53d2fa54742"}; Target = {Id = "bab6da29-c4fe-adae-c94b-ada53dc9b948"; PortNumber = None; PortType = PortType.Input; HostId = "6d47f06e-e8ac-1554-9304-e549a85eb9f3"}; Vertices = [125.0,181.0; 156.0,181.0; 156.0,220.0; 187.0,220.0]}
+        {Id = "b658d7c4-7b6a-4c9d-7cbc-19f6b25d3631"; Source = {Id = "1eaa9bb4-0fa1-4fb3-0792-fe36b5d94886"; PortNumber = None; PortType = PortType.Output; HostId = "7e461ed2-53f6-c225-e184-91d24532ef33"}; Target = {Id = "6ff179d8-a703-eed2-c948-a214c0aff3a9"; PortNumber = None; PortType = PortType.Input; HostId = "6d47f06e-e8ac-1554-9304-e549a85eb9f3"}; Vertices = [125.0,275.0; 156.0,275.0; 156.0,240.0; 187.0,240.0]}
+        {Id = "c7cf8ab2-7521-b09c-e4f8-4d09f0913d4f"; Source = {Id = "0b68efeb-91be-da25-c7c5-dfa1b76b105b"; PortNumber = None; PortType = PortType.Output; HostId = "6d47f06e-e8ac-1554-9304-e549a85eb9f3"}; Target = {Id = "d25307aa-412f-d108-0f70-335b4e331f52"; PortNumber = None; PortType = PortType.Input; HostId = "d8087733-5924-4af4-e67a-2c9630173608"}; Vertices = [247.0,220.0; 364.0,220.0; 364.0,222.66666666666666; 481.0,222.66666666666666]}
+        {Id = "3330546c-fe28-33c1-5f7a-fb71ba73249b"; Source = {Id = "093b66de-366d-40fc-a3b5-2c2d396d7fb5"; PortNumber = None; PortType = PortType.Output; HostId = "9aacd9e5-45c1-dfdd-5cc2-f464dd3983ec"}; Target = {Id = "f812e552-daab-73d0-cfa0-de0190279c8d"; PortNumber = None; PortType = PortType.Input; HostId = "d8087733-5924-4af4-e67a-2c9630173608"}; Vertices = [383.0,128.0; 432.0,128.0; 432.0,209.33333333333334; 481.0,209.33333333333334]}
+        {Id = "18bf5873-fe65-59d4-9c42-4b578bac5dc6"; Source = {Id = "8cbfb956-5d53-aa0f-2546-ff32426901d1"; PortNumber = None; PortType = PortType.Output; HostId = "9aacd9e5-45c1-dfdd-5cc2-f464dd3983ec"}; Target = {Id = "f7ed4610-faf3-e0cb-d985-86f6da5fa148"; PortNumber = None; PortType = PortType.Input; HostId = "434a7ce9-942f-0939-94eb-8dd7162ad916"}; Vertices = [383.0,148.0; 567.0,148.0]}
+        {Id = "026d76ef-92b3-91ae-6873-e2cc505ccb8d"; Source = {Id = "60b550b8-37d9-a0b8-c55c-cfc0044ef147"; PortNumber = None; PortType = PortType.Output; HostId = "6d47f06e-e8ac-1554-9304-e549a85eb9f3"}; Target = {Id = "7cdb3ebb-cfa1-6892-9d35-de8f15cb87ac"; PortNumber = None; PortType = PortType.Input; HostId = "9aacd9e5-45c1-dfdd-5cc2-f464dd3983ec"}; Vertices = [247.0,240.0; 285.0,240.0; 285.0,148.0; 323.0,148.0]}
+        {Id = "3c37db26-e552-d5fb-10f5-57227c4ec6f5"; Source = {Id = "93f988ff-3b92-1904-2dcb-17ec5e88178f"; PortNumber = None; PortType = PortType.Output; HostId = "d8087733-5924-4af4-e67a-2c9630173608"}; Target = {Id = "17f9e9e2-3040-65ba-9578-b4ea6a8f8b28"; PortNumber = None; PortType = PortType.Input; HostId = "9bf01350-53a9-bb16-1f02-0df29cb60b0f"}; Vertices = [521.0,216.0; 567.0,216.0]}
+        {Id = "e1f27e7e-d0ae-e207-db0e-59c9a872255d"; Source = {Id = "042a92cb-f8d7-3cca-7519-a0bae85fdb6b"; PortNumber = None; PortType = PortType.Output; HostId = "eddfd0f6-f06d-5190-3af9-540371a13391"}; Target = {Id = "15575f10-2ec6-6033-cd3a-3ddabda8dbf3"; PortNumber = None; PortType = PortType.Input; HostId = "9aacd9e5-45c1-dfdd-5cc2-f464dd3983ec"}; Vertices = [130.0,80.0; 226.5,80.0; 226.5,128.0; 323.0,128.0]}
+    ]
+
+let fullAdderDependency : LoadedComponent = {
+    Name = "full-adder"
+    FilePath = ""
+    CanvasState = fullAdderState
+    InputLabels = ["Cin"; "B"; "A"]
+    OutputLabels = ["Sum"; "Cout"]
+}
+
+let fullAdderCustom : CustomComponentType =
+    makeCustomComponent fullAdderDependency
+
+// 2 bit adder: uses full adder.
+
+let twoBitAdderState : CanvasState =
+    [
+        {Id = "57604fee-25b0-9498-06f1-3a065d046515"; Type = Custom {Name = "full-adder"; InputLabels = ["Cin"; "B"; "A"]; OutputLabels = ["Sum"; "Cout"]}; Label = "full-adder"; InputPorts = [{Id = "6a5725f2-f181-d678-371f-7add822462ea"; PortNumber = Some 0; PortType = PortType.Input; HostId = "57604fee-25b0-9498-06f1-3a065d046515"}; {Id = "13f98ff8-2e41-2aef-cbc8-1ed636c8c8c7"; PortNumber = Some 1; PortType = PortType.Input; HostId = "57604fee-25b0-9498-06f1-3a065d046515"}; {Id = "025e36fe-41f2-7f7c-08e2-7b1bb047b798"; PortNumber = Some 2; PortType = PortType.Input; HostId = "57604fee-25b0-9498-06f1-3a065d046515"}]; OutputPorts = [{Id = "c14929a9-b56c-2414-38e6-6fab3127203f"; PortNumber = Some 0; PortType = PortType.Output; HostId = "57604fee-25b0-9498-06f1-3a065d046515"}; {Id = "0cb60845-f6b7-4e88-53bc-18e6c06364ca"; PortNumber = Some 1; PortType = PortType.Output; HostId = "57604fee-25b0-9498-06f1-3a065d046515"}]; X = 298; Y = 129}
+        {Id = "b2842635-e4ec-3113-9130-d827d48e2875"; Type = Custom {Name = "full-adder"; InputLabels = ["Cin"; "B"; "A"]; OutputLabels = ["Sum"; "Cout"]}; Label = "full-adder"; InputPorts = [{Id = "ce42647b-a5db-5fa1-9a94-baaeec7416cd"; PortNumber = Some 0; PortType = PortType.Input; HostId = "b2842635-e4ec-3113-9130-d827d48e2875"}; {Id = "3496a30f-e2bf-2b12-576d-cf28201850ff"; PortNumber = Some 1; PortType = PortType.Input; HostId = "b2842635-e4ec-3113-9130-d827d48e2875"}; {Id = "9c0d3115-bf93-6c1c-b5bb-784cd7ca7896"; PortNumber = Some 2; PortType = PortType.Input; HostId = "b2842635-e4ec-3113-9130-d827d48e2875"}]; OutputPorts = [{Id = "f6da6a43-076e-1171-53de-6bef710bcaf8"; PortNumber = Some 0; PortType = PortType.Output; HostId = "b2842635-e4ec-3113-9130-d827d48e2875"}; {Id = "04744361-bbe8-ac74-8643-fae2126ed686"; PortNumber = Some 1; PortType = PortType.Output; HostId = "b2842635-e4ec-3113-9130-d827d48e2875"}]; X = 298; Y = 298}
+        {Id = "78795182-35c4-1c50-2190-6fc944a2adea"; Type = Input; Label = "Zero"; InputPorts = []; OutputPorts = [{Id = "8b0b16ed-3a4e-2ade-6e4b-6285b0d7d2c8"; PortNumber = Some 0; PortType = PortType.Output; HostId = "78795182-35c4-1c50-2190-6fc944a2adea"}]; X = 155; Y = 72}
+        {Id = "69a6ad2a-af19-369f-0483-0e09e6841da3"; Type = Input; Label = "B0"; InputPorts = []; OutputPorts = [{Id = "0b74f567-0740-9667-a7e9-3042aeb7ef8f"; PortNumber = Some 0; PortType = PortType.Output; HostId = "69a6ad2a-af19-369f-0483-0e09e6841da3"}]; X = 83; Y = 150}
+        {Id = "82a03f0b-ae31-b487-ed1b-335e235adeb7"; Type = Input; Label = "A1"; InputPorts = []; OutputPorts = [{Id = "e3b566b6-abf4-1446-7267-37d2ad1deed7"; PortNumber = Some 0; PortType = PortType.Output; HostId = "82a03f0b-ae31-b487-ed1b-335e235adeb7"}]; X = 84; Y = 389}
+        {Id = "a63fe5a2-9f4d-e70f-131b-ed35d3f3a9e1"; Type = Input; Label = "B1"; InputPorts = []; OutputPorts = [{Id = "d59e003b-088b-cf84-0f93-83c2235b5942"; PortNumber = Some 0; PortType = PortType.Output; HostId = "a63fe5a2-9f4d-e70f-131b-ed35d3f3a9e1"}]; X = 84; Y = 324}
+        {Id = "86372781-c2f4-09f2-406f-f385ee7a47a9"; Type = Input; Label = "A0"; InputPorts = []; OutputPorts = [{Id = "0d00e79c-1a98-3744-be2f-b9eb78a1cf5b"; PortNumber = Some 0; PortType = PortType.Output; HostId = "86372781-c2f4-09f2-406f-f385ee7a47a9"}]; X = 83; Y = 200}
+        {Id = "dbb1f55a-edf3-bde2-4c69-43a02560e17d"; Type = Output; Label = "Sum1"; InputPorts = [{Id = "8dcbc0d6-ab44-c2e2-9e26-90ee31fa2e35"; PortNumber = Some 0; PortType = PortType.Input; HostId = "dbb1f55a-edf3-bde2-4c69-43a02560e17d"}]; OutputPorts = []; X = 514; Y = 321}
+        {Id = "8f5bded5-f46d-722d-6108-03dda4236c01"; Type = Output; Label = "Sum0"; InputPorts = [{Id = "3a537f37-4c6d-3c85-48a7-040d6263bebe"; PortNumber = Some 0; PortType = PortType.Input; HostId = "8f5bded5-f46d-722d-6108-03dda4236c01"}]; OutputPorts = []; X = 514; Y = 150}
+        {Id = "7d948312-376d-1d4b-cf02-90872026be16"; Type = Output; Label = "Cout"; InputPorts = [{Id = "bb868347-969a-38d2-2389-2d4ae7b63ce8"; PortNumber = Some 0; PortType = PortType.Input; HostId = "7d948312-376d-1d4b-cf02-90872026be16"}]; OutputPorts = []; X = 514; Y = 389}
+    ],
+    [
+        {Id = "9a089fef-870a-53d8-00a0-e954963ac8e1"; Source = {Id = "0cb60845-f6b7-4e88-53bc-18e6c06364ca"; PortNumber = None; PortType = PortType.Output; HostId = "57604fee-25b0-9498-06f1-3a065d046515"}; Target = {Id = "ce42647b-a5db-5fa1-9a94-baaeec7416cd"; PortNumber = None; PortType = PortType.Input; HostId = "b2842635-e4ec-3113-9130-d827d48e2875"}; Vertices = [370.0,189.0; 399.0,189.0; 399.0,255.75; 278.0,255.75; 278.0,320.5; 298.0,320.5]}
+        {Id = "77ab7f29-5375-44b2-d66f-b7c21d412c7f"; Source = {Id = "0b74f567-0740-9667-a7e9-3042aeb7ef8f"; PortNumber = None; PortType = PortType.Output; HostId = "69a6ad2a-af19-369f-0483-0e09e6841da3"}; Target = {Id = "13f98ff8-2e41-2aef-cbc8-1ed636c8c8c7"; PortNumber = None; PortType = PortType.Input; HostId = "57604fee-25b0-9498-06f1-3a065d046515"}; Vertices = [113.0,160.0; 214.5,160.0; 214.5,174.0; 298.0,174.0]}
+        {Id = "dba98b52-cddf-04d3-648a-fa7b915d4f87"; Source = {Id = "d59e003b-088b-cf84-0f93-83c2235b5942"; PortNumber = None; PortType = PortType.Output; HostId = "a63fe5a2-9f4d-e70f-131b-ed35d3f3a9e1"}; Target = {Id = "3496a30f-e2bf-2b12-576d-cf28201850ff"; PortNumber = None; PortType = PortType.Input; HostId = "b2842635-e4ec-3113-9130-d827d48e2875"}; Vertices = [114.0,334.0; 215.0,334.0; 215.0,343.0; 298.0,343.0]}
+        {Id = "c7ce0fcc-c122-4ce6-3779-0f548cbfab38"; Source = {Id = "f6da6a43-076e-1171-53de-6bef710bcaf8"; PortNumber = None; PortType = PortType.Output; HostId = "b2842635-e4ec-3113-9130-d827d48e2875"}; Target = {Id = "8dcbc0d6-ab44-c2e2-9e26-90ee31fa2e35"; PortNumber = None; PortType = PortType.Input; HostId = "dbb1f55a-edf3-bde2-4c69-43a02560e17d"}; Vertices = [370.0,328.0; 446.5,328.0; 446.5,331.0; 514.0,331.0]}
+        {Id = "abc884ae-3a1a-5a35-6f6f-5695d4898759"; Source = {Id = "04744361-bbe8-ac74-8643-fae2126ed686"; PortNumber = None; PortType = PortType.Output; HostId = "b2842635-e4ec-3113-9130-d827d48e2875"}; Target = {Id = "bb868347-969a-38d2-2389-2d4ae7b63ce8"; PortNumber = None; PortType = PortType.Input; HostId = "7d948312-376d-1d4b-cf02-90872026be16"}; Vertices = [370.0,358.0; 446.5,358.0; 446.5,399.0; 514.0,399.0]}
+        {Id = "3c7b523c-71d3-9378-176c-7c45cfc516cf"; Source = {Id = "c14929a9-b56c-2414-38e6-6fab3127203f"; PortNumber = None; PortType = PortType.Output; HostId = "57604fee-25b0-9498-06f1-3a065d046515"}; Target = {Id = "3a537f37-4c6d-3c85-48a7-040d6263bebe"; PortNumber = None; PortType = PortType.Input; HostId = "8f5bded5-f46d-722d-6108-03dda4236c01"}; Vertices = [370.0,159.0; 446.5,159.0; 446.5,160.0; 514.0,160.0]}
+        {Id = "ccb35ae8-54b6-4072-6680-3cc05bb00f95"; Source = {Id = "0d00e79c-1a98-3744-be2f-b9eb78a1cf5b"; PortNumber = None; PortType = PortType.Output; HostId = "86372781-c2f4-09f2-406f-f385ee7a47a9"}; Target = {Id = "025e36fe-41f2-7f7c-08e2-7b1bb047b798"; PortNumber = None; PortType = PortType.Input; HostId = "57604fee-25b0-9498-06f1-3a065d046515"}; Vertices = [113.0,210.0; 214.5,210.0; 214.5,196.5; 298.0,196.5]}
+        {Id = "11759cef-e928-32c1-e6ec-b44b198d1a2e"; Source = {Id = "e3b566b6-abf4-1446-7267-37d2ad1deed7"; PortNumber = None; PortType = PortType.Output; HostId = "82a03f0b-ae31-b487-ed1b-335e235adeb7"}; Target = {Id = "9c0d3115-bf93-6c1c-b5bb-784cd7ca7896"; PortNumber = None; PortType = PortType.Input; HostId = "b2842635-e4ec-3113-9130-d827d48e2875"}; Vertices = [114.0,399.0; 215.0,399.0; 215.0,365.5; 298.0,365.5]}
+        {Id = "2ae1f296-5dfb-986e-2c4c-3e3435d750b9"; Source = {Id = "8b0b16ed-3a4e-2ade-6e4b-6285b0d7d2c8"; PortNumber = None; PortType = PortType.Output; HostId = "78795182-35c4-1c50-2190-6fc944a2adea"}; Target = {Id = "6a5725f2-f181-d678-371f-7add822462ea"; PortNumber = None; PortType = PortType.Input; HostId = "57604fee-25b0-9498-06f1-3a065d046515"}; Vertices = [185.0,82.0; 250.5,82.0; 250.5,151.5; 298.0,151.5]}
+    ]
+
+let twoBitAdderDependency : LoadedComponent = {
+    Name = "2-bit-adder"
+    FilePath = ""
+    CanvasState = twoBitAdderState
+    InputLabels = ["A0"; "B1"; "A1"; "B0"; "Zero"]
+    OutputLabels = ["Cout"; "Sum0"; "Sum1"]
+}
+
+let twoBitAdderCustom : CustomComponentType =
+    makeCustomComponent twoBitAdderDependency

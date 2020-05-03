@@ -220,10 +220,9 @@ let private buildSimulationGraph (canvasState : CanvasState) : SimulationGraph =
 let runChecksAndBuildGraph
         (canvasState : CanvasState)
         : Result<SimulationGraph, SimulationError> =
-    match checkPortTypesAreConsistent canvasState,
-          checkPortsAreConnectedProperly canvasState with
-    | Some err, _ | _, Some err -> Error err
-    | None, None ->
+    match analyseState canvasState with
+    | Some err -> Error err
+    | None ->
         let _, connections = canvasState
         let graph = canvasState |> buildSimulationGraph
         match analyseGraph graph connections with

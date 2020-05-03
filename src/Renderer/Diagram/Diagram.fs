@@ -272,14 +272,20 @@ let viewSimulationError (simError : SimulationError) dispatch =
     |> SetHighlighted |> dispatch
     let error = 
         match simError.InDependency with
-        | None -> str simError.Msg
-        | Some dep -> div [] [
-            str <| "Error found in dependency " + dep + ":"
-            br []
-            str simError.Msg
-            br []
-            str <| "Please fix the error in the dependency and retry."
-        ]
+        | None ->
+            div [] [
+                str simError.Msg
+                br []
+                str <| "Please fix the error and retry."
+            ]
+        | Some dep ->
+            div [] [
+                str <| "Error found in dependency \"" + dep + "\":"
+                br []
+                str simError.Msg
+                br []
+                str <| "Please fix the error in the dependency and retry."
+            ]
     div [] [
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Errors" ]
         error

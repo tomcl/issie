@@ -9,17 +9,19 @@ module Analyser
 
 open DiagramTypes
 
+// -- Checks performed
+//
 // Ports constraints:
 // - Source ports must be output ports.
 // - Target ports must be input ports.
 // - All ports have at least one connection that touches them.
 // - Input ports have precisely one connection that touches them.
-
+//
 // Combinatorial logic can have no loops.
-
+//
 // Dependencies can have no loops. TODO
-
-// Input/Output components in a simulationgraph must all have unique labels. TODO
+//
+// Input/Output components in a simulationgraph must all have unique labels.
 
 /// Check that:
 /// 1- all source ports in connections are Output ports,
@@ -32,7 +34,7 @@ open DiagramTypes
 /// no user behaviour should be able to trigger such errors).
 /// The costruction of the Simulation graph assumes that these rules hold.
 /// TODO: should they crash the program then?
-let checkPortTypesAreConsistent (canvasState : CanvasState) : SimulationError option =
+let private checkPortTypesAreConsistent (canvasState : CanvasState) : SimulationError option =
     let rec checkComponentPorts (ports : Port list) (correctType : PortType) =
         match ports with
         | [] -> None
@@ -155,7 +157,7 @@ let private checkEvery
 /// - any port has at least one connection,
 /// - any input port has precisely one connection.
 /// These conditions may not hold due to user errors.
-let checkPortsAreConnectedProperly
+let private checkPortsAreConnectedProperly
         (canvasState : CanvasState)
         : SimulationError option =
     let components, connections = canvasState
@@ -175,6 +177,35 @@ let checkPortsAreConnectedProperly
         match inputRes, outputRes with
         | None, None -> None
         | Some err, _ | _, Some err -> Some err
+
+/// Input/Output components in a simulationgraph all have unique labels.
+let private checkIOLabels (canvasState : CanvasState) : SimulationError option =
+    let rec checkDuplicate (comps : Component list) (map : Map<string,string>) (ioType : string) =
+        match comps with
+        | [] -> None
+        | comp :: comps' ->
+            match map.TryFind comp.Label with
+            | None -> checkDuplicate comps' map ioType
+            | Some compId when compId = comp.Id -> checkDuplicate comps' map ioType
+            | Some compId -> Some {
+                Msg = sprintf "Two %s components cannot have the same label: %s" ioType comp.Label
+                InDependency = None
+                ComponentsAffected = [comp.Id; compId] |> List.map ComponentId
+                ConnectionsAffected = []
+            }
+    let toMap (comps : Component list) =
+        comps |> List.map (fun comp -> comp.Label, comp.Id) |> Map.ofList
+    let components, _ = canvasState
+    let inputs =
+        components
+        |> List.filter (fun comp -> match comp.Type with | Input -> true | _ -> false)
+    let outputs =
+        components
+        |> List.filter (fun comp -> match comp.Type with | Output -> true | _ -> false)
+    match checkDuplicate inputs (toMap inputs) "Input",
+          checkDuplicate outputs (toMap outputs) "Output" with
+    | Some err, _ | _, Some err -> Some err
+    | None, None -> None
 
 type private DfsType =
     // No cycle detected in the subtree. Return the new visited set and keep
@@ -279,7 +310,17 @@ let private checkCombinatorialCycle
     let allIds = graph |> Map.toList |> List.map (fun (id, _) -> id)
     checkGraphForest allIds visited
 
-/// Analyse the simulation graph and return any error (or None).
+/// Analyse a CanvasState and return any error (or None).
+let analyseState
+        (state : CanvasState)
+        : SimulationError option =
+    match checkPortTypesAreConsistent state,
+          checkPortsAreConnectedProperly state,
+          checkIOLabels state with
+    | Some err, _, _| _, Some err, _ | _, _, Some err -> Some err
+    | None, None, None -> None
+
+/// Analyse a SimulationGraph and return any error (or None).
 let analyseGraph
         (graph : SimulationGraph)
         (connections : Connection list)

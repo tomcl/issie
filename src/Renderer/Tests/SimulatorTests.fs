@@ -72,6 +72,24 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
         []
 ]
 
+let private testCasesSimulatorDuplicatIOError : SimulatorTestCase list = [
+    "Simple circuit with duplicated output label",
+    (state14, [], []),
+    makeError
+        "Two Output components cannot have the same label: output-duplicate-label"
+        None
+        ["output-node0"; "output-node1"]
+        []
+
+    "Simple And circuit with duplicated input label",
+    (state15, [], []),
+    makeError
+        "Two Input components cannot have the same label: input-duplicate-label"
+        None
+        ["top-input"; "bottom-input"]
+        []
+]
+
 let private testCasesSimulatorCycleError : SimulatorTestCase list = [
     "Complex diagram with three Ands and two cycles",
     (state10, [], []),
@@ -95,41 +113,41 @@ let private testCasesSimulatorCycleError : SimulatorTestCase list = [
 let private testCasesSimulatorOkNoDependencies : SimulatorTestCase list = [
     "Simple circuit with one input and one output (zero)",
     (state3, [], [ComponentId "input-node0", Zero]),
-    Ok [(ComponentId "output-node0", ComponentLabel "output"), Zero]
+    Ok [(ComponentId "output-node0", ComponentLabel "output-node0-label"), Zero]
 
     "Simple circuit with one input and one output (one)",
     (state3, [], [ComponentId "input-node0", One]),
-    Ok [(ComponentId "output-node0", ComponentLabel "output"), One]
+    Ok [(ComponentId "output-node0", ComponentLabel "output-node0-label"), One]
 
     "Simple circuit with one input connected to two outputs (Zero)",
     (state4, [], [ComponentId "input-node0", Zero]),
     Ok [
-        (ComponentId "output-node0", ComponentLabel "output"), Zero
-        (ComponentId "output-node1", ComponentLabel "output"), Zero
+        (ComponentId "output-node0", ComponentLabel "output-node0-label"), Zero
+        (ComponentId "output-node1", ComponentLabel "output-node1-label"), Zero
     ]
 
     "Simple circuit with one input connected to two outputs (One)",
     (state4, [], [ComponentId "input-node0", One]),
     Ok [
-        (ComponentId "output-node0", ComponentLabel "output"), One
-        (ComponentId "output-node1", ComponentLabel "output"), One
+        (ComponentId "output-node0", ComponentLabel "output-node0-label"), One
+        (ComponentId "output-node1", ComponentLabel "output-node1-label"), One
     ]
 
     "Two inputs; one And; one output (Zero, Zero)",
     (state6, [], [ComponentId "top-input", Zero; ComponentId "bottom-input", Zero]),
-    Ok [(ComponentId "output", ComponentLabel ""), Zero]
+    Ok [(ComponentId "output", ComponentLabel "output-node0-label"), Zero]
 
     "Two inputs; one And; one output (Zero, One)",
     (state6, [], [ComponentId "top-input", Zero; ComponentId "bottom-input", One]),
-    Ok [(ComponentId "output", ComponentLabel ""), Zero]
+    Ok [(ComponentId "output", ComponentLabel "output-node0-label"), Zero]
 
     "Two inputs; one And; one output (One, Zero)",
     (state6, [], [ComponentId "top-input", One; ComponentId "bottom-input", Zero]),
-    Ok [(ComponentId "output", ComponentLabel ""), Zero]
+    Ok [(ComponentId "output", ComponentLabel "output-node0-label"), Zero]
 
     "Two inputs; one And; one output (One, One)",
     (state6, [], [ComponentId "top-input", One; ComponentId "bottom-input", One]),
-    Ok [(ComponentId "output", ComponentLabel ""), One]
+    Ok [(ComponentId "output", ComponentLabel "output-node0-label"), One]
 
     "Weird diagram with a series of and gates (Zero)",
     (state12, [], [ComponentId "input", Zero]),
@@ -185,4 +203,5 @@ let private testCasesSimulatorOkNoDependencies : SimulatorTestCase list = [
 let testCasesSimulator =
     testCasesSimulatorPortError @
     testCasesSimulatorCycleError @
+    testCasesSimulatorDuplicatIOError @
     testCasesSimulatorOkNoDependencies

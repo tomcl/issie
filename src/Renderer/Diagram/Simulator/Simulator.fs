@@ -42,3 +42,14 @@ let feedSimulationInput = SimulationRunner.feedSimulationInput
 
 /// Expose the extractSimulationIOs function from SimulationRunner.
 let extractSimulationIOs = SimulationRunner.extractSimulationIOs
+
+/// Given a list of N generic elements, associate each element with a bit and
+/// return 2^N lists with all the possible bit combinations.
+let makeAllBitCombinations (lst : 'a list) : (('a * Bit) list) list =
+    let rec allCombinations lst result stack =
+        match lst with
+        | [] -> List.rev stack :: result
+        | el :: lst' ->
+            let result = allCombinations lst' result ((el,Zero) :: stack)
+            allCombinations lst' result ((el,One) :: stack)
+    List.rev <| allCombinations lst [] []

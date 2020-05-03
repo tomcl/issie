@@ -4,7 +4,7 @@ open DiagramTypes
 open CanvasStates
 open Simulator
 
-type private SimulatorTestCaseInput = CanvasState * LoadedComponent list * (ComponentId * Bit) list
+type private SimulatorTestCaseInput = string * CanvasState * LoadedComponent list * (ComponentId * Bit) list
 type private SimulatorTestCaseOutput = Result<((ComponentId * ComponentLabel) * Bit) list, SimulationError>
 type private SimulatorTestCase = string * SimulatorTestCaseInput * SimulatorTestCaseOutput
 
@@ -19,6 +19,7 @@ let private makeError msg deps comps conns =
 /// Auto generate all the testcases for a CanvasState (i.e. a full thruth table).
 let private createAllTestCases
         (title : string)
+        (diagramName : string)
         (state : CanvasState)
         (dependencies : LoadedComponent list)
         (inputLabels : ComponentId list)
@@ -29,7 +30,7 @@ let private createAllTestCases
     (allInputCombinations, expectedResults)
     ||> List.map2 (fun inputs outputs ->
         sprintf "%s: %A" title inputs,
-        (state, dependencies, inputs),
+        (diagramName, state, dependencies, inputs),
         Ok outputs
     )
 
@@ -42,7 +43,7 @@ let private createAllTestCases
 // in the earlier checks.
 let private testCasesSimulatorPortError : SimulatorTestCase list = [
     "Unconnected input node",
-    (state1, [], []),
+    ("", state1, [], []),
     makeError
         "All ports must have at least one connection."
         None
@@ -50,7 +51,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
         []
 
     "Two unconnected input nodes",
-    (state2, [], []),
+    ("", state2, [], []),
     makeError
         "All ports must have at least one connection."
         None
@@ -58,7 +59,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
         []
 
     "Two inputs and one output",
-    (state5, [], []),
+    ("", state5, [], []),
     makeError
         "Input port receives 2 connections. An input port should receive precisely one connection."
         None
@@ -66,7 +67,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
         []
 
     "Two inputs, one And, one output, with extra connection input to output",
-    (state7, [], []),
+    ("", state7, [], []),
     makeError
         "Input port receives 2 connections. An input port should receive precisely one connection."
         None
@@ -74,7 +75,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
         []
 
     "Two inputs, one And, one output, with extra connections inputs to and",
-    (state8, [], []),
+    ("", state8, [], []),
     makeError
         "Input port receives 2 connections. An input port should receive precisely one connection."
         None
@@ -82,7 +83,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
         []
 
     "Mux2 with only two connected ports",
-    (state9, [], []),
+    ("", state9, [], []),
     makeError
         "All ports must have at least one connection."
         None
@@ -92,7 +93,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
 
 let private testCasesSimulatorDuplicatIOError : SimulatorTestCase list = [
     "Simple circuit with duplicated output label",
-    (state14, [], []),
+    ("", state14, [], []),
     makeError
         "Two Output components cannot have the same label: output-duplicate-label"
         None
@@ -100,7 +101,7 @@ let private testCasesSimulatorDuplicatIOError : SimulatorTestCase list = [
         []
 
     "Simple And circuit with duplicated input label",
-    (state15, [], []),
+    ("", state15, [], []),
     makeError
         "Two Input components cannot have the same label: input-duplicate-label"
         None
@@ -110,7 +111,7 @@ let private testCasesSimulatorDuplicatIOError : SimulatorTestCase list = [
 
 let private testCasesSimulatorCycleError : SimulatorTestCase list = [
     "Complex diagram with three Ands and two cycles",
-    (state10, [], []),
+    ("", state10, [], []),
     makeError
         "Cycle detected in combinatorial logic"
         None
@@ -118,7 +119,7 @@ let private testCasesSimulatorCycleError : SimulatorTestCase list = [
         ["conn5"; "conn4"]
 
     "Complex diagram with three Ands and one long cycle",
-    (state11, [], []),
+    ("", state11, [], []),
     makeError
         "Cycle detected in combinatorial logic"
         None
@@ -131,7 +132,7 @@ let private testCasesSimulatorCycleError : SimulatorTestCase list = [
 let private testCasesSimulatorOkNoDependencies : SimulatorTestCase list =
     createAllTestCases
         "Simple circuit with one input and one output"
-        state3 [] [ComponentId "input-node0"]
+        "main" state3 [] [ComponentId "input-node0"]
         [
            [(ComponentId "output-node0", ComponentLabel "output-node0-label"), Zero]
            [(ComponentId "output-node0", ComponentLabel "output-node0-label"), One]
@@ -139,7 +140,7 @@ let private testCasesSimulatorOkNoDependencies : SimulatorTestCase list =
     @
     createAllTestCases
         "Simple circuit with one input connected to two outputs"
-        state4 [] [ComponentId "input-node0"]
+        "main" state4 [] [ComponentId "input-node0"]
         [
             [
                 (ComponentId "output-node0", ComponentLabel "output-node0-label"), Zero
@@ -153,7 +154,7 @@ let private testCasesSimulatorOkNoDependencies : SimulatorTestCase list =
     @
     createAllTestCases
         "Two inputs; one And; one output"
-        state6 [] [ComponentId "top-input"; ComponentId "bottom-input"]
+        "main" state6 [] [ComponentId "top-input"; ComponentId "bottom-input"]
         [
             [(ComponentId "output", ComponentLabel "output-node0-label"), Zero]
             [(ComponentId "output", ComponentLabel "output-node0-label"), Zero]
@@ -163,7 +164,7 @@ let private testCasesSimulatorOkNoDependencies : SimulatorTestCase list =
     @
     createAllTestCases
         "Weird diagram with a series of and gates"
-        state12 [] [ComponentId "input"]
+        "main" state12 [] [ComponentId "input"]
         [
             [(ComponentId "output", ComponentLabel "output"), Zero]
             [(ComponentId "output", ComponentLabel "output"), One]
@@ -171,7 +172,7 @@ let private testCasesSimulatorOkNoDependencies : SimulatorTestCase list =
     @
     createAllTestCases
         "One bit adder (Zero, Zero)"
-        state13 [] [
+        "main" state13 [] [
             ComponentId "2953603d-44e4-5c1f-3fb1-698f7863b6b5"
             ComponentId "170e69f4-b3d7-d9e0-9f1d-6a564ba62062"
         ]
@@ -239,7 +240,7 @@ let private seven = [
 
 let testCasesSimulatorOkWithDependencies : SimulatorTestCase list =
     createAllTestCases
-        "Simple input-output dependency"
+        "main" "Simple input-output dependency"
         state16 [state3Dependency] [ComponentId "outer-input-node0"]
         [
             [(ComponentId "outer-output-node0", ComponentLabel "outer-output-node0-label"), Zero]
@@ -247,7 +248,7 @@ let testCasesSimulatorOkWithDependencies : SimulatorTestCase list =
         ]
     @
     createAllTestCases
-        "Nested input-output dependency"
+        "main" "Nested input-output dependency"
         state17 [state16Dependency; state3Dependency] [ComponentId "outer-outer-input-node0"]
         [
             [(ComponentId "outer-outer-output-node0", ComponentLabel "outer-outer-output-node0-label"), Zero]
@@ -255,7 +256,7 @@ let testCasesSimulatorOkWithDependencies : SimulatorTestCase list =
         ]
     @
     createAllTestCases
-        "Doubly nested input-output dependency"
+        "main" "Doubly nested input-output dependency"
         state18 [state17Dependency; state16Dependency; state3Dependency] [ComponentId "outer-outer-outer-input-node0"]
         [
             [(ComponentId "outer-outer-outer-output-node0", ComponentLabel "outer-outer-outer-output-node0-label"), Zero]
@@ -263,7 +264,7 @@ let testCasesSimulatorOkWithDependencies : SimulatorTestCase list =
         ]
     @
     createAllTestCases
-        "2 bit adder"
+        "2-bit-adder" "2 bit adder"
         twoBitAdderState [fullAdderDependency; halfAdderDependency] [
             ComponentId "78795182-35c4-1c50-2190-6fc944a2adea" // Cin
             ComponentId "a63fe5a2-9f4d-e70f-131b-ed35d3f3a9e1" // B1

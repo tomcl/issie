@@ -26,7 +26,12 @@ let private buildDependencyMap
     let hasError (name, res) = match res with | Error _ -> true | Ok _ -> false
     let extractOk (name, res) = match res with | Ok d -> name, d | Error e -> failwithf "what? Dependency %s expected to be Ok, but has error %A" name e
     match List.tryFind hasError dependenciesRes with
-    | Some (name, Error err) -> Error err // TODO: augument error saying that it happened in a dependency, so no affected components or connections will be highlighted.
+    | Some (name, Error err) ->
+        // Augument error saying that it happened in a dependency, so no
+        // irrelevant affected components or connections will be highlighted.
+        Error { err with InDependency = Some name;
+                         ComponentsAffected = [];
+                         ConnectionsAffected = [] }
     | None ->
         // All dependencies are Ok.
         // Create a map from their name to their simulation graph.

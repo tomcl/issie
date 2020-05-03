@@ -113,7 +113,7 @@ let getSimulationIOsFromGraph
         : SimulationIO list * SimulationIO list =
     (([], []), graph) ||> Map.fold (fun (inputs, outputs) compId comp ->
         match comp.Type with
-        | Input  -> ((comp.Id, ComponentLabel comp.Label) :: inputs, outputs)
-        | Output -> (inputs, (comp.Id, ComponentLabel comp.Label) :: outputs)
+        | Input  -> ((comp.Id, comp.Label) :: inputs, outputs)
+        | Output -> (inputs, (comp.Id, comp.Label) :: outputs)
         | _ -> (inputs, outputs)
     )

@@ -15,7 +15,20 @@ let state1 : CanvasState =
     ],
     []
 
-/// Two unconnected input nodes a single input node. No conections.
+/// State1 loaded as a dependency.
+let state1Dependency : LoadedComponent = {
+    Name = "broken-one-input"
+    FilePath = ""
+    CanvasState = state1
+    InputLabels = ["input-node0"]
+    OutputLabels = []
+}
+
+/// State1 custom component.
+let state1CustomComponent : CustomComponentType = 
+    makeCustomComponent state1Dependency
+
+/// Two unconnected input nodes. No conections.
 let state2 : CanvasState =
     [
         {Id = "input-node0"; Type = Input; Label = "input-node0-label"; InputPorts = []; OutputPorts = [{Id = "out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "input-node0"}]; X = 169; Y = 175}
@@ -32,6 +45,19 @@ let state3 : CanvasState =
     [
         {Id = "conn0"; Source = {Id = "out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "input-node0"}; Target = {Id = "inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "output-node0"}; Vertices = []}
     ]
+
+/// State3 loaded as a dependency.
+let state3Dependency : LoadedComponent = {
+    Name = "input-output"
+    FilePath = ""
+    CanvasState = state3
+    InputLabels = ["input-node0-label"]
+    OutputLabels = ["output-node0-label"]
+}
+
+/// State3 custom component.
+let state3CustomComponent : CustomComponentType = 
+    makeCustomComponent state3Dependency
 
 /// Simple circuit with one input connected to two outputs.
 let state4 : CanvasState =
@@ -220,19 +246,6 @@ let state15 : CanvasState =
         {Id = "conn2"; Source = {Id = "and-out0"; PortNumber = None; PortType = PortType.Output; HostId = "and"}; Target = {Id = "output-in0"; PortNumber = None; PortType = PortType.Input; HostId = "output"}; Vertices = []}
     ]
 
-/// State3 loaded as a dependency.
-let state3Dependency : LoadedComponent = {
-    Name = "input-output"
-    FilePath = ""
-    CanvasState = state3
-    InputLabels = ["input-node0-label"]
-    OutputLabels = ["output-node0-label"]
-}
-
-/// State3 custom component.
-let state3CustomComponent : CustomComponentType = 
-    makeCustomComponent state3Dependency
-
 /// One input and one output, connected to the state3CustomComponent.
 let state16 : CanvasState =
     [
@@ -338,6 +351,202 @@ let state18 : CanvasState =
             Id = "conn1";
             Source = {Id = "out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "doubly-wrapped-inp-out-component"};
             Target = {Id = "outer-outer-outer-inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "outer-outer-outer-output-node0"};
+            Vertices = []
+        }
+    ]
+
+/// One input connected to a broken dependency.
+let state19 : CanvasState =
+    [
+        {Id = "outer-input-node0"; Type = Input; Label = "outer-input-node0-label"; InputPorts = []; OutputPorts = [{Id = "outer-out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "outer-input-node0"}]; X = 169; Y = 175}
+        {Id = "broken-input"; Type = Custom state1CustomComponent; Label = "broken-input-label"; InputPorts = [{Id = "broken-input-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "broken-input"}]; OutputPorts = []; X = 169; Y = 175}
+    ],
+    [
+        {
+            Id = "conn0"
+            Source = {Id = "outer-out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "outer-input-node0"}
+            Target = {Id = "broken-input-port0"; PortNumber = None; PortType = PortType.Input; HostId = "broken-input"}
+            Vertices = []
+        }
+    ]
+
+/// Similar to state16, but uses state16CustomComponent instead of
+/// state3CustomComponent to create a cycle.
+let state20 : CanvasState =
+    [
+        {Id = "outer-input-node0"; Type = Input; Label = "outer-input-node0-label"; InputPorts = []; OutputPorts = [{Id = "outer-out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "outer-input-node0"}]; X = 169; Y = 175}
+        {Id = "outer-output-node0"; Type = Output; Label = "outer-output-node0-label"; InputPorts = [{Id = "outer-inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "outer-output-node0"}]; OutputPorts = []; X = 364; Y = 175}
+        {
+            Id = "inp-out-component"; Type = Custom state16CustomComponent; Label = "inp-out-component-label";
+            InputPorts = [{Id = "inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "inp-out-component"}];
+            OutputPorts = [{Id = "out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "inp-out-component"}];
+            X = 169; Y = 175
+        }
+    ],
+    [
+        {
+            Id = "conn0";
+            Source = {Id = "outer-out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "outer-input-node0"};
+            Target = {Id = "inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "inp-out-component"};
+            Vertices = []
+        }
+        {
+            Id = "conn1";
+            Source = {Id = "out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "inp-out-component"};
+            Target = {Id = "outer-inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "outer-output-node0"};
+            Vertices = []
+        }
+    ]
+
+// Test a long dependecy cycle.
+// state21 --> state22 --> state23 --> state21
+
+let state21CustomComponent : CustomComponentType = {
+    Name = "21-custom-component"
+    InputLabels = ["21-inp"]
+    OutputLabels = ["21-out"]
+}
+
+let state22CustomComponent : CustomComponentType = {
+    Name = "22-custom-component"
+    InputLabels = ["22-inp"]
+    OutputLabels = ["22-out"]
+}
+
+let state23CustomComponent : CustomComponentType = {
+    Name = "23-custom-component"
+    InputLabels = ["23-inp"]
+    OutputLabels = ["23-out"]
+}
+
+/// Simple input-output component that uses state22.
+let state21 : CanvasState =
+    [
+        {Id = "outer-input-node0"; Type = Input; Label = "21-inp"; InputPorts = []; OutputPorts = [{Id = "outer-out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "outer-input-node0"}]; X = 169; Y = 175}
+        {Id = "outer-output-node0"; Type = Output; Label = "21-out"; InputPorts = [{Id = "outer-inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "outer-output-node0"}]; OutputPorts = []; X = 364; Y = 175}
+        {
+            Id = "inp-out-component"; Type = Custom state22CustomComponent; Label = "inp-out-component-label";
+            InputPorts = [{Id = "inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "inp-out-component"}];
+            OutputPorts = [{Id = "out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "inp-out-component"}];
+            X = 169; Y = 175
+        }
+    ],
+    [
+        {
+            Id = "conn0";
+            Source = {Id = "outer-out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "outer-input-node0"};
+            Target = {Id = "inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "inp-out-component"};
+            Vertices = []
+        }
+        {
+            Id = "conn1";
+            Source = {Id = "out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "inp-out-component"};
+            Target = {Id = "outer-inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "outer-output-node0"};
+            Vertices = []
+        }
+    ]
+
+/// Simple input-output component that uses state23.
+let state22 : CanvasState =
+    [
+        {Id = "outer-input-node0"; Type = Input; Label = "22-inp"; InputPorts = []; OutputPorts = [{Id = "outer-out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "outer-input-node0"}]; X = 169; Y = 175}
+        {Id = "outer-output-node0"; Type = Output; Label = "22-out"; InputPorts = [{Id = "outer-inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "outer-output-node0"}]; OutputPorts = []; X = 364; Y = 175}
+        {
+            Id = "inp-out-component"; Type = Custom state23CustomComponent; Label = "inp-out-component-label";
+            InputPorts = [{Id = "inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "inp-out-component"}];
+            OutputPorts = [{Id = "out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "inp-out-component"}];
+            X = 169; Y = 175
+        }
+    ],
+    [
+        {
+            Id = "conn0";
+            Source = {Id = "outer-out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "outer-input-node0"};
+            Target = {Id = "inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "inp-out-component"};
+            Vertices = []
+        }
+        {
+            Id = "conn1";
+            Source = {Id = "out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "inp-out-component"};
+            Target = {Id = "outer-inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "outer-output-node0"};
+            Vertices = []
+        }
+    ]
+
+/// Simple input-output component that uses state21.
+let state23 : CanvasState =
+    [
+        {Id = "outer-input-node0"; Type = Input; Label = "23-inp"; InputPorts = []; OutputPorts = [{Id = "outer-out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "outer-input-node0"}]; X = 169; Y = 175}
+        {Id = "outer-output-node0"; Type = Output; Label = "23-out"; InputPorts = [{Id = "outer-inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "outer-output-node0"}]; OutputPorts = []; X = 364; Y = 175}
+        {
+            Id = "inp-out-component"; Type = Custom state21CustomComponent; Label = "inp-out-component-label";
+            InputPorts = [{Id = "inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "inp-out-component"}];
+            OutputPorts = [{Id = "out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "inp-out-component"}];
+            X = 169; Y = 175
+        }
+    ],
+    [
+        {
+            Id = "conn0";
+            Source = {Id = "outer-out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "outer-input-node0"};
+            Target = {Id = "inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "inp-out-component"};
+            Vertices = []
+        }
+        {
+            Id = "conn1";
+            Source = {Id = "out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "inp-out-component"};
+            Target = {Id = "outer-inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "outer-output-node0"};
+            Vertices = []
+        }
+    ]
+
+let state21Dependency : LoadedComponent = {
+    Name = "21-custom-component"
+    FilePath = ""
+    CanvasState = state21
+    InputLabels = ["21-inp"]
+    OutputLabels = ["21-out"]
+}
+
+let state22Dependency : LoadedComponent = {
+    Name = "22-custom-component"
+    FilePath = ""
+    CanvasState = state22
+    InputLabels = ["22-inp"]
+    OutputLabels = ["22-out"]
+}
+
+let state23Dependency : LoadedComponent = {
+    Name = "23-custom-component"
+    FilePath = ""
+    CanvasState = state23
+    InputLabels = ["23-inp"]
+    OutputLabels = ["23-out"]
+}
+
+/// Simple input-output component that uses state23.
+let state24 : CanvasState =
+    [
+        {Id = "outer-input-node0"; Type = Input; Label = "24-inp"; InputPorts = []; OutputPorts = [{Id = "outer-out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "outer-input-node0"}]; X = 169; Y = 175}
+        {Id = "outer-output-node0"; Type = Output; Label = "24-out"; InputPorts = [{Id = "outer-inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "outer-output-node0"}]; OutputPorts = []; X = 364; Y = 175}
+        {
+            Id = "inp-out-component"; Type = Custom state23CustomComponent; Label = "inp-out-component-label";
+            InputPorts = [{Id = "inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "inp-out-component"}];
+            OutputPorts = [{Id = "out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "inp-out-component"}];
+            X = 169; Y = 175
+        }
+    ],
+    [
+        {
+            Id = "conn0";
+            Source = {Id = "outer-out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "outer-input-node0"};
+            Target = {Id = "inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "inp-out-component"};
+            Vertices = []
+        }
+        {
+            Id = "conn1";
+            Source = {Id = "out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "inp-out-component"};
+            Target = {Id = "outer-inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "outer-output-node0"};
             Vertices = []
         }
     ]

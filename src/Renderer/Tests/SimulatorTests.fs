@@ -195,6 +195,66 @@ let private testCasesSimulatorOkNoDependencies : SimulatorTestCase list =
             ]
         ]
 
+let testCasesSimulatorDependencyError : SimulatorTestCase list =
+    createAllTestCases
+        "Broken unused dependency." // Since the dependency is unused the test should pass.
+        "main" state3 [state1Dependency] [ComponentId "input-node0"]
+        [
+           [(ComponentId "output-node0", ComponentLabel "output-node0-label"), Zero]
+           [(ComponentId "output-node0", ComponentLabel "output-node0-label"), One]
+        ]
+    @
+    [
+        // Broken dependencies.
+
+        "Input connected to broken depdendency.",
+        ("main", state19, [state1Dependency], []),
+        makeError
+            "All ports must have at least one connection."
+            (Some "broken-one-input") [] []
+
+        // Dependency cycle.
+
+        "Component using itself.",
+        (state16Dependency.Name, state20, [state16Dependency], []),
+        makeError
+            (sprintf "Found a cycle in dependencies: %s --> %s." state16Dependency.Name state16Dependency.Name)
+            None [] []
+
+        "Long cycle starting at root.",
+        (state23Dependency.Name, state23, [state21Dependency; state22Dependency], []),
+        makeError
+            (sprintf "Found a cycle in dependencies: %s --> %s --> %s --> %s." state23Dependency.Name state21Dependency.Name state22Dependency.Name state23Dependency.Name)
+            None [] []
+
+        "Long cycle.",
+        ("main", state24, [state21Dependency; state22Dependency; state23Dependency], []),
+        makeError
+            (sprintf "Found a cycle in dependencies: %s --> %s --> %s --> %s." state23Dependency.Name state21Dependency.Name state22Dependency.Name state23Dependency.Name)
+            None [] []
+
+        // Missing dependencies.
+
+        "2 bit full adder missing dependencies",
+        ("2-bit-adder", twoBitAdderState, [], []),
+        makeError
+            "Unresolved dependency: \"full-adder\""
+            (Some "2-bit-adder") [] []
+
+        "2 bit full adder missing half adder dependency",
+        ("2-bit-adder", twoBitAdderState, [fullAdderDependency], []),
+        makeError
+            "Unresolved dependency: \"half-adder\""
+            (Some "full-adder") [] []
+
+        "2 bit full adder missing full adder dependency",
+        ("2-bit-adder", twoBitAdderState, [halfAdderDependency], []),
+        makeError
+            "Unresolved dependency: \"full-adder\""
+            (Some "2-bit-adder") [] []
+    ]
+
+// Outputs fot the 2bit adder test.
 
 let private zero = [
         (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1"), Zero
@@ -236,7 +296,6 @@ let private seven = [
         (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0"), One
         (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout"), One
     ]
-
 
 let testCasesSimulatorOkWithDependencies : SimulatorTestCase list =
     createAllTestCases
@@ -288,4 +347,5 @@ let testCasesSimulator =
     testCasesSimulatorCycleError @
     testCasesSimulatorDuplicatIOError @
     testCasesSimulatorOkNoDependencies @
+    testCasesSimulatorDependencyError @
     testCasesSimulatorOkWithDependencies

@@ -199,7 +199,7 @@ let private buildSimulationComponent
     {
         Id = ComponentId comp.Id
         Type = comp.Type
-        Label = comp.Label
+        Label = ComponentLabel comp.Label
         Inputs = Map.empty // The inputs will be set during the simulation.
         Outputs = outputs
         CustomSimulationGraph = None // Custom components will be augumented by the DependencyMerger.

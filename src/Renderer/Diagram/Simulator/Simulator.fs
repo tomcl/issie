@@ -21,6 +21,7 @@ open DependencyMerger
 
 /// Builds the graph and simulates it with all inputs zeroed.
 let prepareSimulation
+        (diagramName : string)
         (canvasState : CanvasState)
         (loadedDependencies : LoadedComponent list)
         : Result<SimulationData, SimulationError> =
@@ -29,7 +30,8 @@ let prepareSimulation
     | Ok graph ->
         let components, _ = canvasState
         let inputs, outputs = getSimulationIOs components
-        match mergeDependencies graph loadedDependencies with
+        match mergeDependencies diagramName graph
+                                canvasState loadedDependencies with
         | Error err -> Error err
         | Ok graph -> Ok {
             Graph = graph |> simulateWithAllInputsToZero inputs;

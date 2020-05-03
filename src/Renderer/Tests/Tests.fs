@@ -3,8 +3,8 @@ open Expecto
 open Simulator
 open SimulatorTests
 
-let runSimulatorTest (state, loadedComponents, inputs) =
-    match prepareSimulation state loadedComponents with
+let runSimulatorTest (diagramName, state, loadedComponents, inputs) =
+    match prepareSimulation diagramName state loadedComponents with
     | Error e -> Error e
     | Ok simData ->
         (simData.Graph, inputs)

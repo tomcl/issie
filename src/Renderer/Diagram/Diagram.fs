@@ -307,7 +307,7 @@ let viewSimulation model dispatch =
         match model.Diagram.GetCanvasState () with
         | None -> ()
         | Some jsState -> (extractState jsState, model.LoadedComponents)
-                          ||> prepareSimulation
+                          ||> prepareSimulation "TODO" // TODO fix this -> use the name of the file currently being edited.
                           |> StartSimulation
                           |> dispatch
     match model.Simulation with

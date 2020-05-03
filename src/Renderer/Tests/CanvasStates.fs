@@ -213,3 +213,135 @@ let state15 : CanvasState =
         {Id = "conn1"; Source = {Id = "bottom-input-out0"; PortNumber = None; PortType = PortType.Output; HostId = "bottom-input"}; Target = {Id = "and-in1"; PortNumber = None; PortType = PortType.Input; HostId = "and"}; Vertices = []}
         {Id = "conn2"; Source = {Id = "and-out0"; PortNumber = None; PortType = PortType.Output; HostId = "and"}; Target = {Id = "output-in0"; PortNumber = None; PortType = PortType.Input; HostId = "output"}; Vertices = []}
     ]
+
+/// State3 loaded as a dependency.
+let state3Dependency : LoadedComponent = {
+    Name = "input-output"
+    FilePath = ""
+    CanvasState = state3
+    InputLabels = ["input-node0-label"]
+    OutputLabels = ["output-node0-label"]
+}
+
+/// State3 custom component.
+let state3CustomComponent : CustomComponentType = {
+    Name = "input-output"
+    InputLabels = ["input-node0-label"]
+    OutputLabels = ["output-node0-label"]
+}
+
+/// One input and one output, connected to the state3CustomComponent.
+let state16 : CanvasState =
+    [
+        {Id = "outer-input-node0"; Type = Input; Label = "outer-input-node0-label"; InputPorts = []; OutputPorts = [{Id = "outer-out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "outer-input-node0"}]; X = 169; Y = 175}
+        {Id = "outer-output-node0"; Type = Output; Label = "outer-output-node0-label"; InputPorts = [{Id = "outer-inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "outer-output-node0"}]; OutputPorts = []; X = 364; Y = 175}
+        {
+            Id = "inp-out-component"; Type = Custom state3CustomComponent; Label = "inp-out-component-label";
+            InputPorts = [{Id = "inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "inp-out-component"}];
+            OutputPorts = [{Id = "out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "inp-out-component"}];
+            X = 169; Y = 175
+        }
+    ],
+    [
+        {
+            Id = "conn0";
+            Source = {Id = "outer-out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "outer-input-node0"};
+            Target = {Id = "inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "inp-out-component"};
+            Vertices = []
+        }
+        {
+            Id = "conn1";
+            Source = {Id = "out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "inp-out-component"};
+            Target = {Id = "outer-inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "outer-output-node0"};
+            Vertices = []
+        }
+    ]
+
+/// State16 loaded as a dependency.
+let state16Dependency : LoadedComponent = {
+    Name = "nested-input-output"
+    FilePath = ""
+    CanvasState = state16
+    InputLabels = ["outer-input-node0-label"]
+    OutputLabels = ["outer-output-node0-label"]
+}
+
+/// State16 custom component.
+let state16CustomComponent : CustomComponentType = {
+    Name = "nested-input-output"
+    InputLabels = ["outer-input-node0-label"]
+    OutputLabels = ["outer-output-node0-label"]
+}
+
+/// One input and one output, connected to the state16CustomComponent, which
+/// contains the state3CustomComponent.
+let state17 : CanvasState =
+    [
+        {Id = "outer-outer-input-node0"; Type = Input; Label = "outer-outer-input-node0-label"; InputPorts = []; OutputPorts = [{Id = "outer-outer-out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "outer-outer-input-node0"}]; X = 169; Y = 175}
+        {Id = "outer-outer-output-node0"; Type = Output; Label = "outer-outer-output-node0-label"; InputPorts = [{Id = "outer-outer-inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "outer-outer-output-node0"}]; OutputPorts = []; X = 364; Y = 175}
+        {
+            Id = "wrapped-inp-out-component"; Type = Custom state3CustomComponent; Label = "wrapped-inp-out-component-label";
+            InputPorts = [{Id = "inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "wrapped-inp-out-component"}];
+            OutputPorts = [{Id = "out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "wrapped-inp-out-component"}];
+            X = 169; Y = 175
+        }
+    ],
+    [
+        {
+            Id = "conn0";
+            Source = {Id = "outer-outer-out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "outer-outer-input-node0"};
+            Target = {Id = "inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "wrapped-inp-out-component"};
+            Vertices = []
+        }
+        {
+            Id = "conn1";
+            Source = {Id = "out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "wrapped-inp-out-component"};
+            Target = {Id = "outer-outer-inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "outer-outer-output-node0"};
+            Vertices = []
+        }
+    ]
+
+/// State17 loaded as a dependency.
+let state17Dependency : LoadedComponent = {
+    Name = "doubly-nested-input-output"
+    FilePath = ""
+    CanvasState = state17
+    InputLabels = ["outer-outer-input-node0-label"]
+    OutputLabels = ["outer-outer-output-node0-label"]
+}
+
+/// State17 custom component.
+let state17CustomComponent : CustomComponentType = {
+    Name = "doubly-nested-input-output"
+    InputLabels = ["outer-outer-input-node0-label"]
+    OutputLabels = ["outer-outer-output-node0-label"]
+}
+
+/// One input and one output, connected to the state17CustomComponent, which
+/// contains state16CustomComponent, which contains the state3CustomComponent.
+let state18 : CanvasState =
+    [
+        {Id = "outer-outer-outer-input-node0"; Type = Input; Label = "outer-outer-outer-input-node0-label"; InputPorts = []; OutputPorts = [{Id = "outer-outer-outer-out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "outer-outer-outer-input-node0"}]; X = 169; Y = 175}
+        {Id = "outer-outer-outer-output-node0"; Type = Output; Label = "outer-outer-outer-output-node0-label"; InputPorts = [{Id = "outer-outer-outer-inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "outer-outer-outer-output-node0"}]; OutputPorts = []; X = 364; Y = 175}
+        {
+            Id = "doubly-wrapped-inp-out-component"; Type = Custom state3CustomComponent; Label = "doubly-wrapped-inp-out-component-label";
+            InputPorts = [{Id = "inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "doubly-wrapped-inp-out-component"}];
+            OutputPorts = [{Id = "out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "doubly-wrapped-inp-out-component"}];
+            X = 169; Y = 175
+        }
+    ],
+    [
+        {
+            Id = "conn0";
+            Source = {Id = "outer-outer-outer-out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "outer-outer-outer-input-node0"};
+            Target = {Id = "inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "doubly-wrapped-inp-out-component"};
+            Vertices = []
+        }
+        {
+            Id = "conn1";
+            Source = {Id = "out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "doubly-wrapped-inp-out-component"};
+            Target = {Id = "outer-outer-outer-inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "outer-outer-outer-output-node0"};
+            Vertices = []
+        }
+    ]
+

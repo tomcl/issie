@@ -5,6 +5,7 @@
 module Draw2dWrapper
 
 open DiagramTypes
+open DiagramMessageType
 open JSHelpers
 open DiagramStyle
 

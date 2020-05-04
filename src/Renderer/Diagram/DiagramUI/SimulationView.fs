@@ -10,6 +10,7 @@ open Fulma
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
+open DiagramMessageType
 open DiagramModelType
 open DiagramTypes
 open Extractor

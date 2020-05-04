@@ -29,6 +29,12 @@ let private makeCustom model loadedComponent =
         |> ignore
     )
 
+let private makeCustomList model =
+    match model.CurrProject with
+    | None -> Menu.list [] []
+    | Some project ->
+        Menu.list [] (project.LoadedComponents |> List.map (makeCustom model))
+
 let viewCatalogue model =
     Menu.menu [ ] [
             Menu.label [ ] [ str "Input / Output" ]
@@ -48,6 +54,5 @@ let viewCatalogue model =
             Menu.list []
                 [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "mux2" 100 100 |> ignore) ]
             Menu.label [ ] [ str "Custom" ]
-            Menu.list []
-                (model.LoadedComponents |> List.map (makeCustom model))
+            makeCustomList model
         ]

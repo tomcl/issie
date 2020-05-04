@@ -79,6 +79,12 @@ type LoadedComponent = {
     OutputLabels : string list
 }
 
+type Project = {
+    ProjectPath : string
+    OpenFileName : string
+    LoadedComponents : LoadedComponent list
+}
+
 //==========================//
 // Types for the simulation //
 //==========================//

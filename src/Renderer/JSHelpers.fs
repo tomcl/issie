@@ -20,6 +20,10 @@ let log msg : unit = jsNative
 let logString msg : unit =
     log <| sprintf "%A" msg
 
+let logChain msg =
+    logString msg
+    msg
+
 [<Emit("alert($0)")>]
 let alert msg : unit = jsNative
 

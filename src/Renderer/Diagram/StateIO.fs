@@ -1,5 +1,6 @@
 module StateIO
 
+open Helpers
 open DiagramTypes
 
 open Fable.Core
@@ -15,8 +16,8 @@ open Node.Exports
 let private stateToJsonString (state : CanvasState) : string =
     Json.stringify state
 
-let private jsonStringToState (jsonString : string) : CanvasState =
-    Json.parseAs<CanvasState> jsonString
+let private jsonStringToState (jsonString : string) =
+    Json.tryParseAs<CanvasState> jsonString
 
 let private fileFilterOpts =
     ResizeArray [
@@ -26,7 +27,7 @@ let private fileFilterOpts =
         ]
     ] |> Some
 
-let private loadStateFromPath filePath =
+let private tryLoadStateFromPath filePath =
     let dataBuffer = fs.readFileSync (filePath, Option.None)
     dataBuffer.toString "utf8" |> jsonStringToState
 
@@ -51,6 +52,7 @@ let private parseDiagramSignature canvasState : string list * string list =
     let components, _ = canvasState
     extractIO components [] []
 
+(*
 /// Save the state to a file and return the path where it was saved.
 /// TODO: handle errors?
 let saveStateToFile maybePath state =
@@ -80,20 +82,24 @@ let loadStateFromFile () =
                | [path] -> Some (path, loadStateFromPath path)
                | _ -> Option.None
 
-let private getFileExtension (filePath : string ) : string =
+let private getFileExtension (filePath : string) : string =
     match filePath.Split '.' |> Seq.toList with
     | [] -> failwithf "what? split at . in a filename should never return empty list"
     | [_] -> "" // No dots found.
-    | splits -> splits.[splits.Length - 1]
+    | splits -> List.last splits
 
 /// All that is before the extension.
-let private getFileBaseName (filePath : string ) : string =
-    match filePath.Split '.' |> Seq.toList with
-    | [] -> failwithf "what? split at . in a filename should never return empty list"
-    | [baseName] -> baseName // No dots found.
-    | splits -> ("", [0..splits.Length - 2]) ||> List.fold (fun baseName i ->
-        baseName + splits.[i]
-    )
+let private getFileName (Path filePath) : string =
+    match filePath.Split '/' |> Seq.toList with
+    | [] -> failwithf "what? split at / in a filename should never return empty list"
+    | splits ->
+        let fileWithoutPath = List.last splits
+        match fileWithoutPath.Split '.' |> Seq.toList with
+        | [] -> failwithf "what? split at . in a filename should never return empty list"
+        | [baseName] -> baseName // No dots found.
+        | splits -> ("", [0..splits.Length - 2]) ||> List.fold (fun baseName i ->
+            baseName + splits.[i]
+        )
 
 let parseAllDiagramsInFolder (folderPath : string) =
     let loadComponent fileName =
@@ -103,10 +109,71 @@ let parseAllDiagramsInFolder (folderPath : string) =
             Name = getFileBaseName fileName
             InputLabels = inputs
             OutputLabels = outputs
-            FilePath = folderPath + fileName
+            FilePath = "" // folderPath + fileName
             CanvasState = state
         }
     fs.readdirSync (U2.Case1 folderPath)
     |> Seq.toList
     |> List.filter (getFileExtension >> ((=) "dgm"))
     |> List.map loadComponent
+*)
+
+/////////////
+
+let private getBaseNameNoExtension filePath =
+    let baseName = path.basename filePath
+    match baseName.Split '.' |> Seq.toList with
+    | [] -> failwithf "what? split at . in a filename should never return empty list"
+    | [baseName] -> baseName // No dots found.
+    | firstSplit :: splits ->
+        // Quite ugly but works.
+        let rest =
+            ("", [0..splits.Length - 2]) ||> List.fold (fun baseName i ->
+                baseName + "." + splits.[i]
+            )
+        firstSplit + rest
+
+/// Ask the user to choose a project path, with a dialog window.
+/// Return None if the user exits withouth selecting a path.
+let askForExistingProjectPath () : string option =
+    let filters =
+        ResizeArray [
+            createObj [
+                "name" ==> "Diagrams project" // TODO rename this.
+                "extensions" ==> ResizeArray [ "dprj" ]
+            ]
+        ] |> Some
+    let options = createEmpty<OpenDialogOptions>
+    options.properties <- ResizeArray([ "openDirectory" ]) |> Some
+    options.filters <- filters
+    let paths = electron.remote.dialog.showOpenDialog(options)
+    match isNull paths with
+    | true -> Option.None // User did not completed the load dialog interaction.
+    | false -> match Seq.toList paths with
+               | [] -> Option.None
+               | path :: _ -> Some path
+
+let private tryLoadComponentFromPath filePath =
+    JSHelpers.log <| getBaseNameNoExtension filePath
+    match tryLoadStateFromPath filePath with
+    | Result.Error err -> Result.Error err
+    | Result.Ok state ->
+        let inputs, outputs = parseDiagramSignature state
+        Result.Ok {
+            Name = getBaseNameNoExtension filePath
+            FilePath = filePath
+            CanvasState = state
+            InputLabels = inputs
+            OutputLabels = outputs
+        }
+
+/// Try to load all diagram components from a file path.
+/// Return a string with error if not possible.
+let tryLoadComponentsFromPath folderPath : Result<LoadedComponent list, string> =
+    fs.readdirSync (U2.Case1 folderPath)
+    |> Seq.toList
+    |> List.filter (path.extname >> ((=) ".dgm"))
+    |> List.map (fun fileName ->
+            path.join [| folderPath; fileName |] |> tryLoadComponentFromPath
+        )
+    |> tryFindError

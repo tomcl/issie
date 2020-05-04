@@ -18,8 +18,10 @@
     <Compile Include="Diagram/Simulator/Simulator.fs" />
     <!-- UI -->
     <Compile Include="Diagram/DiagramUI/Style.fs" />
+    <Compile Include="Diagram/DiagramUI/MessageType.fs" />
     <Compile Include="Diagram/Draw2dWrapper/Draw2dWrapper.fs" />
     <Compile Include="Diagram/DiagramUI/ModelType.fs" />
+    <Compile Include="Diagram/DiagramUI/PopupView.fs" />
     <Compile Include="Diagram/DiagramUI/OnDiagramButtonsView.fs" />
     <Compile Include="Diagram/DiagramUI/SimulationView.fs" />
     <Compile Include="Diagram/DiagramUI/CatalogueView.fs" />

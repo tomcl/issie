@@ -5,6 +5,7 @@ open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
 open DiagramTypes
+open DiagramMessageType
 open DiagramModelType
 open CommonStyle
 open Draw2dWrapper
@@ -14,6 +15,7 @@ open OnDiagramButtonsView
 open CatalogueView
 open SelectedComponentView
 open SimulationView
+open PopupView
 
 // -- Init Model
 
@@ -27,6 +29,7 @@ let init() = {
     Hilighted = [], []
     Clipboard = [], []
     LoadedComponents = []
+    Popup = None
 }
 
 // -- Create View
@@ -98,6 +101,7 @@ let hideView model dispatch =
 let displayView model dispatch =
     div [] [
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Visible
+        viewPopup model
         viewOnDiagramButtons model dispatch
         div [ rightSectionStyle ] [
             Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ ] ] [
@@ -166,3 +170,5 @@ let update msg model =
         { model with Hilighted = (componentIds, connectionIds) }
     | SetClipboard components -> { model with Clipboard = components }
     | SetLoadedComponents lc -> { model with LoadedComponents = lc }
+    | ShowPopup popup -> { model with Popup = Some popup }
+    | ClosePopup -> { model with Popup = None }

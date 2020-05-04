@@ -21,7 +21,7 @@ type Page =
 
 type Model = {
     Page : Page
-    Diagram : Diagram.Model
+    Diagram : DiagramModelType.Model
     Editor: Editor.Model
 }
 
@@ -34,7 +34,7 @@ type Messages =
 
 let init() = {
     Page = DiagramPage
-    Diagram = Diagram.init()
+    Diagram = DiagramMainView.init()
     Editor = Editor.init()
 }
 
@@ -53,8 +53,8 @@ let editorView model dispacth =
 
 let diagramView model dispatch =
     if model.Page = DiagramPage
-    then Diagram.displayView
-    else Diagram.hideView
+    then DiagramMainView.displayView
+    else DiagramMainView.hideView
     <|| (model.Diagram, (DiagramMsg >> dispatch))
 
 let view model dispatch =
@@ -78,7 +78,7 @@ let view model dispatch =
 let update msg model =
     match msg with
     | PageMsg page -> { model with Page = page } 
-    | DiagramMsg msg' -> { model with Diagram = Diagram.update msg' model.Diagram }
+    | DiagramMsg msg' -> { model with Diagram = DiagramMainView.update msg' model.Diagram }
     | EditorMsg msg' -> {model with Editor = Editor.update msg' model.Editor }
 
 Program.mkSimple init update view

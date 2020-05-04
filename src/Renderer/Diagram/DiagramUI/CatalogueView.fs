@@ -33,7 +33,10 @@ let private makeCustomList model =
     match model.CurrProject with
     | None -> Menu.list [] []
     | Some project ->
-        Menu.list [] (project.LoadedComponents |> List.map (makeCustom model))
+        // Do no show the open component in the catalogue.
+        Menu.list [] (project.LoadedComponents
+                      |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+                      |> List.map (makeCustom model))
 
 let viewCatalogue model =
     Menu.menu [ ] [

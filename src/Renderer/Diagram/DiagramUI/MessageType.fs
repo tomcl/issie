@@ -26,10 +26,8 @@ type Msg =
     | SetSimulationGraph of SimulationGraph
     | EndSimulation
     | ChangeRightTab of RightTab
-    | SetOpenPath of string option
     | SetHighlighted of ComponentId list * ConnectionId list
     | SetClipboard of CanvasState
-    | SetLoadedComponents of LoadedComponent list
+    | SetProject of Project
     | ShowPopup of Fable.Import.React.ReactElement
     | ClosePopup
-

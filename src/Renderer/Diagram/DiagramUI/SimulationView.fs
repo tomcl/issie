@@ -94,12 +94,14 @@ let private viewSimulationData (simData : SimulationData) dispatch =
 
 let viewSimulation model dispatch =
     let startSimulation () =
-        match model.Diagram.GetCanvasState () with
-        | None -> ()
-        | Some jsState -> (extractState jsState, model.LoadedComponents)
-                          ||> prepareSimulation "TODO" // TODO fix this -> use the name of the file currently being edited.
-                          |> StartSimulation
-                          |> dispatch
+        match model.Diagram.GetCanvasState (), model.CurrProject with
+        | None, _ -> ()
+        | _, None -> failwith "what? Cannot start a simulation without a project"
+        | Some jsState, Some project ->
+            (extractState jsState, project.LoadedComponents)
+            ||> prepareSimulation project.OpenFileName
+            |> StartSimulation
+            |> dispatch
     match model.Simulation with
     | None ->
         div [] [

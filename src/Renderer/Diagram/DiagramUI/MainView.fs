@@ -4,6 +4,7 @@ open Fulma
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
+open JSHelpers
 open DiagramTypes
 open DiagramMessageType
 open DiagramModelType
@@ -25,10 +26,9 @@ let init() = {
     SelectedComponent = None
     Simulation = None
     RightTab = Catalogue
-    OpenPath = None
+    CurrProject = None
     Hilighted = [], []
     Clipboard = [], []
-    LoadedComponents = []
     Popup = None
 }
 
@@ -48,32 +48,66 @@ let getStateAction model dispatch =
 let saveStateAction model dispatch =
     match model.Diagram.GetCanvasState () with
     | None -> ()
-    | Some state -> extractState state
-                    |> saveStateToFile model.OpenPath
-                    |> SetOpenPath
-                    |> dispatch 
+    | Some state -> () //extractState state TODO
+                    //|> saveStateToFile model.OpenPath
+                    //|> SetOpenPath
+                    //|> dispatch 
 
-let loadStateAction model dispatch =
-    match loadStateFromFile () with
-    | None -> ()
-    | Some (path, canvasState) ->
-        dispatch <| SetHighlighted ([],[]) // Remove current highlights.
-        model.Diagram.FlushCommandStack () // Discard all undo/redo.
-        model.Diagram.ClearCanvas()
-        Some path |> SetOpenPath |> dispatch // Set the new filepath.
-        // Finally load the new state in the canvas.
-        let components, connections = canvasState
-        List.map model.Diagram.LoadComponent components |> ignore
-        List.map (model.Diagram.LoadConnection true) connections |> ignore
+let loadStateAction model dispatch = ()
+//    match loadStateFromFile () with
+//    | None -> ()
+//    | Some (path, canvasState) ->
+//        dispatch <| SetHighlighted ([],[]) // Remove current highlights.
+//        model.Diagram.FlushCommandStack () // Discard all undo/redo.
+//        model.Diagram.ClearCanvas()
+//        //Some path |> SetOpenPath |> dispatch // Set the new filepath. TODO
+//        // Finally load the new state in the canvas.
+//        let components, connections = canvasState
+//        List.map model.Diagram.LoadComponent components |> ignore
+//        List.map (model.Diagram.LoadConnection true) connections |> ignore
 
 // TODO replace this with an openProject logic.
-let loadComponentsFromFolder dispatch =
-    (parseAllDiagramsInFolder "/home/marco/Documents/Imperial/FYP/diagrams/")
-    |> SetLoadedComponents
-    |> dispatch
+let loadComponentsFromFolder dispatch = ()
+    //(parseAllDiagramsInFolder "/home/marco/Documents/Imperial/FYP/diagrams/")
+    //|> SetLoadedComponents TODO
+    //|> dispatch
+
+////////
+
+let loadStateIntoCanvas state model dispatch =
+    dispatch <| SetHighlighted ([],[]) // Remove current highlights.
+    model.Diagram.FlushCommandStack () // Discard all undo/redo.
+    model.Diagram.ClearCanvas()        // Clear the canvas.
+    // Finally load the new state in the canvas.
+    let components, connections = state
+    List.map model.Diagram.LoadComponent components |> ignore
+    List.map (model.Diagram.LoadConnection true) connections |> ignore
+
+let newProjectAction model dispatch _ =
+    ()
+
+let openProjectAction model dispatch _ =
+    match askForExistingProjectPath () with
+    | None -> () // User gave no path.
+    | Some path ->
+        match tryLoadComponentsFromPath path with
+        | Error err -> log err // TODO: popup?
+        | Ok components ->
+            let openFileName, openFileState =
+                match components with
+                | [] -> failwith "what? EMPTY PROJECT NOT IMPLEMENTED YET" // TODO: create file, and load it?
+                | comp :: _ -> comp.Name, comp.CanvasState
+            loadStateIntoCanvas openFileState model dispatch
+            {
+                ProjectPath = path
+                OpenFileName = openFileName
+                LoadedComponents = components
+            }
+            |> SetProject |> dispatch
 
 // Views
 
+/// Display the content of the right tab.
 let viewRightTab model dispatch =
     match model.RightTab with
     | Catalogue ->
@@ -93,6 +127,26 @@ let viewRightTab model dispatch =
             viewSimulation model dispatch
         ]
 
+/// Display the initial Open/Create Project menu at the beginning if no project
+/// is open.
+let viewNoProjectMenu model dispatch =
+    let menuItem label action =
+        Menu.Item.li [
+            Menu.Item.IsActive false
+            Menu.Item.OnClick action
+        ] [ str label ]
+    let initialMenu =
+        Menu.menu [] [
+            Menu.list [] [
+                menuItem "New project" (newProjectAction model dispatch)
+                menuItem "Open project" (openProjectAction model dispatch)
+            ]
+        ]
+    match model.CurrProject with
+    | Some _ -> div [] []
+    | None ->
+        stablePopup initialMenu
+
 let hideView model dispatch =
     div [] [
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Hidden
@@ -101,6 +155,7 @@ let hideView model dispatch =
 let displayView model dispatch =
     div [] [
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Visible
+        viewNoProjectMenu model dispatch
         viewPopup model
         viewOnDiagramButtons model dispatch
         div [ rightSectionStyle ] [
@@ -152,7 +207,6 @@ let update msg model =
             | Ok simData -> { model with Simulation = { simData with Graph = graph } |> Ok |> Some }
     | EndSimulation -> { model with Simulation = None }
     | ChangeRightTab newTab -> { model with RightTab = newTab }
-    | SetOpenPath openPath -> { model with OpenPath = openPath }
     | SetHighlighted (componentIds, connectionIds) ->
         let oldComponentIds, oldConnectionIds = model.Hilighted
         oldComponentIds
@@ -169,6 +223,6 @@ let update msg model =
         |> ignore
         { model with Hilighted = (componentIds, connectionIds) }
     | SetClipboard components -> { model with Clipboard = components }
-    | SetLoadedComponents lc -> { model with LoadedComponents = lc }
+    | SetProject project -> { model with CurrProject = Some project }
     | ShowPopup popup -> { model with Popup = Some popup }
     | ClosePopup -> { model with Popup = None }

@@ -13,6 +13,14 @@ open Fable.Helpers.React.Props
 open DiagramMessageType
 open DiagramModelType
 
+let stablePopup body =
+    Modal.modal [ Modal.IsActive true ] [
+        Modal.background [] []
+        Modal.Card.card [] [
+            Modal.Card.body [] [ body ]
+        ]
+    ]
+
 let private buildPopup title body foot close =
     Modal.modal [ Modal.IsActive true ] [
         Modal.background [ Props [ OnClick close ] ] []
@@ -26,7 +34,9 @@ let private buildPopup title body foot close =
         ]
     ]
 
-let displayPopup title body foot dispatch =
+/// Create a popup and add it to the page.
+/// Can be closed by the ClosePopup message.
+let closablePopup title body foot dispatch =
     buildPopup title body foot (fun _ -> dispatch ClosePopup)
     |> ShowPopup
     |> dispatch

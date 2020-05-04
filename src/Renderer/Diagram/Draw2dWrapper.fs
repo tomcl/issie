@@ -10,8 +10,6 @@ open DiagramStyle
 
 open Fable.Core
 open Fable.Core.JsInterop
-open Fable.Import
-open Fable.Import.Browser
 open Fable.Import.React
 open Fable.Helpers.React
 open Fable.Helpers.React.Props

@@ -133,25 +133,48 @@ let private getBaseNameNoExtension filePath =
             )
         firstSplit + rest
 
+let projectFilters =
+    ResizeArray [
+        createObj [
+            "name" ==> "Diagrams project" // TODO rename this.
+            "extensions" ==> ResizeArray [ "dprj" ]
+        ]
+    ] |> Some
+
 /// Ask the user to choose a project path, with a dialog window.
 /// Return None if the user exits withouth selecting a path.
 let askForExistingProjectPath () : string option =
-    let filters =
-        ResizeArray [
-            createObj [
-                "name" ==> "Diagrams project" // TODO rename this.
-                "extensions" ==> ResizeArray [ "dprj" ]
-            ]
-        ] |> Some
     let options = createEmpty<OpenDialogOptions>
     options.properties <- ResizeArray([ "openDirectory" ]) |> Some
-    options.filters <- filters
+    options.filters <- projectFilters
     let paths = electron.remote.dialog.showOpenDialog(options)
     match isNull paths with
     | true -> Option.None // User did not completed the load dialog interaction.
     | false -> match Seq.toList paths with
                | [] -> Option.None
                | path :: _ -> Some path
+
+/// Ask the user a new project path, with a dialog window.
+/// Return None if the user exits withouth selecting a path.
+let askForNewProjectPath () : string option =
+    let options = createEmpty<SaveDialogOptions>
+    options.filters <- projectFilters
+    let path = electron.remote.dialog.showSaveDialog(options)
+    match isNull path with
+    | true -> Option.None // User did not completed the load dialog interaction.
+    | false -> Option.Some path
+
+let tryCreateFolder (path : string) =
+    try
+        Result.Ok <| fs.mkdirSync path
+    with
+        | ex -> Result.Error <| sprintf "%A" ex
+
+let createEmptyDgmFile folderPath basename = // TODO: catch error?
+    let path = path.join [| folderPath; basename |]
+    let data = stateToJsonString ([],[])
+    let options = createObj ["encoding" ==> "utf8"] |> Some
+    fs.writeFileSync(path, data, options)
 
 let private tryLoadComponentFromPath filePath =
     JSHelpers.log <| getBaseNameNoExtension filePath

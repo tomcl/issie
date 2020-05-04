@@ -84,7 +84,20 @@ let loadStateIntoCanvas state model dispatch =
     List.map (model.Diagram.LoadConnection true) connections |> ignore
 
 let newProjectAction model dispatch _ =
-    ()
+    match askForNewProjectPath () with
+    | None -> () // User gave no path.
+    | Some path ->
+        match tryCreateFolder path with
+        | Error err -> log err // TODO
+        | Ok _ ->
+            createEmptyDgmFile path "main"
+            loadStateIntoCanvas ([],[]) model dispatch
+            {
+                ProjectPath = path
+                OpenFileName = "main"
+                LoadedComponents = []
+            }
+            |> SetProject |> dispatch
 
 let openProjectAction model dispatch _ =
     match askForExistingProjectPath () with
@@ -95,12 +108,15 @@ let openProjectAction model dispatch _ =
         | Ok components ->
             let openFileName, openFileState =
                 match components with
-                | [] -> failwith "what? EMPTY PROJECT NOT IMPLEMENTED YET" // TODO: create file, and load it?
-                | comp :: _ -> comp.Name, comp.CanvasState
+                | [] -> // No files in the project. Create one and open it.
+                    createEmptyDgmFile path "main"
+                    "main", ([],[])
+                | comp :: _ -> // Pick one file at random to open initally.
+                    comp.Name, comp.CanvasState
             loadStateIntoCanvas openFileState model dispatch
             {
                 ProjectPath = path
-                OpenFileName = openFileName
+                OpenFileName =  openFileName
                 LoadedComponents = components
             }
             |> SetProject |> dispatch
@@ -177,6 +193,9 @@ let displayView model dispatch =
             Button.button [ Button.Props [ OnClick (fun _ -> saveStateAction model dispatch ) ] ] [ str "Save diagram" ]
             Button.button [ Button.Props [ OnClick (fun _ -> loadStateAction model dispatch) ] ] [ str "Load diagram" ]
             Button.button [ Button.Props [ OnClick (fun _ -> loadComponentsFromFolder dispatch) ] ] [ str "Load components" ]
+            div [] (match model.CurrProject with
+                    | None -> [str "no project"]
+                    | Some project -> [str <| project.ProjectPath + " :: " + project.OpenFileName] )
             div [] (prettyPrintState model.State)
         ]
     ]

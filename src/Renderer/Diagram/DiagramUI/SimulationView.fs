@@ -98,7 +98,10 @@ let viewSimulation model dispatch =
         | None, _ -> ()
         | _, None -> failwith "what? Cannot start a simulation without a project"
         | Some jsState, Some project ->
-            (extractState jsState, project.LoadedComponents)
+            let otherComponents =
+                project.LoadedComponents
+                |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+            (extractState jsState, otherComponents)
             ||> prepareSimulation project.OpenFileName
             |> StartSimulation
             |> dispatch

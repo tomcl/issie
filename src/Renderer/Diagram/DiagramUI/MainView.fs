@@ -83,6 +83,19 @@ let loadStateIntoCanvas state model dispatch =
     List.map model.Diagram.LoadComponent components |> ignore
     List.map (model.Diagram.LoadConnection true) connections |> ignore
 
+let saveOpenFileAction model =
+    match model.Diagram.GetCanvasState (), model.CurrProject with
+    | None, _ | _, None -> ()
+    | Some state, Some project ->
+        extractState state
+        |> saveStateToFile project.ProjectPath project.OpenFileName
+        |> ignore
+
+/// Create a new file in this project.
+let addFileToProjectAction model dispatch _ =
+    ()
+
+/// Create a new project.
 let newProjectAction model dispatch _ =
     match askForNewProjectPath () with
     | None -> () // User gave no path.
@@ -99,6 +112,7 @@ let newProjectAction model dispatch _ =
             }
             |> SetProject |> dispatch
 
+/// Open a project.
 let openProjectAction model dispatch _ =
     match askForExistingProjectPath () with
     | None -> () // User gave no path.
@@ -106,6 +120,8 @@ let openProjectAction model dispatch _ =
         match tryLoadComponentsFromPath path with
         | Error err -> log err // TODO: popup?
         | Ok components ->
+            log <| sprintf "Loaded components for path: %s" path
+            logString components
             let openFileName, openFileState =
                 match components with
                 | [] -> // No files in the project. Create one and open it.
@@ -190,9 +206,9 @@ let displayView model dispatch =
         ]
         div [ bottomSectionStyle ] [
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> saveStateAction model dispatch ) ] ] [ str "Save diagram" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> loadStateAction model dispatch) ] ] [ str "Load diagram" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> loadComponentsFromFolder dispatch) ] ] [ str "Load components" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> saveOpenFileAction model ) ] ] [ str "Save diagram" ]
+            //Button.button [ Button.Props [ OnClick (fun _ -> loadStateAction model dispatch) ] ] [ str "Load diagram" ]
+            //Button.button [ Button.Props [ OnClick (fun _ -> loadComponentsFromFolder dispatch) ] ] [ str "Load components" ]
             div [] (match model.CurrProject with
                     | None -> [str "no project"]
                     | Some project -> [str <| project.ProjectPath + " :: " + project.OpenFileName] )

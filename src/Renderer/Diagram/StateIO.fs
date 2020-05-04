@@ -170,11 +170,16 @@ let tryCreateFolder (path : string) =
     with
         | ex -> Result.Error <| sprintf "%A" ex
 
-let createEmptyDgmFile folderPath basename = // TODO: catch error?
-    let path = path.join [| folderPath; basename |]
-    let data = stateToJsonString ([],[])
+/// Save state to file. Automatically add the .dgm suffix.
+let saveStateToFile folderPath baseName state = // TODO: catch error?
+    let path = path.join [| folderPath; baseName + ".dgm" |]
+    let data = stateToJsonString state
     let options = createObj ["encoding" ==> "utf8"] |> Some
     fs.writeFileSync(path, data, options)
+
+/// Create new empty diagram file. Automatically add the .dgm suffix.
+let createEmptyDgmFile folderPath baseName =
+    saveStateToFile folderPath baseName ([],[])
 
 let private tryLoadComponentFromPath filePath =
     JSHelpers.log <| getBaseNameNoExtension filePath

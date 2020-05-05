@@ -120,6 +120,8 @@ let parseAllDiagramsInFolder (folderPath : string) =
 
 /////////////
 
+let pathJoin args = path.join args
+
 let private getBaseNameNoExtension filePath =
     let baseName = path.basename filePath
     match baseName.Split '.' |> Seq.toList with
@@ -182,7 +184,6 @@ let createEmptyDgmFile folderPath baseName =
     saveStateToFile folderPath baseName ([],[])
 
 let private tryLoadComponentFromPath filePath =
-    JSHelpers.log <| getBaseNameNoExtension filePath
     match tryLoadStateFromPath filePath with
     | Result.Error err -> Result.Error err
     | Result.Ok state ->

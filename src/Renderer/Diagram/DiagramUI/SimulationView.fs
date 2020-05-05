@@ -59,7 +59,7 @@ let private viewSimulationOutputs (simOutputs : (SimulationIO * Bit) list) =
 
 let private viewSimulationError (simError : SimulationError) dispatch =
     (simError.ComponentsAffected, simError.ConnectionsAffected)
-    |> SetHighlighted |> dispatch
+    |> SetHighlighted |> dispatch // TODO: there is a bug here.. This gets called many times for some reason. React is doing something weird.
     let error = 
         match simError.InDependency with
         | None ->

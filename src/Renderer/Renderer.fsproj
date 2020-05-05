@@ -5,7 +5,6 @@
   <ItemGroup>
     <Compile Include="Helpers.fs" />
     <Compile Include="JSHelpers.fs" />
-    <Compile Include="CommonStyle.fs" />
 
     <Compile Include="Diagram/Types.fs" />
     <Compile Include="Diagram/Extractor.fs" />
@@ -27,11 +26,6 @@
     <Compile Include="Diagram/DiagramUI/CatalogueView.fs" />
     <Compile Include="Diagram/DiagramUI/SelectedComponentView.fs" />
     <Compile Include="Diagram/DiagramUI/MainView.fs" />
-
-    <Compile Include="Editor/Types.fs" />
-    <Compile Include="Editor/Style.fs" />
-    <Compile Include="Editor/CodeMirrorWrapper.fs" />
-    <Compile Include="Editor/Editor.fs" />
 
     <Compile Include="Renderer.fs" />
   </ItemGroup>

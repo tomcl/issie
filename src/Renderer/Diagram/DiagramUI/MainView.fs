@@ -5,10 +5,10 @@ open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
 open JSHelpers
+open DiagramStyle
 open DiagramTypes
 open DiagramMessageType
 open DiagramModelType
-open CommonStyle
 open Draw2dWrapper
 open Extractor
 open StateIO
@@ -254,6 +254,11 @@ let viewNoProjectMenu model dispatch =
     | None ->
         stablePopup initialMenu
 
+let viewTopMenu model dispatch =
+    div [ navbarStyle ] [
+        str "TODO"
+    ]
+
 let hideView model dispatch =
     div [] [
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Hidden
@@ -261,6 +266,7 @@ let hideView model dispatch =
 
 let displayView model dispatch =
     div [] [
+        viewTopMenu model dispatch
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Visible
         viewNoProjectMenu model dispatch
         viewPopup model

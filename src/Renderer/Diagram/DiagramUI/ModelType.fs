@@ -22,5 +22,6 @@ type Model = {
     Hilighted : ComponentId list * ConnectionId list
     Clipboard : CanvasState // Components and connections that have been selected and copied.
     CurrProject : Project option
-    Popup : Fable.Import.React.ReactElement option
+    Popup : (string -> Fable.Import.React.ReactElement) option
+    PopupDialogText : string option
 }

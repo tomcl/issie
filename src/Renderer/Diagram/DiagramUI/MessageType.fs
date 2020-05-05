@@ -29,5 +29,6 @@ type Msg =
     | SetHighlighted of ComponentId list * ConnectionId list
     | SetClipboard of CanvasState
     | SetProject of Project
-    | ShowPopup of Fable.Import.React.ReactElement
+    | ShowPopup of (string -> Fable.Import.React.ReactElement)
     | ClosePopup
+    | SetPopupDialogText of string option

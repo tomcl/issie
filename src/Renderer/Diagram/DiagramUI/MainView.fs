@@ -30,6 +30,7 @@ let init() = {
     Hilighted = [], []
     Clipboard = [], []
     Popup = None
+    PopupDialogText = None
 }
 
 // -- Create View
@@ -83,6 +84,16 @@ let loadStateIntoCanvas state model dispatch =
     List.map model.Diagram.LoadComponent components |> ignore
     List.map (model.Diagram.LoadConnection true) connections |> ignore
 
+let reloadProjectComponents model dispatch =
+    match model.CurrProject with
+    | None -> ()
+    | Some project ->
+        match tryLoadComponentsFromPath project.ProjectPath with
+        | Error err -> log err // TODO: popup?
+        | Ok components ->
+            logString components
+            { project with LoadedComponents = components } |> SetProject |> dispatch
+
 let saveOpenFileAction model =
     match model.Diagram.GetCanvasState (), model.CurrProject with
     | None, _ | _, None -> ()
@@ -91,12 +102,78 @@ let saveOpenFileAction model =
         |> saveStateToFile project.ProjectPath project.OpenFileName
         |> ignore
 
-/// Create a new file in this project.
-let addFileToProjectAction model dispatch _ =
-    ()
+let getFileInProject name project =
+    project.LoadedComponents
+    |> List.tryFind (fun comp -> comp.Name = name)
+
+let isFileInProject name project =
+    getFileInProject name project
+    |> function | None -> false | Some _ -> true
+
+/// Open the specified file.
+let openFileInProject name model dispatch =
+    match model.CurrProject with
+    | None -> log "Warning: openFileInProject called with no project"
+    | Some project ->
+        saveOpenFileAction model // Save current file.
+        match getFileInProject name project with
+        | None -> log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
+        | Some loadedComponent ->
+            loadStateIntoCanvas loadedComponent.CanvasState model dispatch
+            { project with OpenFileName = name } |> SetProject |> dispatch
+            // Reload components so the project we just closed is up to date in
+            // our CurrProj.
+            reloadProjectComponents model dispatch
+
+/// Create a new file in this project. Do not open it automatically.
+let addFileToProject model dispatch =
+    match model.CurrProject with
+    | None -> () // TODO log warning?
+    | Some project ->
+        // Prepare dialog popup.
+        let title = "Add file to project"
+        let before =
+            fun popupDialogText ->
+                let maybeWarning =
+                    if isFileInProject popupDialogText project
+                    then div [ Style [Color "red"] ] [ str "This file already exists." ]
+                    else div [] []
+                div [] [
+                    str "A new file will be created at:"
+                    br[]
+                    str <| pathJoin [|project.ProjectPath; popupDialogText + ".dgm"|]
+                    maybeWarning
+                ]
+        let placeholder = "Insert module name"
+        let buttonText = "Add"
+        let buttonAction =
+            fun popupDialogText ->
+                let name = popupDialogText
+                // Create empty file.
+                createEmptyDgmFile project.ProjectPath name
+                // Add the file to the project.
+                let newComponent = {
+                    Name = name
+                    FilePath = pathJoin [|project.ProjectPath; name + ".dgm"|]
+                    CanvasState = [],[]
+                    InputLabels = []
+                    OutputLabels = []
+                }
+                { project with LoadedComponents = newComponent :: project.LoadedComponents }
+                |> SetProject |> dispatch
+                // Close the popup.
+                dispatch ClosePopup
+        let isDisabled =
+            fun popupDialogText -> (isFileInProject popupDialogText project) || (popupDialogText = "")
+        dialogPopup title before placeholder buttonText buttonAction isDisabled dispatch
+
+// TODO remove file
+// TODO change open file
+// TODO nice menu
+// TODO error popup
 
 /// Create a new project.
-let newProjectAction model dispatch _ =
+let newProject model dispatch _ =
     match askForNewProjectPath () with
     | None -> () // User gave no path.
     | Some path ->
@@ -113,15 +190,13 @@ let newProjectAction model dispatch _ =
             |> SetProject |> dispatch
 
 /// Open a project.
-let openProjectAction model dispatch _ =
+let openProject model dispatch _ =
     match askForExistingProjectPath () with
     | None -> () // User gave no path.
     | Some path ->
         match tryLoadComponentsFromPath path with
         | Error err -> log err // TODO: popup?
         | Ok components ->
-            log <| sprintf "Loaded components for path: %s" path
-            logString components
             let openFileName, openFileState =
                 match components with
                 | [] -> // No files in the project. Create one and open it.
@@ -170,8 +245,8 @@ let viewNoProjectMenu model dispatch =
     let initialMenu =
         Menu.menu [] [
             Menu.list [] [
-                menuItem "New project" (newProjectAction model dispatch)
-                menuItem "Open project" (openProjectAction model dispatch)
+                menuItem "New project" (newProject model dispatch)
+                menuItem "Open project" (openProject model dispatch)
             ]
         ]
     match model.CurrProject with
@@ -207,6 +282,7 @@ let displayView model dispatch =
         div [ bottomSectionStyle ] [
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
             Button.button [ Button.Props [ OnClick (fun _ -> saveOpenFileAction model ) ] ] [ str "Save diagram" ]
+            Button.button [ Button.Props [ OnClick (fun _ -> addFileToProject model dispatch ) ] ] [ str "Add file" ]
             //Button.button [ Button.Props [ OnClick (fun _ -> loadStateAction model dispatch) ] ] [ str "Load diagram" ]
             //Button.button [ Button.Props [ OnClick (fun _ -> loadComponentsFromFolder dispatch) ] ] [ str "Load components" ]
             div [] (match model.CurrProject with
@@ -260,4 +336,5 @@ let update msg model =
     | SetClipboard components -> { model with Clipboard = components }
     | SetProject project -> { model with CurrProject = Some project }
     | ShowPopup popup -> { model with Popup = Some popup }
-    | ClosePopup -> { model with Popup = None }
+    | ClosePopup -> { model with Popup = None; PopupDialogText = None }
+    | SetPopupDialogText text -> { model with PopupDialogText = text }

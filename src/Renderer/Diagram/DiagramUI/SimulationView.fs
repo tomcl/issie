@@ -57,9 +57,7 @@ let private viewSimulationOutputs (simOutputs : (SimulationIO * Bit) list) =
         )
     )
 
-let private viewSimulationError (simError : SimulationError) dispatch =
-    (simError.ComponentsAffected, simError.ConnectionsAffected)
-    |> SetHighlighted |> dispatch // TODO: there is a bug here.. This gets called many times for some reason. React is doing something weird.
+let private viewSimulationError (simError : SimulationError) =
     let error = 
         match simError.InDependency with
         | None ->
@@ -103,6 +101,13 @@ let viewSimulation model dispatch =
                 |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
             (extractState jsState, otherComponents)
             ||> prepareSimulation project.OpenFileName
+            |> function
+               | Ok simData -> Ok simData
+               | Error simError ->
+                  // Highligh the affected componetns if error.
+                  (simError.ComponentsAffected, simError.ConnectionsAffected)
+                  |> SetHighlighted |> dispatch
+                  Error simError
             |> StartSimulation
             |> dispatch
     match model.Simulation with
@@ -114,7 +119,7 @@ let viewSimulation model dispatch =
         ]
     | Some sim ->
         let body = match sim with
-                   | Error simError -> viewSimulationError simError dispatch
+                   | Error simError -> viewSimulationError simError
                    | Ok simData -> viewSimulationData simData dispatch
         let endSimulation _ =
             dispatch <| SetHighlighted ([], [])

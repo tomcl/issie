@@ -8,7 +8,7 @@
 
     <Compile Include="Diagram/Types.fs" />
     <Compile Include="Diagram/Extractor.fs" />
-    <Compile Include="Diagram/StateIO.fs" />
+    <Compile Include="Diagram/FilesIO.fs" />
     <!-- Simulator -->
     <Compile Include="Diagram/Simulator/Analyser.fs" />
     <Compile Include="Diagram/Simulator/Builder.fs" />

@@ -63,6 +63,9 @@ function initialiseCanvas (canvas) {
 }
 
 function clearCanvas (canvas) {
+    canvas.setScrollLeft(0);
+    canvas.setScrollTop(0);
+    canvas.setZoom(1.0);
     canvas.clear();
 }
 

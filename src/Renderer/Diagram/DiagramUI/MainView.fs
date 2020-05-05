@@ -11,7 +11,7 @@ open DiagramMessageType
 open DiagramModelType
 open Draw2dWrapper
 open Extractor
-open StateIO
+open FilesIO
 open OnDiagramButtonsView
 open CatalogueView
 open SelectedComponentView
@@ -22,7 +22,6 @@ open PopupView
 
 let init() = {
     Diagram = new Draw2dWrapper()
-    State = [], []
     SelectedComponent = None
     Simulation = None
     RightTab = Catalogue
@@ -34,46 +33,6 @@ let init() = {
 }
 
 // -- Create View
-
-let prettyPrintState (components, connections) =
-    [ str "Components:"; br [] ] @
-    List.collect (fun c -> [ str <| sprintf "%A" c; br [] ]) components @
-    [ str "Connections:"; br [] ] @
-    List.collect (fun c -> [ str <| sprintf "%A" c; br [] ]) connections
-
-let getStateAction model dispatch =
-    match model.Diagram.GetCanvasState () with
-    | None -> ()
-    | Some state -> extractState state |> UpdateState |> dispatch
-
-let saveStateAction model dispatch =
-    match model.Diagram.GetCanvasState () with
-    | None -> ()
-    | Some state -> () //extractState state TODO
-                    //|> saveStateToFile model.OpenPath
-                    //|> SetOpenPath
-                    //|> dispatch 
-
-let loadStateAction model dispatch = ()
-//    match loadStateFromFile () with
-//    | None -> ()
-//    | Some (path, canvasState) ->
-//        dispatch <| SetHighlighted ([],[]) // Remove current highlights.
-//        model.Diagram.FlushCommandStack () // Discard all undo/redo.
-//        model.Diagram.ClearCanvas()
-//        //Some path |> SetOpenPath |> dispatch // Set the new filepath. TODO
-//        // Finally load the new state in the canvas.
-//        let components, connections = canvasState
-//        List.map model.Diagram.LoadComponent components |> ignore
-//        List.map (model.Diagram.LoadConnection true) connections |> ignore
-
-// TODO replace this with an openProject logic.
-let loadComponentsFromFolder dispatch = ()
-    //(parseAllDiagramsInFolder "/home/marco/Documents/Imperial/FYP/diagrams/")
-    //|> SetLoadedComponents TODO
-    //|> dispatch
-
-////////
 
 let loadStateIntoCanvas state model dispatch =
     dispatch <| SetHighlighted ([],[]) // Remove current highlights.
@@ -361,10 +320,6 @@ let displayView model dispatch =
             ]
             viewRightTab model dispatch
         ]
-        div [ bottomSectionStyle ] [
-            Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
-            div [] (prettyPrintState model.State)
-        ]
     ]
 
 // -- Update Model
@@ -382,7 +337,6 @@ let handleJSDiagramMsg msg model =
 let update msg model =
     match msg with
     | JSDiagramMsg msg' -> handleJSDiagramMsg msg' model
-    | UpdateState (com, con) -> { model with State = (com, con) }
     | StartSimulation simData -> { model with Simulation = Some simData }
     | SetSimulationGraph graph ->
         match model.Simulation with

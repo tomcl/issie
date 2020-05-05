@@ -15,7 +15,6 @@ open Draw2dWrapper
 
 type Model = {
     Diagram : Draw2dWrapper
-    State : CanvasState // TODO: remove
     SelectedComponent : Component option // None if no component is selected.
     Simulation : Result<SimulationData,SimulationError> option // None if no simulation is running.
     RightTab : RightTab

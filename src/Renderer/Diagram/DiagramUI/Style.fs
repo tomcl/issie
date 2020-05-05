@@ -3,7 +3,6 @@ module DiagramStyle
 open Fable.Helpers.React.Props
 
 let headerHeight = "52px"
-let bottomSectionHeight = "300px"
 let rightSectionWidth = "400px"
 
 let navbarStyle = Style [
@@ -21,16 +20,6 @@ let rightSectionStyle = Style [
     Border "2px solid gray"
 ]
 
-let bottomSectionStyle = Style [
-    Position "fixed"
-    Bottom "0px"
-    Height bottomSectionHeight
-    Width (sprintf "calc(100%s - %s)" "%" rightSectionWidth) // WindowSize - rightSectionWidth
-    OverflowX "hidden"
-    OverflowY "scroll"
-    Border "2px solid gray"
-]
-
 let canvasHiddenStyle = Style [
     Display "none"
 ]
@@ -41,7 +30,7 @@ let canvasVisibleStyle = Style [
     Overflow "scroll"
     Top headerHeight // Placed just under the header.
     Left "0px"
-    Bottom bottomSectionHeight // Leave some space at the bottom.
+    Bottom "0px"
     Right rightSectionWidth
     Border "2px solid gray"
 ]
@@ -51,7 +40,7 @@ let canvasSmallMenuStyle = Style [
     Position "absolute" // Required to work.
     Overflow "hidden"
     Left "10px"
-    Bottom (sprintf "calc(%s + 25px)" bottomSectionHeight)
+    Bottom "25px"
     Right (sprintf "calc(100%s - 300px)" "%")
 ]
 

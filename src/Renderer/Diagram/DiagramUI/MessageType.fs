@@ -21,7 +21,6 @@ type JSDiagramMsg =
 
 type Msg =
     | JSDiagramMsg of JSDiagramMsg
-    | UpdateState of CanvasState
     | StartSimulation of Result<SimulationData, SimulationError>
     | SetSimulationGraph of SimulationGraph
     | EndSimulation

@@ -251,9 +251,10 @@ type Draw2dWrapper() =
         match canvas with
         | None -> log "Warning: Draw2dWrapper.UnHighlightComponent called when canvas is None"
         | Some c ->
-            let comp =
-                assertNotNull (draw2dLib.getComponentById c componentId) "UnHighlightComponent"
-            draw2dLib.setComponentBackground comp "lightgray"
+            let comp = draw2dLib.getComponentById c componentId
+            match isNull comp with
+            | true -> () // The component has been removed from the diagram while it was highlighted.
+            | false -> draw2dLib.setComponentBackground comp "lightgray"
 
     member this.HighlightConnection connectionId = 
         match canvas with
@@ -268,10 +269,11 @@ type Draw2dWrapper() =
         match canvas with
         | None -> log "Warning: Draw2dWrapper.UnHighlightConnection called when canvas is None"
         | Some c ->
-            let conn =
-                assertNotNull (draw2dLib.getConnectionById c connectionId) "UnHighlightConnection"
-            draw2dLib.setConnectionColor conn "black"
-            draw2dLib.setConnectionStroke conn 1
+            let conn = draw2dLib.getConnectionById c connectionId
+            match isNull conn with
+            | true -> () // The connection has been removed from the diagram while it was highlighted.
+            | false -> draw2dLib.setConnectionColor conn "black"
+                       draw2dLib.setConnectionStroke conn 1
 
     member this.GetCanvasState () =
         match canvas with

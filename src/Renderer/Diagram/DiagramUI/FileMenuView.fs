@@ -25,12 +25,12 @@ open PopupView
 
 let private loadStateIntoCanvas state model dispatch =
     dispatch <| SetHighlighted ([],[]) // Remove current highlights.
-    model.Diagram.FlushCommandStack () // Discard all undo/redo.
     model.Diagram.ClearCanvas()        // Clear the canvas.
     // Finally load the new state in the canvas.
     let components, connections = state
     List.map model.Diagram.LoadComponent components |> ignore
     List.map (model.Diagram.LoadConnection true) connections |> ignore
+    model.Diagram.FlushCommandStack () // Discard all undo/redo.
 
 let private reloadProjectComponents project =
     match tryLoadComponentsFromPath project.ProjectPath with

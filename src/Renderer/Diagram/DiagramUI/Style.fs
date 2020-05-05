@@ -2,7 +2,7 @@ module DiagramStyle
 
 open Fable.Helpers.React.Props
 
-let headerHeight = "50px"
+let headerHeight = "52px"
 let bottomSectionHeight = "300px"
 let rightSectionWidth = "400px"
 

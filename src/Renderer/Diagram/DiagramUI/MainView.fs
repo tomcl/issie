@@ -84,15 +84,10 @@ let loadStateIntoCanvas state model dispatch =
     List.map model.Diagram.LoadComponent components |> ignore
     List.map (model.Diagram.LoadConnection true) connections |> ignore
 
-let reloadProjectComponents model dispatch =
-    match model.CurrProject with
-    | None -> ()
-    | Some project ->
-        match tryLoadComponentsFromPath project.ProjectPath with
-        | Error err -> log err // TODO: popup?
-        | Ok components ->
-            logString components
-            { project with LoadedComponents = components } |> SetProject |> dispatch
+let reloadProjectComponents project =
+    match tryLoadComponentsFromPath project.ProjectPath with
+    | Error err -> failwith "what? reloading project components" // TODO: this should probably not crash the program.
+    | Ok components -> { project with LoadedComponents = components }
 
 let saveOpenFileAction model =
     match model.Diagram.GetCanvasState (), model.CurrProject with
@@ -120,10 +115,10 @@ let openFileInProject name model dispatch =
         | None -> log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
         | Some loadedComponent ->
             loadStateIntoCanvas loadedComponent.CanvasState model dispatch
-            { project with OpenFileName = name } |> SetProject |> dispatch
             // Reload components so the project we just closed is up to date in
             // our CurrProj.
-            reloadProjectComponents model dispatch
+            { project with OpenFileName = name }
+            |> reloadProjectComponents |> SetProject |> dispatch
 
 /// Create a new file in this project. Do not open it automatically.
 let addFileToProject model dispatch =
@@ -255,8 +250,89 @@ let viewNoProjectMenu model dispatch =
         stablePopup initialMenu
 
 let viewTopMenu model dispatch =
+    let projectPath, fileName =
+        match model.CurrProject with
+        | None -> "no open project", "no open file"
+        | Some project -> project.ProjectPath, project.OpenFileName
+    log fileName
+    let makeFileLine name =
+        Navbar.Item.div [ Navbar.Item.Props [ Style [ Width "100%"] ] ] [
+            Level.level [ Level.Level.Props [ Style [ Width "100%"] ] ] [
+                Level.left [] [
+                    Level.item [] [ str name ]
+                ]
+                Level.right [ Props [ Style [MarginLeft "20px"] ] ] [
+                    Level.item [] [
+                        Button.button [
+                            Button.Size IsSmall
+                            Button.Color IsPrimary
+                            Button.OnClick (fun _ ->
+                                log name
+                                openFileInProject name model dispatch)
+                        ] [ str "open" ]
+                    ]
+                    Level.item [] [
+                        Button.button [
+                            Button.Size IsSmall
+                            Button.Color IsInfo
+                        ] [ str "rename" ]
+                    ]
+                    Level.item [] [
+                        Button.button [
+                            Button.Size IsSmall
+                            Button.Color IsDanger
+                        ] [ str "delete" ]
+                    ]
+                ]
+            ]
+        ]
+    let fileTab =
+        match model.CurrProject with
+        | None -> Navbar.Item.div [] []
+        | Some project ->
+            let projectFiles = project.LoadedComponents
+                               |> List.map (fun comp -> makeFileLine comp.Name)
+            Navbar.Item.div [ Navbar.Item.HasDropdown; Navbar.Item.IsHoverable ] [
+                Navbar.Link.a [] [ str "Files" ]
+                Navbar.Dropdown.div [] (
+                    [
+                        Navbar.Item.a [
+                            Navbar.Item.Props [
+                                OnClick (fun _ -> addFileToProject model dispatch) ] ]
+                            [ str "New file" ]
+                        Navbar.divider [] [] 
+                    ]
+                    @ projectFiles
+                )
+            ]
     div [ navbarStyle ] [
-        str "TODO"
+        Navbar.navbar [ Navbar.Props [Style [Height "100%"; Width "100%"]] ] [
+            Navbar.Brand.div [ Props [Style [Height "100%"; Width "100%"]] ] [
+                Navbar.Item.div [ Navbar.Item.HasDropdown; Navbar.Item.IsHoverable ] [
+                    Navbar.Link.a [] [ str "Project" ]
+                    Navbar.Dropdown.div [] [
+                        Navbar.Item.a [] [ str "New project" ]
+                        Navbar.Item.a [] [ str "Open project" ] 
+                    ]
+                ]
+                fileTab
+                Navbar.Item.div [] [
+                    Navbar.Item.div [] [
+                        Breadcrumb.breadcrumb [ Breadcrumb.HasArrowSeparator ] [
+                            Breadcrumb.item [] [ str projectPath ]
+                            Breadcrumb.item [] [ str fileName ]
+                        ]
+                    ]
+                ]
+                Navbar.Item.div [] [
+                    Navbar.Item.div [] [
+                        Button.button [ Button.Props [
+                            OnClick (fun _ -> saveOpenFileAction model )
+                        ] ] [ str "Save" ]
+                    ]
+                ]
+            ]
+        ]
     ]
 
 let hideView model dispatch =
@@ -287,13 +363,6 @@ let displayView model dispatch =
         ]
         div [ bottomSectionStyle ] [
             Button.button [ Button.Props [ OnClick (fun _ -> getStateAction model dispatch) ] ] [ str "Get state" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> saveOpenFileAction model ) ] ] [ str "Save diagram" ]
-            Button.button [ Button.Props [ OnClick (fun _ -> addFileToProject model dispatch ) ] ] [ str "Add file" ]
-            //Button.button [ Button.Props [ OnClick (fun _ -> loadStateAction model dispatch) ] ] [ str "Load diagram" ]
-            //Button.button [ Button.Props [ OnClick (fun _ -> loadComponentsFromFolder dispatch) ] ] [ str "Load components" ]
-            div [] (match model.CurrProject with
-                    | None -> [str "no project"]
-                    | Some project -> [str <| project.ProjectPath + " :: " + project.OpenFileName] )
             div [] (prettyPrintState model.State)
         ]
     ]

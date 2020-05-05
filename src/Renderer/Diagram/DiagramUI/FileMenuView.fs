@@ -120,10 +120,17 @@ let private newProject model dispatch _ =
         | Ok _ ->
             createEmptyDgmFile path "main"
             loadStateIntoCanvas ([],[]) model dispatch
+            // Add the file to the project.
             {
                 ProjectPath = path
                 OpenFileName = "main"
-                LoadedComponents = []
+                LoadedComponents = [{
+                    Name = "main"
+                    FilePath = pathJoin [|path; "main.dgm"|]
+                    CanvasState = [],[]
+                    InputLabels = []
+                    OutputLabels = []
+                }]
             }
             |> SetProject |> dispatch
 

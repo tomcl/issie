@@ -123,6 +123,7 @@ let update msg model =
         { model with Hilighted = (componentIds, connectionIds) }
     | SetClipboard components -> { model with Clipboard = components }
     | SetProject project -> { model with CurrProject = Some project }
+    | CloseProject -> { model with CurrProject = None }
     | ShowPopup popup -> { model with Popup = Some popup }
     | ClosePopup -> { model with Popup = None; PopupDialogText = None }
     | SetPopupDialogText text -> { model with PopupDialogText = text }

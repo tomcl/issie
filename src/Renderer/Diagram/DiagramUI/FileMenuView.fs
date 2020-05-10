@@ -110,6 +110,12 @@ let private addFileToProject model dispatch =
             fun popupDialogText -> (isFileInProject popupDialogText project) || (popupDialogText = "")
         dialogPopup title before placeholder buttonText buttonAction isDisabled dispatch
 
+
+/// Close current project, if any.
+let private closeProject model dispatch _ =
+    dispatch CloseProject
+    model.Diagram.ClearCanvas()
+
 /// Create a new project.
 let private newProject model dispatch _ =
     match askForNewProjectPath () with
@@ -237,7 +243,10 @@ let viewTopMenu model dispatch =
                     Navbar.Link.a [] [ str "Project" ]
                     Navbar.Dropdown.div [] [
                         Navbar.Item.a [] [ str "New project" ]
-                        Navbar.Item.a [] [ str "Open project" ] 
+                        Navbar.Item.a [] [ str "Open project" ]
+                        Navbar.Item.a [
+                            Navbar.Item.Props [ OnClick <| closeProject model dispatch ]
+                        ] [ str "Close project" ]
                     ]
                 ]
                 fileTab

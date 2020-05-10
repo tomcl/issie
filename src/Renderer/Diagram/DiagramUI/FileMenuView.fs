@@ -199,18 +199,21 @@ let viewTopMenu model dispatch =
                         Button.button [
                             Button.Size IsSmall
                             Button.Color IsPrimary
+                            Button.IsOutlined
                             Button.OnClick (fun _ -> openFileInProject name model dispatch)
                         ] [ str "open" ]
                     ]
                     Level.item [] [
                         Button.button [
                             Button.Size IsSmall
+                            Button.IsOutlined
                             Button.Color IsInfo
                         ] [ str "rename" ]
                     ]
                     Level.item [] [
                         Button.button [
                             Button.Size IsSmall
+                            Button.IsOutlined
                             Button.Color IsDanger
                         ] [ str "delete" ]
                     ]

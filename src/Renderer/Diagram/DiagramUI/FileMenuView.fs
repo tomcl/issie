@@ -230,19 +230,35 @@ let viewTopMenu model dispatch =
                             )
                         ] [ str "open" ]
                     ]
-                    Level.item [] [
-                        Button.button [
-                            Button.Size IsSmall
-                            Button.IsOutlined
-                            Button.Color IsInfo
-                        ] [ str "rename" ]
-                    ]
+                    // Add option to rename?
+                    //Level.item [] [
+                    //    Button.button [
+                    //        Button.Size IsSmall
+                    //        Button.IsOutlined
+                    //        Button.Color IsInfo
+                    //    ] [ str "rename" ]
+                    //]
                     Level.item [] [
                         Button.button [
                             Button.Size IsSmall
                             Button.IsOutlined
                             Button.Color IsDanger
-                            Button.OnClick (fun _ -> removeFileInProject name project model dispatch)
+                            Button.OnClick (fun _ ->
+                                let title = "Delete file"
+                                let body = div [] [
+                                    str "Are you sure you want to delete the follwing file?"
+                                    br []
+                                    str <| pathJoin [| project.ProjectPath; name + ".dgm" |]
+                                    br []
+                                    str <| "This action is irreversible."
+                                ]
+                                let buttonText = "Delete"
+                                let buttonAction =
+                                    fun _ ->
+                                        removeFileInProject name project model dispatch
+                                        dispatch ClosePopup
+                                confirmationPopup title body buttonText buttonAction dispatch
+                            )
                         ] [ str "delete" ]
                     ]
                 ]

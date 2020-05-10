@@ -94,6 +94,11 @@ let tryCreateFolder (path : string) =
 
 let pathJoin args = path.join args
 
+/// Asyncronously remove file.
+let removeFile folderPath baseName =
+    let path = path.join [| folderPath; baseName + ".dgm" |]
+    fs.unlink (U2.Case1 path, ignore) // Asynchronous.
+
 /// Save state to file. Automatically add the .dgm suffix.
 let saveStateToFile folderPath baseName state = // TODO: catch error?
     let path = path.join [| folderPath; baseName + ".dgm" |]

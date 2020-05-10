@@ -242,8 +242,12 @@ let viewTopMenu model dispatch =
                 Navbar.Item.div [ Navbar.Item.HasDropdown; Navbar.Item.IsHoverable ] [
                     Navbar.Link.a [] [ str "Project" ]
                     Navbar.Dropdown.div [] [
-                        Navbar.Item.a [] [ str "New project" ]
-                        Navbar.Item.a [] [ str "Open project" ]
+                        Navbar.Item.a [
+                            Navbar.Item.Props [ OnClick <| newProject model dispatch ]
+                        ] [ str "New project" ]
+                        Navbar.Item.a [
+                            Navbar.Item.Props [ OnClick <| openProject model dispatch ]
+                        ] [ str "Open project" ]
                         Navbar.Item.a [
                             Navbar.Item.Props [ OnClick <| closeProject model dispatch ]
                         ] [ str "Close project" ]

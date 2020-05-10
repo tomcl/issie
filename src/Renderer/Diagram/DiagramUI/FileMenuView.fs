@@ -10,6 +10,7 @@ open Fulma
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
+open Helpers
 open JSHelpers
 open DiagramStyle
 open DiagramMessageType
@@ -53,20 +54,48 @@ let private isFileInProject name project =
     getFileInProject name project
     |> function | None -> false | Some _ -> true
 
+/// Create a new empty .dgm file and return corresponding loaded component.
+let private createEmptyDiagramFile projectPath name =
+    createEmptyDgmFile projectPath name
+    {   
+        Name = name
+        FilePath = pathJoin [| projectPath; name + ".dgm" |]
+        CanvasState = [],[]
+        InputLabels = []
+        OutputLabels = []
+    }
+
 /// Open the specified file.
-let private openFileInProject name model dispatch =
-    match model.CurrProject with
-    | None -> log "Warning: openFileInProject called with no project"
-    | Some project ->
-        saveOpenFileAction model // Save current file.
-        match getFileInProject name project with
-        | None -> log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
-        | Some loadedComponent ->
-            loadStateIntoCanvas loadedComponent.CanvasState model dispatch
-            // Reload components so the project we just closed is up to date in
-            // our CurrProj.
-            { project with OpenFileName = name }
-            |> reloadProjectComponents |> SetProject |> dispatch
+let private openFileInProject name project model dispatch =
+    match getFileInProject name project with
+    | None -> log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
+    | Some loadedComponent ->
+        loadStateIntoCanvas loadedComponent.CanvasState model dispatch
+        // Reload components so the project we just closed is up to date in
+        // our CurrProj.
+        { project with OpenFileName = name }
+        |> reloadProjectComponents |> SetProject |> dispatch
+
+/// Remove file.
+let private removeFileInProject name project model dispatch =
+    removeFile project.ProjectPath name
+    // Remove the file from the dependencies and update project.
+    let newComponents =
+        List.filter (fun lc -> lc.Name <> name) project.LoadedComponents
+    // Make sure there is at least one file in the project.
+    let newComponents =
+        match List.isEmpty newComponents with
+        | false -> newComponents
+        | true -> [(createEmptyDiagramFile project.ProjectPath "main")]
+    let project = { project with LoadedComponents = newComponents }
+    project |> SetProject |> dispatch
+    // If the file was displayed, open and display another one instead.
+    // It is safe to access position 0 as we are guaranteed that there is at
+    // least one element in newComponents.
+    assertThat (not <| List.isEmpty project.LoadedComponents) "removeFileInProject"
+    match name = project.OpenFileName with
+    | false -> ()
+    | true -> openFileInProject project.LoadedComponents.[0].Name project model dispatch
 
 /// Create a new file in this project. Do not open it automatically.
 let private addFileToProject model dispatch =
@@ -124,19 +153,14 @@ let private newProject model dispatch _ =
         match tryCreateFolder path with
         | Error err -> log err // TODO
         | Ok _ ->
-            createEmptyDgmFile path "main"
-            loadStateIntoCanvas ([],[]) model dispatch
+            let initialDiagram = createEmptyDiagramFile path "main"
+            // Load the diagram.
+            loadStateIntoCanvas initialDiagram.CanvasState model dispatch
             // Add the file to the project.
             {
                 ProjectPath = path
                 OpenFileName = "main"
-                LoadedComponents = [{
-                    Name = "main"
-                    FilePath = pathJoin [|path; "main.dgm"|]
-                    CanvasState = [],[]
-                    InputLabels = []
-                    OutputLabels = []
-                }]
+                LoadedComponents = [initialDiagram]
             }
             |> SetProject |> dispatch
 
@@ -188,7 +212,7 @@ let viewTopMenu model dispatch =
         match model.CurrProject with
         | None -> "no open project", "no open file"
         | Some project -> project.ProjectPath, project.OpenFileName
-    let makeFileLine name =
+    let makeFileLine name project =
         Navbar.Item.div [ Navbar.Item.Props [ Style [ Width "100%"] ] ] [
             Level.level [ Level.Level.Props [ Style [ Width "100%"] ] ] [
                 Level.left [] [
@@ -198,9 +222,12 @@ let viewTopMenu model dispatch =
                     Level.item [] [
                         Button.button [
                             Button.Size IsSmall
-                            Button.Color IsPrimary
                             Button.IsOutlined
-                            Button.OnClick (fun _ -> openFileInProject name model dispatch)
+                            Button.Color IsPrimary
+                            Button.OnClick (fun _ ->
+                                saveOpenFileAction model // Save current file.
+                                openFileInProject name project model dispatch
+                            )
                         ] [ str "open" ]
                     ]
                     Level.item [] [
@@ -215,6 +242,7 @@ let viewTopMenu model dispatch =
                             Button.Size IsSmall
                             Button.IsOutlined
                             Button.Color IsDanger
+                            Button.OnClick (fun _ -> removeFileInProject name project model dispatch)
                         ] [ str "delete" ]
                     ]
                 ]
@@ -225,7 +253,7 @@ let viewTopMenu model dispatch =
         | None -> Navbar.Item.div [] []
         | Some project ->
             let projectFiles = project.LoadedComponents
-                               |> List.map (fun comp -> makeFileLine comp.Name)
+                               |> List.map (fun comp -> makeFileLine comp.Name project)
             Navbar.Item.div [ Navbar.Item.HasDropdown; Navbar.Item.IsHoverable ] [
                 Navbar.Link.a [] [ str "Files" ]
                 Navbar.Dropdown.div [] (

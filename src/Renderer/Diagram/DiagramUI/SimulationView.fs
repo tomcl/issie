@@ -24,7 +24,9 @@ let private viewSimulationInputs
         let bitButton =
             Button.button [
                 Button.Props [ Style [ Width "50px" ] ]
-                Button.Color (match bit with Zero -> IsBlack | One -> IsPrimary)
+                Button.Color IsPrimary
+                (match bit with Zero -> Button.IsOutlined | One -> Button.Color IsPrimary)
+                Button.IsHovered false
                 Button.Size IsSmall
                 Button.OnClick (fun _ ->
                     let newBit = match bit with

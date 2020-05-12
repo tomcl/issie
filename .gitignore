@@ -12,7 +12,7 @@ electron/Content/app/main.js*
 electron/Content/app/renderer.js*
 
 # Diagrams
-diagrams
+diagrams.dprj
 
 # Node
 node_modules/

@@ -1,13 +1,28 @@
+(*
+    JSHelpers.fs
+
+    Some JS related utility functions.
+*)
+
 module JSHelpers
 
 open Fable.Core
 open Fable.Core.JsInterop
+
+open Helpers
 
 [<Emit("typeof $0")>]
 let jsType (var: obj) : unit = jsNative
 
 [<Emit("console.log($0)")>]
 let log msg : unit = jsNative
+
+let logString msg : unit =
+    log <| sprintf "%A" msg
+
+let logChain msg =
+    logString msg
+    msg
 
 [<Emit("alert($0)")>]
 let alert msg : unit = jsNative
@@ -20,10 +35,6 @@ let startTimer (label : string) : unit = jsNative
 
 [<Emit("console.timeEnd($0)")>]
 let stopAndLogTimer (label : string) : unit = jsNative
-
-let assertThat cond msg =
-    if not cond
-    then failwithf "what? assert failed: %s" msg
 
 /// Assert js object is not null, and return it.
 let assertNotNull obj msg =

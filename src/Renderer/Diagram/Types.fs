@@ -21,7 +21,6 @@ type JSCanvasState = JSComponent list * JSConnection list
 
 // Specify the position and type of a port in a JSComponent.
 type PortType = Input | Output
-type PortLocation = Left | Right | Top | Bottom // TODO: remove.
 
 type Port = {
     Id : string
@@ -32,11 +31,18 @@ type Port = {
     HostId : string
 }
 
+type CustomComponentType = {
+    Name: string
+    InputLabels: string list
+    OutputLabels: string list 
+}
+
 // Types instantiating objects in the Digital extension.
 type ComponentType =
     | Input | Output
     | Not | And | Or | Xor | Nand | Nor | Xnor
     | Mux2
+    | Custom of CustomComponentType
 
 // JSComponent mapped to f# object.
 type Component = {
@@ -61,6 +67,24 @@ type Connection = {
 
 type CanvasState   = Component list * Connection list
 
+//================================//
+// Componenents loaded from files //
+//================================//
+
+type LoadedComponent = {
+    Name: string
+    FilePath : string
+    CanvasState : CanvasState
+    InputLabels : string list
+    OutputLabels : string list
+}
+
+type Project = {
+    ProjectPath : string
+    OpenFileName : string
+    LoadedComponents : LoadedComponent list
+}
+
 //==========================//
 // Types for the simulation //
 //==========================//
@@ -79,6 +103,8 @@ type OutputPortNumber = | OutputPortNumber of int
 
 type SimulationComponent = {
     Id : ComponentId
+    Type : ComponentType
+    Label : ComponentLabel
     // Mapping from each input port number to its value (it will be set
     // during the simulation process).
     // TODO: maybe using a list would improve performace?
@@ -86,13 +112,22 @@ type SimulationComponent = {
     // Mapping from each output port number to all of the ports and
     // Components connected to that port.
     Outputs : Map<OutputPortNumber, (ComponentId * InputPortNumber) list>
+    // This CustomSimulationGraph should only be Some when the component Type is
+    // Custom. A custom component keeps track of its internal state using this
+    // CustomSimulationGraph. This graph will be passed to the reducer and
+    // updated from the reducer return value.
+    CustomSimulationGraph : Map<ComponentId, SimulationComponent> option
     // Function that takes the inputs and transforms them into the outputs.
     // The size of input map, must be as expected by otherwhise the reducer will
     // return None (i.e. keep on waiting for more inputs to arrive).
     // The idea is similar to partial application, keep on providing inputs
     // until the output can be evaluated.
     // The reducer should fail if more inputs than expected are received.
-    Reducer : Map<InputPortNumber, Bit> -> Map<OutputPortNumber, Bit> option
+    // The reducer accepts a SimulationGraph for custom components only.
+    Reducer : Map<InputPortNumber, Bit>                         // Inputs.
+              -> Map<ComponentId, SimulationComponent> option   // CustomSimulationGraph.
+              -> (Map<OutputPortNumber, Bit> option *           // Outputs.
+                  Map<ComponentId, SimulationComponent> option) // Updated CustomSimulationGraph.
 }
 
 // Map every ComponentId to its SimulationComponent.
@@ -112,38 +147,7 @@ type SimulationData = {
 
 type SimulationError = {
     Msg : string
+    InDependency : string option
     ComponentsAffected : ComponentId list
     ConnectionsAffected : ConnectionId list
 }
-
-//====================//
-// Types for the page //
-//====================//
-
-type DisplayModeType = Hidden | Visible
-
-type RightTab =
-    | Properties
-    | Catalogue
-    | Simulation
-
-//==========//
-// Messages //
-//==========//
-
-// Messages that will be sent from JS code.
-type JSDiagramMsg =
-    | InitCanvas of JSCanvas // Has to be dispatched only once.
-    | SelectComponent of JSComponent
-    | UnselectComponent of JSComponent
-
-type Msg =
-    | JSDiagramMsg of JSDiagramMsg
-    | UpdateState of CanvasState
-    | StartSimulation of Result<SimulationData, SimulationError>
-    | SetSimulationGraph of SimulationGraph
-    | EndSimulation
-    | ChangeRightTab of RightTab
-    | SetOpenPath of string option
-    | SetHighlighted of ComponentId list * ConnectionId list
-    | SetClipboard of CanvasState

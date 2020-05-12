@@ -40,7 +40,7 @@ let private extractPorts (jsPorts : JSPorts) : Port list =
     |> List.mapi (fun i jsPort -> extractPort (Some i) jsPort)
 
 let private extractComponentType (jsComponent : JSComponent) : ComponentType =
-    match getFailIfNull jsComponent ["userData"; "componentType"] with
+    match getFailIfNull jsComponent ["componentType"] with
     | "Input"  -> Input
     | "Output" -> Output
     | "Not"    -> Not
@@ -51,6 +51,12 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     | "Nor"    -> Nor
     | "Xnor"   -> Xnor
     | "Mux2"   -> Mux2
+    | "Custom" ->
+        Custom {
+            Name         = getFailIfNull jsComponent ["customComponentName"]
+            InputLabels  = jsListToFSharpList (getFailIfNull jsComponent ["inputs"])
+            OutputLabels = jsListToFSharpList (getFailIfNull jsComponent ["outputs"])
+        }
     | ct -> failwithf "what? Component type %s does not exist" ct
 
 let private extractVertices (jsVertices : JSVertices) : (float * float) list =

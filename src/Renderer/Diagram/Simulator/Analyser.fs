@@ -172,7 +172,7 @@ let private checkPortsAreConnectedProperly
     match countPortsConnections connections inputCounts outputCounts with
     | Error err -> Some <| err
     | Ok (inputCounts, outputCounts) ->
-        let inputRes = checkEvery inputCounts ((=) 1) "Input port receives %d connections. An input port should receive precisely one connection."
+        let inputRes = checkEvery inputCounts ((=) 1) "Input port receives %d connections. Every net must have a single driving input."
         let outputRes = checkEvery outputCounts ((<=) 1) "Output port receives an unexpected number of connections: %d"
         match inputRes, outputRes with
         | None, None -> None

@@ -40,7 +40,7 @@ let viewRightTab model dispatch =
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str "Catalogue" ]
             div [ Style [ MarginBottom "15px" ] ] [ str "Click component to add it to the diagram" ]
-            viewCatalogue model
+            viewCatalogue model dispatch
         ]
     | Properties ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [

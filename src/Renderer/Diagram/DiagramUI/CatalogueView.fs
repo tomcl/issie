@@ -11,7 +11,9 @@ open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
 open DiagramModelType
+open DiagramMessageType
 open DiagramTypes
+open PopupView
 
 let private menuItem label onClick =
     Menu.Item.li
@@ -38,12 +40,25 @@ let private makeCustomList model =
                       |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
                       |> List.map (makeCustom model))
 
-let viewCatalogue model =
+let private askLabelPopup compType model dispatch =
+    let title = sprintf "Add %A node" compType
+    let before =
+        fun _ -> str <| sprintf "How do you want to name your %A?" compType
+    let placeholder = "Component name"
+    let buttonText = "Add"
+    let buttonAction =
+        fun inputText ->
+            model.Diagram.CreateComponent compType inputText 100 100 |> ignore
+            dispatch ClosePopup
+    let isDisabled = fun _ -> false // TODO: check label already present?
+    dialogPopup title before placeholder buttonText buttonAction isDisabled dispatch
+
+let viewCatalogue model dispatch =
     Menu.menu [ ] [
             Menu.label [ ] [ str "Input / Output" ]
             Menu.list []
-                [ menuItem "Input"  (fun _ -> model.Diagram.CreateComponent Input "input" 100 100 |> ignore)
-                  menuItem "Output" (fun _ -> model.Diagram.CreateComponent Output "output" 100 100 |> ignore) ]
+                [ menuItem "Input"  (fun _ -> askLabelPopup Input model dispatch)
+                  menuItem "Output" (fun _ -> askLabelPopup Output model dispatch) ]
             Menu.label [ ] [ str "Gates" ]
             Menu.list []
                 [ menuItem "Not"  (fun _ -> model.Diagram.CreateComponent Not "" 100 100 |> ignore)

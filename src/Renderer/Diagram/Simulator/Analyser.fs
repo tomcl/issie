@@ -1,14 +1,27 @@
+(*
+    Analyser.fs
+
+    This module collects a series of functions that perform checks on
+    CanvasState and SimulationGraph.
+*)
+
 module Analyser
 
 open DiagramTypes
 
+// -- Checks performed
+//
 // Ports constraints:
 // - Source ports must be output ports.
 // - Target ports must be input ports.
 // - All ports have at least one connection that touches them.
 // - Input ports have precisely one connection that touches them.
-
+//
 // Combinatorial logic can have no loops.
+//
+// Dependencies can have no loops. TODO
+//
+// Input/Output components in a simulationgraph must all have unique labels.
 
 /// Check that:
 /// 1- all source ports in connections are Output ports,
@@ -21,16 +34,18 @@ open DiagramTypes
 /// no user behaviour should be able to trigger such errors).
 /// The costruction of the Simulation graph assumes that these rules hold.
 /// TODO: should they crash the program then?
-let checkPortTypesAreConsistent (canvasState : CanvasState) : SimulationError option =
+let private checkPortTypesAreConsistent (canvasState : CanvasState) : SimulationError option =
     let rec checkComponentPorts (ports : Port list) (correctType : PortType) =
         match ports with
         | [] -> None
         | port :: _ when port.PortNumber = None -> Some {
             Msg = sprintf "%A port appears to not have a port number" correctType
+            InDependency = None
             ComponentsAffected = [ComponentId port.HostId]
             ConnectionsAffected = [] }
         | port :: _ when port.PortType <> correctType -> Some {
             Msg = sprintf "%A port %d appears to be an %A port" correctType (Option.get port.PortNumber) port.PortType
+            InDependency = None
             ComponentsAffected = [ComponentId port.HostId]
             ConnectionsAffected = [] }
         | _ :: ports' ->
@@ -49,10 +64,12 @@ let checkPortTypesAreConsistent (canvasState : CanvasState) : SimulationError op
         match port.PortType = correctType, port.PortNumber with
         | false, _ -> Some {
             Msg = sprintf "%A port appears to be an %A port" correctType port.PortType
+            InDependency = None
             ComponentsAffected = [ComponentId port.HostId]
             ConnectionsAffected = [ConnectionId connId] }
         | _, Some pNumber -> Some {
             Msg = sprintf "%A port appears to have a port number: %d" correctType pNumber
+            InDependency = None
             ComponentsAffected = [ComponentId port.HostId]
             ConnectionsAffected = [ConnectionId connId] }
         | true, None -> None // All right.
@@ -84,6 +101,7 @@ let private getAllOutputPortIds (components : Component list) : (OutputPortId * 
     components |> List.collect
         (fun comp -> comp.OutputPorts |> List.map (fun port -> OutputPortId port.Id, ComponentId comp.Id))
 
+/// Count the number of connections that target each port.
 let rec private countPortsConnections
         (connections : Connection list)
         (inputCounts : Map<InputPortId * ComponentId, int>)
@@ -109,6 +127,8 @@ let rec private countPortsConnections
         | Ok inputCounts, Ok outputCounts ->
             countPortsConnections connections' inputCounts outputCounts
 
+/// Apply condition on evaery element of the map (tailored to this specific
+/// problem).
 let private checkEvery
         (counts : Map<'a * ComponentId, int>) // 'a is either InputPortId or OutputPortId.
         (cond : int -> bool)
@@ -123,10 +143,12 @@ let private checkEvery
             | true -> None
             | false when count = 0 -> Some {
                 Msg = "All ports must have at least one connection."
+                InDependency = None
                 ComponentsAffected = [componentId]
                 ConnectionsAffected = [] }
             | false -> Some {
                 Msg = sprintf errMsg count 
+                InDependency = None
                 ComponentsAffected = [componentId]
                 ConnectionsAffected = [] }
     )
@@ -135,7 +157,7 @@ let private checkEvery
 /// - any port has at least one connection,
 /// - any input port has precisely one connection.
 /// These conditions may not hold due to user errors.
-let checkPortsAreConnectedProperly
+let private checkPortsAreConnectedProperly
         (canvasState : CanvasState)
         : SimulationError option =
     let components, connections = canvasState
@@ -156,6 +178,35 @@ let checkPortsAreConnectedProperly
         | None, None -> None
         | Some err, _ | _, Some err -> Some err
 
+/// Input/Output components in a simulationgraph all have unique labels.
+let private checkIOLabels (canvasState : CanvasState) : SimulationError option =
+    let rec checkDuplicate (comps : Component list) (map : Map<string,string>) (ioType : string) =
+        match comps with
+        | [] -> None
+        | comp :: comps' ->
+            match map.TryFind comp.Label with
+            | None -> checkDuplicate comps' map ioType
+            | Some compId when compId = comp.Id -> checkDuplicate comps' map ioType
+            | Some compId -> Some {
+                Msg = sprintf "Two %s components cannot have the same label: %s" ioType comp.Label
+                InDependency = None
+                ComponentsAffected = [comp.Id; compId] |> List.map ComponentId
+                ConnectionsAffected = []
+            }
+    let toMap (comps : Component list) =
+        comps |> List.map (fun comp -> comp.Label, comp.Id) |> Map.ofList
+    let components, _ = canvasState
+    let inputs =
+        components
+        |> List.filter (fun comp -> match comp.Type with | Input -> true | _ -> false)
+    let outputs =
+        components
+        |> List.filter (fun comp -> match comp.Type with | Output -> true | _ -> false)
+    match checkDuplicate inputs (toMap inputs) "Input",
+          checkDuplicate outputs (toMap outputs) "Output" with
+    | Some err, _ | _, Some err -> Some err
+    | None, None -> None
+
 type private DfsType =
     // No cycle detected in the subtree. Return the new visited set and keep
     // on exploring.
@@ -168,6 +219,7 @@ type private DfsType =
     // that form the cycle have been recorded.
     | Cycle of ComponentId list
 
+/// Dfs function that spots cycles in a graph.
 let rec private dfs
         (currNodeId : ComponentId)
         (graph : SimulationGraph)
@@ -249,6 +301,7 @@ let private checkCombinatorialCycle
             | NoCycle visited -> checkGraphForest nodeIds' visited
             | Cycle cycle -> Some {
                 Msg = "Cycle detected in combinatorial logic"
+                InDependency = None
                 ComponentsAffected = cycle
                 ConnectionsAffected = calculateConnectionsAffected connections cycle }
             | Backtracking (c, ce) -> failwithf "what? Dfs should never terminate while backtracking: %A" (c, ce)
@@ -257,7 +310,17 @@ let private checkCombinatorialCycle
     let allIds = graph |> Map.toList |> List.map (fun (id, _) -> id)
     checkGraphForest allIds visited
 
-/// Analyse the simulation graph and return any error (or None).
+/// Analyse a CanvasState and return any error (or None).
+let analyseState
+        (state : CanvasState)
+        : SimulationError option =
+    match checkPortTypesAreConsistent state,
+          checkPortsAreConnectedProperly state,
+          checkIOLabels state with
+    | Some err, _, _| _, Some err, _ | _, _, Some err -> Some err
+    | None, None, None -> None
+
+/// Analyse a SimulationGraph and return any error (or None).
 let analyseGraph
         (graph : SimulationGraph)
         (connections : Connection list)

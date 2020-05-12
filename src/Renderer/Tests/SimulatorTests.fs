@@ -61,7 +61,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
     "Two inputs and one output",
     ("", state5, [], []),
     makeError
-        "Input port receives 2 connections. An input port should receive precisely one connection."
+        "Input port receives 2 connections. Every net must have a single driving input."
         None
         ["output-node0"]
         []
@@ -69,7 +69,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
     "Two inputs, one And, one output, with extra connection input to output",
     ("", state7, [], []),
     makeError
-        "Input port receives 2 connections. An input port should receive precisely one connection."
+        "Input port receives 2 connections. Every net must have a single driving input."
         None
         ["output"]
         []
@@ -77,7 +77,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
     "Two inputs, one And, one output, with extra connections inputs to and",
     ("", state8, [], []),
     makeError
-        "Input port receives 2 connections. An input port should receive precisely one connection."
+        "Input port receives 2 connections. Every net must have a single driving input."
         None
         ["and"]
         []

@@ -20,7 +20,7 @@ open SimulatorTypes
 let rec private feedInput
         (graph : SimulationGraph)
         (compId : ComponentId)
-        (input : InputPortNumber * Bit)
+        (input : InputPortNumber * WireData)
         : SimulationGraph =
     // Extract component.
     let comp = match graph.TryFind compId with
@@ -36,14 +36,14 @@ let rec private feedInput
         // Received enough inputs and produced an output.
         // Propagate each output produced to all the ports connected.
         let graph =
-            (graph, outputMap) ||> Map.fold (fun graph outPortNumber bit ->
+            (graph, outputMap) ||> Map.fold (fun graph outPortNumber wireData ->
                 match comp.Outputs.TryFind outPortNumber with
                 | None -> failwithf "what? Reducer produced inexistent output portNumber %A in component %A" outPortNumber comp
                 | Some targets ->
                     // Trigger simulation step with the newly produced input in
                     // every target.
                     (graph, targets) ||> List.fold (fun graph (nextCompId, nextPortNumber) ->
-                        feedInput graph nextCompId (nextPortNumber, bit)
+                        feedInput graph nextCompId (nextPortNumber, wireData)
                     )
             )
         // Update the CustomSImulationGraph.
@@ -52,16 +52,18 @@ let rec private feedInput
 
 /// Feed zero to a simulation input.
 /// This function is supposed to be used with Components of type Input.
-let feedSimulationInput graph inputId bit =
-    feedInput graph inputId (InputPortNumber 0, bit)
+let feedSimulationInput graph inputId wireData =
+    feedInput graph inputId (InputPortNumber 0, wireData)
 
 /// Feed zeros to all simulation inputs.
 let simulateWithAllInputsToZero
         (inputIds : SimulationIO list)
         (graph : SimulationGraph)
         : SimulationGraph =
+    // TODO: need to know all of the sizes of buses?
+    //       For now only feed single bit inputs.
     (graph, inputIds) ||> List.fold (fun graph (inputId, _) ->
-        feedSimulationInput graph inputId Zero
+        feedSimulationInput graph inputId [Zero]
     )
 
 /// Given a list of IO nodes (i.e. Inputs or outputs) extract their value.
@@ -69,15 +71,15 @@ let simulateWithAllInputsToZero
 let extractSimulationIOs
         (simulationIOs : SimulationIO list)
         (graph : SimulationGraph)
-        : (SimulationIO * Bit) list =
-    let extractBit (inputs : Map<InputPortNumber, Bit>) : Bit =
+        : (SimulationIO * WireData) list =
+    let extractWireData (inputs : Map<InputPortNumber, WireData>) : WireData =
         match inputs.TryFind <| InputPortNumber 0 with
         | None -> failwith "what? IO bit not set"
         | Some bit -> bit
     ([], simulationIOs) ||> List.fold (fun result (ioId, ioLabel) ->
         match graph.TryFind ioId with
         | None -> failwithf "what? Could not find io node: %A" (ioId, ioLabel)
-        | Some comp -> ((ioId, ioLabel), extractBit comp.Inputs) :: result
+        | Some comp -> ((ioId, ioLabel), extractWireData comp.Inputs) :: result
     )
 
 /// Simlar to extractSimulationIOs, but do not fail if a bit is not set, just
@@ -85,15 +87,15 @@ let extractSimulationIOs
 let extractIncompleteSimulationIOs
         (simulationIOs : SimulationIO list)
         (graph : SimulationGraph)
-        : (SimulationIO * Bit) list =
-    let extractBit (inputs : Map<InputPortNumber, Bit>) : Bit option =
+        : (SimulationIO * WireData) list =
+    let extractWireData (inputs : Map<InputPortNumber, WireData>) : WireData option =
         inputs.TryFind <| InputPortNumber 0
     ([], simulationIOs) ||> List.fold (fun result (ioId, ioLabel) ->
         match graph.TryFind ioId with
         | None -> failwithf "what? Could not find io node: %A" (ioId, ioLabel)
-        | Some comp -> match extractBit comp.Inputs with
+        | Some comp -> match extractWireData comp.Inputs with
                        | None -> result
-                       | Some bit -> ((ioId, ioLabel), bit) :: result
+                       | Some wireData -> ((ioId, ioLabel), wireData) :: result
     )
 
 

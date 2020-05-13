@@ -28,7 +28,7 @@ type Port = {
     // If the port is used in a connection, the Number is None.
     PortNumber : int option
     PortType : PortType
-    IsBusPort : bool
+    IsBusPort : bool // TODO: remove? Not really used anywhere.
     HostId : string
 }
 

@@ -8,6 +8,7 @@
 
 module SimulationBuilder
 
+open Helpers
 open DiagramTypes
 open SimulatorTypes
 open Analyser
@@ -52,7 +53,7 @@ let private bitXnor bit0 bit1 =
 /// Make sure that the size of the inputs of a SimulationComponent is as
 /// expected.
 let private assertNotTooManyInputs
-        (inputs : Map<InputPortNumber, Bit>)
+        (inputs : Map<InputPortNumber, WireData>)
         (cType : ComponentType)
         (expected : int)
         : unit =
@@ -64,25 +65,35 @@ let private assertNotTooManyInputs
 /// The values are returned in the the passed order. E.g. if portNumbers is
 /// [0, 1, 2], the returned value will be [bit0, bit1, bit2].
 let rec private getValuesForPorts
-        (inputs : Map<InputPortNumber, Bit>)
+        (inputs : Map<InputPortNumber, WireData>)
         (portNumbers : InputPortNumber list)
-        : (Bit list) option =
+        : (WireData list) option =
     match portNumbers with
     | [] -> Some []
     | portNumber :: portNumbers' ->
         match inputs.TryFind portNumber with
         | None -> None
-        | Some bit ->
+        | Some wireData ->
             match getValuesForPorts inputs portNumbers' with
             | None -> None
-            | Some bits -> Some <| bit :: bits
+            | Some values -> Some <| wireData :: values
+
+/// Assert that the wireData only contain a single bit, and return such bit.
+let extractBit (wireData : WireData) : Bit =
+    assertThat (wireData.Length = 1) <| sprintf "extractBit called with wireData: %A" wireData
+    wireData.[0]
+
+let packBit (bit : Bit) : WireData = [bit]
 
 let private getBinaryGateReducer (op : Bit -> Bit -> Bit) componentType =
     fun inputs _ ->
         assertNotTooManyInputs inputs componentType 2
         match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1] with
         | None -> None, None // Wait for more inputs.
-        | Some [bit0; bit1] -> Some <| Map.empty.Add (OutputPortNumber 0, op bit1 bit0), None
+        | Some [bit0; bit1] ->
+            let bit0 = extractBit bit0
+            let bit1 = extractBit bit1
+            Some <| Map.empty.Add (OutputPortNumber 0, packBit (op bit1 bit0)), None
         | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
 
 /// Given a component type, return a function takes its inputs and transforms
@@ -92,10 +103,10 @@ let private getBinaryGateReducer (op : Bit -> Bit -> Bit) componentType =
 /// replaced when resolving the dependencies.
 let private getReducer
         (componentType : ComponentType)
-        : Map<InputPortNumber, Bit>               // Inputs.
-          -> SimulationGraph option               // CustomSimulationGraph.
-          -> (Map<OutputPortNumber, Bit> option * // Outputs.
-              SimulationGraph option)             // Updated CustomSimulationGraph.
+        : Map<InputPortNumber, WireData>               // Inputs.
+          -> SimulationGraph option                    // CustomSimulationGraph.
+          -> (Map<OutputPortNumber, WireData> option * // Outputs.
+              SimulationGraph option)                  // Updated CustomSimulationGraph.
         =
     // Always ignore the CustomSimulationGraph here, both in inputs and output.
     // The Reducer for Custom components, which use it, will be replaced in the
@@ -121,7 +132,9 @@ let private getReducer
             assertNotTooManyInputs inputs componentType 1
             match getValuesForPorts inputs [InputPortNumber 0] with
             | None -> None, None // Wait for more inputs.
-            | Some [bit] -> Some <| Map.empty.Add (OutputPortNumber 0, bitNot bit), None
+            | Some [bit] ->
+                let bit = extractBit bit
+                Some <| Map.empty.Add (OutputPortNumber 0, packBit (bitNot bit)), None
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
     | And  -> getBinaryGateReducer bitAnd And
     | Or   -> getBinaryGateReducer bitOr Or
@@ -135,8 +148,12 @@ let private getReducer
             match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
             | None -> None, None // Wait for more inputs.
             | Some [bit0; bit1; bitSelect] ->
-                let out = if bitSelect = Zero then bit0 else bit1
-                Some <| Map.empty.Add (OutputPortNumber 0, out), None
+                // TODO: allow mux2 to deal with buses? To do so, just remove
+                // the extractBit code.
+                let bit0 = extractBit bit0
+                let bit1 = extractBit bit1
+                let out = if (extractBit bitSelect) = Zero then bit0 else bit1
+                Some <| Map.empty.Add (OutputPortNumber 0, packBit out), None
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
     | Custom c ->
         fun _ _ ->

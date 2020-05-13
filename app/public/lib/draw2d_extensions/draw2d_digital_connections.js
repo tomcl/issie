@@ -12,9 +12,9 @@ function createDigitalConnection(sourcePort, targetPort) {
         throw "CreateDigitalConnection called with sourcePort or targetPort set to undefined";
     }
     let isBus = false;
-    if (sourcePort.isBus === true && targetPort.isBus === true) {
+    if (sourcePort.isBusPort === true && targetPort.isBusPort === true) {
         isBus = true;
-    } else if (sourcePort.isBus === true || targetPort.isBus === true) {
+    } else if (sourcePort.isBusPort === true || targetPort.isBusPort === true) {
         // One of the two port is bus and the other one is not.
         // TODO: display legit message.
         throw "Attempting to connect a port that accepts a bus, to a port that accepts a single bit."

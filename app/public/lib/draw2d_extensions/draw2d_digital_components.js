@@ -46,7 +46,12 @@ draw2d.shape.digital = draw2d.SVGFigure.extend({
         }
         svgFigure += '</svg>'
         return svgFigure;
-    }
+    },
+
+    createDigitalPort: function(type, locator, isBusPort) {
+        let port = this.createPort(type, locator);
+        port.isBusPort = isBusPort;
+    },
 });
 
 draw2d.shape.digital.Input = draw2d.shape.digital.extend({
@@ -67,7 +72,7 @@ draw2d.shape.digital.Input = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
 
@@ -89,7 +94,7 @@ draw2d.shape.digital.Output = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
     },
 });
 
@@ -112,8 +117,8 @@ draw2d.shape.digital.Not = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
-        this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
 
@@ -135,9 +140,9 @@ draw2d.shape.digital.And = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
-        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
-        this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
 
@@ -159,9 +164,9 @@ draw2d.shape.digital.Or = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
-        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
-        this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
 
@@ -184,9 +189,9 @@ draw2d.shape.digital.Xor = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
-        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
-        this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
 
@@ -209,9 +214,9 @@ draw2d.shape.digital.Nand = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
-        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
-        this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
 
@@ -234,9 +239,9 @@ draw2d.shape.digital.Nor = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
-        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
-        this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
 
@@ -260,9 +265,9 @@ draw2d.shape.digital.Xnor = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
-        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
-        this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
 
@@ -285,10 +290,10 @@ draw2d.shape.digital.Mux2 = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
-        this.createPort("input", new draw2d.layout.locator.InputPortLocator());
-        this.createPort("input", new draw2d.layout.locator.XYRelPortLocator(50, 90));
-        this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(50, 90), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
 
@@ -332,7 +337,8 @@ draw2d.shape.digital.Custom = draw2d.shape.digital.extend({
         }]
 
         for (let i = 0; i < this.inputs.length; i++) {
-            this.createPort("input", new draw2d.layout.locator.InputPortLocator());
+            // TODO: the port may be a bus?
+            this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
             const x = padding;
             const y = this.svgHeight / (this.inputs.length + 1) * (i + 1) - fontHeight / 2;
             this.svgElements.push({
@@ -341,7 +347,8 @@ draw2d.shape.digital.Custom = draw2d.shape.digital.extend({
             });
         }
         for (let i = 0; i < this.outputs.length; i++) {
-            this.createPort("output", new draw2d.layout.locator.OutputPortLocator());
+            // TODO: the port may be a bus?
+            this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
             const x = this.svgWidth - padding - fontWidth * this.outputs[i].length;
             const y = this.svgHeight / (this.outputs.length + 1) * (i + 1) - fontHeight / 2;
             this.svgElements.push({

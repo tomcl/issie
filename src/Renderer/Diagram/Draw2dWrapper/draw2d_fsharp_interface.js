@@ -1,27 +1,6 @@
-
-/// Setup circuit-like connections in the diagram.
-let router = new draw2d.layout.connection.InteractiveManhattanConnectionRouter();
-// TODO: use CircuitConnectionRouter instead?
-router.abortRoutingOnFirstVertexNode = false;
-
-function createDigitalConnection(sourcePort, targetPort) {
-    let c = new draw2d.Connection({
-        outlineColor: 'white',
-        outlineStroke: 1,
-        color: 'black',
-        router: router,
-        stroke: 1,
-        radius: 6,
-        selectable: true,
-    });
-    if (sourcePort) {
-        c.setSource(sourcePort);
-        c.setTarget(targetPort);
-        // TODO: add check to make sure this connection does not exist
-        // already?
-    }
-    return c;
-}
+/*
+    Draw2d functions that are used in the Draw2dWrapper.fs file.
+*/
 
 function createCanvas(id, width, height) {
     let canvas = new draw2d.Canvas(id, width, height);
@@ -47,9 +26,11 @@ function initialiseCanvas (canvas) {
                 createConnection: createDigitalConnection
             }),
             // Or via click and point.
-            new draw2d.policy.connection.OrthogonalConnectionCreatePolicy({
-                createConnection: createDigitalConnection
-            })
+            // TODO: if you want to readd this, it is necessary to override the
+            // class similarly to DragConnectionPolicy.
+            //new draw2d.policy.connection.OrthogonalConnectionCreatePolicy({
+            //    createConnection: createDigitalConnection
+            //})
         ])
     );
     // Install policy to allow to zoom with: SHIFT + mouse wheel.

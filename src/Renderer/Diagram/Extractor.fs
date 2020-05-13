@@ -60,6 +60,10 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
         }
     | "MakeBus2" -> MakeBus2
     | "SplitBus2" -> SplitBus2
+    | "PushToBusFirst" -> PushToBusFirst
+    | "PushToBusLast"  -> PushToBusLast
+    | "PopFirstFromBus" -> PopFirstFromBus
+    | "PopLastFromBus"  -> PopLastFromBus
     | ct -> failwithf "what? Component type %s does not exist" ct
 
 let private extractVertices (jsVertices : JSVertices) : (float * float) list =

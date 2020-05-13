@@ -44,7 +44,8 @@ type ComponentType =
     | Not | And | Or | Xor | Nand | Nor | Xnor
     | Mux2
     | Custom of CustomComponentType
-    | MakeBus2 | SplitBus2
+    | MakeBus2 | PushToBusFirst | PushToBusLast
+    | SplitBus2 | PopFirstFromBus | PopLastFromBus
 
 // JSComponent mapped to f# object.
 type Component = {

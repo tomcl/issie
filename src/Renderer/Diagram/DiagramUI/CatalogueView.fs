@@ -62,7 +62,11 @@ let viewCatalogue model dispatch =
             Menu.label [] [ str "Buses" ]
             Menu.list []
                 [ menuItem "MakeBus2"  (fun _ -> model.Diagram.CreateComponent MakeBus2 "" 100 100 |> ignore)
-                  menuItem "SplitBus2" (fun _ -> model.Diagram.CreateComponent SplitBus2 "" 100 100 |> ignore) ]
+                  menuItem "SplitBus2" (fun _ -> model.Diagram.CreateComponent SplitBus2 "" 100 100 |> ignore)
+                  menuItem "PushToBusFirst" (fun _ -> model.Diagram.CreateComponent PushToBusFirst "" 100 100 |> ignore)
+                  menuItem "PushToBusLast" (fun _ -> model.Diagram.CreateComponent PushToBusLast "" 100 100 |> ignore)
+                  menuItem "PopFirstFromBus" (fun _ -> model.Diagram.CreateComponent PopFirstFromBus "" 100 100 |> ignore)
+                  menuItem "PopLastFromBus" (fun _ -> model.Diagram.CreateComponent PopLastFromBus "" 100 100 |> ignore) ]
             Menu.label [ ] [ str "Gates" ]
             Menu.list []
                 [ menuItem "Not"  (fun _ -> model.Diagram.CreateComponent Not "" 100 100 |> ignore)

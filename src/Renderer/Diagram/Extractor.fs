@@ -32,6 +32,7 @@ let private extractPort (maybeNumber : int option) (jsPort : JSPort) : Port =
         Id         = getFailIfNull jsPort ["id"]
         PortNumber = maybeNumber
         PortType   = portType
+        IsBusPort  = getFailIfNull jsPort ["isBusPort"]
         HostId     = getFailIfNull jsPort ["parent"; "id"]
     }
 
@@ -57,6 +58,8 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
             InputLabels  = jsListToFSharpList (getFailIfNull jsComponent ["inputs"])
             OutputLabels = jsListToFSharpList (getFailIfNull jsComponent ["outputs"])
         }
+    | "MakeBus2" -> MakeBus2
+    | "SplitBus2" -> SplitBus2
     | ct -> failwithf "what? Component type %s does not exist" ct
 
 let private extractVertices (jsVertices : JSVertices) : (float * float) list =

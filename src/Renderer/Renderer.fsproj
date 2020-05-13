@@ -10,6 +10,7 @@
     <Compile Include="Diagram/Extractor.fs" />
     <Compile Include="Diagram/FilesIO.fs" />
     <!-- Simulator -->
+    <Compile Include="Diagram/Simulator/Types.fs" />
     <Compile Include="Diagram/Simulator/Analyser.fs" />
     <Compile Include="Diagram/Simulator/Builder.fs" />
     <Compile Include="Diagram/Simulator/Runner.fs" />

@@ -9,6 +9,7 @@
 module SimulationBuilder
 
 open DiagramTypes
+open SimulatorTypes
 open Analyser
 
 /// This function should only be called on Component ports, never on Connection

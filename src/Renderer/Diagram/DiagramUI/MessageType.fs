@@ -1,6 +1,7 @@
 module DiagramMessageType
 
 open DiagramTypes
+open SimulatorTypes
 
 type DisplayModeType = Hidden | Visible
 

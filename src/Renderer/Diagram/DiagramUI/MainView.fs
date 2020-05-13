@@ -5,7 +5,7 @@ open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
 open DiagramStyle
-open DiagramTypes
+open SimulatorTypes
 open DiagramMessageType
 open DiagramModelType
 open Draw2dWrapper

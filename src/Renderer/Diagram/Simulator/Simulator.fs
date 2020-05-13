@@ -7,6 +7,7 @@
 module Simulator
 
 open DiagramTypes
+open SimulatorTypes
 open SimulationBuilder
 open SimulationRunner
 open DependencyMerger

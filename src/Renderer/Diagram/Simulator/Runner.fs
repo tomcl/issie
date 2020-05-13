@@ -8,6 +8,7 @@
 module SimulationRunner
 
 open DiagramTypes
+open SimulatorTypes
 
 // During simulation, a Component Reducer function will produce the output only
 // when all of the expected inputs have a value. Once this happens, it will

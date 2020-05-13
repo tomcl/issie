@@ -8,6 +8,7 @@
 module Analyser
 
 open DiagramTypes
+open SimulatorTypes
 
 // -- Checks performed
 //

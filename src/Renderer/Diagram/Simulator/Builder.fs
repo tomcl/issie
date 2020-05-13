@@ -158,6 +158,26 @@ let private getReducer
     | Custom c ->
         fun _ _ ->
             failwithf "what? Custom components reducer should be overridden before using it in a simulation: %A" c
+    | MakeBus2 ->
+        fun inputs _ ->
+            assertNotTooManyInputs inputs componentType 2
+            match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1] with
+            | None -> None, None
+            | Some [bit0; bit1] ->
+                let bit0 = extractBit bit0
+                let bit1 = extractBit bit1
+                Some <| Map.empty.Add (OutputPortNumber 0, [bit0; bit1]), None
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
+    | SplitBus2 ->
+        fun inputs _ ->
+            assertNotTooManyInputs inputs componentType 1
+            match getValuesForPorts inputs [InputPortNumber 0] with
+            | None -> None, None
+            | Some [[bit0; bit1]] ->
+                let out = Map.empty.Add (OutputPortNumber 0, packBit bit0)
+                let out = out.Add (OutputPortNumber 1, packBit bit1)
+                Some out, None
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
 
 /// Build a map that, for each source port in the connections, keeps track of
 /// the ports it targets.

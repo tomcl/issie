@@ -181,6 +181,22 @@ function createDigitalSplitBus2(x, y) {
     return new draw2d.shape.digital.SplitBus2({x:x,y:y,resizeable:false});
 }
 
+function createDigitalPushToBusFirst(x, y) {
+    return new draw2d.shape.digital.PushToBusFirst({x:x,y:y,resizeable:false});
+}
+
+function createDigitalPushToBusLast(x, y) {
+    return new draw2d.shape.digital.PushToBusLast({x:x,y:y,resizeable:false});
+}
+
+function createDigitalPopFirstFromBus(x, y) {
+    return new draw2d.shape.digital.PopFirstFromBus({x:x,y:y,resizeable:false});
+}
+
+function createDigitalPopLastFromBus(x, y) {
+    return new draw2d.shape.digital.PopLastFromBus({x:x,y:y,resizeable:false});
+}
+
 function getComponentById(canvas, id) {
     return canvas.getFigures().find(function(comp) {
         return comp.id === id;
@@ -270,6 +286,10 @@ export {
     createDigitalCustom,
     createDigitalMakeBus2,
     createDigitalSplitBus2,
+    createDigitalPushToBusFirst,
+    createDigitalPushToBusLast,
+    createDigitalPopFirstFromBus,
+    createDigitalPopLastFromBus,
     createDigitalConnection, // Defined in draw2d_digital_connection.js. 
     getComponentById,
     getConnectionById,

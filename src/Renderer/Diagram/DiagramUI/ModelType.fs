@@ -11,6 +11,7 @@ module DiagramModelType
 
 open DiagramTypes
 open DiagramMessageType
+open SimulatorTypes
 open Draw2dWrapper
 
 type Model = {

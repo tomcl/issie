@@ -8,6 +8,7 @@
 module DependencyMerger
 
 open DiagramTypes
+open SimulatorTypes
 open SimulationRunner
 open SimulationBuilder
 open Helpers

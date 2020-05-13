@@ -13,6 +13,7 @@ open Fable.Helpers.React.Props
 open DiagramMessageType
 open DiagramModelType
 open DiagramTypes
+open SimulatorTypes
 open Extractor
 open Simulator
 

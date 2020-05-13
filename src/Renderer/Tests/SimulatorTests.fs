@@ -1,6 +1,7 @@
 module SimulatorTests
 
 open DiagramTypes
+open SimulatorTypes
 open CanvasStates
 open Simulator
 

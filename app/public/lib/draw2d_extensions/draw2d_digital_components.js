@@ -297,6 +297,9 @@ draw2d.shape.digital.Mux2 = draw2d.shape.digital.extend({
     },
 });
 
+/**
+ * Custom components.
+ */
 
 draw2d.shape.digital.Custom = draw2d.shape.digital.extend({
 
@@ -356,5 +359,69 @@ draw2d.shape.digital.Custom = draw2d.shape.digital.extend({
                 toFill: false
             });
         }
+    },
+});
+
+/**
+ * Buses.
+ */
+
+draw2d.shape.digital.MakeBus2 = draw2d.shape.digital.extend({
+
+    NAME:"draw2d.shape.digital.MakeBus2",
+
+    componentType : "MakeBus2",
+    svgHeight : 20,
+    svgWidth : 40,
+    svgElements : [],  
+
+    init: function(attr, setter, getter ){
+        this._super(
+            $.extend({width:this.svgWidth, height:this.svgHeight}, attr),
+            setter,
+            getter
+        );
+
+        this.svgElements = [
+            {path: `<line x1="${this.svgWidth/2}" y1="${this.svgHeight/2}" x2="${this.svgWidth}" y2="${this.svgHeight/2}" stroke="purple" stroke-width="3" />`, toFill: false},
+            {path: `<line x1="${this.svgWidth/2}" y1="${this.svgHeight/2}" x2="${this.svgWidth/2}" y2="0" stroke="black" stroke-width="1" />`, toFill: false},
+            {path: `<line x1="0" y1="0" x2="${this.svgWidth/2}" y2="0" stroke="black" stroke-width="1" />`, toFill: false},
+            {path: `<line x1="${this.svgWidth/2}" y1="${this.svgHeight/2}" x2="${this.svgWidth/2}" y2="${this.svgHeight}" stroke="black" stroke-width="1" />`, toFill: false},
+            {path: `<line x1="0" y1="${this.svgHeight}" x2="${this.svgWidth/2}" y2="${this.svgHeight}" stroke="black" stroke-width="1" />`, toFill: false},
+        ];
+
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 0), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 100), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.XYRelPortLocator(100, 50), true);
+    },
+});
+
+draw2d.shape.digital.SplitBus2 = draw2d.shape.digital.extend({
+
+    NAME:"draw2d.shape.digital.SplitBus2",
+
+    componentType : "SplitBus2",
+    svgHeight : 20,
+    svgWidth : 40,
+    svgElements : [],
+
+    init: function(attr, setter, getter ){
+        this._super(
+            $.extend({width:this.svgWidth, height:this.svgHeight}, attr),
+            setter,
+            getter
+        );
+
+        this.svgElements = [
+            {path: `<line x1="0" y1="${this.svgHeight/2}" x2="20" y2="${this.svgHeight/2}" stroke="purple" stroke-width="3" />`, toFill: false },
+            {path: `<line x1="${this.svgWidth/2}" y1="${this.svgHeight/2}" x2="${this.svgWidth/2}" y2="0" stroke="black" stroke-width="1" />`, toFill: false },
+            {path: `<line x1="${this.svgWidth/2}" y1="0" x2="${this.svgWidth}" y2="0" stroke="black" stroke-width="1" />`, toFill: false },
+            {path: `<line x1="${this.svgWidth/2}" y1="${this.svgHeight/2}" x2="${this.svgWidth/2}" y2="${this.svgHeight}" stroke="black" stroke-width="1" />`, toFill: false },
+            {path: `<line x1="${this.svgWidth/2}" y1="${this.svgHeight}" x2="${this.svgWidth}" y2="${this.svgHeight}" stroke="black" stroke-width="1" />`, toFill: false },
+        ];
+
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 50), true);
+        this.createDigitalPort("output", new draw2d.layout.locator.XYRelPortLocator(100, 0), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.XYRelPortLocator(100, 100), false);
     },
 });

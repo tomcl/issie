@@ -59,6 +59,10 @@ let viewCatalogue model dispatch =
             Menu.list []
                 [ menuItem "Input"  (fun _ -> askLabelPopup Input model dispatch)
                   menuItem "Output" (fun _ -> askLabelPopup Output model dispatch) ]
+            Menu.label [] [ str "Buses" ]
+            Menu.list []
+                [ menuItem "MakeBus2"  (fun _ -> model.Diagram.CreateComponent MakeBus2 "" 100 100 |> ignore)
+                  menuItem "SplitBus2" (fun _ -> model.Diagram.CreateComponent SplitBus2 "" 100 100 |> ignore) ]
             Menu.label [ ] [ str "Gates" ]
             Menu.list []
                 [ menuItem "Not"  (fun _ -> model.Diagram.CreateComponent Not "" 100 100 |> ignore)

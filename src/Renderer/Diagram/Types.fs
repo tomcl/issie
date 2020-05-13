@@ -43,6 +43,7 @@ type ComponentType =
     | Not | And | Or | Xor | Nand | Nor | Xnor
     | Mux2
     | Custom of CustomComponentType
+    | MakeBus2 | SplitBus2
 
 // JSComponent mapped to f# object.
 type Component = {

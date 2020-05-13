@@ -46,6 +46,8 @@ type private IDraw2d =
     abstract createDigitalXnor        : x:int -> y:int -> JSComponent
     abstract createDigitalMux2        : x:int -> y:int -> JSComponent
     abstract createDigitalCustom      : x:int -> y:int -> name:string -> inputs:obj -> outputs:obj -> JSComponent
+    abstract createDigitalMakeBus2    : x:int -> y:int -> JSComponent
+    abstract createDigitalSplitBus2   : x:int -> y:int -> JSComponent
     abstract createDigitalConnection  : source:JSPort -> target:JSPort -> JSConnection
     abstract getComponentById         : canvas:JSCanvas -> id:string -> JSComponent
     abstract getConnectionById        : canvas:JSCanvas -> id:string -> JSConnection
@@ -104,6 +106,8 @@ let private createComponent
             draw2dLib.createDigitalCustom
                 x y custom.Name (fshaprListToJsList custom.InputLabels)
                                 (fshaprListToJsList custom.OutputLabels)
+        | MakeBus2  -> draw2dLib.createDigitalMakeBus2 x y
+        | SplitBus2 -> draw2dLib.createDigitalSplitBus2 x y
     // Every component is assumed to have a label (may be empty string).
     draw2dLib.addLabel comp label
     // Set Id if one is provided.

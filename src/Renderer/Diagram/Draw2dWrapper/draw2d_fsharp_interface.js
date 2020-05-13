@@ -173,6 +173,14 @@ function createDigitalCustom(x, y, name, inputs, outputs) {
     });
 }
 
+function createDigitalMakeBus2(x, y) {
+    return new draw2d.shape.digital.MakeBus2({x:x,y:y,resizeable:false});
+}
+
+function createDigitalSplitBus2(x, y) {
+    return new draw2d.shape.digital.SplitBus2({x:x,y:y,resizeable:false});
+}
+
 function getComponentById(canvas, id) {
     return canvas.getFigures().find(function(comp) {
         return comp.id === id;
@@ -260,7 +268,9 @@ export {
     createDigitalXnor,
     createDigitalMux2,
     createDigitalCustom,
-    createDigitalConnection,
+    createDigitalMakeBus2,
+    createDigitalSplitBus2,
+    createDigitalConnection, // Defined in draw2d_digital_connection.js. 
     getComponentById,
     getConnectionById,
     getPortById,

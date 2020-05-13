@@ -4,6 +4,8 @@ open DiagramTypes
 
 type Bit = Zero | One
 
+type WireData = Bit list
+
 // The next types are not strictly necessary,
 // but help in understanding what is what.
 type ComponentId      = | ComponentId of string
@@ -21,7 +23,7 @@ type SimulationComponent = {
     // Mapping from each input port number to its value (it will be set
     // during the simulation process).
     // TODO: maybe using a list would improve performace?
-    Inputs : Map<InputPortNumber, Bit>
+    Inputs : Map<InputPortNumber, WireData>
     // Mapping from each output port number to all of the ports and
     // Components connected to that port.
     Outputs : Map<OutputPortNumber, (ComponentId * InputPortNumber) list>
@@ -37,9 +39,9 @@ type SimulationComponent = {
     // until the output can be evaluated.
     // The reducer should fail if more inputs than expected are received.
     // The reducer accepts a SimulationGraph for custom components only.
-    Reducer : Map<InputPortNumber, Bit>                         // Inputs.
+    Reducer : Map<InputPortNumber, WireData>                    // Inputs.
               -> Map<ComponentId, SimulationComponent> option   // CustomSimulationGraph.
-              -> (Map<OutputPortNumber, Bit> option *           // Outputs.
+              -> (Map<OutputPortNumber, WireData> option *      // Outputs.
                   Map<ComponentId, SimulationComponent> option) // Updated CustomSimulationGraph.
 }
 

@@ -10,6 +10,7 @@ open Fulma
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
+open Helpers
 open DiagramMessageType
 open DiagramModelType
 open DiagramTypes
@@ -19,9 +20,12 @@ open Simulator
 
 let private viewSimulationInputs
         (simulationGraph : SimulationGraph)
-        (inputs : (SimulationIO * Bit) list)
+        (inputs : (SimulationIO * WireData) list)
         dispatch =
-    let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel), bit) =
+    let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel), wireData) =
+        // TODO support buses as numbers.
+        assertThat (List.length wireData = 1) "Inputs supported are only bits for now"
+        let bit = wireData.[0]
         let bitButton =
             Button.button [
                 Button.Props [ Style [ Width "50px" ] ]
@@ -33,7 +37,7 @@ let private viewSimulationInputs
                     let newBit = match bit with
                                  | Zero -> One
                                  | One -> Zero
-                    feedSimulationInput simulationGraph (ComponentId inputId) newBit
+                    feedSimulationInput simulationGraph (ComponentId inputId) [newBit]
                     |> SetSimulationGraph |> dispatch
                 )
             ] [ str (match bit with Zero -> "0" | One -> "1") ]
@@ -52,7 +56,7 @@ let private viewSimulationInputs
         |> List.map makeInputLine
     )
 
-let private viewSimulationOutputs (simOutputs : (SimulationIO * Bit) list) =
+let private viewSimulationOutputs (simOutputs : (SimulationIO * WireData) list) =
     div [] (
         simOutputs
         |> List.collect (fun ((_, ComponentLabel outputLabel), bit) ->

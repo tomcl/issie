@@ -34,6 +34,7 @@ type Port = {
 
 type CustomComponentType = {
     Name: string
+    // TODO: add width of inputs and outputs.
     InputLabels: string list
     OutputLabels: string list 
 }

@@ -18,7 +18,7 @@ type RightTab =
 type JSDiagramMsg =
     | InitCanvas of JSCanvas // Has to be dispatched only once.
     | SelectComponent of JSComponent
-    | UnselectComponent of JSComponent
+    | UnselectComponent of unit
     | InferWidths of unit
 
 type Msg =

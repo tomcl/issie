@@ -113,15 +113,23 @@ function getOutputPorts(comp) {
     return comp.getOutputPorts().data;
 }
 
-function installSelectionPolicy(comp, onSelect, onUnselect) {
+function installSelectionPolicy(comp) {
     comp.installEditPolicy(new draw2d.policy.figure.AntSelectionFeedbackPolicy({
         onSelect: function(canvas, comp, isPrimarySelection) {
             comp.setBackgroundColor('#00D1B2');
-            onSelect(comp);
+            if (dispatchOnSelectComponentMessage !== "undefined") {
+                dispatchOnSelectComponentMessage(comp);
+            } else {
+                console.log("Warning: trying to dispatch a JS SelectComponent message but dispatcher is not defined.")
+            }
         },
         onUnselect: function(canvas, comp) {
             comp.setBackgroundColor('lightgray');
-            onUnselect(comp);
+            if (dispatchOnUnselectComponentMessage !== "undefined") {
+                dispatchOnUnselectComponentMessage(comp);
+            } else {
+                console.log("Warning: trying to dispatch a JS UnselectComponent message but dispatcher is not defined.")
+            }
         }
     }));
 }

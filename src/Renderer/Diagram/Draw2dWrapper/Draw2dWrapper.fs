@@ -19,8 +19,10 @@ open Fable.Helpers.React.Props
 
 type private IDraw2d =
     abstract setDispatchMessages :
-        dispatchInferWidthsMessage_:(unit->unit)
-        -> unit
+        dispatchInferWidthsMessage_         :(unit->unit) ->
+        dispatchOnSelectComponentMessage_   :(JSComponent->unit) ->
+        dispatchOnUnselectComponentMessage_ :(unit->unit) ->
+        unit
     abstract createCanvas                 : id:string -> width:int -> height:int -> JSCanvas
     abstract initialiseCanvas             : canvas:JSCanvas -> unit
     abstract clearCanvas                  : canvas:JSCanvas -> unit
@@ -38,7 +40,7 @@ type private IDraw2d =
     abstract setConnectionVertices        : conn:JSConnection -> JSVertices -> unit
     abstract getInputPorts                : comp:JSComponent -> JSPorts
     abstract getOutputPorts               : comp:JSComponent -> JSPorts
-    abstract installSelectionPolicy       : comp:JSComponent -> onSelect:(JSComponent -> unit) -> onUnselect:(JSComponent -> unit) -> unit
+    abstract installSelectionPolicy       : comp:JSComponent -> unit
     abstract createDigitalInput           : x:int -> y:int -> JSComponent
     abstract createDigitalOutput          : x:int -> y:int -> JSComponent
     abstract createDigitalNot             : x:int -> y:int -> JSComponent
@@ -135,8 +137,6 @@ let private createComponent
     | _ -> failwithf "what? createComponent called with incomplete of input/output ports"
     // Install the behaviour on selection.
     draw2dLib.installSelectionPolicy comp
-        (SelectComponent >> dispatch)
-        (UnselectComponent >> dispatch)
     draw2dLib.addComponentToCanvas canvas comp
     comp
 
@@ -203,6 +203,8 @@ type Draw2dWrapper() =
             dispatch <- Some jsDiagramMsgDispatch
             draw2dLib.setDispatchMessages
                 (InferWidths >> jsDiagramMsgDispatch)
+                (SelectComponent >> jsDiagramMsgDispatch)
+                (UnselectComponent >> jsDiagramMsgDispatch)
         | Some _ -> ()
         // Return react element with relevant props.
         createDraw2dReact {

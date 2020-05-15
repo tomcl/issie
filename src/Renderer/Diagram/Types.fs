@@ -28,15 +28,13 @@ type Port = {
     // If the port is used in a connection, the Number is None.
     PortNumber : int option
     PortType : PortType
-    IsBusPort : bool // TODO: remove? Not really used anywhere.
     HostId : string
 }
 
 type CustomComponentType = {
     Name: string
-    // TODO: add width of inputs and outputs.
-    InputLabels: string list
-    OutputLabels: string list 
+    InputLabels: (string * int) list
+    OutputLabels: (string * int) list 
 }
 
 // Types instantiating objects in the Digital extension.
@@ -79,8 +77,8 @@ type LoadedComponent = {
     Name: string
     FilePath : string
     CanvasState : CanvasState
-    InputLabels : string list
-    OutputLabels : string list
+    InputLabels : (string * int) list
+    OutputLabels : (string * int) list
 }
 
 type Project = {

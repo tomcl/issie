@@ -313,15 +313,15 @@ draw2d.shape.digital.Custom = draw2d.shape.digital.extend({
     maxStringLen: function(arr) {
         let max = 0;
         for (let i = 0; i < arr.length; i++) {
-            max = Math.max(max, arr[i].length);
+            max = Math.max(max, arr[i][0].length);
         }
         return max;
     },
 
     init: function(attr, setter, getter){
         this._super(attr, setter, getter);
-        this.inputs = attr.inputs;   // List of strings.
-        this.outputs = attr.outputs; // List of strings.
+        this.inputs = attr.inputs;   // List of tuples: string * int.
+        this.outputs = attr.outputs; // List of tuples: string * int.
         this.customComponentName = attr.name; // String.
 
         const portSpace = 30;
@@ -340,22 +340,24 @@ draw2d.shape.digital.Custom = draw2d.shape.digital.extend({
         }]
 
         for (let i = 0; i < this.inputs.length; i++) {
-            // TODO: the port may be a bus?
-            this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+            const inputLabel = this.inputs[i][0];
+            const inputWidth = this.inputs[i][1];
+            this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), inputWidth > 1);
             const x = padding;
             const y = this.svgHeight / (this.inputs.length + 1) * (i + 1) - fontHeight / 2;
             this.svgElements.push({
-                path: `<text x="${x}" y="${y}" fill="black" font-family="monospace">${this.inputs[i]}</text>`,
+                path: `<text x="${x}" y="${y}" fill="black" font-family="monospace">${inputLabel}</text>`,
                 toFill: false
             });
         }
         for (let i = 0; i < this.outputs.length; i++) {
-            // TODO: the port may be a bus?
-            this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
+            const outputLabel = this.outputs[i][0];
+            const outputWidth = this.outputs[i][1];
+            this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), outputWidth > 1);
             const x = this.svgWidth - padding - fontWidth * this.outputs[i].length;
             const y = this.svgHeight / (this.outputs.length + 1) * (i + 1) - fontHeight / 2;
             this.svgElements.push({
-                path: `<text x="${x}" y="${y}" fill="black" font-family="monospace">${this.outputs[i]}</text>`,
+                path: `<text x="${x}" y="${y}" fill="black" font-family="monospace">${outputLabel}</text>`,
                 toFill: false
             });
         }

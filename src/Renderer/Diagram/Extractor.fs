@@ -32,7 +32,6 @@ let private extractPort (maybeNumber : int option) (jsPort : JSPort) : Port =
         Id         = getFailIfNull jsPort ["id"]
         PortNumber = maybeNumber
         PortType   = portType
-        IsBusPort  = getFailIfNull jsPort ["isBusPort"]
         HostId     = getFailIfNull jsPort ["parent"; "id"]
     }
 

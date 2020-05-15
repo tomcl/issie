@@ -20,9 +20,6 @@ open Helpers
 //       (for example, a mergeBus components with only one bus connected)
 //       - return
 
-// TODO: loops? Have a set of Visited connections? I should never visit the same
-// connection twice.
-
 /// Extract the port number of a component port. Port numbers on Components
 /// should always be populated (while they are always None for ports in
 /// Connections).
@@ -76,8 +73,7 @@ let private makeWidthInferErrorAtLeast atLeast actual connectionsAffected = Erro
 /// soon as it finds out n and so on). This is possible because
 /// setConnectionsWidth will make sure that we do not re-explore an already set
 /// connection. This should allow partially connected components to still work
-/// if they have already enough info.
-/// TODO custom components.
+/// if they have already enough info (custom components already do that).
 let private calculateOutputPortsWidth
         (comp : Component)
         (inputConnectionsWidth : Map<InputPortNumber, int option>)
@@ -119,8 +115,27 @@ let private calculateOutputPortsWidth
         | [_; Some n; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [] // TODO: pass connections affected.
         | [_; _; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [] // TODO: pass connections affected.
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
-    | Custom _ ->
-        failwithf "Inferring bus width for custom components is not implemented yet."
+    | Custom custom ->
+        assertInputsSize inputConnectionsWidth custom.InputLabels.Length comp
+        let inputWidths =
+            [0..custom.InputLabels.Length - 1]
+            |> List.map InputPortNumber
+            |> getWidthsForPorts inputConnectionsWidth
+        // Make sure that input Widths match what expected.
+        let maybeError =
+            (inputWidths, custom.InputLabels)
+            ||> List.map2 (fun actual (_, expected) ->
+                match actual with
+                | None -> None // Cannot determine if it is ok yet.
+                | Some w when w = expected -> None // No error.
+                | Some w -> Some <| makeWidthInferErrorEqual expected w [] // TODO: pass connections affected.
+            )
+        match List.tryFind (fun el -> el <> None) maybeError with
+        | Some (Some err) -> err
+        | None -> custom.OutputLabels
+                  |> List.mapi (fun idx (_, w) -> getOutputPortId comp idx, w)
+                  |> Map.ofList |> Ok
+        | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
     | MakeBus2 ->
         assertInputsSize inputConnectionsWidth 2 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with

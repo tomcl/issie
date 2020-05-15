@@ -258,6 +258,8 @@ let private makeCustomReducer
           -> (Map<OutputPortNumber, WireData> option * // Outputs.
               SimulationGraph option)                  // Updated CustomSimulationGraph.
         =
+    let inputLabels = List.map (fun (label, _) -> label) custom.InputLabels
+    let outputLabels = List.map (fun (label, _) -> label) custom.OutputLabels
     fun inputs graphOption ->
         let graph = match graphOption with
                     | None -> failwithf "what? CustomSimulationGraph should always be Some in Custom component: %s" custom.Name
@@ -267,13 +269,13 @@ let private makeCustomReducer
         | true ->
             // Feed only new inputs or inputs that changed, for performance.
             let oldInputs =
-                extractInputValuesAsMap graph graphInputs custom.InputLabels
+                extractInputValuesAsMap graph graphInputs inputLabels
             let newInputs = diffSimulationInputs inputs oldInputs
             let graph =
                 (graph, newInputs)
                 ||> Map.fold (fun graph inputPortNumber bit ->
                     let inputLabel =
-                        portNumberToLabel inputPortNumber custom.InputLabels
+                        portNumberToLabel inputPortNumber inputLabels
                     let inputId, _ =
                         graphInputs
                         |> List.find (fun (_, ComponentLabel inpLabel) ->
@@ -281,7 +283,7 @@ let private makeCustomReducer
                     feedSimulationInput graph inputId bit
                 )
             let outputs =
-                extractOutputValuesAsMap graph graphOutputs custom.OutputLabels
+                extractOutputValuesAsMap graph graphOutputs outputLabels
             // Return the outputs toghether with the updated graph.
             Some outputs, Some graph
 

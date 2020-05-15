@@ -80,15 +80,7 @@ draw2d.Connection = draw2d.Connection.extend({
         // TODO: rerun inference here instead of manually relocating ->
         // connections changed, so maybe bus sizes did too.
         this.on("connect", (_, data) => {
-            if (dispatchInferWidthsMessage !== "undefined") {
-                // Dispatch the message after 20ms, to give the time to the
-                // function to finish. This way the inference function will
-                // access the version of the state that also contains the
-                // connection.
-                setTimeout(() => {dispatchInferWidthsMessage();}, 20);
-            } else {
-                console.log("Warning: connection trying to dispatch a JS InferWidths message but dispatcher is not defined.")
-            }
+            this.sendInferWidthsMessage();
         });
 
         // Every time the connection is changed (i.e. rerouted), recalculate the
@@ -97,6 +89,18 @@ draw2d.Connection = draw2d.Connection.extend({
             let label = conn.children.data[0];
             label.locator.relocate(0, label.figure);
         });
+    },
+
+    sendInferWidthsMessage: function() {
+        if (dispatchInferWidthsMessage !== "undefined") {
+            // Dispatch the message after 20ms, to give the time to the
+            // function to finish. This way the inference function will
+            // access the version of the state that also contains the
+            // connection.
+            setTimeout(() => {dispatchInferWidthsMessage();}, 20);
+        } else {
+            console.log("Warning: connection trying to dispatch a JS InferWidths message but dispatcher is not defined.")
+        }
     },
 
     disconnect: function () {
@@ -109,6 +113,8 @@ draw2d.Connection = draw2d.Connection.extend({
             this.vertexNodes.remove()
             delete this.vertexNodes
         }
+
+        this.sendInferWidthsMessage();
     },
 })
 

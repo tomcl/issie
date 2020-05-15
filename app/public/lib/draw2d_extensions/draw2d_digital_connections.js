@@ -31,19 +31,19 @@ let router = new draw2d.layout.connection.InteractiveManhattanConnectionRouter()
 router.abortRoutingOnFirstVertexNode = false;
 
 function createDigitalConnection(sourcePort, targetPort) {
-    // TODO: do we want to keep all of this logic? Or should we let all this
-    // stuff (width and color + checks on misconnections) to be set by the infer
-    // bus width callback? 
     if (sourcePort === "undefined" || targetPort === "undefined") {
         throw "CreateDigitalConnection called with sourcePort or targetPort set to undefined";
     }
+    // This is helpful because sometimes not all components can have their width
+    // inferred, but this already allows buses to be purple. Once the width can
+    // be inferred, the connection will be repainted accordingly.
     let isBus = false;
     if (sourcePort.isBusPort === true && targetPort.isBusPort === true) {
         isBus = true;
     } else if (sourcePort.isBusPort === true || targetPort.isBusPort === true) {
         // One of the two port is bus and the other one is not.
-        // TODO: display legit message.
-        throw "Attempting to connect a port that accepts a bus, to a port that accepts a single bit."
+        // This problem will be caught by the infer width function.
+        //throw "Attempting to connect a port that accepts a bus, to a port that accepts a single bit."
     }
     let c = new draw2d.Connection({
         outlineColor: 'white',
@@ -55,12 +55,8 @@ function createDigitalConnection(sourcePort, targetPort) {
         selectable: true,
     });
     // Add label.
-    const label =
-        isBus
-        ? new draw2d.shape.basic.Label({text: '[]', stroke: 0})
-        : new draw2d.shape.basic.Label({text: '', stroke: 0});
     c.add(
-        label,
+        new draw2d.shape.basic.Label({text: '', stroke: 0}),
         new draw2d.layout.locator.BusLabelLocator()
     );
     c.setSource(sourcePort);

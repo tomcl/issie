@@ -29,7 +29,7 @@ type private IDraw2d =
     abstract addComponentToCanvas         : canvas:JSCanvas -> comp:JSComponent -> unit
     abstract addConnectionToCanvas        : canvas:JSCanvas -> conn:JSConnection -> unit
     abstract addComponentLabel            : comp:JSComponent -> label:string ->  unit
-    abstract editConnectionLabel          : comp:JSConnection -> newLabel:string ->  unit
+    abstract setConnectionLabel           : comp:JSConnection -> newLabel:string ->  unit
     abstract setComponentId               : comp:JSComponent -> id:string -> unit
     abstract setConnectionId              : conn:JSConnection -> id:string -> unit
     abstract setPortId                    : port:JSPort -> id:string -> unit
@@ -261,14 +261,20 @@ type Draw2dWrapper() =
         | None -> log "Warning: Draw2dWrapper.EditComponent called when canvas is None"
         | Some c -> editComponent c componentId newLabel
 
-    // TODO: remove?
-    member this.EditConnectionLabel connectionId newLabel =
+    member this.PaintConnection connectionId width =
         match canvas with
-        | None -> log "Warning: Draw2dWrapper.EditComponent called when canvas is None"
+        | None -> log "Warning: Draw2dWrapper.PaintConnection called when canvas is None"
         | Some c ->
             let jsConnection =
-                assertNotNull (draw2dLib.getConnectionById c connectionId) "EditConnectionLabel"
-            draw2dLib.editConnectionLabel jsConnection newLabel
+                assertNotNull (draw2dLib.getConnectionById c connectionId) "PaintConnection"
+            let label, stroke, color =
+                match width with
+                | 1 -> "", 1, "black"
+                | n when n > 1 -> (sprintf "[%d]" n), 3, "purple"
+                | n -> failwithf "what? PaintConnection called with width %d" n 
+            draw2dLib.setConnectionLabel jsConnection label
+            draw2dLib.setConnectionStroke jsConnection stroke
+            draw2dLib.setConnectionColor jsConnection color
 
     member this.HighlightComponent componentId = 
         match canvas with

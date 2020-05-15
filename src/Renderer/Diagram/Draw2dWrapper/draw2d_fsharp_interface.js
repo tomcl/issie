@@ -260,6 +260,7 @@ function flushCommandStack (canvas) {
 }
 
 export {
+    setDispatchMessages,
     createCanvas,
     initialiseCanvas,
     clearCanvas,

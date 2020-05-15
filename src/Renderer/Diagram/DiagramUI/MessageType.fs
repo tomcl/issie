@@ -19,6 +19,7 @@ type JSDiagramMsg =
     | InitCanvas of JSCanvas // Has to be dispatched only once.
     | SelectComponent of JSComponent
     | UnselectComponent of JSComponent
+    | InferWidths of unit
 
 type Msg =
     | JSDiagramMsg of JSDiagramMsg

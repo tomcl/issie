@@ -18,6 +18,9 @@ open Fable.Helpers.React.Props
 // Interface with JS library.
 
 type private IDraw2d =
+    abstract setDispatchMessages :
+        dispatchInferWidthsMessage_:(unit->unit)
+        -> unit
     abstract createCanvas                 : id:string -> width:int -> height:int -> JSCanvas
     abstract initialiseCanvas             : canvas:JSCanvas -> unit
     abstract clearCanvas                  : canvas:JSCanvas -> unit
@@ -196,7 +199,10 @@ type Draw2dWrapper() =
     member this.CanvasReactElement jsDiagramMsgDispatch displayMode =
         // Initialise dispatch if needed.
         match dispatch with
-        | None -> dispatch <- Some jsDiagramMsgDispatch
+        | None ->
+            dispatch <- Some jsDiagramMsgDispatch
+            draw2dLib.setDispatchMessages
+                (InferWidths >> jsDiagramMsgDispatch)
         | Some _ -> ()
         // Return react element with relevant props.
         createDraw2dReact {

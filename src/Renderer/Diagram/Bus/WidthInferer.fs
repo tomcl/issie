@@ -112,7 +112,7 @@ let private calculateOutputPortsWidth
         | [_; Some n; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [] // TODO: pass connections affected.
         | [_; _; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [] // TODO: pass connections affected.
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
-    | Custom ->
+    | Custom _ ->
         failwithf "Inferring bus width for custom components is not implemented yet."
     | MakeBus2 ->
         assertInputsSize inputConnectionsWidth 2 comp

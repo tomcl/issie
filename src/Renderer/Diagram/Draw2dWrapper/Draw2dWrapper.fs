@@ -23,7 +23,8 @@ type private IDraw2d =
     abstract clearCanvas                  : canvas:JSCanvas -> unit
     abstract addComponentToCanvas         : canvas:JSCanvas -> comp:JSComponent -> unit
     abstract addConnectionToCanvas        : canvas:JSCanvas -> conn:JSConnection -> unit
-    abstract addLabel                     : comp:JSComponent -> label:string ->  unit
+    abstract addComponentLabel            : comp:JSComponent -> label:string ->  unit
+    abstract editConnectionLabel          : comp:JSConnection -> newLabel:string ->  unit
     abstract setComponentId               : comp:JSComponent -> id:string -> unit
     abstract setConnectionId              : conn:JSConnection -> id:string -> unit
     abstract setPortId                    : port:JSPort -> id:string -> unit
@@ -117,7 +118,7 @@ let private createComponent
         | PopFirstFromBus -> draw2dLib.createDigitalPopFirstFromBus x y
         | PopLastFromBus  -> draw2dLib.createDigitalPopLastFromBus x y
     // Every component is assumed to have a label (may be empty string).
-    draw2dLib.addLabel comp label
+    draw2dLib.addComponentLabel comp label
     // Set Id if one is provided.
     match maybeId with
     | None -> ()
@@ -251,6 +252,15 @@ type Draw2dWrapper() =
         match canvas with
         | None -> log "Warning: Draw2dWrapper.EditComponent called when canvas is None"
         | Some c -> editComponent c componentId newLabel
+
+    // TODO: remove?
+    member this.EditConnectionLabel connectionId newLabel =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.EditComponent called when canvas is None"
+        | Some c ->
+            let jsConnection =
+                assertNotNull (draw2dLib.getConnectionById c connectionId) "EditConnectionLabel"
+            draw2dLib.editConnectionLabel jsConnection newLabel
 
     member this.HighlightComponent componentId = 
         match canvas with

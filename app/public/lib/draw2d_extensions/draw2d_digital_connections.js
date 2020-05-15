@@ -2,12 +2,38 @@
  * Extension of the default draw2d connections.
  */
 
+/// Custom locator for the bus label.
+draw2d.layout.locator.BusLabelLocator = draw2d.layout.locator.ConnectionLocator.extend({
+    NAME : "draw2d.layout.locator.BusLabelLocator",
+
+    init: function() {
+      this._super();
+    },
+
+    /**
+     * Relocate the figure near the source vertice.
+     * 
+     * @param {Number} index child index of the target
+     * @param {draw2d.Figure} target The figure to relocate
+     **/
+    relocate: function(index, target) {
+       const conn = target.getParent();
+       const points = conn.getVertices();
+       const x = points.data[0].x;
+       const y = points.data[0].y - 22;
+       target.setPosition(x,y);
+    }
+});
+
 /// Setup circuit-like connections in the diagram.
 let router = new draw2d.layout.connection.InteractiveManhattanConnectionRouter();
 // TODO: use CircuitConnectionRouter instead?
 router.abortRoutingOnFirstVertexNode = false;
 
 function createDigitalConnection(sourcePort, targetPort) {
+    // TODO: do we want to keep all of this logic? Or should we let all this
+    // stuff (width and color + checks on misconnections) to be set by the infer
+    // bus width callback? 
     if (sourcePort === "undefined" || targetPort === "undefined") {
         throw "CreateDigitalConnection called with sourcePort or targetPort set to undefined";
     }
@@ -28,6 +54,15 @@ function createDigitalConnection(sourcePort, targetPort) {
         radius: 6,
         selectable: true,
     });
+    // Add label.
+    const label =
+        isBus
+        ? new draw2d.shape.basic.Label({text: '[]', stroke: 0})
+        : new draw2d.shape.basic.Label({text: '', stroke: 0});
+    c.add(
+        label,
+        new draw2d.layout.locator.BusLabelLocator()
+    );
     c.setSource(sourcePort);
     c.setTarget(targetPort);
     // TODO: add check to make sure this connection does not exist
@@ -41,6 +76,23 @@ draw2d.Connection = draw2d.Connection.extend({
 
     init: function (attr, setter, getter) {
         this._super(attr, setter, getter);
+
+        // This event fires every time the ports connected to the connection
+        // change. This may mean that another run of inference is necessary.
+        // Data has keys "port" (the newly changed port) and "connection"
+        // (the connection itself).
+        // TODO: rerun inference here instead of manually relocating ->
+        // connections changed, so maybe bus sizes did too.
+        this.on("connect", (_, data) => {
+            // TODO: trigger a rerun of inference.
+        });
+
+        // Every time the connection is changed (i.e. rerouted), recalculate the
+        // position of the connection label.
+        this.on("change", (conn, type) => {
+            let label = conn.children.data[0];
+            label.locator.relocate(0, label.figure);
+        });
     },
 
     disconnect: function () {

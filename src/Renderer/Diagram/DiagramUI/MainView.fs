@@ -51,7 +51,13 @@ let runBusWidthInference model =
         |> extractState
         |> inferConnectionsWidth
         |> function
-           | Error e -> JSHelpers.logString e // TODO: display error?
+           | Error e ->
+               JSHelpers.logString e // TODO: display error?
+               // TODO: this makes the conent of the model.Higlighted inconsistent.
+               // Need to dispatch SetHighlighted (can do by using mkProgram).
+               e.ConnectionsAffected
+               |> List.map (fun (BusTypes.ConnectionId c) -> model.Diagram.HighlightConnection c)
+               |> ignore
            | Ok connsWidth -> paintEach connsWidth
         JSHelpers.stopAndLogTimer "bus-infer-performance"
 
@@ -119,7 +125,7 @@ let handleJSDiagramMsg msg model =
     | UnselectComponent () ->
         { model with SelectedComponent = None }
     | InferWidths () ->
-        runBusWidthInference model  
+        runBusWidthInference model
         model
 
 let update msg model =

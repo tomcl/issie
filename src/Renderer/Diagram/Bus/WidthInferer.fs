@@ -288,6 +288,8 @@ let private getComponentFromId
     | None -> failwithf "what? getComponentFromId called with invalid componentId: %A" compId
     | Some comp -> comp
 
+/// Given a node, try to infer the width of its outgoing connections, and
+/// possibly recur on the nodes targeted by those connections.
 let rec private infer
         (connectionsWidth : ConnectionsWidth)
         (currNode : Component)
@@ -340,7 +342,6 @@ let rec private infer
             )
         )
     )
-
 
 let private initialiseConnectionsWidth connections : ConnectionsWidth =
     connections

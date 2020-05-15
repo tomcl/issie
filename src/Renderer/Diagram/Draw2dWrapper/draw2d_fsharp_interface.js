@@ -62,11 +62,15 @@ function addConnectionToCanvas(canvas, conn) {
     canvas.getCommandStack().execute(command);
 }
 
-function addLabel(comp, label) {
+function addComponentLabel(comp, label) {
     comp.add(
         new draw2d.shape.basic.Label({text: label, stroke: 0}),
         new draw2d.layout.locator.TopLocator()
     );
+}
+
+function editConnectionLabel(conn, newLabel) {
+    conn.children.data[0].figure.setText(newLabel);
 }
 
 function setComponentId(comp, id) {
@@ -261,7 +265,8 @@ export {
     clearCanvas,
     addComponentToCanvas,
     addConnectionToCanvas,
-    addLabel,
+    addComponentLabel,
+    editConnectionLabel,
     setComponentId,
     setConnectionId,
     setPortId,

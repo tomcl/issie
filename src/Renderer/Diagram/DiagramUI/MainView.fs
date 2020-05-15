@@ -4,6 +4,9 @@ open Fulma
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
+open BusWidthInferer
+open BusTypes
+
 open DiagramStyle
 open SimulatorTypes
 open DiagramMessageType
@@ -30,6 +33,29 @@ let init() = {
     Popup = None
     PopupDialogText = None
 }
+
+let runBusWidthInference model =
+    let makeLabel width = sprintf "[%d]" width
+    let paintEach connsWidth =
+        connsWidth
+        |> Map.map (fun (BusTypes.ConnectionId connId) width ->
+            match width with
+            | None -> () // Could not infer.
+            | Some w when w = 1 -> () // Do nothing for simple bits.
+            | Some w -> model.Diagram.EditConnectionLabel connId <| makeLabel w
+        )
+        |> ignore
+    match model.Diagram.GetCanvasState () with
+    | None -> ()
+    | Some state ->
+        JSHelpers.startTimer "bus-infer-performance"
+        state
+        |> extractState
+        |> inferConnectionsWidth
+        |> function
+           | Error e -> JSHelpers.logString e // TODO: display error?
+           | Ok connsWidth -> paintEach connsWidth
+        JSHelpers.stopAndLogTimer "bus-infer-performance"
 
 // -- Create View
 
@@ -66,6 +92,8 @@ let displayView model dispatch =
         viewPopup model
         viewOnDiagramButtons model dispatch
         div [ rightSectionStyle ] [
+            // TODO: remove this button.
+            Button.button [Button.OnClick (fun _ -> runBusWidthInference model)] [str "run infer"]
             Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ ] ] [
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]

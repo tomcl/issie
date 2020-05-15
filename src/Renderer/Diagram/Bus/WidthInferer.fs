@@ -67,13 +67,13 @@ let private makeWidthInferErrorAtLeast atLeast actual connectionsAffected = Erro
 /// Given a component and a set of input connection widths, check these inputs
 /// widths are as expected and try to calculate the width of the outgoing
 /// connections.
-/// TODO add connectionId to inputConnectionWidth, to improve errors.
-/// TODO components can produce outputs as soon as they have enough info (e.g.
+/// Components can produce outputs as soon as they have enough info (e.g.
 /// gates can output width 1 straight away, PushToBusFirst can output n + 1 as
-/// soon as it finds out n and so on). This is possible because
+/// soon as it finds out n, and so on). This is possible because
 /// setConnectionsWidth will make sure that we do not re-explore an already set
 /// connection. This should allow partially connected components to still work
-/// if they have already enough info (custom components already do that).
+/// if they have already enough info.
+/// TODO add connectionId to inputConnectionWidth, to improve errors.
 let private calculateOutputPortsWidth
         (comp : Component)
         (inputConnectionsWidth : Map<InputPortNumber, int option>)
@@ -86,21 +86,19 @@ let private calculateOutputPortsWidth
     | Output ->
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
-        | [None] -> Ok Map.empty // Keep on waiting.
-        | [Some 1] -> Ok Map.empty // Output node has no outputs.
+        | [None] | [Some 1] -> Ok Map.empty // Output node has no outputs.
         | [Some n] -> makeWidthInferErrorEqual 1 n [] // TODO: pass connections affected.
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
     | Not ->
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
-        | [None] -> Ok Map.empty // Keep on waiting.
-        | [Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
+        | [None] | [Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
         | [Some n] -> makeWidthInferErrorEqual 1 n [] // TODO: pass connections affected.
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
     | And | Or | Xor | Nand | Nor | Xnor ->
         assertInputsSize inputConnectionsWidth 2 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
-        | [None; _] | [_; None] -> Ok Map.empty // Keep on waiting.
+        | [None; _] | [_; None]
         | [Some 1; Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
         | [Some n; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [] // TODO: pass connections affected.
         | [_; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [] // TODO: pass connections affected.
@@ -109,7 +107,7 @@ let private calculateOutputPortsWidth
         // TODO: also allow buses? Need to change also simulation reducer.
         assertInputsSize inputConnectionsWidth 3 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
-        | [None; _; _] | [_; None; _] | [_; _; None] -> Ok Map.empty // Keep on waiting.
+        | [None; _; _] | [_; None; _] | [_; _; None]
         | [Some 1; Some 1; Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
         | [Some n; _; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [] // TODO: pass connections affected.
         | [_; Some n; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [] // TODO: pass connections affected.
@@ -139,7 +137,7 @@ let private calculateOutputPortsWidth
     | MakeBus2 ->
         assertInputsSize inputConnectionsWidth 2 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
-        | [None; _] | [_; None] -> Ok Map.empty // Keep on waiting.
+        | [None; _] | [_; None]
         | [Some 1; Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 2)
         | [Some n; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [] // TODO: pass connections affected.
         | [_; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [] // TODO: pass connections affected.
@@ -147,8 +145,7 @@ let private calculateOutputPortsWidth
     | SplitBus2 ->
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
-        | [None] -> Ok Map.empty // Keep on waiting.
-        | [Some 2] ->
+        | [None] | [Some 2] ->
             let out = Map.empty.Add (getOutputPortId comp 0, 1)
             let out = out.Add (getOutputPortId comp 1, 1)
             Ok out
@@ -157,18 +154,18 @@ let private calculateOutputPortsWidth
     | PushToBusFirst ->
         assertInputsSize inputConnectionsWidth 2 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
-        | [None; _] | [_; None] -> Ok Map.empty // Keep on waiting.
-        | [Some 1; Some n] when n > 1 -> Ok <| Map.empty.Add (getOutputPortId comp 0, n + 1)
-        | [Some 1; Some n] when n <= 1 -> makeWidthInferErrorAtLeast 2 n [] // TODO: pass connections affected.
         | [Some n; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [] // TODO: pass connections affected.
+        | [_; Some n] when n <= 1 -> makeWidthInferErrorAtLeast 2 n [] // TODO: pass connections affected.
+        | [_; None] -> Ok Map.empty // Keep on waiting.
+        | [_; Some n] when n > 1 -> Ok <| Map.empty.Add (getOutputPortId comp 0, n + 1)
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
     | PushToBusLast ->
         assertInputsSize inputConnectionsWidth 2 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
-        | [None; _] | [_; None] -> Ok Map.empty // Keep on waiting.
-        | [Some n; Some 1] when n > 1 -> Ok <| Map.empty.Add (getOutputPortId comp 0, n + 1)
-        | [Some n; Some 1] when n <= 1 -> makeWidthInferErrorAtLeast 2 n [] // TODO: pass connections affected.
         | [_; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [] // TODO: pass connections affected.
+        | [Some n; _] when n <= 1 -> makeWidthInferErrorAtLeast 2 n [] // TODO: pass connections affected.
+        | [None; _] -> Ok Map.empty // Keep on waiting.
+        | [Some n; _] when n > 1 -> Ok <| Map.empty.Add (getOutputPortId comp 0, n + 1)
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
     | PopFirstFromBus ->
         assertInputsSize inputConnectionsWidth 1 comp

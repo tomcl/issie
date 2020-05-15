@@ -4,8 +4,16 @@
  * These functions get initialised by the draw2dWrapper.
  */
 
-let dispatchInferWidthsMessage = "undefined";
+let dispatchInferWidthsMessage         = "undefined";
+let dispatchOnSelectComponentMessage   = "undefined";
+let dispatchOnUnselectComponentMessage = "undefined";
 
-function setDispatchMessages(dispatchInferWidthsMessage_) {
-    dispatchInferWidthsMessage = dispatchInferWidthsMessage_;
+function setDispatchMessages(
+        dispatchInferWidthsMessage_,
+        dispatchOnSelectComponentMessage_,
+        dispatchOnUnselectComponentMessage_,
+    ) {
+    dispatchInferWidthsMessage         = dispatchInferWidthsMessage_;
+    dispatchOnSelectComponentMessage   = dispatchOnSelectComponentMessage_;
+    dispatchOnUnselectComponentMessage = dispatchOnUnselectComponentMessage_;
 }

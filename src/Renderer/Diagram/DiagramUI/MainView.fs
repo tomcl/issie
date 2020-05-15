@@ -119,7 +119,7 @@ let handleJSDiagramMsg msg model =
         model
     | SelectComponent jsComponent ->
         { model with SelectedComponent = Some <| extractComponent jsComponent }
-    | UnselectComponent jsComponent ->
+    | UnselectComponent () ->
         { model with SelectedComponent = None }
     | InferWidths () ->
         runBusWidthInference model  

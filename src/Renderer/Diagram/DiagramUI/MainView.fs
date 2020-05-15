@@ -35,15 +35,12 @@ let init() = {
 }
 
 let runBusWidthInference model =
-    let makeLabel width = sprintf "[%d]" width
     let paintEach connsWidth =
         connsWidth
         |> Map.map (fun (BusTypes.ConnectionId connId) width ->
-            // TODO: repaint all of them?
             match width with
             | None -> () // Could not infer.
-            | Some w when w = 1 -> () // Do nothing for simple bits.
-            | Some w -> model.Diagram.EditConnectionLabel connId <| makeLabel w
+            | Some w -> model.Diagram.PaintConnection connId w
         )
         |> ignore
     match model.Diagram.GetCanvasState () with

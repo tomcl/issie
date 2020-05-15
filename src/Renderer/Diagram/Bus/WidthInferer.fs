@@ -389,13 +389,15 @@ let inferConnectionsWidth
         : Result<ConnectionsWidth, WidthInferError> =
     let components, connections = state
     let connectionsWidth = initialiseConnectionsWidth connections
-    let inputNodes = getAllInputNodes components
     let compIdsToComps = mapComponentIdsToComponents components
     let outputPortIdsToConnections = mapOutputPortIdsToConnections connections
     match mapInputPortIdsToConnectionIds connections with
     | Error e -> Error e
     | Ok inputPortIdsToConnectionIds ->
-        (Ok connectionsWidth, inputNodes)
+        // If this is too slow, one could start the process only from input
+        // components. To do so, pass the (getAllInputNodes components) instead
+        // of components.
+        (Ok connectionsWidth, components)
         ||> List.fold (fun connectionsWidthRes inputNode ->
             connectionsWidthRes |> Result.bind (fun connectionsWidth ->
                 infer

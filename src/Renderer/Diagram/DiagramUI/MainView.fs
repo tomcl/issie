@@ -39,6 +39,7 @@ let runBusWidthInference model =
     let paintEach connsWidth =
         connsWidth
         |> Map.map (fun (BusTypes.ConnectionId connId) width ->
+            // TODO: repaint all of them?
             match width with
             | None -> () // Could not infer.
             | Some w when w = 1 -> () // Do nothing for simple bits.
@@ -93,7 +94,7 @@ let displayView model dispatch =
         viewOnDiagramButtons model dispatch
         div [ rightSectionStyle ] [
             // TODO: remove this button.
-            Button.button [Button.OnClick (fun _ -> runBusWidthInference model)] [str "run infer"]
+            Button.button [Button.OnClick (fun _ -> InferWidths () |> JSDiagramMsg |> dispatch)] [str "run infer"]
             Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ ] ] [
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
@@ -119,7 +120,10 @@ let handleJSDiagramMsg msg model =
     | SelectComponent jsComponent ->
         { model with SelectedComponent = Some <| extractComponent jsComponent }
     | UnselectComponent jsComponent ->
-         { model with SelectedComponent = None }
+        { model with SelectedComponent = None }
+    | InferWidths () ->
+        runBusWidthInference model  
+        model
 
 let update msg model =
     match msg with

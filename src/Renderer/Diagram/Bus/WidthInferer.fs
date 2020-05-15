@@ -71,6 +71,13 @@ let private makeWidthInferErrorAtLeast atLeast actual connectionsAffected = Erro
 /// widths are as expected and try to calculate the width of the outgoing
 /// connections.
 /// TODO add connectionId to inputConnectionWidth, to improve errors.
+/// TODO components can produce outputs as soon as they have enough info (e.g.
+/// gates can output width 1 straight away, PushToBusFirst can output n + 1 as
+/// soon as it finds out n and so on). This is possible because
+/// setConnectionsWidth will make sure that we do not re-explore an already set
+/// connection. This should allow partially connected components to still work
+/// if they have already enough info.
+/// TODO custom components.
 let private calculateOutputPortsWidth
         (comp : Component)
         (inputConnectionsWidth : Map<InputPortNumber, int option>)

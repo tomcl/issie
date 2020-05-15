@@ -84,7 +84,15 @@ draw2d.Connection = draw2d.Connection.extend({
         // TODO: rerun inference here instead of manually relocating ->
         // connections changed, so maybe bus sizes did too.
         this.on("connect", (_, data) => {
-            // TODO: trigger a rerun of inference.
+            if (dispatchInferWidthsMessage !== "undefined") {
+                // Dispatch the message after 20ms, to give the time to the
+                // function to finish. This way the inference function will
+                // access the version of the state that also contains the
+                // connection.
+                setTimeout(() => {dispatchInferWidthsMessage();}, 20);
+            } else {
+                console.log("Warning: connection trying to dispatch an InferWidthsMessage but it is not defined.")
+            }
         });
 
         // Every time the connection is changed (i.e. rerouted), recalculate the

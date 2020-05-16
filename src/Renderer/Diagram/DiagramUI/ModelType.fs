@@ -14,6 +14,11 @@ open DiagramMessageType
 open SimulatorTypes
 open Draw2dWrapper
 
+type Notifications = {
+    FromDiagram : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
+    // TODO: add a general notification?
+}
+
 type Model = {
     Diagram : Draw2dWrapper
     SelectedComponent : Component option // None if no component is selected.
@@ -24,4 +29,5 @@ type Model = {
     CurrProject : Project option
     Popup : (string -> Fable.Import.React.ReactElement) option
     PopupDialogText : string option
+    Notifications : Notifications
 }

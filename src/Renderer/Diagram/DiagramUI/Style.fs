@@ -53,3 +53,18 @@ let canvasSmallButtonStyle = Style [
     Padding "4px"
     Opacity 0.7
 ]
+
+let private notificationStyle = [
+    ZIndex 10 // In front of everything.
+    MinWidth "300px"
+    Position "absolute"
+    Right "20px"
+    Bottom "20px"
+    Padding "20px"
+]
+
+let errorNotificationStyle =
+    Style <| notificationStyle @ [
+        Color "white" // White text.
+        BackgroundColor "red"
+    ]

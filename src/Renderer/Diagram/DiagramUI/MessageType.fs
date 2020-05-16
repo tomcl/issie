@@ -34,3 +34,4 @@ type Msg =
     | ShowPopup of (string -> Fable.Import.React.ReactElement)
     | ClosePopup
     | SetPopupDialogText of string option
+    | CloseDiagramNotification

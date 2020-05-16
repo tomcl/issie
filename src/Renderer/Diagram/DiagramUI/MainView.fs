@@ -32,6 +32,9 @@ let init() = {
     Clipboard = [], []
     Popup = None
     PopupDialogText = None
+    Notifications = {
+        FromDiagram = None
+    }
 }
 
 let runBusWidthInference model =
@@ -44,22 +47,29 @@ let runBusWidthInference model =
         )
         |> ignore
     match model.Diagram.GetCanvasState () with
-    | None -> ()
+    | None -> model
     | Some state ->
         JSHelpers.startTimer "bus-infer-performance"
         state
         |> extractState
         |> inferConnectionsWidth
         |> function
-           | Error e ->
-               JSHelpers.logString e // TODO: display error?
-               // TODO: this makes the conent of the model.Higlighted inconsistent.
-               // Need to dispatch SetHighlighted (can do by using mkProgram).
-               e.ConnectionsAffected
-               |> List.map (fun (BusTypes.ConnectionId c) -> model.Diagram.HighlightConnection c)
-               |> ignore
-           | Ok connsWidth -> paintEach connsWidth
-        JSHelpers.stopAndLogTimer "bus-infer-performance"
+            | Error e ->
+                // TODO: this makes the conent of the model.Higlighted inconsistent.
+                // Need to dispatch SetHighlighted (can do by using mkProgram).
+                e.ConnectionsAffected
+                |> List.map (fun (BusTypes.ConnectionId c) -> model.Diagram.HighlightConnection c)
+                |> ignore
+                JSHelpers.stopAndLogTimer "bus-infer-performance"
+                // Display notification with error message.
+                { model with Notifications =
+                                { model.Notifications with FromDiagram =
+                                                            Some <| errorNotification e.Msg } }
+            | Ok connsWidth ->
+                paintEach connsWidth
+                JSHelpers.stopAndLogTimer "bus-infer-performance"
+                // Close the notification if all is good.
+                { model with Notifications = {model.Notifications with FromDiagram = None} }
 
 // -- Create View
 
@@ -94,6 +104,7 @@ let displayView model dispatch =
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Visible
         viewNoProjectMenu model dispatch
         viewPopup model
+        viewNotifications model dispatch
         viewOnDiagramButtons model dispatch
         div [ rightSectionStyle ] [
             // TODO: remove this button.
@@ -126,7 +137,6 @@ let handleJSDiagramMsg msg model =
         { model with SelectedComponent = None }
     | InferWidths () ->
         runBusWidthInference model
-        model
 
 let update msg model =
     match msg with
@@ -162,3 +172,4 @@ let update msg model =
     | ShowPopup popup -> { model with Popup = Some popup }
     | ClosePopup -> { model with Popup = None; PopupDialogText = None }
     | SetPopupDialogText text -> { model with PopupDialogText = text }
+    | CloseDiagramNotification -> { model with Notifications = {model.Notifications with FromDiagram = None} }

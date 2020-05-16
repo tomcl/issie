@@ -1,7 +1,14 @@
 (*
     PopupView.fs
 
-    This module provides a handy interface to create popups.
+    This module provides a handy interface to create popups and notifications.
+    Popups and notifications appear similar, but are actually quite different:
+    - Model.Popup is a function that takes a STRING and produces a ReactElement.
+    - Model.Notifications are a functions that take DISPATCH and produce a
+      ReactElement.
+    This means that at the moment of creation, a popup must already have the
+    dispatch function, while the notification does not. This, in turn, means
+    that notifications can be created from messages dispatched by JS code.
 *)
 
 module PopupView
@@ -14,6 +21,11 @@ open Fable.Import
 open JSHelpers
 open DiagramMessageType
 open DiagramModelType
+open DiagramStyle
+
+//========//
+// Popups //
+//========//
 
 /// Unclosable popup.
 let stablePopup body =
@@ -118,3 +130,26 @@ let viewPopup model =
     | None, _ -> div [] []
     | Some popup, None -> popup ""
     | Some popup, Some text -> popup text
+
+//===============//
+// Notifications //
+//===============//
+
+let errorNotification text =
+    fun dispatch ->
+        let close = (fun _ -> dispatch CloseDiagramNotification)
+        div [errorNotificationStyle] [
+            Level.level [ Level.Level.Props [Style [Width "100%"] ] ] [
+                Level.left [] [
+                    Level.item [] [ str text ]
+                ]
+                Level.right [ Props [Style [MarginLeft "10px"] ] ] [
+                    Level.item [] [ Delete.delete [ Delete.OnClick close ] [] ]
+                ]
+            ]
+        ]
+
+let viewNotifications model dispatch =
+    match model.Notifications.FromDiagram with
+    | None -> div [] []
+    | Some notification -> notification dispatch

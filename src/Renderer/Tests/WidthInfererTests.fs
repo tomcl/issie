@@ -93,6 +93,12 @@ let private testCasesWidthInfererBuses : WidhtInfererTestCase list = [
         ConnectionId "conn0", None
         ConnectionId "conn1", None
     ] |> Map.ofList |> Ok
+
+    "Mux connected to two PushBusFirst. Width not inferrable", stateBus8,
+    [
+        ConnectionId "conn0", Some 1
+        ConnectionId "conn1", None
+    ] |> Map.ofList |> Ok
 ]
 
 let private testCasesWidthInfererError : WidhtInfererTestCase list = [
@@ -118,6 +124,12 @@ let private testCasesWidthInfererError : WidhtInfererTestCase list = [
     Error {
         Msg = "Wrong wire width. Expecting at least size 2 but got 1."
         ConnectionsAffected = ["conn1"] |> List.map ConnectionId
+    }
+
+    "Mux connected to a splitBus2", stateBus9,
+    Error {
+        Msg = "Wrong wire width. Expecting at 2 but got 1."
+        ConnectionsAffected = ["conn0"] |> List.map ConnectionId
     }
 ]
 

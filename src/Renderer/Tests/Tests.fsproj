@@ -6,13 +6,19 @@
   <ItemGroup>
     <Compile Include="TestLib.fs" />
     <Compile Include="../Helpers.fs" />
+
     <Compile Include="../Diagram/Types.fs" />
+    <!-- Buses -->
+    <Compile Include="../Diagram/Bus/Types.fs" />
+    <Compile Include="../Diagram/Bus/WidthInferer.fs" />
+    <!-- Simulator -->
     <Compile Include="../Diagram/Simulator/Types.fs" />
     <Compile Include="../Diagram/Simulator/Analyser.fs" />
     <Compile Include="../Diagram/Simulator/Builder.fs" />
     <Compile Include="../Diagram/Simulator/Runner.fs" />
     <Compile Include="../Diagram/Simulator/DependencyMerger.fs" />
     <Compile Include="../Diagram/Simulator/Simulator.fs" />
+    <!-- Test -->
     <Compile Include="CanvasStates.fs" />
     <Compile Include="SimulatorTests.fs" />
     <Compile Include="Tests.fs" />

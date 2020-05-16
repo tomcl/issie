@@ -129,8 +129,9 @@ let viewSimulation model dispatch =
                    | Error simError -> viewSimulationError simError
                    | Ok simData -> viewSimulationData simData dispatch
         let endSimulation _ =
-            dispatch <| SetHighlighted ([], [])
-            dispatch EndSimulation
+            dispatch <| SetHighlighted ([], []) // Remove highlights.
+            dispatch EndSimulation // End simulation.
+            dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
         div [] [
             Button.button
                 [ Button.Color IsDanger; Button.OnClick endSimulation ]

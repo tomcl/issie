@@ -33,6 +33,7 @@ type Port = {
 
 type CustomComponentType = {
     Name: string
+    // Tuples with (label * connection width).
     InputLabels: (string * int) list
     OutputLabels: (string * int) list 
 }

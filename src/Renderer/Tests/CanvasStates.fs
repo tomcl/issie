@@ -2,6 +2,15 @@ module CanvasStates
 
 open DiagramTypes
 
+// Guidelines to create states:
+// - draw the diagram you want to test in the actual application, then log its
+//   state state. Use logStateToFSharp.py to transform the log output into
+//   a (almost) valid FSharp data structure.
+// - write it from scratch. Remember:
+//   --> each component Id must be unique
+//   --> each connection Id must be unique
+//   --> each port Id must be unique
+
 let private makeCustomComponent dep = {
     Name = dep.Name
     InputLabels = dep.InputLabels
@@ -31,8 +40,8 @@ let state1CustomComponent : CustomComponentType =
 /// Two unconnected input nodes. No conections.
 let state2 : CanvasState =
     [
-        {Id = "input-node0"; Type = Input; Label = "input-node0-label"; InputPorts = []; OutputPorts = [{Id = "out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "input-node0"}]; X = 169; Y = 175}
-        {Id = "input-node1"; Type = Input; Label = "input-node1-label"; InputPorts = []; OutputPorts = [{Id = "out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "input-node1"}]; X = 169; Y = 175}
+        {Id = "input-node0"; Type = Input; Label = "input-node0-label"; InputPorts = []; OutputPorts = [{Id = "input-node0-out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "input-node0"}]; X = 169; Y = 175}
+        {Id = "input-node1"; Type = Input; Label = "input-node1-label"; InputPorts = []; OutputPorts = [{Id = "input-node1-out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "input-node1"}]; X = 169; Y = 175}
     ],
     []
 
@@ -74,13 +83,13 @@ let state4 : CanvasState =
 /// Two inputs connected to the same output.
 let state5 : CanvasState =
     [
-        {Id = "input-node0"; Type = Input; Label = "input-node0-label"; InputPorts = []; OutputPorts = [{Id = "out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "input-node0"}]; X = 169; Y = 175}
-        {Id = "input-node1"; Type = Input; Label = "input-node1-label"; InputPorts = []; OutputPorts = [{Id = "out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "input-node1"}]; X = 169; Y = 175}
+        {Id = "input-node0"; Type = Input; Label = "input-node0-label"; InputPorts = []; OutputPorts = [{Id = "input-node0-out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "input-node0"}]; X = 169; Y = 175}
+        {Id = "input-node1"; Type = Input; Label = "input-node1-label"; InputPorts = []; OutputPorts = [{Id = "input-node1-out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "input-node1"}]; X = 169; Y = 175}
         {Id = "output-node0"; Type = Output; Label = "output-node0-label"; InputPorts = [{Id = "inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "output-node0"}]; OutputPorts = []; X = 364; Y = 175}
     ],
     [
-        {Id = "conn0"; Source = {Id = "out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "input-node0"}; Target = {Id = "inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "output-node0"}; Vertices = []}
-        {Id = "conn1"; Source = {Id = "out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "input-node1"}; Target = {Id = "inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "output-node0"}; Vertices = []}
+        {Id = "conn0"; Source = {Id = "input-node0-out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "input-node0"}; Target = {Id = "inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "output-node0"}; Vertices = []}
+        {Id = "conn1"; Source = {Id = "input-node1-out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "input-node1"}; Target = {Id = "inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "output-node0"}; Vertices = []}
     ]
 
 /// Two inputs; one And; one output.
@@ -224,12 +233,12 @@ let state13 : CanvasState =
 let state14 : CanvasState =
     [
         {Id = "input-node0"; Type = Input; Label = "input-node0-label"; InputPorts = []; OutputPorts = [{Id = "out-port0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "input-node0"}]; X = 169; Y = 175}
-        {Id = "output-node0"; Type = Output; Label = "output-duplicate-label"; InputPorts = [{Id = "inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "output-node0"}]; OutputPorts = []; X = 364; Y = 175}
-        {Id = "output-node1"; Type = Output; Label = "output-duplicate-label"; InputPorts = [{Id = "inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "output-node1"}]; OutputPorts = []; X = 364; Y = 175}
+        {Id = "output-node0"; Type = Output; Label = "output-duplicate-label"; InputPorts = [{Id = "output-node0-inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "output-node0"}]; OutputPorts = []; X = 364; Y = 175}
+        {Id = "output-node1"; Type = Output; Label = "output-duplicate-label"; InputPorts = [{Id = "output-node1-inp-port0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "output-node1"}]; OutputPorts = []; X = 364; Y = 175}
     ],
     [
-        {Id = "conn0"; Source = {Id = "out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "input-node0"}; Target = {Id = "inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "output-node0"}; Vertices = []}
-        {Id = "conn1"; Source = {Id = "out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "input-node0"}; Target = {Id = "inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "output-node1"}; Vertices = []}
+        {Id = "conn0"; Source = {Id = "out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "input-node0"}; Target = {Id = "output-node0-inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "output-node0"}; Vertices = []}
+        {Id = "conn1"; Source = {Id = "out-port0"; PortNumber = None; PortType = PortType.Output; HostId = "input-node0"}; Target = {Id = "output-node1-inp-port0"; PortNumber = None; PortType = PortType.Input; HostId = "output-node1"}; Vertices = []}
     ]
 
 /// Similar to state6, but input nodes have the same label.

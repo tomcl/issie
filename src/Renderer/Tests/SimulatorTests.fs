@@ -5,6 +5,7 @@ open SimulatorTypes
 open CanvasStates
 open Simulator
 
+/// Tuple with: (diagramName, state, loadedComponents, inputs).
 type private SimulatorTestCaseInput = string * CanvasState * LoadedComponent list * (ComponentId * WireData) list
 type private SimulatorTestCaseOutput = Result<(SimulationIO * WireData) list, SimulationError>
 type private SimulatorTestCase = string * SimulatorTestCaseInput * SimulatorTestCaseOutput

@@ -20,6 +20,7 @@
     <Compile Include="../Diagram/Simulator/Simulator.fs" />
     <!-- Test -->
     <Compile Include="CanvasStates.fs" />
+    <Compile Include="WidthInfererTests.fs" />
     <Compile Include="SimulatorTests.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>

@@ -560,6 +560,45 @@ let state24 : CanvasState =
         }
     ]
 
+/// Similar to state6, but with a missing connection from bottom input to and.
+let state25 : CanvasState =
+    [
+        {Id = "top-input"; Type = Input; Label = "input-node0-label"; InputPorts = []; OutputPorts = [{Id = "top-input-out0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "top-input"}]; X = 326; Y = 440}
+        {Id = "bottom-input"; Type = Input; Label = "input-node1-label"; InputPorts = []; OutputPorts = [{Id = "bottom-input-out0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "bottom-input"}]; X = 321; Y = 492}
+        {Id = "and"; Type = And; Label = ""; InputPorts = [{Id = "and-in0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "and"}; {Id = "and-in1"; PortNumber = Some 1; PortType = PortType.Input; HostId = "and"}]; OutputPorts = [{Id = "and-out0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "and"}]; X = 428; Y = 459}
+        {Id = "output"; Type = Output; Label = "output-node0-label"; InputPorts = [{Id = "output-in0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "output"}]; OutputPorts = []; X = 610; Y = 469}
+    ],
+    [
+        {Id = "conn0"; Source = {Id = "top-input-out0"; PortNumber = None; PortType = PortType.Output; HostId = "top-input"}; Target = {Id = "and-in0"; PortNumber = None; PortType = PortType.Input; HostId = "and"}; Vertices = []}
+        {Id = "conn2"; Source = {Id = "and-out0"; PortNumber = None; PortType = PortType.Output; HostId = "and"}; Target = {Id = "output-in0"; PortNumber = None; PortType = PortType.Input; HostId = "output"}; Vertices = []}
+    ]
+
+/// Similar to state6, but with a missing connection from and to output.
+let state26 : CanvasState =
+    [
+        {Id = "top-input"; Type = Input; Label = "input-node0-label"; InputPorts = []; OutputPorts = [{Id = "top-input-out0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "top-input"}]; X = 326; Y = 440}
+        {Id = "bottom-input"; Type = Input; Label = "input-node1-label"; InputPorts = []; OutputPorts = [{Id = "bottom-input-out0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "bottom-input"}]; X = 321; Y = 492}
+        {Id = "and"; Type = And; Label = ""; InputPorts = [{Id = "and-in0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "and"}; {Id = "and-in1"; PortNumber = Some 1; PortType = PortType.Input; HostId = "and"}]; OutputPorts = [{Id = "and-out0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "and"}]; X = 428; Y = 459}
+        {Id = "output"; Type = Output; Label = "output-node0-label"; InputPorts = [{Id = "output-in0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "output"}]; OutputPorts = []; X = 610; Y = 469}
+    ],
+    [
+        {Id = "conn0"; Source = {Id = "top-input-out0"; PortNumber = None; PortType = PortType.Output; HostId = "top-input"}; Target = {Id = "and-in0"; PortNumber = None; PortType = PortType.Input; HostId = "and"}; Vertices = []}
+        {Id = "conn1"; Source = {Id = "bottom-input-out0"; PortNumber = None; PortType = PortType.Output; HostId = "bottom-input"}; Target = {Id = "and-in1"; PortNumber = None; PortType = PortType.Input; HostId = "and"}; Vertices = []}
+    ]
+
+/// Similar to state6, but with both inputs unconnected.
+let state27 : CanvasState =
+    [
+        {Id = "top-input"; Type = Input; Label = "input-node0-label"; InputPorts = []; OutputPorts = [{Id = "top-input-out0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "top-input"}]; X = 326; Y = 440}
+        {Id = "bottom-input"; Type = Input; Label = "input-node1-label"; InputPorts = []; OutputPorts = [{Id = "bottom-input-out0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "bottom-input"}]; X = 321; Y = 492}
+        {Id = "and"; Type = And; Label = ""; InputPorts = [{Id = "and-in0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "and"}; {Id = "and-in1"; PortNumber = Some 1; PortType = PortType.Input; HostId = "and"}]; OutputPorts = [{Id = "and-out0"; PortNumber = Some 0; PortType = PortType.Output; HostId = "and"}]; X = 428; Y = 459}
+        {Id = "output"; Type = Output; Label = "output-node0-label"; InputPorts = [{Id = "output-in0"; PortNumber = Some 0; PortType = PortType.Input; HostId = "output"}]; OutputPorts = []; X = 610; Y = 469}
+    ],
+    [
+        {Id = "conn2"; Source = {Id = "and-out0"; PortNumber = None; PortType = PortType.Output; HostId = "and"}; Target = {Id = "output-in0"; PortNumber = None; PortType = PortType.Input; HostId = "output"}; Vertices = []}
+    ]
+
+
 // Half adder.
 
 let halfAdderState : CanvasState =

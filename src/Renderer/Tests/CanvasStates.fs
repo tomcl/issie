@@ -598,7 +598,6 @@ let state27 : CanvasState =
         {Id = "conn2"; Source = {Id = "and-out0"; PortNumber = None; PortType = PortType.Output; HostId = "and"}; Target = {Id = "output-in0"; PortNumber = None; PortType = PortType.Input; HostId = "output"}; Vertices = []}
     ]
 
-
 // Half adder.
 
 let halfAdderState : CanvasState =

@@ -183,3 +183,47 @@ let stateBus12 : CanvasState =
         {Id = "960e38bd-dd14-5109-ac25-8c701249f48b";Source = {Id = "6c5a63af-db72-1ece-495d-7a04c88fd1f0";PortNumber = None;PortType = PortType.Output;HostId = "c16668ed-ec17-3a14-8a4b-dec6c40335b5"};Target = {Id = "67424fbf-f200-6690-a8e6-450e951d9411";PortNumber = None;PortType = PortType.Input;HostId = "156b43f1-5e54-b058-c716-c5623c5f6e37"};Vertices = [404.0,215.0; 442.0,215.0]};
         {Id = "6d0843df-f606-4fb5-0349-ae90260e6c28";Source = {Id = "58405846-6427-732c-c901-f72f1162b36e";PortNumber = None;PortType = PortType.Output;HostId = "156b43f1-5e54-b058-c716-c5623c5f6e37"};Target = {Id = "2a6d1069-81da-f185-ad82-3c524819f56a";PortNumber = None;PortType = PortType.Input;HostId = "a3b6ec22-f265-2ec6-fad0-a4259ec4b3cf"};Vertices = [482.0,205.0; 546.0,205.0]}
     ]
+
+/// A 4 bit input connected to a 4 bit output.
+let stateBus13 : CanvasState =
+    [
+        {Id = "9bcba47e-deae-0b3f-2079-a1b124526b00";Type = Input 4;Label = "a";InputPorts = [];OutputPorts = [{Id = "f9f6284f-1663-ec81-5c5c-0a6660d1d524";PortNumber = Some 0;PortType = PortType.Output;HostId = "9bcba47e-deae-0b3f-2079-a1b124526b00"}];X = 100;Y = 100};
+        {Id = "ad2ef0c3-537e-9d2e-0064-ac6b952e4b97";Type = Output 4;Label = "b";InputPorts = [{Id = "ba682a02-30db-a03f-db83-8f3ab1afc6e0";PortNumber = Some 0;PortType = PortType.Input;HostId = "ad2ef0c3-537e-9d2e-0064-ac6b952e4b97"}];OutputPorts = [];X = 193;Y = 100}
+    ],
+    [
+        {Id = "conn";Source = {Id = "f9f6284f-1663-ec81-5c5c-0a6660d1d524";PortNumber = None;PortType = PortType.Output;HostId = "9bcba47e-deae-0b3f-2079-a1b124526b00"};Target = {Id = "ba682a02-30db-a03f-db83-8f3ab1afc6e0";PortNumber = None;PortType = PortType.Input;HostId = "ad2ef0c3-537e-9d2e-0064-ac6b952e4b97"};Vertices = [130.0,110.0; 193.0,110.0]}
+    ]
+
+/// A 4 bit input connected to a 3 bit output.
+let stateBus14 : CanvasState =
+    [
+        {Id = "9bcba47e-deae-0b3f-2079-a1b124526b00";Type = Input 4;Label = "a";InputPorts = [];OutputPorts = [{Id = "f9f6284f-1663-ec81-5c5c-0a6660d1d524";PortNumber = Some 0;PortType = PortType.Output;HostId = "9bcba47e-deae-0b3f-2079-a1b124526b00"}];X = 100;Y = 100};
+        {Id = "ad2ef0c3-537e-9d2e-0064-ac6b952e4b97";Type = Output 3;Label = "b";InputPorts = [{Id = "ba682a02-30db-a03f-db83-8f3ab1afc6e0";PortNumber = Some 0;PortType = PortType.Input;HostId = "ad2ef0c3-537e-9d2e-0064-ac6b952e4b97"}];OutputPorts = [];X = 193;Y = 100}
+    ],
+    [
+        {Id = "conn";Source = {Id = "f9f6284f-1663-ec81-5c5c-0a6660d1d524";PortNumber = None;PortType = PortType.Output;HostId = "9bcba47e-deae-0b3f-2079-a1b124526b00"};Target = {Id = "ba682a02-30db-a03f-db83-8f3ab1afc6e0";PortNumber = None;PortType = PortType.Input;HostId = "ad2ef0c3-537e-9d2e-0064-ac6b952e4b97"};Vertices = [130.0,110.0; 193.0,110.0]}
+    ]
+
+/// A 3 bit input connected to a 4 bit output.
+let stateBus15 : CanvasState =
+    [
+        {Id = "9bcba47e-deae-0b3f-2079-a1b124526b00";Type = Input 3;Label = "a";InputPorts = [];OutputPorts = [{Id = "f9f6284f-1663-ec81-5c5c-0a6660d1d524";PortNumber = Some 0;PortType = PortType.Output;HostId = "9bcba47e-deae-0b3f-2079-a1b124526b00"}];X = 100;Y = 100};
+        {Id = "ad2ef0c3-537e-9d2e-0064-ac6b952e4b97";Type = Output 4;Label = "b";InputPorts = [{Id = "ba682a02-30db-a03f-db83-8f3ab1afc6e0";PortNumber = Some 0;PortType = PortType.Input;HostId = "ad2ef0c3-537e-9d2e-0064-ac6b952e4b97"}];OutputPorts = [];X = 193;Y = 100}
+    ],
+    [
+        {Id = "conn";Source = {Id = "f9f6284f-1663-ec81-5c5c-0a6660d1d524";PortNumber = None;PortType = PortType.Output;HostId = "9bcba47e-deae-0b3f-2079-a1b124526b00"};Target = {Id = "ba682a02-30db-a03f-db83-8f3ab1afc6e0";PortNumber = None;PortType = PortType.Input;HostId = "ad2ef0c3-537e-9d2e-0064-ac6b952e4b97"};Vertices = [130.0,110.0; 193.0,110.0]}
+    ]
+
+/// A 2 bit input split into 2 single bit outputs.
+let stateBus16 : CanvasState =
+    [
+        {Id = "96b167b2-2c40-34e7-d4fc-4a7016c7ddf5";Type = SplitBus2;Label = "";InputPorts = [{Id = "a5977d59-b944-6651-bf91-3f3700bca60b";PortNumber = Some 0;PortType = PortType.Input;HostId = "96b167b2-2c40-34e7-d4fc-4a7016c7ddf5"}];OutputPorts = [{Id = "de1e9d70-4ce1-c6d9-cb87-30f632c9e1d1";PortNumber = Some 0;PortType = PortType.Output;HostId = "96b167b2-2c40-34e7-d4fc-4a7016c7ddf5"}; {Id = "dc05cdf8-5ef7-c605-6c5b-bb8842c49089";PortNumber = Some 1;PortType = PortType.Output;HostId = "96b167b2-2c40-34e7-d4fc-4a7016c7ddf5"}];X = 202;Y = 112};
+        {Id = "c6f000db-310f-d8ad-ff5e-938d7c2aaa7c";Type = Input 2;Label = "a";InputPorts = [];OutputPorts = [{Id = "28047c34-2af2-867e-9130-6eb128769eef";PortNumber = Some 0;PortType = PortType.Output;HostId = "c6f000db-310f-d8ad-ff5e-938d7c2aaa7c"}];X = 102;Y = 112};
+        {Id = "60e2df66-bb8c-53f1-832d-e154c30cf9dd";Type = Output 1;Label = "b";InputPorts = [{Id = "24e75289-91d1-30e7-0ec5-409eb73f9ad3";PortNumber = Some 0;PortType = PortType.Input;HostId = "60e2df66-bb8c-53f1-832d-e154c30cf9dd"}];OutputPorts = [];X = 324;Y = 88};
+        {Id = "85e19389-c087-8b30-6c0a-02f7cc753695";Type = Output 1;Label = "c";InputPorts = [{Id = "99c1d8ae-5e85-fbbf-892d-48acb0fdff82";PortNumber = Some 0;PortType = PortType.Input;HostId = "85e19389-c087-8b30-6c0a-02f7cc753695"}];OutputPorts = [];X = 324;Y = 152}
+    ],
+    [
+        {Id = "conn0";Source = {Id = "28047c34-2af2-867e-9130-6eb128769eef";PortNumber = None;PortType = PortType.Output;HostId = "c6f000db-310f-d8ad-ff5e-938d7c2aaa7c"};Target = {Id = "a5977d59-b944-6651-bf91-3f3700bca60b";PortNumber = None;PortType = PortType.Input;HostId = "96b167b2-2c40-34e7-d4fc-4a7016c7ddf5"};Vertices = [132.0,122.0; 202.0,122.0]};
+        {Id = "conn1";Source = {Id = "dc05cdf8-5ef7-c605-6c5b-bb8842c49089";PortNumber = None;PortType = PortType.Output;HostId = "96b167b2-2c40-34e7-d4fc-4a7016c7ddf5"};Target = {Id = "99c1d8ae-5e85-fbbf-892d-48acb0fdff82";PortNumber = None;PortType = PortType.Input;HostId = "85e19389-c087-8b30-6c0a-02f7cc753695"};Vertices = [242.0,132.0; 283.0,132.0; 283.0,162.0; 324.0,162.0]};
+        {Id = "conn2";Source = {Id = "de1e9d70-4ce1-c6d9-cb87-30f632c9e1d1";PortNumber = None;PortType = PortType.Output;HostId = "96b167b2-2c40-34e7-d4fc-4a7016c7ddf5"};Target = {Id = "24e75289-91d1-30e7-0ec5-409eb73f9ad3";PortNumber = None;PortType = PortType.Input;HostId = "60e2df66-bb8c-53f1-832d-e154c30cf9dd"};Vertices = [242.0,112.0; 283.0,112.0; 283.0,98.0; 324.0,98.0]}
+    ]

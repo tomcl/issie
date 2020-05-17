@@ -351,6 +351,14 @@ let private testCasesSimulatorBusesError : SimulatorTestCase list = [
     "Two inputs make a bus2, then Push input a to bus, then try to split 2 (fail)",
     ("main", stateBus11, [], []),
     makeError "Wrong wire width. Expecting 2 but got 3." None [] ["conn"]
+
+    "A 4 bit input connected to a 3 bit output",
+    ("main", stateBus14, [], []),
+    makeError "Wrong wire width. Expecting 3 but got 4." None [] ["conn"]
+
+    "A 3 bit input connected to a 4 bit output",
+    ("main", stateBus15, [], []),
+    makeError "Wrong wire width. Expecting 4 but got 3." None [] ["conn"]
 ]
 
 let private testCasesSimulatorOkWithBuses : SimulatorTestCase list =
@@ -379,6 +387,42 @@ let private testCasesSimulatorOkWithBuses : SimulatorTestCase list =
             (ComponentId "dfcf6cff-fbac-e54f-7a9d-7059d17e3a0b", ComponentLabel "c-out", 1)
             (ComponentId "214620f0-51f6-59fe-1558-ed47fd2c680a", ComponentLabel "d-out", 1)
         ])
+    @
+    [
+        "A 4 bit input connected to a four bit output (1)",
+        ("main", stateBus13, [], [
+            ComponentId "9bcba47e-deae-0b3f-2079-a1b124526b00", [One; One; One; One]
+        ]),
+        [
+            (ComponentId "ad2ef0c3-537e-9d2e-0064-ac6b952e4b97", ComponentLabel "b", 4), [One; One; One; One]
+        ] |> Ok
+
+        "A 4 bit input connected to a four bit output (2)",
+        ("main", stateBus13, [], [
+            ComponentId "9bcba47e-deae-0b3f-2079-a1b124526b00", [Zero; One; Zero; One]
+        ]),
+        [
+            (ComponentId "ad2ef0c3-537e-9d2e-0064-ac6b952e4b97", ComponentLabel "b", 4), [Zero; One; Zero; One]
+        ] |> Ok
+
+        "A 2 bit input split into 2 single bit outputs (1)",
+        ("main", stateBus16, [], [
+            ComponentId "c6f000db-310f-d8ad-ff5e-938d7c2aaa7c", [One; Zero]
+        ]),
+        [
+            (ComponentId "60e2df66-bb8c-53f1-832d-e154c30cf9dd", ComponentLabel "b", 1), [One]
+            (ComponentId "85e19389-c087-8b30-6c0a-02f7cc753695", ComponentLabel "c", 1), [Zero]
+        ] |> Ok
+
+        "A 2 bit input split into 2 single bit outputs (2)",
+        ("main", stateBus16, [], [
+            ComponentId "c6f000db-310f-d8ad-ff5e-938d7c2aaa7c", [Zero; One]
+        ]),
+        [
+            (ComponentId "60e2df66-bb8c-53f1-832d-e154c30cf9dd", ComponentLabel "b", 1), [Zero]
+            (ComponentId "85e19389-c087-8b30-6c0a-02f7cc753695", ComponentLabel "c", 1), [One]
+        ] |> Ok
+    ]
 
 let testCasesSimulator =
     testCasesSimulatorPortError @

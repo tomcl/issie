@@ -99,6 +99,18 @@ let private testCasesWidthInfererBuses : WidhtInfererTestCase list = [
         ConnectionId "conn0", Some 1
         ConnectionId "conn1", None
     ] |> Map.ofList |> Ok
+
+    "A 4 bit input connected to a four bit output", stateBus13,
+    [
+        ConnectionId "conn", Some 4
+    ] |> Map.ofList |> Ok
+
+    "A 2 bit input split into 2 single bit outputs", stateBus16,
+    [
+        ConnectionId "conn0", Some 2
+        ConnectionId "conn1", Some 1
+        ConnectionId "conn2", Some 1
+    ] |> Map.ofList |> Ok
 ]
 
 let private testCasesWidthInfererError : WidhtInfererTestCase list = [
@@ -130,6 +142,18 @@ let private testCasesWidthInfererError : WidhtInfererTestCase list = [
     Error {
         Msg = "Wrong wire width. Expecting 2 but got 1."
         ConnectionsAffected = ["conn0"] |> List.map ConnectionId
+    }
+
+    "A 4 bit input connected to a 3 bit output", stateBus14,
+    Error {
+        Msg = "Wrong wire width. Expecting 3 but got 4."
+        ConnectionsAffected = ["conn"] |> List.map ConnectionId
+    }
+
+    "A 3 bit input connected to a 4 bit output", stateBus15,
+    Error {
+        Msg = "Wrong wire width. Expecting 4 but got 3."
+        ConnectionsAffected = ["conn"] |> List.map ConnectionId
     }
 ]
 

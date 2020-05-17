@@ -12,6 +12,7 @@ open Fable.Helpers.React.Props
 
 open Helpers
 open JSHelpers
+open DiagramStyle
 open PopupView
 open DiagramMessageType
 open DiagramModelType
@@ -49,13 +50,15 @@ let private viewSimulationInputs
         (inputs : (SimulationIO * WireData) list)
         dispatch =
     let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel, width), wireData) =
+        assertThat (List.length wireData = width)
+        <| sprintf "Inconsistent wireData length in viewSimulationInput for %s: expcted %d but got %d" inputLabel width wireData.Length
         let valueHandle =
             match wireData with
             | [] -> failwith "what? Empty wireData while creating a line in simulation inputs."
             | [bit] ->
                 // For simple bits, just have a Zero/One button.
                 Button.button [
-                    Button.Props [ Style [ Width "50px" ] ]
+                    Button.Props [ simulationBitStyle ]
                     Button.Color IsPrimary
                     (match bit with Zero -> Button.IsOutlined | One -> Button.Color IsPrimary)
                     Button.IsHovered false
@@ -72,7 +75,7 @@ let private viewSimulationInputs
                 Input.text [
                     Input.DefaultValue bitsStr
                     Input.Props [
-                        Style [Width "100px"]
+                        simulationNumberStyle
                         OnChange (getTextEventValue >> (fun text ->
                             match text.Length with
                             | l when l > width ->
@@ -97,7 +100,7 @@ let private viewSimulationInputs
         let labelText = match width with
                         | 1 -> inputLabel
                         | w -> sprintf "%s (%d bits)" inputLabel w
-        Level.level [] [
+        Level.level [Level.Level.Props [Style [MarginBottom "10px"]]] [
             Level.left [] [
                 Level.item [] [ str labelText ]
             ]
@@ -113,12 +116,43 @@ let private viewSimulationInputs
     )
 
 let private viewSimulationOutputs (simOutputs : (SimulationIO * WireData) list) =
+    let makeOutputLine ((ComponentId _, ComponentLabel outputLabel, width), wireData) =
+        assertThat (List.length wireData = width)
+        <| sprintf "Inconsistent wireData length in viewSimulationOutput for %s: expcted %d but got %d" outputLabel width wireData.Length
+        let valueHandle =
+            match wireData with
+            | [] -> failwith "what? Empty wireData while creating a line in simulation output."
+            | [bit] ->
+                // For simple bits, just have a Zero/One button.
+                Button.button [
+                    Button.Props [ simulationBitStyle ]
+                    Button.Color IsPrimary
+                    (match bit with Zero -> Button.IsOutlined | One -> Button.Color IsPrimary)
+                    Button.IsHovered false
+                    Button.Disabled true
+                ] [ str <| bitToString bit ]
+            | bits ->
+                let bitsStr = bitsToString bits
+                Input.text [
+                    Input.IsReadOnly true
+                    Input.Value bitsStr
+                    Input.Props [simulationNumberStyle]
+                ]
+        let labelText = match width with
+                        | 1 -> outputLabel
+                        | w -> sprintf "%s (%d bits)" outputLabel w
+        Level.level [Level.Level.Props [Style [MarginBottom "10px"]]] [
+            Level.left [] [
+                Level.item [] [ str labelText ]
+            ]
+            Level.right [] [
+                Level.item [] [ valueHandle ]
+            ]
+        ]
     div [] (
         simOutputs
-        |> List.collect (fun ((_, ComponentLabel outputLabel, width), wireData) ->
-            assertThat (wireData.Length = width) <| sprintf "Inconsistent wireData length in viewSimulationOutput for %s: expcted %d but got %d" outputLabel width wireData.Length
-            [ str <| sprintf "%s\t%A" outputLabel wireData; br [] ]
-        )
+        |> List.sortBy (fun ((_, ComponentLabel label, _), _) -> label)
+        |> List.map makeOutputLine
     )
 
 let private viewSimulationError (simError : SimulationError) =

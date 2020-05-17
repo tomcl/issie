@@ -68,3 +68,15 @@ let errorNotificationStyle =
         Color "white" // White text.
         BackgroundColor "red"
     ]
+
+let simulationNumberStyle = Style [
+    Width "100px"
+    Height "30px"
+]
+
+let simulationBitStyle = Style [
+    Width "100px"
+    Height "30px"
+    PaddingTop "3px"
+]
+

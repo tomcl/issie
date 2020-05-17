@@ -42,17 +42,24 @@ let private makeCustomList model =
 
 let private askLabelPopup typeStr compType model dispatch =
     let title = sprintf "Add %s node" typeStr
-    let before =
+    let beforeText =
         fun _ -> str <| sprintf "How do you want to name your %s?" typeStr
     let placeholder = "Component name"
+    let beforeInt =
+        fun _ -> str <| sprintf "How many bits should the %s node have?" typeStr
+    let intDefault = 1
+    let body = dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
-        fun inputText ->
-            // TODO: ask for width.
-            model.Diagram.CreateComponent (compType 1) inputText 100 100 |> ignore
+        fun (dialogData : PopupDialogData) ->
+            let inputText = getText dialogData
+            let inputInt = getInt dialogData
+            model.Diagram.CreateComponent (compType inputInt) inputText 100 100 |> ignore
             dispatch ClosePopup
-    let isDisabled = fun _ -> false // TODO: check label already present?
-    dialogPopup title before placeholder buttonText buttonAction isDisabled dispatch
+    let isDisabled =
+        fun (dialogData : PopupDialogData) ->
+            (getInt dialogData < 1) || (getText dialogData = "")
+    dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 let viewCatalogue model dispatch =
     Menu.menu [ ] [

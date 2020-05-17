@@ -48,10 +48,11 @@ type SimulationComponent = {
 // Map every ComponentId to its SimulationComponent.
 type SimulationGraph = Map<ComponentId, SimulationComponent>
 
-// For every IO node, keep track of its Id and Label.
+// For every IO node, keep track of its Id, Label and wire width.
 // - Id: to feed values into the simulationGraph.
 // - Label: to display a nice form to the user.
-type SimulationIO = ComponentId * ComponentLabel
+// - Width: to feed the right values into the simulation.
+type SimulationIO = ComponentId * ComponentLabel * int
 
 type SimulationData = {
     Graph : SimulationGraph

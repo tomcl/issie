@@ -27,6 +27,12 @@ open DiagramStyle
 // Popups //
 //========//
 
+let getText (dialogData : PopupDialogData) =
+    Option.defaultValue "" dialogData.Text
+
+let getInt (dialogData : PopupDialogData) =
+    Option.defaultValue 1 dialogData.Int
+
 /// Unclosable popup.
 let stablePopup body =
     Modal.modal [ Modal.IsActive true ] [
@@ -37,7 +43,7 @@ let stablePopup body =
     ]
 
 let private buildPopup title body foot close =
-    fun text ->
+    fun (dialogData : PopupDialogData) ->
         Modal.modal [ Modal.IsActive true ] [
             Modal.background [ Props [ OnClick close ] ] []
             Modal.Card.card [] [
@@ -45,8 +51,8 @@ let private buildPopup title body foot close =
                     Modal.Card.title [] [ str title ]
                     Delete.delete [ Delete.OnClick close ] []
                 ]
-                Modal.Card.body [] [ body text ]
-                Modal.Card.foot [] [ foot text ]
+                Modal.Card.body [] [ body dialogData ]
+                Modal.Card.foot [] [ foot dialogData ]
             ]
         ]
 
@@ -64,24 +70,42 @@ let private dynamicClosablePopup title body foot dispatch =
 let closablePopup title body foot dispatch =
     dynamicClosablePopup title (fun _ -> body) (fun _ -> foot) dispatch
 
-/// Get the value for a change event in an input textbox.
-let private getEventValue (event: React.FormEvent) = 
-    getFailIfNull event.currentTarget ["value"] |> unbox<string>  
+/// Create the body of a dialog Popup with only text.
+let dialogPopupBodyOnlyText before placeholder dispatch =
+    fun (dialogData : PopupDialogData) ->
+        div [] [
+            before dialogData
+            Input.text [
+                Input.Placeholder placeholder
+                Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
+            ]
+        ]
+
+/// Create the body of a dialog Popup with both text and int.
+let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch =
+    fun (dialogData : PopupDialogData) ->
+        div [] [
+            beforeText dialogData
+            Input.text [
+                Input.Placeholder placeholder
+                Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
+            ]
+            br []
+            br []
+            beforeInt dialogData
+            br []
+            Input.number [
+                Input.Props [Style [Width "60px"]]
+                Input.DefaultValue <| sprintf "%d" intDefault
+                Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
+            ]
+        ]
 
 /// Popup with an input textbox and two buttons.
 /// The text is reflected in Model.PopupDialogText.
-let dialogPopup title before placeholder buttonText buttonAction isDisabled dispatch =
-    let body =
-        fun dialogText ->
-            div [] [
-                before dialogText
-                Input.text [
-                    Input.Placeholder placeholder
-                    Input.OnChange (getEventValue >> Some >> SetPopupDialogText >> dispatch)
-                ]
-            ]
+let dialogPopup title body buttonText buttonAction isDisabled dispatch =
     let foot =
-        fun dialogText ->
+        fun (dialogData : PopupDialogData) ->
             Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
                 Level.left [] []
                 Level.right [] [
@@ -93,9 +117,9 @@ let dialogPopup title before placeholder buttonText buttonAction isDisabled disp
                     ]
                     Level.item [] [
                         Button.button [
-                            Button.Disabled (isDisabled dialogText)
+                            Button.Disabled (isDisabled dialogData)
                             Button.Color IsPrimary
-                            Button.OnClick (fun _ -> buttonAction dialogText)
+                            Button.OnClick (fun _ -> buttonAction dialogData)
                         ] [ str buttonText ]
                     ]
                 ]
@@ -126,10 +150,9 @@ let confirmationPopup title body buttonText buttonAction dispatch =
 
 /// Display popup, if any is present.
 let viewPopup model =
-    match model.Popup, model.PopupDialogText with
-    | None, _ -> div [] []
-    | Some popup, None -> popup ""
-    | Some popup, Some text -> popup text
+    match model.Popup with
+    | None -> div [] []
+    | Some popup -> popup model.PopupDialogData
 
 //===============//
 // Notifications //

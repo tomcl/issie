@@ -12,6 +12,7 @@ open Fable.Helpers.React.Props
 
 open Helpers
 open JSHelpers
+open PopupView
 open DiagramMessageType
 open DiagramModelType
 open DiagramTypes
@@ -58,7 +59,6 @@ let private viewSimulationInputs
                     Button.Color IsPrimary
                     (match bit with Zero -> Button.IsOutlined | One -> Button.Color IsPrimary)
                     Button.IsHovered false
-                    Button.Size IsSmall
                     Button.OnClick (fun _ ->
                         let newBit = match bit with
                                      | Zero -> One
@@ -70,22 +70,25 @@ let private viewSimulationInputs
             | bits ->
                 let bitsStr = bitsToString bits
                 Input.text [
-                    Input.Size IsSmall
                     Input.DefaultValue bitsStr
                     Input.Props [
                         Style [Width "100px"]
-                        OnBlur (getTextFocusEventValue >> (fun text ->
+                        OnChange (getTextEventValue >> (fun text ->
                             match text.Length with
                             | l when l > width ->
-                                // TODO: display error.
-                                log <| sprintf "Too many bits. The input expects %d bits, but %d where given" width l
+                                let err = sprintf "Too many bits. The input expects %d bits, but %d were given." width l
+                                errorNotification err CloseSimulationNotification
+                                |> SetSimulationNotification |> dispatch
                             | _ ->
                                 let maybeBits = padBitsToWidth width text |> stringToBits
                                 match maybeBits with
                                 | None ->
-                                    // TODO: display error.
-                                    log <| sprintf "Invalid bits sequence. The only characters allowed are 1 and 0."
+                                    let err = sprintf "Invalid bits sequence. The only characters allowed are 0 and 1."
+                                    errorNotification err CloseSimulationNotification
+                                    |> SetSimulationNotification |> dispatch
                                 | Some bits ->
+                                    // Close simulation notifications.
+                                    CloseSimulationNotification |> dispatch
                                     feedSimulationInput simulationGraph (ComponentId inputId) bits
                                     |> SetSimulationGraph |> dispatch
                         ))

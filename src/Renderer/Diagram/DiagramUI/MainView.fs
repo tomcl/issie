@@ -34,6 +34,7 @@ let init() = {
     PopupDialogData = {Text = None; Int = None}
     Notifications = {
         FromDiagram = None
+        FromSimulation = None
     }
 }
 
@@ -64,7 +65,7 @@ let runBusWidthInference model =
                 // Display notification with error message.
                 { model with Notifications =
                                 { model.Notifications with FromDiagram =
-                                                            Some <| errorNotification e.Msg } }
+                                                            Some <| errorNotification e.Msg CloseDiagramNotification} }
             | Ok connsWidth ->
                 paintEach connsWidth
                 JSHelpers.stopAndLogTimer "bus-infer-performance"
@@ -175,4 +176,10 @@ let update msg model =
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }
     | SetPopupDialogInt int ->
         { model with PopupDialogData = {model.PopupDialogData with Int = int} }
-    | CloseDiagramNotification -> { model with Notifications = {model.Notifications with FromDiagram = None} }
+    | CloseDiagramNotification ->
+        { model with Notifications = {model.Notifications with FromDiagram = None} }
+    | SetSimulationNotification n ->
+        { model with Notifications =
+                        { model.Notifications with FromSimulation = Some n}}
+    | CloseSimulationNotification ->
+        { model with Notifications = {model.Notifications with FromSimulation = None} }

@@ -2,6 +2,7 @@ module DiagramMessageType
 
 open DiagramTypes
 open SimulatorTypes
+open Fable.Import.React
 
 type DisplayModeType = Hidden | Visible
 
@@ -37,8 +38,10 @@ type Msg =
     | SetClipboard of CanvasState
     | SetProject of Project
     | CloseProject
-    | ShowPopup of (PopupDialogData -> Fable.Import.React.ReactElement)
+    | ShowPopup of (PopupDialogData -> ReactElement)
     | ClosePopup
     | SetPopupDialogText of string option
     | SetPopupDialogInt of int option
     | CloseDiagramNotification
+    | SetSimulationNotification of ((Msg -> unit) -> ReactElement)
+    | CloseSimulationNotification

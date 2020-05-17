@@ -116,20 +116,25 @@ let private getReducer
     // The Reducer for Custom components, which use it, will be replaced in the
     // DependencyMerger.
     match componentType with
-    | Input ->
+    | Input width ->
         fun inputs _ ->
             assertNotTooManyInputs inputs componentType 1
             // Simply forward the input.
             // Note that the input of and Input node must be feeded manually.
             match getValuesForPorts inputs [InputPortNumber 0] with
             | None -> None, None // Wait for more inputs.
-            | Some [bit] -> Some <| Map.empty.Add (OutputPortNumber 0, bit), None
+            | Some [bits] ->
+                assertThat (bits.Length = width) <| sprintf "Input node reducer received wrong number of bits: expected %d but got %d" width bits.Length
+                Some <| Map.empty.Add (OutputPortNumber 0, bits), None
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
-    | Output ->
+    | Output width ->
         fun inputs _ ->
             assertNotTooManyInputs inputs componentType 1
             match getValuesForPorts inputs [InputPortNumber 0] with
-            | None | Some [_] -> None, None // Do nothing with it. Just make sure it is received.
+            | None -> None, None
+            | Some [bits] ->
+                assertThat (bits.Length = width) <| sprintf "Output node reducer received wrong number of bits: expected %d but got %d" width bits.Length
+                None, None // Do nothing with it. Just make sure it is received.
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
     | Not ->
         fun inputs _ ->

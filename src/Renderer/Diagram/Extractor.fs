@@ -41,8 +41,8 @@ let private extractPorts (jsPorts : JSPorts) : Port list =
 
 let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     match getFailIfNull jsComponent ["componentType"] with
-    | "Input"  -> Input
-    | "Output" -> Output
+    | "Input"  -> Input <| getFailIfNull jsComponent ["numberOfBits"]
+    | "Output" -> Output <| getFailIfNull jsComponent ["numberOfBits"]
     | "Not"    -> Not
     | "And"    -> And
     | "Or"     -> Or

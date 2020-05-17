@@ -98,15 +98,15 @@ let extractIncompleteSimulationIOs
                        | Some wireData -> ((ioId, ioLabel), wireData) :: result
     )
 
-
 /// Get the ComponentIds and ComponentLabels of all input and output nodes.
 let getSimulationIOs
         (components : Component list)
         : SimulationIO list * SimulationIO list =
     (([], []), components) ||> List.fold (fun (inputs, outputs) comp ->
         match comp.Type with
-        | Input  -> ((ComponentId comp.Id, ComponentLabel comp.Label) :: inputs, outputs)
-        | Output -> (inputs, (ComponentId comp.Id, ComponentLabel comp.Label) :: outputs)
+        // TODO: add the width to simulationIO?
+        | Input _  -> ((ComponentId comp.Id, ComponentLabel comp.Label) :: inputs, outputs)
+        | Output _ -> (inputs, (ComponentId comp.Id, ComponentLabel comp.Label) :: outputs)
         | _ -> (inputs, outputs)
     )
 
@@ -116,7 +116,8 @@ let getSimulationIOsFromGraph
         : SimulationIO list * SimulationIO list =
     (([], []), graph) ||> Map.fold (fun (inputs, outputs) compId comp ->
         match comp.Type with
-        | Input  -> ((comp.Id, comp.Label) :: inputs, outputs)
-        | Output -> (inputs, (comp.Id, comp.Label) :: outputs)
+        // TODO: add the width to simulationIO?
+        | Input _  -> ((comp.Id, comp.Label) :: inputs, outputs)
+        | Output _ -> (inputs, (comp.Id, comp.Label) :: outputs)
         | _ -> (inputs, outputs)
     )

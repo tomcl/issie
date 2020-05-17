@@ -41,8 +41,8 @@ type private IDraw2d =
     abstract getInputPorts                : comp:JSComponent -> JSPorts
     abstract getOutputPorts               : comp:JSComponent -> JSPorts
     abstract installSelectionPolicy       : comp:JSComponent -> unit
-    abstract createDigitalInput           : x:int -> y:int -> JSComponent
-    abstract createDigitalOutput          : x:int -> y:int -> JSComponent
+    abstract createDigitalInput           : x:int -> y:int -> numberOfBits:int -> JSComponent
+    abstract createDigitalOutput          : x:int -> y:int -> numberOfBits:int -> JSComponent
     abstract createDigitalNot             : x:int -> y:int -> JSComponent
     abstract createDigitalAnd             : x:int -> y:int -> JSComponent
     abstract createDigitalOr              : x:int -> y:int -> JSComponent
@@ -102,8 +102,8 @@ let private createComponent
         : JSComponent =
     let comp =
         match componentType with
-        | Input  -> draw2dLib.createDigitalInput x y
-        | Output -> draw2dLib.createDigitalOutput x y
+        | Input w  -> draw2dLib.createDigitalInput x y w
+        | Output w -> draw2dLib.createDigitalOutput x y w
         | Not    -> draw2dLib.createDigitalNot x y
         | And    -> draw2dLib.createDigitalAnd x y
         | Or     -> draw2dLib.createDigitalOr x y

@@ -92,15 +92,16 @@ let private calculateOutputPortsWidth
     let getConnectionIdForPort =
         InputPortNumber >> (getConnectionIdForPort inputConnectionsWidth)
     match comp.Type with
-    | Input ->
-        // Expects no inputs, and has an outgoing wire of width 1.
+    | Input width ->
+        // Expects no inputs, and has an outgoing wire of the given width.
         assertInputsSize inputConnectionsWidth 0 comp
-        Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
-    | Output ->
+        Ok <| Map.empty.Add (getOutputPortId comp 0, width)
+    | Output width ->
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
-        | [None] | [Some 1] -> Ok Map.empty // Output node has no outputs.
-        | [Some n] -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 0]
+        | [None] -> Ok Map.empty
+        | [Some n] when n = width -> Ok Map.empty // Output node has no outputs.
+        | [Some n] when n <> width -> makeWidthInferErrorEqual width n [getConnectionIdForPort 0]
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
     | Not ->
         assertInputsSize inputConnectionsWidth 1 comp
@@ -361,7 +362,7 @@ let private initialiseConnectionsWidth connections : ConnectionsWidth =
     |> Map.ofList
 
 let private getAllInputNodes components : Component list =
-    components |> List.filter (fun comp -> comp.Type = Input)
+    components |> List.filter (fun comp -> match comp.Type with | Input _ -> true | _ -> false)
 
 /// For each connected Input port, map the connection that is connected to it.
 /// Fail if there are multiple connections connected to the same input port.

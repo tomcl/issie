@@ -200,10 +200,10 @@ let private checkIOLabels (canvasState : CanvasState) : SimulationError option =
     let components, _ = canvasState
     let inputs =
         components
-        |> List.filter (fun comp -> match comp.Type with | Input -> true | _ -> false)
+        |> List.filter (fun comp -> match comp.Type with | Input _ -> true | _ -> false)
     let outputs =
         components
-        |> List.filter (fun comp -> match comp.Type with | Output -> true | _ -> false)
+        |> List.filter (fun comp -> match comp.Type with | Output _ -> true | _ -> false)
     match checkDuplicate inputs (toMap inputs) "Input",
           checkDuplicate outputs (toMap outputs) "Output" with
     | Some err, _ | _, Some err -> Some err

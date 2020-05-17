@@ -64,6 +64,7 @@ draw2d.shape.digital.Input = draw2d.shape.digital.extend({
     svgElements : [
         {path: '<polygon points="0,0 20,0 30,10 20,20 0,20" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true}
     ],
+    numberOfBits : 1,
 
     init: function(attr, setter, getter ){
         this._super(
@@ -72,7 +73,10 @@ draw2d.shape.digital.Input = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
+        console.assert(typeof attr.numberOfBits === "number", "numberOfBits is not a number when creating an Input node");
+        this.numberOfBits = attr.numberOfBits;
+
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), this.numberOfBits > 1);
     },
 });
 
@@ -86,6 +90,7 @@ draw2d.shape.digital.Output = draw2d.shape.digital.extend({
     svgElements : [
         {path: '<polygon points="0,10 10,0 30,0 30,20 10,20" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true}
     ],
+    numberOfBits : 1, // TODO: is this necessary? It can be inferred.
 
     init: function(attr, setter, getter ){
         this._super(
@@ -94,7 +99,10 @@ draw2d.shape.digital.Output = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        console.assert(typeof attr.numberOfBits === "number", "numberOfBits is not a number when creating an Output node");
+        this.numberOfBits = attr.numberOfBits;
+
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), this.numberOfBits > 1);
     },
 });
 

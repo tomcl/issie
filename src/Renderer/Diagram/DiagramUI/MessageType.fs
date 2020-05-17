@@ -10,6 +10,12 @@ type RightTab =
     | Catalogue
     | Simulation
 
+/// Possible fields that may (or may not) be used in a dialog popup.
+type PopupDialogData = {
+    Text: string option;
+    Int: int option;
+}
+
 //==========//
 // Messages //
 //==========//
@@ -31,7 +37,8 @@ type Msg =
     | SetClipboard of CanvasState
     | SetProject of Project
     | CloseProject
-    | ShowPopup of (string -> Fable.Import.React.ReactElement)
+    | ShowPopup of (PopupDialogData -> Fable.Import.React.ReactElement)
     | ClosePopup
     | SetPopupDialogText of string option
+    | SetPopupDialogInt of int option
     | CloseDiagramNotification

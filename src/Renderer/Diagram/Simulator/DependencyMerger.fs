@@ -215,7 +215,7 @@ let private portNumberToLabel (InputPortNumber pNumber) (inputLabels : string li
 let private extractInputValuesAsMap graph graphInputs inputLabels : Map<InputPortNumber, WireData> =
     extractIncompleteSimulationIOs graphInputs graph
     |> List.map (
-        fun ((_, ComponentLabel compLabel), wireData) ->
+        fun ((_, ComponentLabel compLabel, _), wireData) ->
             InputPortNumber <| labelToPortNumber compLabel inputLabels, wireData)
     |> Map.ofList
 
@@ -223,8 +223,8 @@ let private extractInputValuesAsMap graph graphInputs inputLabels : Map<InputPor
 let private extractOutputValuesAsMap graph graphOutputs outputLabels : Map<OutputPortNumber, WireData> =
     extractSimulationIOs graphOutputs graph
     |> List.map (
-        fun ( (_, ComponentLabel label), bit ) ->
-            OutputPortNumber <| labelToPortNumber label outputLabels, bit)
+        fun ((_, ComponentLabel label, _), wireData) ->
+            OutputPortNumber <| labelToPortNumber label outputLabels, wireData)
     |> Map.ofList
 
 /// Function used in the custom reducer to only feed the inputs that changed.
@@ -273,14 +273,14 @@ let private makeCustomReducer
             let newInputs = diffSimulationInputs inputs oldInputs
             let graph =
                 (graph, newInputs)
-                ||> Map.fold (fun graph inputPortNumber bit ->
+                ||> Map.fold (fun graph inputPortNumber wireData ->
                     let inputLabel =
                         portNumberToLabel inputPortNumber inputLabels
-                    let inputId, _ =
+                    let inputId, _, _ =
                         graphInputs
-                        |> List.find (fun (_, ComponentLabel inpLabel) ->
+                        |> List.find (fun (_, ComponentLabel inpLabel, _) ->
                                       inpLabel = inputLabel)
-                    feedSimulationInput graph inputId bit
+                    feedSimulationInput graph inputId wireData
                 )
             let outputs =
                 extractOutputValuesAsMap graph graphOutputs outputLabels

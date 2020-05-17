@@ -31,7 +31,7 @@ let init() = {
     Hilighted = [], []
     Clipboard = [], []
     Popup = None
-    PopupDialogText = None
+    PopupDialogData = {Text = None; Int = None}
     Notifications = {
         FromDiagram = None
     }
@@ -170,6 +170,9 @@ let update msg model =
     | SetProject project -> { model with CurrProject = Some project }
     | CloseProject -> { model with CurrProject = None }
     | ShowPopup popup -> { model with Popup = Some popup }
-    | ClosePopup -> { model with Popup = None; PopupDialogText = None }
-    | SetPopupDialogText text -> { model with PopupDialogText = text }
+    | ClosePopup -> { model with Popup = None; PopupDialogData = {Text = None; Int = None} }
+    | SetPopupDialogText text ->
+        { model with PopupDialogData = {model.PopupDialogData with Text = text} }
+    | SetPopupDialogInt int ->
+        { model with PopupDialogData = {model.PopupDialogData with Int = int} }
     | CloseDiagramNotification -> { model with Notifications = {model.Notifications with FromDiagram = None} }

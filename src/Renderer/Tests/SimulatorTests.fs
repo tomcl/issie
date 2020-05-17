@@ -28,7 +28,7 @@ let private createAllTestCases
         (state : CanvasState)
         (dependencies : LoadedComponent list)
         (inputLabels : ComponentId list)
-        (expectedResults : (((ComponentId * ComponentLabel) * WireData) list) list)
+        (expectedResults : ((SimulationIO * WireData) list) list)
         : SimulatorTestCase list =
     let allInputCombinations = makeAllBitCombinations inputLabels
     assert(List.length allInputCombinations = List.length expectedResults)
@@ -139,8 +139,8 @@ let private testCasesSimulatorOkNoDependencies : SimulatorTestCase list =
         "Simple circuit with one input and one output"
         "main" state3 [] [ComponentId "input-node0"]
         [
-           [(ComponentId "output-node0", ComponentLabel "output-node0-label"), [Zero]]
-           [(ComponentId "output-node0", ComponentLabel "output-node0-label"), [One]]
+           [(ComponentId "output-node0", ComponentLabel "output-node0-label", 1), [Zero]]
+           [(ComponentId "output-node0", ComponentLabel "output-node0-label", 1), [One]]
         ]
     @
     createAllTestCases
@@ -148,12 +148,12 @@ let private testCasesSimulatorOkNoDependencies : SimulatorTestCase list =
         "main" state4 [] [ComponentId "input-node0"]
         [
             [
-                (ComponentId "output-node0", ComponentLabel "output-node0-label"), [Zero]
-                (ComponentId "output-node1", ComponentLabel "output-node1-label"), [Zero]
+                (ComponentId "output-node0", ComponentLabel "output-node0-label", 1), [Zero]
+                (ComponentId "output-node1", ComponentLabel "output-node1-label", 1), [Zero]
             ]
             [
-                (ComponentId "output-node0", ComponentLabel "output-node0-label"), [One]
-                (ComponentId "output-node1", ComponentLabel "output-node1-label"), [One]
+                (ComponentId "output-node0", ComponentLabel "output-node0-label", 1), [One]
+                (ComponentId "output-node1", ComponentLabel "output-node1-label", 1), [One]
             ]
         ]
     @
@@ -161,18 +161,18 @@ let private testCasesSimulatorOkNoDependencies : SimulatorTestCase list =
         "Two inputs; one And; one output"
         "main" state6 [] [ComponentId "top-input"; ComponentId "bottom-input"]
         [
-            [(ComponentId "output", ComponentLabel "output-node0-label"), [Zero]]
-            [(ComponentId "output", ComponentLabel "output-node0-label"), [Zero]]
-            [(ComponentId "output", ComponentLabel "output-node0-label"), [Zero]]
-            [(ComponentId "output", ComponentLabel "output-node0-label"), [One]]
+            [(ComponentId "output", ComponentLabel "output-node0-label", 1), [Zero]]
+            [(ComponentId "output", ComponentLabel "output-node0-label", 1), [Zero]]
+            [(ComponentId "output", ComponentLabel "output-node0-label", 1), [Zero]]
+            [(ComponentId "output", ComponentLabel "output-node0-label", 1), [One]]
         ]
     @
     createAllTestCases
         "Weird diagram with a series of and gates"
         "main" state12 [] [ComponentId "input"]
         [
-            [(ComponentId "output", ComponentLabel "output"), [Zero]]
-            [(ComponentId "output", ComponentLabel "output"), [One]]
+            [(ComponentId "output", ComponentLabel "output", 1), [Zero]]
+            [(ComponentId "output", ComponentLabel "output", 1), [One]]
         ]
     @
     createAllTestCases
@@ -183,20 +183,20 @@ let private testCasesSimulatorOkNoDependencies : SimulatorTestCase list =
         ]
         [
             [
-                (ComponentId "9aaf18a9-b3ac-bf51-1ed3-625baa1ff6a9", ComponentLabel "Sum"), [Zero]
-                (ComponentId "94da6dd7-a263-a3ec-ec76-bfa07b0b0f34", ComponentLabel "Carry"), [Zero]
+                (ComponentId "9aaf18a9-b3ac-bf51-1ed3-625baa1ff6a9", ComponentLabel "Sum", 1), [Zero]
+                (ComponentId "94da6dd7-a263-a3ec-ec76-bfa07b0b0f34", ComponentLabel "Carry", 1), [Zero]
             ]
             [
-                (ComponentId "9aaf18a9-b3ac-bf51-1ed3-625baa1ff6a9", ComponentLabel "Sum"), [One]
-                (ComponentId "94da6dd7-a263-a3ec-ec76-bfa07b0b0f34", ComponentLabel "Carry"), [Zero]
+                (ComponentId "9aaf18a9-b3ac-bf51-1ed3-625baa1ff6a9", ComponentLabel "Sum", 1), [One]
+                (ComponentId "94da6dd7-a263-a3ec-ec76-bfa07b0b0f34", ComponentLabel "Carry", 1), [Zero]
             ]
             [
-                (ComponentId "9aaf18a9-b3ac-bf51-1ed3-625baa1ff6a9", ComponentLabel "Sum"), [One]
-                (ComponentId "94da6dd7-a263-a3ec-ec76-bfa07b0b0f34", ComponentLabel "Carry"), [Zero]
+                (ComponentId "9aaf18a9-b3ac-bf51-1ed3-625baa1ff6a9", ComponentLabel "Sum", 1), [One]
+                (ComponentId "94da6dd7-a263-a3ec-ec76-bfa07b0b0f34", ComponentLabel "Carry", 1), [Zero]
             ]
             [
-                (ComponentId "9aaf18a9-b3ac-bf51-1ed3-625baa1ff6a9", ComponentLabel "Sum"), [Zero]
-                (ComponentId "94da6dd7-a263-a3ec-ec76-bfa07b0b0f34", ComponentLabel "Carry"), [One]
+                (ComponentId "9aaf18a9-b3ac-bf51-1ed3-625baa1ff6a9", ComponentLabel "Sum", 1), [Zero]
+                (ComponentId "94da6dd7-a263-a3ec-ec76-bfa07b0b0f34", ComponentLabel "Carry", 1), [One]
             ]
         ]
 
@@ -205,8 +205,8 @@ let testCasesSimulatorDependencyError : SimulatorTestCase list =
         "Broken unused dependency." // Since the dependency is unused the test should pass.
         "main" state3 [state1Dependency] [ComponentId "input-node0"]
         [
-           [(ComponentId "output-node0", ComponentLabel "output-node0-label"), [Zero]]
-           [(ComponentId "output-node0", ComponentLabel "output-node0-label"), [One]]
+           [(ComponentId "output-node0", ComponentLabel "output-node0-label", 1), [Zero]]
+           [(ComponentId "output-node0", ComponentLabel "output-node0-label", 1), [One]]
         ]
     @
     [
@@ -262,44 +262,44 @@ let testCasesSimulatorDependencyError : SimulatorTestCase list =
 // Outputs fot the 2bit adder test.
 
 let private zero = [
-        (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1"), [Zero]
-        (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0"), [Zero]
-        (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout"), [Zero]
+        (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1", 1), [Zero]
+        (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0", 1), [Zero]
+        (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout", 1), [Zero]
     ]
 let private one = [
-        (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1"), [Zero]
-        (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0"), [One]
-        (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout"), [Zero]
+        (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1", 1), [Zero]
+        (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0", 1), [One]
+        (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout", 1), [Zero]
     ]
 let private two = [
-        (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1"), [One]
-        (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0"), [Zero]
-        (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout"), [Zero]
+        (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1", 1), [One]
+        (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0", 1), [Zero]
+        (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout", 1), [Zero]
     ]
 let private three = [
-        (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1"), [One]
-        (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0"), [One]
-        (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout"), [Zero]
+        (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1", 1), [One]
+        (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0", 1), [One]
+        (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout", 1), [Zero]
     ]
 let private four = [
-        (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1"), [Zero]
-        (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0"), [Zero]
-        (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout"), [One]
+        (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1", 1), [Zero]
+        (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0", 1), [Zero]
+        (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout", 1), [One]
     ]
 let private five = [
-        (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1"), [Zero]
-        (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0"), [One]
-        (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout"), [One]
+        (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1", 1), [Zero]
+        (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0", 1), [One]
+        (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout", 1), [One]
     ]
 let private six = [
-        (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1"), [One]
-        (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0"), [Zero]
-        (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout"), [One]
+        (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1", 1), [One]
+        (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0", 1), [Zero]
+        (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout", 1), [One]
     ]
 let private seven = [
-        (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1"), [One]
-        (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0"), [One]
-        (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout"), [One]
+        (ComponentId "dbb1f55a-edf3-bde2-4c69-43a02560e17d", ComponentLabel "Sum1", 1), [One]
+        (ComponentId "8f5bded5-f46d-722d-6108-03dda4236c01", ComponentLabel "Sum0", 1), [One]
+        (ComponentId "7d948312-376d-1d4b-cf02-90872026be16", ComponentLabel "Cout", 1), [One]
     ]
 
 let testCasesSimulatorOkWithDependencies : SimulatorTestCase list =
@@ -307,24 +307,24 @@ let testCasesSimulatorOkWithDependencies : SimulatorTestCase list =
         "Simple input-output dependency" "main"
         state16 [state3Dependency] [ComponentId "outer-input-node0"]
         [
-            [(ComponentId "outer-output-node0", ComponentLabel "outer-output-node0-label"), [Zero]]
-            [(ComponentId "outer-output-node0", ComponentLabel "outer-output-node0-label"), [One]]
+            [(ComponentId "outer-output-node0", ComponentLabel "outer-output-node0-label", 1), [Zero]]
+            [(ComponentId "outer-output-node0", ComponentLabel "outer-output-node0-label", 1), [One]]
         ]
     @
     createAllTestCases
         "Nested input-output dependency" "main"
         state17 [state16Dependency; state3Dependency] [ComponentId "outer-outer-input-node0"]
         [
-            [(ComponentId "outer-outer-output-node0", ComponentLabel "outer-outer-output-node0-label"), [Zero]]
-            [(ComponentId "outer-outer-output-node0", ComponentLabel "outer-outer-output-node0-label"), [One]]
+            [(ComponentId "outer-outer-output-node0", ComponentLabel "outer-outer-output-node0-label", 1), [Zero]]
+            [(ComponentId "outer-outer-output-node0", ComponentLabel "outer-outer-output-node0-label", 1), [One]]
         ]
     @
     createAllTestCases
         "Doubly nested input-output dependency" "main"
         state18 [state17Dependency; state16Dependency; state3Dependency] [ComponentId "outer-outer-outer-input-node0"]
         [
-            [(ComponentId "outer-outer-outer-output-node0", ComponentLabel "outer-outer-outer-output-node0-label"), [Zero]]
-            [(ComponentId "outer-outer-outer-output-node0", ComponentLabel "outer-outer-outer-output-node0-label"), [One]]
+            [(ComponentId "outer-outer-outer-output-node0", ComponentLabel "outer-outer-outer-output-node0-label", 1), [Zero]]
+            [(ComponentId "outer-outer-outer-output-node0", ComponentLabel "outer-outer-outer-output-node0-label", 1), [One]]
         ]
     @
     createAllTestCases
@@ -361,8 +361,8 @@ let private testCasesSimulatorOkWithBuses : SimulatorTestCase list =
             ComponentId "9985ebc6-1cd5-8863-1341-1d543d236d38" // b
         ]
         (makeAllBitCombinations [
-            (ComponentId "8a9392fc-493b-7e96-72ec-b6f5f11ded8a", ComponentLabel "a-out")
-            (ComponentId "dfcf6cff-fbac-e54f-7a9d-7059d17e3a0b", ComponentLabel "b-out")
+            (ComponentId "8a9392fc-493b-7e96-72ec-b6f5f11ded8a", ComponentLabel "a-out", 1)
+            (ComponentId "dfcf6cff-fbac-e54f-7a9d-7059d17e3a0b", ComponentLabel "b-out", 1)
         ])
     @
     createAllTestCases
@@ -374,10 +374,10 @@ let private testCasesSimulatorOkWithBuses : SimulatorTestCase list =
             ComponentId "9824ceb8-e999-8e48-9a56-7a4349e495b1" // d
         ]
         (makeAllBitCombinations [
-            (ComponentId "59b45f9c-192c-98ce-da25-a94db45a5790", ComponentLabel "a-out")
-            (ComponentId "8a9392fc-493b-7e96-72ec-b6f5f11ded8a", ComponentLabel "b-out")
-            (ComponentId "dfcf6cff-fbac-e54f-7a9d-7059d17e3a0b", ComponentLabel "c-out")
-            (ComponentId "214620f0-51f6-59fe-1558-ed47fd2c680a", ComponentLabel "d-out")
+            (ComponentId "59b45f9c-192c-98ce-da25-a94db45a5790", ComponentLabel "a-out", 1)
+            (ComponentId "8a9392fc-493b-7e96-72ec-b6f5f11ded8a", ComponentLabel "b-out", 1)
+            (ComponentId "dfcf6cff-fbac-e54f-7a9d-7059d17e3a0b", ComponentLabel "c-out", 1)
+            (ComponentId "214620f0-51f6-59fe-1558-ed47fd2c680a", ComponentLabel "d-out", 1)
         ])
 
 let testCasesSimulator =

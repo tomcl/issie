@@ -158,9 +158,9 @@ let viewPopup model =
 // Notifications //
 //===============//
 
-let errorNotification text =
+let errorNotification text closeMsg =
     fun dispatch ->
-        let close = (fun _ -> dispatch CloseDiagramNotification)
+        let close = (fun _ -> dispatch closeMsg)
         div [errorNotificationStyle] [
             Level.level [ Level.Level.Props [Style [Width "100%"] ] ] [
                 Level.left [] [
@@ -173,6 +173,7 @@ let errorNotification text =
         ]
 
 let viewNotifications model dispatch =
-    match model.Notifications.FromDiagram with
-    | None -> div [] []
-    | Some notification -> notification dispatch
+    match model.Notifications.FromDiagram, model.Notifications.FromSimulation with
+    | None, None -> div [] []
+    | Some notification, None -> notification dispatch
+    | _, Some notification -> notification dispatch // Prioritise notifications from simulation.

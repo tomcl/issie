@@ -3,6 +3,7 @@ module SimulatorTests
 open DiagramTypes
 open SimulatorTypes
 open CanvasStates
+open CanvasStatesWithBuses
 open Simulator
 
 /// Tuple with: (diagramName, state, loadedComponents, inputs).
@@ -303,7 +304,7 @@ let private seven = [
 
 let testCasesSimulatorOkWithDependencies : SimulatorTestCase list =
     createAllTestCases
-        "main" "Simple input-output dependency"
+        "Simple input-output dependency" "main"
         state16 [state3Dependency] [ComponentId "outer-input-node0"]
         [
             [(ComponentId "outer-output-node0", ComponentLabel "outer-output-node0-label"), [Zero]]
@@ -311,7 +312,7 @@ let testCasesSimulatorOkWithDependencies : SimulatorTestCase list =
         ]
     @
     createAllTestCases
-        "main" "Nested input-output dependency"
+        "Nested input-output dependency" "main"
         state17 [state16Dependency; state3Dependency] [ComponentId "outer-outer-input-node0"]
         [
             [(ComponentId "outer-outer-output-node0", ComponentLabel "outer-outer-output-node0-label"), [Zero]]
@@ -319,7 +320,7 @@ let testCasesSimulatorOkWithDependencies : SimulatorTestCase list =
         ]
     @
     createAllTestCases
-        "main" "Doubly nested input-output dependency"
+        "Doubly nested input-output dependency" "main"
         state18 [state17Dependency; state16Dependency; state3Dependency] [ComponentId "outer-outer-outer-input-node0"]
         [
             [(ComponentId "outer-outer-outer-output-node0", ComponentLabel "outer-outer-outer-output-node0-label"), [Zero]]
@@ -327,7 +328,7 @@ let testCasesSimulatorOkWithDependencies : SimulatorTestCase list =
         ]
     @
     createAllTestCases
-        "2-bit-adder" "2 bit adder"
+        "2 bit adder" "2-bit-adder"
         twoBitAdderState [fullAdderDependency; halfAdderDependency] [
             ComponentId "78795182-35c4-1c50-2190-6fc944a2adea" // Cin
             ComponentId "a63fe5a2-9f4d-e70f-131b-ed35d3f3a9e1" // B1
@@ -346,10 +347,45 @@ let testCasesSimulatorOkWithDependencies : SimulatorTestCase list =
             four;five;six;seven
         ]
 
+let private testCasesSimulatorBusesError : SimulatorTestCase list = [
+    "Two inputs make a bus2, then Push input a to bus, then try to split 2 (fail)",
+    ("main", stateBus11, [], []),
+    makeError "Wrong wire width. Expecting 2 but got 3." None [] ["conn"]
+]
+
+let private testCasesSimulatorOkWithBuses : SimulatorTestCase list =
+    createAllTestCases
+        "Two inputs, packed into a bus, unpacked into two outputs" "main"
+        stateBus10 [] [
+            ComponentId "a91be585-2d3b-d872-be0f-b416c8eb03d2" // a
+            ComponentId "9985ebc6-1cd5-8863-1341-1d543d236d38" // b
+        ]
+        (makeAllBitCombinations [
+            (ComponentId "8a9392fc-493b-7e96-72ec-b6f5f11ded8a", ComponentLabel "a-out")
+            (ComponentId "dfcf6cff-fbac-e54f-7a9d-7059d17e3a0b", ComponentLabel "b-out")
+        ])
+    @
+    createAllTestCases
+        "Four inputs, packed into a bus, unpacked into four outputs" "main"
+        stateBus12 [] [
+            ComponentId "76de964a-124b-5c16-6de1-6158626344ac" // a
+            ComponentId "a91be585-2d3b-d872-be0f-b416c8eb03d2" // b
+            ComponentId "9985ebc6-1cd5-8863-1341-1d543d236d38" // c
+            ComponentId "9824ceb8-e999-8e48-9a56-7a4349e495b1" // d
+        ]
+        (makeAllBitCombinations [
+            (ComponentId "59b45f9c-192c-98ce-da25-a94db45a5790", ComponentLabel "a-out")
+            (ComponentId "8a9392fc-493b-7e96-72ec-b6f5f11ded8a", ComponentLabel "b-out")
+            (ComponentId "dfcf6cff-fbac-e54f-7a9d-7059d17e3a0b", ComponentLabel "c-out")
+            (ComponentId "214620f0-51f6-59fe-1558-ed47fd2c680a", ComponentLabel "d-out")
+        ])
+
 let testCasesSimulator =
     testCasesSimulatorPortError @
     testCasesSimulatorCycleError @
     testCasesSimulatorDuplicatIOError @
     testCasesSimulatorOkNoDependencies @
     testCasesSimulatorDependencyError @
-    testCasesSimulatorOkWithDependencies
+    testCasesSimulatorOkWithDependencies @
+    testCasesSimulatorBusesError @
+    testCasesSimulatorOkWithBuses

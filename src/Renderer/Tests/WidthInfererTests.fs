@@ -128,7 +128,7 @@ let private testCasesWidthInfererError : WidhtInfererTestCase list = [
 
     "Mux connected to a splitBus2", stateBus9,
     Error {
-        Msg = "Wrong wire width. Expecting at 2 but got 1."
+        Msg = "Wrong wire width. Expecting 2 but got 1."
         ConnectionsAffected = ["conn0"] |> List.map ConnectionId
     }
 ]

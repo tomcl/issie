@@ -40,15 +40,16 @@ let private makeCustomList model =
                       |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
                       |> List.map (makeCustom model))
 
-let private askLabelPopup compType model dispatch =
-    let title = sprintf "Add %A node" compType
+let private askLabelPopup typeStr compType model dispatch =
+    let title = sprintf "Add %s node" typeStr
     let before =
-        fun _ -> str <| sprintf "How do you want to name your %A?" compType
+        fun _ -> str <| sprintf "How do you want to name your %s?" typeStr
     let placeholder = "Component name"
     let buttonText = "Add"
     let buttonAction =
         fun inputText ->
-            model.Diagram.CreateComponent compType inputText 100 100 |> ignore
+            // TODO: ask for width.
+            model.Diagram.CreateComponent (compType 1) inputText 100 100 |> ignore
             dispatch ClosePopup
     let isDisabled = fun _ -> false // TODO: check label already present?
     dialogPopup title before placeholder buttonText buttonAction isDisabled dispatch
@@ -57,8 +58,8 @@ let viewCatalogue model dispatch =
     Menu.menu [ ] [
             Menu.label [ ] [ str "Input / Output" ]
             Menu.list []
-                [ menuItem "Input"  (fun _ -> askLabelPopup Input model dispatch)
-                  menuItem "Output" (fun _ -> askLabelPopup Output model dispatch) ]
+                [ menuItem "Input"  (fun _ -> askLabelPopup "input" Input model dispatch)
+                  menuItem "Output" (fun _ -> askLabelPopup "output" Output model dispatch) ]
             Menu.label [] [ str "Buses" ]
             Menu.list []
                 [ menuItem "MakeBus2"  (fun _ -> model.Diagram.CreateComponent MakeBus2 "" 100 100 |> ignore)

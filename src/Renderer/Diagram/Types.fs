@@ -40,7 +40,7 @@ type CustomComponentType = {
 
 // Types instantiating objects in the Digital extension.
 type ComponentType =
-    | Input | Output
+    | Input of int | Output of int
     | Not | And | Or | Xor | Nand | Nor | Xnor
     | Mux2
     | Custom of CustomComponentType

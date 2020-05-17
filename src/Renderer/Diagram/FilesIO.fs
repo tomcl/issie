@@ -37,9 +37,8 @@ let private parseDiagramSignature canvasState
         | [] -> inputs, outputs
         | comp :: components' ->
             match comp.Type with
-            | Input  -> extractIO components' ((comp.Label, 1) :: inputs) outputs
-            | Output -> extractIO components' inputs ((comp.Label, 1) :: outputs)
-            // TODO: add IO components with more than one bit.
+            | Input width  -> extractIO components' ((comp.Label, width) :: inputs) outputs
+            | Output width -> extractIO components' inputs ((comp.Label, width) :: outputs)
             | _ -> extractIO components' inputs outputs
     let components, _ = canvasState
     extractIO components [] []

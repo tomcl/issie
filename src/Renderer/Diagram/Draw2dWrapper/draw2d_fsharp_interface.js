@@ -134,12 +134,12 @@ function installSelectionPolicy(comp) {
     }));
 }
 
-function createDigitalInput(x, y) {
-    return new draw2d.shape.digital.Input({x:x,y:y,resizeable:false});
+function createDigitalInput(x, y, numberOfBits) {
+    return new draw2d.shape.digital.Input({x:x,y:y,numberOfBits:numberOfBits,resizeable:false});
 }
 
-function createDigitalOutput(x, y) {
-    return new draw2d.shape.digital.Output({x:x,y:y,resizeable:false});
+function createDigitalOutput(x, y, numberOfBits) {
+    return new draw2d.shape.digital.Output({x:x,y:y,numberOfBits:numberOfBits,resizeable:false});
 }
 
 function createDigitalNot(x, y) {

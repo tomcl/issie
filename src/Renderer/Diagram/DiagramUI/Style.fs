@@ -17,7 +17,7 @@ let rightSectionStyle = Style [
     Width rightSectionWidth
     OverflowX "hidden"
     OverflowY "scroll"
-    Border "2px solid gray"
+    BorderTop "2px solid lightgray"
 ]
 
 let canvasHiddenStyle = Style [
@@ -32,7 +32,7 @@ let canvasVisibleStyle = Style [
     Left "0px"
     Bottom "0px"
     Right rightSectionWidth
-    Border "2px solid gray"
+    BorderTop "2px solid lightgray"
 ]
 
 let canvasSmallMenuStyle = Style [

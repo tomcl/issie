@@ -79,7 +79,7 @@ let private createSplitWirePopup model dispatch =
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 let viewCatalogue model dispatch =
-    Menu.menu [ ] [
+    Menu.menu [] [
             Menu.label [ ] [ str "Input / Output" ]
             Menu.list []
                 [ menuItem "Input"  (fun _ -> createIOPopup "input" Input model dispatch)

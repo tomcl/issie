@@ -20,8 +20,6 @@ open FilesIO
 open Extractor
 open PopupView
 
-// TODO close project -> so one can reopen a project even when they were using another one.
-// TODO remove file
 // TODO error popup
 
 let private loadStateIntoCanvas state model dispatch =

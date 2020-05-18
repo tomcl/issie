@@ -391,7 +391,7 @@ draw2d.shape.digital.Custom = draw2d.shape.digital.extend({
             const outputLabel = this.outputs[i][0];
             const outputWidth = this.outputs[i][1];
             this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), outputWidth > 1);
-            const x = this.svgWidth - padding - fontWidth * this.outputs[i].length;
+            const x = this.svgWidth - padding - fontWidth * outputLabel.length;
             const y = this.svgHeight / (this.outputs.length + 1) * (i + 1) - fontHeight / 2;
             this.svgElements.push({
                 path: `<text x="${x}" y="${y}" fill="black" font-family="monospace">${outputLabel}</text>`,

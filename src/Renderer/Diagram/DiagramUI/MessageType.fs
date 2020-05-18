@@ -27,6 +27,7 @@ type JSDiagramMsg =
     | SelectComponent of JSComponent
     | UnselectComponent of unit
     | InferWidths of unit
+    | SetHasUnsavedChanges of bool
 
 type Msg =
     | JSDiagramMsg of JSDiagramMsg

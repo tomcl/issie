@@ -30,6 +30,7 @@ let init() = {
     CurrProject = None
     Hilighted = [], []
     Clipboard = [], []
+    HasUnsavedChanges = false
     Popup = None
     PopupDialogData = {Text = None; Int = None}
     Notifications = {
@@ -131,6 +132,8 @@ let handleJSDiagramMsg msg model =
         { model with SelectedComponent = None }
     | InferWidths () ->
         runBusWidthInference model
+    | SetHasUnsavedChanges s ->
+        { model with HasUnsavedChanges = s }
 
 let update msg model =
     match msg with

@@ -27,6 +27,7 @@ type Model = {
     RightTab : RightTab
     Hilighted : ComponentId list * ConnectionId list
     Clipboard : CanvasState // Components and connections that have been selected and copied.
+    HasUnsavedChanges : bool
     CurrProject : Project option
     Popup : (PopupDialogData -> Fable.Import.React.ReactElement) option
     PopupDialogData : PopupDialogData

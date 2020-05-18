@@ -174,6 +174,10 @@ function createDigitalMux2(x, y) {
     return new draw2d.shape.digital.Mux2({x:x,y:y,resizeable:false});
 }
 
+function createDigitalDemux2(x, y) {
+    return new draw2d.shape.digital.Demux2({x:x,y:y,resizeable:false});
+}
+
 function createDigitalCustom(x, y, name, inputs, outputs) {
     return new draw2d.shape.digital.Custom({
         x: x,
@@ -297,6 +301,7 @@ export {
     createDigitalNor,
     createDigitalXnor,
     createDigitalMux2,
+    createDigitalDemux2,
     createDigitalCustom,
     createDigitalMakeBus2,
     createDigitalSplitBus2,

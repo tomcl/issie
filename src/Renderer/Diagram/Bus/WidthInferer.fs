@@ -127,6 +127,18 @@ let private calculateOutputPortsWidth
         | [_; Some n; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 1]
         | [_; _; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 2]
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
+    | Demux2 ->
+        // TODO: also allow buses? Need to change also simulation reducer.
+        assertInputsSize inputConnectionsWidth 2 comp
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
+        | [None; _] | [_; None]
+        | [Some 1; Some 1] ->
+            let out = Map.empty.Add (getOutputPortId comp 0, 1)
+            let out = out.Add (getOutputPortId comp 1, 1)
+            Ok out
+        | [Some n; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 0]
+        | [_; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 1]
+        | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
     | Custom custom ->
         assertInputsSize inputConnectionsWidth custom.InputLabels.Length comp
         let inputWidths =

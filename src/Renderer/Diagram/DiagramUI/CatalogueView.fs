@@ -86,7 +86,8 @@ let viewCatalogue model dispatch =
                   menuItem "Xnor" (fun _ -> model.Diagram.CreateComponent Xnor "" 100 100 |> ignore) ]
             Menu.label [ ] [ str "Mux / Demux" ]
             Menu.list []
-                [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "mux2" 100 100 |> ignore) ]
+                [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "" 100 100 |> ignore)
+                  menuItem "Demux2" (fun _ -> model.Diagram.CreateComponent Demux2 "" 100 100 |> ignore) ]
             Menu.label [ ] [ str "Custom" ]
             makeCustomList model
         ]

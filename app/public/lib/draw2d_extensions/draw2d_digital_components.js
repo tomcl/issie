@@ -288,7 +288,9 @@ draw2d.shape.digital.Mux2 = draw2d.shape.digital.extend({
     svgHeight : 50,
     svgWidth : 30,
     svgElements : [
-        {path: '<path d="M 0 0 L 30 13 L 30 37 L 0 50 Z" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true}
+        {path: '<path d="M 0 0 L 30 13 L 30 37 L 0 50 Z" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true},
+        {path: '<text x="4" y="12" fill="black" font-family="monospace">0</text>', toFill: false},
+        {path: '<text x="4" y="30" fill="black" font-family="monospace">1</text>', toFill: false},
     ],
 
     init: function(attr, setter, getter ){
@@ -301,6 +303,33 @@ draw2d.shape.digital.Mux2 = draw2d.shape.digital.extend({
         this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
         this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
         this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(50, 90), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
+    },
+});
+
+draw2d.shape.digital.Demux2 = draw2d.shape.digital.extend({
+
+    NAME:"draw2d.shape.digital.Demux2",
+
+    componentType : "Demux2",
+    svgHeight : 50,
+    svgWidth : 30,
+    svgElements : [
+        {path: '<path d="M 0 13 L 30 0 L 30 50 L 0 37 Z" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true},
+        {path: '<text x="19" y="12" fill="black" font-family="monospace">0</text>', toFill: false},
+        {path: '<text x="19" y="30" fill="black" font-family="monospace">1</text>', toFill: false},
+    ],
+
+    init: function(attr, setter, getter ){
+        this._super(
+            $.extend({width:this.svgWidth, height:this.svgHeight}, attr),
+            setter,
+            getter
+        );
+
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(50, 90), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });

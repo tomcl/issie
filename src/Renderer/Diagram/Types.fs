@@ -42,7 +42,7 @@ type CustomComponentType = {
 type ComponentType =
     | Input of int | Output of int
     | Not | And | Or | Xor | Nand | Nor | Xnor
-    | Mux2
+    | Mux2 | Demux2
     | Custom of CustomComponentType
     | MakeBus2 | PushToBusFirst | PushToBusLast
     | SplitBus2 | PopFirstFromBus | PopLastFromBus

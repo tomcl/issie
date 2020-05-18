@@ -81,6 +81,7 @@ let simulationBitStyle = Style [
 ]
 
 let menuLabelStyle = Style [
+    Outline "none"
     MarginTop "10px"
     MarginBottom "10px"
     Color "#7a7a7a"

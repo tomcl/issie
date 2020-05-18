@@ -10,6 +10,7 @@ open Fulma
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
+open DiagramStyle
 open DiagramModelType
 open DiagramMessageType
 open DiagramTypes
@@ -33,12 +34,12 @@ let private makeCustom model loadedComponent =
 
 let private makeCustomList model =
     match model.CurrProject with
-    | None -> Menu.list [] []
+    | None -> []
     | Some project ->
         // Do no show the open component in the catalogue.
-        Menu.list [] (project.LoadedComponents
-                      |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-                      |> List.map (makeCustom model))
+        project.LoadedComponents
+        |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        |> List.map (makeCustom model)
 
 let private createIOPopup typeStr compType model dispatch =
     let title = sprintf "Add %s node" typeStr
@@ -78,18 +79,24 @@ let private createSplitWirePopup model dispatch =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
+let private makeMenuGroup title menuList =
+    details [Open true] [
+        summary [menuLabelStyle] [ str title ]
+        Menu.list [] menuList
+    ]
+
 let viewCatalogue model dispatch =
     Menu.menu [] [
-            Menu.label [ ] [ str "Input / Output" ]
-            Menu.list []
+            makeMenuGroup
+                "Input / Output"
                 [ menuItem "Input"  (fun _ -> createIOPopup "input" Input model dispatch)
                   menuItem "Output" (fun _ -> createIOPopup "output" Output model dispatch) ]
-            Menu.label [] [ str "Buses" ]
-            Menu.list []
+            makeMenuGroup
+                "Buses"
                 [ menuItem "MergeWires"  (fun _ -> model.Diagram.CreateComponent MergeWires "" 100 100 |> ignore)
                   menuItem "SplitWire" (fun _ -> createSplitWirePopup model dispatch) ]
-            Menu.label [ ] [ str "Gates" ]
-            Menu.list []
+            makeMenuGroup
+                "Gates"
                 [ menuItem "Not"  (fun _ -> model.Diagram.CreateComponent Not "" 100 100 |> ignore)
                   menuItem "And"  (fun _ -> model.Diagram.CreateComponent And "" 100 100 |> ignore)
                   menuItem "Or"   (fun _ -> model.Diagram.CreateComponent Or "" 100 100 |> ignore)
@@ -97,10 +104,11 @@ let viewCatalogue model dispatch =
                   menuItem "Nand" (fun _ -> model.Diagram.CreateComponent Nand "" 100 100 |> ignore)
                   menuItem "Nor"  (fun _ -> model.Diagram.CreateComponent Nor "" 100 100 |> ignore)
                   menuItem "Xnor" (fun _ -> model.Diagram.CreateComponent Xnor "" 100 100 |> ignore) ]
-            Menu.label [ ] [ str "Mux / Demux" ]
-            Menu.list []
+            makeMenuGroup
+                "Mux / Demux"
                 [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "" 100 100 |> ignore)
                   menuItem "Demux2" (fun _ -> model.Diagram.CreateComponent Demux2 "" 100 100 |> ignore) ]
-            Menu.label [ ] [ str "Custom" ]
-            makeCustomList model
+            makeMenuGroup
+                "This project"
+                (makeCustomList model)
         ]

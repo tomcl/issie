@@ -80,3 +80,11 @@ let simulationBitStyle = Style [
     PaddingTop "3px"
 ]
 
+let menuLabelStyle = Style [
+    MarginTop "10px"
+    MarginBottom "10px"
+    Color "#7a7a7a"
+    FontSize "0.80em"
+    LetterSpacing "0.1em"
+    TextTransform "uppercase"
+]

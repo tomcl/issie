@@ -62,39 +62,45 @@ let private testCasesWidthInfererSimple : WidhtInfererTestCase list = [
 ]
 
 let private testCasesWidthInfererBuses : WidhtInfererTestCase list = [
-    "Two inputs connected to a MakeBus2 component. No other connections", stateBus1,
+    "Two inputs connected to a MergeWires component. No other connections", stateBus1,
     [
         ConnectionId "conn0", Some 1
         ConnectionId "conn1", Some 1
     ] |> Map.ofList |> Ok
 
-    "A MakeBus2 connected to a SplitBus2", stateBus2,
+    "A MergeWires connected to a SplitWire 1.", stateBus2,
     [
-        ConnectionId "conn0", Some 2
+        ConnectionId "conn0", None
     ] |> Map.ofList |> Ok
 
-    "A MakeBus2 connected to a SplitBus2, with loop", stateBus4,
-    [
-        ConnectionId "conn0", Some 2
-        ConnectionId "conn1", Some 1
-    ] |> Map.ofList |> Ok
-
-    "All the bus components in series, properly connected. No other components", stateBus6,
-    [
-        ConnectionId "conn0", Some 2
-        ConnectionId "conn1", Some 3
-        ConnectionId "conn2", Some 4
-        ConnectionId "conn3", Some 3
-        ConnectionId "conn4", Some 2
-    ] |> Map.ofList |> Ok
-
-    "Non-inferrable loop: PushToBusFirst connected to PushToBusLast and loop back", stateBus7,
+    "A MergeWires connected to a SplitWire 1 and a single-bit output node", stateBus3,
     [
         ConnectionId "conn0", None
         ConnectionId "conn1", None
     ] |> Map.ofList |> Ok
 
-    "Mux connected to two PushBusFirst. Width not inferrable", stateBus8,
+    "A MergeWires connected to a SplitWire 1, with loop", stateBus4,
+    [
+        ConnectionId "conn0", None
+        ConnectionId "conn1", None
+    ] |> Map.ofList |> Ok
+
+    "All the bus components in series, properly connected. No other components", stateBus6,
+    [
+        ConnectionId "conn0", None
+        ConnectionId "conn1", None
+        ConnectionId "conn2", None
+        ConnectionId "conn3", None
+        ConnectionId "conn4", None
+    ] |> Map.ofList |> Ok
+
+    "Non-inferrable loop", stateBus7,
+    [
+        ConnectionId "conn0", None
+        ConnectionId "conn1", None
+    ] |> Map.ofList |> Ok
+
+    "Mux connected to two MergeWires. Width not inferrable", stateBus8,
     [
         ConnectionId "conn0", Some 1
         ConnectionId "conn1", None
@@ -126,21 +132,9 @@ let private testCasesWidthInfererError : WidhtInfererTestCase list = [
         ConnectionsAffected = ["conn3"; "conn2"] |> List.map ConnectionId
     }
 
-    "A MakeBus2 connected to a SplitBus2 and a single-bit output node", stateBus3,
-    Error {
-        Msg = "Wrong wire width. Expecting 1 but got 2."
-        ConnectionsAffected = ["conn1"] |> List.map ConnectionId
-    }
-
-    "Two inputs connected to a PushToBusFirst component. No other connections", stateBus5,
+    "Mux connected to a SplitWire 1", stateBus9,
     Error {
         Msg = "Wrong wire width. Expecting at least size 2 but got 1."
-        ConnectionsAffected = ["conn1"] |> List.map ConnectionId
-    }
-
-    "Mux connected to a splitBus2", stateBus9,
-    Error {
-        Msg = "Wrong wire width. Expecting 2 but got 1."
         ConnectionsAffected = ["conn0"] |> List.map ConnectionId
     }
 

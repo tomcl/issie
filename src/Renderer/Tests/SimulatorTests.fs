@@ -348,9 +348,9 @@ let testCasesSimulatorOkWithDependencies : SimulatorTestCase list =
         ]
 
 let private testCasesSimulatorBusesError : SimulatorTestCase list = [
-    "Two inputs make a bus2, then Push input a to bus, then try to split 2 (fail)",
+    "Two inputs make a bus2, then Push input a to bus, then try to split into 2 single bits (fail)",
     ("main", stateBus11, [], []),
-    makeError "Wrong wire width. Expecting 2 but got 3." None [] ["conn"]
+    makeError "Wrong wire width. Expecting 1 but got 2." None [] ["conn"]
 
     "A 4 bit input connected to a 3 bit output",
     ("main", stateBus14, [], []),

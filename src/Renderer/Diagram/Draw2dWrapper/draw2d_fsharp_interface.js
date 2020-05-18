@@ -1,27 +1,6 @@
-
-/// Setup circuit-like connections in the diagram.
-let router = new draw2d.layout.connection.InteractiveManhattanConnectionRouter();
-// TODO: use CircuitConnectionRouter instead?
-router.abortRoutingOnFirstVertexNode = false;
-
-function createDigitalConnection(sourcePort, targetPort) {
-    let c = new draw2d.Connection({
-        outlineColor: 'white',
-        outlineStroke: 1,
-        color: 'black',
-        router: router,
-        stroke: 1,
-        radius: 6,
-        selectable: true,
-    });
-    if (sourcePort) {
-        c.setSource(sourcePort);
-        c.setTarget(targetPort);
-        // TODO: add check to make sure this connection does not exist
-        // already?
-    }
-    return c;
-}
+/*
+    Draw2d functions that are used in the Draw2dWrapper.fs file.
+*/
 
 function createCanvas(id, width, height) {
     let canvas = new draw2d.Canvas(id, width, height);
@@ -47,9 +26,11 @@ function initialiseCanvas (canvas) {
                 createConnection: createDigitalConnection
             }),
             // Or via click and point.
-            new draw2d.policy.connection.OrthogonalConnectionCreatePolicy({
-                createConnection: createDigitalConnection
-            })
+            // TODO: if you want to readd this, it is necessary to override the
+            // class similarly to DragConnectionPolicy.
+            //new draw2d.policy.connection.OrthogonalConnectionCreatePolicy({
+            //    createConnection: createDigitalConnection
+            //})
         ])
     );
     // Install policy to allow to zoom with: SHIFT + mouse wheel.
@@ -81,11 +62,15 @@ function addConnectionToCanvas(canvas, conn) {
     canvas.getCommandStack().execute(command);
 }
 
-function addLabel(comp, label) {
+function addComponentLabel(comp, label) {
     comp.add(
         new draw2d.shape.basic.Label({text: label, stroke: 0}),
         new draw2d.layout.locator.TopLocator()
     );
+}
+
+function setConnectionLabel(conn, newLabel) {
+    conn.children.data[0].figure.setText(newLabel);
 }
 
 function setComponentId(comp, id) {
@@ -128,25 +113,33 @@ function getOutputPorts(comp) {
     return comp.getOutputPorts().data;
 }
 
-function installSelectionPolicy(comp, onSelect, onUnselect) {
+function installSelectionPolicy(comp) {
     comp.installEditPolicy(new draw2d.policy.figure.AntSelectionFeedbackPolicy({
         onSelect: function(canvas, comp, isPrimarySelection) {
             comp.setBackgroundColor('#00D1B2');
-            onSelect(comp);
+            if (dispatchOnSelectComponentMessage !== "undefined") {
+                dispatchOnSelectComponentMessage(comp);
+            } else {
+                console.log("Warning: trying to dispatch a JS SelectComponent message but dispatcher is not defined.")
+            }
         },
         onUnselect: function(canvas, comp) {
             comp.setBackgroundColor('lightgray');
-            onUnselect(comp);
+            if (dispatchOnUnselectComponentMessage !== "undefined") {
+                dispatchOnUnselectComponentMessage(comp);
+            } else {
+                console.log("Warning: trying to dispatch a JS UnselectComponent message but dispatcher is not defined.")
+            }
         }
     }));
 }
 
-function createDigitalInput(x, y) {
-    return new draw2d.shape.digital.Input({x:x,y:y,resizeable:false});
+function createDigitalInput(x, y, numberOfBits) {
+    return new draw2d.shape.digital.Input({x:x,y:y,numberOfBits:numberOfBits,resizeable:false});
 }
 
-function createDigitalOutput(x, y) {
-    return new draw2d.shape.digital.Output({x:x,y:y,resizeable:false});
+function createDigitalOutput(x, y, numberOfBits) {
+    return new draw2d.shape.digital.Output({x:x,y:y,numberOfBits:numberOfBits,resizeable:false});
 }
 
 function createDigitalNot(x, y) {
@@ -190,6 +183,30 @@ function createDigitalCustom(x, y, name, inputs, outputs) {
         inputs: inputs,
         outputs: outputs,
     });
+}
+
+function createDigitalMakeBus2(x, y) {
+    return new draw2d.shape.digital.MakeBus2({x:x,y:y,resizeable:false});
+}
+
+function createDigitalSplitBus2(x, y) {
+    return new draw2d.shape.digital.SplitBus2({x:x,y:y,resizeable:false});
+}
+
+function createDigitalPushToBusFirst(x, y) {
+    return new draw2d.shape.digital.PushToBusFirst({x:x,y:y,resizeable:false});
+}
+
+function createDigitalPushToBusLast(x, y) {
+    return new draw2d.shape.digital.PushToBusLast({x:x,y:y,resizeable:false});
+}
+
+function createDigitalPopFirstFromBus(x, y) {
+    return new draw2d.shape.digital.PopFirstFromBus({x:x,y:y,resizeable:false});
+}
+
+function createDigitalPopLastFromBus(x, y) {
+    return new draw2d.shape.digital.PopLastFromBus({x:x,y:y,resizeable:false});
 }
 
 function getComponentById(canvas, id) {
@@ -251,12 +268,14 @@ function flushCommandStack (canvas) {
 }
 
 export {
+    setDispatchMessages,
     createCanvas,
     initialiseCanvas,
     clearCanvas,
     addComponentToCanvas,
     addConnectionToCanvas,
-    addLabel,
+    addComponentLabel,
+    setConnectionLabel,
     setComponentId,
     setConnectionId,
     setPortId,
@@ -279,7 +298,13 @@ export {
     createDigitalXnor,
     createDigitalMux2,
     createDigitalCustom,
-    createDigitalConnection,
+    createDigitalMakeBus2,
+    createDigitalSplitBus2,
+    createDigitalPushToBusFirst,
+    createDigitalPushToBusLast,
+    createDigitalPopFirstFromBus,
+    createDigitalPopLastFromBus,
+    createDigitalConnection, // Defined in draw2d_digital_connection.js. 
     getComponentById,
     getConnectionById,
     getPortById,

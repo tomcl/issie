@@ -1,6 +1,8 @@
 module DiagramMessageType
 
 open DiagramTypes
+open SimulatorTypes
+open Fable.Import.React
 
 type DisplayModeType = Hidden | Visible
 
@@ -8,6 +10,12 @@ type RightTab =
     | Properties
     | Catalogue
     | Simulation
+
+/// Possible fields that may (or may not) be used in a dialog popup.
+type PopupDialogData = {
+    Text: string option;
+    Int: int option;
+}
 
 //==========//
 // Messages //
@@ -17,7 +25,8 @@ type RightTab =
 type JSDiagramMsg =
     | InitCanvas of JSCanvas // Has to be dispatched only once.
     | SelectComponent of JSComponent
-    | UnselectComponent of JSComponent
+    | UnselectComponent of unit
+    | InferWidths of unit
 
 type Msg =
     | JSDiagramMsg of JSDiagramMsg
@@ -29,6 +38,10 @@ type Msg =
     | SetClipboard of CanvasState
     | SetProject of Project
     | CloseProject
-    | ShowPopup of (string -> Fable.Import.React.ReactElement)
+    | ShowPopup of (PopupDialogData -> ReactElement)
     | ClosePopup
     | SetPopupDialogText of string option
+    | SetPopupDialogInt of int option
+    | CloseDiagramNotification
+    | SetSimulationNotification of ((Msg -> unit) -> ReactElement)
+    | CloseSimulationNotification

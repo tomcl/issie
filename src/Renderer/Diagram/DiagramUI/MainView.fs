@@ -4,8 +4,11 @@ open Fulma
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
+open BusWidthInferer
+open BusTypes
+
 open DiagramStyle
-open DiagramTypes
+open SimulatorTypes
 open DiagramMessageType
 open DiagramModelType
 open Draw2dWrapper
@@ -28,8 +31,46 @@ let init() = {
     Hilighted = [], []
     Clipboard = [], []
     Popup = None
-    PopupDialogText = None
+    PopupDialogData = {Text = None; Int = None}
+    Notifications = {
+        FromDiagram = None
+        FromSimulation = None
+    }
 }
+
+let runBusWidthInference model =
+    let paintEach connsWidth =
+        connsWidth
+        |> Map.map (fun (BusTypes.ConnectionId connId) width ->
+            match width with
+            | None -> () // Could not infer.
+            | Some w -> model.Diagram.PaintConnection connId w
+        )
+        |> ignore
+    match model.Diagram.GetCanvasState () with
+    | None -> model
+    | Some state ->
+        JSHelpers.startTimer "bus-infer-performance"
+        state
+        |> extractState
+        |> inferConnectionsWidth
+        |> function
+            | Error e ->
+                // TODO: this makes the conent of the model.Higlighted inconsistent.
+                // Need to dispatch SetHighlighted (can do by using mkProgram).
+                e.ConnectionsAffected
+                |> List.map (fun (BusTypes.ConnectionId c) -> model.Diagram.HighlightConnection c)
+                |> ignore
+                JSHelpers.stopAndLogTimer "bus-infer-performance"
+                // Display notification with error message.
+                { model with Notifications =
+                                { model.Notifications with FromDiagram =
+                                                            Some <| errorNotification e.Msg CloseDiagramNotification} }
+            | Ok connsWidth ->
+                paintEach connsWidth
+                JSHelpers.stopAndLogTimer "bus-infer-performance"
+                // Close the notification if all is good.
+                { model with Notifications = {model.Notifications with FromDiagram = None} }
 
 // -- Create View
 
@@ -64,8 +105,11 @@ let displayView model dispatch =
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Visible
         viewNoProjectMenu model dispatch
         viewPopup model
+        viewNotifications model dispatch
         viewOnDiagramButtons model dispatch
         div [ rightSectionStyle ] [
+            // TODO: remove this button.
+            Button.button [Button.OnClick (fun _ -> InferWidths () |> JSDiagramMsg |> dispatch)] [str "run infer"]
             Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ ] ] [
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
@@ -90,8 +134,10 @@ let handleJSDiagramMsg msg model =
         model
     | SelectComponent jsComponent ->
         { model with SelectedComponent = Some <| extractComponent jsComponent }
-    | UnselectComponent jsComponent ->
-         { model with SelectedComponent = None }
+    | UnselectComponent () ->
+        { model with SelectedComponent = None }
+    | InferWidths () ->
+        runBusWidthInference model
 
 let update msg model =
     match msg with
@@ -125,5 +171,15 @@ let update msg model =
     | SetProject project -> { model with CurrProject = Some project }
     | CloseProject -> { model with CurrProject = None }
     | ShowPopup popup -> { model with Popup = Some popup }
-    | ClosePopup -> { model with Popup = None; PopupDialogText = None }
-    | SetPopupDialogText text -> { model with PopupDialogText = text }
+    | ClosePopup -> { model with Popup = None; PopupDialogData = {Text = None; Int = None} }
+    | SetPopupDialogText text ->
+        { model with PopupDialogData = {model.PopupDialogData with Text = text} }
+    | SetPopupDialogInt int ->
+        { model with PopupDialogData = {model.PopupDialogData with Int = int} }
+    | CloseDiagramNotification ->
+        { model with Notifications = {model.Notifications with FromDiagram = None} }
+    | SetSimulationNotification n ->
+        { model with Notifications =
+                        { model.Notifications with FromSimulation = Some n}}
+    | CloseSimulationNotification ->
+        { model with Notifications = {model.Notifications with FromSimulation = None} }

@@ -26,18 +26,19 @@ let private tryLoadStateFromPath filePath =
     let dataBuffer = fs.readFileSync (filePath, Option.None)
     dataBuffer.toString "utf8" |> jsonStringToState
 
-/// Extract the labels of the inputs and outputs nodes.
-let private parseDiagramSignature canvasState : string list * string list =
+/// Extract the labels and bus widths of the inputs and outputs nodes.
+let private parseDiagramSignature canvasState
+        : (string * int) list * (string * int) list =
     let rec extractIO
             (components : Component list)
-            (inputs : string list)
-            (outputs : string list) =
+            (inputs : (string * int) list)
+            (outputs : (string * int) list) =
         match components with
         | [] -> inputs, outputs
         | comp :: components' ->
             match comp.Type with
-            | Input  -> extractIO components' (comp.Label :: inputs) outputs
-            | Output -> extractIO components' inputs (comp.Label :: outputs)
+            | Input width  -> extractIO components' ((comp.Label, width) :: inputs) outputs
+            | Output width -> extractIO components' inputs ((comp.Label, width) :: outputs)
             | _ -> extractIO components' inputs outputs
     let components, _ = canvasState
     extractIO components [] []

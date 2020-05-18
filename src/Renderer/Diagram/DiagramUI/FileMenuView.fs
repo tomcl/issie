@@ -30,8 +30,12 @@ let private loadStateIntoCanvas state model dispatch =
     // Finally load the new state in the canvas.
     let components, connections = state
     List.map model.Diagram.LoadComponent components |> ignore
+    // TODO: disallow inference from running when loading these connections and
+    // run it only once at the end instead?
     List.map (model.Diagram.LoadConnection true) connections |> ignore
     model.Diagram.FlushCommandStack () // Discard all undo/redo.
+    // Run the a connection widhts inference.
+    InferWidths () |> JSDiagramMsg |> dispatch
 
 let private reloadProjectComponents project =
     match tryLoadComponentsFromPath project.ProjectPath with
@@ -105,22 +109,24 @@ let private addFileToProject model dispatch =
         // Prepare dialog popup.
         let title = "Add file to project"
         let before =
-            fun popupDialogText ->
+            fun (dialogData : PopupDialogData) ->
+                let dialogText = getText dialogData
                 let maybeWarning =
-                    if isFileInProject popupDialogText project
+                    if isFileInProject dialogText project
                     then div [ Style [Color "red"] ] [ str "This file already exists." ]
                     else div [] []
                 div [] [
                     str "A new file will be created at:"
                     br[]
-                    str <| pathJoin [|project.ProjectPath; popupDialogText + ".dgm"|]
+                    str <| pathJoin [|project.ProjectPath; dialogText + ".dgm"|]
                     maybeWarning
                 ]
         let placeholder = "Insert module name"
+        let body = dialogPopupBodyOnlyText before placeholder dispatch
         let buttonText = "Add"
         let buttonAction =
-            fun popupDialogText ->
-                let name = popupDialogText
+            fun (dialogData : PopupDialogData) ->
+                let name = getText dialogData
                 // Create empty file.
                 createEmptyDgmFile project.ProjectPath name
                 // Add the file to the project.
@@ -136,9 +142,10 @@ let private addFileToProject model dispatch =
                 // Close the popup.
                 dispatch ClosePopup
         let isDisabled =
-            fun popupDialogText -> (isFileInProject popupDialogText project) || (popupDialogText = "")
-        dialogPopup title before placeholder buttonText buttonAction isDisabled dispatch
-
+            fun (dialogData : PopupDialogData) ->
+                let dialogText = getText dialogData
+                (isFileInProject dialogText project) || (dialogText = "")
+        dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 /// Close current project, if any.
 let private closeProject model dispatch _ =

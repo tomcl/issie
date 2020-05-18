@@ -189,28 +189,13 @@ function createDigitalCustom(x, y, name, inputs, outputs) {
     });
 }
 
-function createDigitalMakeBus2(x, y) {
-    return new draw2d.shape.digital.MakeBus2({x:x,y:y,resizeable:false});
+function createDigitalMergeWires(x, y) {
+    return new draw2d.shape.digital.MergeWires({x:x,y:y,resizeable:false});
 }
 
-function createDigitalSplitBus2(x, y) {
-    return new draw2d.shape.digital.SplitBus2({x:x,y:y,resizeable:false});
-}
-
-function createDigitalPushToBusFirst(x, y) {
-    return new draw2d.shape.digital.PushToBusFirst({x:x,y:y,resizeable:false});
-}
-
-function createDigitalPushToBusLast(x, y) {
-    return new draw2d.shape.digital.PushToBusLast({x:x,y:y,resizeable:false});
-}
-
-function createDigitalPopFirstFromBus(x, y) {
-    return new draw2d.shape.digital.PopFirstFromBus({x:x,y:y,resizeable:false});
-}
-
-function createDigitalPopLastFromBus(x, y) {
-    return new draw2d.shape.digital.PopLastFromBus({x:x,y:y,resizeable:false});
+function createDigitalSplitWire(x, y, numberOfBitsInTopWire) {
+    return new draw2d.shape.digital.SplitWire({
+        x:x,y:y,numberOfBitsInTopWire:numberOfBitsInTopWire,resizeable:false});
 }
 
 function getComponentById(canvas, id) {
@@ -303,12 +288,8 @@ export {
     createDigitalMux2,
     createDigitalDemux2,
     createDigitalCustom,
-    createDigitalMakeBus2,
-    createDigitalSplitBus2,
-    createDigitalPushToBusFirst,
-    createDigitalPushToBusLast,
-    createDigitalPopFirstFromBus,
-    createDigitalPopLastFromBus,
+    createDigitalMergeWires,
+    createDigitalSplitWire,
     createDigitalConnection, // Defined in draw2d_digital_connection.js. 
     getComponentById,
     getConnectionById,

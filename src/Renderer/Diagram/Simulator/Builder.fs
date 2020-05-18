@@ -164,6 +164,21 @@ let private getReducer
                 let out = if (extractBit bitSelect) = Zero then bit0 else bit1
                 Some <| Map.empty.Add (OutputPortNumber 0, packBit out), None
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
+    | Demux2 ->
+        fun inputs _ ->
+            assertNotTooManyInputs inputs componentType 2
+            match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1] with
+            | None -> None, None // Wait for more inputs.
+            | Some [bitIn; bitSelect] ->
+                // TODO: allow demux2 to deal with buses? To do so, just remove
+                // the extractBit code.
+                let bitIn = extractBit bitIn
+                let out0, out1 = if (extractBit bitSelect) = Zero
+                                 then bitIn, Zero else Zero, bitIn
+                let out = Map.empty.Add (OutputPortNumber 0, packBit out0)
+                let out = out.Add (OutputPortNumber 1, packBit out1)
+                Some out, None
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
     | Custom c ->
         fun _ _ ->
             failwithf "what? Custom components reducer should be overridden before using it in a simulation: %A" c

@@ -348,9 +348,9 @@ let testCasesSimulatorOkWithDependencies : SimulatorTestCase list =
         ]
 
 let private testCasesSimulatorBusesError : SimulatorTestCase list = [
-    "Two inputs make a bus2, then Push input a to bus, then try to split 2 (fail)",
+    "Two inputs make a bus2, then Push input a to bus, then try to split into 2 single bits (fail)",
     ("main", stateBus11, [], []),
-    makeError "Wrong wire width. Expecting 2 but got 3." None [] ["conn"]
+    makeError "Wrong wire width. Expecting 1 but got 2." None [] ["conn"]
 
     "A 4 bit input connected to a 3 bit output",
     ("main", stateBus14, [], []),
@@ -421,6 +421,16 @@ let private testCasesSimulatorOkWithBuses : SimulatorTestCase list =
         [
             (ComponentId "60e2df66-bb8c-53f1-832d-e154c30cf9dd", ComponentLabel "b", 1), [Zero]
             (ComponentId "85e19389-c087-8b30-6c0a-02f7cc753695", ComponentLabel "c", 1), [One]
+        ] |> Ok
+
+        "3 bit input merged with 4 bit input, then split in the same way",
+        ("main", stateBus17, [], [
+            ComponentId "6bcdc74a-9d71-3304-537d-1a17f02924eb", [One; Zero; One] // 3 bits.
+            ComponentId "97c4b56d-4f8c-2b00-fb61-a08cdd01dd76", [Zero; One; Zero; One] // 4 bits.
+        ]),
+        [
+            (ComponentId "1a6e1bb4-cfe0-77f9-a207-f409168ef210", ComponentLabel "out3", 3), [One; Zero; One]
+            (ComponentId "d2676492-2302-24d9-52eb-6e69e7971339", ComponentLabel "out4", 4), [Zero; One; Zero; One]
         ] |> Ok
     ]
 

@@ -182,68 +182,25 @@ let private getReducer
     | Custom c ->
         fun _ _ ->
             failwithf "what? Custom components reducer should be overridden before using it in a simulation: %A" c
-    | MakeBus2 ->
+    | MergeWires ->
         fun inputs _ ->
             assertNotTooManyInputs inputs componentType 2
             match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1] with
             | None -> None, None
-            | Some [bit0; bit1] ->
-                let bit0 = extractBit bit0
-                let bit1 = extractBit bit1
-                Some <| Map.empty.Add (OutputPortNumber 0, [bit0; bit1]), None
+            | Some [bits0; bits1] ->
+                Some <| Map.empty.Add (OutputPortNumber 0, bits0 @ bits1), None
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
-    | SplitBus2 ->
+    | SplitWire topWireWidth ->
         fun inputs _ ->
             assertNotTooManyInputs inputs componentType 1
             match getValuesForPorts inputs [InputPortNumber 0] with
             | None -> None, None
-            | Some [[bit0; bit1]] ->
-                let out = Map.empty.Add (OutputPortNumber 0, packBit bit0)
-                let out = out.Add (OutputPortNumber 1, packBit bit1)
-                Some out, None
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
-    | PushToBusFirst ->
-        fun inputs _ ->
-            assertNotTooManyInputs inputs componentType 2
-            match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1] with
-            | None -> None, None
-            | Some [bit0; bus] ->
-                let bit0 = extractBit bit0
-                assertValidBus bus 2 componentType
-                Some <| Map.empty.Add (OutputPortNumber 0, bit0 :: bus), None
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
-    | PushToBusLast ->
-        fun inputs _ ->
-            assertNotTooManyInputs inputs componentType 2
-            match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1] with
-            | None -> None, None
-            | Some [bus; bit] ->
-                let bit = extractBit bit
-                assertValidBus bus 2 componentType
-                Some <| Map.empty.Add (OutputPortNumber 0, bus @ [bit]), None
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
-    | PopFirstFromBus ->
-        fun inputs _ ->
-            assertNotTooManyInputs inputs componentType 1
-            match getValuesForPorts inputs [InputPortNumber 0] with
-            | None -> None, None
-            | Some [bus] ->
-                assertValidBus bus 3 componentType
-                let bit, bus' = List.splitAt 1 bus
-                let out = Map.empty.Add (OutputPortNumber 0, bit)
-                let out = out.Add (OutputPortNumber 1, bus')
-                Some out, None
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
-    | PopLastFromBus ->
-        fun inputs _ ->
-            assertNotTooManyInputs inputs componentType 1
-            match getValuesForPorts inputs [InputPortNumber 0] with
-            | None -> None, None
-            | Some [bus] ->
-                assertValidBus bus 3 componentType
-                let bus', bit = List.splitAt (bus.Length - 1) bus
-                let out = Map.empty.Add (OutputPortNumber 0, bus')
-                let out = out.Add (OutputPortNumber 1, bit)
+            | Some [bits] ->
+                assertThat (bits.Length >= topWireWidth + 1)
+                <| sprintf "SplitWire received too little bits: expected at least %d but got %d" (topWireWidth + 1) bits.Length
+                let bits0, bits1 = List.splitAt topWireWidth bits
+                let out = Map.empty.Add (OutputPortNumber 0, bits0)
+                let out = out.Add (OutputPortNumber 1, bits1)
                 Some out, None
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
 

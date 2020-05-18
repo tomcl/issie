@@ -81,6 +81,19 @@ let dialogPopupBodyOnlyText before placeholder dispatch =
             ]
         ]
 
+/// Create the body of a dialog Popup with only an int.
+let dialogPopupBodyOnlyInt beforeInt intDefault dispatch =
+    fun (dialogData : PopupDialogData) ->
+        div [] [
+            beforeInt dialogData
+            br []
+            Input.number [
+                Input.Props [Style [Width "60px"]]
+                Input.DefaultValue <| sprintf "%d" intDefault
+                Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
+            ]
+        ]
+
 /// Create the body of a dialog Popup with both text and int.
 let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch =
     fun (dialogData : PopupDialogData) ->

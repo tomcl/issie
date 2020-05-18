@@ -243,6 +243,7 @@ let viewTopMenu model dispatch =
                             Button.Size IsSmall
                             Button.IsOutlined
                             Button.Color IsPrimary
+                            Button.Disabled (name = project.OpenFileName)
                             Button.OnClick (fun _ ->
                                 saveOpenFileAction model // Save current file.
                                 openFileInProject name project model dispatch

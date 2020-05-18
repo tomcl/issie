@@ -29,6 +29,7 @@ type private IDraw2d =
     abstract addComponentToCanvas         : canvas:JSCanvas -> comp:JSComponent -> unit
     abstract addConnectionToCanvas        : canvas:JSCanvas -> conn:JSConnection -> unit
     abstract addComponentLabel            : comp:JSComponent -> label:string ->  unit
+    abstract setComponentLabel            : comp:JSComponent -> newLabel:string ->  unit
     abstract setConnectionLabel           : comp:JSConnection -> newLabel:string ->  unit
     abstract setComponentId               : comp:JSComponent -> id:string -> unit
     abstract setConnectionId              : conn:JSConnection -> id:string -> unit
@@ -153,8 +154,7 @@ let private createConnection
     //|> fshaprListToJsList
     //|> draw2dLib.setConnectionVertices conn
 
-// TODO: for now only supports labels.
-let private editComponent (canvas : JSCanvas) (id : string) (newLabel : string) : unit =
+let private editComponentLabel (canvas : JSCanvas) (id : string) (newLabel : string) : unit =
     let jsComponent = draw2dLib.getComponentById canvas id
     if isNull jsComponent
     then failwithf "what? could not find diagram component with Id: %s" id
@@ -249,11 +249,14 @@ type Draw2dWrapper() =
             let connId = if useId then Some conn.Id else None
             createConnection c connId conn.Vertices sourcePort targetPort
 
-    // For now only changes the label. TODO
-    member this.EditComponent componentId newLabel = 
+    member this.EditComponentLabel componentId newLabel = 
         match canvas with
-        | None -> log "Warning: Draw2dWrapper.EditComponent called when canvas is None"
-        | Some c -> editComponent c componentId newLabel
+        | None -> log "Warning: Draw2dWrapper.EditComponentLabel called when canvas is None"
+        | Some c ->
+            let jsComp = assertNotNull
+                            (draw2dLib.getComponentById c componentId)
+                            "EditComponentLabel"
+            draw2dLib.setComponentLabel jsComp newLabel
 
     member this.PaintConnection connectionId width =
         match canvas with

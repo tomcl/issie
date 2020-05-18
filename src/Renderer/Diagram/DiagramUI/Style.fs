@@ -55,7 +55,7 @@ let canvasSmallButtonStyle = Style [
 ]
 
 let private notificationStyle = [
-    ZIndex 10 // In front of everything.
+    ZIndex 100 // In front of everything.
     MinWidth "300px"
     Position "absolute"
     Right "20px"

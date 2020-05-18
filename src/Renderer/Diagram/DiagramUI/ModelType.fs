@@ -17,6 +17,7 @@ open Draw2dWrapper
 type Notifications = {
     FromDiagram : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
     FromSimulation : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
+    FromFiles : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
 }
 
 type Model = {

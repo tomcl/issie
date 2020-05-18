@@ -117,6 +117,15 @@ let private testCasesWidthInfererBuses : WidhtInfererTestCase list = [
         ConnectionId "conn1", Some 1
         ConnectionId "conn2", Some 1
     ] |> Map.ofList |> Ok
+
+    "3 bit input merged with 4 bit input, then split in the same way", stateBus17,
+    [
+        ConnectionId "678ffa07-0ed7-7b6f-ba9b-b14839c08a71", Some 7
+        ConnectionId "7438de0c-bbaf-c1f6-0307-42ece66c6c00", Some 4
+        ConnectionId "82cc4ce9-7b15-40ac-0226-98a7f8e2fb9a", Some 4
+        ConnectionId "9df32195-00b4-9795-3dc1-78fb70d453f2", Some 3
+        ConnectionId "cd13c70f-6037-0cf4-1295-5795e92d745c", Some 3
+    ] |> Map.ofList |> Ok
 ]
 
 let private testCasesWidthInfererError : WidhtInfererTestCase list = [

@@ -40,7 +40,7 @@ let private makeCustomList model =
                       |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
                       |> List.map (makeCustom model))
 
-let private askLabelPopup typeStr compType model dispatch =
+let private createIOPopup typeStr compType model dispatch =
     let title = sprintf "Add %s node" typeStr
     let beforeText =
         fun _ -> str <| sprintf "How do you want to name your %s?" typeStr
@@ -61,20 +61,34 @@ let private askLabelPopup typeStr compType model dispatch =
             (getInt dialogData < 1) || (getText dialogData = "")
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
+let private createSplitWirePopup model dispatch =
+    let title = sprintf "Add SplitWire node" 
+    let beforeInt =
+        fun _ -> str "How many bits should the top wire have? The remaining bits will go in the bottom wire."
+    let intDefault = 1
+    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let inputInt = getInt dialogData
+            JSHelpers.log inputInt
+            model.Diagram.CreateComponent (SplitWire inputInt) "" 100 100 |> ignore
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+    dialogPopup title body buttonText buttonAction isDisabled dispatch
+
 let viewCatalogue model dispatch =
     Menu.menu [ ] [
             Menu.label [ ] [ str "Input / Output" ]
             Menu.list []
-                [ menuItem "Input"  (fun _ -> askLabelPopup "input" Input model dispatch)
-                  menuItem "Output" (fun _ -> askLabelPopup "output" Output model dispatch) ]
+                [ menuItem "Input"  (fun _ -> createIOPopup "input" Input model dispatch)
+                  menuItem "Output" (fun _ -> createIOPopup "output" Output model dispatch) ]
             Menu.label [] [ str "Buses" ]
             Menu.list []
-                [ menuItem "MakeBus2"  (fun _ -> model.Diagram.CreateComponent MakeBus2 "" 100 100 |> ignore)
-                  menuItem "SplitBus2" (fun _ -> model.Diagram.CreateComponent SplitBus2 "" 100 100 |> ignore)
-                  menuItem "PushToBusFirst" (fun _ -> model.Diagram.CreateComponent PushToBusFirst "" 100 100 |> ignore)
-                  menuItem "PushToBusLast" (fun _ -> model.Diagram.CreateComponent PushToBusLast "" 100 100 |> ignore)
-                  menuItem "PopFirstFromBus" (fun _ -> model.Diagram.CreateComponent PopFirstFromBus "" 100 100 |> ignore)
-                  menuItem "PopLastFromBus" (fun _ -> model.Diagram.CreateComponent PopLastFromBus "" 100 100 |> ignore) ]
+                [ menuItem "MergeWires"  (fun _ -> model.Diagram.CreateComponent MergeWires "" 100 100 |> ignore)
+                  // TODO: ask top number of bits with a popup.
+                  menuItem "SplitWire" (fun _ -> createSplitWirePopup model dispatch) ]
             Menu.label [ ] [ str "Gates" ]
             Menu.list []
                 [ menuItem "Not"  (fun _ -> model.Diagram.CreateComponent Not "" 100 100 |> ignore)

@@ -51,14 +51,10 @@ type private IDraw2d =
     abstract createDigitalNor             : x:int -> y:int -> JSComponent
     abstract createDigitalXnor            : x:int -> y:int -> JSComponent
     abstract createDigitalMux2            : x:int -> y:int -> JSComponent
-    abstract createDigitalDemux2            : x:int -> y:int -> JSComponent
+    abstract createDigitalDemux2          : x:int -> y:int -> JSComponent
     abstract createDigitalCustom          : x:int -> y:int -> name:string -> inputs:obj -> outputs:obj -> JSComponent
-    abstract createDigitalMakeBus2        : x:int -> y:int -> JSComponent
-    abstract createDigitalSplitBus2       : x:int -> y:int -> JSComponent
-    abstract createDigitalPushToBusFirst  : x:int -> y:int -> JSComponent
-    abstract createDigitalPushToBusLast   : x:int -> y:int -> JSComponent
-    abstract createDigitalPopFirstFromBus : x:int -> y:int -> JSComponent
-    abstract createDigitalPopLastFromBus  : x:int -> y:int -> JSComponent
+    abstract createDigitalMergeWires      : x:int -> y:int -> JSComponent
+    abstract createDigitalSplitWire       : x:int -> y:int -> numberOfBitsInTopWire:int -> JSComponent
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
     abstract getComponentById             : canvas:JSCanvas -> id:string -> JSComponent
     abstract getConnectionById            : canvas:JSCanvas -> id:string -> JSConnection
@@ -118,12 +114,8 @@ let private createComponent
             draw2dLib.createDigitalCustom
                 x y custom.Name (fshaprListToJsList custom.InputLabels)
                                 (fshaprListToJsList custom.OutputLabels)
-        | MakeBus2  -> draw2dLib.createDigitalMakeBus2 x y
-        | SplitBus2 -> draw2dLib.createDigitalSplitBus2 x y
-        | PushToBusFirst  -> draw2dLib.createDigitalPushToBusFirst x y
-        | PushToBusLast   -> draw2dLib.createDigitalPushToBusLast x y
-        | PopFirstFromBus -> draw2dLib.createDigitalPopFirstFromBus x y
-        | PopLastFromBus  -> draw2dLib.createDigitalPopLastFromBus x y
+        | MergeWires -> draw2dLib.createDigitalMergeWires x y
+        | SplitWire topWireWidth -> draw2dLib.createDigitalSplitWire x y topWireWidth
     // Every component is assumed to have a label (may be empty string).
     draw2dLib.addComponentLabel comp label
     // Set Id if one is provided.

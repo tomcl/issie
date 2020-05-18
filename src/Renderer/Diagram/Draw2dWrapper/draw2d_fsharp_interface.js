@@ -69,6 +69,10 @@ function addComponentLabel(comp, label) {
     );
 }
 
+function setComponentLabel(comp, newLabel) {
+    comp.children.data[0].figure.setText(newLabel);
+}
+
 function setConnectionLabel(conn, newLabel) {
     conn.children.data[0].figure.setText(newLabel);
 }
@@ -264,6 +268,7 @@ export {
     addComponentToCanvas,
     addConnectionToCanvas,
     addComponentLabel,
+    setComponentLabel,
     setConnectionLabel,
     setComponentId,
     setConnectionId,

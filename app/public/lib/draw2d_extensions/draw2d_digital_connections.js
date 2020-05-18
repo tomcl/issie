@@ -20,7 +20,7 @@ draw2d.layout.locator.BusLabelLocator = draw2d.layout.locator.ConnectionLocator.
        const conn = target.getParent();
        const points = conn.getVertices();
        const x = points.data[0].x;
-       const y = points.data[0].y - 22;
+       const y = points.data[0].y - 21;
        target.setPosition(x,y);
     }
 });
@@ -56,7 +56,7 @@ function createDigitalConnection(sourcePort, targetPort) {
     });
     // Add label.
     c.add(
-        new draw2d.shape.basic.Label({text: '', stroke: 0}),
+        new draw2d.shape.basic.Label({text: '', stroke: 0, fontSize: 10, bold: true, fontColor: 'purple'}),
         new draw2d.layout.locator.BusLabelLocator()
     );
     c.setSource(sourcePort);

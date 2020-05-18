@@ -269,7 +269,7 @@ type Draw2dWrapper() =
             let label, stroke, color =
                 match width with
                 | 1 -> "", 1, "black"
-                | n when n > 1 -> (sprintf "[%d]" n), 3, "purple"
+                | n when n > 1 -> (sprintf "%d\n/" n), 3, "purple"
                 | n -> failwithf "what? PaintConnection called with width %d" n 
             draw2dLib.setConnectionLabel jsConnection label
             draw2dLib.setConnectionStroke jsConnection stroke

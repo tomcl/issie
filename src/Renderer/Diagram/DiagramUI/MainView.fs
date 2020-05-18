@@ -50,25 +50,19 @@ let runBusWidthInference model =
     match model.Diagram.GetCanvasState () with
     | None -> model
     | Some state ->
-        JSHelpers.startTimer "bus-infer-performance"
-        state
-        |> extractState
-        |> inferConnectionsWidth
-        |> function
+        state |> extractState |> inferConnectionsWidth |> function
             | Error e ->
                 // TODO: this makes the conent of the model.Higlighted inconsistent.
                 // Need to dispatch SetHighlighted (can do by using mkProgram).
                 e.ConnectionsAffected
                 |> List.map (fun (BusTypes.ConnectionId c) -> model.Diagram.HighlightConnection c)
                 |> ignore
-                JSHelpers.stopAndLogTimer "bus-infer-performance"
                 // Display notification with error message.
                 { model with Notifications =
                                 { model.Notifications with FromDiagram =
                                                             Some <| errorNotification e.Msg CloseDiagramNotification} }
             | Ok connsWidth ->
                 paintEach connsWidth
-                JSHelpers.stopAndLogTimer "bus-infer-performance"
                 // Close the notification if all is good.
                 { model with Notifications = {model.Notifications with FromDiagram = None} }
 
@@ -108,8 +102,6 @@ let displayView model dispatch =
         viewNotifications model dispatch
         viewOnDiagramButtons model dispatch
         div [ rightSectionStyle ] [
-            // TODO: remove this button.
-            Button.button [Button.OnClick (fun _ -> InferWidths () |> JSDiagramMsg |> dispatch)] [str "run infer"]
             Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ ] ] [
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]

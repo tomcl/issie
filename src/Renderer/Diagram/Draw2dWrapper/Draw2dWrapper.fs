@@ -22,6 +22,7 @@ type private IDraw2d =
         dispatchInferWidthsMessage_         :(unit->unit) ->
         dispatchOnSelectComponentMessage_   :(JSComponent->unit) ->
         dispatchOnUnselectComponentMessage_ :(unit->unit) ->
+        dispatchHasUnsavedChangesMessage_   :(bool->unit) ->
         unit
     abstract createCanvas                 : id:string -> width:int -> height:int -> JSCanvas
     abstract initialiseCanvas             : canvas:JSCanvas -> unit
@@ -199,6 +200,7 @@ type Draw2dWrapper() =
                 (InferWidths >> jsDiagramMsgDispatch)
                 (SelectComponent >> jsDiagramMsgDispatch)
                 (UnselectComponent >> jsDiagramMsgDispatch)
+                (SetHasUnsavedChanges >> jsDiagramMsgDispatch)
         | Some _ -> ()
         // Return react element with relevant props.
         createDraw2dReact {

@@ -36,6 +36,8 @@ let private loadStateIntoCanvas state model dispatch =
     model.Diagram.FlushCommandStack () // Discard all undo/redo.
     // Run the a connection widhts inference.
     InferWidths () |> JSDiagramMsg |> dispatch
+    // Set no unsaved changes.
+    SetHasUnsavedChanges false |> JSDiagramMsg |> dispatch
 
 let private reloadProjectComponents dispatch project =
     match tryLoadComponentsFromPath project.ProjectPath with
@@ -328,9 +330,15 @@ let viewTopMenu model dispatch =
                 ]
                 Navbar.Item.div [] [
                     Navbar.Item.div [] [
-                        Button.button [ Button.Props [
-                            OnClick (fun _ -> saveOpenFileAction model )
-                        ] ] [ str "Save" ]
+                        Button.button [
+                            Button.Color (if model.HasUnsavedChanges
+                                          then IsSuccess
+                                          else IsWhite)
+                            Button.OnClick (fun _ ->
+                                saveOpenFileAction model
+                                SetHasUnsavedChanges false
+                                |> JSDiagramMsg |> dispatch)
+                        ] [ str "Save" ]
                     ]
                 ]
             ]

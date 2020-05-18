@@ -17,6 +17,13 @@ draw2d.shape.digital = draw2d.SVGFigure.extend({
 
     init: function(attr, setter, getter ){
         this._super($.extend({bgColor: "lightgrey"}, attr), setter, getter);
+        this.on("change", () => {
+            if (dispatchHasUnsavedChangesMessage !== "undefined") {
+                dispatchHasUnsavedChangesMessage(true);
+            } else {
+                console.log("Warning: trying to dispatch a JS HasChanges message but dispatcher is not defined.")
+            }
+        });
     },
 
     repaint: function(attributes) {

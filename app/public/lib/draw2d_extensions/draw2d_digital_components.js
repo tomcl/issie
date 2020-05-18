@@ -458,7 +458,7 @@ draw2d.shape.digital.SplitWire = draw2d.shape.digital.extend({
         );
 
         console.assert(typeof attr.numberOfBitsInTopWire === "number", "numberOfBitsInTopWire is not a number when creating an SplitWire node");
-        this.numberOfBits = attr.numberOfBitsInTopWire;
+        this.numberOfBitsInTopWire = attr.numberOfBitsInTopWire;
 
         this.svgElements = [
             // Horizontal line in center.

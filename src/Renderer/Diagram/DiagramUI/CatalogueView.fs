@@ -61,6 +61,23 @@ let private createIOPopup typeStr compType model dispatch =
             (getInt dialogData < 1) || (getText dialogData = "")
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
+let private createSplitWirePopup model dispatch =
+    let title = sprintf "Add SplitWire node" 
+    let beforeInt =
+        fun _ -> str "How many bits should the top wire have? The remaining bits will go in the bottom wire."
+    let intDefault = 1
+    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let inputInt = getInt dialogData
+            JSHelpers.log inputInt
+            model.Diagram.CreateComponent (SplitWire inputInt) "" 100 100 |> ignore
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+    dialogPopup title body buttonText buttonAction isDisabled dispatch
+
 let viewCatalogue model dispatch =
     Menu.menu [ ] [
             Menu.label [ ] [ str "Input / Output" ]
@@ -71,7 +88,7 @@ let viewCatalogue model dispatch =
             Menu.list []
                 [ menuItem "MergeWires"  (fun _ -> model.Diagram.CreateComponent MergeWires "" 100 100 |> ignore)
                   // TODO: ask top number of bits with a popup.
-                  menuItem "SplitWire" (fun _ -> model.Diagram.CreateComponent (SplitWire 1) "" 100 100 |> ignore) ]
+                  menuItem "SplitWire" (fun _ -> createSplitWirePopup model dispatch) ]
             Menu.label [ ] [ str "Gates" ]
             Menu.list []
                 [ menuItem "Not"  (fun _ -> model.Diagram.CreateComponent Not "" 100 100 |> ignore)

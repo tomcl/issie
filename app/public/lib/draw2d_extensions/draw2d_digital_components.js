@@ -417,7 +417,7 @@ draw2d.shape.digital.MergeWires = draw2d.shape.digital.extend({
     NAME:"draw2d.shape.digital.MergeWires",
 
     componentType : "MergeWires",
-    svgHeight : 20,
+    svgHeight : 30,
     svgWidth : 40,
     svgElements : [],  
 
@@ -452,7 +452,7 @@ draw2d.shape.digital.SplitWire = draw2d.shape.digital.extend({
     NAME:"draw2d.shape.digital.SplitWire",
 
     componentType : "SplitWire",
-    svgHeight : 20,
+    svgHeight : 30,
     svgWidth : 40,
     svgElements : [],
     numberOfBitsInTopWire : 1,

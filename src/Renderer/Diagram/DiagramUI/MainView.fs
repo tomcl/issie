@@ -35,6 +35,7 @@ let init() = {
     Notifications = {
         FromDiagram = None
         FromSimulation = None
+        FromFiles = None
     }
 }
 
@@ -175,3 +176,9 @@ let update msg model =
                         { model.Notifications with FromSimulation = Some n}}
     | CloseSimulationNotification ->
         { model with Notifications = {model.Notifications with FromSimulation = None} }
+    | SetFilesNotification n ->
+        { model with Notifications =
+                        { model.Notifications with FromFiles = Some n}}
+    | CloseFilesNotification ->
+        { model with Notifications = {model.Notifications with FromFiles = None} }
+    

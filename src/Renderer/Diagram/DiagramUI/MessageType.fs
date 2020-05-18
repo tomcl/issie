@@ -45,3 +45,5 @@ type Msg =
     | CloseDiagramNotification
     | SetSimulationNotification of ((Msg -> unit) -> ReactElement)
     | CloseSimulationNotification
+    | SetFilesNotification of ((Msg -> unit) -> ReactElement)
+    | CloseFilesNotification

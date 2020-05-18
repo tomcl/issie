@@ -87,7 +87,6 @@ let viewCatalogue model dispatch =
             Menu.label [] [ str "Buses" ]
             Menu.list []
                 [ menuItem "MergeWires"  (fun _ -> model.Diagram.CreateComponent MergeWires "" 100 100 |> ignore)
-                  // TODO: ask top number of bits with a popup.
                   menuItem "SplitWire" (fun _ -> createSplitWirePopup model dispatch) ]
             Menu.label [ ] [ str "Gates" ]
             Menu.list []

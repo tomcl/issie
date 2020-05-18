@@ -41,8 +41,8 @@ let private extractPorts (jsPorts : JSPorts) : Port list =
 
 let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     match getFailIfNull jsComponent ["componentType"] with
-    | "Input"  -> Input
-    | "Output" -> Output
+    | "Input"  -> Input <| getFailIfNull jsComponent ["numberOfBits"]
+    | "Output" -> Output <| getFailIfNull jsComponent ["numberOfBits"]
     | "Not"    -> Not
     | "And"    -> And
     | "Or"     -> Or
@@ -57,6 +57,12 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
             InputLabels  = jsListToFSharpList (getFailIfNull jsComponent ["inputs"])
             OutputLabels = jsListToFSharpList (getFailIfNull jsComponent ["outputs"])
         }
+    | "MakeBus2" -> MakeBus2
+    | "SplitBus2" -> SplitBus2
+    | "PushToBusFirst" -> PushToBusFirst
+    | "PushToBusLast"  -> PushToBusLast
+    | "PopFirstFromBus" -> PopFirstFromBus
+    | "PopLastFromBus"  -> PopLastFromBus
     | ct -> failwithf "what? Component type %s does not exist" ct
 
 let private extractVertices (jsVertices : JSVertices) : (float * float) list =

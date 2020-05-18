@@ -11,7 +11,13 @@ module DiagramModelType
 
 open DiagramTypes
 open DiagramMessageType
+open SimulatorTypes
 open Draw2dWrapper
+
+type Notifications = {
+    FromDiagram : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
+    FromSimulation : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
+}
 
 type Model = {
     Diagram : Draw2dWrapper
@@ -21,6 +27,7 @@ type Model = {
     Hilighted : ComponentId list * ConnectionId list
     Clipboard : CanvasState // Components and connections that have been selected and copied.
     CurrProject : Project option
-    Popup : (string -> Fable.Import.React.ReactElement) option
-    PopupDialogText : string option
+    Popup : (PopupDialogData -> Fable.Import.React.ReactElement) option
+    PopupDialogData : PopupDialogData
+    Notifications : Notifications
 }

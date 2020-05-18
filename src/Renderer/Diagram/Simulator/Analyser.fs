@@ -8,6 +8,8 @@
 module Analyser
 
 open DiagramTypes
+open SimulatorTypes
+open BusWidthInferer
 
 // -- Checks performed
 //
@@ -19,9 +21,9 @@ open DiagramTypes
 //
 // Combinatorial logic can have no loops.
 //
-// Dependencies can have no loops. TODO
-//
 // Input/Output components in a simulationgraph must all have unique labels.
+//
+// All wire widths are consistent (rely on WidthInferer.fs).
 
 /// Check that:
 /// 1- all source ports in connections are Output ports,
@@ -198,14 +200,41 @@ let private checkIOLabels (canvasState : CanvasState) : SimulationError option =
     let components, _ = canvasState
     let inputs =
         components
-        |> List.filter (fun comp -> match comp.Type with | Input -> true | _ -> false)
+        |> List.filter (fun comp -> match comp.Type with | Input _ -> true | _ -> false)
     let outputs =
         components
-        |> List.filter (fun comp -> match comp.Type with | Output -> true | _ -> false)
+        |> List.filter (fun comp -> match comp.Type with | Output _ -> true | _ -> false)
     match checkDuplicate inputs (toMap inputs) "Input",
           checkDuplicate outputs (toMap outputs) "Output" with
     | Some err, _ | _, Some err -> Some err
     | None, None -> None
+
+/// Checks that all connections have consistent widths.
+/// This function relies on the bus inferer, but also makes sure that all widths
+/// can be inferred.
+let private checkConnectionsWidths
+        (canvasState : CanvasState)
+        : SimulationError option =
+    let convertConnId (BusTypes.ConnectionId cId) = ConnectionId cId
+    let convertError (err : BusTypes.WidthInferError) : SimulationError = {
+        Msg = err.Msg
+        InDependency = None
+        ConnectionsAffected = err.ConnectionsAffected |> List.map convertConnId
+        ComponentsAffected = []
+    }
+    match inferConnectionsWidth canvasState with
+    | Error err -> Some <| convertError err
+    | Ok connWidths ->
+        let faulty = connWidths |> Map.filter (fun _ width -> Option.isNone width)
+        match faulty.IsEmpty with
+        | true -> None // All good.
+        | _ -> Some {
+            Msg = "Could not infer all connections widths."
+            InDependency = None
+            ConnectionsAffected =
+                faulty |> Map.toList |> List.map (fun (cId, _) -> convertConnId cId)
+            ComponentsAffected = []
+        }
 
 type private DfsType =
     // No cycle detected in the subtree. Return the new visited set and keep
@@ -314,11 +343,14 @@ let private checkCombinatorialCycle
 let analyseState
         (state : CanvasState)
         : SimulationError option =
-    match checkPortTypesAreConsistent state,
-          checkPortsAreConnectedProperly state,
-          checkIOLabels state with
-    | Some err, _, _| _, Some err, _ | _, _, Some err -> Some err
-    | None, None, None -> None
+    [
+        checkPortTypesAreConsistent state
+        checkPortsAreConnectedProperly state
+        checkIOLabels state
+        checkConnectionsWidths state
+    ]
+    |> List.tryFind Option.isSome
+    |> Option.flatten
 
 /// Analyse a SimulationGraph and return any error (or None).
 let analyseGraph

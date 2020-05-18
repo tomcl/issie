@@ -8,6 +8,7 @@
 module DependencyMerger
 
 open DiagramTypes
+open SimulatorTypes
 open SimulationRunner
 open SimulationBuilder
 open Helpers
@@ -211,36 +212,36 @@ let private portNumberToLabel (InputPortNumber pNumber) (inputLabels : string li
     inputLabels.[pNumber]
 
 /// Extract simulation input values as map.
-let private extractInputValuesAsMap graph graphInputs inputLabels : Map<InputPortNumber, Bit> =
+let private extractInputValuesAsMap graph graphInputs inputLabels : Map<InputPortNumber, WireData> =
     extractIncompleteSimulationIOs graphInputs graph
     |> List.map (
-        fun ((_, ComponentLabel compLabel), bit) ->
-            InputPortNumber <| labelToPortNumber compLabel inputLabels, bit)
+        fun ((_, ComponentLabel compLabel, _), wireData) ->
+            InputPortNumber <| labelToPortNumber compLabel inputLabels, wireData)
     |> Map.ofList
 
 /// Extract simulation output values as map.
-let private extractOutputValuesAsMap graph graphOutputs outputLabels : Map<OutputPortNumber, Bit> =
+let private extractOutputValuesAsMap graph graphOutputs outputLabels : Map<OutputPortNumber, WireData> =
     extractSimulationIOs graphOutputs graph
     |> List.map (
-        fun ( (_, ComponentLabel label), bit ) ->
-            OutputPortNumber <| labelToPortNumber label outputLabels, bit)
+        fun ((_, ComponentLabel label, _), wireData) ->
+            OutputPortNumber <| labelToPortNumber label outputLabels, wireData)
     |> Map.ofList
 
 /// Function used in the custom reducer to only feed the inputs that changed.
 let private diffSimulationInputs
-        (newInputs : Map<InputPortNumber, Bit>)
-        (oldInputs : Map<InputPortNumber, Bit>)
-        : Map<InputPortNumber, Bit> =
+        (newInputs : Map<InputPortNumber, WireData>)
+        (oldInputs : Map<InputPortNumber, WireData>)
+        : Map<InputPortNumber, WireData> =
     // New inputs either:
     // - has more keys than oldInputs,
     // - has the same keys as oldInput, but their values have changed.
     assertThat (oldInputs.Count <= newInputs.Count) "diffSimulationInputs"
     (Map.empty, newInputs)
-    ||> Map.fold (fun diff inputPortNumber bit ->
+    ||> Map.fold (fun diff inputPortNumber wireData ->
         match oldInputs.TryFind inputPortNumber with
-        | None -> diff.Add(inputPortNumber, bit)
-        | Some oldBit when oldBit <> bit -> diff.Add(inputPortNumber, bit)
-        | Some oldBit when oldBit = bit -> diff
+        | None -> diff.Add(inputPortNumber, wireData)
+        | Some oldBit when oldBit <> wireData -> diff.Add(inputPortNumber, wireData)
+        | Some oldBit when oldBit = wireData -> diff
         | _ -> failwith "what? Impossible case in diffSimulationInputs"
     )
 
@@ -252,11 +253,13 @@ let private makeCustomReducer
         (custom : CustomComponentType)
         (graphInputs : SimulationIO list)
         (graphOutputs : SimulationIO list)
-        : Map<InputPortNumber, Bit>               // Inputs.
-          -> SimulationGraph option               // CustomSimulationGraph.
-          -> (Map<OutputPortNumber, Bit> option * // Outputs.
-              SimulationGraph option)             // Updated CustomSimulationGraph.
+        : Map<InputPortNumber, WireData>               // Inputs.
+          -> SimulationGraph option                    // CustomSimulationGraph.
+          -> (Map<OutputPortNumber, WireData> option * // Outputs.
+              SimulationGraph option)                  // Updated CustomSimulationGraph.
         =
+    let inputLabels = List.map (fun (label, _) -> label) custom.InputLabels
+    let outputLabels = List.map (fun (label, _) -> label) custom.OutputLabels
     fun inputs graphOption ->
         let graph = match graphOption with
                     | None -> failwithf "what? CustomSimulationGraph should always be Some in Custom component: %s" custom.Name
@@ -266,21 +269,21 @@ let private makeCustomReducer
         | true ->
             // Feed only new inputs or inputs that changed, for performance.
             let oldInputs =
-                extractInputValuesAsMap graph graphInputs custom.InputLabels
+                extractInputValuesAsMap graph graphInputs inputLabels
             let newInputs = diffSimulationInputs inputs oldInputs
             let graph =
                 (graph, newInputs)
-                ||> Map.fold (fun graph inputPortNumber bit ->
+                ||> Map.fold (fun graph inputPortNumber wireData ->
                     let inputLabel =
-                        portNumberToLabel inputPortNumber custom.InputLabels
-                    let inputId, _ =
+                        portNumberToLabel inputPortNumber inputLabels
+                    let inputId, _, _ =
                         graphInputs
-                        |> List.find (fun (_, ComponentLabel inpLabel) ->
+                        |> List.find (fun (_, ComponentLabel inpLabel, _) ->
                                       inpLabel = inputLabel)
-                    feedSimulationInput graph inputId bit
+                    feedSimulationInput graph inputId wireData
                 )
             let outputs =
-                extractOutputValuesAsMap graph graphOutputs custom.OutputLabels
+                extractOutputValuesAsMap graph graphOutputs outputLabels
             // Return the outputs toghether with the updated graph.
             Some outputs, Some graph
 

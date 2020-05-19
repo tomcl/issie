@@ -4,7 +4,8 @@
   "scripts": {
     "start": "cd src/Main && dotnet fable webpack --port free -- -w --config webpack.config.js",
     "build": "cd src/Main && dotnet fable webpack --port free -- -p --config webpack.config.js",
-    "launch": "electron ."
+    "launch": "electron . --icon=app/icon.ico",
+    "debug": "electron . --debug"
   },
   "dependencies": {
     "babel": "^6.23.0",

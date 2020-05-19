@@ -5,15 +5,31 @@ open Fable.Import
 open Electron
 open Node.Exports
 
+electron.app.setName "DEflow"
+
+let args = 
+    Fable.Import.Node.Globals.``process``.argv 
+    |> Seq.toList
+    |> List.map (fun s -> s.ToLower())
+
+/// Returns true if any of flags are present as command line argument.    
+let argFlagIsOn (flags:string list) = 
+    let fl = List.map (fun (s:string) -> s.ToLower()) flags
+    List.exists (fun flag -> List.contains flag args) fl
+
+let hasDebugArgs() = argFlagIsOn ["--debug";"-d"]
+
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mutable mainWindow: BrowserWindow option = Option.None
 
 let createMainWindow () =
     let options = createEmpty<BrowserWindowOptions>
-    options.width <- Some 800.
-    options.height <- Some 600.
+    options.width <- Some 1200.0
+    options.height <- Some 800.0
     options.autoHideMenuBar <- Some true
+    options.icon <- Some (Fable.Core.U2.Case2 "app/icon.ico")
+
     let window = electron.BrowserWindow.Create(options)
 
     // Load the index.html of the app.
@@ -21,8 +37,8 @@ let createMainWindow () =
     opts.pathname <- Some <| path.join(Node.Globals.__dirname, "index.html")
     opts.protocol <- Some "file:"
     window.loadURL(url.format(opts))
-    
-    window.webContents.openDevTools()
+
+    if hasDebugArgs() then window.webContents.openDevTools()
 
     // Emitted when the window is closed.
     window.on("closed", unbox(fun () ->

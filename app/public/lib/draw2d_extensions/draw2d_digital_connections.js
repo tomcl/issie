@@ -19,7 +19,7 @@ draw2d.layout.locator.BusLabelLocator = draw2d.layout.locator.ConnectionLocator.
     relocate: function(index, target) {
        const conn = target.getParent();
        const points = conn.getVertices();
-       const x = points.data[0].x;
+       const x = points.data[0].x + 5;
        const y = points.data[0].y - 21;
        target.setPosition(x,y);
     }

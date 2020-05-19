@@ -59,7 +59,7 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
             OutputLabels = jsListToFSharpList (getFailIfNull jsComponent ["outputs"])
         }
     | "MergeWires" -> MergeWires
-    | "SplitWire"  -> SplitWire <| getFailIfNull jsComponent ["numberOfBitsInTopWire"]
+    | "SplitWire"  -> SplitWire <| getFailIfNull jsComponent ["topOutputWidth"]
     | ct -> failwithf "what? Component type %s does not exist" ct
 
 let private extractVertices (jsVertices : JSVertices) : (float * float) list =

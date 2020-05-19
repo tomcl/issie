@@ -195,7 +195,7 @@ let private findConnectionsFromOutputPort
     outputPortIdsToConnections.TryFind portId
 
 /// Lookup the width of a connection in the connectionsWidth map or fail.
-let private getConnectionWidth
+let getConnectionWidth
         (connectionsWidth : ConnectionsWidth)
         (connId : ConnectionId)
         : int option =

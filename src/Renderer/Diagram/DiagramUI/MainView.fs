@@ -11,6 +11,7 @@ open DiagramStyle
 open SimulatorTypes
 open DiagramMessageType
 open DiagramModelType
+open DiagramTypes
 open Draw2dWrapper
 open Extractor
 open OnDiagramButtonsView
@@ -40,38 +41,73 @@ let init() = {
     }
 }
 
-let runBusWidthInference model =
-    let paintEach connsWidth =
-        connsWidth
-        |> Map.map (fun (BusTypes.ConnectionId connId) width ->
-            match width with
-            | None -> () // Could not infer.
-            | Some w -> model.Diagram.PaintConnection connId w
-        )
-        |> ignore
+/// Repaint each connection according to the new inferred width.
+let private repaintConnections model connsWidth =
+    connsWidth
+    |> Map.map (fun (BusTypes.ConnectionId connId) width ->
+        match width with
+        | None -> () // Could not infer.
+        | Some w -> model.Diagram.PaintConnection connId w
+    )
+    |> ignore
+
+let private mapPortIdsToConnWidth conns connsWidth = 
+    (Map.empty, conns) ||> List.fold (fun map conn ->
+        let width = getConnectionWidth connsWidth <| BusTypes.ConnectionId conn.Id
+        let map = map.Add (conn.Source.Id, width)
+        map.Add (conn.Target.Id, width)
+    )
+
+let private repaintBusComponents model connsWidth state =
+    let comps, conns = state
+    let portIdsToConnWidth = mapPortIdsToConnWidth conns connsWidth
+    let lookupWidthOnPort portId =
+        match portIdsToConnWidth.TryFind portId with
+        | None -> None // Unconnected.
+        | Some w -> w // Connected, may be inferred or not.
+    comps |> List.map (fun comp ->
+        match comp.Type with
+        | MergeWires ->
+            (
+                comp.InputPorts.[0].Id |> lookupWidthOnPort, // Top left input wire.
+                comp.InputPorts.[1].Id |> lookupWidthOnPort, // Bottom left input wire.
+                comp.OutputPorts.[0].Id |> lookupWidthOnPort // Output wire.
+            ) |||> model.Diagram.UpdateMergeWiresLabels comp.Id
+        | SplitWire topOutputWidth ->
+            (
+                comp.InputPorts.[0].Id |> lookupWidthOnPort,  // Input wire.
+                Some topOutputWidth, // Top right input wire.
+                comp.OutputPorts.[1].Id |> lookupWidthOnPort  // Bottom right input wire.
+            ) |||> model.Diagram.UpdateSplitWireLabels comp.Id
+        | _ -> () // Ignore other components.
+    ) |> ignore
+
+let private runBusWidthInference model =
     match model.Diagram.GetCanvasState () with
     | None -> model
-    | Some state ->
-        state |> extractState |> inferConnectionsWidth |> function
-            | Error e ->
-                // TODO: this makes the conent of the model.Higlighted inconsistent.
-                // Need to dispatch SetHighlighted (can do by using mkProgram).
-                e.ConnectionsAffected
-                |> List.map (fun (BusTypes.ConnectionId c) -> model.Diagram.HighlightConnection c)
-                |> ignore
-                // Display notification with error message.
-                { model with Notifications =
-                                { model.Notifications with FromDiagram =
-                                                            Some <| errorNotification e.Msg CloseDiagramNotification} }
-            | Ok connsWidth ->
-                paintEach connsWidth
-                // Close the notification if all is good.
-                { model with Notifications = {model.Notifications with FromDiagram = None} }
+    | Some jsState ->
+        let state = extractState jsState
+        state |> inferConnectionsWidth |> function
+        | Error e ->
+            // TODO: this makes the conent of the model.Higlighted inconsistent.
+            // Need to dispatch SetHighlighted (can do by using mkProgram).
+            e.ConnectionsAffected
+            |> List.map (fun (BusTypes.ConnectionId c) -> model.Diagram.HighlightConnection c)
+            |> ignore
+            // Display notification with error message.
+            { model with Notifications =
+                            { model.Notifications with FromDiagram =
+                                                        Some <| errorNotification e.Msg CloseDiagramNotification} }
+        | Ok connsWidth ->
+            repaintConnections model connsWidth
+            repaintBusComponents model connsWidth state
+            // Close the notification if all is good.
+            { model with Notifications = {model.Notifications with FromDiagram = None} }
 
 // -- Create View
 
 /// Display the content of the right tab.
-let viewRightTab model dispatch =
+let private viewRightTab model dispatch =
     match model.RightTab with
     | Catalogue ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
@@ -121,7 +157,7 @@ let displayView model dispatch =
 
 // -- Update Model
 
-let handleJSDiagramMsg msg model =
+let private handleJSDiagramMsg msg model =
     match msg with
     | InitCanvas canvas -> // Should be triggered only once.
         model.Diagram.InitCanvas canvas

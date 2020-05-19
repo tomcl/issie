@@ -9,50 +9,54 @@ module SelectedComponentView
 open Fulma
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
-open Fable.Import.Browser
 
 open JSHelpers
 open DiagramModelType
+open DiagramTypes
+
+let private prettyPrintCompType compType =
+    match compType with
+    | Input width -> div [] [ str <| sprintf "Input: %d bit(s)" width ]
+    | Output width -> div [] [ str <| sprintf "Output: %d bit(s)" width ]
+    | Not | And | Or | Xor | Nand | Nor | Xnor ->
+        div [] [ str <| sprintf "%A gate" compType ]
+    | Mux2 -> div [] [ str "Multiplexer with two inputs and one output" ]
+    | Demux2 -> div [] [ str "Demultiplexer with one input and two outputs" ]
+    | MergeWires -> div [] [ str "Merge two wires of width n and m into a single wire of width n+m "]
+    | SplitWire width -> div [] [ str <| sprintf "Split a wire of width n+m into two wires of widthn and m (n is %d)" width]
+    | Custom custom ->
+        let toHTMLList =
+            List.map (fun (label, width) -> li [] [str <| sprintf "%s: %d bit(s)" label width])
+        div [] [
+            str <| sprintf "%s: user defined component" custom.Name
+            br []
+            span [Style [FontStyle "italic"]] [str <| "Inputs"]
+            ul [] (toHTMLList custom.InputLabels)
+            span [Style [FontStyle "italic"]] [str <| "Outputs"]
+            ul [] (toHTMLList custom.OutputLabels)
+        ]
+
+let private readOnlyFormField name body =
+    Field.div [] [
+        Label.label [] [ str name ]
+        body
+    ]
+
+let private formField name defaultValue onChange =
+    Field.div [] [
+        Label.label [] [ str name ]
+        Control.div [] [ Input.text [
+            Input.Props [ Name name; ]
+            Input.DefaultValue defaultValue
+            Input.OnChange (getTextEventValue >> onChange)
+        ] ]
+    ]
 
 let viewSelectedComponent model =
     match model.SelectedComponent with
-    | None -> div [] [ str "Select a component in the diagram" ]
+    | None -> div [] [ str "Select a component in the diagram to view/edit its properties" ]
     | Some comp ->
-        let formId = "component-properties-form-" + comp.Id
-        let readOnlyFormField name value =
-            Field.div [] [
-                Label.label [] [ str name ]
-                Control.div [] [ Input.text [ Input.Props [ ReadOnly true; Name name ]; Input.IsStatic true; Input.Value value ] ] ]
-        let formField name defaultValue =
-            // Use comp.Id as key to refresh. DefaultValue is only updated when
-            // the form is created and not anymore. The Key force the re-rendering
-            // of the element every time the Key value changes.
-            Field.div [] [
-                Label.label [] [ str name ]
-                Control.div [] [ Input.text [ Input.Props [ Name name; Key comp.Id ]; Input.DefaultValue defaultValue ] ] ]
-        let formButton text onClick =
-            Field.div [ Field.IsGrouped ] [
-                Control.div [] [
-                    Button.button [
-                        Button.Color IsPrimary
-                        Button.OnClick (fun e ->
-                            e.preventDefault()
-                            onClick ()
-                        )
-                    ] [ str text ]
-                ]
-            ]
-        form [ Id formId ] [
-            readOnlyFormField "Id" comp.Id
-            readOnlyFormField "Type" <| sprintf "%A" comp.Type
-            formField "Label" comp.Label
-            readOnlyFormField "Input ports" <| sprintf "%d" comp.InputPorts.Length
-            readOnlyFormField "Output ports" <| sprintf "%d" comp.OutputPorts.Length
-            // Submit.
-            formButton "Update" (fun _ ->
-                // TODO: dont think this is the right way to do it.
-                let form = document.getElementById <| formId
-                let label : string = getFailIfNull form ["elements"; "Label"; "value"]
-                model.Diagram.EditComponent comp.Id label
-            )
+        div [] [
+            readOnlyFormField "Description" <| prettyPrintCompType comp.Type
+            formField "Label" comp.Label (fun text -> model.Diagram.EditComponentLabel comp.Id text)
         ]

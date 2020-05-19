@@ -69,6 +69,10 @@ function addComponentLabel(comp, label) {
     );
 }
 
+function setComponentLabel(comp, newLabel) {
+    comp.children.data[0].figure.setText(newLabel);
+}
+
 function setConnectionLabel(conn, newLabel) {
     conn.children.data[0].figure.setText(newLabel);
 }
@@ -193,9 +197,23 @@ function createDigitalMergeWires(x, y) {
     return new draw2d.shape.digital.MergeWires({x:x,y:y,resizeable:false});
 }
 
-function createDigitalSplitWire(x, y, numberOfBitsInTopWire) {
+function createDigitalSplitWire(x, y, topOutputWidth) {
     return new draw2d.shape.digital.SplitWire({
-        x:x,y:y,numberOfBitsInTopWire:numberOfBitsInTopWire,resizeable:false});
+        x:x,y:y,topOutputWidth:topOutputWidth,resizeable:false});
+}
+
+function updateMergeWiresLabels(comp, topInputWidth, bottomInputWidth, outputWidth) {
+    comp.topInputWidth = topInputWidth;
+    comp.bottomInputWidth = bottomInputWidth;
+    comp.outputWidth = outputWidth;
+    comp.setSVG(comp.getSVG()); // Refresh svg.
+}
+
+function updateSplitWireLabels(comp, inputWidth, topOutputWidth, bottomOutputWidth) {
+    comp.inputWidth = inputWidth;
+    comp.topOutputWidth = topOutputWidth;
+    comp.bottomOutputWidth = bottomOutputWidth;
+    comp.setSVG(comp.getSVG()); // Refresh svg.
 }
 
 function getComponentById(canvas, id) {
@@ -264,6 +282,7 @@ export {
     addComponentToCanvas,
     addConnectionToCanvas,
     addComponentLabel,
+    setComponentLabel,
     setConnectionLabel,
     setComponentId,
     setConnectionId,
@@ -291,6 +310,8 @@ export {
     createDigitalMergeWires,
     createDigitalSplitWire,
     createDigitalConnection, // Defined in draw2d_digital_connection.js. 
+    updateMergeWiresLabels,
+    updateSplitWireLabels,
     getComponentById,
     getConnectionById,
     getPortById,

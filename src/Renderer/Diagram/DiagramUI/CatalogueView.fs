@@ -10,6 +10,7 @@ open Fulma
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
+open DiagramStyle
 open DiagramModelType
 open DiagramMessageType
 open DiagramTypes
@@ -33,12 +34,17 @@ let private makeCustom model loadedComponent =
 
 let private makeCustomList model =
     match model.CurrProject with
-    | None -> Menu.list [] []
+    | None -> []
     | Some project ->
         // Do no show the open component in the catalogue.
-        Menu.list [] (project.LoadedComponents
-                      |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-                      |> List.map (makeCustom model))
+        project.LoadedComponents
+        |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        |> List.map (makeCustom model)
+
+let private createComponent comp label model dispatch =
+    let offset = model.CreateComponentOffset
+    model.Diagram.CreateComponent comp label (100+offset) (100+offset) |> ignore
+    (offset + 50) % 200 |> SetCreateComponentOffset |> dispatch
 
 let private createIOPopup typeStr compType model dispatch =
     let title = sprintf "Add %s node" typeStr
@@ -54,7 +60,7 @@ let private createIOPopup typeStr compType model dispatch =
         fun (dialogData : PopupDialogData) ->
             let inputText = getText dialogData
             let inputInt = getInt dialogData
-            model.Diagram.CreateComponent (compType inputInt) inputText 100 100 |> ignore
+            createComponent (compType inputInt) inputText model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
@@ -71,37 +77,42 @@ let private createSplitWirePopup model dispatch =
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
-            JSHelpers.log inputInt
-            model.Diagram.CreateComponent (SplitWire inputInt) "" 100 100 |> ignore
+            createComponent (SplitWire inputInt) "" model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
+let private makeMenuGroup title menuList =
+    details [Open true] [
+        summary [menuLabelStyle] [ str title ]
+        Menu.list [] menuList
+    ]
+
 let viewCatalogue model dispatch =
-    Menu.menu [ ] [
-            Menu.label [ ] [ str "Input / Output" ]
-            Menu.list []
+    Menu.menu [] [
+            makeMenuGroup
+                "Input / Output"
                 [ menuItem "Input"  (fun _ -> createIOPopup "input" Input model dispatch)
                   menuItem "Output" (fun _ -> createIOPopup "output" Output model dispatch) ]
-            Menu.label [] [ str "Buses" ]
-            Menu.list []
-                [ menuItem "MergeWires"  (fun _ -> model.Diagram.CreateComponent MergeWires "" 100 100 |> ignore)
-                  // TODO: ask top number of bits with a popup.
+            makeMenuGroup
+                "Buses"
+                [ menuItem "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch)
                   menuItem "SplitWire" (fun _ -> createSplitWirePopup model dispatch) ]
-            Menu.label [ ] [ str "Gates" ]
-            Menu.list []
-                [ menuItem "Not"  (fun _ -> model.Diagram.CreateComponent Not "" 100 100 |> ignore)
-                  menuItem "And"  (fun _ -> model.Diagram.CreateComponent And "" 100 100 |> ignore)
-                  menuItem "Or"   (fun _ -> model.Diagram.CreateComponent Or "" 100 100 |> ignore)
-                  menuItem "Xor"  (fun _ -> model.Diagram.CreateComponent Xor "" 100 100 |> ignore)
-                  menuItem "Nand" (fun _ -> model.Diagram.CreateComponent Nand "" 100 100 |> ignore)
-                  menuItem "Nor"  (fun _ -> model.Diagram.CreateComponent Nor "" 100 100 |> ignore)
-                  menuItem "Xnor" (fun _ -> model.Diagram.CreateComponent Xnor "" 100 100 |> ignore) ]
-            Menu.label [ ] [ str "Mux / Demux" ]
-            Menu.list []
-                [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "" 100 100 |> ignore)
-                  menuItem "Demux2" (fun _ -> model.Diagram.CreateComponent Demux2 "" 100 100 |> ignore) ]
-            Menu.label [ ] [ str "Custom" ]
-            makeCustomList model
+            makeMenuGroup
+                "Gates"
+                [ menuItem "Not"  (fun _ -> createComponent Not "" model dispatch)
+                  menuItem "And"  (fun _ -> createComponent And "" model dispatch)
+                  menuItem "Or"   (fun _ -> createComponent Or "" model dispatch)
+                  menuItem "Xor"  (fun _ -> createComponent Xor "" model dispatch)
+                  menuItem "Nand" (fun _ -> createComponent Nand "" model dispatch)
+                  menuItem "Nor"  (fun _ -> createComponent Nor "" model dispatch)
+                  menuItem "Xnor" (fun _ -> createComponent Xnor "" model dispatch) ]
+            makeMenuGroup
+                "Mux / Demux"
+                [ menuItem "Mux2" (fun _ -> createComponent Mux2 "" model dispatch)
+                  menuItem "Demux2" (fun _ -> createComponent Demux2 "" model dispatch) ]
+            makeMenuGroup
+                "This project"
+                (makeCustomList model)
         ]

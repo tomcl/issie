@@ -27,6 +27,7 @@ type JSDiagramMsg =
     | SelectComponent of JSComponent
     | UnselectComponent of unit
     | InferWidths of unit
+    | SetHasUnsavedChanges of bool
 
 type Msg =
     | JSDiagramMsg of JSDiagramMsg
@@ -36,6 +37,7 @@ type Msg =
     | ChangeRightTab of RightTab
     | SetHighlighted of ComponentId list * ConnectionId list
     | SetClipboard of CanvasState
+    | SetCreateComponentOffset of int
     | SetProject of Project
     | CloseProject
     | ShowPopup of (PopupDialogData -> ReactElement)
@@ -45,3 +47,5 @@ type Msg =
     | CloseDiagramNotification
     | SetSimulationNotification of ((Msg -> unit) -> ReactElement)
     | CloseSimulationNotification
+    | SetFilesNotification of ((Msg -> unit) -> ReactElement)
+    | CloseFilesNotification

@@ -20,9 +20,9 @@ open FilesIO
 open Extractor
 open PopupView
 
-// TODO close project -> so one can reopen a project even when they were using another one.
-// TODO remove file
-// TODO error popup
+let private displayFileErrorNotification err dispatch =
+    errorNotification err CloseFilesNotification
+    |> SetFilesNotification |> dispatch
 
 let private loadStateIntoCanvas state model dispatch =
     dispatch <| SetHighlighted ([],[]) // Remove current highlights.
@@ -36,10 +36,16 @@ let private loadStateIntoCanvas state model dispatch =
     model.Diagram.FlushCommandStack () // Discard all undo/redo.
     // Run the a connection widhts inference.
     InferWidths () |> JSDiagramMsg |> dispatch
+    // Set no unsaved changes.
+    SetHasUnsavedChanges false |> JSDiagramMsg |> dispatch
 
-let private reloadProjectComponents project =
+let private reloadProjectComponents dispatch project =
     match tryLoadComponentsFromPath project.ProjectPath with
-    | Error err -> failwith "what? reloading project components" // TODO: this should probably not crash the program.
+    | Error err ->
+        log err
+        let errMsg = "Could not load diagrams files in the project. The files may be malformed."
+        displayFileErrorNotification errMsg dispatch
+        project
     | Ok components -> { project with LoadedComponents = components }
 
 let private saveOpenFileAction model =
@@ -78,7 +84,7 @@ let private openFileInProject name project model dispatch =
         // Reload components so the project we just closed is up to date in
         // our CurrProj.
         { project with OpenFileName = name }
-        |> reloadProjectComponents |> SetProject |> dispatch
+        |> reloadProjectComponents dispatch |> SetProject |> dispatch
 
 /// Remove file.
 let private removeFileInProject name project model dispatch =
@@ -104,7 +110,7 @@ let private removeFileInProject name project model dispatch =
 /// Create a new file in this project. Do not open it automatically.
 let private addFileToProject model dispatch =
     match model.CurrProject with
-    | None -> () // TODO log warning?
+    | None -> log "Warning: addFileToProject called when no project is currently open"
     | Some project ->
         // Prepare dialog popup.
         let title = "Add file to project"
@@ -158,7 +164,10 @@ let private newProject model dispatch _ =
     | None -> () // User gave no path.
     | Some path ->
         match tryCreateFolder path with
-        | Error err -> log err // TODO
+        | Error err ->
+            log err
+            let errMsg = "Could not create a folder for the project."
+            displayFileErrorNotification errMsg dispatch
         | Ok _ ->
             let initialDiagram = createEmptyDiagramFile path "main"
             // Load the diagram.
@@ -177,7 +186,10 @@ let private openProject model dispatch _ =
     | None -> () // User gave no path.
     | Some path ->
         match tryLoadComponentsFromPath path with
-        | Error err -> log err // TODO: popup?
+        | Error err ->
+            log err
+            let errMsg = "Could not load diagrams files in the project. The files may be malformed."
+            displayFileErrorNotification errMsg dispatch
         | Ok components ->
             let openFileName, openFileState =
                 match components with
@@ -231,6 +243,7 @@ let viewTopMenu model dispatch =
                             Button.Size IsSmall
                             Button.IsOutlined
                             Button.Color IsPrimary
+                            Button.Disabled (name = project.OpenFileName)
                             Button.OnClick (fun _ ->
                                 saveOpenFileAction model // Save current file.
                                 openFileInProject name project model dispatch
@@ -318,9 +331,15 @@ let viewTopMenu model dispatch =
                 ]
                 Navbar.Item.div [] [
                     Navbar.Item.div [] [
-                        Button.button [ Button.Props [
-                            OnClick (fun _ -> saveOpenFileAction model )
-                        ] ] [ str "Save" ]
+                        Button.button [
+                            Button.Color (if model.HasUnsavedChanges
+                                          then IsSuccess
+                                          else IsWhite)
+                            Button.OnClick (fun _ ->
+                                saveOpenFileAction model
+                                SetHasUnsavedChanges false
+                                |> JSDiagramMsg |> dispatch)
+                        ] [ str "Save" ]
                     ]
                 ]
             ]

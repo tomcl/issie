@@ -32,6 +32,10 @@ let createMainWindow () =
 
     let window = electron.BrowserWindow.Create(options)
 
+    // Clear the menuBar.
+    let template = ResizeArray<MenuItemOptions> [createEmpty<MenuItemOptions>]
+    electron.Menu.setApplicationMenu(electron.Menu.buildFromTemplate(template))
+
     // Load the index.html of the app.
     let opts = createEmpty<Node.Url.Url<obj>>
     opts.pathname <- Some <| path.join(Node.Globals.__dirname, "index.html")

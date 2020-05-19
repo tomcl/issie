@@ -37,6 +37,7 @@ type Msg =
     | ChangeRightTab of RightTab
     | SetHighlighted of ComponentId list * ConnectionId list
     | SetClipboard of CanvasState
+    | SetCreateComponentOffset of int
     | SetProject of Project
     | CloseProject
     | ShowPopup of (PopupDialogData -> ReactElement)

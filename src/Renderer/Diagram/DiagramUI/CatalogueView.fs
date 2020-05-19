@@ -41,6 +41,11 @@ let private makeCustomList model =
         |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         |> List.map (makeCustom model)
 
+let private createComponent comp label model dispatch =
+    let offset = model.CreateComponentOffset
+    model.Diagram.CreateComponent comp label (100+offset) (100+offset) |> ignore
+    (offset + 50) % 200 |> SetCreateComponentOffset |> dispatch
+
 let private createIOPopup typeStr compType model dispatch =
     let title = sprintf "Add %s node" typeStr
     let beforeText =
@@ -55,7 +60,7 @@ let private createIOPopup typeStr compType model dispatch =
         fun (dialogData : PopupDialogData) ->
             let inputText = getText dialogData
             let inputInt = getInt dialogData
-            model.Diagram.CreateComponent (compType inputInt) inputText 100 100 |> ignore
+            createComponent (compType inputInt) inputText model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
@@ -72,7 +77,7 @@ let private createSplitWirePopup model dispatch =
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
-            model.Diagram.CreateComponent (SplitWire inputInt) "" 100 100 |> ignore
+            createComponent (SplitWire inputInt) "" model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
@@ -92,21 +97,21 @@ let viewCatalogue model dispatch =
                   menuItem "Output" (fun _ -> createIOPopup "output" Output model dispatch) ]
             makeMenuGroup
                 "Buses"
-                [ menuItem "MergeWires"  (fun _ -> model.Diagram.CreateComponent MergeWires "" 100 100 |> ignore)
+                [ menuItem "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch)
                   menuItem "SplitWire" (fun _ -> createSplitWirePopup model dispatch) ]
             makeMenuGroup
                 "Gates"
-                [ menuItem "Not"  (fun _ -> model.Diagram.CreateComponent Not "" 100 100 |> ignore)
-                  menuItem "And"  (fun _ -> model.Diagram.CreateComponent And "" 100 100 |> ignore)
-                  menuItem "Or"   (fun _ -> model.Diagram.CreateComponent Or "" 100 100 |> ignore)
-                  menuItem "Xor"  (fun _ -> model.Diagram.CreateComponent Xor "" 100 100 |> ignore)
-                  menuItem "Nand" (fun _ -> model.Diagram.CreateComponent Nand "" 100 100 |> ignore)
-                  menuItem "Nor"  (fun _ -> model.Diagram.CreateComponent Nor "" 100 100 |> ignore)
-                  menuItem "Xnor" (fun _ -> model.Diagram.CreateComponent Xnor "" 100 100 |> ignore) ]
+                [ menuItem "Not"  (fun _ -> createComponent Not "" model dispatch)
+                  menuItem "And"  (fun _ -> createComponent And "" model dispatch)
+                  menuItem "Or"   (fun _ -> createComponent Or "" model dispatch)
+                  menuItem "Xor"  (fun _ -> createComponent Xor "" model dispatch)
+                  menuItem "Nand" (fun _ -> createComponent Nand "" model dispatch)
+                  menuItem "Nor"  (fun _ -> createComponent Nor "" model dispatch)
+                  menuItem "Xnor" (fun _ -> createComponent Xnor "" model dispatch) ]
             makeMenuGroup
                 "Mux / Demux"
-                [ menuItem "Mux2" (fun _ -> model.Diagram.CreateComponent Mux2 "" 100 100 |> ignore)
-                  menuItem "Demux2" (fun _ -> model.Diagram.CreateComponent Demux2 "" 100 100 |> ignore) ]
+                [ menuItem "Mux2" (fun _ -> createComponent Mux2 "" model dispatch)
+                  menuItem "Demux2" (fun _ -> createComponent Demux2 "" model dispatch) ]
             makeMenuGroup
                 "This project"
                 (makeCustomList model)

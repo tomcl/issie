@@ -56,8 +56,10 @@ type private IDraw2d =
     abstract createDigitalDemux2          : x:int -> y:int -> JSComponent
     abstract createDigitalCustom          : x:int -> y:int -> name:string -> inputs:obj -> outputs:obj -> JSComponent
     abstract createDigitalMergeWires      : x:int -> y:int -> JSComponent
-    abstract createDigitalSplitWire       : x:int -> y:int -> numberOfBitsInTopWire:int -> JSComponent
+    abstract createDigitalSplitWire       : x:int -> y:int -> topOutputWidth:int -> JSComponent
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
+    abstract updateMergeWiresLabels       : comp:JSComponent -> topInputWidth:int option -> bottomInputWidth:int option -> outputWidth:int option -> unit
+    abstract updateSplitWireLabels        : comp:JSComponent -> inputWidth:int option ->topOutputWidth:int option ->bottomOutputWidth:int option -> unit
     abstract getComponentById             : canvas:JSCanvas -> id:string -> JSComponent
     abstract getConnectionById            : canvas:JSCanvas -> id:string -> JSConnection
     abstract getPortById                  : comp:JSComponent -> id:string -> JSPort
@@ -345,3 +347,17 @@ type Draw2dWrapper() =
         match canvas with
         | None -> log "Warning: Draw2dWrapper.FlushCommandStack called when canvas is None"
         | Some c -> draw2dLib.flushCommandStack c
+
+    member this.UpdateMergeWiresLabels compId topInputWidth bottomInputWidth outputWidth =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.UpdateMergeWiresLabels called when canvas is None"
+        | Some c ->
+            let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "UpdateMergeWiresLabels"
+            draw2dLib.updateMergeWiresLabels jsComp topInputWidth bottomInputWidth outputWidth
+
+    member this.UpdateSplitWireLabels compId inputWidth topOutputWidth bottomOutputWidth =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.UpdateSplitWireLabels called when canvas is None"
+        | Some c ->
+            let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "UpdateSplitWireLabels"
+            draw2dLib.updateSplitWireLabels jsComp inputWidth topOutputWidth bottomOutputWidth

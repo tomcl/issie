@@ -72,7 +72,6 @@ let private createSplitWirePopup model dispatch =
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
-            JSHelpers.log inputInt
             model.Diagram.CreateComponent (SplitWire inputInt) "" 100 100 |> ignore
             dispatch ClosePopup
     let isDisabled =

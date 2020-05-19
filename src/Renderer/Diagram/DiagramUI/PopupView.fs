@@ -177,7 +177,9 @@ let errorNotification text closeMsg =
         div [errorNotificationStyle] [
             Level.level [ Level.Level.Props [Style [Width "100%"] ] ] [
                 Level.left [] [
-                    Level.item [] [ str text ]
+                    Level.item
+                        [Level.Item.Props [Style [WordWrap "break-word"]]]
+                        [ str text ]
                 ]
                 Level.right [ Props [Style [MarginLeft "10px"] ] ] [
                     Level.item [] [ Delete.delete [ Delete.OnClick close ] [] ]
@@ -186,7 +188,10 @@ let errorNotification text closeMsg =
         ]
 
 let viewNotifications model dispatch =
-    match model.Notifications.FromDiagram, model.Notifications.FromSimulation with
-    | None, None -> div [] []
-    | Some notification, None -> notification dispatch
-    | _, Some notification -> notification dispatch // Prioritise notifications from simulation.
+    match model.Notifications.FromDiagram,
+          model.Notifications.FromSimulation,
+          model.Notifications.FromFiles with
+    | _, _, Some notification -> notification dispatch // Prioritise notifications from files.
+    | _, Some notification, None -> notification dispatch 
+    | Some notification, None, None -> notification dispatch
+    | None, None, None -> div [] []

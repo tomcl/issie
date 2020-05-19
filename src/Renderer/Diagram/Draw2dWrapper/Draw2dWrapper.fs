@@ -22,6 +22,7 @@ type private IDraw2d =
         dispatchInferWidthsMessage_         :(unit->unit) ->
         dispatchOnSelectComponentMessage_   :(JSComponent->unit) ->
         dispatchOnUnselectComponentMessage_ :(unit->unit) ->
+        dispatchHasUnsavedChangesMessage_   :(bool->unit) ->
         unit
     abstract createCanvas                 : id:string -> width:int -> height:int -> JSCanvas
     abstract initialiseCanvas             : canvas:JSCanvas -> unit
@@ -29,6 +30,7 @@ type private IDraw2d =
     abstract addComponentToCanvas         : canvas:JSCanvas -> comp:JSComponent -> unit
     abstract addConnectionToCanvas        : canvas:JSCanvas -> conn:JSConnection -> unit
     abstract addComponentLabel            : comp:JSComponent -> label:string ->  unit
+    abstract setComponentLabel            : comp:JSComponent -> newLabel:string ->  unit
     abstract setConnectionLabel           : comp:JSConnection -> newLabel:string ->  unit
     abstract setComponentId               : comp:JSComponent -> id:string -> unit
     abstract setConnectionId              : conn:JSConnection -> id:string -> unit
@@ -54,8 +56,10 @@ type private IDraw2d =
     abstract createDigitalDemux2          : x:int -> y:int -> JSComponent
     abstract createDigitalCustom          : x:int -> y:int -> name:string -> inputs:obj -> outputs:obj -> JSComponent
     abstract createDigitalMergeWires      : x:int -> y:int -> JSComponent
-    abstract createDigitalSplitWire       : x:int -> y:int -> numberOfBitsInTopWire:int -> JSComponent
+    abstract createDigitalSplitWire       : x:int -> y:int -> topOutputWidth:int -> JSComponent
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
+    abstract updateMergeWiresLabels       : comp:JSComponent -> topInputWidth:int option -> bottomInputWidth:int option -> outputWidth:int option -> unit
+    abstract updateSplitWireLabels        : comp:JSComponent -> inputWidth:int option ->topOutputWidth:int option ->bottomOutputWidth:int option -> unit
     abstract getComponentById             : canvas:JSCanvas -> id:string -> JSComponent
     abstract getConnectionById            : canvas:JSCanvas -> id:string -> JSConnection
     abstract getPortById                  : comp:JSComponent -> id:string -> JSPort
@@ -153,8 +157,7 @@ let private createConnection
     //|> fshaprListToJsList
     //|> draw2dLib.setConnectionVertices conn
 
-// TODO: for now only supports labels.
-let private editComponent (canvas : JSCanvas) (id : string) (newLabel : string) : unit =
+let private editComponentLabel (canvas : JSCanvas) (id : string) (newLabel : string) : unit =
     let jsComponent = draw2dLib.getComponentById canvas id
     if isNull jsComponent
     then failwithf "what? could not find diagram component with Id: %s" id
@@ -199,6 +202,7 @@ type Draw2dWrapper() =
                 (InferWidths >> jsDiagramMsgDispatch)
                 (SelectComponent >> jsDiagramMsgDispatch)
                 (UnselectComponent >> jsDiagramMsgDispatch)
+                (SetHasUnsavedChanges >> jsDiagramMsgDispatch)
         | Some _ -> ()
         // Return react element with relevant props.
         createDraw2dReact {
@@ -249,11 +253,14 @@ type Draw2dWrapper() =
             let connId = if useId then Some conn.Id else None
             createConnection c connId conn.Vertices sourcePort targetPort
 
-    // For now only changes the label. TODO
-    member this.EditComponent componentId newLabel = 
+    member this.EditComponentLabel componentId newLabel = 
         match canvas with
-        | None -> log "Warning: Draw2dWrapper.EditComponent called when canvas is None"
-        | Some c -> editComponent c componentId newLabel
+        | None -> log "Warning: Draw2dWrapper.EditComponentLabel called when canvas is None"
+        | Some c ->
+            let jsComp = assertNotNull
+                            (draw2dLib.getComponentById c componentId)
+                            "EditComponentLabel"
+            draw2dLib.setComponentLabel jsComp newLabel
 
     member this.PaintConnection connectionId width =
         match canvas with
@@ -264,7 +271,7 @@ type Draw2dWrapper() =
             let label, stroke, color =
                 match width with
                 | 1 -> "", 1, "black"
-                | n when n > 1 -> (sprintf "[%d]" n), 3, "purple"
+                | n when n > 1 -> (sprintf "%d\n/" n), 3, "purple"
                 | n -> failwithf "what? PaintConnection called with width %d" n 
             draw2dLib.setConnectionLabel jsConnection label
             draw2dLib.setConnectionStroke jsConnection stroke
@@ -340,3 +347,17 @@ type Draw2dWrapper() =
         match canvas with
         | None -> log "Warning: Draw2dWrapper.FlushCommandStack called when canvas is None"
         | Some c -> draw2dLib.flushCommandStack c
+
+    member this.UpdateMergeWiresLabels compId topInputWidth bottomInputWidth outputWidth =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.UpdateMergeWiresLabels called when canvas is None"
+        | Some c ->
+            let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "UpdateMergeWiresLabels"
+            draw2dLib.updateMergeWiresLabels jsComp topInputWidth bottomInputWidth outputWidth
+
+    member this.UpdateSplitWireLabels compId inputWidth topOutputWidth bottomOutputWidth =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.UpdateSplitWireLabels called when canvas is None"
+        | Some c ->
+            let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "UpdateSplitWireLabels"
+            draw2dLib.updateSplitWireLabels jsComp inputWidth topOutputWidth bottomOutputWidth

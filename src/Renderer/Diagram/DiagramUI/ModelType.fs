@@ -17,6 +17,7 @@ open Draw2dWrapper
 type Notifications = {
     FromDiagram : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
     FromSimulation : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
+    FromFiles : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
 }
 
 type Model = {
@@ -26,6 +27,8 @@ type Model = {
     RightTab : RightTab
     Hilighted : ComponentId list * ConnectionId list
     Clipboard : CanvasState // Components and connections that have been selected and copied.
+    CreateComponentOffset : int // Change this offset every time a component is created to avoid overlaps.
+    HasUnsavedChanges : bool
     CurrProject : Project option
     Popup : (PopupDialogData -> Fable.Import.React.ReactElement) option
     PopupDialogData : PopupDialogData

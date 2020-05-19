@@ -17,7 +17,7 @@ let rightSectionStyle = Style [
     Width rightSectionWidth
     OverflowX "hidden"
     OverflowY "scroll"
-    Border "2px solid gray"
+    BorderTop "2px solid lightgray"
 ]
 
 let canvasHiddenStyle = Style [
@@ -32,7 +32,7 @@ let canvasVisibleStyle = Style [
     Left "0px"
     Bottom "0px"
     Right rightSectionWidth
-    Border "2px solid gray"
+    BorderTop "2px solid lightgray"
 ]
 
 let canvasSmallMenuStyle = Style [
@@ -55,7 +55,7 @@ let canvasSmallButtonStyle = Style [
 ]
 
 let private notificationStyle = [
-    ZIndex 10 // In front of everything.
+    ZIndex 100 // In front of everything.
     MinWidth "300px"
     Position "absolute"
     Right "20px"
@@ -80,3 +80,12 @@ let simulationBitStyle = Style [
     PaddingTop "3px"
 ]
 
+let menuLabelStyle = Style [
+    Outline "none"
+    MarginTop "10px"
+    MarginBottom "10px"
+    Color "#7a7a7a"
+    FontSize "0.80em"
+    LetterSpacing "0.1em"
+    TextTransform "uppercase"
+]

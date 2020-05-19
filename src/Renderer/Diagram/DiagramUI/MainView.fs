@@ -31,6 +31,7 @@ let init() = {
     CurrProject = None
     Hilighted = [], []
     Clipboard = [], []
+    CreateComponentOffset = 0
     HasUnsavedChanges = false
     Popup = None
     PopupDialogData = {Text = None; Int = None}
@@ -200,6 +201,7 @@ let update msg model =
         |> ignore
         { model with Hilighted = (componentIds, connectionIds) }
     | SetClipboard components -> { model with Clipboard = components }
+    | SetCreateComponentOffset off -> { model with CreateComponentOffset = off }
     | SetProject project -> { model with CurrProject = Some project }
     | CloseProject -> { model with CurrProject = None }
     | ShowPopup popup -> { model with Popup = Some popup }

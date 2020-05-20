@@ -1,5 +1,6 @@
-/*
- * Extension of the default draw2d connections.
+/**
+ * Extension of the default draw2d connections plus other useful objects related
+ * to connections.
  */
 
 /// Custom locator for the bus label.
@@ -24,47 +25,6 @@ draw2d.layout.locator.BusLabelLocator = draw2d.layout.locator.ConnectionLocator.
        target.setPosition(x,y);
     }
 });
-
-/// Setup circuit-like connections in the diagram.
-let router = new draw2d.layout.connection.InteractiveManhattanConnectionRouter();
-// TODO: use CircuitConnectionRouter instead?
-router.abortRoutingOnFirstVertexNode = false;
-
-function createDigitalConnection(sourcePort, targetPort) {
-    if (sourcePort === "undefined" || targetPort === "undefined") {
-        throw "CreateDigitalConnection called with sourcePort or targetPort set to undefined";
-    }
-    // This is helpful because sometimes not all components can have their width
-    // inferred, but this already allows buses to be purple. Once the width can
-    // be inferred, the connection will be repainted accordingly.
-    let isBus = false;
-    if (sourcePort.isBusPort === true && targetPort.isBusPort === true) {
-        isBus = true;
-    } else if (sourcePort.isBusPort === true || targetPort.isBusPort === true) {
-        // One of the two port is bus and the other one is not.
-        // This problem will be caught by the infer width function.
-        //throw "Attempting to connect a port that accepts a bus, to a port that accepts a single bit."
-    }
-    let c = new draw2d.Connection({
-        outlineColor: 'white',
-        outlineStroke: 1,
-        color: isBus ? 'purple' : 'black',
-        router: router,
-        stroke: isBus ? 3 : 1,
-        radius: 6,
-        selectable: true,
-    });
-    // Add label.
-    c.add(
-        new draw2d.shape.basic.Label({text: '', stroke: 0, fontSize: 10, bold: true, fontColor: 'purple'}),
-        new draw2d.layout.locator.BusLabelLocator()
-    );
-    c.setSource(sourcePort);
-    c.setTarget(targetPort);
-    // TODO: add check to make sure this connection does not exist
-    // already?
-    return c;
-}
 
 draw2d.Connection = draw2d.Connection.extend({
 
@@ -140,3 +100,46 @@ draw2d.policy.line.OrthogonalSelectionFeedbackPolicy = draw2d.policy.line.Orthog
         return; // Do nothing? TODO. One could add a segment.
     }
 })
+
+/// Setup circuit-like connections in the diagram.
+let router = new draw2d.layout.connection.InteractiveManhattanConnectionRouter();
+// TODO: use CircuitConnectionRouter instead?
+router.abortRoutingOnFirstVertexNode = false;
+
+function createDigitalConnection(sourcePort, targetPort) {
+    if (sourcePort === "undefined" || targetPort === "undefined") {
+        throw "CreateDigitalConnection called with sourcePort or targetPort set to undefined";
+    }
+    // This is helpful because sometimes not all components can have their width
+    // inferred, but this already allows buses to be purple. Once the width can
+    // be inferred, the connection will be repainted accordingly.
+    let isBus = false;
+    if (sourcePort.isBusPort === true && targetPort.isBusPort === true) {
+        isBus = true;
+    } else if (sourcePort.isBusPort === true || targetPort.isBusPort === true) {
+        // One of the two port is bus and the other one is not.
+        // This problem will be caught by the infer width function.
+        //throw "Attempting to connect a port that accepts a bus, to a port that accepts a single bit."
+    }
+    let c = new draw2d.Connection({
+        outlineColor: 'white',
+        outlineStroke: 1,
+        color: isBus ? 'purple' : 'black',
+        router: router,
+        stroke: isBus ? 3 : 1,
+        radius: 6,
+        selectable: true,
+    });
+    // Add label.
+    c.add(
+        new draw2d.shape.basic.Label({text: '', stroke: 0, fontSize: 10, bold: true, fontColor: 'purple'}),
+        new draw2d.layout.locator.BusLabelLocator()
+    );
+    c.setSource(sourcePort);
+    c.setTarget(targetPort);
+    // TODO: add check to make sure this connection does not exist
+    // already?
+    return c;
+}
+
+module.exports = { createDigitalConnection };

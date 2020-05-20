@@ -1,6 +1,9 @@
-/*
-    Draw2d functions that are used in the Draw2dWrapper.fs file.
-*/
+/**
+ * Draw2d functions that are used in the Draw2dWrapper.fs file.
+ */
+
+import { setDispatchMessages } from "../../../../app/public/lib/draw2d_extensions/MVU_messages.js"
+import { createDigitalConnection } from "../../../../app/public/lib/draw2d_extensions/draw2d_digital_connections.js"
 
 function createCanvas(id, width, height) {
     let canvas = new draw2d.Canvas(id, width, height);
@@ -309,7 +312,7 @@ export {
     createDigitalCustom,
     createDigitalMergeWires,
     createDigitalSplitWire,
-    createDigitalConnection, // Defined in draw2d_digital_connection.js. 
+    createDigitalConnection,
     updateMergeWiresLabels,
     updateSplitWireLabels,
     getComponentById,

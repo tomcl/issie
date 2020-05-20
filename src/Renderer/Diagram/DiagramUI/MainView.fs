@@ -40,6 +40,7 @@ let init() = {
         FromSimulation = None
         FromFiles = None
     }
+    TopMenu = Closed
 }
 
 /// Repaint each connection according to the new inferred width.
@@ -222,4 +223,5 @@ let update msg model =
                         { model.Notifications with FromFiles = Some n}}
     | CloseFilesNotification ->
         { model with Notifications = {model.Notifications with FromFiles = None} }
-    
+    | SetTopMenu t ->
+        { model with TopMenu = t}    

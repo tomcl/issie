@@ -15,6 +15,7 @@ var isProduction = process.argv.indexOf("-p") >= 0;
 console.log("Bundling for " + (isProduction ? "production" : "development") + "...");
 
 var basicConfig = {
+  mode: isProduction ? 'production' : 'development',
   devtool: "source-map",
   resolve: {
     modules: [resolve("./node_modules/")]
@@ -45,9 +46,7 @@ var basicConfig = {
       {
           test: /\.(sass|scss|css)$/,
           use: [
-              isProduction
-                  ? MiniCssExtractPlugin.loader
-                  : 'style-loader',
+              'style-loader',
               'css-loader',
               'sass-loader',
           ],
@@ -64,13 +63,18 @@ var basicConfig = {
   }
 };
 
+// At the moment draw2d and jquery are NOT npm/yarn dependencies. The source
+// code is copied in the app/public/lib/ folder. This should be fine but if you
+// want to update them via the package manager, you need the copy-webpack-plugin
+// to copy the source files to the app/public/lib/ folder while packaging.
+
 var mainConfig = Object.assign({
   target: "electron-main",
   entry: resolve("src/Main/Main.fsproj"),
   output: {
     path: resolve("app"),
     filename: "main.js"
-  }
+  },
 }, basicConfig);
 
 var rendererConfig = Object.assign({
@@ -79,7 +83,7 @@ var rendererConfig = Object.assign({
   output: {
     path: resolve("app"),
     filename: "renderer.js"
-  }
+  },
 }, basicConfig);
 
 module.exports = [ mainConfig, rendererConfig ]

@@ -1,8 +1,8 @@
-/*
-    This file contains a redefinition of the DragConnectionCreatePolicy which is
-    almost identical to the one the draw2d library provides, but fixes a bug in
-    the onMouseUp function, when calling the create connection function.
-*/
+/**
+ * This file contains a redefinition of the DragConnectionCreatePolicy which is
+ * almost identical to the one the draw2d library provides, but fixes a bug in
+ * the onMouseUp function, when calling the create connection function.
+ */
 
 draw2d.policy.connection.DragConnectionCreatePolicy = draw2d.policy.connection.ConnectionCreatePolicy.extend(
     /** @lends draw2d.policy.connection.DragConnectionCreatePolicy.prototype */

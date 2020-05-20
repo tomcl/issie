@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -6,7 +7,6 @@
   <ItemGroup>
     <Compile Include="TestLib.fs" />
     <Compile Include="../Helpers.fs" />
-
     <Compile Include="../Diagram/Types.fs" />
     <!-- Buses -->
     <Compile Include="../Diagram/Bus/Types.fs" />
@@ -28,4 +28,5 @@
   <ItemGroup>
     <PackageReference Include="Expecto.FsCheck" Version="8.13.1" />
   </ItemGroup>
+  <Import Project="..\..\..\.paket\Paket.Restore.targets" />
 </Project>

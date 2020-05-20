@@ -290,9 +290,15 @@ let viewTopMenu model dispatch =
         | Some project ->
             let projectFiles = project.LoadedComponents
                                |> List.map (fun comp -> makeFileLine comp.Name project)
-            Navbar.Item.div [ Navbar.Item.HasDropdown; Navbar.Item.IsHoverable ] [
+            Navbar.Item.div [
+                Navbar.Item.HasDropdown;
+                Navbar.Item.Props [OnClick (fun _ -> if model.TopMenu = Files then Closed else Files
+                                                     |> SetTopMenu |> dispatch)]
+            ] [
                 Navbar.Link.a [] [ str "Files" ]
-                Navbar.Dropdown.div [] (
+                Navbar.Dropdown.div [ Navbar.Dropdown.Props [
+                    Style [Display (if model.TopMenu = Files then "block" else "none")]
+                ]] (
                     [
                         Navbar.Item.a [
                             Navbar.Item.Props [
@@ -306,9 +312,15 @@ let viewTopMenu model dispatch =
     div [ navbarStyle ] [
         Navbar.navbar [ Navbar.Props [Style [Height "100%"; Width "100%"]] ] [
             Navbar.Brand.div [ Props [Style [Height "100%"; Width "100%"]] ] [
-                Navbar.Item.div [ Navbar.Item.HasDropdown; Navbar.Item.IsHoverable ] [
+                Navbar.Item.div [
+                    Navbar.Item.HasDropdown;
+                    Navbar.Item.Props [OnClick (fun _ -> if model.TopMenu = Project then Closed else Project
+                                                         |> SetTopMenu |> dispatch)]
+                ] [
                     Navbar.Link.a [] [ str "Project" ]
-                    Navbar.Dropdown.div [] [
+                    Navbar.Dropdown.div [ Navbar.Dropdown.Props [
+                        Style [Display (if model.TopMenu = Project then "block" else "none")]
+                    ] ] [
                         Navbar.Item.a [
                             Navbar.Item.Props [ OnClick <| newProject model dispatch ]
                         ] [ str "New project" ]

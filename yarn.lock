@@ -1536,7 +1536,22 @@ cross-spawn@^3.0.0:
     lru-cache "^4.0.1"
     which "^1.2.9"
 
-cross-zip@^3.0.0:
+cross-zip-cli@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/cross-zip-cli/-/cross-zip-cli-1.0.0.tgz#96826f8293e8fb1eab0f563d6bacb00dce368cfa"
+  integrity sha1-loJvgpPo+x6rD1Y9a6ywDc42jPo=
+  dependencies:
+    cross-zip "^2.1.3"
+    minimist "^1.2.0"
+
+cross-zip@^2.1.3:
+  version "2.1.6"
+  resolved "https://registry.yarnpkg.com/cross-zip/-/cross-zip-2.1.6.tgz#344d3ba9488609942987d815bb84860cff3d9491"
+  integrity sha512-xLIETNkzRcU6jGRzenJyRFxahbtP4628xEKMTI/Ql0Vu8m4h8M7uRLVi7E5OYHuJ6VQPsG4icJumKAFUvfm0+A==
+  dependencies:
+    rimraf "^3.0.0"
+
+cross-zip@^3.0.0, cross-zip@^3.1.0:
   version "3.1.0"
   resolved "https://registry.yarnpkg.com/cross-zip/-/cross-zip-3.1.0.tgz#2b7d33f2a893bf83e232ccbabf4c6c706f6b313c"
   integrity sha512-aX02l0SD3KE27pMl69gkxDdDM5D3u9Ic4Je+2b1B2fP0dWnlWWY6ns2Vk5DEgCXJRhL3GasSpicNQRNbDkq0+w==

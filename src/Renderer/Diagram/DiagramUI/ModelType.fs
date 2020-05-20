@@ -33,4 +33,5 @@ type Model = {
     Popup : (PopupDialogData -> Fable.Import.React.ReactElement) option
     PopupDialogData : PopupDialogData
     Notifications : Notifications
+    TopMenu : TopMenu
 }

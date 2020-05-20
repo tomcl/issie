@@ -1,14 +1,13 @@
-/* 
- * Extension to draw digital logic components.
+/**
+ * Draw2d extension to draw digital logic components.
  *
  * For every figure it is necessary to define:
+ * - componentType, a string representing the type of the component (as it is
+ *   expected in Extractor.fs).
  * - width of the svg element
  * - hieght of the svg element
- * - shapes that will form the svg element
- * - userData (data accessible from the outside), containing at least:
- *   - componentType : string (e.g. "Not", "And", "Mux2", ...)
- * TODO: it is no longer necessary to use UserData, remove it.
- * If necessary it is possible to override the portLocator class.
+ * - a function that returns the shapes that will form the svg element
+ * - other optional parameters.
  */
 
 draw2d.shape.digital = draw2d.SVGFigure.extend({

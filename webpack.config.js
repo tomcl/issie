@@ -15,6 +15,7 @@ var isProduction = process.argv.indexOf("-p") >= 0;
 console.log("Bundling for " + (isProduction ? "production" : "development") + "...");
 
 var basicConfig = {
+  mode: isProduction ? 'production' : 'development',
   devtool: "source-map",
   resolve: {
     modules: [resolve("./node_modules/")]

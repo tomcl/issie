@@ -4,10 +4,10 @@
  * These functions get initialised by the draw2dWrapper.
  */
 
-let dispatchInferWidthsMessage         = "undefined";
-let dispatchOnSelectComponentMessage   = "undefined";
-let dispatchOnUnselectComponentMessage = "undefined";
-let dispatchHasUnsavedChangesMessage   = "undefined";
+global.dispatchInferWidthsMessage         = "undefined";
+global.dispatchOnSelectComponentMessage   = "undefined";
+global.dispatchOnUnselectComponentMessage = "undefined";
+global.dispatchHasUnsavedChangesMessage   = "undefined";
 
 function setDispatchMessages(
         dispatchInferWidthsMessage_,
@@ -20,3 +20,5 @@ function setDispatchMessages(
     dispatchOnUnselectComponentMessage = dispatchOnUnselectComponentMessage_;
     dispatchHasUnsavedChangesMessage   = dispatchHasUnsavedChangesMessage_;
 }
+
+module.exports = { setDispatchMessages };

@@ -17,6 +17,8 @@ type PopupDialogData = {
     Int: int option;
 }
 
+type TopMenu = | Closed | Project | Files
+
 //==========//
 // Messages //
 //==========//
@@ -49,3 +51,4 @@ type Msg =
     | CloseSimulationNotification
     | SetFilesNotification of ((Msg -> unit) -> ReactElement)
     | CloseFilesNotification
+    | SetTopMenu of TopMenu

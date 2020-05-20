@@ -20,3 +20,11 @@ function setDispatchMessages(
     dispatchOnUnselectComponentMessage = dispatchOnUnselectComponentMessage_;
     dispatchHasUnsavedChangesMessage   = dispatchHasUnsavedChangesMessage_;
 }
+
+export {
+    setDispatchMessages,
+    dispatchInferWidthsMessage,
+    dispatchOnSelectComponentMessage,
+    dispatchOnUnselectComponentMessage,
+    dispatchHasUnsavedChangesMessage,
+};

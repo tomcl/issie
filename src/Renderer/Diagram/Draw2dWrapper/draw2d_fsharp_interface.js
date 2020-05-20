@@ -2,6 +2,62 @@
     Draw2d functions that are used in the Draw2dWrapper.fs file.
 */
 
+//import { setDispatchMessages } from "../../../../app/public/lib/draw2d_extensions/MVU_messages.js"
+//import { createDigitalConnection } from "../../../../app/public/lib/draw2d_extensions/draw2d_digital_connections.js"
+
+function setDispatchMessages(
+    dispatchInferWidthsMessage_,
+    dispatchOnSelectComponentMessage_,
+    dispatchOnUnselectComponentMessage_,
+    dispatchHasUnsavedChangesMessage_,
+) {
+dispatchInferWidthsMessage         = dispatchInferWidthsMessage_;
+dispatchOnSelectComponentMessage   = dispatchOnSelectComponentMessage_;
+dispatchOnUnselectComponentMessage = dispatchOnUnselectComponentMessage_;
+dispatchHasUnsavedChangesMessage   = dispatchHasUnsavedChangesMessage_;
+}
+
+/// Setup circuit-like connections in the diagram.
+let router = new draw2d.layout.connection.InteractiveManhattanConnectionRouter();
+// TODO: use CircuitConnectionRouter instead?
+router.abortRoutingOnFirstVertexNode = false;
+
+function createDigitalConnection(sourcePort, targetPort) {
+    if (sourcePort === "undefined" || targetPort === "undefined") {
+        throw "CreateDigitalConnection called with sourcePort or targetPort set to undefined";
+    }
+    // This is helpful because sometimes not all components can have their width
+    // inferred, but this already allows buses to be purple. Once the width can
+    // be inferred, the connection will be repainted accordingly.
+    let isBus = false;
+    if (sourcePort.isBusPort === true && targetPort.isBusPort === true) {
+        isBus = true;
+    } else if (sourcePort.isBusPort === true || targetPort.isBusPort === true) {
+        // One of the two port is bus and the other one is not.
+        // This problem will be caught by the infer width function.
+        //throw "Attempting to connect a port that accepts a bus, to a port that accepts a single bit."
+    }
+    let c = new draw2d.Connection({
+        outlineColor: 'white',
+        outlineStroke: 1,
+        color: isBus ? 'purple' : 'black',
+        router: router,
+        stroke: isBus ? 3 : 1,
+        radius: 6,
+        selectable: true,
+    });
+    // Add label.
+    c.add(
+        new draw2d.shape.basic.Label({text: '', stroke: 0, fontSize: 10, bold: true, fontColor: 'purple'}),
+        new draw2d.layout.locator.BusLabelLocator()
+    );
+    c.setSource(sourcePort);
+    c.setTarget(targetPort);
+    // TODO: add check to make sure this connection does not exist
+    // already?
+    return c;
+}
+
 function createCanvas(id, width, height) {
     let canvas = new draw2d.Canvas(id, width, height);
     canvas.setScrollArea('#'+id);

@@ -45,9 +45,10 @@ var basicConfig = {
       {
           test: /\.(sass|scss|css)$/,
           use: [
-              isProduction
-                  ? MiniCssExtractPlugin.loader
-                  : 'style-loader',
+              //isProduction
+              //    ? MiniCssExtractPlugin.loader
+              //    : 'style-loader',
+              'style-loader',
               'css-loader',
               'sass-loader',
           ],
@@ -64,22 +65,30 @@ var basicConfig = {
   }
 };
 
+//const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
+
 var mainConfig = Object.assign({
+  //plugins: [
+  //  new UglifyJSPlugin()
+  //],
   target: "electron-main",
   entry: resolve("src/Main/Main.fsproj"),
   output: {
     path: resolve("app"),
     filename: "main.js"
-  }
+  },
 }, basicConfig);
 
 var rendererConfig = Object.assign({
+  //plugins: [
+  //  new UglifyJSPlugin()
+  //],
   target: "electron-renderer",
   entry: [ resolve("src/Renderer/Renderer.fsproj") ],
   output: {
     path: resolve("app"),
     filename: "renderer.js"
-  }
+  },
 }, basicConfig);
 
 module.exports = [ mainConfig, rendererConfig ]

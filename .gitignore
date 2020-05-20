@@ -11,6 +11,9 @@ public/bundle.js*
 electron/Content/app/main.js*
 electron/Content/app/renderer.js*
 
+# Distribution.
+dist/
+
 # Diagrams
 *.dprj
 

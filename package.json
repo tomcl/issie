@@ -7,8 +7,11 @@
     "launch": "electron .",
     "debug": "electron . --debug",
     "zip-linux": "cd dist && zip -r -y DEflow-linux-x64.zip DEflow-linux-x64",
-    "pack-nobuild-linux": "electron-packager . DEflow --platform=linux --arch=x64 --out=dist --prune --asar --ignore=/dist --ignore=/src --overwrite --icon=app/icon.ico && yarn zip-linux",
-    "pack-linux": "yarn build && yarn pack-nobuild-linux"
+    "zip-win": "cd dist && zip -r -y DEflow-win32-x64.zip DEflow-win32-x64",
+    "pack-nobuild-linux": "electron-packager . DEflow --platform=linux --arch=x64 --out=dist --prune --asar --ignore=/dist --ignore=/src --overwrite && yarn zip-linux",
+    "pack-nobuild-win": "electron-packager . DEflow --platform=win32 --arch=x64 --out=dist --prune --ignore=/dist --ignore=/src --overwrite --icon=app/icon.ico && yarn zip-win",
+    "pack-linux": "yarn build && yarn pack-nobuild-linux",
+    "pack-win": "yarn build && yarn pack-nobuild-win"
   },
   "dependencies": {
     "babel": "^6.23.0",

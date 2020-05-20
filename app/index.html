@@ -4,16 +4,19 @@
   <title>DEflow</title>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 
+  <script>module.paths.push(__dirname+'/../node_modules');</script>
+
   <!-- jQuery workaround: https://ourcodeworld.com/articles/read/202/how-to-include-and-use-jquery-in-electron-framework -->
-  <script>window.$ = window.jQuery = require('jquery');</script>
+  <!--script>window.$ = window.jQuery = require('jquery');</script-->
+  <script>window.$ = window.jQuery = require('./public/lib/jquery/jquery.min.js');</script>
   <script src="public/lib/jquery/jquery-ui.js"></script>
 
   <!-- Draw2d lib -->
-  <script>draw2d = require('draw2d');</script>
+  <script src="public/lib/draw2d.js"></script>
   <script src="public/lib/draw2d_extensions/draw2d_digital_components.js"></script>
   <script src="public/lib/draw2d_extensions/draw2d_digital_connections.js"></script>
   <script src="public/lib/draw2d_extensions/drag_connection_create_policy_fixed.js"></script>
-  <script src="public/lib/draw2d_extensions/MVU_messages.js"></script>
+  <!--script src="public/lib/draw2d_extensions/MVU_messages.js"--></script>
 </head>
 <body>
   <div id="electron-app"></div>

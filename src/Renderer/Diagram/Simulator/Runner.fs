@@ -44,36 +44,81 @@ let rec private feedInput
     | None -> graph // Keep on waiting for more inputs.
     | Some outputMap ->
         // Received enough inputs and produced an output.
-        // Propagate each output produced to all the ports connected.
-        let graph =
-            (graph, outputMap) ||> Map.fold (fun graph outPortNumber wireData ->
-                match comp.Outputs.TryFind outPortNumber with
-                | None -> failwithf "what? Reducer produced inexistent output portNumber %A in component %A" outPortNumber comp
-                | Some targets ->
-                    // Trigger simulation step with the newly produced input in
-                    // every target.
-                    (graph, targets) ||> List.fold (fun graph (nextCompId, nextPortNumber) ->
-                        feedInput graph nextCompId (nextPortNumber, wireData)
-                    )
-            )
+        // Propagate each output produced.
+        let graph = feedReducerOutput comp graph outputMap
         // Update the CustomSImulationGraph and return the new simulation graph.
         let comp = { comp with CustomSimulationGraph = reducerOutput.NewCustomSimulationGraph }
         graph.Add (comp.Id, comp)
+
+/// Propagate each output produced by a simulation component to all the
+/// components connected to its output ports.
+/// Return the updated simulationGraph.
+and private feedReducerOutput
+        (comp : SimulationComponent)
+        (graph : SimulationGraph)
+        (outputMap : Map<OutputPortNumber, WireData>)
+        : SimulationGraph =
+    (graph, outputMap) ||> Map.fold (fun graph outPortNumber wireData ->
+        match comp.Outputs.TryFind outPortNumber with
+        | None -> failwithf "what? Reducer produced inexistent output portNumber %A in component %A" outPortNumber comp
+        | Some targets ->
+            // Trigger simulation step with the newly produced input in
+            // every target.
+            (graph, targets) ||> List.fold (fun graph (nextCompId, nextPortNumber) ->
+                feedInput graph nextCompId (nextPortNumber, wireData)
+            )
+    )
+
+let private isClockedComponent comp =
+    match comp.Type with
+    | DFF -> true
+    | _ -> false
+
+/// Send one global clock tick to all clocked components, and return the updated
+/// simulationGraph.
+let clockTick (graph : SimulationGraph) : SimulationGraph =
+    // Take a snapshot of each clocked component with its inputs just before the
+    // clock tick.
+    let clockedCompsBeforeTick =
+        graph |> Map.filter (fun _ comp -> isClockedComponent comp)
+    // For each clocked component, feed the clock tick together with the inputs
+    // snapshotted just before the clock tick.
+    (graph, clockedCompsBeforeTick) ||> Map.fold (fun graph compId comp ->
+        let reducerInput = {
+            Inputs = comp.Inputs
+            CustomSimulationGraph = None
+            IsClockTick = true
+        }
+        let reducerOutput = comp.Reducer reducerInput
+        match reducerOutput.Outputs with
+        | None -> failwithf "what? A clocked component should ALWAYS produce outputs after a clock tick: %A" comp
+        | Some outputMap ->
+            // Feed the newly produced outputs into the combinational logic.
+            feedReducerOutput comp graph outputMap
+    )
 
 /// Feed zero to a simulation input.
 /// This function is supposed to be used with Components of type Input.
 let feedSimulationInput graph inputId wireData =
     feedInput graph inputId (InputPortNumber 0, wireData)
 
-/// Feed zeros to all simulation inputs.
-let simulateWithAllInputsToZero
+/// Feed zeros to all simulation inputs, and feed a single clock tick.
+/// This way all combinational logic has been touched once and had produced its
+/// outputs.
+let InitialiseGraphWithZeros
         (inputIds : SimulationIO list)
         (graph : SimulationGraph)
         : SimulationGraph =
-    (graph, inputIds) ||> List.fold (fun graph (inputId, _, width) ->
-        let data = List.replicate width Zero
-        feedSimulationInput graph inputId data
-    )
+    // Feed zero to all simulation inputs.
+    let graph =
+        (graph, inputIds) ||> List.fold (fun graph (inputId, _, width) ->
+            let data = List.replicate width Zero
+            feedSimulationInput graph inputId data
+        )
+    // Run a clock tick so to initialize all of the networks that are
+    // after clocked components, hence cannot be initialised by just feeding the
+    // inputs.
+    clockTick graph
 
 /// Given a list of IO nodes (i.e. Inputs or outputs) extract their value.
 /// If they dont all have a value, an error is thrown.

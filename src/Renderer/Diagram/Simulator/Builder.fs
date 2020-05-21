@@ -306,11 +306,27 @@ let private buildSimulationComponent
                               mapPortIdsToPortNumbers targets
         )
         |> Map.ofList
+    // The inputs will be set during the simulation, we just need to initialise
+    // the ones for Output nodes, see below.
+    let inputs =
+        match comp.Type with
+        | Output width ->
+            // Initialise all outputs to zero. This is necessary because upon
+            // starting the simulation we need to feed all zeros. To do so, we
+            // need to feed all simulation inputs set to zero and a global clock
+            // tick. The problem is that both operations expect all outputs to
+            // be set as result, but they don't necessarily set all the outputs
+            // themselves. Therefore there is not an order you can run them in
+            // that will always work. Presetting the outputs solves the problem
+            // and the value does not matter as all outputs will be set again
+            // in that initialization process.
+            Map.empty.Add (InputPortNumber 0, List.replicate width Zero)
+        | _ -> Map.empty
     {
         Id = ComponentId comp.Id
         Type = comp.Type
         Label = ComponentLabel comp.Label
-        Inputs = Map.empty // The inputs will be set during the simulation.
+        Inputs = inputs
         Outputs = outputs
         CustomSimulationGraph = None // Custom components will be augumented by the DependencyMerger.
         Reducer = getReducer comp.Type

@@ -15,6 +15,8 @@ open SimulatorTypes
 // calculate its outputs and set them in the next simulationComponent(s).
 
 /// Take the Input, and feed it to the Component with the specified Id.
+/// This function should be used to feed combinational logic inputs, not to
+/// trigger a clock tick.
 /// If the Component is then ready to produce an output, propagate this output
 /// by recursively feeding it as an input to the connected Components.
 let rec private feedInput
@@ -29,10 +31,18 @@ let rec private feedInput
     // Add input to the simulation component.
     let comp = { comp with Inputs = comp.Inputs.Add input }
     let graph = graph.Add (comp.Id, comp)
+    // Prepare reducer Input.
+    let reducerInput = {
+        Inputs = comp.Inputs
+        CustomSimulationGraph = comp.CustomSimulationGraph
+        IsClockTick = false
+    }
     // Try to reduce the component.
-    match comp.Reducer comp.Inputs comp.CustomSimulationGraph with
-    | None, _ -> graph // Keep on waiting for more inputs.
-    | Some outputMap, updatedCustomSimulationGraph ->
+    let reducerOutput = comp.Reducer reducerInput
+    // Check wether the reducer produced any outputs.
+    match reducerOutput.Outputs with
+    | None -> graph // Keep on waiting for more inputs.
+    | Some outputMap ->
         // Received enough inputs and produced an output.
         // Propagate each output produced to all the ports connected.
         let graph =
@@ -46,8 +56,8 @@ let rec private feedInput
                         feedInput graph nextCompId (nextPortNumber, wireData)
                     )
             )
-        // Update the CustomSImulationGraph.
-        let comp = { comp with CustomSimulationGraph = updatedCustomSimulationGraph }
+        // Update the CustomSImulationGraph and return the new simulation graph.
+        let comp = { comp with CustomSimulationGraph = reducerOutput.NewCustomSimulationGraph }
         graph.Add (comp.Id, comp)
 
 /// Feed zero to a simulation input.

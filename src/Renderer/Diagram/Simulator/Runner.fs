@@ -76,7 +76,7 @@ let private isClockedComponent comp =
 
 /// Send one global clock tick to all clocked components, and return the updated
 /// simulationGraph.
-let clockTick (graph : SimulationGraph) : SimulationGraph =
+let feedClockTick (graph : SimulationGraph) : SimulationGraph =
     // Take a snapshot of each clocked component with its inputs just before the
     // clock tick.
     let clockedCompsBeforeTick =
@@ -115,10 +115,10 @@ let InitialiseGraphWithZeros
             let data = List.replicate width Zero
             feedSimulationInput graph inputId data
         )
-    // Run a clock tick so to initialize all of the networks that are
+    // Feed a clock tick so to initialize all of the networks that are
     // after clocked components, hence cannot be initialised by just feeding the
     // inputs.
-    clockTick graph
+    feedClockTick graph
 
 /// Given a list of IO nodes (i.e. Inputs or outputs) extract their value.
 /// If they dont all have a value, an error is thrown.

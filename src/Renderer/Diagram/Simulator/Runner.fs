@@ -46,7 +46,7 @@ let rec private feedInput
         // Received enough inputs and produced an output.
         // Propagate each output produced.
         let graph = feedReducerOutput comp graph outputMap
-        // Update the CustomSImulationGraph and return the new simulation graph.
+        // Update the CustomSimulationGraph and return the new simulation graph.
         let comp = { comp with CustomSimulationGraph = reducerOutput.NewCustomSimulationGraph }
         graph.Add (comp.Id, comp)
 
@@ -94,7 +94,12 @@ let feedClockTick (graph : SimulationGraph) : SimulationGraph =
         | None -> failwithf "what? A clocked component should ALWAYS produce outputs after a clock tick: %A" comp
         | Some outputMap ->
             // Feed the newly produced outputs into the combinational logic.
-            feedReducerOutput comp graph outputMap
+            let graph = feedReducerOutput comp graph outputMap
+            // Update the CustomSimulationGraph and return the new simulation graph.
+            // It is necessary to do so since we may be dealing with custom
+            // clocked components.
+            let comp = { comp with CustomSimulationGraph = reducerOutput.NewCustomSimulationGraph }
+            graph.Add (comp.Id, comp)
     )
 
 /// Feed zero to a simulation input.
@@ -109,16 +114,14 @@ let InitialiseGraphWithZeros
         (inputIds : SimulationIO list)
         (graph : SimulationGraph)
         : SimulationGraph =
+    // Feed a clock tick to initialize all of the nets that are after clocked
+    // components, which cannot be initialised by just feeding the inputs.
+    let graph = feedClockTick graph
     // Feed zero to all simulation inputs.
-    let graph =
-        (graph, inputIds) ||> List.fold (fun graph (inputId, _, width) ->
-            let data = List.replicate width Zero
-            feedSimulationInput graph inputId data
-        )
-    // Feed a clock tick so to initialize all of the networks that are
-    // after clocked components, hence cannot be initialised by just feeding the
-    // inputs.
-    feedClockTick graph
+    (graph, inputIds) ||> List.fold (fun graph (inputId, _, width) ->
+        let data = List.replicate width Zero
+        feedSimulationInput graph inputId data
+    )
 
 /// Given a list of IO nodes (i.e. Inputs or outputs) extract their value.
 /// If they dont all have a value, an error is thrown.

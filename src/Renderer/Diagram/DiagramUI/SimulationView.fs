@@ -113,14 +113,7 @@ let private viewSimulationInputs
         inputs
         |> List.sortBy (fun ((_, ComponentLabel label, _), _) -> label)
         |> List.map makeInputLine
-    let feedClockBtn = [
-        Button.button [
-            Button.OnClick (fun _ ->
-                feedClockTick simulationGraph |> SetSimulationGraph |> dispatch
-            )
-        ] [ str "Clock Tick" ]
-    ]
-    div [] (feedClockBtn @ inputLines)
+    div [] inputLines
 
 let private viewSimulationOutputs (simOutputs : (SimulationIO * WireData) list) =
     let makeOutputLine ((ComponentId _, ComponentLabel outputLabel, width), wireData) =
@@ -186,6 +179,11 @@ let private viewSimulationError (simError : SimulationError) =
 
 let private viewSimulationData (simData : SimulationData) dispatch =
     div [] [
+        Button.button [
+            Button.OnClick (fun _ ->
+                feedClockTick simData.Graph |> SetSimulationGraph |> dispatch
+            )
+        ] [ str "Clock Tick" ]
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Inputs" ]
         viewSimulationInputs
             simData.Graph
@@ -234,5 +232,9 @@ let viewSimulation model dispatch =
             Button.button
                 [ Button.Color IsDanger; Button.OnClick endSimulation ]
                 [ str "End simulation" ]
+            br []; br []
+            str "The simulation uses the diagram as it was at the moment of
+                 pressing the \"Start simulation\" button."
+            hr []
             body
         ]

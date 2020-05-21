@@ -178,12 +178,17 @@ let private viewSimulationError (simError : SimulationError) =
     ]
 
 let private viewSimulationData (simData : SimulationData) dispatch =
+    let maybeClockTickBtn =
+        match simData.IsSynchronous with
+        | false -> div [] []
+        | true ->
+            Button.button [
+                Button.OnClick (fun _ ->
+                    feedClockTick simData.Graph |> SetSimulationGraph |> dispatch
+                )
+            ] [ str "Clock Tick" ] 
     div [] [
-        Button.button [
-            Button.OnClick (fun _ ->
-                feedClockTick simData.Graph |> SetSimulationGraph |> dispatch
-            )
-        ] [ str "Clock Tick" ]
+        maybeClockTickBtn
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Inputs" ]
         viewSimulationInputs
             simData.Graph

@@ -71,6 +71,8 @@ type SimulationData = {
     // For each input/output, keep its Id and Label to easily access it.
     Inputs : SimulationIO list
     Outputs : SimulationIO list
+    // Whether the graph contains synchronous logic.
+    IsSynchronous : bool
 }
 
 type SimulationError = {

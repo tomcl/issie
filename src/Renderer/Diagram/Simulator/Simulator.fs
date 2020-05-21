@@ -20,6 +20,18 @@ open DependencyMerger
 // 4. Setting the values of the input nodes of the graph to kickstart the
 //    simulation process.
 
+/// Find out whether a simulation graph has some synchronous components.
+let rec private isSynchronousLogic graph =
+    graph
+    |> Map.map (fun compId comp ->
+            match comp.Type with
+            | DFF -> true
+            | Custom _ -> isSynchronousLogic <| Option.get comp.CustomSimulationGraph
+            | _ -> false
+        )
+    |> Map.tryPick (fun compId isSync -> if isSync then Some () else None)
+    |> function | Some _ -> true | None -> false
+
 /// Builds the graph and simulates it with all inputs zeroed.
 let prepareSimulation
         (diagramName : string)
@@ -38,6 +50,7 @@ let prepareSimulation
             Graph = graph |> InitialiseGraphWithZeros inputs;
             Inputs = inputs;
             Outputs = outputs
+            IsSynchronous = isSynchronousLogic graph
         }
 
 /// Expose the feedSimulationInput function from SimulationRunner.

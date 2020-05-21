@@ -108,12 +108,19 @@ let private viewSimulationInputs
                 Level.item [] [ valueHandle ]
             ]
         ]
-    div [] (
+    let inputLines =
         // Sort inputs by label.
         inputs
         |> List.sortBy (fun ((_, ComponentLabel label, _), _) -> label)
         |> List.map makeInputLine
-    )
+    let feedClockBtn = [
+        Button.button [
+            Button.OnClick (fun _ ->
+                feedClockTick simulationGraph |> SetSimulationGraph |> dispatch
+            )
+        ] [ str "Clock Tick" ]
+    ]
+    div [] (feedClockBtn @ inputLines)
 
 let private viewSimulationOutputs (simOutputs : (SimulationIO * WireData) list) =
     let makeOutputLine ((ComponentId _, ComponentLabel outputLabel, width), wireData) =

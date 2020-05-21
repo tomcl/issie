@@ -45,6 +45,7 @@ type ComponentType =
     | Mux2 | Demux2
     | Custom of CustomComponentType
     | MergeWires | SplitWire of int
+    | DFF // No initial state for DFF?
 
 // JSComponent mapped to f# object.
 type Component = {

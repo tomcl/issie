@@ -60,6 +60,7 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
         }
     | "MergeWires" -> MergeWires
     | "SplitWire"  -> SplitWire <| getFailIfNull jsComponent ["topOutputWidth"]
+    | "DFF" -> DFF
     | ct -> failwithf "what? Component type %s does not exist" ct
 
 let private extractVertices (jsVertices : JSVertices) : (float * float) list =

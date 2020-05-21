@@ -257,40 +257,45 @@ let private makeCustomReducer
     let inputLabels = List.map (fun (label, _) -> label) custom.InputLabels
     let outputLabels = List.map (fun (label, _) -> label) custom.OutputLabels
     fun reducerInput ->
-        // Make sure the input is not a clock tick.
-        assertThat (not reducerInput.IsClockTick) "Unexpected IsClockTick = true in custom component reducer"
         // Extract custom component simulation graph.
         let graph = match reducerInput.CustomSimulationGraph with
                     | None -> failwithf "what? CustomSimulationGraph should always be Some in Custom component: %s" custom.Name
                     | Some graph -> graph
-        // Extract inputs.
-        let inputs = reducerInput.Inputs
-        match inputs.Count = custom.InputLabels.Length with
+        match reducerInput.IsClockTick with
         | false ->
-            // Not enough inputs, return graph unchanged.
-            {
-                Outputs = None
-                NewCustomSimulationGraph = Some graph
-            }
+            // Extract combinational logic inputs.
+            let inputs = reducerInput.Inputs
+            match inputs.Count = custom.InputLabels.Length with
+            | false ->
+                // Not enough inputs, return graph unchanged.
+                {
+                    Outputs = None
+                    NewCustomSimulationGraph = Some graph
+                }
+            | true ->
+                // Feed only new inputs or inputs that changed, for performance.
+                let oldInputs =
+                    extractInputValuesAsMap graph graphInputs inputLabels
+                let newInputs = diffSimulationInputs inputs oldInputs
+                let graph =
+                    (graph, newInputs)
+                    ||> Map.fold (fun graph inputPortNumber wireData ->
+                        let inputLabel =
+                            portNumberToLabel inputPortNumber inputLabels
+                        let inputId, _, _ =
+                            graphInputs
+                            |> List.find (fun (_, ComponentLabel inpLabel, _) ->
+                                          inpLabel = inputLabel)
+                        feedSimulationInput graph inputId wireData
+                    )
+                let outputs =
+                    extractOutputValuesAsMap graph graphOutputs outputLabels
+                // Return the outputs toghether with the updated graph.
+                { Outputs = Some outputs; NewCustomSimulationGraph = Some graph }
         | true ->
-            // Feed only new inputs or inputs that changed, for performance.
-            let oldInputs =
-                extractInputValuesAsMap graph graphInputs inputLabels
-            let newInputs = diffSimulationInputs inputs oldInputs
-            let graph =
-                (graph, newInputs)
-                ||> Map.fold (fun graph inputPortNumber wireData ->
-                    let inputLabel =
-                        portNumberToLabel inputPortNumber inputLabels
-                    let inputId, _, _ =
-                        graphInputs
-                        |> List.find (fun (_, ComponentLabel inpLabel, _) ->
-                                      inpLabel = inputLabel)
-                    feedSimulationInput graph inputId wireData
-                )
+            let graph = feedClockTick graph
             let outputs =
                 extractOutputValuesAsMap graph graphOutputs outputLabels
-            // Return the outputs toghether with the updated graph.
             { Outputs = Some outputs; NewCustomSimulationGraph = Some graph }
 
 /// Recursively merge the simulationGraph with its dependencies (a dependecy can

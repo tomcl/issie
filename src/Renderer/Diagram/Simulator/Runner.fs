@@ -71,7 +71,7 @@ and private feedReducerOutput
 
 let private isClockedComponent comp =
     match comp.Type with
-    | DFF -> true
+    | DFF | Custom _ -> true // We have to assume custom components are clocked as they may be.
     | _ -> false
 
 /// Send one global clock tick to all clocked components, and return the updated
@@ -86,7 +86,7 @@ let feedClockTick (graph : SimulationGraph) : SimulationGraph =
     (graph, clockedCompsBeforeTick) ||> Map.fold (fun graph compId comp ->
         let reducerInput = {
             Inputs = comp.Inputs
-            CustomSimulationGraph = None
+            CustomSimulationGraph = comp.CustomSimulationGraph
             IsClockTick = true
         }
         let reducerOutput = comp.Reducer reducerInput

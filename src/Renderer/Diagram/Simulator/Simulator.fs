@@ -35,7 +35,7 @@ let prepareSimulation
                                 canvasState loadedDependencies with
         | Error err -> Error err
         | Ok graph -> Ok {
-            Graph = graph |> simulateWithAllInputsToZero inputs;
+            Graph = graph |> InitialiseGraphWithZeros inputs;
             Inputs = inputs;
             Outputs = outputs
         }

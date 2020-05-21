@@ -232,8 +232,24 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 let out = out.Add (OutputPortNumber 1, bits1)
                 makeReducerOutput out
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-    // | DFF ->
-    //     fun inputs
+    | DFF ->
+        fun reducerInput ->
+            match reducerInput.IsClockTick with
+            | false ->
+                // If it is not a clock tick, just ignore the changes on the
+                // input.
+                notReadyReducerOutput
+            | true ->
+                // Propagate the current inputs. If there are no current inputs,
+                // propagate zero. This behaviour is equivalent to initialising
+                // the flip flop with zero.
+                let outBit =
+                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
+                    | None -> Zero
+                    | Some [bit] -> extractBit bit
+                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+                Map.empty.Add (OutputPortNumber 0, packBit outBit)
+                |> makeReducerOutput
 
 /// Build a map that, for each source port in the connections, keeps track of
 /// the ports it targets.

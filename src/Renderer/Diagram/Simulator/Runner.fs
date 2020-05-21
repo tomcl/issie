@@ -98,6 +98,11 @@ let feedClockTick (graph : SimulationGraph) : SimulationGraph =
         | Some outputMap ->
             // Feed the newly produced outputs into the combinational logic.
             let graph = feedReducerOutput comp graph outputMap
+            // Extract the current node from the graph. It may have new inputs
+            // now.
+            let comp = match graph.TryFind comp.Id with
+                       | None -> failwith "what? Impossible case in feedClockTick"
+                       | Some comp -> comp
             // Update the CustomSimulationGraph and return the new simulation graph.
             // It is necessary to do so since we may be dealing with custom
             // clocked components.

@@ -57,6 +57,7 @@ type private IDraw2d =
     abstract createDigitalCustom          : x:int -> y:int -> name:string -> inputs:obj -> outputs:obj -> JSComponent
     abstract createDigitalMergeWires      : x:int -> y:int -> JSComponent
     abstract createDigitalSplitWire       : x:int -> y:int -> topOutputWidth:int -> JSComponent
+    abstract createDigitalDFF             : x:int -> y:int -> JSComponent
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
     abstract updateMergeWiresLabels       : comp:JSComponent -> topInputWidth:int option -> bottomInputWidth:int option -> outputWidth:int option -> unit
     abstract updateSplitWireLabels        : comp:JSComponent -> inputWidth:int option ->topOutputWidth:int option ->bottomOutputWidth:int option -> unit
@@ -120,6 +121,7 @@ let private createComponent
                                 (fshaprListToJsList custom.OutputLabels)
         | MergeWires -> draw2dLib.createDigitalMergeWires x y
         | SplitWire topWireWidth -> draw2dLib.createDigitalSplitWire x y topWireWidth
+        | DFF -> draw2dLib.createDigitalDFF x y
     // Every component is assumed to have a label (may be empty string).
     draw2dLib.addComponentLabel comp label
     // Set Id if one is provided.

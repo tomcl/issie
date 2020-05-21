@@ -113,6 +113,9 @@ let viewCatalogue model dispatch =
                 [ menuItem "Mux2" (fun _ -> createComponent Mux2 "" model dispatch)
                   menuItem "Demux2" (fun _ -> createComponent Demux2 "" model dispatch) ]
             makeMenuGroup
+                "Flip Flops"
+                [ menuItem "D-flip-flop" (fun _ -> createComponent DFF "" model dispatch) ]
+            makeMenuGroup
                 "This project"
                 (makeCustomList model)
         ]

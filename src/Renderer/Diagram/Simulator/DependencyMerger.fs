@@ -253,19 +253,25 @@ let private makeCustomReducer
         (custom : CustomComponentType)
         (graphInputs : SimulationIO list)
         (graphOutputs : SimulationIO list)
-        : Map<InputPortNumber, WireData>               // Inputs.
-          -> SimulationGraph option                    // CustomSimulationGraph.
-          -> (Map<OutputPortNumber, WireData> option * // Outputs.
-              SimulationGraph option)                  // Updated CustomSimulationGraph.
-        =
+        : ReducerInput -> ReducerOutput =
     let inputLabels = List.map (fun (label, _) -> label) custom.InputLabels
     let outputLabels = List.map (fun (label, _) -> label) custom.OutputLabels
-    fun inputs graphOption ->
-        let graph = match graphOption with
+    fun reducerInput ->
+        // Make sure the input is not a clock tick.
+        assertThat (not reducerInput.IsClockTick) "Unexpected IsClockTick = true in custom component reducer"
+        // Extract custom component simulation graph.
+        let graph = match reducerInput.CustomSimulationGraph with
                     | None -> failwithf "what? CustomSimulationGraph should always be Some in Custom component: %s" custom.Name
                     | Some graph -> graph
+        // Extract inputs.
+        let inputs = reducerInput.Inputs
         match inputs.Count = custom.InputLabels.Length with
-        | false -> None, Some graph // Not enough inputs, return graph unchanged.
+        | false ->
+            // Not enough inputs, return graph unchanged.
+            {
+                Outputs = None
+                NewCustomSimulationGraph = Some graph
+            }
         | true ->
             // Feed only new inputs or inputs that changed, for performance.
             let oldInputs =
@@ -285,7 +291,7 @@ let private makeCustomReducer
             let outputs =
                 extractOutputValuesAsMap graph graphOutputs outputLabels
             // Return the outputs toghether with the updated graph.
-            Some outputs, Some graph
+            { Outputs = Some outputs; NewCustomSimulationGraph = Some graph }
 
 /// Recursively merge the simulationGraph with its dependencies (a dependecy can
 /// have its own dependencies).

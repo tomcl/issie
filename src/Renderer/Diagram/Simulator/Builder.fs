@@ -53,12 +53,20 @@ let private bitXnor bit0 bit1 =
 /// Make sure that the size of the inputs of a SimulationComponent is as
 /// expected.
 let private assertNotTooManyInputs
-        (inputs : Map<InputPortNumber, WireData>)
+        (reducerInput : ReducerInput)
         (cType : ComponentType)
         (expected : int)
         : unit =
-    if inputs.Count > expected
-    then failwithf "what? assertNotTooManyInputs failed for %A: %d > %d" cType inputs.Count expected  
+    assertThat (reducerInput.Inputs.Count <= expected)
+    <| sprintf "assertNotTooManyInputs failed for %A: %d > %d" cType reducerInput.Inputs.Count expected  
+
+/// Make sure combinational logic does not handle clock ticks.
+let private assertNoClockTick
+            (reducerInput : ReducerInput)
+            (cType : ComponentType)
+            : unit =
+    assertThat (not reducerInput.IsClockTick)
+    <| sprintf "Unexpected IsClockTick = true in combinational logic reducer input for %A" cType
 
 let private assertValidBus (bus : WireData) (minWidth : int) compType : unit =
     assertThat (bus.Length >= minWidth)
@@ -89,62 +97,76 @@ let private extractBit (wireData : WireData) : Bit =
 
 let private packBit (bit : Bit) : WireData = [bit]
 
-let private getBinaryGateReducer (op : Bit -> Bit -> Bit) componentType =
-    fun inputs _ ->
-        assertNotTooManyInputs inputs componentType 2
-        match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1] with
-        | None -> None, None // Wait for more inputs.
+/// Reducer outputs for when a component has not enough inputs to produce an
+/// actual output.
+let private notReadyReducerOutput = {
+    Outputs = None
+    NewCustomSimulationGraph = None
+}
+
+/// Make reducer outputs for NOT-custom components.
+let private makeReducerOutput outputs = {
+    Outputs = Some outputs
+    NewCustomSimulationGraph = None
+}
+
+let private getBinaryGateReducer (op : Bit -> Bit -> Bit) componentType : ReducerInput -> ReducerOutput =
+    fun reducerInput ->
+        assertNoClockTick reducerInput componentType
+        assertNotTooManyInputs reducerInput componentType 2
+        match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
+        | None -> notReadyReducerOutput // Wait for more inputs.
         | Some [bit0; bit1] ->
             let bit0 = extractBit bit0
             let bit1 = extractBit bit1
-            Some <| Map.empty.Add (OutputPortNumber 0, packBit (op bit1 bit0)), None
-        | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
+            Map.empty.Add (OutputPortNumber 0, packBit (op bit1 bit0))
+            |> makeReducerOutput
+        | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
 
-/// Given a component type, return a function takes its inputs and transforms
-/// them into outputs. The reducer should return None if there are not enough
-/// inputs to calculate the outputs.
+/// Given a component type, return a function takes a ReducerInput and
+/// transform it into a ReducerOuptut.
+/// The ReducerOutput should have Outputs set to None if there are not enough
+/// ReducerInput.Inputs to calculate the outputs.
 /// For custom components, return a fake version of the reducer, that has to be
 /// replaced when resolving the dependencies.
-let private getReducer
-        (componentType : ComponentType)
-        : Map<InputPortNumber, WireData>               // Inputs.
-          -> SimulationGraph option                    // CustomSimulationGraph.
-          -> (Map<OutputPortNumber, WireData> option * // Outputs.
-              SimulationGraph option)                  // Updated CustomSimulationGraph.
-        =
+let private getReducer (componentType : ComponentType) : ReducerInput -> ReducerOutput =
     // Always ignore the CustomSimulationGraph here, both in inputs and output.
     // The Reducer for Custom components, which use it, will be replaced in the
     // DependencyMerger.
     match componentType with
     | Input width ->
-        fun inputs _ ->
-            assertNotTooManyInputs inputs componentType 1
+        fun reducerInput ->
+            assertNoClockTick reducerInput componentType
+            assertNotTooManyInputs reducerInput componentType 1
             // Simply forward the input.
             // Note that the input of and Input node must be feeded manually.
-            match getValuesForPorts inputs [InputPortNumber 0] with
-            | None -> None, None // Wait for more inputs.
+            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
+            | None -> notReadyReducerOutput // Wait for more inputs.
             | Some [bits] ->
                 assertThat (bits.Length = width) <| sprintf "Input node reducer received wrong number of bits: expected %d but got %d" width bits.Length
-                Some <| Map.empty.Add (OutputPortNumber 0, bits), None
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
+                Map.empty.Add (OutputPortNumber 0, bits) |> makeReducerOutput
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
     | Output width ->
-        fun inputs _ ->
-            assertNotTooManyInputs inputs componentType 1
-            match getValuesForPorts inputs [InputPortNumber 0] with
-            | None -> None, None
+        fun reducerInput ->
+            assertNoClockTick reducerInput componentType
+            assertNotTooManyInputs reducerInput componentType 1
+            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
+            | None -> notReadyReducerOutput // Wait for more inputs.
             | Some [bits] ->
                 assertThat (bits.Length = width) <| sprintf "Output node reducer received wrong number of bits: expected %d but got %d" width bits.Length
-                None, None // Do nothing with it. Just make sure it is received.
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
+                notReadyReducerOutput // Do nothing with it. Just make sure it is received.
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
     | Not ->
-        fun inputs _ ->
-            assertNotTooManyInputs inputs componentType 1
-            match getValuesForPorts inputs [InputPortNumber 0] with
-            | None -> None, None // Wait for more inputs.
+        fun reducerInput ->
+            assertNoClockTick reducerInput componentType
+            assertNotTooManyInputs reducerInput componentType 1
+            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
+            | None -> notReadyReducerOutput // Wait for more inputs.
             | Some [bit] ->
                 let bit = extractBit bit
-                Some <| Map.empty.Add (OutputPortNumber 0, packBit (bitNot bit)), None
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
+                Map.empty.Add (OutputPortNumber 0, packBit (bitNot bit))
+                |> makeReducerOutput
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
     | And  -> getBinaryGateReducer bitAnd And
     | Or   -> getBinaryGateReducer bitOr Or
     | Xor  -> getBinaryGateReducer bitXor Xor
@@ -152,23 +174,26 @@ let private getReducer
     | Nor  -> getBinaryGateReducer bitNor Nor
     | Xnor -> getBinaryGateReducer bitXnor Xnor
     | Mux2 ->
-        fun inputs _ ->
-            assertNotTooManyInputs inputs componentType 3
-            match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
-            | None -> None, None // Wait for more inputs.
+        fun reducerInput ->
+            assertNoClockTick reducerInput componentType
+            assertNotTooManyInputs reducerInput componentType 3
+            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
+            | None -> notReadyReducerOutput // Wait for more inputs.
             | Some [bit0; bit1; bitSelect] ->
                 // TODO: allow mux2 to deal with buses? To do so, just remove
                 // the extractBit code.
                 let bit0 = extractBit bit0
                 let bit1 = extractBit bit1
                 let out = if (extractBit bitSelect) = Zero then bit0 else bit1
-                Some <| Map.empty.Add (OutputPortNumber 0, packBit out), None
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
+                Map.empty.Add (OutputPortNumber 0, packBit out)
+                |> makeReducerOutput
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
     | Demux2 ->
-        fun inputs _ ->
-            assertNotTooManyInputs inputs componentType 2
-            match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1] with
-            | None -> None, None // Wait for more inputs.
+        fun reducerInput ->
+            assertNoClockTick reducerInput componentType
+            assertNotTooManyInputs reducerInput componentType 2
+            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
+            | None -> notReadyReducerOutput // Wait for more inputs.
             | Some [bitIn; bitSelect] ->
                 // TODO: allow demux2 to deal with buses? To do so, just remove
                 // the extractBit code.
@@ -177,32 +202,38 @@ let private getReducer
                                  then bitIn, Zero else Zero, bitIn
                 let out = Map.empty.Add (OutputPortNumber 0, packBit out0)
                 let out = out.Add (OutputPortNumber 1, packBit out1)
-                Some out, None
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
+                makeReducerOutput out
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
     | Custom c ->
-        fun _ _ ->
+        fun _ ->
+            // The custom reducer is produced by the DependencyMerger.
             failwithf "what? Custom components reducer should be overridden before using it in a simulation: %A" c
     | MergeWires ->
-        fun inputs _ ->
-            assertNotTooManyInputs inputs componentType 2
-            match getValuesForPorts inputs [InputPortNumber 0; InputPortNumber 1] with
-            | None -> None, None
+        fun reducerInput ->
+            assertNoClockTick reducerInput componentType
+            assertNotTooManyInputs reducerInput componentType 2
+            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
+            | None -> notReadyReducerOutput // Wait for more inputs.
             | Some [bits0; bits1] ->
-                Some <| Map.empty.Add (OutputPortNumber 0, bits0 @ bits1), None
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
+                Map.empty.Add (OutputPortNumber 0, bits0 @ bits1)
+                |> makeReducerOutput
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
     | SplitWire topWireWidth ->
-        fun inputs _ ->
-            assertNotTooManyInputs inputs componentType 1
-            match getValuesForPorts inputs [InputPortNumber 0] with
-            | None -> None, None
+        fun reducerInput ->
+            assertNoClockTick reducerInput componentType
+            assertNotTooManyInputs reducerInput componentType 1
+            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
+            | None -> notReadyReducerOutput // Wait for more inputs.
             | Some [bits] ->
                 assertThat (bits.Length >= topWireWidth + 1)
                 <| sprintf "SplitWire received too little bits: expected at least %d but got %d" (topWireWidth + 1) bits.Length
                 let bits0, bits1 = List.splitAt topWireWidth bits
                 let out = Map.empty.Add (OutputPortNumber 0, bits0)
                 let out = out.Add (OutputPortNumber 1, bits1)
-                Some out, None
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType inputs
+                makeReducerOutput out
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+    // | DFF ->
+    //     fun inputs
 
 /// Build a map that, for each source port in the connections, keeps track of
 /// the ports it targets.

@@ -69,6 +69,9 @@ and private feedReducerOutput
             )
     )
 
+/// Tells wether a component is clocked or not. Note that Custom components may
+/// be clocked (cannot tell without recursively analysing them), so they are
+/// considered colcked.
 let private isClockedComponent comp =
     match comp.Type with
     | DFF | Custom _ -> true // We have to assume custom components are clocked as they may be.

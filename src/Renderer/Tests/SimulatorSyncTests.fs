@@ -78,4 +78,36 @@ let testCasesSimulatorSync : TestCase list = [
         ([(ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [One]]
          |> List.replicate 3)
     )
+
+    "A DFF looping to itself via a Not gate. Two output nodes to probe the wires before and after the Not gate.",
+    ("main", stateSync5, [], 4, []),
+    Ok [
+        [ (ComponentId "62a3108e-1198-502b-e338-e677815aead3", ComponentLabel "out1", 1), [Zero]
+          (ComponentId "023094a0-9787-47ce-26af-03086cdc4b15", ComponentLabel "out2", 1), [One] ]
+        
+        [ (ComponentId "62a3108e-1198-502b-e338-e677815aead3", ComponentLabel "out1", 1), [One]
+          (ComponentId "023094a0-9787-47ce-26af-03086cdc4b15", ComponentLabel "out2", 1), [Zero] ]
+
+        [ (ComponentId "62a3108e-1198-502b-e338-e677815aead3", ComponentLabel "out1", 1), [Zero]
+          (ComponentId "023094a0-9787-47ce-26af-03086cdc4b15", ComponentLabel "out2", 1), [One] ]
+
+        [ (ComponentId "62a3108e-1198-502b-e338-e677815aead3", ComponentLabel "out1", 1), [One]
+          (ComponentId "023094a0-9787-47ce-26af-03086cdc4b15", ComponentLabel "out2", 1), [Zero] ]
+    ]
+
+    "Similar to stateSync5, but with a stateSync1 custom component instead of a DFF.",
+    ("main", stateSync6, [stateSync1Dependency], 4, []),
+    Ok [
+        [ (ComponentId "62a3108e-1198-502b-e338-e677815aead3", ComponentLabel "out1", 1), [Zero]
+          (ComponentId "023094a0-9787-47ce-26af-03086cdc4b15", ComponentLabel "out2", 1), [One] ]
+        
+        [ (ComponentId "62a3108e-1198-502b-e338-e677815aead3", ComponentLabel "out1", 1), [One]
+          (ComponentId "023094a0-9787-47ce-26af-03086cdc4b15", ComponentLabel "out2", 1), [Zero] ]
+
+        [ (ComponentId "62a3108e-1198-502b-e338-e677815aead3", ComponentLabel "out1", 1), [Zero]
+          (ComponentId "023094a0-9787-47ce-26af-03086cdc4b15", ComponentLabel "out2", 1), [One] ]
+
+        [ (ComponentId "62a3108e-1198-502b-e338-e677815aead3", ComponentLabel "out1", 1), [One]
+          (ComponentId "023094a0-9787-47ce-26af-03086cdc4b15", ComponentLabel "out2", 1), [Zero] ]
+    ]
 ]

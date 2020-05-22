@@ -70,3 +70,37 @@ let stateSync4 : CanvasState =
         {Id = "4c146e97-db61-4848-5073-01c3785d2571";Source = {Id = "252c237c-1323-a291-eccb-f94392a37743";PortNumber = None;PortType = PortType.Output;HostId = "547051c6-38f6-27ec-7c33-9c3bbee47e6e"};Target = {Id = "a8e8da74-7bd2-f3a8-9ee5-9e8caa1ee0e5";PortNumber = None;PortType = PortType.Input;HostId = "781e7d9d-b18c-d614-dbc0-23bac9e617b7"};Vertices = [550.0,110.0; 749.0,110.0]};
         {Id = "50982a96-2ea6-7db7-2eda-6c38456697c4";Source = {Id = "05578981-7a96-a101-b726-df761e234abb";PortNumber = None;PortType = PortType.Output;HostId = "423bb75b-e791-14f9-ecc2-1ac1c73fc55b"};Target = {Id = "7ec9e434-b066-daf3-3308-0a13a97c8880";PortNumber = None;PortType = PortType.Input;HostId = "547051c6-38f6-27ec-7c33-9c3bbee47e6e"};Vertices = [345.0,110.0; 500.0,110.0]}
     ]
+
+/// A DFF looping to itself via a Not gate. Two output nodes to probe the wires
+/// before and after the Not gate. No inputs.
+let stateSync5 : CanvasState =
+    [
+        {Id = "62a3108e-1198-502b-e338-e677815aead3";Type = Output 1;Label = "out1";InputPorts = [{Id = "3a7fdd4d-59d0-60cf-9eaf-cd2c7fd16264";PortNumber = Some 0;PortType = PortType.Input;HostId = "62a3108e-1198-502b-e338-e677815aead3"}];OutputPorts = [];X = 417;Y = 117};
+        {Id = "fc72c05a-5174-0334-aa74-be3ce27c3657";Type = Not;Label = "";InputPorts = [{Id = "add99bad-5b00-ab97-4f13-2903a14b2f4e";PortNumber = Some 0;PortType = PortType.Input;HostId = "fc72c05a-5174-0334-aa74-be3ce27c3657"}];OutputPorts = [{Id = "63ca8512-31ee-88e6-9d25-8fdc727d2418";PortNumber = Some 0;PortType = PortType.Output;HostId = "fc72c05a-5174-0334-aa74-be3ce27c3657"}];X = 169;Y = 184};
+        {Id = "023094a0-9787-47ce-26af-03086cdc4b15";Type = Output 1;Label = "out2";InputPorts = [{Id = "0ed71ded-67ad-cd1b-0ff0-a1e167900051";PortNumber = Some 0;PortType = PortType.Input;HostId = "023094a0-9787-47ce-26af-03086cdc4b15"}];OutputPorts = [];X = 229;Y = 138};
+        {Id = "1a772449-853d-2171-1e47-fb9783b99556";Type = DFF;Label = "";InputPorts = [{Id = "8b78d961-4203-c0ae-3229-c3a02c42065a";PortNumber = Some 0;PortType = PortType.Input;HostId = "1a772449-853d-2171-1e47-fb9783b99556"}];OutputPorts = [{Id = "abd2d9ec-a752-cb9d-b97e-afd7e2eea26d";PortNumber = Some 0;PortType = PortType.Output;HostId = "1a772449-853d-2171-1e47-fb9783b99556"}];X = 273;Y = 343}
+    ],
+    [
+        {Id = "5f42f1e8-0ccd-24e1-04a2-635d957c991b";Source = {Id = "63ca8512-31ee-88e6-9d25-8fdc727d2418";PortNumber = None;PortType = PortType.Output;HostId = "fc72c05a-5174-0334-aa74-be3ce27c3657"};Target = {Id = "0ed71ded-67ad-cd1b-0ff0-a1e167900051";PortNumber = None;PortType = PortType.Input;HostId = "023094a0-9787-47ce-26af-03086cdc4b15"};Vertices = [199.0,199.0; 214.0,199.0; 214.0,148.0; 229.0,148.0]};
+        {Id = "dc4cbb8e-e7a8-a008-97a8-0200f8720a81";Source = {Id = "63ca8512-31ee-88e6-9d25-8fdc727d2418";PortNumber = None;PortType = PortType.Output;HostId = "fc72c05a-5174-0334-aa74-be3ce27c3657"};Target = {Id = "8b78d961-4203-c0ae-3229-c3a02c42065a";PortNumber = None;PortType = PortType.Input;HostId = "1a772449-853d-2171-1e47-fb9783b99556"};Vertices = [199.0,199.0; 236.0,199.0; 236.0,368.0; 273.0,368.0]};
+        {Id = "4810ec6b-a9f9-a562-58cf-82f9071755ad";Source = {Id = "abd2d9ec-a752-cb9d-b97e-afd7e2eea26d";PortNumber = None;PortType = PortType.Output;HostId = "1a772449-853d-2171-1e47-fb9783b99556"};Target = {Id = "add99bad-5b00-ab97-4f13-2903a14b2f4e";PortNumber = None;PortType = PortType.Input;HostId = "fc72c05a-5174-0334-aa74-be3ce27c3657"};Vertices = [323.0,368.0; 343.0,368.0; 343.0,283.5; 149.0,283.5; 149.0,199.0; 169.0,199.0]};
+        {Id = "3831ffa7-549f-da3b-ab73-20c72e69b5b8";Source = {Id = "abd2d9ec-a752-cb9d-b97e-afd7e2eea26d";PortNumber = None;PortType = PortType.Output;HostId = "1a772449-853d-2171-1e47-fb9783b99556"};Target = {Id = "3a7fdd4d-59d0-60cf-9eaf-cd2c7fd16264";PortNumber = None;PortType = PortType.Input;HostId = "62a3108e-1198-502b-e338-e677815aead3"};Vertices = [323.0,368.0; 370.0,368.0; 370.0,127.0; 417.0,127.0]}
+    ]
+
+
+/// Similar to stateSync5, but with a stateSync1 custom component instead of a
+/// DFF. Loop with a synchronous custom component.
+let stateSync6 : CanvasState =
+    [
+        {Id = "62a3108e-1198-502b-e338-e677815aead3";Type = Output 1;Label = "out1";InputPorts = [{Id = "3a7fdd4d-59d0-60cf-9eaf-cd2c7fd16264";PortNumber = Some 0;PortType = PortType.Input;HostId = "62a3108e-1198-502b-e338-e677815aead3"}];OutputPorts = [];X = 417;Y = 117};
+        {Id = "fc72c05a-5174-0334-aa74-be3ce27c3657";Type = Not;Label = "";InputPorts = [{Id = "add99bad-5b00-ab97-4f13-2903a14b2f4e";PortNumber = Some 0;PortType = PortType.Input;HostId = "fc72c05a-5174-0334-aa74-be3ce27c3657"}];OutputPorts = [{Id = "63ca8512-31ee-88e6-9d25-8fdc727d2418";PortNumber = Some 0;PortType = PortType.Output;HostId = "fc72c05a-5174-0334-aa74-be3ce27c3657"}];X = 169;Y = 184};
+        {Id = "023094a0-9787-47ce-26af-03086cdc4b15";Type = Output 1;Label = "out2";InputPorts = [{Id = "0ed71ded-67ad-cd1b-0ff0-a1e167900051";PortNumber = Some 0;PortType = PortType.Input;HostId = "023094a0-9787-47ce-26af-03086cdc4b15"}];OutputPorts = [];X = 229;Y = 138};
+        {Id = "1a772449-853d-2171-1e47-fb9783b99556";Type = Custom stateSync1CustomComponent;Label = "";InputPorts = [{Id = "8b78d961-4203-c0ae-3229-c3a02c42065a";PortNumber = Some 0;PortType = PortType.Input;HostId = "1a772449-853d-2171-1e47-fb9783b99556"}];OutputPorts = [{Id = "abd2d9ec-a752-cb9d-b97e-afd7e2eea26d";PortNumber = Some 0;PortType = PortType.Output;HostId = "1a772449-853d-2171-1e47-fb9783b99556"}];X = 273;Y = 343}
+    ],
+    [
+        {Id = "5f42f1e8-0ccd-24e1-04a2-635d957c991b";Source = {Id = "63ca8512-31ee-88e6-9d25-8fdc727d2418";PortNumber = None;PortType = PortType.Output;HostId = "fc72c05a-5174-0334-aa74-be3ce27c3657"};Target = {Id = "0ed71ded-67ad-cd1b-0ff0-a1e167900051";PortNumber = None;PortType = PortType.Input;HostId = "023094a0-9787-47ce-26af-03086cdc4b15"};Vertices = [199.0,199.0; 214.0,199.0; 214.0,148.0; 229.0,148.0]};
+        {Id = "dc4cbb8e-e7a8-a008-97a8-0200f8720a81";Source = {Id = "63ca8512-31ee-88e6-9d25-8fdc727d2418";PortNumber = None;PortType = PortType.Output;HostId = "fc72c05a-5174-0334-aa74-be3ce27c3657"};Target = {Id = "8b78d961-4203-c0ae-3229-c3a02c42065a";PortNumber = None;PortType = PortType.Input;HostId = "1a772449-853d-2171-1e47-fb9783b99556"};Vertices = [199.0,199.0; 236.0,199.0; 236.0,368.0; 273.0,368.0]};
+        {Id = "4810ec6b-a9f9-a562-58cf-82f9071755ad";Source = {Id = "abd2d9ec-a752-cb9d-b97e-afd7e2eea26d";PortNumber = None;PortType = PortType.Output;HostId = "1a772449-853d-2171-1e47-fb9783b99556"};Target = {Id = "add99bad-5b00-ab97-4f13-2903a14b2f4e";PortNumber = None;PortType = PortType.Input;HostId = "fc72c05a-5174-0334-aa74-be3ce27c3657"};Vertices = [323.0,368.0; 343.0,368.0; 343.0,283.5; 149.0,283.5; 149.0,199.0; 169.0,199.0]};
+        {Id = "3831ffa7-549f-da3b-ab73-20c72e69b5b8";Source = {Id = "abd2d9ec-a752-cb9d-b97e-afd7e2eea26d";PortNumber = None;PortType = PortType.Output;HostId = "1a772449-853d-2171-1e47-fb9783b99556"};Target = {Id = "3a7fdd4d-59d0-60cf-9eaf-cd2c7fd16264";PortNumber = None;PortType = PortType.Input;HostId = "62a3108e-1198-502b-e338-e677815aead3"};Vertices = [323.0,368.0; 370.0,368.0; 370.0,127.0; 417.0,127.0]}
+    ]
+

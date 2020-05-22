@@ -35,7 +35,7 @@ let isSynchronousComponent
         // allow a combinational loop.
         match hasRoutesFromInputToOutpuMap.TryFind custom.Name with
         | None -> failwithf "what? could not find custom component name in the hasRoutesFromInputToOutpuMap: %s" custom.Name
-        | Some hasRoutes -> hasRoutes
+        | Some hasRoutes -> not hasRoutes
     | Input _ | Output _ | MergeWires | SplitWire _ | Not | And | Or | Xor
     | Nand | Nor | Xnor | Mux2 | Demux2 -> false
 

@@ -11,7 +11,7 @@ module SimulationBuilder
 open Helpers
 open DiagramTypes
 open SimulatorTypes
-open Analyser
+open CanvasStateAnalyser
 
 /// This function should only be called on Component ports, never on Connection
 /// ports: ports in Components should always have Some portNumber, ports in
@@ -343,14 +343,9 @@ let private buildSimulationGraph (canvasState : CanvasState) : SimulationGraph =
     |> Map.ofList
 
 /// Validate a diagram and generate its simulation graph.
-let runChecksAndBuildGraph
+let runCanvasStateChecksAndBuildGraph
         (canvasState : CanvasState)
         : Result<SimulationGraph, SimulationError> =
     match analyseState canvasState with
     | Some err -> Error err
-    | None ->
-        let _, connections = canvasState
-        let graph = canvasState |> buildSimulationGraph
-        match analyseGraph graph connections with
-        | Some err -> Error err
-        | None -> Ok graph
+    | None -> Ok <| buildSimulationGraph canvasState

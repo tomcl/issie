@@ -13,6 +13,7 @@
     <Compile Include="../Diagram/Bus/WidthInferer.fs" />
     <!-- Simulator -->
     <Compile Include="../Diagram/Simulator/Types.fs" />
+    <Compile Include="../Diagram/Simulator/SynchronousUtils.fs" />
     <Compile Include="../Diagram/Simulator/Analyser.fs" />
     <Compile Include="../Diagram/Simulator/Builder.fs" />
     <Compile Include="../Diagram/Simulator/Runner.fs" />

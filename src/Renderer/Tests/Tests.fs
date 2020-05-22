@@ -34,15 +34,15 @@ let runSimulatorSyncTest (diagramName, state, loadedComponents, ticks, inputs) =
             )
         Ok results
 
-//[<Tests>]
-//let simulatorTests =
-//    createTestList "simulator" runSimulatorTest testCasesSimulator
+[<Tests>]
+let simulatorTests =
+    createTestList "simulator" runSimulatorTest testCasesSimulator
 [<Tests>]
 let simulatorSyncTests =
     createTestList "simulatorSync" runSimulatorSyncTest testCasesSimulatorSync
-//[<Tests>]
-//let widthInfererTests =
-//    createTestList "widthInferer" inferConnectionsWidth testCasesWidthInferer
+[<Tests>]
+let widthInfererTests =
+    createTestList "widthInferer" inferConnectionsWidth testCasesWidthInferer
 
 [<EntryPoint>]
 let main argv =

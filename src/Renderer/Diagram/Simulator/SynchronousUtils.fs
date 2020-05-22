@@ -149,7 +149,7 @@ and private inferGraphsCouldBeCombinatorial'
     // immediately.
     match currStack.Contains currName, result.ContainsKey currName with
     | true, _ -> None // Cyclic dependency.
-    | false, true -> Some result // Already infferred.
+    | false, true -> Some result // Already inferred.
     | false, false ->
         // New graph never explored.
         // Infer the information for all the custom components first. If any
@@ -164,12 +164,12 @@ and private inferGraphsCouldBeCombinatorial'
 
 /// Heuristically determines wether a graph and its dependencies have any
 /// combinatorial logic path connecting an input directly with an output. In
-/// other words, the function determines wether there is at least one route from
-/// input to output that does not encounter any synchronous component.
+/// other words, the function determines whether there is at least one route
+/// from input to output that does not encounter any synchronous component.
 /// Return a map containing such information for every custom component and
 /// for the diagram itself. Return None if such information cannot be inferred,
 /// for example if there is a circular dependency.
-let inferGraphsCouldBeCombinatorial
+let makeIsCustomComponentCombinatorialMap
         (diagramName : string)
         (graph : SimulationGraph)
         : Map<string, bool> option =

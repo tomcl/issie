@@ -245,6 +245,21 @@ let private diffSimulationInputs
         | _ -> failwith "what? Impossible case in diffSimulationInputs"
     )
 
+/// Function used in the custom reducer to only return the outputs that changed.
+let private diffSimulationOutputs
+        (newOutputs : Map<OutputPortNumber, WireData>)
+        (oldOutputs : Map<OutputPortNumber, WireData>)
+        : Map<OutputPortNumber, WireData> =
+    assertThat (oldOutputs.Count = newOutputs.Count) "diffSimulationOutputs"
+    (Map.empty, newOutputs)
+    ||> Map.fold (fun diff outputPortNumber wireData ->
+        match oldOutputs.TryFind outputPortNumber with
+        | Some oldBit when oldBit <> wireData -> diff.Add(outputPortNumber, wireData)
+        | Some oldBit when oldBit = wireData -> diff
+        | None -> failwithf "what? oldOutputs do not have outputPortNumber found in new ouputs: %A" outputPortNumber
+        | _ -> failwith "what? Impossible case in diffSimulationInputs"
+    )
+
 /// Create the Reducer for a custom component.
 /// Passing graphInputs and graphOutputs would not be strictly necessary, but it
 /// is good for performance as so the Input and Output nodes don't have to be
@@ -276,6 +291,8 @@ let private makeCustomReducer
                 // Feed only new inputs or inputs that changed, for performance.
                 let oldInputs =
                     extractInputValuesAsMap graph graphInputs inputLabels
+                let oldOutputs =
+                    extractOutputValuesAsMap graph graphOutputs outputLabels
                 let newInputs = diffSimulationInputs inputs oldInputs
                 let graph =
                     (graph, newInputs)
@@ -288,8 +305,10 @@ let private makeCustomReducer
                                           inpLabel = inputLabel)
                         feedSimulationInput graph inputId wireData
                     )
-                let outputs =
+                let newOutputs =
                     extractOutputValuesAsMap graph graphOutputs outputLabels
+                // Only return outputs that have changed.
+                let outputs = diffSimulationOutputs newOutputs oldOutputs
                 // Return the outputs toghether with the updated graph.
                 { Outputs = Some outputs; NewCustomSimulationGraph = Some graph }
         | true ->

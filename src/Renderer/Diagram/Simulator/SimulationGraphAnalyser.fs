@@ -98,10 +98,12 @@ let private calculateConnectionsAffected
     |> List.mapi (fun i compId -> (compId, cycle.[(i + 1) % cycle.Length]))
     |> List.map (findConnection connections)
 
-/// Check that the combinatorial logic contains no cycles.
+/// Check that the combinatorial logic contains no cycles, in a given graph.
+/// If connections are passed, a possible error message will contain the
+/// connections affected.
 let private checkCombinatorialCycle
         (graph : SimulationGraph)
-        (connections : Connection list)
+        (connectionsOpt : (Connection list) option)
         (isSynchronous : ComponentType -> bool)
         : SimulationError option =
     let rec checkGraphForest nodeIds visited =
@@ -110,11 +112,17 @@ let private checkCombinatorialCycle
         | nodeId :: nodeIds' ->
             match dfs nodeId graph visited Set.empty isSynchronous with
             | NoCycle visited -> checkGraphForest nodeIds' visited
-            | Cycle cycle -> Some {
-                Msg = "Cycle detected in combinatorial logic"
-                InDependency = None
-                ComponentsAffected = cycle
-                ConnectionsAffected = calculateConnectionsAffected connections cycle }
+            | Cycle cycle ->
+                let connectionsAffected =
+                    match connectionsOpt with
+                    | None -> []
+                    | Some conns -> calculateConnectionsAffected conns cycle
+                Some {
+                    Msg = "Cycle detected in combinatorial logic"
+                    InDependency = None
+                    ComponentsAffected = cycle
+                    ConnectionsAffected = connectionsAffected
+                }
             | Backtracking (c, ce) -> failwithf "what? Dfs should never terminate while backtracking: %A" (c, ce)
 
     let visited = Set.empty
@@ -138,12 +146,12 @@ let analyseSimulationGraph
         // problems.
         failwithf "what? makeIsCustomComponentCombinatorialMap returned None whithin analyseSimulationGraph. This should never happen"
     | Some icccm ->
-        // icccm: is custom component combinatorial map. This is a map that
-        // states whether a custom component is considered combinatorial or
-        // synchronous.
+        // icccm: is custom component combinatorial? map
+        // This is a map that states whether a custom component is considered
+        // combinatorial or synchronous.
         // The isSynchronous function uses icccm to determine whether a
         // component is synchronous or not.
         let isSynchronous = isSynchronousComponent icccm
-        checkCombinatorialCycle graph connections isSynchronous
+        checkCombinatorialCycle graph (Some connections) isSynchronous
 
 // TODO recursively check all nested components for combinatorial cycles.

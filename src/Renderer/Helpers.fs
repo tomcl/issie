@@ -27,3 +27,11 @@ let pow2 (exponent : int) : int =
 /// Return 2^exponent, packed into an int64.
 let pow2int64 (exponent : int) : int64 =
     int64 (2. ** float(exponent))
+
+/// Try to convert a string to an int, or return an error message if that was
+/// not possible.
+let strToInt (str : string) : Result<int64, string> =
+    try
+        Ok <| int64 str
+    with
+        | e -> Error <| e.ToString ()

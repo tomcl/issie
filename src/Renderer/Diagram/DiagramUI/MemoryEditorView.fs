@@ -11,26 +11,39 @@ open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
 open Helpers
+open JSHelpers
 open DiagramTypes
 open DiagramMessageType
+open DiagramModelType
 open PopupView
 
-// TODO: reload selected component when leaving memory editor.
+//let private headerHeight = "100px";
 
 let private makeEditorHeader memory =
-    div [] [
+    div [(*Style [Position "fixed"; Top "0px"]*)] [
         str <| sprintf "Number of elements: %d" (pow2int64 memory.AddressWidth)
         br []
         str <| sprintf "Word width: %d bit(s)" memory.WordWidth
     ]
 
-let private makeEditorBody memory =
-    let makeRow idx content =
+let private makeEditorBody memory compId model =
+    let makeRow addr content =
         tr [] [
-            td [] [ str <| sprintf "%d" idx ]
-            td [] [ str <| sprintf "%d" content ] // TODO: make modifiable.
+            td [] [ str <| sprintf "%d" addr ]
+            td [] [
+                Input.text [
+                    Input.DefaultValue <| sprintf "%d" content
+                    Input.OnChange (getTextEventValue >> fun text ->
+                        // TODO ensure int value has not too many bits.
+                        // TODO show an error popup.
+                        match strToInt text with
+                        | Ok value -> model.Diagram.WriteMemoryLine compId addr value
+                        | Error err -> log err
+                    )
+                ]
+            ]
         ]
-    Table.table [] [
+    Table.table [(*Table.Props [Style [MarginTop headerHeight] ] *)] [
         thead [] [
             tr [] [
                 th [] [str "Address"]
@@ -42,15 +55,15 @@ let private makeEditorBody memory =
         )
     ]
 
-let private makeEditor memory model =
+let private makeEditor memory compId model =
     div [] [
         makeEditorHeader memory
-        makeEditorBody memory
+        makeEditorBody memory compId model
     ]
 
-let openMemoryEditor (memory : Memory) model dispatch : unit =
+let openMemoryEditor memory compId model dispatch : unit =
     let title = "Memory editor"
-    let body = makeEditor memory model
+    let body = makeEditor memory compId model
     let foot =
         Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
             Level.left [] []
@@ -59,6 +72,7 @@ let openMemoryEditor (memory : Memory) model dispatch : unit =
                     Button.button [
                         Button.Color IsPrimary
                         Button.OnClick (fun _ -> dispatch ClosePopup)
+                        // TODO: reload selected component when leaving memory editor.
                     ] [ str "Done" ]
                 ]
             ]

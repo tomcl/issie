@@ -104,3 +104,77 @@ let stateSync6 : CanvasState =
         {Id = "3831ffa7-549f-da3b-ab73-20c72e69b5b8";Source = {Id = "abd2d9ec-a752-cb9d-b97e-afd7e2eea26d";PortNumber = None;PortType = PortType.Output;HostId = "1a772449-853d-2171-1e47-fb9783b99556"};Target = {Id = "3a7fdd4d-59d0-60cf-9eaf-cd2c7fd16264";PortNumber = None;PortType = PortType.Input;HostId = "62a3108e-1198-502b-e338-e677815aead3"};Vertices = [323.0,368.0; 370.0,368.0; 370.0,127.0; 417.0,127.0]}
     ]
 
+/// Similar to stateSync6, but with an extra connection input to output.
+/// This component is therefore cosnidered combinatorial, not synchronous.
+/// b receives the input after 2 Clock ticks, b1 receives it immediately.
+let stateSync7 : CanvasState =
+    [
+        {Id = "03e4c81a-4703-d9f5-dfaf-301de006610f";Type = Input 1;Label = "a";InputPorts = [];OutputPorts = [{Id = "0caf419c-354b-78b8-a12b-e5fa450d4fc0";PortNumber = Some 0;PortType = PortType.Output;HostId = "03e4c81a-4703-d9f5-dfaf-301de006610f"}];X = 100;Y = 100};
+        {Id = "781e7d9d-b18c-d614-dbc0-23bac9e617b7";Type = Output 1;Label = "b";InputPorts = [{Id = "a8e8da74-7bd2-f3a8-9ee5-9e8caa1ee0e5";PortNumber = Some 0;PortType = PortType.Input;HostId = "781e7d9d-b18c-d614-dbc0-23bac9e617b7"}];OutputPorts = [];X = 749;Y = 100};
+        {Id = "547051c6-38f6-27ec-7c33-9c3bbee47e6e";Type = DFF;Label = "";InputPorts = [{Id = "7ec9e434-b066-daf3-3308-0a13a97c8880";PortNumber = Some 0;PortType = PortType.Input;HostId = "547051c6-38f6-27ec-7c33-9c3bbee47e6e"}];OutputPorts = [{Id = "252c237c-1323-a291-eccb-f94392a37743";PortNumber = Some 0;PortType = PortType.Output;HostId = "547051c6-38f6-27ec-7c33-9c3bbee47e6e"}];X = 500;Y = 85};
+        {Id = "423bb75b-e791-14f9-ecc2-1ac1c73fc55b";Type = Custom stateSync1CustomComponent;Label = "main";InputPorts = [{Id = "4c5a5a1a-e7e3-f53b-8059-0dfd34d796b1";PortNumber = Some 0;PortType = PortType.Input;HostId = "423bb75b-e791-14f9-ecc2-1ac1c73fc55b"}];OutputPorts = [{Id = "05578981-7a96-a101-b726-df761e234abb";PortNumber = Some 0;PortType = PortType.Output;HostId = "423bb75b-e791-14f9-ecc2-1ac1c73fc55b"}];X = 285;Y = 95};
+        {Id = "fc5099db-d220-b42f-2add-b8c057164cb1";Type = Output 1;Label = "b1";InputPorts = [{Id = "64af4f69-11a9-ae0f-6b4d-48452658249e";PortNumber = Some 0;PortType = PortType.Input;HostId = "fc5099db-d220-b42f-2add-b8c057164cb1"}];OutputPorts = [];X = 749;Y = 240}
+    ],
+    [
+        {Id = "75474538-c7cb-de96-9fd2-5f55af7af631";Source = {Id = "0caf419c-354b-78b8-a12b-e5fa450d4fc0";PortNumber = None;PortType = PortType.Output;HostId = "03e4c81a-4703-d9f5-dfaf-301de006610f"};Target = {Id = "4c5a5a1a-e7e3-f53b-8059-0dfd34d796b1";PortNumber = None;PortType = PortType.Input;HostId = "423bb75b-e791-14f9-ecc2-1ac1c73fc55b"};Vertices = [130.0,110.0; 285.0,110.0]};
+        {Id = "d2622b0e-7b0a-3028-c91a-a02ef95b1b4f";Source = {Id = "0caf419c-354b-78b8-a12b-e5fa450d4fc0";PortNumber = None;PortType = PortType.Output;HostId = "03e4c81a-4703-d9f5-dfaf-301de006610f"};Target = {Id = "64af4f69-11a9-ae0f-6b4d-48452658249e";PortNumber = None;PortType = PortType.Input;HostId = "fc5099db-d220-b42f-2add-b8c057164cb1"};Vertices = [130.0,110.0; 201.5,110.0; 201.5,250.0; 749.0,250.0]};
+        {Id = "50982a96-2ea6-7db7-2eda-6c38456697c4";Source = {Id = "05578981-7a96-a101-b726-df761e234abb";PortNumber = None;PortType = PortType.Output;HostId = "423bb75b-e791-14f9-ecc2-1ac1c73fc55b"};Target = {Id = "7ec9e434-b066-daf3-3308-0a13a97c8880";PortNumber = None;PortType = PortType.Input;HostId = "547051c6-38f6-27ec-7c33-9c3bbee47e6e"};Vertices = [345.0,110.0; 500.0,110.0]};
+        {Id = "4c146e97-db61-4848-5073-01c3785d2571";Source = {Id = "252c237c-1323-a291-eccb-f94392a37743";PortNumber = None;PortType = PortType.Output;HostId = "547051c6-38f6-27ec-7c33-9c3bbee47e6e"};Target = {Id = "a8e8da74-7bd2-f3a8-9ee5-9e8caa1ee0e5";PortNumber = None;PortType = PortType.Input;HostId = "781e7d9d-b18c-d614-dbc0-23bac9e617b7"};Vertices = [550.0,110.0; 749.0,110.0]}
+    ]
+
+/// stateSync7 loaded as a dependency.
+let stateSync7Dependency : LoadedComponent = {
+    Name = "combinatorial-sync"
+    FilePath = ""
+    CanvasState = stateSync7
+    InputLabels = ["a", 1]
+    OutputLabels = ["b", 1; "b1", 1]
+}
+
+/// stateSync7 custom component.
+let stateSync7CustomComponent : CustomComponentType =
+    CanvasStates.makeCustomComponent stateSync7Dependency
+
+/// Create a Not-ed self loop with the custom component of stateSync7. Connect
+/// both outputs of stateSync7 to outputs. This would be a legitimate circuit,
+/// but stateSync7 has a combinatorial connection input to output, hence it is
+/// considered combinatorial, and it is part of a combinatorial loop.
+let stateSync8 : CanvasState =
+    [
+        {Id = "44beb433-285e-8199-2b3a-d18d7bce1c6f";Type = Output 1;Label = "dn-out";InputPorts = [{Id = "b2909f77-bbc1-4428-1bd3-f5b37ce4ef9b";PortNumber = Some 0;PortType = PortType.Input;HostId = "44beb433-285e-8199-2b3a-d18d7bce1c6f"}];OutputPorts = [];X = 633;Y = 182};
+        {Id = "5baefd71-8841-6e27-5930-ce3c4530fc4d";Type = Not;Label = "";InputPorts = [{Id = "16f663d6-34a1-1895-938a-aba5cc88cc84";PortNumber = Some 0;PortType = PortType.Input;HostId = "5baefd71-8841-6e27-5930-ce3c4530fc4d"}];OutputPorts = [{Id = "c09b810b-d411-b803-5495-d95230c22ae6";PortNumber = Some 0;PortType = PortType.Output;HostId = "5baefd71-8841-6e27-5930-ce3c4530fc4d"}];X = 182;Y = 76};
+        {Id = "5339d358-0ac2-f907-4b2c-ba52b1a090b6";Type = Custom stateSync7CustomComponent;Label = "nested";InputPorts = [{Id = "782db954-6514-eafd-7829-7446feb3ca81";PortNumber = Some 0;PortType = PortType.Input;HostId = "5339d358-0ac2-f907-4b2c-ba52b1a090b6"}];OutputPorts = [{Id = "3875c8c1-ca03-c13a-b360-97b8eceefb36";PortNumber = Some 0;PortType = PortType.Output;HostId = "5339d358-0ac2-f907-4b2c-ba52b1a090b6"}; {Id = "dfd35e38-4b9c-ad0e-4f28-3c5e9d497b0a";PortNumber = Some 1;PortType = PortType.Output;HostId = "5339d358-0ac2-f907-4b2c-ba52b1a090b6"}];X = 253;Y = 148};
+        {Id = "e0745d45-ab87-81ca-89a4-33629ff2c470";Type = Output 1;Label = "b1";InputPorts = [{Id = "942d1cb6-0a8f-43bd-cfad-db8f97bce9b4";PortNumber = Some 0;PortType = PortType.Input;HostId = "e0745d45-ab87-81ca-89a4-33629ff2c470"}];OutputPorts = [];X = 431;Y = 158}
+    ],
+    [
+        {Id = "9979884a-3c5c-0d33-33af-057b4594daef";Source = {Id = "dfd35e38-4b9c-ad0e-4f28-3c5e9d497b0a";PortNumber = None;PortType = PortType.Output;HostId = "5339d358-0ac2-f907-4b2c-ba52b1a090b6"};Target = {Id = "b2909f77-bbc1-4428-1bd3-f5b37ce4ef9b";PortNumber = None;PortType = PortType.Input;HostId = "44beb433-285e-8199-2b3a-d18d7bce1c6f"};Vertices = [303.0,188.0; 468.0,188.0; 468.0,192.0; 633.0,192.0]};
+        {Id = "d424a273-3637-84bd-e8b1-b4cba64f19ae";Source = {Id = "c09b810b-d411-b803-5495-d95230c22ae6";PortNumber = None;PortType = PortType.Output;HostId = "5baefd71-8841-6e27-5930-ce3c4530fc4d"};Target = {Id = "782db954-6514-eafd-7829-7446feb3ca81";PortNumber = None;PortType = PortType.Input;HostId = "5339d358-0ac2-f907-4b2c-ba52b1a090b6"};Vertices = [212.0,91.0; 232.5,91.0; 232.5,178.0; 253.0,178.0]};
+        {Id = "a1d8be49-12df-11ea-e0fc-03f882516cb9";Source = {Id = "dfd35e38-4b9c-ad0e-4f28-3c5e9d497b0a";PortNumber = None;PortType = PortType.Output;HostId = "5339d358-0ac2-f907-4b2c-ba52b1a090b6"};Target = {Id = "16f663d6-34a1-1895-938a-aba5cc88cc84";PortNumber = None;PortType = PortType.Input;HostId = "5baefd71-8841-6e27-5930-ce3c4530fc4d"};Vertices = [303.0,188.0; 323.0,188.0; 323.0,139.5; 162.0,139.5; 162.0,91.0; 182.0,91.0]};
+        {Id = "90df8d13-cf14-6d13-ddf0-1b45741a3781";Source = {Id = "3875c8c1-ca03-c13a-b360-97b8eceefb36";PortNumber = None;PortType = PortType.Output;HostId = "5339d358-0ac2-f907-4b2c-ba52b1a090b6"};Target = {Id = "942d1cb6-0a8f-43bd-cfad-db8f97bce9b4";PortNumber = None;PortType = PortType.Input;HostId = "e0745d45-ab87-81ca-89a4-33629ff2c470"};Vertices = [303.0,168.0; 431.0,168.0]}
+    ]
+
+/// stateSync8 loaded as a dependency.
+let stateSync8Dependency : LoadedComponent = {
+    Name = "fake-combinatorial-loop"
+    FilePath = ""
+    CanvasState = stateSync8
+    InputLabels = []
+    OutputLabels = ["b1", 1; "dn-out", 1]
+}
+
+/// stateSync8 custom component.
+let stateSync8CustomComponent : CustomComponentType =
+    CanvasStates.makeCustomComponent stateSync8Dependency
+
+/// StateSync8 connected to two outputs. Should fail as stateSync8 has a
+/// "combinational" loop in it.
+let stateSync9 : CanvasState =
+    [
+        {Id = "be508ddb-3f61-39f3-0f76-bbdf5380d3cb";Type = Custom stateSync8CustomComponent;Label = "doubly nested";InputPorts = [];OutputPorts = [{Id = "eda6a896-ee77-fa35-697e-10a7553266b4";PortNumber = Some 0;PortType = PortType.Output;HostId = "be508ddb-3f61-39f3-0f76-bbdf5380d3cb"}; {Id = "b6a36a53-fe71-d1aa-5a45-208cdc752e08";PortNumber = Some 1;PortType = PortType.Output;HostId = "be508ddb-3f61-39f3-0f76-bbdf5380d3cb"}];X = 298;Y = 158};
+        {Id = "641641c5-f4f0-734c-d0fe-9445dc783e9d";Type = Output 1;Label = "b1";InputPorts = [{Id = "c2853aba-a183-0609-4400-e0f7085ba4c9";PortNumber = Some 0;PortType = PortType.Input;HostId = "641641c5-f4f0-734c-d0fe-9445dc783e9d"}];OutputPorts = [];X = 519;Y = 158};
+        {Id = "e7fd87fc-c9a7-29b9-4cab-87eb73d45093";Type = Output 1;Label = "dn-out";InputPorts = [{Id = "5454f9bd-f6ef-6fa0-b6cf-837b048dfa13";PortNumber = Some 0;PortType = PortType.Input;HostId = "e7fd87fc-c9a7-29b9-4cab-87eb73d45093"}];OutputPorts = [];X = 519;Y = 228}
+    ],
+    [
+        {Id = "37bd862a-b2ea-dd5c-4867-5a20f9ce4009";Source = {Id = "eda6a896-ee77-fa35-697e-10a7553266b4";PortNumber = None;PortType = PortType.Output;HostId = "be508ddb-3f61-39f3-0f76-bbdf5380d3cb"};Target = {Id = "c2853aba-a183-0609-4400-e0f7085ba4c9";PortNumber = None;PortType = PortType.Input;HostId = "641641c5-f4f0-734c-d0fe-9445dc783e9d"};Vertices = [364.0,178.0; 441.5,178.0; 441.5,168.0; 519.0,168.0]};
+        {Id = "b471b89a-6ac7-7e22-c804-9a3b071f190a";Source = {Id = "b6a36a53-fe71-d1aa-5a45-208cdc752e08";PortNumber = None;PortType = PortType.Output;HostId = "be508ddb-3f61-39f3-0f76-bbdf5380d3cb"};Target = {Id = "5454f9bd-f6ef-6fa0-b6cf-837b048dfa13";PortNumber = None;PortType = PortType.Input;HostId = "e7fd87fc-c9a7-29b9-4cab-87eb73d45093"};Vertices = [364.0,198.0; 441.5,198.0; 441.5,238.0; 519.0,238.0]}
+    ]

@@ -110,4 +110,40 @@ let testCasesSimulatorSync : TestCase list = [
         [ (ComponentId "62a3108e-1198-502b-e338-e677815aead3", ComponentLabel "out1", 1), [One]
           (ComponentId "023094a0-9787-47ce-26af-03086cdc4b15", ComponentLabel "out2", 1), [Zero] ]
     ]
+
+    "Similar to stateSync6, but with an extra connection input to output.",
+    ("main", stateSync7, [stateSync1Dependency], 4, [
+      (ComponentId "03e4c81a-4703-d9f5-dfaf-301de006610f", [One])
+    ]),
+    Ok [
+        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [Zero]
+          (ComponentId "fc5099db-d220-b42f-2add-b8c057164cb1", ComponentLabel "b1", 1), [One] ]
+
+        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [Zero]
+          (ComponentId "fc5099db-d220-b42f-2add-b8c057164cb1", ComponentLabel "b1", 1), [One] ]
+
+        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [One]
+          (ComponentId "fc5099db-d220-b42f-2add-b8c057164cb1", ComponentLabel "b1", 1), [One] ]
+
+        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [One]
+          (ComponentId "fc5099db-d220-b42f-2add-b8c057164cb1", ComponentLabel "b1", 1), [One] ]
+      ]
+
+    "Create a Not-ed self loop with the custom component of stateSync7.",
+    ("main", stateSync8, [stateSync7Dependency; stateSync1Dependency], 4, []),
+    Error {
+      Msg = "Cycle detected in combinatorial logic"
+      InDependency = None
+      ComponentsAffected = ["5baefd71-8841-6e27-5930-ce3c4530fc4d"; "5339d358-0ac2-f907-4b2c-ba52b1a090b6"] |> List.map ComponentId
+      ConnectionsAffected = ["d424a273-3637-84bd-e8b1-b4cba64f19ae"; "a1d8be49-12df-11ea-e0fc-03f882516cb9"] |> List.map ConnectionId
+    }
+
+    "StateSync8 connected to two outputs.",
+    ("main", stateSync9, [stateSync8Dependency; stateSync7Dependency; stateSync1Dependency], 4, []),
+    Error {
+      Msg = "Cycle detected in combinatorial logic"
+      InDependency = Some "fake-combinatorial-loop"
+      ComponentsAffected = ["5baefd71-8841-6e27-5930-ce3c4530fc4d"; "5339d358-0ac2-f907-4b2c-ba52b1a090b6"] |> List.map ComponentId
+      ConnectionsAffected = ["d424a273-3637-84bd-e8b1-b4cba64f19ae"; "a1d8be49-12df-11ea-e0fc-03f882516cb9"] |> List.map ConnectionId
+    }
 ]

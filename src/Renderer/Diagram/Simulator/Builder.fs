@@ -97,6 +97,42 @@ let private extractBit (wireData : WireData) : Bit =
 
 let private packBit (bit : Bit) : WireData = [bit]
 
+/// Convert a list of Bits into an int. The Most Significant Bits are the one
+/// with low index (e.g. MSB is at position 0, LSB is at position N).
+let rec private convertWireDataToInt (bits : WireData) : int64 =
+    let mag = (bits.Length - 1)
+    match bits with
+    | [] -> int64 0
+    | Zero :: bits' -> convertWireDataToInt bits'
+    | One :: bits' -> pow2int64(mag) + convertWireDataToInt bits'
+
+/// Pad wireData with Zeros as the Most Significant Bits (e.g. at position 0).
+let private padToWidth (bits : WireData) width : WireData =
+    List.replicate (width - bits.Length) Zero @ bits
+
+/// Convert an int into a bit list with the provided width. The Most Significant
+/// Bits are the one with low index (e.g. MSB is at position 0, LSB is at
+/// position N). 
+let rec private convertIntToWireData (num : int64) width : WireData =
+    let toBit = function | 0 -> Zero | 1 -> One | _ -> failwith "toBit only accepts 0 or 1"
+    let rec intToBinary (i : int64) =
+        match int i with
+        | 0 | 1 -> [toBit <| int i]
+        | _ -> let bit = toBit <| int (i % (int64 2))
+               bit :: (intToBinary (i / (int64 2)))
+    let bits = List.rev <| intToBinary num
+    assertThat (bits.Length <= width)
+    <| sprintf "Converting %d into WireData %A gave invalid width: %d > %d" num bits bits.Length width
+    padToWidth bits width
+
+/// Read the content of the memory at the specified address.
+let private readMemory (mem : Memory) (address : WireData) : WireData =
+    assertThat (mem.Data.Length = pow2 mem.AddressWidth)
+    <| sprintf "Memory has wrong Data.Length: expected %d but got %d" (pow2 mem.AddressWidth) mem.Data.Length
+    let intAddr = convertWireDataToInt address
+    let outDataInt = mem.Data.[int intAddr]
+    convertIntToWireData outDataInt mem.WordWidth
+
 /// Reducer outputs for when a component has not enough inputs to produce an
 /// actual output.
 let private notReadyReducerOutput state = {
@@ -260,6 +296,28 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 // Propagate the output but do not change the state.
                 Map.empty.Add (OutputPortNumber 0, packBit newStateBit)
                 |> makeReducerOutput newState
+    | ROM mem -> // Synchronous ROM.
+        fun reducerInput ->
+            match reducerInput.IsClockTick with
+            | No ->
+                // If it is not a clock tick, just ignore the changes on the
+                // input.
+                notReadyReducerOutput NoState
+            | Yes state ->
+                assertThat (state = NoState) "ROM component is stateless (only defined by initial data)."
+                let address =
+                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
+                    | None ->
+                        // By default, output the content of mem[0].
+                        List.replicate mem.AddressWidth Zero
+                    | Some [addr] ->
+                        assertThat (addr.Length = mem.AddressWidth)
+                        <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth addr
+                        addr
+                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+                let outData = readMemory mem address
+                Map.empty.Add (OutputPortNumber 0, outData)
+                |> makeReducerOutput NoState
 
 /// Build a map that, for each source port in the connections, keeps track of
 /// the ports it targets.

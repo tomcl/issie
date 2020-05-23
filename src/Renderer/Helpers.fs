@@ -19,3 +19,11 @@ let tryFindError (lst : Result<'a,'b> list) : Result<'a list, 'b> =
     | Some (Error err) -> Error err
     | None -> List.map extractOk lst |> Ok
     | _ -> failwith "what? Impossible case in tryFindError"
+
+/// Return 2^exponent.
+let pow2 (exponent : int) : int =
+    int (2. ** float(exponent)) // TODO use bit-shift.
+
+/// Return 2^exponent, packed into an int64.
+let pow2int64 (exponent : int) : int64 =
+    int64 (2. ** float(exponent))

@@ -118,8 +118,23 @@ let private checkCombinatorialCycle
                     match connectionsOpt with
                     | None -> []
                     | Some conns -> calculateConnectionsAffected conns cycle
+                let containsCombinatorialCustomComponent =
+                    cycle
+                    |> List.map (getNodeOrFail graph)
+                    |> List.filter (fun comp -> isCustom comp.Type &&
+                                                not <| isSynchronous comp.Type)
+                    |> List.isEmpty |> not
+                let extraMsg =
+                    if containsCombinatorialCustomComponent
+                    then " The cycle contains at least one combinatorial custom
+                           component. Note that a custom component is considered
+                           combinatorial if there is at least one combinatorial
+                           path from input to output (i.e. at least one path
+                           from input to output that encounters no clocked
+                           component)."
+                    else ""
                 Some {
-                    Msg = "Cycle detected in combinatorial logic"
+                    Msg = "Cycle detected in combinatorial logic." + extraMsg
                     InDependency = inDependency
                     ComponentsAffected = cycle
                     ConnectionsAffected = connectionsAffected

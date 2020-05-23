@@ -212,9 +212,12 @@ let viewSimulation model dispatch =
             |> function
                | Ok simData -> Ok simData
                | Error simError ->
-                  // Highligh the affected componetns if error.
-                  (simError.ComponentsAffected, simError.ConnectionsAffected)
-                  |> SetHighlighted |> dispatch
+                  if simError.InDependency.IsNone then
+                      // Highligh the affected components and connection only if
+                      // the error is in the current diagram and not in a
+                      // dependency.
+                      (simError.ComponentsAffected, simError.ConnectionsAffected)
+                      |> SetHighlighted |> dispatch
                   Error simError
             |> StartSimulation
             |> dispatch

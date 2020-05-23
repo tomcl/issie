@@ -15,6 +15,7 @@ type RightTab =
 type PopupDialogData = {
     Text: string option;
     Int: int option;
+    MemorySetup: (int * int) option // AddressWidth, WordWidth. 
 }
 
 type TopMenu = | Closed | Project | Files
@@ -46,6 +47,7 @@ type Msg =
     | ClosePopup
     | SetPopupDialogText of string option
     | SetPopupDialogInt of int option
+    | SetPopupDialogMemorySetup of (int * int) option
     | CloseDiagramNotification
     | SetSimulationNotification of ((Msg -> unit) -> ReactElement)
     | CloseSimulationNotification

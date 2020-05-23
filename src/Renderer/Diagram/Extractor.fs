@@ -42,7 +42,7 @@ let private extractPorts (jsPorts : JSPorts) : Port list =
 let private extractMemoryData (jsComponent : JSComponent) : Memory = {
     AddressWidth = getFailIfNull jsComponent ["addressWidth"]
     WordWidth = getFailIfNull jsComponent ["wordWidth"]
-    Data = getFailIfNull jsComponent ["memData"]
+    Data = jsListToFSharpList <| getFailIfNull jsComponent ["memData"]
 }
 
 let private extractComponentType (jsComponent : JSComponent) : ComponentType =

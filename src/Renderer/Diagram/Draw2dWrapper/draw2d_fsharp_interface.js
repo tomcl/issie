@@ -220,6 +220,16 @@ function createDigitalROM(x, y, addressWidth, wordWidth, memData) {
     });
 }
 
+function writeMemoryLine(comp, addr, value) {
+    if (comp.memData == null || comp.memData === "undefined") {
+        throw `Cannot write memory line of component that does not have a memory: ${comp.componentType}`;
+    }
+    if (addr >= comp.memData.length) {
+        throw `Address out of bound while writing memory line for ${comp.componentType}: ${addr} >= ${comp.memData.length}`
+    }
+    comp.memData[addr] = value;
+}
+
 function updateMergeWiresLabels(comp, topInputWidth, bottomInputWidth, outputWidth) {
     comp.topInputWidth = topInputWidth;
     comp.bottomInputWidth = bottomInputWidth;
@@ -330,6 +340,7 @@ export {
     createDigitalDFF,
     createDigitalROM,
     createDigitalConnection,
+    writeMemoryLine,
     updateMergeWiresLabels,
     updateSplitWireLabels,
     getComponentById,

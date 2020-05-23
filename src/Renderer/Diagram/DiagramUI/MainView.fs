@@ -120,7 +120,7 @@ let private viewRightTab model dispatch =
     | Properties ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str "Component properties" ]
-            viewSelectedComponent model
+            viewSelectedComponent model dispatch
         ]
     | Simulation ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [

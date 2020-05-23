@@ -46,11 +46,11 @@ let stablePopup body =
         ]
     ]
 
-let private buildPopup title body foot close =
+let private buildPopup title body foot close extraStyle =
     fun (dialogData : PopupDialogData) ->
         Modal.modal [ Modal.IsActive true ] [
             Modal.background [ Props [ OnClick close ] ] []
-            Modal.Card.card [] [
+            Modal.Card.card [ Props [Style extraStyle] ] [
                 Modal.Card.head [] [
                     Modal.Card.title [] [ str title ]
                     Delete.delete [ Delete.OnClick close ] []
@@ -64,15 +64,15 @@ let private buildPopup title body foot close =
 /// reactElement. The meaning of the input string to those functions is the
 /// content of PopupDialogText (i.e. in a dialog popup, the string is the
 /// current value of the input box.).
-let private dynamicClosablePopup title body foot dispatch =
-    buildPopup title body foot (fun _ -> dispatch ClosePopup)
+let private dynamicClosablePopup title body foot extraStyle dispatch =
+    buildPopup title body foot (fun _ -> dispatch ClosePopup) extraStyle
     |> ShowPopup
     |> dispatch
 
 /// Create a popup and add it to the page. Body and foot are static content.
 /// Can be closed by the ClosePopup message.
-let closablePopup title body foot dispatch =
-    dynamicClosablePopup title (fun _ -> body) (fun _ -> foot) dispatch
+let closablePopup title body foot extraStyle dispatch =
+    dynamicClosablePopup title (fun _ -> body) (fun _ -> foot) extraStyle dispatch
 
 /// Create the body of a dialog Popup with only text.
 let dialogPopupBodyOnlyText before placeholder dispatch =
@@ -176,7 +176,7 @@ let dialogPopup title body buttonText buttonAction isDisabled dispatch =
                     ]
                 ]
             ]
-    dynamicClosablePopup title body foot dispatch
+    dynamicClosablePopup title body foot [] dispatch
 
 /// A static confirmation popup.
 let confirmationPopup title body buttonText buttonAction dispatch =
@@ -198,7 +198,7 @@ let confirmationPopup title body buttonText buttonAction dispatch =
                 ]
             ]
         ]
-    closablePopup title body foot dispatch
+    closablePopup title body foot [] dispatch
 
 /// Display popup, if any is present.
 let viewPopup model =

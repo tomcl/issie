@@ -277,7 +277,7 @@ let private makeCustomReducer
                     | None -> failwithf "what? CustomSimulationGraph should always be Some in Custom component: %s" custom.Name
                     | Some graph -> graph
         match reducerInput.IsClockTick with
-        | false ->
+        | No ->
             // Extract combinational logic inputs.
             let inputs = reducerInput.Inputs
             match inputs.Count = custom.InputLabels.Length with
@@ -286,6 +286,7 @@ let private makeCustomReducer
                 {
                     Outputs = None
                     NewCustomSimulationGraph = Some graph
+                    NewState = NoState
                 }
             | true ->
                 // Feed only new inputs or inputs that changed, for performance.
@@ -310,12 +311,20 @@ let private makeCustomReducer
                 // Only return outputs that have changed.
                 let diffedOutputs = diffSimulationOutputs outputs oldOutputs
                 // Return the outputs toghether with the updated graph.
-                { Outputs = Some diffedOutputs; NewCustomSimulationGraph = Some graph }
-        | true ->
+                { Outputs = Some diffedOutputs
+                  NewCustomSimulationGraph = Some graph
+                  NewState = NoState }
+        | Yes state ->
+            // Custom components are stateless. They may contain stateful
+            // components, in which case those stateful components keep their
+            // own state in the CustomSimulationGraph.
+            assertThat (state = NoState) <| sprintf "Custom components should be stateles, but received state: %A" state
             let graph = feedClockTick graph
             let outputs =
                 extractOutputValuesAsMap graph graphOutputs outputLabels
-            { Outputs = Some outputs; NewCustomSimulationGraph = Some graph }
+            { Outputs = Some outputs
+              NewCustomSimulationGraph = Some graph
+              NewState = NoState }
 
 /// Recursively merge the simulationGraph with its dependencies (a dependecy can
 /// have its own dependencies).

@@ -35,7 +35,7 @@ let rec private feedInput
     let reducerInput = {
         Inputs = comp.Inputs
         CustomSimulationGraph = comp.CustomSimulationGraph
-        IsClockTick = false
+        IsClockTick = No
     }
     // Try to reduce the component.
     let reducerOutput = comp.Reducer reducerInput
@@ -90,7 +90,7 @@ let feedClockTick (graph : SimulationGraph) : SimulationGraph =
         let reducerInput = {
             Inputs = comp.Inputs
             CustomSimulationGraph = comp.CustomSimulationGraph
-            IsClockTick = true
+            IsClockTick = Yes comp.State
         }
         let reducerOutput = comp.Reducer reducerInput
         match reducerOutput.Outputs with
@@ -115,7 +115,8 @@ let feedClockTick (graph : SimulationGraph) : SimulationGraph =
             let comp = match graph.TryFind comp.Id with
                        | None -> failwith "what? Impossible case in feedClockTick"
                        | Some comp -> comp
-            let comp = { comp with CustomSimulationGraph = reducerOutput.NewCustomSimulationGraph }
+            let comp = { comp with CustomSimulationGraph = reducerOutput.NewCustomSimulationGraph
+                                   State = reducerOutput.NewState }
             let graph = graph.Add (comp.Id, comp)
             // Feed the newly produced outputs into the combinational logic.
             feedReducerOutput comp graph outputMap

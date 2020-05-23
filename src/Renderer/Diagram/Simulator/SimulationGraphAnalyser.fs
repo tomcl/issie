@@ -104,6 +104,7 @@ let private calculateConnectionsAffected
 let private checkCombinatorialCycle
         (graph : SimulationGraph)
         (connectionsOpt : (Connection list) option)
+        (inDependency : string option)
         (isSynchronous : ComponentType -> bool)
         : SimulationError option =
     let rec checkGraphForest nodeIds visited =
@@ -119,7 +120,7 @@ let private checkCombinatorialCycle
                     | Some conns -> calculateConnectionsAffected conns cycle
                 Some {
                     Msg = "Cycle detected in combinatorial logic"
-                    InDependency = None
+                    InDependency = inDependency
                     ComponentsAffected = cycle
                     ConnectionsAffected = connectionsAffected
                 }
@@ -128,6 +129,56 @@ let private checkCombinatorialCycle
     let visited = Set.empty
     let allIds = graph |> Map.toList |> List.map (fun (id, _) -> id)
     checkGraphForest allIds visited
+
+/// Recursively make sure that there are no combinatorial loops in any of the
+/// dependencies of a graph, and in the graph itself.
+/// Keep track of the alreadyChecked graphs in order to waste time uselessly as
+/// the same component may be used multiple times.
+let rec private recursivelyCheckCombinatorialCycles
+        (currGraph : SimulationGraph)
+        (connectionsOpt : (Connection list) option)
+        (dependencyName : string)
+        (alreadyChecked : Set<string>)
+        (isSynchronous : ComponentType -> bool)
+        : Result<Set<string>, SimulationError> =
+    let rec iterateChildren
+            (alreadyChecked : Set<string>)
+            (children : (ComponentId * SimulationComponent) list) =
+        match children with
+        | [] -> Ok alreadyChecked
+        | (_, child) :: children' ->
+            let childGraph = Option.get child.CustomSimulationGraph
+            let childName = getCustomName child.Type
+            recursivelyCheckCombinatorialCycles
+                childGraph None childName alreadyChecked isSynchronous
+            |> Result.bind (fun alreadyChecked ->
+                iterateChildren alreadyChecked children'
+            )
+
+    match alreadyChecked.Contains dependencyName with
+    | true -> Ok alreadyChecked // Already checked.
+    | false ->
+        // Add curr dependency to the already checked set.
+        let alreadyChecked = alreadyChecked.Add dependencyName
+        // Check all custom components in this graph.
+        currGraph
+        |> Map.filter (fun compId comp -> isCustom comp.Type)
+        |> Map.toList
+        |> iterateChildren alreadyChecked
+        |> Result.bind (fun alreadyChecked ->
+            // Children are fine. Check the current graph.
+            // connectionsOpt is populated only for the intial call to this
+            // function. In such case, we are not in a dependency, otherwise we
+            // are.
+            let inDependency = match connectionsOpt with
+                               | None -> Some dependencyName
+                               | Some _ -> None 
+            checkCombinatorialCycle currGraph connectionsOpt
+                                    inDependency isSynchronous
+            |> function
+            | None -> Ok alreadyChecked
+            | Some err -> Error err
+        )
 
 /// Analyse a SimulationGraph and return any error (or None).
 /// The SimulationGraph should be fully merged with its dependency, so this
@@ -152,6 +203,8 @@ let analyseSimulationGraph
         // The isSynchronous function uses icccm to determine whether a
         // component is synchronous or not.
         let isSynchronous = isSynchronousComponent icccm
-        checkCombinatorialCycle graph (Some connections) isSynchronous
-
-// TODO recursively check all nested components for combinatorial cycles.
+        recursivelyCheckCombinatorialCycles graph (Some connections) diagramName
+                                            Set.empty isSynchronous
+        |> function
+        | Ok _ -> None
+        | Error err -> Some err

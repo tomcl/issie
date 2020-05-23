@@ -209,6 +209,17 @@ function createDigitalDFF(x, y) {
     return new draw2d.shape.digital.DFF({x:x,y:y,resizeable:false});
 }
 
+function createDigitalROM(x, y, addressWidth, wordWidth, memData) {
+    return new draw2d.shape.digital.ROM({
+        x: x,
+        y: y,
+        resizeable: false,
+        addressWidth: addressWidth,
+        wordWidth: wordWidth,
+        memData: memData
+    });
+}
+
 function updateMergeWiresLabels(comp, topInputWidth, bottomInputWidth, outputWidth) {
     comp.topInputWidth = topInputWidth;
     comp.bottomInputWidth = bottomInputWidth;
@@ -317,6 +328,7 @@ export {
     createDigitalMergeWires,
     createDigitalSplitWire,
     createDigitalDFF,
+    createDigitalROM,
     createDigitalConnection,
     updateMergeWiresLabels,
     updateSplitWireLabels,

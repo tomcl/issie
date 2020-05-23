@@ -293,9 +293,9 @@ let private makeCustomReducer
                     extractInputValuesAsMap graph graphInputs inputLabels
                 let oldOutputs =
                     extractOutputValuesAsMap graph graphOutputs outputLabels
-                let newInputs = diffSimulationInputs inputs oldInputs
+                let diffedInputs = diffSimulationInputs inputs oldInputs
                 let graph =
-                    (graph, newInputs)
+                    (graph, diffedInputs)
                     ||> Map.fold (fun graph inputPortNumber wireData ->
                         let inputLabel =
                             portNumberToLabel inputPortNumber inputLabels
@@ -305,12 +305,12 @@ let private makeCustomReducer
                                           inpLabel = inputLabel)
                         feedSimulationInput graph inputId wireData
                     )
-                let newOutputs =
+                let outputs =
                     extractOutputValuesAsMap graph graphOutputs outputLabels
                 // Only return outputs that have changed.
-                let outputs = diffSimulationOutputs newOutputs oldOutputs
+                let diffedOutputs = diffSimulationOutputs outputs oldOutputs
                 // Return the outputs toghether with the updated graph.
-                { Outputs = Some outputs; NewCustomSimulationGraph = Some graph }
+                { Outputs = Some diffedOutputs; NewCustomSimulationGraph = Some graph }
         | true ->
             let graph = feedClockTick graph
             let outputs =

@@ -19,6 +19,7 @@ open Fable.Helpers.React.Props
 open Fable.Import
 
 open JSHelpers
+open Helpers
 open DiagramMessageType
 open DiagramModelType
 open DiagramStyle
@@ -32,6 +33,9 @@ let getText (dialogData : PopupDialogData) =
 
 let getInt (dialogData : PopupDialogData) =
     Option.defaultValue 1 dialogData.Int
+
+let getMemorySetup (dialogData : PopupDialogData) =
+    Option.defaultValue (1,1) dialogData.MemorySetup
 
 /// Unclosable popup.
 let stablePopup body =
@@ -112,6 +116,41 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
                 Input.DefaultValue <| sprintf "%d" intDefault
                 Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
             ]
+        ]
+
+/// Create the body of a memory dialog popup: asks for AddressWidth and
+/// WordWidth, two integers.
+let dialogPopupBodyMemorySetup dispatch =
+    fun (dialogData : PopupDialogData) ->
+        let addressWidth, wordWidth = getMemorySetup dialogData
+        div [] [
+            str "How many bits should be used to address the data in memory?"
+            br []
+            str <| sprintf "%d bits yield %d memory locations." addressWidth (pow2int64 addressWidth)
+            br []
+            Input.number [
+                Input.Props [Style [Width "60px"]]
+                Input.DefaultValue "1"
+                Input.OnChange (getIntEventValue >> fun newAddrWidth ->
+                    Some (newAddrWidth, wordWidth) 
+                    |> SetPopupDialogMemorySetup |> dispatch
+                )
+            ]
+            br []
+            br []
+            str "How many bits should each memory word contain?"
+            br []
+            Input.number [
+                Input.Props [Style [Width "60px"]]
+                Input.DefaultValue "1"
+                Input.OnChange (getIntEventValue >> fun newWordWidth ->
+                    Some (addressWidth, newWordWidth) 
+                    |> SetPopupDialogMemorySetup |> dispatch
+                )
+            ]
+            br []
+            br []
+            str "You will be able to set the content of the memory from the Component Properties menu."
         ]
 
 /// Popup with an input textbox and two buttons.

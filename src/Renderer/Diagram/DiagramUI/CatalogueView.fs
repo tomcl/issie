@@ -10,6 +10,7 @@ open Fulma
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
+open Helpers
 open DiagramStyle
 open DiagramModelType
 open DiagramMessageType
@@ -83,13 +84,25 @@ let private createSplitWirePopup model dispatch =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
-let private createMemoryPopup model dispatch =
-    let fake = {
-        AddressWidth = 2
-        WordWidth = 4
-        Data = [0; 1; 4; 15] |> List.map int64
-    }
-    createComponent (ROM fake) "" model dispatch
+let private createMemoryPopup memType model dispatch =
+    let title = "Create memory"
+    let body = dialogPopupBodyMemorySetup dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let addressWidth, wordWidth = getMemorySetup dialogData
+            let memory = {
+                AddressWidth = addressWidth
+                WordWidth = wordWidth
+                Data = List.replicate (pow2 addressWidth) (int64 0) // Initialise with zeros.
+            }
+            createComponent (memType memory) "" model dispatch
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) ->
+            let addressWidth, wordWidth = getMemorySetup dialogData
+            addressWidth < 1 || wordWidth < 1
+    dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 let private makeMenuGroup title menuList =
     details [Open true] [
@@ -125,7 +138,7 @@ let viewCatalogue model dispatch =
                 [ menuItem "D-flip-flop" (fun _ -> createComponent DFF "" model dispatch) ]
             makeMenuGroup
                 "Memories"
-                [ menuItem "ROM (synchronous)" (fun _ -> createMemoryPopup model dispatch) ]
+                [ menuItem "ROM (synchronous)" (fun _ -> createMemoryPopup ROM model dispatch) ]
             makeMenuGroup
                 "This project"
                 (makeCustomList model)

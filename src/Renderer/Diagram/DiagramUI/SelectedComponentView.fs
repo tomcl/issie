@@ -11,6 +11,7 @@ open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
 open JSHelpers
+open Helpers
 open DiagramModelType
 open DiagramTypes
 
@@ -42,7 +43,7 @@ let private prettyPrintCompType compType =
             br []
             str <| sprintf "Address width: %d" mem.AddressWidth
             br []
-            str <| sprintf "Number of elements: %d" (int (2. ** float mem.AddressWidth))
+            str <| sprintf "Number of elements: %d" (pow2 mem.AddressWidth)
             br []
             str <| sprintf "Word width: %d" mem.WordWidth
             br []

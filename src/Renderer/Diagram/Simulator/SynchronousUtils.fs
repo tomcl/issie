@@ -39,10 +39,10 @@ let isSynchronousComponent
     | Input _ | Output _ | MergeWires | SplitWire _ | Not | And | Or | Xor
     | Nand | Nor | Xnor | Mux2 | Demux2 -> false
 
-let private isInput = function | Input _ -> true | _ -> false
-let private isOutput = function | Output _ -> true | _ -> false
-let private isCustom = function | Custom _ -> true | _ -> false
-let private getCustomName =
+let isInput = function | Input _ -> true | _ -> false
+let isOutput = function | Output _ -> true | _ -> false
+let isCustom = function | Custom _ -> true | _ -> false
+let getCustomName =
     function
     | Custom custom -> custom.Name
     | _ -> failwithf "what? getCustomName should only be called with custom components"

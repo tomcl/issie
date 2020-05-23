@@ -144,6 +144,6 @@ let testCasesSimulatorSync : TestCase list = [
       Msg = "Cycle detected in combinatorial logic"
       InDependency = Some "fake-combinatorial-loop"
       ComponentsAffected = ["5baefd71-8841-6e27-5930-ce3c4530fc4d"; "5339d358-0ac2-f907-4b2c-ba52b1a090b6"] |> List.map ComponentId
-      ConnectionsAffected = ["d424a273-3637-84bd-e8b1-b4cba64f19ae"; "a1d8be49-12df-11ea-e0fc-03f882516cb9"] |> List.map ConnectionId
+      ConnectionsAffected = [] // Connections are not inferred in dependencies.
     }
 ]

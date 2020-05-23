@@ -16,6 +16,14 @@ type OutputPortId     = | OutputPortId of string
 type InputPortNumber  = | InputPortNumber of int
 type OutputPortNumber = | OutputPortNumber of int
 
+type SimulationComponentState =
+    | NoState // For all stateless components.
+    | DffState of Bit // Represents the bit that will become the output at the NEXT clock tick.
+
+type IsClockTick =
+    | No
+    | Yes of SimulationComponentState // Pass the state only for clock ticks.
+
 type SimulationComponent = {
     Id : ComponentId
     Type : ComponentType
@@ -32,6 +40,10 @@ type SimulationComponent = {
     // CustomSimulationGraph. This graph will be passed to the reducer and
     // updated from the reducer return value.
     CustomSimulationGraph : SimulationGraph option
+    // State for synchronous stateful components, like flip flops and memories.
+    // The state should only be changed when clock ticks are fed. Other changes
+    // will be ignored.
+    State : SimulationComponentState
     // Function that takes the inputs and transforms them into the outputs,
     // according to the behaviour of the component.
     // The size of the Inputs map, must be as expected by the component,
@@ -52,12 +64,13 @@ and SimulationGraph = Map<ComponentId, SimulationComponent>
 and ReducerInput = {
     Inputs: Map<InputPortNumber, WireData>
     CustomSimulationGraph: SimulationGraph option
-    IsClockTick: bool
+    IsClockTick: IsClockTick
 }
 
 and ReducerOutput = {
     Outputs: Map<OutputPortNumber, WireData> option
     NewCustomSimulationGraph: SimulationGraph option
+    NewState: SimulationComponentState // Will be saved only after clock ticks.
 }
 
 // For every IO node, keep track of its Id, Label and wire width.

@@ -26,7 +26,7 @@ let isSynchronousComponent
         (hasRoutesFromInputToOutpuMap : Map<string, bool>)
         (compType : ComponentType) : bool =
     match compType with
-    | DFF -> true
+    | DFF | ROM _ -> true
     | Custom custom ->
         // If there is at least one combinatorial path from an input to an
         // output in the graph of the custom component, then consider it

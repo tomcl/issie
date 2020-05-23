@@ -38,6 +38,19 @@ type CustomComponentType = {
     OutputLabels: (string * int) list 
 }
 
+type Memory = {
+    // How many bits the address should have.
+    // The memory will have 2^AddressWidth memory locations.
+    AddressWidth : int 
+    // How wide each memory word should be, in bits.
+    WordWidth : int
+    // Data is a list of <2^AddressWidth> elements, where each element is a
+    // 64 bit integer. This makes words longer than 64 bits not supported.
+    // This can be changed by using strings instead of int64, but that is way
+    // less memory efficient.
+    Data : int64 list
+}
+
 // Types instantiating objects in the Digital extension.
 type ComponentType =
     | Input of int | Output of int
@@ -46,6 +59,7 @@ type ComponentType =
     | Custom of CustomComponentType
     | MergeWires | SplitWire of int
     | DFF // No initial state for DFF?
+    | ROM of Memory
 
 // JSComponent mapped to f# object.
 type Component = {
@@ -56,8 +70,6 @@ type Component = {
     OutputPorts : Port list
     X : int
     Y : int
-    // Maybe there will be the need for other fields for stateful components
-    // such as RAMs.
 }
 
 // JSConnection mapped to f# object.

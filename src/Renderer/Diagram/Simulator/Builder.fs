@@ -293,11 +293,12 @@ let private mapInputPortIdToPortNumber
 /// Get the default state for a component.
 /// Note that custom components are stateless, even though they may contain
 /// stateful components. The state of such stateful components is maintained
-/// in the CustomSimulationGraph. 
+/// in the CustomSimulationGraph.
+/// ROMs are stateless (they are only defined by their initial content).
 let private getDefaultState compType =
     match compType with
     | Input _ | Output _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2
-    | Demux2 | Custom _ | MergeWires | SplitWire _ -> NoState
+    | Demux2 | Custom _ | MergeWires | SplitWire _ | ROM _ -> NoState
     | DFF -> DffState Zero
 
 /// Build a simulation component.

@@ -39,6 +39,12 @@ let private extractPorts (jsPorts : JSPorts) : Port list =
     jsListToFSharpList jsPorts
     |> List.mapi (fun i jsPort -> extractPort (Some i) jsPort)
 
+let private extractMemoryData (jsComponent : JSComponent) : Memory = {
+    AddressWidth = getFailIfNull jsComponent ["addressWidth"]
+    WordWidth = getFailIfNull jsComponent ["wordWidth"]
+    Data = getFailIfNull jsComponent ["memData"]
+}
+
 let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     match getFailIfNull jsComponent ["componentType"] with
     | "Input"  -> Input <| getFailIfNull jsComponent ["numberOfBits"]
@@ -61,6 +67,7 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     | "MergeWires" -> MergeWires
     | "SplitWire"  -> SplitWire <| getFailIfNull jsComponent ["topOutputWidth"]
     | "DFF" -> DFF
+    | "ROM" -> ROM <| extractMemoryData jsComponent
     | ct -> failwithf "what? Component type %s does not exist" ct
 
 let private extractVertices (jsVertices : JSVertices) : (float * float) list =

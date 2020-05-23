@@ -36,6 +36,18 @@ let private prettyPrintCompType compType =
             ul [] (toHTMLList custom.OutputLabels)
         ]
     | DFF -> div [] [ str "D-flip-flop. The component is implicitly connected to the global clock." ]
+    | ROM mem ->
+        div [] [
+            str "Synchronous ROM: the new data are put on the wire only upon a clock tick. The component is implicitly connected to the global clock."
+            br []
+            str <| sprintf "Address width: %d" mem.AddressWidth
+            br []
+            str <| sprintf "Number of elements: %d" (int (2. ** float mem.AddressWidth))
+            br []
+            str <| sprintf "Word width: %d" mem.WordWidth
+            br []
+            str <| sprintf "Data: %A" mem.Data // TODO: display properly.
+        ]
 
 let private readOnlyFormField name body =
     Field.div [] [

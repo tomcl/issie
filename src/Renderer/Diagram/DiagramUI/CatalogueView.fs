@@ -83,6 +83,14 @@ let private createSplitWirePopup model dispatch =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
+let private createMemoryPopup model dispatch =
+    let fake = {
+        AddressWidth = 2
+        WordWidth = 4
+        Data = [0; 1; 4; 15] |> List.map int64
+    }
+    createComponent (ROM fake) "" model dispatch
+
 let private makeMenuGroup title menuList =
     details [Open true] [
         summary [menuLabelStyle] [ str title ]
@@ -115,6 +123,9 @@ let viewCatalogue model dispatch =
             makeMenuGroup
                 "Flip Flops"
                 [ menuItem "D-flip-flop" (fun _ -> createComponent DFF "" model dispatch) ]
+            makeMenuGroup
+                "Memories"
+                [ menuItem "ROM (synchronous)" (fun _ -> createMemoryPopup model dispatch) ]
             makeMenuGroup
                 "This project"
                 (makeCustomList model)

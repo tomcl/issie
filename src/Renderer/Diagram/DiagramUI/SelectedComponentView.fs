@@ -35,6 +35,7 @@ let private prettyPrintCompType compType =
             span [Style [FontStyle "italic"]] [str <| "Outputs"]
             ul [] (toHTMLList custom.OutputLabels)
         ]
+    | DFF -> div [] [ str "D-flip-flop. The component is implicitly connected to the global clock." ]
 
 let private readOnlyFormField name body =
     Field.div [] [

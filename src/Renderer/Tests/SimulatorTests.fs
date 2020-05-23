@@ -118,7 +118,7 @@ let private testCasesSimulatorCycleError : SimulatorTestCase list = [
     "Complex diagram with three Ands and two cycles",
     ("", state10, [], []),
     makeError
-        "Cycle detected in combinatorial logic"
+        "Cycle detected in combinatorial logic."
         None
         ["and2"; "and0"]
         ["conn5"; "conn4"]
@@ -126,7 +126,7 @@ let private testCasesSimulatorCycleError : SimulatorTestCase list = [
     "Complex diagram with three Ands and one long cycle",
     ("", state11, [], []),
     makeError
-        "Cycle detected in combinatorial logic"
+        "Cycle detected in combinatorial logic."
         None
         ["and1"; "and2"; "and0"]
         ["conn1"; "conn5"; "conn3"]

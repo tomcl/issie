@@ -11,7 +11,7 @@ open DiagramTypes
 //   --> each connection Id must be unique
 //   --> each port Id must be unique
 
-let private makeCustomComponent dep = {
+let makeCustomComponent dep = {
     Name = dep.Name
     InputLabels = dep.InputLabels
     OutputLabels = dep.OutputLabels

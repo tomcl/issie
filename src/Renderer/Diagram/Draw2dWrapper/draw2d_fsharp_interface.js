@@ -205,6 +205,10 @@ function createDigitalSplitWire(x, y, topOutputWidth) {
         x:x,y:y,topOutputWidth:topOutputWidth,resizeable:false});
 }
 
+function createDigitalDFF(x, y) {
+    return new draw2d.shape.digital.DFF({x:x,y:y,resizeable:false});
+}
+
 function updateMergeWiresLabels(comp, topInputWidth, bottomInputWidth, outputWidth) {
     comp.topInputWidth = topInputWidth;
     comp.bottomInputWidth = bottomInputWidth;
@@ -312,6 +316,7 @@ export {
     createDigitalCustom,
     createDigitalMergeWires,
     createDigitalSplitWire,
+    createDigitalDFF,
     createDigitalConnection,
     updateMergeWiresLabels,
     updateSplitWireLabels,

@@ -108,12 +108,12 @@ let private viewSimulationInputs
                 Level.item [] [ valueHandle ]
             ]
         ]
-    div [] (
+    let inputLines =
         // Sort inputs by label.
         inputs
         |> List.sortBy (fun ((_, ComponentLabel label, _), _) -> label)
         |> List.map makeInputLine
-    )
+    div [] inputLines
 
 let private viewSimulationOutputs (simOutputs : (SimulationIO * WireData) list) =
     let makeOutputLine ((ComponentId _, ComponentLabel outputLabel, width), wireData) =
@@ -178,7 +178,17 @@ let private viewSimulationError (simError : SimulationError) =
     ]
 
 let private viewSimulationData (simData : SimulationData) dispatch =
+    let maybeClockTickBtn =
+        match simData.IsSynchronous with
+        | false -> div [] []
+        | true ->
+            Button.button [
+                Button.OnClick (fun _ ->
+                    feedClockTick simData.Graph |> SetSimulationGraph |> dispatch
+                )
+            ] [ str "Clock Tick" ] 
     div [] [
+        maybeClockTickBtn
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Inputs" ]
         viewSimulationInputs
             simData.Graph
@@ -202,9 +212,12 @@ let viewSimulation model dispatch =
             |> function
                | Ok simData -> Ok simData
                | Error simError ->
-                  // Highligh the affected componetns if error.
-                  (simError.ComponentsAffected, simError.ConnectionsAffected)
-                  |> SetHighlighted |> dispatch
+                  if simError.InDependency.IsNone then
+                      // Highligh the affected components and connection only if
+                      // the error is in the current diagram and not in a
+                      // dependency.
+                      (simError.ComponentsAffected, simError.ConnectionsAffected)
+                      |> SetHighlighted |> dispatch
                   Error simError
             |> StartSimulation
             |> dispatch
@@ -227,5 +240,9 @@ let viewSimulation model dispatch =
             Button.button
                 [ Button.Color IsDanger; Button.OnClick endSimulation ]
                 [ str "End simulation" ]
+            br []; br []
+            str "The simulation uses the diagram as it was at the moment of
+                 pressing the \"Start simulation\" button."
+            hr []
             body
         ]

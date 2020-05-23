@@ -138,7 +138,7 @@ let private buildDependencyMap
         : Result<DependencyMap, SimulationError> =
     let dependenciesRes =
         loadedDependencies
-        |> List.map (fun dep -> dep.Name, runChecksAndBuildGraph dep.CanvasState)
+        |> List.map (fun dep -> dep.Name, runCanvasStateChecksAndBuildGraph dep.CanvasState)
     // Check if any dependency has given an error.
     let hasError (name, res) = match res with | Error _ -> true | Ok _ -> false
     let extractOk (name, res) = match res with | Ok d -> name, d | Error e -> failwithf "what? Dependency %s expected to be Ok, but has error %A" name e
@@ -245,6 +245,21 @@ let private diffSimulationInputs
         | _ -> failwith "what? Impossible case in diffSimulationInputs"
     )
 
+/// Function used in the custom reducer to only return the outputs that changed.
+let private diffSimulationOutputs
+        (newOutputs : Map<OutputPortNumber, WireData>)
+        (oldOutputs : Map<OutputPortNumber, WireData>)
+        : Map<OutputPortNumber, WireData> =
+    assertThat (oldOutputs.Count = newOutputs.Count) "diffSimulationOutputs"
+    (Map.empty, newOutputs)
+    ||> Map.fold (fun diff outputPortNumber wireData ->
+        match oldOutputs.TryFind outputPortNumber with
+        | Some oldBit when oldBit <> wireData -> diff.Add(outputPortNumber, wireData)
+        | Some oldBit when oldBit = wireData -> diff
+        | None -> failwithf "what? oldOutputs do not have outputPortNumber found in new ouputs: %A" outputPortNumber
+        | _ -> failwith "what? Impossible case in diffSimulationInputs"
+    )
+
 /// Create the Reducer for a custom component.
 /// Passing graphInputs and graphOutputs would not be strictly necessary, but it
 /// is good for performance as so the Input and Output nodes don't have to be
@@ -253,39 +268,54 @@ let private makeCustomReducer
         (custom : CustomComponentType)
         (graphInputs : SimulationIO list)
         (graphOutputs : SimulationIO list)
-        : Map<InputPortNumber, WireData>               // Inputs.
-          -> SimulationGraph option                    // CustomSimulationGraph.
-          -> (Map<OutputPortNumber, WireData> option * // Outputs.
-              SimulationGraph option)                  // Updated CustomSimulationGraph.
-        =
+        : ReducerInput -> ReducerOutput =
     let inputLabels = List.map (fun (label, _) -> label) custom.InputLabels
     let outputLabels = List.map (fun (label, _) -> label) custom.OutputLabels
-    fun inputs graphOption ->
-        let graph = match graphOption with
+    fun reducerInput ->
+        // Extract custom component simulation graph.
+        let graph = match reducerInput.CustomSimulationGraph with
                     | None -> failwithf "what? CustomSimulationGraph should always be Some in Custom component: %s" custom.Name
                     | Some graph -> graph
-        match inputs.Count = custom.InputLabels.Length with
-        | false -> None, Some graph // Not enough inputs, return graph unchanged.
+        match reducerInput.IsClockTick with
+        | false ->
+            // Extract combinational logic inputs.
+            let inputs = reducerInput.Inputs
+            match inputs.Count = custom.InputLabels.Length with
+            | false ->
+                // Not enough inputs, return graph unchanged.
+                {
+                    Outputs = None
+                    NewCustomSimulationGraph = Some graph
+                }
+            | true ->
+                // Feed only new inputs or inputs that changed, for performance.
+                let oldInputs =
+                    extractInputValuesAsMap graph graphInputs inputLabels
+                let oldOutputs =
+                    extractOutputValuesAsMap graph graphOutputs outputLabels
+                let diffedInputs = diffSimulationInputs inputs oldInputs
+                let graph =
+                    (graph, diffedInputs)
+                    ||> Map.fold (fun graph inputPortNumber wireData ->
+                        let inputLabel =
+                            portNumberToLabel inputPortNumber inputLabels
+                        let inputId, _, _ =
+                            graphInputs
+                            |> List.find (fun (_, ComponentLabel inpLabel, _) ->
+                                          inpLabel = inputLabel)
+                        feedSimulationInput graph inputId wireData
+                    )
+                let outputs =
+                    extractOutputValuesAsMap graph graphOutputs outputLabels
+                // Only return outputs that have changed.
+                let diffedOutputs = diffSimulationOutputs outputs oldOutputs
+                // Return the outputs toghether with the updated graph.
+                { Outputs = Some diffedOutputs; NewCustomSimulationGraph = Some graph }
         | true ->
-            // Feed only new inputs or inputs that changed, for performance.
-            let oldInputs =
-                extractInputValuesAsMap graph graphInputs inputLabels
-            let newInputs = diffSimulationInputs inputs oldInputs
-            let graph =
-                (graph, newInputs)
-                ||> Map.fold (fun graph inputPortNumber wireData ->
-                    let inputLabel =
-                        portNumberToLabel inputPortNumber inputLabels
-                    let inputId, _, _ =
-                        graphInputs
-                        |> List.find (fun (_, ComponentLabel inpLabel, _) ->
-                                      inpLabel = inputLabel)
-                    feedSimulationInput graph inputId wireData
-                )
+            let graph = feedClockTick graph
             let outputs =
                 extractOutputValuesAsMap graph graphOutputs outputLabels
-            // Return the outputs toghether with the updated graph.
-            Some outputs, Some graph
+            { Outputs = Some outputs; NewCustomSimulationGraph = Some graph }
 
 /// Recursively merge the simulationGraph with its dependencies (a dependecy can
 /// have its own dependencies).
@@ -346,3 +376,4 @@ let mergeDependencies
     | Ok dependencyMap ->
         // Recursively replace the dependencies, in a top down fashion.
         Ok <| merger graph dependencyMap
+        // TODO: Check combinatorial loops in the fully merged graph.

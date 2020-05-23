@@ -567,3 +567,36 @@ draw2d.shape.digital.SplitWire = draw2d.shape.digital.extend({
         this.createDigitalPort("output", new draw2d.layout.locator.XYRelPortLocator(100, 100), false);
     },
 });
+
+/**
+ * Synchronous logic.
+ */
+
+draw2d.shape.digital.DFF = draw2d.shape.digital.extend({
+
+    NAME:"draw2d.shape.digital.DFF",
+
+    componentType : "DFF",
+    svgHeight : 50,
+    svgWidth : 50,
+
+    getSvgElements : function() {
+        return [         
+            {path: '<rect width="50" height="50" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true},
+            {path: '<text x="15" y="3" fill="black" font-family="monospace">DFF</text>', toFill: false},
+            {path: '<text x="8" y="20" fill="black" font-family="monospace">D</text>', toFill: false},
+            {path: '<text x="38" y="20" fill="black" font-family="monospace">Q</text>', toFill: false},
+        ]
+    },
+
+    init: function(attr, setter, getter ){
+        this._super(
+            $.extend({width:this.svgWidth, height:this.svgHeight}, attr),
+            setter,
+            getter
+        );
+
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
+    },
+});

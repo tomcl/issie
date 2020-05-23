@@ -8,9 +8,11 @@ module Simulator
 
 open DiagramTypes
 open SimulatorTypes
+open SynchronousUtils
 open SimulationBuilder
 open SimulationRunner
 open DependencyMerger
+open SimulationGraphAnalyser
 
 // Simulating a circuit has four phases (not precisely in order of execution):
 // 1. Building a simulation graph made of SimulationComponents.
@@ -26,22 +28,31 @@ let prepareSimulation
         (canvasState : CanvasState)
         (loadedDependencies : LoadedComponent list)
         : Result<SimulationData, SimulationError> =
-    match runChecksAndBuildGraph canvasState with
+    match runCanvasStateChecksAndBuildGraph canvasState with
     | Error err -> Error err
     | Ok graph ->
-        let components, _ = canvasState
-        let inputs, outputs = getSimulationIOs components
         match mergeDependencies diagramName graph
                                 canvasState loadedDependencies with
         | Error err -> Error err
-        | Ok graph -> Ok {
-            Graph = graph |> simulateWithAllInputsToZero inputs;
-            Inputs = inputs;
-            Outputs = outputs
-        }
+        | Ok graph ->
+            // Simulation graph is fully merged with dependencies.
+            // Perform checks on it.
+            let components, connections = canvasState
+            let inputs, outputs = getSimulationIOs components
+            match analyseSimulationGraph diagramName graph connections with
+            | Some err -> Error err
+            | None -> Ok {
+                Graph = graph |> InitialiseGraphWithZeros inputs;
+                Inputs = inputs;
+                Outputs = outputs
+                IsSynchronous = hasSynchronousComponents graph
+            }
 
 /// Expose the feedSimulationInput function from SimulationRunner.
 let feedSimulationInput = SimulationRunner.feedSimulationInput
+
+/// Expose the feedClockTick function from SimulationRunner.
+let feedClockTick = SimulationRunner.feedClockTick
 
 /// Expose the extractSimulationIOs function from SimulationRunner.
 let extractSimulationIOs = SimulationRunner.extractSimulationIOs

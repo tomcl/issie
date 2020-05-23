@@ -96,18 +96,29 @@ let feedClockTick (graph : SimulationGraph) : SimulationGraph =
         match reducerOutput.Outputs with
         | None -> failwithf "what? A clocked component should ALWAYS produce outputs after a clock tick: %A" comp
         | Some outputMap ->
-            // Feed the newly produced outputs into the combinational logic.
-            let graph = feedReducerOutput comp graph outputMap
-            // Extract the current node from the graph. It may have new inputs
-            // now.
+            // The component may have changed in other iterations of this cycle,
+            // make sure we get the most recent version so to not override these
+            // changes when readding comp to the graph.
+            // For example, if there are two DFF in series, and this loop
+            // updates the second one first, it will have a new input. If we
+            // use the snapshotted comp and we readd it to the graph, then we
+            // lose the information about the new input.
+            // Therefore we need to:
+            // - re-read the most update comp from the graph.
+            // - update the custom simulation graph of this comp with the
+            //   reducer output.
+            // - readd the all new comp to the graph.
+            // Note that updating the CustomSimulationGraph is necessary since
+            // we may be dealing with custom clocked components, which means
+            // the feedClockTick operaion changes the graph of that custom
+            // component.
             let comp = match graph.TryFind comp.Id with
                        | None -> failwith "what? Impossible case in feedClockTick"
                        | Some comp -> comp
-            // Update the CustomSimulationGraph and return the new simulation graph.
-            // It is necessary to do so since we may be dealing with custom
-            // clocked components.
             let comp = { comp with CustomSimulationGraph = reducerOutput.NewCustomSimulationGraph }
-            graph.Add (comp.Id, comp)
+            let graph = graph.Add (comp.Id, comp)
+            // Feed the newly produced outputs into the combinational logic.
+            feedReducerOutput comp graph outputMap
     )
 
 /// Feed zero to a simulation input.

@@ -60,6 +60,7 @@ type private IDraw2d =
     abstract createDigitalDFF             : x:int -> y:int -> JSComponent
     abstract createDigitalROM             : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
+    abstract writeMemoryLine              : comp:JSComponent -> addr:int -> value:int64 -> unit
     abstract updateMergeWiresLabels       : comp:JSComponent -> topInputWidth:int option -> bottomInputWidth:int option -> outputWidth:int option -> unit
     abstract updateSplitWireLabels        : comp:JSComponent -> inputWidth:int option ->topOutputWidth:int option ->bottomOutputWidth:int option -> unit
     abstract getComponentById             : canvas:JSCanvas -> id:string -> JSComponent
@@ -367,3 +368,10 @@ type Draw2dWrapper() =
         | Some c ->
             let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "UpdateSplitWireLabels"
             draw2dLib.updateSplitWireLabels jsComp inputWidth topOutputWidth bottomOutputWidth
+
+    member this.WriteMemoryLine compId addr value =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.WriteMemoryLine called when canvas is None"
+        | Some c ->
+            let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "WriteMemoryLine"
+            draw2dLib.writeMemoryLine jsComp addr value

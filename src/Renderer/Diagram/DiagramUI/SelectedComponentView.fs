@@ -14,8 +14,9 @@ open JSHelpers
 open Helpers
 open DiagramModelType
 open DiagramTypes
+open MemoryEditorView
 
-let private prettyPrintCompType compType =
+let private makeDescription compType model dispatch =
     match compType with
     | Input width -> div [] [ str <| sprintf "Input: %d bit(s)" width ]
     | Output width -> div [] [ str <| sprintf "Output: %d bit(s)" width ]
@@ -41,13 +42,18 @@ let private prettyPrintCompType compType =
         div [] [
             str "Synchronous ROM: the new data are put on the wire only upon a clock tick. The component is implicitly connected to the global clock."
             br []
-            str <| sprintf "Address width: %d" mem.AddressWidth
+            br []
+            str <| sprintf "Address width: %d bit(s)" mem.AddressWidth
             br []
             str <| sprintf "Number of elements: %d" (pow2 mem.AddressWidth)
             br []
-            str <| sprintf "Word width: %d" mem.WordWidth
+            str <| sprintf "Word width: %d bit(s)" mem.WordWidth
             br []
-            str <| sprintf "Data: %A" mem.Data // TODO: display properly.
+            br []
+            Button.button [
+                Button.Color IsInfo
+                Button.OnClick (fun _ -> openMemoryEditor mem model dispatch)
+            ] [str "View/Edit memory content"]
         ]
 
 let private readOnlyFormField name body =
@@ -66,11 +72,11 @@ let private formField name defaultValue onChange =
         ] ]
     ]
 
-let viewSelectedComponent model =
+let viewSelectedComponent model dispatch =
     match model.SelectedComponent with
     | None -> div [] [ str "Select a component in the diagram to view/edit its properties" ]
     | Some comp ->
         div [] [
-            readOnlyFormField "Description" <| prettyPrintCompType comp.Type
+            readOnlyFormField "Description" <| makeDescription comp.Type model dispatch
             formField "Label" comp.Label (fun text -> model.Diagram.EditComponentLabel comp.Id text)
         ]

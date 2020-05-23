@@ -16,12 +16,12 @@ open DiagramModelType
 open DiagramTypes
 open MemoryEditorView
 
-let private makeDescription compType model dispatch =
-    match compType with
+let private makeDescription comp model dispatch =
+    match comp.Type with
     | Input width -> div [] [ str <| sprintf "Input: %d bit(s)" width ]
     | Output width -> div [] [ str <| sprintf "Output: %d bit(s)" width ]
     | Not | And | Or | Xor | Nand | Nor | Xnor ->
-        div [] [ str <| sprintf "%A gate" compType ]
+        div [] [ str <| sprintf "%A gate" comp.Type ]
     | Mux2 -> div [] [ str "Multiplexer with two inputs and one output" ]
     | Demux2 -> div [] [ str "Demultiplexer with one input and two outputs" ]
     | MergeWires -> div [] [ str "Merge two wires of width n and m into a single wire of width n+m "]
@@ -52,7 +52,7 @@ let private makeDescription compType model dispatch =
             br []
             Button.button [
                 Button.Color IsInfo
-                Button.OnClick (fun _ -> openMemoryEditor mem model dispatch)
+                Button.OnClick (fun _ -> openMemoryEditor mem comp.Id model dispatch)
             ] [str "View/Edit memory content"]
         ]
 
@@ -77,6 +77,6 @@ let viewSelectedComponent model dispatch =
     | None -> div [] [ str "Select a component in the diagram to view/edit its properties" ]
     | Some comp ->
         div [] [
-            readOnlyFormField "Description" <| makeDescription comp.Type model dispatch
+            readOnlyFormField "Description" <| makeDescription comp model dispatch
             formField "Label" comp.Label (fun text -> model.Diagram.EditComponentLabel comp.Id text)
         ]

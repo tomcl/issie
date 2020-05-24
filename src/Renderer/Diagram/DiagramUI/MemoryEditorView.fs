@@ -49,16 +49,13 @@ let private makeEditorBody memory compId model dispatch =
                 Input.text [
                     Input.DefaultValue <| hex64 content
                     Input.OnChange (getTextEventValue >> fun text ->
-                        match strToInt text with
+                        match strToIntCheckWidth text memory.WordWidth with
                         | Ok value ->
-                            match convertIntToWireData value memory.WordWidth with
-                            | Error err -> showError err
-                            | Ok _ ->
-                                // Close error notification.
-                                CloseMemoryEditorNotification |> dispatch
-                                // Write new value.
-                                model.Diagram.WriteMemoryLine compId addr value
-                        | Error err -> showError "Invalid number."
+                            // Close error notification.
+                            CloseMemoryEditorNotification |> dispatch
+                            // Write new value.
+                            model.Diagram.WriteMemoryLine compId addr value
+                        | Error err -> showError err
                     )
                 ]
             ]

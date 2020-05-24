@@ -11,6 +11,7 @@ open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
 open Helpers
+open NumberHelpers
 open JSHelpers
 open DiagramTypes
 open DiagramMessageType

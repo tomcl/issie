@@ -10,6 +10,7 @@ open Fulma
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
+open NumberHelpers
 open Helpers
 open JSHelpers
 open DiagramStyle
@@ -20,30 +21,7 @@ open DiagramTypes
 open SimulatorTypes
 open Extractor
 open Simulator
-
-let private bitToString (bit : Bit) : string =
-    match bit with Zero -> "0" | One -> "1"
-
-let rec private bitsToString (bits : WireData) : string =
-    match bits with
-    | [] -> ""
-    | bit :: bits' -> (bitToString bit) + (bitsToString bits')
-
-/// Try to convert a string of bits into a Bit list. Return None if such
-/// conversion is not possible.
-let private stringToBits (bitsStr : string) : WireData option =
-    let rec convert (bitChars : char list) : WireData option =
-        match bitChars with
-        | [] -> Some []
-        | bitChar :: bitChars' when bitChar = '0' ->
-            Option.map (fun bits -> Zero :: bits) (convert bitChars')
-        | bitChar :: bitChars' when bitChar = '1' ->
-            Option.map (fun bits -> One :: bits) (convert bitChars')
-        | _ -> None
-    convert <| Seq.toList bitsStr
-
-let private padBitsToWidth width (bitsStr : string) : string =
-    (String.replicate (width - bitsStr.Length) "0") + bitsStr
+open NumberHelpers
 
 let private viewSimulationInputs
         (simulationGraph : SimulationGraph)

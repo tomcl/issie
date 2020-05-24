@@ -59,7 +59,7 @@ type ComponentType =
     | Custom of CustomComponentType
     | MergeWires | SplitWire of int
     | DFF // No initial state for DFF?
-    | ROM of Memory
+    | ROM of Memory | RAM of Memory
 
 // JSComponent mapped to f# object.
 type Component = {

@@ -16,6 +16,22 @@ open DiagramModelType
 open DiagramTypes
 open MemoryEditorView
 
+let private makeMemoryInfo descr mem compId model dispatch =
+    div [] [
+        str descr
+        br []; br []
+        str <| sprintf "Address width: %d bit(s)" mem.AddressWidth
+        br []
+        str <| sprintf "Number of elements: %d" (pow2 mem.AddressWidth)
+        br []
+        str <| sprintf "Word width: %d bit(s)" mem.WordWidth
+        br []; br []
+        Button.button [
+            Button.Color IsInfo
+            Button.OnClick (fun _ -> openMemoryEditor mem compId model dispatch)
+        ] [str "View/Edit memory content"]
+    ]
+
 let private makeDescription comp model dispatch =
     match comp.Type with
     | Input width -> div [] [ str <| sprintf "Input: %d bit(s)" width ]
@@ -39,22 +55,17 @@ let private makeDescription comp model dispatch =
         ]
     | DFF -> div [] [ str "D-flip-flop. The component is implicitly connected to the global clock." ]
     | ROM mem ->
-        div [] [
-            str "Synchronous ROM: the new data are put on the wire only upon a clock tick. The component is implicitly connected to the global clock."
-            br []
-            br []
-            str <| sprintf "Address width: %d bit(s)" mem.AddressWidth
-            br []
-            str <| sprintf "Number of elements: %d" (pow2 mem.AddressWidth)
-            br []
-            str <| sprintf "Word width: %d bit(s)" mem.WordWidth
-            br []
-            br []
-            Button.button [
-                Button.Color IsInfo
-                Button.OnClick (fun _ -> openMemoryEditor mem comp.Id model dispatch)
-            ] [str "View/Edit memory content"]
-        ]
+        let descr = "Synchronous ROM: the new data are put on the wire only upon a clock tick. The component is implicitly connected to the global clock."
+        makeMemoryInfo descr mem comp.Id model dispatch
+    | RAM mem ->
+        let descr =
+            "RAM memory. At every clock tick, the RAM can either read or write
+            the content of the memory location selected by the address. If the
+            write signal is high, the content of the selected memory location
+            is set to the value of data-in. This value will also be propagated
+            to data-out immediately. The component is implicitly connected to
+            the global clock."
+        makeMemoryInfo descr mem comp.Id model dispatch
 
 let private readOnlyFormField name body =
     Field.div [] [

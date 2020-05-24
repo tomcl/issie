@@ -23,6 +23,23 @@ open Extractor
 open Simulator
 open NumberHelpers
 
+/// A line that can be used for an input, an output, or a state.
+let private splittedLine leftContent rightConent =
+    Level.level [Level.Level.Props [Style [MarginBottom "10px"]]] [
+        Level.left [] [
+            Level.item [] [ leftContent ]
+        ]
+        Level.right [] [
+            Level.item [] [ rightConent ]
+        ]
+    ]
+
+/// Pretty print a label with its width.
+let private makeIOLabel label width =
+    match width with
+    | 1 -> label
+    | w -> sprintf "%s (%d bits)" label w
+
 let private viewSimulationInputs
         (simulationGraph : SimulationGraph)
         (inputs : (SimulationIO * WireData) list)
@@ -71,23 +88,22 @@ let private viewSimulationInputs
                         ))
                     ]
                 ]
-        let labelText = match width with
-                        | 1 -> inputLabel
-                        | w -> sprintf "%s (%d bits)" inputLabel w
-        Level.level [Level.Level.Props [Style [MarginBottom "10px"]]] [
-            Level.left [] [
-                Level.item [] [ str labelText ]
-            ]
-            Level.right [] [
-                Level.item [] [ valueHandle ]
-            ]
-        ]
+        splittedLine (str <| makeIOLabel inputLabel width) valueHandle
     let inputLines =
         // Sort inputs by label.
         inputs
         |> List.sortBy (fun ((_, ComponentLabel label, _), _) -> label)
         |> List.map makeInputLine
     div [] inputLines
+
+let private staticBitButton bit =
+    Button.button [
+        Button.Props [ simulationBitStyle ]
+        Button.Color IsPrimary
+        (match bit with Zero -> Button.IsOutlined | One -> Button.Color IsPrimary)
+        Button.IsHovered false
+        Button.Disabled true
+    ] [ str <| bitToString bit ]
 
 let private viewSimulationOutputs (simOutputs : (SimulationIO * WireData) list) =
     let makeOutputLine ((ComponentId _, ComponentLabel outputLabel, width), wireData) =
@@ -96,15 +112,7 @@ let private viewSimulationOutputs (simOutputs : (SimulationIO * WireData) list) 
         let valueHandle =
             match wireData with
             | [] -> failwith "what? Empty wireData while creating a line in simulation output."
-            | [bit] ->
-                // For simple bits, just have a Zero/One button.
-                Button.button [
-                    Button.Props [ simulationBitStyle ]
-                    Button.Color IsPrimary
-                    (match bit with Zero -> Button.IsOutlined | One -> Button.Color IsPrimary)
-                    Button.IsHovered false
-                    Button.Disabled true
-                ] [ str <| bitToString bit ]
+            | [bit] -> staticBitButton bit
             | bits ->
                 let value = bin64 <| convertWireDataToInt bits
                 Input.text [
@@ -112,22 +120,31 @@ let private viewSimulationOutputs (simOutputs : (SimulationIO * WireData) list) 
                     Input.Value value
                     Input.Props [simulationNumberStyle]
                 ]
-        let labelText = match width with
-                        | 1 -> outputLabel
-                        | w -> sprintf "%s (%d bits)" outputLabel w
-        Level.level [Level.Level.Props [Style [MarginBottom "10px"]]] [
-            Level.left [] [
-                Level.item [] [ str labelText ]
-            ]
-            Level.right [] [
-                Level.item [] [ valueHandle ]
-            ]
-        ]
+        splittedLine (str <| makeIOLabel outputLabel width) valueHandle
     div [] (
         simOutputs
         |> List.sortBy (fun ((_, ComponentLabel label, _), _) -> label)
         |> List.map makeOutputLine
     )
+
+let private viewStatefulComponents comps dispatch =
+    let getWithDefault lab = if lab = "" then "no-label" else lab
+    let makeStateLine (compType, ComponentLabel compLabel, state) =
+        match state with
+        | DffState bit ->
+            let label = sprintf "DFF: %s" <| getWithDefault compLabel
+            [ splittedLine (str label) (staticBitButton bit) ]
+        | RamState mem ->
+            let label = sprintf "RAM: %s" <| getWithDefault compLabel
+            let viewDiffBtn =
+                Button.button [
+                    Button.Props [ simulationBitStyle ]
+                    Button.Color IsInfo
+                    //Button.OnClick (fun _ ->) TODO
+                ] [ str "View" ]
+            [ splittedLine (str label) viewDiffBtn ]
+        | NoState -> []
+    div [] ( List.collect makeStateLine comps )
 
 let private viewSimulationError (simError : SimulationError) =
     let error = 
@@ -163,13 +180,18 @@ let private viewSimulationData (simData : SimulationData) dispatch =
             ] [ str "Clock Tick" ] 
     div [] [
         maybeClockTickBtn
+
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Inputs" ]
         viewSimulationInputs
             simData.Graph
             (extractSimulationIOs simData.Inputs simData.Graph)
             dispatch
+
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Outputs" ]
         viewSimulationOutputs <| extractSimulationIOs simData.Outputs simData.Graph
+
+        Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Stateful components" ]
+        viewStatefulComponents (extractStatefulComponents simData.Graph) dispatch
     ]
 
 let viewSimulation model dispatch =

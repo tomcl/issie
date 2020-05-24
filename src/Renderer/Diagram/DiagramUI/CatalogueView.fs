@@ -10,6 +10,7 @@ open Fulma
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
+open Helpers
 open DiagramStyle
 open DiagramModelType
 open DiagramMessageType
@@ -83,6 +84,26 @@ let private createSplitWirePopup model dispatch =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
+let private createMemoryPopup memType model dispatch =
+    let title = "Create memory"
+    let body = dialogPopupBodyMemorySetup dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let addressWidth, wordWidth = getMemorySetup dialogData
+            let memory = {
+                AddressWidth = addressWidth
+                WordWidth = wordWidth
+                Data = List.replicate (pow2 addressWidth) (int64 0) // Initialise with zeros.
+            }
+            createComponent (memType memory) "" model dispatch
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) ->
+            let addressWidth, wordWidth = getMemorySetup dialogData
+            addressWidth < 1 || wordWidth < 1
+    dialogPopup title body buttonText buttonAction isDisabled dispatch
+
 let private makeMenuGroup title menuList =
     details [Open true] [
         summary [menuLabelStyle] [ str title ]
@@ -115,6 +136,10 @@ let viewCatalogue model dispatch =
             makeMenuGroup
                 "Flip Flops"
                 [ menuItem "D-flip-flop" (fun _ -> createComponent DFF "" model dispatch) ]
+            makeMenuGroup
+                "Memories"
+                [ menuItem "ROM (synchronous)" (fun _ -> createMemoryPopup ROM model dispatch)
+                  menuItem "RAM (synchronous)" (fun _ -> createMemoryPopup RAM model dispatch) ]
             makeMenuGroup
                 "This project"
                 (makeCustomList model)

@@ -13,6 +13,7 @@
     <Compile Include="../Diagram/Bus/WidthInferer.fs" />
     <!-- Simulator -->
     <Compile Include="../Diagram/Simulator/Types.fs" />
+    <Compile Include="../Diagram/Simulator/NumberHelpers.fs" />
     <Compile Include="../Diagram/Simulator/SynchronousUtils.fs" />
     <Compile Include="../Diagram/Simulator/CanvasStateAnalyser.fs" />
     <Compile Include="../Diagram/Simulator/SimulationGraphAnalyser.fs" />
@@ -24,9 +25,11 @@
     <Compile Include="CanvasStates.fs" />
     <Compile Include="CanvasStatesWithBuses.fs" />
     <Compile Include="CanvasStatesSync.fs" />
+    <Compile Include="CanvasStatesMemories.fs" />
     <Compile Include="WidthInfererTests.fs" />
     <Compile Include="SimulatorTests.fs" />
     <Compile Include="SimulatorSyncTests.fs" />
+    <Compile Include="SimulatorMemoriesTests.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <ItemGroup>

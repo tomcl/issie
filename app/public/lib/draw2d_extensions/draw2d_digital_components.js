@@ -600,3 +600,85 @@ draw2d.shape.digital.DFF = draw2d.shape.digital.extend({
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
+
+draw2d.shape.digital.ROM = draw2d.shape.digital.extend({
+
+    NAME:"draw2d.shape.digital.ROM",
+
+    componentType : "ROM",
+    svgHeight : 100,
+    svgWidth : 80,
+    addressWidth : null, // int
+    wordWidth : null,    // int
+    memData : null,      // array of Longs (Longs are object created by the Fable compiler to mimic f# int64 type)
+
+    getSvgElements : function() {
+        return [         
+            {path: '<rect width="80" height="100" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true},
+            {path: '<text x="30" y="3" fill="black" font-family="monospace">ROM</text>', toFill: false},
+            {path: '<text x="8" y="45" fill="black" font-family="monospace">addr</text>', toFill: false},
+            {path: '<text x="50" y="45" fill="black" font-family="monospace">data</text>', toFill: false},
+        ]
+    },
+
+    init: function(attr, setter, getter ){
+        this._super(
+            $.extend({width:this.svgWidth, height:this.svgHeight}, attr),
+            setter,
+            getter
+        );
+
+        console.assert(typeof attr.addressWidth === "number", "addressWidth is not a number when creating an ROM component");
+        this.addressWidth = attr.addressWidth;
+        console.assert(typeof attr.wordWidth === "number", "wordWidth is not a number when creating an ROM component");
+        this.wordWidth = attr.wordWidth;
+        console.assert(Array.isArray(attr.memData), "memData is not an array when creating an ROM component");
+        this.memData = attr.memData;
+
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
+    },
+});
+
+draw2d.shape.digital.RAM = draw2d.shape.digital.extend({
+
+    NAME:"draw2d.shape.digital.RAM",
+
+    componentType : "RAM",
+    svgHeight : 100,
+    svgWidth : 130,
+    addressWidth : null, // int
+    wordWidth : null,    // int
+    memData : null,      // array of Longs (Longs are object created by the Fable compiler to mimic f# int64 type)
+
+    getSvgElements : function() {
+        return [
+            {path: '<rect width="130" height="100" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true},
+            {path: '<text x="55" y="3" fill="black" font-family="monospace">RAM</text>', toFill: false},
+            {path: '<text x="8" y="20" fill="black" font-family="monospace">addr</text>', toFill: false},
+            {path: '<text x="8" y="45" fill="black" font-family="monospace">data-in</text>', toFill: false},
+            {path: '<text x="8" y="70" fill="black" font-family="monospace">write</text>', toFill: false},
+            {path: '<text x="76" y="45" fill="black" font-family="monospace">data-out</text>', toFill: false},
+        ]
+    },
+
+    init: function(attr, setter, getter ){
+        this._super(
+            $.extend({width:this.svgWidth, height:this.svgHeight}, attr),
+            setter,
+            getter
+        );
+
+        console.assert(typeof attr.addressWidth === "number", "addressWidth is not a number when creating an ROM component");
+        this.addressWidth = attr.addressWidth;
+        console.assert(typeof attr.wordWidth === "number", "wordWidth is not a number when creating an ROM component");
+        this.wordWidth = attr.wordWidth;
+        console.assert(Array.isArray(attr.memData), "memData is not an array when creating an ROM component");
+        this.memData = attr.memData;
+
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
+    },
+});

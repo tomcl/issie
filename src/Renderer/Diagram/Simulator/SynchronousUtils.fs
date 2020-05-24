@@ -9,24 +9,35 @@ module SynchronousUtils
 open DiagramTypes
 open SimulatorTypes
 
+/// Tells wether a component is clocked or not. Note that Custom components may
+/// be clocked (cannot tell without recursively analysing them), so they are
+/// considered synchronous.
+let couldBeSynchronousComponent compType : bool =
+    match compType with
+    | DFF | ROM _ | RAM _ | Custom _ -> true // We have to assume custom components are clocked as they may be.
+    | Input _ | Output _ | MergeWires | SplitWire _ | Not | And | Or | Xor
+    | Nand | Nor | Xnor | Mux2 | Demux2 -> false
+
 /// Find out whether a simulation graph has some synchronous components.
-let rec hasSynchronousComponents graph =
+let rec hasSynchronousComponents graph : bool =
     graph
     |> Map.map (fun compId comp ->
             match comp.Type with
-            | DFF -> true
+            | DFF | ROM _ | RAM _ -> true
             | Custom _ -> hasSynchronousComponents <| Option.get comp.CustomSimulationGraph
-            | _ -> false
+            | Input _ | Output _ | MergeWires | SplitWire _ | Not | And | Or
+            | Xor | Nand | Nor | Xnor | Mux2 | Demux2 -> false
         )
     |> Map.tryPick (fun compId isSync -> if isSync then Some () else None)
     |> function | Some _ -> true | None -> false
 
-/// Determine whether a component is synchronous or not.
+/// Determine whether a component is synchronous or not. A custom component is
+/// considered synchronous if it has no combinatorial path from input to output.
 let isSynchronousComponent
         (hasRoutesFromInputToOutpuMap : Map<string, bool>)
         (compType : ComponentType) : bool =
     match compType with
-    | DFF -> true
+    | DFF | ROM _ | RAM _ -> true
     | Custom custom ->
         // If there is at least one combinatorial path from an input to an
         // output in the graph of the custom component, then consider it

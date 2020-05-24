@@ -58,7 +58,10 @@ type private IDraw2d =
     abstract createDigitalMergeWires      : x:int -> y:int -> JSComponent
     abstract createDigitalSplitWire       : x:int -> y:int -> topOutputWidth:int -> JSComponent
     abstract createDigitalDFF             : x:int -> y:int -> JSComponent
+    abstract createDigitalROM             : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
+    abstract createDigitalRAM             : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
+    abstract writeMemoryLine              : comp:JSComponent -> addr:int -> value:int64 -> unit
     abstract updateMergeWiresLabels       : comp:JSComponent -> topInputWidth:int option -> bottomInputWidth:int option -> outputWidth:int option -> unit
     abstract updateSplitWireLabels        : comp:JSComponent -> inputWidth:int option ->topOutputWidth:int option ->bottomOutputWidth:int option -> unit
     abstract getComponentById             : canvas:JSCanvas -> id:string -> JSComponent
@@ -122,6 +125,12 @@ let private createComponent
         | MergeWires -> draw2dLib.createDigitalMergeWires x y
         | SplitWire topWireWidth -> draw2dLib.createDigitalSplitWire x y topWireWidth
         | DFF -> draw2dLib.createDigitalDFF x y
+        | ROM mem ->
+            draw2dLib.createDigitalROM
+                x y mem.AddressWidth mem.WordWidth (fshaprListToJsList mem.Data)
+        | RAM mem ->
+            draw2dLib.createDigitalRAM
+                x y mem.AddressWidth mem.WordWidth (fshaprListToJsList mem.Data)
     // Every component is assumed to have a label (may be empty string).
     draw2dLib.addComponentLabel comp label
     // Set Id if one is provided.
@@ -363,3 +372,19 @@ type Draw2dWrapper() =
         | Some c ->
             let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "UpdateSplitWireLabels"
             draw2dLib.updateSplitWireLabels jsComp inputWidth topOutputWidth bottomOutputWidth
+
+    member this.WriteMemoryLine compId addr value =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.WriteMemoryLine called when canvas is None"
+        | Some c ->
+            let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "WriteMemoryLine"
+            draw2dLib.writeMemoryLine jsComp addr value
+
+    member this.GetComponentById compId =
+        match canvas with
+        | None -> Error "Draw2dWrapper.GetComponentById called when canvas is None"
+        | Some c ->
+            let jsComp = draw2dLib.getComponentById c compId
+            match isNull jsComp with
+            | true -> Error <| sprintf "Could not find component with Id: %s" compId
+            | false -> Ok jsComp

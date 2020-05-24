@@ -40,6 +40,8 @@ let private makeEditorHeader memory =
     ]
 
 let private makeEditorBody memory compId model dispatch =
+    let showError msg = errorNotification msg CloseMemoryEditorNotification
+                        |> SetMemoryEditorNotification |> dispatch
     let makeRow addr content =
         tr [] [
             td [] [ str <| sprintf "%d" addr ]
@@ -47,17 +49,16 @@ let private makeEditorBody memory compId model dispatch =
                 Input.text [
                     Input.DefaultValue <| sprintf "%d" content
                     Input.OnChange (getTextEventValue >> fun text ->
-                        // TODO ensure int value has not too many bits.
                         match strToInt text with
                         | Ok value ->
-                            // Close error notification.
-                            CloseMemoryEditorNotification |> dispatch
-                            // Write new value.
-                            model.Diagram.WriteMemoryLine compId addr value
-                        | Error err ->
-                            errorNotification "Invalid decimal number"
-                                               CloseMemoryEditorNotification 
-                            |> SetMemoryEditorNotification |> dispatch
+                            match convertIntToWireData value memory.WordWidth with
+                            | Error err -> showError err
+                            | Ok _ ->
+                                // Close error notification.
+                                CloseMemoryEditorNotification |> dispatch
+                                // Write new value.
+                                model.Diagram.WriteMemoryLine compId addr value
+                        | Error err -> showError "Invalid number."
                     )
                 ]
             ]
@@ -92,7 +93,10 @@ let openMemoryEditor memory compId model dispatch : unit =
                 Level.item [] [
                     Button.button [
                         Button.Color IsPrimary
-                        Button.OnClick (fun _ -> dispatch ClosePopup)
+                        Button.OnClick (fun _ ->
+                            dispatch CloseMemoryEditorNotification
+                            dispatch ClosePopup
+                        )
                         // TODO: reload selected component when leaving memory editor.
                     ] [ str "Done" ]
                 ]

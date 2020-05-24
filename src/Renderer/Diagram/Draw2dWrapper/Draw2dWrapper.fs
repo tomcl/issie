@@ -59,6 +59,7 @@ type private IDraw2d =
     abstract createDigitalSplitWire       : x:int -> y:int -> topOutputWidth:int -> JSComponent
     abstract createDigitalDFF             : x:int -> y:int -> JSComponent
     abstract createDigitalROM             : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
+    abstract createDigitalRAM             : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
     abstract writeMemoryLine              : comp:JSComponent -> addr:int -> value:int64 -> unit
     abstract updateMergeWiresLabels       : comp:JSComponent -> topInputWidth:int option -> bottomInputWidth:int option -> outputWidth:int option -> unit
@@ -126,6 +127,9 @@ let private createComponent
         | DFF -> draw2dLib.createDigitalDFF x y
         | ROM mem ->
             draw2dLib.createDigitalROM
+                x y mem.AddressWidth mem.WordWidth (fshaprListToJsList mem.Data)
+        | RAM mem ->
+            draw2dLib.createDigitalRAM
                 x y mem.AddressWidth mem.WordWidth (fshaprListToJsList mem.Data)
     // Every component is assumed to have a label (may be empty string).
     draw2dLib.addComponentLabel comp label

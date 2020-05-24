@@ -68,6 +68,7 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     | "SplitWire"  -> SplitWire <| getFailIfNull jsComponent ["topOutputWidth"]
     | "DFF" -> DFF
     | "ROM" -> ROM <| extractMemoryData jsComponent
+    | "RAM" -> RAM <| extractMemoryData jsComponent
     | ct -> failwithf "what? Component type %s does not exist" ct
 
 let private extractVertices (jsVertices : JSVertices) : (float * float) list =

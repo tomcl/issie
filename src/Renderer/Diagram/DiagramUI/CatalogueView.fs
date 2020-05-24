@@ -138,7 +138,8 @@ let viewCatalogue model dispatch =
                 [ menuItem "D-flip-flop" (fun _ -> createComponent DFF "" model dispatch) ]
             makeMenuGroup
                 "Memories"
-                [ menuItem "ROM (synchronous)" (fun _ -> createMemoryPopup ROM model dispatch) ]
+                [ menuItem "ROM (synchronous)" (fun _ -> createMemoryPopup ROM model dispatch)
+                  menuItem "RAM (synchronous)" (fun _ -> createMemoryPopup RAM model dispatch) ]
             makeMenuGroup
                 "This project"
                 (makeCustomList model)

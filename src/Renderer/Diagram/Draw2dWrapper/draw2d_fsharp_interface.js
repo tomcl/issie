@@ -220,6 +220,17 @@ function createDigitalROM(x, y, addressWidth, wordWidth, memData) {
     });
 }
 
+function createDigitalRAM(x, y, addressWidth, wordWidth, memData) {
+    return new draw2d.shape.digital.RAM({
+        x: x,
+        y: y,
+        resizeable: false,
+        addressWidth: addressWidth,
+        wordWidth: wordWidth,
+        memData: memData
+    });
+}
+
 function writeMemoryLine(comp, addr, value) {
     if (comp.memData == null || comp.memData === "undefined") {
         throw `Cannot write memory line of component that does not have a memory: ${comp.componentType}`;
@@ -339,6 +350,7 @@ export {
     createDigitalSplitWire,
     createDigitalDFF,
     createDigitalROM,
+    createDigitalRAM,
     createDigitalConnection,
     writeMemoryLine,
     updateMergeWiresLabels,

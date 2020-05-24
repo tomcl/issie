@@ -25,7 +25,8 @@ let padToWidth (bits : WireData) width : WireData =
 /// Convert an int into a bit list with the provided width. The Most Significant
 /// Bits are the one with low index (e.g. MSB is at position 0, LSB is at
 /// position N).
-let rec convertIntToWireData (num : int64) width : WireData =
+/// Return an error if the integer represents a value with too many bits.
+let rec convertIntToWireData (num : int64) width : Result<WireData, string> =
     let toBit = function | 0 -> Zero | 1 -> One | _ -> failwith "toBit only accepts 0 or 1"
     let rec intToBinary (i : int64) =
         match int i with
@@ -33,9 +34,9 @@ let rec convertIntToWireData (num : int64) width : WireData =
         | _ -> let bit = toBit <| int (i % (int64 2))
                bit :: (intToBinary (i / (int64 2)))
     let bits = List.rev <| intToBinary num
-    assertThat (bits.Length <= width)
-    <| sprintf "Converting %d into WireData %A gave invalid width: %d > %d" num bits bits.Length width
-    padToWidth bits width
+    match bits.Length <= width with
+    | true -> Ok <| padToWidth bits width
+    | false -> Error <| sprintf "Too many bits. Expected up to %d but got %d." width bits.Length
 
 /// Convert a bit to string.
 let bitToString (bit : Bit) : string =

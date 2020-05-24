@@ -39,6 +39,7 @@ let init() = {
         FromDiagram = None
         FromSimulation = None
         FromFiles = None
+        FromMemoryEditor = None
     }
     TopMenu = Closed
 }
@@ -222,8 +223,13 @@ let update msg model =
         { model with Notifications = {model.Notifications with FromSimulation = None} }
     | SetFilesNotification n ->
         { model with Notifications =
-                        { model.Notifications with FromFiles = Some n}}
+                        { model.Notifications with FromFiles = Some n} }
     | CloseFilesNotification ->
         { model with Notifications = {model.Notifications with FromFiles = None} }
+    | SetMemoryEditorNotification n ->
+        { model with Notifications =
+                        { model.Notifications with FromMemoryEditor = Some n} }
+    | CloseMemoryEditorNotification ->
+        { model with Notifications = { model.Notifications with FromMemoryEditor = None} }
     | SetTopMenu t ->
         { model with TopMenu = t}    

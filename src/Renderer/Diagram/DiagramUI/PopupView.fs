@@ -227,10 +227,11 @@ let errorNotification text closeMsg =
         ]
 
 let viewNotifications model dispatch =
-    match model.Notifications.FromDiagram,
-          model.Notifications.FromSimulation,
-          model.Notifications.FromFiles with
-    | _, _, Some notification -> notification dispatch // Prioritise notifications from files.
-    | _, Some notification, None -> notification dispatch 
-    | Some notification, None, None -> notification dispatch
-    | None, None, None -> div [] []
+    [ model.Notifications.FromDiagram
+      model.Notifications.FromSimulation
+      model.Notifications.FromFiles
+      model.Notifications.FromMemoryEditor ]
+    |> List.tryPick id
+    |> function
+    | Some notification -> notification dispatch
+    | None -> div [] []

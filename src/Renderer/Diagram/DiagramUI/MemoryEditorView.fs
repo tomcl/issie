@@ -38,7 +38,7 @@ let private makeEditorHeader memory =
         str <| sprintf "Word width: %d bit(s)" memory.WordWidth
     ]
 
-let private makeEditorBody memory compId model =
+let private makeEditorBody memory compId model dispatch =
     let makeRow addr content =
         tr [] [
             td [] [ str <| sprintf "%d" addr ]
@@ -47,10 +47,16 @@ let private makeEditorBody memory compId model =
                     Input.DefaultValue <| sprintf "%d" content
                     Input.OnChange (getTextEventValue >> fun text ->
                         // TODO ensure int value has not too many bits.
-                        // TODO show an error popup.
                         match strToInt text with
-                        | Ok value -> model.Diagram.WriteMemoryLine compId addr value
-                        | Error err -> log err
+                        | Ok value ->
+                            // Close error notification.
+                            CloseMemoryEditorNotification |> dispatch
+                            // Write new value.
+                            model.Diagram.WriteMemoryLine compId addr value
+                        | Error err ->
+                            errorNotification "Invalid decimal number"
+                                               CloseMemoryEditorNotification 
+                            |> SetMemoryEditorNotification |> dispatch
                     )
                 ]
             ]
@@ -69,15 +75,15 @@ let private makeEditorBody memory compId model =
         ]
     ]
 
-let private makeEditor memory compId model =
+let private makeEditor memory compId model dispatch =
     div [] [
         makeEditorHeader memory
-        makeEditorBody memory compId model
+        makeEditorBody memory compId model dispatch
     ]
 
 let openMemoryEditor memory compId model dispatch : unit =
     let title = "Memory editor"
-    let body = makeEditor memory compId model
+    let body = makeEditor memory compId model dispatch
     let foot =
         Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
             Level.left [] []

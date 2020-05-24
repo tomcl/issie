@@ -375,3 +375,12 @@ type Draw2dWrapper() =
         | Some c ->
             let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "WriteMemoryLine"
             draw2dLib.writeMemoryLine jsComp addr value
+
+    member this.GetComponentById compId =
+        match canvas with
+        | None -> Error "Draw2dWrapper.GetComponentById called when canvas is None"
+        | Some c ->
+            let jsComp = draw2dLib.getComponentById c compId
+            match isNull jsComp with
+            | true -> Error <| sprintf "Could not find component with Id: %s" compId
+            | false -> Ok jsComp

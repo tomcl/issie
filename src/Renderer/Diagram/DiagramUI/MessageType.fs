@@ -56,3 +56,4 @@ type Msg =
     | SetMemoryEditorNotification of ((Msg -> unit) -> ReactElement)
     | CloseMemoryEditorNotification
     | SetTopMenu of TopMenu
+    | ReloadSelectedComponent

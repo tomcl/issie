@@ -53,4 +53,6 @@ type Msg =
     | CloseSimulationNotification
     | SetFilesNotification of ((Msg -> unit) -> ReactElement)
     | CloseFilesNotification
+    | SetMemoryEditorNotification of ((Msg -> unit) -> ReactElement)
+    | CloseMemoryEditorNotification
     | SetTopMenu of TopMenu

@@ -57,6 +57,16 @@ let feedClockTick = SimulationRunner.feedClockTick
 /// Expose the extractSimulationIOs function from SimulationRunner.
 let extractSimulationIOs = SimulationRunner.extractSimulationIOs
 
+/// Get some info and the state of all stateful components in a graph.
+let extractStatefulComponents
+        (graph : SimulationGraph)
+        : (ComponentType * ComponentLabel * SimulationComponentState) list =
+    graph
+    |> Map.toList
+    |> List.map (fun (compId,comp) -> comp.Type, comp.Label, comp.State)
+    |> List.filter (fun (_,_,state) -> state <> NoState)
+    // TODO: recursively search custom components?
+
 /// Given a list of N generic elements, associate each element with a bit and
 /// return 2^N lists with all the possible bit combinations.
 /// A bit is simply a bus with width 1.

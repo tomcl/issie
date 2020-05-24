@@ -4,6 +4,7 @@ open Simulator
 open BusWidthInferer
 open SimulatorTests
 open SimulatorSyncTests
+open SimulatorMemoriesTests
 open WidthInfererTests
 
 let runSimulatorTest (diagramName, state, loadedComponents, inputs) =
@@ -46,6 +47,9 @@ let simulatorTests =
 [<Tests>]
 let simulatorSyncTests =
     createTestList "simulatorSync" runSimulatorSyncTest testCasesSimulatorSync
+[<Tests>]
+let simulatorMemoriesTests =
+    createTestList "simulatorMemories" runSimulatorSyncTest testCasesSimulatorMemories
 [<Tests>]
 let widthInfererTests =
     createTestList "widthInferer" inferConnectionsWidth testCasesWidthInferer

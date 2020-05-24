@@ -25,9 +25,11 @@
     <Compile Include="CanvasStates.fs" />
     <Compile Include="CanvasStatesWithBuses.fs" />
     <Compile Include="CanvasStatesSync.fs" />
+    <Compile Include="CanvasStatesMemories.fs" />
     <Compile Include="WidthInfererTests.fs" />
     <Compile Include="SimulatorTests.fs" />
     <Compile Include="SimulatorSyncTests.fs" />
+    <Compile Include="SimulatorMemoriesTests.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <ItemGroup>

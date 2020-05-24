@@ -14,9 +14,6 @@ type private IterationOutput = (SimulationIO * WireData) list // Output after ev
 type private TestCaseOutput = Result<IterationOutput list, SimulationError>
 type private TestCase = string * TestCaseInput * TestCaseOutput
 
-// The number of ticks that the test has to perform is given by the lenght of
-// the iteration output list.
-
 let testCasesSimulatorSync : TestCase list = [
     "Simple D-flip-flop, one input, one output (zero)",
     ("main", stateSync1, [], 5, [

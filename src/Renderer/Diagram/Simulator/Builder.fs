@@ -106,6 +106,14 @@ let private readMemory (mem : Memory) (address : WireData) : WireData =
     let outDataInt = mem.Data.[int intAddr]
     convertIntToWireData outDataInt mem.WordWidth
 
+/// Write the content of the memory at the specified address.
+let private writeMemory (mem : Memory) (address : WireData) (data : WireData) : Memory =
+    assertThat (mem.Data.Length = pow2 mem.AddressWidth)
+    <| sprintf "Memory has wrong Data.Length: expected %d but got %d" (pow2 mem.AddressWidth) mem.Data.Length
+    let intAddr = int <| convertWireDataToInt address
+    let intData = convertWireDataToInt data
+    {mem with Data = listSet mem.Data intData intAddr}
+
 /// Reducer outputs for when a component has not enough inputs to produce an
 /// actual output.
 let private notReadyReducerOutput state = {
@@ -138,6 +146,11 @@ let private getDffStateBit state =
     match state with
     | DffState bit -> bit
     | _ -> failwithf "what? getDffStateBit called with an invalid state: %A" state
+
+let private getRamStateMemory state =
+    match state with
+    | RamState memory -> memory
+    | _ -> failwithf "what? getRamStateMemory called with an invalid state: %A" state
 
 /// Given a component type, return a function takes a ReducerInput and
 /// transform it into a ReducerOuptut.
@@ -291,6 +304,47 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 let outData = readMemory mem address
                 Map.empty.Add (OutputPortNumber 0, outData)
                 |> makeReducerOutput NoState
+    | RAM _ ->
+        fun reducerInput ->
+            match reducerInput.IsClockTick with
+            | No ->
+                // If it is not a clock tick, just ignore the changes on the
+                // input. The state returned is ignored.
+                notReadyReducerOutput NoState
+            | Yes state ->
+                let mem = getRamStateMemory state
+                let address =
+                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
+                    | None -> List.replicate mem.AddressWidth Zero
+                    | Some [addr] ->
+                        assertThat (addr.Length = mem.AddressWidth)
+                        <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addr
+                        addr
+                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+                let dataIn =
+                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 1] with
+                    | None -> List.replicate mem.WordWidth Zero
+                    | Some [dataIn] ->
+                        assertThat (dataIn.Length = mem.WordWidth)
+                        <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataIn
+                        dataIn
+                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+                let write =
+                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 2] with
+                    | None -> packBit Zero
+                    | Some [bit] -> bit |> extractBit |> packBit // Ensure it is a single bit.
+                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+                // If write flag is on, write the memory content.
+                let mem, dataOut =
+                    match extractBit write with
+                    | Zero ->
+                        // Read memory address and return memory unchanged.
+                        mem, readMemory mem address
+                    | One ->
+                        // Update memory and return new content.
+                        writeMemory mem address dataIn, dataIn
+                Map.empty.Add (OutputPortNumber 0, dataOut)
+                |> makeReducerOutput (RamState mem)
 
 /// Build a map that, for each source port in the connections, keeps track of
 /// the ports it targets.
@@ -331,6 +385,8 @@ let private getDefaultState compType =
     | Input _ | Output _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2
     | Demux2 | Custom _ | MergeWires | SplitWire _ | ROM _ -> NoState
     | DFF -> DffState Zero
+    | RAM memory -> RamState memory // The RamState content may change during
+                                    // the simulation.
 
 /// Build a simulation component.
 let private buildSimulationComponent

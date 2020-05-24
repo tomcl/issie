@@ -10,6 +10,7 @@ open Fulma
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
+open NumberHelpers
 open Helpers
 open JSHelpers
 open DiagramStyle
@@ -20,30 +21,7 @@ open DiagramTypes
 open SimulatorTypes
 open Extractor
 open Simulator
-
-let private bitToString (bit : Bit) : string =
-    match bit with Zero -> "0" | One -> "1"
-
-let rec private bitsToString (bits : WireData) : string =
-    match bits with
-    | [] -> ""
-    | bit :: bits' -> (bitToString bit) + (bitsToString bits')
-
-/// Try to convert a string of bits into a Bit list. Return None if such
-/// conversion is not possible.
-let private stringToBits (bitsStr : string) : WireData option =
-    let rec convert (bitChars : char list) : WireData option =
-        match bitChars with
-        | [] -> Some []
-        | bitChar :: bitChars' when bitChar = '0' ->
-            Option.map (fun bits -> Zero :: bits) (convert bitChars')
-        | bitChar :: bitChars' when bitChar = '1' ->
-            Option.map (fun bits -> One :: bits) (convert bitChars')
-        | _ -> None
-    convert <| Seq.toList bitsStr
-
-let private padBitsToWidth width (bitsStr : string) : string =
-    (String.replicate (width - bitsStr.Length) "0") + bitsStr
+open NumberHelpers
 
 let private viewSimulationInputs
         (simulationGraph : SimulationGraph)
@@ -66,34 +44,30 @@ let private viewSimulationInputs
                         let newBit = match bit with
                                      | Zero -> One
                                      | One -> Zero
-                        feedSimulationInput simulationGraph (ComponentId inputId) [newBit]
+                        feedSimulationInput simulationGraph
+                                            (ComponentId inputId) [newBit]
                         |> SetSimulationGraph |> dispatch
                     )
                 ] [ str <| bitToString bit ]
             | bits ->
-                let bitsStr = bitsToString bits
+                let defValue = bin64 <| convertWireDataToInt bits
                 Input.text [
-                    Input.DefaultValue bitsStr
+                    Input.DefaultValue defValue
                     Input.Props [
                         simulationNumberStyle
                         OnChange (getTextEventValue >> (fun text ->
-                            match text.Length with
-                            | l when l > width ->
-                                let err = sprintf "Too many bits. The input expects %d bits, but %d were given." width l
+                            match strToIntCheckWidth text width with
+                            | Error err ->
                                 errorNotification err CloseSimulationNotification
                                 |> SetSimulationNotification |> dispatch
-                            | _ ->
-                                let maybeBits = padBitsToWidth width text |> stringToBits
-                                match maybeBits with
-                                | None ->
-                                    let err = sprintf "Invalid bits sequence. The only characters allowed are 0 and 1."
-                                    errorNotification err CloseSimulationNotification
-                                    |> SetSimulationNotification |> dispatch
-                                | Some bits ->
-                                    // Close simulation notifications.
-                                    CloseSimulationNotification |> dispatch
-                                    feedSimulationInput simulationGraph (ComponentId inputId) bits
-                                    |> SetSimulationGraph |> dispatch
+                            | Ok num ->
+                                let bits = convertIntToWireData num width
+                                // Close simulation notifications.
+                                CloseSimulationNotification |> dispatch
+                                // Feed input.
+                                feedSimulationInput simulationGraph
+                                                    (ComponentId inputId) bits
+                                |> SetSimulationGraph |> dispatch
                         ))
                     ]
                 ]
@@ -132,10 +106,10 @@ let private viewSimulationOutputs (simOutputs : (SimulationIO * WireData) list) 
                     Button.Disabled true
                 ] [ str <| bitToString bit ]
             | bits ->
-                let bitsStr = bitsToString bits
+                let value = bin64 <| convertWireDataToInt bits
                 Input.text [
                     Input.IsReadOnly true
-                    Input.Value bitsStr
+                    Input.Value value
                     Input.Props [simulationNumberStyle]
                 ]
         let labelText = match width with
@@ -233,6 +207,7 @@ let viewSimulation model dispatch =
                    | Error simError -> viewSimulationError simError
                    | Ok simData -> viewSimulationData simData dispatch
         let endSimulation _ =
+            dispatch CloseSimulationNotification // Close error notifications.
             dispatch <| SetHighlighted ([], []) // Remove highlights.
             dispatch EndSimulation // End simulation.
             dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.

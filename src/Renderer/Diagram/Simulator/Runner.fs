@@ -9,6 +9,7 @@ module SimulationRunner
 
 open DiagramTypes
 open SimulatorTypes
+open SynchronousUtils
 
 // During simulation, a Component Reducer function will produce the output only
 // when all of the expected inputs have a value. Once this happens, it will
@@ -35,7 +36,7 @@ let rec private feedInput
     let reducerInput = {
         Inputs = comp.Inputs
         CustomSimulationGraph = comp.CustomSimulationGraph
-        IsClockTick = false
+        IsClockTick = No
     }
     // Try to reduce the component.
     let reducerOutput = comp.Reducer reducerInput
@@ -69,28 +70,20 @@ and private feedReducerOutput
             )
     )
 
-/// Tells wether a component is clocked or not. Note that Custom components may
-/// be clocked (cannot tell without recursively analysing them), so they are
-/// considered colcked.
-let private isClockedComponent comp =
-    match comp.Type with
-    | DFF | Custom _ -> true // We have to assume custom components are clocked as they may be.
-    | _ -> false
-
 /// Send one global clock tick to all clocked components, and return the updated
 /// simulationGraph.
 let feedClockTick (graph : SimulationGraph) : SimulationGraph =
     // Take a snapshot of each clocked component with its inputs just before the
     // clock tick.
     let clockedCompsBeforeTick =
-        graph |> Map.filter (fun _ comp -> isClockedComponent comp)
+        graph |> Map.filter (fun _ comp -> couldBeSynchronousComponent comp.Type)
     // For each clocked component, feed the clock tick together with the inputs
     // snapshotted just before the clock tick.
     (graph, clockedCompsBeforeTick) ||> Map.fold (fun graph compId comp ->
         let reducerInput = {
             Inputs = comp.Inputs
             CustomSimulationGraph = comp.CustomSimulationGraph
-            IsClockTick = true
+            IsClockTick = Yes comp.State
         }
         let reducerOutput = comp.Reducer reducerInput
         match reducerOutput.Outputs with
@@ -115,7 +108,8 @@ let feedClockTick (graph : SimulationGraph) : SimulationGraph =
             let comp = match graph.TryFind comp.Id with
                        | None -> failwith "what? Impossible case in feedClockTick"
                        | Some comp -> comp
-            let comp = { comp with CustomSimulationGraph = reducerOutput.NewCustomSimulationGraph }
+            let comp = { comp with CustomSimulationGraph = reducerOutput.NewCustomSimulationGraph
+                                   State = reducerOutput.NewState }
             let graph = graph.Add (comp.Id, comp)
             // Feed the newly produced outputs into the combinational logic.
             feedReducerOutput comp graph outputMap

@@ -34,11 +34,12 @@ let init() = {
     CreateComponentOffset = 0
     HasUnsavedChanges = false
     Popup = None
-    PopupDialogData = {Text = None; Int = None}
+    PopupDialogData = {Text = None; Int = None; MemorySetup = None}
     Notifications = {
         FromDiagram = None
         FromSimulation = None
         FromFiles = None
+        FromMemoryEditor = None
     }
     TopMenu = Closed
 }
@@ -120,7 +121,7 @@ let private viewRightTab model dispatch =
     | Properties ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str "Component properties" ]
-            viewSelectedComponent model
+            viewSelectedComponent model dispatch
         ]
     | Simulation ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
@@ -206,11 +207,13 @@ let update msg model =
     | SetProject project -> { model with CurrProject = Some project }
     | CloseProject -> { model with CurrProject = None }
     | ShowPopup popup -> { model with Popup = Some popup }
-    | ClosePopup -> { model with Popup = None; PopupDialogData = {Text = None; Int = None} }
+    | ClosePopup -> { model with Popup = None; PopupDialogData = {Text = None; Int = None; MemorySetup = None} }
     | SetPopupDialogText text ->
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }
     | SetPopupDialogInt int ->
         { model with PopupDialogData = {model.PopupDialogData with Int = int} }
+    | SetPopupDialogMemorySetup m ->
+        { model with PopupDialogData = {model.PopupDialogData with MemorySetup = m} }
     | CloseDiagramNotification ->
         { model with Notifications = {model.Notifications with FromDiagram = None} }
     | SetSimulationNotification n ->
@@ -220,8 +223,20 @@ let update msg model =
         { model with Notifications = {model.Notifications with FromSimulation = None} }
     | SetFilesNotification n ->
         { model with Notifications =
-                        { model.Notifications with FromFiles = Some n}}
+                        { model.Notifications with FromFiles = Some n} }
     | CloseFilesNotification ->
         { model with Notifications = {model.Notifications with FromFiles = None} }
+    | SetMemoryEditorNotification n ->
+        { model with Notifications =
+                        { model.Notifications with FromMemoryEditor = Some n} }
+    | CloseMemoryEditorNotification ->
+        { model with Notifications = { model.Notifications with FromMemoryEditor = None} }
     | SetTopMenu t ->
         { model with TopMenu = t}    
+    | ReloadSelectedComponent ->
+        match model.SelectedComponent with
+        | None -> model
+        | Some comp ->
+            match model.Diagram.GetComponentById comp.Id with
+            | Error err -> failwith err
+            | Ok jsComp -> { model with SelectedComponent = Some <| extractComponent jsComp }

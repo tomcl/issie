@@ -4,19 +4,20 @@ open DiagramTypes
 open SimulatorTypes
 open CanvasStatesSync
 
-/// Tuple with: (diagramName, state, loadedComponents, number of clock ticks, inputs).
-type private TestCaseInput = string * CanvasState * LoadedComponent list * int * (ComponentId * WireData) list
+/// Tuple with: (diagramName, state, loadedComponents, number of clock ticks, inputss).
+/// Note that the inputss is a list of inputs. I.e. inputss provides an inputs
+/// for every time step. The first set of inputs will be fed before the first
+/// clock tick, then second after the second clock tick and so on. If no inputs
+/// are provided for a certain iteration, none will fed.
+type private TestCaseInput = string * CanvasState * LoadedComponent list * int * ((ComponentId * WireData) list) list
 type private IterationOutput = (SimulationIO * WireData) list // Output after every clock tick.
 type private TestCaseOutput = Result<IterationOutput list, SimulationError>
 type private TestCase = string * TestCaseInput * TestCaseOutput
 
-// The number of ticks that the test has to perform is given by the lenght of
-// the iteration output list.
-
 let testCasesSimulatorSync : TestCase list = [
     "Simple D-flip-flop, one input, one output (zero)",
     ("main", stateSync1, [], 5, [
-        (ComponentId "6e7a2000-439c-108e-df6d-93cff7a41266", [Zero])
+        [ (ComponentId "6e7a2000-439c-108e-df6d-93cff7a41266", [Zero]) ]
     ]),
     Ok (
         // Check it is zero for 5 ticks.
@@ -26,7 +27,7 @@ let testCasesSimulatorSync : TestCase list = [
 
     "Simple D-flip-flop, one input, one output (one)",
     ("main", stateSync1, [], 5, [
-        (ComponentId "6e7a2000-439c-108e-df6d-93cff7a41266", [One])
+        [ (ComponentId "6e7a2000-439c-108e-df6d-93cff7a41266", [One]) ]
     ]),
     Ok (
         // Tick 0, out is zero.
@@ -39,7 +40,7 @@ let testCasesSimulatorSync : TestCase list = [
 
     "Two D-flip-flop connected in series, one input, one output (one)",
     ("main", stateSync2, [], 5, [
-        (ComponentId "3739e54a-fd21-bf60-8fc2-a3d10108c947", [One])
+        [ (ComponentId "3739e54a-fd21-bf60-8fc2-a3d10108c947", [One]) ]
     ]),
     Ok (
         // Tick 0 and 1, out is zero.
@@ -53,7 +54,7 @@ let testCasesSimulatorSync : TestCase list = [
 
     "Three D-flip-flop connected in series, one input, one output (one)",
     ("main", stateSync3, [], 5, [
-        (ComponentId "3739e54a-fd21-bf60-8fc2-a3d10108c947", [One])
+        [ (ComponentId "3739e54a-fd21-bf60-8fc2-a3d10108c947", [One]) ]
     ]),
     Ok (
         // Tick 0,1 and 2, out is zero.
@@ -67,7 +68,7 @@ let testCasesSimulatorSync : TestCase list = [
 
     "StateSync1 custom component followed by a DFF (one)",
     ("main", stateSync4, [stateSync1Dependency], 5, [
-        (ComponentId "03e4c81a-4703-d9f5-dfaf-301de006610f", [One])
+        [ (ComponentId "03e4c81a-4703-d9f5-dfaf-301de006610f", [One]) ]
     ]),
     Ok (
         // Tick 0 and 1, out is zero.
@@ -78,6 +79,25 @@ let testCasesSimulatorSync : TestCase list = [
         ([(ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [One]]
          |> List.replicate 3)
     )
+
+    "StateSync1 custom component followed by a DFF, time varying inputs",
+    ("main", stateSync4, [stateSync1Dependency], 10, [
+        [ (ComponentId "03e4c81a-4703-d9f5-dfaf-301de006610f", [One]) ]
+        [ (ComponentId "03e4c81a-4703-d9f5-dfaf-301de006610f", [Zero]) ]
+        [ (ComponentId "03e4c81a-4703-d9f5-dfaf-301de006610f", [One]) ]
+    ]),
+    Ok [
+        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [Zero] ]
+        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [Zero] ]
+        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [One] ]  // After 2 timesteps, the One arrives.
+        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [Zero] ] // Back to Zero.
+        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [One] ]  // Back to One.
+        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [One] ]  // And statys one...
+        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [One] ]
+        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [One] ]
+        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [One] ]
+        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [One] ]
+    ]
 
     "A DFF looping to itself via a Not gate. Two output nodes to probe the wires before and after the Not gate.",
     ("main", stateSync5, [], 4, []),
@@ -113,7 +133,7 @@ let testCasesSimulatorSync : TestCase list = [
 
     "Similar to stateSync6, but with an extra connection input to output.",
     ("main", stateSync7, [stateSync1Dependency], 4, [
-      (ComponentId "03e4c81a-4703-d9f5-dfaf-301de006610f", [One])
+      [(ComponentId "03e4c81a-4703-d9f5-dfaf-301de006610f", [One])]
     ]),
     Ok [
         [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [Zero]

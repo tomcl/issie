@@ -19,6 +19,7 @@ open Fable.Helpers.React.Props
 open Fable.Import
 
 open JSHelpers
+open Helpers
 open DiagramMessageType
 open DiagramModelType
 open DiagramStyle
@@ -33,6 +34,9 @@ let getText (dialogData : PopupDialogData) =
 let getInt (dialogData : PopupDialogData) =
     Option.defaultValue 1 dialogData.Int
 
+let getMemorySetup (dialogData : PopupDialogData) =
+    Option.defaultValue (1,1) dialogData.MemorySetup
+
 /// Unclosable popup.
 let stablePopup body =
     Modal.modal [ Modal.IsActive true ] [
@@ -42,11 +46,11 @@ let stablePopup body =
         ]
     ]
 
-let private buildPopup title body foot close =
+let private buildPopup title body foot close extraStyle =
     fun (dialogData : PopupDialogData) ->
         Modal.modal [ Modal.IsActive true ] [
             Modal.background [ Props [ OnClick close ] ] []
-            Modal.Card.card [] [
+            Modal.Card.card [ Props [Style extraStyle] ] [
                 Modal.Card.head [] [
                     Modal.Card.title [] [ str title ]
                     Delete.delete [ Delete.OnClick close ] []
@@ -60,15 +64,15 @@ let private buildPopup title body foot close =
 /// reactElement. The meaning of the input string to those functions is the
 /// content of PopupDialogText (i.e. in a dialog popup, the string is the
 /// current value of the input box.).
-let private dynamicClosablePopup title body foot dispatch =
-    buildPopup title body foot (fun _ -> dispatch ClosePopup)
+let private dynamicClosablePopup title body foot extraStyle dispatch =
+    buildPopup title body foot (fun _ -> dispatch ClosePopup) extraStyle
     |> ShowPopup
     |> dispatch
 
 /// Create a popup and add it to the page. Body and foot are static content.
 /// Can be closed by the ClosePopup message.
-let closablePopup title body foot dispatch =
-    dynamicClosablePopup title (fun _ -> body) (fun _ -> foot) dispatch
+let closablePopup title body foot extraStyle dispatch =
+    dynamicClosablePopup title (fun _ -> body) (fun _ -> foot) extraStyle dispatch
 
 /// Create the body of a dialog Popup with only text.
 let dialogPopupBodyOnlyText before placeholder dispatch =
@@ -114,6 +118,41 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
             ]
         ]
 
+/// Create the body of a memory dialog popup: asks for AddressWidth and
+/// WordWidth, two integers.
+let dialogPopupBodyMemorySetup dispatch =
+    fun (dialogData : PopupDialogData) ->
+        let addressWidth, wordWidth = getMemorySetup dialogData
+        div [] [
+            str "How many bits should be used to address the data in memory?"
+            br []
+            str <| sprintf "%d bits yield %d memory locations." addressWidth (pow2int64 addressWidth)
+            br []
+            Input.number [
+                Input.Props [Style [Width "60px"]]
+                Input.DefaultValue "1"
+                Input.OnChange (getIntEventValue >> fun newAddrWidth ->
+                    Some (newAddrWidth, wordWidth) 
+                    |> SetPopupDialogMemorySetup |> dispatch
+                )
+            ]
+            br []
+            br []
+            str "How many bits should each memory word contain?"
+            br []
+            Input.number [
+                Input.Props [Style [Width "60px"]]
+                Input.DefaultValue "1"
+                Input.OnChange (getIntEventValue >> fun newWordWidth ->
+                    Some (addressWidth, newWordWidth) 
+                    |> SetPopupDialogMemorySetup |> dispatch
+                )
+            ]
+            br []
+            br []
+            str "You will be able to set the content of the memory from the Component Properties menu."
+        ]
+
 /// Popup with an input textbox and two buttons.
 /// The text is reflected in Model.PopupDialogText.
 let dialogPopup title body buttonText buttonAction isDisabled dispatch =
@@ -137,7 +176,7 @@ let dialogPopup title body buttonText buttonAction isDisabled dispatch =
                     ]
                 ]
             ]
-    dynamicClosablePopup title body foot dispatch
+    dynamicClosablePopup title body foot [] dispatch
 
 /// A static confirmation popup.
 let confirmationPopup title body buttonText buttonAction dispatch =
@@ -159,7 +198,7 @@ let confirmationPopup title body buttonText buttonAction dispatch =
                 ]
             ]
         ]
-    closablePopup title body foot dispatch
+    closablePopup title body foot [] dispatch
 
 /// Display popup, if any is present.
 let viewPopup model =
@@ -188,10 +227,11 @@ let errorNotification text closeMsg =
         ]
 
 let viewNotifications model dispatch =
-    match model.Notifications.FromDiagram,
-          model.Notifications.FromSimulation,
-          model.Notifications.FromFiles with
-    | _, _, Some notification -> notification dispatch // Prioritise notifications from files.
-    | _, Some notification, None -> notification dispatch 
-    | Some notification, None, None -> notification dispatch
-    | None, None, None -> div [] []
+    [ model.Notifications.FromDiagram
+      model.Notifications.FromSimulation
+      model.Notifications.FromFiles
+      model.Notifications.FromMemoryEditor ]
+    |> List.tryPick id
+    |> function
+    | Some notification -> notification dispatch
+    | None -> div [] []

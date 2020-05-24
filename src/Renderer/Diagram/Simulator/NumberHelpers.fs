@@ -10,18 +10,6 @@ module NumberHelpers
 open Helpers
 open SimulatorTypes
 
-// -- padding
-
-/// Pad a string of bits to the given width.
-let padBitsToWidth width (bitsStr : string) : string =
-    (String.replicate (width - bitsStr.Length) "0") + bitsStr
-
-/// Pad wireData with Zeros as the Most Significant Bits (e.g. at position 0).
-let padToWidth (bits : WireData) width : WireData =
-    List.replicate (width - bits.Length) Zero @ bits
-
-// -- conversions
-
 /// Convert an hex string into a binary string.
 let private hexToBin (hStr : string) : string =
     let rec convert h =
@@ -36,20 +24,39 @@ let private hexToBin (hStr : string) : string =
                 | 'c' -> "1100" | 'd' -> "1101" | 'e' -> "1110" | 'f' -> "1111"
                 | c -> failwithf "Invalid char %c while converting hex %s to binary" c hStr
             digit + (convert h')
-    hStr.ToLower() |> Seq.toList |> convert
+    let chars = hStr.ToLower() |> Seq.toList
+    match chars with
+    | [] -> ""
+    | c :: chars' ->
+        let firstDigit = // Avoid leading zeros.
+            match c with
+            | '0' -> "0" | '1' -> "1" | '2' -> "10" | '3' -> "11"
+            | '4' -> "100" | '5' -> "101" | '6' -> "110" | '7' -> "111"
+            | '8' -> "1000" | '9' -> "1001" | 'a' -> "1010" | 'b' -> "1011"
+            | 'c' -> "1100" | 'd' -> "1101" | 'e' -> "1110" | 'f' -> "1111"
+            | c -> failwithf "Invalid char %c while converting hex %s to binary" c hStr
+        firstDigit + (convert chars')
 
-let hex (num : int) = "0x" + num.ToString("X")
 let hex64 (num : int64) = "0x" + num.ToString("X")
-let bin (num : int) = "0b" + (hexToBin <| num.ToString("X"))
 let bin64 (num : int64) = "0b" + (hexToBin <| num.ToString("X"))
-let dec (num : int) = num.ToString()
 let dec64 (num : int64) = num.ToString()
+let hex (num : int) = hex64 <| int64 num
+let bin (num : int) = bin64 <| int64 num
+let dec (num : int) = dec64 <| int64 num
 
-/// Convert an int into a bit list with the provided width. The Most Significant
+/// Convert a bit to string.
+let bitToString (bit : Bit) : string =
+    match bit with Zero -> "0" | One -> "1"
+
+/// Pad wireData with Zeros as the Most Significant Bits (e.g. at position 0).
+let private padToWidth (bits : WireData) width : WireData =
+    List.replicate (width - bits.Length) Zero @ bits
+
+/// Convert an int into a Bit list with the provided width. The Most Significant
 /// Bits are the one with low index (e.g. MSB is at position 0, LSB is at
 /// position N).
-/// Return an error if the integer represents a value with too many bits.
-let rec convertIntToWireData (num : int64) width : Result<WireData, string> =
+/// If the number has more bits than width, then more bits will be returned.
+let rec convertIntToWireData (num : int64) (width : int) : WireData =
     let toBit = function | 0 -> Zero | 1 -> One | _ -> failwith "toBit only accepts 0 or 1"
     let rec intToBinary (i : int64) =
         match int i with
@@ -57,40 +64,7 @@ let rec convertIntToWireData (num : int64) width : Result<WireData, string> =
         | _ -> let bit = toBit <| int (i % (int64 2))
                bit :: (intToBinary (i / (int64 2)))
     let bits = List.rev <| intToBinary num
-    match bits.Length <= width with
-    | true -> Ok <| padToWidth bits width
-    | false -> Error <| sprintf "Too many bits. Expected up to %d but got %d." width bits.Length
-
-/// Convert a bit to string.
-let bitToString (bit : Bit) : string =
-    match bit with Zero -> "0" | One -> "1"
-
-/// Convert a list of bits to a string.
-let rec bitsToString (bits : WireData) : string =
-    match bits with
-    | [] -> ""
-    | bit :: bits' -> (bitToString bit) + (bitsToString bits')
-
-/// Try to convert a string of bits into a Bit list. Return None if such
-/// conversion is not possible.
-let stringToBits (bitsStr : string) : WireData option =
-    let rec convert (bitChars : char list) : WireData option =
-        match bitChars with
-        | [] -> Some []
-        | bitChar :: bitChars' when bitChar = '0' ->
-            Option.map (fun bits -> Zero :: bits) (convert bitChars')
-        | bitChar :: bitChars' when bitChar = '1' ->
-            Option.map (fun bits -> One :: bits) (convert bitChars')
-        | _ -> None
-    convert <| Seq.toList bitsStr
-
-/// Try to convert a string to an int, or return an error message if that was
-/// not possible.
-let strToInt (str : string) : Result<int64, string> =
-    try
-        Ok <| int64 str
-    with
-        | e -> Error <| e.ToString ()
+    padToWidth bits width
 
 /// Convert a list of Bits into an int. The Most Significant Bits are the one
 /// with low index (e.g. MSB is at position 0, LSB is at position N).
@@ -100,3 +74,31 @@ let rec convertWireDataToInt (bits : WireData) : int64 =
     | [] -> int64 0
     | Zero :: bits' -> convertWireDataToInt bits'
     | One :: bits' -> pow2int64(mag) + convertWireDataToInt bits'
+
+/// Try to convert a string to an int, or return an error message if that was
+/// not possible.
+let strToInt (str : string) : Result<int64, string> =
+    try
+        Ok <| int64 str
+    with
+        | _ -> Error <| "Invalid number."
+
+let private countBits (num : int64) : int =
+    (String.length <| bin64 num) - 2
+
+/// Check a number is formed by at most <width> bits.
+let private checkWidth (width : int) (num : int64) : string option =
+    let bitsCount = countBits num
+    match bitsCount <= width with
+    | true -> None
+    | false -> Some <| sprintf "Too many bits. Expected up to %d but got %d." width bitsCount
+
+/// Convert a string to a number making sure that it has no more bits than
+/// specified in width.
+let strToIntCheckWidth (str : string) (width : int) : Result<int64, string> =
+    strToInt str
+    |> Result.bind (fun num ->
+        match checkWidth width num with
+        | None -> Ok num
+        | Some err -> Error err
+    )

@@ -104,9 +104,7 @@ let private readMemory (mem : Memory) (address : WireData) : WireData =
     <| sprintf "Memory has wrong Data.Length: expected %d but got %d" (pow2 mem.AddressWidth) mem.Data.Length
     let intAddr = convertWireDataToInt address
     let outDataInt = mem.Data.[int intAddr]
-    match convertIntToWireData outDataInt mem.WordWidth with
-    | Ok wireData -> wireData
-    | Error err -> failwith err 
+    convertIntToWireData outDataInt mem.WordWidth
 
 /// Reducer outputs for when a component has not enough inputs to produce an
 /// actual output.

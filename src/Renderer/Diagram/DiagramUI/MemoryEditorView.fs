@@ -17,10 +17,22 @@ open DiagramMessageType
 open DiagramModelType
 open PopupView
 
-//let private headerHeight = "100px";
+let private headerHeight = 100;
+let private headerStyle = Style [
+    Position "fixed"
+    MarginTop (string (-headerHeight-20) + "px")
+    PaddingTop "20px"
+    BackgroundColor "white"
+    Width "61%"
+    Height headerHeight
+    ZIndex 10
+]
+let private bodyStyle = Style [
+    MarginTop (string headerHeight + "px")
+]
 
 let private makeEditorHeader memory =
-    div [(*Style [Position "fixed"; Top "0px"]*)] [
+    div [headerStyle] [
         str <| sprintf "Number of elements: %d" (pow2int64 memory.AddressWidth)
         br []
         str <| sprintf "Word width: %d bit(s)" memory.WordWidth
@@ -43,16 +55,18 @@ let private makeEditorBody memory compId model =
                 ]
             ]
         ]
-    Table.table [(*Table.Props [Style [MarginTop headerHeight] ] *)] [
-        thead [] [
-            tr [] [
-                th [] [str "Address"]
-                th [] [str "Content"]
+    div [bodyStyle] [
+        Table.table [] [
+            thead [] [
+                tr [] [
+                    th [] [str "Address"]
+                    th [] [str "Content"]
+                ]
             ]
+            tbody [] (
+                memory.Data |> List.mapi makeRow
+            )
         ]
-        tbody [] (
-            memory.Data |> List.mapi makeRow
-        )
     ]
 
 let private makeEditor memory compId model =
@@ -78,7 +92,7 @@ let openMemoryEditor memory compId model dispatch : unit =
             ]
         ]
     let extraStyle = [
-        //Width "80%"
+        Width "65%"
         Height "80%"
     ]
     closablePopup title body foot extraStyle dispatch

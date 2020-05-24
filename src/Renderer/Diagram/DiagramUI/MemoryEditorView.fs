@@ -93,8 +93,9 @@ let openMemoryEditor memory compId model dispatch : unit =
                         Button.OnClick (fun _ ->
                             dispatch CloseMemoryEditorNotification
                             dispatch ClosePopup
+                            // Reload component so we have the updated memory.
+                            dispatch ReloadSelectedComponent
                         )
-                        // TODO: reload selected component when leaving memory editor.
                     ] [ str "Done" ]
                 ]
             ]

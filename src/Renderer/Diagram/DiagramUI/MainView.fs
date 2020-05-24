@@ -233,3 +233,10 @@ let update msg model =
         { model with Notifications = { model.Notifications with FromMemoryEditor = None} }
     | SetTopMenu t ->
         { model with TopMenu = t}    
+    | ReloadSelectedComponent ->
+        match model.SelectedComponent with
+        | None -> model
+        | Some comp ->
+            match model.Diagram.GetComponentById comp.Id with
+            | Error err -> failwith err
+            | Ok jsComp -> { model with SelectedComponent = Some <| extractComponent jsComp }

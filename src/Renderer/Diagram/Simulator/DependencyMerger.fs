@@ -385,4 +385,3 @@ let mergeDependencies
     | Ok dependencyMap ->
         // Recursively replace the dependencies, in a top down fashion.
         Ok <| merger graph dependencyMap
-        // TODO: Check combinatorial loops in the fully merged graph.

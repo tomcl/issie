@@ -9,6 +9,7 @@
 module SimulationBuilder
 
 open Helpers
+open NumberHelpers
 open DiagramTypes
 open SimulatorTypes
 open CanvasStateAnalyser
@@ -96,34 +97,6 @@ let private extractBit (wireData : WireData) : Bit =
     wireData.[0]
 
 let private packBit (bit : Bit) : WireData = [bit]
-
-/// Convert a list of Bits into an int. The Most Significant Bits are the one
-/// with low index (e.g. MSB is at position 0, LSB is at position N).
-let rec private convertWireDataToInt (bits : WireData) : int64 =
-    let mag = (bits.Length - 1)
-    match bits with
-    | [] -> int64 0
-    | Zero :: bits' -> convertWireDataToInt bits'
-    | One :: bits' -> pow2int64(mag) + convertWireDataToInt bits'
-
-/// Pad wireData with Zeros as the Most Significant Bits (e.g. at position 0).
-let private padToWidth (bits : WireData) width : WireData =
-    List.replicate (width - bits.Length) Zero @ bits
-
-/// Convert an int into a bit list with the provided width. The Most Significant
-/// Bits are the one with low index (e.g. MSB is at position 0, LSB is at
-/// position N). 
-let rec private convertIntToWireData (num : int64) width : WireData =
-    let toBit = function | 0 -> Zero | 1 -> One | _ -> failwith "toBit only accepts 0 or 1"
-    let rec intToBinary (i : int64) =
-        match int i with
-        | 0 | 1 -> [toBit <| int i]
-        | _ -> let bit = toBit <| int (i % (int64 2))
-               bit :: (intToBinary (i / (int64 2)))
-    let bits = List.rev <| intToBinary num
-    assertThat (bits.Length <= width)
-    <| sprintf "Converting %d into WireData %A gave invalid width: %d > %d" num bits bits.Length width
-    padToWidth bits width
 
 /// Read the content of the memory at the specified address.
 let private readMemory (mem : Memory) (address : WireData) : WireData =

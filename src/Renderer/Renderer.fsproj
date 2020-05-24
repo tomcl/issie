@@ -14,6 +14,7 @@
     <Compile Include="Diagram/Bus/WidthInferer.fs" />
     <!-- Simulator -->
     <Compile Include="Diagram/Simulator/Types.fs" />
+    <Compile Include="Diagram/Simulator/NumberHelpers.fs" />
     <Compile Include="Diagram/Simulator/SynchronousUtils.fs" />
     <Compile Include="Diagram/Simulator/CanvasStateAnalyser.fs" />
     <Compile Include="Diagram/Simulator/SimulationGraphAnalyser.fs" />

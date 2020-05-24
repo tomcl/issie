@@ -22,6 +22,29 @@ let padToWidth (bits : WireData) width : WireData =
 
 // -- conversions
 
+/// Convert an hex string into a binary string.
+let private hexToBin (hStr : string) : string =
+    let rec convert h =
+        match h with
+        | [] -> ""
+        | c :: h' ->
+            let digit =
+                match c with
+                | '0' -> "0000" | '1' -> "0001" | '2' -> "0010" | '3' -> "0011"
+                | '4' -> "0100" | '5' -> "0101" | '6' -> "0110" | '7' -> "0111"
+                | '8' -> "1000" | '9' -> "1001" | 'a' -> "1010" | 'b' -> "1011"
+                | 'c' -> "1100" | 'd' -> "1101" | 'e' -> "1110" | 'f' -> "1111"
+                | c -> failwithf "Invalid char %c while converting hex %s to binary" c hStr
+            digit + (convert h')
+    hStr.ToLower() |> Seq.toList |> convert
+
+let hex (num : int) = "0x" + num.ToString("X")
+let hex64 (num : int64) = "0x" + num.ToString("X")
+let bin (num : int) = "0b" + (hexToBin <| num.ToString("X"))
+let bin64 (num : int64) = "0b" + (hexToBin <| num.ToString("X"))
+let dec (num : int) = num.ToString()
+let dec64 (num : int64) = num.ToString()
+
 /// Convert an int into a bit list with the provided width. The Most Significant
 /// Bits are the one with low index (e.g. MSB is at position 0, LSB is at
 /// position N).

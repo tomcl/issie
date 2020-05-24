@@ -44,10 +44,10 @@ let private makeEditorBody memory compId model dispatch =
                         |> SetMemoryEditorNotification |> dispatch
     let makeRow addr content =
         tr [] [
-            td [] [ str <| sprintf "%d" addr ]
+            td [] [ str <| hex addr ]
             td [] [
                 Input.text [
-                    Input.DefaultValue <| sprintf "%d" content
+                    Input.DefaultValue <| hex64 content
                     Input.OnChange (getTextEventValue >> fun text ->
                         match strToInt text with
                         | Ok value ->

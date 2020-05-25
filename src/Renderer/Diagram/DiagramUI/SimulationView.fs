@@ -24,6 +24,8 @@ open Extractor
 open Simulator
 open NumberHelpers
 
+let changeBase dispatch numBase = numBase |> SetSimulationBase |> dispatch
+
 /// A line that can be used for an input, an output, or a state.
 let private splittedLine leftContent rightConent =
     Level.level [Level.Level.Props [Style [MarginBottom "10px"]]] [
@@ -42,6 +44,7 @@ let private makeIOLabel label width =
     | w -> sprintf "%s (%d bits)" label w
 
 let private viewSimulationInputs
+        (numberBase : NumberBase)
         (simulationGraph : SimulationGraph)
         (inputs : (SimulationIO * WireData) list)
         dispatch =
@@ -68,7 +71,7 @@ let private viewSimulationInputs
                     )
                 ] [ str <| bitToString bit ]
             | bits ->
-                let defValue = bin64 <| convertWireDataToInt bits
+                let defValue = viewNum numberBase <| convertWireDataToInt bits
                 Input.text [
                     Input.DefaultValue defValue
                     Input.Props [
@@ -106,7 +109,7 @@ let private staticBitButton bit =
         Button.Disabled true
     ] [ str <| bitToString bit ]
 
-let private viewSimulationOutputs (simOutputs : (SimulationIO * WireData) list) =
+let private viewSimulationOutputs numBase (simOutputs : (SimulationIO * WireData) list) =
     let makeOutputLine ((ComponentId _, ComponentLabel outputLabel, width), wireData) =
         assertThat (List.length wireData = width)
         <| sprintf "Inconsistent wireData length in viewSimulationOutput for %s: expcted %d but got %d" outputLabel width wireData.Length
@@ -115,7 +118,7 @@ let private viewSimulationOutputs (simOutputs : (SimulationIO * WireData) list) 
             | [] -> failwith "what? Empty wireData while creating a line in simulation output."
             | [bit] -> staticBitButton bit
             | bits ->
-                let value = bin64 <| convertWireDataToInt bits
+                let value = viewNum numBase <| convertWireDataToInt bits
                 Input.text [
                     Input.IsReadOnly true
                     Input.Value value
@@ -178,21 +181,25 @@ let private viewSimulationData (simData : SimulationData) model dispatch =
         | false -> div [] []
         | true ->
             Button.button [
+                Button.Color IsSuccess
                 Button.OnClick (fun _ ->
                     feedClockTick simData.Graph |> SetSimulationGraph |> dispatch
                 )
-            ] [ str "Clock Tick" ] 
+            ] [ str "Clock Tick" ]
     div [] [
-        maybeClockTickBtn
+        splittedLine (baseSelector simData.NumberBase (changeBase dispatch))
+                     maybeClockTickBtn
 
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Inputs" ]
         viewSimulationInputs
+            simData.NumberBase
             simData.Graph
             (extractSimulationIOs simData.Inputs simData.Graph)
             dispatch
 
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Outputs" ]
-        viewSimulationOutputs <| extractSimulationIOs simData.Outputs simData.Graph
+        viewSimulationOutputs simData.NumberBase
+        <| extractSimulationIOs simData.Outputs simData.Graph
 
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Stateful components" ]
         viewStatefulComponents (extractStatefulComponents simData.Graph) model dispatch

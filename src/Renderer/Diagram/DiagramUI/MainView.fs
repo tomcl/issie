@@ -190,6 +190,13 @@ let update msg model =
             match sim with
             | Error _ -> failwithf "what? Simulation graph set when simulation is error"
             | Ok simData -> { model with Simulation = { simData with Graph = graph } |> Ok |> Some }
+    | SetSimulationBase numBase ->
+        match model.Simulation with
+        | None -> failwithf "what? Simulation base set when no simulation running"
+        | Some sim ->
+            match sim with
+            | Error _ -> failwithf "what? Simulation base set when simulation is error"
+            | Ok simData -> { model with Simulation = { simData with NumberBase = numBase } |> Ok |> Some }
     | EndSimulation -> { model with Simulation = None }
     | ChangeRightTab newTab -> { model with RightTab = newTab }
     | SetHighlighted (componentIds, connectionIds) ->

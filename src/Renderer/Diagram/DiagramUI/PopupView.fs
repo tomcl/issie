@@ -37,6 +37,10 @@ let getInt (dialogData : PopupDialogData) =
 let getMemorySetup (dialogData : PopupDialogData) =
     Option.defaultValue (1,1) dialogData.MemorySetup
 
+let getMemoryEditor (dialogData : PopupDialogData) =
+    Option.defaultValue
+        { Address = None; OnlyDiff = false } dialogData.MemoryEditorData
+
 /// Unclosable popup.
 let unclosablePopup maybeTitle body maybeFoot extraStyle =
     let head =
@@ -56,8 +60,10 @@ let unclosablePopup maybeTitle body maybeFoot extraStyle =
         ]
     ]
 
-let showUnclosablePopup maybeTitle body maybeFoot extraStyle dispatch =
-    fun _ -> unclosablePopup maybeTitle body maybeFoot extraStyle
+let showMemoryEditorPopup maybeTitle body maybeFoot extraStyle dispatch =
+    fun dialogData ->
+        let memoryEditorData = getMemoryEditor dialogData
+        unclosablePopup maybeTitle (body memoryEditorData) maybeFoot extraStyle
     |> ShowPopup |> dispatch
 
 let private buildPopup title body foot close extraStyle =

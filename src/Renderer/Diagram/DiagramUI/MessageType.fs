@@ -11,11 +11,17 @@ type RightTab =
     | Catalogue
     | Simulation
 
+type MemoryEditorData = {
+    OnlyDiff : bool // Only show diffs in Memory Diff Viewer.
+    Address : int option // Only show the specified memory address.
+}
+
 /// Possible fields that may (or may not) be used in a dialog popup.
 type PopupDialogData = {
-    Text: string option;
-    Int: int option;
-    MemorySetup: (int * int) option // AddressWidth, WordWidth. 
+    Text : string option;
+    Int : int option;
+    MemorySetup : (int * int) option // AddressWidth, WordWidth. 
+    MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
 }
 
 type TopMenu = | Closed | Project | Files
@@ -48,6 +54,7 @@ type Msg =
     | SetPopupDialogText of string option
     | SetPopupDialogInt of int option
     | SetPopupDialogMemorySetup of (int * int) option
+    | SetPopupMemoryEditorData of MemoryEditorData option
     | CloseDiagramNotification
     | SetSimulationNotification of ((Msg -> unit) -> ReactElement)
     | CloseSimulationNotification

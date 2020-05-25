@@ -71,12 +71,12 @@ let fshaprListToJsList (list : 'a list) =
     jsList
 
 /// Get the value for a change event in an input textbox.
-let getTextEventValue (event: Fable.Import.React.FormEvent) = 
+let getTextEventValue (event: Fable.Import.React.FormEvent) =
     getFailIfNull event.currentTarget ["value"] |> unbox<string>
 
 /// Get the value for a change event in an input number box.
-let getIntEventValue (event: Fable.Import.React.FormEvent) = 
-    getFailIfNull event.currentTarget ["value"] |> unbox<int>  
+let getIntEventValue (event: Fable.Import.React.FormEvent) =
+    getFailIfNull event.currentTarget ["value"] |> unbox<int>
 
 /// Get the value for a blur event in an input textbox.
 let getTextFocusEventValue (event: Fable.Import.React.FocusEvent) =

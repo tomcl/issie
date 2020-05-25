@@ -19,12 +19,12 @@ open DiagramModelType
 open PopupView
 
 let private popupExtraStyle = [ Width "65%"; Height "80%" ]
-let private headerHeight = 100;
+let private headerHeight = 60;
 let private headerStyle = Style [
     Position "fixed"
     MarginTop (string (-headerHeight-20) + "px")
     PaddingTop "20px"
-    PaddingBottom "40px"
+    PaddingBottom "60px"
     BackgroundColor "white"
     Width "61%"
     Height headerHeight
@@ -34,24 +34,79 @@ let private bodyStyle = Style [
     MarginTop (string headerHeight + "px")
 ]
 
-let showError private msg dispatch =
+let private showError msg dispatch : unit =
     errorNotification msg CloseMemoryEditorNotification
     |> SetMemoryEditorNotification |> dispatch
+
+let private closeError dispatch : unit =
+    CloseMemoryEditorNotification |> dispatch
+
+let private showRowWithAdrr memoryEditorData addr =
+    match memoryEditorData.Address with
+    | None -> true
+    | Some a when a = addr -> true
+    | _ -> false
 
 //========//
 // Editor //
 //========//
 
-let private makeEditorHeader memory =
+let private makeEditorHeader memory isDiff memoryEditorData dispatch =
     div [headerStyle] [
-        str <| sprintf "Number of elements: %d" (pow2int64 memory.AddressWidth)
-        br []
-        str <| sprintf "Word width: %d bit(s)" memory.WordWidth
+        Level.level [] ([
+            Level.item [ Level.Item.HasTextCentered ] [
+                str <| sprintf "Number of elements: %d" (pow2int64 memory.AddressWidth)
+                br []
+                str <| sprintf "Word width: %d bit(s)" memory.WordWidth
+            ]
+            Level.item [ Level.Item.HasTextCentered ] [
+                str <| "Find address"
+                Input.text [
+                    Input.Props [ Style [ MarginLeft "10px"; Width "80px" ] ]
+                    Input.DefaultValue ""
+                    Input.Placeholder "0x0"
+                    Input.OnChange (getTextEventValue >> fun text ->
+                        match text with
+                        | "" -> closeError dispatch
+                                { memoryEditorData with Address = None }
+                                |> Some |> SetPopupMemoryEditorData |> dispatch
+                        | t ->
+                            match strToInt t with
+                            | Error err -> showError err dispatch
+                            | Ok addr ->
+                                let addr = int addr
+                                if addr < 0 || addr >= pow2(memory.AddressWidth)
+                                then showError "Address out of bounds." dispatch
+                                else closeError dispatch
+                                     { memoryEditorData with Address = Some addr }
+                                     |> Some |> SetPopupMemoryEditorData |> dispatch
+                    )
+                ]
+            ]
+        ] @ (if isDiff // Add extra filter.
+            then [
+                Level.item [ Level.Item.HasTextCentered ] [
+                    Checkbox.checkbox [] [
+                        Checkbox.input [ Props [
+                            Style [ MarginRight "5px" ]
+                            Checked memoryEditorData.OnlyDiff
+                            OnChange (fun _ ->
+                                { memoryEditorData with OnlyDiff = not memoryEditorData.OnlyDiff }
+                                |> Some |> SetPopupMemoryEditorData |> dispatch
+                            )
+                        ] ]
+                        str "Show only if changed"
+                    ]
+                ]
+            ]
+            else []
+        ))
     ]
 
-let private makeEditorBody memory compId model dispatch =
+let private makeEditorBody memory compId memoryEditorData model dispatch =
+    let showRow = showRowWithAdrr memoryEditorData
     let makeRow addr content =
-        tr [] [
+        tr [ Style [ Display (if showRow addr then "table-row" else "none")] ] [
             td [] [ str <| hex addr ]
             td [] [
                 Input.text [
@@ -60,7 +115,7 @@ let private makeEditorBody memory compId model dispatch =
                         match strToIntCheckWidth text memory.WordWidth with
                         | Ok value ->
                             // Close error notification.
-                            CloseMemoryEditorNotification |> dispatch
+                            closeError dispatch
                             // Write new value.
                             model.Diagram.WriteMemoryLine compId addr value
                         | Error err -> showError err dispatch
@@ -94,26 +149,32 @@ let private makeFoot isDiffMode dispatch =
     ]
 
 let private makeEditor memory compId model dispatch =
-    div [] [
-        makeEditorHeader memory
-        makeEditorBody memory compId model dispatch
-    ]
+    fun memoryEditorData ->
+        div [] [
+            makeEditorHeader memory false memoryEditorData dispatch
+            makeEditorBody memory compId memoryEditorData model dispatch
+        ]
 
 /// Open a popup to view and edit the content of a memory.
 let openMemoryEditor memory compId model dispatch : unit =
+    // Build editor.
     let title = "Memory editor"
     let body = makeEditor memory compId model dispatch
     let foot = makeFoot false dispatch
-    showUnclosablePopup (Some title) body (Some foot) popupExtraStyle dispatch
+    showMemoryEditorPopup (Some title) body (Some foot) popupExtraStyle dispatch
 
 //=============//
 // Diff viewer //
 //=============//
 
-let private makeDiffViewerBody memory1 memory2 dispatch =
+let private makeDiffViewerBody memory1 memory2 memoryEditorData =
     let makeRow addr content1 content2 =
         let hasChanged = content1 <> content2
-        tr [] [
+        let showRow addr =
+            showRowWithAdrr memoryEditorData addr && (
+                not memoryEditorData.OnlyDiff ||
+                memoryEditorData.OnlyDiff && hasChanged)
+        tr [ Style [ Display (if showRow addr then "table-row" else "none")] ] [
             td [] [ str <| hex addr ]
             td [
                 Style [BackgroundColor (if hasChanged then "#ffc6d3" else "auto") ]
@@ -136,16 +197,18 @@ let private makeDiffViewerBody memory1 memory2 dispatch =
     ]
 
 let private makeDiffViewer memory1 memory2 dispatch =
-    div [] [
-        makeEditorHeader memory1
-        makeDiffViewerBody memory1 memory2 dispatch
-    ]
+    fun memoryEditorData ->
+        div [] [
+            makeEditorHeader memory1 true memoryEditorData dispatch
+            makeDiffViewerBody memory1 memory2 memoryEditorData
+        ]
 
-let openMemoryDiffViewer memory1 memory2 dispatch : unit =
+let openMemoryDiffViewer memory1 memory2 model dispatch : unit =
     assertThat (memory1.AddressWidth = memory2.AddressWidth &&
                 memory1.WordWidth = memory2.WordWidth)
     <| sprintf "Memories in diffViewer do not match: %A\n%A" memory1 memory2
+    // Build editor.
     let title = "Memory diff viewer"
     let body = makeDiffViewer memory1 memory2 dispatch
     let foot = makeFoot true dispatch
-    showUnclosablePopup (Some title) body (Some foot) popupExtraStyle dispatch
+    showMemoryEditorPopup (Some title) body (Some foot) popupExtraStyle dispatch

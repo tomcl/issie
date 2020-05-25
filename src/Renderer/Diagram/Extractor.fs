@@ -93,7 +93,14 @@ let private extractConnection (jsConnection : JSConnection) : Connection = {
     Vertices = extractVertices <| getFailIfNull jsConnection ["vertices"; "data"]
 }
 
+let private sortComponents comps =
+    comps |> List.sortBy (fun comp -> comp.X + comp.Y)
+
 /// Transform the JSCanvasState into an f# data structure.
 let extractState (state : JSCanvasState) : CanvasState =
     let (components : JSComponent list), (connections : JSConnection list) = state
-    List.map extractComponent components, List.map extractConnection connections
+    let comps, conns = List.map extractComponent components,
+                       List.map extractConnection connections
+    // Sort components by their location.
+    let comps = sortComponents comps
+    comps, conns

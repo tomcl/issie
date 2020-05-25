@@ -41,7 +41,8 @@ let private parseDiagramSignature canvasState
             | Output width -> extractIO components' inputs ((comp.Label, width) :: outputs)
             | _ -> extractIO components' inputs outputs
     let components, _ = canvasState
-    extractIO components [] []
+    let inputs, outputs = extractIO components [] []
+    List.rev inputs, List.rev outputs
 
 let private getBaseNameNoExtension filePath =
     let baseName = path.basename filePath

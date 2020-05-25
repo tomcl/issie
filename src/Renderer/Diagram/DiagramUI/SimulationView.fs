@@ -128,7 +128,7 @@ let private viewSimulationOutputs (simOutputs : (SimulationIO * WireData) list) 
         |> List.map makeOutputLine
     )
 
-let private viewStatefulComponents comps dispatch =
+let private viewStatefulComponents comps model dispatch =
     let getWithDefault (ComponentLabel lab) = if lab = "" then "no-label" else lab
     let makeStateLine (comp : SimulationComponent) =
         match comp.State with
@@ -143,7 +143,7 @@ let private viewStatefulComponents comps dispatch =
                     Button.Props [ simulationBitStyle ]
                     Button.Color IsInfo
                     Button.OnClick (fun _ ->
-                        openMemoryDiffViewer (initialMem comp.Type) mem dispatch
+                        openMemoryDiffViewer (initialMem comp.Type) mem model dispatch
                     )
                 ] [ str "View" ]
             [ splittedLine (str label) viewDiffBtn ]
@@ -172,7 +172,7 @@ let private viewSimulationError (simError : SimulationError) =
         error
     ]
 
-let private viewSimulationData (simData : SimulationData) dispatch =
+let private viewSimulationData (simData : SimulationData) model dispatch =
     let maybeClockTickBtn =
         match simData.IsSynchronous with
         | false -> div [] []
@@ -195,7 +195,7 @@ let private viewSimulationData (simData : SimulationData) dispatch =
         viewSimulationOutputs <| extractSimulationIOs simData.Outputs simData.Graph
 
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Stateful components" ]
-        viewStatefulComponents (extractStatefulComponents simData.Graph) dispatch
+        viewStatefulComponents (extractStatefulComponents simData.Graph) model dispatch
     ]
 
 let viewSimulation model dispatch =
@@ -231,7 +231,7 @@ let viewSimulation model dispatch =
     | Some sim ->
         let body = match sim with
                    | Error simError -> viewSimulationError simError
-                   | Ok simData -> viewSimulationData simData dispatch
+                   | Ok simData -> viewSimulationData simData model dispatch
         let endSimulation _ =
             dispatch CloseSimulationNotification // Close error notifications.
             dispatch <| SetHighlighted ([], []) // Remove highlights.

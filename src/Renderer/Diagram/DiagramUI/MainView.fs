@@ -34,7 +34,12 @@ let init() = {
     CreateComponentOffset = 0
     HasUnsavedChanges = false
     Popup = None
-    PopupDialogData = {Text = None; Int = None; MemorySetup = None}
+    PopupDialogData = {
+        Text = None
+        Int = None
+        MemorySetup = None
+        MemoryEditorData = None
+    }
     Notifications = {
         FromDiagram = None
         FromSimulation = None
@@ -207,13 +212,17 @@ let update msg model =
     | SetProject project -> { model with CurrProject = Some project }
     | CloseProject -> { model with CurrProject = None }
     | ShowPopup popup -> { model with Popup = Some popup }
-    | ClosePopup -> { model with Popup = None; PopupDialogData = {Text = None; Int = None; MemorySetup = None} }
+    | ClosePopup ->
+        { model with Popup = None; PopupDialogData =
+                    { Text = None; Int = None; MemorySetup = None; MemoryEditorData = None} }
     | SetPopupDialogText text ->
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }
     | SetPopupDialogInt int ->
         { model with PopupDialogData = {model.PopupDialogData with Int = int} }
     | SetPopupDialogMemorySetup m ->
         { model with PopupDialogData = {model.PopupDialogData with MemorySetup = m} }
+    | SetPopupMemoryEditorData m ->
+        { model with PopupDialogData = {model.PopupDialogData with MemoryEditorData = m} }
     | CloseDiagramNotification ->
         { model with Notifications = {model.Notifications with FromDiagram = None} }
     | SetSimulationNotification n ->

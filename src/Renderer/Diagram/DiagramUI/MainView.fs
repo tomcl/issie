@@ -34,7 +34,12 @@ let init() = {
     CreateComponentOffset = 0
     HasUnsavedChanges = false
     Popup = None
-    PopupDialogData = {Text = None; Int = None; MemorySetup = None}
+    PopupDialogData = {
+        Text = None
+        Int = None
+        MemorySetup = None
+        MemoryEditorData = None
+    }
     Notifications = {
         FromDiagram = None
         FromSimulation = None
@@ -185,6 +190,13 @@ let update msg model =
             match sim with
             | Error _ -> failwithf "what? Simulation graph set when simulation is error"
             | Ok simData -> { model with Simulation = { simData with Graph = graph } |> Ok |> Some }
+    | SetSimulationBase numBase ->
+        match model.Simulation with
+        | None -> failwithf "what? Simulation base set when no simulation running"
+        | Some sim ->
+            match sim with
+            | Error _ -> failwithf "what? Simulation base set when simulation is error"
+            | Ok simData -> { model with Simulation = { simData with NumberBase = numBase } |> Ok |> Some }
     | EndSimulation -> { model with Simulation = None }
     | ChangeRightTab newTab -> { model with RightTab = newTab }
     | SetHighlighted (componentIds, connectionIds) ->
@@ -207,13 +219,17 @@ let update msg model =
     | SetProject project -> { model with CurrProject = Some project }
     | CloseProject -> { model with CurrProject = None }
     | ShowPopup popup -> { model with Popup = Some popup }
-    | ClosePopup -> { model with Popup = None; PopupDialogData = {Text = None; Int = None; MemorySetup = None} }
+    | ClosePopup ->
+        { model with Popup = None; PopupDialogData =
+                    { Text = None; Int = None; MemorySetup = None; MemoryEditorData = None} }
     | SetPopupDialogText text ->
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }
     | SetPopupDialogInt int ->
         { model with PopupDialogData = {model.PopupDialogData with Int = int} }
     | SetPopupDialogMemorySetup m ->
         { model with PopupDialogData = {model.PopupDialogData with MemorySetup = m} }
+    | SetPopupMemoryEditorData m ->
+        { model with PopupDialogData = {model.PopupDialogData with MemoryEditorData = m} }
     | CloseDiagramNotification ->
         { model with Notifications = {model.Notifications with FromDiagram = None} }
     | SetSimulationNotification n ->

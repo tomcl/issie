@@ -22,6 +22,7 @@ open JSHelpers
 open Helpers
 open DiagramMessageType
 open DiagramModelType
+open DiagramTypes
 open DiagramStyle
 
 //========//
@@ -37,14 +38,35 @@ let getInt (dialogData : PopupDialogData) =
 let getMemorySetup (dialogData : PopupDialogData) =
     Option.defaultValue (1,1) dialogData.MemorySetup
 
+let getMemoryEditor (dialogData : PopupDialogData) =
+    Option.defaultValue
+        { Address = None; OnlyDiff = false; NumberBase = Hex }
+        dialogData.MemoryEditorData
+
 /// Unclosable popup.
-let stablePopup body =
+let unclosablePopup maybeTitle body maybeFoot extraStyle =
+    let head =
+        match maybeTitle with
+        | None -> div [] []
+        | Some title -> Modal.Card.head [] [ Modal.Card.title [] [ str title ] ]
+    let foot =
+        match maybeFoot with
+        | None -> div [] []
+        | Some foot -> Modal.Card.foot [] [ foot ]
     Modal.modal [ Modal.IsActive true ] [
         Modal.background [] []
-        Modal.Card.card [] [
+        Modal.Card.card [Props [Style extraStyle]] [
+            head
             Modal.Card.body [] [ body ]
+            foot
         ]
     ]
+
+let showMemoryEditorPopup maybeTitle body maybeFoot extraStyle dispatch =
+    fun dialogData ->
+        let memoryEditorData = getMemoryEditor dialogData
+        unclosablePopup maybeTitle (body memoryEditorData) maybeFoot extraStyle
+    |> ShowPopup |> dispatch
 
 let private buildPopup title body foot close extraStyle =
     fun (dialogData : PopupDialogData) ->
@@ -66,8 +88,7 @@ let private buildPopup title body foot close extraStyle =
 /// current value of the input box.).
 let private dynamicClosablePopup title body foot extraStyle dispatch =
     buildPopup title body foot (fun _ -> dispatch ClosePopup) extraStyle
-    |> ShowPopup
-    |> dispatch
+    |> ShowPopup |> dispatch
 
 /// Create a popup and add it to the page. Body and foot are static content.
 /// Can be closed by the ClosePopup message.
@@ -213,17 +234,12 @@ let viewPopup model =
 let errorNotification text closeMsg =
     fun dispatch ->
         let close = (fun _ -> dispatch closeMsg)
-        div [errorNotificationStyle] [
-            Level.level [ Level.Level.Props [Style [Width "100%"] ] ] [
-                Level.left [] [
-                    Level.item
-                        [Level.Item.Props [Style [WordWrap "break-word"]]]
-                        [ str text ]
-                ]
-                Level.right [ Props [Style [MarginLeft "10px"] ] ] [
-                    Level.item [] [ Delete.delete [ Delete.OnClick close ] [] ]
-                ]
-            ]
+        Notification.notification [
+            Notification.Color IsDanger
+            Notification.Props [ notificationStyle ]
+        ] [
+            Delete.delete [ Delete.OnClick close ] []
+            str text
         ]
 
 let viewNotifications model dispatch =

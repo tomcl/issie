@@ -99,3 +99,9 @@ type Project = {
     OpenFileName : string
     LoadedComponents : LoadedComponent list
 }
+
+//=======//
+// Other //
+//=======//
+
+type NumberBase = | Hex | Dec | Bin

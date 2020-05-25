@@ -46,6 +46,7 @@ let prepareSimulation
                 Inputs = inputs;
                 Outputs = outputs
                 IsSynchronous = hasSynchronousComponents graph
+                NumberBase = Hex
             }
 
 /// Expose the feedSimulationInput function from SimulationRunner.
@@ -56,6 +57,16 @@ let feedClockTick = SimulationRunner.feedClockTick
 
 /// Expose the extractSimulationIOs function from SimulationRunner.
 let extractSimulationIOs = SimulationRunner.extractSimulationIOs
+
+/// Get some info and the state of all stateful components in a graph.
+let extractStatefulComponents
+        (graph : SimulationGraph)
+        : SimulationComponent list =
+    graph
+    |> Map.toList
+    |> List.map snd
+    |> List.filter (fun comp -> comp.State <> NoState)
+    // TODO: recursively search custom components?
 
 /// Given a list of N generic elements, associate each element with a bit and
 /// return 2^N lists with all the possible bit combinations.

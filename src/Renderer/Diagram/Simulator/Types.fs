@@ -87,6 +87,8 @@ type SimulationData = {
     Outputs : SimulationIO list
     // Whether the graph contains synchronous logic.
     IsSynchronous : bool
+    // The base that should be used to display numbers in the simulation.
+    NumberBase : NumberBase
 }
 
 type SimulationError = {

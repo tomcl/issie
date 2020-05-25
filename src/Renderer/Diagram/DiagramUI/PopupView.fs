@@ -232,17 +232,12 @@ let viewPopup model =
 let errorNotification text closeMsg =
     fun dispatch ->
         let close = (fun _ -> dispatch closeMsg)
-        div [errorNotificationStyle] [
-            Level.level [ Level.Level.Props [Style [Width "100%"] ] ] [
-                Level.left [] [
-                    Level.item
-                        [Level.Item.Props [Style [WordWrap "break-word"]]]
-                        [ str text ]
-                ]
-                Level.right [ Props [Style [MarginLeft "10px"] ] ] [
-                    Level.item [] [ Delete.delete [ Delete.OnClick close ] [] ]
-                ]
-            ]
+        Notification.notification [
+            Notification.Color IsDanger
+            Notification.Props [ notificationStyle ]
+        ] [
+            Delete.delete [ Delete.OnClick close ] []
+            str text
         ]
 
 let viewNotifications model dispatch =

@@ -144,7 +144,7 @@ let private viewStatefulComponents comps model dispatch =
             let viewDiffBtn =
                 Button.button [
                     Button.Props [ simulationBitStyle ]
-                    Button.Color IsInfo
+                    Button.Color IsPrimary
                     Button.OnClick (fun _ ->
                         openMemoryDiffViewer (initialMem comp.Type) mem model dispatch
                     )

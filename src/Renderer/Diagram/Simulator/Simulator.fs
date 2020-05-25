@@ -46,6 +46,7 @@ let prepareSimulation
                 Inputs = inputs;
                 Outputs = outputs
                 IsSynchronous = hasSynchronousComponents graph
+                NumberBase = Hex
             }
 
 /// Expose the feedSimulationInput function from SimulationRunner.

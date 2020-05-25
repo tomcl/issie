@@ -11,8 +11,6 @@ type RightTab =
     | Catalogue
     | Simulation
 
-type NumberBase = | Hex | Dec | Bin
-
 type MemoryEditorData = {
     OnlyDiff : bool // Only show diffs in Memory Diff Viewer.
     Address : int option // Only show the specified memory address.
@@ -45,6 +43,7 @@ type Msg =
     | JSDiagramMsg of JSDiagramMsg
     | StartSimulation of Result<SimulationData, SimulationError>
     | SetSimulationGraph of SimulationGraph
+    | SetSimulationBase of NumberBase
     | EndSimulation
     | ChangeRightTab of RightTab
     | SetHighlighted of ComponentId list * ConnectionId list

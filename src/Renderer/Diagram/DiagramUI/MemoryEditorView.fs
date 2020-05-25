@@ -47,35 +47,32 @@ let private showRowWithAdrr memoryEditorData addr =
     | Some a when a = addr -> true
     | _ -> false
 
-let private viewNum memoryEditorData =
-    match memoryEditorData.NumberBase with
-    | Hex -> hex64
-    | Dec -> dec64
-    | Bin -> bin64
-
-let private changeBase memoryEditorData dispatch numBase =
-    { memoryEditorData with NumberBase = numBase }
-    |> Some |> SetPopupMemoryEditorData |> dispatch
+let viewNum numBase =
+    match numBase with | Hex -> hex64 | Dec -> dec64 | Bin -> bin64
 
 // let private baseToStr b = match b with | Hex -> "hex" | Dec -> "dec" | Bin -> "bin"
 
-let private baseSelector memoryEditorData dispatch =
+let baseSelector numBase changeBase =
     Level.item [ Level.Item.HasTextCentered ] [
         Field.div [ Field.HasAddonsCentered ] [
             Control.div [] [ Button.button [
-                Button.Color (if memoryEditorData.NumberBase = Hex then IsPrimary else NoColor)
-                Button.OnClick (fun _ -> changeBase memoryEditorData dispatch Hex)
+                Button.Color (if numBase = Hex then IsPrimary else NoColor)
+                Button.OnClick (fun _ -> changeBase Hex)
             ] [ str "hex" ] ]
             Control.div [] [ Button.button [
-                Button.Color (if memoryEditorData.NumberBase = Dec then IsPrimary else NoColor)
-                Button.OnClick (fun _ -> changeBase memoryEditorData dispatch Dec)
+                Button.Color (if numBase = Dec then IsPrimary else NoColor)
+                Button.OnClick (fun _ -> changeBase Dec)
             ] [ str "dec" ] ]
             Control.div [] [ Button.button [
-                Button.Color (if memoryEditorData.NumberBase = Bin then IsPrimary else NoColor)
-                Button.OnClick (fun _ -> changeBase memoryEditorData dispatch Bin)
+                Button.Color (if numBase = Bin then IsPrimary else NoColor)
+                Button.OnClick (fun _ -> changeBase Bin)
             ] [ str "bin" ] ]
         ]
     ]
+
+let changeBase memoryEditorData dispatch numBase =
+    { memoryEditorData with NumberBase = numBase }
+    |> Some |> SetPopupMemoryEditorData |> dispatch
 
 //========//
 // Editor //
@@ -94,7 +91,7 @@ let private makeEditorHeader memory isDiff memoryEditorData dispatch =
                 Input.text [
                     Input.Props [ Style [ MarginLeft "10px"; Width "80px" ] ]
                     Input.DefaultValue ""
-                    Input.Placeholder <| viewNum memoryEditorData (int64 0)
+                    Input.Placeholder <| viewNum memoryEditorData.NumberBase (int64 0)
                     Input.OnChange (getTextEventValue >> fun text ->
                         match text with
                         | "" -> closeError dispatch
@@ -113,7 +110,7 @@ let private makeEditorHeader memory isDiff memoryEditorData dispatch =
                     )
                 ]
             ]
-            baseSelector memoryEditorData dispatch
+            baseSelector memoryEditorData.NumberBase (changeBase memoryEditorData dispatch)
         ] @ (if isDiff // Add extra filter.
             then [
                 Level.item [ Level.Item.HasTextCentered ] [
@@ -136,7 +133,7 @@ let private makeEditorHeader memory isDiff memoryEditorData dispatch =
 
 let private makeEditorBody memory compId memoryEditorData model dispatch =
     let showRow = showRowWithAdrr memoryEditorData
-    let viewNum = viewNum memoryEditorData
+    let viewNum = viewNum memoryEditorData.NumberBase
     let makeRow addr content =
         tr [ Style [ Display (if showRow addr then "table-row" else "none")] ] [
             td [] [ str <| viewNum (int64 addr) ]
@@ -203,7 +200,7 @@ let openMemoryEditor memory compId model dispatch : unit =
 //=============//
 
 let private makeDiffViewerBody memory1 memory2 memoryEditorData =
-    let viewNum = viewNum memoryEditorData
+    let viewNum = viewNum memoryEditorData.NumberBase
     let makeRow addr content1 content2 =
         let hasChanged = content1 <> content2
         let showRow addr =

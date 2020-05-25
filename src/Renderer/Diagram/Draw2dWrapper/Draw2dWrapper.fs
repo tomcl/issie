@@ -58,6 +58,7 @@ type private IDraw2d =
     abstract createDigitalMergeWires      : x:int -> y:int -> JSComponent
     abstract createDigitalSplitWire       : x:int -> y:int -> topOutputWidth:int -> JSComponent
     abstract createDigitalDFF             : x:int -> y:int -> JSComponent
+    abstract createDigitalAsyncROM        : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
     abstract createDigitalROM             : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
     abstract createDigitalRAM             : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
@@ -125,6 +126,9 @@ let private createComponent
         | MergeWires -> draw2dLib.createDigitalMergeWires x y
         | SplitWire topWireWidth -> draw2dLib.createDigitalSplitWire x y topWireWidth
         | DFF -> draw2dLib.createDigitalDFF x y
+        | AsyncROM mem ->
+            draw2dLib.createDigitalAsyncROM
+                x y mem.AddressWidth mem.WordWidth (fshaprListToJsList mem.Data)
         | ROM mem ->
             draw2dLib.createDigitalROM
                 x y mem.AddressWidth mem.WordWidth (fshaprListToJsList mem.Data)

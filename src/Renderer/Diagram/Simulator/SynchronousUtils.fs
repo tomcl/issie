@@ -16,7 +16,7 @@ let couldBeSynchronousComponent compType : bool =
     match compType with
     | DFF | ROM _ | RAM _ | Custom _ -> true // We have to assume custom components are clocked as they may be.
     | Input _ | Output _ | MergeWires | SplitWire _ | Not | And | Or | Xor
-    | Nand | Nor | Xnor | Mux2 | Demux2 -> false
+    | Nand | Nor | Xnor | Mux2 | Demux2 | AsyncROM _ -> false
 
 /// Find out whether a simulation graph has some synchronous components.
 let rec hasSynchronousComponents graph : bool =
@@ -26,7 +26,7 @@ let rec hasSynchronousComponents graph : bool =
             | DFF | ROM _ | RAM _ -> true
             | Custom _ -> hasSynchronousComponents <| Option.get comp.CustomSimulationGraph
             | Input _ | Output _ | MergeWires | SplitWire _ | Not | And | Or
-            | Xor | Nand | Nor | Xnor | Mux2 | Demux2 -> false
+            | Xor | Nand | Nor | Xnor | Mux2 | Demux2 | AsyncROM _ -> false
         )
     |> Map.tryPick (fun compId isSync -> if isSync then Some () else None)
     |> function | Some _ -> true | None -> false
@@ -48,7 +48,7 @@ let isSynchronousComponent
         | None -> failwithf "what? could not find custom component name in the hasRoutesFromInputToOutpuMap: %s" custom.Name
         | Some hasRoutes -> not hasRoutes
     | Input _ | Output _ | MergeWires | SplitWire _ | Not | And | Or | Xor
-    | Nand | Nor | Xnor | Mux2 | Demux2 -> false
+    | Nand | Nor | Xnor | Mux2 | Demux2 | AsyncROM _ -> false
 
 let isInput = function | Input _ -> true | _ -> false
 let isOutput = function | Output _ -> true | _ -> false

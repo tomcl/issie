@@ -47,6 +47,36 @@ let private showRowWithAdrr memoryEditorData addr =
     | Some a when a = addr -> true
     | _ -> false
 
+let private viewNum memoryEditorData =
+    match memoryEditorData.NumberBase with
+    | Hex -> hex64
+    | Dec -> dec64
+    | Bin -> bin64
+
+let private changeBase memoryEditorData dispatch numBase =
+    { memoryEditorData with NumberBase = numBase }
+    |> Some |> SetPopupMemoryEditorData |> dispatch
+
+// let private baseToStr b = match b with | Hex -> "hex" | Dec -> "dec" | Bin -> "bin"
+
+let private baseSelector memoryEditorData dispatch =
+    Level.item [ Level.Item.HasTextCentered ] [
+        Field.div [ Field.HasAddonsCentered ] [
+            Control.div [] [ Button.button [
+                Button.Color (if memoryEditorData.NumberBase = Hex then IsPrimary else NoColor)
+                Button.OnClick (fun _ -> changeBase memoryEditorData dispatch Hex)
+            ] [ str "hex" ] ]
+            Control.div [] [ Button.button [
+                Button.Color (if memoryEditorData.NumberBase = Dec then IsPrimary else NoColor)
+                Button.OnClick (fun _ -> changeBase memoryEditorData dispatch Dec)
+            ] [ str "dec" ] ]
+            Control.div [] [ Button.button [
+                Button.Color (if memoryEditorData.NumberBase = Bin then IsPrimary else NoColor)
+                Button.OnClick (fun _ -> changeBase memoryEditorData dispatch Bin)
+            ] [ str "bin" ] ]
+        ]
+    ]
+
 //========//
 // Editor //
 //========//
@@ -64,7 +94,7 @@ let private makeEditorHeader memory isDiff memoryEditorData dispatch =
                 Input.text [
                     Input.Props [ Style [ MarginLeft "10px"; Width "80px" ] ]
                     Input.DefaultValue ""
-                    Input.Placeholder "0x0"
+                    Input.Placeholder <| viewNum memoryEditorData (int64 0)
                     Input.OnChange (getTextEventValue >> fun text ->
                         match text with
                         | "" -> closeError dispatch
@@ -83,6 +113,7 @@ let private makeEditorHeader memory isDiff memoryEditorData dispatch =
                     )
                 ]
             ]
+            baseSelector memoryEditorData dispatch
         ] @ (if isDiff // Add extra filter.
             then [
                 Level.item [ Level.Item.HasTextCentered ] [
@@ -105,12 +136,16 @@ let private makeEditorHeader memory isDiff memoryEditorData dispatch =
 
 let private makeEditorBody memory compId memoryEditorData model dispatch =
     let showRow = showRowWithAdrr memoryEditorData
+    let viewNum = viewNum memoryEditorData
     let makeRow addr content =
         tr [ Style [ Display (if showRow addr then "table-row" else "none")] ] [
-            td [] [ str <| hex addr ]
+            td [] [ str <| viewNum (int64 addr) ]
             td [] [
                 Input.text [
-                    Input.DefaultValue <| hex64 content
+                    // Refreshing at every base change overrides the changes in
+                    // the textboxes.
+                    //Input.Props [ Key <| baseToStr memoryEditorData.NumberBase ] 
+                    Input.DefaultValue <| viewNum content
                     Input.OnChange (getTextEventValue >> fun text ->
                         match strToIntCheckWidth text memory.WordWidth with
                         | Ok value ->
@@ -168,6 +203,7 @@ let openMemoryEditor memory compId model dispatch : unit =
 //=============//
 
 let private makeDiffViewerBody memory1 memory2 memoryEditorData =
+    let viewNum = viewNum memoryEditorData
     let makeRow addr content1 content2 =
         let hasChanged = content1 <> content2
         let showRow addr =
@@ -175,13 +211,13 @@ let private makeDiffViewerBody memory1 memory2 memoryEditorData =
                 not memoryEditorData.OnlyDiff ||
                 memoryEditorData.OnlyDiff && hasChanged)
         tr [ Style [ Display (if showRow addr then "table-row" else "none")] ] [
-            td [] [ str <| hex addr ]
+            td [] [ str <| viewNum (int64 addr) ]
             td [
                 Style [BackgroundColor (if hasChanged then "#ffc6d3" else "auto") ]
-            ] [ str <| hex64 content1 ]
+            ] [ str <| viewNum content1 ]
             td [
                 Style [BackgroundColor (if hasChanged then "#baffd3" else "auto") ]
-            ] [ str <| hex64 content2 ]
+            ] [ str <| viewNum content2 ]
         ]
     div [bodyStyle] [
         Table.table [ Table.IsFullWidth ] [

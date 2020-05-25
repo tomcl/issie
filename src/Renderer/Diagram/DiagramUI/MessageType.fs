@@ -11,9 +11,12 @@ type RightTab =
     | Catalogue
     | Simulation
 
+type NumberBase = | Hex | Dec | Bin
+
 type MemoryEditorData = {
     OnlyDiff : bool // Only show diffs in Memory Diff Viewer.
     Address : int option // Only show the specified memory address.
+    NumberBase : NumberBase
 }
 
 /// Possible fields that may (or may not) be used in a dialog popup.

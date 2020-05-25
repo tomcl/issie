@@ -15,6 +15,7 @@ open Helpers
 open JSHelpers
 open DiagramStyle
 open PopupView
+open MemoryEditorView
 open DiagramMessageType
 open DiagramModelType
 open DiagramTypes
@@ -128,19 +129,22 @@ let private viewSimulationOutputs (simOutputs : (SimulationIO * WireData) list) 
     )
 
 let private viewStatefulComponents comps dispatch =
-    let getWithDefault lab = if lab = "" then "no-label" else lab
-    let makeStateLine (compType, ComponentLabel compLabel, state) =
-        match state with
+    let getWithDefault (ComponentLabel lab) = if lab = "" then "no-label" else lab
+    let makeStateLine (comp : SimulationComponent) =
+        match comp.State with
         | DffState bit ->
-            let label = sprintf "DFF: %s" <| getWithDefault compLabel
+            let label = sprintf "DFF: %s" <| getWithDefault comp.Label
             [ splittedLine (str label) (staticBitButton bit) ]
         | RamState mem ->
-            let label = sprintf "RAM: %s" <| getWithDefault compLabel
+            let label = sprintf "RAM: %s" <| getWithDefault comp.Label
+            let initialMem compType = match compType with RAM m -> m | _ -> failwithf "what? viewStatefulComponents expected RAM component but got: %A" compType 
             let viewDiffBtn =
                 Button.button [
                     Button.Props [ simulationBitStyle ]
                     Button.Color IsInfo
-                    //Button.OnClick (fun _ ->) TODO
+                    Button.OnClick (fun _ ->
+                        openMemoryDiffViewer (initialMem comp.Type) mem dispatch
+                    )
                 ] [ str "View" ]
             [ splittedLine (str label) viewDiffBtn ]
         | NoState -> []

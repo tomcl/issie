@@ -60,11 +60,11 @@ let extractSimulationIOs = SimulationRunner.extractSimulationIOs
 /// Get some info and the state of all stateful components in a graph.
 let extractStatefulComponents
         (graph : SimulationGraph)
-        : (ComponentType * ComponentLabel * SimulationComponentState) list =
+        : SimulationComponent list =
     graph
     |> Map.toList
-    |> List.map (fun (compId,comp) -> comp.Type, comp.Label, comp.State)
-    |> List.filter (fun (_,_,state) -> state <> NoState)
+    |> List.map snd
+    |> List.filter (fun comp -> comp.State <> NoState)
     // TODO: recursively search custom components?
 
 /// Given a list of N generic elements, associate each element with a bit and

@@ -93,12 +93,7 @@ let private viewSimulationInputs
                     ]
                 ]
         splittedLine (str <| makeIOLabel inputLabel width) valueHandle
-    let inputLines =
-        // Sort inputs by label.
-        inputs
-        |> List.sortBy (fun ((_, ComponentLabel label, _), _) -> label)
-        |> List.map makeInputLine
-    div [] inputLines
+    div [] <| List.map makeInputLine inputs
 
 let private staticBitButton bit =
     Button.button [
@@ -125,11 +120,7 @@ let private viewSimulationOutputs numBase (simOutputs : (SimulationIO * WireData
                     Input.Props [simulationNumberStyle]
                 ]
         splittedLine (str <| makeIOLabel outputLabel width) valueHandle
-    div [] (
-        simOutputs
-        |> List.sortBy (fun ((_, ComponentLabel label, _), _) -> label)
-        |> List.map makeOutputLine
-    )
+    div [] <| List.map makeOutputLine simOutputs
 
 let private viewStatefulComponents comps model dispatch =
     let getWithDefault (ComponentLabel lab) = if lab = "" then "no-label" else lab

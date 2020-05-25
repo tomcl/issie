@@ -39,7 +39,8 @@ let getMemorySetup (dialogData : PopupDialogData) =
 
 let getMemoryEditor (dialogData : PopupDialogData) =
     Option.defaultValue
-        { Address = None; OnlyDiff = false } dialogData.MemoryEditorData
+        { Address = None; OnlyDiff = false; NumberBase = Hex }
+        dialogData.MemoryEditorData
 
 /// Unclosable popup.
 let unclosablePopup maybeTitle body maybeFoot extraStyle =

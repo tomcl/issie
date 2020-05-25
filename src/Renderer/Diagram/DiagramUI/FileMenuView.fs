@@ -48,13 +48,13 @@ let private reloadProjectComponents dispatch project =
         project
     | Ok components -> { project with LoadedComponents = components }
 
+/// Save the file currently open.
 let private saveOpenFileAction model =
     match model.Diagram.GetCanvasState (), model.CurrProject with
     | None, _ | _, None -> ()
-    | Some state, Some project ->
-        extractState state
+    | Some jsState, Some project ->
+        extractState jsState
         |> saveStateToFile project.ProjectPath project.OpenFileName
-        |> ignore
 
 let private getFileInProject name project =
     project.LoadedComponents
@@ -107,7 +107,7 @@ let private removeFileInProject name project model dispatch =
     | false -> ()
     | true -> openFileInProject project.LoadedComponents.[0].Name project model dispatch
 
-/// Create a new file in this project. Do not open it automatically.
+/// Create a new file in this project and open it automatically.
 let private addFileToProject model dispatch =
     match model.CurrProject with
     | None -> log "Warning: addFileToProject called when no project is currently open"
@@ -132,8 +132,10 @@ let private addFileToProject model dispatch =
         let buttonText = "Add"
         let buttonAction =
             fun (dialogData : PopupDialogData) ->
-                let name = getText dialogData
+                // Save current file.
+                saveOpenFileAction model
                 // Create empty file.
+                let name = getText dialogData
                 createEmptyDgmFile project.ProjectPath name
                 // Add the file to the project.
                 let newComponent = {
@@ -143,8 +145,14 @@ let private addFileToProject model dispatch =
                     InputLabels = []
                     OutputLabels = []
                 }
-                { project with LoadedComponents = newComponent :: project.LoadedComponents }
-                |> SetProject |> dispatch
+                let updatedProject =
+                    { project with
+                        LoadedComponents = newComponent :: project.LoadedComponents
+                        OpenFileName = name }
+                // Update the project.
+                updatedProject |> SetProject |> dispatch
+                // Open the file.
+                openFileInProject name updatedProject model dispatch
                 // Close the popup.
                 dispatch ClosePopup
         let isDisabled =

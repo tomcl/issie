@@ -176,6 +176,12 @@ let private viewSimulationError (simError : SimulationError) =
     ]
 
 let private viewSimulationData (simData : SimulationData) model dispatch =
+    let hasMultiBitOutputs =
+        simData.Outputs |> List.filter (fun (_,_,w) -> w > 1) |> List.isEmpty |> not
+    let maybeBaseSelector =
+        match hasMultiBitOutputs with
+        | false -> div [] []
+        | true -> baseSelector simData.NumberBase (changeBase dispatch)
     let maybeClockTickBtn =
         match simData.IsSynchronous with
         | false -> div [] []
@@ -186,9 +192,16 @@ let private viewSimulationData (simData : SimulationData) model dispatch =
                     feedClockTick simData.Graph |> SetSimulationGraph |> dispatch
                 )
             ] [ str "Clock Tick" ]
+    let maybeStatefulComponents =
+        let stateful = extractStatefulComponents simData.Graph
+        match List.isEmpty stateful with
+        | true -> div [] []
+        | false -> div [] [
+            Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Stateful components" ]
+            viewStatefulComponents (extractStatefulComponents simData.Graph) model dispatch
+        ]
     div [] [
-        splittedLine (baseSelector simData.NumberBase (changeBase dispatch))
-                     maybeClockTickBtn
+        splittedLine maybeBaseSelector maybeClockTickBtn
 
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Inputs" ]
         viewSimulationInputs
@@ -201,8 +214,7 @@ let private viewSimulationData (simData : SimulationData) model dispatch =
         viewSimulationOutputs simData.NumberBase
         <| extractSimulationIOs simData.Outputs simData.Graph
 
-        Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Stateful components" ]
-        viewStatefulComponents (extractStatefulComponents simData.Graph) model dispatch
+        maybeStatefulComponents
     ]
 
 let viewSimulation model dispatch =

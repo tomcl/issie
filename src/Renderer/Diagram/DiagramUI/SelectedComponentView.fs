@@ -54,8 +54,11 @@ let private makeDescription comp model dispatch =
             ul [] (toHTMLList custom.OutputLabels)
         ]
     | DFF -> div [] [ str "D-flip-flop. The component is implicitly connected to the global clock." ]
+    | AsyncROM mem ->
+        let descr = "Asynchronous ROM: the output is updated as soon as the address changes."
+        makeMemoryInfo descr mem comp.Id model dispatch
     | ROM mem ->
-        let descr = "Synchronous ROM: the new data are put on the wire only upon a clock tick. The component is implicitly connected to the global clock."
+        let descr = "Synchronous ROM: the output is updated only after a clock tick. The component is implicitly connected to the global clock."
         makeMemoryInfo descr mem comp.Id model dispatch
     | RAM mem ->
         let descr =

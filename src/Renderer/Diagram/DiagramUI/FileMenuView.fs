@@ -223,7 +223,7 @@ let viewNoProjectMenu model dispatch =
         ]
     match model.CurrProject with
     | Some _ -> div [] []
-    | None -> stablePopup initialMenu
+    | None -> unclosablePopup None initialMenu None []
 
 /// Display top menu.
 let viewTopMenu model dispatch =

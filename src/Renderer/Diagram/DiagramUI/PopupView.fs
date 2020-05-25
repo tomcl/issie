@@ -38,13 +38,27 @@ let getMemorySetup (dialogData : PopupDialogData) =
     Option.defaultValue (1,1) dialogData.MemorySetup
 
 /// Unclosable popup.
-let stablePopup body =
+let unclosablePopup maybeTitle body maybeFoot extraStyle =
+    let head =
+        match maybeTitle with
+        | None -> div [] []
+        | Some title -> Modal.Card.head [] [ Modal.Card.title [] [ str title ] ]
+    let foot =
+        match maybeFoot with
+        | None -> div [] []
+        | Some foot -> Modal.Card.foot [] [ foot ]
     Modal.modal [ Modal.IsActive true ] [
         Modal.background [] []
-        Modal.Card.card [] [
+        Modal.Card.card [Props [Style extraStyle]] [
+            head
             Modal.Card.body [] [ body ]
+            foot
         ]
     ]
+
+let showUnclosablePopup maybeTitle body maybeFoot extraStyle dispatch =
+    fun _ -> unclosablePopup maybeTitle body maybeFoot extraStyle
+    |> ShowPopup |> dispatch
 
 let private buildPopup title body foot close extraStyle =
     fun (dialogData : PopupDialogData) ->
@@ -66,8 +80,7 @@ let private buildPopup title body foot close extraStyle =
 /// current value of the input box.).
 let private dynamicClosablePopup title body foot extraStyle dispatch =
     buildPopup title body foot (fun _ -> dispatch ClosePopup) extraStyle
-    |> ShowPopup
-    |> dispatch
+    |> ShowPopup |> dispatch
 
 /// Create a popup and add it to the page. Body and foot are static content.
 /// Can be closed by the ClosePopup message.

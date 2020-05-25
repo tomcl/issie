@@ -104,8 +104,7 @@ let openMemoryEditor memory compId model dispatch : unit =
     let title = "Memory editor"
     let body = makeEditor memory compId model dispatch
     let foot = makeFoot false dispatch
-    // TODO: need to only allow closing via the Done button.
-    closablePopup title body foot popupExtraStyle dispatch
+    showUnclosablePopup (Some title) body (Some foot) popupExtraStyle dispatch
 
 //=============//
 // Diff viewer //
@@ -149,4 +148,4 @@ let openMemoryDiffViewer memory1 memory2 dispatch : unit =
     let title = "Memory diff viewer"
     let body = makeDiffViewer memory1 memory2 dispatch
     let foot = makeFoot true dispatch
-    closablePopup title body foot popupExtraStyle dispatch
+    showUnclosablePopup (Some title) body (Some foot) popupExtraStyle dispatch

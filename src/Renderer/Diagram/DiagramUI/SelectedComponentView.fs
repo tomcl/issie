@@ -27,7 +27,7 @@ let private makeMemoryInfo descr mem compId model dispatch =
         str <| sprintf "Word width: %d bit(s)" mem.WordWidth
         br []; br []
         Button.button [
-            Button.Color IsInfo
+            Button.Color IsPrimary
             Button.OnClick (fun _ -> openMemoryEditor mem compId model dispatch)
         ] [str "View/Edit memory content"]
     ]

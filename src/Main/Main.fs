@@ -42,8 +42,7 @@ let createMainWindow () =
     opts.protocol <- Some "file:"
     window.loadURL(url.format(opts))
 
-    //if hasDebugArgs() then window.webContents.openDevTools()
-    window.webContents.openDevTools()
+    if hasDebugArgs() then window.webContents.openDevTools()
 
     // Emitted when the window is closed.
     window.on("closed", unbox(fun () ->

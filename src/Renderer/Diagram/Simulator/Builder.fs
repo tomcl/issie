@@ -282,6 +282,23 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 // Propagate the output but do not change the state.
                 Map.empty.Add (OutputPortNumber 0, packBit newStateBit)
                 |> makeReducerOutput newState
+    | AsyncROM mem -> // Asynchronous ROM.
+        fun reducerInput ->
+            assertNoClockTick reducerInput componentType
+            assertNotTooManyInputs reducerInput componentType 1
+            let address =
+                match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
+                | None ->
+                    // By default, output the content of mem[0].
+                    List.replicate mem.AddressWidth Zero
+                | Some [addr] ->
+                    assertThat (addr.Length = mem.AddressWidth)
+                    <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth addr
+                    addr
+                | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+            let outData = readMemory mem address
+            Map.empty.Add (OutputPortNumber 0, outData)
+            |> makeReducerOutput NoState
     | ROM mem -> // Synchronous ROM.
         fun reducerInput ->
             match reducerInput.IsClockTick with
@@ -383,7 +400,8 @@ let private mapInputPortIdToPortNumber
 let private getDefaultState compType =
     match compType with
     | Input _ | Output _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2
-    | Demux2 | Custom _ | MergeWires | SplitWire _ | ROM _ -> NoState
+    | Demux2 | Custom _ | MergeWires | SplitWire _ | ROM _
+    | AsyncROM _ -> NoState
     | DFF -> DffState Zero
     | RAM memory -> RamState memory // The RamState content may change during
                                     // the simulation.

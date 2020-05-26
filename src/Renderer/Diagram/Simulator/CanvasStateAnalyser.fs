@@ -173,8 +173,8 @@ let private checkPortsAreConnectedProperly
     match countPortsConnections connections inputCounts outputCounts with
     | Error err -> Some <| err
     | Ok (inputCounts, outputCounts) ->
-        let inputRes = checkEvery inputCounts ((=) 1) "Input port receives %d connections. Every net must have a single driving input."
-        let outputRes = checkEvery outputCounts ((<=) 1) "Output port receives an unexpected number of connections: %d"
+        let inputRes = checkEvery inputCounts ((=) 1) "A wire must have precisely one driving component, but %d were found. If you want to merge wires together, use a MergeWires component."
+        let outputRes = checkEvery outputCounts ((<=) 1) "Output port receives an unexpected number of connections: %d." // This error message should not be triggered.
         match inputRes, outputRes with
         | None, None -> None
         | Some err, _ | _, Some err -> Some err
@@ -189,7 +189,7 @@ let private checkIOLabels (canvasState : CanvasState) : SimulationError option =
             | None -> checkDuplicate comps' map ioType
             | Some compId when compId = comp.Id -> checkDuplicate comps' map ioType
             | Some compId -> Some {
-                Msg = sprintf "Two %s components cannot have the same label: %s" ioType comp.Label
+                Msg = sprintf "Two %s components cannot have the same label: %s." ioType comp.Label
                 InDependency = None
                 ComponentsAffected = [comp.Id; compId] |> List.map ComponentId
                 ConnectionsAffected = []

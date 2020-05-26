@@ -40,7 +40,7 @@ let private getDependencyState
     |> List.tryFind (fun dep -> dep.Name = name)
     |> function | Some dep -> Ok dep.CanvasState
                 | None -> Error {
-                    Msg = sprintf "Unresolved dependency: \"%s\"" name
+                    Msg = sprintf "Could not resolve dependency: \"%s\". Make sure a dependency with such name exists in the current project." name
                     InDependency = None
                     ComponentsAffected = []
                     ConnectionsAffected = []
@@ -170,8 +170,8 @@ let private checkDependenciesAndBuildMap
     let rec prettyPrintCycle (cycle : string list) =
         match cycle with
         | [] -> ""
-        | [name] -> name
-        | name :: cycle' -> name + " --> " + (prettyPrintCycle cycle')
+        | [name] -> "\"" + name + "\""
+        | name :: cycle' -> "\"" + name + "\" --> " + (prettyPrintCycle cycle')
     match buildDependencyGraph currDiagramName state dependencies Map.empty with
     | Error err -> Error err
     | Ok dependencyGraph ->

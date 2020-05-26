@@ -71,7 +71,7 @@ let private createIOPopup typeStr compType model dispatch =
 let private createSplitWirePopup model dispatch =
     let title = sprintf "Add SplitWire node" 
     let beforeInt =
-        fun _ -> str "How many bits should the top wire have? The remaining bits will go in the bottom wire."
+        fun _ -> str "How many bits should go to the top wire? The remaining bits will go to the bottom wire."
     let intDefault = 1
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
@@ -140,7 +140,7 @@ let viewCatalogue model dispatch =
                 "Memories"
                 [ menuItem "ROM (asynchronous)" (fun _ -> createMemoryPopup AsyncROM model dispatch)
                   menuItem "ROM (synchronous)" (fun _ -> createMemoryPopup ROM model dispatch)
-                  menuItem "RAM (synchronous)" (fun _ -> createMemoryPopup RAM model dispatch) ]
+                  menuItem "RAM" (fun _ -> createMemoryPopup RAM model dispatch) ]
             makeMenuGroup
                 "This project"
                 (makeCustomList model)

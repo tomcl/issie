@@ -34,19 +34,19 @@ let private makeMemoryInfo descr mem compId model dispatch =
 
 let private makeDescription comp model dispatch =
     match comp.Type with
-    | Input width -> div [] [ str <| sprintf "Input: %d bit(s)" width ]
-    | Output width -> div [] [ str <| sprintf "Output: %d bit(s)" width ]
+    | Input width -> div [] [ str <| sprintf "Input: %d bit(s)." width ]
+    | Output width -> div [] [ str <| sprintf "Output: %d bit(s)." width ]
     | Not | And | Or | Xor | Nand | Nor | Xnor ->
-        div [] [ str <| sprintf "%A gate" comp.Type ]
-    | Mux2 -> div [] [ str "Multiplexer with two inputs and one output" ]
-    | Demux2 -> div [] [ str "Demultiplexer with one input and two outputs" ]
-    | MergeWires -> div [] [ str "Merge two wires of width n and m into a single wire of width n+m "]
-    | SplitWire width -> div [] [ str <| sprintf "Split a wire of width n+m into two wires of widthn and m (n is %d)" width]
+        div [] [ str <| sprintf "%A gate." comp.Type ]
+    | Mux2 -> div [] [ str "Multiplexer with two inputs and one output." ]
+    | Demux2 -> div [] [ str "Demultiplexer with one input and two outputs." ]
+    | MergeWires -> div [] [ str "Merge two wires of width n and m into a single wire of width n+m." ]
+    | SplitWire width -> div [] [ str <| sprintf "Split a wire of width n+m into two wires of widthn and m (n is %d)." width]
     | Custom custom ->
         let toHTMLList =
             List.map (fun (label, width) -> li [] [str <| sprintf "%s: %d bit(s)" label width])
         div [] [
-            str <| sprintf "%s: user defined component" custom.Name
+            str <| sprintf "%s: user defined component." custom.Name
             br []
             span [Style [FontStyle "italic"]] [str <| "Inputs"]
             ul [] (toHTMLList custom.InputLabels)
@@ -88,7 +88,7 @@ let private formField name defaultValue onChange =
 
 let viewSelectedComponent model dispatch =
     match model.SelectedComponent with
-    | None -> div [] [ str "Select a component in the diagram to view/edit its properties" ]
+    | None -> div [] [ str "Select a component in the diagram to view/edit its properties." ]
     | Some comp ->
         div [] [
             readOnlyFormField "Description" <| makeDescription comp model dispatch

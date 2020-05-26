@@ -120,7 +120,7 @@ let private viewRightTab model dispatch =
     | Catalogue ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str "Catalogue" ]
-            div [ Style [ MarginBottom "15px" ] ] [ str "Click on a component to add it to the diagram" ]
+            div [ Style [ MarginBottom "15px" ] ] [ str "Click on a component to add it to the diagram." ]
             viewCatalogue model dispatch
         ]
     | Properties ->

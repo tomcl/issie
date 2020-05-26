@@ -66,7 +66,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
     "Two inputs and one output",
     ("", state5, [], []),
     makeError
-        "Input port receives 2 connections. Every net must have a single driving input."
+        "A wire must have precisely one driving component, but 2 were found. If you want to merge wires together, use a MergeWires component."
         None
         ["output-node0"]
         []
@@ -74,7 +74,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
     "Two inputs, one And, one output, with extra connection input to output",
     ("", state7, [], []),
     makeError
-        "Input port receives 2 connections. Every net must have a single driving input."
+        "A wire must have precisely one driving component, but 2 were found. If you want to merge wires together, use a MergeWires component."
         None
         ["output"]
         []
@@ -82,7 +82,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
     "Two inputs, one And, one output, with extra connections inputs to and",
     ("", state8, [], []),
     makeError
-        "Input port receives 2 connections. Every net must have a single driving input."
+        "A wire must have precisely one driving component, but 2 were found. If you want to merge wires together, use a MergeWires component."
         None
         ["and"]
         []
@@ -100,7 +100,7 @@ let private testCasesSimulatorDuplicatIOError : SimulatorTestCase list = [
     "Simple circuit with duplicated output label",
     ("", state14, [], []),
     makeError
-        "Two Output components cannot have the same label: output-duplicate-label"
+        "Two Output components cannot have the same label: output-duplicate-label."
         None
         ["output-node0"; "output-node1"]
         []
@@ -108,7 +108,7 @@ let private testCasesSimulatorDuplicatIOError : SimulatorTestCase list = [
     "Simple And circuit with duplicated input label",
     ("", state15, [], []),
     makeError
-        "Two Input components cannot have the same label: input-duplicate-label"
+        "Two Input components cannot have the same label: input-duplicate-label."
         None
         ["top-input"; "bottom-input"]
         []
@@ -223,19 +223,19 @@ let testCasesSimulatorDependencyError : SimulatorTestCase list =
         "Component using itself.",
         (state16Dependency.Name, state20, [state16Dependency], []),
         makeError
-            (sprintf "Found a cycle in dependencies: %s --> %s." state16Dependency.Name state16Dependency.Name)
+            (sprintf "Found a cycle in dependencies: \"%s\" --> \"%s\"." state16Dependency.Name state16Dependency.Name)
             None [] []
 
         "Long cycle starting at root.",
         (state23Dependency.Name, state23, [state21Dependency; state22Dependency], []),
         makeError
-            (sprintf "Found a cycle in dependencies: %s --> %s --> %s --> %s." state23Dependency.Name state21Dependency.Name state22Dependency.Name state23Dependency.Name)
+            (sprintf "Found a cycle in dependencies: \"%s\" --> \"%s\" --> \"%s\" --> \"%s\"." state23Dependency.Name state21Dependency.Name state22Dependency.Name state23Dependency.Name)
             None [] []
 
         "Long cycle.",
         ("main", state24, [state21Dependency; state22Dependency; state23Dependency], []),
         makeError
-            (sprintf "Found a cycle in dependencies: %s --> %s --> %s --> %s." state23Dependency.Name state21Dependency.Name state22Dependency.Name state23Dependency.Name)
+            (sprintf "Found a cycle in dependencies: \"%s\" --> \"%s\" --> \"%s\" --> \"%s\"." state23Dependency.Name state21Dependency.Name state22Dependency.Name state23Dependency.Name)
             None [] []
 
         // Missing dependencies.
@@ -243,19 +243,19 @@ let testCasesSimulatorDependencyError : SimulatorTestCase list =
         "2 bit full adder missing dependencies",
         ("2-bit-adder", twoBitAdderState, [], []),
         makeError
-            "Unresolved dependency: \"full-adder\""
+            "Could not resolve dependency: \"full-adder\". Make sure a dependency with such name exists in the current project."
             (Some "2-bit-adder") [] []
 
         "2 bit full adder missing half adder dependency",
         ("2-bit-adder", twoBitAdderState, [fullAdderDependency], []),
         makeError
-            "Unresolved dependency: \"half-adder\""
+            "Could not resolve dependency: \"half-adder\". Make sure a dependency with such name exists in the current project."
             (Some "full-adder") [] []
 
         "2 bit full adder missing full adder dependency",
         ("2-bit-adder", twoBitAdderState, [halfAdderDependency], []),
         makeError
-            "Unresolved dependency: \"full-adder\""
+            "Could not resolve dependency: \"full-adder\". Make sure a dependency with such name exists in the current project."
             (Some "2-bit-adder") [] []
     ]
 
@@ -350,15 +350,15 @@ let testCasesSimulatorOkWithDependencies : SimulatorTestCase list =
 let private testCasesSimulatorBusesError : SimulatorTestCase list = [
     "Two inputs make a bus2, then Push input a to bus, then try to split into 2 single bits (fail)",
     ("main", stateBus11, [], []),
-    makeError "Wrong wire width. Expecting 1 but got 2." None [] ["conn"]
+    makeError "Wrong wire width. Target port expects a 1 bit(s) signal, but source port produces a 2 bit(s) signal." None [] ["conn"]
 
     "A 4 bit input connected to a 3 bit output",
     ("main", stateBus14, [], []),
-    makeError "Wrong wire width. Expecting 3 but got 4." None [] ["conn"]
+    makeError "Wrong wire width. Target port expects a 3 bit(s) signal, but source port produces a 4 bit(s) signal." None [] ["conn"]
 
     "A 3 bit input connected to a 4 bit output",
     ("main", stateBus15, [], []),
-    makeError "Wrong wire width. Expecting 4 but got 3." None [] ["conn"]
+    makeError "Wrong wire width. Target port expects a 4 bit(s) signal, but source port produces a 3 bit(s) signal." None [] ["conn"]
 ]
 
 let private testCasesSimulatorOkWithBuses : SimulatorTestCase list =

@@ -67,12 +67,12 @@ let private getConnectionIdForPort
     | Some (Some (_, connId)) -> connId
 
 let private makeWidthInferErrorEqual expected actual connectionsAffected = Error {
-    Msg = sprintf "Wrong wire width. Expecting %d but got %d." expected actual
+    Msg = sprintf "Wrong wire width. Target port expects a %d bit(s) signal, but source port produces a %d bit(s) signal." expected actual
     ConnectionsAffected = connectionsAffected
 }
 
 let private makeWidthInferErrorAtLeast atLeast actual connectionsAffected = Error {
-    Msg = sprintf "Wrong wire width. Expecting at least size %d but got %d." atLeast actual
+    Msg = sprintf "Wrong wire width. Target port expects a signal with at least %d bits, but source port produces a %d bit(s) signal." atLeast actual
     ConnectionsAffected = connectionsAffected
 }
 
@@ -385,7 +385,7 @@ let private mapInputPortIdsToConnectionIds
             match map.TryFind inputPortId with
             | None -> Ok <| map.Add (inputPortId, connId)
             | Some otherConnId -> Error {
-                Msg = "Wire driven by multiple outputs"
+                Msg = "A wire must have precisely one driving component. If you want to merge two wires together, use a MergeWires component."
                 ConnectionsAffected = [connId; otherConnId]
             }
         )

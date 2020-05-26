@@ -131,31 +131,31 @@ let private testCasesWidthInfererBuses : WidhtInfererTestCase list = [
 let private testCasesWidthInfererError : WidhtInfererTestCase list = [
     "Two inputs connected to the same output", state5,
     Error {
-        Msg = "Wire driven by multiple outputs"
+        Msg = "A wire must have precisely one driving component. If you want to merge two wires together, use a MergeWires component."
         ConnectionsAffected = ["conn1"; "conn0"] |> List.map ConnectionId
     }
 
     "Two inputs; one And; one output; with extra connection input to output", state7,
     Error {
-        Msg = "Wire driven by multiple outputs"
+        Msg = "A wire must have precisely one driving component. If you want to merge two wires together, use a MergeWires component."
         ConnectionsAffected = ["conn3"; "conn2"] |> List.map ConnectionId
     }
 
     "Mux connected to a SplitWire 1", stateBus9,
     Error {
-        Msg = "Wrong wire width. Expecting at least size 2 but got 1."
+        Msg = "Wrong wire width. Target port expects a signal with at least 2 bits, but source port produces a 1 bit(s) signal."
         ConnectionsAffected = ["conn0"] |> List.map ConnectionId
     }
 
     "A 4 bit input connected to a 3 bit output", stateBus14,
     Error {
-        Msg = "Wrong wire width. Expecting 3 but got 4."
+        Msg = "Wrong wire width. Target port expects a 3 bit(s) signal, but source port produces a 4 bit(s) signal."
         ConnectionsAffected = ["conn"] |> List.map ConnectionId
     }
 
     "A 3 bit input connected to a 4 bit output", stateBus15,
     Error {
-        Msg = "Wrong wire width. Expecting 4 but got 3."
+        Msg = "Wrong wire width. Target port expects a 4 bit(s) signal, but source port produces a 3 bit(s) signal."
         ConnectionsAffected = ["conn"] |> List.map ConnectionId
     }
 ]

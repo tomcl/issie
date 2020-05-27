@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="TestLib.fs" />
+    <Compile Include="CanvasStates.fs" />
+    <Compile Include="CanvasStatesWithBuses.fs" />
+    <Compile Include="CanvasStatesSync.fs" />
+    <Compile Include="CanvasStatesMemories.fs" />
+    <Compile Include="WidthInfererTests.fs" />
+    <Compile Include="SimulatorTests.fs" />
+    <Compile Include="SimulatorSyncTests.fs" />
+    <Compile Include="SimulatorMemoriesTests.fs" />
+    <Compile Include="Tests.fs" />
+  </ItemGroup>
+  <!-- Dependencies -->
+  <ItemGroup>
+    <ProjectReference Include="../Common/Common.fsproj" />
+    <ProjectReference Include="../WidthInferer/WidthInferer.fsproj" />
+    <ProjectReference Include="../Simulator/Simulator.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Expecto.FsCheck" Version="8.13.1" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>

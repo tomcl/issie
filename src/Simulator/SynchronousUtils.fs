@@ -6,7 +6,7 @@
 
 module SynchronousUtils
 
-open DiagramTypes
+open CommonTypes
 open SimulatorTypes
 
 /// Tells wether a component is clocked or not. Note that Custom components may

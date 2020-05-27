@@ -1,6 +1,6 @@
 module SimulatorTypes
 
-open DiagramTypes
+open CommonTypes
 
 type Bit = Zero | One
 

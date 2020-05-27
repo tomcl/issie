@@ -6,7 +6,7 @@
 
 module Simulator
 
-open DiagramTypes
+open CommonTypes
 open SimulatorTypes
 open SynchronousUtils
 open SimulationBuilder

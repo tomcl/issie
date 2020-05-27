@@ -10,7 +10,7 @@ module SimulationBuilder
 
 open Helpers
 open NumberHelpers
-open DiagramTypes
+open CommonTypes
 open SimulatorTypes
 open CanvasStateAnalyser
 

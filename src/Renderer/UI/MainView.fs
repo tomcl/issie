@@ -11,7 +11,7 @@ open DiagramStyle
 open SimulatorTypes
 open DiagramMessageType
 open DiagramModelType
-open DiagramTypes
+open CommonTypes
 open Draw2dWrapper
 open Extractor
 open OnDiagramButtonsView

@@ -7,7 +7,7 @@
 module FilesIO
 
 open Helpers
-open DiagramTypes
+open CommonTypes
 
 open Fable.Core
 open Fable.Core.JsInterop

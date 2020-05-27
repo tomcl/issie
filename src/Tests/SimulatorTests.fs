@@ -1,6 +1,6 @@
 module SimulatorTests
 
-open DiagramTypes
+open CommonTypes
 open SimulatorTypes
 open CanvasStates
 open CanvasStatesWithBuses

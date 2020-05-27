@@ -1,6 +1,6 @@
 module CanvasStatesMemories
 
-open DiagramTypes
+open CommonTypes
 open Helpers
 
 let mem1 = {

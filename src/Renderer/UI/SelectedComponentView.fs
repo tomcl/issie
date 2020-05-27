@@ -13,7 +13,7 @@ open Fable.Helpers.React.Props
 open JSHelpers
 open Helpers
 open DiagramModelType
-open DiagramTypes
+open CommonTypes
 open MemoryEditorView
 
 let private makeMemoryInfo descr mem compId model dispatch =

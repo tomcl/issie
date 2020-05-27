@@ -3,6 +3,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="JSTypes.fs" />
     <Compile Include="JSHelpers.fs" />
     <Compile Include="Extractor.fs" />
     <Compile Include="FilesIO.fs" />

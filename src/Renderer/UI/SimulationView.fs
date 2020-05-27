@@ -18,7 +18,7 @@ open PopupView
 open MemoryEditorView
 open DiagramMessageType
 open DiagramModelType
-open DiagramTypes
+open CommonTypes
 open SimulatorTypes
 open Extractor
 open Simulator

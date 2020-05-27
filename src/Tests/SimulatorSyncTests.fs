@@ -1,6 +1,6 @@
 module SimulatorSyncTests
 
-open DiagramTypes
+open CommonTypes
 open SimulatorTypes
 open CanvasStatesSync
 

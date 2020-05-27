@@ -1,6 +1,7 @@
 module DiagramMessageType
 
-open DiagramTypes
+open CommonTypes
+open JSTypes
 open SimulatorTypes
 open Fable.Import.React
 

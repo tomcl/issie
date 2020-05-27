@@ -1,6 +1,7 @@
 module Extractor
 
-open DiagramTypes
+open CommonTypes
+open JSTypes
 open JSHelpers
 
 open Fable.Core.JsInterop

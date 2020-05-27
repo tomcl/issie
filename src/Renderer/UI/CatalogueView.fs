@@ -14,7 +14,7 @@ open Helpers
 open DiagramStyle
 open DiagramModelType
 open DiagramMessageType
-open DiagramTypes
+open CommonTypes
 open PopupView
 
 let private menuItem label onClick =

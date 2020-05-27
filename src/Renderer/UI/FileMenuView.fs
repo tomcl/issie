@@ -15,7 +15,7 @@ open JSHelpers
 open DiagramStyle
 open DiagramMessageType
 open DiagramModelType
-open DiagramTypes
+open CommonTypes
 open FilesIO
 open Extractor
 open PopupView

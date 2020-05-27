@@ -2,14 +2,14 @@
     ModelType.fs
 
     This module provides the type for the FRP UI.
-    It is not possible to put this type among the DiagramTypes as it has to
+    It is not possible to put this type among the CommonTypes as it has to
     depend on Draw2dWrapper. Furthermore, non-UI modules should be agnostic of
     the FRP model.
 *)
 
 module DiagramModelType
 
-open DiagramTypes
+open CommonTypes
 open DiagramMessageType
 open SimulatorTypes
 open Draw2dWrapper

@@ -1,6 +1,6 @@
 module CanvasStatesWithBuses
 
-open DiagramTypes
+open CommonTypes
 open CanvasStates
 
 /// Two inputs connected to a MergeWires component. No other connections.

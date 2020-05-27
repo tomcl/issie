@@ -7,7 +7,7 @@
 
 module CanvasStateAnalyser
 
-open DiagramTypes
+open CommonTypes
 open SimulatorTypes
 open BusWidthInferer
 open SynchronousUtils

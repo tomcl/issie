@@ -1,7 +1,7 @@
 module BusWidthInferer
 
 open BusTypes
-open DiagramTypes
+open CommonTypes
 open Helpers
 
 // 1. Initialise Map<ConnectionId, int option> for all connections, to None

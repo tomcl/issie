@@ -1,6 +1,6 @@
 module CanvasStatesSync
 
-open DiagramTypes
+open CommonTypes
 
 /// Simple DFF connected to an input and an output.
 let stateSync1 : CanvasState =

@@ -14,7 +14,7 @@ open Fable.Helpers.React.Props
 
 open DiagramMessageType
 open DiagramModelType
-open DiagramTypes
+open CommonTypes
 open DiagramStyle
 open Extractor
 open Helpers

@@ -22,7 +22,7 @@ open JSHelpers
 open Helpers
 open DiagramMessageType
 open DiagramModelType
-open DiagramTypes
+open CommonTypes
 open DiagramStyle
 
 //========//

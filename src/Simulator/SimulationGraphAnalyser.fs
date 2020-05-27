@@ -1,6 +1,6 @@
 module SimulationGraphAnalyser
 
-open DiagramTypes
+open CommonTypes
 open SimulatorTypes
 open SynchronousUtils
 

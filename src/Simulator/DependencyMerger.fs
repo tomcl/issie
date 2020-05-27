@@ -7,7 +7,7 @@
 
 module DependencyMerger
 
-open DiagramTypes
+open CommonTypes
 open SimulatorTypes
 open SimulationRunner
 open SimulationBuilder

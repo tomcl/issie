@@ -1,6 +1,6 @@
 module CanvasStates
 
-open DiagramTypes
+open CommonTypes
 
 // Guidelines to create states:
 // - draw the diagram you want to test in the actual application, then log its

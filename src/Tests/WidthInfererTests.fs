@@ -1,6 +1,6 @@
 module WidthInfererTests
 
-open DiagramTypes
+open CommonTypes
 open BusTypes
 open CanvasStates
 open CanvasStatesWithBuses

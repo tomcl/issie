@@ -1,6 +1,6 @@
 module SimulatorMemoriesTests
 
-open DiagramTypes
+open CommonTypes
 open SimulatorTypes
 open CanvasStatesMemories
 open NumberHelpers

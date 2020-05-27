@@ -7,7 +7,7 @@
 
 module SimulationRunner
 
-open DiagramTypes
+open CommonTypes
 open SimulatorTypes
 open SynchronousUtils
 

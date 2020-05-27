@@ -57,11 +57,7 @@ Both processes run Javascript under Node.
 
 The `src/Main/Main.fs` source configures electron start-up and is boilerplate. It is transpiled to the root project directory so it can be automatically picked up by Electron.
 
-The app code is arranged in several different sections. These sections are not yet arranged as different but they will be.
-
-TODO ^^^^^^^^
-
-The separation allows all the non-web-based code (which can equally be run and tested under .Net) to be run and tested under F# directly in addition to being transpiled and run under Electron.
+The remaining app code is arranged in five different sections, each being a separate F# project. This separation allows all the non-web-based code (which can equally be run and tested under .Net) to be run and tested under F# directly in addition to being transpiled and run under Electron.
 
 The project relies on the draw2d JavaScript library, which is extended to support digital electronics components. The extensions are in the `app/public/lib/draw2d_extensions` folder and are loaded by the `index.html` file. The `index.html` file is otherwise empty as the UI elements are dynamically generated with [React](https://reactjs.org/), thanks to the F# Elmish library.
 
@@ -71,7 +67,26 @@ The compile process is controlled by the `.fsproj` files (defining the F# source
 
 ## File Structure
 
-TODO
+### `src` folder
+
+|   Subfolder   |                                             Description                                            |
+|:------------:|:--------------------------------------------------------------------------------------------------:|
+| `Common/`       | Provides some common types and utilities used by all other sections                                |
+| `WidthInferer/` | Contains the logic to infer the width of all connections in a diagram and report possible errors. |
+| `Simulator/`    | Contains the logic to analyse and simulate a diagram.                                              |
+| `Renderer/`     | Contains the UI logic, and the wrapper to the JavaScript drawing library. This is the only project that cannot run under .Net, as it contains JavaScript related functionalities. |
+| `Tests/`        | Contains numerous tests for the WidthInferer and Simulator. Based on F# Expecto testing library. |
+
+
+### `app` folder
+
+| Subfolder or file |                                                                                                                                                          Description                                                                                                                                                          |
+|:-----------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
+| `public/lib/`     | Contains JavaScript code loaded by the `index.html` file. It includes the draw2d library itself, its custom extensions and jquery. Note that draw2d and jquery may be copied (and maybe should?) from the node modules when using the `copy-webpack-plugin`. See the comment in `webpack.config.js` for more info about this. |
+| `scss/`           | Stylesheet required by the [Fulma](https://fulma.github.io/Fulma/) UI library (F# port of [bulma](https://bulma.io/)).                                                                                                                                                                                                        |
+| `icon.ico`        | DEflow icon.                                                                                                                                                                                                                                                                                                                  |
+| `index.html`      | The page rendered by the renderer process. The HTML DOM is dynamically generated using React when the app is running.                                                                                                                                                                                                         |
+| Other             | Other files will be generated in this folder at compilation time. They are ignored by the gitignore, and you don't have to worry about those.                                                                                                                                                                                 |
 
 ## Getting Started
 

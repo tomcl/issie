@@ -1,8 +1,8 @@
-module DiagramTypes
+module DiagramTypes // TODO(urgent) rename this CommonTypes
 
 //=============================//
 // Types for library interface //
-//=============================//
+//=============================// TODO(urgent): remove these from here and put them in the UI section.
 
 type JSCanvas      = | JSCanvas of obj
 type JSComponent   = | JSComponent of obj

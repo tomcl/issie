@@ -74,7 +74,7 @@ The compile process is controlled by the `.fsproj` files (defining the F# source
 | `Common/`       | Provides some common types and utilities used by all other sections                                |
 | `WidthInferer/` | Contains the logic to infer the width of all connections in a diagram and report possible errors. |
 | `Simulator/`    | Contains the logic to analyse and simulate a diagram.                                              |
-| `Renderer/`     | Contains the UI logic, and the wrapper to the JavaScript drawing library. This is the only project that cannot run under .Net, as it contains JavaScript related functionalities. |
+| `Renderer/`     | Contains the UI logic, the wrapper to the JavaScript drawing library and a set of utility function to write/read/parse diagram files. This is the only project that cannot run under .Net, as it contains JavaScript related functionalities. |
 | `Tests/`        | Contains numerous tests for the WidthInferer and Simulator. Based on F# Expecto testing library. |
 
 
@@ -87,6 +87,12 @@ The compile process is controlled by the `.fsproj` files (defining the F# source
 | `icon.ico`        | DEflow icon.                                                                                                                                                                                                                                                                                                                  |
 | `index.html`      | The page rendered by the renderer process. The HTML DOM is dynamically generated using React when the app is running.                                                                                                                                                                                                         |
 | Other             | Other files will be generated in this folder at compilation time. They are ignored by the gitignore, and you don't have to worry about those.                                                                                                                                                                                 |
+
+## Concept of Project and File in DEflow
+
+DEflow allows the users to create projects and files within those projects. A DEflow project is simply a folder named `<project_name>.dprj` (dprj stands for diagram project). A project contains a collection of designs, each named `<component_name>.dgm` (dgm stands for diagram).
+
+When opening a project, DEflow will search the given repository for `.dgm` files, parse their content, and allow the user to open them in DEflow or use them as components in other designs.
 
 ## Getting Started
 

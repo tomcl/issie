@@ -3,40 +3,32 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Helpers.fs" />
+    <Compile Include="JSTypes.fs" />
     <Compile Include="JSHelpers.fs" />
+    <Compile Include="Extractor.fs" />
+    <Compile Include="FilesIO.fs" />
 
-    <Compile Include="Diagram/Types.fs" />
-    <Compile Include="Diagram/Extractor.fs" />
-    <Compile Include="Diagram/FilesIO.fs" />
-    <!-- Buses -->
-    <Compile Include="Diagram/Bus/Types.fs" />
-    <Compile Include="Diagram/Bus/WidthInferer.fs" />
-    <!-- Simulator -->
-    <Compile Include="Diagram/Simulator/Types.fs" />
-    <Compile Include="Diagram/Simulator/NumberHelpers.fs" />
-    <Compile Include="Diagram/Simulator/SynchronousUtils.fs" />
-    <Compile Include="Diagram/Simulator/CanvasStateAnalyser.fs" />
-    <Compile Include="Diagram/Simulator/SimulationGraphAnalyser.fs" />
-    <Compile Include="Diagram/Simulator/Builder.fs" />
-    <Compile Include="Diagram/Simulator/Runner.fs" />
-    <Compile Include="Diagram/Simulator/DependencyMerger.fs" />
-    <Compile Include="Diagram/Simulator/Simulator.fs" />
     <!-- UI -->
-    <Compile Include="Diagram/DiagramUI/Style.fs" />
-    <Compile Include="Diagram/DiagramUI/MessageType.fs" />
-    <Compile Include="Diagram/Draw2dWrapper/Draw2dWrapper.fs" />
-    <Compile Include="Diagram/DiagramUI/ModelType.fs" />
-    <Compile Include="Diagram/DiagramUI/PopupView.fs" />
-    <Compile Include="Diagram/DiagramUI/MemoryEditorView.fs" />
-    <Compile Include="Diagram/DiagramUI/FileMenuView.fs" />
-    <Compile Include="Diagram/DiagramUI/OnDiagramButtonsView.fs" />
-    <Compile Include="Diagram/DiagramUI/SimulationView.fs" />
-    <Compile Include="Diagram/DiagramUI/CatalogueView.fs" />
-    <Compile Include="Diagram/DiagramUI/SelectedComponentView.fs" />
-    <Compile Include="Diagram/DiagramUI/MainView.fs" />
+    <Compile Include="UI/Style.fs" />
+    <Compile Include="UI/MessageType.fs" />
+    <Compile Include="Draw2dWrapper/Draw2dWrapper.fs" />
+    <Compile Include="UI/ModelType.fs" />
+    <Compile Include="UI/PopupView.fs" />
+    <Compile Include="UI/MemoryEditorView.fs" />
+    <Compile Include="UI/FileMenuView.fs" />
+    <Compile Include="UI/OnDiagramButtonsView.fs" />
+    <Compile Include="UI/SimulationView.fs" />
+    <Compile Include="UI/CatalogueView.fs" />
+    <Compile Include="UI/SelectedComponentView.fs" />
+    <Compile Include="UI/MainView.fs" />
 
     <Compile Include="Renderer.fs" />
+  </ItemGroup>
+  <!-- Dependencies -->
+  <ItemGroup>
+    <ProjectReference Include="../Common/Common.fsproj" />
+    <ProjectReference Include="../WidthInferer/WidthInferer.fsproj" />
+    <ProjectReference Include="../Simulator/Simulator.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

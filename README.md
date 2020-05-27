@@ -135,14 +135,10 @@ To reinstall the build environment (without changing project code) run `setup.ba
 
 ## Creating DEflow Binaries
 
-TODO: pack-all is not defined and cross-platform packaging does not seem to be working.
-
-<!-- After you have compiled code (and checked it works) `yarn pack-all` will run electron packager and generate `./dist/os-name/*` files. See also `run-packager-all.bat` if using windows host to make macOS binary. See [the packaging issue](https://github.com/ImperialCollegeLondon/Visual2/issues/7) for more details of how this has been customised to work. Note that if this breaks you can still run individual targets as below.
+After you have compiled code (and checked it works) `yarn pack-all` will run electron packager and generate `./dist/os-name/*` files.
 
 Useful shortcuts for specific common target OS:
-* `yarn pack-osx` (macOS - but see below if running from windows host)
 * `yarn pack-win` (windows)
 * `yarn pack-linux` (linux)
 
-
-**Note on macOS binaries**. These cannot be packaged as DMG (and therefore used) except on a macOS host. On macOS you need to run `yarn make-osx-dmg` which will FIRST run `yarn pack-osx` and then generate the macOS DMG file as `./dist/visual2-osx.dmg`.  -->
+I could not test packaging for MacOS yet as I do not have access to a MacOS device at the moment.

@@ -49,7 +49,7 @@ let private reloadProjectComponents dispatch project =
     | Ok components -> { project with LoadedComponents = components }
 
 /// Save the file currently open.
-let private saveOpenFileAction model =
+let saveOpenFileAction model =
     match model.Diagram.GetCanvasState (), model.CurrProject with
     | None, _ | _, None -> ()
     | Some jsState, Some project ->

@@ -9,7 +9,8 @@
     "pack-nobuild-linux": "electron-packager . DEflow --platform=linux --arch=x64 --out=dist --prune --asar --ignore=/dist --ignore=/src --overwrite && yarn cross-zip dist/deflow-linux-x64",
     "pack-nobuild-win": "electron-packager . DEflow --platform=win32 --arch=x64 --out=dist --prune --ignore=/dist --ignore=/src --overwrite --icon=app/icon.ico && yarn cross-zip dist/deflow-win32-x64",
     "pack-linux": "yarn build && yarn pack-nobuild-linux",
-    "pack-win": "yarn build && yarn pack-nobuild-win"
+    "pack-win": "yarn build && yarn pack-nobuild-win",
+    "pack-all": "yarn run build && yarn pack-nobuild-win && yarn pack-nobuild-linux"
   },
   "dependencies": {
     "babel": "^6.23.0",

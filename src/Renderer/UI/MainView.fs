@@ -165,6 +165,7 @@ let displayView model dispatch =
 
 // -- Update Model
 
+// Handle messages triggered by the JS diagram.
 let private handleJSDiagramMsg msg model =
     match msg with
     | InitCanvas canvas -> // Should be triggered only once.
@@ -179,9 +180,33 @@ let private handleJSDiagramMsg msg model =
     | SetHasUnsavedChanges s ->
         { model with HasUnsavedChanges = s }
 
+// Handle messages triggered by keyboard shortcuts.
+let private handleKeyboardShortcutMsg msg model =
+    match msg with
+    | CtrlS ->
+        saveOpenFileAction model
+        { model with HasUnsavedChanges = false }
+    | AltC ->
+        // Similar to the body of OnDiagramButtonsView.copyAction but without
+        // dispatching the SetClipboard message.
+        match model.Diagram.GetSelected () with
+        | None -> model
+        | Some jsState -> { model with Clipboard = extractState jsState }
+    | AltV ->
+        pasteAction model
+        model
+    | AltZ ->
+        model.Diagram.Undo ()
+        model
+    | AltShiftZ ->
+        model.Diagram.Redo ()
+        model
+
 let update msg model =
     match msg with
     | JSDiagramMsg msg' -> handleJSDiagramMsg msg' model
+    | KeyboardShortcutMsg msg' -> handleKeyboardShortcutMsg msg' model
+    // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).
     | StartSimulation simData -> { model with Simulation = Some simData }
     | SetSimulationGraph graph ->
         match model.Simulation with

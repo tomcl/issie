@@ -40,8 +40,13 @@ type JSDiagramMsg =
     | InferWidths of unit
     | SetHasUnsavedChanges of bool
 
+// Messages that will be triggered on key combinations.
+type KeyboardShortcutMsg =
+    | CtrlS | AltC | AltV | AltZ | AltShiftZ
+
 type Msg =
     | JSDiagramMsg of JSDiagramMsg
+    | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
     | SetSimulationGraph of SimulationGraph
     | SetSimulationBase of NumberBase

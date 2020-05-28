@@ -482,7 +482,7 @@ draw2d.shape.digital.MergeWires = draw2d.shape.digital.extend({
                 this.topInputWidth >= 2 ? `[${this.bottomInputWidth}-${this.outputWidth - 1}]`
                                         : `[${this.bottomInputWidth}]`;
             let bottomInputLabel =
-                this.bottomInputLabel >= 2 ? `[0-${this.bottomInputWidth - 1}]`
+                this.bottomInputWidth >= 2 ? `[0-${this.bottomInputWidth - 1}]`
                                            : '[0]';
             let outputLabel = `[0-${this.outputWidth - 1}]`;
             // Add labels on the wires.

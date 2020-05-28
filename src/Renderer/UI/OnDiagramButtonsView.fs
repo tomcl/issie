@@ -51,7 +51,7 @@ let private mapToNewConnection (portMappings : Map<string,Port>) oldConnection :
         Vertices = oldConnection.Vertices |> List.map (fun (x,y)->x+30.0,y+30.0)
     }
 
-let private pasteAction model =
+let pasteAction model =
     let oldComponents, oldConnections = model.Clipboard
     // Copy the old components and add them to the diagram.
     let newComponents =

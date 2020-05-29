@@ -8,12 +8,32 @@
 module SimulationRunner
 
 open CommonTypes
+open Helpers
 open SimulatorTypes
 open SynchronousUtils
 
 // During simulation, a Component Reducer function will produce the output only
 // when all of the expected inputs have a value. Once this happens, it will
 // calculate its outputs and set them in the next simulationComponent(s).
+
+/// Function to determine what reducer inputs or outputs have changed.
+let diffReducerInputsOrOutputs
+        (newIO : Map<'a, WireData>)
+        (oldIO : Map<'a, WireData>)
+        : Map<'a, WireData> =
+    // 'a type is either InputPortNumber or OutputPortNumber.
+    // New inputs/outputs either:
+    // - have more keys than old ones,
+    // - have the same keys as old ones, but their values have changed.
+    assertThat (oldIO.Count <= newIO.Count) "diffReducerInputsOrOutputs"
+    (Map.empty, newIO)
+    ||> Map.fold (fun diff portNumber wireData ->
+        match oldIO.TryFind portNumber with
+        | None -> diff.Add(portNumber, wireData)
+        | Some oldData when oldData <> wireData -> diff.Add(portNumber, wireData)
+        | Some oldData when oldData = wireData -> diff
+        | _ -> failwith "what? Impossible case in diffReducerInputsOrOutputs"
+    )
 
 /// Take the Input, and feed it to the Component with the specified Id.
 /// This function should be used to feed combinational logic inputs, not to
@@ -29,6 +49,18 @@ let rec private feedInput
     let comp = match graph.TryFind compId with
                | None -> failwithf "what? Could not find component %A in simulationStep" compId
                | Some c -> c
+    // Performance optimization: feed the reducer with the old inputs, to figure
+    // out what the old ouputs were. Use these old outputs to determine what
+    // outputs have changed by the new input, and only propagate those changes.
+    // An extra call to the reducer should be quite cheap compared to many saved
+    // recursions of the feedInput function.
+    let oldReducerInput = {
+        Inputs = comp.Inputs
+        CustomSimulationGraph = comp.CustomSimulationGraph
+        IsClockTick = No
+    }
+    let oldReducerOutput = comp.Reducer oldReducerInput
+
     // Add input to the simulation component.
     let comp = { comp with Inputs = comp.Inputs.Add input }
     let graph = graph.Add (comp.Id, comp)
@@ -45,8 +77,13 @@ let rec private feedInput
     | None -> graph // Keep on waiting for more inputs.
     | Some outputMap ->
         // Received enough inputs and produced an output.
+
+        // Performance optimization, only propagate the outputs that changed.
+        let oldOutputMap = Option.defaultValue Map.empty oldReducerOutput.Outputs
+        let diffedOutputMap = diffReducerInputsOrOutputs outputMap oldOutputMap
+
         // Propagate each output produced.
-        let graph = feedReducerOutput comp graph outputMap
+        let graph = feedReducerOutput comp graph diffedOutputMap
         // Update the CustomSimulationGraph and return the new simulation graph.
         let comp = { comp with CustomSimulationGraph = reducerOutput.NewCustomSimulationGraph }
         graph.Add (comp.Id, comp)

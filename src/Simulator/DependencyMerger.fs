@@ -227,38 +227,17 @@ let private extractOutputValuesAsMap graph graphOutputs outputLabels : Map<Outpu
             OutputPortNumber <| labelToPortNumber label outputLabels, wireData)
     |> Map.ofList
 
-/// Function used in the custom reducer to only feed the inputs that changed.
-let private diffSimulationInputs
-        (newInputs : Map<InputPortNumber, WireData>)
-        (oldInputs : Map<InputPortNumber, WireData>)
-        : Map<InputPortNumber, WireData> =
-    // New inputs either:
-    // - has more keys than oldInputs,
-    // - has the same keys as oldInput, but their values have changed.
-    assertThat (oldInputs.Count <= newInputs.Count) "diffSimulationInputs"
-    (Map.empty, newInputs)
-    ||> Map.fold (fun diff inputPortNumber wireData ->
-        match oldInputs.TryFind inputPortNumber with
-        | None -> diff.Add(inputPortNumber, wireData)
-        | Some oldBit when oldBit <> wireData -> diff.Add(inputPortNumber, wireData)
-        | Some oldBit when oldBit = wireData -> diff
-        | _ -> failwith "what? Impossible case in diffSimulationInputs"
-    )
-
-/// Function used in the custom reducer to only return the outputs that changed.
-let private diffSimulationOutputs
-        (newOutputs : Map<OutputPortNumber, WireData>)
-        (oldOutputs : Map<OutputPortNumber, WireData>)
-        : Map<OutputPortNumber, WireData> =
-    assertThat (oldOutputs.Count = newOutputs.Count) "diffSimulationOutputs"
-    (Map.empty, newOutputs)
-    ||> Map.fold (fun diff outputPortNumber wireData ->
-        match oldOutputs.TryFind outputPortNumber with
-        | Some oldBit when oldBit <> wireData -> diff.Add(outputPortNumber, wireData)
-        | Some oldBit when oldBit = wireData -> diff
-        | None -> failwithf "what? oldOutputs do not have outputPortNumber found in new ouputs: %A" outputPortNumber
-        | _ -> failwith "what? Impossible case in diffSimulationInputs"
-    )
+/// Check that the outputs of a custom component have the same keys every time.
+/// This should be the case as we always use the same extraction function, so
+/// this function provides an extra guarantee that can probably be removed if
+/// performance is a concern.
+let private assertConsistentCustomOutputs
+        (outputs : Map<OutputPortNumber, WireData>)
+        (oldOutputs : Map<OutputPortNumber, WireData>) =
+    outputs |> Map.map (fun pNumber _ ->
+        assertThat (Option.isSome <| oldOutputs.TryFind pNumber)
+        <| sprintf "assertConsistentCustomOutputs, old %A, new %A" oldOutputs outputs
+    ) |> ignore
 
 /// Create the Reducer for a custom component.
 /// Passing graphInputs and graphOutputs would not be strictly necessary, but it
@@ -294,7 +273,7 @@ let private makeCustomReducer
                     extractInputValuesAsMap graph graphInputs inputLabels
                 let oldOutputs =
                     extractOutputValuesAsMap graph graphOutputs outputLabels
-                let diffedInputs = diffSimulationInputs inputs oldInputs
+                let diffedInputs = diffReducerInputsOrOutputs inputs oldInputs
                 let graph =
                     (graph, diffedInputs)
                     ||> Map.fold (fun graph inputPortNumber wireData ->
@@ -309,7 +288,8 @@ let private makeCustomReducer
                 let outputs =
                     extractOutputValuesAsMap graph graphOutputs outputLabels
                 // Only return outputs that have changed.
-                let diffedOutputs = diffSimulationOutputs outputs oldOutputs
+                assertConsistentCustomOutputs outputs oldOutputs
+                let diffedOutputs = diffReducerInputsOrOutputs outputs oldOutputs
                 // Return the outputs toghether with the updated graph.
                 { Outputs = Some diffedOutputs
                   NewCustomSimulationGraph = Some graph

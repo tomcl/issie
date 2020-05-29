@@ -112,32 +112,32 @@ let private calculateOutputPortsWidth
     | And | Or | Xor | Nand | Nor | Xnor ->
         assertInputsSize inputConnectionsWidth 2 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
-        | [None; _] | [_; None]
-        | [Some 1; Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
         | [Some n; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 0]
         | [_; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 1]
+        | [None; _] | [_; None]
+        | [Some 1; Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
     | Mux2 ->
         // TODO: also allow buses? Need to change also simulation reducer.
         assertInputsSize inputConnectionsWidth 3 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
-        | [None; _; _] | [_; None; _] | [_; _; None]
-        | [Some 1; Some 1; Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
         | [Some n; _; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 0]
         | [_; Some n; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 1]
         | [_; _; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 2]
+        | [None; _; _] | [_; None; _] | [_; _; None]
+        | [Some 1; Some 1; Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
     | Demux2 ->
         // TODO: also allow buses? Need to change also simulation reducer.
         assertInputsSize inputConnectionsWidth 2 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
+        | [Some n; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 0]
+        | [_; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 1]
         | [None; _] | [_; None]
         | [Some 1; Some 1] ->
             let out = Map.empty.Add (getOutputPortId comp 0, 1)
             let out = out.Add (getOutputPortId comp 1, 1)
             Ok out
-        | [Some n; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 0]
-        | [_; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 1]
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
     | Custom custom ->
         assertInputsSize inputConnectionsWidth custom.InputLabels.Length comp
@@ -163,10 +163,10 @@ let private calculateOutputPortsWidth
     | MergeWires ->
         assertInputsSize inputConnectionsWidth 2 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
-        | [None; _] | [_; None] -> Ok Map.empty // Keep on waiting.
-        | [Some n; Some m] -> Ok <| Map.empty.Add (getOutputPortId comp 0, n + m)
         | [Some n; _] when n < 1 -> makeWidthInferErrorAtLeast 1 n [getConnectionIdForPort 0]
         | [_; Some m] when m < 1 -> makeWidthInferErrorAtLeast 1 m [getConnectionIdForPort 1]
+        | [None; _] | [_; None] -> Ok Map.empty // Keep on waiting.
+        | [Some n; Some m] -> Ok <| Map.empty.Add (getOutputPortId comp 0, n + m)
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
     | SplitWire topWireWidth ->
         assertInputsSize inputConnectionsWidth 1 comp

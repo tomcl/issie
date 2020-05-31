@@ -102,7 +102,7 @@ let private testCasesWidthInfererBuses : WidhtInfererTestCase list = [
 
     "Mux connected to two MergeWires. Width not inferrable", stateBus8,
     [
-        ConnectionId "conn0", Some 1
+        ConnectionId "conn0", None
         ConnectionId "conn1", None
     ] |> Map.ofList |> Ok
 
@@ -141,7 +141,7 @@ let private testCasesWidthInfererError : WidhtInfererTestCase list = [
         ConnectionsAffected = ["conn3"; "conn2"] |> List.map ConnectionId
     }
 
-    "Mux connected to a SplitWire 1", stateBus9,
+    "And connected to a SplitWire 1", stateBus9,
     Error {
         Msg = "Wrong wire width. Target port expects a signal with at least 2 bits, but source port produces a 1 bit(s) signal."
         ConnectionsAffected = ["conn0"] |> List.map ConnectionId

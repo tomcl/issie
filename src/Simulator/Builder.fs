@@ -213,13 +213,11 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
             assertNotTooManyInputs reducerInput componentType 3
             match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
             | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [bit0; bit1; bitSelect] ->
-                // TODO: allow mux2 to deal with buses? To do so, just remove
-                // the extractBit code.
-                let bit0 = extractBit bit0
-                let bit1 = extractBit bit1
-                let out = if (extractBit bitSelect) = Zero then bit0 else bit1
-                Map.empty.Add (OutputPortNumber 0, packBit out)
+            | Some [bits0; bits1; bitSelect] ->
+                assertThat (bits0.Length = bits1.Length)
+                <| sprintf "Mux received two inputs with different widths: %A and %A" bits0 bits1
+                let out = if (extractBit bitSelect) = Zero then bits0 else bits1
+                Map.empty.Add (OutputPortNumber 0, out)
                 |> makeReducerOutput NoState
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
     | Demux2 ->
@@ -228,14 +226,12 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
             assertNotTooManyInputs reducerInput componentType 2
             match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
             | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [bitIn; bitSelect] ->
-                // TODO: allow demux2 to deal with buses? To do so, just remove
-                // the extractBit code.
-                let bitIn = extractBit bitIn
+            | Some [bitsIn; bitSelect] ->
+                let zeros = List.replicate bitsIn.Length Zero
                 let out0, out1 = if (extractBit bitSelect) = Zero
-                                 then bitIn, Zero else Zero, bitIn
-                let out = Map.empty.Add (OutputPortNumber 0, packBit out0)
-                let out = out.Add (OutputPortNumber 1, packBit out1)
+                                 then bitsIn, zeros else zeros, bitsIn
+                let out = Map.empty.Add (OutputPortNumber 0, out0)
+                let out = out.Add (OutputPortNumber 1, out1)
                 makeReducerOutput NoState out
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
     | Custom c ->

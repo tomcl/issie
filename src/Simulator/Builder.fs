@@ -147,6 +147,11 @@ let private getDffStateBit state =
     | DffState bit -> bit
     | _ -> failwithf "what? getDffStateBit called with an invalid state: %A" state
 
+let private getRegisterStateBits state =
+    match state with
+    | RegisterState bits -> bits
+    | _ -> failwithf "what? getRegisterStateBits called with an invalid state: %A" state
+
 let private getRamStateMemory state =
     match state with
     | RamState memory -> memory
@@ -208,13 +213,11 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
             assertNotTooManyInputs reducerInput componentType 3
             match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
             | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [bit0; bit1; bitSelect] ->
-                // TODO: allow mux2 to deal with buses? To do so, just remove
-                // the extractBit code.
-                let bit0 = extractBit bit0
-                let bit1 = extractBit bit1
-                let out = if (extractBit bitSelect) = Zero then bit0 else bit1
-                Map.empty.Add (OutputPortNumber 0, packBit out)
+            | Some [bits0; bits1; bitSelect] ->
+                assertThat (bits0.Length = bits1.Length)
+                <| sprintf "Mux received two inputs with different widths: %A and %A" bits0 bits1
+                let out = if (extractBit bitSelect) = Zero then bits0 else bits1
+                Map.empty.Add (OutputPortNumber 0, out)
                 |> makeReducerOutput NoState
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
     | Demux2 ->
@@ -223,14 +226,12 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
             assertNotTooManyInputs reducerInput componentType 2
             match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
             | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [bitIn; bitSelect] ->
-                // TODO: allow demux2 to deal with buses? To do so, just remove
-                // the extractBit code.
-                let bitIn = extractBit bitIn
+            | Some [bitsIn; bitSelect] ->
+                let zeros = List.replicate bitsIn.Length Zero
                 let out0, out1 = if (extractBit bitSelect) = Zero
-                                 then bitIn, Zero else Zero, bitIn
-                let out = Map.empty.Add (OutputPortNumber 0, packBit out0)
-                let out = out.Add (OutputPortNumber 1, packBit out1)
+                                 then bitsIn, zeros else zeros, bitsIn
+                let out = Map.empty.Add (OutputPortNumber 0, out0)
+                let out = out.Add (OutputPortNumber 1, out1)
                 makeReducerOutput NoState out
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
     | Custom c ->
@@ -279,8 +280,51 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                     | Some [bit] -> extractBit bit
                     | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
                 let newState = DffState newStateBit
-                // Propagate the output but do not change the state.
                 Map.empty.Add (OutputPortNumber 0, packBit newStateBit)
+                |> makeReducerOutput newState
+    | DFFE ->
+        fun reducerInput ->
+            match reducerInput.IsClockTick with
+            | No ->
+                // If it is not a clock tick, just ignore the changes on the
+                // input.
+                // The newState returned does not matter! It is ignored unless
+                // Input is a clock tick.
+                notReadyReducerOutput NoState
+            | Yes dffState ->
+                let stateBit = getDffStateBit dffState
+                // Store and propagate the current inputs.
+                let newStateBit =
+                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
+                    | None -> stateBit
+                    | Some [bit; enable] -> if (extractBit enable = Zero)
+                                            then stateBit else extractBit bit
+                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+                let newState = DffState newStateBit
+                Map.empty.Add (OutputPortNumber 0, packBit newStateBit)
+                |> makeReducerOutput newState
+    | Register width ->
+        fun reducerInput ->
+            match reducerInput.IsClockTick with
+            | No ->
+                // If it is not a clock tick, just ignore the changes on the
+                // input.
+                // The newState returned does not matter! It is ignored unless
+                // Input is a clock tick.
+                notReadyReducerOutput NoState
+            | Yes regState ->
+                let stateBits = getRegisterStateBits regState
+                // Store and propagate the current inputs.
+                let newStateBits =
+                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
+                    | None -> stateBits
+                    | Some [bits] ->
+                        assertThat (bits.Length = width)
+                        <| sprintf "Register received data with wrong width: expected %d but got %A" width bits.Length
+                        bits
+                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+                let newState = RegisterState newStateBits
+                Map.empty.Add (OutputPortNumber 0, newStateBits)
                 |> makeReducerOutput newState
     | AsyncROM mem -> // Asynchronous ROM.
         fun reducerInput ->
@@ -402,7 +446,8 @@ let private getDefaultState compType =
     | Input _ | Output _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2
     | Demux2 | Custom _ | MergeWires | SplitWire _ | ROM _
     | AsyncROM _ -> NoState
-    | DFF -> DffState Zero
+    | DFF | DFFE -> DffState Zero
+    | Register w -> RegisterState <| List.replicate w Zero
     | RAM memory -> RamState memory // The RamState content may change during
                                     // the simulation.
 

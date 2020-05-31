@@ -41,7 +41,7 @@ let private makeDescription comp model dispatch =
     | Mux2 -> div [] [ str "Multiplexer with two inputs and one output." ]
     | Demux2 -> div [] [ str "Demultiplexer with one input and two outputs." ]
     | MergeWires -> div [] [ str "Merge two wires of width n and m into a single wire of width n+m." ]
-    | SplitWire width -> div [] [ str <| sprintf "Split a wire of width n+m into two wires of widthn and m (n is %d)." width]
+    | SplitWire width -> div [] [ str <| sprintf "Split a wire of width n+m into two wires of width n and m (n is %d)." width]
     | Custom custom ->
         let toHTMLList =
             List.map (fun (label, width) -> li [] [str <| sprintf "%s: %d bit(s)" label width])
@@ -54,6 +54,11 @@ let private makeDescription comp model dispatch =
             ul [] (toHTMLList custom.OutputLabels)
         ]
     | DFF -> div [] [ str "D-flip-flop. The component is implicitly connected to the global clock." ]
+    | DFFE -> div [] [
+        str "D-flip-flop with enable. If the enable signal is high the state of
+             the D-flip-flop will be updated at the next clock cycle.
+             The component is implicitly connected to the global clock." ]
+    | Register width -> div [] [ str <| sprintf "%d bit(s) register. The component is implicitly connected to the global clock." width ]
     | AsyncROM mem ->
         let descr = "Asynchronous ROM: the output is updated as soon as the address changes."
         makeMemoryInfo descr mem comp.Id model dispatch

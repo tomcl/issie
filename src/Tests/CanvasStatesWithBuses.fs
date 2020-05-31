@@ -89,10 +89,10 @@ let stateBus8 : CanvasState =
         {Id = "conn1";Source = {Id = "cabe29d9-74ea-06b9-8421-8547090727f9";PortNumber = None;PortType = PortType.Output;HostId = "37dd0853-0d7e-ab38-82e7-4e5d6d43ee9d"};Target = {Id = "69b5caec-1da0-9ecb-d7fc-fbd9af66fc23";PortNumber = None;PortType = PortType.Input;HostId = "536f5ede-5b98-ce3f-db3e-e96de247a89b"};Vertices = [281.0,258.0; 308.5,258.0; 308.5,257.0; 336.0,257.0]}
     ]
 
-/// Mux connected to a SplitWire 1.
+/// And connected to a SplitWire 1.
 let stateBus9 : CanvasState =
     [
-        {Id = "3875f58b-8744-291d-1f4f-bca5b1a1eda5";Type = Mux2;Label = "mux2";InputPorts = [{Id = "6758d0e5-2618-afe4-473b-43c5002abf74";PortNumber = Some 0;PortType = PortType.Input;HostId = "3875f58b-8744-291d-1f4f-bca5b1a1eda5"}; {Id = "401a0856-683d-6ed2-c193-53d1761ad7a4";PortNumber = Some 1;PortType = PortType.Input;HostId = "3875f58b-8744-291d-1f4f-bca5b1a1eda5"}; {Id = "cf514335-b50d-eb19-c6f5-18303cda0b13";PortNumber = Some 2;PortType = PortType.Input;HostId = "3875f58b-8744-291d-1f4f-bca5b1a1eda5"}];OutputPorts = [{Id = "6bf59da3-ea8a-30c3-163d-37dbefd821bc";PortNumber = Some 0;PortType = PortType.Output;HostId = "3875f58b-8744-291d-1f4f-bca5b1a1eda5"}];X = 145;Y = 190};
+        {Id = "3875f58b-8744-291d-1f4f-bca5b1a1eda5";Type = And;Label = "and";InputPorts = [{Id = "6758d0e5-2618-afe4-473b-43c5002abf74";PortNumber = Some 0;PortType = PortType.Input;HostId = "3875f58b-8744-291d-1f4f-bca5b1a1eda5"}; {Id = "401a0856-683d-6ed2-c193-53d1761ad7a4";PortNumber = Some 1;PortType = PortType.Input;HostId = "3875f58b-8744-291d-1f4f-bca5b1a1eda5"}];OutputPorts = [{Id = "6bf59da3-ea8a-30c3-163d-37dbefd821bc";PortNumber = Some 0;PortType = PortType.Output;HostId = "3875f58b-8744-291d-1f4f-bca5b1a1eda5"}];X = 145;Y = 190};
         {Id = "772307ab-2941-3343-28a2-faacaa0efc96";Type = SplitWire 1;Label = "";InputPorts = [{Id = "2332109c-b48a-be65-70fd-662fc00cd0c7";PortNumber = Some 0;PortType = PortType.Input;HostId = "772307ab-2941-3343-28a2-faacaa0efc96"}];OutputPorts = [{Id = "6df8212b-0639-3d53-61cd-297e74d6bbad";PortNumber = Some 0;PortType = PortType.Output;HostId = "772307ab-2941-3343-28a2-faacaa0efc96"}; {Id = "5a95b665-510e-848c-c178-e0356b48940a";PortNumber = Some 1;PortType = PortType.Output;HostId = "772307ab-2941-3343-28a2-faacaa0efc96"}];X = 262;Y = 205}
     ],
     [
@@ -234,3 +234,45 @@ let stateBus17 : CanvasState =
         {Id = "678ffa07-0ed7-7b6f-ba9b-b14839c08a71";Source = {Id = "85cc42dd-5ea8-0f62-a421-74d844f4de83";PortNumber = None;PortType = PortType.Output;HostId = "71d66801-50d5-4316-eb79-9e99a43cdfe4"};Target = {Id = "4a440c75-75c5-1a5c-93d9-97ca3993683f";PortNumber = None;PortType = PortType.Input;HostId = "bb51f8c6-2c82-5206-eb25-492e15849e81"};Vertices = [230.0,148.0; 254.0,148.0]}
 ]
 
+/// Partially connected Mux2. Top input (2 bits), select (1 bit) anc connection
+/// to output (2 bits).
+let stateBus18 : CanvasState =
+    [
+        {Id = "8078a917-236f-5a40-18a6-8e2d6a1458f5";Type = Input 2;Label = "a";InputPorts = [];OutputPorts = [{Id = "cc7c6510-d49b-28d9-e0bc-d5350a2c76a8";PortNumber = Some 0;PortType = PortType.Output;HostId = "8078a917-236f-5a40-18a6-8e2d6a1458f5"}];X = 122;Y = 125};
+        {Id = "ed12b5d8-556b-515a-cc9d-873960690380";Type = Input 1;Label = "b";InputPorts = [];OutputPorts = [{Id = "a6010bcb-ba2b-e57f-ca50-39f3d094e3b8";PortNumber = Some 0;PortType = PortType.Output;HostId = "ed12b5d8-556b-515a-cc9d-873960690380"}];X = 122;Y = 204};
+        {Id = "d7028a8f-83be-0d81-6f0f-19b384caddae";Type = Mux2;Label = "";InputPorts = [{Id = "108ea909-b27f-24ba-22ea-2faeb061a926";PortNumber = Some 0;PortType = PortType.Input;HostId = "d7028a8f-83be-0d81-6f0f-19b384caddae"}; {Id = "38c8c934-d55e-2aff-e61b-5fbf7d7eed91";PortNumber = Some 1;PortType = PortType.Input;HostId = "d7028a8f-83be-0d81-6f0f-19b384caddae"}; {Id = "f283db84-a1f0-d006-be39-f17be6f8490c";PortNumber = Some 2;PortType = PortType.Input;HostId = "d7028a8f-83be-0d81-6f0f-19b384caddae"}];OutputPorts = [{Id = "5b651087-9b95-3a80-4f99-014f85f0dfdd";PortNumber = Some 0;PortType = PortType.Output;HostId = "d7028a8f-83be-0d81-6f0f-19b384caddae"}];X = 244;Y = 156};
+        {Id = "00661085-7d05-4185-09ef-4138ac918ad2";Type = Output 2;Label = "aa";InputPorts = [{Id = "7bbfa7d3-4718-e6fe-e7e9-8c00e5257f45";PortNumber = Some 0;PortType = PortType.Input;HostId = "00661085-7d05-4185-09ef-4138ac918ad2"}];OutputPorts = [];X = 373;Y = 171}
+    ],
+    [
+        {Id = "conn-sel";Source = {Id = "a6010bcb-ba2b-e57f-ca50-39f3d094e3b8";PortNumber = None;PortType = PortType.Output;HostId = "ed12b5d8-556b-515a-cc9d-873960690380"};Target = {Id = "f283db84-a1f0-d006-be39-f17be6f8490c";PortNumber = None;PortType = PortType.Input;HostId = "d7028a8f-83be-0d81-6f0f-19b384caddae"};Vertices = [152.0,214.0; 259.0,214.0; 259.0,201.0]};
+        {Id = "conn-top-input";Source = {Id = "cc7c6510-d49b-28d9-e0bc-d5350a2c76a8";PortNumber = None;PortType = PortType.Output;HostId = "8078a917-236f-5a40-18a6-8e2d6a1458f5"};Target = {Id = "108ea909-b27f-24ba-22ea-2faeb061a926";PortNumber = None;PortType = PortType.Input;HostId = "d7028a8f-83be-0d81-6f0f-19b384caddae"};Vertices = [152.0,135.0; 198.0,135.0; 198.0,172.0; 244.0,172.6]};
+        {Id = "conn-to-output";Source = {Id = "5b651087-9b95-3a80-4f99-014f85f0dfdd";PortNumber = None;PortType = PortType.Output;HostId = "d7028a8f-83be-0d81-6f0f-19b384caddae"};Target = {Id = "7bbfa7d3-4718-e6fe-e7e9-8c00e5257f45";PortNumber = None;PortType = PortType.Input;HostId = "00661085-7d05-4185-09ef-4138ac918ad2"};Vertices = [274.0,181.0; 373.0,181.0]}
+    ]
+
+/// Fully connected Mux, but two inputs have different widths. Similar to
+/// stateBus18.
+let stateBus19 : CanvasState =
+    [
+        {Id = "8078a917-236f-5a40-18a6-8e2d6a1458f5";Type = Input 2;Label = "a";InputPorts = [];OutputPorts = [{Id = "cc7c6510-d49b-28d9-e0bc-d5350a2c76a8";PortNumber = Some 0;PortType = PortType.Output;HostId = "8078a917-236f-5a40-18a6-8e2d6a1458f5"}];X = 122;Y = 125};
+        {Id = "ed12b5d8-556b-515a-cc9d-873960690380";Type = Input 1;Label = "b";InputPorts = [];OutputPorts = [{Id = "a6010bcb-ba2b-e57f-ca50-39f3d094e3b8";PortNumber = Some 0;PortType = PortType.Output;HostId = "ed12b5d8-556b-515a-cc9d-873960690380"}];X = 122;Y = 204};
+        {Id = "d7028a8f-83be-0d81-6f0f-19b384caddae";Type = Mux2;Label = "";InputPorts = [{Id = "108ea909-b27f-24ba-22ea-2faeb061a926";PortNumber = Some 0;PortType = PortType.Input;HostId = "d7028a8f-83be-0d81-6f0f-19b384caddae"}; {Id = "38c8c934-d55e-2aff-e61b-5fbf7d7eed91";PortNumber = Some 1;PortType = PortType.Input;HostId = "d7028a8f-83be-0d81-6f0f-19b384caddae"}; {Id = "f283db84-a1f0-d006-be39-f17be6f8490c";PortNumber = Some 2;PortType = PortType.Input;HostId = "d7028a8f-83be-0d81-6f0f-19b384caddae"}];OutputPorts = [{Id = "5b651087-9b95-3a80-4f99-014f85f0dfdd";PortNumber = Some 0;PortType = PortType.Output;HostId = "d7028a8f-83be-0d81-6f0f-19b384caddae"}];X = 244;Y = 156};
+        {Id = "00661085-7d05-4185-09ef-4138ac918ad2";Type = Output 2;Label = "aa";InputPorts = [{Id = "7bbfa7d3-4718-e6fe-e7e9-8c00e5257f45";PortNumber = Some 0;PortType = PortType.Input;HostId = "00661085-7d05-4185-09ef-4138ac918ad2"}];OutputPorts = [];X = 373;Y = 171}
+    ],
+    [
+        {Id = "conn-sel";Source = {Id = "a6010bcb-ba2b-e57f-ca50-39f3d094e3b8";PortNumber = None;PortType = PortType.Output;HostId = "ed12b5d8-556b-515a-cc9d-873960690380"};Target = {Id = "f283db84-a1f0-d006-be39-f17be6f8490c";PortNumber = None;PortType = PortType.Input;HostId = "d7028a8f-83be-0d81-6f0f-19b384caddae"};Vertices = [152.0,214.0; 259.0,214.0; 259.0,201.0]};
+        {Id = "conn-top-input";Source = {Id = "cc7c6510-d49b-28d9-e0bc-d5350a2c76a8";PortNumber = None;PortType = PortType.Output;HostId = "8078a917-236f-5a40-18a6-8e2d6a1458f5"};Target = {Id = "108ea909-b27f-24ba-22ea-2faeb061a926";PortNumber = None;PortType = PortType.Input;HostId = "d7028a8f-83be-0d81-6f0f-19b384caddae"};Vertices = [152.0,135.0; 198.0,135.0; 198.0,172.0; 244.0,172.6]};
+        {Id = "conn-to-output";Source = {Id = "5b651087-9b95-3a80-4f99-014f85f0dfdd";PortNumber = None;PortType = PortType.Output;HostId = "d7028a8f-83be-0d81-6f0f-19b384caddae"};Target = {Id = "7bbfa7d3-4718-e6fe-e7e9-8c00e5257f45";PortNumber = None;PortType = PortType.Input;HostId = "00661085-7d05-4185-09ef-4138ac918ad2"};Vertices = [274.0,181.0; 373.0,181.0]}
+        {Id = "conn-bottom-input"; Source = {Id = "a6010bcb-ba2b-e57f-ca50-39f3d094e3b8"; PortNumber = None; PortType = PortType.Output; HostId = "ed12b5d8-556b-515a-cc9d-873960690380"}; Target = {Id = "38c8c934-d55e-2aff-e61b-5fbf7d7eed91"; PortNumber = None; PortType = PortType.Input; HostId = "d7028a8f-83be-0d81-6f0f-19b384caddae"}; Vertices = [152.0,258.0; 198.0,258.0; 198.0,189.33333333333334; 244.0,189.33333333333334]}
+    ]
+
+/// Partially connected Demux. A 2-bit input, Mux, a 2-bit output.
+let stateBus20 : CanvasState =
+    [
+        {Id = "8078a917-236f-5a40-18a6-8e2d6a1458f5";Type = Input 2;Label = "a";InputPorts = [];OutputPorts = [{Id = "cc7c6510-d49b-28d9-e0bc-d5350a2c76a8";PortNumber = Some 0;PortType = PortType.Output;HostId = "8078a917-236f-5a40-18a6-8e2d6a1458f5"}];X = 122;Y = 125};
+        {Id = "fbfb4202-9816-f214-0401-da18caddeb0f";Type = Demux2;Label = "";InputPorts = [{Id = "2b224026-609a-5eae-6885-ff9820dbae5f";PortNumber = Some 0;PortType = PortType.Input;HostId = "fbfb4202-9816-f214-0401-da18caddeb0f"}; {Id = "68043f9b-47e7-793f-fed2-943a7d7336dc";PortNumber = Some 1;PortType = PortType.Input;HostId = "fbfb4202-9816-f214-0401-da18caddeb0f"}];OutputPorts = [{Id = "57070484-347e-4701-8c36-f510c2ef150c";PortNumber = Some 0;PortType = PortType.Output;HostId = "fbfb4202-9816-f214-0401-da18caddeb0f"}; {Id = "123463bf-7868-9a87-6fb1-36627a3c9bad";PortNumber = Some 1;PortType = PortType.Output;HostId = "fbfb4202-9816-f214-0401-da18caddeb0f"}];X = 254;Y = 110};
+        {Id = "00661085-7d05-4185-09ef-4138ac918ad2";Type = Output 2;Label = "aa";InputPorts = [{Id = "7bbfa7d3-4718-e6fe-e7e9-8c00e5257f45";PortNumber = Some 0;PortType = PortType.Input;HostId = "00661085-7d05-4185-09ef-4138ac918ad2"}];OutputPorts = [];X = 401;Y = 117}
+    ],
+    [
+        {Id = "conn-to-output";Source = {Id = "57070484-347e-4701-8c36-f510c2ef150c";PortNumber = None;PortType = PortType.Output;HostId = "fbfb4202-9816-f214-0401-da18caddeb0f"};Target = {Id = "7bbfa7d3-4718-e6fe-e7e9-8c00e5257f45";PortNumber = None;PortType = PortType.Input;HostId = "00661085-7d05-4185-09ef-4138ac918ad2"};Vertices = [284.0,126.66666666666667; 343.5,126.66666666666667; 343.5,127.0; 401.0,127.0]};
+        {Id = "conn-to-input";Source = {Id = "cc7c6510-d49b-28d9-e0bc-d5350a2c76a8";PortNumber = None;PortType = PortType.Output;HostId = "8078a917-236f-5a40-18a6-8e2d6a1458f5"};Target = {Id = "2b224026-609a-5eae-6885-ff9820dbae5f";PortNumber = None;PortType = PortType.Input;HostId = "fbfb4202-9816-f214-0401-da18caddeb0f"};Vertices = [152.0,135.0; 254.0,135.0]}
+    ]

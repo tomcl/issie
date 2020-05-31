@@ -209,6 +209,19 @@ function createDigitalDFF(x, y) {
     return new draw2d.shape.digital.DFF({x:x,y:y,resizeable:false});
 }
 
+function createDigitalDFFE(x, y) {
+    return new draw2d.shape.digital.DFFE({x:x,y:y,resizeable:false});
+}
+
+function createDigitalRegister(x, y, regWidth) {
+    return new draw2d.shape.digital.Register({
+        x: x,
+        y: y,
+        regWidth: regWidth,
+        resizeable: false
+    });
+}
+
 function createDigitalAsyncROM(x, y, addressWidth, wordWidth, memData) {
     return new draw2d.shape.digital.AsyncROM({
         x: x,
@@ -360,6 +373,8 @@ export {
     createDigitalMergeWires,
     createDigitalSplitWire,
     createDigitalDFF,
+    createDigitalDFFE,
+    createDigitalRegister,
     createDigitalAsyncROM,
     createDigitalROM,
     createDigitalRAM,

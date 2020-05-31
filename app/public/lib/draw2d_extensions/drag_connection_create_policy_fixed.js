@@ -1,7 +1,8 @@
 /**
  * This file contains a redefinition of the DragConnectionCreatePolicy which is
- * almost identical to the one the draw2d library provides, but fixes a bug in
- * the onMouseUp function, when calling the create connection function.
+ * almost identical to the one the draw2d library provides, but redefines the
+ * behaviour of the onMouseUp function when calling the createConnection
+ * function (toward the bottom of the file).
  */
 
 draw2d.policy.connection.DragConnectionCreatePolicy = draw2d.policy.connection.ConnectionCreatePolicy.extend(
@@ -220,8 +221,9 @@ draw2d.policy.connection.DragConnectionCreatePolicy = draw2d.policy.connection.C
 
                     if(command!==null){
                         // ****************************************************
-                        // Bug fix:
-                        // Call create connection connection passing the source
+                        // Override the default behaviour to match the custom
+                        // createConnection function that I created:
+                        // call create connectionConnection passing the source
                         // and target port.
                         // ****************************************************
                         command.setConnection(this.createConnection(request.source, request.target));

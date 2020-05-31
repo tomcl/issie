@@ -18,7 +18,8 @@ type OutputPortNumber = | OutputPortNumber of int
 
 type SimulationComponentState =
     | NoState // For all stateless components.
-    | DffState of Bit // Represents the bit that will become the output at the NEXT clock tick.
+    | DffState of Bit
+    | RegisterState of WireData
     | RamState of Memory
 
 type IsClockTick =

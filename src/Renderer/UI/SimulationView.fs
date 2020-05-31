@@ -223,6 +223,7 @@ let viewSimulation model dispatch =
             let otherComponents =
                 project.LoadedComponents
                 |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+            logString <| extractState jsState
             (extractState jsState, otherComponents)
             ||> prepareSimulation project.OpenFileName
             |> function

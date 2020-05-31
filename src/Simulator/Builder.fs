@@ -147,6 +147,11 @@ let private getDffStateBit state =
     | DffState bit -> bit
     | _ -> failwithf "what? getDffStateBit called with an invalid state: %A" state
 
+let private getRegisterStateBits state =
+    match state with
+    | RegisterState bits -> bits
+    | _ -> failwithf "what? getRegisterStateBits called with an invalid state: %A" state
+
 let private getRamStateMemory state =
     match state with
     | RamState memory -> memory
@@ -279,8 +284,30 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                     | Some [bit] -> extractBit bit
                     | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
                 let newState = DffState newStateBit
-                // Propagate the output but do not change the state.
                 Map.empty.Add (OutputPortNumber 0, packBit newStateBit)
+                |> makeReducerOutput newState
+    | Register width ->
+        fun reducerInput ->
+            match reducerInput.IsClockTick with
+            | No ->
+                // If it is not a clock tick, just ignore the changes on the
+                // input.
+                // The newState returned does not matter! It is ignored unless
+                // Input is a clock tick.
+                notReadyReducerOutput NoState
+            | Yes regState ->
+                let stateBits = getRegisterStateBits regState
+                // Store and propagate the current inputs.
+                let newStateBits =
+                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
+                    | None -> stateBits
+                    | Some [bits] ->
+                        assertThat (bits.Length = width)
+                        <| sprintf "Register received data with wrong width: expected %d but got %A" width bits.Length
+                        bits
+                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+                let newState = RegisterState newStateBits
+                Map.empty.Add (OutputPortNumber 0, newStateBits)
                 |> makeReducerOutput newState
     | AsyncROM mem -> // Asynchronous ROM.
         fun reducerInput ->
@@ -403,6 +430,7 @@ let private getDefaultState compType =
     | Demux2 | Custom _ | MergeWires | SplitWire _ | ROM _
     | AsyncROM _ -> NoState
     | DFF -> DffState Zero
+    | Register w -> RegisterState <| List.replicate w Zero
     | RAM memory -> RamState memory // The RamState content may change during
                                     // the simulation.
 

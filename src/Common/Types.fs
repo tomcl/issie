@@ -43,7 +43,7 @@ type ComponentType =
     | Mux2 | Demux2
     | Custom of CustomComponentType
     | MergeWires | SplitWire of int
-    | DFF // No initial state for DFF?
+    | DFF | Register of int // No initial state for DFF or Register?
     | AsyncROM of Memory | ROM of Memory | RAM of Memory
 
 // JSComponent mapped to f# object.

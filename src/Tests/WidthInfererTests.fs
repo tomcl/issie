@@ -126,6 +126,19 @@ let private testCasesWidthInfererBuses : WidhtInfererTestCase list = [
         ConnectionId "9df32195-00b4-9795-3dc1-78fb70d453f2", Some 3
         ConnectionId "cd13c70f-6037-0cf4-1295-5795e92d745c", Some 3
     ] |> Map.ofList |> Ok
+
+    "Partially connected Mux2", stateBus18,
+    [
+        ConnectionId "conn-sel", Some 1
+        ConnectionId "conn-top-input", Some 2
+        ConnectionId "conn-to-output", Some 2
+    ] |> Map.ofList |> Ok
+
+    "Partially connected Demux2", stateBus20,
+    [
+        ConnectionId "conn-to-input", Some 2
+        ConnectionId "conn-to-output", Some 2
+    ] |> Map.ofList |> Ok
 ]
 
 let private testCasesWidthInfererError : WidhtInfererTestCase list = [
@@ -157,6 +170,12 @@ let private testCasesWidthInfererError : WidhtInfererTestCase list = [
     Error {
         Msg = "Wrong wire width. Target port expects a 4 bit(s) signal, but source port produces a 3 bit(s) signal."
         ConnectionsAffected = ["conn"] |> List.map ConnectionId
+    }
+
+    "Fully connected Mux, but two inputs have different widths", stateBus19,
+    Error {
+        Msg = "Wrong wire width. The two inputs to a multiplexer are expected to have the same width, but top input has 2 bits and bottom input has 1 bits."
+        ConnectionsAffected = ["conn-top-input"; "conn-bottom-input"] |> List.map ConnectionId
     }
 ]
 

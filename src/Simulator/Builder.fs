@@ -282,6 +282,27 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 let newState = DffState newStateBit
                 Map.empty.Add (OutputPortNumber 0, packBit newStateBit)
                 |> makeReducerOutput newState
+    | DFFE ->
+        fun reducerInput ->
+            match reducerInput.IsClockTick with
+            | No ->
+                // If it is not a clock tick, just ignore the changes on the
+                // input.
+                // The newState returned does not matter! It is ignored unless
+                // Input is a clock tick.
+                notReadyReducerOutput NoState
+            | Yes dffState ->
+                let stateBit = getDffStateBit dffState
+                // Store and propagate the current inputs.
+                let newStateBit =
+                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
+                    | None -> stateBit
+                    | Some [bit; enable] -> if (extractBit enable = Zero)
+                                            then stateBit else extractBit bit
+                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+                let newState = DffState newStateBit
+                Map.empty.Add (OutputPortNumber 0, packBit newStateBit)
+                |> makeReducerOutput newState
     | Register width ->
         fun reducerInput ->
             match reducerInput.IsClockTick with
@@ -425,7 +446,7 @@ let private getDefaultState compType =
     | Input _ | Output _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2
     | Demux2 | Custom _ | MergeWires | SplitWire _ | ROM _
     | AsyncROM _ -> NoState
-    | DFF -> DffState Zero
+    | DFF | DFFE -> DffState Zero
     | Register w -> RegisterState <| List.replicate w Zero
     | RAM memory -> RamState memory // The RamState content may change during
                                     // the simulation.

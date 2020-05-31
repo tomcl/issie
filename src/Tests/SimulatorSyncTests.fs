@@ -133,7 +133,7 @@ let testCasesSimulatorSync : TestCase list = [
 
     "Similar to stateSync6, but with an extra connection input to output.",
     ("main", stateSync7, [stateSync1Dependency], 4, [
-      [(ComponentId "03e4c81a-4703-d9f5-dfaf-301de006610f", [One])]
+        [(ComponentId "03e4c81a-4703-d9f5-dfaf-301de006610f", [One])]
     ]),
     Ok [
         [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [Zero]
@@ -148,6 +148,32 @@ let testCasesSimulatorSync : TestCase list = [
         [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [One]
           (ComponentId "fc5099db-d220-b42f-2add-b8c057164cb1", ComponentLabel "b1", 1), [One] ]
       ]
+
+    "A fully connected DFFE.",
+    ("main", stateSync10, [], 8, [
+        [ (ComponentId "5916f1cf-408e-4186-a839-c80926bfddf0", [Zero])   // in
+          (ComponentId "cab54371-5e07-9586-eb9b-be8cc417e610", [Zero]) ] // enable
+        [ (ComponentId "5916f1cf-408e-4186-a839-c80926bfddf0", [Zero])
+          (ComponentId "cab54371-5e07-9586-eb9b-be8cc417e610", [One]) ] // turn on enable
+        [ (ComponentId "5916f1cf-408e-4186-a839-c80926bfddf0", [One])
+          (ComponentId "cab54371-5e07-9586-eb9b-be8cc417e610", [One]) ] // turn on enable
+        [ (ComponentId "5916f1cf-408e-4186-a839-c80926bfddf0", [Zero])
+          (ComponentId "cab54371-5e07-9586-eb9b-be8cc417e610", [Zero]) ] // turn off enable
+        [ (ComponentId "5916f1cf-408e-4186-a839-c80926bfddf0", [One])
+          (ComponentId "cab54371-5e07-9586-eb9b-be8cc417e610", [One]) ] // turn on enable again
+        [ (ComponentId "5916f1cf-408e-4186-a839-c80926bfddf0", [Zero])
+          (ComponentId "cab54371-5e07-9586-eb9b-be8cc417e610", [One]) ] // set to zero
+    ]),
+    Ok [
+        [ (ComponentId "a2c874bb-eaeb-d62d-8a72-5eeae48db694", ComponentLabel "out", 1), [Zero] ]
+        [ (ComponentId "a2c874bb-eaeb-d62d-8a72-5eeae48db694", ComponentLabel "out", 1), [Zero] ]
+        [ (ComponentId "a2c874bb-eaeb-d62d-8a72-5eeae48db694", ComponentLabel "out", 1), [Zero] ] // enabled but zero
+        [ (ComponentId "a2c874bb-eaeb-d62d-8a72-5eeae48db694", ComponentLabel "out", 1), [One] ]  // set to one
+        [ (ComponentId "a2c874bb-eaeb-d62d-8a72-5eeae48db694", ComponentLabel "out", 1), [One] ]  // enable is off
+        [ (ComponentId "a2c874bb-eaeb-d62d-8a72-5eeae48db694", ComponentLabel "out", 1), [One] ]  // enable is on again
+        [ (ComponentId "a2c874bb-eaeb-d62d-8a72-5eeae48db694", ComponentLabel "out", 1), [Zero] ] // set to zero
+        [ (ComponentId "a2c874bb-eaeb-d62d-8a72-5eeae48db694", ComponentLabel "out", 1), [Zero] ] // set to zero
+    ]
 
     "Create a Not-ed self loop with the custom component of stateSync7.",
     ("main", stateSync8, [stateSync7Dependency; stateSync1Dependency], 4, []),

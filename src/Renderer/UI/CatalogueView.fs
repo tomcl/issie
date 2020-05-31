@@ -152,6 +152,7 @@ let viewCatalogue model dispatch =
             makeMenuGroup
                 "Flip Flops and Registers"
                 [ menuItem "D-flip-flop" (fun _ -> createComponent DFF "" model dispatch)
+                  menuItem "D-flip-flop with enable" (fun _ -> createComponent DFFE "" model dispatch)
                   menuItem "Register" (fun _ -> createRegisterPopup model dispatch) ]
             makeMenuGroup
                 "Memories"

@@ -104,6 +104,14 @@ let private staticBitButton bit =
         Button.Disabled true
     ] [ str <| bitToString bit ]
 
+let private staticNumberBox numBase bits =
+    let value = viewNum numBase <| convertWireDataToInt bits
+    Input.text [
+        Input.IsReadOnly true
+        Input.Value value
+        Input.Props [simulationNumberStyle]
+    ]
+
 let private viewSimulationOutputs numBase (simOutputs : (SimulationIO * WireData) list) =
     let makeOutputLine ((ComponentId _, ComponentLabel outputLabel, width), wireData) =
         assertThat (List.length wireData = width)
@@ -112,26 +120,24 @@ let private viewSimulationOutputs numBase (simOutputs : (SimulationIO * WireData
             match wireData with
             | [] -> failwith "what? Empty wireData while creating a line in simulation output."
             | [bit] -> staticBitButton bit
-            | bits ->
-                let value = viewNum numBase <| convertWireDataToInt bits
-                Input.text [
-                    Input.IsReadOnly true
-                    Input.Value value
-                    Input.Props [simulationNumberStyle]
-                ]
+            | bits -> staticNumberBox numBase bits
         splittedLine (str <| makeIOLabel outputLabel width) valueHandle
     div [] <| List.map makeOutputLine simOutputs
 
-let private viewStatefulComponents comps model dispatch =
+let private viewStatefulComponents comps numBase model dispatch =
     let getWithDefault (ComponentLabel lab) = if lab = "" then "no-label" else lab
     let makeStateLine (comp : SimulationComponent) =
         match comp.State with
         | DffState bit ->
             let label = sprintf "DFF: %s" <| getWithDefault comp.Label
             [ splittedLine (str label) (staticBitButton bit) ]
+        | RegisterState bits ->
+            let getWidth compType = match compType with Register w -> w | _ -> failwithf "what? viewStatefulComponents expected Register component but got: %A" compType 
+            let label = sprintf "Register: %s (%d bits)" (getWithDefault comp.Label) (getWidth comp.Type)
+            [ splittedLine (str label) (staticNumberBox numBase bits) ]
         | RamState mem ->
             let label = sprintf "RAM: %s" <| getWithDefault comp.Label
-            let initialMem compType = match compType with RAM m -> m | _ -> failwithf "what? viewStatefulComponents expected RAM component but got: %A" compType 
+            let initialMem compType = match compType with RAM m -> m | _ -> failwithf "what? viewStatefulComponents expected RAM component but got: %A" compType
             let viewDiffBtn =
                 Button.button [
                     Button.Props [ simulationBitStyle ]
@@ -189,7 +195,7 @@ let private viewSimulationData (simData : SimulationData) model dispatch =
         | true -> div [] []
         | false -> div [] [
             Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Stateful components" ]
-            viewStatefulComponents (extractStatefulComponents simData.Graph) model dispatch
+            viewStatefulComponents (extractStatefulComponents simData.Graph) simData.NumberBase model dispatch
         ]
     div [] [
         splittedLine maybeBaseSelector maybeClockTickBtn

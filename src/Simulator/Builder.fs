@@ -245,6 +245,8 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
             match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
             | None -> notReadyReducerOutput NoState // Wait for more inputs.
             | Some [bits0; bits1] ->
+                // Little endian, bits coming from the top wire are the least
+                // significant.
                 Map.empty.Add (OutputPortNumber 0, bits0 @ bits1)
                 |> makeReducerOutput NoState
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
@@ -258,6 +260,8 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 assertThat (bits.Length >= topWireWidth + 1)
                 <| sprintf "SplitWire received too little bits: expected at least %d but got %d" (topWireWidth + 1) bits.Length
                 let bits0, bits1 = List.splitAt topWireWidth bits
+                // Little endian, bits leaving from the top wire are the least
+                // significant.
                 let out = Map.empty.Add (OutputPortNumber 0, bits0)
                 let out = out.Add (OutputPortNumber 1, bits1)
                 makeReducerOutput NoState out

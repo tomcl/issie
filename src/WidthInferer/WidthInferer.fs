@@ -184,6 +184,13 @@ let private calculateOutputPortsWidth
         | [None] | [Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
         | [Some n] -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 0]
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
+    | Register width ->
+        assertInputsSize inputConnectionsWidth 1 comp
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
+        | [None] -> Ok <| Map.empty.Add (getOutputPortId comp 0, width)
+        | [Some n] when n = width -> Ok <| Map.empty.Add (getOutputPortId comp 0, width)
+        | [Some n] when n <> width -> makeWidthInferErrorEqual width n [getConnectionIdForPort 0]
+        | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
     | AsyncROM mem | ROM mem ->
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with

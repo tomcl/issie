@@ -54,6 +54,10 @@ let private makeDescription comp model dispatch =
             ul [] (toHTMLList custom.OutputLabels)
         ]
     | DFF -> div [] [ str "D-flip-flop. The component is implicitly connected to the global clock." ]
+    | DFFE -> div [] [
+        str "D-flip-flop with enable. If the enable signal is high the state of
+             the D-flip-flop will be updated at the next clock cycle.
+             The component is implicitly connected to the global clock." ]
     | Register width -> div [] [ str <| sprintf "%d bit(s) register. The component is implicitly connected to the global clock." width ]
     | AsyncROM mem ->
         let descr = "Asynchronous ROM: the output is updated as soon as the address changes."

@@ -59,6 +59,7 @@ type private IDraw2d =
     abstract createDigitalMergeWires      : x:int -> y:int -> JSComponent
     abstract createDigitalSplitWire       : x:int -> y:int -> topOutputWidth:int -> JSComponent
     abstract createDigitalDFF             : x:int -> y:int -> JSComponent
+    abstract createDigitalDFFE            : x:int -> y:int -> JSComponent
     abstract createDigitalRegister        : x:int -> y:int -> regWidth:int -> JSComponent
     abstract createDigitalAsyncROM        : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
     abstract createDigitalROM             : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
@@ -127,7 +128,8 @@ let private createComponent
                                 (fshaprListToJsList custom.OutputLabels)
         | MergeWires -> draw2dLib.createDigitalMergeWires x y
         | SplitWire topWireWidth -> draw2dLib.createDigitalSplitWire x y topWireWidth
-        | DFF -> draw2dLib.createDigitalDFF x y
+        | DFF  -> draw2dLib.createDigitalDFF x y
+        | DFFE -> draw2dLib.createDigitalDFFE x y
         | Register width -> draw2dLib.createDigitalRegister x y width
         | AsyncROM mem ->
             draw2dLib.createDigitalAsyncROM

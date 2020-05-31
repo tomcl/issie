@@ -68,6 +68,7 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     | "MergeWires" -> MergeWires
     | "SplitWire"  -> SplitWire <| getFailIfNull jsComponent ["topOutputWidth"]
     | "DFF"        -> DFF
+    | "DFFE"       -> DFFE
     | "Register"   -> Register <| getFailIfNull jsComponent ["regWidth"]
     | "AsyncROM"   -> AsyncROM <| extractMemoryData jsComponent
     | "ROM"        -> ROM <| extractMemoryData jsComponent

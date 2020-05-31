@@ -14,7 +14,7 @@ open SimulatorTypes
 /// considered synchronous.
 let couldBeSynchronousComponent compType : bool =
     match compType with
-    | DFF | Register _ | ROM _ | RAM _ | Custom _ -> true // We have to assume custom components are clocked as they may be.
+    | DFF | DFFE | Register _ | ROM _ | RAM _ | Custom _ -> true // We have to assume custom components are clocked as they may be.
     | Input _ | Output _ | MergeWires | SplitWire _ | Not | And | Or | Xor
     | Nand | Nor | Xnor | Mux2 | Demux2 | AsyncROM _ -> false
 
@@ -23,7 +23,7 @@ let rec hasSynchronousComponents graph : bool =
     graph
     |> Map.map (fun compId comp ->
             match comp.Type with
-            | DFF | Register _ | ROM _ | RAM _ -> true
+            | DFF | DFFE | Register _ | ROM _ | RAM _ -> true
             | Custom _ -> hasSynchronousComponents <| Option.get comp.CustomSimulationGraph
             | Input _ | Output _ | MergeWires | SplitWire _ | Not | And | Or
             | Xor | Nand | Nor | Xnor | Mux2 | Demux2 | AsyncROM _ -> false
@@ -37,7 +37,7 @@ let isSynchronousComponent
         (hasRoutesFromInputToOutpuMap : Map<string, bool>)
         (compType : ComponentType) : bool =
     match compType with
-    | DFF | Register _ | ROM _ | RAM _ -> true
+    | DFF | DFFE | Register _ | ROM _ | RAM _ -> true
     | Custom custom ->
         // If there is at least one combinatorial path from an input to an
         // output in the graph of the custom component, then consider it

@@ -334,19 +334,15 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
         fun reducerInput ->
             assertNoClockTick reducerInput componentType
             assertNotTooManyInputs reducerInput componentType 1
-            let address =
-                match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
-                | None ->
-                    // By default, output the content of mem[0].
-                    List.replicate mem.AddressWidth Zero
-                | Some [addr] ->
-                    assertThat (addr.Length = mem.AddressWidth)
-                    <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth addr
-                    addr
-                | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-            let outData = readMemory mem address
-            Map.empty.Add (OutputPortNumber 0, outData)
-            |> makeReducerOutput NoState
+            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
+            | None -> notReadyReducerOutput NoState // Not ready yet.
+            | Some [addr] ->
+                assertThat (addr.Length = mem.AddressWidth)
+                <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth addr
+                let outData = readMemory mem addr
+                Map.empty.Add (OutputPortNumber 0, outData)
+                |> makeReducerOutput NoState
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
     | ROM mem -> // Synchronous ROM.
         fun reducerInput ->
             match reducerInput.IsClockTick with

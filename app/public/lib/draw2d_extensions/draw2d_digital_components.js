@@ -479,12 +479,12 @@ draw2d.shape.digital.MergeWires = draw2d.shape.digital.extend({
         ];
         if (this.topInputWidth && this.bottomInputWidth && this.outputWidth) {
             let topInputLabel =
-                this.topInputWidth >= 2 ? `[${this.bottomInputWidth}-${this.outputWidth - 1}]`
-                                        : `[${this.bottomInputWidth}]`;
+                this.topInputWidth >= 2 ? `[${this.topInputWidth - 1}..0]`
+                                        : '[0]';
             let bottomInputLabel =
-                this.bottomInputWidth >= 2 ? `[0-${this.bottomInputWidth - 1}]`
-                                           : '[0]';
-            let outputLabel = `[0-${this.outputWidth - 1}]`;
+                this.bottomInputWidth >= 2 ? `[${this.outputWidth - 1}..${this.topInputWidth}]`
+                                           : `[${this.topInputWidth}]`;
+            let outputLabel = `[${this.outputWidth - 1}..0]`;
             // Add labels on the wires.
             svgElements = svgElements.concat([
                 {path: `<text x="0" y="-15" fill="black">${topInputLabel}</text>`, toFill: false},
@@ -536,12 +536,12 @@ draw2d.shape.digital.SplitWire = draw2d.shape.digital.extend({
         ];
         if (this.inputWidth && this.topOutputWidth && this.bottomOutputWidth) {
             let topOutputLabel =
-                this.topOutputWidth >= 2 ? `[${this.bottomOutputWidth}-${this.inputWidth - 1}]`
-                                         : `[${this.bottomOutputWidth}]`;
+                this.topOutputWidth >= 2 ? `[${this.topOutputWidth - 1}..0]`
+                                         : '[0]';
             let bottomOutputLabel =
-                this.bottomOutputWidth >= 2 ? `[0-${this.bottomOutputWidth - 1}]`
-                                            : '[0]';
-            let inputLabel = `[0-${this.inputWidth - 1}]`;
+                this.bottomOutputWidth >= 2 ? `[${this.inputWidth - 1}..${this.topOutputWidth}]`
+                                            : `[${this.topOutputWidth}]`;
+            let inputLabel = `[${this.inputWidth - 1}..0]`;
             // Add labels on the wires.
             svgElements = svgElements.concat([
                 {path: `<text x="${this.svgWidth-15}" y="1" fill="black">${topOutputLabel}</text>`, toFill: false},

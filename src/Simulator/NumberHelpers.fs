@@ -48,13 +48,13 @@ let dec (num : int) = dec64 <| int64 num
 let bitToString (bit : Bit) : string =
     match bit with Zero -> "0" | One -> "1"
 
-/// Pad wireData with Zeros as the Most Significant Bits (e.g. at position 0).
+/// Pad wireData with Zeros as the Most Significant Bits (e.g. at position N).
 let private padToWidth (bits : WireData) width : WireData =
-    List.replicate (width - bits.Length) Zero @ bits
+    bits @ List.replicate (width - bits.Length) Zero
 
-/// Convert an int into a Bit list with the provided width. The Most Significant
-/// Bits are the one with low index (e.g. MSB is at position 0, LSB is at
-/// position N).
+/// Convert an int into a Bit list with the provided width. The Least
+/// Significant Bits are the one with low index (e.g. LSB is at position 0, MSB
+/// is at position N). Little Endian.
 /// If the number has more bits than width, then more bits will be returned.
 let rec convertIntToWireData (num : int64) (width : int) : WireData =
     let toBit = function | 0 -> Zero | 1 -> One | _ -> failwith "toBit only accepts 0 or 1"
@@ -63,17 +63,18 @@ let rec convertIntToWireData (num : int64) (width : int) : WireData =
         | 0 | 1 -> [toBit <| int i]
         | _ -> let bit = toBit <| int (i % (int64 2))
                bit :: (intToBinary (i / (int64 2)))
-    let bits = List.rev <| intToBinary num
-    padToWidth bits width
+    padToWidth (intToBinary num) width
 
-/// Convert a list of Bits into an int. The Most Significant Bits are the one
-/// with low index (e.g. MSB is at position 0, LSB is at position N).
-let rec convertWireDataToInt (bits : WireData) : int64 =
-    let mag = (bits.Length - 1)
-    match bits with
-    | [] -> int64 0
-    | Zero :: bits' -> convertWireDataToInt bits'
-    | One :: bits' -> pow2int64(mag) + convertWireDataToInt bits'
+/// Convert a list of Bits into an int. The Least Significant Bits are the one
+/// with low index (e.g. LSB is at position 0, MSB is at position N).
+/// Little Endian.
+let convertWireDataToInt (bits : WireData) : int64 =
+    let rec convert bits idx =
+        match bits with
+        | [] -> int64 0
+        | Zero :: bits' -> convert bits' (idx + 1)
+        | One :: bits' -> pow2int64(idx) + convert bits' (idx + 1)
+    convert bits 0
 
 /// Try to convert a string to an int, or return an error message if that was
 /// not possible.

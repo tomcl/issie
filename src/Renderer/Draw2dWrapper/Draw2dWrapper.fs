@@ -170,6 +170,10 @@ let private createConnection
     | Some id -> draw2dLib.setConnectionId conn id
     draw2dLib.addConnectionToCanvas canvas conn
     // TODO: Setting vertices seems to break stuff, not sure why.
+    // It is highly likely this is a bug in the draw2d library, and it has been
+    // reported: https://github.com/freegroup/draw2d/issues/115
+    // When fixed, just uncomment the below logic.
+
     // Vertices must be set only once the connection is already in the the
     // canvas, i.e. after the connection has been actually routed.
     //vertices

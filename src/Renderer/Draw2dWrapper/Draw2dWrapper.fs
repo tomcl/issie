@@ -67,6 +67,7 @@ type private IDraw2d =
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
     abstract writeMemoryLine              : comp:JSComponent -> addr:int -> value:int64 -> unit
     abstract setNumberOfIOBits            : comp:JSComponent -> numberOfBits:int -> unit
+    abstract setTopOutputWidth            : comp:JSComponent -> topOutputWidth: int -> unit
     abstract updateMergeWiresLabels       : comp:JSComponent -> topInputWidth:int option -> bottomInputWidth:int option -> outputWidth:int option -> unit
     abstract updateSplitWireLabels        : comp:JSComponent -> inputWidth:int option ->topOutputWidth:int option ->bottomOutputWidth:int option -> unit
     abstract getComponentById             : canvas:JSCanvas -> id:string -> JSComponent
@@ -400,6 +401,13 @@ type Draw2dWrapper() =
         | Some c ->
             let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "SetNumberOfBits"
             draw2dLib.setNumberOfIOBits jsComp numberOfBits
+
+    member this.SetTopOutputWidth compId topOutputWidth =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.SetTopOutputWidth called when canvas is None"
+        | Some c ->
+            let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "SetTopOutputWidth"
+            draw2dLib.setTopOutputWidth jsComp topOutputWidth
 
     member this.GetComponentById compId =
         match canvas with

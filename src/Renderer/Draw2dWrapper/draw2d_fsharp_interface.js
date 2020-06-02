@@ -265,11 +265,21 @@ function writeMemoryLine(comp, addr, value) {
     comp.memData[addr] = value;
 }
 
+/// Should only be used for Input and Output nodes.
 function setNumberOfIOBits(comp, numberOfBits) {
     if (comp.numberOfBits == null || comp.numberOfBits === "undefined") {
         throw `Cannot set number of bits of non-IO component: ${comp.componentType}`;
     }
     comp.numberOfBits = numberOfBits;
+    dispatchInferWidthsMessage();
+}
+
+/// Should only be used for SplitWire nodes.
+function setTopOutputWidth(comp, topOutputWidth) {
+    if (comp.topOutputWidth == null || comp.topOutputWidth === "undefined") {
+        throw `Cannot set topOutputWidth of non-SplitWire component: ${comp.componentType}`;
+    }
+    comp.topOutputWidth = topOutputWidth;
     dispatchInferWidthsMessage();
 }
 
@@ -389,6 +399,7 @@ export {
     createDigitalConnection,
     writeMemoryLine,
     setNumberOfIOBits,
+    setTopOutputWidth,
     updateMergeWiresLabels,
     updateSplitWireLabels,
     getComponentById,

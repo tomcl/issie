@@ -60,19 +60,20 @@ let private makeMemoryInfo descr mem compId model dispatch =
         ] [str "View/Edit memory content"]
     ]
 
-let private makeIONumberOfBits comp model dispatch =
-    let width =
+let private makeNumberOfBitsField comp setter dispatch =
+    let title, width =
         match comp.Type with
-        | Input w -> w | Output w -> w
-        | c -> failwithf "makeIOInfo called with non-IO component: %A" c
-    intFormField "Number of bits" width 1 (
+        | Input w | Output w -> "Number of bits", w
+        | SplitWire w -> "Number of bits in the top wire", w
+        | c -> failwithf "makeNumberOfBitsField called with non-IO component: %A" c
+    intFormField title width 1 (
         fun newWidth ->
             if newWidth < 1
             then
                 errorNotification "Invalid number of bits." ClosePropertiesNotification
                 |> SetPropertiesNotification |> dispatch
             else
-                model.Diagram.SetNumberOfIOBits comp.Id newWidth
+                setter comp.Id newWidth
                 dispatch ReloadSelectedComponent
                 dispatch ClosePropertiesNotification
     )
@@ -86,7 +87,7 @@ let private makeDescription comp model dispatch =
     | Mux2 -> div [] [ str "Multiplexer with two inputs and one output." ]
     | Demux2 -> div [] [ str "Demultiplexer with one input and two outputs." ]
     | MergeWires -> div [] [ str "Merge two wires of width n and m into a single wire of width n+m." ]
-    | SplitWire width -> div [] [ str <| sprintf "Split a wire of width n+m into two wires of width n and m (n is %d)." width]
+    | SplitWire _ -> div [] [ str "Split a wire of width n+m into two wires of width n and m."]
     | Custom custom ->
         let toHTMLList =
             List.map (fun (label, width) -> li [] [str <| sprintf "%s: %d bit(s)" label width])
@@ -122,7 +123,10 @@ let private makeDescription comp model dispatch =
 
 let private makeExtraInfo comp model dispatch =
     match comp.Type with
-    | Input _ | Output _ -> makeIONumberOfBits comp model dispatch
+    | Input _ | Output _ ->
+        makeNumberOfBitsField comp model.Diagram.SetNumberOfIOBits dispatch
+    | SplitWire _ ->
+        makeNumberOfBitsField comp model.Diagram.SetTopOutputWidth dispatch
     | _ -> div [] []
 
 let viewSelectedComponent model dispatch =

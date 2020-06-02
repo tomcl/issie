@@ -66,6 +66,7 @@ type private IDraw2d =
     abstract createDigitalRAM             : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
     abstract writeMemoryLine              : comp:JSComponent -> addr:int -> value:int64 -> unit
+    abstract setNumberOfIOBits            : comp:JSComponent -> numberOfBits:int -> unit
     abstract updateMergeWiresLabels       : comp:JSComponent -> topInputWidth:int option -> bottomInputWidth:int option -> outputWidth:int option -> unit
     abstract updateSplitWireLabels        : comp:JSComponent -> inputWidth:int option ->topOutputWidth:int option ->bottomOutputWidth:int option -> unit
     abstract getComponentById             : canvas:JSCanvas -> id:string -> JSComponent
@@ -392,6 +393,13 @@ type Draw2dWrapper() =
         | Some c ->
             let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "WriteMemoryLine"
             draw2dLib.writeMemoryLine jsComp addr value
+
+    member this.SetNumberOfIOBits compId numberOfBits =
+        match canvas with
+        | None -> log "Warning: Draw2dWrapper.SetNumberOfIOBits called when canvas is None"
+        | Some c ->
+            let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "SetNumberOfBits"
+            draw2dLib.setNumberOfIOBits jsComp numberOfBits
 
     member this.GetComponentById compId =
         match canvas with

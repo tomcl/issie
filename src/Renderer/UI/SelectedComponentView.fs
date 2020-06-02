@@ -13,8 +13,35 @@ open Fable.Helpers.React.Props
 open JSHelpers
 open Helpers
 open DiagramModelType
+open DiagramMessageType
 open CommonTypes
 open MemoryEditorView
+
+let private readOnlyFormField name body =
+    Field.div [] [
+        Label.label [] [ str name ]
+        body
+    ]
+
+let private textFormField name defaultValue onChange =
+    Field.div [] [
+        Label.label [] [ str name ]
+        Control.div [] [ Input.text [
+            Input.Props [ Name name; ]
+            Input.DefaultValue defaultValue
+            Input.OnChange (getTextEventValue >> onChange)
+        ] ]
+    ]
+
+let private intFormField name defaultValue minValue onChange =
+    Field.div [] [
+        Label.label [] [ str name ]
+        Input.number [
+            Input.Props [Style [Width "60px"]; Min minValue]
+            Input.DefaultValue <| sprintf "%d" defaultValue
+            Input.OnChange (getIntEventValue >> onChange)
+        ]
+    ]
 
 let private makeMemoryInfo descr mem compId model dispatch =
     div [] [
@@ -32,10 +59,25 @@ let private makeMemoryInfo descr mem compId model dispatch =
         ] [str "View/Edit memory content"]
     ]
 
+let private makeIONumberOfBits comp model dispatch =
+    let width =
+        match comp.Type with
+        | Input w -> w | Output w -> w
+        | c -> failwithf "makeIOInfo called with non-IO component: %A" c
+    intFormField "Number of bits" width 1 (
+        fun newWidth ->
+            if newWidth < 1
+            then () // TODO show error.
+            else
+                // TODO close error.
+                model.Diagram.SetNumberOfIOBits comp.Id newWidth
+                dispatch ReloadSelectedComponent
+    )
+
 let private makeDescription comp model dispatch =
     match comp.Type with
-    | Input width -> div [] [ str <| sprintf "Input: %d bit(s)." width ]
-    | Output width -> div [] [ str <| sprintf "Output: %d bit(s)." width ]
+    | Input _ -> str "Input"
+    | Output _ -> str "Output"
     | Not | And | Or | Xor | Nand | Nor | Xnor ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
     | Mux2 -> div [] [ str "Multiplexer with two inputs and one output." ]
@@ -75,27 +117,17 @@ let private makeDescription comp model dispatch =
             the global clock."
         makeMemoryInfo descr mem comp.Id model dispatch
 
-let private readOnlyFormField name body =
-    Field.div [] [
-        Label.label [] [ str name ]
-        body
-    ]
-
-let private formField name defaultValue onChange =
-    Field.div [] [
-        Label.label [] [ str name ]
-        Control.div [] [ Input.text [
-            Input.Props [ Name name; ]
-            Input.DefaultValue defaultValue
-            Input.OnChange (getTextEventValue >> onChange)
-        ] ]
-    ]
+let private makeExtraInfo comp model dispatch =
+    match comp.Type with
+    | Input _ | Output _ -> makeIONumberOfBits comp model dispatch
+    | _ -> div [] []
 
 let viewSelectedComponent model dispatch =
     match model.SelectedComponent with
     | None -> div [] [ str "Select a component in the diagram to view/edit its properties." ]
     | Some comp ->
-        div [] [
+        div [Key comp.Id] [
             readOnlyFormField "Description" <| makeDescription comp model dispatch
-            formField "Label" comp.Label (fun text -> model.Diagram.EditComponentLabel comp.Id text)
+            makeExtraInfo comp model dispatch
+            textFormField "Label" comp.Label (fun text -> model.Diagram.EditComponentLabel comp.Id text)
         ]

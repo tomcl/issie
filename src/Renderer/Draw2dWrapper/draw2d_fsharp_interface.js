@@ -265,6 +265,15 @@ function writeMemoryLine(comp, addr, value) {
     comp.memData[addr] = value;
 }
 
+function setNumberOfIOBits(comp, numberOfBits) {
+    if (comp.numberOfBits == null || comp.numberOfBits === "undefined") {
+        throw `Cannot set number of bits of non-IO component: ${comp.componentType}`;
+    }
+    comp.numberOfBits = numberOfBits;
+    console.log("setting to", numberOfBits)
+    dispatchInferWidthsMessage();
+}
+
 function updateMergeWiresLabels(comp, topInputWidth, bottomInputWidth, outputWidth) {
     comp.topInputWidth = topInputWidth;
     comp.bottomInputWidth = bottomInputWidth;
@@ -380,6 +389,7 @@ export {
     createDigitalRAM,
     createDigitalConnection,
     writeMemoryLine,
+    setNumberOfIOBits,
     updateMergeWiresLabels,
     updateSplitWireLabels,
     getComponentById,

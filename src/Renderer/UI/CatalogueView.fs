@@ -87,7 +87,7 @@ let private createSplitWirePopup model dispatch =
 let private createRegisterPopup model dispatch =
     let title = sprintf "Add Register" 
     let beforeInt =
-        fun _ -> str "How wide bits should the register be (in bits)?"
+        fun _ -> str "How wide should the register be (in bits)?"
     let intDefault = 1
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"

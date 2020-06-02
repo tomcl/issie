@@ -265,6 +265,34 @@ function writeMemoryLine(comp, addr, value) {
     comp.memData[addr] = value;
 }
 
+/// Should only be used for Input and Output nodes.
+function setNumberOfIOBits(comp, numberOfBits) {
+    if (comp.numberOfBits == null || comp.numberOfBits === "undefined") {
+        throw `Cannot set number of bits of non-IO component: ${comp.componentType}`;
+    }
+    comp.numberOfBits = numberOfBits;
+    dispatchInferWidthsMessage();
+}
+
+/// Should only be used for SplitWire nodes.
+function setTopOutputWidth(comp, topOutputWidth) {
+    if (comp.topOutputWidth == null || comp.topOutputWidth === "undefined") {
+        throw `Cannot set topOutputWidth of non-SplitWire component: ${comp.componentType}`;
+    }
+    comp.topOutputWidth = topOutputWidth;
+    dispatchInferWidthsMessage();
+}
+
+/// Should only be used for Register nodes.
+function setRegisterWidth(comp, regWidth) {
+    if (comp.regWidth == null || comp.regWidth === "undefined") {
+        throw `Cannot set regWidth of non-Register component: ${comp.componentType}`;
+    }
+    comp.regWidth = regWidth;
+    dispatchInferWidthsMessage();
+    comp.setSVG(comp.getSVG()); // Refresh svg.
+}
+
 function updateMergeWiresLabels(comp, topInputWidth, bottomInputWidth, outputWidth) {
     comp.topInputWidth = topInputWidth;
     comp.bottomInputWidth = bottomInputWidth;
@@ -380,6 +408,9 @@ export {
     createDigitalRAM,
     createDigitalConnection,
     writeMemoryLine,
+    setNumberOfIOBits,
+    setTopOutputWidth,
+    setRegisterWidth,
     updateMergeWiresLabels,
     updateSplitWireLabels,
     getComponentById,

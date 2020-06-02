@@ -66,6 +66,9 @@ type private IDraw2d =
     abstract createDigitalRAM             : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
     abstract writeMemoryLine              : comp:JSComponent -> addr:int -> value:int64 -> unit
+    abstract setNumberOfIOBits            : comp:JSComponent -> numberOfBits:int -> unit
+    abstract setTopOutputWidth            : comp:JSComponent -> topOutputWidth: int -> unit
+    abstract setRegisterWidth             : comp:JSComponent -> topOutputWidth: int -> unit
     abstract updateMergeWiresLabels       : comp:JSComponent -> topInputWidth:int option -> bottomInputWidth:int option -> outputWidth:int option -> unit
     abstract updateSplitWireLabels        : comp:JSComponent -> inputWidth:int option ->topOutputWidth:int option ->bottomOutputWidth:int option -> unit
     abstract getComponentById             : canvas:JSCanvas -> id:string -> JSComponent
@@ -215,6 +218,11 @@ type Draw2dWrapper() =
     let mutable canvas : JSCanvas option = None
     let mutable dispatch : (JSDiagramMsg -> unit) option = None
 
+    let tryActionWithCanvas name action =
+        match canvas with
+        | None -> log <| sprintf "Warning: Draw2dWrapper.%s called when canvas is None" name
+        | Some c -> action c
+
     /// Returns a react element containing the canvas.
     /// The dispatch function has to be: JSDiagramMsg >> dispatch
     member this.CanvasReactElement jsDiagramMsgDispatch displayMode =
@@ -240,9 +248,7 @@ type Draw2dWrapper() =
         | Some _ -> failwithf "what? InitCanvas should never be called when canvas is already created" 
     
     member this.ClearCanvas () =
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.ClearCanvas called when canvas is None"
-        | Some c -> draw2dLib.clearCanvas c
+        tryActionWithCanvas "ClearCanvas" draw2dLib.clearCanvas
 
     /// Brand new component.
     member this.CreateComponent componentType label x y =
@@ -263,9 +269,7 @@ type Draw2dWrapper() =
                                 comp.X comp.Y
 
     member this.LoadConnection (useId : bool) (conn : Connection) =
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.LoadConnection called when canvas or dispatch is None"
-        | Some c ->
+        fun c ->
             let sourceParentNode : JSComponent =
                 assertNotNull (draw2dLib.getComponentById c conn.Source.HostId) "sourceParentNode"
             let sourcePort : JSPort =
@@ -276,20 +280,18 @@ type Draw2dWrapper() =
                 assertNotNull (draw2dLib.getPortById targetParentNode conn.Target.Id) "targetPort"
             let connId = if useId then Some conn.Id else None
             createConnection c connId conn.Vertices sourcePort targetPort
+        |> tryActionWithCanvas "LoadConnection"
 
-    member this.EditComponentLabel componentId newLabel = 
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.EditComponentLabel called when canvas is None"
-        | Some c ->
+    member this.EditComponentLabel componentId newLabel =
+        fun c ->
             let jsComp = assertNotNull
                             (draw2dLib.getComponentById c componentId)
                             "EditComponentLabel"
             draw2dLib.setComponentLabel jsComp newLabel
+        |> tryActionWithCanvas "EditComponentLabel"
 
     member this.PaintConnection connectionId width =
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.PaintConnection called when canvas is None"
-        | Some c ->
+        fun c ->
             let jsConnection =
                 assertNotNull (draw2dLib.getConnectionById c connectionId) "PaintConnection"
             let label, stroke, color =
@@ -300,42 +302,39 @@ type Draw2dWrapper() =
             draw2dLib.setConnectionLabel jsConnection label
             draw2dLib.setConnectionStroke jsConnection stroke
             draw2dLib.setConnectionColor jsConnection color
+        |> tryActionWithCanvas "PaintConnection"
 
     member this.HighlightComponent componentId = 
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.HighlightComponent called when canvas is None"
-        | Some c ->
+        fun c ->
             let comp =
                 assertNotNull (draw2dLib.getComponentById c componentId) "HighlightComponent"
             draw2dLib.setComponentBackground comp "red"
+        |> tryActionWithCanvas "HighlightComponent"
 
     member this.UnHighlightComponent componentId = 
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.UnHighlightComponent called when canvas is None"
-        | Some c ->
+        fun c ->
             let comp = draw2dLib.getComponentById c componentId
             match isNull comp with
             | true -> () // The component has been removed from the diagram while it was highlighted.
             | false -> draw2dLib.setComponentBackground comp "lightgray"
+        |> tryActionWithCanvas "UnHighlightComponent"
 
-    member this.HighlightConnection connectionId = 
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.HighlightConnection called when canvas is None"
-        | Some c ->
+    member this.HighlightConnection connectionId =
+        fun c ->
             let conn =
                 assertNotNull (draw2dLib.getConnectionById c connectionId) "HighlightConnection"
             draw2dLib.setConnectionColor conn "red"
             draw2dLib.setConnectionStroke conn 3
+        |> tryActionWithCanvas "HighlightConnection"
 
     member this.UnHighlightConnection connectionId = 
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.UnHighlightConnection called when canvas is None"
-        | Some c ->
+        fun c ->
             let conn = draw2dLib.getConnectionById c connectionId
             match isNull conn with
             | true -> () // The connection has been removed from the diagram while it was highlighted.
             | false -> draw2dLib.setConnectionColor conn "black"
                        draw2dLib.setConnectionStroke conn 1
+        |> tryActionWithCanvas "UnHighlightConnection"
 
     member this.GetCanvasState () =
         match canvas with
@@ -358,40 +357,49 @@ type Draw2dWrapper() =
             Some (comps, conns)
 
     member this.Undo () =
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.Undo called when canvas is None"
-        | Some c -> draw2dLib.undoLastAction c
+        tryActionWithCanvas "Undo" draw2dLib.undoLastAction
 
     member this.Redo () =
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.Redo called when canvas is None"
-        | Some c -> draw2dLib.redoLastAction c
+        tryActionWithCanvas "Redo" draw2dLib.redoLastAction
     
     member this.FlushCommandStack () =
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.FlushCommandStack called when canvas is None"
-        | Some c -> draw2dLib.flushCommandStack c
+        tryActionWithCanvas "FlushCommandStack" draw2dLib.flushCommandStack
 
     member this.UpdateMergeWiresLabels compId topInputWidth bottomInputWidth outputWidth =
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.UpdateMergeWiresLabels called when canvas is None"
-        | Some c ->
+        fun c ->
             let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "UpdateMergeWiresLabels"
             draw2dLib.updateMergeWiresLabels jsComp topInputWidth bottomInputWidth outputWidth
+        |> tryActionWithCanvas "UpdateMergeWiresLabels"
 
     member this.UpdateSplitWireLabels compId inputWidth topOutputWidth bottomOutputWidth =
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.UpdateSplitWireLabels called when canvas is None"
-        | Some c ->
+        fun c ->
             let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "UpdateSplitWireLabels"
             draw2dLib.updateSplitWireLabels jsComp inputWidth topOutputWidth bottomOutputWidth
+        |> tryActionWithCanvas "UpdateSplitWireLabels"
 
     member this.WriteMemoryLine compId addr value =
-        match canvas with
-        | None -> log "Warning: Draw2dWrapper.WriteMemoryLine called when canvas is None"
-        | Some c ->
+        fun c ->
             let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "WriteMemoryLine"
             draw2dLib.writeMemoryLine jsComp addr value
+        |> tryActionWithCanvas "WriteMemoryLine"
+
+    member this.SetNumberOfIOBits compId numberOfBits =
+        fun c ->
+            let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "SetNumberOfBits"
+            draw2dLib.setNumberOfIOBits jsComp numberOfBits
+        |> tryActionWithCanvas "SetNumberOfIOBits"
+
+    member this.SetTopOutputWidth compId topOutputWidth =
+        fun c ->
+            let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "SetTopOutputWidth"
+            draw2dLib.setTopOutputWidth jsComp topOutputWidth
+        |> tryActionWithCanvas "SetTopOutputWidth"
+
+    member this.SetRegisterWidth compId regWidth =
+        fun c ->
+            let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "SetRegisterWidth"
+            draw2dLib.setRegisterWidth jsComp regWidth
+        |> tryActionWithCanvas "SetRegisterWidth"
 
     member this.GetComponentById compId =
         match canvas with

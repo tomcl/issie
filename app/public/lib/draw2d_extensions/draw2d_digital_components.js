@@ -516,7 +516,7 @@ draw2d.shape.digital.SplitWire = draw2d.shape.digital.extend({
     svgHeight : 30,
     svgWidth : 40,
     inputWidth : null,
-    topOutputWidth : null,
+    topOutputWidth : null, // Set by the user, not just inferred.
     bottomOutputWidth : null,
 
     getSvgElements : function() {

@@ -70,5 +70,7 @@ type Msg =
     | CloseFilesNotification
     | SetMemoryEditorNotification of ((Msg -> unit) -> ReactElement)
     | CloseMemoryEditorNotification
+    | SetPropertiesNotification of ((Msg -> unit) -> ReactElement)
+    | ClosePropertiesNotification
     | SetTopMenu of TopMenu
     | ReloadSelectedComponent

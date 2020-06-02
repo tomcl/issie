@@ -283,6 +283,16 @@ function setTopOutputWidth(comp, topOutputWidth) {
     dispatchInferWidthsMessage();
 }
 
+/// Should only be used for Register nodes.
+function setRegisterWidth(comp, regWidth) {
+    if (comp.regWidth == null || comp.regWidth === "undefined") {
+        throw `Cannot set regWidth of non-Register component: ${comp.componentType}`;
+    }
+    comp.regWidth = regWidth;
+    dispatchInferWidthsMessage();
+    comp.setSVG(comp.getSVG()); // Refresh svg.
+}
+
 function updateMergeWiresLabels(comp, topInputWidth, bottomInputWidth, outputWidth) {
     comp.topInputWidth = topInputWidth;
     comp.bottomInputWidth = bottomInputWidth;
@@ -400,6 +410,7 @@ export {
     writeMemoryLine,
     setNumberOfIOBits,
     setTopOutputWidth,
+    setRegisterWidth,
     updateMergeWiresLabels,
     updateSplitWireLabels,
     getComponentById,

@@ -63,9 +63,9 @@ let private makeMemoryInfo descr mem compId model dispatch =
 let private makeNumberOfBitsField comp setter dispatch =
     let title, width =
         match comp.Type with
-        | Input w | Output w -> "Number of bits", w
+        | Input w | Output w | Register w -> "Number of bits", w
         | SplitWire w -> "Number of bits in the top wire", w
-        | c -> failwithf "makeNumberOfBitsField called with non-IO component: %A" c
+        | c -> failwithf "makeNumberOfBitsField called with invalid component: %A" c
     intFormField title width 1 (
         fun newWidth ->
             if newWidth < 1
@@ -80,8 +80,8 @@ let private makeNumberOfBitsField comp setter dispatch =
 
 let private makeDescription comp model dispatch =
     match comp.Type with
-    | Input _ -> str "Input"
-    | Output _ -> str "Output"
+    | Input _ -> str "Input."
+    | Output _ -> str "Output."
     | Not | And | Or | Xor | Nand | Nor | Xnor ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
     | Mux2 -> div [] [ str "Multiplexer with two inputs and one output." ]
@@ -104,7 +104,7 @@ let private makeDescription comp model dispatch =
         str "D-flip-flop with enable. If the enable signal is high the state of
              the D-flip-flop will be updated at the next clock cycle.
              The component is implicitly connected to the global clock." ]
-    | Register width -> div [] [ str <| sprintf "%d bit(s) register. The component is implicitly connected to the global clock." width ]
+    | Register _ -> div [] [ str "Register. The component is implicitly connected to the global clock." ]
     | AsyncROM mem ->
         let descr = "Asynchronous ROM: the output is updated as soon as the address changes."
         makeMemoryInfo descr mem comp.Id model dispatch
@@ -127,6 +127,8 @@ let private makeExtraInfo comp model dispatch =
         makeNumberOfBitsField comp model.Diagram.SetNumberOfIOBits dispatch
     | SplitWire _ ->
         makeNumberOfBitsField comp model.Diagram.SetTopOutputWidth dispatch
+    | Register _ ->
+        makeNumberOfBitsField comp model.Diagram.SetRegisterWidth dispatch
     | _ -> div [] []
 
 let viewSelectedComponent model dispatch =

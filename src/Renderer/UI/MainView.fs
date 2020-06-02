@@ -45,6 +45,7 @@ let init() = {
         FromSimulation = None
         FromFiles = None
         FromMemoryEditor = None
+        FromProperties = None
     }
     TopMenu = Closed
 }
@@ -272,6 +273,11 @@ let update msg model =
                         { model.Notifications with FromMemoryEditor = Some n} }
     | CloseMemoryEditorNotification ->
         { model with Notifications = { model.Notifications with FromMemoryEditor = None} }
+    | SetPropertiesNotification n ->
+        { model with Notifications =
+                        { model.Notifications with FromProperties = Some n} }
+    | ClosePropertiesNotification ->
+        { model with Notifications = { model.Notifications with FromProperties = None} }
     | SetTopMenu t ->
         { model with TopMenu = t}    
     | ReloadSelectedComponent ->

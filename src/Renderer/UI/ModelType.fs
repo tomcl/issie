@@ -19,6 +19,7 @@ type Notifications = {
     FromSimulation : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
     FromFiles : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
     FromMemoryEditor : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
+    FromProperties : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
 }
 
 type Model = {

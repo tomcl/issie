@@ -16,6 +16,7 @@ open DiagramModelType
 open DiagramMessageType
 open CommonTypes
 open MemoryEditorView
+open PopupView
 
 let private readOnlyFormField name body =
     Field.div [] [
@@ -67,11 +68,13 @@ let private makeIONumberOfBits comp model dispatch =
     intFormField "Number of bits" width 1 (
         fun newWidth ->
             if newWidth < 1
-            then () // TODO show error.
+            then
+                errorNotification "Invalid number of bits." ClosePropertiesNotification
+                |> SetPropertiesNotification |> dispatch
             else
-                // TODO close error.
                 model.Diagram.SetNumberOfIOBits comp.Id newWidth
                 dispatch ReloadSelectedComponent
+                dispatch ClosePropertiesNotification
     )
 
 let private makeDescription comp model dispatch =

@@ -19,6 +19,18 @@ let private makeError msg deps comps conns =
         ConnectionsAffected = conns |> List.map ConnectionId
     }
 
+/// Given a list of N generic elements, associate each element with a bit and
+/// return 2^N lists with all the possible bit combinations.
+/// A bit is simply a bus with width 1.
+let makeAllBitCombinations (lst : 'a list) : (('a * WireData) list) list =
+    let rec allCombinations lst result stack =
+        match lst with
+        | [] -> List.rev stack :: result
+        | el :: lst' ->
+            let result = allCombinations lst' result ((el,[Zero]) :: stack)
+            allCombinations lst' result ((el,[One]) :: stack)
+    List.rev <| allCombinations lst [] []
+
 /// Auto generate all the testcases for a CanvasState (i.e. a full thruth
 /// table). The thruth table considers ALL inputs to be single bit inputs,
 /// please do not use this function if not all inputs are like that. 

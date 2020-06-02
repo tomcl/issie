@@ -270,7 +270,6 @@ function setNumberOfIOBits(comp, numberOfBits) {
         throw `Cannot set number of bits of non-IO component: ${comp.componentType}`;
     }
     comp.numberOfBits = numberOfBits;
-    console.log("setting to", numberOfBits)
     dispatchInferWidthsMessage();
 }
 

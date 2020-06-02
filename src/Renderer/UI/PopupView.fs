@@ -246,7 +246,8 @@ let viewNotifications model dispatch =
     [ model.Notifications.FromDiagram
       model.Notifications.FromSimulation
       model.Notifications.FromFiles
-      model.Notifications.FromMemoryEditor ]
+      model.Notifications.FromMemoryEditor
+      model.Notifications.FromProperties ]
     |> List.tryPick id
     |> function
     | Some notification -> notification dispatch

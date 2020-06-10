@@ -10,7 +10,6 @@ module CanvasStateAnalyser
 open CommonTypes
 open SimulatorTypes
 open BusWidthInferer
-open SynchronousUtils
 
 // -- Checks performed
 //

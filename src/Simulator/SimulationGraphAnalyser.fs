@@ -20,6 +20,11 @@ type private DfsType =
     | Cycle of ComponentId list
 
 /// Dfs function that spots combinatorial cycles in a graph.
+/// TODO: this has to keep track of the input port. Need a mapping from
+/// inputportnumber to a list of outputportnumber, corresponding to
+/// combinatorially connected connections.
+/// Visited has to become a set of ComponentId * (option InputPortNumber). The
+/// option is always None except for custom components.
 let rec private dfs
         (currNodeId : ComponentId)
         (graph : SimulationGraph)
@@ -47,6 +52,8 @@ let rec private dfs
         match graph.TryFind currNodeId with
         | None -> failwithf "what? Could not find component %A in cycle detection" currNodeId
         | Some c -> c
+    // TODO: this has to return no for all custom components. Use
+    // couldBeCombinatorial instead.
     match isSynchronous currNode.Type with
     | true ->
         // If the node is a synchronous component, it cannot be part of a
@@ -66,6 +73,8 @@ let rec private dfs
             // New node.
             let visited = visited.Add currNodeId
             let currStack = currStack.Add currNodeId
+            // TODO: If custom component, need to lookup the combinatorial
+            // outputs connected to the input port, rather than all the outputs.
             currNode.Outputs
             |> Map.toList
             |> List.collect // Extract all children Ids for all of the ports.

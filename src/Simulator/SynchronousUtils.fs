@@ -33,6 +33,8 @@ let rec hasSynchronousComponents graph : bool =
 
 /// Determine whether a component is synchronous or not. A custom component is
 /// considered synchronous if it has no combinatorial path from input to output.
+/// TODO: change this to return false for custom as they may be combinatorial.
+/// TODO: change name to couldBeCombinatorialComponent.
 let isSynchronousComponent
         (hasRoutesFromInputToOutpuMap : Map<string, bool>)
         (compType : ComponentType) : bool =
@@ -68,6 +70,8 @@ let rec getNodeOrFail
 
 /// Return None if the search reached an Output node, otherwise return the
 /// updated set of visited nodes.
+/// TODO: Return both visited set and a list of output components reached.
+/// No option.
 let rec private dfs
         (graph : SimulationGraph)
         (hasRoutes : Map<string, bool>)
@@ -102,6 +106,7 @@ let rec private dfs
 
 /// Determine wether a graph has at least one combinatorial path from input to
 /// output.
+/// TODO: change this to determine path from each input to each output.
 let private hasAnyCombinatorialPathInputToOutput
         (currGraph : SimulationGraph)
         (hasRoutes : Map<string, bool>)
@@ -115,7 +120,11 @@ let private hasAnyCombinatorialPathInputToOutput
             | Some visited -> runDfs visited inputs' // Keep on exploring.
 
     // Run a dfs from each input node of the graph and see if an output node can
-    // be reached. Stop as soon as one such path is found
+    // be reached. Stop as soon as one such path is found.
+    // TODO: run for every input. and get a map from InputLabel to a list of
+    // OutputLabel. Then convert this map into InputPortNumber to
+    // OutputPortNumber by looking up the index into the custom component list
+    // of labels (as we do in the DependencyMerger).
     currGraph
     |> Map.filter (fun compId comp -> isInput comp.Type)
     |> Map.toList
@@ -180,6 +189,12 @@ and private inferGraphsCouldBeCombinatorial'
 /// Return a map containing such information for every custom component and
 /// for the diagram itself. Return None if such information cannot be inferred,
 /// for example if there is a circular dependency.
+/// TODO: Create a map for the graph and its dependencies containing:
+/// - key: name of the custom component or the top level diagramName.
+/// - value: a map with:
+///   - key: the InputPortNumber
+///   - value: a list of OutputPortNumber combinatorially connected to the
+///            input.
 let makeIsCustomComponentCombinatorialMap
         (diagramName : string)
         (graph : SimulationGraph)

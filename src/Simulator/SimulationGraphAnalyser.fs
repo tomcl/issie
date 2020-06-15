@@ -10,7 +10,7 @@ open SynchronousUtils
 type private DfsType =
     // No cycle detected in the subtree. Return the new visited set and keep
     // on exploring.
-    | NoCycle of Set<ComponentId>
+    | NoCycle of Set<ComponentId * InputPortNumber option>
     // Found a cycle and bactracking to record all components that form the
     // cycle. Stop recording when the componentId that closes the loop is
     // reached.
@@ -20,23 +20,21 @@ type private DfsType =
     | Cycle of ComponentId list
 
 /// Dfs function that spots combinatorial cycles in a graph.
-/// TODO: this has to keep track of the input port. Need a mapping from
-/// inputportnumber to a list of outputportnumber, corresponding to
-/// combinatorially connected connections.
-/// Visited has to become a set of ComponentId * (option InputPortNumber). The
-/// option is always None except for custom components.
+/// visited and currStack also keep track of the port being explored as it makes
+/// a difference (only) in the custom components.
 let rec private dfs
         (currNodeId : ComponentId)
+        (inputPortNumber : InputPortNumber)
         (graph : SimulationGraph)
-        (visited : Set<ComponentId>)
-        (currStack : Set<ComponentId>)
-        (isSynchronous : ComponentType -> bool)
+        (visited : Set<ComponentId * InputPortNumber option>)
+        (currStack : Set<ComponentId * InputPortNumber option>)
+        getCombOuts
         : DfsType =
     let rec exploreChildren visited currStack children : DfsType =
         match children with
         | [] -> NoCycle visited
-        | child :: children' ->
-            match dfs child graph visited currStack isSynchronous with
+        | (childId, childPNum) :: children' ->
+            match dfs childId childPNum graph visited currStack getCombOuts with
             | NoCycle visited ->
                 // Keep on exploring other children.
                 exploreChildren visited currStack children'
@@ -47,43 +45,37 @@ let rec private dfs
             | Cycle cycle ->
                 Cycle cycle
 
-    // Extract node.
-    let currNode =
-        match graph.TryFind currNodeId with
-        | None -> failwithf "what? Could not find component %A in cycle detection" currNodeId
-        | Some c -> c
-    // TODO: this has to return no for all custom components. Use
-    // couldBeCombinatorial instead.
-    match isSynchronous currNode.Type with
-    | true ->
-        // If the node is a synchronous component, it cannot be part of a
-        // combinatorial cycle.
+    let currNode = getNodeOrFail graph currNodeId
+    // Ignore the info about port number unless node is custom node.
+    let inputPortNumber =
+        match currNode.Type with
+        | Custom _ -> Some inputPortNumber
+        | _ -> None
+    let curr = currNodeId, inputPortNumber
+
+    // Combinational components may form cycles, hence proceed with
+    // the DFS.
+    match currStack.Contains curr, visited.Contains curr with
+    | true, true ->
+        // Already visited in this subtree: cycle detected.
+        Backtracking ([currNodeId], currNodeId)
+    | false, true ->
+        // Already visited, and this node is part of no cycles.
         NoCycle visited
-    | false ->
-        // Combinational components may form cycles, hence proceed with
-        // the DFS.
-        match currStack.Contains currNodeId, visited.Contains currNodeId with
-        | true, true ->
-            // Already visited in this subtree: cycle detected.
-            Backtracking ([currNodeId], currNodeId)
-        | false, true ->
-            // Already visited, and this node is part of no cycles.
-            NoCycle visited
-        | false, false ->
-            // New node.
-            let visited = visited.Add currNodeId
-            let currStack = currStack.Add currNodeId
-            // TODO: If custom component, need to lookup the combinatorial
-            // outputs connected to the input port, rather than all the outputs.
-            currNode.Outputs
-            |> Map.toList
-            |> List.collect // Extract all children Ids for all of the ports.
-                (fun (_, portChildren) ->
-                    portChildren |> List.map (fun (childId, _) -> childId))
-            |> exploreChildren visited currStack
-        | true, false ->
-            // A node in the stack must always be visited.
-            failwithf "what? Node never visited but in the stack, while detecting cycle: %A" currNodeId
+    | false, false ->
+        // New node.
+        let visited = visited.Add curr
+        let currStack = currStack.Add curr
+        // Get all of the combinatorial outputs of the node using the function
+        // getCombinatorialOutputs (already partially applied).
+        getCombOuts currNode inputPortNumber
+        |> Map.toList
+        // Extract all the children for all the ports.
+        |> List.collect (fun (_, portChildren) -> portChildren)
+        |> exploreChildren visited currStack
+    | true, false ->
+        // A node in the stack must always be visited.
+        failwithf "what? Node never visited but in the stack, while detecting cycle: %A" currNodeId
 
 // TODO with clocked components (which can have cycles) you can extend this
 // algorithm by just ignoring a node if it is clocked.
@@ -114,36 +106,21 @@ let private checkCombinatorialCycle
         (graph : SimulationGraph)
         (connectionsOpt : (Connection list) option)
         (inDependency : string option)
-        (isSynchronous : ComponentType -> bool)
+        getCombOuts
         : SimulationError option =
-    let rec checkGraphForest nodeIds visited =
-        match nodeIds with
+    let rec checkGraphForest nodeIdsAndPNums visited =
+        match nodeIdsAndPNums with
         | [] -> None
-        | nodeId :: nodeIds' ->
-            match dfs nodeId graph visited Set.empty isSynchronous with
-            | NoCycle visited -> checkGraphForest nodeIds' visited
+        | (nodeId, pNum) :: nodeIdsAndPNums' ->
+            match dfs nodeId pNum graph visited Set.empty getCombOuts with
+            | NoCycle visited -> checkGraphForest nodeIdsAndPNums' visited
             | Cycle cycle ->
                 let connectionsAffected =
                     match connectionsOpt with
                     | None -> []
                     | Some conns -> calculateConnectionsAffected conns cycle
-                let containsCombinatorialCustomComponent =
-                    cycle
-                    |> List.map (getNodeOrFail graph)
-                    |> List.filter (fun comp -> isCustom comp.Type &&
-                                                not <| isSynchronous comp.Type)
-                    |> List.isEmpty |> not
-                let extraMsg =
-                    if containsCombinatorialCustomComponent
-                    then " The cycle contains at least one combinatorial custom
-                           component. Note that a custom component is considered
-                           combinatorial if there is at least one combinatorial
-                           path from input to output (i.e. at least one path
-                           from input to output that encounters no clocked
-                           component)."
-                    else ""
                 Some {
-                    Msg = "Cycle detected in combinatorial logic." + extraMsg
+                    Msg = "Cycle detected in combinatorial logic."
                     InDependency = inDependency
                     ComponentsAffected = cycle
                     ConnectionsAffected = connectionsAffected
@@ -151,8 +128,17 @@ let private checkCombinatorialCycle
             | Backtracking (c, ce) -> failwithf "what? Dfs should never terminate while backtracking: %A" (c, ce)
 
     let visited = Set.empty
-    let allIds = graph |> Map.toList |> List.map (fun (id, _) -> id)
-    checkGraphForest allIds visited
+    let allIdsAndPNums = graph |> Map.toList |> List.collect (fun (id, comp) ->
+        match comp.Type with
+        | Custom custom ->
+            // Explore ever input port of a custom component.
+            custom.InputLabels |> List.mapi (fun i _ -> id, InputPortNumber i)
+        | _ ->
+            // The input port number does not matter for non custom components,
+            // it will be ignored in the dfs.
+            [id, InputPortNumber 0]
+    )
+    checkGraphForest allIdsAndPNums visited
 
 /// Recursively make sure that there are no combinatorial loops in any of the
 /// dependencies of a graph, and in the graph itself.
@@ -163,7 +149,7 @@ let rec private recursivelyCheckCombinatorialCycles
         (connectionsOpt : (Connection list) option)
         (dependencyName : string)
         (alreadyChecked : Set<string>)
-        (isSynchronous : ComponentType -> bool)
+        getCombOuts
         : Result<Set<string>, SimulationError> =
     let rec iterateChildren
             (alreadyChecked : Set<string>)
@@ -174,7 +160,7 @@ let rec private recursivelyCheckCombinatorialCycles
             let childGraph = Option.get child.CustomSimulationGraph
             let childName = getCustomName child.Type
             recursivelyCheckCombinatorialCycles
-                childGraph None childName alreadyChecked isSynchronous
+                childGraph None childName alreadyChecked getCombOuts
             |> Result.bind (fun alreadyChecked ->
                 iterateChildren alreadyChecked children'
             )
@@ -198,7 +184,7 @@ let rec private recursivelyCheckCombinatorialCycles
                                | None -> Some dependencyName
                                | Some _ -> None 
             checkCombinatorialCycle currGraph connectionsOpt
-                                    inDependency isSynchronous
+                                    inDependency getCombOuts
             |> function
             | None -> Ok alreadyChecked
             | Some err -> Error err
@@ -213,22 +199,22 @@ let analyseSimulationGraph
         (graph : SimulationGraph)
         (connections : Connection list)
         : SimulationError option =
-    match makeIsCustomComponentCombinatorialMap diagramName graph with
+    match calculateCustomComponentsCombinatorialPaths diagramName graph with
     | None ->
-        // It was not possible to infer wether custom components are
-        // combinatorial or synchronous, probably due to a cyclic dependency.
+        // It was not possible to infer combinatorial paths for custom
+        // components, probably due to a cyclic dependency.
         // The dependency merger should have already errored if there were such
         // problems.
-        failwithf "what? makeIsCustomComponentCombinatorialMap returned None whithin analyseSimulationGraph. This should never happen"
-    | Some icccm ->
-        // icccm: is custom component combinatorial? map
-        // This is a map that states whether a custom component is considered
-        // combinatorial or synchronous.
-        // The isSynchronous function uses icccm to determine whether a
-        // component is synchronous or not.
-        let isSynchronous = isSynchronousComponent icccm
+        failwithf "what? calculateCustomComponentsCombinatorialPaths returned None whithin analyseSimulationGraph. This should never happen"
+    | Some cccp ->
+        // cccp: custom components combinatorial paths.
+        // This is a map that lists all of the combinatorial paths from inputs
+        // to outputs for the needed custom components.
+        // The getCombinatorialOutputs function uses cccp to determine the
+        // combinatorial children of a node.
+        let getCombOuts = getCombinatorialOutputs cccp
         recursivelyCheckCombinatorialCycles graph (Some connections) diagramName
-                                            Set.empty isSynchronous
+                                            Set.empty getCombOuts
         |> function
         | Ok _ -> None
         | Error err -> Some err

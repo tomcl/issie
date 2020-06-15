@@ -31,27 +31,6 @@ let rec hasSynchronousComponents graph : bool =
     |> Map.tryPick (fun compId isSync -> if isSync then Some () else None)
     |> function | Some _ -> true | None -> false
 
-/// Determine whether a component is synchronous or not. A custom component is
-/// considered synchronous if it has no combinatorial path from input to output.
-/// TODO: change this to return false for custom as they may be combinatorial.
-/// TODO: change name to couldBeCombinatorialComponent.
-let isSynchronousComponent
-        (hasRoutesFromInputToOutpuMap : Map<string, bool>)
-        (compType : ComponentType) : bool =
-    match compType with
-    | DFF | DFFE | Register _ | ROM _ | RAM _ -> true
-    | Custom custom ->
-        // If there is at least one combinatorial path from an input to an
-        // output in the graph of the custom component, then consider it
-        // combinatorial, otherwise consider it synchrnous.
-        // This heuristic may block legitimate (weird) designs but will never
-        // allow a combinational loop.
-        match hasRoutesFromInputToOutpuMap.TryFind custom.Name with
-        | None -> failwithf "what? could not find custom component name in the hasRoutesFromInputToOutpuMap: %s" custom.Name
-        | Some hasRoutes -> not hasRoutes
-    | Input _ | Output _ | MergeWires | SplitWire _ | Not | And | Or | Xor
-    | Nand | Nor | Xnor | Mux2 | Demux2 | AsyncROM _ -> false
-
 let isInput = function | Input _ -> true | _ -> false
 let isOutput = function | Output _ -> true | _ -> false
 let isCustom = function | Custom _ -> true | _ -> false
@@ -59,8 +38,12 @@ let getCustomName =
     function
     | Custom custom -> custom.Name
     | _ -> failwithf "what? getCustomName should only be called with custom components"
+let getCustomComponentType =
+    function
+    | Custom custom -> custom
+    | _ -> failwithf "what? getCustomComponentType should only be called with custom components"
 
-let rec getNodeOrFail
+let getNodeOrFail
         (graph : SimulationGraph)
         (id : ComponentId)
         : SimulationComponent =
@@ -68,83 +51,165 @@ let rec getNodeOrFail
     | None -> failwithf "what? getNodeOrFail received invalid component id: %A" id
     | Some comp -> comp
 
-/// Return None if the search reached an Output node, otherwise return the
-/// updated set of visited nodes.
-/// TODO: Return both visited set and a list of output components reached.
-/// No option.
+/// For each graph identified by its name, keep a mapping from input ports and
+/// what output ports can be reached.
+type private CustomCompsCombPaths =
+    Map<string, Map<InputPortNumber, OutputPortNumber list>>
+
+/// Convert the label of a port on a custom component to its port number.
+/// Assumes that all labels are unique, otherwise it is undefined behaviour.
+let private labelToPortNumber label (labels : string list) =
+    match List.tryFindIndex ((=) label) labels with
+    | None -> failwithf "what? Label %s not present in %A" label labels
+    | Some pNumber -> pNumber
+
+/// Specific to custom components.
+/// Given a map of combinatorial routes from inputs to outputs for every
+/// simulation graph, perform a lookup to find the combinatorial routes from a
+/// given input to the outputs. Then filter the outputs of the custom node to
+/// only point to the combinatorial children (i.e. the ones connected to the
+/// combinatorial outptus).
+let private getCustomCombinatorialOutputs
+        (combRoutes : CustomCompsCombPaths)
+        (customNode : SimulationComponent)
+        (inputPortNumber : InputPortNumber)
+        : Map<OutputPortNumber, (ComponentId * InputPortNumber) list> =
+    // Determine the outputs connected to the input port.
+    let combOutputs =
+        match combRoutes.TryFind <| getCustomName customNode.Type with
+        | None -> failwithf "what? getCustomCombinatorialOutputs 1"
+        | Some routes ->
+            match routes.TryFind inputPortNumber with
+            | None -> failwithf "what? getCustomCombinatorialOutputs 2"
+            | Some outputs -> outputs
+    // Filter only the children of the combinatorial outputs.
+    Map.filter
+        (fun outputPortNumber _ -> List.contains outputPortNumber combOutputs)
+        customNode.Outputs
+
+/// Given a map of combinatorial routes from inputs to outputs for every
+/// simulation graph, perform a lookup to find the combinatorial routes from a
+/// given input to the outputs. Then filter the outputs of the custom node to
+/// only point to the combinatorial children (i.e. the ones connected to the
+/// combinatorial outptus).
+let getCombinatorialOutputs
+        (combRoutes : CustomCompsCombPaths)
+        (node : SimulationComponent)
+        (inputPortNumberOpt : InputPortNumber option)
+        : Map<OutputPortNumber, (ComponentId * InputPortNumber) list> =
+    match node.Type with
+    | Custom _ ->
+        // Only extract the combinatorial outputs. When calling this function
+        // with a custom component an inputPortNumber is expected as well.
+        getCustomCombinatorialOutputs combRoutes node
+        <| Option.get inputPortNumberOpt
+    | comp when couldBeSynchronousComponent comp ->
+        // Synchronous components, no combinatorial outputs.
+        Map.empty
+    | comp ->
+        // Combinatorial component, return all outpus.
+        node.Outputs
+
+/// Start a dfs from the given node and input port number. Return the labels
+/// of all output nodes that can be reached from there via a combinatorial path.
+/// Note that the information about InputPortNumber is only used by custom
+/// component.
 let rec private dfs
         (graph : SimulationGraph)
-        (hasRoutes : Map<string, bool>)
+        (combPaths : CustomCompsCombPaths)
         (currId : ComponentId)
-        (visited: Set<ComponentId>)
-        : Set<ComponentId> option =
-    let rec exploreChildren visited children : Set<ComponentId> option =
+        (inputPortNumber : InputPortNumber)
+        (visited: Set<ComponentId * InputPortNumber option>)
+        (outputsReached: ComponentLabel list)
+        : Set<ComponentId * InputPortNumber option> * ComponentLabel list =
+    let rec exploreChildren visited outputsReached children
+            : Set<ComponentId * InputPortNumber option> * ComponentLabel list =
         match children with
-        | [] -> Some visited
-        | child :: children' ->
-            match dfs graph hasRoutes child visited with
-            | Some visited ->
-                // Keep on exploring other children.
-                exploreChildren visited children'
-            | None -> None
+        | [] -> visited, outputsReached
+        | (childId, childInpPNum) :: children' ->
+            let visited, outputsReached =
+                dfs graph combPaths childId childInpPNum visited outputsReached
+            // Keep on exploring other children.
+            exploreChildren visited outputsReached children'
 
-    match visited.Contains currId with
-    | true -> Some visited // Ignore already visited nodes.
-    | false ->
-        let visited = visited.Add currId
-        let currNode = getNodeOrFail graph currId
+    let currNode = getNodeOrFail graph currId
+    // Ignore the info about port number unless node is custom node.
+    let inputPortNumber =
         match currNode.Type with
-        | Output _ -> None // Found a route to the outputs.
-        | t when isSynchronousComponent hasRoutes t -> Some visited // Stop recursion when encountering synchronous components.
-        | _ -> // Combinatorial component. Recur on all children.
-            currNode.Outputs
+        | Custom _ -> Some inputPortNumber
+        | _ -> None
+
+    match visited.Contains (currId, inputPortNumber) with
+    | true -> visited, outputsReached // Ignore already visited nodes.
+    | false ->
+        let visited = visited.Add (currId, inputPortNumber)
+        match currNode.Type with
+        | Output _ ->
+            // Found a route to an output. Add its label to the list of
+            // combinatorial outputs.
+            visited, currNode.Label :: outputsReached
+        | _ ->
+            // Normal component. Get all of its combinatorial children.
+            getCombinatorialOutputs combPaths currNode inputPortNumber
             |> Map.toList
-            |> List.collect // Extract all children Ids for all of the ports.
-                (fun (_, portChildren) ->
-                    portChildren |> List.map (fun (childId, _) -> childId))
-            |> exploreChildren visited
+            // Extract all the children for all the ports.
+            |> List.collect (fun (_, portChildren) -> portChildren)
+            |> exploreChildren visited outputsReached
 
-/// Determine wether a graph has at least one combinatorial path from input to
-/// output.
-/// TODO: change this to determine path from each input to each output.
-let private hasAnyCombinatorialPathInputToOutput
+/// For each input node in a simulation graph, determine all the output nodes it
+/// can reach by just following combinatorial paths.
+let private findCombinatorialPaths
+        (customComp : CustomComponentType)
         (currGraph : SimulationGraph)
-        (hasRoutes : Map<string, bool>)
-        : bool =
-    let rec runDfs visited inputs =
+        (combPaths : CustomCompsCombPaths)
+        : Map<InputPortNumber, OutputPortNumber list> =
+    let labelToString (ComponentLabel label) = label
+    let labelsToStrings (labels) = List.map fst labels
+    let rec runDfs inputs =
         match inputs with
-        | [] -> false
+        | [] -> Map.empty
         | (_, input) :: inputs' ->
-            match dfs currGraph hasRoutes input.Id visited with
-            | None -> true // Found path.
-            | Some visited -> runDfs visited inputs' // Keep on exploring.
+            let _, outputsReached =
+                dfs currGraph combPaths input.Id (InputPortNumber 0) Set.empty []
+            let res = runDfs inputs' // Keep on exploring.
+            // Add results for the current inputs to the map.
+            // Need to transform form labels to port numbers.
+            let outputsPNums =
+                outputsReached
+                |> List.map (labelToString >> (fun out ->
+                    labelToPortNumber out (labelsToStrings customComp.OutputLabels)
+                ))
+            res.Add (
+                labelToPortNumber (labelToString input.Label)
+                                  (labelsToStrings customComp.InputLabels)
+                |> InputPortNumber,
+                outputsPNums |> List.map OutputPortNumber
+            )
 
-    // Run a dfs from each input node of the graph and see if an output node can
-    // be reached. Stop as soon as one such path is found.
-    // TODO: run for every input. and get a map from InputLabel to a list of
-    // OutputLabel. Then convert this map into InputPortNumber to
-    // OutputPortNumber by looking up the index into the custom component list
-    // of labels (as we do in the DependencyMerger).
     currGraph
     |> Map.filter (fun compId comp -> isInput comp.Type)
     |> Map.toList
-    |> runDfs Set.empty
+    |> runDfs
 
+/// Calculate the combinatorial paths for each custom component in a simulation
+/// graph.
 let rec private exploreNestedComponents
         (currGraph : SimulationGraph)
         (currName : string)
         (currStack : Set<string>)
-        (result : Map<string, bool>)
-        : Map<string, bool> option =
+        (result : CustomCompsCombPaths)
+        : CustomCompsCombPaths option =
     let currStack = currStack.Add currName
-    let rec iterateNestedComponents (res : Map<string, bool> option) nested =
+
+    let rec iterateNestedComponents (res : CustomCompsCombPaths option) nested =
         match nested with
         | [] -> res
-        | (_, (nextGraph, nextName)) :: nested' when res.IsNone -> None
-        | (_, (nextGraph, nextName)) :: nested' when res.IsSome ->
+        | (_, (nextGraph, customNode)) :: nested' when res.IsNone -> None
+        | (_, (nextGraph, customNode)) :: nested' when res.IsSome ->
             let result = Option.get res
-            match inferGraphsCouldBeCombinatorial'
-                    nextGraph nextName currStack result with
+            match calculateCustomCompCombPaths
+                    nextGraph (getCustomName customNode)
+                    (getCustomComponentType customNode) currStack result with
             | None -> None
             | Some result -> iterateNestedComponents (Some result) nested'
         | _ -> failwithf "what? Impossible case in iterateNestedComponents"
@@ -152,17 +217,20 @@ let rec private exploreNestedComponents
     // Extract all custom components.
     currGraph
     |> Map.filter (fun compId comp -> isCustom comp.Type)
-    |> Map.map (fun compId comp ->
-        Option.get comp.CustomSimulationGraph, getCustomName comp.Type)
+    |> Map.map (fun compId comp -> Option.get comp.CustomSimulationGraph,
+                                   comp.Type)
     |> Map.toList
     |> iterateNestedComponents (Some result)
 
-and private inferGraphsCouldBeCombinatorial'
+/// Calculate the combinatorial paths for a custom component and add it to the
+/// result map.
+and private calculateCustomCompCombPaths
         (currGraph : SimulationGraph)
         (currName : string)
+        (customComp : CustomComponentType)
         (currStack : Set<string>)
-        (result : Map<string, bool>)
-        : Map<string, bool> option =
+        (result : CustomCompsCombPaths)
+        : CustomCompsCombPaths option =
     // Check if the current name is in the stack. If so, there is a circular
     // dependency and return None.
     // If the current graph has already an inferred value, return it
@@ -179,24 +247,23 @@ and private inferGraphsCouldBeCombinatorial'
         | Some result ->
             // All nested components are fine. Infer this graph and add it to
             // the map.
-            result.Add (currName, hasAnyCombinatorialPathInputToOutput currGraph result)
+            result.Add (currName, findCombinatorialPaths customComp currGraph result)
             |> Some
 
-/// Heuristically determines wether a graph and its dependencies have any
-/// combinatorial logic path connecting an input directly with an output. In
-/// other words, the function determines whether there is at least one route
-/// from input to output that does not encounter any synchronous component.
-/// Return a map containing such information for every custom component and
-/// for the diagram itself. Return None if such information cannot be inferred,
-/// for example if there is a circular dependency.
-/// TODO: Create a map for the graph and its dependencies containing:
-/// - key: name of the custom component or the top level diagramName.
+/// For each dependecy in a simulation graph, create a map containing:
+/// - key: name of the custom component.
 /// - value: a map with:
-///   - key: the InputPortNumber
+///   - key: each InputPortNumber
 ///   - value: a list of OutputPortNumber combinatorially connected to the
 ///            input.
-let makeIsCustomComponentCombinatorialMap
+/// An input is considered combinatorially connected to an output if there is at
+/// least one logic path connecting an input directly with the output. In other
+/// words, there must be at least one route from the input to output that does
+/// not encounter any synchronous component.
+/// Return None if such information cannot be inferred, for example if there is
+/// a circular dependency.
+let calculateCustomComponentsCombinatorialPaths
         (diagramName : string)
         (graph : SimulationGraph)
-        : Map<string, bool> option =
-    inferGraphsCouldBeCombinatorial' graph diagramName Set.empty Map.empty
+        : CustomCompsCombPaths option =
+    exploreNestedComponents graph diagramName Set.empty Map.empty

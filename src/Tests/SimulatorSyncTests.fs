@@ -131,23 +131,42 @@ let testCasesSimulatorSync : TestCase list = [
           (ComponentId "023094a0-9787-47ce-26af-03086cdc4b15", ComponentLabel "out2", 1), [Zero] ]
     ]
 
-    "Similar to stateSync6, but with an extra connection input to output.",
-    ("main", stateSync7, [stateSync1Dependency], 4, [
-        [(ComponentId "03e4c81a-4703-d9f5-dfaf-301de006610f", [One])]
+    "A connected to output via both sync and comb paths.",
+    ("main", stateSync7, [], 4, [
+        [(ComponentId "ff10125a-601f-e1d5-e379-7eb7c65eb91f", [One])]
+        [(ComponentId "ff10125a-601f-e1d5-e379-7eb7c65eb91f", [Zero])]
     ]),
     Ok [
-        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [Zero]
-          (ComponentId "fc5099db-d220-b42f-2add-b8c057164cb1", ComponentLabel "b1", 1), [One] ]
+        [ (ComponentId "794d5154-6969-3f4e-9c8b-4bc17927c28f", ComponentLabel "B-Comb", 1), [One]
+          (ComponentId "95452292-b507-ab43-f082-85152d3e4cf2", ComponentLabel "B-Sync", 1), [Zero] ]
 
-        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [Zero]
-          (ComponentId "fc5099db-d220-b42f-2add-b8c057164cb1", ComponentLabel "b1", 1), [One] ]
+        [ (ComponentId "794d5154-6969-3f4e-9c8b-4bc17927c28f", ComponentLabel "B-Comb", 1), [Zero]
+          (ComponentId "95452292-b507-ab43-f082-85152d3e4cf2", ComponentLabel "B-Sync", 1), [One] ]
 
-        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [One]
-          (ComponentId "fc5099db-d220-b42f-2add-b8c057164cb1", ComponentLabel "b1", 1), [One] ]
+        [ (ComponentId "794d5154-6969-3f4e-9c8b-4bc17927c28f", ComponentLabel "B-Comb", 1), [Zero]
+          (ComponentId "95452292-b507-ab43-f082-85152d3e4cf2", ComponentLabel "B-Sync", 1), [Zero] ]
+        
+        [ (ComponentId "794d5154-6969-3f4e-9c8b-4bc17927c28f", ComponentLabel "B-Comb", 1), [Zero]
+          (ComponentId "95452292-b507-ab43-f082-85152d3e4cf2", ComponentLabel "B-Sync", 1), [Zero] ]
+    ]
 
-        [ (ComponentId "781e7d9d-b18c-d614-dbc0-23bac9e617b7", ComponentLabel "b", 1), [One]
-          (ComponentId "fc5099db-d220-b42f-2add-b8c057164cb1", ComponentLabel "b1", 1), [One] ]
-      ]
+    "stateSync7 Not-ed self looped in the synchronous branch.",
+    ("main", stateSync8, [stateSync7Dependency], 4, []),
+    Ok [
+        [ (ComponentId "66030e1a-4a97-244a-f0bb-d9e5fd25627f", ComponentLabel "B", 1), [One] ]
+        [ (ComponentId "66030e1a-4a97-244a-f0bb-d9e5fd25627f", ComponentLabel "B", 1), [Zero] ]
+        [ (ComponentId "66030e1a-4a97-244a-f0bb-d9e5fd25627f", ComponentLabel "B", 1), [One] ]
+        [ (ComponentId "66030e1a-4a97-244a-f0bb-d9e5fd25627f", ComponentLabel "B", 1), [Zero] ]
+    ]
+
+    "stateSync8 wrapped",
+    ("main", stateSync9, [stateSync8Dependency; stateSync7Dependency], 4, []),
+    Ok [
+        [ (ComponentId "a100bada-b27f-15ca-accb-153e717a31f1", ComponentLabel "B", 1), [One] ]
+        [ (ComponentId "a100bada-b27f-15ca-accb-153e717a31f1", ComponentLabel "B", 1), [Zero] ]
+        [ (ComponentId "a100bada-b27f-15ca-accb-153e717a31f1", ComponentLabel "B", 1), [One] ]
+        [ (ComponentId "a100bada-b27f-15ca-accb-153e717a31f1", ComponentLabel "B", 1), [Zero] ]
+    ]
 
     "A fully connected DFFE.",
     ("main", stateSync10, [], 8, [
@@ -175,31 +194,21 @@ let testCasesSimulatorSync : TestCase list = [
         [ (ComponentId "a2c874bb-eaeb-d62d-8a72-5eeae48db694", ComponentLabel "out", 1), [Zero] ] // set to zero
     ]
 
-    "Create a Not-ed self loop with the custom component of stateSync7.",
-    ("main", stateSync8, [stateSync7Dependency; stateSync1Dependency], 4, []),
+    "StateSync7 Not-ed self looped in the combinatorial branch.",
+    ("main", stateSync11, [stateSync7Dependency], 4, []),
     Error {
-      Msg = "Cycle detected in combinatorial logic. The cycle contains at least one combinatorial custom
-                           component. Note that a custom component is considered
-                           combinatorial if there is at least one combinatorial
-                           path from input to output (i.e. at least one path
-                           from input to output that encounters no clocked
-                           component)."
+      Msg = "Cycle detected in combinatorial logic."
       InDependency = None
-      ComponentsAffected = ["5baefd71-8841-6e27-5930-ce3c4530fc4d"; "5339d358-0ac2-f907-4b2c-ba52b1a090b6"] |> List.map ComponentId
-      ConnectionsAffected = ["d424a273-3637-84bd-e8b1-b4cba64f19ae"; "a1d8be49-12df-11ea-e0fc-03f882516cb9"] |> List.map ConnectionId
+      ComponentsAffected = ["c9d9659a-4476-de3a-a838-eeab15496c99"; "5c24921a-88e9-7bc2-ee89-97fefb694902"] |> List.map ComponentId
+      ConnectionsAffected = ["bc1f9a51-5ca8-1aa0-b4bd-b86bc9646c20"; "cc7a9da2-f78a-f3e1-1c2f-7323f2b43d15"] |> List.map ConnectionId
     }
 
-    "StateSync8 connected to two outputs.",
-    ("main", stateSync9, [stateSync8Dependency; stateSync7Dependency; stateSync1Dependency], 4, []),
+    "StateSync11 connected to an output. Should spot cycle in the dependency.",
+    ("main", stateSync12, [stateSync11Dependency; stateSync7Dependency], 4, []),
     Error {
-      Msg = "Cycle detected in combinatorial logic. The cycle contains at least one combinatorial custom
-                           component. Note that a custom component is considered
-                           combinatorial if there is at least one combinatorial
-                           path from input to output (i.e. at least one path
-                           from input to output that encounters no clocked
-                           component)."
-      InDependency = Some "fake-combinatorial-loop"
-      ComponentsAffected = ["5baefd71-8841-6e27-5930-ce3c4530fc4d"; "5339d358-0ac2-f907-4b2c-ba52b1a090b6"] |> List.map ComponentId
+      Msg = "Cycle detected in combinatorial logic."
+      InDependency = Some "combinatorial-loop"
+      ComponentsAffected = ["c9d9659a-4476-de3a-a838-eeab15496c99"; "5c24921a-88e9-7bc2-ee89-97fefb694902"] |> List.map ComponentId
       ConnectionsAffected = [] // Connections are not inferred in dependencies.
     }
 ]

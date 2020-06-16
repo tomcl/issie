@@ -30,8 +30,6 @@ let private loadStateIntoCanvas state model dispatch =
     // Finally load the new state in the canvas.
     let components, connections = state
     List.map model.Diagram.LoadComponent components |> ignore
-    // TODO: disallow inference from running when loading these connections and
-    // run it only once at the end instead?
     List.map (model.Diagram.LoadConnection true) connections |> ignore
     model.Diagram.FlushCommandStack () // Discard all undo/redo.
     // Run the a connection widhts inference.

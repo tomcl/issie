@@ -137,8 +137,6 @@ function createDigitalConnection(sourcePort, targetPort) {
     );
     c.setSource(sourcePort);
     c.setTarget(targetPort);
-    // TODO: add check to make sure this connection does not exist
-    // already?
     return c;
 }
 

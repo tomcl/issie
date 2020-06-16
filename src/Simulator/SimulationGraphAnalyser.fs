@@ -77,9 +77,6 @@ let rec private dfs
         // A node in the stack must always be visited.
         failwithf "what? Node never visited but in the stack, while detecting cycle: %A" currNodeId
 
-// TODO with clocked components (which can have cycles) you can extend this
-// algorithm by just ignoring a node if it is clocked.
-
 /// Calculate which connections are involved in a cycle.
 let private calculateConnectionsAffected
         (connections : Connection list) 

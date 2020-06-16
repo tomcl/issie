@@ -141,9 +141,13 @@ let hideView model dispatch =
     ]
 
 let displayView model dispatch =
+    // Simulation has larger right column.
+    let canvasStyle, rightSectionStyle =
+        if model.RightTab = Simulation then VisibleSmall, rightSectionStyleL
+                                       else VisibleLarge, rightSectionStyleS 
     div [] [
         viewTopMenu model dispatch
-        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Visible
+        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) canvasStyle
         viewNoProjectMenu model dispatch
         viewPopup model
         viewNotifications model dispatch

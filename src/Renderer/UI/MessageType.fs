@@ -5,8 +5,6 @@ open JSTypes
 open SimulatorTypes
 open Fable.Import.React
 
-type DisplayModeType = Hidden | Visible
-
 type RightTab =
     | Properties
     | Catalogue

@@ -188,7 +188,7 @@ let private editComponentLabel (canvas : JSCanvas) (id : string) (newLabel : str
     let jsComponent = draw2dLib.getComponentById canvas id
     if isNull jsComponent
     then failwithf "what? could not find diagram component with Id: %s" id
-    else jsComponent?children?data?(0)?figure?setText(newLabel) // TODO: this only works for labels and it is very hacky.
+    else jsComponent?children?data?(0)?figure?setText(newLabel)
 
 // React wrapper.
 

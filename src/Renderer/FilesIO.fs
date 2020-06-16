@@ -60,7 +60,7 @@ let private getBaseNameNoExtension filePath =
 let private projectFilters =
     ResizeArray [
         createObj [
-            "name" ==> "Diagrams project" // TODO rename this.
+            "name" ==> "Diagrams project"
             "extensions" ==> ResizeArray [ "dprj" ]
         ]
     ] |> Some

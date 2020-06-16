@@ -38,3 +38,12 @@ let listSet (lst : 'a list) (item : 'a) (idx : int) : 'a list =
     // Remove the first element of p2.
     let _, p2 = List.splitAt 1 p2
     p1 @ [item] @ p2
+
+/// Crop a string to the specified length.
+/// fromStart indicates whether you want the first <len> characters or the last
+/// <len> characters.
+let cropToLength (len : int) (fromStart : bool) (str : string) =
+    match str.Length <= len with
+    | true -> str
+    | false when fromStart -> str.[..len-1] + "..." // From start.
+    | false -> "..." + str.[str.Length - len..]     // From end.

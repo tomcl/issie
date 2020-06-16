@@ -37,15 +37,9 @@ let private splittedLine leftContent rightConent =
         ]
     ]
 
-/// Crop a string to the specified length.
-let private cropToLength (len : int) (str : string) : string =
-    match str.Length <= len with
-    | true -> str
-    | false -> str.[..len] + "..."
-
 /// Pretty print a label with its width.
 let private makeIOLabel label width =
-    let label = cropToLength 15 label
+    let label = cropToLength 15 true label
     match width with
     | 1 -> label
     | w -> sprintf "%s (%d bits)" label w

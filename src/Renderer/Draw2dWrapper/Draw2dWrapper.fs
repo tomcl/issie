@@ -192,6 +192,8 @@ let private editComponentLabel (canvas : JSCanvas) (id : string) (newLabel : str
 
 // React wrapper.
 
+type DisplayModeType = Hidden | VisibleSmall | VisibleLarge
+
 type private Draw2dReactProps = {
     Dispatch : JSDiagramMsg -> unit
     DisplayMode : DisplayModeType
@@ -208,8 +210,9 @@ type private Draw2dReact(initialProps) =
 
     override this.render() =
         let style = match this.props.DisplayMode with
-                    | DisplayModeType.Hidden -> canvasHiddenStyle
-                    | DisplayModeType.Visible -> canvasVisibleStyle
+                    | Hidden -> canvasHiddenStyle
+                    | VisibleSmall -> canvasVisibleStyleS
+                    | VisibleLarge -> canvasVisibleStyleL
         div [ Id divId; style ] []
 
 let inline private createDraw2dReact props = ofType<Draw2dReact,_,_> props []

@@ -1,3 +1,9 @@
+(*
+    Types.fs
+
+    This module collects a series of types used in the simulator logic.
+*)
+
 module SimulatorTypes
 
 open CommonTypes

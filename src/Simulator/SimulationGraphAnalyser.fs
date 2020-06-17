@@ -1,11 +1,16 @@
+(*
+    SimulationGraphAnalyser.fs
+
+    This module collects functions to analyse a fully merged simulation graph.
+    Analyses performed:
+    - Combinatorial logic can have no loops.
+*)
+
 module SimulationGraphAnalyser
 
 open CommonTypes
 open SimulatorTypes
 open SynchronousUtils
-
-// Checks performed:
-// - Combinatorial logic can have no loops.
 
 type private DfsType =
     // No cycle detected in the subtree. Return the new visited set and keep

@@ -133,8 +133,7 @@ let private viewStatefulComponents comps numBase model dispatch =
             let label = sprintf "DFF: %s" <| getWithDefault comp.Label
             [ splittedLine (str label) (staticBitButton bit) ]
         | RegisterState bits ->
-            let getWidth compType = match compType with Register w -> w | _ -> failwithf "what? viewStatefulComponents expected Register component but got: %A" compType 
-            let label = sprintf "Register: %s (%d bits)" (getWithDefault comp.Label) (getWidth comp.Type)
+            let label = sprintf "Register: %s (%d bits)" (getWithDefault comp.Label) bits.Length
             [ splittedLine (str label) (staticNumberBox numBase bits) ]
         | RamState mem ->
             let label = sprintf "RAM: %s" <| getWithDefault comp.Label

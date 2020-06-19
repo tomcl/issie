@@ -222,6 +222,15 @@ function createDigitalRegister(x, y, regWidth) {
     });
 }
 
+function createDigitalRegisterE(x, y, regWidth) {
+    return new draw2d.shape.digital.RegisterE({
+        x: x,
+        y: y,
+        regWidth: regWidth,
+        resizeable: false
+    });
+}
+
 function createDigitalAsyncROM(x, y, addressWidth, wordWidth, memData) {
     return new draw2d.shape.digital.AsyncROM({
         x: x,
@@ -403,6 +412,7 @@ export {
     createDigitalDFF,
     createDigitalDFFE,
     createDigitalRegister,
+    createDigitalRegisterE,
     createDigitalAsyncROM,
     createDigitalROM,
     createDigitalRAM,

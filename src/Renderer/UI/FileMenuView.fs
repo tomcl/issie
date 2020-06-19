@@ -231,6 +231,33 @@ let viewNoProjectMenu model dispatch =
     | Some _ -> div [] []
     | None -> unclosablePopup None initialMenu None []
 
+let private viewInfoPopup disptach =
+    let makeH h =
+        Text.span [ Modifiers [
+            Modifier.TextSize (Screen.Desktop, TextSize.Is5)
+            Modifier.TextWeight TextWeight.Bold
+        ] ] [str h; br[]]
+    let title = "DEflow Info"
+    let body = div [] [
+        makeH "Version"
+        str "v0.2"
+        br []; br []
+        makeH "Acknowledgments"
+        str "DEflow has been created by Marco Selvatici as his dissertation project."
+        br []; br []
+        makeH "Keyboard shortcuts"
+        str "On Mac use Command instead of Ctrl."
+        ul [] [
+            li [] [str "Save: Ctrl + S"]
+            li [] [str "Copy selected diagram items: Alt + C"]
+            li [] [str "Paste diagram items: Alt + V"]
+            li [] [str "Undo last diagram action: Alt + Z"]
+            li [] [str "Redo last diagram action: Alt + Shift + Z"]
+        ]
+    ]
+    let foot = div [] []
+    closablePopup title body foot [] disptach
+
 /// Display top menu.
 let viewTopMenu model dispatch =
     let projectPath, fileName =
@@ -358,6 +385,13 @@ let viewTopMenu model dispatch =
                                 SetHasUnsavedChanges false
                                 |> JSDiagramMsg |> dispatch)
                         ] [ str "Save" ]
+                    ]
+                ]
+                Navbar.End.div [] [
+                    Navbar.Item.div [] [
+                        Button.button [
+                            Button.OnClick (fun _ -> viewInfoPopup dispatch)
+                        ] [str "Info"]
                     ]
                 ]
             ]

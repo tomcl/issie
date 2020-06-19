@@ -1,11 +1,16 @@
+(*
+    SimulationGraphAnalyser.fs
+
+    This module collects functions to analyse a fully merged simulation graph.
+    Analyses performed:
+    - Combinatorial logic can have no loops.
+*)
+
 module SimulationGraphAnalyser
 
 open CommonTypes
 open SimulatorTypes
 open SynchronousUtils
-
-// Checks performed:
-// - Combinatorial logic can have no loops.
 
 type private DfsType =
     // No cycle detected in the subtree. Return the new visited set and keep
@@ -76,9 +81,6 @@ let rec private dfs
     | true, false ->
         // A node in the stack must always be visited.
         failwithf "what? Node never visited but in the stack, while detecting cycle: %A" currNodeId
-
-// TODO with clocked components (which can have cycles) you can extend this
-// algorithm by just ignoring a node if it is clocked.
 
 /// Calculate which connections are involved in a cycle.
 let private calculateConnectionsAffected

@@ -141,9 +141,13 @@ let hideView model dispatch =
     ]
 
 let displayView model dispatch =
+    // Simulation has larger right column.
+    let canvasStyle, rightSectionStyle =
+        if model.RightTab = Simulation then VisibleSmall, rightSectionStyleL
+                                       else VisibleLarge, rightSectionStyleS 
     div [] [
         viewTopMenu model dispatch
-        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Visible
+        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) canvasStyle
         viewNoProjectMenu model dispatch
         viewPopup model
         viewNotifications model dispatch
@@ -165,6 +169,14 @@ let displayView model dispatch =
     ]
 
 // -- Update Model
+
+let private getSimulationDataOrFail model msg =
+    match model.Simulation with
+    | None -> failwithf "what? Getting simulation data when no simulation is running: %s" msg
+    | Some sim ->
+        match sim with
+        | Error _ -> failwithf "what? Getting simulation data when could not start because of error: %s" msg
+        | Ok simData -> simData
 
 // Handle messages triggered by the JS diagram.
 let private handleJSDiagramMsg msg model =
@@ -210,19 +222,14 @@ let update msg model =
     // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).
     | StartSimulation simData -> { model with Simulation = Some simData }
     | SetSimulationGraph graph ->
-        match model.Simulation with
-        | None -> failwithf "what? Simulation graph set when no simulation running"
-        | Some sim ->
-            match sim with
-            | Error _ -> failwithf "what? Simulation graph set when simulation is error"
-            | Ok simData -> { model with Simulation = { simData with Graph = graph } |> Ok |> Some }
+        let simData = getSimulationDataOrFail model "SetSimulationGraph"
+        { model with Simulation = { simData with Graph = graph } |> Ok |> Some }
     | SetSimulationBase numBase ->
-        match model.Simulation with
-        | None -> failwithf "what? Simulation base set when no simulation running"
-        | Some sim ->
-            match sim with
-            | Error _ -> failwithf "what? Simulation base set when simulation is error"
-            | Ok simData -> { model with Simulation = { simData with NumberBase = numBase } |> Ok |> Some }
+        let simData = getSimulationDataOrFail model "SetSimulationBase"
+        { model with Simulation = { simData with NumberBase = numBase } |> Ok |> Some }
+    | IncrementSimulationClockTick ->
+        let simData = getSimulationDataOrFail model "IncrementSimulationClockTick"
+        { model with Simulation = { simData with ClockTickNumber = simData.ClockTickNumber+1 } |> Ok |> Some }
     | EndSimulation -> { model with Simulation = None }
     | ChangeRightTab newTab -> { model with RightTab = newTab }
     | SetHighlighted (componentIds, connectionIds) ->

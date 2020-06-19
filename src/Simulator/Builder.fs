@@ -163,6 +163,9 @@ let private getRamStateMemory state =
 /// ReducerInput.Inputs to calculate the outputs.
 /// For custom components, return a fake version of the reducer, that has to be
 /// replaced when resolving the dependencies.
+/// TODO: some components reducers are quite similar, for example Register and
+/// RegisterE and DFF and DFFE. It is probably a good idea to merge them
+/// together to avoid duplicated logic.
 let private getReducer (componentType : ComponentType) : ReducerInput -> ReducerOutput =
     // Always ignore the CustomSimulationGraph here, both in inputs and output.
     // The Reducer for Custom components, which use it, will be replaced in the
@@ -330,6 +333,30 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 let newState = RegisterState newStateBits
                 Map.empty.Add (OutputPortNumber 0, newStateBits)
                 |> makeReducerOutput newState
+    | RegisterE width ->
+        fun reducerInput ->
+            match reducerInput.IsClockTick with
+            | No ->
+                // If it is not a clock tick, just ignore the changes on the
+                // input.
+                // The newState returned does not matter! It is ignored unless
+                // Input is a clock tick.
+                notReadyReducerOutput NoState
+            | Yes regState ->
+                let stateBits = getRegisterStateBits regState
+                // Store and propagate the current inputs.
+                let newStateBits =
+                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
+                    | None -> stateBits
+                    | Some [bits; enable] ->
+                        assertThat (bits.Length = width)
+                        <| sprintf "RegisterE received data with wrong width: expected %d but got %A" width bits.Length
+                        if (extractBit enable = Zero)
+                        then stateBits else bits
+                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+                let newState = RegisterState newStateBits
+                Map.empty.Add (OutputPortNumber 0, newStateBits)
+                |> makeReducerOutput newState
     | AsyncROM mem -> // Asynchronous ROM.
         fun reducerInput ->
             assertNoClockTick reducerInput componentType
@@ -447,7 +474,7 @@ let private getDefaultState compType =
     | Demux2 | Custom _ | MergeWires | SplitWire _ | ROM _
     | AsyncROM _ -> NoState
     | DFF | DFFE -> DffState Zero
-    | Register w -> RegisterState <| List.replicate w Zero
+    | Register w | RegisterE w -> RegisterState <| List.replicate w Zero
     | RAM memory -> RamState memory // The RamState content may change during
                                     // the simulation.
 

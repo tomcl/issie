@@ -44,7 +44,8 @@ type ComponentType =
     | Custom of CustomComponentType
     | MergeWires | SplitWire of int
     // DFFE is a DFF with an enable signal.
-    | DFF | DFFE | Register of int // No initial state for DFF or Register?
+    // No initial state for DFF or Register?
+    | DFF | DFFE | Register of int | RegisterE of int
     | AsyncROM of Memory | ROM of Memory | RAM of Memory
 
 // JSComponent mapped to f# object.

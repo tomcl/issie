@@ -96,6 +96,8 @@ type SimulationData = {
     IsSynchronous : bool
     // The base that should be used to display numbers in the simulation.
     NumberBase : NumberBase
+    // Keep track of the number of clock ticks of the simulation.
+    ClockTickNumber : int
 }
 
 type SimulationError = {

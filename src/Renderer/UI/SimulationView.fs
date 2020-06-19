@@ -188,8 +188,9 @@ let private viewSimulationData (simData : SimulationData) model dispatch =
                 Button.Color IsSuccess
                 Button.OnClick (fun _ ->
                     feedClockTick simData.Graph |> SetSimulationGraph |> dispatch
+                    IncrementSimulationClockTick |> dispatch
                 )
-            ] [ str "Clock Tick" ]
+            ] [ str <| sprintf "Clock Tick %d" simData.ClockTickNumber ]
     let maybeStatefulComponents =
         let stateful = extractStatefulComponents simData.Graph
         match List.isEmpty stateful with

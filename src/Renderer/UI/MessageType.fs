@@ -48,6 +48,7 @@ type Msg =
     | StartSimulation of Result<SimulationData, SimulationError>
     | SetSimulationGraph of SimulationGraph
     | SetSimulationBase of NumberBase
+    | IncrementSimulationClockTick
     | EndSimulation
     | ChangeRightTab of RightTab
     | SetHighlighted of ComponentId list * ConnectionId list

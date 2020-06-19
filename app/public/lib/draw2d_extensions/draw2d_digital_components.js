@@ -8,6 +8,9 @@
  * - hieght of the svg element
  * - a function that returns the shapes that will form the svg element
  * - other optional parameters.
+ * 
+ * Some components are very similar, such as Register and RegisterE. It may be
+ * a good idea to merge the similar parts?
  */
 
 draw2d.shape.digital = draw2d.SVGFigure.extend({
@@ -670,6 +673,45 @@ draw2d.shape.digital.Register = draw2d.shape.digital.extend({
         this.regWidth = attr.regWidth;
 
         this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
+    },
+});
+
+draw2d.shape.digital.RegisterE = draw2d.shape.digital.extend({
+
+    NAME:"draw2d.shape.digital.RegisterE",
+
+    componentType : "RegisterE",
+    svgHeight : 80,
+    svgWidth : 120,
+    regWidth : null, // int
+
+    getSvgElements : function() {
+        return [         
+            {path: '<rect width="120" height="80" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true},
+            {path: `<text x="50" y="3" fill="black" font-family="monospace">REG${this.regWidth}</text>`, toFill: false},
+            {path: '<text x="8" y="35" fill="black" font-family="monospace">data-in</text>', toFill: false},
+            {path: '<text x="66" y="35" fill="black" font-family="monospace">data-out</text>', toFill: false},
+            // Enable.
+            {path: '<text x="55" y="67" fill="black" font-family="monospace">EN</text>', toFill: false},
+            // Clock.
+            {path: '<text x="8" y="67" fill="black" font-family="monospace">clk</text>', toFill: false},
+            {path: '<path d="M 0 68 L 6 73 L 0 78" stroke="black" stroke-width="1" fill="none"/>', toFill: false},
+        ]
+    },
+
+    init: function(attr, setter, getter ){
+        this._super(
+            $.extend({width:this.svgWidth, height:this.svgHeight}, attr),
+            setter,
+            getter
+        );
+
+        console.assert(typeof attr.regWidth === "number", "regWidth is not a number when creating a registerE component");
+        this.regWidth = attr.regWidth;
+
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(50, 100), false);
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });

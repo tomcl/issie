@@ -104,7 +104,12 @@ let private makeDescription comp model dispatch =
         str "D-flip-flop with enable. If the enable signal is high the state of
              the D-flip-flop will be updated at the next clock cycle.
              The component is implicitly connected to the global clock." ]
-    | Register _ -> div [] [ str "Register. The component is implicitly connected to the global clock." ]
+    | Register _  -> div [] [ str "Register. The component is implicitly connected to the global clock." ]
+    | RegisterE _ ->
+        div [] [ str "Register with enable. If the enable signal is high the
+                      state of the Register will be updated at the next clock
+                      cycle. The component is implicitly connected to the global
+                      clock." ]
     | AsyncROM mem ->
         let descr = "Asynchronous ROM: the output is updated as soon as the address changes."
         makeMemoryInfo descr mem comp.Id model dispatch

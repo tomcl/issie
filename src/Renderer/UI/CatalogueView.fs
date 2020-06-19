@@ -84,7 +84,7 @@ let private createSplitWirePopup model dispatch =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
-let private createRegisterPopup model dispatch =
+let private createRegisterPopup regType model dispatch =
     let title = sprintf "Add Register" 
     let beforeInt =
         fun _ -> str "How wide should the register be (in bits)?"
@@ -94,7 +94,7 @@ let private createRegisterPopup model dispatch =
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
-            createComponent (Register inputInt) "" model dispatch
+            createComponent (regType inputInt) "" model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
@@ -153,7 +153,8 @@ let viewCatalogue model dispatch =
                 "Flip Flops and Registers"
                 [ menuItem "D-flip-flop" (fun _ -> createComponent DFF "" model dispatch)
                   menuItem "D-flip-flop with enable" (fun _ -> createComponent DFFE "" model dispatch)
-                  menuItem "Register" (fun _ -> createRegisterPopup model dispatch) ]
+                  menuItem "Register" (fun _ -> createRegisterPopup Register model dispatch)
+                  menuItem "Register with enable" (fun _ -> createRegisterPopup RegisterE model dispatch) ]
             makeMenuGroup
                 "Memories"
                 [ menuItem "ROM (asynchronous)" (fun _ -> createMemoryPopup AsyncROM model dispatch)

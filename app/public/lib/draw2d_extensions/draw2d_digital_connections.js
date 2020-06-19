@@ -65,7 +65,7 @@ draw2d.Connection = draw2d.Connection.extend({
             // connection.
             dispatchLock = setTimeout(() => {
                 dispatchInferWidthsMessage();
-                this.dispatchLock = "undefined"; // Release Lock.
+                dispatchLock = "undefined"; // Release Lock.
             }, 20);
         } else if (dispatchLock === "undefined") {
             console.log("Warning: connection trying to dispatch a JS InferWidths message but dispatcher is not defined.")

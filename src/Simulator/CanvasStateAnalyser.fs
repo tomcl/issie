@@ -1,5 +1,5 @@
 (*
-    Analyser.fs
+    CanvasStateAnalyser.fs
 
     This module collects a series of functions that perform checks on
     CanvasState and SimulationGraph.

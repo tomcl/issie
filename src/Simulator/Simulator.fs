@@ -47,6 +47,7 @@ let prepareSimulation
                 Outputs = outputs
                 IsSynchronous = hasSynchronousComponents graph
                 NumberBase = Hex
+                ClockTickNumber = 0
             }
 
 /// Expose the feedSimulationInput function from SimulationRunner.

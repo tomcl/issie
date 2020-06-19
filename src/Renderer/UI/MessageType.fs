@@ -5,8 +5,6 @@ open JSTypes
 open SimulatorTypes
 open Fable.Import.React
 
-type DisplayModeType = Hidden | Visible
-
 type RightTab =
     | Properties
     | Catalogue
@@ -50,6 +48,7 @@ type Msg =
     | StartSimulation of Result<SimulationData, SimulationError>
     | SetSimulationGraph of SimulationGraph
     | SetSimulationBase of NumberBase
+    | IncrementSimulationClockTick
     | EndSimulation
     | ChangeRightTab of RightTab
     | SetHighlighted of ComponentId list * ConnectionId list

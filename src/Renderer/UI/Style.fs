@@ -2,38 +2,49 @@ module DiagramStyle
 
 open Fable.Helpers.React.Props
 
-let headerHeight = "52px"
-let rightSectionWidth = "400px"
+let private headerHeight = "52px"
+let private rightSectionWidthS = "400px" // Small right section.
+let private rightSectionWidthL = "650px" // Large right section.
 
 let navbarStyle = Style [
     Width "100%"
     Height headerHeight
 ]
 
-let rightSectionStyle = Style [
+let private rightSectionStyle width = Style [
     Position "fixed"
     Right "0px"
     Height (sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
-    Width rightSectionWidth
+    Width width
     OverflowX "hidden"
     OverflowY "scroll"
     BorderTop "2px solid lightgray"
 ]
 
+/// Style when right column is expanded.
+let rightSectionStyleS = rightSectionStyle rightSectionWidthS
+/// Style when right column is small.
+let rightSectionStyleL = rightSectionStyle rightSectionWidthL
+
 let canvasHiddenStyle = Style [
     Display "none"
 ]
 
-let canvasVisibleStyle = Style [
+let private canvasVisibleStyle right = Style [
     Display "block"
     Position "absolute" // Required to work.
     Overflow "scroll"
     Top headerHeight // Placed just under the header.
     Left "0px"
     Bottom "0px"
-    Right rightSectionWidth
+    Right right
     BorderTop "2px solid lightgray"
 ]
+
+/// Style when right column is expanded.
+let canvasVisibleStyleS = canvasVisibleStyle rightSectionWidthL
+/// Style when right column is small.
+let canvasVisibleStyleL = canvasVisibleStyle rightSectionWidthS
 
 let canvasSmallMenuStyle = Style [
     Display "block"
@@ -62,7 +73,7 @@ let notificationStyle = Style [
 ]
 
 let simulationNumberStyle = Style [
-    Width "100px"
+    Width "320px"
     Height "30px"
 ]
 

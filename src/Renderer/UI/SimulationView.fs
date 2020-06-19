@@ -39,6 +39,7 @@ let private splittedLine leftContent rightConent =
 
 /// Pretty print a label with its width.
 let private makeIOLabel label width =
+    let label = cropToLength 15 true label
     match width with
     | 1 -> label
     | w -> sprintf "%s (%d bits)" label w
@@ -187,8 +188,9 @@ let private viewSimulationData (simData : SimulationData) model dispatch =
                 Button.Color IsSuccess
                 Button.OnClick (fun _ ->
                     feedClockTick simData.Graph |> SetSimulationGraph |> dispatch
+                    IncrementSimulationClockTick |> dispatch
                 )
-            ] [ str "Clock Tick" ]
+            ] [ str <| sprintf "Clock Tick %d" simData.ClockTickNumber ]
     let maybeStatefulComponents =
         let stateful = extractStatefulComponents simData.Graph
         match List.isEmpty stateful with

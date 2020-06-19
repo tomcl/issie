@@ -26,6 +26,13 @@ draw2d.layout.locator.BusLabelLocator = draw2d.layout.locator.ConnectionLocator.
     }
 });
 
+// The dispatch lock ensures that a connection does not trigger the
+// InferWidth message multiple times in a short period of time.
+// It would since the "connect" event is fired multiple times when a 
+// connection is created (connect source and target).
+// This is just for performance.
+dispatchLock = "undefined";
+
 draw2d.Connection = draw2d.Connection.extend({
 
     NAME: "Connection",
@@ -49,25 +56,18 @@ draw2d.Connection = draw2d.Connection.extend({
         });
     },
 
-    // The dispatch lock ensures that a connection does not trigger the
-    // InferWidth message multiple times in a short period of time.
-    // It would since the "connect" event is fired multiple times when a 
-    // connection is created (connect source and target).
-    // This is just for performance.
-    dispatchLock: "undefined", 
-
     sendInferWidthsMessage: function() {
         if (dispatchInferWidthsMessage !== "undefined" &&
-            this.dispatchLock === "undefined") {
+            dispatchLock === "undefined") {
             // Dispatch the message after 20ms, to give the time to the
             // function to finish. This way the inference function will
             // access the version of the state that also contains the
             // connection.
-            this.dispatchLock = setTimeout(() => {
+            dispatchLock = setTimeout(() => {
                 dispatchInferWidthsMessage();
-                this.dispatchLock = "undefined"; // Clear timer.
+                this.dispatchLock = "undefined"; // Release Lock.
             }, 20);
-        } else if (this.dispatchTimer === "undefined") {
+        } else if (dispatchLock === "undefined") {
             console.log("Warning: connection trying to dispatch a JS InferWidths message but dispatcher is not defined.")
         }
     },
@@ -137,8 +137,6 @@ function createDigitalConnection(sourcePort, targetPort) {
     );
     c.setSource(sourcePort);
     c.setTarget(targetPort);
-    // TODO: add check to make sure this connection does not exist
-    // already?
     return c;
 }
 

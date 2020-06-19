@@ -83,6 +83,7 @@ let private openFileInProject name project model dispatch =
         // our CurrProj.
         { project with OpenFileName = name }
         |> reloadProjectComponents dispatch |> SetProject |> dispatch
+        dispatch EndSimulation // End any running simulation.
 
 /// Remove file.
 let private removeFileInProject name project model dispatch =
@@ -153,6 +154,7 @@ let private addFileToProject model dispatch =
                 openFileInProject name updatedProject model dispatch
                 // Close the popup.
                 dispatch ClosePopup
+                dispatch EndSimulation // End any running simulation.
         let isDisabled =
             fun (dialogData : PopupDialogData) ->
                 let dialogText = getText dialogData
@@ -161,6 +163,7 @@ let private addFileToProject model dispatch =
 
 /// Close current project, if any.
 let private closeProject model dispatch _ =
+    dispatch EndSimulation // End any running simulation.
     dispatch CloseProject
     model.Diagram.ClearCanvas()
 
@@ -175,6 +178,7 @@ let private newProject model dispatch _ =
             let errMsg = "Could not create a folder for the project."
             displayFileErrorNotification errMsg dispatch
         | Ok _ ->
+            dispatch EndSimulation // End any running simulation.
             let initialDiagram = createEmptyDiagramFile path "main"
             // Load the diagram.
             loadStateIntoCanvas initialDiagram.CanvasState model dispatch
@@ -204,6 +208,7 @@ let private openProject model dispatch _ =
                     "main", ([],[])
                 | comp :: _ -> // Pick one file at random to open initally.
                     comp.Name, comp.CanvasState
+            dispatch EndSimulation // End any running simulation.
             loadStateIntoCanvas openFileState model dispatch
             {
                 ProjectPath = path

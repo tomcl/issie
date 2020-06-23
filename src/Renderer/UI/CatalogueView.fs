@@ -68,6 +68,22 @@ let private createIOPopup typeStr compType model dispatch =
             (getInt dialogData < 1) || (getText dialogData = "")
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
+let private createNbitsAdderPopup model dispatch =
+    let title = sprintf "Add N bits adder"
+    let beforeInt =
+        fun _ -> str "How many bits should each operand have?"
+    let intDefault = 1
+    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let inputInt = getInt dialogData
+            createComponent (NbitsAdder inputInt) "" model dispatch
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+    dialogPopup title body buttonText buttonAction isDisabled dispatch
+
 let private createSplitWirePopup model dispatch =
     let title = sprintf "Add SplitWire node" 
     let beforeInt =
@@ -149,6 +165,9 @@ let viewCatalogue model dispatch =
                 "Mux / Demux"
                 [ menuItem "Mux2" (fun _ -> createComponent Mux2 "" model dispatch)
                   menuItem "Demux2" (fun _ -> createComponent Demux2 "" model dispatch) ]
+            makeMenuGroup
+                "Arithmetic"
+                [ menuItem "N bits adder" (fun _ -> createNbitsAdderPopup model dispatch) ]
             makeMenuGroup
                 "Flip Flops and Registers"
                 [ menuItem "D-flip-flop" (fun _ -> createComponent DFF "" model dispatch)

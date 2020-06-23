@@ -41,6 +41,7 @@ type ComponentType =
     | Input of int | Output of int
     | Not | And | Or | Xor | Nand | Nor | Xnor
     | Mux2 | Demux2
+    | NbitsAdder of int
     | Custom of CustomComponentType
     | MergeWires | SplitWire of int
     // DFFE is a DFF with an enable signal.

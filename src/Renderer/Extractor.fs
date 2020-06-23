@@ -59,6 +59,7 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     | "Xnor"   -> Xnor
     | "Mux2"   -> Mux2
     | "Demux2" -> Demux2
+    | "NbitsAdder" -> NbitsAdder <| getFailIfNull jsComponent ["numberOfBits"]
     | "Custom" ->
         Custom {
             Name         = getFailIfNull jsComponent ["customComponentName"]

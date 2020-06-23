@@ -55,6 +55,7 @@ type private IDraw2d =
     abstract createDigitalXnor            : x:int -> y:int -> JSComponent
     abstract createDigitalMux2            : x:int -> y:int -> JSComponent
     abstract createDigitalDemux2          : x:int -> y:int -> JSComponent
+    abstract createDigitalNbitsAdder      : x:int -> y:int -> numberOfBits:int -> JSComponent
     abstract createDigitalCustom          : x:int -> y:int -> name:string -> inputs:obj -> outputs:obj -> JSComponent
     abstract createDigitalMergeWires      : x:int -> y:int -> JSComponent
     abstract createDigitalSplitWire       : x:int -> y:int -> topOutputWidth:int -> JSComponent
@@ -67,7 +68,7 @@ type private IDraw2d =
     abstract createDigitalRAM             : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
     abstract writeMemoryLine              : comp:JSComponent -> addr:int -> value:int64 -> unit
-    abstract setNumberOfIOBits            : comp:JSComponent -> numberOfBits:int -> unit
+    abstract setNumberOfBits              : comp:JSComponent -> numberOfBits:int -> unit
     abstract setTopOutputWidth            : comp:JSComponent -> topOutputWidth: int -> unit
     abstract setRegisterWidth             : comp:JSComponent -> topOutputWidth: int -> unit
     abstract updateMergeWiresLabels       : comp:JSComponent -> topInputWidth:int option -> bottomInputWidth:int option -> outputWidth:int option -> unit
@@ -126,6 +127,7 @@ let private createComponent
         | Xnor   -> draw2dLib.createDigitalXnor x y
         | Mux2   -> draw2dLib.createDigitalMux2 x y
         | Demux2 -> draw2dLib.createDigitalDemux2 x y
+        | NbitsAdder numberOfBits -> draw2dLib.createDigitalNbitsAdder x y numberOfBits
         | ComponentType.Custom custom ->
             draw2dLib.createDigitalCustom
                 x y custom.Name (fshaprListToJsList custom.InputLabels)
@@ -388,11 +390,11 @@ type Draw2dWrapper() =
             draw2dLib.writeMemoryLine jsComp addr value
         |> tryActionWithCanvas "WriteMemoryLine"
 
-    member this.SetNumberOfIOBits compId numberOfBits =
+    member this.SetNumberOfBits compId numberOfBits =
         fun c ->
             let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "SetNumberOfBits"
-            draw2dLib.setNumberOfIOBits jsComp numberOfBits
-        |> tryActionWithCanvas "SetNumberOfIOBits"
+            draw2dLib.setNumberOfBits jsComp numberOfBits
+        |> tryActionWithCanvas "SetNumberOfBits"
 
     member this.SetTopOutputWidth compId topOutputWidth =
         fun c ->

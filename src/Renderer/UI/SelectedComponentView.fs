@@ -63,7 +63,7 @@ let private makeMemoryInfo descr mem compId model dispatch =
 let private makeNumberOfBitsField comp setter dispatch =
     let title, width =
         match comp.Type with
-        | Input w | Output w | Register w -> "Number of bits", w
+        | Input w | Output w | NbitsAdder w | Register w -> "Number of bits", w
         | SplitWire w -> "Number of bits in the top wire", w
         | c -> failwithf "makeNumberOfBitsField called with invalid component: %A" c
     intFormField title width 1 (
@@ -88,6 +88,7 @@ let private makeDescription comp model dispatch =
     | Demux2 -> div [] [ str "Demultiplexer with one input and two outputs." ]
     | MergeWires -> div [] [ str "Merge two wires of width n and m into a single wire of width n+m." ]
     | SplitWire _ -> div [] [ str "Split a wire of width n+m into two wires of width n and m."]
+    | NbitsAdder numberOfBits -> div [] [ str <| sprintf "%d bit(s) adder." numberOfBits ]
     | Custom custom ->
         let toHTMLList =
             List.map (fun (label, width) -> li [] [str <| sprintf "%s: %d bit(s)" label width])
@@ -128,8 +129,8 @@ let private makeDescription comp model dispatch =
 
 let private makeExtraInfo comp model dispatch =
     match comp.Type with
-    | Input _ | Output _ ->
-        makeNumberOfBitsField comp model.Diagram.SetNumberOfIOBits dispatch
+    | Input _ | Output _ | NbitsAdder _ ->
+        makeNumberOfBitsField comp model.Diagram.SetNumberOfBits dispatch
     | SplitWire _ ->
         makeNumberOfBitsField comp model.Diagram.SetTopOutputWidth dispatch
     | Register _ ->

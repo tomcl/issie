@@ -119,7 +119,7 @@ For Mac and Linux users, download and install [Mono](http://www.mono-project.com
 
 9. Open your `electron` app in a new terminal tab by running `yarn launch`. This command will start the application.
 
-10. Run `yarn pack-win`, `yarn pack-linux`, `yarn pack-osx` (TODO add MacOS) at any time to create a set of system-specific self-contained binaries in `./dist/os-name/*` and a zip in `./dist`. Each binary distribution consists of a portable directory with all dependencies, so use the appropriate one of these if you just want to run DEflow. For osx, the easiest way to run DEflow once it has been built is to navigate to `./dist/DEflow-darwin-x64` and execute `open -a DEflow.app` in terminal. Note that some host-target combinations will not correctly generate: `pack-osx must be executed on os-x`.
+10. Run `yarn pack-win`, `yarn pack-linux`, `yarn pack-osx` at any time to create a set of system-specific self-contained binaries in `./dist/os-name/*` and a zip in `./dist`. Each binary distribution consists of a portable directory with all dependencies, so use the appropriate one of these if you just want to run DEflow. For osx, the easiest way to run DEflow once it has been built is to navigate to `./dist/DEflow-darwin-x64` and execute `open -a DEflow.app` in terminal. Note that some host-target combinations will not correctly generate: `pack-osx must be executed on os-x`.
 
 11. To open the Chromium console from the running DEflow app press `Ctrl-Shift-I`.
 

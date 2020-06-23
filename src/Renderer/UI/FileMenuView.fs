@@ -179,6 +179,10 @@ let private newProject model dispatch _ =
             displayFileErrorNotification errMsg dispatch
         | Ok _ ->
             dispatch EndSimulation // End any running simulation.
+            // Create empty placeholder projectFile.
+            let projectFile = basename path + ".dprj"
+            writeFile (pathJoin [|path; projectFile|]) ""
+            // Create empty initial diagram file.
             let initialDiagram = createEmptyDiagramFile path "main"
             // Load the diagram.
             loadStateIntoCanvas initialDiagram.CanvasState model dispatch

@@ -57,26 +57,27 @@ let private getBaseNameNoExtension filePath =
             )
         firstSplit + rest
 
-let private projectFilters =
-    ResizeArray [
-        createObj [
-            "name" ==> "Diagrams project"
-            "extensions" ==> ResizeArray [ "dprj" ]
-        ]
-    ] |> Some
+let private projectFileFilters =
+    ResizeArray [ createObj [
+        "name" ==> "DEflow project file"
+        "extensions" ==> ResizeArray [ "dprj" ]
+    ] ] |> Some
 
-/// Ask the user to choose a project path, with a dialog window.
+let private projectFilters =
+    ResizeArray [ createObj [ "name" ==> "DEflow project" ] ] |> Some
+
+/// Ask the user to choose a project file, with a dialog window.
+/// Return the folder containing the chosen project file.
 /// Return None if the user exits withouth selecting a path.
 let askForExistingProjectPath () : string option =
     let options = createEmpty<OpenDialogOptions>
-    options.properties <- ResizeArray([ "openDirectory" ]) |> Some
-    options.filters <- projectFilters
+    options.filters <- projectFileFilters
     let paths = electron.remote.dialog.showOpenDialog(options)
     match isNull paths with
     | true -> Option.None // User did not completed the load dialog interaction.
     | false -> match Seq.toList paths with
                | [] -> Option.None
-               | path :: _ -> Some path
+               | p :: _ -> Some <| path.dirname p
 
 /// Ask the user a new project path, with a dialog window.
 /// Return None if the user exits withouth selecting a path.
@@ -95,18 +96,24 @@ let tryCreateFolder (path : string) =
         | ex -> Result.Error <| sprintf "%A" ex
 
 let pathJoin args = path.join args
+let basename filePath = path.basename filePath
 
 /// Asyncronously remove file.
 let removeFile folderPath baseName =
     let path = path.join [| folderPath; baseName + ".dgm" |]
     fs.unlink (U2.Case1 path, ignore) // Asynchronous.
 
-/// Save state to file. Automatically add the .dgm suffix.
-let saveStateToFile folderPath baseName state = // TODO: catch error?
-    let path = path.join [| folderPath; baseName + ".dgm" |]
-    let data = stateToJsonString state
+/// Write utf8 encoded data to file.
+/// Create file if it does not exist.
+let writeFile path data =
     let options = createObj ["encoding" ==> "utf8"] |> Some
     fs.writeFileSync(path, data, options)
+
+/// Save state to file. Automatically add the .dgm suffix.
+let saveStateToFile folderPath baseName state = // TODO: catch error?
+    let path = pathJoin [| folderPath; baseName + ".dgm" |]
+    let data = stateToJsonString state
+    writeFile path data
 
 /// Create new empty diagram file. Automatically add the .dgm suffix.
 let createEmptyDgmFile folderPath baseName =

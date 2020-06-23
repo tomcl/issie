@@ -104,7 +104,7 @@ let private readMemory (mem : Memory) (address : WireData) : WireData =
     <| sprintf "Memory has wrong Data.Length: expected %d but got %d" (pow2 mem.AddressWidth) mem.Data.Length
     let intAddr = convertWireDataToInt address
     let outDataInt = mem.Data.[int intAddr]
-    convertIntToWireData outDataInt mem.WordWidth
+    convertIntToWireData mem.WordWidth outDataInt
 
 /// Write the content of the memory at the specified address.
 let private writeMemory (mem : Memory) (address : WireData) (data : WireData) : Memory =
@@ -235,6 +235,23 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                                  then bitsIn, zeros else zeros, bitsIn
                 let out = Map.empty.Add (OutputPortNumber 0, out0)
                 let out = out.Add (OutputPortNumber 1, out1)
+                makeReducerOutput NoState out
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+    | NbitsAdder numberOfBits ->
+        fun reducerInput ->
+            assertNoClockTick reducerInput componentType
+            assertNotTooManyInputs reducerInput componentType 3
+            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
+            | None -> notReadyReducerOutput NoState // Wait for more inputs.
+            | Some [cin; A; B] ->
+                let sum, cout =
+                    [cin; A; B]
+                    |> List.map convertWireDataToInt
+                    |> List.reduce (+)
+                    |> convertIntToWireData (numberOfBits + 1)
+                    |> List.splitAt numberOfBits
+                let out = Map.empty.Add (OutputPortNumber 0, sum)
+                let out = out.Add (OutputPortNumber 1, cout)
                 makeReducerOutput NoState out
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
     | Custom c ->
@@ -471,7 +488,7 @@ let private mapInputPortIdToPortNumber
 let private getDefaultState compType =
     match compType with
     | Input _ | Output _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2
-    | Demux2 | Custom _ | MergeWires | SplitWire _ | ROM _
+    | Demux2 | NbitsAdder _ | Custom _ | MergeWires | SplitWire _ | ROM _
     | AsyncROM _ -> NoState
     | DFF | DFFE -> DffState Zero
     | Register w | RegisterE w -> RegisterState <| List.replicate w Zero

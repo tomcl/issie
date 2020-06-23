@@ -378,6 +378,47 @@ draw2d.shape.digital.Demux2 = draw2d.shape.digital.extend({
     },
 });
 
+draw2d.shape.digital.NbitsAdder = draw2d.shape.digital.extend({
+
+    NAME:"draw2d.shape.digital.NbitsAdder",
+
+    componentType : "NbitsAdder",
+    svgHeight : 120,
+    svgWidth : 100,
+    numberOfBits : null, // int
+
+    getSvgElements : function() {
+        const title = this.numberOfBits == 1 ? "1-bit-adder" : `${this.numberOfBits}-bits-adder`
+        return [
+            {path: '<rect width="100" height="120" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true},
+            {path: `<text x="14" y="3" fill="black" font-family="monospace">${title}</text>`, toFill: false},
+            {path: '<text x="8" y="25" fill="black" font-family="monospace">Cin</text>', toFill: false},
+            {path: `<text x="8" y="55" fill="black" font-family="monospace">A</text>`, toFill: false},
+            {path: `<text x="8" y="85" fill="black" font-family="monospace">B</text>`, toFill: false},
+            // Out.
+            {path: `<text x="75" y="35" fill="black" font-family="monospace">Sum</text>`, toFill: false},
+            {path: `<text x="70" y="75" fill="black" font-family="monospace">Cout</text>`, toFill: false},
+        ]
+    },
+
+    init: function(attr, setter, getter ){
+        this._super(
+            $.extend({width:this.svgWidth, height:this.svgHeight}, attr),
+            setter,
+            getter
+        );
+
+        console.assert(typeof attr.numberOfBits === "number", "numberOfBits is not a number when creating a NbitsAdder component");
+        this.numberOfBits = attr.numberOfBits;
+
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
+    },
+});
+
 /**
  * Custom components.
  */

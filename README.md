@@ -138,7 +138,8 @@ To reinstall the build environment (without changing project code) run `setup.ba
 After you have compiled code (and checked it works) `yarn pack-all` will run electron packager and generate `./dist/os-name/*` files.
 
 Useful shortcuts for specific common target OS:
-* `yarn pack-win` (windows)
-* `yarn pack-linux` (linux)
+* `yarn pack-win` (Windows)
+* `yarn pack-linux` (Linux)
+* `yarn pack-osx` (MacOs)
 
 I could not test packaging for MacOS yet as I do not have access to a MacOS device at the moment.

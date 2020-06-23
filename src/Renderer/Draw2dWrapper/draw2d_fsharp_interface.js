@@ -185,6 +185,15 @@ function createDigitalDemux2(x, y) {
     return new draw2d.shape.digital.Demux2({x:x,y:y,resizeable:false});
 }
 
+function createDigitalNbitsAdder(x, y, numberOfBits) {
+    return new draw2d.shape.digital.NbitsAdder({
+        x:x,
+        y:y,
+        resizeable:false,
+        numberOfBits:numberOfBits
+    });
+}
+
 function createDigitalCustom(x, y, name, inputs, outputs) {
     return new draw2d.shape.digital.Custom({
         x: x,
@@ -406,6 +415,7 @@ export {
     createDigitalXnor,
     createDigitalMux2,
     createDigitalDemux2,
+    createDigitalNbitsAdder,
     createDigitalCustom,
     createDigitalMergeWires,
     createDigitalSplitWire,

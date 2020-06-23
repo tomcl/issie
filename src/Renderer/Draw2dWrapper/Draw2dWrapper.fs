@@ -55,6 +55,7 @@ type private IDraw2d =
     abstract createDigitalXnor            : x:int -> y:int -> JSComponent
     abstract createDigitalMux2            : x:int -> y:int -> JSComponent
     abstract createDigitalDemux2          : x:int -> y:int -> JSComponent
+    abstract createDigitalNbitsAdder      : x:int -> y:int -> numberOfBits:int -> JSComponent
     abstract createDigitalCustom          : x:int -> y:int -> name:string -> inputs:obj -> outputs:obj -> JSComponent
     abstract createDigitalMergeWires      : x:int -> y:int -> JSComponent
     abstract createDigitalSplitWire       : x:int -> y:int -> topOutputWidth:int -> JSComponent
@@ -126,6 +127,7 @@ let private createComponent
         | Xnor   -> draw2dLib.createDigitalXnor x y
         | Mux2   -> draw2dLib.createDigitalMux2 x y
         | Demux2 -> draw2dLib.createDigitalDemux2 x y
+        | NbitsAdder numberOfBits -> draw2dLib.createDigitalNbitsAdder x y numberOfBits
         | ComponentType.Custom custom ->
             draw2dLib.createDigitalCustom
                 x y custom.Name (fshaprListToJsList custom.InputLabels)

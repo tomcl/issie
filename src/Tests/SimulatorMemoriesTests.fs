@@ -16,7 +16,7 @@ type private IterationOutput = (SimulationIO * WireData) list // Output after ev
 type private TestCaseOutput = Result<IterationOutput list, SimulationError>
 type private TestCase = string * TestCaseInput * TestCaseOutput
 
-let private toWD num w = convertIntToWireData (int64 num) w
+let private toWD num w = convertIntToWireData w (int64 num)
 
 let private makeStateMem3Input addr dataIn write =
     [ (ComponentId "81030fc6-2471-a568-160f-922709edeb2e", toWD addr 3)

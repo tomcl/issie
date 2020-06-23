@@ -68,7 +68,7 @@ type private IDraw2d =
     abstract createDigitalRAM             : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
     abstract writeMemoryLine              : comp:JSComponent -> addr:int -> value:int64 -> unit
-    abstract setNumberOfIOBits            : comp:JSComponent -> numberOfBits:int -> unit
+    abstract setNumberOfBits              : comp:JSComponent -> numberOfBits:int -> unit
     abstract setTopOutputWidth            : comp:JSComponent -> topOutputWidth: int -> unit
     abstract setRegisterWidth             : comp:JSComponent -> topOutputWidth: int -> unit
     abstract updateMergeWiresLabels       : comp:JSComponent -> topInputWidth:int option -> bottomInputWidth:int option -> outputWidth:int option -> unit
@@ -390,11 +390,11 @@ type Draw2dWrapper() =
             draw2dLib.writeMemoryLine jsComp addr value
         |> tryActionWithCanvas "WriteMemoryLine"
 
-    member this.SetNumberOfIOBits compId numberOfBits =
+    member this.SetNumberOfBits compId numberOfBits =
         fun c ->
             let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "SetNumberOfBits"
-            draw2dLib.setNumberOfIOBits jsComp numberOfBits
-        |> tryActionWithCanvas "SetNumberOfIOBits"
+            draw2dLib.setNumberOfBits jsComp numberOfBits
+        |> tryActionWithCanvas "SetNumberOfBits"
 
     member this.SetTopOutputWidth compId topOutputWidth =
         fun c ->

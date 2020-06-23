@@ -83,7 +83,7 @@ let private viewSimulationInputs
                                 errorNotification err CloseSimulationNotification
                                 |> SetSimulationNotification |> dispatch
                             | Ok num ->
-                                let bits = convertIntToWireData num width
+                                let bits = convertIntToWireData width num
                                 // Close simulation notifications.
                                 CloseSimulationNotification |> dispatch
                                 // Feed input.

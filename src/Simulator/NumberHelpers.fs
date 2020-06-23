@@ -49,21 +49,21 @@ let bitToString (bit : Bit) : string =
     match bit with Zero -> "0" | One -> "1"
 
 /// Pad wireData with Zeros as the Most Significant Bits (e.g. at position N).
-let private padToWidth (bits : WireData) width : WireData =
+let private padToWidth width (bits : WireData) : WireData =
     bits @ List.replicate (width - bits.Length) Zero
 
 /// Convert an int into a Bit list with the provided width. The Least
 /// Significant Bits are the one with low index (e.g. LSB is at position 0, MSB
 /// is at position N). Little Endian.
 /// If the number has more bits than width, then more bits will be returned.
-let rec convertIntToWireData (num : int64) (width : int) : WireData =
+let convertIntToWireData (width : int) (num : int64) : WireData =
     let toBit = function | 0 -> Zero | 1 -> One | _ -> failwith "toBit only accepts 0 or 1"
     let rec intToBinary (i : int64) =
         match int i with
         | 0 | 1 -> [toBit <| int i]
         | _ -> let bit = toBit <| int (i % (int64 2))
                bit :: (intToBinary (i / (int64 2)))
-    padToWidth (intToBinary num) width
+    padToWidth width (intToBinary num)
 
 /// Convert a list of Bits into an int. The Least Significant Bits are the one
 /// with low index (e.g. LSB is at position 0, MSB is at position N).

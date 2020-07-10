@@ -33,7 +33,7 @@ draw2d.layout.locator.BusLabelLocator = draw2d.layout.locator.ConnectionLocator.
 // It would since the "connect" event is fired multiple times when a 
 // connection is created (connect source and target).
 // This is just for performance.
-dispatchLock = "undefined";
+let dispatchLock = "undefined";
 
 draw2d.Connection = draw2d.Connection.extend({
 

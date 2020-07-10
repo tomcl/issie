@@ -6,10 +6,6 @@ function resolve(filePath) {
 
 module.exports = {
     entry: resolve("src/Main/Main.fsproj"),
-    externals: {
-        bufferutil: 'commonjs bufferutil',
-        'utf-8-validate': 'commonjs utf-8-validate',
-    },
     module: {
         rules: [
             {

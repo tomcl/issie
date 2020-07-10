@@ -4,7 +4,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Main.fs" />
-    <None Include="preload.js" />
     <None Include="main.js" />
   </ItemGroup>
   <ItemGroup>

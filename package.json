@@ -18,10 +18,7 @@
   "electronWebpack": {
     "main": {
       "sourceDirectory": "src/Main",
-      "webpackConfig": "webpack.additions.main.js",
-      "extraEntries": [
-        "src/Main/preload.js"
-      ]
+      "webpackConfig": "webpack.additions.main.js"
     },
     "renderer": {
       "sourceDirectory": "src/Renderer",

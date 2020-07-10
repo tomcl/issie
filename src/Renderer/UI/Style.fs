@@ -1,6 +1,6 @@
 module DiagramStyle
 
-open Fable.Helpers.React.Props
+open Fable.React.Props
 
 let private headerHeight = "52px"
 let private rightSectionWidthS = "400px" // Small right section.
@@ -12,12 +12,12 @@ let navbarStyle = Style [
 ]
 
 let private rightSectionStyle width = Style [
-    Position "fixed"
+    Position PositionOptions.Fixed
     Right "0px"
     Height (sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
     Width width
-    OverflowX "hidden"
-    OverflowY "scroll"
+    OverflowX OverflowOptions.Hidden
+    OverflowY OverflowOptions.Scroll
     BorderTop "2px solid lightgray"
 ]
 
@@ -27,13 +27,14 @@ let rightSectionStyleS = rightSectionStyle rightSectionWidthS
 let rightSectionStyleL = rightSectionStyle rightSectionWidthL
 
 let canvasHiddenStyle = Style [
-    Display "none"
+    Display DisplayOptions.None
 ]
 
 let private canvasVisibleStyle right = Style [
-    Display "block"
-    Position "absolute" // Required to work.
-    Overflow "scroll"
+    Display DisplayOptions.Block
+    Position PositionOptions.Absolute // Required to work.
+    OverflowX OverflowOptions.Scroll
+    OverflowY OverflowOptions.Scroll
     Top headerHeight // Placed just under the header.
     Left "0px"
     Bottom "0px"
@@ -47,9 +48,10 @@ let canvasVisibleStyleS = canvasVisibleStyle rightSectionWidthL
 let canvasVisibleStyleL = canvasVisibleStyle rightSectionWidthS
 
 let canvasSmallMenuStyle = Style [
-    Display "block"
-    Position "absolute" // Required to work.
-    Overflow "hidden"
+    Display DisplayOptions.Block
+    Position PositionOptions.Absolute // Required to work.
+    OverflowX OverflowOptions.Hidden
+    OverflowY OverflowOptions.Hidden
     Left "10px"
     Bottom "25px"
     Right (sprintf "calc(100%s - 300px)" "%")
@@ -67,7 +69,7 @@ let canvasSmallButtonStyle = Style [
 
 let notificationStyle = Style [
     ZIndex 100 // In front of everything.
-    Position "absolute"
+    Position PositionOptions.Absolute
     Right "20px"
     Bottom "20px"
 ]

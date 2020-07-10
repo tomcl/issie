@@ -1,14 +1,44 @@
 ﻿module Main
 
+open Fable.Core
 open Fable.Core.JsInterop
-open Fable.Import
 open Electron
-open Node.Exports
+open Node
 
-electron.app.setName "DEflow"
+#if DEBUG
+module DevTools =
+    let private installDevTools (extensionRef: obj) (forceDownload: bool): JS.Promise<string> =
+        importDefault "electron-devtools-installer"
+    let private REACT_DEVELOPER_TOOLS: obj = import "REACT_DEVELOPER_TOOLS" "electron-devtools-installer"
+    let private REDUX_DEVTOOLS: obj = import "REDUX_DEVTOOLS" "electron-devtools-installer"
+
+    let private installDevTool extensionRef =
+        promise {
+            try
+                let! name = installDevTools extensionRef false
+                JS.console.log ("Added extension", name)
+            with err -> JS.console.log ("An error occurred adding extension:", err)
+        }
+        |> Promise.start
+
+    let installAllDevTools (win: BrowserWindow) =
+        installDevTool REACT_DEVELOPER_TOOLS
+        installDevTool REDUX_DEVTOOLS
+        win.webContents.executeJavaScript ("require('devtron').install()")
+        |> ignore
+
+    let uninstallAllDevTools (win: BrowserWindow) =
+        main.Session.defaultSession.removeExtension("React Developer Tools")
+        main.Session.defaultSession.removeExtension("Redux DevTools")
+        win.webContents.executeJavaScript ("require('devtron').uninstall()")
+
+    let connectRemoteDevViaExtension: unit -> unit = import "connectViaExtension" "remotedev"
+#endif
+
+electron.app.name <- "DEflow"
 
 let args = 
-    Fable.Import.Node.Globals.``process``.argv 
+    Api.``process``.argv
     |> Seq.toList
     |> List.map (fun s -> s.ToLower())
 
@@ -25,32 +55,60 @@ let mutable mainWindow: BrowserWindow option = Option.None
 
 let createMainWindow () =
     let options = createEmpty<BrowserWindowOptions>
-    options.width <- Some 1200.0
-    options.height <- Some 800.0
-    options.autoHideMenuBar <- Some true
-    options.icon <- Some (Fable.Core.U2.Case2 "app/icon.ico")
+    options.width <- 1200
+    options.height <- 800
+    options.autoHideMenuBar <- true
+    options.icon <- (U2.Case2 (path.join(__dirname, "../../static/icon.ico")))
+    options.title <- "DEflow"
+    options.webPreferences <-
+        jsOptions<WebPreferences>(fun o ->
+            o.preload <- path.resolve(path.join(__dirname, "preload.js"))
+        )
 
     let window = electron.BrowserWindow.Create(options)
 
     // Clear the menuBar.
-    let template = ResizeArray<MenuItemOptions> [createEmpty<MenuItemOptions>]
-    electron.Menu.setApplicationMenu(electron.Menu.buildFromTemplate(template))
+    electron.app.applicationMenu <- None
 
-    // Load the index.html of the app.
-    let opts = createEmpty<Node.Url.Url<obj>>
-    opts.pathname <- Some <| path.join(Node.Globals.__dirname, "index.html")
-    opts.protocol <- Some "file:"
-    window.loadURL(url.format(opts))
+    window.onceReadyToShow <| fun _ ->
+        if window.isMinimized() then window.show()
+    |> ignore
 
-    if hasDebugArgs() then window.webContents.openDevTools()
+    // Load the index.html of the app.    
+    #if DEBUG
 
+    DevTools.installAllDevTools window
+    DevTools.connectRemoteDevViaExtension()
+
+    window.webContents.openDevTools()
+
+    sprintf "http://localhost:%s" ``process``.env?ELECTRON_WEBPACK_WDS_PORT
+    |> window.loadURL
+    |> ignore
+
+    ``process``.on("uncaughtException", fun err -> JS.console.error(err))
+    |> ignore
+
+    #else
+
+    let url =
+        path.join(__dirname, "index.html")
+        |> sprintf "file:%s" 
+        |> Api.URL.Create
+
+    Api.URL.format(url, createEmpty<Url.IFormatOptions>)
+    |> window.loadURL
+    |> ignore
+
+    #endif
+    
     // Emitted when the window is closed.
-    window.on("closed", unbox(fun () ->
+    window.onClosed <| fun _ ->
         // Dereference the window object, usually you would store windows
         // in an array if your app supports multi windows, this is the time
         // when you should delete the corresponding element.
         mainWindow <- Option.None
-    )) |> ignore
+    |> ignore
 
     // Maximize the window
     window.maximize()
@@ -59,19 +117,19 @@ let createMainWindow () =
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
-electron.app.on("ready", unbox createMainWindow) |> ignore
+electron.app.onReady(fun _ _ -> createMainWindow()) |> ignore
 
 // Quit when all windows are closed.
-electron.app.on("window-all-closed", unbox(fun () ->
+electron.app.onWindowAllClosed <| fun _ ->
     // On OS X it is common for applications and their menu bar
     // to stay active until the user quits explicitly with Cmd + Q
-    if Node.Globals.``process``.platform <> Node.Base.NodeJS.Darwin then
+    if Api.``process``.platform <> Base.Darwin then
         electron.app.quit()
-)) |> ignore
+|> ignore
 
-electron.app.on("activate", unbox(fun () ->
+electron.app.onActivate <| fun _ _ ->
     // On OS X it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if mainWindow.IsNone then
         createMainWindow()
-)) |> ignore
+|> ignore

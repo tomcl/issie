@@ -3,6 +3,8 @@
  * to connections.
  */
 
+import * as draw2d from "draw2d"
+
 /// Custom locator for the bus label.
 draw2d.layout.locator.BusLabelLocator = draw2d.layout.locator.ConnectionLocator.extend({
     NAME : "draw2d.layout.locator.BusLabelLocator",
@@ -106,7 +108,7 @@ let router = new draw2d.layout.connection.InteractiveManhattanConnectionRouter()
 // TODO: use CircuitConnectionRouter instead?
 router.abortRoutingOnFirstVertexNode = false;
 
-function createDigitalConnection(sourcePort, targetPort) {
+export function createDigitalConnection(sourcePort, targetPort) {
     if (sourcePort === "undefined" || targetPort === "undefined") {
         throw "CreateDigitalConnection called with sourcePort or targetPort set to undefined";
     }
@@ -139,5 +141,3 @@ function createDigitalConnection(sourcePort, targetPort) {
     c.setTarget(targetPort);
     return c;
 }
-
-module.exports = { createDigitalConnection };

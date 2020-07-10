@@ -4,6 +4,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Main.fs" />
+    <None Include="preload.js" />
+    <None Include="main.js" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Fable.Import.Electron" Version="0.1.1" />

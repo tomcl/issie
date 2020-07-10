@@ -7,8 +7,8 @@
 module MemoryEditorView
 
 open Fulma
-open Fable.Helpers.React
-open Fable.Helpers.React.Props
+open Fable.React
+open Fable.React.Props
 
 open Helpers
 open NumberHelpers
@@ -21,7 +21,7 @@ open PopupView
 let private popupExtraStyle = [ Width "65%"; Height "80%" ]
 let private headerHeight = 60;
 let private headerStyle = Style [
-    Position "fixed"
+    Position PositionOptions.Fixed
     MarginTop (string (-headerHeight-20) + "px")
     PaddingTop "20px"
     PaddingBottom "60px"
@@ -135,7 +135,7 @@ let private makeEditorBody memory compId memoryEditorData model dispatch =
     let showRow = showRowWithAdrr memoryEditorData
     let viewNum = viewNum memoryEditorData.NumberBase
     let makeRow addr content =
-        tr [ Style [ Display (if showRow addr then "table-row" else "none")] ] [
+        tr [ Style [ Display (if showRow addr then DisplayOptions.TableRow else DisplayOptions.None)] ] [
             td [] [ str <| viewNum (int64 addr) ]
             td [] [
                 Input.text [
@@ -207,7 +207,7 @@ let private makeDiffViewerBody memory1 memory2 memoryEditorData =
             showRowWithAdrr memoryEditorData addr && (
                 not memoryEditorData.OnlyDiff ||
                 memoryEditorData.OnlyDiff && hasChanged)
-        tr [ Style [ Display (if showRow addr then "table-row" else "none")] ] [
+        tr [ Style [ Display (if showRow addr then DisplayOptions.TableRow else DisplayOptions.None)] ] [
             td [] [ str <| viewNum (int64 addr) ]
             td [
                 Style [BackgroundColor (if hasChanged then "#ffc6d3" else "auto") ]

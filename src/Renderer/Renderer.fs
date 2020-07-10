@@ -1,15 +1,15 @@
 ﻿module Renderer
 
+open Browser.Types
 open Elmish
 open Elmish.HMR
 open Elmish.React
 open Elmish.Debug
 open Fable.Core
 open Fable.Core.JsInterop
-open Fable.Import
-open Fable.Import.Electron
+open Electron
 
-importSideEffects "./../../app/scss/main.scss" 
+//importSideEffects "./../../app/scss/main.scss" 
 
 // Keybindings.
 // Use Elmish subscriptions to attach external source of events such as keyboard
@@ -22,24 +22,23 @@ importSideEffects "./../../app/scss/main.scss"
 // open at the same time, such as VSCode (on Linux).
 
 let makeItem (accelerator : string) (action : unit -> unit) =
-    let handlerCaster f = System.Func<MenuItem, BrowserWindow, unit> f |> Some
     let item = createEmpty<MenuItemOptions>
-    item.accelerator <- Some accelerator
+    item.accelerator <- accelerator
     // These menu items will be invisible and only accessible via shortcuts.
     // Thanks to VisUAL2 code for lending this function to DEflow.
-    item.click <- handlerCaster (fun _ _ -> action())
+    item.click <- fun _ _ _ -> action()
     item
 
 let invisibleMenu dispatch =
     let invisibleMenu = createEmpty<MenuItemOptions>
     let dispatch = DiagramMessageType.KeyboardShortcutMsg >> dispatch
     invisibleMenu.submenu <-
-        [ makeItem "CmdOrCtrl+S" (fun () -> dispatch DiagramMessageType.CtrlS)
-          makeItem "Alt+C" (fun () -> dispatch DiagramMessageType.AltC)
-          makeItem "Alt+V" (fun () -> dispatch DiagramMessageType.AltV)
-          makeItem "Alt+Z" (fun () -> dispatch DiagramMessageType.AltZ)
-          makeItem "Alt+Shift+Z" (fun () -> dispatch DiagramMessageType.AltShiftZ) ]
-        |> ResizeArray<MenuItemOptions> |> U2.Case2 |> Some
+        [| makeItem "CmdOrCtrl+S" (fun () -> dispatch DiagramMessageType.CtrlS)
+           makeItem "Alt+C" (fun () -> dispatch DiagramMessageType.AltC)
+           makeItem "Alt+V" (fun () -> dispatch DiagramMessageType.AltV)
+           makeItem "Alt+Z" (fun () -> dispatch DiagramMessageType.AltZ)
+           makeItem "Alt+Shift+Z" (fun () -> dispatch DiagramMessageType.AltShiftZ) |]
+        |> U2.Case1
     invisibleMenu
 
 /// Create an invisible menu and attach keybindings to actions. 
@@ -52,10 +51,12 @@ let invisibleMenu dispatch =
 /// - save open file (not diagram action): Ctrl+S
 let attachKeyShortcuts _ =
     let sub dispatch =
-        let template = ResizeArray<MenuItemOptions> [invisibleMenu dispatch]
-        template
-        |> electron.remote.Menu.buildFromTemplate
-        |> electron.remote.Menu.setApplicationMenu
+        let menu =
+            [| U2.Case1(invisibleMenu dispatch) |]
+            |> electron.remote.Menu.buildFromTemplate
+        
+        electron.remote.app.applicationMenu <- Some menu
+
     Cmd.ofSub sub
 
 // This setup is useful to add other pages, in case they are needed.
@@ -77,6 +78,6 @@ let view model dispatch = DiagramMainView.displayView model dispatch
 let update msg model = DiagramMainView.update msg model
 
 Program.mkSimple init update view
-|> Program.withReact "electron-app"
+|> Program.withReactBatched "electron-app"
 |> Program.withSubscription attachKeyShortcuts
 |> Program.run

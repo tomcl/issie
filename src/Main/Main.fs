@@ -54,21 +54,18 @@ let hasDebugArgs() = argFlagIsOn ["--debug";"-d"]
 let mutable mainWindow: BrowserWindow option = Option.None
 
 let createMainWindow () =
-    let options = createEmpty<BrowserWindowOptions>
-    options.width <- 1200
-    options.height <- 800
-    options.autoHideMenuBar <- true
-    options.icon <- (U2.Case2 (path.join(__dirname, "../../static/icon.ico")))
-    options.title <- "DEflow"
-    options.webPreferences <-
-        jsOptions<WebPreferences>(fun o ->
-            o.preload <- path.resolve(path.join(__dirname, "preload.js"))
-        )
+    let options = jsOptions<BrowserWindowOptions> <| fun options ->
+        options.width <- 1200
+        options.height <- 800
+        options.autoHideMenuBar <- true
+        options.icon <- (U2.Case2 (path.join(__dirname, "../../static/icon.ico")))
+        options.title <- "DEflow"
+        options.webPreferences <-
+            jsOptions<WebPreferences> <| fun o ->
+                o.nodeIntegration <- true
+                o.enableRemoteModule <- true
 
     let window = electron.BrowserWindow.Create(options)
-
-    // Clear the menuBar.
-    electron.app.applicationMenu <- None
 
     window.onceReadyToShow <| fun _ ->
         if window.isMinimized() then window.show()

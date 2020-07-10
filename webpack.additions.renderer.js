@@ -1,4 +1,5 @@
 var path = require("path");
+var HtmlWebpackPlugin = require('html-webpack-plugin');
 
 function resolve(filePath) {
     return path.join(__dirname, filePath)
@@ -9,6 +10,11 @@ module.exports = {
     output: {
         filename: "renderer.js"
     },
+    plugins: [
+        new HtmlWebpackPlugin({
+            template: path.resolve(__dirname, 'static/index.html')
+        })
+    ],
     module: {
         rules: [
             {

@@ -3,6 +3,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="scss\main.scss" />
     <Compile Include="JSTypes.fs" />
     <Compile Include="JSHelpers.fs" />
     <Compile Include="Extractor.fs" />
@@ -11,6 +12,11 @@
     <!-- UI -->
     <Compile Include="UI/Style.fs" />
     <Compile Include="UI/MessageType.fs" />
+    <None Include="Draw2dWrapper\drag_connection_create_policy_fixed.js" />
+    <None Include="Draw2dWrapper\draw2d_digital_components.js" />
+    <None Include="Draw2dWrapper\draw2d_digital_connections.js" />
+    <None Include="Draw2dWrapper\draw2d_fsharp_interface.js" />
+    <None Include="Draw2dWrapper\MVU_messages.js" />
     <Compile Include="Draw2dWrapper/Draw2dWrapper.fs" />
     <Compile Include="UI/ModelType.fs" />
     <Compile Include="UI/PopupView.fs" />
@@ -23,6 +29,8 @@
     <Compile Include="UI/MainView.fs" />
 
     <Compile Include="Renderer.fs" />
+
+    <None Include="main.js" />
   </ItemGroup>
   <!-- Dependencies -->
   <ItemGroup>

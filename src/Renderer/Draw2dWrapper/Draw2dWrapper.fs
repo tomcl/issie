@@ -12,9 +12,8 @@ open DiagramStyle
 
 open Fable.Core
 open Fable.Core.JsInterop
-open Fable.Import.React
-open Fable.Helpers.React
-open Fable.Helpers.React.Props
+open Fable.React
+open Fable.React.Props
 
 // Interface with JS library.
 

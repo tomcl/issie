@@ -7,8 +7,8 @@
 module FileMenuView
 
 open Fulma
-open Fable.Helpers.React
-open Fable.Helpers.React.Props
+open Fable.React
+open Fable.React.Props
 
 open Helpers
 open JSHelpers
@@ -339,7 +339,7 @@ let viewTopMenu model dispatch =
             ] [
                 Navbar.Link.a [] [ str "Files" ]
                 Navbar.Dropdown.div [ Navbar.Dropdown.Props [
-                    Style [Display (if model.TopMenu = Files then "block" else "none")]
+                    Style [Display (if model.TopMenu = Files then DisplayOptions.Block else DisplayOptions.None)]
                 ]] (
                     [
                         Navbar.Item.a [
@@ -361,7 +361,7 @@ let viewTopMenu model dispatch =
                 ] [
                     Navbar.Link.a [] [ str "Project" ]
                     Navbar.Dropdown.div [ Navbar.Dropdown.Props [
-                        Style [Display (if model.TopMenu = Project then "block" else "none")]
+                        Style [Display (if model.TopMenu = Project then DisplayOptions.Block else DisplayOptions.None)]
                     ] ] [
                         Navbar.Item.a [
                             Navbar.Item.Props [ OnClick <| newProject model dispatch ]

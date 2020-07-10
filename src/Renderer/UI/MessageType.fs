@@ -3,7 +3,7 @@ module DiagramMessageType
 open CommonTypes
 open JSTypes
 open SimulatorTypes
-open Fable.Import.React
+open Fable.React
 
 type RightTab =
     | Properties

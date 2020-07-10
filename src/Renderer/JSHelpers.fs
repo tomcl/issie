@@ -6,10 +6,9 @@
 
 module JSHelpers
 
+open Browser.Types
 open Fable.Core
 open Fable.Core.JsInterop
-
-open Helpers
 
 [<Emit("typeof $0")>]
 let jsType (var: obj) : unit = jsNative
@@ -38,7 +37,7 @@ let stopAndLogTimer (label : string) : unit = jsNative
 
 /// Assert js object is not null, and return it.
 let assertNotNull obj msg =
-    assertThat (not <| isNull obj) ("(assertNotNull) " + msg)
+    Helpers.assertThat (not <| isNull obj) ("(assertNotNull) " + msg)
     obj
 
 /// Access nested fields of a js object, failing if at any point of the chain
@@ -69,15 +68,15 @@ let fshaprListToJsList (list : 'a list) =
     let jsList = emptyJsList ()
     list |> List.map (fun el -> jsList?push(el)) |> ignore
     jsList
-
+    
 /// Get the value for a change event in an input textbox.
-let getTextEventValue (event: Fable.Import.React.FormEvent) =
+let getTextEventValue (event: Event) =
     getFailIfNull event.currentTarget ["value"] |> unbox<string>
 
 /// Get the value for a change event in an input number box.
-let getIntEventValue (event: Fable.Import.React.FormEvent) =
+let getIntEventValue (event: Event) =
     getFailIfNull event.currentTarget ["value"] |> unbox<int>
 
 /// Get the value for a blur event in an input textbox.
-let getTextFocusEventValue (event: Fable.Import.React.FocusEvent) =
+let getTextFocusEventValue (event: FocusEvent) =
     getFailIfNull event ["target";"value"] |> unbox<string>

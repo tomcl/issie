@@ -2,8 +2,10 @@
  * Draw2d functions that are used in the Draw2dWrapper.fs file.
  */
 
-import { setDispatchMessages } from "../../../app/public/lib/draw2d_extensions/MVU_messages.js"
-import { createDigitalConnection } from "../../../app/public/lib/draw2d_extensions/draw2d_digital_connections.js"
+import { setDispatchMessages } from "./MVU_messages.js"
+import { createDigitalConnection } from "./draw2d_digital_connections.js"
+import "./draw2d_digital_components.js"
+import "./drag_connection_create_policy_fixed.js"
 
 function createCanvas(id, width, height) {
     let canvas = new draw2d.Canvas(id, width, height);

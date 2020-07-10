@@ -9,8 +9,8 @@ module OnDiagramButtonsView
 
 open Fulma
 open Elmish.React
-open Fable.Helpers.React
-open Fable.Helpers.React.Props
+open Fable.React
+open Fable.React.Props
 
 open DiagramMessageType
 open DiagramModelType

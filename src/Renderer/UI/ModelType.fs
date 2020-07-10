@@ -15,11 +15,11 @@ open SimulatorTypes
 open Draw2dWrapper
 
 type Notifications = {
-    FromDiagram : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
-    FromSimulation : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
-    FromFiles : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
-    FromMemoryEditor : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
-    FromProperties : ((Msg -> unit) -> Fable.Import.React.ReactElement) option
+    FromDiagram : ((Msg -> unit) -> Fable.React.ReactElement) option
+    FromSimulation : ((Msg -> unit) -> Fable.React.ReactElement) option
+    FromFiles : ((Msg -> unit) -> Fable.React.ReactElement) option
+    FromMemoryEditor : ((Msg -> unit) -> Fable.React.ReactElement) option
+    FromProperties : ((Msg -> unit) -> Fable.React.ReactElement) option
 }
 
 type Model = {
@@ -32,7 +32,7 @@ type Model = {
     CreateComponentOffset : int // Change this offset every time a component is created to avoid overlaps.
     HasUnsavedChanges : bool
     CurrProject : Project option
-    Popup : (PopupDialogData -> Fable.Import.React.ReactElement) option
+    Popup : (PopupDialogData -> Fable.React.ReactElement) option
     PopupDialogData : PopupDialogData
     Notifications : Notifications
     TopMenu : TopMenu

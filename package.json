@@ -18,7 +18,10 @@
   "electronWebpack": {
     "main": {
       "sourceDirectory": "src/Main",
-      "webpackConfig": "webpack.additions.main.js"
+      "webpackConfig": "webpack.additions.main.js",
+      "extraEntries": [
+        "src/Main/preload.js"
+      ]
     },
     "renderer": {
       "sourceDirectory": "src/Renderer",
@@ -34,6 +37,7 @@
     "draw2d": "^1.0.38",
     "font-awesome": "^4.7.0",
     "jquery": "^3.5.1",
+    "jquery-ui": "^1.12.1",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
     "rechart": "^0.0.1"
@@ -41,8 +45,9 @@
   "devDependencies": {
     "@babel/core": "^7.10.4",
     "babel-loader": "8.1.0",
+    "bufferutil": "^4.0.1",
     "devtron": "^1.4.0",
-    "electron": "^1.8.8",
+    "electron": "^9.1.0",
     "electron-devtools-installer": "^3.1.0",
     "electron-installer-dmg": "^3.0.0",
     "electron-packager": "^14.2.1",
@@ -50,6 +55,7 @@
     "fable-compiler": "^2.10.1",
     "fable-loader": "^2.1.9",
     "file-loader": "^3.0.1",
+    "html-webpack-plugin": "^4.3.0",
     "loglevel": "^1.6.8",
     "node-sass": "^4.12.0",
     "remotedev": "^0.2.9",
@@ -57,6 +63,7 @@
     "sass": "^1.26.10",
     "sass-loader": "^7.3.1",
     "url-loader": "^4.1.0",
+    "utf-8-validate": "^5.0.2",
     "webpack": "^4.43.0",
     "webpack-cli": "^3.3.12"
   }

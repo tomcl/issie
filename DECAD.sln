@@ -31,6 +31,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionIt
 		yarn.lock = yarn.lock
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "static", "static", "{EB34148C-70A6-4D00-BA10-87BBDFD4ACBF}"
+	ProjectSection(SolutionItems) = preProject
+		static\icon.ico = static\icon.ico
+		static\index.html = static\index.html
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

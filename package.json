@@ -1,11 +1,15 @@
 {
+  "name": "decad",
+  "version": "0.4.0",
   "private": true,
   "main": "app/main.js",
   "scripts": {
     "start": "electron-webpack dev",
     "build": "electron-webpack",
-    "launch": "electron .",
+    "launch": "electron-webpack .",
     "debug": "electron . --debug",
+    "dist": "yarn build && electron-builder",
+    "distzip": "electron-builder --dir -c.compression=store -c.mac.identity=null",
     "make-osx-dmg": "yarn electron-installer-dmg --overwrite --icon=app/icon.ico dist/deflow-darwin-x64 dist/deflow-osx",
     "pack-nobuild-linux": "electron-packager . DEflow --platform=linux --arch=x64 --out=dist --prune --asar --ignore=/dist --ignore=/src --overwrite && yarn cross-zip dist/deflow-linux-x64",
     "pack-nobuild-win": "electron-packager . DEflow --platform=win32 --arch=x64 --out=dist --prune --ignore=/dist --ignore=/src --overwrite --icon=app/icon.ico && yarn cross-zip dist/deflow-win32-x64",
@@ -26,6 +30,9 @@
     },
     "title": true
   },
+  "build": {
+    "appId": "Decad.040"
+  },
   "dependencies": {
     "bulma": "^0.9.0",
     "core-js": "^3.6.5",
@@ -45,9 +52,8 @@
     "bufferutil": "^4.0.1",
     "devtron": "^1.4.0",
     "electron": "^9.1.0",
+    "electron-builder": "^22.7",
     "electron-devtools-installer": "^3.1.0",
-    "electron-installer-dmg": "^3.0.0",
-    "electron-packager": "^14.2.1",
     "electron-webpack": "^2.8.2",
     "fable-compiler": "^2.10.1",
     "fable-loader": "^2.1.9",

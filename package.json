@@ -44,7 +44,8 @@
     "jquery-ui": "^1.12.1",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
-    "rechart": "^0.0.1"
+    "rechart": "^0.0.1",
+    "source-map-support": "0.5.19"
   },
   "devDependencies": {
     "@babel/core": "^7.10.4",

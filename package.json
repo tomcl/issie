@@ -1,28 +1,28 @@
 {
-  "name": "d-e-c-a-d",
+  "name": "i-s-s-i-e",
   "version": "0.4.0",
   "description": "Schematic editor and Simulator",
-  "homepage": "https://github.com/tomcl/DECAD",
+  "homepage": "https://github.com/tomcl/ISSIE",
   "bugs": {
-    "url": "https://github.com/tomcl/DECAD/issues"
+    "url": "https://github.com/tomcl/ISSIE/issues"
   },
   "license": "",
   "author": "tomcl",
   "main": "app/main.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tomcl/DECAD.git"
+    "url": "https://github.com/tomcl/ISSIE.git"
   },
   "scripts": {
     "build": "electron-webpack",
     "clean-dev-mac": "sudo killall -9 node && sudo killall -9 dotnet",
     "clean-dev-win": "taskkill /f /im node.exe && taskkill /f /im dotnet.exe",
     "compile": "yarn build",
-    "debug": "electron . --debug",
+    "dev": "electron-webpack",
     "dist": "yarn build && electron-builder",
-    "distwin": "yarn build && electron-builder -wl",
-    "distwinzip": "electron-builder -wl --dir -c.compression=store -c.mac.identity=null",
-    "launch": "electron-webpack .",
+    "distwin": "yarn build && electron-builder -w",
+    "distwinzip": "electron-builder -w --dir -c.compression=store -c.mac.identity=null",
+    "launch": "electron .",
     "make-osx-dmg": "yarn electron-installer-dmg --overwrite --icon=app/icon.ico dist/deflow-darwin-x64 dist/deflow-osx",
     "pack-all": "yarn run build && yarn pack-nobuild-win && yarn pack-nobuild-linux && yarn pack-nobuild-osx",
     "pack-linux": "yarn build && yarn pack-nobuild-linux",
@@ -45,7 +45,7 @@
     "title": true
   },
   "build": {
-    "appId": "Decad.040"
+    "appId": "ISSIE.040"
   },
   "dependencies": {
     "bulma": "^0.9.0",

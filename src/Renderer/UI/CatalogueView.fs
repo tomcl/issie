@@ -145,7 +145,7 @@ let private makeMenuGroup title menuList =
 let viewCatalogue model dispatch =
     Menu.menu [] [
             makeMenuGroup
-                "Input / Output"
+                "Input / Output etc"
                 [ menuItem "Input"  (fun _ -> createIOPopup "input" Input model dispatch)
                   menuItem "Output" (fun _ -> createIOPopup "output" Output model dispatch) ]
             makeMenuGroup

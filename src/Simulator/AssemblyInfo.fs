@@ -4,7 +4,7 @@ open System.Reflection
 open System.Runtime.CompilerServices
 
 [<assembly: AssemblyTitleAttribute("Simulator")>]
-[<assembly: AssemblyProductAttribute("DECAD")>]
+[<assembly: AssemblyProductAttribute("ISSIE")>]
 [<assembly: AssemblyDescriptionAttribute("Schematic editor and Simulator")>]
 [<assembly: AssemblyVersionAttribute("0.4.0")>]
 [<assembly: AssemblyFileVersionAttribute("0.4.0")>]
@@ -14,7 +14,7 @@ do ()
 
 module internal AssemblyVersionInformation =
     let [<Literal>] AssemblyTitle = "Simulator"
-    let [<Literal>] AssemblyProduct = "DECAD"
+    let [<Literal>] AssemblyProduct = "ISSIE"
     let [<Literal>] AssemblyDescription = "Schematic editor and Simulator"
     let [<Literal>] AssemblyVersion = "0.4.0"
     let [<Literal>] AssemblyFileVersion = "0.4.0"

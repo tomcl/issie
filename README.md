@@ -1,6 +1,6 @@
-# DEflow
+# DECAD
 
-DEflow is an application for digital circtuit design and simulation. It is targeted to students and hobbysts that want to get a grasp of Digital Electronics concepts in a simple and fun way. DEflow is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues.
+DECAD is an application for digital circtuit design and simulation. It is targeted to students and hobbysts that want to get a grasp of Digital Electronics concepts in a simple and fun way. DEflow is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues.
 
 The application is currently being developed and maintained by Marco Selvatici, as a Final Year Project.
 
@@ -88,7 +88,7 @@ The compile process is controlled by the `.fsproj` files (defining the F# source
 | `index.html`      | The page rendered by the renderer process. The HTML DOM is dynamically generated using React when the app is running.                                                                                                                                                                                                         |
 | Other             | Other files will be generated in this folder at compilation time. They are ignored by the gitignore, and you don't have to worry about those.                                                                                                                                                                                 |
 
-## Concept of Project and File in DEflow
+## Concept of Project and File in DECAD
 
 DEflow allows the users to create projects and files within those projects. A DEflow project is simply a folder named `<project_name>.dprj` (dprj stands for diagram project). A project contains a collection of designs, each named `<component_name>.dgm` (dgm stands for diagram).
 
@@ -100,28 +100,14 @@ If you just want to run the app go to the [releases page](https://github.com/ms8
 
 If you want to get started as a developer, follow these steps:
 
-1. Follow instructions to install [yarn](https://yarnpkg.com/lang/en/docs/install/) (which tell you to install Node as well).
-
-2. Download and install the latest (2.x) [Dotnet Core SDK](https://www.microsoft.com/net/learn/get-started).  
+1. Download and install the latest (3.x) [Dotnet Core SDK](https://www.microsoft.com/net/learn/get-started).  
 For Mac and Linux users, download and install [Mono](http://www.mono-project.com/download/stable/) from official website (the version from brew is incomplete, may lead to MSB error on step 6).
 
-3. Download & unzip the DEflow repo, or if contributing clone it locally, or fork it on github and then clone it locally.
+2. Download & unzip the DECAD repo, or if contributing clone it locally, or fork it on github and then clone it locally.
 
-4. Navigate to the project root directory (which contains this README) in a command-line interpreter. For Windows usage make sure if possible for convenience that you have a _tabbed_ command-line interpreter that can be started direct from file explorer within a specific directory (by right-clicking on the explorer directory view). That makes things a lot more pleasant. The new [Windows Terminal](https://github.com/microsoft/terminal) works well.
+3. Navigate to the project root directory (which contains this README) in a command-line interpreter. For Windows usage make sure if possible for convenience that you have a _tabbed_ command-line interpreter that can be started direct from file explorer within a specific directory (by right-clicking on the explorer directory view). That makes things a lot more pleasant. The new [Windows Terminal](https://github.com/microsoft/terminal) works well.
 
-5. Fetch the required `npm` packages by executing `yarn install`. This project consistently uses `yarn` Node package manager instead of `npm`.
-
-6. On MacOS or Linux ensure you have [paket installed](https://fsprojects.github.io/Paket/installation.html). Run `setup.bat` (on Windows) or `sh setup.sh` (on linux or macOS). This installs all the required nuget and node dependencies. On other systems run the statements in this file (modified if needed for your system) individually. If MSB error occur while running the script (on macOS) and you were using Mono installed by brew previously, run `brew uninstall mono` and refer to step 2 for install Mono correctly).
-
-7. Goto step 10 if all you want to do is to generate uptodate binaries.
-
-8. In a terminal window compile `fsharp` code to `javascript` using `webpack` by executing `yarn start` (shortcut for `yarn run start`). This runs the `start` script defined in `package.json`. The `start` script  compiles everything once and then watches source files recompiling whenever any change, so it is normal run continuously throughout development. You will need to view the `yarn start` output throughout development since if compile fails the output makes this clear via red-colored text. Although Ionide will also provide error messages on code that does not compile it is possible to miss these when making quick changes.
-
-9. Open your `electron` app in a new terminal tab by running `yarn launch`. This command will start the application.
-
-10. Run `yarn pack-win`, `yarn pack-linux`, `yarn pack-osx` at any time to create a set of system-specific self-contained binaries in `./dist/os-name/*` and a zip in `./dist`. Each binary distribution consists of a portable directory with all dependencies, so use the appropriate one of these if you just want to run DEflow. For osx, the easiest way to run DEflow once it has been built is to navigate to `./dist/DEflow-darwin-x64` and execute `open -a DEflow.app` in terminal. Note that some host-target combinations will not correctly generate: `pack-osx must be executed on os-x`.
-
-11. To open the Chromium console from the running DEflow app press `Ctrl-Shift-I`.
+4. Run `setup.cmd` under Windows or `setup.sh` under linux or macos.
 
 ## Reinstalling Compiler and Libraries
 
@@ -133,13 +119,3 @@ WARNING: `dotnet` assemblies are cached locally at machine level by dotnet. This
 
 To reinstall the build environment (without changing project code) run `setup.bat` (Windows) or `setup.sh` (Linux and MacOS).
 
-## Creating DEflow Binaries
-
-After you have compiled code (and checked it works) `yarn pack-all` will run electron packager and generate `./dist/os-name/*` files.
-
-Useful shortcuts for specific common target OS:
-* `yarn pack-win` (Windows)
-* `yarn pack-linux` (Linux)
-* `yarn pack-osx` (MacOs)
-
-I could not test packaging for MacOS yet as I do not have access to a MacOS device at the moment.

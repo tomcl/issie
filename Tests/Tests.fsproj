@@ -18,12 +18,12 @@
   </ItemGroup>
   <!-- Dependencies -->
   <ItemGroup>
-    <ProjectReference Include="../Common/Common.fsproj" />
-    <ProjectReference Include="../WidthInferer/WidthInferer.fsproj" />
-    <ProjectReference Include="../Simulator/Simulator.fsproj" />
+    <ProjectReference Include="../src/Common/Common.fsproj" />
+    <ProjectReference Include="../src//WidthInferer/WidthInferer.fsproj" />
+    <ProjectReference Include="../src//Simulator/Simulator.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Expecto.FsCheck" Version="8.13.1" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
+  <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>

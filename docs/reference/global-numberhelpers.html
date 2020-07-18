@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>NumberHelpers - DECAD</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content=""/>
+    <meta name="author" content="tomcl"/>
+
+    <script src="https://code.jquery.com/jquery-1.8.0.js"></script>
+    <script src="https://code.jquery.com/ui/1.8.23/jquery-ui.js"></script>
+    <script src="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+    <link href="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet"/>
+
+    <link type="text/css" rel="stylesheet" href="C:\github\DECAD\docs/content/style.css" />
+    <script type="text/javascript" src="C:\github\DECAD\docs/content/tips.js"></script>
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="container">
+      <div class="masthead">
+        <ul class="nav nav-pills pull-right">
+          <li><a href="http://fsharp.org">fsharp.org</a></li>
+        </ul>
+        <h3 class="muted"><a href="C:\github\DECAD\docs/index.html">DECAD</a></h3>
+      </div>
+      <hr />
+      <div class="row">
+        <div class="span9" id="main">
+          
+
+
+
+<h1>NumberHelpers</h1>
+<p>
+  <span>Namespace: global</span><br />
+  </p>
+<div class="xmldoc">
+</div>
+
+<!-- Render nested types and modules, if there are any -->
+
+  <h3>Functions and values</h3>
+  <table class="table table-bordered member-list">
+    <thead>
+      <tr><td>Function or value</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '40', 40)" onmouseover="showTip(event, '40', 40)">
+            bin(num)
+          </code>
+          <div class="tip" id="40">
+            <strong>Signature:</strong> num:int -&gt; string<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/DECAD/tree/master/src/Simulator/NumberHelpers.fs#L44-44" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '41', 41)" onmouseover="showTip(event, '41', 41)">
+            bin64(num)
+          </code>
+          <div class="tip" id="41">
+            <strong>Signature:</strong> num:int64 -&gt; string<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/DECAD/tree/master/src/Simulator/NumberHelpers.fs#L41-41" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '42', 42)" onmouseover="showTip(event, '42', 42)">
+            bitToString(bit)
+          </code>
+          <div class="tip" id="42">
+            <strong>Signature:</strong> bit:Bit -&gt; string<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/DECAD/tree/master/src/Simulator/NumberHelpers.fs#L48-48" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Convert a bit to string.</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '43', 43)" onmouseover="showTip(event, '43', 43)">
+            convertIntToWireData width num
+          </code>
+          <div class="tip" id="43">
+            <strong>Signature:</strong> width:int -&gt; num:int64 -&gt; WireData<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/DECAD/tree/master/src/Simulator/NumberHelpers.fs#L59-59" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Convert an int into a Bit list with the provided width. The Least
+Significant Bits are the one with low index (e.g. LSB is at position 0, MSB
+is at position N). Little Endian.
+If the number has more bits than width, then more bits will be returned.</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '44', 44)" onmouseover="showTip(event, '44', 44)">
+            convertWireDataToInt(bits)
+          </code>
+          <div class="tip" id="44">
+            <strong>Signature:</strong> bits:WireData -&gt; int64<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/DECAD/tree/master/src/Simulator/NumberHelpers.fs#L71-71" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Convert a list of Bits into an int. The Least Significant Bits are the one
+with low index (e.g. LSB is at position 0, MSB is at position N).
+Little Endian.</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '45', 45)" onmouseover="showTip(event, '45', 45)">
+            dec(num)
+          </code>
+          <div class="tip" id="45">
+            <strong>Signature:</strong> num:int -&gt; string<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/DECAD/tree/master/src/Simulator/NumberHelpers.fs#L45-45" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '46', 46)" onmouseover="showTip(event, '46', 46)">
+            dec64(num)
+          </code>
+          <div class="tip" id="46">
+            <strong>Signature:</strong> num:int64 -&gt; string<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/DECAD/tree/master/src/Simulator/NumberHelpers.fs#L42-42" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '47', 47)" onmouseover="showTip(event, '47', 47)">
+            hex(num)
+          </code>
+          <div class="tip" id="47">
+            <strong>Signature:</strong> num:int -&gt; string<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/DECAD/tree/master/src/Simulator/NumberHelpers.fs#L43-43" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '48', 48)" onmouseover="showTip(event, '48', 48)">
+            hex64(num)
+          </code>
+          <div class="tip" id="48">
+            <strong>Signature:</strong> num:int64 -&gt; string<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/DECAD/tree/master/src/Simulator/NumberHelpers.fs#L40-40" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '49', 49)" onmouseover="showTip(event, '49', 49)">
+            strToInt(str)
+          </code>
+          <div class="tip" id="49">
+            <strong>Signature:</strong> str:string -&gt; Result&lt;int64,string&gt;<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/DECAD/tree/master/src/Simulator/NumberHelpers.fs#L81-81" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Try to convert a string to an int, or return an error message if that was
+not possible.</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '50', 50)" onmouseover="showTip(event, '50', 50)">
+            strToIntCheckWidth str width
+          </code>
+          <div class="tip" id="50">
+            <strong>Signature:</strong> str:string -&gt; width:int -&gt; Result&lt;int64,string&gt;<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/DECAD/tree/master/src/Simulator/NumberHelpers.fs#L99-99" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Convert a string to a number making sure that it has no more bits than
+specified in width.</p>
+
+
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+        </div>
+        <div class="span3">
+          <img src="C:\github\DECAD\docs/img/logo.png" style="width:150px;margin:10px" />  
+          <ul class="nav nav-list" id="menu" style="margin-top: 20px;">
+            <li class="nav-header">DECAD</li>
+            <li class="divider"></li>
+            <li><a href="https://github.com/tomcl/DECAD">Source Code</a></li>
+            <li><a href="C:\github\DECAD\docs/release-notes.html">Release Notes</a></li>
+            <li><a href="C:\github\DECAD\docs/contributing.html">Contributing</a></li>
+            <li><a href="C:\github\DECAD\docs/reporting-issues.html">Reporting Issues</a></li>
+            
+            <li class="nav-header">Documentation</li>
+            <li><a href="C:\github\DECAD\docs/index.html">Introduction</a></li>
+            <li class="divider"></li>
+            <li><a href="C:\github\DECAD\docs/community.html">Community</a></li>
+            <li><a href="C:\github\DECAD\docs/mod-installer.html">Mod Installer</a></li>
+            <li><a href="C:\github\DECAD\docs/mordhau-config.html">Mordhau Configuration</a></li>
+            <li><a href="C:\github\DECAD\docs/face-tools.html">Face Tools</a></li>
+            <li><a href="C:\github\DECAD\docs/settings.html">MordhauBuddy Settings</a></li>
+
+            <li class="nav-header">Reference</li>
+            <li><a href="C:\github\DECAD\docs/reference/index.html">API Reference</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </body>
+  </html>

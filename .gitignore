@@ -24,7 +24,8 @@ node_modules/
 .ionide
 
 # Paket
-.paket/paket.exe
+/.paket/
+/paket-files/*
 
 .config/
 .vscode/
@@ -211,12 +212,22 @@ TestResult.xml
 release.cmd
 release.sh
 localpackages/
-paket-files
+
 *.orig
 docs/content/license.md
 docs/content/release-notes.md
-.fake
 docs/tools/FSharp.Formatting.svclog
 .ionide.debug
 *.bak
 project.lock.json
+
+# Exclude doc generation and logs
+docsrc/content/license.md
+docsrc/content/release-notes.md
+docsrc/tools/FSharp.Formatting.svclog
+
+# FAKE build cache
+.fake/
+
+/bin/
+/dist/

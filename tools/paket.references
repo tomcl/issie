@@ -1,0 +1,8 @@
+group Tooling
+	Fake.IO.FileSystem
+	FastRsyncNet
+	FSharp.Core
+	FSharp.Json
+	FSharpLint.Core
+	dotnet-fable
+	dotnet-fake

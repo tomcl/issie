@@ -1,6 +1,6 @@
-# DECAD
+# ISSIE - an Interactive Schematic Simulator with Integrated Editor
 
-DECAD is an application for digital circtuit design and simulation. It is targeted to students and hobbysts that want to get a grasp of Digital Electronics concepts in a simple and fun way. DEflow is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues.
+DECAD is an application for digital circuit design and simulation. It is targeted to students and hobbyists that want to get a grasp of Digital Electronics concepts in a simple and fun way. ISSIE is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues.
 
 The application is currently being developed and maintained by Marco Selvatici, as a Final Year Project.
 
@@ -10,13 +10,14 @@ This documentation is largely based on the excellent [VisUAL2](https://github.co
 
 ## Introduction
 
-The application is mostly written in F#, which gets transpiled to JavaScript via the [fable](https://fable.io/) compiler. [Electron](https://www.electronjs.org/) is then used to convert the developed web-app to a cross-platform application. Electron provides access to platform-level APIs (such as access to the file system) which would not be available to vanilla browser web-apps.
+The application is mostly written in F#, which gets transpiled to JavaScript via the [fable](https://fable.io/) compiler. [Electron](https://www.electronjs.org/) is then used to convert the developed web-app to a cross-platform application. [Electron](electronjs.org) provides access to platform-level APIs (such as access to the file system) which would not be available to vanilla browser web-apps.
 
 [Webpack 4](https://webpack.js.org/) is the module bundler responsible for the JavaScript concatenation and automated building process.
 
 The drawing capabilities are provided by the [draw2d](http://www.draw2d.org/draw2d/) JavaScript library, which has been extended to support digital electronics components.
 
 The choice of F# as main programming language for the app has been dictated by a few factors:
+
 * the success of the [VisUAL2](https://github.com/ImperialCollegeLondon/Visual2), which uses a similar technology stack;
 * strongly typed functional code tends to be easy to maintain and test, as the type-checker massively helps you;
 * Imperial College EEE/EIE students learn such language in the 3rd year High-Level-Programming course, hence can maintain the app in the future;
@@ -84,19 +85,19 @@ The compile process is controlled by the `.fsproj` files (defining the F# source
 |:-----------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
 | `public/lib/`     | Contains JavaScript code loaded by the `index.html` file. It includes the draw2d library itself, its custom extensions and jquery. Note that draw2d and jquery may be copied (and maybe should?) from the node modules when using the `copy-webpack-plugin`. See the comment in `webpack.config.js` for more info about this. |
 | `scss/`           | Stylesheet required by the [Fulma](https://fulma.github.io/Fulma/) UI library (F# port of [bulma](https://bulma.io/)).                                                                                                                                                                                                        |
-| `icon.ico`        | DEflow icon.                                                                                                                                                                                                                                                                                                                  |
+| `icon.ico`        | ISSIE icon.                                                                                                                                                                                                                                                                                                                  |
 | `index.html`      | The page rendered by the renderer process. The HTML DOM is dynamically generated using React when the app is running.                                                                                                                                                                                                         |
 | Other             | Other files will be generated in this folder at compilation time. They are ignored by the gitignore, and you don't have to worry about those.                                                                                                                                                                                 |
 
-## Concept of Project and File in DECAD
+## Concept of Project and File in ISSIE
 
-DEflow allows the users to create projects and files within those projects. A DEflow project is simply a folder named `<project_name>.dprj` (dprj stands for diagram project). A project contains a collection of designs, each named `<component_name>.dgm` (dgm stands for diagram).
+ISSIE allows the users to create projects and files within those projects. A ISSIE project is simply a folder named `<project_name>.dprj` (dprj stands for diagram project). A project contains a collection of designs, each named `<component_name>.dgm` (dgm stands for diagram).
 
-When opening a project, DEflow will search the given repository for `.dgm` files, parse their content, and allow the user to open them in DEflow or use them as components in other designs.
+When opening a project, ISSIE will search the given repository for `.dgm` files, parse their content, and allow the user to open them in ISSIE or use them as components in other designs.
 
 ## Getting Started
 
-If you just want to run the app go to the [releases page](https://github.com/ms8817/FIY/releases) and follow the instructions on how to download and run the prebuilt binaries.
+If you just want to run the app go to the [releases page](https://github.com/tomcl/ISSIE/releases) and follow the instructions on how to download and run the prebuilt binaries.
 
 If you want to get started as a developer, follow these steps:
 
@@ -107,15 +108,9 @@ For Mac and Linux users, download and install [Mono](http://www.mono-project.com
 
 3. Navigate to the project root directory (which contains this README) in a command-line interpreter. For Windows usage make sure if possible for convenience that you have a _tabbed_ command-line interpreter that can be started direct from file explorer within a specific directory (by right-clicking on the explorer directory view). That makes things a lot more pleasant. The new [Windows Terminal](https://github.com/microsoft/terminal) works well.
 
-4. Run `setup.cmd` under Windows or `setup.sh` under linux or macos.
+4. Run `build.cmd` under Windows or `build.sh` under linux or macos.
 
 ## Reinstalling Compiler and Libraries
 
-The code requires a global installation of `dotnet` and `node`/`npm`. This does not need changing and is unlikely to cause trouble. Later versions of dotnet SDK or node can usually be installed without trouble
-
-All the dependencies are local and installed by yarn (node modules) or dotnet (dotnet assemblies). 
-
-WARNING: `dotnet` assemblies are cached locally at machine level by dotnet. This sometimes goes wrong leading to strange compilation errors. It can be cured very simply by clearing the `dotnet` assembly caches, which is done in `setup.bat` and `setup.sh`.
-
-To reinstall the build environment (without changing project code) run `setup.bat` (Windows) or `setup.sh` (Linux and MacOS).
+To reinstall the build environment (without changing project code) run `build.bat` (Windows) or `build.sh` (Linux and MacOS).
 

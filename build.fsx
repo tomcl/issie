@@ -28,7 +28,7 @@ open System.IO
 
 // The name of the project
 // (used by attributes in AssemblyInfo, name of a NuGet package and directory in 'src')
-let project = "DECAD"
+let project = "ISSIE"
 
 // Short summary of the project
 // (used as description in AssemblyInfo and as a short summary for NuGet package)
@@ -38,13 +38,13 @@ let summary = "Schematic editor and Simulator"
 let author = "tomcl"
 
 // File system information
-let solutionFile  = "DECAD.sln"
+let solutionFile  = "ISSIE.sln"
 
 // Build docs website root
-let website = "/tomclDECAD"
+let website = "/tomclISSIE"
 
 // Github repository
-let repo = @"https://github.com/tomcl/DECAD"
+let repo = @"https://github.com/tomcl/ISSIE"
 
 // Web or JS related fs projects
 // Projects that have bindings to other languages where name linting needs to be more relaxed.

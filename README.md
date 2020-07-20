@@ -1,6 +1,6 @@
-# Issie - an Interactive Schematic Simulator with Integrated Editor
+# Issie - an Integrated Schematic Simulator with Interactive Editor
 
-Issie (Interactive Simulator with Schematic Integrated Editor) is an application for digital circuit design and simulation. It is targeted to students and hobbyists that want to get a grasp of Digital Electronics concepts in a simple and fun way. ISSIE is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues.
+Issie (Integrated Schematic Simulator with Interactive Editor) is an application for digital circuit design and simulation. It is targeted at students and hobbyists that want to get a grasp of Digital Electronics concepts in a simple and fun way. Issie is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues.
 
 The application is was initially developed by Marco Selvatici, as a Final Year Project.
 
@@ -11,6 +11,8 @@ If you are just interested in using the application, jump to the [Getting Starte
 This documentation is partly based on the excellent [VisUAL2](https://github.com/ImperialCollegeLondon/Visual2) documentation, given the similarity in the technology stack used.
 
 ## Introduction
+
+For the Issie website go [here](https://tomcl.github.io/issie/).
 
 The application is mostly written in F#, which gets transpiled to JavaScript via the [fable](https://fable.io/) compiler. [Electron](https://www.electronjs.org/) is then used to convert the developed web-app to a cross-platform application. [Electron](electronjs.org) provides access to platform-level APIs (such as access to the file system) which would not be available to vanilla browser web-apps.
 
@@ -47,6 +49,8 @@ Additionally, the section `"scripts"`:
 ```
 Defines the in-project shortcut commands, therefore when we use `yarn <stript_key>` is equivalent to calling `<script_value>`. For example, in the root of the project, running in the terminal `yarn launch` is equivalent to running `electron .`.
 
+The build system depends on a `Fake` file `build.fsx`. This has targets representing build tasks, and normally these are used, accessed via `build.cmd` or `build.sh`, instead of using `yarn` directly.
+
 ## Code Structure
 
 The source code consists of two distinct sections transpiled separately to Javascript to make a complete Electron application.
@@ -74,22 +78,24 @@ The compile process is controlled by the `.fsproj` files (defining the F# source
 
 |   Subfolder   |                                             Description                                            |
 |:------------:|:--------------------------------------------------------------------------------------------------:|
+| `main/` | Code for the main electron process that sets everything up - not normally changed |
 | `Common/`       | Provides some common types and utilities used by all other sections                                |
 | `WidthInferer/` | Contains the logic to infer the width of all connections in a diagram and report possible errors. |
 | `Simulator/`    | Contains the logic to analyse and simulate a diagram.                                              |
-| `Renderer/`     | Contains the UI logic, the wrapper to the JavaScript drawing library and a set of utility function to write/read/parse diagram files. This is the only project that cannot run under .Net, as it contains JavaScript related functionalities. |
-| `Tests/`        | Contains numerous tests for the WidthInferer and Simulator. Based on F# Expecto testing library. |
+| `Renderer/`     | Contains the UI logic, the wrapper to the JavaScript drawing library and a set of utility function to write/read/parse diagram files. This amd `main` are the only projects that cannot run under .Net, as they contain JavaScript related functionalities. |
+
+### `Tests` folder
+
+Contains numerous tests for the WidthInferer and Simulator. Based on F# Expecto testing library.
 
 
-### `app` folder
+### `static` folder
 
-| Subfolder or file |                                                                                                                                                          Description                                                                                                                                                          |
-|:-----------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
-| `public/lib/`     | Contains JavaScript code loaded by the `index.html` file. It includes the draw2d library itself, its custom extensions and jquery. Note that draw2d and jquery may be copied (and maybe should?) from the node modules when using the `copy-webpack-plugin`. See the comment in `webpack.config.js` for more info about this. |
-| `scss/`           | Stylesheet required by the [Fulma](https://fulma.github.io/Fulma/) UI library (F# port of [bulma](https://bulma.io/)).                                                                                                                                                                                                        |
-| `icon.ico`        | ISSIE icon.                                                                                                                                                                                                                                                                                                                  |
-| `index.html`      | The page rendered by the renderer process. The HTML DOM is dynamically generated using React when the app is running.                                                                                                                                                                                                         |
-| Other             | Other files will be generated in this folder at compilation time. They are ignored by the gitignore, and you don't have to worry about those.                                                                                                                                                                                 |
+Contains static files used in the application.
+
+### `docsrc` folder
+
+Contains source information copied (or compiled) into the `docs` directory that controls the project [Github Pages](https://pages.github.com/) website, with url [https://tomcl.github.io/issie/](https://tomcl.github.io/issie/).
 
 ## Concept of Project and File in Issie
 
@@ -104,7 +110,7 @@ If you just want to run the app go to the [releases page](https://github.com/tom
 If you want to get started as a developer, follow these steps:
 
 1. Download and install the latest (3.x) [Dotnet Core SDK](https://www.microsoft.com/net/learn/get-started).  
-For Mac and Linux users, download and install [Mono](http://www.mono-project.com/download/stable/) from official website (the version from brew is incomplete, may lead to MSB error on step 6).
+For Mac and Linux users, download and install [Mono](http://www.mono-project.com/download/stable/) from official website (the version from brew is incomplete, may lead to MSB error later).
 
 2. Download & unzip the Issie repo, or if contributing clone it locally, or fork it on github and then clone it locally.
 

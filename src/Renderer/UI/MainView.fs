@@ -156,13 +156,13 @@ let displayView model dispatch =
             Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ ] ] [
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
-                    [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] [ str "Catalogue" ] ]
+                    [ a [ OnClick (fun _ -> printfn "click T1new"; ChangeRightTab Catalogue |> dispatch ) ] [ str "Catalogue" ] ]
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = Properties) ]
-                    [ a [ OnClick (fun _ -> ChangeRightTab Properties |> dispatch ) ] [ str "Properties" ] ]
+                    [ a [ OnClick (fun _ -> printfn "Click T2new"; ChangeRightTab Properties |> dispatch ) ] [ str "Properties" ] ]
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = Simulation) ]
-                    [ a [ OnClick (fun _ -> ChangeRightTab Simulation |> dispatch ) ] [ str "Simulation" ] ]
+                    [ a [ OnClick (fun _ -> printfn "Click T3new"; ChangeRightTab Simulation |> dispatch ) ] [ str "Simulation" ] ]
             ]
             viewRightTab model dispatch
         ]

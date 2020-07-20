@@ -130,13 +130,13 @@ draw2d.shape.digital.Not = draw2d.shape.digital.extend({
     NAME:"draw2d.shape.digital.Not",
 
     componentType : "Not",
-    svgHeight : 30,
-    svgWidth : 30,
+    svgHeight : 42,
+    svgWidth : 42,
 
     getSvgElements : function() {
         return [
-            {path: '<polygon points="0,0 20,15 0,30" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true},
-            {path: '<circle cx="25" cy="15" r="5" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true},
+            {path: '<polygon points="0,0 28,21 0,42" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true},
+            {path: '<circle cx="35" cy="21" r="7" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true},
         ]
     },
 

@@ -231,3 +231,7 @@ docsrc/tools/FSharp.Formatting.svclog
 
 /bin/
 /dist/
+!/docsrc/tools
+!/docsrc/tools/templates
+!/docsrc/tools/templates/*
+

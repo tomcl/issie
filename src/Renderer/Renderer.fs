@@ -2,9 +2,10 @@
 
 open Browser.Types
 open Elmish
-open Elmish.HMR
 open Elmish.React
 open Elmish.Debug
+open Elmish.HMR
+
 open Fable.Core
 open Fable.Core.JsInterop
 open Electron
@@ -37,7 +38,7 @@ let invisibleMenu dispatch =
         invisibleMenu.visible <- false
         invisibleMenu.submenu <-
             [| makeItem "CmdOrCtrl+S" (fun () -> dispatch DiagramMessageType.CtrlS)
-               makeItem "Alt+C" (fun () -> dispatch DiagramMessageType.AltC)
+               makeItem "Alt+D" (fun () -> dispatch DiagramMessageType.AltC)
                makeItem "Alt+V" (fun () -> dispatch DiagramMessageType.AltV)
                makeItem "Alt+Z" (fun () -> dispatch DiagramMessageType.AltZ)
                makeItem "Alt+Shift+Z" (fun () -> dispatch DiagramMessageType.AltShiftZ) |]

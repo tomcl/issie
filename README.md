@@ -1,6 +1,6 @@
 # ISSIE - an Interactive Schematic Simulator with Integrated Editor
 
-DECAD is an application for digital circuit design and simulation. It is targeted to students and hobbyists that want to get a grasp of Digital Electronics concepts in a simple and fun way. ISSIE is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues.
+ISSIE is an application for digital circuit design and simulation. It is targeted to students and hobbyists that want to get a grasp of Digital Electronics concepts in a simple and fun way. ISSIE is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues.
 
 The application is currently being developed and maintained by Marco Selvatici, as a Final Year Project.
 
@@ -104,7 +104,7 @@ If you want to get started as a developer, follow these steps:
 1. Download and install the latest (3.x) [Dotnet Core SDK](https://www.microsoft.com/net/learn/get-started).  
 For Mac and Linux users, download and install [Mono](http://www.mono-project.com/download/stable/) from official website (the version from brew is incomplete, may lead to MSB error on step 6).
 
-2. Download & unzip the DECAD repo, or if contributing clone it locally, or fork it on github and then clone it locally.
+2. Download & unzip the ISSIE repo, or if contributing clone it locally, or fork it on github and then clone it locally.
 
 3. Navigate to the project root directory (which contains this README) in a command-line interpreter. For Windows usage make sure if possible for convenience that you have a _tabbed_ command-line interpreter that can be started direct from file explorer within a specific directory (by right-clicking on the explorer directory view). That makes things a lot more pleasant. The new [Windows Terminal](https://github.com/microsoft/terminal) works well.
 

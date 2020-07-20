@@ -18,7 +18,7 @@
     "clean-dev-mac": "sudo killall -9 node && sudo killall -9 dotnet",
     "clean-dev-win": "taskkill /f /im node.exe && taskkill /f /im dotnet.exe",
     "compile": "yarn build",
-    "dev": "electron-webpack",
+    "dev": "electron-webpack dev",
     "dist": "yarn build && electron-builder",
     "distwin": "yarn build && electron-builder -w",
     "distwinzip": "electron-builder -w --dir -c.compression=store -c.mac.identity=null",

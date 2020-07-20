@@ -140,6 +140,23 @@ let getEnvFromAllOrNone (s: string) =
         -> Some(v)
     | _ -> None
 
+
+// --------------------------------------------------------------------------------------
+// Initialisation and fixup actions
+
+Target.create "Init" <| fun _ ->
+    Fake.IO.File.delete (__SOURCE_DIRECTORY__ @@ ".paket/Paket.Restore.Targets")
+    Fake.IO.Directory.delete (__SOURCE_DIRECTORY__ @@ "packet_files")
+
+Target.create "KillCreated" <| fun _ ->
+    Fake.Core.Process.killAllCreatedProcesses()
+
+Target.create "KillZombies" <| fun _ ->
+    Fake.Core.Process.killAllByName "node"
+    Fake.Core.Process.killAllByName "dotnet"
+
+
+
 // --------------------------------------------------------------------------------------
 // Set configuration mode based on target
 
@@ -691,6 +708,9 @@ Target.create "GitTag" <| fun _ ->
 Target.create "All" ignore
 Target.create "Release" ignore
 Target.create "UpdateDocs" ignore
+Target.create "AllDev" ignore
+Target.create "QDev" <| fun _ ->
+    Yarn.exec "dev" id
 
 "Clean"
   ==> "AssemblyInfo"
@@ -730,6 +750,8 @@ Target.create "UpdateDocs" ignore
   ?=> "GitTag"
 
 "All" <== ["RunTests"; "GenerateDocs"; "CleanElectronBin"]
+
+"AllDev" <== ["RunTests"; "CleanElectronBin"]
 
 "All" ?=> "Release"
 

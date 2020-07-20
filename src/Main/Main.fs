@@ -31,11 +31,12 @@ module DevTools =
         main.Session.defaultSession.removeExtension("React Developer Tools")
         main.Session.defaultSession.removeExtension("Redux DevTools")
         win.webContents.executeJavaScript ("require('devtron').uninstall()")
+        
 
     let connectRemoteDevViaExtension: unit -> unit = import "connectViaExtension" "remotedev"
 #endif
 
-electron.app.name <- "DEflow"
+electron.app.name <- "ISSIE"
 
 let args = 
     Api.``process``.argv
@@ -66,7 +67,7 @@ let createMainWindow () =
         options.hasShadow <- true
         options.backgroundColor <-  "#5F9EA0"
         options.icon <- (U2.Case2 (path.join(staticDir(), "icon.ico")))
-        options.title <- "DECAD"
+        options.title <- "ISSIE"
         options.webPreferences <-
             jsOptions<WebPreferences> <| fun o ->
                 o.nodeIntegration <- true

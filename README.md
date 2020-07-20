@@ -1,12 +1,14 @@
-# ISSIE - an Interactive Schematic Simulator with Integrated Editor
+# Issie - an Interactive Schematic Simulator with Integrated Editor
 
-ISSIE is an application for digital circuit design and simulation. It is targeted to students and hobbyists that want to get a grasp of Digital Electronics concepts in a simple and fun way. ISSIE is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues.
+Issie (Interactive Simulator with Schematic Integrated Editor) is an application for digital circuit design and simulation. It is targeted to students and hobbyists that want to get a grasp of Digital Electronics concepts in a simple and fun way. ISSIE is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues.
 
-The application is currently being developed and maintained by Marco Selvatici, as a Final Year Project.
+The application is was initially developed by Marco Selvatici, as a Final Year Project.
+
+It is currently being maintained by Tom Clarke (owner) and Edoardo Santi (Summer UROP).
 
 If you are just interested in using the application, jump to the [Getting Started](#getting-started) section. For more info about the project, read on.
 
-This documentation is largely based on the excellent [VisUAL2](https://github.com/ImperialCollegeLondon/Visual2) documentation, given the similarity in the technology stack used.
+This documentation is partly based on the excellent [VisUAL2](https://github.com/ImperialCollegeLondon/Visual2) documentation, given the similarity in the technology stack used.
 
 ## Introduction
 
@@ -89,7 +91,7 @@ The compile process is controlled by the `.fsproj` files (defining the F# source
 | `index.html`      | The page rendered by the renderer process. The HTML DOM is dynamically generated using React when the app is running.                                                                                                                                                                                                         |
 | Other             | Other files will be generated in this folder at compilation time. They are ignored by the gitignore, and you don't have to worry about those.                                                                                                                                                                                 |
 
-## Concept of Project and File in ISSIE
+## Concept of Project and File in Issie
 
 ISSIE allows the users to create projects and files within those projects. A ISSIE project is simply a folder named `<project_name>.dprj` (dprj stands for diagram project). A project contains a collection of designs, each named `<component_name>.dgm` (dgm stands for diagram).
 
@@ -97,20 +99,22 @@ When opening a project, ISSIE will search the given repository for `.dgm` files,
 
 ## Getting Started
 
-If you just want to run the app go to the [releases page](https://github.com/tomcl/ISSIE/releases) and follow the instructions on how to download and run the prebuilt binaries.
+If you just want to run the app go to the [releases page](https://github.com/tomcl/issie/releases) and follow the instructions on how to download and run the prebuilt binaries.
 
 If you want to get started as a developer, follow these steps:
 
 1. Download and install the latest (3.x) [Dotnet Core SDK](https://www.microsoft.com/net/learn/get-started).  
 For Mac and Linux users, download and install [Mono](http://www.mono-project.com/download/stable/) from official website (the version from brew is incomplete, may lead to MSB error on step 6).
 
-2. Download & unzip the ISSIE repo, or if contributing clone it locally, or fork it on github and then clone it locally.
+2. Download & unzip the Issie repo, or if contributing clone it locally, or fork it on github and then clone it locally.
 
 3. Navigate to the project root directory (which contains this README) in a command-line interpreter. For Windows usage make sure if possible for convenience that you have a _tabbed_ command-line interpreter that can be started direct from file explorer within a specific directory (by right-clicking on the explorer directory view). That makes things a lot more pleasant. The new [Windows Terminal](https://github.com/microsoft/terminal) works well.
 
-4. Run `build.cmd` under Windows or `build.sh` under linux or macos.
+4. Run `build.cmd` under Windows or `build.sh` under linux or macos. This will download all dependencies and create auto-documentation and binaries.
+
+5. To restart FS code compilation and relaunch the app, as long as no Node packages have changed, `buildq qdev`.
 
 ## Reinstalling Compiler and Libraries
 
-To reinstall the build environment (without changing project code) run `build.bat` (Windows) or `build.sh` (Linux and MacOS).
+To reinstall the build environment (without changing project code) rerun `build.cmd` (Windows) or `build.sh` (Linux and MacOS).
 

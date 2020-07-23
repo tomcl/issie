@@ -20,6 +20,7 @@ open SelectedComponentView
 open SimulationView
 open PopupView
 open FileMenuView
+open WaveformSimulationView
 
 // -- Init Model
 
@@ -27,6 +28,7 @@ let init() = {
     Diagram = new Draw2dWrapper()
     SelectedComponent = None
     Simulation = None
+    WaveSim = None
     RightTab = Catalogue
     CurrProject = None
     Hilighted = [], []
@@ -43,6 +45,7 @@ let init() = {
     Notifications = {
         FromDiagram = None
         FromSimulation = None
+        FromWaveSim = None
         FromFiles = None
         FromMemoryEditor = None
         FromProperties = None
@@ -134,6 +137,11 @@ let private viewRightTab model dispatch =
             Heading.h4 [] [ str "Simulation" ]
             viewSimulation model dispatch
         ]
+    | WaveSim -> 
+        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
+            Heading.h4 [] [ str "Waveform simulator" ]
+            viewWaveSim model dispatch 
+        ]
 
 let hideView model dispatch =
     div [] [
@@ -143,8 +151,12 @@ let hideView model dispatch =
 let displayView model dispatch =
     // Simulation has larger right column.
     let canvasStyle, rightSectionStyle =
-        if model.RightTab = Simulation then VisibleSmall, rightSectionStyleL
-                                       else VisibleLarge, rightSectionStyleS 
+        match model.RightTab with
+            | Simulation
+            | WaveSim ->
+                VisibleSmall, rightSectionStyleL
+            | _ ->
+                VisibleLarge, rightSectionStyleS 
     div [] [
         viewTopMenu model dispatch
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) canvasStyle
@@ -156,13 +168,16 @@ let displayView model dispatch =
             Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ ] ] [
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
-                    [ a [ OnClick (fun _ -> printfn "click T1new"; ChangeRightTab Catalogue |> dispatch ) ] [ str "Catalogue" ] ]
+                    [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] [ str "Catalogue" ] ]
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = Properties) ]
-                    [ a [ OnClick (fun _ -> printfn "Click T2new"; ChangeRightTab Properties |> dispatch ) ] [ str "Properties" ] ]
+                    [ a [ OnClick (fun _ -> ChangeRightTab Properties |> dispatch ) ] [ str "Properties" ] ]
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = Simulation) ]
-                    [ a [ OnClick (fun _ -> printfn "Click T3new"; ChangeRightTab Simulation |> dispatch ) ] [ str "Simulation" ] ]
+                    [ a [ OnClick (fun _ -> ChangeRightTab Simulation |> dispatch ) ] [ str "Simulation" ] ]
+                Tabs.tab
+                    [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
+                    [ a [ OnClick (fun _ -> ChangeRightTab WaveSim |> dispatch ) ] [ str "WaveSim" ] ]
             ]
             viewRightTab model dispatch
         ]
@@ -221,6 +236,7 @@ let update msg model =
     | KeyboardShortcutMsg msg' -> handleKeyboardShortcutMsg msg' model
     // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).
     | StartSimulation simData -> { model with Simulation = Some simData }
+    | StartWaveSim simData -> { model with WaveSim = Some simData}
     | SetSimulationGraph graph ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
         { model with Simulation = { simData with Graph = graph } |> Ok |> Some }
@@ -231,6 +247,7 @@ let update msg model =
         let simData = getSimulationDataOrFail model "IncrementSimulationClockTick"
         { model with Simulation = { simData with ClockTickNumber = simData.ClockTickNumber+1 } |> Ok |> Some }
     | EndSimulation -> { model with Simulation = None }
+    | EndWaveSim -> { model with WaveSim = None }
     | ChangeRightTab newTab -> { model with RightTab = newTab }
     | SetHighlighted (componentIds, connectionIds) ->
         let oldComponentIds, oldConnectionIds = model.Hilighted
@@ -267,9 +284,11 @@ let update msg model =
         { model with Notifications = {model.Notifications with FromDiagram = None} }
     | SetSimulationNotification n ->
         { model with Notifications =
-                        { model.Notifications with FromSimulation = Some n}}
+                        { model.Notifications with FromSimulation = Some n} }
     | CloseSimulationNotification ->
         { model with Notifications = {model.Notifications with FromSimulation = None} }
+    | CloseWaveSimNotification ->
+        { model with Notifications = {model.Notifications with FromWaveSim = None} }
     | SetFilesNotification n ->
         { model with Notifications =
                         { model.Notifications with FromFiles = Some n} }

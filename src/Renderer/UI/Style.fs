@@ -94,3 +94,30 @@ let menuLabelStyle = Style [
     LetterSpacing "0.1em"
     TextTransform "uppercase"
 ]
+
+//Waveform simulator styles
+type Point = float * float
+
+type LineParams =
+    {
+        pointA: Point
+        pointB: Point
+        colour: string
+        thickness: float
+    }
+
+let dfltSigLine = 
+    {
+        pointA =  0.0, 0.0
+        pointB =  0.0, 0.0
+        colour = "blue"
+        thickness = 0.05
+    }
+
+let boxLine = 
+    {
+        pointA =  0.0, 0.0
+        pointB =  0.0, 0.0
+        colour = "black"
+        thickness = 0.1
+    }

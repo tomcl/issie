@@ -246,18 +246,16 @@ let private viewInfoPopup disptach =
             Modifier.TextSize (Screen.Desktop, TextSize.Is5)
             Modifier.TextWeight TextWeight.Bold
         ] ] [str h; br[]]
-    let title = "What is Issie?"
+    let title = "DEflow Info"
     let body = div [] [
         makeH "Version"
-        str "v0.5"
+        str "v0.2"
         br []; br []
         makeH "Acknowledgments"
-        str "Issie was created by Marco Selvatici as his dissertation project."
-        br [] ;
-        str "Issie is being developed over Summer 2020 by Edoardo Santi"
+        str "DEflow has been created by Marco Selvatici as his dissertation project."
         br []; br []
         makeH "Keyboard shortcuts"
-        str "On Mac use Command instead of Alt."
+        str "On Mac use Command instead of Ctrl."
         ul [] [
             li [] [str "Save: Ctrl + S"]
             li [] [str "Copy selected diagram items: Alt + C"]

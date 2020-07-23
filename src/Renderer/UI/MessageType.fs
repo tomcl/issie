@@ -9,6 +9,7 @@ type RightTab =
     | Properties
     | Catalogue
     | Simulation
+    | WaveSim
 
 type MemoryEditorData = {
     OnlyDiff : bool // Only show diffs in Memory Diff Viewer.
@@ -42,14 +43,38 @@ type JSDiagramMsg =
 type KeyboardShortcutMsg =
     | CtrlS | AltC | AltV | AltZ | AltShiftZ
 
+// WaveSim types 
+type SigVals = 
+    | OneBitSig of Bit list
+    | ManyBitSig of uint list
+
+type Signal =  string * SigVals
+
+type PosParams = {vPos: uint ; vSize: float; hPos: uint; hSize: float; hNameSize: uint; hValSize: uint; sigThick: float; hBoxSize: uint; vBoxSize: uint; spacing: float}
+
+type Wave = 
+    {
+        wIn: Signal
+        cursorPos: uint
+    }
+
+type WaveSimModel = 
+    {
+        waves: Wave list
+        viewParams: PosParams
+        sigLimits: uint * uint
+    }
+
 type Msg =
     | JSDiagramMsg of JSDiagramMsg
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
+    | StartWaveSim of WaveSimModel
     | SetSimulationGraph of SimulationGraph
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick
     | EndSimulation
+    | EndWaveSim
     | ChangeRightTab of RightTab
     | SetHighlighted of ComponentId list * ConnectionId list
     | SetClipboard of CanvasState
@@ -65,6 +90,7 @@ type Msg =
     | CloseDiagramNotification
     | SetSimulationNotification of ((Msg -> unit) -> ReactElement)
     | CloseSimulationNotification
+    | CloseWaveSimNotification
     | SetFilesNotification of ((Msg -> unit) -> ReactElement)
     | CloseFilesNotification
     | SetMemoryEditorNotification of ((Msg -> unit) -> ReactElement)

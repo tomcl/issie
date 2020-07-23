@@ -173,8 +173,8 @@ draw2d.shape.digital.And = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0,25), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0,75), false);
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
@@ -200,8 +200,8 @@ draw2d.shape.digital.Or = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 25), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 75), false);
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
@@ -228,8 +228,8 @@ draw2d.shape.digital.Xor = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 25), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 75), false);
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
@@ -256,8 +256,8 @@ draw2d.shape.digital.Nand = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 25), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 75), false);
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
@@ -284,8 +284,8 @@ draw2d.shape.digital.Nor = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 25), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 75), false);
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
@@ -313,8 +313,8 @@ draw2d.shape.digital.Xnor = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 25), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 75), false);
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
@@ -331,8 +331,8 @@ draw2d.shape.digital.Mux2 = draw2d.shape.digital.extend({
     getSvgElements : function() {
         return [
             {path: '<path d="M 0 0 L 30 13 L 30 37 L 0 50 Z" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true},
-            {path: '<text x="4" y="12" fill="black" font-family="monospace">0</text>', toFill: false},
-            {path: '<text x="4" y="30" fill="black" font-family="monospace">1</text>', toFill: false},
+            {path: '<text x="4" y="11" fill="black" font-family="monospace">0</text>', toFill: false},
+            {path: '<text x="4" y="31" fill="black" font-family="monospace">1</text>', toFill: false},
         ]
     },
 
@@ -343,8 +343,8 @@ draw2d.shape.digital.Mux2 = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 30), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 70), false);
         this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(50, 90), false);
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
@@ -361,8 +361,8 @@ draw2d.shape.digital.Demux2 = draw2d.shape.digital.extend({
     getSvgElements : function() {
         return [
             {path: '<path d="M 0 13 L 30 0 L 30 50 L 0 37 Z" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true},
-            {path: '<text x="19" y="12" fill="black" font-family="monospace">0</text>', toFill: false},
-            {path: '<text x="19" y="30" fill="black" font-family="monospace">1</text>', toFill: false},
+            {path: '<text x="19" y="11" fill="black" font-family="monospace">0</text>', toFill: false},
+            {path: '<text x="19" y="31" fill="black" font-family="monospace">1</text>', toFill: false},
         ]
     },
 
@@ -375,8 +375,8 @@ draw2d.shape.digital.Demux2 = draw2d.shape.digital.extend({
 
         this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
         this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(50, 90), false);
-        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
-        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.XYRelPortLocator(100, 30), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.XYRelPortLocator(100, 70), false);
     },
 });
 

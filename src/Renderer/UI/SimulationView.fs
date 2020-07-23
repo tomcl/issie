@@ -214,6 +214,7 @@ let private viewSimulationData (simData : SimulationData) model dispatch =
 
         maybeStatefulComponents
     ]
+    
 
 let viewSimulation model dispatch =
     let startSimulation () =

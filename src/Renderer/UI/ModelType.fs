@@ -17,6 +17,7 @@ open Draw2dWrapper
 type Notifications = {
     FromDiagram : ((Msg -> unit) -> Fable.React.ReactElement) option
     FromSimulation : ((Msg -> unit) -> Fable.React.ReactElement) option
+    FromWaveSim : ((Msg -> unit) -> Fable.React.ReactElement) option
     FromFiles : ((Msg -> unit) -> Fable.React.ReactElement) option
     FromMemoryEditor : ((Msg -> unit) -> Fable.React.ReactElement) option
     FromProperties : ((Msg -> unit) -> Fable.React.ReactElement) option
@@ -26,6 +27,7 @@ type Model = {
     Diagram : Draw2dWrapper
     SelectedComponent : Component option // None if no component is selected.
     Simulation : Result<SimulationData,SimulationError> option // None if no simulation is running.
+    WaveSim : WaveSimModel option
     RightTab : RightTab
     Hilighted : ComponentId list * ConnectionId list
     Clipboard : CanvasState // Components and connections that have been selected and copied.

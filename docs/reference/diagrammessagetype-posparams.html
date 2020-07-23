@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8"/>
-    <title>Simulator - ISSIE</title>
+    <title>PosParams - ISSIE</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="description" content=""/>
     <meta name="author" content="tomcl"/>
@@ -34,119 +34,90 @@
 
 
 
-<h1>Simulator</h1>
+<h1>PosParams</h1>
 <p>
-  <span>Namespace: global</span><br />
-  </p>
+
+    <span>Namespace: global</span><br />
+        <span>Parent Module: <a href="global-diagrammessagetype.html">DiagramMessageType</a></span><br />
+    </p>
 <div class="xmldoc">
 </div>
-
-<!-- Render nested types and modules, if there are any -->
-
-  <h3>Functions and values</h3>
+  <h3>Record Fields</h3>
   <table class="table table-bordered member-list">
     <thead>
-      <tr><td>Function or value</td><td>Description</td></tr>
+      <tr><td>Record Field</td><td>Description</td></tr>
     </thead>
     <tbody>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '62', 62)" onmouseover="showTip(event, '62', 62)">
-            extractSimulationIOs
+          <code onmouseout="hideTip(event, '187', 187)" onmouseover="showTip(event, '187', 187)">
+            hSize
           </code>
-          <div class="tip" id="62">
-            <strong>Signature:</strong> SimulationIO list -&gt; SimulationGraph -&gt; (SimulationIO * WireData) list<br />
+          <div class="tip" id="187">
+            <strong>Signature:</strong> float<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Simulator.fs#L60-60" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Renderer/UI/MessageType.fs#L53-53" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Expose the extractSimulationIOs function from SimulationRunner.</p>
-
-
+          
         </td>
       </tr>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '63', 63)" onmouseover="showTip(event, '63', 63)">
-            extractStatefulComponents(graph)
+          <code onmouseout="hideTip(event, '188', 188)" onmouseover="showTip(event, '188', 188)">
+            sigThick
           </code>
-          <div class="tip" id="63">
-            <strong>Signature:</strong> graph:SimulationGraph -&gt; SimulationComponent list<br />
+          <div class="tip" id="188">
+            <strong>Signature:</strong> float<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Simulator.fs#L63-63" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Renderer/UI/MessageType.fs#L53-53" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Get some info and the state of all stateful components in a graph.</p>
-
-
+          
         </td>
       </tr>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '64', 64)" onmouseover="showTip(event, '64', 64)">
-            feedClockTick
+          <code onmouseout="hideTip(event, '189', 189)" onmouseover="showTip(event, '189', 189)">
+            spacing
           </code>
-          <div class="tip" id="64">
-            <strong>Signature:</strong> SimulationGraph -&gt; SimulationGraph<br />
+          <div class="tip" id="189">
+            <strong>Signature:</strong> float<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Simulator.fs#L57-57" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Renderer/UI/MessageType.fs#L53-53" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Expose the feedClockTick function from SimulationRunner.</p>
-
-
+          
         </td>
       </tr>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '65', 65)" onmouseover="showTip(event, '65', 65)">
-            feedSimulationInput
+          <code onmouseout="hideTip(event, '190', 190)" onmouseover="showTip(event, '190', 190)">
+            vSize
           </code>
-          <div class="tip" id="65">
-            <strong>Signature:</strong> SimulationGraph -&gt; ComponentId -&gt; WireData -&gt; SimulationGraph<br />
+          <div class="tip" id="190">
+            <strong>Signature:</strong> float<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Simulator.fs#L54-54" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Renderer/UI/MessageType.fs#L53-53" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Expose the feedSimulationInput function from SimulationRunner.</p>
-
-
-        </td>
-      </tr>
-      <tr>
-        <td class="member-name">
-
-          <code onmouseout="hideTip(event, '66', 66)" onmouseover="showTip(event, '66', 66)">
-            prepareSimulation(...)
-          </code>
-          <div class="tip" id="66">
-            <strong>Signature:</strong> diagramName:string -&gt; (Component list * Connection list) -&gt; loadedDependencies:LoadedComponent list -&gt; Result&lt;SimulationData,SimulationError&gt;<br />
-                                  </div>
-        </td>
-        <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Simulator.fs#L26-26" class="github-link">
-              <img src="../content/img/github.png" class="normal" />
-              <img src="../content/img/github-blue.png" class="hover" />
-            </a>
-          <p>Builds the graph and simulates it with all inputs zeroed.</p>
-
-
+          
         </td>
       </tr>
     </tbody>

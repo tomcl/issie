@@ -96,6 +96,8 @@ draw2d.shape.digital.Input = draw2d.shape.digital.extend({
     },
 });
 
+
+
 draw2d.shape.digital.Output = draw2d.shape.digital.extend({
 
     NAME:"draw2d.shape.digital.Output",
@@ -122,6 +124,36 @@ draw2d.shape.digital.Output = draw2d.shape.digital.extend({
         this.numberOfBits = attr.numberOfBits;
 
         this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), this.numberOfBits > 1);
+    },
+});
+
+draw2d.shape.digital.Label = draw2d.shape.digital.extend({
+
+    NAME: "draw2d.shape.digital.Label",
+
+    componentType: "Label",
+    svgHeight: 20,
+    svgWidth: 30,
+    numberOfBits: 1,
+
+    getSvgElements: function () {
+        return [
+            { path: '<polygon points="0,10 10,0 20,0 30,10 20,20 10,20" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true }
+        ]
+    },
+
+    init: function (attr, setter, getter) {
+        this._super(
+            $.extend({ width: this.svgWidth, height: this.svgHeight }, attr),
+            setter,
+            getter
+        );
+
+        console.assert(typeof attr.numberOfBits === "number", "numberOfBits is not a number when creating an Label node");
+        this.numberOfBits = attr.numberOfBits;
+
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), this.numberOfBits > 1);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), this.numberOfBits > 1);
     },
 });
 

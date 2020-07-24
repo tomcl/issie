@@ -45,6 +45,7 @@ type private IDraw2d =
     abstract installSelectionPolicy       : comp:JSComponent -> unit
     abstract createDigitalInput           : x:int -> y:int -> numberOfBits:int -> JSComponent
     abstract createDigitalOutput          : x:int -> y:int -> numberOfBits:int -> JSComponent
+    abstract createDigitalLabel          : x:int -> y:int -> numberOfBits:int -> JSComponent
     abstract createDigitalNot             : x:int -> y:int -> JSComponent
     abstract createDigitalAnd             : x:int -> y:int -> JSComponent
     abstract createDigitalOr              : x:int -> y:int -> JSComponent
@@ -117,6 +118,7 @@ let private createComponent
         match componentType with
         | Input w  -> draw2dLib.createDigitalInput x y w
         | Output w -> draw2dLib.createDigitalOutput x y w
+        | IOLabel w -> draw2dLib.createDigitalLabel x y w
         | Not    -> draw2dLib.createDigitalNot x y
         | And    -> draw2dLib.createDigitalAnd x y
         | Or     -> draw2dLib.createDigitalOr x y

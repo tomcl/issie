@@ -55,7 +55,6 @@ type Wire = {
 type SimTime = Wire array
 
 type PosParamsType = {
-    vPos: uint 
     sigHeight: float
     hPos: uint
     clkWidth: float

@@ -12,356 +12,288 @@ open Fable.React.Props
 
 open DiagramMessageType
 open DiagramStyle
-open SimulatorTypes //Simulator is below as a module, is that a problem?
 
 //type functions
 
-let signalLength (signal: Signal) = 
-    match snd signal with
-    | OneBitSig lst -> List.length lst
-    | ManyBitSig lst -> List.length lst
+let initModel: WaveSimModel =
+    { waveData =
+          //modify these two signals to change trial data
+          let nbits1 = uint32 1
+          let nbits2 = uint32 5
+          let s1 = [| 0; 0; 0; 0; 1; 0; 1; 1; 1; 1 |]
+          let s2 = [| 1; 1; 1; 1; 14; 14; 14; 14; 2; 8 |]
 
-//initial model
+          let makeTrialData (nBits1: uint32) signal1 (nBits2: uint32) signal2 =
+              let makeTimePointData (s1: int, s2: int) =
+                  [| { nBits = nBits1; bitData = bigint s1 }
+                     { nBits = nBits2; bitData = bigint s2 } |]
+              Array.zip signal1 signal2
+              |> Array.map makeTimePointData
+          makeTrialData nbits1 s1 nbits2 s2
 
-//use this initially for debugging
-let stdWave : Wave = 
-    {
-        wIn = "Signal-example", OneBitSig [One]
-        cursorPos = uint 0
-    }
+      waveNames = [| "try single Bit"; "try bus" |]
 
-let initModel : WaveSimModel = //modify the position constants
-    {
-        waves = [
-                { stdWave with wIn = "Signal1", OneBitSig [One;Zero;Zero;One;One;Zero;Zero;One;One;Zero;Zero;One;One;Zero;Zero;One]}
-                { stdWave with wIn = "Signal2", ManyBitSig [uint 4;uint 8;uint 3;uint 5;uint 0]}
-                ]
-        viewParams = {
-            vPos      = uint 0
-            vSize     = 0.5
-            hPos      = uint 0
-            hSize     = 1.0
-            hNameSize = uint 2
-            hValSize  = uint 8
-            sigThick  = 0.02
-            hBoxSize = uint 8
-            vBoxSize  = uint 15
+      posParams =
+          { vPos = uint 0
+            sigHeight = 0.5
+            hPos = uint 0
+            clkWidth = 1.0
+            labelWidth = uint 2
+            sigThick = 0.02
+            boxWidth = uint 8
+            boxHeight = uint 15
             spacing = 0.5
-        }
-        sigLimits = uint 0, uint 10
-    }
+            clkThick = 0.025 }
+
+      cursor = uint32 0 }
 
 // SVG functions
 
 let makeLine (arg: LineParams) =
-    line 
-        [
-        X1 (fst arg.pointA)
-        Y1 (snd arg.pointA)
-        X2 (fst arg.pointB)
-        Y2 (snd arg.pointB)
-        SVGAttr.Stroke arg.colour
-        SVGAttr.StrokeWidth (string arg.thickness)
-        ]
-        []
+    line
+        [ X1(fst arg.pointA)
+          Y1(snd arg.pointA)
+          X2(fst arg.pointB)
+          Y2(snd arg.pointB)
+          SVGAttr.Stroke arg.colour
+          SVGAttr.StrokeWidth(string arg.thickness) ] []
 
-let makeBox (x1,y1) (x2,y2) =
+let makeBox (x1, y1) (x2, y2) =
     rect
-        [
-        X x1
-        Y y1
-        SVGAttr.Width (x2-x1)
-        SVGAttr.Height (y2-y1)
-        SVGAttr.Stroke "black"
-        SVGAttr.Fill "white"
-        SVGAttr.StrokeWidth 0.1
-        ]
-        []
+        [ X x1
+          Y y1
+          SVGAttr.Width(x2 - x1)
+          SVGAttr.Height(y2 - y1)
+          SVGAttr.Stroke "black"
+          SVGAttr.Fill "white"
+          SVGAttr.StrokeWidth 0.1 ] []
 
 let makeSigLineArg pointA pointB =
-    { dfltSigLine with pointA = pointA; pointB = pointB }
+    { dfltSigLineArg with
+          pointA = pointA
+          pointB = pointB }
 
-let makeSigLine pointA pointB =
-    makeSigLineArg pointA pointB
-    |> makeLine
+let makeSigLine pointA pointB = makeSigLineArg pointA pointB |> makeLine
 
 //auxiliary functions to the viewer function
 
-let needTransitionIntermediateLst (lstSignalValues: SigVals) =
-    match lstSignalValues with
-    | OneBitSig lst -> 
-        List.zip lst.[0..lst.Length-2] lst.[1..lst.Length-1]
-        |> List.map (fun (a,b) -> a <> b)
-    | ManyBitSig lst -> 
-        List.zip lst.[0..lst.Length-2] lst.[1..lst.Length-1]
-        |> List.map (fun (a,b) -> a <> b)
-
-let needTransitionAfter lstSignalValues =
-    List.append (needTransitionIntermediateLst lstSignalValues) [false]
-
-let needTransitionBefore lstSignalValues =
-    List.append [true] (needTransitionIntermediateLst lstSignalValues)
-
-let displayWaveform parameters (ind: int) wave  =
-    let waveform = wave.wIn
-
-    let nameLeft = float parameters.hPos
-    let sigLeft = 0.0 //nameLeft + float parameters.hNameSize
-    let spaceBetweenWaves = parameters.spacing
-    let sigHeight = parameters.vSize
-    let sigTop = float parameters.vPos + float ind * (spaceBetweenWaves + sigHeight) + spaceBetweenWaves
-    let sigBot = sigHeight + sigTop
-    let sigCentre = (sigTop+sigBot) / 2.0
-    let clkLen = float parameters.hSize
-    let sigThick = parameters.sigThick
-    let clkThick = 0.025
+let displaySvg ((model: WaveSimModel), (trans: (bool * bool) [] [])) =
+    let p = model.posParams
+    let clkThick = 0.025 //shouldn't be in model, should in style
     let transLen = 0.1
-    
 
-    let makeBitSegment (hasTransition, (value: Bit, position: int)) = //choose better names
-        let fPos = float position
-        let fVal = 
-            match value with
-            | One  -> sigHeight 
-            | Zero -> 0.0
-        let left = fPos * clkLen + sigLeft
-        let right = left + clkLen
+    //container box and clock lines
+    let backgroundSvg =
+        let top = float p.vPos
+        let bot = top + float p.boxHeight
+        let waveLen = Array.length model.waveData |> float
 
-        let signalLine = makeSigLine (left, sigBot-fVal) (right, sigBot-fVal) 
+        let clkLine x =
+            { dfltSigLineArg with
+                  pointA = x, top
+                  pointB = x, bot
+                  colour = "gray"
+                  thickness = clkThick }
+            |> makeLine
 
-        match hasTransition with
-        | true ->
-            [makeSigLine (right, sigBot+sigThick/2.0) (right, sigTop-sigThick/2.0)]
-            |> List.append [signalLine]
-        | false ->  
-            [signalLine]
+        let clkLines =
+            [| 1 .. 1 .. (int (waveLen / p.clkWidth) + 1) |] |> Array.map ((fun x -> float x * p.clkWidth) >> clkLine)
+        let simBox = [| makeBox (0.0, top) (8.0, bot) |]
+        clkLines, simBox
 
+    // waveforms
+    let makeSegment (xInd: int) (yInd: int) ((data: Wire), (trans: bool * bool)) =
+        let bot = (p.spacing + p.sigHeight) * (float yInd + 1.0)
+        let top = bot - p.sigHeight
+        let left = float xInd * p.clkWidth
+        let right = left + float p.clkWidth
 
-    let makeBusSegment ((transitionBefore: bool, transitionAfter: bool), (value: uint, position: int)) = //choose better names
-        let fPos = float position
-        
-        let leftLim = sigLeft + fPos * clkLen
-        let rightLim = leftLim + clkLen
-        let hCentre = (leftLim+rightLim) / 2.0
-        let left =
-            if transitionBefore then leftLim + transLen else leftLim
-        let right = 
-            if transitionAfter then rightLim - transLen else rightLim
+        match data.nBits with
+        | n when n = uint 1 ->
+            let y =
+                match data.bitData with
+                | n when n = bigint 1 -> top
+                | _ -> bot
+            // TODO: define DU so that you can't have values other than 0 or 1
+            let sigLine = makeSigLine (left, y) (right, y)
+            match snd trans with
+            | true -> [| makeSigLine (right, bot + p.sigThick / 2.0) (right, top - p.sigThick / 2.0) |]
+            | false -> Array.empty
+            |> Array.append [| sigLine |]
+        | _ ->
+            let leftInner =
+                if fst trans then left + transLen else left
+            let rightInner =
+                if snd trans then right - transLen else right
 
-        
-        let top = makeSigLine (left, sigTop) (right, sigTop)
-        let bottom = makeSigLine (left, sigBot) (right, sigBot)
-        let topLeft = makeSigLine (leftLim, sigCentre) (left, sigTop)
-        let bottomLeft = makeSigLine (leftLim, sigCentre) (left, sigBot)
-        let topRight = makeSigLine (rightLim, sigCentre) (right, sigTop)
-        let bottomRight = makeSigLine (rightLim, sigCentre) (right, sigBot)
+            let cen = (top + bot) / 2.0
 
-        let text =
-            text 
-                [
-                X hCentre
-                Y (sigBot - sigHeight*0.1)
-                SVGAttr.Fill "black"
-                SVGAttr.FontSize (0.8 * sigHeight)
-                SVGAttr.TextAnchor "middle"
-                ]
-                [ str <| string value ]
+            //make lines
+            let topL = makeSigLine (leftInner, top) (rightInner, top)
+            let botL = makeSigLine (leftInner, bot) (rightInner, bot)
+            let topLeft = makeSigLine (left, cen) (leftInner, top)
+            let botLeft = makeSigLine (left, cen) (leftInner, bot)
+            let topRight = makeSigLine (right, cen) (rightInner, top)
+            let botRight = makeSigLine (right, cen) (rightInner, bot)
 
-        match transitionBefore, transitionAfter with
-        | true, true -> 
-            [topLeft; bottomLeft; topRight; bottomRight]
-        | true, false -> 
-            [topLeft; bottomLeft]
-        | false, true -> 
-            [topRight; bottomRight]
-        | false, false -> 
-            []
-        |> List.append [text; top; bottom]
-        //should there be the impossible case???
+            let busValText =
+                (*let attr = [
+                    X hCentre
+                    Y (sigBot - p.sigHeight*0.1)
+                    SVGAttr.Fill "black"
+                    SVGAttr.FontSize (0.8*p.sigHeight)
+                    SVGAttr.TextAnchor "middle"
+                ]*)
+                //Using this doesn't work, don't know why
+                text
+                    [ X((left + right) / 2.0)
+                      Y(bot - p.sigHeight * 0.1)
+                      SVGAttr.Fill "black"
+                      SVGAttr.FontSize(0.8 * p.sigHeight)
+                      SVGAttr.TextAnchor "middle" ] [ str <| string data.bitData ]
 
-    let label =
-        text 
-            [
-            X nameLeft
-            Y sigCentre
-            SVGAttr.Fill "black"
-            SVGAttr.FontSize (0.25 + sigHeight * 0.3)
-            SVGAttr.TextAnchor "start"
-            ]
-            [ str <| fst waveform ]
-    
-    let waveSvgElements =
-        let waveValues = snd waveform
-        match waveValues with
-        | OneBitSig lst ->
-            List.zip lst [0..lst.Length-1]
-            |> List.zip (needTransitionAfter waveValues)
-            |> List.collect makeBitSegment 
-        | ManyBitSig lst ->
-            let transitionsTupleLst =
-                List.zip (needTransitionBefore waveValues) (needTransitionAfter waveValues)
-            List.zip lst [0..lst.Length-1]
-            |> List.zip transitionsTupleLst
-            |> List.collect makeBusSegment
-    label, waveSvgElements
+            match trans with
+            | true, true -> [| topLeft; botLeft; topRight; botRight |]
+            | true, false -> [| topLeft; botLeft |]
+            | false, true -> [| topRight; botRight |]
+            | false, false -> Array.empty
+            |> Array.append [| busValText; topL; botL |]
+    //Probably should put other option for negative number which prints an error
+    let waveSvg =
+        let mapiAndCollect func = Array.mapi func >> Array.collect id
+        let makeWaveSvgCol xInd = mapiAndCollect (makeSegment xInd)
+        Array.zip model.waveData trans
+        |> Array.map (fun (arr1, arr2) -> Array.zip arr1 arr2)
+        |> mapiAndCollect makeWaveSvgCol
 
-let makeBackground (model : WaveSimModel) = 
-    let p = model.viewParams
+    // name labels of the waveforms
+    let makeLabel (ind: int) label =
+        text
+            [ X 0.0
+              Y ((p.spacing + p.sigHeight) * (float ind + 1.0))
+              SVGAttr.Fill "black"
+              SVGAttr.FontSize (0.25 + p.sigHeight * 0.3)
+              SVGAttr.TextAnchor "start" ] [ str label ]
 
-    let width = float p.hBoxSize
-    let height = float p.vBoxSize
-    let top = float p.vPos
-    let bot = top + height
-    let left = 0.0 //float parameters.hPos + float parameters.hNameSize
-    let clkThickness = 0.025 //TODO: change to variable
-    let clkLen = float p.hSize
+    let labelSvg = Array.mapi makeLabel model.waveNames
 
-    let maxWaveformLen =
-        List.map (fun x -> signalLength x.wIn) model.waves
-        |> List.max
-        |> float
-        |> (*) clkLen
+    labelSvg, snd backgroundSvg, Array.append waveSvg (fst backgroundSvg)
 
-    let clkLine x = 
-        { dfltSigLine with 
-            pointA = x, top
-            pointB = x, bot
-            colour = "gray"
-            thickness = clkThickness
-        }
-        |> makeLine
-
-    let clkLines = 
-        [(int (left / clkLen) + 1)..1..(int (maxWaveformLen / clkLen) + 1)]
-        |> List.map ((fun x -> float x * clkLen) >> clkLine)
-    let simBox =  [makeBox (left,top) (8.0,bot)]
-
-    clkLines, simBox
-    
 //view function of the waveform simulator
 
 let viewWaveSim (model: DiagramModelType.Model) dispatch =
-    let startWaveSim () = 
-        dispatch <| StartWaveSim initModel
-    let vZoom up () =
-        let multBy = if up then 2.0 else 0.5
+    let startWaveSim() = StartWaveSim initModel |> dispatch
+
+    let zoom plus horizontal () =
+        let multBy =
+            if plus then 2.0 else 0.5
         match model.WaveSim with
         | Some m ->
-            StartWaveSim { m with viewParams = { m.viewParams with vSize = m.viewParams.vSize*multBy;
-                                                                    spacing = m.viewParams.spacing*multBy}}
-            |> dispatch 
-        | _ ->
-            printf "What? vZoom function called when model.WaveSim is None"
-            
-    let hZoom up () =
-        let multBy = if up then 2.0 else 0.5 
-        match model.WaveSim with
-        | Some m ->
-            StartWaveSim { m with viewParams = { m.viewParams with hSize = m.viewParams.hSize*multBy}}  
+            match horizontal with
+            | false ->
+                let newParams =
+                    { m.posParams with
+                          sigHeight = m.posParams.sigHeight * multBy
+                          spacing = m.posParams.spacing * multBy }
+                { m with posParams = newParams }
+            | true -> { m with posParams = { m.posParams with clkWidth = m.posParams.clkWidth * multBy } }
+            |> StartWaveSim
             |> dispatch
-        | _ ->
-            printf "What? hZoom function called when model.WaveSim is None"
-        
+        | _ -> printf "What? Zoom function called when model.WaveSim is None"
+
+    let button color func label =
+        Button.button
+            [ Button.Color color
+              Button.OnClick func ] [ str label ]
+
     match model.WaveSim with
-    | None ->
-        div [] [
-            Button.button
-                [ Button.Color IsSuccess; Button.OnClick (fun _ -> startWaveSim()) ]
-                [ str "Start waveform simulator" ]
-        ]
+    | None -> div [] [ button IsSuccess (fun _ -> startWaveSim()) "Start waveform simulator" ]
     | Some simModel ->
         let endWaveSim _ =
             dispatch CloseWaveSimNotification // Copied this, don't know if necessary + it's not doing anything now I think
-            dispatch EndWaveSim // End simulation.
-        div [] [
-            Button.button
-                [ Button.Color IsDanger; Button.OnClick endWaveSim ]
-                [ str "Close waveform simulator" ]
-            div [] [
-                Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "The simulator uses the diagram at the time of pressing the button" ]
-            ]
-            Button.button
-                [ Button.Color IsGrey; Button.OnClick (fun _ -> hZoom true ()) ]
-                [ str "H Zoom +" ]
-            Button.button
-                [ Button.Color IsDanger; Button.OnClick (fun _ -> hZoom false ()) ]
-                [ str "H Zoom -" ]
-            Button.button
-                [ Button.Color IsGrey; Button.OnClick (fun _ -> vZoom true ()) ]
-                [ str "V Zoom +" ]
-            Button.button
-                [ Button.Color IsDanger; Button.OnClick (fun _ -> vZoom false ()) ]
-                [ str "V Zoom -" ]
-            hr []
-            let displayWaveWithParams = displayWaveform simModel.viewParams 
-            let svgBg = makeBackground simModel
-            let svgElements = List.mapi displayWaveWithParams simModel.waves 
-            let svgWaveforms = 
-                svgElements
-                |> List.collect snd
-                |> List.append (fst svgBg)
-            let svgLabels =
-                svgElements
-                |> List.map fst
+            dispatch EndWaveSim
 
-            let appInv a b = 
-                b + a
-            let nSig = List.length simModel.waves
-            let scaleX = simModel.viewParams.hSize * 8.0
-            let scaleY = float nSig * (simModel.viewParams.vSize + simModel.viewParams.spacing)
-            let labelVBparams = 
-                "0 0 2 " + string scaleY
-                |> string
-            let wavesVBparams = 
-                "0 0 " + string scaleX
-                |> appInv " "
-                |> appInv (string (scaleY + 0.5))
-                |> string
-            let boxVBparams = 
-                "0 0 8 " + string (scaleY + 0.5)
-            let widthWave = 
-                100.0 * scaleX / 8.0
-                |> int
-                |> string
-                |> appInv "%"
-                |> string
+        let waveLen = Array.length simModel.waveData
 
+        let transitions = //relies that the number of names is correct (= length of elements in waveData
+            let nWaves = Array.length simModel.waveNames
+            let trueArr = [| Array.map (fun _ -> true) [| 1 .. nWaves |] |]
+            let diffArray (arr1, arr2) = 
+                Array.zip arr1 arr2 |> Array.map (fun (a, b) -> a <> b)
+            let transArr =
+                Array.zip simModel.waveData.[0..waveLen - 2] simModel.waveData.[1..waveLen - 1]
+                |> Array.map diffArray
+            Array.zip (Array.append trueArr transArr) (Array.append transArr trueArr)
+            |> Array.map (fun (a, b) -> Array.zip a b)
 
-            div 
-                [ Style [Float FloatOptions.Left; Width "20%"] ]
-                [
-                svg 
-                    [ViewBox labelVBparams; unbox ("width", "100%")]
-                    svgLabels
-                ]
-            div 
-                [                      
-                Style [Float FloatOptions.Right; 
-                        Width "80%";
-                        Position PositionOptions.Relative]            
-                ]
-                [
-                svg 
-                    [ 
-                    ViewBox boxVBparams; 
-                    Style [Position PositionOptions.Absolute];
-                    unbox ("width", "100%") 
-                    unbox ("y", "0") 
-                    ]
-                    (snd svgBg)
-                div 
-                    [
-                    Style [Width "100%"; 
-                            OverflowX OverflowOptions.Scroll; 
-                            Position PositionOptions.Absolute]
-                    ]
-                    [
-                    svg 
-                        [ 
-                        ViewBox wavesVBparams; 
-                        unbox ("width", widthWave) 
-                        ]
-                        svgWaveforms 
-                    ]             
-                ]
-            ] 
+        div []
+            [ button IsDanger endWaveSim "Close waveform simulator"
+              div []
+                  [ Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ]
+                        [ str "The simulator uses the diagram at the time of pressing the button" ] ]
+              button IsGrey (fun _ -> zoom true true ()) "H Zoom +"
+              button IsDanger (fun _ -> zoom false true ()) "H Zoom -"
+              button IsGrey (fun _ -> zoom true false ()) "V Zoom +"
+              button IsDanger (fun _ -> zoom false false ()) "V Zoom -"
+              hr []
+
+              let p = simModel.posParams
+              let appInv a b = b + a
+              let nSig = Array.length simModel.waveNames
+              let VBwidth = p.clkWidth * float waveLen
+              let VBheight = float nSig * (p.sigHeight + p.spacing) + 0.5
+
+              let labelVB =
+                  "0 0 2 " + string VBheight
+                  |> string
+                  |> ViewBox
+
+              let wavesVB =
+                  "0 0 " + string VBwidth
+                  |> appInv " "
+                  |> appInv (string VBheight)
+                  |> string
+                  |> ViewBox
+
+              let boxVB = 
+                  "0 0 8 " + string (VBheight + 0.5) |> ViewBox
+
+              let VBwidthPercentage =
+                  100.0 * VBwidth / 8.0
+                  |> int
+                  |> string
+                  |> appInv "%"
+                  |> string
+
+              let (lblSvg, bgSvg, wfrmSvg) = displaySvg (simModel, transitions)
+
+              div
+                  [ Style
+                      [ Float FloatOptions.Left
+                        Width "20%" ] ]
+                  [ svg
+                      [ labelVB
+                        unbox ("width", "100%") ] 
+                      lblSvg ]
+              div
+                  [ Style
+                      [ Float FloatOptions.Right
+                        Width "80%"
+                        Position PositionOptions.Relative ] ]
+                  [ svg
+                      [ boxVB
+                        Style [ Position PositionOptions.Absolute ]
+                        unbox ("width", "100%")
+                        unbox ("y", "0") ] 
+                      bgSvg
+                    div
+                        [ Style
+                            [ Width "100%"
+                              OverflowX OverflowOptions.Scroll
+                              Position PositionOptions.Absolute ] ]
+                        [ svg
+                            [ wavesVB
+                              unbox ("width", VBwidthPercentage) ] 
+                            wfrmSvg ] ] ]
+
+//DO STYLESHEET

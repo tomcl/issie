@@ -34,8 +34,7 @@ let initModel: WaveSimModel =
       waveNames = [| "try single Bit"; "try bus" |]
 
       posParams =
-          { vPos = uint 0
-            sigHeight = 0.5
+          { sigHeight = 0.5
             hPos = uint 0
             clkWidth = 1.0
             labelWidth = uint 2
@@ -49,56 +48,27 @@ let initModel: WaveSimModel =
 
 // SVG functions
 
-let makeLine (arg: LineParams) =
-    line
-        [ X1(fst arg.pointA)
-          Y1(snd arg.pointA)
-          X2(fst arg.pointB)
-          Y2(snd arg.pointB)
-          SVGAttr.Stroke arg.colour
-          SVGAttr.StrokeWidth(string arg.thickness) ] []
-
-let makeBox (x1, y1) (x2, y2) =
-    rect
-        [ X x1
-          Y y1
-          SVGAttr.Width(x2 - x1)
-          SVGAttr.Height(y2 - y1)
-          SVGAttr.Stroke "black"
-          SVGAttr.Fill "white"
-          SVGAttr.StrokeWidth 0.1 ] []
-
-let makeSigLineArg pointA pointB =
-    { dfltSigLineArg with
-          pointA = pointA
-          pointB = pointB }
-
-let makeSigLine pointA pointB = makeSigLineArg pointA pointB |> makeLine
+let makeLine style attr = line (List.append style attr) []
+let makeRect style attr = rect (List.append style attr) []
+let makeText style attr t = text (List.append style attr) [str t]
+let makeSvg style attr elements = svg (List.append style attr) elements
+let makeLinePoints style (x1, y1) (x2, y2) = makeLine style [ X1 x1; Y1 y1; X2 x2; Y2 y2 ]
 
 //auxiliary functions to the viewer function
 
 let displaySvg ((model: WaveSimModel), (trans: (bool * bool) [] [])) =
     let p = model.posParams
-    let clkThick = 0.025 //shouldn't be in model, should in style
-    let transLen = 0.1
 
     //container box and clock lines
     let backgroundSvg =
-        let top = float p.vPos
+        let top = vPos
         let bot = top + float p.boxHeight
         let waveLen = Array.length model.waveData |> float
 
-        let clkLine x =
-            { dfltSigLineArg with
-                  pointA = x, top
-                  pointB = x, bot
-                  colour = "gray"
-                  thickness = clkThick }
-            |> makeLine
-
+        let clkLine x = makeLinePoints clkLineStyle (x, top) (x, bot)
         let clkLines =
             [| 1 .. 1 .. (int (waveLen / p.clkWidth) + 1) |] |> Array.map ((fun x -> float x * p.clkWidth) >> clkLine)
-        let simBox = [| makeBox (0.0, top) (8.0, bot) |]
+        let simBox = [| makeRect boxLineStyle [Y top; SVGAttr.Height (bot-top)] |]
         clkLines, simBox
 
     // waveforms
@@ -107,6 +77,8 @@ let displaySvg ((model: WaveSimModel), (trans: (bool * bool) [] [])) =
         let top = bot - p.sigHeight
         let left = float xInd * p.clkWidth
         let right = left + float p.clkWidth
+        
+        let makeSigLine = makeLinePoints sigLineStyle
 
         match data.nBits with
         | n when n = uint 1 ->
@@ -129,28 +101,20 @@ let displaySvg ((model: WaveSimModel), (trans: (bool * bool) [] [])) =
             let cen = (top + bot) / 2.0
 
             //make lines
-            let topL = makeSigLine (leftInner, top) (rightInner, top)
-            let botL = makeSigLine (leftInner, bot) (rightInner, bot)
-            let topLeft = makeSigLine (left, cen) (leftInner, top)
-            let botLeft = makeSigLine (left, cen) (leftInner, bot)
+            let topL =     makeSigLine (leftInner, top) (rightInner, top)
+            let botL =     makeSigLine (leftInner, bot) (rightInner, bot)
+            let topLeft =  makeSigLine (left, cen) (leftInner, top)
+            let botLeft =  makeSigLine (left, cen) (leftInner, bot)
             let topRight = makeSigLine (right, cen) (rightInner, top)
             let botRight = makeSigLine (right, cen) (rightInner, bot)
 
             let busValText =
-                (*let attr = [
-                    X hCentre
-                    Y (sigBot - p.sigHeight*0.1)
-                    SVGAttr.Fill "black"
-                    SVGAttr.FontSize (0.8*p.sigHeight)
-                    SVGAttr.TextAnchor "middle"
-                ]*)
-                //Using this doesn't work, don't know why
-                text
-                    [ X((left + right) / 2.0)
-                      Y(bot - p.sigHeight * 0.1)
-                      SVGAttr.Fill "black"
-                      SVGAttr.FontSize(0.8 * p.sigHeight)
-                      SVGAttr.TextAnchor "middle" ] [ str <| string data.bitData ]
+                let attr: IProp list = [
+                    X((left + right) / 2.0)
+                    Y(bot - p.sigHeight * 0.1)
+                    SVGAttr.FontSize(0.8 * p.sigHeight) 
+                ]
+                makeText busValueStyle attr (string data.bitData)
 
             match trans with
             | true, true -> [| topLeft; botLeft; topRight; botRight |]
@@ -168,12 +132,9 @@ let displaySvg ((model: WaveSimModel), (trans: (bool * bool) [] [])) =
 
     // name labels of the waveforms
     let makeLabel (ind: int) label =
-        text
-            [ X 0.0
-              Y ((p.spacing + p.sigHeight) * (float ind + 1.0))
-              SVGAttr.Fill "black"
-              SVGAttr.FontSize (0.25 + p.sigHeight * 0.3)
-              SVGAttr.TextAnchor "start" ] [ str label ]
+        let attr: IProp list = [ Y ((p.spacing + p.sigHeight) * (float ind + 1.0))
+                                 SVGAttr.FontSize (0.25 + p.sigHeight * 0.3) ] 
+        makeText waveLblStyle attr label
 
     let labelSvg = Array.mapi makeLabel model.waveNames
 
@@ -186,7 +147,7 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
 
     let zoom plus horizontal () =
         let multBy =
-            if plus then 2.0 else 0.5
+            if plus then zoomFactor else 1.0 / zoomFactor 
         match model.WaveSim with
         | Some m ->
             match horizontal with
@@ -241,7 +202,7 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
               let appInv a b = b + a
               let nSig = Array.length simModel.waveNames
               let VBwidth = p.clkWidth * float waveLen
-              let VBheight = float nSig * (p.sigHeight + p.spacing) + 0.5
+              let VBheight = float nSig * (p.sigHeight + p.spacing) + waveVBextraHeight
 
               let labelVB =
                   "0 0 2 " + string VBheight
@@ -256,7 +217,7 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
                   |> ViewBox
 
               let boxVB = 
-                  "0 0 8 " + string (VBheight + 0.5) |> ViewBox
+                  "0 0 8 " + string VBheight |> ViewBox
 
               let VBwidthPercentage =
                   100.0 * VBwidth / 8.0
@@ -265,35 +226,12 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
                   |> appInv "%"
                   |> string
 
-              let (lblSvg, bgSvg, wfrmSvg) = displaySvg (simModel, transitions)
+              let (lblSvg, boxSvg, wfrmSvg) = displaySvg (simModel, transitions)
 
+              div [ waveLblDivStyle ] [ makeSvg waveLblSvgStyle [labelVB] lblSvg ]
               div
-                  [ Style
-                      [ Float FloatOptions.Left
-                        Width "20%" ] ]
-                  [ svg
-                      [ labelVB
-                        unbox ("width", "100%") ] 
-                      lblSvg ]
-              div
-                  [ Style
-                      [ Float FloatOptions.Right
-                        Width "80%"
-                        Position PositionOptions.Relative ] ]
-                  [ svg
-                      [ boxVB
-                        Style [ Position PositionOptions.Absolute ]
-                        unbox ("width", "100%")
-                        unbox ("y", "0") ] 
-                      bgSvg
+                  [ waveContDivStyle ]
+                  [ makeSvg boxSvgStyle [boxVB] boxSvg
                     div
-                        [ Style
-                            [ Width "100%"
-                              OverflowX OverflowOptions.Scroll
-                              Position PositionOptions.Absolute ] ]
-                        [ svg
-                            [ wavesVB
-                              unbox ("width", VBwidthPercentage) ] 
-                            wfrmSvg ] ] ]
-
-//DO STYLESHEET
+                        [ waveRightSmallDivStyle ]
+                        [ makeSvg [unbox ("width", VBwidthPercentage)] [wavesVB] wfrmSvg ] ] ]

@@ -28,7 +28,7 @@ open System.IO
 
 // The name of the project
 // (used by attributes in AssemblyInfo, name of a NuGet package and directory in 'src')
-let project = "ISSIE"
+let project = "issie"
 
 // Short summary of the project
 // (used as description in AssemblyInfo and as a short summary for NuGet package)
@@ -38,10 +38,10 @@ let summary = "Schematic editor and Simulator"
 let author = "tomcl"
 
 // File system information
-let solutionFile  = "ISSIE.sln"
+let solutionFile  = "issie.sln"
 
 // Build docs website root
-let website = "/tomclISSIE"
+let website = "https://tomcl.github.io/issie/"
 
 // Github repository
 let repo = @"https://github.com/tomcl/ISSIE"
@@ -569,7 +569,7 @@ let toolPath    = __SOURCE_DIRECTORY__ @@ "packages/formatting/FSharp.Formatting
 let docTemplate = "docpage.cshtml"
 
 Target.create "LocalDocs" <| fun _ ->
-    FakeVar.set "Website" output
+    FakeVar.set "Website" website // for now we never generate local docs
 Target.create "ReleaseDocs" <| fun _ ->
     FakeVar.set "Website" website
 

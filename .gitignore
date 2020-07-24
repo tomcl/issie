@@ -217,6 +217,7 @@ localpackages/
 docs/content/license.md
 docs/content/release-notes.md
 docs/tools/FSharp.Formatting.svclog
+
 .ionide.debug
 *.bak
 project.lock.json
@@ -225,6 +226,7 @@ project.lock.json
 docsrc/content/license.md
 docsrc/content/release-notes.md
 docsrc/tools/FSharp.Formatting.svclog
+docs/
 
 # FAKE build cache
 .fake/

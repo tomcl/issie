@@ -1,7 +1,7 @@
 (**
 # What is Issie?
 
-Issie (Integrated Schemtic Simulator and Interactive Editor) is a very easy to use and capable block schematic based digital logic editor and simulator, 
+Issie (Intuitive Schematic Simulator and Interactive Editor) is a very easy to use and capable block schematic based digital logic editor and simulator, 
 originally made for the 1st year undergraduate Digital Electronics and Computer Architecture module at the 
 Department of Electronic and Electrical Engineering, Imperial College London.
 
@@ -17,15 +17,15 @@ library.
 
 ## Background and Technical Details
 
-Marco's [Dissertation](https://github.com/tomcl/ISSIE/docsrc/files/marco-report.pdf) or his [Poster](https://github.com/tomcl/ISSIE/docsrc/files/marco-poster.pdf).
+Marco's [Dissertation](https://tomcl.github.com/issie/marco-report.pdf) or his [Poster](https://tomcl.github.com/issie/marco-poster.pdf).
 
 
 
 
 
-## How to get ISSIE ##
+## How to get Issie
 
-Go to the [releases](https://github.com/tomcl/ISSIE/releases) page on the Github repo and download the 
+Go to the [releases](https://github.com/tomcl/issie/releases) page on the Github repo and download the 
 package most applicable to your operating system. 
 
 You <b>only</b> need to download the `.exe` for Windows or `.AppImage` for Linux. The other files are for auto-updating
@@ -62,7 +62,7 @@ With Windows:
 The project is hosted on [Github][gh] where you can [report issues][issues], fork the project and submit pull 
 requests. Please take a look at the [contribution guidelines](contributing.html) for more information.
 
-  [gh]: https://github.com/tomcl/ISSIE
-  [issues]: https://github.com/tomcl/ISSIE/issues
+  [gh]: https://github.com/tomcl/issie
+  [issues]: https://github.com/tomcl/issie/issues
   
 *)

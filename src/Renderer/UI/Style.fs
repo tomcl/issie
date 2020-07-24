@@ -106,7 +106,7 @@ type LineParams =
         thickness: float
     }
 
-let dfltSigLine = 
+let dfltSigLineArg = 
     {
         pointA =  0.0, 0.0
         pointB =  0.0, 0.0

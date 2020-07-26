@@ -56,7 +56,7 @@ let makeLinePoints style (x1, y1) (x2, y2) = makeLine style [ X1 x1; Y1 y1; X2 x
 
 //auxiliary functions to the viewer function
 
-let displaySvg ((model: WaveSimModel), (trans: (bool * bool) [] [])) =
+let displaySvg ((model: WaveSimModel), (trans: (bool * bool) [] []), (busLabels: int [] * (float * bigint) [] [])) =
     let p = model.posParams
 
     //container box and clock lines
@@ -90,7 +90,7 @@ let displaySvg ((model: WaveSimModel), (trans: (bool * bool) [] [])) =
             let sigLine = makeSigLine (left, y) (right, y)
             match snd trans with
             | true -> [| makeSigLine (right, bot + p.sigThick / 2.0) (right, top - p.sigThick / 2.0) |]
-            | false -> Array.empty
+            | false -> [||]
             |> Array.append [| sigLine |]
         | _ ->
             let leftInner =
@@ -108,27 +108,39 @@ let displaySvg ((model: WaveSimModel), (trans: (bool * bool) [] [])) =
             let topRight = makeSigLine (right, cen) (rightInner, top)
             let botRight = makeSigLine (right, cen) (rightInner, bot)
 
-            let busValText =
+            (*let busValText =
                 let attr: IProp list = [
                     X((left + right) / 2.0)
                     Y(bot - p.sigHeight * 0.1)
                     SVGAttr.FontSize(0.8 * p.sigHeight) 
                 ]
-                makeText busValueStyle attr (string data.bitData)
+                makeText busValueStyle attr (string data.bitData)*)
 
             match trans with
             | true, true -> [| topLeft; botLeft; topRight; botRight |]
             | true, false -> [| topLeft; botLeft |]
             | false, true -> [| topRight; botRight |]
-            | false, false -> Array.empty
-            |> Array.append [| busValText; topL; botL |]
+            | false, false -> [||]
+            //|> Array.append [| busValText; topL; botL |]
+            |> Array.append [| topL; botL |]
     //Probably should put other option for negative number which prints an error
     let waveSvg =
         let mapiAndCollect func = Array.mapi func >> Array.collect id
         let makeWaveSvgCol xInd = mapiAndCollect (makeSegment xInd)
+        let valueLabels = 
+            let lblEl (yInd: int) ((xInd: float), (lbl: bigint)) =
+                let attr: IProp list = [
+                    X (xInd * p.clkWidth)
+                    Y ((p.spacing + p.sigHeight) * (float yInd + 1.0) - p.sigHeight * 0.1)
+                    SVGAttr.FontSize (0.8 * p.sigHeight) 
+                ]
+                makeText busValueStyle attr (string lbl)
+            Array.zip (fst busLabels) (snd busLabels)
+            |> Array.collect (fun (yInd, tup) -> Array.map (lblEl yInd) tup) 
         Array.zip model.waveData trans
         |> Array.map (fun (arr1, arr2) -> Array.zip arr1 arr2)
         |> mapiAndCollect makeWaveSvgCol
+        |> Array.append valueLabels
 
     // name labels of the waveforms
     let makeLabel (ind: int) label =
@@ -175,9 +187,9 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
             dispatch EndWaveSim
 
         let waveLen = Array.length simModel.waveData
+        let nWaves = Array.length simModel.waveNames
 
         let transitions = //relies that the number of names is correct (= length of elements in waveData
-            let nWaves = Array.length simModel.waveNames
             let trueArr = [| Array.map (fun _ -> true) [| 1 .. nWaves |] |]
             let diffArray (arr1, arr2) = 
                 Array.zip arr1 arr2 |> Array.map (fun (a, b) -> a <> b)
@@ -186,6 +198,52 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
                 |> Array.map diffArray
             Array.zip (Array.append trueArr transArr) (Array.append transArr trueArr)
             |> Array.map (fun (a, b) -> Array.zip a b)
+
+        let busLabels = 
+            //TODO this relies on the fact that the last transition of a signal is set to true 
+            let busTransVals =
+                let zipAndRemSingleBit (tup: (bool*bool) [] * SimTime) = 
+                    Array.zip (fst tup) (snd tup)
+                    |> Array.filter (fun t -> (snd t).nBits > uint 1)
+                    |> Array.map (fun t -> snd (fst t), (snd t).bitData)
+                Array.zip transitions simModel.waveData
+                |> Array.map zipAndRemSingleBit
+
+            match busTransVals with
+            | [||] ->
+                [||],[||]
+            | _ ->                
+                let busYind = 
+                    Array.zip simModel.waveData.[0] [| 0..nWaves - 1 |]
+                    |> Array.filter (fun (w,_) -> w.nBits > uint 1)
+                    |> Array.map (fun (w,ind) -> ind)
+                let initState = Array.map (fun (_,firstVal) -> [| 0, 1, firstVal |]) busTransVals.[0] // relies on all elements having same length
+                let gapMake (state: (int*int*bigint) [] []) (tupArr: (bool*bigint) []) =
+                    let updateState ((sLst: (int*int*bigint) []),(dataTup: bool*bigint)) =
+                        let sLstLen = Array.length sLst
+                        let sLstLast = sLst.[sLstLen - 1]
+                        let tupSec (a,b,c) = b
+                        let tupFst (a,b,c) = a
+                        match fst dataTup with
+                        | true ->
+                            Array.append 
+                                sLst 
+                                [| tupSec sLstLast, tupSec sLstLast + 1, snd dataTup |]
+                        | false ->
+                            Array.append 
+                                sLst.[0..sLstLen-2] 
+                                [| tupFst sLstLast, tupSec sLstLast + 1, snd dataTup |]
+                    Array.map updateState <| Array.zip state tupArr
+                let fromGapsToPositions (start,fin,value) = 
+                    let gap = fin - start
+                    let nSpaces = float (gap / (maxBusValGap + 1) + 2)
+                    Array.map (fun i -> float start + float gap / nSpaces * float i, value) [| 1.0..nSpaces - 1.0 |]
+                let lblData = 
+                    Array.fold gapMake initState busTransVals
+                    |> Array.map (fun arr -> Array.collect fromGapsToPositions arr)
+                busYind, lblData
+ 
+            
 
         div []
             [ button IsDanger endWaveSim "Close waveform simulator"
@@ -226,7 +284,7 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
                   |> appInv "%"
                   |> string
 
-              let (lblSvg, boxSvg, wfrmSvg) = displaySvg (simModel, transitions)
+              let (lblSvg, boxSvg, wfrmSvg) = displaySvg (simModel, transitions, busLabels)
 
               div [ waveLblDivStyle ] [ makeSvg waveLblSvgStyle [labelVB] lblSvg ]
               div

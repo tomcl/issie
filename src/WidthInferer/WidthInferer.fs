@@ -76,6 +76,8 @@ let private makeWidthInferErrorAtLeast atLeast actual connectionsAffected = Erro
     ConnectionsAffected = connectionsAffected
 }
 
+
+
 /// Given a component and a set of input connection widths, check these inputs
 /// widths are as expected and try to calculate the width of the outgoing
 /// connections.
@@ -96,8 +98,6 @@ let private calculateOutputPortsWidth
         // Expects no inputs, and has an outgoing wire of the given width.
         assertInputsSize inputConnectionsWidth 0 comp
         Ok <| Map.empty.Add (getOutputPortId comp 0, width)
-    | IOLabel _ ->
-        failwithf "what? Impossible to call calculateOutputPortsWidth for %A components" comp.Type
         
     | Output width ->
         assertInputsSize inputConnectionsWidth 1 comp
@@ -106,7 +106,12 @@ let private calculateOutputPortsWidth
         | [Some n] when n = width -> Ok Map.empty // Output node has no outputs.
         | [Some n] when n <> width -> makeWidthInferErrorEqual width n [getConnectionIdForPort 0]
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
-    | Not ->
+    | IOLabel->
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
+        | [None] -> Ok <| Map.empty
+        | [Some n] -> Ok <| Map.empty.Add (getOutputPortId comp 0, n)
+        | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
+    | Not | IOLabel->
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
         | [None] | [Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)
@@ -443,13 +448,10 @@ let private mapComponentIdsToComponents
     |> Map.ofList 
 
 /// For width inference, because IOLabel components join nets,
-/// all inputs and outputs of same labelled IOLabels must be counted together.
-/// This returns for every input or output port the joined set of ports.
-/// Thts is just the port for all except IOLabels
-/// getPortList and pTrans select input or output ports
-let private mapToIdenticalPorts
-    (getPortList:Component -> Port list)
-    (pTrans: Port -> 'a)
+/// the single allowed input connection to a set of labels must
+/// be replicated as an virtual input to all in the width inferrer and
+/// simulation logic
+let private map
     (components: Component list): Map<'a,'a list> =
 
     let mapOfIOLabels =
@@ -457,33 +459,21 @@ let private mapToIdenticalPorts
         |> List.filter (function | { Type=IOLabel} -> true; | _ -> false)
         |> List.groupBy (fun c -> c.Label)
         |> Map.ofList
+    Map.empty
 
-    let expandPorts comp =
-        match comp.Type, getPortList comp with
-        | IOLabel, [port] -> 
-            [port, (mapOfIOLabels.[comp.Label] |> List.collect getPortList)]
-        | _ , pList -> 
-            pList 
-            |> List.map (fun p -> p,[p])
-        |> List.map (fun (p, pl) -> pTrans p, List.map pTrans pl)
 
-    List.collect expandPorts components
-    |> Map.ofList
        
 
 
 let private mapOutputPortIdsToConnections
         (connections : Connection list)
-        (components: Component list)
         : Map<OutputPortId, Connection list> =
     let portToCon =
         connections
         |> List.map (fun c -> OutputPortId c.Source.Id, c)
         |> Map.ofList
-    let expandPorts = mapToIdenticalPorts (fun p -> p.OutputPorts) (fun p -> OutputPortId p.Id) components
     let ports = List.map (fun c -> OutputPortId c.Source.Id) connections
     portToCon
-    |> Map.map (fun k v -> List.map (fun p -> portToCon.[p]) expandPorts.[k])
     
 
 /// Infer width of all connections or return an error
@@ -496,7 +486,7 @@ let inferConnectionsWidth
     | Ok inputPortIdsToConnectionIds ->
         let staticMaps = (
                 inputPortIdsToConnectionIds, 
-                mapOutputPortIdsToConnections connections components, 
+                mapOutputPortIdsToConnections connections, 
                 mapComponentIdsToComponents components)
         // If this is too slow, one could start the process only from input
         // components. To do so, pass the (getAllInputNodes components) instead

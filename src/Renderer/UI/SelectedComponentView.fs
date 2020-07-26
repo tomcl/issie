@@ -82,6 +82,7 @@ let private makeDescription comp model dispatch =
     match comp.Type with
     | Input _ -> str "Input."
     | Output _ -> str "Output."
+    | IOLabel -> str "Label on Wire or Bus."
     | Not | And | Or | Xor | Nand | Nor | Xnor ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
     | Mux2 -> div [] [ str "Multiplexer with two inputs and one output." ]

@@ -193,6 +193,7 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 assertThat (bits.Length = width) <| sprintf "Output node reducer received wrong number of bits: expected %d but got %d" width bits.Length
                 notReadyReducerOutput NoState // Do nothing with it. Just make sure it is received.
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+    | IOLabel -> fun reducerInput -> notReadyReducerOutput NoState
     | Not ->
         fun reducerInput ->
             assertNoClockTick reducerInput componentType
@@ -487,7 +488,7 @@ let private mapInputPortIdToPortNumber
 /// ROMs are stateless (they are only defined by their initial content).
 let private getDefaultState compType =
     match compType with
-    | Input _ | Output _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2
+    | Input _ | Output _ | IOLabel | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2
     | Demux2 | NbitsAdder _ | Custom _ | MergeWires | SplitWire _ | ROM _
     | AsyncROM _ -> NoState
     | DFF | DFFE -> DffState Zero

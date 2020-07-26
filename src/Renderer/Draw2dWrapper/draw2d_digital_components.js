@@ -134,7 +134,7 @@ draw2d.shape.digital.Label = draw2d.shape.digital.extend({
     componentType: "Label",
     svgHeight: 20,
     svgWidth: 30,
-    numberOfBits: 1,
+
 
     getSvgElements: function () {
         return [
@@ -149,11 +149,9 @@ draw2d.shape.digital.Label = draw2d.shape.digital.extend({
             getter
         );
 
-        console.assert(typeof attr.numberOfBits === "number", "numberOfBits is not a number when creating an Label node");
-        this.numberOfBits = attr.numberOfBits;
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), this.numberOfBits > 1);
-        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), this.numberOfBits > 1);
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
 

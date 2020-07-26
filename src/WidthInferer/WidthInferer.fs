@@ -468,30 +468,73 @@ let private map
 let private mapOutputPortIdsToConnections
         (connections : Connection list)
         : Map<OutputPortId, Connection list> =
-    let portToCon =
-        connections
-        |> List.map (fun c -> OutputPortId c.Source.Id, c)
+    connections
+    |> List.groupBy (fun conn -> OutputPortId conn.Source.Id)
+    |> Map.ofList
+
+let private mapInputPortIdsToVConnectionIds (conns: Connection list) (comps:Component list) =
+    let mapPortIdToConnId = mapInputPortIdsToConnectionIds conns
+
+    let filteredComps =
+        comps
+        |> List.filter (fun (comp:Component) -> comp.Type=IOLabel)
+        
+    let targetPortIdToConId =
+        conns
+        |> List.map (fun conn -> conn.Target.Id, conn.Id)
         |> Map.ofList
-    let ports = List.map (fun c -> OutputPortId c.Source.Id) connections
-    portToCon
-    
+
+    let getConn (compLst: Component list) =
+        compLst
+        |> List.collect (fun comp ->
+            Map.tryFind comp.InputPorts.[0].Id targetPortIdToConId
+            |> function | None -> [] | Some cId -> [cId])
+
+    let mapLabels =
+        filteredComps
+        |> List.groupBy (fun comp -> comp.Label)
+        |> List.map (fun (lab,compLst) ->
+            match getConn compLst with
+            | [cId] -> List.map (fun comp -> (InputPortId comp.InputPorts.[0].Id, ConnectionId cId)) compLst |> Ok
+            | h when h.Length > 1 -> Error {
+                Msg = sprintf "A Labelled wire must have precisely one driving component. '%s' labels have %d drivers" lab h.Length
+                ConnectionsAffected = h |> List.map ConnectionId
+                }            
+            | _ -> Ok []
+        ) 
+        |> tryFindError
+        |> Result.map (List.concat >> Map.ofList)
+    match mapLabels, mapPortIdToConnId with
+    | _, Error e | Error e, _ -> Error e
+    | Ok mapL, Ok map ->
+        comps
+        |> List.collect (fun comp -> comp.InputPorts)
+        |> List.map (fun p -> InputPortId p.Id)
+        |> List.collect ( fun pId ->    
+            match Map.tryFind pId map, Map.tryFind pId mapL with
+            | None, None -> []
+            | _, Some conn
+            | Some conn, None -> [pId, conn])
+        |> Map.ofList
+        |> Ok
+
 
 /// Infer width of all connections or return an error
 let inferConnectionsWidth
-        ((components,connections) : CanvasState)
+        ((comps,conns) : CanvasState)
         : Result<ConnectionsWidth, WidthInferError> =
-    let connectionsWidth = initialiseConnectionsWidth connections
-    match mapInputPortIdsToConnectionIds connections with
+    let connectionsWidth = initialiseConnectionsWidth conns
+    match mapInputPortIdsToVConnectionIds conns comps with
     | Error e -> Error e
-    | Ok inputPortIdsToConnectionIds ->
+    | Ok  inputPortIdsToVConnectionIds' ->
         let staticMaps = (
-                inputPortIdsToConnectionIds, 
-                mapOutputPortIdsToConnections connections, 
-                mapComponentIdsToComponents components)
+                inputPortIdsToVConnectionIds', 
+                mapOutputPortIdsToConnections conns, 
+                mapComponentIdsToComponents comps)
         // If this is too slow, one could start the process only from input
         // components. To do so, pass the (getAllInputNodes components) instead
         // of components.
-        (Ok connectionsWidth, components)
+        (Ok connectionsWidth, comps)
         ||> List.fold (fun connectionsWidthRes inputNode ->
             connectionsWidthRes |> Result.bind (fun connectionsWidth ->
                 infer staticMaps inputNode connectionsWidth

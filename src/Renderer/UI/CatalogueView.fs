@@ -147,7 +147,8 @@ let viewCatalogue model dispatch =
             makeMenuGroup
                 "Input / Output"
                 [ menuItem "Input"  (fun _ -> createIOPopup "input" Input model dispatch)
-                  menuItem "Output" (fun _ -> createIOPopup "output" Output model dispatch) ]
+                  menuItem "Output" (fun _ -> createIOPopup "output" Output model dispatch)
+                  menuItem "Wire Label" (fun _ -> createComponent IOLabel "" model dispatch)]
             makeMenuGroup
                 "Buses"
                 [ menuItem "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch)

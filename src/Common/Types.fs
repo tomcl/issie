@@ -38,7 +38,7 @@ type Memory = {
 
 // Types instantiating objects in the Digital extension.
 type ComponentType =
-    | Input of int | Output of int | IOLabel of int
+    | Input of int | Output of int | IOLabel
     | Not | And | Or | Xor | Nand | Nor | Xnor
     | Mux2 | Demux2
     | NbitsAdder of int

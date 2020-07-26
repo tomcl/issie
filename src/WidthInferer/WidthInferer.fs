@@ -96,7 +96,8 @@ let private calculateOutputPortsWidth
         // Expects no inputs, and has an outgoing wire of the given width.
         assertInputsSize inputConnectionsWidth 0 comp
         Ok <| Map.empty.Add (getOutputPortId comp 0, width)
-    | IOLabel width ->
+    | IOLabel _ ->
+        failwithf "what? Impossible to call calculateOutputPortsWidth for %A components" comp.Type
         
     | Output width ->
         assertInputsSize inputConnectionsWidth 1 comp
@@ -354,12 +355,14 @@ let private getComponentFromId
 /// Given a node, try to infer the width of its outgoing connections, and
 /// possibly recur on the nodes targeted by those connections.
 let rec private infer
-        (connectionsWidth : ConnectionsWidth)
-        (currNode : Component)
         // Static maps. Necessary for fast lookups.
-        (inputPortIdsToConnectionIds : Map<InputPortId, ConnectionId>)
-        (outputPortIdsToConnections : Map<OutputPortId, Connection list>)
-        (compIdsToComps : Map<ComponentId, Component>)
+        ((
+            (inputPortIdsToConnectionIds : Map<InputPortId, ConnectionId>),
+            (outputPortIdsToConnections : Map<OutputPortId, Connection list>),
+            (compIdsToComps : Map<ComponentId, Component>)
+        ) as staticMaps)
+        (currNode : Component)
+        (connectionsWidth : ConnectionsWidth)
         : Result<ConnectionsWidth, WidthInferError> =
     let iterateChildren outgoingConnections connectionsWidth =
         let children =
@@ -369,9 +372,7 @@ let rec private infer
         ||> List.fold (fun connectionsWidthRes child ->
             connectionsWidthRes
             |> Result.bind (fun connectionsWidth ->
-                infer
-                    connectionsWidth child inputPortIdsToConnectionIds
-                    outputPortIdsToConnections compIdsToComps
+                infer staticMaps child connectionsWidth
             )
         )
 
@@ -441,31 +442,68 @@ let private mapComponentIdsToComponents
     |> List.map (fun comp -> ComponentId comp.Id, comp)
     |> Map.ofList 
 
+/// For width inference, because IOLabel components join nets,
+/// all inputs and outputs of same labelled IOLabels must be counted together.
+/// This returns for every input or output port the joined set of ports.
+/// Thts is just the port for all except IOLabels
+/// getPortList and pTrans select input or output ports
+let private mapToIdenticalPorts
+    (getPortList:Component -> Port list)
+    (pTrans: Port -> 'a)
+    (components: Component list): Map<'a,'a list> =
+
+    let mapOfIOLabels =
+        components
+        |> List.filter (function | { Type=IOLabel} -> true; | _ -> false)
+        |> List.groupBy (fun c -> c.Label)
+        |> Map.ofList
+
+    let expandPorts comp =
+        match comp.Type, getPortList comp with
+        | IOLabel, [port] -> 
+            [port, (mapOfIOLabels.[comp.Label] |> List.collect getPortList)]
+        | _ , pList -> 
+            pList 
+            |> List.map (fun p -> p,[p])
+        |> List.map (fun (p, pl) -> pTrans p, List.map pTrans pl)
+
+    List.collect expandPorts components
+    |> Map.ofList
+       
+
+
 let private mapOutputPortIdsToConnections
         (connections : Connection list)
+        (components: Component list)
         : Map<OutputPortId, Connection list> =
-    connections
-    |> List.groupBy (fun conn -> OutputPortId conn.Source.Id)
-    |> Map.ofList
+    let portToCon =
+        connections
+        |> List.map (fun c -> OutputPortId c.Source.Id, c)
+        |> Map.ofList
+    let expandPorts = mapToIdenticalPorts (fun p -> p.OutputPorts) (fun p -> OutputPortId p.Id) components
+    let ports = List.map (fun c -> OutputPortId c.Source.Id) connections
+    portToCon
+    |> Map.map (fun k v -> List.map (fun p -> portToCon.[p]) expandPorts.[k])
+    
 
+/// Infer width of all connections or return an error
 let inferConnectionsWidth
-        (state : CanvasState)
+        ((components,connections) : CanvasState)
         : Result<ConnectionsWidth, WidthInferError> =
-    let components, connections = state
     let connectionsWidth = initialiseConnectionsWidth connections
-    let compIdsToComps = mapComponentIdsToComponents components
-    let outputPortIdsToConnections = mapOutputPortIdsToConnections connections
     match mapInputPortIdsToConnectionIds connections with
     | Error e -> Error e
     | Ok inputPortIdsToConnectionIds ->
+        let staticMaps = (
+                inputPortIdsToConnectionIds, 
+                mapOutputPortIdsToConnections connections components, 
+                mapComponentIdsToComponents components)
         // If this is too slow, one could start the process only from input
         // components. To do so, pass the (getAllInputNodes components) instead
         // of components.
         (Ok connectionsWidth, components)
         ||> List.fold (fun connectionsWidthRes inputNode ->
             connectionsWidthRes |> Result.bind (fun connectionsWidth ->
-                infer
-                    connectionsWidth inputNode inputPortIdsToConnectionIds
-                    outputPortIdsToConnections compIdsToComps
+                infer staticMaps inputNode connectionsWidth
             )
         )

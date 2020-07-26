@@ -101,7 +101,7 @@ let private runBusWidthInference model =
         let state = extractState jsState
         state |> inferConnectionsWidth |> function
         | Error e ->
-            // TODO: this makes the conent of the model.Higlighted inconsistent.
+            // TODO: this makes the content of the model.Higlighted inconsistent.
             // Need to dispatch SetHighlighted (can do by using mkProgram).
             e.ConnectionsAffected
             |> List.map (fun (BusTypes.ConnectionId c) -> model.Diagram.HighlightConnection c)

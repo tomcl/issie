@@ -101,6 +101,7 @@ let transLen = 0.1
 let vPos = 0.0
 let zoomFactor = 1.2
 let waveVBextraHeight = 0.5
+let maxBusValGap = 3
 
 let sigLineStyle: IProp list = [
     SVGAttr.Stroke "blue"

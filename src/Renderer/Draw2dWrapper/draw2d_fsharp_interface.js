@@ -151,6 +151,10 @@ function createDigitalOutput(x, y, numberOfBits) {
     return new draw2d.shape.digital.Output({x:x,y:y,numberOfBits:numberOfBits,resizeable:false});
 }
 
+function createDigitalLabel(x, y) {
+    return new draw2d.shape.digital.Label({ x: x, y: y,  resizeable: false });
+}
+
 function createDigitalNot(x, y) {
     return new draw2d.shape.digital.Not({x:x,y:y,resizeable:false});
 }
@@ -409,6 +413,7 @@ export {
     installSelectionPolicy,
     createDigitalInput,
     createDigitalOutput,
+    createDigitalLabel,
     createDigitalNot,
     createDigitalAnd,
     createDigitalOr,

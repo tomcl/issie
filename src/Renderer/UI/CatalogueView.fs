@@ -47,7 +47,7 @@ let private createComponent comp label model dispatch =
     model.Diagram.CreateComponent comp label (100+offset) (100+offset) |> ignore
     (offset + 50) % 200 |> SetCreateComponentOffset |> dispatch
 
-let private createIOPopup typeStr compType model dispatch =
+let private createIOPopup hasInt typeStr compType model dispatch =
     let title = sprintf "Add %s node" typeStr
     let beforeText =
         fun _ -> str <| sprintf "How do you want to name your %s?" typeStr
@@ -55,7 +55,10 @@ let private createIOPopup typeStr compType model dispatch =
     let beforeInt =
         fun _ -> str <| sprintf "How many bits should the %s node have?" typeStr
     let intDefault = 1
-    let body = dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch
+    let body = 
+        match hasInt with
+        | true -> dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch
+        | false -> dialogPopupBodyOnlyText beforeText placeholder dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
@@ -146,9 +149,9 @@ let viewCatalogue model dispatch =
     Menu.menu [] [
             makeMenuGroup
                 "Input / Output"
-                [ menuItem "Input"  (fun _ -> createIOPopup "input" Input model dispatch)
-                  menuItem "Output" (fun _ -> createIOPopup "output" Output model dispatch)
-                  menuItem "Wire Label" (fun _ -> createComponent IOLabel "" model dispatch)]
+                [ menuItem "Input"  (fun _ -> createIOPopup true "input" Input model dispatch)
+                  menuItem "Output" (fun _ -> createIOPopup true "output" Output model dispatch)
+                  menuItem "Wire Label" (fun _ -> createIOPopup false "label" (fun _ -> IOLabel) model dispatch)]
             makeMenuGroup
                 "Buses"
                 [ menuItem "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch)

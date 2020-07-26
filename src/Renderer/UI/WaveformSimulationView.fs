@@ -145,7 +145,7 @@ let displaySvg ((model: WaveSimModel), (trans: (bool * bool) [] []), (busLabels:
     // name labels of the waveforms
     let makeLabel (ind: int) label =
         let attr: IProp list = [ Y ((p.spacing + p.sigHeight) * (float ind + 1.0))
-                                 SVGAttr.FontSize (0.25 + p.sigHeight * 0.3) ] 
+                                 SVGAttr.FontSize (p.sigHeight * 0.6) ] 
         makeText waveLblStyle attr label
 
     let labelSvg = Array.mapi makeLabel model.waveNames
@@ -200,12 +200,11 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
             |> Array.map (fun (a, b) -> Array.zip a b)
 
         let busLabels = 
-            //TODO this relies on the fact that the last transition of a signal is set to true 
             let busTransVals =
                 let zipAndRemSingleBit (tup: (bool*bool) [] * SimTime) = 
                     Array.zip (fst tup) (snd tup)
                     |> Array.filter (fun t -> (snd t).nBits > uint 1)
-                    |> Array.map (fun t -> snd (fst t), (snd t).bitData)
+                    |> Array.map (fun t -> fst (fst t), (snd t).bitData)
                 Array.zip transitions simModel.waveData
                 |> Array.map zipAndRemSingleBit
 
@@ -217,22 +216,24 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
                     Array.zip simModel.waveData.[0] [| 0..nWaves - 1 |]
                     |> Array.filter (fun (w,_) -> w.nBits > uint 1)
                     |> Array.map (fun (w,ind) -> ind)
-                let initState = Array.map (fun (_,firstVal) -> [| 0, 1, firstVal |]) busTransVals.[0] // relies on all elements having same length
+                let initState = Array.map (fun (_,firstVal) -> [| (*0, 1, firstVal*) |]) busTransVals.[0] // relies on all elements having same length
                 let gapMake (state: (int*int*bigint) [] []) (tupArr: (bool*bigint) []) =
-                    let updateState ((sLst: (int*int*bigint) []),(dataTup: bool*bigint)) =
-                        let sLstLen = Array.length sLst
-                        let sLstLast = sLst.[sLstLen - 1]
+                    let updateState ((sArr: (int*int*bigint) []),(dataTup: bool*bigint)) =
+                        let sArrLen = Array.length sArr
+                        let sArrLast = sArr.[sArrLen - 1]
                         let tupSec (a,b,c) = b
                         let tupFst (a,b,c) = a
-                        match fst dataTup with
-                        | true ->
+                        match sArr, fst dataTup with
+                        | [||], _ ->
+                            [| 0, 1, snd dataTup |]
+                        | _, true ->
                             Array.append 
-                                sLst 
-                                [| tupSec sLstLast, tupSec sLstLast + 1, snd dataTup |]
-                        | false ->
+                                sArr 
+                                [| tupSec sArrLast, tupSec sArrLast + 1, snd dataTup |]
+                        | _, false ->
                             Array.append 
-                                sLst.[0..sLstLen-2] 
-                                [| tupFst sLstLast, tupSec sLstLast + 1, snd dataTup |]
+                                sArr.[0..sArrLen-2] 
+                                [| tupFst sArrLast, tupSec sArrLast + 1, snd dataTup |]
                     Array.map updateState <| Array.zip state tupArr
                 let fromGapsToPositions (start,fin,value) = 
                     let gap = fin - start

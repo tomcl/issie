@@ -52,7 +52,11 @@ type Wire = {
     bitData: bigint 
 }
 
-type SimTime = Wire array
+type StateSample = string array
+
+type Sample = | Wire of Wire | StateSample of StateSample
+
+type SimTime = Sample array
 
 type PosParamsType = {
     sigHeight: float

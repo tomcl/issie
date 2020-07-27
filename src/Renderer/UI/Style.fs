@@ -102,15 +102,16 @@ let vPos = 0.0
 let zoomFactor = 1.2
 let waveVBextraHeight = 0.5
 let maxBusValGap = 3
+let busLabelTextSize = 0.6 // multiplied by signal height
 
 let sigLineStyle: IProp list = [
     SVGAttr.Stroke "blue"
-    SVGAttr.StrokeWidth 0.05
+    SVGAttr.StrokeWidth 0.025
 ]
 
 let clkLineStyle: IProp list = [
-    SVGAttr.Stroke "gray"
-    SVGAttr.StrokeWidth 0.025
+    SVGAttr.Stroke "rgb(200,200,200)"
+    SVGAttr.StrokeWidth 0.0125
 ]
 
 let boxLineStyle: IProp list = [ 
@@ -119,7 +120,7 @@ let boxLineStyle: IProp list = [
     SVGAttr.Width 8
     SVGAttr.Stroke "black"
     SVGAttr.Fill "white"
-    SVGAttr.StrokeWidth 0.1
+    SVGAttr.StrokeWidth 0.05
 ]
 
 let busValueStyle: IProp list = [

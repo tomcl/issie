@@ -18,6 +18,36 @@ open CommonTypes
 open MemoryEditorView
 open PopupView
 
+let extractLabelBase (text:string) : string =
+    text.ToUpper()
+    |> Seq.takeWhile (fun ch -> ch <> '(')
+    |> Seq.filter System.Char.IsLetterOrDigit
+    |> Seq.map (fun ch -> ch.ToString())
+    |> String.concat ""
+
+let formatLabelAsBus (width:int) (text:string) =
+    let text' = extractLabelBase text
+    match width with
+    | 1 -> text'
+    | _ -> sprintf "%s(%d:%d)" text' (width-1) 0
+   
+
+let formatLabel comp (text:string) =
+    let text' = extractLabelBase text
+    match comp.Type with
+    | Input 1 | Output 1 -> text'
+    | Input width | Output width -> sprintf "%s(%d:%d)" text' (width-1) 0
+    | _ -> text'
+
+let setComponentLabel model comp text =
+    let label = formatLabel comp text
+    printf "Setting label %s" label
+    model.Diagram.EditComponentLabel comp.Id label
+
+let setComponentLabelFromText model (comp:Component) text =
+    printf "Setting label %s" text
+    model.Diagram.EditComponentLabel comp.Id text
+
 let private readOnlyFormField name body =
     Field.div [] [
         Label.label [] [ str name ]
@@ -60,7 +90,7 @@ let private makeMemoryInfo descr mem compId model dispatch =
         ] [str "View/Edit memory content"]
     ]
 
-let private makeNumberOfBitsField comp setter dispatch =
+let private makeNumberOfBitsField model comp text setter dispatch =
     let title, width =
         match comp.Type with
         | Input w | Output w | NbitsAdder w | Register w -> "Number of bits", w
@@ -73,8 +103,11 @@ let private makeNumberOfBitsField comp setter dispatch =
                 errorNotification "Invalid number of bits." ClosePropertiesNotification
                 |> SetPropertiesNotification |> dispatch
             else
-                setter comp.Id newWidth
-                dispatch ReloadSelectedComponent
+                setter comp.Id newWidth // change the JS component
+                printfn "new width = %d" newWidth
+                let text' = formatLabelAsBus newWidth text
+                setComponentLabelFromText model comp text' // change the JS component label
+                dispatch ReloadSelectedComponent // reload the new component
                 dispatch ClosePropertiesNotification
     )
 
@@ -82,7 +115,7 @@ let private makeDescription comp model dispatch =
     match comp.Type with
     | Input _ -> str "Input."
     | Output _ -> str "Output."
-    | IOLabel -> str "Label on Wire or Bus."
+    | IOLabel -> str "Label on Wire or Bus. Labels with the same name connect wires or busses."
     | Not | And | Or | Xor | Nand | Nor | Xnor ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
     | Mux2 -> div [] [ str "Multiplexer with two inputs and one output." ]
@@ -128,22 +161,29 @@ let private makeDescription comp model dispatch =
             the global clock."
         makeMemoryInfo descr mem comp.Id model dispatch
 
-let private makeExtraInfo comp model dispatch =
+let private makeExtraInfo model comp text dispatch =
     match comp.Type with
     | Input _ | Output _ | NbitsAdder _ ->
-        makeNumberOfBitsField comp model.Diagram.SetNumberOfBits dispatch
+        makeNumberOfBitsField model comp text model.Diagram.SetNumberOfBits dispatch
     | SplitWire _ ->
-        makeNumberOfBitsField comp model.Diagram.SetTopOutputWidth dispatch
+        makeNumberOfBitsField model comp text model.Diagram.SetTopOutputWidth dispatch
     | Register _ ->
-        makeNumberOfBitsField comp model.Diagram.SetRegisterWidth dispatch
+        makeNumberOfBitsField model comp text model.Diagram.SetRegisterWidth dispatch
     | _ -> div [] []
 
 let viewSelectedComponent model dispatch =
     match model.SelectedComponent with
     | None -> div [] [ str "Select a component in the diagram to view/edit its properties." ]
     | Some comp ->
+        printfn "Comp=%A %A" comp.Type comp.Label
+
         div [Key comp.Id] [
+            let label' = extractLabelBase comp.Label
             readOnlyFormField "Description" <| makeDescription comp model dispatch
-            makeExtraInfo comp model dispatch
-            textFormField "Label" comp.Label (fun text -> model.Diagram.EditComponentLabel comp.Id text)
+            makeExtraInfo model comp label' dispatch
+            textFormField "Label" label' (fun text -> 
+                printfn "dispatch text=%A, compType=%A" text comp.Type
+                setComponentLabel model comp (formatLabel comp text)
+                dispatch ReloadSelectedComponent // reload the new component
+                )
         ]

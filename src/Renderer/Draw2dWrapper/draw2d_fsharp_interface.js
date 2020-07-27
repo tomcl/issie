@@ -76,6 +76,7 @@ function addComponentLabel(comp, label) {
 
 function setComponentLabel(comp, newLabel) {
     comp.children.data[0].figure.setText(newLabel);
+    comp.setSVG(comp.getSVG()); // Refresh svg.
 }
 
 function setConnectionLabel(conn, newLabel) {
@@ -342,6 +343,11 @@ function getConnectionById(canvas, id) {
     return canvas.getLines().find(function(conn) {
         return conn.id === id;
     });
+}
+
+function refreshComponentById(canvas, id) {
+    let comp = getComponentById(canvas, id);
+    comp.setSVG(comp.getSVG()); // refresh SVG
 }
 
 function getPortById(comp, id) {

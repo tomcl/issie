@@ -497,7 +497,7 @@ let private mapInputPortIdsToVConnectionIds (conns: Connection list) (comps:Comp
             match getConn compLst with
             | [cId] -> List.map (fun comp -> (InputPortId comp.InputPorts.[0].Id, ConnectionId cId)) compLst |> Ok
             | h when h.Length > 1 -> Error {
-                Msg = sprintf "A Labelled wire must have precisely one driving component. '%s' labels have %d drivers" lab h.Length
+                Msg = sprintf "A Labelled wire must no more than one driving component. '%s' labels have %d drivers" lab h.Length
                 ConnectionsAffected = h |> List.map ConnectionId
                 }            
             | _ -> Ok []

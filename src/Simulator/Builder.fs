@@ -515,11 +515,14 @@ let private buildSimulationComponent
     // connected to it.
     let outputs =
         comp.OutputPorts
-        |> List.map (fun port ->
+        |> List.collect (fun port ->
             match sourceToTargetPort.TryFind <| OutputPortId port.Id with
+            | None when comp.Type=IOLabel -> [] // IOLabels are allowed to be connected to nothing
             | None -> failwithf "what? Unconnected output port %s in comp %s" port.Id comp.Id
-            | Some targets -> OutputPortNumber (getPortNumberOrFail port.PortNumber),
-                              mapPortIdsToPortNumbers targets
+            | Some targets -> [
+                                OutputPortNumber (getPortNumberOrFail port.PortNumber),
+                                mapPortIdsToPortNumbers targets
+                              ]
         )
         |> Map.ofList
     // The inputs will be set during the simulation, we just need to initialise

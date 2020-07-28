@@ -75,6 +75,7 @@ type WaveSimModel = {
     waveNames: WaveName array
     posParams: PosParamsType
     cursor: uint32 
+    radix: NumberBase
 }
 
 (*type SigVals = 

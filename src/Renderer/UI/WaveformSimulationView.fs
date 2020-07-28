@@ -12,6 +12,7 @@ open Fable.React.Props
 
 open DiagramMessageType
 open DiagramStyle
+open CommonTypes
 
 //type functions
 
@@ -19,10 +20,14 @@ let initModel: WaveSimModel =
     { waveData =
           //modify these two signals to change trial data
           let nbits1 = uint32 1
-          let nbits2 = uint32 5
+          let nbits2 = uint32 4
           let s1 = [| 0; 0; 0; 0; 1; 0; 1; 1; 1; 1 |]
           let s2 = [| 1; 1; 1; 1; 14; 14; 14; 14; 2; 8 |]
-          let s3 = [| [|"state1"|]; [|"state1"|]; [|"state2"; "state1"|]; [|"state2"|]; [|"state1"|]; [|"state2"|]; [|"state1"|]; [|"state2"|]; [|"state1"|]; [|"state2"|] |]
+          let s3 = [| 
+            [|"state1"|]; [|"state1"|]; [|"state2"; "state1"|]; 
+            [|"state2"|]; [|"state1"|]; [|"state2"|]; [|"state1"|]; 
+            [|"state2"|]; [|"state1"|]; [|"state2"|] 
+          |]
 
           let makeTrialData (nBits1: uint32) (signal1: int []) (nBits2: uint32) signal2 signal3 : SimTime [] =
               let makeTimePointData (s1: int, s2: int, s3) : SimTime =
@@ -34,7 +39,11 @@ let initModel: WaveSimModel =
               |> Array.map ((fun (a,(b,c)) -> (a,b,c)) >> makeTimePointData)
           makeTrialData nbits1 s1 nbits2 s2 s3
 
-      waveNames = [| "try single Bit"; "try bus";"try states" |]
+      waveNames = [| 
+        "try single Bit"; 
+        "try bus"; 
+        "try states" 
+      |]
 
       posParams =
           { sigHeight = 0.5
@@ -47,7 +56,9 @@ let initModel: WaveSimModel =
             spacing = 0.5
             clkThick = 0.025 }
 
-      cursor = uint32 0 }
+      cursor = uint32 0
+    
+      radix = Bin }
 
 // SVG functions
 
@@ -56,6 +67,50 @@ let makeRect style attr = rect (List.append style attr) []
 let makeText style attr t = text (List.append style attr) [str t]
 let makeSvg style attr elements = svg (List.append style attr) elements
 let makeLinePoints style (x1, y1) (x2, y2) = makeLine style [ X1 x1; Y1 y1; X2 x2; Y2 y2 ]
+
+//radix change
+
+let dec2bin (n: bigint) (nBits: uint32) : string = //unsigned
+    let folder (state: bigint*char list) (digit: int) = 
+        if fst state / bigint digit = bigint 1
+            then (fst state - bigint digit, List.append (snd state) ['1'])
+            else (fst state , List.append (snd state) ['0'])
+    [float nBits-1.0..(-1.0)..0.0]
+    |> List.map ((fun exp -> 2.0**exp) >> (fun f -> int f))
+    |> List.fold folder (n, [])
+    |> snd |> List.toSeq |> Seq.map string |> String.concat ""
+
+let dec2hex (n: bigint) (nBits: uint32) : string = //2s complement
+    let seqPad = [1..(4 - int nBits % 4) % 4] |> List.map (fun _ -> '0')
+    let paddedBin = dec2bin n nBits |> Seq.toList |> List.append seqPad 
+    let fourBitToHexDig fourBit = 
+        match fourBit with
+        | ['0';'0';'0';'0'] -> '0'
+        | ['0';'0';'0';'1'] -> '1'
+        | ['0';'0';'1';'0'] -> '2'
+        | ['0';'0';'1';'1'] -> '3'
+        | ['0';'1';'0';'0'] -> '4'
+        | ['0';'1';'0';'1'] -> '5'
+        | ['0';'1';'1';'0'] -> '6'
+        | ['0';'1';'1';'1'] -> '7'
+        | ['1';'0';'0';'0'] -> '8'
+        | ['1';'0';'0';'1'] -> '9'
+        | ['1';'0';'1';'0'] -> 'A'
+        | ['1';'0';'1';'1'] -> 'B'
+        | ['1';'1';'0';'0'] -> 'C'
+        | ['1';'1';'0';'1'] -> 'D'
+        | ['1';'1';'1';'0'] -> 'E'
+        | ['1';'1';'1';'1'] -> 'F'
+        | _ -> 'N' // maybe should deal with exception differently
+    [0..4..int nBits - 1] 
+    |> List.map ((fun i -> paddedBin.[i..i + 3]) >> fourBitToHexDig)
+    |> List.toSeq |> Seq.map string |> String.concat ""
+
+let radixChange (n: bigint) (nBits: uint32) (rad: NumberBase) = 
+    match rad with
+    | Dec -> string n
+    | Bin -> dec2bin n nBits
+    | Hex -> dec2hex n nBits
 
 //auxiliary functions to the viewer function
 
@@ -100,20 +155,11 @@ let makeSegment (p: PosParamsType) (xInd: int) (yInd: int) ((data: Sample), (tra
         let topRight = makeSigLine (right, cen) (rightInner, top)
         let botRight = makeSigLine (right, cen) (rightInner, bot)
 
-        (*let busValText =
-            let attr: IProp list = [
-                X((left + right) / 2.0)
-                Y(bot - p.sigHeight * 0.1)
-                SVGAttr.FontSize(0.8 * p.sigHeight) 
-            ]
-            makeText busValueStyle attr (string data.bitData)*)
-
         match trans with
         | true, true -> [| topLeft; botLeft; topRight; botRight |]
         | true, false -> [| topLeft; botLeft |]
         | false, true -> [| topRight; botRight |]
         | false, false -> [||]
-        //|> Array.append [| busValText; topL; botL |]
         |> Array.append [| topL; botL |]
     //Probably should put other option for negative number which prints an error
 
@@ -124,8 +170,7 @@ let transitions (model: WaveSimModel) = //relies that the number of names is cor
     let diffArray (arr1, arr2) = 
         Array.zip arr1 arr2 |> Array.map (fun (a, b) -> a <> b)
     let transArr =
-        Array.zip model.waveData.[0..waveLen - 2] model.waveData.[1..waveLen - 1]
-        |> Array.map diffArray
+        Array.pairwise model.waveData |> Array.map diffArray
     Array.zip (Array.append trueArr transArr) (Array.append transArr trueArr)
     |> Array.map (fun (a, b) -> Array.zip a b)
 
@@ -143,7 +188,7 @@ let isNotSingleBit sample =
 let busTransVals (model: WaveSimModel) (transitions: (bool*bool) [] []) =
     let outTransAndValue (sample: {| t: bool; wD: Sample |}) : {| trans: bool; value: string [] |}  =
         match sample.wD with
-        | Wire s -> {| trans = sample.t; value = [| string s.bitData |]; |}
+        | Wire s -> {| trans = sample.t; value = [| radixChange s.bitData s.nBits model.radix |]; |}
         | StateSample s ->  {| trans = sample.t; value = s; |}
     let zipAndRemSingleBit (data: {| t: (bool*bool) []; wD: SimTime |}) = 
         Array.zip data.t data.wD
@@ -254,6 +299,20 @@ let button color func label =
         [ Button.Color color
           Button.OnClick func ] [ str label ]
 
+let cycleRadix model =
+    let newRadix = 
+        match model.radix with
+        | Dec -> Bin
+        | Bin -> Hex
+        | Hex -> Dec
+    StartWaveSim { model with radix = newRadix }
+
+let radixString rad =
+    match rad with
+    | Dec -> "dec"
+    | Bin -> "bin"
+    | Hex -> "hex"
+
 //view function of the waveform simulator
 
 let viewWaveSim (model: DiagramModelType.Model) dispatch =
@@ -275,6 +334,8 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
               button IsDanger (fun _ -> zoom false true simModel |> dispatch) "H Zoom -"
               button IsGrey (fun _ -> zoom true false simModel |> dispatch) "V Zoom +"
               button IsDanger (fun _ -> zoom false false simModel |> dispatch) "V Zoom -"
+              button IsGrey (fun _ -> cycleRadix simModel |> dispatch) ("Radix: " + radixString simModel.radix)
+
               hr []
 
               let p = simModel.posParams

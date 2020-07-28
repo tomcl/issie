@@ -76,6 +76,7 @@ type WaveSimModel = {
     posParams: PosParamsType
     cursor: uint32 
     radix: NumberBase
+    viewIndexes: uint32*uint32
 }
 
 (*type SigVals = 

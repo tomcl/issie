@@ -17,6 +17,88 @@ open DiagramMessageType
 open CommonTypes
 open PopupView
 
+/// Choose a good position to place the next component on the sheet based on where existing
+/// components are placed. One of 3 heuristics is chosen.
+//  Return (x,y) coordinates as accepted by draw2d.
+let getNewComponentPosition (model:Model) =
+
+    let maxX = 120
+    let maxY = 120
+    let sheetX = 1200
+    let sheetY = 1200
+    let meshPitch1 = 50
+    let meshPitch2 = 5
+
+    let componentPositions , boundingBox  =
+        let bbTopLeft = (0,0), (0,0)
+        match model.Diagram.GetCanvasState () with
+        | None -> 
+            printfn "No canvas detected!"
+            [0,0],bbTopLeft
+        | Some jsState ->
+            let comps,conns = Extractor.extractState jsState
+            let xyPos =
+                comps
+                |> List.map (fun co -> co.X,co.Y)
+            if xyPos = [] then 
+                [0,0],bbTopLeft // add default top left component to keep coe from breaking
+            else
+                let bbMin = List.minBy fst xyPos |> fst, List.minBy snd xyPos |> snd
+                let bbMax = List.maxBy fst xyPos |> fst , List.maxBy snd xyPos |> snd
+                xyPos, (bbMin, bbMax)
+    /// x value to choose for y offset heuristic
+    let xDefault =
+        componentPositions
+        |> List.minBy snd
+        |> fst
+        |> (fun x -> min x (sheetX - maxX))
+
+    /// y value to choose for x offset heuristic
+    let yDefault =
+        componentPositions
+        |> List.minBy fst
+        |> snd
+        |> (fun y -> min y (sheetY - maxY))
+
+    /// work out the minimum Euclidean distance between (x,y) and any existing component
+    /// not quite accurate since bounding boxes are not known, but good enough
+    let checkDistance (x,y) =
+        let euclidean (a, b) = 
+            (a-x)*(a-x) + (b-y)*(b-y)
+        componentPositions
+        |> List.minBy euclidean
+        |> euclidean
+ 
+    match boundingBox with
+    | (0,0),(0,0) -> 
+        // Place first component on empty sheet top middle
+        sheetX / 2, maxY
+    | _, (_,y) when y < sheetY - 2*maxY -> 
+        // if possible, align horizontally with vertical offset from lowest component
+        // this case will ensure components are stacked vertically (which is usually wanted)
+        xDefault, y + maxY
+    | _, (x,_) when x < sheetX - 2*maxX -> 
+        // if possible, next choice is align vertically with horizontal offset from rightmost component
+        // this case will stack component horizontally
+        x + maxX, yDefault
+    | _ ->
+        // try to find some free space anywhere on the sheet
+        // do a coarse search for largest Euclidean distance to any component's worst case bounding box
+        // TODO - extract better bounding boxes and use them
+        List.allPairs [maxX..meshPitch1..sheetX-maxX] [maxY..meshPitch1..sheetY-maxY]
+        |> List.maxBy checkDistance
+        |> (fun (xEst,yEst) ->
+                //now do the same thing locally with a narrower search pitch
+                List.allPairs [xEst - meshPitch1/2..meshPitch2..xEst + meshPitch1/2] [yEst - meshPitch1/2..meshPitch2..yEst + meshPitch1/2]
+                |> List.filter (fun (x,y) -> x > maxX && x < sheetX-maxX && y > maxY && y < sheetY-maxY) // delete anything too near edge
+                |> List.maxBy checkDistance)
+ 
+
+
+    
+
+        
+
 let private menuItem label onClick =
     Menu.Item.li
         [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick ] ]
@@ -43,8 +125,9 @@ let private makeCustomList model =
         |> List.map (makeCustom model)
 
 let private createComponent comp label model dispatch =
+    let x,y = getNewComponentPosition model
     let offset = model.CreateComponentOffset
-    model.Diagram.CreateComponent comp label (100+offset) (100+offset) |> ignore
+    model.Diagram.CreateComponent comp label x y |> ignore
     (offset + 50) % 200 |> SetCreateComponentOffset |> dispatch
     ReloadSelectedComponent model.LastUsedDialogWidth |> dispatch
 

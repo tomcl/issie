@@ -46,39 +46,44 @@ let private createComponent comp label model dispatch =
     let offset = model.CreateComponentOffset
     model.Diagram.CreateComponent comp label (100+offset) (100+offset) |> ignore
     (offset + 50) % 200 |> SetCreateComponentOffset |> dispatch
+    ReloadSelectedComponent model.LastUsedDialogWidth |> dispatch
 
-let private createIOPopup typeStr compType model dispatch =
+let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
     let title = sprintf "Add %s node" typeStr
     let beforeText =
         fun _ -> str <| sprintf "How do you want to name your %s?" typeStr
     let placeholder = "Component name"
     let beforeInt =
         fun _ -> str <| sprintf "How many bits should the %s node have?" typeStr
-    let intDefault = 1
-    let body = dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch
+    let intDefault = model.LastUsedDialogWidth
+    let body = 
+        match hasInt with
+        | true -> dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch
+        | false -> dialogPopupBodyOnlyText beforeText placeholder dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputText = getText dialogData
             let inputInt = getInt dialogData
-            createComponent (compType inputInt) inputText model dispatch
+            createComponent (compType inputInt) (formatLabelFromType (compType inputInt) inputText) model dispatch
+            if hasInt then dispatch (ReloadSelectedComponent inputInt)
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
             (getInt dialogData < 1) || (getText dialogData = "")
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
-let private createNbitsAdderPopup model dispatch =
+let private createNbitsAdderPopup (model:Model) dispatch =
     let title = sprintf "Add N bits adder"
     let beforeInt =
         fun _ -> str "How many bits should each operand have?"
-    let intDefault = 1
+    let intDefault = model.LastUsedDialogWidth
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
-            createComponent (NbitsAdder inputInt) "" model dispatch
+            createComponent (NbitsAdder inputInt) "" {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
@@ -100,11 +105,11 @@ let private createSplitWirePopup model dispatch =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
-let private createRegisterPopup regType model dispatch =
+let private createRegisterPopup regType (model:Model) dispatch =
     let title = sprintf "Add Register" 
     let beforeInt =
         fun _ -> str "How wide should the register be (in bits)?"
-    let intDefault = 1
+    let intDefault = model.LastUsedDialogWidth
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
@@ -118,7 +123,7 @@ let private createRegisterPopup regType model dispatch =
 
 let private createMemoryPopup memType model dispatch =
     let title = "Create memory"
-    let body = dialogPopupBodyMemorySetup dispatch
+    let body = dialogPopupBodyMemorySetup model.LastUsedDialogWidth dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
@@ -146,8 +151,9 @@ let viewCatalogue model dispatch =
     Menu.menu [] [
             makeMenuGroup
                 "Input / Output"
-                [ menuItem "Input"  (fun _ -> createIOPopup "input" Input model dispatch)
-                  menuItem "Output" (fun _ -> createIOPopup "output" Output model dispatch) ]
+                [ menuItem "Input"  (fun _ -> createIOPopup true "input" Input model dispatch)
+                  menuItem "Output" (fun _ -> createIOPopup true "output" Output model dispatch)
+                  menuItem "Wire Label" (fun _ -> createIOPopup false "label" (fun _ -> IOLabel) model dispatch)]
             makeMenuGroup
                 "Buses"
                 [ menuItem "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch)

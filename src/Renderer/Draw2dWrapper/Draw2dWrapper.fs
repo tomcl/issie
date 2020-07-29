@@ -130,7 +130,9 @@ let private createComponent
         | Xnor   -> draw2dLib.createDigitalXnor x y
         | Mux2   -> draw2dLib.createDigitalMux2 x y
         | Demux2 -> draw2dLib.createDigitalDemux2 x y
-        | NbitsAdder numberOfBits -> draw2dLib.createDigitalNbitsAdder x y numberOfBits
+        | NbitsAdder numberOfBits -> 
+            printfn "Adder width %d" numberOfBits
+            draw2dLib.createDigitalNbitsAdder x y numberOfBits
         | ComponentType.Custom custom ->
             draw2dLib.createDigitalCustom
                 x y custom.Name (fshaprListToJsList custom.InputLabels)
@@ -139,7 +141,9 @@ let private createComponent
         | SplitWire topWireWidth -> draw2dLib.createDigitalSplitWire x y topWireWidth
         | DFF  -> draw2dLib.createDigitalDFF x y
         | DFFE -> draw2dLib.createDigitalDFFE x y
-        | Register  width -> draw2dLib.createDigitalRegister x y width
+        | Register  width -> 
+            printfn "reg width=%d" width
+            draw2dLib.createDigitalRegister x y width
         | RegisterE width -> draw2dLib.createDigitalRegisterE x y width
         | AsyncROM mem ->
             draw2dLib.createDigitalAsyncROM
@@ -254,7 +258,7 @@ type Draw2dWrapper() =
     member this.InitCanvas newCanvas =
         match canvas with
         | None -> canvas <- Some newCanvas
-        | Some _ -> failwithf "what? InitCanvas should never be called when canvas is already created" 
+        | Some _ -> canvas <- Some newCanvas
     
     member this.ClearCanvas () =
         tryActionWithCanvas "ClearCanvas" draw2dLib.clearCanvas

@@ -98,6 +98,7 @@ and private feedReducerOutput
         : SimulationGraph =
     (graph, outputMap) ||> Map.fold (fun graph outPortNumber wireData ->
         match comp.Outputs.TryFind outPortNumber with
+        | None when comp.Type = IOLabel -> graph // special case, these components can generate output that is connected to nothing!
         | None -> failwithf "what? Reducer produced inexistent output portNumber %A in component %A" outPortNumber comp
         | Some targets ->
             // Trigger simulation step with the newly produced input in

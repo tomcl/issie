@@ -45,6 +45,7 @@ type private IDraw2d =
     abstract installSelectionPolicy       : comp:JSComponent -> unit
     abstract createDigitalInput           : x:int -> y:int -> numberOfBits:int -> JSComponent
     abstract createDigitalOutput          : x:int -> y:int -> numberOfBits:int -> JSComponent
+    abstract createDigitalLabel          : x:int -> y:int -> JSComponent
     abstract createDigitalNot             : x:int -> y:int -> JSComponent
     abstract createDigitalAnd             : x:int -> y:int -> JSComponent
     abstract createDigitalOr              : x:int -> y:int -> JSComponent
@@ -93,6 +94,8 @@ let private createAndInitialiseCanvas (id : string) : JSCanvas =
     draw2dLib.initialiseCanvas canvas
     canvas
 
+
+
 let private setPorts (ports : Port list) (jsPorts : JSPorts) : unit =
     let jsPortsLen : int = getFailIfNull jsPorts ["length"]
     if jsPortsLen <> ports.Length then failwithf "what? setPort called with mismatching number of ports"
@@ -117,6 +120,7 @@ let private createComponent
         match componentType with
         | Input w  -> draw2dLib.createDigitalInput x y w
         | Output w -> draw2dLib.createDigitalOutput x y w
+        | IOLabel -> draw2dLib.createDigitalLabel x y
         | Not    -> draw2dLib.createDigitalNot x y
         | And    -> draw2dLib.createDigitalAnd x y
         | Or     -> draw2dLib.createDigitalOr x y
@@ -147,7 +151,9 @@ let private createComponent
             draw2dLib.createDigitalRAM
                 x y mem.AddressWidth mem.WordWidth (fshaprListToJsList mem.Data)
     // Every component is assumed to have a label (may be empty string).
+
     draw2dLib.addComponentLabel comp label
+    
     // Set Id if one is provided.
     match maybeId with
     | None -> ()
@@ -184,7 +190,10 @@ let private editComponentLabel (canvas : JSCanvas) (id : string) (newLabel : str
     let jsComponent = draw2dLib.getComponentById canvas id
     if isNull jsComponent
     then failwithf "what? could not find diagram component with Id: %s" id
-    else jsComponent?children?data?(0)?figure?setText(newLabel)
+    else 
+        draw2dLib.setComponentLabel jsComponent newLabel
+        //jsComponent?children?data?(0)?figure?setText(newLabel)
+    
 
 // React wrapper.
 
@@ -217,6 +226,7 @@ type Draw2dWrapper() =
     let mutable canvas : JSCanvas option = None
     let mutable dispatch : (JSDiagramMsg -> unit) option = None
 
+    /// Executes action applied to the current Draw2d canvas
     let tryActionWithCanvas name action =
         match canvas with
         | None -> log <| sprintf "Warning: Draw2dWrapper.%s called when canvas is None" name

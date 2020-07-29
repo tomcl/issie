@@ -27,6 +27,7 @@ open WaveformSimulationView
 let init() = {
     Diagram = new Draw2dWrapper()
     SelectedComponent = None
+    LastUsedDialogWidth = 1
     Simulation = None
     WaveSim = None
     RightTab = Catalogue
@@ -101,7 +102,7 @@ let private runBusWidthInference model =
         let state = extractState jsState
         state |> inferConnectionsWidth |> function
         | Error e ->
-            // TODO: this makes the conent of the model.Higlighted inconsistent.
+            // TODO: this makes the content of the model.Higlighted inconsistent.
             // Need to dispatch SetHighlighted (can do by using mkProgram).
             e.ConnectionsAffected
             |> List.map (fun (BusTypes.ConnectionId c) -> model.Diagram.HighlightConnection c)
@@ -306,10 +307,10 @@ let update msg model =
         { model with Notifications = { model.Notifications with FromProperties = None} }
     | SetTopMenu t ->
         { model with TopMenu = t}    
-    | ReloadSelectedComponent ->
+    | ReloadSelectedComponent width ->
         match model.SelectedComponent with
-        | None -> model
+        | None -> {model with LastUsedDialogWidth = width}
         | Some comp ->
             match model.Diagram.GetComponentById comp.Id with
             | Error err -> failwith err
-            | Ok jsComp -> { model with SelectedComponent = Some <| extractComponent jsComp }
+            | Ok jsComp -> { model with SelectedComponent = Some <| extractComponent jsComp ; LastUsedDialogWidth=width}

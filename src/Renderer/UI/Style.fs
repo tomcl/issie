@@ -154,6 +154,7 @@ let cursValLblStyle: IProp list = [
 
 let waveLblDivStyle = Style [
     Float FloatOptions.Left
+    Clear ClearOptions.Both
     Width "20%"
 ]
 
@@ -187,4 +188,16 @@ let waveRightSmallDivStyle = Style [
     Width "100%"
     OverflowX OverflowOptions.Scroll
     Position PositionOptions.Absolute 
+]
+
+let cursorButtonStyle = Style [ 
+    Padding "3% 3%" 
+    Width "3%"
+    Position PositionOptions.Relative
+    Color "red"
+    Float FloatOptions.Left
+]
+
+let stdButtonStyle = Style [
+    Color "gray"
 ]

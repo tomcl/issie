@@ -193,7 +193,17 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 assertThat (bits.Length = width) <| sprintf "Output node reducer received wrong number of bits: expected %d but got %d" width bits.Length
                 notReadyReducerOutput NoState // Do nothing with it. Just make sure it is received.
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-    | IOLabel -> fun reducerInput -> notReadyReducerOutput NoState
+    | IOLabel -> 
+        fun reducerInput ->
+            assertNoClockTick reducerInput componentType
+            assertNotTooManyInputs reducerInput componentType 1
+            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
+            | None -> notReadyReducerOutput NoState // Wait for more inputs.
+            | Some [bits] ->
+                let out = Map.empty.Add (OutputPortNumber 0, bits)
+                makeReducerOutput NoState out
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+
     | Not ->
         fun reducerInput ->
             assertNoClockTick reducerInput componentType
@@ -552,15 +562,58 @@ let private buildSimulationComponent
         Reducer = getReducer comp.Type
     }
 
+let getLabelConnections (comps:Component list) (conns: Connection list) =
+    let labels = 
+        comps 
+        |> List.filter (fun co -> co.Type = IOLabel)
+
+    let compIdMap =
+        labels
+        |> List.map (fun co -> ComponentId co.Id, co)
+        |> Map.ofList
+
+    let getComp n = compIdMap.[n]
+
+    let targetMap =
+        conns
+        |> List.map (fun conn -> ComponentId conn.Target.HostId, conn)
+        |> Map.ofList
+
+    let getConnection (compTarget:Component) = targetMap.[ComponentId compTarget.Id]
+
+    let copyConnection (conn: Connection) (compTarget:Component) (tagNum:int) =
+        {conn with Target = compTarget.InputPorts.[0]; Id = sprintf "iolab%d" tagNum + conn.Id}
+
+    let getDriverConnection (comps: Component list) =
+        comps
+        |> List.tryFind (fun co -> (Map.tryFind (ComponentId co.Id) targetMap) <> None)
+        |> function 
+            | None -> failwithf "What? component cannot be found in %A" targetMap
+            | Some comp -> targetMap.[ComponentId comp.Id]
+
+    labels
+    |> List.groupBy (fun co -> co.Label)
+    |> List.collect (fun (lab,lst) -> 
+        let dConn = getDriverConnection lst
+        lst
+        |> List.filter (fun co -> co.Id <> dConn.Target.HostId)
+        |> List.indexed
+        |> List.map (fun (i, co) -> copyConnection dConn co i))
+
+
+
 /// Transforms a canvas state into a simulation graph.
-let private buildSimulationGraph (canvasState : CanvasState) : SimulationGraph =
-    let components, connections = canvasState
+let private buildSimulationGraph (canvasState : CanvasState) : (SimulationGraph) =
+    let components, connections' = canvasState
+    let labConns = getLabelConnections components connections'
+    let connections = labConns @ connections'
     let sourceToTargetPort = buildSourceToTargetPortMap connections
     let portIdToPortNumber = mapInputPortIdToPortNumber components
     let mapper = buildSimulationComponent sourceToTargetPort portIdToPortNumber
     components
     |> List.map (fun comp -> ComponentId comp.Id, mapper comp)
     |> Map.ofList
+    |> (fun m -> m)
 
 /// Validate a diagram and generate its simulation graph.
 let runCanvasStateChecksAndBuildGraph

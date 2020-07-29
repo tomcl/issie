@@ -235,11 +235,9 @@ let private countPortsConnections
         | conn :: conns' ->
             let countsRes =
                 let key = connMap conn
-                printfn "1: counts=%A\n key=%A" (counts |> Map.toList) key
                 let binCount, binConns = counts.[key]
                 counts.Add( key, (binCount + 1, conn :: binConns))
             countPortsConnections' conns' countsRes
-    printfn "2: Conns:%A\nBins:%A\n" conns bins
     countPortsConnections' conns (bins |> List.map (fun b -> b,(0,[])) |> Map.ofList)
 
 

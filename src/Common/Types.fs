@@ -76,7 +76,7 @@ type Component = {
 }
 
 /// JSConnection mapped to F# record.
-/// Id uniquely identifies connection within one sheet and is used by library.
+/// Id uniquely identifies connection globally and is used by library.
 type Connection = {
     Id : string
     Source : Port

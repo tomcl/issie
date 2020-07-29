@@ -24,6 +24,44 @@ open DiagramModelType
 open CommonTypes
 open DiagramStyle
 
+//=======//
+//HELPERS//
+//=======//
+
+let extractLabelBase (text:string) : string =
+    text.ToUpper()
+    |> Seq.takeWhile (fun ch -> ch <> '(')
+    |> Seq.filter System.Char.IsLetterOrDigit
+    |> Seq.map (fun ch -> ch.ToString())
+    |> String.concat ""
+
+let formatLabelAsBus (width:int) (text:string) =
+    let text' = extractLabelBase text
+    match width with
+    | 1 -> text'
+    | _ -> sprintf "%s(%d:%d)" text' (width-1) 0
+   
+
+let formatLabelFromType compType (text:string) =
+    let text' = extractLabelBase text
+    match compType with
+    | Input 1 | Output 1 -> text'
+    | Input width | Output width -> sprintf "%s(%d:%d)" text' (width-1) 0
+    | _ -> text'
+
+
+let formatLabel comp (text:string) =
+    formatLabelFromType comp.Type (text:string)
+
+let setComponentLabel model comp text =
+    let label = formatLabel comp text
+    printf "Setting label %s" label
+    model.Diagram.EditComponentLabel comp.Id label
+
+let setComponentLabelFromText model (comp:Component) text =
+    printf "Setting label %s" text
+    model.Diagram.EditComponentLabel comp.Id text
+
 //========//
 // Popups //
 //========//
@@ -100,6 +138,7 @@ let dialogPopupBodyOnlyText before placeholder dispatch =
         div [] [
             before dialogData
             Input.text [
+                Input.Props [AutoFocus true]
                 Input.Placeholder placeholder
                 Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
             ]
@@ -112,7 +151,7 @@ let dialogPopupBodyOnlyInt beforeInt intDefault dispatch =
             beforeInt dialogData
             br []
             Input.number [
-                Input.Props [Style [Width "60px"]]
+                Input.Props [Style [Width "60px"]; AutoFocus true]
                 Input.DefaultValue <| sprintf "%d" intDefault
                 Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
             ]
@@ -124,6 +163,7 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
         div [] [
             beforeText dialogData
             Input.text [
+                Input.Props [AutoFocus true]
                 Input.Placeholder placeholder
                 Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
             ]
@@ -140,7 +180,7 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
 
 /// Create the body of a memory dialog popup: asks for AddressWidth and
 /// WordWidth, two integers.
-let dialogPopupBodyMemorySetup dispatch =
+let dialogPopupBodyMemorySetup intDefault dispatch =
     fun (dialogData : PopupDialogData) ->
         let addressWidth, wordWidth = getMemorySetup dialogData
         div [] [
@@ -149,7 +189,7 @@ let dialogPopupBodyMemorySetup dispatch =
             str <| sprintf "%d bits yield %d memory locations." addressWidth (pow2int64 addressWidth)
             br []
             Input.number [
-                Input.Props [Style [Width "60px"]]
+                Input.Props [Style [Width "60px"] ; AutoFocus true]
                 Input.DefaultValue "1"
                 Input.OnChange (getIntEventValue >> fun newAddrWidth ->
                     Some (newAddrWidth, wordWidth) 
@@ -162,7 +202,7 @@ let dialogPopupBodyMemorySetup dispatch =
             br []
             Input.number [
                 Input.Props [Style [Width "60px"]]
-                Input.DefaultValue "1"
+                Input.DefaultValue (sprintf "%d" intDefault)
                 Input.OnChange (getIntEventValue >> fun newWordWidth ->
                     Some (addressWidth, newWordWidth) 
                     |> SetPopupDialogMemorySetup |> dispatch

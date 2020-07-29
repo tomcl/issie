@@ -18,35 +18,7 @@ open CommonTypes
 open MemoryEditorView
 open PopupView
 
-let extractLabelBase (text:string) : string =
-    text.ToUpper()
-    |> Seq.takeWhile (fun ch -> ch <> '(')
-    |> Seq.filter System.Char.IsLetterOrDigit
-    |> Seq.map (fun ch -> ch.ToString())
-    |> String.concat ""
 
-let formatLabelAsBus (width:int) (text:string) =
-    let text' = extractLabelBase text
-    match width with
-    | 1 -> text'
-    | _ -> sprintf "%s(%d:%d)" text' (width-1) 0
-   
-
-let formatLabel comp (text:string) =
-    let text' = extractLabelBase text
-    match comp.Type with
-    | Input 1 | Output 1 -> text'
-    | Input width | Output width -> sprintf "%s(%d:%d)" text' (width-1) 0
-    | _ -> text'
-
-let setComponentLabel model comp text =
-    let label = formatLabel comp text
-    printf "Setting label %s" label
-    model.Diagram.EditComponentLabel comp.Id label
-
-let setComponentLabelFromText model (comp:Component) text =
-    printf "Setting label %s" text
-    model.Diagram.EditComponentLabel comp.Id text
 
 let private readOnlyFormField name body =
     Field.div [] [
@@ -104,10 +76,10 @@ let private makeNumberOfBitsField model comp text setter dispatch =
                 |> SetPropertiesNotification |> dispatch
             else
                 setter comp.Id newWidth // change the JS component
-                printfn "new width = %d" newWidth
                 let text' = formatLabelAsBus newWidth text
                 setComponentLabelFromText model comp text' // change the JS component label
-                dispatch ReloadSelectedComponent // reload the new component
+                let lastUsedWidth = match comp.Type with | SplitWire _ -> model.LastUsedDialogWidth | _ ->  newWidth
+                dispatch (ReloadSelectedComponent (lastUsedWidth)) // reload the new component
                 dispatch ClosePropertiesNotification
     )
 
@@ -175,15 +147,12 @@ let viewSelectedComponent model dispatch =
     match model.SelectedComponent with
     | None -> div [] [ str "Select a component in the diagram to view/edit its properties." ]
     | Some comp ->
-        printfn "Comp=%A %A" comp.Type comp.Label
-
         div [Key comp.Id] [
             let label' = extractLabelBase comp.Label
             readOnlyFormField "Description" <| makeDescription comp model dispatch
             makeExtraInfo model comp label' dispatch
             textFormField "Label" label' (fun text -> 
-                printfn "dispatch text=%A, compType=%A" text comp.Type
                 setComponentLabel model comp (formatLabel comp text)
-                dispatch ReloadSelectedComponent // reload the new component
+                dispatch (ReloadSelectedComponent model.LastUsedDialogWidth) // reload the new component
                 )
         ]

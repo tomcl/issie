@@ -44,13 +44,46 @@ type KeyboardShortcutMsg =
     | CtrlS | AltC | AltV | AltZ | AltShiftZ
 
 // WaveSim types 
-type SigVals = 
+
+type WaveName = string
+
+type Wire = {
+    nBits: uint32
+    bitData: bigint 
+}
+
+type StateSample = string array
+
+type Sample = | Wire of Wire | StateSample of StateSample
+
+type SimTime = Sample array
+
+type PosParamsType = {
+    sigHeight: float
+    hPos: uint
+    clkWidth: float
+    labelWidth: uint
+    sigThick: float
+    boxWidth: uint
+    boxHeight: uint
+    spacing: float
+    clkThick: float 
+}
+
+type WaveSimModel = {
+    waveData: SimTime array
+    waveNames: WaveName array
+    posParams: PosParamsType
+    cursor: uint32 
+    radix: NumberBase
+    viewIndexes: uint32*uint32
+}
+
+(*type SigVals = 
     | OneBitSig of Bit list
     | ManyBitSig of uint list
 
 type Signal =  string * SigVals
-
-type PosParams = {vPos: uint ; vSize: float; hPos: uint; hSize: float; hNameSize: uint; hValSize: uint; sigThick: float; hBoxSize: uint; vBoxSize: uint; spacing: float}
 
 type Wave = 
     {
@@ -63,7 +96,7 @@ type WaveSimModel =
         waves: Wave list
         viewParams: PosParams
         sigLimits: uint * uint
-    }
+    }*)
 
 type Msg =
     | JSDiagramMsg of JSDiagramMsg

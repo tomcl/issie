@@ -322,10 +322,8 @@ let zoom plus horizontal (m: WaveSimModel) =
     | true -> { m with posParams = { m.posParams with clkWidth = m.posParams.clkWidth * multBy } }
     |> StartWaveSim
 
-let button color func label =
-    Button.button
-        [ Button.Color color
-          Button.OnClick func ] [ str label ]
+let button style func label =
+    Button.button (List.append [Button.Props [style]] [Button.OnClick func]) [ str label ]
 
 let cycleRadix model =
     let newRadix = 
@@ -354,26 +352,31 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
     let startWaveSim() = StartWaveSim initModel |> dispatch
 
     match model.WaveSim with
-    | None -> div [] [ button IsSuccess (fun _ -> startWaveSim()) "Start waveform simulator" ]
+    | None -> div [] [ button stdButtonStyle (fun _ -> startWaveSim()) "Start waveform simulator" ]
     | Some simModel ->
         let endWaveSim _ =
             dispatch CloseWaveSimNotification // Copied this, don't know if necessary + it's not doing anything now I think
             dispatch EndWaveSim         
 
         div []
-            [ button IsDanger endWaveSim "Close waveform simulator"
+            [ button stdButtonStyle endWaveSim "Close waveform simulator"
               div []
                   [ Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ]
                         [ str "The simulator uses the diagram at the time of pressing the button" ] ]
-              button IsGrey (fun _ -> zoom true true simModel |> dispatch) "H Zoom +"
-              button IsDanger (fun _ -> zoom false true simModel |> dispatch) "H Zoom -"
-              button IsGrey (fun _ -> zoom true false simModel |> dispatch) "V Zoom +"
-              button IsDanger (fun _ -> zoom false false simModel |> dispatch) "V Zoom -"
-              button IsGrey (fun _ -> cycleRadix simModel |> dispatch) ("Radix: " + radixString simModel.radix)
-              button IsDanger (fun _ -> cursorMove true simModel |> dispatch) ("Curs + (" + string simModel.cursor + ")")
-              button IsGrey (fun _ -> cursorMove false simModel |> dispatch) "Curs -"
 
               hr []
+
+              div []
+                  [ label [Style [Float FloatOptions.Left]] [str "H Zoom"]
+                    button cursorButtonStyle (fun _ -> zoom true true simModel |> dispatch) "+"
+                    button cursorButtonStyle (fun _ -> zoom false true simModel |> dispatch) "-"
+                    label [Style [Float FloatOptions.Left]] [str "V Zoom"]
+                    button cursorButtonStyle (fun _ -> zoom true false simModel |> dispatch) "+"
+                    button cursorButtonStyle (fun _ -> zoom false false simModel |> dispatch) "-" 
+                    button stdButtonStyle (fun _ -> cycleRadix simModel |> dispatch) ("Radix: " + radixString simModel.radix)
+                    label [Style [Float FloatOptions.Left]] [str "Cursor"]
+                    button cursorButtonStyle (fun _ -> cursorMove true simModel |> dispatch) "+"
+                    button cursorButtonStyle (fun _ -> cursorMove false simModel |> dispatch) "-"  ]
 
               let p = simModel.posParams
               let appInv a b = b + a
@@ -401,11 +404,12 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
 
               let (lblSvg, boxSvg, wfrmSvg, cursorValuesSvg) = displaySvg simModel
 
-              div [ waveLblDivStyle ] [ makeSvg waveLblSvgStyle [labelVB] lblSvg ]
-              div
-                  [ waveContDivStyle ]
-                  [ makeSvg boxSvgStyle [boxVB] boxSvg
+              div []
+                  [ div [ waveLblDivStyle ] [ makeSvg waveLblSvgStyle [labelVB] lblSvg ]
                     div
-                        [ waveRightSmallDivStyle ]
-                        [ makeSvg [unbox ("width", VBwidthPercentage)] [wavesVB] wfrmSvg ] ] 
-              div [ cursorDivStyle ] [ makeSvg cursorDivSvgStyle [cursorValuesVB] cursorValuesSvg ] ]
+                        [ waveContDivStyle ]
+                        [ makeSvg boxSvgStyle [boxVB] boxSvg
+                          div
+                              [ waveRightSmallDivStyle ]
+                              [ makeSvg [unbox ("width", VBwidthPercentage)] [wavesVB] wfrmSvg ] ] 
+                    div [ cursorDivStyle ] [ makeSvg cursorDivSvgStyle [cursorValuesVB] cursorValuesSvg ] ] ]

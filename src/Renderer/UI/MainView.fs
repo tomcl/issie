@@ -312,5 +312,5 @@ let update msg model =
         | None -> {model with LastUsedDialogWidth = width}
         | Some comp ->
             match model.Diagram.GetComponentById comp.Id with
-            | Error err -> failwith err
+            | Error err -> {model with LastUsedDialogWidth=width}
             | Ok jsComp -> { model with SelectedComponent = Some <| extractComponent jsComp ; LastUsedDialogWidth=width}

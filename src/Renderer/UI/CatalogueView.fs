@@ -83,6 +83,7 @@ let private createNbitsAdderPopup (model:Model) dispatch =
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
+            printfn "creating adder %d" inputInt
             createComponent (NbitsAdder inputInt) "" {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
@@ -115,6 +116,7 @@ let private createRegisterPopup regType (model:Model) dispatch =
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
+            printfn "Reg inutInt=%d" inputInt
             createComponent (regType inputInt) "" model dispatch
             dispatch ClosePopup
     let isDisabled =

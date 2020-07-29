@@ -96,28 +96,95 @@ let menuLabelStyle = Style [
 ]
 
 //Waveform simulator styles
-type Point = float * float
 
-type LineParams =
-    {
-        pointA: Point
-        pointB: Point
-        colour: string
-        thickness: float
-    }
+let transLen = 0.1
+let vPos = 0.0
+let zoomFactor = 1.2
+let waveVBextraHeight = 0.5
+let maxBusValGap = 3
+let busLabelTextSize = 0.6 // multiplied by signal height
+let waveBoxPercWidth : float = 73.0
+let clkLineWidth = 0.0125
+let boxStrokeThck = 0.05
 
-let dfltSigLine = 
-    {
-        pointA =  0.0, 0.0
-        pointB =  0.0, 0.0
-        colour = "blue"
-        thickness = 0.05
-    }
+let sigLineStyle: IProp list = [
+    SVGAttr.Stroke "blue"
+    SVGAttr.StrokeWidth 0.025
+]
 
-let boxLine = 
-    {
-        pointA =  0.0, 0.0
-        pointB =  0.0, 0.0
-        colour = "black"
-        thickness = 0.1
-    }
+let clkLineStyle: IProp list = [
+    SVGAttr.Stroke "rgb(200,200,200)"
+    SVGAttr.StrokeWidth clkLineWidth
+]
+
+let boxLineStyle: IProp list = [ 
+    X "0"
+    Y vPos
+    SVGAttr.Width (waveBoxPercWidth / 10.0)
+    SVGAttr.Stroke "black"
+    SVGAttr.Fill "white"
+    SVGAttr.StrokeWidth boxStrokeThck
+]
+
+let cursorRectStyle: IProp list = [
+    Y (vPos + boxStrokeThck / 2.0)
+    SVGAttr.Width (waveBoxPercWidth / 10.0)
+    SVGAttr.Stroke "black"
+    SVGAttr.Fill "rgb(220,220,220)"
+    SVGAttr.StrokeWidth 0.0
+    SVGAttr.FillOpacity 5.0
+]
+
+let busValueStyle: IProp list = [
+    SVGAttr.Fill "black"
+    SVGAttr.TextAnchor "middle"
+]
+
+let waveLblStyle: IProp list = [
+    X 0.0
+    SVGAttr.Fill "black"
+    SVGAttr.TextAnchor "start"
+]
+
+let cursValLblStyle: IProp list = [
+    X 0.0
+    SVGAttr.Fill "black"
+    SVGAttr.TextAnchor "start"
+]
+
+let waveLblDivStyle = Style [
+    Float FloatOptions.Left
+    Width "20%"
+]
+
+let waveLblSvgStyle: IProp list = [
+    unbox ("width", "100%")
+]
+
+let waveContDivStyle = Style [
+    Float FloatOptions.Left
+    Width (string waveBoxPercWidth + "%")
+    Position PositionOptions.Relative 
+]
+
+let cursorDivStyle = Style [
+    Float FloatOptions.Right
+    Width "5%"
+    Position PositionOptions.Relative
+]
+
+let cursorDivSvgStyle: IProp list = [
+    unbox ("width", "100%")
+]
+
+let boxSvgStyle: IProp list = [
+    Style [ Position PositionOptions.Absolute ]
+    unbox ("width", "100%")
+    unbox ("y", "0")
+]
+
+let waveRightSmallDivStyle = Style [ 
+    Width "100%"
+    OverflowX OverflowOptions.Scroll
+    Position PositionOptions.Absolute 
+]

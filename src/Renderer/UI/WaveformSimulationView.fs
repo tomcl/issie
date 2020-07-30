@@ -121,7 +121,7 @@ let makeLabel (p: PosParamsType) (ind: int) label =
                              SVGAttr.FontSize (p.sigHeight * 0.6) ] 
     makeText waveLblStyle attr label
 
-let makeSegment (p: PosParamsType) (xInd: int) (yInd: int) ((data: Sample), (trans: bool * bool)) =
+let makeSegment (p: PosParamsType) (yInd: int) (xInd: int)  ((data: Sample), (trans: int * int)) =
     let bot = (p.spacing + p.sigHeight) * (float yInd + 1.0)
     let top = bot - p.sigHeight
     let left = float xInd * p.clkWidth
@@ -138,14 +138,17 @@ let makeSegment (p: PosParamsType) (xInd: int) (yInd: int) ((data: Sample), (tra
         // TODO: define DU so that you can't have values other than 0 or 1
         let sigLine = makeSigLine (left, y) (right, y)
         match snd trans with
-        | true -> [| makeSigLine (right, bot + p.sigThick / 2.0) (right, top - p.sigThick / 2.0) |]
-        | false -> [||]
+        | 1 -> [| makeSigLine (right, bot + p.sigThick / 2.0) (right, top - p.sigThick / 2.0) |]
+        | 0 -> [||]
+        | _ -> 
+            "What? Transition has value other than 0 or 1" |> ignore
+            [||]
         |> Array.append [| sigLine |]
     | _ ->
         let leftInner =
-            if fst trans then left + transLen else left
+            if fst trans = 1 then left + transLen else left
         let rightInner =
-            if snd trans then right - transLen else right
+            if snd trans = 1 then right - transLen else right
 
         let cen = (top + bot) / 2.0
 
@@ -158,83 +161,60 @@ let makeSegment (p: PosParamsType) (xInd: int) (yInd: int) ((data: Sample), (tra
         let botRight = makeSigLine (right, cen) (rightInner, bot)
 
         match trans with
-        | true, true -> [| topLeft; botLeft; topRight; botRight |]
-        | true, false -> [| topLeft; botLeft |]
-        | false, true -> [| topRight; botRight |]
-        | false, false -> [||]
+        | 1, 1 -> [| topLeft; botLeft; topRight; botRight |]
+        | 1, 0 -> [| topLeft; botLeft |]
+        | 0, 1 -> [| topRight; botRight |]
+        | 0, 0 -> [||]
+        | _ -> 
+            "What? Transition has value other than 0 or 1" |> ignore
+            [||]
         |> Array.append [| topL; botL |]
     //Probably should put other option for negative number which prints an error
 
+let model2WaveList model : Waveform [] =
+    let folder state (simT: SimTime) : Waveform [] =
+        Array.zip state simT
+        |> Array.map (fun (arr,sample) -> Array.append arr [| sample |])
+    let initState = Array.map (fun _ -> [||]) model.waveNames
+    Array.fold folder initState model.waveData
 
 let transitions (model: WaveSimModel) = //relies that the number of names is correct (= length of elements in waveData
-    let waveLen = Array.length model.waveData
-    let trueArr = [| Array.map (fun _ -> true) [| 1 .. Array.length model.waveNames |] |]
-    let diffArray (arr1, arr2) = 
-        Array.zip arr1 arr2 |> Array.map (fun (a, b) -> a <> b)
-    let transArr =
-        Array.pairwise model.waveData |> Array.map diffArray
-    Array.zip (Array.append trueArr transArr) (Array.append transArr trueArr)
-    |> Array.map (fun (a, b) -> Array.zip a b)
-
+    let isDiff (ws1,ws2) =
+        let folder state (e1,e2) =
+            match state, e1 = e2 with
+            | 0, true -> 0
+            | _ -> 1
+        match ws1, ws2 with 
+        | Wire a, Wire b -> if a.bitData = b.bitData then 0 else 1
+        | StateSample a, StateSample b when Array.length a = Array.length b -> 
+            Array.zip a b |> Array.fold folder 0
+        | _ -> 1
+    let trans (wave: Waveform) = 
+        Array.pairwise wave |> Array.map isDiff
+    model2WaveList model |> Array.map trans 
 
 // functions for bus labels
 
-type gapMakeState = {| start: int; finish: int; value: string [] |}
-type gapMakeInput = {| trans: bool; value: string [] |}
+let makeGaps trans =
+    Array.append trans [| 1 |] 
+    |> Array.mapFold (fun tot t -> tot, tot + t) 0
+    |> fst
+    |> Array.indexed
+    |> Array.groupBy snd
+    |> Array.map (fun (_, gL) -> 
+                    let times = Array.map fst gL
+                    {| GapLen=Array.max times - Array.min times + 1; GapStart=Array.min times|})
 
-let isNotSingleBit sample =
-    match sample with
-    | Wire w -> w.nBits > uint 1
-    | StateSample _ -> true
-
-let busTransVals (model: WaveSimModel) (transitions: (bool*bool) [] []) =
-    let outTransAndValue (sample: {| t: bool; wD: Sample |}) : {| trans: bool; value: string [] |}  =
-        match sample.wD with
-        | Wire s -> {| trans = sample.t; value = [| radixChange s.bitData s.nBits model.radix |]; |}
-        | StateSample s ->  {| trans = sample.t; value = s; |}
-    let zipAndRemSingleBit (data: {| t: (bool*bool) []; wD: SimTime |}) = 
-        Array.zip data.t data.wD
-        |> Array.mapi (fun i (t,wD) -> {| t = fst t; wD = wD |})
-        |> Array.filter (fun r -> isNotSingleBit r.wD)
-        |> Array.map outTransAndValue
-    Array.zip transitions model.waveData
-    |> Array.map ((fun (t,wD) -> {| t = t; wD = wD |}) >> zipAndRemSingleBit)
-
-let gapMake (state: gapMakeState [] []) (tupArr: gapMakeInput []) : gapMakeState [] [] =
-    let updateState ((sArr: gapMakeState []), (dataTup: gapMakeInput)) =
-        let sArrLast = sArr.[Array.length sArr - 1]
-        match sArr, dataTup.trans with
-        | [||], _ ->
-            [| {| start = 0; finish = 1; value = dataTup.value |} |]
-        | _, true ->
-            Array.append 
-                sArr 
-                [| {| start = sArrLast.finish; finish = sArrLast.finish + 1; value = dataTup.value |} |]
-        | _, false ->
-            Array.append 
-                sArr.[0..Array.length sArr-2] 
-                [| {| start = sArrLast.start; finish = sArrLast.finish + 1; value = dataTup.value |} |]
-    Array.map updateState <| Array.zip state tupArr
-
-let busLabels (model: WaveSimModel) (transitions: (bool*bool) [] []) = 
-    match busTransVals model transitions with
-    | [||] ->
-        [||]
-    | b ->      
-        let busYind = 
-            Array.zip model.waveData.[0] [| 0..Array.length model.waveNames - 1 |]
-            |> Array.filter (fun (w,_) -> isNotSingleBit w)
-            |> Array.map (fun (w,ind) -> ind)
-        let initState = Array.map (fun _ -> [||]) b.[0] // relies on all elements having same length
-        let fromGapsToPositions (constValSection: gapMakeState) = 
-            let gap = constValSection.finish - constValSection.start
-            let nSpaces = float (gap / (maxBusValGap + 1) + 2)
-            Array.map (fun i -> float constValSection.start + float gap / nSpaces * float i, constValSection.value) [| 1.0..nSpaces - 1.0 |]
-        let lblData = 
-            Array.fold gapMake initState b
-            |> Array.map (fun arr -> Array.collect fromGapsToPositions arr)
-        Array.zip busYind lblData
-        |> Array.map (fun (yInd, xAndStringArr) -> {| yInd = yInd; xIndAndLabels = xAndStringArr |})
+let busLabels model = 
+    let gaps2pos (wave:Waveform,gaps) = 
+        let nSpaces (g:{|GapLen:int; GapStart:int|}) = (g.GapLen / (maxBusValGap + 1) + 2)
+        let gapAndInd2Pos (g:{|GapLen:int; GapStart:int|}) i = 
+            float g.GapStart + float i * float g.GapLen / float (nSpaces g)
+        gaps
+        |> Array.map (fun (gap:{|GapLen:int; GapStart:int|}) -> wave.[gap.GapStart], Array.map (gapAndInd2Pos gap) [| 1..nSpaces gap - 1 |])
+    (model2WaveList model, Array.map makeGaps (transitions model))
+    ||> Array.zip
+    |> Array.map gaps2pos
 
 let makeCursVals (m: WaveSimModel) =
    let p = m.posParams
@@ -265,19 +245,15 @@ let displaySvg (model: WaveSimModel) =
 
     //container box and clock lines
     let backgroundSvg =
-        let top = vPos
-        let bot = top + float p.boxHeight
-        let waveLen = Array.length model.waveData |> float
-
-        let clkLine x = makeLinePoints clkLineStyle (x, top) (x, bot)
+        let clkLine x = makeLinePoints clkLineStyle (x, vPos) (x, vPos + float p.boxHeight)
         let clkLines =
-            [| 1 .. 1 .. (int (waveLen / p.clkWidth) + 1) |] |> Array.map ((fun x -> float x * p.clkWidth) >> clkLine)
-        let simBox = [| makeRect boxLineStyle [Y top; SVGAttr.Height (bot-top)] |]
+            [| 1 .. 1 .. Array.length model.waveData |] |> Array.map ((fun x -> float x * p.clkWidth) >> clkLine)
+        let simBox = [| makeRect boxLineStyle [Y vPos; SVGAttr.Height (float p.boxHeight)] |]
         clkLines, simBox
 
     // waveforms
     let waveSvg =
-        let addLabel nLabels yInd xInd i lbl = 
+        let addLabel nLabels yInd xInd (i: int) lbl = 
             let attr: IProp list = [
                 X (xInd * p.clkWidth)
                 Y ((p.spacing + p.sigHeight) * (float yInd + 1.0) - p.sigHeight * 0.3 + 0.3 * p.sigHeight * (float i - (float nLabels - 1.0) / 2.0))
@@ -285,17 +261,23 @@ let displaySvg (model: WaveSimModel) =
             ]
             makeText busValueStyle attr lbl
 
-        let valueLabels = 
-            let lblEl (yInd: int) ((xInd: float), (lblArr: string [])) =
-                Array.mapi (addLabel (Array.length lblArr) yInd xInd) lblArr
-            busLabels model (transitions model)
-            |> Array.collect (fun row -> Array.collect (lblEl row.yInd) row.xIndAndLabels) 
-
         let mapiAndCollect func = Array.mapi func >> Array.collect id
-        let makeWaveSvgCol xInd = mapiAndCollect (makeSegment p xInd)
-        Array.zip model.waveData (transitions model)
-        |> Array.map (fun (arr1, arr2) -> Array.zip arr1 arr2)
-        |> mapiAndCollect makeWaveSvgCol
+
+        let valueLabels = 
+            let lblEl (yInd: int) (sample, xIndArr) = 
+                match sample with 
+                | Wire w when w.nBits > uint 1 -> Array.map (fun xInd -> addLabel 1 yInd xInd 0 (string w.bitData)) xIndArr
+                | StateSample ss -> Array.collect (fun xInd -> Array.mapi (addLabel (Array.length ss) yInd xInd) ss) xIndArr
+                | _ -> [| |]
+            busLabels model
+            |> mapiAndCollect (fun yInd row -> Array.collect (lblEl yInd) row) 
+
+        let makeWaveSvg yInd = mapiAndCollect (makeSegment p yInd)
+        let padTrans (t: (int*int) []) = Array.append (Array.append [| 1, fst t.[0] |] t) [| snd t.[Array.length t - 1], 1 |]
+        (model2WaveList model, transitions model)
+        ||> Array.zip 
+        |> Array.map (fun (wave, transRow) -> Array.zip wave (padTrans (Array.pairwise transRow)))
+        |> mapiAndCollect makeWaveSvg
         |> Array.append valueLabels
         |> Array.append (makeCursRect model)
 

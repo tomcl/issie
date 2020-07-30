@@ -58,6 +58,8 @@ type Sample = | Wire of Wire | StateSample of StateSample
 
 type SimTime = Sample array
 
+type Waveform = Sample array
+
 type PosParamsType = {
     sigHeight: float
     hPos: uint

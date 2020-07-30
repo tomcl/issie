@@ -22,7 +22,7 @@ open Electron.Helpers
 #if DEBUG
 let mutable debugLevel = 1
 #else
-let mutable debuglevel = 1
+let mutable debugLevel = 1
 #endif
 
 /// Hack to provide a constant global variable

@@ -146,6 +146,7 @@ let dialogPopupBodyOnlyText before placeholder dispatch =
 
 /// Create the body of a dialog Popup with only an int.
 let dialogPopupBodyOnlyInt beforeInt intDefault dispatch =
+    intDefault |> Some |> SetPopupDialogInt |> dispatch
     fun (dialogData : PopupDialogData) ->
         div [] [
             beforeInt dialogData
@@ -159,6 +160,7 @@ let dialogPopupBodyOnlyInt beforeInt intDefault dispatch =
 
 /// Create the body of a dialog Popup with both text and int.
 let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch =
+    intDefault |> Some |> SetPopupDialogInt |> dispatch
     fun (dialogData : PopupDialogData) ->
         div [] [
             beforeText dialogData
@@ -181,6 +183,8 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
 /// Create the body of a memory dialog popup: asks for AddressWidth and
 /// WordWidth, two integers.
 let dialogPopupBodyMemorySetup intDefault dispatch =
+    Some (4, intDefault) 
+    |> SetPopupDialogMemorySetup |> dispatch
     fun (dialogData : PopupDialogData) ->
         let addressWidth, wordWidth = getMemorySetup dialogData
         div [] [
@@ -190,7 +194,7 @@ let dialogPopupBodyMemorySetup intDefault dispatch =
             br []
             Input.number [
                 Input.Props [Style [Width "60px"] ; AutoFocus true]
-                Input.DefaultValue "1"
+                Input.DefaultValue (sprintf "%d" 4)
                 Input.OnChange (getIntEventValue >> fun newAddrWidth ->
                     Some (newAddrWidth, wordWidth) 
                     |> SetPopupDialogMemorySetup |> dispatch

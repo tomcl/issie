@@ -18,7 +18,12 @@ open Electron.Helpers
 *                                  MENU HELPER FUNCTIONS
 *
 ****************************************************************************************************)
-let mutable debugLevel = 0
+
+#if DEBUG
+let mutable debugLevel = 1
+#else
+let mutable debugLevel = 1
+#endif
 
 /// Hack to provide a constant global variable
 /// set from command line arguments of main process.
@@ -30,10 +35,12 @@ let setDebugLevel() =
         |> List.tail
         |> List.map (fun s -> s.ToLower())
     let isArg s = List.contains s argV
-    debugLevel <-
-        if isArg "--debug" || isArg "-d" then 2
-        elif isArg "-w" then 1
-        else 0
+
+    if isArg "--debug" || isArg "-d" then
+        debugLevel <- 2
+    elif isArg "-w" then
+        debugLevel <- 1
+
 
 let menuSeparator =
    let sep = createEmpty<MenuItemOptions>
@@ -95,7 +102,7 @@ let viewMenu dispatch =
         makeRoleItem "Zoom Out" (Some "CmdOrCtrl+-") MenuItemRole.ZoomOut
         makeRoleItem "Reset Zoom" (Some "CmdOrCtrl+0") MenuItemRole.ResetZoom
         menuSeparator
-        makeCondItem (debugLevel > 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ -> 
+        makeCondItem (debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ -> 
             let webContents = electron.remote.getCurrentWebContents()
             webContents.toggleDevTools())
     ]

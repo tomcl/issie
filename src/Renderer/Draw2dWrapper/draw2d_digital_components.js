@@ -96,6 +96,8 @@ draw2d.shape.digital.Input = draw2d.shape.digital.extend({
     },
 });
 
+
+
 draw2d.shape.digital.Output = draw2d.shape.digital.extend({
 
     NAME:"draw2d.shape.digital.Output",
@@ -122,6 +124,34 @@ draw2d.shape.digital.Output = draw2d.shape.digital.extend({
         this.numberOfBits = attr.numberOfBits;
 
         this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), this.numberOfBits > 1);
+    },
+});
+
+draw2d.shape.digital.Label = draw2d.shape.digital.extend({
+
+    NAME: "draw2d.shape.digital.Label",
+
+    componentType: "Label",
+    svgHeight: 20,
+    svgWidth: 30,
+
+
+    getSvgElements: function () {
+        return [
+            { path: '<polygon points="0,10 10,0 20,0 30,10 20,20 10,20" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true }
+        ]
+    },
+
+    init: function (attr, setter, getter) {
+        this._super(
+            $.extend({ width: this.svgWidth, height: this.svgHeight }, attr),
+            setter,
+            getter
+        );
+
+
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
 
@@ -390,16 +420,16 @@ draw2d.shape.digital.NbitsAdder = draw2d.shape.digital.extend({
     numberOfBits : null, // int
 
     getSvgElements : function() {
-        const title = this.numberOfBits == 1 ? "1-bit-adder" : `${this.numberOfBits}-bits-adder`
+        const title = this.numberOfBits === 1 ? "\u00a0\u00a0\u00a0adder" : (this.numberOfBits > 9 ? `adder(${this.numberOfBits - 1}:0)` : `\u00a0adder(${this.numberOfBits - 1}:0)`)
         return [
-            {path: '<rect width="100" height="120" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true},
-            {path: `<text x="14" y="3" fill="black" font-family="monospace">${title}</text>`, toFill: false},
+            {path: '<rect width="70" height="120" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true},
+            {path: `<text x="4" y="3" fill="black" font-family="monospace">${title}</text>`, toFill: false},
             {path: '<text x="8" y="25" fill="black" font-family="monospace">Cin</text>', toFill: false},
             {path: `<text x="8" y="55" fill="black" font-family="monospace">A</text>`, toFill: false},
             {path: `<text x="8" y="85" fill="black" font-family="monospace">B</text>`, toFill: false},
             // Out.
-            {path: `<text x="75" y="35" fill="black" font-family="monospace">Sum</text>`, toFill: false},
-            {path: `<text x="70" y="75" fill="black" font-family="monospace">Cout</text>`, toFill: false},
+            {path: `<text x="45" y="35" fill="black" font-family="monospace">Sum</text>`, toFill: false},
+            {path: `<text x="40" y="75" fill="black" font-family="monospace">Cout</text>`, toFill: false},
         ]
     },
 
@@ -713,6 +743,7 @@ draw2d.shape.digital.Register = draw2d.shape.digital.extend({
         );
 
         console.assert(typeof attr.regWidth === "number", "regWidth is not a number when creating a register component");
+        console.log(`regWidth= ${attr.regWidth}`)
         this.regWidth = attr.regWidth;
 
         this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);

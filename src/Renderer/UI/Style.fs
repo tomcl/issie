@@ -42,6 +42,7 @@ let private canvasVisibleStyle right = Style [
     Position PositionOptions.Absolute // Required to work.
     OverflowX OverflowOptions.Scroll
     OverflowY OverflowOptions.Scroll
+    Resize "horizontal"
     Top headerHeight // Placed just under the header.
     Left "0px"
     Bottom "0px"

@@ -111,3 +111,5 @@ let extractState (state : JSCanvasState) : CanvasState =
     // Sort components by their location.
     let comps = sortComponents comps
     comps, conns
+
+ 

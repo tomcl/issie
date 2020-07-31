@@ -160,7 +160,10 @@ let displayView model dispatch =
                 VisibleLarge, rightSectionStyleS 
     div [] [
         viewTopMenu model dispatch
-        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) canvasStyle
+        div [Style [Resize "horizontal"; Width "70%"]] [
+            model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) canvasStyle
+        ]
+        
         viewNoProjectMenu model dispatch
         viewPopup model
         viewNotifications model dispatch

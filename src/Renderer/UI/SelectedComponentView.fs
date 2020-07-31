@@ -18,6 +18,8 @@ open CommonTypes
 open MemoryEditorView
 open PopupView
 
+
+
 let private readOnlyFormField name body =
     Field.div [] [
         Label.label [] [ str name ]
@@ -60,7 +62,7 @@ let private makeMemoryInfo descr mem compId model dispatch =
         ] [str "View/Edit memory content"]
     ]
 
-let private makeNumberOfBitsField comp setter dispatch =
+let private makeNumberOfBitsField model comp text setter dispatch =
     let title, width =
         match comp.Type with
         | Input w | Output w | NbitsAdder w | Register w -> "Number of bits", w
@@ -73,8 +75,11 @@ let private makeNumberOfBitsField comp setter dispatch =
                 errorNotification "Invalid number of bits." ClosePropertiesNotification
                 |> SetPropertiesNotification |> dispatch
             else
-                setter comp.Id newWidth
-                dispatch ReloadSelectedComponent
+                setter comp.Id newWidth // change the JS component
+                let text' = formatLabelAsBus newWidth text
+                setComponentLabelFromText model comp text' // change the JS component label
+                let lastUsedWidth = match comp.Type with | SplitWire _ -> model.LastUsedDialogWidth | _ ->  newWidth
+                dispatch (ReloadSelectedComponent (lastUsedWidth)) // reload the new component
                 dispatch ClosePropertiesNotification
     )
 
@@ -82,6 +87,7 @@ let private makeDescription comp model dispatch =
     match comp.Type with
     | Input _ -> str "Input."
     | Output _ -> str "Output."
+    | IOLabel -> str "Label on Wire or Bus. Labels with the same name connect wires or busses."
     | Not | And | Or | Xor | Nand | Nor | Xnor ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
     | Mux2 -> div [] [ str "Multiplexer with two inputs and one output." ]
@@ -127,14 +133,14 @@ let private makeDescription comp model dispatch =
             the global clock."
         makeMemoryInfo descr mem comp.Id model dispatch
 
-let private makeExtraInfo comp model dispatch =
+let private makeExtraInfo model comp text dispatch =
     match comp.Type with
     | Input _ | Output _ | NbitsAdder _ ->
-        makeNumberOfBitsField comp model.Diagram.SetNumberOfBits dispatch
+        makeNumberOfBitsField model comp text model.Diagram.SetNumberOfBits dispatch
     | SplitWire _ ->
-        makeNumberOfBitsField comp model.Diagram.SetTopOutputWidth dispatch
+        makeNumberOfBitsField model comp text model.Diagram.SetTopOutputWidth dispatch
     | Register _ ->
-        makeNumberOfBitsField comp model.Diagram.SetRegisterWidth dispatch
+        makeNumberOfBitsField model comp text model.Diagram.SetRegisterWidth dispatch
     | _ -> div [] []
 
 let viewSelectedComponent model dispatch =
@@ -142,7 +148,11 @@ let viewSelectedComponent model dispatch =
     | None -> div [] [ str "Select a component in the diagram to view/edit its properties." ]
     | Some comp ->
         div [Key comp.Id] [
+            let label' = extractLabelBase comp.Label
             readOnlyFormField "Description" <| makeDescription comp model dispatch
-            makeExtraInfo comp model dispatch
-            textFormField "Label" comp.Label (fun text -> model.Diagram.EditComponentLabel comp.Id text)
+            makeExtraInfo model comp label' dispatch
+            textFormField "Label" label' (fun text -> 
+                setComponentLabel model comp (formatLabel comp text)
+                dispatch (ReloadSelectedComponent model.LastUsedDialogWidth) // reload the new component
+                )
         ]

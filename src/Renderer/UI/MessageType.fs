@@ -132,4 +132,4 @@ type Msg =
     | SetPropertiesNotification of ((Msg -> unit) -> ReactElement)
     | ClosePropertiesNotification
     | SetTopMenu of TopMenu
-    | ReloadSelectedComponent
+    | ReloadSelectedComponent of int

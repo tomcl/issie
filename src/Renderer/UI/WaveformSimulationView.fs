@@ -298,26 +298,27 @@ let displaySvg (model: WaveSimModel) =
         |> Array.zip valueLabels
         |> Array.map (fun (a,b) -> Array.append a b)
 
-    // name labels of the waveforms
+    // name and cursor labels of the waveforms
     let labels = makeLabels model
-
-    // cursor values
-    let cursorValSvg = makeCursVals model
+    let cursLabs = makeCursVals model
 
     //labelSvg, snd backgroundSvg, Array.append waveSvg (fst backgroundSvg), cursorValSvg
     // cursorValSvg, labelSvg, waveSvg
-    Array.zip (Array.zip labels waveSvg) cursorValSvg
+    Array.zip (Array.zip labels waveSvg) cursLabs
     |> Array.map (fun ((l, w), c) -> 
                 tr [ Style [BorderSpacing "0 0"] ] 
                    [ td [] [l]
                      td [] 
-                        [makeSvg [] [wavesVB] (Array.append (Array.append backgroundSvg (makeCursRect model)) w)]
-                     td [] c ] ) 
+                        [makeSvg [ Style [Width "100%"] ] [wavesVB] (Array.append (Array.append backgroundSvg (makeCursRect model)) w)]
+                     td [ Style [Width "5%"] ] c ] ) 
 
 let clkRulerSvg (model: WaveSimModel) = 
     [| 0..(Array.length model.waveData - 1) |] 
     |> Array.map (fun x -> 
-        makeText clkNumStyle [X (model.posParams.clkWidth * (float x + 0.5))] (string x))
+        makeText clkNumStyle 
+                 [ X (model.posParams.clkWidth * (float x + 0.5))
+                   Y model.posParams.sigHeight ] //should be something else
+                 (string x))
 
 // view function helpers
 
@@ -408,8 +409,8 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
                   [ Checkbox.input [ Props [ Style [ Float FloatOptions.Left ] ] ] 
                     button reloadButtonStyle (fun _ -> ()) "+" ]
                td [] 
-                  [ makeSvg boxSvgStyle [clkVB] (clkRulerSvg model) ] 
-               td [] [] (*header of cursor column*) ] |]
+                  [ makeSvg clkSvgStyle [clkVB] (clkRulerSvg model) ] 
+               td [ Style [Width "5%"] ] [ label [] [str ""] (*header of cursor column*) ] ] |]
     let tableBot = displaySvg model
     table [ Style [BorderTop "2px solid black"; Width "100%"] ]
           (Array.append tableTop tableBot)

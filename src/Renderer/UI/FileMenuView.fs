@@ -352,7 +352,14 @@ let viewTopMenu model dispatch =
                     @ projectFiles
                 )
             ]
-    div [ navbarStyle ] [
+    let leftSectionStyle = 
+        match model.RightTab with
+        | Simulation
+        | WaveSim ->
+            leftSectionStyleS
+        | _ ->
+            leftSectionStyleL
+    div [ leftSectionStyle ] [
         Navbar.navbar [ Navbar.Props [Style [Height "100%"; Width "100%"; OverflowX OverflowOptions.Auto ]] ] [
             Navbar.Brand.div [ Props [Style [Height "100%"; Width "100%"]] ] [
                 Navbar.Item.div [

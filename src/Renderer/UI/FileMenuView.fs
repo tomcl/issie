@@ -172,6 +172,7 @@ let private newProject model dispatch _ =
     match askForNewProjectPath () with
     | None -> () // User gave no path.
     | Some path ->
+        printfn "%s" path
         match tryCreateFolder path with
         | Error err ->
             log err
@@ -180,7 +181,7 @@ let private newProject model dispatch _ =
         | Ok _ ->
             dispatch EndSimulation // End any running simulation.
             // Create empty placeholder projectFile.
-            let projectFile = basename path + ".dprj"
+            let projectFile = baseName path + ".dprj"
             writeFile (pathJoin [|path; projectFile|]) ""
             // Create empty initial diagram file.
             let initialDiagram = createEmptyDiagramFile path "main"

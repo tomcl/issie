@@ -116,13 +116,15 @@ let radixChange (n: bigint) (nBits: uint32) (rad: NumberBase) =
 
 //auxiliary functions to the viewer function
 
-let makeLabel (p: PosParamsType) (ind: int) label =
-    let attr: IProp list = [ Y ((p.spacing + p.sigHeight) * (float ind + 1.0))
+(*let makeLabel (p: PosParamsType) label =
+    let attr: IProp list = [ Y (p.spacing + p.sigHeight)
                              SVGAttr.FontSize (p.sigHeight * 0.6) ] 
-    makeText waveLblStyle attr label
+    makeText waveLblStyle attr label*)
+let makeLabels model =
+    Array.map (fun l -> label [] [str l]) model.waveNames 
 
-let makeSegment (p: PosParamsType) (yInd: int) (xInd: int)  ((data: Sample), (trans: int * int)) =
-    let bot = (p.spacing + p.sigHeight) * (float yInd + 1.0)
+let makeSegment (p: PosParamsType) (xInd: int)  ((data: Sample), (trans: int * int)) =
+    let bot = p.spacing + p.sigHeight
     let top = bot - p.sigHeight
     let left = float xInd * p.clkWidth
     let right = left + float p.clkWidth
@@ -216,10 +218,10 @@ let busLabels model =
     ||> Array.zip
     |> Array.map gaps2pos
 
-let makeCursVals (m: WaveSimModel) =
-   let p = m.posParams
+let makeCursVals model =
+   (*let p = m.posParams
    let attr ind : IProp list = 
-        [ Y ((p.spacing + p.sigHeight) * (ind + 1.0))
+        [ Y ((p.spacing + p.sigHeight))
           SVGAttr.FontSize (p.sigHeight * 0.6) ] 
    let makeTextWithOffset yInd nOffsets offset = 
         (float yInd - 0.3 * ( ( float nOffsets + float offset - 1.0) / 2.0))
@@ -230,14 +232,20 @@ let makeCursVals (m: WaveSimModel) =
         | Wire w -> [| radixChange w.bitData w.nBits m.radix |]
         | StateSample s -> s
         |> (fun arr -> Array.mapi (makeTextWithOffset yInd (Array.length arr)) arr)
-   Array.mapi makeCursVal m.waveData.[int m.cursor] |> Array.collect id
+   Array.mapi makeCursVal m.waveData.[int m.cursor] |> Array.collect id*)
+   let makeCursVal sample = 
+       match sample with
+       | Wire w -> [| radixChange w.bitData w.nBits model.radix |]
+       | StateSample s -> s
+       |> Array.map (fun l -> label [] [str l])
+   Array.map makeCursVal model.waveData.[int model.cursor]
 
 let makeCursRect model =
     let p = model.posParams
     let attr: IProp list =
         [ X (p.clkWidth * float model.cursor + clkLineWidth / 2.0)
           SVGAttr.Width (p.clkWidth - clkLineWidth)
-          SVGAttr.Height p.boxHeight ]
+          SVGAttr.Height (p.spacing + p.sigHeight) ]
     [| makeRect cursorRectStyle attr |]
 
 let displaySvg (model: WaveSimModel) =
@@ -245,18 +253,27 @@ let displaySvg (model: WaveSimModel) =
 
     //container box and clock lines
     let backgroundSvg =
-        let clkLine x = makeLinePoints clkLineStyle (x, vPos) (x, vPos + float p.boxHeight)
+        let clkLine x = makeLinePoints clkLineStyle (x, vPos) (x, vPos + float p.sigHeight + float p.spacing)
         let clkLines =
             [| 1 .. 1 .. Array.length model.waveData |] |> Array.map ((fun x -> float x * p.clkWidth) >> clkLine)
-        let simBox = [| makeRect boxLineStyle [Y vPos; SVGAttr.Height (float p.boxHeight)] |]
-        clkLines, simBox
+        clkLines
 
     // waveforms
+    let VBwidth = p.clkWidth * float (Array.length model.waveData)
+    let VBheight = p.sigHeight + p.spacing
+    let wavesVB =
+        let appInv a b = b + a
+        "0 0 " + string VBwidth
+        |> appInv " "
+        |> appInv (string VBheight)
+        |> string
+        |> ViewBox
+
     let waveSvg =
-        let addLabel nLabels yInd xInd (i: int) lbl = 
+        let addLabel nLabels xInd (i: int) lbl = 
             let attr: IProp list = [
                 X (xInd * p.clkWidth)
-                Y ((p.spacing + p.sigHeight) * (float yInd + 1.0) - p.sigHeight * 0.3 + 0.3 * p.sigHeight * (float i - (float nLabels - 1.0) / 2.0))
+                Y (p.spacing + p.sigHeight - p.sigHeight * 0.3 + 0.3 * p.sigHeight * (float i - (float nLabels - 1.0) / 2.0))
                 SVGAttr.FontSize (busLabelTextSize * p.sigHeight / float nLabels) 
             ]
             makeText busValueStyle attr lbl
@@ -264,30 +281,43 @@ let displaySvg (model: WaveSimModel) =
         let mapiAndCollect func = Array.mapi func >> Array.collect id
 
         let valueLabels = 
-            let lblEl (yInd: int) (sample, xIndArr) = 
+            let lblEl (sample, xIndArr) = 
                 match sample with 
-                | Wire w when w.nBits > uint 1 -> Array.map (fun xInd -> addLabel 1 yInd xInd 0 (string w.bitData)) xIndArr
-                | StateSample ss -> Array.collect (fun xInd -> Array.mapi (addLabel (Array.length ss) yInd xInd) ss) xIndArr
+                | Wire w when w.nBits > uint 1 -> Array.map (fun xInd -> addLabel 1 xInd 0 (string w.bitData)) xIndArr
+                | StateSample ss -> Array.collect (fun xInd -> Array.mapi (addLabel (Array.length ss) xInd) ss) xIndArr
                 | _ -> [| |]
             busLabels model
-            |> mapiAndCollect (fun yInd row -> Array.collect (lblEl yInd) row) 
+            |> Array.map (fun row -> Array.collect lblEl row) 
 
-        let makeWaveSvg yInd = mapiAndCollect (makeSegment p yInd)
+        let makeWaveSvg = mapiAndCollect (makeSegment p)
         let padTrans (t: (int*int) []) = Array.append (Array.append [| 1, fst t.[0] |] t) [| snd t.[Array.length t - 1], 1 |]
         (model2WaveList model, transitions model)
         ||> Array.zip 
         |> Array.map (fun (wave, transRow) -> Array.zip wave (padTrans (Array.pairwise transRow)))
-        |> mapiAndCollect makeWaveSvg
-        |> Array.append valueLabels
-        |> Array.append (makeCursRect model)
+        |> Array.map makeWaveSvg
+        |> Array.zip valueLabels
+        |> Array.map (fun (a,b) -> Array.append a b)
 
     // name labels of the waveforms
-    let labelSvg = Array.mapi (makeLabel p) model.waveNames
+    let labels = makeLabels model
 
     // cursor values
     let cursorValSvg = makeCursVals model
 
-    labelSvg, snd backgroundSvg, Array.append waveSvg (fst backgroundSvg), cursorValSvg
+    //labelSvg, snd backgroundSvg, Array.append waveSvg (fst backgroundSvg), cursorValSvg
+    // cursorValSvg, labelSvg, waveSvg
+    Array.zip (Array.zip labels waveSvg) cursorValSvg
+    |> Array.map (fun ((l, w), c) -> 
+                tr [ Style [BorderSpacing "0 0"] ] 
+                   [ td [] [l]
+                     td [] 
+                        [makeSvg [] [wavesVB] (Array.append (Array.append backgroundSvg (makeCursRect model)) w)]
+                     td [] c ] ) 
+
+let clkRulerSvg (model: WaveSimModel) = 
+    [| 0..(Array.length model.waveData - 1) |] 
+    |> Array.map (fun x -> 
+        makeText clkNumStyle [X (model.posParams.clkWidth * (float x + 0.5))] (string x))
 
 // view function helpers
 
@@ -330,68 +360,64 @@ let cursorMove increase model =
 
 //view function of the waveform simulator
 
-let viewWaveSim (model: DiagramModelType.Model) dispatch =
-    let startWaveSim() = StartWaveSim initModel |> dispatch
+let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =   
+    let model = fullModel.WaveSim
+    let p = model.posParams
+    let appInv a b = b + a
+    let nSig = Array.length model.waveNames
+    let VBwidth = p.clkWidth * float (Array.length model.waveData)
+    let VBheight = float nSig * (p.sigHeight + p.spacing) + waveVBextraHeight
 
-    match model.WaveSim with
-    | None -> div [] [ button stdButtonStyle (fun _ -> startWaveSim()) "Start waveform simulator" ]
-    | Some simModel ->
-        let endWaveSim _ =
-            dispatch CloseWaveSimNotification // Copied this, don't know if necessary + it's not doing anything now I think
-            dispatch EndWaveSim         
+    let clkVB = 
+        "0 0 " + string VBwidth
+        |> appInv " "
+        |> appInv (string (p.sigHeight + p.spacing))
+        |> string
+        |> ViewBox
 
-        div []
-            [ button stdButtonStyle endWaveSim "Close waveform simulator"
-              div []
-                  [ Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ]
-                        [ str "The simulator uses the diagram at the time of pressing the button" ] ]
+    (*let VBwidthPercentage =
+        1000.0 * VBwidth / waveBoxPercWidth
+        |> int
+        |> string
+        |> appInv "%"
+        |> string*)
+ 
 
-              hr []
+    //let (lblSvg, boxSvg, wfrmSvg, cursorValuesSvg) = displaySvg model
 
-              div []
-                  [ label [Style [Float FloatOptions.Left]] [str "H Zoom"]
-                    button cursorButtonStyle (fun _ -> zoom true true simModel |> dispatch) "+"
-                    button cursorButtonStyle (fun _ -> zoom false true simModel |> dispatch) "-"
-                    label [Style [Float FloatOptions.Left]] [str "V Zoom"]
-                    button cursorButtonStyle (fun _ -> zoom true false simModel |> dispatch) "+"
-                    button cursorButtonStyle (fun _ -> zoom false false simModel |> dispatch) "-" 
-                    button stdButtonStyle (fun _ -> cycleRadix simModel |> dispatch) ("Radix: " + radixString simModel.radix)
-                    label [Style [Float FloatOptions.Left]] [str "Cursor"]
-                    button cursorButtonStyle (fun _ -> cursorMove true simModel |> dispatch) "+"
-                    button cursorButtonStyle (fun _ -> cursorMove false simModel |> dispatch) "-"  ]
+    [
+    div []
+        [ button reloadButtonStyle (fun _ -> ()) "Reload"
+          button stdButtonStyle (fun _ -> cycleRadix model |> dispatch) ("Radix: " + radixString model.radix)
+          label [Style [Float FloatOptions.Left]] [str "Cursor"]
+          button cursorButtonStyle (fun _ -> cursorMove true model |> dispatch) "+"
+          button cursorButtonStyle (fun _ -> cursorMove false model |> dispatch) "-"  ]
 
-              let p = simModel.posParams
-              let appInv a b = b + a
-              let nSig = Array.length simModel.waveNames
-              let VBwidth = p.clkWidth * float (Array.length simModel.waveData)
-              let VBheight = float nSig * (p.sigHeight + p.spacing) + waveVBextraHeight
+    (*div []
+        [ div [ waveLblDivStyle ] [ makeSvg waveLblSvgStyle [labelVB] lblSvg ]
+            div
+                [ waveContDivStyle ]
+                [ makeSvg boxSvgStyle [boxVB] boxSvg
+                div
+                    [ waveRightSmallDivStyle ]
+                    [ makeSvg [unbox ("width", VBwidthPercentage)] [wavesVB] wfrmSvg ] ] 
+            div [ cursorDivStyle ] [ makeSvg cursorDivSvgStyle [cursorValuesVB] cursorValuesSvg ] ]*)
+    let tableTop = 
+        [| tr [ Style [ Height "5%" ] ]
+             [ td []
+                  [ Checkbox.input [ Props [ Style [ Float FloatOptions.Left ] ] ] 
+                    button reloadButtonStyle (fun _ -> ()) "+" ]
+               td [] 
+                  [ makeSvg boxSvgStyle [clkVB] (clkRulerSvg model) ] 
+               td [] [] (*header of cursor column*) ] |]
+    let tableBot = displaySvg model
+    table [ Style [BorderTop "2px solid black"; Width "100%"] ]
+          (Array.append tableTop tableBot)
 
-              let labelVB = "0 0 2 " + string VBheight |> string |> ViewBox
-              let boxVB = "0 0 " + string (float waveBoxPercWidth / 10.0) + " " + string VBheight |> ViewBox
-              let wavesVB =
-                  "0 0 " + string VBwidth
-                  |> appInv " "
-                  |> appInv (string VBheight)
-                  |> string
-                  |> ViewBox
-              let cursorValuesVB =  " 0 0 0.5 " + string VBheight |> ViewBox
-
-              let VBwidthPercentage =
-                  1000.0 * VBwidth / waveBoxPercWidth
-                  |> int
-                  |> string
-                  |> appInv "%"
-                  |> string
-
-
-              let (lblSvg, boxSvg, wfrmSvg, cursorValuesSvg) = displaySvg simModel
-
-              div []
-                  [ div [ waveLblDivStyle ] [ makeSvg waveLblSvgStyle [labelVB] lblSvg ]
-                    div
-                        [ waveContDivStyle ]
-                        [ makeSvg boxSvgStyle [boxVB] boxSvg
-                          div
-                              [ waveRightSmallDivStyle ]
-                              [ makeSvg [unbox ("width", VBwidthPercentage)] [wavesVB] wfrmSvg ] ] 
-                    div [ cursorDivStyle ] [ makeSvg cursorDivSvgStyle [cursorValuesVB] cursorValuesSvg ] ] ]
+    div []
+        [ label [Style [Float FloatOptions.Left; Clear ClearOptions.Both]] [str "H Zoom"]
+          button cursorButtonStyle (fun _ -> zoom true true model |> dispatch) "+"
+          button cursorButtonStyle (fun _ -> zoom false true model |> dispatch) "-"
+          label [Style [Float FloatOptions.Left]] [str "V Zoom"]
+          button cursorButtonStyle (fun _ -> zoom true false model |> dispatch) "+"
+          button cursorButtonStyle (fun _ -> zoom false false model |> dispatch) "-" ] ]

@@ -240,7 +240,7 @@ let viewNoProjectMenu model dispatch =
     | Some _ -> div [] []
     | None -> unclosablePopup None initialMenu None []
 
-let private viewInfoPopup disptach =
+let private viewInfoPopup dispatch =
     let makeH h =
         Text.span [ Modifiers [
             Modifier.TextSize (Screen.Desktop, TextSize.Is5)
@@ -265,7 +265,7 @@ let private viewInfoPopup disptach =
         ]
     ]
     let foot = div [] []
-    closablePopup title body foot [] disptach
+    closablePopup title body foot [] dispatch
 
 /// Display top menu.
 let viewTopMenu model dispatch =
@@ -274,7 +274,7 @@ let viewTopMenu model dispatch =
         | None -> "no open project", "no open file"
         | Some project -> project.ProjectPath, project.OpenFileName
     let makeFileLine name project =
-        Navbar.Item.div [ Navbar.Item.Props [ Style [ Width "100%"] ] ] [
+        Navbar.Item.div [ Navbar.Item.Props [ Style [ Width "100%" ] ] ] [
             Level.level [ Level.Level.Props [ Style [ Width "100%"] ] ] [
                 Level.left [] [
                     Level.item [] [ str name ]
@@ -352,7 +352,7 @@ let viewTopMenu model dispatch =
                 )
             ]
     div [ navbarStyle ] [
-        Navbar.navbar [ Navbar.Props [Style [Height "100%"; Width "100%"]] ] [
+        Navbar.navbar [ Navbar.Props [Style [Height "100%"; Width "100%"; OverflowX OverflowOptions.Auto ]] ] [
             Navbar.Brand.div [ Props [Style [Height "100%"; Width "100%"]] ] [
                 Navbar.Item.div [
                     Navbar.Item.HasDropdown;

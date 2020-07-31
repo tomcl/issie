@@ -17,6 +17,88 @@ open DiagramMessageType
 open CommonTypes
 open PopupView
 
+/// Choose a good position to place the next component on the sheet based on where existing
+/// components are placed. One of 3 heuristics is chosen.
+//  Return (x,y) coordinates as accepted by draw2d.
+let getNewComponentPosition (model:Model) =
+
+    let maxX = 120
+    let maxY = 120
+    let sheetX = 1200
+    let sheetY = 1200
+    let meshPitch1 = 50
+    let meshPitch2 = 5
+
+    let componentPositions , boundingBox  =
+        let bbTopLeft = (0,0), (0,0)
+        match model.Diagram.GetCanvasState () with
+        | None -> 
+            printfn "No canvas detected!"
+            [0,0],bbTopLeft
+        | Some jsState ->
+            let comps,conns = Extractor.extractState jsState
+            let xyPos =
+                comps
+                |> List.map (fun co -> co.X,co.Y)
+            if xyPos = [] then 
+                [0,0],bbTopLeft // add default top left component to keep coe from breaking
+            else
+                let bbMin = List.minBy fst xyPos |> fst, List.minBy snd xyPos |> snd
+                let bbMax = List.maxBy fst xyPos |> fst , List.maxBy snd xyPos |> snd
+                xyPos, (bbMin, bbMax)
+    /// x value to choose for y offset heuristic
+    let xDefault =
+        componentPositions
+        |> List.minBy snd
+        |> fst
+        |> (fun x -> min x (sheetX - maxX))
+
+    /// y value to choose for x offset heuristic
+    let yDefault =
+        componentPositions
+        |> List.minBy fst
+        |> snd
+        |> (fun y -> min y (sheetY - maxY))
+
+    /// work out the minimum Euclidean distance between (x,y) and any existing component
+    /// not quite accurate since bounding boxes are not known, but good enough
+    let checkDistance (x,y) =
+        let euclidean (a, b) = 
+            (a-x)*(a-x) + (b-y)*(b-y)
+        componentPositions
+        |> List.minBy euclidean
+        |> euclidean
+ 
+    match boundingBox with
+    | (0,0),(0,0) -> 
+        // Place first component on empty sheet top middle
+        sheetX / 2, maxY
+    | _, (_,y) when y < sheetY - 2*maxY -> 
+        // if possible, align horizontally with vertical offset from lowest component
+        // this case will ensure components are stacked vertically (which is usually wanted)
+        xDefault, y + maxY
+    | _, (x,_) when x < sheetX - 2*maxX -> 
+        // if possible, next choice is align vertically with horizontal offset from rightmost component
+        // this case will stack component horizontally
+        x + maxX, yDefault
+    | _ ->
+        // try to find some free space anywhere on the sheet
+        // do a coarse search for largest Euclidean distance to any component's worst case bounding box
+        // TODO - extract better bounding boxes and use them
+        List.allPairs [maxX..meshPitch1..sheetX-maxX] [maxY..meshPitch1..sheetY-maxY]
+        |> List.maxBy checkDistance
+        |> (fun (xEst,yEst) ->
+                //now do the same thing locally with a narrower search pitch
+                List.allPairs [xEst - meshPitch1/2..meshPitch2..xEst + meshPitch1/2] [yEst - meshPitch1/2..meshPitch2..yEst + meshPitch1/2]
+                |> List.filter (fun (x,y) -> x > maxX && x < sheetX-maxX && y > maxY && y < sheetY-maxY) // delete anything too near edge
+                |> List.maxBy checkDistance)
+ 
+
+
+    
+
+        
+
 let private menuItem label onClick =
     Menu.Item.li
         [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick ] ]
@@ -43,42 +125,49 @@ let private makeCustomList model =
         |> List.map (makeCustom model)
 
 let private createComponent comp label model dispatch =
+    let x,y = getNewComponentPosition model
     let offset = model.CreateComponentOffset
-    model.Diagram.CreateComponent comp label (100+offset) (100+offset) |> ignore
+    model.Diagram.CreateComponent comp label x y |> ignore
     (offset + 50) % 200 |> SetCreateComponentOffset |> dispatch
+    ReloadSelectedComponent model.LastUsedDialogWidth |> dispatch
 
-let private createIOPopup typeStr compType model dispatch =
+let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
     let title = sprintf "Add %s node" typeStr
     let beforeText =
         fun _ -> str <| sprintf "How do you want to name your %s?" typeStr
     let placeholder = "Component name"
     let beforeInt =
         fun _ -> str <| sprintf "How many bits should the %s node have?" typeStr
-    let intDefault = 1
-    let body = dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch
+    let intDefault = model.LastUsedDialogWidth
+    let body = 
+        match hasInt with
+        | true -> dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch
+        | false -> dialogPopupBodyOnlyText beforeText placeholder dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputText = getText dialogData
             let inputInt = getInt dialogData
-            createComponent (compType inputInt) inputText model dispatch
+            createComponent (compType inputInt) (formatLabelFromType (compType inputInt) inputText) model dispatch
+            if hasInt then dispatch (ReloadSelectedComponent inputInt)
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
             (getInt dialogData < 1) || (getText dialogData = "")
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
-let private createNbitsAdderPopup model dispatch =
+let private createNbitsAdderPopup (model:Model) dispatch =
     let title = sprintf "Add N bits adder"
     let beforeInt =
         fun _ -> str "How many bits should each operand have?"
-    let intDefault = 1
+    let intDefault = model.LastUsedDialogWidth
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
-            createComponent (NbitsAdder inputInt) "" model dispatch
+            printfn "creating adder %d" inputInt
+            createComponent (NbitsAdder inputInt) "" {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
@@ -100,16 +189,17 @@ let private createSplitWirePopup model dispatch =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
-let private createRegisterPopup regType model dispatch =
+let private createRegisterPopup regType (model:Model) dispatch =
     let title = sprintf "Add Register" 
     let beforeInt =
         fun _ -> str "How wide should the register be (in bits)?"
-    let intDefault = 1
+    let intDefault = model.LastUsedDialogWidth
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
+            printfn "Reg inutInt=%d" inputInt
             createComponent (regType inputInt) "" model dispatch
             dispatch ClosePopup
     let isDisabled =
@@ -118,7 +208,7 @@ let private createRegisterPopup regType model dispatch =
 
 let private createMemoryPopup memType model dispatch =
     let title = "Create memory"
-    let body = dialogPopupBodyMemorySetup dispatch
+    let body = dialogPopupBodyMemorySetup model.LastUsedDialogWidth dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
@@ -146,8 +236,9 @@ let viewCatalogue model dispatch =
     Menu.menu [] [
             makeMenuGroup
                 "Input / Output"
-                [ menuItem "Input"  (fun _ -> createIOPopup "input" Input model dispatch)
-                  menuItem "Output" (fun _ -> createIOPopup "output" Output model dispatch) ]
+                [ menuItem "Input"  (fun _ -> createIOPopup true "input" Input model dispatch)
+                  menuItem "Output" (fun _ -> createIOPopup true "output" Output model dispatch)
+                  menuItem "Wire Label" (fun _ -> createIOPopup false "label" (fun _ -> IOLabel) model dispatch)]
             makeMenuGroup
                 "Buses"
                 [ menuItem "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch)

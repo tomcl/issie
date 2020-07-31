@@ -165,13 +165,13 @@ let private makeEditorBody memory compId memoryEditorData model dispatch =
         ]
     ]
 
-let private makeFoot isDiffMode dispatch =
+let private makeFoot isDiffMode dispatch (model: Model)=
     let action =
         fun _ -> dispatch CloseMemoryEditorNotification
                  dispatch ClosePopup
                  // Diff mode is triggered by a simulationView, not by a
                  // selected component.
-                 if not isDiffMode then dispatch ReloadSelectedComponent
+                 if not isDiffMode then dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)
     Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
         Level.left [] []
         Level.right [] [ Level.item [] [ Button.button [
@@ -192,7 +192,7 @@ let openMemoryEditor memory compId model dispatch : unit =
     // Build editor.
     let title = "Memory editor"
     let body = makeEditor memory compId model dispatch
-    let foot = makeFoot false dispatch
+    let foot = makeFoot false dispatch model
     showMemoryEditorPopup (Some title) body (Some foot) popupExtraStyle dispatch
 
 //=============//
@@ -243,5 +243,5 @@ let openMemoryDiffViewer memory1 memory2 model dispatch : unit =
     // Build editor.
     let title = "Memory diff viewer"
     let body = makeDiffViewer memory1 memory2 dispatch
-    let foot = makeFoot true dispatch
+    let foot = makeFoot true dispatch model
     showMemoryEditorPopup (Some title) body (Some foot) popupExtraStyle dispatch

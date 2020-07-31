@@ -76,6 +76,7 @@ function addComponentLabel(comp, label) {
 
 function setComponentLabel(comp, newLabel) {
     comp.children.data[0].figure.setText(newLabel);
+    comp.setSVG(comp.getSVG()); // Refresh svg.
 }
 
 function setConnectionLabel(conn, newLabel) {
@@ -149,6 +150,10 @@ function createDigitalInput(x, y, numberOfBits) {
 
 function createDigitalOutput(x, y, numberOfBits) {
     return new draw2d.shape.digital.Output({x:x,y:y,numberOfBits:numberOfBits,resizeable:false});
+}
+
+function createDigitalLabel(x, y) {
+    return new draw2d.shape.digital.Label({ x: x, y: y,  resizeable: false });
 }
 
 function createDigitalNot(x, y) {
@@ -340,6 +345,11 @@ function getConnectionById(canvas, id) {
     });
 }
 
+function refreshComponentById(canvas, id) {
+    let comp = getComponentById(canvas, id);
+    comp.setSVG(comp.getSVG()); // refresh SVG
+}
+
 function getPortById(comp, id) {
     return comp.getPorts().find(function(port) {
         return port.id === id;
@@ -409,6 +419,7 @@ export {
     installSelectionPolicy,
     createDigitalInput,
     createDigitalOutput,
+    createDigitalLabel,
     createDigitalNot,
     createDigitalAnd,
     createDigitalOr,

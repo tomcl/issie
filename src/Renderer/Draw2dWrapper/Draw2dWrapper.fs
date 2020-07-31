@@ -45,6 +45,7 @@ type private IDraw2d =
     abstract installSelectionPolicy       : comp:JSComponent -> unit
     abstract createDigitalInput           : x:int -> y:int -> numberOfBits:int -> JSComponent
     abstract createDigitalOutput          : x:int -> y:int -> numberOfBits:int -> JSComponent
+    abstract createDigitalLabel          : x:int -> y:int -> JSComponent
     abstract createDigitalNot             : x:int -> y:int -> JSComponent
     abstract createDigitalAnd             : x:int -> y:int -> JSComponent
     abstract createDigitalOr              : x:int -> y:int -> JSComponent
@@ -93,6 +94,8 @@ let private createAndInitialiseCanvas (id : string) : JSCanvas =
     draw2dLib.initialiseCanvas canvas
     canvas
 
+
+
 let private setPorts (ports : Port list) (jsPorts : JSPorts) : unit =
     let jsPortsLen : int = getFailIfNull jsPorts ["length"]
     if jsPortsLen <> ports.Length then failwithf "what? setPort called with mismatching number of ports"
@@ -117,6 +120,7 @@ let private createComponent
         match componentType with
         | Input w  -> draw2dLib.createDigitalInput x y w
         | Output w -> draw2dLib.createDigitalOutput x y w
+        | IOLabel -> draw2dLib.createDigitalLabel x y
         | Not    -> draw2dLib.createDigitalNot x y
         | And    -> draw2dLib.createDigitalAnd x y
         | Or     -> draw2dLib.createDigitalOr x y
@@ -126,7 +130,9 @@ let private createComponent
         | Xnor   -> draw2dLib.createDigitalXnor x y
         | Mux2   -> draw2dLib.createDigitalMux2 x y
         | Demux2 -> draw2dLib.createDigitalDemux2 x y
-        | NbitsAdder numberOfBits -> draw2dLib.createDigitalNbitsAdder x y numberOfBits
+        | NbitsAdder numberOfBits -> 
+            printfn "Adder width %d" numberOfBits
+            draw2dLib.createDigitalNbitsAdder x y numberOfBits
         | ComponentType.Custom custom ->
             draw2dLib.createDigitalCustom
                 x y custom.Name (fshaprListToJsList custom.InputLabels)
@@ -135,7 +141,9 @@ let private createComponent
         | SplitWire topWireWidth -> draw2dLib.createDigitalSplitWire x y topWireWidth
         | DFF  -> draw2dLib.createDigitalDFF x y
         | DFFE -> draw2dLib.createDigitalDFFE x y
-        | Register  width -> draw2dLib.createDigitalRegister x y width
+        | Register  width -> 
+            printfn "reg width=%d" width
+            draw2dLib.createDigitalRegister x y width
         | RegisterE width -> draw2dLib.createDigitalRegisterE x y width
         | AsyncROM mem ->
             draw2dLib.createDigitalAsyncROM
@@ -147,7 +155,9 @@ let private createComponent
             draw2dLib.createDigitalRAM
                 x y mem.AddressWidth mem.WordWidth (fshaprListToJsList mem.Data)
     // Every component is assumed to have a label (may be empty string).
+
     draw2dLib.addComponentLabel comp label
+    
     // Set Id if one is provided.
     match maybeId with
     | None -> ()
@@ -184,10 +194,15 @@ let private editComponentLabel (canvas : JSCanvas) (id : string) (newLabel : str
     let jsComponent = draw2dLib.getComponentById canvas id
     if isNull jsComponent
     then failwithf "what? could not find diagram component with Id: %s" id
-    else jsComponent?children?data?(0)?figure?setText(newLabel)
+    else 
+        draw2dLib.setComponentLabel jsComponent newLabel
+        //jsComponent?children?data?(0)?figure?setText(newLabel)
+    
 
 // React wrapper.
 
+/// Determines size of schematic.
+/// ToDo - make this more flexible and expose sizes
 type DisplayModeType = Hidden | VisibleSmall | VisibleLarge
 
 type private Draw2dReactProps = {
@@ -213,10 +228,12 @@ type private Draw2dReact(initialProps) =
 
 let inline private createDraw2dReact props = ofType<Draw2dReact,_,_> props []
 
+/// interface to ta draw2d component that controls the schematic sheet
 type Draw2dWrapper() =
     let mutable canvas : JSCanvas option = None
     let mutable dispatch : (JSDiagramMsg -> unit) option = None
 
+    /// Executes action applied to the current Draw2d canvas
     let tryActionWithCanvas name action =
         match canvas with
         | None -> log <| sprintf "Warning: Draw2dWrapper.%s called when canvas is None" name
@@ -244,7 +261,7 @@ type Draw2dWrapper() =
     member this.InitCanvas newCanvas =
         match canvas with
         | None -> canvas <- Some newCanvas
-        | Some _ -> failwithf "what? InitCanvas should never be called when canvas is already created" 
+        | Some _ -> canvas <- Some newCanvas
     
     member this.ClearCanvas () =
         tryActionWithCanvas "ClearCanvas" draw2dLib.clearCanvas
@@ -289,6 +306,8 @@ type Draw2dWrapper() =
             draw2dLib.setComponentLabel jsComp newLabel
         |> tryActionWithCanvas "EditComponentLabel"
 
+    /// Repaint a connection
+    /// should mod to allow different colors independent of width?
     member this.PaintConnection connectionId width =
         fun c ->
             let jsConnection =
@@ -303,6 +322,7 @@ type Draw2dWrapper() =
             draw2dLib.setConnectionColor jsConnection color
         |> tryActionWithCanvas "PaintConnection"
 
+    /// Unhighlight a specific component
     member this.HighlightComponent componentId = 
         fun c ->
             let comp =
@@ -310,6 +330,7 @@ type Draw2dWrapper() =
             draw2dLib.setComponentBackground comp "red"
         |> tryActionWithCanvas "HighlightComponent"
 
+    /// Highlight a specific component
     member this.UnHighlightComponent componentId = 
         fun c ->
             let comp = draw2dLib.getComponentById c componentId
@@ -317,7 +338,8 @@ type Draw2dWrapper() =
             | true -> () // The component has been removed from the diagram while it was highlighted.
             | false -> draw2dLib.setComponentBackground comp "lightgray"
         |> tryActionWithCanvas "UnHighlightComponent"
-
+    
+    /// Highlight a specific connection
     member this.HighlightConnection connectionId =
         fun c ->
             let conn =
@@ -326,6 +348,7 @@ type Draw2dWrapper() =
             draw2dLib.setConnectionStroke conn 3
         |> tryActionWithCanvas "HighlightConnection"
 
+    /// Unhighlight a specific connection
     member this.UnHighlightConnection connectionId = 
         fun c ->
             let conn = draw2dLib.getConnectionById c connectionId
@@ -335,7 +358,7 @@ type Draw2dWrapper() =
                        draw2dLib.setConnectionStroke conn 1
         |> tryActionWithCanvas "UnHighlightConnection"
 
-    member this.GetCanvasState () =
+    member this.GetCanvasState () : JSCanvasState option =
         match canvas with
         | None ->
             log "Warning: Draw2dWrapper.GetCanvasState called when canvas is None"
@@ -344,8 +367,9 @@ type Draw2dWrapper() =
             let comps = jsListToFSharpList <| draw2dLib.getAllJsComponents c
             let conns = jsListToFSharpList <| draw2dLib.getAllJsConnections c
             Some (comps, conns)
-
-    member this.GetSelected () =
+    /// Return selected (JSComponents list,JSConnections list).
+    /// Use extractState to convert to F# components and connections
+    member this.GetSelected () : JSCanvasState option =
         match canvas with
         | None ->
             log "Warning: Draw2dWrapper.GetSelected called when canvas is None"

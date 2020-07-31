@@ -75,7 +75,8 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     | "AsyncROM"   -> AsyncROM <| extractMemoryData jsComponent
     | "ROM"        -> ROM <| extractMemoryData jsComponent
     | "RAM"        -> RAM <| extractMemoryData jsComponent
-    | ct -> failwithf "what? Component type %s does not exist" ct
+    | "Label"      -> IOLabel
+    | ct -> failwithf "what? Component type %s does not exist: this must be added to extractor:extractComponentType" ct
 
 let private extractVertices (jsVertices : JSVertices) : (float * float) list =
     jsListToFSharpList jsVertices
@@ -110,3 +111,5 @@ let extractState (state : JSCanvasState) : CanvasState =
     // Sort components by their location.
     let comps = sortComponents comps
     comps, conns
+
+ 

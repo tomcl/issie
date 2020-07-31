@@ -149,15 +149,15 @@ let hideView model dispatch =
 
 let displayView model dispatch =
     // Simulation has larger right column.
-    let canvasStyle, rightSectionStyle, leftSectionStyle =
+    let canvasStyle, rightSectionStyle =
         match model.RightTab with
             | Simulation
             | WaveSim ->
-                VisibleSmall, rightSectionStyleL, leftSectionStyleS
+                VisibleSmall, rightSectionStyleL
             | _ ->
-                VisibleLarge, rightSectionStyleS, leftSectionStyleL
+                VisibleLarge, rightSectionStyleS
     div [] [
-        viewTopMenu model dispatch
+        viewTopMenu model dispatch 
         div [Style [Resize "horizontal"; Width "70%"]] [
             model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) canvasStyle
         ]

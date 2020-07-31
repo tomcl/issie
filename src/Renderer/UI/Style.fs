@@ -10,7 +10,7 @@ let private leftSectionStyle widthRightSec = Style [
     Width (sprintf "calc(100%s - %s)" "%" widthRightSec)
 ]
 
-let navbarStyle = Style [
+let navbarStyle model = Style [
     Width "100%"
     Height headerHeight
 ]
@@ -186,10 +186,8 @@ let cursorDivSvgStyle: IProp list = [
     unbox ("width", "100%")
 ]
 
-let boxSvgStyle: IProp list = [
-    Style [ Position PositionOptions.Absolute ]
+let clkSvgStyle: IProp list = [
     unbox ("width", "100%")
-    unbox ("y", "0")
 ]
 
 let waveRightSmallDivStyle = Style [ 

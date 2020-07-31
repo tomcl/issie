@@ -6,6 +6,10 @@ let private headerHeight = "52px"
 let private rightSectionWidthS = "400px" // Small right section.
 let private rightSectionWidthL = "650px" // Large right section.
 
+let private leftSectionStyle widthRightSec = Style [
+    Width (sprintf "calc(100%s - %s)" "%" widthRightSec)
+]
+
 let navbarStyle = Style [
     Width "100%"
     Height headerHeight
@@ -14,7 +18,8 @@ let navbarStyle = Style [
 let private rightSectionStyle width = Style [
     Position PositionOptions.Fixed
     Right "0px"
-    Height (sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
+    Top "0px"
+    Height  "100%" //(sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
     Width width
     OverflowX OverflowOptions.Hidden
     OverflowY OverflowOptions.Scroll
@@ -23,8 +28,10 @@ let private rightSectionStyle width = Style [
 
 /// Style when right column is expanded.
 let rightSectionStyleS = rightSectionStyle rightSectionWidthS
+let leftSectionStyleL = leftSectionStyle rightSectionWidthS
 /// Style when right column is small.
 let rightSectionStyleL = rightSectionStyle rightSectionWidthL
+let leftSectionStyleS = leftSectionStyle rightSectionWidthL
 
 let canvasHiddenStyle = Style [
     Display DisplayOptions.None
@@ -198,6 +205,29 @@ let cursorButtonStyle = Style [
     Float FloatOptions.Left
 ]
 
+let reloadButtonStyle = Style [
+    Padding "3% 3%" 
+    Width "5%"
+    Position PositionOptions.Relative
+    Color "red"
+    Float FloatOptions.Left
+]
+
 let stdButtonStyle = Style [
     Color "gray"
+]
+
+let newWaveButtonStyle = Style [
+    Padding "0 0" 
+    Width "100%"
+    Position PositionOptions.Relative
+    Color "red"
+    Float FloatOptions.Left
+    FontSize "5%"
+]
+
+let clkNumStyle: IProp list = [
+    SVGAttr.FontSize "1%"
+    SVGAttr.Y "4%"
+    SVGAttr.TextAnchor "middle"
 ]

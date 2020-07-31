@@ -27,7 +27,7 @@ type Model = {
     Diagram : Draw2dWrapper
     SelectedComponent : Component option // None if no component is selected.
     Simulation : Result<SimulationData,SimulationError> option // None if no simulation is running.
-    WaveSim : WaveSimModel option
+    WaveSim : WaveSimModel
     RightTab : RightTab
     Hilighted : ComponentId list * ConnectionId list
     Clipboard : CanvasState // Components and connections that have been selected and copied.

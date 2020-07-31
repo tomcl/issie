@@ -108,11 +108,18 @@ let dec2hex (n: bigint) (nBits: uint32) : string = //2s complement
     |> List.map ((fun i -> paddedBin.[i..i + 3]) >> fourBitToHexDig)
     |> List.toSeq |> Seq.map string |> String.concat ""
 
+let dec2sdec (n: bigint) (nBits: uint32) =
+    if (dec2bin n nBits).[0] = '1'
+        then n - bigint (2.0**(float nBits))
+        else n
+    |> string
+
 let radixChange (n: bigint) (nBits: uint32) (rad: NumberBase) = 
     match rad with
     | Dec -> string n
     | Bin -> dec2bin n nBits
     | Hex -> dec2hex n nBits
+    | SDec -> dec2sdec n nBits
 
 //auxiliary functions to the viewer function
 
@@ -235,7 +242,8 @@ let makeCursVals model =
    Array.mapi makeCursVal m.waveData.[int m.cursor] |> Array.collect id*)
    let makeCursVal sample = 
        match sample with
-       | Wire w -> [| radixChange w.bitData w.nBits model.radix |]
+       | Wire w when w.nBits > uint 1 -> [| radixChange w.bitData w.nBits model.radix |]
+       | Wire w -> [| string w.bitData |]
        | StateSample s -> s
        |> Array.map (fun l -> label [] [str l])
    Array.map makeCursVal model.waveData.[int model.cursor]
@@ -283,7 +291,9 @@ let displaySvg (model: WaveSimModel) =
         let valueLabels = 
             let lblEl (sample, xIndArr) = 
                 match sample with 
-                | Wire w when w.nBits > uint 1 -> Array.map (fun xInd -> addLabel 1 xInd 0 (string w.bitData)) xIndArr
+                | Wire w when w.nBits > uint 1 -> 
+                                    Array.map (fun xInd -> 
+                                                addLabel 1 xInd 0 (radixChange w.bitData w.nBits model.radix)) xIndArr
                 | StateSample ss -> Array.collect (fun xInd -> Array.mapi (addLabel (Array.length ss) xInd) ss) xIndArr
                 | _ -> [| |]
             busLabels model
@@ -302,8 +312,6 @@ let displaySvg (model: WaveSimModel) =
     let labels = makeLabels model
     let cursLabs = makeCursVals model
 
-    //labelSvg, snd backgroundSvg, Array.append waveSvg (fst backgroundSvg), cursorValSvg
-    // cursorValSvg, labelSvg, waveSvg
     Array.zip (Array.zip labels waveSvg) cursLabs
     |> Array.map (fun ((l, w), c) -> 
                 tr [ Style [BorderSpacing "0 0"] ] 
@@ -338,19 +346,12 @@ let zoom plus horizontal (m: WaveSimModel) =
 let button style func label =
     Button.button (List.append [Button.Props [style]] [Button.OnClick func]) [ str label ]
 
-let cycleRadix model =
-    let newRadix = 
-        match model.radix with
-        | Dec -> Bin
-        | Bin -> Hex
-        | Hex -> Dec
-    StartWaveSim { model with radix = newRadix }
-
 let radixString rad =
     match rad with
-    | Dec -> "dec"
-    | Bin -> "bin"
-    | Hex -> "hex"
+    | Dec -> "Dec"
+    | Bin -> "Bin"
+    | Hex -> "Hex"
+    | SDec -> "sDec"
 
 let cursorMove increase model = 
     match increase, model.cursor, fst model.viewIndexes, snd model.viewIndexes with 
@@ -389,7 +390,15 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
     [
     div []
         [ button reloadButtonStyle (fun _ -> ()) "Reload"
-          button stdButtonStyle (fun _ -> cycleRadix model |> dispatch) ("Radix: " + radixString model.radix)
+          Tabs.tabs [Tabs.IsBoxed; Tabs.Props [ Style [FontSize "80%"]  ]] [
+            let radTab rad =
+                Tabs.tab
+                    [ Tabs.Tab.IsActive (model.radix = rad) ]
+                    [ a [ OnClick (fun _ -> StartWaveSim {model with radix = rad} |> dispatch ) ] [ str (radixString rad) ] ]
+            radTab Bin
+            radTab Hex
+            radTab Dec
+            radTab SDec ]
           label [Style [Float FloatOptions.Left]] [str "Cursor"]
           button cursorButtonStyle (fun _ -> cursorMove true model |> dispatch) "+"
           button cursorButtonStyle (fun _ -> cursorMove false model |> dispatch) "-"  ]

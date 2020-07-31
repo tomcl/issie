@@ -126,4 +126,4 @@ type Project = {
 // Other //
 //=======//
 
-type NumberBase = | Hex | Dec | Bin
+type NumberBase = | Hex | Dec | Bin | SDec

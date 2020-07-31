@@ -12,8 +12,9 @@ let navbarStyle = Style [
 ]
 
 let private rightSectionStyle width = Style [
-    Position PositionOptions.Fixed
-    Right "0px"
+    //Position PositionOptions.Fixed
+    Float FloatOptions.Right
+    //Right "0px"
     Height (sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
     Width width
     OverflowX OverflowOptions.Hidden
@@ -35,6 +36,7 @@ let private canvasVisibleStyle right = Style [
     Position PositionOptions.Absolute // Required to work.
     OverflowX OverflowOptions.Scroll
     OverflowY OverflowOptions.Scroll
+    Resize "horizontal"
     Top headerHeight // Placed just under the header.
     Left "0px"
     Bottom "0px"

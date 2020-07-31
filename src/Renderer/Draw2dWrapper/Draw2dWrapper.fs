@@ -201,6 +201,8 @@ let private editComponentLabel (canvas : JSCanvas) (id : string) (newLabel : str
 
 // React wrapper.
 
+/// Determines size of schematic.
+/// ToDo - make this more flexible and expose sizes
 type DisplayModeType = Hidden | VisibleSmall | VisibleLarge
 
 type private Draw2dReactProps = {
@@ -226,6 +228,7 @@ type private Draw2dReact(initialProps) =
 
 let inline private createDraw2dReact props = ofType<Draw2dReact,_,_> props []
 
+/// interface to ta draw2d component that controls the schematic sheet
 type Draw2dWrapper() =
     let mutable canvas : JSCanvas option = None
     let mutable dispatch : (JSDiagramMsg -> unit) option = None
@@ -303,6 +306,8 @@ type Draw2dWrapper() =
             draw2dLib.setComponentLabel jsComp newLabel
         |> tryActionWithCanvas "EditComponentLabel"
 
+    /// Repaint a connection
+    /// should mod to allow different colors independent of width?
     member this.PaintConnection connectionId width =
         fun c ->
             let jsConnection =
@@ -317,6 +322,7 @@ type Draw2dWrapper() =
             draw2dLib.setConnectionColor jsConnection color
         |> tryActionWithCanvas "PaintConnection"
 
+    /// Unhighlight a specific component
     member this.HighlightComponent componentId = 
         fun c ->
             let comp =
@@ -324,6 +330,7 @@ type Draw2dWrapper() =
             draw2dLib.setComponentBackground comp "red"
         |> tryActionWithCanvas "HighlightComponent"
 
+    /// Highlight a specific component
     member this.UnHighlightComponent componentId = 
         fun c ->
             let comp = draw2dLib.getComponentById c componentId
@@ -331,7 +338,8 @@ type Draw2dWrapper() =
             | true -> () // The component has been removed from the diagram while it was highlighted.
             | false -> draw2dLib.setComponentBackground comp "lightgray"
         |> tryActionWithCanvas "UnHighlightComponent"
-
+    
+    /// Highlight a specific connection
     member this.HighlightConnection connectionId =
         fun c ->
             let conn =
@@ -340,6 +348,7 @@ type Draw2dWrapper() =
             draw2dLib.setConnectionStroke conn 3
         |> tryActionWithCanvas "HighlightConnection"
 
+    /// Unhighlight a specific connection
     member this.UnHighlightConnection connectionId = 
         fun c ->
             let conn = draw2dLib.getConnectionById c connectionId
@@ -349,7 +358,7 @@ type Draw2dWrapper() =
                        draw2dLib.setConnectionStroke conn 1
         |> tryActionWithCanvas "UnHighlightConnection"
 
-    member this.GetCanvasState () =
+    member this.GetCanvasState () : JSCanvasState option =
         match canvas with
         | None ->
             log "Warning: Draw2dWrapper.GetCanvasState called when canvas is None"
@@ -358,8 +367,9 @@ type Draw2dWrapper() =
             let comps = jsListToFSharpList <| draw2dLib.getAllJsComponents c
             let conns = jsListToFSharpList <| draw2dLib.getAllJsConnections c
             Some (comps, conns)
-
-    member this.GetSelected () =
+    /// Return selected (JSComponents list,JSConnections list).
+    /// Use extractState to convert to F# components and connections
+    member this.GetSelected () : JSCanvasState option =
         match canvas with
         | None ->
             log "Warning: Draw2dWrapper.GetSelected called when canvas is None"

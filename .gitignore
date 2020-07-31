@@ -226,8 +226,8 @@ project.lock.json
 docsrc/content/license.md
 docsrc/content/release-notes.md
 docsrc/tools/FSharp.Formatting.svclog
-/docs/
-/docs/**/*
+docs/
+
 
 
 # FAKE build cache

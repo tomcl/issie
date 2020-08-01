@@ -73,6 +73,8 @@ type Component = {
     OutputPorts : Port list
     X : int
     Y : int
+    H : int
+    W : int
 }
 
 /// JSConnection mapped to F# record.

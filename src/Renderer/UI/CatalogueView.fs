@@ -34,29 +34,29 @@ let getNewComponentPosition (model:Model) =
 
     let maxX = 60
     let maxY = 60
-    let offsetY = 100
+    let offsetY = 30
     let sheetX = 1000
     let sheetY = 1000
     let meshPitch1 = 45
     let meshPitch2 = 5
     let bbTopLeft = {LTop=(0,0); RBot=(0,0)}
 
-    let componentPositions , boundingBox  =
+    let componentPositions , boundingBox, comps  =
         match model.Diagram.GetCanvasState () with
         | None -> 
             printfn "No canvas detected!"
-            [bbTopLeft],bbTopLeft
+            [bbTopLeft],bbTopLeft, []
         | Some jsState ->
             let comps,conns = Extractor.extractState jsState
             let xyPosL =
                 comps
                 |> List.map (fun co -> {LTop=(co.X,co.Y); RBot=(co.X+co.W,co.Y+co.H)})
             if xyPosL = [] then 
-                [bbTopLeft],bbTopLeft // add default top left component to keep code from breaking
+                [bbTopLeft],bbTopLeft, [] // add default top left component to keep code from breaking
             else
                 let bbMin = fst (List.minBy (fun xyPos -> fst xyPos.LTop) xyPosL).LTop , snd (List.minBy (fun xyPos -> snd xyPos.LTop) xyPosL).LTop
                 let bbMax = fst (List.maxBy (fun xyPos -> fst xyPos.RBot) xyPosL).RBot , snd (List.maxBy (fun xyPos -> snd xyPos.RBot) xyPosL).RBot
-                xyPosL, {LTop=bbMin; RBot=bbMax}
+                xyPosL, {LTop=bbMin; RBot=bbMax}, comps
     /// x value to choose for y offset heuristic
     let xDefault =
         componentPositions
@@ -130,12 +130,11 @@ let getNewComponentPosition (model:Model) =
     let lastCompPos =
         match model.CreateComponent with
         | None -> None
-        | Some comp -> 
-            match model.Diagram.GetComponentById comp.Id with
-            | Ok jsComp -> 
-                Extractor.extractComponent jsComp
-                |> (fun comp -> Some (comp.X,comp.Y))
-            | _  -> None
+        | Some cComp -> 
+            match List.tryFind (fun (comp:Component) -> comp.Id = cComp.Id) comps with
+            | Some comp -> Some (comp.X, comp.Y, comp.H, comp.W)
+            | None -> None
+
 
 
 
@@ -143,9 +142,9 @@ let getNewComponentPosition (model:Model) =
     | _ when boundingBox = bbTopLeft -> 
         // Place first component on empty sheet top middle
         sheetX / 2, maxY
-    | _, Some (x,y) when checkDistance {LTop=(x,y+offsetY); RBot=(x+maxX,y+maxY+offsetY)} > float 0 && y + offsetY < sheetY - maxY -> 
+    | _, Some (x,y,h,w) when checkDistance {LTop=(x,y+h+offsetY); RBot=(x+w,y+2*h+offsetY)} > float 0 && y + h + offsetY < sheetY - maxY -> 
         // if possible, place new component just below the last component placed, even if this has ben moved.
-        x, y + offsetY
+        x, y + h + offsetY
     | (_,y),_ when y < sheetY - 2*maxY  -> 
         // if possible, align horizontally with vertical offset from lowest component
         // this case will ensure components are stacked vertically (which is usually wanted)

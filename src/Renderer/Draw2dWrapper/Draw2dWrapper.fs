@@ -83,6 +83,8 @@ type private IDraw2d =
     abstract undoLastAction               : canvas:JSCanvas -> unit
     abstract redoLastAction               : canvas:JSCanvas -> unit
     abstract flushCommandStack            : canvas:JSCanvas -> unit
+    abstract getScrollArea                : canvas: JSCanvas -> ResizeArray<int>
+    abstract getZoom                      : canvas: JSCanvas -> float
 
 [<Import("*", "./draw2d_fsharp_interface.js")>]
 let private draw2dLib : IDraw2d = jsNative
@@ -266,6 +268,21 @@ type Draw2dWrapper() =
     member this.ClearCanvas () =
         tryActionWithCanvas "ClearCanvas" draw2dLib.clearCanvas
 
+    member this.GetScrollArea () =
+        match canvas with
+        | None -> 
+            None
+        | Some c -> 
+            let a = draw2dLib.getScrollArea c
+            Some {| Width = a.[0]; Height = a.[1]; Left = a.[2]; Top = a.[3]|}
+
+    member this.GetZoom () =
+        match canvas with
+        | None -> 
+            None
+        | Some c -> 
+            draw2dLib.getZoom c |> Some
+
     /// Brand new component.
     member this.CreateComponent componentType label x y =
         match canvas, dispatch with
@@ -432,3 +449,5 @@ type Draw2dWrapper() =
             match isNull jsComp with
             | true -> Error <| sprintf "Could not find component with Id: %s" compId
             | false -> Ok jsComp
+
+    

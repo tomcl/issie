@@ -35,11 +35,27 @@ let getNewComponentPosition (model:Model) =
     let maxX = 60
     let maxY = 60
     let offsetY = 30
-    let sheetX = 1000
-    let sheetY = 1000
+    let sheetDef = (1000,1000,0,0,1.0)
+   
     let meshPitch1 = 45
     let meshPitch2 = 5
-    let bbTopLeft = {LTop=(0,0); RBot=(0,0)}
+
+    let scrollArea  = model.Diagram.GetScrollArea()
+    let zoomOpt = model.Diagram.GetZoom()
+
+    let sheetX, sheetY,sheetLeft, sheetTop, zoom =
+        match scrollArea, zoomOpt with 
+            | Some a, Some z -> 
+                printfn "Area = (%d,%d,%d,%d, %.2f)" a.Width a.Height a.Left a.Top z
+                let mag n = int (float n * z)
+                let mag' n = min n (int (float n * z))
+                
+                (mag' a.Width, mag' a.Height, mag a.Left, mag a.Top, z)
+            | _ -> sheetDef
+
+    let bbTopLeft = {LTop=(sheetLeft,sheetTop); RBot=(sheetLeft,sheetTop)}
+
+    let isVisible (x,y) = x >= sheetLeft && y >= sheetTop && x < sheetLeft + sheetX - maxX && y < sheetTop + sheetY - maxY
 
     let componentPositions , boundingBox, comps  =
         match model.Diagram.GetCanvasState () with
@@ -51,6 +67,7 @@ let getNewComponentPosition (model:Model) =
             let xyPosL =
                 comps
                 |> List.map (fun co -> {LTop=(co.X,co.Y); RBot=(co.X+co.W,co.Y+co.H)})
+                |> List.filter (fun co -> isVisible co.LTop)
             if xyPosL = [] then 
                 [bbTopLeft],bbTopLeft, [] // add default top left component to keep code from breaking
             else
@@ -60,6 +77,7 @@ let getNewComponentPosition (model:Model) =
     /// x value to choose for y offset heuristic
     let xDefault =
         componentPositions
+        |> List.filter (fun bb -> isVisible bb.LTop)
         |> List.map (fun bb -> bb.LTop)
         |> List.minBy snd
         |> fst
@@ -69,6 +87,7 @@ let getNewComponentPosition (model:Model) =
     /// y value to choose for x offset heuristic
     let yDefault =
         componentPositions
+        |> List.filter (fun bb -> isVisible bb.LTop)
         |> List.map (fun bb -> bb.LTop)
         |> List.minBy fst
         |> snd
@@ -136,39 +155,38 @@ let getNewComponentPosition (model:Model) =
             | None -> None
 
 
-
-
     match boundingBox.RBot, lastCompPos with
     | _ when boundingBox = bbTopLeft -> 
         // Place first component on empty sheet top middle
-        sheetX / 2, maxY
-    | _, Some (x,y,h,w) when checkDistance {LTop=(x,y+h+offsetY); RBot=(x+w,y+2*h+offsetY)} > float 0 && y + h + offsetY < sheetY - maxY -> 
+        sheetLeft + sheetX / 2 - maxX / 2, sheetTop
+    | _, Some (x,y,h,w) when checkDistance {LTop=(x,y+h+offsetY); RBot=(x+w,y+2*h+offsetY)} > float 0 && y + h + offsetY < sheetTop + sheetY - maxY -> 
         // if possible, place new component just below the last component placed, even if this has ben moved.
         x, y + h + offsetY
-    | (_,y),_ when y < sheetY - 2*maxY  -> 
+    | (_,y),_ when y < sheetY + sheetTop - 2*maxY && y > sheetTop -> 
         // if possible, align horizontally with vertical offset from lowest component
         // this case will ensure components are stacked vertically (which is usually wanted)
         xDefault, y + maxY
-    | (x,_),_ when x < sheetX - 2*maxX -> 
+    | (x,_),_ when x < sheetX + sheetLeft - 2*maxX && x > sheetTop -> 
         // if possible, next choice is align vertically with horizontal offset from rightmost component
         // this case will stack component horizontally
         x + maxX, yDefault
     | _ ->
         // try to find some free space anywhere on the sheet
         // do a coarse search for largest Euclidean distance to any component's worst case bounding box
-        List.allPairs [maxX..meshPitch1..sheetX-maxX] [maxY..meshPitch1..sheetY-maxY]
+        List.allPairs [sheetLeft+maxX..meshPitch1..sheetLeft+sheetX-maxX] [sheetTop+maxY..meshPitch1..sheetTop+sheetY-maxY]
         |> List.map xyToBb
         |> List.sortByDescending (checkDistance)
         |> List.take 10
         |> List.collect (fun {LTop=(xEst,yEst)} ->
                 //now do the same thing locally with a narrower search pitch
                 List.allPairs [xEst - meshPitch1/3..meshPitch2..xEst + meshPitch1/3] [yEst - meshPitch1/3..meshPitch2..yEst + meshPitch1/3]
-                |> List.filter (fun (x,y) -> x < sheetX-maxX && y < sheetY-maxY) // delete anything too near edge
+                |> List.filter isVisible // delete anything too near edge
                 |> List.map xyToBb
                 |> List.maxBy checkDistance
                 |> (fun  bb -> [bb]))
         |> List.maxBy checkDistance
         |> (fun bb -> bb.LTop)
+    |> (fun (x,y) -> printf "Pos=(%d,%d)" x y; (x,y))
         
 
  

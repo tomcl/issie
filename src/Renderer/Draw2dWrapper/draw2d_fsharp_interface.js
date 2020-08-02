@@ -55,6 +55,14 @@ function clearCanvas (canvas) {
     canvas.clear();
 }
 
+function getScrollArea(canvas) {
+    return [ canvas.getWidth(), canvas.getHeight(), canvas.getScrollLeft(), canvas.getScrollTop()];
+}
+
+function getZoom(canvas) {
+    return canvas.getZoom();
+}
+
 function addComponentToCanvas(canvas, comp) {
     // Keep track of the action so it can be undone.
     let command = new draw2d.command.CommandAdd(canvas, comp, comp.getPosition());
@@ -401,6 +409,8 @@ export {
     createCanvas,
     initialiseCanvas,
     clearCanvas,
+    getScrollArea,
+    getZoom,
     addComponentToCanvas,
     addConnectionToCanvas,
     addComponentLabel,

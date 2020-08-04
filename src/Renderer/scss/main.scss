@@ -50,3 +50,132 @@ $fa-font-path: './../../../node_modules/font-awesome/fonts/';
     min-width: 200px;
     background: #eee;
 }
+
+//Waveform simulator styles
+
+$transLen: 0.1;
+$vPos: 0.0;
+$zoomFactor: 1.2;
+$waveVBextraHeight: 0.5;
+$maxBusValGap: 3;
+$busLabelTextSize: 0.6; // multiplied by signal height
+$waveBoxPercWidth: 73.0%;
+$clkLineWidth: 0.0125;
+$boxStrokeThck: 0.05;
+$persvgwidth: 100;
+$sigLineThick: 0.025;
+
+.sigLineStyle { 
+    stroke: blue;
+    stroke-width: $sigLineThick;
+}
+
+.clkLineStyle {
+    stroke: rgb(200,200,200);
+    stroke-width: $clkLineWidth;
+}
+
+.boxLineStyle { 
+    left: 0;
+    top: $vPos;
+    width: calc($waveBoxPercWidth / 10.0);
+    stroke: black;
+    fill: white;
+    stroke-width: $boxStrokeThck;
+}
+
+.cursorRectStyle { 
+    left: calc($vPos + $boxStrokeThck / 2.0);
+    width: calc($waveBoxPercWidth / 10.0);
+    stroke: black;
+    fill: rgb(220,220,220);
+    stroke-width: 0;
+    fill-opacity: 5.0;
+}
+
+.busValueStyle { 
+    fill: black;
+    text-anchor: middle;
+}
+
+.waveLblStyle { 
+    left: 0;
+    fill: black;
+    text-anchor: start;
+}
+
+.cursValLblStyle { 
+    left: 0;
+    fill: black;
+    text-anchor: start;
+}
+
+.waveLblDivStyle { 
+    float: left;
+    clear: both;
+    width: 20%;
+}
+
+.waveLblSvgStyle{ 
+    width: 100%;
+}
+
+.waveContDivStyle { 
+    float: left;
+    width: $waveBoxPercWidth;
+    position: relative;
+}
+
+.cursorDivStyle { 
+    float: right;
+    width: 5%;
+    position: relative;
+}
+
+.cursorDivSvgStyle { 
+    width: 100%;
+}
+
+.waveRightSmallDivStyle { 
+    width: 100%;
+    overflow-x: scroll;
+    position: absolute;
+}
+
+.waveCellStyle { 
+    overflow-x: scroll;
+}
+
+.cursorButtonStyle { 
+    padding: 3% 3%;
+    width: 3%;
+    position: relative;
+    color: red;
+    float: left;
+}
+
+.reloadButtonStyle { 
+    padding: 3% 3%;
+    position: relative;
+    color: red;
+    float: left;
+}
+
+.stdButtonStyle { 
+    color: gray;
+}
+
+.newWaveButtonStyle { 
+    padding: 0 0;
+    width: 100%;
+    position: relative;
+    color: red;
+    float: left;
+    font-size: 5%;
+}
+
+.clkNumStyle { 
+    font-size: 1%;
+    left: 4%;
+    text-anchor: middle;
+}

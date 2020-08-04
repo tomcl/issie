@@ -14,6 +14,17 @@ open DiagramMessageType
 open DiagramStyle
 open CommonTypes
 
+let clkLineWidth = 0.0125
+let transLen = 0.1
+let vPos = 0.0
+let zoomFactor = 1.2
+let waveVBextraHeight = 0.5
+let maxBusValGap = 3
+let busLabelTextSize = 0.6 // multiplied by signal height
+let waveBoxPercWidth = 73.0
+let boxStrokeThck = 0.05
+let persvgwidth = 100
+ 
 //type functions
 
 let initModel: WaveSimModel =
@@ -64,10 +75,10 @@ let initModel: WaveSimModel =
 
 // SVG functions
 
-let makeLine style attr = line (List.append style attr) []
-let makeRect style attr = rect (List.append style attr) []
-let makeText style attr t = text (List.append style attr) [str t]
-let makeSvg style attr elements = svg (List.append style attr) elements
+let makeLine style attr = line (List.append [style] attr) []
+let makeRect style attr = rect (List.append [style] attr) []
+let makeText style attr t = text (List.append [style] attr) [str t]
+let makeSvg style attr elements = svg (List.append [style] attr) elements
 let makeLinePoints style (x1, y1) (x2, y2) = makeLine style [ X1 x1; Y1 y1; X2 x2; Y2 y2 ]
 
 //radix change
@@ -135,8 +146,8 @@ let makeSegment (p: PosParamsType) (xInd: int)  ((data: Sample), (trans: int * i
     let top = bot - p.sigHeight
     let left = float xInd * p.clkWidth
     let right = left + float p.clkWidth
-    
-    let makeSigLine = makeLinePoints sigLineStyle
+
+    let makeSigLine = makeLinePoints (Class "sigLineStyle")
 
     match data with
     | Wire w when w.nBits = uint 1 ->
@@ -226,20 +237,6 @@ let busLabels model =
     |> Array.map gaps2pos
 
 let makeCursVals model =
-   (*let p = m.posParams
-   let attr ind : IProp list = 
-        [ Y ((p.spacing + p.sigHeight))
-          SVGAttr.FontSize (p.sigHeight * 0.6) ] 
-   let makeTextWithOffset yInd nOffsets offset = 
-        (float yInd - 0.3 * ( ( float nOffsets + float offset - 1.0) / 2.0))
-        |> attr
-        |> makeText cursValLblStyle
-   let makeCursVal (yInd: int) sample = 
-        match sample with
-        | Wire w -> [| radixChange w.bitData w.nBits m.radix |]
-        | StateSample s -> s
-        |> (fun arr -> Array.mapi (makeTextWithOffset yInd (Array.length arr)) arr)
-   Array.mapi makeCursVal m.waveData.[int m.cursor] |> Array.collect id*)
    let makeCursVal sample = 
        match sample with
        | Wire w when w.nBits > uint 1 -> [| radixChange w.bitData w.nBits model.radix |]
@@ -254,26 +251,25 @@ let makeCursRect model =
         [ X (p.clkWidth * float model.cursor + clkLineWidth / 2.0)
           SVGAttr.Width (p.clkWidth - clkLineWidth)
           SVGAttr.Height (p.spacing + p.sigHeight) ]
-    [| makeRect cursorRectStyle attr |]
+    [| makeRect (Class "cursorRectStyle") attr |]
 
 let displaySvg (model: WaveSimModel) =
     let p = model.posParams
 
     //container box and clock lines
     let backgroundSvg =
-        let clkLine x = makeLinePoints clkLineStyle (x, vPos) (x, vPos + float p.sigHeight + float p.spacing)
+        let clkLine x = makeLinePoints (Class "clkLineStyle") (x, vPos) (x, vPos + float p.sigHeight + float p.spacing)
         let clkLines =
             [| 1 .. 1 .. Array.length model.waveData |] |> Array.map ((fun x -> float x * p.clkWidth) >> clkLine)
         clkLines
 
     // waveforms
     let VBwidth = p.clkWidth * float (Array.length model.waveData)
-    let VBheight = p.sigHeight + p.spacing
     let wavesVB =
         let appInv a b = b + a
         "0 0 " + string VBwidth
         |> appInv " "
-        |> appInv (string VBheight)
+        |> appInv (string (p.spacing + p.sigHeight))
         |> string
         |> ViewBox
 
@@ -284,7 +280,7 @@ let displaySvg (model: WaveSimModel) =
                 Y (p.spacing + p.sigHeight - p.sigHeight * 0.3 + 0.3 * p.sigHeight * (float i - (float nLabels - 1.0) / 2.0))
                 SVGAttr.FontSize (busLabelTextSize * p.sigHeight / float nLabels) 
             ]
-            makeText busValueStyle attr lbl
+            makeText (Class "busValueStyle") attr lbl
 
         let mapiAndCollect func = Array.mapi func >> Array.collect id
 
@@ -315,15 +311,15 @@ let displaySvg (model: WaveSimModel) =
     Array.zip (Array.zip labels waveSvg) cursLabs
     |> Array.map (fun ((l, w), c) -> 
                 tr [ Style [BorderSpacing "0 0"] ] 
-                   [ td [] [l]
-                     td [] 
-                        [makeSvg [ Style [Width "100%"] ] [wavesVB] (Array.append (Array.append backgroundSvg (makeCursRect model)) w)]
-                     td [ Style [Width "5%"] ] c ] ) 
+                   [ td [Style [TextAlign TextAlignOptions.Right; BorderRight "2px solid black" ] ] [l]
+                     td [ Style [Width ((string (max (VBwidth*10.0) 100.0))+"%")] ] 
+                        [makeSvg (Style [Width (string (10.0 * VBwidth)+"%")]) [wavesVB] (Array.append (Array.append backgroundSvg (makeCursRect model)) w)]
+                     td [ Style [Width "5%"; BorderLeft "2px solid black" ] ] c ] ) 
 
 let clkRulerSvg (model: WaveSimModel) = 
     [| 0..(Array.length model.waveData - 1) |] 
     |> Array.map (fun x -> 
-        makeText clkNumStyle 
+        makeText (Class "clkNumStyle")
                  [ X (model.posParams.clkWidth * (float x + 0.5))
                    Y model.posParams.sigHeight ] //should be something else
                  (string x))
@@ -366,9 +362,7 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
     let model = fullModel.WaveSim
     let p = model.posParams
     let appInv a b = b + a
-    let nSig = Array.length model.waveNames
     let VBwidth = p.clkWidth * float (Array.length model.waveData)
-    let VBheight = float nSig * (p.sigHeight + p.spacing) + waveVBextraHeight
 
     let clkVB = 
         "0 0 " + string VBwidth
@@ -377,20 +371,14 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
         |> string
         |> ViewBox
 
-    (*let VBwidthPercentage =
-        1000.0 * VBwidth / waveBoxPercWidth
-        |> int
-        |> string
-        |> appInv "%"
-        |> string*)
- 
-
-    //let (lblSvg, boxSvg, wfrmSvg, cursorValuesSvg) = displaySvg model
-
     [
     div []
-        [ button reloadButtonStyle (fun _ -> ()) "Reload"
-          Tabs.tabs [Tabs.IsBoxed; Tabs.Props [ Style [FontSize "80%"]  ]] [
+        [ button (Class "reloadButtonStyle") (fun _ -> ()) "Reload"
+          label [Style [Float FloatOptions.Left]] [(str "Cursor")]
+          input [Type "number"; Value "0"]
+          button (Class "cursorButtonStyle") (fun _ -> cursorMove true model |> dispatch) "+"
+          button (Class "cursorButtonStyle") (fun _ -> cursorMove false model |> dispatch) "-"
+          Tabs.tabs [(*Tabs.IsBoxed; *)Tabs.IsToggle; Tabs.Props [ Style [FontSize "80%"; Float FloatOptions.Right]]] [
             let radTab rad =
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.radix = rad) ]
@@ -398,36 +386,24 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
             radTab Bin
             radTab Hex
             radTab Dec
-            radTab SDec ]
-          label [Style [Float FloatOptions.Left]] [str "Cursor"]
-          button cursorButtonStyle (fun _ -> cursorMove true model |> dispatch) "+"
-          button cursorButtonStyle (fun _ -> cursorMove false model |> dispatch) "-"  ]
+            radTab SDec ]  ]
 
-    (*div []
-        [ div [ waveLblDivStyle ] [ makeSvg waveLblSvgStyle [labelVB] lblSvg ]
-            div
-                [ waveContDivStyle ]
-                [ makeSvg boxSvgStyle [boxVB] boxSvg
-                div
-                    [ waveRightSmallDivStyle ]
-                    [ makeSvg [unbox ("width", VBwidthPercentage)] [wavesVB] wfrmSvg ] ] 
-            div [ cursorDivStyle ] [ makeSvg cursorDivSvgStyle [cursorValuesVB] cursorValuesSvg ] ]*)
     let tableTop = 
         [| tr [ Style [ Height "5%" ] ]
-             [ td []
+             [ td [ Style [BorderRight "2px solid black"] ]
                   [ Checkbox.input [ Props [ Style [ Float FloatOptions.Left ] ] ] 
-                    button reloadButtonStyle (fun _ -> ()) "+" ]
-               td [] 
-                  [ makeSvg clkSvgStyle [clkVB] (clkRulerSvg model) ] 
-               td [ Style [Width "5%"] ] [ label [] [str ""] (*header of cursor column*) ] ] |]
+                    button (Class "cursorButtonStyle") (fun _ -> ()) "+" ]
+               td [ Style [ Width ((string (max (VBwidth*10.0) 100.0))+"%") ] ]
+                  [ makeSvg (Style[Width (VBwidth*10.0)]) [clkVB] (clkRulerSvg model) ] 
+               td [ Style [Width "5%"; BorderLeft "2px solid black"] ] [ label [] [str ""] (*header of cursor column*) ] ] |]
     let tableBot = displaySvg model
-    table [ Style [BorderTop "2px solid black"; Width "100%"] ]
+    table [ Style [BorderTop "2px solid black"; Width "100%"; BorderCollapse "collapse"; OverflowX OverflowOptions.Scroll] ]
           (Array.append tableTop tableBot)
 
     div []
         [ label [Style [Float FloatOptions.Left; Clear ClearOptions.Both]] [str "H Zoom"]
-          button cursorButtonStyle (fun _ -> zoom true true model |> dispatch) "+"
-          button cursorButtonStyle (fun _ -> zoom false true model |> dispatch) "-"
+          button (Class "cursorButtonStyle") (fun _ -> zoom true true model |> dispatch) "+"
+          button (Class "cursorButtonStyle") (fun _ -> zoom false true model |> dispatch) "-"
           label [Style [Float FloatOptions.Left]] [str "V Zoom"]
-          button cursorButtonStyle (fun _ -> zoom true false model |> dispatch) "+"
-          button cursorButtonStyle (fun _ -> zoom false false model |> dispatch) "-" ] ]
+          button (Class "cursorButtonStyle") (fun _ -> zoom true false model |> dispatch) "+"
+          button (Class "cursorButtonStyle") (fun _ -> zoom false false model |> dispatch) "-" ] ]

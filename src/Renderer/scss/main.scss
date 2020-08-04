@@ -64,6 +64,11 @@ $clkLineWidth: 0.0125;
 $boxStrokeThck: 0.05;
 $persvgwidth: 100;
 $sigLineThick: 0.025;
+$clkRulerHeight: 1;
+
+.floatLeft{
+    float: left;
+}
 
 .sigLineStyle { 
     stroke: blue;
@@ -75,15 +80,6 @@ $sigLineThick: 0.025;
     stroke-width: $clkLineWidth;
 }
 
-.boxLineStyle { 
-    left: 0;
-    top: $vPos;
-    width: calc($waveBoxPercWidth / 10.0);
-    stroke: black;
-    fill: white;
-    stroke-width: $boxStrokeThck;
-}
-
 .cursorRectStyle { 
     left: calc($vPos + $boxStrokeThck / 2.0);
     width: calc($waveBoxPercWidth / 10.0);
@@ -93,24 +89,26 @@ $sigLineThick: 0.025;
     fill-opacity: 5.0;
 }
 
-.busValueStyle { 
+.busValueStyle {
     fill: black;
     text-anchor: middle;
 }
 
-.waveLblStyle { 
-    left: 0;
+.blackLabel {
     fill: black;
-    text-anchor: start;
+
+    .waveLblStyle {
+        left: 0;
+        text-anchor: start;
+    }
+
+    .cursValLblStyle {
+        left: 0;
+        text-anchor: start;
+    }
 }
 
-.cursValLblStyle { 
-    left: 0;
-    fill: black;
-    text-anchor: start;
-}
-
-.waveLblDivStyle { 
+.waveLblDivStyle {
     float: left;
     clear: both;
     width: 20%;
@@ -118,12 +116,6 @@ $sigLineThick: 0.025;
 
 .waveLblSvgStyle{ 
     width: 100%;
-}
-
-.waveContDivStyle { 
-    float: left;
-    width: $waveBoxPercWidth;
-    position: relative;
 }
 
 .cursorDivStyle { 
@@ -146,36 +138,67 @@ $sigLineThick: 0.025;
     overflow-x: scroll;
 }
 
-.cursorButtonStyle { 
-    padding: 3% 3%;
+.buttonStyle {
+    padding: 0% 0%;
     width: 3%;
+    height: 1%;
     position: relative;
     color: red;
     float: left;
-}
 
-.reloadButtonStyle { 
-    padding: 3% 3%;
-    position: relative;
-    color: red;
-    float: left;
-}
+    .cursorButtonStyle {
+    }
 
-.stdButtonStyle { 
-    color: gray;
-}
+    .reloadButtonStyle {
+    }
 
-.newWaveButtonStyle { 
-    padding: 0 0;
-    width: 100%;
-    position: relative;
-    color: red;
-    float: left;
-    font-size: 5%;
+    .newWaveButtonStyle {
+        width: 100%;
+        font-size: 5%;
+    }
+
+    .zoomButtonStyle {
+        float: right;
+    }
 }
 
 .clkNumStyle { 
-    font-size: 1%;
-    left: 4%;
+    font-size: 1.5%;
     text-anchor: middle;
+    top: calc($clkRulerHeight * 0.5);
+}
+
+.clkRulerSvgStyle {
+    height: $clkRulerHeight;
+}
+
+.waveSimTableStyle {
+    border-top: 2px solid black;
+    width: 100%;
+    border-spacing: 0;
+    overflow-x: scroll;
+}
+
+.wavesColStyle {
+    overflow-x: auto;
+}
+
+.wavesColTableStyle {
+    width: 100%;
+    position: relative;
+}
+
+.wavesColDivStyle {
+    overflow-x: scroll;
+}
+
+.waveNamesCol {
+    text-align: right;
+    border-right: 2px solid black;
+    white-space: nowrap;
+}
+
+.cursValsCol {
+    width: 5%;
+    border-left: 2px solid black;
 }

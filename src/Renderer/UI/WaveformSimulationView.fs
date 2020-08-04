@@ -18,12 +18,8 @@ let clkLineWidth = 0.0125
 let transLen = 0.1
 let vPos = 0.0
 let zoomFactor = 1.2
-let waveVBextraHeight = 0.5
 let maxBusValGap = 3
 let busLabelTextSize = 0.6 // multiplied by signal height
-let waveBoxPercWidth = 73.0
-let boxStrokeThck = 0.05
-let persvgwidth = 100
  
 //type functions
 
@@ -198,7 +194,7 @@ let model2WaveList model : Waveform [] =
     let initState = Array.map (fun _ -> [||]) model.waveNames
     Array.fold folder initState model.waveData
 
-let transitions (model: WaveSimModel) = //relies that the number of names is correct (= length of elements in waveData
+let transitions (model: WaveSimModel) = //relies on number of names being correct (= length of elements in waveData)
     let isDiff (ws1,ws2) =
         let folder state (e1,e2) =
             match state, e1 = e2 with
@@ -252,6 +248,18 @@ let makeCursRect model =
           SVGAttr.Width (p.clkWidth - clkLineWidth)
           SVGAttr.Height (p.spacing + p.sigHeight) ]
     [| makeRect (Class "cursorRectStyle") attr |]
+
+let clkRulerSvg (model: WaveSimModel) = 
+    let VBwidth = model.posParams.clkWidth * float (Array.length model.waveData) 
+    let clkVB = "0 0 " + string VBwidth + " 0.25" |> ViewBox
+    [| 0..(Array.length model.waveData - 1) |] 
+    |> Array.map (fun x -> 
+        makeText (Class "clkNumStyle")
+                 [ X (model.posParams.clkWidth * (float x + 0.5)) 
+                   Y 0.25 ] 
+                 (string x))
+    |> makeSvg (Class "clkRulerSvgStyle") 
+               [ clkVB; Style [ Width ((string (VBwidth*10.0) ) + "%") ] ]
 
 let displaySvg (model: WaveSimModel) =
     let p = model.posParams
@@ -308,35 +316,38 @@ let displaySvg (model: WaveSimModel) =
     let labels = makeLabels model
     let cursLabs = makeCursVals model
 
-    Array.zip (Array.zip labels waveSvg) cursLabs
-    |> Array.map (fun ((l, w), c) -> 
-                tr [ Style [BorderSpacing "0 0"] ] 
-                   [ td [Style [TextAlign TextAlignOptions.Right; BorderRight "2px solid black" ] ] [l]
-                     td [ Style [Width ((string (max (VBwidth*10.0) 100.0))+"%")] ] 
-                        [makeSvg (Style [Width (string (10.0 * VBwidth)+"%")]) [wavesVB] (Array.append (Array.append backgroundSvg (makeCursRect model)) w)]
-                     td [ Style [Width "5%"; BorderLeft "2px solid black" ] ] c ] ) 
+    let labelCols =
+        Array.zip labels cursLabs
+        |> Array.map (fun (l, c) -> 
+                    tr [] 
+                       [ td [Style [TextAlign TextAlignOptions.Right; BorderRight "2px solid black"; WhiteSpace WhiteSpaceOptions.Nowrap ] ] [l]
+                         td [ Style [Width "5%"; BorderLeft "2px solid black" ] ] c ] ) 
 
-let clkRulerSvg (model: WaveSimModel) = 
-    [| 0..(Array.length model.waveData - 1) |] 
-    |> Array.map (fun x -> 
-        makeText (Class "clkNumStyle")
-                 [ X (model.posParams.clkWidth * (float x + 0.5))
-                   Y model.posParams.sigHeight ] //should be something else
-                 (string x))
+    let waveCol = 
+        Array.map (fun w -> 
+                    tr [] 
+                       [ td [ Style [Width ((string (max (VBwidth*10.0) 100.0))+"%")] ] 
+                            [makeSvg (Style [Width (string (10.0 * VBwidth)+"%"); Display DisplayOptions.Block]) [wavesVB] (Array.append (Array.append backgroundSvg (makeCursRect model)) w) ] ] ) waveSvg
+        |> Array.append [| tr [] 
+                              [ td [Style [Width ((string (max (VBwidth*10.0) 100.0))+"%")]] 
+                                   [clkRulerSvg model] ] |]
+    
+    (table [Class "wavesColTableStyle"] waveCol), labelCols
 
 // view function helpers
 
-let zoom plus horizontal (m: WaveSimModel) =
+let zoom plus (*horizontal*) (m: WaveSimModel) =
     let multBy =
         if plus then zoomFactor else 1.0 / zoomFactor
-    match horizontal with
+    (*match horizontal with
     | false ->
         let newParams =
             { m.posParams with
                     sigHeight = m.posParams.sigHeight * multBy
                     spacing = m.posParams.spacing * multBy }
         { m with posParams = newParams }
-    | true -> { m with posParams = { m.posParams with clkWidth = m.posParams.clkWidth * multBy } }
+    | true -> *)
+    { m with posParams = { m.posParams with clkWidth = m.posParams.clkWidth * multBy } }
     |> StartWaveSim
 
 let button style func label =
@@ -361,24 +372,18 @@ let cursorMove increase model =
 let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =   
     let model = fullModel.WaveSim
     let p = model.posParams
-    let appInv a b = b + a
     let VBwidth = p.clkWidth * float (Array.length model.waveData)
-
-    let clkVB = 
-        "0 0 " + string VBwidth
-        |> appInv " "
-        |> appInv (string (p.sigHeight + p.spacing))
-        |> string
-        |> ViewBox
 
     [
     div []
-        [ button (Class "reloadButtonStyle") (fun _ -> ()) "Reload"
-          label [Style [Float FloatOptions.Left]] [(str "Cursor")]
-          input [Type "number"; Value "0"]
-          button (Class "cursorButtonStyle") (fun _ -> cursorMove true model |> dispatch) "+"
-          button (Class "cursorButtonStyle") (fun _ -> cursorMove false model |> dispatch) "-"
-          Tabs.tabs [(*Tabs.IsBoxed; *)Tabs.IsToggle; Tabs.Props [ Style [FontSize "80%"; Float FloatOptions.Right]]] [
+        [ button (Class "reloadButtonStyle") (fun _ -> ()) "Reload" 
+
+          div [ Class "floatLeft" ]
+              [ span [ Class "floatLeft" ] [ button (Class "cursorButtonStyle") (fun _ -> cursorMove false model |> dispatch) "-" ]
+                input [ Class "floatLeft" ; Type "number"; Value "0"]
+                span [ Class "floatLeft" ] [ button (Class "cursorButtonStyle") (fun _ -> cursorMove true model |> dispatch) "+" ] ] 
+
+          Tabs.tabs [Tabs.IsBoxed; Tabs.IsToggle; Tabs.Props [ Style [FontSize "80%"; Float FloatOptions.Right]]] [
             let radTab rad =
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.radix = rad) ]
@@ -388,22 +393,21 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
             radTab Dec
             radTab SDec ]  ]
 
+    let tableWaves, tableBot = displaySvg model
     let tableTop = 
-        [| tr [ Style [ Height "5%" ] ]
-             [ td [ Style [BorderRight "2px solid black"] ]
-                  [ Checkbox.input [ Props [ Style [ Float FloatOptions.Left ] ] ] 
-                    button (Class "cursorButtonStyle") (fun _ -> ()) "+" ]
-               td [ Style [ Width ((string (max (VBwidth*10.0) 100.0))+"%") ] ]
-                  [ makeSvg (Style[Width (VBwidth*10.0)]) [clkVB] (clkRulerSvg model) ] 
-               td [ Style [Width "5%"; BorderLeft "2px solid black"] ] [ label [] [str ""] (*header of cursor column*) ] ] |]
-    let tableBot = displaySvg model
-    table [ Style [BorderTop "2px solid black"; Width "100%"; BorderCollapse "collapse"; OverflowX OverflowOptions.Scroll] ]
+        [| col [ Style [BorderRight "2px solid black"]] 
+           col [ Style [ Width ((string (max (VBwidth*10.0) 100.0))+"%")]; Class "wavesColStyle" ]
+           col [ Style [Width "5%"; BorderLeft "2px solid black"] ] 
+           tr [ ]
+             [ th [] [ Checkbox.input [ Props [ Style [ Float FloatOptions.Left ] ] ] 
+                       button (Class "cursorButtonStyle") (fun _ -> ()) "+" ]
+               td [RowSpan (Array.length model.waveNames + 1)] 
+                  [ div [Class "wavesColDivStyle"] [tableWaves] ] 
+               th [] [ label [] [str ""] ] ] |]
+    table [ Class "waveSimTableStyle" ]
           (Array.append tableTop tableBot)
 
     div []
-        [ label [Style [Float FloatOptions.Left; Clear ClearOptions.Both]] [str "H Zoom"]
-          button (Class "cursorButtonStyle") (fun _ -> zoom true true model |> dispatch) "+"
-          button (Class "cursorButtonStyle") (fun _ -> zoom false true model |> dispatch) "-"
-          label [Style [Float FloatOptions.Left]] [str "V Zoom"]
-          button (Class "cursorButtonStyle") (fun _ -> zoom true false model |> dispatch) "+"
-          button (Class "cursorButtonStyle") (fun _ -> zoom false false model |> dispatch) "-" ] ]
+        [ label [Style [Float FloatOptions.Right; Clear ClearOptions.Both]] [str "H Zoom"]
+          button (Class "zoomButtonStyle") (fun _ -> zoom true model |> dispatch) "+"
+          button (Class "zoomButtonStyle") (fun _ -> zoom false model |> dispatch) "-" ] ]

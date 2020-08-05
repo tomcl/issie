@@ -318,17 +318,19 @@ let displaySvg (model: WaveSimModel) =
 
     let labelCols =
         Array.zip labels cursLabs
-        |> Array.map (fun (l, c) -> 
-                    tr [] 
-                       [ td [Style [TextAlign TextAlignOptions.Right; BorderRight "2px solid black"; WhiteSpace WhiteSpaceOptions.Nowrap ] ] [l]
-                         td [ Style [Width "5%"; BorderLeft "2px solid black" ] ] c ] ) 
+        |> Array.map (fun (l, c) -> tr [Style [Height "5%"]] 
+                                       [ td [Class "waveNamesCol"] [l]
+                                         td [Class "cursValsCol"] c ] ) 
 
     let waveCol = 
-        Array.map (fun w -> 
-                    tr [] 
-                       [ td [ Style [Width ((string (max (VBwidth*10.0) 100.0))+"%")] ] 
-                            [makeSvg (Style [Width (string (10.0 * VBwidth)+"%"); Display DisplayOptions.Block]) [wavesVB] (Array.append (Array.append backgroundSvg (makeCursRect model)) w) ] ] ) waveSvg
-        |> Array.append [| tr [] 
+        [| tr [Style [Height "100%"]] 
+              [ td [Style [ Height "100%"] ] 
+                   [makeSvg (Style [Height "100%"; Width (string (10.0 * VBwidth)+"%"); Display DisplayOptions.Block]) [wavesVB; PreserveAspectRatio "none"] backgroundSvg ] ] |]
+        |> Array.append (Array.map (fun w -> 
+                    tr [Style [Height "5%"]] 
+                       [ td [ Style [Width ((string (max (VBwidth*10.0) 100.0))+"%"); Height "5%"] ] 
+                            [makeSvg (Style [Width (string (10.0 * VBwidth)+"%"); Display DisplayOptions.Block; Height "5%"; Position PositionOptions.Absolute]) [wavesVB; PreserveAspectRatio "none"] (Array.append (Array.append backgroundSvg (makeCursRect model)) w) ] ] ) waveSvg)
+        |> Array.append [| tr [Style [Height "5%"]] 
                               [ td [Style [Width ((string (max (VBwidth*10.0) 100.0))+"%")]] 
                                    [clkRulerSvg model] ] |]
     
@@ -393,21 +395,22 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
             radTab Dec
             radTab SDec ]  ]
 
-    let tableWaves, tableBot = displaySvg model
+    let tableWaves, tableBody = displaySvg model
     let tableTop = 
         [| col [ Style [BorderRight "2px solid black"]] 
            col [ Style [ Width ((string (max (VBwidth*10.0) 100.0))+"%")]; Class "wavesColStyle" ]
            col [ Style [Width "5%"; BorderLeft "2px solid black"] ] 
-           tr [ ]
-             [ th [] [ Checkbox.input [ Props [ Style [ Float FloatOptions.Left ] ] ] 
+           tr []
+              [ th [] [ //Checkbox.input [ Props [ Style [ Float FloatOptions.Left ] ] ] 
                        button (Class "cursorButtonStyle") (fun _ -> ()) "+" ]
-               td [RowSpan (Array.length model.waveNames + 1)] 
+                td [RowSpan (Array.length model.waveNames + 2)] 
                   [ div [Class "wavesColDivStyle"] [tableWaves] ] 
-               th [] [ label [] [str ""] ] ] |]
+                th [] [ label [] [str ""] ] ] |]
+    let tableBot = [| tr [Style [Height "100%"]] [td [Style [Stroke "white"]] [str "..."]; td [Style [Stroke "white"]] [str "..."] ] |]
     table [ Class "waveSimTableStyle" ]
-          (Array.append tableTop tableBot)
+          (Array.append (Array.append tableTop tableBody) tableBot)
 
-    div []
-        [ label [Style [Float FloatOptions.Right; Clear ClearOptions.Both]] [str "H Zoom"]
-          button (Class "zoomButtonStyle") (fun _ -> zoom true model |> dispatch) "+"
-          button (Class "zoomButtonStyle") (fun _ -> zoom false model |> dispatch) "-" ] ]
+    div [Class "zoomDiv"]
+        [ button (Class "zoomButtonStyle") (fun _ -> zoom false model |> dispatch) "-"
+          label [Style [Float FloatOptions.Left; Position PositionOptions.Relative]] [str "H Zoom"]
+          button (Class "zoomButtonStyle") (fun _ -> zoom true model |> dispatch) "+" ] ]

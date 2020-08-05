@@ -85,6 +85,7 @@ type private IDraw2d =
     abstract flushCommandStack            : canvas:JSCanvas -> unit
     abstract getScrollArea                : canvas: JSCanvas -> ResizeArray<int>
     abstract getZoom                      : canvas: JSCanvas -> float
+    abstract setScrollZoom                : canvas: JSCanvas -> scrollLeft: int -> scrollTop:int -> zoom: float -> unit
 
 [<Import("*", "./draw2d_fsharp_interface.js")>]
 let private draw2dLib : IDraw2d = jsNative
@@ -92,7 +93,7 @@ let private draw2dLib : IDraw2d = jsNative
 // Helpers.
 
 let private createAndInitialiseCanvas (id : string) : JSCanvas =
-    let canvas = draw2dLib.createCanvas id 3000 2000
+    let canvas = draw2dLib.createCanvas id CommonTypes.draw2dCanvasWidth CommonTypes.draw2dCanvasHeight
     draw2dLib.initialiseCanvas canvas
     canvas
 
@@ -282,6 +283,13 @@ type Draw2dWrapper() =
             None
         | Some c -> 
             draw2dLib.getZoom c |> Some
+
+    member this.SetScrollZoom scrollLeft scrollRight zoom =
+        match canvas with
+        | None -> 
+            ()
+        | Some c -> 
+            draw2dLib.setScrollZoom c scrollLeft scrollRight zoom
 
     /// Brand new component.
     member this.CreateComponent componentType label x y =

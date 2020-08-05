@@ -60,7 +60,7 @@ let initModel: WaveSimModel =
             sigThick = 0.02
             boxWidth = uint 8
             boxHeight = uint 15
-            spacing = 0.5
+            spacing = 0.2
             clkThick = 0.025 }
 
       cursor = uint32 0
@@ -303,11 +303,11 @@ let displaySvg (model: WaveSimModel) =
             busLabels model
             |> Array.map (fun row -> Array.collect lblEl row) 
 
-        let makeWaveSvg = mapiAndCollect (makeSegment p)
+        let makeWaveSvg = makeSegment p |> mapiAndCollect
         let padTrans (t: (int*int) []) = Array.append (Array.append [| 1, fst t.[0] |] t) [| snd t.[Array.length t - 1], 1 |]
         (model2WaveList model, transitions model)
         ||> Array.zip 
-        |> Array.map (fun (wave, transRow) -> Array.zip wave (padTrans (Array.pairwise transRow)))
+        |> Array.map (fun (wave, transRow) -> Array.pairwise transRow |> padTrans |> Array.zip wave)
         |> Array.map makeWaveSvg
         |> Array.zip valueLabels
         |> Array.map (fun (a,b) -> Array.append a b)
@@ -319,41 +319,43 @@ let displaySvg (model: WaveSimModel) =
     let labelCols =
         Array.zip labels cursLabs
         |> Array.map (fun (l, c) -> tr [Style [Height "5%"]] 
-                                       [ td [Class "waveNamesCol"] [l]
+                                       [ td [] [ input [ Type "checkbox"; Style [ Float FloatOptions.Left ] ] ]
+                                         td [Class "waveNamesCol"] [l]
                                          td [Class "cursValsCol"] c ] ) 
 
     let waveCol = 
-        [| tr [Style [Height "100%"]] 
-              [ td [Style [ Height "100%"] ] 
-                   [makeSvg (Style [Height "100%"; Width (string (10.0 * VBwidth)+"%"); Display DisplayOptions.Block]) [wavesVB; PreserveAspectRatio "none"] backgroundSvg ] ] |]
+        let lastSvgWidth = Style [Width (string (10.0 * VBwidth)+"%")]
+        let svgWidth = Style [Width (string (10.0 * VBwidth)+"%")]
+        [| tr [Class "fullHeight"] 
+              [ td [Class "fullHeight"] 
+                   [makeSvg (Class "lastWaveCellSvg") 
+                            [wavesVB; PreserveAspectRatio "none"; lastSvgWidth] 
+                            backgroundSvg ] ] |]
         |> Array.append (Array.map (fun w -> 
-                    tr [Style [Height "5%"]] 
-                       [ td [ Style [Width ((string (max (VBwidth*10.0) 100.0))+"%"); Height "5%"] ] 
-                            [makeSvg (Style [Width (string (10.0 * VBwidth)+"%"); Display DisplayOptions.Block; Height "5%"; Position PositionOptions.Absolute]) [wavesVB; PreserveAspectRatio "none"] (Array.append (Array.append backgroundSvg (makeCursRect model)) w) ] ] ) waveSvg)
-        |> Array.append [| tr [Style [Height "5%"]] 
-                              [ td [Style [Width ((string (max (VBwidth*10.0) 100.0))+"%")]] 
+                    tr [Class "rowHeight"] 
+                       [ td [ Class "rowHeight"; svgWidth ] 
+                            [makeSvg (Class "waveCellSvg") 
+                                     [wavesVB; PreserveAspectRatio "none"; svgWidth ] 
+                                     (Array.append (Array.append (makeCursRect model) backgroundSvg) w) ] ] ) waveSvg )
+        |> Array.append [| tr [ Class "rowHeight" ] 
+                              [ td [svgWidth] 
                                    [clkRulerSvg model] ] |]
     
     (table [Class "wavesColTableStyle"] waveCol), labelCols
 
 // view function helpers
 
-let zoom plus (*horizontal*) (m: WaveSimModel) =
+let zoom plus (m: WaveSimModel) =
     let multBy =
         if plus then zoomFactor else 1.0 / zoomFactor
-    (*match horizontal with
-    | false ->
-        let newParams =
-            { m.posParams with
-                    sigHeight = m.posParams.sigHeight * multBy
-                    spacing = m.posParams.spacing * multBy }
-        { m with posParams = newParams }
-    | true -> *)
     { m with posParams = { m.posParams with clkWidth = m.posParams.clkWidth * multBy } }
     |> StartWaveSim
 
 let button style func label =
     Button.button (List.append [Button.Props [style]] [Button.OnClick func]) [ str label ]
+
+let buttonOriginal style func label = 
+    input [Type "button"; Value label; style; OnClick func ]
 
 let radixString rad =
     match rad with
@@ -367,8 +369,9 @@ let cursorMove increase model =
     | (true, c, _, fin) when c < fin -> {model with cursor = c + uint 1}
     | (false, c, start, _) when c > start -> {model with cursor = c - uint 1}
     | _ -> model
-    |> StartWaveSim
+    |> StartWaveSim    
 
+let changeCurs newVal model = { model with cursor = newVal } |> StartWaveSim
 //view function of the waveform simulator
 
 let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =   
@@ -377,36 +380,38 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
     let VBwidth = p.clkWidth * float (Array.length model.waveData)
 
     [
-    div []
-        [ button (Class "reloadButtonStyle") (fun _ -> ()) "Reload" 
-
-          div [ Class "floatLeft" ]
-              [ span [ Class "floatLeft" ] [ button (Class "cursorButtonStyle") (fun _ -> cursorMove false model |> dispatch) "-" ]
-                input [ Class "floatLeft" ; Type "number"; Value "0"]
-                span [ Class "floatLeft" ] [ button (Class "cursorButtonStyle") (fun _ -> cursorMove true model |> dispatch) "+" ] ] 
+    div [ Style [Height "7%"] ]
+        [ div [ Class "floatLeft"; Style [ Height "64.3%"; Width "20%" ] ] [ button (Class "reloadButtonStyle") (fun _ -> ()) "Reload" ] 
 
           Tabs.tabs [Tabs.IsBoxed; Tabs.IsToggle; Tabs.Props [ Style [FontSize "80%"; Float FloatOptions.Right]]] [
-            let radTab rad =
-                Tabs.tab
-                    [ Tabs.Tab.IsActive (model.radix = rad) ]
-                    [ a [ OnClick (fun _ -> StartWaveSim {model with radix = rad} |> dispatch ) ] [ str (radixString rad) ] ]
-            radTab Bin
-            radTab Hex
-            radTab Dec
-            radTab SDec ]  ]
+              let radTab rad =
+                  Tabs.tab
+                      [ Tabs.Tab.IsActive (model.radix = rad) ]
+                      [ a [ OnClick (fun _ -> StartWaveSim {model with radix = rad} |> dispatch ) ] [ str (radixString rad) ] ]
+              radTab Bin
+              radTab Hex
+              radTab Dec
+              radTab SDec ]
+
+          div [ Class "cursor-group" ]
+              [ buttonOriginal (Class "button-minus") (fun _ -> cursorMove false model |> dispatch) "-" 
+                input [ Id "cursorForm"; Step 1; Class "cursor-form"; Type "number"; Value model.cursor; Min (fst model.viewIndexes); Max (snd model.viewIndexes); OnChange (fun c -> changeCurs (uint c.Value) model |> dispatch)]
+                buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "+" ] 
+        ]
 
     let tableWaves, tableBody = displaySvg model
     let tableTop = 
-        [| col [ Style [BorderRight "2px solid black"]] 
+        [| col []
+           col [ Style [BorderRight "2px solid black"]] 
            col [ Style [ Width ((string (max (VBwidth*10.0) 100.0))+"%")]; Class "wavesColStyle" ]
            col [ Style [Width "5%"; BorderLeft "2px solid black"] ] 
            tr []
-              [ th [] [ //Checkbox.input [ Props [ Style [ Float FloatOptions.Left ] ] ] 
-                       button (Class "cursorButtonStyle") (fun _ -> ()) "+" ]
+              [ th [] [ input [ Type "checkbox"; Style [ Float FloatOptions.Left ] ] ]
+                th [] [ button (Class "cursorButtonStyle") (fun _ -> ()) "+" ]
                 td [RowSpan (Array.length model.waveNames + 2)] 
                   [ div [Class "wavesColDivStyle"] [tableWaves] ] 
                 th [] [ label [] [str ""] ] ] |]
-    let tableBot = [| tr [Style [Height "100%"]] [td [Style [Stroke "white"]] [str "..."]; td [Style [Stroke "white"]] [str "..."] ] |]
+    let tableBot = [| tr [Class "fullHeight"] [td [Style [Stroke "white"]] [str "..."]; td [Style [Stroke "white"]] [str "..."] ] |]
     table [ Class "waveSimTableStyle" ]
           (Array.append (Array.append tableTop tableBody) tableBot)
 

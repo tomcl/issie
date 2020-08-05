@@ -47,9 +47,15 @@ let initModel: WaveSimModel =
           makeTrialData nbits1 s1 nbits2 s2 s3
 
       waveNames = [| 
-        "try single Bit"; 
-        "try bus"; 
+        "try single Bit"
+        "try bus"
         "try states" 
+      |]
+
+      selected = [|
+        false
+        false
+        false
       |]
 
       posParams =
@@ -130,12 +136,12 @@ let radixChange (n: bigint) (nBits: uint32) (rad: NumberBase) =
 
 //auxiliary functions to the viewer function
 
-(*let makeLabel (p: PosParamsType) label =
-    let attr: IProp list = [ Y (p.spacing + p.sigHeight)
-                             SVGAttr.FontSize (p.sigHeight * 0.6) ] 
-    makeText waveLblStyle attr label*)
+let select s ind model =
+    { model with selected = Array.mapi (fun i old -> if i = ind then s else old) model.selected } 
+    |> StartWaveSim
+
 let makeLabels model =
-    Array.map (fun l -> label [] [str l]) model.waveNames 
+    Array.map (fun l -> label [Class "waveLbl"] [str l]) model.waveNames 
 
 let makeSegment (p: PosParamsType) (xInd: int)  ((data: Sample), (trans: int * int)) =
     let bot = p.spacing + p.sigHeight
@@ -238,7 +244,7 @@ let makeCursVals model =
        | Wire w when w.nBits > uint 1 -> [| radixChange w.bitData w.nBits model.radix |]
        | Wire w -> [| string w.bitData |]
        | StateSample s -> s
-       |> Array.map (fun l -> label [] [str l])
+       |> Array.map (fun l -> label [Class "cursVals"] [str l])
    Array.map makeCursVal model.waveData.[int model.cursor]
 
 let makeCursRect model =
@@ -261,7 +267,7 @@ let clkRulerSvg (model: WaveSimModel) =
     |> makeSvg (Class "clkRulerSvgStyle") 
                [ clkVB; Style [ Width ((string (VBwidth*10.0) ) + "%") ] ]
 
-let displaySvg (model: WaveSimModel) =
+let displaySvg (model: WaveSimModel) dispatch =
     let p = model.posParams
 
     //container box and clock lines
@@ -318,10 +324,10 @@ let displaySvg (model: WaveSimModel) =
 
     let labelCols =
         Array.zip labels cursLabs
-        |> Array.map (fun (l, c) -> tr [Style [Height "5%"]] 
-                                       [ td [] [ input [ Type "checkbox"; Style [ Float FloatOptions.Left ] ] ]
-                                         td [Class "waveNamesCol"] [l]
-                                         td [Class "cursValsCol"] c ] ) 
+        |> Array.mapi (fun i (l, c) -> tr [Style [Height "5%"]] 
+                                          [ td [Class "checkboxCol"] [ input [ Type "checkbox"; Checked model.selected.[i]; Style [ Float FloatOptions.Left ]; OnChange (fun s -> select s.Checked i model |> dispatch) ] ]
+                                            td [Class "waveNamesCol"] [l]
+                                            td [Class "cursValsCol"] c ] ) 
 
     let waveCol = 
         let lastSvgWidth = Style [Width (string (10.0 * VBwidth)+"%")]
@@ -371,7 +377,13 @@ let cursorMove increase model =
     | _ -> model
     |> StartWaveSim    
 
-let changeCurs newVal model = { model with cursor = newVal } |> StartWaveSim
+let changeCurs newVal model = 
+    { model with cursor = newVal } |> StartWaveSim
+
+let selectAll s model = 
+    { model with selected = Array.map (fun _ -> s) model.selected } 
+    |> StartWaveSim
+
 //view function of the waveform simulator
 
 let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =   
@@ -399,15 +411,16 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
                 buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "+" ] 
         ]
 
-    let tableWaves, tableBody = displaySvg model
+    let tableWaves, tableBody = displaySvg model dispatch
     let tableTop = 
         [| col []
-           col [ Style [BorderRight "2px solid black"]] 
+           col [ Class "waveNamesCol" ] 
            col [ Style [ Width ((string (max (VBwidth*10.0) 100.0))+"%")]; Class "wavesColStyle" ]
-           col [ Style [Width "5%"; BorderLeft "2px solid black"] ] 
+           col [ Class "cursValsCol" ] 
            tr []
-              [ th [] [ input [ Type "checkbox"; Style [ Float FloatOptions.Left ] ] ]
-                th [] [ button (Class "cursorButtonStyle") (fun _ -> ()) "+" ]
+              [ let allSelected = Array.fold (fun state b -> if b then state else false) true model.selected
+                th [Class "checkboxCol"] [ input [ Type "checkbox"; Style [ Float FloatOptions.Left ]; Checked allSelected; OnChange (fun t -> selectAll t.Checked model |> dispatch) ] ]
+                th [] [ button (Class "newWaveButton") (fun _ -> ()) "+ wave" ]
                 td [RowSpan (Array.length model.waveNames + 2)] 
                   [ div [Class "wavesColDivStyle"] [tableWaves] ] 
                 th [] [ label [] [str ""] ] ] |]

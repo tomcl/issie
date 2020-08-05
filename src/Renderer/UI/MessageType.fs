@@ -75,30 +75,12 @@ type PosParamsType = {
 type WaveSimModel = {
     waveData: SimTime array
     waveNames: WaveName array
+    selected: bool array
     posParams: PosParamsType
     cursor: uint32 
     radix: NumberBase
     viewIndexes: uint32*uint32
 }
-
-(*type SigVals = 
-    | OneBitSig of Bit list
-    | ManyBitSig of uint list
-
-type Signal =  string * SigVals
-
-type Wave = 
-    {
-        wIn: Signal
-        cursorPos: uint
-    }
-
-type WaveSimModel = 
-    {
-        waves: Wave list
-        viewParams: PosParams
-        sigLimits: uint * uint
-    }*)
 
 type Msg =
     | JSDiagramMsg of JSDiagramMsg

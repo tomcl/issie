@@ -139,7 +139,7 @@ let private viewRightTab model dispatch =
             viewSimulation model dispatch
         ]
     | WaveSim -> 
-        div [ Style [Width "100%"; MarginLeft "0%"; MarginTop "0px" ] ] 
+        div [ Style [Width "100%"; Height "95%"; MarginLeft "0%"; MarginTop "0px"; OverflowY OverflowOptions.Hidden ] ] 
             (viewWaveSim model dispatch) 
 
 let hideView model dispatch =

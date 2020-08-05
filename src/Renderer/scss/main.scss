@@ -81,6 +81,7 @@ $clkRulerHeight: 1;
 }
 
 .cursorRectStyle { 
+    top: calc($sigLineThick / 2);
     left: calc($vPos + $boxStrokeThck / 2.0);
     width: calc($waveBoxPercWidth / 10.0);
     stroke: black;
@@ -156,10 +157,23 @@ $clkRulerHeight: 1;
         width: 100%;
         font-size: 5%;
     }
+}
 
-    .zoomButtonStyle {
-        float: right;
-    }
+.zoomDiv {
+    float: right;
+    position: absolute;
+    bottom: 4%;
+    right: 2%;
+    width: 25%;
+}
+
+.zoomButtonStyle {
+    padding: 0% 0%;
+    width: 20%;
+    height: 20%;
+    color: red;
+    position: relative;
+    float: left;
 }
 
 .clkNumStyle { 
@@ -175,6 +189,7 @@ $clkRulerHeight: 1;
 .waveSimTableStyle {
     border-top: 2px solid black;
     width: 100%;
+    height: 92%;
     border-spacing: 0;
     overflow-x: scroll;
 }
@@ -185,20 +200,26 @@ $clkRulerHeight: 1;
 
 .wavesColTableStyle {
     width: 100%;
+    height: 100%;
     position: relative;
 }
 
 .wavesColDivStyle {
     overflow-x: scroll;
+    height: 100%;
 }
 
 .waveNamesCol {
     text-align: right;
     border-right: 2px solid black;
     white-space: nowrap;
+    vertical-align: bottom;
+    font-size: 75%;
 }
 
 .cursValsCol {
     width: 5%;
     border-left: 2px solid black;
+    vertical-align: bottom;
+    font-size: 75%;
 }

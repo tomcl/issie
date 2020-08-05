@@ -59,16 +59,26 @@ $zoomFactor: 1.2;
 $waveVBextraHeight: 0.5;
 $maxBusValGap: 3;
 $busLabelTextSize: 0.6; // multiplied by signal height
-$waveBoxPercWidth: 73.0%;
+$waveBoxPercWidth: 100%;
 $clkLineWidth: 0.0125;
 $boxStrokeThck: 0.05;
 $persvgwidth: 100;
 $sigLineThick: 0.025;
 $clkRulerHeight: 1;
 
+.fullHeight {
+    height: 100%;
+}
+
+.rowHeight {
+    height: 5%;
+}
+
 .floatLeft{
     float: left;
 }
+
+//waveform svg elements
 
 .sigLineStyle { 
     stroke: blue;
@@ -81,15 +91,36 @@ $clkRulerHeight: 1;
 }
 
 .cursorRectStyle { 
-    top: calc($sigLineThick / 2);
-    left: calc($vPos + $boxStrokeThck / 2.0);
-    width: calc($waveBoxPercWidth / 10.0);
+    y: calc(#{$sigLineThick} / 2);
+    width: calc(#{$waveBoxPercWidth} / 10.0);
     stroke: black;
     fill: rgb(220,220,220);
     stroke-width: 0;
     fill-opacity: 5.0;
 }
 
+.clkNumStyle {
+    font-size: 1.5%;
+    text-anchor: middle;
+    top: calc(#{$clkRulerHeight} * 0.5);
+}
+
+.clkRulerSvgStyle {
+    height: $clkRulerHeight;
+}
+
+.lastWaveCellSvg {
+    height: 100%;
+    display: block;
+}
+
+.waveCellSvg {
+    display: block;
+    height: 5%;
+    position: absolute;
+}
+
+//labels
 .busValueStyle {
     fill: black;
     text-anchor: middle;
@@ -109,14 +140,16 @@ $clkRulerHeight: 1;
     }
 }
 
+.waveLblSvgStyle {
+    width: 100%;
+}
+
+//divs
+
 .waveLblDivStyle {
     float: left;
     clear: both;
     width: 20%;
-}
-
-.waveLblSvgStyle{ 
-    width: 100%;
 }
 
 .cursorDivStyle { 
@@ -129,36 +162,6 @@ $clkRulerHeight: 1;
     width: 100%;
 }
 
-.waveRightSmallDivStyle { 
-    width: 100%;
-    overflow-x: scroll;
-    position: absolute;
-}
-
-.waveCellStyle { 
-    overflow-x: scroll;
-}
-
-.buttonStyle {
-    padding: 0% 0%;
-    width: 3%;
-    height: 1%;
-    position: relative;
-    color: red;
-    float: left;
-
-    .cursorButtonStyle {
-    }
-
-    .reloadButtonStyle {
-    }
-
-    .newWaveButtonStyle {
-        width: 100%;
-        font-size: 5%;
-    }
-}
-
 .zoomDiv {
     float: right;
     position: absolute;
@@ -167,41 +170,14 @@ $clkRulerHeight: 1;
     width: 25%;
 }
 
-.zoomButtonStyle {
-    padding: 0% 0%;
-    width: 20%;
-    height: 20%;
-    color: red;
-    position: relative;
-    float: left;
-}
-
-.clkNumStyle { 
-    font-size: 1.5%;
-    text-anchor: middle;
-    top: calc($clkRulerHeight * 0.5);
-}
-
-.clkRulerSvgStyle {
-    height: $clkRulerHeight;
-}
-
-.waveSimTableStyle {
-    border-top: 2px solid black;
+.waveRightSmallDivStyle { 
     width: 100%;
-    height: 92%;
-    border-spacing: 0;
     overflow-x: scroll;
+    position: absolute;
 }
 
-.wavesColStyle {
-    overflow-x: auto;
-}
-
-.wavesColTableStyle {
-    width: 100%;
-    height: 100%;
-    position: relative;
+.waveCellStyle { 
+    overflow-x: scroll;
 }
 
 .wavesColDivStyle {
@@ -222,4 +198,102 @@ $clkRulerHeight: 1;
     border-left: 2px solid black;
     vertical-align: bottom;
     font-size: 75%;
+}
+
+
+.waveSimTableStyle {
+    border-top: 2px solid black;
+    width: 100%;
+    height: 93%;
+    border-spacing: 0;
+    overflow-x: scroll;
+}
+
+.wavesColStyle {
+    overflow-x: auto;
+}
+
+.wavesColTableStyle {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+
+
+//buttons
+
+.buttonStyle .reloadButtonStyle {
+    padding: 0% 0%;
+    width: 3%;
+    height: 1%;
+    position: relative;
+    color: red;
+    float: left;
+
+    .cursorButtonStyle {
+    }
+
+    .newWaveButtonStyle {
+        width: 100%;
+        font-size: 5%;
+    }
+}
+
+.reloadButtonStyle {
+    fill: red;
+    width: 100%;
+}
+
+.zoomButtonStyle {
+    padding: 0% 0%;
+    width: 20%;
+    height: 20%;
+    color: red;
+    position: relative;
+    float: left;
+}
+
+
+//cursor group
+
+.cursor-group {
+    float: right;
+    position: relative;
+    height: 64.3%;
+    text-align: center;
+    width: 20%;
+    display: inline-block;
+    font-size: 13px;
+    margin: 0 0 5px;
+    resize: vertical;
+}
+
+.cursor-form {
+    float: left;
+    position: relative;
+    height: 100%;
+    text-align: center;
+    width: 50%;
+    display: inline-block;
+    font-size: 13px;
+    resize: vertical;
+}
+
+.button-plus {
+    float: right;
+    font-weight: bold;
+    height: 100%;
+    padding: 0;
+    width: 25%;
+    position: relative;
+}
+
+.button-minus {
+    float: left;
+    font-weight: bold;
+    height: 100%;
+    padding: 0;
+    width: 25%;
+    position: relative;
 }

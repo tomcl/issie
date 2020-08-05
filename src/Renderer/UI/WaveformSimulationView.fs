@@ -393,7 +393,8 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
 
     [
     div [ Style [Height "7%"] ]
-        [ div [ Class "floatLeft"; Style [ Height "64.3%"; Width "20%" ] ] [ button (Class "reloadButtonStyle") (fun _ -> ()) "Reload" ] 
+        [ div [ Class "reloadButtonDiv" ] 
+              [ button (Class "reloadButtonStyle") (fun _ -> ()) "Reload" ] 
 
           Tabs.tabs [Tabs.IsBoxed; Tabs.IsToggle; Tabs.Props [ Style [FontSize "80%"; Float FloatOptions.Right]]] [
               let radTab rad =

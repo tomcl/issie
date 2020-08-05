@@ -1,5 +1,9 @@
 module CommonTypes
 
+
+let draw2dCanvasWidth = 3000
+let draw2dCanvasHeight = 2000
+
 //==========================================//
 // Canvas state mapped to f# data structure //
 //==========================================//

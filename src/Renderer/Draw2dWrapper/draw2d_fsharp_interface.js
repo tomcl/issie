@@ -63,6 +63,13 @@ function getZoom(canvas) {
     return canvas.getZoom();
 }
 
+function setScrollZoom(canvas, scrollLeft, scrollTop, zoom) {
+    canvas.setScrollLeft(scrollLeft);
+    canvas.setScrollTop(scrollTop);
+    canvas.setZoom(zoom);
+}
+    
+
 function addComponentToCanvas(canvas, comp) {
     // Keep track of the action so it can be undone.
     let command = new draw2d.command.CommandAdd(canvas, comp, comp.getPosition());
@@ -411,6 +418,7 @@ export {
     clearCanvas,
     getScrollArea,
     getZoom,
+    setScrollZoom,
     addComponentToCanvas,
     addConnectionToCanvas,
     addComponentLabel,

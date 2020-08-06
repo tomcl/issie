@@ -1,5 +1,9 @@
 module CommonTypes
 
+
+let draw2dCanvasWidth = 3000
+let draw2dCanvasHeight = 2000
+
 //==========================================//
 // Canvas state mapped to f# data structure //
 //==========================================//
@@ -73,6 +77,8 @@ type Component = {
     OutputPorts : Port list
     X : int
     Y : int
+    H : int
+    W : int
 }
 
 /// JSConnection mapped to F# record.

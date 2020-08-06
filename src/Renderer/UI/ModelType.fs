@@ -32,7 +32,7 @@ type Model = {
     RightTab : RightTab
     Hilighted : ComponentId list * ConnectionId list
     Clipboard : CanvasState // Components and connections that have been selected and copied.
-    CreateComponentOffset : int // Change this offset every time a component is created to avoid overlaps.
+    CreateComponent : Component option // Track the last added component
     HasUnsavedChanges : bool
     CurrProject : Project option
     Popup : (PopupDialogData -> Fable.React.ReactElement) option

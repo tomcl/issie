@@ -1,5 +1,7 @@
 module DiagramStyle
 
+open DiagramMessageType
+
 open Fable.React.Props
 
 let private headerHeight = "52px"
@@ -22,7 +24,7 @@ let private rightSectionStyle width = Style [
     Height  "100%" //(sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
     Width width
     OverflowX OverflowOptions.Hidden
-    OverflowY OverflowOptions.Scroll
+    OverflowY OverflowOptions.Hidden
     BorderTop "2px solid lightgray"
 ]
 
@@ -103,3 +105,58 @@ let menuLabelStyle = Style [
     TextTransform "uppercase"
 ]
 
+// Waveform simulator styles
+
+let clkLineWidth = 0.0125
+let transLen = 0.1
+let vPos = 0.0
+let zoomFactor = 1.2
+let maxBusValGap = 3
+let busLabelTextSize = 0.6 // multiplied by signal height
+let sigLineThick = 0.025;
+
+let widthAndVBwave (m : WaveSimModel) : IProp list = [
+    let vbwidth = m.posParams.clkWidth * float (Array.length m.waveData)
+    Style [Width ((string (vbwidth*10.0) ) + "%")]
+    ViewBox ("0 0 " + string vbwidth + " 0.7")
+]
+
+let clkRulerStyle m : IProp list = 
+    List.append (widthAndVBwave m)
+                [ Class "clkRulerSvg"
+                  PreserveAspectRatio "none" ]
+
+let cursRectStyle m : IProp list = [
+    Class "cursorRectStyle"
+    let p = m.posParams
+    X (p.clkWidth * float m.cursor + clkLineWidth / 2.0)
+    SVGAttr.Width (p.clkWidth - clkLineWidth)
+    SVGAttr.Height (p.spacing + p.sigHeight)
+]
+
+let cursRectText m i : IProp list = [
+    Class "clkNumStyle"
+    X (m.posParams.clkWidth * (float i + 0.5)) 
+    Y 0.5
+]
+
+let inWaveLabel nLabels xInd i model : IProp list = [
+    Class "busValueStyle"
+    let p = model.posParams
+    X (xInd * p.clkWidth)
+    Y (p.spacing + p.sigHeight - p.sigHeight * 0.3 + 0.3 * p.sigHeight * (float i - (float nLabels - 1.0) / 2.0))
+    SVGAttr.FontSize (busLabelTextSize * p.sigHeight / float nLabels) 
+]
+
+let waveCellSvg m last : IProp list = 
+    List.append (widthAndVBwave m)
+                [ match last with
+                  | true -> Class "lastWaveCellSvg"
+                  | false -> Class "waveCellSvg"
+                  PreserveAspectRatio "none" ]
+
+let waveCell m : IHTMLProp list = [
+    Class "rowHeight"
+    m.posParams.clkWidth * float (Array.length m.waveData)
+    |> (fun x -> Style [Width ((string (x*10.0) ) + "%")])
+]

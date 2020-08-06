@@ -64,7 +64,6 @@ $clkLineWidth: 0.0125;
 $boxStrokeThck: 0.05;
 $persvgwidth: 100;
 $sigLineThick: 0.025;
-$clkRulerHeight: 1;
 
 .fullHeight {
     height: 100%;
@@ -91,7 +90,7 @@ $clkRulerHeight: 1;
 }
 
 .cursorRectStyle { 
-    y: calc(#{$sigLineThick} / 2);
+    y: 0; //calc(#{$sigLineThick} / 2);
     width: calc(#{$waveBoxPercWidth} / 10.0);
     stroke: black;
     fill: rgb(230,230,230);
@@ -102,11 +101,13 @@ $clkRulerHeight: 1;
 .clkNumStyle {
     font-size: 1.5%;
     text-anchor: middle;
-    top: calc(#{$clkRulerHeight} * 0.5);
+    top: 0.5;
 }
 
-.clkRulerSvgStyle {
-    height: $clkRulerHeight;
+.clkRulerSvg {
+    display: block;
+    height: 5%;
+    position: absolute;
 }
 
 .lastWaveCellSvg {
@@ -327,5 +328,23 @@ $clkRulerHeight: 1;
     height: 100%;
     padding: 0;
     width: 25%;
+    position: relative;
+}
+
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+//radix group
+.radix-div {
+    width: 35%;
+    float: right;
+    margin: 0 10px 0 10px;
+}
+
+//zoom group
+.hZoomLabel {
+    float: left;
     position: relative;
 }

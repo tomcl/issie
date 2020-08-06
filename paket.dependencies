@@ -4,6 +4,7 @@ framework: auto-detect
 
 source https://nuget.org/api/v2
 source https://api.nuget.org/v3/index.json
+nuget Fable.Browser.Css 2.0.0
 
 group Core
 	source https://nuget.org/api/v2

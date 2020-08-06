@@ -15,3 +15,319 @@ $fa-font-path: './../../../node_modules/font-awesome/fonts/';
     background-color: #7EA5A3;
 }
 
+
+/* horizontal panel*/
+.panel-container {
+    display: flex;
+    flex-direction: row;
+    border: 1px solid silver;
+    overflow: hidden;
+}
+
+.panel-left {
+    flex: 0 0 auto; /* only manually resize */
+    padding: 10px;
+    width: 300px;
+    min-height: 200px;
+    min-width: 150px;
+    white-space: nowrap;
+    background: #838383;
+    color: white;
+}
+
+.splitter {
+    flex: 0 0 auto;
+    width: 18px;
+    background: url(https://raw.githubusercontent.com/RickStrahl/jquery-resizable/master/assets/vsizegrip.png) center center no-repeat #535353;
+    min-height: 200px;
+    cursor: col-resize;
+}
+
+.panel-right {
+    flex: 1 1 auto; /* resizable */
+    padding: 10px;
+    width: 100%;
+    min-height: 200px;
+    min-width: 200px;
+    background: #eee;
+}
+
+//Waveform simulator styles
+
+$transLen: 0.1;
+$vPos: 0.0;
+$zoomFactor: 1.2;
+$waveVBextraHeight: 0.5;
+$maxBusValGap: 3;
+$busLabelTextSize: 0.6; // multiplied by signal height
+$waveBoxPercWidth: 100%;
+$clkLineWidth: 0.0125;
+$boxStrokeThck: 0.05;
+$persvgwidth: 100;
+$sigLineThick: 0.025;
+$clkRulerHeight: 1;
+
+.fullHeight {
+    height: 100%;
+}
+
+.rowHeight {
+    height: 5%;
+}
+
+.floatLeft{
+    float: left;
+}
+
+//waveform svg elements
+
+.sigLineStyle { 
+    stroke: blue;
+    stroke-width: $sigLineThick;
+}
+
+.clkLineStyle {
+    stroke: rgb(200,200,200);
+    stroke-width: $clkLineWidth;
+}
+
+.cursorRectStyle { 
+    y: calc(#{$sigLineThick} / 2);
+    width: calc(#{$waveBoxPercWidth} / 10.0);
+    stroke: black;
+    fill: rgb(230,230,230);
+    stroke-width: 0;
+    fill-opacity: 5.0;
+}
+
+.clkNumStyle {
+    font-size: 1.5%;
+    text-anchor: middle;
+    top: calc(#{$clkRulerHeight} * 0.5);
+}
+
+.clkRulerSvgStyle {
+    height: $clkRulerHeight;
+}
+
+.lastWaveCellSvg {
+    height: 100%;
+    display: block;
+}
+
+.waveCellSvg {
+    display: block;
+    height: 5%;
+    position: absolute;
+}
+
+//labels
+.busValueStyle {
+    fill: black;
+    text-anchor: middle;
+}
+
+.waveLbl {
+    fill: black;
+    left: 0;
+    text-anchor: start;
+    margin: 5px;
+}
+
+.cursVals {
+    fill: black;
+    left: 0;
+    text-anchor: start;
+    margin: 5px;
+}
+
+.blackLabel {
+    fill: black;
+
+    .cursValLblStyle {
+        left: 0;
+        text-anchor: start;
+    }
+}
+
+.waveLblSvgStyle {
+    width: 100%;
+}
+
+//divs
+
+.waveLblDivStyle {
+    float: left;
+    clear: both;
+    width: 20%;
+}
+
+.cursorDivStyle { 
+    float: right;
+    width: 5%;
+    position: relative;
+}
+
+.cursorDivSvgStyle { 
+    width: 100%;
+}
+
+.zoomDiv {
+    float: right;
+    position: absolute;
+    bottom: 4%;
+    right: 2%;
+    width: 25%;
+}
+
+.waveRightSmallDivStyle { 
+    width: 100%;
+    overflow-x: scroll;
+    position: absolute;
+}
+
+.waveCellStyle { 
+    overflow-x: scroll;
+}
+
+.wavesColDivStyle {
+    overflow-x: scroll;
+    height: 100%;
+}
+
+.waveNamesCol {
+    text-align: right;
+    border-right: 2px solid rgb(219,219,219);
+    white-space: nowrap;
+    vertical-align: bottom;
+    font-size: 75%;
+}
+
+.cursValsCol {
+    width: 5%;
+    border-left: 2px solid rgb(219,219,219);
+    vertical-align: bottom;
+    font-size: 75%;
+}
+
+
+.waveSimTableStyle {
+    border-top: 2px solid rgb(219,219,219);
+    width: 100%;
+    height: 93%;
+    border-spacing: 0;
+    overflow-x: scroll;
+}
+
+.wavesColStyle {
+    overflow-x: auto;
+}
+
+.wavesColTableStyle {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.checkboxCol {
+    border-right: 2px solid rgb(219,219,219);
+    vertical-align: bottom;
+}
+
+.reloadButtonDiv {
+    float: left;
+    height: 64.3%; 
+    Width: 20%;
+}
+
+//buttons
+
+.buttonStyle {
+    padding: 0% 0%;
+    width: 3%;
+    height: 1%;
+    position: relative;
+    color: red;
+    float: left;
+
+    .cursorButtonStyle {
+    }
+}
+
+.reloadButtonStyle {
+    padding: 0% 0%;
+    width: 3%;
+    height: 1%;
+    position: relative;
+    color: red;
+    float: left;
+}
+
+.newWaveButton {
+    padding: 0% 0%;
+    height: 100%;
+    width: 100%;
+    font-size: 80%;
+}
+
+.reloadButtonStyle {
+    fill: red;
+    height: 100%;
+    width: 100%;
+    margin: 0 10px 0 10px;
+}
+
+.zoomButtonStyle {
+    padding: 0% 0%;
+    width: 20%;
+    height: 20%;
+    color: red;
+    position: relative;
+    float: left;
+}
+
+
+//cursor group
+
+.cursor-group {
+    float: right;
+    position: relative;
+    height: 64.3%;
+    text-align: center;
+    width: 15%;
+    display: inline-block;
+    font-size: 13px;
+    margin: 0 10px 0 10px;
+    resize: vertical;
+}
+
+.cursor-form {
+    float: left;
+    position: relative;
+    height: 100%;
+    text-align: center;
+    width: 50%;
+    display: inline-block;
+    font-size: 13px;
+    resize: vertical;
+    -webkit-appearance: none;
+}
+
+.button-plus {
+    float: right;
+    font-weight: bold;
+    height: 100%;
+    padding: 0;
+    width: 25%;
+    position: relative;
+}
+
+.button-minus {
+    float: left;
+    font-weight: bold;
+    height: 100%;
+    padding: 0;
+    width: 25%;
+    position: relative;
+}
+

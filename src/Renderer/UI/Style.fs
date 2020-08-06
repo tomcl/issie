@@ -6,16 +6,20 @@ let private headerHeight = "52px"
 let private rightSectionWidthS = "400px" // Small right section.
 let private rightSectionWidthL = "650px" // Large right section.
 
-let navbarStyle = Style [
+let private leftSectionStyle widthRightSec = Style [
+    Width (sprintf "calc(100%s - %s)" "%" widthRightSec)
+]
+
+let navbarStyle model = Style [
     Width "100%"
     Height headerHeight
 ]
 
 let private rightSectionStyle width = Style [
-    //Position PositionOptions.Fixed
-    Float FloatOptions.Right
-    //Right "0px"
-    Height (sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
+    Position PositionOptions.Fixed
+    Right "0px"
+    Top "0px"
+    Height  "100%" //(sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
     Width width
     OverflowX OverflowOptions.Hidden
     OverflowY OverflowOptions.Scroll
@@ -24,8 +28,10 @@ let private rightSectionStyle width = Style [
 
 /// Style when right column is expanded.
 let rightSectionStyleS = rightSectionStyle rightSectionWidthS
+let leftSectionStyleL = leftSectionStyle rightSectionWidthS
 /// Style when right column is small.
 let rightSectionStyleL = rightSectionStyle rightSectionWidthL
+let leftSectionStyleS = leftSectionStyle rightSectionWidthL
 
 let canvasHiddenStyle = Style [
     Display DisplayOptions.None
@@ -97,96 +103,3 @@ let menuLabelStyle = Style [
     TextTransform "uppercase"
 ]
 
-//Waveform simulator styles
-
-let transLen = 0.1
-let vPos = 0.0
-let zoomFactor = 1.2
-let waveVBextraHeight = 0.5
-let maxBusValGap = 3
-let busLabelTextSize = 0.6 // multiplied by signal height
-let waveBoxPercWidth : float = 73.0
-let clkLineWidth = 0.0125
-let boxStrokeThck = 0.05
-
-let sigLineStyle: IProp list = [
-    SVGAttr.Stroke "blue"
-    SVGAttr.StrokeWidth 0.025
-]
-
-let clkLineStyle: IProp list = [
-    SVGAttr.Stroke "rgb(200,200,200)"
-    SVGAttr.StrokeWidth clkLineWidth
-]
-
-let boxLineStyle: IProp list = [ 
-    X "0"
-    Y vPos
-    SVGAttr.Width (waveBoxPercWidth / 10.0)
-    SVGAttr.Stroke "black"
-    SVGAttr.Fill "white"
-    SVGAttr.StrokeWidth boxStrokeThck
-]
-
-let cursorRectStyle: IProp list = [
-    Y (vPos + boxStrokeThck / 2.0)
-    SVGAttr.Width (waveBoxPercWidth / 10.0)
-    SVGAttr.Stroke "black"
-    SVGAttr.Fill "rgb(220,220,220)"
-    SVGAttr.StrokeWidth 0.0
-    SVGAttr.FillOpacity 5.0
-]
-
-let busValueStyle: IProp list = [
-    SVGAttr.Fill "black"
-    SVGAttr.TextAnchor "middle"
-]
-
-let waveLblStyle: IProp list = [
-    X 0.0
-    SVGAttr.Fill "black"
-    SVGAttr.TextAnchor "start"
-]
-
-let cursValLblStyle: IProp list = [
-    X 0.0
-    SVGAttr.Fill "black"
-    SVGAttr.TextAnchor "start"
-]
-
-let waveLblDivStyle = Style [
-    Float FloatOptions.Left
-    Width "20%"
-]
-
-let waveLblSvgStyle: IProp list = [
-    unbox ("width", "100%")
-]
-
-let waveContDivStyle = Style [
-    Float FloatOptions.Left
-    Width (string waveBoxPercWidth + "%")
-    Position PositionOptions.Relative 
-]
-
-let cursorDivStyle = Style [
-    Float FloatOptions.Right
-    Width "5%"
-    Position PositionOptions.Relative
-]
-
-let cursorDivSvgStyle: IProp list = [
-    unbox ("width", "100%")
-]
-
-let boxSvgStyle: IProp list = [
-    Style [ Position PositionOptions.Absolute ]
-    unbox ("width", "100%")
-    unbox ("y", "0")
-]
-
-let waveRightSmallDivStyle = Style [ 
-    Width "100%"
-    OverflowX OverflowOptions.Scroll
-    Position PositionOptions.Absolute 
-]

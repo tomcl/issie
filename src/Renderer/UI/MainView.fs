@@ -29,7 +29,7 @@ let init() = {
     SelectedComponent = None
     LastUsedDialogWidth = 1
     Simulation = None
-    WaveSim = None
+    WaveSim = WaveformSimulationView.initModel
     RightTab = Catalogue
     CurrProject = None
     Hilighted = [], []
@@ -139,10 +139,8 @@ let private viewRightTab model dispatch =
             viewSimulation model dispatch
         ]
     | WaveSim -> 
-        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
-            Heading.h4 [] [ str "Waveform simulator" ]
-            viewWaveSim model dispatch 
-        ]
+        div [ Style [Width "100%"; Height "95%"; MarginLeft "0%"; MarginTop "0px"; OverflowX OverflowOptions.Hidden; OverflowY OverflowOptions.Hidden ] ] 
+            (viewWaveSim model dispatch) 
 
 let hideView model dispatch =
     div [] [
@@ -157,9 +155,9 @@ let displayView model dispatch =
             | WaveSim ->
                 VisibleSmall, rightSectionStyleL
             | _ ->
-                VisibleLarge, rightSectionStyleS 
+                VisibleLarge, rightSectionStyleS
     div [] [
-        viewTopMenu model dispatch
+        viewTopMenu model dispatch 
         div [Style [Resize "horizontal"; Width "70%"]] [
             model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) canvasStyle
         ]
@@ -169,7 +167,7 @@ let displayView model dispatch =
         viewNotifications model dispatch
         viewOnDiagramButtons model dispatch
         div [ rightSectionStyle ] [
-            Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ ] ] [
+            Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ Style [FontSize "80%"]  ] ] [
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
                     [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] [ str "Catalogue" ] ]
@@ -181,7 +179,10 @@ let displayView model dispatch =
                     [ a [ OnClick (fun _ -> ChangeRightTab Simulation |> dispatch ) ] [ str "Simulation" ] ]
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
-                    [ a [ OnClick (fun _ -> ChangeRightTab WaveSim |> dispatch ) ] [ str "WaveSim" ] ]
+                    [ a [ OnClick (fun _ -> 
+                                        ChangeRightTab WaveSim |> dispatch
+                                        StartWaveSim WaveformSimulationView.initModel |> dispatch) ]
+                        [ str "WaveSim" ] ]
             ]
             viewRightTab model dispatch
         ]
@@ -240,7 +241,7 @@ let update msg model =
     | KeyboardShortcutMsg msg' -> handleKeyboardShortcutMsg msg' model
     // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).
     | StartSimulation simData -> { model with Simulation = Some simData }
-    | StartWaveSim simData -> { model with WaveSim = Some simData}
+    | StartWaveSim newWSModel -> { model with WaveSim = newWSModel}
     | SetSimulationGraph graph ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
         { model with Simulation = { simData with Graph = graph } |> Ok |> Some }
@@ -251,7 +252,6 @@ let update msg model =
         let simData = getSimulationDataOrFail model "IncrementSimulationClockTick"
         { model with Simulation = { simData with ClockTickNumber = simData.ClockTickNumber+1 } |> Ok |> Some }
     | EndSimulation -> { model with Simulation = None }
-    | EndWaveSim -> { model with WaveSim = None }
     | ChangeRightTab newTab -> { model with RightTab = newTab }
     | SetHighlighted (componentIds, connectionIds) ->
         let oldComponentIds, oldConnectionIds = model.Hilighted

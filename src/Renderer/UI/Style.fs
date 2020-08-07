@@ -1,5 +1,6 @@
 module DiagramStyle
 
+open DiagramMessageType
 open DiagramModelType
 open Fable.React.Props
 

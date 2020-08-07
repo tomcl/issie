@@ -1,4 +1,4 @@
-(*
+﻿(*
     WaveformSimulationView.fs
 
     View for waveform simulator in tab
@@ -9,6 +9,7 @@ module WaveformSimulationView
 open Fulma
 open Fable.React
 open Fable.React.Props
+
 
 open DiagramMessageType
 open DiagramStyle
@@ -374,6 +375,54 @@ let selectAll s model =
     { model with selected = Array.map (fun _ -> s) model.selected } 
     |> StartWaveSim
 
+let delSelected model = 
+    let filtSelected arr = 
+        Array.zip model.selected arr 
+        |> Array.filter (fun (sel, _) -> not sel)
+        |> Array.map snd
+    { model with waveData =  Array.map filtSelected model.waveData 
+                 waveNames = filtSelected model.waveNames
+                 selected = filtSelected model.selected }
+    |> StartWaveSim
+
+let moveWave model up =
+    let lastEl (arr: 'a []) = arr.[Array.length arr - 1]
+    let move arr =
+        let rev a = if up then a else Array.rev a
+        rev arr
+        |> Array.fold (fun st ( bl: {| sel: bool; indxs: int [] |} ) -> 
+                match st with
+                | [||] -> [| bl |]
+                | _ ->
+                    if bl.sel
+                        then Array.collect id [| st.[0..Array.length st - 2]; [| bl |]; [| lastEl st |] |]
+                        else Array.append st [| bl |] ) [||]
+        |> rev 
+
+    let indexes' =
+        match Array.length model.selected with
+        | len when len < 2 ->
+            [| 0 .. Array.length model.selected - 1 |]
+        | _ ->
+            Array.indexed model.selected
+            |> Array.fold (fun (blocks: {| sel: bool; indxs: int [] |} []) (ind, sel') -> 
+                    match blocks, sel' with
+                    | [||], s' -> Array.append blocks [| {| sel = s'; indxs = [| ind |] |} |] 
+                    | bl, true when (lastEl bl).sel = true ->
+                        Array.append blocks.[0..Array.length blocks - 2] 
+                                     [| {| (lastEl blocks) with 
+                                                       indxs = Array.append (lastEl blocks).indxs [| ind |] |} |] 
+                    | _, s' -> Array.append blocks [| {| sel = s'; indxs = [| ind |] |} |] ) [||]
+            |> move
+            |> Array.collect (fun block -> block.indxs)
+        
+    let reorder (arr: 'b []) = Array.map (fun i -> arr.[i]) indexes'
+
+    { model with waveData = Array.map (fun sT -> reorder sT) model.waveData 
+                 waveNames = reorder model.waveNames
+                 selected = reorder model.selected } 
+    |> StartWaveSim
+
 //view function of the waveform simulator
 
 let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =   
@@ -425,9 +474,13 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
                              Checked allSelected
                              OnChange (fun t -> selectAll t.Checked model |> dispatch) ] ]
                 match Array.fold (fun state b -> if b then true else state) false model.selected with
-                | true ->  ((fun _ -> ()), "- wave")
-                | false -> ((fun _ -> ()), "+ wave")
-                ||> button (Class "newWaveButton") |> (fun child -> th [] [child])
+                | true -> [ button (Class "newWaveButton") (fun _ -> delSelected model |> dispatch) "del"
+                            div [Class "updownDiv"] 
+                                [ button (Class "updownButton") (fun _ -> moveWave model true |> dispatch) "▲"
+                                  button (Class "updownButton") (fun _ -> moveWave model false |> dispatch) "▼" ] ]
+                | false -> [ button (Class "newWaveButton") (fun _ -> ()) "+"
+                             label [Class "newWaveLabel"] [str "Add wave"] ]
+                |> (fun child -> th [Class "waveNamesCol"] child)
 
                 td [RowSpan (Array.length model.waveNames + 2)] 
                    [ div [Class "wavesColDivStyle"] [tableWaves] ] 

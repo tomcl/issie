@@ -13,6 +13,7 @@
 
     <!-- UI -->
     <Compile Include="UI/MessageType.fs" />
+    <Compile Include="UI/Style.fs" />
     <None Include="Draw2dWrapper\drag_connection_create_policy_fixed.js" />
     <None Include="Draw2dWrapper\draw2d_digital_components.js" />
     <None Include="Draw2dWrapper\draw2d_digital_connections.js" />

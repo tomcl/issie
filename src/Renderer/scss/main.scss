@@ -265,9 +265,36 @@ $sigLineThick: 0.025;
 
 .newWaveButton {
     padding: 0% 0%;
-    height: 100%;
-    width: 100%;
+    height: 3%;
+    width: 3%;
+    top: 14.5%;
     font-size: 80%;
+    position: absolute;
+}
+
+.newWaveLabel {
+    font-size: 70%;
+    left: 5.3%;
+    top: 15%;
+    position: absolute;
+}
+
+.updownDiv {
+    left: 5.3%;
+    width: 5%;
+    position: absolute;
+    top: 14.5%;
+    height: 3%;
+}
+
+.updownButton {
+    display: block;
+    width: 100%;
+    height: 50%;
+    padding: 0 0 0 0;
+    top: 0;
+    font-size: 40%;
+    position: relative;
 }
 
 .reloadButtonStyle {

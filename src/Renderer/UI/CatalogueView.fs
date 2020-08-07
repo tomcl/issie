@@ -308,6 +308,7 @@ let getPortNames (cType: ComponentType) =
     | MergeWires -> ["MSWire"; "LSWire"], ["Out"]
     | SplitWire n -> ["In"],[ sprintf "MS-%d-bits" n; "LS-bits"]
     | IOLabel | Input _ | Output  _-> failwithf "What? Waveforms for %A should not have names looked up since symbol name is used for the (only) waveform" cType
+    | Custom _ -> failwithf "Custom component port names not yet implemented!"
 
 /// p must be the component port (with number) not the connection port (no number). PortId can be used to look up one from the other.
 /// Returns the port name.

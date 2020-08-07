@@ -82,6 +82,9 @@ type WaveSimModel = {
     viewIndexes: uint32*uint32
 }
 
+type DragMode = DragModeOn of int | DragModeOff
+
+
 type Msg =
     | JSDiagramMsg of JSDiagramMsg
     | KeyboardShortcutMsg of KeyboardShortcutMsg
@@ -115,3 +118,5 @@ type Msg =
     | ClosePropertiesNotification
     | SetTopMenu of TopMenu
     | ReloadSelectedComponent of int
+    | SetDragMode of DragMode
+    | SetViewerWidth of int

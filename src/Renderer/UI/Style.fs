@@ -1,13 +1,22 @@
 module DiagramStyle
 
+open DiagramModelType
 open Fable.React.Props
 
 let private headerHeight = "52px"
 let private rightSectionWidthS = "400px" // Small right section.
 let private rightSectionWidthL = "650px" // Large right section.
 
-let private leftSectionStyle widthRightSec = Style [
-    Width (sprintf "calc(100%s - %s)" "%" widthRightSec)
+let rightSectionWidthViewerDefault = 650
+
+let rightSectionWidth (model:Model) =
+    match model.RightTab with
+    | DiagramMessageType.RightTab.Properties | DiagramMessageType.RightTab.Catalogue -> rightSectionWidthS
+    | DiagramMessageType.RightTab.Simulation ->  rightSectionWidthL
+    | DiagramMessageType.RightTab.WaveSim -> sprintf "%dpx" model.ViewerWidth
+
+let leftSectionWidth model = Style [
+    Width (sprintf "calc(100%s - %s - 10px)" "%" (rightSectionWidth model))
 ]
 
 let navbarStyle model = Style [
@@ -15,45 +24,36 @@ let navbarStyle model = Style [
     Height headerHeight
 ]
 
-let private rightSectionStyle width = Style [
-    Position PositionOptions.Fixed
-    Right "0px"
-    Top "0px"
-    Height  "100%" //(sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
-    Width width
-    OverflowX OverflowOptions.Hidden
-    OverflowY OverflowOptions.Scroll
-    BorderTop "2px solid lightgray"
+let rightSectionStyle model = 
+    let widthRightSec = rightSectionWidth model
+    Style [
+        Position PositionOptions.Fixed
+        Right "0px"
+        Top "0px"
+        Height  "100%" //(sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
+        Width widthRightSec
+        OverflowX OverflowOptions.Hidden
+        OverflowY OverflowOptions.Scroll
+        BorderTop "2px solid lightgray"
 ]
 
-/// Style when right column is expanded.
-let rightSectionStyleS = rightSectionStyle rightSectionWidthS
-let leftSectionStyleL = leftSectionStyle rightSectionWidthS
-/// Style when right column is small.
-let rightSectionStyleL = rightSectionStyle rightSectionWidthL
-let leftSectionStyleS = leftSectionStyle rightSectionWidthL
+let canvasVisibleStyle model = 
+    let widthRightSec = rightSectionWidth model
+    Style [
+        Display DisplayOptions.Block
+        Position PositionOptions.Absolute // Required to work.
+        OverflowX OverflowOptions.Scroll
+        OverflowY OverflowOptions.Scroll
+        Top headerHeight // Placed just under the header.
+        Left "0px"
+        Bottom "0px"
+        Right widthRightSec
+        BorderTop "2px solid lightgray"
+    ]
 
-let canvasHiddenStyle = Style [
-    Display DisplayOptions.None
-]
 
-let private canvasVisibleStyle right = Style [
-    Display DisplayOptions.Block
-    Position PositionOptions.Absolute // Required to work.
-    OverflowX OverflowOptions.Scroll
-    OverflowY OverflowOptions.Scroll
-    Resize "horizontal"
-    Top headerHeight // Placed just under the header.
-    Left "0px"
-    Bottom "0px"
-    Right right
-    BorderTop "2px solid lightgray"
-]
 
-/// Style when right column is expanded.
-let canvasVisibleStyleS = canvasVisibleStyle rightSectionWidthL
-/// Style when right column is small.
-let canvasVisibleStyleL = canvasVisibleStyle rightSectionWidthS
+
 
 let canvasSmallMenuStyle = Style [
     Display DisplayOptions.Block

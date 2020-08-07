@@ -294,6 +294,39 @@ let getNewComponentPosition (model:Model) =
         
 
  
+let getPortNames (cType: ComponentType) =
+    match cType with
+    | DFF |Register _ -> ["D"],["Q"]
+    | DFFE | RegisterE _ -> ["D";"En"], ["Q"]
+    | And | Or | Nand | Nor | Xor | Xnor -> ["IN1";"IN2"], ["OUT"]
+    | NbitsAdder _ -> ["Cin"; "A"; "B"], ["Sum";"Cout"]
+    | Not -> ["In"],["Out"]
+    | Mux2 -> ["0";"1";"Sel"],["Out"]
+    | Demux2 ->["In";"Sel"],["0";"1"]
+    | ROM _ | AsyncROM _ -> ["Addr"],["Data"]
+    | RAM _ -> ["Addr";"Data-in";"Write";],["Data-out"]
+    | MergeWires -> ["MSWire"; "LSWire"], ["Out"]
+    | SplitWire n -> ["In"],[ sprintf "MS-%d-bits" n; "LS-bits"]
+    | IOLabel | Input _ | Output  _-> failwithf "What? Waveforms for %A should not have names looked up since symbol name is used for the (only) waveform" cType
+    | Custom _ -> failwithf "Custom component port names not yet implemented!"
+
+/// p must be the component port (with number) not the connection port (no number). PortId can be used to look up one from the other.
+/// Returns the port name.
+let lookupPortName (comp: Component) (p:Port) =
+    let nameList = 
+        match p.PortType with
+        | PortType.Input -> fst (getPortNames comp.Type)
+        | PortType.Output -> snd (getPortNames comp.Type)
+    match p.PortNumber with
+    | None -> failwithf "can't lookup port on connection with no number"
+    | Some n -> 
+        match List.tryItem n nameList with
+        | None -> failwithf "What? %A has lists %A so can't lookup up %A %d port" comp.Type (getPortNames comp.Type) p.PortType n
+        | Some name -> name
+
+let lookupComponentAndPortName (conn: Connection) (isTarget: bool) =
+    failwithf "Not implemented yet"
+
 
 
     

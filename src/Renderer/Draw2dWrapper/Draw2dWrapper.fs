@@ -8,7 +8,7 @@ open CommonTypes
 open JSTypes
 open DiagramMessageType
 open JSHelpers
-open DiagramStyle
+//open DiagramStyle
 
 open Fable.Core
 open Fable.Core.JsInterop
@@ -206,11 +206,11 @@ let private editComponentLabel (canvas : JSCanvas) (id : string) (newLabel : str
 
 /// Determines size of schematic.
 /// ToDo - make this more flexible and expose sizes
-type DisplayModeType = Hidden | VisibleSmall | VisibleLarge
+type DisplayModeType = DispMode of HTMLAttr
 
 type private Draw2dReactProps = {
     Dispatch : JSDiagramMsg -> unit
-    DisplayMode : DisplayModeType
+    CanvasDisplayMode : DisplayModeType
 }
 
 type private Draw2dReact(initialProps) =
@@ -223,10 +223,7 @@ type private Draw2dReact(initialProps) =
         createAndInitialiseCanvas divId |> InitCanvas |> this.props.Dispatch
 
     override this.render() =
-        let style = match this.props.DisplayMode with
-                    | Hidden -> canvasHiddenStyle
-                    | VisibleSmall -> canvasVisibleStyleS
-                    | VisibleLarge -> canvasVisibleStyleL
+        let style = match this.props.CanvasDisplayMode with | DispMode s -> s    
         div [ Id divId; style ] []
 
 let inline private createDraw2dReact props = ofType<Draw2dReact,_,_> props []
@@ -258,7 +255,7 @@ type Draw2dWrapper() =
         // Return react element with relevant props.
         createDraw2dReact {
             Dispatch = jsDiagramMsgDispatch
-            DisplayMode = displayMode
+            CanvasDisplayMode = displayMode
         }
 
     member this.InitCanvas newCanvas =

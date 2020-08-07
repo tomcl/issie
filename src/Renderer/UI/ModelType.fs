@@ -23,6 +23,7 @@ type Notifications = {
     FromProperties : ((Msg -> unit) -> Fable.React.ReactElement) option
 }
 
+
 type Model = {
     Diagram : Draw2dWrapper
     LastUsedDialogWidth: int
@@ -39,4 +40,6 @@ type Model = {
     PopupDialogData : PopupDialogData
     Notifications : Notifications
     TopMenu : TopMenu
+    DragMode: DragMode
+    ViewerWidth: int // waveform viewer width in pixels
 }

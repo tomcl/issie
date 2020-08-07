@@ -19,6 +19,7 @@ open CommonTypes
 open FilesIO
 open Extractor
 open PopupView
+open Draw2dWrapper
 
 let private displayFileErrorNotification err dispatch =
     errorNotification err CloseFilesNotification
@@ -270,13 +271,14 @@ let private viewInfoPopup dispatch =
 
 /// Display top menu.
 let viewTopMenu model dispatch =
+    let style = leftSectionWidth model
     let projectPath, fileName =
         match model.CurrProject with
         | None -> "no open project", "no open file"
         | Some project -> project.ProjectPath, project.OpenFileName
     let makeFileLine name project =
-        Navbar.Item.div [ Navbar.Item.Props [ Style [ Width "100%" ] ] ] [
-            Level.level [ Level.Level.Props [ Style [ Width "100%"] ] ] [
+        Navbar.Item.div [ Navbar.Item.Props [ style] ] [
+            Level.level [ Level.Level.Props [ style ] ] [
                 Level.left [] [
                     Level.item [] [ str name ]
                 ]
@@ -352,14 +354,8 @@ let viewTopMenu model dispatch =
                     @ projectFiles
                 )
             ]
-    let leftSectionStyle = 
-        match model.RightTab with
-        | Simulation
-        | WaveSim ->
-            leftSectionStyleS
-        | _ ->
-            leftSectionStyleL
-    div [ leftSectionStyle ] [
+
+    div [ leftSectionWidth model ] [
         Navbar.navbar [ Navbar.Props [Style [Height "100%"; Width "100%"; OverflowX OverflowOptions.Auto ]] ] [
             Navbar.Brand.div [ Props [Style [Height "100%"; Width "100%"]] ] [
                 Navbar.Item.div [

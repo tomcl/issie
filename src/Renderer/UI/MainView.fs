@@ -22,6 +22,7 @@ open PopupView
 open FileMenuView
 open WaveformSimulationView
 
+
 // -- Init Model
 
 let init() = {
@@ -52,6 +53,8 @@ let init() = {
         FromProperties = None
     }
     TopMenu = Closed
+    DragMode = DragModeOff
+    ViewerWidth = rightSectionWidthViewerDefault
 }
 
 /// Repaint each connection according to the new inferred width.
@@ -117,6 +120,10 @@ let private runBusWidthInference model =
             // Close the notification if all is good.
             { model with Notifications = {model.Notifications with FromDiagram = None} }
 
+
+
+
+
 // -- Create View
 
 /// Display the content of the right tab.
@@ -139,34 +146,63 @@ let private viewRightTab model dispatch =
             viewSimulation model dispatch
         ]
     | WaveSim -> 
-        div [ Style [Width "100%"; Height "92.5%"; MarginLeft "0%"; MarginTop "0px"; OverflowX OverflowOptions.Hidden; OverflowY OverflowOptions.Hidden ] ] 
+        div [ Style [Width "calc(100% - 10px)"; Height "95%"; MarginLeft "0%"; MarginTop "0px"; OverflowX OverflowOptions.Hidden; OverflowY OverflowOptions.Hidden ] ] 
             (viewWaveSim model dispatch) 
 
-let hideView model dispatch =
-    div [] [
-        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) Hidden
-    ]
+let setDragMode (modeIsOn:bool) model dispatch =
+    fun (ev: Browser.Types.MouseEvent) ->
+        //printfn "START X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
+        match modeIsOn with
+        | true ->  SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
+        | false -> SetDragMode DragModeOff |> dispatch
+
+
+let dividerbar (model:Model) dispatch =
+    let isDraggable = model.RightTab = WaveSim
+    let variableStyle = 
+        if isDraggable then [
+            BackgroundColor "gold"
+            Cursor "col-resize" 
+            Width "10px"
+
+        ] else [
+            BackgroundColor "lightgrey"
+            Width "2px"
+
+        ]
+    let commonStyle = [
+            Height "100%"
+            Float FloatOptions.Left
+        ]
+    div [
+            Style <| commonStyle @ variableStyle
+            OnMouseDown (setDragMode true model dispatch)       
+        ] []
 
 let displayView model dispatch =
-    // Simulation has larger right column.
-    let canvasStyle, rightSectionStyle =
-        match model.RightTab with
-            | Simulation
-            | WaveSim ->
-                VisibleSmall, rightSectionStyleL
-            | _ ->
-                VisibleLarge, rightSectionStyleS
-    div [] [
+
+    let processMouseMove (ev: Browser.Types.MouseEvent) =
+        //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
+        match model.DragMode, ev.buttons with
+        | DragModeOn pos , 1.-> 
+            SetViewerWidth (model.ViewerWidth - int ev.clientX + pos) |> dispatch
+            SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
+        | DragModeOn _, _ ->  printfn "END." ; SetDragMode DragModeOff |> dispatch
+        | DragModeOff, _-> ()
+
+    div [
+            OnMouseUp (setDragMode false model dispatch);
+            OnMouseMove processMouseMove
+    ] [
         viewTopMenu model dispatch 
-        div [Style [Resize "horizontal"; Width "70%"]] [
-            model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) canvasStyle
-        ]
-        
+        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode )
         viewNoProjectMenu model dispatch
         viewPopup model
         viewNotifications model dispatch
         viewOnDiagramButtons model dispatch
-        div [ rightSectionStyle ] [
+        div [ rightSectionStyle model ] [
+            dividerbar model dispatch
+            div [Style []] [
             Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ Style [FontSize "80%"]  ] ] [
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
@@ -185,6 +221,7 @@ let displayView model dispatch =
                         [ str "WaveSim" ] ]
             ]
             viewRightTab model dispatch
+            ]
         ]
     ]
 
@@ -237,6 +274,8 @@ let private handleKeyboardShortcutMsg msg model =
 
 let update msg model =
     match msg with
+    | SetDragMode mode -> {model with DragMode= mode}
+    | SetViewerWidth w -> {model with ViewerWidth = w}
     | JSDiagramMsg msg' -> handleJSDiagramMsg msg' model
     | KeyboardShortcutMsg msg' -> handleKeyboardShortcutMsg msg' model
     // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).

@@ -360,7 +360,7 @@ let viewTopMenu model dispatch =
             ]
 
     div [ leftSectionWidth model ] [
-        Navbar.navbar [ Navbar.Props [Style [Height "100%"; Width "100%"; OverflowX OverflowOptions.Auto ]] ] [
+        Navbar.navbar [ Navbar.Props [Style [Height "100%"; Width "100%" ]] ] [
             Navbar.Brand.div [ Props [Style [Height "100%"; Width "100%"]] ] [
                 Navbar.Item.div [
                     Navbar.Item.HasDropdown;

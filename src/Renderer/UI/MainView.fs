@@ -149,12 +149,13 @@ let private viewRightTab model dispatch =
         div [ Style [Width "calc(100% - 10px)"; Height "92.5%"; MarginLeft "0%"; MarginTop "0px"; OverflowX OverflowOptions.Hidden; OverflowY OverflowOptions.Hidden ] ] 
             (viewWaveSim model dispatch) 
 
-let setDragMode (modeIsOn:bool) model dispatch =
+let setDragMode (modeIsOn:bool) (model:Model) dispatch =
     fun (ev: Browser.Types.MouseEvent) ->
         //printfn "START X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
-        match modeIsOn with
-        | true ->  SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
-        | false -> SetDragMode DragModeOff |> dispatch
+        match modeIsOn, model.DragMode with
+        | true, DragModeOff ->  SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
+        | false, DragModeOn _ -> SetDragMode DragModeOff |> dispatch
+        | _ -> ()
 
 
 let dividerbar (model:Model) dispatch =
@@ -200,7 +201,7 @@ let displayView model dispatch =
         viewPopup model
         viewNotifications model dispatch
         viewOnDiagramButtons model dispatch
-        div [ rightSectionStyle model ] [
+        div [ rightSectionStyle model ;  ] [
             dividerbar model dispatch
             div [Style [Height "100%"]] [
             Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ Style [FontSize "80%"]  ] ] [
@@ -273,6 +274,8 @@ let private handleKeyboardShortcutMsg msg model =
         model
 
 let update msg model =
+    let inP f = Option.map f model.CurrProject
+    printfn "UPDATE: %A (dirty=%A, project=%A)" msg model.HasUnsavedChanges (inP (fun p -> p.ProjectPath))
     match msg with
     | SetDragMode mode -> {model with DragMode= mode}
     | SetViewerWidth w -> {model with ViewerWidth = w}

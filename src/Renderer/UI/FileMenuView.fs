@@ -271,7 +271,8 @@ let private viewInfoPopup dispatch =
 
 /// Display top menu.
 let viewTopMenu model dispatch =
-    let style = leftSectionWidth model
+    printfn "FileView"
+    let style = Style [Width "100%"] //leftSectionWidth model
     let projectPath, fileName =
         match model.CurrProject with
         | None -> "no open project", "no open file"
@@ -290,6 +291,7 @@ let viewTopMenu model dispatch =
                             Button.Color IsPrimary
                             Button.Disabled (name = project.OpenFileName)
                             Button.OnClick (fun _ ->
+                                printfn "***Saving"
                                 saveOpenFileAction model // Save current file.
                                 openFileInProject name project model dispatch
                             )
@@ -342,7 +344,9 @@ let viewTopMenu model dispatch =
             ] [
                 Navbar.Link.a [] [ str "Files" ]
                 Navbar.Dropdown.div [ Navbar.Dropdown.Props [
-                    Style [Display (if model.TopMenu = Files then DisplayOptions.Block else DisplayOptions.None)]
+                    Style [Display (if (let b = model.TopMenu = Files; 
+                                    printfn "Files Vis=%A" b; 
+                                    b) then DisplayOptions.Block else DisplayOptions.None)]
                 ]] (
                     [
                         Navbar.Item.a [
@@ -356,7 +360,7 @@ let viewTopMenu model dispatch =
             ]
 
     div [ leftSectionWidth model ] [
-        Navbar.navbar [ Navbar.Props [Style [Height "100%"; Width "100%"; OverflowX OverflowOptions.Auto ]] ] [
+        Navbar.navbar [ Navbar.Props [Style [Height "100%"; Width "100%" ]] ] [
             Navbar.Brand.div [ Props [Style [Height "100%"; Width "100%"]] ] [
                 Navbar.Item.div [
                     Navbar.Item.HasDropdown;

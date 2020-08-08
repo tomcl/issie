@@ -182,15 +182,20 @@ let dividerbar (model:Model) dispatch =
         ] []
 
 let displayView model dispatch =
-    let windowX =
-        let htmlOpt: Browser.Types.HTMLElement option  = unbox (Browser.Dom.document.getElementById "app-win")
-        match htmlOpt with 
-        | None -> 
-            printfn "no window"
-            1000
-        | Some html ->
-            let rect = html.getBoundingClientRect()
-            int rect.width
+    let windowX,windowY =
+        int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
+    let selectedComps, selectedconns = 
+        model.Diagram.GetSelected()
+        |> Option.map extractState
+        |> Option.defaultValue ([],[])
+    let sd = scrollData model
+    let x' = sd.SheetLeft+sd.SheetX
+    let y' = sd.SheetTop+sd.SheetY
+    //selectedComps
+    //|> List.map (fun comp -> sprintf "(%d,%d)" comp.X  comp.Y )
+    //|> String.concat ","
+    //|> (fun comps -> printfn "W=(%d,%d) Top=(%d,%d) Bot=(%d,%d)Comps=[%s]\n%A\n\n"  windowX windowY sd.SheetLeft sd.SheetTop x' y' comps sd)
+  
 
 
     let processMouseMove (ev: Browser.Types.MouseEvent) =
@@ -208,7 +213,6 @@ let displayView model dispatch =
         | DragModeOff, _-> ()
 
     div [
-            Id "app-win"
             OnMouseUp (setDragMode false model dispatch);
             OnMouseMove processMouseMove
     ] [

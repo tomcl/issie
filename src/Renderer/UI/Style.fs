@@ -7,6 +7,8 @@ open Fable.React.Props
 let private headerHeight = "52px"
 let private rightSectionWidthS = "400px" // Small right section.
 let private rightSectionWidthL = "650px" // Large right section.
+let minEditorWidth = 200
+let minViewerWidth = 50
 
 let rightSectionWidthViewerDefault = 650
 
@@ -37,6 +39,8 @@ let rightSectionStyle model =
         OverflowY OverflowOptions.Scroll
         BorderTop "2px solid lightgray"
         UserSelect UserSelectOptions.None
+        ZIndex 50
+        BackgroundColor "white"
         //UserSelect UserSelectOptions.None
 ]
 

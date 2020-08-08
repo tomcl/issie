@@ -134,7 +134,6 @@ let private createComponent
         | Mux2   -> draw2dLib.createDigitalMux2 x y
         | Demux2 -> draw2dLib.createDigitalDemux2 x y
         | NbitsAdder numberOfBits -> 
-            printfn "Adder width %d" numberOfBits
             draw2dLib.createDigitalNbitsAdder x y numberOfBits
         | ComponentType.Custom custom ->
             draw2dLib.createDigitalCustom
@@ -145,7 +144,6 @@ let private createComponent
         | DFF  -> draw2dLib.createDigitalDFF x y
         | DFFE -> draw2dLib.createDigitalDFFE x y
         | Register  width -> 
-            printfn "reg width=%d" width
             draw2dLib.createDigitalRegister x y width
         | RegisterE width -> draw2dLib.createDigitalRegisterE x y width
         | AsyncROM mem ->

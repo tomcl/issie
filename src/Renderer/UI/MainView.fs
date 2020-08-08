@@ -23,6 +23,7 @@ open FileMenuView
 open WaveformSimulationView
 
 
+
 // -- Init Model
 
 let init() = {
@@ -181,17 +182,33 @@ let dividerbar (model:Model) dispatch =
         ] []
 
 let displayView model dispatch =
+    let windowX =
+        let htmlOpt: Browser.Types.HTMLElement option  = unbox (Browser.Dom.document.getElementById "app-win")
+        match htmlOpt with 
+        | None -> 
+            printfn "no window"
+            1000
+        | Some html ->
+            let rect = html.getBoundingClientRect()
+            int rect.width
+
 
     let processMouseMove (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         match model.DragMode, ev.buttons with
         | DragModeOn pos , 1.-> 
-            SetViewerWidth (model.ViewerWidth - int ev.clientX + pos) |> dispatch
+            let newWidth = model.ViewerWidth - int ev.clientX + pos
+            let w = 
+                newWidth
+                |> max DiagramStyle.minViewerWidth
+                |> min (windowX - DiagramStyle.minEditorWidth)
+            SetViewerWidth w |> dispatch
             SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
-        | DragModeOn _, _ ->  printfn "END." ; SetDragMode DragModeOff |> dispatch
+        | DragModeOn _, _ ->  SetDragMode DragModeOff |> dispatch
         | DragModeOff, _-> ()
 
     div [
+            Id "app-win"
             OnMouseUp (setDragMode false model dispatch);
             OnMouseMove processMouseMove
     ] [
@@ -274,8 +291,8 @@ let private handleKeyboardShortcutMsg msg model =
         model
 
 let update msg model =
-    let inP f = Option.map f model.CurrProject
-    printfn "UPDATE: %A (dirty=%A, project=%A)" msg model.HasUnsavedChanges (inP (fun p -> p.ProjectPath))
+    //let inP f = Option.map f model.CurrProject
+    //printfn "UPDATE: %A (dirty=%A, project=%A)" msg model.HasUnsavedChanges (inP (fun p -> p.ProjectPath))
     match msg with
     | SetDragMode mode -> {model with DragMode= mode}
     | SetViewerWidth w -> {model with ViewerWidth = w}

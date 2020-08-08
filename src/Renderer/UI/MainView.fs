@@ -146,7 +146,7 @@ let private viewRightTab model dispatch =
             viewSimulation model dispatch
         ]
     | WaveSim -> 
-        div [ Style [Width "calc(100% - 10px)"; Height "95%"; MarginLeft "0%"; MarginTop "0px"; OverflowX OverflowOptions.Hidden; OverflowY OverflowOptions.Hidden ] ] 
+        div [ Style [Width "calc(100% - 10px)"; Height "92.5%"; MarginLeft "0%"; MarginTop "0px"; OverflowX OverflowOptions.Hidden; OverflowY OverflowOptions.Hidden ] ] 
             (viewWaveSim model dispatch) 
 
 let setDragMode (modeIsOn:bool) model dispatch =
@@ -202,7 +202,7 @@ let displayView model dispatch =
         viewOnDiagramButtons model dispatch
         div [ rightSectionStyle model ] [
             dividerbar model dispatch
-            div [Style []] [
+            div [Style [Height "100%"]] [
             Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ Style [FontSize "80%"]  ] ] [
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]

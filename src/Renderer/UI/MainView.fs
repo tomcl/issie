@@ -201,7 +201,7 @@ let displayView model dispatch =
         viewPopup model
         viewNotifications model dispatch
         viewOnDiagramButtons model dispatch
-        div [ rightSectionStyle model ] [
+        div [ rightSectionStyle model ;  ] [
             dividerbar model dispatch
             div [Style []] [
             Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ Style [FontSize "80%"]  ] ] [

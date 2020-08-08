@@ -262,7 +262,8 @@ let getNewComponentPosition (model:Model) =
     match boundingBox.RBot, lastCompPos with
     | _ when boundingBox = bbTopLeft -> 
         // Place first component on empty sheet top middle
-        sDat.SheetLeft + sDat.SheetX / 2 - maxX / 2, sDat.SheetTop
+        //int (float (sDat.SheetLeft  + sDat.SheetX / 2 + offsetY) * sDat.Zoom), int (float sDat.SheetTop * sDat.Zoom)
+        sDat.SheetLeft + sDat.SheetX / 2 - maxX / 2, sDat.SheetTop + maxY // TODO - make this scroll aware
     | _, Some (x,y,h,w) when checkDistance {LTop=(x,y+h+offsetY); RBot=(x+w,y+2*h+offsetY)} > float 0 && y + h + offsetY < sDat.SheetTop + sDat.SheetY - maxY -> 
         // if possible, place new component just below the last component placed, even if this has ben moved.
         x, y + h + offsetY

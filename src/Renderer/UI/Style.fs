@@ -36,6 +36,8 @@ let rightSectionStyle model =
         OverflowX OverflowOptions.Hidden
         OverflowY OverflowOptions.Scroll
         BorderTop "2px solid lightgray"
+        UserSelect UserSelectOptions.None
+        //UserSelect UserSelectOptions.None
 ]
 
 let canvasVisibleStyle model = 

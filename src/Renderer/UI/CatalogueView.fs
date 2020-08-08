@@ -264,25 +264,25 @@ let getNewComponentPosition (model:Model) =
         [0..num-1] |> List.map (fun i ->  low + (i*(high-low)) / num)
 
     match boundingBox.RBot, lastCompPos with
-    | _ when false && boundingBox = bbTopLeft -> 
+    | _ when boundingBox = bbTopLeft -> 
         // Place first component on empty sheet top middle
         //int (float (sDat.SheetLeft  + sDat.SheetX / 2 + offsetY) * sDat.Zoom), int (float sDat.SheetTop * sDat.Zoom)
         sDat.SheetLeft + sDat.SheetX / 2 - maxX / 2, sDat.SheetTop + maxY // TODO - make this scroll aware
-    | _, Some (x,y,h,w) when false && checkDistance {LTop=(x,y+h+offsetY); RBot=(x+w,y+2*h+offsetY)} > float 0 && y + h + offsetY < sDat.SheetTop + sDat.SheetY - maxY -> 
+    | _, Some (x,y,h,w) when checkDistance {LTop=(x,y+h+offsetY); RBot=(x+w,y+2*h+offsetY)} > float 0 && y + h + offsetY < sDat.SheetTop + sDat.SheetY - maxY -> 
         // if possible, place new component just below the last component placed, even if this has ben moved.
         x, y + h + offsetY
-    | (_,y),_ when false && y < sDat.SheetY + sDat.SheetTop - 2*maxY && y > sDat.SheetTop -> 
+    | (_,y),_ when y < sDat.SheetY + sDat.SheetTop - 2*maxY && y > sDat.SheetTop -> 
         // if possible, align horizontally with vertical offset from lowest component
         // this case will ensure components are stacked vertically (which is usually wanted)
         xDefault, y + maxY
-    | (x,_),_ when false && x < sDat.SheetX + sDat.SheetLeft - 2*maxX && x > sDat.SheetTop -> 
+    | (x,_),_ when x < sDat.SheetX + sDat.SheetLeft - 2*maxX && x > sDat.SheetTop -> 
         // if possible, next choice is align vertically with horizontal offset from rightmost component
         // this case will stack component horizontally
         x + maxX, yDefault
     | _ ->
         // try to find some free space anywhere on the sheet
         // do a coarse search for largest Euclidean distance to any component's worst case bounding box
-        List.allPairs (mesh meshSize1 (sDat.SheetLeft) (sDat.SheetLeft+sDat.SheetX-maxX)) (mesh meshSize1 (sDat.SheetTop) (sDat.SheetTop+sDat.SheetY-maxY))
+        List.allPairs (mesh meshSize1 (sDat.SheetLeft+maxX) (sDat.SheetLeft+sDat.SheetX-maxX)) (mesh meshSize1 (sDat.SheetTop+maxY) (sDat.SheetTop+sDat.SheetY-maxY))
         |> List.map xyToBb
         |> List.sortByDescending (checkDistance)
         |> List.truncate 10
@@ -298,7 +298,9 @@ let getNewComponentPosition (model:Model) =
                 |> List.map xyToBb
                 //|> (fun lst -> printfn "Narrow: \n%A\n\n" ((List.zip lst (lst |> List.map checkDistance)) |> List.map (sprintf "%A") |> String.concat "\n"); lst)
                 |> (function | [] -> [] | lst -> List.maxBy checkDistance lst |> fun bb -> [bb]))
-        |> List.maxBy checkDistance
+        |> (function | []  -> let pt = sDat.SheetLeft+sDat.SheetX/2,sDat.SheetTop+sDat.SheetY/2
+                              {LTop= pt; RBot = pt}
+                     | lst -> List.maxBy checkDistance lst)
         |> (fun bb -> bb.LTop)
     |> (fun (x,y) -> printf "Pos=(%d,%d)" x y; (x,y))
         

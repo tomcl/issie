@@ -159,7 +159,6 @@ $sigLineThick: 0.025;
 
 .cursValsCol {
     width: 5%;
-    border-left: 2px solid rgb(219,219,219);
     vertical-align: bottom;
     font-size: 75%;
 }
@@ -181,6 +180,7 @@ $sigLineThick: 0.025;
     width: 100%;
     height: 100%;
     position: relative;
+    border-right: 2px solid rgb(219,219,219);
 }
 
 .checkboxCol {
@@ -218,27 +218,27 @@ $sigLineThick: 0.025;
 }
 
 .newWaveButton {
-    padding: 0% 0%;
-    height: 3%;
-    width: 3%;
-    top: 14.5%;
+    margin: 0 2px 0 2px;
+    padding: 0 0;
+    height: 100%;
+    width: 33%;
     font-size: 80%;
-    position: absolute;
+    position: relative;
+    float: left;
 }
 
 .newWaveLabel {
     font-size: 70%;
-    left: 5.3%;
-    top: 15%;
-    position: absolute;
+    position: relative;
+    float: left;
+    vertical-align: bottom;
 }
 
 .updownDiv {
-    left: 5.3%;
-    width: 5%;
-    position: absolute;
-    top: 14.5%;
-    height: 3%;
+    width: 45%;
+    position: relative;
+    height: 100%;
+    float: left;
 }
 
 .updownButton {

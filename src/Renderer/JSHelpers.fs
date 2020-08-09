@@ -10,6 +10,7 @@ open Browser.Types
 open Fable.Core
 open Fable.Core.JsInterop
 open Electron
+open JSTypes
 
 [<Emit("typeof $0")>]
 let jsType (var: obj) : unit = jsNative
@@ -103,3 +104,7 @@ let setDebugLevel() =
         debugLevel <- 2
     elif isArg "-w" then
         debugLevel <- 1
+
+/// deliver string suitable for HTML color from a HighlightColor type value
+let getColorString (col: CommonTypes.HighLightColor) =
+    (sprintf "%A" col).ToLower()

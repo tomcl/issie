@@ -46,6 +46,7 @@ type private IDraw2d =
     abstract createDigitalInput           : x:int -> y:int -> numberOfBits:int -> JSComponent
     abstract createDigitalOutput          : x:int -> y:int -> numberOfBits:int -> JSComponent
     abstract createDigitalLabel          : x:int -> y:int -> JSComponent
+    abstract createDigitalBusSelection    : x : int -> y: int -> numberOfBits: int -> bitSelected: int -> JSComponent
     abstract createDigitalNot             : x:int -> y:int -> JSComponent
     abstract createDigitalAnd             : x:int -> y:int -> JSComponent
     abstract createDigitalOr              : x:int -> y:int -> JSComponent
@@ -69,6 +70,7 @@ type private IDraw2d =
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
     abstract writeMemoryLine              : comp:JSComponent -> addr:int -> value:int64 -> unit
     abstract setNumberOfBits              : comp:JSComponent -> numberOfBits:int -> unit
+    abstract setLsbBitNumber              : comp:JSComponent -> lsbBitNumber:int -> unit
     abstract setTopOutputWidth            : comp:JSComponent -> topOutputWidth: int -> unit
     abstract setRegisterWidth             : comp:JSComponent -> topOutputWidth: int -> unit
     abstract updateMergeWiresLabels       : comp:JSComponent -> topInputWidth:int option -> bottomInputWidth:int option -> outputWidth:int option -> unit
@@ -91,6 +93,8 @@ type private IDraw2d =
 let private draw2dLib : IDraw2d = jsNative
 
 // Helpers.
+
+
 
 let private createAndInitialiseCanvas (id : string) : JSCanvas =
     let canvas = draw2dLib.createCanvas id CommonTypes.draw2dCanvasWidth CommonTypes.draw2dCanvasHeight
@@ -124,6 +128,7 @@ let private createComponent
         | Input w  -> draw2dLib.createDigitalInput x y w
         | Output w -> draw2dLib.createDigitalOutput x y w
         | IOLabel -> draw2dLib.createDigitalLabel x y
+        | BusSelection (w,lsb) -> draw2dLib.createDigitalBusSelection x y w lsb
         | Not    -> draw2dLib.createDigitalNot x y
         | And    -> draw2dLib.createDigitalAnd x y
         | Or     -> draw2dLib.createDigitalOr x y
@@ -347,11 +352,11 @@ type Draw2dWrapper() =
         |> tryActionWithCanvas "PaintConnection"
 
     /// Unhighlight a specific component
-    member this.HighlightComponent componentId = 
+    member this.HighlightComponent (color: CommonTypes.HighLightColor) componentId = 
         fun c ->
             let comp =
                 assertNotNull (draw2dLib.getComponentById c componentId) "HighlightComponent"
-            draw2dLib.setComponentBackground comp "red"
+            draw2dLib.setComponentBackground comp (JSHelpers.getColorString color)
         |> tryActionWithCanvas "HighlightComponent"
 
     /// Highlight a specific component
@@ -435,6 +440,12 @@ type Draw2dWrapper() =
             let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "SetNumberOfBits"
             draw2dLib.setNumberOfBits jsComp numberOfBits
         |> tryActionWithCanvas "SetNumberOfBits"
+
+    member this.SetLsbBitNumber compId lsbBitNumber =
+        fun c ->
+            let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "SetLsbBitNumber"
+            draw2dLib.setLsbBitNumber jsComp lsbBitNumber
+        |> tryActionWithCanvas "SetLsbBitNumber"
 
     member this.SetTopOutputWidth compId topOutputWidth =
         fun c ->

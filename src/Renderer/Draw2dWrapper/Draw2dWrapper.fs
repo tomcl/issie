@@ -240,16 +240,20 @@ type Draw2dWrapper() =
     /// Returns a react element containing the canvas.
     /// The dispatch function has to be: JSDiagramMsg >> dispatch
     member this.CanvasReactElement jsDiagramMsgDispatch displayMode =
-        // Initialise dispatch if needed.
-        match dispatch with
-        | None ->
+        let reload() =
             dispatch <- Some jsDiagramMsgDispatch
             draw2dLib.setDispatchMessages
                 (InferWidths >> jsDiagramMsgDispatch)
                 (SelectComponent >> jsDiagramMsgDispatch)
                 (UnselectComponent >> jsDiagramMsgDispatch)
                 (SetHasUnsavedChanges >> jsDiagramMsgDispatch)
-        | Some _ -> ()
+        // Initialise dispatch if needed.
+        match dispatch with
+        | None -> reload()
+        | Some _ -> // even if canvas has previously been installed, HMR can break this - so do it again if debugging
+                    // this will unselect all components. TODO: use an HMR callback to do this, or make state persistent via react props
+            if debugLevel <> 0 then
+                reload()  
         // Return react element with relevant props.
         createDraw2dReact {
             Dispatch = jsDiagramMsgDispatch

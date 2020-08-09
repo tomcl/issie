@@ -217,7 +217,7 @@ let displayView model dispatch =
             OnMouseMove processMouseMove
     ] [
         viewTopMenu model dispatch 
-        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode )
+        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode ) 
         viewNoProjectMenu model dispatch
         viewPopup model
         viewNotifications model dispatch

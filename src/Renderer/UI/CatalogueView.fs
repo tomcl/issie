@@ -45,13 +45,12 @@ type ScrollPos = {
 
 
 let getViewableXY (sPos: ScrollPos) =
-    let scale pos = int(float pos * sPos.Zoom)
-    let lTop = scale sPos.SheetLeft, scale sPos.SheetTop
+    let lTop = sPos.SheetLeft, sPos.SheetTop
     {
         LTop = lTop
         RBot =  
             lTop |> 
-            fun (x,y) -> x + scale sPos.SheetX, y + scale sPos.SheetY
+            fun (x,y) -> x + sPos.SheetX, y + sPos.SheetY
     }
 
 let checkOnCanvas sPos box =
@@ -114,7 +113,7 @@ let scrollData model =
     let zoomOpt model = model.Diagram.GetZoom()
     match scrollArea model, zoomOpt model with 
         | Some a, Some z -> 
-            printfn "Area = (%d,%d,%d,%d, %.2f)" a.Width a.Height a.Left a.Top z
+            //printfn "Area = (%d,%d,%d,%d, %.2f)" a.Width a.Height a.Left a.Top z
             let mag n = int (float n * z)
             let mag' n = min n (int (float n * z))
             
@@ -154,14 +153,15 @@ let getNewComponentPosition (model:Model) =
     let maxY = 60
     let offsetY = 30
    
-    let meshPitch1 = 45
-    let meshPitch2 = 5
+    let meshSize1 = 21
+    let meshSize2 = 3
 
     let sDat = scrollData model
 
     let bbTopLeft = {LTop=(sDat.SheetLeft,sDat.SheetTop); RBot=(sDat.SheetLeft,sDat.SheetTop)}
 
-    let isVisible (x,y) = x >= sDat.SheetLeft && y >= sDat.SheetTop && x < sDat.SheetLeft + sDat.SheetX - maxX && y < sDat.SheetTop + sDat.SheetY - maxY
+    let isFullyVisible (x,y) = x >= sDat.SheetLeft + maxX/2 && y >= sDat.SheetTop + maxY/2  && x < sDat.SheetLeft + sDat.SheetX - maxX && y < sDat.SheetTop + sDat.SheetY - maxY
+    let isPartlyVisible (x,y) = x >= sDat.SheetLeft - maxX && y >= sDat.SheetTop - maxY  && x < sDat.SheetLeft + sDat.SheetX  && y < sDat.SheetTop + sDat.SheetY
 
     let componentPositions , boundingBox, comps  =
         match model.Diagram.GetCanvasState () with
@@ -173,7 +173,7 @@ let getNewComponentPosition (model:Model) =
             let xyPosL =
                 comps
                 |> List.map (fun co -> {LTop=(co.X,co.Y); RBot=(co.X+co.W,co.Y+co.H)})
-                |> List.filter (fun co -> isVisible co.LTop)
+                |> List.filter (fun co -> isPartlyVisible co.LTop)
             if xyPosL = [] then 
                 [bbTopLeft],bbTopLeft, [] // add default top left component to keep code from breaking
             else
@@ -181,7 +181,7 @@ let getNewComponentPosition (model:Model) =
     /// x value to choose for y offset heuristic
     let xDefault =
         componentPositions
-        |> List.filter (fun bb -> isVisible bb.LTop)
+        |> List.filter (fun bb -> isPartlyVisible bb.LTop)
         |> List.map (fun bb -> bb.LTop)
         |> List.minBy snd
         |> fst
@@ -191,7 +191,7 @@ let getNewComponentPosition (model:Model) =
     /// y value to choose for x offset heuristic
     let yDefault =
         componentPositions
-        |> List.filter (fun bb -> isVisible bb.LTop)
+        |> List.filter (fun bb -> isPartlyVisible bb.LTop)
         |> List.map (fun bb -> bb.LTop)
         |> List.minBy fst
         |> snd
@@ -216,10 +216,12 @@ let getNewComponentPosition (model:Model) =
         
         let avg x x' = (float x + float x' ) / 2.
 
+        let euc (x,y) (x',y') (x'',y'') = 
+            let (xx,yy) = avg x' x'', avg y' y''
+            sqrt( (float x - xx)**2. + (float y - yy)**2.)
+
         let euclidean (pt:int*int) (bb:Bbox) = 
-            let euc (x,y) (x',y') (x'',y'') = 
-                let (xx,yy) = avg x' x'', avg y' y''
-                sqrt(((float x - xx)**2. + (float y - yy)**2.)/2.)
+            let {LTop=(x1,y1); RBot=(x2,y2)} = bb
             match dir pt bb with
             | TOP, LEFT -> euc pt bb.LTop bb.LTop
             | TOP, MID -> euc pt bb.LTop (rTop bb)
@@ -228,18 +230,18 @@ let getNewComponentPosition (model:Model) =
             | BOTTOM, MID -> euc pt (lBot bb) bb.RBot
             | BOTTOM, RIGHT -> euc pt bb.RBot bb.RBot
             | MID, LEFT -> euc pt bb.LTop (lBot bb)
-            | MID, MID -> 0.
+            | MID, MID -> - 0.
             | MID, RIGHT -> euc pt (rTop bb) bb.RBot
             | x -> failwithf "What? '%A' Can't happen based on definition of dir!" x
         
         let euclideanBox (bb:Bbox) (bb1:Bbox) =
-            ((List.min [ euclidean bb.RBot bb1 ; euclidean bb.LTop bb1; euclidean (rTop bb) bb1; euclidean (lBot bb) bb1 ]), bb1)
-            |> (fun (x, _) ->
-                if x <> 0. then x else
-                    let bbAv {LTop=(x,y);RBot=(x',y')} = avg x x', avg y y'
-                    let (x,y) = bbAv bb
-                    let (x',y')=bbAv bb1
-                    -(float maxX) - (float maxY) + sqrt((x - x')**2. + (y - y')**2.))
+            let d = List.min [ euclidean bb.RBot bb1 ; euclidean bb.LTop bb1; euclidean (rTop bb) bb1; euclidean (lBot bb) bb1 ]
+            match d with
+            | 0. ->
+                let {LTop=(x1,y1); RBot=(x2,y2)} = bb
+                euc (int(avg x1 x2), int(avg y1 y2))  bb1.RBot bb1.LTop - float (maxX + maxY)
+            | x -> x
+
         componentPositions
         |> List.filter (fun {LTop=(x,y)} -> abs(x-xRef) < 3*maxX && abs(y-yRef) < 3*maxY)
         |> List.map (euclideanBox compBb)
@@ -258,6 +260,8 @@ let getNewComponentPosition (model:Model) =
             | Some comp -> Some (comp.X, comp.Y, comp.H, comp.W)
             | None -> None
 
+    let mesh (num:int) (low:int) (high:int) =
+        [0..num-1] |> List.map (fun i ->  low + (i*(high-low)) / num)
 
     match boundingBox.RBot, lastCompPos with
     | _ when boundingBox = bbTopLeft -> 
@@ -278,18 +282,25 @@ let getNewComponentPosition (model:Model) =
     | _ ->
         // try to find some free space anywhere on the sheet
         // do a coarse search for largest Euclidean distance to any component's worst case bounding box
-        List.allPairs [sDat.SheetLeft+maxX..meshPitch1..sDat.SheetLeft+sDat.SheetX-maxX] [sDat.SheetTop+maxY..meshPitch1..sDat.SheetTop+sDat.SheetY-maxY]
+        List.allPairs (mesh meshSize1 (sDat.SheetLeft+maxX) (sDat.SheetLeft+sDat.SheetX-maxX)) (mesh meshSize1 (sDat.SheetTop+maxY) (sDat.SheetTop+sDat.SheetY-maxY))
         |> List.map xyToBb
         |> List.sortByDescending (checkDistance)
-        |> List.take 10
+        |> List.truncate 10
+        //|> (fun lst -> printfn "Search1:%A" (List.zip lst (lst |> List.map checkDistance)); lst)
         |> List.collect (fun {LTop=(xEst,yEst)} ->
                 //now do the same thing locally with a narrower search pitch
-                List.allPairs [xEst - meshPitch1/3..meshPitch2..xEst + meshPitch1/3] [yEst - meshPitch1/3..meshPitch2..yEst + meshPitch1/3]
-                |> List.filter isVisible // delete anything too near edge
+                let mX = sDat.SheetX / (3*meshSize1) + 1
+                let mY = sDat.SheetY/ (3*meshSize1) + 1
+                //printfn "xest=%d yEst=%d mX = %d mY = %d" xEst yEst mX mY
+                List.allPairs (mesh meshSize2 (xEst - mX) (xEst + mX)) (mesh meshSize2 (yEst - mY) (yEst + mY))
+                |> List.distinct
+                |> List.filter (isFullyVisible) // delete anything too near edge
                 |> List.map xyToBb
-                |> List.maxBy checkDistance
-                |> (fun  bb -> [bb]))
-        |> List.maxBy checkDistance
+                //|> (fun lst -> printfn "Narrow: \n%A\n\n" ((List.zip lst (lst |> List.map checkDistance)) |> List.map (sprintf "%A") |> String.concat "\n"); lst)
+                |> (function | [] -> [] | lst -> List.maxBy checkDistance lst |> fun bb -> [bb]))
+        |> (function | []  -> let pt = sDat.SheetLeft+sDat.SheetX/2,sDat.SheetTop+sDat.SheetY/2
+                              {LTop= pt; RBot = pt}
+                     | lst -> List.maxBy checkDistance lst)
         |> (fun bb -> bb.LTop)
     |> (fun (x,y) -> printf "Pos=(%d,%d)" x y; (x,y))
         

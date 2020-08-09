@@ -19,27 +19,6 @@ open Electron.Helpers
 *
 ****************************************************************************************************)
 
-#if DEBUG
-let mutable debugLevel = 1
-#else
-let mutable debugLevel = 1
-#endif
-
-/// Hack to provide a constant global variable
-/// set from command line arguments of main process.
-/// 0 => production. 1 => dev. 2 => debug.
-let setDebugLevel() =
-    let argV =
-        electron.remote.``process``.argv
-        |> Seq.toList
-        |> List.tail
-        |> List.map (fun s -> s.ToLower())
-    let isArg s = List.contains s argV
-
-    if isArg "--debug" || isArg "-d" then
-        debugLevel <- 2
-    elif isArg "-w" then
-        debugLevel <- 1
 
 
 let menuSeparator =
@@ -93,7 +72,7 @@ let makeMenu (name : string) (table : MenuItemOptions list) =
 
 
 let viewMenu dispatch =
-    setDebugLevel()
+    JSHelpers.setDebugLevel()
     let devToolsKey = if Node.Api.``process``.platform = Node.Base.Darwin then "Alt+Command+I" else "Ctrl+Shift+I"
     makeMenu "View" [
         makeRoleItem "Toggle Fullscreen" (Some "F11") MenuItemRole.ToggleFullScreen
@@ -102,7 +81,7 @@ let viewMenu dispatch =
         makeRoleItem "Zoom Out" (Some "CmdOrCtrl+-") MenuItemRole.ZoomOut
         makeRoleItem "Reset Zoom" (Some "CmdOrCtrl+0") MenuItemRole.ResetZoom
         menuSeparator
-        makeCondItem (debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ -> 
+        makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ -> 
             let webContents = electron.remote.getCurrentWebContents()
             webContents.toggleDevTools())
     ]

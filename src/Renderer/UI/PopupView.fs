@@ -138,7 +138,7 @@ let dialogPopupBodyOnlyText before placeholder dispatch =
         div [] [
             before dialogData
             Input.text [
-                Input.Props [AutoFocus true]
+                Input.Props [AutoFocus true; SpellCheck false]
                 Input.Placeholder placeholder
                 Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
             ]
@@ -165,7 +165,7 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
         div [] [
             beforeText dialogData
             Input.text [
-                Input.Props [AutoFocus true]
+                Input.Props [AutoFocus true; SpellCheck false]
                 Input.Placeholder placeholder
                 Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
             ]

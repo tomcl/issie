@@ -29,11 +29,13 @@ let private readOnlyFormField name body =
 let private textFormField name defaultValue onChange =
     Field.div [] [
         Label.label [] [ str name ]
-        Control.div [] [ Input.text [
-            Input.Props [ Name name; ]
+        Input.text [
+            Input.Props [ SpellCheck false; Name name; AutoFocus true; Style [ Width "200px"]]
             Input.DefaultValue defaultValue
+            Input.Type Input.Text
+            Input.Placeholder "Name (optional)"
             Input.OnChange (getTextEventValue >> onChange)
-        ] ]
+        ] 
     ]
 
 let private intFormField name defaultValue minValue onChange =
@@ -87,7 +89,15 @@ let private makeDescription comp model dispatch =
     match comp.Type with
     | Input _ -> str "Input."
     | Output _ -> str "Output."
-    | IOLabel -> str "Label on Wire or Bus. Labels with the same name connect wires or busses."
+    | IOLabel -> div [] [
+        str "Label on Wire or Bus. Labels with the same name connect wires or busses.Each label component has input on left and output on right. \
+            No output connection is required from a set of labels. Since a set represents one wire of bus, exactly one input connection is required. \
+            Labels can be used:"  
+        br [] ;
+        str "To name signals, for example single decoded bits, to make designs easier to understand."; br []
+        str "To join signals or busses without needing wires."; br []
+        str "To prevent an unused output from giving an error."
+        ]
     | Not | And | Or | Xor | Nand | Nor | Xnor ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
     | Mux2 -> div [] [ str "Multiplexer with two inputs and one output." ]
@@ -145,13 +155,13 @@ let private makeExtraInfo model comp text dispatch =
 
 let viewSelectedComponent model dispatch =
     match model.SelectedComponent with
-    | None -> div [] [ str "Select a component in the diagram to view/edit its properties." ]
+    | None -> div [] [ str "Select a component in the diagram to view or change its properties, for example number of bits." ]
     | Some comp ->
         div [Key comp.Id] [
             let label' = extractLabelBase comp.Label
             readOnlyFormField "Description" <| makeDescription comp model dispatch
             makeExtraInfo model comp label' dispatch
-            textFormField "Label" label' (fun text -> 
+            textFormField "Component Name" label' (fun text -> 
                 setComponentLabel model comp (formatLabel comp text)
                 dispatch (ReloadSelectedComponent model.LastUsedDialogWidth) // reload the new component
                 )

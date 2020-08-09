@@ -103,8 +103,9 @@ let askForExistingProjectPath () : string option =
 let rec askForNewProjectPath () : string option =
     let options = createEmpty<SaveDialogOptions>
     options.filters <- projectFilters
-    options.message <- "My message"
-    options.title <- "MyTitle"
+    options.title <- "Enter new project directory and name"
+    options.nameFieldLabel <- "New project name"
+    options.buttonLabel <- "Create Project"
     options.properties <- [|
         SaveDialogFeature.CreateDirectory
         SaveDialogFeature.ShowOverwriteConfirmation

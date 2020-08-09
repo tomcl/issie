@@ -23,6 +23,7 @@ open FileMenuView
 open WaveformSimulationView
 
 
+
 // -- Init Model
 
 let init() = {
@@ -181,14 +182,34 @@ let dividerbar (model:Model) dispatch =
         ] []
 
 let displayView model dispatch =
+    let windowX,windowY =
+        int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
+    let selectedComps, selectedconns = 
+        model.Diagram.GetSelected()
+        |> Option.map extractState
+        |> Option.defaultValue ([],[])
+    let sd = scrollData model
+    let x' = sd.SheetLeft+sd.SheetX
+    let y' = sd.SheetTop+sd.SheetY
+    //selectedComps
+    //|> List.map (fun comp -> sprintf "(%d,%d)" comp.X  comp.Y )
+    //|> String.concat ","
+    //|> (fun comps -> printfn "W=(%d,%d) Top=(%d,%d) Bot=(%d,%d)Comps=[%s]\n%A\n\n"  windowX windowY sd.SheetLeft sd.SheetTop x' y' comps sd)
+  
+
 
     let processMouseMove (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         match model.DragMode, ev.buttons with
         | DragModeOn pos , 1.-> 
-            SetViewerWidth (model.ViewerWidth - int ev.clientX + pos) |> dispatch
+            let newWidth = model.ViewerWidth - int ev.clientX + pos
+            let w = 
+                newWidth
+                |> max DiagramStyle.minViewerWidth
+                |> min (windowX - DiagramStyle.minEditorWidth)
+            SetViewerWidth w |> dispatch
             SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
-        | DragModeOn _, _ ->  printfn "END." ; SetDragMode DragModeOff |> dispatch
+        | DragModeOn _, _ ->  SetDragMode DragModeOff |> dispatch
         | DragModeOff, _-> ()
 
     div [
@@ -196,7 +217,7 @@ let displayView model dispatch =
             OnMouseMove processMouseMove
     ] [
         viewTopMenu model dispatch 
-        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode )
+        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode ) 
         viewNoProjectMenu model dispatch
         viewPopup model
         viewNotifications model dispatch
@@ -274,8 +295,8 @@ let private handleKeyboardShortcutMsg msg model =
         model
 
 let update msg model =
-    let inP f = Option.map f model.CurrProject
-    printfn "UPDATE: %A (dirty=%A, project=%A)" msg model.HasUnsavedChanges (inP (fun p -> p.ProjectPath))
+    //let inP f = Option.map f model.CurrProject
+    //printfn "UPDATE: %A (dirty=%A, project=%A)" msg model.HasUnsavedChanges (inP (fun p -> p.ProjectPath))
     match msg with
     | SetDragMode mode -> {model with DragMode= mode}
     | SetViewerWidth w -> {model with ViewerWidth = w}

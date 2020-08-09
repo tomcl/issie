@@ -173,7 +173,6 @@ let private newProject model dispatch _ =
     match askForNewProjectPath () with
     | None -> () // User gave no path.
     | Some path ->
-        printfn "%s" path
         match tryCreateFolder path with
         | Error err ->
             log err
@@ -271,7 +270,7 @@ let private viewInfoPopup dispatch =
 
 /// Display top menu.
 let viewTopMenu model dispatch =
-    printfn "FileView"
+    //printfn "FileView"
     let style = Style [Width "100%"] //leftSectionWidth model
     let projectPath, fileName =
         match model.CurrProject with
@@ -291,7 +290,6 @@ let viewTopMenu model dispatch =
                             Button.Color IsPrimary
                             Button.Disabled (name = project.OpenFileName)
                             Button.OnClick (fun _ ->
-                                printfn "***Saving"
                                 saveOpenFileAction model // Save current file.
                                 openFileInProject name project model dispatch
                             )
@@ -345,7 +343,6 @@ let viewTopMenu model dispatch =
                 Navbar.Link.a [] [ str "Files" ]
                 Navbar.Dropdown.div [ Navbar.Dropdown.Props [
                     Style [Display (if (let b = model.TopMenu = Files; 
-                                    printfn "Files Vis=%A" b; 
                                     b) then DisplayOptions.Block else DisplayOptions.None)]
                 ]] (
                     [

@@ -39,7 +39,8 @@ let private hexToBin (hStr : string) : string =
 
 let hex64 (num : int64) = "0x" + num.ToString("X")
 let bin64 (num : int64) = "0b" + (hexToBin <| num.ToString("X"))
-let dec64 (num : int64) = num.ToString()
+let sDec64 (num : int64) = num.ToString()
+let dec64 (num: int64) = (uint64 num).ToString()
 let hex (num : int) = hex64 <| int64 num
 let bin (num : int) = bin64 <| int64 num
 let dec (num : int) = dec64 <| int64 num

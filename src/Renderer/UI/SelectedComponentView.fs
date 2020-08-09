@@ -69,6 +69,7 @@ let private makeNumberOfBitsField model comp text setter dispatch =
         match comp.Type with
         | Input w | Output w | NbitsAdder w | Register w -> "Number of bits", w
         | SplitWire w -> "Number of bits in the top wire", w
+        | BusSelection( w, _) -> "Number of bits selected", w
         | c -> failwithf "makeNumberOfBitsField called with invalid component: %A" c
     intFormField title width 1 (
         fun newWidth ->
@@ -78,17 +79,41 @@ let private makeNumberOfBitsField model comp text setter dispatch =
                 |> SetPropertiesNotification |> dispatch
             else
                 setter comp.Id newWidth // change the JS component
-                let text' = formatLabelAsBus newWidth text
+                let text' = match comp.Type with | BusSelection _ -> text | _ -> formatLabelAsBus newWidth text
                 setComponentLabelFromText model comp text' // change the JS component label
-                let lastUsedWidth = match comp.Type with | SplitWire _ -> model.LastUsedDialogWidth | _ ->  newWidth
+                let lastUsedWidth = match comp.Type with | SplitWire _ | BusSelection _ -> model.LastUsedDialogWidth | _ ->  newWidth
                 dispatch (ReloadSelectedComponent (lastUsedWidth)) // reload the new component
                 dispatch ClosePropertiesNotification
     )
 
+let private makeLsbBitNumberField model comp setter dispatch =
+    let lsbPos =
+        match comp.Type with 
+        | BusSelection(width,lsb) -> lsb
+        | _ -> failwithf "makeLsbBitNumberfiled called from %A" comp.Type
+
+    intFormField "LS Bit number selected" lsbPos 0 (
+        fun newLsb ->
+            if newLsb < 0
+            then
+                errorNotification "Invalid LSB bit position" ClosePropertiesNotification
+                |> SetPropertiesNotification |> dispatch
+            else
+                setter comp.Id newLsb // change the JS component
+                let lastUsedWidth = match comp.Type with | SplitWire _ | BusSelection _ -> model.LastUsedDialogWidth | _ ->  newLsb
+                dispatch (ReloadSelectedComponent (lastUsedWidth)) // reload the new component
+                dispatch ClosePropertiesNotification
+    )
 let private makeDescription comp model dispatch =
     match comp.Type with
     | Input _ -> str "Input."
     | Output _ -> str "Output."
+    | BusSelection _ -> div [] [
+                str "Bus selector."
+                br []
+                str "The output is a subrange of one or more of the input bus bits, the other inputs bits are not connected. \
+                    Note that the output bit(s) are numbered from 0 even if the input range has lsb number > 0."
+        ]
     | IOLabel -> div [] [
         str "Label on Wire or Bus. Labels with the same name connect wires or busses.Each label component has input on left and output on right. \
             No output connection is required from a set of labels. Since a set represents one wire of bus, exactly one input connection is required. \
@@ -151,12 +176,18 @@ let private makeExtraInfo model comp text dispatch =
         makeNumberOfBitsField model comp text model.Diagram.SetTopOutputWidth dispatch
     | Register _ ->
         makeNumberOfBitsField model comp text model.Diagram.SetRegisterWidth dispatch
+    | BusSelection _ -> 
+        div [] [
+            makeNumberOfBitsField model comp text model.Diagram.SetNumberOfBits dispatch
+            makeLsbBitNumberField model comp model.Diagram.SetLsbBitNumber dispatch
+            ]
     | _ -> div [] []
 
 let viewSelectedComponent model dispatch =
     match model.SelectedComponent with
     | None -> div [] [ str "Select a component in the diagram to view or change its properties, for example number of bits." ]
     | Some comp ->
+        printfn "viewing %A" comp
         div [Key comp.Id] [
             let label' = extractLabelBase comp.Label
             readOnlyFormField "Description" <| makeDescription comp model dispatch

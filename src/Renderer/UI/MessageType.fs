@@ -87,6 +87,13 @@ type DragMode = DragModeOn of int | DragModeOff
 
 type IntMode = FirstInt | SecondInt
 
+type MenuCommand =
+    | MenuPrint
+    | MenuSaveFile
+    | MenuNewFile
+    | MenuZoom of float
+
+
 
 type Msg =
     | JSDiagramMsg of JSDiagramMsg
@@ -124,3 +131,4 @@ type Msg =
     | ReloadSelectedComponent of int
     | SetDragMode of DragMode
     | SetViewerWidth of int
+    | MenuAction of MenuCommand * (Msg -> unit)

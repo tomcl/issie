@@ -69,7 +69,7 @@ let private makeNumberOfBitsField model comp text setter dispatch =
         match comp.Type with
         | Input w | Output w | NbitsAdder w | Register w -> "Number of bits", w
         | SplitWire w -> "Number of bits in the top wire", w
-        | BusSelection( w, _) -> "Number of bits selected", w
+        | BusSelection( w, _) -> "Number of bits selected: width", w
         | c -> failwithf "makeNumberOfBitsField called with invalid component: %A" c
     intFormField title width 1 (
         fun newWidth ->
@@ -90,9 +90,9 @@ let private makeLsbBitNumberField model comp setter dispatch =
     let lsbPos =
         match comp.Type with 
         | BusSelection(width,lsb) -> lsb
-        | _ -> failwithf "makeLsbBitNumberfiled called from %A" comp.Type
+        | _ -> failwithf "makeLsbBitNumberfield called from %A" comp.Type
 
-    intFormField "LS Bit number selected" lsbPos 0 (
+    intFormField "Least Significant Bit number selected: lsb" lsbPos 0 (
         fun newLsb ->
             if newLsb < 0
             then
@@ -109,18 +109,21 @@ let private makeDescription comp model dispatch =
     | Input _ -> str "Input."
     | Output _ -> str "Output."
     | BusSelection _ -> div [] [
-                str "Bus selector."
+                str "Bus Selection."
                 br []
-                str "The output is a subrange of one or more of the input bus bits, the other inputs bits are not connected. \
-                    Note that the output bit(s) are numbered from 0 even if the input range has lsb number > 0."
+                str "The output is the subrange [width+lsb-1..lsb] of the input bits. If width = 1 this selects one bit. Error if the input has less than width + lsb bits."
+                br []
+                br []
+                str "Note that the output bit(s) are numbered from 0 even if the input range has LS bit number > 0. \
+                     The input bits connected are displayed in the schematic symbol"
         ]
     | IOLabel -> div [] [
-        str "Label on Wire or Bus. Labels with the same name connect wires or busses.Each label component has input on left and output on right. \
+        str "Label on Wire or Bus. Labels with the same name connect wires. Each label has input on left and output on right. \
             No output connection is required from a set of labels. Since a set represents one wire of bus, exactly one input connection is required. \
             Labels can be used:"  
         br [] ;
-        str "To name signals, for example single decoded bits, to make designs easier to understand."; br []
-        str "To join signals or busses without needing wires."; br []
+        str "To name wires and document designs."; br []
+        str "To join inputs and outputs without wires."; br []
         str "To prevent an unused output from giving an error."
         ]
     | Not | And | Or | Xor | Nand | Nor | Xnor ->
@@ -187,7 +190,6 @@ let viewSelectedComponent model dispatch =
     match model.SelectedComponent with
     | None -> div [] [ str "Select a component in the diagram to view or change its properties, for example number of bits." ]
     | Some comp ->
-        printfn "viewing %A" comp
         div [Key comp.Id] [
             let label' = extractLabelBase comp.Label
             readOnlyFormField "Description" <| makeDescription comp model dispatch

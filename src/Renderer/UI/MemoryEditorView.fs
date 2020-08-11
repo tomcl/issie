@@ -48,7 +48,7 @@ let private showRowWithAdrr memoryEditorData addr =
     | _ -> false
 
 let viewNum numBase =
-    match numBase with | Hex -> hex64 | Dec -> dec64 | Bin -> bin64
+    match numBase with | Hex -> hex64 | Dec -> dec64 | Bin -> bin64 | SDec -> sDec64
 
 // let private baseToStr b = match b with | Hex -> "hex" | Dec -> "dec" | Bin -> "bin"
 

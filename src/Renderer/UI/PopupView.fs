@@ -72,6 +72,9 @@ let getText (dialogData : PopupDialogData) =
 let getInt (dialogData : PopupDialogData) =
     Option.defaultValue 1 dialogData.Int
 
+let getInt2 (dialogData : PopupDialogData) =
+    Option.defaultValue 0 dialogData.Int2
+
 let getMemorySetup (dialogData : PopupDialogData) =
     Option.defaultValue (1,1) dialogData.MemorySetup
 
@@ -155,6 +158,33 @@ let dialogPopupBodyOnlyInt beforeInt intDefault dispatch =
                 Input.Props [Style [Width "60px"]; AutoFocus true]
                 Input.DefaultValue <| sprintf "%d" intDefault
                 Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
+            ]
+        ]
+/// Create the body of a dialog Popup with two ints.
+let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) dispatch =
+
+    let setPopupTwoInts (whichInt:IntMode) =
+        fun n -> (Some n, whichInt) |> SetPopupDialogTwoInts |> dispatch
+
+    setPopupTwoInts FirstInt intDefault1 
+    setPopupTwoInts SecondInt intDefault2 
+
+    fun (dialogData : PopupDialogData) ->
+        div [] [
+            beforeInt1 dialogData
+            br []
+            Input.number [
+                Input.Props [Style [Width "60px"]; AutoFocus true]
+                Input.DefaultValue <| sprintf "%d" intDefault1
+                Input.OnChange (getIntEventValue >> setPopupTwoInts FirstInt)
+            ]
+            br []
+            beforeInt2 dialogData
+            br []
+            Input.number [
+                Input.Props [Style [Width "60px"]; AutoFocus true]
+                Input.DefaultValue <| sprintf "%d" intDefault2
+                Input.OnChange (getIntEventValue >> setPopupTwoInts SecondInt)
             ]
         ]
 

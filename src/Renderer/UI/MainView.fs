@@ -42,6 +42,7 @@ let init() = {
     PopupDialogData = {
         Text = None
         Int = None
+        Int2 = None
         MemorySetup = None
         MemoryEditorData = None
     }
@@ -322,7 +323,7 @@ let update msg model =
         |> List.map (fun (ComponentId c) -> model.Diagram.UnHighlightComponent c)
         |> ignore
         componentIds
-        |> List.map (fun (ComponentId c) -> model.Diagram.HighlightComponent c)
+        |> List.map (fun (ComponentId c) -> model.Diagram.HighlightComponent Red c)
         |> ignore
         oldConnectionIds
         |> List.map (fun (ConnectionId c) -> model.Diagram.UnHighlightConnection c)
@@ -338,11 +339,17 @@ let update msg model =
     | ShowPopup popup -> { model with Popup = Some popup }
     | ClosePopup ->
         { model with Popup = None; PopupDialogData =
-                    { Text = None; Int = None; MemorySetup = None; MemoryEditorData = None} }
+                    { Text = None; Int = None; Int2 = None; MemorySetup = None; MemoryEditorData = None} }
     | SetPopupDialogText text ->
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }
     | SetPopupDialogInt int ->
         { model with PopupDialogData = {model.PopupDialogData with Int = int} }
+    | SetPopupDialogTwoInts data ->
+        { model with PopupDialogData = 
+                        match data with
+                        | n, FirstInt ->  {model.PopupDialogData with Int  = n}
+                        | n, SecondInt -> {model.PopupDialogData with Int2 = n}
+        }
     | SetPopupDialogMemorySetup m ->
         { model with PopupDialogData = {model.PopupDialogData with MemorySetup = m} }
     | SetPopupMemoryEditorData m ->

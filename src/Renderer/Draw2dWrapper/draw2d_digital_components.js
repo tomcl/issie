@@ -39,7 +39,7 @@ draw2d.shape.digital = draw2d.SVGFigure.extend({
         // In this case only a small part of the shape are filled with the background color
         // and not the complete rectangle/bounding box.
         attributes["fill"] = "none";
-        if (this.bgColor != null) {
+        if (this.bgColor !== null) {
             let svgElements = this.getSvgElements();
             for (let i = 0; i < svgElements.length; i++) {
                 if (svgElements[i].toFill) {
@@ -124,6 +124,46 @@ draw2d.shape.digital.Output = draw2d.shape.digital.extend({
         this.numberOfBits = attr.numberOfBits;
 
         this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), this.numberOfBits > 1);
+    },
+});
+
+draw2d.shape.digital.BusSelection = draw2d.shape.digital.extend({
+
+    NAME: "draw2d.shape.digital.BusSelection",
+
+    componentType: "BusSelection",
+    svgHeight: 20,
+    svgWidth: 40,
+    numberOfbits: 1,
+    lsbBitNumber: 0,
+
+
+        getSvgElements: function () {
+            let bitsLabel = `[${this.numberOfBits + this.lsbBitNumber - 1}..${this.lsbBitNumber}]`;
+            if (this.numberOfBits === 1) {
+                bitsLabel = `${this.lsbBitNumber}`
+            }
+
+            return [
+                { path: '<polygon points="0,20 0,0 25,0 35,5 45,5 45,15 35,15 25,20" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true },
+                { path: `<text x=17 y=5 fill="black" text-anchor="middle">${bitsLabel}</text>`, toFill: false },
+            ];
+    },
+
+    init: function (attr, setter, getter) {
+        this._super(
+            $.extend({ width: this.svgWidth, height: this.svgHeight }, attr),
+            setter,
+            getter
+        );
+        console.assert(typeof attr.numberOfBits === "number", "numberOfBits is not a number when creating a BusSelection node");
+        this.numberOfBits = attr.numberOfBits;
+        console.assert(typeof attr.lsbBitNumber === "number", "lsbBitNumber is not a number when creating a BusSelection node");
+        this.lsbBitNumber = attr.lsbBitNumber;
+
+
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
 

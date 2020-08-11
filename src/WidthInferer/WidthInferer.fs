@@ -35,6 +35,8 @@ let private assertInputsSize
     assertThat (inputs.Count = expected)
     <| sprintf "assertInputsSize failed for: %A" comp
 
+
+
 let private getOutputPortId (comp : Component) (idx : int) : OutputPortId =
     match List.tryFind (fun p -> extractComponentPortNumber p = idx) comp.OutputPorts with
     | None -> failwithf "what? getOutputPortId called with inexistent port idx (%d): %A " idx comp
@@ -111,7 +113,13 @@ let private calculateOutputPortsWidth
         | [None] -> Ok <| Map.empty
         | [Some n] -> Ok <| Map.empty.Add (getOutputPortId comp 0, n)
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
-    | Not | IOLabel->
+    | BusSelection(width, lsBitNum) ->
+        assertInputsSize inputConnectionsWidth 1 comp
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
+        | [Some n] when n < width + lsBitNum -> makeWidthInferErrorAtLeast (lsBitNum + n) n [getConnectionIdForPort 0]
+        | [None] | [Some _ ] -> Ok <| Map.empty.Add (getOutputPortId comp 0, width)
+        | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
+    | Not ->
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
         | [None] | [Some 1] -> Ok <| Map.empty.Add (getOutputPortId comp 0, 1)

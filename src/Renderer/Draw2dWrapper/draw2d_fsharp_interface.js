@@ -7,6 +7,11 @@ import { createDigitalConnection } from "./draw2d_digital_connections.js"
 import "./draw2d_digital_components.js"
 import "./drag_connection_create_policy_fixed.js"
 
+function printCanvas(canvas,funcPrint) {
+    let writer = new draw2d.io.png.Writer();
+    writer.marshal(canvas, funcPrint);
+}
+
 function createCanvas(id, width, height) {
     let canvas = new draw2d.Canvas(id, width, height);
     canvas.setScrollArea('#'+id);
@@ -64,9 +69,9 @@ function getZoom(canvas) {
 }
 
 function setScrollZoom(canvas, scrollLeft, scrollTop, zoom) {
+    canvas.setZoom(zoom);
     canvas.setScrollLeft(scrollLeft);
     canvas.setScrollTop(scrollTop);
-    canvas.setZoom(zoom);
 }
     
 
@@ -428,6 +433,7 @@ function flushCommandStack (canvas) {
 
 export {
     setDispatchMessages,
+    printCanvas,
     createCanvas,
     initialiseCanvas,
     clearCanvas,

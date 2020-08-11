@@ -108,7 +108,7 @@ let private removeFileInProject name project model dispatch =
     | true -> openFileInProject project.LoadedComponents.[0].Name project model dispatch
 
 /// Create a new file in this project and open it automatically.
-let private addFileToProject model dispatch =
+let addFileToProject model dispatch =
     match model.CurrProject with
     | None -> log "Warning: addFileToProject called when no project is currently open"
     | Some project ->

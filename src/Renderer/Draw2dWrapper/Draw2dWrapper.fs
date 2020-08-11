@@ -24,6 +24,7 @@ type private IDraw2d =
         dispatchOnUnselectComponentMessage_ :(unit->unit) ->
         dispatchHasUnsavedChangesMessage_   :(bool->unit) ->
         unit
+    abstract printCanvas                  : canvas: JSCanvas -> handler: (string -> string -> unit) -> unit
     abstract createCanvas                 : id:string -> width:int -> height:int -> JSCanvas
     abstract initialiseCanvas             : canvas:JSCanvas -> unit
     abstract clearCanvas                  : canvas:JSCanvas -> unit
@@ -269,6 +270,10 @@ type Draw2dWrapper() =
         match canvas with
         | None -> canvas <- Some newCanvas
         | Some _ -> canvas <- Some newCanvas
+
+    member this.printCanvas (handler: (string -> string -> unit)) =
+        printfn "printing canvas!"
+        tryActionWithCanvas "PrintCanvas" (fun canvas -> draw2dLib.printCanvas canvas handler)
     
     member this.ClearCanvas () =
         tryActionWithCanvas "ClearCanvas" draw2dLib.clearCanvas
@@ -288,12 +293,12 @@ type Draw2dWrapper() =
         | Some c -> 
             draw2dLib.getZoom c |> Some
 
-    member this.SetScrollZoom scrollLeft scrollRight zoom =
+    member this.SetScrollZoom scrollLeft scrollTop zoom =
         match canvas with
         | None -> 
             ()
         | Some c -> 
-            draw2dLib.setScrollZoom c scrollLeft scrollRight zoom
+            draw2dLib.setScrollZoom c scrollLeft scrollTop zoom
 
     /// Brand new component.
     member this.CreateComponent componentType label x y =

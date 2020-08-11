@@ -12,73 +12,9 @@ open Fable.React.Props
 //open Fable.Core
 //open System.IO
 
-open DiagramModelType
 open DiagramMessageType
 open DiagramStyle
 open CommonTypes
-open Extractor
-open Simulator
-
-let simWireData2Wire wireData = 
-    List.rev [0 .. List.length wireData - 1]
-    |> List.zip wireData 
-    |> List.map (fun (bit, weight) -> match bit with
-                                      | SimulatorTypes.Bit.Zero -> bigint 0
-                                      | SimulatorTypes.Bit.One -> bigint 2**weight ) //the way I use bigint might be wrong
-    |> List.reduce (+)
-
-let extractWaveData
-        (simulationIOs : SimulatorTypes.SimulationIO list)
-        (graph : SimulatorTypes.SimulationGraph)
-        : Sample list =
-    let extractWireData (inputs : Map<SimulatorTypes.InputPortNumber, SimulatorTypes.WireData>) : Sample =
-        match inputs.TryFind <| SimulatorTypes.InputPortNumber 0 with
-        | None -> failwith "what? IO bit not set"
-        | Some wireData -> Wire { nBits = uint (List.length wireData)
-                                  bitData = simWireData2Wire wireData }
-    ([], simulationIOs) ||> List.fold (fun result (ioId, ioLabel, _) ->
-        match graph.TryFind ioId with
-        | None -> failwithf "what? Could not find io node: %A" (ioId, ioLabel)
-        | Some comp -> List.append result [ extractWireData comp.Inputs ]
-    )
-
-let simHighlighted (model: Model) dispatch = 
-    match model.Diagram.GetCanvasState (), model.CurrProject with
-    | None, _ -> ()
-    | _, None -> failwith "what? Cannot start a simulation without a project"
-    | Some jsState, Some project ->
-        let otherComponents =
-            project.LoadedComponents
-            |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-        (extractState jsState, otherComponents)
-        ||> prepareSimulation project.OpenFileName
-        |> function
-            | Ok simData -> 
-                let clkAdvance (sD : SimulatorTypes.SimulationData) = 
-                    feedClockTick sD.Graph
-                    |> (fun graph -> { sD with Graph = graph
-                                               ClockTickNumber = sD.ClockTickNumber+1 })
-                let waveNames' = 
-                    let extr = List.toArray >> Array.map (fun (_,b,_) -> match b with
-                                                                         | SimulatorTypes.ComponentLabel name -> name)
-                    (extr simData.Inputs, extr simData.Outputs) ||> Array.append 
-                let waveData' : SimTime array =
-                    match fst model.WaveSim.viewIndexes with 
-                    | start when start = uint 0 -> simData
-                    | start -> Array.fold (fun s _ -> clkAdvance s) simData [| 1..int start |]
-                    |> (fun sD -> Array.mapFold (fun (s: SimulatorTypes.SimulationData) _ -> 
-                            extractWaveData (List.append s.Inputs s.Outputs) s.Graph |> List.toArray, 
-                            clkAdvance s) sD [| fst model.WaveSim.viewIndexes..snd model.WaveSim.viewIndexes |] )
-                    |> fst
-
-                { model.WaveSim with waveNames = Array.append model.WaveSim.waveNames waveNames'
-                                     waveData = (Array.zip model.WaveSim.waveData waveData')
-                                                |> Array.map (fun (a,b) -> Array.append a b)
-                                     selected = Array.map (fun _ -> false) [| 1..Array.length waveNames' |]
-                                                |> Array.append model.WaveSim.selected }
-                |> StartWaveSim
-                |> dispatch
-            | Error _ -> ()
 
 //type functions
 

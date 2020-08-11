@@ -55,7 +55,7 @@ type Memory = {
 
 // Types instantiating objects in the Digital extension.
 type ComponentType =
-    | Input of BusWidth: int | Output of BusWidth: int | IOLabel
+    | Input of BusWidth: int | Output of BusWidth: int | IOLabel | BusSelection of OutputWidth: int * OutputLSBit: int
     | Not | And | Or | Xor | Nand | Nor | Xnor
     | Mux2 | Demux2
     | NbitsAdder of BusWidth: int
@@ -63,7 +63,7 @@ type ComponentType =
     | MergeWires | SplitWire of BusWidth: int // int is bus width
     // DFFE is a DFF with an enable signal.
     // No initial state for DFF or Register? Default 0.
-    | DFF | DFFE | Register of BusWidth: int | RegisterE of Buswidth: int 
+    | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int 
     | AsyncROM of Memory | ROM of Memory | RAM of Memory // memory is contents
 
 /// JSComponent mapped to F# record.
@@ -133,3 +133,9 @@ type Project = {
 //=======//
 
 type NumberBase = | Hex | Dec | Bin | SDec
+
+/// Colors to highlight components
+/// Case name is used (lowercase) as HTML color name
+/// See JSHelpers.getColorString
+/// lots of colors can be added, see https://www.w3schools.com/colors/colors_names.asp
+type HighLightColor = Red | Blue | Yellow | Green | Orange 

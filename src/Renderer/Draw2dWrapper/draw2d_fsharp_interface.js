@@ -171,6 +171,11 @@ function createDigitalLabel(x, y) {
     return new draw2d.shape.digital.Label({ x: x, y: y,  resizeable: false });
 }
 
+function createDigitalBusSelection(x, y, numberOfBits, lsbBitNumber) {
+    return new draw2d.shape.digital.BusSelection({ x: x, y: y, numberOfBits: numberOfBits, lsbBitNumber: lsbBitNumber, resizeable: false });
+}
+
+
 function createDigitalNot(x, y) {
     return new draw2d.shape.digital.Not({x:x,y:y,resizeable:false});
 }
@@ -296,7 +301,7 @@ function createDigitalRAM(x, y, addressWidth, wordWidth, memData) {
 }
 
 function writeMemoryLine(comp, addr, value) {
-    if (comp.memData == null || comp.memData === "undefined") {
+    if (comp.memData === null || comp.memData === "undefined") {
         throw `Cannot write memory line of component that does not have a memory: ${comp.componentType}`;
     }
     if (addr >= comp.memData.length) {
@@ -307,7 +312,7 @@ function writeMemoryLine(comp, addr, value) {
 
 /// Should only be used for Input, Output and NbitsAdder components.
 function setNumberOfBits(comp, numberOfBits) {
-    if (comp.numberOfBits == null || comp.numberOfBits === "undefined") {
+    if (comp.numberOfBits === null || comp.numberOfBits === "undefined") {
         throw `Cannot set number of bits of component: ${comp.componentType}`;
     }
     comp.numberOfBits = numberOfBits;
@@ -315,9 +320,19 @@ function setNumberOfBits(comp, numberOfBits) {
     comp.setSVG(comp.getSVG()); // Refresh svg.
 }
 
+/// Should only be used for Input, Output and NbitsAdder components.
+function setLsbBitNumber(comp, lsbBitNumber) {
+    if (comp.lsbBitNumber === null || comp.lsbBitNumber === "undefined") {
+        throw `Cannot set number of bits of component: ${comp.componentType}`;
+    }
+    comp.lsbBitNumber = lsbBitNumber;
+    dispatchInferWidthsMessage();
+    comp.setSVG(comp.getSVG()); // Refresh svg.
+}
+
 /// Should only be used for SplitWire nodes.
 function setTopOutputWidth(comp, topOutputWidth) {
-    if (comp.topOutputWidth == null || comp.topOutputWidth === "undefined") {
+    if (comp.topOutputWidth === null || comp.topOutputWidth === "undefined") {
         throw `Cannot set topOutputWidth of non-SplitWire component: ${comp.componentType}`;
     }
     comp.topOutputWidth = topOutputWidth;
@@ -326,7 +341,7 @@ function setTopOutputWidth(comp, topOutputWidth) {
 
 /// Should only be used for Register nodes.
 function setRegisterWidth(comp, regWidth) {
-    if (comp.regWidth == null || comp.regWidth === "undefined") {
+    if (comp.regWidth === null || comp.regWidth === "undefined") {
         throw `Cannot set regWidth of non-Register component: ${comp.componentType}`;
     }
     comp.regWidth = regWidth;
@@ -438,6 +453,7 @@ export {
     createDigitalInput,
     createDigitalOutput,
     createDigitalLabel,
+    createDigitalBusSelection,
     createDigitalNot,
     createDigitalAnd,
     createDigitalOr,
@@ -461,6 +477,7 @@ export {
     createDigitalConnection,
     writeMemoryLine,
     setNumberOfBits,
+    setLsbBitNumber,
     setTopOutputWidth,
     setRegisterWidth,
     updateMergeWiresLabels,

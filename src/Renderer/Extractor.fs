@@ -68,6 +68,10 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
         }
     | "MergeWires" -> MergeWires
     | "SplitWire"  -> SplitWire <| getFailIfNull jsComponent ["topOutputWidth"]
+    | "BusSelection" -> 
+        let width = getFailIfNull jsComponent ["numberOfBits"]
+        let lsb = getFailIfNull jsComponent ["lsbBitNumber"]
+        BusSelection <| (width, lsb)
     | "DFF"        -> DFF
     | "DFFE"       -> DFFE
     | "Register"   -> Register  <| getFailIfNull jsComponent ["regWidth"]

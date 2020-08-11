@@ -215,6 +215,20 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 Map.empty.Add (OutputPortNumber 0, packBit (bitNot bit))
                 |> makeReducerOutput NoState
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+    | BusSelection(width, lsb) ->
+        fun reducerInput ->
+            assertNoClockTick reducerInput componentType
+            assertNotTooManyInputs reducerInput componentType 1
+            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
+            | None -> notReadyReducerOutput NoState // Wait for more inputs.
+            | Some [bits] ->
+                assertThat (bits.Length >= width + lsb)
+                <| sprintf "Bus Selection received too few bits: expected at least %d but got %d" (width + lsb) bits.Length
+                let outBits = bits.[lsb .. lsb + width - 1]
+                printfn "Simulation - outbits=%A : bits = %A : lsb = %d" outBits bits lsb
+                let out = Map.empty.Add (OutputPortNumber 0, outBits)
+                makeReducerOutput NoState out
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput    
     | And  -> getBinaryGateReducer bitAnd And
     | Or   -> getBinaryGateReducer bitOr Or
     | Xor  -> getBinaryGateReducer bitXor Xor
@@ -498,7 +512,7 @@ let private mapInputPortIdToPortNumber
 /// ROMs are stateless (they are only defined by their initial content).
 let private getDefaultState compType =
     match compType with
-    | Input _ | Output _ | IOLabel | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2
+    | Input _ | Output _ | IOLabel | BusSelection _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2
     | Demux2 | NbitsAdder _ | Custom _ | MergeWires | SplitWire _ | ROM _
     | AsyncROM _ -> NoState
     | DFF | DFFE -> DffState Zero

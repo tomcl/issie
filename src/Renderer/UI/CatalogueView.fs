@@ -312,7 +312,7 @@ let getPortNames (cType: ComponentType) =
     | DFFE | RegisterE _ -> ["D";"En"], ["Q"]
     | And | Or | Nand | Nor | Xor | Xnor -> ["IN1";"IN2"], ["OUT"]
     | NbitsAdder _ -> ["Cin"; "A"; "B"], ["Sum";"Cout"]
-    | Not -> ["In"],["Out"]
+    | Not | BusSelection _ -> ["In"],["Out"]
     | Mux2 -> ["0";"1";"Sel"],["Out"]
     | Demux2 ->["In";"Sel"],["0";"1"]
     | ROM _ | AsyncROM _ -> ["Addr"],["Data"]
@@ -371,6 +371,7 @@ let private makeCustomList model =
         |> List.map (makeCustom model)
 
 let private createComponent comp label model dispatch =
+    printfn "Creating component %A" comp
     let x,y = getNewComponentPosition model
     match model.Diagram.CreateComponent comp label x y with
     | Some jsComp -> 
@@ -439,6 +440,27 @@ let private createSplitWirePopup model dispatch =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
+let private createBusSelectPopup model dispatch =
+    let title = sprintf "Add Bus Selection node" 
+    let beforeInt2 =
+        fun _ -> str "Which input bit is the least significant output bit?"
+    let beforeInt =
+        fun _ -> str "How many bits width is the output bus?"
+    let intDefault = 1
+    let intDefault2 = 0
+    let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, intDefault2) dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let width = getInt dialogData
+            let lsb = getInt2 dialogData
+            createComponent (BusSelection(width,lsb)) "" model dispatch
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) -> getInt dialogData < 1 || getInt2 dialogData < 0
+    dialogPopup title body buttonText buttonAction isDisabled dispatch
+
+
 let private createRegisterPopup regType (model:Model) dispatch =
     let title = sprintf "Add Register" 
     let beforeInt =
@@ -492,7 +514,8 @@ let viewCatalogue model dispatch =
             makeMenuGroup
                 "Buses"
                 [ menuItem "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch)
-                  menuItem "SplitWire" (fun _ -> createSplitWirePopup model dispatch) ]
+                  menuItem "SplitWire" (fun _ -> createSplitWirePopup model dispatch)
+                  menuItem "Bus Select" (fun _ -> createBusSelectPopup model dispatch)]
             makeMenuGroup
                 "Gates"
                 [ menuItem "Not"  (fun _ -> createComponent Not "" model dispatch)

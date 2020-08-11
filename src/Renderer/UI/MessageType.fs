@@ -21,6 +21,7 @@ type MemoryEditorData = {
 type PopupDialogData = {
     Text : string option;
     Int : int option;
+    Int2: int option
     MemorySetup : (int * int) option // AddressWidth, WordWidth. 
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
 }
@@ -84,6 +85,8 @@ type WaveSimModel = {
 
 type DragMode = DragModeOn of int | DragModeOff
 
+type IntMode = FirstInt | SecondInt
+
 
 type Msg =
     | JSDiagramMsg of JSDiagramMsg
@@ -104,6 +107,7 @@ type Msg =
     | ClosePopup
     | SetPopupDialogText of string option
     | SetPopupDialogInt of int option
+    | SetPopupDialogTwoInts of (int option * IntMode)
     | SetPopupDialogMemorySetup of (int * int) option
     | SetPopupMemoryEditorData of MemoryEditorData option
     | CloseDiagramNotification

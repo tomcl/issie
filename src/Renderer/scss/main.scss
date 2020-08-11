@@ -123,10 +123,6 @@ $sigLineThick: 0.025;
     position: relative;
 }
 
-.cursorDivSvgStyle { 
-    width: 100%;
-}
-
 .zoomDiv {
     float: right;
     position: absolute;
@@ -135,33 +131,21 @@ $sigLineThick: 0.025;
     width: 25%;
 }
 
-.waveRightSmallDivStyle { 
-    width: 100%;
-    overflow-x: scroll;
-    position: absolute;
-}
-
-.waveCellStyle { 
-    overflow-x: scroll;
-}
-
-.wavesColDivStyle {
-    overflow-x: scroll;
-    height: 100%;
-}
-
 .waveNamesCol {
     text-align: right;
     border-right: 2px solid rgb(219,219,219);
     white-space: nowrap;
     vertical-align: bottom;
-    font-size: 75%;
+    font-size: 12px;
+    min-width: 25px;
+    width: 25px;
 }
 
 .cursValsCol {
-    width: 5%;
     vertical-align: bottom;
-    font-size: 75%;
+    font-size: 12px;
+    min-width: 15px;
+    width: 15px;
 }
 
 
@@ -170,11 +154,6 @@ $sigLineThick: 0.025;
     width: 100%;
     height: 93%;
     border-spacing: 0;
-    overflow-x: scroll;
-}
-
-.wavesColStyle {
-    overflow-x: auto;
 }
 
 .wavesColTableStyle {
@@ -187,32 +166,18 @@ $sigLineThick: 0.025;
 .checkboxCol {
     border-right: 2px solid rgb(219,219,219);
     vertical-align: bottom;
+    width: 5px;
 }
 
-.reloadButtonDiv {
-    float: left;
-    height: 64.3%; 
-    Width: 20%;
-}
+
 
 //buttons
 
-.buttonStyle {
-    padding: 0% 0%;
-    width: 3%;
-    height: 1%;
-    position: relative;
-    color: red;
-    float: left;
-
-    .cursorButtonStyle {
-    }
-}
-
 .reloadButtonStyle {
     padding: 0% 0%;
-    width: 3%;
-    height: 1%;
+    margin: 0 2px 0 2px;
+    width: 60px;
+    height: 30px;
     position: relative;
     color: red;
     float: left;
@@ -252,13 +217,6 @@ $sigLineThick: 0.025;
     position: relative;
 }
 
-.reloadButtonStyle {
-    fill: red;
-    height: 100%;
-    width: 100%;
-    margin: 0 10px 0 10px;
-}
-
 .zoomButtonStyle {
     padding: 0% 0%;
     width: 20%;
@@ -274,9 +232,9 @@ $sigLineThick: 0.025;
 .cursor-group {
     float: right;
     position: relative;
-    height: 64.3%;
+    height: 30px;
     text-align: center;
-    width: 15%;
+    width: 80px;
     display: inline-block;
     font-size: 13px;
     margin: 0 10px 0 10px;
@@ -316,13 +274,6 @@ $sigLineThick: 0.025;
 input::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
-}
-
-//radix group
-.radix-div {
-    width: 35%;
-    float: right;
-    margin: 0 10px 0 10px;
 }
 
 //zoom group

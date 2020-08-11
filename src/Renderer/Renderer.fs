@@ -10,6 +10,7 @@ open Fable.Core
 open Fable.Core.JsInterop
 open Electron
 open Electron.Helpers
+open DiagramMessageType
 
 
 
@@ -71,6 +72,16 @@ let makeMenu (name : string) (table : MenuItemOptions list) =
    subMenu
 
 
+
+
+let fileMenu (dispatch:Dispatch<DiagramMessageType.Msg>) =
+    makeMenu "File" [
+        makeItem "New" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
+        makeItem "Save" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
+        makeItem "Print" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
+
+    ]
+
 let viewMenu dispatch =
     JSHelpers.setDebugLevel()
     let devToolsKey = if Node.Api.``process``.platform = Node.Base.Darwin then "Alt+Command+I" else "Ctrl+Shift+I"
@@ -80,6 +91,9 @@ let viewMenu dispatch =
         makeRoleItem "Zoom In" (Some "CmdOrCtrl+Plus") MenuItemRole.ZoomIn
         makeRoleItem "Zoom Out" (Some "CmdOrCtrl+-") MenuItemRole.ZoomOut
         makeRoleItem "Reset Zoom" (Some "CmdOrCtrl+0") MenuItemRole.ResetZoom
+        menuSeparator
+        makeItem "Diagram Zoom In" (Some "CmdOrCtrl+z") (fun ev -> dispatch <| MenuAction(MenuZoom 1.5, dispatch))
+        makeItem "Diagram Zoom Out" (Some "CmdOrCtrl+y") (fun ev -> dispatch <| MenuAction(MenuZoom (1.), dispatch))
         menuSeparator
         makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ -> 
             let webContents = electron.remote.getCurrentWebContents()
@@ -111,7 +125,8 @@ let attachMenusAndKeyShortcuts dispatch =
         let menu =
             [|
                 editMenu dispatch
-                viewMenu()
+                fileMenu dispatch
+                viewMenu dispatch
             |]
             |> Array.map U2.Case1
             |> electron.remote.Menu.buildFromTemplate   

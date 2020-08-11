@@ -132,7 +132,7 @@ draw2d.shape.digital.BusSelection = draw2d.shape.digital.extend({
     NAME: "draw2d.shape.digital.BusSelection",
 
     componentType: "BusSelection",
-    svgHeight: 20,
+    svgHeight: 24,
     svgWidth: 40,
     numberOfbits: 1,
     lsbBitNumber: 0,
@@ -140,13 +140,15 @@ draw2d.shape.digital.BusSelection = draw2d.shape.digital.extend({
 
         getSvgElements: function () {
             let bitsLabel = `[${this.numberOfBits + this.lsbBitNumber - 1}..${this.lsbBitNumber}]`;
+            let size = "11"
             if (this.numberOfBits === 1) {
                 bitsLabel = `${this.lsbBitNumber}`
+                size = "14"
             }
 
             return [
-                { path: '<polygon points="0,20 0,0 25,0 35,5 45,5 45,15 35,15 25,20" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true },
-                { path: `<text x=17 y=5 fill="black" text-anchor="middle">${bitsLabel}</text>`, toFill: false },
+                { path: '<polygon points="0,24 0,0 25,0 35,6 45,6 45,18 35,18 25,24" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true },
+                { path: `<text x=17 y=6 fill="black" text-anchor="middle" font-weight="bolder" font-size="${size}px">${bitsLabel}</text>`, toFill: false }
             ];
     },
 

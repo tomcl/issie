@@ -225,7 +225,6 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 assertThat (bits.Length >= width + lsb)
                 <| sprintf "Bus Selection received too few bits: expected at least %d but got %d" (width + lsb) bits.Length
                 let outBits = bits.[lsb .. lsb + width - 1]
-                printfn "Simulation - outbits=%A : bits = %A : lsb = %d" outBits bits lsb
                 let out = Map.empty.Add (OutputPortNumber 0, outBits)
                 makeReducerOutput NoState out
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput    

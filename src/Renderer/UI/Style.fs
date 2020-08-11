@@ -165,3 +165,9 @@ let waveCell m : IHTMLProp list = [
     m.posParams.clkWidth * float (Array.length m.waveData)
     |> (fun x -> Style [Width ((string (x*10.0) ) + "%")])
 ]
+
+let lwaveCell m : IHTMLProp list = [
+    Class "fullHeight"
+    m.posParams.clkWidth * float (Array.length m.waveData)
+    |> (fun x -> Style [Width ((string (x*10.0) ) + "%")])
+]

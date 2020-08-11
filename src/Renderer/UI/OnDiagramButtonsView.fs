@@ -14,6 +14,7 @@ open Fable.React.Props
 
 open DiagramMessageType
 open DiagramModelType
+open WaveformSimulationView
 open CommonTypes
 open DiagramStyle
 open Extractor
@@ -78,8 +79,12 @@ let pasteAction model =
 
 let viewOnDiagramButtons model dispatch =
     div [ canvasSmallMenuStyle ] [
-        Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick (fun _ -> model.Diagram.Undo ()) ] ] [ str "< undo" ]
-        Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick (fun _ -> model.Diagram.Redo ()) ] ] [ str "redo >" ]
-        Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick (fun _ -> copyAction model dispatch) ] ] [ str "copy" ]
-        Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick (fun _ -> pasteAction model); ] ] [ str "paste" ]
+        let canvasBut func label = 
+            Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick func ] ] 
+                          [ str label ]
+        canvasBut (fun _ -> model.Diagram.Undo ()) "< undo"
+        canvasBut (fun _ -> model.Diagram.Redo ()) "redo >"
+        canvasBut (fun _ -> copyAction model dispatch) "copy"
+        canvasBut (fun _ -> pasteAction model) "paste"
+        canvasBut (fun _ -> simHighlighted model dispatch) "simulate"
     ]

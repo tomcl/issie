@@ -34,6 +34,7 @@ let baseName filePath = path.basename filePath
 let dirName filePath = path.dirname filePath
 
 
+
 /// Extract the labels and bus widths of the inputs and outputs nodes.
 let private parseDiagramSignature canvasState
         : (string * int) list * (string * int) list =
@@ -142,11 +143,24 @@ let removeFile folderPath baseName =
     let path = path.join [| folderPath; baseName + ".dgm" |]
     fs.unlink (U2.Case1 path, ignore) // Asynchronous.
 
+
+/// Write base64 encoded data to file.
+/// Create file if it does not exist.
+let writeFileBase64 path data =
+    let options = createObj ["encoding" ==> "base64"] |> Some
+    fs.writeFileSync(path, data, options)
+
 /// Write utf8 encoded data to file.
 /// Create file if it does not exist.
 let writeFile path data =
     let options = createObj ["encoding" ==> "utf8"] |> Some
     fs.writeFileSync(path, data, options)
+
+/// Save a PNG file (encoded base64, as from draw2d)
+/// Overwrite existing file if needed
+let savePngFile folderPath baseName png = // TODO: catch error?
+    let path = pathJoin [| folderPath; baseName + ".png" |]
+    writeFileBase64 path png
 
 /// Save state to file. Automatically add the .dgm suffix.
 let saveStateToFile folderPath baseName state = // TODO: catch error?

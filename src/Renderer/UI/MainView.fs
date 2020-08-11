@@ -295,6 +295,26 @@ let private handleKeyboardShortcutMsg msg model =
         model.Diagram.Redo ()
         model
 
+let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
+    match act with
+    | MenuPrint ->
+        match model.CurrProject with
+        | None -> ()
+        | Some p ->
+            model.Diagram.printCanvas( fun (fn:string) (png:string) -> 
+                printfn "PNG is %d bytes" png.Length
+                FilesIO.savePngFile p.ProjectPath p.OpenFileName  png)
+    | MenuSaveFile -> 
+        FileMenuView.saveOpenFileAction model 
+        SetHasUnsavedChanges false
+        |> JSDiagramMsg |> dispatch
+    | MenuNewFile -> 
+        FileMenuView.addFileToProject model dispatch
+    | MenuZoom z -> 
+        zoomDiagram z model
+    model
+    
+
 let update msg model =
     //let inP f = Option.map f model.CurrProject
     //printfn "UPDATE: %A (dirty=%A, project=%A)" msg model.HasUnsavedChanges (inP (fun p -> p.ProjectPath))
@@ -387,3 +407,5 @@ let update msg model =
             match model.Diagram.GetComponentById comp.Id with
             | Error err -> {model with LastUsedDialogWidth=width}
             | Ok jsComp -> { model with SelectedComponent = Some <| extractComponent jsComp ; LastUsedDialogWidth=width}
+    | MenuAction(act,dispatch) ->
+        getMenuView act model dispatch

@@ -128,6 +128,37 @@ let scrollData model =
             }
         | _ -> sheetDefault
 
+/// alter the zoom settings according to mag and zoomcentre.
+/// mag > 1 => zoom in, mag < 1 => zoom out
+/// zoomCentre specified coordinates on sheet that stay unchanged by zoom.
+/// If zoomCentre is None magnify from centre of visible sheet.
+let changeZoom (model:Model)  (zoomCentre: (int * int) option) (mag:float) (sd:ScrollPos)=
+    let zoom' =
+        let maxZoom = max (float sd.CanvasX / float sd.SheetX) (float sd.CanvasY / float sd.SheetY)
+        let minZoom = 0.2 // TODO - work this out from component bounding boxes
+        assertThat (mag > 0.01 && mag < 100.) (sprintf "mag %A  (< 0.01 or > 100) is not allowed: zoom is normally in range approx 0.2 - 5" mag)
+        match float sd.Zoom / mag with
+        | z when z > maxZoom -> 
+            printfn "Zoom maximum of %.1f reached" maxZoom
+            maxZoom
+        | z when z < minZoom ->
+            printfn "Zoom minimum of %.1f reached" minZoom
+            minZoom
+        | z -> z
+    let x0,y0 =
+        match zoomCentre with
+        | None -> sd.SheetLeft + sd.SheetX/2, sd.SheetTop + sd.SheetY/2
+        | Some(x,y) -> x,y
+    let left' = float sd.SheetLeft + float (float sd.SheetLeft - float x0)*(zoom'/sd.Zoom - 1.)
+    let top' = float sd.SheetTop + (float sd.SheetTop - float y0)*(zoom'/sd.Zoom - 1.)
+    let sa  = model.Diagram.GetScrollArea()
+
+    printfn "sd=%A\nsa=%A\nleft'=%f\ntop'=%f\nzoom'=%f\nzoom=%f" sd sa left' top' zoom' sd.Zoom
+    model.Diagram.SetScrollZoom (int (left' / zoom')) (int (top' / zoom')) zoom'
+ 
+let zoomDiagram (mag: float) (model:Model) = 
+    scrollData model
+    |> changeZoom model None mag
 
 let computeBoundingBox (boxes: Bbox list) =
     let bbMin = fst (List.minBy (fun xyPos -> fst xyPos.LTop) boxes).LTop , snd (List.minBy (fun xyPos -> snd xyPos.LTop) boxes).LTop
@@ -371,7 +402,6 @@ let private makeCustomList model =
         |> List.map (makeCustom model)
 
 let private createComponent comp label model dispatch =
-    printfn "Creating component %A" comp
     let x,y = getNewComponentPosition model
     match model.Diagram.CreateComponent comp label x y with
     | Some jsComp -> 
@@ -471,7 +501,6 @@ let private createRegisterPopup regType (model:Model) dispatch =
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
-            printfn "Reg inutInt=%d" inputInt
             createComponent (regType inputInt) "" model dispatch
             dispatch ClosePopup
     let isDisabled =
@@ -505,7 +534,7 @@ let private makeMenuGroup title menuList =
     ]
 
 let viewCatalogue model dispatch =
-    Menu.menu [] [
+    Menu.menu [Props [Class "py-1"]] [
             makeMenuGroup
                 "Input / Output"
                 [ menuItem "Input"  (fun _ -> createIOPopup true "input" Input model dispatch)

@@ -69,9 +69,9 @@ function getZoom(canvas) {
 }
 
 function setScrollZoom(canvas, scrollLeft, scrollTop, zoom) {
+    canvas.setZoom(zoom);
     canvas.setScrollLeft(scrollLeft);
     canvas.setScrollTop(scrollTop);
-    canvas.setZoom(zoom);
 }
     
 

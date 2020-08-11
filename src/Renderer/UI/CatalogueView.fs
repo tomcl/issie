@@ -114,14 +114,14 @@ let scrollData model =
     match scrollArea model, zoomOpt model with 
         | Some a, Some z -> 
             //printfn "Area = (%d,%d,%d,%d, %.2f)" a.Width a.Height a.Left a.Top z
-            let mag n = int (float n * z)
-            let mag' n = min n (int (float n * z))
+            let mag n = (float n * z)
+            let mag' n = min (float n) (float n * z)
             
             {
-                SheetX = mag' a.Width 
-                SheetY = mag' a.Height
-                SheetLeft = mag a.Left
-                SheetTop = mag a.Top
+                SheetX = mag' a.Width |> int
+                SheetY = mag' a.Height |> int
+                SheetLeft = mag a.Left |> int
+                SheetTop = mag a.Top |> int
                 Zoom = z
                 CanvasX = CommonTypes.draw2dCanvasWidth
                 CanvasY = CommonTypes.draw2dCanvasHeight
@@ -149,12 +149,14 @@ let changeZoom (model:Model)  (zoomCentre: (int * int) option) (mag:float) (sd:S
         match zoomCentre with
         | None -> sd.SheetLeft + sd.SheetX/2, sd.SheetTop + sd.SheetY/2
         | Some(x,y) -> x,y
-    let left' = float sd.SheetLeft + float (float sd.SheetLeft - float x0)*(zoom'/sd.Zoom - 1.)
-    let top' = float sd.SheetTop + (float sd.SheetTop - float y0)*(zoom'/sd.Zoom - 1.)
+    let zr = zoom' / sd.Zoom
+    let left' = max 0. ((float sd.SheetLeft) + float (x0-sd.SheetLeft)*(1. - zr))
+    let top' = max 0. ((float sd.SheetTop) + float (y0-sd.SheetTop)*(1. - zr))
     let sa  = model.Diagram.GetScrollArea()
 
-    printfn "sd=%A\nsa=%A\nleft'=%f\ntop'=%f\nzoom'=%f\nzoom=%f" sd sa left' top' zoom' sd.Zoom
-    model.Diagram.SetScrollZoom (int (left' / zoom')) (int (top' / zoom')) zoom'
+    //printfn "BEFORE:\nsd=%A\nsa=%A\nleft'=%f\ntop'=%f\nzoom'=%f\nzoom=%f" sd sa left' top' zoom' sd.Zoom
+    model.Diagram.SetScrollZoom (int (left'/zr)) (int (top'/zr)) zoom'
+    //printfn "AFTER:\nsd=%A\nsa=%A\n\n"  (scrollData model) (model.Diagram.GetScrollArea())
  
 let zoomDiagram (mag: float) (model:Model) = 
     scrollData model

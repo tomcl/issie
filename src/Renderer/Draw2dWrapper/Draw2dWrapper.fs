@@ -293,12 +293,12 @@ type Draw2dWrapper() =
         | Some c -> 
             draw2dLib.getZoom c |> Some
 
-    member this.SetScrollZoom scrollLeft scrollRight zoom =
+    member this.SetScrollZoom scrollLeft scrollTop zoom =
         match canvas with
         | None -> 
             ()
         | Some c -> 
-            draw2dLib.setScrollZoom c scrollLeft scrollRight zoom
+            draw2dLib.setScrollZoom c scrollLeft scrollTop zoom
 
     /// Brand new component.
     member this.CreateComponent componentType label x y =

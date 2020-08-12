@@ -240,7 +240,7 @@ let displayView model dispatch =
                     [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
                     [ a [ OnClick (fun _ -> 
                                         ChangeRightTab WaveSim |> dispatch
-                                        StartWaveSim WaveformSimulationView.initModel |> dispatch) ]
+                                        Ok WaveformSimulationView.initModel |> StartWaveSim |> dispatch) ]
                         [ str "WaveSim" ] ]
             ]
             viewRightTab model dispatch
@@ -325,7 +325,10 @@ let update msg model =
     | KeyboardShortcutMsg msg' -> handleKeyboardShortcutMsg msg' model
     // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).
     | StartSimulation simData -> { model with Simulation = Some simData }
-    | StartWaveSim newWSModel -> { model with WaveSim = newWSModel}
+    | StartWaveSim msg -> 
+        match msg with
+        | Ok wsData -> { model with WaveSim = wsData }
+        | Error err -> { model with Simulation = Error err |> Some }
     | SetSimulationGraph graph ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
         { model with Simulation = { simData with Graph = graph } |> Ok |> Some }

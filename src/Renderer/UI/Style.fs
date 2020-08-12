@@ -70,6 +70,7 @@ let canvasSmallMenuStyle = Style [
     Left "10px"
     Bottom "25px"
     Right (sprintf "calc(100%s - 300px)" "%")
+    WhiteSpace WhiteSpaceOptions.Nowrap
 ]
 
 let canvasSmallButtonStyle = Style [

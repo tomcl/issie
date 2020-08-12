@@ -58,14 +58,14 @@ let initModel: WaveSimModel =
       selected = [| false; false; false |]
 
       posParams =
-          { sigHeight = 0.5
+          { sigHeight = 0.4
             hPos = uint 0
             clkWidth = 1.0
             labelWidth = uint 2
             sigThick = 0.02
             boxWidth = uint 8
             boxHeight = uint 15
-            spacing = 0.2
+            spacing = 0.3
             clkThick = 0.025 }
 
       cursor = uint32 0
@@ -156,7 +156,7 @@ let select s ind model =
           selected =
               Array.mapi (fun i old ->
                   if i = ind then s else old) model.selected }
-    |> StartWaveSim
+    |> Ok |> StartWaveSim
 
 let makeLabels model = Array.map (fun l -> label [ Class "waveLbl" ] [ str l ]) model.waveNames
 
@@ -352,7 +352,7 @@ let displaySvg (model: WaveSimModel) dispatch =
 let zoom plus (m: WaveSimModel) =
     let multBy =
         if plus then zoomFactor else 1.0 / zoomFactor
-    { m with posParams = { m.posParams with clkWidth = m.posParams.clkWidth * multBy } } |> StartWaveSim
+    { m with posParams = { m.posParams with clkWidth = m.posParams.clkWidth * multBy } } |> Ok |> StartWaveSim
 
 let button style func label =
     Button.button (List.append [ Button.Props [ style ] ] [ Button.OnClick func ]) [ str label ]
@@ -376,15 +376,15 @@ let cursorMove increase model =
     | (true, c, _, fin) when c < fin -> { model with cursor = c + uint 1 }
     | (false, c, start, _) when c > start -> { model with cursor = c - uint 1 }
     | _ -> model
-    |> StartWaveSim
+    |> Ok |> StartWaveSim
 
 let changeCurs newVal model =
     if (fst model.viewIndexes) <= newVal && (snd model.viewIndexes) >= newVal
     then { model with cursor = newVal }
     else model
-    |> StartWaveSim
+    |> Ok |> StartWaveSim
 
-let selectAll s model = { model with selected = Array.map (fun _ -> s) model.selected } |> StartWaveSim
+let selectAll s model = { model with selected = Array.map (fun _ -> s) model.selected } |> Ok |> StartWaveSim
 
 let delSelected model =
     let filtSelected arr =
@@ -395,7 +395,7 @@ let delSelected model =
           waveData = Array.map filtSelected model.waveData
           waveNames = filtSelected model.waveNames
           selected = filtSelected model.selected }
-    |> StartWaveSim
+    |> Ok |> StartWaveSim
 
 let moveWave model up =
     let lastEl (arr: 'a []) = arr.[Array.length arr - 1]
@@ -444,7 +444,7 @@ let moveWave model up =
           waveData = Array.map (fun sT -> reorder sT) model.waveData
           waveNames = reorder model.waveNames
           selected = reorder model.selected }
-    |> StartWaveSim
+    |> Ok |> StartWaveSim
 
 
 //[<Emit("__static")>]
@@ -463,7 +463,7 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
                 Tabs.tab [ Tabs.Tab.IsActive (model.radix = rad)
                            Tabs.Tab.Props [Style [ Width "25px"
                                                    Height "30px"] ] ]
-                         [ a [ OnClick(fun _ -> StartWaveSim { model with radix = rad } |> dispatch) ]
+                         [ a [ OnClick(fun _ -> Ok { model with radix = rad } |> StartWaveSim |> dispatch) ]
                          [ str (radixString rad) ] ]
             Tabs.tabs
                 [ Tabs.IsBoxed

@@ -257,10 +257,15 @@ let busLabels model =
     |> Array.map gaps2pos
 
 let makeCursVals model =
+    let cursValPrefix =
+        match model.radix with
+        | Bin -> "0b"
+        | Hex -> "0x"
+        | _ -> ""
     let makeCursVal sample =
         match sample with
-        | Wire w when w.nBits > uint 1 -> [| radixChange w.bitData w.nBits model.radix |]
-        | Wire w -> [| string w.bitData |]
+        | Wire w when w.nBits > uint 1 -> [| cursValPrefix + radixChange w.bitData w.nBits model.radix |]
+        | Wire w -> [| cursValPrefix + string w.bitData |]
         | StateSample s -> s
         |> Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
     Array.map makeCursVal model.waveData.[int model.cursor]

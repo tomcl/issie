@@ -389,6 +389,29 @@ let changeCurs newVal model =
     else model
     |> Ok |> StartWaveSim
 
+let indexesMove increase upper (model: WaveSimModel) = 
+    let bot, top = model.viewIndexes
+    match upper, increase with 
+    | false, false when bot > uint 0 -> bot  - uint 1, top
+    | false, true when bot < top -> bot + uint 1, top
+    | true, false when top > bot -> bot, top - uint 1
+    | true, true -> bot, top + uint 1
+    | _ -> bot, top
+    |> (fun viewIndexes' -> { model with viewIndexes = viewIndexes' })
+    |> Ok |> StartWaveSim
+
+let changeBotInd newVal model = 
+    if uint 0 <= newVal && (snd model.viewIndexes) >= newVal
+    then { model with viewIndexes = newVal, snd model.viewIndexes }
+    else model
+    |> Ok |> StartWaveSim
+
+let changeTopInd newVal model = 
+    if uint (fst model.viewIndexes) <= newVal
+    then { model with viewIndexes = fst model.viewIndexes, newVal }
+    else model
+    |> Ok |> StartWaveSim
+
 let selectAll s model = { model with selected = Array.map (fun _ -> s) model.selected } |> Ok |> StartWaveSim
 
 let delSelected model =
@@ -482,8 +505,37 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
                   radTab Dec
                   radTab SDec ]
 
+            div [ Class "limits-group" ]
+                [ div [ Class "limits-but-div" ]
+                      [ button (Class "updownButton") (fun _ -> indexesMove true false model |> dispatch) "▲"
+                        button (Class "updownButton") (fun _ -> indexesMove false false model |> dispatch) "▼" ]
+                  input
+                      [ Id "cursorForm"
+                        Step 1
+                        SpellCheck false
+                        Class "limits-form"
+                        Type "number"
+                        Value (fst model.viewIndexes)
+                        Min 0
+                        Max (snd model.viewIndexes)
+                        OnChange(fun c -> changeBotInd (uint c.Value) model |> dispatch) ]
+                  label [ Style [Float FloatOptions.Left
+                                 Margin "0 5px 0 5px"] ] [ str "/"]
+                  input
+                      [ Id "cursorForm"
+                        Step 1
+                        SpellCheck false
+                        Class "limits-form"
+                        Type "number"
+                        Value (snd model.viewIndexes)
+                        Min (fst model.viewIndexes)
+                        OnChange(fun c -> changeTopInd (uint c.Value) model |> dispatch) ]
+                  div [ Class "limits-but-div" ]
+                      [ button (Class "updownButton") (fun _ -> indexesMove true true model |> dispatch) "▲"
+                        button (Class "updownButton") (fun _ -> indexesMove false true model |> dispatch) "▼" ] ] 
+
             div [ Class "cursor-group" ]
-                [ buttonOriginal (Class "button-minus") (fun _ -> cursorMove false model |> dispatch) "-"
+                [ buttonOriginal (Class "button-minus") (fun _ -> cursorMove false model |> dispatch) "◄"
                   input
                       [ Id "cursorForm"
                         Step 1
@@ -494,7 +546,7 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
                         Min(fst model.viewIndexes)
                         Max(snd model.viewIndexes)
                         OnChange(fun c -> changeCurs (uint c.Value) model |> dispatch) ]
-                  buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "+" ] ] 
+                  buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "►" ] ] 
 
       let tableWaves, tableMid = displaySvg model dispatch
 

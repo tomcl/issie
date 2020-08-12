@@ -226,6 +226,37 @@ $sigLineThick: 0.025;
     float: left;
 }
 
+//limits groups
+.limits-group {
+    float: left;
+    position: relative;
+    height: 30px;
+    text-align: center;
+    width: 200px;
+    display: inline-block;
+    font-size: 13px;
+    margin: 0 10px 0 10px;
+    resize: vertical;
+}
+
+.limits-but-div {
+    width: 20px;
+    position: relative;
+    height: 100%;
+    float: left;
+}
+
+.limits-form {
+    float: left;
+    position: relative;
+    height: 100%;
+    text-align: center;
+    width: 30px;
+    display: inline-block;
+    font-size: 13px;
+    resize: vertical;
+    -webkit-appearance: none;
+}
 
 //cursor group
 

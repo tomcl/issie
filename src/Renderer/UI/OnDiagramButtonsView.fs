@@ -87,15 +87,26 @@ let simWireData2Wire wireData =
                                        |> (fun r -> r, weight * (bigint 2)) ) (bigint 1) 
     |> fst |> List.sum
 
-let extractWaveData (simData : SimulatorTypes.SimulationData) =
+let getSelectedComps model =
+    match model.Diagram.GetSelected () with
+    | None -> []
+    | Some jsState -> 
+        fst jsState 
+        |> List.map (extractComponent >> (fun c -> c.Id) >> SimulatorTypes.ComponentId)
+
+let extractWaveData (simData : SimulatorTypes.SimulationData) model =
     let extractWireData inputs =
         Map.toArray inputs
         |> Array.map (fun (_, wireData) -> Wire { nBits = uint (List.length wireData)
                                                   bitData = simWireData2Wire wireData })
     Map.toArray simData.Graph
-    |> Array.collect (fun (_, comp) -> extractWireData comp.Inputs )
+    |> Array.collect (fun (id, comp) -> 
+        match List.contains id (getSelectedComps model) with
+        | true -> extractWireData comp.Inputs
+        | false -> [||] )
 
 let simHighlighted (model: Model) dispatch = 
+    //match model.Diagram.GetCanvasState (), model.CurrProject with
     match model.Diagram.GetCanvasState (), model.CurrProject with
     | None, _ -> ()
     | _, None -> failwith "what? Cannot start a simulation without a project"
@@ -113,21 +124,25 @@ let simHighlighted (model: Model) dispatch =
                                                ClockTickNumber = sD.ClockTickNumber+1 })
                 let waveNames' = 
                     Map.toArray simData.Graph 
-                    |> Array.collect (fun (_,comp) -> match comp.Label with
-                                                      | SimulatorTypes.ComponentLabel name -> 
-                                                        (fun pref inpLen ->
-                                                            Array.map (fun el -> 
-                                                                pref + "_in_" + (string el)) 
-                                                                [| 0..inpLen - 1 |]) 
-                                                                name
-                                                                <| (Map.toList >> List.length) comp.Inputs )
+                    |> Array.collect (fun (id,comp) -> 
+                        match List.contains id (getSelectedComps model) with
+                        | true ->
+                            match comp.Label with
+                            | SimulatorTypes.ComponentLabel name -> 
+                            (fun pref inpLen ->
+                                Array.map (fun el -> 
+                                    pref + "_in_" + (string el)) 
+                                    [| 0..inpLen - 1 |]) 
+                                    name
+                                    <| (Map.toList >> List.length) comp.Inputs 
+                        | false -> [||] )
                 let waveData' : SimTime array =
                     match fst model.WaveSim.viewIndexes with 
                     | start when start = uint 0 -> simData
                     | start -> Array.fold (fun s _ -> clkAdvance s) simData [| 1..int start |]
                     |> (fun sD -> 
                             Array.mapFold (fun (s: SimulatorTypes.SimulationData) _ -> 
-                                                    extractWaveData s, clkAdvance s) 
+                                                    extractWaveData s model, clkAdvance s) 
                                                     sD [| fst model.WaveSim.viewIndexes..snd model.WaveSim.viewIndexes |] )
                     |> fst
 

@@ -105,7 +105,7 @@ let extractWaveData (simData : SimulatorTypes.SimulationData) model =
         | true -> extractWireData comp.Inputs
         | false -> [||] )
 
-let simHighlighted (model: Model) dispatch = 
+let simSelected (model: Model) dispatch = 
     //match model.Diagram.GetCanvasState (), model.CurrProject with
     match model.Diagram.GetCanvasState (), model.CurrProject with
     | None, _ -> ()
@@ -171,5 +171,5 @@ let viewOnDiagramButtons model dispatch =
         canvasBut (fun _ -> model.Diagram.Redo ()) "redo >"
         canvasBut (fun _ -> copyAction model dispatch) "copy"
         canvasBut (fun _ -> pasteAction model) "paste"
-        canvasBut (fun _ -> simHighlighted model dispatch) "simulate"
+        canvasBut (fun _ -> simSelected model dispatch) "simulate"
     ]

@@ -151,11 +151,9 @@ let radixChange (n: bigint) (nBits: uint32) (rad: NumberBase) =
 
 //auxiliary functions to the viewer function
 
-let select s ind model =
-    { model with
-          selected =
-              Array.mapi (fun i old ->
-                  if i = ind then s else old) model.selected }
+let toggleSelect ind model =
+    { model with selected = Array.mapi (fun i old ->
+                                if i = ind then not old else old) model.selected }
     |> Ok |> StartWaveSim
 
 let makeLabels model = Array.map (fun l -> label [ Class "waveLbl" ] [ str l ]) model.waveNames
@@ -330,17 +328,22 @@ let displaySvg (model: WaveSimModel) dispatch =
     let cursLabs = makeCursVals model
 
     let labelCols =
-        Array.zip labels cursLabs
-        |> Array.mapi (fun i (l, c) ->
+        labels
+        |> Array.mapi (fun i l ->
             tr [ Class "rowHeight" ]
                 [ td [ Class "checkboxCol" ]
                       [ input
                           [ Type "checkbox"
                             Checked model.selected.[i]
                             Style [ Float FloatOptions.Left ]
-                            OnChange(fun s -> select s.Checked i model |> dispatch) ] ]
-                  td [ Class "waveNamesCol" ] [ l ]
-                  td [ Class "cursValsCol" ] c ])
+                            OnChange (fun _ -> toggleSelect i model |> dispatch) ] ]
+                  td [ Class "waveNamesCol" ] [ l ]])
+
+    let cursValCol =
+        cursLabs
+        |> Array.map (fun c ->
+            tr [ Class "rowHeight" ]
+                [ td [ Class "cursValsCol" ] c ])
 
     let waveCol =
         let waveTableRow rowClass cellClass svgClass svgChildren =
@@ -357,7 +360,7 @@ let displaySvg (model: WaveSimModel) dispatch =
                         (Array.collect id [| cursRectSvg; bgSvg; wave |])) waveSvg)
         |> Array.append [| tr [ Class "rowHeight" ] [ td (waveCell model) [ clkRulerSvg model ] ] |]
 
-    (table (wavesTable model) [tbody [] waveCol]), labelCols
+    waveCol, labelCols, cursValCol
 
 // view function helpers
 
@@ -421,9 +424,7 @@ let changeTopInd newVal model =
 
 let selectAll s model = { model with selected = Array.map (fun _ -> s) model.selected } |> Ok |> StartWaveSim
 
-let allSelected model =
-    Array.fold (fun state b ->
-        if b then state else false) true model.selected
+let allSelected model = Array.forall ((=) true) model.selected
 
 let delSelected model =
     let filtSelected arr =
@@ -572,17 +573,16 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
                         OnChange(fun c -> changeCurs (uint c.Value) model |> dispatch) ]
                   buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "►" ] ] 
 
-      let tableWaves, tableMid = displaySvg model dispatch
+      let tableWaves, leftColMid, cursValsRows = displaySvg model dispatch
 
-      let tableTop =
+      let leftColTop =
           [| tr []
                  [ th [ Class "checkboxCol" ]
                        [ input
                            [ Type "checkbox"
                              Checked (allSelected model)
                              OnChange(fun t -> selectAll t.Checked model |> dispatch) ] ]
-                   match Array.fold (fun state b ->
-                             if b then true else state) false model.selected with
+                   match allSelected model with
                    | true ->
                        [ button (Class "newWaveButton") (fun _ -> delSelected model |> dispatch) "del"
                          div [ Class "updownDiv" ]
@@ -592,26 +592,34 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
                        [ div [ Style [ WhiteSpace WhiteSpaceOptions.Nowrap ] ]
                              [ button (Class "newWaveButton") (fun _ -> ()) "+"
                                label [ Class "newWaveLabel" ] [ str "Add wave" ] ] ]
-                   |> (fun child -> th [ Class "waveNamesCol" ] child)
+                   |> (fun child -> th [ Class "waveNamesCol" ] child) ] |]
 
-                   td [ RowSpan(Array.length model.waveNames + 2)
-                        Style [ Width "100%" ] ] 
-                      [ div [ waveDiv ] [ tableWaves ] ]
-
-                   th [] [ label [] [ str "" ] ] ] |]
-
-      let tableBot =
+      let leftColBot =
           [| tr [ Class "fullHeight" ]
                  [ td [ Class "checkboxCol" ] []
                    td [] [] ] |]
 
-      table [ Class "waveSimTableStyle" ]
-          [ tbody [] (Array.collect id [| tableTop; tableMid; tableBot |]) ]
+      let leftCol = Array.collect id [| leftColTop; leftColMid; leftColBot |]
+
+      let rightCol = Array.collect id [| [| td [ Class "rowHeight" ] [] |]
+                                         cursValsRows |]
+
+      div [ Style [ Height "91.8%"; Width "100%" ] ] 
+          [ div [ Style [ Float FloatOptions.Right; Height "100%"; BorderTop "2px solid rgb(219,219,219)"; BorderLeft "2px solid rgb(219,219,219)" ] ]
+                [ table [] [ tbody [] rightCol ] ]
+            
+            div [ Style [ Height "100%" ] ]
+                [ div [ Style [ Float FloatOptions.Left; Height "100%" ] ]
+                      [ table [ Class "waveSimTableStyle" ] [ tbody [] leftCol ] ]
+            
+                  div [ Style [ Height "100%"; OverflowX OverflowOptions.Scroll; BorderTop "2px solid rgb(219,219,219)" ] ] 
+                      [ table [ Style [ Height "100%" ] ]
+                              [ tbody [ Style [ Height "100%" ] ] tableWaves ] ] ] ]
 
       div [ Class "zoomDiv" ]
           [ button (Class "zoomButtonStyle") (fun _ -> zoom false model |> dispatch) "-"
-            label [ Class "hZoomLabel" ] [ str "H Zoom" ]
+            
             //let svgPath = Path.Combine(staticDir(), "hzoom-icon.svg")
             //let svgPath = staticDir() + "\hzoom-icon.svg"
             //embed [ Src svgPath ]
-            button (Class "zoomButtonStyle") (fun _ -> zoom true model |> dispatch) "+" ] ] 
+            button (Class "zoomButtonStyle") (fun _ -> zoom true model |> dispatch) "+" ] ]

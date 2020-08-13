@@ -74,7 +74,7 @@ type PosParamsType = {
 }
 
 type WaveSimModel = {
-    waveData: SimTime array
+    waveData: SimTime array option
     waveNames: WaveName array
     selected: bool array
     posParams: PosParamsType
@@ -99,7 +99,7 @@ type Msg =
     | JSDiagramMsg of JSDiagramMsg
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
-    | StartWaveSim of WaveSimModel
+    | StartWaveSim of Result<WaveSimModel, SimulationError>
     | SetSimulationGraph of SimulationGraph
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick

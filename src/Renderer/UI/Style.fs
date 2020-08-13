@@ -70,6 +70,7 @@ let canvasSmallMenuStyle = Style [
     Left "10px"
     Bottom "25px"
     Right (sprintf "calc(100%s - 300px)" "%")
+    WhiteSpace WhiteSpaceOptions.Nowrap
 ]
 
 let canvasSmallButtonStyle = Style [
@@ -120,10 +121,15 @@ let maxBusValGap = 3
 let busLabelTextSize = 0.6 // multiplied by signal height
 let sigLineThick = 0.025;
 
+let vbWidth m =
+    m.posParams.clkWidth * float ((fun (a,b) -> b - a + uint 1) m.viewIndexes)
+
+let waveCellWidth m = 
+    vbWidth m |> (fun x -> Width ((string (x*40.0) ) + "px"))
+
 let widthAndVBwave (m : WaveSimModel) : IProp list = [
-    let vbwidth = m.posParams.clkWidth * float (Array.length m.waveData)
-    Style [Width ((string (vbwidth*10.0) ) + "%")]
-    ViewBox ("0 0 " + string vbwidth + " 0.7")
+    Style [waveCellWidth m]
+    ViewBox ("0 0 " + string (vbWidth m) + " 0.7")
 ]
 
 let clkRulerStyle m : IProp list = 
@@ -162,12 +168,22 @@ let waveCellSvg m last : IProp list =
 
 let waveCell m : IHTMLProp list = [
     Class "rowHeight"
-    m.posParams.clkWidth * float (Array.length m.waveData)
-    |> (fun x -> Style [Width ((string (x*10.0) ) + "%")])
+    Style [waveCellWidth m]
 ]
 
 let lwaveCell m : IHTMLProp list = [
     Class "fullHeight"
-    m.posParams.clkWidth * float (Array.length m.waveData)
-    |> (fun x -> Style [Width ((string (x*10.0) ) + "%")])
+    Style [waveCellWidth m]
+]
+
+let waveDiv= Style [ 
+    Width "100%"
+    Height "100%"
+    Position PositionOptions.Relative
+    OverflowX OverflowOptions.Scroll 
+]
+
+let wavesTable m : IHTMLProp list = [
+    Class "wavesColTableStyle"
+    Style [waveCellWidth m]
 ]

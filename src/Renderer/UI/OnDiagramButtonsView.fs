@@ -77,30 +77,36 @@ let pasteAction model =
                  (model.Diagram.LoadConnection false))
     |> ignore
 
+
+//simulate button functions
 let simWireData2Wire wireData = 
-    List.rev [0 .. List.length wireData - 1]
-    |> List.zip wireData 
-    |> List.map (fun (bit, weight) -> match bit with
-                                      | SimulatorTypes.Bit.Zero -> bigint 0
-                                      | SimulatorTypes.Bit.One -> bigint 2**weight ) //the way I use bigint might be wrong
-    |> List.reduce (+)
+    wireData
+    |> List.mapFold (fun weight bit -> match bit with
+                                       | SimulatorTypes.Bit.Zero -> bigint 0
+                                       | SimulatorTypes.Bit.One -> weight 
+                                       |> (fun r -> r, weight * (bigint 2)) ) (bigint 1) 
+    |> fst |> List.sum
 
-let extractWaveData
-        (simulationIOs : SimulatorTypes.SimulationIO list)
-        (graph : SimulatorTypes.SimulationGraph)
-        : Sample list =
-    let extractWireData (inputs : Map<SimulatorTypes.InputPortNumber, SimulatorTypes.WireData>) : Sample =
-        match inputs.TryFind <| SimulatorTypes.InputPortNumber 0 with
-        | None -> failwith "what? IO bit not set"
-        | Some wireData -> Wire { nBits = uint (List.length wireData)
-                                  bitData = simWireData2Wire wireData }
-    ([], simulationIOs) ||> List.fold (fun result (ioId, ioLabel, _) ->
-        match graph.TryFind ioId with
-        | None -> failwithf "what? Could not find io node: %A" (ioId, ioLabel)
-        | Some comp -> List.append result [ extractWireData comp.Inputs ]
-    )
+let getSelectedComps model =
+    match model.Diagram.GetSelected () with
+    | None -> []
+    | Some jsState -> 
+        fst jsState 
+        |> List.map (extractComponent >> (fun c -> c.Id) >> SimulatorTypes.ComponentId)
 
-let simHighlighted (model: Model) dispatch = 
+let extractWaveData (simData : SimulatorTypes.SimulationData) model =
+    let extractWireData inputs =
+        Map.toArray inputs
+        |> Array.map (fun (_, wireData) -> Wire { nBits = uint (List.length wireData)
+                                                  bitData = simWireData2Wire wireData })
+    Map.toArray simData.Graph
+    |> Array.collect (fun (id, comp) -> 
+        match List.contains id (getSelectedComps model) with
+        | true -> extractWireData comp.Inputs
+        | false -> [||] )
+
+let simSelected (model: Model) dispatch = 
+    //match model.Diagram.GetCanvasState (), model.CurrProject with
     match model.Diagram.GetCanvasState (), model.CurrProject with
     | None, _ -> ()
     | _, None -> failwith "what? Cannot start a simulation without a project"
@@ -117,26 +123,48 @@ let simHighlighted (model: Model) dispatch =
                     |> (fun graph -> { sD with Graph = graph
                                                ClockTickNumber = sD.ClockTickNumber+1 })
                 let waveNames' = 
-                    let extr = List.toArray >> Array.map (fun (_,b,_) -> match b with
-                                                                         | SimulatorTypes.ComponentLabel name -> name)
-                    (extr simData.Inputs, extr simData.Outputs) ||> Array.append 
+                    Map.toArray simData.Graph 
+                    |> Array.collect (fun (id,comp) -> 
+                        match List.contains id (getSelectedComps model) with
+                        | true ->
+                            match comp.Label with
+                            | SimulatorTypes.ComponentLabel name -> 
+                            (fun pref inpLen ->
+                                Array.map (fun el -> 
+                                    pref + "_in_" + (string el)) 
+                                    [| 0..inpLen - 1 |]) 
+                                    name
+                                    <| (Map.toList >> List.length) comp.Inputs 
+                        | false -> [||] )
                 let waveData' : SimTime array =
                     match fst model.WaveSim.viewIndexes with 
                     | start when start = uint 0 -> simData
                     | start -> Array.fold (fun s _ -> clkAdvance s) simData [| 1..int start |]
-                    |> (fun sD -> Array.mapFold (fun (s: SimulatorTypes.SimulationData) _ -> 
-                            extractWaveData (List.append s.Inputs s.Outputs) s.Graph |> List.toArray, 
-                            clkAdvance s) sD [| fst model.WaveSim.viewIndexes..snd model.WaveSim.viewIndexes |] )
+                    |> (fun sD -> 
+                            Array.mapFold (fun (s: SimulatorTypes.SimulationData) _ -> 
+                                                    extractWaveData s model, clkAdvance s) 
+                                                    sD [| fst model.WaveSim.viewIndexes..snd model.WaveSim.viewIndexes |] )
                     |> fst
 
-                { model.WaveSim with waveNames = Array.append model.WaveSim.waveNames waveNames'
-                                     waveData = (Array.zip model.WaveSim.waveData waveData')
-                                                |> Array.map (fun (a,b) -> Array.append a b)
-                                     selected = Array.map (fun _ -> false) [| 1..Array.length waveNames' |]
-                                                |> Array.append model.WaveSim.selected }
-                |> StartWaveSim
-                |> dispatch
-            | Error _ -> ()
+                Ok { model.WaveSim with waveNames = Array.append model.WaveSim.waveNames waveNames'
+                                        waveData = match model.WaveSim.waveData with
+                                                   | Some wD ->
+                                                        Array.zip wD waveData'
+                                                        |> Array.map (fun (a,b) -> Array.append a b)
+                                                        |> Some
+                                                   | None -> Some waveData'
+                                        selected = Array.map (fun _ -> false) [| 1..Array.length waveNames' |]
+                                                   |> Array.append model.WaveSim.selected }
+            | Error simError ->
+                if simError.InDependency.IsNone then
+                    // Highligh the affected components and connection only if
+                    // the error is in the current diagram and not in a
+                    // dependency.
+                    (simError.ComponentsAffected, simError.ConnectionsAffected)
+                    |> SetHighlighted |> dispatch
+                Error simError
+        |> StartWaveSim
+        |> dispatch
 
 let viewOnDiagramButtons model dispatch =
     div [ canvasSmallMenuStyle ] [
@@ -147,5 +175,5 @@ let viewOnDiagramButtons model dispatch =
         canvasBut (fun _ -> model.Diagram.Redo ()) "redo >"
         canvasBut (fun _ -> copyAction model dispatch) "copy"
         canvasBut (fun _ -> pasteAction model) "paste"
-        canvasBut (fun _ -> simHighlighted model dispatch) "simulate"
+        canvasBut (fun _ -> simSelected model dispatch) "simulate"
     ]

@@ -51,7 +51,7 @@ let initModel: WaveSimModel =
               |> Array.zip signal1
               |> Array.map ((fun (a, (b, c)) -> (a, b, c)) >> makeTimePointData)
 
-          makeTrialData nbits1 s1 nbits2 s2 s3
+          Some <| makeTrialData nbits1 s1 nbits2 s2 s3
 
       waveNames = [| "try single Bit"; "try bus"; "try states" |]
 
@@ -214,7 +214,9 @@ let model2WaveList model: Waveform [] =
     let folder state (simT: SimTime): Waveform [] =
         Array.zip state simT |> Array.map (fun (arr, sample) -> Array.append arr [| sample |])
     let initState = Array.map (fun _ -> [||]) model.waveNames
-    Array.fold folder initState model.waveData
+    match model.waveData with
+    | Some wD -> Array.fold folder initState wD
+    | None -> [| [||] |]
 
 let transitions (model: WaveSimModel) = //relies on number of names being correct (= length of elements in waveData)
     let isDiff (ws1, ws2) =
@@ -268,19 +270,24 @@ let makeCursVals model =
         | Wire w -> [| cursValPrefix + string w.bitData |]
         | StateSample s -> s
         |> Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
-    Array.map makeCursVal model.waveData.[int model.cursor]
+    match model.waveData with
+    | Some wD -> Array.map makeCursVal wD.[int model.cursor]
+    | None -> [| [||] |]
 
 //container box and clock lines
 let backgroundSvg model =
     let p = model.posParams
     let clkLine x =
         makeLinePoints [ Class "clkLineStyle" ] (x, vPos) (x, vPos + float p.sigHeight + float p.spacing)
-    let clkLines =
-        [| 1 .. 1 .. Array.length model.waveData |] |> Array.map ((fun x -> float x * p.clkWidth) >> clkLine)
-    clkLines
+    match model.waveData with
+    | Some wD -> [| 1 .. 1 .. Array.length wD |] 
+              |> Array.map ((fun x -> float x * p.clkWidth) >> clkLine)
+    | None -> [||]
 
 let clkRulerSvg (model: WaveSimModel) =
-    [| 0 .. (Array.length model.waveData - 1) |]
+    match model.waveData with
+    | Some wD -> [| 0 .. (Array.length wD - 1) |]
+    | None -> (fun (a,b) -> [| int a .. int b |]) model.viewIndexes
     |> Array.map (fun i -> makeText (cursRectText model i) (string i))
     |> Array.append [| makeRect (cursRectStyle model) |]
     |> Array.append (backgroundSvg model)
@@ -350,7 +357,7 @@ let displaySvg (model: WaveSimModel) dispatch =
                         (Array.collect id [| cursRectSvg; bgSvg; wave |])) waveSvg)
         |> Array.append [| tr [ Class "rowHeight" ] [ td (waveCell model) [ clkRulerSvg model ] ] |]
 
-    (table [ Class "wavesColTableStyle" ] [tbody [] waveCol]), labelCols
+    (table (wavesTable model) [tbody [] waveCol]), labelCols
 
 // view function helpers
 
@@ -414,15 +421,25 @@ let changeTopInd newVal model =
 
 let selectAll s model = { model with selected = Array.map (fun _ -> s) model.selected } |> Ok |> StartWaveSim
 
+let allSelected model =
+    Array.fold (fun state b ->
+        if b then state else false) true model.selected
+
 let delSelected model =
     let filtSelected arr =
         Array.zip model.selected arr
         |> Array.filter (fun (sel, _) -> not sel)
         |> Array.map snd
-    { model with
-          waveData = Array.map filtSelected model.waveData
-          waveNames = filtSelected model.waveNames
-          selected = filtSelected model.selected }
+    match allSelected model, model.waveData with
+    | false, Some wD ->
+        { model with waveData = Some (Array.map filtSelected wD)
+                     waveNames = filtSelected model.waveNames
+                     selected = filtSelected model.selected }
+    | _ ->
+        { model with waveData = None
+                     waveNames = [||]
+                     selected = [||]
+                     viewIndexes = (uint 0, uint 0) }
     |> Ok |> StartWaveSim
 
 let moveWave model up =
@@ -468,10 +485,17 @@ let moveWave model up =
 
     let reorder (arr: 'b []) = Array.map (fun i -> arr.[i]) indexes'
 
-    { model with
-          waveData = Array.map (fun sT -> reorder sT) model.waveData
-          waveNames = reorder model.waveNames
-          selected = reorder model.selected }
+    match model.waveData with
+    | Some wD -> 
+        { model with
+            waveData = Some <| Array.map (fun sT -> reorder sT) wD
+            waveNames = reorder model.waveNames
+            selected = reorder model.selected }
+    | None -> 
+        { model with
+            waveData = None
+            waveNames = [||]
+            selected = [||] }
     |> Ok |> StartWaveSim
 
 
@@ -552,14 +576,10 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
 
       let tableTop =
           [| tr []
-                 [ let allSelected =
-                     Array.fold (fun state b ->
-                         if b then state else false) true model.selected
-
-                   th [ Class "checkboxCol" ]
+                 [ th [ Class "checkboxCol" ]
                        [ input
                            [ Type "checkbox"
-                             Checked allSelected
+                             Checked (allSelected model)
                              OnChange(fun t -> selectAll t.Checked model |> dispatch) ] ]
                    match Array.fold (fun state b ->
                              if b then true else state) false model.selected with
@@ -576,10 +596,7 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
 
                    td [ RowSpan(Array.length model.waveNames + 2)
                         Style [ Width "100%" ] ] 
-                        [ div [ Style [ Width "100%"
-                                        Height "100%"
-                                        Position PositionOptions.Relative
-                                        OverflowX OverflowOptions.Scroll ] ] [tableWaves] ]
+                      [ div [ waveDiv ] [ tableWaves ] ]
 
                    th [] [ label [] [ str "" ] ] ] |]
 

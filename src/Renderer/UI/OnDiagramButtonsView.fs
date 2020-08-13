@@ -147,8 +147,12 @@ let simSelected (model: Model) dispatch =
                     |> fst
 
                 Ok { model.WaveSim with waveNames = Array.append model.WaveSim.waveNames waveNames'
-                                        waveData = (Array.zip model.WaveSim.waveData waveData')
-                                                   |> Array.map (fun (a,b) -> Array.append a b)
+                                        waveData = match model.WaveSim.waveData with
+                                                   | Some wD ->
+                                                        Array.zip wD waveData'
+                                                        |> Array.map (fun (a,b) -> Array.append a b)
+                                                        |> Some
+                                                   | None -> Some waveData'
                                         selected = Array.map (fun _ -> false) [| 1..Array.length waveNames' |]
                                                    |> Array.append model.WaveSim.selected }
             | Error simError ->

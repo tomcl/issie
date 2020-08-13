@@ -74,7 +74,7 @@ type PosParamsType = {
 }
 
 type WaveSimModel = {
-    waveData: SimTime array
+    waveData: SimTime array option
     waveNames: WaveName array
     selected: bool array
     posParams: PosParamsType

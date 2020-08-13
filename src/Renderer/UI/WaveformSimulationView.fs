@@ -51,21 +51,21 @@ let initModel: WaveSimModel =
               |> Array.zip signal1
               |> Array.map ((fun (a, (b, c)) -> (a, b, c)) >> makeTimePointData)
 
-          makeTrialData nbits1 s1 nbits2 s2 s3
+          Some <| makeTrialData nbits1 s1 nbits2 s2 s3
 
       waveNames = [| "try single Bit"; "try bus"; "try states" |]
 
       selected = [| false; false; false |]
 
       posParams =
-          { sigHeight = 0.5
+          { sigHeight = 0.4
             hPos = uint 0
             clkWidth = 1.0
             labelWidth = uint 2
             sigThick = 0.02
             boxWidth = uint 8
             boxHeight = uint 15
-            spacing = 0.2
+            spacing = 0.3
             clkThick = 0.025 }
 
       cursor = uint32 0
@@ -156,7 +156,7 @@ let select s ind model =
           selected =
               Array.mapi (fun i old ->
                   if i = ind then s else old) model.selected }
-    |> StartWaveSim
+    |> Ok |> StartWaveSim
 
 let makeLabels model = Array.map (fun l -> label [ Class "waveLbl" ] [ str l ]) model.waveNames
 
@@ -214,7 +214,9 @@ let model2WaveList model: Waveform [] =
     let folder state (simT: SimTime): Waveform [] =
         Array.zip state simT |> Array.map (fun (arr, sample) -> Array.append arr [| sample |])
     let initState = Array.map (fun _ -> [||]) model.waveNames
-    Array.fold folder initState model.waveData
+    match model.waveData with
+    | Some wD -> Array.fold folder initState wD
+    | None -> [| [||] |]
 
 let transitions (model: WaveSimModel) = //relies on number of names being correct (= length of elements in waveData)
     let isDiff (ws1, ws2) =
@@ -257,25 +259,35 @@ let busLabels model =
     |> Array.map gaps2pos
 
 let makeCursVals model =
+    let cursValPrefix =
+        match model.radix with
+        | Bin -> "0b"
+        | Hex -> "0x"
+        | _ -> ""
     let makeCursVal sample =
         match sample with
-        | Wire w when w.nBits > uint 1 -> [| radixChange w.bitData w.nBits model.radix |]
-        | Wire w -> [| string w.bitData |]
+        | Wire w when w.nBits > uint 1 -> [| cursValPrefix + radixChange w.bitData w.nBits model.radix |]
+        | Wire w -> [| cursValPrefix + string w.bitData |]
         | StateSample s -> s
         |> Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
-    Array.map makeCursVal model.waveData.[int model.cursor]
+    match model.waveData with
+    | Some wD -> Array.map makeCursVal wD.[int model.cursor]
+    | None -> [| [||] |]
 
 //container box and clock lines
 let backgroundSvg model =
     let p = model.posParams
     let clkLine x =
         makeLinePoints [ Class "clkLineStyle" ] (x, vPos) (x, vPos + float p.sigHeight + float p.spacing)
-    let clkLines =
-        [| 1 .. 1 .. Array.length model.waveData |] |> Array.map ((fun x -> float x * p.clkWidth) >> clkLine)
-    clkLines
+    match model.waveData with
+    | Some wD -> [| 1 .. 1 .. Array.length wD |] 
+              |> Array.map ((fun x -> float x * p.clkWidth) >> clkLine)
+    | None -> [||]
 
 let clkRulerSvg (model: WaveSimModel) =
-    [| 0 .. (Array.length model.waveData - 1) |]
+    match model.waveData with
+    | Some wD -> [| 0 .. (Array.length wD - 1) |]
+    | None -> (fun (a,b) -> [| int a .. int b |]) model.viewIndexes
     |> Array.map (fun i -> makeText (cursRectText model i) (string i))
     |> Array.append [| makeRect (cursRectStyle model) |]
     |> Array.append (backgroundSvg model)
@@ -345,14 +357,14 @@ let displaySvg (model: WaveSimModel) dispatch =
                         (Array.collect id [| cursRectSvg; bgSvg; wave |])) waveSvg)
         |> Array.append [| tr [ Class "rowHeight" ] [ td (waveCell model) [ clkRulerSvg model ] ] |]
 
-    (table [ Class "wavesColTableStyle" ] [tbody [] waveCol]), labelCols
+    (table (wavesTable model) [tbody [] waveCol]), labelCols
 
 // view function helpers
 
 let zoom plus (m: WaveSimModel) =
     let multBy =
         if plus then zoomFactor else 1.0 / zoomFactor
-    { m with posParams = { m.posParams with clkWidth = m.posParams.clkWidth * multBy } } |> StartWaveSim
+    { m with posParams = { m.posParams with clkWidth = m.posParams.clkWidth * multBy } } |> Ok |> StartWaveSim
 
 let button style func label =
     Button.button (List.append [ Button.Props [ style ] ] [ Button.OnClick func ]) [ str label ]
@@ -376,26 +388,59 @@ let cursorMove increase model =
     | (true, c, _, fin) when c < fin -> { model with cursor = c + uint 1 }
     | (false, c, start, _) when c > start -> { model with cursor = c - uint 1 }
     | _ -> model
-    |> StartWaveSim
+    |> Ok |> StartWaveSim
 
 let changeCurs newVal model =
     if (fst model.viewIndexes) <= newVal && (snd model.viewIndexes) >= newVal
     then { model with cursor = newVal }
     else model
-    |> StartWaveSim
+    |> Ok |> StartWaveSim
 
-let selectAll s model = { model with selected = Array.map (fun _ -> s) model.selected } |> StartWaveSim
+let indexesMove increase upper (model: WaveSimModel) = 
+    let bot, top = model.viewIndexes
+    match upper, increase with 
+    | false, false when bot > uint 0 -> bot  - uint 1, top
+    | false, true when bot < top -> bot + uint 1, top
+    | true, false when top > bot -> bot, top - uint 1
+    | true, true -> bot, top + uint 1
+    | _ -> bot, top
+    |> (fun viewIndexes' -> { model with viewIndexes = viewIndexes' })
+    |> Ok |> StartWaveSim
+
+let changeBotInd newVal model = 
+    if uint 0 <= newVal && (snd model.viewIndexes) >= newVal
+    then { model with viewIndexes = newVal, snd model.viewIndexes }
+    else model
+    |> Ok |> StartWaveSim
+
+let changeTopInd newVal model = 
+    if uint (fst model.viewIndexes) <= newVal
+    then { model with viewIndexes = fst model.viewIndexes, newVal }
+    else model
+    |> Ok |> StartWaveSim
+
+let selectAll s model = { model with selected = Array.map (fun _ -> s) model.selected } |> Ok |> StartWaveSim
+
+let allSelected model =
+    Array.fold (fun state b ->
+        if b then state else false) true model.selected
 
 let delSelected model =
     let filtSelected arr =
         Array.zip model.selected arr
         |> Array.filter (fun (sel, _) -> not sel)
         |> Array.map snd
-    { model with
-          waveData = Array.map filtSelected model.waveData
-          waveNames = filtSelected model.waveNames
-          selected = filtSelected model.selected }
-    |> StartWaveSim
+    match allSelected model, model.waveData with
+    | false, Some wD ->
+        { model with waveData = Some (Array.map filtSelected wD)
+                     waveNames = filtSelected model.waveNames
+                     selected = filtSelected model.selected }
+    | _ ->
+        { model with waveData = None
+                     waveNames = [||]
+                     selected = [||]
+                     viewIndexes = (uint 0, uint 0) }
+    |> Ok |> StartWaveSim
 
 let moveWave model up =
     let lastEl (arr: 'a []) = arr.[Array.length arr - 1]
@@ -440,11 +485,18 @@ let moveWave model up =
 
     let reorder (arr: 'b []) = Array.map (fun i -> arr.[i]) indexes'
 
-    { model with
-          waveData = Array.map (fun sT -> reorder sT) model.waveData
-          waveNames = reorder model.waveNames
-          selected = reorder model.selected }
-    |> StartWaveSim
+    match model.waveData with
+    | Some wD -> 
+        { model with
+            waveData = Some <| Array.map (fun sT -> reorder sT) wD
+            waveNames = reorder model.waveNames
+            selected = reorder model.selected }
+    | None -> 
+        { model with
+            waveData = None
+            waveNames = [||]
+            selected = [||] }
+    |> Ok |> StartWaveSim
 
 
 //[<Emit("__static")>]
@@ -463,7 +515,7 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
                 Tabs.tab [ Tabs.Tab.IsActive (model.radix = rad)
                            Tabs.Tab.Props [Style [ Width "25px"
                                                    Height "30px"] ] ]
-                         [ a [ OnClick(fun _ -> StartWaveSim { model with radix = rad } |> dispatch) ]
+                         [ a [ OnClick(fun _ -> Ok { model with radix = rad } |> StartWaveSim |> dispatch) ]
                          [ str (radixString rad) ] ]
             Tabs.tabs
                 [ Tabs.IsBoxed
@@ -477,8 +529,37 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
                   radTab Dec
                   radTab SDec ]
 
+            div [ Class "limits-group" ]
+                [ div [ Class "limits-but-div" ]
+                      [ button (Class "updownButton") (fun _ -> indexesMove true false model |> dispatch) "▲"
+                        button (Class "updownButton") (fun _ -> indexesMove false false model |> dispatch) "▼" ]
+                  input
+                      [ Id "cursorForm"
+                        Step 1
+                        SpellCheck false
+                        Class "limits-form"
+                        Type "number"
+                        Value (fst model.viewIndexes)
+                        Min 0
+                        Max (snd model.viewIndexes)
+                        OnChange(fun c -> changeBotInd (uint c.Value) model |> dispatch) ]
+                  label [ Style [Float FloatOptions.Left
+                                 Margin "0 5px 0 5px"] ] [ str "/"]
+                  input
+                      [ Id "cursorForm"
+                        Step 1
+                        SpellCheck false
+                        Class "limits-form"
+                        Type "number"
+                        Value (snd model.viewIndexes)
+                        Min (fst model.viewIndexes)
+                        OnChange(fun c -> changeTopInd (uint c.Value) model |> dispatch) ]
+                  div [ Class "limits-but-div" ]
+                      [ button (Class "updownButton") (fun _ -> indexesMove true true model |> dispatch) "▲"
+                        button (Class "updownButton") (fun _ -> indexesMove false true model |> dispatch) "▼" ] ] 
+
             div [ Class "cursor-group" ]
-                [ buttonOriginal (Class "button-minus") (fun _ -> cursorMove false model |> dispatch) "-"
+                [ buttonOriginal (Class "button-minus") (fun _ -> cursorMove false model |> dispatch) "◄"
                   input
                       [ Id "cursorForm"
                         Step 1
@@ -489,20 +570,16 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
                         Min(fst model.viewIndexes)
                         Max(snd model.viewIndexes)
                         OnChange(fun c -> changeCurs (uint c.Value) model |> dispatch) ]
-                  buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "+" ] ] 
+                  buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "►" ] ] 
 
       let tableWaves, tableMid = displaySvg model dispatch
 
       let tableTop =
           [| tr []
-                 [ let allSelected =
-                     Array.fold (fun state b ->
-                         if b then state else false) true model.selected
-
-                   th [ Class "checkboxCol" ]
+                 [ th [ Class "checkboxCol" ]
                        [ input
                            [ Type "checkbox"
-                             Checked allSelected
+                             Checked (allSelected model)
                              OnChange(fun t -> selectAll t.Checked model |> dispatch) ] ]
                    match Array.fold (fun state b ->
                              if b then true else state) false model.selected with
@@ -519,10 +596,7 @@ let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
 
                    td [ RowSpan(Array.length model.waveNames + 2)
                         Style [ Width "100%" ] ] 
-                        [ div [ Style [ Width "100%"
-                                        Height "100%"
-                                        Position PositionOptions.Relative
-                                        OverflowX OverflowOptions.Scroll ] ] [tableWaves] ]
+                      [ div [ waveDiv ] [ tableWaves ] ]
 
                    th [] [ label [] [ str "" ] ] ] |]
 

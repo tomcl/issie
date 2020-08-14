@@ -53,15 +53,8 @@ let initModel: WaveSimModel =
 
       waveNames = [| "try single Bit"; "try bus"; "try states" |]
       selected = [| false; false; false |]
+      ports = [||] 
       clkWidth = 1.0
-          (*
-          
-          labelWidth = uint 2
-          sigThick = 0.02
-          boxWidth = uint 8
-          boxHeight = uint 15
-          spacing = 0.3
-          *)
       cursor = uint32 0
       radix = Bin
       viewIndexes = (uint 0, uint 9) }
@@ -414,6 +407,7 @@ let changeTopInd newVal model =
 let selectAll s model = { model with selected = Array.map (fun _ -> s) model.selected } |> Ok |> StartWaveSim
 
 let allSelected model = Array.forall ((=) true) model.selected
+let anySelected model = Array.forall ((=) false) model.selected |> not
 
 let delSelected model =
     let filtSelected arr =
@@ -502,16 +496,11 @@ let radixTabs model dispatch =
                  [ a [ OnClick(fun _ -> Ok { model with radix = rad } |> StartWaveSim |> dispatch) ]
                  [ str (radixString rad) ] ]
     Tabs.tabs
-        [ Tabs.IsBoxed
-          Tabs.IsToggle
-          Tabs.Props [ Style [ Width "100px"
-                               FontSize "80%" 
-                               Float FloatOptions.Right;
-                               Margin "0 10px 0 10px" ] ] ]
-        [ radTab Bin
-          radTab Hex
-          radTab Dec
-          radTab SDec ]
+        [ Tabs.IsBoxed; Tabs.IsToggle; Tabs.Props [ Style [ Width "100px"
+                                                            FontSize "80%" 
+                                                            Float FloatOptions.Right;
+                                                            Margin "0 10px 0 10px" ] ] ]
+        [ radTab Bin; radTab Hex; radTab Dec; radTab SDec ]
 
 let simLimits model dispatch =
     div [ Class "limits-group" ]
@@ -566,13 +555,14 @@ let viewWaveSimButtonsBar model dispatch =
           cursorButtons model dispatch ]
 
 let cursValsCol rows = 
-    let rightCol = Array.append [| td [ Class "rowHeight" ] [] |] rows
+    let rightCol = Array.append [| tr [ Class "rowHeight" ]
+                                      [ td [ Class "rowHeight" ] [] ] |] rows
     div [ Style [ Float FloatOptions.Right; Height "100%"; BorderTop "2px solid rgb(219,219,219)"; BorderLeft "2px solid rgb(219,219,219)" ] ]
         [ table [] [ tbody [] rightCol ] ]
 
 let nameLabelsCol model labelRows dispatch =
     let waveAddDelBut =
-        match allSelected model with
+        match anySelected model with
         | true ->
             [ button (Class "newWaveButton") (fun _ -> delSelected model |> dispatch) "del"
               div [ Class "updownDiv" ]

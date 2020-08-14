@@ -95,24 +95,6 @@ let getSelectedComps model =
         fst jsState 
         |> List.map (extractComponent >> (fun c -> c.Id) >> SimulatorTypes.ComponentId)
 
-(*let extractWaveData (simData : SimulatorTypes.SimulationData) model ports' = //need to ouput ports' too
-    let extractWireDataIn id inputs graph = //output ports''
-        Map.toArray inputs
-        |> Array.map (fun (inPortNum, wireData) -> 
-            
-            Wire { nBits = uint (List.length wireData)
-                                                  bitData = simWireData2Wire wireData })
-    let extractWireDataOut id outputs ports'' =
-        ()
-    let graph = Map.toArray simData.Graph
-    Array.collect (fun (id, comp) -> 
-        match List.contains id (getSelectedComps model) with
-        | true -> 
-            extractWireData id comp.Inputs (Array.map snd graph)
-            |> extractWireData id comp.Outpus (Array.map snd graph)
-
-        | false -> [||] ) graph *)
-
 let selected2portLst (simData : SimulatorTypes.SimulationData) (model: Model) =
     let graph = Map.toList simData.Graph
 
@@ -185,32 +167,6 @@ let simSelected (model: Model) dispatch =
                     |> (fun graph -> { sD with Graph = graph
                                                ClockTickNumber = sD.ClockTickNumber+1 })
 
-                (*let waveNames' = 
-                    Map.toArray simData.Graph 
-                    |> Array.collect (fun (id,comp) -> 
-                        match List.contains id (getSelectedComps model) with
-                        | true ->
-                            match comp.Label with
-                            | SimulatorTypes.ComponentLabel name -> 
-                            (fun pref inpLen ->
-                                Array.map (fun el -> 
-                                    pref + "_in_" + (string el)) 
-                                    [| 0..inpLen - 1 |]) 
-                                    name
-                                    <| (Map.toList >> List.length) comp.Inputs 
-                        | false -> [||] )*)
-                let waveNames' = extractWaveNames simData model
-
-                (*let waveData' : SimTime array =
-                    match fst model.WaveSim.viewIndexes with 
-                    | start when start = uint 0 -> simData
-                    | start -> Array.fold (fun s _ -> clkAdvance s) simData [| 1..int start |]
-                    |> (fun sD -> 
-                            Array.mapFold (fun (s: SimulatorTypes.SimulationData) _ -> 
-                                                    extractWaveData s model, clkAdvance s) 
-                                                    sD [| fst model.WaveSim.viewIndexes..snd model.WaveSim.viewIndexes |] )
-                    |> fst*)
-
                 let waveData' : SimTime [] = 
                     match fst model.WaveSim.viewIndexes with 
                     | start when start = uint 0 -> simData
@@ -221,20 +177,12 @@ let simSelected (model: Model) dispatch =
                                                     sD [| fst model.WaveSim.viewIndexes..snd model.WaveSim.viewIndexes |] )
                     |> fst
 
+                let waveNames' = extractWaveNames simData model
                 let ports', selected' = selected2portLst simData model
                     
-                Ok { model.WaveSim with //waveNames = Array.append model.WaveSim.waveNames waveNames'
-                                        waveNames = waveNames'
-                                        (*waveData = match model.WaveSim.waveData with
-                                                   | Some wD ->
-                                                        Array.zip wD waveData'
-                                                        |> Array.map (fun (a,b) -> Array.append a b)
-                                                        |> Some
-                                                   | None -> Some waveData'*)
-                                        waveData = Some waveData'
+                Ok { model.WaveSim with waveNames = waveNames'
+                                        waveData = Some waveData'//this should already contain the some
                                         selected = selected'
-                                        (*selected = Array.map (fun _ -> false) [| 1..Array.length waveNames' |]
-                                                   |> Array.append model.WaveSim.selected*)
                                         ports = ports'}
             | Error simError ->
                 if simError.InDependency.IsNone then

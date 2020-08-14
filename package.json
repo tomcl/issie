@@ -45,7 +45,8 @@
     "title": true
   },
   "build": {
-    "appId": "ISSIE.040"
+    "appId": "ISSIE.040",
+    "asar": false
   },
   "dependencies": {
     "bulma": "^0.9.0",
@@ -59,7 +60,9 @@
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
     "rechart": "^0.0.1",
-    "source-map-support": "0.5.19"
+    "source-map-support": "0.5.19",
+    "electron-devtools-installer": "^3.1.0"
+
   },
   "devDependencies": {
     "@babel/core": "^7.10.4",
@@ -68,7 +71,6 @@
     "devtron": "^1.4.0",
     "electron": "^9.1.0",
     "electron-builder": "^22.7",
-    "electron-devtools-installer": "^3.1.0",
     "electron-webpack": "^2.8.2",
     "fable-compiler": "^2.10.1",
     "fable-loader": "^2.1.9",

@@ -195,7 +195,8 @@ let makeSegment (clkW: float) (xInd: int) ((data: Sample), (trans: int * int)) =
 
 let model2WaveList model: Waveform [] =
     let folder state (simT: SimTime): Waveform [] =
-        Array.zip state simT |> Array.map (fun (arr, sample) -> Array.append arr [| sample |])
+        Array.zip state simT 
+        |> Array.map (fun (arr, sample) -> Array.append arr [| sample |])
     let initState = Array.map (fun _ -> [||]) model.waveNames
     match model.waveData with
     | Some wD -> Array.fold folder initState wD

@@ -80,6 +80,15 @@ let pasteAction model =
 
 
 //simulate button functions
+let findDrivingOut simData targetCompId inPortN =
+    Array.fold (fun _ (compId, (simComp: SimulatorTypes.SimulationComponent)) -> 
+        Array.tryFind (fun (_, lst) ->
+            not (List.forall (fun (pointId,pointPortN) -> 
+                pointId = targetCompId && pointPortN = inPortN ) lst) ) (Map.toArray simComp.Outputs)
+        |> function 
+           | Some (outPN, _) -> [| compId,outPN |]
+           | None -> [||] ) [||] (Map.toArray simData.Graph) 
+
 let simWireData2Wire wireData = 
     wireData
     |> List.mapFold (fun weight bit -> match bit with
@@ -104,12 +113,7 @@ let selected2portLst (simData : SimulatorTypes.SimulationData) (model: Model) =
         |> Array.map fst
         |> Array.collect (fun portN -> 
             Array.fold (fun _ (compId, (simComp: SimulatorTypes.SimulationComponent)) -> 
-                Array.tryFind (fun (_, lst) ->
-                    not (List.forall (fun (pointId,pointPortN) -> 
-                        pointId = targetCompId && pointPortN = portN ) lst) ) (Map.toArray simComp.Outputs)
-                |> function 
-                   | Some (outPN, _) -> [| compId,outPN |]
-                   | None -> [||] ) [||] (List.toArray graph) )
+                findDrivingOut simData compId portN ) [||] (List.toArray graph) )
 
     let processOutputs compId outputs =
         outputs 
@@ -142,12 +146,42 @@ let extractWaveData simData model =
             | wD -> Wire { nBits = uint (List.length wD)
                            bitData = simWireData2Wire wD } )
 
+(*let rec findName simData compId outPortN = //fix underscores' logic
+    match simData.Graph.[compId].Type with
+    | Not | And | Or | Xor | Nand | Nor | Xnor | Input | Output | Mux2 -> ""
+    | Demux2 -> 
+        match outPortN with 
+        | OutputPortNumber n -> "_" + string n
+    | NbitsAdder -> 
+        match outPortN with 
+        | OutputPortNumber 0 -> "_sum"
+        | _ -> "_Cout"
+    | DFF | DFFE  -> "_Q"
+    | Register | RegisterE | RAM  -> "_data-out"
+    | AsyncROM | ROM -> "_data"
+    | Custom c -> "_" + c.Name
+    | IOLabel -> 
+        let givenName =
+            match simData.Graph.[compId].Label with
+            | ComponentLabel lbl -> lbl
+            |> ( fun lbl -> lbl + " (" )
+        let sourceName =
+            match findDrivingOut simData compId (InputPortNumber 0) with
+            | [| driveCompId, drivePortN |] -> findName simData driveCompId drivePortN
+            | _ -> ""
+        givenName + sourceName
+    | MergeWires ->
+    | SplitWire -> 
+    | BusSelection -> *)
+
 let extractWaveNames simData model =
     selected2portLst simData model
     |> fst
     |> Array.map (fun (compId, portN) ->
-        match simData.Graph.[compId].Label with
-        | SimulatorTypes.ComponentLabel lbl -> lbl + "_" + string portN )
+        match simData.Graph.[compId].Label, portN with
+        | SimulatorTypes.ComponentLabel lbl, OutputPortNumber n -> 
+            //lbl + (findName simData compId portN) 
+            lbl + "_" + string n )
            
 
 let simSelected (model: Model) dispatch = 

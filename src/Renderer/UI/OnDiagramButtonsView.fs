@@ -19,6 +19,7 @@ open DiagramStyle
 open Extractor
 open Helpers
 open Simulator
+open SimulatorTypes
 
 let private copyAction model dispatch =
     match model.Diagram.GetSelected () with
@@ -79,6 +80,15 @@ let pasteAction model =
 
 
 //simulate button functions
+let findDrivingOut simData targetCompId inPortN =
+    Array.fold (fun _ (compId, (simComp: SimulatorTypes.SimulationComponent)) -> 
+        Array.tryFind (fun (_, lst) ->
+            not (List.forall (fun (pointId,pointPortN) -> 
+                pointId = targetCompId && pointPortN = inPortN ) lst) ) (Map.toArray simComp.Outputs)
+        |> function 
+           | Some (outPN, _) -> [| compId,outPN |]
+           | None -> [||] ) [||] (Map.toArray simData.Graph) 
+
 let simWireData2Wire wireData = 
     wireData
     |> List.mapFold (fun weight bit -> match bit with
@@ -94,19 +104,87 @@ let getSelectedComps model =
         fst jsState 
         |> List.map (extractComponent >> (fun c -> c.Id) >> SimulatorTypes.ComponentId)
 
-let extractWaveData (simData : SimulatorTypes.SimulationData) model =
-    let extractWireData inputs =
-        Map.toArray inputs
-        |> Array.map (fun (_, wireData) -> Wire { nBits = uint (List.length wireData)
-                                                  bitData = simWireData2Wire wireData })
-    Map.toArray simData.Graph
-    |> Array.collect (fun (id, comp) -> 
-        match List.contains id (getSelectedComps model) with
-        | true -> extractWireData comp.Inputs
-        | false -> [||] )
+let selected2portLst (simData : SimulatorTypes.SimulationData) (model: Model) =
+    let graph = Map.toList simData.Graph
+
+    let processInputs targetCompId inputs = 
+        inputs
+        |> Map.toArray
+        |> Array.map fst
+        |> Array.collect (fun portN -> 
+            Array.fold (fun _ (compId, (simComp: SimulatorTypes.SimulationComponent)) -> 
+                findDrivingOut simData compId portN ) [||] (List.toArray graph) )
+
+    let processOutputs compId outputs =
+        outputs 
+        |> Map.toArray
+        |> Array.map (fun (portNum, _) -> compId, portNum)   
+
+    let lst' =
+        List.toArray graph
+        |> Array.filter (fun (compId, _) -> List.contains compId (getSelectedComps model))
+        |> Array.collect (fun (compId, simComp) -> 
+            Array.append (processInputs compId simComp.Inputs) (processOutputs compId simComp.Outputs))
+        |> Array.distinct
+        |> Array.map (fun el -> el, true)
+        
+    Array.fold (fun st port ->
+                    match Array.contains (port, true) st with
+                    | true -> st
+                    | false -> Array.append st [| port, false |] ) lst' model.WaveSim.ports
+    |> Array.unzip
+
+
+let extractWaveData simData model =
+    selected2portLst simData model
+    |> fst
+    |> Array.map (fun (compId, portN) ->
+        match simData.Graph.[compId].Outputs.[portN] with 
+        | [] -> StateSample [| "output not connected" |]
+        | lst -> 
+            match simData.Graph.[fst lst.[0]].Inputs.[snd lst.[0]] with
+            | wD -> Wire { nBits = uint (List.length wD)
+                           bitData = simWireData2Wire wD } )
+
+(*let rec findName simData compId outPortN = //fix underscores' logic
+    match simData.Graph.[compId].Type with
+    | Not | And | Or | Xor | Nand | Nor | Xnor | Input | Output | Mux2 -> ""
+    | Demux2 -> 
+        match outPortN with 
+        | OutputPortNumber n -> "_" + string n
+    | NbitsAdder -> 
+        match outPortN with 
+        | OutputPortNumber 0 -> "_sum"
+        | _ -> "_Cout"
+    | DFF | DFFE  -> "_Q"
+    | Register | RegisterE | RAM  -> "_data-out"
+    | AsyncROM | ROM -> "_data"
+    | Custom c -> "_" + c.Name
+    | IOLabel -> 
+        let givenName =
+            match simData.Graph.[compId].Label with
+            | ComponentLabel lbl -> lbl
+            |> ( fun lbl -> lbl + " (" )
+        let sourceName =
+            match findDrivingOut simData compId (InputPortNumber 0) with
+            | [| driveCompId, drivePortN |] -> findName simData driveCompId drivePortN
+            | _ -> ""
+        givenName + sourceName
+    | MergeWires ->
+    | SplitWire -> 
+    | BusSelection -> *)
+
+let extractWaveNames simData model =
+    selected2portLst simData model
+    |> fst
+    |> Array.map (fun (compId, portN) ->
+        match simData.Graph.[compId].Label, portN with
+        | SimulatorTypes.ComponentLabel lbl, OutputPortNumber n -> 
+            //lbl + (findName simData compId portN) 
+            lbl + "_" + string n )
+           
 
 let simSelected (model: Model) dispatch = 
-    //match model.Diagram.GetCanvasState (), model.CurrProject with
     match model.Diagram.GetCanvasState (), model.CurrProject with
     | None, _ -> ()
     | _, None -> failwith "what? Cannot start a simulation without a project"
@@ -122,21 +200,8 @@ let simSelected (model: Model) dispatch =
                     feedClockTick sD.Graph
                     |> (fun graph -> { sD with Graph = graph
                                                ClockTickNumber = sD.ClockTickNumber+1 })
-                let waveNames' = 
-                    Map.toArray simData.Graph 
-                    |> Array.collect (fun (id,comp) -> 
-                        match List.contains id (getSelectedComps model) with
-                        | true ->
-                            match comp.Label with
-                            | SimulatorTypes.ComponentLabel name -> 
-                            (fun pref inpLen ->
-                                Array.map (fun el -> 
-                                    pref + "_in_" + (string el)) 
-                                    [| 0..inpLen - 1 |]) 
-                                    name
-                                    <| (Map.toList >> List.length) comp.Inputs 
-                        | false -> [||] )
-                let waveData' : SimTime array =
+
+                let waveData' : SimTime [] = 
                     match fst model.WaveSim.viewIndexes with 
                     | start when start = uint 0 -> simData
                     | start -> Array.fold (fun s _ -> clkAdvance s) simData [| 1..int start |]
@@ -146,15 +211,13 @@ let simSelected (model: Model) dispatch =
                                                     sD [| fst model.WaveSim.viewIndexes..snd model.WaveSim.viewIndexes |] )
                     |> fst
 
-                Ok { model.WaveSim with waveNames = Array.append model.WaveSim.waveNames waveNames'
-                                        waveData = match model.WaveSim.waveData with
-                                                   | Some wD ->
-                                                        Array.zip wD waveData'
-                                                        |> Array.map (fun (a,b) -> Array.append a b)
-                                                        |> Some
-                                                   | None -> Some waveData'
-                                        selected = Array.map (fun _ -> false) [| 1..Array.length waveNames' |]
-                                                   |> Array.append model.WaveSim.selected }
+                let waveNames' = extractWaveNames simData model
+                let ports', selected' = selected2portLst simData model
+                    
+                Ok { model.WaveSim with waveNames = waveNames'
+                                        waveData = Some waveData'//this should already contain the some
+                                        selected = selected'
+                                        ports = ports'}
             | Error simError ->
                 if simError.InDependency.IsNone then
                     // Highligh the affected components and connection only if

@@ -16,8 +16,6 @@ open DiagramMessageType
 open DiagramStyle
 open CommonTypes
 
-//type functions
-
 let initModel: WaveSimModel =
     { waveData =
           //modify these two signals to change trial data
@@ -54,24 +52,11 @@ let initModel: WaveSimModel =
           Some <| makeTrialData nbits1 s1 nbits2 s2 s3
 
       waveNames = [| "try single Bit"; "try bus"; "try states" |]
-
       selected = [| false; false; false |]
-
-      posParams =
-          { sigHeight = 0.4
-            hPos = uint 0
-            clkWidth = 1.0
-            labelWidth = uint 2
-            sigThick = 0.02
-            boxWidth = uint 8
-            boxHeight = uint 15
-            spacing = 0.3
-            clkThick = 0.025 }
-
+      ports = [||] 
+      clkWidth = 1.0
       cursor = uint32 0
-
       radix = Bin
-
       viewIndexes = (uint 0, uint 9) }
 
 // SVG functions
@@ -151,20 +136,18 @@ let radixChange (n: bigint) (nBits: uint32) (rad: NumberBase) =
 
 //auxiliary functions to the viewer function
 
-let select s ind model =
-    { model with
-          selected =
-              Array.mapi (fun i old ->
-                  if i = ind then s else old) model.selected }
+let toggleSelect ind model =
+    { model with selected = Array.mapi (fun i old ->
+                                if i = ind then not old else old) model.selected }
     |> Ok |> StartWaveSim
 
 let makeLabels model = Array.map (fun l -> label [ Class "waveLbl" ] [ str l ]) model.waveNames
 
-let makeSegment (p: PosParamsType) (xInd: int) ((data: Sample), (trans: int * int)) =
-    let top = p.spacing
-    let bot = top + p.sigHeight - sigLineThick
-    let left = float xInd * p.clkWidth
-    let right = left + float p.clkWidth
+let makeSegment (clkW: float) (xInd: int) ((data: Sample), (trans: int * int)) =
+    let top = spacing
+    let bot = top + sigHeight - sigLineThick
+    let left = float xInd * clkW
+    let right = left + float clkW
 
     let makeSigLine = makeLinePoints [ Class "sigLineStyle" ]
 
@@ -177,7 +160,7 @@ let makeSegment (p: PosParamsType) (xInd: int) ((data: Sample), (trans: int * in
         // TODO: define DU so that you can't have values other than 0 or 1
         let sigLine = makeSigLine (left, y) (right, y)
         match snd trans with
-        | 1 -> [| makeSigLine (right, bot + p.sigThick / 2.0) (right, top - p.sigThick / 2.0) |]
+        | 1 -> [| makeSigLine (right, bot + sigLineThick / 2.0) (right, top - sigLineThick / 2.0) |]
         | 0 -> [||]
         | _ ->
             "What? Transition has value other than 0 or 1" |> ignore
@@ -212,7 +195,8 @@ let makeSegment (p: PosParamsType) (xInd: int) ((data: Sample), (trans: int * in
 
 let model2WaveList model: Waveform [] =
     let folder state (simT: SimTime): Waveform [] =
-        Array.zip state simT |> Array.map (fun (arr, sample) -> Array.append arr [| sample |])
+        Array.zip state simT 
+        |> Array.map (fun (arr, sample) -> Array.append arr [| sample |])
     let initState = Array.map (fun _ -> [||]) model.waveNames
     match model.waveData with
     | Some wD -> Array.fold folder initState wD
@@ -276,12 +260,11 @@ let makeCursVals model =
 
 //container box and clock lines
 let backgroundSvg model =
-    let p = model.posParams
     let clkLine x =
-        makeLinePoints [ Class "clkLineStyle" ] (x, vPos) (x, vPos + float p.sigHeight + float p.spacing)
+        makeLinePoints [ Class "clkLineStyle" ] (x, vPos) (x, vPos + sigHeight + spacing)
     match model.waveData with
     | Some wD -> [| 1 .. 1 .. Array.length wD |] 
-              |> Array.map ((fun x -> float x * p.clkWidth) >> clkLine)
+              |> Array.map ((fun x -> float x * model.clkWidth) >> clkLine)
     | None -> [||]
 
 let clkRulerSvg (model: WaveSimModel) =
@@ -293,9 +276,7 @@ let clkRulerSvg (model: WaveSimModel) =
     |> Array.append (backgroundSvg model)
     |> makeSvg (clkRulerStyle model)
 
-let displaySvg (model: WaveSimModel) dispatch =
-    let p = model.posParams
-
+let waveSimRows (model: WaveSimModel) dispatch =
     // waveforms
     let waveSvg =
         let addLabel nLabels xInd (i: int) = makeText (inWaveLabel nLabels xInd i model)
@@ -312,7 +293,7 @@ let displaySvg (model: WaveSimModel) dispatch =
                 | _ -> [||]
             busLabels model |> Array.map (fun row -> Array.collect lblEl row)
 
-        let makeWaveSvg = makeSegment p |> mapiAndCollect
+        let makeWaveSvg = makeSegment model.clkWidth |> mapiAndCollect
         let padTrans (t: (int * int) []) =
             Array.append (Array.append [| 1, fst t.[0] |] t) [| snd t.[Array.length t - 1], 1 |]
         (model2WaveList model, transitions model)
@@ -330,17 +311,22 @@ let displaySvg (model: WaveSimModel) dispatch =
     let cursLabs = makeCursVals model
 
     let labelCols =
-        Array.zip labels cursLabs
-        |> Array.mapi (fun i (l, c) ->
+        labels
+        |> Array.mapi (fun i l ->
             tr [ Class "rowHeight" ]
                 [ td [ Class "checkboxCol" ]
                       [ input
                           [ Type "checkbox"
                             Checked model.selected.[i]
                             Style [ Float FloatOptions.Left ]
-                            OnChange(fun s -> select s.Checked i model |> dispatch) ] ]
-                  td [ Class "waveNamesCol" ] [ l ]
-                  td [ Class "cursValsCol" ] c ])
+                            OnChange (fun _ -> toggleSelect i model |> dispatch) ] ]
+                  td [ Class "waveNamesCol" ] [ l ]])
+
+    let cursValCol =
+        cursLabs
+        |> Array.map (fun c ->
+            tr [ Class "rowHeight" ]
+                [ td [ Class "cursValsCol" ] c ])
 
     let waveCol =
         let waveTableRow rowClass cellClass svgClass svgChildren =
@@ -357,14 +343,14 @@ let displaySvg (model: WaveSimModel) dispatch =
                         (Array.collect id [| cursRectSvg; bgSvg; wave |])) waveSvg)
         |> Array.append [| tr [ Class "rowHeight" ] [ td (waveCell model) [ clkRulerSvg model ] ] |]
 
-    (table (wavesTable model) [tbody [] waveCol]), labelCols
+    waveCol, labelCols, cursValCol
 
 // view function helpers
 
 let zoom plus (m: WaveSimModel) =
     let multBy =
         if plus then zoomFactor else 1.0 / zoomFactor
-    { m with posParams = { m.posParams with clkWidth = m.posParams.clkWidth * multBy } } |> Ok |> StartWaveSim
+    { m with clkWidth = m.clkWidth * multBy } |> Ok |> StartWaveSim
 
 let button style func label =
     Button.button (List.append [ Button.Props [ style ] ] [ Button.OnClick func ]) [ str label ]
@@ -421,9 +407,8 @@ let changeTopInd newVal model =
 
 let selectAll s model = { model with selected = Array.map (fun _ -> s) model.selected } |> Ok |> StartWaveSim
 
-let allSelected model =
-    Array.fold (fun state b ->
-        if b then state else false) true model.selected
+let allSelected model = Array.forall ((=) true) model.selected
+let anySelected model = Array.forall ((=) false) model.selected |> not
 
 let delSelected model =
     let filtSelected arr =
@@ -502,116 +487,134 @@ let moveWave model up =
 //[<Emit("__static")>]
 //let staticDir() : string = jsNative
 
-//view function of the waveform simulator
+//view functions of the waveform simulator
 
-let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
-    let model = fullModel.WaveSim
-    let p = model.posParams
+let radixTabs model dispatch =
+    let radTab rad =
+        Tabs.tab [ Tabs.Tab.IsActive (model.radix = rad)
+                   Tabs.Tab.Props [Style [ Width "25px"
+                                           Height "30px"] ] ]
+                 [ a [ OnClick(fun _ -> Ok { model with radix = rad } |> StartWaveSim |> dispatch) ]
+                 [ str (radixString rad) ] ]
+    Tabs.tabs
+        [ Tabs.IsBoxed; Tabs.IsToggle; Tabs.Props [ Style [ Width "100px"
+                                                            FontSize "80%" 
+                                                            Float FloatOptions.Right;
+                                                            Margin "0 10px 0 10px" ] ] ]
+        [ radTab Bin; radTab Hex; radTab Dec; radTab SDec ]
 
-    [ div [ Style [ Height "7%" ] ]
-          [ button (Class "reloadButtonStyle") (fun _ -> ()) "Reload" 
+let simLimits model dispatch =
+    div [ Class "limits-group" ]
+        [ div [ Class "limits-but-div" ]
+              [ button (Class "updownButton") (fun _ -> indexesMove true false model |> dispatch) "▲"
+                button (Class "updownButton") (fun _ -> indexesMove false false model |> dispatch) "▼" ]
+          input
+              [ Id "cursorForm"
+                Step 1
+                SpellCheck false
+                Class "limits-form"
+                Type "number"
+                Value (fst model.viewIndexes)
+                Min 0
+                Max (snd model.viewIndexes)
+                OnChange(fun c -> changeBotInd (uint c.Value) model |> dispatch) ]
+          label [ Style [Float FloatOptions.Left
+                         Margin "0 5px 0 5px"] ] [ str "/"]
+          input
+              [ Id "cursorForm"
+                Step 1
+                SpellCheck false
+                Class "limits-form"
+                Type "number"
+                Value (snd model.viewIndexes)
+                Min (fst model.viewIndexes)
+                OnChange(fun c -> changeTopInd (uint c.Value) model |> dispatch) ]
+          div [ Class "limits-but-div" ]
+              [ button (Class "updownButton") (fun _ -> indexesMove true true model |> dispatch) "▲"
+                button (Class "updownButton") (fun _ -> indexesMove false true model |> dispatch) "▼" ] ] 
 
-            let radTab rad =
-                Tabs.tab [ Tabs.Tab.IsActive (model.radix = rad)
-                           Tabs.Tab.Props [Style [ Width "25px"
-                                                   Height "30px"] ] ]
-                         [ a [ OnClick(fun _ -> Ok { model with radix = rad } |> StartWaveSim |> dispatch) ]
-                         [ str (radixString rad) ] ]
-            Tabs.tabs
-                [ Tabs.IsBoxed
-                  Tabs.IsToggle
-                  Tabs.Props [ Style [ Width "100px"
-                                       FontSize "80%" 
-                                       Float FloatOptions.Right;
-                                       Margin "0 10px 0 10px" ] ] ]
-                [ radTab Bin
-                  radTab Hex
-                  radTab Dec
-                  radTab SDec ]
+let cursorButtons model dispatch =
+    div [ Class "cursor-group" ]
+        [ buttonOriginal (Class "button-minus") (fun _ -> cursorMove false model |> dispatch) "◄"
+          input
+              [ Id "cursorForm"
+                Step 1
+                SpellCheck false
+                Class "cursor-form"
+                Type "number"
+                Value model.cursor
+                Min (fst model.viewIndexes)
+                Max (snd model.viewIndexes)
+                OnChange(fun c -> changeCurs (uint c.Value) model |> dispatch) ]
+          buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "►" ] 
 
-            div [ Class "limits-group" ]
-                [ div [ Class "limits-but-div" ]
-                      [ button (Class "updownButton") (fun _ -> indexesMove true false model |> dispatch) "▲"
-                        button (Class "updownButton") (fun _ -> indexesMove false false model |> dispatch) "▼" ]
-                  input
-                      [ Id "cursorForm"
-                        Step 1
-                        SpellCheck false
-                        Class "limits-form"
-                        Type "number"
-                        Value (fst model.viewIndexes)
-                        Min 0
-                        Max (snd model.viewIndexes)
-                        OnChange(fun c -> changeBotInd (uint c.Value) model |> dispatch) ]
-                  label [ Style [Float FloatOptions.Left
-                                 Margin "0 5px 0 5px"] ] [ str "/"]
-                  input
-                      [ Id "cursorForm"
-                        Step 1
-                        SpellCheck false
-                        Class "limits-form"
-                        Type "number"
-                        Value (snd model.viewIndexes)
-                        Min (fst model.viewIndexes)
-                        OnChange(fun c -> changeTopInd (uint c.Value) model |> dispatch) ]
-                  div [ Class "limits-but-div" ]
-                      [ button (Class "updownButton") (fun _ -> indexesMove true true model |> dispatch) "▲"
-                        button (Class "updownButton") (fun _ -> indexesMove false true model |> dispatch) "▼" ] ] 
+let viewWaveSimButtonsBar model dispatch = 
+    div [ Style [ Height "7%" ] ]
+        [ button (Class "reloadButtonStyle") (fun _ -> ()) "Reload" 
+          radixTabs model dispatch
+          simLimits model dispatch
+          cursorButtons model dispatch ]
 
-            div [ Class "cursor-group" ]
-                [ buttonOriginal (Class "button-minus") (fun _ -> cursorMove false model |> dispatch) "◄"
-                  input
-                      [ Id "cursorForm"
-                        Step 1
-                        SpellCheck false
-                        Class "cursor-form"
-                        Type "number"
-                        Value model.cursor
-                        Min(fst model.viewIndexes)
-                        Max(snd model.viewIndexes)
-                        OnChange(fun c -> changeCurs (uint c.Value) model |> dispatch) ]
-                  buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "►" ] ] 
+let cursValsCol rows = 
+    let rightCol = Array.append [| tr [ Class "rowHeight" ]
+                                      [ td [ Class "rowHeight" ] [] ] |] rows
+    div [ Style [ Float FloatOptions.Right; Height "100%"; BorderTop "2px solid rgb(219,219,219)"; BorderLeft "2px solid rgb(219,219,219)" ] ]
+        [ table [] [ tbody [] rightCol ] ]
 
-      let tableWaves, tableMid = displaySvg model dispatch
+let nameLabelsCol model labelRows dispatch =
+    let waveAddDelBut =
+        match anySelected model with
+        | true ->
+            [ button (Class "newWaveButton") (fun _ -> delSelected model |> dispatch) "del"
+              div [ Class "updownDiv" ]
+                  [ button (Class "updownButton") (fun _ -> moveWave model true |> dispatch) "▲"
+                    button (Class "updownButton") (fun _ -> moveWave model false |> dispatch) "▼" ] ]
+        | false ->
+            [ div [ Style [ WhiteSpace WhiteSpaceOptions.Nowrap ] ]
+                  [ button (Class "newWaveButton") (fun _ -> ()) "+"
+                    label [ Class "newWaveLabel" ] [ str "Add wave" ] ] ]
+        |> (fun children -> th [ Class "waveNamesCol" ] children)
 
-      let tableTop =
-          [| tr []
-                 [ th [ Class "checkboxCol" ]
-                       [ input
-                           [ Type "checkbox"
-                             Checked (allSelected model)
-                             OnChange(fun t -> selectAll t.Checked model |> dispatch) ] ]
-                   match Array.fold (fun state b ->
-                             if b then true else state) false model.selected with
-                   | true ->
-                       [ button (Class "newWaveButton") (fun _ -> delSelected model |> dispatch) "del"
-                         div [ Class "updownDiv" ]
-                             [ button (Class "updownButton") (fun _ -> moveWave model true |> dispatch) "▲"
-                               button (Class "updownButton") (fun _ -> moveWave model false |> dispatch) "▼" ] ]
-                   | false ->
-                       [ div [ Style [ WhiteSpace WhiteSpaceOptions.Nowrap ] ]
-                             [ button (Class "newWaveButton") (fun _ -> ()) "+"
-                               label [ Class "newWaveLabel" ] [ str "Add wave" ] ] ]
-                   |> (fun child -> th [ Class "waveNamesCol" ] child)
+    let top =
+        [| tr []
+               [ th [ Class "checkboxCol" ]
+                    [ input
+                        [ Type "checkbox"
+                          Checked (allSelected model)
+                          OnChange(fun t -> selectAll t.Checked model |> dispatch) ] ]
+                 waveAddDelBut ] |]
+    
+    let bot =
+        [| tr [ Class "fullHeight" ]
+               [ td [ Class "checkboxCol" ] []
+                 td [] [] ] |]
+    
+    let leftCol = Array.collect id [| top; labelRows; bot |]
+    div [ Style [ Float FloatOptions.Left; Height "100%" ] ]
+        [ table [ Class "waveSimTableStyle" ] [ tbody [] leftCol ] ]
 
-                   td [ RowSpan(Array.length model.waveNames + 2)
-                        Style [ Width "100%" ] ] 
-                      [ div [ waveDiv ] [ tableWaves ] ]
+let wavesCol model rows dispatch =
+    div [ Style [ Height "100%"; OverflowX OverflowOptions.Scroll; BorderTop "2px solid rgb(219,219,219)" ] ] 
+        [ table [ Style [ Height "100%" ] ]
+                [ tbody [ Style [ Height "100%" ] ] rows ] ]
+                
+let viewWaveformViewer model dispatch =
+    let tableWaves, leftColMid, cursValsRows = waveSimRows model dispatch
+    div [ Style [ Height "91.8%"; Width "100%" ] ] 
+        [ cursValsCol cursValsRows
+          div [ Style [ Height "100%" ] ]
+              [ nameLabelsCol model leftColMid dispatch
+                wavesCol model tableWaves dispatch ] ]
 
-                   th [] [ label [] [ str "" ] ] ] |]
+let viewZoomDiv model dispatch =
+    div [ Class "zoomDiv" ]
+        [ button (Class "zoomButtonStyle") (fun _ -> zoom false model |> dispatch) "-"
+          //let svgPath = Path.Combine(staticDir(), "hzoom-icon.svg")
+          //let svgPath = staticDir() + "\hzoom-icon.svg"
+          //embed [ Src svgPath ]
+          button (Class "zoomButtonStyle") (fun _ -> zoom true model |> dispatch) "+" ] 
 
-      let tableBot =
-          [| tr [ Class "fullHeight" ]
-                 [ td [ Class "checkboxCol" ] []
-                   td [] [] ] |]
-
-      table [ Class "waveSimTableStyle" ]
-          [ tbody [] (Array.collect id [| tableTop; tableMid; tableBot |]) ]
-
-      div [ Class "zoomDiv" ]
-          [ button (Class "zoomButtonStyle") (fun _ -> zoom false model |> dispatch) "-"
-            label [ Class "hZoomLabel" ] [ str "H Zoom" ]
-            //let svgPath = Path.Combine(staticDir(), "hzoom-icon.svg")
-            //let svgPath = staticDir() + "\hzoom-icon.svg"
-            //embed [ Src svgPath ]
-            button (Class "zoomButtonStyle") (fun _ -> zoom true model |> dispatch) "+" ] ] 
+let viewWaveSim (model: DiagramModelType.Model) dispatch =
+    [ viewWaveSimButtonsBar model.WaveSim dispatch
+      viewWaveformViewer model.WaveSim dispatch
+      viewZoomDiv model.WaveSim dispatch ]

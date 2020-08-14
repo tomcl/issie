@@ -16,6 +16,8 @@ open DiagramModelType
 open DiagramMessageType
 open CommonTypes
 open PopupView
+open Extractor
+open System
 
 type Bbox = {
     LTop: (int*int)
@@ -383,6 +385,70 @@ let private menuItem label onClick =
         [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick ] ]
         [ str label ]
 
+let private createComponent comp label model dispatch =
+    let x,y = getNewComponentPosition model
+    match model.Diagram.CreateComponent comp label x y with
+    | Some jsComp -> 
+        Extractor.extractComponent jsComp
+        |> SetCreateComponent 
+        |> dispatch
+        |> ignore
+    | None -> ()
+    ReloadSelectedComponent model.LastUsedDialogWidth |> dispatch
+
+let stdLabel (compType: ComponentType) (model:Model) =
+    (*
+    Custom component I/O names are the names of the corresp in and out connections.
+    Naming wires. If driven by a splitwire / mergewire etc go to the driving components. Include bit numbers. Concatenate via commas multiple outputs when they are merged.
+    *)
+    let prefix = 
+        match compType with
+        | Not | And | Or | Xor | Nand | Nor | Xnor -> "G"
+        | Mux2 -> "MUX"
+        | Demux2 -> "DM"
+        | NbitsAdder -> "A"
+        | DFF | DFFE -> "FF"
+        | Register | RegisterE -> "REG"
+        | AsyncROM -> "AROM"
+        | ROM -> "ROM"
+        | RAM -> "RAM"
+        | Custom c -> c.Name
+        | _ -> ""
+
+    let samePrefPlusNum (word: string)  = 
+        match word.[0..String.length prefix - 1] = prefix with
+        | true -> 
+            word.[String.length prefix..String.length word - 1]
+            |> Seq.forall Char.IsDigit
+            |> function
+               | true -> [ int word.[String.length prefix..String.length word - 1] ]
+               | false -> []
+        | false -> []
+
+    let sortedLst2ind lst =
+        match List.tryFind (fun (a,b) -> b > a + 1) (List.pairwise lst) with
+        | None when List.length lst = 0 -> -1
+        | None when List.length lst = 1 -> lst.[0]
+        | None -> lst.[List.length lst - 1]
+        | Some (a,_) -> a
+        |> (+) 1
+
+    match model.Diagram.GetCanvasState () with
+    | None when prefix <> "" -> prefix + "0"
+    | Some jsState when prefix <> "" -> 
+        extractState jsState
+        |> fst
+        |> List.map (fun c -> c.Label) 
+        |> List.collect samePrefPlusNum
+        |> List.sort
+        |> sortedLst2ind
+        |> string
+        |> (+) prefix
+    | _ -> ""
+
+let createCompStdLabel comp model dispatch =
+    createComponent comp (stdLabel comp model) model dispatch
+
 let private makeCustom model loadedComponent =
     menuItem loadedComponent.Name (fun _ ->
         let custom = Custom {
@@ -390,7 +456,7 @@ let private makeCustom model loadedComponent =
             InputLabels = loadedComponent.InputLabels
             OutputLabels = loadedComponent.OutputLabels
         }
-        model.Diagram.CreateComponent custom loadedComponent.Name 100 100
+        model.Diagram.CreateComponent custom (stdLabel custom model) 100 100
         |> ignore
     )
 
@@ -402,17 +468,6 @@ let private makeCustomList model =
         project.LoadedComponents
         |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         |> List.map (makeCustom model)
-
-let private createComponent comp label model dispatch =
-    let x,y = getNewComponentPosition model
-    match model.Diagram.CreateComponent comp label x y with
-    | Some jsComp -> 
-        Extractor.extractComponent jsComp
-        |> SetCreateComponent 
-        |> dispatch
-        |> ignore
-    | None -> ()
-    ReloadSelectedComponent model.LastUsedDialogWidth |> dispatch
 
 let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
     let title = sprintf "Add %s node" typeStr
@@ -450,7 +505,7 @@ let private createNbitsAdderPopup (model:Model) dispatch =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
             printfn "creating adder %d" inputInt
-            createComponent (NbitsAdder inputInt) "" {model with LastUsedDialogWidth = inputInt} dispatch
+            createCompStdLabel (NbitsAdder inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
@@ -466,7 +521,7 @@ let private createSplitWirePopup model dispatch =
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
-            createComponent (SplitWire inputInt) "" model dispatch
+            createCompStdLabel (SplitWire inputInt) model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
@@ -486,7 +541,7 @@ let private createBusSelectPopup model dispatch =
         fun (dialogData : PopupDialogData) ->
             let width = getInt dialogData
             let lsb = getInt2 dialogData
-            createComponent (BusSelection(width,lsb)) "" model dispatch
+            createCompStdLabel (BusSelection(width,lsb)) model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1 || getInt2 dialogData < 0
@@ -503,7 +558,7 @@ let private createRegisterPopup regType (model:Model) dispatch =
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
-            createComponent (regType inputInt) "" model dispatch
+            createCompStdLabel (regType inputInt) model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
@@ -521,7 +576,7 @@ let private createMemoryPopup memType model dispatch =
                 WordWidth = wordWidth
                 Data = List.replicate (pow2 addressWidth) (int64 0) // Initialise with zeros.
             }
-            createComponent (memType memory) "" model dispatch
+            createCompStdLabel (memType memory) model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
@@ -549,24 +604,24 @@ let viewCatalogue model dispatch =
                   menuItem "Bus Select" (fun _ -> createBusSelectPopup model dispatch)]
             makeMenuGroup
                 "Gates"
-                [ menuItem "Not"  (fun _ -> createComponent Not "" model dispatch)
-                  menuItem "And"  (fun _ -> createComponent And "" model dispatch)
-                  menuItem "Or"   (fun _ -> createComponent Or "" model dispatch)
-                  menuItem "Xor"  (fun _ -> createComponent Xor "" model dispatch)
-                  menuItem "Nand" (fun _ -> createComponent Nand "" model dispatch)
-                  menuItem "Nor"  (fun _ -> createComponent Nor "" model dispatch)
-                  menuItem "Xnor" (fun _ -> createComponent Xnor "" model dispatch) ]
+                [ menuItem "Not"  (fun _ -> createCompStdLabel Not model dispatch)
+                  menuItem "And"  (fun _ -> createCompStdLabel And model dispatch)
+                  menuItem "Or"   (fun _ -> createCompStdLabel Or model dispatch)
+                  menuItem "Xor"  (fun _ -> createCompStdLabel Xor model dispatch)
+                  menuItem "Nand" (fun _ -> createCompStdLabel Nand model dispatch)
+                  menuItem "Nor"  (fun _ -> createCompStdLabel Nor model dispatch)
+                  menuItem "Xnor" (fun _ -> createCompStdLabel Xnor model dispatch) ]
             makeMenuGroup
                 "Mux / Demux"
-                [ menuItem "Mux2" (fun _ -> createComponent Mux2 "" model dispatch)
-                  menuItem "Demux2" (fun _ -> createComponent Demux2 "" model dispatch) ]
+                [ menuItem "Mux2" (fun _ -> createCompStdLabel Mux2 model dispatch)
+                  menuItem "Demux2" (fun _ -> createCompStdLabel Demux2 model dispatch) ]
             makeMenuGroup
                 "Arithmetic"
                 [ menuItem "N bits adder" (fun _ -> createNbitsAdderPopup model dispatch) ]
             makeMenuGroup
                 "Flip Flops and Registers"
-                [ menuItem "D-flip-flop" (fun _ -> createComponent DFF "" model dispatch)
-                  menuItem "D-flip-flop with enable" (fun _ -> createComponent DFFE "" model dispatch)
+                [ menuItem "D-flip-flop" (fun _ -> createCompStdLabel DFF model dispatch)
+                  menuItem "D-flip-flop with enable" (fun _ -> createCompStdLabel DFFE model dispatch)
                   menuItem "Register" (fun _ -> createRegisterPopup Register model dispatch)
                   menuItem "Register with enable" (fun _ -> createRegisterPopup RegisterE model dispatch) ]
             makeMenuGroup

@@ -111,6 +111,15 @@ let menuLabelStyle = Style [
     TextTransform "uppercase"
 ]
 
+
+
+
+
+
+
+
+
+
 // Waveform simulator styles
 
 let clkLineWidth = 0.0125
@@ -120,9 +129,12 @@ let zoomFactor = 1.2
 let maxBusValGap = 3
 let busLabelTextSize = 0.6 // multiplied by signal height
 let sigLineThick = 0.025;
+let spacing = 0.4
+let sigHeight = 0.3 
+
 
 let vbWidth m =
-    m.posParams.clkWidth * float ((fun (a,b) -> b - a + uint 1) m.viewIndexes)
+    m.clkWidth * float ((fun (a,b) -> b - a + uint 1) m.viewIndexes)
 
 let waveCellWidth m = 
     vbWidth m |> (fun x -> Width ((string (x*40.0) ) + "px"))
@@ -139,24 +151,22 @@ let clkRulerStyle m : IProp list =
 
 let cursRectStyle m : IProp list = [
     Class "cursorRectStyle"
-    let p = m.posParams
-    X (p.clkWidth * float m.cursor + clkLineWidth / 2.0)
-    SVGAttr.Width (p.clkWidth - clkLineWidth)
-    SVGAttr.Height (p.spacing + p.sigHeight)
+    X (m.clkWidth * float m.cursor + clkLineWidth / 2.0)
+    SVGAttr.Width (m.clkWidth - clkLineWidth)
+    SVGAttr.Height (spacing + sigHeight)
 ]
 
 let cursRectText m i : IProp list = [
     Class "clkNumStyle"
-    X (m.posParams.clkWidth * (float i + 0.5)) 
+    X (m.clkWidth * (float i + 0.5)) 
     Y 0.5
 ]
 
-let inWaveLabel nLabels xInd i model : IProp list = [
+let inWaveLabel nLabels xInd i m : IProp list = [
     Class "busValueStyle"
-    let p = model.posParams
-    X (xInd * p.clkWidth)
-    Y (p.spacing + p.sigHeight - p.sigHeight * 0.3 + 0.3 * p.sigHeight * (float i - (float nLabels - 1.0) / 2.0))
-    SVGAttr.FontSize (busLabelTextSize * p.sigHeight / float nLabels) 
+    X (xInd * m.clkWidth)
+    Y (spacing + sigHeight * 0.7 + 0.3 * sigHeight * (float i - (float nLabels - 1.0) / 2.0))
+    SVGAttr.FontSize (busLabelTextSize * sigHeight / float nLabels) 
 ]
 
 let waveCellSvg m last : IProp list = 

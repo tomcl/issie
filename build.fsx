@@ -152,6 +152,7 @@ Target.create "KillCreated" <| fun _ ->
     Fake.Core.Process.killAllCreatedProcesses()
 
 Target.create "KillZombies" <| fun _ ->
+    Fake.Core.Process.killAllByName "issie.exe"
     Fake.Core.Process.killAllByName "node"
     Fake.Core.Process.killAllByName "dotnet"
 

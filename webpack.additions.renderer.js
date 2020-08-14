@@ -6,7 +6,7 @@ function resolve(filePath) {
 }
 
 module.exports = {
-    entry: [resolve("src/Renderer/Renderer.fsproj"), resolve("src/Renderer/scss/main.scss")],
+    entry: [resolve("src/Renderer/Renderer.fsproj"), resolve("src/Renderer/scss/main.scss"), resolve('static/index.html')],
     output: {
         filename: "renderer.js"
     },

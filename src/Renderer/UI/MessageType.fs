@@ -61,23 +61,12 @@ type SimTime = Sample array
 
 type Waveform = Sample array
 
-type PosParamsType = {
-    sigHeight: float
-    hPos: uint
-    clkWidth: float
-    labelWidth: uint
-    sigThick: float
-    boxWidth: uint
-    boxHeight: uint
-    spacing: float
-    clkThick: float 
-}
-
 type WaveSimModel = {
     waveData: SimTime array option
     waveNames: WaveName array
     selected: bool array
-    posParams: PosParamsType
+    ports: (ComponentId*OutputPortNumber) array
+    clkWidth: float
     cursor: uint32 
     radix: NumberBase
     viewIndexes: uint32*uint32

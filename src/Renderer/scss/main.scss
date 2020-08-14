@@ -25,7 +25,7 @@ $sigLineThick: 0.025;
 }
 
 .rowHeight {
-    height: 5%;
+    height: 30px;
 }
 
 .floatLeft{
@@ -61,8 +61,7 @@ $sigLineThick: 0.025;
 
 .clkRulerSvg {
     display: block;
-    height: 5%;
-    position: absolute;
+    height: 100%;
 }
 
 .lastWaveCellSvg {
@@ -72,8 +71,7 @@ $sigLineThick: 0.025;
 
 .waveCellSvg {
     display: block;
-    height: 5%;
-    position: absolute;
+    height: 100%;
 }
 
 //labels

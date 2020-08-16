@@ -374,7 +374,7 @@ Target.create "Dev" <| fun _ ->
 
 // Build artifacts
 Target.create "DistWin" <| fun _ ->
-    Yarn.exec "distWin" id
+    Yarn.exec "distwin" id
 
 // Gets latest docker image to build for linux
 Target.create "PullDockerImage" <| fun _ ->

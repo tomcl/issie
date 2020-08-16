@@ -406,12 +406,12 @@ let stdLabel (compType: ComponentType) (model:Model) =
         | Not | And | Or | Xor | Nand | Nor | Xnor -> "G"
         | Mux2 -> "MUX"
         | Demux2 -> "DM"
-        | NbitsAdder -> "A"
+        | NbitsAdder _ -> "A"
         | DFF | DFFE -> "FF"
-        | Register | RegisterE -> "REG"
-        | AsyncROM -> "AROM"
-        | ROM -> "ROM"
-        | RAM -> "RAM"
+        | Register _ | RegisterE _ -> "REG"
+        | AsyncROM _ -> "AROM"
+        | ROM _ -> "ROM"
+        | RAM _ -> "RAM"
         | Custom c -> c.Name
         | _ -> ""
 

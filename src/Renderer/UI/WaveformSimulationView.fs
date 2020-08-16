@@ -408,7 +408,7 @@ let changeTopInd newVal model =
 let selectAll s model = { model with selected = Array.map (fun _ -> s) model.selected } |> Ok |> StartWaveSim
 
 let allSelected model = Array.forall ((=) true) model.selected
-let anySelected model = Array.forall ((=) false) model.selected |> not
+let anySelected model = Array.exists ((=) true) model.selected
 
 let delSelected model =
     let filtSelected arr =

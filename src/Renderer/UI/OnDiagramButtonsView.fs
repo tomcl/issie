@@ -81,13 +81,16 @@ let pasteAction model =
 
 //simulate button functions
 let findDrivingOut simData targetCompId inPortN =
-    Array.fold (fun _ (compId, (simComp: SimulatorTypes.SimulationComponent)) -> 
-        Array.tryFind (fun (_, lst) ->
-            not (List.forall (fun (pointId,pointPortN) -> 
-                pointId = targetCompId && pointPortN = inPortN ) lst) ) (Map.toArray simComp.Outputs)
-        |> function 
-           | Some (outPN, _) -> [| compId,outPN |]
-           | None -> [||] ) [||] (Map.toArray simData.Graph) 
+    Array.fold (fun st (compId, (simComp: SimulatorTypes.SimulationComponent)) -> 
+        match st with
+        | [||] ->
+            Array.tryFind (fun (_, lst) ->
+                (List.exists (fun (pointId,pointPortN) -> 
+                    pointId = targetCompId && pointPortN = inPortN ) lst) ) (Map.toArray simComp.Outputs)
+            |> function 
+               | Some (outPN, _) -> [| compId,outPN |]
+               | None -> [||] 
+        | s -> s ) [||] (Map.toArray simData.Graph) 
 
 let simWireData2Wire wireData = 
     wireData
@@ -146,42 +149,115 @@ let extractWaveData simData model =
             | wD -> Wire { nBits = uint (List.length wD)
                            bitData = simWireData2Wire wD } )
 
-(*let rec findName simData compId outPortN = //fix underscores' logic
+let limBits (name: string) : (int*int) option =
+    match Seq.tryFind ((=)'[') name, Seq.tryFind ((=)':') name, Seq.tryFind ((=)']') name with
+    | Some, Some, Some ->
+       ( name.[Seq.findIndexBack ((=)'[') name + 1..Seq.findIndexBack ((=)':') name - 1 ], name.[Seq.findIndexBack ((=)':') name + 1..Seq.findIndexBack ((=)']') name - 1 ] )
+       |> (fun (a,b) -> int a, int b)
+       |> Some
+    | _ -> None
+
+let rec findName (simData: SimulatorTypes.SimulationData) compId outPortN = //fix underscores' logic
+    let compLbl = match simData.Graph.[compId].Label with
+                  | ComponentLabel lbl -> 
+                    match Seq.tryFindIndex ( (=) '(' ) lbl with
+                    | Some i -> lbl.[0..i - 1]
+                    | None -> lbl 
+    let outPortInt = match outPortN with
+                     | OutputPortNumber pn -> pn
     match simData.Graph.[compId].Type with
-    | Not | And | Or | Xor | Nand | Nor | Xnor | Input | Output | Mux2 -> ""
+    | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 -> 
+        [ compLbl, (0,0) ]
+    | Input w | Output w -> 
+        [ compLbl, (w-1,0) ]
     | Demux2 -> 
-        match outPortN with 
-        | OutputPortNumber n -> "_" + string n
-    | NbitsAdder -> 
-        match outPortN with 
-        | OutputPortNumber 0 -> "_sum"
-        | _ -> "_Cout"
-    | DFF | DFFE  -> "_Q"
-    | Register | RegisterE | RAM  -> "_data-out"
-    | AsyncROM | ROM -> "_data"
-    | Custom c -> "_" + c.Name
+        [ compLbl + "_" + string outPortInt, (0, 0) ]
+    | NbitsAdder w -> 
+        match outPortInt with 
+        | 0 -> [ compLbl + "_sum", (w-1, 0) ]
+        | _ -> [ compLbl + "Cout", (w-1, 0) ]
+    | DFF | DFFE -> 
+        [ compLbl + "_Q", (0, 0) ]
+    | Register w | RegisterE w -> 
+        [ compLbl + "_data-out", (w-1, 0) ]
+    | RAM mem | AsyncROM mem | ROM mem  -> 
+        [ compLbl + "_data-out", (mem.WordWidth-1, 0) ]
+    | Custom c -> 
+        [ c.Name + "_" + fst c.OutputLabels.[outPortInt], (snd c.OutputLabels.[outPortInt] - 1, 0) ]
     | IOLabel -> 
-        let givenName =
-            match simData.Graph.[compId].Label with
-            | ComponentLabel lbl -> lbl
-            |> ( fun lbl -> lbl + " (" )
-        let sourceName =
-            match findDrivingOut simData compId (InputPortNumber 0) with
-            | [| driveCompId, drivePortN |] -> findName simData driveCompId drivePortN
-            | _ -> ""
-        givenName + sourceName
+        match findDrivingOut simData compId (InputPortNumber 0) with
+        | [| driveCompId, drivePortN |] -> 
+            match findName simData driveCompId drivePortN with
+            | hd::tl -> ("("+fst hd, snd hd)::tl
+            | _ -> failwith "Error: IOLabel input names list is empty"
+            |> List.rev
+            |> function
+               | hd::tl -> (fst hd+")", snd hd)::tl
+               | _ -> failwith "Error: IOLabel input names list is empty"
+            |> List.rev //this way seems very inefficient
+        | _ -> ["", (0, 0)] //not sure what this should be 
     | MergeWires ->
-    | SplitWire -> 
-    | BusSelection -> *)
+        let mergeIn n =
+            match findDrivingOut simData compId (InputPortNumber n) with
+            | [| driveCompId, drivePortN |] -> findName simData driveCompId drivePortN
+            | _ -> failwith "MergeWires input not connected" //these failwith should be something else maybe
+        List.append (mergeIn 1) (mergeIn 0)
+    | SplitWire w -> 
+        match findDrivingOut simData compId (InputPortNumber 0) with
+        | [| driveCompId, drivePortN |] -> findName simData driveCompId drivePortN
+        | _ -> failwith "SplitWire input not connected"
+        |> match outPortInt with
+           | 0 -> 
+                List.mapFold (fun count (name, (msb, lsb)) -> 
+                    let nbits = msb - lsb + 1
+                    match count < w, nbits + count - 1 < w with
+                    | true, true -> (name, (msb, lsb)), count+nbits
+                    | true, false -> (name, (msb, msb+w+count+1)), count+nbits
+                    | false, _ -> ("", (-1, -1)), count+nbits ) 0
+           | 1 -> 
+                List.mapFold (fun count (name, (msb, lsb)) -> 
+                    let nbits = msb - lsb + 1
+                    match nbits + count - 1 >= w, count >= w with
+                    | true, true -> (name, (msb, lsb)), count+nbits
+                    | true, false -> (name, (msb+w+count, lsb)), count+nbits
+                    | false, _ -> ("", (-1, -1)), count+nbits ) 0
+           | _ -> failwith "Output port number of SplitWire can only be 0 or 1"
+        |> fst
+        |> List.filter ( fun (_,tup) -> tup <> (0, 0) )
+
+    | BusSelection (w, oLSB) -> 
+        let oMSB = oLSB + w - 1
+        match findDrivingOut simData compId (InputPortNumber 0) with
+        | [| driveCompId, drivePortN |] -> findName simData driveCompId drivePortN
+        | _ -> failwith "BusSelection input not connected"
+        |> List.rev
+        |> List.mapFold (fun st (name, (msb, lsb)) -> (name, [lsb..msb], [st..st+msb-lsb]),st+msb-lsb+1) 0
+        |> fst
+        |> List.map (fun (name, lst, lstCumul) -> 
+            List.zip lst lstCumul
+            |> List.filter (fun (x, cumul) -> oLSB <= cumul && cumul <= oMSB)
+            |> List.map fst
+            |> (fun lst -> name, lst) )
+        |> List.filter (fun (_, lst) -> lst <> [])
+        |> List.map (fun (name, lst) -> (name, (List.max lst, List.min lst)))
+        |> List.rev
+
+let bitNums (a,b) = 
+    match (a,b) with 
+    | (0, 0) -> ""
+    | (msb, lsb) when msb = lsb -> sprintf "[%d]" msb 
+    | (msb, lsb) -> sprintf "[%d:%d]" a b 
 
 let extractWaveNames simData model =
     selected2portLst simData model
     |> fst
     |> Array.map (fun (compId, portN) ->
-        match simData.Graph.[compId].Label, portN with
-        | SimulatorTypes.ComponentLabel lbl, OutputPortNumber n -> 
-            //lbl + (findName simData compId portN) 
-            lbl + "_" + string n )
+        match findName simData compId portN with
+        | [el] -> fst el + bitNums (snd el)
+        | lst when List.length lst > 0 -> 
+            List.fold (fun st (name, bitLims) -> st + name + bitNums bitLims + ", ") "{ " lst
+            |> (fun lbl -> lbl.[0..String.length lbl - 3] + " }" )  
+        | _ -> "Signal doesn't have a name source" )//Deal with this in better way
            
 
 let simSelected (model: Model) dispatch = 

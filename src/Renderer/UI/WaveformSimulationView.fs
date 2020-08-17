@@ -37,7 +37,7 @@ let initModel: WaveSimModel =
                  [| "state2" |] |]
 
           let makeTrialData (nBits1: uint32) (signal1: int []) (nBits2: uint32) signal2 signal3: SimTime [] =
-              let makeTimePointData (s1: int, s2: int, s3): SimTime =
+              let makeTimePointData (s1: int) (s2: int) s3 : SimTime =
                   [| Wire
                       { nBits = nBits1
                         bitData = bigint s1 }
@@ -45,9 +45,8 @@ let initModel: WaveSimModel =
                          { nBits = nBits2
                            bitData = bigint s2 }
                      StateSample s3 |]
-              Array.zip signal2 signal3
-              |> Array.zip signal1
-              |> Array.map ((fun (a, (b, c)) -> (a, b, c)) >> makeTimePointData)
+              (signal1, signal2, signal3)              
+              |||> Array.map3 makeTimePointData
 
           Some <| makeTrialData nbits1 s1 nbits2 s2 s3
 
@@ -143,7 +142,7 @@ let toggleSelect ind model =
 
 let makeLabels model = Array.map (fun l -> label [ Class "waveLbl" ] [ str l ]) model.waveNames
 
-let makeSegment (clkW: float) (xInd: int) ((data: Sample), (trans: int * int)) =
+let makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * int) =
     let top = spacing
     let bot = top + sigHeight - sigLineThick
     let left = float xInd * clkW
@@ -194,24 +193,20 @@ let makeSegment (clkW: float) (xInd: int) ((data: Sample), (trans: int * int)) =
 //Probably should put other option for negative number which prints an error
 
 let model2WaveList model: Waveform [] =
-    let folder state (simT: SimTime): Waveform [] =
-        Array.zip state simT 
-        |> Array.map (fun (arr, sample) -> Array.append arr [| sample |])
-    let initState = Array.map (fun _ -> [||]) model.waveNames
     match model.waveData with
-    | Some wD -> Array.fold folder initState wD
+    | Some wD -> Array.transpose wD
     | None -> [| [||] |]
 
 let transitions (model: WaveSimModel) = //relies on number of names being correct (= length of elements in waveData)
     let isDiff (ws1, ws2) =
-        let folder state (e1, e2) =
+        let folder state e1 e2 =
             match state, e1 = e2 with
             | 0, true -> 0
             | _ -> 1
         match ws1, ws2 with
         | Wire a, Wire b ->
             if a.bitData = b.bitData then 0 else 1
-        | StateSample a, StateSample b when Array.length a = Array.length b -> Array.zip a b |> Array.fold folder 0
+        | StateSample a, StateSample b when Array.length a = Array.length b ->  (a, b) ||> Array.fold2 folder 0
         | _ -> 1
 
     let trans (wave: Waveform) = Array.pairwise wave |> Array.map isDiff
@@ -231,7 +226,7 @@ let makeGaps trans =
            GapStart = Array.min times |})
 
 let busLabels model =
-    let gaps2pos (wave: Waveform, gaps) =
+    let gaps2pos (wave: Waveform) gaps =
         let nSpaces (g: {| GapLen: int; GapStart: int |}) = (g.GapLen / (maxBusValGap + 1) + 2)
         let gapAndInd2Pos (g: {| GapLen: int; GapStart: int |}) i =
             float g.GapStart + float i * float g.GapLen / float (nSpaces g)
@@ -239,8 +234,7 @@ let busLabels model =
         |> Array.map (fun (gap: {| GapLen: int; GapStart: int |}) ->
             wave.[gap.GapStart], Array.map (gapAndInd2Pos gap) [| 1 .. nSpaces gap - 1 |])
     (model2WaveList model, Array.map makeGaps (transitions model))
-    ||> Array.zip
-    |> Array.map gaps2pos
+    ||> Array.map2 gaps2pos
 
 let makeCursVals model =
     let cursValPrefix =
@@ -269,19 +263,17 @@ let backgroundSvg model =
 
 let clkRulerSvg (model: WaveSimModel) =
     match model.waveData with
-    | Some wD -> [| 0 .. (Array.length wD - 1) |]
+    | Some wD -> [| 0 .. Array.length wD - 1 |]
     | None -> (fun (a,b) -> [| int a .. int b |]) model.viewIndexes
     |> Array.map (fun i -> makeText (cursRectText model i) (string i))
-    |> Array.append [| makeRect (cursRectStyle model) |]
-    |> Array.append (backgroundSvg model)
+    |> (fun arr -> [ backgroundSvg model; [| makeRect (cursRectStyle model) |]; arr ])
+    |> Array.concat 
     |> makeSvg (clkRulerStyle model)
 
 let waveSimRows (model: WaveSimModel) dispatch =
 // waveforms
     let waveSvg =
         let addLabel nLabels xInd (i: int) = makeText (inWaveLabel nLabels xInd i model)
-
-        let mapiAndCollect func = Array.mapi func >> Array.collect id
 
         let valueLabels =
             let lblEl (sample, xIndArr) =
@@ -293,18 +285,15 @@ let waveSimRows (model: WaveSimModel) dispatch =
                 | _ -> [||]
             busLabels model |> Array.map (fun row -> Array.collect lblEl row)
 
-        let makeWaveSvg = makeSegment model.clkWidth |> mapiAndCollect
+        let makeWaveSvg a b = Array.mapi2 (makeSegment model.clkWidth) a b |> Array.concat
         let padTrans (t: (int * int) []) =
-            Array.append (Array.append [| 1, fst t.[0] |] t) [| snd t.[Array.length t - 1], 1 |]
-        (model2WaveList model, transitions model)
-        ||> Array.zip
-        |> Array.map (fun (wave, transRow) ->
-            Array.pairwise transRow
-            |> padTrans
-            |> Array.zip wave)
-        |> Array.map makeWaveSvg
-        |> Array.zip valueLabels
-        |> Array.map (fun (a, b) -> Array.append a b)
+            Array.concat [ [| 1, fst t.[0] |]
+                           t
+                           [| snd (Array.last t), 1 |] ]
+        transitions model
+        |> Array.map (fun transRow -> Array.pairwise transRow |> padTrans)
+        |> Array.map2 makeWaveSvg (model2WaveList model)
+        |> Array.map2 (fun a b -> Array.append a b) valueLabels
 
 // name and cursor labels of the waveforms
     let labels = makeLabels model
@@ -340,7 +329,7 @@ let waveSimRows (model: WaveSimModel) dispatch =
             (Array.map
                 (fun wave ->
                     waveTableRow [ Class "rowHeight" ] (waveCell model) (waveCellSvg model false)
-                        (Array.collect id [| cursRectSvg; bgSvg; wave |])) waveSvg)
+                        (Array.concat [| cursRectSvg; bgSvg; wave |])) waveSvg)
         |> Array.append [| tr [ Class "rowHeight" ] [ td (waveCell model) [ clkRulerSvg model ] ] |]
 
     waveCol, labelCols, cursValCol
@@ -428,7 +417,7 @@ let delSelected model =
     |> Ok |> StartWaveSim
 
 let moveWave model up =
-    let lastEl (arr: 'a []) = arr.[Array.length arr - 1]
+    let lastEl (arr: 'a []) = Array.last arr
 
     let move arr =
         let rev a =
@@ -439,7 +428,7 @@ let moveWave model up =
             | [||] -> [| bl |]
             | _ ->
                 if bl.sel then
-                    Array.collect id
+                    Array.concat
                         [| st.[0..Array.length st - 2]
                            [| bl |]
                            [| lastEl st |] |]
@@ -589,11 +578,11 @@ let nameLabelsCol model labelRows dispatch =
                [ td [ Class "checkboxCol" ] []
                  td [] [] ] |]
 
-    let leftCol = Array.collect id [| top; labelRows; bot |]
+    let leftCol = Array.concat [| top; labelRows; bot |]
     div [ Style [ Float FloatOptions.Left; Height "100%" ] ]
         [ table [ Class "waveSimTableStyle" ] [ tbody [] leftCol ] ]
 
-let wavesCol model rows dispatch =
+let wavesCol rows =
     div [ Style [ Height "100%"; OverflowX OverflowOptions.Scroll; BorderTop "2px solid rgb(219,219,219)" ] ] 
         [ table [ Style [ Height "100%" ] ]
                 [ tbody [ Style [ Height "100%" ] ] rows ] ]

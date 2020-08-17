@@ -69,7 +69,7 @@ let pasteAction model =
     let portMappings =
         (oldComponents, newComponents)
         ||> List.map2 mapPorts
-        |> List.collect id
+        |> List.concat
         |> Map.ofList
     // Iterate over the old connections replacing the ports to refer to the new
     // components, and add the newly created connections to the diagram.
@@ -235,7 +235,7 @@ let rec findName (simData: SimulatorTypes.SimulationData) compId outPortN = //fi
         |> fst
         |> List.map (fun (name, lst, lstCumul) -> 
             List.zip lst lstCumul
-            |> List.filter (fun (x, cumul) -> oLSB <= cumul && cumul <= oMSB)
+            |> List.filter (fun (_, cumul) -> oLSB <= cumul && cumul <= oMSB)
             |> List.map fst
             |> (fun lst -> name, lst) )
         |> List.filter (fun (_, lst) -> lst <> [])
@@ -246,7 +246,7 @@ let bitNums (a,b) =
     match (a,b) with 
     | (0, 0) -> ""
     | (msb, lsb) when msb = lsb -> sprintf "[%d]" msb 
-    | (msb, lsb) -> sprintf "[%d:%d]" a b 
+    | (msb, lsb) -> sprintf "[%d:%d]" msb lsb
 
 let extractWaveNames simData model =
     selected2portLst simData model

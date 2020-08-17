@@ -110,12 +110,12 @@ let getSelectedComps model =
 let selected2portLst (simData : SimulatorTypes.SimulationData) (model: Model) =
     let graph = Map.toList simData.Graph
 
-    let processInputs targetCompId inputs = 
+    let processInputs inputs = 
         inputs
         |> Map.toArray
         |> Array.map fst
         |> Array.collect (fun portN -> 
-            Array.fold (fun _ (compId, (simComp: SimulatorTypes.SimulationComponent)) -> 
+            Array.fold (fun _ (compId, _) -> 
                 findDrivingOut simData compId portN ) [||] (List.toArray graph) )
 
     let processOutputs compId outputs =
@@ -127,7 +127,7 @@ let selected2portLst (simData : SimulatorTypes.SimulationData) (model: Model) =
         List.toArray graph
         |> Array.filter (fun (compId, _) -> List.contains compId (getSelectedComps model))
         |> Array.collect (fun (compId, simComp) -> 
-            Array.append (processInputs compId simComp.Inputs) (processOutputs compId simComp.Outputs))
+            Array.append (processInputs simComp.Inputs) (processOutputs compId simComp.Outputs))
         |> Array.distinct
         |> Array.map (fun el -> el, true)
         
@@ -291,7 +291,7 @@ let simSelected (model: Model) dispatch =
                 let ports', selected' = selected2portLst simData model
                     
                 Ok { model.WaveSim with waveNames = waveNames'
-                                        waveData = Some waveData'//this should already contain the some
+                                        waveData = waveData'//this should already contain the some
                                         selected = selected'
                                         ports = ports'}
             | Error simError ->

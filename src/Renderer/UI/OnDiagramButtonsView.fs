@@ -200,39 +200,36 @@ let rec findName (simData: SimulatorTypes.SimulationData) compId outPortN =
     | MergeWires ->
         List.append (driveName 1 "MergeWires") (driveName 0 "MergeWires")
     | SplitWire w -> 
-        driveName 0 "SplitWire"
-        |> match outPortInt with
-           | 0 -> 
-                List.mapFold (fun count (name, (msb, lsb)) -> 
-                    let nbits = msb - lsb + 1
-                    match count < w, nbits + count - 1 < w with
-                    | true, true -> Some (name, (msb, lsb)), count+nbits
-                    | true, false -> Some (name, (msb, msb+w+count+1)), count+nbits
-                    | false, _ -> None, count+nbits ) 0
-           | 1 -> 
-                List.mapFold (fun count (name, (msb, lsb)) -> 
-                    let nbits = msb - lsb + 1
-                    match nbits + count - 1 >= w, count >= w with
-                    | true, true -> Some (name, (msb, lsb)), count+nbits
-                    | true, false -> Some (name, (msb+w+count, lsb)), count+nbits
-                    | false, _ -> None, count+nbits ) 0
-           | _ -> failwith "Output port number of SplitWire can only be 0 or 1"
+        let predicate (_, b) =
+            match outPortInt with
+            | 0 -> b >= w
+            | 1 -> b < w
+            | _ -> failwith "SplitWire output port number greater than 1"
+        let split name msb lsb st =
+            List.zip [lsb .. msb] [st + msb - lsb .. -1 .. st]
+            |> List.filter predicate
+            |> List.unzip
+            |> function
+               | [],_ -> None
+               | lst, _ -> Some (name, (List.max lst, List.min lst))
+        (0, driveName 0 "SplitWire")
+        ||> List.mapFold (fun st (name, (msb, lsb)) -> 
+            split name msb lsb st, st + msb - lsb + 1 )
         |> fst
         |> List.choose id
-
     | BusSelection (w, oLSB) -> 
-        let oMSB = oLSB + w - 1
-        driveName 0 "BusSelection"
-        |> List.rev //change using mapFoldBack
-        |> List.mapFold (fun st (name, (msb, lsb)) -> (name, [lsb..msb], [st..st+msb-lsb]),st+msb-lsb+1) 0
+        let filtSelec name msb lsb st =
+            List.zip [lsb .. msb] [st .. st + msb - lsb]
+            |> List.filter (fun (_, b) ->  oLSB <= b && b <= oLSB + w - 1)
+            |> List.unzip
+            |> function
+               | [],_ -> None
+               | lst, _ -> Some (name, (List.max lst, List.min lst))
+        (driveName 0 "BusSelection", 0)
+        ||> List.mapFoldBack (fun (name, (msb, lsb)) st -> 
+                filtSelec name msb lsb st, st + msb - lsb + 1 )
         |> fst
-        |> List.map (fun (name, lst, lstCumul) -> 
-            List.zip lst lstCumul
-            |> List.filter (fun (_, cumul) -> oLSB <= cumul && cumul <= oMSB)
-            |> List.map fst
-            |> (fun l -> name, l) )
-        |> List.filter (fun (_, lst) -> lst <> [])
-        |> List.map (fun (name, lst) -> (name, (List.max lst, List.min lst)))
+        |> List.choose id
         |> List.rev
 
 let bitNums (a,b) = 

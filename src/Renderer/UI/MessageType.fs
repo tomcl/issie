@@ -62,7 +62,7 @@ type SimTime = Sample array
 type Waveform = Sample array
 
 type WaveSimModel = {
-    waveData: SimTime array option
+    waveData: SimTime array
     waveNames: WaveName array
     selected: bool array
     ports: (ComponentId*OutputPortNumber) array

@@ -78,7 +78,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
     "Two inputs and one output",
     ("", state5, [], []),
     makeError
-        "A wire must have precisely one driving component, but 2 were found. If you want to merge wires together use a MergeWires component."
+        "A wire must have precisely one driving component, but 2 were found. If you want to merge wires together, use a MergeWires component."
         None
         ["output-node0"]
         []
@@ -86,7 +86,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
     "Two inputs, one And, one output, with extra connection input to output",
     ("", state7, [], []),
     makeError
-        "A wire must have precisely one driving component, but 2 were found. If you want to merge wires together use a MergeWires component."
+        "A wire must have precisely one driving component, but 2 were found. If you want to merge wires together, use a MergeWires component."
         None
         ["output"]
         []
@@ -94,7 +94,7 @@ let private testCasesSimulatorPortError : SimulatorTestCase list = [
     "Two inputs, one And, one output, with extra connections inputs to and",
     ("", state8, [], []),
     makeError
-        "A wire must have precisely one driving component, but 2 were found. If you want to merge wires together use a MergeWires component."
+        "A wire must have precisely one driving component, but 2 were found. If you want to merge wires together, use a MergeWires component."
         None
         ["and"]
         []

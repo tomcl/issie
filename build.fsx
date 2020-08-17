@@ -152,6 +152,7 @@ Target.create "KillCreated" <| fun _ ->
     Fake.Core.Process.killAllCreatedProcesses()
 
 Target.create "KillZombies" <| fun _ ->
+    Fake.Core.Process.killAllByName "issie.exe"
     Fake.Core.Process.killAllByName "node"
     Fake.Core.Process.killAllByName "dotnet"
 
@@ -373,7 +374,7 @@ Target.create "Dev" <| fun _ ->
 
 // Build artifacts
 Target.create "DistWin" <| fun _ ->
-    Yarn.exec "distWin" id
+    Yarn.exec "distwin" id
 
 // Gets latest docker image to build for linux
 Target.create "PullDockerImage" <| fun _ ->

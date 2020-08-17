@@ -61,6 +61,17 @@ type SimTime = Sample array
 
 type Waveform = Sample array
 
+type PosParamsType =
+    { sigHeight : float
+      hPos : uint32
+      clkWidth : float
+      labelWidth : uint32
+      sigThick : float
+      boxWidth : uint32
+      boxHeight : uint32
+      spacing : float
+      clkThick : float }
+
 type WaveSimModel = {
     waveData: SimTime array option
     waveNames: WaveName array
@@ -70,6 +81,7 @@ type WaveSimModel = {
     cursor: uint32 
     radix: NumberBase
     viewIndexes: uint32*uint32
+    posParams: PosParamsType
 }
 
 type DragMode = DragModeOn of int | DragModeOff

@@ -47,8 +47,9 @@ let initModel: WaveSimModel =
                          { nBits = nBits2
                            bitData = bigint s2 }
                      StateSample s3 |]
-              (signal1, signal2, signal3)
-              |||> Array.map3 (fun a b c -> makeTimePointData (a, b, c))
+              Array.zip signal2 signal3
+              |> Array.zip signal1
+              |> Array.map ((fun (a, (b, c)) -> (a, b, c)) >> makeTimePointData)
 
           Some <| makeTrialData nbits1 s1 nbits2 s2 s3
 
@@ -59,6 +60,18 @@ let initModel: WaveSimModel =
       ports = [||]
 
       clkWidth = 1.
+
+
+      posParams =
+          { sigHeight = 0.4
+            hPos = uint 0
+            clkWidth = 1.0
+            labelWidth = uint 2
+            sigThick = 0.02
+            boxWidth = uint 8
+            boxHeight = uint 15
+            spacing = 0.3
+            clkThick = 0.025 }
 
       cursor = uint32 0
 
@@ -152,11 +165,11 @@ let select s ind model =
 
 let makeLabels model = Array.map (fun l -> label [ Class "waveLbl" ] [ str l ]) model.waveNames
 
-let makeSegment model (xInd: int) ((data: Sample), (trans: int * int)) =
-    let top = DiagramStyle.spacing
-    let bot = top + DiagramStyle.sigHeight - DiagramStyle.sigThick
-    let left = float xInd * model.clkWidth
-    let right = left + float model.clkWidth
+let makeSegment (p: PosParamsType) (xInd: int) ((data: Sample), (trans: int * int)) =
+    let top = p.spacing
+    let bot = top + p.sigHeight - sigLineThick
+    let left = float xInd * p.clkWidth
+    let right = left + float p.clkWidth
 
     let makeSigLine = makeLinePoints [ Class "sigLineStyle" ]
 
@@ -169,7 +182,7 @@ let makeSegment model (xInd: int) ((data: Sample), (trans: int * int)) =
         // TODO: define DU so that you can't have values other than 0 or 1
         let sigLine = makeSigLine (left, y) (right, y)
         match snd trans with
-        | 1 -> [| makeSigLine (right, bot + DiagramStyle.sigThick / 2.0) (right, top - DiagramStyle.sigThick / 2.0) |]
+        | 1 -> [| makeSigLine (right, bot + p.sigThick / 2.0) (right, top - p.sigThick / 2.0) |]
         | 0 -> [||]
         | _ ->
             "What? Transition has value other than 0 or 1" |> ignore
@@ -268,11 +281,12 @@ let makeCursVals model =
 
 //container box and clock lines
 let backgroundSvg model =
+    let p = model.posParams
     let clkLine x =
-        makeLinePoints [ Class "clkLineStyle" ] (x, vPos) (x, vPos + float DiagramStyle.sigHeight + float DiagramStyle.spacing)
+        makeLinePoints [ Class "clkLineStyle" ] (x, vPos) (x, vPos + float p.sigHeight + float p.spacing)
     match model.waveData with
-    | Some wD -> [| 1 .. Array.length wD |] 
-              |> Array.map ((fun x -> float x * model.clkWidth) >> clkLine)
+    | Some wD -> [| 1 .. 1 .. Array.length wD |] 
+              |> Array.map ((fun x -> float x * p.clkWidth) >> clkLine)
     | None -> [||]
 
 let clkRulerSvg (model: WaveSimModel) =
@@ -285,6 +299,8 @@ let clkRulerSvg (model: WaveSimModel) =
     |> makeSvg (clkRulerStyle model)
 
 let displaySvg (model: WaveSimModel) dispatch =
+    let p = model.posParams
+
     // waveforms
     let waveSvg =
         let addLabel nLabels xInd (i: int) = makeText (inWaveLabel nLabels xInd i model)
@@ -299,11 +315,11 @@ let displaySvg (model: WaveSimModel) dispatch =
                 | StateSample ss ->
                     Array.collect (fun xInd -> Array.mapi (addLabel (Array.length ss) xInd) ss) xIndArr
                 | _ -> [||]
-            Array.map (Array.collect lblEl) (busLabels model)
+            busLabels model |> Array.map (fun row -> Array.collect lblEl row)
 
-        let makeWaveSvg = makeSegment model |> mapiAndCollect
+        let makeWaveSvg = makeSegment p |> mapiAndCollect
         let padTrans (t: (int * int) []) =
-            Array.append (Array.append [| 1, fst t.[0] |] t) [| snd (Array.last t), 1 |]
+            Array.append (Array.append [| 1, fst t.[0] |] t) [| snd t.[Array.length t - 1], 1 |]
         (model2WaveList model, transitions model)
         ||> Array.zip
         |> Array.map (fun (wave, transRow) ->
@@ -353,7 +369,7 @@ let displaySvg (model: WaveSimModel) dispatch =
 let zoom plus (m: WaveSimModel) =
     let multBy =
         if plus then zoomFactor else 1.0 / zoomFactor
-    { m with clkWidth = m.clkWidth * multBy } |> Ok |> StartWaveSim
+    { m with posParams = { m.posParams with clkWidth = m.posParams.clkWidth * multBy } } |> Ok |> StartWaveSim
 
 let button style func label =
     Button.button (List.append [ Button.Props [ style ] ] [ Button.OnClick func ]) [ str label ]
@@ -431,7 +447,7 @@ let delSelected model =
     |> Ok |> StartWaveSim
 
 let moveWave model up =
-    let lastEl (arr: 'a []) = Array.last arr
+    let lastEl (arr: 'a []) = arr.[Array.length arr - 1]
 
     let move arr =
         let rev a =
@@ -494,6 +510,7 @@ let moveWave model up =
 
 let viewWaveSim (fullModel: DiagramModelType.Model) dispatch =
     let model = fullModel.WaveSim
+    let p = model.posParams
 
     [ div [ Style [ Height "7%" ] ]
           [ button (Class "reloadButtonStyle") (fun _ -> ()) "Reload" 

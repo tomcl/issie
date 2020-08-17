@@ -79,6 +79,10 @@ let fileMenu (dispatch:Dispatch<DiagramMessageType.Msg>) =
         makeItem "New" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
         makeItem "Save" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
         makeItem "Print" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
+        makeCondItem (JSHelpers.debugLevel <> 0) "Reload page" None (fun _ -> 
+            let webContents = electron.remote.getCurrentWebContents()
+            webContents.reload())
+
 
     ]
 
@@ -124,8 +128,8 @@ let attachMenusAndKeyShortcuts dispatch =
     let sub dispatch =
         let menu =
             [|
-                editMenu dispatch
                 fileMenu dispatch
+                editMenu dispatch
                 viewMenu dispatch
             |]
             |> Array.map U2.Case1

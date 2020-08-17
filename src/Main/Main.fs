@@ -136,6 +136,7 @@ electron.app.onWindowAllClosed <| fun _ ->
     // to stay active until the user quits explicitly with Cmd + Q
     if Api.``process``.platform <> Base.Darwin then
         electron.app.quit()
+
 |> ignore
 
 electron.app.onActivate <| fun _ _ ->

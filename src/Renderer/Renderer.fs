@@ -153,6 +153,8 @@ let view model dispatch = DiagramMainView.displayView model dispatch
 
 let update msg model = DiagramMainView.update msg model
 
+printfn "Starting renderer..."
+
 Program.mkSimple init update view
 |> Program.withReactBatched "app"
 |> Program.withSubscription attachMenusAndKeyShortcuts

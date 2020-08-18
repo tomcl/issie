@@ -65,7 +65,7 @@ type WaveSimModel = {
     waveData: SimTime array
     waveNames: WaveName array
     selected: bool array
-    ports: (ComponentId*OutputPortNumber) array
+    ports: ((ComponentId*OutputPortNumber)*(ComponentId option)) array
     clkWidth: float
     cursor: uint32 
     radix: NumberBase

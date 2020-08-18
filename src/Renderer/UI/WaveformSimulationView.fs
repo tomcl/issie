@@ -52,9 +52,9 @@ let initModel: WaveSimModel =
 
       waveNames = [| "try single Bit"; "try bus"; "try states" |]
       selected = [| false; false; false |]
-      ports = [| SimulatorTypes.ComponentId "qwertyuiop",   SimulatorTypes.OutputPortNumber 1
-                 SimulatorTypes.ComponentId "qwertyuiopa",  SimulatorTypes.OutputPortNumber 1
-                 SimulatorTypes.ComponentId "qwertyuiopas", SimulatorTypes.OutputPortNumber 1 |] 
+      ports = [| (SimulatorTypes.ComponentId "qwertyuiop",   SimulatorTypes.OutputPortNumber 1), None
+                 (SimulatorTypes.ComponentId "qwertyuiopa",  SimulatorTypes.OutputPortNumber 1), None
+                 (SimulatorTypes.ComponentId "qwertyuiopas", SimulatorTypes.OutputPortNumber 1), None |] 
       clkWidth = 1.0
       cursor = uint32 0
       radix = Bin

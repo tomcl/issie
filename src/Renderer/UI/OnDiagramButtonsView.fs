@@ -112,17 +112,17 @@ let selected2portLst (simData : SimulatorTypes.SimulationData) (model: Model) =
         inputs
         |> Map.toArray
         |> Array.collect (fun (portN, _) -> 
-            match simData.Graph.[compId].Type with
-            | Input _ -> [||]
-            | _ ->
-                match driveOut simData compId portN with
-                | Some tup -> [| tup |]
-                | None -> failwith "Input is not connected" )
+            match simData.Graph.[compId].Type, driveOut simData compId portN  with
+            | Input _, _ -> [||]
+            | Output _, Some tup ->  [| tup, Some compId |]
+            | _, Some tup -> [| tup, None  |]
+            | _, None -> failwith "Input is not connected" )
+            
 
     let processOutputs compId outputs =
         outputs 
         |> Map.toArray
-        |> Array.map (fun (portNum, _) -> compId, portNum)   
+        |> Array.map (fun (portNum, _) -> (compId, portNum), None)   
         
     //let lst' =
     simData.Graph
@@ -148,7 +148,7 @@ let limBits (name: string) : (int*int) option =
        |> Some
     | _ -> None
 
-let rec findName (simData: SimulatorTypes.SimulationData) compId outPortN = 
+let rec findName (simData: SimulatorTypes.SimulationData) compId outPortN outputOpt = 
     let compLbl =
         match Map.tryFind compId simData.Graph with
         | Some simComp ->
@@ -164,7 +164,7 @@ let rec findName (simData: SimulatorTypes.SimulationData) compId outPortN =
 
     let driveName n compTypeStr =
         match driveOut simData compId (InputPortNumber n) with
-        | Some (driveCompId, drivePortN) -> findName simData driveCompId drivePortN
+        | Some (driveCompId, drivePortN) -> findName simData driveCompId drivePortN None
         | None -> failwith (compTypeStr + "input not connected")
 
     match simData.Graph.[compId].Type with
@@ -189,7 +189,7 @@ let rec findName (simData: SimulatorTypes.SimulationData) compId outPortN =
     | IOLabel -> 
         match driveOut simData compId (InputPortNumber 0) with
         | Some (driveCompId, drivePortN) -> 
-            match findName simData driveCompId drivePortN with
+            match findName simData driveCompId drivePortN None with
             | hd::tl -> 
                 ("("+fst hd, snd hd)::tl
                 |> function
@@ -231,6 +231,16 @@ let rec findName (simData: SimulatorTypes.SimulationData) compId outPortN =
         |> fst
         |> List.choose id
         |> List.rev
+    
+    |> function
+        | hd::tl -> 
+            match outputOpt with
+            | Some compId -> 
+                 match simData.Graph.[compId].Label with
+                 | ComponentLabel lbl -> (lbl + ": " + fst hd, snd hd)::tl
+            | None -> hd::tl
+        | [] -> failwith "empty (name, (msb*lsb)) list reached the end of findName"
+        
 
 let bitNums (a,b) = 
     match (a,b) with 
@@ -241,8 +251,8 @@ let bitNums (a,b) =
 let extractWaveNames simData model =
     selected2portLst simData model
     //|> fst
-    |> Array.map (fun (compId, portN) ->
-        match findName simData compId portN with
+    |> Array.map (fun ((compId, portN), opt) ->
+        match findName simData compId portN opt with
         | [el] -> fst el + bitNums (snd el)
         | lst when List.length lst > 0 -> 
             List.fold (fun st (name, bitLims) -> st + name + bitNums bitLims + ", ") "{ " lst
@@ -252,7 +262,7 @@ let extractWaveNames simData model =
 let extractSimTime simData model =
     selected2portLst simData model
     //|> fst
-    |> Array.map (fun (compId, portN) ->
+    |> Array.map (fun ((compId, portN), _) ->
         match simData.Graph.[compId].Outputs.[portN] with 
         | [] -> StateSample [| "output not connected" |]
         | lst -> 

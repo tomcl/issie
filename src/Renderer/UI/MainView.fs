@@ -238,10 +238,7 @@ let displayView model dispatch =
                     [ a [ OnClick (fun _ -> ChangeRightTab Simulation |> dispatch ) ] [ str "Simulation" ] ]
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
-                    [ a [ OnClick (fun _ -> 
-                                        ChangeRightTab WaveSim |> dispatch
-                                        Ok WaveformSimulationView.initModel |> StartWaveSim |> dispatch) ]
-                        [ str "WaveSim" ] ]
+                    [ a [ OnClick (fun _ -> ChangeRightTab WaveSim |> dispatch) ] [ str "WaveSim" ] ]
             ]
             viewRightTab model dispatch
             ]

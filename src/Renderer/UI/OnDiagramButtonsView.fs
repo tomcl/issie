@@ -107,7 +107,7 @@ let getSelectedComps model =
         fst jsState 
         |> List.map (extractComponent >> (fun c -> c.Id) >> SimulatorTypes.ComponentId)
 
-let selected2portLst (simData : SimulatorTypes.SimulationData) (model: Model) =
+let selected2portLst (model: Model) (simData : SimulatorTypes.SimulationData) =
     let processInputs compId inputs = 
         inputs
         |> Map.toArray
@@ -249,7 +249,7 @@ let bitNums (a,b) =
     | (msb, lsb) -> sprintf "[%d:%d]" msb lsb
 
 let extractWaveNames simData model =
-    selected2portLst simData model
+    selected2portLst model simData
     //|> fst
     |> Array.map (fun ((compId, portN), opt) ->
         match findName simData compId portN opt with
@@ -260,7 +260,7 @@ let extractWaveNames simData model =
         | _ -> "Signal doesn't have a name source" )//Deal with this in better way
 
 let extractSimTime simData model =
-    selected2portLst simData model
+    selected2portLst model simData 
     //|> fst
     |> Array.map (fun ((compId, portN), _) ->
         match simData.Graph.[compId].Outputs.[portN] with 
@@ -286,7 +286,7 @@ let extractWaveData simData model : SimTime [] =
     |> fst
            
 
-let simSelected (model: Model) dispatch = 
+let simLst (model: Model) dispatch portsFunc = 
     match model.Diagram.GetCanvasState (), model.CurrProject with
     | None, _ -> ()
     | _, None -> failwith "what? Cannot start a simulation without a project"
@@ -298,7 +298,7 @@ let simSelected (model: Model) dispatch =
         ||> prepareSimulation project.OpenFileName
         |> function
             | Ok simData -> 
-                let ports' = selected2portLst simData model
+                let ports' = portsFunc model simData
                 Ok { model.WaveSim with waveNames = extractWaveNames simData model
                                         waveData = extractWaveData simData model
                                         selected = Array.map (fun _ -> true) ports' 
@@ -323,5 +323,5 @@ let viewOnDiagramButtons model dispatch =
         canvasBut (fun _ -> model.Diagram.Redo ()) "redo >"
         canvasBut (fun _ -> copyAction model dispatch) "copy"
         canvasBut (fun _ -> pasteAction model) "paste"
-        canvasBut (fun _ -> simSelected model dispatch) "simulate"
+        canvasBut (fun _ -> simLst model dispatch selected2portLst) "simulate"
     ]

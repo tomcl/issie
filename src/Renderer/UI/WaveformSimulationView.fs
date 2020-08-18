@@ -464,6 +464,7 @@ let reloadablePorts (model: DiagramModelType.Model) (simData: SimulatorTypes.Sim
 
 let reloadWaves (model: DiagramModelType.Model) dispatch =
     OnDiagramButtonsView.simLst model dispatch reloadablePorts
+    |> StartWaveSim
 
 
 //[<Emit("__static")>]
@@ -532,10 +533,11 @@ let cursorButtons model dispatch =
 
 let viewWaveSimButtonsBar model dispatch = 
     div [ Style [ Height "7%" ] ]
-        [ button (Class "reloadButtonStyle") (fun _ -> ()) "Reload" 
-          radixTabs model dispatch
-          simLimits model dispatch
-          cursorButtons model dispatch ]
+        [ button (Class "reloadButtonStyle") (fun _ -> 
+              reloadWaves model dispatch |> dispatch) "Reload" 
+          radixTabs model.WaveSim dispatch
+          simLimits model.WaveSim dispatch
+          cursorButtons model.WaveSim dispatch ]
 
 let cursValsCol rows = 
     let rightCol = Array.append [| tr [ Class "rowHeight" ]
@@ -597,6 +599,6 @@ let viewZoomDiv model dispatch =
           button (Class "zoomButtonStyle") (fun _ -> zoom true model |> dispatch) "+" ] 
 
 let viewWaveSim (model: DiagramModelType.Model) dispatch =
-    [ viewWaveSimButtonsBar model.WaveSim dispatch
+    [ viewWaveSimButtonsBar model dispatch
       viewWaveformViewer model.WaveSim dispatch
       viewZoomDiv model.WaveSim dispatch ]

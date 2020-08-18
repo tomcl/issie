@@ -309,9 +309,9 @@ let extractWaveData simData model portFunc : SimTime [] =
     |> fst
            
 
-let simLst (model: Model) dispatch portsFunc = 
+let simLst (model: Model) dispatch portsFunc : Result<WaveSimModel, SimulationError> = 
     match model.Diagram.GetCanvasState (), model.CurrProject with
-    | None, _ -> ()
+    | None, _ -> Ok model.WaveSim
     | _, None -> failwith "what? Cannot start a simulation without a project"
     | Some jsState, Some project ->
         let otherComponents =
@@ -334,8 +334,6 @@ let simLst (model: Model) dispatch portsFunc =
                     (simError.ComponentsAffected, simError.ConnectionsAffected)
                     |> SetHighlighted |> dispatch
                 Error simError
-        |> StartWaveSim
-        |> dispatch
 
 let viewOnDiagramButtons model dispatch =
     div [ canvasSmallMenuStyle ] [
@@ -346,6 +344,7 @@ let viewOnDiagramButtons model dispatch =
         canvasBut (fun _ -> model.Diagram.Redo ()) "redo >"
         canvasBut (fun _ -> copyAction model dispatch) "copy"
         canvasBut (fun _ -> pasteAction model) "paste"
-        canvasBut (fun _ -> simLst model dispatch selected2portLst
-                            ChangeRightTab WaveSim |> dispatch) "simulate"
+        canvasBut (fun _ -> 
+            simLst model dispatch selected2portLst |> StartWaveSim |> dispatch
+            ChangeRightTab WaveSim |> dispatch) "simulate"
     ]

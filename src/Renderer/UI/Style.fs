@@ -134,7 +134,7 @@ let sigHeight = 0.3
 
 
 let vbWidth m =
-    m.clkWidth * float ((fun (a,b) -> b - a + uint 1) m.viewIndexes)
+    m.ClkWidth * float ((fun (a,b) -> b - a + uint 1) m.ViewIndexes)
 
 let waveCellWidth m = 
     vbWidth m |> (fun x -> Width ((string (x*40.0) ) + "px"))
@@ -151,20 +151,20 @@ let clkRulerStyle m : IProp list =
 
 let cursRectStyle m : IProp list = [
     Class "cursorRectStyle"
-    X (m.clkWidth * float m.cursor + clkLineWidth / 2.0)
-    SVGAttr.Width (m.clkWidth - clkLineWidth)
+    X (m.ClkWidth * float m.Cursor + clkLineWidth / 2.0)
+    SVGAttr.Width (m.ClkWidth - clkLineWidth)
     SVGAttr.Height (spacing + sigHeight)
 ]
 
 let cursRectText m i : IProp list = [
     Class "clkNumStyle"
-    X (m.clkWidth * (float i + 0.5)) 
+    X (m.ClkWidth * (float i + 0.5)) 
     Y 0.5
 ]
 
 let inWaveLabel nLabels xInd i m : IProp list = [
     Class "busValueStyle"
-    X (xInd * m.clkWidth)
+    X (xInd * m.ClkWidth)
     Y (spacing + sigHeight * 0.7 + 0.3 * sigHeight * (float i - (float nLabels - 1.0) / 2.0))
     SVGAttr.FontSize (busLabelTextSize * sigHeight / float nLabels) 
 ]

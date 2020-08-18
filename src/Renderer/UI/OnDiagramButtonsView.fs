@@ -282,8 +282,8 @@ let extractSimTime model portFunc (simGraph: SimulatorTypes.SimulationGraph) =
         match simGraph.[compId].Outputs.[portN] with 
         | _::_ as lst -> 
             match simGraph.[fst lst.[0]].Inputs.[snd lst.[0]] with
-            | wD -> Wire { nBits = uint (List.length wD)
-                           bitData = simWireData2Wire wD } 
+            | wD -> Wire { NBits = uint (List.length wD)
+                           BitData = simWireData2Wire wD } 
         | [] -> failwith "Output not connected" )
 
 let clkAdvance (sD : SimulatorTypes.SimulationData) = 
@@ -292,7 +292,7 @@ let clkAdvance (sD : SimulatorTypes.SimulationData) =
                                ClockTickNumber = sD.ClockTickNumber + 1 })
 
 let extractSimGraphs simData model = 
-    (simData, [| uint 0 .. snd model.WaveSim.viewIndexes |])
+    (simData, [| uint 0 .. snd model.WaveSim.ViewIndexes |])
     ||> Array.scan (fun s _ -> clkAdvance s) 
     |> Array.map (fun sD -> sD.Graph)
 
@@ -313,10 +313,10 @@ let simLst model dispatch portsFunc =
         |> function
             | Ok simData -> 
                 let ports' = portsFunc model simData.Graph
-                Ok { model.WaveSim with waveNames = extractWaveNames simData.Graph model portsFunc
-                                        waveData = extractWaveData simData model portsFunc
-                                        selected = Array.map (fun _ -> true) ports' 
-                                        ports = ports'}
+                Ok { model.WaveSim with WaveNames = extractWaveNames simData.Graph model portsFunc
+                                        WaveData = extractWaveData simData model portsFunc
+                                        Selected = Array.map (fun _ -> true) ports' 
+                                        Ports = ports'}
             | Error simError ->
                 if simError.InDependency.IsNone then
                     // Highligh the affected components and connection only if

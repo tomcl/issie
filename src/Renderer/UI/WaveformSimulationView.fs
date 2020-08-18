@@ -17,7 +17,8 @@ open DiagramStyle
 open CommonTypes
 
 let initModel: WaveSimModel =
-    { waveData =
+    { simGraphs = [||]
+      waveData =
           //modify these two signals to change trial data
           let nbits1 = uint32 1
           let nbits2 = uint32 4
@@ -454,18 +455,17 @@ let moveWave model up =
 
 // simulation functions 
 
-let reloadablePorts (model: DiagramModelType.Model) (simData: SimulatorTypes.SimulationData) = 
+let reloadablePorts (model: DiagramModelType.Model) (simGraph: SimulatorTypes.SimulationGraph) = 
     Array.filter (fun ((compId, _), _) -> 
-        Map.exists (fun key _ -> key = compId) simData.Graph) model.WaveSim.ports
+        Map.exists (fun key _ -> key = compId) simGraph) model.WaveSim.ports
     |> Array.map (fun (a, outOpt) -> 
         match outOpt with
-        | Some cId when Map.exists (fun key _ -> key = cId) simData.Graph -> a, Some cId
+        | Some cId when Map.exists (fun key _ -> key = cId) simGraph -> a, Some cId
         | _ -> a, None )
 
 let reloadWaves (model: DiagramModelType.Model) dispatch =
     OnDiagramButtonsView.simLst model dispatch reloadablePorts
     |> StartWaveSim
-
 
 //[<Emit("__static")>]
 //let staticDir() : string = jsNative

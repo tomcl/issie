@@ -82,8 +82,8 @@ let pasteAction model =
 //simulate button functions
 
 /// Returns a tuple option representing the output to which the target input is connected
-let driveOut simData targetCompId inPortN =
-    Map.toArray simData.Graph
+let driveOut simGraph targetCompId inPortN =
+    Map.toArray simGraph
     |> Array.tryPick ( fun (outCompId, (simComp: SimulatorTypes.SimulationComponent)) -> 
         Map.toArray simComp.Outputs
         |> Array.tryFind (fun (_, lst) ->
@@ -112,31 +112,16 @@ let getSelected model : SimulatorTypes.ComponentId list =
             |> List.map (extractConnection >> (fun c -> c.Target.HostId) >> SimulatorTypes.ComponentId)
         List.append compsPorts connsPorts
 
-(*let getSelectedComps model =
-    match model.Diagram.GetSelected () with
-    | None -> []
-    | Some jsState -> 
-        fst jsState 
-        |> List.map (extractComponent >> (fun c -> c.Id) >> SimulatorTypes.ComponentId)
-
-let getSelectedConns model = 
-    match model.Diagram.GetSelected () with
-    | None -> []
-    | Some jsState -> 
-        snd jsState
-        |> List.map (extractConnection >> (fun c -> c.Id) >> SimulatorTypes.ConnectionId)*)
-
-let selected2portLst (model: Model) (simData : SimulatorTypes.SimulationData) =
+let selected2portLst model (simGraph: SimulatorTypes.SimulationGraph) =
     let processInputs compId inputs = 
         inputs
         |> Map.toArray
         |> Array.collect (fun (portN, _) -> 
-            match simData.Graph.[compId].Type, driveOut simData compId portN  with
+            match simGraph.[compId].Type, driveOut simGraph compId portN  with
             | Input _, _ -> [||]
             | Output _, Some tup ->  [| tup, Some compId |]
             | _, Some tup -> [| tup, None  |]
             | _, None -> failwith "Input is not connected" )
-            
 
     let processOutputs compId outputs =
         outputs 
@@ -146,7 +131,7 @@ let selected2portLst (model: Model) (simData : SimulatorTypes.SimulationData) =
     //let lst' =
     getSelected model 
     |> List.map (fun compId -> 
-            match Map.tryFind compId simData.Graph with
+            match Map.tryFind compId simGraph with
             | Some simComp -> compId, simComp
             | None -> failwith "Selected component is not in Simulation Data")
     |> List.toArray
@@ -179,9 +164,9 @@ let limBits (name: string) : (int*int) option =
        |> Some
     | _ -> None
 
-let rec findName (simData: SimulatorTypes.SimulationData) compId outPortN outputOpt = 
+let rec findName (simGraph: SimulatorTypes.SimulationGraph) compId outPortN outputOpt = 
     let compLbl =
-        match Map.tryFind compId simData.Graph with
+        match Map.tryFind compId simGraph with
         | Some simComp ->
             match simComp.Label with 
             | ComponentLabel lbl -> 
@@ -194,11 +179,11 @@ let rec findName (simData: SimulatorTypes.SimulationData) compId outPortN output
                      | OutputPortNumber pn -> pn
 
     let driveName n compTypeStr =
-        match driveOut simData compId (InputPortNumber n) with
-        | Some (driveCompId, drivePortN) -> findName simData driveCompId drivePortN None
+        match driveOut simGraph compId (InputPortNumber n) with
+        | Some (driveCompId, drivePortN) -> findName simGraph driveCompId drivePortN None
         | None -> failwith (compTypeStr + "input not connected")
 
-    match simData.Graph.[compId].Type with
+    match simGraph.[compId].Type with
     | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 -> 
         [ compLbl, (0,0) ]
     | Input w | Output w -> 
@@ -218,9 +203,9 @@ let rec findName (simData: SimulatorTypes.SimulationData) compId outPortN output
     | Custom c -> 
         [ c.Name + "_" + fst c.OutputLabels.[outPortInt], (snd c.OutputLabels.[outPortInt] - 1, 0) ]
     | IOLabel -> 
-        match driveOut simData compId (InputPortNumber 0) with
+        match driveOut simGraph compId (InputPortNumber 0) with
         | Some (driveCompId, drivePortN) -> 
-            match findName simData driveCompId drivePortN None with
+            match findName simGraph driveCompId drivePortN None with
             | hd::tl -> 
                 ("("+fst hd, snd hd)::tl
                 |> function
@@ -267,7 +252,7 @@ let rec findName (simData: SimulatorTypes.SimulationData) compId outPortN output
         | hd::tl -> 
             match outputOpt with
             | Some compId -> 
-                 match simData.Graph.[compId].Label with
+                 match simGraph.[compId].Label with
                  | ComponentLabel lbl -> (lbl + ": " + fst hd, snd hd)::tl
             | None -> hd::tl
         | [] -> failwith "empty (name, (msb*lsb)) list reached the end of findName"
@@ -279,45 +264,43 @@ let bitNums (a,b) =
     | (msb, lsb) when msb = lsb -> sprintf "[%d]" msb 
     | (msb, lsb) -> sprintf "[%d:%d]" msb lsb
 
-let extractWaveNames simData model portFunc =
-    portFunc model simData
+let extractWaveNames simGraph model portFunc =
+    portFunc model simGraph
     //|> fst
     |> Array.map (fun ((compId, portN), opt) ->
-        match findName simData compId portN opt with
+        match findName simGraph compId portN opt with
         | [el] -> fst el + bitNums (snd el)
         | lst when List.length lst > 0 -> 
             List.fold (fun st (name, bitLims) -> st + name + bitNums bitLims + ", ") "{ " lst
             |> (fun lbl -> lbl.[0..String.length lbl - 3] + " }" )  
-        | _ -> "Signal doesn't have a name source" )//Deal with this in better way
+        | _ -> failwith "Signal doesn't have a name source" )
 
-let extractSimTime simData model portFunc =
-    portFunc model simData 
+let extractSimTime model portFunc (simGraph: SimulatorTypes.SimulationGraph) =
+    portFunc model simGraph 
     //|> fst
     |> Array.map (fun ((compId, portN), _) ->
-        match simData.Graph.[compId].Outputs.[portN] with 
-        | [] -> StateSample [| "output not connected" |]
-        | lst -> 
-            match simData.Graph.[fst lst.[0]].Inputs.[snd lst.[0]] with
+        match simGraph.[compId].Outputs.[portN] with 
+        | _::_ as lst -> 
+            match simGraph.[fst lst.[0]].Inputs.[snd lst.[0]] with
             | wD -> Wire { nBits = uint (List.length wD)
-                           bitData = simWireData2Wire wD } )
+                           bitData = simWireData2Wire wD } 
+        | [] -> failwith "Output not connected" )
+
+let clkAdvance (sD : SimulatorTypes.SimulationData) = 
+    feedClockTick sD.Graph
+    |> (fun graph -> { sD with Graph = graph
+                               ClockTickNumber = sD.ClockTickNumber + 1 })
+
+let extractSimGraphs simData model = 
+    (simData, [| uint 0 .. snd model.WaveSim.viewIndexes |])
+    ||> Array.scan (fun s _ -> clkAdvance s) 
+    |> Array.map (fun sD -> sD.Graph)
 
 let extractWaveData simData model portFunc : SimTime [] = 
-    let clkAdvance (sD : SimulatorTypes.SimulationData) = 
-        feedClockTick sD.Graph
-        |> (fun graph -> { sD with Graph = graph
-                                   ClockTickNumber = sD.ClockTickNumber+1 })
+    extractSimGraphs simData model
+    |> Array.map (extractSimTime model portFunc)            
 
-    match fst model.WaveSim.viewIndexes with 
-    | start when start = uint 0 -> simData
-    | start -> Array.fold (fun s _ -> clkAdvance s) simData [| 1..int start |]
-    |> (fun sD -> 
-            Array.mapFold (fun (s: SimulatorTypes.SimulationData) _ -> 
-                                    extractSimTime s model portFunc, clkAdvance s) 
-                                    sD [| fst model.WaveSim.viewIndexes..snd model.WaveSim.viewIndexes |] )
-    |> fst
-           
-
-let simLst (model: Model) dispatch portsFunc : Result<WaveSimModel, SimulationError> = 
+let simLst model dispatch portsFunc = 
     match model.Diagram.GetCanvasState (), model.CurrProject with
     | None, _ -> Ok model.WaveSim
     | _, None -> failwith "what? Cannot start a simulation without a project"
@@ -329,8 +312,8 @@ let simLst (model: Model) dispatch portsFunc : Result<WaveSimModel, SimulationEr
         ||> prepareSimulation project.OpenFileName
         |> function
             | Ok simData -> 
-                let ports' = portsFunc model simData
-                Ok { model.WaveSim with waveNames = extractWaveNames simData model portsFunc
+                let ports' = portsFunc model simData.Graph
+                Ok { model.WaveSim with waveNames = extractWaveNames simData.Graph model portsFunc
                                         waveData = extractWaveData simData model portsFunc
                                         selected = Array.map (fun _ -> true) ports' 
                                         ports = ports'}

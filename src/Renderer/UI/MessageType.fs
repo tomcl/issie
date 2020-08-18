@@ -62,6 +62,7 @@ type SimTime = Sample array
 type Waveform = Sample array
 
 type WaveSimModel = {
+    simGraphs: SimulatorTypes.SimulationGraph array
     waveData: SimTime array
     waveNames: WaveName array
     selected: bool array

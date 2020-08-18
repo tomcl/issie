@@ -17,8 +17,8 @@ open DiagramStyle
 open CommonTypes
 
 let initModel: WaveSimModel =
-    { simGraphs = [||]
-      waveData =
+    { SimGraphs = [||]
+      WaveData =
           //modify these two signals to change trial data
           let nbits1 = uint32 1
           let nbits2 = uint32 4
@@ -40,26 +40,26 @@ let initModel: WaveSimModel =
           let makeTrialData (nBits1: uint32) (signal1: int []) (nBits2: uint32) signal2 signal3: SimTime [] =
               let makeTimePointData (s1: int) (s2: int) s3 : SimTime =
                   [| Wire
-                      { nBits = nBits1
-                        bitData = bigint s1 }
+                      { NBits = nBits1
+                        BitData = bigint s1 }
                      Wire
-                         { nBits = nBits2
-                           bitData = bigint s2 }
+                         { NBits = nBits2
+                           BitData = bigint s2 }
                      StateSample s3 |]
               (signal1, signal2, signal3)              
               |||> Array.map3 makeTimePointData
 
           makeTrialData nbits1 s1 nbits2 s2 s3
 
-      waveNames = [| "try single Bit"; "try bus"; "try states" |]
-      selected = [| false; false; false |]
-      ports = [| (SimulatorTypes.ComponentId "qwertyuiop",   SimulatorTypes.OutputPortNumber 1), None
+      WaveNames = [| "try single Bit"; "try bus"; "try states" |]
+      Selected = [| false; false; false |]
+      Ports = [| (SimulatorTypes.ComponentId "qwertyuiop",   SimulatorTypes.OutputPortNumber 1), None
                  (SimulatorTypes.ComponentId "qwertyuiopa",  SimulatorTypes.OutputPortNumber 1), None
                  (SimulatorTypes.ComponentId "qwertyuiopas", SimulatorTypes.OutputPortNumber 1), None |] 
-      clkWidth = 1.0
-      cursor = uint32 0
-      radix = Bin
-      viewIndexes = (uint 0, uint 9) }
+      ClkWidth = 1.0
+      Cursor = uint32 0
+      Radix = Bin
+      ViewIndexes = (uint 0, uint 9) }
 
 // SVG functions
 
@@ -139,11 +139,11 @@ let radixChange (n: bigint) (nBits: uint32) (rad: NumberBase) =
 //auxiliary functions to the viewer function
 
 let toggleSelect ind model =
-    { model with selected = Array.mapi (fun i old ->
-                                if i = ind then not old else old) model.selected }
+    { model with Selected = Array.mapi (fun i old ->
+                                if i = ind then not old else old) model.Selected }
     |> Ok |> StartWaveSim
 
-let makeLabels model = Array.map (fun l -> label [ Class "waveLbl" ] [ str l ]) model.waveNames
+let makeLabels model = Array.map (fun l -> label [ Class "waveLbl" ] [ str l ]) model.WaveNames
 
 let makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * int) =
     let top = spacing
@@ -154,9 +154,9 @@ let makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * int) =
     let makeSigLine = makeLinePoints [ Class "sigLineStyle" ]
 
     match data with
-    | Wire w when w.nBits = uint 1 ->
+    | Wire w when w.NBits = uint 1 ->
         let y =
-            match w.bitData with
+            match w.BitData with
             | n when n = bigint 1 -> top
             | _ -> bot
         // TODO: define DU so that you can't have values other than 0 or 1
@@ -195,9 +195,9 @@ let makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * int) =
         |> Array.append [| topL; botL |]
 //Probably should put other option for negative number which prints an error
 
-let model2WaveList model: Waveform [] = Array.transpose model.waveData
+let model2WaveList model: Waveform [] = Array.transpose model.WaveData
 
-let transitions (model: WaveSimModel) = //relies on number of names being correct (= length of elements in waveData)
+let transitions (model: WaveSimModel) = //relies on number of names being correct (= length of elements in WaveData)
     let isDiff (ws1, ws2) =
         let folder state e1 e2 =
             match state, e1 = e2 with
@@ -205,7 +205,7 @@ let transitions (model: WaveSimModel) = //relies on number of names being correc
             | _ -> 1
         match ws1, ws2 with
         | Wire a, Wire b ->
-            if a.bitData = b.bitData then 0 else 1
+            if a.BitData = b.BitData then 0 else 1
         | StateSample a, StateSample b when Array.length a = Array.length b ->  (a, b) ||> Array.fold2 folder 0
         | _ -> 1
 
@@ -238,27 +238,27 @@ let busLabels model =
 
 let makeCursVals model =
     let cursValPrefix =
-        match model.radix with
+        match model.Radix with
         | Bin -> "0b"
         | Hex -> "0x"
         | _ -> ""
     let makeCursVal sample =
         match sample with
-        | Wire w when w.nBits > uint 1 -> [| cursValPrefix + radixChange w.bitData w.nBits model.radix |]
-        | Wire w -> [| cursValPrefix + string w.bitData |]
+        | Wire w when w.NBits > uint 1 -> [| cursValPrefix + radixChange w.BitData w.NBits model.Radix |]
+        | Wire w -> [| cursValPrefix + string w.BitData |]
         | StateSample s -> s
         |> Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
-    Array.map makeCursVal model.waveData.[int model.cursor]
+    Array.map makeCursVal model.WaveData.[int model.Cursor]
 
 //container box and clock lines
 let backgroundSvg model =
     let clkLine x =
         makeLinePoints [ Class "clkLineStyle" ] (x, vPos) (x, vPos + sigHeight + spacing)
-    [| 1 .. Array.length model.waveData |] 
-    |> Array.map ((fun x -> float x * model.clkWidth) >> clkLine)
+    [| 1 .. Array.length model.WaveData |] 
+    |> Array.map ((fun x -> float x * model.ClkWidth) >> clkLine)
 
 let clkRulerSvg (model: WaveSimModel) =
-    (fun (a,b) -> [| int a .. int b |]) model.viewIndexes
+    (fun (a,b) -> [| int a .. int b |]) model.ViewIndexes
     |> Array.map (fun i -> makeText (cursRectText model i) (string i))
     |> (fun arr -> [ backgroundSvg model; [| makeRect (cursRectStyle model) |]; arr ])
     |> Array.concat 
@@ -272,14 +272,14 @@ let waveSimRows (model: WaveSimModel) dispatch =
         let valueLabels =
             let lblEl (sample, xIndArr) =
                 match sample with
-                | Wire w when w.nBits > uint 1 ->
-                    Array.map (fun xInd -> addLabel 1 xInd 0 (radixChange w.bitData w.nBits model.radix)) xIndArr
+                | Wire w when w.NBits > uint 1 ->
+                    Array.map (fun xInd -> addLabel 1 xInd 0 (radixChange w.BitData w.NBits model.Radix)) xIndArr
                 | StateSample ss ->
                     Array.collect (fun xInd -> Array.mapi (addLabel (Array.length ss) xInd) ss) xIndArr
                 | _ -> [||]
             busLabels model |> Array.map (fun row -> Array.collect lblEl row)
 
-        let makeWaveSvg a b = Array.mapi2 (makeSegment model.clkWidth) a b |> Array.concat
+        let makeWaveSvg a b = Array.mapi2 (makeSegment model.ClkWidth) a b |> Array.concat
         let padTrans (t: (int * int) []) =
             Array.concat [ [| 1, fst t.[0] |]
                            t
@@ -300,7 +300,7 @@ let waveSimRows (model: WaveSimModel) dispatch =
                 [ td [ Class "checkboxCol" ]
                       [ input
                           [ Type "checkbox"
-                            Checked model.selected.[i]
+                            Checked model.Selected.[i]
                             Style [ Float FloatOptions.Left ]
                             OnChange (fun _ -> toggleSelect i model |> dispatch) ] ]
                   td [ Class "waveNamesCol" ] [ l ]])
@@ -333,7 +333,7 @@ let waveSimRows (model: WaveSimModel) dispatch =
 let zoom plus (m: WaveSimModel) =
     let multBy =
         if plus then zoomFactor else 1.0 / zoomFactor
-    { m with clkWidth = m.clkWidth * multBy } |> Ok |> StartWaveSim
+    { m with ClkWidth = m.ClkWidth * multBy } |> Ok |> StartWaveSim
 
 let button style func label =
     Button.button (List.append [ Button.Props [ style ] ] [ Button.OnClick func ]) [ str label ]
@@ -353,55 +353,55 @@ let radixString rad =
     | SDec -> "sDec"
 
 let cursorMove increase model =
-    match increase, model.cursor, fst model.viewIndexes, snd model.viewIndexes with
-    | (true, c, _, fin) when c < fin -> { model with cursor = c + uint 1 }
-    | (false, c, start, _) when c > start -> { model with cursor = c - uint 1 }
+    match increase, model.Cursor, fst model.ViewIndexes, snd model.ViewIndexes with
+    | (true, c, _, fin) when c < fin -> { model with Cursor = c + uint 1 }
+    | (false, c, start, _) when c > start -> { model with Cursor = c - uint 1 }
     | _ -> model
     |> Ok |> StartWaveSim
 
 let changeCurs newVal model =
-    if (fst model.viewIndexes) <= newVal && (snd model.viewIndexes) >= newVal
-    then { model with cursor = newVal }
+    if (fst model.ViewIndexes) <= newVal && (snd model.ViewIndexes) >= newVal
+    then { model with Cursor = newVal }
     else model
     |> Ok |> StartWaveSim
 
 let indexesMove increase upper (model: WaveSimModel) = 
-    let bot, top = model.viewIndexes
+    let bot, top = model.ViewIndexes
     match upper, increase with 
     | false, false when bot > uint 0 -> bot  - uint 1, top
     | false, true when bot < top -> bot + uint 1, top
     | true, false when top > bot -> bot, top - uint 1
     | true, true -> bot, top + uint 1
     | _ -> bot, top
-    |> (fun viewIndexes' -> { model with viewIndexes = viewIndexes' })
+    |> (fun viewIndexes' -> { model with ViewIndexes = viewIndexes' })
     |> Ok |> StartWaveSim
 
 let changeBotInd newVal model = 
-    if uint 0 <= newVal && (snd model.viewIndexes) >= newVal
-    then { model with viewIndexes = newVal, snd model.viewIndexes }
+    if uint 0 <= newVal && (snd model.ViewIndexes) >= newVal
+    then { model with ViewIndexes = newVal, snd model.ViewIndexes }
     else model
     |> Ok |> StartWaveSim
 
 let changeTopInd newVal model = 
-    if uint (fst model.viewIndexes) <= newVal
-    then { model with viewIndexes = fst model.viewIndexes, newVal }
+    if uint (fst model.ViewIndexes) <= newVal
+    then { model with ViewIndexes = fst model.ViewIndexes, newVal }
     else model
     |> Ok |> StartWaveSim
 
-let selectAll s model = { model with selected = Array.map (fun _ -> s) model.selected } |> Ok |> StartWaveSim
+let selectAll s model = { model with Selected = Array.map (fun _ -> s) model.Selected } |> Ok |> StartWaveSim
 
-let allSelected model = Array.forall ((=) true) model.selected
-let anySelected model = Array.exists ((=) true) model.selected
+let allSelected model = Array.forall ((=) true) model.Selected
+let anySelected model = Array.exists ((=) true) model.Selected
 
 let delSelected model =
     let filtSelected arr =
-        Array.zip model.selected arr
+        Array.zip model.Selected arr
         |> Array.filter (fun (sel, _) -> not sel)
         |> Array.map snd
-    { model with waveData = Array.map filtSelected model.waveData
-                 waveNames = filtSelected model.waveNames
-                 ports = filtSelected model.ports
-                 selected = Array.filter not model.selected }
+    { model with WaveData = Array.map filtSelected model.WaveData
+                 WaveNames = filtSelected model.WaveNames
+                 Ports = filtSelected model.Ports
+                 Selected = Array.filter not model.Selected }
     |> Ok |> StartWaveSim
 
 let moveWave model up =
@@ -411,11 +411,11 @@ let moveWave model up =
         let rev a =
             if up then a else Array.rev a
         rev arr
-        |> Array.fold (fun st (bl: {| sel: bool; indxs: int [] |}) ->
+        |> Array.fold (fun st (bl: {| Sel: bool; Indxs: int [] |}) ->
             match st with
             | [||] -> [| bl |]
             | _ ->
-                if bl.sel then
+                if bl.Sel then
                     Array.concat
                         [| st.[0..Array.length st - 2]
                            [| bl |]
@@ -425,39 +425,39 @@ let moveWave model up =
         |> rev
 
     let indexes' =
-        match Array.length model.selected with
-        | len when len < 2 -> [| 0 .. Array.length model.selected - 1 |]
+        match Array.length model.Selected with
+        | len when len < 2 -> [| 0 .. Array.length model.Selected - 1 |]
         | _ ->
-            Array.indexed model.selected
-            |> Array.fold (fun (blocks: {| sel: bool; indxs: int [] |} []) (ind, sel') ->
+            Array.indexed model.Selected
+            |> Array.fold (fun (blocks: {| Sel: bool; Indxs: int [] |} []) (ind, sel') ->
                 match blocks, sel' with
                 | [||], s' ->
                     Array.append blocks
-                        [| {| sel = s'
-                              indxs = [| ind |] |} |]
-                | bl, true when (lastEl bl).sel = true ->
+                        [| {| Sel = s'
+                              Indxs = [| ind |] |} |]
+                | bl, true when (lastEl bl).Sel = true ->
                     Array.append blocks.[0..Array.length blocks - 2]
-                        [| {| (lastEl blocks) with indxs = Array.append (lastEl blocks).indxs [| ind |] |} |]
+                        [| {| (lastEl blocks) with Indxs = Array.append (lastEl blocks).Indxs [| ind |] |} |]
                 | _, s' ->
                     Array.append blocks
-                        [| {| sel = s'
-                              indxs = [| ind |] |} |]) [||]
+                        [| {| Sel = s'
+                              Indxs = [| ind |] |} |]) [||]
             |> move
-            |> Array.collect (fun block -> block.indxs)
+            |> Array.collect (fun block -> block.Indxs)
 
     let reorder (arr: 'b []) = Array.map (fun i -> arr.[i]) indexes'
     
-    { model with waveData = Array.map (fun sT -> reorder sT) model.waveData
-                 waveNames = reorder model.waveNames
-                 selected = reorder model.selected
-                 ports = reorder model.ports}
+    { model with WaveData = Array.map (fun sT -> reorder sT) model.WaveData
+                 WaveNames = reorder model.WaveNames
+                 Selected = reorder model.Selected
+                 Ports = reorder model.Ports}
     |> Ok |> StartWaveSim
 
 // simulation functions 
 
 let reloadablePorts (model: DiagramModelType.Model) (simGraph: SimulatorTypes.SimulationGraph) = 
     Array.filter (fun ((compId, _), _) -> 
-        Map.exists (fun key _ -> key = compId) simGraph) model.WaveSim.ports
+        Map.exists (fun key _ -> key = compId) simGraph) model.WaveSim.Ports
     |> Array.map (fun (a, outOpt) -> 
         match outOpt with
         | Some cId when Map.exists (fun key _ -> key = cId) simGraph -> a, Some cId
@@ -474,10 +474,10 @@ let reloadWaves (model: DiagramModelType.Model) dispatch =
 
 let radixTabs model dispatch =
     let radTab rad =
-        Tabs.tab [ Tabs.Tab.IsActive (model.radix = rad)
+        Tabs.tab [ Tabs.Tab.IsActive (model.Radix = rad)
                    Tabs.Tab.Props [Style [ Width "25px"
                                            Height "30px"] ] ]
-                 [ a [ OnClick(fun _ -> Ok { model with radix = rad } |> StartWaveSim |> dispatch) ]
+                 [ a [ OnClick(fun _ -> Ok { model with Radix = rad } |> StartWaveSim |> dispatch) ]
                  [ str (radixString rad) ] ]
     Tabs.tabs
         [ Tabs.IsBoxed; Tabs.IsToggle; Tabs.Props [ Style [ Width "100px"
@@ -497,9 +497,9 @@ let simLimits model dispatch =
                 SpellCheck false
                 Class "limits-form"
                 Type "number"
-                Value (fst model.viewIndexes)
+                Value (fst model.ViewIndexes)
                 Min 0
-                Max (snd model.viewIndexes)
+                Max (snd model.ViewIndexes)
                 OnChange(fun c -> changeBotInd (uint c.Value) model |> dispatch) ]
           label [ Style [Float FloatOptions.Left
                          Margin "0 5px 0 5px"] ] [ str "/"]
@@ -509,8 +509,8 @@ let simLimits model dispatch =
                 SpellCheck false
                 Class "limits-form"
                 Type "number"
-                Value (snd model.viewIndexes)
-                Min (fst model.viewIndexes)
+                Value (snd model.ViewIndexes)
+                Min (fst model.ViewIndexes)
                 OnChange(fun c -> changeTopInd (uint c.Value) model |> dispatch) ]
           div [ Class "limits-but-div" ]
               [ button (Class "updownButton") (fun _ -> indexesMove true true model |> dispatch) "▲"
@@ -525,9 +525,9 @@ let cursorButtons model dispatch =
                 SpellCheck false
                 Class "cursor-form"
                 Type "number"
-                Value model.cursor
-                Min (fst model.viewIndexes)
-                Max (snd model.viewIndexes)
+                Value model.Cursor
+                Min (fst model.ViewIndexes)
+                Max (snd model.ViewIndexes)
                 OnChange(fun c -> changeCurs (uint c.Value) model |> dispatch) ]
           buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "►" ] 
 

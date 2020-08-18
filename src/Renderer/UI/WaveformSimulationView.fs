@@ -452,6 +452,19 @@ let moveWave model up =
                  ports = reorder model.ports}
     |> Ok |> StartWaveSim
 
+// simulation functions 
+
+let reloadablePorts (model: DiagramModelType.Model) (simData: SimulatorTypes.SimulationData) = 
+    Array.filter (fun ((compId, _), _) -> 
+        Map.exists (fun key _ -> key = compId) simData.Graph) model.WaveSim.ports
+    |> Array.map (fun (a, outOpt) -> 
+        match outOpt with
+        | Some cId when Map.exists (fun key _ -> key = cId) simData.Graph -> a, Some cId
+        | _ -> a, None )
+
+let reloadWaves (model: DiagramModelType.Model) dispatch =
+    OnDiagramButtonsView.simLst model dispatch reloadablePorts
+
 
 //[<Emit("__static")>]
 //let staticDir() : string = jsNative

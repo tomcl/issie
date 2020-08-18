@@ -346,5 +346,6 @@ let viewOnDiagramButtons model dispatch =
         canvasBut (fun _ -> model.Diagram.Redo ()) "redo >"
         canvasBut (fun _ -> copyAction model dispatch) "copy"
         canvasBut (fun _ -> pasteAction model) "paste"
-        canvasBut (fun _ -> simLst model dispatch selected2portLst) "simulate"
+        canvasBut (fun _ -> simLst model dispatch selected2portLst
+                            ChangeRightTab WaveSim |> dispatch) "simulate"
     ]

@@ -153,7 +153,15 @@ let selected2portLst (model: Model) (simData : SimulatorTypes.SimulationData) =
     |> Array.collect (fun (compId, simComp) -> 
             Array.append (processInputs compId simComp.Inputs) 
                          (processOutputs compId simComp.Outputs))
-    |> Array.distinct
+    |> Array.groupBy fst
+    |> Array.map (fun (_, arr) -> arr
+                                  |> Array.tryFind (fun (_,opt) -> 
+                                        match opt with
+                                            | Some _ -> true
+                                            | None -> false )                    
+                                  |> function 
+                                     | Some el -> el
+                                     | None -> arr.[0] )
         // The commented lines keep the old waveforms when adding new ones
         //|> Array.map (fun el -> el, true)
 

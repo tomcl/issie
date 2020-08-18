@@ -100,12 +100,31 @@ let simWireData2Wire wireData =
                                        |> (fun r -> r, weight * (bigint 2)) ) (bigint 1) 
     |> fst |> List.sum
 
-let getSelectedComps model =
+let getSelected model : SimulatorTypes.ComponentId list =
+    match model.Diagram.GetSelected () with
+    | None -> []
+    | Some jsState -> 
+        let compsPorts =
+            fst jsState 
+            |> List.map (extractComponent >> (fun c -> c.Id) >> SimulatorTypes.ComponentId)
+        let connsPorts =
+            snd jsState
+            |> List.map (extractConnection >> (fun c -> c.Target.HostId) >> SimulatorTypes.ComponentId)
+        List.append compsPorts connsPorts
+
+(*let getSelectedComps model =
     match model.Diagram.GetSelected () with
     | None -> []
     | Some jsState -> 
         fst jsState 
         |> List.map (extractComponent >> (fun c -> c.Id) >> SimulatorTypes.ComponentId)
+
+let getSelectedConns model = 
+    match model.Diagram.GetSelected () with
+    | None -> []
+    | Some jsState -> 
+        snd jsState
+        |> List.map (extractConnection >> (fun c -> c.Id) >> SimulatorTypes.ConnectionId)*)
 
 let selected2portLst (model: Model) (simData : SimulatorTypes.SimulationData) =
     let processInputs compId inputs = 
@@ -125,11 +144,15 @@ let selected2portLst (model: Model) (simData : SimulatorTypes.SimulationData) =
         |> Array.map (fun (portNum, _) -> (compId, portNum), None)   
         
     //let lst' =
-    simData.Graph
-    |> Map.filter (fun compId _ -> List.contains compId (getSelectedComps model))
-    |> Map.toArray
+    getSelected model 
+    |> List.map (fun compId -> 
+            match Map.tryFind compId simData.Graph with
+            | Some simComp -> compId, simComp
+            | None -> failwith "Selected component is not in Simulation Data")
+    |> List.toArray
     |> Array.collect (fun (compId, simComp) -> 
-        Array.append (processInputs compId simComp.Inputs) (processOutputs compId simComp.Outputs))
+            Array.append (processInputs compId simComp.Inputs) 
+                         (processOutputs compId simComp.Outputs))
     |> Array.distinct
         // The commented lines keep the old waveforms when adding new ones
         //|> Array.map (fun el -> el, true)

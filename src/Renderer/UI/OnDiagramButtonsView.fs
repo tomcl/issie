@@ -292,7 +292,7 @@ let clkAdvance (sD : SimulatorTypes.SimulationData) =
                                ClockTickNumber = sD.ClockTickNumber + 1 })
 
 let extractSimData simData nCycles = 
-    (simData, [| uint 1 .. nCycles |])
+    (simData, [| 1u .. nCycles |])
     ||> Array.scan (fun s _ -> clkAdvance s) 
 
 let extractWaveData model portFunc simDataArr : SimTime [] = 

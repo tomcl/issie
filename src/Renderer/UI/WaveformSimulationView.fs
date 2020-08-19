@@ -155,7 +155,7 @@ let makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * int) =
     let makeSigLine = makeLinePoints [ Class "sigLineStyle" ]
 
     match data with
-    | Wire w when w.NBits = uint 1 ->
+    | Wire w when w.NBits = 1u ->
         let y =
             match w.BitData with
             | n when n = bigint 1 -> top
@@ -245,7 +245,7 @@ let makeCursVals model =
         | _ -> ""
     let makeCursVal sample =
         match sample with
-        | Wire w when w.NBits > uint 1 -> [| pref + radixChange w.BitData w.NBits model.Radix |]
+        | Wire w when w.NBits > 1u -> [| pref + radixChange w.BitData w.NBits model.Radix |]
         | Wire w -> [| pref + string w.BitData |]
         | StateSample s -> s
         |> Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
@@ -278,7 +278,7 @@ let waveSimRows (model: WaveSimModel) dispatch =
         let valueLabels =
             let lblEl (sample, xIndArr) =
                 match sample with
-                | Wire w when w.NBits > uint 1 ->
+                | Wire w when w.NBits > 1u ->
                     Array.map (fun xInd -> addLabel 1 xInd 0 (radixChange w.BitData w.NBits model.Radix)) xIndArr
                 | StateSample ss ->
                     Array.collect (fun xInd -> Array.mapi (addLabel (Array.length ss) xInd) ss) xIndArr
@@ -391,13 +391,13 @@ let appendSimData model nCycles =
 let changeTopInd newVal (model: DiagramModelType.Model) = 
     let wsMod = model.WaveSim
     let sD = wsMod.SimData
-    match Array.length sD = 0, newVal > wsMod.LastClk, newVal >= uint 0  with
+    match Array.length sD = 0, newVal > wsMod.LastClk, newVal >= 0u  with
     | true, _, _ ->
         { wsMod with LastClk = newVal }
     | false, true, _ -> 
-        let sD' = appendSimData wsMod <| newVal + uint 1 - uint (Array.length sD)
+        let sD' = appendSimData wsMod <| newVal + 1u - uint (Array.length sD)
         { wsMod with 
-            SimData = sD'
+            SimData = sD' //can improve efficiency by not recalculating the whole WaveData every time
             WaveData = extractWaveData model (fun m _ -> m.WaveSim.Ports) sD'.[0..int newVal]
             LastClk = newVal }
     | false, false, true -> 
@@ -408,7 +408,7 @@ let changeTopInd newVal (model: DiagramModelType.Model) =
         wsMod
 
 let changeCurs (model: DiagramModelType.Model) newVal =
-    match uint 0 <= newVal, newVal <= model.WaveSim.LastClk with
+    match 0u <= newVal, newVal <= model.WaveSim.LastClk with
     | true, true ->  { model.WaveSim with Cursor = newVal }
     | true, false -> { changeTopInd newVal model with Cursor = newVal }
     |_ ->  model.WaveSim
@@ -416,8 +416,8 @@ let changeCurs (model: DiagramModelType.Model) newVal =
 
 let cursorMove increase (model: DiagramModelType.Model) =
     match increase with
-    | true -> model.WaveSim.Cursor + uint 1 
-    | false -> model.WaveSim.Cursor - uint 1
+    | true -> model.WaveSim.Cursor + 1u
+    | false -> model.WaveSim.Cursor - 1u
     |> changeCurs model
 
 let selectAll s model = { model with Selected = Array.map (fun _ -> s) model.Selected } |> Ok |> StartWaveSim
@@ -514,7 +514,11 @@ let cursorButtons model dispatch =
                 Class "cursor-form"
                 Type "number"
                 Value model.WaveSim.Cursor
-                OnChange(fun c -> changeCurs model (uint c.Value) |> dispatch) ]
+                OnInput (fun c -> match c.Value with
+                                  | curs' when 0 <= int curs'->
+                                     changeCurs model (uint curs') |> dispatch
+                                  | _ -> () ) ]
+                    
           buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "►" ] 
 
 let viewWaveSimButtonsBar model dispatch = 

@@ -112,12 +112,12 @@ let getSelected model : SimulatorTypes.ComponentId list =
             |> List.map (extractConnection >> (fun c -> c.Target.HostId) >> SimulatorTypes.ComponentId)
         List.append compsPorts connsPorts
 
-let selected2portLst model (simGraph: SimulatorTypes.SimulationGraph) =
+let selected2portLst model (simData: SimulatorTypes.SimulationData) =
     let processInputs compId inputs = 
         inputs
         |> Map.toArray
         |> Array.collect (fun (portN, _) -> 
-            match simGraph.[compId].Type, driveOut simGraph compId portN  with
+            match simData.Graph.[compId].Type, driveOut simData.Graph compId portN  with
             | Input _, _ -> [||]
             | Output _, Some tup ->  [| tup, Some compId |]
             | _, Some tup -> [| tup, None  |]
@@ -131,7 +131,7 @@ let selected2portLst model (simGraph: SimulatorTypes.SimulationGraph) =
     //let lst' =
     getSelected model 
     |> List.map (fun compId -> 
-            match Map.tryFind compId simGraph with
+            match Map.tryFind compId simData.Graph with
             | Some simComp -> compId, simComp
             | None -> failwith "Selected component is not in Simulation Data")
     |> List.toArray
@@ -264,24 +264,24 @@ let bitNums (a,b) =
     | (msb, lsb) when msb = lsb -> sprintf "[%d]" msb 
     | (msb, lsb) -> sprintf "[%d:%d]" msb lsb
 
-let extractWaveNames simGraph model portFunc =
-    portFunc model simGraph
+let extractWaveNames simData model portFunc =
+    portFunc model simData
     //|> fst
     |> Array.map (fun ((compId, portN), opt) ->
-        match findName simGraph compId portN opt with
+        match findName simData.Graph compId portN opt with
         | [el] -> fst el + bitNums (snd el)
         | lst when List.length lst > 0 -> 
             List.fold (fun st (name, bitLims) -> st + name + bitNums bitLims + ", ") "{ " lst
             |> (fun lbl -> lbl.[0..String.length lbl - 3] + " }" )  
         | _ -> failwith "Signal doesn't have a name source" )
 
-let extractSimTime model portFunc (simGraph: SimulatorTypes.SimulationGraph) =
-    portFunc model simGraph 
+let extractSimTime model portFunc (simData: SimulatorTypes.SimulationData) =
+    portFunc model simData 
     //|> fst
     |> Array.map (fun ((compId, portN), _) ->
-        match simGraph.[compId].Outputs.[portN] with 
+        match simData.Graph.[compId].Outputs.[portN] with 
         | _::_ as lst -> 
-            match simGraph.[fst lst.[0]].Inputs.[snd lst.[0]] with
+            match simData.Graph.[fst lst.[0]].Inputs.[snd lst.[0]] with
             | wD -> Wire { NBits = uint (List.length wD)
                            BitData = simWireData2Wire wD } 
         | [] -> failwith "Output not connected" )
@@ -291,16 +291,15 @@ let clkAdvance (sD : SimulatorTypes.SimulationData) =
     |> (fun graph -> { sD with Graph = graph
                                ClockTickNumber = sD.ClockTickNumber + 1 })
 
-let extractSimGraphs simData model = 
-    (simData, [| uint 0 .. snd model.WaveSim.ViewIndexes |])
+let extractSimData simData nCycles = 
+    (simData, [| uint 1 .. nCycles |])
     ||> Array.scan (fun s _ -> clkAdvance s) 
-    |> Array.map (fun sD -> sD.Graph)
 
-let extractWaveData simData model portFunc : SimTime [] = 
-    extractSimGraphs simData model
+let extractWaveData model portFunc simDataArr : SimTime [] = 
+    simDataArr
     |> Array.map (extractSimTime model portFunc)            
 
-let simLst model dispatch portsFunc = 
+let simLst model dispatch portsFunc  = 
     match model.Diagram.GetCanvasState (), model.CurrProject with
     | None, _ -> Ok model.WaveSim
     | _, None -> failwith "what? Cannot start a simulation without a project"
@@ -312,9 +311,11 @@ let simLst model dispatch portsFunc =
         ||> prepareSimulation project.OpenFileName
         |> function
             | Ok simData -> 
-                let ports' = portsFunc model simData.Graph
-                Ok { model.WaveSim with WaveNames = extractWaveNames simData.Graph model portsFunc
-                                        WaveData = extractWaveData simData model portsFunc
+                let ports' = portsFunc model simData
+                let simData' = extractSimData simData (snd model.WaveSim.ViewIndexes)
+                Ok { model.WaveSim with SimData = simData'
+                                        WaveNames = extractWaveNames simData model portsFunc
+                                        WaveData = extractWaveData model portsFunc simData'
                                         Selected = Array.map (fun _ -> true) ports' 
                                         Ports = ports'}
             | Error simError ->

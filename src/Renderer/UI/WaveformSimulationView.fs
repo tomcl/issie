@@ -60,7 +60,7 @@ let initModel: WaveSimModel =
       ClkWidth = 1.0
       Cursor = uint32 0
       Radix = Bin
-      ViewIndexes = (uint 0, uint 9) }
+      LastClk = uint 9 }
 
 // SVG functions
 
@@ -264,7 +264,7 @@ let backgroundSvg model =
     |> Array.map ((fun x -> float x * model.ClkWidth) >> clkLine)
 
 let clkRulerSvg (model: WaveSimModel) =
-    (fun (a,b) -> [| int a .. int b |]) model.ViewIndexes
+    [| 0 .. int model.LastClk |]
     |> Array.map (fun i -> makeText (cursRectText model i) (string i))
     |> (fun arr -> [ backgroundSvg model; [| makeRect (cursRectStyle model) |]; arr ])
     |> Array.concat 
@@ -384,24 +384,6 @@ let radixString rad =
     | Hex -> "Hex"
     | SDec -> "sDec"
 
-let changeCurs model newVal  =
-    if (fst model.ViewIndexes) <= newVal && (snd model.ViewIndexes) >= newVal
-    then { model with Cursor = newVal }
-    else model
-    |> Ok |> StartWaveSim
-
-let cursorMove increase model =
-    match increase with
-    | true -> model.Cursor + uint 1 
-    | false -> model.Cursor - uint 1
-    |> changeCurs model
-
-let changeBotInd newVal model = 
-    match uint 0 <= newVal && (snd model.ViewIndexes) >= newVal with
-    | true -> { model with ViewIndexes = newVal, snd model.ViewIndexes }
-    | false -> model
-    |> Ok |> StartWaveSim
-
 let appendSimData model nCycles =
     extractSimData (Array.last model.SimData) nCycles
     |> Array.append model.SimData
@@ -409,31 +391,34 @@ let appendSimData model nCycles =
 let changeTopInd newVal (model: DiagramModelType.Model) = 
     let wsMod = model.WaveSim
     let sD = wsMod.SimData
-    let vIBot, vITop = wsMod.ViewIndexes
-    match Array.length sD = 0, newVal > vITop, newVal >= vIBot  with
+    match Array.length sD = 0, newVal > wsMod.LastClk, newVal >= uint 0  with
     | true, _, _ ->
-        { wsMod with ViewIndexes = vIBot, newVal }
+        { wsMod with LastClk = newVal }
     | false, true, _ -> 
         let sD' = appendSimData wsMod <| newVal + uint 1 - uint (Array.length sD)
         { wsMod with 
             SimData = sD'
-            WaveData = extractWaveData model (fun m _ -> m.WaveSim.Ports) sD'.[int vIBot..int newVal]
-            ViewIndexes = vIBot, newVal }
+            WaveData = extractWaveData model (fun m _ -> m.WaveSim.Ports) sD'.[0..int newVal]
+            LastClk = newVal }
     | false, false, true -> 
         { wsMod with 
-            ViewIndexes = vIBot, newVal 
-            WaveData = extractWaveData model reloadablePorts sD.[int vIBot..int newVal]}
+            LastClk = newVal 
+            WaveData = extractWaveData model reloadablePorts sD.[0..int newVal]}
     | _ -> 
         wsMod
+
+let changeCurs (model: DiagramModelType.Model) newVal =
+    match uint 0 <= newVal, newVal <= model.WaveSim.LastClk with
+    | true, true ->  { model.WaveSim with Cursor = newVal }
+    | true, false -> { changeTopInd newVal model with Cursor = newVal }
+    |_ ->  model.WaveSim
     |> Ok |> StartWaveSim
 
-let indexesMove (chooseLimDir: {| UpperLim: bool; Incr: bool |}) (model: DiagramModelType.Model) = 
-    let bot, top = model.WaveSim.ViewIndexes
-    match chooseLimDir.UpperLim, chooseLimDir.Incr with 
-    | false, false -> changeBotInd (bot - uint 1) model.WaveSim
-    | false, true -> changeBotInd (bot + uint 1) model.WaveSim
-    | true, false -> changeTopInd (top - uint 1) model
-    | true, true -> changeTopInd (top + uint 1) model
+let cursorMove increase (model: DiagramModelType.Model) =
+    match increase with
+    | true -> model.WaveSim.Cursor + uint 1 
+    | false -> model.WaveSim.Cursor - uint 1
+    |> changeCurs model
 
 let selectAll s model = { model with Selected = Array.map (fun _ -> s) model.Selected } |> Ok |> StartWaveSim
 
@@ -519,37 +504,6 @@ let radixTabs model dispatch =
                                                             Margin "0 10px 0 10px" ] ] ]
         [ radTab Bin; radTab Hex; radTab Dec; radTab SDec ]
 
-let simLimits (model: DiagramModelType.Model) dispatch =
-    let wsMod = model.WaveSim
-    div [ Class "limits-group" ]
-        [ div [ Class "limits-but-div" ]
-              [ button (Class "updownButton") (fun _ -> indexesMove {| UpperLim = false; Incr = true|} model |> dispatch) "▲"
-                button (Class "updownButton") (fun _ -> indexesMove {| UpperLim = false; Incr = false|} model |> dispatch) "▼" ]
-          input
-              [ Id "cursorForm"
-                Step 1
-                SpellCheck false
-                Class "limits-form"
-                Type "number"
-                Value (fst wsMod.ViewIndexes)
-                Min 0
-                Max (snd wsMod.ViewIndexes)
-                OnChange(fun c -> changeBotInd (uint c.Value) wsMod |> dispatch) ]
-          label [ Style [Float FloatOptions.Left
-                         Margin "0 5px 0 5px"] ] [ str "/"]
-          input
-              [ Id "cursorForm"
-                Step 1
-                SpellCheck false
-                Class "limits-form"
-                Type "number"
-                Value (snd wsMod.ViewIndexes)
-                Min (fst wsMod.ViewIndexes)
-                OnChange (fun c -> changeTopInd (uint c.Value) model |> dispatch) ]
-          div [ Class "limits-but-div" ]
-              [ button (Class "updownButton") (fun _ -> indexesMove {| UpperLim = true; Incr = true|} model |> dispatch) "▲"
-                button (Class "updownButton") (fun _ -> indexesMove {| UpperLim = true; Incr = false|} model |> dispatch) "▼" ] ] 
-
 let cursorButtons model dispatch =
     div [ Class "cursor-group" ]
         [ buttonOriginal (Class "button-minus") (fun _ -> cursorMove false model |> dispatch) "◄"
@@ -559,9 +513,7 @@ let cursorButtons model dispatch =
                 SpellCheck false
                 Class "cursor-form"
                 Type "number"
-                Value model.Cursor
-                Min (fst model.ViewIndexes)
-                Max (snd model.ViewIndexes)
+                Value model.WaveSim.Cursor
                 OnChange(fun c -> changeCurs model (uint c.Value) |> dispatch) ]
           buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "►" ] 
 
@@ -570,8 +522,7 @@ let viewWaveSimButtonsBar model dispatch =
         [ button (Class "reloadButtonStyle") (fun _ -> 
               reloadWaves model dispatch |> dispatch) "Reload" 
           radixTabs model.WaveSim dispatch
-          simLimits model dispatch
-          cursorButtons model.WaveSim dispatch ]
+          cursorButtons model dispatch ]
 
 let cursValsCol rows = 
     let rightCol = Array.append [| tr [ Class "rowHeight" ]

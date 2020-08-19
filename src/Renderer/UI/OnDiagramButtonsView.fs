@@ -100,16 +100,16 @@ let simWireData2Wire wireData =
                                        |> (fun r -> r, weight * (bigint 2)) ) (bigint 1) 
     |> fst |> List.sum
 
-let getSelected model : SimulatorTypes.ComponentId list =
+let getSelected model =
     match model.Diagram.GetSelected () with
     | None -> []
     | Some jsState -> 
         let compsPorts =
             fst jsState 
-            |> List.map (extractComponent >> (fun c -> c.Id) >> SimulatorTypes.ComponentId)
+            |> List.map (extractComponent >> (fun c -> SimulatorTypes.ComponentId c.Id))
         let connsPorts =
             snd jsState
-            |> List.map (extractConnection >> (fun c -> c.Target.HostId) >> SimulatorTypes.ComponentId)
+            |> List.map (extractConnection >> (fun c -> SimulatorTypes.ComponentId c.Target.HostId))
         List.append compsPorts connsPorts
 
 let selected2portLst model (simData: SimulatorTypes.SimulationData) =

@@ -14,7 +14,6 @@ $zoomFactor: 1.2;
 $waveVBextraHeight: 0.5;
 $maxBusValGap: 3;
 $busLabelTextSize: 0.6; // multiplied by signal height
-$waveBoxPercWidth: 100%;
 $clkLineWidth: 0.0125;
 $boxStrokeThck: 0.05;
 $persvgwidth: 100;
@@ -45,8 +44,6 @@ $sigLineThick: 0.025;
 }
 
 .cursorRectStyle { 
-    y: 0; //calc(#{$sigLineThick} / 2);
-    width: calc(#{$waveBoxPercWidth} / 10.0);
     stroke: black;
     fill: rgb(230,230,230);
     stroke-width: 0;

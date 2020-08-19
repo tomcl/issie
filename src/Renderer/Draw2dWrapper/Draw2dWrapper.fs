@@ -8,7 +8,7 @@ open CommonTypes
 open JSTypes
 open DiagramMessageType
 open JSHelpers
-open DiagramStyle
+//open DiagramStyle
 
 open Fable.Core
 open Fable.Core.JsInterop
@@ -24,6 +24,7 @@ type private IDraw2d =
         dispatchOnUnselectComponentMessage_ :(unit->unit) ->
         dispatchHasUnsavedChangesMessage_   :(bool->unit) ->
         unit
+    abstract printCanvas                  : canvas: JSCanvas -> handler: (string -> string -> unit) -> unit
     abstract createCanvas                 : id:string -> width:int -> height:int -> JSCanvas
     abstract initialiseCanvas             : canvas:JSCanvas -> unit
     abstract clearCanvas                  : canvas:JSCanvas -> unit
@@ -45,6 +46,8 @@ type private IDraw2d =
     abstract installSelectionPolicy       : comp:JSComponent -> unit
     abstract createDigitalInput           : x:int -> y:int -> numberOfBits:int -> JSComponent
     abstract createDigitalOutput          : x:int -> y:int -> numberOfBits:int -> JSComponent
+    abstract createDigitalLabel          : x:int -> y:int -> JSComponent
+    abstract createDigitalBusSelection    : x : int -> y: int -> numberOfBits: int -> bitSelected: int -> JSComponent
     abstract createDigitalNot             : x:int -> y:int -> JSComponent
     abstract createDigitalAnd             : x:int -> y:int -> JSComponent
     abstract createDigitalOr              : x:int -> y:int -> JSComponent
@@ -68,6 +71,7 @@ type private IDraw2d =
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
     abstract writeMemoryLine              : comp:JSComponent -> addr:int -> value:int64 -> unit
     abstract setNumberOfBits              : comp:JSComponent -> numberOfBits:int -> unit
+    abstract setLsbBitNumber              : comp:JSComponent -> lsbBitNumber:int -> unit
     abstract setTopOutputWidth            : comp:JSComponent -> topOutputWidth: int -> unit
     abstract setRegisterWidth             : comp:JSComponent -> topOutputWidth: int -> unit
     abstract updateMergeWiresLabels       : comp:JSComponent -> topInputWidth:int option -> bottomInputWidth:int option -> outputWidth:int option -> unit
@@ -82,16 +86,23 @@ type private IDraw2d =
     abstract undoLastAction               : canvas:JSCanvas -> unit
     abstract redoLastAction               : canvas:JSCanvas -> unit
     abstract flushCommandStack            : canvas:JSCanvas -> unit
+    abstract getScrollArea                : canvas: JSCanvas -> ResizeArray<int>
+    abstract getZoom                      : canvas: JSCanvas -> float
+    abstract setScrollZoom                : canvas: JSCanvas -> scrollLeft: int -> scrollTop:int -> zoom: float -> unit
 
 [<Import("*", "./draw2d_fsharp_interface.js")>]
 let private draw2dLib : IDraw2d = jsNative
 
 // Helpers.
 
+
+
 let private createAndInitialiseCanvas (id : string) : JSCanvas =
-    let canvas = draw2dLib.createCanvas id 3000 2000
+    let canvas = draw2dLib.createCanvas id CommonTypes.draw2dCanvasWidth CommonTypes.draw2dCanvasHeight
     draw2dLib.initialiseCanvas canvas
     canvas
+
+
 
 let private setPorts (ports : Port list) (jsPorts : JSPorts) : unit =
     let jsPortsLen : int = getFailIfNull jsPorts ["length"]
@@ -117,6 +128,8 @@ let private createComponent
         match componentType with
         | Input w  -> draw2dLib.createDigitalInput x y w
         | Output w -> draw2dLib.createDigitalOutput x y w
+        | IOLabel -> draw2dLib.createDigitalLabel x y
+        | BusSelection (w,lsb) -> draw2dLib.createDigitalBusSelection x y w lsb
         | Not    -> draw2dLib.createDigitalNot x y
         | And    -> draw2dLib.createDigitalAnd x y
         | Or     -> draw2dLib.createDigitalOr x y
@@ -126,7 +139,8 @@ let private createComponent
         | Xnor   -> draw2dLib.createDigitalXnor x y
         | Mux2   -> draw2dLib.createDigitalMux2 x y
         | Demux2 -> draw2dLib.createDigitalDemux2 x y
-        | NbitsAdder numberOfBits -> draw2dLib.createDigitalNbitsAdder x y numberOfBits
+        | NbitsAdder numberOfBits -> 
+            draw2dLib.createDigitalNbitsAdder x y numberOfBits
         | ComponentType.Custom custom ->
             draw2dLib.createDigitalCustom
                 x y custom.Name (fshaprListToJsList custom.InputLabels)
@@ -135,7 +149,8 @@ let private createComponent
         | SplitWire topWireWidth -> draw2dLib.createDigitalSplitWire x y topWireWidth
         | DFF  -> draw2dLib.createDigitalDFF x y
         | DFFE -> draw2dLib.createDigitalDFFE x y
-        | Register  width -> draw2dLib.createDigitalRegister x y width
+        | Register  width -> 
+            draw2dLib.createDigitalRegister x y width
         | RegisterE width -> draw2dLib.createDigitalRegisterE x y width
         | AsyncROM mem ->
             draw2dLib.createDigitalAsyncROM
@@ -147,7 +162,9 @@ let private createComponent
             draw2dLib.createDigitalRAM
                 x y mem.AddressWidth mem.WordWidth (fshaprListToJsList mem.Data)
     // Every component is assumed to have a label (may be empty string).
+
     draw2dLib.addComponentLabel comp label
+    
     // Set Id if one is provided.
     match maybeId with
     | None -> ()
@@ -174,32 +191,30 @@ let private createConnection
     match maybeId with
     | None -> ()
     | Some id -> draw2dLib.setConnectionId conn id
+    vertices
+    |> List.map (fun (x, y) -> createObj ["x" ==> x; "y" ==> y])
+    |> fshaprListToJsList
+    |> draw2dLib.setConnectionVertices conn
     draw2dLib.addConnectionToCanvas canvas conn
-    // TODO: Setting vertices seems to break stuff, not sure why.
-    // It is highly likely this is a bug in the draw2d library, and it has been
-    // reported: https://github.com/freegroup/draw2d/issues/115
-    // When fixed, just uncomment the below logic.
-
-    // Vertices must be set only once the connection is already in the the
-    // canvas, i.e. after the connection has been actually routed.
-    //vertices
-    //|> List.map (fun (x, y) -> createObj ["x" ==> x; "y" ==> y])
-    //|> fshaprListToJsList
-    //|> draw2dLib.setConnectionVertices conn
 
 let private editComponentLabel (canvas : JSCanvas) (id : string) (newLabel : string) : unit =
     let jsComponent = draw2dLib.getComponentById canvas id
     if isNull jsComponent
     then failwithf "what? could not find diagram component with Id: %s" id
-    else jsComponent?children?data?(0)?figure?setText(newLabel)
+    else 
+        draw2dLib.setComponentLabel jsComponent newLabel
+        //jsComponent?children?data?(0)?figure?setText(newLabel)
+    
 
 // React wrapper.
 
-type DisplayModeType = Hidden | VisibleSmall | VisibleLarge
+/// Determines size of schematic.
+/// ToDo - make this more flexible and expose sizes
+type DisplayModeType = DispMode of HTMLAttr
 
 type private Draw2dReactProps = {
     Dispatch : JSDiagramMsg -> unit
-    DisplayMode : DisplayModeType
+    CanvasDisplayMode : DisplayModeType
 }
 
 type private Draw2dReact(initialProps) =
@@ -212,18 +227,17 @@ type private Draw2dReact(initialProps) =
         createAndInitialiseCanvas divId |> InitCanvas |> this.props.Dispatch
 
     override this.render() =
-        let style = match this.props.DisplayMode with
-                    | Hidden -> canvasHiddenStyle
-                    | VisibleSmall -> canvasVisibleStyleS
-                    | VisibleLarge -> canvasVisibleStyleL
+        let style = match this.props.CanvasDisplayMode with | DispMode s -> s    
         div [ Id divId; style ] []
 
 let inline private createDraw2dReact props = ofType<Draw2dReact,_,_> props []
 
+/// interface to ta draw2d component that controls the schematic sheet
 type Draw2dWrapper() =
     let mutable canvas : JSCanvas option = None
     let mutable dispatch : (JSDiagramMsg -> unit) option = None
 
+    /// Executes action applied to the current Draw2d canvas
     let tryActionWithCanvas name action =
         match canvas with
         | None -> log <| sprintf "Warning: Draw2dWrapper.%s called when canvas is None" name
@@ -232,29 +246,59 @@ type Draw2dWrapper() =
     /// Returns a react element containing the canvas.
     /// The dispatch function has to be: JSDiagramMsg >> dispatch
     member this.CanvasReactElement jsDiagramMsgDispatch displayMode =
-        // Initialise dispatch if needed.
-        match dispatch with
-        | None ->
+        let reload() =
             dispatch <- Some jsDiagramMsgDispatch
             draw2dLib.setDispatchMessages
                 (InferWidths >> jsDiagramMsgDispatch)
                 (SelectComponent >> jsDiagramMsgDispatch)
                 (UnselectComponent >> jsDiagramMsgDispatch)
                 (SetHasUnsavedChanges >> jsDiagramMsgDispatch)
-        | Some _ -> ()
+        // Initialise dispatch if needed.
+        match dispatch with
+        | None -> reload()
+        | Some _ -> // even if canvas has previously been installed, HMR can break this - so do it again if debugging
+                    // this will unselect all components. TODO: use an HMR callback to do this, or make state persistent via react props
+            if debugLevel <> 0 then
+                reload()  
         // Return react element with relevant props.
         createDraw2dReact {
             Dispatch = jsDiagramMsgDispatch
-            DisplayMode = displayMode
+            CanvasDisplayMode = displayMode
         }
 
     member this.InitCanvas newCanvas =
         match canvas with
         | None -> canvas <- Some newCanvas
-        | Some _ -> failwithf "what? InitCanvas should never be called when canvas is already created" 
+        | Some _ -> canvas <- Some newCanvas
+
+    member this.printCanvas (handler: (string -> string -> unit)) =
+        printfn "printing canvas!"
+        tryActionWithCanvas "PrintCanvas" (fun canvas -> draw2dLib.printCanvas canvas handler)
     
     member this.ClearCanvas () =
         tryActionWithCanvas "ClearCanvas" draw2dLib.clearCanvas
+
+    member this.GetScrollArea () =
+        match canvas with
+        | None -> 
+            None
+        | Some c -> 
+            let a = draw2dLib.getScrollArea c
+            Some {| Width = a.[0]; Height = a.[1]; Left = a.[2]; Top = a.[3]|}
+
+    member this.GetZoom () =
+        match canvas with
+        | None -> 
+            None
+        | Some c -> 
+            draw2dLib.getZoom c |> Some
+
+    member this.SetScrollZoom scrollLeft scrollTop zoom =
+        match canvas with
+        | None -> 
+            ()
+        | Some c -> 
+            draw2dLib.setScrollZoom c scrollLeft scrollTop zoom
 
     /// Brand new component.
     member this.CreateComponent componentType label x y =
@@ -296,6 +340,8 @@ type Draw2dWrapper() =
             draw2dLib.setComponentLabel jsComp newLabel
         |> tryActionWithCanvas "EditComponentLabel"
 
+    /// Repaint a connection
+    /// should mod to allow different colors independent of width?
     member this.PaintConnection connectionId width =
         fun c ->
             let jsConnection =
@@ -310,13 +356,15 @@ type Draw2dWrapper() =
             draw2dLib.setConnectionColor jsConnection color
         |> tryActionWithCanvas "PaintConnection"
 
-    member this.HighlightComponent componentId = 
+    /// Unhighlight a specific component
+    member this.HighlightComponent (color: CommonTypes.HighLightColor) componentId = 
         fun c ->
             let comp =
                 assertNotNull (draw2dLib.getComponentById c componentId) "HighlightComponent"
-            draw2dLib.setComponentBackground comp "red"
+            draw2dLib.setComponentBackground comp (JSHelpers.getColorString color)
         |> tryActionWithCanvas "HighlightComponent"
 
+    /// Highlight a specific component
     member this.UnHighlightComponent componentId = 
         fun c ->
             let comp = draw2dLib.getComponentById c componentId
@@ -324,7 +372,8 @@ type Draw2dWrapper() =
             | true -> () // The component has been removed from the diagram while it was highlighted.
             | false -> draw2dLib.setComponentBackground comp "lightgray"
         |> tryActionWithCanvas "UnHighlightComponent"
-
+    
+    /// Highlight a specific connection
     member this.HighlightConnection connectionId =
         fun c ->
             let conn =
@@ -333,6 +382,7 @@ type Draw2dWrapper() =
             draw2dLib.setConnectionStroke conn 3
         |> tryActionWithCanvas "HighlightConnection"
 
+    /// Unhighlight a specific connection
     member this.UnHighlightConnection connectionId = 
         fun c ->
             let conn = draw2dLib.getConnectionById c connectionId
@@ -342,7 +392,7 @@ type Draw2dWrapper() =
                        draw2dLib.setConnectionStroke conn 1
         |> tryActionWithCanvas "UnHighlightConnection"
 
-    member this.GetCanvasState () =
+    member this.GetCanvasState () : JSCanvasState option =
         match canvas with
         | None ->
             log "Warning: Draw2dWrapper.GetCanvasState called when canvas is None"
@@ -351,8 +401,9 @@ type Draw2dWrapper() =
             let comps = jsListToFSharpList <| draw2dLib.getAllJsComponents c
             let conns = jsListToFSharpList <| draw2dLib.getAllJsConnections c
             Some (comps, conns)
-
-    member this.GetSelected () =
+    /// Return selected (JSComponents list,JSConnections list).
+    /// Use extractState to convert to F# components and connections
+    member this.GetSelected () : JSCanvasState option =
         match canvas with
         | None ->
             log "Warning: Draw2dWrapper.GetSelected called when canvas is None"
@@ -395,6 +446,12 @@ type Draw2dWrapper() =
             draw2dLib.setNumberOfBits jsComp numberOfBits
         |> tryActionWithCanvas "SetNumberOfBits"
 
+    member this.SetLsbBitNumber compId lsbBitNumber =
+        fun c ->
+            let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "SetLsbBitNumber"
+            draw2dLib.setLsbBitNumber jsComp lsbBitNumber
+        |> tryActionWithCanvas "SetLsbBitNumber"
+
     member this.SetTopOutputWidth compId topOutputWidth =
         fun c ->
             let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "SetTopOutputWidth"
@@ -415,3 +472,5 @@ type Draw2dWrapper() =
             match isNull jsComp with
             | true -> Error <| sprintf "Could not find component with Id: %s" compId
             | false -> Ok jsComp
+
+    

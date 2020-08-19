@@ -1,6 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
+
   </PropertyGroup>
   <ItemGroup>
     <None Include="scss\main.scss" />
@@ -10,7 +12,6 @@
     <Compile Include="FilesIO.fs" />
 
     <!-- UI -->
-    <Compile Include="UI/Style.fs" />
     <Compile Include="UI/MessageType.fs" />
     <None Include="Draw2dWrapper\drag_connection_create_policy_fixed.js" />
     <None Include="Draw2dWrapper\draw2d_digital_components.js" />
@@ -19,6 +20,7 @@
     <None Include="Draw2dWrapper\MVU_messages.js" />
     <Compile Include="Draw2dWrapper/Draw2dWrapper.fs" />
     <Compile Include="UI/ModelType.fs" />
+    <Compile Include="UI/Style.fs" />
     <Compile Include="UI/PopupView.fs" />
     <Compile Include="UI/MemoryEditorView.fs" />
     <Compile Include="UI/FileMenuView.fs" />
@@ -26,6 +28,7 @@
     <Compile Include="UI/SimulationView.fs" />
     <Compile Include="UI/CatalogueView.fs" />
     <Compile Include="UI/SelectedComponentView.fs" />
+    <Compile Include="UI/WaveformSimulationView.fs" />
     <Compile Include="UI/MainView.fs" />
 
     <Compile Include="Renderer.fs" />

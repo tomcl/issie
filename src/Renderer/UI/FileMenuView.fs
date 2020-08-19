@@ -19,6 +19,7 @@ open CommonTypes
 open FilesIO
 open Extractor
 open PopupView
+open Draw2dWrapper
 
 let private displayFileErrorNotification err dispatch =
     errorNotification err CloseFilesNotification
@@ -107,7 +108,7 @@ let private removeFileInProject name project model dispatch =
     | true -> openFileInProject project.LoadedComponents.[0].Name project model dispatch
 
 /// Create a new file in this project and open it automatically.
-let private addFileToProject model dispatch =
+let addFileToProject model dispatch =
     match model.CurrProject with
     | None -> log "Warning: addFileToProject called when no project is currently open"
     | Some project ->
@@ -180,7 +181,7 @@ let private newProject model dispatch _ =
         | Ok _ ->
             dispatch EndSimulation // End any running simulation.
             // Create empty placeholder projectFile.
-            let projectFile = basename path + ".dprj"
+            let projectFile = baseName path + ".dprj"
             writeFile (pathJoin [|path; projectFile|]) ""
             // Create empty initial diagram file.
             let initialDiagram = createEmptyDiagramFile path "main"
@@ -240,7 +241,7 @@ let viewNoProjectMenu model dispatch =
     | Some _ -> div [] []
     | None -> unclosablePopup None initialMenu None []
 
-let private viewInfoPopup disptach =
+let private viewInfoPopup dispatch =
     let makeH h =
         Text.span [ Modifiers [
             Modifier.TextSize (Screen.Desktop, TextSize.Is5)
@@ -265,17 +266,19 @@ let private viewInfoPopup disptach =
         ]
     ]
     let foot = div [] []
-    closablePopup title body foot [] disptach
+    closablePopup title body foot [] dispatch
 
 /// Display top menu.
 let viewTopMenu model dispatch =
+    //printfn "FileView"
+    let style = Style [Width "100%"] //leftSectionWidth model
     let projectPath, fileName =
         match model.CurrProject with
         | None -> "no open project", "no open file"
         | Some project -> project.ProjectPath, project.OpenFileName
     let makeFileLine name project =
-        Navbar.Item.div [ Navbar.Item.Props [ Style [ Width "100%"] ] ] [
-            Level.level [ Level.Level.Props [ Style [ Width "100%"] ] ] [
+        Navbar.Item.div [ Navbar.Item.Props [ style] ] [
+            Level.level [ Level.Level.Props [ style ] ] [
                 Level.left [] [
                     Level.item [] [ str name ]
                 ]
@@ -339,7 +342,8 @@ let viewTopMenu model dispatch =
             ] [
                 Navbar.Link.a [] [ str "Files" ]
                 Navbar.Dropdown.div [ Navbar.Dropdown.Props [
-                    Style [Display (if model.TopMenu = Files then DisplayOptions.Block else DisplayOptions.None)]
+                    Style [Display (if (let b = model.TopMenu = Files; 
+                                    b) then DisplayOptions.Block else DisplayOptions.None)]
                 ]] (
                     [
                         Navbar.Item.a [
@@ -351,8 +355,9 @@ let viewTopMenu model dispatch =
                     @ projectFiles
                 )
             ]
-    div [ navbarStyle ] [
-        Navbar.navbar [ Navbar.Props [Style [Height "100%"; Width "100%"]] ] [
+
+    div [ leftSectionWidth model ] [
+        Navbar.navbar [ Navbar.Props [Style [Height "100%"; Width "100%" ]] ] [
             Navbar.Brand.div [ Props [Style [Height "100%"; Width "100%"]] ] [
                 Navbar.Item.div [
                     Navbar.Item.HasDropdown;

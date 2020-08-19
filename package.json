@@ -4,20 +4,24 @@
   "description": "Schematic editor and Simulator",
   "private": true,
   "main": "app/main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tomcl/ISSIE.git"
+  },
   "scripts": {
     "start": "electron-webpack dev",
     "compile": "electron-webpack",
     "build": "electron-webpack && electron-builder",
     "launch": "electron .",
-    "debug": "electron . --debug",
     "make-osx-dmg": "yarn electron-installer-dmg --overwrite --icon=app/icon.ico dist/deflow-darwin-x64 dist/deflow-osx",
-    "pack-nobuild-linux": "electron-packager . DEflow --platform=linux --arch=x64 --out=dist --prune --asar --ignore=/dist --ignore=/src --overwrite && yarn cross-zip dist/deflow-linux-x64",
-    "pack-nobuild-win": "electron-packager . DEflow --platform=win32 --arch=x64 --out=dist --prune --ignore=/dist --ignore=/src --overwrite --icon=app/icon.ico && yarn cross-zip dist/deflow-win32-x64",
-    "pack-nobuild-osx": "electron-packager . DEflow --platform=darwin --arch=x64 --out=dist --prune --asar --ignore=/dist --ignore=/src --overwrite --icon=app/icon.ico && yarn make-osx-dmg",
+    "pack-all": "yarn run build && yarn pack-nobuild-win && yarn pack-nobuild-linux && yarn pack-nobuild-osx",
     "pack-linux": "yarn build && yarn pack-nobuild-linux",
-    "pack-win": "yarn build && yarn pack-nobuild-win",
+    "pack-nobuild-linux": "electron-packager . DEflow --platform=linux --arch=x64 --out=dist --prune --asar --ignore=/dist --ignore=/src --overwrite && yarn cross-zip dist/deflow-linux-x64",
+    "pack-nobuild-osx": "electron-packager . DEflow --platform=darwin --arch=x64 --out=dist --prune --asar --ignore=/dist --ignore=/src --overwrite --icon=app/icon.ico && yarn make-osx-dmg",
+    "pack-nobuild-win": "electron-packager . DEflow --platform=win32 --arch=x64 --out=dist --prune --ignore=/dist --ignore=/src --overwrite --icon=app/icon.ico && yarn cross-zip dist/deflow-win32-x64",
     "pack-osx": "yarn build && yarn pack-nobuild-osx && yarn make-osx-dmg",
-    "pack-all": "yarn run build && yarn pack-nobuild-win && yarn pack-nobuild-linux && yarn pack-nobuild-osx"
+    "pack-win": "yarn build && yarn pack-nobuild-win",
+    "start": "electron-webpack dev"
   },
   "electronWebpack": {
     "main": {
@@ -30,12 +34,17 @@
     },
     "title": true
   },
+  "build": {
+    "appId": "ISSIE.040",
+    "asar": false
+  },
   "dependencies": {
     "bulma": "^0.9.0",
     "core-js": "^3.6.5",
     "cross-zip": "^3.1.0",
     "cross-zip-cli": "^1.0.0",
     "draw2d": "^1.0.38",
+    "electron-devtools-installer": "^3.1.0",
     "font-awesome": "^4.7.0",
     "jquery": "^3.5.1",
     "jquery-ui": "^1.12.1",
@@ -69,5 +78,6 @@
     "utf-8-validate": "^5.0.2",
     "webpack": "^4.43.0",
     "webpack-cli": "^3.3.12"
-  }
+  },
+  "private": true
 }

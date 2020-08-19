@@ -5,7 +5,20 @@ open Fable.Core.JsInterop
 open Electron
 open Node
 
-#if DEBUG
+let args = 
+    Api.``process``.argv
+    |> Seq.toList
+    |> List.map (fun s -> s.ToLower())
+
+/// Returns true if any of flags are present as command line argument.    
+let argFlagIsOn (flags:string list) = 
+    let fl = List.map (fun (s:string) -> s.ToLower()) flags
+    List.exists (fun flag -> List.contains flag args) fl
+
+let hasDebugArgs() = argFlagIsOn ["--debug";"-d"]
+
+let debug = true
+
 module DevTools =
     let private installDevTools (extensionRef: obj) (forceDownload: bool): JS.Promise<string> =
         importDefault "electron-devtools-installer"
@@ -31,23 +44,14 @@ module DevTools =
         main.Session.defaultSession.removeExtension("React Developer Tools")
         main.Session.defaultSession.removeExtension("Redux DevTools")
         win.webContents.executeJavaScript ("require('devtron').uninstall()")
+        
 
     let connectRemoteDevViaExtension: unit -> unit = import "connectViaExtension" "remotedev"
-#endif
 
-electron.app.name <- "DEflow"
 
-let args = 
-    Api.``process``.argv
-    |> Seq.toList
-    |> List.map (fun s -> s.ToLower())
+electron.app.name <- "Issie"
 
-/// Returns true if any of flags are present as command line argument.    
-let argFlagIsOn (flags:string list) = 
-    let fl = List.map (fun (s:string) -> s.ToLower()) flags
-    List.exists (fun flag -> List.contains flag args) fl
 
-let hasDebugArgs() = argFlagIsOn ["--debug";"-d"]
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -61,9 +65,13 @@ let createMainWindow () =
     let options = jsOptions<BrowserWindowOptions> <| fun options ->
         options.width <- 1200
         options.height <- 800
-        options.autoHideMenuBar <- true
+        options.show <- false
+        options.autoHideMenuBar <- false
+        options.frame <- true
+        options.hasShadow <- true
+        options.backgroundColor <-  "#5F9EA0"
         options.icon <- (U2.Case2 (path.join(staticDir(), "icon.ico")))
-        options.title <- "DEflow"
+        options.title <- "ISSIE"
         options.webPreferences <-
             jsOptions<WebPreferences> <| fun o ->
                 o.nodeIntegration <- true
@@ -73,15 +81,18 @@ let createMainWindow () =
 
     window.onceReadyToShow <| fun _ ->
         if window.isMinimized() then window.show()
+        options.backgroundColor <- "#F0F0F0"
+        window.focus()
     |> ignore
 
     // Load the index.html of the app.    
-    #if DEBUG
 
+#if DEBUG
     DevTools.installAllDevTools window
     DevTools.connectRemoteDevViaExtension()
 
-    window.webContents.openDevTools()
+    if debug then
+        window.webContents.openDevTools()
 
     sprintf "http://localhost:%s" ``process``.env?ELECTRON_WEBPACK_WDS_PORT
     |> window.loadURL
@@ -90,10 +101,10 @@ let createMainWindow () =
     ``process``.on("uncaughtException", fun err -> JS.console.error(err))
     |> ignore
 
-    #else
-
+    
+#else
     let url =
-        path.join(__dirname, "index.html")
+        path.join ( staticDir(),  "index.html")
         |> sprintf "file:%s" 
         |> Api.URL.Create
 
@@ -101,7 +112,7 @@ let createMainWindow () =
     |> window.loadURL
     |> ignore
 
-    #endif
+#endif    
     
     // Emitted when the window is closed.
     window.onClosed <| fun _ ->
@@ -126,6 +137,7 @@ electron.app.onWindowAllClosed <| fun _ ->
     // to stay active until the user quits explicitly with Cmd + Q
     if Api.``process``.platform <> Base.Darwin then
         electron.app.quit()
+
 |> ignore
 
 electron.app.onActivate <| fun _ _ ->

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>SimulationRunner - issie</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content=""/>
+    <meta name="author" content="tomcl"/>
+
+    <script src="https://code.jquery.com/jquery-1.8.0.js"></script>
+    <script src="https://code.jquery.com/ui/1.8.23/jquery-ui.js"></script>
+    <script src="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/js/bootstrap.min.js"></script>
+    <link href="https://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.1/css/bootstrap-combined.min.css" rel="stylesheet"/>
+
+    <link type="text/css" rel="stylesheet" href="https://tomcl.github.io/issie//content/style.css" />
+    <script type="text/javascript" src="https://tomcl.github.io/issie//content/tips.js"></script>
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="container">
+      <div class="masthead">
+        <ul class="nav nav-pills pull-right">
+          <li><a href="http://fsharp.org">fsharp.org</a></li>
+        </ul>
+        <h3 class="muted"><a href="https://tomcl.github.io/issie//index.html">issie</a></h3>
+      </div>
+      <hr />
+      <div class="row">
+        <div class="span9" id="main">
+          
+
+
+
+<h1>SimulationRunner</h1>
+<p>
+  <span>Namespace: global</span><br />
+  </p>
+<div class="xmldoc">
+</div>
+
+<!-- Render nested types and modules, if there are any -->
+
+  <h3>Functions and values</h3>
+  <table class="table table-bordered member-list">
+    <thead>
+      <tr><td>Function or value</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '54', 54)" onmouseover="showTip(event, '54', 54)">
+            diffReducerInputsOrOutputs newIO oldIO
+          </code>
+          <div class="tip" id="54">
+            <strong>Signature:</strong> newIO:Map&lt;&#39;a,WireData&gt; -&gt; oldIO:Map&lt;&#39;a,WireData&gt; -&gt; Map&lt;&#39;a,WireData&gt;<br />
+                          <strong>Type parameters:</strong> 'a                      </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Runner.fs#L20-20" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Function to determine what reducer inputs or outputs have changed.</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '55', 55)" onmouseover="showTip(event, '55', 55)">
+            extractIncompleteSimulationIOs(...)
+          </code>
+          <div class="tip" id="55">
+            <strong>Signature:</strong> simulationIOs:SimulationIO list -&gt; graph:SimulationGraph -&gt; (SimulationIO * WireData) list<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Runner.fs#L194-194" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Simlar to extractSimulationIOs, but do not fail if a bit is not set, just
+ignore it.</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '56', 56)" onmouseover="showTip(event, '56', 56)">
+            extractSimulationIOs simulationIOs graph
+          </code>
+          <div class="tip" id="56">
+            <strong>Signature:</strong> simulationIOs:SimulationIO list -&gt; graph:SimulationGraph -&gt; (SimulationIO * WireData) list<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Runner.fs#L178-178" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Given a list of IO nodes (i.e. Inputs or outputs) extract their value.
+If they dont all have a value, an error is thrown.</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '57', 57)" onmouseover="showTip(event, '57', 57)">
+            feedClockTick(graph)
+          </code>
+          <div class="tip" id="57">
+            <strong>Signature:</strong> graph:SimulationGraph -&gt; SimulationGraph<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Runner.fs#L112-112" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Send one global clock tick to all clocked components, and return the updated
+simulationGraph.</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '58', 58)" onmouseover="showTip(event, '58', 58)">
+            feedSimulationInput(...)
+          </code>
+          <div class="tip" id="58">
+            <strong>Signature:</strong> graph:SimulationGraph -&gt; inputId:ComponentId -&gt; wireData:WireData -&gt; SimulationGraph<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Runner.fs#L157-157" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Feed zero to a simulation input.
+This function is supposed to be used with Components of type Input.</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '59', 59)" onmouseover="showTip(event, '59', 59)">
+            getSimulationIOs(components)
+          </code>
+          <div class="tip" id="59">
+            <strong>Signature:</strong> components:Component list -&gt; SimulationIO list * SimulationIO list<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Runner.fs#L210-210" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Get ComponentIds, ComponentLabels and wire widths of all input and output
+nodes.</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '60', 60)" onmouseover="showTip(event, '60', 60)">
+            getSimulationIOsFromGraph(graph)
+          </code>
+          <div class="tip" id="60">
+            <strong>Signature:</strong> graph:SimulationGraph -&gt; SimulationIO list * SimulationIO list<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Runner.fs#L222-222" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Get ComponentIds, ComponentLabels and wire widths of all input and output
+nodes in a simulationGraph.</p>
+
+
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '61', 61)" onmouseover="showTip(event, '61', 61)">
+            InitialiseGraphWithZeros inputIds graph
+          </code>
+          <div class="tip" id="61">
+            <strong>Signature:</strong> inputIds:SimulationIO list -&gt; graph:SimulationGraph -&gt; SimulationGraph<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Runner.fs#L163-163" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Feed zeros to all simulation inputs, and feed a single clock tick.
+This way all combinational logic has been touched once and had produced its
+outputs.</p>
+
+
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+        </div>
+        <div class="span3">
+          <ul class="nav nav-list" id="menu" style="margin-top: 20px;">
+            <li class="nav-header">issie</li>
+            <li class="divider"></li>
+            <li><a href="https://github.com/tomcl/ISSIE">Source Code</a></li>
+            <li><a href="https://tomcl.github.io/issie//release-notes.html">Release Notes</a></li>
+            <li><a href="https://tomcl.github.io/issie//contributing.html">Contributing</a></li>
+            
+            <li class="nav-header">Documentation</li>
+            <li><a href="https://tomcl.github.io/issie//index.html">Introduction</a></li>
+            <li class="divider"></li>
+            <li><a href="https://tomcl.github.io/issie//community.html">Community</a></li>
+            
+            <li class="nav-header">Reference</li>
+            <li><a href="https://tomcl.github.io/issie//reference/index.html">API Reference</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </body>
+  </html>

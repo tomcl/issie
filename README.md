@@ -1,22 +1,27 @@
-# DEflow
+# Issie - an Integrated Schematic Simulator with Interactive Editor
 
-DEflow is an application for digital circtuit design and simulation. It is targeted to students and hobbysts that want to get a grasp of Digital Electronics concepts in a simple and fun way. DEflow is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues.
+Issie (Integrated Schematic Simulator with Interactive Editor) is an application for digital circuit design and simulation. It is targeted at students and hobbyists that want to get a grasp of Digital Electronics concepts in a simple and fun way. Issie is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues.
 
-The application is currently being developed and maintained by Marco Selvatici, as a Final Year Project.
+The application is was initially developed by Marco Selvatici, as a Final Year Project.
+
+It is currently being maintained by Tom Clarke (owner) and Edoardo Santi (Summer UROP).
 
 If you are just interested in using the application, jump to the [Getting Started](#getting-started) section. For more info about the project, read on.
 
-This documentation is largely based on the excellent [VisUAL2](https://github.com/ImperialCollegeLondon/Visual2) documentation, given the similarity in the technology stack used.
+This documentation is partly based on the excellent [VisUAL2](https://github.com/ImperialCollegeLondon/Visual2) documentation, given the similarity in the technology stack used.
 
 ## Introduction
 
-The application is mostly written in F#, which gets transpiled to JavaScript via the [fable](https://fable.io/) compiler. [Electron](https://www.electronjs.org/) is then used to convert the developed web-app to a cross-platform application. Electron provides access to platform-level APIs (such as access to the file system) which would not be available to vanilla browser web-apps.
+For the Issie website go [here](https://tomcl.github.io/issie/).
+
+The application is mostly written in F#, which gets transpiled to JavaScript via the [fable](https://fable.io/) compiler. [Electron](https://www.electronjs.org/) is then used to convert the developed web-app to a cross-platform application. [Electron](electronjs.org) provides access to platform-level APIs (such as access to the file system) which would not be available to vanilla browser web-apps.
 
 [Webpack 4](https://webpack.js.org/) is the module bundler responsible for the JavaScript concatenation and automated building process.
 
 The drawing capabilities are provided by the [draw2d](http://www.draw2d.org/draw2d/) JavaScript library, which has been extended to support digital electronics components.
 
 The choice of F# as main programming language for the app has been dictated by a few factors:
+
 * the success of the [VisUAL2](https://github.com/ImperialCollegeLondon/Visual2), which uses a similar technology stack;
 * strongly typed functional code tends to be easy to maintain and test, as the type-checker massively helps you;
 * Imperial College EEE/EIE students learn such language in the 3rd year High-Level-Programming course, hence can maintain the app in the future;
@@ -43,6 +48,8 @@ Additionally, the section `"scripts"`:
 }
 ```
 Defines the in-project shortcut commands, therefore when we use `yarn <stript_key>` is equivalent to calling `<script_value>`. For example, in the root of the project, running in the terminal `yarn launch` is equivalent to running `electron .`.
+
+The build system depends on a `Fake` file `build.fsx`. This has targets representing build tasks, and normally these are used, accessed via `build.cmd` or `build.sh`, instead of using `yarn` directly.
 
 ## Code Structure
 
@@ -71,75 +78,49 @@ The compile process is controlled by the `.fsproj` files (defining the F# source
 
 |   Subfolder   |                                             Description                                            |
 |:------------:|:--------------------------------------------------------------------------------------------------:|
+| `main/` | Code for the main electron process that sets everything up - not normally changed |
 | `Common/`       | Provides some common types and utilities used by all other sections                                |
 | `WidthInferer/` | Contains the logic to infer the width of all connections in a diagram and report possible errors. |
 | `Simulator/`    | Contains the logic to analyse and simulate a diagram.                                              |
-| `Renderer/`     | Contains the UI logic, the wrapper to the JavaScript drawing library and a set of utility function to write/read/parse diagram files. This is the only project that cannot run under .Net, as it contains JavaScript related functionalities. |
-| `Tests/`        | Contains numerous tests for the WidthInferer and Simulator. Based on F# Expecto testing library. |
+| `Renderer/`     | Contains the UI logic, the wrapper to the JavaScript drawing library and a set of utility function to write/read/parse diagram files. This amd `main` are the only projects that cannot run under .Net, as they contain JavaScript related functionalities. |
+
+### `Tests` folder
+
+Contains numerous tests for the WidthInferer and Simulator. Based on F# Expecto testing library.
 
 
-### `app` folder
+### `static` folder
 
-| Subfolder or file |                                                                                                                                                          Description                                                                                                                                                          |
-|:-----------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
-| `public/lib/`     | Contains JavaScript code loaded by the `index.html` file. It includes the draw2d library itself, its custom extensions and jquery. Note that draw2d and jquery may be copied (and maybe should?) from the node modules when using the `copy-webpack-plugin`. See the comment in `webpack.config.js` for more info about this. |
-| `scss/`           | Stylesheet required by the [Fulma](https://fulma.github.io/Fulma/) UI library (F# port of [bulma](https://bulma.io/)).                                                                                                                                                                                                        |
-| `icon.ico`        | DEflow icon.                                                                                                                                                                                                                                                                                                                  |
-| `index.html`      | The page rendered by the renderer process. The HTML DOM is dynamically generated using React when the app is running.                                                                                                                                                                                                         |
-| Other             | Other files will be generated in this folder at compilation time. They are ignored by the gitignore, and you don't have to worry about those.                                                                                                                                                                                 |
+Contains static files used in the application.
 
-## Concept of Project and File in DEflow
+### `docsrc` folder
 
-DEflow allows the users to create projects and files within those projects. A DEflow project is simply a folder named `<project_name>.dprj` (dprj stands for diagram project). A project contains a collection of designs, each named `<component_name>.dgm` (dgm stands for diagram).
+Contains source information copied (or compiled) into the `docs` directory that controls the project [Github Pages](https://pages.github.com/) website, with url [https://tomcl.github.io/issie/](https://tomcl.github.io/issie/).
 
-When opening a project, DEflow will search the given repository for `.dgm` files, parse their content, and allow the user to open them in DEflow or use them as components in other designs.
+## Concept of Project and File in Issie
+
+ISSIE allows the users to create projects and files within those projects. A ISSIE project is simply a folder named `<project_name>.dprj` (dprj stands for diagram project). A project contains a collection of designs, each named `<component_name>.dgm` (dgm stands for diagram).
+
+When opening a project, ISSIE will search the given repository for `.dgm` files, parse their content, and allow the user to open them in ISSIE or use them as components in other designs.
 
 ## Getting Started
 
-If you just want to run the app go to the [releases page](https://github.com/ms8817/FIY/releases) and follow the instructions on how to download and run the prebuilt binaries.
+If you just want to run the app go to the [releases page](https://github.com/tomcl/issie/releases) and follow the instructions on how to download and run the prebuilt binaries.
 
 If you want to get started as a developer, follow these steps:
 
-1. Follow instructions to install [yarn](https://yarnpkg.com/lang/en/docs/install/) (which tell you to install Node as well).
+1. Download and install the latest (3.x) [Dotnet Core SDK](https://www.microsoft.com/net/learn/get-started).  
+For Mac and Linux users, download and install [Mono](http://www.mono-project.com/download/stable/) from official website (the version from brew is incomplete, may lead to MSB error later).
 
-2. Download and install the latest (2.x) [Dotnet Core SDK](https://www.microsoft.com/net/learn/get-started).  
-For Mac and Linux users, download and install [Mono](http://www.mono-project.com/download/stable/) from official website (the version from brew is incomplete, may lead to MSB error on step 6).
+2. Download & unzip the Issie repo, or if contributing clone it locally, or fork it on github and then clone it locally.
 
-3. Download & unzip the DEflow repo, or if contributing clone it locally, or fork it on github and then clone it locally.
+3. Navigate to the project root directory (which contains this README) in a command-line interpreter. For Windows usage make sure if possible for convenience that you have a _tabbed_ command-line interpreter that can be started direct from file explorer within a specific directory (by right-clicking on the explorer directory view). That makes things a lot more pleasant. The new [Windows Terminal](https://github.com/microsoft/terminal) works well.
 
-4. Navigate to the project root directory (which contains this README) in a command-line interpreter. For Windows usage make sure if possible for convenience that you have a _tabbed_ command-line interpreter that can be started direct from file explorer within a specific directory (by right-clicking on the explorer directory view). That makes things a lot more pleasant. The new [Windows Terminal](https://github.com/microsoft/terminal) works well.
+4. Run `build.cmd` under Windows or `build.sh` under linux or macos. This will download all dependencies and create auto-documentation and binaries.
 
-5. Fetch the required `npm` packages by executing `yarn install`. This project consistently uses `yarn` Node package manager instead of `npm`.
-
-6. On MacOS or Linux ensure you have [paket installed](https://fsprojects.github.io/Paket/installation.html). Run `setup.bat` (on Windows) or `sh setup.sh` (on linux or macOS). This installs all the required nuget and node dependencies. On other systems run the statements in this file (modified if needed for your system) individually. If MSB error occur while running the script (on macOS) and you were using Mono installed by brew previously, run `brew uninstall mono` and refer to step 2 for install Mono correctly).
-
-7. Goto step 10 if all you want to do is to generate uptodate binaries.
-
-8. In a terminal window compile `fsharp` code to `javascript` using `webpack` by executing `yarn start` (shortcut for `yarn run start`). This runs the `start` script defined in `package.json`. The `start` script  compiles everything once and then watches source files recompiling whenever any change, so it is normal run continuously throughout development. You will need to view the `yarn start` output throughout development since if compile fails the output makes this clear via red-colored text. Although Ionide will also provide error messages on code that does not compile it is possible to miss these when making quick changes.
-
-9. Open your `electron` app in a new terminal tab by running `yarn launch`. This command will start the application.
-
-10. Run `yarn pack-win`, `yarn pack-linux`, `yarn pack-osx` at any time to create a set of system-specific self-contained binaries in `./dist/os-name/*` and a zip in `./dist`. Each binary distribution consists of a portable directory with all dependencies, so use the appropriate one of these if you just want to run DEflow. For osx, the easiest way to run DEflow once it has been built is to navigate to `./dist/DEflow-darwin-x64` and execute `open -a DEflow.app` in terminal. Note that some host-target combinations will not correctly generate: `pack-osx must be executed on os-x`.
-
-11. To open the Chromium console from the running DEflow app press `Ctrl-Shift-I`.
+5. To restart FS code compilation and relaunch the app, as long as no Node packages have changed, `buildq qdev`.
 
 ## Reinstalling Compiler and Libraries
 
-The code requires a global installation of `dotnet` and `node`/`npm`. This does not need changing and is unlikely to cause trouble. Later versions of dotnet SDK or node can usually be installed without trouble
+To reinstall the build environment (without changing project code) rerun `build.cmd` (Windows) or `build.sh` (Linux and MacOS).
 
-All the dependencies are local and installed by yarn (node modules) or dotnet (dotnet assemblies). 
-
-WARNING: `dotnet` assemblies are cached locally at machine level by dotnet. This sometimes goes wrong leading to strange compilation errors. It can be cured very simply by clearing the `dotnet` assembly caches, which is done in `setup.bat` and `setup.sh`.
-
-To reinstall the build environment (without changing project code) run `setup.bat` (Windows) or `setup.sh` (Linux and MacOS).
-
-## Creating DEflow Binaries
-
-After you have compiled code (and checked it works) `yarn pack-all` will run electron packager and generate `./dist/os-name/*` files.
-
-Useful shortcuts for specific common target OS:
-* `yarn pack-win` (Windows)
-* `yarn pack-linux` (Linux)
-* `yarn pack-osx` (MacOs)
-
-I could not test packaging for MacOS yet as I do not have access to a MacOS device at the moment.

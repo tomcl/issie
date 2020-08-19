@@ -28,6 +28,13 @@ let private tryLoadStateFromPath (filePath: string) =
     fs.readFileSync(filePath, "utf8")
     |> jsonStringToState
 
+
+let pathJoin args = path.join args
+let baseName filePath = path.basename filePath
+let dirName filePath = path.dirname filePath
+
+
+
 /// Extract the labels and bus widths of the inputs and outputs nodes.
 let private parseDiagramSignature canvasState
         : (string * int) list * (string * int) list =
@@ -47,28 +54,31 @@ let private parseDiagramSignature canvasState
     List.rev inputs, List.rev outputs
 
 let private getBaseNameNoExtension filePath =
-    let baseName = path.basename filePath
-    match baseName.Split '.' |> Seq.toList with
+    let name = baseName filePath
+    match name.Split '.' |> Seq.toList with
     | [] -> failwithf "what? split at . in a filename should never return empty list"
-    | [baseName] -> baseName // No dots found.
+    | [name] -> name // No dots found.
     | firstSplit :: splits ->
         // Quite ugly but works.
         let rest =
             ("", [0..splits.Length - 2]) ||> List.fold (fun baseName i ->
-                baseName + "." + splits.[i]
+                name + "." + splits.[i]
             )
         firstSplit + rest
 
 let private projectFileFilters =
     createObj !![
-        "name" ==> "DEflow project file"
+        "name" ==> "ISSIE project file"
         "extensions" ==> ResizeArray [ "dprj" ]
     ] 
     |> unbox<FileFilter> 
     |> Array.singleton
 
 let private projectFilters =
-    createObj !![ "name" ==> "DEflow project" ]
+    createObj !![ 
+        "name" ==> "ISSIE project"   
+        "extensions" ==> ResizeArray [ "" ]
+    ]
     |> unbox<FileFilter>
     |> Array.singleton
 
@@ -87,33 +97,70 @@ let askForExistingProjectPath () : string option =
         | p :: _ -> Some <| path.dirname p
     )
 
+
+
 /// Ask the user a new project path, with a dialog window.
 /// Return None if the user exits withouth selecting a path.
-let askForNewProjectPath () : string option =
+let rec askForNewProjectPath () : string option =
     let options = createEmpty<SaveDialogOptions>
     options.filters <- projectFilters
-    
-    electron.remote.dialog.showSaveDialogSync(options)
+    options.title <- "Enter new project directory and name"
+    options.nameFieldLabel <- "New project name"
+    options.buttonLabel <- "Create Project"
+    options.properties <- [|
+        SaveDialogFeature.CreateDirectory
+        SaveDialogFeature.ShowOverwriteConfirmation
+        |]
+    electron.remote.dialog.showSaveDialogSync options
+    |> Option.bind (fun dPath ->
+        let dir = dirName dPath
+        let files = fs.readdirSync <| U2.Case1 dir
+        if Seq.exists (fun (fn:string) -> fn.EndsWith ".dprj") files
+        then
+            electron.remote.dialog.showErrorBox(
+                "Invalid project directory",
+                "You are trying to craete a new Issie project inside an existing project directory. \
+                 This is not allowed, please choose a different directory")
+            askForNewProjectPath()
+            
+        else
+            Some dPath)
+
+
     
 let tryCreateFolder (path : string) =
-    try
-        Result.Ok <| fs.mkdirSync path
-    with
-        | ex -> Result.Error <| sprintf "%A" ex
+    if Seq.exists (fun (ch:char) -> (not (System.Char.IsLetterOrDigit ch))) (baseName path) then 
+        Result.Error <| "'%s' file or project names nust contain only letters or digits"
+    else
+        try
+            Result.Ok <| fs.mkdirSync path
+        with
+            | ex -> Result.Error <| sprintf "%A" ex
 
-let pathJoin args = path.join args
-let basename filePath = path.basename filePath
 
 /// Asyncronously remove file.
 let removeFile folderPath baseName =
     let path = path.join [| folderPath; baseName + ".dgm" |]
     fs.unlink (U2.Case1 path, ignore) // Asynchronous.
 
+
+/// Write base64 encoded data to file.
+/// Create file if it does not exist.
+let writeFileBase64 path data =
+    let options = createObj ["encoding" ==> "base64"] |> Some
+    fs.writeFileSync(path, data, options)
+
 /// Write utf8 encoded data to file.
 /// Create file if it does not exist.
 let writeFile path data =
     let options = createObj ["encoding" ==> "utf8"] |> Some
     fs.writeFileSync(path, data, options)
+
+/// Save a PNG file (encoded base64, as from draw2d)
+/// Overwrite existing file if needed
+let savePngFile folderPath baseName png = // TODO: catch error?
+    let path = pathJoin [| folderPath; baseName + ".png" |]
+    writeFileBase64 path png
 
 /// Save state to file. Automatically add the .dgm suffix.
 let saveStateToFile folderPath baseName state = // TODO: catch error?

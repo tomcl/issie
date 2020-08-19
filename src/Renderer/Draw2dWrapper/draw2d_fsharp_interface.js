@@ -7,6 +7,11 @@ import { createDigitalConnection } from "./draw2d_digital_connections.js"
 import "./draw2d_digital_components.js"
 import "./drag_connection_create_policy_fixed.js"
 
+function printCanvas(canvas,funcPrint) {
+    let writer = new draw2d.io.png.Writer();
+    writer.marshal(canvas, funcPrint);
+}
+
 function createCanvas(id, width, height) {
     let canvas = new draw2d.Canvas(id, width, height);
     canvas.setScrollArea('#'+id);
@@ -55,6 +60,21 @@ function clearCanvas (canvas) {
     canvas.clear();
 }
 
+function getScrollArea(canvas) {
+    return [ canvas.getWidth(), canvas.getHeight(), canvas.getScrollLeft(), canvas.getScrollTop()];
+}
+
+function getZoom(canvas) {
+    return canvas.getZoom();
+}
+
+function setScrollZoom(canvas, scrollLeft, scrollTop, zoom) {
+    canvas.setZoom(zoom);
+    canvas.setScrollLeft(scrollLeft);
+    canvas.setScrollTop(scrollTop);
+}
+    
+
 function addComponentToCanvas(canvas, comp) {
     // Keep track of the action so it can be undone.
     let command = new draw2d.command.CommandAdd(canvas, comp, comp.getPosition());
@@ -76,6 +96,7 @@ function addComponentLabel(comp, label) {
 
 function setComponentLabel(comp, newLabel) {
     comp.children.data[0].figure.setText(newLabel);
+    comp.setSVG(comp.getSVG()); // Refresh svg.
 }
 
 function setConnectionLabel(conn, newLabel) {
@@ -150,6 +171,15 @@ function createDigitalInput(x, y, numberOfBits) {
 function createDigitalOutput(x, y, numberOfBits) {
     return new draw2d.shape.digital.Output({x:x,y:y,numberOfBits:numberOfBits,resizeable:false});
 }
+
+function createDigitalLabel(x, y) {
+    return new draw2d.shape.digital.Label({ x: x, y: y,  resizeable: false });
+}
+
+function createDigitalBusSelection(x, y, numberOfBits, lsbBitNumber) {
+    return new draw2d.shape.digital.BusSelection({ x: x, y: y, numberOfBits: numberOfBits, lsbBitNumber: lsbBitNumber, resizeable: false });
+}
+
 
 function createDigitalNot(x, y) {
     return new draw2d.shape.digital.Not({x:x,y:y,resizeable:false});
@@ -276,7 +306,7 @@ function createDigitalRAM(x, y, addressWidth, wordWidth, memData) {
 }
 
 function writeMemoryLine(comp, addr, value) {
-    if (comp.memData == null || comp.memData === "undefined") {
+    if (comp.memData === null || comp.memData === "undefined") {
         throw `Cannot write memory line of component that does not have a memory: ${comp.componentType}`;
     }
     if (addr >= comp.memData.length) {
@@ -287,7 +317,7 @@ function writeMemoryLine(comp, addr, value) {
 
 /// Should only be used for Input, Output and NbitsAdder components.
 function setNumberOfBits(comp, numberOfBits) {
-    if (comp.numberOfBits == null || comp.numberOfBits === "undefined") {
+    if (comp.numberOfBits === null || comp.numberOfBits === "undefined") {
         throw `Cannot set number of bits of component: ${comp.componentType}`;
     }
     comp.numberOfBits = numberOfBits;
@@ -295,9 +325,19 @@ function setNumberOfBits(comp, numberOfBits) {
     comp.setSVG(comp.getSVG()); // Refresh svg.
 }
 
+/// Should only be used for Input, Output and NbitsAdder components.
+function setLsbBitNumber(comp, lsbBitNumber) {
+    if (comp.lsbBitNumber === null || comp.lsbBitNumber === "undefined") {
+        throw `Cannot set number of bits of component: ${comp.componentType}`;
+    }
+    comp.lsbBitNumber = lsbBitNumber;
+    dispatchInferWidthsMessage();
+    comp.setSVG(comp.getSVG()); // Refresh svg.
+}
+
 /// Should only be used for SplitWire nodes.
 function setTopOutputWidth(comp, topOutputWidth) {
-    if (comp.topOutputWidth == null || comp.topOutputWidth === "undefined") {
+    if (comp.topOutputWidth === null || comp.topOutputWidth === "undefined") {
         throw `Cannot set topOutputWidth of non-SplitWire component: ${comp.componentType}`;
     }
     comp.topOutputWidth = topOutputWidth;
@@ -306,7 +346,7 @@ function setTopOutputWidth(comp, topOutputWidth) {
 
 /// Should only be used for Register nodes.
 function setRegisterWidth(comp, regWidth) {
-    if (comp.regWidth == null || comp.regWidth === "undefined") {
+    if (comp.regWidth === null || comp.regWidth === "undefined") {
         throw `Cannot set regWidth of non-Register component: ${comp.componentType}`;
     }
     comp.regWidth = regWidth;
@@ -338,6 +378,11 @@ function getConnectionById(canvas, id) {
     return canvas.getLines().find(function(conn) {
         return conn.id === id;
     });
+}
+
+function refreshComponentById(canvas, id) {
+    let comp = getComponentById(canvas, id);
+    comp.setSVG(comp.getSVG()); // refresh SVG
 }
 
 function getPortById(comp, id) {
@@ -388,9 +433,13 @@ function flushCommandStack (canvas) {
 
 export {
     setDispatchMessages,
+    printCanvas,
     createCanvas,
     initialiseCanvas,
     clearCanvas,
+    getScrollArea,
+    getZoom,
+    setScrollZoom,
     addComponentToCanvas,
     addConnectionToCanvas,
     addComponentLabel,
@@ -409,6 +458,8 @@ export {
     installSelectionPolicy,
     createDigitalInput,
     createDigitalOutput,
+    createDigitalLabel,
+    createDigitalBusSelection,
     createDigitalNot,
     createDigitalAnd,
     createDigitalOr,
@@ -432,6 +483,7 @@ export {
     createDigitalConnection,
     writeMemoryLine,
     setNumberOfBits,
+    setLsbBitNumber,
     setTopOutputWidth,
     setRegisterWidth,
     updateMergeWiresLabels,

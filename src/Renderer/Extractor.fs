@@ -68,6 +68,10 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
         }
     | "MergeWires" -> MergeWires
     | "SplitWire"  -> SplitWire <| getFailIfNull jsComponent ["topOutputWidth"]
+    | "BusSelection" -> 
+        let width = getFailIfNull jsComponent ["numberOfBits"]
+        let lsb = getFailIfNull jsComponent ["lsbBitNumber"]
+        BusSelection <| (width, lsb)
     | "DFF"        -> DFF
     | "DFFE"       -> DFFE
     | "Register"   -> Register  <| getFailIfNull jsComponent ["regWidth"]
@@ -75,14 +79,19 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     | "AsyncROM"   -> AsyncROM <| extractMemoryData jsComponent
     | "ROM"        -> ROM <| extractMemoryData jsComponent
     | "RAM"        -> RAM <| extractMemoryData jsComponent
-    | ct -> failwithf "what? Component type %s does not exist" ct
+    | "Label"      -> IOLabel
+    | ct -> failwithf "what? Component type %s does not exist: this must be added to extractor:extractComponentType" ct
 
 let private extractVertices (jsVertices : JSVertices) : (float * float) list =
     jsListToFSharpList jsVertices
     |> List.map (fun jsVertex -> jsVertex?x, jsVertex?y)
 
 /// Transform a JSComponent into an f# data structure.
-let extractComponent (jsComponent : JSComponent) : Component = {
+let extractComponent (jsComponent : JSComponent) : Component = 
+    let x = ( (jsComponent?getOuterBoundingBox ()))
+    let h = x?getHeight()
+    let w = x?getWidth()
+    {
     Id          = getFailIfNull jsComponent ["id"]
     Type        = extractComponentType jsComponent
     InputPorts  = extractPorts <| getFailIfNull jsComponent ["inputPorts"; "data"]
@@ -90,6 +99,8 @@ let extractComponent (jsComponent : JSComponent) : Component = {
     Label       = extractLabel <| getFailIfNull jsComponent ["children"; "data"]
     X           = getFailIfNull jsComponent ["x"]
     Y           = getFailIfNull jsComponent ["y"]
+    H           = h
+    W           = w
 }
 
 let private extractConnection (jsConnection : JSConnection) : Connection = {
@@ -110,3 +121,5 @@ let extractState (state : JSCanvasState) : CanvasState =
     // Sort components by their location.
     let comps = sortComponents comps
     comps, conns
+
+ 

@@ -39,7 +39,7 @@ draw2d.shape.digital = draw2d.SVGFigure.extend({
         // In this case only a small part of the shape are filled with the background color
         // and not the complete rectangle/bounding box.
         attributes["fill"] = "none";
-        if (this.bgColor != null) {
+        if (this.bgColor !== null) {
             let svgElements = this.getSvgElements();
             for (let i = 0; i < svgElements.length; i++) {
                 if (svgElements[i].toFill) {
@@ -96,6 +96,8 @@ draw2d.shape.digital.Input = draw2d.shape.digital.extend({
     },
 });
 
+
+
 draw2d.shape.digital.Output = draw2d.shape.digital.extend({
 
     NAME:"draw2d.shape.digital.Output",
@@ -125,18 +127,88 @@ draw2d.shape.digital.Output = draw2d.shape.digital.extend({
     },
 });
 
+draw2d.shape.digital.BusSelection = draw2d.shape.digital.extend({
+
+    NAME: "draw2d.shape.digital.BusSelection",
+
+    componentType: "BusSelection",
+    svgHeight: 24,
+    svgWidth: 40,
+    numberOfbits: 1,
+    lsbBitNumber: 0,
+
+
+        getSvgElements: function () {
+            let bitsLabel = `[${this.numberOfBits + this.lsbBitNumber - 1}..${this.lsbBitNumber}]`;
+            let size = "11"
+            if (this.numberOfBits === 1) {
+                bitsLabel = `${this.lsbBitNumber}`
+                size = "14"
+            }
+
+            return [
+                { path: '<polygon points="0,24 0,0 25,0 35,6 45,6 45,18 35,18 25,24" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true },
+                { path: `<text x=17 y=6 fill="black" text-anchor="middle" font-weight="bolder" font-size="${size}px">${bitsLabel}</text>`, toFill: false }
+            ];
+    },
+
+    init: function (attr, setter, getter) {
+        this._super(
+            $.extend({ width: this.svgWidth, height: this.svgHeight }, attr),
+            setter,
+            getter
+        );
+        console.assert(typeof attr.numberOfBits === "number", "numberOfBits is not a number when creating a BusSelection node");
+        this.numberOfBits = attr.numberOfBits;
+        console.assert(typeof attr.lsbBitNumber === "number", "lsbBitNumber is not a number when creating a BusSelection node");
+        this.lsbBitNumber = attr.lsbBitNumber;
+
+
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
+    },
+});
+
+draw2d.shape.digital.Label = draw2d.shape.digital.extend({
+
+    NAME: "draw2d.shape.digital.Label",
+
+    componentType: "Label",
+    svgHeight: 20,
+    svgWidth: 30,
+
+
+    getSvgElements: function () {
+        return [
+            { path: '<polygon points="0,10 10,0 20,0 30,10 20,20 10,20" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true }
+        ]
+    },
+
+    init: function (attr, setter, getter) {
+        this._super(
+            $.extend({ width: this.svgWidth, height: this.svgHeight }, attr),
+            setter,
+            getter
+        );
+
+
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
+    },
+});
+
 draw2d.shape.digital.Not = draw2d.shape.digital.extend({
 
     NAME:"draw2d.shape.digital.Not",
 
     componentType : "Not",
-    svgHeight : 30,
-    svgWidth : 30,
+    svgHeight : 42,
+    svgWidth : 42,
 
     getSvgElements : function() {
         return [
-            {path: '<polygon points="0,0 20,15 0,30" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true},
-            {path: '<circle cx="25" cy="15" r="5" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true},
+            {path: '<polygon points="0,0 28,21 0,42" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true},
+            {path: '<circle cx="35" cy="21" r="7" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true},
         ]
     },
 
@@ -173,8 +245,8 @@ draw2d.shape.digital.And = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0,25), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0,75), false);
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
@@ -200,8 +272,8 @@ draw2d.shape.digital.Or = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 25), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 75), false);
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
@@ -228,8 +300,8 @@ draw2d.shape.digital.Xor = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 25), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 75), false);
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
@@ -256,8 +328,8 @@ draw2d.shape.digital.Nand = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 25), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 75), false);
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
@@ -284,8 +356,8 @@ draw2d.shape.digital.Nor = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 25), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 75), false);
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
@@ -313,8 +385,8 @@ draw2d.shape.digital.Xnor = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 25), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 75), false);
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
@@ -331,8 +403,8 @@ draw2d.shape.digital.Mux2 = draw2d.shape.digital.extend({
     getSvgElements : function() {
         return [
             {path: '<path d="M 0 0 L 30 13 L 30 37 L 0 50 Z" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true},
-            {path: '<text x="4" y="12" fill="black" font-family="monospace">0</text>', toFill: false},
-            {path: '<text x="4" y="30" fill="black" font-family="monospace">1</text>', toFill: false},
+            {path: '<text x="4" y="11" fill="black" font-family="monospace">0</text>', toFill: false},
+            {path: '<text x="4" y="31" fill="black" font-family="monospace">1</text>', toFill: false},
         ]
     },
 
@@ -343,8 +415,8 @@ draw2d.shape.digital.Mux2 = draw2d.shape.digital.extend({
             getter
         );
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 30), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(0, 70), false);
         this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(50, 90), false);
         this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
@@ -361,8 +433,8 @@ draw2d.shape.digital.Demux2 = draw2d.shape.digital.extend({
     getSvgElements : function() {
         return [
             {path: '<path d="M 0 13 L 30 0 L 30 50 L 0 37 Z" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true},
-            {path: '<text x="19" y="12" fill="black" font-family="monospace">0</text>', toFill: false},
-            {path: '<text x="19" y="30" fill="black" font-family="monospace">1</text>', toFill: false},
+            {path: '<text x="19" y="11" fill="black" font-family="monospace">0</text>', toFill: false},
+            {path: '<text x="19" y="31" fill="black" font-family="monospace">1</text>', toFill: false},
         ]
     },
 
@@ -375,8 +447,8 @@ draw2d.shape.digital.Demux2 = draw2d.shape.digital.extend({
 
         this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
         this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(50, 90), false);
-        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
-        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.XYRelPortLocator(100, 30), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.XYRelPortLocator(100, 70), false);
     },
 });
 
@@ -390,16 +462,16 @@ draw2d.shape.digital.NbitsAdder = draw2d.shape.digital.extend({
     numberOfBits : null, // int
 
     getSvgElements : function() {
-        const title = this.numberOfBits == 1 ? "1-bit-adder" : `${this.numberOfBits}-bits-adder`
+        const title = this.numberOfBits === 1 ? "\u00a0\u00a0\u00a0adder" : (this.numberOfBits > 9 ? `adder(${this.numberOfBits - 1}:0)` : `\u00a0adder(${this.numberOfBits - 1}:0)`)
         return [
-            {path: '<rect width="100" height="120" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true},
-            {path: `<text x="14" y="3" fill="black" font-family="monospace">${title}</text>`, toFill: false},
+            {path: '<rect width="70" height="120" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true},
+            {path: `<text x="4" y="3" fill="black" font-family="monospace">${title}</text>`, toFill: false},
             {path: '<text x="8" y="25" fill="black" font-family="monospace">Cin</text>', toFill: false},
             {path: `<text x="8" y="55" fill="black" font-family="monospace">A</text>`, toFill: false},
             {path: `<text x="8" y="85" fill="black" font-family="monospace">B</text>`, toFill: false},
             // Out.
-            {path: `<text x="75" y="35" fill="black" font-family="monospace">Sum</text>`, toFill: false},
-            {path: `<text x="70" y="75" fill="black" font-family="monospace">Cout</text>`, toFill: false},
+            {path: `<text x="45" y="35" fill="black" font-family="monospace">Sum</text>`, toFill: false},
+            {path: `<text x="40" y="75" fill="black" font-family="monospace">Cout</text>`, toFill: false},
         ]
     },
 
@@ -713,6 +785,7 @@ draw2d.shape.digital.Register = draw2d.shape.digital.extend({
         );
 
         console.assert(typeof attr.regWidth === "number", "regWidth is not a number when creating a register component");
+        console.log(`regWidth= ${attr.regWidth}`)
         this.regWidth = attr.regWidth;
 
         this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);

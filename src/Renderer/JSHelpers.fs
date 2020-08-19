@@ -9,6 +9,8 @@ module JSHelpers
 open Browser.Types
 open Fable.Core
 open Fable.Core.JsInterop
+open Electron
+open JSTypes
 
 [<Emit("typeof $0")>]
 let jsType (var: obj) : unit = jsNative
@@ -80,3 +82,29 @@ let getIntEventValue (event: Event) =
 /// Get the value for a blur event in an input textbox.
 let getTextFocusEventValue (event: FocusEvent) =
     getFailIfNull event ["target";"value"] |> unbox<string>
+
+#if DEBUG
+let mutable debugLevel = 1
+#else
+let mutable debugLevel = 1
+#endif
+
+/// Hack to provide a constant global variable
+/// set from command line arguments of main process.
+/// 0 => production. 1 => dev. 2 => debug.
+let setDebugLevel() =
+    let argV =
+        electron.remote.``process``.argv
+        |> Seq.toList
+        |> List.tail
+        |> List.map (fun s -> s.ToLower())
+    let isArg s = List.contains s argV
+
+    if isArg "--debug" || isArg "-d" then
+        debugLevel <- 2
+    elif isArg "-w" then
+        debugLevel <- 1
+
+/// deliver string suitable for HTML color from a HighlightColor type value
+let getColorString (col: CommonTypes.HighLightColor) =
+    (sprintf "%A" col).ToLower()

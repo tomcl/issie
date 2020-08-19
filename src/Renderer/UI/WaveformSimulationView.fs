@@ -289,15 +289,21 @@ let waveSimRows (model: WaveSimModel) dispatch =
             Array.mapi2 (makeSegment model.ClkWidth) sampArr transArr 
             |> Array.concat
 
-        let padTrans (t: (int * int) []) =
-            match Array.length t > 0 with
-            | true ->
-                Array.concat [ [| 1, fst t.[0] |]
-                               t
-                               [| snd (Array.last t), 1 |] ]
-            | false -> [| 1, 1 |]
+        let padTrans t =
+            match Array.length t with
+            | 0 -> 
+                [| 1, 1 |]
+            | 1 -> 
+                [| (1, t.[0]); (t.[0], 1) |]
+            | _ ->
+                Array.pairwise t
+                |> (fun pairs ->  
+                        Array.concat [ [| 1, fst pairs.[0] |]
+                                       pairs
+                                       [| snd (Array.last pairs), 1 |] ] )
+
         transitions model
-        |> Array.map (Array.pairwise >> padTrans)
+        |> Array.map padTrans
         |> Array.map2 makeWaveSvg (model2WaveList model)
         |> Array.map2 Array.append valueLabels
 
@@ -396,11 +402,6 @@ let changeBotInd newVal model =
     | false -> model
     |> Ok |> StartWaveSim
 
-let appendWaveData (model: DiagramModelType.Model) (nCycles: uint32) =
-    extractSimData (Array.last model.WaveSim.SimData) nCycles
-    |> extractWaveData model (fun m _ -> m.WaveSim.Ports) 
-    |> Array.append model.WaveSim.WaveData 
-
 let appendSimData model nCycles =
     extractSimData (Array.last model.SimData) nCycles
     |> Array.append model.SimData
@@ -416,7 +417,6 @@ let changeTopInd newVal (model: DiagramModelType.Model) =
         let sD' = appendSimData wsMod <| newVal + uint 1 - uint (Array.length sD)
         { wsMod with 
             SimData = sD'
-            //WaveData = appendWaveData model <| newVal - vITop
             WaveData = extractWaveData model (fun m _ -> m.WaveSim.Ports) sD'.[int vIBot..int newVal]
             ViewIndexes = vIBot, newVal }
     | false, false, true -> 

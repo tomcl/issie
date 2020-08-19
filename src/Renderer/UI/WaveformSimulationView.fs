@@ -146,13 +146,14 @@ let toggleSelect ind model =
 
 let makeLabels model = Array.map (fun l -> label [ Class "waveLbl" ] [ str l ]) model.WaveNames
 
-let makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * int) =
+let makeSegment (clkW: float) portSelected (xInd: int) (data: Sample) (trans: int * int)  =
     let top = spacing
     let bot = top + sigHeight - sigLineThick
     let left = float xInd * clkW
     let right = left + float clkW
 
-    let makeSigLine = makeLinePoints [ Class "sigLineStyle" ]
+    let makeSigLine = makeLinePoints [ Class "sigLineStyle"
+                                       Style [ Stroke (if portSelected then "red" else "blue") ] ]
 
     match data with
     | Wire w when w.NBits = 1u ->
@@ -270,23 +271,26 @@ let clkRulerSvg (model: WaveSimModel) =
     |> Array.concat 
     |> makeSvg (clkRulerStyle model)
 
-let waveSimRows (model: WaveSimModel) dispatch =
+    
+let waveSimRows (model: DiagramModelType.Model) dispatch =
+    let wsMod = model.WaveSim
 // waveforms
     let waveSvg =
-        let addLabel nLabels xInd (i: int) = makeText (inWaveLabel nLabels xInd i model)
+        let addLabel nLabels xInd (i: int) = makeText (inWaveLabel nLabels xInd i wsMod)
 
         let valueLabels =
             let lblEl (sample, xIndArr) =
                 match sample with
                 | Wire w when w.NBits > 1u ->
-                    Array.map (fun xInd -> addLabel 1 xInd 0 (radixChange w.BitData w.NBits model.Radix)) xIndArr
+                    Array.map (fun xInd -> addLabel 1 xInd 0 (radixChange w.BitData w.NBits wsMod.Radix)) xIndArr
                 | StateSample ss ->
                     Array.collect (fun xInd -> Array.mapi (addLabel (Array.length ss) xInd) ss) xIndArr
                 | _ -> [||]
-            busLabels model |> Array.map (Array.collect lblEl)
+            busLabels wsMod |> Array.map (Array.collect lblEl)
 
-        let makeWaveSvg sampArr transArr = 
-            Array.mapi2 (makeSegment model.ClkWidth) sampArr transArr 
+        let makeWaveSvg (portSelected: bool) (sampArr: Waveform) (transArr: (int*int) []) : ReactElement [] = 
+            (sampArr, transArr)
+            ||> Array.mapi2 (makeSegment model.WaveSim.ClkWidth portSelected) 
             |> Array.concat
 
         let padTrans t =
@@ -302,14 +306,18 @@ let waveSimRows (model: WaveSimModel) dispatch =
                                        pairs
                                        [| snd (Array.last pairs), 1 |] ] )
 
-        transitions model
+        let selPorts = 
+            let allSelPorts = selected2portLst model model.WaveSim.SimData.[0]
+            Array.map (fun port -> Array.exists ((=) port) allSelPorts) wsMod.Ports
+
+        transitions wsMod
         |> Array.map padTrans
-        |> Array.map2 makeWaveSvg (model2WaveList model)
+        |> Array.map3 makeWaveSvg selPorts (model2WaveList model.WaveSim)
         |> Array.map2 Array.append valueLabels
 
 // name and cursor labels of the waveforms
-    let labels = makeLabels model
-    let cursLabs = makeCursVals model
+    let labels = makeLabels wsMod
+    let cursLabs = makeCursVals wsMod
 
     let labelCols =
         labels
@@ -318,9 +326,9 @@ let waveSimRows (model: WaveSimModel) dispatch =
                 [ td [ Class "checkboxCol" ]
                       [ input
                           [ Type "checkbox"
-                            Checked model.Selected.[i]
+                            Checked wsMod.Selected.[i]
                             Style [ Float FloatOptions.Left ]
-                            OnChange (fun _ -> toggleSelect i model |> dispatch) ] ]
+                            OnChange (fun _ -> toggleSelect i wsMod |> dispatch) ] ]
                   td [ Class "waveNamesCol" ] [ l ]])
 
     let cursValCol =
@@ -332,17 +340,17 @@ let waveSimRows (model: WaveSimModel) dispatch =
     let waveCol =
         let waveTableRow rowClass cellClass svgClass svgChildren =
             tr rowClass [ td cellClass [ makeSvg svgClass svgChildren ] ]
-        let bgSvg = backgroundSvg model
-        let cursRectSvg = [| makeRect (cursRectStyle model) |]
+        let bgSvg = backgroundSvg wsMod
+        let cursRectSvg = [| makeRect (cursRectStyle wsMod) |]
 
-        [| waveTableRow [ Class "fullHeight" ] (lwaveCell model) (waveCellSvg model true)
+        [| waveTableRow [ Class "fullHeight" ] (lwaveCell wsMod) (waveCellSvg wsMod true)
                (Array.append bgSvg cursRectSvg) |]
         |> Array.append
             (Array.map
                 (fun wave ->
-                    waveTableRow [ Class "rowHeight" ] (waveCell model) (waveCellSvg model false)
+                    waveTableRow [ Class "rowHeight" ] (waveCell wsMod) (waveCellSvg wsMod false)
                         (Array.concat [| cursRectSvg; bgSvg; wave |])) waveSvg)
-        |> Array.append [| tr [ Class "rowHeight" ] [ td (waveCell model) [ clkRulerSvg model ] ] |]
+        |> Array.append [| tr [ Class "rowHeight" ] [ td (waveCell wsMod) [ clkRulerSvg wsMod ] ] |]
 
     waveCol, labelCols, cursValCol
 
@@ -576,7 +584,7 @@ let viewWaveformViewer model dispatch =
     div [ Style [ Height "91.8%"; Width "100%" ] ] 
         [ cursValsCol cursValsRows
           div [ Style [ Height "100%" ] ]
-              [ nameLabelsCol model leftColMid dispatch
+              [ nameLabelsCol model.WaveSim leftColMid dispatch
                 wavesCol tableWaves ] ]
 
 let viewZoomDiv model dispatch =
@@ -589,5 +597,5 @@ let viewZoomDiv model dispatch =
 
 let viewWaveSim (model: DiagramModelType.Model) dispatch =
     [ viewWaveSimButtonsBar model dispatch
-      viewWaveformViewer model.WaveSim dispatch
+      viewWaveformViewer model dispatch
       viewZoomDiv model.WaveSim dispatch ]

@@ -86,7 +86,7 @@ let getTextFocusEventValue (event: FocusEvent) =
 #if DEBUG
 let mutable debugLevel = 1
 #else
-let mutable debugLevel = 1
+let mutable debugLevel = 0
 #endif
 
 /// Hack to provide a constant global variable

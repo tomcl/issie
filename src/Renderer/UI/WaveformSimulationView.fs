@@ -15,9 +15,10 @@ open Fable.React.Props
 open DiagramMessageType
 open DiagramStyle
 open CommonTypes
+open OnDiagramButtonsView
 
 let initModel: WaveSimModel =
-    { SimGraphs = [||]
+    { SimData = [||]
       WaveData =
           //modify these two signals to change trial data
           let nbits1 = uint32 1
@@ -209,8 +210,8 @@ let transitions (model: WaveSimModel) = //relies on number of names being correc
         | StateSample a, StateSample b when Array.length a = Array.length b ->  (a, b) ||> Array.fold2 folder 0
         | _ -> 1
 
-    let trans (wave: Waveform) = Array.pairwise wave |> Array.map isDiff
-    model2WaveList model |> Array.map trans
+    model2WaveList model 
+    |> Array.map (Array.pairwise >> Array.map isDiff)
 
 // functions for bus labels
 
@@ -237,18 +238,23 @@ let busLabels model =
     ||> Array.map2 gaps2pos
 
 let makeCursVals model =
-    let cursValPrefix =
+    let pref =
         match model.Radix with
         | Bin -> "0b"
         | Hex -> "0x"
         | _ -> ""
     let makeCursVal sample =
         match sample with
-        | Wire w when w.NBits > uint 1 -> [| cursValPrefix + radixChange w.BitData w.NBits model.Radix |]
-        | Wire w -> [| cursValPrefix + string w.BitData |]
+        | Wire w when w.NBits > uint 1 -> [| pref + radixChange w.BitData w.NBits model.Radix |]
+        | Wire w -> [| pref + string w.BitData |]
         | StateSample s -> s
         |> Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
-    Array.map makeCursVal model.WaveData.[int model.Cursor]
+    match int model.Cursor < Array.length model.WaveData with
+    | true -> Array.map makeCursVal model.WaveData.[int model.Cursor]
+    | false -> 
+        (Array.length model.WaveData, model.Cursor)
+        ||> sprintf "WaveData.length = %d, model.Cursor = %d, WaveData.[model Cursor] doesn't exist" 
+        |> failwith
 
 //container box and clock lines
 let backgroundSvg model =
@@ -277,17 +283,23 @@ let waveSimRows (model: WaveSimModel) dispatch =
                 | StateSample ss ->
                     Array.collect (fun xInd -> Array.mapi (addLabel (Array.length ss) xInd) ss) xIndArr
                 | _ -> [||]
-            busLabels model |> Array.map (fun row -> Array.collect lblEl row)
+            busLabels model |> Array.map (Array.collect lblEl)
 
-        let makeWaveSvg a b = Array.mapi2 (makeSegment model.ClkWidth) a b |> Array.concat
+        let makeWaveSvg sampArr transArr = 
+            Array.mapi2 (makeSegment model.ClkWidth) sampArr transArr 
+            |> Array.concat
+
         let padTrans (t: (int * int) []) =
-            Array.concat [ [| 1, fst t.[0] |]
-                           t
-                           [| snd (Array.last t), 1 |] ]
+            match Array.length t > 0 with
+            | true ->
+                Array.concat [ [| 1, fst t.[0] |]
+                               t
+                               [| snd (Array.last t), 1 |] ]
+            | false -> [| 1, 1 |]
         transitions model
-        |> Array.map (fun transRow -> Array.pairwise transRow |> padTrans)
+        |> Array.map (Array.pairwise >> padTrans)
         |> Array.map2 makeWaveSvg (model2WaveList model)
-        |> Array.map2 (fun a b -> Array.append a b) valueLabels
+        |> Array.map2 Array.append valueLabels
 
 // name and cursor labels of the waveforms
     let labels = makeLabels model
@@ -328,6 +340,20 @@ let waveSimRows (model: WaveSimModel) dispatch =
 
     waveCol, labelCols, cursValCol
 
+// simulation functions 
+
+(*let reloadablePorts (model: DiagramModelType.Model) (simData: SimulatorTypes.SimulationData) = 
+    Array.filter (fun ((compId, _), _) -> 
+        Map.exists (fun key _ -> key = compId) simData.Graph) model.WaveSim.Ports
+    |> Array.map (fun (a, outOpt) -> 
+        match outOpt with
+        | Some cId when Map.exists (fun key _ -> key = cId) simData.Graph -> a, Some cId
+        | _ -> a, None )*)
+
+let reloadWaves (model: DiagramModelType.Model) dispatch =
+    simLst model dispatch (fun model _ -> model.WaveSim.Ports) //reloadablePorts
+    |> StartWaveSim
+
 // view function helpers
 
 let zoom plus (m: WaveSimModel) =
@@ -352,41 +378,62 @@ let radixString rad =
     | Hex -> "Hex"
     | SDec -> "sDec"
 
-let cursorMove increase model =
-    match increase, model.Cursor, fst model.ViewIndexes, snd model.ViewIndexes with
-    | (true, c, _, fin) when c < fin -> { model with Cursor = c + uint 1 }
-    | (false, c, start, _) when c > start -> { model with Cursor = c - uint 1 }
-    | _ -> model
-    |> Ok |> StartWaveSim
-
-let changeCurs newVal model =
+let changeCurs model newVal  =
     if (fst model.ViewIndexes) <= newVal && (snd model.ViewIndexes) >= newVal
     then { model with Cursor = newVal }
     else model
     |> Ok |> StartWaveSim
 
-let indexesMove increase upper (model: WaveSimModel) = 
-    let bot, top = model.ViewIndexes
-    match upper, increase with 
-    | false, false when bot > uint 0 -> bot  - uint 1, top
-    | false, true when bot < top -> bot + uint 1, top
-    | true, false when top > bot -> bot, top - uint 1
-    | true, true -> bot, top + uint 1
-    | _ -> bot, top
-    |> (fun viewIndexes' -> { model with ViewIndexes = viewIndexes' })
-    |> Ok |> StartWaveSim
+let cursorMove increase model =
+    match increase with
+    | true -> model.Cursor + uint 1 
+    | false -> model.Cursor - uint 1
+    |> changeCurs model
 
 let changeBotInd newVal model = 
-    if uint 0 <= newVal && (snd model.ViewIndexes) >= newVal
-    then { model with ViewIndexes = newVal, snd model.ViewIndexes }
-    else model
+    match uint 0 <= newVal && (snd model.ViewIndexes) >= newVal with
+    | true -> { model with ViewIndexes = newVal, snd model.ViewIndexes }
+    | false -> model
     |> Ok |> StartWaveSim
 
-let changeTopInd newVal model = 
-    if uint (fst model.ViewIndexes) <= newVal
-    then { model with ViewIndexes = fst model.ViewIndexes, newVal }
-    else model
+let appendWaveData (model: DiagramModelType.Model) (nCycles: uint32) =
+    extractSimData (Array.last model.WaveSim.SimData) nCycles
+    |> extractWaveData model (fun m _ -> m.WaveSim.Ports) 
+    |> Array.append model.WaveSim.WaveData 
+
+let appendSimData model nCycles =
+    extractSimData (Array.last model.SimData) nCycles
+    |> Array.append model.SimData
+
+let changeTopInd newVal (model: DiagramModelType.Model) = 
+    let wsMod = model.WaveSim
+    let sD = wsMod.SimData
+    let vIBot, vITop = wsMod.ViewIndexes
+    match Array.length sD = 0, newVal > vITop, newVal >= vIBot  with
+    | true, _, _ ->
+        { wsMod with ViewIndexes = vIBot, newVal }
+    | false, true, _ -> 
+        let sD' = appendSimData wsMod <| newVal + uint 1 - uint (Array.length sD)
+        { wsMod with 
+            SimData = sD'
+            //WaveData = appendWaveData model <| newVal - vITop
+            WaveData = extractWaveData model (fun m _ -> m.WaveSim.Ports) sD'.[int vIBot..int newVal]
+            ViewIndexes = vIBot, newVal }
+    | false, false, true -> 
+        { wsMod with 
+            ViewIndexes = vIBot, newVal 
+            WaveData = extractWaveData model (fun m _ -> m.WaveSim.Ports) sD.[int vIBot..int newVal]}
+    | _ -> 
+        wsMod
     |> Ok |> StartWaveSim
+
+let indexesMove (chooseLimDir: {| UpperLim: bool; Incr: bool |}) (model: DiagramModelType.Model) = 
+    let bot, top = model.WaveSim.ViewIndexes
+    match chooseLimDir.UpperLim, chooseLimDir.Incr with 
+    | false, false -> changeBotInd (bot - uint 1) model.WaveSim
+    | false, true -> changeBotInd (bot + uint 1) model.WaveSim
+    | true, false -> changeTopInd (top - uint 1) model
+    | true, true -> changeTopInd (top + uint 1) model
 
 let selectAll s model = { model with Selected = Array.map (fun _ -> s) model.Selected } |> Ok |> StartWaveSim
 
@@ -453,20 +500,6 @@ let moveWave model up =
                  Ports = reorder model.Ports}
     |> Ok |> StartWaveSim
 
-// simulation functions 
-
-let reloadablePorts (model: DiagramModelType.Model) (simGraph: SimulatorTypes.SimulationGraph) = 
-    Array.filter (fun ((compId, _), _) -> 
-        Map.exists (fun key _ -> key = compId) simGraph) model.WaveSim.Ports
-    |> Array.map (fun (a, outOpt) -> 
-        match outOpt with
-        | Some cId when Map.exists (fun key _ -> key = cId) simGraph -> a, Some cId
-        | _ -> a, None )
-
-let reloadWaves (model: DiagramModelType.Model) dispatch =
-    OnDiagramButtonsView.simLst model dispatch reloadablePorts
-    |> StartWaveSim
-
 //[<Emit("__static")>]
 //let staticDir() : string = jsNative
 
@@ -486,21 +519,22 @@ let radixTabs model dispatch =
                                                             Margin "0 10px 0 10px" ] ] ]
         [ radTab Bin; radTab Hex; radTab Dec; radTab SDec ]
 
-let simLimits model dispatch =
+let simLimits (model: DiagramModelType.Model) dispatch =
+    let wsMod = model.WaveSim
     div [ Class "limits-group" ]
         [ div [ Class "limits-but-div" ]
-              [ button (Class "updownButton") (fun _ -> indexesMove true false model |> dispatch) "▲"
-                button (Class "updownButton") (fun _ -> indexesMove false false model |> dispatch) "▼" ]
+              [ button (Class "updownButton") (fun _ -> indexesMove {| UpperLim = false; Incr = true|} model |> dispatch) "▲"
+                button (Class "updownButton") (fun _ -> indexesMove {| UpperLim = false; Incr = false|} model |> dispatch) "▼" ]
           input
               [ Id "cursorForm"
                 Step 1
                 SpellCheck false
                 Class "limits-form"
                 Type "number"
-                Value (fst model.ViewIndexes)
+                Value (fst wsMod.ViewIndexes)
                 Min 0
-                Max (snd model.ViewIndexes)
-                OnChange(fun c -> changeBotInd (uint c.Value) model |> dispatch) ]
+                Max (snd wsMod.ViewIndexes)
+                OnChange(fun c -> changeBotInd (uint c.Value) wsMod |> dispatch) ]
           label [ Style [Float FloatOptions.Left
                          Margin "0 5px 0 5px"] ] [ str "/"]
           input
@@ -509,12 +543,12 @@ let simLimits model dispatch =
                 SpellCheck false
                 Class "limits-form"
                 Type "number"
-                Value (snd model.ViewIndexes)
-                Min (fst model.ViewIndexes)
-                OnChange(fun c -> changeTopInd (uint c.Value) model |> dispatch) ]
+                Value (snd wsMod.ViewIndexes)
+                Min (fst wsMod.ViewIndexes)
+                OnChange (fun c -> changeTopInd (uint c.Value) model |> dispatch) ]
           div [ Class "limits-but-div" ]
-              [ button (Class "updownButton") (fun _ -> indexesMove true true model |> dispatch) "▲"
-                button (Class "updownButton") (fun _ -> indexesMove false true model |> dispatch) "▼" ] ] 
+              [ button (Class "updownButton") (fun _ -> indexesMove {| UpperLim = true; Incr = true|} model |> dispatch) "▲"
+                button (Class "updownButton") (fun _ -> indexesMove {| UpperLim = true; Incr = false|} model |> dispatch) "▼" ] ] 
 
 let cursorButtons model dispatch =
     div [ Class "cursor-group" ]
@@ -528,7 +562,7 @@ let cursorButtons model dispatch =
                 Value model.Cursor
                 Min (fst model.ViewIndexes)
                 Max (snd model.ViewIndexes)
-                OnChange(fun c -> changeCurs (uint c.Value) model |> dispatch) ]
+                OnChange(fun c -> changeCurs model (uint c.Value) |> dispatch) ]
           buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "►" ] 
 
 let viewWaveSimButtonsBar model dispatch = 
@@ -536,7 +570,7 @@ let viewWaveSimButtonsBar model dispatch =
         [ button (Class "reloadButtonStyle") (fun _ -> 
               reloadWaves model dispatch |> dispatch) "Reload" 
           radixTabs model.WaveSim dispatch
-          simLimits model.WaveSim dispatch
+          simLimits model dispatch
           cursorButtons model.WaveSim dispatch ]
 
 let cursValsCol rows = 

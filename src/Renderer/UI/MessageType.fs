@@ -70,7 +70,7 @@ type WaveSimModel = {
     ClkWidth: float
     Cursor: uint32 
     Radix: NumberBase
-    ViewIndexes: uint32*uint32
+    LastClk: uint32
 }
 
 type DragMode = DragModeOn of int | DragModeOff

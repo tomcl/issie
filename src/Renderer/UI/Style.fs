@@ -134,7 +134,7 @@ let sigHeight = 0.3
 
 
 let vbWidth m =
-    m.ClkWidth * float ((fun (a,b) -> b - a + uint 1) m.ViewIndexes)
+    m.ClkWidth * (float m.LastClk + 1.0)
 
 let waveCellWidth m = 
     vbWidth m |> (fun x -> Width ((string (x*40.0) ) + "px"))

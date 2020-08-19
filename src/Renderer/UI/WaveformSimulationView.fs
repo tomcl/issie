@@ -348,16 +348,16 @@ let waveSimRows (model: WaveSimModel) dispatch =
 
 // simulation functions 
 
-(*let reloadablePorts (model: DiagramModelType.Model) (simData: SimulatorTypes.SimulationData) = 
+let reloadablePorts (model: DiagramModelType.Model) (simData: SimulatorTypes.SimulationData) = 
     Array.filter (fun ((compId, _), _) -> 
         Map.exists (fun key _ -> key = compId) simData.Graph) model.WaveSim.Ports
     |> Array.map (fun (a, outOpt) -> 
         match outOpt with
         | Some cId when Map.exists (fun key _ -> key = cId) simData.Graph -> a, Some cId
-        | _ -> a, None )*)
+        | _ -> a, None )
 
 let reloadWaves (model: DiagramModelType.Model) dispatch =
-    simLst model dispatch (fun model _ -> model.WaveSim.Ports) //reloadablePorts
+    simLst model dispatch reloadablePorts
     |> StartWaveSim
 
 // view function helpers
@@ -422,7 +422,7 @@ let changeTopInd newVal (model: DiagramModelType.Model) =
     | false, false, true -> 
         { wsMod with 
             ViewIndexes = vIBot, newVal 
-            WaveData = extractWaveData model (fun m _ -> m.WaveSim.Ports) sD.[int vIBot..int newVal]}
+            WaveData = extractWaveData model reloadablePorts sD.[int vIBot..int newVal]}
     | _ -> 
         wsMod
     |> Ok |> StartWaveSim

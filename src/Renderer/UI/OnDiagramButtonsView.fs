@@ -312,7 +312,8 @@ let simLst model dispatch portsFunc  =
         |> function
             | Ok simData -> 
                 let ports' = portsFunc model simData
-                let simData' = extractSimData simData (snd model.WaveSim.ViewIndexes)
+                let _, vITop  = model.WaveSim.ViewIndexes
+                let simData' = extractSimData simData vITop
                 Ok { model.WaveSim with SimData = simData'
                                         WaveNames = extractWaveNames simData model portsFunc
                                         WaveData = extractWaveData model portsFunc simData'

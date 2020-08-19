@@ -53,12 +53,16 @@ let hasDebugArgs() = argFlagIsOn ["--debug";"-d"]
 // be closed automatically when the JavaScript object is garbage collected.
 let mutable mainWindow: BrowserWindow option = Option.None
 
+[<Emit("__static")>]
+let staticDir() :string = jsNative
+
+
 let createMainWindow () =
     let options = jsOptions<BrowserWindowOptions> <| fun options ->
         options.width <- 1200
         options.height <- 800
         options.autoHideMenuBar <- true
-        options.icon <- (U2.Case2 (path.join(__dirname, "../../static/icon.ico")))
+        options.icon <- (U2.Case2 (path.join(staticDir(), "icon.ico")))
         options.title <- "DEflow"
         options.webPreferences <-
             jsOptions<WebPreferences> <| fun o ->

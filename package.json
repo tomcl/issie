@@ -1,9 +1,13 @@
 {
+  "name": "issie",
+  "version": "0.5.0",
+  "description": "Schematic editor and Simulator",
   "private": true,
   "main": "app/main.js",
   "scripts": {
     "start": "electron-webpack dev",
-    "build": "electron-webpack",
+    "compile": "electron-webpack",
+    "build": "electron-webpack && electron-builder",
     "launch": "electron .",
     "debug": "electron . --debug",
     "make-osx-dmg": "yarn electron-installer-dmg --overwrite --icon=app/icon.ico dist/deflow-darwin-x64 dist/deflow-osx",
@@ -37,7 +41,8 @@
     "jquery-ui": "^1.12.1",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
-    "rechart": "^0.0.1"
+    "rechart": "^0.0.1",
+    "source-map-support": "0.5.19"
   },
   "devDependencies": {
     "@babel/core": "^7.10.4",
@@ -45,6 +50,7 @@
     "bufferutil": "^4.0.1",
     "devtron": "^1.4.0",
     "electron": "^9.1.0",
+    "electron-builder": "^22.7",
     "electron-devtools-installer": "^3.1.0",
     "electron-installer-dmg": "^3.0.0",
     "electron-packager": "^14.2.1",

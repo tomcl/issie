@@ -37,6 +37,7 @@ type JSDiagramMsg =
     | InitCanvas of JSCanvas // Has to be dispatched only once.
     | SelectComponent of JSComponent
     | UnselectComponent of unit
+    | SelectConnection of unit
     | InferWidths of unit
     | SetHasUnsavedChanges of bool
 

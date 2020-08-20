@@ -21,6 +21,9 @@ open Helpers
 open Simulator
 open SimulatorTypes
 
+// types 
+type DiagEl = | Comp of Component | Conn of Connection
+
 let private copyAction model dispatch =
     match model.Diagram.GetSelected () with
     | None -> ()
@@ -100,44 +103,49 @@ let simWireData2Wire wireData =
                                        |> (fun r -> r, weight * (bigint 2)) ) (bigint 1) 
     |> fst |> List.sum
 
-let getSelected model =
+let getSelected model : DiagEl list =
     match model.Diagram.GetSelected () with
     | None -> []
     | Some jsState -> 
-        let compsPorts =
-            fst jsState 
-            |> List.map (extractComponent >> (fun c -> SimulatorTypes.ComponentId c.Id))
-        let connsPorts =
-            snd jsState
-            |> List.map (extractConnection >> (fun c -> SimulatorTypes.ComponentId c.Target.HostId))
-        List.append compsPorts connsPorts
+        ( fst jsState |> List.map (extractComponent >> Comp), 
+          snd jsState |> List.map (extractConnection >> Conn) )
+        ||> List.append 
 
 let selected2portLst model (simData: SimulatorTypes.SimulationData) =
-    let processInputs compId inputs = 
-        inputs
-        |> Map.toArray
-        |> Array.collect (fun (portN, _) -> 
+    let procIns (compId: ComponentId) (inputs: InputPortNumber []) = 
+        Array.collect (fun portN -> 
             match simData.Graph.[compId].Type, driveOut simData.Graph compId portN  with
             | Input _, _ -> [||]
             | Output _, Some tup ->  [| tup, Some compId |]
             | _, Some tup -> [| tup, None  |]
-            | _, None -> failwith "Input is not connected" )
+            | _, None -> failwith "Input is not connected" ) inputs
 
-    let processOutputs compId outputs =
+    let procCompIns (compId: ComponentId) (inputs: Map<InputPortNumber,WireData>) = 
+        Map.toArray inputs
+        |> Array.map (fun (key, _) -> key)
+        |> procIns compId 
+        
+    let procOuts compId outputs =
         outputs 
         |> Map.toArray
         |> Array.map (fun (portNum, _) -> (compId, portNum), None)   
+
+    let processComp cId =
+        match Map.tryFind cId simData.Graph with
+        | Some sC -> Array.append (procCompIns cId sC.Inputs) (procOuts cId sC.Outputs)
+        | None -> failwith "Component Id is not in Simulation Data"
         
     //let lst' =
     getSelected model 
-    |> List.map (fun compId -> 
-            match Map.tryFind compId simData.Graph with
-            | Some simComp -> compId, simComp
-            | None -> failwith "Selected component is not in Simulation Data")
     |> List.toArray
-    |> Array.collect (fun (compId, simComp) -> 
-            Array.append (processInputs compId simComp.Inputs) 
-                         (processOutputs compId simComp.Outputs))
+    |> Array.map (fun compEl -> 
+            match compEl with
+            | Comp c -> ComponentId c.Id, None
+            | Conn c -> ComponentId c.Target.HostId, c.Target.PortNumber )
+    |> Array.collect (fun (cId, opt) -> 
+            match opt with
+            | Some inPN -> procIns cId [| InputPortNumber inPN |]
+            | None -> processComp cId )
     |> Array.groupBy fst
     |> Array.map (fun (_, arr) -> arr
                                   |> Array.tryFind (fun (_,opt) -> 

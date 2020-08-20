@@ -126,8 +126,7 @@ let selected2portLst model (simData: SimulatorTypes.SimulationData) =
         |> procIns compId 
         
     let procOuts compId outputs =
-        outputs 
-        |> Map.toArray
+        Map.toArray outputs
         |> Array.map (fun (portNum, _) -> (compId, portNum), None)   
 
     let processComp cId =
@@ -135,7 +134,6 @@ let selected2portLst model (simData: SimulatorTypes.SimulationData) =
         | Some sC -> Array.append (procCompIns cId sC.Inputs) (procOuts cId sC.Outputs)
         | None -> failwith "Component Id is not in Simulation Data"
         
-    //let lst' =
     getSelected model 
     |> List.toArray
     |> Array.map (fun compEl -> 
@@ -147,22 +145,12 @@ let selected2portLst model (simData: SimulatorTypes.SimulationData) =
             | Some inPN -> procIns cId [| InputPortNumber inPN |]
             | None -> processComp cId )
     |> Array.groupBy fst
-    |> Array.map (fun (_, arr) -> arr
-                                  |> Array.tryFind (fun (_,opt) -> 
-                                        match opt with
-                                            | Some _ -> true
-                                            | None -> false )                    
+    |> Array.map (fun (_, arr) -> Array.tryFind (fun (_,opt) -> match opt with
+                                                                | Some _ -> true
+                                                                | None -> false ) arr   
                                   |> function 
                                      | Some el -> el
                                      | None -> arr.[0] )
-        // The commented lines keep the old waveforms when adding new ones
-        //|> Array.map (fun el -> el, true)
-
-    (*Array.fold (fun st port ->
-                    match Array.contains (port, true) st with
-                    | true -> st
-                    | false -> Array.append st [| port, false |] ) lst' model.WaveSim.ports
-    |> Array.unzip*)
 
 let limBits (name: string) : (int*int) option =
     match Seq.tryFind ((=)'[') name, Seq.tryFind ((=)':') name, Seq.tryFind ((=)']') name with

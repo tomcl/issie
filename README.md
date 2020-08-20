@@ -39,10 +39,9 @@ Additionally, the section `"scripts"`:
 {
     ...
     "scripts": {
-        "start": "cd src/Main && dotnet fable webpack --port free -- -w --config webpack.config.js",
-        "build": "cd src/Main && dotnet fable webpack --port free -- -p --config webpack.config.js",
-        "launch": "electron .",
-        "debug": "electron . --debug",
+    "compile": "electron-webpack",
+    "dev": "electron-webpack dev",
+    "dist": "yarn compile && electron-builder"
     },
     ...
 }
@@ -112,13 +111,20 @@ If you want to get started as a developer, follow these steps:
 1. Download and install the latest (3.x) [Dotnet Core SDK](https://www.microsoft.com/net/learn/get-started).  
 For Mac and Linux users, download and install [Mono](http://www.mono-project.com/download/stable/) from official website (the version from brew is incomplete, may lead to MSB error later).
 
-2. Download & unzip the Issie repo, or if contributing clone it locally, or fork it on github and then clone it locally.
+2. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or if contributing clone it locally, or fork it on github and then clone it locally.
 
-3. Navigate to the project root directory (which contains this README) in a command-line interpreter. For Windows usage make sure if possible for convenience that you have a _tabbed_ command-line interpreter that can be started direct from file explorer within a specific directory (by right-clicking on the explorer directory view). That makes things a lot more pleasant. The new [Windows Terminal](https://github.com/microsoft/terminal) works well.
+3. Navigate to the project root directory (which contains this README) in a command-line interpreter. For Windows usage make sure if possible for convenience 
+that you have a _tabbed_ command-line interpreter that can be started direct from file explorer within a specific directory (by right-clicking on the explorer directory view). 
+That makes things a lot more pleasant. The new [Windows Terminal](https://github.com/microsoft/terminal) works well.
 
-4. Run `build.cmd` under Windows or `build.sh` under linux or macos. This will download all dependencies and create auto-documentation and binaries.
+4. Run `build.cmd` under Windows or `build.sh` under linux or macos. This will download all dependencies and create auto-documentation and binaries, then launch the application with HMR.
+  * HMR: the application will automatically recompile and update while running if you save updated source files
+  * To initialise and reload: `File -> reload page`
+  * To exit: after you exit the application the auto-compile script will terminate after about 15s
+  * To recompile the application `yarn dev`
+  * To generate distributable binaries for dev host system `yarn dist`.
+  * if you have chnaged node modules use yarn package manager not npn, as in `yarn install`.
 
-5. To restart FS code compilation and relaunch the app, as long as no Node packages have changed, `buildq qdev`.
 
 ## Reinstalling Compiler and Libraries
 

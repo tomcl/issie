@@ -103,7 +103,7 @@ let createMainWindow () =
     
 #else
     let url =
-        path.join ( staticDir(),  "index.html")
+        path.join ( __dirname,  "index.html")
         |> sprintf "file:%s" 
         |> Api.URL.Create
 

@@ -306,8 +306,11 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
                                        [| snd (Array.last pairs), 1 |] ] )
 
         let selPorts = 
-            let allSelPorts = selected2portLst model wsMod.SimData.[0]
-            Array.map (fun port -> Array.exists (fun p -> fst p = fst port) allSelPorts) wsMod.Ports
+            match Array.tryItem 0 wsMod.SimData with
+            | Some sD ->
+                let allSelPorts = selected2portLst model sD
+                Array.map (fun port -> Array.exists (fun p -> fst p = fst port) allSelPorts) wsMod.Ports
+            | None -> Array.map (fun _ -> false) wsMod.Ports
 
         transitions wsMod
         |> Array.map padTrans

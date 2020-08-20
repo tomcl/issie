@@ -49,8 +49,8 @@ type KeyboardShortcutMsg =
 type WaveName = string
 
 type Wire = {
-    nBits: uint32
-    bitData: bigint 
+    NBits: uint32
+    BitData: bigint 
 }
 
 type StateSample = string array
@@ -61,27 +61,16 @@ type SimTime = Sample array
 
 type Waveform = Sample array
 
-type PosParamsType =
-    { sigHeight : float
-      hPos : uint32
-      clkWidth : float
-      labelWidth : uint32
-      sigThick : float
-      boxWidth : uint32
-      boxHeight : uint32
-      spacing : float
-      clkThick : float }
-
 type WaveSimModel = {
-    waveData: SimTime array option
-    waveNames: WaveName array
-    selected: bool array
-    ports: (ComponentId*OutputPortNumber) array
-    clkWidth: float
-    cursor: uint32 
-    radix: NumberBase
-    viewIndexes: uint32*uint32
-    posParams: PosParamsType
+    SimData: SimulatorTypes.SimulationData array
+    WaveData: SimTime array
+    WaveNames: WaveName array
+    Selected: bool array
+    Ports: ((ComponentId*OutputPortNumber)*(ComponentId option)) array
+    ClkWidth: float
+    Cursor: uint32 
+    Radix: NumberBase
+    LastClk: uint32
 }
 
 type DragMode = DragModeOn of int | DragModeOff

@@ -6,17 +6,20 @@
 
 global.dispatchInferWidthsMessage         = "undefined";
 global.dispatchOnSelectComponentMessage   = "undefined";
+global.dispatchOnSelectConnectionMessage  = "undefined";
 global.dispatchOnUnselectComponentMessage = "undefined";
 global.dispatchHasUnsavedChangesMessage   = "undefined";
 
 function setDispatchMessages(
         dispatchInferWidthsMessage_,
         dispatchOnSelectComponentMessage_,
+        dispatchOnSelectConnectionMessage_,
         dispatchOnUnselectComponentMessage_,
         dispatchHasUnsavedChangesMessage_,
     ) {
     dispatchInferWidthsMessage         = dispatchInferWidthsMessage_;
     dispatchOnSelectComponentMessage   = dispatchOnSelectComponentMessage_;
+    dispatchOnSelectConnectionMessage  = dispatchOnSelectConnectionMessage_;
     dispatchOnUnselectComponentMessage = dispatchOnUnselectComponentMessage_;
     dispatchHasUnsavedChangesMessage   = dispatchHasUnsavedChangesMessage_;
 }

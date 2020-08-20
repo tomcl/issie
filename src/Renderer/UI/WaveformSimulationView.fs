@@ -270,7 +270,6 @@ let clkRulerSvg (model: WaveSimModel) =
     |> (fun arr -> [ backgroundSvg model; [| makeRect (cursRectStyle model) |]; arr ])
     |> Array.concat 
     |> makeSvg (clkRulerStyle model)
-
     
 let waveSimRows (model: DiagramModelType.Model) dispatch =
     let wsMod = model.WaveSim
@@ -307,8 +306,8 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
                                        [| snd (Array.last pairs), 1 |] ] )
 
         let selPorts = 
-            let allSelPorts = selected2portLst model model.WaveSim.SimData.[0]
-            Array.map (fun port -> Array.exists ((=) port) allSelPorts) wsMod.Ports
+            let allSelPorts = selected2portLst model wsMod.SimData.[0]
+            Array.map (fun port -> Array.exists (fun p -> fst p = fst port) allSelPorts) wsMod.Ports
 
         transitions wsMod
         |> Array.map padTrans
@@ -522,10 +521,10 @@ let cursorButtons model dispatch =
                 Class "cursor-form"
                 Type "number"
                 Value model.WaveSim.Cursor
-                OnInput (fun c -> match c.Value with
-                                  | curs' when 0 <= int curs'->
-                                     changeCurs model (uint curs') |> dispatch
-                                  | _ -> () ) ]
+                OnChange (fun c -> match c.Value with
+                                   | curs' when 0 <= int curs'->
+                                      changeCurs model (uint curs') |> dispatch
+                                   | _ -> () ) ]
                     
           buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "►" ] 
 

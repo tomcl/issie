@@ -54,23 +54,31 @@ type Wire = {
 }
 
 type StateSample = string array
-
 type Sample = | Wire of Wire | StateSample of StateSample
-
 type SimTime = Sample array
-
 type Waveform = Sample array
+type WaveSimPort = {
+    CId : ComponentId;
+    OutPN : OutputPortNumber;
+    TrgtId : ComponentId option
+}
+type WaveAdderModel = {
+    Ports : (WaveSimPort * bool) array;
+    WaveNames : WaveName array;
+    SimData : SimulatorTypes.SimulationData option
+}
 
 type WaveSimModel = {
     SimData: SimulatorTypes.SimulationData array
     WaveData: SimTime array
     WaveNames: WaveName array
     Selected: bool array
-    Ports: ((ComponentId*OutputPortNumber)*(ComponentId option)) array
+    Ports: WaveSimPort array
     ClkWidth: float
     Cursor: uint32 
     Radix: NumberBase
     LastClk: uint32
+    WaveAdder: WaveAdderModel
 }
 
 type DragMode = DragModeOn of int | DragModeOff

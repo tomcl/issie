@@ -111,29 +111,34 @@ let getSelected model : DiagEl list =
           snd jsState |> List.map (extractConnection >> Conn) )
         ||> List.append 
 
-let selected2portLst model (simData: SimulatorTypes.SimulationData) =
-    let procIns (compId: ComponentId) (inputs: InputPortNumber []) = 
-        Array.collect (fun portN -> 
-            match simData.Graph.[compId].Type, driveOut simData.Graph compId portN  with
-            | Input _, _ -> [||]
-            | Output _, Some tup ->  [| tup, Some compId |]
-            | _, Some tup -> [| tup, None  |]
-            | _, None -> failwith "Input is not connected" ) inputs
+let procIns simData (compId: ComponentId) (inputs: InputPortNumber []) : WaveSimPort [] = 
+    Array.collect (fun portN -> 
+        match simData.Graph.[compId].Type, driveOut simData.Graph compId portN  with
+        | Input _, _ -> [||]
+        | Output _, Some (cId, oPN) ->  [| { CId = cId; OutPN = oPN; TrgtId = Some compId } |]
+        | _, Some (cId, oPN) -> [| { CId = cId; OutPN = oPN; TrgtId = None } |]
+        | _, None -> failwith "Input is not connected" ) inputs
 
-    let procCompIns (compId: ComponentId) (inputs: Map<InputPortNumber,WireData>) = 
+let processComp simData cId : WaveSimPort [] =
+    let procCompIns (compId: ComponentId) (inputs: Map<InputPortNumber,WireData>) : WaveSimPort [] = 
         Map.toArray inputs
         |> Array.map (fun (key, _) -> key)
-        |> procIns compId 
+        |> procIns simData compId 
         
-    let procOuts compId outputs =
+    let procOuts compId outputs : WaveSimPort [] =
         Map.toArray outputs
-        |> Array.map (fun (portNum, _) -> (compId, portNum), None)   
+        |> Array.map (fun (portNum, _) -> { CId = compId; OutPN = portNum; TrgtId = None })
 
-    let processComp cId =
-        match Map.tryFind cId simData.Graph with
-        | Some sC -> Array.append (procCompIns cId sC.Inputs) (procOuts cId sC.Outputs)
-        | None -> failwith "Component Id is not in Simulation Data"
+    match Map.tryFind cId simData.Graph with
+    | Some sC -> Array.append (procCompIns cId sC.Inputs) (procOuts cId sC.Outputs)
+    | None -> failwith "Component Id is not in Simulation Data"
 
+let remDuplicates arrWithDup =
+    Array.groupBy (fun p -> p.CId, p.OutPN) arrWithDup
+    |> Array.map (fun (_, ports) -> 
+        { ports.[0] with TrgtId = Array.tryPick (fun p -> p.TrgtId) ports } )
+
+let compsConns2portLst model (simData: SimulatorTypes.SimulationData) diagElLst : WaveSimPort []  =
     let portId2CIdInPN pId =
         match model.Diagram.GetCanvasState () with
         | Some s -> 
@@ -146,21 +151,18 @@ let selected2portLst model (simData: SimulatorTypes.SimulationData) =
                | Some (cId, i) -> ComponentId cId, InputPortNumber i
                | None -> failwith "None of the components in the Canvas match the OutputPortId"
         | None -> failwith "Called portId2cIdoutPN when Canvas State is None"
-        
-    getSelected model 
+
+    diagElLst 
     |> List.toArray
     |> Array.collect (fun compEl -> 
             match compEl with
-            | Comp c -> processComp (ComponentId c.Id)
+            | Comp c -> processComp simData (ComponentId c.Id)
             | Conn c -> portId2CIdInPN c.Target.Id |> 
-                        (fun (cId, inPN) -> procIns cId [| inPN |]) )
-    |> Array.groupBy fst
-    |> Array.map (fun (_, arr) -> Array.tryFind (fun (_,opt) -> match opt with
-                                                                | Some _ -> true
-                                                                | None -> false ) arr   
-                                  |> function 
-                                     | Some el -> el
-                                     | None -> arr.[0] )
+                        (fun (cId, inPN) -> procIns simData cId [| inPN |]) ) 
+    |> remDuplicates
+
+let selected2portLst model (simData: SimulatorTypes.SimulationData) : WaveSimPort [] =
+    (simData, getSelected model) ||> compsConns2portLst model
 
 let limBits (name: string) : (int*int) option =
     match Seq.tryFind ((=)'[') name, Seq.tryFind ((=)':') name, Seq.tryFind ((=)']') name with
@@ -170,7 +172,7 @@ let limBits (name: string) : (int*int) option =
        |> Some
     | _ -> None
 
-let rec findName (simGraph: SimulatorTypes.SimulationGraph) compId outPortN outputOpt = 
+let rec findName (simGraph: SimulatorTypes.SimulationGraph) ({ CId = compId; OutPN = outPortN; TrgtId = outputOpt }: WaveSimPort) = 
     let compLbl =
         match Map.tryFind compId simGraph with
         | Some simComp ->
@@ -186,7 +188,7 @@ let rec findName (simGraph: SimulatorTypes.SimulationGraph) compId outPortN outp
 
     let driveName n compTypeStr =
         match driveOut simGraph compId (InputPortNumber n) with
-        | Some (driveCompId, drivePortN) -> findName simGraph driveCompId drivePortN None
+        | Some (driveCompId, drivePortN) -> findName simGraph {CId = driveCompId; OutPN = drivePortN; TrgtId = None}
         | None -> failwith (compTypeStr + "input not connected")
 
     match simGraph.[compId].Type with
@@ -211,7 +213,7 @@ let rec findName (simGraph: SimulatorTypes.SimulationGraph) compId outPortN outp
     | IOLabel -> 
         match driveOut simGraph compId (InputPortNumber 0) with
         | Some (driveCompId, drivePortN) -> 
-            match findName simGraph driveCompId drivePortN None with
+            match findName simGraph {CId = driveCompId; OutPN = drivePortN; TrgtId = None} with
             | hd::tl -> 
                 ("("+fst hd, snd hd)::tl
                 |> function
@@ -270,21 +272,21 @@ let bitNums (a,b) =
     | (msb, lsb) when msb = lsb -> sprintf "[%d]" msb 
     | (msb, lsb) -> sprintf "[%d:%d]" msb lsb
 
-let extractWaveNames simData model portFunc =
-    portFunc model simData
-    //|> fst
-    |> Array.map (fun ((compId, portN), opt) ->
-        match findName simData.Graph compId portN opt with
-        | [el] -> fst el + bitNums (snd el)
-        | lst when List.length lst > 0 -> 
-            List.fold (fun st (name, bitLims) -> st + name + bitNums bitLims + ", ") "{ " lst
-            |> (fun lbl -> lbl.[0..String.length lbl - 3] + " }" )  
-        | _ -> failwith "Signal doesn't have a name source" )
+let wSPort2Name simGraph p = 
+    match findName simGraph p with
+    | [el] -> fst el + bitNums (snd el)
+    | lst when List.length lst > 0 -> 
+        List.fold (fun st (name, bitLims) -> st + name + bitNums bitLims + ", ") "{ " lst
+        |> (fun lbl -> lbl.[0..String.length lbl - 3] + " }" )  
+    | _ -> failwith "Signal doesn't have a name source"
 
-let extractSimTime model portFunc (simData: SimulatorTypes.SimulationData) =
+let extractWaveNames simData model (portFunc: Model -> SimulationData -> WaveSimPort []) =
+    portFunc model simData
+    |> Array.map (wSPort2Name simData.Graph)
+
+let extractSimTime model (portFunc: Model -> SimulationData -> WaveSimPort []) (simData: SimulatorTypes.SimulationData) =
     portFunc model simData 
-    //|> fst
-    |> Array.map (fun ((compId, portN), _) ->
+    |> Array.map (fun {CId = compId; OutPN = portN; TrgtId = _} ->
         match simData.Graph.[compId].Outputs.[portN] with 
         | _::_ as lst -> 
             match simData.Graph.[fst lst.[0]].Inputs.[snd lst.[0]] with
@@ -305,7 +307,7 @@ let extractWaveData model portFunc simDataArr : SimTime [] =
     simDataArr
     |> Array.map (extractSimTime model portFunc)            
 
-let simLst model dispatch portsFunc  = 
+let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort []) = 
     match model.Diagram.GetCanvasState (), model.CurrProject with
     | None, _ -> Ok model.WaveSim
     | _, None -> failwith "what? Cannot start a simulation without a project"

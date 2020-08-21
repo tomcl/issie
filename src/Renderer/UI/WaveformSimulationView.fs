@@ -54,7 +54,7 @@ let initModel: WaveSimModel =
 
           makeTrialData nbits1 s1 nbits2 s2 s3
 
-      WaveNames = [| "try single Bit"; "try bus"; "try states" |]
+      //WaveNames = [| "try single Bit"; "try bus"; "try states" |]
       Selected = [| false; false; false |]
       Ports = [| { CId = SimulatorTypes.ComponentId "qwertyuiop";   OutPN = SimulatorTypes.OutputPortNumber 1; TrgtId = None }
                  { CId = SimulatorTypes.ComponentId "qwertyuiopa";  OutPN = SimulatorTypes.OutputPortNumber 1; TrgtId = None }
@@ -147,7 +147,9 @@ let toggleSelect ind model =
                                 if i = ind then not old else old) model.Selected }
     |> Ok |> StartWaveSim
 
-let makeLabels model = Array.map (fun l -> label [ Class "waveLbl" ] [ str l ]) model.WaveNames
+let makeLabels simData model = 
+    extractWaveNames simData model (fun _ _ -> model.WaveSim.Ports)
+    |> Array.map (fun l -> label [ Class "waveLbl" ] [ str l ])
 
 let makeSegment (clkW: float) portSelected (xInd: int) (data: Sample) (trans: int * int)  =
     let top = spacing
@@ -321,7 +323,10 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
         |> Array.map2 Array.append valueLabels
 
 // name and cursor labels of the waveforms
-    let labels = makeLabels wsMod
+    let labels = 
+        match Array.tryItem 0 model.WaveSim.SimData with
+        | Some sD -> makeLabels sD model
+        | None -> [||]
     let cursLabs = makeCursVals wsMod
 
     let labelCols =
@@ -445,7 +450,7 @@ let delSelected model =
         |> Array.filter (fun (sel, _) -> not sel)
         |> Array.map snd
     { model with WaveData = Array.map filtSelected model.WaveData
-                 WaveNames = filtSelected model.WaveNames
+                 //WaveNames = filtSelected model.WaveNames
                  Ports = filtSelected model.Ports
                  Selected = Array.filter not model.Selected }
     |> Ok |> StartWaveSim
@@ -494,7 +499,7 @@ let moveWave model up =
     let reorder (arr: 'b []) = Array.map (fun i -> arr.[i]) indexes'
     
     { model with WaveData = Array.map (fun sT -> reorder sT) model.WaveData
-                 WaveNames = reorder model.WaveNames
+                 //WaveNames = reorder model.WaveNames
                  Selected = reorder model.Selected
                  Ports = reorder model.Ports}
     |> Ok |> StartWaveSim
@@ -524,8 +529,8 @@ let cursorButtons model dispatch =
           Input.number [
               Input.Props [Min 0; Class "cursor-form"; SpellCheck false; Step 1]
               Input.Id "cursorForm"
-              //Input.Value (string model.WaveSim.Cursor)
-              Input.DefaultValue <| sprintf "%d" model.WaveSim.Cursor
+              Input.Value (string model.WaveSim.Cursor)
+              //Input.DefaultValue <| sprintf "%d" model.WaveSim.Cursor
               Input.OnChange (fun c -> 
                     match System.Int32.TryParse c.Value with
                     | true, n when n >= 0 -> changeCurs model (uint n) |> dispatch
@@ -596,12 +601,12 @@ let simulateAddWave (model: DiagramModelType.Model) =
         | None -> failwith "simulateAddWave called when WaveAdder.SimData is None"
     let waveData' = 
         extractWaveData model (fun _ _ -> ports') simData'
-    let waveNames' = 
+    (*let waveNames' = 
         Array.zip wsMod.WaveAdder.WaveNames wsMod.WaveAdder.Ports
         |> Array.filter (snd >> snd) 
-        |> Array.map fst
+        |> Array.map fst*)
     Ok { wsMod with SimData = simData'
-                    WaveNames = waveNames'
+                    //WaveNames = waveNames'
                     WaveData = waveData'
                     Selected = Array.map (fun _ -> false) ports'
                     Ports = ports'

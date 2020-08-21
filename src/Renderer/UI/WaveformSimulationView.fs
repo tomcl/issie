@@ -367,17 +367,12 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
 // simulation functions 
 
 let reloadablePorts (model: DiagramModelType.Model) (simData: SimulatorTypes.SimulationData) = 
-    Array.filter (fun {CId = compId; OutPN = _; TrgtId = _} -> 
-        Map.exists (fun key _ -> key = compId) simData.Graph) model.WaveSim.Ports
-    |> Array.map (fun {CId = cId; OutPN = oPN; TrgtId = outOpt} -> 
-        match outOpt with
-        | Some cId when Map.exists (fun key _ -> key = cId) simData.Graph -> 
-            {CId = cId; OutPN = oPN; TrgtId = Some cId}
-        | _ -> {CId = cId; OutPN = oPN; TrgtId = None} )
-
-let reloadWaves (model: DiagramModelType.Model) dispatch =
-    simLst model dispatch reloadablePorts
-    |> StartWaveSim
+    let inGraph port = Map.exists (fun key _ -> key = port.CId) simData.Graph
+    Array.filter inGraph model.WaveSim.Ports
+    |> Array.map (fun port -> 
+        match port.TrgtId with
+        | Some trgtId when Map.exists (fun key _ -> key = trgtId) simData.Graph -> port
+        | _ -> {port with TrgtId = None} )
 
 // view function helpers
 
@@ -541,7 +536,7 @@ let cursorButtons model dispatch =
 let viewWaveSimButtonsBar model dispatch = 
     div [ Style [ Height "7%" ] ]
         [ button (Class "reloadButtonStyle") (fun _ -> 
-              reloadWaves model dispatch |> dispatch) "Reload" 
+              simLst model dispatch reloadablePorts |> StartWaveSim |> dispatch) "Reload" 
           radixTabs model.WaveSim dispatch
           cursorButtons model dispatch ]
 

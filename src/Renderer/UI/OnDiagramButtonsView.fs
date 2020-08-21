@@ -133,17 +133,27 @@ let selected2portLst model (simData: SimulatorTypes.SimulationData) =
         match Map.tryFind cId simData.Graph with
         | Some sC -> Array.append (procCompIns cId sC.Inputs) (procOuts cId sC.Outputs)
         | None -> failwith "Component Id is not in Simulation Data"
+
+    let portId2CIdInPN pId =
+        match model.Diagram.GetCanvasState () with
+        | Some s -> 
+            List.map extractComponent (fst s)
+            |> List.tryPick (fun c -> List.tryFindIndex (fun (p: Port) -> p.Id = pId) c.InputPorts
+                                      |> function
+                                         | Some i -> Some (c.Id, i)
+                                         | None -> None )
+            |> function
+               | Some (cId, i) -> ComponentId cId, InputPortNumber i
+               | None -> failwith "None of the components in the Canvas match the OutputPortId"
+        | None -> failwith "Called portId2cIdoutPN when Canvas State is None"
         
     getSelected model 
     |> List.toArray
-    |> Array.map (fun compEl -> 
+    |> Array.collect (fun compEl -> 
             match compEl with
-            | Comp c -> ComponentId c.Id, None
-            | Conn c -> ComponentId c.Target.HostId, c.Target.PortNumber )
-    |> Array.collect (fun (cId, opt) -> 
-            match opt with
-            | Some inPN -> procIns cId [| InputPortNumber inPN |]
-            | None -> processComp cId )
+            | Comp c -> processComp (ComponentId c.Id)
+            | Conn c -> portId2CIdInPN c.Target.Id |> 
+                        (fun (cId, inPN) -> procIns cId [| inPN |]) )
     |> Array.groupBy fst
     |> Array.map (fun (_, arr) -> Array.tryFind (fun (_,opt) -> match opt with
                                                                 | Some _ -> true

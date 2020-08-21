@@ -164,42 +164,6 @@ function installSelectionPolicy(comp) {
     }));
 }
 
-function installSelectionPolicyConn(conn) {
-    conn.installEditPolicy(new draw2d.policy.line.OrthogonalSelectionFeedbackPolicy({
-        onSelect: function (canvas, conn, isPrimarySelection) {
-            this._super(canvas, conn, isPrimarySelection);
-
-            let points = conn.getVertices();
-            let i = 1;
-            for (; i < (points.getSize() - 1); i++) {
-                let handle = new this.ResizeHandle(conn, i)
-                conn.selectionHandles.add(handle)
-                handle.setDraggable(conn.isResizeable())
-                handle.show(canvas)
-            };
-
-            this.moved(canvas, conn); 
-
-            if (dispatchOnSelectConnectionMessage !== "undefined") {
-                dispatchOnSelectConnectionMessage()
-            } else {
-                console.log("Warning: trying to dispatch a JS SelectConnection message but dispatcher is not defined.")
-            };
-        },
-
-    onUnselect: function (canvas, figure) {
-        this._super(canvas, figure)
-
-        if (dispatchOnSelectConnectionMessage !== "undefined") {
-            dispatchOnSelectConnectionMessage(connection);
-        } else {
-            console.log("Warning: trying to dispatch a JS SelectConnection message but dispatcher is not defined.")
-        }
-    }
-    }));
-}
-
-
 function createDigitalInput(x, y, numberOfBits) {
     return new draw2d.shape.digital.Input({x:x,y:y,numberOfBits:numberOfBits,resizeable:false});
 }
@@ -492,7 +456,6 @@ export {
     getInputPorts,
     getOutputPorts,
     installSelectionPolicy,
-    installSelectionPolicyConn,
     createDigitalInput,
     createDigitalOutput,
     createDigitalLabel,

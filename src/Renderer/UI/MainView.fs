@@ -265,8 +265,6 @@ let private handleJSDiagramMsg msg model =
         { model with SelectedComponent = Some <| extractComponent jsComponent }
     | UnselectComponent () ->
         { model with SelectedComponent = None }
-    | SelectConnection () ->
-        model
     | InferWidths () ->
         runBusWidthInference model
     | SetHasUnsavedChanges s ->

@@ -28,6 +28,7 @@ open WaveformSimulationView
 
 let init() = {
     Diagram = new Draw2dWrapper()
+    LastSelected = [],[]
     SelectedComponent = None
     LastUsedDialogWidth = 1
     Simulation = None
@@ -122,6 +123,9 @@ let private runBusWidthInference model =
             // Close the notification if all is good.
             { model with Notifications = {model.Notifications with FromDiagram = None} }
 
+let private makeSelectionChangeMsg (model:Model) (dispatch: Msg -> Unit) (ev: 'a) =
+    dispatch SelectionHasChanged
+  
 
 
 
@@ -153,6 +157,7 @@ let private viewRightTab model dispatch =
 
 let setDragMode (modeIsOn:bool) (model:Model) dispatch =
     fun (ev: Browser.Types.MouseEvent) ->
+        makeSelectionChangeMsg model dispatch ev
         //printfn "START X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         match modeIsOn, model.DragMode with
         | true, DragModeOff ->  SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
@@ -215,6 +220,7 @@ let displayView model dispatch =
 
     div [
             OnMouseUp (setDragMode false model dispatch);
+            OnMouseDown (makeSelectionChangeMsg model dispatch)
             OnMouseMove processMouseMove
     ] [
         viewTopMenu model dispatch 
@@ -409,3 +415,10 @@ let update msg model =
             | Ok jsComp -> { model with SelectedComponent = Some <| extractComponent jsComp ; LastUsedDialogWidth=width}
     | MenuAction(act,dispatch) ->
         getMenuView act model dispatch
+    | SelectionHasChanged -> 
+        model.Diagram.GetSelected()
+        |> Option.map (
+            extractState
+            >>  (fun sel ->
+                    {model with LastSelected = sel}))
+        |> Option.defaultValue model

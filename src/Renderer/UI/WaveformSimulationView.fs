@@ -521,18 +521,16 @@ let radixTabs model dispatch =
 let cursorButtons model dispatch =
     div [ Class "cursor-group" ]
         [ buttonOriginal (Class "button-minus") (fun _ -> cursorMove false model |> dispatch) "◄"
-          input
-              [ Id "cursorForm"
-                Step 1
-                SpellCheck false
-                Class "cursor-form"
-                Type "number"
-                Value model.WaveSim.Cursor
-                OnChange (fun c -> match c.Value with
-                                   | curs' when 0 <= int curs'->
-                                      changeCurs model (uint curs') |> dispatch
-                                   | _ -> () ) ]
-                    
+          Input.number [
+              Input.Props [Min 0; Class "cursor-form"; SpellCheck false; Step 1]
+              Input.Id "cursorForm"
+              //Input.Value (string model.WaveSim.Cursor)
+              Input.DefaultValue <| sprintf "%d" model.WaveSim.Cursor
+              Input.OnChange (fun c -> 
+                    match System.Int32.TryParse c.Value with
+                    | true, n when n >= 0 -> changeCurs model (uint n) |> dispatch
+                    | _ -> () )
+          ]
           buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "►" ] 
 
 let viewWaveSimButtonsBar model dispatch = 
@@ -706,7 +704,7 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
     match model.WaveSim.WaveAdder with 
     | { Ports = _; SimData = Some _} -> 
         [ Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] 
-                     [ str "Select signals to simulate them. You can also do this by selecting components/connections in the editor and clicking \"Simulate\"" ]
+                     [ str "Select waveforms to simulate them. \n Alternatively, select components/connections in the editor and click \"Simulate\"" ]
           waveAdderButs model dispatch
           viewWaveAdder model.WaveSim dispatch ]
     | _ -> 

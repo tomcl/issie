@@ -29,6 +29,7 @@ open WaveformSimulationView
 let init() = {
     Diagram = new Draw2dWrapper()
     LastSelected = [],[]
+    CurrentSelected = [],[]
     SelectedComponent = None
     LastUsedDialogWidth = 1
     Simulation = None
@@ -420,5 +421,5 @@ let update msg model =
         |> Option.map (
             extractState
             >>  (fun sel ->
-                    {model with LastSelected = sel}))
+                    {model with LastSelected = model.CurrentSelected; CurrentSelected = sel}))
         |> Option.defaultValue model

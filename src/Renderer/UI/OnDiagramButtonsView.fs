@@ -284,15 +284,19 @@ let extractWaveNames simData model (portFunc: Model -> SimulationData -> WaveSim
     portFunc model simData
     |> Array.map (wSPort2Name simData.Graph)
 
-let extractSimTime model (portFunc: Model -> SimulationData -> WaveSimPort []) (simData: SimulatorTypes.SimulationData) =
+let extractSimTime model portFunc simData =
     portFunc model simData 
     |> Array.map (fun {CId = compId; OutPN = portN; TrgtId = _} ->
-        match simData.Graph.[compId].Outputs.[portN] with 
-        | _::_ as lst -> 
-            match simData.Graph.[fst lst.[0]].Inputs.[snd lst.[0]] with
-            | wD -> Wire { NBits = uint (List.length wD)
-                           BitData = simWireData2Wire wD } 
-        | [] -> failwith "Output not connected" )
+        match Map.tryFind compId simData.Graph with 
+        | Some simComp ->
+            match Map.tryFind portN simComp.Outputs with
+            | Some (hd::_) -> 
+                let wD = simData.Graph.[fst hd].Inputs.[snd hd]
+                Wire { NBits = uint (List.length wD)
+                       BitData = simWireData2Wire wD } 
+            | Some [] -> failwith "Output not connected" 
+            | None -> failwith "Component doesn't have this output port number"
+        | None -> failwith "ComponentId not in simulation graph")
 
 let clkAdvance (sD : SimulatorTypes.SimulationData) = 
     feedClockTick sD.Graph
@@ -322,7 +326,7 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
                 let ports' = portsFunc model simData
                 let simData' = extractSimData simData model.WaveSim.LastClk
                 Ok { model.WaveSim with SimData = simData'
-                                        WaveNames = extractWaveNames simData model portsFunc
+                                        //WaveNames = extractWaveNames simData model portsFunc
                                         WaveData = extractWaveData model portsFunc simData'
                                         Selected = Array.map (fun _ -> true) ports' 
                                         Ports = ports'}

@@ -71,7 +71,7 @@ type WaveAdderModel = {
 type WaveSimModel = {
     SimData: SimulatorTypes.SimulationData array
     WaveData: SimTime array
-    WaveNames: WaveName array
+    //WaveNames: WaveName array
     Selected: bool array
     Ports: WaveSimPort array
     ClkWidth: float

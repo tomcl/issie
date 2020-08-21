@@ -21,7 +21,6 @@ type private IDraw2d =
     abstract setDispatchMessages :
         dispatchInferWidthsMessage_         :(unit->unit) ->
         dispatchOnSelectComponentMessage_   :(JSComponent->unit) ->
-        dispatchOnSelectConnectionMessage_  :(unit->unit) ->
         dispatchOnUnselectComponentMessage_ :(unit->unit) ->
         dispatchHasUnsavedChangesMessage_   :(bool->unit) ->
         unit
@@ -45,7 +44,6 @@ type private IDraw2d =
     abstract getInputPorts                : comp:JSComponent -> JSPorts
     abstract getOutputPorts               : comp:JSComponent -> JSPorts
     abstract installSelectionPolicy       : comp:JSComponent -> unit
-    abstract installSelectionPolicyConn   : conn:JSConnection -> unit
     abstract createDigitalInput           : x:int -> y:int -> numberOfBits:int -> JSComponent
     abstract createDigitalOutput          : x:int -> y:int -> numberOfBits:int -> JSComponent
     abstract createDigitalLabel          : x:int -> y:int -> JSComponent
@@ -197,7 +195,6 @@ let private createConnection
     |> List.map (fun (x, y) -> createObj ["x" ==> x; "y" ==> y])
     |> fshaprListToJsList
     |> draw2dLib.setConnectionVertices conn
-    draw2dLib.installSelectionPolicyConn conn
     draw2dLib.addConnectionToCanvas canvas conn
 
 let private editComponentLabel (canvas : JSCanvas) (id : string) (newLabel : string) : unit =
@@ -254,7 +251,6 @@ type Draw2dWrapper() =
             draw2dLib.setDispatchMessages
                 (InferWidths >> jsDiagramMsgDispatch)
                 (SelectComponent >> jsDiagramMsgDispatch)
-                (SelectConnection >> jsDiagramMsgDispatch)
                 (UnselectComponent >> jsDiagramMsgDispatch)
                 (SetHasUnsavedChanges >> jsDiagramMsgDispatch)
         // Initialise dispatch if needed.

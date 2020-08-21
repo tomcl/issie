@@ -364,16 +364,6 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
 
     waveCol, labelCols, cursValCol
 
-// simulation functions 
-
-let reloadablePorts (model: DiagramModelType.Model) (simData: SimulatorTypes.SimulationData) = 
-    let inGraph port = Map.exists (fun key _ -> key = port.CId) simData.Graph
-    Array.filter inGraph model.WaveSim.Ports
-    |> Array.map (fun port -> 
-        match port.TrgtId with
-        | Some trgtId when Map.exists (fun key _ -> key = trgtId) simData.Graph -> port
-        | _ -> {port with TrgtId = None} )
-
 // view function helpers
 
 let zoom plus (m: WaveSimModel) =

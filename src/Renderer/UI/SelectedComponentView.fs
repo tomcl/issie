@@ -196,6 +196,7 @@ let viewSelectedComponent model dispatch =
             makeExtraInfo model comp label' dispatch
             textFormField "Component Name" label' (fun text -> 
                 setComponentLabel model comp (formatLabel comp text)
+                OnDiagramButtonsView.simLst model dispatch OnDiagramButtonsView.reloadablePorts |> StartWaveSim |> dispatch
                 dispatch (ReloadSelectedComponent model.LastUsedDialogWidth) // reload the new component
                 )
         ]

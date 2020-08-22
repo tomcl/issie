@@ -55,7 +55,7 @@ let initModel: WaveSimModel =
 
           makeTrialData nbits1 s1 nbits2 s2 s3
 
-      //WaveNames = [| "try single Bit"; "try bus"; "try states" |]
+      WaveNames = [| "try single Bit"; "try bus"; "try states" |]
       Selected = [| false; false; false |]
       Ports = [| { CId = SimulatorTypes.ComponentId "qwertyuiop";   OutPN = SimulatorTypes.OutputPortNumber 1; TrgtId = None }
                  { CId = SimulatorTypes.ComponentId "qwertyuiopa";  OutPN = SimulatorTypes.OutputPortNumber 1; TrgtId = None }
@@ -363,9 +363,9 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
 
 // name and cursor labels of the waveforms
     let labels = 
-        match Array.tryItem 0 model.WaveSim.SimData with
-        | Some sD -> makeLabels sD model
-        | None -> [||]
+        match makeSimData model with
+        | (Some (Ok sD)), _ -> makeLabels sD model
+        | _ -> [||]
     let cursLabs = makeCursVals wsMod
 
     let labelCols =
@@ -566,7 +566,9 @@ let canReload (model: DiagramModelType.Model) =
     | _ -> false
 
 let reloadButStyle model : IHTMLProp list = 
-    if canReload model then [Class "reloadButtonStyle"] else [Class "reloadButtonStyle"; Class "disabledButton"]
+    if canReload model 
+        then [Class "reloadButtonStyle"] 
+        else [Class "reloadButtonStyle"; Class "disabledButton"]
 
 let viewWaveSimButtonsBar model dispatch = 
     div [ Style [ Height "7%" ] ]

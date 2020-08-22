@@ -18,6 +18,7 @@ open CommonTypes
 open OnDiagramButtonsView
 open Simulator
 open Extractor
+open SimulatorTypes
 
 let initModel: WaveSimModel =
     { SimData = [||]
@@ -146,6 +147,32 @@ let toggleSelect ind model =
     { model with Selected = Array.mapi (fun i old ->
                                 if i = ind then not old else old) model.Selected }
     |> Ok |> StartWaveSim
+
+let highlight on i (model: DiagramModelType.Model) =
+    match model.Diagram.GetCanvasState () with
+        | Some s -> 
+            let p = model.WaveSim.Ports.[i]
+            let outPN = match p.OutPN with
+                        | OutputPortNumber n -> n
+            List.map extractComponent (fst s)
+            |> List.tryPick (fun c -> match ComponentId c.Id = p.CId with
+                                      | true -> Some c.OutputPorts.[outPN].Id
+                                      | false -> None)
+            |> function
+               | Some portId -> 
+                    List.map extractConnection (snd s)
+                    |> List.tryPick (fun conn -> if conn.Source.Id = portId then Some conn.Id else None)
+                    |> function
+                       | Some connId -> 
+                            match on with
+                            | true -> 
+                                (fst model.Hilighted, List.append (snd model.Hilighted) [ConnectionId connId])
+                            | false -> 
+                                (fst model.Hilighted, List.filter (fun c -> c <> ConnectionId connId ) (snd model.Hilighted))
+                            |> SetHighlighted
+                       | None -> model.Hilighted |> SetHighlighted
+               | None -> model.Hilighted |> SetHighlighted
+        | None -> failwith "Canvas State is None even though the SimData is Some"
 
 let makeLabels simData model = 
     extractWaveNames simData model (fun _ _ -> model.WaveSim.Ports)
@@ -338,7 +365,8 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
                           [ Type "checkbox"
                             Checked wsMod.Selected.[i]
                             Style [ Float FloatOptions.Left ]
-                            OnChange (fun _ -> toggleSelect i wsMod |> dispatch) ] ]
+                            OnChange (fun _ -> toggleSelect i wsMod |> dispatch
+                                               highlight (not wsMod.Selected.[i]) i model |> dispatch) ] ]
                   td [ Class "waveNamesCol" ] [ l ]])
 
     let cursValCol =

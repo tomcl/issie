@@ -319,9 +319,9 @@ let extractWaveData model portFunc simDataArr : SimTime [] =
     simDataArr
     |> Array.map (extractSimTime model portFunc)            
 
-let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort []) = 
+let makeSimData model = 
     match model.Diagram.GetCanvasState (), model.CurrProject with
-    | None, _ -> Ok model.WaveSim
+    | None, _ -> None, Some (Ok model.WaveSim)
     | _, None -> failwith "what? Cannot start a simulation without a project"
     | Some jsState, Some project ->
         let otherComponents =
@@ -329,23 +329,28 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
             |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         (extractState jsState, otherComponents)
         ||> prepareSimulation project.OpenFileName
-        |> function
-            | Ok simData -> 
-                let ports' = portsFunc model simData
-                let simData' = extractSimData simData model.WaveSim.LastClk
-                Ok { model.WaveSim with SimData = simData'
-                                        //WaveNames = extractWaveNames simData model portsFunc
-                                        WaveData = extractWaveData model portsFunc simData'
-                                        Selected = Array.map (fun _ -> true) ports' 
-                                        Ports = ports'}
-            | Error simError ->
-                if simError.InDependency.IsNone then
-                    // Highligh the affected components and connection only if
-                    // the error is in the current diagram and not in a
-                    // dependency.
-                    (simError.ComponentsAffected, simError.ConnectionsAffected)
-                    |> SetHighlighted |> dispatch
-                Error simError
+        |> (fun x -> Some x, None)
+
+let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort []) = 
+    match makeSimData model with
+    | Some (Ok simData), _ -> 
+        let ports' = portsFunc model simData
+        let simData' = extractSimData simData model.WaveSim.LastClk
+        Ok { model.WaveSim with SimData = simData'
+                                //WaveNames = extractWaveNames simData model portsFunc
+                                WaveData = extractWaveData model portsFunc simData'
+                                Selected = Array.map (fun _ -> true) ports' 
+                                Ports = ports'}
+    | Some (Error simError), _ ->
+        if simError.InDependency.IsNone then
+            // Highligh the affected components and connection only if
+            // the error is in the current diagram and not in a
+            // dependency.
+            (simError.ComponentsAffected, simError.ConnectionsAffected)
+            |> SetHighlighted |> dispatch
+        Error simError
+    | _, Some m -> m
+    | _, _ -> failwith "What? This case shouldn't happen"
 
 let viewOnDiagramButtons model dispatch =
     div [ canvasSmallMenuStyle ] [

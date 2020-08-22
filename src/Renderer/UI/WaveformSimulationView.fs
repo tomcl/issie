@@ -150,29 +150,36 @@ let toggleSelect ind model =
 
 let highlight on i (model: DiagramModelType.Model) =
     match model.Diagram.GetCanvasState () with
-        | Some s -> 
-            let p = model.WaveSim.Ports.[i]
-            let outPN = match p.OutPN with
-                        | OutputPortNumber n -> n
-            List.map extractComponent (fst s)
-            |> List.tryPick (fun c -> match ComponentId c.Id = p.CId with
-                                      | true -> Some c.OutputPorts.[outPN].Id
-                                      | false -> None)
-            |> function
-               | Some portId -> 
-                    List.map extractConnection (snd s)
-                    |> List.tryPick (fun conn -> if conn.Source.Id = portId then Some conn.Id else None)
-                    |> function
-                       | Some connId -> 
-                            match on with
-                            | true -> 
-                                (fst model.Hilighted, List.append (snd model.Hilighted) [ConnectionId connId])
-                            | false -> 
-                                (fst model.Hilighted, List.filter (fun c -> c <> ConnectionId connId ) (snd model.Hilighted))
-                            |> SetHighlighted
-                       | None -> model.Hilighted |> SetHighlighted
-               | None -> model.Hilighted |> SetHighlighted
-        | None -> failwith "Canvas State is None even though the SimData is Some"
+    | Some s -> 
+        let p = model.WaveSim.Ports.[i]
+        let outPN = match p.OutPN with
+                    | OutputPortNumber n -> n
+        List.map extractComponent (fst s)
+        |> List.tryPick (fun c -> match ComponentId c.Id = p.CId with
+                                  | true -> Some c.OutputPorts.[outPN].Id
+                                  | false -> None)
+        |> function
+           | Some portId -> 
+                List.map extractConnection (snd s)
+                |> List.tryPick (fun conn -> if conn.Source.Id = portId then Some conn.Id else None)
+                |> function
+                   | Some connId -> 
+                        match on with
+                        | true -> 
+                            (fst model.Hilighted, List.append (snd model.Hilighted) [ConnectionId connId])
+                        | false -> 
+                            (fst model.Hilighted, List.filter (fun c -> c <> ConnectionId connId ) (snd model.Hilighted))
+                        |> SetHighlighted
+                   | None -> model.Hilighted |> SetHighlighted
+           | None -> model.Hilighted |> SetHighlighted
+    | None -> failwith "Canvas State is None even though the SimData is Some"
+
+let allSelected model = Array.forall ((=) true) model.Selected
+let anySelected model = Array.contains true model.Selected
+    
+let highlightAll (model: DiagramModelType.Model) dispatch =
+    let on = not (allSelected model.WaveSim)
+    Array.mapi (fun i _ -> highlight on i model |> dispatch) model.WaveSim.Selected
 
 let makeLabels simData model = 
     extractWaveNames simData model (fun _ _ -> model.WaveSim.Ports)
@@ -454,9 +461,6 @@ let cursorMove increase (model: DiagramModelType.Model) =
 
 let selectAll s model = { model with Selected = Array.map (fun _ -> s) model.Selected } |> Ok |> StartWaveSim
 
-let allSelected model = Array.forall ((=) true) model.Selected
-let anySelected model = Array.contains true model.Selected
-
 let delSelected model =
     let filtSelected arr =
         Array.zip model.Selected arr
@@ -653,7 +657,8 @@ let nameLabelsCol (model: DiagramModelType.Model) labelRows dispatch =
                     [ input
                         [ Type "checkbox"
                           Checked (allSelected wsMod)
-                          OnChange(fun t -> selectAll t.Checked wsMod |> dispatch) ] ]
+                          OnChange(fun t -> highlightAll model dispatch
+                                            selectAll t.Checked wsMod |> dispatch ) ] ]
                  waveAddDelBut ] |]
 
     let bot =

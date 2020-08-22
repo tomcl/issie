@@ -347,7 +347,11 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
         let selPorts = 
             match Array.tryItem 0 wsMod.SimData with
             | Some sD ->
-                let allSelPorts = selected2portLst model sD
+                let allSelPorts = 
+                    ( List.map (fun c -> Comp c) (fst model.CurrentSelected),
+                      List.map (fun c -> Conn c) (snd model.CurrentSelected) )
+                    ||> List.append 
+                    |> compsConns2portLst model sD
                 Array.map (fun port -> Array.exists (fun selP -> (selP.CId, selP.OutPN) = (port.CId, port.OutPN)) allSelPorts) wsMod.Ports
             | None -> Array.map (fun _ -> false) wsMod.Ports
 
@@ -657,7 +661,7 @@ let nameLabelsCol (model: DiagramModelType.Model) labelRows dispatch =
                     [ input
                         [ Type "checkbox"
                           Checked (allSelected wsMod)
-                          OnChange(fun t -> highlightAll model dispatch
+                          OnChange(fun t -> highlightAll model dispatch |> ignore
                                             selectAll t.Checked wsMod |> dispatch ) ] ]
                  waveAddDelBut ] |]
 

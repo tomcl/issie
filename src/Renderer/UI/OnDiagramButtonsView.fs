@@ -147,9 +147,6 @@ let compsConns2portLst model (simData: SimulatorTypes.SimulationData) diagElLst 
                                       |> function
                                          | Some i -> Some (c.Id, i)
                                          | None -> None )
-            |> function
-               | Some (cId, i) -> ComponentId cId, InputPortNumber i
-               | None -> failwith "None of the components in the Canvas match the OutputPortId"
         | None -> failwith "Called portId2cIdoutPN when Canvas State is None"
 
     diagElLst 
@@ -157,8 +154,9 @@ let compsConns2portLst model (simData: SimulatorTypes.SimulationData) diagElLst 
     |> Array.collect (fun compEl -> 
             match compEl with
             | Comp c -> processComp simData (ComponentId c.Id)
-            | Conn c -> portId2CIdInPN c.Target.Id |> 
-                        (fun (cId, inPN) -> procIns simData cId [| inPN |]) ) 
+            | Conn c -> match portId2CIdInPN c.Target.Id with 
+                        | Some (cId, inPN) -> procIns simData (ComponentId cId) [| InputPortNumber inPN |]
+                        | None -> [||] ) 
     |> remDuplicates
 
 let selected2portLst model (simData: SimulatorTypes.SimulationData) : WaveSimPort [] =

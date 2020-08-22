@@ -338,7 +338,8 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
                                 //WaveNames = extractWaveNames simData model portsFunc
                                 WaveData = extractWaveData model portsFunc simData'
                                 Selected = Array.map (fun _ -> true) ports' 
-                                Ports = ports'}
+                                Ports = ports'
+                                LastCanvasState = model.Diagram.GetCanvasState()}
     | Some (Error simError), _ ->
         if simError.InDependency.IsNone then
             // Highligh the affected components and connection only if

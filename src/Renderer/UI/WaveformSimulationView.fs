@@ -64,7 +64,8 @@ let initModel: WaveSimModel =
       Cursor = uint32 0
       Radix = Bin
       LastClk = uint 9
-      WaveAdder = { Ports = [||]; WaveNames = [||]; SimData = None } }
+      WaveAdder = { Ports = [||]; WaveNames = [||]; SimData = None }
+      LastCanvasState = None }
 
 // SVG functions
 
@@ -345,15 +346,15 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
                                        [| snd (Array.last pairs), 1 |] ] )
 
         let selPorts = 
-            match Array.tryItem 0 wsMod.SimData with
-            | Some sD ->
+            match makeSimData model with
+            | (Some (Ok sD)), _ ->
                 let allSelPorts = 
                     ( List.map (fun c -> Comp c) (fst model.CurrentSelected),
                       List.map (fun c -> Conn c) (snd model.CurrentSelected) )
                     ||> List.append 
                     |> compsConns2portLst model sD
                 Array.map (fun port -> Array.exists (fun selP -> (selP.CId, selP.OutPN) = (port.CId, port.OutPN)) allSelPorts) wsMod.Ports
-            | None -> Array.map (fun _ -> false) wsMod.Ports
+            | _ -> Array.map (fun _ -> false) wsMod.Ports
 
         transitions wsMod
         |> Array.map padTrans
@@ -411,7 +412,7 @@ let zoom plus (m: WaveSimModel) =
     { m with ClkWidth = m.ClkWidth * multBy } |> Ok |> StartWaveSim
 
 let button style func label =
-    Button.button (List.append [ Button.Props [ style ] ] [ Button.OnClick func ]) [ str label ]
+    Button.button (List.append [ Button.Props style ] [ Button.OnClick func ]) [ str label ]
 
 let buttonOriginal style func label =
     input
@@ -559,9 +560,17 @@ let cursorButtons model dispatch =
           ]
           buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "►" ] 
 
+let canReload (model: DiagramModelType.Model) = 
+    match model.WaveSim.LastCanvasState <> model.Diagram.GetCanvasState(), makeSimData model with
+    | true, (Some (Ok _), _) -> true
+    | _ -> false
+
+let reloadButStyle model : IHTMLProp list = 
+    if canReload model then [Class "reloadButtonStyle"] else [Class "reloadButtonStyle"; Class "disabledButton"]
+
 let viewWaveSimButtonsBar model dispatch = 
     div [ Style [ Height "7%" ] ]
-        [ button (Class "reloadButtonStyle") (fun _ -> 
+        [ button (reloadButStyle model) (fun _ -> 
               simLst model dispatch reloadablePorts |> StartWaveSim |> dispatch) "Reload" 
           radixTabs model.WaveSim dispatch
           cursorButtons model dispatch ]
@@ -645,13 +654,13 @@ let nameLabelsCol (model: DiagramModelType.Model) labelRows dispatch =
     let waveAddDelBut =
         match anySelected wsMod with
         | true ->
-            [ button (Class "newWaveButton") (fun _ -> delSelected wsMod |> dispatch) "del"
+            [ button [Class "newWaveButton"] (fun _ -> delSelected wsMod |> dispatch) "del"
               div [ Class "updownDiv" ]
-                  [ button (Class "updownButton") (fun _ -> moveWave wsMod true |> dispatch) "▲"
-                    button (Class "updownButton") (fun _ -> moveWave wsMod false |> dispatch) "▼" ] ]
+                  [ button [Class "updownButton"] (fun _ -> moveWave wsMod true |> dispatch) "▲"
+                    button [Class "updownButton"] (fun _ -> moveWave wsMod false |> dispatch) "▼" ] ]
         | false ->
             [ div [ Style [ WhiteSpace WhiteSpaceOptions.Nowrap ] ]
-                  [ button (Class "newWaveButton") (fun _ -> openWaveAdder model dispatch |> dispatch) "+"
+                  [ button [Class "newWaveButton"] (fun _ -> openWaveAdder model dispatch |> dispatch) "+"
                     label [ Class "newWaveLabel" ] [ str "Add wave" ] ] ]
         |> (fun children -> th [ Class "waveNamesCol" ] children)
 
@@ -689,11 +698,11 @@ let viewWaveformViewer model dispatch =
 
 let viewZoomDiv model dispatch =
     div [ Class "zoomDiv" ]
-        [ button (Class "zoomButtonStyle") (fun _ -> zoom false model |> dispatch) "-"
+        [ button [Class "zoomButtonStyle"] (fun _ -> zoom false model |> dispatch) "-"
           //let svgPath = Path.Combine(staticDir(), "hzoom-icon.svg")
           //let svgPath = staticDir() + "\hzoom-icon.svg"
           //embed [ Src svgPath ]
-          button (Class "zoomButtonStyle") (fun _ -> zoom true model |> dispatch) "+" ] 
+          button [Class "zoomButtonStyle"] (fun _ -> zoom true model |> dispatch) "+" ] 
 
 let waveAdderTopRow model dispatch =
     tr [] 
@@ -724,8 +733,8 @@ let viewWaveAdder model dispatch =
 
 let waveAdderButs (model: DiagramModelType.Model) dispatch =
     div [ Style [Display DisplayOptions.Block] ]
-        [ button (Class "reloadButtonStyle") (fun _ -> cancelAddWave model.WaveSim |> dispatch) "Cancel"
-          button (Class "reloadButtonStyle") (fun _ -> simulateAddWave model |> dispatch) "Simulate" ]
+        [ button [Class "reloadButtonStyle"] (fun _ -> cancelAddWave model.WaveSim |> dispatch) "Cancel"
+          button [Class "reloadButtonStyle"] (fun _ -> simulateAddWave model |> dispatch) "Simulate" ]
 
 let viewWaveSim (model: DiagramModelType.Model) dispatch =
     match model.WaveSim.WaveAdder with 

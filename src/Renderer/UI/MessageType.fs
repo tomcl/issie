@@ -79,6 +79,7 @@ type WaveSimModel = {
     Radix: NumberBase
     LastClk: uint32
     WaveAdder: WaveAdderModel
+    LastCanvasState: JSCanvasState option
 }
 
 type DragMode = DragModeOn of int | DragModeOff

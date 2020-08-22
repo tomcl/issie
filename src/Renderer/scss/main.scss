@@ -172,8 +172,17 @@ $sigLineThick: 0.025;
     width: 60px;
     height: 30px;
     position: relative;
-    color: red;
+    color: black;
     float: left;
+}
+
+.disabledButton {
+    pointer-events: none;
+    cursor: not-allowed;
+    opacity: 0.65;
+    filter: alpha(opacity=65);
+    -webkit-box-shadow: none;
+    box-shadow: none;
 }
 
 .newWaveButton {

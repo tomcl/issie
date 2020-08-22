@@ -17,6 +17,7 @@ open DiagramMessageType
 open CommonTypes
 open MemoryEditorView
 open PopupView
+open OnDiagramButtonsView
 
 
 
@@ -196,7 +197,7 @@ let viewSelectedComponent model dispatch =
             makeExtraInfo model comp label' dispatch
             textFormField "Component Name" label' (fun text -> 
                 setComponentLabel model comp (formatLabel comp text)
-                OnDiagramButtonsView.simLst model dispatch OnDiagramButtonsView.reloadablePorts |> StartWaveSim |> dispatch
+                //updateNames model (fun _ _ -> model.WaveSim.Ports) |> StartWaveSim |> dispatch
                 dispatch (ReloadSelectedComponent model.LastUsedDialogWidth) // reload the new component
                 )
         ]

@@ -167,7 +167,10 @@ let reloadablePorts (model: DiagramModelType.Model) (simData: SimulatorTypes.Sim
     Array.filter inGraph model.WaveSim.Ports
     |> Array.map (fun port -> 
         match port.TrgtId with
-        | Some trgtId when Map.exists (fun key _ -> key = trgtId) simData.Graph -> port
+        | Some trgtId when Map.exists (fun key _ -> key = trgtId) simData.Graph ->   
+            match List.tryFind (fun (cid,_) -> cid = trgtId) simData.Graph.[port.CId].Outputs.[port.OutPN] with
+            | Some _ -> port
+            | None -> {port with TrgtId = None}
         | _ -> {port with TrgtId = None} )
 
 let limBits (name: string) : (int*int) option =
@@ -329,13 +332,19 @@ let makeSimData model =
         ||> prepareSimulation project.OpenFileName
         |> (fun x -> Some x, None)
 
+(*let updateNames model portsFunc = 
+    match makeSimData model with
+    | Some (Ok simData), _ -> 
+        Ok { model.WaveSim with WaveNames = extractWaveNames simData model portsFunc }
+    | _, _ -> failwith "What? This case shouldn't happen"*)
+
 let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort []) = 
     match makeSimData model with
     | Some (Ok simData), _ -> 
         let ports' = portsFunc model simData
         let simData' = extractSimData simData model.WaveSim.LastClk
         Ok { model.WaveSim with SimData = simData'
-                                //WaveNames = extractWaveNames simData model portsFunc
+                                WaveNames = extractWaveNames simData model portsFunc
                                 WaveData = extractWaveData model portsFunc simData'
                                 Selected = Array.map (fun _ -> true) ports' 
                                 Ports = ports'

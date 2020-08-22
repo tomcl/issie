@@ -26,6 +26,8 @@ type Notifications = {
 
 type Model = {
     Diagram : Draw2dWrapper
+    LastSelected: Component list * Connection list
+    CurrentSelected: Component list * Connection list
     LastUsedDialogWidth: int
     SelectedComponent : Component option // None if no component is selected.
     Simulation : Result<SimulationData,SimulationError> option // None if no simulation is running.

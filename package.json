@@ -45,7 +45,10 @@
   },
   "build": {
     "appId": "ISSIE.050",
-    "asar": true
+    "asar": true,
+    "win": {
+      "target":  "zip"
+    }
   },
   "dependencies": {
     "bulma": "^0.9.0",

@@ -130,3 +130,4 @@ type Msg =
     | SetDragMode of DragMode
     | SetViewerWidth of int
     | MenuAction of MenuCommand * (Msg -> unit)
+    | SelectionHasChanged

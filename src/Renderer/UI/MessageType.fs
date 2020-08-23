@@ -65,7 +65,7 @@ type WaveSimPort = {
 type WaveAdderModel = {
     Ports : (WaveSimPort * bool) array;
     WaveNames : WaveName array;
-    SimData : SimulatorTypes.SimulationData option
+    SimData : SimulatorTypes.SimulationData
 }
 
 type WaveSimModel = {
@@ -78,7 +78,7 @@ type WaveSimModel = {
     Cursor: uint32 
     Radix: NumberBase
     LastClk: uint32
-    WaveAdder: WaveAdderModel
+    WaveAdder: WaveAdderModel option
     LastCanvasState: JSCanvasState option
 }
 

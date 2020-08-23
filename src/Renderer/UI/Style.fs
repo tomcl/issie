@@ -20,6 +20,7 @@ let rightSectionWidth (model:Model) =
 
 let leftSectionWidth model = Style [
     Width (sprintf "calc(100%s - %s - 10px)" "%" (rightSectionWidth model))
+    MaxWidth "calc(100% - 475px)"
 ]
 
 let navbarStyle model = Style [
@@ -41,6 +42,7 @@ let rightSectionStyle model =
         UserSelect UserSelectOptions.None
         ZIndex 50
         BackgroundColor "white"
+        MinWidth "475px"
         //UserSelect UserSelectOptions.None
 ]
 

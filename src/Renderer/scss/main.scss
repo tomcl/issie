@@ -113,7 +113,7 @@ $sigLineThick: 0.025;
 
 .cursorDivStyle { 
     float: right;
-    width: 5%;
+    width: 150px;
     position: relative;
 }
 
@@ -137,8 +137,7 @@ $sigLineThick: 0.025;
 .cursValsCol {
     vertical-align: bottom;
     font-size: 12px;
-    min-width: 15px;
-    width: 15px;
+    min-width: 25px;
 }
 
 
@@ -185,7 +184,7 @@ $sigLineThick: 0.025;
 %waveNameHeaderBut {
     margin: 0 2px 0 2px;
     height: 100%;
-    font-size: 80%;
+    font-size: 12px;
     float: left;
     position: relative;
 }
@@ -279,7 +278,7 @@ $sigLineThick: 0.025;
     resize: vertical;
 }
 
-.cursor-form {
+.form {
     float: left;
     position: relative;
     height: 100%;
@@ -291,22 +290,20 @@ $sigLineThick: 0.025;
     -webkit-appearance: none;
 }
 
-.button-plus {
-    float: right;
-    font-weight: bold;
-    height: 100%;
+cursor {
+    margin: 0 0 0 0;
+    height: 30px;
     padding: 0;
     width: 25%;
     position: relative;
-}
 
-.button-minus {
-    float: left;
-    font-weight: bold;
-    height: 100%;
-    padding: 0;
-    width: 25%;
-    position: relative;
+    right {
+        float: right;
+    }
+
+    left {
+        float: left;
+    }
 }
 
 input::-webkit-inner-spin-button {

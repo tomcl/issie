@@ -20,7 +20,7 @@ open Simulator
 open Extractor
 open SimulatorTypes
 
-let initModel: WaveSimModel =
+(*let initModel: WaveSimModel =
     { SimData = [||]
       WaveData =
           //modify these two signals to change trial data
@@ -65,6 +65,19 @@ let initModel: WaveSimModel =
       Radix = Bin
       LastClk = uint 9
       WaveAdder = { Ports = [||]; WaveNames = [||]; SimData = None }
+      LastCanvasState = None }*)
+
+let initModel: WaveSimModel =
+    { SimData = [||]
+      WaveData = [||]
+      WaveNames = [||]
+      Selected = [||]
+      Ports = [||] 
+      ClkWidth = 1.0
+      Cursor = 0u
+      Radix = Bin
+      LastClk = 9u
+      WaveAdder = None 
       LastCanvasState = None }
 
 // SVG functions
@@ -183,7 +196,7 @@ let highlightAll (model: DiagramModelType.Model) dispatch =
     Array.mapi (fun i _ -> highlight on i model |> dispatch) model.WaveSim.Selected
 
 let makeLabels simData model = 
-    extractWaveNames simData model (fun _ _ -> model.WaveSim.Ports)
+    extractWaveNames simData model reloadablePorts
     |> Array.map (fun l -> label [ Class "waveLbl" ] [ str l ])
 
 let makeSegment (clkW: float) portSelected (xInd: int) (data: Sample) (trans: int * int)  =
@@ -292,10 +305,10 @@ let makeCursVals model =
         |> Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
     match int model.Cursor < Array.length model.WaveData with
     | true -> Array.map makeCursVal model.WaveData.[int model.Cursor]
-    | false -> 
-        (Array.length model.WaveData, model.Cursor)
+    | false -> [||]
+        (*(Array.length model.WaveData, model.Cursor)
         ||> sprintf "WaveData.length = %d, model.Cursor = %d, WaveData.[model Cursor] doesn't exist" 
-        |> failwith
+        |> failwith*)
 
 //container box and clock lines
 let backgroundSvg model =
@@ -534,15 +547,16 @@ let moveWave model up =
 let radixTabs model dispatch =
     let radTab rad =
         Tabs.tab [ Tabs.Tab.IsActive (model.Radix = rad)
-                   Tabs.Tab.Props [Style [ Width "25px"
+                   Tabs.Tab.Props [Style [ Width "35px"
                                            Height "30px"] ] ]
                  [ a [ OnClick(fun _ -> Ok { model with Radix = rad } |> StartWaveSim |> dispatch) ]
                  [ str (radixString rad) ] ]
     Tabs.tabs
-        [ Tabs.IsBoxed; Tabs.IsToggle; Tabs.Props [ Style [ Width "100px"
-                                                            FontSize "80%" 
-                                                            Float FloatOptions.Right;
-                                                            Margin "0 10px 0 10px" ] ] ]
+        [ Tabs.IsToggle; Tabs.Props [ Style [ Width "140px"
+                                              Height "30px"
+                                              FontSize "80%" 
+                                              Float FloatOptions.Right;
+                                              Margin "0 10px 0 10px" ] ] ]
         [ radTab Bin; radTab Hex; radTab Dec; radTab SDec ]
 
 let cursorButtons model dispatch =
@@ -565,15 +579,20 @@ let canReload (model: DiagramModelType.Model) =
     | true, (Some (Ok _), _) -> true
     | _ -> false
 
-let reloadButStyle model : IHTMLProp list = 
-    if canReload model 
-        then [Class "reloadButtonStyle"] 
-        else [Class "reloadButtonStyle"; Class "disabledButton"]
+let reloadButStyle model dispatch = 
+    match canReload model with
+    | true -> [ Button.Color IsSuccess
+                Button.OnClick (fun _ ->
+                    simLst model dispatch reloadablePorts 
+                    |> StartWaveSim |> dispatch) ] 
+    | false -> [ Button.Color IsGrey ]
+    |> List.append [ Button.CustomClass "reloadButtonStyle" ]
 
 let viewWaveSimButtonsBar model dispatch = 
     div [ Style [ Height "7%" ] ]
-        [ button (reloadButStyle model) (fun _ -> 
-              simLst model dispatch reloadablePorts |> StartWaveSim |> dispatch) "Reload" 
+        [ Button.button (reloadButStyle model dispatch) [ str "Reload" ]
+          //button (reloadButStyle model) (fun _ -> 
+          //    simLst model dispatch reloadablePorts |> StartWaveSim |> dispatch) "Reload" 
           radixTabs model.WaveSim dispatch
           cursorButtons model dispatch ]
 
@@ -608,48 +627,55 @@ let openWaveAdder (model: DiagramModelType.Model) dispatch =
     | wSPorts, Some sD ->
         let ports' = Array.map (fun p -> p, Array.contains p model.WaveSim.Ports) wSPorts
         let names' = Array.map (wSPort2Name sD.Graph) wSPorts
-        { model.WaveSim with WaveAdder = { Ports = ports'; WaveNames = names'; SimData = Some sD } }
+        { model.WaveSim with WaveAdder = Some { Ports = ports'; WaveNames = names'; SimData = sD } }
         |> Ok |> StartWaveSim 
     | _ -> model.WaveSim |> Ok |> StartWaveSim //can I not just do nothing?
     
 let cancelAddWave model =
-    { model with WaveAdder = { Ports = [||]; WaveNames = [||]; SimData = None } } 
+    { model with WaveAdder = None } 
     |> Ok |> StartWaveSim
 
 let waveAdderToggle model ind =
-    let ports' = Array.mapi (fun i (p, sel) -> if i = ind then p, not sel else p, sel) 
-                            model.WaveAdder.Ports
-    { model with WaveAdder = { model.WaveAdder with Ports = ports' } }
-    |> Ok |> StartWaveSim
+    match model.WaveAdder with
+    | Some wA ->
+        let ports' = Array.mapi (fun i (p, sel) -> if i = ind then p, not sel else p, sel) 
+                                wA.Ports
+        { model with WaveAdder = Some { wA with Ports = ports' } }
+        |> Ok |> StartWaveSim
+    | None -> failwith "waveAdderToggle called when model.WaveAdder is None"
 
 let simulateAddWave (model: DiagramModelType.Model) = 
-    let wsMod = model.WaveSim
-    let ports' = 
-        Array.filter (fun (_, s) -> s) wsMod.WaveAdder.Ports
-        |> Array.map fst
-    let simData' = 
-        match wsMod.WaveAdder.SimData with
-        | Some sD -> extractSimData sD wsMod.LastClk
-        | None -> failwith "simulateAddWave called when WaveAdder.SimData is None"
-    let waveData' = 
-        extractWaveData model (fun _ _ -> ports') simData'
-    (*let waveNames' = 
-        Array.zip wsMod.WaveAdder.WaveNames wsMod.WaveAdder.Ports
-        |> Array.filter (snd >> snd) 
-        |> Array.map fst*)
-    Ok { wsMod with SimData = simData'
-                    //WaveNames = waveNames'
-                    WaveData = waveData'
-                    Selected = Array.map (fun _ -> false) ports'
-                    Ports = ports'
-                    WaveAdder = {Ports = [||]; WaveNames = [||]; SimData = None}}
-    |> StartWaveSim
+    match model.WaveSim.WaveAdder with
+    | Some wA -> 
+        let wsMod = model.WaveSim
+        let ports' = 
+            Array.filter (fun (_, s) -> s) wA.Ports
+            |> Array.map fst
+        let simData' = 
+            extractSimData wA.SimData wsMod.LastClk
+        let waveData' = 
+            extractWaveData model (fun _ _ -> ports') simData'
+        let waveNames' = 
+            Array.zip wA.WaveNames wA.Ports
+            |> Array.filter (snd >> snd) 
+            |> Array.map fst
+        Ok { wsMod with SimData = simData'
+                        WaveNames = waveNames'
+                        WaveData = waveData'
+                        Selected = Array.map (fun _ -> false) ports'
+                        Ports = ports'
+                        WaveAdder = None}
+        |> StartWaveSim
+    | None -> failwith "simulateWaveAdd called when WaveAdder is None"
 
 let waveAdderSelectAll model =
-    let setTo = model.WaveAdder.Ports |> Array.forall (fun (_,b) -> b)
-    let ports' = Array.map (fun (p,_) -> p, not setTo) model.WaveAdder.Ports
-    { model with WaveAdder = { model.WaveAdder with Ports = ports' } }
-    |> Ok |> StartWaveSim
+    match model.WaveAdder with
+    | Some wA -> 
+        let setTo = wA.Ports |> Array.forall (fun (_,b) -> b)
+        let ports' = Array.map (fun (p,_) -> p, not setTo) wA.Ports
+        { model with WaveAdder = Some { wA with Ports = ports' } }
+        |> Ok |> StartWaveSim
+    | None -> failwith "simulateWaveAdd called when WaveAdder is None"
 
 let nameLabelsCol (model: DiagramModelType.Model) labelRows dispatch =
     let wsMod = model.WaveSim
@@ -671,6 +697,7 @@ let nameLabelsCol (model: DiagramModelType.Model) labelRows dispatch =
                [ th [ Class "checkboxCol" ]
                     [ input
                         [ Type "checkbox"
+                          Style [ MarginLeft "5px"; MarginRight "5px" ]
                           Checked (allSelected wsMod)
                           OnChange(fun t -> highlightAll model dispatch |> ignore
                                             selectAll t.Checked wsMod |> dispatch ) ] ]
@@ -706,12 +733,13 @@ let viewZoomDiv model dispatch =
           //embed [ Src svgPath ]
           button [Class "zoomButtonStyle"] (fun _ -> zoom true model |> dispatch) "+" ] 
 
-let waveAdderTopRow model dispatch =
+let waveAdderTopRow model (wA: WaveAdderModel) dispatch =
     tr [] 
        [ td [ Class "checkboxCol" ]
             [ input
                [ Type "checkbox"
-                 Checked (Array.forall (fun (_,b) -> b) model.WaveAdder.Ports)
+                 Style [ MarginLeft "5px"; MarginRight "5px" ]
+                 Checked (Array.forall (fun (_,b) -> b) wA.Ports)
                  Style [ Float FloatOptions.Left ]
                  OnChange (fun _ -> waveAdderSelectAll model |> dispatch ) ] ]
          td [] [] ]
@@ -726,26 +754,33 @@ let addWaveRow model dispatch ind (_,selected) name =
                       OnChange (fun _ -> waveAdderToggle model ind |> dispatch ) ] ] 
           td [] [ label [] [ str name ] ] ]
 
-let addWaveRows model dispatch =
-    Array.mapi2 (addWaveRow model dispatch) model.WaveAdder.Ports model.WaveAdder.WaveNames
+let addWaveRows model (wA: WaveAdderModel) dispatch =
+    Array.mapi2 (addWaveRow model dispatch) wA.Ports wA.WaveNames
 
-let viewWaveAdder model dispatch =
+let viewWaveAdder model (wA: WaveAdderModel) dispatch =
     table []
-          [ tbody [] (Array.append [| waveAdderTopRow model dispatch |] (addWaveRows model dispatch)) ]
+          [ tbody [] (Array.append [| waveAdderTopRow model wA dispatch |] (addWaveRows model wA dispatch)) ]
 
 let waveAdderButs (model: DiagramModelType.Model) dispatch =
     div [ Style [Display DisplayOptions.Block] ]
         [ button [Class "reloadButtonStyle"] (fun _ -> cancelAddWave model.WaveSim |> dispatch) "Cancel"
           button [Class "reloadButtonStyle"] (fun _ -> simulateAddWave model |> dispatch) "Simulate" ]
 
+let isWaveAdderShown (model: DiagramModelType.Model) dispatch =
+    match model.Diagram.GetCanvasState() = model.WaveSim.LastCanvasState with
+    | true -> model.WaveSim.WaveAdder
+    | false -> 
+        Ok { model.WaveSim with WaveAdder = None } |> StartWaveSim |> dispatch
+        None
+
 let viewWaveSim (model: DiagramModelType.Model) dispatch =
-    match model.WaveSim.WaveAdder with 
-    | { Ports = _; SimData = Some _} -> 
+    match isWaveAdderShown model dispatch with 
+    | Some wA -> 
         [ Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] 
                      [ str "Select waveforms to simulate them. \n Alternatively, select components/connections in the editor and click \"Simulate\"" ]
           waveAdderButs model dispatch
-          viewWaveAdder model.WaveSim dispatch ]
-    | _ -> 
+          viewWaveAdder model.WaveSim wA dispatch ]
+    | None -> 
         [ viewWaveSimButtonsBar model dispatch
           viewWaveformViewer model dispatch
           viewZoomDiv model.WaveSim dispatch ]

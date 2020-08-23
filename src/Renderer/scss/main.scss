@@ -141,17 +141,18 @@ $sigLineThick: 0.025;
 }
 
 
-.waveSimTableStyle {
-    border-top: 2px solid rgb(219,219,219);
+.leftTable {
+    border: 2px solid rgb(219,219,219);
     width: 100%;
-    height: 93%;
+    height: 100%;
     border-spacing: 0;
 }
 
-.wavesColTableStyle {
+.wavesTable {
     height: 100%;
     position: relative;
-    border-right: 2px solid rgb(219,219,219);
+    border: 2px solid rgb(219,219,219);
+    overflow-x : scroll;
 }
 
 .checkboxCol {
@@ -160,7 +161,11 @@ $sigLineThick: 0.025;
     width: 5px;
 }
 
-
+.rightSectionTabs {
+    font-size: 80%; 
+    overflow-x: hidden; 
+    height: 33px;
+}
 
 //buttons
 
@@ -266,42 +271,35 @@ $sigLineThick: 0.025;
 
 //cursor group
 
-.cursor-group {
+.cursor {
     float: right;
     position: relative;
     height: 30px;
     text-align: center;
-    width: 80px;
+    width: 120px;
     display: inline-block;
     font-size: 13px;
     margin: 0 10px 0 10px;
     resize: vertical;
-}
 
-.form {
-    float: left;
-    position: relative;
-    height: 100%;
-    text-align: center;
-    width: 50%;
-    display: inline-block;
-    font-size: 13px;
-    resize: vertical;
-    -webkit-appearance: none;
-}
-
-cursor {
-    margin: 0 0 0 0;
-    height: 30px;
-    padding: 0;
-    width: 25%;
-    position: relative;
-
-    right {
-        float: right;
+    .form {
+        float: left;
+        text-align: center;
+        width: 40px;
+        display: inline-block;
+        font-size: 13px;
+        resize: vertical;
+        -webkit-appearance: none;
     }
 
-    left {
+    .button {
+        margin: 0 0 0 0;
+        height: 30px;
+        padding: 0;
+        width: 30px;
+        position: relative;
+        background: white;
+        border: rgb(128, 128, 128);
         float: left;
     }
 }

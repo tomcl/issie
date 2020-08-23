@@ -436,7 +436,7 @@ let buttonOriginal style func label =
 
 let radixString rad =
     match rad with
-    | Dec -> "Dec"
+    | Dec -> "uDec"
     | Bin -> "Bin"
     | Hex -> "Hex"
     | SDec -> "sDec"
@@ -560,12 +560,11 @@ let radixTabs model dispatch =
         [ radTab Bin; radTab Hex; radTab Dec; radTab SDec ]
 
 let cursorButtons model dispatch =
-    div [ Class "cursor-group" ]
-        [ 
-          button [ Class "cursor left" ] (fun _ -> cursorMove false model |> dispatch) "◄"
+    div [ Class "cursor" ]
+        [ button [ Class "cursor button" ] (fun _ -> cursorMove false model |> dispatch) "◄"
           Input.number [
-              Input.Props [Min 0; Class "form"; SpellCheck false; Step 1]
-              Input.Id "cursorForm"
+              Input.Props [Min 0; Class "cursor form"; SpellCheck false; Step 1]
+              Input.Id "cursor"
               Input.Value (string model.WaveSim.Cursor)
               //Input.DefaultValue <| sprintf "%d" model.WaveSim.Cursor
               Input.OnChange (fun c -> 
@@ -573,7 +572,7 @@ let cursorButtons model dispatch =
                     | true, n when n >= 0 -> changeCurs model (uint n) |> dispatch
                     | _ -> () )
           ]
-          button [Class "cursor right"] (fun _ -> cursorMove true model |> dispatch) "►" ] 
+          button [Class "cursor button"] (fun _ -> cursorMove true model |> dispatch) "►" ] 
 
 let canReload (model: DiagramModelType.Model) = 
     match model.WaveSim.LastCanvasState <> model.Diagram.GetCanvasState(), makeSimData model with
@@ -590,7 +589,7 @@ let reloadButStyle model dispatch =
     |> List.append [ Button.CustomClass "reloadButtonStyle" ]
 
 let viewWaveSimButtonsBar model dispatch = 
-    div [ Style [ Height "7%" ] ]
+    div [ Style [ Height "50px" ] ]
         [ Button.button (reloadButStyle model dispatch) [ str "Reload" ]
           //button (reloadButStyle model) (fun _ -> 
           //    simLst model dispatch reloadablePorts |> StartWaveSim |> dispatch) "Reload" 
@@ -711,16 +710,16 @@ let nameLabelsCol (model: DiagramModelType.Model) labelRows dispatch =
 
     let leftCol = Array.concat [| top; labelRows; bot |]
     div [ Style [ Float FloatOptions.Left; Height "100%" ] ]
-        [ table [ Class "waveSimTableStyle" ] [ tbody [] leftCol ] ]
+        [ table [ Class "leftTable" ] [ tbody [] leftCol ] ]
 
 let wavesCol rows =
-    div [ Style [ Height "100%"; OverflowX OverflowOptions.Scroll; BorderTop "2px solid rgb(219,219,219)" ] ] 
+    div [ Class "wavesTable" ] 
         [ table [ Style [ Height "100%" ] ]
                 [ tbody [ Style [ Height "100%" ] ] rows ] ]
             
 let viewWaveformViewer model dispatch =
     let tableWaves, leftColMid, cursValsRows = waveSimRows model dispatch
-    div [ Style [ Height "91.8%"; Width "100%" ] ] 
+    div [ Style [ Height "calc(100% - 63px)"; Width "100%" ] ] 
         [ cursValsCol cursValsRows
           div [ Style [ Height "100%" ] ]
               [ nameLabelsCol model leftColMid dispatch

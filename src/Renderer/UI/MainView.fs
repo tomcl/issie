@@ -233,7 +233,7 @@ let displayView model dispatch =
         div [ rightSectionStyle model ;  ] [
             dividerbar model dispatch
             div [Style [Height "100%"]] [
-            Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ Style [FontSize "80%"; OverflowX OverflowOptions.Hidden]  ] ] [
+            Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs" ] [
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
                     [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] [ str "Catalogue" ] ]

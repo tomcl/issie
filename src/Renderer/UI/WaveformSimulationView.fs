@@ -15,7 +15,7 @@ open Fable.React.Props
 open DiagramMessageType
 open DiagramStyle
 open CommonTypes
-open OnDiagramButtonsView
+open FileMenuView
 open Simulator
 open Extractor
 open SimulatorTypes
@@ -561,9 +561,10 @@ let radixTabs model dispatch =
 
 let cursorButtons model dispatch =
     div [ Class "cursor-group" ]
-        [ buttonOriginal (Class "button-minus") (fun _ -> cursorMove false model |> dispatch) "◄"
+        [ 
+          button [ Class "cursor left" ] (fun _ -> cursorMove false model |> dispatch) "◄"
           Input.number [
-              Input.Props [Min 0; Class "cursor-form"; SpellCheck false; Step 1]
+              Input.Props [Min 0; Class "form"; SpellCheck false; Step 1]
               Input.Id "cursorForm"
               Input.Value (string model.WaveSim.Cursor)
               //Input.DefaultValue <| sprintf "%d" model.WaveSim.Cursor
@@ -572,7 +573,7 @@ let cursorButtons model dispatch =
                     | true, n when n >= 0 -> changeCurs model (uint n) |> dispatch
                     | _ -> () )
           ]
-          buttonOriginal (Class "button-plus") (fun _ -> cursorMove true model |> dispatch) "►" ] 
+          button [Class "cursor right"] (fun _ -> cursorMove true model |> dispatch) "►" ] 
 
 let canReload (model: DiagramModelType.Model) = 
     match model.WaveSim.LastCanvasState <> model.Diagram.GetCanvasState(), makeSimData model with

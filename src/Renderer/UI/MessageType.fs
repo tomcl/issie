@@ -82,6 +82,8 @@ type WaveSimModel = {
     LastCanvasState: JSCanvasState option
 }
 
+type DiagEl = | Comp of Component | Conn of Connection
+
 type DragMode = DragModeOn of int | DragModeOff
 
 type IntMode = FirstInt | SecondInt

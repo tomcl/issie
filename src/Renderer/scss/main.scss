@@ -122,7 +122,7 @@ $sigLineThick: 0.025;
     position: absolute;
     bottom: 4%;
     right: 2%;
-    width: 25%;
+    width: 120px;
 }
 
 .waveNamesCol {
@@ -131,8 +131,7 @@ $sigLineThick: 0.025;
     white-space: nowrap;
     vertical-align: bottom;
     font-size: 12px;
-    min-width: 25px;
-    width: 25px;
+    min-width: 100px;
 }
 
 .cursValsCol {
@@ -166,14 +165,6 @@ $sigLineThick: 0.025;
 
 //buttons
 
-.reloadButtonStyle {
-    margin: 0 20px 0 20px;
-    width: 100px;
-    height: 30px;
-    position: relative;
-    float: left;
-}
-
 .disabledButton {
     pointer-events: none;
     cursor: not-allowed;
@@ -183,14 +174,30 @@ $sigLineThick: 0.025;
     box-shadow: none;
 }
 
-.newWaveButton {
-    margin: 0 2px 0 2px;
-    padding: 0 0;
-    height: 100%;
-    width: 33%;
-    font-size: 80%;
+.reloadButtonStyle {
+    margin: 0 20px 0 20px;
+    width: 100px;
+    height: 30px;
     position: relative;
     float: left;
+}
+
+%waveNameHeaderBut {
+    margin: 0 2px 0 2px;
+    height: 100%;
+    font-size: 80%;
+    float: left;
+    position: relative;
+}
+
+.newWaveButton {
+    @extend %waveNameHeaderBut;
+    width: 20px;
+}
+
+.delWaveButton {
+    @extend %waveNameHeaderBut;
+    width: 40px;
 }
 
 .newWaveLabel {

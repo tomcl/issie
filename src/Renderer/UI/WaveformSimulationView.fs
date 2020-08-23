@@ -682,7 +682,7 @@ let nameLabelsCol (model: DiagramModelType.Model) labelRows dispatch =
     let waveAddDelBut =
         match anySelected wsMod with
         | true ->
-            [ button [Class "newWaveButton"] (fun _ -> delSelected wsMod |> dispatch) "del"
+            [ button [Class "delWaveButton"] (fun _ -> delSelected wsMod |> dispatch) "del"
               div [ Class "updownDiv" ]
                   [ button [Class "updownButton"] (fun _ -> moveWave wsMod true |> dispatch) "▲"
                     button [Class "updownButton"] (fun _ -> moveWave wsMod false |> dispatch) "▼" ] ]

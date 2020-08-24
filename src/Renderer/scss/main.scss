@@ -161,6 +161,10 @@ $sigLineThick: 0.025;
     width: 5px;
 }
 
+.check {
+    margin: 0 5px 0 5px;
+}
+
 .rightSectionTabs {
     font-size: 80%; 
     overflow-x: hidden; 
@@ -196,7 +200,7 @@ $sigLineThick: 0.025;
 
 .newWaveButton {
     @extend %waveNameHeaderBut;
-    width: 20px;
+    width: 80px;
 }
 
 .delWaveButton {

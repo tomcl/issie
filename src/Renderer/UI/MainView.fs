@@ -22,6 +22,8 @@ open PopupView
 open FileMenuView
 open WaveformSimulationView
 
+open Fable.Core
+open Fable.Core.JsInterop
 
 
 // -- Init Model
@@ -228,7 +230,7 @@ let displayView model dispatch =
             div [Style [Height "100%"]] [
             Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ Style [FontSize "80%"]  ] ] [
                 Tabs.tab
-                    [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
+                    [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]                    
                     [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] [ str "Catalogue" ] ]
                 Tabs.tab
                     [ Tabs.Tab.IsActive (model.RightTab = Properties) ]
@@ -247,6 +249,7 @@ let displayView model dispatch =
             ]
         ]
     ]
+  
 
 // -- Update Model
 

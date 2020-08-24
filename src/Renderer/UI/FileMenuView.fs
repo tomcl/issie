@@ -19,9 +19,13 @@ open CommonTypes
 open FilesIO
 open Extractor
 open PopupView
-open Draw2dWrapper
 open Simulator
 open SimulatorTypes
+
+let getCurrFile (model: DiagramModelType.Model) = 
+    match model.CurrProject with
+    | Some proj -> proj.OpenFileName
+    | None -> failwith "getCurrFile called when model.CurrProject is None"
 
 let private displayFileErrorNotification err dispatch =
     errorNotification err CloseFilesNotification
@@ -353,7 +357,7 @@ let selected2portLst model (simData: SimulatorTypes.SimulationData) : WaveSimPor
 
 let reloadablePorts (model: DiagramModelType.Model) (simData: SimulatorTypes.SimulationData) = 
     let inGraph port = Map.exists (fun key _ -> key = port.CId) simData.Graph
-    Array.filter inGraph model.WaveSim.Ports
+    Array.filter inGraph model.WaveSim.[getCurrFile model].Ports
     |> Array.map (fun port -> 
         match port.TrgtId with
         | Some trgtId when Map.exists (fun key _ -> key = trgtId) simData.Graph ->   
@@ -521,23 +525,19 @@ let makeSimData model =
         ||> prepareSimulation project.OpenFileName
         |> (fun x -> Some x, None)
 
-(*let updateNames model portsFunc = 
-    match makeSimData model with
-    | Some (Ok simData), _ -> 
-        Ok { model.WaveSim with WaveNames = extractWaveNames simData model portsFunc }
-    | _, _ -> failwith "What? This case shouldn't happen"*)
-
 let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort []) = 
+    let wSMod = model.WaveSim.[getCurrFile model]
     match makeSimData model with
     | Some (Ok simData), _ -> 
         let ports' = portsFunc model simData
-        let simData' = extractSimData simData model.WaveSim.LastClk
-        Ok { model.WaveSim with SimData = simData'
-                                WaveNames = extractWaveNames simData model portsFunc
-                                WaveData = extractWaveData model portsFunc simData'
-                                Selected = Array.map (fun _ -> true) ports' 
-                                Ports = ports'
-                                LastCanvasState = model.Diagram.GetCanvasState()}
+        let simData' = extractSimData simData wSMod.LastClk
+        Ok { model.WaveSim.[getCurrFile model] with 
+                SimData = simData'
+                WaveNames = extractWaveNames simData model portsFunc
+                WaveData = extractWaveData model portsFunc simData'
+                Selected = Array.map (fun _ -> true) ports' 
+                Ports = ports'
+                LastCanvasState = model.Diagram.GetCanvasState() }
     | Some (Error simError), _ ->
         if simError.InDependency.IsNone then
             // Highligh the affected components and connection only if
@@ -546,7 +546,7 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
             (simError.ComponentsAffected, simError.ConnectionsAffected)
             |> SetHighlighted |> dispatch
         Error simError
-    | _, Some m -> m
+    | _, Some m -> Ok wSMod
     | _, _ -> failwith "What? This case shouldn't happen"
 
 
@@ -687,8 +687,8 @@ let viewTopMenu model dispatch =
                     Navbar.Item.div [] [
                         Button.button [
                             Button.OnClick (fun _ -> 
-                                simLst model dispatch selected2portLst |> StartWaveSim |> dispatch
-                                ChangeRightTab WaveSim |> dispatch)
+                                ChangeRightTab WaveSim |> dispatch
+                                simLst model dispatch selected2portLst |> StartWaveSim |> dispatch)
                         ] [str "Simulate >>"]
                     ]
                 ]

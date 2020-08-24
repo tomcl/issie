@@ -67,18 +67,7 @@ open SimulatorTypes
       WaveAdder = { Ports = [||]; WaveNames = [||]; SimData = None }
       LastCanvasState = None }*)
 
-let initModel: WaveSimModel =
-    { SimData = [||]
-      WaveData = [||]
-      WaveNames = [||]
-      Selected = [||]
-      Ports = [||] 
-      ClkWidth = 1.0
-      Cursor = 0u
-      Radix = Bin
-      LastClk = 9u
-      WaveAdder = None 
-      LastCanvasState = None }
+let initModel = Map.empty
 
 // SVG functions
 
@@ -165,7 +154,7 @@ let toggleSelect ind model =
 let highlight on i (model: DiagramModelType.Model) =
     match model.Diagram.GetCanvasState () with
     | Some s -> 
-        let p = model.WaveSim.Ports.[i]
+        let p = model.WaveSim.[getCurrFile model].Ports.[i]
         let outPN = match p.OutPN with
                     | OutputPortNumber n -> n
         List.map extractComponent (fst s)
@@ -192,8 +181,9 @@ let allSelected model = Array.forall ((=) true) model.Selected
 let anySelected model = Array.contains true model.Selected
     
 let highlightAll (model: DiagramModelType.Model) dispatch =
-    let on = not (allSelected model.WaveSim)
-    Array.mapi (fun i _ -> highlight on i model |> dispatch) model.WaveSim.Selected
+    let wSMod = model.WaveSim.[getCurrFile model]
+    let on = not (allSelected wSMod)
+    Array.mapi (fun i _ -> highlight on i model |> dispatch) wSMod.Selected
 
 let makeLabels simData model = 
     extractWaveNames simData model reloadablePorts
@@ -325,7 +315,7 @@ let clkRulerSvg (model: WaveSimModel) =
     |> makeSvg (clkRulerStyle model)
     
 let waveSimRows (model: DiagramModelType.Model) dispatch =
-    let wsMod = model.WaveSim
+    let wsMod = model.WaveSim.[getCurrFile model]
 // waveforms
     let waveSvg =
         let addLabel nLabels xInd (i: int) = makeText (inWaveLabel nLabels xInd i wsMod)
@@ -342,7 +332,7 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
 
         let makeWaveSvg (portSelected: bool) (sampArr: Waveform) (transArr: (int*int) []) : ReactElement [] = 
             (sampArr, transArr)
-            ||> Array.mapi2 (makeSegment model.WaveSim.ClkWidth portSelected) 
+            ||> Array.mapi2 (makeSegment wsMod.ClkWidth portSelected) 
             |> Array.concat
 
         let padTrans t =
@@ -371,7 +361,7 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
 
         transitions wsMod
         |> Array.map padTrans
-        |> Array.map3 makeWaveSvg selPorts (model2WaveList model.WaveSim)
+        |> Array.map3 makeWaveSvg selPorts (model2WaveList wsMod)
         |> Array.map2 Array.append valueLabels
 
 // name and cursor labels of the waveforms
@@ -446,7 +436,7 @@ let appendSimData model nCycles =
     |> Array.append model.SimData
 
 let changeTopInd newVal (model: DiagramModelType.Model) = 
-    let wsMod = model.WaveSim
+    let wsMod = model.WaveSim.[getCurrFile model]
     let sD = wsMod.SimData
     match Array.length sD = 0, newVal > wsMod.LastClk, newVal >= 0u  with
     | true, _, _ ->
@@ -455,7 +445,7 @@ let changeTopInd newVal (model: DiagramModelType.Model) =
         let sD' = appendSimData wsMod <| newVal + 1u - uint (Array.length sD)
         { wsMod with 
             SimData = sD' //can improve efficiency by not recalculating the whole WaveData every time
-            WaveData = extractWaveData model (fun m _ -> m.WaveSim.Ports) sD'.[0..int newVal]
+            WaveData = extractWaveData model (fun m _ -> wsMod.Ports) sD'.[0..int newVal]
             LastClk = newVal }
     | false, false, true -> 
         { wsMod with 
@@ -465,18 +455,23 @@ let changeTopInd newVal (model: DiagramModelType.Model) =
         wsMod
 
 let changeCurs (model: DiagramModelType.Model) newVal =
-    match 0u <= newVal, newVal <= model.WaveSim.LastClk with
-    | true, true ->  { model.WaveSim with Cursor = newVal }
+    let wSMod = model.WaveSim.[getCurrFile model]
+    match 0u <= newVal, newVal <= wSMod.LastClk with
+    | true, true ->  { wSMod with Cursor = newVal }
     | true, false -> { changeTopInd newVal model with Cursor = newVal }
-    |_ ->  model.WaveSim
+    |_ ->  wSMod
     |> Ok |> StartWaveSim
 
 let cursorMove increase (model: DiagramModelType.Model) =
-    match increase with
-    | true -> model.WaveSim.Cursor + 1u
-    | false -> model.WaveSim.Cursor - 1u
-    |> changeCurs model
-
+    let currCurs = model.WaveSim.[getCurrFile model].Cursor
+    match increase, currCurs with
+    | true, _ -> 
+        currCurs + 1u |> changeCurs model
+    | false, n when n > 0u  ->
+        currCurs - 1u |> changeCurs model
+    | false, _ -> 
+        model.WaveSim.[getCurrFile model] |> Ok |> StartWaveSim
+    
 let selectAll s model = { model with Selected = Array.map (fun _ -> s) model.Selected } |> Ok |> StartWaveSim
 
 let delSelected model =
@@ -565,7 +560,7 @@ let cursorButtons model dispatch =
           Input.number [
               Input.Props [Min 0; Class "cursor form"; SpellCheck false; Step 1]
               Input.Id "cursor"
-              Input.Value (string model.WaveSim.Cursor)
+              Input.Value (string model.WaveSim.[getCurrFile model].Cursor)
               //Input.DefaultValue <| sprintf "%d" model.WaveSim.Cursor
               Input.OnChange (fun c -> 
                     match System.Int32.TryParse c.Value with
@@ -575,7 +570,7 @@ let cursorButtons model dispatch =
           button [Class "cursor button"] (fun _ -> cursorMove true model |> dispatch) "►" ] 
 
 let canReload (model: DiagramModelType.Model) = 
-    match model.WaveSim.LastCanvasState <> model.Diagram.GetCanvasState(), makeSimData model with
+    match model.WaveSim.[getCurrFile model].LastCanvasState <> model.Diagram.GetCanvasState(), makeSimData model with
     | true, (Some (Ok _), _) -> true
     | _ -> false
 
@@ -593,7 +588,7 @@ let viewWaveSimButtonsBar model dispatch =
         [ Button.button (reloadButStyle model dispatch) [ str "Reload" ]
           //button (reloadButStyle model) (fun _ -> 
           //    simLst model dispatch reloadablePorts |> StartWaveSim |> dispatch) "Reload" 
-          radixTabs model.WaveSim dispatch
+          radixTabs model.WaveSim.[getCurrFile model] dispatch
           cursorButtons model dispatch ]
 
 let cursValsCol rows = 
@@ -623,13 +618,14 @@ let avalPorts (model: DiagramModelType.Model) dispatch =
                 [||], None
 
 let openWaveAdder (model: DiagramModelType.Model) dispatch = 
+    let wSMod = model.WaveSim.[getCurrFile model]
     match avalPorts model dispatch with
     | wSPorts, Some sD ->
-        let ports' = Array.map (fun p -> p, Array.contains p model.WaveSim.Ports) wSPorts
+        let ports' = Array.map (fun p -> p, Array.contains p wSMod.Ports) wSPorts
         let names' = Array.map (wSPort2Name sD.Graph) wSPorts
-        { model.WaveSim with WaveAdder = Some { Ports = ports'; WaveNames = names'; SimData = sD } }
+        { wSMod with WaveAdder = Some { Ports = ports'; WaveNames = names'; SimData = sD } }
         |> Ok |> StartWaveSim 
-    | _ -> model.WaveSim |> Ok |> StartWaveSim //can I not just do nothing?
+    | _ -> wSMod |> Ok |> StartWaveSim //can I not just do nothing?
     
 let cancelAddWave model =
     { model with WaveAdder = None } 
@@ -645,21 +641,22 @@ let waveAdderToggle model ind =
     | None -> failwith "waveAdderToggle called when model.WaveAdder is None"
 
 let simulateAddWave (model: DiagramModelType.Model) = 
-    match model.WaveSim.WaveAdder with
+    let wSMod = model.WaveSim.[getCurrFile model]
+    match wSMod.WaveAdder with
     | Some wA -> 
         let wsMod = model.WaveSim
         let ports' = 
             Array.filter (fun (_, s) -> s) wA.Ports
             |> Array.map fst
         let simData' = 
-            extractSimData wA.SimData wsMod.LastClk
+            extractSimData wA.SimData wSMod.LastClk
         let waveData' = 
             extractWaveData model (fun _ _ -> ports') simData'
         let waveNames' = 
             Array.zip wA.WaveNames wA.Ports
             |> Array.filter (snd >> snd) 
             |> Array.map fst
-        Ok { wsMod with SimData = simData'
+        Ok { wSMod with SimData = simData'
                         WaveNames = waveNames'
                         WaveData = waveData'
                         Selected = Array.map (fun _ -> false) ports'
@@ -678,7 +675,7 @@ let waveAdderSelectAll model =
     | None -> failwith "simulateWaveAdd called when WaveAdder is None"
 
 let nameLabelsCol (model: DiagramModelType.Model) labelRows dispatch =
-    let wsMod = model.WaveSim
+    let wsMod = model.WaveSim.[getCurrFile model]
     let waveAddDelBut =
         match anySelected wsMod with
         | true ->
@@ -763,25 +760,37 @@ let viewWaveAdder model (wA: WaveAdderModel) dispatch =
 
 let waveAdderButs (model: DiagramModelType.Model) dispatch =
     div [ Style [Display DisplayOptions.Block] ]
-        [ button [Class "reloadButtonStyle"] (fun _ -> cancelAddWave model.WaveSim |> dispatch) "Cancel"
-          button [Class "reloadButtonStyle"] (fun _ -> simulateAddWave model |> dispatch) "Simulate" ]
+        [ button [Class "reloadButtonStyle"] 
+                 (fun _ -> cancelAddWave model.WaveSim.[getCurrFile model] |> dispatch) "Cancel"
+          button [Class "reloadButtonStyle"] 
+                 (fun _ -> simulateAddWave model |> dispatch) "Simulate" ]
 
 let isWaveAdderShown (model: DiagramModelType.Model) dispatch =
-    match model.Diagram.GetCanvasState() = model.WaveSim.LastCanvasState with
-    | true -> model.WaveSim.WaveAdder
+    let currWS = model.WaveSim.[getCurrFile model]
+    match model.Diagram.GetCanvasState() = currWS.LastCanvasState with
+    | true -> currWS.WaveAdder
     | false -> 
-        Ok { model.WaveSim with WaveAdder = None } |> StartWaveSim |> dispatch
+        Ok { currWS with WaveAdder = None } |> StartWaveSim |> dispatch
         None
 
 let viewWaveSim (model: DiagramModelType.Model) dispatch =
-    match isWaveAdderShown model dispatch with 
-    | Some wA -> 
-        [ Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] 
-                     [ str "Select waveforms to simulate them. \n Alternatively, select components/connections in the editor and click \"Simulate\"" ]
-          waveAdderButs model dispatch
-          viewWaveAdder model.WaveSim wA dispatch ]
-    | None -> 
-        [ viewWaveSimButtonsBar model dispatch
-          viewWaveformViewer model dispatch
-          viewZoomDiv model.WaveSim dispatch ]
+    match Map.exists (fun k _ -> k = (getCurrFile model)) model.WaveSim with
+    | true -> 
+        match isWaveAdderShown model dispatch, model.WaveSim.[getCurrFile model].Ports with 
+        | Some wA, _ -> 
+            [ Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] 
+                         [ str "Select waveforms to simulate them. \n Alternatively, select components/connections in the editor and click \"Simulate\"" ]
+              waveAdderButs model dispatch
+              viewWaveAdder model.WaveSim.[getCurrFile model] wA dispatch ]
+        | None, [||] -> 
+            [ Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] 
+                         [ str "Add waveforms to view simulation. \n You can also add them by selecting components/connections in the editor and clicking \"Simulate\" on the top left menu bar" ]
+              button [] (fun _ -> openWaveAdder model dispatch |> dispatch) "Add waveforms" ]
+        | None, _ ->
+            [ viewWaveSimButtonsBar model dispatch
+              viewWaveformViewer model dispatch
+              viewZoomDiv model.WaveSim.[getCurrFile model] dispatch ]
+    | false -> 
+        model |> getCurrFile |> AddWaveSimFile |> dispatch
+        []
     

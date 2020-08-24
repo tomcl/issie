@@ -82,6 +82,19 @@ type WaveSimModel = {
     LastCanvasState: JSCanvasState option
 }
 
+let initWS: WaveSimModel =
+    { SimData = [||]
+      WaveData = [||]
+      WaveNames = [||]
+      Selected = [||]
+      Ports = [||] 
+      ClkWidth = 1.0
+      Cursor = 0u
+      Radix = Bin
+      LastClk = 9u
+      WaveAdder = None 
+      LastCanvasState = None }
+
 type DiagEl = | Comp of Component | Conn of Connection
 
 type DragMode = DragModeOn of int | DragModeOff
@@ -101,6 +114,7 @@ type Msg =
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
     | StartWaveSim of Result<WaveSimModel, SimulationError>
+    | AddWaveSimFile of string
     | SetSimulationGraph of SimulationGraph
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick

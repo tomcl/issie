@@ -153,8 +153,8 @@ let private viewRightTab model dispatch =
             viewSimulation model dispatch
         ]
     | WaveSim -> 
-        div [ Style [Width "calc(100% - 10px)"; Height "95.5%"; MarginLeft "0%"; MarginTop "0px"; OverflowX OverflowOptions.Hidden; OverflowY OverflowOptions.Hidden ] ] 
-            (viewWaveSim model dispatch) 
+        div [ Style [Width "100%"; Height "100%"; Margin "0 0 0 0"] ]
+            ( viewWaveSim model dispatch )
 
 let setDragMode (modeIsOn:bool) (model:Model) dispatch =
     fun (ev: Browser.Types.MouseEvent) ->

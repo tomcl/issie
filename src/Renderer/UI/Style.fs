@@ -8,7 +8,7 @@ let private headerHeight = "52px"
 let private rightSectionWidthS = "400px" // Small right section.
 let private rightSectionWidthL = "650px" // Large right section.
 let minEditorWidth = 200
-let minViewerWidth = 50
+let minViewerWidth = 475
 
 let rightSectionWidthViewerDefault = 650
 
@@ -20,7 +20,6 @@ let rightSectionWidth (model:Model) =
 
 let leftSectionWidth model = Style [
     Width (sprintf "calc(100%s - %s - 10px)" "%" (rightSectionWidth model))
-    MaxWidth "calc(100% - 475px)"
 ]
 
 let navbarStyle model = Style [
@@ -42,7 +41,6 @@ let rightSectionStyle model =
         UserSelect UserSelectOptions.None
         ZIndex 50
         BackgroundColor "white"
-        MinWidth "475px"
         //UserSelect UserSelectOptions.None
 ]
 

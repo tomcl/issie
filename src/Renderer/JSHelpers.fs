@@ -10,6 +10,7 @@ open Browser.Types
 open Fable.Core
 open Fable.Core.JsInterop
 open Electron
+open Fable.React
 open JSTypes
 
 [<Emit("typeof $0")>]
@@ -108,3 +109,43 @@ let setDebugLevel() =
 /// deliver string suitable for HTML color from a HighlightColor type value
 let getColorString (col: CommonTypes.HighLightColor) =
     (sprintf "%A" col).ToLower()
+
+
+/// Properties for react-tippy
+type TooltipsProps =
+    | Content of string
+    | Animation of string
+    | Arrow of bool
+    | Theme of string
+    | Offset of int * int
+    | HideOnClick of bool
+    | Placement of string
+    | Delay of int * int
+    | ZIndex of int
+
+let basicTooltipsPropsLst : TooltipsProps list =
+    [ Animation "fade"
+      Arrow true
+      //Offset (7,7)
+      HideOnClick false ]   
+
+let defaultTooltipsPropsLst =
+    [
+        Delay (1000, 0)
+        Placement "bottom"
+        ZIndex 9999
+    ] @ 
+    basicTooltipsPropsLst
+
+
+/// top-level function from tippy.js to make tooltips
+let tippyImported (rClass : string, tippyOpts : obj) : unit = importDefault "tippy.js"
+
+let tippy txt props = tippyImported(txt, keyValueList CaseRules.LowerFirst props)
+
+
+let tippyR (props : TooltipsProps list) (elems : ReactElement list) : ReactElement =
+    Fable.React.Helpers.ofImport "default" "@tippyjs/react/headless" (keyValueList CaseRules.LowerFirst props) elems
+
+let tippy1 mess thing props els = tippyR [Content mess] [thing props els]
+

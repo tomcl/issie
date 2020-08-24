@@ -767,9 +767,9 @@ let waveAdderButs (model: DiagramModelType.Model) dispatch =
 
 let isWaveAdderShown (model: DiagramModelType.Model) dispatch =
     let currWS = model.WaveSim.[getCurrFile model]
-    match model.Diagram.GetCanvasState() = currWS.LastCanvasState with
-    | true -> currWS.WaveAdder
-    | false -> 
+    match (model.Diagram.GetCanvasState() = currWS.LastCanvasState), currWS.LastCanvasState with
+    | true, _ | _, None | _, Some ([], []) -> currWS.WaveAdder
+    | false, _ -> 
         Ok { currWS with WaveAdder = None } |> StartWaveSim |> dispatch
         None
 

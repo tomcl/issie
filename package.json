@@ -45,7 +45,6 @@
     "title": true
   },
   "build": {
-    "appId": "ISSIE.040",
     "appId": "ISSIE.050",
     "asar": true,
     "win": {

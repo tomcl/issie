@@ -64,8 +64,8 @@ type WaveSimPort = {
 }
 type WaveAdderModel = {
     Ports : (WaveSimPort * bool) array;
-    WaveNames : WaveName array;
-    SimData : SimulatorTypes.SimulationData
+    WaveNames : WaveName array
+    LastCanvasState: JSCanvasState option
 }
 
 type WaveSimModel = {
@@ -78,9 +78,10 @@ type WaveSimModel = {
     Cursor: uint32 
     Radix: NumberBase
     LastClk: uint32
-    WaveAdder: WaveAdderModel option
-    LastCanvasState: JSCanvasState option
+    WaveAdder: WaveAdderModel
 }
+
+let initWA = { Ports = [||]; WaveNames = [||]; LastCanvasState = None }
 
 let initWS: WaveSimModel =
     { SimData = [||]
@@ -92,8 +93,7 @@ let initWS: WaveSimModel =
       Cursor = 0u
       Radix = Bin
       LastClk = 9u
-      WaveAdder = None 
-      LastCanvasState = None }
+      WaveAdder = initWA }
 
 type DiagEl = | Comp of Component | Conn of Connection
 

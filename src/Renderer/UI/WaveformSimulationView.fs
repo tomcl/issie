@@ -151,9 +151,9 @@ let toggleSelect ind model =
                                 if i = ind then not old else old) model.Selected }
     |> Ok |> StartWaveSim
 
-let highlight (model: DiagramModelType.Model) st p =
-    match model.Diagram.GetCanvasState () with
-    | Some s -> 
+let highlight (model: DiagramModelType.Model) st (p, sel) =
+    match model.Diagram.GetCanvasState (), sel with
+    | Some s, true -> 
         let outPN = match p.OutPN with
                     | OutputPortNumber n -> n
         List.map extractComponent (fst s)
@@ -170,20 +170,20 @@ let highlight (model: DiagramModelType.Model) st p =
                    | None -> []
            | None -> []
         |> (fun newEntry -> fst st, List.append (snd st) newEntry)
-    | None -> failwith "highlight called when canvas state is None"
+    | _, false -> st
+    | None, _ -> failwith "highlight called when canvas state is None"
 
 let setHighlightedConns (model: DiagramModelType.Model) =
-    Array.zip model.WaveSim.[getCurrFile model].Ports model.WaveSim.[getCurrFile model].Selected 
-    |> Array.filter (fun (_, sel) -> sel)
-    |> Array.map fst
-    |> Array.fold (highlight model) ([], []) 
+    Array.zip model.WaveSim.[getCurrFile model].Ports model.WaveSim.[getCurrFile model].Selected
+    |> Array.fold (highlight model) (fst model.Hilighted, []) 
     |> SetHighlighted
 
 let allSelected model = Array.forall ((=) true) model.Selected
 let anySelected model = Array.contains true model.Selected
 
-let makeLabels simData model = 
-    extractWaveNames simData model reloadablePorts
+let makeLabels wSMod = 
+    //extractWaveNames simData model reloadablePorts
+    wSMod.WaveNames
     |> Array.map (fun l -> label [ Class "waveLbl" ] [ str l ])
 
 let makeSegment (clkW: float) portSelected (xInd: int) (data: Sample) (trans: int * int)  =
@@ -278,7 +278,7 @@ let busLabels model =
     (model2WaveList model, Array.map makeGaps (transitions model))
     ||> Array.map2 gaps2pos
 
-let makeCursVals model =
+let cursValStrings model =
     let pref =
         match model.Radix with
         | Bin -> "0b"
@@ -289,13 +289,13 @@ let makeCursVals model =
         | Wire w when w.NBits > 1u -> [| pref + radixChange w.BitData w.NBits model.Radix |]
         | Wire w -> [| pref + string w.BitData |]
         | StateSample s -> s
-        |> Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
     match int model.Cursor < Array.length model.WaveData with
     | true -> Array.map makeCursVal model.WaveData.[int model.Cursor]
     | false -> [||]
-        (*(Array.length model.WaveData, model.Cursor)
-        ||> sprintf "WaveData.length = %d, model.Cursor = %d, WaveData.[model Cursor] doesn't exist" 
-        |> failwith*)
+
+let makeCursVals model =
+    let string2Lbl =  Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
+    Array.map string2Lbl <| cursValStrings model
 
 //container box and clock lines
 let backgroundSvg model =
@@ -364,7 +364,7 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
 // name and cursor labels of the waveforms
     let labels = 
         match makeSimData model with
-        | (Some (Ok sD)), _ -> makeLabels sD model
+        | (Some (Ok sD)), _ -> makeLabels model.WaveSim.[getCurrFile model]
         | _ -> [||]
     let cursLabs = makeCursVals wsMod
 
@@ -481,7 +481,7 @@ let delSelected model =
         |> Array.filter (fun (sel, _) -> not sel)
         |> Array.map snd
     { model with WaveData = Array.map filtSelected model.WaveData
-                 //WaveNames = filtSelected model.WaveNames
+                 WaveNames = filtSelected model.WaveNames
                  Ports = filtSelected model.Ports
                  Selected = Array.filter not model.Selected }
     |> Ok |> StartWaveSim
@@ -530,7 +530,7 @@ let moveWave model up =
     let reorder (arr: 'b []) = Array.map (fun i -> arr.[i]) indexes'
     
     { model with WaveData = Array.map (fun sT -> reorder sT) model.WaveData
-                 //WaveNames = reorder model.WaveNames
+                 WaveNames = reorder model.WaveNames
                  Selected = reorder model.Selected
                  Ports = reorder model.Ports}
     |> Ok |> StartWaveSim
@@ -556,9 +556,10 @@ let radixTabs model dispatch =
                                               Margin "0 10px 0 10px" ] ] ]
         [ radTab Bin; radTab Hex; radTab Dec; radTab SDec ]
 
-let cursorButtons model dispatch =
+let cursorButtons (model: DiagramModelType.Model) dispatch =
     div [ Class "cursor" ]
-        [ button [ Class "cursLeft" ] (fun _ -> cursorMove false model |> dispatch) "◀"
+        [ Button.button [ Button.CustomClass "cursLeft" 
+                          Button.OnClick (fun _ -> cursorMove false model |> dispatch) ] [ str "◀" ]
           Input.number [
               Input.Props [Min 0; Class "cursor form"; SpellCheck false; Step 1]
               Input.Id "cursor"
@@ -587,7 +588,7 @@ let reloadButStyle model dispatch =
     |> List.append [ Button.CustomClass "reloadButtonStyle" ]
 
 let viewWaveSimButtonsBar model dispatch = 
-    div [ Style [ Height "50px" ] ]
+    div [ Style [ Height "45px" ] ]
         [ Button.button (reloadButStyle model dispatch) [ str "Reload" ]
           //button (reloadButStyle model) (fun _ -> 
           //    simLst model dispatch reloadablePorts |> StartWaveSim |> dispatch) "Reload" 
@@ -679,13 +680,22 @@ let nameLabelsCol (model: DiagramModelType.Model) labelRows dispatch =
     let waveAddDelBut =
         match anySelected wsMod with
         | true ->
-            [ button [Class "delWaveButton"] (fun _ -> 
-                delSelected wsMod |> dispatch) "del"
+            [ Button.button [ Button.CustomClass "delWaveButton"
+                              Button.Color IsDanger
+                              Button.OnClick (fun _ -> delSelected wsMod |> dispatch) ]
+                            [ str "del" ]
               div [ Class "updownDiv" ]
-                  [ button [Class "upBut"] (fun _ -> moveWave wsMod true |> dispatch) "▲"
-                    button [Class "downBut"] (fun _ -> moveWave wsMod false |> dispatch) "▼" ] ]
+                  [ Button.button [ Button.CustomClass "updownBut"
+                                    Button.OnClick (fun _ -> moveWave wsMod true |> dispatch) ]
+                                  [ str "▲" ]
+                    Button.button [ Button.CustomClass "updownBut"
+                                    Button.OnClick (fun _ -> moveWave wsMod false |> dispatch) ]
+                                  [ str "▼" ] ] ]
         | false ->
-            [ button [Class "newWaveButton"] (fun _ -> openWaveAdder model dispatch |> dispatch) "+ wave" ]
+            [ Button.button [ Button.CustomClass "newWaveButton"
+                              Button.Color IsSuccess
+                              Button.OnClick (fun _ -> openWaveAdder model dispatch |> dispatch) ]
+                            [ str "+ wave" ] ]
         |> (fun children -> th [ Class "waveNamesCol" ] children)
 
     let top =
@@ -709,14 +719,13 @@ let nameLabelsCol (model: DiagramModelType.Model) labelRows dispatch =
 
 let wavesCol (model: DiagramModelType.Model) rows =
     let wSMod = model.WaveSim.[getCurrFile model]
-    let maxW = string (vbWidth wSMod * 40.0) + "px"
-    div [ Style [ MaxWidth maxW ]; Class "wavesTable" ] 
+    div [ Style [ MaxWidth (maxWavesColWidth wSMod) ]; Class "wavesTable" ] 
         [ table [ Style [ Height "100%" ] ]
                 [ tbody [ Style [ Height "100%" ] ] rows ] ]
             
 let viewWaveformViewer model dispatch =
     let tableWaves, leftColMid, cursValsRows = waveSimRows model dispatch
-    div [ Style [ Height "calc(100% - 63px)"; Width "100%" ] ] 
+    div [ Style [ Height "calc(100% - 45px)"; Width "100%" ] ] 
         [ cursValsCol cursValsRows
           div [ Style [ Height "100%" ] ]
               [ nameLabelsCol model leftColMid dispatch
@@ -794,7 +803,7 @@ let waveAdderView model dispatch =
                           dispatch ] ] ]
 
 let waveformsView model dispatch = 
-    [ div [ Style [Width "calc(100% - 10px)"; Height "95.5%"; MarginLeft "0%"; MarginTop "0px"; OverflowX OverflowOptions.Hidden; OverflowY OverflowOptions.Hidden ] ] 
+    [ div [ Style [Width "calc(100% - 10px)"; Height "100%"; MarginLeft "0%"; MarginTop "0px"; OverflowX OverflowOptions.Hidden; OverflowY OverflowOptions.Hidden ] ] 
     [ viewWaveSimButtonsBar model dispatch
       viewWaveformViewer model dispatch
       viewZoomDiv model.WaveSim.[getCurrFile model] dispatch ] ]
@@ -807,6 +816,7 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
         | _, true, true -> 
             waveAdderView model dispatch
         | [||], _, _ ->
+            setHighlightedConns model |> dispatch
             openWaveAdder model dispatch |> dispatch
             waveAdderView model dispatch
         | _ ->
@@ -816,4 +826,3 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
     | false -> 
         model |> getCurrFile |> AddWaveSimFile |> dispatch
         []
-    

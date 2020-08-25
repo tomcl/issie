@@ -7,7 +7,6 @@ open Fable.React.Props
 let private headerHeight = "52px"
 let private rightSectionWidthS = "400px" // Small right section.
 let private rightSectionWidthL = "650px" // Large right section.
-let minEditorWidth = 200
 let minViewerWidth = 475
 
 let rightSectionWidthViewerDefault = 650
@@ -133,12 +132,10 @@ let sigLineThick = 0.025;
 let spacing = 0.4
 let sigHeight = 0.3 
 
-
-let vbWidth m =
-    m.ClkWidth * (float m.LastClk + 1.0)
-
-let waveCellWidth m = 
-    vbWidth m |> (fun x -> Width ((string (x*40.0) ) + "px"))
+let vbWidth m = m.ClkWidth * (float m.LastClk + 1.0)
+let maxWavesColWidthFloat m = vbWidth m * 40.0 + 4.0
+let maxWavesColWidth m = string (maxWavesColWidthFloat m) + "px"
+let waveCellWidth m = Width (maxWavesColWidth m)
 
 let widthAndVBwave (m : WaveSimModel) : IProp list = [
     Style [waveCellWidth m]

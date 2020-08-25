@@ -194,33 +194,29 @@ $sigLineThick: 0.025;
     height: 30px;
     position: relative;
     float: left;
+    border-color: gray;
+    border-width: 1px
 }
 
 %waveNameHeaderBut {
-    margin: 0 2px 0 2px;
-    height: 100%;
-    font-size: 12px;
+    margin: 0;
+    height: 30px;
     float: left;
     position: relative;
+    border-color: gray;
+    border-width: 1px;
+    border-radius: 0;
 }
 
 .newWaveButton {
     @extend %waveNameHeaderBut;
-    width: 80px;
-    border-radius: 4px;
-    border: thin;
-    background: #48c774;
+    width: 100%;
 }
 
 .delWaveButton {
     @extend %waveNameHeaderBut;
-    margin: 0 0 0 2px;
-    border-bottom-left-radius: 4px;
-    border-top-left-radius: 4px;
-    width: 40px;
-    border: thin;
-    stroke: white;
-    background: red;
+    margin: 0 0 0 0;
+    width: 50%;
 }
 
 .newWaveLabel {
@@ -228,21 +224,19 @@ $sigLineThick: 0.025;
     position: relative;
     float: left;
     vertical-align: bottom;
-    border-radius: 4px;
     background: #48c774;
     border: thin;
 }
 
 .updownDiv {
-    width: 45%;
+    width: 50%;
     position: relative;
-    height: 100%;
+    height: 30px;
     float: left;
-    border: thin;
 }
 
-%updownBut {
-    margin: 0 2px 0 0;
+.updownBut {
+    margin: 0;
     display: block;
     width: 100%;
     height: 50%;
@@ -250,19 +244,12 @@ $sigLineThick: 0.025;
     top: 0;
     font-size: 40%;
     position: relative;
-    background: #48c774;
-    border: thin;
+    stroke: white;
+    background: #3273dc;
+    border-color: gray;
+    border-width: 1px;
+    border-radius: 0;
 } 
-
-.upBut {
-    @extend %updownBut;
-    border-top-right-radius: 4px;
-}
-
-.downBut {
-    @extend %updownBut;
-    border-bottom-right-radius: 4px;
-}
 
 //cursor group
 
@@ -286,18 +273,22 @@ $sigLineThick: 0.025;
         font-size: 13px;
         resize: vertical;
         -webkit-appearance: none;
+        border-color: gray;
+        border-width: 1px 0 1px 0;
     }
 }
 
 %cursBut {
-    margin: 0 0 0 0;
+    margin: 0;
     height: 30px;
     padding: 0;
     width: 30px;
     position: relative;
-    background: #48c774;
+    color: white;
     border: rgb(128, 128, 128);
     float: left;
+    border-color: gray;
+    border-width: 1px;
 }
 
 .cursLeft {
@@ -306,6 +297,7 @@ $sigLineThick: 0.025;
     border-bottom-left-radius: 4px;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
+    background: #3273dc;
 }
 
 .cursRight {
@@ -314,6 +306,7 @@ $sigLineThick: 0.025;
     border-bottom-left-radius: 0;
     border-top-right-radius: 4px;
     border-bottom-right-radius: 4px;
+    background: #3273dc;
 }
 
 input::-webkit-inner-spin-button {
@@ -331,10 +324,12 @@ input::-webkit-inner-spin-button {
     padding: 0 0;
     width: 30px;
     height: 30px;
-    background: #48c774;
+    background: #3273dc;
+    color: white;
     position: relative;
     float: left;
-    border: thin;
+    border-color: gray;
+    border-width: 1px
 }
 
 .zoomButLeft {

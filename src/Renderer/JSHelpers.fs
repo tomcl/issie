@@ -108,3 +108,11 @@ let setDebugLevel() =
 /// deliver string suitable for HTML color from a HighlightColor type value
 let getColorString (col: CommonTypes.HighLightColor) =
     (sprintf "%A" col).ToLower()
+
+
+let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
+let canvasWidthContext = testCanvas.getContext_2d()
+
+let getTextWidthInPixels(txt:string, font:string) =
+   canvasWidthContext.font <- font; // e.g. "16px times new roman";
+   canvasWidthContext.measureText(txt).width;

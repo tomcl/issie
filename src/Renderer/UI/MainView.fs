@@ -157,7 +157,7 @@ let private viewRightTab model dispatch =
             ( viewWaveSim model dispatch )
 
 let setDragMode (modeIsOn:bool) (model:Model) dispatch =
-    fun (ev: Browser.Types.MouseEvent) ->
+    fun (ev: Browser.Types.MouseEvent) ->        
         makeSelectionChangeMsg model dispatch ev
         //printfn "START X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         match modeIsOn, model.DragMode with
@@ -239,6 +239,7 @@ let displayView model dispatch =
 
     let processMouseMove (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
+        makeSelectionChangeMsg model dispatch ev
         match model.DragMode, ev.buttons with
         | DragModeOn pos , 1.-> 
             let newWidth = model.ViewerWidth - int ev.clientX + pos

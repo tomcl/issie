@@ -687,11 +687,14 @@ let viewTopMenu model dispatch =
                 ]
                 Navbar.End.div [] [
                     Navbar.Item.div [] [
-                        Button.button [
-                            Button.OnClick (fun _ -> 
+                        Button.button 
+                            [ match model.CurrentSelected with
+                              | [], [] -> Button.Props []
+                              | _ -> Button.Color IsSuccess 
+                              Button.OnClick (fun _ -> 
                                 ChangeRightTab WaveSim |> dispatch
-                                simLst model dispatch selected2portLst |> StartWaveSim |> dispatch)
-                        ] [str "Simulate >>"]
+                                simLst model dispatch selected2portLst |> StartWaveSim |> dispatch ) ]
+                            [str "Simulate >>"]
                     ]
                 ]
                 Navbar.End.div [] [

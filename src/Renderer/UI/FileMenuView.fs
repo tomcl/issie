@@ -539,7 +539,8 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
                 WaveData = extractWaveData model portsFunc simData'
                 Selected = Array.map (fun _ -> true) ports' 
                 Ports = ports'
-                WaveAdder = waveAdder' }
+                WaveAdder = initWA }
+                //WaveAdder = waveAdder' }
     | Some (Error simError), _ ->
         if simError.InDependency.IsNone then
             // Highligh the affected components and connection only if
@@ -687,14 +688,15 @@ let viewTopMenu model dispatch =
                 ]
                 Navbar.End.div [] [
                     Navbar.Item.div [] [
-                        Button.button 
-                            [ match model.CurrentSelected with
-                              | [], [] -> Button.Props []
-                              | _ -> Button.Color IsSuccess 
-                              Button.OnClick (fun _ -> 
-                                ChangeRightTab WaveSim |> dispatch
-                                simLst model dispatch selected2portLst |> StartWaveSim |> dispatch ) ]
-                            [str "Simulate >>"]
+                        let butOptions = 
+                            match model.CurrentSelected with
+                            | [], [] -> []
+                            | _ -> 
+                              [ Button.Color IsSuccess 
+                                Button.OnClick (fun _ -> 
+                                  ChangeRightTab WaveSim |> dispatch
+                                  simLst model dispatch selected2portLst |> StartWaveSim |> dispatch ) ]
+                        Button.button butOptions [str "Simulate >>"]
                     ]
                 ]
                 Navbar.End.div [] [

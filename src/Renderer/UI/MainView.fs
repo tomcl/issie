@@ -153,7 +153,7 @@ let private viewRightTab model dispatch =
             viewSimulation model dispatch
         ]
     | WaveSim -> 
-        div [ Style [Width "100%"; Height "100%"; Margin "0 0 0 0"] ]
+        div [ Style [Width "100%"; Height "calc(100% - 48px)"; MarginTop "15px" ] ]
             ( viewWaveSim model dispatch )
 
 let setDragMode (modeIsOn:bool) (model:Model) dispatch =
@@ -202,7 +202,39 @@ let displayView model dispatch =
     //|> List.map (fun comp -> sprintf "(%d,%d)" comp.X  comp.Y )
     //|> String.concat ","
     //|> (fun comps -> printfn "W=(%d,%d) Top=(%d,%d) Bot=(%d,%d)Comps=[%s]\n%A\n\n"  windowX windowY sd.SheetLeft sd.SheetTop x' y' comps sd)
-  
+    let maxViewerWidth = 
+        let maxWidth wSMod =
+            let strWidth s = JSHelpers.getTextWidthInPixels(s, "12px segoe ui") //not sure which font
+            let curLblColWidth =
+                match cursValStrings wSMod with
+                | [||] -> 0.0
+                | cVS -> 
+                    Array.map (Array.map strWidth >> Array.max) cVS
+                    |> Array.max
+                    |> max 25.0
+            let namesColWidth =
+                match wSMod.WaveNames with
+                | [||] -> 0.0
+                | wN ->
+                    Array.map strWidth wN
+                    |> Array.max
+                    |> max 100.0
+            let waveColWidth = 
+                match wSMod.Ports with
+                | [||] -> 600.0
+                | _ -> maxWavesColWidthFloat wSMod
+            let checkboxCol = 25.0
+            let extraWidth = 43.5
+            curLblColWidth + namesColWidth + waveColWidth + checkboxCol + extraWidth
+            |> int
+
+        match model.CurrProject with
+        | Some proj -> 
+            match Map.tryFind proj.OpenFileName model.WaveSim with
+            | Some wSMod -> maxWidth wSMod
+            | None -> windowX 
+        | None -> windowX
+        
 
 
     let processMouseMove (ev: Browser.Types.MouseEvent) =
@@ -213,44 +245,43 @@ let displayView model dispatch =
             let w = 
                 newWidth
                 |> max DiagramStyle.minViewerWidth
-                |> min (windowX - DiagramStyle.minEditorWidth)
+                |> min maxViewerWidth//(windowX - 200)
             SetViewerWidth w |> dispatch
             SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
         | DragModeOn _, _ ->  SetDragMode DragModeOff |> dispatch
         | DragModeOff, _-> ()
 
-    div [
-            OnMouseUp (setDragMode false model dispatch);
-            OnMouseDown (makeSelectionChangeMsg model dispatch)
-            OnMouseMove processMouseMove
-    ] [
+    div [ OnMouseUp (setDragMode false model dispatch);
+          OnMouseDown (makeSelectionChangeMsg model dispatch)
+          OnMouseMove processMouseMove ] [
         viewTopMenu model dispatch 
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode ) 
         viewNoProjectMenu model dispatch
         viewPopup model
         viewNotifications model dispatch
         viewOnDiagramButtons model dispatch
-        div [ rightSectionStyle model ;  ] [
-            dividerbar model dispatch
-            div [Style [Height "100%"]] [
-            Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs" ] [
-                Tabs.tab
-                    [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
-                    [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] [ str "Catalogue" ] ]
-                Tabs.tab
-                    [ Tabs.Tab.IsActive (model.RightTab = Properties) ]
-                    [ a [ OnClick (fun _ -> ChangeRightTab Properties |> dispatch ) ] [ str "Properties" ] ]
-                Tabs.tab
-                    [ Tabs.Tab.IsActive (model.RightTab = Simulation) ]
-                    [ a [ OnClick (fun _ -> ChangeRightTab Simulation |> dispatch ) ] [ str "Simulation" ] ]
-                Tabs.tab
-                    [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
-                    [ a [ OnClick (fun _ -> ChangeRightTab WaveSim |> dispatch) ] [ str "WaveSim" ] ]
-            ]
-            viewRightTab model dispatch
-            ]
-        ]
-    ]
+        div [ rightSectionStyle model ]
+            [ dividerbar model dispatch
+              div [ Style [ Height "100%" ] ] 
+                  [ Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs"
+                                Tabs.Props [Style [Margin 0] ] ]
+                              [ Tabs.tab
+                                    [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
+                                    [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] 
+                                    [ str "Catalogue" ] ]
+                                Tabs.tab
+                                    [ Tabs.Tab.IsActive (model.RightTab = Properties) ]
+                                    [ a [ OnClick (fun _ -> ChangeRightTab Properties |> dispatch ) ] 
+                                    [ str "Properties" ] ]
+                                Tabs.tab
+                                    [ Tabs.Tab.IsActive (model.RightTab = Simulation) ]
+                                    [ a [ OnClick (fun _ -> ChangeRightTab Simulation |> dispatch ) ] 
+                                    [ str "Simulation" ] ]
+                                Tabs.tab
+                                    [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
+                                    [ a [ OnClick (fun _ -> ChangeRightTab WaveSim |> dispatch) ] 
+                                    [ str "WaveSim" ] ] ]
+                    viewRightTab model dispatch ] ] ]
 
 // -- Update Model
 

@@ -232,7 +232,9 @@ let displayView model dispatch =
         | Some proj -> 
             match Map.tryFind proj.OpenFileName model.WaveSim with
             | Some wSMod -> maxWidth wSMod
-            | None -> windowX 
+            | None -> 
+                model |> getCurrFile |> AddWaveSimFile |> dispatch
+                windowX 
         | None -> windowX
         
 

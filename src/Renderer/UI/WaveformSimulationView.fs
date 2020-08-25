@@ -573,7 +573,7 @@ let cursorButtons (model: DiagramModelType.Model) dispatch =
           button [Class "cursRight"] (fun _ -> cursorMove true model |> dispatch) "▶" ] 
 
 let canReload (model: DiagramModelType.Model) = 
-    match model.WaveSim.[getCurrFile model].WaveAdder.LastCanvasState <> model.Diagram.GetCanvasState(), 
+    match model.WaveSim.[getCurrFile model].LastCanvasState <> model.Diagram.GetCanvasState(), 
           makeSimData model with
     | true, (Some (Ok _), _) -> true
     | _ -> false
@@ -584,14 +584,12 @@ let reloadButStyle model dispatch =
                 Button.OnClick (fun _ ->
                     simLst model dispatch reloadablePorts 
                     |> StartWaveSim |> dispatch) ] 
-    | false -> [ Button.Color IsGrey ]
+    | false -> []
     |> List.append [ Button.CustomClass "reloadButtonStyle" ]
 
 let viewWaveSimButtonsBar model dispatch = 
     div [ Style [ Height "45px" ] ]
         [ Button.button (reloadButStyle model dispatch) [ str "Reload" ]
-          //button (reloadButStyle model) (fun _ -> 
-          //    simLst model dispatch reloadablePorts |> StartWaveSim |> dispatch) "Reload" 
           radixTabs model.WaveSim.[getCurrFile model] dispatch
           cursorButtons model dispatch ]
 
@@ -627,10 +625,9 @@ let openWaveAdder (model: DiagramModelType.Model) dispatch =
     | wSPorts, Some sD ->
         let ports' = Array.map (fun p -> p, Array.contains p wSMod.Ports) wSPorts
         let names' = Array.map (wSPort2Name sD.Graph) wSPorts
-        let lastCS' = model.Diagram.GetCanvasState()
         { wSMod with WaveAdder = { Ports = ports'
-                                   WaveNames = names'
-                                   LastCanvasState = lastCS' } }
+                                   WaveNames = names'}
+                     LastCanvasState = model.Diagram.GetCanvasState() }
         |> Ok |> StartWaveSim 
     | _ -> wSMod |> Ok |> StartWaveSim //can I not just do nothing?
     
@@ -645,13 +642,14 @@ let waveAdderToggle model ind =
     { model with WaveAdder = { model.WaveAdder with Ports = ports' } }
     |> Ok |> StartWaveSim
 
-let simulateAddWave (model: DiagramModelType.Model) = 
+let simulateAddWave (model: DiagramModelType.Model) dispatch = 
     let wSMod = model.WaveSim.[getCurrFile model]
     let wA = wSMod.WaveAdder
     let ports' = 
         Array.filter (fun (_, s) -> s) wA.Ports
         |> Array.map fst
-    let simData' = 
+    simLst model dispatch (fun _ _ -> ports') |> StartWaveSim |> dispatch
+    (*let simData' = 
         match fst (makeSimData model) with 
         | Some (Ok sD) -> extractSimData sD wSMod.LastClk
         | _ -> failwith "simulateAddWave when SimData is None"
@@ -666,8 +664,8 @@ let simulateAddWave (model: DiagramModelType.Model) =
                     WaveData = waveData'
                     Selected = Array.map (fun _ -> false) ports'
                     Ports = ports'
-                    WaveAdder = initWA}
-    |> StartWaveSim
+                    LastCanvasState = model.Diagram.GetCanvasState() }
+    |> StartWaveSim*)
 
 let waveAdderSelectAll model =
     let setTo = model.WaveAdder.Ports |> Array.forall (fun (_,b) -> b)
@@ -782,7 +780,7 @@ let waveAdderButs (model: DiagramModelType.Model) dispatch =
             [ str "Cancel" ]
     let simBut =
       Button.button
-        [ simButStyle; Button.Props [ Style [MarginLeft "10px"] ]; Button.OnClick (fun _ -> simulateAddWave model |> dispatch) ]
+        [ simButStyle; Button.Props [ Style [MarginLeft "10px"] ]; Button.OnClick (fun _ -> simulateAddWave model dispatch) ]
         [ str "Simulate" ]
     let buts = 
         match model.WaveSim.[getCurrFile model].Ports with
@@ -812,7 +810,9 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
     match Map.exists (fun k _ -> k = (getCurrFile model)) model.WaveSim with
     | true -> 
         let wSMod = model.WaveSim.[getCurrFile model]
-        match wSMod.Ports, (wSMod.WaveAdder <> initWA), (wSMod.WaveAdder.LastCanvasState = model.Diagram.GetCanvasState()) with 
+        match wSMod.Ports, 
+              (wSMod.WaveAdder <> initWA), 
+              (wSMod.LastCanvasState = model.Diagram.GetCanvasState()) with 
         | _, true, true -> 
             waveAdderView model dispatch
         | [||], _, _ ->
@@ -821,7 +821,6 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
             waveAdderView model dispatch
         | _ ->
             setHighlightedConns model |> dispatch
-            { wSMod with WaveAdder = initWA } |> Ok |> StartWaveSim |> dispatch
             waveformsView model dispatch
     | false -> 
         model |> getCurrFile |> AddWaveSimFile |> dispatch

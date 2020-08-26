@@ -33,7 +33,7 @@ let init() = {
     SelectedComponent = None
     LastUsedDialogWidth = 1
     Simulation = None
-    WaveSim = WaveformSimulationView.initModel
+    WaveSim = Map.empty, None
     RightTab = Catalogue
     CurrProject = None
     Hilighted = [], []
@@ -338,10 +338,12 @@ let update msg model =
                 failwith "StartWaveSim dispatched when the current file entry is missing in WaveSim"
         let fileName = FileMenuView.getCurrFile model
         match msg with
-        | Ok wsData -> { model with WaveSim = changeKey model.WaveSim fileName wsData }
-        | Error err -> { model with Simulation = Error err |> Some }
+        | Ok wsData -> { model with WaveSim = changeKey (fst model.WaveSim) fileName wsData, 
+                                              snd model.WaveSim }
+        | Error (Some err) -> { model with WaveSim = fst model.WaveSim, Some err  }
+        | Error None -> { model with WaveSim = fst model.WaveSim, None }
     | AddWaveSimFile (fileName, wSMod') ->
-        { model with WaveSim = Map.add fileName wSMod' model.WaveSim}
+        { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim }
     | SetSimulationGraph graph ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
         { model with Simulation = { simData with Graph = graph } |> Ok |> Some }

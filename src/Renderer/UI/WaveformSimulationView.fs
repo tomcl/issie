@@ -717,13 +717,13 @@ let nameLabelsCol (model: DiagramModelType.Model) labelRows dispatch =
 
 let wavesCol (model: DiagramModelType.Model) rows =
     let wSMod = model.WaveSim.[getCurrFile model]
-    div [ Style [ MaxWidth (maxWavesColWidth wSMod) ]; Class "wavesTable" ] 
+    div [ Style [ MaxWidth (maxWavesColWidth wSMod); MinHeight "100%" ]; Class "wavesTable" ] 
         [ table [ Style [ Height "100%" ] ]
                 [ tbody [ Style [ Height "100%" ] ] rows ] ]
             
 let viewWaveformViewer model dispatch =
     let tableWaves, leftColMid, cursValsRows = waveSimRows model dispatch
-    div [ Style [ Height "calc(100% - 45px)"; Width "100%" ] ] 
+    div [ Style [ Height "calc(100% - 45px)"; Width "100%"; OverflowY OverflowOptions.Auto ] ] 
         [ cursValsCol cursValsRows
           div [ Style [ Height "100%" ] ]
               [ nameLabelsCol model leftColMid dispatch
@@ -772,16 +772,16 @@ let viewWaveAdder model (wA: WaveAdderModel) dispatch =
 let waveAdderButs (model: DiagramModelType.Model) dispatch =
     let simButStyle =
         match Array.exists (fun (_,sel) -> sel) model.WaveSim.[getCurrFile model].WaveAdder.Ports with
-        | true -> Button.Color IsSuccess 
-        | false -> Button.CustomClass "disabled"
+        | true -> 
+            [ Button.Color IsSuccess 
+              Button.OnClick (fun _ -> simulateAddWave model dispatch) ]
+        | false -> [ Button.CustomClass "disabled" ]
+        |> (fun lst -> Button.Props [ Style [MarginLeft "10px"] ] :: lst )
     let cancBut = 
         Button.button
             [ Button.Color IsDanger; Button.OnClick (fun _ -> cancelAddWave model.WaveSim.[getCurrFile model] |> dispatch) ]
             [ str "Cancel" ]
-    let simBut =
-      Button.button
-        [ simButStyle; Button.Props [ Style [MarginLeft "10px"] ]; Button.OnClick (fun _ -> simulateAddWave model dispatch) ]
-        [ str "Simulate" ]
+    let simBut = Button.button simButStyle [ str "Simulate" ]
     let buts = 
         match model.WaveSim.[getCurrFile model].Ports with
         | [||] -> [ simBut ]
@@ -801,7 +801,7 @@ let waveAdderView model dispatch =
                           dispatch ] ] ]
 
 let waveformsView model dispatch = 
-    [ div [ Style [Width "calc(100% - 10px)"; Height "100%"; MarginLeft "0%"; MarginTop "0px"; OverflowX OverflowOptions.Hidden; OverflowY OverflowOptions.Hidden ] ] 
+    [ div [ Style [Width "calc(100% - 10px)"; Height "100%"; MarginLeft "0%"; MarginTop "0px"; OverflowX OverflowOptions.Hidden ] ] 
     [ viewWaveSimButtonsBar model dispatch
       viewWaveformViewer model dispatch
       viewZoomDiv model.WaveSim.[getCurrFile model] dispatch ] ]

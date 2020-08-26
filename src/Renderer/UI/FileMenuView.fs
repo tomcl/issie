@@ -529,6 +529,8 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
     let wSMod = model.WaveSim.[getCurrFile model]
     match makeSimData model with
     | Some (Ok simData), _ -> 
+        SetViewerWidth 475
+        |> dispatch
         let ports' = portsFunc model simData
         let simData' = extractSimData simData wSMod.LastClk
         Ok { model.WaveSim.[getCurrFile model] with 
@@ -538,7 +540,7 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
                 Selected = Array.map (fun _ -> true) ports' 
                 Ports = ports'
                 WaveAdder = initWA
-                LastCanvasState = model.Diagram.GetCanvasState() }
+                LastCanvasState = model.Diagram.GetCanvasState() } 
     | Some (Error simError), _ ->
         if simError.InDependency.IsNone then
             // Highligh the affected components and connection only if

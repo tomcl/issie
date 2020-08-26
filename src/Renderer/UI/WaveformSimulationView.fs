@@ -180,9 +180,8 @@ let allSelected model = Array.forall ((=) true) model.Selected
 let anySelected model = Array.contains true model.Selected
 
 let makeLabels wSMod = 
-    //extractWaveNames simData model reloadablePorts
-    wSMod.WaveNames
-    |> Array.map (fun l -> label [ Class "waveLbl" ] [ str l ])
+    let makeLbl l = label [ Class "waveLbl" ] [ str l ]
+    Array.map makeLbl wSMod.WaveNames
 
 let makeSegment (clkW: float) portSelected (xInd: int) (data: Sample) (trans: int * int)  =
     let top = spacing
@@ -204,9 +203,7 @@ let makeSegment (clkW: float) portSelected (xInd: int) (data: Sample) (trans: in
         match snd trans with
         | 1 -> [| makeSigLine (right, bot + sigLineThick / 2.0) (right, top - sigLineThick / 2.0) |]
         | 0 -> [||]
-        | _ ->
-            "What? Transition has value other than 0 or 1" |> ignore
-            [||]
+        | _ -> failwith "What? Transition has value other than 0 or 1"            
         |> Array.append [| sigLine |]
     | _ ->
         let leftInner =
@@ -229,9 +226,7 @@ let makeSegment (clkW: float) portSelected (xInd: int) (data: Sample) (trans: in
         | 1, 0 -> [| topLeft; botLeft |]
         | 0, 1 -> [| topRight; botRight |]
         | 0, 0 -> [||]
-        | _ ->
-            "What? Transition has value other than 0 or 1" |> ignore
-            [||]
+        | _ -> failwith "What? Transition has value other than 0 or 1" 
         |> Array.append [| topL; botL |]
 //Probably should put other option for negative number which prints an error
 
@@ -363,10 +358,10 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
         |> Array.map2 Array.append valueLabels
 
 // name and cursor labels of the waveforms
-    let labels = 
-        match makeSimData model with
-        | (Some (Ok sD)), _ -> makeLabels (currWS model)
-        | _ -> [||]
+    let labels = makeLabels (currWS model)
+        (*match makeSimData model with
+        | (Some (Ok sD)), _ -> 
+        | _ -> [||]*)
     let cursLabs = makeCursVals wsMod
 
     let labelCols =
@@ -687,23 +682,6 @@ let simulateAddWave (model: DiagramModelType.Model) dispatch =
         Array.filter (fun (_, s) -> s) wA.Ports
         |> Array.map fst
     simLst model dispatch (fun _ _ -> ports') |> dispatch
-    (*let simData' = 
-        match fst (makeSimData model) with 
-        | Some (Ok sD) -> extractSimData sD wSMod.LastClk
-        | _ -> failwith "simulateAddWave when SimData is None"
-    let waveData' = 
-        extractWaveData model (fun _ _ -> ports') simData'
-    let waveNames' = 
-        Array.zip wA.WaveNames wA.Ports
-        |> Array.filter (snd >> snd) 
-        |> Array.map fst
-    Ok { wSMod with SimData = simData'
-                    WaveNames = waveNames'
-                    WaveData = waveData'
-                    Selected = Array.map (fun _ -> false) ports'
-                    Ports = ports'
-                    LastCanvasState = model.Diagram.GetCanvasState() }
-    |> StartWaveSim*)
 
 let waveAdderSelectAll model =
     let setTo = model.WaveAdder.Ports |> Array.forall (fun (_,b) -> b)

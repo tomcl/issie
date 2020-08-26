@@ -549,14 +549,14 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
         | None -> 
             let simData' = extractSimData simData 9u  
             (getCurrFile model, 
-             { initWS with 
-                 SimData = simData'
-                 WaveNames = extractWaveNames simData model portsFunc
-                 WaveData = extractWaveData model portsFunc simData'
-                 Selected = Array.map (fun _ -> false) ports' 
-                 Ports = ports'
-                 WaveAdder = initWA
-                 LastCanvasState = model.Diagram.GetCanvasState() } ) 
+                 { initWS with 
+                     SimData = simData'
+                     WaveNames = extractWaveNames simData model portsFunc
+                     WaveData = extractWaveData model portsFunc simData'
+                     Selected = Array.map (fun _ -> false) ports' 
+                     Ports = ports'
+                     WaveAdder = initWA
+                     LastCanvasState = model.Diagram.GetCanvasState() } ) 
             |> AddWaveSimFile                
     | Some (Error simError), _ ->
         if simError.InDependency.IsNone then

@@ -346,8 +346,9 @@ type Draw2dWrapper() =
         |> tryActionWithCanvas "EditComponentLabel"
 
     /// Repaint a connection
-    /// should mod to allow different colors independent of width?
-    member this.PaintConnection connectionId width =
+    /// Use default color base don width if colorOpt is None
+    /// colors are from CommonTypes.HighLightColor. Any js color can be added (make D.U. name equal to color name)
+    member this.PaintConnection connectionId width (colorOpt: CommonTypes.HighLightColor option) =
         fun c ->
             let jsConnection =
                 assertNotNull (draw2dLib.getConnectionById c connectionId) "PaintConnection"
@@ -356,12 +357,14 @@ type Draw2dWrapper() =
                 | 1 -> "", 1, "black"
                 | n when n > 1 -> (sprintf "%d\n/" n), 3, "purple"
                 | n -> failwithf "what? PaintConnection called with width %d" n 
+            let color' = match colorOpt with |Some newColor -> (sprintf "%A" newColor).ToLower() | None -> color
             draw2dLib.setConnectionLabel jsConnection label
             draw2dLib.setConnectionStroke jsConnection stroke
-            draw2dLib.setConnectionColor jsConnection color
+            draw2dLib.setConnectionColor jsConnection color'
         |> tryActionWithCanvas "PaintConnection"
 
-    /// Unhighlight a specific component
+    /// Highlight a specific component
+    /// Color is from CommonTypes.HighLightColor - colors can be added, JS color name is same as D.U. case name.
     member this.HighlightComponent (color: CommonTypes.HighLightColor) componentId = 
         fun c ->
             let comp =
@@ -369,7 +372,7 @@ type Draw2dWrapper() =
             draw2dLib.setComponentBackground comp (JSHelpers.getColorString color)
         |> tryActionWithCanvas "HighlightComponent"
 
-    /// Highlight a specific component
+    /// UnHighlight a specific component
     member this.UnHighlightComponent componentId = 
         fun c ->
             let comp = draw2dLib.getComponentById c componentId

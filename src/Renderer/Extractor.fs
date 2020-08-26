@@ -108,7 +108,7 @@ let extractComponent (jsComponent : JSComponent) : Component =
     W           = w
 }
 
-let private extractConnection (jsConnection : JSConnection) : Connection = {
+let extractConnection (jsConnection : JSConnection) : Connection = {
     Id       = getFailIfNull jsConnection ["id"]
     Source   = extractPort None <| getFailIfNull jsConnection ["sourcePort"]
     Target   = extractPort None <| getFailIfNull jsConnection ["targetPort"]

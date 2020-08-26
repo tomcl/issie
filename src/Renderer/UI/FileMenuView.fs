@@ -284,7 +284,7 @@ let viewTopMenu model dispatch =
                 ]
                 Level.right [ Props [ Style [MarginLeft "20px"] ] ] [
                     Level.item [] [
-                        JSHelpers.tippy1 "help!" Button.button [
+                        Button.button [
                             Button.Size IsSmall
                             Button.IsOutlined
                             Button.Color IsPrimary
@@ -406,7 +406,7 @@ let viewTopMenu model dispatch =
                         Button.button [     
                             Button.Props []
                             Button.OnClick (fun _ -> viewInfoPopup dispatch)
-                            Button
+                            
                         ] [str "Info"]
                     ]
                 ]

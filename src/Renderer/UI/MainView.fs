@@ -67,7 +67,7 @@ let private repaintConnections model connsWidth =
     |> Map.map (fun (BusTypes.ConnectionId connId) width ->
         match width with
         | None -> () // Could not infer.
-        | Some w -> model.Diagram.PaintConnection connId w
+        | Some w -> model.Diagram.PaintConnection connId w None
     )
     |> ignore
 

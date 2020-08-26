@@ -45,8 +45,9 @@ type private IDraw2d =
     abstract getOutputPorts               : comp:JSComponent -> JSPorts
     abstract installSelectionPolicy       : comp:JSComponent -> unit
     abstract createDigitalInput           : x:int -> y:int -> numberOfBits:int -> JSComponent
+    abstract createDigitalConstant        : x:int -> y:int -> numberOfBits:int -> constValue: int -> JSComponent
     abstract createDigitalOutput          : x:int -> y:int -> numberOfBits:int -> JSComponent
-    abstract createDigitalLabel          : x:int -> y:int -> JSComponent
+    abstract createDigitalLabel           : x:int -> y:int -> JSComponent
     abstract createDigitalBusSelection    : x : int -> y: int -> numberOfBits: int -> bitSelected: int -> JSComponent
     abstract createDigitalNot             : x:int -> y:int -> JSComponent
     abstract createDigitalAnd             : x:int -> y:int -> JSComponent
@@ -58,6 +59,7 @@ type private IDraw2d =
     abstract createDigitalMux2            : x:int -> y:int -> JSComponent
     abstract createDigitalDemux2          : x:int -> y:int -> JSComponent
     abstract createDigitalNbitsAdder      : x:int -> y:int -> numberOfBits:int -> JSComponent
+    abstract createDigitalDecode4         : x:int -> y:int -> JSComponent
     abstract createDigitalCustom          : x:int -> y:int -> name:string -> inputs:obj -> outputs:obj -> JSComponent
     abstract createDigitalMergeWires      : x:int -> y:int -> JSComponent
     abstract createDigitalSplitWire       : x:int -> y:int -> topOutputWidth:int -> JSComponent
@@ -72,6 +74,7 @@ type private IDraw2d =
     abstract writeMemoryLine              : comp:JSComponent -> addr:int -> value:int64 -> unit
     abstract setNumberOfBits              : comp:JSComponent -> numberOfBits:int -> unit
     abstract setLsbBitNumber              : comp:JSComponent -> lsbBitNumber:int -> unit
+    abstract setConstantNumber            : comp:JSComponent -> constValue:int -> unit
     abstract setTopOutputWidth            : comp:JSComponent -> topOutputWidth: int -> unit
     abstract setRegisterWidth             : comp:JSComponent -> topOutputWidth: int -> unit
     abstract updateMergeWiresLabels       : comp:JSComponent -> topInputWidth:int option -> bottomInputWidth:int option -> outputWidth:int option -> unit
@@ -130,6 +133,7 @@ let private createComponent
         | Output w -> draw2dLib.createDigitalOutput x y w
         | IOLabel -> draw2dLib.createDigitalLabel x y
         | BusSelection (w,lsb) -> draw2dLib.createDigitalBusSelection x y w lsb
+        | Constant (w,c) -> draw2dLib.createDigitalConstant x y w c
         | Not    -> draw2dLib.createDigitalNot x y
         | And    -> draw2dLib.createDigitalAnd x y
         | Or     -> draw2dLib.createDigitalOr x y
@@ -137,6 +141,7 @@ let private createComponent
         | Nand   -> draw2dLib.createDigitalNand x y
         | Nor    -> draw2dLib.createDigitalNor x y
         | Xnor   -> draw2dLib.createDigitalXnor x y
+        | Decode4 -> draw2dLib.createDigitalDecode4 x y
         | Mux2   -> draw2dLib.createDigitalMux2 x y
         | Demux2 -> draw2dLib.createDigitalDemux2 x y
         | NbitsAdder numberOfBits -> 
@@ -445,6 +450,12 @@ type Draw2dWrapper() =
             let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "SetNumberOfBits"
             draw2dLib.setNumberOfBits jsComp numberOfBits
         |> tryActionWithCanvas "SetNumberOfBits"
+
+    member this.SetConstantNumber compId cNum =
+        fun c ->
+            let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "SetConstantNumber"
+            draw2dLib.setConstantNumber jsComp cNum
+        |> tryActionWithCanvas "SetConstantNumber"
 
     member this.SetLsbBitNumber compId lsbBitNumber =
         fun c ->

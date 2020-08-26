@@ -138,14 +138,5 @@ let defaultTooltipsPropsLst =
     basicTooltipsPropsLst
 
 
-/// top-level function from tippy.js to make tooltips
-let tippyImported (rClass : string, tippyOpts : obj) : unit = importDefault "tippy.js"
-
-let tippy txt props = tippyImported(txt, keyValueList CaseRules.LowerFirst props)
-
-
-let tippyR (props : TooltipsProps list) (elems : ReactElement list) : ReactElement =
-    Fable.React.Helpers.ofImport "default" "@tippyjs/react/headless" (keyValueList CaseRules.LowerFirst props) elems
-
-let tippy1 mess thing props els = tippyR [Content mess] [thing props els]
-
+let inline toolT (props : TooltipsProps list) (elems : ReactElement list) : ReactElement =
+    ofImport "ReactToolTip" "react-tooltip" (keyValueList CaseRules.LowerFirst props) elems

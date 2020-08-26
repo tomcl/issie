@@ -48,6 +48,16 @@ let private intFormField name defaultValue minValue onChange =
         ]
     ]
 
+let private intFormFieldNoMin name defaultValue onChange =
+    Field.div [] [
+        Label.label [] [ str name ]
+        Input.number [
+            Input.Props [Style [Width "60px"]]
+            Input.DefaultValue <| sprintf "%d" defaultValue
+            Input.OnChange (getIntEventValue >> onChange)
+        ]
+    ]
+
 let private makeMemoryInfo descr mem compId model dispatch =
     div [] [
         str descr
@@ -70,6 +80,7 @@ let private makeNumberOfBitsField model comp text setter dispatch =
         | Input w | Output w | NbitsAdder w | Register w -> "Number of bits", w
         | SplitWire w -> "Number of bits in the top wire", w
         | BusSelection( w, _) -> "Number of bits selected: width", w
+        | Constant(w, _) -> "Number of bits in the wire", w
         | c -> failwithf "makeNumberOfBitsField called with invalid component: %A" c
     intFormField title width 1 (
         fun newWidth ->
@@ -85,6 +96,30 @@ let private makeNumberOfBitsField model comp text setter dispatch =
                 dispatch (ReloadSelectedComponent (lastUsedWidth)) // reload the new component
                 dispatch ClosePropertiesNotification
     )
+
+
+let private makeConstantValueField model comp setter dispatch =
+    let cVal, width =
+        match comp.Type with 
+        | Constant(width,cVal) -> cVal, width
+        | _ -> failwithf "makeConstantValuefield called from %A" comp.Type
+    if width > 32 then
+        errorNotification "Invalid Constant width" ClosePropertiesNotification
+        |> SetPropertiesNotification |> dispatch
+    intFormFieldNoMin "Value of the wire:" cVal (
+        fun newCVal ->
+            if int64 newCVal >= (1L <<< width) || int64 newCVal < -(1L <<< (width-1))
+            then
+                let errMsg = sprintf "Constant value too large for number of bits: %d requires more than %d bits" newCVal width
+                errorNotification errMsg  ClosePropertiesNotification
+                |> SetPropertiesNotification |> dispatch
+            else
+                setter comp.Id newCVal // change the JS component
+                let lastUsedWidth = model.LastUsedDialogWidth
+                dispatch (ReloadSelectedComponent (lastUsedWidth)) // reload the new component
+                dispatch ClosePropertiesNotification
+    )
+
 
 let private makeLsbBitNumberField model comp setter dispatch =
     let lsbPos =
@@ -107,6 +142,7 @@ let private makeLsbBitNumberField model comp setter dispatch =
 let private makeDescription comp model dispatch =
     match comp.Type with
     | Input _ -> str "Input."
+    | Constant _ -> str "Constant Wire."
     | Output _ -> str "Output."
     | BusSelection _ -> div [] [
                 str "Bus Selection."
@@ -133,6 +169,7 @@ let private makeDescription comp model dispatch =
     | MergeWires -> div [] [ str "Merge two wires of width n and m into a single wire of width n+m." ]
     | SplitWire _ -> div [] [ str "Split a wire of width n+m into two wires of width n and m."]
     | NbitsAdder numberOfBits -> div [] [ str <| sprintf "%d bit(s) adder." numberOfBits ]
+    | Decode4 -> div [] [ str <| "4 bit decoder: Data is output on the Sel output, all other outputs are 0."]
     | Custom custom ->
         let toHTMLList =
             List.map (fun (label, width) -> li [] [str <| sprintf "%s: %d bit(s)" label width])
@@ -184,6 +221,11 @@ let private makeExtraInfo model comp text dispatch =
             makeNumberOfBitsField model comp text model.Diagram.SetNumberOfBits dispatch
             makeLsbBitNumberField model comp model.Diagram.SetLsbBitNumber dispatch
             ]
+    | Constant _ ->
+        div [] [
+             makeNumberOfBitsField model comp text model.Diagram.SetNumberOfBits dispatch
+             makeConstantValueField model comp model.Diagram.SetConstantNumber dispatch
+             ]
     | _ -> div [] []
 
 let viewSelectedComponent model dispatch =

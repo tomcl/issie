@@ -51,7 +51,8 @@ let bitToString (bit : Bit) : string =
 
 /// Pad wireData with Zeros as the Most Significant Bits (e.g. at position N).
 let private padToWidth width (bits : WireData) : WireData =
-    bits @ List.replicate (width - bits.Length) Zero
+    if bits.Length > width then List.truncate width bits
+    else bits @ List.replicate (width - bits.Length) Zero
 
 /// Convert an int into a Bit list with the provided width. The Least
 /// Significant Bits are the one with low index (e.g. LSB is at position 0, MSB
@@ -64,7 +65,10 @@ let convertIntToWireData (width : int) (num : int64) : WireData =
         | 0 | 1 -> [toBit <| int i]
         | _ -> let bit = toBit <| int (i % (int64 2))
                bit :: (intToBinary (i / (int64 2)))
-    padToWidth width (intToBinary num)
+    if num >= 0L then
+        padToWidth width (intToBinary num)
+    else
+        padToWidth width (intToBinary (num &&& (1L <<< width) - 1L))
 
 /// Convert a list of Bits into an int. The Least Significant Bits are the one
 /// with low index (e.g. LSB is at position 0, MSB is at position N).

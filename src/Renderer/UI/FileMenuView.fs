@@ -376,7 +376,8 @@ let limBits (name: string) : (int*int) option =
        |> Some
     | _ -> None
 
-let rec findName (simGraph: SimulatorTypes.SimulationGraph) ({ CId = compId; OutPN = outPortN; TrgtId = outputOpt }: WaveSimPort) = 
+let rec findName (simGraph: SimulatorTypes.SimulationGraph) 
+                 ({ CId = compId; OutPN = outPortN; TrgtId = outputOpt }: WaveSimPort) = 
     let compLbl =
         match Map.tryFind compId simGraph with
         | Some simComp ->
@@ -392,7 +393,9 @@ let rec findName (simGraph: SimulatorTypes.SimulationGraph) ({ CId = compId; Out
 
     let driveName n compTypeStr =
         match driveOut simGraph compId (InputPortNumber n) with
-        | Some (driveCompId, drivePortN) -> findName simGraph {CId = driveCompId; OutPN = drivePortN; TrgtId = None}
+        | Some (driveCompId, drivePortN) -> 
+            findName simGraph {CId = driveCompId; OutPN = drivePortN; TrgtId = None}
+            |> snd
         | None -> failwith (compTypeStr + "input not connected")
 
     match simGraph.[compId].Type with
@@ -413,11 +416,11 @@ let rec findName (simGraph: SimulatorTypes.SimulationGraph) ({ CId = compId; Out
     | RAM mem | AsyncROM mem | ROM mem  -> 
         [ compLbl + "_data-out", (mem.WordWidth-1, 0) ]
     | Custom c -> 
-        [ c.Name + "_" + fst c.OutputLabels.[outPortInt], (snd c.OutputLabels.[outPortInt] - 1, 0) ]
+        [ compLbl + "_" + fst c.OutputLabels.[outPortInt], (snd c.OutputLabels.[outPortInt] - 1, 0) ]
     | IOLabel -> 
         match driveOut simGraph compId (InputPortNumber 0) with
         | Some (driveCompId, drivePortN) -> 
-            match findName simGraph {CId = driveCompId; OutPN = drivePortN; TrgtId = None} with
+            match findName simGraph {CId = driveCompId; OutPN = drivePortN; TrgtId = None} |> snd with
             | hd::tl -> 
                 ("("+fst hd, snd hd)::tl
                 |> function
@@ -460,14 +463,12 @@ let rec findName (simGraph: SimulatorTypes.SimulationGraph) ({ CId = compId; Out
         |> List.choose id
         |> List.rev
     
-    |> function
-        | hd::tl -> 
+    |> ( fun lst ->
             match outputOpt with
             | Some compId -> 
                  match simGraph.[compId].Label with
-                 | ComponentLabel lbl -> (lbl + ": " + fst hd, snd hd)::tl
-            | None -> hd::tl
-        | [] -> failwith "empty (name, (msb*lsb)) list reached the end of findName"
+                 | ComponentLabel lbl -> Some (lbl + ": "), lst
+            | None -> None, lst )
         
 
 let bitNums (a,b) = 
@@ -477,12 +478,18 @@ let bitNums (a,b) =
     | (msb, lsb) -> sprintf "[%d:%d]" msb lsb
 
 let wSPort2Name simGraph p = 
-    match findName simGraph p with
-    | [el] -> fst el + bitNums (snd el)
-    | lst when List.length lst > 0 -> 
-        List.fold (fun st (name, bitLims) -> st + name + bitNums bitLims + ", ") "{ " lst
-        |> (fun lbl -> lbl.[0..String.length lbl - 3] + " }" )  
-    | _ -> failwith "Signal doesn't have a name source"
+    let outNameOpt, nameLst = findName simGraph p
+    let tl =
+        match nameLst with
+        | [el] -> fst el + bitNums (snd el)
+        | lst when List.length lst > 0 -> 
+            let appendName st (name, bitLims) = st + name + bitNums bitLims + ", "
+            List.fold appendName "{ " lst
+            |> (fun lbl -> lbl.[0..String.length lbl - 3] + " }" )  
+        | _ -> failwith "Signal doesn't have a name source"
+    match outNameOpt with
+    | Some outName -> outName + tl
+    | None -> tl
 
 let extractWaveNames simData model (portFunc: Model -> SimulationData -> WaveSimPort []) =
     portFunc model simData

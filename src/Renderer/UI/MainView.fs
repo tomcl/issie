@@ -36,7 +36,7 @@ let init() = {
     WaveSim = Map.empty, None
     RightTab = Catalogue
     CurrProject = None
-    Hilighted = [], []
+    Hilighted = ([], []), []
     Clipboard = [], []
     CreateComponent = None
     HasUnsavedChanges = false
@@ -356,7 +356,7 @@ let update msg model =
     | EndSimulation -> { model with Simulation = None }
     | ChangeRightTab newTab -> { model with RightTab = newTab }
     | SetHighlighted (componentIds, connectionIds) ->
-        let oldComponentIds, oldConnectionIds = model.Hilighted
+        let oldComponentIds, oldConnectionIds = fst model.Hilighted
         oldComponentIds
         |> List.map (fun (ComponentId c) -> model.Diagram.UnHighlightComponent c)
         |> ignore
@@ -367,9 +367,27 @@ let update msg model =
         |> List.map (fun (ConnectionId c) -> model.Diagram.UnHighlightConnection c)
         |> ignore
         connectionIds
-        |> List.map (fun (ConnectionId c) -> model.Diagram.HighlightConnection c)
+        |> List.map (fun (ConnectionId c) -> model.Diagram.HighlightConnection c "red")
         |> ignore
-        { model with Hilighted = (componentIds, connectionIds) }
+        { model with Hilighted = (componentIds, connectionIds), snd model.Hilighted }
+    | SetSelWavesHighlighted connIds ->
+        let (_, errConnIds), oldConnIds = model.Hilighted
+        oldConnIds
+        |> List.map (fun (ConnectionId c) -> 
+            match List.contains (ConnectionId c) errConnIds with
+            | true -> ()
+            | false -> model.Diagram.UnHighlightConnection c )
+        |> ignore
+        connIds
+        |> List.map (fun (ConnectionId c) -> 
+            match List.contains (ConnectionId c) errConnIds with
+            | true -> ()
+            | false -> model.Diagram.HighlightConnection c "green")
+        |> ignore
+        List.fold (fun st cId -> if List.contains cId errConnIds 
+                                    then st
+                                    else cId :: st ) [] connIds
+        |> (fun lst -> { model with Hilighted = fst model.Hilighted, lst })
     | SetClipboard components -> { model with Clipboard = components }
     | SetCreateComponent pos -> { model with CreateComponent = Some pos }
     | SetProject project -> { model with CurrProject = Some project }

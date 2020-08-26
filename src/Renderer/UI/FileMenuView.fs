@@ -525,22 +525,37 @@ let makeSimData model =
         ||> prepareSimulation project.OpenFileName
         |> (fun x -> Some x, None)
 
+let initFileWS model = (getCurrFile model, initWS) |> AddWaveSimFile    
+
 let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort []) = 
-    let wSMod = model.WaveSim.[getCurrFile model]
     match makeSimData model with
     | Some (Ok simData), _ -> 
-        SetViewerWidth 475
-        |> dispatch
+        SetViewerWidth 475 |> dispatch      
         let ports' = portsFunc model simData
-        let simData' = extractSimData simData wSMod.LastClk
-        Ok { model.WaveSim.[getCurrFile model] with 
-                SimData = simData'
-                WaveNames = extractWaveNames simData model portsFunc
-                WaveData = extractWaveData model portsFunc simData'
-                Selected = Array.map (fun _ -> true) ports' 
-                Ports = ports'
-                WaveAdder = initWA
-                LastCanvasState = model.Diagram.GetCanvasState() } 
+        match Map.tryFind (getCurrFile model) model.WaveSim with
+        | Some wSMod -> 
+            let simData' = extractSimData simData wSMod.LastClk  
+            Ok { model.WaveSim.[getCurrFile model] with 
+                     SimData = simData'
+                     WaveNames = extractWaveNames simData model portsFunc
+                     WaveData = extractWaveData model portsFunc simData'
+                     Selected = Array.map (fun _ -> true) ports' 
+                     Ports = ports'
+                     WaveAdder = initWA
+                     LastCanvasState = model.Diagram.GetCanvasState() } 
+            |> StartWaveSim
+        | None -> 
+            let simData' = extractSimData simData 9u  
+            (getCurrFile model, 
+             { initWS with 
+                 SimData = simData'
+                 WaveNames = extractWaveNames simData model portsFunc
+                 WaveData = extractWaveData model portsFunc simData'
+                 Selected = Array.map (fun _ -> true) ports' 
+                 Ports = ports'
+                 WaveAdder = initWA
+                 LastCanvasState = model.Diagram.GetCanvasState() } ) 
+            |> AddWaveSimFile                
     | Some (Error simError), _ ->
         if simError.InDependency.IsNone then
             // Highligh the affected components and connection only if
@@ -548,10 +563,12 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
             // dependency.
             (simError.ComponentsAffected, simError.ConnectionsAffected)
             |> SetHighlighted |> dispatch
-        Error simError
-    | _, Some m -> Ok wSMod
+        Error simError |> StartWaveSim
+    | _, Some m -> 
+        match Map.tryFind (getCurrFile model) model.WaveSim with
+        | Some wSMod -> Ok wSMod |> StartWaveSim
+        | None -> initFileWS model   
     | _, _ -> failwith "What? This case shouldn't happen"
-
 
 /// Display top menu.
 let viewTopMenu model dispatch =
@@ -677,8 +694,8 @@ let viewTopMenu model dispatch =
                     Navbar.Item.div [] [
                         Button.button [
                             Button.Color (if model.HasUnsavedChanges
-                                          then IsSuccess
-                                          else IsWhite)
+                                              then IsSuccess
+                                              else IsWhite)
                             Button.OnClick (fun _ ->
                                 saveOpenFileAction model
                                 SetHasUnsavedChanges false
@@ -695,7 +712,7 @@ let viewTopMenu model dispatch =
                               [ Button.Color IsSuccess 
                                 Button.OnClick (fun _ -> 
                                   ChangeRightTab WaveSim |> dispatch
-                                  simLst model dispatch selected2portLst |> StartWaveSim |> dispatch ) ]
+                                  simLst model dispatch selected2portLst |> dispatch ) ]
                         Button.button butOptions [str "Simulate >>"]
                     ]
                 ]

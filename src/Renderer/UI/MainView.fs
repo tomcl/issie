@@ -189,8 +189,8 @@ let dividerbar (model:Model) dispatch =
         ] []
 
 let displayView model dispatch =
-    let windowX,windowY =
-        int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
+    //let windowX,windowY =
+    //    int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
     let selectedComps, selectedconns = 
         model.Diagram.GetSelected()
         |> Option.map extractState
@@ -202,40 +202,6 @@ let displayView model dispatch =
     //|> List.map (fun comp -> sprintf "(%d,%d)" comp.X  comp.Y )
     //|> String.concat ","
     //|> (fun comps -> printfn "W=(%d,%d) Top=(%d,%d) Bot=(%d,%d)Comps=[%s]\n%A\n\n"  windowX windowY sd.SheetLeft sd.SheetTop x' y' comps sd)
-    let maxViewerWidth = 
-        let maxWidth wSMod =
-            let strWidth s = JSHelpers.getTextWidthInPixels(s, "12px segoe ui") //not sure which font
-            let curLblColWidth =
-                match cursValStrings wSMod with
-                | [||] -> 0.0
-                | cVS -> 
-                    Array.map (Array.map strWidth >> Array.max) cVS
-                    |> Array.max
-                    |> max 25.0
-            let namesColWidth =
-                match wSMod.WaveNames with
-                | [||] -> 0.0
-                | wN ->
-                    Array.map strWidth wN
-                    |> Array.max
-                    |> max 100.0
-            let waveColWidth = 
-                match wSMod.Ports with
-                | [||] -> 600.0
-                | _ -> maxWavesColWidthFloat wSMod
-            let checkboxCol = 25.0
-            let extraWidth = 43.5
-            curLblColWidth + namesColWidth + waveColWidth + checkboxCol + extraWidth
-            |> int
-
-        match model.CurrProject with
-        | Some proj -> 
-            match Map.tryFind proj.OpenFileName model.WaveSim with
-            | Some wSMod -> maxWidth wSMod
-            | None -> 
-                model |> getCurrFile |> AddWaveSimFile |> dispatch
-                windowX 
-        | None -> windowX
         
 
 
@@ -248,7 +214,7 @@ let displayView model dispatch =
             let w = 
                 newWidth
                 |> max DiagramStyle.minViewerWidth
-                |> min maxViewerWidth//(windowX - 200)
+                |> min (WaveformSimulationView.maxViewerWidth model dispatch)//(windowX - 200)
             SetViewerWidth w |> dispatch
             SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
         | DragModeOn _, _ ->  SetDragMode DragModeOff |> dispatch
@@ -374,8 +340,8 @@ let update msg model =
         match msg with
         | Ok wsData -> { model with WaveSim = changeKey model.WaveSim fileName wsData }
         | Error err -> { model with Simulation = Error err |> Some }
-    | AddWaveSimFile fileName ->
-        { model with WaveSim = Map.add fileName initWS model.WaveSim}
+    | AddWaveSimFile (fileName, wSMod') ->
+        { model with WaveSim = Map.add fileName wSMod' model.WaveSim}
     | SetSimulationGraph graph ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
         { model with Simulation = { simData with Graph = graph } |> Ok |> Some }

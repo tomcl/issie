@@ -49,40 +49,54 @@ type KeyboardShortcutMsg =
 type WaveName = string
 
 type Wire = {
-    nBits: uint32
-    bitData: bigint 
+    NBits: uint32
+    BitData: bigint 
 }
 
 type StateSample = string array
-
 type Sample = | Wire of Wire | StateSample of StateSample
-
 type SimTime = Sample array
-
 type Waveform = Sample array
-
-type PosParamsType =
-    { sigHeight : float
-      hPos : uint32
-      clkWidth : float
-      labelWidth : uint32
-      sigThick : float
-      boxWidth : uint32
-      boxHeight : uint32
-      spacing : float
-      clkThick : float }
+type WaveSimPort = {
+    CId : ComponentId;
+    OutPN : OutputPortNumber;
+    TrgtId : ComponentId option
+}
+type WaveAdderModel = {
+    Ports : (WaveSimPort * bool) array;
+    WaveNames : WaveName array
+}
 
 type WaveSimModel = {
-    waveData: SimTime array option
-    waveNames: WaveName array
-    selected: bool array
-    ports: (ComponentId*OutputPortNumber) array
-    clkWidth: float
-    cursor: uint32 
-    radix: NumberBase
-    viewIndexes: uint32*uint32
-    posParams: PosParamsType
+    SimData: SimulatorTypes.SimulationData array
+    WaveData: SimTime array
+    WaveNames: WaveName array
+    Selected: bool array
+    Ports: WaveSimPort array
+    ClkWidth: float
+    Cursor: uint32 
+    Radix: NumberBase
+    LastClk: uint32
+    WaveAdder: WaveAdderModel
+    LastCanvasState: JSCanvasState option 
 }
+
+let initWA = { Ports = [||]; WaveNames = [||] }
+
+let initWS: WaveSimModel =
+    { SimData = [||]
+      WaveData = [||]
+      WaveNames = [||]
+      Selected = [||]
+      Ports = [||] 
+      ClkWidth = 1.0
+      Cursor = 0u
+      Radix = Bin
+      LastClk = 9u
+      WaveAdder = initWA
+      LastCanvasState = None }
+
+type DiagEl = | Comp of Component | Conn of Connection
 
 type DragMode = DragModeOn of int | DragModeOff
 
@@ -100,7 +114,8 @@ type Msg =
     | JSDiagramMsg of JSDiagramMsg
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
-    | StartWaveSim of Result<WaveSimModel, SimulationError>
+    | StartWaveSim of Result<WaveSimModel, (SimulationError option)>
+    | AddWaveSimFile of string * WaveSimModel
     | SetSimulationGraph of SimulationGraph
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick
@@ -133,3 +148,4 @@ type Msg =
     | SetDragMode of DragMode
     | SetViewerWidth of int
     | MenuAction of MenuCommand * (Msg -> unit)
+    | SelectionHasChanged

@@ -150,7 +150,7 @@ let private viewStatefulComponents comps numBase model dispatch =
         | NoState -> []
     div [] ( List.collect makeStateLine comps )
 
-let private viewSimulationError (simError : SimulationError) =
+let viewSimulationError (simError : SimulationError) =
     let error = 
         match simError.InDependency with
         | None ->

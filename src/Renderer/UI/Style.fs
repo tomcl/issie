@@ -7,8 +7,7 @@ open Fable.React.Props
 let private headerHeight = "52px"
 let private rightSectionWidthS = "400px" // Small right section.
 let private rightSectionWidthL = "650px" // Large right section.
-let minEditorWidth = 200
-let minViewerWidth = 50
+let minViewerWidth = 475
 
 let rightSectionWidthViewerDefault = 650
 
@@ -126,18 +125,17 @@ let clkLineWidth = 0.0125
 let transLen = 0.1
 let vPos = 0.0
 let zoomFactor = 1.2
+let maxZoom = 3.0
 let maxBusValGap = 3
 let busLabelTextSize = 0.6 // multiplied by signal height
 let sigLineThick = 0.025;
 let spacing = 0.4
 let sigHeight = 0.3 
 
-
-let vbWidth m =
-    m.clkWidth * float ((fun (a,b) -> b - a + uint 1) m.viewIndexes)
-
-let waveCellWidth m = 
-    vbWidth m |> (fun x -> Width ((string (x*40.0) ) + "px"))
+let vbWidth m = m.ClkWidth * (float m.LastClk + 1.0)
+let maxWavesColWidthFloat m = vbWidth m * 40.0 + 4.0
+let maxWavesColWidth m = string (maxWavesColWidthFloat m) + "px"
+let waveCellWidth m = Width (maxWavesColWidth m)
 
 let widthAndVBwave (m : WaveSimModel) : IProp list = [
     Style [waveCellWidth m]
@@ -151,20 +149,20 @@ let clkRulerStyle m : IProp list =
 
 let cursRectStyle m : IProp list = [
     Class "cursorRectStyle"
-    X (m.clkWidth * float m.cursor + clkLineWidth / 2.0)
-    SVGAttr.Width (m.clkWidth - clkLineWidth)
+    X (m.ClkWidth * float m.Cursor + clkLineWidth / 2.0)
+    SVGAttr.Width (m.ClkWidth - clkLineWidth)
     SVGAttr.Height (spacing + sigHeight)
 ]
 
 let cursRectText m i : IProp list = [
     Class "clkNumStyle"
-    X (m.clkWidth * (float i + 0.5)) 
+    X (m.ClkWidth * (float i + 0.5)) 
     Y 0.5
 ]
 
 let inWaveLabel nLabels xInd i m : IProp list = [
     Class "busValueStyle"
-    X (xInd * m.clkWidth)
+    X (xInd * m.ClkWidth)
     Y (spacing + sigHeight * 0.7 + 0.3 * sigHeight * (float i - (float nLabels - 1.0) / 2.0))
     SVGAttr.FontSize (busLabelTextSize * sigHeight / float nLabels) 
 ]

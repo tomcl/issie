@@ -87,7 +87,7 @@ let getTextFocusEventValue (event: FocusEvent) =
 #if DEBUG
 let mutable debugLevel = 1
 #else
-let mutable debugLevel = 1
+let mutable debugLevel = 0
 #endif
 
 /// Hack to provide a constant global variable
@@ -140,3 +140,9 @@ let defaultTooltipsPropsLst =
 
 let inline toolT (props : TooltipsProps list) (elems : ReactElement list) : ReactElement =
     ofImport "ReactToolTip" "react-tooltip" (keyValueList CaseRules.LowerFirst props) elems
+let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
+let canvasWidthContext = testCanvas.getContext_2d()
+
+let getTextWidthInPixels(txt:string, font:string) =
+   canvasWidthContext.font <- font; // e.g. "16px times new roman";
+   canvasWidthContext.measureText(txt).width;

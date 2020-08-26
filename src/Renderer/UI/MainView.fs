@@ -30,10 +30,12 @@ open Fable.Core.JsInterop
 
 let init() = {
     Diagram = new Draw2dWrapper()
+    LastSelected = [],[]
+    CurrentSelected = [],[]
     SelectedComponent = None
     LastUsedDialogWidth = 1
     Simulation = None
-    WaveSim = WaveformSimulationView.initModel
+    WaveSim = Map.empty, None
     RightTab = Catalogue
     CurrProject = None
     Hilighted = [], []
@@ -67,7 +69,7 @@ let private repaintConnections model connsWidth =
     |> Map.map (fun (BusTypes.ConnectionId connId) width ->
         match width with
         | None -> () // Could not infer.
-        | Some w -> model.Diagram.PaintConnection connId w
+        | Some w -> model.Diagram.PaintConnection connId w None
     )
     |> ignore
 
@@ -124,6 +126,9 @@ let private runBusWidthInference model =
             // Close the notification if all is good.
             { model with Notifications = {model.Notifications with FromDiagram = None} }
 
+let private makeSelectionChangeMsg (model:Model) (dispatch: Msg -> Unit) (ev: 'a) =
+    dispatch SelectionHasChanged
+  
 
 
 
@@ -150,11 +155,12 @@ let private viewRightTab model dispatch =
             viewSimulation model dispatch
         ]
     | WaveSim -> 
-        div [ Style [Width "calc(100% - 10px)"; Height "95.5%"; MarginLeft "0%"; MarginTop "0px"; OverflowX OverflowOptions.Hidden; OverflowY OverflowOptions.Hidden ] ] 
-            (viewWaveSim model dispatch) 
+        div [ Style [Width "100%"; Height "calc(100% - 48px)"; MarginTop "15px" ] ]
+            ( viewWaveSim model dispatch )
 
 let setDragMode (modeIsOn:bool) (model:Model) dispatch =
-    fun (ev: Browser.Types.MouseEvent) ->
+    fun (ev: Browser.Types.MouseEvent) ->        
+        makeSelectionChangeMsg model dispatch ev
         //printfn "START X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         match modeIsOn, model.DragMode with
         | true, DragModeOff ->  SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
@@ -185,8 +191,8 @@ let dividerbar (model:Model) dispatch =
         ] []
 
 let displayView model dispatch =
-    let windowX,windowY =
-        int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
+    //let windowX,windowY =
+    //    int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
     let selectedComps, selectedconns = 
         model.Diagram.GetSelected()
         |> Option.map extractState
@@ -198,58 +204,55 @@ let displayView model dispatch =
     //|> List.map (fun comp -> sprintf "(%d,%d)" comp.X  comp.Y )
     //|> String.concat ","
     //|> (fun comps -> printfn "W=(%d,%d) Top=(%d,%d) Bot=(%d,%d)Comps=[%s]\n%A\n\n"  windowX windowY sd.SheetLeft sd.SheetTop x' y' comps sd)
-  
+        
 
 
     let processMouseMove (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
+        makeSelectionChangeMsg model dispatch ev
         match model.DragMode, ev.buttons with
         | DragModeOn pos , 1.-> 
             let newWidth = model.ViewerWidth - int ev.clientX + pos
             let w = 
                 newWidth
                 |> max DiagramStyle.minViewerWidth
-                |> min (windowX - DiagramStyle.minEditorWidth)
+                |> min (WaveformSimulationView.maxViewerWidth model dispatch)//(windowX - 200)
             SetViewerWidth w |> dispatch
             SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
         | DragModeOn _, _ ->  SetDragMode DragModeOff |> dispatch
         | DragModeOff, _-> ()
 
-    div [
-            OnMouseUp (setDragMode false model dispatch);
-            OnMouseMove processMouseMove
-    ] [
+    div [ OnMouseUp (setDragMode false model dispatch);
+          OnMouseDown (makeSelectionChangeMsg model dispatch)
+          OnMouseMove processMouseMove ] [
         viewTopMenu model dispatch 
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode ) 
         viewNoProjectMenu model dispatch
         viewPopup model
         viewNotifications model dispatch
         viewOnDiagramButtons model dispatch
-        div [ rightSectionStyle model ;  ] [
-            dividerbar model dispatch
-            div [Style [Height "100%"]] [
-            Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.Props [ Style [FontSize "80%"]  ] ] [
-                Tabs.tab
-                    [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]                    
-                    [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] [ str "Catalogue" ] ]
-                Tabs.tab
-                    [ Tabs.Tab.IsActive (model.RightTab = Properties) ]
-                    [ a [ OnClick (fun _ -> ChangeRightTab Properties |> dispatch ) ] [ str "Properties" ] ]
-                Tabs.tab
-                    [ Tabs.Tab.IsActive (model.RightTab = Simulation) ]
-                    [ a [ OnClick (fun _ -> ChangeRightTab Simulation |> dispatch ) ] [ str "Simulation" ] ]
-                Tabs.tab
-                    [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
-                    [ a [ OnClick (fun _ -> 
-                                        ChangeRightTab WaveSim |> dispatch
-                                        Ok WaveformSimulationView.initModel |> StartWaveSim |> dispatch) ]
-                        [ str "WaveSim" ] ]
-            ]
-            viewRightTab model dispatch
-            ]
-        ]
-    ]
-  
+        div [ rightSectionStyle model ]
+            [ dividerbar model dispatch
+              div [ Style [ Height "100%" ] ] 
+                  [ Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs"
+                                Tabs.Props [Style [Margin 0] ] ]
+                              [ Tabs.tab
+                                    [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
+                                    [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] 
+                                    [ str "Catalogue" ] ]
+                                Tabs.tab
+                                    [ Tabs.Tab.IsActive (model.RightTab = Properties) ]
+                                    [ a [ OnClick (fun _ -> ChangeRightTab Properties |> dispatch ) ] 
+                                    [ str "Properties" ] ]
+                                Tabs.tab
+                                    [ Tabs.Tab.IsActive (model.RightTab = Simulation) ]
+                                    [ a [ OnClick (fun _ -> ChangeRightTab Simulation |> dispatch ) ] 
+                                    [ str "Simulation" ] ]
+                                Tabs.tab
+                                    [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
+                                    [ a [ OnClick (fun _ -> ChangeRightTab WaveSim |> dispatch) ] 
+                                    [ str "WaveSim" ] ] ]
+                    viewRightTab model dispatch ] ] ]
 
 // -- Update Model
 
@@ -329,9 +332,20 @@ let update msg model =
     // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).
     | StartSimulation simData -> { model with Simulation = Some simData }
     | StartWaveSim msg -> 
+        let changeKey map key data =
+            match Map.exists (fun k _ -> k = key) map with
+            | true ->
+                Map.map (fun k d -> if k = key then data else d) map
+            | false -> 
+                failwith "StartWaveSim dispatched when the current file entry is missing in WaveSim"
+        let fileName = FileMenuView.getCurrFile model
         match msg with
-        | Ok wsData -> { model with WaveSim = wsData }
-        | Error err -> { model with Simulation = Error err |> Some }
+        | Ok wsData -> { model with WaveSim = changeKey (fst model.WaveSim) fileName wsData, 
+                                              snd model.WaveSim }
+        | Error (Some err) -> { model with WaveSim = fst model.WaveSim, Some err  }
+        | Error None -> { model with WaveSim = fst model.WaveSim, None }
+    | AddWaveSimFile (fileName, wSMod') ->
+        { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim }
     | SetSimulationGraph graph ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
         { model with Simulation = { simData with Graph = graph } |> Ok |> Some }
@@ -415,3 +429,10 @@ let update msg model =
             | Ok jsComp -> { model with SelectedComponent = Some <| extractComponent jsComp ; LastUsedDialogWidth=width}
     | MenuAction(act,dispatch) ->
         getMenuView act model dispatch
+    | SelectionHasChanged -> 
+        model.Diagram.GetSelected()
+        |> Option.map (
+            extractState
+            >>  (fun sel ->
+                    {model with LastSelected = model.CurrentSelected; CurrentSelected = sel}))
+        |> Option.defaultValue model

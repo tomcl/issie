@@ -646,22 +646,23 @@ let avalPorts (model: DiagramModelType.Model) dispatch =
         |> function
             | Ok simData -> 
                 List.map (extractComponent >> Comp) (fst jsState)
-                |> compsConns2portLst model simData, Some simData
+                |> compsConns2portLst model simData, Some (Ok simData)
             | Error simError ->
                 if simError.InDependency.IsNone then
                     (simError.ComponentsAffected, simError.ConnectionsAffected)
                     |> SetHighlighted |> dispatch
-                [||], None
+                [||], Some (Error simError)
 
 let openWaveAdder (model: DiagramModelType.Model) dispatch = 
-    let wSMod = (currWS model)
+    let wSMod = currWS model
     match avalPorts model dispatch with
-    | wSPorts, Some sD ->
+    | wSPorts, Some (Ok sD) ->
         let ports' = Array.map (fun p -> p, Array.contains p wSMod.Ports) wSPorts
         let names' = Array.map (wSPort2Name sD.Graph) wSPorts
         { wSMod with WaveAdder = { Ports = ports'; WaveNames = names'}
                      LastCanvasState = model.Diagram.GetCanvasState() }
         |> Ok |> StartWaveSim |> dispatch
+    | _, Some (Error simError) -> Some simError |> Error |> StartWaveSim |> dispatch
     | _ -> ()
     
 let cancelAddWave model =
@@ -839,9 +840,10 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
             setHighlightedConns model |> dispatch
             waveformsView model dispatch
     | true, Some simError ->
-         [ SimulationView.viewSimulationError simError
-           button [ Button.Color IsDanger ]
-                  (fun _ -> None |> Error |> StartWaveSim |> dispatch) "Ok" ]
+        [ div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] 
+              [ SimulationView.viewSimulationError simError
+                button [ Button.Color IsDanger ]
+                       (fun _ -> None |> Error |> StartWaveSim |> dispatch) "Ok" ] ]
     | false, _ -> 
         initFileWS model |> dispatch
         []

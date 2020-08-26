@@ -403,7 +403,7 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
 
 // view function helpers
 
-let maxViewerWidth (model: DiagramModelType.Model) dispatch = 
+let viewerWidthMinMax (model: DiagramModelType.Model) dispatch = 
     let maxWidth wSMod =
         let strWidth s = JSHelpers.getTextWidthInPixels(s, "12px segoe ui") //not sure which font
         let curLblColWidth =
@@ -426,6 +426,9 @@ let maxViewerWidth (model: DiagramModelType.Model) dispatch =
             | _ -> maxWavesColWidthFloat wSMod
         let checkboxCol = 25.0
         let extraWidth = 43.5
+
+        curLblColWidth + namesColWidth + checkboxCol + extraWidth
+        |> int |> max minViewerWidth,
         curLblColWidth + namesColWidth + waveColWidth + checkboxCol + extraWidth
         |> int
 
@@ -435,14 +438,16 @@ let maxViewerWidth (model: DiagramModelType.Model) dispatch =
         | Some wSMod -> maxWidth wSMod
         | None -> 
             initFileWS model |> dispatch
-            int Browser.Dom.self.innerWidth 
-    | None -> int Browser.Dom.self.innerWidth
+            minViewerWidth, int Browser.Dom.self.innerWidth 
+    | None -> minViewerWidth, int Browser.Dom.self.innerWidth
 
 let updateWidth (model: DiagramModelType.Model) dispatch =
     let currWid = model.ViewerWidth
-    match  maxViewerWidth model dispatch with
-    | maxW when maxW < currWid -> 
+    match viewerWidthMinMax model dispatch with
+    | _, maxW when maxW < currWid -> 
         maxW |> SetViewerWidth |> dispatch
+    | minW, _ when minW > currWid ->
+        minW |> SetViewerWidth |> dispatch
     | _ -> ()
 
 let zoom plus (m: DiagramModelType.Model) dispatch =

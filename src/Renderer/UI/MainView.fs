@@ -212,9 +212,10 @@ let displayView model dispatch =
         | DragModeOn pos , 1.-> 
             let newWidth = model.ViewerWidth - int ev.clientX + pos
             let w = 
+                let minW, maxW = WaveformSimulationView.viewerWidthMinMax model dispatch
                 newWidth
-                |> max DiagramStyle.minViewerWidth
-                |> min (WaveformSimulationView.maxViewerWidth model dispatch)//(windowX - 200)
+                |> max minW
+                |> min maxW
             SetViewerWidth w |> dispatch
             SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
         | DragModeOn _, _ ->  SetDragMode DragModeOff |> dispatch

@@ -27,6 +27,8 @@ let getCurrFile (model: DiagramModelType.Model) =
     | Some proj -> proj.OpenFileName
     | None -> failwith "getCurrFile called when model.CurrProject is None"
 
+let currWS (model: DiagramModelType.Model) = (fst model.WaveSim).[getCurrFile model]
+
 let private displayFileErrorNotification err dispatch =
     errorNotification err CloseFilesNotification
     |> SetFilesNotification |> dispatch
@@ -357,7 +359,7 @@ let selected2portLst model (simData: SimulatorTypes.SimulationData) : WaveSimPor
 
 let reloadablePorts (model: DiagramModelType.Model) (simData: SimulatorTypes.SimulationData) = 
     let inGraph port = Map.exists (fun key _ -> key = port.CId) simData.Graph
-    Array.filter inGraph model.WaveSim.[getCurrFile model].Ports
+    Array.filter inGraph (currWS model).Ports
     |> Array.map (fun port -> 
         match port.TrgtId with
         | Some trgtId when Map.exists (fun key _ -> key = trgtId) simData.Graph ->   
@@ -532,10 +534,10 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
     | Some (Ok simData), _ -> 
         SetViewerWidth 475 |> dispatch      
         let ports' = portsFunc model simData
-        match Map.tryFind (getCurrFile model) model.WaveSim with
+        match Map.tryFind (getCurrFile model) (fst model.WaveSim) with
         | Some wSMod -> 
             let simData' = extractSimData simData wSMod.LastClk  
-            Ok { model.WaveSim.[getCurrFile model] with 
+            Ok { currWS model with 
                      SimData = simData'
                      WaveNames = extractWaveNames simData model portsFunc
                      WaveData = extractWaveData model portsFunc simData'
@@ -563,9 +565,9 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
             // dependency.
             (simError.ComponentsAffected, simError.ConnectionsAffected)
             |> SetHighlighted |> dispatch
-        Error simError |> StartWaveSim
+        Some simError |> Error |> StartWaveSim
     | _, Some m -> 
-        match Map.tryFind (getCurrFile model) model.WaveSim with
+        match Map.tryFind (getCurrFile model) (fst model.WaveSim) with
         | Some wSMod -> Ok wSMod |> StartWaveSim
         | None -> initFileWS model   
     | _, _ -> failwith "What? This case shouldn't happen"
@@ -707,7 +709,10 @@ let viewTopMenu model dispatch =
                     Navbar.Item.div [] [
                         let butOptions = 
                             match model.CurrentSelected with
-                            | [], [] -> []
+                            | [], [] -> 
+                              [ Button.OnClick (fun _ -> 
+                                  ChangeRightTab WaveSim |> dispatch
+                                  simLst model dispatch selected2portLst |> dispatch ) ]
                             | _ -> 
                               [ Button.Color IsSuccess 
                                 Button.OnClick (fun _ -> 

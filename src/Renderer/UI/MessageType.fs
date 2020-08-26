@@ -114,7 +114,7 @@ type Msg =
     | JSDiagramMsg of JSDiagramMsg
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
-    | StartWaveSim of Result<WaveSimModel, SimulationError>
+    | StartWaveSim of Result<WaveSimModel, (SimulationError option)>
     | AddWaveSimFile of string * WaveSimModel
     | SetSimulationGraph of SimulationGraph
     | SetSimulationBase of NumberBase

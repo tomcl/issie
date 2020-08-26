@@ -113,7 +113,7 @@ $sigLineThick: 0.025;
 
 .cursorDivStyle { 
     float: right;
-    width: 5%;
+    width: 150px;
     position: relative;
 }
 
@@ -122,7 +122,7 @@ $sigLineThick: 0.025;
     position: absolute;
     bottom: 4%;
     right: 2%;
-    width: 25%;
+    width: 120px;
 }
 
 .waveNamesCol {
@@ -131,29 +131,30 @@ $sigLineThick: 0.025;
     white-space: nowrap;
     vertical-align: bottom;
     font-size: 12px;
-    min-width: 25px;
-    width: 25px;
+    min-width: 100px;
 }
 
 .cursValsCol {
     vertical-align: bottom;
     font-size: 12px;
-    min-width: 15px;
-    width: 15px;
+    min-width: 25px;
 }
 
 
-.waveSimTableStyle {
-    border-top: 2px solid rgb(219,219,219);
+.leftTable {
+    border: 2px solid rgb(219,219,219);
     width: 100%;
-    height: 93%;
+    height: 100%;
     border-spacing: 0;
 }
 
-.wavesColTableStyle {
-    height: 100%;
+.wavesTable {
+    min-height: 100%;
+    height: fit-content;
     position: relative;
-    border-right: 2px solid rgb(219,219,219);
+    border: 2px solid rgb(219,219,219);
+    overflow-x: scroll;
+
 }
 
 .checkboxCol {
@@ -162,28 +163,62 @@ $sigLineThick: 0.025;
     width: 5px;
 }
 
+.wACheckboxCol {
+    vertical-align: bottom;
+    width: 5px;
+}
 
+.check {
+    margin: 0 5px 0 5px;
+    cursor: pointer;
+}
+
+.rightSectionTabs {
+    font-size: 80%; 
+    overflow-x: hidden; 
+    height: 33px;
+}
 
 //buttons
 
+.disabledButton {
+    pointer-events: none;
+    cursor: not-allowed;
+    opacity: 0.65;
+    filter: alpha(opacity=65);
+    -webkit-box-shadow: none;
+    box-shadow: none;
+}
+
 .reloadButtonStyle {
-    padding: 0% 0%;
-    margin: 0 2px 0 2px;
-    width: 60px;
+    margin: 0 20px 0 20px;
+    width: 100px;
     height: 30px;
     position: relative;
-    color: red;
     float: left;
+    border-color: gray;
+    border-width: 1px
+}
+
+%waveNameHeaderBut {
+    margin: 0;
+    height: 30px;
+    float: left;
+    position: relative;
+    border-color: gray;
+    border-width: 1px;
+    border-radius: 0;
 }
 
 .newWaveButton {
-    margin: 0 2px 0 2px;
-    padding: 0 0;
-    height: 100%;
-    width: 33%;
-    font-size: 80%;
-    position: relative;
-    float: left;
+    @extend %waveNameHeaderBut;
+    width: 100%;
+}
+
+.delWaveButton {
+    @extend %waveNameHeaderBut;
+    margin: 0 0 0 0;
+    width: 50%;
 }
 
 .newWaveLabel {
@@ -191,16 +226,19 @@ $sigLineThick: 0.025;
     position: relative;
     float: left;
     vertical-align: bottom;
+    background: #48c774;
+    border: thin;
 }
 
 .updownDiv {
-    width: 45%;
+    width: 50%;
     position: relative;
-    height: 100%;
+    height: 30px;
     float: left;
 }
 
-.updownButton {
+.updownBut {
+    margin: 0;
     display: block;
     width: 100%;
     height: 50%;
@@ -208,91 +246,69 @@ $sigLineThick: 0.025;
     top: 0;
     font-size: 40%;
     position: relative;
-}
-
-.zoomButtonStyle {
-    padding: 0% 0%;
-    width: 20%;
-    height: 20%;
-    color: red;
-    position: relative;
-    float: left;
-}
-
-//limits groups
-.limits-group {
-    float: left;
-    position: relative;
-    height: 30px;
-    text-align: center;
-    width: 200px;
-    display: inline-block;
-    font-size: 13px;
-    margin: 0 10px 0 10px;
-    resize: vertical;
-}
-
-.limits-but-div {
-    width: 20px;
-    position: relative;
-    height: 100%;
-    float: left;
-}
-
-.limits-form {
-    float: left;
-    position: relative;
-    height: 100%;
-    text-align: center;
-    width: 30px;
-    display: inline-block;
-    font-size: 13px;
-    resize: vertical;
-    -webkit-appearance: none;
-}
+    color: white;
+    background: #3273dc;
+    border-color: gray;
+    border-width: 1px;
+    border-radius: 0;
+} 
 
 //cursor group
 
-.cursor-group {
+.cursor {
     float: right;
     position: relative;
     height: 30px;
     text-align: center;
-    width: 80px;
+    width: 100px;
     display: inline-block;
     font-size: 13px;
-    margin: 0 10px 0 10px;
+    margin: 0 20px 0 20px;
     resize: vertical;
+
+    .form {
+        margin: 0 0 0 0;
+        float: left;
+        text-align: center;
+        width: 40px;
+        display: inline-block;
+        font-size: 13px;
+        resize: vertical;
+        -webkit-appearance: none;
+        border-color: gray;
+        border-width: 1px 0 1px 0;
+    }
 }
 
-.cursor-form {
-    float: left;
-    position: relative;
-    height: 100%;
-    text-align: center;
-    width: 50%;
-    display: inline-block;
-    font-size: 13px;
-    resize: vertical;
-    -webkit-appearance: none;
-}
-
-.button-plus {
-    float: right;
-    font-weight: bold;
-    height: 100%;
+%cursBut {
+    margin: 0;
+    height: 30px;
     padding: 0;
-    width: 25%;
+    width: 30px;
     position: relative;
+    color: white;
+    border: rgb(128, 128, 128);
+    float: left;
+    border-color: gray;
+    border-width: 1px;
 }
 
-.button-minus {
-    float: left;
-    font-weight: bold;
-    height: 100%;
-    padding: 0;
-    width: 25%;
-    position: relative;
+.cursLeft {
+    @extend %cursBut;
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    background: #3273dc;
+}
+
+.cursRight {
+    @extend %cursBut;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    background: #3273dc;
 }
 
 input::-webkit-inner-spin-button {
@@ -305,3 +321,28 @@ input::-webkit-inner-spin-button {
     float: left;
     position: relative;
 }
+
+%zoomBut {
+    padding: 0 0;
+    width: 30px;
+    height: 30px;
+    background: #3273dc;
+    color: white;
+    position: relative;
+    float: left;
+    border-color: gray;
+    border-width: 1px
+}
+
+.zoomButLeft {
+    @extend %zoomBut;
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+.zoomButRight {
+    @extend %zoomBut;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+

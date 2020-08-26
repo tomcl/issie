@@ -377,11 +377,11 @@ type Draw2dWrapper() =
         |> tryActionWithCanvas "UnHighlightComponent"
     
     /// Highlight a specific connection
-    member this.HighlightConnection connectionId =
+    member this.HighlightConnection connectionId color =
         fun c ->
             let conn =
                 assertNotNull (draw2dLib.getConnectionById c connectionId) "HighlightConnection"
-            draw2dLib.setConnectionColor conn "red"
+            draw2dLib.setConnectionColor conn color
             draw2dLib.setConnectionStroke conn 3
         |> tryActionWithCanvas "HighlightConnection"
 

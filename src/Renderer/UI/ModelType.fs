@@ -33,7 +33,7 @@ type Model = {
     Simulation : Result<SimulationData,SimulationError> option // None if no simulation is running.
     WaveSim : Map<string, WaveSimModel> * (SimulationError option)
     RightTab : RightTab
-    Hilighted : ComponentId list * ConnectionId list
+    Hilighted : (ComponentId list * ConnectionId list) * ConnectionId list
     Clipboard : CanvasState // Components and connections that have been selected and copied.
     CreateComponent : Component option // Track the last added component
     HasUnsavedChanges : bool

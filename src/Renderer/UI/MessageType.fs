@@ -122,6 +122,7 @@ type Msg =
     | EndSimulation
     | ChangeRightTab of RightTab
     | SetHighlighted of ComponentId list * ConnectionId list
+    | SetSelWavesHighlighted of ConnectionId list
     | SetClipboard of CanvasState
     | SetCreateComponent of Component
     | SetProject of Project

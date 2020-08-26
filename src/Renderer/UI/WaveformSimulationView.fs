@@ -149,9 +149,9 @@ let toggleSelect ind model =
                                 if i = ind then not old else old) model.Selected }
     |> Ok |> StartWaveSim
 
-let highlight (model: DiagramModelType.Model) st (p, sel) =
-    match model.Diagram.GetCanvasState (), sel with
-    | Some s, true -> 
+let port2ConnId (model: DiagramModelType.Model) p =
+    match model.Diagram.GetCanvasState () with
+    | Some s -> 
         let outPN = match p.OutPN with
                     | OutputPortNumber n -> n
         List.map extractComponent (fst s)
@@ -164,17 +164,18 @@ let highlight (model: DiagramModelType.Model) st (p, sel) =
                 |> List.tryPick (fun conn -> if conn.Source.Id = portId then Some conn.Id else None)
                 |> function
                    | Some connId -> 
-                        [ConnectionId connId]
+                        [ ConnectionId connId ]
                    | None -> []
            | None -> []
-        |> (fun newEntry -> fst st, List.append (snd st) newEntry)
-    | _, false -> st
-    | None, _ -> failwith "highlight called when canvas state is None"
+    | None -> failwith "highlight called when canvas state is None"
 
 let setHighlightedConns (model: DiagramModelType.Model) =
     Array.zip (currWS model).Ports (currWS model).Selected
-    |> Array.fold (highlight model) (fst model.Hilighted, []) 
-    |> SetHighlighted
+    |> Array.filter snd
+    |> Array.map fst
+    |> Array.toList
+    |> List.collect (port2ConnId model)
+    |> SetSelWavesHighlighted
 
 let allSelected model = Array.forall ((=) true) model.Selected
 let anySelected model = Array.contains true model.Selected
@@ -190,7 +191,7 @@ let makeSegment (clkW: float) portSelected (xInd: int) (data: Sample) (trans: in
     let right = left + float clkW
 
     let makeSigLine = makeLinePoints [ Class "sigLineStyle"
-                                       Style [ Stroke (if portSelected then "red" else "blue") ] ]
+                                       Style [ Stroke (if portSelected then "green" else "blue") ] ]
 
     match data with
     | Wire w when w.NBits = 1u ->
@@ -710,7 +711,7 @@ let nameLabelsCol (model: DiagramModelType.Model) labelRows dispatch =
             [ Button.button [ Button.CustomClass "newWaveButton"
                               Button.Color IsSuccess
                               Button.OnClick (fun _ -> openWaveAdder model dispatch) ]
-                            [ str "+ wave" ] ]
+                            [ str "Edit list..." ] ]
         |> (fun children -> th [ Class "waveNamesCol" ] children)
 
     let top =

@@ -370,7 +370,7 @@ let reloadablePorts (model: DiagramModelType.Model) (simData: SimulatorTypes.Sim
 
 let limBits (name: string) : (int*int) option =
     match Seq.tryFind ((=)'[') name, Seq.tryFind ((=)':') name, Seq.tryFind ((=)']') name with
-    | Some, Some, Some ->
+    | Some _, Some _, Some _ ->
        ( name.[Seq.findIndexBack ((=)'[') name + 1..Seq.findIndexBack ((=)':') name - 1 ], name.[Seq.findIndexBack ((=)':') name + 1..Seq.findIndexBack ((=)']') name - 1 ] )
        |> (fun (a,b) -> int a, int b)
        |> Some

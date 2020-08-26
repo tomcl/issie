@@ -267,15 +267,18 @@ let makeGaps trans =
         {| GapLen = Array.max times - Array.min times + 1
            GapStart = Array.min times |})
 
-let busLabels model =
+let busLabels (model: DiagramModelType.Model) =
+    let wSMod = model.WaveSim.[getCurrFile model]
+    let clkWidth = int wSMod.ClkWidth
     let gaps2pos (wave: Waveform) gaps =
-        let nSpaces (g: {| GapLen: int; GapStart: int |}) = (g.GapLen / (maxBusValGap + 1) + 2)
+        let nSpaces (g: {| GapLen: int; GapStart: int |}) = 
+            (g.GapLen * clkWidth / (maxBusValGap + 1) + 2)
         let gapAndInd2Pos (g: {| GapLen: int; GapStart: int |}) i =
             float g.GapStart + float i * float g.GapLen / float (nSpaces g)
         gaps
         |> Array.map (fun (gap: {| GapLen: int; GapStart: int |}) ->
             wave.[gap.GapStart], Array.map (gapAndInd2Pos gap) [| 1 .. nSpaces gap - 1 |])
-    (model2WaveList model, Array.map makeGaps (transitions model))
+    (model2WaveList wSMod, Array.map makeGaps (transitions wSMod))
     ||> Array.map2 gaps2pos
 
 let cursValStrings model =
@@ -325,7 +328,7 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
                 | StateSample ss ->
                     Array.collect (fun xInd -> Array.mapi (addLabel (Array.length ss) xInd) ss) xIndArr
                 | _ -> [||]
-            busLabels wsMod |> Array.map (Array.collect lblEl)
+            busLabels model |> Array.map (Array.collect lblEl)
 
         let makeWaveSvg (portSelected: bool) (sampArr: Waveform) (transArr: (int*int) []) : ReactElement [] = 
             (sampArr, transArr)
@@ -406,24 +409,61 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
 
 // view function helpers
 
-let zoom plus (m: WaveSimModel) =
-    let newZoom = 
+let maxViewerWidth (model: DiagramModelType.Model) dispatch = 
+    let maxWidth wSMod =
+        let strWidth s = JSHelpers.getTextWidthInPixels(s, "12px segoe ui") //not sure which font
+        let curLblColWidth =
+            match cursValStrings wSMod with
+            | [||] -> 0.0
+            | cVS -> 
+                Array.map (Array.map strWidth >> Array.max) cVS
+                |> Array.max
+                |> max 25.0
+        let namesColWidth =
+            match wSMod.WaveNames with
+            | [||] -> 0.0
+            | wN ->
+                Array.map strWidth wN
+                |> Array.max
+                |> max 100.0
+        let waveColWidth = 
+            match wSMod.Ports with
+            | [||] -> 600.0
+            | _ -> maxWavesColWidthFloat wSMod
+        let checkboxCol = 25.0
+        let extraWidth = 43.5
+        curLblColWidth + namesColWidth + waveColWidth + checkboxCol + extraWidth
+        |> int
+
+    match model.CurrProject with
+    | Some proj -> 
+        match Map.tryFind proj.OpenFileName model.WaveSim with
+        | Some wSMod -> maxWidth wSMod
+        | None -> 
+            initFileWS model |> dispatch
+            int Browser.Dom.self.innerWidth 
+    | None -> int Browser.Dom.self.innerWidth
+
+let updateWidth (model: DiagramModelType.Model) dispatch =
+    let currWid = model.ViewerWidth
+    match  maxViewerWidth model dispatch with
+    | maxW when maxW < currWid -> 
+        maxW |> SetViewerWidth |> dispatch
+    | _ -> ()
+
+let zoom plus (m: DiagramModelType.Model) dispatch =
+    let wSMod = m.WaveSim.[getCurrFile m]
+    let newClkWid =
         if plus then zoomFactor else 1.0 / zoomFactor
-        |> (*) m.ClkWidth
-    match newZoom with 
-    | w when w > maxZoom -> { m with ClkWidth = maxZoom }
-    | w -> { m with ClkWidth = w }
-    |> Ok |> StartWaveSim
+        |> (*) wSMod.ClkWidth
+        |> function 
+           | w when w > maxZoom -> { wSMod with ClkWidth = maxZoom }
+           | w -> { wSMod with ClkWidth = w }
+    updateWidth m dispatch
+    newClkWid |> Ok |> StartWaveSim |> dispatch
 
-let button style func label =
-    Button.button (List.append [ Button.Props style ] [ Button.OnClick func ]) [ str label ]
-
-let buttonOriginal style func label =
-    input
-        [ Type "button"
-          Value label
-          style
-          OnClick func ]
+let button options func label =
+    Button.button (List.append options [ Button.OnClick func ]) [ str label ]
 
 let radixString rad =
     match rad with
@@ -570,7 +610,7 @@ let cursorButtons (model: DiagramModelType.Model) dispatch =
                     | true, n when n >= 0 -> changeCurs model (uint n) |> dispatch
                     | _ -> () )
           ]
-          button [Class "cursRight"] (fun _ -> cursorMove true model |> dispatch) "▶" ] 
+          button [Button.CustomClass "cursRight"] (fun _ -> cursorMove true model |> dispatch) "▶" ] 
 
 let canReload (model: DiagramModelType.Model) = 
     match model.WaveSim.[getCurrFile model].LastCanvasState <> model.Diagram.GetCanvasState(), 
@@ -581,9 +621,10 @@ let canReload (model: DiagramModelType.Model) =
 let reloadButStyle model dispatch = 
     match canReload model with
     | true -> [ Button.Color IsSuccess
-                Button.OnClick (fun _ ->
-                    simLst model dispatch reloadablePorts 
-                    |> StartWaveSim |> dispatch) ] 
+                Button.OnClick 
+                    (fun _ ->
+                        simLst model dispatch reloadablePorts 
+                        |> dispatch) ] 
     | false -> []
     |> List.append [ Button.CustomClass "reloadButtonStyle" ]
 
@@ -648,7 +689,7 @@ let simulateAddWave (model: DiagramModelType.Model) dispatch =
     let ports' = 
         Array.filter (fun (_, s) -> s) wA.Ports
         |> Array.map fst
-    simLst model dispatch (fun _ _ -> ports') |> StartWaveSim |> dispatch
+    simLst model dispatch (fun _ _ -> ports') |> dispatch
     (*let simData' = 
         match fst (makeSimData model) with 
         | Some (Ok sD) -> extractSimData sD wSMod.LastClk
@@ -731,11 +772,11 @@ let viewWaveformViewer model dispatch =
 
 let viewZoomDiv model dispatch =
     div [ Class "zoomDiv" ]
-        [ button [Class "zoomButLeft"] (fun _ -> zoom false model |> dispatch) "-"
+        [ button [Button.CustomClass "zoomButLeft"] (fun _ -> zoom false model dispatch) "-"
           //let svgPath = Path.Combine(staticDir(), "hzoom-icon.svg")
           //let svgPath = staticDir() + "\hzoom-icon.svg"
           //embed [ Src svgPath ]
-          button [Class "zoomButRight"] (fun _ -> zoom true model |> dispatch) "+" ] 
+          button [Button.CustomClass "zoomButRight"] (fun _ -> zoom true model dispatch) "+" ] 
 
 let waveAdderTopRow model (wA: WaveAdderModel) dispatch =
     tr [ Class "rowHeight"; Style [VerticalAlign "middle"] ] 
@@ -804,7 +845,7 @@ let waveformsView model dispatch =
     [ div [ Style [Width "calc(100% - 10px)"; Height "100%"; MarginLeft "0%"; MarginTop "0px"; OverflowX OverflowOptions.Hidden ] ] 
     [ viewWaveSimButtonsBar model dispatch
       viewWaveformViewer model dispatch
-      viewZoomDiv model.WaveSim.[getCurrFile model] dispatch ] ]
+      viewZoomDiv model dispatch ] ]
 
 let viewWaveSim (model: DiagramModelType.Model) dispatch =
     match Map.exists (fun k _ -> k = (getCurrFile model)) model.WaveSim with
@@ -823,5 +864,5 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
             setHighlightedConns model |> dispatch
             waveformsView model dispatch
     | false -> 
-        model |> getCurrFile |> AddWaveSimFile |> dispatch
+        initFileWS model |> dispatch
         []

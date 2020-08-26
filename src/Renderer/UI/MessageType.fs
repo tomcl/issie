@@ -115,7 +115,7 @@ type Msg =
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
     | StartWaveSim of Result<WaveSimModel, SimulationError>
-    | AddWaveSimFile of string
+    | AddWaveSimFile of string * WaveSimModel
     | SetSimulationGraph of SimulationGraph
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick

@@ -539,7 +539,7 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
                      SimData = simData'
                      WaveNames = extractWaveNames simData model portsFunc
                      WaveData = extractWaveData model portsFunc simData'
-                     Selected = Array.map (fun _ -> true) ports' 
+                     Selected = Array.map (fun _ -> false) ports' 
                      Ports = ports'
                      WaveAdder = initWA
                      LastCanvasState = model.Diagram.GetCanvasState() } 
@@ -551,7 +551,7 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
                  SimData = simData'
                  WaveNames = extractWaveNames simData model portsFunc
                  WaveData = extractWaveData model portsFunc simData'
-                 Selected = Array.map (fun _ -> true) ports' 
+                 Selected = Array.map (fun _ -> false) ports' 
                  Ports = ports'
                  WaveAdder = initWA
                  LastCanvasState = model.Diagram.GetCanvasState() } ) 

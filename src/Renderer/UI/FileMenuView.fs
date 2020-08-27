@@ -536,7 +536,7 @@ let wSPort2Name simGraph p =
         | lst when List.length lst > 0 ->
             let appendName st (name, bitLims) = st + name + bitNums bitLims + ", "
             List.fold appendName "{ " lst |> (fun lbl -> lbl.[0..String.length lbl - 3] + " }")
-        | _ -> failwith "Signal doesn't have a name source"
+        | _ -> ""
     match outNameOpt with
     | Some outName -> outName + tl
     | None -> tl

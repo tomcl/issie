@@ -438,9 +438,9 @@ let radixString rad =
     | Hex -> "Hex"
     | SDec -> "sDec"
 
-let appendSimData model nCycles = 
-    extractSimData (Array.last model.SimData) nCycles 
-    |> Array.append model.SimData
+let appendSimData wSMod nCycles = 
+    extractSimData (Array.last wSMod.SimData) nCycles 
+    |> Array.append wSMod.SimData
 
 let changeTopInd newVal (model: DiagramModelType.Model) =
     let wsMod = (currWS model)
@@ -851,7 +851,8 @@ let viewWaveSim (model: DiagramModelType.Model) dispatch =
               (snd model.WaveSim) with
         | true, None ->
             let wSMod = (currWS model)
-            match wSMod.Ports, (wSMod.WaveAdder <> initWA), (wSMod.LastCanvasState = model.Diagram.GetCanvasState()) with
+            match wSMod.Ports, (wSMod.WaveAdder <> initWA), 
+                  (wSMod.LastCanvasState = model.Diagram.GetCanvasState()) with
             | _, true, true -> waveAdderView model dispatch
             | [||], _, _ ->
                 setHighlightedConns model |> dispatch

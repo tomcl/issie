@@ -331,14 +331,8 @@ let update msg model =
     // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).
     | StartSimulation simData -> { model with Simulation = Some simData }
     | SetCurrFileWSMod wSMod' -> 
-        let changeKey map key data =
-            match Map.exists (fun k _ -> k = key) map with
-            | true ->
-                Map.map (fun k d -> if k = key then data else d) map
-            | false -> 
-                failwith "StartWaveSim dispatched when the current file entry is missing in WaveSim"
         let fileName = FileMenuView.getCurrFile model
-        { model with WaveSim = changeKey (fst model.WaveSim) fileName wSMod', 
+        { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), 
                                snd model.WaveSim }
     | SetWSError err -> { model with WaveSim = fst model.WaveSim, err }
     | AddWaveSimFile (fileName, wSMod') ->

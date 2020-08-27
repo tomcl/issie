@@ -41,10 +41,10 @@ let author = "tomcl"
 let solutionFile  = "issie.sln"
 
 // Build docs website root
-let website = "https://tomcl.github.io/issie/"
+let website = "https://tomcl.github.io/issie/docs"
 
 // Github repository
-let repo = @"https://github.com/tomcl/ISSIE"
+let repo = @"https://github.com/tomcl/issie"
 
 // Web or JS related fs projects
 // Projects that have bindings to other languages where name linting needs to be more relaxed.

@@ -2,36 +2,25 @@
   "name": "issie",
   "version": "0.5.0",
   "description": "Schematic editor and Simulator",
-  "homepage": "https://github.com/tomcl/ISSIE",
+  "homepage": "https://github.com/tomcl/issie",
   "bugs": {
-    "url": "https://github.com/tomcl/ISSIE/issues"
+    "url": "https://github.com/tomcl/issie/issues"
   },
   "license": "",
   "author": "tomcl",
   "main": "app/main.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tomcl/ISSIE.git"
+    "url": "https://github.com/tomcl/issie.git"
   },
   "scripts": {
+    "clean-dev-mac": "sudo killall -9 node && sudo killall -9 dotnet && sudo killall -9 issie",
+    "clean-dev-win": "taskkill /f /im node.exe && taskkill /f /im dotnet.exe && taskkill /f /im issie.exe",
     "compile": "electron-webpack",
     "dev": "electron-webpack dev",
     "dist": "yarn compile && electron-builder",
-    "clean-dev-mac": "sudo killall -9 node && sudo killall -9 dotnet && sudo killall -9 issie",
-    "clean-dev-win": "taskkill /f /im node.exe && taskkill /f /im dotnet.exe && taskkill /f /im issie.exe",
-    "distwin": "yarn build && electron-builder -w",
-    "distwinzip": "electron-builder -w --dir -c.compression=store -c.mac.identity=null",
-    "launch": "electron .",
-    "make-osx-dmg": "yarn electron-installer-dmg --overwrite --icon=app/icon.ico dist/deflow-darwin-x64 dist/deflow-osx",
-    "pack-all": "yarn run build && yarn pack-nobuild-win && yarn pack-nobuild-linux && yarn pack-nobuild-osx",
-    "pack-linux": "yarn build && yarn pack-nobuild-linux",
-    "pack-nobuild-linux": "electron-packager . DEflow --platform=linux --arch=x64 --out=dist --prune --asar --ignore=/dist --ignore=/src --overwrite && yarn cross-zip dist/deflow-linux-x64",
-    "pack-nobuild-osx": "electron-packager . DEflow --platform=darwin --arch=x64 --out=dist --prune --asar --ignore=/dist --ignore=/src --overwrite --icon=app/icon.ico && yarn make-osx-dmg",
-    "pack-nobuild-win": "electron-packager . DEflow --platform=win32 --arch=x64 --out=dist --prune --ignore=/dist --ignore=/src --overwrite --icon=app/icon.ico && yarn cross-zip dist/deflow-win32-x64",
-    "pack-osx": "yarn build && yarn pack-nobuild-osx && yarn make-osx-dmg",
-    "pack-win": "yarn build && yarn pack-nobuild-win",
-    "start": "electron-webpack dev"
-  },
+    "distwin": "yarn build && electron-builder -w"
+    },
   "electronWebpack": {
     "main": {
       "sourceDirectory": "src/Main",

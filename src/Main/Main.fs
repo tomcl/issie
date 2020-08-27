@@ -69,7 +69,10 @@ let createMainWindow () =
         options.frame <- true
         options.hasShadow <- true
         options.backgroundColor <-  "#5F9EA0"
-        options.icon <- (U2.Case2 (path.join(staticDir(), "icon.ico")))
+        // fix for icons not working on linux
+        // requires better solution for dist, maybe
+        if Api.``process``.platform <> Base.Linux then
+            options.icon <- (U2.Case2 (path.join(staticDir(), "icon.ico")))
         options.title <- "ISSIE"
         options.webPreferences <-
             jsOptions<WebPreferences> <| fun o ->

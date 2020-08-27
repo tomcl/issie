@@ -398,7 +398,7 @@ let rec findName (simGraph: SimulatorTypes.SimulationGraph) ({ CId = compId; Out
     match simGraph.[compId].Type with
     | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 -> 
         [ compLbl, (0,0) ]
-    | Input w | Output w -> 
+    | Input w | Output w | Constant (w,_) -> 
         [ compLbl, (w-1,0) ]
     | Demux2 -> 
         [ compLbl + "_" + string outPortInt, (0, 0) ]

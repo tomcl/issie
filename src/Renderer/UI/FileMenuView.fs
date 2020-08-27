@@ -767,10 +767,7 @@ let viewTopMenu model dispatch =
                           [ Navbar.Item.div []
                                 [ let butOptions =
                                     match model.CurrentSelected with
-                                    | [], [] ->
-                                        [ Button.OnClick(fun _ ->
-                                            ChangeRightTab WaveSim |> dispatch
-                                            simLst model dispatch selected2portLst |> dispatch) ]
+                                    | [], [] -> []
                                     | _ ->
                                         [ Button.Color IsSuccess
                                           Button.OnClick(fun _ ->

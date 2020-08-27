@@ -121,6 +121,7 @@ type Msg =
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick
     | EndSimulation
+    | EndWaveSim
     | ChangeRightTab of RightTab
     | SetHighlighted of ComponentId list * ConnectionId list
     | SetSelWavesHighlighted of ConnectionId list

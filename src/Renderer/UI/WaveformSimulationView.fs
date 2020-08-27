@@ -845,29 +845,33 @@ let waveformsView model dispatch =
             viewZoomDiv model dispatch ] ]
 
 let viewWaveSim (model: DiagramModelType.Model) dispatch =
-    match Map.exists (fun k _ -> k = (getCurrFile model)) (fst model.WaveSim), (snd model.WaveSim) with
-    | true, None ->
-        let wSMod = (currWS model)
-        match wSMod.Ports, (wSMod.WaveAdder <> initWA), (wSMod.LastCanvasState = model.Diagram.GetCanvasState()) with
-        | _, true, true -> waveAdderView model dispatch
-        | [||], _, _ ->
-            setHighlightedConns model |> dispatch
-            openWaveAdder model dispatch
-            waveAdderView model dispatch
-        | _ ->
-            setHighlightedConns model |> dispatch
-            waveformsView model dispatch
-    | true, Some simError ->
-        [ div
-            [ Style
-                [ Width "90%"
-                  MarginLeft "5%"
-                  MarginTop "15px" ] ]
-              [ SimulationView.viewSimulationError simError
-                button [ Button.Color IsDanger ] (fun _ ->
-                    None
-                    |> SetWSError
-                    |> dispatch) "Ok" ] ]
-    | false, _ ->
-        initFileWS model |> dispatch
-        []
+    match model.CurrProject with
+    | Some proj ->
+        match Map.exists (fun k _ -> k = (getCurrFile model)) (fst model.WaveSim), 
+              (snd model.WaveSim) with
+        | true, None ->
+            let wSMod = (currWS model)
+            match wSMod.Ports, (wSMod.WaveAdder <> initWA), (wSMod.LastCanvasState = model.Diagram.GetCanvasState()) with
+            | _, true, true -> waveAdderView model dispatch
+            | [||], _, _ ->
+                setHighlightedConns model |> dispatch
+                openWaveAdder model dispatch
+                waveAdderView model dispatch
+            | _ ->
+                setHighlightedConns model |> dispatch
+                waveformsView model dispatch
+        | true, Some simError ->
+            [ div
+                [ Style
+                    [ Width "90%"
+                      MarginLeft "5%"
+                      MarginTop "15px" ] ]
+                  [ SimulationView.viewSimulationError simError
+                    button [ Button.Color IsDanger ] (fun _ ->
+                        None
+                        |> SetWSError
+                        |> dispatch) "Ok" ] ]
+        | false, _ ->
+            initFileWS model |> dispatch
+            []
+    | None -> []

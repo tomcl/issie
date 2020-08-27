@@ -194,6 +194,7 @@ let addFileToProject model dispatch =
 /// Close current project, if any.
 let private closeProject model dispatch _ =
     dispatch EndSimulation // End any running simulation.
+    dispatch EndWaveSim
     dispatch CloseProject
     model.Diagram.ClearCanvas()
 

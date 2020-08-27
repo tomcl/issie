@@ -353,6 +353,7 @@ let update msg model =
         let simData = getSimulationDataOrFail model "IncrementSimulationClockTick"
         { model with Simulation = { simData with ClockTickNumber = simData.ClockTickNumber+1 } |> Ok |> Some }
     | EndSimulation -> { model with Simulation = None }
+    | EndWaveSim -> { model with WaveSim = (Map.empty, None) }
     | ChangeRightTab newTab -> { model with RightTab = newTab }
     | SetHighlighted (componentIds, connectionIds) ->
         let oldComponentIds, oldConnectionIds = fst model.Hilighted

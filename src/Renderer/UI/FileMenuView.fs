@@ -566,9 +566,13 @@ let clkAdvance (sD: SimulatorTypes.SimulationData) =
               Graph = graph
               ClockTickNumber = sD.ClockTickNumber + 1 })
 
-let extractSimData simData nCycles = (simData, [| 1u .. nCycles |]) ||> Array.scan (fun s _ -> clkAdvance s)
+let extractSimData simData nCycles = 
+    (simData, [| 1u .. nCycles |]) 
+    ||> Array.mapFold (fun s _ -> clkAdvance s, clkAdvance s)
+    |> fst
 
-let extractWaveData model portFunc simDataArr: SimTime [] = simDataArr |> Array.map (extractSimTime model portFunc)
+let extractWaveData model portFunc simDataArr: SimTime [] = 
+    simDataArr |> Array.map (extractSimTime model portFunc)
 
 let makeSimData model =
     match model.Diagram.GetCanvasState(), model.CurrProject with
@@ -589,7 +593,7 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
         let ports' = portsFunc model simData
         match Map.tryFind (getCurrFile model) (fst model.WaveSim) with
         | Some wSMod ->
-            let simData' = extractSimData simData wSMod.LastClk
+            let simData' = Array.append [|simData|] <| extractSimData simData wSMod.LastClk
             { currWS model with
                   SimData = simData'
                   WaveNames = extractWaveNames simData model portsFunc
@@ -600,7 +604,7 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
                   LastCanvasState = model.Diagram.GetCanvasState() }
             |> SetCurrFileWSMod
         | None ->
-            let simData' = extractSimData simData 9u
+            let simData' = Array.append [|simData|] <| extractSimData simData initWS.LastClk
             { initWS with
                   SimData = simData'
                   WaveNames = extractWaveNames simData model portsFunc

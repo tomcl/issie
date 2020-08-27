@@ -4,7 +4,7 @@ open DiagramMessageType
 open DiagramModelType
 open Fable.React.Props
 
-let private headerHeight = "52px"
+let private headerHeight = "72px"
 let private rightSectionWidthS = "400px" // Small right section.
 let private rightSectionWidthL = "650px" // Large right section.
 let minViewerWidth = 475

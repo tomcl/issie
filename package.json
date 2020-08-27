@@ -20,7 +20,7 @@
     "dev": "electron-webpack dev",
     "dist": "yarn compile && electron-builder",
     "distwin": "yarn build && electron-builder -w"
-    },
+  },
   "electronWebpack": {
     "main": {
       "sourceDirectory": "src/Main",

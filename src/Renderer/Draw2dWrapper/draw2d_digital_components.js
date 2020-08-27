@@ -113,7 +113,7 @@ draw2d.shape.digital.Constant = draw2d.shape.digital.extend({
         let hex = this.constValue.toString(16);
         let bitsLabel = (this.numberOfBits === 1) ? `${hex}` : `0x${hex}`;
         let size = "11";
-        let hPos = 0;
+        let hPos = (this.numberOfBits === 1) ? 0.6*22 : 0
 
         return [
             { path: '<polygon points="0,0 10,10 0,20" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true },
@@ -124,9 +124,10 @@ draw2d.shape.digital.Constant = draw2d.shape.digital.extend({
     setSvgWidth: function () {
         let hex = this.constValue.toString(16);
         let bitsLabel = (this.constWidth === 1) ? `${hex}`  : `0x${hex}`;
-        let offset = bitsLabel.length * 6;
+        let offset = Math.max(3, bitsLabel.length) * 0.6 * 11;
         this.svgHeight = 32;
         this.svgWidth = offset;
+        this.width = offset;
     },
 
     init: function (attr, setter, getter) {
@@ -134,11 +135,11 @@ draw2d.shape.digital.Constant = draw2d.shape.digital.extend({
         this.numberOfBits = attr.numberOfBits;
         let hex = this.constValue.toString(16);
         let bitsLabel = (this.numberOfBits === 1) ? `${hex}` : `0x${hex}`;
-        let offset = Math.max(10,bitsLabel.length * 6);
+        let offset = Math.max(3, bitsLabel.length) * 0.6 * 11;
         this.setSvgWidth();
         console.log(`constValue=${this.constValue}, offset=${offset}, bits=${this.numberOfBits}`);
         this._super(
-            $.extend({ width: offset+'px', height: this.svgHeight }, attr),
+            $.extend({ width: this.svgWidth, height: this.svgHeight }, attr),
             setter,
             getter
         );
@@ -148,7 +149,7 @@ draw2d.shape.digital.Constant = draw2d.shape.digital.extend({
         this.numberOfBits = attr.numberOfBits;
         this.constValue = attr.constValue;
 
-        this.createDigitalPort("output", new draw2d.layout.locator.XYAbsPortLocator(10,10), this.numberOfBits > 1);
+        this.createDigitalPort("output", new draw2d.layout.locator.XYRelPortLocator(1000 / offset, 31), this.numberOfBits > 1);
     },
 });
 
@@ -220,8 +221,8 @@ draw2d.shape.digital.BusSelection = draw2d.shape.digital.extend({
         this.lsbBitNumber = attr.lsbBitNumber;
 
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), this.numberOfBits + this.lsbBitNumber > 1);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), this.numberOfBits > 1);
     },
 });
 

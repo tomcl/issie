@@ -22,8 +22,6 @@ open PopupView
 open FileMenuView
 open WaveformSimulationView
 
-open Fable.Core
-open Fable.Core.JsInterop
 
 
 // -- Init Model

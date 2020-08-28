@@ -798,4 +798,3 @@ let viewTopMenu model dispatch =
                       Navbar.End.div []
                           [ Navbar.Item.div []
                                 [ Button.button [ Button.OnClick(fun _ -> viewInfoPopup dispatch) ] [ str "Info" ] ] ] ] ] ]
-

@@ -165,11 +165,7 @@ function installSelectionPolicy(comp) {
 }
 
 function createDigitalInput(x, y, numberOfBits) {
-    return new draw2d.shape.digital.Input({ x: x, y: y, numberOfBits: numberOfBits, resizeable: false });
-}
-
-function createDigitalConstant(x, y, numberOfBits, constValue) {
-    return new draw2d.shape.digital.Constant({ x: x, y: y, numberOfBits: numberOfBits, constValue: constValue, resizeable: false });
+    return new draw2d.shape.digital.Input({x:x,y:y,numberOfBits:numberOfBits,resizeable:false});
 }
 
 function createDigitalOutput(x, y, numberOfBits) {
@@ -227,14 +223,6 @@ function createDigitalNbitsAdder(x, y, numberOfBits) {
         y:y,
         resizeable:false,
         numberOfBits:numberOfBits
-    });
-}
-
-function createDigitalDecode4(x, y) {
-    return new draw2d.shape.digital.Decode4({
-        x: x,
-        y: y,
-        resizeable: false,
     });
 }
 
@@ -336,18 +324,6 @@ function setNumberOfBits(comp, numberOfBits) {
     dispatchInferWidthsMessage();
     comp.setSVG(comp.getSVG()); // Refresh svg.
 }
-
-/// Should only be used for Constant components.
-function setConstantNumber(comp, cVal) {
-    if (comp.constValue === null || comp.constValue === "undefined") {
-        throw `Cannot set constValue of component: ${comp.componentType}`;
-    }
-    comp.constValue = cVal;
-    //comp.setSvgWidth();
-    dispatchInferWidthsMessage();
-    comp.setSVG(comp.getSVG()); // Refresh svg.
-}
-
 
 /// Should only be used for Input, Output and NbitsAdder components.
 function setLsbBitNumber(comp, lsbBitNumber) {
@@ -484,7 +460,6 @@ export {
     createDigitalOutput,
     createDigitalLabel,
     createDigitalBusSelection,
-    createDigitalConstant,
     createDigitalNot,
     createDigitalAnd,
     createDigitalOr,
@@ -494,7 +469,6 @@ export {
     createDigitalXnor,
     createDigitalMux2,
     createDigitalDemux2,
-    createDigitalDecode4,
     createDigitalNbitsAdder,
     createDigitalCustom,
     createDigitalMergeWires,
@@ -509,7 +483,6 @@ export {
     createDigitalConnection,
     writeMemoryLine,
     setNumberOfBits,
-    setConstantNumber,
     setLsbBitNumber,
     setTopOutputWidth,
     setRegisterWidth,

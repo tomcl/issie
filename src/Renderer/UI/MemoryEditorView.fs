@@ -28,7 +28,7 @@ let private headerStyle = Style [
     BackgroundColor "white"
     Width "61%"
     Height headerHeight
-    CSSProp.ZIndex 10
+    ZIndex 10
 ]
 let private bodyStyle = Style [
     MarginTop (string headerHeight + "px")

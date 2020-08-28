@@ -96,62 +96,6 @@ draw2d.shape.digital.Input = draw2d.shape.digital.extend({
     },
 });
 
-draw2d.shape.digital.Constant = draw2d.shape.digital.extend({
-
-    NAME: "draw2d.shape.digital.Constant",
-
-    componentType: "Constant",
-    svgHeight: 0,
-    svgWidth: 0,
-    numberOfBits: 1,
-    constValue: 0,
-   
-
-
-
-    getSvgElements: function () {
-        let hex = this.constValue.toString(16);
-        let bitsLabel = (this.numberOfBits === 1) ? `${hex}` : `0x${hex}`;
-        let size = "11";
-        let hPos = (this.numberOfBits === 1) ? 0.6*22 : 0
-
-        return [
-            { path: '<polygon points="0,0 10,10 0,20" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true },
-            { path: `<text x=${hPos} y=21 fill="black" text-anchor="start" font-weight="bolder" font-size="${size}px">${bitsLabel}</text>`, toFill: false }
-        ];
-    },
-
-    setSvgWidth: function () {
-        let hex = this.constValue.toString(16);
-        let bitsLabel = (this.constWidth === 1) ? `${hex}`  : `0x${hex}`;
-        let offset = Math.max(3, bitsLabel.length) * 0.6 * 11;
-        this.svgHeight = 32;
-        this.svgWidth = offset;
-        this.width = offset;
-    },
-
-    init: function (attr, setter, getter) {
-        this.constValue = attr.constValue;
-        this.numberOfBits = attr.numberOfBits;
-        let hex = this.constValue.toString(16);
-        let bitsLabel = (this.numberOfBits === 1) ? `${hex}` : `0x${hex}`;
-        let offset = Math.max(3, bitsLabel.length) * 0.6 * 11;
-        this.setSvgWidth();
-        console.log(`constValue=${this.constValue}, offset=${offset}, bits=${this.numberOfBits}`);
-        this._super(
-            $.extend({ width: this.svgWidth, height: this.svgHeight }, attr),
-            setter,
-            getter
-        );
-
-        console.assert(typeof attr.numberOfBits === "number", "numberOfBits is not a number when creating a Constant node");
-        console.assert(typeof attr.numberOfBits === "number", "value is not a number when creating a Constant node");
-        this.numberOfBits = attr.numberOfBits;
-        this.constValue = attr.constValue;
-
-        this.createDigitalPort("output", new draw2d.layout.locator.XYRelPortLocator(1000 / offset, 31), this.numberOfBits > 1);
-    },
-});
 
 
 draw2d.shape.digital.Output = draw2d.shape.digital.extend({
@@ -162,7 +106,6 @@ draw2d.shape.digital.Output = draw2d.shape.digital.extend({
     svgHeight : 20,
     svgWidth : 30,
     numberOfBits : 1, // TODO: is this necessary? It can be inferred.
-
 
     getSvgElements : function() {
         return [
@@ -221,8 +164,8 @@ draw2d.shape.digital.BusSelection = draw2d.shape.digital.extend({
         this.lsbBitNumber = attr.lsbBitNumber;
 
 
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), this.numberOfBits + this.lsbBitNumber > 1);
-        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), this.numberOfBits > 1);
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
 
@@ -506,47 +449,6 @@ draw2d.shape.digital.Demux2 = draw2d.shape.digital.extend({
         this.createDigitalPort("input", new draw2d.layout.locator.XYRelPortLocator(50, 90), false);
         this.createDigitalPort("output", new draw2d.layout.locator.XYRelPortLocator(100, 30), false);
         this.createDigitalPort("output", new draw2d.layout.locator.XYRelPortLocator(100, 70), false);
-    },
-});
-
-draw2d.shape.digital.Decode4 = draw2d.shape.digital.extend({
-
-    NAME: "draw2d.shape.digital.Decode4",
-
-    componentType: "Decode4",
-    svgHeight: 124,
-    svgWidth: 77,
-
-    getSvgElements: function () {
-        const title = 'decode';
-        return [
-            { path: '<rect width="47" height="124" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true },
-            { path: `<text x="4" y="3" fill="black" font-family="monospace">${title}</text>`, toFill: false },
-            //In
-            { path: '<text x="4" y="35" fill="black" font-family="monospace">Sel</text>', toFill: false },
-            { path: `<text x="4" y="76" fill="black" font-family="monospace">Data</text>`, toFill: false },
-            // Out.
-            { path: `<text x="37" y="19" fill="black" font-family="monospace">0</text>`, toFill: false },
-            { path: `<text x="37" y="44" fill="black" font-family="monospace">1</text>`, toFill: false },
-            { path: `<text x="37" y="69" fill="black" font-family="monospace">2</text>`, toFill: false },
-            { path: `<text x="37" y="94" fill="black" font-family="monospace">3</text>`, toFill: false },
-        ];
-    },
-
-    init: function (attr, setter, getter) {
-        this._super(
-            $.extend({ width: this.svgWidth, height: this.svgHeight }, attr),
-            setter,
-            getter
-        );
-
-
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
-        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
-        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
-        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
-        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
     },
 });
 

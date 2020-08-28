@@ -49,10 +49,6 @@ let private extractMemoryData (jsComponent : JSComponent) : Memory = {
 let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     match getFailIfNull jsComponent ["componentType"] with
     | "Input"  -> Input <| getFailIfNull jsComponent ["numberOfBits"]
-    | "Constant" ->
-            let width = getFailIfNull jsComponent ["numberOfBits"]
-            let constant = getFailIfNull jsComponent ["constValue"]
-            Constant(width,constant)
     | "Output" -> Output <| getFailIfNull jsComponent ["numberOfBits"]
     | "Not"    -> Not
     | "And"    -> And
@@ -63,7 +59,6 @@ let private extractComponentType (jsComponent : JSComponent) : ComponentType =
     | "Xnor"   -> Xnor
     | "Mux2"   -> Mux2
     | "Demux2" -> Demux2
-    | "Decode4" -> Decode4
     | "NbitsAdder" -> NbitsAdder <| getFailIfNull jsComponent ["numberOfBits"]
     | "Custom" ->
         Custom {

@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8"/>
-    <title>SimulationRunner - issie</title>
+    <title>JSHelpers - issie</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="description" content=""/>
     <meta name="author" content="tomcl"/>
@@ -34,7 +34,7 @@
 
 
 
-<h1>SimulationRunner</h1>
+<h1>JSHelpers</h1>
 <p>
   <span>Namespace: global</span><br />
   </p>
@@ -52,19 +52,19 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '54', 54)" onmouseover="showTip(event, '54', 54)">
-            diffReducerInputsOrOutputs newIO oldIO
+          <code onmouseout="hideTip(event, '30', 30)" onmouseover="showTip(event, '30', 30)">
+            assertNotNull obj msg
           </code>
-          <div class="tip" id="54">
-            <strong>Signature:</strong> newIO:Map&lt;&#39;a,WireData&gt; -&gt; oldIO:Map&lt;&#39;a,WireData&gt; -&gt; Map&lt;&#39;a,WireData&gt;<br />
-                          <strong>Type parameters:</strong> 'a                      </div>
+          <div class="tip" id="30">
+            <strong>Signature:</strong> obj:&#39;e -&gt; msg:string -&gt; &#39;e<br />
+                          <strong>Type parameters:</strong> 'e                      </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Runner.fs#L20-20" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Renderer/JSHelpers.fs#L39-39" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Function to determine what reducer inputs or outputs have changed.</p>
+          <p>Assert js object is not null, and return it.</p>
 
 
         </td>
@@ -72,20 +72,41 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '55', 55)" onmouseover="showTip(event, '55', 55)">
-            extractIncompleteSimulationIOs(...)
+          <code onmouseout="hideTip(event, '31', 31)" onmouseover="showTip(event, '31', 31)">
+            fshaprListToJsList(list)
           </code>
-          <div class="tip" id="55">
-            <strong>Signature:</strong> simulationIOs:SimulationIO list -&gt; graph:SimulationGraph -&gt; (SimulationIO * WireData) list<br />
-                                  </div>
+          <div class="tip" id="31">
+            <strong>Signature:</strong> list:&#39;a list -&gt; &#39;a<br />
+                          <strong>Type parameters:</strong> 'a, 'a                      </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Runner.fs#L194-194" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Renderer/JSHelpers.fs#L67-67" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Simlar to extractSimulationIOs, but do not fail if a bit is not set, just
-ignore it.</p>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '32', 32)" onmouseover="showTip(event, '32', 32)">
+            getFailIfNull jsObj fields
+          </code>
+          <div class="tip" id="32">
+            <strong>Signature:</strong> jsObj:&#39;d -&gt; fields:string list -&gt; &#39;e<br />
+                          <strong>Type parameters:</strong> 'd, 'e                      </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Renderer/JSHelpers.fs#L48-48" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          <p>Access nested fields of a js object, failing if at any point of the chain
+the requested field is null.
+Should be used when the fields are guaranteed to exist.
+For example ["a"; "b"; "c"] is equivalent to the jsCode <code>obj.a.b.c</code>, but
+with checks against null at every layer.</p>
 
 
         </td>
@@ -93,20 +114,19 @@ ignore it.</p>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '56', 56)" onmouseover="showTip(event, '56', 56)">
-            extractSimulationIOs simulationIOs graph
+          <code onmouseout="hideTip(event, '33', 33)" onmouseover="showTip(event, '33', 33)">
+            getIntEventValue(event)
           </code>
-          <div class="tip" id="56">
-            <strong>Signature:</strong> simulationIOs:SimulationIO list -&gt; graph:SimulationGraph -&gt; (SimulationIO * WireData) list<br />
+          <div class="tip" id="33">
+            <strong>Signature:</strong> event:(type) -&gt; int<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Runner.fs#L178-178" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Renderer/JSHelpers.fs#L77-77" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Given a list of IO nodes (i.e. Inputs or outputs) extract their value.
-If they dont all have a value, an error is thrown.</p>
+          <p>Get the value for a change event in an input number box.</p>
 
 
         </td>
@@ -114,20 +134,19 @@ If they dont all have a value, an error is thrown.</p>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '57', 57)" onmouseover="showTip(event, '57', 57)">
-            feedClockTick(graph)
+          <code onmouseout="hideTip(event, '34', 34)" onmouseover="showTip(event, '34', 34)">
+            getTextEventValue(event)
           </code>
-          <div class="tip" id="57">
-            <strong>Signature:</strong> graph:SimulationGraph -&gt; SimulationGraph<br />
+          <div class="tip" id="34">
+            <strong>Signature:</strong> event:(type) -&gt; string<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Runner.fs#L112-112" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Renderer/JSHelpers.fs#L73-73" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Send one global clock tick to all clocked components, and return the updated
-simulationGraph.</p>
+          <p>Get the value for a change event in an input textbox.</p>
 
 
         </td>
@@ -135,20 +154,19 @@ simulationGraph.</p>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '58', 58)" onmouseover="showTip(event, '58', 58)">
-            feedSimulationInput(...)
+          <code onmouseout="hideTip(event, '35', 35)" onmouseover="showTip(event, '35', 35)">
+            getTextFocusEventValue(event)
           </code>
-          <div class="tip" id="58">
-            <strong>Signature:</strong> graph:SimulationGraph -&gt; inputId:ComponentId -&gt; wireData:WireData -&gt; SimulationGraph<br />
+          <div class="tip" id="35">
+            <strong>Signature:</strong> event:(type) -&gt; string<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Runner.fs#L157-157" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Renderer/JSHelpers.fs#L81-81" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Feed zero to a simulation input.
-This function is supposed to be used with Components of type Input.</p>
+          <p>Get the value for a blur event in an input textbox.</p>
 
 
         </td>
@@ -156,20 +174,20 @@ This function is supposed to be used with Components of type Input.</p>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '59', 59)" onmouseover="showTip(event, '59', 59)">
-            getSimulationIOs(components)
+          <code onmouseout="hideTip(event, '36', 36)" onmouseover="showTip(event, '36', 36)">
+            jsListToFSharpList(jsList)
           </code>
-          <div class="tip" id="59">
-            <strong>Signature:</strong> components:Component list -&gt; SimulationIO list * SimulationIO list<br />
-                                  </div>
+          <div class="tip" id="36">
+            <strong>Signature:</strong> jsList:&#39;b -&gt; &#39;c list<br />
+                          <strong>Type parameters:</strong> 'b, 'c                      </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Runner.fs#L210-210" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Renderer/JSHelpers.fs#L60-60" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Get ComponentIds, ComponentLabels and wire widths of all input and output
-nodes.</p>
+          <p>Transforms a js list of jsType into an f# list of jsType.
+If jsList is not a js list, fail.</p>
 
 
         </td>
@@ -177,44 +195,37 @@ nodes.</p>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '60', 60)" onmouseover="showTip(event, '60', 60)">
-            getSimulationIOsFromGraph(graph)
+          <code onmouseout="hideTip(event, '37', 37)" onmouseover="showTip(event, '37', 37)">
+            logChain(msg)
           </code>
-          <div class="tip" id="60">
-            <strong>Signature:</strong> graph:SimulationGraph -&gt; SimulationIO list * SimulationIO list<br />
-                                  </div>
+          <div class="tip" id="37">
+            <strong>Signature:</strong> msg:&#39;?8763 -&gt; &#39;?8763<br />
+                          <strong>Type parameters:</strong> '?8763                      </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Runner.fs#L222-222" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Renderer/JSHelpers.fs#L22-22" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Get ComponentIds, ComponentLabels and wire widths of all input and output
-nodes in a simulationGraph.</p>
-
-
+          
         </td>
       </tr>
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '61', 61)" onmouseover="showTip(event, '61', 61)">
-            InitialiseGraphWithZeros inputIds graph
+          <code onmouseout="hideTip(event, '38', 38)" onmouseover="showTip(event, '38', 38)">
+            logString(msg)
           </code>
-          <div class="tip" id="61">
-            <strong>Signature:</strong> inputIds:SimulationIO list -&gt; graph:SimulationGraph -&gt; SimulationGraph<br />
-                                  </div>
+          <div class="tip" id="38">
+            <strong>Signature:</strong> msg:&#39;?8761 -&gt; unit<br />
+                          <strong>Type parameters:</strong> '?8761                      </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Simulator/Runner.fs#L163-163" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Renderer/JSHelpers.fs#L19-19" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
-          <p>Feed zeros to all simulation inputs, and feed a single clock tick.
-This way all combinational logic has been touched once and had produced its
-outputs.</p>
-
-
+          
         </td>
       </tr>
     </tbody>

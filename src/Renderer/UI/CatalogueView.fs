@@ -343,12 +343,10 @@ let getNewComponentPosition (model:Model) =
  
 let getPortNames (cType: ComponentType) =
     match cType with
-    | DFF |Register _ -> ["D"], ["Q"]
+    | DFF |Register _ -> ["D"],["Q"]
     | DFFE | RegisterE _ -> ["D";"En"], ["Q"]
-    | Constant _ -> [], ["Out"]
     | And | Or | Nand | Nor | Xor | Xnor -> ["IN1";"IN2"], ["OUT"]
     | NbitsAdder _ -> ["Cin"; "A"; "B"], ["Sum";"Cout"]
-    | Decode4 -> ["Sel";"Data"], ["0";"1";"2";"3"]
     | Not | BusSelection _ -> ["In"],["Out"]
     | Mux2 -> ["0";"1";"Sel"],["Out"]
     | Demux2 ->["In";"Sel"],["0";"1"]
@@ -529,26 +527,6 @@ let private createSplitWirePopup model dispatch =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
-let private createConstantPopup model dispatch =
-    let title = sprintf "Add Constant" 
-    let beforeInt2 =
-        fun _ -> str "What is the decimal value of the constant?"
-    let beforeInt =
-        fun _ -> str "How many bits has wire carrying the constant?"
-    let intDefault = 1
-    let intDefault2 = 0
-    let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, intDefault2) dispatch
-    let buttonText = "Add"
-    let buttonAction =
-        fun (dialogData : PopupDialogData) ->
-            let width = getInt dialogData
-            let constant = getInt2 dialogData
-            createCompStdLabel (Constant(width,constant)) model dispatch
-            dispatch ClosePopup
-    let isDisabled =
-        fun (dialogData : PopupDialogData) -> getInt dialogData < 1 || getInt dialogData > 32
-    dialogPopup title body buttonText buttonAction isDisabled dispatch
-
 let private createBusSelectPopup model dispatch =
     let title = sprintf "Add Bus Selection node" 
     let beforeInt2 =
@@ -618,7 +596,6 @@ let viewCatalogue model dispatch =
                 "Input / Output"
                 [ menuItem "Input"  (fun _ -> createIOPopup true "input" Input model dispatch)
                   menuItem "Output" (fun _ -> createIOPopup true "output" Output model dispatch)
-                  menuItem "Constant" (fun _ -> createConstantPopup model dispatch)
                   menuItem "Wire Label" (fun _ -> createIOPopup false "label" (fun _ -> IOLabel) model dispatch)]
             makeMenuGroup
                 "Buses"
@@ -637,8 +614,7 @@ let viewCatalogue model dispatch =
             makeMenuGroup
                 "Mux / Demux"
                 [ menuItem "Mux2" (fun _ -> createCompStdLabel Mux2 model dispatch)
-                  menuItem "Demux2" (fun _ -> createCompStdLabel Demux2 model dispatch) 
-                  menuItem "Decode4" (fun _ -> createCompStdLabel Decode4 model dispatch) ]
+                  menuItem "Demux2" (fun _ -> createCompStdLabel Demux2 model dispatch) ]
             makeMenuGroup
                 "Arithmetic"
                 [ menuItem "N bits adder" (fun _ -> createNbitsAdderPopup model dispatch) ]

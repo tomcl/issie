@@ -392,27 +392,6 @@ let maxWidth wSMod =
     
     curLblColWidth + namesColWidth + waveColWidth + checkboxCol + extraWidth |> int
 
-let zoom plus (m: Model) dispatch =
-    match currWS m with
-    | Some wSMod -> 
-        if plus then zoomFactor else 1.0 / zoomFactor
-        |> (*) wSMod.ClkWidth
-        |> function
-        | w when w > maxZoom -> { wSMod with ClkWidth = maxZoom }
-        | w -> { wSMod with ClkWidth = w }
-        |> SetCurrFileWSMod
-        |> dispatch
-    | None -> ()
-
-let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ str label ]
-
-let radixString rad =
-    match rad with
-    | Dec -> "uDec"
-    | Bin -> "Bin"
-    | Hex -> "Hex"
-    | SDec -> "sDec"
-
 let appendSimData wSMod nCycles = 
     extractSimData (Array.last wSMod.SimData) nCycles 
     |> Array.append wSMod.SimData
@@ -435,6 +414,25 @@ let changeTopInd newVal (model: Model) =
                   WaveData = extractWaveData model reloadablePorts sD.[0..int newVal] }
         | _ -> wsMod
     | None -> failwith "changeTopInd called when currWS model is None"
+
+let zoom plus (m: Model) dispatch =
+    match currWS m with
+    | Some wSMod -> 
+        let changedTopIndModel = 
+            match int (float m.ViewerWidth * zoomFactor) > maxWidth wSMod with
+            | true ->
+                changeTopInd ((wSMod.LastClk + 1u) * (uint zoomFactor) + 10u) m
+            | false -> wSMod
+        if plus then zoomFactor else 1.0 / zoomFactor
+        |> (*) wSMod.ClkWidth
+        |> function
+           | w when w > maxZoom -> { changedTopIndModel with ClkWidth = maxZoom }
+           | w -> { changedTopIndModel with ClkWidth = w }
+        |> SetCurrFileWSMod
+        |> dispatch
+    | None -> ()
+
+let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ str label ]
 
 let changeCurs (model: Model) dispatch newVal =
     match currWS model with
@@ -524,6 +522,12 @@ let moveWave model up =
     |> SetCurrFileWSMod
 
 let radixTabs model dispatch =
+    let radixString =
+        [ Dec,  "uDec"
+          Bin,  "Bin"
+          Hex,  "Hex"
+          SDec, "sDec" ] |> Map.ofList
+
     let radTab rad =
         Tabs.tab
             [ Tabs.Tab.IsActive(model.Radix = rad)
@@ -538,7 +542,7 @@ let radixTabs model dispatch =
                   OnClick(fun _ ->
                       { model with Radix = rad }
                       |> SetCurrFileWSMod
-                      |> dispatch) ] [ str (radixString rad) ] ]
+                      |> dispatch) ] [ str (radixString.[rad]) ] ]
     Tabs.tabs
         [ Tabs.IsToggle
           Tabs.Props
@@ -647,7 +651,7 @@ let connId2JSConn (model: Model) connId =
 let waveAdderToggle (model: Model) dispatch ind =
     match currWS model with
     | Some wSMod ->
-        let jsConn = 
+        (*let jsConn = 
             match port2ConnId model (fst wSMod.WaveAdder.Ports.[ind]) with 
             | [ConnectionId el] -> connId2JSConn model el //is this most direct way?
             | _ -> []
@@ -662,7 +666,7 @@ let waveAdderToggle (model: Model) dispatch ind =
                 List.filter ((<>) jsC) jsConns
                 |> model.Diagram.SetSelected jsComps
             | _ -> ()
-        | _ -> ()
+        | _ -> ()*)
         
         let toggleEl = 
             Array.mapi (fun i (p, sel) -> if i = ind then p, not sel else p, sel)

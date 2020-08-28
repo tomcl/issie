@@ -158,6 +158,24 @@ let feedClockTick (graph : SimulationGraph) : SimulationGraph =
 let feedSimulationInput graph inputId wireData =
     feedInput graph inputId (InputPortNumber 0, wireData)
 
+/// Feed in constant outputs do that they propagated to things connected to them
+/// This function is supposed to be used with Components of type Constant
+let feedSimulationConstants (graph:SimulationGraph) =
+    let comps = 
+        graph 
+        |> Map.toList 
+        |> List.map snd
+    let getWireData (comp:SimulationComponent) =
+        match comp.Type with 
+        | Constant (w,c) -> NumberHelpers.convertIntToWireData w (int64 c) 
+        | _ -> failwithf "What? Problem with non-constant component used in feedSimulationConstants"
+    comps
+    |> List.filter (fun c -> match c.Type with | Constant _ -> true | _ -> false)
+    |> (fun cL ->
+            let feedConstant graph comp =
+                feedReducerOutput comp graph (Map.ofList [OutputPortNumber 0, getWireData comp])
+            (graph, cL) ||> List.fold feedConstant)
+
 /// Feed zeros to all simulation inputs, and feed a single clock tick.
 /// This way all combinational logic has been touched once and had produced its
 /// outputs.
@@ -173,6 +191,8 @@ let InitialiseGraphWithZeros
         let data = List.replicate width Zero
         feedSimulationInput graph inputId data
     )
+    |> feedSimulationConstants 
+    
 
 /// Given a list of IO nodes (i.e. Inputs or outputs) extract their value.
 /// If they dont all have a value, an error is thrown.

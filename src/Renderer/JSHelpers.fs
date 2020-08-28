@@ -10,6 +10,7 @@ open Browser.Types
 open Fable.Core
 open Fable.Core.JsInterop
 open Electron
+open Fable.React
 open JSTypes
 
 [<Emit("typeof $0")>]
@@ -110,6 +111,35 @@ let getColorString (col: CommonTypes.HighLightColor) =
     (sprintf "%A" col).ToLower()
 
 
+/// Properties for react-tippy
+type TooltipsProps =
+    | Content of string
+    | Animation of string
+    | Arrow of bool
+    | Theme of string
+    | Offset of int * int
+    | HideOnClick of bool
+    | Placement of string
+    | Delay of int * int
+    | ZIndex of int
+
+let basicTooltipsPropsLst : TooltipsProps list =
+    [ Animation "fade"
+      Arrow true
+      //Offset (7,7)
+      HideOnClick false ]   
+
+let defaultTooltipsPropsLst =
+    [
+        Delay (1000, 0)
+        Placement "bottom"
+        ZIndex 9999
+    ] @ 
+    basicTooltipsPropsLst
+
+
+let inline toolT (props : TooltipsProps list) (elems : ReactElement list) : ReactElement =
+    ofImport "ReactToolTip" "react-tooltip" (keyValueList CaseRules.LowerFirst props) elems
 let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
 let canvasWidthContext = testCanvas.getContext_2d()
 

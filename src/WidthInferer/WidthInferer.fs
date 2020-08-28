@@ -96,7 +96,7 @@ let private calculateOutputPortsWidth
     let getConnectionIdForPort =
         InputPortNumber >> (getConnectionIdForPort inputConnectionsWidth)
     match comp.Type with
-    | Input width ->
+    | Input width | Constant(width,_) ->
         // Expects no inputs, and has an outgoing wire of the given width.
         assertInputsSize inputConnectionsWidth 0 comp
         Ok <| Map.empty.Add (getOutputPortId comp 0, width)
@@ -166,11 +166,24 @@ let private calculateOutputPortsWidth
             let out = Map.empty.Add (getOutputPortId comp 0, numberOfBits)
             let out = out.Add (getOutputPortId comp 1, 1)
             Ok out
-        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
         | [Some 1; Some n; Some m] when n = numberOfBits && m = numberOfBits -> okOutMap
         | [Some n; _; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 0]
         | [_; Some n; _] when n <> numberOfBits -> makeWidthInferErrorEqual numberOfBits n [getConnectionIdForPort 1]
         | [_; _; Some n] when n <> numberOfBits -> makeWidthInferErrorEqual numberOfBits n [getConnectionIdForPort 2]
+        | [_; _; _] -> okOutMap
+        | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
+    | Decode4  ->
+        assertInputsSize inputConnectionsWidth 2 comp
+        let okOutMap =
+            [0..3]
+            |> List.map (fun n -> getOutputPortId comp n, 1)
+            |> Map.ofList
+            |> Ok
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
+        | [Some 2; Some 1] -> okOutMap
+        | [Some n; _] when n <> 2 -> makeWidthInferErrorEqual 2 n [getConnectionIdForPort 0]
+        | [_; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 1]
         | [_; _; _] -> okOutMap
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
     | Custom custom ->

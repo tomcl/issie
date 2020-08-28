@@ -197,7 +197,6 @@ let addFileToProject model dispatch =
 /// Close current project, if any.
 let private closeProject model dispatch _ =
     dispatch EndSimulation // End any running simulation.
-    dispatch EndWaveSim
     dispatch CloseProject
     model.Diagram.ClearCanvas()
 
@@ -452,7 +451,8 @@ let rec findName
     | Xnor
     | Mux2 -> [ compLbl, (0, 0) ]
     | Input w
-    | Output w -> [ compLbl, (w - 1, 0) ]
+    | Output w 
+    | Constant(w, _) -> [ compLbl, (w - 1, 0) ]
     | Demux2 -> [ compLbl + "_" + string outPortInt, (0, 0) ]
     | NbitsAdder w ->
         match outPortInt with

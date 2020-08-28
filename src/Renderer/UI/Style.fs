@@ -127,6 +127,7 @@ let transLen = 0.1
 let vPos = 0.0
 let zoomFactor = 1.2
 let maxZoom = 3.0
+let minZoom = 0.2
 let maxBusValGap = 3
 let busLabelTextSize = 0.6 // multiplied by signal height
 let sigLineThick = 0.025;

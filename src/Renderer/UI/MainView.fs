@@ -189,8 +189,8 @@ let dividerbar (model:Model) dispatch =
         ] []
 
 let displayView model dispatch =
-    //let windowX,windowY =
-    //    int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
+    let windowX,windowY =
+        int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
     let selectedComps, selectedconns = 
         model.Diagram.GetSelected()
         |> Option.map extractState
@@ -212,10 +212,9 @@ let displayView model dispatch =
         | DragModeOn pos , 1.-> 
             let newWidth = model.ViewerWidth - int ev.clientX + pos
             let w = 
-                let minW, maxW = WaveformSimulationView.viewerWidthMinMax model dispatch
                 newWidth
-                |> max minW
-                |> min maxW
+                |> max minViewerWidth
+                |> min (windowX - minEditorWidth)
             SetViewerWidth w |> dispatch
             SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
         | DragModeOn _, _ ->  SetDragMode DragModeOff |> dispatch

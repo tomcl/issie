@@ -589,7 +589,7 @@ let initFileWS model = (getCurrFile model, initWS) |> AddWaveSimFile
 let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort []) =
     match makeSimData model with
     | Some(Ok simData), _ ->
-        SetViewerWidth 475 |> dispatch
+        SetViewerWidth minViewerWidth |> dispatch
         let ports' = portsFunc model simData
         match Map.tryFind (getCurrFile model) (fst model.WaveSim) with
         | Some wSMod ->

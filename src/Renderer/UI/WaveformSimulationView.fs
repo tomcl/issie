@@ -362,58 +362,31 @@ let waveSimRows (model: DiagramModelType.Model) dispatch =
     waveCol, labelCols, cursValCol
 
 // view function helpers
-
-let viewerWidthMinMax (model: DiagramModelType.Model) dispatch =
-    let maxWidth wSMod =
-        let strWidth s = JSHelpers.getTextWidthInPixels (s, "12px segoe ui") //not sure which font
-
-        let curLblColWidth =
-            match cursValStrings wSMod with
-            | [||] -> 0.0
-            | cVS ->
-                Array.map (Array.map strWidth >> Array.max) cVS
-                |> Array.max
-                |> max 25.0
-        let namesColWidth =
-            match wSMod.WaveNames with
-            | [||] -> 0.0
-            | wN ->
-                Array.map strWidth wN
-                |> Array.max
-                |> max 100.0
-        let waveColWidth =
-            match wSMod.Ports with
-            | [||] -> 600.0
-            | _ -> maxWavesColWidthFloat wSMod
-
-        let checkboxCol = 25.0
-        let extraWidth = 45.0
-
-        curLblColWidth + namesColWidth + checkboxCol + extraWidth + 50.0
-        |> int
-        |> max minViewerWidth, curLblColWidth + namesColWidth + waveColWidth + checkboxCol + extraWidth |> int
-
-    match model.CurrProject with
-    | Some proj ->
-        match Map.tryFind proj.OpenFileName (fst model.WaveSim) with
-        | Some wSMod -> maxWidth wSMod
-        | None ->
-            initFileWS model |> dispatch
-            minViewerWidth, int Browser.Dom.self.innerWidth
-    | None -> minViewerWidth, int Browser.Dom.self.innerWidth
-
-let updateWidth (model: DiagramModelType.Model) dispatch =
-    let currWid = model.ViewerWidth
-    match viewerWidthMinMax model dispatch with
-    | _, maxW when maxW < currWid ->
-        maxW
-        |> SetViewerWidth
-        |> dispatch
-    | minW, _ when minW > currWid ->
-        minW
-        |> SetViewerWidth
-        |> dispatch
-    | _ -> ()
+let maxWidth wSMod =
+    let strWidth s = 
+        JSHelpers.getTextWidthInPixels (s, "12px segoe ui") //not sure which font
+    let curLblColWidth =
+        match cursValStrings wSMod with
+        | [||] -> 0.0
+        | cVS ->
+            Array.map (Array.map strWidth >> Array.max) cVS
+            |> Array.max
+            |> max 25.0
+    let namesColWidth =
+        match wSMod.WaveNames with
+        | [||] -> 0.0
+        | wN ->
+            Array.map strWidth wN
+            |> Array.max
+            |> max 100.0
+    let waveColWidth =
+        match wSMod.Ports with
+        | [||] -> 600.0
+        | _ -> maxWavesColWidthFloat wSMod
+    let checkboxCol = 25.0
+    let extraWidth = 45.0 
+    
+    curLblColWidth + namesColWidth + waveColWidth + checkboxCol + extraWidth |> int
 
 let zoom plus (m: DiagramModelType.Model) dispatch =
     let wSMod = currWS m
@@ -424,7 +397,6 @@ let zoom plus (m: DiagramModelType.Model) dispatch =
         |> function
         | w when w > maxZoom -> { wSMod with ClkWidth = maxZoom }
         | w -> { wSMod with ClkWidth = w }
-    updateWidth m dispatch
     newClkWid
     |> SetCurrFileWSMod
     |> dispatch

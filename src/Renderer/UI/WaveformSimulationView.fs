@@ -267,8 +267,12 @@ let backgroundSvg model =
     [| 1 .. Array.length model.WaveData |] |> Array.map ((fun x -> float x * model.ClkWidth) >> clkLine)
 
 let clkRulerSvg (model: WaveSimModel) =
+    let makeClkRulLbl i =
+        match model.ClkWidth with
+        | clkW when clkW < 0.5 && i % 5 <> 0 -> [||]
+        | _ -> [| makeText (cursRectText model i) (string i) |]
     [| 0 .. int model.LastClk |]
-    |> Array.map (fun i -> makeText (cursRectText model i) (string i))
+    |> Array.collect makeClkRulLbl
     |> (fun arr ->
         [ backgroundSvg model
           [| makeRect (cursRectStyle model) |]

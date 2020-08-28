@@ -152,3 +152,4 @@ type Msg =
     | SetViewerWidth of int
     | MenuAction of MenuCommand * (Msg -> unit)
     | SelectionHasChanged
+    | SetSelectedWAWaves

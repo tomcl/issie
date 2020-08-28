@@ -427,6 +427,7 @@ let zoom plus (m: Model) dispatch =
         |> (*) wSMod.ClkWidth
         |> function
            | w when w > maxZoom -> { changedTopIndModel with ClkWidth = maxZoom }
+           | w when w < minZoom -> { changedTopIndModel with ClkWidth = minZoom }
            | w -> { changedTopIndModel with ClkWidth = w }
         |> SetCurrFileWSMod
         |> dispatch

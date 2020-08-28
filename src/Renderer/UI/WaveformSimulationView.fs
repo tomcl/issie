@@ -99,13 +99,6 @@ let radixChange (n: bigint) (nBits: uint32) (rad: NumberBase) =
 
 //auxiliary functions to the viewer function
 
-let toggleSelect ind model =
-    { model with
-          Selected =
-              Array.mapi (fun i old ->
-                  if i = ind then not old else old) model.Selected }
-    |> SetCurrFileWSMod
-
 let port2ConnId (model: Model) p =
     match model.Diagram.GetCanvasState() with
     | Some s ->
@@ -128,16 +121,26 @@ let port2ConnId (model: Model) p =
         | None -> []
     | None -> failwith "highlight called when canvas state is None"
 
-let setHighlightedConns (model: Model) dispatch =
+let setHighlightedConns (model: Model) dispatch ports =
+    ports
+    |> Array.toList
+    |> List.collect (port2ConnId model)
+    |> SetSelWavesHighlighted
+    |> dispatch
+
+let toggleSelect ind (model: Model) dispatch =
     match currWS model with
     | Some wSMod ->
-        Array.zip wSMod.Ports wSMod.Selected
+        let sel' = 
+            Array.mapi (fun i old ->
+                if i = ind then not old else old) wSMod.Selected
+        { wSMod with Selected = sel' }
+        |> SetCurrFileWSMod |> dispatch
+
+        Array.zip wSMod.Ports sel'
         |> Array.filter snd
         |> Array.map fst
-        |> Array.toList
-        |> List.collect (port2ConnId model)
-        |> SetSelWavesHighlighted
-        |> dispatch
+        |> setHighlightedConns model dispatch
     | None -> ()
 
 let allSelected model = Array.forall ((=) true) model.Selected
@@ -343,7 +346,7 @@ let waveSimRows model wsMod dispatch =
                             Class "check"
                             Checked wsMod.Selected.[i]
                             Style [ Float FloatOptions.Left ]
-                            OnChange(fun _ -> toggleSelect i wsMod |> dispatch) ] ]
+                            OnChange(fun _ -> toggleSelect i model dispatch) ] ]
                   td
                       [ Class "waveNamesCol"
                         Style [ TextAlign TextAlignOptions.Right ] ] [ l ] ])
@@ -460,9 +463,13 @@ let cursorMove increase (model: Model) dispatch =
         | false, _ -> wSMod |> SetCurrFileWSMod |> dispatch
     | None -> ()
 
-let selectAll s model =
-    { model with Selected = Array.map (fun _ -> s) model.Selected }
-    |> SetCurrFileWSMod
+let selectAll s (model: Model) dispatch =
+    match currWS model with
+    | Some wSMod ->
+        { wSMod with Selected = Array.map (fun _ -> s) wSMod.Selected }
+        |> SetCurrFileWSMod |> dispatch
+        setHighlightedConns model dispatch wSMod.Ports
+    | None -> ()
 
 let delSelected model =
     let filtSelected arr =
@@ -633,6 +640,10 @@ let openWaveAdder (model: Model) dispatch =
                   LastCanvasState = model.Diagram.GetCanvasState() }
             |> SetCurrFileWSMod
             |> dispatch
+            
+            Array.filter snd ports'
+            |> Array.map fst
+            |> setHighlightedConns model dispatch
         | _, Some(Error simError) ->
             Some simError
             |> SetWSError
@@ -679,6 +690,10 @@ let waveAdderToggle (model: Model) dispatch ind =
         { wSMod with WaveAdder = { wSMod.WaveAdder with Ports = ports' } }
         |> SetCurrFileWSMod
         |> dispatch
+        
+        Array.filter snd ports'
+        |> Array.map fst
+        |> setHighlightedConns model dispatch
     | None -> ()
 
 let simulateAddWave (model: Model) dispatch =
@@ -688,13 +703,19 @@ let simulateAddWave (model: Model) dispatch =
             Array.filter (fun (_, s) -> s) wSMod.WaveAdder.Ports 
             |> Array.map fst
         simLst model dispatch (fun _ _ -> ports')
+        setHighlightedConns model dispatch [||]
     | None -> ()
 
-let waveAdderSelectAll model =
-    let setTo = model.WaveAdder.Ports |> Array.forall (fun (_, b) -> b)
-    let ports' = Array.map (fun (p, _) -> p, not setTo) model.WaveAdder.Ports
-    { model with WaveAdder = { model.WaveAdder with Ports = ports' } }
-    |> SetCurrFileWSMod
+let waveAdderSelectAll (model: Model) dispatch =
+    match currWS model with
+    | Some wSMod ->
+        let setTo = wSMod.WaveAdder.Ports |> Array.forall (fun (_, b) -> b)
+        let ports' = Array.map (fun (p, _) -> p, not setTo) wSMod.WaveAdder.Ports
+        { wSMod with WaveAdder = { wSMod.WaveAdder with Ports = ports' } }
+        |> SetCurrFileWSMod |> dispatch
+        Array.map fst wSMod.WaveAdder.Ports
+        |> setHighlightedConns model dispatch 
+    | None -> ()
 
 let nameLabelsCol (model: Model) labelRows dispatch =
     match currWS model with
@@ -727,7 +748,7 @@ let nameLabelsCol (model: Model) labelRows dispatch =
                              [ Type "checkbox"
                                Class "check"
                                Checked(allSelected wsMod)
-                               OnChange(fun t -> selectAll t.Checked wsMod |> dispatch) ] ]
+                               OnChange(fun t -> selectAll t.Checked model dispatch) ] ]
                      waveAddDelBut ] |]
 
         let bot =
@@ -788,7 +809,7 @@ let waveAdderTopRow model (wA: WaveAdderModel) dispatch =
                     Class "check"
                     Checked(Array.forall (fun (_, b) -> b) wA.Ports)
                     Style [ Float FloatOptions.Left ]
-                    OnChange(fun _ -> waveAdderSelectAll model |> dispatch) ] ]
+                    OnChange(fun _ -> waveAdderSelectAll model dispatch) ] ]
           td [ Style [ FontWeight "bold" ] ] [ str "Select All" ] ]
 
 let addWaveRow model dispatch ind (_, selected) name =
@@ -817,7 +838,7 @@ let viewWaveAdder (model: Model) (wA: WaveAdderModel) dispatch =
                 [ Position PositionOptions.Absolute
                   Top "300px" ] ]
             [ table []
-                  [ tbody [] (Array.append [| waveAdderTopRow wSMod wA dispatch |] (addWaveRows model wA dispatch)) ] ]
+                  [ tbody [] (Array.append [| waveAdderTopRow model wA dispatch |] (addWaveRows model wA dispatch)) ] ]
     | None -> div [] []
 
 let waveAdderButs (model: Model) dispatch =
@@ -876,13 +897,12 @@ let viewWaveSim (model: Model) dispatch =
     | Some wSMod, None ->
         match wSMod.Ports, (wSMod.WaveAdder <> initWA), 
         (wSMod.LastCanvasState = model.Diagram.GetCanvasState()) with
-            | _, true, true -> waveAdderView model dispatch
+            | _, true, true -> 
+                waveAdderView model dispatch
             | [||], _, _ ->
-                setHighlightedConns model dispatch
                 openWaveAdder model dispatch
                 waveAdderView model dispatch
             | _ ->
-                setHighlightedConns model dispatch
                 waveformsView model dispatch
     | Some _, Some simError ->
         [ div

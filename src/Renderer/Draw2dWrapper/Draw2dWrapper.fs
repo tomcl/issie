@@ -89,6 +89,7 @@ type private IDraw2d =
     abstract getScrollArea                : canvas: JSCanvas -> ResizeArray<int>
     abstract getZoom                      : canvas: JSCanvas -> float
     abstract setScrollZoom                : canvas: JSCanvas -> scrollLeft: int -> scrollTop:int -> zoom: float -> unit
+    abstract setCurrentSelection          : canvas: JSCanvas -> comps: JSComponent list -> conns: JSConnection list -> unit
 
 [<Import("*", "./draw2d_fsharp_interface.js")>]
 let private draw2dLib : IDraw2d = jsNative
@@ -476,4 +477,8 @@ type Draw2dWrapper() =
             | true -> Error <| sprintf "Could not find component with Id: %s" compId
             | false -> Ok jsComp
 
-    
+    member this.SetSelected jsComps jsConn = 
+        match canvas with
+        | Some c -> draw2dLib.setCurrentSelection c jsComps jsConn
+        | None -> ()
+        

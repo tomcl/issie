@@ -216,6 +216,11 @@ let displayView model dispatch =
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth)
             SetViewerWidth w |> dispatch
+            match currWS model with
+            | Some wSMod when w > maxWidth wSMod ->
+                let newTopInd = wSMod.LastClk + 10u
+                changeTopInd newTopInd model |> SetCurrFileWSMod |> dispatch
+            | _ -> ()
             SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
         | DragModeOn _, _ ->  SetDragMode DragModeOff |> dispatch
         | DragModeOff, _-> ()
@@ -330,9 +335,11 @@ let update msg model =
     // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).
     | StartSimulation simData -> { model with Simulation = Some simData }
     | SetCurrFileWSMod wSMod' -> 
-        let fileName = FileMenuView.getCurrFile model
-        { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), 
-                               snd model.WaveSim }
+        match FileMenuView.getCurrFile model with
+        | Some fileName ->
+            { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), 
+                                   snd model.WaveSim }
+        | None -> model
     | SetWSError err -> { model with WaveSim = fst model.WaveSim, err }
     | AddWaveSimFile (fileName, wSMod') ->
         { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim }

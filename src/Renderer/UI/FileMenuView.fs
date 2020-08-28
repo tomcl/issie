@@ -22,12 +22,16 @@ open PopupView
 open Simulator
 open SimulatorTypes
 
-let getCurrFile (model: DiagramModelType.Model) =
+let getCurrFile (model: Model) =
     match model.CurrProject with
-    | Some proj -> proj.OpenFileName
-    | None -> failwith "getCurrFile called when model.CurrProject is None"
+    | Some proj -> Some proj.OpenFileName
+    | None -> None
 
-let currWS (model: DiagramModelType.Model) = (fst model.WaveSim).[getCurrFile model]
+let currWS (model: Model) = 
+    match getCurrFile model with
+    | Some fileName when Map.containsKey fileName (fst model.WaveSim) -> 
+        Some (fst model.WaveSim).[fileName]
+    | _ -> None
 
 let private displayFileErrorNotification err dispatch =
     errorNotification err CloseFilesNotification
@@ -327,7 +331,8 @@ let getSelected model: DiagEl list =
     match model.Diagram.GetSelected() with
     | None -> []
     | Some jsState ->
-        (fst jsState |> List.map (extractComponent >> Comp), snd jsState |> List.map (extractConnection >> Conn))
+        ( fst jsState |> List.map (extractComponent >> Comp), 
+          snd jsState |> List.map (extractConnection >> Conn) )
         ||> List.append
 
 let procIns simData (compId: ComponentId) (inputs: InputPortNumber []): WaveSimPort [] =
@@ -388,19 +393,19 @@ let compsConns2portLst model (simData: SimulatorTypes.SimulationData) diagElLst:
             | None -> [||])
     |> remDuplicates
 
-let selected2portLst model (simData: SimulatorTypes.SimulationData): WaveSimPort [] =
-    (simData, getSelected model) ||> compsConns2portLst model
-
-let reloadablePorts (model: DiagramModelType.Model) (simData: SimulatorTypes.SimulationData) =
+let reloadablePorts (model: Model) (simData: SimulatorTypes.SimulationData) =
     let inGraph port = Map.exists (fun key _ -> key = port.CId) simData.Graph
-    Array.filter inGraph (currWS model).Ports
-    |> Array.map (fun port ->
-        match port.TrgtId with
-        | Some trgtId when Map.exists (fun key _ -> key = trgtId) simData.Graph ->
-            match List.tryFind (fun (cid, _) -> cid = trgtId) simData.Graph.[port.CId].Outputs.[port.OutPN] with
-            | Some _ -> port
-            | None -> { port with TrgtId = None }
-        | _ -> { port with TrgtId = None })
+    match currWS model with 
+    | Some wSMod ->
+        Array.filter inGraph wSMod.Ports
+        |> Array.map (fun port ->
+            match port.TrgtId with
+            | Some trgtId when Map.exists (fun key _ -> key = trgtId) simData.Graph ->
+                match List.tryFind (fun (cid, _) -> cid = trgtId) simData.Graph.[port.CId].Outputs.[port.OutPN] with
+                | Some _ -> port
+                | None -> { port with TrgtId = None }
+            | _ -> { port with TrgtId = None })
+    | None -> [||]
 
 let limBits (name: string): (int * int) option =
     match Seq.tryFind ((=) '[') name, Seq.tryFind ((=) ':') name, Seq.tryFind ((=) ']') name with
@@ -584,17 +589,20 @@ let makeSimData model =
         ||> prepareSimulation project.OpenFileName
         |> (fun x -> Some x, None)
 
-let initFileWS model = (getCurrFile model, initWS) |> AddWaveSimFile
+let initFileWS model dispatch = 
+    match getCurrFile model with
+    | Some fileName -> (fileName, initWS) |> AddWaveSimFile |> dispatch
+    | None -> ()
 
 let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort []) =
     match makeSimData model with
     | Some(Ok simData), _ ->
         SetViewerWidth minViewerWidth |> dispatch
         let ports' = portsFunc model simData
-        match Map.tryFind (getCurrFile model) (fst model.WaveSim) with
+        match currWS model with
         | Some wSMod ->
             let simData' = Array.append [|simData|] <| extractSimData simData wSMod.LastClk
-            { currWS model with
+            { wSMod with
                   SimData = simData'
                   WaveNames = extractWaveNames simData model portsFunc
                   WaveData = extractWaveData model portsFunc simData'
@@ -603,6 +611,7 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
                   WaveAdder = initWA
                   LastCanvasState = model.Diagram.GetCanvasState() }
             |> SetCurrFileWSMod
+            |> dispatch
         | None ->
             let simData' = Array.append [|simData|] <| extractSimData simData initWS.LastClk
             { initWS with
@@ -614,6 +623,7 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
                   WaveAdder = initWA
                   LastCanvasState = model.Diagram.GetCanvasState() }
             |> SetCurrFileWSMod
+            |> dispatch
     | Some(Error simError), _ ->
         if simError.InDependency.IsNone then
             // Highligh the affected components and connection only if
@@ -622,12 +632,23 @@ let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort [])
             (simError.ComponentsAffected, simError.ConnectionsAffected)
             |> SetHighlighted
             |> dispatch
-        Some simError |> SetWSError
+        Some simError 
+        |> SetWSError
+        |> dispatch
     | _, Some m ->
-        match Map.tryFind (getCurrFile model) (fst model.WaveSim) with
-        | Some wSMod -> wSMod |> SetCurrFileWSMod
-        | None -> initFileWS model
+        match currWS model with
+        | Some wSMod -> wSMod |> SetCurrFileWSMod |> dispatch
+        | None -> initFileWS model dispatch
     | _, _ -> failwith "What? This case shouldn't happen"
+
+let isSimulateActive (model: Model) =
+    match currWS model with
+    | Some wSMod -> 
+        match wSMod.LastCanvasState <> model.Diagram.GetCanvasState(),
+              makeSimData model with
+        | true, (Some(Ok _), _) -> true
+        | _ -> false
+    | None -> true
 
 /// Display top menu.
 let viewTopMenu model dispatch =
@@ -765,15 +786,15 @@ let viewTopMenu model dispatch =
                                           |> dispatch) ] [ str "Save" ] ] ]
                       Navbar.End.div []
                           [ Navbar.Item.div []
-                                [ let butOptions =
-                                    match model.CurrentSelected with
-                                    | [], [] -> []
-                                    | _ ->
-                                        [ Button.Color IsSuccess
-                                          Button.OnClick(fun _ ->
+                                [ match isSimulateActive model with
+                                  | true ->
+                                      Button.button
+                                          [ Button.Color IsSuccess
+                                            Button.OnClick(fun _ ->
                                               ChangeRightTab WaveSim |> dispatch
-                                              simLst model dispatch selected2portLst |> dispatch) ]
-                                  Button.button butOptions [ str "Simulate >>" ] ] ]
+                                              simLst model dispatch reloadablePorts) ]
+                                  | false -> Button.button []                                                                           
+                                  |> (fun but -> but [ str "Simulate >>" ]) ] ]
                       Navbar.End.div []
                           [ Navbar.Item.div []
                                 [ Button.button [ Button.OnClick(fun _ -> viewInfoPopup dispatch) ] [ str "Info" ] ] ] ] ] ]

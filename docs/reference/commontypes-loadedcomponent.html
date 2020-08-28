@@ -41,6 +41,20 @@
         <span>Parent Module: <a href="global-commontypes.html">CommonTypes</a></span><br />
     </p>
 <div class="xmldoc">
+<p>Static data describing a schematic sheet loaded as a custom component.
+Every sheet is always identified with a file from which it is loaded/saved.
+Name is human readable (and is the filename - without extension) and identifies sheet.
+File path is the sheet directory and name (with extension).
+InputLabels, OutputLabels are the I/O connections.
+The I/O connection integers are bus widths.
+The I/O connection strings are human readable. The strings are guaranteed
+to be unique in the I/O connection list. I.e. An input label may be the same
+as an output label, but two input (or output) labels cannot be the same.
+The position in the I/O connections list is important as it implicitly
+indicates the port number. For example, the first element in the InputLabels
+list is related to the Component's Port with PortNumber 0.
+Two instances of a loaded component have the same LoadedComponent data.</p>
+
 </div>
   <h3>Record Fields</h3>
   <table class="table table-bordered member-list">
@@ -51,15 +65,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '117', 117)" onmouseover="showTip(event, '117', 117)">
+          <code onmouseout="hideTip(event, '151', 151)" onmouseover="showTip(event, '151', 151)">
             CanvasState
           </code>
-          <div class="tip" id="117">
+          <div class="tip" id="151">
             <strong>Signature:</strong> CanvasState<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Common/Types.fs#L80-80" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Common/Types.fs#L116-116" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -69,15 +83,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '118', 118)" onmouseover="showTip(event, '118', 118)">
+          <code onmouseout="hideTip(event, '152', 152)" onmouseover="showTip(event, '152', 152)">
             FilePath
           </code>
-          <div class="tip" id="118">
+          <div class="tip" id="152">
             <strong>Signature:</strong> string<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Common/Types.fs#L79-79" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Common/Types.fs#L115-115" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -87,15 +101,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '119', 119)" onmouseover="showTip(event, '119', 119)">
+          <code onmouseout="hideTip(event, '153', 153)" onmouseover="showTip(event, '153', 153)">
             InputLabels
           </code>
-          <div class="tip" id="119">
+          <div class="tip" id="153">
             <strong>Signature:</strong> (string * int) list<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Common/Types.fs#L81-81" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Common/Types.fs#L117-117" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -105,15 +119,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '120', 120)" onmouseover="showTip(event, '120', 120)">
+          <code onmouseout="hideTip(event, '154', 154)" onmouseover="showTip(event, '154', 154)">
             Name
           </code>
-          <div class="tip" id="120">
+          <div class="tip" id="154">
             <strong>Signature:</strong> string<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Common/Types.fs#L78-78" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Common/Types.fs#L114-114" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>
@@ -123,15 +137,15 @@
       <tr>
         <td class="member-name">
 
-          <code onmouseout="hideTip(event, '121', 121)" onmouseover="showTip(event, '121', 121)">
+          <code onmouseout="hideTip(event, '155', 155)" onmouseover="showTip(event, '155', 155)">
             OutputLabels
           </code>
-          <div class="tip" id="121">
+          <div class="tip" id="155">
             <strong>Signature:</strong> (string * int) list<br />
                                   </div>
         </td>
         <td class="xmldoc">
-                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Common/Types.fs#L82-82" class="github-link">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Common/Types.fs#L118-118" class="github-link">
               <img src="../content/img/github.png" class="normal" />
               <img src="../content/img/github-blue.png" class="hover" />
             </a>

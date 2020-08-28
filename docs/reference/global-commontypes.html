@@ -54,7 +54,9 @@
             <a href="commontypes-canvasstate.html">CanvasState</a>
           </td>
           <td class="xmldoc">
-          
+          <p>F# data describing the contents of a single schematic sheet.</p>
+
+
           </td>
         </tr>
         <tr>
@@ -62,7 +64,11 @@
             <a href="commontypes-component.html">Component</a>
           </td>
           <td class="xmldoc">
-          
+          <p>JSComponent mapped to F# record.
+Id uniquely identifies the component within a sheet and is used by draw2d library.
+Label is optional descriptor displayed on schematic.</p>
+
+
           </td>
         </tr>
         <tr>
@@ -78,7 +84,10 @@
             <a href="commontypes-connection.html">Connection</a>
           </td>
           <td class="xmldoc">
-          
+          <p>JSConnection mapped to F# record.
+Id uniquely identifies connection globally and is used by library.</p>
+
+
           </td>
         </tr>
         <tr>
@@ -86,7 +95,25 @@
             <a href="commontypes-customcomponenttype.html">CustomComponentType</a>
           </td>
           <td class="xmldoc">
-          
+          <p>Name identified the LoadedComponent used.
+The labels define legends on symbol.
+Label strings are unique per CustomComponent.
+Multiple CustomComponent instances are differentiated by Component data.</p>
+
+
+          </td>
+        </tr>
+        <tr>
+          <td class="type-name">
+            <a href="commontypes-highlightcolor.html">HighLightColor</a>
+          </td>
+          <td class="xmldoc">
+          <p>Colors to highlight components
+Case name is used (lowercase) as HTML color name
+See JSHelpers.getColorString
+lots of colors can be added, see <a href="https://www.w3schools.com/colors/colors_names.asp">https://www.w3schools.com/colors/colors_names.asp</a></p>
+
+
           </td>
         </tr>
         <tr>
@@ -94,7 +121,21 @@
             <a href="commontypes-loadedcomponent.html">LoadedComponent</a>
           </td>
           <td class="xmldoc">
-          
+          <p>Static data describing a schematic sheet loaded as a custom component.
+Every sheet is always identified with a file from which it is loaded/saved.
+Name is human readable (and is the filename - without extension) and identifies sheet.
+File path is the sheet directory and name (with extension).
+InputLabels, OutputLabels are the I/O connections.
+The I/O connection integers are bus widths.
+The I/O connection strings are human readable. The strings are guaranteed
+to be unique in the I/O connection list. I.e. An input label may be the same
+as an output label, but two input (or output) labels cannot be the same.
+The position in the I/O connections list is important as it implicitly
+indicates the port number. For example, the first element in the InputLabels
+list is related to the Component's Port with PortNumber 0.
+Two instances of a loaded component have the same LoadedComponent data.</p>
+
+
           </td>
         </tr>
         <tr>
@@ -118,7 +159,18 @@
             <a href="commontypes-port.html">Port</a>
           </td>
           <td class="xmldoc">
-          
+          <p>A component I/O.
+Id (like any other Id) is a string generated with 32 random hex charactes,
+so it is (practically) globally unique. These Ids are used by the draw2d
+library to uniquely refer to ports and components. They are generated via:
+<a href="http://www.draw2d.org/draw2d_touch/jsdoc_6/#!/api/draw2d.util.UUID.
+PortNumber">http://www.draw2d.org/draw2d_touch/jsdoc_6/#!/api/draw2d.util.UUID.
+PortNumber</a> is used to identify which port on a component, contiguous from 0
+separately for inputs and outputs.
+HostId is the unique Id of the component where the port is. For example,
+all three ports on the same And component will have the same HostId.</p>
+
+
           </td>
         </tr>
         <tr>
@@ -134,7 +186,12 @@
             <a href="commontypes-project.html">Project</a>
           </td>
           <td class="xmldoc">
-          
+          <p>Type for an open project which represents a complete design.
+ProjectPath is directory containing project files.
+OpenFileName is name of file from which current schematic sheet is loaded/saved.
+LoadedComponents contains the list of schematic sheets, each as a component, one per sheet.</p>
+
+
           </td>
         </tr>
     </tbody>
@@ -142,6 +199,50 @@
 
   </div>
 
+  <h3>Functions and values</h3>
+  <table class="table table-bordered member-list">
+    <thead>
+      <tr><td>Function or value</td><td>Description</td></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '1', 1)" onmouseover="showTip(event, '1', 1)">
+            draw2dCanvasHeight
+          </code>
+          <div class="tip" id="1">
+            <strong>Signature:</strong> int<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Common/Types.fs#L5-5" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+      <tr>
+        <td class="member-name">
+
+          <code onmouseout="hideTip(event, '2', 2)" onmouseover="showTip(event, '2', 2)">
+            draw2dCanvasWidth
+          </code>
+          <div class="tip" id="2">
+            <strong>Signature:</strong> int<br />
+                                  </div>
+        </td>
+        <td class="xmldoc">
+                      <a href="https://github.com/tomcl/ISSIE/tree/master/src/Common/Types.fs#L4-4" class="github-link">
+              <img src="../content/img/github.png" class="normal" />
+              <img src="../content/img/github-blue.png" class="hover" />
+            </a>
+          
+        </td>
+      </tr>
+    </tbody>
+  </table>
 
         </div>
         <div class="span3">

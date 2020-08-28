@@ -455,6 +455,19 @@ function flushCommandStack (canvas) {
     canvas.commandStack = new draw2d.command.CommandStack();
 }
 
+function resetSelection(canvas) {
+    let lst = new draw2d.util.ArrayList;
+    canvas.setCurrentSelection(lst);
+}
+
+function addCompSelection(canvas, comp) {
+    canvas.addSelection(comp);
+}
+
+function addConnSelection(canvas, conn) {
+    canvas.addSelection(conn);
+}
+
 export {
     setDispatchMessages,
     printCanvas,
@@ -525,4 +538,7 @@ export {
     undoLastAction,
     redoLastAction,
     flushCommandStack,
+    resetSelection,
+    addCompSelection,
+    addConnSelection,
 };

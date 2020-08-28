@@ -128,6 +128,7 @@ let private runBusWidthInference model =
 
 let private makeSelectionChangeMsg (model:Model) (dispatch: Msg -> Unit) (ev: 'a) =
     dispatch SelectionHasChanged
+    dispatch SetSelectedWAWaves
   
 
 
@@ -454,3 +455,27 @@ let update msg model =
             >>  (fun sel ->
                     {model with LastSelected = model.CurrentSelected; CurrentSelected = sel}))
         |> Option.defaultValue model
+    | SetSelectedWAWaves ->
+        match currWS model, getCurrFile model with
+        | Some wSMod, Some filename -> 
+            match wSMod.Ports, (wSMod.WaveAdder <> initWA), 
+            (wSMod.LastCanvasState = model.Diagram.GetCanvasState()) with
+            | _, true, true | [||], _, _ ->
+                let portArr = 
+                    match model.Diagram.GetSelected() with
+                    | Some (comps, conns) -> 
+                        (List.map (extractComponent >> Comp) comps, List.map (extractConnection >> Conn) conns)
+                        ||> List.append
+                    | None -> []
+                    |> compsConns2portLst model wSMod.SimData.[0]
+
+                let ports' = 
+                    wSMod.WaveAdder.Ports
+                    |> Array.map (fun (p, _) -> p, Array.contains p portArr)
+
+                let wSMod' = { wSMod with WaveAdder = { wSMod.WaveAdder with Ports = ports' } }
+            
+                { model with WaveSim = Map.add filename wSMod' (fst model.WaveSim), 
+                                       snd model.WaveSim }
+            | _ -> model
+        | _ -> model

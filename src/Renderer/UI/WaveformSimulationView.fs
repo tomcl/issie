@@ -664,26 +664,22 @@ let connId2JSConn (model: Model) connId =
        | Some jsConn -> [ jsConn ]
        | None -> []
 
+let selWave2selConn model wSMod ind on = 
+    match port2ConnId model (fst wSMod.WaveAdder.Ports.[ind]) with 
+    | [ConnectionId el] -> connId2JSConn model el //is this most direct way?
+    | _ -> []
+    |> function
+       | [ jsC ] -> model.Diagram.SetSelected jsC on
+       | _ -> ()
+
+let wsPortsHighlight model dispatch ports = 
+    Array.filter snd ports
+    |> Array.map fst
+    |> setHighlightedConns model dispatch
+
 let waveAdderToggle (model: Model) dispatch ind =
     match currWS model with
-    | Some wSMod ->
-        (*let jsConn = 
-            match port2ConnId model (fst wSMod.WaveAdder.Ports.[ind]) with 
-            | [ConnectionId el] -> connId2JSConn model el //is this most direct way?
-            | _ -> []
-        match model.Diagram.GetSelected(), snd wSMod.WaveAdder.Ports.[ind] with
-        | Some (jsComps, jsConns), true -> 
-            List.append jsConns jsConn 
-            |> List.distinct
-            |> model.Diagram.SetSelected jsComps
-        | Some (jsComps, jsConns), false -> 
-            match jsConn with
-            | [ jsC ] ->
-                List.filter ((<>) jsC) jsConns
-                |> model.Diagram.SetSelected jsComps
-            | _ -> ()
-        | _ -> ()*)
-        
+    | Some wSMod ->      
         let toggleEl = 
             Array.mapi (fun i (p, sel) -> if i = ind then p, not sel else p, sel)
         let ports' = toggleEl wSMod.WaveAdder.Ports
@@ -691,9 +687,10 @@ let waveAdderToggle (model: Model) dispatch ind =
         |> SetCurrFileWSMod
         |> dispatch
         
-        Array.filter snd ports'
-        |> Array.map fst
-        |> setHighlightedConns model dispatch
+        not (snd wSMod.WaveAdder.Ports.[ind])
+        |> selWave2selConn model wSMod ind
+
+        wsPortsHighlight model dispatch ports'
     | None -> ()
 
 let simulateAddWave (model: Model) dispatch =
@@ -713,8 +710,16 @@ let waveAdderSelectAll (model: Model) dispatch =
         let ports' = Array.map (fun (p, _) -> p, not setTo) wSMod.WaveAdder.Ports
         { wSMod with WaveAdder = { wSMod.WaveAdder with Ports = ports' } }
         |> SetCurrFileWSMod |> dispatch
-        Array.map fst wSMod.WaveAdder.Ports
-        |> setHighlightedConns model dispatch 
+
+        [| 0 .. Array.length wSMod.WaveAdder.Ports - 1 |]
+        |> Array.map (fun i -> selWave2selConn model wSMod i (not setTo)) 
+        |> ignore
+
+        match Array.forall (fun (_, b) -> b) wSMod.WaveAdder.Ports with
+        | true -> setHighlightedConns model dispatch [||]
+        | false ->
+            Array.map fst wSMod.WaveAdder.Ports
+            |> setHighlightedConns model dispatch 
     | None -> ()
 
 let nameLabelsCol (model: Model) labelRows dispatch =

@@ -24,7 +24,17 @@ type Notifications = {
 }
 
 
+type AutoSaveT = Saving | Deleting | Inactive
+
+type AsyncTasksT = {
+    AutoSave: AutoSaveT
+    LastSavedCanvasState: CanvasState option
+    RunningSimulation: bool // placeholder - not used yet
+    }
+
+
 type Model = {
+    AsyncActivity: AsyncTasksT
     Diagram : Draw2dWrapper
     LastSelected: Component list * Connection list
     CurrentSelected: Component list * Connection list
@@ -45,3 +55,10 @@ type Model = {
     DragMode: DragMode
     ViewerWidth: int // waveform viewer width in pixels
 }
+
+/// Lens to facilitate changing AsyncActivity
+let setActivity (f: AsyncTasksT -> AsyncTasksT) (model: Model) =
+
+
+    {model with AsyncActivity = f model.AsyncActivity }
+    

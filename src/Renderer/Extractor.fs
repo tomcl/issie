@@ -108,11 +108,35 @@ let extractComponent (jsComponent : JSComponent) : Component =
     W           = w
 }
 
+/// Transform a JSComponent into an f# data structure.
+let extractReducedComponent (jsComponent : JSComponent) : Component = 
+    let x = ( (jsComponent?getOuterBoundingBox ()))
+    let h = x?getHeight()
+    let w = x?getWidth()
+    {
+    Id          = getFailIfNull jsComponent ["id"]
+    Type        = extractComponentType jsComponent
+    InputPorts  = extractPorts <| getFailIfNull jsComponent ["inputPorts"; "data"]
+    OutputPorts = extractPorts <| getFailIfNull jsComponent ["outputPorts"; "data"]
+    Label       = extractLabel <| getFailIfNull jsComponent ["children"; "data"]
+    X = 0
+    Y = 0
+    H = 0
+    W = 0
+}
+
 let extractConnection (jsConnection : JSConnection) : Connection = {
     Id       = getFailIfNull jsConnection ["id"]
     Source   = extractPort None <| getFailIfNull jsConnection ["sourcePort"]
     Target   = extractPort None <| getFailIfNull jsConnection ["targetPort"]
     Vertices = extractVertices <| getFailIfNull jsConnection ["vertices"; "data"]
+}
+
+let extractReducedConnection (jsConnection : JSConnection) : Connection = {
+    Id       = getFailIfNull jsConnection ["id"]
+    Source   = extractPort None <| getFailIfNull jsConnection ["sourcePort"]
+    Target   = extractPort None <| getFailIfNull jsConnection ["targetPort"]
+    Vertices = []
 }
 
 let private sortComponents comps =
@@ -127,4 +151,11 @@ let extractState (state : JSCanvasState) : CanvasState =
     let comps = sortComponents comps
     comps, conns
 
+/// Transform the JSCanvasState into an f# data structure, with layout data removed (for checking significant changes).
+let extractReducedState (state : JSCanvasState) : CanvasState =
+    let (components : JSComponent list), (connections : JSConnection list) = state
+    let comps, conns = List.map extractReducedComponent components,
+                       List.map extractReducedConnection connections
+    // Sort components by their location.
+    comps, conns
  

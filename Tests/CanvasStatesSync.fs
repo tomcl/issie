@@ -17,6 +17,8 @@ let stateSync1 : CanvasState =
 /// stateSync1 loaded as a dependency.
 let stateSync1Dependency : LoadedComponent = {
     Name = "single-dff"
+    TimeStamp = System.DateTime.MinValue
+    WaveInfo = None
     FilePath = ""
     CanvasState = stateSync1
     InputLabels = ["in", 1]
@@ -123,6 +125,8 @@ let stateSync7 : CanvasState =
 /// stateSync7 loaded as a dependency.
 let stateSync7Dependency : LoadedComponent = {
     Name = "combinatorial-sync"
+    TimeStamp = System.DateTime.MinValue
+    WaveInfo = None
     FilePath = ""
     CanvasState = stateSync7
     InputLabels = ["A", 1]
@@ -151,6 +155,8 @@ let stateSync8 : CanvasState =
 /// stateSync8 loaded as a dependency.
 let stateSync8Dependency : LoadedComponent = {
     Name = "fake-combinatorial-loop"
+    TimeStamp = System.DateTime.MinValue
+    WaveInfo = None
     FilePath = ""
     CanvasState = stateSync8
     InputLabels = []
@@ -204,6 +210,8 @@ let stateSync11 : CanvasState =
 /// stateSync11 loaded as a dependency.
 let stateSync11Dependency : LoadedComponent = {
     Name = "combinatorial-loop"
+    TimeStamp = System.DateTime.MinValue
+    WaveInfo = None
     FilePath = ""
     CanvasState = stateSync11
     InputLabels = []

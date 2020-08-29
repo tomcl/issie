@@ -95,6 +95,10 @@ type Connection = {
 /// F# data describing the contents of a single schematic sheet.
 type CanvasState = Component list * Connection list
 
+/// F# data describing teh setup of the Wave Viewer window
+type SavedWaveInfo = unit
+
+
 //================================//
 // Componenents loaded from files //
 //================================//
@@ -114,7 +118,9 @@ type CanvasState = Component list * Connection list
 /// Two instances of a loaded component have the same LoadedComponent data.
 type LoadedComponent = {
     Name: string
+    TimeStamp: System.DateTime
     FilePath : string
+    WaveInfo: SavedWaveInfo option
     CanvasState : CanvasState
     InputLabels : (string * int) list
     OutputLabels : (string * int) list

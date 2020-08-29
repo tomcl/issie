@@ -56,12 +56,18 @@ let private reloadProjectComponents dispatch project =
     | Ok components -> { project with LoadedComponents = components }
 
 /// Save the file currently open.
-let saveOpenFileAction model =
+let saveOpenFileAction isAuto model =
     match model.Diagram.GetCanvasState (), model.CurrProject with
     | None, _ | _, None -> ()
     | Some jsState, Some project ->
         extractState jsState
-        |> saveStateToFile project.ProjectPath project.OpenFileName
+        |> (fun state -> 
+                let savedState = state,None
+                if isAuto 
+                then saveAutoStateToFile project.ProjectPath project.OpenFileName savedState
+                else 
+                    saveStateToFile project.ProjectPath project.OpenFileName savedState
+                    removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName)
 
 let private getFileInProject name project =
     project.LoadedComponents
@@ -76,6 +82,8 @@ let private createEmptyDiagramFile projectPath name =
     createEmptyDgmFile projectPath name
     {   
         Name = name
+        TimeStamp = System.DateTime.Now
+        WaveInfo = None
         FilePath = pathJoin [| projectPath; name + ".dgm" |]
         CanvasState = [],[]
         InputLabels = []
@@ -141,13 +149,15 @@ let addFileToProject model dispatch =
         let buttonAction =
             fun (dialogData : PopupDialogData) ->
                 // Save current file.
-                saveOpenFileAction model
+                saveOpenFileAction false model
                 // Create empty file.
                 let name = getText dialogData
                 createEmptyDgmFile project.ProjectPath name
                 // Add the file to the project.
                 let newComponent = {
                     Name = name
+                    TimeStamp = System.DateTime.Now
+                    WaveInfo = None
                     FilePath = pathJoin [|project.ProjectPath; name + ".dgm"|]
                     CanvasState = [],[]
                     InputLabels = []
@@ -219,7 +229,9 @@ let private openProject model dispatch _ =
                 | [] -> // No files in the project. Create one and open it.
                     createEmptyDgmFile path "main"
                     "main", ([],[])
-                | comp :: _ -> // Pick one file at random to open initally.
+                | comps ->
+                    // load the most recently saved file
+                    let comp = comps |> List.maxBy (fun comp -> comp.TimeStamp)
                     comp.Name, comp.CanvasState
             dispatch EndSimulation // End any running simulation.
             loadStateIntoCanvas openFileState model dispatch
@@ -396,7 +408,7 @@ let rec findName (simGraph: SimulatorTypes.SimulationGraph) ({ CId = compId; Out
         | None -> failwith (compTypeStr + "input not connected")
 
     match simGraph.[compId].Type with
-    | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 -> 
+    | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 | Decode4 -> 
         [ compLbl, (0,0) ]
     | Input w | Output w | Constant (w,_) -> 
         [ compLbl, (w-1,0) ]
@@ -594,7 +606,7 @@ let viewTopMenu model dispatch =
                             Button.Color IsPrimary
                             Button.Disabled (name = project.OpenFileName)
                             Button.OnClick (fun _ ->
-                                saveOpenFileAction model // Save current file.
+                                saveOpenFileAction false model // Save current file.
                                 openFileInProject name project model dispatch
                             )
                         ] [ str "open" ]
@@ -699,7 +711,7 @@ let viewTopMenu model dispatch =
                                               then IsSuccess
                                               else IsWhite)
                             Button.OnClick (fun _ ->
-                                saveOpenFileAction model
+                                saveOpenFileAction false model
                                 SetHasUnsavedChanges false
                                 |> JSDiagramMsg |> dispatch)
                         ] [ str "Save" ]

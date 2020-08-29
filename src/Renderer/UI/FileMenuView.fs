@@ -34,25 +34,20 @@ let currWS (model: Model) =
 
 let private displayFileErrorNotification err dispatch =
     errorNotification err CloseFilesNotification
-    |> SetFilesNotification
-    |> dispatch
+    |> SetFilesNotification |> dispatch
 
 let private loadStateIntoCanvas state model dispatch =
-    dispatch <| SetHighlighted([], []) // Remove current highlights.
-    model.Diagram.ClearCanvas() // Clear the canvas.
+    dispatch <| SetHighlighted ([],[]) // Remove current highlights.
+    model.Diagram.ClearCanvas()        // Clear the canvas.
     // Finally load the new state in the canvas.
     let components, connections = state
     List.map model.Diagram.LoadComponent components |> ignore
     List.map (model.Diagram.LoadConnection true) connections |> ignore
-    model.Diagram.FlushCommandStack() // Discard all undo/redo.
+    model.Diagram.FlushCommandStack () // Discard all undo/redo.
     // Run the a connection widhts inference.
-    InferWidths()
-    |> JSDiagramMsg
-    |> dispatch
+    InferWidths () |> JSDiagramMsg |> dispatch
     // Set no unsaved changes.
-    SetHasUnsavedChanges false
-    |> JSDiagramMsg
-    |> dispatch
+    SetHasUnsavedChanges false |> JSDiagramMsg |> dispatch
 
 let private reloadProjectComponents dispatch project =
     match tryLoadComponentsFromPath project.ProjectPath with
@@ -64,18 +59,26 @@ let private reloadProjectComponents dispatch project =
     | Ok components -> { project with LoadedComponents = components }
 
 /// Save the file currently open.
+let saveOpenFileAction isAuto model =
+    match model.Diagram.GetCanvasState (), model.CurrProject with
+    | None, _ | _, None -> ()
+    | Some jsState, Some project ->
+        extractState jsState
+        |> (fun state -> 
+                let savedState = state,None
                 if isAuto 
                 then saveAutoStateToFile project.ProjectPath project.OpenFileName savedState
                 else 
                     saveStateToFile project.ProjectPath project.OpenFileName savedState
                     removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName)
 
-let private getFileInProject name project = project.LoadedComponents |> List.tryFind (fun comp -> comp.Name = name)
+let private getFileInProject name project =
+    project.LoadedComponents
+    |> List.tryFind (fun comp -> comp.Name = name)
 
 let private isFileInProject name project =
     getFileInProject name project
-    |> function
-    | None -> false
+    |> function | None -> false | Some _ -> true
 
 /// Create a new empty .dgm file and return corresponding loaded component.
 let private createEmptyDiagramFile projectPath name =
@@ -99,26 +102,22 @@ let private openFileInProject name project model dispatch =
         // Reload components so the project we just closed is up to date in
         // our CurrProj.
         { project with OpenFileName = name }
-        |> reloadProjectComponents dispatch
-        |> SetProject
-        |> dispatch
+        |> reloadProjectComponents dispatch |> SetProject |> dispatch
         dispatch EndSimulation // End any running simulation.
 
 /// Remove file.
 let private removeFileInProject name project model dispatch =
     removeFile project.ProjectPath name
     // Remove the file from the dependencies and update project.
-    let newComponents = List.filter (fun lc -> lc.Name <> name) project.LoadedComponents
+    let newComponents =
+        List.filter (fun lc -> lc.Name <> name) project.LoadedComponents
     // Make sure there is at least one file in the project.
     let newComponents =
         match List.isEmpty newComponents with
         | false -> newComponents
-        | true -> [ (createEmptyDiagramFile project.ProjectPath "main") ]
-
+        | true -> [(createEmptyDiagramFile project.ProjectPath "main")]
     let project = { project with LoadedComponents = newComponents }
-    project
-    |> SetProject
-    |> dispatch
+    project |> SetProject |> dispatch
     // If the file was displayed, open and display another one instead.
     // It is safe to access position 0 as we are guaranteed that there is at
     // least one element in newComponents.
@@ -134,29 +133,24 @@ let addFileToProject model dispatch =
     | Some project ->
         // Prepare dialog popup.
         let title = "Add file to project"
-
         let before =
-            fun (dialogData: PopupDialogData) ->
+            fun (dialogData : PopupDialogData) ->
                 let dialogText = getText dialogData
-
                 let maybeWarning =
                     if isFileInProject dialogText project
-                    then div [ Style [ Color "red" ] ] [ str "This file already exists." ]
+                    then div [ Style [Color "red"] ] [ str "This file already exists." ]
                     else div [] []
-                div []
-                    [ str "A new file will be created at:"
-                      br []
-                      str <| pathJoin
-                                 [| project.ProjectPath
-                                    dialogText + ".dgm" |]
-                      maybeWarning ]
-
+                div [] [
+                    str "A new file will be created at:"
+                    br[]
+                    str <| pathJoin [|project.ProjectPath; dialogText + ".dgm"|]
+                    maybeWarning
+                ]
         let placeholder = "Insert module name"
         let body = dialogPopupBodyOnlyText before placeholder dispatch
         let buttonText = "Add"
-
         let buttonAction =
-            fun (dialogData: PopupDialogData) ->
+            fun (dialogData : PopupDialogData) ->
                 // Save current file.
                 saveOpenFileAction false model
                 // Create empty file.
@@ -174,23 +168,19 @@ let addFileToProject model dispatch =
                 }
                 let updatedProject =
                     { project with
-                          LoadedComponents = newComponent :: project.LoadedComponents
-                          OpenFileName = name }
+                        LoadedComponents = newComponent :: project.LoadedComponents
+                        OpenFileName = name }
                 // Update the project.
-                updatedProject
-                |> SetProject
-                |> dispatch
+                updatedProject |> SetProject |> dispatch
                 // Open the file.
                 openFileInProject name updatedProject model dispatch
                 // Close the popup.
                 dispatch ClosePopup
                 dispatch EndSimulation // End any running simulation.
-
         let isDisabled =
-            fun (dialogData: PopupDialogData) ->
+            fun (dialogData : PopupDialogData) ->
                 let dialogText = getText dialogData
                 (isFileInProject dialogText project) || (dialogText = "")
-
         dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 /// Close current project, if any.
@@ -201,7 +191,7 @@ let private closeProject model dispatch _ =
 
 /// Create a new project.
 let private newProject model dispatch _ =
-    match askForNewProjectPath() with
+    match askForNewProjectPath () with
     | None -> () // User gave no path.
     | Some path ->
         match tryCreateFolder path with
@@ -213,21 +203,22 @@ let private newProject model dispatch _ =
             dispatch EndSimulation // End any running simulation.
             // Create empty placeholder projectFile.
             let projectFile = baseName path + ".dprj"
-            writeFile (pathJoin [| path; projectFile |]) ""
+            writeFile (pathJoin [|path; projectFile|]) ""
             // Create empty initial diagram file.
             let initialDiagram = createEmptyDiagramFile path "main"
             // Load the diagram.
             loadStateIntoCanvas initialDiagram.CanvasState model dispatch
             // Add the file to the project.
-            { ProjectPath = path
-              OpenFileName = "main"
-              LoadedComponents = [ initialDiagram ] }
-            |> SetProject
-            |> dispatch
+            {
+                ProjectPath = path
+                OpenFileName = "main"
+                LoadedComponents = [initialDiagram]
+            }
+            |> SetProject |> dispatch
 
 /// Open a project.
 let private openProject model dispatch _ =
-    match askForExistingProjectPath() with
+    match askForExistingProjectPath () with
     | None -> () // User gave no path.
     | Some path ->
         match tryLoadComponentsFromPath path with
@@ -238,7 +229,7 @@ let private openProject model dispatch _ =
         | Ok components ->
             let openFileName, openFileState =
                 match components with
-                | [] ->
+                | [] -> // No files in the project. Create one and open it.
                     createEmptyDgmFile path "main"
                     "main", ([],[])
                 | comps ->
@@ -247,60 +238,56 @@ let private openProject model dispatch _ =
                     comp.Name, comp.CanvasState
             dispatch EndSimulation // End any running simulation.
             loadStateIntoCanvas openFileState model dispatch
-            { ProjectPath = path
-              OpenFileName = openFileName
-              LoadedComponents = components }
-            |> SetProject
-            |> dispatch
+            {
+                ProjectPath = path
+                OpenFileName =  openFileName
+                LoadedComponents = components
+            }
+            |> SetProject |> dispatch
 
 /// Display the initial Open/Create Project menu at the beginning if no project
 /// is open.
 let viewNoProjectMenu model dispatch =
     let menuItem label action =
-        Menu.Item.li
-            [ Menu.Item.IsActive false
-              Menu.Item.OnClick action ] [ str label ]
-
+        Menu.Item.li [
+            Menu.Item.IsActive false
+            Menu.Item.OnClick action
+        ] [ str label ]
     let initialMenu =
-        Menu.menu []
-            [ Menu.list []
-                  [ menuItem "New project" (newProject model dispatch)
-                    menuItem "Open project" (openProject model dispatch) ] ]
-
+        Menu.menu [] [
+            Menu.list [] [
+                menuItem "New project" (newProject model dispatch)
+                menuItem "Open project" (openProject model dispatch)
+            ]
+        ]
     match model.CurrProject with
     | Some _ -> div [] []
     | None -> unclosablePopup None initialMenu None []
 
 let private viewInfoPopup dispatch =
     let makeH h =
-        Text.span
-            [ Modifiers
-                [ Modifier.TextSize(Screen.Desktop, TextSize.Is5)
-                  Modifier.TextWeight TextWeight.Bold ] ]
-            [ str h
-              br [] ]
-
+        Text.span [ Modifiers [
+            Modifier.TextSize (Screen.Desktop, TextSize.Is5)
+            Modifier.TextWeight TextWeight.Bold
+        ] ] [str h; br[]]
     let title = "DEflow Info"
-
-    let body =
-        div []
-            [ makeH "Version"
-              str "v0.2"
-              br []
-              br []
-              makeH "Acknowledgments"
-              str "DEflow has been created by Marco Selvatici as his dissertation project."
-              br []
-              br []
-              makeH "Keyboard shortcuts"
-              str "On Mac use Command instead of Ctrl."
-              ul []
-                  [ li [] [ str "Save: Ctrl + S" ]
-                    li [] [ str "Copy selected diagram items: Alt + C" ]
-                    li [] [ str "Paste diagram items: Alt + V" ]
-                    li [] [ str "Undo last diagram action: Alt + Z" ]
-                    li [] [ str "Redo last diagram action: Alt + Shift + Z" ] ] ]
-
+    let body = div [] [
+        makeH "Version"
+        str "v0.2"
+        br []; br []
+        makeH "Acknowledgments"
+        str "DEflow has been created by Marco Selvatici as his dissertation project."
+        br []; br []
+        makeH "Keyboard shortcuts"
+        str "On Mac use Command instead of Ctrl."
+        ul [] [
+            li [] [str "Save: Ctrl + S"]
+            li [] [str "Copy selected diagram items: Alt + C"]
+            li [] [str "Paste diagram items: Alt + V"]
+            li [] [str "Undo last diagram action: Alt + Z"]
+            li [] [str "Redo last diagram action: Alt + Shift + Z"]
+        ]
+    ]
     let foot = div [] []
     closablePopup title body foot [] dispatch
 
@@ -776,22 +763,20 @@ let viewTopMenu model dispatch =
                 ]
                 Navbar.End.div [] [
                     Navbar.Item.div [] [
-                        [ match isSimulateActive model dispatch with
-                                  | Some (Ok simData), Some wSMod ->
-                                      Button.button
-                                          [ Button.Color IsSuccess
-                                            Button.OnClick(fun _ ->
-                                                simulate model wSMod dispatch simData
-                                                ChangeRightTab WaveSim |> dispatch) ]
-                                  | Some (Error err), _ -> 
-                                      Button.button
-                                          [ Button.OnClick(fun _ ->
-                                                Some err |> SetWSError |> dispatch
-                                                ChangeRightTab WaveSim |> dispatch) ]
-                                  | _ -> Button.button []
-                                |> (fun but -> but [ str "Simulate >>" ]) ] 
-                    ]
-                ]
+                        match isSimulateActive model dispatch with
+                        | Some (Ok simData), Some wSMod ->
+                            Button.button
+                                [ Button.Color IsSuccess
+                                  Button.OnClick(fun _ ->
+                                      simulate model wSMod dispatch simData
+                                      ChangeRightTab WaveSim |> dispatch) ]
+                        | Some (Error err), _ -> 
+                            Button.button
+                                [ Button.OnClick(fun _ ->
+                                      Some err |> SetWSError |> dispatch
+                                      ChangeRightTab WaveSim |> dispatch) ]
+                        | _ -> Button.button []
+                        |> (fun but -> but [ str "Simulate >>" ]) ] ]
                 Navbar.End.div [] [
                     Navbar.Item.div [] [
                         Button.button [

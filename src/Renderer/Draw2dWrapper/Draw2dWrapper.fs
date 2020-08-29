@@ -490,7 +490,7 @@ type Draw2dWrapper() =
             | true -> Error <| sprintf "Could not find component with Id: %s" compId
             | false -> Ok jsComp
         
-    member this.SetSelected (conn: JSConnection) on =
+    member this.SetSelected on (conn: JSConnection) =
         match canvas with
         | Some c -> 
             let comps, conns =

@@ -77,11 +77,13 @@ type WaveSimModel = {
     Cursor: uint32 
     Radix: NumberBase
     LastClk: uint32
+    WaveAdderOpen: bool
     WaveAdder: WaveAdderModel
     LastCanvasState: JSCanvasState option 
 }
 
-let initWA = { Ports = [||]; WaveNames = [||] }
+let initWA = 
+    { Ports = [||]; WaveNames = [||] }
 
 let initWS: WaveSimModel =
     { SimData = [||]
@@ -92,7 +94,8 @@ let initWS: WaveSimModel =
       ClkWidth = 1.0
       Cursor = 0u
       Radix = Bin
-      LastClk = 9u
+      LastClk = 9u 
+      WaveAdderOpen = true
       WaveAdder = initWA
       LastCanvasState = None }
 

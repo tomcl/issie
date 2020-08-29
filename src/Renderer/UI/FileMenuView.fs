@@ -544,17 +544,14 @@ let wSPort2Name simGraph p =
     | Some outName -> outName + tl
     | None -> tl
 
-let extractWaveNames simData model (portFunc: Model -> SimulationData -> WaveSimPort []) =
-    portFunc model simData |> Array.map (wSPort2Name simData.Graph)
-
-let extractSimTime model portFunc simData =
-    portFunc model simData
+let extractSimTime ports (simGraph: SimulationGraph) =
+    ports
     |> Array.map (fun { CId = compId; OutPN = portN; TrgtId = _ } ->
-        match Map.tryFind compId simData.Graph with
+        match Map.tryFind compId simGraph with
         | Some simComp ->
             match Map.tryFind portN simComp.Outputs with
             | Some(hd :: _) ->
-                let wD = simData.Graph.[fst hd].Inputs.[snd hd]
+                let wD = simGraph.[fst hd].Inputs.[snd hd]
                 Wire
                     { NBits = uint (List.length wD)
                       BitData = simWireData2Wire wD }
@@ -574,17 +571,17 @@ let extractSimData simData nCycles =
     ||> Array.mapFold (fun s _ -> clkAdvance s, clkAdvance s)
     |> fst
 
-let extractWaveData model portFunc simDataArr: SimTime [] = simDataArr |> Array.map (extractSimTime model portFunc)
-
 let makeSimData model =
     match model.Diagram.GetCanvasState(), model.CurrProject with
-    | None, _ -> None, Some(Ok model.WaveSim)
+    | None, _ -> None
     | _, None -> failwith "what? Cannot start a simulation without a project"
     | Some jsState, Some project ->
-        let otherComponents = project.LoadedComponents |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        let otherComponents = 
+            project.LoadedComponents 
+            |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         (extractState jsState, otherComponents)
         ||> prepareSimulation project.OpenFileName
-        |> (fun x -> Some x, None)
+        |> Some
 
 let initFileWS model dispatch =
     match getCurrFile model with
@@ -594,63 +591,57 @@ let initFileWS model dispatch =
         |> dispatch
     | None -> ()
 
-let simLst model dispatch (portsFunc: Model -> SimulationData -> WaveSimPort []) =
-    match makeSimData model with
-    | Some(Ok simData), _ ->
-        SetViewerWidth minViewerWidth |> dispatch
-        let ports' = portsFunc model simData
-        match currWS model with
-        | Some wSMod ->
-            let simData' = Array.append [| simData |] <| extractSimData simData wSMod.LastClk
-            { wSMod with
-                  SimData = simData'
-                  WaveNames = extractWaveNames simData model portsFunc
-                  WaveData = extractWaveData model portsFunc simData'
-                  Selected = Array.map (fun _ -> false) ports'
-                  Ports = ports'
-                  WaveAdder = initWA
-                  LastCanvasState = model.Diagram.GetCanvasState() }
-            |> SetCurrFileWSMod
-            |> dispatch
-        | None ->
-            let simData' = Array.append [| simData |] <| extractSimData simData initWS.LastClk
-            { initWS with
-                  SimData = simData'
-                  WaveNames = extractWaveNames simData model portsFunc
-                  WaveData = extractWaveData model portsFunc simData'
-                  Selected = Array.map (fun _ -> false) ports'
-                  Ports = ports'
-                  WaveAdder = initWA
-                  LastCanvasState = model.Diagram.GetCanvasState() }
-            |> SetCurrFileWSMod
-            |> dispatch
-    | Some(Error simError), _ ->
-        if simError.InDependency.IsNone then
-            // Highligh the affected components and connection only if
-            // the error is in the current diagram and not in a
-            // dependency.
-            (simError.ComponentsAffected, simError.ConnectionsAffected)
-            |> SetHighlighted
-            |> dispatch
-        Some simError
-        |> SetWSError
-        |> dispatch
-    | _, Some m ->
-        match currWS model with
-        | Some wSMod ->
-            wSMod
-            |> SetCurrFileWSMod
-            |> dispatch
-        | None -> initFileWS model dispatch
-    | _, _ -> failwith "What? This case shouldn't happen"
+let avalPorts (model: Model) dispatch =
+    match model.Diagram.GetCanvasState(), model.CurrProject with
+    | None, _ -> [||]
+    | _, None -> failwith "what? Cannot start a simulation without a project"
+    | Some jsState, Some project ->
+        let otherComponents = project.LoadedComponents |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        (extractState jsState, otherComponents)
+        ||> prepareSimulation project.OpenFileName
+        |> function
+        | Ok simData ->
+            List.map (extractComponent >> Comp) (fst jsState) 
+            |> compsConns2portLst model simData
+        | Error simError ->
+            if simError.InDependency.IsNone then
+                (simError.ComponentsAffected, simError.ConnectionsAffected)
+                |> SetHighlighted
+                |> dispatch
+            [||]
 
-let isSimulateActive (model: Model) =
+let simulate model wSMod dispatch simData =
+    SetViewerWidth minViewerWidth |> dispatch
+    let simData' = 
+        match currWS model with
+        | Some wSMod -> wSMod.LastClk
+        | None -> 
+            initFileWS model dispatch
+            initWS.LastClk
+        |> extractSimData simData
+        |> Array.append [| simData |] 
+
+    let wA' =
+        match avalPorts model dispatch with
+        | wSPorts ->
+            let names' = Array.map (wSPort2Name simData'.[0].Graph) wSPorts
+            { Ports = wSPorts; WaveNames = names' }
+    { wSMod with
+          SimData = simData'
+          WaveAdder = wA'
+          LastCanvasState = model.Diagram.GetCanvasState() }
+    |> SetCurrFileWSMod
+    |> dispatch
+
+let isSimulateActive (model: Model) dispatch =
     match currWS model with
     | Some wSMod ->
-        match wSMod.LastCanvasState <> model.Diagram.GetCanvasState(), makeSimData model with
-        | true, (Some(Ok _), _) -> true
-        | _ -> false
-    | None -> true
+        if wSMod.LastCanvasState <> model.Diagram.GetCanvasState()
+            then makeSimData model, Some wSMod 
+            else None, Some wSMod
+    | None -> 
+        initFileWS model dispatch
+        None, None
 
 /// Display top menu.
 let viewTopMenu model dispatch =
@@ -788,15 +779,20 @@ let viewTopMenu model dispatch =
                                           |> dispatch) ] [ str "Save" ] ] ]
                       Navbar.End.div []
                           [ Navbar.Item.div []
-                                [ match isSimulateActive model with
-                                  | true ->
+                                [ match isSimulateActive model dispatch with
+                                  | Some (Ok simData), Some wSMod ->
                                       Button.button
                                           [ Button.Color IsSuccess
                                             Button.OnClick(fun _ ->
-                                                ChangeRightTab WaveSim |> dispatch
-                                                simLst model dispatch reloadablePorts) ]
-                                  | false -> Button.button []
-                                  |> (fun but -> but [ str "Simulate >>" ]) ] ]
+                                                simulate model wSMod dispatch simData
+                                                ChangeRightTab WaveSim |> dispatch) ]
+                                  | Some (Error err), _ -> 
+                                      Button.button
+                                          [ Button.OnClick(fun _ ->
+                                                Some err |> SetWSError |> dispatch
+                                                ChangeRightTab WaveSim |> dispatch) ]
+                                  | _ -> Button.button []
+                                |> (fun but -> but [ str "Simulate >>" ]) ] ]
                       Navbar.End.div []
                           [ Navbar.Item.div []
                                 [ Button.button [ Button.OnClick(fun _ -> viewInfoPopup dispatch) ] [ str "Info" ] ] ] ] ] ]

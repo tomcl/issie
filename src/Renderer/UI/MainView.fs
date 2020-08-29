@@ -217,7 +217,7 @@ let displayView model dispatch =
             match currWS model with
             | Some wSMod when w > maxWidth wSMod ->
                 let newTopInd = wSMod.LastClk + 10u
-                changeTopInd newTopInd model |> SetCurrFileWSMod |> dispatch
+                changeTopInd newTopInd model wSMod |> SetCurrFileWSMod |> dispatch
             | _ -> ()
             SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
         | DragModeOn _, _ ->  SetDragMode DragModeOff |> dispatch

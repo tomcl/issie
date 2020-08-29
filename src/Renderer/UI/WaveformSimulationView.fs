@@ -137,10 +137,10 @@ let toggleSelect ind (model: Model) dispatch =
         { wSMod with Selected = sel' }
         |> SetCurrFileWSMod |> dispatch
 
-        Array.zip wSMod.Ports sel'
+        (*Array.zip wSMod.Ports sel'
         |> Array.filter snd
         |> Array.map fst
-        |> setHighlightedConns model dispatch
+        |> setHighlightedConns model dispatch*)
     | None -> ()
 
 let allSelected model = Array.forall ((=) true) model.Selected
@@ -631,19 +631,18 @@ let openWaveAdder (model: Model) dispatch =
     | Some wSMod -> 
         match avalPorts model dispatch with
         | wSPorts, Some(Ok sD) ->
-            let ports' = Array.map (fun p -> p, Array.contains p wSMod.Ports) wSPorts
             let names' = Array.map (wSPort2Name sD.Graph) wSPorts
             { wSMod with
                   WaveAdder =
-                      { Ports = ports'
+                      { Ports = wSPorts
                         WaveNames = names' }
                   LastCanvasState = model.Diagram.GetCanvasState() }
             |> SetCurrFileWSMod
             |> dispatch
             
-            Array.filter snd ports'
+            (*Array.filter snd ports'
             |> Array.map fst
-            |> setHighlightedConns model dispatch
+            |> setHighlightedConns model dispatch*)
         | _, Some(Error simError) ->
             Some simError
             |> SetWSError
@@ -665,40 +664,34 @@ let connId2JSConn (model: Model) connId =
        | None -> []
 
 let selWave2selConn model wSMod ind on = 
-    match port2ConnId model (fst wSMod.WaveAdder.Ports.[ind]) with 
-    | [ConnectionId el] -> connId2JSConn model el //is this most direct way?
+    match port2ConnId model wSMod.WaveAdder.Ports.[ind] with 
+    | [ConnectionId el] -> connId2JSConn model el 
     | _ -> []
     |> function
        | [ jsC ] -> model.Diagram.SetSelected jsC on
        | _ -> ()
 
-let wsPortsHighlight model dispatch ports = 
-    Array.filter snd ports
-    |> Array.map fst
-    |> setHighlightedConns model dispatch
+let isWaveSelected model wSMod port = 
+    getSelected model
+    |> compsConns2portLst model wSMod.SimData.[0] 
+    |> Array.contains port
 
 let waveAdderToggle (model: Model) dispatch ind =
     match currWS model with
-    | Some wSMod ->      
-        let toggleEl = 
-            Array.mapi (fun i (p, sel) -> if i = ind then p, not sel else p, sel)
-        let ports' = toggleEl wSMod.WaveAdder.Ports
-        { wSMod with WaveAdder = { wSMod.WaveAdder with Ports = ports' } }
-        |> SetCurrFileWSMod
-        |> dispatch
-        
-        not (snd wSMod.WaveAdder.Ports.[ind])
+    | Some wSMod ->         
+        not (isWaveSelected model wSMod wSMod.WaveAdder.Ports.[ind])
         |> selWave2selConn model wSMod ind
 
-        wsPortsHighlight model dispatch ports'
+        (*Array.filter snd ports'
+        |> Array.map fst
+        |> setHighlightedConns model dispatch*)
     | None -> ()
 
 let simulateAddWave (model: Model) dispatch =
     match currWS model with
     | Some wSMod -> 
         let ports' = 
-            Array.filter (fun (_, s) -> s) wSMod.WaveAdder.Ports 
-            |> Array.map fst
+            Array.filter (isWaveSelected model wSMod) wSMod.WaveAdder.Ports
         simLst model dispatch (fun _ _ -> ports')
         setHighlightedConns model dispatch [||]
     | None -> ()
@@ -706,20 +699,19 @@ let simulateAddWave (model: Model) dispatch =
 let waveAdderSelectAll (model: Model) dispatch =
     match currWS model with
     | Some wSMod ->
-        let setTo = wSMod.WaveAdder.Ports |> Array.forall (fun (_, b) -> b)
-        let ports' = Array.map (fun (p, _) -> p, not setTo) wSMod.WaveAdder.Ports
-        { wSMod with WaveAdder = { wSMod.WaveAdder with Ports = ports' } }
-        |> SetCurrFileWSMod |> dispatch
+        let setTo = 
+            wSMod.WaveAdder.Ports 
+            |> Array.forall (isWaveSelected model wSMod)
 
         [| 0 .. Array.length wSMod.WaveAdder.Ports - 1 |]
         |> Array.map (fun i -> selWave2selConn model wSMod i (not setTo)) 
         |> ignore
 
-        match Array.forall (fun (_, b) -> b) wSMod.WaveAdder.Ports with
+        (*match Array.forall (fun (_, b) -> b) wSMod.WaveAdder.Ports with
         | true -> setHighlightedConns model dispatch [||]
         | false ->
             Array.map fst wSMod.WaveAdder.Ports
-            |> setHighlightedConns model dispatch 
+            |> setHighlightedConns model dispatch *)
     | None -> ()
 
 let nameLabelsCol (model: Model) labelRows dispatch =
@@ -801,7 +793,7 @@ let viewZoomDiv model dispatch =
           //embed [ Src svgPath ]
           button [ Button.CustomClass "zoomButRight" ] (fun _ -> zoom true model dispatch) "+" ]
 
-let waveAdderTopRow model (wA: WaveAdderModel) dispatch =
+let waveAdderTopRow model wSMod dispatch =
     tr
         [ Class "rowHeight"
           Style [ VerticalAlign "middle" ] ]
@@ -812,12 +804,13 @@ let waveAdderTopRow model (wA: WaveAdderModel) dispatch =
               [ input
                   [ Type "checkbox"
                     Class "check"
-                    Checked(Array.forall (fun (_, b) -> b) wA.Ports)
+                    Checked(Array.forall (isWaveSelected model wSMod) wSMod.WaveAdder.Ports)
                     Style [ Float FloatOptions.Left ]
                     OnChange(fun _ -> waveAdderSelectAll model dispatch) ] ]
           td [ Style [ FontWeight "bold" ] ] [ str "Select All" ] ]
 
-let addWaveRow model dispatch ind (_, selected) name =
+let addWaveRow model wSMod dispatch ind =
+    let selected = isWaveSelected model wSMod wSMod.WaveAdder.Ports.[ind]
     tr
         [ Class "rowHeight"
           Style [ VerticalAlign "middle" ] ]
@@ -831,9 +824,10 @@ let addWaveRow model dispatch ind (_, selected) name =
                     Checked selected
                     Style [ Float FloatOptions.Left ]
                     OnChange(fun _ -> waveAdderToggle model dispatch ind) ] ]
-          td [] [ label [] [ str name ] ] ]
+          td [] [ label [] [ str wSMod.WaveAdder.WaveNames.[ind] ] ] ]
 
-let addWaveRows model (wA: WaveAdderModel) dispatch = Array.mapi2 (addWaveRow model dispatch) wA.Ports wA.WaveNames
+let addWaveRows model wSMod dispatch = 
+    Array.mapi (fun i _ -> addWaveRow model wSMod dispatch i) wSMod.WaveAdder.Ports 
 
 let viewWaveAdder (model: Model) (wA: WaveAdderModel) dispatch =
     match currWS model with
@@ -843,14 +837,14 @@ let viewWaveAdder (model: Model) (wA: WaveAdderModel) dispatch =
                 [ Position PositionOptions.Absolute
                   Top "300px" ] ]
             [ table []
-                  [ tbody [] (Array.append [| waveAdderTopRow model wA dispatch |] (addWaveRows model wA dispatch)) ] ]
+                  [ tbody [] (Array.append [| waveAdderTopRow model wSMod dispatch |] (addWaveRows model wSMod dispatch)) ] ]
     | None -> div [] []
 
 let waveAdderButs (model: Model) dispatch =
     match currWS model with
     | Some wSMod -> 
         let simButStyle =
-            match Array.exists (fun (_, sel) -> sel) wSMod.WaveAdder.Ports with
+            match Array.exists (isWaveSelected model wSMod) wSMod.WaveAdder.Ports with
             | true ->
                 [ Button.Color IsSuccess
                   Button.OnClick(fun _ -> simulateAddWave model dispatch) ]

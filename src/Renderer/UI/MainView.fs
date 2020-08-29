@@ -128,9 +128,9 @@ let private runBusWidthInference model =
 
 let private makeSelectionChangeMsg (model:Model) (dispatch: Msg -> Unit) (ev: 'a) =
     dispatch SelectionHasChanged
-    dispatch SetSelectedWAWaves
-    match currWS model, getCurrFile model with
-    | Some wSMod, Some filename -> 
+    //dispatch SetSelectedWAWaves
+    (*match currWS model, getCurrFile model with
+    | Some wSMod, Some _ -> 
         match wSMod.Ports, (wSMod.WaveAdder <> initWA), 
         (wSMod.LastCanvasState = model.Diagram.GetCanvasState()) with
         | _, true, true | [||], _, _ ->
@@ -149,7 +149,7 @@ let private makeSelectionChangeMsg (model:Model) (dispatch: Msg -> Unit) (ev: 'a
 
             setHighlightedConns model dispatch ports'
         | _ -> ()
-    | _ -> ()
+    | _ -> ()*)
 
 // -- Create View
 
@@ -227,7 +227,7 @@ let displayView model dispatch =
 
     let processMouseMove (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
-        makeSelectionChangeMsg model dispatch ev
+        //makeSelectionChangeMsg model dispatch ev
         match model.DragMode, ev.buttons with
         | DragModeOn pos , 1.-> 
             let newWidth = model.ViewerWidth - int ev.clientX + pos
@@ -472,27 +472,3 @@ let update msg model =
             >>  (fun sel ->
                     {model with LastSelected = model.CurrentSelected; CurrentSelected = sel}))
         |> Option.defaultValue model
-    | SetSelectedWAWaves ->
-        match currWS model, getCurrFile model with
-        | Some wSMod, Some filename -> 
-            match wSMod.Ports, (wSMod.WaveAdder <> initWA), 
-            (wSMod.LastCanvasState = model.Diagram.GetCanvasState()) with
-            | _, true, true | [||], _, _ ->
-                let portArr = 
-                    match model.Diagram.GetSelected() with
-                    | Some (comps, conns) -> 
-                        (List.map (extractComponent >> Comp) comps, List.map (extractConnection >> Conn) conns)
-                        ||> List.append
-                    | None -> []
-                    |> compsConns2portLst model wSMod.SimData.[0]
-
-                let ports' = 
-                    wSMod.WaveAdder.Ports
-                    |> Array.map (fun (p, _) -> p, Array.contains p portArr)
-
-                let wSMod' = { wSMod with WaveAdder = { wSMod.WaveAdder with Ports = ports' } }
-
-                { model with WaveSim = Map.add filename wSMod' (fst model.WaveSim), 
-                                       snd model.WaveSim }
-            | _ -> model
-        | _ -> model

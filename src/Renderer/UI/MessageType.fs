@@ -63,7 +63,7 @@ type WaveSimPort = {
     TrgtId : ComponentId option
 }
 type WaveAdderModel = {
-    Ports : (WaveSimPort * bool) array;
+    Ports : WaveSimPort array;
     WaveNames : WaveName array
 }
 
@@ -152,4 +152,3 @@ type Msg =
     | SetViewerWidth of int
     | MenuAction of MenuCommand * (Msg -> unit)
     | SelectionHasChanged
-    | SetSelectedWAWaves

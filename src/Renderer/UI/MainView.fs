@@ -28,7 +28,14 @@ open Fable.Core.JsInterop
 
 // -- Init Model
 
+let initActivity = {
+    AutoSave = Inactive
+    LastSavedCanvasState = None
+    RunningSimulation = false
+    }
+
 let init() = {
+    AsyncActivity = initActivity
     Diagram = new Draw2dWrapper()
     LastSelected = [],[]
     CurrentSelected = [],[]
@@ -284,7 +291,7 @@ let private handleJSDiagramMsg msg model =
 let private handleKeyboardShortcutMsg msg model =
     match msg with
     | CtrlS ->
-        saveOpenFileAction model
+        saveOpenFileAction false model
         { model with HasUnsavedChanges = false }
     | AltC ->
         // Similar to the body of OnDiagramButtonsView.copyAction but without
@@ -312,7 +319,7 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
                 printfn "PNG is %d bytes" png.Length
                 FilesIO.savePngFile p.ProjectPath p.OpenFileName  png)
     | MenuSaveFile -> 
-        FileMenuView.saveOpenFileAction model 
+        FileMenuView.saveOpenFileAction false model 
         SetHasUnsavedChanges false
         |> JSDiagramMsg |> dispatch
     | MenuNewFile -> 
@@ -320,7 +327,49 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
     | MenuZoom z -> 
         zoomDiagram z model
     model
-    
+
+
+let getCurrentTimeStamp model =
+    match model.CurrProject with
+    | None -> System.DateTime.MinValue
+    | Some p ->
+        p.LoadedComponents
+        |> List.tryFind (fun lc -> lc.Name = p.OpenFileName)
+        |> function | Some lc -> lc.TimeStamp
+                    | None -> failwithf "Project inconsistency: can't find component %s in %A"
+                                p.OpenFileName ( p.LoadedComponents |> List.map (fun lc -> lc.Name))
+
+let updateTimeStamp model =
+    let setTimeStamp (lc:LoadedComponent) = {lc with TimeStamp = System.DateTime.Now}
+    match model.CurrProject with
+    | None -> model
+    | Some p ->
+        p.LoadedComponents
+        |> List.map (fun lc -> if lc.Name = p.OpenFileName then setTimeStamp lc else lc)
+        |> fun lcs -> { model with CurrProject=Some {p with LoadedComponents = lcs}}
+
+let checkForAutoSave msg model =
+    match msg with
+    | ReloadSelectedComponent _ 
+    | JSDiagramMsg (SetHasUnsavedChanges true) ->
+        match model.CurrProject with
+        | None -> model // do nothing
+        | Some proj ->
+            let newReducedState = 
+                model.Diagram.GetCanvasState()
+                |> Option.map extractReducedState 
+            if newReducedState <> model.AsyncActivity.LastSavedCanvasState
+            then
+                printfn "AutoSaving"
+                model
+                |> updateTimeStamp
+                |> setActivity (fun a -> {a with LastSavedCanvasState = newReducedState})
+                |> (fun model' -> saveOpenFileAction true model'; model') // autosave                           
+            else
+                model
+    | _ -> model
+            
+
 
 let update msg model =
     //let inP f = Option.map f model.CurrProject
@@ -450,3 +499,5 @@ let update msg model =
             >>  (fun sel ->
                     {model with LastSelected = model.CurrentSelected; CurrentSelected = sel}))
         |> Option.defaultValue model
+    |> (checkForAutoSave msg)
+

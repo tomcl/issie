@@ -116,15 +116,15 @@ let port2ConnId (model: Model) p =
             |> List.tryPick (fun conn ->
                 if conn.Source.Id = portId then Some conn.Id else None)
             |> function
-            | Some connId -> [ ConnectionId connId ]
-            | None -> []
-        | None -> []
+            | Some connId -> [| ConnectionId connId |]
+            | None -> [||]
+        | None -> [||]
     | None -> failwith "highlight called when canvas state is None"
 
 let setHighlightedConns (model: Model) dispatch ports =
     ports
+    |> Array.collect (port2ConnId model)
     |> Array.toList
-    |> List.collect (port2ConnId model)
     |> SetSelWavesHighlighted
     |> dispatch
 
@@ -137,10 +137,10 @@ let toggleSelect ind (model: Model) dispatch =
         { wSMod with Selected = sel' }
         |> SetCurrFileWSMod |> dispatch
 
-        (*Array.zip wSMod.Ports sel'
+        Array.zip wSMod.Ports sel'
         |> Array.filter snd
         |> Array.map fst
-        |> setHighlightedConns model dispatch*)
+        |> setHighlightedConns model dispatch
     | None -> ()
 
 let allSelected model = Array.forall ((=) true) model.Selected
@@ -468,7 +468,8 @@ let selectAll s (model: Model) dispatch =
     | Some wSMod ->
         { wSMod with Selected = Array.map (fun _ -> s) wSMod.Selected }
         |> SetCurrFileWSMod |> dispatch
-        setHighlightedConns model dispatch wSMod.Ports
+        if s then wSMod.Ports else [||]
+        |> setHighlightedConns model dispatch
     | None -> ()
 
 let delSelected model =
@@ -626,6 +627,15 @@ let avalPorts (model: Model) dispatch =
                 |> dispatch
             [||], Some(Error simError)
 
+let connId2JSConn (model: Model) connId =
+    match model.Diagram.GetCanvasState() with
+    | Some (_, jsConns) -> 
+        List.tryFind (fun jsConn -> (extractConnection jsConn).Id = connId) jsConns
+    | None -> None
+    |> function
+       | Some jsConn -> [ jsConn ]
+       | None -> []
+
 let openWaveAdder (model: Model) dispatch =
     match currWS model with
     | Some wSMod -> 
@@ -639,10 +649,14 @@ let openWaveAdder (model: Model) dispatch =
                   LastCanvasState = model.Diagram.GetCanvasState() }
             |> SetCurrFileWSMod
             |> dispatch
-            
-            (*Array.filter snd ports'
-            |> Array.map fst
-            |> setHighlightedConns model dispatch*)
+
+            wSMod.Ports
+            |> Array.collect (port2ConnId model)
+            |> Array.map ( (fun (ConnectionId cId) -> cId) 
+                           >> (fun cId ->  match connId2JSConn model cId with
+                                           | [jsConn] -> model.Diagram.SetSelected true jsConn
+                                           | _ -> () ) )
+            |> ignore
         | _, Some(Error simError) ->
             Some simError
             |> SetWSError
@@ -654,21 +668,12 @@ let cancelAddWave model =
     { model with WaveAdder = initWA }
     |> SetCurrFileWSMod
 
-let connId2JSConn (model: Model) connId =
-    match model.Diagram.GetCanvasState() with
-    | Some (_, jsConns) -> 
-        List.tryFind (fun jsConn -> (extractConnection jsConn).Id = connId) jsConns
-    | None -> None
-    |> function
-       | Some jsConn -> [ jsConn ]
-       | None -> []
-
 let selWave2selConn model wSMod ind on = 
     match port2ConnId model wSMod.WaveAdder.Ports.[ind] with 
-    | [ConnectionId el] -> connId2JSConn model el 
+    | [| ConnectionId el |] -> connId2JSConn model el 
     | _ -> []
     |> function
-       | [ jsC ] -> model.Diagram.SetSelected jsC on
+       | [ jsC ] -> model.Diagram.SetSelected on jsC 
        | _ -> ()
 
 let isWaveSelected model wSMod port = 
@@ -676,15 +681,11 @@ let isWaveSelected model wSMod port =
     |> compsConns2portLst model wSMod.SimData.[0] 
     |> Array.contains port
 
-let waveAdderToggle (model: Model) dispatch ind =
+let waveAdderToggle (model: Model) ind =
     match currWS model with
     | Some wSMod ->         
         not (isWaveSelected model wSMod wSMod.WaveAdder.Ports.[ind])
         |> selWave2selConn model wSMod ind
-
-        (*Array.filter snd ports'
-        |> Array.map fst
-        |> setHighlightedConns model dispatch*)
     | None -> ()
 
 let simulateAddWave (model: Model) dispatch =
@@ -696,7 +697,7 @@ let simulateAddWave (model: Model) dispatch =
         setHighlightedConns model dispatch [||]
     | None -> ()
 
-let waveAdderSelectAll (model: Model) dispatch =
+let waveAdderSelectAll (model: Model) =
     match currWS model with
     | Some wSMod ->
         let setTo = 
@@ -706,12 +707,6 @@ let waveAdderSelectAll (model: Model) dispatch =
         [| 0 .. Array.length wSMod.WaveAdder.Ports - 1 |]
         |> Array.map (fun i -> selWave2selConn model wSMod i (not setTo)) 
         |> ignore
-
-        (*match Array.forall (fun (_, b) -> b) wSMod.WaveAdder.Ports with
-        | true -> setHighlightedConns model dispatch [||]
-        | false ->
-            Array.map fst wSMod.WaveAdder.Ports
-            |> setHighlightedConns model dispatch *)
     | None -> ()
 
 let nameLabelsCol (model: Model) labelRows dispatch =
@@ -806,7 +801,7 @@ let waveAdderTopRow model wSMod dispatch =
                     Class "check"
                     Checked(Array.forall (isWaveSelected model wSMod) wSMod.WaveAdder.Ports)
                     Style [ Float FloatOptions.Left ]
-                    OnChange(fun _ -> waveAdderSelectAll model dispatch) ] ]
+                    OnChange(fun _ -> waveAdderSelectAll model) ] ]
           td [ Style [ FontWeight "bold" ] ] [ str "Select All" ] ]
 
 let addWaveRow model wSMod dispatch ind =
@@ -823,7 +818,7 @@ let addWaveRow model wSMod dispatch ind =
                     Class "check"
                     Checked selected
                     Style [ Float FloatOptions.Left ]
-                    OnChange(fun _ -> waveAdderToggle model dispatch ind) ] ]
+                    OnChange(fun _ -> waveAdderToggle model ind) ] ]
           td [] [ label [] [ str wSMod.WaveAdder.WaveNames.[ind] ] ] ]
 
 let addWaveRows model wSMod dispatch = 

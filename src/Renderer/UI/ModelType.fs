@@ -28,6 +28,8 @@ type AutoSaveT = Saving | Deleting | Inactive
 
 type AsyncTasksT = {
     AutoSave: AutoSaveT
+    LastAutoSave: System.DateTime
+    LastAutoSaveCheck: System.DateTime
     LastSavedCanvasState: CanvasState option
     RunningSimulation: bool // placeholder - not used yet
     }

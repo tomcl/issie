@@ -18,15 +18,50 @@ open Node
 module JsonHelpers =
     open Fable.SimpleJson
 
-    let stateToJsonString (state : CanvasState) : string =
-        SimpleJson.stringify state
+
+    type SavedInfo =
+        | CanvasOnly of CanvasState
+        | CanvasWithFileWaveInfo of CanvasState * SavedWaveInfo option * System.DateTime
+
+        member self.getCanvas = 
+            match self with
+            | CanvasOnly c -> c 
+            | CanvasWithFileWaveInfo (c,_,_) -> c
+
+        member self.getTimeStamp = 
+            match self with
+            | CanvasOnly _ -> System.DateTime.MinValue 
+            | CanvasWithFileWaveInfo (_,_,ts) -> ts
+        member self.getWaveInfo =
+            match self with
+            | CanvasOnly _ -> None 
+            | CanvasWithFileWaveInfo (_,waveInfo,_) -> waveInfo
+
+
+    let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option) : string =
+        let time = System.DateTime.Now
+        SimpleJson.stringify (CanvasWithFileWaveInfo (cState, waveInfo, time))
 
     let jsonStringToState (jsonString : string) =
          Json.tryParseAs<CanvasState> jsonString
+         |> (function
+                | Ok state -> Some (CanvasOnly state)
+                | Error _ ->
+                    match Json.tryParseAs<SavedInfo> jsonString with
+                    | Ok state -> Some state
+                    | Error _ -> None)
+
+
+let private fileExistsWithExtn extn folderPath baseName =
+    let path = path.join [| folderPath; baseName + extn |]
+    fs.existsSync (U2.Case1 path)
 
 let private tryLoadStateFromPath (filePath: string) =
-    fs.readFileSync(filePath, "utf8")
-    |> jsonStringToState
+    if not (fs.existsSync (U2.Case1 filePath)) then
+        None
+    else
+        fs.readFileSync(filePath, "utf8")
+        |> jsonStringToState
 
 
 let pathJoin args = path.join args
@@ -139,9 +174,16 @@ let tryCreateFolder (path : string) =
 
 
 /// Asyncronously remove file.
-let removeFile folderPath baseName =
-    let path = path.join [| folderPath; baseName + ".dgm" |]
+let removeFileWithExtn extn folderPath baseName  =
+    let path = path.join [| folderPath; baseName + extn |]
     fs.unlink (U2.Case1 path, ignore) // Asynchronous.
+
+let removeFile (folderPath:string) (baseName:string) = removeFileWithExtn ".dgm" folderPath baseName
+
+let removeAutoFile folderPath baseName =
+    let path = path.join [| folderPath; baseName + ".dgmauto" |]
+    fs.unlink (U2.Case1 path, ignore) // Asynchronous.
+
 
 
 /// Write base64 encoded data to file.
@@ -162,7 +204,15 @@ let savePngFile folderPath baseName png = // TODO: catch error?
     let path = pathJoin [| folderPath; baseName + ".png" |]
     writeFileBase64 path png
 
+let formatSavedState (canvas,wave) =
+    CanvasWithFileWaveInfo(canvas,wave,System.DateTime.Now)
 /// Save state to file. Automatically add the .dgm suffix.
+let saveAutoStateToFile folderPath baseName state = // TODO: catch error?
+    let path = pathJoin [| folderPath; baseName + ".dgmauto" |]
+    let data = stateToJsonString state
+    writeFile path data
+
+/// Save state to autosave file. Automatically add the .dgauto suffix.
 let saveStateToFile folderPath baseName state = // TODO: catch error?
     let path = pathJoin [| folderPath; baseName + ".dgm" |]
     let data = stateToJsonString state
@@ -170,28 +220,45 @@ let saveStateToFile folderPath baseName state = // TODO: catch error?
 
 /// Create new empty diagram file. Automatically add the .dgm suffix.
 let createEmptyDgmFile folderPath baseName =
-    saveStateToFile folderPath baseName ([],[])
+    saveStateToFile folderPath baseName (([],[]), None)
 
 let private tryLoadComponentFromPath filePath =
     match tryLoadStateFromPath filePath with
-    | Result.Error err -> Result.Error err
-    | Result.Ok state ->
-        let inputs, outputs = parseDiagramSignature state
+    | None -> Result.Error <| sprintf "Can't load component from '%s'" filePath
+    | Some state ->
+        let inputs, outputs = parseDiagramSignature state.getCanvas
         Result.Ok {
             Name = getBaseNameNoExtension filePath
+            TimeStamp = state.getTimeStamp
+            WaveInfo = state.getWaveInfo
             FilePath = filePath
-            CanvasState = state
+            CanvasState = state.getCanvas
             InputLabels = inputs
             OutputLabels = outputs
         }
 
-/// Try to load all diagram components from a file path.
-/// Return a string with error if not possible.
-let tryLoadComponentsFromPath folderPath : Result<LoadedComponent list, string> =
+type LoadStatus =
+    | Resolve of LoadedComponent * LoadedComponent
+    | OkComp of LoadedComponent
+    | OkAuto of LoadedComponent
+
+    
+/// load all files in folderpath. Return Ok list of LoadStatus or a single Error.
+let loadAllComponentFiles (folderPath:string) = 
     fs.readdirSync (U2.Case1 folderPath)
     |> Seq.toList
     |> List.filter (path.extname >> ((=) ".dgm"))
     |> List.map (fun fileName ->
-            path.join [| folderPath; fileName |] |> tryLoadComponentFromPath
+            let filePath = path.join [| folderPath; fileName |]
+            let ldComp =  filePath |> tryLoadComponentFromPath
+            let autoComp = filePath + "auto" |> tryLoadComponentFromPath
+            match (ldComp,autoComp) with
+            | Ok ldComp, Ok autoComp when ldComp.TimeStamp < autoComp.TimeStamp ->
+                Resolve(ldComp,autoComp) |> Ok
+            | Ok ldComp, _ -> 
+                OkComp ldComp |> Ok
+            | Error _, Ok autoComp ->
+                OkAuto autoComp |> Ok
+            | Error msg, _ -> Error msg
         )
     |> tryFindError

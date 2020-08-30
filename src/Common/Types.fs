@@ -96,8 +96,27 @@ type Connection = {
 type CanvasState = Component list * Connection list
 
 /// F# data describing teh setup of the Wave Viewer window
-type SavedWaveInfo = unit
+type SaveWaveSimPort = {
+    CId : string
+    OutPN : int
+    TrgtId : string option
+}
 
+type SaveRadix = | SDec | UDec | Hex | Bin
+
+type SaveCanvasState = obj list * obj list
+
+type SavedWaveInfoOneFile = {
+    Ports: SaveWaveSimPort array
+    ClkWidth: float
+    Cursor: uint32 
+    SaveRadix: SaveRadix
+    LastClk: uint32
+    WaveAdderOpen: bool
+    WaveAdderPorts: SaveWaveSimPort array
+    LastCanvasState: SaveCanvasState option }
+
+type SavedWaveInfo = Map<string, SavedWaveInfoOneFile>
 
 //================================//
 // Componenents loaded from files //

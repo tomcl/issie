@@ -98,7 +98,7 @@ let radixChange (n: bigint) (nBits: uint32) (rad: NumberBase) =
 
 //auxiliary functions to the viewer function
 
-let port2ConnId (model: Model) p =
+let port2ConnId (model: Model) (p: WaveSimPort) =
     match model.Diagram.GetCanvasState() with
     | Some s ->
         let outPN =
@@ -323,8 +323,8 @@ let waveSimRows model wsMod dispatch =
                 ||> List.append
                 |> compsConns2portLst model wsMod.SimData.[0]
             Array.map
-                (fun port ->
-                    Array.exists (fun selP -> (selP.CId, selP.OutPN) = (port.CId, port.OutPN)) allSelPorts)
+                (fun (port: WaveSimPort) ->
+                    Array.exists (fun (selP: WaveSimPort) -> (selP.CId, selP.OutPN) = (port.CId, port.OutPN)) allSelPorts)
                 wsMod.Ports
 
         transitions wsMod
@@ -436,7 +436,7 @@ let zoom plus (m: Model) wSMod dispatch =
 
 let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ str label ]
 
-let changeCurs (model: Model) wSMod dispatch newVal =
+let changeCurs (model: Model) (wSMod: WaveSimModel) dispatch newVal =
     match 0u <= newVal, newVal <= wSMod.LastClk with
     | true, true -> { wSMod with Cursor = newVal }
     | true, false -> { changeTopInd newVal model wSMod with Cursor = newVal }
@@ -444,7 +444,7 @@ let changeCurs (model: Model) wSMod dispatch newVal =
     |> SetCurrFileWSMod
     |> dispatch
 
-let cursorMove increase (model: Model) wSMod dispatch =
+let cursorMove increase (model: Model) (wSMod: WaveSimModel) dispatch =
     match increase, wSMod.Cursor with
     | true, n -> n + 1u |> changeCurs model wSMod dispatch
     | false, n when n > 0u -> n - 1u |> changeCurs model wSMod dispatch
@@ -603,11 +603,11 @@ let connId2JSConn (model: Model) connId =
        | Some jsConn -> [ jsConn ]
        | None -> []
 
-let openCloseWA wSMod on = 
+let openCloseWA (wSMod: WaveSimModel) on = 
     { wSMod with WaveAdderOpen = on }
     |> SetCurrFileWSMod
 
-let selWave2selConn model wSMod ind on = 
+let selWave2selConn model (wSMod: WaveSimModel) ind on = 
     match port2ConnId model wSMod.WaveAdder.Ports.[ind] with 
     | [| ConnectionId el |] -> connId2JSConn model el 
     | _ -> []
@@ -638,7 +638,7 @@ let waveGen model wSMod dispatch ports =
         WaveAdderOpen = false }
     |> SetCurrFileWSMod |> dispatch
 
-let waveAdderSelectAll model wSMod =
+let waveAdderSelectAll model (wSMod: WaveSimModel) =
     let setTo = 
         wSMod.WaveAdder.Ports 
         |> Array.forall (isWaveSelected model wSMod)

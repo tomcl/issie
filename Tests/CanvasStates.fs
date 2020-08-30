@@ -42,6 +42,8 @@ let state1 : CanvasState =
 /// State1 loaded as a dependency.
 let state1Dependency : LoadedComponent = {
     Name = "broken-one-input"
+    TimeStamp = System.DateTime.MinValue
+    WaveInfo = None
     FilePath = ""
     CanvasState = state1
     InputLabels = ["input-node0", 1]
@@ -73,6 +75,8 @@ let state3 : CanvasState =
 /// State3 loaded as a dependency.
 let state3Dependency : LoadedComponent = {
     Name = "input-output"
+    TimeStamp = System.DateTime.MinValue
+    WaveInfo = None
     FilePath = ""
     CanvasState = state3
     InputLabels = ["input-node0-label", 1]
@@ -300,6 +304,8 @@ let state16 : CanvasState =
 /// State16 loaded as a dependency.
 let state16Dependency : LoadedComponent = {
     Name = "nested-input-output"
+    TimeStamp = System.DateTime.MinValue
+    WaveInfo = None
     FilePath = ""
     CanvasState = state16
     InputLabels = ["outer-input-node0-label", 1]
@@ -341,6 +347,8 @@ let state17 : CanvasState =
 /// State17 loaded as a dependency.
 let state17Dependency : LoadedComponent = {
     Name = "doubly-nested-input-output"
+    TimeStamp = System.DateTime.MinValue
+    WaveInfo = None
     FilePath = ""
     CanvasState = state17
     InputLabels = ["outer-outer-input-node0-label", 1]
@@ -526,6 +534,8 @@ let state23 : CanvasState =
 
 let state21Dependency : LoadedComponent = {
     Name = "21-custom-component"
+    TimeStamp = System.DateTime.MinValue
+    WaveInfo = None
     FilePath = ""
     CanvasState = state21
     InputLabels = ["21-inp", 1]
@@ -534,6 +544,8 @@ let state21Dependency : LoadedComponent = {
 
 let state22Dependency : LoadedComponent = {
     Name = "22-custom-component"
+    TimeStamp = System.DateTime.MinValue
+    WaveInfo = None
     FilePath = ""
     CanvasState = state22
     InputLabels = ["22-inp", 1]
@@ -542,6 +554,8 @@ let state22Dependency : LoadedComponent = {
 
 let state23Dependency : LoadedComponent = {
     Name = "23-custom-component"
+    TimeStamp = System.DateTime.MinValue
+    WaveInfo = None
     FilePath = ""
     CanvasState = state23
     InputLabels = ["23-inp", 1]
@@ -635,6 +649,8 @@ let halfAdderState : CanvasState =
 
 let halfAdderDependency : LoadedComponent = {
     Name = "half-adder"
+    TimeStamp = System.DateTime.MinValue
+    WaveInfo = None
     FilePath = ""
     CanvasState = halfAdderState
     InputLabels = ["A", 1; "B", 1]
@@ -670,6 +686,8 @@ let fullAdderState : CanvasState =
 
 let fullAdderDependency : LoadedComponent = {
     Name = "full-adder"
+    TimeStamp = System.DateTime.MinValue
+    WaveInfo = None
     FilePath = ""
     CanvasState = fullAdderState
     InputLabels = ["Cin", 1; "B", 1; "A", 1]
@@ -709,6 +727,8 @@ let twoBitAdderState : CanvasState =
 let twoBitAdderDependency : LoadedComponent = {
     Name = "2-bit-adder"
     FilePath = ""
+    TimeStamp = System.DateTime.MinValue
+    WaveInfo = None
     CanvasState = twoBitAdderState
     InputLabels = ["A0", 1; "B1", 1; "A1", 1; "B0", 1; "Zero", 1]
     OutputLabels = ["Cout", 1; "Sum0", 1; "Sum1", 1]

@@ -38,6 +38,8 @@ type AsyncTasksT = {
 type Model = {
     AsyncActivity: AsyncTasksT
     Diagram : Draw2dWrapper
+    SimulationIsStale: bool
+    LastSimulatedCanvasState: CanvasState option // reduced (without layout) canvas state
     LastSelected: Component list * Connection list
     CurrentSelected: Component list * Connection list
     LastUsedDialogWidth: int
@@ -60,7 +62,6 @@ type Model = {
 
 /// Lens to facilitate changing AsyncActivity
 let setActivity (f: AsyncTasksT -> AsyncTasksT) (model: Model) =
-
-
     {model with AsyncActivity = f model.AsyncActivity }
     
+let changeSimulationIsStale (b:bool) (m:Model) = {m with SimulationIsStale = b}

@@ -47,7 +47,7 @@ let init() = {
     WaveSim = Map.empty, None
     RightTab = Catalogue
     CurrProject = None
-    Hilighted = [], []
+    Hilighted = ([], []), []
     Clipboard = [], []
     CreateComponent = None
     HasUnsavedChanges = false
@@ -137,10 +137,6 @@ let private runBusWidthInference model =
 
 let private makeSelectionChangeMsg (model:Model) (dispatch: Msg -> Unit) (ev: 'a) =
     dispatch SelectionHasChanged
-  
-
-
-
 
 // -- Create View
 
@@ -200,8 +196,8 @@ let dividerbar (model:Model) dispatch =
         ] []
 
 let displayView model dispatch =
-    //let windowX,windowY =
-    //    int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
+    let windowX,windowY =
+        int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
     let selectedComps, selectedconns = 
         model.Diagram.GetSelected()
         |> Option.map extractState
@@ -224,9 +220,14 @@ let displayView model dispatch =
             let newWidth = model.ViewerWidth - int ev.clientX + pos
             let w = 
                 newWidth
-                |> max DiagramStyle.minViewerWidth
-                |> min (WaveformSimulationView.maxViewerWidth model dispatch)//(windowX - 200)
+                |> max minViewerWidth
+                |> min (windowX - minEditorWidth)
             SetViewerWidth w |> dispatch
+            match currWS model with
+            | Some wSMod when w > maxWidth wSMod ->
+                let newTopInd = wSMod.LastClk + 10u
+                changeTopInd newTopInd model wSMod |> SetCurrFileWSMod |> dispatch
+            | _ -> ()
             SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
         | DragModeOn _, _ ->  SetDragMode DragModeOff |> dispatch
         | DragModeOff, _-> ()
@@ -397,8 +398,14 @@ let update msg model =
     | JSDiagramMsg msg' -> handleJSDiagramMsg msg' model
     | KeyboardShortcutMsg msg' -> handleKeyboardShortcutMsg msg' model
     // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).
-    | StartSimulation simData -> 
-        { model with Simulation = Some simData }
+    | StartSimulation simData -> { model with Simulation = Some simData }
+    | SetCurrFileWSMod wSMod' -> 
+        match FileMenuView.getCurrFile model with
+        | Some fileName ->
+            { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), 
+                                   snd model.WaveSim }
+        | None -> model
+    | SetWSError err -> { model with WaveSim = fst model.WaveSim, err }
     | StartWaveSim msg -> 
         let changeKey map key data =
             match Map.exists (fun k _ -> k = key) map with
@@ -424,9 +431,10 @@ let update msg model =
         let simData = getSimulationDataOrFail model "IncrementSimulationClockTick"
         { model with Simulation = { simData with ClockTickNumber = simData.ClockTickNumber+1 } |> Ok |> Some }
     | EndSimulation -> { model with Simulation = None }
+    | EndWaveSim -> { model with WaveSim = (Map.empty, None) }
     | ChangeRightTab newTab -> { model with RightTab = newTab }
     | SetHighlighted (componentIds, connectionIds) ->
-        let oldComponentIds, oldConnectionIds = model.Hilighted
+        let oldComponentIds, oldConnectionIds = fst model.Hilighted
         oldComponentIds
         |> List.map (fun (ComponentId c) -> model.Diagram.UnHighlightComponent c)
         |> ignore
@@ -437,9 +445,27 @@ let update msg model =
         |> List.map (fun (ConnectionId c) -> model.Diagram.UnHighlightConnection c)
         |> ignore
         connectionIds
-        |> List.map (fun (ConnectionId c) -> model.Diagram.HighlightConnection c)
+        |> List.map (fun (ConnectionId c) -> model.Diagram.HighlightConnection c "red")
         |> ignore
-        { model with Hilighted = (componentIds, connectionIds) }
+        { model with Hilighted = (componentIds, connectionIds), snd model.Hilighted }
+    | SetSelWavesHighlighted connIds ->
+        let (_, errConnIds), oldConnIds = model.Hilighted
+        oldConnIds
+        |> List.map (fun (ConnectionId c) -> 
+            match List.contains (ConnectionId c) errConnIds with
+            | true -> ()
+            | false -> model.Diagram.UnHighlightConnection c )
+        |> ignore
+        connIds
+        |> List.map (fun (ConnectionId c) -> 
+            match List.contains (ConnectionId c) errConnIds with
+            | true -> ()
+            | false -> model.Diagram.HighlightConnection c "green")
+        |> ignore
+        List.fold (fun st cId -> if List.contains cId errConnIds 
+                                    then st
+                                    else cId :: st ) [] connIds
+        |> (fun lst -> { model with Hilighted = fst model.Hilighted, lst })
     | SetClipboard components -> { model with Clipboard = components }
     | SetCreateComponent pos -> { model with CreateComponent = Some pos }
     | SetProject project -> { model with CurrProject = Some project }

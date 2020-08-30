@@ -92,6 +92,9 @@ type private IDraw2d =
     abstract getScrollArea                : canvas: JSCanvas -> ResizeArray<int>
     abstract getZoom                      : canvas: JSCanvas -> float
     abstract setScrollZoom                : canvas: JSCanvas -> scrollLeft: int -> scrollTop:int -> zoom: float -> unit
+    abstract resetSelection               : canvas: JSCanvas -> unit
+    abstract addCompSelection             : canvas: JSCanvas -> comp: JSComponent -> unit
+    abstract addConnSelection             : canvas: JSCanvas -> conn: JSConnection -> unit
 
 [<Import("*", "./draw2d_fsharp_interface.js")>]
 let private draw2dLib : IDraw2d = jsNative
@@ -382,11 +385,11 @@ type Draw2dWrapper() =
         |> tryActionWithCanvas "UnHighlightComponent"
     
     /// Highlight a specific connection
-    member this.HighlightConnection connectionId =
+    member this.HighlightConnection connectionId color =
         fun c ->
             let conn =
                 assertNotNull (draw2dLib.getConnectionById c connectionId) "HighlightConnection"
-            draw2dLib.setConnectionColor conn "red"
+            draw2dLib.setConnectionColor conn color
             draw2dLib.setConnectionStroke conn 3
         |> tryActionWithCanvas "HighlightConnection"
 
@@ -486,5 +489,20 @@ type Draw2dWrapper() =
             match isNull jsComp with
             | true -> Error <| sprintf "Could not find component with Id: %s" compId
             | false -> Ok jsComp
-
-    
+        
+    member this.SetSelected on (conn: JSConnection) =
+        match canvas with
+        | Some c -> 
+            let comps, conns =
+                match this.GetSelected () with
+                | Some (a, b) -> a, b
+                | None -> [], []
+            let conns' =
+                match on with
+                | false -> List.filter ((<>) conn) conns
+                | true -> conn::conns |> List.distinct
+            draw2dLib.resetSelection c
+            List.map (draw2dLib.addCompSelection c) comps |> ignore
+            List.map (draw2dLib.addConnSelection c) conns' |> ignore
+            ()
+        | None -> ()

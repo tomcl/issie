@@ -406,19 +406,6 @@ let update msg model =
                                    snd model.WaveSim }
         | None -> model
     | SetWSError err -> { model with WaveSim = fst model.WaveSim, err }
-    | StartWaveSim msg -> 
-        let changeKey map key data =
-            match Map.exists (fun k _ -> k = key) map with
-            | true ->
-                Map.map (fun k d -> if k = key then data else d) map
-            | false -> 
-                failwith "StartWaveSim dispatched when the current file entry is missing in WaveSim"
-        let fileName = FileMenuView.getCurrFile model
-        match msg with
-        | Ok wsData -> { model with WaveSim = changeKey (fst model.WaveSim) fileName wsData, 
-                                              snd model.WaveSim }
-        | Error (Some err) -> { model with WaveSim = fst model.WaveSim, Some err  }
-        | Error None -> { model with WaveSim = fst model.WaveSim, None }
     | AddWaveSimFile (fileName, wSMod') ->
         { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim }
     | SetSimulationGraph graph ->

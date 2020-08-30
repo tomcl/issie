@@ -32,6 +32,46 @@ let currWS (model: Model) =
     | Some fileName when Map.containsKey fileName (fst model.WaveSim) -> Some (fst model.WaveSim).[fileName]
     | _ -> None
 
+let private wsMod2SavedWaveInfo (wsMod: WaveSimModel) =
+    let wSPort2SaveWSPort (wSPort: WaveSimPort) =
+        let (ComponentId cId) = wSPort.CId
+        let (OutputPortNumber outPN) = wSPort.OutPN
+        let trgtId =
+            match wSPort.TrgtId with
+            | Some (ComponentId tId) -> Some tId
+            | None -> None
+        { CId = cId; OutPN = outPN; TrgtId = trgtId }
+
+    let rad2SaveRad (rad: NumberBase) : SaveRadix =
+        match rad with
+        | SDec -> SaveRadix.SDec
+        | Dec -> SaveRadix.UDec
+        | Bin -> SaveRadix.Bin
+        | Hex -> SaveRadix.Hex
+
+    let canvasState2SaveCanvasState (comps, conns) =
+        let jsComp2Obj c =
+            let (JSTypes.JSComponent ob) = c
+            ob
+        let jsConn2Obj c =
+            let (JSTypes.JSConnection ob) = c
+            ob
+        List.map jsComp2Obj comps, List.map jsConn2Obj conns
+
+    let lastCS2SaveLastCS (cS: JSTypes.JSCanvasState option) =
+        match cS with
+        | Some canvasState -> Some <| canvasState2SaveCanvasState canvasState 
+        | None -> None
+
+    { Ports = Array.map wSPort2SaveWSPort wsMod.Ports
+      ClkWidth = wsMod.ClkWidth
+      Cursor = wsMod.Cursor
+      SaveRadix = rad2SaveRad wsMod.Radix
+      LastClk = wsMod.LastClk
+      WaveAdderOpen = wsMod.WaveAdderOpen
+      WaveAdderPorts = Array.map wSPort2SaveWSPort wsMod.WaveAdder.Ports 
+      LastCanvasState = lastCS2SaveLastCS wsMod.LastCanvasState }
+
 let private displayFileErrorNotification err dispatch =
     errorNotification err CloseFilesNotification
     |> SetFilesNotification |> dispatch
@@ -65,7 +105,7 @@ let saveOpenFileAction isAuto model =
     | Some jsState, Some project ->
         extractState jsState
         |> (fun state -> 
-                let savedState = state,None
+                let savedState = state, None
                 if isAuto 
                 then saveAutoStateToFile project.ProjectPath project.OpenFileName savedState
                 else 
@@ -352,9 +392,10 @@ let processComp simData cId: WaveSimPort [] =
     | Some sC -> Array.append (procCompIns cId sC.Inputs) (procOuts cId sC.Outputs)
     | None -> failwith "Component Id is not in Simulation Data"
 
-let remDuplicates arrWithDup =
-    Array.groupBy (fun p -> p.CId, p.OutPN) arrWithDup
-    |> Array.map (fun (_, ports) -> { ports.[0] with TrgtId = Array.tryPick (fun p -> p.TrgtId) ports })
+let remDuplicates (arrWithDup: WaveSimPort []) : WaveSimPort [] =
+    Array.groupBy (fun (p: WaveSimPort) -> p.CId, p.OutPN) arrWithDup
+    |> Array.map (fun (_, (ports: WaveSimPort [])) -> 
+        { ports.[0] with TrgtId = Array.tryPick (fun (p: WaveSimPort) -> p.TrgtId) ports })
 
 let compsConns2portLst model (simData: SimulatorTypes.SimulationData) diagElLst: WaveSimPort [] =
     let portId2CIdInPN pId =
@@ -379,8 +420,8 @@ let compsConns2portLst model (simData: SimulatorTypes.SimulationData) diagElLst:
             | None -> [||])
     |> remDuplicates
 
-let reloadablePorts (model: Model) (simData: SimulatorTypes.SimulationData) =
-    let inGraph port = Map.exists (fun key _ -> key = port.CId) simData.Graph
+let reloadablePorts (model: Model) (simData: SimulatorTypes.SimulationData) : WaveSimPort [] =
+    let inGraph (port: WaveSimPort) = Map.exists (fun key _ -> key = port.CId) simData.Graph
     match currWS model with
     | Some wSMod ->
         Array.filter inGraph wSMod.Ports
@@ -527,7 +568,7 @@ let wSPort2Name simGraph p =
     | Some outName -> outName + tl
     | None -> tl
 
-let extractSimTime ports (simGraph: SimulationGraph) =
+let extractSimTime (ports: WaveSimPort []) (simGraph: SimulationGraph) =
     ports
     |> Array.map (fun { CId = compId; OutPN = portN; TrgtId = _ } ->
         match Map.tryFind compId simGraph with

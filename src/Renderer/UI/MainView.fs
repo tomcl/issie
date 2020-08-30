@@ -358,7 +358,7 @@ let updateTimeStamp model =
 let checkForAutoSave msg model =
     let needsAutoSave (newState:CanvasState option) (state:CanvasState option) =
         match newState,state with
-        | None, _ -> 
+        | None, _ | _, None -> 
             false
         | Some (ncomps,nconns), Some (comps,conns) -> 
             Set ncomps <> Set comps || Set nconns <> Set conns
@@ -374,17 +374,22 @@ let checkForAutoSave msg model =
             let newReducedState = 
                 model.Diagram.GetCanvasState()
                 |> Option.map extractReducedState 
-            if needsAutoSave newReducedState  model.AsyncActivity.LastSavedCanvasState
+            let update = needsAutoSave newReducedState  model.AsyncActivity.LastSavedCanvasState
+            if update
             then
-                printfn "AutoSaving"
+                printfn "AutoSaving at '%s'" (System.DateTime.Now.ToString("mm:ss"))
                 {model with HasUnsavedChanges=true}
                 |> updateTimeStamp
                 |> setActivity (fun a -> {a with LastSavedCanvasState = newReducedState})
                 |> (fun model' -> 
                     saveOpenFileAction true model'; 
-                    setActivity (fun a -> {a with LastAutoSave = System.DateTime.Now}) model')                         
+                    setActivity (fun a -> {a with LastAutoSave = System.DateTime.Now}) model';)                         
             else
                 model
+            |> setActivity (fun a ->
+                            match update || a.LastSavedCanvasState = None with
+                            | true -> {a with LastSavedCanvasState = newReducedState}
+                            | false -> a)
        
             
 
@@ -455,7 +460,8 @@ let update msg model =
         |> (fun lst -> { model with Hilighted = fst model.Hilighted, lst })
     | SetClipboard components -> { model with Clipboard = components }
     | SetCreateComponent pos -> { model with CreateComponent = Some pos }
-    | SetProject project -> { model with CurrProject = Some project }
+    | SetProject project -> 
+        setActivity (fun a -> {a with LastSavedCanvasState=None}) { model with CurrProject = Some project}
     | CloseProject -> { model with CurrProject = None }
     | ShowPopup popup -> { model with Popup = Some popup }
     | ClosePopup ->

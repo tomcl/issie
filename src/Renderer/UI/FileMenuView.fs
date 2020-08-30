@@ -459,7 +459,7 @@ let reloadablePorts (model: Model) (simData: SimulatorTypes.SimulationData) =
 
 let limBits (name: string): (int * int) option =
     match Seq.tryFind ((=) '[') name, Seq.tryFind ((=) ':') name, Seq.tryFind ((=) ']') name with
-    | Some, Some, Some ->
+    | Some _, Some _, Some _->
         (name.[Seq.findIndexBack ((=) '[') name + 1..Seq.findIndexBack ((=) ':') name - 1],
          name.[Seq.findIndexBack ((=) ':') name + 1..Seq.findIndexBack ((=) ']') name - 1])
         |> (fun (a, b) -> int a, int b)
@@ -719,7 +719,7 @@ let viewTopMenu model dispatch =
                                     Button.Color IsPrimary
                                     Button.Disabled(name = project.OpenFileName)
                                     Button.OnClick(fun _ ->
-                                        saveOpenFileAction model // Save current file.
+                                        saveOpenFileAction false model // Save current file.
                                         openFileInProject name project model dispatch) ] [ str "open" ] ]
                           // Add option to rename?
                           //Level.item [] [
@@ -828,7 +828,7 @@ let viewTopMenu model dispatch =
                                 [ Button.button
                                     [ Button.Color(if model.HasUnsavedChanges then IsSuccess else IsWhite)
                                       Button.OnClick(fun _ ->
-                                          saveOpenFileAction model
+                                          saveOpenFileAction false model
                                           SetHasUnsavedChanges false
                                           |> JSDiagramMsg
                                           |> dispatch) ] [ str "Save" ] ] ]

@@ -51,9 +51,17 @@ module JsonHelpers =
                     | Ok state -> Some state
                     | Error _ -> None)
 
+
+let private fileExistsWithExtn extn folderPath baseName =
+    let path = path.join [| folderPath; baseName + extn |]
+    fs.existsSync (U2.Case1 path)
+
 let private tryLoadStateFromPath (filePath: string) =
-    fs.readFileSync(filePath, "utf8")
-    |> jsonStringToState
+    if not (fs.existsSync (U2.Case1 filePath)) then
+        None
+    else
+        fs.readFileSync(filePath, "utf8")
+        |> jsonStringToState
 
 
 let pathJoin args = path.join args
@@ -176,9 +184,6 @@ let removeAutoFile folderPath baseName =
     let path = path.join [| folderPath; baseName + ".dgmauto" |]
     fs.unlink (U2.Case1 path, ignore) // Asynchronous.
 
-let fileExistsWithExtn extn folderPath baseName =
-    let path = path.join [| folderPath; baseName + extn |]
-    fs.existsSync (U2.Case1 path)
 
 
 /// Write base64 encoded data to file.
@@ -199,6 +204,8 @@ let savePngFile folderPath baseName png = // TODO: catch error?
     let path = pathJoin [| folderPath; baseName + ".png" |]
     writeFileBase64 path png
 
+let formatSavedState (canvas,wave) =
+    CanvasWithFileWaveInfo(canvas,wave,System.DateTime.Now)
 /// Save state to file. Automatically add the .dgm suffix.
 let saveAutoStateToFile folderPath baseName state = // TODO: catch error?
     let path = pathJoin [| folderPath; baseName + ".dgmauto" |]
@@ -230,13 +237,28 @@ let private tryLoadComponentFromPath filePath =
             OutputLabels = outputs
         }
 
-/// Try to load all diagram components from a file path.
-/// Return a string with error if not possible.
-let tryLoadComponentsFromPath folderPath : Result<LoadedComponent list, string> =
+type LoadStatus =
+    | Resolve of LoadedComponent * LoadedComponent
+    | OkComp of LoadedComponent
+    | OkAuto of LoadedComponent
+
+    
+/// load all files in folderpath. Return Ok list of LoadStatus or a single Error.
+let loadAllComponentFiles (folderPath:string) = 
     fs.readdirSync (U2.Case1 folderPath)
     |> Seq.toList
     |> List.filter (path.extname >> ((=) ".dgm"))
     |> List.map (fun fileName ->
-            path.join [| folderPath; fileName |] |> tryLoadComponentFromPath
+            let filePath = path.join [| folderPath; fileName |]
+            let ldComp =  filePath |> tryLoadComponentFromPath
+            let autoComp = filePath + "auto" |> tryLoadComponentFromPath
+            match (ldComp,autoComp) with
+            | Ok ldComp, Ok autoComp when ldComp.TimeStamp < autoComp.TimeStamp ->
+                Resolve(ldComp,autoComp) |> Ok
+            | Ok ldComp, _ -> 
+                OkComp ldComp |> Ok
+            | Error _, Ok autoComp ->
+                OkAuto autoComp |> Ok
+            | Error msg, _ -> Error msg
         )
     |> tryFindError

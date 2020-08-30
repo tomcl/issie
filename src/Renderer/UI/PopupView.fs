@@ -294,6 +294,28 @@ let confirmationPopup title body buttonText buttonAction dispatch =
         ]
     closablePopup title body foot [] dispatch
 
+/// A static choice dialog popup.
+let choicePopup title body buttonTrueText buttonFalseText buttonAction dispatch =
+    let foot =
+        Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
+            Level.left [] []
+            Level.right [] [
+                Level.item [] [
+                    Button.button [
+                        Button.Color IsLight
+                        Button.OnClick (buttonAction false)
+                    ] [ str buttonFalseText ]
+                ]
+                Level.item [] [
+                    Button.button [
+                        Button.Color IsPrimary
+                        Button.OnClick (buttonAction true)
+                    ] [ str buttonTrueText ]
+                ]
+            ]
+        ]
+    closablePopup title body foot [] dispatch
+
 /// Display popup, if any is present.
 let viewPopup model =
     match model.Popup with

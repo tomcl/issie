@@ -89,14 +89,17 @@ let private loadStateIntoCanvas state model dispatch =
     // Set no unsaved changes.
     SetHasUnsavedChanges false |> JSDiagramMsg |> dispatch
 
-let private reloadProjectComponents dispatch project =
-    match tryLoadComponentsFromPath project.ProjectPath with
-    | Error err ->
-        log err
-        let errMsg = "Could not load diagrams files in the project. The files may be malformed."
-        displayFileErrorNotification errMsg dispatch
-        project
-    | Ok components -> { project with LoadedComponents = components }
+
+
+/// extract SavedwaveInfo from model to be saved
+let getSavedWave (model:Model): SavedWaveInfo option = None
+
+/// add waveInfo to model
+let setSavedWave (wave: SavedWaveInfo option) =
+    fun model ->
+        match wave with
+        | None -> model
+        | Some waveInfo -> model // TODO: setup
 
 /// Save the file currently open.
 let saveOpenFileAction isAuto model =
@@ -105,9 +108,9 @@ let saveOpenFileAction isAuto model =
     | Some jsState, Some project ->
         extractState jsState
         |> (fun state -> 
-                let savedState = state, None
-                if isAuto 
-                then saveAutoStateToFile project.ProjectPath project.OpenFileName savedState
+                let savedState = state, getSavedWave model
+                if isAuto then
+                    saveAutoStateToFile project.ProjectPath project.OpenFileName savedState
                 else 
                     saveStateToFile project.ProjectPath project.OpenFileName savedState
                     removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName)
@@ -133,16 +136,32 @@ let private createEmptyDiagramFile projectPath name =
         OutputLabels = []
     }
 
+let setupProject (pPath:string) (ldComps: LoadedComponent list) (model: Model) (dispatch: Msg->Unit)=
+    let openFileName, openFileState =
+        match ldComps with
+        | [] -> // No files in the project. Create one and open it.
+            createEmptyDgmFile pPath "main"
+            "main", ([],[])
+        | comps ->
+            // load the most recently saved file
+            let comp = comps |> List.maxBy (fun comp -> comp.TimeStamp)
+            comp.Name, comp.CanvasState
+    dispatch EndSimulation // End any running simulation.
+    loadStateIntoCanvas openFileState model dispatch
+    {
+        ProjectPath = pPath
+        OpenFileName =  openFileName
+        LoadedComponents = ldComps
+    }
+    |> SetProject |> dispatch
+
 /// Open the specified file.
 let private openFileInProject name project model dispatch =
     match getFileInProject name project with
     | None -> log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
     | Some loadedComponent ->
-        loadStateIntoCanvas loadedComponent.CanvasState model dispatch
-        // Reload components so the project we just closed is up to date in
-        // our CurrProj.
-        { project with OpenFileName = name }
-        |> reloadProjectComponents dispatch |> SetProject |> dispatch
+        saveOpenFileAction false model
+        setupProject project.ProjectPath project.LoadedComponents model dispatch
         dispatch EndSimulation // End any running simulation.
 
 /// Remove file.
@@ -256,34 +275,54 @@ let private newProject model dispatch _ =
             }
             |> SetProject |> dispatch
 
-/// Open a project.
+
+
+
+
+
+
+/// work out what to do opening a file
+let rec resolveComponentOpenPopup 
+        (pPath:string)
+        (components: LoadedComponent list)  
+        (resolves: LoadStatus list) 
+        (model: Model)
+        (dispatch: Msg -> Unit) =
+    dispatch ClosePopup
+    match resolves with
+    | [] -> setupProject pPath components model dispatch
+    | Resolve (ldComp,autoComp) :: rLst ->
+        // ldComp, autocomp are from attemps to load saved file and its autosave version.
+        let buttonAction autoSave _ =
+            let comp = if autoSave then autoComp else ldComp
+
+            resolveComponentOpenPopup pPath (comp :: components) rLst  model dispatch   
+        // special case when autosave data is most recent
+        let title = "Warning!"
+        let body = str <|  sprintf "Warning: changes were made to sheet '%s' after your last Save. There ia an automatically saved version which is '%s \
+                                more uptodate. Do you want to keep the newer AutoSaved version or \
+                                the older saved version?"  ldComp.Name  ((autoComp.TimeStamp - ldComp.TimeStamp).ToString())
+        choicePopup title body "Newer AutoSaved file" "Older Saved file" buttonAction dispatch
+    | OkAuto autoComp :: rLst ->
+         let errMsg = "Could not load saved project file '%s' - using autosave file instead"
+         displayFileErrorNotification errMsg dispatch
+         resolveComponentOpenPopup pPath (autoComp::components) rLst model dispatch
+    | OkComp comp ::rLst -> 
+        resolveComponentOpenPopup pPath (comp::components) rLst model dispatch
+ 
+
+/// open an existing project
 let private openProject model dispatch _ =
     match askForExistingProjectPath () with
     | None -> () // User gave no path.
     | Some path ->
-        match tryLoadComponentsFromPath path with
+        match loadAllComponentFiles path with
         | Error err ->
             log err
             let errMsg = "Could not load diagrams files in the project. The files may be malformed."
             displayFileErrorNotification errMsg dispatch
-        | Ok components ->
-            let openFileName, openFileState =
-                match components with
-                | [] -> // No files in the project. Create one and open it.
-                    createEmptyDgmFile path "main"
-                    "main", ([],[])
-                | comps ->
-                    // load the most recently saved file
-                    let comp = comps |> List.maxBy (fun comp -> comp.TimeStamp)
-                    comp.Name, comp.CanvasState
-            dispatch EndSimulation // End any running simulation.
-            loadStateIntoCanvas openFileState model dispatch
-            {
-                ProjectPath = path
-                OpenFileName =  openFileName
-                LoadedComponents = components
-            }
-            |> SetProject |> dispatch
+        | Ok componentsToResolve ->
+            resolveComponentOpenPopup path [] componentsToResolve model dispatch 
 
 /// Display the initial Open/Create Project menu at the beginning if no project
 /// is open.
@@ -472,25 +511,32 @@ let rec findName
         | None -> failwith (compTypeStr + "input not connected")
 
     match simGraph.[compId].Type with
-    | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 | Decode4 -> 
-        [ compLbl, (0,0) ]
-    | Input w | Output w | Constant (w,_) -> 
-        [ compLbl, (w-1,0) ]
-    | Demux2 -> 
-        [ compLbl + "_" + string outPortInt, (0, 0) ]
-    | NbitsAdder w -> 
-        match outPortInt with 
-        | 0 -> [ compLbl + "_sum", (w-1, 0) ]
-        | _ -> [ compLbl + "Cout", (w-1, 0) ]
-    | DFF | DFFE -> 
-        [ compLbl + "_Q", (0, 0) ]
-    | Register w | RegisterE w -> 
-        [ compLbl + "_data-out", (w-1, 0) ]
-    | RAM mem | AsyncROM mem | ROM mem  -> 
-        [ compLbl + "_data-out", (mem.WordWidth-1, 0) ]
-    | Custom c -> 
-        [ c.Name + "_" + fst c.OutputLabels.[outPortInt], (snd c.OutputLabels.[outPortInt] - 1, 0) ]
-    | IOLabel -> 
+    | Not
+    | And
+    | Or
+    | Xor
+    | Nand
+    | Nor
+    | Xnor
+    | Decode4
+    | Mux2 -> [ compLbl, (0, 0) ]
+    | Input w
+    | Output w 
+    | Constant(w, _) -> [ compLbl, (w - 1, 0) ]
+    | Demux2 -> [ compLbl + "_" + string outPortInt, (0, 0) ]
+    | NbitsAdder w ->
+        match outPortInt with
+        | 0 -> [ compLbl + "_sum", (w - 1, 0) ]
+        | _ -> [ compLbl + "Cout", (w - 1, 0) ]
+    | DFF
+    | DFFE -> [ compLbl + "_Q", (0, 0) ]
+    | Register w
+    | RegisterE w -> [ compLbl + "_data-out", (w - 1, 0) ]
+    | RAM mem
+    | AsyncROM mem
+    | ROM mem -> [ compLbl + "_data-out", (mem.WordWidth - 1, 0) ]
+    | Custom c -> [ compLbl + "_" + fst c.OutputLabels.[outPortInt], (snd c.OutputLabels.[outPortInt] - 1, 0) ]
+    | IOLabel ->
         match driveOut simGraph compId (InputPortNumber 0) with
         | Some(driveCompId, drivePortN) ->
             match findName simGraph
@@ -678,154 +724,146 @@ let viewTopMenu model dispatch =
         | Some project -> project.ProjectPath, project.OpenFileName
 
     let makeFileLine name project =
-        Navbar.Item.div [ Navbar.Item.Props [ style] ] [
-            Level.level [ Level.Level.Props [ style ] ] [
-                Level.left [] [
-                    Level.item [] [ str name ]
-                ]
-                Level.right [ Props [ Style [MarginLeft "20px"] ] ] [
-                    Level.item [] [
-                        Button.button [
-                            Button.Size IsSmall
-                            Button.IsOutlined
-                            Button.Color IsPrimary
-                            Button.Disabled (name = project.OpenFileName)
-                            Button.OnClick (fun _ ->
-                                saveOpenFileAction false model // Save current file.
-                                openFileInProject name project model dispatch
-                            )
-                        ] [ str "open" ]
-                    ]
-                    // Add option to rename?
-                    //Level.item [] [
-                    //    Button.button [
-                    //        Button.Size IsSmall
-                    //        Button.IsOutlined
-                    //        Button.Color IsInfo
-                    //    ] [ str "rename" ]
-                    //]
-                    Level.item [] [
-                        Button.button [
-                            Button.Size IsSmall
-                            Button.IsOutlined
-                            Button.Color IsDanger
-                            Button.OnClick (fun _ ->
-                                let title = "Delete file"
-                                let body = div [] [
-                                    str "Are you sure you want to delete the follwing file?"
-                                    br []
-                                    str <| pathJoin [| project.ProjectPath; name + ".dgm" |]
-                                    br []
-                                    str <| "This action is irreversible."
-                                ]
-                                let buttonText = "Delete"
-                                let buttonAction =
-                                    fun _ ->
-                                        removeFileInProject name project model dispatch
-                                        dispatch ClosePopup
-                                confirmationPopup title body buttonText buttonAction dispatch
-                            )
-                        ] [ str "delete" ]
-                    ]
-                ]
-            ]
-        ]
+        Navbar.Item.div [ Navbar.Item.Props [ style ] ]
+            [ Level.level [ Level.Level.Props [ style ] ]
+                  [ Level.left [] [ Level.item [] [ str name ] ]
+                    Level.right [ Props [ Style [ MarginLeft "20px" ] ] ]
+                        [ Level.item []
+                              [ Button.button
+                                  [ Button.Size IsSmall
+                                    Button.IsOutlined
+                                    Button.Color IsPrimary
+                                    Button.Disabled(name = project.OpenFileName)
+                                    Button.OnClick(fun _ ->
+                                        saveOpenFileAction model // Save current file.
+                                        openFileInProject name project model dispatch) ] [ str "open" ] ]
+                          // Add option to rename?
+                          //Level.item [] [
+                          //    Button.button [
+                          //        Button.Size IsSmall
+                          //        Button.IsOutlined
+                          //        Button.Color IsInfo
+                          //    ] [ str "rename" ]
+                          //]
+                          Level.item []
+                              [ Button.button
+                                  [ Button.Size IsSmall
+                                    Button.IsOutlined
+                                    Button.Color IsDanger
+                                    Button.OnClick(fun _ ->
+                                        let title = "Delete file"
+
+                                        let body =
+                                            div []
+                                                [ str "Are you sure you want to delete the follwing file?"
+                                                  br []
+                                                  str <| pathJoin
+                                                             [| project.ProjectPath
+                                                                name + ".dgm" |]
+                                                  br []
+                                                  str <| "This action is irreversible." ]
+
+                                        let buttonText = "Delete"
+
+                                        let buttonAction =
+                                            fun _ ->
+                                                removeFileInProject name project model dispatch
+                                                dispatch ClosePopup
+                                        confirmationPopup title body buttonText buttonAction dispatch) ]
+                                    [ str "delete" ] ] ] ] ]
+
     let fileTab =
         match model.CurrProject with
         | None -> Navbar.Item.div [] []
         | Some project ->
-            let projectFiles = project.LoadedComponents
-                               |> List.map (fun comp -> makeFileLine comp.Name project)
-            Navbar.Item.div [
-                Navbar.Item.HasDropdown;
-                Navbar.Item.Props [OnClick (fun _ -> if model.TopMenu = Files then Closed else Files
-                                                     |> SetTopMenu |> dispatch)]
-            ] [
-                Navbar.Link.a [] [ str "Files" ]
-                Navbar.Dropdown.div [ Navbar.Dropdown.Props [
-                    Style [Display (if (let b = model.TopMenu = Files; 
-                                    b) then DisplayOptions.Block else DisplayOptions.None)]
-                ]] (
-                    [
-                        Navbar.Item.a [
-                            Navbar.Item.Props [
-                                OnClick (fun _ -> addFileToProject model dispatch) ] ]
-                            [ str "New file" ]
-                        Navbar.divider [] [] 
-                    ]
-                    @ projectFiles
-                )
-            ]
+            let projectFiles = project.LoadedComponents |> List.map (fun comp -> makeFileLine comp.Name project)
+            Navbar.Item.div
+                [ Navbar.Item.HasDropdown
+                  Navbar.Item.Props
+                      [ OnClick(fun _ ->
+                          if model.TopMenu = Files then Closed else Files
+                          |> SetTopMenu
+                          |> dispatch) ] ]
+                [ Navbar.Link.a [] [ str "Files" ]
+                  Navbar.Dropdown.div
+                      [ Navbar.Dropdown.Props
+                          [ Style
+                              [ Display
+                                  (if (let b = model.TopMenu = Files
+                                       b) then
+                                      DisplayOptions.Block
+                                   else
+                                       DisplayOptions.None) ] ] ]
+                      ([ Navbar.Item.a [ Navbar.Item.Props [ OnClick(fun _ -> addFileToProject model dispatch) ] ]
+                             [ str "New file" ]
+                         Navbar.divider [] [] ]
+                       @ projectFiles) ]
 
-    div [ leftSectionWidth model ] [
-        Navbar.navbar [ Navbar.Props [Style [Height "100%"; Width "100%" ]] ] [
-            Navbar.Brand.div [ Props [Style [Height "100%"; Width "100%"]] ] [
-                Navbar.Item.div [
-                    Navbar.Item.HasDropdown;
-                    Navbar.Item.Props [OnClick (fun _ -> if model.TopMenu = Project then Closed else Project
-                                                         |> SetTopMenu |> dispatch)]
-                ] [
-                    Navbar.Link.a [] [ str "Project" ]
-                    Navbar.Dropdown.div [ Navbar.Dropdown.Props [
-                        Style [Display (if model.TopMenu = Project then DisplayOptions.Block else DisplayOptions.None)]
-                    ] ] [
-                        Navbar.Item.a [
-                            Navbar.Item.Props [ OnClick <| newProject model dispatch ]
-                        ] [ str "New project" ]
-                        Navbar.Item.a [
-                            Navbar.Item.Props [ OnClick <| openProject model dispatch ]
-                        ] [ str "Open project" ]
-                        Navbar.Item.a [
-                            Navbar.Item.Props [ OnClick <| closeProject model dispatch ]
-                        ] [ str "Close project" ]
-                    ]
-                ]
-                fileTab
-                Navbar.Item.div [] [
-                    Navbar.Item.div [] [
-                        Breadcrumb.breadcrumb [ Breadcrumb.HasArrowSeparator ] [
-                            Breadcrumb.item [] [ str <| cropToLength 30 false projectPath ]
-                            Breadcrumb.item [] [ span [Style [FontWeight "bold"]] [str fileName] ]
-                        ]
-                    ]
-                ]
-                Navbar.Item.div [] [
-                    Navbar.Item.div [] [
-                        Button.button [
-                            Button.Color (if model.HasUnsavedChanges
-                                              then IsSuccess
-                                              else IsWhite)
-                            Button.OnClick (fun _ ->
-                                saveOpenFileAction false model
-                                SetHasUnsavedChanges false
-                                |> JSDiagramMsg |> dispatch)
-                        ] [ str "Save" ]
-                    ]
-                ]
-                Navbar.End.div [] [
-                    Navbar.Item.div [] [
-                        match isSimulateActive model dispatch with
-                        | Some (Ok simData), Some wSMod ->
-                            Button.button
-                                [ Button.Color IsSuccess
-                                  Button.OnClick(fun _ ->
-                                      simulate model wSMod dispatch simData
-                                      ChangeRightTab WaveSim |> dispatch) ]
-                        | Some (Error err), _ -> 
-                            Button.button
-                                [ Button.OnClick(fun _ ->
-                                      Some err |> SetWSError |> dispatch
-                                      ChangeRightTab WaveSim |> dispatch) ]
-                        | _ -> Button.button []
-                        |> (fun but -> but [ str "Simulate >>" ]) ] ]
-                Navbar.End.div [] [
-                    Navbar.Item.div [] [
-                        Button.button [
-                            Button.OnClick (fun _ -> viewInfoPopup dispatch)
-                            
-                        ] [str "Info"]
-                    ]
-                ]
-            ]
-        ]
-    ]
+    div [ leftSectionWidth model ]
+        [ Navbar.navbar
+            [ Navbar.Props
+                [ Style
+                    [ Height "100%"
+                      Width "100%" ] ] ]
+              [ Navbar.Brand.div
+                  [ Props
+                      [ Style
+                          [ Height "100%"
+                            Width "100%" ] ] ]
+                    [ Navbar.Item.div
+                        [ Navbar.Item.HasDropdown
+                          Navbar.Item.Props
+                              [ OnClick(fun _ ->
+                                  if model.TopMenu = Project then Closed else Project
+                                  |> SetTopMenu
+                                  |> dispatch) ] ]
+                          [ Navbar.Link.a [] [ str "Project" ]
+                            Navbar.Dropdown.div
+                                [ Navbar.Dropdown.Props
+                                    [ Style
+                                        [ Display
+                                            (if model.TopMenu = Project then
+                                                DisplayOptions.Block
+                                             else
+                                                 DisplayOptions.None) ] ] ]
+                                [ Navbar.Item.a [ Navbar.Item.Props [ OnClick <| newProject model dispatch ] ]
+                                      [ str "New project" ]
+                                  Navbar.Item.a [ Navbar.Item.Props [ OnClick <| openProject model dispatch ] ]
+                                      [ str "Open project" ]
+                                  Navbar.Item.a [ Navbar.Item.Props [ OnClick <| closeProject model dispatch ] ]
+                                      [ str "Close project" ] ] ]
+                      fileTab
+                      Navbar.Item.div []
+                          [ Navbar.Item.div []
+                                [ Breadcrumb.breadcrumb [ Breadcrumb.HasArrowSeparator ]
+                                      [ Breadcrumb.item [] [ str <| cropToLength 30 false projectPath ]
+                                        Breadcrumb.item [] [ span [ Style [ FontWeight "bold" ] ] [ str fileName ] ] ] ] ]
+                      Navbar.Item.div []
+                          [ Navbar.Item.div []
+                                [ Button.button
+                                    [ Button.Color(if model.HasUnsavedChanges then IsSuccess else IsWhite)
+                                      Button.OnClick(fun _ ->
+                                          saveOpenFileAction model
+                                          SetHasUnsavedChanges false
+                                          |> JSDiagramMsg
+                                          |> dispatch) ] [ str "Save" ] ] ]
+                      Navbar.End.div []
+                          [ Navbar.Item.div []
+                                [ match isSimulateActive model dispatch with
+                                  | Some (Ok simData), Some wSMod ->
+                                      Button.button
+                                          [ Button.Color IsSuccess
+                                            Button.OnClick(fun _ ->
+                                                simulate model wSMod dispatch simData
+                                                ChangeRightTab WaveSim |> dispatch) ]
+                                  | Some (Error err), _ -> 
+                                      Button.button
+                                          [ Button.OnClick(fun _ ->
+                                                Some err |> SetWSError |> dispatch
+                                                ChangeRightTab WaveSim |> dispatch) ]
+                                  | _ -> Button.button []
+                                |> (fun but -> but [ str "Simulate >>" ]) ] ]
+                      Navbar.End.div []
+                          [ Navbar.Item.div []
+                                [ Button.button [ Button.OnClick(fun _ -> viewInfoPopup dispatch) ] [ str "Info" ] ] ] ] ] ]
+

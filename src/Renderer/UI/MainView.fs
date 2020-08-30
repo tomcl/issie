@@ -31,6 +31,8 @@ open Fable.Core.JsInterop
 let initActivity = {
     AutoSave = Inactive
     LastSavedCanvasState = None
+    LastAutoSaveCheck = System.DateTime.MinValue
+    LastAutoSave = System.DateTime.MinValue
     RunningSimulation = false
     }
 
@@ -212,7 +214,7 @@ let displayView model dispatch =
 
     let processMouseMove (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
-        //makeSelectionChangeMsg model dispatch ev
+        if ev.buttons = 1. then dispatch SelectionHasChanged
         match model.DragMode, ev.buttons with
         | DragModeOn pos , 1.-> 
             let newWidth = model.ViewerWidth - int ev.clientX + pos
@@ -230,7 +232,7 @@ let displayView model dispatch =
         | DragModeOn _, _ ->  SetDragMode DragModeOff |> dispatch
         | DragModeOff, _-> ()
 
-    div [ OnMouseUp (setDragMode false model dispatch);
+    div [ OnMouseUp (fun ev -> setDragMode false model dispatch ev; dispatch SelectionHasChanged);
           OnMouseDown (makeSelectionChangeMsg model dispatch)
           OnMouseMove processMouseMove ] [
         viewTopMenu model dispatch 
@@ -328,7 +330,8 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
         zoomDiagram z model
     model
 
-
+/// get timestamp of current loaded component.
+/// is this ever used?
 let getCurrentTimeStamp model =
     match model.CurrProject with
     | None -> System.DateTime.MinValue
@@ -339,6 +342,7 @@ let getCurrentTimeStamp model =
                     | None -> failwithf "Project inconsistency: can't find component %s in %A"
                                 p.OpenFileName ( p.LoadedComponents |> List.map (fun lc -> lc.Name))
 
+/// replace timestamp of current loaded component in model project by current time
 let updateTimeStamp model =
     let setTimeStamp (lc:LoadedComponent) = {lc with TimeStamp = System.DateTime.Now}
     match model.CurrProject with
@@ -348,26 +352,40 @@ let updateTimeStamp model =
         |> List.map (fun lc -> if lc.Name = p.OpenFileName then setTimeStamp lc else lc)
         |> fun lcs -> { model with CurrProject=Some {p with LoadedComponents = lcs}}
 
+/// Check whether current message could mark a chnage in Diagram worth saving.
+/// If so, check whether Diagram has a significant circuit change (don't count layout).
+/// If so, do an autosave. TODO: make the autosave asynchronous
 let checkForAutoSave msg model =
-    match msg with
-    | ReloadSelectedComponent _ 
-    | JSDiagramMsg (SetHasUnsavedChanges true) ->
+    let needsAutoSave (newState:CanvasState option) (state:CanvasState option) =
+        match newState,state with
+        | None, _ -> 
+            false
+        | Some (ncomps,nconns), Some (comps,conns) -> 
+            Set ncomps <> Set comps || Set nconns <> Set conns
+        | _ -> true
+    if System.DateTime.Now < (model.AsyncActivity.LastAutoSaveCheck).AddSeconds 0.1 then
+        model
+    else
+        let model = setActivity (fun a -> {a with LastAutoSaveCheck=System.DateTime.Now}) model
         match model.CurrProject with
-        | None -> model // do nothing
+        | None -> 
+            model // do nothing
         | Some proj ->
             let newReducedState = 
                 model.Diagram.GetCanvasState()
                 |> Option.map extractReducedState 
-            if newReducedState <> model.AsyncActivity.LastSavedCanvasState
+            if needsAutoSave newReducedState  model.AsyncActivity.LastSavedCanvasState
             then
                 printfn "AutoSaving"
-                model
+                {model with HasUnsavedChanges=true}
                 |> updateTimeStamp
                 |> setActivity (fun a -> {a with LastSavedCanvasState = newReducedState})
-                |> (fun model' -> saveOpenFileAction true model'; model') // autosave                           
+                |> (fun model' -> 
+                    saveOpenFileAction true model'; 
+                    setActivity (fun a -> {a with LastAutoSave = System.DateTime.Now}) model')                         
             else
                 model
-    | _ -> model
+       
             
 
 
@@ -388,6 +406,19 @@ let update msg model =
                                    snd model.WaveSim }
         | None -> model
     | SetWSError err -> { model with WaveSim = fst model.WaveSim, err }
+    | StartWaveSim msg -> 
+        let changeKey map key data =
+            match Map.exists (fun k _ -> k = key) map with
+            | true ->
+                Map.map (fun k d -> if k = key then data else d) map
+            | false -> 
+                failwith "StartWaveSim dispatched when the current file entry is missing in WaveSim"
+        let fileName = FileMenuView.getCurrFile model
+        match msg with
+        | Ok wsData -> { model with WaveSim = changeKey (fst model.WaveSim) fileName wsData, 
+                                              snd model.WaveSim }
+        | Error (Some err) -> { model with WaveSim = fst model.WaveSim, Some err  }
+        | Error None -> { model with WaveSim = fst model.WaveSim, None }
     | AddWaveSimFile (fileName, wSMod') ->
         { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim }
     | SetSimulationGraph graph ->

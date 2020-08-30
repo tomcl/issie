@@ -65,6 +65,7 @@ $sigLineThick: 0.025;
 .lastWaveCellSvg {
     height: 100%;
     display: block;
+    position: absolute;
 }
 
 .waveCellSvg {
@@ -156,7 +157,7 @@ $sigLineThick: 0.025;
     position: relative;
     border: 2px solid rgb(219,219,219);
     overflow-x: scroll;
-
+    overflow-y: hidden;
 }
 
 .checkboxCol {

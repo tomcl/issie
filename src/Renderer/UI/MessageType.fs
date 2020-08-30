@@ -63,7 +63,7 @@ type WaveSimPort = {
     TrgtId : ComponentId option
 }
 type WaveAdderModel = {
-    Ports : (WaveSimPort * bool) array;
+    Ports : WaveSimPort array;
     WaveNames : WaveName array
 }
 
@@ -77,11 +77,13 @@ type WaveSimModel = {
     Cursor: uint32 
     Radix: NumberBase
     LastClk: uint32
+    WaveAdderOpen: bool
     WaveAdder: WaveAdderModel
     LastCanvasState: JSCanvasState option 
 }
 
-let initWA = { Ports = [||]; WaveNames = [||] }
+let initWA = 
+    { Ports = [||]; WaveNames = [||] }
 
 let initWS: WaveSimModel =
     { SimData = [||]
@@ -92,7 +94,8 @@ let initWS: WaveSimModel =
       ClkWidth = 1.0
       Cursor = 0u
       Radix = Bin
-      LastClk = 9u
+      LastClk = 9u 
+      WaveAdderOpen = true
       WaveAdder = initWA
       LastCanvasState = None }
 
@@ -114,14 +117,17 @@ type Msg =
     | JSDiagramMsg of JSDiagramMsg
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
-    | StartWaveSim of Result<WaveSimModel, (SimulationError option)>
+    | SetCurrFileWSMod of WaveSimModel
+    | SetWSError of SimulationError option
     | AddWaveSimFile of string * WaveSimModel
     | SetSimulationGraph of SimulationGraph
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick
     | EndSimulation
+    | EndWaveSim
     | ChangeRightTab of RightTab
     | SetHighlighted of ComponentId list * ConnectionId list
+    | SetSelWavesHighlighted of ConnectionId list
     | SetClipboard of CanvasState
     | SetCreateComponent of Component
     | SetProject of Project

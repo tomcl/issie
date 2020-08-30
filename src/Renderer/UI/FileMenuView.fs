@@ -21,6 +21,7 @@ open Extractor
 open PopupView
 open Simulator
 open SimulatorTypes
+open System
 
 let getCurrFile (model: Model) =
     match model.CurrProject with
@@ -53,6 +54,8 @@ let private loadStateIntoCanvas state model dispatch =
     SetHasUnsavedChanges false
     |> JSDiagramMsg
     |> dispatch
+    // set autosave status clean
+
 
 
 
@@ -105,6 +108,13 @@ let private createEmptyDiagramFile projectPath name =
         OutputLabels = []
     }
 
+let updateLoadedComponents name setFun lcLst =
+    let n = List.tryFindIndex (fun lc -> lc.Name = name) lcLst
+    match n with
+    | None -> failwithf "Can't find name='%s' in components:%A" name lcLst
+    | Some n ->
+        List.mapi (fun i x -> if i = n then setFun x else x)
+
 let setupProject (pPath:string) (ldComps: LoadedComponent list) (model: Model) (dispatch: Msg->Unit)=
     let openFileName, openFileState =
         match ldComps with
@@ -116,6 +126,7 @@ let setupProject (pPath:string) (ldComps: LoadedComponent list) (model: Model) (
             let comp = comps |> List.maxBy (fun comp -> comp.TimeStamp)
             comp.Name, comp.CanvasState
     dispatch EndSimulation // End any running simulation.
+    //
     loadStateIntoCanvas openFileState model dispatch
     {
         ProjectPath = pPath
@@ -130,12 +141,15 @@ let private openFileInProject name project model dispatch =
     | None -> log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
     | Some loadedComponent ->
         saveOpenFileAction false model
+        // make sure correct file gets opened.
+        let lcs = updateLoadedComponents name (fun lc -> {lc with TimeStamp = DateTime.Now})
         setupProject project.ProjectPath project.LoadedComponents model dispatch
         dispatch EndSimulation // End any running simulation.
 
 /// Remove file.
 let private removeFileInProject name project model dispatch =
     removeFile project.ProjectPath name
+    removeFile project.ProjectPath (name + "auto")
     // Remove the file from the dependencies and update project.
     let newComponents = List.filter (fun lc -> lc.Name <> name) project.LoadedComponents
     // Make sure there is at least one file in the project.

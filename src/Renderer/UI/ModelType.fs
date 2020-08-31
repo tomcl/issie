@@ -62,6 +62,7 @@ type Model = {
     TopMenu : TopMenu
     DragMode: DragMode
     ViewerWidth: int // waveform viewer width in pixels
+    SimulationInProgress: bool
 }
 
 /// Lens to facilitate changing AsyncActivity

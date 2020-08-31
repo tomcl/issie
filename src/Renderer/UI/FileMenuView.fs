@@ -36,7 +36,7 @@ let currWS (model: Model) =
 let private makeSimData model =
     match model.Diagram.GetCanvasState(), model.CurrProject with
     | None, _ -> None
-    | _, None -> failwith "what? Cannot start a simulation without a project"
+    | _, None -> None
     | Some jsState, Some project ->
         let otherComponents = 
             project.LoadedComponents 
@@ -638,6 +638,8 @@ let private getReducedCanvState model =
 
 let private setWA model wSMod dispatch simData =
     SetViewerWidth minViewerWidth |> dispatch
+    getReducedCanvState model |> SetLastSimulatedCanvasState |> dispatch
+    SetSimIsStale false |> dispatch
 
     let wA' =
         match avalPorts model dispatch with
@@ -649,6 +651,8 @@ let private setWA model wSMod dispatch simData =
           LastCanvasState = getReducedCanvState model }
     |> SetCurrFileWSMod
     |> dispatch
+
+    SetSimInProgress false |> dispatch
 
 let reloadablePorts (model: Model) (simData: SimulatorTypes.SimulationData) : WaveSimPort [] =
     let inGraph (port: WaveSimPort) = Map.exists (fun key _ -> key = port.CId) simData.Graph
@@ -728,16 +732,6 @@ let limBits (name: string): (int * int) option =
         |> Some
     | _ -> None
 
-let isSimulateActive (model: Model) dispatch =
-    match currWS model with
-    | Some wSMod ->            
-        if wSMod.LastCanvasState <> getReducedCanvState model
-            then makeSimData model, Some wSMod 
-            else None, Some wSMod
-    | None -> 
-        initFileWS model dispatch
-        None, None
-
 let port2ConnId (model: Model) (p: WaveSimPort) =
     match model.Diagram.GetCanvasState() with
     | Some s ->
@@ -793,22 +787,34 @@ let waveGen model (wSMod: WaveSimModel) dispatch ports =
         Ports = ports
         WaveAdderOpen = false }
     |> SetCurrFileWSMod |> dispatch
-    SetSimIsStale true |> dispatch
+    SetSimInProgress false |> dispatch
 
 
 /// Display top menu.
 let viewTopMenu model dispatch =
     // do simulation
-    match currWS model, model.SimulationIsStale with
-    | Some wSMod, false -> 
+    match currWS model, model.SimulationInProgress with
+    | Some wSMod, true -> 
         match wSMod.WaveAdder.SimData with
         | Some sD ->
             reloadablePorts model sD
             |> waveGen model wSMod dispatch
-            SetSimIsStale true |> dispatch
-        | None -> SetSimIsStale true |> dispatch
-    | None, false -> SetSimIsStale true |> dispatch
+            SetSimInProgress false |> dispatch
+        | None -> SetSimInProgress false |> dispatch
+    | None, false -> SetSimInProgress false |> dispatch
     | _, _ -> ()
+
+    let tryReduce cs =
+        match cs with
+        | Some cS -> extractReducedState cS |> Some
+        | None -> None
+
+    match model.SimulationIsStale, tryReduce (model.Diagram.GetCanvasState()), model.LastSimulatedCanvasState with
+    | true, _ , _ -> ()
+    | false, curr, stored when curr = stored -> ()
+    | false, curr, _ ->
+             curr |> SetLastSimulatedCanvasState |> dispatch
+             SetSimIsStale true |> dispatch
 
     //printfn "FileView"
     let style = Style [ Width "100%" ] //leftSectionWidth model
@@ -945,22 +951,29 @@ let viewTopMenu model dispatch =
                       Navbar.End.div []
                           [ 
                             Navbar.Item.div []
-                                [ match isSimulateActive model dispatch with
-                                  | Some (Ok simData), Some wSMod ->
-                                      Button.button
-                                          [ Button.Color IsSuccess
-                                            Button.OnClick(fun _ ->
-                                                setWA model wSMod dispatch simData
-                                                if wSMod.WaveAdderOpen
-                                                then ()
-                                                else SetSimIsStale false |> dispatch
-                                                ChangeRightTab WaveSim |> dispatch) ]
-                                  | Some (Error err), _ -> 
-                                      Button.button
-                                          [ Button.OnClick(fun _ ->
-                                                Some err |> SetWSError |> dispatch
-                                                ChangeRightTab WaveSim |> dispatch) ]
-                                  | _ -> Button.button []
+                                [ match model.SimulationIsStale with
+                                  | true ->
+                                        match currWS model, makeSimData model with
+                                        | Some wSMod, Some (Ok simData) ->
+                                              Button.button
+                                                  [ Button.Color IsSuccess
+                                                    Button.OnClick(fun _ ->
+                                                        setWA model wSMod dispatch simData
+                                                        if wSMod.WaveAdderOpen
+                                                        then ()
+                                                        else SetSimInProgress true |> dispatch
+                                                        ChangeRightTab WaveSim |> dispatch) ]
+                                        | Some _, Some (Error err) -> 
+                                              Button.button
+                                                  [ Button.OnClick(fun _ ->
+                                                        Some err |> SetWSError |> dispatch
+                                                        ChangeRightTab WaveSim |> dispatch) ]
+                                        | _ -> 
+                                            match model.CurrProject with
+                                            | Some _ -> initFileWS model dispatch
+                                            | None -> ()
+                                            Button.button []
+                                  | false -> Button.button []
                                 |> (fun but -> but [ str "Simulate >>" ]) ] ]
                       Navbar.End.div []
                           [ Navbar.Item.div []

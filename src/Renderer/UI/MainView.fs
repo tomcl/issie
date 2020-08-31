@@ -39,6 +39,8 @@ let initActivity = {
 let init() = {
     AsyncActivity = initActivity
     Diagram = new Draw2dWrapper()
+    SimulationIsStale = true
+    LastSimulatedCanvasState = None
     LastSelected = [],[]
     CurrentSelected = [],[]
     SelectedComponent = None
@@ -352,17 +354,24 @@ let updateTimeStamp model =
         |> List.map (fun lc -> if lc.Name = p.OpenFileName then setTimeStamp lc else lc)
         |> fun lcs -> { model with CurrProject=Some {p with LoadedComponents = lcs}}
 
-/// Check whether current message could mark a chnage in Diagram worth saving.
+/// Check whether current message could mark a change in Diagram worth saving.
 /// If so, check whether Diagram has a significant circuit change (don't count layout).
 /// If so, do an autosave. TODO: make the autosave asynchronous
 let checkForAutoSave msg model =
-    let needsAutoSave (newState:CanvasState option) (state:CanvasState option) =
-        match newState,state with
-        | None, _ -> 
-            false
+    let simIsStale (newState:CanvasState option) (simState:CanvasState option) =
+        match newState,simState with
+        | None, _  -> false
         | Some (ncomps,nconns), Some (comps,conns) -> 
             Set ncomps <> Set comps || Set nconns <> Set conns
         | _ -> true
+
+    let needsAutoSave (newState:CanvasState option) (state:CanvasState option) =
+        match newState,state with
+        | None, _ | _, None -> 
+            false
+        | Some (ncomps,nconns), Some (comps,conns) -> 
+            Set ncomps <> Set comps || Set nconns <> Set conns
+
     if System.DateTime.Now < (model.AsyncActivity.LastAutoSaveCheck).AddSeconds 0.1 then
         model
     else
@@ -374,19 +383,26 @@ let checkForAutoSave msg model =
             let newReducedState = 
                 model.Diagram.GetCanvasState()
                 |> Option.map extractReducedState 
-            if needsAutoSave newReducedState  model.AsyncActivity.LastSavedCanvasState
+            let update = needsAutoSave newReducedState  model.AsyncActivity.LastSavedCanvasState
+            let simUpdate = simIsStale newReducedState model.LastSimulatedCanvasState
+            if update
             then
-                printfn "AutoSaving"
+                printfn "AutoSaving at '%s'" (System.DateTime.Now.ToString("mm:ss"))
                 {model with HasUnsavedChanges=true}
                 |> updateTimeStamp
                 |> setActivity (fun a -> {a with LastSavedCanvasState = newReducedState})
                 |> (fun model' -> 
                     saveOpenFileAction true model'; 
-                    setActivity (fun a -> {a with LastAutoSave = System.DateTime.Now}) model')                         
+                    setActivity (fun a -> {a with LastAutoSave = System.DateTime.Now}) model';)                         
             else
                 model
+            |> setActivity (fun a ->
+                            match update || a.LastSavedCanvasState = None with
+                            | true -> {a with LastSavedCanvasState = newReducedState}
+                            | false -> a)
+            |> (fun model -> changeSimulationIsStale simUpdate model)
        
-            
+          
 
 
 let update msg model =
@@ -455,7 +471,8 @@ let update msg model =
         |> (fun lst -> { model with Hilighted = fst model.Hilighted, lst })
     | SetClipboard components -> { model with Clipboard = components }
     | SetCreateComponent pos -> { model with CreateComponent = Some pos }
-    | SetProject project -> { model with CurrProject = Some project }
+    | SetProject project -> 
+        setActivity (fun a -> {a with LastSavedCanvasState=None}) { model with CurrProject = Some project}
     | CloseProject -> { model with CurrProject = None }
     | ShowPopup popup -> { model with Popup = Some popup }
     | ClosePopup ->

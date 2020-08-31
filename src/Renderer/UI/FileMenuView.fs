@@ -142,10 +142,10 @@ let compsConns2portLst model (simData: SimulatorTypes.SimulationData) diagElLst:
         | Some s ->
             List.map extractComponent (fst s)
             |> List.tryPick (fun c ->
-                List.tryFindIndex (fun (p: Port) -> p.Id = pId) c.InputPorts
-                |> function
-                | Some i -> Some(c.Id, i)
-                | None -> None)
+                    List.tryFindIndex (fun (p: Port) -> p.Id = pId) c.InputPorts
+                    |> function
+                    | Some i -> Some(c.Id, i)
+                    | None -> None)
         | None -> failwith "Called portId2cIdoutPN when Canvas State is None"
 
     diagElLst
@@ -171,6 +171,11 @@ let avalPorts (model: Model) dispatch =
         |> function
         | Ok simData ->
             List.map (extractComponent >> Comp) (fst jsState) 
+            |> List.filter (fun comp -> match comp with
+                                        | Comp c -> match c.Type with 
+                                                    | SplitWire _ | MergeWires _ -> false
+                                                    | _ -> true
+                                        | Conn c -> failwith "What? comp is of value Conn _")
             |> compsConns2portLst model simData
         | Error simError ->
             if simError.InDependency.IsNone then

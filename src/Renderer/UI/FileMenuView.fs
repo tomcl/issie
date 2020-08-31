@@ -32,45 +32,349 @@ let currWS (model: Model) =
     | Some fileName when Map.containsKey fileName (fst model.WaveSim) -> Some (fst model.WaveSim).[fileName]
     | _ -> None
 
-let private wsMod2SavedWaveInfo (wsMod: WaveSimModel) =
-    let wSPort2SaveWSPort (wSPort: WaveSimPort) =
-        let (ComponentId cId) = wSPort.CId
-        let (OutputPortNumber outPN) = wSPort.OutPN
-        let trgtId =
-            match wSPort.TrgtId with
-            | Some (ComponentId tId) -> Some tId
-            | None -> None
-        { CId = cId; OutPN = outPN; TrgtId = trgtId }
+let private makeSimData model =
+    match model.Diagram.GetCanvasState(), model.CurrProject with
+    | None, _ -> None
+    | _, None -> failwith "what? Cannot start a simulation without a project"
+    | Some jsState, Some project ->
+        let otherComponents = 
+            project.LoadedComponents 
+            |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        (extractState jsState, otherComponents)
+        ||> prepareSimulation project.OpenFileName
+        |> Some
 
-    let rad2SaveRad (rad: NumberBase) : SaveRadix =
-        match rad with
-        | SDec -> SaveRadix.SDec
-        | Dec -> SaveRadix.UDec
-        | Bin -> SaveRadix.Bin
-        | Hex -> SaveRadix.Hex
+let private simWireData2Wire wireData =
+    wireData
+    |> List.mapFold (fun weight bit ->
+        match bit with
+        | SimulatorTypes.Bit.Zero -> bigint 0
+        | SimulatorTypes.Bit.One -> weight
+        |> (fun r -> r, weight * (bigint 2))) (bigint 1)
+    |> fst
+    |> List.sum
 
-    let canvasState2SaveCanvasState (comps, conns) =
-        let jsComp2Obj c =
-            let (JSTypes.JSComponent ob) = c
-            ob
-        let jsConn2Obj c =
-            let (JSTypes.JSConnection ob) = c
-            ob
-        List.map jsComp2Obj comps, List.map jsConn2Obj conns
+let extractSimTime (ports: WaveSimPort []) (simGraph: SimulationGraph) =
+    ports
+    |> Array.map (fun { CId = compId; OutPN = portN; TrgtId = _ } ->
+        match Map.tryFind compId simGraph with
+        | Some simComp ->
+            match Map.tryFind portN simComp.Outputs with
+            | Some(hd :: _) ->
+                let wD = simGraph.[fst hd].Inputs.[snd hd]
+                Wire
+                    { NBits = uint (List.length wD)
+                      BitData = simWireData2Wire wD }
+            | Some [] -> failwith "Output not connected"
+            | None -> failwith "Component doesn't have this output port number"
+        | None -> failwith "ComponentId not in simulation graph")
 
-    let lastCS2SaveLastCS (cS: JSTypes.JSCanvasState option) =
-        match cS with
-        | Some canvasState -> Some <| canvasState2SaveCanvasState canvasState 
-        | None -> None
+let private clkAdvance (sD: SimulatorTypes.SimulationData) =
+    feedClockTick sD.Graph
+    |> (fun graph ->
+        { sD with
+              Graph = graph
+              ClockTickNumber = sD.ClockTickNumber + 1 })
 
-    { Ports = Array.map wSPort2SaveWSPort wsMod.Ports
+let extractSimData simData nCycles =
+    (simData, [| 1u .. nCycles |])
+    ||> Array.mapFold (fun s _ -> clkAdvance s, clkAdvance s)
+    |> fst
+
+let initFileWS model dispatch =
+    match getCurrFile model with
+    | Some fileName ->
+        (fileName, initWS)
+        |> AddWaveSimFile
+        |> dispatch
+    | None -> ()
+
+let private remDuplicates (arrWithDup: WaveSimPort []) : WaveSimPort [] =
+    Array.groupBy (fun (p: WaveSimPort) -> p.CId, p.OutPN) arrWithDup
+    |> Array.map (fun (_, (ports: WaveSimPort [])) -> 
+        { ports.[0] with TrgtId = Array.tryPick (fun (p: WaveSimPort) -> p.TrgtId) ports })
+
+/// Returns a tuple option representing the output to which the target input is connected
+let private driveOut simGraph targetCompId inPortN =
+    Map.toArray simGraph
+    |> Array.tryPick (fun (outCompId, simComp: SimulatorTypes.SimulationComponent) ->
+        Map.toArray simComp.Outputs
+        |> Array.tryFind (fun (_, lst) -> (List.exists (fun t -> t = (targetCompId, inPortN)) lst))
+        |> function
+        | Some(outPN, _) -> Some(outCompId, outPN)
+        | None -> None)
+
+let private procIns simData (compId: ComponentId) (inputs: InputPortNumber []): WaveSimPort [] =
+    Array.collect (fun portN ->
+        match simData.Graph.[compId].Type, driveOut simData.Graph compId portN with
+        | Input _, _ -> [||]
+        | Output _, Some(cId, oPN) ->
+            [| { CId = cId
+                 OutPN = oPN
+                 TrgtId = Some compId } |]
+        | _, Some(cId, oPN) ->
+            [| { CId = cId
+                 OutPN = oPN
+                 TrgtId = None } |]
+        | _, None -> failwith "Input is not connected") inputs
+
+
+let private processComp simData cId: WaveSimPort [] =
+    let procCompIns (compId: ComponentId) (inputs: Map<InputPortNumber, WireData>): WaveSimPort [] =
+        Map.toArray inputs
+        |> Array.map (fun (key, _) -> key)
+        |> procIns simData compId
+
+    let procOuts compId outputs: WaveSimPort [] =
+        Map.toArray outputs
+        |> Array.map (fun (portNum, _) ->
+            { CId = compId
+              OutPN = portNum
+              TrgtId = None })
+
+    match Map.tryFind cId simData.Graph with
+    | Some sC -> Array.append (procCompIns cId sC.Inputs) (procOuts cId sC.Outputs)
+    | None -> failwith "Component Id is not in Simulation Data"
+
+let compsConns2portLst model (simData: SimulatorTypes.SimulationData) diagElLst: WaveSimPort [] =
+    let portId2CIdInPN pId =
+        match model.Diagram.GetCanvasState() with
+        | Some s ->
+            List.map extractComponent (fst s)
+            |> List.tryPick (fun c ->
+                List.tryFindIndex (fun (p: Port) -> p.Id = pId) c.InputPorts
+                |> function
+                | Some i -> Some(c.Id, i)
+                | None -> None)
+        | None -> failwith "Called portId2cIdoutPN when Canvas State is None"
+
+    diagElLst
+    |> List.toArray
+    |> Array.collect (fun compEl ->
+        match compEl with
+        | Comp c -> processComp simData (ComponentId c.Id)
+        | Conn c ->
+            match portId2CIdInPN c.Target.Id with
+            | Some(cId, inPN) -> procIns simData (ComponentId cId) [| InputPortNumber inPN |]
+            | None -> [||])
+    |> remDuplicates
+
+
+let avalPorts (model: Model) dispatch =
+    match model.Diagram.GetCanvasState(), model.CurrProject with
+    | None, _ -> [||]
+    | _, None -> failwith "what? Cannot start a simulation without a project"
+    | Some jsState, Some project ->
+        let otherComponents = project.LoadedComponents |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        (extractState jsState, otherComponents)
+        ||> prepareSimulation project.OpenFileName
+        |> function
+        | Ok simData ->
+            List.map (extractComponent >> Comp) (fst jsState) 
+            |> compsConns2portLst model simData
+        | Error simError ->
+            if simError.InDependency.IsNone then
+                (simError.ComponentsAffected, simError.ConnectionsAffected)
+                |> SetHighlighted
+                |> dispatch
+            [||]
+
+
+let private wsMod2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
+    { SimData = wsMod.SimData.[0]
+      Ports = wsMod.Ports
       ClkWidth = wsMod.ClkWidth
       Cursor = wsMod.Cursor
-      SaveRadix = rad2SaveRad wsMod.Radix
+      Radix = wsMod.Radix
       LastClk = wsMod.LastClk
       WaveAdderOpen = wsMod.WaveAdderOpen
-      WaveAdderPorts = Array.map wSPort2SaveWSPort wsMod.WaveAdder.Ports 
-      LastCanvasState = lastCS2SaveLastCS wsMod.LastCanvasState }
+      WaveAdderPorts = wsMod.WaveAdder.Ports 
+      LastCanvasState = wsMod.LastCanvasState }
+
+let rec findName
+        (simGraph: SimulatorTypes.SimulationGraph)
+        ({ CId = compId; OutPN = outPortN; TrgtId = outputOpt }: WaveSimPort)
+    =
+    let compLbl =
+        match Map.tryFind compId simGraph with
+        | Some simComp ->
+            match simComp.Label with
+            | ComponentLabel lbl ->
+                match Seq.tryFindIndexBack ((=) '(') lbl with
+                | Some i -> lbl.[0..i - 1]
+                | None -> lbl //not robust!
+        | None -> failwith "simData.Graph.[compId] doesn't exist"
+
+    let outPortInt =
+        match outPortN with
+        | OutputPortNumber pn -> pn
+
+    let driveName n compTypeStr =
+        match driveOut simGraph compId (InputPortNumber n) with
+        | Some(driveCompId, drivePortN) ->
+            findName simGraph
+                { CId = driveCompId
+                  OutPN = drivePortN
+                  TrgtId = None }
+            |> snd
+        | None -> failwith (compTypeStr + "input not connected")
+
+    match simGraph.[compId].Type with
+    | Not
+    | And
+    | Or
+    | Xor
+    | Nand
+    | Nor
+    | Xnor
+    | Decode4
+    | Mux2 -> [ compLbl, (0, 0) ]
+    | Input w
+    | Output w 
+    | Constant(w, _) -> [ compLbl, (w - 1, 0) ]
+    | Demux2 -> [ compLbl + "_" + string outPortInt, (0, 0) ]
+    | NbitsAdder w ->
+        match outPortInt with
+        | 0 -> [ compLbl + "_sum", (w - 1, 0) ]
+        | _ -> [ compLbl + "Cout", (w - 1, 0) ]
+    | DFF
+    | DFFE -> [ compLbl + "_Q", (0, 0) ]
+    | Register w
+    | RegisterE w -> [ compLbl + "_data-out", (w - 1, 0) ]
+    | RAM mem
+    | AsyncROM mem
+    | ROM mem -> [ compLbl + "_data-out", (mem.WordWidth - 1, 0) ]
+    | Custom c -> [ compLbl + "_" + fst c.OutputLabels.[outPortInt], (snd c.OutputLabels.[outPortInt] - 1, 0) ]
+    | IOLabel ->
+        match driveOut simGraph compId (InputPortNumber 0) with
+        | Some(driveCompId, drivePortN) ->
+            match findName simGraph
+                      { CId = driveCompId
+                        OutPN = drivePortN
+                        TrgtId = None }
+                  |> snd with
+            | hd :: tl ->
+                ("(" + fst hd, snd hd) :: tl
+                |> function
+                | hd :: [] -> (fst hd + ")", snd hd) :: []
+                | lst ->
+                    List.append lst.[0..List.length lst - 2] [ fst (List.last lst) + ")", snd (List.last lst) ]
+            | [] -> failwith "Error: IOLabel input names list is empty"
+        | None -> failwith "IOLabel input not connected"
+    | MergeWires -> List.append (driveName 1 "MergeWires") (driveName 0 "MergeWires")
+    | SplitWire w ->
+        let predicate (_, b) =
+            match outPortInt with
+            | 0 -> b >= w
+            | 1 -> b < w
+            | _ -> failwith "SplitWire output port number greater than 1"
+
+        let split name msb lsb st =
+            List.zip [ lsb .. msb ] [ st + msb - lsb .. -1 .. st ]
+            |> List.filter predicate
+            |> List.unzip
+            |> function
+            | [], _ -> None
+            | lst, _ -> Some(name, (List.max lst, List.min lst))
+
+        (0, driveName 0 "SplitWire")
+        ||> List.mapFold (fun st (name, (msb, lsb)) -> split name msb lsb st, st + msb - lsb + 1)
+        |> fst
+        |> List.choose id
+    | BusSelection(w, oLSB) ->
+        let filtSelec name msb lsb st =
+            List.zip [ lsb .. msb ] [ st .. st + msb - lsb ]
+            |> List.filter (fun (_, b) -> oLSB <= b && b <= oLSB + w - 1)
+            |> List.unzip
+            |> function
+            | [], _ -> None
+            | lst, _ -> Some(name, (List.max lst, List.min lst))
+        (driveName 0 "BusSelection", 0)
+        ||> List.mapFoldBack (fun (name, (msb, lsb)) st -> filtSelec name msb lsb st, st + msb - lsb + 1)
+        |> fst
+        |> List.choose id
+        |> List.rev
+
+    |> (fun lst ->
+        match outputOpt with
+        | Some compId ->
+            match simGraph.[compId].Label with
+            | ComponentLabel lbl -> Some(lbl + ": "), lst
+        | None -> None, lst)
+
+let private bitNums (a, b) =
+    match (a, b) with
+    | (0, 0) -> ""
+    | (msb, lsb) when msb = lsb -> sprintf "[%d]" msb
+    | (msb, lsb) -> sprintf "[%d:%d]" msb lsb
+
+let wSPort2Name simGraph p =
+    let outNameOpt, nameLst = findName simGraph p
+
+    let tl =
+        match nameLst with
+        | [ el ] -> fst el + bitNums (snd el)
+        | lst when List.length lst > 0 ->
+            let appendName st (name, bitLims) = st + name + bitNums bitLims + ", "
+            List.fold appendName "{ " lst |> (fun lbl -> lbl.[0..String.length lbl - 3] + " }")
+        | _ -> ""
+    match outNameOpt with
+    | Some outName -> outName + tl
+    | None -> tl
+
+let private simulate model wSMod dispatch simData =
+    SetViewerWidth minViewerWidth |> dispatch
+    let simData' = 
+        match currWS model with
+        | Some wSMod -> wSMod.LastClk
+        | None -> 
+            initFileWS model dispatch
+            initWS.LastClk
+        |> extractSimData simData
+        |> Array.append [| simData |] 
+
+    let wA' =
+        match avalPorts model dispatch with
+        | wSPorts ->
+            let names' = Array.map (wSPort2Name simData'.[0].Graph) wSPorts
+            { Ports = wSPorts; WaveNames = names' }
+    { wSMod with
+          SimData = simData'
+          WaveAdder = wA'
+          LastCanvasState = model.Diagram.GetCanvasState() }
+    |> SetCurrFileWSMod
+    |> dispatch
+
+let reloadablePorts (model: Model) (simData: SimulatorTypes.SimulationData) : WaveSimPort [] =
+    let inGraph (port: WaveSimPort) = Map.exists (fun key _ -> key = port.CId) simData.Graph
+    match currWS model with
+    | Some wSMod ->
+        Array.filter inGraph wSMod.Ports
+        |> Array.map (fun port ->
+            match port.TrgtId with
+            | Some trgtId when Map.exists (fun key _ -> key = trgtId) simData.Graph ->
+                match List.tryFind (fun (cid, _) -> cid = trgtId) simData.Graph.[port.CId].Outputs.[port.OutPN] with
+                | Some _ -> port
+                | None -> { port with TrgtId = None }
+            | _ -> { port with TrgtId = None })
+    | None -> [||]
+
+let private savedWaveInfo2wsMod model (sWInfo: SavedWaveInfo) : WaveSimModel =
+    let ports' = reloadablePorts model sWInfo.SimData
+    let sD' = Array.append [|sWInfo.SimData|] (extractSimData sWInfo.SimData (sWInfo.LastClk - 1u))
+    { SimData = sD'
+      WaveData = Array.map (fun sD -> extractSimTime ports' sD.Graph) sD'
+      WaveNames = Array.map (wSPort2Name sWInfo.SimData.Graph) ports'
+      Selected = Array.map (fun _ -> false) ports'
+      Ports = ports'
+      ClkWidth = sWInfo.ClkWidth
+      Cursor = sWInfo.Cursor
+      Radix = sWInfo.Radix
+      LastClk = sWInfo.LastClk
+      WaveAdderOpen = sWInfo.WaveAdderOpen
+      WaveAdder = { Ports = sWInfo.WaveAdderPorts
+                    WaveNames = Array.map (wSPort2Name sWInfo.SimData.Graph) sWInfo.WaveAdderPorts }
+      LastCanvasState = sWInfo.LastCanvasState }
 
 let private displayFileErrorNotification err dispatch =
     errorNotification err CloseFilesNotification
@@ -136,7 +440,7 @@ let private createEmptyDiagramFile projectPath name =
         OutputLabels = []
     }
 
-let setupProject (pPath:string) (ldComps: LoadedComponent list) (model: Model) (dispatch: Msg->Unit)=
+let setupProject (pPath:string) (ldComps: LoadedComponent list) (model: Model) (dispatch: Msg->Unit) =
     let openFileName, openFileState =
         match ldComps with
         | [] -> // No files in the project. Create one and open it.
@@ -275,12 +579,6 @@ let private newProject model dispatch _ =
             }
             |> SetProject |> dispatch
 
-
-
-
-
-
-
 /// work out what to do opening a file
 let rec resolveComponentOpenPopup 
         (pPath:string)
@@ -370,108 +668,12 @@ let private viewInfoPopup dispatch =
     let foot = div [] []
     closablePopup title body foot [] dispatch
 
-/// Simulate function
-//simulate button functions
-
-/// Returns a tuple option representing the output to which the target input is connected
-let driveOut simGraph targetCompId inPortN =
-    Map.toArray simGraph
-    |> Array.tryPick (fun (outCompId, simComp: SimulatorTypes.SimulationComponent) ->
-        Map.toArray simComp.Outputs
-        |> Array.tryFind (fun (_, lst) -> (List.exists (fun t -> t = (targetCompId, inPortN)) lst))
-        |> function
-        | Some(outPN, _) -> Some(outCompId, outPN)
-        | None -> None)
-
-let simWireData2Wire wireData =
-    wireData
-    |> List.mapFold (fun weight bit ->
-        match bit with
-        | SimulatorTypes.Bit.Zero -> bigint 0
-        | SimulatorTypes.Bit.One -> weight
-        |> (fun r -> r, weight * (bigint 2))) (bigint 1)
-    |> fst
-    |> List.sum
-
 let getSelected model: DiagEl list =
     match model.Diagram.GetSelected() with
     | None -> []
     | Some jsState ->
         (fst jsState |> List.map (extractComponent >> Comp), snd jsState |> List.map (extractConnection >> Conn))
         ||> List.append
-
-let procIns simData (compId: ComponentId) (inputs: InputPortNumber []): WaveSimPort [] =
-    Array.collect (fun portN ->
-        match simData.Graph.[compId].Type, driveOut simData.Graph compId portN with
-        | Input _, _ -> [||]
-        | Output _, Some(cId, oPN) ->
-            [| { CId = cId
-                 OutPN = oPN
-                 TrgtId = Some compId } |]
-        | _, Some(cId, oPN) ->
-            [| { CId = cId
-                 OutPN = oPN
-                 TrgtId = None } |]
-        | _, None -> failwith "Input is not connected") inputs
-
-let processComp simData cId: WaveSimPort [] =
-    let procCompIns (compId: ComponentId) (inputs: Map<InputPortNumber, WireData>): WaveSimPort [] =
-        Map.toArray inputs
-        |> Array.map (fun (key, _) -> key)
-        |> procIns simData compId
-
-    let procOuts compId outputs: WaveSimPort [] =
-        Map.toArray outputs
-        |> Array.map (fun (portNum, _) ->
-            { CId = compId
-              OutPN = portNum
-              TrgtId = None })
-
-    match Map.tryFind cId simData.Graph with
-    | Some sC -> Array.append (procCompIns cId sC.Inputs) (procOuts cId sC.Outputs)
-    | None -> failwith "Component Id is not in Simulation Data"
-
-let remDuplicates (arrWithDup: WaveSimPort []) : WaveSimPort [] =
-    Array.groupBy (fun (p: WaveSimPort) -> p.CId, p.OutPN) arrWithDup
-    |> Array.map (fun (_, (ports: WaveSimPort [])) -> 
-        { ports.[0] with TrgtId = Array.tryPick (fun (p: WaveSimPort) -> p.TrgtId) ports })
-
-let compsConns2portLst model (simData: SimulatorTypes.SimulationData) diagElLst: WaveSimPort [] =
-    let portId2CIdInPN pId =
-        match model.Diagram.GetCanvasState() with
-        | Some s ->
-            List.map extractComponent (fst s)
-            |> List.tryPick (fun c ->
-                List.tryFindIndex (fun (p: Port) -> p.Id = pId) c.InputPorts
-                |> function
-                | Some i -> Some(c.Id, i)
-                | None -> None)
-        | None -> failwith "Called portId2cIdoutPN when Canvas State is None"
-
-    diagElLst
-    |> List.toArray
-    |> Array.collect (fun compEl ->
-        match compEl with
-        | Comp c -> processComp simData (ComponentId c.Id)
-        | Conn c ->
-            match portId2CIdInPN c.Target.Id with
-            | Some(cId, inPN) -> procIns simData (ComponentId cId) [| InputPortNumber inPN |]
-            | None -> [||])
-    |> remDuplicates
-
-let reloadablePorts (model: Model) (simData: SimulatorTypes.SimulationData) : WaveSimPort [] =
-    let inGraph (port: WaveSimPort) = Map.exists (fun key _ -> key = port.CId) simData.Graph
-    match currWS model with
-    | Some wSMod ->
-        Array.filter inGraph wSMod.Ports
-        |> Array.map (fun port ->
-            match port.TrgtId with
-            | Some trgtId when Map.exists (fun key _ -> key = trgtId) simData.Graph ->
-                match List.tryFind (fun (cid, _) -> cid = trgtId) simData.Graph.[port.CId].Outputs.[port.OutPN] with
-                | Some _ -> port
-                | None -> { port with TrgtId = None }
-            | _ -> { port with TrgtId = None })
-    | None -> [||]
 
 let limBits (name: string): (int * int) option =
     match Seq.tryFind ((=) '[') name, Seq.tryFind ((=) ':') name, Seq.tryFind ((=) ']') name with
@@ -481,227 +683,6 @@ let limBits (name: string): (int * int) option =
         |> (fun (a, b) -> int a, int b)
         |> Some
     | _ -> None
-
-let rec findName
-        (simGraph: SimulatorTypes.SimulationGraph)
-        ({ CId = compId; OutPN = outPortN; TrgtId = outputOpt }: WaveSimPort)
-    =
-    let compLbl =
-        match Map.tryFind compId simGraph with
-        | Some simComp ->
-            match simComp.Label with
-            | ComponentLabel lbl ->
-                match Seq.tryFindIndexBack ((=) '(') lbl with
-                | Some i -> lbl.[0..i - 1]
-                | None -> lbl //not robust!
-        | None -> failwith "simData.Graph.[compId] doesn't exist"
-
-    let outPortInt =
-        match outPortN with
-        | OutputPortNumber pn -> pn
-
-    let driveName n compTypeStr =
-        match driveOut simGraph compId (InputPortNumber n) with
-        | Some(driveCompId, drivePortN) ->
-            findName simGraph
-                { CId = driveCompId
-                  OutPN = drivePortN
-                  TrgtId = None }
-            |> snd
-        | None -> failwith (compTypeStr + "input not connected")
-
-    match simGraph.[compId].Type with
-    | Not
-    | And
-    | Or
-    | Xor
-    | Nand
-    | Nor
-    | Xnor
-    | Decode4
-    | Mux2 -> [ compLbl, (0, 0) ]
-    | Input w
-    | Output w 
-    | Constant(w, _) -> [ compLbl, (w - 1, 0) ]
-    | Demux2 -> [ compLbl + "_" + string outPortInt, (0, 0) ]
-    | NbitsAdder w ->
-        match outPortInt with
-        | 0 -> [ compLbl + "_sum", (w - 1, 0) ]
-        | _ -> [ compLbl + "Cout", (w - 1, 0) ]
-    | DFF
-    | DFFE -> [ compLbl + "_Q", (0, 0) ]
-    | Register w
-    | RegisterE w -> [ compLbl + "_data-out", (w - 1, 0) ]
-    | RAM mem
-    | AsyncROM mem
-    | ROM mem -> [ compLbl + "_data-out", (mem.WordWidth - 1, 0) ]
-    | Custom c -> [ compLbl + "_" + fst c.OutputLabels.[outPortInt], (snd c.OutputLabels.[outPortInt] - 1, 0) ]
-    | IOLabel ->
-        match driveOut simGraph compId (InputPortNumber 0) with
-        | Some(driveCompId, drivePortN) ->
-            match findName simGraph
-                      { CId = driveCompId
-                        OutPN = drivePortN
-                        TrgtId = None }
-                  |> snd with
-            | hd :: tl ->
-                ("(" + fst hd, snd hd) :: tl
-                |> function
-                | hd :: [] -> (fst hd + ")", snd hd) :: []
-                | lst ->
-                    List.append lst.[0..List.length lst - 2] [ fst (List.last lst) + ")", snd (List.last lst) ]
-            | [] -> failwith "Error: IOLabel input names list is empty"
-        | None -> failwith "IOLabel input not connected"
-    | MergeWires -> List.append (driveName 1 "MergeWires") (driveName 0 "MergeWires")
-    | SplitWire w ->
-        let predicate (_, b) =
-            match outPortInt with
-            | 0 -> b >= w
-            | 1 -> b < w
-            | _ -> failwith "SplitWire output port number greater than 1"
-
-        let split name msb lsb st =
-            List.zip [ lsb .. msb ] [ st + msb - lsb .. -1 .. st ]
-            |> List.filter predicate
-            |> List.unzip
-            |> function
-            | [], _ -> None
-            | lst, _ -> Some(name, (List.max lst, List.min lst))
-
-        (0, driveName 0 "SplitWire")
-        ||> List.mapFold (fun st (name, (msb, lsb)) -> split name msb lsb st, st + msb - lsb + 1)
-        |> fst
-        |> List.choose id
-    | BusSelection(w, oLSB) ->
-        let filtSelec name msb lsb st =
-            List.zip [ lsb .. msb ] [ st .. st + msb - lsb ]
-            |> List.filter (fun (_, b) -> oLSB <= b && b <= oLSB + w - 1)
-            |> List.unzip
-            |> function
-            | [], _ -> None
-            | lst, _ -> Some(name, (List.max lst, List.min lst))
-        (driveName 0 "BusSelection", 0)
-        ||> List.mapFoldBack (fun (name, (msb, lsb)) st -> filtSelec name msb lsb st, st + msb - lsb + 1)
-        |> fst
-        |> List.choose id
-        |> List.rev
-
-    |> (fun lst ->
-        match outputOpt with
-        | Some compId ->
-            match simGraph.[compId].Label with
-            | ComponentLabel lbl -> Some(lbl + ": "), lst
-        | None -> None, lst)
-
-
-let bitNums (a, b) =
-    match (a, b) with
-    | (0, 0) -> ""
-    | (msb, lsb) when msb = lsb -> sprintf "[%d]" msb
-    | (msb, lsb) -> sprintf "[%d:%d]" msb lsb
-
-let wSPort2Name simGraph p =
-    let outNameOpt, nameLst = findName simGraph p
-
-    let tl =
-        match nameLst with
-        | [ el ] -> fst el + bitNums (snd el)
-        | lst when List.length lst > 0 ->
-            let appendName st (name, bitLims) = st + name + bitNums bitLims + ", "
-            List.fold appendName "{ " lst |> (fun lbl -> lbl.[0..String.length lbl - 3] + " }")
-        | _ -> ""
-    match outNameOpt with
-    | Some outName -> outName + tl
-    | None -> tl
-
-let extractSimTime (ports: WaveSimPort []) (simGraph: SimulationGraph) =
-    ports
-    |> Array.map (fun { CId = compId; OutPN = portN; TrgtId = _ } ->
-        match Map.tryFind compId simGraph with
-        | Some simComp ->
-            match Map.tryFind portN simComp.Outputs with
-            | Some(hd :: _) ->
-                let wD = simGraph.[fst hd].Inputs.[snd hd]
-                Wire
-                    { NBits = uint (List.length wD)
-                      BitData = simWireData2Wire wD }
-            | Some [] -> failwith "Output not connected"
-            | None -> failwith "Component doesn't have this output port number"
-        | None -> failwith "ComponentId not in simulation graph")
-
-let clkAdvance (sD: SimulatorTypes.SimulationData) =
-    feedClockTick sD.Graph
-    |> (fun graph ->
-        { sD with
-              Graph = graph
-              ClockTickNumber = sD.ClockTickNumber + 1 })
-
-let extractSimData simData nCycles =
-    (simData, [| 1u .. nCycles |])
-    ||> Array.mapFold (fun s _ -> clkAdvance s, clkAdvance s)
-    |> fst
-
-let makeSimData model =
-    match model.Diagram.GetCanvasState(), model.CurrProject with
-    | None, _ -> None
-    | _, None -> failwith "what? Cannot start a simulation without a project"
-    | Some jsState, Some project ->
-        let otherComponents = 
-            project.LoadedComponents 
-            |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-        (extractState jsState, otherComponents)
-        ||> prepareSimulation project.OpenFileName
-        |> Some
-
-let initFileWS model dispatch =
-    match getCurrFile model with
-    | Some fileName ->
-        (fileName, initWS)
-        |> AddWaveSimFile
-        |> dispatch
-    | None -> ()
-
-let avalPorts (model: Model) dispatch =
-    match model.Diagram.GetCanvasState(), model.CurrProject with
-    | None, _ -> [||]
-    | _, None -> failwith "what? Cannot start a simulation without a project"
-    | Some jsState, Some project ->
-        let otherComponents = project.LoadedComponents |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-        (extractState jsState, otherComponents)
-        ||> prepareSimulation project.OpenFileName
-        |> function
-        | Ok simData ->
-            List.map (extractComponent >> Comp) (fst jsState) 
-            |> compsConns2portLst model simData
-        | Error simError ->
-            if simError.InDependency.IsNone then
-                (simError.ComponentsAffected, simError.ConnectionsAffected)
-                |> SetHighlighted
-                |> dispatch
-            [||]
-
-let simulate model wSMod dispatch simData =
-    SetViewerWidth minViewerWidth |> dispatch
-    let simData' = 
-        match currWS model with
-        | Some wSMod -> wSMod.LastClk
-        | None -> 
-            initFileWS model dispatch
-            initWS.LastClk
-        |> extractSimData simData
-        |> Array.append [| simData |] 
-
-    let wA' =
-        match avalPorts model dispatch with
-        | wSPorts ->
-            let names' = Array.map (wSPort2Name simData'.[0].Graph) wSPorts
-            { Ports = wSPorts; WaveNames = names' }
-    { wSMod with
-          SimData = simData'
-          WaveAdder = wA'
-          LastCanvasState = model.Diagram.GetCanvasState() }
-    |> SetCurrFileWSMod
-    |> dispatch
 
 let isSimulateActive (model: Model) dispatch =
     match currWS model with

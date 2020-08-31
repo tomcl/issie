@@ -9,6 +9,7 @@ open JSTypes
 open DiagramMessageType
 open JSHelpers
 //open DiagramStyle
+open SimulatorTypes
 
 open Fable.Core
 open Fable.Core.JsInterop

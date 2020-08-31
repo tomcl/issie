@@ -57,11 +57,6 @@ type StateSample = string array
 type Sample = | Wire of Wire | StateSample of StateSample
 type SimTime = Sample array
 type Waveform = Sample array
-type WaveSimPort = {
-    CId : ComponentId;
-    OutPN : OutputPortNumber;
-    TrgtId : ComponentId option
-}
 type WaveAdderModel = {
     Ports : WaveSimPort array;
     WaveNames : WaveName array
@@ -110,6 +105,17 @@ type MenuCommand =
     | MenuSaveFile
     | MenuNewFile
     | MenuZoom of float
+
+
+/// Type for an open project which represents a complete design.
+/// ProjectPath is directory containing project files.
+/// OpenFileName is name of file from which current schematic sheet is loaded/saved.
+/// LoadedComponents contains the list of schematic sheets, each as a component, one per sheet.
+type Project = {
+    ProjectPath : string
+    OpenFileName : string
+    LoadedComponents : LoadedComponent list
+}
 
 
 

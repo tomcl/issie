@@ -14,6 +14,10 @@ open DiagramMessageType
 open SimulatorTypes
 open Draw2dWrapper
 
+//================================//
+// Componenents loaded from files //
+//================================//
+
 type Notifications = {
     FromDiagram : ((Msg -> unit) -> Fable.React.ReactElement) option
     FromSimulation : ((Msg -> unit) -> Fable.React.ReactElement) option
@@ -63,4 +67,4 @@ let setActivity (f: AsyncTasksT -> AsyncTasksT) (model: Model) =
 
 
     {model with AsyncActivity = f model.AsyncActivity }
-    
+

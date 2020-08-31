@@ -101,8 +101,8 @@ draw2d.shape.digital.Constant = draw2d.shape.digital.extend({
     NAME: "draw2d.shape.digital.Constant",
 
     componentType: "Constant",
-    svgHeight: 0,
-    svgWidth: 0,
+    svgHeight: 32,
+    svgWidth: 49.6,
     numberOfBits: 1,
     constValue: 0,
    
@@ -112,22 +112,23 @@ draw2d.shape.digital.Constant = draw2d.shape.digital.extend({
     getSvgElements: function () {
         let hex = this.constValue.toString(16);
         let bitsLabel = (this.numberOfBits === 1) ? `${hex}` : `0x${hex}`;
-        let size = "11";
-        let hPos = (this.numberOfBits === 1) ? 0.6*22 : 0
-
+        let size = (bitsLabel.length > 6) ? 54 / bitsLabel.length : 9;
+        let hPos = (this.numberOfBits === 1) ? 10 : 10;
+        let vPos = (this.numberOfBits === 1) ? 11 : 11;
+        let offset = Math.max(bitsLabel.length, 3) * 6 * 0.6 * 11;
+        this.svgWidth = 39.6;
+        this.svgHeight = 20;
+        //this.setSvgWidth();
         return [
-            { path: '<polygon points="0,0 10,10 0,20" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true },
-            { path: `<text x=${hPos} y=21 fill="black" text-anchor="start" font-weight="bolder" font-size="${size}px">${bitsLabel}</text>`, toFill: false }
+            { path: '<polygon points="0,0 10,10 39.6,10 10,10 0,20" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true },
+            { path: `<text x=${hPos} y=${vPos} fill="black" text-anchor="start" font-weight="bolder" font-size="${size}px">${bitsLabel}</text>`, toFill: false }
         ];
     },
 
     setSvgWidth: function () {
         let hex = this.constValue.toString(16);
         let bitsLabel = (this.constWidth === 1) ? `${hex}`  : `0x${hex}`;
-        let offset = Math.max(3, bitsLabel.length) * 0.6 * 11;
-        this.svgHeight = 32;
-        this.svgWidth = offset;
-        this.width = offset;
+        this.svgWidth = 39.6;
     },
 
     init: function (attr, setter, getter) {
@@ -135,9 +136,9 @@ draw2d.shape.digital.Constant = draw2d.shape.digital.extend({
         this.numberOfBits = attr.numberOfBits;
         let hex = this.constValue.toString(16);
         let bitsLabel = (this.numberOfBits === 1) ? `${hex}` : `0x${hex}`;
-        let offset = Math.max(3, bitsLabel.length) * 0.6 * 11;
-        this.setSvgWidth();
-        console.log(`constValue=${this.constValue}, offset=${offset}, bits=${this.numberOfBits}`);
+        this.svgWidth = 39.6;
+        this.svgHeight = 20;
+        //this.setSvgWidth();
         this._super(
             $.extend({ width: this.svgWidth, height: this.svgHeight }, attr),
             setter,
@@ -149,7 +150,7 @@ draw2d.shape.digital.Constant = draw2d.shape.digital.extend({
         this.numberOfBits = attr.numberOfBits;
         this.constValue = attr.constValue;
 
-        this.createDigitalPort("output", new draw2d.layout.locator.XYRelPortLocator(1000 / offset, 31), this.numberOfBits > 1);
+        this.createDigitalPort("output", new draw2d.layout.locator.XYRelPortLocator(100, 41), this.numberOfBits > 1);
     },
 });
 

@@ -490,7 +490,7 @@ let avalPorts (model: Model) dispatch =
 
 
 let private wsMod2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
-    { SimData = wsMod.SimData.[0]
+    { SimData = wsMod.WaveAdder.SimData
       Ports = wsMod.Ports
       ClkWidth = wsMod.ClkWidth
       Cursor = wsMod.Cursor
@@ -631,26 +631,22 @@ let wSPort2Name simGraph p =
     | Some outName -> outName + tl
     | None -> tl
 
-let private simulate model wSMod dispatch simData =
+let private getReducedCanvState model =
+    match model.Diagram.GetCanvasState() with
+    | Some cS -> Some <| extractReducedState cS
+    | None -> None
+
+let private setWA model wSMod dispatch simData =
     SetViewerWidth minViewerWidth |> dispatch
-    let simData' = 
-        match currWS model with
-        | Some wSMod -> wSMod.LastClk
-        | None -> 
-            initFileWS model dispatch
-            initWS.LastClk
-        |> extractSimData simData
-        |> Array.append [| simData |] 
 
     let wA' =
         match avalPorts model dispatch with
         | wSPorts ->
-            let names' = Array.map (wSPort2Name simData'.[0].Graph) wSPorts
-            { Ports = wSPorts; WaveNames = names' }
+            let names' = Array.map (wSPort2Name simData.Graph) wSPorts
+            { SimData = Some simData; Ports = wSPorts; WaveNames = names' }
     { wSMod with
-          SimData = simData'
           WaveAdder = wA'
-          LastCanvasState = model.Diagram.GetCanvasState() }
+          LastCanvasState = getReducedCanvState model }
     |> SetCurrFileWSMod
     |> dispatch
 
@@ -669,21 +665,25 @@ let reloadablePorts (model: Model) (simData: SimulatorTypes.SimulationData) : Wa
     | None -> [||]
 
 let private savedWaveInfo2wsMod model (sWInfo: SavedWaveInfo) : WaveSimModel =
-    let ports' = reloadablePorts model sWInfo.SimData
-    let sD' = Array.append [|sWInfo.SimData|] (extractSimData sWInfo.SimData (sWInfo.LastClk - 1u))
-    { SimData = sD'
-      WaveData = Array.map (fun sD -> extractSimTime ports' sD.Graph) sD'
-      WaveNames = Array.map (wSPort2Name sWInfo.SimData.Graph) ports'
-      Selected = Array.map (fun _ -> false) ports'
-      Ports = ports'
-      ClkWidth = sWInfo.ClkWidth
-      Cursor = sWInfo.Cursor
-      Radix = sWInfo.Radix
-      LastClk = sWInfo.LastClk
-      WaveAdderOpen = sWInfo.WaveAdderOpen
-      WaveAdder = { Ports = sWInfo.WaveAdderPorts
-                    WaveNames = Array.map (wSPort2Name sWInfo.SimData.Graph) sWInfo.WaveAdderPorts }
-      LastCanvasState = sWInfo.LastCanvasState }
+    match sWInfo.SimData with
+    | Some sD ->
+        let ports' = reloadablePorts model sD
+        let sD' = Array.append [| sD |] (extractSimData sD sWInfo.LastClk)
+        { SimData = sD'
+          WaveData = Array.map (fun simD -> extractSimTime ports' simD.Graph) sD'
+          WaveNames = Array.map (wSPort2Name sD.Graph) ports'
+          Selected = Array.map (fun _ -> false) ports'
+          Ports = ports'
+          ClkWidth = sWInfo.ClkWidth
+          Cursor = sWInfo.Cursor
+          Radix = sWInfo.Radix
+          LastClk = sWInfo.LastClk
+          WaveAdderOpen = sWInfo.WaveAdderOpen
+          WaveAdder = { SimData = sWInfo.SimData
+                        Ports = sWInfo.WaveAdderPorts
+                        WaveNames = Array.map (wSPort2Name sD.Graph) sWInfo.WaveAdderPorts }
+          LastCanvasState = sWInfo.LastCanvasState }
+    | None -> initWS
 
 let private viewInfoPopup dispatch =
     let makeH h =
@@ -730,8 +730,8 @@ let limBits (name: string): (int * int) option =
 
 let isSimulateActive (model: Model) dispatch =
     match currWS model with
-    | Some wSMod ->
-        if wSMod.LastCanvasState <> model.Diagram.GetCanvasState()
+    | Some wSMod ->            
+        if wSMod.LastCanvasState <> getReducedCanvState model
             then makeSimData model, Some wSMod 
             else None, Some wSMod
     | None -> 
@@ -879,7 +879,7 @@ let viewTopMenu model dispatch =
                                       Button.button
                                           [ Button.Color IsSuccess
                                             Button.OnClick(fun _ ->
-                                                simulate model wSMod dispatch simData
+                                                setWA model wSMod dispatch simData
                                                 ChangeRightTab WaveSim |> dispatch) ]
                                   | Some (Error err), _ -> 
                                       Button.button

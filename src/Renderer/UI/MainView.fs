@@ -534,5 +534,6 @@ let update msg model =
             >>  (fun sel ->
                     {model with LastSelected = model.CurrentSelected; CurrentSelected = sel}))
         |> Option.defaultValue model
+    | SetSimIsStale b -> 
+        changeSimulationIsStale b model
     |> (checkForAutoSave msg)
-

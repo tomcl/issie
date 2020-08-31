@@ -58,6 +58,7 @@ type Sample = | Wire of Wire | StateSample of StateSample
 type SimTime = Sample array
 type Waveform = Sample array
 type WaveAdderModel = {
+    SimData : SimulationData option
     Ports : WaveSimPort array;
     WaveNames : WaveName array
 }
@@ -74,11 +75,11 @@ type WaveSimModel = {
     LastClk: uint32
     WaveAdderOpen: bool
     WaveAdder: WaveAdderModel
-    LastCanvasState: JSCanvasState option 
+    LastCanvasState: CanvasState option 
 }
 
 let initWA = 
-    { Ports = [||]; WaveNames = [||] }
+    { SimData = None; Ports = [||]; WaveNames = [||] }
 
 let initWS: WaveSimModel =
     { SimData = [||]
@@ -161,3 +162,4 @@ type Msg =
     | SetViewerWidth of int
     | MenuAction of MenuCommand * (Msg -> unit)
     | SelectionHasChanged
+    | SetSimIsStale of bool

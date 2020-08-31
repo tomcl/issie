@@ -398,11 +398,10 @@ let appendSimData (wSMod: WaveSimModel) nCycles =
     |> Array.append wSMod.SimData
 
 let changeTopInd newVal (model: Model) (wsMod: WaveSimModel) =
-    let sD = wsMod.SimData
-    match Array.length sD = 0, newVal > wsMod.LastClk, newVal >= 0u with
+    match Array.length wsMod.SimData = 0, newVal > wsMod.LastClk, newVal >= 0u with
     | true, _, _ -> { wsMod with LastClk = newVal }
     | false, true, _ ->
-        let sD' = appendSimData wsMod <| newVal + 1u - uint (Array.length sD)
+        let sD' = appendSimData wsMod <| newVal + 1u - uint (Array.length wsMod.SimData)
         { wsMod with
               SimData = sD' 
               WaveData = 
@@ -413,8 +412,8 @@ let changeTopInd newVal (model: Model) (wsMod: WaveSimModel) =
         { wsMod with
               LastClk = newVal
               WaveData = 
-                Array.map (fun sD -> sD.Graph) sD.[0..int newVal] 
-                |> Array.map (extractSimTime (reloadablePorts model sD.[0]))  }
+                Array.map (fun sD -> sD.Graph) wsMod.SimData.[0..int newVal] 
+                |> Array.map (extractSimTime (reloadablePorts model wsMod.SimData.[0]))  }
     | _ -> wsMod
 
 let zoom plus (m: Model) wSMod dispatch =
@@ -578,9 +577,15 @@ let cursorButtons (model: Model) wSMod dispatch =
                     | _ -> ()) ]
           button [ Button.CustomClass "cursRight" ] (fun _ -> cursorMove true model wSMod dispatch) "▶" ]
 
+let loadingBut model =
+    if model.SimulationIsStale 
+    then button [Button.Color IsWhite] (fun _ -> ()) "done"
+    else button [Button.Color IsDanger] (fun _ -> ()) "loading..."
+
 let viewWaveSimButtonsBar model wSMod dispatch =
     div [ Style [ Height "45px" ] ]
-        [ radixTabs wSMod dispatch
+        [ loadingBut model
+          radixTabs wSMod dispatch
           cursorButtons model wSMod dispatch ]
 
 let cursValsCol rows =
@@ -614,8 +619,12 @@ let selWave2selConn model (wSMod: WaveSimModel) ind on =
        | _ -> ()
 
 let isWaveSelected model (wSMod: WaveSimModel) port = 
+    let simD = 
+        match wSMod.WaveAdder.SimData with
+        | Some sD -> sD
+        | None -> failwith "isWaveSelected called when WaveAdder.SimData is None"
     getSelected model
-    |> compsConns2portLst model wSMod.SimData.[0] 
+    |> compsConns2portLst model simD
     |> Array.contains port
 
 let waveAdderToggle (model: Model) wSMod ind =
@@ -624,13 +633,28 @@ let waveAdderToggle (model: Model) wSMod ind =
     |> selWave2selConn model wSMod ind
 
 let waveGen model (wSMod: WaveSimModel) dispatch ports =
+    SetSimIsStale false |> dispatch
     setHighlightedConns model dispatch [||]
 
+    let simData' = 
+        match wSMod.WaveAdder.SimData with
+        | Some sD ->
+            match currWS model with
+            | Some wSMod -> 
+                wSMod.LastClk
+            | None -> 
+                initFileWS model dispatch
+                initWS.LastClk
+            |> extractSimData sD
+            |> Array.append [| sD |] 
+        | None -> failwith "waveGen called when WaveAdder.SimData is None"
+
     { wSMod with
+        SimData = simData'
         WaveData = 
-            Array.map (fun sD -> sD.Graph) wSMod.SimData
+            Array.map (fun sD -> sD.Graph) simData'
             |> Array.map (extractSimTime ports) 
-        WaveNames = Array.map (wSPort2Name wSMod.SimData.[0].Graph) ports
+        WaveNames = Array.map (wSPort2Name simData'.[0].Graph) ports
         Selected = Array.map (fun _ -> false) ports
         Ports = ports
         WaveAdderOpen = false }

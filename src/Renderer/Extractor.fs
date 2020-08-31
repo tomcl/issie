@@ -3,6 +3,7 @@ module Extractor
 open CommonTypes
 open JSTypes
 open JSHelpers
+open SimulatorTypes
 
 open Fable.Core.JsInterop
 

@@ -162,10 +162,10 @@ let cursRectText m i : IProp list = [
     Y 0.5
 ]
 
-let inWaveLabel nLabels xInd i m : IProp list = [
+let inWaveLabel nLabels xInd m : IProp list = [
     Class "busValueStyle"
     X (xInd * m.ClkWidth)
-    Y (spacing + sigHeight * 0.7 + 0.3 * sigHeight * (float i - (float nLabels - 1.0) / 2.0))
+    Y (spacing + sigHeight * 0.7 - 0.3 * sigHeight * (float nLabels - 1.0) / 2.0)
     SVGAttr.FontSize (busLabelTextSize * sigHeight / float nLabels) 
 ]
 

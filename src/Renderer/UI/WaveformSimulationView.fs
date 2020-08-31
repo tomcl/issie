@@ -242,21 +242,21 @@ let busLabels (model: Model) =
         (model2WaveList wSMod, Array.map makeGaps (transitions wSMod)) ||> Array.map2 gaps2pos
     | None -> failwith "busLabels called when currWS model is None"
 
-let cursValStrings model =
+let cursValStrings (wSMod: WaveSimModel) =
     let pref =
-        match model.Radix with
+        match wSMod.Radix with
         | Bin -> "0b"
         | Hex -> "0x"
         | _ -> ""
 
     let makeCursVal sample =
         match sample with
-        | Wire w when w.NBits > 1u -> [| pref + radixChange w.BitData w.NBits model.Radix |]
+        | Wire w when w.NBits > 1u -> [| pref + radixChange w.BitData w.NBits wSMod.Radix |]
         | Wire w -> [| pref + string w.BitData |]
         | StateSample s -> s
 
-    match int model.Cursor < Array.length model.WaveData with
-    | true -> Array.map makeCursVal model.WaveData.[int model.Cursor]
+    match int wSMod.Cursor < Array.length wSMod.WaveData with
+    | true -> Array.map makeCursVal wSMod.WaveData.[int wSMod.Cursor]
     | false -> [||]
 
 let makeCursVals model =
@@ -285,15 +285,13 @@ let clkRulerSvg (model: WaveSimModel) =
 let waveSimRows model wsMod dispatch =
     // waveforms
     let waveSvg =
-        let addLabel nLabels xInd (i: int) = makeText (inWaveLabel nLabels xInd i wsMod)
+        let addLabel nLabels xInd = makeText (inWaveLabel nLabels xInd wsMod)
 
         let valueLabels =
             let lblEl (sample, xIndArr) =
                 match sample with
                 | Wire w when w.NBits > 1u ->
-                    Array.map (fun xInd -> addLabel 1 xInd 0 (radixChange w.BitData w.NBits wsMod.Radix)) xIndArr
-                | StateSample ss ->
-                    Array.collect (fun xInd -> Array.mapi (addLabel (Array.length ss) xInd) ss) xIndArr
+                    Array.map (fun xInd -> addLabel 1 xInd (radixChange w.BitData w.NBits wsMod.Radix)) xIndArr
                 | _ -> [||]
             busLabels model |> Array.map (Array.collect lblEl)
 
@@ -369,7 +367,7 @@ let waveSimRows model wsMod dispatch =
     waveCol, labelCols, cursValCol
 
 // view function helpers
-let maxWidth wSMod =
+let maxWidth (wSMod: WaveSimModel) =
     let strWidth s = 
         JSHelpers.getTextWidthInPixels (s, "12px segoe ui") //not sure which font
     let curLblColWidth =
@@ -395,11 +393,11 @@ let maxWidth wSMod =
     
     curLblColWidth + namesColWidth + waveColWidth + checkboxCol + extraWidth |> int
 
-let appendSimData wSMod nCycles = 
+let appendSimData (wSMod: WaveSimModel) nCycles = 
     extractSimData (Array.last wSMod.SimData) nCycles 
     |> Array.append wSMod.SimData
 
-let changeTopInd newVal (model: Model) wsMod =
+let changeTopInd newVal (model: Model) (wsMod: WaveSimModel) =
     let sD = wsMod.SimData
     match Array.length sD = 0, newVal > wsMod.LastClk, newVal >= 0u with
     | true, _, _ -> { wsMod with LastClk = newVal }
@@ -521,7 +519,7 @@ let moveWave model up =
           Ports = reorder model.Ports }
     |> SetCurrFileWSMod
 
-let radixTabs model dispatch =
+let radixTabs (model: WaveSimModel) dispatch =
     let radixString =
         [ Dec,  "uDec"
           Bin,  "Bin"
@@ -615,7 +613,7 @@ let selWave2selConn model (wSMod: WaveSimModel) ind on =
        | [ jsC ] -> model.Diagram.SetSelected on jsC 
        | _ -> ()
 
-let isWaveSelected model wSMod port = 
+let isWaveSelected model (wSMod: WaveSimModel) port = 
     getSelected model
     |> compsConns2portLst model wSMod.SimData.[0] 
     |> Array.contains port
@@ -625,7 +623,7 @@ let waveAdderToggle (model: Model) wSMod ind =
     |> not
     |> selWave2selConn model wSMod ind
 
-let waveGen model wSMod dispatch ports =
+let waveGen model (wSMod: WaveSimModel) dispatch ports =
     setHighlightedConns model dispatch [||]
 
     { wSMod with

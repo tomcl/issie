@@ -344,6 +344,10 @@ let viewNoProjectMenu model dispatch =
                   [ menuItem "New project" (newProject model dispatch)
                     menuItem "Open project" (openProject model dispatch) ] ]
 
+    match model.CurrProject with
+    | Some _ -> div [] []
+    | None -> unclosablePopup None initialMenu None []
+
 let private simWireData2Wire wireData =
     wireData
     |> List.mapFold (fun weight bit ->

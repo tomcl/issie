@@ -98,35 +98,6 @@ let radixChange (n: bigint) (nBits: uint32) (rad: NumberBase) =
 
 //auxiliary functions to the viewer function
 
-let port2ConnId (model: Model) (p: WaveSimPort) =
-    match model.Diagram.GetCanvasState() with
-    | Some s ->
-        let outPN =
-            match p.OutPN with
-            | OutputPortNumber n -> n
-        List.map extractComponent (fst s)
-        |> List.tryPick (fun c ->
-            match ComponentId c.Id = p.CId with
-            | true -> Some c.OutputPorts.[outPN].Id
-            | false -> None)
-        |> function
-        | Some portId ->
-            List.map extractConnection (snd s)
-            |> List.tryPick (fun conn ->
-                if conn.Source.Id = portId then Some conn.Id else None)
-            |> function
-            | Some connId -> [| ConnectionId connId |]
-            | None -> [||]
-        | None -> [||]
-    | None -> failwith "highlight called when canvas state is None"
-
-let setHighlightedConns (model: Model) dispatch ports =
-    ports
-    |> Array.collect (port2ConnId model)
-    |> Array.toList
-    |> SetSelWavesHighlighted
-    |> dispatch
-
 let toggleSelect ind (model: Model) dispatch =
     match currWS model with
     | Some wSMod ->
@@ -632,34 +603,6 @@ let waveAdderToggle (model: Model) wSMod ind =
     |> not
     |> selWave2selConn model wSMod ind
 
-let waveGen model (wSMod: WaveSimModel) dispatch ports =
-    SetSimIsStale false |> dispatch
-    setHighlightedConns model dispatch [||]
-
-    let simData' = 
-        match wSMod.WaveAdder.SimData with
-        | Some sD ->
-            match currWS model with
-            | Some wSMod -> 
-                wSMod.LastClk
-            | None -> 
-                initFileWS model dispatch
-                initWS.LastClk
-            |> extractSimData sD
-            |> Array.append [| sD |] 
-        | None -> failwith "waveGen called when WaveAdder.SimData is None"
-
-    { wSMod with
-        SimData = simData'
-        WaveData = 
-            Array.map (fun sD -> sD.Graph) simData'
-            |> Array.map (extractSimTime ports) 
-        WaveNames = Array.map (wSPort2Name simData'.[0].Graph) ports
-        Selected = Array.map (fun _ -> false) ports
-        Ports = ports
-        WaveAdderOpen = false }
-    |> SetCurrFileWSMod |> dispatch
-
 let waveAdderSelectAll model (wSMod: WaveSimModel) =
     let setTo = 
         wSMod.WaveAdder.Ports 
@@ -830,8 +773,10 @@ let waveformsView model wSMod dispatch =
 let viewWaveSim (model: Model) dispatch =
     match currWS model, snd model.WaveSim with
     | Some wSMod, None ->
-        ( model, wSMod, dispatch )
-        |||> if wSMod.WaveAdderOpen then waveAdderView else waveformsView 
+        match wSMod.WaveAdderOpen, model.SimulationIsStale with
+        | _, false | false, true -> waveformsView
+        | true, true -> waveAdderView 
+        |> (fun f -> f model wSMod dispatch)
     | Some _, Some simError ->
         [ div [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]
               [ SimulationView.viewSimulationError simError

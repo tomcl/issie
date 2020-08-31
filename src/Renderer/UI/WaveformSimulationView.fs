@@ -773,9 +773,9 @@ let waveformsView model wSMod dispatch =
 let viewWaveSim (model: Model) dispatch =
     match currWS model, snd model.WaveSim with
     | Some wSMod, None ->
-        match wSMod.WaveAdderOpen, model.SimulationIsStale with
-        | _, false | false, true -> waveformsView
-        | true, true -> waveAdderView 
+        match wSMod.WaveAdderOpen, model.SimulationInProgress with
+        | _, true | false, false -> waveformsView
+        | true, false -> waveAdderView 
         |> (fun f -> f model wSMod dispatch)
     | Some _, Some simError ->
         [ div [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]

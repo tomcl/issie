@@ -163,3 +163,5 @@ type Msg =
     | MenuAction of MenuCommand * (Msg -> unit)
     | SelectionHasChanged
     | SetSimIsStale of bool
+    | SetSimInProgress of bool
+    | SetLastSimulatedCanvasState of CanvasState option

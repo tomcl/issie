@@ -72,6 +72,7 @@ let init() = {
     TopMenu = Closed
     DragMode = DragModeOff
     ViewerWidth = rightSectionWidthViewerDefault
+    SimulationInProgress = false
 }
 
 /// Repaint each connection according to the new inferred width.
@@ -536,4 +537,8 @@ let update msg model =
         |> Option.defaultValue model
     | SetSimIsStale b -> 
         changeSimulationIsStale b model
+    | SetSimInProgress b -> 
+        { model with SimulationInProgress = b }
+    | SetLastSimulatedCanvasState cS ->
+        { model with LastSimulatedCanvasState = cS }
     |> (checkForAutoSave msg)

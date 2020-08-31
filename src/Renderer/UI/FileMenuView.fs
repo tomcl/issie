@@ -738,8 +738,78 @@ let isSimulateActive (model: Model) dispatch =
         initFileWS model dispatch
         None, None
 
+let port2ConnId (model: Model) (p: WaveSimPort) =
+    match model.Diagram.GetCanvasState() with
+    | Some s ->
+        let outPN =
+            match p.OutPN with
+            | OutputPortNumber n -> n
+        List.map extractComponent (fst s)
+        |> List.tryPick (fun c ->
+            match ComponentId c.Id = p.CId with
+            | true -> Some c.OutputPorts.[outPN].Id
+            | false -> None)
+        |> function
+        | Some portId ->
+            List.map extractConnection (snd s)
+            |> List.tryPick (fun conn ->
+                if conn.Source.Id = portId then Some conn.Id else None)
+            |> function
+            | Some connId -> [| ConnectionId connId |]
+            | None -> [||]
+        | None -> [||]
+    | None -> failwith "highlight called when canvas state is None"
+
+let setHighlightedConns (model: Model) dispatch ports =
+    ports
+    |> Array.collect (port2ConnId model)
+    |> Array.toList
+    |> SetSelWavesHighlighted
+    |> dispatch
+
+let waveGen model (wSMod: WaveSimModel) dispatch ports =
+    setHighlightedConns model dispatch [||]
+
+    let simData' = 
+        match wSMod.WaveAdder.SimData with
+        | Some sD ->
+            match currWS model with
+            | Some wSMod -> 
+                wSMod.LastClk
+            | None -> 
+                initFileWS model dispatch
+                initWS.LastClk
+            |> extractSimData sD
+            |> Array.append [| sD |] 
+        | None -> failwith "waveGen called when WaveAdder.SimData is None"
+
+    { wSMod with
+        SimData = simData'
+        WaveData = 
+            Array.map (fun sD -> sD.Graph) simData'
+            |> Array.map (extractSimTime ports) 
+        WaveNames = Array.map (wSPort2Name simData'.[0].Graph) ports
+        Selected = Array.map (fun _ -> false) ports
+        Ports = ports
+        WaveAdderOpen = false }
+    |> SetCurrFileWSMod |> dispatch
+    SetSimIsStale true |> dispatch
+
+
 /// Display top menu.
 let viewTopMenu model dispatch =
+    // do simulation
+    match currWS model, model.SimulationIsStale with
+    | Some wSMod, false -> 
+        match wSMod.WaveAdder.SimData with
+        | Some sD ->
+            reloadablePorts model sD
+            |> waveGen model wSMod dispatch
+            SetSimIsStale true |> dispatch
+        | None -> SetSimIsStale true |> dispatch
+    | None, false -> SetSimIsStale true |> dispatch
+    | _, _ -> ()
+
     //printfn "FileView"
     let style = Style [ Width "100%" ] //leftSectionWidth model
 
@@ -873,13 +943,17 @@ let viewTopMenu model dispatch =
                                           |> JSDiagramMsg
                                           |> dispatch) ] [ str "Save" ] ] ]
                       Navbar.End.div []
-                          [ Navbar.Item.div []
+                          [ 
+                            Navbar.Item.div []
                                 [ match isSimulateActive model dispatch with
                                   | Some (Ok simData), Some wSMod ->
                                       Button.button
                                           [ Button.Color IsSuccess
                                             Button.OnClick(fun _ ->
                                                 setWA model wSMod dispatch simData
+                                                if wSMod.WaveAdderOpen
+                                                then ()
+                                                else SetSimIsStale false |> dispatch
                                                 ChangeRightTab WaveSim |> dispatch) ]
                                   | Some (Error err), _ -> 
                                       Button.button

@@ -756,8 +756,10 @@ let private appendSimData (wSMod: WaveSimModel) nCycles =
     extractSimData (Array.last wSMod.SimData) nCycles 
     |> Array.append wSMod.SimData
 
-let changeTopInd (model: Model) (wsMod: WaveSimModel) 
+let changeTopInd dispatch (model: Model) (wsMod: WaveSimModel) 
                  (par: {| NewVal: uint; NewCurs: uint; NewClkW: float |}) : WaveSimModel =
+    (None, None) |> SetSimInProgress |> dispatch
+
     let newVal, curs', newClkW = par.NewVal, par.NewCurs, par.NewClkW
     match Array.length wsMod.SimData = 0, newVal > wsMod.LastClk, newVal >= 0u with
     | true, _, _ -> { wsMod with LastClk = newVal }
@@ -816,7 +818,7 @@ let viewTopMenu model dispatch =
     | Some wSMod, (Some ports, None)  -> 
         waveGen model wSMod dispatch ports
     | Some wSMod, (None, Some par)  -> 
-        changeTopInd model wSMod par
+        changeTopInd dispatch model wSMod par
         |> SetCurrFileWSMod |> dispatch
     | None, _ -> (None, None) |> SetSimInProgress |> dispatch
     | _, _ -> ()

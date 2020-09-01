@@ -396,7 +396,9 @@ let button options func label = Button.button (List.append options [ Button.OnCl
 let changeCurs (model: Model) (wSMod: WaveSimModel) dispatch newVal =
     match 0u <= newVal, newVal <= wSMod.LastClk with
     | true, true -> { wSMod with Cursor = newVal }
-    | true, false -> changeTopInd model wSMod {| NewCurs = newVal; NewClkW = wSMod.ClkWidth; NewVal = wSMod.LastClk |}
+    | true, false -> 
+        {| NewCurs = newVal; NewClkW = wSMod.ClkWidth; NewVal = wSMod.LastClk |}
+        |> changeTopInd dispatch model wSMod 
     | _ -> wSMod
     |> SetCurrFileWSMod
     |> dispatch

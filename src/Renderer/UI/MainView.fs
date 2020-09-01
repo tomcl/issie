@@ -229,7 +229,7 @@ let displayView model dispatch =
                 |> min (windowX - minEditorWidth)
             SetViewerWidth w |> dispatch
             match currWS model with
-            | Some wSMod when w > maxWidth wSMod ->
+            | Some wSMod when w > maxWidth wSMod && not wSMod.WaveAdderOpen ->
                 let newTopInd = wSMod.LastClk + 10u
                 {| NewVal = newTopInd; NewClkW = wSMod.ClkWidth; NewCurs = wSMod.Cursor |}
                 |> (fun p -> None, Some p)

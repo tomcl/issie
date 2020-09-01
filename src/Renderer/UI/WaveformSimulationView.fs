@@ -287,11 +287,19 @@ let waveSimRows model wsMod dispatch =
                           [| snd (Array.last pairs), 1 |] ])
 
         let selPorts =
+            let sD =
+                match wsMod.WaveAdder.SimData with
+                | Some sD -> sD
+                | None -> failwith "Trying to visulise waveforms when WaveAdder.SimData is None"
+            let canvState = 
+                match wsMod.LastCanvasState with
+                | Some lastCS -> lastCS
+                | None -> failwith "No LastCanvasState stored when trying to visualise waveforms"
             let allSelPorts =
                 (List.map (fun c -> Comp c) (fst model.CurrentSelected),
                  List.map (fun c -> Conn c) (snd model.CurrentSelected))
                 ||> List.append
-                |> compsConns2portLst model wsMod.SimData.[0]
+                |> compsConns2portLst sD canvState
             Array.map
                 (fun (port: WaveSimPort) ->
                     Array.exists (fun (selP: WaveSimPort) -> (selP.CId, selP.OutPN) = (port.CId, port.OutPN)) allSelPorts)
@@ -365,50 +373,30 @@ let maxWidth (wSMod: WaveSimModel) =
     
     curLblColWidth + namesColWidth + waveColWidth + checkboxCol + extraWidth |> int
 
-let appendSimData (wSMod: WaveSimModel) nCycles = 
-    extractSimData (Array.last wSMod.SimData) nCycles 
-    |> Array.append wSMod.SimData
+let zoom plus (m: Model) (wSMod: WaveSimModel) dispatch =
+    let newClkW =
+        if plus then zoomFactor else 1.0 / zoomFactor
+        |> (*) wSMod.ClkWidth
+        |> max minZoom
+        |> min maxZoom
+    match int (float m.ViewerWidth * zoomFactor) > maxWidth wSMod with
+    | true ->
+        {| NewVal = (wSMod.LastClk + 1u) * (uint zoomFactor) + 10u
+           NewCurs = wSMod.Cursor
+           NewClkW = wSMod.ClkWidth |}
+        |> (fun p -> None, Some p)
+        |> SetSimInProgress |> dispatch
+    | false -> 
+        { wSMod with ClkWidth = newClkW }
+        |> SetCurrFileWSMod |> dispatch
 
-let changeTopInd newVal (model: Model) (wsMod: WaveSimModel) =
-    match Array.length wsMod.SimData = 0, newVal > wsMod.LastClk, newVal >= 0u with
-    | true, _, _ -> { wsMod with LastClk = newVal }
-    | false, true, _ ->
-        let sD' = appendSimData wsMod <| newVal + 1u - uint (Array.length wsMod.SimData)
-        { wsMod with
-              SimData = sD' 
-              WaveData = 
-                Array.map (fun sD -> sD.Graph) sD' 
-                |> Array.map (extractSimTime wsMod.Ports) 
-              LastClk = newVal }
-    | false, false, true ->
-        { wsMod with
-              LastClk = newVal
-              WaveData = 
-                Array.map (fun sD -> sD.Graph) wsMod.SimData.[0..int newVal] 
-                |> Array.map (extractSimTime (reloadablePorts model wsMod.SimData.[0]))  }
-    | _ -> wsMod
-
-let zoom plus (m: Model) wSMod dispatch =
-    let changedTopIndModel = 
-        match int (float m.ViewerWidth * zoomFactor) > maxWidth wSMod with
-        | true ->
-            changeTopInd ((wSMod.LastClk + 1u) * (uint zoomFactor) + 10u) m wSMod
-        | false -> wSMod
-    if plus then zoomFactor else 1.0 / zoomFactor
-    |> (*) wSMod.ClkWidth
-    |> function
-       | w when w > maxZoom -> { changedTopIndModel with ClkWidth = maxZoom }
-       | w when w < minZoom -> { changedTopIndModel with ClkWidth = minZoom }
-       | w -> { changedTopIndModel with ClkWidth = w }
-    |> SetCurrFileWSMod
-    |> dispatch
 
 let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ str label ]
 
 let changeCurs (model: Model) (wSMod: WaveSimModel) dispatch newVal =
     match 0u <= newVal, newVal <= wSMod.LastClk with
     | true, true -> { wSMod with Cursor = newVal }
-    | true, false -> { changeTopInd newVal model wSMod with Cursor = newVal }
+    | true, false -> changeTopInd model wSMod {| NewCurs = newVal; NewClkW = wSMod.ClkWidth; NewVal = wSMod.LastClk |}
     | _ -> wSMod
     |> SetCurrFileWSMod
     |> dispatch
@@ -551,9 +539,9 @@ let cursorButtons (model: Model) wSMod dispatch =
           button [ Button.CustomClass "cursRight" ] (fun _ -> cursorMove true model wSMod dispatch) "▶" ]
 
 let loadingBut model =
-    if model.SimulationIsStale 
-    then button [Button.Color IsWhite] (fun _ -> ()) "done"
-    else button [Button.Color IsDanger] (fun _ -> ()) "loading..."
+    match model.SimulationInProgress with
+    | None, None -> button [Button.Color IsWhite] (fun _ -> ()) "done"
+    | _ -> button [Button.Color IsDanger] (fun _ -> ()) "loading..."
 
 let viewWaveSimButtonsBar model wSMod dispatch =
     div [ Style [ Height "45px" ] ]
@@ -593,8 +581,12 @@ let isWaveSelected model (wSMod: WaveSimModel) port =
         match wSMod.WaveAdder.SimData with
         | Some sD -> sD
         | None -> failwith "isWaveSelected called when WaveAdder.SimData is None"
+    let canvState =
+        match wSMod.LastCanvasState with
+        | Some cS -> cS
+        | _ -> failwith "isWaveSelected called when wSMod.LastCanvasState is None"
     getSelected model
-    |> compsConns2portLst model simD
+    |> compsConns2portLst simD canvState
     |> Array.contains port
 
 let waveAdderToggle (model: Model) wSMod ind =
@@ -730,7 +722,8 @@ let waveAdderButs (model: Model) wSMod dispatch =
             [ Button.Color IsSuccess
               Button.OnClick(fun _ -> 
                 Array.filter (isWaveSelected model wSMod) wSMod.WaveAdder.Ports                
-                |> waveGen model wSMod dispatch) ]
+                |> (fun ports -> Some ports, None)
+                |> SetSimInProgress |> dispatch) ]
         | false -> [ Button.CustomClass "disabled" ]
         |> (fun lst -> Button.Props [ Style [ MarginLeft "10px" ] ] :: lst)
     let cancBut =
@@ -774,8 +767,8 @@ let viewWaveSim (model: Model) dispatch =
     match currWS model, snd model.WaveSim with
     | Some wSMod, None ->
         match wSMod.WaveAdderOpen, model.SimulationInProgress with
-        | _, true | false, false -> waveformsView
-        | true, false -> waveAdderView 
+        | _, (Some _, _) | _, (_, Some _) | false, (None, None) -> waveformsView
+        | true, (None, None) -> waveAdderView 
         |> (fun f -> f model wSMod dispatch)
     | Some _, Some simError ->
         [ div [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]

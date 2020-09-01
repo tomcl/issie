@@ -393,20 +393,23 @@ let zoom plus (m: Model) (wSMod: WaveSimModel) dispatch =
 
 let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ str label ]
 
-let changeCurs (model: Model) (wSMod: WaveSimModel) dispatch newVal =
-    match 0u <= newVal, newVal <= wSMod.LastClk with
-    | true, true -> { wSMod with Cursor = newVal }
+let changeCurs (wSMod: WaveSimModel) dispatch newCurs =
+    let maxPossibleCurs = 10000u
+    let curs' = min maxPossibleCurs newCurs
+    match 0u <= curs', curs' <= wSMod.LastClk with
+    | true, true -> 
+        { wSMod with Cursor = curs' }
+        |> SetCurrFileWSMod |> dispatch
     | true, false -> 
-        {| NewCurs = newVal; NewClkW = wSMod.ClkWidth; NewVal = wSMod.LastClk |}
-        |> changeTopInd dispatch model wSMod 
-    | _ -> wSMod
-    |> SetCurrFileWSMod
-    |> dispatch
+        {| NewCurs = curs'; NewClkW = wSMod.ClkWidth; NewVal = wSMod.LastClk |}
+        |> (fun p -> None, Some p)
+        |> SetSimInProgress |> dispatch
+    | _ -> ()
 
-let cursorMove increase (model: Model) (wSMod: WaveSimModel) dispatch =
+let cursorMove increase (wSMod: WaveSimModel) dispatch =
     match increase, wSMod.Cursor with
-    | true, n -> n + 1u |> changeCurs model wSMod dispatch
-    | false, n when n > 0u -> n - 1u |> changeCurs model wSMod dispatch
+    | true, n -> n + 1u |> changeCurs wSMod dispatch
+    | false, n when n > 0u -> n - 1u |> changeCurs wSMod dispatch
     | false, _ -> wSMod |> SetCurrFileWSMod |> dispatch
 
 let selectAll s (model: Model) dispatch =
@@ -521,7 +524,7 @@ let cursorButtons (model: Model) wSMod dispatch =
     div [ Class "cursor" ]
         [ Button.button
             [ Button.CustomClass "cursLeft"
-              Button.OnClick(fun _ -> cursorMove false model wSMod dispatch) ] [ str "◀" ]
+              Button.OnClick(fun _ -> cursorMove false wSMod dispatch) ] [ str "◀" ]
           Input.number
               [ Input.Props
                   [ Min 0
@@ -536,9 +539,9 @@ let cursorButtons (model: Model) wSMod dispatch =
                 //Input.DefaultValue <| sprintf "%d" model.WaveSim.Cursor
                 Input.OnChange(fun c ->
                     match System.Int32.TryParse c.Value with
-                    | true, n when n >= 0 -> changeCurs model wSMod dispatch (uint n) 
+                    | true, n when n >= 0 -> changeCurs wSMod dispatch (uint n) 
                     | _ -> ()) ]
-          button [ Button.CustomClass "cursRight" ] (fun _ -> cursorMove true model wSMod dispatch) "▶" ]
+          button [ Button.CustomClass "cursRight" ] (fun _ -> cursorMove true wSMod dispatch) "▶" ]
 
 let loadingBut model =
     match model.SimulationInProgress with

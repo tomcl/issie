@@ -52,7 +52,6 @@
     "jquery-ui": "^1.12.1",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
-    "react-tooltip": "^4.2.8",
     "rechart": "^0.0.1",
     "source-map-support": "0.5.19",
     "tippy.js": "^6.2.6"

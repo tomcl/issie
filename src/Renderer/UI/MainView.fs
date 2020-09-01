@@ -241,7 +241,8 @@ let displayView model dispatch =
 
     div [ OnMouseUp (fun ev -> setDragMode false model dispatch ev; dispatch SelectionHasChanged);
           OnMouseDown (makeSelectionChangeMsg model dispatch)
-          OnMouseMove processMouseMove ] [
+          OnMouseMove processMouseMove
+          Style [ BorderTop "2px solid lightgray"; BorderBottom "2px solid lightgray" ] ] [
         viewTopMenu model dispatch 
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode ) 
         viewNoProjectMenu model dispatch

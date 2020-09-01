@@ -14,6 +14,10 @@ open DiagramMessageType
 open SimulatorTypes
 open Draw2dWrapper
 
+//================================//
+// Componenents loaded from files //
+//================================//
+
 type Notifications = {
     FromDiagram : ((Msg -> unit) -> Fable.React.ReactElement) option
     FromSimulation : ((Msg -> unit) -> Fable.React.ReactElement) option
@@ -58,6 +62,7 @@ type Model = {
     TopMenu : TopMenu
     DragMode: DragMode
     ViewerWidth: int // waveform viewer width in pixels
+    SimulationInProgress: (WaveSimPort array option) * ({| NewVal: uint; NewCurs: uint; NewClkW: float |} option)
 }
 
 /// Lens to facilitate changing AsyncActivity

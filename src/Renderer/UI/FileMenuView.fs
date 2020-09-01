@@ -761,16 +761,21 @@ let changeTopInd dispatch (model: Model) (wsMod: WaveSimModel)
     (None, None) |> SetSimInProgress |> dispatch
 
     let newVal, curs', newClkW = par.NewVal, par.NewCurs, par.NewClkW
-    match Array.length wsMod.SimData = 0, newVal > wsMod.LastClk, newVal >= 0u with
-    | true, _, _ -> { wsMod with LastClk = newVal }
+    match Array.length wsMod.SimData = 0, newVal > wsMod.LastClk || curs' > wsMod.LastClk, newVal >= 0u with
+    | true, _, _ -> { wsMod with LastClk = newVal; Cursor = curs'; ClkWidth = newClkW }
     | false, true, _ ->
-        let sD' = appendSimData wsMod <| newVal + 1u - uint (Array.length wsMod.SimData)
+        let newLastClk = max newVal curs'
+        let sD' = 
+            newLastClk
+            |> (fun x -> x + 1u - uint (Array.length wsMod.SimData))
+            |> appendSimData wsMod  
         { wsMod with
               SimData = sD' 
               WaveData = 
                 Array.map (fun sD -> sD.Graph) sD' 
                 |> Array.map (extractSimTime wsMod.Ports) 
-              LastClk = newVal
+              LastClk = newLastClk
+              Cursor = curs'
               ClkWidth = newClkW }
     | false, false, true ->
         { wsMod with
@@ -778,7 +783,8 @@ let changeTopInd dispatch (model: Model) (wsMod: WaveSimModel)
               WaveData = 
                 Array.map (fun sD -> sD.Graph) wsMod.SimData.[0..int newVal] 
                 |> Array.map (extractSimTime (reloadablePorts model wsMod.SimData.[0]))
-              ClkWidth = newClkW }
+              ClkWidth = newClkW
+              Cursor = curs'}
     | _ -> wsMod
     |> ( fun m -> { m with Cursor = curs' } )
 

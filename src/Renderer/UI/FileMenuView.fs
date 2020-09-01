@@ -804,18 +804,6 @@ let viewTopMenu model dispatch =
     | None, false -> SetSimInProgress false |> dispatch
     | _, _ -> ()
 
-    let tryReduce cs =
-        match cs with
-        | Some cS -> extractReducedState cS |> Some
-        | None -> None
-
-    match model.SimulationIsStale, tryReduce (model.Diagram.GetCanvasState()), model.LastSimulatedCanvasState with
-    | true, _ , _ -> ()
-    | false, curr, stored when curr = stored -> ()
-    | false, curr, _ ->
-             curr |> SetLastSimulatedCanvasState |> dispatch
-             SetSimIsStale true |> dispatch
-
     //printfn "FileView"
     let style = Style [ Width "100%" ] //leftSectionWidth model
 
@@ -951,10 +939,8 @@ let viewTopMenu model dispatch =
                       Navbar.End.div []
                           [ 
                             Navbar.Item.div []
-                                [ match model.SimulationIsStale with
-                                  | true ->
-                                        match currWS model, makeSimData model with
-                                        | Some wSMod, Some (Ok simData) ->
+                                [ match model.SimulationIsStale,currWS model, makeSimData model with
+                                  | true, Some wSMod, Some (Ok simData) ->
                                               Button.button
                                                   [ Button.Color IsSuccess
                                                     Button.OnClick(fun _ ->
@@ -963,17 +949,17 @@ let viewTopMenu model dispatch =
                                                         then ()
                                                         else SetSimInProgress true |> dispatch
                                                         ChangeRightTab WaveSim |> dispatch) ]
-                                        | Some _, Some (Error err) -> 
+                                  | true, Some _, Some (Error err) -> 
                                               Button.button
                                                   [ Button.OnClick(fun _ ->
                                                         Some err |> SetWSError |> dispatch
                                                         ChangeRightTab WaveSim |> dispatch) ]
-                                        | _ -> 
+                                  | _, None, _ -> 
                                             match model.CurrProject with
                                             | Some _ -> initFileWS model dispatch
                                             | None -> ()
                                             Button.button []
-                                  | false -> Button.button []
+                                  | _ -> Button.button []
                                 |> (fun but -> but [ str "Simulate >>" ]) ] ]
                       Navbar.End.div []
                           [ Navbar.Item.div []

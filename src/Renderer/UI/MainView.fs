@@ -1,5 +1,7 @@
 ﻿module DiagramMainView
 
+open Elmish
+
 open Fulma
 open Fable.React
 open Fable.React.Props
@@ -367,7 +369,7 @@ let updateTimeStamp model =
 /// Check whether current message could mark a change in Diagram worth saving.
 /// If so, check whether Diagram has a significant circuit change (don't count layout).
 /// If so, do an autosave. TODO: make the autosave asynchronous
-let checkForAutoSave msg model =
+let checkForAutoSave msg (model, cmd) =
     let simIsStale (newState:CanvasState option) (simState:CanvasState option) =
         match newState,simState with
         | None, _  -> false
@@ -383,12 +385,12 @@ let checkForAutoSave msg model =
             Set ncomps <> Set comps || Set nconns <> Set conns
 
     if System.DateTime.Now < (model.AsyncActivity.LastAutoSaveCheck).AddSeconds 0.1 then
-        model
+        model, cmd
     else
         let model = setActivity (fun a -> {a with LastAutoSaveCheck=System.DateTime.Now}) model
         match model.CurrProject with
         | None -> 
-            model // do nothing
+            model, cmd // do nothing
         | Some proj ->
             let newReducedState = 
                 model.Diagram.GetCanvasState()
@@ -410,7 +412,7 @@ let checkForAutoSave msg model =
                             match update || a.LastSavedCanvasState = None with
                             | true -> {a with LastSavedCanvasState = newReducedState}
                             | false -> a)
-            |> (fun model -> changeSimulationIsStale simUpdate model)
+            |> (fun model -> changeSimulationIsStale simUpdate model, cmd)
        
           
 
@@ -419,33 +421,34 @@ let update msg model =
     //let inP f = Option.map f model.CurrProject
     //printfn "UPDATE: %A (dirty=%A, project=%A)" msg model.HasUnsavedChanges (inP (fun p -> p.ProjectPath))
     match msg with
-    | SetDragMode mode -> {model with DragMode= mode}
-    | SetViewerWidth w -> {model with ViewerWidth = w}
-    | JSDiagramMsg msg' -> handleJSDiagramMsg msg' model
-    | KeyboardShortcutMsg msg' -> handleKeyboardShortcutMsg msg' model
+    | SetDragMode mode -> {model with DragMode= mode}, Cmd.none
+    | SetViewerWidth w -> {model with ViewerWidth = w}, Cmd.none
+    | JSDiagramMsg msg' -> handleJSDiagramMsg msg' model, Cmd.none
+    | KeyboardShortcutMsg msg' -> handleKeyboardShortcutMsg msg' model, Cmd.none
     // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).
-    | StartSimulation simData -> { model with Simulation = Some simData }
+    | StartSimulation simData -> { model with Simulation = Some simData }, Cmd.none
     | SetCurrFileWSMod wSMod' -> 
         match FileMenuView.getCurrFile model with
         | Some fileName ->
             { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), 
                                    snd model.WaveSim }
-        | None -> model
-    | SetWSError err -> { model with WaveSim = fst model.WaveSim, err }
+        | None -> model 
+        |> (fun x -> x, Cmd.none)
+    | SetWSError err -> { model with WaveSim = fst model.WaveSim, err }, Cmd.none
     | AddWaveSimFile (fileName, wSMod') ->
-        { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim }
+        { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim }, Cmd.none
     | SetSimulationGraph graph ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
-        { model with Simulation = { simData with Graph = graph } |> Ok |> Some }
+        { model with Simulation = { simData with Graph = graph } |> Ok |> Some }, Cmd.none
     | SetSimulationBase numBase ->
         let simData = getSimulationDataOrFail model "SetSimulationBase"
-        { model with Simulation = { simData with NumberBase = numBase } |> Ok |> Some }
+        { model with Simulation = { simData with NumberBase = numBase } |> Ok |> Some }, Cmd.none
     | IncrementSimulationClockTick ->
         let simData = getSimulationDataOrFail model "IncrementSimulationClockTick"
-        { model with Simulation = { simData with ClockTickNumber = simData.ClockTickNumber+1 } |> Ok |> Some }
-    | EndSimulation -> { model with Simulation = None }
-    | EndWaveSim -> { model with WaveSim = (Map.empty, None) }
-    | ChangeRightTab newTab -> { model with RightTab = newTab }
+        { model with Simulation = { simData with ClockTickNumber = simData.ClockTickNumber+1 } |> Ok |> Some }, Cmd.none
+    | EndSimulation -> { model with Simulation = None }, Cmd.none
+    | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
+    | ChangeRightTab newTab -> { model with RightTab = newTab }, Cmd.none
     | SetHighlighted (componentIds, connectionIds) ->
         let oldComponentIds, oldConnectionIds = fst model.Hilighted
         oldComponentIds
@@ -460,7 +463,7 @@ let update msg model =
         connectionIds
         |> List.map (fun (ConnectionId c) -> model.Diagram.HighlightConnection c "red")
         |> ignore
-        { model with Hilighted = (componentIds, connectionIds), snd model.Hilighted }
+        { model with Hilighted = (componentIds, connectionIds), snd model.Hilighted }, Cmd.none
     | SetSelWavesHighlighted connIds ->
         let (_, errConnIds), oldConnIds = model.Hilighted
         oldConnIds
@@ -478,56 +481,56 @@ let update msg model =
         List.fold (fun st cId -> if List.contains cId errConnIds 
                                     then st
                                     else cId :: st ) [] connIds
-        |> (fun lst -> { model with Hilighted = fst model.Hilighted, lst })
-    | SetClipboard components -> { model with Clipboard = components }
-    | SetCreateComponent pos -> { model with CreateComponent = Some pos }
+        |> (fun lst -> { model with Hilighted = fst model.Hilighted, lst }, Cmd.none)
+    | SetClipboard components -> { model with Clipboard = components }, Cmd.none
+    | SetCreateComponent pos -> { model with CreateComponent = Some pos }, Cmd.none
     | SetProject project -> 
-        setActivity (fun a -> {a with LastSavedCanvasState=None}) { model with CurrProject = Some project}
-    | CloseProject -> { model with CurrProject = None }
-    | ShowPopup popup -> { model with Popup = Some popup }
+        setActivity (fun a -> {a with LastSavedCanvasState=None}) { model with CurrProject = Some project}, Cmd.none
+    | CloseProject -> { model with CurrProject = None }, Cmd.none
+    | ShowPopup popup -> { model with Popup = Some popup }, Cmd.none
     | ClosePopup ->
         { model with Popup = None; PopupDialogData =
-                    { Text = None; Int = None; Int2 = None; MemorySetup = None; MemoryEditorData = None} }
+                    { Text = None; Int = None; Int2 = None; MemorySetup = None; MemoryEditorData = None} }, Cmd.none
     | SetPopupDialogText text ->
-        { model with PopupDialogData = {model.PopupDialogData with Text = text} }
+        { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
     | SetPopupDialogInt int ->
-        { model with PopupDialogData = {model.PopupDialogData with Int = int} }
+        { model with PopupDialogData = {model.PopupDialogData with Int = int} }, Cmd.none
     | SetPopupDialogTwoInts data ->
         { model with PopupDialogData = 
                         match data with
                         | n, FirstInt ->  {model.PopupDialogData with Int  = n}
                         | n, SecondInt -> {model.PopupDialogData with Int2 = n}
-        }
+        }, Cmd.none
     | SetPopupDialogMemorySetup m ->
-        { model with PopupDialogData = {model.PopupDialogData with MemorySetup = m} }
+        { model with PopupDialogData = {model.PopupDialogData with MemorySetup = m} }, Cmd.none
     | SetPopupMemoryEditorData m ->
-        { model with PopupDialogData = {model.PopupDialogData with MemoryEditorData = m} }
+        { model with PopupDialogData = {model.PopupDialogData with MemoryEditorData = m} }, Cmd.none
     | CloseDiagramNotification ->
-        { model with Notifications = {model.Notifications with FromDiagram = None} }
+        { model with Notifications = {model.Notifications with FromDiagram = None} }, Cmd.none
     | SetSimulationNotification n ->
         { model with Notifications =
-                        { model.Notifications with FromSimulation = Some n} }
+                        { model.Notifications with FromSimulation = Some n} }, Cmd.none
     | CloseSimulationNotification ->
-        { model with Notifications = {model.Notifications with FromSimulation = None} }
+        { model with Notifications = {model.Notifications with FromSimulation = None} }, Cmd.none
     | CloseWaveSimNotification ->
-        { model with Notifications = {model.Notifications with FromWaveSim = None} }
+        { model with Notifications = {model.Notifications with FromWaveSim = None} }, Cmd.none
     | SetFilesNotification n ->
         { model with Notifications =
-                        { model.Notifications with FromFiles = Some n} }
+                        { model.Notifications with FromFiles = Some n} }, Cmd.none
     | CloseFilesNotification ->
-        { model with Notifications = {model.Notifications with FromFiles = None} }
+        { model with Notifications = {model.Notifications with FromFiles = None} }, Cmd.none
     | SetMemoryEditorNotification n ->
         { model with Notifications =
-                        { model.Notifications with FromMemoryEditor = Some n} }
+                        { model.Notifications with FromMemoryEditor = Some n} }, Cmd.none
     | CloseMemoryEditorNotification ->
-        { model with Notifications = { model.Notifications with FromMemoryEditor = None} }
+        { model with Notifications = { model.Notifications with FromMemoryEditor = None} }, Cmd.none
     | SetPropertiesNotification n ->
         { model with Notifications =
-                        { model.Notifications with FromProperties = Some n} }
+                        { model.Notifications with FromProperties = Some n} }, Cmd.none
     | ClosePropertiesNotification ->
-        { model with Notifications = { model.Notifications with FromProperties = None} }
+        { model with Notifications = { model.Notifications with FromProperties = None} }, Cmd.none
     | SetTopMenu t ->
-        { model with TopMenu = t}    
+        { model with TopMenu = t}, Cmd.none
     | ReloadSelectedComponent width ->
         match model.SelectedComponent with
         | None -> {model with LastUsedDialogWidth = width}
@@ -535,19 +538,20 @@ let update msg model =
             match model.Diagram.GetComponentById comp.Id with
             | Error err -> {model with LastUsedDialogWidth=width}
             | Ok jsComp -> { model with SelectedComponent = Some <| extractComponent jsComp ; LastUsedDialogWidth=width}
+        |> (fun x -> x, Cmd.none)
     | MenuAction(act,dispatch) ->
-        getMenuView act model dispatch
+        getMenuView act model dispatch, Cmd.none
     | SelectionHasChanged -> 
         model.Diagram.GetSelected()
         |> Option.map (
             extractState
             >>  (fun sel ->
                     {model with LastSelected = model.CurrentSelected; CurrentSelected = sel}))
-        |> Option.defaultValue model
+        |> Option.defaultValue model, Cmd.none
     | SetSimIsStale b -> 
-        changeSimulationIsStale b model
+        changeSimulationIsStale b model, Cmd.none
     | SetSimInProgress (portsOpt, newTopIndOpt) -> 
-        { model with SimulationInProgress = portsOpt, newTopIndOpt }
+        { model with SimulationInProgress = portsOpt, newTopIndOpt }, Cmd.none
     | SetLastSimulatedCanvasState cS ->
-        { model with LastSimulatedCanvasState = cS }
+        { model with LastSimulatedCanvasState = cS }, Cmd.none
     |> (checkForAutoSave msg)

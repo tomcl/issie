@@ -72,7 +72,7 @@ let init() = {
     TopMenu = Closed
     DragMode = DragModeOff
     ViewerWidth = rightSectionWidthViewerDefault
-    SimulationInProgress = false
+    SimulationInProgress = None, None
 }
 
 /// Repaint each connection according to the new inferred width.
@@ -229,7 +229,9 @@ let displayView model dispatch =
             match currWS model with
             | Some wSMod when w > maxWidth wSMod ->
                 let newTopInd = wSMod.LastClk + 10u
-                changeTopInd newTopInd model wSMod |> SetCurrFileWSMod |> dispatch
+                {| NewVal = newTopInd; NewClkW = wSMod.ClkWidth; NewCurs = wSMod.Cursor |}
+                |> (fun p -> None, Some p)
+                |> SetSimInProgress |> dispatch
             | _ -> ()
             SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
         | DragModeOn _, _ ->  SetDragMode DragModeOff |> dispatch
@@ -261,10 +263,17 @@ let displayView model dispatch =
                                     [ Tabs.Tab.IsActive (model.RightTab = Simulation) ]
                                     [ a [ OnClick (fun _ -> ChangeRightTab Simulation |> dispatch ) ] 
                                     [ str "Simulation" ] ]
-                                Tabs.tab
-                                    [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
-                                    [ a [ OnClick (fun _ -> ChangeRightTab WaveSim |> dispatch) ] 
-                                    [ str "WaveSim" ] ] ]
+                                match currWS model with
+                                | Some wSMod ->
+                                    match wSMod.WaveAdder.SimData with
+                                    | Some _ -> 
+                                        Tabs.tab
+                                            [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
+                                            [ a [ OnClick (fun _ -> ChangeRightTab WaveSim |> dispatch) ] 
+                                            [ str "WaveSim" ] ] 
+                                    | None -> div [] []
+                                | _ -> div [] []
+                              ]
                     viewRightTab model dispatch ] ] ]
 
 // -- Update Model
@@ -537,8 +546,8 @@ let update msg model =
         |> Option.defaultValue model
     | SetSimIsStale b -> 
         changeSimulationIsStale b model
-    | SetSimInProgress b -> 
-        { model with SimulationInProgress = b }
+    | SetSimInProgress (portsOpt, newTopIndOpt) -> 
+        { model with SimulationInProgress = portsOpt, newTopIndOpt }
     | SetLastSimulatedCanvasState cS ->
         { model with LastSimulatedCanvasState = cS }
     |> (checkForAutoSave msg)

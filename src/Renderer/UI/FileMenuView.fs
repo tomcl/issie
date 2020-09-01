@@ -408,9 +408,9 @@ let private driveOut simGraph targetCompId inPortN =
         | Some(outPN, _) -> Some(outCompId, outPN)
         | None -> None)
 
-let private procIns simData (compId: ComponentId) (inputs: InputPortNumber []): WaveSimPort [] =
+let private procIns (simGraph: SimulationGraph) compId inputs: WaveSimPort [] =
     Array.collect (fun portN ->
-        match simData.Graph.[compId].Type, driveOut simData.Graph compId portN with
+        match simGraph.[compId].Type, driveOut simGraph compId portN with
         | Input _, _ -> [||]
         | Output _, Some(cId, oPN) ->
             [| { CId = cId
@@ -427,7 +427,7 @@ let private processComp simData cId: WaveSimPort [] =
     let procCompIns (compId: ComponentId) (inputs: Map<InputPortNumber, WireData>): WaveSimPort [] =
         Map.toArray inputs
         |> Array.map (fun (key, _) -> key)
-        |> procIns simData compId
+        |> procIns simData.Graph compId
 
     let procOuts compId outputs: WaveSimPort [] =
         Map.toArray outputs
@@ -440,17 +440,14 @@ let private processComp simData cId: WaveSimPort [] =
     | Some sC -> Array.append (procCompIns cId sC.Inputs) (procOuts cId sC.Outputs)
     | None -> failwith "Component Id is not in Simulation Data"
 
-let compsConns2portLst model (simData: SimulatorTypes.SimulationData) diagElLst: WaveSimPort [] =
+let compsConns2portLst simData canvState diagElLst : WaveSimPort [] =
     let portId2CIdInPN pId =
-        match model.Diagram.GetCanvasState() with
-        | Some s ->
-            List.map extractComponent (fst s)
-            |> List.tryPick (fun c ->
-                    List.tryFindIndex (fun (p: Port) -> p.Id = pId) c.InputPorts
-                    |> function
-                    | Some i -> Some(c.Id, i)
-                    | None -> None)
-        | None -> failwith "Called portId2cIdoutPN when Canvas State is None"
+        fst canvState
+        |> List.tryPick (fun c ->
+                List.tryFindIndex (fun (p: Port) -> p.Id = pId) c.InputPorts
+                |> function
+                | Some i -> Some(c.Id, i)
+                | None -> None)
 
     diagElLst
     |> List.toArray
@@ -459,7 +456,7 @@ let compsConns2portLst model (simData: SimulatorTypes.SimulationData) diagElLst:
         | Comp c -> processComp simData (ComponentId c.Id)
         | Conn c ->
             match portId2CIdInPN c.Target.Id with
-            | Some(cId, inPN) -> procIns simData (ComponentId cId) [| InputPortNumber inPN |]
+            | Some(cId, inPN) -> procIns simData.Graph (ComponentId cId) [| InputPortNumber inPN |]
             | None -> [||])
     |> remDuplicates
 
@@ -480,7 +477,7 @@ let avalPorts (model: Model) dispatch =
                                                     | SplitWire _ | MergeWires _ -> false
                                                     | _ -> true
                                         | Conn c -> failwith "What? comp is of value Conn _")
-            |> compsConns2portLst model simData
+            |> compsConns2portLst simData (extractState jsState)
         | Error simError ->
             if simError.InDependency.IsNone then
                 (simError.ComponentsAffected, simError.ConnectionsAffected)
@@ -652,9 +649,7 @@ let private setWA model wSMod dispatch simData =
     |> SetCurrFileWSMod
     |> dispatch
 
-    SetSimInProgress false |> dispatch
-
-let reloadablePorts (model: Model) (simData: SimulatorTypes.SimulationData) : WaveSimPort [] =
+let private reloadablePorts (model: Model) (simData: SimulatorTypes.SimulationData) : WaveSimPort [] =
     let inGraph (port: WaveSimPort) = Map.exists (fun key _ -> key = port.CId) simData.Graph
     match currWS model with
     | Some wSMod ->
@@ -757,6 +752,34 @@ let setHighlightedConns (model: Model) dispatch ports =
     |> SetSelWavesHighlighted
     |> dispatch
 
+let private appendSimData (wSMod: WaveSimModel) nCycles = 
+    extractSimData (Array.last wSMod.SimData) nCycles 
+    |> Array.append wSMod.SimData
+
+let changeTopInd (model: Model) (wsMod: WaveSimModel) 
+                 (par: {| NewVal: uint; NewCurs: uint; NewClkW: float |}) : WaveSimModel =
+    let newVal, curs', newClkW = par.NewVal, par.NewCurs, par.NewClkW
+    match Array.length wsMod.SimData = 0, newVal > wsMod.LastClk, newVal >= 0u with
+    | true, _, _ -> { wsMod with LastClk = newVal }
+    | false, true, _ ->
+        let sD' = appendSimData wsMod <| newVal + 1u - uint (Array.length wsMod.SimData)
+        { wsMod with
+              SimData = sD' 
+              WaveData = 
+                Array.map (fun sD -> sD.Graph) sD' 
+                |> Array.map (extractSimTime wsMod.Ports) 
+              LastClk = newVal
+              ClkWidth = newClkW }
+    | false, false, true ->
+        { wsMod with
+              LastClk = newVal
+              WaveData = 
+                Array.map (fun sD -> sD.Graph) wsMod.SimData.[0..int newVal] 
+                |> Array.map (extractSimTime (reloadablePorts model wsMod.SimData.[0]))
+              ClkWidth = newClkW }
+    | _ -> wsMod
+    |> ( fun m -> { m with Cursor = curs' } )
+
 let waveGen model (wSMod: WaveSimModel) dispatch ports =
     setHighlightedConns model dispatch []
 
@@ -783,21 +806,19 @@ let waveGen model (wSMod: WaveSimModel) dispatch ports =
         Ports = ports
         WaveAdderOpen = false }
     |> SetCurrFileWSMod |> dispatch
-    SetSimInProgress false |> dispatch
+    (None, None) |> SetSimInProgress |> dispatch
 
 
 /// Display top menu.
 let viewTopMenu model dispatch =
     // do simulation
     match currWS model, model.SimulationInProgress with
-    | Some wSMod, true -> 
-        match wSMod.WaveAdder.SimData with
-        | Some sD ->
-            reloadablePorts model sD
-            |> waveGen model wSMod dispatch
-            SetSimInProgress false |> dispatch
-        | None -> SetSimInProgress false |> dispatch
-    | None, false -> SetSimInProgress false |> dispatch
+    | Some wSMod, (Some ports, None)  -> 
+        waveGen model wSMod dispatch ports
+    | Some wSMod, (None, Some par)  -> 
+        changeTopInd model wSMod par
+        |> SetCurrFileWSMod |> dispatch
+    | None, _ -> (None, None) |> SetSimInProgress |> dispatch
     | _, _ -> ()
 
     //printfn "FileView"
@@ -941,9 +962,6 @@ let viewTopMenu model dispatch =
                                                   [ Button.Color IsSuccess
                                                     Button.OnClick(fun _ ->
                                                         setWA model wSMod dispatch simData
-                                                        if wSMod.WaveAdderOpen
-                                                        then ()
-                                                        else SetSimInProgress true |> dispatch
                                                         ChangeRightTab WaveSim |> dispatch) ]
                                   | true, Some _, Some (Error err) -> 
                                               Button.button

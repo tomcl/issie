@@ -438,7 +438,7 @@ let private processComp simData cId: WaveSimPort [] =
 
     match Map.tryFind cId simData.Graph with
     | Some sC -> Array.append (procCompIns cId sC.Inputs) (procOuts cId sC.Outputs)
-    | None -> failwith "Component Id is not in Simulation Data"
+    | None -> [||]
 
 let compsConns2portLst simData canvState diagElLst : WaveSimPort [] =
     let portId2CIdInPN pId =

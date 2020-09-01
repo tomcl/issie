@@ -110,6 +110,7 @@ let toggleSelect ind (model: Model) dispatch =
         Array.zip wSMod.Ports sel'
         |> Array.filter snd
         |> Array.map fst
+        |> Array.toList
         |> setHighlightedConns model dispatch
     | None -> ()
 
@@ -424,6 +425,7 @@ let selectAll s (model: Model) dispatch =
         { wSMod with Selected = Array.map (fun _ -> s) wSMod.Selected }
         |> SetCurrFileWSMod |> dispatch
         if s then wSMod.Ports else [||]
+        |> Array.toList
         |> setHighlightedConns model dispatch
     | None -> ()
 
@@ -582,12 +584,9 @@ let openCloseWA (wSMod: WaveSimModel) on =
     |> SetCurrFileWSMod
 
 let selWave2selConn model (wSMod: WaveSimModel) ind on = 
-    match port2ConnId model wSMod.WaveAdder.Ports.[ind] with 
-    | [| ConnectionId el |] -> connId2JSConn model el 
-    | _ -> []
-    |> function
-       | [ jsC ] -> model.Diagram.SetSelected on jsC 
-       | _ -> ()
+    port2ConnId model wSMod.WaveAdder.Ports.[ind]
+    |> List.collect (fun (ConnectionId cId) -> connId2JSConn model cId) 
+    |> List.map (model.Diagram.SetSelected on)
 
 let isWaveSelected model (wSMod: WaveSimModel) port = 
     let simD = 
@@ -602,6 +601,7 @@ let waveAdderToggle (model: Model) wSMod ind =
     isWaveSelected model wSMod wSMod.WaveAdder.Ports.[ind]
     |> not
     |> selWave2selConn model wSMod ind
+    |> ignore
 
 let waveAdderSelectAll model (wSMod: WaveSimModel) =
     let setTo = 

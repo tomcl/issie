@@ -746,23 +746,19 @@ let port2ConnId (model: Model) (p: WaveSimPort) =
         |> function
         | Some portId ->
             List.map extractConnection (snd s)
-            |> List.tryPick (fun conn ->
-                if conn.Source.Id = portId then Some conn.Id else None)
-            |> function
-            | Some connId -> [| ConnectionId connId |]
-            | None -> [||]
-        | None -> [||]
+            |> List.filter (fun conn -> conn.Source.Id = portId)
+            |> List.map (fun conn -> ConnectionId conn.Id)
+        | None -> []
     | None -> failwith "highlight called when canvas state is None"
 
 let setHighlightedConns (model: Model) dispatch ports =
     ports
-    |> Array.collect (port2ConnId model)
-    |> Array.toList
+    |> List.collect (port2ConnId model)
     |> SetSelWavesHighlighted
     |> dispatch
 
 let waveGen model (wSMod: WaveSimModel) dispatch ports =
-    setHighlightedConns model dispatch [||]
+    setHighlightedConns model dispatch []
 
     let simData' = 
         match wSMod.WaveAdder.SimData with

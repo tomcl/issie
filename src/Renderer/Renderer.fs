@@ -147,7 +147,7 @@ type Messages = DiagramMessageType.Msg
 
 // -- Init Model
 
-let init() = DiagramMainView.init()
+let init() = DiagramMainView.init(), Cmd.none
 
 // -- Create View
 
@@ -159,7 +159,7 @@ let update msg model = DiagramMainView.update msg model
 
 printfn "Starting renderer..."
 
-Program.mkSimple init update view
+Program.mkProgram init update view
 |> Program.withReactBatched "app"
 |> Program.withSubscription attachMenusAndKeyShortcuts
 |> Program.run

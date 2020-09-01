@@ -98,35 +98,6 @@ let radixChange (n: bigint) (nBits: uint32) (rad: NumberBase) =
 
 //auxiliary functions to the viewer function
 
-let port2ConnId (model: Model) p =
-    match model.Diagram.GetCanvasState() with
-    | Some s ->
-        let outPN =
-            match p.OutPN with
-            | OutputPortNumber n -> n
-        List.map extractComponent (fst s)
-        |> List.tryPick (fun c ->
-            match ComponentId c.Id = p.CId with
-            | true -> Some c.OutputPorts.[outPN].Id
-            | false -> None)
-        |> function
-        | Some portId ->
-            List.map extractConnection (snd s)
-            |> List.tryPick (fun conn ->
-                if conn.Source.Id = portId then Some conn.Id else None)
-            |> function
-            | Some connId -> [| ConnectionId connId |]
-            | None -> [||]
-        | None -> [||]
-    | None -> failwith "highlight called when canvas state is None"
-
-let setHighlightedConns (model: Model) dispatch ports =
-    ports
-    |> Array.collect (port2ConnId model)
-    |> Array.toList
-    |> SetSelWavesHighlighted
-    |> dispatch
-
 let toggleSelect ind (model: Model) dispatch =
     match currWS model with
     | Some wSMod ->
@@ -139,6 +110,7 @@ let toggleSelect ind (model: Model) dispatch =
         Array.zip wSMod.Ports sel'
         |> Array.filter snd
         |> Array.map fst
+        |> Array.toList
         |> setHighlightedConns model dispatch
     | None -> ()
 
@@ -242,21 +214,21 @@ let busLabels (model: Model) =
         (model2WaveList wSMod, Array.map makeGaps (transitions wSMod)) ||> Array.map2 gaps2pos
     | None -> failwith "busLabels called when currWS model is None"
 
-let cursValStrings model =
+let cursValStrings (wSMod: WaveSimModel) =
     let pref =
-        match model.Radix with
+        match wSMod.Radix with
         | Bin -> "0b"
         | Hex -> "0x"
         | _ -> ""
 
     let makeCursVal sample =
         match sample with
-        | Wire w when w.NBits > 1u -> [| pref + radixChange w.BitData w.NBits model.Radix |]
+        | Wire w when w.NBits > 1u -> [| pref + radixChange w.BitData w.NBits wSMod.Radix |]
         | Wire w -> [| pref + string w.BitData |]
         | StateSample s -> s
 
-    match int model.Cursor < Array.length model.WaveData with
-    | true -> Array.map makeCursVal model.WaveData.[int model.Cursor]
+    match int wSMod.Cursor < Array.length wSMod.WaveData with
+    | true -> Array.map makeCursVal wSMod.WaveData.[int wSMod.Cursor]
     | false -> [||]
 
 let makeCursVals model =
@@ -285,15 +257,13 @@ let clkRulerSvg (model: WaveSimModel) =
 let waveSimRows model wsMod dispatch =
     // waveforms
     let waveSvg =
-        let addLabel nLabels xInd (i: int) = makeText (inWaveLabel nLabels xInd i wsMod)
+        let addLabel nLabels xInd = makeText (inWaveLabel nLabels xInd wsMod)
 
         let valueLabels =
             let lblEl (sample, xIndArr) =
                 match sample with
                 | Wire w when w.NBits > 1u ->
-                    Array.map (fun xInd -> addLabel 1 xInd 0 (radixChange w.BitData w.NBits wsMod.Radix)) xIndArr
-                | StateSample ss ->
-                    Array.collect (fun xInd -> Array.mapi (addLabel (Array.length ss) xInd) ss) xIndArr
+                    Array.map (fun xInd -> addLabel 1 xInd (radixChange w.BitData w.NBits wsMod.Radix)) xIndArr
                 | _ -> [||]
             busLabels model |> Array.map (Array.collect lblEl)
 
@@ -317,14 +287,22 @@ let waveSimRows model wsMod dispatch =
                           [| snd (Array.last pairs), 1 |] ])
 
         let selPorts =
+            let sD =
+                match wsMod.WaveAdder.SimData with
+                | Some sD -> sD
+                | None -> failwith "Trying to visulise waveforms when WaveAdder.SimData is None"
+            let canvState = 
+                match wsMod.LastCanvasState with
+                | Some lastCS -> lastCS
+                | None -> failwith "No LastCanvasState stored when trying to visualise waveforms"
             let allSelPorts =
                 (List.map (fun c -> Comp c) (fst model.CurrentSelected),
                  List.map (fun c -> Conn c) (snd model.CurrentSelected))
                 ||> List.append
-                |> compsConns2portLst model wsMod.SimData.[0]
+                |> compsConns2portLst sD canvState
             Array.map
-                (fun port ->
-                    Array.exists (fun selP -> (selP.CId, selP.OutPN) = (port.CId, port.OutPN)) allSelPorts)
+                (fun (port: WaveSimPort) ->
+                    Array.exists (fun (selP: WaveSimPort) -> (selP.CId, selP.OutPN) = (port.CId, port.OutPN)) allSelPorts)
                 wsMod.Ports
 
         transitions wsMod
@@ -369,7 +347,7 @@ let waveSimRows model wsMod dispatch =
     waveCol, labelCols, cursValCol
 
 // view function helpers
-let maxWidth wSMod =
+let maxWidth (wSMod: WaveSimModel) =
     let strWidth s = 
         JSHelpers.getTextWidthInPixels (s, "12px segoe ui") //not sure which font
     let curLblColWidth =
@@ -395,59 +373,43 @@ let maxWidth wSMod =
     
     curLblColWidth + namesColWidth + waveColWidth + checkboxCol + extraWidth |> int
 
-let appendSimData wSMod nCycles = 
-    extractSimData (Array.last wSMod.SimData) nCycles 
-    |> Array.append wSMod.SimData
+let zoom plus (m: Model) (wSMod: WaveSimModel) dispatch =
+    let newClkW =
+        if plus then zoomFactor else 1.0 / zoomFactor
+        |> (*) wSMod.ClkWidth
+        |> max minZoom
+        |> min maxZoom
+    match int (float m.ViewerWidth * zoomFactor) > maxWidth wSMod with
+    | true ->
+        {| NewVal = (wSMod.LastClk + 1u) * (uint zoomFactor) + 10u
+           NewCurs = wSMod.Cursor
+           NewClkW = wSMod.ClkWidth |}
+        |> (fun p -> None, Some p)
+        |> SetSimInProgress |> dispatch
+    | false -> 
+        { wSMod with ClkWidth = newClkW }
+        |> SetCurrFileWSMod |> dispatch
 
-let changeTopInd newVal (model: Model) wsMod =
-    let sD = wsMod.SimData
-    match Array.length sD = 0, newVal > wsMod.LastClk, newVal >= 0u with
-    | true, _, _ -> { wsMod with LastClk = newVal }
-    | false, true, _ ->
-        let sD' = appendSimData wsMod <| newVal + 1u - uint (Array.length sD)
-        { wsMod with
-              SimData = sD' 
-              WaveData = 
-                Array.map (fun sD -> sD.Graph) sD' 
-                |> Array.map (extractSimTime wsMod.Ports) 
-              LastClk = newVal }
-    | false, false, true ->
-        { wsMod with
-              LastClk = newVal
-              WaveData = 
-                Array.map (fun sD -> sD.Graph) sD.[0..int newVal] 
-                |> Array.map (extractSimTime (reloadablePorts model sD.[0]))  }
-    | _ -> wsMod
-
-let zoom plus (m: Model) wSMod dispatch =
-    let changedTopIndModel = 
-        match int (float m.ViewerWidth * zoomFactor) > maxWidth wSMod with
-        | true ->
-            changeTopInd ((wSMod.LastClk + 1u) * (uint zoomFactor) + 10u) m wSMod
-        | false -> wSMod
-    if plus then zoomFactor else 1.0 / zoomFactor
-    |> (*) wSMod.ClkWidth
-    |> function
-       | w when w > maxZoom -> { changedTopIndModel with ClkWidth = maxZoom }
-       | w when w < minZoom -> { changedTopIndModel with ClkWidth = minZoom }
-       | w -> { changedTopIndModel with ClkWidth = w }
-    |> SetCurrFileWSMod
-    |> dispatch
 
 let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ str label ]
 
-let changeCurs (model: Model) wSMod dispatch newVal =
-    match 0u <= newVal, newVal <= wSMod.LastClk with
-    | true, true -> { wSMod with Cursor = newVal }
-    | true, false -> { changeTopInd newVal model wSMod with Cursor = newVal }
-    | _ -> wSMod
-    |> SetCurrFileWSMod
-    |> dispatch
+let changeCurs (wSMod: WaveSimModel) dispatch newCurs =
+    let maxPossibleCurs = 10000u
+    let curs' = min maxPossibleCurs newCurs
+    match 0u <= curs', curs' <= wSMod.LastClk with
+    | true, true -> 
+        { wSMod with Cursor = curs' }
+        |> SetCurrFileWSMod |> dispatch
+    | true, false -> 
+        {| NewCurs = curs'; NewClkW = wSMod.ClkWidth; NewVal = wSMod.LastClk |}
+        |> (fun p -> None, Some p)
+        |> SetSimInProgress |> dispatch
+    | _ -> ()
 
-let cursorMove increase (model: Model) wSMod dispatch =
+let cursorMove increase (wSMod: WaveSimModel) dispatch =
     match increase, wSMod.Cursor with
-    | true, n -> n + 1u |> changeCurs model wSMod dispatch
-    | false, n when n > 0u -> n - 1u |> changeCurs model wSMod dispatch
+    | true, n -> n + 1u |> changeCurs wSMod dispatch
+    | false, n when n > 0u -> n - 1u |> changeCurs wSMod dispatch
     | false, _ -> wSMod |> SetCurrFileWSMod |> dispatch
 
 let selectAll s (model: Model) dispatch =
@@ -456,6 +418,7 @@ let selectAll s (model: Model) dispatch =
         { wSMod with Selected = Array.map (fun _ -> s) wSMod.Selected }
         |> SetCurrFileWSMod |> dispatch
         if s then wSMod.Ports else [||]
+        |> Array.toList
         |> setHighlightedConns model dispatch
     | None -> ()
 
@@ -521,7 +484,7 @@ let moveWave model up =
           Ports = reorder model.Ports }
     |> SetCurrFileWSMod
 
-let radixTabs model dispatch =
+let radixTabs (model: WaveSimModel) dispatch =
     let radixString =
         [ Dec,  "uDec"
           Bin,  "Bin"
@@ -561,7 +524,7 @@ let cursorButtons (model: Model) wSMod dispatch =
     div [ Class "cursor" ]
         [ Button.button
             [ Button.CustomClass "cursLeft"
-              Button.OnClick(fun _ -> cursorMove false model wSMod dispatch) ] [ str "◀" ]
+              Button.OnClick(fun _ -> cursorMove false wSMod dispatch) ] [ str "◀" ]
           Input.number
               [ Input.Props
                   [ Min 0
@@ -576,13 +539,19 @@ let cursorButtons (model: Model) wSMod dispatch =
                 //Input.DefaultValue <| sprintf "%d" model.WaveSim.Cursor
                 Input.OnChange(fun c ->
                     match System.Int32.TryParse c.Value with
-                    | true, n when n >= 0 -> changeCurs model wSMod dispatch (uint n) 
+                    | true, n when n >= 0 -> changeCurs wSMod dispatch (uint n) 
                     | _ -> ()) ]
-          button [ Button.CustomClass "cursRight" ] (fun _ -> cursorMove true model wSMod dispatch) "▶" ]
+          button [ Button.CustomClass "cursRight" ] (fun _ -> cursorMove true wSMod dispatch) "▶" ]
+
+let loadingBut model =
+    match model.SimulationInProgress with
+    | None, None -> button [Button.Color IsWhite] (fun _ -> ()) "done"
+    | _ -> button [Button.Color IsDanger] (fun _ -> ()) "loading..."
 
 let viewWaveSimButtonsBar model wSMod dispatch =
     div [ Style [ Height "45px" ] ]
-        [ radixTabs wSMod dispatch
+        [ loadingBut model
+          radixTabs wSMod dispatch
           cursorButtons model wSMod dispatch ]
 
 let cursValsCol rows =
@@ -603,42 +572,35 @@ let connId2JSConn (model: Model) connId =
        | Some jsConn -> [ jsConn ]
        | None -> []
 
-let openCloseWA wSMod on = 
+let openCloseWA (wSMod: WaveSimModel) on = 
     { wSMod with WaveAdderOpen = on }
     |> SetCurrFileWSMod
 
-let selWave2selConn model wSMod ind on = 
-    match port2ConnId model wSMod.WaveAdder.Ports.[ind] with 
-    | [| ConnectionId el |] -> connId2JSConn model el 
-    | _ -> []
-    |> function
-       | [ jsC ] -> model.Diagram.SetSelected on jsC 
-       | _ -> ()
+let selWave2selConn model (wSMod: WaveSimModel) ind on = 
+    port2ConnId model wSMod.WaveAdder.Ports.[ind]
+    |> List.collect (fun (ConnectionId cId) -> connId2JSConn model cId) 
+    |> List.map (model.Diagram.SetSelected on)
 
-let isWaveSelected model wSMod port = 
+let isWaveSelected model (wSMod: WaveSimModel) port = 
+    let simD = 
+        match wSMod.WaveAdder.SimData with
+        | Some sD -> sD
+        | None -> failwith "isWaveSelected called when WaveAdder.SimData is None"
+    let canvState =
+        match wSMod.LastCanvasState with
+        | Some cS -> cS
+        | _ -> failwith "isWaveSelected called when wSMod.LastCanvasState is None"
     getSelected model
-    |> compsConns2portLst model wSMod.SimData.[0] 
+    |> compsConns2portLst simD canvState
     |> Array.contains port
 
 let waveAdderToggle (model: Model) wSMod ind =
     isWaveSelected model wSMod wSMod.WaveAdder.Ports.[ind]
     |> not
     |> selWave2selConn model wSMod ind
+    |> ignore
 
-let waveGen model wSMod dispatch ports =
-    setHighlightedConns model dispatch [||]
-
-    { wSMod with
-        WaveData = 
-            Array.map (fun sD -> sD.Graph) wSMod.SimData
-            |> Array.map (extractSimTime ports) 
-        WaveNames = Array.map (wSPort2Name wSMod.SimData.[0].Graph) ports
-        Selected = Array.map (fun _ -> false) ports
-        Ports = ports
-        WaveAdderOpen = false }
-    |> SetCurrFileWSMod |> dispatch
-
-let waveAdderSelectAll model wSMod =
+let waveAdderSelectAll model (wSMod: WaveSimModel) =
     let setTo = 
         wSMod.WaveAdder.Ports 
         |> Array.forall (isWaveSelected model wSMod)
@@ -765,7 +727,8 @@ let waveAdderButs (model: Model) wSMod dispatch =
             [ Button.Color IsSuccess
               Button.OnClick(fun _ -> 
                 Array.filter (isWaveSelected model wSMod) wSMod.WaveAdder.Ports                
-                |> waveGen model wSMod dispatch) ]
+                |> (fun ports -> Some ports, None)
+                |> SetSimInProgress |> dispatch) ]
         | false -> [ Button.CustomClass "disabled" ]
         |> (fun lst -> Button.Props [ Style [ MarginLeft "10px" ] ] :: lst)
     let cancBut =
@@ -808,8 +771,10 @@ let waveformsView model wSMod dispatch =
 let viewWaveSim (model: Model) dispatch =
     match currWS model, snd model.WaveSim with
     | Some wSMod, None ->
-        ( model, wSMod, dispatch )
-        |||> if wSMod.WaveAdderOpen then waveAdderView else waveformsView 
+        match wSMod.WaveAdderOpen, model.SimulationInProgress with
+        | _, (Some _, _) | _, (_, Some _) | false, (None, None) -> waveformsView
+        | true, (None, None) -> waveAdderView 
+        |> (fun f -> f model wSMod dispatch)
     | Some _, Some simError ->
         [ div [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]
               [ SimulationView.viewSimulationError simError

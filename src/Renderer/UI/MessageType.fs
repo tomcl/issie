@@ -57,12 +57,8 @@ type StateSample = string array
 type Sample = | Wire of Wire | StateSample of StateSample
 type SimTime = Sample array
 type Waveform = Sample array
-type WaveSimPort = {
-    CId : ComponentId;
-    OutPN : OutputPortNumber;
-    TrgtId : ComponentId option
-}
 type WaveAdderModel = {
+    SimData : SimulationData option
     Ports : WaveSimPort array;
     WaveNames : WaveName array
 }
@@ -79,11 +75,11 @@ type WaveSimModel = {
     LastClk: uint32
     WaveAdderOpen: bool
     WaveAdder: WaveAdderModel
-    LastCanvasState: JSCanvasState option 
+    LastCanvasState: CanvasState option 
 }
 
 let initWA = 
-    { Ports = [||]; WaveNames = [||] }
+    { SimData = None; Ports = [||]; WaveNames = [||] }
 
 let initWS: WaveSimModel =
     { SimData = [||]
@@ -110,6 +106,17 @@ type MenuCommand =
     | MenuSaveFile
     | MenuNewFile
     | MenuZoom of float
+
+
+/// Type for an open project which represents a complete design.
+/// ProjectPath is directory containing project files.
+/// OpenFileName is name of file from which current schematic sheet is loaded/saved.
+/// LoadedComponents contains the list of schematic sheets, each as a component, one per sheet.
+type Project = {
+    ProjectPath : string
+    OpenFileName : string
+    LoadedComponents : LoadedComponent list
+}
 
 
 
@@ -155,3 +162,6 @@ type Msg =
     | SetViewerWidth of int
     | MenuAction of MenuCommand * (Msg -> unit)
     | SelectionHasChanged
+    | SetSimIsStale of bool
+    | SetSimInProgress of (WaveSimPort array option) * ({| NewVal: uint; NewCurs: uint; NewClkW: float |} option)
+    | SetLastSimulatedCanvasState of CanvasState option

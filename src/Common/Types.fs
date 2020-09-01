@@ -95,47 +95,6 @@ type Connection = {
 /// F# data describing the contents of a single schematic sheet.
 type CanvasState = Component list * Connection list
 
-/// F# data describing teh setup of the Wave Viewer window
-type SavedWaveInfo = unit
-
-
-//================================//
-// Componenents loaded from files //
-//================================//
-
-/// Static data describing a schematic sheet loaded as a custom component.
-/// Every sheet is always identified with a file from which it is loaded/saved. 
-/// Name is human readable (and is the filename - without extension) and identifies sheet.
-/// File path is the sheet directory and name (with extension).
-/// InputLabels, OutputLabels are the I/O connections.
-/// The I/O connection integers are bus widths.
-/// The I/O connection strings are human readable. The strings are guaranteed
-/// to be unique in the I/O connection list. I.e. An input label may be the same
-/// as an output label, but two input (or output) labels cannot be the same.
-/// The position in the I/O connections list is important as it implicitly
-/// indicates the port number. For example, the first element in the InputLabels
-/// list is related to the Component's Port with PortNumber 0.
-/// Two instances of a loaded component have the same LoadedComponent data.
-type LoadedComponent = {
-    Name: string
-    TimeStamp: System.DateTime
-    FilePath : string
-    WaveInfo: SavedWaveInfo option
-    CanvasState : CanvasState
-    InputLabels : (string * int) list
-    OutputLabels : (string * int) list
-}
-
-/// Type for an open project which represents a complete design.
-/// ProjectPath is directory containing project files.
-/// OpenFileName is name of file from which current schematic sheet is loaded/saved.
-/// LoadedComponents contains the list of schematic sheets, each as a component, one per sheet.
-type Project = {
-    ProjectPath : string
-    OpenFileName : string
-    LoadedComponents : LoadedComponent list
-}
-
 //=======//
 // Other //
 //=======//

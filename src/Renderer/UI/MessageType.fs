@@ -65,8 +65,7 @@ type WaveAdderModel = {
 
 type WaveSimModel = {
     SimData: SimulatorTypes.SimulationData array
-    WaveData: SimTime array
-    WaveNames: WaveName array
+    WaveTable: ReactElement array
     Selected: bool array
     Ports: WaveSimPort array
     ClkWidth: float
@@ -83,8 +82,7 @@ let initWA =
 
 let initWS: WaveSimModel =
     { SimData = [||]
-      WaveData = [||]
-      WaveNames = [||]
+      WaveTable = [||]
       Selected = [||]
       Ports = [||] 
       ClkWidth = 1.0
@@ -163,5 +161,7 @@ type Msg =
     | MenuAction of MenuCommand * (Msg -> unit)
     | SelectionHasChanged
     | SetSimIsStale of bool
-    | SetSimInProgress of (WaveSimPort array option) * ({| NewVal: uint; NewCurs: uint; NewClkW: float |} option)
+    | SetSimInProgress of Result<WaveSimPort array,{| NewVal: uint; NewCurs: uint; NewClkW: float |}>
+    | SimulateWhenInProgress of Result<WaveSimPort array,{| NewVal: uint; NewCurs: uint; NewClkW: float |}>
+    | SetSimNotInProgress
     | SetLastSimulatedCanvasState of CanvasState option

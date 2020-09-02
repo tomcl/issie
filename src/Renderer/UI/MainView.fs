@@ -27,7 +27,6 @@ open WaveformSimulationView
 open Fable.Core
 open Fable.Core.JsInterop
 
-
 // -- Init Model
 
 let initActivity = {
@@ -74,7 +73,7 @@ let init() = {
     TopMenu = Closed
     DragMode = DragModeOff
     ViewerWidth = rightSectionWidthViewerDefault
-    SimulationInProgress = None, None
+    SimulationInProgress = false
 }
 
 /// Repaint each connection according to the new inferred width.
@@ -232,7 +231,7 @@ let displayView model dispatch =
             | Some wSMod when w > maxWidth wSMod && not wSMod.WaveAdderOpen ->
                 let newTopInd = wSMod.LastClk + 10u
                 {| NewVal = newTopInd; NewClkW = wSMod.ClkWidth; NewCurs = wSMod.Cursor |}
-                |> (fun p -> None, Some p)
+                |> Error
                 |> SetSimInProgress |> dispatch
             | _ -> ()
             SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
@@ -416,6 +415,23 @@ let checkForAutoSave msg (model, cmd) =
             |> (fun model -> changeSimulationIsStale simUpdate model, cmd)
        
           
+let private setSelWavesHighlighted model connIds =
+    let (_, errConnIds), oldConnIds = model.Hilighted
+    oldConnIds
+    |> List.map (fun (ConnectionId c) -> 
+        match List.contains (ConnectionId c) errConnIds with
+        | true -> ()
+        | false -> model.Diagram.UnHighlightConnection c )
+    |> ignore
+    connIds
+    |> List.map (fun (ConnectionId c) -> 
+        match List.contains (ConnectionId c) errConnIds with
+        | true -> ()
+        | false -> model.Diagram.HighlightConnection c "green")
+    |> ignore
+    List.fold (fun st cId -> if List.contains cId errConnIds 
+                                then st
+                                else cId :: st ) [] connIds
 
 
 let update msg model =
@@ -466,22 +482,7 @@ let update msg model =
         |> ignore
         { model with Hilighted = (componentIds, connectionIds), snd model.Hilighted }, Cmd.none
     | SetSelWavesHighlighted connIds ->
-        let (_, errConnIds), oldConnIds = model.Hilighted
-        oldConnIds
-        |> List.map (fun (ConnectionId c) -> 
-            match List.contains (ConnectionId c) errConnIds with
-            | true -> ()
-            | false -> model.Diagram.UnHighlightConnection c )
-        |> ignore
-        connIds
-        |> List.map (fun (ConnectionId c) -> 
-            match List.contains (ConnectionId c) errConnIds with
-            | true -> ()
-            | false -> model.Diagram.HighlightConnection c "green")
-        |> ignore
-        List.fold (fun st cId -> if List.contains cId errConnIds 
-                                    then st
-                                    else cId :: st ) [] connIds
+        setSelWavesHighlighted model connIds
         |> (fun lst -> { model with Hilighted = fst model.Hilighted, lst }, Cmd.none)
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
     | SetCreateComponent pos -> { model with CreateComponent = Some pos }, Cmd.none
@@ -551,8 +552,25 @@ let update msg model =
         |> Option.defaultValue model, Cmd.none
     | SetSimIsStale b -> 
         changeSimulationIsStale b model, Cmd.none
-    | SetSimInProgress (portsOpt, newTopIndOpt) -> 
-        { model with SimulationInProgress = portsOpt, newTopIndOpt }, Cmd.none
+    | SetSimInProgress par -> 
+        { model with SimulationInProgress = true }, 
+        Cmd.ofMsg <| SimulateWhenInProgress par
+    | SimulateWhenInProgress par ->
+        match FileMenuView.getCurrFile model with
+        | Some fileName ->
+            match currWS model, par with
+            | Some wSMod, Ok ports -> 
+                { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model [] 
+                             WaveSim = Map.add fileName (waveGen model wSMod ports) (fst model.WaveSim), 
+                                       snd model.WaveSim }, Cmd.ofMsg SetSimNotInProgress
+            | Some wSMod, Error par -> 
+                { model with WaveSim = Map.add fileName (changeTopInd model wSMod par) (fst model.WaveSim), 
+                                       snd model.WaveSim }, Cmd.ofMsg SetSimNotInProgress
+            | _ -> 
+                failwith "SetSimInProgress dispatched when currWS model is None"
+        | None -> failwith "SetSimInProgress dispatched when getCurrFile model is None"
+    | SetSimNotInProgress ->
+        { model with SimulationInProgress = false }, Cmd.none
     | SetLastSimulatedCanvasState cS ->
         { model with LastSimulatedCanvasState = cS }, Cmd.none
     |> (checkForAutoSave msg)

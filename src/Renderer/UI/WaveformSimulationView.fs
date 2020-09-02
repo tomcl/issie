@@ -289,9 +289,9 @@ let private cursorButtons (model: Model) wSMod dispatch =
           button [ Button.CustomClass "cursRight" ] (fun _ -> cursorMove true wSMod dispatch) "▶" ]
 
 let private loadingBut model =
-    if model.SimulationInProgress 
-    then button [Button.Color IsDanger] (fun _ -> ()) "loading..."
-    else button [Button.Color IsWhite] (fun _ -> ()) "done"
+    match model.SimulationInProgress with
+    | Some _ -> button [Button.Color IsDanger] (fun _ -> ()) "loading..."
+    | None -> str ""
 
 let private viewWaveSimButtonsBar model wSMod dispatch =
     div [ Style [ Height "45px" ] ]
@@ -517,8 +517,8 @@ let viewWaveSim (model: Model) dispatch =
     match currWS model, snd model.WaveSim with
     | Some wSMod, None ->
         match wSMod.WaveAdderOpen, model.SimulationInProgress with
-        | _, true | false, false -> waveformsView
-        | true, false -> waveAdderView 
+        | _, Some _ | false, None -> waveformsView
+        | true, None -> waveAdderView 
         |> (fun f -> f model wSMod dispatch)
     | Some _, Some simError ->
         [ div [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]

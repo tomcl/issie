@@ -73,7 +73,7 @@ let init() = {
     TopMenu = Closed
     DragMode = DragModeOff
     ViewerWidth = rightSectionWidthViewerDefault
-    SimulationInProgress = false
+    SimulationInProgress = None
 }
 
 /// Repaint each connection according to the new inferred width.
@@ -553,8 +553,7 @@ let update msg model =
     | SetSimIsStale b -> 
         changeSimulationIsStale b model, Cmd.none
     | SetSimInProgress par -> 
-        { model with SimulationInProgress = true }, 
-        Cmd.ofMsg <| SimulateWhenInProgress par
+        { model with SimulationInProgress = Some par }, Cmd.none
     | SimulateWhenInProgress par ->
         match FileMenuView.getCurrFile model with
         | Some fileName ->
@@ -562,15 +561,17 @@ let update msg model =
             | Some wSMod, Ok ports -> 
                 { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model [] 
                              WaveSim = Map.add fileName (waveGen model wSMod ports) (fst model.WaveSim), 
-                                       snd model.WaveSim }, Cmd.ofMsg SetSimNotInProgress
+                                       snd model.WaveSim
+                             SimulationInProgress = None }, Cmd.ofMsg SetSimNotInProgress
             | Some wSMod, Error par -> 
                 { model with WaveSim = Map.add fileName (changeTopInd model wSMod par) (fst model.WaveSim), 
-                                       snd model.WaveSim }, Cmd.ofMsg SetSimNotInProgress
+                                       snd model.WaveSim 
+                             SimulationInProgress = None }, Cmd.ofMsg SetSimNotInProgress
             | _ -> 
                 failwith "SetSimInProgress dispatched when currWS model is None"
         | None -> failwith "SetSimInProgress dispatched when getCurrFile model is None"
     | SetSimNotInProgress ->
-        { model with SimulationInProgress = false }, Cmd.none
+        model, Cmd.none
     | SetLastSimulatedCanvasState cS ->
         { model with LastSimulatedCanvasState = cS }, Cmd.none
     |> (checkForAutoSave msg)

@@ -68,18 +68,593 @@ let private loadStateIntoCanvas state model dispatch =
     |> dispatch
     // set autosave status clean
 
+//helpers
 
+let private getReducedCanvState model =
+    match model.Diagram.GetCanvasState() with
+    | Some cS -> Some <| extractReducedState cS
+    | None -> None
 
+// saving/loading
+
+let private wsMod2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
+    { Ports = wsMod.Ports
+      ClkWidth = wsMod.ClkWidth
+      Cursor = wsMod.Cursor
+      Radix = wsMod.Radix
+      LastClk = wsMod.LastClk
+      WaveAdderOpen = wsMod.WaveAdderOpen
+      WaveAdderPorts = wsMod.WaveAdder.Ports }
 
 /// extract SavedwaveInfo from model to be saved
-let getSavedWave (model:Model): SavedWaveInfo option = None
+let getSavedWave (model:Model): SavedWaveInfo option = 
+    match currWS model with
+    | Some wSMod -> wsMod2SavedWaveInfo wSMod |> Some
+    | None -> None
+
+let private reloadablePorts (model: Model) (simData: SimulatorTypes.SimulationData) : WaveSimPort [] =
+    let inGraph (port: WaveSimPort) = Map.exists (fun key _ -> key = port.CId) simData.Graph
+    match currWS model with
+    | Some wSMod ->
+        Array.filter inGraph wSMod.Ports
+        |> Array.map (fun port ->
+            match port.TrgtId with
+            | Some trgtId when Map.exists (fun key _ -> key = trgtId) simData.Graph ->
+                match List.tryFind (fun (cid, _) -> cid = trgtId) simData.Graph.[port.CId].Outputs.[port.OutPN] with
+                | Some _ -> port
+                | None -> { port with TrgtId = None }
+            | _ -> { port with TrgtId = None })
+    | None -> [||]
+
+let private clkAdvance (sD: SimulatorTypes.SimulationData) =
+    feedClockTick sD.Graph
+    |> (fun graph ->
+        { sD with
+              Graph = graph
+              ClockTickNumber = sD.ClockTickNumber + 1 })
+
+let extractSimData simData nCycles =
+    (simData, [| 1u .. nCycles |])
+    ||> Array.mapFold (fun s _ -> clkAdvance s, clkAdvance s)
+    |> fst
+
+/// Returns a tuple option representing the output to which the target input is connected
+let private driveOut simGraph targetCompId inPortN =
+    Map.toArray simGraph
+    |> Array.tryPick (fun (outCompId, simComp: SimulatorTypes.SimulationComponent) ->
+        Map.toArray simComp.Outputs
+        |> Array.tryFind (fun (_, lst) -> (List.exists (fun t -> t = (targetCompId, inPortN)) lst))
+        |> function
+        | Some(outPN, _) -> Some(outCompId, outPN)
+        | None -> None)
+
+let private procIns (simGraph: SimulationGraph) compId inputs: WaveSimPort [] =
+    Array.collect (fun portN ->
+        match simGraph.[compId].Type, driveOut simGraph compId portN with
+        | Input _, _ -> [||]
+        | Output _, Some(cId, oPN) ->
+            [| { CId = cId
+                 OutPN = oPN
+                 TrgtId = Some compId } |]
+        | _, Some(cId, oPN) ->
+            [| { CId = cId
+                 OutPN = oPN
+                 TrgtId = None } |]
+        | _, None -> failwith "Input is not connected") inputs
+
+
+let private processComp simData cId: WaveSimPort [] =
+    let procCompIns (compId: ComponentId) (inputs: Map<InputPortNumber, WireData>): WaveSimPort [] =
+        Map.toArray inputs
+        |> Array.map (fun (key, _) -> key)
+        |> procIns simData.Graph compId
+
+    let procOuts compId outputs: WaveSimPort [] =
+        Map.toArray outputs
+        |> Array.map (fun (portNum, _) ->
+            { CId = compId
+              OutPN = portNum
+              TrgtId = None })
+
+    match Map.tryFind cId simData.Graph with
+    | Some sC -> Array.append (procCompIns cId sC.Inputs) (procOuts cId sC.Outputs)
+    | None -> [||]
+
+let private remDuplicates (arrWithDup: WaveSimPort []) : WaveSimPort [] =
+    Array.groupBy (fun (p: WaveSimPort) -> p.CId, p.OutPN) arrWithDup
+    |> Array.map (fun (_, (ports: WaveSimPort [])) -> 
+        { ports.[0] with TrgtId = Array.tryPick (fun (p: WaveSimPort) -> p.TrgtId) ports })
+
+let compsConns2portLst simData canvState diagElLst : WaveSimPort [] =
+    let portId2CIdInPN pId =
+        fst canvState
+        |> List.tryPick (fun c ->
+                List.tryFindIndex (fun (p: Port) -> p.Id = pId) c.InputPorts
+                |> function
+                | Some i -> Some(c.Id, i)
+                | None -> None)
+
+    diagElLst
+    |> List.toArray
+    |> Array.collect (fun compEl ->
+        match compEl with
+        | Comp c -> processComp simData (ComponentId c.Id)
+        | Conn c ->
+            match portId2CIdInPN c.Target.Id with
+            | Some(cId, inPN) -> procIns simData.Graph (ComponentId cId) [| InputPortNumber inPN |]
+            | None -> [||])
+    |> remDuplicates
+
+let avalPorts (model: Model) =
+    match model.Diagram.GetCanvasState(), model.CurrProject with
+    | None, _ -> [||]
+    | _, None -> failwith "what? Cannot start a simulation without a project"
+    | Some jsState, Some project ->
+        let otherComponents = project.LoadedComponents |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        (extractState jsState, otherComponents)
+        ||> prepareSimulation project.OpenFileName
+        |> function
+        | Ok simData ->
+            List.map (extractComponent >> Comp) (fst jsState) 
+            |> List.filter (fun comp -> match comp with
+                                        | Comp c -> match c.Type with 
+                                                    | SplitWire _ | MergeWires _ -> false
+                                                    | _ -> true
+                                        | Conn c -> failwith "What? comp is of value Conn _")
+            |> compsConns2portLst simData (extractState jsState)
+        | Error simError ->
+            [||]
+
+
+let rec findName
+        (simGraph: SimulatorTypes.SimulationGraph)
+        ({ CId = compId; OutPN = outPortN; TrgtId = outputOpt }: WaveSimPort)
+    =
+    let compLbl =
+        match Map.tryFind compId simGraph with
+        | Some simComp ->
+            match simComp.Label with
+            | ComponentLabel lbl ->
+                match Seq.tryFindIndexBack ((=) '(') lbl with
+                | Some i -> lbl.[0..i - 1]
+                | None -> lbl //not robust!
+        | None -> failwith "simData.Graph.[compId] doesn't exist"
+
+    let outPortInt =
+        match outPortN with
+        | OutputPortNumber pn -> pn
+
+    let driveName n compTypeStr =
+        match driveOut simGraph compId (InputPortNumber n) with
+        | Some(driveCompId, drivePortN) ->
+            findName simGraph
+                { CId = driveCompId
+                  OutPN = drivePortN
+                  TrgtId = None }
+            |> snd
+        | None -> failwith (compTypeStr + "input not connected")
+
+    match simGraph.[compId].Type with
+    | Not
+    | And
+    | Or
+    | Xor
+    | Nand
+    | Nor
+    | Xnor
+    | Decode4
+    | Mux2 -> [ compLbl, (0, 0) ]
+    | Input w
+    | Output w 
+    | Constant(w, _) -> [ compLbl, (w - 1, 0) ]
+    | Demux2 -> [ compLbl + "_" + string outPortInt, (0, 0) ]
+    | NbitsAdder w ->
+        match outPortInt with
+        | 0 -> [ compLbl + "_sum", (w - 1, 0) ]
+        | _ -> [ compLbl + "Cout", (w - 1, 0) ]
+    | DFF
+    | DFFE -> [ compLbl + "_Q", (0, 0) ]
+    | Register w
+    | RegisterE w -> [ compLbl + "_data-out", (w - 1, 0) ]
+    | RAM mem
+    | AsyncROM mem
+    | ROM mem -> [ compLbl + "_data-out", (mem.WordWidth - 1, 0) ]
+    | Custom c -> [ compLbl + "_" + fst c.OutputLabels.[outPortInt], (snd c.OutputLabels.[outPortInt] - 1, 0) ]
+    | IOLabel ->
+        match driveOut simGraph compId (InputPortNumber 0) with
+        | Some(driveCompId, drivePortN) ->
+            match findName simGraph
+                      { CId = driveCompId
+                        OutPN = drivePortN
+                        TrgtId = None }
+                  |> snd with
+            | hd :: tl ->
+                ("(" + fst hd, snd hd) :: tl
+                |> function
+                | hd :: [] -> (fst hd + ")", snd hd) :: []
+                | lst ->
+                    List.append lst.[0..List.length lst - 2] [ fst (List.last lst) + ")", snd (List.last lst) ]
+            | [] -> failwith "Error: IOLabel input names list is empty"
+        | None -> failwith "IOLabel input not connected"
+    | MergeWires -> List.append (driveName 1 "MergeWires") (driveName 0 "MergeWires")
+    | SplitWire w ->
+        let predicate (_, b) =
+            match outPortInt with
+            | 0 -> b >= w
+            | 1 -> b < w
+            | _ -> failwith "SplitWire output port number greater than 1"
+
+        let split name msb lsb st =
+            List.zip [ lsb .. msb ] [ st + msb - lsb .. -1 .. st ]
+            |> List.filter predicate
+            |> List.unzip
+            |> function
+            | [], _ -> None
+            | lst, _ -> Some(name, (List.max lst, List.min lst))
+
+        (0, driveName 0 "SplitWire")
+        ||> List.mapFold (fun st (name, (msb, lsb)) -> split name msb lsb st, st + msb - lsb + 1)
+        |> fst
+        |> List.choose id
+    | BusSelection(w, oLSB) ->
+        let filtSelec name msb lsb st =
+            List.zip [ lsb .. msb ] [ st .. st + msb - lsb ]
+            |> List.filter (fun (_, b) -> oLSB <= b && b <= oLSB + w - 1)
+            |> List.unzip
+            |> function
+            | [], _ -> None
+            | lst, _ -> Some(name, (List.max lst, List.min lst))
+        (driveName 0 "BusSelection", 0)
+        ||> List.mapFoldBack (fun (name, (msb, lsb)) st -> filtSelec name msb lsb st, st + msb - lsb + 1)
+        |> fst
+        |> List.choose id
+        |> List.rev
+
+    |> (fun lst ->
+        match outputOpt with
+        | Some compId ->
+            match simGraph.[compId].Label with
+            | ComponentLabel lbl -> Some(lbl + ": "), lst
+        | None -> None, lst)
+
+let private bitNums (a, b) =
+    match (a, b) with
+    | (0, 0) -> ""
+    | (msb, lsb) when msb = lsb -> sprintf "[%d]" msb
+    | (msb, lsb) -> sprintf "[%d:%d]" msb lsb
+
+let wSPort2Name simGraph p =
+    let outNameOpt, nameLst = findName simGraph p
+
+    let tl =
+        match nameLst with
+        | [ el ] -> fst el + bitNums (snd el)
+        | lst when List.length lst > 0 ->
+            let appendName st (name, bitLims) = st + name + bitNums bitLims + ", "
+            List.fold appendName "{ " lst |> (fun lbl -> lbl.[0..String.length lbl - 3] + " }")
+        | _ -> ""
+    match outNameOpt with
+    | Some outName -> outName + tl
+    | None -> tl
+
+
+
+let makeLinePoints style (x1, y1) (x2, y2) =
+    line
+        (List.append style 
+             [ X1 x1
+               Y1 y1
+               X2 x2
+               Y2 y2 ]) []
+
+let makeSvg style elements = svg style elements
+let makeRect style = rect style []
+let makeLine style = line style []
+let makeText style t = text style [ str t ]
+
+let private backgroundSvg (model: WaveSimModel) =
+    let clkLine x = makeLinePoints [ Class "clkLineStyle" ] (x, vPos) (x, vPos + sigHeight + spacing)
+    [| 1u .. model.LastClk + 1u |] |> Array.map ((fun x -> float x * model.ClkWidth) >> clkLine)
+
+//radix change
+
+let dec2bin (n: bigint) (nBits: uint32): string =
+    let folder (state: bigint * char list) (digit: int) =
+        if fst state / bigint digit = bigint 1
+        then (fst state - bigint digit, List.append (snd state) [ '1' ])
+        else (fst state, List.append (snd state) [ '0' ])
+    [ float nBits - 1.0 .. (-1.0) .. 0.0 ]
+    |> List.map ((fun exp -> 2.0 ** exp) >> (fun f -> int f))
+    |> List.fold folder (n, [])
+    |> snd
+    |> List.toSeq
+    |> Seq.map string
+    |> String.concat ""
+
+let dec2hex (n: bigint) (nBits: uint32): string =
+    let seqPad = 
+        let times = (4 - int nBits % 4) % 4
+        Seq.replicate times '0'
+
+    let paddedBin =
+        dec2bin n nBits
+        |> Seq.append seqPad
+        |> Seq.toList
+
+    let fourBit2HexDig =
+        [ [ '0'; '0'; '0'; '0' ], '0'
+          [ '0'; '0'; '0'; '1' ], '1'
+          [ '0'; '0'; '1'; '0' ], '2'
+          [ '0'; '0'; '1'; '1' ], '3'
+          [ '0'; '1'; '0'; '0' ], '4'
+          [ '0'; '1'; '0'; '1' ], '5'
+          [ '0'; '1'; '1'; '0' ], '6'
+          [ '0'; '1'; '1'; '1' ], '7'
+          [ '1'; '0'; '0'; '0' ], '8'
+          [ '1'; '0'; '0'; '1' ], '9'
+          [ '1'; '0'; '1'; '0' ], 'A'
+          [ '1'; '0'; '1'; '1' ], 'B'
+          [ '1'; '1'; '0'; '0' ], 'C'
+          [ '1'; '1'; '0'; '1' ], 'D'
+          [ '1'; '1'; '1'; '0' ], 'E'
+          [ '1'; '1'; '1'; '1' ], 'F' ]
+        |> Map.ofList
+
+    [ 0 .. 4 .. int nBits - 1 ]
+    |> List.map ( (fun i -> fourBit2HexDig.[ paddedBin.[i..i + 3] ])
+                  >> string )
+    |> List.toSeq
+    |> String.concat ""
+
+let dec2sdec (n: bigint) (nBits: uint32) =
+    if (dec2bin n nBits).[0] = '1' 
+        then n - bigint (2.0 ** (float nBits)) 
+        else n
+    |> string
+
+let radixChange (n: bigint) (nBits: uint32) (rad: NumberBase) =
+    match rad with
+    | Dec -> string n
+    | Bin -> dec2bin n nBits
+    | Hex -> dec2hex n nBits
+    | SDec -> dec2sdec n nBits
+
+let makeGaps trans =
+    Array.append trans [| 1 |]
+    |> Array.mapFold (fun tot t -> tot, tot + t) 0
+    |> fst
+    |> Array.indexed
+    |> Array.groupBy snd
+    |> Array.map (fun (_, gL) ->
+        let times = Array.map fst gL
+        {| GapLen = Array.max times - Array.min times + 1
+           GapStart = Array.min times |})
+
+let transitions (model: WaveSimModel) waveData = //relies on number of names being correct (= length of elements in WaveData)
+    let isDiff (ws1, ws2) =
+        let folder state e1 e2 =
+            match state, e1 = e2 with
+            | 0, true -> 0
+            | _ -> 1
+        match ws1, ws2 with
+        | Wire a, Wire b ->
+            if a.BitData = b.BitData then 0 else 1
+        | StateSample a, StateSample b when Array.length a = Array.length b -> 
+            (a, b) ||> Array.fold2 folder 0
+        | _ -> 1
+
+    Array.transpose waveData
+    |> Array.map (Array.pairwise >> Array.map isDiff)
+
+let busLabels (model: Model) waveData =
+    match currWS model with
+    | Some wSMod ->
+        let clkWidth = int wSMod.ClkWidth
+
+        let gaps2pos (wave: Waveform) gaps =
+            let nSpaces (g: {| GapLen: int; GapStart: int |}) = (g.GapLen * clkWidth / (maxBusValGap + 1) + 2)
+            let gapAndInd2Pos (g: {| GapLen: int; GapStart: int |}) i =
+                float g.GapStart + float i * float g.GapLen / float (nSpaces g)
+            gaps
+            |> Array.map (fun (gap: {| GapLen: int; GapStart: int |}) ->
+                wave.[gap.GapStart], Array.map (gapAndInd2Pos gap) [| 1 .. nSpaces gap - 1 |])
+        (Array.transpose waveData, Array.map makeGaps (transitions wSMod waveData)) ||> Array.map2 gaps2pos
+    | None -> failwith "busLabels called when currWS model is None"
+
+let makeSegment (clkW: float) portSelected (xInd: int) (data: Sample) (trans: int * int) =
+    let top = spacing
+    let bot = top + sigHeight - sigLineThick
+    let left = float xInd * clkW
+    let right = left + float clkW
+
+    let makeSigLine =
+        makeLinePoints
+            [ Class "sigLineStyle"
+              Style [ Stroke(if portSelected then "green" else "blue") ] ]
+
+    match data with
+    | Wire w when w.NBits = 1u ->
+        let y =
+            match w.BitData with
+            | n when n = bigint 1 -> top
+            | _ -> bot
+        let sigLine = makeSigLine (left, y) (right, y)
+        match snd trans with
+        | 1 -> [| makeSigLine (right, bot + sigLineThick / 2.0) (right, top - sigLineThick / 2.0) |]
+        | 0 -> [||]
+        | _ -> failwith "What? Transition has value other than 0 or 1"
+        |> Array.append [| sigLine |]
+    | _ ->
+        let leftInner =
+            if fst trans = 1 then left + transLen else left
+        let rightInner =
+            if snd trans = 1 then right - transLen else right
+
+        let cen = (top + bot) / 2.0
+
+        //make lines
+        let topL = makeSigLine (leftInner, top) (rightInner, top)
+        let botL = makeSigLine (leftInner, bot) (rightInner, bot)
+        let topLeft = makeSigLine (left, cen) (leftInner, top)
+        let botLeft = makeSigLine (left, cen) (leftInner, bot)
+        let topRight = makeSigLine (right, cen) (rightInner, top)
+        let botRight = makeSigLine (right, cen) (rightInner, bot)
+
+        match trans with
+        | 1, 1 -> [| topLeft; botLeft; topRight; botRight |]
+        | 1, 0 -> [| topLeft; botLeft |]
+        | 0, 1 -> [| topRight; botRight |]
+        | 0, 0 -> [||]
+        | _ -> failwith "What? Transition has value other than 0 or 1"
+        |> Array.append [| topL; botL |]
+//Probably should put other option for negative number which prints an error
+
+
+let waveSvg model wsMod waveData =
+    let addLabel nLabels xInd = makeText (inWaveLabel nLabels xInd wsMod)
+
+    let valueLabels =
+        let lblEl (sample, xIndArr) =
+            match sample with
+            | Wire w when w.NBits > 1u ->
+                Array.map (fun xInd -> addLabel 1 xInd (radixChange w.BitData w.NBits wsMod.Radix)) xIndArr
+            | _ -> [||]
+        busLabels model waveData
+        |> Array.map (Array.collect lblEl)
+
+    let makeWaveSvg (portSelected: bool) (sampArr: Waveform) (transArr: (int * int) []): ReactElement [] =
+        (sampArr, transArr)
+        ||> Array.mapi2 (makeSegment wsMod.ClkWidth portSelected)
+        |> Array.concat
+
+    let padTrans t =
+        match Array.length t with
+        | 0 -> [| 1, 1 |]
+        | 1 ->
+            [| (1, t.[0])
+               (t.[0], 1) |]
+        | _ ->
+            Array.pairwise t
+            |> (fun pairs ->
+                Array.concat
+                    [ [| 1, fst pairs.[0] |]
+                      pairs
+                      [| snd (Array.last pairs), 1 |] ])
+
+    let selPorts =
+        let sD =
+            match wsMod.WaveAdder.SimData with
+            | Some sD -> sD
+            | None -> failwith "Trying to visulise waveforms when WaveAdder.SimData is None"
+        let canvState = 
+            match wsMod.LastCanvasState with
+            | Some lastCS -> lastCS
+            | None -> failwith "No LastCanvasState stored when trying to visualise waveforms"
+        let allSelPorts =
+            (List.map (fun c -> Comp c) (fst model.CurrentSelected),
+             List.map (fun c -> Conn c) (snd model.CurrentSelected))
+            ||> List.append
+            |> compsConns2portLst sD canvState
+        Array.map
+            (fun (port: WaveSimPort) ->
+                Array.exists (fun (selP: WaveSimPort) -> (selP.CId, selP.OutPN) = (port.CId, port.OutPN)) allSelPorts)
+            wsMod.Ports
+
+    transitions wsMod waveData
+    |> Array.map padTrans
+    |> Array.map3 makeWaveSvg selPorts (Array.transpose waveData)
+    |> Array.map2 Array.append valueLabels
+
+let private clkRulerSvg (model: WaveSimModel) =
+    let makeClkRulLbl i =
+        match model.ClkWidth with
+        | clkW when clkW < 0.5 && i % 5 <> 0 -> [||]
+        | _ -> [| makeText (cursRectText model i) (string i) |]
+    [| 0 .. int model.LastClk |]
+    |> Array.collect makeClkRulLbl
+    |> (fun arr ->
+        [ backgroundSvg model
+          [| makeRect (cursRectStyle model) |]
+          arr ])
+    |> Array.concat
+    |> makeSvg (clkRulerStyle model)
+
+let private waveCol model wsMod waveData =
+    let waveTableRow rowClass cellClass svgClass svgChildren =
+        tr rowClass [ td cellClass [ makeSvg svgClass svgChildren ] ]
+    let bgSvg = backgroundSvg wsMod
+    let cursRectSvg = [| makeRect (cursRectStyle wsMod) |]
+
+    [| waveTableRow [ Class "fullHeight" ] (lwaveCell wsMod) (waveCellSvg wsMod true)
+           (Array.append bgSvg cursRectSvg) |]
+    |> Array.append
+        (Array.map
+            (fun wave ->
+                waveTableRow [ Class "rowHeight" ] (waveCell wsMod) (waveCellSvg wsMod false)
+                    (Array.concat [| cursRectSvg; bgSvg; wave |])) (waveSvg model wsMod waveData))
+    |> Array.append [| tr [ Class "rowHeight" ] [ td (waveCell wsMod) [ clkRulerSvg wsMod ] ] |]
+
+let private simWireData2Wire wireData =
+    wireData
+    |> List.mapFold (fun weight bit ->
+        match bit with
+        | SimulatorTypes.Bit.Zero -> bigint 0
+        | SimulatorTypes.Bit.One -> weight
+        |> (fun r -> r, weight * (bigint 2))) (bigint 1)
+    |> fst
+    |> List.sum
+
+let extractSimTime (ports: WaveSimPort []) (simGraph: SimulationGraph) =
+    ports
+    |> Array.map (fun { CId = compId; OutPN = portN; TrgtId = _ } ->
+        match Map.tryFind compId simGraph with
+        | Some simComp ->
+            match Map.tryFind portN simComp.Outputs with
+            | Some(hd :: _) ->
+                let wD = simGraph.[fst hd].Inputs.[snd hd]
+                Wire
+                    { NBits = uint (List.length wD)
+                      BitData = simWireData2Wire wD }
+            | Some [] -> failwith "Output not connected"
+            | None -> failwith "Component doesn't have this output port number"
+        | None -> failwith "ComponentId not in simulation graph")
+
+let makeWaveData (wsMod: WaveSimModel) =
+    Array.map (fun sD -> sD.Graph) wsMod.SimData
+    |> Array.map (extractSimTime wsMod.Ports) 
+
+let private savedWaveInfo2wsMod model (sWInfo: SavedWaveInfo) : WaveSimModel =
+    match makeSimData model with
+    | Some (Ok sD) ->
+        let ports' = reloadablePorts model sD
+        let sD' = Array.append [| sD |] (extractSimData sD sWInfo.LastClk)
+        let waPorts' = avalPorts model
+        { SimData = sD'
+          WaveTable = [||]
+          Selected = Array.map (fun _ -> false) ports'
+          Ports = ports'
+          ClkWidth = sWInfo.ClkWidth
+          Cursor = sWInfo.Cursor
+          Radix = sWInfo.Radix
+          LastClk = sWInfo.LastClk
+          WaveAdderOpen = sWInfo.WaveAdderOpen
+          WaveAdder = { SimData = Some sD
+                        Ports = waPorts'
+                        WaveNames = Array.map (wSPort2Name sD.Graph) waPorts' }
+          LastCanvasState = getReducedCanvState model }
+    | Some (Error err) -> initWS//Should probably display error somehow
+    | None -> initWS
+    |> (fun m -> { m with WaveTable = waveCol model m (makeWaveData m) } )
 
 /// add waveInfo to model
-let setSavedWave (wave: SavedWaveInfo option) =
-    fun model ->
-        match wave with
-        | None -> model
-        | Some waveInfo -> model // TODO: setup
+let setSavedWave (wave: SavedWaveInfo option) model : Model =
+    match wave, getCurrFile model with
+    | None, _ -> model
+    | Some waveInfo, Some fileName -> 
+        { model with WaveSim = Map.add fileName (savedWaveInfo2wsMod model waveInfo) (fst model.WaveSim), 
+                               snd model.WaveSim }
+    | Some waveInfo, _ -> model
+            
 
 /// Save the file currently open.
 
@@ -348,43 +923,6 @@ let viewNoProjectMenu model dispatch =
     | Some _ -> div [] []
     | None -> unclosablePopup None initialMenu None []
 
-let private simWireData2Wire wireData =
-    wireData
-    |> List.mapFold (fun weight bit ->
-        match bit with
-        | SimulatorTypes.Bit.Zero -> bigint 0
-        | SimulatorTypes.Bit.One -> weight
-        |> (fun r -> r, weight * (bigint 2))) (bigint 1)
-    |> fst
-    |> List.sum
-
-let extractSimTime (ports: WaveSimPort []) (simGraph: SimulationGraph) =
-    ports
-    |> Array.map (fun { CId = compId; OutPN = portN; TrgtId = _ } ->
-        match Map.tryFind compId simGraph with
-        | Some simComp ->
-            match Map.tryFind portN simComp.Outputs with
-            | Some(hd :: _) ->
-                let wD = simGraph.[fst hd].Inputs.[snd hd]
-                Wire
-                    { NBits = uint (List.length wD)
-                      BitData = simWireData2Wire wD }
-            | Some [] -> failwith "Output not connected"
-            | None -> failwith "Component doesn't have this output port number"
-        | None -> failwith "ComponentId not in simulation graph")
-
-let private clkAdvance (sD: SimulatorTypes.SimulationData) =
-    feedClockTick sD.Graph
-    |> (fun graph ->
-        { sD with
-              Graph = graph
-              ClockTickNumber = sD.ClockTickNumber + 1 })
-
-let extractSimData simData nCycles =
-    (simData, [| 1u .. nCycles |])
-    ||> Array.mapFold (fun s _ -> clkAdvance s, clkAdvance s)
-    |> fst
-
 let initFileWS model dispatch =
     match getCurrFile model with
     | Some fileName ->
@@ -393,253 +931,13 @@ let initFileWS model dispatch =
         |> dispatch
     | None -> ()
 
-let private remDuplicates (arrWithDup: WaveSimPort []) : WaveSimPort [] =
-    Array.groupBy (fun (p: WaveSimPort) -> p.CId, p.OutPN) arrWithDup
-    |> Array.map (fun (_, (ports: WaveSimPort [])) -> 
-        { ports.[0] with TrgtId = Array.tryPick (fun (p: WaveSimPort) -> p.TrgtId) ports })
-
-/// Returns a tuple option representing the output to which the target input is connected
-let private driveOut simGraph targetCompId inPortN =
-    Map.toArray simGraph
-    |> Array.tryPick (fun (outCompId, simComp: SimulatorTypes.SimulationComponent) ->
-        Map.toArray simComp.Outputs
-        |> Array.tryFind (fun (_, lst) -> (List.exists (fun t -> t = (targetCompId, inPortN)) lst))
-        |> function
-        | Some(outPN, _) -> Some(outCompId, outPN)
-        | None -> None)
-
-let private procIns (simGraph: SimulationGraph) compId inputs: WaveSimPort [] =
-    Array.collect (fun portN ->
-        match simGraph.[compId].Type, driveOut simGraph compId portN with
-        | Input _, _ -> [||]
-        | Output _, Some(cId, oPN) ->
-            [| { CId = cId
-                 OutPN = oPN
-                 TrgtId = Some compId } |]
-        | _, Some(cId, oPN) ->
-            [| { CId = cId
-                 OutPN = oPN
-                 TrgtId = None } |]
-        | _, None -> failwith "Input is not connected") inputs
-
-
-let private processComp simData cId: WaveSimPort [] =
-    let procCompIns (compId: ComponentId) (inputs: Map<InputPortNumber, WireData>): WaveSimPort [] =
-        Map.toArray inputs
-        |> Array.map (fun (key, _) -> key)
-        |> procIns simData.Graph compId
-
-    let procOuts compId outputs: WaveSimPort [] =
-        Map.toArray outputs
-        |> Array.map (fun (portNum, _) ->
-            { CId = compId
-              OutPN = portNum
-              TrgtId = None })
-
-    match Map.tryFind cId simData.Graph with
-    | Some sC -> Array.append (procCompIns cId sC.Inputs) (procOuts cId sC.Outputs)
-    | None -> [||]
-
-let compsConns2portLst simData canvState diagElLst : WaveSimPort [] =
-    let portId2CIdInPN pId =
-        fst canvState
-        |> List.tryPick (fun c ->
-                List.tryFindIndex (fun (p: Port) -> p.Id = pId) c.InputPorts
-                |> function
-                | Some i -> Some(c.Id, i)
-                | None -> None)
-
-    diagElLst
-    |> List.toArray
-    |> Array.collect (fun compEl ->
-        match compEl with
-        | Comp c -> processComp simData (ComponentId c.Id)
-        | Conn c ->
-            match portId2CIdInPN c.Target.Id with
-            | Some(cId, inPN) -> procIns simData.Graph (ComponentId cId) [| InputPortNumber inPN |]
-            | None -> [||])
-    |> remDuplicates
-
-
-let avalPorts (model: Model) dispatch =
-    match model.Diagram.GetCanvasState(), model.CurrProject with
-    | None, _ -> [||]
-    | _, None -> failwith "what? Cannot start a simulation without a project"
-    | Some jsState, Some project ->
-        let otherComponents = project.LoadedComponents |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-        (extractState jsState, otherComponents)
-        ||> prepareSimulation project.OpenFileName
-        |> function
-        | Ok simData ->
-            List.map (extractComponent >> Comp) (fst jsState) 
-            |> List.filter (fun comp -> match comp with
-                                        | Comp c -> match c.Type with 
-                                                    | SplitWire _ | MergeWires _ -> false
-                                                    | _ -> true
-                                        | Conn c -> failwith "What? comp is of value Conn _")
-            |> compsConns2portLst simData (extractState jsState)
-        | Error simError ->
-            if simError.InDependency.IsNone then
-                (simError.ComponentsAffected, simError.ConnectionsAffected)
-                |> SetHighlighted
-                |> dispatch
-            [||]
-
-
-let private wsMod2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
-    { SimData = wsMod.WaveAdder.SimData
-      Ports = wsMod.Ports
-      ClkWidth = wsMod.ClkWidth
-      Cursor = wsMod.Cursor
-      Radix = wsMod.Radix
-      LastClk = wsMod.LastClk
-      WaveAdderOpen = wsMod.WaveAdderOpen
-      WaveAdderPorts = wsMod.WaveAdder.Ports 
-      LastCanvasState = wsMod.LastCanvasState }
-
-let rec findName
-        (simGraph: SimulatorTypes.SimulationGraph)
-        ({ CId = compId; OutPN = outPortN; TrgtId = outputOpt }: WaveSimPort)
-    =
-    let compLbl =
-        match Map.tryFind compId simGraph with
-        | Some simComp ->
-            match simComp.Label with
-            | ComponentLabel lbl ->
-                match Seq.tryFindIndexBack ((=) '(') lbl with
-                | Some i -> lbl.[0..i - 1]
-                | None -> lbl //not robust!
-        | None -> failwith "simData.Graph.[compId] doesn't exist"
-
-    let outPortInt =
-        match outPortN with
-        | OutputPortNumber pn -> pn
-
-    let driveName n compTypeStr =
-        match driveOut simGraph compId (InputPortNumber n) with
-        | Some(driveCompId, drivePortN) ->
-            findName simGraph
-                { CId = driveCompId
-                  OutPN = drivePortN
-                  TrgtId = None }
-            |> snd
-        | None -> failwith (compTypeStr + "input not connected")
-
-    match simGraph.[compId].Type with
-    | Not
-    | And
-    | Or
-    | Xor
-    | Nand
-    | Nor
-    | Xnor
-    | Decode4
-    | Mux2 -> [ compLbl, (0, 0) ]
-    | Input w
-    | Output w 
-    | Constant(w, _) -> [ compLbl, (w - 1, 0) ]
-    | Demux2 -> [ compLbl + "_" + string outPortInt, (0, 0) ]
-    | NbitsAdder w ->
-        match outPortInt with
-        | 0 -> [ compLbl + "_sum", (w - 1, 0) ]
-        | _ -> [ compLbl + "Cout", (w - 1, 0) ]
-    | DFF
-    | DFFE -> [ compLbl + "_Q", (0, 0) ]
-    | Register w
-    | RegisterE w -> [ compLbl + "_data-out", (w - 1, 0) ]
-    | RAM mem
-    | AsyncROM mem
-    | ROM mem -> [ compLbl + "_data-out", (mem.WordWidth - 1, 0) ]
-    | Custom c -> [ compLbl + "_" + fst c.OutputLabels.[outPortInt], (snd c.OutputLabels.[outPortInt] - 1, 0) ]
-    | IOLabel ->
-        match driveOut simGraph compId (InputPortNumber 0) with
-        | Some(driveCompId, drivePortN) ->
-            match findName simGraph
-                      { CId = driveCompId
-                        OutPN = drivePortN
-                        TrgtId = None }
-                  |> snd with
-            | hd :: tl ->
-                ("(" + fst hd, snd hd) :: tl
-                |> function
-                | hd :: [] -> (fst hd + ")", snd hd) :: []
-                | lst ->
-                    List.append lst.[0..List.length lst - 2] [ fst (List.last lst) + ")", snd (List.last lst) ]
-            | [] -> failwith "Error: IOLabel input names list is empty"
-        | None -> failwith "IOLabel input not connected"
-    | MergeWires -> List.append (driveName 1 "MergeWires") (driveName 0 "MergeWires")
-    | SplitWire w ->
-        let predicate (_, b) =
-            match outPortInt with
-            | 0 -> b >= w
-            | 1 -> b < w
-            | _ -> failwith "SplitWire output port number greater than 1"
-
-        let split name msb lsb st =
-            List.zip [ lsb .. msb ] [ st + msb - lsb .. -1 .. st ]
-            |> List.filter predicate
-            |> List.unzip
-            |> function
-            | [], _ -> None
-            | lst, _ -> Some(name, (List.max lst, List.min lst))
-
-        (0, driveName 0 "SplitWire")
-        ||> List.mapFold (fun st (name, (msb, lsb)) -> split name msb lsb st, st + msb - lsb + 1)
-        |> fst
-        |> List.choose id
-    | BusSelection(w, oLSB) ->
-        let filtSelec name msb lsb st =
-            List.zip [ lsb .. msb ] [ st .. st + msb - lsb ]
-            |> List.filter (fun (_, b) -> oLSB <= b && b <= oLSB + w - 1)
-            |> List.unzip
-            |> function
-            | [], _ -> None
-            | lst, _ -> Some(name, (List.max lst, List.min lst))
-        (driveName 0 "BusSelection", 0)
-        ||> List.mapFoldBack (fun (name, (msb, lsb)) st -> filtSelec name msb lsb st, st + msb - lsb + 1)
-        |> fst
-        |> List.choose id
-        |> List.rev
-
-    |> (fun lst ->
-        match outputOpt with
-        | Some compId ->
-            match simGraph.[compId].Label with
-            | ComponentLabel lbl -> Some(lbl + ": "), lst
-        | None -> None, lst)
-
-let private bitNums (a, b) =
-    match (a, b) with
-    | (0, 0) -> ""
-    | (msb, lsb) when msb = lsb -> sprintf "[%d]" msb
-    | (msb, lsb) -> sprintf "[%d:%d]" msb lsb
-
-let wSPort2Name simGraph p =
-    let outNameOpt, nameLst = findName simGraph p
-
-    let tl =
-        match nameLst with
-        | [ el ] -> fst el + bitNums (snd el)
-        | lst when List.length lst > 0 ->
-            let appendName st (name, bitLims) = st + name + bitNums bitLims + ", "
-            List.fold appendName "{ " lst |> (fun lbl -> lbl.[0..String.length lbl - 3] + " }")
-        | _ -> ""
-    match outNameOpt with
-    | Some outName -> outName + tl
-    | None -> tl
-
-let private getReducedCanvState model =
-    match model.Diagram.GetCanvasState() with
-    | Some cS -> Some <| extractReducedState cS
-    | None -> None
-
 let private setWA model wSMod dispatch simData =
     SetViewerWidth minViewerWidth |> dispatch
     getReducedCanvState model |> SetLastSimulatedCanvasState |> dispatch
     SetSimIsStale false |> dispatch
 
     let wA' =
-        match avalPorts model dispatch with
+        match avalPorts model with
         | wSPorts ->
             let names' = Array.map (wSPort2Name simData.Graph) wSPorts
             { SimData = Some simData; Ports = wSPorts; WaveNames = names' }
@@ -648,40 +946,6 @@ let private setWA model wSMod dispatch simData =
           LastCanvasState = getReducedCanvState model }
     |> SetCurrFileWSMod
     |> dispatch
-
-let private reloadablePorts (model: Model) (simData: SimulatorTypes.SimulationData) : WaveSimPort [] =
-    let inGraph (port: WaveSimPort) = Map.exists (fun key _ -> key = port.CId) simData.Graph
-    match currWS model with
-    | Some wSMod ->
-        Array.filter inGraph wSMod.Ports
-        |> Array.map (fun port ->
-            match port.TrgtId with
-            | Some trgtId when Map.exists (fun key _ -> key = trgtId) simData.Graph ->
-                match List.tryFind (fun (cid, _) -> cid = trgtId) simData.Graph.[port.CId].Outputs.[port.OutPN] with
-                | Some _ -> port
-                | None -> { port with TrgtId = None }
-            | _ -> { port with TrgtId = None })
-    | None -> [||]
-
-let private savedWaveInfo2wsMod model (sWInfo: SavedWaveInfo) : WaveSimModel =
-    match sWInfo.SimData with
-    | Some sD ->
-        let ports' = reloadablePorts model sD
-        let sD' = Array.append [| sD |] (extractSimData sD sWInfo.LastClk)
-        { SimData = sD'
-          WaveTable = [||] //THIS MUST BE CHANGED (maybe, I haven;t thought about it)
-          Selected = Array.map (fun _ -> false) ports'
-          Ports = ports'
-          ClkWidth = sWInfo.ClkWidth
-          Cursor = sWInfo.Cursor
-          Radix = sWInfo.Radix
-          LastClk = sWInfo.LastClk
-          WaveAdderOpen = sWInfo.WaveAdderOpen
-          WaveAdder = { SimData = sWInfo.SimData
-                        Ports = sWInfo.WaveAdderPorts
-                        WaveNames = Array.map (wSPort2Name sD.Graph) sWInfo.WaveAdderPorts }
-          LastCanvasState = sWInfo.LastCanvasState }
-    | None -> initWS
 
 let private viewInfoPopup dispatch =
     let makeH h =
@@ -755,266 +1019,6 @@ let private appendSimData (wSMod: WaveSimModel) nCycles =
     extractSimData (Array.last wSMod.SimData) nCycles 
     |> Array.append wSMod.SimData
 
-
-let makeLinePoints style (x1, y1) (x2, y2) =
-    line
-        (List.append style 
-             [ X1 x1
-               Y1 y1
-               X2 x2
-               Y2 y2 ]) []
-
-let makeSvg style elements = svg style elements
-let makeRect style = rect style []
-let makeLine style = line style []
-let makeText style t = text style [ str t ]
-
-let private backgroundSvg (model: WaveSimModel) =
-    let clkLine x = makeLinePoints [ Class "clkLineStyle" ] (x, vPos) (x, vPos + sigHeight + spacing)
-    [| 1u .. model.LastClk + 1u |] |> Array.map ((fun x -> float x * model.ClkWidth) >> clkLine)
-
-//radix change
-
-let dec2bin (n: bigint) (nBits: uint32): string =
-    let folder (state: bigint * char list) (digit: int) =
-        if fst state / bigint digit = bigint 1
-        then (fst state - bigint digit, List.append (snd state) [ '1' ])
-        else (fst state, List.append (snd state) [ '0' ])
-    [ float nBits - 1.0 .. (-1.0) .. 0.0 ]
-    |> List.map ((fun exp -> 2.0 ** exp) >> (fun f -> int f))
-    |> List.fold folder (n, [])
-    |> snd
-    |> List.toSeq
-    |> Seq.map string
-    |> String.concat ""
-
-let dec2hex (n: bigint) (nBits: uint32): string =
-    let seqPad = 
-        let times = (4 - int nBits % 4) % 4
-        Seq.replicate times '0'
-
-    let paddedBin =
-        dec2bin n nBits
-        |> Seq.append seqPad
-        |> Seq.toList
-
-    let fourBit2HexDig =
-        [ [ '0'; '0'; '0'; '0' ], '0'
-          [ '0'; '0'; '0'; '1' ], '1'
-          [ '0'; '0'; '1'; '0' ], '2'
-          [ '0'; '0'; '1'; '1' ], '3'
-          [ '0'; '1'; '0'; '0' ], '4'
-          [ '0'; '1'; '0'; '1' ], '5'
-          [ '0'; '1'; '1'; '0' ], '6'
-          [ '0'; '1'; '1'; '1' ], '7'
-          [ '1'; '0'; '0'; '0' ], '8'
-          [ '1'; '0'; '0'; '1' ], '9'
-          [ '1'; '0'; '1'; '0' ], 'A'
-          [ '1'; '0'; '1'; '1' ], 'B'
-          [ '1'; '1'; '0'; '0' ], 'C'
-          [ '1'; '1'; '0'; '1' ], 'D'
-          [ '1'; '1'; '1'; '0' ], 'E'
-          [ '1'; '1'; '1'; '1' ], 'F' ]
-        |> Map.ofList
-
-    [ 0 .. 4 .. int nBits - 1 ]
-    |> List.map ( (fun i -> fourBit2HexDig.[ paddedBin.[i..i + 3] ])
-                  >> string )
-    |> List.toSeq
-    |> String.concat ""
-
-let dec2sdec (n: bigint) (nBits: uint32) =
-    if (dec2bin n nBits).[0] = '1' 
-        then n - bigint (2.0 ** (float nBits)) 
-        else n
-    |> string
-
-let radixChange (n: bigint) (nBits: uint32) (rad: NumberBase) =
-    match rad with
-    | Dec -> string n
-    | Bin -> dec2bin n nBits
-    | Hex -> dec2hex n nBits
-    | SDec -> dec2sdec n nBits
-
-let makeGaps trans =
-    Array.append trans [| 1 |]
-    |> Array.mapFold (fun tot t -> tot, tot + t) 0
-    |> fst
-    |> Array.indexed
-    |> Array.groupBy snd
-    |> Array.map (fun (_, gL) ->
-        let times = Array.map fst gL
-        {| GapLen = Array.max times - Array.min times + 1
-           GapStart = Array.min times |})
-
-let transitions (model: WaveSimModel) waveData = //relies on number of names being correct (= length of elements in WaveData)
-    let isDiff (ws1, ws2) =
-        let folder state e1 e2 =
-            match state, e1 = e2 with
-            | 0, true -> 0
-            | _ -> 1
-        match ws1, ws2 with
-        | Wire a, Wire b ->
-            if a.BitData = b.BitData then 0 else 1
-        | StateSample a, StateSample b when Array.length a = Array.length b -> 
-            (a, b) ||> Array.fold2 folder 0
-        | _ -> 1
-
-    Array.transpose waveData
-    |> Array.map (Array.pairwise >> Array.map isDiff)
-
-let busLabels (model: Model) waveData =
-    match currWS model with
-    | Some wSMod ->
-        let clkWidth = int wSMod.ClkWidth
-
-        let gaps2pos (wave: Waveform) gaps =
-            let nSpaces (g: {| GapLen: int; GapStart: int |}) = (g.GapLen * clkWidth / (maxBusValGap + 1) + 2)
-            let gapAndInd2Pos (g: {| GapLen: int; GapStart: int |}) i =
-                float g.GapStart + float i * float g.GapLen / float (nSpaces g)
-            gaps
-            |> Array.map (fun (gap: {| GapLen: int; GapStart: int |}) ->
-                wave.[gap.GapStart], Array.map (gapAndInd2Pos gap) [| 1 .. nSpaces gap - 1 |])
-        (Array.transpose waveData, Array.map makeGaps (transitions wSMod waveData)) ||> Array.map2 gaps2pos
-    | None -> failwith "busLabels called when currWS model is None"
-
-let makeSegment (clkW: float) portSelected (xInd: int) (data: Sample) (trans: int * int) =
-    let top = spacing
-    let bot = top + sigHeight - sigLineThick
-    let left = float xInd * clkW
-    let right = left + float clkW
-
-    let makeSigLine =
-        makeLinePoints
-            [ Class "sigLineStyle"
-              Style [ Stroke(if portSelected then "green" else "blue") ] ]
-
-    match data with
-    | Wire w when w.NBits = 1u ->
-        let y =
-            match w.BitData with
-            | n when n = bigint 1 -> top
-            | _ -> bot
-        let sigLine = makeSigLine (left, y) (right, y)
-        match snd trans with
-        | 1 -> [| makeSigLine (right, bot + sigLineThick / 2.0) (right, top - sigLineThick / 2.0) |]
-        | 0 -> [||]
-        | _ -> failwith "What? Transition has value other than 0 or 1"
-        |> Array.append [| sigLine |]
-    | _ ->
-        let leftInner =
-            if fst trans = 1 then left + transLen else left
-        let rightInner =
-            if snd trans = 1 then right - transLen else right
-
-        let cen = (top + bot) / 2.0
-
-        //make lines
-        let topL = makeSigLine (leftInner, top) (rightInner, top)
-        let botL = makeSigLine (leftInner, bot) (rightInner, bot)
-        let topLeft = makeSigLine (left, cen) (leftInner, top)
-        let botLeft = makeSigLine (left, cen) (leftInner, bot)
-        let topRight = makeSigLine (right, cen) (rightInner, top)
-        let botRight = makeSigLine (right, cen) (rightInner, bot)
-
-        match trans with
-        | 1, 1 -> [| topLeft; botLeft; topRight; botRight |]
-        | 1, 0 -> [| topLeft; botLeft |]
-        | 0, 1 -> [| topRight; botRight |]
-        | 0, 0 -> [||]
-        | _ -> failwith "What? Transition has value other than 0 or 1"
-        |> Array.append [| topL; botL |]
-//Probably should put other option for negative number which prints an error
-
-
-let waveSvg model wsMod waveData =
-    let addLabel nLabels xInd = makeText (inWaveLabel nLabels xInd wsMod)
-
-    let valueLabels =
-        let lblEl (sample, xIndArr) =
-            match sample with
-            | Wire w when w.NBits > 1u ->
-                Array.map (fun xInd -> addLabel 1 xInd (radixChange w.BitData w.NBits wsMod.Radix)) xIndArr
-            | _ -> [||]
-        busLabels model waveData
-        |> Array.map (Array.collect lblEl)
-
-    let makeWaveSvg (portSelected: bool) (sampArr: Waveform) (transArr: (int * int) []): ReactElement [] =
-        (sampArr, transArr)
-        ||> Array.mapi2 (makeSegment wsMod.ClkWidth portSelected)
-        |> Array.concat
-
-    let padTrans t =
-        match Array.length t with
-        | 0 -> [| 1, 1 |]
-        | 1 ->
-            [| (1, t.[0])
-               (t.[0], 1) |]
-        | _ ->
-            Array.pairwise t
-            |> (fun pairs ->
-                Array.concat
-                    [ [| 1, fst pairs.[0] |]
-                      pairs
-                      [| snd (Array.last pairs), 1 |] ])
-
-    let selPorts =
-        let sD =
-            match wsMod.WaveAdder.SimData with
-            | Some sD -> sD
-            | None -> failwith "Trying to visulise waveforms when WaveAdder.SimData is None"
-        let canvState = 
-            match wsMod.LastCanvasState with
-            | Some lastCS -> lastCS
-            | None -> failwith "No LastCanvasState stored when trying to visualise waveforms"
-        let allSelPorts =
-            (List.map (fun c -> Comp c) (fst model.CurrentSelected),
-             List.map (fun c -> Conn c) (snd model.CurrentSelected))
-            ||> List.append
-            |> compsConns2portLst sD canvState
-        Array.map
-            (fun (port: WaveSimPort) ->
-                Array.exists (fun (selP: WaveSimPort) -> (selP.CId, selP.OutPN) = (port.CId, port.OutPN)) allSelPorts)
-            wsMod.Ports
-
-    transitions wsMod waveData
-    |> Array.map padTrans
-    |> Array.map3 makeWaveSvg selPorts (Array.transpose waveData)
-    |> Array.map2 Array.append valueLabels
-
-let private clkRulerSvg (model: WaveSimModel) =
-    let makeClkRulLbl i =
-        match model.ClkWidth with
-        | clkW when clkW < 0.5 && i % 5 <> 0 -> [||]
-        | _ -> [| makeText (cursRectText model i) (string i) |]
-    [| 0 .. int model.LastClk |]
-    |> Array.collect makeClkRulLbl
-    |> (fun arr ->
-        [ backgroundSvg model
-          [| makeRect (cursRectStyle model) |]
-          arr ])
-    |> Array.concat
-    |> makeSvg (clkRulerStyle model)
-
-let private waveCol model wsMod waveData =
-    let waveTableRow rowClass cellClass svgClass svgChildren =
-        tr rowClass [ td cellClass [ makeSvg svgClass svgChildren ] ]
-    let bgSvg = backgroundSvg wsMod
-    let cursRectSvg = [| makeRect (cursRectStyle wsMod) |]
-
-    [| waveTableRow [ Class "fullHeight" ] (lwaveCell wsMod) (waveCellSvg wsMod true)
-           (Array.append bgSvg cursRectSvg) |]
-    |> Array.append
-        (Array.map
-            (fun wave ->
-                waveTableRow [ Class "rowHeight" ] (waveCell wsMod) (waveCellSvg wsMod false)
-                    (Array.concat [| cursRectSvg; bgSvg; wave |])) (waveSvg model wsMod waveData))
-    |> Array.append [| tr [ Class "rowHeight" ] [ td (waveCell wsMod) [ clkRulerSvg wsMod ] ] |]
-
-let makeWaveData (wsMod: WaveSimModel) =
-    Array.map (fun sD -> sD.Graph) wsMod.SimData
-    |> Array.map (extractSimTime wsMod.Ports) 
-
 let changeTopInd (model: Model) (wsMod: WaveSimModel) 
                  (par: {| NewVal: uint; NewCurs: uint; NewClkW: float |}) : WaveSimModel =
     let newVal, curs', newClkW = par.NewVal, par.NewCurs, par.NewClkW
@@ -1059,6 +1063,9 @@ let waveGen model (wSMod: WaveSimModel) ports =
 
 /// Display top menu.
 let viewTopMenu model dispatch =
+    match model.SimulationInProgress with
+    | Some par -> SimulateWhenInProgress par |> dispatch
+    | None -> ()
 
     //printfn "FileView"
     let style = Style [ Width "100%" ] //leftSectionWidth model

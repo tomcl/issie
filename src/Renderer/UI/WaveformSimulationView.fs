@@ -70,7 +70,9 @@ let private makeCursVals model waveData =
 //container box and clock lines
 
 let private makeWaveNames (wsMod: WaveSimModel) =
-    Array.map (wSPort2Name wsMod.SimData.[0].Graph) wsMod.Ports
+    match wsMod.WaveAdder.SimData with
+    | Some sD -> Array.map (wSPort2Name sD.Graph) wsMod.Ports
+    | None -> [||]
 
 let private waveSimRows model (wsMod: WaveSimModel) dispatch =
     let waveData = makeWaveData wsMod

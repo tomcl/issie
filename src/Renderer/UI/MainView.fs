@@ -229,10 +229,10 @@ let displayView model dispatch =
             SetViewerWidth w |> dispatch
             match currWS model with
             | Some wSMod when w > maxWidth wSMod && not wSMod.WaveAdderOpen ->
-                let newTopInd = wSMod.LastClk + 10u
-                {| NewVal = newTopInd; NewClkW = wSMod.ClkWidth; NewCurs = wSMod.Cursor |}
-                |> Error
-                |> SetSimInProgress |> dispatch
+                {| LastClk = wSMod.LastClk + 10u
+                   ClkW = wSMod.ClkWidth
+                   Curs = wSMod.Cursor |}
+                |> Error |> SetSimInProgress |> dispatch
             | _ -> ()
             SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
         | DragModeOn _, _ ->  SetDragMode DragModeOff |> dispatch
@@ -564,7 +564,7 @@ let update msg model =
                                        snd model.WaveSim
                              SimulationInProgress = None }, Cmd.ofMsg SetSimNotInProgress
             | Some wSMod, Error par -> 
-                { model with WaveSim = Map.add fileName (changeTopInd model wSMod par) (fst model.WaveSim), 
+                { model with WaveSim = Map.add fileName (updateWSMod model wSMod par) (fst model.WaveSim), 
                                        snd model.WaveSim 
                              SimulationInProgress = None }, Cmd.ofMsg SetSimNotInProgress
             | _ -> 

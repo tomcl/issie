@@ -59,7 +59,7 @@ let private cursValStrings (wSMod: WaveSimModel) (waveData: Sample [] []) =
         | Wire w -> [| pref + string w.BitData |]
         | StateSample s -> s
 
-    match int wSMod.Cursor < Array.length wSMod.Ports with
+    match int wSMod.Cursor < Array.length wSMod.SimData with
     | true -> Array.map makeCursVal waveData.[int wSMod.Cursor]
     | false -> [||]
 
@@ -134,27 +134,24 @@ let private zoom plus (m: Model) (wSMod: WaveSimModel) dispatch =
         |> min maxZoom
     match int (float m.ViewerWidth * zoomFactor) > maxWidth wSMod with
     | true ->
-        {| NewVal = (wSMod.LastClk + 1u) * (uint zoomFactor) + 10u
-           NewCurs = wSMod.Cursor
-           NewClkW = newClkW |}
+        {| LastClk = (wSMod.LastClk + 1u) * (uint zoomFactor) + 10u
+           Curs = wSMod.Cursor
+           ClkW = newClkW |}
     | false -> 
-        {| NewVal = wSMod.LastClk
-           NewCurs = wSMod.Cursor
-           NewClkW = newClkW |}
-    |> Error
-    |> SetSimInProgress 
-    |> dispatch
+        {| LastClk = wSMod.LastClk
+           Curs = wSMod.Cursor
+           ClkW = newClkW |}
+    |> Error |> SetSimInProgress |> dispatch
 
 
 let private button options func label = 
     Button.button (List.append options [ Button.OnClick func ]) [ str label ]
 
 let private changeCurs (wSMod: WaveSimModel) dispatch newCurs =
-    let maxPossibleCurs = 10000u
-    let curs' = min maxPossibleCurs newCurs
+    let curs' = min 500u newCurs
     match 0u <= curs' with
     | true ->
-        {| NewCurs = curs'; NewClkW = wSMod.ClkWidth; NewVal = wSMod.LastClk |}
+        {| Curs = curs'; ClkW = wSMod.ClkWidth; LastClk = wSMod.LastClk |}
         |> Error |> SetSimInProgress |> dispatch
     | _ -> ()
 

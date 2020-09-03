@@ -112,7 +112,7 @@ let getColorString (col: CommonTypes.HighLightColor) =
 
 
 /// Properties for react-tippy
-type TooltipsProps =
+type TooltipsOpts =
     | Content of string
     | Animation of string
     | Arrow of bool
@@ -123,23 +123,25 @@ type TooltipsProps =
     | Delay of int * int
     | ZIndex of int
 
-let basicTooltipsPropsLst : TooltipsProps list =
-    [ Animation "fade"
-      Arrow true
-      //Offset (7,7)
-      HideOnClick false ]   
 
-let defaultTooltipsPropsLst =
+
+let tippyOpts p c =
     [
         Delay (1000, 0)
-        Placement "bottom"
-        ZIndex 9999
-    ] @ 
-    basicTooltipsPropsLst
+        Placement p
+        Animation "fade"
+        Arrow true
+        HideOnClick true
+        Content c
+    ] 
 
+/// top-level function from tippy.js to make tooltips
+/// #id will make tooltip on element id
+///
+let tippy' (rClass : string, tippyOpts : obj) : unit = importDefault "tippy.js"
+let tippy (tippyOpts: TooltipsOpts list) (rClass:string) = tippy'(rClass, keyValueList CaseRules.LowerFirst tippyOpts)
+let tippy1 rId pos mess = tippy (tippyOpts pos mess) ("#"+rId) 
 
-let inline toolT (props : TooltipsProps list) (elems : ReactElement list) : ReactElement =
-    ofImport "ReactToolTip" "react-tooltip" (keyValueList CaseRules.LowerFirst props) elems
 let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
 let canvasWidthContext = testCanvas.getContext_2d()
 

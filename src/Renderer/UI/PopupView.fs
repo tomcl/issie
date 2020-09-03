@@ -31,7 +31,7 @@ open DiagramStyle
 let extractLabelBase (text:string) : string =
     text.ToUpper()
     |> Seq.takeWhile (fun ch -> ch <> '(')
-    |> Seq.filter System.Char.IsLetterOrDigit
+    |> Seq.filter (fun ch -> System.Char.IsLetterOrDigit ch || ch = '_')
     |> Seq.map (fun ch -> ch.ToString())
     |> String.concat ""
 

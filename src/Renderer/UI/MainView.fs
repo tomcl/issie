@@ -274,9 +274,9 @@ let displayView model dispatch =
                                             [ a [ OnClick (fun _ -> ChangeRightTab WaveSim |> dispatch) ] 
                                             [ JSHelpers.tipStr "bottom" "WaveSim" "Waveform simulation of clocked designs: press 'Simulate>>>' to update with a changed circuit" ] ]
                                     | None -> div [] []
-                                | None -> div [] [] ]
+                                | None -> div [] [] 
                               ]
-              viewRightTab model dispatch ] ] 
+                    viewRightTab model dispatch ] ] ]
 
 // -- Update Model
 

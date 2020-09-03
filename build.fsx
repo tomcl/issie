@@ -393,11 +393,11 @@ Target.create "DistLinux" <| fun _ ->
 
     CmdLine.Empty
     |> CmdLine.append "run"
-    |> CmdLine.append "--rm"
+    |> CmdLine.append "--rm env "
     |> CmdLine.appendRaw (sprintf "-v %s:/project" __SOURCE_DIRECTORY__)
     |> CmdLine.appendRaw "-v electron:/root/.cache/electron"
     |> CmdLine.appendRaw "-v electron-builder:/root/.cache/electron-builder electronuserland/builder"
-    |> CmdLine.appendRaw "/bin/bash -c \"yarn --link-duplicates --pure-lockfile && yarn distLinux\""
+    |> CmdLine.appendRaw "/bin/bash -c \"yarn install --verbose && yarn distLinux\""
     |> CmdLine.toString
     |> CreateProcess.fromRawCommandLine "docker"
     |> CreateProcess.ensureExitCodeWithMessage "Failed to build linux image."
@@ -774,8 +774,8 @@ Target.create "QDev" <| fun _ ->
 
 "Dev" <== ["All"; "LocalDocs"; "ConfigDebug"]
 
-"DistWin" <== ["All"; "ConfigRelease"]
-"DistLinux" <== ["All"; "ConfigRelease"]
+"DistWin" <== ["ConfigRelease"]
+"DistLinux" <== ["ConfigRelease"]
 "Release" <== ["ConfigRelease"; "DistWin"; "DistLinux"]
 "UpdateDocs" <== ["ReleaseDocs"; "ConfigRelease"]
 

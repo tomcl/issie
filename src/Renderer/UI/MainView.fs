@@ -371,8 +371,8 @@ let updateTimeStamp model =
 /// Check whether current selection is identical to previous selection and 
 let checkSelection model cmd =
     let extractIds (jsComps,jsConns) =
-        let compIds = jsComps |> List.map (fun comp -> JSHelpers.getFailIfNull comp ["Id"] : string)
-        let connIds = jsConns |> List.map (fun conn -> JSHelpers.getFailIfNull conn ["Id"] : string)
+        let compIds = jsComps |> List.map (fun comp -> JSHelpers.getFailIfNull comp ["id"] : string)
+        let connIds = jsConns |> List.map (fun conn -> JSHelpers.getFailIfNull conn ["id"] : string)
         compIds,connIds
     match model.Diagram.GetSelected() with
     | None -> model,cmd // can't do anything yet

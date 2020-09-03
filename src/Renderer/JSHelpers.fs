@@ -131,12 +131,15 @@ let tippyOpts p c =
         Arrow true
         HideOnClick true
         Content c
+        Theme "light"
     ] 
 
 /// top-level function from tippy.js to make tooltips
 /// #id will make tooltip on element id
 ///
 let tippy' (rClass : string, tippyOpts : obj) : unit = importDefault "tippy.js"
+import "*"  "tippy.js/themes/light.css"
+
 let tippy (tippyOpts: TooltipsOpts list) (rClass:string) = tippy'(rClass, keyValueList CaseRules.LowerFirst tippyOpts)
 let tippy1 rId pos mess = tippy (tippyOpts pos mess) ("#"+rId) 
 

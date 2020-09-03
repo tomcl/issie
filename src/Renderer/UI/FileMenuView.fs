@@ -763,7 +763,7 @@ let addFileToProject model dispatch =
     | None -> log "Warning: addFileToProject called when no project is currently open"
     | Some project ->
         // Prepare dialog popup.
-        let title = "Add file to project"
+        let title = "Add sheet to project"
 
         let before =
             fun (dialogData: PopupDialogData) ->
@@ -771,17 +771,17 @@ let addFileToProject model dispatch =
 
                 let maybeWarning =
                     if isFileInProject dialogText project
-                    then div [ Style [ Color "red" ] ] [ str "This file already exists." ]
+                    then div [ Style [ Color "red" ] ] [ str "This sheet already exists." ]
                     else div [] []
                 div []
-                    [ str "A new file will be created at:"
+                    [ str "A new sheet will be created at:"
                       br []
                       str <| pathJoin
                                  [| project.ProjectPath
                                     dialogText + ".dgm" |]
                       maybeWarning ]
 
-        let placeholder = "Insert module name"
+        let placeholder = "Insert design sheet name"
         let body = dialogPopupBodyOnlyText before placeholder dispatch
         let buttonText = "Add"
 
@@ -1082,7 +1082,7 @@ let viewTopMenu model dispatch =
 
     let projectPath, fileName =
         match model.CurrProject with
-        | None -> "no open project", "no open file"
+        | None -> "no open project", "no open sheet"
         | Some project -> project.ProjectPath, project.OpenFileName
 
     let makeFileLine name project =
@@ -1113,11 +1113,11 @@ let viewTopMenu model dispatch =
                                     Button.IsOutlined
                                     Button.Color IsDanger
                                     Button.OnClick(fun _ ->
-                                        let title = "Delete file"
+                                        let title = "Delete sheet"
 
                                         let body =
                                             div []
-                                                [ str "Are you sure you want to delete the follwing file?"
+                                                [ str "Are you sure you want to delete the following design sheet?"
                                                   br []
                                                   str <| pathJoin
                                                              [| project.ProjectPath
@@ -1157,7 +1157,7 @@ let viewTopMenu model dispatch =
                                    else
                                        DisplayOptions.None) ] ] ]
                       ([ Navbar.Item.a [ Navbar.Item.Props [ OnClick(fun _ -> addFileToProject model dispatch) ] ]
-                             [ str "New file" ]
+                             [ str "New Sheet" ]
                          Navbar.divider [] [] ]
                        @ projectFiles) ]
 

@@ -131,7 +131,6 @@ let tippyOpts p c =
         Arrow true
         HideOnClick true
         Content c
-        Theme "light"
     ] 
 
 /// top-level function from tippy.js to make tooltips

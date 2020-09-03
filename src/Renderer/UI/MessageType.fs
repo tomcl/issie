@@ -159,6 +159,7 @@ type Msg =
     | SetDragMode of DragMode
     | SetViewerWidth of int
     | MenuAction of MenuCommand * (Msg -> unit)
+    | DiagramMouseEvent
     | SelectionHasChanged
     | SetSimIsStale of bool
     | SetSimInProgress of Result<WaveSimPort array,{| LastClk: uint; Curs: uint; ClkW: float |}>

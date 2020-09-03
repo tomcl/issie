@@ -11,7 +11,10 @@ open Fable.Core
 open Fable.Core.JsInterop
 open Electron
 open Fable.React
+
+open Elmish
 open JSTypes
+
 
 [<Emit("typeof $0")>]
 let jsType (var: obj) : unit = jsNative
@@ -141,6 +144,13 @@ let tippyOpts p c =
 let tippy' (rClass : string, tippyOpts : obj) : unit = importDefault "tippy.js"
 let tippy (tippyOpts: TooltipsOpts list) (rClass:string) = tippy'(rClass, keyValueList CaseRules.LowerFirst tippyOpts)
 let tippy1 rId pos mess = tippy (tippyOpts pos mess) ("#"+rId) 
+
+let tipStr (pos:string) (text:string) (tip: string) =
+    let ids = "Str_"+ text.Replace(' ','_')
+    div [Props.Id ids; Props.Ref (fun element -> 
+        // Ref is trigger with null once for stateless element so we need to wait for the second trigger
+        if not (isNull element) then tippy1 ids pos tip)
+        ] [str text]
 
 let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
 let canvasWidthContext = testCanvas.getContext_2d()

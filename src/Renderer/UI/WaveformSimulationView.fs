@@ -277,14 +277,25 @@ let private cursorButtons (model: Model) wSMod dispatch =
                     Step 1 ]
                 Input.Id "cursor"
                 match currWS model with
-                | Some wSMod ->  wSMod.Cursor
-                | None -> 0u
-                |> (fun curs -> Input.Value(string curs) )
+                | Some wSMod when wSMod.CursorEmpty = false -> 
+                    string wSMod.Cursor
+                | Some _ -> ""
+                | None -> "0"
+                |> Input.Value 
                 //Input.DefaultValue <| sprintf "%d" model.WaveSim.Cursor
                 Input.OnChange(fun c ->
                     match System.Int32.TryParse c.Value with
-                    | true, n when n >= 0 -> changeCurs wSMod dispatch (uint n) 
-                    | _ -> ()) ]
+                    | true, n when n >= 0 -> 
+                        { wSMod with CursorEmpty = false }
+                        |> SetCurrFileWSMod |> dispatch
+                        changeCurs wSMod dispatch <| uint n
+                    | false, _ when c.Value = "" -> 
+                        { wSMod with CursorEmpty = true }
+                        |> SetCurrFileWSMod |> dispatch
+                        changeCurs wSMod dispatch 0u
+                    | _ -> 
+                        { wSMod with CursorEmpty = false }
+                        |> SetCurrFileWSMod |> dispatch ) ]
           button [ Button.CustomClass "cursRight" ] (fun _ -> cursorMove true wSMod dispatch) "▶" ]
 
 let private loadingBut model =

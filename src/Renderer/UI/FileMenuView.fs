@@ -635,6 +635,7 @@ let private savedWaveInfo2wsMod model (sWInfo: SavedWaveInfo) : WaveSimModel =
           Ports = ports'
           ClkWidth = sWInfo.ClkWidth
           Cursor = sWInfo.Cursor
+          CursorEmpty = false
           Radix = sWInfo.Radix
           LastClk = sWInfo.LastClk
           WaveAdderOpen = sWInfo.WaveAdderOpen

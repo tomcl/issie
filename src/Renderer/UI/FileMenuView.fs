@@ -961,26 +961,26 @@ let private viewInfoPopup dispatch =
         str "v1.0.0a"
         br []; br []
         makeH "Acknowledgments"
-        str "ISSIE was created by Marco Selvatici as his MEng final year project. The waveform viewer by Edoardo Santi during Summer UROP work"
+        str "ISSIE was created by Marco Selvatici (EIE 3rd year) as his BEng final year project. The waveform viewer was created by Edoardo Santi (EEE 3rd year) during Summer UROP work."
         br []; br []
         makeH "Introduction"
     
-        str "Issie designs are made of one or more **sheets**. Each sheet contains components, and Input and Output Connectors. \
+        str "Issie designs are made of one or more sheets. Each sheet contains components, and Input and Output Connectors. \
         If you have a single sheet that is your complete design. Otherwise any \
-        sheet can include the hardware defined in other sheets by adding a custom component from the *My project* section \
-        of the Catalog. Custom components defined like this can be used any number of times, and any sheet can contain custom components \
+        sheet can include the hardware defined in other sheets by adding a custom component from the My Project section \
+        of the Catalogue. Custom components defined like this can be used any number of times, and any sheet can contain custom components \
         so allowing an arbitrary design hierarchy." 
         br[]
         str "Issie provides a simple Simulator used mainly for combinational logic (although it can also show clocked logic) \
-        and a Waveform Simulator for clocked logic." 
+        and an interactive Waveform Simulator for clocked logic." 
         br[]
-        str "In Issie all clocked components use the same clock signal - so called *synchronous logic*. \
+        str "In Issie all clocked components use the same clock signal - so called synchronous logic. \
         Therefore in any hardware design clk connections are not shown: all clk ports are
         automatically connected together. In the waveform simulation active clock edges are indicated \
         by verticals line through all the waveforms that demarcate clock cycles. With this there is then no need to show \
         the clock signal itself. The clock is a square wave with positive edges aligned with the vertical lines."
         br[]    
-        str "If you find bugs in Issie or have feature requests you can create issues on the repo https://github.com/tomcl/ISSIE"
+        str "If you find bugs in Issie or have feature requests you can create issues on the repo: https://github.com/tomcl/ISSIE"
         br[]
         makeH "Keyboard shortcuts"
         str "On Mac use Command instead of Ctrl."
@@ -1147,7 +1147,7 @@ let viewTopMenu model dispatch =
                           if model.TopMenu = Files then Closed else Files
                           |> SetTopMenu
                           |> dispatch) ] ]
-                [ Navbar.Link.a [] [ str "Files" ]
+                [ Navbar.Link.a [] [ str "Sheets" ]
                   Navbar.Dropdown.div
                       [ Navbar.Dropdown.Props
                           [ Style

@@ -242,6 +242,10 @@ let viewSimulation model dispatch =
     match model.Simulation with
     | None ->
         div [] [
+            str "This simulation will allow combinational logic to be tested by manually changing input values."
+            br []
+            str "Use the wave simulator (Simulation >> button) to get waveforms of clocked logic"
+            br []; br []
             Button.button
                 [ Button.Color IsSuccess; Button.OnClick (fun _ -> startSimulation()) ]
                 [ str "Start simulation" ]

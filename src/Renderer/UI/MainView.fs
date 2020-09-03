@@ -256,15 +256,15 @@ let displayView model dispatch =
                               [ Tabs.tab
                                     [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
                                     [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] 
-                                    [ str "Catalogue" ] ]
+                                    [ JSHelpers.tipStr "bottom" "Catalogue" "List of components and custom components from other design sheets to add to this sheet"] ]
                                 Tabs.tab
                                     [ Tabs.Tab.IsActive (model.RightTab = Properties) ]
                                     [ a [ OnClick (fun _ -> ChangeRightTab Properties |> dispatch ) ] 
-                                    [ str "Properties" ] ]
+                                    [ JSHelpers.tipStr "bottom" "Properties" "View or change component name, width, etc"] ]
                                 Tabs.tab
                                     [ Tabs.Tab.IsActive (model.RightTab = Simulation) ]
                                     [ a [ OnClick (fun _ -> ChangeRightTab Simulation |> dispatch ) ] 
-                                    [ str "Simulation" ] ]
+                                    [ JSHelpers.tipStr "bottom" "Simulation" "Simple simulation for combinational logic which allows inputs to be chnaged manually" ] ]
                                 match currWS model with
                                 | Some wSMod ->
                                     match wSMod.WaveAdder.SimData with
@@ -272,7 +272,8 @@ let displayView model dispatch =
                                         Tabs.tab
                                             [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
                                             [ a [ OnClick (fun _ -> ChangeRightTab WaveSim |> dispatch) ] 
-                                            [ str "WaveSim" ] ] 
+                                            [ JSHelpers.tipStr "bottom" "WaveSim" "Waveform simulation of clocked designs: press 'Simulate>>>' \
+                                                            to update with a changed circuit" ] ] 
                                     | None -> div [] []
                                 | _ -> div [] []
                               ]

@@ -393,11 +393,11 @@ Target.create "DistLinux" <| fun _ ->
 
     CmdLine.Empty
     |> CmdLine.append "run"
-    |> CmdLine.append "--rm"
+    |> CmdLine.append "--rm env "
     |> CmdLine.appendRaw (sprintf "-v %s:/project" __SOURCE_DIRECTORY__)
     |> CmdLine.appendRaw "-v electron:/root/.cache/electron"
     |> CmdLine.appendRaw "-v electron-builder:/root/.cache/electron-builder electronuserland/builder"
-    |> CmdLine.appendRaw (sprintf "/bin/bash -c \"chown -R root %s && chmod 4755 %s && yarn --link-duplicates --pure-lockfile && yarn distLinux\"" sandboxPath sandboxPath)
+    |> CmdLine.appendRaw "/bin/bash -c \"yarn install --verbose && yarn distLinux\""
     |> CmdLine.toString
     |> CreateProcess.fromRawCommandLine "docker"
     |> CreateProcess.ensureExitCodeWithMessage "Failed to build linux image."
@@ -750,9 +750,9 @@ Target.create "QDev" <| fun _ ->
   ==> "GitPush"
   ?=> "GitTag"
 
-"All" <== ["RunTests"; "GenerateDocs"; "CleanElectronBin"]
+"All" <== ["CleanElectronBin"]
 
-"AllDev" <== ["RunTests"; "CleanElectronBin"]
+"AllDev" <== ["CleanElectronBin"]
 
 "All" ?=> "Release"
 
@@ -769,14 +769,17 @@ Target.create "QDev" <| fun _ ->
 "YarnInstall"
   ==> "DistWin"
   ?=> "CreateDiffs"
+  ==> "All"
+  ==> "Dev"
+  ==> "AllDev"
 
 "DistWin" ?=> "DistLinux"
 
-"Dev" <== ["All"; "LocalDocs"; "ConfigDebug"]
+"Dev" <== ["All"; "ConfigDebug"]
 
-"DistWin" <== ["All"; "ReleaseDocs"; "ConfigRelease"]
-"DistLinux" <== ["All"; "ReleaseDocs"; "ConfigRelease"]
-"Release" <== ["All"; "ReleaseDocs"; "ConfigRelease"; "DistWin"; "DistLinux"; "CreateDiffs"]
-"UpdateDocs" <== ["All"; "ReleaseDocs"; "ConfigRelease"]
+"DistWin" <== ["ConfigRelease"]
+"DistLinux" <== ["ConfigRelease"]
+"Release" <== ["ConfigRelease"; "DistWin"; "DistLinux"]
+"UpdateDocs" <== ["ReleaseDocs"; "ConfigRelease"]
 
-Target.runOrDefaultWithArguments "Dev"
+Target.runOrDefaultWithArguments "AllDev"

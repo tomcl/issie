@@ -33,7 +33,7 @@ let private toggleSelect ind (model: Model) dispatch =
         |> Array.filter snd
         |> Array.map fst
         |> Array.toList
-        |> setHighlightedConns model dispatch
+        |> setHighlightedConns model wSMod dispatch
     | None -> ()
 
 let private allSelected model = Array.forall ((=) true) model.Selected
@@ -44,7 +44,6 @@ let private makeLabels (wSMod: WaveSimModel) waveNames =
     Array.map makeLbl waveNames
 
 // functions for bus labels
-
 
 let private cursValStrings (wSMod: WaveSimModel) (waveData: Sample [] []) =
     let pref =
@@ -58,10 +57,8 @@ let private cursValStrings (wSMod: WaveSimModel) (waveData: Sample [] []) =
         | Wire w when w.NBits > 1u -> [| pref + radixChange w.BitData w.NBits wSMod.Radix |]
         | Wire w -> [| pref + string w.BitData |]
         | StateSample s -> s
-
-    match int wSMod.Cursor < Array.length wSMod.Ports with
-    | true -> Array.map makeCursVal waveData.[int wSMod.Cursor]
-    | false -> [||]
+    
+    Array.map makeCursVal waveData.[int wSMod.Cursor]
 
 let private makeCursVals model waveData =
     let string2Lbl = Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
@@ -70,7 +67,9 @@ let private makeCursVals model waveData =
 //container box and clock lines
 
 let private makeWaveNames (wsMod: WaveSimModel) =
-    Array.map (wSPort2Name wsMod.SimData.[0].Graph) wsMod.Ports
+    match wsMod.WaveAdder.SimData with
+    | Some sD -> Array.map (wSPort2Name sD.Graph) wsMod.Ports
+    | None -> [||]
 
 let private waveSimRows model (wsMod: WaveSimModel) dispatch =
     let waveData = makeWaveData wsMod
@@ -132,27 +131,24 @@ let private zoom plus (m: Model) (wSMod: WaveSimModel) dispatch =
         |> min maxZoom
     match int (float m.ViewerWidth * zoomFactor) > maxWidth wSMod with
     | true ->
-        {| NewVal = (wSMod.LastClk + 1u) * (uint zoomFactor) + 10u
-           NewCurs = wSMod.Cursor
-           NewClkW = newClkW |}
+        {| LastClk = (wSMod.LastClk + 1u) * (uint zoomFactor) + 10u
+           Curs = wSMod.Cursor
+           ClkW = newClkW |}
     | false -> 
-        {| NewVal = wSMod.LastClk
-           NewCurs = wSMod.Cursor
-           NewClkW = newClkW |}
-    |> Error
-    |> SetSimInProgress 
-    |> dispatch
+        {| LastClk = wSMod.LastClk
+           Curs = wSMod.Cursor
+           ClkW = newClkW |}
+    |> Error |> SetSimInProgress |> dispatch
 
 
 let private button options func label = 
     Button.button (List.append options [ Button.OnClick func ]) [ str label ]
 
 let private changeCurs (wSMod: WaveSimModel) dispatch newCurs =
-    let maxPossibleCurs = 10000u
-    let curs' = min maxPossibleCurs newCurs
+    let curs' = min 500u newCurs
     match 0u <= curs' with
     | true ->
-        {| NewCurs = curs'; NewClkW = wSMod.ClkWidth; NewVal = wSMod.LastClk |}
+        {| Curs = curs'; ClkW = wSMod.ClkWidth; LastClk = wSMod.LastClk |}
         |> Error |> SetSimInProgress |> dispatch
     | _ -> ()
 
@@ -168,7 +164,7 @@ let private selectAll s (model: Model) dispatch =
         |> SetCurrFileWSMod |> dispatch
         if s then wSMod.Ports else [||]
         |> Array.toList
-        |> setHighlightedConns model dispatch
+        |> setHighlightedConns model wSMod dispatch
     | None -> ()
 
 let private delSelected model =
@@ -322,7 +318,7 @@ let private openCloseWA (wSMod: WaveSimModel) on =
     |> SetCurrFileWSMod
 
 let private selWave2selConn model (wSMod: WaveSimModel) ind on = 
-    port2ConnId model wSMod.WaveAdder.Ports.[ind]
+    port2ConnId model wSMod wSMod.WaveAdder.Ports.[ind]
     |> List.collect (fun (ConnectionId cId) -> connId2JSConn model cId) 
     |> List.map (model.Diagram.SetSelected on)
 
@@ -472,8 +468,7 @@ let private waveAdderButs (model: Model) wSMod dispatch =
             [ Button.Color IsSuccess
               Button.OnClick(fun _ -> 
                 Array.filter (isWaveSelected model wSMod) wSMod.WaveAdder.Ports                
-                |> Ok
-                |> SetSimInProgress |> dispatch) ]
+                |> Ok |> SetSimInProgress |> dispatch) ]
         | false -> [ Button.CustomClass "disabled" ]
         |> (fun lst -> Button.Props [ Style [ MarginLeft "10px" ] ] :: lst)
     let cancBut =

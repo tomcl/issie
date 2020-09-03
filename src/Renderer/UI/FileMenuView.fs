@@ -990,15 +990,38 @@ let limBits (name: string): (int * int) option =
         |> Some
     | _ -> None
 
-let port2ConnId (model: Model) (p: WaveSimPort) =
-    match model.Diagram.GetCanvasState() with
-    | Some s ->
-        let outPN =
-            match p.OutPN with
-            | OutputPortNumber n -> n
+let port2ConnId (model: Model) wSMod (p: WaveSimPort) =
+    match model.Diagram.GetCanvasState(), wSMod.WaveAdder.SimData with
+    | Some s, Some sD ->
+        let getSameNameIOLabels (c: Component) = 
+            List.map extractComponent (fst s)
+            |> List.filter (fun comp -> comp.Label = c.Label && comp.Type = IOLabel )
+        let getIOLabelsOuts =
+            List.map ( fun (comp: Component) -> { CId = ComponentId comp.Id
+                                                  OutPN = OutputPortNumber 0
+                                                  TrgtId = None } )
+        let getIOLabelsIns =
+            List.map ( fun (comp: Component) -> 
+                driveOut sD.Graph (ComponentId comp.Id) (InputPortNumber 0) )
+            >> List.choose ( function
+                             | Some (cId, outPortN) -> Some { CId = cId
+                                                              OutPN = outPortN
+                                                              TrgtId = None } 
+                             | None -> None ) 
+        let portsLst =
+            List.map extractComponent (fst s)
+            |> List.collect (fun c ->
+                match ComponentId c.Id = p.CId, c.Type with
+                | true, IOLabel -> 
+                    getSameNameIOLabels c
+                    |> (fun iOLbls -> getIOLabelsOuts iOLbls, getIOLabelsIns iOLbls)
+                    ||> List.append 
+                | true, _ -> [ p ]
+                | false, _ -> [])
+        let (OutputPortNumber outPN) = p.OutPN
         List.map extractComponent (fst s)
         |> List.tryPick (fun c ->
-            match ComponentId c.Id = p.CId with
+            match List.contains (ComponentId c.Id) (List.map (fun x->x.CId) portsLst) with
             | true -> Some c.OutputPorts.[outPN].Id
             | false -> None)
         |> function
@@ -1007,11 +1030,11 @@ let port2ConnId (model: Model) (p: WaveSimPort) =
             |> List.filter (fun conn -> conn.Source.Id = portId)
             |> List.map (fun conn -> ConnectionId conn.Id)
         | None -> []
-    | None -> failwith "highlight called when canvas state is None"
+    | _ -> failwith "highlight called when canvas state or WaveAdder.SimData is None"
 
-let setHighlightedConns (model: Model) dispatch ports =
+let setHighlightedConns (model: Model) wSMod dispatch ports =
     ports
-    |> List.collect (port2ConnId model)
+    |> List.collect (port2ConnId model wSMod)
     |> SetSelWavesHighlighted
     |> dispatch
 
@@ -1019,28 +1042,18 @@ let private appendSimData (wSMod: WaveSimModel) nCycles =
     extractSimData (Array.last wSMod.SimData) nCycles 
     |> Array.append wSMod.SimData
 
-let changeTopInd (model: Model) (wsMod: WaveSimModel) 
-                 (par: {| NewVal: uint; NewCurs: uint; NewClkW: float |}) : WaveSimModel =
-    let newVal, curs', newClkW = par.NewVal, par.NewCurs, par.NewClkW
-    match Array.length wsMod.SimData = 0, newVal > wsMod.LastClk || curs' > wsMod.LastClk, newVal >= 0u with
-    | true, _, _ -> { wsMod with LastClk = newVal; ClkWidth = newClkW }
-    | false, true, _ ->
-        let newLastClk = max newVal curs'
-        let sD' = 
-            newLastClk
-            |> (fun x -> x + 1u - uint (Array.length wsMod.SimData))
-            |> appendSimData wsMod  
-        { wsMod with
-              SimData = sD' 
-              LastClk = newLastClk
-              ClkWidth = newClkW }
-    | false, false, true ->
-        { wsMod with
-              LastClk = newVal
-              ClkWidth = newClkW}
-    | _ -> wsMod
-    |> ( fun m -> { m with Cursor = curs' } )
-    |> (fun m -> { m with WaveTable = waveCol model m (makeWaveData m) } )
+let updateWSMod (model: Model) (wsMod: WaveSimModel) 
+                 (par: {| LastClk: uint; Curs: uint; ClkW: float |}) : WaveSimModel =
+    let cursLastClkMax = max par.Curs par.LastClk
+    match cursLastClkMax > wsMod.LastClk with
+    | true -> 
+        { wsMod with LastClk = cursLastClkMax
+                     SimData = cursLastClkMax + 1u - uint (Array.length wsMod.SimData)
+                               |> appendSimData wsMod  }
+    | false -> wsMod
+    |> (fun m -> { m with Cursor = par.Curs 
+                          ClkWidth = par.ClkW } )
+    |> (fun m -> { m with WaveTable = waveCol model m (makeWaveData m) })
 
 let waveGen model (wSMod: WaveSimModel) ports =
     let simData' = 

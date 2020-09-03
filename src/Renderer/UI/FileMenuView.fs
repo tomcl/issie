@@ -950,17 +950,37 @@ let private setWA model wSMod dispatch simData =
 let private viewInfoPopup dispatch =
     let makeH h =
         Text.span [ Modifiers [
-            Modifier.TextSize (Screen.Desktop, TextSize.Is5)
+            Modifier.TextSize (Screen.Desktop, TextSize.Is6)
             Modifier.TextWeight TextWeight.Bold
         ] ] [str h; br[]]
-    let title = "DEflow Info"
+    let title = "ISSIE: Interactive Schematic Simulator and Integrated Editor"
+
     let body = div [] [
         makeH "Version"
-        str "v0.2"
+        str "v1.0.0a"
         br []; br []
         makeH "Acknowledgments"
-        str "DEflow has been created by Marco Selvatici as his dissertation project."
+        str "ISSIE was created by Marco Selvatici as his MEng final year project. The waveform viewer by Edoardo Santi during Summer UROP work"
         br []; br []
+        makeH "Introduction"
+    
+        str "Issie designs are made of one or more **sheets**. Each sheet contains components, and Input and Output Connectors. \
+        If you have a single sheet that is your complete design. Otherwise any \
+        sheet can include the hardware defined in other sheets by adding a custom component from the *My project* section \
+        of the Catalog. Custom components defined like this can be used any number of times, and any sheet can contain custom components \
+        so allowing an arbitrary design hierarchy." 
+        br[]
+        str "Issie provides a simple Simulator used mainly for combinational logic (although it can also show clocked logic) \
+        and a Waveform Simulator for clocked logic." 
+        br[]
+        str "In Issie all clocked components use the same clock signal - so called *synchronous logic*. \
+        Therefore in any hardware design clk connections are not shown: all clk ports are
+        automatically connected together. In the waveform simulation active clock edges are indicated \
+        by verticals line through all the waveforms that demarcate clock cycles. With this there is then no need to show \
+        the clock signal itself. The clock is a square wave with positive edges aligned with the vertical lines."
+        br[]    
+        str "If you find bugs in Issie or have feature requests you can create issues on the repo https://github.com/tomcl/ISSIE"
+        br[]
         makeH "Keyboard shortcuts"
         str "On Mac use Command instead of Ctrl."
         ul [] [
@@ -972,7 +992,7 @@ let private viewInfoPopup dispatch =
         ]
     ]
     let foot = div [] []
-    closablePopup title body foot [] dispatch
+    closablePopup title body foot [Width 800] dispatch
 
 let getSelected model: DiagEl list =
     match model.Diagram.GetSelected() with

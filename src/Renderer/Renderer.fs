@@ -75,7 +75,7 @@ let makeMenu (name : string) (table : MenuItemOptions list) =
 
 
 let fileMenu (dispatch:Dispatch<DiagramMessageType.Msg>) =
-    makeMenu "File" [
+    makeMenu "Sheet" [
         makeItem "New" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
         makeItem "Save" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
         makeItem "Print" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))

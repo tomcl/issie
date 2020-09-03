@@ -990,15 +990,38 @@ let limBits (name: string): (int * int) option =
         |> Some
     | _ -> None
 
-let port2ConnId (model: Model) (p: WaveSimPort) =
-    match model.Diagram.GetCanvasState() with
-    | Some s ->
-        let outPN =
-            match p.OutPN with
-            | OutputPortNumber n -> n
+let port2ConnId (model: Model) wSMod (p: WaveSimPort) =
+    match model.Diagram.GetCanvasState(), wSMod.WaveAdder.SimData with
+    | Some s, Some sD ->
+        let getSameNameIOLabels (c: Component) = 
+            List.map extractComponent (fst s)
+            |> List.filter (fun comp -> comp.Label = c.Label && comp.Type = IOLabel )
+        let getIOLabelsOuts =
+            List.map ( fun (comp: Component) -> { CId = ComponentId comp.Id
+                                                  OutPN = OutputPortNumber 0
+                                                  TrgtId = None } )
+        let getIOLabelsIns =
+            List.map ( fun (comp: Component) -> 
+                driveOut sD.Graph (ComponentId comp.Id) (InputPortNumber 0) )
+            >> List.choose ( function
+                             | Some (cId, outPortN) -> Some { CId = cId
+                                                              OutPN = outPortN
+                                                              TrgtId = None } 
+                             | None -> None ) 
+        let portsLst =
+            List.map extractComponent (fst s)
+            |> List.collect (fun c ->
+                match ComponentId c.Id = p.CId, c.Type with
+                | true, IOLabel -> 
+                    getSameNameIOLabels c
+                    |> (fun iOLbls -> getIOLabelsOuts iOLbls, getIOLabelsIns iOLbls)
+                    ||> List.append 
+                | true, _ -> [ p ]
+                | false, _ -> [])
+        let (OutputPortNumber outPN) = p.OutPN
         List.map extractComponent (fst s)
         |> List.tryPick (fun c ->
-            match ComponentId c.Id = p.CId with
+            match List.contains (ComponentId c.Id) (List.map (fun x->x.CId) portsLst) with
             | true -> Some c.OutputPorts.[outPN].Id
             | false -> None)
         |> function
@@ -1007,11 +1030,11 @@ let port2ConnId (model: Model) (p: WaveSimPort) =
             |> List.filter (fun conn -> conn.Source.Id = portId)
             |> List.map (fun conn -> ConnectionId conn.Id)
         | None -> []
-    | None -> failwith "highlight called when canvas state is None"
+    | _ -> failwith "highlight called when canvas state or WaveAdder.SimData is None"
 
-let setHighlightedConns (model: Model) dispatch ports =
+let setHighlightedConns (model: Model) wSMod dispatch ports =
     ports
-    |> List.collect (port2ConnId model)
+    |> List.collect (port2ConnId model wSMod)
     |> SetSelWavesHighlighted
     |> dispatch
 

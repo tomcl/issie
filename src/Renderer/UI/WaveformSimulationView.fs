@@ -33,7 +33,7 @@ let private toggleSelect ind (model: Model) dispatch =
         |> Array.filter snd
         |> Array.map fst
         |> Array.toList
-        |> setHighlightedConns model dispatch
+        |> setHighlightedConns model wSMod dispatch
     | None -> ()
 
 let private allSelected model = Array.forall ((=) true) model.Selected
@@ -70,7 +70,9 @@ let private makeCursVals model waveData =
 //container box and clock lines
 
 let private makeWaveNames (wsMod: WaveSimModel) =
-    Array.map (wSPort2Name wsMod.SimData.[0].Graph) wsMod.Ports
+    match wsMod.WaveAdder.SimData with
+    | Some sD -> Array.map (wSPort2Name sD.Graph) wsMod.Ports
+    | None -> [||]
 
 let private waveSimRows model (wsMod: WaveSimModel) dispatch =
     let waveData = makeWaveData wsMod
@@ -168,7 +170,7 @@ let private selectAll s (model: Model) dispatch =
         |> SetCurrFileWSMod |> dispatch
         if s then wSMod.Ports else [||]
         |> Array.toList
-        |> setHighlightedConns model dispatch
+        |> setHighlightedConns model wSMod dispatch
     | None -> ()
 
 let private delSelected model =
@@ -322,7 +324,7 @@ let private openCloseWA (wSMod: WaveSimModel) on =
     |> SetCurrFileWSMod
 
 let private selWave2selConn model (wSMod: WaveSimModel) ind on = 
-    port2ConnId model wSMod.WaveAdder.Ports.[ind]
+    port2ConnId model wSMod wSMod.WaveAdder.Ports.[ind]
     |> List.collect (fun (ConnectionId cId) -> connId2JSConn model cId) 
     |> List.map (model.Diagram.SetSelected on)
 

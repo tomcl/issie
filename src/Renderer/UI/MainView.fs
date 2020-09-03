@@ -42,7 +42,7 @@ let init() = {
     Diagram = new Draw2dWrapper()
     SimulationIsStale = true
     LastSimulatedCanvasState = None
-    LastSelected = [],[]
+    LastSelectedIds = [],[]
     CurrentSelected = [],[]
     SelectedComponent = None
     LastUsedDialogWidth = 1
@@ -368,10 +368,26 @@ let updateTimeStamp model =
         |> List.map (fun lc -> if lc.Name = p.OpenFileName then setTimeStamp lc else lc)
         |> fun lcs -> { model with CurrProject=Some {p with LoadedComponents = lcs}}
 
+/// Check whether current selection is identical to previous selection and 
+let checkSelection model cmd =
+    let extractIds (jsComps,jsConns) =
+        let compIds = jsComps |> List.map (fun comp -> JSHelpers.getFailIfNull comp ["Id"] : string)
+        let connIds = jsConns |> List.map (fun conn -> JSHelpers.getFailIfNull conn ["Id"] : string)
+        compIds,connIds
+    match model.Diagram.GetSelected() with
+    | None -> model,cmd // can't do anything yet
+    | Some newSelection ->
+        let newSelectedIds =  extractIds newSelection
+        if newSelectedIds = model.LastSelectedIds then
+            {model with CurrentSelected = extractState newSelection; LastSelectedIds = newSelectedIds}, cmd
+        else
+            model, Cmd.batch [cmd; Cmd.ofMsg SelectionHasChanged]
+
 /// Check whether current message could mark a change in Diagram worth saving.
 /// If so, check whether Diagram has a significant circuit change (don't count layout).
 /// If so, do an autosave. TODO: make the autosave asynchronous
-let checkForAutoSave msg (model, cmd) =
+/// similarly, check for chnage in selection and send message if there is one
+let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
     let simIsStale (newState:CanvasState option) (simState:CanvasState option) =
         match newState,simState with
         | None, _  -> false
@@ -385,36 +401,39 @@ let checkForAutoSave msg (model, cmd) =
             false
         | Some (ncomps,nconns), Some (comps,conns) -> 
             Set ncomps <> Set comps || Set nconns <> Set conns
-
-    if System.DateTime.Now < (model.AsyncActivity.LastAutoSaveCheck).AddSeconds 0.1 then
-        model, cmd
-    else
-        let model = setActivity (fun a -> {a with LastAutoSaveCheck=System.DateTime.Now}) model
-        match model.CurrProject with
-        | None -> 
-            model, cmd // do nothing
-        | Some proj ->
-            let newReducedState = 
-                model.Diagram.GetCanvasState()
-                |> Option.map extractReducedState 
-            let update = needsAutoSave newReducedState  model.AsyncActivity.LastSavedCanvasState
-            let simUpdate = simIsStale newReducedState model.LastSimulatedCanvasState
-            if update
-            then
-                printfn "AutoSaving at '%s'" (System.DateTime.Now.ToString("mm:ss"))
-                {model with HasUnsavedChanges=true}
-                |> updateTimeStamp
-                |> setActivity (fun a -> {a with LastSavedCanvasState = newReducedState})
-                |> (fun model' -> 
-                    saveOpenFileAction true model'; 
-                    setActivity (fun a -> {a with LastAutoSave = System.DateTime.Now}) model';)                         
-            else
-                model
-            |> setActivity (fun a ->
-                            match update || a.LastSavedCanvasState = None with
-                            | true -> {a with LastSavedCanvasState = newReducedState}
-                            | false -> a)
-            |> (fun model -> changeSimulationIsStale simUpdate model, cmd)
+    match msg with 
+    | DiagramMouseEvent -> checkSelection model cmd
+    | _ -> 
+        if System.DateTime.Now < (model.AsyncActivity.LastAutoSaveCheck).AddSeconds 0.1 then
+            model, cmd
+        else
+            let model,cmd = checkSelection model cmd
+            let model = setActivity (fun a -> {a with LastAutoSaveCheck=System.DateTime.Now}) model
+            match model.CurrProject with
+            | None -> 
+                model, cmd // do nothing
+            | Some proj ->
+                let newReducedState = 
+                    model.Diagram.GetCanvasState()
+                    |> Option.map extractReducedState 
+                let update = needsAutoSave newReducedState  model.AsyncActivity.LastSavedCanvasState
+                let simUpdate = simIsStale newReducedState model.LastSimulatedCanvasState
+                if update
+                then
+                    printfn "AutoSaving at '%s'" (System.DateTime.Now.ToString("mm:ss"))
+                    {model with HasUnsavedChanges=true}
+                    |> updateTimeStamp
+                    |> setActivity (fun a -> {a with LastSavedCanvasState = newReducedState})
+                    |> (fun model' -> 
+                        saveOpenFileAction true model'; 
+                        setActivity (fun a -> {a with LastAutoSave = System.DateTime.Now}) model';)
+                else
+                    model
+                |> setActivity (fun a ->
+                                match update || a.LastSavedCanvasState = None with
+                                | true -> {a with LastSavedCanvasState = newReducedState}
+                                | false -> a)
+                |> (fun model -> changeSimulationIsStale simUpdate model, cmd)
        
           
 let private setSelWavesHighlighted model connIds =
@@ -545,13 +564,8 @@ let update msg model =
         |> (fun x -> x, Cmd.none)
     | MenuAction(act,dispatch) ->
         getMenuView act model dispatch, Cmd.none
-    | SelectionHasChanged -> 
-        model.Diagram.GetSelected()
-        |> Option.map (
-            extractState
-            >>  (fun sel ->
-                    {model with LastSelected = model.CurrentSelected; CurrentSelected = sel}))
-        |> Option.defaultValue model, Cmd.none
+    | DiagramMouseEvent -> model, Cmd.none
+    | SelectionHasChanged -> model, Cmd.none // TODO - put the highlighting stuff in here.
     | SetSimIsStale b -> 
         changeSimulationIsStale b model, Cmd.none
     | SetSimInProgress par -> 
@@ -576,4 +590,4 @@ let update msg model =
         model, Cmd.none
     | SetLastSimulatedCanvasState cS ->
         { model with LastSimulatedCanvasState = cS }, Cmd.none
-    |> (checkForAutoSave msg)
+    |> checkForAutoSaveOrSelectionChanged msg

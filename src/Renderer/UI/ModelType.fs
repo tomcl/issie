@@ -44,7 +44,7 @@ type Model = {
     Diagram : Draw2dWrapper
     SimulationIsStale: bool
     LastSimulatedCanvasState: CanvasState option // reduced (without layout) canvas state
-    LastSelected: Component list * Connection list
+    LastSelectedIds: string list * string list
     CurrentSelected: Component list * Connection list
     LastUsedDialogWidth: int
     SelectedComponent : Component option // None if no component is selected.

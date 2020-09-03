@@ -150,7 +150,7 @@ let private button options func label =
     Button.button (List.append options [ Button.OnClick func ]) [ str label ]
 
 let private changeCurs (wSMod: WaveSimModel) dispatch newCurs =
-    let maxPossibleCurs = 10000u
+    let maxPossibleCurs = 500u
     let curs' = min maxPossibleCurs newCurs
     match 0u <= curs' with
     | true ->

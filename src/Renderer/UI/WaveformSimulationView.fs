@@ -59,7 +59,7 @@ let private cursValStrings (wSMod: WaveSimModel) (waveData: Sample [] []) =
         | Wire w -> [| pref + string w.BitData |]
         | StateSample s -> s
 
-    match int wSMod.Cursor < Array.length wSMod.Ports with
+    match int wSMod.Cursor < Array.length wSMod.SimData with
     | true -> Array.map makeCursVal waveData.[int wSMod.Cursor]
     | false -> [||]
 
@@ -70,7 +70,9 @@ let private makeCursVals model waveData =
 //container box and clock lines
 
 let private makeWaveNames (wsMod: WaveSimModel) =
-    Array.map (wSPort2Name wsMod.SimData.[0].Graph) wsMod.Ports
+    match wsMod.WaveAdder.SimData with
+    | Some sD -> Array.map (wSPort2Name sD.Graph) wsMod.Ports
+    | None -> [||]
 
 let private waveSimRows model (wsMod: WaveSimModel) dispatch =
     let waveData = makeWaveData wsMod
@@ -132,27 +134,24 @@ let private zoom plus (m: Model) (wSMod: WaveSimModel) dispatch =
         |> min maxZoom
     match int (float m.ViewerWidth * zoomFactor) > maxWidth wSMod with
     | true ->
-        {| NewVal = (wSMod.LastClk + 1u) * (uint zoomFactor) + 10u
-           NewCurs = wSMod.Cursor
-           NewClkW = newClkW |}
+        {| LastClk = (wSMod.LastClk + 1u) * (uint zoomFactor) + 10u
+           Curs = wSMod.Cursor
+           ClkW = newClkW |}
     | false -> 
-        {| NewVal = wSMod.LastClk
-           NewCurs = wSMod.Cursor
-           NewClkW = newClkW |}
-    |> Error
-    |> SetSimInProgress 
-    |> dispatch
+        {| LastClk = wSMod.LastClk
+           Curs = wSMod.Cursor
+           ClkW = newClkW |}
+    |> Error |> SetSimInProgress |> dispatch
 
 
 let private button options func label = 
     Button.button (List.append options [ Button.OnClick func ]) [ str label ]
 
 let private changeCurs (wSMod: WaveSimModel) dispatch newCurs =
-    let maxPossibleCurs = 10000u
-    let curs' = min maxPossibleCurs newCurs
+    let curs' = min 500u newCurs
     match 0u <= curs' with
     | true ->
-        {| NewCurs = curs'; NewClkW = wSMod.ClkWidth; NewVal = wSMod.LastClk |}
+        {| Curs = curs'; ClkW = wSMod.ClkWidth; LastClk = wSMod.LastClk |}
         |> Error |> SetSimInProgress |> dispatch
     | _ -> ()
 
@@ -321,11 +320,6 @@ let private openCloseWA (wSMod: WaveSimModel) on =
     { wSMod with WaveAdderOpen = on }
     |> SetCurrFileWSMod
 
-let private selWave2selConn model (wSMod: WaveSimModel) ind on = 
-    port2ConnId model wSMod.WaveAdder.Ports.[ind]
-    |> List.collect (fun (ConnectionId cId) -> connId2JSConn model cId) 
-    |> List.map (model.Diagram.SetSelected on)
-
 let private isWaveSelected model (wSMod: WaveSimModel) port = 
     let simD = 
         match wSMod.WaveAdder.SimData with
@@ -339,19 +333,32 @@ let private isWaveSelected model (wSMod: WaveSimModel) port =
     |> compsConns2portLst simD canvState
     |> Array.contains port
 
-let private waveAdderToggle (model: Model) wSMod ind =
-    isWaveSelected model wSMod wSMod.WaveAdder.Ports.[ind]
-    |> not
-    |> selWave2selConn model wSMod ind
+let private selWave2selConn model (wSMod: WaveSimModel) ind dispatch on = 
+    port2ConnId model wSMod.WaveAdder.Ports.[ind]
+    |> List.collect (fun (ConnectionId cId) -> connId2JSConn model cId) 
+    |> List.map (model.Diagram.SetSelected on)
     |> ignore
+    
+    Array.filter (fun p -> if p = wSMod.WaveAdder.Ports.[ind]
+                           then on 
+                           else isWaveSelected model wSMod p ) wSMod.WaveAdder.Ports
+    |> Array.toList
+    |> setHighlightedConns model dispatch
 
-let private waveAdderSelectAll model (wSMod: WaveSimModel) =
+let private waveAdderToggle (model: Model) wSMod ind dispatch =
+    let isSelected = isWaveSelected model wSMod wSMod.WaveAdder.Ports.[ind]
+    isSelected
+    |> not
+    |> selWave2selConn model wSMod ind dispatch
+
+
+let private waveAdderSelectAll model (wSMod: WaveSimModel) dispatch =
     let setTo = 
         wSMod.WaveAdder.Ports 
         |> Array.forall (isWaveSelected model wSMod)
 
     [| 0 .. Array.length wSMod.WaveAdder.Ports - 1 |]
-    |> Array.map (fun i -> selWave2selConn model wSMod i (not setTo)) 
+    |> Array.map (fun i -> selWave2selConn model wSMod i dispatch (not setTo)) 
     |> ignore
 
 let private nameLabelsCol model wsMod labelRows dispatch =
@@ -422,7 +429,7 @@ let private viewZoomDiv model wSMod dispatch =
         [ button [ Button.CustomClass "zoomButLeft" ] (fun _ -> zoom false model wSMod dispatch) "-"
           button [ Button.CustomClass "zoomButRight" ] (fun _ -> zoom true model wSMod dispatch) "+" ]
 
-let private waveAdderTopRow model wSMod =
+let private waveAdderTopRow model wSMod dispatch =
     tr
         [ Class "rowHeight"
           Style [ VerticalAlign "middle" ] ]
@@ -435,10 +442,10 @@ let private waveAdderTopRow model wSMod =
                     Class "check"
                     Checked(Array.forall (isWaveSelected model wSMod) wSMod.WaveAdder.Ports)
                     Style [ Float FloatOptions.Left ]
-                    OnChange(fun _ -> waveAdderSelectAll model wSMod) ] ]
+                    OnChange(fun _ -> waveAdderSelectAll model wSMod dispatch) ] ]
           td [ Style [ FontWeight "bold" ] ] [ str "Select All" ] ]
 
-let private addWaveRow model wSMod ind =
+let private addWaveRow model wSMod ind dispatch =
     let selected = isWaveSelected model wSMod wSMod.WaveAdder.Ports.[ind]
     tr
         [ Class "rowHeight"
@@ -452,18 +459,18 @@ let private addWaveRow model wSMod ind =
                     Class "check"
                     Checked selected
                     Style [ Float FloatOptions.Left ]
-                    OnChange(fun _ -> waveAdderToggle model wSMod ind) ] ]
+                    OnChange(fun _ -> waveAdderToggle model wSMod ind dispatch) ] ]
           td [] [ label [] [ str wSMod.WaveAdder.WaveNames.[ind] ] ] ]
 
-let private addWaveRows model wSMod = 
-    Array.mapi (fun i _ -> addWaveRow model wSMod i) wSMod.WaveAdder.Ports 
+let private addWaveRows model wSMod dispatch = 
+    Array.mapi (fun i _ -> addWaveRow model wSMod i dispatch) wSMod.WaveAdder.Ports 
 
-let private viewWaveAdder (model: Model) wSMod =
+let private viewWaveAdder (model: Model) wSMod dispatch =
     div [ Style [ Position PositionOptions.Absolute
                   Top "300px" ] ]
         [ table []
                 [ tbody [] 
-                        (Array.append [| waveAdderTopRow model wSMod |] (addWaveRows model wSMod)) ] ]
+                        (Array.append [| waveAdderTopRow model wSMod dispatch |] (addWaveRows model wSMod dispatch)) ] ]
 
 let private waveAdderButs (model: Model) wSMod dispatch =
     let simButStyle =
@@ -499,7 +506,7 @@ let private waveAdderView model wSMod dispatch =
         hr []
         div []
             [ waveAdderButs model wSMod dispatch
-              viewWaveAdder model wSMod ] ] ]
+              viewWaveAdder model wSMod dispatch ] ] ]
 
 let private waveformsView model wSMod dispatch =
     [ div

@@ -880,9 +880,9 @@ let rec resolveComponentOpenPopup
             resolveComponentOpenPopup pPath (comp :: components) rLst  model dispatch   
         // special case when autosave data is most recent
         let title = "Warning!"
-        let body = str <|  sprintf "Warning: changes were made to sheet '%s' after your last Save. There ia an automatically saved version which is '%s \
+        let body = str <|  sprintf "Warning: changes were made to sheet '%s' after your last Save. There is an automatically saved version which is \
                                 more uptodate. Do you want to keep the newer AutoSaved version or \
-                                the older saved version?"  ldComp.Name  ((autoComp.TimeStamp - ldComp.TimeStamp).ToString())
+                                the older saved version?"  ldComp.Name  // ((autoComp.TimeStamp - ldComp.TimeStamp).ToString("hh:mm:ss"))
         choicePopup title body "Newer AutoSaved file" "Older Saved file" buttonAction dispatch
     | OkAuto autoComp :: rLst ->
          let errMsg = "Could not load saved project file '%s' - using autosave file instead"

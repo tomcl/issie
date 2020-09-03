@@ -70,6 +70,7 @@ type WaveSimModel = {
     Ports: WaveSimPort array
     ClkWidth: float
     Cursor: uint32 
+    CursorEmpty: bool
     Radix: NumberBase
     LastClk: uint32
     WaveAdderOpen: bool
@@ -87,6 +88,7 @@ let initWS: WaveSimModel =
       Ports = [||] 
       ClkWidth = 1.0
       Cursor = 0u
+      CursorEmpty = false
       Radix = Bin
       LastClk = 9u 
       WaveAdderOpen = true

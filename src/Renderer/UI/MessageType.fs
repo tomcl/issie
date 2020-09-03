@@ -161,7 +161,7 @@ type Msg =
     | MenuAction of MenuCommand * (Msg -> unit)
     | SelectionHasChanged
     | SetSimIsStale of bool
-    | SetSimInProgress of Result<WaveSimPort array,{| NewVal: uint; NewCurs: uint; NewClkW: float |}>
-    | SimulateWhenInProgress of Result<WaveSimPort array,{| NewVal: uint; NewCurs: uint; NewClkW: float |}>
+    | SetSimInProgress of Result<WaveSimPort array,{| LastClk: uint; Curs: uint; ClkW: float |}>
+    | SimulateWhenInProgress of Result<WaveSimPort array,{| LastClk: uint; Curs: uint; ClkW: float |}>
     | SetSimNotInProgress
     | SetLastSimulatedCanvasState of CanvasState option

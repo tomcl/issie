@@ -1042,28 +1042,18 @@ let private appendSimData (wSMod: WaveSimModel) nCycles =
     extractSimData (Array.last wSMod.SimData) nCycles 
     |> Array.append wSMod.SimData
 
-let changeTopInd (model: Model) (wsMod: WaveSimModel) 
-                 (par: {| NewVal: uint; NewCurs: uint; NewClkW: float |}) : WaveSimModel =
-    let newVal, curs', newClkW = par.NewVal, par.NewCurs, par.NewClkW
-    match Array.length wsMod.SimData = 0, newVal > wsMod.LastClk || curs' > wsMod.LastClk, newVal >= 0u with
-    | true, _, _ -> { wsMod with LastClk = newVal; ClkWidth = newClkW }
-    | false, true, _ ->
-        let newLastClk = max newVal curs'
-        let sD' = 
-            newLastClk
-            |> (fun x -> x + 1u - uint (Array.length wsMod.SimData))
-            |> appendSimData wsMod  
-        { wsMod with
-              SimData = sD' 
-              LastClk = newLastClk
-              ClkWidth = newClkW }
-    | false, false, true ->
-        { wsMod with
-              LastClk = newVal
-              ClkWidth = newClkW}
-    | _ -> wsMod
-    |> ( fun m -> { m with Cursor = curs' } )
-    |> (fun m -> { m with WaveTable = waveCol model m (makeWaveData m) } )
+let updateWSMod (model: Model) (wsMod: WaveSimModel) 
+                 (par: {| LastClk: uint; Curs: uint; ClkW: float |}) : WaveSimModel =
+    let cursLastClkMax = max par.Curs par.LastClk
+    match cursLastClkMax > wsMod.LastClk with
+    | true -> 
+        { wsMod with LastClk = cursLastClkMax
+                     SimData = cursLastClkMax + 1u - uint (Array.length wsMod.SimData)
+                               |> appendSimData wsMod  }
+    | false -> wsMod
+    |> (fun m -> { m with Cursor = par.Curs 
+                          ClkWidth = par.ClkW } )
+    |> (fun m -> { m with WaveTable = waveCol model m (makeWaveData m) })
 
 let waveGen model (wSMod: WaveSimModel) ports =
     let simData' = 

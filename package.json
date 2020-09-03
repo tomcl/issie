@@ -19,7 +19,8 @@
     "compile": "electron-webpack",
     "dev": "electron-webpack dev",
     "dist": "yarn compile && electron-builder",
-    "distwin": "yarn build && electron-builder -w"
+    "distlinux": "yarn compile && electron-builder -l",
+    "distwin": "yarn compile && electron-builder -w"
   },
   "electronWebpack": {
     "main": {
@@ -52,7 +53,6 @@
     "jquery-ui": "^1.12.1",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
-    "react-tooltip": "^4.2.8",
     "rechart": "^0.0.1",
     "source-map-support": "0.5.19",
     "tippy.js": "^6.2.6"
@@ -64,6 +64,7 @@
     "devtron": "^1.4.0",
     "electron": "^9.1.0",
     "electron-builder": "^22.7",
+    "electron-packager": "^15.1.0",
     "electron-webpack": "^2.8.2",
     "fable-compiler": "^2.10.1",
     "fable-loader": "^2.1.9",

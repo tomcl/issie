@@ -62,7 +62,7 @@ type Model = {
     TopMenu : TopMenu
     DragMode: DragMode
     ViewerWidth: int // waveform viewer width in pixels
-    SimulationInProgress: (WaveSimPort array option) * ({| NewVal: uint; NewCurs: uint; NewClkW: float |} option)
+    SimulationInProgress:  Result<WaveSimPort array,{| NewVal: uint; NewCurs: uint; NewClkW: float |}> option
 }
 
 /// Lens to facilitate changing AsyncActivity

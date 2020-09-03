@@ -121,7 +121,6 @@ type JSConnection  = | JSConnection of obj
 type JSCanvasState = JSComponent list * JSConnection list
 
 type SavedWaveInfo = {
-    SimData: SimulationData option
     Ports: WaveSimPort array
     ClkWidth: float
     Cursor: uint32 
@@ -129,7 +128,7 @@ type SavedWaveInfo = {
     LastClk: uint32
     WaveAdderOpen: bool
     WaveAdderPorts: WaveSimPort array
-    LastCanvasState: CanvasState option }
+}
 
 /// Static data describing a schematic sheet loaded as a custom component.
 /// Every sheet is always identified with a file from which it is loaded/saved. 

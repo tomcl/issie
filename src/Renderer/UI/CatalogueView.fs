@@ -613,18 +613,22 @@ let private makeMenuGroup title menuList =
     ]
 
 let viewCatalogue model dispatch =
+    let catTip name func (tip:string) = JSHelpers.tipRef "Cat_" "left" name (menuItem name func) tip
     Menu.menu [Props [Class "py-1"]] [
             makeMenuGroup
                 "Input / Output"
-                [ menuItem "Input"  (fun _ -> createIOPopup true "input" Input model dispatch)
+                [ catTip "Input"  (fun _ -> createIOPopup true "input" Input model dispatch) "Input connection to current sheet: one or more bits"
                   menuItem "Output" (fun _ -> createIOPopup true "output" Output model dispatch)
-                  menuItem "Constant" (fun _ -> createConstantPopup model dispatch)
-                  menuItem "Wire Label" (fun _ -> createIOPopup false "label" (fun _ -> IOLabel) model dispatch)]
+                  catTip "Constant" (fun _ -> createConstantPopup model dispatch) "Define a one or more bit constant value, \
+                                                                                    e.g. 0 or 1 to drive an unused input"
+                  catTip "Wire Label" (fun _ -> createIOPopup false "label" (fun _ -> IOLabel) model dispatch) "Labels with the same name connect \
+                                                                                                                 together wires or busses"]
             makeMenuGroup
                 "Buses"
                 [ menuItem "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch)
-                  menuItem "SplitWire" (fun _ -> createSplitWirePopup model dispatch)
-                  menuItem "Bus Select" (fun _ -> createBusSelectPopup model dispatch)]
+                  catTip "SplitWire" (fun _ -> createSplitWirePopup model dispatch) "use Splitwire when you want to split a bus into two parts"
+                  catTip "Bus Select" (fun _ -> createBusSelectPopup model dispatch) "Bus Select output connects to one or 
+                                                                                        more selected bits of its input" ]
             makeMenuGroup
                 "Gates"
                 [ menuItem "Not"  (fun _ -> createCompStdLabel Not model dispatch)
@@ -636,9 +640,11 @@ let viewCatalogue model dispatch =
                   menuItem "Xnor" (fun _ -> createCompStdLabel Xnor model dispatch) ]
             makeMenuGroup
                 "Mux / Demux"
-                [ menuItem "Mux2" (fun _ -> createCompStdLabel Mux2 model dispatch)
+                [ catTip "Mux2" (fun _ -> createCompStdLabel Mux2 model dispatch) "Selects one of its two input busses 
+                                                                        to be the output. Adjusts bus width to match."
                   menuItem "Demux2" (fun _ -> createCompStdLabel Demux2 model dispatch) 
-                  menuItem "Decode4" (fun _ -> createCompStdLabel Decode4 model dispatch) ]
+                  catTip "Decode4" (fun _ -> createCompStdLabel Decode4 model dispatch) "The output numbered by the binary value 
+                                                                                        of the 2 bit sel input is equal to Data, the others are 0"]
             makeMenuGroup
                 "Arithmetic"
                 [ menuItem "N bits adder" (fun _ -> createNbitsAdderPopup model dispatch) ]

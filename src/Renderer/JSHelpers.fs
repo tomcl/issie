@@ -122,15 +122,25 @@ type TooltipsOpts =
     | Placement of string
     | Delay of int * int
     | ZIndex of int
+    | Interactive of bool
+    | Boundary of string
+    | PopperOptions of obj
+    | MaxWidth of int
+    | AppendTo of HTMLElement
+
 
 let tippyOpts p c =
     [
         Delay (1000, 0)
         Placement p
-        Animation "fade"
+        MaxWidth 250
+        Boundary "window"
         Arrow true
+        Interactive true
+        AppendTo Browser.Dom.document.body
         HideOnClick true
         Content c
+        ZIndex 1000
     ] 
 
 type TippyInstance =
@@ -156,7 +166,12 @@ let recordTippyInstance (prefix: string) (tip: TippyInstance) =
     
 
 let tipRef (prefix:string) (pos:string) (text:string) (element: ReactElement) (tip: string) =
-    let ids = prefix + text.Replace(' ','_')
+    let ids = prefix + (
+                text 
+                |> Seq.toArray 
+                |> Array.filter System.Char.IsLetterOrDigit
+                |> Array.map string
+                |> String.concat "")               
     div [Props.Id ids; Props.Ref (fun element -> 
         // Ref is trigger with null once for stateless element so we need to wait for the second trigger
         if not (isNull element) && not (element.hasAttribute "data-tippy-content") then 

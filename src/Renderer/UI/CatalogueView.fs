@@ -618,15 +618,17 @@ let viewCatalogue model dispatch =
             makeMenuGroup
                 "Input / Output"
                 [ catTip "Input"  (fun _ -> createIOPopup true "input" Input model dispatch) "Input connection to current sheet: one or more bits"
-                  menuItem "Output" (fun _ -> createIOPopup true "output" Output model dispatch)
+                  catTip "Output" (fun _ -> createIOPopup true "output" Output model dispatch) "Output connection from current sheet: one or more bits"
                   catTip "Constant" (fun _ -> createConstantPopup model dispatch) "Define a one or more bit constant value, \
                                                                                     e.g. 0 or 1 to drive an unused input"
                   catTip "Wire Label" (fun _ -> createIOPopup false "label" (fun _ -> IOLabel) model dispatch) "Labels with the same name connect \
                                                                                                                  together wires or busses"]
             makeMenuGroup
                 "Buses"
-                [ menuItem "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch)
-                  catTip "SplitWire" (fun _ -> createSplitWirePopup model dispatch) "use Splitwire when you want to split a bus into two parts"
+                [ catTip "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch) "Use Mergewire when you want to \
+                                                                               join the bits of a two busses to make a wider bus"
+                  catTip "SplitWire" (fun _ -> createSplitWirePopup model dispatch) "Use Splitwire when you want to split the \
+                                                                                     bits of a bus into two sets"
                   catTip "Bus Select" (fun _ -> createBusSelectPopup model dispatch) "Bus Select output connects to one or 
                                                                                         more selected bits of its input" ]
             makeMenuGroup
@@ -656,9 +658,12 @@ let viewCatalogue model dispatch =
                   menuItem "Register with enable" (fun _ -> createRegisterPopup RegisterE model dispatch) ]
             makeMenuGroup
                 "Memories"
-                [ menuItem "ROM (asynchronous)" (fun _ -> createMemoryPopup AsyncROM model dispatch)
-                  menuItem "ROM (synchronous)" (fun _ -> createMemoryPopup ROM model dispatch)
-                  menuItem "RAM" (fun _ -> createMemoryPopup RAM model dispatch) ]
+                [ catTip "ROM (asynchronous)" (fun _ -> createMemoryPopup AsyncROM model dispatch) "This is combinational: \
+                                            the output is available in the same clock cycle that the address is presented"
+                  catTip "ROM (synchronous)" (fun _ -> createMemoryPopup ROM model dispatch) "A ROM whose output contains \
+                                            the addressed data in the clock cycle after the address is presented"
+                  catTip "RAM" (fun _ -> createMemoryPopup RAM model dispatch)  "A RAM whose output contains the addressed \
+                                           data in the clock cycle after the address is presented"]
             makeMenuGroup
                 "This project"
                 (makeCustomList model)

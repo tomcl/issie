@@ -206,13 +206,14 @@ let savePngFile folderPath baseName png = // TODO: catch error?
 
 let formatSavedState (canvas,wave) =
     CanvasWithFileWaveInfo(canvas,wave,System.DateTime.Now)
-/// Save state to file. Automatically add the .dgm suffix.
+
+/// Save state to autosave file. Automatically add the .dgmauto suffix.
 let saveAutoStateToFile folderPath baseName state = // TODO: catch error?
     let path = pathJoin [| folderPath; baseName + ".dgmauto" |]
     let data = stateToJsonString state
     writeFile path data
 
-/// Save state to autosave file. Automatically add the .dgauto suffix.
+/// Save state to normal file. Automatically add the .dgauto suffix.
 let saveStateToFile folderPath baseName state = // TODO: catch error?
     let path = pathJoin [| folderPath; baseName + ".dgm" |]
     let data = stateToJsonString state

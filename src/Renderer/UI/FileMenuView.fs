@@ -681,7 +681,7 @@ let updateLoadedComponents name setFun lcLst =
     match n with
     | None -> failwithf "Can't find name='%s' in components:%A" name lcLst
     | Some n ->
-        List.mapi (fun i x -> if i = n then setFun x else x)
+        List.mapi (fun i x -> if i = n then setFun x else x) lcLst
 
 let setupProject (pPath:string) (ldComps: LoadedComponent list) (model: Model) (dispatch: Msg->Unit)=
     let openFileName, openFileState =
@@ -710,8 +710,8 @@ let private openFileInProject name project model dispatch =
     | Some loadedComponent ->
         saveOpenFileAction false model
         // make sure correct file gets opened.
-        let lcs = updateLoadedComponents name (fun lc -> {lc with TimeStamp = DateTime.Now})
-        setupProject project.ProjectPath project.LoadedComponents model dispatch
+        let lcs = updateLoadedComponents name (fun lc -> {lc with TimeStamp = DateTime.Now}) project.LoadedComponents
+        setupProject project.ProjectPath lcs model dispatch
         dispatch EndSimulation // End any running simulation.
 
 /// Remove file.
@@ -856,13 +856,15 @@ let rec resolveComponentOpenPopup
         // ldComp, autocomp are from attemps to load saved file and its autosave version.
         let buttonAction autoSave _ =
             let comp = if autoSave then autoComp else ldComp
-
+            let data =  stateToJsonString (comp.CanvasState,comp.WaveInfo)
+            writeFile comp.FilePath data
             resolveComponentOpenPopup pPath (comp :: components) rLst  model dispatch   
         // special case when autosave data is most recent
         let title = "Warning!"
-        let body = str <|  sprintf "Warning: changes were made to sheet '%s' after your last Save. There is an automatically saved version which is \
+        let body = str <|  sprintf "Warning: changes were made to sheet '%s' after your last Save. \
+                                There is an automatically saved version which is \
                                 more uptodate. Do you want to keep the newer AutoSaved version or \
-                                the older saved version?"  ldComp.Name  // ((autoComp.TimeStamp - ldComp.TimeStamp).ToString("hh:mm:ss"))
+                                the older saved version?"  ldComp.Name  
         choicePopup title body "Newer AutoSaved file" "Older Saved file" buttonAction dispatch
     | OkAuto autoComp :: rLst ->
          let errMsg = "Could not load saved project file '%s' - using autosave file instead"

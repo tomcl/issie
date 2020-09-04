@@ -1044,6 +1044,44 @@ let waveGen model (wSMod: WaveSimModel) ports =
 
     { wSMod' with WaveTable = waveCol model wSMod' (makeWaveData wSMod') }
 
+let private connId2JSConn (model: Model) connId =
+    match model.Diagram.GetCanvasState() with
+    | Some (_, jsConns) -> 
+        List.tryFind (fun jsConn -> (extractConnection jsConn).Id = connId) jsConns
+    | None -> None
+    |> function
+       | Some jsConn -> [ jsConn ]
+       | None -> []
+
+let private selWave2connIds model (wSMod: WaveSimModel) ind = 
+    if wSMod.WaveAdderOpen 
+    then wSMod.WaveAdder.Ports.[ind]
+    else wSMod.Ports.[ind]
+    |> port2ConnId model 
+    |> List.collect (fun (ConnectionId cId) -> connId2JSConn model cId) 
+
+let selWave2selConn model wSMod ind on =
+    selWave2connIds model wSMod ind
+    |> model.Diagram.SetSelected on
+
+let selWave2highlightedConns model wSMod ind =
+    selWave2connIds model wSMod ind
+    |> List.map (extractConnection >> (fun c -> ConnectionId c.Id))
+
+
+let isWaveSelected model (wSMod: WaveSimModel) port = 
+    let simD = 
+        match wSMod.WaveAdder.SimData with
+        | Some sD -> sD
+        | None -> failwith "isWaveSelected called when WaveAdder.SimData is None"
+    let canvState =
+        match wSMod.LastCanvasState with
+        | Some cS -> cS
+        | _ -> failwith "isWaveSelected called when wSMod.LastCanvasState is None"
+    getSelected model
+    |> compsConns2portLst simD canvState
+    |> Array.contains port
+
 
 /// Display top menu.
 let viewTopMenu model dispatch =
@@ -1053,13 +1091,17 @@ let viewTopMenu model dispatch =
 
     if model.ConnsToBeHighlighted
     then  
-        match model.Diagram.GetSelected() with
-        | Some (_, conns) ->
-            List.map ( extractConnection 
-                       >> (fun conn -> ConnectionId conn.Id) ) conns
+        match currWS model with
+        | Some wSMod ->
+            let portsLst = 
+                if wSMod.WaveAdderOpen then wSMod.WaveAdder.Ports else wSMod.Ports
+            Array.mapi (fun i p -> if isWaveSelected model wSMod p
+                                   then selWave2highlightedConns model wSMod i
+                                   else []) portsLst
+            |> List.concat
             |> SetSelWavesHighlighted
             |> dispatch
-        | None -> SetSelWavesHighlighted [] |> dispatch
+        | _ -> ()
     else ()
 
     //printfn "FileView"

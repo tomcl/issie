@@ -491,7 +491,7 @@ type Draw2dWrapper() =
             | true -> Error <| sprintf "Could not find component with Id: %s" compId
             | false -> Ok jsComp
         
-    member this.SetSelected on (conn: JSConnection) =
+    member this.SetSelected on (changeConns: JSConnection list) =
         match canvas with
         | Some c -> 
             let comps, conns =
@@ -500,10 +500,15 @@ type Draw2dWrapper() =
                 | None -> [], []
             let conns' =
                 match on with
-                | false -> List.filter ((<>) conn) conns
-                | true -> conn::conns |> List.distinct
+                | false -> List.filter (fun c -> List.contains c changeConns |> not) conns
+                | true -> List.append changeConns conns |> List.distinct
             draw2dLib.resetSelection c
             List.map (draw2dLib.addCompSelection c) comps |> ignore
             List.map (draw2dLib.addConnSelection c) conns' |> ignore
             ()
+        | None -> ()
+
+    member this.ResetSelected =
+        match canvas with
+        | Some c -> draw2dLib.resetSelection c
         | None -> ()

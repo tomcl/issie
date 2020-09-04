@@ -430,7 +430,7 @@ let makeGaps trans =
         {| GapLen = Array.max times - Array.min times + 1
            GapStart = Array.min times |})
 
-let transitions (model: WaveSimModel) waveData = //relies on number of names being correct (= length of elements in WaveData)
+let transitions waveData = //relies on number of names being correct (= length of elements in WaveData)
     let isDiff (ws1, ws2) =
         let folder state e1 e2 =
             match state, e1 = e2 with
@@ -458,10 +458,10 @@ let busLabels (model: Model) waveData =
             gaps
             |> Array.map (fun (gap: {| GapLen: int; GapStart: int |}) ->
                 wave.[gap.GapStart], Array.map (gapAndInd2Pos gap) [| 1 .. nSpaces gap - 1 |])
-        (Array.transpose waveData, Array.map makeGaps (transitions wSMod waveData)) ||> Array.map2 gaps2pos
+        (Array.transpose waveData, Array.map makeGaps (transitions waveData)) ||> Array.map2 gaps2pos
     | None -> failwith "busLabels called when currWS model is None"
 
-let makeSegment (clkW: float) portSelected (xInd: int) (data: Sample) (trans: int * int) =
+let makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * int) =
     let top = spacing
     let bot = top + sigHeight - sigLineThick
     let left = float xInd * clkW
@@ -470,7 +470,7 @@ let makeSegment (clkW: float) portSelected (xInd: int) (data: Sample) (trans: in
     let makeSigLine =
         makeLinePoints
             [ Class "sigLineStyle"
-              Style [ Stroke(if portSelected then "green" else "blue") ] ]
+              Style [ Stroke("blue") ] ]
 
     match data with
     | Wire w when w.NBits = 1u ->
@@ -522,9 +522,9 @@ let waveSvg model wsMod waveData =
         busLabels model waveData
         |> Array.map (Array.collect lblEl)
 
-    let makeWaveSvg (portSelected: bool) (sampArr: Waveform) (transArr: (int * int) []): ReactElement [] =
+    let makeWaveSvg (sampArr: Waveform) (transArr: (int * int) []): ReactElement [] =
         (sampArr, transArr)
-        ||> Array.mapi2 (makeSegment wsMod.ClkWidth portSelected)
+        ||> Array.mapi2 (makeSegment wsMod.ClkWidth)
         |> Array.concat
 
     let padTrans t =
@@ -541,28 +541,9 @@ let waveSvg model wsMod waveData =
                       pairs
                       [| snd (Array.last pairs), 1 |] ])
 
-    let selPorts =
-        let sD =
-            match wsMod.WaveAdder.SimData with
-            | Some sD -> sD
-            | None -> failwith "Trying to visulise waveforms when WaveAdder.SimData is None"
-        let canvState = 
-            match wsMod.LastCanvasState with
-            | Some lastCS -> lastCS
-            | None -> failwith "No LastCanvasState stored when trying to visualise waveforms"
-        let allSelPorts =
-            (List.map (fun c -> Comp c) (fst model.CurrentSelected),
-             List.map (fun c -> Conn c) (snd model.CurrentSelected))
-            ||> List.append
-            |> compsConns2portLst sD canvState
-        Array.map
-            (fun (port: WaveSimPort) ->
-                Array.exists (fun (selP: WaveSimPort) -> (selP.CId, selP.OutPN) = (port.CId, port.OutPN)) allSelPorts)
-            wsMod.Ports
-
-    transitions wsMod waveData
+    transitions waveData
     |> Array.map padTrans
-    |> Array.map3 makeWaveSvg selPorts (Array.transpose waveData)
+    |> Array.map2 makeWaveSvg (Array.transpose waveData)
     |> Array.map2 Array.append valueLabels
 
 let private clkRulerSvg (model: WaveSimModel) =
@@ -631,7 +612,6 @@ let private savedWaveInfo2wsMod model (sWInfo: SavedWaveInfo) : WaveSimModel =
         let waPorts' = avalPorts model
         { SimData = sD'
           WaveTable = [||]
-          Selected = Array.map (fun _ -> false) ports'
           Ports = ports'
           ClkWidth = sWInfo.ClkWidth
           Cursor = sWInfo.Cursor
@@ -1030,12 +1010,6 @@ let port2ConnId (model: Model) (p: WaveSimPort) =
         | None -> []
     | None -> failwith "highlight called when canvas state is None"
 
-let setHighlightedConns (model: Model) dispatch ports =
-    ports
-    |> List.collect (port2ConnId model)
-    |> SetSelWavesHighlighted
-    |> dispatch
-
 let private appendSimData (wSMod: WaveSimModel) nCycles = 
     extractSimData (Array.last wSMod.SimData) nCycles 
     |> Array.append wSMod.SimData
@@ -1065,7 +1039,6 @@ let waveGen model (wSMod: WaveSimModel) ports =
     let wSMod' =
         { wSMod with
             SimData = simData'
-            Selected = Array.map (fun _ -> false) ports
             Ports = ports
             WaveAdderOpen = false }
 
@@ -1077,6 +1050,17 @@ let viewTopMenu model dispatch =
     match model.SimulationInProgress with
     | Some par -> SimulateWhenInProgress par |> dispatch
     | None -> ()
+
+    if model.ConnsToBeHighlighted
+    then  
+        match model.Diagram.GetSelected() with
+        | Some (_, conns) ->
+            List.map ( extractConnection 
+                       >> (fun conn -> ConnectionId conn.Id) ) conns
+            |> SetSelWavesHighlighted
+            |> dispatch
+        | None -> SetSelWavesHighlighted [] |> dispatch
+    else ()
 
     //printfn "FileView"
     let style = Style [ Width "100%" ] //leftSectionWidth model

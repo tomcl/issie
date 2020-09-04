@@ -20,36 +20,6 @@ open SimulatorTypes
 
 //auxiliary functions to the viewer function
 
-let private connId2JSConn (model: Model) connId =
-    match model.Diagram.GetCanvasState() with
-    | Some (_, jsConns) -> 
-        List.tryFind (fun jsConn -> (extractConnection jsConn).Id = connId) jsConns
-    | None -> None
-    |> function
-       | Some jsConn -> [ jsConn ]
-       | None -> []
-
-let private isWaveSelected model (wSMod: WaveSimModel) port = 
-    let simD = 
-        match wSMod.WaveAdder.SimData with
-        | Some sD -> sD
-        | None -> failwith "isWaveSelected called when WaveAdder.SimData is None"
-    let canvState =
-        match wSMod.LastCanvasState with
-        | Some cS -> cS
-        | _ -> failwith "isWaveSelected called when wSMod.LastCanvasState is None"
-    getSelected model
-    |> compsConns2portLst simD canvState
-    |> Array.contains port
-
-let private selWave2selConn model (wSMod: WaveSimModel) ind dispatch on = 
-    if wSMod.WaveAdderOpen 
-    then wSMod.WaveAdder.Ports.[ind]
-    else wSMod.Ports.[ind]
-    |> port2ConnId model 
-    |> List.collect (fun (ConnectionId cId) -> connId2JSConn model cId) 
-    |> model.Diagram.SetSelected on
-
 let private allSelected model wSMod = 
     Array.forall (isWaveSelected model wSMod) wSMod.Ports
 
@@ -62,14 +32,14 @@ let private toggleSelect (model: Model) (wSMod: WaveSimModel) ind dispatch =
     else wSMod.Ports.[ind]
     |> isWaveSelected model wSMod
     |> not
-    |> selWave2selConn model wSMod ind dispatch
+    |> selWave2selConn model wSMod ind
 
 let selectAllOn model wSMod dispatch =
-    Array.mapi (fun i _ -> selWave2selConn model wSMod i dispatch true) wSMod.Ports
+    Array.mapi (fun i _ -> selWave2selConn model wSMod i true) wSMod.Ports
 
 let private selectAll model wSMod dispatch =
     let setAllOn = not <| allSelected model wSMod
-    Array.mapi (fun i _ -> selWave2selConn model wSMod i dispatch setAllOn) wSMod.Ports
+    Array.mapi (fun i _ -> selWave2selConn model wSMod i setAllOn) wSMod.Ports
 
 let private makeLabels (wSMod: WaveSimModel) waveNames =
     let makeLbl l = label [ Class "waveLbl" ] [ str l ]
@@ -348,7 +318,7 @@ let private waveAdderSelectAll model (wSMod: WaveSimModel) dispatch =
         |> Array.forall (isWaveSelected model wSMod)
 
     [| 0 .. Array.length wSMod.WaveAdder.Ports - 1 |]
-    |> Array.map (fun i -> selWave2selConn model wSMod i dispatch (not setTo)) 
+    |> Array.map (fun i -> selWave2selConn model wSMod i (not setTo)) 
     |> ignore
 
 let private nameLabelsCol model (wsMod: WaveSimModel) labelRows dispatch =

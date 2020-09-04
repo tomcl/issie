@@ -110,10 +110,12 @@ type SimulationError = {
 // types from Renderer
 
 type WaveSimPort = {
-    CId : ComponentId;
-    OutPN : OutputPortNumber;
+    CId : ComponentId
+    OutPN : OutputPortNumber
     TrgtId : ComponentId option
 }
+
+type PortsNet = WaveSimPort * (WaveSimPort list)
 
 type JSComponent   = | JSComponent of obj
 type JSConnection  = | JSConnection of obj
@@ -121,13 +123,13 @@ type JSConnection  = | JSConnection of obj
 type JSCanvasState = JSComponent list * JSConnection list
 
 type SavedWaveInfo = {
-    Ports: WaveSimPort array
+    Ports: PortsNet array
     ClkWidth: float
     Cursor: uint32 
     Radix: NumberBase
     LastClk: uint32
     WaveAdderOpen: bool
-    WaveAdderPorts: WaveSimPort array
+    WaveAdderPorts: PortsNet array
 }
 
 /// Static data describing a schematic sheet loaded as a custom component.

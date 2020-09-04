@@ -66,7 +66,6 @@ type WaveAdderModel = {
 type WaveSimModel = {
     SimData: SimulatorTypes.SimulationData array
     WaveTable: ReactElement array
-    Selected: bool array
     Ports: WaveSimPort array
     ClkWidth: float
     Cursor: uint32 
@@ -84,7 +83,6 @@ let initWA =
 let initWS: WaveSimModel =
     { SimData = [||]
       WaveTable = [||]
-      Selected = [||]
       Ports = [||] 
       ClkWidth = 1.0
       Cursor = 0u

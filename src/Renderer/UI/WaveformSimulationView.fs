@@ -20,24 +20,56 @@ open SimulatorTypes
 
 //auxiliary functions to the viewer function
 
-let private toggleSelect ind (model: Model) dispatch =
-    match currWS model with
-    | Some wSMod ->
-        let sel' = 
-            Array.mapi (fun i old ->
-                if i = ind then not old else old) wSMod.Selected
-        { wSMod with Selected = sel' }
-        |> SetCurrFileWSMod |> dispatch
+let private connId2JSConn (model: Model) connId =
+    match model.Diagram.GetCanvasState() with
+    | Some (_, jsConns) -> 
+        List.tryFind (fun jsConn -> (extractConnection jsConn).Id = connId) jsConns
+    | None -> None
+    |> function
+       | Some jsConn -> [ jsConn ]
+       | None -> []
 
-        Array.zip wSMod.Ports sel'
-        |> Array.filter snd
-        |> Array.map fst
-        |> Array.toList
-        |> setHighlightedConns model dispatch
-    | None -> ()
+let private isWaveSelected model (wSMod: WaveSimModel) port = 
+    let simD = 
+        match wSMod.WaveAdder.SimData with
+        | Some sD -> sD
+        | None -> failwith "isWaveSelected called when WaveAdder.SimData is None"
+    let canvState =
+        match wSMod.LastCanvasState with
+        | Some cS -> cS
+        | _ -> failwith "isWaveSelected called when wSMod.LastCanvasState is None"
+    getSelected model
+    |> compsConns2portLst simD canvState
+    |> Array.contains port
 
-let private allSelected model = Array.forall ((=) true) model.Selected
-let private anySelected model = Array.contains true model.Selected
+let private selWave2selConn model (wSMod: WaveSimModel) ind dispatch on = 
+    if wSMod.WaveAdderOpen 
+    then wSMod.WaveAdder.Ports.[ind]
+    else wSMod.Ports.[ind]
+    |> port2ConnId model 
+    |> List.collect (fun (ConnectionId cId) -> connId2JSConn model cId) 
+    |> model.Diagram.SetSelected on
+
+let private allSelected model wSMod = 
+    Array.forall (isWaveSelected model wSMod) wSMod.Ports
+
+let private anySelected model wSMod = 
+    Array.exists (isWaveSelected model wSMod) wSMod.Ports
+
+let private toggleSelect (model: Model) (wSMod: WaveSimModel) ind dispatch =
+    if wSMod.WaveAdderOpen 
+    then wSMod.WaveAdder.Ports.[ind]
+    else wSMod.Ports.[ind]
+    |> isWaveSelected model wSMod
+    |> not
+    |> selWave2selConn model wSMod ind dispatch
+
+let selectAllOn model wSMod dispatch =
+    Array.mapi (fun i _ -> selWave2selConn model wSMod i dispatch true) wSMod.Ports
+
+let private selectAll model wSMod dispatch =
+    let setAllOn = not <| allSelected model wSMod
+    Array.mapi (fun i _ -> selWave2selConn model wSMod i dispatch setAllOn) wSMod.Ports
 
 let private makeLabels (wSMod: WaveSimModel) waveNames =
     let makeLbl l = label [ Class "waveLbl" ] [ str l ]
@@ -86,9 +118,9 @@ let private waveSimRows model (wsMod: WaveSimModel) dispatch =
                       [ input
                           [ Type "checkbox"
                             Class "check"
-                            Checked wsMod.Selected.[i]
+                            Checked <| isWaveSelected model wsMod wsMod.Ports.[i]
                             Style [ Float FloatOptions.Left ]
-                            OnChange(fun _ -> toggleSelect i model dispatch) ] ]
+                            OnChange(fun _ -> toggleSelect model wsMod i dispatch) ] ]
                   td
                       [ Class "waveNamesCol"
                         Style [ TextAlign TextAlignOptions.Right ] ] [ l ] ])
@@ -160,27 +192,15 @@ let private cursorMove increase (wSMod: WaveSimModel) dispatch =
     | true, n -> n + 1u |> changeCurs wSMod dispatch
     | false, n -> n - 1u |> changeCurs wSMod dispatch
 
-let private selectAll s (model: Model) dispatch =
-    match currWS model with
-    | Some wSMod ->
-        { wSMod with Selected = Array.map (fun _ -> s) wSMod.Selected }
-        |> SetCurrFileWSMod |> dispatch
-        if s then wSMod.Ports else [||]
-        |> Array.toList
-        |> setHighlightedConns model dispatch
-    | None -> ()
-
-let private delSelected model =
-    let filtSelected arr =
-        Array.zip model.Selected arr
+let private delSelected model wSMod =
+    let ports' =
+        Array.map (fun p -> isWaveSelected model wSMod p, p) wSMod.Ports 
         |> Array.filter (fun (sel, _) -> not sel)
         |> Array.map snd
-    { model with
-          Ports = filtSelected model.Ports
-          Selected = Array.filter not model.Selected }
+    { wSMod with Ports = ports' }
     |> SetCurrFileWSMod
 
-let private moveWave model up =
+let private moveWave (model: Model) (wSMod: WaveSimModel) up =
     let lastEl (arr: 'a []) = Array.last arr
 
     let move arr =
@@ -201,10 +221,11 @@ let private moveWave model up =
         |> rev
 
     let indexes' =
-        match Array.length model.Selected with
-        | len when len < 2 -> [| 0 .. Array.length model.Selected - 1 |]
+        match Array.length wSMod.Ports with
+        | len when len < 2 -> [| 0 .. len - 1 |]
         | _ ->
-            Array.indexed model.Selected
+            Array.map (isWaveSelected model wSMod) wSMod.Ports
+            |> Array.indexed 
             |> Array.fold (fun (blocks: {| Sel: bool; Indxs: int [] |} []) (ind, sel') ->
                 match blocks, sel' with
                 | [||], s' ->
@@ -223,9 +244,7 @@ let private moveWave model up =
 
     let reorder (arr: 'b []) = Array.map (fun i -> arr.[i]) indexes'
 
-    { model with
-          Selected = reorder model.Selected
-          Ports = reorder model.Ports }
+    { wSMod with Ports = reorder wSMod.Ports }
     |> SetCurrFileWSMod
 
 let private radixTabs (model: WaveSimModel) dispatch =
@@ -318,50 +337,10 @@ let private cursValsCol rows =
               BorderTop "2px solid rgb(219,219,219)"
               BorderLeft "2px solid rgb(219,219,219)" ] ] [ table [] [ tbody [] rightCol ] ]
 
-let private connId2JSConn (model: Model) connId =
-    match model.Diagram.GetCanvasState() with
-    | Some (_, jsConns) -> 
-        List.tryFind (fun jsConn -> (extractConnection jsConn).Id = connId) jsConns
-    | None -> None
-    |> function
-       | Some jsConn -> [ jsConn ]
-       | None -> []
-
-let private openCloseWA (wSMod: WaveSimModel) on = 
+let private openCloseWA model (wSMod: WaveSimModel) on dispatch = 
+    if on then selectAllOn model wSMod dispatch |> ignore
     { wSMod with WaveAdderOpen = on }
-    |> SetCurrFileWSMod
-
-let private isWaveSelected model (wSMod: WaveSimModel) port = 
-    let simD = 
-        match wSMod.WaveAdder.SimData with
-        | Some sD -> sD
-        | None -> failwith "isWaveSelected called when WaveAdder.SimData is None"
-    let canvState =
-        match wSMod.LastCanvasState with
-        | Some cS -> cS
-        | _ -> failwith "isWaveSelected called when wSMod.LastCanvasState is None"
-    getSelected model
-    |> compsConns2portLst simD canvState
-    |> Array.contains port
-
-let private selWave2selConn model (wSMod: WaveSimModel) ind dispatch on = 
-    port2ConnId model wSMod.WaveAdder.Ports.[ind]
-    |> List.collect (fun (ConnectionId cId) -> connId2JSConn model cId) 
-    |> List.map (model.Diagram.SetSelected on)
-    |> ignore
-    
-    Array.filter (fun p -> if p = wSMod.WaveAdder.Ports.[ind]
-                           then on 
-                           else isWaveSelected model wSMod p ) wSMod.WaveAdder.Ports
-    |> Array.toList
-    |> setHighlightedConns model dispatch
-
-let private waveAdderToggle (model: Model) wSMod ind dispatch =
-    let isSelected = isWaveSelected model wSMod wSMod.WaveAdder.Ports.[ind]
-    isSelected
-    |> not
-    |> selWave2selConn model wSMod ind dispatch
-
+    |> SetCurrFileWSMod |> dispatch
 
 let private waveAdderSelectAll model (wSMod: WaveSimModel) dispatch =
     let setTo = 
@@ -372,26 +351,26 @@ let private waveAdderSelectAll model (wSMod: WaveSimModel) dispatch =
     |> Array.map (fun i -> selWave2selConn model wSMod i dispatch (not setTo)) 
     |> ignore
 
-let private nameLabelsCol model wsMod labelRows dispatch =
+let private nameLabelsCol model (wsMod: WaveSimModel) labelRows dispatch =
     let waveAddDelBut =
-        match anySelected wsMod with
+        match anySelected model wsMod with
         | true ->
             [ Button.button
                 [ Button.CustomClass "delWaveButton"
                   Button.Color IsDanger
-                  Button.OnClick(fun _ -> delSelected wsMod |> dispatch) ] [ str "del" ]
+                  Button.OnClick(fun _ -> delSelected model wsMod |> dispatch) ] [ str "del" ]
               div [ Class "updownDiv" ]
                   [ Button.button
                       [ Button.CustomClass "updownBut"
-                        Button.OnClick(fun _ -> moveWave wsMod true |> dispatch) ] [ str "▲" ]
+                        Button.OnClick(fun _ -> moveWave model wsMod true |> dispatch) ] [ str "▲" ]
                     Button.button
                         [ Button.CustomClass "updownBut"
-                          Button.OnClick(fun _ -> moveWave wsMod false |> dispatch) ] [ str "▼" ] ] ]
+                          Button.OnClick(fun _ -> moveWave model wsMod false |> dispatch) ] [ str "▼" ] ] ]
         | false ->
             [ Button.button
                 [ Button.CustomClass "newWaveButton"
                   Button.Color IsSuccess
-                  Button.OnClick(fun _ -> openCloseWA wsMod true |> dispatch) ] [ str "Edit list..." ] ]
+                  Button.OnClick(fun _ -> openCloseWA model wsMod true dispatch) ] [ str "Edit list..." ] ]
         |> (fun children -> th [ Class "waveNamesCol" ] children)
 
     let top =
@@ -400,8 +379,9 @@ let private nameLabelsCol model wsMod labelRows dispatch =
                      [ input
                          [ Type "checkbox"
                            Class "check"
-                           Checked(allSelected wsMod)
-                           OnChange(fun t -> selectAll t.Checked model dispatch) ] ]
+                           Checked(allSelected model wsMod)
+                           OnChange(fun t -> selectAll model wsMod dispatch
+                                             |> ignore) ] ]
                  waveAddDelBut ] |]
 
     let bot =
@@ -457,7 +437,6 @@ let private waveAdderTopRow model wSMod dispatch =
           td [ Style [ FontWeight "bold" ] ] [ str "Select All" ] ]
 
 let private addWaveRow model wSMod ind dispatch =
-    let selected = isWaveSelected model wSMod wSMod.WaveAdder.Ports.[ind]
     tr
         [ Class "rowHeight"
           Style [ VerticalAlign "middle" ] ]
@@ -468,9 +447,9 @@ let private addWaveRow model wSMod ind dispatch =
               [ input
                   [ Type "checkbox"
                     Class "check"
-                    Checked selected
+                    Checked <| isWaveSelected model wSMod wSMod.WaveAdder.Ports.[ind]
                     Style [ Float FloatOptions.Left ]
-                    OnChange(fun _ -> waveAdderToggle model wSMod ind dispatch) ] ]
+                    OnChange(fun _ -> toggleSelect model wSMod ind dispatch) ] ]
           td [] [ label [] [ str wSMod.WaveAdder.WaveNames.[ind] ] ] ]
 
 let private addWaveRows model wSMod dispatch = 
@@ -497,7 +476,7 @@ let private waveAdderButs (model: Model) wSMod dispatch =
     let cancBut =
         Button.button
             [ Button.Color IsDanger
-              Button.OnClick(fun _ -> openCloseWA wSMod false |> dispatch) ] [ str "Cancel" ]
+              Button.OnClick(fun _ -> openCloseWA model wSMod false dispatch) ] [ str "Cancel" ]
 
     let buts =
         match wSMod.Ports with

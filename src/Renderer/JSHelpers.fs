@@ -133,20 +133,35 @@ let tippyOpts p c =
         Content c
     ] 
 
+type TippyInstance =
+    abstract setProps: obj -> unit
+    
 /// top-level function from tippy.js to make tooltips
 /// #id will make tooltip on element id
 ///
-let tippy' (rClass : string, tippyOpts : obj) : unit = importDefault "tippy.js"
+let tippy' (rClass : string, tippyOpts : obj)  = importDefault<TippyInstance list> "tippy.js"
+
 import "*"  "tippy.js/themes/light.css"
 
 let tippy (tippyOpts: TooltipsOpts list) (rClass:string) = tippy'(rClass, keyValueList CaseRules.LowerFirst tippyOpts)
 let tippy1 rId pos mess = tippy (tippyOpts pos mess) ("#"+rId) 
 
+let mutable tippyRecord: Map<string,TippyInstance list> = Map.ofList []
+
+let recordTippyInstance (prefix: string) (tip: TippyInstance) =
+    printfn "Recording new instance of Tippy: %s" prefix
+    Map.tryFind prefix tippyRecord
+    |> Option.defaultValue []
+    |> (fun lst -> tippyRecord <- Map.add prefix (tip :: lst) tippyRecord)
+    
+
 let tipRef (prefix:string) (pos:string) (text:string) (element: ReactElement) (tip: string) =
     let ids = prefix + text.Replace(' ','_')
     div [Props.Id ids; Props.Ref (fun element -> 
         // Ref is trigger with null once for stateless element so we need to wait for the second trigger
-        if not (isNull element) then tippy1 ids pos tip)
+        if not (isNull element) && not (element.hasAttribute "data-tippy-content") then 
+            let tippyInst = tippy1 ids pos tip
+            recordTippyInstance prefix tippyInst)           
         ] [element]
 
 let tipStr (pos:string) (text:string) (tip: string) = tipRef "Str_" pos text (str text) tip

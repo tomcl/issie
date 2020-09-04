@@ -74,6 +74,7 @@ let init() = {
     DragMode = DragModeOff
     ViewerWidth = rightSectionWidthViewerDefault
     SimulationInProgress = None
+    ConnsToBeHighlighted= false
 }
 
 /// Repaint each connection according to the new inferred width.
@@ -504,7 +505,8 @@ let update msg model =
         { model with Hilighted = (componentIds, connectionIds), snd model.Hilighted }, Cmd.none
     | SetSelWavesHighlighted connIds ->
         setSelWavesHighlighted model connIds
-        |> (fun lst -> { model with Hilighted = fst model.Hilighted, lst }, Cmd.none)
+        |> (fun lst -> { model with Hilighted = fst model.Hilighted, lst
+                                    ConnsToBeHighlighted = false }, Cmd.none)
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
     | SetCreateComponent pos -> { model with CreateComponent = Some pos }, Cmd.none
     | SetProject project -> 
@@ -565,7 +567,12 @@ let update msg model =
     | MenuAction(act,dispatch) ->
         getMenuView act model dispatch, Cmd.none
     | DiagramMouseEvent -> model, Cmd.none
-    | SelectionHasChanged -> model, Cmd.none // TODO - put the highlighting stuff in here.
+    | SelectionHasChanged -> 
+        match currWS model with
+        | Some _ ->
+            { model with ConnsToBeHighlighted = true }
+        | None -> model
+        |> (fun m -> m, Cmd.none)
     | SetSimIsStale b -> 
         changeSimulationIsStale b model, Cmd.none
     | SetSimInProgress par -> 

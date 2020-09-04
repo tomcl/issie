@@ -430,7 +430,7 @@ let makeGaps trans =
         {| GapLen = Array.max times - Array.min times + 1
            GapStart = Array.min times |})
 
-let transitions (model: WaveSimModel) waveData = //relies on number of names being correct (= length of elements in WaveData)
+let transitions waveData = //relies on number of names being correct (= length of elements in WaveData)
     let isDiff (ws1, ws2) =
         let folder state e1 e2 =
             match state, e1 = e2 with
@@ -458,7 +458,7 @@ let busLabels (model: Model) waveData =
             gaps
             |> Array.map (fun (gap: {| GapLen: int; GapStart: int |}) ->
                 wave.[gap.GapStart], Array.map (gapAndInd2Pos gap) [| 1 .. nSpaces gap - 1 |])
-        (Array.transpose waveData, Array.map makeGaps (transitions wSMod waveData)) ||> Array.map2 gaps2pos
+        (Array.transpose waveData, Array.map makeGaps (transitions waveData)) ||> Array.map2 gaps2pos
     | None -> failwith "busLabels called when currWS model is None"
 
 let makeSegment (clkW: float) portSelected (xInd: int) (data: Sample) (trans: int * int) =
@@ -560,7 +560,7 @@ let waveSvg model wsMod waveData =
                 Array.exists (fun (selP: WaveSimPort) -> (selP.CId, selP.OutPN) = (port.CId, port.OutPN)) allSelPorts)
             wsMod.Ports
 
-    transitions wsMod waveData
+    transitions waveData
     |> Array.map padTrans
     |> Array.map3 makeWaveSvg selPorts (Array.transpose waveData)
     |> Array.map2 Array.append valueLabels
@@ -631,7 +631,6 @@ let private savedWaveInfo2wsMod model (sWInfo: SavedWaveInfo) : WaveSimModel =
         let waPorts' = avalPorts model
         { SimData = sD'
           WaveTable = [||]
-          Selected = Array.map (fun _ -> false) ports'
           Ports = ports'
           ClkWidth = sWInfo.ClkWidth
           Cursor = sWInfo.Cursor
@@ -1030,12 +1029,6 @@ let port2ConnId (model: Model) (p: WaveSimPort) =
         | None -> []
     | None -> failwith "highlight called when canvas state is None"
 
-let setHighlightedConns (model: Model) dispatch ports =
-    ports
-    |> List.collect (port2ConnId model)
-    |> SetSelWavesHighlighted
-    |> dispatch
-
 let private appendSimData (wSMod: WaveSimModel) nCycles = 
     extractSimData (Array.last wSMod.SimData) nCycles 
     |> Array.append wSMod.SimData
@@ -1065,7 +1058,6 @@ let waveGen model (wSMod: WaveSimModel) ports =
     let wSMod' =
         { wSMod with
             SimData = simData'
-            Selected = Array.map (fun _ -> false) ports
             Ports = ports
             WaveAdderOpen = false }
 
@@ -1077,6 +1069,17 @@ let viewTopMenu model dispatch =
     match model.SimulationInProgress with
     | Some par -> SimulateWhenInProgress par |> dispatch
     | None -> ()
+
+    if model.ConnsToBeHighlighted
+    then  
+        match model.Diagram.GetSelected() with
+        | Some (_, conns) ->
+            List.map ( extractConnection 
+                       >> (fun conn -> ConnectionId conn.Id) ) conns
+            |> SetSelWavesHighlighted
+            |> dispatch
+        | None -> SetSelWavesHighlighted [] |> dispatch
+    else ()
 
     //printfn "FileView"
     let style = Style [ Width "100%" ] //leftSectionWidth model

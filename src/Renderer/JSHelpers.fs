@@ -139,7 +139,7 @@ type TippyInstance =
 /// top-level function from tippy.js to make tooltips
 /// #id will make tooltip on element id
 ///
-let tippy' (rClass : string, tippyOpts : obj)  = importDefault<TippyInstance list> "tippy.js"
+let tippy' (rClass : string, tippyOpts : obj)  = importDefault<TippyInstance> "tippy.js"
 
 import "*"  "tippy.js/themes/light.css"
 

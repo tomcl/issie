@@ -73,7 +73,7 @@ let private makeCursVals model waveData =
 
 let private makeWaveNames (wsMod: WaveSimModel) =
     match wsMod.WaveAdder.SimData with
-    | Some sD -> Array.map (wSPort2Name sD.Graph) wsMod.Ports
+    | Some sD -> Array.map (fst >> wSPort2Name sD.Graph) wsMod.Ports
     | None -> [||]
 
 let private waveSimRows model (wsMod: WaveSimModel) dispatch =
@@ -164,7 +164,7 @@ let private cursorMove increase (wSMod: WaveSimModel) dispatch =
 
 let private delSelected model wSMod =
     let ports' =
-        Array.map (fun p -> isWaveSelected model wSMod p, p) wSMod.Ports 
+        Array.map (fun net -> isWaveSelected model wSMod net, net) wSMod.Ports 
         |> Array.filter (fun (sel, _) -> not sel)
         |> Array.map snd
     { wSMod with Ports = ports' }

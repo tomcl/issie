@@ -750,9 +750,9 @@ Target.create "QDev" <| fun _ ->
   ==> "GitPush"
   ?=> "GitTag"
 
-"All" <== ["RunTests"; "GenerateDocs"; "CleanElectronBin"]
+"All" <== [ "CleanElectronBin"]
 
-"AllDev" <== ["RunTests"; "CleanElectronBin"]
+"AllDev" <== ["CleanElectronBin"]
 
 "All" ?=> "Release"
 
@@ -764,19 +764,19 @@ Target.create "QDev" <| fun _ ->
 
 "PullDockerImage"
   ==> "DistLinux"
-  ?=> "CreateDiffs"
+
 
 "YarnInstall"
   ==> "DistWin"
-  ?=> "CreateDiffs"
+
 
 "DistWin" ?=> "DistLinux"
 
 "Dev" <== ["All"; "LocalDocs"; "ConfigDebug"]
 
-"DistWin" <== ["All"; "ReleaseDocs"; "ConfigRelease"]
-"DistLinux" <== ["All"; "ReleaseDocs"; "ConfigRelease"]
-"Release" <== ["All"; "ReleaseDocs"; "ConfigRelease"; "DistWin"; "DistLinux"; "CreateDiffs"]
+"DistWin" <== ["All"; "ConfigRelease"]
+"DistLinux" <== ["All"; "ConfigRelease"]
+"Release" <== ["All"; "ConfigRelease"; "DistWin"; "DistLinux"]
 "UpdateDocs" <== ["All"; "ReleaseDocs"; "ConfigRelease"]
 
 Target.runOrDefaultWithArguments "Dev"

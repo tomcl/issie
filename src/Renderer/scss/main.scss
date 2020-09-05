@@ -5,7 +5,7 @@ $fa-font-path: './../../../node_modules/font-awesome/fonts/';
 @import './../../../node_modules/tippy.js/dist/tippy.css';
 @import './../../../node_modules/tippy.js/themes/light.css';
 @import './../../../node_modules/tippy.js/animations/perspective.css';
-;
+
 
 #Draw2dCanvas {
     z-index: -10
@@ -155,7 +155,7 @@ $sigLineThick: 0.025;
 
 .wavesTable {
     min-height: 100%;
-    height: fit-content;
+   // height: fit-content;
     position: relative;
     border: 2px solid rgb(219,219,219);
     overflow-x: scroll;

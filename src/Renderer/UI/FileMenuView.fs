@@ -229,116 +229,122 @@ let avalPorts (model: Model) =
         | Error _ -> [||]
 
 
-let rec findName
+let rec findName 
+        (compIds: ComponentId Set)
         (simGraph: SimulatorTypes.SimulationGraph)
         ({ CId = compId; OutPN = outPortN; TrgtId = outputOpt }: WaveSimPort)
-    =
-    let compLbl =
-        match Map.tryFind compId simGraph with
-        | Some simComp ->
-            match simComp.Label with
-            | ComponentLabel lbl ->
-                match Seq.tryFindIndexBack ((=) '(') lbl with
-                | Some i -> lbl.[0..i - 1]
-                | None -> lbl //not robust!
-        | None -> failwith "simData.Graph.[compId] doesn't exist"
+        : string option * ((string *(int*int)) list) =
 
-    let outPortInt =
-        match outPortN with
-        | OutputPortNumber pn -> pn
+    if not (Set.contains compId compIds) then
+        None,[] // component is no longer in circuit due to changes
+    else
+        let compLbl =
+            match Map.tryFind compId simGraph with
+            | Some simComp ->
+                match simComp.Label with
+                | ComponentLabel lbl ->
+                    match Seq.tryFindIndexBack ((=) '(') lbl with
+                    | Some i -> lbl.[0..i - 1]
+                    | None -> lbl //not robust!
+            | None -> failwith "simData.Graph.[compId] doesn't exist"
 
-    let driveName n compTypeStr =
-        match driveOut simGraph compId (InputPortNumber n) with
-        | Some(driveCompId, drivePortN) ->
-            findName simGraph
-                { CId = driveCompId
-                  OutPN = drivePortN
-                  TrgtId = None }
-            |> snd
-        | None -> failwith (compTypeStr + "input not connected")
+        let outPortInt =
+            match outPortN with
+            | OutputPortNumber pn -> pn
 
-    match simGraph.[compId].Type with
-    | Not
-    | And
-    | Or
-    | Xor
-    | Nand
-    | Nor
-    | Xnor
-    | Decode4
-    | Mux2 -> [ compLbl, (0, 0) ]
-    | Input w
-    | Output w 
-    | Constant(w, _) -> [ compLbl, (w - 1, 0) ]
-    | Demux2 -> [ compLbl + "_" + string outPortInt, (0, 0) ]
-    | NbitsAdder w ->
-        match outPortInt with
-        | 0 -> [ compLbl + "_sum", (w - 1, 0) ]
-        | _ -> [ compLbl + "Cout", (w - 1, 0) ]
-    | DFF
-    | DFFE -> [ compLbl + "_Q", (0, 0) ]
-    | Register w
-    | RegisterE w -> [ compLbl + "_data-out", (w - 1, 0) ]
-    | RAM mem
-    | AsyncROM mem
-    | ROM mem -> [ compLbl + "_data-out", (mem.WordWidth - 1, 0) ]
-    | Custom c -> [ compLbl + "_" + fst c.OutputLabels.[outPortInt], (snd c.OutputLabels.[outPortInt] - 1, 0) ]
-    | IOLabel ->
-        match driveOut simGraph compId (InputPortNumber 0) with
-        | Some(driveCompId, drivePortN) ->
-            match findName simGraph
-                      { CId = driveCompId
-                        OutPN = drivePortN
-                        TrgtId = None }
-                  |> snd with
-            | hd :: tl ->
-                ("(" + fst hd, snd hd) :: tl
-                |> function
-                | hd :: [] -> (fst hd + ")", snd hd) :: []
-                | lst ->
-                    List.append lst.[0..List.length lst - 2] [ fst (List.last lst) + ")", snd (List.last lst) ]
-            | [] -> failwith "Error: IOLabel input names list is empty"
-        | None -> failwith "IOLabel input not connected"
-    | MergeWires -> List.append (driveName 1 "MergeWires") (driveName 0 "MergeWires")
-    | SplitWire w ->
-        let predicate (_, b) =
+        let driveName n compTypeStr =
+            match driveOut simGraph compId (InputPortNumber n) with
+            | Some(driveCompId, drivePortN) ->
+                findName compIds simGraph
+                    { CId = driveCompId
+                      OutPN = drivePortN
+                      TrgtId = None }
+                |> snd
+            | None -> failwith (compTypeStr + "input not connected")
+
+        match simGraph.[compId].Type with
+        | Not
+        | And
+        | Or
+        | Xor
+        | Nand
+        | Nor
+        | Xnor
+        | Decode4
+        | Mux2 -> [ compLbl, (0, 0) ]
+        | Input w
+        | Output w 
+        | Constant(w, _) -> [ compLbl, (w - 1, 0) ]
+        | Demux2 -> [ compLbl + "_" + string outPortInt, (0, 0) ]
+        | NbitsAdder w ->
             match outPortInt with
-            | 0 -> b >= w
-            | 1 -> b < w
-            | _ -> failwith "SplitWire output port number greater than 1"
+            | 0 -> [ compLbl + "_sum", (w - 1, 0) ]
+            | _ -> [ compLbl + "Cout", (w - 1, 0) ]
+        | DFF
+        | DFFE -> [ compLbl + "_Q", (0, 0) ]
+        | Register w
+        | RegisterE w -> [ compLbl + "_data-out", (w - 1, 0) ]
+        | RAM mem
+        | AsyncROM mem
+        | ROM mem -> [ compLbl + "_data-out", (mem.WordWidth - 1, 0) ]
+        | Custom c -> [ compLbl + "_" + fst c.OutputLabels.[outPortInt], (snd c.OutputLabels.[outPortInt] - 1, 0) ]
+        | IOLabel ->
+            match driveOut simGraph compId (InputPortNumber 0) with
+            | Some(driveCompId, drivePortN) ->
+                match findName compIds simGraph
+                          { CId = driveCompId
+                            OutPN = drivePortN
+                            TrgtId = None }
+                      |> snd with
+                | hd :: tl ->
+                    ("(" + fst hd, snd hd) :: tl
+                    |> function
+                    | hd :: [] -> (fst hd + ")", snd hd) :: []
+                    | lst ->
+                        List.append lst.[0..List.length lst - 2] [ fst (List.last lst) + ")", snd (List.last lst) ]
+                | [] -> failwith "Error: IOLabel input names list is empty"
+            | None -> failwith "IOLabel input not connected"
+        | MergeWires -> List.append (driveName 1 "MergeWires") (driveName 0 "MergeWires")
+        | SplitWire w ->
+            let predicate (_, b) =
+                match outPortInt with
+                | 0 -> b >= w
+                | 1 -> b < w
+                | _ -> failwith "SplitWire output port number greater than 1"
 
-        let split name msb lsb st =
-            List.zip [ lsb .. msb ] [ st + msb - lsb .. -1 .. st ]
-            |> List.filter predicate
-            |> List.unzip
-            |> function
-            | [], _ -> None
-            | lst, _ -> Some(name, (List.max lst, List.min lst))
+            let split name msb lsb st =
+                List.zip [ lsb .. msb ] [ st + msb - lsb .. -1 .. st ]
+                |> List.filter predicate
+                |> List.unzip
+                |> function
+                | [], _ -> None
+                | lst, _ -> Some(name, (List.max lst, List.min lst))
 
-        (0, driveName 0 "SplitWire")
-        ||> List.mapFold (fun st (name, (msb, lsb)) -> split name msb lsb st, st + msb - lsb + 1)
-        |> fst
-        |> List.choose id
-    | BusSelection(w, oLSB) ->
-        let filtSelec name msb lsb st =
-            List.zip [ lsb .. msb ] [ st .. st + msb - lsb ]
-            |> List.filter (fun (_, b) -> oLSB <= b && b <= oLSB + w - 1)
-            |> List.unzip
-            |> function
-            | [], _ -> None
-            | lst, _ -> Some(name, (List.max lst, List.min lst))
-        (driveName 0 "BusSelection", 0)
-        ||> List.mapFoldBack (fun (name, (msb, lsb)) st -> filtSelec name msb lsb st, st + msb - lsb + 1)
-        |> fst
-        |> List.choose id
-        |> List.rev
+            (0, driveName 0 "SplitWire")
+            ||> List.mapFold (fun st (name, (msb, lsb)) -> split name msb lsb st, st + msb - lsb + 1)
+            |> fst
+            |> List.choose id
+        | BusSelection(w, oLSB) ->
+            let filtSelec name msb lsb st =
+                List.zip [ lsb .. msb ] [ st .. st + msb - lsb ]
+                |> List.filter (fun (_, b) -> oLSB <= b && b <= oLSB + w - 1)
+                |> List.unzip
+                |> function
+                | [], _ -> None
+                | lst, _ -> Some(name, (List.max lst, List.min lst))
+            (driveName 0 "BusSelection", 0)
+            ||> List.mapFoldBack (fun (name, (msb, lsb)) st -> filtSelec name msb lsb st, st + msb - lsb + 1)
+            |> fst
+            |> List.choose id
+            |> List.rev
 
-    |> (fun lst ->
-        match outputOpt with
-        | Some compId ->
-            match simGraph.[compId].Label with
-            | ComponentLabel lbl -> Some(lbl + ": "), lst
-        | None -> None, lst)
+        |> (fun lst ->
+            match outputOpt with
+            | Some compId ->
+                match Map.tryFind compId simGraph with
+                | None -> None, lst
+                | Some {Label = ComponentLabel lbl} -> Some(lbl + ": "), lst
+            | None -> None, lst)
 
 let private bitNums (a, b) =
     match (a, b) with
@@ -346,16 +352,15 @@ let private bitNums (a, b) =
     | (msb, lsb) when msb = lsb -> sprintf "[%d]" msb
     | (msb, lsb) -> sprintf "[%d:%d]" msb lsb
 
-let wSPort2Name simGraph p =
-    let outNameOpt, nameLst = findName simGraph p
-
+let wSPort2Name compIds simGraph p =
+    let outNameOpt, nameLst = findName compIds simGraph p
     let tl =
         match nameLst with
         | [ el ] -> fst el + bitNums (snd el)
         | lst when List.length lst > 0 ->
             let appendName st (name, bitLims) = st + name + bitNums bitLims + ", "
             List.fold appendName "{ " lst |> (fun lbl -> lbl.[0..String.length lbl - 3] + " }")
-        | _ -> ""
+        |  _ -> ""
     match outNameOpt with
     | Some outName -> outName + tl
     | None -> tl
@@ -627,7 +632,7 @@ let makeWaveData (wsMod: WaveSimModel) =
     Array.map (fun sD -> sD.Graph) wsMod.SimData
     |> Array.map (extractSimTime wsMod.Ports) 
 
-let private savedWaveInfo2wsMod model (sWInfo: SavedWaveInfo) : WaveSimModel =
+let private savedWaveInfo2wsMod compIds model (sWInfo: SavedWaveInfo) : WaveSimModel =
     match makeSimData model with
     | Some (Ok sD) ->
         let ports' = reloadablePorts model sD
@@ -644,18 +649,18 @@ let private savedWaveInfo2wsMod model (sWInfo: SavedWaveInfo) : WaveSimModel =
           WaveAdderOpen = sWInfo.WaveAdderOpen
           WaveAdder = { SimData = Some sD
                         Ports = waPorts'
-                        WaveNames = Array.map (fst >> wSPort2Name sD.Graph) waPorts' }
+                        WaveNames = Array.map (fst >> wSPort2Name compIds sD.Graph) waPorts' }
           LastCanvasState = getReducedCanvState model }
     | Some (Error err) -> initWS//Should probably display error somehow
     | None -> initWS
     |> (fun m -> { m with WaveTable = waveCol model m (makeWaveData m) } )
 
 /// add waveInfo to model
-let setSavedWave (wave: SavedWaveInfo option) model : Model =
+let setSavedWave compIds (wave: SavedWaveInfo option) model : Model =
     match wave, getCurrFile model with
     | None, _ -> model
     | Some waveInfo, Some fileName -> 
-        { model with WaveSim = Map.add fileName (savedWaveInfo2wsMod model waveInfo) (fst model.WaveSim), 
+        { model with WaveSim = Map.add fileName (savedWaveInfo2wsMod compIds model waveInfo) (fst model.WaveSim), 
                                snd model.WaveSim }
     | Some waveInfo, _ -> model
             
@@ -937,14 +942,14 @@ let initFileWS model dispatch =
         |> dispatch
     | None -> ()
 
-let private setWA model wSMod dispatch simData =
+let private setWA compIds model wSMod dispatch simData =
     SetViewerWidth minViewerWidth |> dispatch
     getReducedCanvState model |> SetLastSimulatedCanvasState |> dispatch
     SetSimIsStale false |> dispatch
 
     let wA' =
         let wSPorts = avalPorts model
-        let names' = Array.map (fst >> wSPort2Name simData.Graph) wSPorts
+        let names' = Array.map (fst >> wSPort2Name compIds simData.Graph) wSPorts
         { SimData = Some simData; Ports = wSPorts; WaveNames = names' }
     { wSMod with
           WaveAdder = wA'
@@ -1113,6 +1118,7 @@ let isWaveSelected model (wSMod: WaveSimModel) (portsNet: PortsNet) =
 
 /// Display top menu.
 let viewTopMenu model dispatch =
+    let compIds = getComponentIds model
     match model.SimulationInProgress with
     | Some par -> SimulateWhenInProgress par |> dispatch
     | None -> ()
@@ -1271,13 +1277,13 @@ let viewTopMenu model dispatch =
                                               Button.button
                                                   [ Button.Color IsSuccess
                                                     Button.OnClick(fun _ ->
-                                                        setWA model wSMod dispatch simData
+                                                        setWA compIds model wSMod dispatch simData
                                                         ChangeRightTab WaveSim |> dispatch) ]
                                   | true, Some _, Some (Error err) -> 
                                               Button.button
                                                   [ Button.OnClick(fun _ ->
                                                         Some err |> SetWSError |> dispatch
-                                                        ChangeRightTab WaveSim |> dispatch) ]
+                                                        ChangeRightTab WaveSim |> dispatch ) ]
                                   | _, None, _ -> 
                                             match model.CurrProject with
                                             | Some _ -> initFileWS model dispatch

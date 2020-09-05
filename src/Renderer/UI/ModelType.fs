@@ -71,3 +71,13 @@ let setActivity (f: AsyncTasksT -> AsyncTasksT) (model: Model) =
     {model with AsyncActivity = f model.AsyncActivity }
     
 let changeSimulationIsStale (b:bool) (m:Model) = {m with SimulationIsStale = b}
+
+let getComponentIds (model: Model) =
+    let extractIds (jsComps,jsConns) = 
+        jsComps
+        |> List.map Extractor.extractComponent
+        |> List.map (fun comp -> ComponentId comp.Id)
+    model.Diagram.GetCanvasState()
+    |> Option.map extractIds
+    |> Option.defaultValue []
+    |> Set.ofList

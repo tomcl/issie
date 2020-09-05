@@ -92,18 +92,42 @@ let getSavedWave (model:Model): SavedWaveInfo option =
     | Some wSMod -> wsMod2SavedWaveInfo wSMod |> Some
     | None -> None
 
-let private reloadablePorts (model: Model) (simData: SimulatorTypes.SimulationData) : WaveSimPort [] =
-    let inGraph (port: WaveSimPort) = Map.exists (fun key _ -> key = port.CId) simData.Graph
+let rec private getPortsNet (graph: SimulationGraph) port =
+    let connectedLbls = 
+        graph.[port.CId].Outputs.[port.OutPN]
+        |> List.filter (fun (cId, _) -> graph.[cId].Type = IOLabel)
+    let connectedLblNames =
+        connectedLbls
+        |> List.map (fun (cId, _) -> graph.[cId].Label)
+        |> List.distinct
+    Map.filter (fun _ comp -> List.contains comp.Label connectedLblNames 
+                              && comp.Type = IOLabel) graph
+    |> Map.toList
+    |> List.map (fun (cId, _) -> 
+        match Map.tryFind (OutputPortNumber 0) graph.[cId].Outputs with
+        | Some _ -> 
+            getPortsNet graph { CId = cId
+                                OutPN = OutputPortNumber 0
+                                TrgtId = None } 
+            |> (fun (a,b) -> a :: b)
+        | None -> [] )
+    |> List.concat
+    |> (fun lst -> port, lst)
+
+let private reloadablePorts (model: Model) (simData: SimulatorTypes.SimulationData) : PortsNet [] =
+    let inGraph (port, _) = Map.containsKey port.CId simData.Graph
     match currWS model with
     | Some wSMod ->
         Array.filter inGraph wSMod.Ports
-        |> Array.map (fun port ->
+        |> Array.map (fun (port, _) ->
             match port.TrgtId with
             | Some trgtId when Map.exists (fun key _ -> key = trgtId) simData.Graph ->
-                match List.tryFind (fun (cid, _) -> cid = trgtId) simData.Graph.[port.CId].Outputs.[port.OutPN] with
+                match List.tryFind (fun (cid, _) -> cid = trgtId) 
+                         simData.Graph.[port.CId].Outputs.[port.OutPN] with
                 | Some _ -> port
                 | None -> { port with TrgtId = None }
-            | _ -> { port with TrgtId = None })
+            | _ -> { port with TrgtId = None }
+            |> getPortsNet simData.Graph)
     | None -> [||]
 
 let private clkAdvance (sD: SimulatorTypes.SimulationData) =
@@ -142,22 +166,22 @@ let private procIns (simGraph: SimulationGraph) compId inputs: WaveSimPort [] =
                  TrgtId = None } |]
         | _, None -> failwith "Input is not connected") inputs
 
+let private procCompIns simData (compId: ComponentId) (inputs: Map<InputPortNumber, WireData>): WaveSimPort [] =
+    Map.toArray inputs
+    |> Array.map fst
+    |> procIns simData.Graph compId
+
+let private procOuts compId outputs: WaveSimPort [] =
+    Map.toArray outputs
+    |> Array.map (fun (portNum, _) ->
+        { CId = compId
+          OutPN = portNum
+          TrgtId = None })
 
 let private processComp simData cId: WaveSimPort [] =
-    let procCompIns (compId: ComponentId) (inputs: Map<InputPortNumber, WireData>): WaveSimPort [] =
-        Map.toArray inputs
-        |> Array.map (fun (key, _) -> key)
-        |> procIns simData.Graph compId
-
-    let procOuts compId outputs: WaveSimPort [] =
-        Map.toArray outputs
-        |> Array.map (fun (portNum, _) ->
-            { CId = compId
-              OutPN = portNum
-              TrgtId = None })
-
     match Map.tryFind cId simData.Graph with
-    | Some sC -> Array.append (procCompIns cId sC.Inputs) (procOuts cId sC.Outputs)
+    | Some sC -> Array.append (procCompIns simData cId sC.Inputs) 
+                              (procOuts cId sC.Outputs)
     | None -> [||]
 
 let private remDuplicates (arrWithDup: WaveSimPort []) : WaveSimPort [] =
@@ -196,14 +220,13 @@ let avalPorts (model: Model) =
         |> function
         | Ok simData ->
             List.map (extractComponent >> Comp) (fst jsState) 
-            |> List.filter (fun comp -> match comp with
-                                        | Comp c -> match c.Type with 
-                                                    | SplitWire _ | MergeWires _ -> false
-                                                    | _ -> true
-                                        | Conn c -> failwith "What? comp is of value Conn _")
             |> compsConns2portLst simData (extractState jsState)
-        | Error simError ->
-            [||]
+            |> Array.filter (fun port -> match simData.Graph.[port.CId].Type with
+                                         | SplitWire _ | MergeWires _ -> false
+                                         | IOLabel -> false
+                                         | _ -> true )
+            |> Array.map (getPortsNet simData.Graph)
+        | Error _ -> [||]
 
 
 let rec findName
@@ -585,8 +608,8 @@ let private simWireData2Wire wireData =
     |> fst
     |> List.sum
 
-let extractSimTime (ports: WaveSimPort []) (simGraph: SimulationGraph) =
-    ports
+let extractSimTime portNets (simGraph: SimulationGraph) =
+    Array.map fst portNets
     |> Array.map (fun { CId = compId; OutPN = portN; TrgtId = _ } ->
         match Map.tryFind compId simGraph with
         | Some simComp ->
@@ -621,7 +644,7 @@ let private savedWaveInfo2wsMod model (sWInfo: SavedWaveInfo) : WaveSimModel =
           WaveAdderOpen = sWInfo.WaveAdderOpen
           WaveAdder = { SimData = Some sD
                         Ports = waPorts'
-                        WaveNames = Array.map (wSPort2Name sD.Graph) waPorts' }
+                        WaveNames = Array.map (fst >> wSPort2Name sD.Graph) waPorts' }
           LastCanvasState = getReducedCanvState model }
     | Some (Error err) -> initWS//Should probably display error somehow
     | None -> initWS
@@ -920,10 +943,9 @@ let private setWA model wSMod dispatch simData =
     SetSimIsStale false |> dispatch
 
     let wA' =
-        match avalPorts model with
-        | wSPorts ->
-            let names' = Array.map (wSPort2Name simData.Graph) wSPorts
-            { SimData = Some simData; Ports = wSPorts; WaveNames = names' }
+        let wSPorts = avalPorts model
+        let names' = Array.map (fst >> wSPort2Name simData.Graph) wSPorts
+        { SimData = Some simData; Ports = wSPorts; WaveNames = names' }
     { wSMod with
           WaveAdder = wA'
           LastCanvasState = getReducedCanvState model }
@@ -981,7 +1003,8 @@ let getSelected model: DiagEl list =
     match model.Diagram.GetSelected() with
     | None -> []
     | Some jsState ->
-        (fst jsState |> List.map (extractComponent >> Comp), snd jsState |> List.map (extractConnection >> Conn))
+        (fst jsState |> List.map (extractComponent >> Comp), 
+         snd jsState |> List.map (extractConnection >> Conn))
         ||> List.append
 
 let limBits (name: string): (int * int) option =
@@ -1011,6 +1034,9 @@ let port2ConnId (model: Model) (p: WaveSimPort) =
             |> List.map (fun conn -> ConnectionId conn.Id)
         | None -> []
     | None -> failwith "highlight called when canvas state is None"
+
+let portNet2ConnId (model: Model) ((pMain, pOthers): PortsNet) =
+    List.collect (port2ConnId model) (pMain :: pOthers)
 
 let private appendSimData (wSMod: WaveSimModel) nCycles = 
     extractSimData (Array.last wSMod.SimData) nCycles 
@@ -1046,6 +1072,44 @@ let waveGen model (wSMod: WaveSimModel) ports =
 
     { wSMod' with WaveTable = waveCol model wSMod' (makeWaveData wSMod') }
 
+let private connId2JSConn (model: Model) connId =
+    match model.Diagram.GetCanvasState() with
+    | Some (_, jsConns) -> 
+        List.tryFind (fun jsConn -> (extractConnection jsConn).Id = connId) jsConns
+    | None -> None
+    |> function
+       | Some jsConn -> [ jsConn ]
+       | None -> []
+
+let private selWave2connIds model (wSMod: WaveSimModel) ind = 
+    if wSMod.WaveAdderOpen 
+    then wSMod.WaveAdder.Ports.[ind]
+    else wSMod.Ports.[ind]
+    |> portNet2ConnId model
+
+let selWave2selConn model wSMod ind on =
+    selWave2connIds model wSMod ind
+    |> List.collect (fun (ConnectionId cId) -> connId2JSConn model cId) 
+    |> model.Diagram.SetSelected on
+
+let isWaveSelected model (wSMod: WaveSimModel) (portsNet: PortsNet) = 
+    let ports =
+        (fst portsNet) :: (snd portsNet)
+    let simD = 
+        match wSMod.WaveAdder.SimData with
+        | Some sD -> sD
+        | None -> failwith "isWaveSelected called when WaveAdder.SimData is None"
+    let canvState =
+        match wSMod.LastCanvasState with
+        | Some cS -> cS
+        | _ -> failwith "isWaveSelected called when wSMod.LastCanvasState is None"
+    let selectedPorts = 
+        getSelected model
+        |> compsConns2portLst simD canvState
+    let portsEqual p1 p2 =
+        p1.CId = p2.CId && p1.OutPN = p2.OutPN
+    List.exists (fun p -> Array.exists (portsEqual p) selectedPorts) ports
+
 
 /// Display top menu.
 let viewTopMenu model dispatch =
@@ -1055,13 +1119,16 @@ let viewTopMenu model dispatch =
 
     if model.ConnsToBeHighlighted
     then  
-        match model.Diagram.GetSelected() with
-        | Some (_, conns) ->
-            List.map ( extractConnection 
-                       >> (fun conn -> ConnectionId conn.Id) ) conns
+        match currWS model with
+        | Some wSMod ->
+            if wSMod.WaveAdderOpen then wSMod.WaveAdder.Ports else wSMod.Ports
+            |> Array.mapi (fun i net -> if isWaveSelected model wSMod net
+                                         then selWave2connIds model wSMod i
+                                         else [])
+            |> List.concat
             |> SetSelWavesHighlighted
             |> dispatch
-        | None -> SetSelWavesHighlighted [] |> dispatch
+        | _ -> ()
     else ()
 
     //printfn "FileView"

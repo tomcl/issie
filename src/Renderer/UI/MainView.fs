@@ -218,6 +218,7 @@ let displayView model dispatch =
 
 
     let processMouseMove (ev: Browser.Types.MouseEvent) =
+        let compIds = getComponentIds model
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         if ev.buttons = 1. then dispatch SelectionHasChanged
         match model.DragMode, ev.buttons with
@@ -229,7 +230,7 @@ let displayView model dispatch =
                 |> min (windowX - minEditorWidth)
             SetViewerWidth w |> dispatch
             match currWS model with
-            | Some wSMod when w > maxWidth wSMod && not wSMod.WaveAdderOpen ->
+            | Some wSMod when w > maxWidth compIds wSMod && not wSMod.WaveAdderOpen ->
                 {| LastClk = wSMod.LastClk + 10u
                    ClkW = wSMod.ClkWidth
                    Curs = wSMod.Cursor |}
@@ -419,6 +420,7 @@ let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
                     |> Option.map extractReducedState 
                 let update = needsAutoSave newReducedState  model.AsyncActivity.LastSavedCanvasState
                 let simUpdate = simIsStale newReducedState model.LastSimulatedCanvasState
+                printfn "SimUpdate=%A" simUpdate
                 if update
                 then
                     printfn "AutoSaving at '%s'" (System.DateTime.Now.ToString("mm:ss"))

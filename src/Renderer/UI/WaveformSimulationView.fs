@@ -48,7 +48,7 @@ let private makeLabels (wSMod: WaveSimModel) waveNames =
 // functions for bus labels
 
 
-let private cursValStrings (wSMod: WaveSimModel) (waveData: Sample [] []) =
+let private cursValStrings compIds (wSMod: WaveSimModel) (waveData: Sample [] []) =
     let pref =
         match wSMod.Radix with
         | Bin -> "0b"
@@ -65,20 +65,20 @@ let private cursValStrings (wSMod: WaveSimModel) (waveData: Sample [] []) =
     | true -> Array.map makeCursVal waveData.[int wSMod.Cursor]
     | false -> [||]
 
-let private makeCursVals model waveData =
+let private makeCursVals compIds model waveData =
     let string2Lbl = Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
-    Array.map string2Lbl <| cursValStrings model waveData
+    Array.map string2Lbl <| cursValStrings compIds model waveData
 
 //container box and clock lines
 
-let private makeWaveNames (wsMod: WaveSimModel) =
+let private makeWaveNames compIds (wsMod: WaveSimModel) =
     match wsMod.WaveAdder.SimData with
-    | Some sD -> Array.map (fst >> wSPort2Name sD.Graph) wsMod.Ports
+    | Some sD -> Array.map (fst >> wSPort2Name compIds sD.Graph) wsMod.Ports
     | None -> [||]
 
-let private waveSimRows model (wsMod: WaveSimModel) dispatch =
+let private waveSimRows compIds model (wsMod: WaveSimModel) dispatch =
     let waveData = makeWaveData wsMod
-    let waveNames = makeWaveNames wsMod
+    let waveNames = makeWaveNames compIds wsMod
 
     let labelCols =
         makeLabels wsMod waveNames
@@ -96,24 +96,24 @@ let private waveSimRows model (wsMod: WaveSimModel) dispatch =
                         Style [ TextAlign TextAlignOptions.Right ] ] [ l ] ])
 
     let cursValCol = 
-        makeCursVals wsMod waveData 
+        makeCursVals compIds wsMod waveData 
         |> Array.map (fun c -> tr [ Class "rowHeight" ] [ td [ Class "cursValsCol" ] c ])
 
     wsMod.WaveTable, labelCols, cursValCol
 
 // view function helpers
-let maxWidth (wSMod: WaveSimModel) =
+let maxWidth compIds (wSMod: WaveSimModel) =
     let strWidth s = 
         JSHelpers.getTextWidthInPixels (s, "12px segoe ui") //not sure which font
     let curLblColWidth =
-        match cursValStrings wSMod (makeWaveData wSMod) with
+        match cursValStrings compIds wSMod (makeWaveData wSMod) with
         | [||] -> 0.0
         | cVS ->
             Array.map (Array.map strWidth >> Array.max) cVS
             |> Array.max
             |> max 25.0
     let namesColWidth =
-        match (makeWaveNames wSMod) with
+        match (makeWaveNames compIds wSMod) with
         | [||] -> 0.0
         | wN ->
             Array.map strWidth wN
@@ -128,13 +128,13 @@ let maxWidth (wSMod: WaveSimModel) =
     
     curLblColWidth + namesColWidth + waveColWidth + checkboxCol + extraWidth |> int
 
-let private zoom plus (m: Model) (wSMod: WaveSimModel) dispatch =
+let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
     let newClkW =
         if plus then zoomFactor else 1.0 / zoomFactor
         |> (*) wSMod.ClkWidth
         |> max minZoom
         |> min maxZoom
-    match int (float m.ViewerWidth * zoomFactor) > maxWidth wSMod with
+    match int (float m.ViewerWidth * zoomFactor) > maxWidth compIds wSMod with
     | true ->
         {| LastClk = (wSMod.LastClk + 1u) * (uint zoomFactor) + 10u
            Curs = wSMod.Cursor
@@ -373,8 +373,8 @@ let private wavesCol wSMod rows =
             [ table [ Style [ Height "100%" ] ] 
                     [ tbody [ Style [ Height "100%" ] ] rows ] ]
 
-let private viewWaveformViewer model wSMod dispatch =
-    let tableWaves, leftColMid, cursValsRows = waveSimRows model wSMod dispatch
+let private viewWaveformViewer compIds model wSMod dispatch =
+    let tableWaves, leftColMid, cursValsRows = waveSimRows compIds model wSMod dispatch
     div
         [ Style
             [ Height "calc(100% - 45px)"
@@ -385,10 +385,10 @@ let private viewWaveformViewer model wSMod dispatch =
               [ nameLabelsCol model wSMod leftColMid dispatch
                 wavesCol wSMod tableWaves ] ]
 
-let private viewZoomDiv model wSMod dispatch =
+let private viewZoomDiv compIds model wSMod dispatch =
     div [ Class "zoomDiv" ]
-        [ button [ Button.CustomClass "zoomButLeft" ] (fun _ -> zoom false model wSMod dispatch) "-"
-          button [ Button.CustomClass "zoomButRight" ] (fun _ -> zoom true model wSMod dispatch) "+" ]
+        [ button [ Button.CustomClass "zoomButLeft" ] (fun _ -> zoom compIds false model wSMod dispatch) "-"
+          button [ Button.CustomClass "zoomButRight" ] (fun _ -> zoom compIds true model wSMod dispatch) "+" ]
 
 let private waveAdderTopRow model wSMod dispatch =
     tr
@@ -468,7 +468,7 @@ let private waveAdderView model wSMod dispatch =
             [ waveAdderButs model wSMod dispatch
               viewWaveAdder model wSMod dispatch ] ] ]
 
-let private waveformsView model wSMod dispatch =
+let private waveformsView compIds model wSMod dispatch =
     [ div
         [ Style
             [ Width "calc(100% - 10px)"
@@ -477,20 +477,26 @@ let private waveformsView model wSMod dispatch =
               MarginTop "0px"
               OverflowX OverflowOptions.Hidden ] ]
           [ viewWaveSimButtonsBar model wSMod dispatch
-            viewWaveformViewer model wSMod dispatch
-            viewZoomDiv model wSMod dispatch ] ]
+            viewWaveformViewer compIds model wSMod dispatch
+            viewZoomDiv compIds model wSMod dispatch ] ]
 
 let viewWaveSim (model: Model) dispatch =
+
+    let compIds = getComponentIds model
     match currWS model, snd model.WaveSim with
     | Some wSMod, None ->
         match wSMod.WaveAdderOpen, model.SimulationInProgress with
-        | _, Some _ | false, None -> waveformsView
+        | _, Some _ | false, None -> waveformsView compIds
         | true, None -> waveAdderView 
         |> (fun f -> f model wSMod dispatch)
     | Some _, Some simError ->
         [ div [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]
               [ SimulationView.viewSimulationError simError
-                button [ Button.Color IsDanger ] (fun _ -> None |> SetWSError |> dispatch) "Ok" ] ]
+                button [ Button.Color IsDanger ] (fun _ -> 
+                    None |> SetWSError |> dispatch
+                    ChangeRightTab Catalogue |> dispatch
+                    ) 
+                    "Ok" ] ]
     | None, _ ->
         initFileWS model dispatch
         []

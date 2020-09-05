@@ -140,7 +140,18 @@ let tippyOpts p c =
         AppendTo Browser.Dom.document.body
         HideOnClick true
         Content c
-        ZIndex 1000
+    ] 
+
+let tippyOpts1 p =
+    [
+        Delay (1000, 0)
+        Placement p
+        MaxWidth 250
+        Boundary "window"
+        Arrow true
+        Interactive true
+        AppendTo Browser.Dom.document.body
+        HideOnClick true
     ] 
 
 type TippyInstance =
@@ -159,10 +170,11 @@ let tippy1 rId pos mess = tippy (tippyOpts pos mess) ("#"+rId)
 let mutable tippyRecord: Map<string,TippyInstance list> = Map.ofList []
 
 let recordTippyInstance (prefix: string) (tip: TippyInstance) =
+    () (*
     printfn "Recording new instance of Tippy: %s" prefix
     Map.tryFind prefix tippyRecord
     |> Option.defaultValue []
-    |> (fun lst -> tippyRecord <- Map.add prefix (tip :: lst) tippyRecord)
+    |> (fun lst -> tippyRecord <- Map.add prefix (tip :: lst) tippyRecord) *)
     
 
 let tipRef (prefix:string) (pos:string) (text:string) (element: ReactElement) (tip: string) =

@@ -613,58 +613,66 @@ let private makeMenuGroup title menuList =
     ]
 
 let viewCatalogue model dispatch =
-    let catTip name func (tip:string) = JSHelpers.tipRef "Cat_" "left" name (menuItem name func) tip
-    Menu.menu [Props [Class "py-1"]] [
-            makeMenuGroup
-                "Input / Output"
-                [ catTip "Input"  (fun _ -> createIOPopup true "input" Input model dispatch) "Input connection to current sheet: one or more bits"
-                  catTip "Output" (fun _ -> createIOPopup true "output" Output model dispatch) "Output connection from current sheet: one or more bits"
-                  catTip "Constant" (fun _ -> createConstantPopup model dispatch) "Define a one or more bit constant value, \
-                                                                                    e.g. 0 or 1 to drive an unused input"
-                  catTip "Wire Label" (fun _ -> createIOPopup false "label" (fun _ -> IOLabel) model dispatch) "Labels with the same name connect \
-                                                                                                                 together wires or busses"]
-            makeMenuGroup
-                "Buses"
-                [ catTip "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch) "Use Mergewire when you want to \
-                                                                               join the bits of a two busses to make a wider bus"
-                  catTip "SplitWire" (fun _ -> createSplitWirePopup model dispatch) "Use Splitwire when you want to split the \
-                                                                                     bits of a bus into two sets"
-                  catTip "Bus Select" (fun _ -> createBusSelectPopup model dispatch) "Bus Select output connects to one or 
-                                                                                        more selected bits of its input" ]
-            makeMenuGroup
-                "Gates"
-                [ menuItem "Not"  (fun _ -> createCompStdLabel Not model dispatch)
-                  menuItem "And"  (fun _ -> createCompStdLabel And model dispatch)
-                  menuItem "Or"   (fun _ -> createCompStdLabel Or model dispatch)
-                  menuItem "Xor"  (fun _ -> createCompStdLabel Xor model dispatch)
-                  menuItem "Nand" (fun _ -> createCompStdLabel Nand model dispatch)
-                  menuItem "Nor"  (fun _ -> createCompStdLabel Nor model dispatch)
-                  menuItem "Xnor" (fun _ -> createCompStdLabel Xnor model dispatch) ]
-            makeMenuGroup
-                "Mux / Demux"
-                [ catTip "Mux2" (fun _ -> createCompStdLabel Mux2 model dispatch) "Selects one of its two input busses 
-                                                                        to be the output. Adjusts bus width to match."
-                  menuItem "Demux2" (fun _ -> createCompStdLabel Demux2 model dispatch) 
-                  catTip "Decode4" (fun _ -> createCompStdLabel Decode4 model dispatch) "The output numbered by the binary value 
-                                                                                        of the 2 bit sel input is equal to Data, the others are 0"]
-            makeMenuGroup
-                "Arithmetic"
-                [ menuItem "N bits adder" (fun _ -> createNbitsAdderPopup model dispatch) ]
-            makeMenuGroup
-                "Flip Flops and Registers"
-                [ menuItem "D-flip-flop" (fun _ -> createCompStdLabel DFF model dispatch)
-                  menuItem "D-flip-flop with enable" (fun _ -> createCompStdLabel DFFE model dispatch)
-                  menuItem "Register" (fun _ -> createRegisterPopup Register model dispatch)
-                  menuItem "Register with enable" (fun _ -> createRegisterPopup RegisterE model dispatch) ]
-            makeMenuGroup
-                "Memories"
-                [ catTip "ROM (asynchronous)" (fun _ -> createMemoryPopup AsyncROM model dispatch) "This is combinational: \
-                                            the output is available in the same clock cycle that the address is presented"
-                  catTip "ROM (synchronous)" (fun _ -> createMemoryPopup ROM model dispatch) "A ROM whose output contains \
-                                            the addressed data in the clock cycle after the address is presented"
-                  catTip "RAM" (fun _ -> createMemoryPopup RAM model dispatch)  "A RAM whose output contains the addressed \
-                                           data in the clock cycle after the address is presented"]
-            makeMenuGroup
-                "This project"
-                (makeCustomList model)
-        ]
+        let catTip name func (tip:string) = JSHelpers.tipRef "Cat_" "left" name (menuItem name func) tip
+        let catTipInstall el = 
+                if not (isNull el) then
+                    printfn "Installing cat"
+                    JSHelpers.tippy (JSHelpers.tippyOpts1 "left" ) "[data-tippy-content]" |> ignore
+
+ 
+        let catTip1 name func (tip:string) = 
+            div [Props.Ref (fun element -> if not (isNull element) then element.setAttribute("data-tippy-content",tip))] [menuItem name func]
+        Menu.menu [Props [Class "py-1"; Ref catTipInstall]]  [
+                makeMenuGroup
+                    "Input / Output"
+                    [ catTip1 "Input"  (fun _ -> createIOPopup true "input" Input model dispatch) "Input connection to current sheet: one or more bits"
+                      catTip1 "Output" (fun _ -> createIOPopup true "output" Output model dispatch) "Output connection from current sheet: one or more bits"
+                      catTip1 "Constant" (fun _ -> createConstantPopup model dispatch) "Define a one or more bit constant value, \
+                                                                                        e.g. 0 or 1 to drive an unused input"
+                      catTip1 "Wire Label" (fun _ -> createIOPopup false "label" (fun _ -> IOLabel) model dispatch) "Labels with the same name connect \
+                                                                                                                     together wires or busses"]
+                makeMenuGroup
+                    "Buses"
+                    [ catTip1 "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch) "Use Mergewire when you want to \
+                                                                                   join the bits of a two busses to make a wider bus"
+                      catTip1 "SplitWire" (fun _ -> createSplitWirePopup model dispatch) "Use Splitwire when you want to split the \
+                                                                                         bits of a bus into two sets"
+                      catTip1 "Bus Select" (fun _ -> createBusSelectPopup model dispatch) "Bus Select output connects to one or 
+                                                                                            more selected bits of its input" ]
+                makeMenuGroup
+                    "Gates"
+                    [ menuItem "Not"  (fun _ -> createCompStdLabel Not model dispatch)
+                      menuItem "And"  (fun _ -> createCompStdLabel And model dispatch)
+                      menuItem "Or"   (fun _ -> createCompStdLabel Or model dispatch)
+                      menuItem "Xor"  (fun _ -> createCompStdLabel Xor model dispatch)
+                      menuItem "Nand" (fun _ -> createCompStdLabel Nand model dispatch)
+                      menuItem "Nor"  (fun _ -> createCompStdLabel Nor model dispatch)
+                      menuItem "Xnor" (fun _ -> createCompStdLabel Xnor model dispatch) ]
+                makeMenuGroup
+                    "Mux / Demux"
+                    [ catTip1 "Mux2" (fun _ -> createCompStdLabel Mux2 model dispatch) "Selects one of its two input busses 
+                                                                            to be the output. Adjusts bus width to match."
+                      menuItem "Demux2" (fun _ -> createCompStdLabel Demux2 model dispatch) 
+                      catTip1 "Decode4" (fun _ -> createCompStdLabel Decode4 model dispatch) "The output numbered by the binary value 
+                                                                                            of the 2 bit sel input is equal to Data, the others are 0"]
+                makeMenuGroup
+                    "Arithmetic"
+                    [ menuItem "N bits adder" (fun _ -> createNbitsAdderPopup model dispatch) ]
+                makeMenuGroup
+                    "Flip Flops and Registers"
+                    [ menuItem "D-flip-flop" (fun _ -> createCompStdLabel DFF model dispatch)
+                      menuItem "D-flip-flop with enable" (fun _ -> createCompStdLabel DFFE model dispatch)
+                      menuItem "Register" (fun _ -> createRegisterPopup Register model dispatch)
+                      menuItem "Register with enable" (fun _ -> createRegisterPopup RegisterE model dispatch) ]
+                makeMenuGroup
+                    "Memories"
+                    [ catTip1 "ROM (asynchronous)" (fun _ -> createMemoryPopup AsyncROM model dispatch) "This is combinational: \
+                                                the output is available in the same clock cycle that the address is presented"
+                      catTip1 "ROM (synchronous)" (fun _ -> createMemoryPopup ROM model dispatch) "A ROM whose output contains \
+                                                the addressed data in the clock cycle after the address is presented"
+                      catTip1 "RAM" (fun _ -> createMemoryPopup RAM model dispatch)  "A RAM whose output contains the addressed \
+                                               data in the clock cycle after the address is presented"]
+                makeMenuGroup
+                    "This project"
+                    (makeCustomList model)
+            ]

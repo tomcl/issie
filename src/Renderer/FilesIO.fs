@@ -123,8 +123,8 @@ let private projectFilters =
 let askForExistingProjectPath () : string option =
     let options = createEmpty<OpenDialogOptions>
     options.filters <- projectFileFilters
-
-    electron.remote.dialog.showOpenDialogSync(options)
+    let w = renderer.remote.getCurrentWindow()
+    electron.remote.dialog.showOpenDialogSync(w,options)
     |> Option.bind (
         Seq.toList
         >> function
@@ -139,27 +139,31 @@ let askForExistingProjectPath () : string option =
 let rec askForNewProjectPath () : string option =
     let options = createEmpty<SaveDialogOptions>
     options.filters <- projectFilters
-    options.title <- "Enter new project directory and name"
+    options.title <- "Enter new ISSIE project directory and name"
     options.nameFieldLabel <- "New project name"
     options.buttonLabel <- "Create Project"
     options.properties <- [|
         SaveDialogFeature.CreateDirectory
         SaveDialogFeature.ShowOverwriteConfirmation
         |]
-    electron.remote.dialog.showSaveDialogSync options
-    |> Option.bind (fun dPath ->
-        let dir = dirName dPath
-        let files = fs.readdirSync <| U2.Case1 dir
-        if Seq.exists (fun (fn:string) -> fn.EndsWith ".dprj") files
-        then
-            electron.remote.dialog.showErrorBox(
-                "Invalid project directory",
-                "You are trying to craete a new Issie project inside an existing project directory. \
-                 This is not allowed, please choose a different directory")
-            askForNewProjectPath()
+    match renderer.remote.getCurrentWindow() with
+    | w ->
+        electron.remote.dialog.showSaveDialogSync(options)
+        |> Option.bind (fun dPath ->
+            let dir = dirName dPath
+            let files = fs.readdirSync <| U2.Case1 dir
+            if Seq.exists (fun (fn:string) -> fn.EndsWith ".dprj") files
+            then
+                electron.remote.dialog.showErrorBox(
+                    "Invalid project directory",
+                    "You are trying to craete a new Issie project inside an existing project directory. \
+                     This is not allowed, please choose a different directory")
+                askForNewProjectPath()
             
-        else
-            Some dPath)
+            else
+                Some dPath)
+    
+    
 
 
     

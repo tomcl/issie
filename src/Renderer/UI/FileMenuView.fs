@@ -386,6 +386,10 @@ let private backgroundSvg (model: WaveSimModel) =
 
 //radix change
 
+let dec2binAlt (n:bigint) (nBits:uint32) =
+    [nBits - 1u..0u]
+    |> List.map (fun bitNum -> if n &&& (1I <<< int bitNum) = 0I then '0' else '1')
+
 let dec2bin (n: bigint) (nBits: uint32): string =
     let folder (state: bigint * char list) (digit: int) =
         if fst state / bigint digit = bigint 1
@@ -408,6 +412,14 @@ let dec2hex (n: bigint) (nBits: uint32): string =
         dec2bin n nBits
         |> Seq.append seqPad
         |> Seq.toList
+
+    let fourBit2HexDigAlt =
+        let bit vec n = if (1 <<< n) &&& vec = 0 then '0' else '1'
+        let hexDigOf n = (sprintf "%x" n).[0]
+        [0..15]
+        |> List.map (fun dig -> 
+                List.map (bit dig) [3..0], hexDigOf dig)
+
 
     let fourBit2HexDig =
         [ [ '0'; '0'; '0'; '0' ], '0'
@@ -967,7 +979,7 @@ let private viewInfoPopup dispatch =
 
     let body = div [] [
         makeH "Version"
-        str "v1.0.0a"
+        str (Electron.Electron.electron.remote.app.getVersion())
         br []; br []
         makeH "Acknowledgments"
         str "ISSIE was created by Marco Selvatici (EIE 3rd year) as his BEng final year project. The waveform viewer was created by Edoardo Santi (EEE 3rd year) during Summer UROP work."

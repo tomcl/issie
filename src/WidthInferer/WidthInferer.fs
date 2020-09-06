@@ -435,7 +435,7 @@ let rec private infer
 
 let private initialiseConnectionsWidth connections : ConnectionsWidth =
     connections
-    |> List.map (fun conn -> ConnectionId conn.Id, None)
+    |> List.map (fun (conn:Connection) -> ConnectionId conn.Id, None)
     |> Map.ofList
 
 let private getAllInputNodes components : Component list =

@@ -106,3 +106,137 @@ type NumberBase = | Hex | Dec | Bin | SDec
 /// See JSHelpers.getColorString
 /// lots of colors can be added, see https://www.w3schools.com/colors/colors_names.asp
 type HighLightColor = Red | Blue | Yellow | Green | Orange 
+
+// The next types are not strictly necessary,
+// but help in understanding what is what.
+type ComponentId      = | ComponentId of string
+type ConnectionId     = | ConnectionId of string
+type ComponentLabel   = | ComponentLabel of string
+type InputPortId      = | InputPortId of string
+type OutputPortId     = | OutputPortId of string
+type InputPortNumber  = | InputPortNumber of int
+type OutputPortNumber = | OutputPortNumber of int
+
+/// The driven (output) side of a connection.
+/// This is stored with a NLComponent output port number.
+/// Note that one output port can drive multiple NLTargets.
+type NLTarget = {
+    TargetCompId: ComponentId
+    InputPort: InputPortNumber
+    TargetConnId: ConnectionId
+    }
+
+/// The driving (input) side of a connection.
+/// This is stored with a NLComponent input port number
+type NLSource = {
+    SourceCompId: ComponentId
+    OutputPort: OutputPortNumber
+    SourceConnId: ConnectionId
+    }
+
+/// components with inputs and outputs directly referencing otehr components
+type NetListComponent = {
+    Id : ComponentId
+    Type : ComponentType
+    Label : string
+    // List of input port numbers, and single mapped driving output port
+    // and component.
+    Inputs : Map<InputPortNumber, NLSource option>
+    // Mapping from each output port number to all of the input ports and
+    // Components connected to that port.
+    Outputs : Map<OutputPortNumber, NLTarget list>
+ }
+
+/// circuit topology with connections abstracted away
+/// good for wave sim calculations
+type NetList = Map<ComponentId,NetListComponent>
+
+let getNetList ((comps,conns) : CanvasState) =
+    let id2X f =
+        comps
+        |> List.map f
+        |> Map.ofList
+    let id2Outs = id2X (fun (c:Component) -> ComponentId c.Id,c.OutputPorts)
+    let id2Ins = id2X (fun (c:Component) -> ComponentId c.Id,c.InputPorts)
+    let id2Comp = id2X (fun (c:Component) -> ComponentId c.Id,c)
+
+    let getPortInts sel initV ports = 
+        ports
+        |> List.map (fun port -> 
+            match port.PortNumber with
+            | Some pn -> sel pn , initV
+            | _ -> failwithf "Missing port in list %A" ports)
+        |> Map.ofList
+
+    let initNets =
+        comps
+        |> List.map ( fun comp ->
+            {
+                Id = ComponentId comp.Id
+                Type = comp.Type
+                Label = comp.Label
+                Inputs =  getPortInts InputPortNumber None comp.InputPorts 
+                Outputs = getPortInts OutputPortNumber [] comp.OutputPorts
+            })
+        |> List.map (fun comp -> comp.Id,comp)
+        |> Map.ofList
+
+    let getOutputPortNumber (p:Port) = 
+        id2Ins.[ComponentId p.HostId]
+        |> List.find (fun p1 -> p1.Id = p.Id)
+        |> (fun p -> match p.PortNumber with Some n -> n | None -> failwithf "Missing input port number on %A" p.HostId)
+        |> OutputPortNumber
+       
+   
+    let getInputPortNumber (p:Port) = 
+        id2Outs.[ComponentId p.HostId]
+        |> List.find (fun p1 -> p1.Id = p.Id)
+        |> (fun p -> match p.PortNumber with Some n -> n | None -> failwithf "Missing input port number on %A" p.HostId)
+        |> InputPortNumber
+    
+    let updateNComp compId updateFn (nets:NetList) =
+        Map.add compId (updateFn nets.[compId]) nets
+
+    let updateInputPorts pNum src (comp:NetListComponent) =
+        { comp with Inputs = Map.add pNum (Some src) comp.Inputs}
+
+    let updateInputsComp compId pNum src nets =
+        let uFn = updateInputPorts pNum src
+        updateNComp compId uFn nets
+
+    let updateOutputPorts pNum tgt (comp:NetListComponent) =
+        {comp with Outputs = Map.add pNum (tgt :: comp.Outputs.[pNum]) comp.Outputs}
+
+    let updateOutputsComp compId pNum tgt nets =
+        let uFn = updateOutputPorts pNum tgt
+        updateNComp compId uFn nets
+        
+    let target (conn:Connection) =
+        {
+            TargetCompId = ComponentId conn.Target.HostId
+            InputPort = getInputPortNumber conn.Target
+            TargetConnId = ConnectionId conn.Id
+        }
+    let source (conn:Connection) =
+        {
+            SourceCompId = ComponentId conn.Source.HostId
+            OutputPort = getOutputPortNumber conn.Target
+            SourceConnId = ConnectionId conn.Id
+        }
+
+    let addConnectionsToNets (nets:Map<ComponentId,NetListComponent>) (conn:Connection) =
+        let tgt = target conn
+        let src = source conn
+        let tComp = id2Comp.[tgt.TargetCompId]
+        let sComp = id2Comp.[src.SourceCompId]
+        nets
+        |> updateOutputsComp (ComponentId sComp.Id) src.OutputPort tgt
+        |> updateInputsComp (ComponentId tComp.Id)tgt.InputPort src
+
+    (initNets, conns) ||> List.fold addConnectionsToNets
+        
+
+
+        
+    
+

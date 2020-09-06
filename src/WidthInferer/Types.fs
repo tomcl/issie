@@ -1,12 +1,5 @@
 module BusTypes
-
-// TODO: share with simulatorTypes?
-type ComponentId      = | ComponentId of string
-type ConnectionId     = | ConnectionId of string
-type InputPortId      = | InputPortId of string
-type OutputPortId     = | OutputPortId of string
-type InputPortNumber  = | InputPortNumber of int
-type OutputPortNumber = | OutputPortNumber of int
+open CommonTypes
 
 // Value set to None if the connection width could not be inferred.
 type ConnectionsWidth = Map<ConnectionId, int option>

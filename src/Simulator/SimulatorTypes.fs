@@ -8,22 +8,37 @@ module SimulatorTypes
 
 open CommonTypes
 
+/// Binary data used in simulation
 type Bit = Zero | One
 
+/// Fixed width bus data used in simulation
+/// TODO: refactor as int64 or bigint for efficiency
 type WireData = Bit list
 
 
-
+/// State (possibly none) remembered by component
+/// from previous clock cycle. Combinational components
+/// have no state.
 type SimulationComponentState =
     | NoState // For all stateless components.
     | DffState of Bit
     | RegisterState of WireData
     | RamState of Memory
 
+/// Message used to feed forward evaluation. Clock
+/// tick => state changes to that in next cycle
 type IsClockTick =
     | No
     | Yes of SimulationComponentState // Pass the state only for clock ticks.
 
+/// Like Component but with additional dynamic info used by simulator
+/// Clocked components have state data.
+/// All components have optional data on inputs that propagates
+/// During evaluation of combinational logic
+/// Components require all inputs to have data before they can
+/// generate output data
+/// Note that reducer is a function that generates the outputs
+/// TODO: make this equatable data?
 type SimulationComponent = {
     Id : ComponentId
     Type : ComponentType
@@ -58,27 +73,33 @@ type SimulationComponent = {
     Reducer : ReducerInput -> ReducerOutput
 }
 
-// Map every ComponentId to its SimulationComponent.
+/// Map every ComponentId to its SimulationComponent.
 and SimulationGraph = Map<ComponentId, SimulationComponent>
 
+/// This drives the generation of component outputs
+/// it is processed by the Reducer function.
 and ReducerInput = {
     Inputs: Map<InputPortNumber, WireData>
     CustomSimulationGraph: SimulationGraph option
     IsClockTick: IsClockTick
 }
 
+/// When all inputs are available the reducer function will generate
+/// these outputs. For custom components the SimulationGraph contains
+/// embedded state.
 and ReducerOutput = {
     Outputs: Map<OutputPortNumber, WireData> option
     NewCustomSimulationGraph: SimulationGraph option
     NewState: SimulationComponentState // Will be saved only after clock ticks.
 }
 
-// For every IO node, keep track of its Id, Label and wire width.
-// - Id: to feed values into the simulationGraph.
-// - Label: to display a nice form to the user.
-// - Width: to feed the right values into the simulation.
+/// For every IO node, keep track of its Id, Label and wire width.
+/// - Id: to feed values into the simulationGraph.
+/// - Label: to display a nice form to the user.
+/// - Width: to feed the right values into the simulation.
 type SimulationIO = ComponentId * ComponentLabel * int
 
+/// - Top level data tracking a simulation
 type SimulationData = {
     Graph : SimulationGraph
     // For each input/output, keep its Id and Label to easily access it.
@@ -92,6 +113,8 @@ type SimulationData = {
     ClockTickNumber : int
 }
 
+/// - Documents an error found while simulating.
+/// - Should never happen
 type SimulationError = {
     Msg : string
     InDependency : string option
@@ -99,50 +122,11 @@ type SimulationError = {
     ConnectionsAffected : ConnectionId list
 }
 
-// types from Renderer
-
-type WaveSimPort = {
-    CId : ComponentId
-    OutPN : OutputPortNumber
-    TrgtId : ComponentId option
-}
-
-type PortsNet = WaveSimPort * (WaveSimPort list)
-
+/// Wrapper for Javascript (Diagram) component. Why here?
 type JSComponent   = | JSComponent of obj
+/// Wrapper for Javascript (Diagram) connection. Why here?
 type JSConnection  = | JSConnection of obj
-
+/// State retrieves directly from Diagram has Javascript objects
 type JSCanvasState = JSComponent list * JSConnection list
 
-type SavedWaveInfo = {
-    Ports: PortsNet array
-    ClkWidth: float
-    Cursor: uint32 
-    Radix: NumberBase
-    LastClk: uint32
-    WaveAdderOpen: bool
-    WaveAdderPorts: PortsNet array
-}
 
-/// Static data describing a schematic sheet loaded as a custom component.
-/// Every sheet is always identified with a file from which it is loaded/saved. 
-/// Name is human readable (and is the filename - without extension) and identifies sheet.
-/// File path is the sheet directory and name (with extension).
-/// InputLabels, OutputLabels are the I/O connections.
-/// The I/O connection integers are bus widths.
-/// The I/O connection strings are human readable. The strings are guaranteed
-/// to be unique in the I/O connection list. I.e. An input label may be the same
-/// as an output label, but two input (or output) labels cannot be the same.
-/// The position in the I/O connections list is important as it implicitly
-/// indicates the port number. For example, the first element in the InputLabels
-/// list is related to the Component's Port with PortNumber 0.
-/// Two instances of a loaded component have the same LoadedComponent data.
-type LoadedComponent = {
-    Name: string
-    TimeStamp: System.DateTime
-    FilePath : string
-    WaveInfo: SavedWaveInfo option
-    CanvasState : CanvasState
-    InputLabels : (string * int) list
-    OutputLabels : (string * int) list
-}

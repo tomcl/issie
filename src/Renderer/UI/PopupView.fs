@@ -358,7 +358,7 @@ let viewInfoPopup dispatch =
 
     let body = div [] [
         makeH "Version"
-        str (Electron.Electron.electron.remote.app.getVersion())
+        str "v1.01a"
         br []; br []
         makeH "Acknowledgments"
         str "ISSIE was created by Marco Selvatici (EIE 3rd year) as his BEng final year project. The waveform viewer was created by Edoardo Santi (EEE 3rd year) during Summer UROP work."

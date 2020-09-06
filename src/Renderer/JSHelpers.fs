@@ -120,7 +120,7 @@ type TooltipsOpts =
     | Offset of int * int
     | HideOnClick of bool
     | Placement of string
-    | Delay of int
+    | Delay of int * int
     | ZIndex of int
     | Interactive of bool
     | Boundary of string
@@ -129,30 +129,37 @@ type TooltipsOpts =
     | AppendTo of HTMLElement
 
 
-let tippyOpts p c =
+let tippyOptsWithContent p c =
     [
-        Delay 1000
+        Delay (1000,200)
         Placement p
+        Animation "fade"
         MaxWidth 250
         //Boundary "window"
         Arrow true
+        Theme "material"
         Interactive true
         AppendTo Browser.Dom.document.body
         HideOnClick true
         Content c
     ] 
+    |> keyValueList CaseRules.LowerFirst
 
-let tippyOpts1 p =
+
+let tippyOpts p =
     [
-        Delay 1000
+        Delay (1000,200)
+        Animation "fade"
         Placement p
         MaxWidth 250
         //Boundary "window"
         Arrow true
+        Theme "material"
         Interactive true
         AppendTo Browser.Dom.document.body
         HideOnClick true
     ] 
+    |> keyValueList CaseRules.LowerFirst
 
 type TippyInstance =
     abstract setProps: obj -> unit
@@ -164,10 +171,9 @@ let tippy' (rClass : string, tippyOpts : obj): TippyInstance array  = importDefa
 
 let createSingleton (tippys: TippyInstance array, props: obj): unit = import "createSingleton" "tippy.js"
 
-import "*"  "tippy.js/themes/light.css"
-
-let tippy (tippyOpts: TooltipsOpts list) (rClass:string) = tippy'(rClass, keyValueList CaseRules.LowerFirst tippyOpts)
-let tippy1 rId pos mess = tippy (tippyOpts pos mess) ("#"+rId) 
+import "*"  "tippy.js/themes/material.css"
+let tippy (tippyOpts: obj) (rClass:string) = tippy'(rClass, tippyOpts)
+let tippy1 rId pos mess = tippy (tippyOptsWithContent pos mess) ("#"+rId) 
 
 let mutable tippyRecord: Map<string,TippyInstance list> = Map.ofList []
 

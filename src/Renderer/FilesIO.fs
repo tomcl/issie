@@ -21,7 +21,7 @@ module JsonHelpers =
 
     type SavedInfo =
         | CanvasOnly of CanvasState
-        | CanvasWithFileWaveInfo of CanvasState * SimulatorTypes.SavedWaveInfo option * System.DateTime
+        | CanvasWithFileWaveInfo of CanvasState * SavedWaveInfo option * System.DateTime
 
         member self.getCanvas = 
             match self with
@@ -38,7 +38,7 @@ module JsonHelpers =
             | CanvasWithFileWaveInfo (_,waveInfo,_) -> waveInfo
 
 
-    let stateToJsonString (cState: CanvasState, waveInfo: SimulatorTypes.SavedWaveInfo option) : string =
+    let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option) : string =
         let time = System.DateTime.Now
         SimpleJson.stringify (CanvasWithFileWaveInfo (cState, waveInfo, time))
 
@@ -227,7 +227,7 @@ let saveStateToFile folderPath baseName state = // TODO: catch error?
 let createEmptyDgmFile folderPath baseName =
     saveStateToFile folderPath baseName (([],[]), None)
 
-let private tryLoadComponentFromPath filePath : Result<SimulatorTypes.LoadedComponent, string> =
+let private tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
     match tryLoadStateFromPath filePath with
     | None -> Result.Error <| sprintf "Can't load component from '%s'" filePath
     | Some state ->
@@ -243,9 +243,9 @@ let private tryLoadComponentFromPath filePath : Result<SimulatorTypes.LoadedComp
         }
 
 type LoadStatus =
-    | Resolve of SimulatorTypes.LoadedComponent * SimulatorTypes.LoadedComponent
-    | OkComp of SimulatorTypes.LoadedComponent
-    | OkAuto of SimulatorTypes.LoadedComponent
+    | Resolve of LoadedComponent * LoadedComponent
+    | OkComp of LoadedComponent
+    | OkAuto of LoadedComponent
 
     
 /// load all files in folderpath. Return Ok list of LoadStatus or a single Error.

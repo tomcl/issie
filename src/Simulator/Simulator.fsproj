@@ -5,7 +5,7 @@
 
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Types.fs" />
+    <Compile Include="SimulatorTypes.fs" />
     <Compile Include="NumberHelpers.fs" />
     <Compile Include="SynchronousUtils.fs" />
     <Compile Include="CanvasStateAnalyser.fs" />

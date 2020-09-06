@@ -451,7 +451,7 @@ let stdLabel (compType: ComponentType) (model:Model) =
 let createCompStdLabel comp model dispatch =
     createComponent comp (stdLabel comp model) model dispatch
 
-let private makeCustom model (loadedComponent: SimulatorTypes.LoadedComponent) =
+let private makeCustom model (loadedComponent: LoadedComponent) =
     menuItem loadedComponent.Name (fun _ ->
         let custom = Custom {
             Name = loadedComponent.Name

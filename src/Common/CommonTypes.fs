@@ -107,15 +107,39 @@ type NumberBase = | Hex | Dec | Bin | SDec
 /// lots of colors can be added, see https://www.w3schools.com/colors/colors_names.asp
 type HighLightColor = Red | Blue | Yellow | Green | Orange 
 
-// The next types are not strictly necessary,
-// but help in understanding what is what.
+// The next types are not strictly necessary, but help in understanding what is what.
+// Used consistently they provide type protection that greatly reduces coding errors
+
+/// SHA hash unique to a component - common between JS and F#
 type ComponentId      = | ComponentId of string
+/// SHA hash unique to a connection - common between JS and F#
 type ConnectionId     = | ConnectionId of string
+/// Human-readable name of component as displayed on sheet.
+/// For I/O/labelIO components a width indication eg (7:0) is also displayed, but NOT included here
 type ComponentLabel   = | ComponentLabel of string
+/// SHA hash unique to a component port - common between JS and F#.
+/// Connection ports and connected component ports have the same port Id
+/// InputPortId and OutputPortID wrap the hash to distinguish component
+/// inputs and outputs some times (e.g. in simulation)
 type InputPortId      = | InputPortId of string
+/// SHA hash unique to a component port - common between JS and F#.
+/// Connection ports and connected component ports have the same port Id
+/// InputPortId and OutputPortID wrap the hash to distinguish component
+/// inputs and outputs some times (e.g. in simulation)
 type OutputPortId     = | OutputPortId of string
+
+/// Port numbers are sequential unique with port lists.
+/// Inputs and Outputs are both numberd from 0 up.
 type InputPortNumber  = | InputPortNumber of int
+/// Port numbers are sequential unique with port lists.
+/// Inputs and Outputs are both numberd from 0 up.
 type OutputPortNumber = | OutputPortNumber of int
+
+(*---------------------------Types for wave Simulation----------------------------------------*)
+
+// The "NetList" types contain all the circuit from Diagram in an abstracted form that
+// removed layout info and connections as separate entities. However, connection Ids are
+// available as fileds in components for interface to the Diagram conmponents
 
 /// The driven (output) side of a connection.
 /// This is stored with a NLComponent output port number.
@@ -134,7 +158,9 @@ type NLSource = {
     SourceConnId: ConnectionId
     }
 
-/// components with inputs and outputs directly referencing otehr components
+/// Components with inputs and outputs directly referencing other components.
+/// Output ports can connect to multiple components, or none.
+/// Input ports connect to a single driver, or nothing.
 type NetListComponent = {
     Id : ComponentId
     Type : ComponentType
@@ -147,96 +173,67 @@ type NetListComponent = {
     Outputs : Map<OutputPortNumber, NLTarget list>
  }
 
-/// circuit topology with connections abstracted away
-/// good for wave sim calculations
+/// Circuit topology with connections abstracted away.
+/// Good for Wavesim calculations.
 type NetList = Map<ComponentId,NetListComponent>
 
-let getNetList ((comps,conns) : CanvasState) =
-    let id2X f =
-        comps
-        |> List.map f
-        |> Map.ofList
-    let id2Outs = id2X (fun (c:Component) -> ComponentId c.Id,c.OutputPorts)
-    let id2Ins = id2X (fun (c:Component) -> ComponentId c.Id,c.InputPorts)
-    let id2Comp = id2X (fun (c:Component) -> ComponentId c.Id,c)
 
-    let getPortInts sel initV ports = 
-        ports
-        |> List.map (fun port -> 
-            match port.PortNumber with
-            | Some pn -> sel pn , initV
-            | _ -> failwithf "Missing port in list %A" ports)
-        |> Map.ofList
+(*-----------------------------------------------------------------------------*)
+// Types used within waveform Simulation code, and for saved wavesim configuartion
 
-    let initNets =
-        comps
-        |> List.map ( fun comp ->
-            {
-                Id = ComponentId comp.Id
-                Type = comp.Type
-                Label = comp.Label
-                Inputs =  getPortInts InputPortNumber None comp.InputPorts 
-                Outputs = getPortInts OutputPortNumber [] comp.OutputPorts
-            })
-        |> List.map (fun comp -> comp.Id,comp)
-        |> Map.ofList
+/// Identifies the source of a waveform
+type WaveSimPort = {
+    CId : ComponentId
+    OutPN : OutputPortNumber
+    TrgtId : ComponentId option // What is this? Should be ConnectionId?
+}
 
-    let getOutputPortNumber (p:Port) = 
-        id2Ins.[ComponentId p.HostId]
-        |> List.find (fun p1 -> p1.Id = p.Id)
-        |> (fun p -> match p.PortNumber with Some n -> n | None -> failwithf "Missing input port number on %A" p.HostId)
-        |> OutputPortNumber
-       
-   
-    let getInputPortNumber (p:Port) = 
-        id2Outs.[ComponentId p.HostId]
-        |> List.find (fun p1 -> p1.Id = p.Id)
-        |> (fun p -> match p.PortNumber with Some n -> n | None -> failwithf "Missing input port number on %A" p.HostId)
-        |> InputPortNumber
-    
-    let updateNComp compId updateFn (nets:NetList) =
-        Map.add compId (updateFn nets.[compId]) nets
+/// Identifies a connected net
+/// Does this tie together labelled nets? If so it should have a ComponentLabel option.
+/// should it include the display name(s)? this can be calculated
+type PortsNet = WaveSimPort * (WaveSimPort list)
 
-    let updateInputPorts pNum src (comp:NetListComponent) =
-        { comp with Inputs = Map.add pNum (Some src) comp.Inputs}
+/// Info saved by Wave Sim.
+/// This info is not necessarilu uptodate with deletions or additions in the Diagram.
+/// The wavesim code processing this will not fail if non-existent nets are referenced.
+type SavedWaveInfo = {
+    Ports: PortsNet array
+    ClkWidth: float
+    Cursor: uint32 
+    Radix: NumberBase
+    LastClk: uint32
+    WaveAdderOpen: bool
+    WaveAdderPorts: PortsNet array
+}
 
-    let updateInputsComp compId pNum src nets =
-        let uFn = updateInputPorts pNum src
-        updateNComp compId uFn nets
+(*--------------------------------------------------------------------------------------------------*)
 
-    let updateOutputPorts pNum tgt (comp:NetListComponent) =
-        {comp with Outputs = Map.add pNum (tgt :: comp.Outputs.[pNum]) comp.Outputs}
-
-    let updateOutputsComp compId pNum tgt nets =
-        let uFn = updateOutputPorts pNum tgt
-        updateNComp compId uFn nets
-        
-    let target (conn:Connection) =
-        {
-            TargetCompId = ComponentId conn.Target.HostId
-            InputPort = getInputPortNumber conn.Target
-            TargetConnId = ConnectionId conn.Id
-        }
-    let source (conn:Connection) =
-        {
-            SourceCompId = ComponentId conn.Source.HostId
-            OutputPort = getOutputPortNumber conn.Target
-            SourceConnId = ConnectionId conn.Id
-        }
-
-    let addConnectionsToNets (nets:Map<ComponentId,NetListComponent>) (conn:Connection) =
-        let tgt = target conn
-        let src = source conn
-        let tComp = id2Comp.[tgt.TargetCompId]
-        let sComp = id2Comp.[src.SourceCompId]
-        nets
-        |> updateOutputsComp (ComponentId sComp.Id) src.OutputPort tgt
-        |> updateInputsComp (ComponentId tComp.Id)tgt.InputPort src
-
-    (initNets, conns) ||> List.fold addConnectionsToNets
-        
-
-
-        
-    
-
+/// Static data describing a schematic sheet loaded as a custom component.
+/// Every sheet is always identified with a file from which it is loaded/saved. 
+/// Name is human readable (and is the filename - without extension) and identifies sheet.
+/// File path is the sheet directory and name (with extension).
+/// InputLabels, OutputLabels are the I/O connections.
+/// The I/O connection integers are bus widths.
+/// The I/O connection strings are human readable. The strings are guaranteed
+/// to be unique in the I/O connection list. I.e. An input label may be the same
+/// as an output label, but two input (or output) labels cannot be the same.
+/// The position in the I/O connections list is important as it implicitly
+/// indicates the port number. For example, the first element in the InputLabels
+/// list is related to the Component's Port with PortNumber 0.
+/// Two instances of a loaded component have the same LoadedComponent data.
+type LoadedComponent = {
+    /// File name without extension = sheet name
+    Name: string
+    /// When the component was last saved
+    TimeStamp: System.DateTime 
+    /// Complete file path, including name and dgm extension
+    FilePath : string
+    /// Info on WaveSim settings
+    WaveInfo: SavedWaveInfo option
+    /// F# equivalent of Diagram components and connections including layout
+    CanvasState : CanvasState
+    /// Input port names, and port numbers in any created custom component
+    InputLabels : (string * int) list
+    /// Output port names, and port numbers in any created custom component
+    OutputLabels : (string * int) list
+}

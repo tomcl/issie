@@ -618,14 +618,8 @@ let viewCatalogue model dispatch =
         let catTipInstall el = 
                 if not (isNull el) then
                     printfn "Installing cat"
-                    //let props = JSHelpers.tippyOpts1 "left"
-                    let tippys = JSHelpers.tippy' ("[data-tippy-content]", createObj [||])
-                    let props = createObj !![| 
-                        "delay" ==>  1000; 
-                        "placement" ==> "left"
-                        "interactive"==> true
-                        "appendTo" ==> Browser.Dom.document.body
-                        |]
+                    let props = JSHelpers.tippyOpts "left"
+                    let tippys = JSHelpers.tippy' ("[data-tippy-content]", props)
                     JSHelpers.createSingleton(tippys, props);
 
  

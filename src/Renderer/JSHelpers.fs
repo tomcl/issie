@@ -120,7 +120,7 @@ type TooltipsOpts =
     | Offset of int * int
     | HideOnClick of bool
     | Placement of string
-    | Delay of int * int
+    | Delay of int
     | ZIndex of int
     | Interactive of bool
     | Boundary of string
@@ -131,10 +131,10 @@ type TooltipsOpts =
 
 let tippyOpts p c =
     [
-        Delay (1000, 0)
+        Delay 1000
         Placement p
         MaxWidth 250
-        Boundary "window"
+        //Boundary "window"
         Arrow true
         Interactive true
         AppendTo Browser.Dom.document.body
@@ -144,10 +144,10 @@ let tippyOpts p c =
 
 let tippyOpts1 p =
     [
-        Delay (1000, 0)
+        Delay 1000
         Placement p
         MaxWidth 250
-        Boundary "window"
+        //Boundary "window"
         Arrow true
         Interactive true
         AppendTo Browser.Dom.document.body
@@ -160,7 +160,9 @@ type TippyInstance =
 /// top-level function from tippy.js to make tooltips
 /// #id will make tooltip on element id
 ///
-let tippy' (rClass : string, tippyOpts : obj)  = importDefault<TippyInstance> "tippy.js"
+let tippy' (rClass : string, tippyOpts : obj): TippyInstance array  = importDefault<TippyInstance array> "tippy.js"
+
+let createSingleton (tippys: TippyInstance array, props: obj): unit = import "createSingleton" "tippy.js"
 
 import "*"  "tippy.js/themes/light.css"
 
@@ -169,7 +171,7 @@ let tippy1 rId pos mess = tippy (tippyOpts pos mess) ("#"+rId)
 
 let mutable tippyRecord: Map<string,TippyInstance list> = Map.ofList []
 
-let recordTippyInstance (prefix: string) (tip: TippyInstance) =
+let recordTippyInstance (prefix: string) (tip: TippyInstance array) =
     () (*
     printfn "Recording new instance of Tippy: %s" prefix
     Map.tryFind prefix tippyRecord

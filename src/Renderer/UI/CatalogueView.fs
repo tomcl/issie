@@ -7,6 +7,7 @@
 module CatalogueView
 
 open Fulma
+open Fable.Core.JsInterop
 open Fable.React
 open Fable.React.Props
 
@@ -607,7 +608,7 @@ let private createMemoryPopup memType model dispatch =
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 let private makeMenuGroup title menuList =
-    details [Open true] [
+    details [Open false] [
         summary [menuLabelStyle] [ str title ]
         Menu.list [] menuList
     ]
@@ -617,7 +618,15 @@ let viewCatalogue model dispatch =
         let catTipInstall el = 
                 if not (isNull el) then
                     printfn "Installing cat"
-                    JSHelpers.tippy (JSHelpers.tippyOpts1 "left" ) "[data-tippy-content]" |> ignore
+                    //let props = JSHelpers.tippyOpts1 "left"
+                    let tippys = JSHelpers.tippy' ("[data-tippy-content]", createObj [||])
+                    let props = createObj !![| 
+                        "delay" ==>  1000; 
+                        "placement" ==> "left"
+                        "interactive"==> true
+                        "appendTo" ==> Browser.Dom.document.body
+                        |]
+                    JSHelpers.createSingleton(tippys, props);
 
  
         let catTip1 name func (tip:string) = 

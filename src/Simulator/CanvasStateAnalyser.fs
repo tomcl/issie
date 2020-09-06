@@ -320,7 +320,7 @@ let private checkIOLabels (canvasState : CanvasState) : SimulationError option =
 let private checkConnectionsWidths
         (canvasState : CanvasState)
         : SimulationError option =
-    let convertConnId (BusTypes.ConnectionId cId) = ConnectionId cId
+    let convertConnId (ConnectionId cId) = ConnectionId cId
     let convertError (err : BusTypes.WidthInferError) : SimulationError = {
         Msg = err.Msg
         InDependency = None

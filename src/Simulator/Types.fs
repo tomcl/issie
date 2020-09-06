@@ -12,15 +12,7 @@ type Bit = Zero | One
 
 type WireData = Bit list
 
-// The next types are not strictly necessary,
-// but help in understanding what is what.
-type ComponentId      = | ComponentId of string
-type ConnectionId     = | ConnectionId of string
-type ComponentLabel   = | ComponentLabel of string
-type InputPortId      = | InputPortId of string
-type OutputPortId     = | OutputPortId of string
-type InputPortNumber  = | InputPortNumber of int
-type OutputPortNumber = | OutputPortNumber of int
+
 
 type SimulationComponentState =
     | NoState // For all stateless components.

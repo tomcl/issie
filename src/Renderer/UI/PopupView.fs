@@ -50,10 +50,10 @@ let formatLabelFromType compType (text:string) =
     | _ -> text'
 
 
-let formatLabel comp (text:string) =
+let formatLabel (comp:Component) (text:string) =
     formatLabelFromType comp.Type (text:string)
 
-let setComponentLabel model comp text =
+let setComponentLabel model (comp:Component) text =
     let label = formatLabel comp text
     printf "Setting label %s" label
     model.Diagram.EditComponentLabel comp.Id label

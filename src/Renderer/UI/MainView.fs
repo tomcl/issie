@@ -80,16 +80,16 @@ let init() = {
 /// Repaint each connection according to the new inferred width.
 let private repaintConnections model connsWidth =
     connsWidth
-    |> Map.map (fun (BusTypes.ConnectionId connId) width ->
+    |> Map.map (fun (ConnectionId connId) width ->
         match width with
         | None -> () // Could not infer.
         | Some w -> model.Diagram.PaintConnection connId w None
     )
     |> ignore
 
-let private mapPortIdsToConnWidth conns connsWidth = 
+let private mapPortIdsToConnWidth (conns:Connection list) connsWidth = 
     (Map.empty, conns) ||> List.fold (fun map conn ->
-        let width = getConnectionWidth connsWidth <| BusTypes.ConnectionId conn.Id
+        let width = getConnectionWidth connsWidth <| ConnectionId conn.Id
         let map = map.Add (conn.Source.Id, width)
         map.Add (conn.Target.Id, width)
     )
@@ -101,7 +101,7 @@ let private repaintBusComponents model connsWidth state =
         match portIdsToConnWidth.TryFind portId with
         | None -> None // Unconnected.
         | Some w -> w // Connected, may be inferred or not.
-    comps |> List.map (fun comp ->
+    comps |> List.map (fun (comp:Component) ->
         match comp.Type with
         | MergeWires ->
             (
@@ -128,7 +128,7 @@ let private runBusWidthInference model =
             // TODO: this makes the content of the model.Higlighted inconsistent.
             // Need to dispatch SetHighlighted (can do by using mkProgram).
             e.ConnectionsAffected
-            |> List.map (fun (BusTypes.ConnectionId c) -> model.Diagram.HighlightConnection c)
+            |> List.map (fun (ConnectionId c) -> model.Diagram.HighlightConnection c)
             |> ignore
             // Display notification with error message.
             { model with Notifications =

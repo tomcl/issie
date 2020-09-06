@@ -75,7 +75,7 @@ let private makeMemoryInfo descr mem compId model dispatch =
         ] [str "View/Edit memory content"]
     ]
 
-let private makeNumberOfBitsField model comp text setter dispatch =
+let private makeNumberOfBitsField model (comp:Component) text setter dispatch =
     let title, width =
         match comp.Type with
         | Input w | Output w | NbitsAdder w | Register w -> "Number of bits", w
@@ -99,7 +99,7 @@ let private makeNumberOfBitsField model comp text setter dispatch =
     )
 
 
-let private makeConstantValueField model comp setter dispatch =
+let private makeConstantValueField model (comp:Component) setter dispatch =
     let cVal, width =
         match comp.Type with 
         | Constant(width,cVal) -> cVal, width
@@ -122,7 +122,7 @@ let private makeConstantValueField model comp setter dispatch =
     )
 
 
-let private makeLsbBitNumberField model comp setter dispatch =
+let private makeLsbBitNumberField model (comp:Component) setter dispatch =
     let lsbPos =
         match comp.Type with 
         | BusSelection(width,lsb) -> lsb
@@ -140,7 +140,7 @@ let private makeLsbBitNumberField model comp setter dispatch =
                 dispatch (ReloadSelectedComponent (lastUsedWidth)) // reload the new component
                 dispatch ClosePropertiesNotification
     )
-let private makeDescription comp model dispatch =
+let private makeDescription (comp:Component) model dispatch =
     match comp.Type with
     | Input _ -> str "Input."
     | Constant _ -> str "Constant Wire."
@@ -209,7 +209,7 @@ let private makeDescription comp model dispatch =
             the global clock."
         makeMemoryInfo descr mem comp.Id model dispatch
 
-let private makeExtraInfo model comp text dispatch =
+let private makeExtraInfo model (comp:Component) text dispatch =
     match comp.Type with
     | Input _ | Output _ | NbitsAdder _ ->
         makeNumberOfBitsField model comp text model.Diagram.SetNumberOfBits dispatch

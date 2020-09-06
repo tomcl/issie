@@ -131,11 +131,10 @@ type TooltipsOpts =
 
 let tippyOptsWithContent p c =
     [
-        Delay (1000,200)
+        Delay (700,100)
         Placement p
         Animation "fade"
         MaxWidth 250
-        //Boundary "window"
         Arrow true
         Theme "material"
         Interactive true
@@ -148,11 +147,10 @@ let tippyOptsWithContent p c =
 
 let tippyOpts p =
     [
-        Delay (1000,200)
+        Delay (700,100)
         Animation "fade"
         Placement p
         MaxWidth 250
-        //Boundary "window"
         Arrow true
         Theme "material"
         Interactive true

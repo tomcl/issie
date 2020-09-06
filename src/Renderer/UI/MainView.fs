@@ -182,8 +182,8 @@ let dividerbar (model:Model) dispatch =
     let isDraggable = model.RightTab = WaveSim
     let variableStyle = 
         if isDraggable then [
-            BackgroundColor "gold"
-            Cursor "col-resize" 
+            BackgroundColor "grey"
+            Cursor "grab" 
             Width "10px"
 
         ] else [
@@ -244,10 +244,10 @@ let displayView model dispatch =
           OnMouseDown (makeSelectionChangeMsg model dispatch)
           OnMouseMove processMouseMove
           Style [ BorderTop "2px solid lightgray"; BorderBottom "2px solid lightgray" ] ] [
-        viewTopMenu model dispatch 
-        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode ) 
         viewNoProjectMenu model dispatch
         viewPopup model
+        viewTopMenu model dispatch 
+        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode ) 
         viewNotifications model dispatch
         viewOnDiagramButtons model dispatch
         div [ rightSectionStyle model ]

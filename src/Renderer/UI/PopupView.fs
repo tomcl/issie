@@ -110,8 +110,8 @@ let showMemoryEditorPopup maybeTitle body maybeFoot extraStyle dispatch =
 
 let private buildPopup title body foot close extraStyle =
     fun (dialogData : PopupDialogData) ->
-        Modal.modal [ Modal.IsActive true ] [
-            Modal.background [ Props [ OnClick close ] ] []
+        Modal.modal [ Modal.IsActive true; Modal.CustomClass "modal1"] [
+            Modal.background [ Props [ OnClick close ]] []
             Modal.Card.card [ Props [Style extraStyle] ] [
                 Modal.Card.head [] [
                     Modal.Card.title [] [ str title ]
@@ -356,7 +356,7 @@ let viewInfoPopup dispatch =
         ] ] [str h; br[]]
     let title = "ISSIE: Interactive Schematic Simulator and Integrated Editor"
 
-    let body = div [] [
+    let body = div [Style [Props.ZIndex 10000; OverflowX OverflowOptions.Visible; OverflowY OverflowOptions.Visible]] [
         makeH "Version"
         str "v1.01a"
         br []; br []

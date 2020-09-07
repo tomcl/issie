@@ -145,8 +145,16 @@ let private openFileInProject wsModel2SavedWaveInfoFunc name project model dispa
     | None -> log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
     | Some loadedComponent ->
         saveOpenFileAction false model wsModel2SavedWaveInfoFunc
+        let oldState = 
+            model.Diagram.GetCanvasState()
+            |> Option.map extractState
+            |> Option. defaultValue <| failwithf "What? Current file %A has no canvas to save" project.OpenFileName
+        saveOpenFileAction false model
         // make sure correct file gets opened.
-        let lcs = updateLoadedComponents name (fun lc -> {lc with TimeStamp = DateTime.Now}) project.LoadedComponents
+        let lcs = 
+            project.LoadedComponents 
+            //|> updateLoadedComponents project.OpenFileName (fun _ -> oldState) // update old file
+            |> updateLoadedComponents name (fun lc -> {lc with TimeStamp = DateTime.Now}) // make sure desired file gets opened
         setupProject project.ProjectPath lcs model dispatch
         dispatch EndSimulation // End any running simulation.
 

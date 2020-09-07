@@ -7,7 +7,7 @@
     the FRP model.
 *)
 
-module DiagramModelType
+module rec DiagramModelType
 
 open CommonTypes
 open DiagramMessageType
@@ -38,7 +38,7 @@ type AsyncTasksT = {
     RunningSimulation: bool // placeholder - not used yet
     }
 
-
+[<CustomEquality;NoComparison>]
 type Model = {
     AsyncActivity: AsyncTasksT
     Diagram : Draw2dWrapper
@@ -64,7 +64,54 @@ type Model = {
     ViewerWidth: int // waveform viewer width in pixels
     SimulationInProgress:  Result<PortsNet array,{| LastClk: uint; Curs: uint; ClkW: float |}> option
     ConnsToBeHighlighted: bool
-}
+} with
+ 
+    override this.GetHashCode() =
+        hash (reduce this)
+        
+    override this.Equals(x) = 
+        match x with
+        | :? Model as x' -> reduce this = reduce x'
+        | _ -> false
+
+let reduce (this: Model) = {|
+         RightTab = this.RightTab
+         Hilighted = this.Hilighted
+         Clipboard = this.Clipboard
+         AsyncActivity = this.AsyncActivity
+        
+         SimulationIsStale = this.SimulationIsStale
+         LastSimulatedCanvasState = this.LastSimulatedCanvasState
+         LastSelectedIds = this.LastSelectedIds
+         CurrentSelected = this.CurrentSelected
+         LastUsedDialogWidth = this.LastUsedDialogWidth
+         SelectedComponent= this.SelectedComponent
+         CreateComponent = this.CreateComponent
+         HasUnsavedChanges = this.HasUnsavedChanges
+         CurrProject = match this.Popup with None -> false | _ -> true
+         PopupDialogData = this.PopupDialogData
+         TopMenu = this.TopMenu
+         DragMode = this.DragMode
+         ViewerWidth = this.ViewerWidth
+         SimulationInProgress = this.SimulationInProgress
+         ConnsToBeHighlighted = this.ConnsToBeHighlighted
+
+ |} 
+       
+let reduceApprox (this: Model) = {|
+         RightTab = this.RightTab
+         Clipboard = this.Clipboard
+         CurrProject = match this.Popup with None -> false | _ -> true
+         SimulationIsStale = this.SimulationIsStale
+         LastUsedDialogWidth = this.LastUsedDialogWidth
+         CreateComponent = this.CreateComponent
+         HasUnsavedChanges = this.HasUnsavedChanges
+         CurrProject = match this.Popup with None -> false | _ -> true
+         PopupDialogData = this.PopupDialogData
+         DragMode = this.DragMode
+         ViewerWidth = this.ViewerWidth
+         SimulationInProgress = this.SimulationInProgress
+ |} 
 
 /// Lens to facilitate changing AsyncActivity
 let setActivity (f: AsyncTasksT -> AsyncTasksT) (model: Model) =

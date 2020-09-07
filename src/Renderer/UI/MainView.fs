@@ -152,7 +152,7 @@ let private viewRightTab model dispatch =
     | Catalogue ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str "Catalogue" ]
-            div [ Style [ MarginBottom "15px" ] ] [ str "Click on a component to add it to the diagram." ]
+            div [ Style [ MarginBottom "15px" ] ] [ str "Click on a component to add it to the diagram. Hover on components for details." ]
             viewCatalogue model dispatch
         ]
     | Properties ->
@@ -183,8 +183,8 @@ let dividerbar (model:Model) dispatch =
     let isDraggable = model.RightTab = WaveSim
     let variableStyle = 
         if isDraggable then [
-            BackgroundColor "gold"
-            Cursor "col-resize" 
+            BackgroundColor "grey"
+            Cursor "grab" 
             Width "10px"
 
         ] else [
@@ -245,10 +245,14 @@ let displayView model dispatch =
           OnMouseDown (makeSelectionChangeMsg model dispatch)
           OnMouseMove processMouseMove
           Style [ BorderTop "2px solid lightgray"; BorderBottom "2px solid lightgray" ] ] [
+
         viewTopMenu model wsModel2SavedWaveInfo fileMenuViewActions simulateButtonFunc dispatch 
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode ) 
+
         viewNoProjectMenu model dispatch
         viewPopup model
+        viewTopMenu model dispatch 
+        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode ) 
         viewNotifications model dispatch
         viewOnDiagramButtons model dispatch
         div [ rightSectionStyle model ]

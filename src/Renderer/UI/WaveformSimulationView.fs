@@ -14,9 +14,124 @@ open DiagramMessageType
 open DiagramModelType
 open DiagramStyle
 open CommonTypes
+open WaveSimHelpers
 open FileMenuView
-open Extractor
-open SimulatorTypes
+
+
+let private busLabels (model: Model) waveData =
+    match currWS model with
+    | Some wSMod ->
+        let clkWidth = int wSMod.ClkWidth
+
+        let gaps2pos (wave: Waveform) gaps =
+            let nSpaces (g: {| GapLen: int; GapStart: int |}) = (g.GapLen * clkWidth / (maxBusValGap + 1) + 2)
+            let gapAndInd2Pos (g: {| GapLen: int; GapStart: int |}) i =
+                float g.GapStart + float i * float g.GapLen / float (nSpaces g)
+            gaps
+            |> Array.map (fun (gap: {| GapLen: int; GapStart: int |}) ->
+                wave.[gap.GapStart], Array.map (gapAndInd2Pos gap) [| 1 .. nSpaces gap - 1 |])
+        (Array.transpose waveData, Array.map makeGaps (transitions waveData)) ||> Array.map2 gaps2pos
+    | None -> failwith "busLabels called when currWS model is None"
+
+let private makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * int) =
+    let top = spacing
+    let bot = top + sigHeight - sigLineThick
+    let left = float xInd * clkW
+    let right = left + float clkW
+
+    let makeSigLine =
+        makeLinePoints
+            [ Class "sigLineStyle"
+              Style [ Stroke("blue") ] ]
+
+    match data with
+    | Wire w when w.NBits = 1u ->
+        let y =
+            match w.BitData with
+            | n when n = bigint 1 -> top
+            | _ -> bot
+        let sigLine = makeSigLine (left, y) (right, y)
+        match snd trans with
+        | 1 -> [| makeSigLine (right, bot + sigLineThick / 2.0) (right, top - sigLineThick / 2.0) |]
+        | 0 -> [||]
+        | _ -> failwith "What? Transition has value other than 0 or 1"
+        |> Array.append [| sigLine |]
+    | _ ->
+        let leftInner =
+            if fst trans = 1 then left + transLen else left
+        let rightInner =
+            if snd trans = 1 then right - transLen else right
+
+        let cen = (top + bot) / 2.0
+
+        //make lines
+        let topL = makeSigLine (leftInner, top) (rightInner, top)
+        let botL = makeSigLine (leftInner, bot) (rightInner, bot)
+        let topLeft = makeSigLine (left, cen) (leftInner, top)
+        let botLeft = makeSigLine (left, cen) (leftInner, bot)
+        let topRight = makeSigLine (right, cen) (rightInner, top)
+        let botRight = makeSigLine (right, cen) (rightInner, bot)
+
+        match trans with
+        | 1, 1 -> [| topLeft; botLeft; topRight; botRight |]
+        | 1, 0 -> [| topLeft; botLeft |]
+        | 0, 1 -> [| topRight; botRight |]
+        | 0, 0 -> [||]
+        | _ -> failwith "What? Transition has value other than 0 or 1"
+        |> Array.append [| topL; botL |]
+//Probably should put other option for negative number which prints an error
+
+
+let waveSvg model wsMod waveData =
+    let addLabel nLabels xInd = makeText (inWaveLabel nLabels xInd wsMod)
+
+    let valueLabels =
+        let lblEl (sample, xIndArr) =
+            match sample with
+            | Wire w when w.NBits > 1u ->
+                Array.map (fun xInd -> addLabel 1 xInd (radixChange w.BitData w.NBits wsMod.Radix)) xIndArr
+            | _ -> [||]
+        busLabels model waveData
+        |> Array.map (Array.collect lblEl)
+
+    let makeWaveSvg (sampArr: Waveform) (transArr: (int * int) []): ReactElement [] =
+        (sampArr, transArr)
+        ||> Array.mapi2 (makeSegment wsMod.ClkWidth)
+        |> Array.concat
+
+    let padTrans t =
+        match Array.length t with
+        | 0 -> [| 1, 1 |]
+        | 1 ->
+            [| (1, t.[0])
+               (t.[0], 1) |]
+        | _ ->
+            Array.pairwise t
+            |> (fun pairs ->
+                Array.concat
+                    [ [| 1, fst pairs.[0] |]
+                      pairs
+                      [| snd (Array.last pairs), 1 |] ])
+
+    transitions waveData
+    |> Array.map padTrans
+    |> Array.map2 makeWaveSvg (Array.transpose waveData)
+    |> Array.map2 Array.append valueLabels
+
+let clkRulerSvg (model: WaveSimModel) =
+    let makeClkRulLbl i =
+        match model.ClkWidth with
+        | clkW when clkW < 0.5 && i % 5 <> 0 -> [||]
+        | _ -> [| makeText (cursRectText model i) (string i) |]
+    [| 0 .. int model.LastClk |]
+    |> Array.collect makeClkRulLbl
+    |> (fun arr ->
+        [ backgroundSvg model
+          [| makeRect (cursRectStyle model) |]
+          arr ])
+    |> Array.concat
+    |> makeSvg (clkRulerStyle model)
+
 
 //auxiliary functions to the viewer function
 
@@ -34,7 +149,7 @@ let private toggleSelect (model: Model) (wSMod: WaveSimModel) ind dispatch =
     |> not
     |> selWave2selConn model wSMod ind
 
-let selectAllOn model wSMod dispatch =
+let private selectAllOn model wSMod dispatch =
     Array.mapi (fun i _ -> selWave2selConn model wSMod i true) wSMod.Ports
 
 let private selectAll model wSMod dispatch =

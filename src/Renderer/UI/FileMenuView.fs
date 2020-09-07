@@ -149,7 +149,7 @@ let private openFileInProject wsModel2SavedWaveInfoFunc name project model dispa
             model.Diagram.GetCanvasState()
             |> Option.map extractState
             |> Option. defaultValue <| failwithf "What? Current file %A has no canvas to save" project.OpenFileName
-        saveOpenFileAction false model
+        saveOpenFileAction false model wsModel2SavedWaveInfoFunc
         // make sure correct file gets opened.
         let lcs = 
             project.LoadedComponents 

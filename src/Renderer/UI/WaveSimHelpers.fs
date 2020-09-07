@@ -23,9 +23,9 @@ let private getReducedCanvState model =
     | Some cS -> Some <| extractReducedState cS
     | None -> None
 
-///////////////////////////////
+//////////////////////////
 /// Simulation Helpers ///
-///////////////////////////////
+//////////////////////////
 
 let private makeSimData model =
     match model.Diagram.GetCanvasState(), model.CurrProject with
@@ -39,48 +39,47 @@ let private makeSimData model =
         ||> prepareSimulation project.OpenFileName
         |> Some
 
-let rec private getPortsNet (graph: SimulationGraph) port =
-    let connectedLbls = 
-        graph.[port.CId].Outputs.[port.OutPN]
-        |> List.filter (fun (cId, _) -> graph.[cId].Type = IOLabel)
-    let connectedLblNames =
-        connectedLbls
-        |> List.map (fun (cId, _) -> graph.[cId].Label)
+let rec private getPortsNet (netList: NetList) port =
+    let connectedLblNames = 
+        netList.[port.CId].Outputs.[port.OutPN]
+        |> List.filter (fun netListTrgt -> netList.[netListTrgt.TargetCompId].Type = IOLabel)
+        |> List.map (fun netListTrgt -> netList.[netListTrgt.TargetCompId].Label)
         |> List.distinct
-    Map.filter (fun _ comp -> List.contains comp.Label connectedLblNames 
-                              && comp.Type = IOLabel) graph
+    Map.filter (fun _ (netListComp: NetListComponent) -> 
+                    List.contains netListComp.Label connectedLblNames 
+                    && netListComp.Type = IOLabel) netList
     |> Map.toList
     |> List.map (fun (cId, _) -> 
-        match Map.tryFind (OutputPortNumber 0) graph.[cId].Outputs with
+        match Map.tryFind (OutputPortNumber 0) netList.[cId].Outputs with
         | Some _ -> 
-            getPortsNet graph { CId = cId
-                                OutPN = OutputPortNumber 0
-                                TrgtId = None } 
+            getPortsNet netList { CId = cId
+                                  OutPN = OutputPortNumber 0
+                                  TrgtId = None } 
             |> (fun (a,b) -> a :: b)
         | None -> [] )
     |> List.concat
     |> (fun lst -> port, lst)
 
 
-let private reloadablePorts (model: Model) (simData: SimulatorTypes.SimulationData) : PortsNet [] =
-    let inGraph (port, _) = Map.containsKey port.CId simData.Graph
+let private reloadablePorts (model: Model) (netList: NetList) : PortsNet [] =
+    let inGraph (port, _) = Map.containsKey port.CId netList
     match currWS model with
     | Some wSMod ->
         Array.filter inGraph wSMod.Ports
         |> Array.map (fun (port, _) ->
             match port.TrgtId with
-            | Some trgtId when Map.exists (fun key _ -> key = trgtId) simData.Graph ->
-                match List.tryFind (fun (cid, _) -> cid = trgtId) 
-                         simData.Graph.[port.CId].Outputs.[port.OutPN] with
+            | Some trgtId when Map.containsKey trgtId netList ->
+                match List.tryFind (fun nlTrgt -> nlTrgt.TargetCompId = trgtId) 
+                         netList.[port.CId].Outputs.[port.OutPN] with
                 | Some _ -> port
                 | None -> { port with TrgtId = None }
             | _ -> { port with TrgtId = None }
-            |> getPortsNet simData.Graph)
+            |> getPortsNet netList)
     | None -> [||]
 
 
 
-let private clkAdvance (sD: SimulatorTypes.SimulationData) =
+let private clkAdvance (sD: SimulationData) =
     feedClockTick sD.Graph
     |> (fun graph ->
         { sD with
@@ -92,74 +91,65 @@ let extractSimData simData nCycles =
     ||> Array.mapFold (fun s _ -> clkAdvance s, clkAdvance s)
     |> fst
 
-/// Returns a tuple option representing the output to which the target input is connected
-let private driveOut simGraph targetCompId inPortN =
-    Map.toArray simGraph
-    |> Array.tryPick (fun (outCompId, simComp: SimulatorTypes.SimulationComponent) ->
-        Map.toArray simComp.Outputs
-        |> Array.tryFind (fun (_, lst) -> (List.exists (fun t -> t = (targetCompId, inPortN)) lst))
-        |> function
-        | Some(outPN, _) -> Some(outCompId, outPN)
-        | None -> None)
+/// get NLSource option from ComponentId and InputPortNumber
+let private drivingOutput (netList: NetList) compId inPortN =
+    netList.[compId].Inputs.[inPortN]
 
-let private procIns (simGraph: SimulationGraph) compId inputs: WaveSimPort [] =
-    Array.collect (fun portN ->
-        match simGraph.[compId].Type, driveOut simGraph compId portN with
-        | Input _, _ -> [||]
-        | Output _, Some(cId, oPN) ->
-            [| { CId = cId
-                 OutPN = oPN
-                 TrgtId = Some compId } |]
-        | _, Some(cId, oPN) ->
-            [| { CId = cId
-                 OutPN = oPN
-                 TrgtId = None } |]
-        | _, None -> failwith "Input is not connected") inputs
+/// get NLSource array of the inputs of a component
+let private componentInputNLSources (netList: NetList) componentId =
+    netList.[componentId].Inputs
+    |> Map.toArray 
+    |> Array.choose snd
 
-let private procCompIns simData (compId: ComponentId) (inputs: Map<InputPortNumber, WireData>): WaveSimPort [] =
-    Map.toArray inputs
-    |> Array.map fst
-    |> procIns simData.Graph compId
+/// get NLSource array of the outputs of a component
+let private componentOutputNLSources (netList: NetList) componentId =
+    netList.[componentId].Outputs
+    |> Map.toArray
+    |> Array.collect (fun (outPortN, nlTrgtLst) -> 
+        match nlTrgtLst with
+        | [] -> [||]
+        | _ -> 
+            [| { SourceCompId = componentId
+                 OutputPort = outPortN
+                 SourceConnId = nlTrgtLst.[0].TargetConnId } |] )
 
-let private procOuts compId outputs: WaveSimPort [] =
-    Map.toArray outputs
-    |> Array.map (fun (portNum, _) ->
-        { CId = compId
-          OutPN = portNum
-          TrgtId = None })
-
-let private processComp simData cId: WaveSimPort [] =
-    match Map.tryFind cId simData.Graph with
-    | Some sC -> Array.append (procCompIns simData cId sC.Inputs) 
-                              (procOuts cId sC.Outputs)
+/// get NLSource array of the inputs and outputs of a component
+let private componentNLSources (netList: NetList) componentId =
+    match Map.tryFind componentId netList with
+    | Some _ -> Array.append (componentInputNLSources netList componentId) 
+                              (componentOutputNLSources netList componentId)
     | None -> [||]
 
-let private remDuplicates (arrWithDup: WaveSimPort []) : WaveSimPort [] =
-    Array.groupBy (fun (p: WaveSimPort) -> p.CId, p.OutPN) arrWithDup
-    |> Array.map (fun (_, (ports: WaveSimPort [])) -> 
-        { ports.[0] with TrgtId = Array.tryPick (fun (p: WaveSimPort) -> p.TrgtId) ports })
+/// get NLSource array of a connection
+let private connectionNLSources (netList: NetList) connectionId =
+    let iterateThroughComponentInputs (inPortN, nlSourceOpt) =
+        match nlSourceOpt with
+        | Some nlSource ->
+            if nlSource.SourceConnId = connectionId
+            then Some nlSource
+            else None
+        | None -> None
+    let iterateThroughNetList (_, (nlComp: NetListComponent)) =
+        Map.toArray nlComp.Inputs
+        |> Array.choose iterateThroughComponentInputs
+    Map.toArray netList
+    |> Array.collect iterateThroughNetList
 
-let compsConns2portLst simData canvState diagElLst : WaveSimPort [] =
-    let portId2CIdInPN pId =
-        fst canvState
-        |> List.tryPick (fun c ->
-                List.tryFindIndex (fun (p: Port) -> p.Id = pId) c.InputPorts
-                |> function
-                | Some i -> Some(c.Id, i)
-                | None -> None)
+/// get NLSource array given a tuple of components and connections
+let compsConns2nlSources (netList: NetList) ((comps, conns):CanvasState) =
+    let sourcesFromComps =
+        List.toArray comps
+        |> Array.collect (fun (comp: Component) -> 
+                                componentNLSources netList (ComponentId comp.Id)) 
+    let sourcesFromConns = 
+        List.toArray conns
+        |> Array.collect (fun (conn: Connection) -> 
+                                connectionNLSources netList (ConnectionId conn.Id))
+    Array.append sourcesFromComps sourcesFromConns
+    |> Array.distinct
 
-    diagElLst
-    |> List.toArray
-    |> Array.collect (fun compEl ->
-        match compEl with
-        | Comp c -> processComp simData (ComponentId c.Id)
-        | Conn c ->
-            match portId2CIdInPN c.Target.Id with
-            | Some(cId, inPN) -> procIns simData.Graph (ComponentId cId) [| InputPortNumber inPN |]
-            | None -> [||])
-    |> remDuplicates
-
-let avalPorts (model: Model) =
+/// get array of available NLSource in current canvas state
+(*let avalPorts (model: Model) =
     match model.Diagram.GetCanvasState(), model.CurrProject with
     | None, _ -> [||]
     | _, None -> failwith "what? Cannot start a simulation without a project"
@@ -176,7 +166,7 @@ let avalPorts (model: Model) =
                                          | IOLabel -> false
                                          | _ -> true )
             |> Array.map (getPortsNet simData.Graph)
-        | Error _ -> [||]
+        | Error _ -> [||]*)
 
 
 let private simWireData2Wire wireData =
@@ -207,8 +197,6 @@ let extractSimTime portNets (simGraph: SimulationGraph) =
 let makeWaveData (wsMod: WaveSimModel) =
     Array.map (fun sD -> sD.Graph) wsMod.SimData
     |> Array.map (extractSimTime wsMod.Ports) 
-
-
 
 let port2ConnId (model: Model) (p: WaveSimPort) =
     match model.Diagram.GetCanvasState() with
@@ -261,11 +249,9 @@ let selWave2selConn model wSMod ind on =
 /// Naming of waveforms ///
 ///////////////////////////
 
-
-
 let rec findName 
         (compIds: ComponentId Set)
-        (simGraph: SimulatorTypes.SimulationGraph)
+        (netList: NetList)
         ({ CId = compId; OutPN = outPortN; TrgtId = outputOpt }: WaveSimPort)
         : string option * ((string *(int*int)) list) =
 
@@ -273,13 +259,11 @@ let rec findName
         None,[] // component is no longer in circuit due to changes
     else
         let compLbl =
-            match Map.tryFind compId simGraph with
-            | Some simComp ->
-                match simComp.Label with
-                | ComponentLabel lbl ->
-                    match Seq.tryFindIndexBack ((=) '(') lbl with
-                    | Some i -> lbl.[0..i - 1]
-                    | None -> lbl //not robust!
+            match Map.tryFind compId netList with
+            | Some nlComp ->
+                match Seq.tryFindIndexBack ((=) '(') nlComp.Label with
+                | Some i -> nlComp.Label.[0..i - 1]
+                | None -> nlComp.Label
             | None -> failwith "simData.Graph.[compId] doesn't exist"
 
         let outPortInt =
@@ -287,8 +271,8 @@ let rec findName
             | OutputPortNumber pn -> pn
 
         let driveName n compTypeStr =
-            match driveOut simGraph compId (InputPortNumber n) with
-            | Some(driveCompId, drivePortN) ->
+            match drivingOutput netList compId (InputPortNumber n) with
+            | Some Source ->
                 findName compIds simGraph
                     { CId = driveCompId
                       OutPN = drivePortN
@@ -297,31 +281,23 @@ let rec findName
             | None -> failwith (compTypeStr + "input not connected")
 
         match simGraph.[compId].Type with
-        | Not
-        | And
-        | Or
-        | Xor
-        | Nand
-        | Nor
-        | Xnor
-        | Decode4
-        | Mux2 -> [ compLbl, (0, 0) ]
-        | Input w
-        | Output w 
-        | Constant(w, _) -> [ compLbl, (w - 1, 0) ]
+        | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4 | Mux2 -> 
+            [ compLbl, (0, 0) ]
+        | Input w | Output w | Constant(w, _) -> 
+            [ compLbl, (w - 1, 0) ]
         | Demux2 -> [ compLbl + "_" + string outPortInt, (0, 0) ]
         | NbitsAdder w ->
             match outPortInt with
             | 0 -> [ compLbl + "_sum", (w - 1, 0) ]
             | _ -> [ compLbl + "Cout", (w - 1, 0) ]
-        | DFF
-        | DFFE -> [ compLbl + "_Q", (0, 0) ]
-        | Register w
-        | RegisterE w -> [ compLbl + "_data-out", (w - 1, 0) ]
-        | RAM mem
-        | AsyncROM mem
-        | ROM mem -> [ compLbl + "_data-out", (mem.WordWidth - 1, 0) ]
-        | Custom c -> [ compLbl + "_" + fst c.OutputLabels.[outPortInt], (snd c.OutputLabels.[outPortInt] - 1, 0) ]
+        | DFF | DFFE -> 
+            [ compLbl + "_Q", (0, 0) ]
+        | Register w | RegisterE w -> 
+            [ compLbl + "_data-out", (w - 1, 0) ]
+        | RAM mem | AsyncROM mem | ROM mem -> 
+            [ compLbl + "_data-out", (mem.WordWidth - 1, 0) ]
+        | Custom c -> 
+            [ compLbl + "_" + fst c.OutputLabels.[outPortInt], (snd c.OutputLabels.[outPortInt] - 1, 0) ]
         | IOLabel ->
             match driveOut simGraph compId (InputPortNumber 0) with
             | Some(driveCompId, drivePortN) ->
@@ -338,7 +314,8 @@ let rec findName
                         List.append lst.[0..List.length lst - 2] [ fst (List.last lst) + ")", snd (List.last lst) ]
                 | [] -> failwith "Error: IOLabel input names list is empty"
             | None -> failwith "IOLabel input not connected"
-        | MergeWires -> List.append (driveName 1 "MergeWires") (driveName 0 "MergeWires")
+        | MergeWires -> 
+            List.append (driveName 1 "MergeWires") (driveName 0 "MergeWires")
         | SplitWire w ->
             let predicate (_, b) =
                 match outPortInt with
@@ -379,8 +356,6 @@ let rec findName
                 | None -> None, lst
                 | Some {Label = ComponentLabel lbl} -> Some(lbl + ": "), lst
             | None -> None, lst)
-
-
 
 let private bitNums (a, b) =
     match (a, b) with

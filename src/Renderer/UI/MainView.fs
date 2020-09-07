@@ -245,13 +245,9 @@ let displayView model dispatch =
           OnMouseDown (makeSelectionChangeMsg model dispatch)
           OnMouseMove processMouseMove
           Style [ BorderTop "2px solid lightgray"; BorderBottom "2px solid lightgray" ] ] [
-
-        viewTopMenu model wsModel2SavedWaveInfo fileMenuViewActions simulateButtonFunc dispatch 
-        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode ) 
-
         viewNoProjectMenu model dispatch
         viewPopup model
-        viewTopMenu model dispatch 
+        viewTopMenu model wsModel2SavedWaveInfo fileMenuViewActions simulateButtonFunc dispatch
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode ) 
         viewNotifications model dispatch
         viewOnDiagramButtons model dispatch

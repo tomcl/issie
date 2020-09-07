@@ -74,7 +74,7 @@ type Model = {
         | :? Model as x' -> reduce this = reduce x'
         | _ -> false
 
-let private reduce (this: Model) = {|
+let reduce (this: Model) = {|
          RightTab = this.RightTab
          Hilighted = this.Hilighted
          Clipboard = this.Clipboard
@@ -97,7 +97,21 @@ let private reduce (this: Model) = {|
          ConnsToBeHighlighted = this.ConnsToBeHighlighted
 
  |} 
-        
+       
+let reduceApprox (this: Model) = {|
+         RightTab = this.RightTab
+         Clipboard = this.Clipboard
+         CurrProject = match this.Popup with None -> false | _ -> true
+         SimulationIsStale = this.SimulationIsStale
+         LastUsedDialogWidth = this.LastUsedDialogWidth
+         CreateComponent = this.CreateComponent
+         HasUnsavedChanges = this.HasUnsavedChanges
+         CurrProject = match this.Popup with None -> false | _ -> true
+         PopupDialogData = this.PopupDialogData
+         DragMode = this.DragMode
+         ViewerWidth = this.ViewerWidth
+         SimulationInProgress = this.SimulationInProgress
+ |} 
 
 /// Lens to facilitate changing AsyncActivity
 let setActivity (f: AsyncTasksT -> AsyncTasksT) (model: Model) =

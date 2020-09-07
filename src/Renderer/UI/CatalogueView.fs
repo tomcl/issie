@@ -622,6 +622,21 @@ let private makeMenuGroupWithTip  title tip menuList =
         Menu.list [] menuList
     ]
 
+let compareModelsApprox (m1:Model) (m2:Model) =
+    let initActivity = {
+        AutoSave = Inactive
+        LastSavedCanvasState = None
+        LastAutoSaveCheck = System.DateTime.MinValue
+        LastAutoSave = System.DateTime.MinValue
+        RunningSimulation = false
+        }
+    let m1r = reduceApprox m1
+    let m2r = reduceApprox m2
+    let b = m1r = m2r
+    printfn "Model equality:%A" b
+    if b = false then printfn "\n\n%A\n\n%A\n\n" m1r m2r
+    b
+
 let viewCatalogue model dispatch =
         let viewCatOfModel = fun model ->                 
             let catTipInstall el = 

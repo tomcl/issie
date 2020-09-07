@@ -613,9 +613,17 @@ let private makeMenuGroup title menuList =
         Menu.list [] menuList
     ]
 
+let private makeMenuGroupWithTip  title tip menuList =
+    let addTip (el: Browser.Types.Element) =
+        if not (isNull el) then 
+            el.setAttribute("data-tippy-content",tip)    
+    details [Open false; Ref addTip] [
+        summary [menuLabelStyle] [ str title ]
+        Menu.list [] menuList
+    ]
+
 let viewCatalogue model dispatch =
-        let viewCatOfModel = fun model ->
-            let catTip name func (tip:string) = JSHelpers.tipRef "Cat_" "left" name (menuItem name func) tip
+        let viewCatOfModel = fun model ->                 
             let catTipInstall el = 
                     if not (isNull el) then
                         printfn "Installing cat"
@@ -625,7 +633,9 @@ let viewCatalogue model dispatch =
 
  
             let catTip1 name func (tip:string) = 
-                div [Props.Ref (fun element -> if not (isNull element) then element.setAttribute("data-tippy-content",tip))] [menuItem name func]
+                div [Props.Ref (fun element -> 
+                        if not (isNull element) then 
+                            element.setAttribute("data-tippy-content",tip))] [menuItem name func]
             Menu.menu [Props [Class "py-1"; Ref catTipInstall]]  [
                     makeMenuGroup
                         "Input / Output"
@@ -645,29 +655,30 @@ let viewCatalogue model dispatch =
                                                                                                 more selected bits of its input" ]
                     makeMenuGroup
                         "Gates"
-                        [ menuItem "Not"  (fun _ -> createCompStdLabel Not model dispatch)
-                          menuItem "And"  (fun _ -> createCompStdLabel And model dispatch)
-                          menuItem "Or"   (fun _ -> createCompStdLabel Or model dispatch)
-                          menuItem "Xor"  (fun _ -> createCompStdLabel Xor model dispatch)
-                          menuItem "Nand" (fun _ -> createCompStdLabel Nand model dispatch)
-                          menuItem "Nor"  (fun _ -> createCompStdLabel Nor model dispatch)
-                          menuItem "Xnor" (fun _ -> createCompStdLabel Xnor model dispatch) ]
+                        [ catTip1 "Not"  (fun _ -> createCompStdLabel Not model dispatch) "Invertor: output is negation of input"
+                          catTip1 "And"  (fun _ -> createCompStdLabel And model dispatch) "Output is 1 if both the two inputs are 1"
+                          catTip1 "Or"   (fun _ -> createCompStdLabel Or model dispatch) "Output is 1 if either of the two inputs are 1"
+                          catTip1 "Xor"  (fun _ -> createCompStdLabel Xor model dispatch) "Output is 1 if the two inputs have different values"
+                          catTip1 "Nand" (fun _ -> createCompStdLabel Nand model dispatch) "Output is 0 if both the two inputs are 1"
+                          catTip1 "Nor"  (fun _ -> createCompStdLabel Nor model dispatch) "Output is 0 if either of the two inputs are 1"
+                          catTip1 "Xnor" (fun _ -> createCompStdLabel Xnor model dispatch) "Output is 1 if the two inputs have the same values"]
                     makeMenuGroup
                         "Mux / Demux"
-                        [ catTip1 "Mux2" (fun _ -> createCompStdLabel Mux2 model dispatch) "Selects one of its two input busses 
+                        [ catTip1 "Mux2" (fun _ -> createCompStdLabel Mux2 model dispatch) "Selects the one of its two input busses numbered by the value of the select input
                                                                                 to be the output. Adjusts bus width to match."
-                          menuItem "Demux2" (fun _ -> createCompStdLabel Demux2 model dispatch) 
+                          catTip1 "Demux2" (fun _ -> createCompStdLabel Demux2 model dispatch)  "The output is equal to the input, the other is 0"
                           catTip1 "Decode4" (fun _ -> createCompStdLabel Decode4 model dispatch) "The output numbered by the binary value 
                                                                                                 of the 2 bit sel input is equal to Data, the others are 0"]
                     makeMenuGroup
                         "Arithmetic"
-                        [ menuItem "N bits adder" (fun _ -> createNbitsAdderPopup model dispatch) ]
+                        [ catTip1 "N bits adder" (fun _ -> createNbitsAdderPopup model dispatch) "N bit Binary adder with carry in to bit 0 and carry out from bit N-1"]
                     makeMenuGroup
                         "Flip Flops and Registers"
-                        [ menuItem "D-flip-flop" (fun _ -> createCompStdLabel DFF model dispatch)
-                          menuItem "D-flip-flop with enable" (fun _ -> createCompStdLabel DFFE model dispatch)
-                          menuItem "Register" (fun _ -> createRegisterPopup Register model dispatch)
-                          menuItem "Register with enable" (fun _ -> createRegisterPopup RegisterE model dispatch) ]
+                        [ catTip1 "D-flip-flop" (fun _ -> createCompStdLabel DFF model dispatch) "D flip-flop - note that clock is assumed always connected to a global clock, \
+                                                                                                   so ripple counters cannot be implemented in Issie"
+                          catTip1 "D-flip-flop with enable" (fun _ -> createCompStdLabel DFFE model dispatch) "D flip-flop: output will remain unchanged when En is 0"
+                          catTip1 "Register" (fun _ -> createRegisterPopup Register model dispatch) "N D flip-flops with inputs and outputs combined into single N bit busses"
+                          catTip1 "Register with enable" (fun _ -> createRegisterPopup RegisterE model dispatch) "As register but outputs stay the same if En is 0"]
                     makeMenuGroup
                         "Memories"
                         [ catTip1 "ROM (asynchronous)" (fun _ -> createMemoryPopup AsyncROM model dispatch) "This is combinational: \
@@ -675,9 +686,11 @@ let viewCatalogue model dispatch =
                           catTip1 "ROM (synchronous)" (fun _ -> createMemoryPopup ROM model dispatch) "A ROM whose output contains \
                                                     the addressed data in the clock cycle after the address is presented"
                           catTip1 "RAM" (fun _ -> createMemoryPopup RAM model dispatch)  "A RAM whose output contains the addressed \
-                                                   data in the clock cycle after the address is presented"]
-                    makeMenuGroup
+                                                   data in the clock cycle after the address is presented" ]
+                    makeMenuGroupWithTip 
                         "This project"
+                        "Every design sheet is available for use in other sheets as a custom component: \
+                        it can be added any number of times, each instance replicating the sheet logic"
                         (makeCustomList model)
                 ]
         (Elmish.React.Common.lazyView viewCatOfModel) model

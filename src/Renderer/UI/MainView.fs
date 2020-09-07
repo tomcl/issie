@@ -22,6 +22,7 @@ open SelectedComponentView
 open SimulationView
 open PopupView
 open FileMenuView
+open WaveSimHelpers
 open WaveformSimulationView
 
 open Fable.Core
@@ -244,7 +245,7 @@ let displayView model dispatch =
           OnMouseDown (makeSelectionChangeMsg model dispatch)
           OnMouseMove processMouseMove
           Style [ BorderTop "2px solid lightgray"; BorderBottom "2px solid lightgray" ] ] [
-        viewTopMenu model dispatch 
+        viewTopMenu model wsModel2SavedWaveInfo fileMenuViewActions simulateButtonFunc dispatch 
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode ) 
         viewNoProjectMenu model dispatch
         viewPopup model
@@ -311,7 +312,7 @@ let private handleJSDiagramMsg msg model =
 let private handleKeyboardShortcutMsg msg model =
     match msg with
     | CtrlS ->
-        saveOpenFileAction false model
+        saveOpenFileAction false model wsModel2SavedWaveInfo
         { model with HasUnsavedChanges = false }
     | AltC ->
         // Similar to the body of OnDiagramButtonsView.copyAction but without
@@ -339,11 +340,11 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
                 printfn "PNG is %d bytes" png.Length
                 FilesIO.savePngFile p.ProjectPath p.OpenFileName  png)
     | MenuSaveFile -> 
-        FileMenuView.saveOpenFileAction false model 
+        FileMenuView.saveOpenFileAction false model wsModel2SavedWaveInfo
         SetHasUnsavedChanges false
         |> JSDiagramMsg |> dispatch
     | MenuNewFile -> 
-        FileMenuView.addFileToProject model dispatch
+        FileMenuView.addFileToProject wsModel2SavedWaveInfo model dispatch
     | MenuZoom z -> 
         zoomDiagram z model
     model
@@ -428,8 +429,8 @@ let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
                     |> updateTimeStamp
                     |> setActivity (fun a -> {a with LastSavedCanvasState = newReducedState})
                     |> (fun model' -> 
-                        saveOpenFileAction true model'; 
-                        setActivity (fun a -> {a with LastAutoSave = System.DateTime.Now}) model';)
+                        saveOpenFileAction true model' wsModel2SavedWaveInfo 
+                        setActivity (fun a -> {a with LastAutoSave = System.DateTime.Now}) model')
                 else
                     model
                 |> setActivity (fun a ->
@@ -585,11 +586,11 @@ let update msg model =
             match currWS model, par with
             | Some wSMod, Ok ports -> 
                 { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model [] 
-                             WaveSim = Map.add fileName (waveGen model wSMod ports) (fst model.WaveSim), 
+                             WaveSim = Map.add fileName (waveGen model waveSvg clkRulerSvg wSMod ports) (fst model.WaveSim), 
                                        snd model.WaveSim
                              SimulationInProgress = None }, Cmd.ofMsg SetSimNotInProgress
             | Some wSMod, Error par -> 
-                { model with WaveSim = Map.add fileName (updateWSMod model wSMod par) (fst model.WaveSim), 
+                { model with WaveSim = Map.add fileName (updateWSMod waveSvg clkRulerSvg model wSMod par) (fst model.WaveSim), 
                                        snd model.WaveSim 
                              SimulationInProgress = None }, Cmd.ofMsg SetSimNotInProgress
             | _ -> 

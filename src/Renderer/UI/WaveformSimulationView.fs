@@ -57,11 +57,8 @@ let private makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * i
         | _ -> failwith "What? Transition has value other than 0 or 1"
         |> Array.append [| sigLine |]
     | _ ->
-        let leftInner =
-            if fst trans = 1 then left + transLen else left
-        let rightInner =
-            if snd trans = 1 then right - transLen else right
-
+        let leftInner = if fst trans = 1 then left + transLen else left
+        let rightInner = if snd trans = 1 then right - transLen else right
         let cen = (top + bot) / 2.0
 
         //make lines
@@ -79,7 +76,6 @@ let private makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * i
         | 0, 0 -> [||]
         | _ -> failwith "What? Transition has value other than 0 or 1"
         |> Array.append [| topL; botL |]
-//Probably should put other option for negative number which prints an error
 
 
 let waveSvg model wsMod waveData =
@@ -89,7 +85,7 @@ let waveSvg model wsMod waveData =
         let lblEl (sample, xIndArr) =
             match sample with
             | Wire w when w.NBits > 1u ->
-                Array.map (fun xInd -> addLabel 1 xInd (radixChange w.BitData w.NBits wsMod.Radix)) xIndArr
+                Array.map (fun xInd -> addLabel 1 xInd (n2StringOfRadix w.BitData w.NBits wsMod.Radix)) xIndArr
             | _ -> [||]
         busLabels model waveData
         |> Array.map (Array.collect lblEl)
@@ -164,7 +160,7 @@ let private cursValStrings compIds (wSMod: WaveSimModel) (waveData: Sample [] []
 
     let makeCursVal sample =
         match sample with
-        | Wire w when w.NBits > 1u -> [| pref + radixChange w.BitData w.NBits wSMod.Radix |]
+        | Wire w when w.NBits > 1u -> [| pref + n2StringOfRadix w.BitData w.NBits wSMod.Radix |]
         | Wire w -> [| pref + string w.BitData |]
         | StateSample s -> s
 

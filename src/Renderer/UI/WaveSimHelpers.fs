@@ -14,24 +14,27 @@ open Extractor
 open Simulator
 open SimulatorTypes
 
-///////////////////////////////
-/// General WaveSim Helpers ///
-///////////////////////////////
+/////////////////////////////
+// General WaveSim Helpers //
+/////////////////////////////
 
+/// get an option of the reduced canvas state
 let private getReducedCanvState model =
     match model.Diagram.GetCanvasState() with
     | Some cS -> Some <| extractReducedState cS
     | None -> None
     
+/// get NetList from WaveSimModel
 let wsModel2netList wsModel =
     match wsModel.LastCanvasState with
     | Some canvState -> Helpers.getNetList canvState
     | None -> Map.empty
 
-//////////////////////////
-/// Simulation Helpers ///
-//////////////////////////
+////////////////////////
+// Simulation Helpers //
+////////////////////////
 
+/// get option of the Simulation Data of the current Diagram
 let private makeSimData model =
     match model.Diagram.GetCanvasState(), model.CurrProject with
     | None, _ -> None
@@ -67,7 +70,7 @@ let private isNetListTrgtInNetList (netList: NetList) (nlTrgt: NLTarget) =
     Map.exists (fun _ (nlComp: NetListComponent) -> 
                     Map.exists (fun _ nlTrgtLst -> List.contains nlTrgt nlTrgtLst) nlComp.Outputs) netList
 
-/// trgtL
+/// get array of TrgtLstGroup with the non-existing NLTargets removed
 let private getReloadableTrgtLstGroups (model: Model) (netList: NetList) =
     match currWS model with
     | Some wSMod ->
@@ -131,7 +134,7 @@ let availableNLTrgtLstGroups (model: Model) =
             Map.map (fun _ lst -> getTrgtLstGroup netList lst) nlComp.Outputs 
             |> Map.toArray |> Array.map snd)
 
-
+/// get instantaneous value of a port
 let private simWireData2Wire wireData =
     wireData
     |> List.mapFold (fun weight bit ->
@@ -161,6 +164,7 @@ let private appendSimData (wSModel: WaveSimModel) nCycles =
     extractSimData (Array.last wSModel.SimData) nCycles 
     |> Array.append wSModel.SimData
 
+/// get JSConnection list from ConnectionId (as a string)
 let private connId2JSConn (model: Model) connId =
     match model.Diagram.GetCanvasState() with
     | Some (_, jsConns) -> 
@@ -170,12 +174,14 @@ let private connId2JSConn (model: Model) connId =
        | Some jsConn -> [ jsConn ]
        | None -> []
 
+/// get Ids of connections in a trgtLstGroup
 let private wave2ConnIds (trgtLstGroup: TrgtLstGroup) =
     Array.append [|trgtLstGroup.mainTrgtLst|] trgtLstGroup.connectedTrgtLsts
     |> Array.collect (fun trgtLst -> 
         List.toArray trgtLst 
         |> Array.map (fun nlTrgt -> nlTrgt.TargetConnId))
 
+/// select the connections of a given waveform
 let selWave2selConn model (trgtLstGroup: TrgtLstGroup) on =
     wave2ConnIds trgtLstGroup
     |> Array.toList
@@ -315,6 +321,7 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
             |> (fun composingLbls -> { OutputsAndIOLabels = trgtLstGroup2outputsAndIOLabels netList nlTrgtListGroup
                                        ComposingLabels = composingLbls })
 
+/// get string in the [x:x] format given the bit limits
 let private bitLimsString (a, b) =
     match (a, b) with
     | (0, 0) -> ""
@@ -366,22 +373,9 @@ let backgroundSvg (model: WaveSimModel) =
 ////////////////////////
 
 
-let dec2binAlt (n:bigint) (nBits:uint32) =
+let dec2bin (n:bigint) (nBits:uint32) =
     [nBits - 1u..0u]
     |> List.map (fun bitNum -> if n &&& (1I <<< int bitNum) = 0I then '0' else '1')
-
-let dec2bin (n: bigint) (nBits: uint32): string =
-    let folder (state: bigint * char list) (digit: int) =
-        if fst state / bigint digit = bigint 1
-        then (fst state - bigint digit, List.append (snd state) [ '1' ])
-        else (fst state, List.append (snd state) [ '0' ])
-    [ float nBits - 1.0 .. (-1.0) .. 0.0 ]
-    |> List.map ((fun exp -> 2.0 ** exp) >> (fun f -> int f))
-    |> List.fold folder (n, [])
-    |> snd
-    |> List.toSeq
-    |> Seq.map string
-    |> String.concat ""
 
 let dec2hex (n: bigint) (nBits: uint32): string =
     let seqPad = 
@@ -413,10 +407,11 @@ let dec2sdec (n: bigint) (nBits: uint32) =
         else n
     |> string
 
-let radixChange (n: bigint) (nBits: uint32) (rad: NumberBase) =
+/// convert number to number string of the chosen radix
+let n2StringOfRadix (n: bigint) (nBits: uint32) (rad: NumberBase) =
     match rad with
     | Dec -> string n
-    | Bin -> dec2bin n nBits
+    | Bin -> string <| dec2bin n nBits
     | Hex -> dec2hex n nBits
     | SDec -> dec2sdec n nBits
 
@@ -425,17 +420,8 @@ let radixChange (n: bigint) (nBits: uint32) (rad: NumberBase) =
 /// Transitions ///
 ///////////////////
 
-let makeGaps trans =
-    Array.append trans [| 1 |]
-    |> Array.mapFold (fun tot t -> tot, tot + t) 0
-    |> fst
-    |> Array.indexed
-    |> Array.groupBy snd
-    |> Array.map (fun (_, gL) ->
-        let times = Array.map fst gL
-        {| GapLen = Array.max times - Array.min times + 1
-           GapStart = Array.min times |})
-
+/// get m x (n-1) array of integers representing when value change between clock cycles from m x n waveData
+/// (1: change, 0 no change)
 let transitions waveData =
     let isDiff (ws1, ws2) =
         let folder state e1 e2 =
@@ -452,10 +438,23 @@ let transitions waveData =
     Array.transpose waveData
     |> Array.map (Array.pairwise >> Array.map isDiff)
 
+/// get gaps from transition array
+let makeGaps trans =
+    Array.append trans [| 1 |]
+    |> Array.mapFold (fun tot t -> tot, tot + t) 0
+    |> fst
+    |> Array.indexed
+    |> Array.groupBy snd
+    |> Array.map (fun (_, gL) ->
+        let times = Array.map fst gL
+        {| GapLen = Array.max times - Array.min times + 1
+           GapStart = Array.min times |})
+
 ///////////////////////
 /// WaveSim Actions ///
 ///////////////////////
 
+/// add entry with key: current fileName and data: initWS to model.WaveSim
 let initFileWS model dispatch =
     match getCurrFile model with
     | Some fileName ->
@@ -464,6 +463,7 @@ let initFileWS model dispatch =
         |> dispatch
     | None -> ()
 
+/// set model.WaveAdder to show the list of waveforms that can be selected
 let private setWA compIds model wSMod dispatch simData netList =
     SetViewerWidth minViewerWidth |> dispatch
     getReducedCanvState model |> SetLastSimulatedCanvasState |> dispatch
@@ -480,6 +480,7 @@ let private setWA compIds model wSMod dispatch simData netList =
     |> SetCurrFileWSMod
     |> dispatch
 
+/// ReactElement array of the box containing the waveform's SVG
 let private waveCol waveSvg clkRulerSvg model wsMod waveData =
     let waveTableRow rowClass cellClass svgClass svgChildren =
         tr rowClass [ td cellClass [ makeSvg svgClass svgChildren ] ]
@@ -495,7 +496,8 @@ let private waveCol waveSvg clkRulerSvg model wsMod waveData =
                     (Array.concat [| cursRectSvg; bgSvg; wave |])) (waveSvg model wsMod waveData))
     |> Array.append [| tr [ Class "rowHeight" ] [ td (waveCell wsMod) [ clkRulerSvg wsMod ] ] |]
 
-let updateWSMod  waveSvg clkRulerSvg (model: Model) (wsMod: WaveSimModel) 
+/// update the WaveSimModel entry of the current file with new parameters
+let updateWSMod waveSvg clkRulerSvg (model: Model) (wsMod: WaveSimModel) 
                 (par: {| LastClk: uint; Curs: uint; ClkW: float |}) : WaveSimModel =
     let cursLastClkMax = max par.Curs par.LastClk
     match cursLastClkMax > wsMod.LastClk with
@@ -508,6 +510,7 @@ let updateWSMod  waveSvg clkRulerSvg (model: Model) (wsMod: WaveSimModel)
                           ClkWidth = par.ClkW } )
     |> (fun m -> { m with WaveTable = waveCol waveSvg clkRulerSvg model m (getWaveData m) })
 
+/// call waveCol with the current Simulation Data 
 let waveGen model waveSvg clkRulerSvg (wSMod: WaveSimModel) ports =
     let simData' = 
         match wSMod.WaveAdder.SimData with
@@ -529,25 +532,30 @@ let waveGen model waveSvg clkRulerSvg (wSMod: WaveSimModel) ports =
 /// Interaction with Model.Diagram ///
 //////////////////////////////////////
 
-let private isNLTrgtLstSelectedByConn (connId: ConnectionId) (nlTrgtLst: NLTarget list) =
+/// is the given connection in the given NLTarget list
+let private isConnInNLTrgtLst (connId: ConnectionId) (nlTrgtLst: NLTarget list) =
     List.exists (fun nlTrgt -> nlTrgt.TargetConnId = connId) nlTrgtLst
 
-let private isNLTrgtLstSelectedByComp (nlComponent: NetListComponent) (nlTrgtLst: NLTarget list) =
+/// is the given component connected to the NLTarget list
+let private isCompInNLTrgtLst (nlComponent: NetListComponent) (nlTrgtLst: NLTarget list) =
     Map.exists (fun _ compNLTrgtLst -> compNLTrgtLst = nlTrgtLst) nlComponent.Outputs
     || List.exists (fun nlTrgt -> nlTrgt.TargetCompId = nlComponent.Id) nlTrgtLst
 
+/// is the given NLTarget list selected by the given selection
 let private isNLTrgtLstSelected (netList: NetList) ((comps, conns): CanvasState) (nlTrgtLst: NLTarget list) =
     List.exists (fun (comp: Component) -> 
         match Map.tryFind (ComponentId comp.Id) netList with
-        | Some comp -> isNLTrgtLstSelectedByComp comp nlTrgtLst
+        | Some comp -> isCompInNLTrgtLst comp nlTrgtLst
         | None -> false ) comps
     || List.exists (fun (conn: Connection) -> 
-           isNLTrgtLstSelectedByConn (ConnectionId conn.Id) nlTrgtLst) conns
+           isConnInNLTrgtLst (ConnectionId conn.Id) nlTrgtLst) conns
 
+/// is the given waveform selected by the given selection
 let private isNLTrgtLstGroupSelected (netList: NetList) ((comps, conns): CanvasState) (trgtLstGroup: TrgtLstGroup) =
     Array.append [|trgtLstGroup.mainTrgtLst|] trgtLstGroup.connectedTrgtLsts
     |> Array.exists (isNLTrgtLstSelected netList (comps, conns)) 
 
+/// is the given waveform selected by the current diagram selection
 let isWaveSelected model netList (nlTrgtLstGroup: TrgtLstGroup) = 
     match model.Diagram.GetSelected() with
     | Some selectedCompsConnsJS ->
@@ -559,6 +567,7 @@ let isWaveSelected model netList (nlTrgtLstGroup: TrgtLstGroup) =
 /// Saving WaveSim Model ///
 ////////////////////////////
 
+/// get saveable record of waveform setup
 let wsModel2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
     { Ports = wsMod.Ports
       ClkWidth = wsMod.ClkWidth
@@ -568,6 +577,7 @@ let wsModel2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
       WaveAdderOpen = wsMod.WaveAdderOpen
       WaveAdderPorts = wsMod.WaveAdder.Ports }
 
+/// setup current WaveSimModel from saved record
 let savedWaveInfo2wsModel compIds waveSvg clkRulerSvg model (sWInfo: SavedWaveInfo) : WaveSimModel =
     match makeSimData model, model.Diagram.GetCanvasState() with
     | Some (Ok sD), Some canvState ->
@@ -588,14 +598,14 @@ let savedWaveInfo2wsModel compIds waveSvg clkRulerSvg model (sWInfo: SavedWaveIn
                         Ports = waPorts'
                         WaveNames = Array.map (nlTrgtLstGroup2Label compIds sD.Graph netList) waPorts' }
           LastCanvasState = getReducedCanvState model }
-    | Some (Error err), _ -> initWS//Should probably display error somehow
-    | None, _ | _, None -> initWS
-    |> (fun m -> { m with WaveTable = waveCol waveSvg clkRulerSvg model m (getWaveData m) } )
+        |> (fun m -> { m with WaveTable = waveCol waveSvg clkRulerSvg model m (getWaveData m) } )
+    | Some (Error _), _ | None, _ | _, None -> initWS
 
 /////////////////////////////////////////////////////
 /// Functions fed into FileMenuView View function ///
 /////////////////////////////////////////////////////
 
+/// actions triggered whenever the fileMenuView function is executed
 let fileMenuViewActions model dispatch =
     match model.SimulationInProgress with
     | Some par -> SimulateWhenInProgress par |> dispatch
@@ -615,6 +625,7 @@ let fileMenuViewActions model dispatch =
         | _ -> ()
     else ()
 
+/// actions triggered by pressing the Simulate >>> button
 let simulateButtonFunc compIds model dispatch =
     match model.SimulationIsStale, currWS model, makeSimData model, model.Diagram.GetCanvasState() with
     | true, Some wSMod, Some (Ok simData), Some jsCanvState ->

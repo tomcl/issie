@@ -533,7 +533,9 @@ let private isNLTrgtLstSelectedByComp (nlComponent: NetListComponent) (nlTrgtLst
 
 let private isNLTrgtLstSelected (netList: NetList) ((comps, conns): CanvasState) (nlTrgtLst: NLTarget list) =
     List.exists (fun (comp: Component) -> 
-        isNLTrgtLstSelectedByComp netList.[ComponentId comp.Id] nlTrgtLst) comps
+        match Map.tryFind (ComponentId comp.Id) netList with
+        | Some comp -> isNLTrgtLstSelectedByComp comp nlTrgtLst
+        | None -> false ) comps
     || List.exists (fun (conn: Connection) -> 
            isNLTrgtLstSelectedByConn (ConnectionId conn.Id) nlTrgtLst) conns
 

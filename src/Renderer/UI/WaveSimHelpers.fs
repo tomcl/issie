@@ -186,10 +186,15 @@ let selWave2selConn model (trgtLstGroup: TrgtLstGroup) on =
 /// Naming of waveforms ///
 ///////////////////////////
 
-/// get common NLSource of list of NLTarget with hte s
-let private nlTrgtLst2CommonNLSource (netList: NetList) (nlTrgtLst: NLTarget list) =
+/// get common NLSource of list of NLTarget with the same source
+let private nlTrgtLst2CommonNLSource (netList: NetList) (nlTrgtLst: NLTarget list) : NLSource option =
     List.tryPick (fun (nlTrgt: NLTarget) -> 
-        netList.[nlTrgt.TargetCompId].Inputs.[nlTrgt.InputPort]) nlTrgtLst
+        match Map.tryFind nlTrgt.TargetCompId netList with
+        | Some comp -> 
+            match Map.tryFind nlTrgt.InputPort comp.Inputs with
+            | Some (Some src) -> Some src
+            | _ -> None
+        | None -> None ) nlTrgtLst
 
 /// get label without (x:x) part at the end
 let private labelNoParenthesis (netList: NetList) compId = 

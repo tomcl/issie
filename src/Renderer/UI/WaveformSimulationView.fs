@@ -316,8 +316,7 @@ let private moveWave (model: Model) netList (wSMod: WaveSimModel) up =
 
     let reorder (arr: 'b []) = Array.map (fun i -> arr.[i]) indexes'
 
-    { wSMod with Ports = reorder wSMod.Ports }
-    |> SetCurrFileWSMod
+    reorder wSMod.Ports |> Ok |> SetSimInProgress
 
 let private radixTabs (model: WaveSimModel) dispatch =
     let radixString =

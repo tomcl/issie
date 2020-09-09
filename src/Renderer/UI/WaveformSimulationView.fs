@@ -190,7 +190,7 @@ let private makeCursVals compIds model waveData =
 
 let private getWaveNames compIds netList (wsMod: WaveSimModel) =
     match wsMod.WaveAdder.SimData with
-    | Some sD -> Array.map (nlTrgtLstGroup2Label compIds netList) wsMod.Ports
+    | Some sD -> Array.map (nlTrgtLstGroup2Label compIds sD.Graph netList) wsMod.Ports
     | None -> [||]
 
 let private waveSimRows compIds model (netList: NetList) (wsMod: WaveSimModel) dispatch =

@@ -2,7 +2,6 @@ module WaveSimHelpers
 
 open Fable.React
 open Fable.React.Props
-open Fable.Core
 
 open Fulma
 
@@ -115,34 +114,6 @@ let private componentNLSourcesNLTargets (netList: NetList) componentId =
                 componentNLTargets netList componentId
     | None -> [||], [||]
 
-/// get NLSource array of a connection
-(*let private connectionNLSources (netList: NetList) connectionId =
-    let iterateThroughComponentInputs (inPortN, nlSourceOpt) =
-        match nlSourceOpt with
-        | Some nlSource ->
-            if nlSource.SourceConnId = connectionId
-            then Some nlSource
-            else None
-        | None -> None
-    let iterateThroughNetList (_, (nlComp: NetListComponent)) =
-        Map.toArray nlComp.Inputs
-        |> Array.choose iterateThroughComponentInputs
-    Map.toArray netList
-    |> Array.collect iterateThroughNetList*)
-
-/// get NLSource array given a tuple of components and connections
-(*let compsConns2nlSources (netList: NetList) ((comps, conns):CanvasState) =
-    let sourcesFromComps =
-        List.toArray comps
-        |> Array.collect (fun (comp: Component) -> 
-                                componentNLSources netList (ComponentId comp.Id)) 
-    let sourcesFromConns = 
-        List.toArray conns
-        |> Array.collect (fun (conn: Connection) -> 
-                                connectionNLSources netList (ConnectionId conn.Id))
-    Array.append sourcesFromComps sourcesFromConns
-    |> Array.distinct*)
-
 /// get array of available NLSource in current canvas state
 let availableNLTrgtLstGroups (model: Model) =
     match model.Diagram.GetCanvasState() with
@@ -184,25 +155,6 @@ let getSimTime (trgtLstGroups: TrgtLstGroup array) (simGraph: SimulationGraph) =
 let getWaveData (wsMod: WaveSimModel) =
     Array.map (fun sD -> sD.Graph) wsMod.SimData
     |> Array.map (getSimTime wsMod.Ports) 
-
-(*let port2ConnId (model: Model) (p: WaveSimPort) =
-    match model.Diagram.GetCanvasState() with
-    | Some s ->
-        let outPN =
-            match p.OutPN with
-            | OutputPortNumber n -> n
-        List.map extractComponent (fst s)
-        |> List.tryPick (fun c ->
-            match ComponentId c.Id = p.CId with
-            | true -> Some c.OutputPorts.[outPN].Id
-            | false -> None)
-        |> function
-        | Some portId ->
-            List.map extractConnection (snd s)
-            |> List.filter (fun conn -> conn.Source.Id = portId)
-            |> List.map (fun conn -> ConnectionId conn.Id)
-        | None -> []
-    | None -> failwith "highlight called when canvas state is None"*)
     
 /// extend WaveSimModel.SimData by n cycles
 let private appendSimData (wSModel: WaveSimModel) nCycles = 
@@ -217,17 +169,6 @@ let private connId2JSConn (model: Model) connId =
     |> function
        | Some jsConn -> [ jsConn ]
        | None -> []
-
-(*let private sourceGroup2connIds (netList: NetList) (sourceGroup: SourceGroup) =
-    Array.append [|sourceGroup.mainNLSource|] sourceGroup.connectedNLSources
-    |> Array.collect (fun nlSource -> nlSource.SourceConnId) *)
-
-(*let private selWave2connIds netList (wSMod: WaveSimModel) ind = 
-    if wSMod.WaveAdderOpen 
-    then wSMod.WaveAdder.Ports.[ind]
-    else wSMod.Ports.[ind]
-    |> Array.collect (fun sourceGroup -> sourceGroup.)
-    |> portNet2ConnId model *)
 
 let private wave2ConnIds (trgtLstGroup: TrgtLstGroup) =
     Array.append [|trgtLstGroup.mainTrgtLst|] trgtLstGroup.connectedTrgtLsts
@@ -262,13 +203,24 @@ let private outPortInt2int outPortInt =
     match outPortInt with
     | OutputPortNumber pn -> pn
 
-/// get number of bits of IOLabel
-let private ioLBlWidth (netList: NetList) (comp: NetListComponent) =
-    let nlTrgt = comp.Outputs.[OutputPortNumber 0].[0]
-    netList.[nlTrgt.TargetCompId].Inputs.[nlTrgt.InputPort]
+/// get labels of Output and IOLabel components in nlTargetList
+let trgtLst2outputsAndIOLabels (netList: NetList) (nlTrgtLst: NLTarget list) =
+    let nlTrgt2Lbls st nlTrgt= 
+        match netList.[nlTrgt.TargetCompId].Type with
+        | IOLabel | Output _ -> List.append st [netList.[nlTrgt.TargetCompId].Label]
+        | _ -> st
+    List.fold nlTrgt2Lbls [] nlTrgtLst
+    |> List.distinct
+
+/// get labels of Output and IOLabel components in TargetListGroup
+let trgtLstGroup2outputsAndIOLabels netList (trgtLstGroup: TrgtLstGroup) =
+    Array.append [|trgtLstGroup.mainTrgtLst|] trgtLstGroup.connectedTrgtLsts
+    |> Array.toList
+    |> List.collect (trgtLst2outputsAndIOLabels netList)
+    |> List.distinct
 
 /// get WaveLabel corresponding to a NLTarget list
-let rec private findName (compIds: ComponentId Set) (netList: NetList) (nlTrgtListGroup: TrgtLstGroup) nlTrgtList =
+let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (netList: NetList) nlTrgtListGroup nlTrgtList =
     match nlTrgtLst2CommonNLSource netList nlTrgtList with
     //nlTrgtLst is not connected to any driving components
     | None -> { OutputsAndIOLabels = []; ComposingLabels = [] }
@@ -283,7 +235,7 @@ let rec private findName (compIds: ComponentId Set) (netList: NetList) (nlTrgtLi
                 match drivingOutput netList nlSource.SourceCompId inPortN with
                 | Some nlSource' ->
                     netList.[nlSource'.SourceCompId].Outputs.[nlSource'.OutputPort]
-                    |> findName compIds netList nlTrgtListGroup
+                    |> findName compIds graph netList nlTrgtListGroup
                 | None ->  { OutputsAndIOLabels = []; ComposingLabels = [] } 
 
             match netList.[nlSource.SourceCompId].Type with
@@ -351,11 +303,11 @@ let rec private findName (compIds: ComponentId Set) (netList: NetList) (nlTrgtLi
                 |> List.choose id
                 |> List.rev
             | IOLabel -> 
-                []
-                //[ { Name = compLbl
-                //    BitLimits = netList.[nlSource.SourceCompId]. - 1, 0 } ]
+                let ioLblWidth = List.length graph.[nlTrgtList.[0].TargetCompId].Inputs.[nlTrgtList.[0].InputPort]
+                [ { Name = compLbl
+                    BitLimits = ioLblWidth - 1, 0 } ]
 
-            |> (fun composingLbls -> { OutputsAndIOLabels = [] //This has to be changed
+            |> (fun composingLbls -> { OutputsAndIOLabels = trgtLstGroup2outputsAndIOLabels netList nlTrgtListGroup
                                        ComposingLabels = composingLbls })
 
 let private bitLimsString (a, b) =
@@ -365,8 +317,8 @@ let private bitLimsString (a, b) =
     | (msb, lsb) -> sprintf "[%d:%d]" msb lsb
 
 /// get the label of a waveform
-let nlTrgtLstGroup2Label compIds netList (nlTrgtLstGroup: TrgtLstGroup) =
-    let waveLbl = findName compIds netList nlTrgtLstGroup nlTrgtLstGroup.mainTrgtLst
+let nlTrgtLstGroup2Label compIds graph netList (nlTrgtLstGroup: TrgtLstGroup) =
+    let waveLbl = findName compIds graph netList nlTrgtLstGroup nlTrgtLstGroup.mainTrgtLst
     let tl =
         match waveLbl.ComposingLabels with
         | [ el ] -> el.Name + bitLimsString el.BitLimits
@@ -375,19 +327,13 @@ let nlTrgtLstGroup2Label compIds netList (nlTrgtLstGroup: TrgtLstGroup) =
             List.fold appendName "{" lst 
             |> (fun lbl -> lbl.[0..String.length lbl - 3] + "}")
         |  _ -> ""
-    let hd = 
-        let appendName st name = st + name + ", "
-        List.fold appendName "" waveLbl.OutputsAndIOLabels
-    hd + " : " + tl 
-
-(*let limBits (name: string): (int * int) option =
-    match Seq.tryFind ((=) '[') name, Seq.tryFind ((=) ':') name, Seq.tryFind ((=) ']') name with
-    | Some _, Some _, Some _->
-        (name.[Seq.findIndexBack ((=) '[') name + 1..Seq.findIndexBack ((=) ':') name - 1],
-         name.[Seq.findIndexBack ((=) ':') name + 1..Seq.findIndexBack ((=) ']') name - 1])
-        |> (fun (a, b) -> int a, int b)
-        |> Some
-    | _ -> None*)
+    let appendName st name = st + name + ", "
+    match waveLbl.OutputsAndIOLabels with
+    | [] -> tl
+    | hdLbls -> 
+        List.fold appendName "" hdLbls
+        |> (fun hd -> hd.[0..String.length hd - 3] + " : " + tl)
+        
 
 //////////////////
 /// SVG shapes ///
@@ -485,7 +431,7 @@ let makeGaps trans =
         {| GapLen = Array.max times - Array.min times + 1
            GapStart = Array.min times |})
 
-let transitions waveData = //relies on number of names being correct (= length of elements in WaveData)
+let transitions waveData =
     let isDiff (ws1, ws2) =
         let folder state e1 e2 =
             match state, e1 = e2 with
@@ -522,7 +468,7 @@ let private setWA compIds model wSMod dispatch simData netList =
         let trgtLstGroups = availableNLTrgtLstGroups model
         { SimData = Some simData
           Ports = trgtLstGroups 
-          WaveNames = Array.map (nlTrgtLstGroup2Label compIds netList) trgtLstGroups }
+          WaveNames = Array.map (nlTrgtLstGroup2Label compIds simData.Graph netList) trgtLstGroups }
     { wSMod with
           WaveAdder = wA'
           LastCanvasState = getReducedCanvState model }
@@ -633,7 +579,7 @@ let savedWaveInfo2wsModel compIds waveSvg clkRulerSvg model (sWInfo: SavedWaveIn
           WaveAdderOpen = sWInfo.WaveAdderOpen
           WaveAdder = { SimData = Some sD
                         Ports = waPorts'
-                        WaveNames = Array.map (nlTrgtLstGroup2Label compIds netList) waPorts' }
+                        WaveNames = Array.map (nlTrgtLstGroup2Label compIds sD.Graph netList) waPorts' }
           LastCanvasState = getReducedCanvState model }
     | Some (Error err), _ -> initWS//Should probably display error somehow
     | None, _ | _, None -> initWS

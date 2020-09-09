@@ -135,12 +135,6 @@ let clkRulerSvg (model: WaveSimModel) =
 
 //auxiliary functions to the viewer function
 
-let private allSelected model netList trgtLstGroups = 
-    Array.forall (isWaveSelected model netList) trgtLstGroups
-
-let private anySelected model netList trgtLstGroups = 
-    Array.exists (isWaveSelected model netList) trgtLstGroups
-
 let private toggleSelect (model: Model) (wSMod: WaveSimModel) netList ind dispatch =
     let trgtLstGroup = 
         if wSMod.WaveAdderOpen 
@@ -153,10 +147,6 @@ let private toggleSelect (model: Model) (wSMod: WaveSimModel) netList ind dispat
 
 let private selectAllOn model (wSMod: WaveSimModel) =
     Array.map (fun trgtLstGroup -> selWave2selConn model trgtLstGroup true) wSMod.Ports
-
-let private selectAll model netList (wSMod: WaveSimModel) =
-    let setAllOn = not <| allSelected model netList wSMod.Ports
-    Array.map (fun trgtLstGroup -> selWave2selConn model trgtLstGroup setAllOn) wSMod.Ports
 
 let private makeLabels (wSMod: WaveSimModel) waveNames =
     let makeLbl l = label [ Class "waveLbl" ] [ str l ]
@@ -281,14 +271,6 @@ let private cursorMove increase (wSMod: WaveSimModel) dispatch =
     match increase, wSMod.Cursor with
     | true, n -> n + 1u |> changeCurs wSMod dispatch
     | false, n -> n - 1u |> changeCurs wSMod dispatch
-
-let private delSelected model netList (wSMod: WaveSimModel) =
-    let ports' =
-        Array.map (fun net -> isWaveSelected model netList net, net) wSMod.Ports 
-        |> Array.filter (fun (sel, _) -> not sel)
-        |> Array.map snd
-    { wSMod with Ports = ports' }
-    |> SetCurrFileWSMod
 
 let private moveWave (model: Model) netList (wSMod: WaveSimModel) up =
     let lastEl (arr: 'a []) = Array.last arr
@@ -442,35 +424,23 @@ let private waveAdderSelectAll model netList (wSMod: WaveSimModel) =
     |> ignore
 
 let private nameLabelsCol model netList (wsMod: WaveSimModel) labelRows dispatch =
-    let waveAddDelBut =
-        match anySelected model netList wsMod.Ports with
-        | true ->
-            [ Button.button
-                [ Button.CustomClass "delWaveButton"
-                  Button.Color IsDanger
-                  Button.OnClick(fun _ -> delSelected model netList wsMod |> dispatch) ] [ str "del" ]
-              div [ Class "updownDiv" ]
-                  [ Button.button
-                      [ Button.CustomClass "updownBut"
-                        Button.OnClick(fun _ -> moveWave model netList wsMod true |> dispatch) ] [ str "▲" ]
-                    Button.button
-                        [ Button.CustomClass "updownBut"
-                          Button.OnClick(fun _ -> moveWave model netList wsMod false |> dispatch) ] [ str "▼" ] ] ]
-        | false ->
-            [ Button.button
-                [ Button.CustomClass "newWaveButton"
-                  Button.Color IsSuccess
-                  Button.OnClick(fun _ -> openCloseWA model wsMod true dispatch) ] [ str "Edit list..." ] ]
-        |> (fun children -> th [ Class "waveNamesCol" ] children)
+    let waveAddDelBut =        
+        th [ Class "waveNamesCol" ] 
+           [ Button.button
+           [ Button.CustomClass "newWaveButton"
+             Button.Color IsSuccess
+             Button.OnClick(fun _ -> openCloseWA model wsMod true dispatch) ] [ str "Edit list..." ] ]
 
     let top =
         [| tr [ Class "rowHeight" ]
                [ th [ Class "checkboxCol" ]
-                     [ input
-                         [ Type "checkbox"
-                           Class "check"
-                           Checked(allSelected model netList wsMod.Ports)
-                           OnChange(fun _ -> selectAll model netList wsMod |> ignore) ] ]
+                     [ div [ Class "updownDiv" ]
+                     [ Button.button
+                         [ Button.CustomClass "updownBut"
+                           Button.OnClick(fun _ -> moveWave model netList wsMod true |> dispatch) ] [ str "▲" ]
+                       Button.button
+                           [ Button.CustomClass "updownBut"
+                             Button.OnClick(fun _ -> moveWave model netList wsMod false |> dispatch) ] [ str "▼" ] ] ]
                  waveAddDelBut ] |]
 
     let bot =

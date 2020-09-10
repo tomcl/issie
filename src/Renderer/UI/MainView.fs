@@ -291,12 +291,15 @@ let viewTestScroll model dispatch =
         element := Some el // set mutable reference to teh HTML element
         printf "Scroll el = %A" !element // print out the element
 
-    let scrollFun (ev:Browser.Types.UIEvent) = // function called whenever scroll is clicked
+    let scrollFun (ev:Browser.Types.UIEvent) = // function called whenever scroll position is changed
         match !element with // element should now be the HTMl element that is scrolled
         | None -> () // do nothing
         | Some e ->
-            let sPos = e.scrollLeft // this should show scroll position
+            let sPos = e.scrollLeft // this should set sPos = scroll position
+            e.scrollLeft <- 100. // this shows how to set scroll position COMMENT THIS OUT
             // can use dispatch here to make something happen based on scroll position
+            // scroll position = min or max => at end
+            // 
             printfn "scrolling with scrollPos=%f" sPos
         
     div [Style [Width "100px"]] [

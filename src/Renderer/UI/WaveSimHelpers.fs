@@ -98,25 +98,6 @@ let extractSimData simData nCycles =
 let private drivingOutput (netList: NetList) compId inPortN =
     netList.[compId].Inputs.[inPortN]
 
-/// get NLSource array of a component
-let private componentNLSources (netList: NetList) componentId =
-    netList.[componentId].Inputs
-    |> Map.toArray 
-    |> Array.choose snd
-
-/// get NLTarget list array of a component
-let private componentNLTargets (netList: NetList) componentId =
-    netList.[componentId].Outputs
-    |> Map.toArray 
-    |> Array.map snd
-
-/// get NLSource array of the inputs and outputs of a component
-let private componentNLSourcesNLTargets (netList: NetList) componentId =
-    match Map.tryFind componentId netList with
-    | Some _ -> componentNLSources netList componentId, 
-                componentNLTargets netList componentId
-    | None -> [||], [||]
-
 /// get array of available NLSource in current canvas state
 let availableNLTrgtLstGroups (model: Model) =
     match model.Diagram.GetCanvasState() with
@@ -367,6 +348,9 @@ let makeText style t = text style [ str t ]
 let backgroundSvg (model: WaveSimModel) =
     let clkLine x = makeLinePoints [ Class "clkLineStyle" ] (x, vPos) (x, vPos + sigHeight + spacing)
     [| 1u .. model.LastClk + 1u |] |> Array.map ((fun x -> float x * model.ClkWidth) >> clkLine)
+
+let button options func label = 
+    Button.button (List.append options [ Button.OnClick func ]) [ str label ]
 
 ////////////////////////
 /// Radix conversion ///

@@ -283,7 +283,9 @@ let private moveWave (model: Model) netList (wSMod: WaveSimModel) up =
     let addLastPort arr p =
         Array.mapi (fun i el -> if i <> Array.length arr - 1 then el
                                 else fst el, Array.append (snd el) [| p |]) arr
-    Array.map (fun p -> isWaveSelected model netList p, p) wSMod.Ports
+    let wTFirst, wTLast = (fun (a: ReactElement array) -> a.[0], a.[Array.length a - 1]) wSMod.WaveTable
+    Array.zip wSMod.Ports wSMod.WaveTable.[1 .. Array.length wSMod.WaveTable - 2]
+    |> Array.map (fun p -> isWaveSelected model netList (fst p), p) 
     |> Array.fold (fun (arr, prevSel) (sel,p) -> 
         match sel, prevSel with 
         | true, true -> addLastPort arr p, sel
@@ -294,8 +296,10 @@ let private moveWave (model: Model) netList (wSMod: WaveSimModel) up =
                                            else float i, ports)
     |> Array.sortBy fst
     |> Array.collect snd
-    |> Ok 
-    |> SetSimInProgress
+    |> Array.unzip 
+    |> (fun (p, wT) -> {wSMod with Ports = p
+                                   WaveTable = Array.concat [[|wTFirst|];wT;[|wTLast|]]})
+    |> SetCurrFileWSMod
 
 /// ReactElement of the tabs for changing displayed radix
 let private radixTabs (model: WaveSimModel) dispatch =

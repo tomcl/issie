@@ -87,14 +87,14 @@ let getNetList ((comps,conns) : CanvasState) =
         |> Map.ofList
 
     let getOutputPortNumber (p:Port) = 
-        id2Ins.[ComponentId p.HostId]
+        id2Outs.[ComponentId p.HostId]
         |> List.find (fun p1 -> p1.Id = p.Id)
         |> (fun p -> match p.PortNumber with Some n -> n | None -> failwithf "Missing input port number on %A" p.HostId)
         |> OutputPortNumber
        
    
     let getInputPortNumber (p:Port) = 
-        id2Outs.[ComponentId p.HostId]
+        id2Ins.[ComponentId p.HostId]
         |> List.find (fun p1 -> p1.Id = p.Id)
         |> (fun p -> match p.PortNumber with Some n -> n | None -> failwithf "Missing input port number on %A" p.HostId)
         |> InputPortNumber
@@ -125,7 +125,7 @@ let getNetList ((comps,conns) : CanvasState) =
     let source (conn:Connection) =
         {
             SourceCompId = ComponentId conn.Source.HostId
-            OutputPort = getOutputPortNumber conn.Target
+            OutputPort = getOutputPortNumber conn.Source
             SourceConnId = ConnectionId conn.Id
         }
 

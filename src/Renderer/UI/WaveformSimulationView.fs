@@ -17,22 +17,208 @@ open CommonTypes
 open WaveSimHelpers
 open FileMenuView
 
+/// get wave name labels from waveforms names
+let private makeLabels waveNames =
+    let makeLbl l = label [ Class "waveLbl" ] [ str l ]
+    Array.map makeLbl waveNames
 
+/// get values position of bus labels from the transition gaps (for one Waveform)
+let gaps2pos (wSModel: WaveSimModel) (wave: Waveform) gaps =
+    let clkWidth = int wSModel.ClkWidth
+    let nSpaces (g: {| GapLen: int; GapStart: int |}) = 
+        (g.GapLen * clkWidth / (maxBusValGap + 1) + 2)
+    let gapAndInd2Pos (g: {| GapLen: int; GapStart: int |}) i =
+        float g.GapStart + float i * float g.GapLen / float (nSpaces g)
+    gaps
+    |> Array.map (fun (gap: {| GapLen: int; GapStart: int |}) ->
+        {| Sample = wave.[gap.GapStart]
+           XPosArray = Array.map (gapAndInd2Pos gap) [| 1 .. nSpaces gap - 1 |] |} )
+
+/// get values position of bus labels
 let private busLabels (model: Model) waveData =
     match currWS model with
-    | Some wSMod ->
-        let clkWidth = int wSMod.ClkWidth
-
-        let gaps2pos (wave: Waveform) gaps =
-            let nSpaces (g: {| GapLen: int; GapStart: int |}) = (g.GapLen * clkWidth / (maxBusValGap + 1) + 2)
-            let gapAndInd2Pos (g: {| GapLen: int; GapStart: int |}) i =
-                float g.GapStart + float i * float g.GapLen / float (nSpaces g)
-            gaps
-            |> Array.map (fun (gap: {| GapLen: int; GapStart: int |}) ->
-                wave.[gap.GapStart], Array.map (gapAndInd2Pos gap) [| 1 .. nSpaces gap - 1 |])
-        (Array.transpose waveData, Array.map makeGaps (transitions waveData)) ||> Array.map2 gaps2pos
+    | Some wSModel ->
+        (Array.transpose waveData, Array.map makeGaps (transitions waveData)) 
+        ||> Array.map2 (gaps2pos wSModel)
     | None -> failwith "busLabels called when currWS model is None"
 
+/// get the labels of a waveform for a period in which the value doesn't change
+let private busLabelOneValue wsMod (busLabelValAndPos: {| Sample: Sample; XPosArray: float [] |}) =
+    let addLabel nLabels xInd = makeText (inWaveLabel nLabels xInd wsMod)
+    match busLabelValAndPos.Sample with
+    | Wire w when w.NBits > 1u ->
+        Array.map (fun xInd -> 
+            addLabel 1 xInd (n2StringOfRadix w.BitData w.NBits wsMod.Radix)) busLabelValAndPos.XPosArray
+    | _ -> [||]
+
+/// strings of the values displayed in the rigth column of the simulator
+let private cursValStrings (wSMod: WaveSimModel) (waveData: Sample [] []) =
+    let pref =
+        match wSMod.Radix with
+        | Bin -> "0b"
+        | Hex -> "0x"
+        | _ -> ""
+
+    let makeCursVal sample =
+        match sample with
+        | Wire w when w.NBits > 1u -> [| pref + n2StringOfRadix w.BitData w.NBits wSMod.Radix |]
+        | Wire w -> [| pref + string w.BitData |]
+        | StateSample s -> s
+
+    match int wSMod.Cursor < Array.length wSMod.SimData with
+    | true -> Array.map makeCursVal waveData.[int wSMod.Cursor]
+    | false -> [||]
+
+/// get waveform names
+let private getWaveNames compIds netList (wsMod: WaveSimModel) =
+    match wsMod.WaveAdder.SimData with
+    | Some sD -> Array.map (nlTrgtLstGroup2Label compIds sD.Graph netList) wsMod.Ports
+    | None -> [||]
+
+/// maximum width of the waveform simulator viewer
+let maxWidth compIds netList (wSMod: WaveSimModel) =
+    let strWidth s = 
+        JSHelpers.getTextWidthInPixels (s, "12px segoe ui") //not sure which font
+    let curLblColWidth =
+        match cursValStrings wSMod (getWaveData wSMod) with
+        | [||] -> 0.0
+        | cVS ->
+            Array.map (Array.map strWidth >> Array.max) cVS
+            |> Array.max
+            |> max 25.0
+    let waveNames =
+        getWaveNames compIds netList wSMod 
+    let namesColWidth =
+        match waveNames with
+        | [||] -> 0.0
+        | wN ->
+            Array.map strWidth wN
+            |> Array.max
+            |> max 100.0
+    let waveColWidth =
+        match wSMod.Ports with
+        | [||] -> 600.0
+        | _ -> maxWavesColWidthFloat wSMod
+    let checkboxCol = 25.0
+    let extraWidth = 45.0 
+    
+    curLblColWidth + namesColWidth + waveColWidth + checkboxCol + extraWidth |> int
+
+
+
+
+
+
+/////////////////////
+// WaveSim actions //
+/////////////////////
+
+/// toggle selection of a waveform when clicking its checkbox
+let private toggleSelect (model: Model) (wSMod: WaveSimModel) netList ind =
+    let trgtLstGroup = 
+        if wSMod.WaveAdderOpen 
+        then wSMod.WaveAdder.Ports.[ind]
+        else wSMod.Ports.[ind]
+    trgtLstGroup
+    |> isWaveSelected model netList
+    |> not
+    |> selWave2selConn model trgtLstGroup
+
+/// select all waveforms
+let private selectAllOn model (wSMod: WaveSimModel) =
+    Array.map (fun trgtLstGroup -> selWave2selConn model trgtLstGroup true) wSMod.Ports
+
+/// stretch waveforms horizontally
+let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
+    let netList = wsModel2netList wSMod
+    let newClkW =
+        if plus then zoomFactor else 1.0 / zoomFactor
+        |> (*) wSMod.ClkWidth
+        |> max minZoom
+        |> min maxZoom
+    match int (float m.ViewerWidth * zoomFactor) > maxWidth compIds netList wSMod with
+    | true ->
+        {| LastClk = (wSMod.LastClk + 1u) * (uint zoomFactor) + 10u
+           Curs = wSMod.Cursor
+           ClkW = newClkW |}
+    | false -> 
+        {| LastClk = wSMod.LastClk
+           Curs = wSMod.Cursor
+           ClkW = newClkW |}
+    |> Error |> SetSimInProgress |> dispatch
+
+/// change cursor value
+let private changeCurs (wSMod: WaveSimModel) dispatch newCurs =
+    let curs' = min 500u newCurs
+    match 0u <= curs' with
+    | true ->
+        {| Curs = curs'; ClkW = wSMod.ClkWidth; LastClk = wSMod.LastClk |}
+        |> Error |> SetSimInProgress |> dispatch
+    | _ -> ()
+
+/// change cursor value by 1 up or down
+let private cursorMove increase (wSMod: WaveSimModel) dispatch =
+    match increase, wSMod.Cursor with
+    | true, n -> n + 1u |> changeCurs wSMod dispatch
+    | false, n -> n - 1u |> changeCurs wSMod dispatch
+
+/// change the order of the waveforms in the simulator
+let private moveWave (model: Model) netList (wSMod: WaveSimModel) up =
+    let moveBy = if up then -1.5 else 1.5
+    let addLastPort arr p =
+        Array.mapi (fun i el -> if i <> Array.length arr - 1 then el
+                                else fst el, Array.append (snd el) [| p |]) arr
+    let wTFirst, wTLast = (fun (a: ReactElement array) -> a.[0], a.[Array.length a - 1]) wSMod.WaveTable
+    Array.zip wSMod.Ports wSMod.WaveTable.[1 .. Array.length wSMod.WaveTable - 2]
+    |> Array.map (fun p -> isWaveSelected model netList (fst p), p) 
+    |> Array.fold (fun (arr, prevSel) (sel,p) -> 
+        match sel, prevSel with 
+        | true, true -> addLastPort arr p, sel
+        | s, _ -> Array.append arr [| s, [|p|] |], s ) ([||], false)
+    |> fst
+    |> Array.mapi (fun i (sel, ports) -> if sel
+                                           then float i + moveBy, ports
+                                           else float i, ports)
+    |> Array.sortBy fst
+    |> Array.collect snd
+    |> Array.unzip 
+    |> (fun (p, wT) -> {wSMod with Ports = p
+                                   WaveTable = Array.concat [[|wTFirst|];wT;[|wTLast|]]})
+    |> SetCurrFileWSMod
+
+/// open/close the WaveAdder view 
+let private openCloseWA model (wSMod: WaveSimModel) on dispatch = 
+    if on then selectAllOn model wSMod |> ignore
+    { wSMod with WaveAdderOpen = on }
+    |> SetCurrFileWSMod |> dispatch
+
+/// select all waveforms in the WaveAdder View
+let private waveAdderSelectAll model netList (wSMod: WaveSimModel) =
+    let setTo = 
+        wSMod.WaveAdder.Ports 
+        |> Array.forall (isWaveSelected model netList)
+
+    wSMod.WaveAdder.Ports
+    |> Array.map (fun trgtLstGroup -> selWave2selConn model trgtLstGroup (not setTo)) 
+    |> ignore
+
+
+
+
+
+
+
+//////////////////////////////////////////////
+// ReactElements of the Waveformm Simulator //
+//////////////////////////////////////////////
+
+
+/// labels displayed in the right column of the simulator
+let private makeCursVals model waveData =
+    let string2Lbl = Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
+    Array.map string2Lbl <| cursValStrings model waveData
+
+/// get SVG of a single waveform for one clock cycle
 let private makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * int) =
     let top = spacing
     let bot = top + sigHeight - sigLineThick
@@ -57,11 +243,8 @@ let private makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * i
         | _ -> failwith "What? Transition has value other than 0 or 1"
         |> Array.append [| sigLine |]
     | _ ->
-        let leftInner =
-            if fst trans = 1 then left + transLen else left
-        let rightInner =
-            if snd trans = 1 then right - transLen else right
-
+        let leftInner = if fst trans = 1 then left + transLen else left
+        let rightInner = if snd trans = 1 then right - transLen else right
         let cen = (top + bot) / 2.0
 
         //make lines
@@ -79,20 +262,12 @@ let private makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * i
         | 0, 0 -> [||]
         | _ -> failwith "What? Transition has value other than 0 or 1"
         |> Array.append [| topL; botL |]
-//Probably should put other option for negative number which prints an error
 
-
-let waveSvg model wsMod waveData =
-    let addLabel nLabels xInd = makeText (inWaveLabel nLabels xInd wsMod)
-
+/// get SVG of a single waveform
+let waveSvg model wsMod waveData  =
     let valueLabels =
-        let lblEl (sample, xIndArr) =
-            match sample with
-            | Wire w when w.NBits > 1u ->
-                Array.map (fun xInd -> addLabel 1 xInd (radixChange w.BitData w.NBits wsMod.Radix)) xIndArr
-            | _ -> [||]
         busLabels model waveData
-        |> Array.map (Array.collect lblEl)
+        |> Array.map (Array.collect (busLabelOneValue wsMod))
 
     let makeWaveSvg (sampArr: Waveform) (transArr: (int * int) []): ReactElement [] =
         (sampArr, transArr)
@@ -118,6 +293,7 @@ let waveSvg model wsMod waveData =
     |> Array.map2 makeWaveSvg (Array.transpose waveData)
     |> Array.map2 Array.append valueLabels
 
+/// SVG of the clock numbers above the waveforms
 let clkRulerSvg (model: WaveSimModel) =
     let makeClkRulLbl i =
         match model.ClkWidth with
@@ -132,206 +308,33 @@ let clkRulerSvg (model: WaveSimModel) =
     |> Array.concat
     |> makeSvg (clkRulerStyle model)
 
-
-//auxiliary functions to the viewer function
-
-let private allSelected model wSMod = 
-    Array.forall (isWaveSelected model wSMod) wSMod.Ports
-
-let private anySelected model wSMod = 
-    Array.exists (isWaveSelected model wSMod) wSMod.Ports
-
-let private toggleSelect (model: Model) (wSMod: WaveSimModel) ind dispatch =
-    if wSMod.WaveAdderOpen 
-    then wSMod.WaveAdder.Ports.[ind]
-    else wSMod.Ports.[ind]
-    |> isWaveSelected model wSMod
-    |> not
-    |> selWave2selConn model wSMod ind
-
-let private selectAllOn model wSMod dispatch =
-    Array.mapi (fun i _ -> selWave2selConn model wSMod i true) wSMod.Ports
-
-let private selectAll model wSMod dispatch =
-    let setAllOn = not <| allSelected model wSMod
-    Array.mapi (fun i _ -> selWave2selConn model wSMod i setAllOn) wSMod.Ports
-
-let private makeLabels (wSMod: WaveSimModel) waveNames =
-    let makeLbl l = label [ Class "waveLbl" ] [ str l ]
-    Array.map makeLbl waveNames
-
-// functions for bus labels
-
-
-let private cursValStrings compIds (wSMod: WaveSimModel) (waveData: Sample [] []) =
-    let pref =
-        match wSMod.Radix with
-        | Bin -> "0b"
-        | Hex -> "0x"
-        | _ -> ""
-
-    let makeCursVal sample =
-        match sample with
-        | Wire w when w.NBits > 1u -> [| pref + radixChange w.BitData w.NBits wSMod.Radix |]
-        | Wire w -> [| pref + string w.BitData |]
-        | StateSample s -> s
-
-    match int wSMod.Cursor < Array.length wSMod.SimData with
-    | true -> Array.map makeCursVal waveData.[int wSMod.Cursor]
-    | false -> [||]
-
-let private makeCursVals compIds model waveData =
-    let string2Lbl = Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
-    Array.map string2Lbl <| cursValStrings compIds model waveData
-
-//container box and clock lines
-
-let private makeWaveNames compIds (wsMod: WaveSimModel) =
-    match wsMod.WaveAdder.SimData with
-    | Some sD -> Array.map (fst >> wSPort2Name compIds sD.Graph) wsMod.Ports
-    | None -> [||]
-
-let private waveSimRows compIds model (wsMod: WaveSimModel) dispatch =
-    let waveData = makeWaveData wsMod
-    let waveNames = makeWaveNames compIds wsMod
+/// tuple of React elements of middle column, left column, right column
+let private waveSimRows compIds model (netList: NetList) (wsMod: WaveSimModel) dispatch =
+    let waveData = getWaveData wsMod
+    let waveNames = getWaveNames compIds netList wsMod
 
     let labelCols =
-        makeLabels wsMod waveNames
+        makeLabels waveNames
         |> Array.mapi (fun i l ->
             tr [ Class "rowHeight" ]
                 [ td [ Class "checkboxCol" ]
                       [ input
                           [ Type "checkbox"
                             Class "check"
-                            Checked <| isWaveSelected model wsMod wsMod.Ports.[i]
+                            Checked <| isWaveSelected model netList wsMod.Ports.[i]
                             Style [ Float FloatOptions.Left ]
-                            OnChange(fun _ -> toggleSelect model wsMod i dispatch) ] ]
+                            OnChange(fun _ -> toggleSelect model wsMod netList i) ] ]
                   td
                       [ Class "waveNamesCol"
                         Style [ TextAlign TextAlignOptions.Right ] ] [ l ] ])
 
     let cursValCol = 
-        makeCursVals compIds wsMod waveData 
+        makeCursVals wsMod waveData 
         |> Array.map (fun c -> tr [ Class "rowHeight" ] [ td [ Class "cursValsCol" ] c ])
 
     wsMod.WaveTable, labelCols, cursValCol
 
-// view function helpers
-let maxWidth compIds (wSMod: WaveSimModel) =
-    let strWidth s = 
-        JSHelpers.getTextWidthInPixels (s, "12px segoe ui") //not sure which font
-    let curLblColWidth =
-        match cursValStrings compIds wSMod (makeWaveData wSMod) with
-        | [||] -> 0.0
-        | cVS ->
-            Array.map (Array.map strWidth >> Array.max) cVS
-            |> Array.max
-            |> max 25.0
-    let namesColWidth =
-        match (makeWaveNames compIds wSMod) with
-        | [||] -> 0.0
-        | wN ->
-            Array.map strWidth wN
-            |> Array.max
-            |> max 100.0
-    let waveColWidth =
-        match wSMod.Ports with
-        | [||] -> 600.0
-        | _ -> maxWavesColWidthFloat wSMod
-    let checkboxCol = 25.0
-    let extraWidth = 45.0 
-    
-    curLblColWidth + namesColWidth + waveColWidth + checkboxCol + extraWidth |> int
-
-let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
-    let newClkW =
-        if plus then zoomFactor else 1.0 / zoomFactor
-        |> (*) wSMod.ClkWidth
-        |> max minZoom
-        |> min maxZoom
-    match int (float m.ViewerWidth * zoomFactor) > maxWidth compIds wSMod with
-    | true ->
-        {| LastClk = (wSMod.LastClk + 1u) * (uint zoomFactor) + 10u
-           Curs = wSMod.Cursor
-           ClkW = newClkW |}
-    | false -> 
-        {| LastClk = wSMod.LastClk
-           Curs = wSMod.Cursor
-           ClkW = newClkW |}
-    |> Error |> SetSimInProgress |> dispatch
-
-
-let private button options func label = 
-    Button.button (List.append options [ Button.OnClick func ]) [ str label ]
-
-let private changeCurs (wSMod: WaveSimModel) dispatch newCurs =
-    let curs' = min 500u newCurs
-    match 0u <= curs' with
-    | true ->
-        {| Curs = curs'; ClkW = wSMod.ClkWidth; LastClk = wSMod.LastClk |}
-        |> Error |> SetSimInProgress |> dispatch
-    | _ -> ()
-
-let private cursorMove increase (wSMod: WaveSimModel) dispatch =
-    match increase, wSMod.Cursor with
-    | true, n -> n + 1u |> changeCurs wSMod dispatch
-    | false, n -> n - 1u |> changeCurs wSMod dispatch
-
-let private delSelected model wSMod =
-    let ports' =
-        Array.map (fun net -> isWaveSelected model wSMod net, net) wSMod.Ports 
-        |> Array.filter (fun (sel, _) -> not sel)
-        |> Array.map snd
-    { wSMod with Ports = ports' }
-    |> SetCurrFileWSMod
-
-let private moveWave (model: Model) (wSMod: WaveSimModel) up =
-    let lastEl (arr: 'a []) = Array.last arr
-
-    let move arr =
-        let rev a =
-            if up then a else Array.rev a
-        rev arr
-        |> Array.fold (fun st (bl: {| Sel: bool; Indxs: int [] |}) ->
-            match st with
-            | [||] -> [| bl |]
-            | _ ->
-                if bl.Sel then
-                    Array.concat
-                        [| st.[0..Array.length st - 2]
-                           [| bl |]
-                           [| lastEl st |] |]
-                else
-                    Array.append st [| bl |]) [||]
-        |> rev
-
-    let indexes' =
-        match Array.length wSMod.Ports with
-        | len when len < 2 -> [| 0 .. len - 1 |]
-        | _ ->
-            Array.map (isWaveSelected model wSMod) wSMod.Ports
-            |> Array.indexed 
-            |> Array.fold (fun (blocks: {| Sel: bool; Indxs: int [] |} []) (ind, sel') ->
-                match blocks, sel' with
-                | [||], s' ->
-                    Array.append blocks
-                        [| {| Sel = s'
-                              Indxs = [| ind |] |} |]
-                | bl, true when (lastEl bl).Sel = true ->
-                    Array.append blocks.[0..Array.length blocks - 2]
-                        [| {| (lastEl blocks) with Indxs = Array.append (lastEl blocks).Indxs [| ind |] |} |]
-                | _, s' ->
-                    Array.append blocks
-                        [| {| Sel = s'
-                              Indxs = [| ind |] |} |]) [||]
-            |> move
-            |> Array.collect (fun block -> block.Indxs)
-
-    let reorder (arr: 'b []) = Array.map (fun i -> arr.[i]) indexes'
-
-    { wSMod with Ports = reorder wSMod.Ports }
-    |> SetCurrFileWSMod
-
+/// ReactElement of the tabs for changing displayed radix
 let private radixTabs (model: WaveSimModel) dispatch =
     let radixString =
         [ Dec,  "uDec"
@@ -368,6 +371,7 @@ let private radixTabs (model: WaveSimModel) dispatch =
           radTab Dec
           radTab SDec ]
 
+/// ReactElement of the buttons for changing the cursor value
 let private cursorButtons (model: Model) wSMod dispatch =
     div [ Class "cursor" ]
         [ Button.button
@@ -386,7 +390,6 @@ let private cursorButtons (model: Model) wSMod dispatch =
                 | Some _ -> ""
                 | None -> "0"
                 |> Input.Value 
-                //Input.DefaultValue <| sprintf "%d" model.WaveSim.Cursor
                 Input.OnChange(fun c ->
                     match System.Int32.TryParse c.Value with
                     | true, n when n >= 0 -> 
@@ -402,17 +405,20 @@ let private cursorButtons (model: Model) wSMod dispatch =
                         |> SetCurrFileWSMod |> dispatch ) ]
           button [ Button.CustomClass "cursRight" ] (fun _ -> cursorMove true wSMod dispatch) "▶" ]
 
+/// React Element of the loading button
 let private loadingBut model =
     match model.SimulationInProgress with
     | Some _ -> button [Button.Color IsDanger] (fun _ -> ()) "loading..."
     | None -> str ""
 
+/// React Element of the buttons Bar at the top of the waveform simulator
 let private viewWaveSimButtonsBar model wSMod dispatch =
     div [ Style [ Height "45px" ] ]
         [ loadingBut model
           radixTabs wSMod dispatch
           cursorButtons model wSMod dispatch ]
 
+/// ReactElement of the right column of the waveform simulator
 let private cursValsCol rows =
     let rightCol = Array.append [| tr [ Class "rowHeight" ] [ td [ Class "rowHeight" ] [] ] |] rows
     div
@@ -422,51 +428,25 @@ let private cursValsCol rows =
               BorderTop "2px solid rgb(219,219,219)"
               BorderLeft "2px solid rgb(219,219,219)" ] ] [ table [] [ tbody [] rightCol ] ]
 
-let private openCloseWA model (wSMod: WaveSimModel) on dispatch = 
-    if on then selectAllOn model wSMod dispatch |> ignore
-    { wSMod with WaveAdderOpen = on }
-    |> SetCurrFileWSMod |> dispatch
-
-let private waveAdderSelectAll model (wSMod: WaveSimModel) dispatch =
-    let setTo = 
-        wSMod.WaveAdder.Ports 
-        |> Array.forall (isWaveSelected model wSMod)
-
-    [| 0 .. Array.length wSMod.WaveAdder.Ports - 1 |]
-    |> Array.map (fun i -> selWave2selConn model wSMod i (not setTo)) 
-    |> ignore
-
-let private nameLabelsCol model (wsMod: WaveSimModel) labelRows dispatch =
-    let waveAddDelBut =
-        match anySelected model wsMod with
-        | true ->
-            [ Button.button
-                [ Button.CustomClass "delWaveButton"
-                  Button.Color IsDanger
-                  Button.OnClick(fun _ -> delSelected model wsMod |> dispatch) ] [ str "del" ]
-              div [ Class "updownDiv" ]
-                  [ Button.button
-                      [ Button.CustomClass "updownBut"
-                        Button.OnClick(fun _ -> moveWave model wsMod true |> dispatch) ] [ str "▲" ]
-                    Button.button
-                        [ Button.CustomClass "updownBut"
-                          Button.OnClick(fun _ -> moveWave model wsMod false |> dispatch) ] [ str "▼" ] ] ]
-        | false ->
-            [ Button.button
-                [ Button.CustomClass "newWaveButton"
-                  Button.Color IsSuccess
-                  Button.OnClick(fun _ -> openCloseWA model wsMod true dispatch) ] [ str "Edit list..." ] ]
-        |> (fun children -> th [ Class "waveNamesCol" ] children)
+/// ReactElement of the waveforms' name labels column
+let private nameLabelsCol model netList (wsMod: WaveSimModel) labelRows dispatch =
+    let waveAddDelBut =        
+        th [ Class "waveNamesCol" ] 
+           [ Button.button
+           [ Button.CustomClass "newWaveButton"
+             Button.Color IsSuccess
+             Button.OnClick(fun _ -> openCloseWA model wsMod true dispatch) ] [ str "Edit list..." ] ]
 
     let top =
         [| tr [ Class "rowHeight" ]
                [ th [ Class "checkboxCol" ]
-                     [ input
-                         [ Type "checkbox"
-                           Class "check"
-                           Checked(allSelected model wsMod)
-                           OnChange(fun t -> selectAll model wsMod dispatch
-                                             |> ignore) ] ]
+                     [ div [ Class "updownDiv" ]
+                     [ Button.button
+                         [ Button.CustomClass "updownBut"
+                           Button.OnClick(fun _ -> moveWave model netList wsMod true |> dispatch) ] [ str "▲" ]
+                       Button.button
+                           [ Button.CustomClass "updownBut"
+                             Button.OnClick(fun _ -> moveWave model netList wsMod false |> dispatch) ] [ str "▼" ] ] ]
                  waveAddDelBut ] |]
 
     let bot =
@@ -481,6 +461,7 @@ let private nameLabelsCol model (wsMod: WaveSimModel) labelRows dispatch =
             [ Float FloatOptions.Left
               Height "100%" ] ] [ table [ Class "leftTable" ] [ tbody [] leftCol ] ]
 
+/// ReactElement of the waveform SVGs' column
 let private wavesCol wSMod rows =
     div [ Style [ MaxWidth(maxWavesColWidth wSMod)
                   MinHeight "100%" ]
@@ -488,8 +469,9 @@ let private wavesCol wSMod rows =
             [ table [ Style [ Height "100%" ] ] 
                     [ tbody [ Style [ Height "100%" ] ] rows ] ]
 
-let private viewWaveformViewer compIds model wSMod dispatch =
-    let tableWaves, leftColMid, cursValsRows = waveSimRows compIds model wSMod dispatch
+/// ReactElement of the bottom part of the waveform simulator when waveforms are being displayed
+let private viewWaveformViewer compIds model netList wSMod dispatch =
+    let tableWaves, leftColMid, cursValsRows = waveSimRows compIds model netList wSMod dispatch
     div
         [ Style
             [ Height "calc(100% - 45px)"
@@ -497,15 +479,17 @@ let private viewWaveformViewer compIds model wSMod dispatch =
               OverflowY OverflowOptions.Auto ] ]
         [ cursValsCol cursValsRows
           div [ Style [ Height "100%" ] ]
-              [ nameLabelsCol model wSMod leftColMid dispatch
+              [ nameLabelsCol model netList wSMod leftColMid dispatch
                 wavesCol wSMod tableWaves ] ]
 
+/// ReactElement of the zoom buttons
 let private viewZoomDiv compIds model wSMod dispatch =
     div [ Class "zoomDiv" ]
         [ button [ Button.CustomClass "zoomButLeft" ] (fun _ -> zoom compIds false model wSMod dispatch) "-"
           button [ Button.CustomClass "zoomButRight" ] (fun _ -> zoom compIds true model wSMod dispatch) "+" ]
 
-let private waveAdderTopRow model wSMod dispatch =
+/// ReactElement of the top row of the WaveAdder (where Select All is)
+let private waveAdderTopRow model netList wSMod =
     tr
         [ Class "rowHeight"
           Style [ VerticalAlign "middle" ] ]
@@ -516,12 +500,13 @@ let private waveAdderTopRow model wSMod dispatch =
               [ input
                   [ Type "checkbox"
                     Class "check"
-                    Checked(Array.forall (isWaveSelected model wSMod) wSMod.WaveAdder.Ports)
+                    Checked(Array.forall (isWaveSelected model netList) wSMod.WaveAdder.Ports)
                     Style [ Float FloatOptions.Left ]
-                    OnChange(fun _ -> waveAdderSelectAll model wSMod dispatch) ] ]
+                    OnChange(fun _ -> waveAdderSelectAll model netList wSMod) ] ]
           td [ Style [ FontWeight "bold" ] ] [ str "Select All" ] ]
 
-let private addWaveRow model wSMod ind dispatch =
+/// ReactElement of WaveAdder waveform row
+let private addWaveRow model netList wSMod ind dispatch =
     tr
         [ Class "rowHeight"
           Style [ VerticalAlign "middle" ] ]
@@ -532,28 +517,32 @@ let private addWaveRow model wSMod ind dispatch =
               [ input
                   [ Type "checkbox"
                     Class "check"
-                    Checked <| isWaveSelected model wSMod wSMod.WaveAdder.Ports.[ind]
+                    Checked <| isWaveSelected model netList wSMod.WaveAdder.Ports.[ind]
                     Style [ Float FloatOptions.Left ]
-                    OnChange(fun _ -> toggleSelect model wSMod ind dispatch) ] ]
+                    OnChange(fun _ -> toggleSelect model wSMod netList ind) ] ]
           td [] [ label [] [ str wSMod.WaveAdder.WaveNames.[ind] ] ] ]
 
-let private addWaveRows model wSMod dispatch = 
-    Array.mapi (fun i _ -> addWaveRow model wSMod i dispatch) wSMod.WaveAdder.Ports 
+/// ReactElement of all WaveAdder waveform rows
+let private addWaveRows model netList wSMod dispatch = 
+    Array.mapi (fun i _ -> addWaveRow model netList wSMod i dispatch) wSMod.WaveAdder.Ports 
 
-let private viewWaveAdder (model: Model) wSMod dispatch =
+/// ReactElement of the bottom section of the WaveAdder
+let private waveAdderBottom (model: Model) netList wSMod dispatch =
     div [ Style [ Position PositionOptions.Absolute
                   Top "300px" ] ]
         [ table []
                 [ tbody [] 
-                        (Array.append [| waveAdderTopRow model wSMod dispatch |] (addWaveRows model wSMod dispatch)) ] ]
+                        (Array.append [| waveAdderTopRow model netList wSMod |] 
+                                      (addWaveRows model netList wSMod dispatch)) ] ]
 
-let private waveAdderButs (model: Model) wSMod dispatch =
+/// ReactElement of the buttons of the WaveAdder
+let private waveAdderButs (model: Model) netList wSMod dispatch =
     let simButStyle =
-        match Array.exists (isWaveSelected model wSMod) wSMod.WaveAdder.Ports with
+        match Array.exists (isWaveSelected model netList) wSMod.WaveAdder.Ports with
         | true ->
             [ Button.Color IsSuccess
               Button.OnClick(fun _ -> 
-                Array.filter (isWaveSelected model wSMod) wSMod.WaveAdder.Ports                
+                Array.filter (isWaveSelected model netList) wSMod.WaveAdder.Ports                
                 |> Ok
                 |> SetSimInProgress |> dispatch) ]
         | false -> [ Button.CustomClass "disabled" ]
@@ -569,7 +558,8 @@ let private waveAdderButs (model: Model) wSMod dispatch =
         | _ -> [ cancBut; Button.button simButStyle [ str "View" ] ]
     div [ Style [ Display DisplayOptions.Block ] ] buts
 
-let private waveAdderView model wSMod dispatch =
+/// ReactElement list of the WaveAdder 
+let private waveAdderView model netList wSMod dispatch =
     [ div
     [ Style
         [ Width "90%"
@@ -580,10 +570,11 @@ let private waveAdderView model wSMod dispatch =
             "Add waveforms to view simulation. \n You can also add them by selecting components/connections in the editor and clicking \"Simulate\" on the top left menu bar"
         hr []
         div []
-            [ waveAdderButs model wSMod dispatch
-              viewWaveAdder model wSMod dispatch ] ] ]
+            [ waveAdderButs model netList wSMod dispatch
+              waveAdderBottom model netList wSMod dispatch ] ] ]
 
-let private waveformsView compIds model wSMod dispatch =
+/// ReactElement list of the waveforms view
+let private waveformsView compIds model netList wSMod dispatch =
     [ div
         [ Style
             [ Width "calc(100% - 10px)"
@@ -592,18 +583,18 @@ let private waveformsView compIds model wSMod dispatch =
               MarginTop "0px"
               OverflowX OverflowOptions.Hidden ] ]
           [ viewWaveSimButtonsBar model wSMod dispatch
-            viewWaveformViewer compIds model wSMod dispatch
+            viewWaveformViewer compIds model netList wSMod dispatch
             viewZoomDiv compIds model wSMod dispatch ] ]
 
+/// ReactElement list of the whole waveform simulator
 let viewWaveSim (model: Model) dispatch =
-
     let compIds = getComponentIds model
     match currWS model, snd model.WaveSim with
     | Some wSMod, None ->
         match wSMod.WaveAdderOpen, model.SimulationInProgress with
         | _, Some _ | false, None -> waveformsView compIds
         | true, None -> waveAdderView 
-        |> (fun f -> f model wSMod dispatch)
+        |> (fun f -> f model (wsModel2netList wSMod) wSMod dispatch)
     | Some _, Some simError ->
         [ div [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]
               [ SimulationView.viewSimulationError simError

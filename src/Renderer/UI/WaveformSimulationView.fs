@@ -279,50 +279,29 @@ let private cursorMove increase (wSMod: WaveSimModel) dispatch =
 
 /// change the order of the waveforms in the simulator
 let private moveWave (model: Model) netList (wSMod: WaveSimModel) up =
-    let lastEl (arr: 'a []) = Array.last arr
-
-    let move arr =
-        let rev a =
-            if up then a else Array.rev a
-        rev arr
-        |> Array.fold (fun st (bl: {| Sel: bool; Indxs: int [] |}) ->
-            match st with
-            | [||] -> [| bl |]
-            | _ ->
-                if bl.Sel then
-                    Array.concat
-                        [| st.[0..Array.length st - 2]
-                           [| bl |]
-                           [| lastEl st |] |]
-                else
-                    Array.append st [| bl |]) [||]
-        |> rev
-
-    let indexes' =
-        match Array.length wSMod.Ports with
-        | len when len < 2 -> [| 0 .. len - 1 |]
-        | _ ->
-            Array.map (isWaveSelected model netList) wSMod.Ports
-            |> Array.indexed 
-            |> Array.fold (fun (blocks: {| Sel: bool; Indxs: int [] |} []) (ind, sel') ->
-                match blocks, sel' with
-                | [||], s' ->
-                    Array.append blocks
-                        [| {| Sel = s'
-                              Indxs = [| ind |] |} |]
-                | bl, true when (lastEl bl).Sel = true ->
-                    Array.append blocks.[0..Array.length blocks - 2]
-                        [| {| (lastEl blocks) with Indxs = Array.append (lastEl blocks).Indxs [| ind |] |} |]
-                | _, s' ->
-                    Array.append blocks
-                        [| {| Sel = s'
-                              Indxs = [| ind |] |} |]) [||]
-            |> move
-            |> Array.collect (fun block -> block.Indxs)
-
-    let reorder (arr: 'b []) = Array.map (fun i -> arr.[i]) indexes'
-
-    reorder wSMod.Ports |> Ok |> SetSimInProgress
+    let moveBy = if up then -1.5 else 1.5
+    let addLastPort (arr: (bool*(TrgtLstGroup array)) array) (p: TrgtLstGroup) =
+        let body = arr.[0 .. Array.length arr - 2]
+        let last = 
+            arr.[Array.length arr - 1]
+            |> (fun el -> [| fst el, Array.append (snd el) [| p |] |])
+        Array.append body last
+    Array.map (fun p -> isWaveSelected model netList p, p) wSMod.Ports
+    |> Array.fold (fun (arr, prevSel) (sel,p) -> 
+        match sel, prevSel with 
+        | false, _ -> Array.append arr [| false, [|p|] |]
+        | true, false -> Array.append arr [| true, [|p|] |]
+        | true, true -> addLastPort arr p
+        |> (fun x -> x, sel) ) ([||], false)
+    |> fst
+    |> Array.indexed
+    |> Array.map (fun (i, (sel, ports)) -> if sel
+                                           then float i + moveBy, ports
+                                           else float i, ports)
+    |> Array.sortBy fst
+    |> Array.collect snd
+    |> Ok 
+    |> SetSimInProgress
 
 /// ReactElement of the tabs for changing displayed radix
 let private radixTabs (model: WaveSimModel) dispatch =

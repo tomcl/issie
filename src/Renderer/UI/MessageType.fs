@@ -59,14 +59,14 @@ type SimTime = Sample array
 type Waveform = Sample array
 type WaveAdderModel = {
     SimData : SimulationData option
-    Ports : PortsNet array;
+    Ports : TrgtLstGroup array;
     WaveNames : WaveName array
 }
 
 type WaveSimModel = {
     SimData: SimulatorTypes.SimulationData array
     WaveTable: ReactElement array
-    Ports: PortsNet array
+    Ports: TrgtLstGroup array
     ClkWidth: float
     Cursor: uint32 
     CursorEmpty: bool
@@ -132,7 +132,7 @@ type Msg =
     | EndWaveSim
     | ChangeRightTab of RightTab
     | SetHighlighted of ComponentId list * ConnectionId list
-    | SetSelWavesHighlighted of ConnectionId list
+    | SetSelWavesHighlighted of ConnectionId array
     | SetClipboard of CanvasState
     | SetCreateComponent of Component
     | SetProject of Project
@@ -162,7 +162,7 @@ type Msg =
     | DiagramMouseEvent
     | SelectionHasChanged
     | SetSimIsStale of bool
-    | SetSimInProgress of Result<PortsNet array,{| LastClk: uint; Curs: uint; ClkW: float |}>
-    | SimulateWhenInProgress of Result<PortsNet array,{| LastClk: uint; Curs: uint; ClkW: float |}>
+    | SetSimInProgress of Result<TrgtLstGroup array,{| LastClk: uint; Curs: uint; ClkW: float |}>
+    | SimulateWhenInProgress of Result<TrgtLstGroup array,{| LastClk: uint; Curs: uint; ClkW: float |}>
     | SetSimNotInProgress
     | SetLastSimulatedCanvasState of CanvasState option

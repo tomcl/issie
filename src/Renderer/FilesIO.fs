@@ -227,20 +227,29 @@ let saveStateToFile folderPath baseName state = // TODO: catch error?
 let createEmptyDgmFile folderPath baseName =
     saveStateToFile folderPath baseName (([],[]), None)
 
+/// load a component from its canvas and otehr elements
+let makeLoadedComponentFromCanvasData canvas filePath timeStamp waveInfo =
+    let inputs, outputs = parseDiagramSignature canvas
+    {
+        Name = getBaseNameNoExtension filePath
+        TimeStamp = timeStamp
+        WaveInfo = waveInfo
+        FilePath = filePath
+        CanvasState = canvas
+        InputLabels = inputs
+        OutputLabels = outputs
+    }
+
+
+
 let private tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
     match tryLoadStateFromPath filePath with
     | None -> Result.Error <| sprintf "Can't load component from '%s'" filePath
     | Some state ->
-        let inputs, outputs = parseDiagramSignature state.getCanvas
-        Result.Ok {
-            Name = getBaseNameNoExtension filePath
-            TimeStamp = state.getTimeStamp
-            WaveInfo = state.getWaveInfo
-            FilePath = filePath
-            CanvasState = state.getCanvas
-            InputLabels = inputs
-            OutputLabels = outputs
-        }
+        makeLoadedComponentFromCanvasData state.getCanvas filePath state.getTimeStamp state.getWaveInfo
+        |> Result.Ok
+
+
 
 type LoadStatus =
     | Resolve of LoadedComponent * LoadedComponent

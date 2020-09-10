@@ -280,22 +280,16 @@ let private cursorMove increase (wSMod: WaveSimModel) dispatch =
 /// change the order of the waveforms in the simulator
 let private moveWave (model: Model) netList (wSMod: WaveSimModel) up =
     let moveBy = if up then -1.5 else 1.5
-    let addLastPort (arr: (bool*(TrgtLstGroup array)) array) (p: TrgtLstGroup) =
-        let body = arr.[0 .. Array.length arr - 2]
-        let last = 
-            arr.[Array.length arr - 1]
-            |> (fun el -> [| fst el, Array.append (snd el) [| p |] |])
-        Array.append body last
+    let addLastPort arr p =
+        Array.mapi (fun i el -> if i <> Array.length arr - 1 then el
+                                else fst el, Array.append (snd el) [| p |]) arr
     Array.map (fun p -> isWaveSelected model netList p, p) wSMod.Ports
     |> Array.fold (fun (arr, prevSel) (sel,p) -> 
         match sel, prevSel with 
-        | false, _ -> Array.append arr [| false, [|p|] |]
-        | true, false -> Array.append arr [| true, [|p|] |]
-        | true, true -> addLastPort arr p
-        |> (fun x -> x, sel) ) ([||], false)
+        | true, true -> addLastPort arr p, sel
+        | s, _ -> Array.append arr [| s, [|p|] |], s ) ([||], false)
     |> fst
-    |> Array.indexed
-    |> Array.map (fun (i, (sel, ports)) -> if sel
+    |> Array.mapi (fun i (sel, ports) -> if sel
                                            then float i + moveBy, ports
                                            else float i, ports)
     |> Array.sortBy fst

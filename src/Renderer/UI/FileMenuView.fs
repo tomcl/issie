@@ -112,8 +112,8 @@ let private createEmptyDiagramFile projectPath name =
         OutputLabels = []
     }
 
-let updateLoadedComponents name setFun lcLst =
-    let n = List.tryFindIndex (fun lc -> lc.Name = name) lcLst
+let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lcLst: LoadedComponent list) =
+    let n = List.tryFindIndex (fun (lc: LoadedComponent) -> lc.Name = name) lcLst
     match n with
     | None -> failwithf "Can't find name='%s' in components:%A" name lcLst
     | Some n ->
@@ -163,7 +163,7 @@ let private removeFileInProject wsModel2SavedWaveInfoFunc name project model dis
     removeFile project.ProjectPath name
     removeFile project.ProjectPath (name + "auto")
     // Remove the file from the dependencies and update project.
-    let newComponents = List.filter (fun lc -> lc.Name <> name) project.LoadedComponents
+    let newComponents = List.filter (fun (lc: LoadedComponent) -> lc.Name <> name) project.LoadedComponents
     // Make sure there is at least one file in the project.
     let newComponents =
         match List.isEmpty newComponents with

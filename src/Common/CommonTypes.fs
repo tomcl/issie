@@ -181,29 +181,22 @@ type NetList = Map<ComponentId,NetListComponent>
 (*-----------------------------------------------------------------------------*)
 // Types used within waveform Simulation code, and for saved wavesim configuartion
 
-/// Identifies the source of a waveform
-type WaveSimPort = {
-    CId : ComponentId
-    OutPN : OutputPortNumber
-    TrgtId : ComponentId option // What is this? Should be ConnectionId?
-}
-
 /// Identifies a connected net
 /// Does this tie together labelled nets? If so it should have a ComponentLabel option.
 /// should it include the display name(s)? this can be calculated
-type PortsNet = WaveSimPort * (WaveSimPort list)
+type TrgtLstGroup = { mainTrgtLst: NLTarget list; connectedTrgtLsts: NLTarget list array }
 
 /// Info saved by Wave Sim.
 /// This info is not necessarilu uptodate with deletions or additions in the Diagram.
 /// The wavesim code processing this will not fail if non-existent nets are referenced.
 type SavedWaveInfo = {
-    Ports: PortsNet array
+    Ports: TrgtLstGroup array
     ClkWidth: float
     Cursor: uint32 
     Radix: NumberBase
     LastClk: uint32
     WaveAdderOpen: bool
-    WaveAdderPorts: PortsNet array
+    WaveAdderPorts: TrgtLstGroup array
 }
 
 (*--------------------------------------------------------------------------------------------------*)
@@ -236,4 +229,21 @@ type LoadedComponent = {
     InputLabels : (string * int) list
     /// Output port names, and port numbers in any created custom component
     OutputLabels : (string * int) list
+}
+
+(*-----------------------------------------------------------------------------*)
+// Types used for naming of waveforms in the Waveform Simulator
+
+/// Identifies the name of a single driving component of a waveform
+type LabelSegment = { 
+    Name : string
+    BitLimits : int*int 
+}
+
+/// Identifies the names of the driving components and the named labels of a waveform
+type WaveLabel = {
+    /// Identifies the names of Output and IOLabel components connected to the waveform's net
+    OutputsAndIOLabels : string list
+    /// Identifies the driving components' names
+    ComposingLabels : LabelSegment list 
 }

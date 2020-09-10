@@ -62,7 +62,7 @@ type Model = {
     TopMenu : TopMenu
     DragMode: DragMode
     ViewerWidth: int // waveform viewer width in pixels
-    SimulationInProgress:  Result<PortsNet array,{| LastClk: uint; Curs: uint; ClkW: float |}> option
+    SimulationInProgress:  Result<TrgtLstGroup array,{| LastClk: uint; Curs: uint; ClkW: float |}> option
     ConnsToBeHighlighted: bool
 } with
  

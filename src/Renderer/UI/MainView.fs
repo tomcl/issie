@@ -231,7 +231,7 @@ let displayView model dispatch =
                 |> min (windowX - minEditorWidth)
             SetViewerWidth w |> dispatch
             match currWS model with
-            | Some wSMod when w > maxWidth compIds wSMod && not wSMod.WaveAdderOpen ->
+            | Some wSMod when w > maxWidth compIds (wsModel2netList wSMod) wSMod && not wSMod.WaveAdderOpen ->
                 {| LastClk = wSMod.LastClk + 10u
                    ClkW = wSMod.ClkWidth
                    Curs = wSMod.Cursor |}
@@ -507,7 +507,7 @@ let update msg model =
         |> ignore
         { model with Hilighted = (componentIds, connectionIds), snd model.Hilighted }, Cmd.none
     | SetSelWavesHighlighted connIds ->
-        setSelWavesHighlighted model connIds
+        setSelWavesHighlighted model (Array.toList connIds)
         |> (fun lst -> { model with Hilighted = fst model.Hilighted, lst
                                     ConnsToBeHighlighted = false }, Cmd.none)
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none

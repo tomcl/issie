@@ -288,7 +288,8 @@ let viewTestScroll model dispatch =
     let element =  ref None
     /// get reference to HTML elemnt that is scrolled
     let htmlElementRef (el: Browser.Types.Element) =
-        element := Some el // set mutable reference to teh HTML element
+        if not (isNull el) then // el can be Null, in which case we do nothing
+            element := Some el // set mutable reference to the HTML element for later use
         printf "Scroll el = %A" !element // print out the element
 
     let scrollFun (ev:Browser.Types.UIEvent) = // function called whenever scroll position is changed

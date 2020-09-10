@@ -283,6 +283,36 @@ let displayView model dispatch =
                               ]
                     viewRightTab model dispatch ] ] ]
 
+
+let viewTestScroll model dispatch =
+    let element =  ref None
+    /// get reference to HTML elemnt that is scrolled
+    let htmlElementRef (el: Browser.Types.Element) =
+        element := Some el // set mutable reference to teh HTML element
+        printf "Scroll el = %A" !element // print out the element
+
+    let scrollFun (ev:Browser.Types.UIEvent) = // function called whenever scroll is clicked
+        match !element with // element should now be the HTMl element that is scrolled
+        | None -> () // do nothing
+        | Some e ->
+            let sPos = e.scrollLeft // this should show scroll position
+            // can use dispatch here to make something happen based on scroll position
+            printfn "scrolling with scrollPos=%f" sPos
+        
+    div [Style [Width "100px"]] [
+    div [
+            Ref htmlElementRef ;
+            Style [
+                Width "400px";
+                Height "100%";
+                OverflowX OverflowOptions.Scroll;
+                BackgroundColor "grey";
+                Opacity 0.5
+                ]
+            OnScroll scrollFun 
+            ] []
+    ]
+    
 // -- Update Model
 
 let private getSimulationDataOrFail model msg =
@@ -601,3 +631,6 @@ let update msg model =
     | SetLastSimulatedCanvasState cS ->
         { model with LastSimulatedCanvasState = cS }, Cmd.none
     |> checkForAutoSaveOrSelectionChanged msg
+
+
+

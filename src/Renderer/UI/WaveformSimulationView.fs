@@ -71,14 +71,8 @@ let private cursValStrings (wSMod: WaveSimModel) (waveData: Sample [] []) =
     | true -> Array.map makeCursVal waveData.[int wSMod.Cursor]
     | false -> [||]
 
-/// get waveform names
-let private getWaveNames compIds netList (wsMod: WaveSimModel) =
-    match wsMod.WaveAdder.SimData with
-    | Some sD -> Array.map (nlTrgtLstGroup2Label compIds sD.Graph netList) wsMod.Ports
-    | None -> [||]
-
 /// maximum width of the waveform simulator viewer
-let maxWidth compIds netList (wSMod: WaveSimModel) =
+let maxWidth (wSMod: WaveSimModel) =
     let strWidth s = 
         JSHelpers.getTextWidthInPixels (s, "12px segoe ui") //not sure which font
     let curLblColWidth =
@@ -88,10 +82,8 @@ let maxWidth compIds netList (wSMod: WaveSimModel) =
             Array.map (Array.map strWidth >> Array.max) cVS
             |> Array.max
             |> max 25.0
-    let waveNames =
-        getWaveNames compIds netList wSMod 
     let namesColWidth =
-        match waveNames with
+        match wSMod.WaveNames with
         | [||] -> 0.0
         | wN ->
             Array.map strWidth wN
@@ -138,7 +130,7 @@ let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
         |> (*) wSMod.ClkWidth
         |> max minZoom
         |> min maxZoom
-    match int (float m.ViewerWidth * zoomFactor) > maxWidth compIds netList wSMod with
+    match int (float m.ViewerWidth * zoomFactor) > maxWidth wSMod with
     | true ->
         {| LastClk = (wSMod.LastClk + 1u) * (uint zoomFactor) + 10u
            Curs = wSMod.Cursor
@@ -312,10 +304,9 @@ let clkRulerSvg (model: WaveSimModel) =
 /// tuple of React elements of middle column, left column, right column
 let private waveSimRows compIds model (netList: NetList) (wsMod: WaveSimModel) dispatch =
     let waveData = getWaveData wsMod
-    let waveNames = getWaveNames compIds netList wsMod
 
     let labelCols =
-        makeLabels waveNames
+        makeLabels wsMod.WaveNames
         |> Array.mapi (fun i l ->
             tr [ Class "rowHeight" ]
                 [ td [ Class "checkboxCol" ]

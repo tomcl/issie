@@ -219,7 +219,6 @@ let displayView model dispatch =
 
 
     let processMouseMove (ev: Browser.Types.MouseEvent) =
-        let compIds = getComponentIds model
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         if ev.buttons = 1. then dispatch SelectionHasChanged
         match model.DragMode, ev.buttons with
@@ -231,7 +230,7 @@ let displayView model dispatch =
                 |> min (windowX - minEditorWidth)
             SetViewerWidth w |> dispatch
             match currWS model with
-            | Some wSMod when w > maxWidth compIds (wsModel2netList wSMod) wSMod && not wSMod.WaveAdderOpen ->
+            | Some wSMod when w > maxWidth wSMod && not wSMod.WaveAdderOpen ->
                 {| LastClk = wSMod.LastClk + 10u
                    ClkW = wSMod.ClkWidth
                    Curs = wSMod.Cursor |}
@@ -586,8 +585,9 @@ let update msg model =
         | Some fileName ->
             match currWS model, par with
             | Some wSMod, Ok ports -> 
+                let wsMod' = waveGen model waveSvg clkRulerSvg wSMod ports
                 { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model [] 
-                             WaveSim = Map.add fileName (waveGen model waveSvg clkRulerSvg wSMod ports) (fst model.WaveSim), 
+                             WaveSim = Map.add fileName wsMod' (fst model.WaveSim), 
                                        snd model.WaveSim
                              SimulationInProgress = None }, Cmd.ofMsg SetSimNotInProgress
             | Some wSMod, Error par -> 

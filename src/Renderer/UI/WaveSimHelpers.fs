@@ -503,6 +503,13 @@ let updateWSMod waveSvg clkRulerSvg (model: Model) (wsMod: WaveSimModel)
                           ClkWidth = par.ClkW } )
     |> (fun m -> { m with WaveTable = waveCol waveSvg clkRulerSvg model m (getWaveData m) })
 
+
+/// get waveform names
+let private getWaveNames compIds netList (wsMod: WaveSimModel) =
+    match wsMod.WaveAdder.SimData with
+    | Some sD -> Array.map (nlTrgtLstGroup2Label compIds sD.Graph netList) wsMod.Ports
+    | None -> [||]
+
 /// call waveCol with the current Simulation Data 
 let waveGen model waveSvg clkRulerSvg (wSMod: WaveSimModel) ports =
     let simData' = 
@@ -513,9 +520,15 @@ let waveGen model waveSvg clkRulerSvg (wSMod: WaveSimModel) ports =
             |> Array.append [| sD |] 
         | None -> failwith "waveGen called when WaveAdder.SimData is None"
 
+    let names =
+        Array.zip wSMod.WaveAdder.Ports wSMod.WaveAdder.WaveNames
+        |> Array.filter (fun (p, _) -> Array.contains p ports)
+        |> Array.map snd
+
     let wSMod' =
         { wSMod with
             SimData = simData'
+            WaveNames = names
             Ports = ports
             WaveAdderOpen = false }
 
@@ -580,6 +593,7 @@ let savedWaveInfo2wsModel compIds waveSvg clkRulerSvg model (sWInfo: SavedWaveIn
         let waPorts' = availableNLTrgtLstGroups model
         { SimData = sD'
           WaveTable = [||]
+          WaveNames = [||]
           Ports = ports'
           ClkWidth = sWInfo.ClkWidth
           Cursor = sWInfo.Cursor

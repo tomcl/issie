@@ -491,7 +491,13 @@ let update msg model =
         { model with Simulation = { simData with ClockTickNumber = simData.ClockTickNumber+1 } |> Ok |> Some }, Cmd.none
     | EndSimulation -> { model with Simulation = None }, Cmd.none
     | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
-    | ChangeRightTab newTab -> { model with RightTab = newTab }, Cmd.none
+    | ChangeRightTab newTab -> 
+        { model with RightTab = newTab }, 
+        match newTab with 
+        | Properties -> Cmd.ofMsg <| SetSelWavesHighlighted [||]
+        | Catalogue -> Cmd.ofMsg <| SetSelWavesHighlighted [||]
+        | Simulation -> Cmd.ofMsg <| SetSelWavesHighlighted [||]
+        | WaveSim -> Cmd.none
     | SetHighlighted (componentIds, connectionIds) ->
         let oldComponentIds, oldConnectionIds = fst model.Hilighted
         oldComponentIds

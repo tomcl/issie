@@ -470,7 +470,7 @@ let private setWaveAdder compIds model wSMod dispatch simData netList =
 
     let wA' =
         { SimData = Some simData
-          Ports = trgtLstGroups 
+          Ports = trgtLstGroups  
           WaveNames = Array.map (nlTrgtLstGroup2Label compIds simData.Graph netList) trgtLstGroups }
     { wSMod with
           WaveAdderOpen = true

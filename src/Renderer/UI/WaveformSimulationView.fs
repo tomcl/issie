@@ -184,7 +184,7 @@ let private moveWave (model: Model) netList (wSMod: WaveSimModel) up =
     |> SetCurrFileWSMod
 
 /// standard order of waveforms in the WaveAdder
-let private standardWaveformOrderWaveAdder model netList wSMod =
+let private standardWaveformOrderWaveAdder wSMod =
     Array.zip wSMod.WaveAdder.WaveNames  wSMod.WaveAdder.Ports
     |> Array.groupBy (fun (_, wave) -> Array.contains wave wSMod.Ports)
     |> Array.sortByDescending fst
@@ -197,7 +197,7 @@ let private standardWaveformOrderWaveAdder model netList wSMod =
 let private openCloseWaveAdder model netList (wSMod: WaveSimModel) on dispatch = 
     if on 
     then selectAllOn model wSMod |> ignore
-         standardWaveformOrderWaveAdder model netList wSMod
+         standardWaveformOrderWaveAdder wSMod
     else wSMod.WaveAdder
     |> (fun wA -> { wSMod with WaveAdderOpen = on
                                WaveAdder = wA } )

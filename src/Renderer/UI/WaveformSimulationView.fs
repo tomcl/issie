@@ -183,10 +183,24 @@ let private moveWave (model: Model) netList (wSMod: WaveSimModel) up =
                                    WaveTable = Array.concat [[|wTFirst|];wT;[|wTLast|]]})
     |> SetCurrFileWSMod
 
+/// standard order of waveforms in the WaveAdder
+let private standardWaveformOrderWaveAdder model netList wSMod =
+    Array.zip wSMod.WaveAdder.WaveNames  wSMod.WaveAdder.Ports
+    |> Array.groupBy (fun (_, wave) -> Array.contains wave wSMod.Ports)
+    |> Array.sortByDescending fst
+    |> Array.collect (snd >> Array.sortBy fst)
+    |> Array.unzip
+    |> (fun (a, b) -> { wSMod.WaveAdder with WaveNames = a 
+                                             Ports = b } )
+
 /// open/close the WaveAdder view 
-let private openCloseWA model (wSMod: WaveSimModel) on dispatch = 
-    if on then selectAllOn model wSMod |> ignore
-    { wSMod with WaveAdderOpen = on }
+let private openCloseWaveAdder model netList (wSMod: WaveSimModel) on dispatch = 
+    if on 
+    then selectAllOn model wSMod |> ignore
+         standardWaveformOrderWaveAdder model netList wSMod
+    else wSMod.WaveAdder
+    |> (fun wA -> { wSMod with WaveAdderOpen = on
+                               WaveAdder = wA } )
     |> SetCurrFileWSMod |> dispatch
 
 /// select all waveforms in the WaveAdder View
@@ -427,7 +441,7 @@ let private nameLabelsCol model netList (wsMod: WaveSimModel) labelRows dispatch
            [ Button.button
            [ Button.CustomClass "newWaveButton"
              Button.Color IsSuccess
-             Button.OnClick(fun _ -> openCloseWA model wsMod true dispatch) ] [ str "Edit list..." ] ]
+             Button.OnClick(fun _ -> openCloseWaveAdder model netList wsMod true dispatch) ] [ str "Edit list..." ] ]
 
     let top =
         [| tr [ Class "rowHeight" ]
@@ -585,7 +599,7 @@ let private waveAdderButs (model: Model) netList wSMod dispatch =
     let cancBut =
         Button.button
             [ Button.Color IsDanger
-              Button.OnClick(fun _ -> openCloseWA model wSMod false dispatch) ] [ str "Cancel" ]
+              Button.OnClick(fun _ -> openCloseWaveAdder model netList wSMod false dispatch) ] [ str "Cancel" ]
 
     let buts =
         match wSMod.Ports with

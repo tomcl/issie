@@ -17,8 +17,6 @@ open CommonTypes
 open WaveSimHelpers
 open FileMenuView
 
-let maxLastClk = 500u
-
 /// get wave name labels from waveforms names
 let private makeLabels waveNames =
     let makeLbl l = label [ Class "waveLbl" ] [ str l ]

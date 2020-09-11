@@ -23,7 +23,7 @@ let private makeLabels waveNames =
     Array.map makeLbl waveNames
 
 /// get values position of bus labels from the transition gaps (for one Waveform)
-let gaps2pos (wSModel: WaveSimModel) (wave: Waveform) gaps =
+let private gaps2pos (wSModel: WaveSimModel) (wave: Waveform) gaps =
     let clkWidth = int wSModel.ClkWidth
     let nSpaces (g: {| GapLen: int; GapStart: int |}) = 
         (g.GapLen * clkWidth / (maxBusValGap + 1) + 2)
@@ -69,14 +69,8 @@ let private cursValStrings (wSMod: WaveSimModel) (waveData: Sample [] []) =
     | true -> Array.map makeCursVal waveData.[int wSMod.Cursor]
     | false -> [||]
 
-/// get waveform names
-let private getWaveNames compIds netList (wsMod: WaveSimModel) =
-    match wsMod.WaveAdder.SimData with
-    | Some sD -> Array.map (nlTrgtLstGroup2Label compIds sD.Graph netList) wsMod.Ports
-    | None -> [||]
-
 /// maximum width of the waveform simulator viewer
-let maxWidth compIds netList (wSMod: WaveSimModel) =
+let maxWidth (wSMod: WaveSimModel) =
     let strWidth s = 
         JSHelpers.getTextWidthInPixels (s, "12px segoe ui") //not sure which font
     let curLblColWidth =
@@ -86,10 +80,8 @@ let maxWidth compIds netList (wSMod: WaveSimModel) =
             Array.map (Array.map strWidth >> Array.max) cVS
             |> Array.max
             |> max 25.0
-    let waveNames =
-        getWaveNames compIds netList wSMod 
     let namesColWidth =
-        match waveNames with
+        match wSMod.WaveNames with
         | [||] -> 0.0
         | wN ->
             Array.map strWidth wN
@@ -136,7 +128,7 @@ let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
         |> (*) wSMod.ClkWidth
         |> max minZoom
         |> min maxZoom
-    match int (float m.ViewerWidth * zoomFactor) > maxWidth compIds netList wSMod with
+    match int (float m.ViewerWidth * zoomFactor) > maxWidth wSMod with
     | true ->
         {| LastClk = (wSMod.LastClk + 1u) * (uint zoomFactor) + 10u
            Curs = wSMod.Cursor
@@ -149,12 +141,17 @@ let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
 
 /// change cursor value
 let private changeCurs (wSMod: WaveSimModel) dispatch newCurs =
-    let curs' = min 500u newCurs
-    match 0u <= curs' with
-    | true ->
+    let curs' = min maxLastClk newCurs
+    match 0u <= curs', curs' <= wSMod.LastClk with
+    | true, true ->
+        { wSMod with Cursor = curs' }
+        |> SetCurrFileWSMod |> dispatch
+        UpdateScrollPos true |> dispatch
+    | true, false ->
         {| Curs = curs'; ClkW = wSMod.ClkWidth; LastClk = wSMod.LastClk |}
         |> Error |> SetSimInProgress |> dispatch
-    | _ -> ()
+        UpdateScrollPos true |> dispatch
+    | false, _ -> ()
 
 /// change cursor value by 1 up or down
 let private cursorMove increase (wSMod: WaveSimModel) dispatch =
@@ -186,10 +183,24 @@ let private moveWave (model: Model) netList (wSMod: WaveSimModel) up =
                                    WaveTable = Array.concat [[|wTFirst|];wT;[|wTLast|]]})
     |> SetCurrFileWSMod
 
+/// standard order of waveforms in the WaveAdder
+let private standardWaveformOrderWaveAdder wSMod =
+    Array.zip wSMod.WaveAdder.WaveNames  wSMod.WaveAdder.Ports
+    |> Array.groupBy (fun (_, wave) -> Array.contains wave wSMod.Ports)
+    |> Array.sortByDescending fst
+    |> Array.collect (snd >> Array.sortBy fst)
+    |> Array.unzip
+    |> (fun (a, b) -> { wSMod.WaveAdder with WaveNames = a 
+                                             Ports = b } )
+
 /// open/close the WaveAdder view 
-let private openCloseWA model (wSMod: WaveSimModel) on dispatch = 
-    if on then selectAllOn model wSMod |> ignore
-    { wSMod with WaveAdderOpen = on }
+let private openCloseWaveAdder model netList (wSMod: WaveSimModel) on dispatch = 
+    if on 
+    then selectAllOn model wSMod |> ignore
+         standardWaveformOrderWaveAdder wSMod
+    else wSMod.WaveAdder
+    |> (fun wA -> { wSMod with WaveAdderOpen = on
+                               WaveAdder = wA } )
     |> SetCurrFileWSMod |> dispatch
 
 /// select all waveforms in the WaveAdder View
@@ -301,20 +312,15 @@ let clkRulerSvg (model: WaveSimModel) =
         | _ -> [| makeText (cursRectText model i) (string i) |]
     [| 0 .. int model.LastClk |]
     |> Array.collect makeClkRulLbl
-    |> (fun arr ->
-        [ backgroundSvg model
-          [| makeRect (cursRectStyle model) |]
-          arr ])
-    |> Array.concat
+    |> Array.append (backgroundSvg model)
     |> makeSvg (clkRulerStyle model)
 
 /// tuple of React elements of middle column, left column, right column
 let private waveSimRows compIds model (netList: NetList) (wsMod: WaveSimModel) dispatch =
     let waveData = getWaveData wsMod
-    let waveNames = getWaveNames compIds netList wsMod
 
     let labelCols =
-        makeLabels waveNames
+        makeLabels wsMod.WaveNames
         |> Array.mapi (fun i l ->
             tr [ Class "rowHeight" ]
                 [ td [ Class "checkboxCol" ]
@@ -405,7 +411,7 @@ let private cursorButtons (model: Model) wSMod dispatch =
                         |> SetCurrFileWSMod |> dispatch ) ]
           button [ Button.CustomClass "cursRight" ] (fun _ -> cursorMove true wSMod dispatch) "▶" ]
 
-/// React Element of the loading button
+/// ReactElement of the loading button
 let private loadingBut model =
     match model.SimulationInProgress with
     | Some _ -> button [Button.Color IsDanger] (fun _ -> ()) "loading..."
@@ -435,7 +441,7 @@ let private nameLabelsCol model netList (wsMod: WaveSimModel) labelRows dispatch
            [ Button.button
            [ Button.CustomClass "newWaveButton"
              Button.Color IsSuccess
-             Button.OnClick(fun _ -> openCloseWA model wsMod true dispatch) ] [ str "Edit list..." ] ]
+             Button.OnClick(fun _ -> openCloseWaveAdder model netList wsMod true dispatch) ] [ str "Edit list..." ] ]
 
     let top =
         [| tr [ Class "rowHeight" ]
@@ -462,12 +468,55 @@ let private nameLabelsCol model netList (wsMod: WaveSimModel) labelRows dispatch
               Height "100%" ] ] [ table [ Class "leftTable" ] [ tbody [] leftCol ] ]
 
 /// ReactElement of the waveform SVGs' column
-let private wavesCol wSMod rows =
-    div [ Style [ MaxWidth(maxWavesColWidth wSMod)
+let private wavesCol model (wSModel: WaveSimModel) rows dispatch =
+    let element =  ref None
+    /// get reference to HTML elemnt that is scrolled
+    let htmlElementRef (el: Browser.Types.Element) =
+        if not (isNull el) then // el can be Null, in which case we do nothing
+            element := Some el // set mutable reference to the HTML element for later use
+        printf "Scroll el = %A" !element // print out the element
+        
+        match model.SimulationInProgress, !element with
+        | Some (Ok par), _ -> Ok par |> SimulateWhenInProgress |> dispatch
+        | Some (Error par), Some e -> 
+            adjustPars wSModel par (e.clientWidth + e.scrollLeft) dispatch
+            |> Error |> SimulateWhenInProgress |> dispatch
+        | None, Some e -> 
+            match model.CheckScrollPos with
+            | true when not (isCursorVisible wSModel e.clientWidth e.scrollLeft) -> 
+                e.scrollLeft <- makeCursorVisiblePos wSModel e.clientWidth
+                UpdateScrollPos false |> dispatch
+            | _ -> ()
+        | _, None ->
+            SetSimNotInProgress |> dispatch
+            UpdateScrollPos false |> dispatch
+
+    let scrollFun (ev:Browser.Types.UIEvent) = // function called whenever scroll position is changed
+        match !element with // element should now be the HTMl element that is scrolled
+        | None -> () // do nothing
+        | Some e ->
+            if e.scrollWidth - e.clientWidth - e.scrollLeft < 10.0
+                then {| ClkW = wSModel.ClkWidth
+                        Curs = wSModel.Cursor
+                        LastClk = max ((float wSModel.LastClk + 1.0) * 0.1 |> uint) 10u 
+                                  |> (+) wSModel.LastClk
+                                  |> min maxLastClk |}
+                     |> Error |> SetSimInProgress |> dispatch
+                     printfn "working"
+                else printfn "not working"
+            //e.scrollLeft <- 100. // this shows how to set scroll position COMMENT THIS OUT
+            // can use dispatch here to make something happen based on scroll position
+            // scroll position = min or max => at end
+            printfn "scrolling with scrollPos=%f" e.scrollLeft
+        
+    div [ Ref htmlElementRef 
+          OnScroll scrollFun 
+          Style [ MaxWidth(maxWavesColWidth wSModel)
                   MinHeight "100%" ]
-          Class "wavesTable" ] 
-            [ table [ Style [ Height "100%" ] ] 
-                    [ tbody [ Style [ Height "100%" ] ] rows ] ]
+          Class "wavesTable" ]
+        [ div [ Class "cursorRectStyle"; cursRectStyle wSModel ] [ str " " ]
+          table [ Style [ Height "100%" ] ] 
+                [ tbody [ Style [ Height "100%" ] ] rows ] ]
 
 /// ReactElement of the bottom part of the waveform simulator when waveforms are being displayed
 let private viewWaveformViewer compIds model netList wSMod dispatch =
@@ -480,7 +529,7 @@ let private viewWaveformViewer compIds model netList wSMod dispatch =
         [ cursValsCol cursValsRows
           div [ Style [ Height "100%" ] ]
               [ nameLabelsCol model netList wSMod leftColMid dispatch
-                wavesCol wSMod tableWaves ] ]
+                wavesCol model wSMod tableWaves dispatch ] ]
 
 /// ReactElement of the zoom buttons
 let private viewZoomDiv compIds model wSMod dispatch =
@@ -550,7 +599,7 @@ let private waveAdderButs (model: Model) netList wSMod dispatch =
     let cancBut =
         Button.button
             [ Button.Color IsDanger
-              Button.OnClick(fun _ -> openCloseWA model wSMod false dispatch) ] [ str "Cancel" ]
+              Button.OnClick(fun _ -> openCloseWaveAdder model netList wSMod false dispatch) ] [ str "Cancel" ]
 
     let buts =
         match wSMod.Ports with

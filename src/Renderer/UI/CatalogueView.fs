@@ -459,7 +459,8 @@ let private makeCustom model (loadedComponent: LoadedComponent) =
             InputLabels = loadedComponent.InputLabels
             OutputLabels = loadedComponent.OutputLabels
         }
-        model.Diagram.CreateComponent custom (stdLabel custom model) 100 100
+        let x,y = getNewComponentPosition model
+        model.Diagram.CreateComponent custom (stdLabel custom model) x y
         |> ignore
     )
 

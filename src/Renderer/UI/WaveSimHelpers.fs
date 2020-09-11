@@ -663,3 +663,21 @@ let simulateButtonFunc compIds model dispatch =
     | _ -> Button.button []
     |> (fun but -> but [ str "Waveforms >>" ])
 
+///////////////////////////
+// Auto-scroll functions //
+///////////////////////////
+
+/// returns true when the cursor rectangle is in the visible section of the scrollable div
+let isCursorVisible wSMod divWidth scrollPos =
+    let cursLeftPos = cursorLeftPx wSMod <| float wSMod.Cursor
+    let cursRightPos = cursLeftPos + (wSMod.ClkWidth * 40.0)
+    let leftScreenLim = scrollPos
+    let rightScreenLim = leftScreenLim + divWidth
+    cursLeftPos >= leftScreenLim && cursRightPos <= rightScreenLim
+
+/// returns horizontal scrolling position required so that the cursor becomes visible
+let makeCursorVisiblePos wSMod divWidth = 
+    let cursLeftPos = cursorLeftPx wSMod <| float wSMod.Cursor
+    let cursRightPos = cursLeftPos + (wSMod.ClkWidth * 40.0)
+    let cursMid = (cursLeftPos + cursRightPos) / 2.0
+    cursMid - (divWidth / 2.0)

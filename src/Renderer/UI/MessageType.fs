@@ -168,3 +168,4 @@ type Msg =
     | SimulateWhenInProgress of Result<TrgtLstGroup array,{| LastClk: uint; Curs: uint; ClkW: float |}>
     | SetSimNotInProgress
     | SetLastSimulatedCanvasState of CanvasState option
+    | UpdateScrollPos of bool

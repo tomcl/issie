@@ -17,6 +17,8 @@ open CommonTypes
 open WaveSimHelpers
 open FileMenuView
 
+let maxLastClk = 500u
+
 /// get wave name labels from waveforms names
 let private makeLabels waveNames =
     let makeLbl l = label [ Class "waveLbl" ] [ str l ]
@@ -149,7 +151,7 @@ let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
 
 /// change cursor value
 let private changeCurs (wSMod: WaveSimModel) dispatch newCurs =
-    let curs' = min 500u newCurs
+    let curs' = min maxLastClk newCurs
     match 0u <= curs', curs' <= wSMod.LastClk with
     | true, true ->
         { wSMod with Cursor = curs' }
@@ -461,13 +463,40 @@ let private nameLabelsCol model netList (wsMod: WaveSimModel) labelRows dispatch
               Height "100%" ] ] [ table [ Class "leftTable" ] [ tbody [] leftCol ] ]
 
 /// ReactElement of the waveform SVGs' column
-let private wavesCol wSModel rows =
-    div [ Style [ MaxWidth(maxWavesColWidth wSModel)
+let private wavesCol (wSModel: WaveSimModel) rows dispatch =
+    let element =  ref None
+    /// get reference to HTML elemnt that is scrolled
+    let htmlElementRef (el: Browser.Types.Element) =
+        if not (isNull el) then // el can be Null, in which case we do nothing
+            element := Some el // set mutable reference to the HTML element for later use
+        printf "Scroll el = %A" !element // print out the element
+
+    let scrollFun (ev:Browser.Types.UIEvent) = // function called whenever scroll position is changed
+        match !element with // element should now be the HTMl element that is scrolled
+        | None -> () // do nothing
+        | Some e ->
+            if e.scrollWidth - e.clientWidth - e.scrollLeft < 10.0
+                then {| ClkW = wSModel.ClkWidth
+                        Curs = wSModel.Cursor
+                        LastClk = max ((float wSModel.LastClk + 1.0) * 0.1 |> uint) 10u 
+                                  |> (+) wSModel.LastClk
+                                  |> min maxLastClk |}
+                     |> Error |> SetSimInProgress |> dispatch
+                     printfn "working"
+                else printfn "not working"
+            //e.scrollLeft <- 100. // this shows how to set scroll position COMMENT THIS OUT
+            // can use dispatch here to make something happen based on scroll position
+            // scroll position = min or max => at end
+            printfn "scrolling with scrollPos=%f" e.scrollLeft
+        
+    div [ Ref htmlElementRef 
+          OnScroll scrollFun 
+          Style [ MaxWidth(maxWavesColWidth wSModel)
                   MinHeight "100%" ]
           Class "wavesTable" ]
-            [ div [ Class "cursorRectStyle"; cursRectStyle wSModel ] [ str " " ]
-              table [ Style [ Height "100%" ] ] 
-                    [ tbody [ Style [ Height "100%" ] ] rows ] ]
+        [ div [ Class "cursorRectStyle"; cursRectStyle wSModel ] [ str " " ]
+          table [ Style [ Height "100%" ] ] 
+                [ tbody [ Style [ Height "100%" ] ] rows ] ]
 
 /// ReactElement of the bottom part of the waveform simulator when waveforms are being displayed
 let private viewWaveformViewer compIds model netList wSMod dispatch =
@@ -480,7 +509,7 @@ let private viewWaveformViewer compIds model netList wSMod dispatch =
         [ cursValsCol cursValsRows
           div [ Style [ Height "100%" ] ]
               [ nameLabelsCol model netList wSMod leftColMid dispatch
-                wavesCol wSMod tableWaves ] ]
+                wavesCol wSMod tableWaves dispatch ] ]
 
 /// ReactElement of the zoom buttons
 let private viewZoomDiv compIds model wSMod dispatch =

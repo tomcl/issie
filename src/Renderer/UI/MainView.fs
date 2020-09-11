@@ -76,6 +76,7 @@ let init() = {
     ViewerWidth = rightSectionWidthViewerDefault
     SimulationInProgress = None
     ConnsToBeHighlighted= false
+    CheckScrollPos = false
 }
 
 /// Repaint each connection according to the new inferred width.
@@ -601,6 +602,8 @@ let update msg model =
         model, Cmd.none
     | SetLastSimulatedCanvasState cS ->
         { model with LastSimulatedCanvasState = cS }, Cmd.none
+    | UpdateScrollPos b ->
+        { model with CheckScrollPos = b}, Cmd.none
     |> checkForAutoSaveOrSelectionChanged msg
 
 

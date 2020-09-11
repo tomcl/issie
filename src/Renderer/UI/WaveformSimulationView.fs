@@ -148,9 +148,11 @@ let private changeCurs (wSMod: WaveSimModel) dispatch newCurs =
     | true, true ->
         { wSMod with Cursor = curs' }
         |> SetCurrFileWSMod |> dispatch
+        UpdateScrollPos true |> dispatch
     | true, false ->
         {| Curs = curs'; ClkW = wSMod.ClkWidth; LastClk = wSMod.LastClk |}
         |> Error |> SetSimInProgress |> dispatch
+        UpdateScrollPos true |> dispatch
     | false, _ -> ()
 
 /// change cursor value by 1 up or down
@@ -454,13 +456,21 @@ let private nameLabelsCol model netList (wsMod: WaveSimModel) labelRows dispatch
               Height "100%" ] ] [ table [ Class "leftTable" ] [ tbody [] leftCol ] ]
 
 /// ReactElement of the waveform SVGs' column
-let private wavesCol (wSModel: WaveSimModel) rows dispatch =
+let private wavesCol model (wSModel: WaveSimModel) rows dispatch =
     let element =  ref None
     /// get reference to HTML elemnt that is scrolled
     let htmlElementRef (el: Browser.Types.Element) =
         if not (isNull el) then // el can be Null, in which case we do nothing
             element := Some el // set mutable reference to the HTML element for later use
         printf "Scroll el = %A" !element // print out the element
+
+        match model.CheckScrollPos, !element with
+        | true, Some e when not (isCursorVisible wSModel e.clientWidth e.scrollLeft) -> 
+            e.scrollLeft <- makeCursorVisiblePos wSModel e.clientWidth
+            UpdateScrollPos false |> dispatch
+            printfn "HIIIII"
+        | true, _ -> UpdateScrollPos false |> dispatch
+        | _ -> ()
 
     let scrollFun (ev:Browser.Types.UIEvent) = // function called whenever scroll position is changed
         match !element with // element should now be the HTMl element that is scrolled
@@ -500,7 +510,7 @@ let private viewWaveformViewer compIds model netList wSMod dispatch =
         [ cursValsCol cursValsRows
           div [ Style [ Height "100%" ] ]
               [ nameLabelsCol model netList wSMod leftColMid dispatch
-                wavesCol wSMod tableWaves dispatch ] ]
+                wavesCol model wSMod tableWaves dispatch ] ]
 
 /// ReactElement of the zoom buttons
 let private viewZoomDiv compIds model wSMod dispatch =

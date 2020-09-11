@@ -47,7 +47,7 @@ let private makeSimData model =
         ||> prepareSimulation project.OpenFileName
         |> Some
 
-/// get SourceGroup from port which represents the group sources connected by IOLabels
+/// get TargetListGroup from nlTrgtLst which represents the group of nlTrgtLsts connected by IOLabels
 let rec private getTrgtLstGroup (netList: NetList) nlTrgtLst =
     let connectedLblNames = 
         List.filter (fun netListTrgt -> netList.[netListTrgt.TargetCompId].Type = IOLabel) nlTrgtLst
@@ -75,8 +75,8 @@ let private getReloadableTrgtLstGroups (model: Model) (netList: NetList) =
     match currWS model with
     | Some wSMod ->
         Array.map (fun trgtLstGroup -> trgtLstGroup.mainTrgtLst) wSMod.Ports 
-        |> Array.map (fun trgtLst -> List.filter (isNetListTrgtInNetList netList) trgtLst)
-        |> Array.filter (fun lst -> lst <> [])
+        |> Array.map (List.filter <| isNetListTrgtInNetList netList)
+        |> Array.filter ((<>) [])
         |> Array.map (getTrgtLstGroup netList)
     | None -> [||]
 
@@ -198,9 +198,11 @@ let private outPortInt2int outPortInt =
 /// get labels of Output and IOLabel components in nlTargetList
 let trgtLst2outputsAndIOLabels (netList: NetList) (nlTrgtLst: NLTarget list) =
     let nlTrgt2Lbls st nlTrgt= 
-        match netList.[nlTrgt.TargetCompId].Type with
-        | IOLabel | Output _ -> List.append st [netList.[nlTrgt.TargetCompId].Label]
-        | _ -> st
+        match Map.tryFind nlTrgt.TargetCompId netList with
+        | Some nlComp -> match nlComp.Type with
+                         | IOLabel | Output _ -> List.append st [netList.[nlTrgt.TargetCompId].Label]
+                         | _ -> st
+        | None -> st
     List.fold nlTrgt2Lbls [] nlTrgtLst
     |> List.distinct
 
@@ -447,21 +449,31 @@ let initFileWS model dispatch =
     | None -> ()
 
 /// set model.WaveAdder to show the list of waveforms that can be selected
-let private setWA compIds model wSMod dispatch simData netList =
+let private setWaveAdder compIds model wSMod dispatch simData netList =
     SetViewerWidth minViewerWidth |> dispatch
     getReducedCanvState model |> SetLastSimulatedCanvasState |> dispatch
     SetSimIsStale false |> dispatch
 
+    let trgtLstGroups = 
+        availableNLTrgtLstGroups model
+
     let wA' =
-        let trgtLstGroups = availableNLTrgtLstGroups model
         { SimData = Some simData
           Ports = trgtLstGroups 
           WaveNames = Array.map (nlTrgtLstGroup2Label compIds simData.Graph netList) trgtLstGroups }
     { wSMod with
+          WaveAdderOpen = true
           WaveAdder = wA'
           LastCanvasState = getReducedCanvState model }
     |> SetCurrFileWSMod
     |> dispatch
+
+    let isInReloadable trgtListGroup = 
+        Array.contains trgtListGroup (getReloadableTrgtLstGroups model netList)
+    Array.map isInReloadable trgtLstGroups
+    |> Array.map2 (selWave2selConn model) trgtLstGroups |> ignore
+
+    ChangeRightTab WaveSim |> dispatch
 
 /// ReactElement array of the box containing the waveform's SVG
 let private waveCol waveSvg clkRulerSvg model wsMod waveData =
@@ -606,7 +618,7 @@ let fileMenuViewActions model dispatch =
         | _ -> ()
     else ()
 
-/// actions triggered by pressing the Simulate >>> button
+/// actions triggered by pressing the Simulate >> button
 let simulateButtonFunc compIds model dispatch =
     match model.SimulationIsStale, currWS model, makeSimData model, model.Diagram.GetCanvasState() with
     | true, Some wSMod, Some (Ok simData), Some jsCanvState ->
@@ -614,8 +626,7 @@ let simulateButtonFunc compIds model dispatch =
         Button.button
             [ Button.Color IsSuccess
               Button.OnClick(fun _ ->
-                  setWA compIds model wSMod dispatch simData netList
-                  ChangeRightTab WaveSim |> dispatch) ]
+                  setWaveAdder compIds model wSMod dispatch simData netList) ]
     | true, Some _, Some (Error err), _ -> 
         Button.button
             [ Button.OnClick(fun _ ->
@@ -629,40 +640,3 @@ let simulateButtonFunc compIds model dispatch =
     | _ -> Button.button []
     |> (fun but -> but [ str "Waveforms >>" ])
 
-
-/////////////////////////////////////
-// Div with controllable scrolling //
-/////////////////////////////////////
-
-let viewTestScroll model dispatch =
-    let element =  ref None
-    /// get reference to HTML elemnt that is scrolled
-    let htmlElementRef (el: Browser.Types.Element) =
-        if not (isNull el) then // el can be Null, in which case we do nothing
-            element := Some el // set mutable reference to the HTML element for later use
-        printf "Scroll el = %A" !element // print out the element
-
-    let scrollFun (ev:Browser.Types.UIEvent) = // function called whenever scroll position is changed
-        match !element with // element should now be the HTMl element that is scrolled
-        | None -> () // do nothing
-        | Some e ->
-            let sPos = e.scrollLeft // this should set sPos = scroll position
-            e.scrollLeft <- 100. // this shows how to set scroll position COMMENT THIS OUT
-            // can use dispatch here to make something happen based on scroll position
-            // scroll position = min or max => at end
-            // 
-            printfn "scrolling with scrollPos=%f" sPos
-        
-    div [Style [Width "100px"]] [
-    div [
-            Ref htmlElementRef ;
-            Style [
-                Width "400px";
-                Height "100%";
-                OverflowX OverflowOptions.Scroll;
-                BackgroundColor "grey";
-                Opacity 0.5
-                ]
-            OnScroll scrollFun 
-            ] []
-    ]

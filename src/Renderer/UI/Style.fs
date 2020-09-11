@@ -151,9 +151,9 @@ let clkRulerStyle m : IProp list =
 
 let cursRectStyle m = Style [
         let clkWidths2px clkWidths =
-            clkWidths * m.ClkWidth * 40.0
-        Left ((float m.Cursor + clkLineWidth / 2.0) |> clkWidths2px |> (+) 4.0 |> string |> (fun w -> w + "px"))
-        Width ((1.0 - clkLineWidth) |> clkWidths2px |> string |> (fun w -> w + "px"))
+            clkWidths * (m.ClkWidth * 40.0 + 4.0 / (float m.LastClk + 1.0)) |> string |> (fun w -> w + "px")
+        Left (float m.Cursor |> clkWidths2px )
+        Width (40.0 * (1.0 - clkLineWidth))
 ]
 
 let cursRectText m i : IProp list = [

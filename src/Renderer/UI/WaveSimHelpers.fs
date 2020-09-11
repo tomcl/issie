@@ -628,3 +628,41 @@ let simulateButtonFunc compIds model dispatch =
               Button.button []
     | _ -> Button.button []
     |> (fun but -> but [ str "Waveforms >>" ])
+
+
+/////////////////////////////////////
+// Div with controllable scrolling //
+/////////////////////////////////////
+
+let viewTestScroll model dispatch =
+    let element =  ref None
+    /// get reference to HTML elemnt that is scrolled
+    let htmlElementRef (el: Browser.Types.Element) =
+        if not (isNull el) then // el can be Null, in which case we do nothing
+            element := Some el // set mutable reference to the HTML element for later use
+        printf "Scroll el = %A" !element // print out the element
+
+    let scrollFun (ev:Browser.Types.UIEvent) = // function called whenever scroll position is changed
+        match !element with // element should now be the HTMl element that is scrolled
+        | None -> () // do nothing
+        | Some e ->
+            let sPos = e.scrollLeft // this should set sPos = scroll position
+            e.scrollLeft <- 100. // this shows how to set scroll position COMMENT THIS OUT
+            // can use dispatch here to make something happen based on scroll position
+            // scroll position = min or max => at end
+            // 
+            printfn "scrolling with scrollPos=%f" sPos
+        
+    div [Style [Width "100px"]] [
+    div [
+            Ref htmlElementRef ;
+            Style [
+                Width "400px";
+                Height "100%";
+                OverflowX OverflowOptions.Scroll;
+                BackgroundColor "grey";
+                Opacity 0.5
+                ]
+            OnScroll scrollFun 
+            ] []
+    ]

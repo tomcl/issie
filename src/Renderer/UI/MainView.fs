@@ -76,6 +76,7 @@ let init() = {
     ViewerWidth = rightSectionWidthViewerDefault
     SimulationInProgress = None
     ConnsToBeHighlighted= false
+    CheckScrollPos = false
 }
 
 /// Repaint each connection according to the new inferred width.
@@ -219,7 +220,6 @@ let displayView model dispatch =
 
 
     let processMouseMove (ev: Browser.Types.MouseEvent) =
-        let compIds = getComponentIds model
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         if ev.buttons = 1. then dispatch SelectionHasChanged
         match model.DragMode, ev.buttons with
@@ -231,7 +231,7 @@ let displayView model dispatch =
                 |> min (windowX - minEditorWidth)
             SetViewerWidth w |> dispatch
             match currWS model with
-            | Some wSMod when w > maxWidth compIds (wsModel2netList wSMod) wSMod && not wSMod.WaveAdderOpen ->
+            | Some wSMod when w > maxWidth wSMod && not wSMod.WaveAdderOpen ->
                 {| LastClk = wSMod.LastClk + 10u
                    ClkW = wSMod.ClkWidth
                    Curs = wSMod.Cursor |}
@@ -283,39 +283,6 @@ let displayView model dispatch =
                               ]
                     viewRightTab model dispatch ] ] ]
 
-
-let viewTestScroll model dispatch =
-    let element =  ref None
-    /// get reference to HTML elemnt that is scrolled
-    let htmlElementRef (el: Browser.Types.Element) =
-        if not (isNull el) then // el can be Null, in which case we do nothing
-            element := Some el // set mutable reference to the HTML element for later use
-        printf "Scroll el = %A" !element // print out the element
-
-    let scrollFun (ev:Browser.Types.UIEvent) = // function called whenever scroll position is changed
-        match !element with // element should now be the HTMl element that is scrolled
-        | None -> () // do nothing
-        | Some e ->
-            let sPos = e.scrollLeft // this should set sPos = scroll position
-            e.scrollLeft <- 100. // this shows how to set scroll position COMMENT THIS OUT
-            // can use dispatch here to make something happen based on scroll position
-            // scroll position = min or max => at end
-            // 
-            printfn "scrolling with scrollPos=%f" sPos
-        
-    div [Style [Width "100px"]] [
-    div [
-            Ref htmlElementRef ;
-            Style [
-                Width "400px";
-                Height "100%";
-                OverflowX OverflowOptions.Scroll;
-                BackgroundColor "grey";
-                Opacity 0.5
-                ]
-            OnScroll scrollFun 
-            ] []
-    ]
     
 // -- Update Model
 
@@ -524,7 +491,13 @@ let update msg model =
         { model with Simulation = { simData with ClockTickNumber = simData.ClockTickNumber+1 } |> Ok |> Some }, Cmd.none
     | EndSimulation -> { model with Simulation = None }, Cmd.none
     | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
-    | ChangeRightTab newTab -> { model with RightTab = newTab }, Cmd.none
+    | ChangeRightTab newTab -> 
+        { model with RightTab = newTab }, 
+        match newTab with 
+        | Properties -> Cmd.ofMsg <| SetSelWavesHighlighted [||]
+        | Catalogue -> Cmd.ofMsg <| SetSelWavesHighlighted [||]
+        | Simulation -> Cmd.ofMsg <| SetSelWavesHighlighted [||]
+        | WaveSim -> Cmd.none
     | SetHighlighted (componentIds, connectionIds) ->
         let oldComponentIds, oldConnectionIds = fst model.Hilighted
         oldComponentIds
@@ -619,8 +592,9 @@ let update msg model =
         | Some fileName ->
             match currWS model, par with
             | Some wSMod, Ok ports -> 
+                let wsMod' = waveGen model waveSvg clkRulerSvg wSMod ports
                 { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model [] 
-                             WaveSim = Map.add fileName (waveGen model waveSvg clkRulerSvg wSMod ports) (fst model.WaveSim), 
+                             WaveSim = Map.add fileName wsMod' (fst model.WaveSim), 
                                        snd model.WaveSim
                              SimulationInProgress = None }, Cmd.ofMsg SetSimNotInProgress
             | Some wSMod, Error par -> 
@@ -634,6 +608,8 @@ let update msg model =
         model, Cmd.none
     | SetLastSimulatedCanvasState cS ->
         { model with LastSimulatedCanvasState = cS }, Cmd.none
+    | UpdateScrollPos b ->
+        { model with CheckScrollPos = b}, Cmd.none
     |> checkForAutoSaveOrSelectionChanged msg
 
 

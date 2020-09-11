@@ -14,6 +14,8 @@ open Extractor
 open Simulator
 open SimulatorTypes
 
+let maxLastClk = 500u
+
 /////////////////////////////
 // General WaveSim Helpers //
 /////////////////////////////
@@ -47,7 +49,7 @@ let private makeSimData model =
         ||> prepareSimulation project.OpenFileName
         |> Some
 
-/// get SourceGroup from port which represents the group sources connected by IOLabels
+/// get TargetListGroup from nlTrgtLst which represents the group of nlTrgtLsts connected by IOLabels
 let rec private getTrgtLstGroup (netList: NetList) nlTrgtLst =
     let connectedLblNames = 
         List.filter (fun netListTrgt -> netList.[netListTrgt.TargetCompId].Type = IOLabel) nlTrgtLst
@@ -63,7 +65,16 @@ let rec private getTrgtLstGroup (netList: NetList) nlTrgtLst =
             |> (fun nlSrcGroup -> Array.append [|nlSrcGroup.mainTrgtLst|] nlSrcGroup.connectedTrgtLsts ) )
         |> Map.toArray
         |> Array.collect snd
-    { mainTrgtLst = nlTrgtLst; connectedTrgtLsts = connectedNLsources' }
+    let mainTrgtLst' =
+        let lstIsSubset lstSmall lstBig =
+            List.forall (fun el -> List.contains el lstBig) lstSmall
+        Map.tryPick (fun _ (nlComp: NetListComponent) -> 
+            Map.toArray nlComp.Outputs
+            |> Array.tryFind (fun (_, lst) -> lstIsSubset nlTrgtLst lst)) netList
+        |> function
+        | Some (_, lst) -> lst
+        | None -> nlTrgtLst
+    { mainTrgtLst = mainTrgtLst'; connectedTrgtLsts = connectedNLsources' }
 
 /// returns a bool representing if the given NLTarget is present in the given NetList
 let private isNetListTrgtInNetList (netList: NetList) (nlTrgt: NLTarget) =
@@ -74,9 +85,9 @@ let private isNetListTrgtInNetList (netList: NetList) (nlTrgt: NLTarget) =
 let private getReloadableTrgtLstGroups (model: Model) (netList: NetList) =
     match currWS model with
     | Some wSMod ->
-        Array.map (fun trgtLstGroup -> trgtLstGroup.mainTrgtLst) wSMod.Ports 
-        |> Array.map (fun trgtLst -> List.filter (isNetListTrgtInNetList netList) trgtLst)
-        |> Array.filter (fun lst -> lst <> [])
+        Array.map (fun trgtLstGroup -> trgtLstGroup.mainTrgtLst) wSMod.Ports
+        |> Array.map (List.filter <| isNetListTrgtInNetList netList)
+        |> Array.filter ((<>) [])
         |> Array.map (getTrgtLstGroup netList)
     | None -> [||]
 
@@ -198,9 +209,11 @@ let private outPortInt2int outPortInt =
 /// get labels of Output and IOLabel components in nlTargetList
 let trgtLst2outputsAndIOLabels (netList: NetList) (nlTrgtLst: NLTarget list) =
     let nlTrgt2Lbls st nlTrgt= 
-        match netList.[nlTrgt.TargetCompId].Type with
-        | IOLabel | Output _ -> List.append st [netList.[nlTrgt.TargetCompId].Label]
-        | _ -> st
+        match Map.tryFind nlTrgt.TargetCompId netList with
+        | Some nlComp -> match nlComp.Type with
+                         | IOLabel | Output _ -> List.append st [netList.[nlTrgt.TargetCompId].Label]
+                         | _ -> st
+        | None -> st
     List.fold nlTrgt2Lbls [] nlTrgtLst
     |> List.distinct
 
@@ -341,7 +354,6 @@ let makeLinePoints style (x1, y1) (x2, y2) =
                Y2 y2 ]) []
 
 let makeSvg style elements = svg style elements
-let makeRect style = rect style []
 let makeLine style = line style []
 let makeText style t = text style [ str t ]
 
@@ -448,51 +460,81 @@ let initFileWS model dispatch =
     | None -> ()
 
 /// set model.WaveAdder to show the list of waveforms that can be selected
-let private setWA compIds model wSMod dispatch simData netList =
+let private setWaveAdder compIds model wSMod dispatch simData netList =
     SetViewerWidth minViewerWidth |> dispatch
     getReducedCanvState model |> SetLastSimulatedCanvasState |> dispatch
     SetSimIsStale false |> dispatch
 
+    let trgtLstGroups = 
+        availableNLTrgtLstGroups model
+
     let wA' =
-        let trgtLstGroups = availableNLTrgtLstGroups model
         { SimData = Some simData
-          Ports = trgtLstGroups 
+          Ports = trgtLstGroups  
           WaveNames = Array.map (nlTrgtLstGroup2Label compIds simData.Graph netList) trgtLstGroups }
     { wSMod with
+          WaveAdderOpen = true
           WaveAdder = wA'
           LastCanvasState = getReducedCanvState model }
     |> SetCurrFileWSMod
     |> dispatch
+
+    let isInReloadable trgtListGroup = 
+        Array.contains trgtListGroup (getReloadableTrgtLstGroups model netList)
+    Array.map isInReloadable trgtLstGroups
+    |> Array.map2 (selWave2selConn model) trgtLstGroups |> ignore
+
+    ChangeRightTab WaveSim |> dispatch
 
 /// ReactElement array of the box containing the waveform's SVG
 let private waveCol waveSvg clkRulerSvg model wsMod waveData =
     let waveTableRow rowClass cellClass svgClass svgChildren =
         tr rowClass [ td cellClass [ makeSvg svgClass svgChildren ] ]
     let bgSvg = backgroundSvg wsMod
-    let cursRectSvg = [| makeRect (cursRectStyle wsMod) |]
 
-    [| waveTableRow [ Class "fullHeight" ] (lwaveCell wsMod) (waveCellSvg wsMod true)
-           (Array.append bgSvg cursRectSvg) |]
+    [| waveTableRow [ Class "fullHeight" ] (lwaveCell wsMod) (waveCellSvg wsMod true) bgSvg |]
     |> Array.append
         (Array.map
             (fun wave ->
                 waveTableRow [ Class "rowHeight" ] (waveCell wsMod) (waveCellSvg wsMod false)
-                    (Array.concat [| cursRectSvg; bgSvg; wave |])) (waveSvg model wsMod waveData))
+                    (Array.append bgSvg wave )) (waveSvg model wsMod waveData))
     |> Array.append [| tr [ Class "rowHeight" ] [ td (waveCell wsMod) [ clkRulerSvg wsMod ] ] |]
+
+/// adjust parameters before feeding them into updateWSMod 
+let adjustPars (wsMod: WaveSimModel) (pars: {| LastClk: uint; Curs: uint; ClkW: float |}) rightLim dispatch =
+    match wsMod.ClkWidth = pars.ClkW, wsMod.Cursor = pars.Curs, wsMod.LastClk = pars.LastClk with
+    // zooming
+    | false, true, true -> 
+        rightLim / (wsMod.ClkWidth * 40.0)
+        |> uint
+        |> max wsMod.Cursor
+        |> (+) 10u
+        |> (fun newClk -> {| pars with LastClk = newClk |})
+    // changing cursor
+    | true, false, true -> 
+        UpdateScrollPos true |> dispatch
+        {| pars with LastClk = max pars.LastClk (pars.Curs + 10u) |> min maxLastClk |}
+    // generating longer simulation
+    | true, true, false -> pars
+    // other situations should not occur, by default, don't change parameters
+    | _ -> pars
 
 /// update the WaveSimModel entry of the current file with new parameters
 let updateWSMod waveSvg clkRulerSvg (model: Model) (wsMod: WaveSimModel) 
                 (par: {| LastClk: uint; Curs: uint; ClkW: float |}) : WaveSimModel =
-    let cursLastClkMax = max par.Curs par.LastClk
-    match cursLastClkMax > wsMod.LastClk with
-    | true -> 
-        { wsMod with LastClk = cursLastClkMax
-                     SimData = cursLastClkMax + 1u - uint (Array.length wsMod.SimData)
-                               |> appendSimData wsMod  }
-    | false -> wsMod
-    |> (fun m -> { m with Cursor = par.Curs 
-                          ClkWidth = par.ClkW } )
+    { wsMod with LastClk = par.LastClk
+                 SimData = par.LastClk + 1u - uint (Array.length wsMod.SimData)
+                           |> appendSimData wsMod
+                 Cursor = par.Curs 
+                 ClkWidth = par.ClkW }
     |> (fun m -> { m with WaveTable = waveCol waveSvg clkRulerSvg model m (getWaveData m) })
+
+
+/// get waveform names
+let private getWaveNames compIds netList (wsMod: WaveSimModel) =
+    match wsMod.WaveAdder.SimData with
+    | Some sD -> Array.map (nlTrgtLstGroup2Label compIds sD.Graph netList) wsMod.Ports
+    | None -> [||]
 
 /// call waveCol with the current Simulation Data 
 let waveGen model waveSvg clkRulerSvg (wSMod: WaveSimModel) ports =
@@ -504,9 +546,15 @@ let waveGen model waveSvg clkRulerSvg (wSMod: WaveSimModel) ports =
             |> Array.append [| sD |] 
         | None -> failwith "waveGen called when WaveAdder.SimData is None"
 
+    let names =
+        Array.zip wSMod.WaveAdder.Ports wSMod.WaveAdder.WaveNames
+        |> Array.filter (fun (p, _) -> Array.contains p ports)
+        |> Array.map snd
+
     let wSMod' =
         { wSMod with
             SimData = simData'
+            WaveNames = names
             Ports = ports
             WaveAdderOpen = false }
 
@@ -571,6 +619,7 @@ let savedWaveInfo2wsModel compIds waveSvg clkRulerSvg model (sWInfo: SavedWaveIn
         let waPorts' = availableNLTrgtLstGroups model
         { SimData = sD'
           WaveTable = [||]
+          WaveNames = [||]
           Ports = ports'
           ClkWidth = sWInfo.ClkWidth
           Cursor = sWInfo.Cursor
@@ -591,10 +640,6 @@ let savedWaveInfo2wsModel compIds waveSvg clkRulerSvg model (sWInfo: SavedWaveIn
 
 /// actions triggered whenever the fileMenuView function is executed
 let fileMenuViewActions model dispatch =
-    match model.SimulationInProgress with
-    | Some par -> SimulateWhenInProgress par |> dispatch
-    | None -> ()
-
     if model.ConnsToBeHighlighted
     then  
         match currWS model with
@@ -609,7 +654,7 @@ let fileMenuViewActions model dispatch =
         | _ -> ()
     else ()
 
-/// actions triggered by pressing the Simulate >>> button
+/// actions triggered by pressing the Simulate >> button
 let simulateButtonFunc compIds model dispatch =
     match model.SimulationIsStale, currWS model, makeSimData model, model.Diagram.GetCanvasState() with
     | true, Some wSMod, Some (Ok simData), Some jsCanvState ->
@@ -617,8 +662,7 @@ let simulateButtonFunc compIds model dispatch =
         Button.button
             [ Button.Color IsSuccess
               Button.OnClick(fun _ ->
-                  setWA compIds model wSMod dispatch simData netList
-                  ChangeRightTab WaveSim |> dispatch) ]
+                  setWaveAdder compIds model wSMod dispatch simData netList) ]
     | true, Some _, Some (Error err), _ -> 
         Button.button
             [ Button.OnClick(fun _ ->
@@ -631,3 +675,21 @@ let simulateButtonFunc compIds model dispatch =
               Button.button []
     | _ -> Button.button []
     |> (fun but -> but [ str "Waveforms >>" ])
+
+///////////////////////////
+// Auto-scroll functions //
+///////////////////////////
+
+/// returns true when the cursor rectangle is in the visible section of the scrollable div
+let isCursorVisible wSMod divWidth scrollPos =
+    let cursLeftPos = cursorLeftPx wSMod <| float wSMod.Cursor
+    let cursMid = cursLeftPos + (wSMod.ClkWidth * 40.0 / 2.0)
+    let leftScreenLim = scrollPos
+    let rightScreenLim = leftScreenLim + divWidth
+    cursLeftPos >= cursMid && cursMid <= rightScreenLim
+
+/// returns horizontal scrolling position required so that the cursor becomes visible
+let makeCursorVisiblePos wSMod divWidth = 
+    let cursLeftPos = cursorLeftPx wSMod <| float wSMod.Cursor
+    let cursMid = cursLeftPos + (wSMod.ClkWidth * 40.0 / 2.0)
+    cursMid - (divWidth / 2.0)

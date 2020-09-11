@@ -59,7 +59,6 @@ let private displayFileErrorNotification err dispatch =
     |> SetFilesNotification
     |> dispatch
 
-/// Change model by loading state into Diagram, setting unsaved chnages to false
 let private loadStateIntoCanvas state model dispatch =
     dispatch <| SetHighlighted([], []) // Remove current highlights.
     model.Diagram.ClearCanvas() // Clear the canvas.
@@ -162,40 +161,32 @@ let setupProject (pPath:string) (sheetName: string) (ldComps: LoadedComponent li
     }
     |> SetProject |> dispatch
 
-
-
-/// Open the specified sheet, within the LoadedComponents of a loaded project. Bad name.
-/// Since the current component may have changed in editor, it must be saved and also updated
+/// Open the specified file.
 let private openFileInProject wsModel2SavedWaveInfoFunc name project model dispatch =
     match getFileInProject name project with
     | None -> log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
-    | Some newLc ->
-        let oldLc' =
-            let oldCanvasState = 
-                model.Diagram.GetCanvasState()
-                |> Option.map extractState
-            match oldCanvasState with
-            | Some state -> 
-                let oldLc = project.LoadedComponents |> List.find (fun lc -> lc.Name = project.OpenFileName)
-                let lc' = makeLoadedComponentFromCanvasData state oldLc.FilePath oldLc.TimeStamp oldLc.WaveInfo
-                saveOpenFileAction false model wsModel2SavedWaveInfoFunc // prepare by saving the old file
-                Some lc'
-            | None -> None
-            // make sure correct file gets opened.
+    | Some loadedComponent ->
+        saveOpenFileAction false model wsModel2SavedWaveInfoFunc
+        let oldState = 
+            model.Diagram.GetCanvasState()
+            |> Option.map extractState
+            |> Option. defaultValue <| failwithf "What? Current file %A has no canvas to save" project.OpenFileName
+        saveOpenFileAction false model wsModel2SavedWaveInfoFunc
+        // make sure correct file gets opened.
         let lcs = 
             project.LoadedComponents 
             |> updateLoadedComponents project.OpenFileName (fun lc -> Option.defaultValue lc oldLc') // update old file
         setupProject project.ProjectPath name lcs model dispatch
         dispatch EndSimulation // End any running simulation.
 
-/// Remove sheet from project - again bad name
+/// Remove file.
 let private removeFileInProject wsModel2SavedWaveInfoFunc name project model dispatch =
     removeFile project.ProjectPath name
     removeFile project.ProjectPath (name + "auto")
     // Remove the file from the dependencies and update project.
     let newComponents = List.filter (fun (lc: LoadedComponent) -> lc.Name <> name) project.LoadedComponents
     // Make sure there is at least one file in the project.
-    let newComponents =
+    let newComponents =hh
         match List.isEmpty newComponents with
         | false -> newComponents
         | true -> [ (createEmptyDiagramFile project.ProjectPath "main") ]
@@ -212,7 +203,7 @@ let private removeFileInProject wsModel2SavedWaveInfoFunc name project model dis
     | false -> ()
     | true -> openFileInProject wsModel2SavedWaveInfoFunc project.LoadedComponents.[0].Name project model dispatch
 
-/// Create a new empty named sheet in this project and open it automatically.
+/// Create a new file in this project and open it automatically.
 let addFileToProject wsModel2SavedWaveInfoFunc model dispatch =
     match model.CurrProject with
     | None -> log "Warning: addFileToProject called when no project is currently open"

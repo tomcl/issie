@@ -463,14 +463,21 @@ let private wavesCol model (wSModel: WaveSimModel) rows dispatch =
         if not (isNull el) then // el can be Null, in which case we do nothing
             element := Some el // set mutable reference to the HTML element for later use
         printf "Scroll el = %A" !element // print out the element
-
-        match model.CheckScrollPos, !element with
-        | true, Some e when not (isCursorVisible wSModel e.clientWidth e.scrollLeft) -> 
-            e.scrollLeft <- makeCursorVisiblePos wSModel e.clientWidth
+        
+        match model.SimulationInProgress, !element with
+        | Some (Ok par), _ -> Ok par |> SimulateWhenInProgress |> dispatch
+        | Some (Error par), Some e -> 
+            adjustPars wSModel par (e.clientWidth + e.scrollLeft) dispatch
+            |> Error |> SimulateWhenInProgress |> dispatch
+        | None, Some e -> 
+            match model.CheckScrollPos with
+            | true when not (isCursorVisible wSModel e.clientWidth e.scrollLeft) -> 
+                e.scrollLeft <- makeCursorVisiblePos wSModel e.clientWidth
+                UpdateScrollPos false |> dispatch
+            | _ -> ()
+        | _, None ->
+            SetSimNotInProgress |> dispatch
             UpdateScrollPos false |> dispatch
-            printfn "HIIIII"
-        | true, _ -> UpdateScrollPos false |> dispatch
-        | _ -> ()
 
     let scrollFun (ev:Browser.Types.UIEvent) = // function called whenever scroll position is changed
         match !element with // element should now be the HTMl element that is scrolled

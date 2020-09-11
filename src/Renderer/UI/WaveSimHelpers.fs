@@ -14,6 +14,8 @@ open Extractor
 open Simulator
 open SimulatorTypes
 
+let maxLastClk = 500u
+
 /////////////////////////////
 // General WaveSim Helpers //
 /////////////////////////////
@@ -498,18 +500,33 @@ let private waveCol waveSvg clkRulerSvg model wsMod waveData =
                     (Array.append bgSvg wave )) (waveSvg model wsMod waveData))
     |> Array.append [| tr [ Class "rowHeight" ] [ td (waveCell wsMod) [ clkRulerSvg wsMod ] ] |]
 
+/// adjust parameters before feeding them into updateWSMod 
+let adjustPars (wsMod: WaveSimModel) (pars: {| LastClk: uint; Curs: uint; ClkW: float |}) rightLim dispatch =
+    match wsMod.ClkWidth = pars.ClkW, wsMod.Cursor = pars.Curs, wsMod.LastClk = pars.LastClk with
+    // zooming
+    | false, true, true -> 
+        rightLim / (wsMod.ClkWidth * 40.0)
+        |> uint
+        |> max wsMod.Cursor
+        |> (+) 10u
+        |> (fun newClk -> {| pars with LastClk = newClk |})
+    // changing cursor
+    | true, false, true -> 
+        UpdateScrollPos true |> dispatch
+        {| pars with LastClk = max pars.LastClk (pars.Curs + 10u) |> min maxLastClk |}
+    // generating longer simulation
+    | true, true, false -> pars
+    // other situations should not occur, by default, don't change parameters
+    | _ -> pars
+
 /// update the WaveSimModel entry of the current file with new parameters
 let updateWSMod waveSvg clkRulerSvg (model: Model) (wsMod: WaveSimModel) 
                 (par: {| LastClk: uint; Curs: uint; ClkW: float |}) : WaveSimModel =
-    let cursLastClkMax = max par.Curs par.LastClk
-    match cursLastClkMax > wsMod.LastClk with
-    | true -> 
-        { wsMod with LastClk = cursLastClkMax
-                     SimData = cursLastClkMax + 1u - uint (Array.length wsMod.SimData)
-                               |> appendSimData wsMod  }
-    | false -> wsMod
-    |> (fun m -> { m with Cursor = par.Curs 
-                          ClkWidth = par.ClkW } )
+    { wsMod with LastClk = par.LastClk
+                 SimData = par.LastClk + 1u - uint (Array.length wsMod.SimData)
+                           |> appendSimData wsMod
+                 Cursor = par.Curs 
+                 ClkWidth = par.ClkW }
     |> (fun m -> { m with WaveTable = waveCol waveSvg clkRulerSvg model m (getWaveData m) })
 
 
@@ -623,10 +640,6 @@ let savedWaveInfo2wsModel compIds waveSvg clkRulerSvg model (sWInfo: SavedWaveIn
 
 /// actions triggered whenever the fileMenuView function is executed
 let fileMenuViewActions model dispatch =
-    match model.SimulationInProgress with
-    | Some par -> SimulateWhenInProgress par |> dispatch
-    | None -> ()
-
     if model.ConnsToBeHighlighted
     then  
         match currWS model with
@@ -670,14 +683,13 @@ let simulateButtonFunc compIds model dispatch =
 /// returns true when the cursor rectangle is in the visible section of the scrollable div
 let isCursorVisible wSMod divWidth scrollPos =
     let cursLeftPos = cursorLeftPx wSMod <| float wSMod.Cursor
-    let cursRightPos = cursLeftPos + (wSMod.ClkWidth * 40.0)
+    let cursMid = cursLeftPos + (wSMod.ClkWidth * 40.0 / 2.0)
     let leftScreenLim = scrollPos
     let rightScreenLim = leftScreenLim + divWidth
-    cursLeftPos >= leftScreenLim && cursRightPos <= rightScreenLim
+    cursLeftPos >= cursMid && cursMid <= rightScreenLim
 
 /// returns horizontal scrolling position required so that the cursor becomes visible
 let makeCursorVisiblePos wSMod divWidth = 
     let cursLeftPos = cursorLeftPx wSMod <| float wSMod.Cursor
-    let cursRightPos = cursLeftPos + (wSMod.ClkWidth * 40.0)
-    let cursMid = (cursLeftPos + cursRightPos) / 2.0
+    let cursMid = cursLeftPos + (wSMod.ClkWidth * 40.0 / 2.0)
     cursMid - (divWidth / 2.0)

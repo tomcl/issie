@@ -18,6 +18,7 @@ open BusWidthInferer
 // - Target ports must be input ports.
 // - All ports have at least one connection that touches them.
 // - Input ports have precisely one connection that touches them.
+// - Custom components must have I/Os consistent with the sheet that defines them.
 //
 // Input/Output components in a simulationgraph must all have unique labels.
 //

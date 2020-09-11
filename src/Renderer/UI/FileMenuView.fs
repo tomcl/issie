@@ -21,6 +21,26 @@ open Extractor
 open PopupView
 open System
 
+/// Check a single custom component for correct I/Os
+let checkCustomForOkIOs  (c:Component) (args:CustomComponentType) =
+    let inouts = c.InputPorts, c.OutputPorts
+    let name = args.Name
+    Ok ()
+
+/// Custom components have I/Os which are the same (names) as the I/Os in the corresponding sheet
+/// This can change if a sheet made into a custom component is edited
+/// We do this check whenever a new sheet is opened
+let private checkCustomComponentsOk ((comps,_): CanvasState) (others: LoadedComponent list) dispatch : Unit =
+    comps
+    |> List.collect (function | {Type=Custom args} as c -> [checkCustomForOkIOs c args] | _ -> [])
+    |> tryFindError
+    |> function | Ok _ -> ()
+                | Error s -> 
+                    dispatch SetFilesNotification  (str "Sheet %s is used as a custom component in sheet %s \n \
+                                                    but has been edited to change I/Os. Delete and recreate the component")
+                    ()
+
+
 /// returns a string option representig the current file name if file is loaded, otherwise None
 let getCurrFile (model: Model) =
     match model.CurrProject with
@@ -120,16 +140,18 @@ let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lc
     | Some n ->
         List.mapi (fun i x -> if i = n then setFun x else x) lcLst
 
-let setupProject (pPath:string) (ldComps: LoadedComponent list) (model: Model) (dispatch: Msg->Unit)=
+/// load a new project as defined by parameters
+let setupProject (pPath:string) (sheetName: string) (ldComps: LoadedComponent list) (model: Model) (dispatch: Msg->Unit)=
     let openFileName, openFileState =
         match ldComps with
         | [] -> // No files in the project. Create one and open it.
             createEmptyDgmFile pPath "main"
             "main", ([],[])
         | comps ->
-            // load the most recently saved file
-            let comp = comps |> List.maxBy (fun comp -> comp.TimeStamp)
-            comp.Name, comp.CanvasState
+            // load sheetName
+            match comps |> List.tryFind (fun comp -> comp.Name = sheetName) with
+            | None -> failwithf "What? can't find sheet %s in loaded sheets %A" sheetName (comps |> List.map (fun c -> c.Name))
+            | Some comp -> comp.Name, comp.CanvasState
     dispatch EndSimulation // End any running simulation.
     //
     loadStateIntoCanvas openFileState model dispatch
@@ -163,8 +185,7 @@ let private openFileInProject wsModel2SavedWaveInfoFunc name project model dispa
         let lcs = 
             project.LoadedComponents 
             |> updateLoadedComponents project.OpenFileName (fun lc -> Option.defaultValue lc oldLc') // update old file
-            |> updateLoadedComponents name (fun lc -> {lc with TimeStamp = DateTime.Now}) // make sure desired file gets opened
-        setupProject project.ProjectPath lcs model dispatch
+        setupProject project.ProjectPath name lcs model dispatch
         dispatch EndSimulation // End any running simulation.
 
 /// Remove sheet from project - again bad name
@@ -302,13 +323,15 @@ let rec resolveComponentOpenPopup
         (resolves: LoadStatus list) 
         (model: Model)
         (dispatch: Msg -> Unit) =
+    let chooseWhichToOpen comps =
+        (List.maxBy (fun comp -> comp.TimeStamp) comps).Name
     dispatch ClosePopup
     match resolves with
-    | [] -> setupProject pPath components model dispatch
+    | [] -> setupProject pPath (chooseWhichToOpen components) components model dispatch
     | Resolve (ldComp,autoComp) :: rLst ->
         // ldComp, autocomp are from attemps to load saved file and its autosave version.
         let buttonAction autoSave _ =
-            let comp = if autoSave then autoComp else ldComp
+            let comp = {(if autoSave then autoComp else ldComp) with TimeStamp = DateTime.Now}
             let data =  stateToJsonString (comp.CanvasState,comp.WaveInfo)
             writeFile comp.FilePath data
             resolveComponentOpenPopup pPath (comp :: components) rLst  model dispatch   

@@ -63,7 +63,16 @@ let rec private getTrgtLstGroup (netList: NetList) nlTrgtLst =
             |> (fun nlSrcGroup -> Array.append [|nlSrcGroup.mainTrgtLst|] nlSrcGroup.connectedTrgtLsts ) )
         |> Map.toArray
         |> Array.collect snd
-    { mainTrgtLst = nlTrgtLst; connectedTrgtLsts = connectedNLsources' }
+    let mainTrgtLst' =
+        let lstIsSubset lstSmall lstBig =
+            List.forall (fun el -> List.contains el lstBig) lstSmall
+        Map.tryPick (fun _ (nlComp: NetListComponent) -> 
+            Map.toArray nlComp.Outputs
+            |> Array.tryFind (fun (_, lst) -> lstIsSubset nlTrgtLst lst)) netList
+        |> function
+        | Some (_, lst) -> lst
+        | None -> nlTrgtLst
+    { mainTrgtLst = mainTrgtLst'; connectedTrgtLsts = connectedNLsources' }
 
 /// returns a bool representing if the given NLTarget is present in the given NetList
 let private isNetListTrgtInNetList (netList: NetList) (nlTrgt: NLTarget) =
@@ -74,7 +83,7 @@ let private isNetListTrgtInNetList (netList: NetList) (nlTrgt: NLTarget) =
 let private getReloadableTrgtLstGroups (model: Model) (netList: NetList) =
     match currWS model with
     | Some wSMod ->
-        Array.map (fun trgtLstGroup -> trgtLstGroup.mainTrgtLst) wSMod.Ports 
+        Array.map (fun trgtLstGroup -> trgtLstGroup.mainTrgtLst) wSMod.Ports
         |> Array.map (List.filter <| isNetListTrgtInNetList netList)
         |> Array.filter ((<>) [])
         |> Array.map (getTrgtLstGroup netList)

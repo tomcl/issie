@@ -46,11 +46,14 @@ $sigLineThick: 0.025;
     stroke-width: $clkLineWidth;
 }
 
-.cursorRectStyle { 
-    stroke: black;
-    fill: rgb(230,230,230);
+.cursorRectStyle {
+    background-color: rgb(230,230,230);
     stroke-width: 0;
-    fill-opacity: 5.0;
+    //fill-opacity: 0.4;
+    opacity: 0.4;
+    z-index: 6;
+    height: 100%;
+    position: absolute;
 }
 
 .clkNumStyle {
@@ -336,7 +339,8 @@ input::-webkit-inner-spin-button {
     position: relative;
     float: left;
     border-color: gray;
-    border-width: 1px
+    border-width: 1px;
+    z-index: 7;
 }
 
 .zoomButLeft {

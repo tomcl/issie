@@ -23,7 +23,7 @@ let private makeLabels waveNames =
     Array.map makeLbl waveNames
 
 /// get values position of bus labels from the transition gaps (for one Waveform)
-let gaps2pos (wSModel: WaveSimModel) (wave: Waveform) gaps =
+let private gaps2pos (wSModel: WaveSimModel) (wave: Waveform) gaps =
     let clkWidth = int wSModel.ClkWidth
     let nSpaces (g: {| GapLen: int; GapStart: int |}) = 
         (g.GapLen * clkWidth / (maxBusValGap + 1) + 2)
@@ -150,11 +150,14 @@ let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
 /// change cursor value
 let private changeCurs (wSMod: WaveSimModel) dispatch newCurs =
     let curs' = min 500u newCurs
-    match 0u <= curs' with
-    | true ->
+    match 0u <= curs', curs' <= wSMod.LastClk with
+    | true, true ->
+        { wSMod with Cursor = curs' }
+        |> SetCurrFileWSMod |> dispatch
+    | true, false ->
         {| Curs = curs'; ClkW = wSMod.ClkWidth; LastClk = wSMod.LastClk |}
         |> Error |> SetSimInProgress |> dispatch
-    | _ -> ()
+    | false, _ -> ()
 
 /// change cursor value by 1 up or down
 let private cursorMove increase (wSMod: WaveSimModel) dispatch =
@@ -301,11 +304,7 @@ let clkRulerSvg (model: WaveSimModel) =
         | _ -> [| makeText (cursRectText model i) (string i) |]
     [| 0 .. int model.LastClk |]
     |> Array.collect makeClkRulLbl
-    |> (fun arr ->
-        [ backgroundSvg model
-          [| makeRect (cursRectStyle model) |]
-          arr ])
-    |> Array.concat
+    |> Array.append (backgroundSvg model)
     |> makeSvg (clkRulerStyle model)
 
 /// tuple of React elements of middle column, left column, right column
@@ -405,7 +404,7 @@ let private cursorButtons (model: Model) wSMod dispatch =
                         |> SetCurrFileWSMod |> dispatch ) ]
           button [ Button.CustomClass "cursRight" ] (fun _ -> cursorMove true wSMod dispatch) "▶" ]
 
-/// React Element of the loading button
+/// ReactElement of the loading button
 let private loadingBut model =
     match model.SimulationInProgress with
     | Some _ -> button [Button.Color IsDanger] (fun _ -> ()) "loading..."
@@ -462,11 +461,12 @@ let private nameLabelsCol model netList (wsMod: WaveSimModel) labelRows dispatch
               Height "100%" ] ] [ table [ Class "leftTable" ] [ tbody [] leftCol ] ]
 
 /// ReactElement of the waveform SVGs' column
-let private wavesCol wSMod rows =
-    div [ Style [ MaxWidth(maxWavesColWidth wSMod)
+let private wavesCol wSModel rows =
+    div [ Style [ MaxWidth(maxWavesColWidth wSModel)
                   MinHeight "100%" ]
-          Class "wavesTable" ] 
-            [ table [ Style [ Height "100%" ] ] 
+          Class "wavesTable" ]
+            [ div [ Class "cursorRectStyle"; cursRectStyle wSModel ] [ str " " ]
+              table [ Style [ Height "100%" ] ] 
                     [ tbody [ Style [ Height "100%" ] ] rows ] ]
 
 /// ReactElement of the bottom part of the waveform simulator when waveforms are being displayed

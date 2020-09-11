@@ -341,7 +341,6 @@ let makeLinePoints style (x1, y1) (x2, y2) =
                Y2 y2 ]) []
 
 let makeSvg style elements = svg style elements
-let makeRect style = rect style []
 let makeLine style = line style []
 let makeText style t = text style [ str t ]
 
@@ -469,15 +468,13 @@ let private waveCol waveSvg clkRulerSvg model wsMod waveData =
     let waveTableRow rowClass cellClass svgClass svgChildren =
         tr rowClass [ td cellClass [ makeSvg svgClass svgChildren ] ]
     let bgSvg = backgroundSvg wsMod
-    let cursRectSvg = [| makeRect (cursRectStyle wsMod) |]
 
-    [| waveTableRow [ Class "fullHeight" ] (lwaveCell wsMod) (waveCellSvg wsMod true)
-           (Array.append bgSvg cursRectSvg) |]
+    [| waveTableRow [ Class "fullHeight" ] (lwaveCell wsMod) (waveCellSvg wsMod true) bgSvg |]
     |> Array.append
         (Array.map
             (fun wave ->
                 waveTableRow [ Class "rowHeight" ] (waveCell wsMod) (waveCellSvg wsMod false)
-                    (Array.concat [| cursRectSvg; bgSvg; wave |])) (waveSvg model wsMod waveData))
+                    (Array.append bgSvg wave )) (waveSvg model wsMod waveData))
     |> Array.append [| tr [ Class "rowHeight" ] [ td (waveCell wsMod) [ clkRulerSvg wsMod ] ] |]
 
 /// update the WaveSimModel entry of the current file with new parameters

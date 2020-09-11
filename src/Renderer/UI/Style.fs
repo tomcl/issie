@@ -149,11 +149,11 @@ let clkRulerStyle m : IProp list =
                 [ Class "clkRulerSvg"
                   PreserveAspectRatio "none" ]
 
-let cursRectStyle m : IProp list = [
-    Class "cursorRectStyle"
-    X (m.ClkWidth * float m.Cursor + clkLineWidth / 2.0)
-    SVGAttr.Width (m.ClkWidth - clkLineWidth)
-    SVGAttr.Height (spacing + sigHeight)
+let cursRectStyle m = Style [
+        let clkWidths2px clkWidths =
+            clkWidths * m.ClkWidth * 40.0
+        Left ((float m.Cursor + clkLineWidth / 2.0) |> clkWidths2px |> (+) 4.0 |> string |> (fun w -> w + "px"))
+        Width ((1.0 - clkLineWidth) |> clkWidths2px |> string |> (fun w -> w + "px"))
 ]
 
 let cursRectText m i : IProp list = [

@@ -184,19 +184,19 @@ type NetList = Map<ComponentId,NetListComponent>
 /// Identifies a connected net
 /// Does this tie together labelled nets? If so it should have a ComponentLabel option.
 /// should it include the display name(s)? this can be calculated
-type TrgtLstGroup = { mainTrgtLst: NLTarget list; connectedTrgtLsts: NLTarget list array }
+type NetGroup = { driverNet: NLTarget list; connectedNets: NLTarget list array }
 
 /// Info saved by Wave Sim.
 /// This info is not necessarilu uptodate with deletions or additions in the Diagram.
 /// The wavesim code processing this will not fail if non-existent nets are referenced.
 type SavedWaveInfo = {
-    Ports: TrgtLstGroup array
+    Ports: NetGroup array
     ClkWidth: float
     Cursor: uint32 
     Radix: NumberBase
     LastClk: uint32
     WaveAdderOpen: bool
-    WaveAdderPorts: TrgtLstGroup array
+    WaveAdderPorts: NetGroup array
 }
 
 (*--------------------------------------------------------------------------------------------------*)

@@ -11,7 +11,7 @@ open CommonTypes
 //   --> each connection Id must be unique
 //   --> each port Id must be unique
 
-let makeCustomComponent dep = {
+let makeCustomComponent (dep:LoadedComponent) = {
     Name = dep.Name
     InputLabels = dep.InputLabels
     OutputLabels = dep.OutputLabels

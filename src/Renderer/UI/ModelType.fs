@@ -62,7 +62,7 @@ type Model = {
     TopMenu : TopMenu
     DragMode: DragMode
     ViewerWidth: int // waveform viewer width in pixels
-    SimulationInProgress:  Result<TrgtLstGroup array,{| LastClk: uint; Curs: uint; ClkW: float |}> option
+    SimulationInProgress:  Result<NetGroup array,{| LastClk: uint; Curs: uint; ClkW: float |}> option
     ConnsToBeHighlighted: bool
     CheckScrollPos: bool
 } with
@@ -129,3 +129,40 @@ let getComponentIds (model: Model) =
     |> Option.map extractIds
     |> Option.defaultValue []
     |> Set.ofList
+
+////////////////////////////
+/// Saving WaveSim Model ///
+////////////////////////////
+
+/// get saveable record of waveform setup
+let waveSimModel2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
+    { 
+        Ports = wsMod.Ports
+        ClkWidth = wsMod.ClkWidth
+        Cursor = wsMod.Cursor
+        Radix = wsMod.Radix
+        LastClk = wsMod.LastClk
+        WaveAdderOpen = wsMod.WaveAdderOpen
+        WaveAdderPorts = 
+            wsMod.WaveAdder
+            |> Option.map (fun wa -> wa.Ports)
+            |> Option.defaultValue [||]
+    }
+
+/// setup current WaveSimModel from saved record
+let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
+    {   
+        SimData = [||]
+        WaveTable = [||]
+        WaveNames = [||]
+        Ports = sWInfo.Ports
+        ClkWidth = sWInfo.ClkWidth
+        Cursor = sWInfo.Cursor
+        CursorEmpty = false
+        Radix = sWInfo.Radix
+        LastClk = sWInfo.LastClk
+        WaveAdderOpen = sWInfo.WaveAdderOpen
+        WaveAdder = None
+        LastCanvasState = None 
+    }
+      

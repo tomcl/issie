@@ -108,9 +108,9 @@ let maxWidth (wSMod: WaveSimModel) =
 /// toggle selection of a waveform when clicking its checkbox
 let private toggleSelect (model: Model) (wSMod: WaveSimModel) netList ind =
     let trgtLstGroup = 
-        if wSMod.WaveAdderOpen 
-        then wSMod.WaveAdder.Ports.[ind]
-        else wSMod.Ports.[ind]
+        match  wSMod.WaveAdderOpen, wSMod.WaveAdder with
+        | true, Some {Ports = adderPorts} -> adderPorts.[ind]
+        | _ ->  wSMod.Ports.[ind]
     trgtLstGroup
     |> isWaveSelected model netList
     |> not
@@ -184,34 +184,41 @@ let private moveWave (model: Model) netList (wSMod: WaveSimModel) up =
     |> SetCurrFileWSMod
 
 /// standard order of waveforms in the WaveAdder
-let private standardWaveformOrderWaveAdder wSMod =
-    Array.zip wSMod.WaveAdder.WaveNames  wSMod.WaveAdder.Ports
-    |> Array.groupBy (fun (_, wave) -> Array.contains wave wSMod.Ports)
-    |> Array.sortByDescending fst
-    |> Array.collect (snd >> Array.sortBy fst)
-    |> Array.unzip
-    |> (fun (a, b) -> { wSMod.WaveAdder with WaveNames = a 
-                                             Ports = b } )
+let private standardWaveformOrderWaveAdder wSModel =
+    match wSModel with
+    | {WaveAdder = Some wa}  ->
+        Array.zip wa.WaveNames  wa.Ports
+        |> Array.groupBy (fun (_, wave) -> Array.contains wave wSModel.Ports)
+        |> Array.sortByDescending fst
+        |> Array.collect (snd >> Array.sortBy fst)
+        |> Array.unzip
+        |> (fun (a, b) -> { wa with WaveNames = a 
+                                    Ports = b } )
+    | _ -> failwithf "What? expected waveAdder not found in model"
 
 /// open/close the WaveAdder view 
-let private openCloseWaveAdder model netList (wSMod: WaveSimModel) on dispatch = 
+let private openCloseWaveAdder (waveSvg,clkRulerSvg) model netList (wSModel: WaveSimModel) on dispatch = 
+    let compIds = getComponentIds model
     if on 
-    then selectAllOn model wSMod |> ignore
-         standardWaveformOrderWaveAdder wSMod
-    else wSMod.WaveAdder
-    |> (fun wA -> { wSMod with WaveAdderOpen = on
-                               WaveAdder = wA } )
+    then 
+        selectAllOn model wSModel |> ignore
+        wSModel
+        |> updateWaveSimFromInitData (waveSvg,clkRulerSvg) compIds  model
+        |> standardWaveformOrderWaveAdder
+    else (Option.defaultValue initWA wSModel.WaveAdder)
+    |> (fun wA -> { wSModel with WaveAdderOpen = on
+                                 WaveAdder = Some wA } )
     |> SetCurrFileWSMod |> dispatch
 
 /// select all waveforms in the WaveAdder View
 let private waveAdderSelectAll model netList (wSMod: WaveSimModel) =
-    let setTo = 
-        wSMod.WaveAdder.Ports 
-        |> Array.forall (isWaveSelected model netList)
-
-    wSMod.WaveAdder.Ports
-    |> Array.map (fun trgtLstGroup -> selWave2selConn model trgtLstGroup (not setTo)) 
-    |> ignore
+    match wSMod.WaveAdder with
+    | None -> ()
+    | Some wa ->
+        let setTo = Array.forall (isWaveSelected model netList) wa.Ports
+        wa.Ports
+        |> Array.map (fun trgtLstGroup -> selWave2selConn model trgtLstGroup (not setTo)) 
+        |> ignore
 
 
 
@@ -441,7 +448,7 @@ let private nameLabelsCol model netList (wsMod: WaveSimModel) labelRows dispatch
            [ Button.button
            [ Button.CustomClass "newWaveButton"
              Button.Color IsSuccess
-             Button.OnClick(fun _ -> openCloseWaveAdder model netList wsMod true dispatch) ] [ str "Edit list..." ] ]
+             Button.OnClick(fun _ -> openCloseWaveAdder (waveSvg,clkRulerSvg) model netList wsMod true dispatch) ] [ str "Edit list..." ] ]
 
     let top =
         [| tr [ Class "rowHeight" ]
@@ -538,7 +545,7 @@ let private viewZoomDiv compIds model wSMod dispatch =
           button [ Button.CustomClass "zoomButRight" ] (fun _ -> zoom compIds true model wSMod dispatch) "+" ]
 
 /// ReactElement of the top row of the WaveAdder (where Select All is)
-let private waveAdderTopRow model netList wSMod =
+let private waveAdderTopRow model netList wSModel =
     tr
         [ Class "rowHeight"
           Style [ VerticalAlign "middle" ] ]
@@ -549,9 +556,9 @@ let private waveAdderTopRow model netList wSMod =
               [ input
                   [ Type "checkbox"
                     Class "check"
-                    Checked(Array.forall (isWaveSelected model netList) wSMod.WaveAdder.Ports)
+                    Checked(Array.forall (isWaveSelected model netList) (getAdderPorts wSModel))
                     Style [ Float FloatOptions.Left ]
-                    OnChange(fun _ -> waveAdderSelectAll model netList wSMod) ] ]
+                    OnChange(fun _ -> waveAdderSelectAll model netList wSModel) ] ]
           td [ Style [ FontWeight "bold" ] ] [ str "Select All" ] ]
 
 /// ReactElement of WaveAdder waveform row
@@ -566,14 +573,14 @@ let private addWaveRow model netList wSMod ind dispatch =
               [ input
                   [ Type "checkbox"
                     Class "check"
-                    Checked <| isWaveSelected model netList wSMod.WaveAdder.Ports.[ind]
+                    Checked <| isWaveSelected model netList (getAdderPorts wSMod).[ind]
                     Style [ Float FloatOptions.Left ]
                     OnChange(fun _ -> toggleSelect model wSMod netList ind) ] ]
-          td [] [ label [] [ str wSMod.WaveAdder.WaveNames.[ind] ] ] ]
+          td [] [ label [] [ str (getAdderOrInit wSMod).WaveNames.[ind] ] ] ]
 
 /// ReactElement of all WaveAdder waveform rows
 let private addWaveRows model netList wSMod dispatch = 
-    Array.mapi (fun i _ -> addWaveRow model netList wSMod i dispatch) wSMod.WaveAdder.Ports 
+    Array.mapi (fun i _ -> addWaveRow model netList wSMod i dispatch) (getAdderPorts wSMod) 
 
 /// ReactElement of the bottom section of the WaveAdder
 let private waveAdderBottom (model: Model) netList wSMod dispatch =
@@ -587,11 +594,11 @@ let private waveAdderBottom (model: Model) netList wSMod dispatch =
 /// ReactElement of the buttons of the WaveAdder
 let private waveAdderButs (model: Model) netList wSMod dispatch =
     let simButStyle =
-        match Array.exists (isWaveSelected model netList) wSMod.WaveAdder.Ports with
+        match Array.exists (isWaveSelected model netList) (getAdderPorts wSMod) with
         | true ->
             [ Button.Color IsSuccess
               Button.OnClick(fun _ -> 
-                Array.filter (isWaveSelected model netList) wSMod.WaveAdder.Ports                
+                Array.filter (isWaveSelected model netList) (getAdderPorts wSMod)                
                 |> Ok
                 |> SetSimInProgress |> dispatch) ]
         | false -> [ Button.CustomClass "disabled" ]
@@ -599,7 +606,7 @@ let private waveAdderButs (model: Model) netList wSMod dispatch =
     let cancBut =
         Button.button
             [ Button.Color IsDanger
-              Button.OnClick(fun _ -> openCloseWaveAdder model netList wSMod false dispatch) ] [ str "Cancel" ]
+              Button.OnClick(fun _ -> openCloseWaveAdder (waveSvg,clkRulerSvg) model netList wSMod false dispatch) ] [ str "Cancel" ]
 
     let buts =
         match wSMod.Ports with

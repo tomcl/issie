@@ -21,24 +21,45 @@ open Extractor
 open PopupView
 open System
 
+type CustomComponentError =
+    | NoSheet of string
+    | BadInputs of ComponentSheet: string * InstLists: ((string*int) list)* CompLists: ((string*int) list)
+    | BadOutputs of ComponentSheet: string * InstLists: ((string*int) list)* CompLists: ((string*int) list)
+
 /// Check a single custom component for correct I/Os
-let checkCustomForOkIOs  (c:Component) (args:CustomComponentType) =
-    let inouts = c.InputPorts, c.OutputPorts
+let checkCustomComponentForOkIOs  (c:Component) (args:CustomComponentType) (sheets: LoadedComponent list)=
+    let inouts = args.InputLabels,args.OutputLabels
     let name = args.Name
-    Ok ()
+    sheets
+    |> List.tryFind (fun sheet -> sheet.Name = name)
+    |> Option.map (fun sheet -> sheet, sheet.InputLabels = args.InputLabels, sheet.OutputLabels = args.OutputLabels)
+    |> function
+            | None -> Error ( NoSheet name)
+            | Some(_, true,true) -> Ok ()
+            | Some(sheet,false,_) -> Error <| BadInputs( name, sheet.InputLabels, args.InputLabels)
+            | Some(sheet,true,false) -> Error <| BadOutputs( name, sheet.OutputLabels, args.OutputLabels)
+           
+    
 
 /// Custom components have I/Os which are the same (names) as the I/Os in the corresponding sheet
 /// This can change if a sheet made into a custom component is edited
 /// We do this check whenever a new sheet is opened
-let private checkCustomComponentsOk ((comps,_): CanvasState) (others: LoadedComponent list) dispatch : Unit =
+let private checkCustomComponentsOk (name:string) ((comps,_): CanvasState) (others: LoadedComponent list) (sheets: LoadedComponent list) dispatch : Result<Unit,string> =
+    let notify s = dispatch SetFilesNotification (str s)
     comps
-    |> List.collect (function | {Type=Custom args} as c -> [checkCustomForOkIOs c args] | _ -> [])
+    |> List.collect (function | {Type=Custom args} as c -> [checkCustomComponentForOkIOs c args sheets] | _ -> [])
     |> tryFindError
-    |> function | Ok _ -> ()
-                | Error s -> 
-                    dispatch SetFilesNotification  (str "Sheet %s is used as a custom component in sheet %s \n \
-                                                    but has been edited to change I/Os. Delete and recreate the component")
-                    ()
+    |> function | Ok _ -> Ok ()
+                | Error (NoSheet cName) -> 
+                    notify <| sprintf "Can't find a design sheet named %s for the custom component of this name in sheet %s" cName name
+                    Error "Invalid custom component"
+                | Error (BadInputs(cName, instIns, compIns)) -> 
+                    notify <|  sprintf "Sheet %s is used as a custom component in sheet %s. Instance In ports %A are different from Component In ports %A." cName name instIns compIns
+                    Error "Invalid Custom Component"
+                | Error (BadOutputs(cName, instOuts, compOuts)) -> 
+                    notify <|  sprintf "Sheet %s is used as a custom component in sheet %s. Instance Out ports %A are different from Component Out ports %A." cName name instOuts compOuts
+                    Error "Invalid Custom component"
+    
 
 
 /// returns a string option representig the current file name if file is loaded, otherwise None
@@ -59,7 +80,7 @@ let private displayFileErrorNotification err dispatch =
     |> SetFilesNotification
     |> dispatch
 
-let private loadStateIntoCanvas state model dispatch =
+let private loadStateIntoCanvas state model waveSim dispatch =
     dispatch <| SetHighlighted([], []) // Remove current highlights.
     model.Diagram.ClearCanvas() // Clear the canvas.
     // Finally load the new state in the canvas.
@@ -67,7 +88,7 @@ let private loadStateIntoCanvas state model dispatch =
     List.map model.Diagram.LoadComponent components |> ignore
     List.map (model.Diagram.LoadConnection true) connections |> ignore
     model.Diagram.FlushCommandStack() // Discard all undo/redo.
-    // Run the a connection widhts inference.
+    // Run the a connection widths inference.
     InferWidths()
     |> JSDiagramMsg
     |> dispatch
@@ -75,34 +96,37 @@ let private loadStateIntoCanvas state model dispatch =
     SetHasUnsavedChanges false
     |> JSDiagramMsg
     |> dispatch
-    // set autosave status clean
+    // set waveSim data
+    SetWaveSimModel waveSim
+    |> dispatch
+
 
 /// extract SavedwaveInfo from model to be saved
-let getSavedWave (model:Model) wsModel2SavedWaveInfoFunc : SavedWaveInfo option = 
+let getSavedWave (model:Model) : SavedWaveInfo option = 
     match currWS model with
-    | Some wSMod -> wsModel2SavedWaveInfoFunc wSMod |> Some
+    | Some wSModel -> waveSimModel2SavedWaveInfo wSModel |> Some
     | None -> None
 
 
 /// add waveInfo to model
-let setSavedWave compIds savedWaveInfo2wsModelFunc (wave: SavedWaveInfo option) model : Model =
+let setSavedWave compIds (wave: SavedWaveInfo option) model : Model =
     match wave, getCurrFile model with
     | None, _ -> model
     | Some waveInfo, Some fileName -> 
-        { model with WaveSim = Map.add fileName (savedWaveInfo2wsModelFunc compIds model waveInfo) 
+        { model with WaveSim = Map.add fileName (savedWaveInfo2WaveSimModel waveInfo) 
                                                 (fst model.WaveSim), 
                                snd model.WaveSim }
     | Some waveInfo, _ -> model
             
 
 /// Save the file currently open.
-let saveOpenFileAction isAuto model wsModel2SavedWaveInfoFunc =
+let saveOpenFileAction isAuto model =
     match model.Diagram.GetCanvasState (), model.CurrProject with
     | None, _ | _, None -> ()
     | Some jsState, Some project ->
         extractState jsState
         |> (fun state -> 
-                let savedState = state, getSavedWave model wsModel2SavedWaveInfoFunc
+                let savedState = state, getSavedWave model
                 if isAuto then
                     saveAutoStateToFile project.ProjectPath project.OpenFileName savedState
                 else 
@@ -139,54 +163,65 @@ let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lc
     | Some n ->
         List.mapi (fun i x -> if i = n then setFun x else x) lcLst
 
+let createEmptyComponentAndFile (pPath:string)  (sheetName: string) : LoadedComponent =
+    createEmptyDgmFile pPath sheetName
+    {
+        Name=sheetName
+        WaveInfo = None
+        TimeStamp = DateTime.Now
+        FilePath= pathJoin [|pPath; sprintf "%s.dgm" sheetName|]
+        CanvasState=([],[])
+        InputLabels = []
+        OutputLabels = []
+    }
+
 /// load a new project as defined by parameters
-let setupProject (pPath:string) (sheetName: string) (ldComps: LoadedComponent list) (model: Model) (dispatch: Msg->Unit)=
-    let openFileName, openFileState =
+let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent list) (model: Model) (dispatch: Msg->Unit)=
+    let compToSetup =
         match ldComps with
-        | [] -> // No files in the project. Create one and open it.
-            createEmptyDgmFile pPath "main"
-            "main", ([],[])
+        | [] -> failwithf "setupProjectComponents must be called with at least one LoadedComponent"
         | comps ->
             // load sheetName
             match comps |> List.tryFind (fun comp -> comp.Name = sheetName) with
             | None -> failwithf "What? can't find sheet %s in loaded sheets %A" sheetName (comps |> List.map (fun c -> c.Name))
-            | Some comp -> comp.Name, comp.CanvasState
+            | Some comp -> comp
     dispatch EndSimulation // End any running simulation.
+    let waveSim = 
+        compToSetup.WaveInfo
+        |> Option.map savedWaveInfo2WaveSimModel 
+        |> Option.defaultValue DiagramMessageType.initWS
+
     //
-    loadStateIntoCanvas openFileState model dispatch
+    let waveSim = 
+        compToSetup.WaveInfo
+        |> Option.map savedWaveInfo2WaveSimModel
+        |> Option.defaultValue initWS 
+    loadStateIntoCanvas compToSetup.CanvasState model (compToSetup.Name,waveSim) dispatch
     {
-        ProjectPath = pPath
-        OpenFileName =  openFileName
+        ProjectPath = dirName compToSetup.FilePath
+        OpenFileName =  compToSetup.Name
         LoadedComponents = ldComps
     }
-    |> SetProject |> dispatch
+    |> SetProject 
+    |> dispatch
 
 /// Open the specified file.
-let private openFileInProject wsModel2SavedWaveInfoFunc name project model dispatch =
+/// does not save existing file
+let private openFileInProject name project model dispatch =
     match getFileInProject name project with
     | None -> log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
-    | Some loadedComponent ->
-        saveOpenFileAction false model wsModel2SavedWaveInfoFunc
-        let oldState = 
-            model.Diagram.GetCanvasState()
-            |> Option.map extractState
-            |> Option. defaultValue <| failwithf "What? Current file %A has no canvas to save" project.OpenFileName
-        saveOpenFileAction false model wsModel2SavedWaveInfoFunc
-        // make sure correct file gets opened.
-        let lcs = 
-            project.LoadedComponents 
-            |> updateLoadedComponents project.OpenFileName (fun lc -> Option.defaultValue lc oldLc') // update old file
-        setupProject project.ProjectPath name lcs model dispatch
+    | Some lc ->
+        setupProjectFromComponents name project.LoadedComponents model dispatch
         dispatch EndSimulation // End any running simulation.
 
 /// Remove file.
-let private removeFileInProject wsModel2SavedWaveInfoFunc name project model dispatch =
+let private removeFileInProject name project model dispatch =
     removeFile project.ProjectPath name
     removeFile project.ProjectPath (name + "auto")
     // Remove the file from the dependencies and update project.
     let newComponents = List.filter (fun (lc: LoadedComponent) -> lc.Name <> name) project.LoadedComponents
     // Make sure there is at least one file in the project.
-    let newComponents =hh
+    let newComponents =
         match List.isEmpty newComponents with
         | false -> newComponents
         | true -> [ (createEmptyDiagramFile project.ProjectPath "main") ]
@@ -201,10 +236,10 @@ let private removeFileInProject wsModel2SavedWaveInfoFunc name project model dis
     assertThat (not <| List.isEmpty project.LoadedComponents) "removeFileInProject"
     match name = project.OpenFileName with
     | false -> ()
-    | true -> openFileInProject wsModel2SavedWaveInfoFunc project.LoadedComponents.[0].Name project model dispatch
+    | true -> openFileInProject project.LoadedComponents.[0].Name project model dispatch
 
 /// Create a new file in this project and open it automatically.
-let addFileToProject wsModel2SavedWaveInfoFunc model dispatch =
+let addFileToProject model dispatch =
     match model.CurrProject with
     | None -> log "Warning: addFileToProject called when no project is currently open"
     | Some project ->
@@ -234,7 +269,7 @@ let addFileToProject wsModel2SavedWaveInfoFunc model dispatch =
         let buttonAction =
             fun (dialogData: PopupDialogData) ->
                 // Save current file.
-                saveOpenFileAction false model wsModel2SavedWaveInfoFunc
+                saveOpenFileAction false model
                 // Create empty file.
                 let name = getText dialogData
                 createEmptyDgmFile project.ProjectPath name
@@ -257,7 +292,7 @@ let addFileToProject wsModel2SavedWaveInfoFunc model dispatch =
                 |> SetProject
                 |> dispatch
                 // Open the file.
-                openFileInProject wsModel2SavedWaveInfoFunc name updatedProject model dispatch
+                openFileInProject name updatedProject model dispatch
                 // Close the popup.
                 dispatch ClosePopup
                 dispatch EndSimulation // End any running simulation.
@@ -291,15 +326,9 @@ let private newProject model dispatch _ =
             let projectFile = baseName path + ".dprj"
             writeFile (pathJoin [| path; projectFile |]) ""
             // Create empty initial diagram file.
-            let initialDiagram = createEmptyDiagramFile path "main"
-            // Load the diagram.
-            loadStateIntoCanvas initialDiagram.CanvasState model dispatch
-            // Add the file to the project.
-            { ProjectPath = path
-              OpenFileName = "main"
-              LoadedComponents = [ initialDiagram ] }
-            |> SetProject
-            |> dispatch
+            let initialComponent = createEmptyComponentAndFile path "main"
+            setupProjectFromComponents "main" [initialComponent] model dispatch
+
 
 
 
@@ -318,7 +347,7 @@ let rec resolveComponentOpenPopup
         (List.maxBy (fun comp -> comp.TimeStamp) comps).Name
     dispatch ClosePopup
     match resolves with
-    | [] -> setupProject pPath (chooseWhichToOpen components) components model dispatch
+    | [] -> setupProjectFromComponents (chooseWhichToOpen components) components model dispatch
     | Resolve (ldComp,autoComp) :: rLst ->
         // ldComp, autocomp are from attemps to load saved file and its autosave version.
         let buttonAction autoSave _ =
@@ -375,7 +404,7 @@ let viewNoProjectMenu model dispatch =
 
 
 /// Display top menu.
-let viewTopMenu model wsModel2WaveInfoFunc messagesFunc simulateButtonFunc dispatch =
+let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
     let compIds = getComponentIds model
     
     messagesFunc model dispatch
@@ -400,8 +429,8 @@ let viewTopMenu model wsModel2WaveInfoFunc messagesFunc simulateButtonFunc dispa
                                     Button.Color IsPrimary
                                     Button.Disabled(name = project.OpenFileName)
                                     Button.OnClick(fun _ ->
-                                        saveOpenFileAction false model wsModel2WaveInfoFunc // Save current file.
-                                        openFileInProject wsModel2WaveInfoFunc name project model dispatch) ] [ str "open" ] ]
+                                        saveOpenFileAction false model // Save current file.
+                                        openFileInProject name project model dispatch) ] [ str "open" ] ]
                           // Add option to rename?
                           //Level.item [] [
                           //    Button.button [
@@ -432,7 +461,7 @@ let viewTopMenu model wsModel2WaveInfoFunc messagesFunc simulateButtonFunc dispa
 
                                         let buttonAction =
                                             fun _ ->
-                                                removeFileInProject wsModel2WaveInfoFunc name project model dispatch
+                                                removeFileInProject name project model dispatch
                                                 dispatch ClosePopup
                                         confirmationPopup title body buttonText buttonAction dispatch) ]
                                     [ str "delete" ] ] ] ] ]
@@ -459,7 +488,7 @@ let viewTopMenu model wsModel2WaveInfoFunc messagesFunc simulateButtonFunc dispa
                                       DisplayOptions.Block
                                    else
                                        DisplayOptions.None) ] ] ]
-                      ([ Navbar.Item.a [ Navbar.Item.Props [ OnClick(fun _ -> addFileToProject wsModel2WaveInfoFunc model dispatch) ] ]
+                      ([ Navbar.Item.a [ Navbar.Item.Props [ OnClick(fun _ -> addFileToProject model dispatch) ] ]
                              [ str "New Sheet" ]
                          Navbar.divider [] [] ]
                        @ projectFiles) ]
@@ -508,7 +537,7 @@ let viewTopMenu model wsModel2WaveInfoFunc messagesFunc simulateButtonFunc dispa
                                 [ Button.button
                                     [ Button.Color(if model.HasUnsavedChanges then IsSuccess else IsWhite)
                                       Button.OnClick(fun _ ->
-                                          saveOpenFileAction false model wsModel2WaveInfoFunc
+                                          saveOpenFileAction false model
                                           SetHasUnsavedChanges false
                                           |> JSDiagramMsg
                                           |> dispatch) ] [ str "Save" ] ] ]

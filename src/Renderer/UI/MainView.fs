@@ -247,7 +247,7 @@ let displayView model dispatch =
           Style [ BorderTop "2px solid lightgray"; BorderBottom "2px solid lightgray" ] ] [
         viewNoProjectMenu model dispatch
         viewPopup model
-        viewTopMenu model wsModel2SavedWaveInfo fileMenuViewActions simulateButtonFunc dispatch
+        viewTopMenu model fileMenuViewActions simulateButtonFunc dispatch
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode ) 
         viewNotifications model dispatch
         viewOnDiagramButtons model dispatch
@@ -272,12 +272,13 @@ let displayView model dispatch =
 
                                 match currWS model with
                                 | Some wSMod ->
-                                    match wSMod.WaveAdder.SimData with
-                                    | Some _ -> 
+                                    match wSMod.WaveAdder with
+                                    | Some {SimData = Some _}-> 
                                         Tabs.tab
                                             [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
                                             [ a [ OnClick (fun _ -> ChangeRightTab WaveSim |> dispatch) ] 
                                             [ str "WaveSim" ] ] 
+                                    | Some {SimData=None} -> failwithf "Unexpected WaveAdder with SimData=None"
                                     | None -> div [] []
                                 | _ -> div [] []
                               ]
@@ -313,7 +314,7 @@ let private handleJSDiagramMsg msg model =
 let private handleKeyboardShortcutMsg msg model =
     match msg with
     | CtrlS ->
-        saveOpenFileAction false model wsModel2SavedWaveInfo
+        saveOpenFileAction false model 
         { model with HasUnsavedChanges = false }
     | AltC ->
         // Similar to the body of OnDiagramButtonsView.copyAction but without
@@ -341,11 +342,11 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
                 printfn "PNG is %d bytes" png.Length
                 FilesIO.savePngFile p.ProjectPath p.OpenFileName  png)
     | MenuSaveFile -> 
-        FileMenuView.saveOpenFileAction false model wsModel2SavedWaveInfo
+        FileMenuView.saveOpenFileAction false model
         SetHasUnsavedChanges false
         |> JSDiagramMsg |> dispatch
     | MenuNewFile -> 
-        FileMenuView.addFileToProject wsModel2SavedWaveInfo model dispatch
+        FileMenuView.addFileToProject model dispatch
     | MenuZoom z -> 
         zoomDiagram z model
     model
@@ -430,7 +431,7 @@ let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
                     |> updateTimeStamp
                     |> setActivity (fun a -> {a with LastSavedCanvasState = newReducedState})
                     |> (fun model' -> 
-                        saveOpenFileAction true model' wsModel2SavedWaveInfo 
+                        saveOpenFileAction true model'
                         setActivity (fun a -> {a with LastAutoSave = System.DateTime.Now}) model')
                 else
                     model
@@ -588,16 +589,19 @@ let update msg model =
     | SetSimInProgress par -> 
         { model with SimulationInProgress = Some par }, Cmd.none
     | SimulateWhenInProgress par ->
+        // do the simulation for WaveSim and generate new SVGs
         match FileMenuView.getCurrFile model with
         | Some fileName ->
             match currWS model, par with
             | Some wSMod, Ok ports -> 
+                // does the actual simulation and SVG generation, if needed
                 let wsMod' = waveGen model waveSvg clkRulerSvg wSMod ports
                 { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model [] 
                              WaveSim = Map.add fileName wsMod' (fst model.WaveSim), 
                                        snd model.WaveSim
                              SimulationInProgress = None }, Cmd.ofMsg SetSimNotInProgress
             | Some wSMod, Error par -> 
+                // in this case 
                 { model with WaveSim = Map.add fileName (updateWSMod waveSvg clkRulerSvg model wSMod par) (fst model.WaveSim), 
                                        snd model.WaveSim 
                              SimulationInProgress = None }, Cmd.ofMsg SetSimNotInProgress
@@ -610,6 +614,11 @@ let update msg model =
         { model with LastSimulatedCanvasState = cS }, Cmd.none
     | UpdateScrollPos b ->
         { model with CheckScrollPos = b}, Cmd.none
+    | SetWaveSimModel( sheetName, wSModel) -> 
+        let updateWaveSim sheetName wSModel model =
+            let sims,err = model.WaveSim
+            sims.Add(sheetName, wSModel), err
+        {model with WaveSim = updateWaveSim sheetName wSModel model}, Cmd.none
     |> checkForAutoSaveOrSelectionChanged msg
 
 

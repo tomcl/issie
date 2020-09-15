@@ -80,7 +80,7 @@ draw2d.Connection = draw2d.Connection.extend({
         // Remove some decorations of the router.
         // This is necessary to remove the annoying dots that are left from
         // connections sometimes.
-        if (typeof this.vertexNodes !== "undefined" && this.vertexNodes !== null) {
+       if (typeof this.vertexNodes !== "undefined" && this.vertexNodes !== null) {
             this.vertexNodes.remove()
             delete this.vertexNodes
         }

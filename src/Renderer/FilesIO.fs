@@ -71,7 +71,7 @@ let dirName filePath = path.dirname filePath
 
 
 /// Extract the labels and bus widths of the inputs and outputs nodes.
-let private parseDiagramSignature canvasState
+let parseDiagramSignature canvasState
         : (string * int) list * (string * int) list =
     let rec extractIO
             (components : Component list)
@@ -88,7 +88,7 @@ let private parseDiagramSignature canvasState
     let inputs, outputs = extractIO components [] []
     List.rev inputs, List.rev outputs
 
-let private getBaseNameNoExtension filePath =
+let getBaseNameNoExtension filePath =
     let name = baseName filePath
     match name.Split '.' |> Seq.toList with
     | [] -> failwithf "what? split at . in a filename should never return empty list"
@@ -227,7 +227,7 @@ let saveStateToFile folderPath baseName state = // TODO: catch error?
 let createEmptyDgmFile folderPath baseName =
     saveStateToFile folderPath baseName (([],[]), None)
 
-/// load a component from its canvas and otehr elements
+/// load a component from its canvas and other elements
 let makeLoadedComponentFromCanvasData canvas filePath timeStamp waveInfo =
     let inputs, outputs = parseDiagramSignature canvas
     {

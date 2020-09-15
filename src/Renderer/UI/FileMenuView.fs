@@ -100,6 +100,32 @@ let private loadStateIntoCanvas state model waveSim dispatch =
     SetWaveSimModel waveSim
     |> dispatch
 
+let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lcLst: LoadedComponent list) =
+    let n = List.tryFindIndex (fun (lc: LoadedComponent) -> lc.Name = name) lcLst
+    match n with
+    | None -> failwithf "Can't find name='%s' in components:%A" name lcLst
+    | Some n ->
+        List.mapi (fun i x -> if i = n then setFun x else x) lcLst
+
+
+let updateProjectFromCanvas (model:Model) =
+    match model.Diagram.GetCanvasState() with
+    | None -> model.CurrProject
+    | Some state ->  
+        extractState state
+        |> fun canvas ->
+            let inputs, outputs = parseDiagramSignature canvas
+            let setLc lc =
+                { lc with
+                    CanvasState = canvas
+                    InputLabels = inputs
+                    OutputLabels = outputs
+                }
+            model.CurrProject
+            |> Option.map (fun p -> 
+                {   p with LoadedComponents = updateLoadedComponents p.OpenFileName setLc p.LoadedComponents
+                })
+
 
 /// extract SavedwaveInfo from model to be saved
 let getSavedWave (model:Model) : SavedWaveInfo option = 
@@ -156,12 +182,6 @@ let private createEmptyDiagramFile projectPath name =
         OutputLabels = []
     }
 
-let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lcLst: LoadedComponent list) =
-    let n = List.tryFindIndex (fun (lc: LoadedComponent) -> lc.Name = name) lcLst
-    match n with
-    | None -> failwithf "Can't find name='%s' in components:%A" name lcLst
-    | Some n ->
-        List.mapi (fun i x -> if i = n then setFun x else x) lcLst
 
 let createEmptyComponentAndFile (pPath:string)  (sheetName: string) : LoadedComponent =
     createEmptyDgmFile pPath sheetName
@@ -191,11 +211,6 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
         |> Option.map savedWaveInfo2WaveSimModel 
         |> Option.defaultValue DiagramMessageType.initWS
 
-    //
-    let waveSim = 
-        compToSetup.WaveInfo
-        |> Option.map savedWaveInfo2WaveSimModel
-        |> Option.defaultValue initWS 
     loadStateIntoCanvas compToSetup.CanvasState model (compToSetup.Name,waveSim) dispatch
     {
         ProjectPath = dirName compToSetup.FilePath
@@ -206,13 +221,16 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
     |> dispatch
 
 /// Open the specified file.
-/// does not save existing file
 let private openFileInProject name project model dispatch =
     match getFileInProject name project with
     | None -> log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
     | Some lc ->
-        setupProjectFromComponents name project.LoadedComponents model dispatch
-        dispatch EndSimulation // End any running simulation.
+        match updateProjectFromCanvas model with
+        | None -> failwithf "What? project cannot be None at this point in openFileInProject"
+        | Some p ->
+            saveOpenFileAction false model
+            setupProjectFromComponents name p.LoadedComponents model dispatch
+            dispatch EndSimulation // End any running simulation.
 
 /// Remove file.
 let private removeFileInProject name project model dispatch =
@@ -292,7 +310,7 @@ let addFileToProject model dispatch =
                 |> SetProject
                 |> dispatch
                 // Open the file.
-                openFileInProject name updatedProject model dispatch
+                openFileInProject name updatedProject {model with CurrProject = Some updatedProject} dispatch
                 // Close the popup.
                 dispatch ClosePopup
                 dispatch EndSimulation // End any running simulation.

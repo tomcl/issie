@@ -32,9 +32,9 @@ open Fable.Core.JsInterop
 
 let initActivity = {
     AutoSave = Inactive
-    LastSavedCanvasState = None
+    LastSavedCanvasState = Map.empty
     LastAutoSaveCheck = System.DateTime.MinValue
-    LastAutoSave = System.DateTime.MinValue
+    LastAutoSave = Map.empty
     RunningSimulation = false
     }
 
@@ -400,8 +400,8 @@ let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
             Set ncomps <> Set comps || Set nconns <> Set conns
         | _ -> true
 
-    let needsAutoSave (newState:CanvasState option) (state:CanvasState option) =
-        match newState,state with
+    let needsAutoSave (proj: Project) (newState:CanvasState option) (state:Map<string,CanvasState>) =
+        match newState, Map.tryFind proj.OpenFileName state with
         | None, _ | _, None -> 
             false
         | Some (ncomps,nconns), Some (comps,conns) -> 
@@ -421,7 +421,13 @@ let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
                 let newReducedState = 
                     model.Diagram.GetCanvasState()
                     |> Option.map extractReducedState 
-                let update = needsAutoSave newReducedState  model.AsyncActivity.LastSavedCanvasState
+                let addReducedState a  =
+                    let lastState = a.LastSavedCanvasState
+                    match newReducedState with
+                    | None -> lastState
+                    | Some state -> lastState.Add(proj.OpenFileName, state)
+
+                let update = needsAutoSave proj newReducedState  model.AsyncActivity.LastSavedCanvasState
                 let simUpdate = simIsStale newReducedState model.LastSimulatedCanvasState
                 printfn "SimUpdate=%A" simUpdate
                 if update
@@ -429,15 +435,15 @@ let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
                     printfn "AutoSaving at '%s'" (System.DateTime.Now.ToString("mm:ss"))
                     {model with HasUnsavedChanges=true}
                     |> updateTimeStamp
-                    |> setActivity (fun a -> {a with LastSavedCanvasState = newReducedState})
+                    |> setActivity (fun a -> {a with LastSavedCanvasState = addReducedState a})
                     |> (fun model' -> 
                         saveOpenFileAction true model'
-                        setActivity (fun a -> {a with LastAutoSave = System.DateTime.Now}) model')
+                        setActivity (fun a -> {a with LastAutoSave = a.LastAutoSave.Add(proj.OpenFileName,System.DateTime.Now)}) model')
                 else
                     model
                 |> setActivity (fun a ->
-                                match update || a.LastSavedCanvasState = None with
-                                | true -> {a with LastSavedCanvasState = newReducedState}
+                                match update || Map.tryFind proj.OpenFileName a.LastSavedCanvasState = None with
+                                | true -> {a with LastSavedCanvasState = addReducedState a}
                                 | false -> a)
                 |> (fun model -> changeSimulationIsStale simUpdate model, cmd)
        
@@ -521,7 +527,7 @@ let update msg model =
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
     | SetCreateComponent pos -> { model with CreateComponent = Some pos }, Cmd.none
     | SetProject project -> 
-        setActivity (fun a -> {a with LastSavedCanvasState=None}) { model with CurrProject = Some project}, Cmd.none
+        { model with CurrProject = Some project}, Cmd.none
     | CloseProject -> { model with CurrProject = None }, Cmd.none
     | ShowPopup popup -> { model with Popup = Some popup }, Cmd.none
     | ClosePopup ->

@@ -626,9 +626,9 @@ let private makeMenuGroupWithTip  title tip menuList =
 let compareModelsApprox (m1:Model) (m2:Model) =
     let initActivity = {
         AutoSave = Inactive
-        LastSavedCanvasState = None
+        LastSavedCanvasState = Map.empty
         LastAutoSaveCheck = System.DateTime.MinValue
-        LastAutoSave = System.DateTime.MinValue
+        LastAutoSave = Map.empty
         RunningSimulation = false
         }
     let m1r = reduceApprox m1

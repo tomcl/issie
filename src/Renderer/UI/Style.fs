@@ -39,7 +39,7 @@ let rightSectionStyle model =
         OverflowY OverflowOptions.Scroll
         BorderTop "2px solid lightgray"
         UserSelect UserSelectOptions.None
-        ZIndex 5
+        ZIndex 31
         BackgroundColor "white"
         //UserSelect UserSelectOptions.None
 ]

@@ -377,9 +377,14 @@ let button options func label =
 /// Radix conversion ///
 ////////////////////////
 
+let private charList2String (charLst: char list) = 
+    List.map string charLst
+    |> List.toSeq
+    |> String.concat ""
 
 let dec2bin (n:bigint) (nBits:uint32) =
-    [nBits - 1u..0u]
+    [0u..nBits - 1u]
+    |> List.rev
     |> List.map (fun bitNum -> if n &&& (1I <<< int bitNum) = 0I then '0' else '1')
 
 let dec2hex (n: bigint) (nBits: uint32): string =
@@ -397,14 +402,12 @@ let dec2hex (n: bigint) (nBits: uint32): string =
         let hexDigOf n = (sprintf "%x" n).[0]
         [0..15]
         |> List.map (fun dig -> 
-                List.map (bit dig) [3..0], hexDigOf dig)
+                List.map (bit dig) [3..-1..0], hexDigOf dig)
         |> Map.ofList
 
-    [ 0 .. 4 .. int nBits - 1 ]
-    |> List.map ( (fun i -> fourBit2HexDig.[ paddedBin.[i..i + 3] ])
-                  >> string )
-    |> List.toSeq
-    |> String.concat ""
+    [ 0 .. 4 .. List.length paddedBin - 4 ]
+    |> List.map (fun i -> fourBit2HexDig.[ paddedBin.[i..i + 3] ])
+    |> charList2String
 
 let dec2sdec (n: bigint) (nBits: uint32) =
     if (dec2bin n nBits).[0] = '1' 
@@ -416,7 +419,7 @@ let dec2sdec (n: bigint) (nBits: uint32) =
 let n2StringOfRadix (n: bigint) (nBits: uint32) (rad: NumberBase) =
     match rad with
     | Dec -> string n
-    | Bin -> string <| dec2bin n nBits
+    | Bin -> dec2bin n nBits |> charList2String
     | Hex -> dec2hex n nBits
     | SDec -> dec2sdec n nBits
 

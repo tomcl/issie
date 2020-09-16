@@ -622,8 +622,9 @@ let private waveAdderView model netList wSMod dispatch =
           MarginLeft "5%"
           MarginTop "15px" ] ]
       [ Heading.h4 [] [ str "Waveform Simulation" ]
-        str
-            "Add waveforms to view simulation. \n You can also add them by selecting components/connections in the editor and clicking \"Simulate\" on the top left menu bar"
+        str "Add nets to view simulated waveforms by clicking connections in diagram or ticking net names below"
+        br []
+        str "To test combinational logic with varying inputs use Simulate tab"
         hr []
         div []
             [ waveAdderButs model netList wSMod dispatch

@@ -98,13 +98,13 @@ draw2d.policy.line.OrthogonalSelectionFeedbackPolicy = draw2d.policy.line.Orthog
     },
 
     // Block default broken menu from appearing.
-    onRightMouseDown: function (conn, x, y, shiftKey, ctrlKey) {
-        return; // Do nothing? TODO. One could add a segment.
-    }
+    //onRightMouseDown: function (conn, x, y, shiftKey, ctrlKey) {
+    //    return; // Do nothing? TODO. One could add a segment.
+   // }
 })
 
 /// Setup circuit-like connections in the diagram.
-let router = new draw2d.layout.connection.InteractiveManhattanConnectionRouter();
+let router = new draw2d.layout.connection.CircuitConnectionRouter();
 // TODO: use CircuitConnectionRouter instead?
 router.abortRoutingOnFirstVertexNode = false;
 

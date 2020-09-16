@@ -486,7 +486,7 @@ let update msg model =
         |> (fun x -> x, Cmd.none)
     | SetWSError err -> { model with WaveSim = fst model.WaveSim, err }, Cmd.none
     | AddWaveSimFile (fileName, wSMod') ->
-        { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim }, Cmd.none
+        { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim}, Cmd.none
     | SetSimulationGraph graph ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
         { model with Simulation = { simData with Graph = graph } |> Ok |> Some }, Cmd.none

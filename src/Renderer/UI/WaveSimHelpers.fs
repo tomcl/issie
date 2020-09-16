@@ -688,20 +688,26 @@ let simulateButtonFunc compIds model dispatch =
         Button.button
             [ Button.Color IsSuccess
               Button.OnClick(fun _ ->
-                  setWaveAdder compIds model wSModel dispatch simData netList) ]
+                  setWaveAdder compIds model wSModel dispatch simData netList
+                  ChangeRightTab WaveSim |> dispatch )
+                  ]
     | true, Some _, Some (Error err), _ -> 
         // display the current error if circuit has errors
         Button.button
-            [ Button.OnClick(fun _ ->
+            [   Button.Color IsWarning
+                Button.OnClick(fun _ ->
                   Some err |> SetWSError |> dispatch
                   ChangeRightTab WaveSim |> dispatch ) ]
     | _, None, _, _ -> 
         // If we have never yet run wavesim create initial wSModel
               match model.CurrProject with
-              | Some _ -> initFileWS model dispatch
+              | Some _ -> 
+                    initFileWS model dispatch
               | None -> ()
-              Button.button []
-    | _ -> Button.button []
+              Button.button 
+                [ Button.OnClick(fun _ -> ChangeRightTab WaveSim |> dispatch) ]
+    | _ -> Button.button 
+                [ Button.OnClick(fun _ -> ChangeRightTab WaveSim |> dispatch) ]
     |> (fun but -> but [ str "Waveforms >>" ])
 
 ///////////////////////////

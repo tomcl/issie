@@ -638,14 +638,23 @@ let compareModelsApprox (m1:Model) (m2:Model) =
     if b = false then printfn "\n\n%A\n\n%A\n\n" m1r m2r
     b
 
+
+let mutable tippys: JSHelpers.TippyInstance array option = None
+
 let viewCatalogue model dispatch =
         let viewCatOfModel = fun model ->                 
             let catTipInstall el = 
                     if not (isNull el) then
                         printfn "Installing cat"
                         let props = JSHelpers.tippyOpts "left"
-                        let tippys = JSHelpers.tippy' ("[data-tippy-content]", props)
-                        JSHelpers.createSingleton(tippys, props);
+                        match tippys with
+                        | Some tips ->
+                            Array.iter (fun tip -> tip?destroy()) tips
+                        | None  -> ()
+                        let tip = JSHelpers.tippy' ("[data-tippy-content]", props)
+                        tippys <- Some tip
+                        JSHelpers.createSingleton(tip, props);
+                        
 
  
             let catTip1 name func (tip:string) = 

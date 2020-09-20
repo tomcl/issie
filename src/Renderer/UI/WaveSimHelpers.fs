@@ -39,7 +39,7 @@ let wsModel2netList wsModel =
 /// Start simulating the current Diagram.
 /// Return SimulationData that can be used to extend the simulation
 /// as needed, or error if simulation fails
-let private makeSimData model =
+let private startWaveSimulation model =
     match model.Diagram.GetCanvasState(), model.CurrProject with
     | None, _ -> None
     | _, None -> None
@@ -47,6 +47,11 @@ let private makeSimData model =
         let otherComponents = 
             project.LoadedComponents 
             |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        let others =
+            List.map spLdComp otherComponents
+            |> String.concat "\n"
+        let canvas = spCanvas model
+        printf "\n----------\nSIM START\nCANVAS=%s\nOTHERS=\n%s\n---------------\n" canvas others
         (extractState jsState, otherComponents)
         ||> prepareSimulation project.OpenFileName
         |> Some
@@ -157,7 +162,7 @@ let getWaveData (wsMod: WaveSimModel) =
 let private appendSimData (model: Model) (wSModel: WaveSimModel) nCycles = 
     match wSModel.SimData with
     | [||] ->
-        makeSimData model
+        startWaveSimulation model
         |> ( Option.map (Result.map (fun sd -> extractSimData sd nCycles))) // TODO simulate this ncycles no init data
     | dat ->
         extractSimData (Array.last dat) nCycles
@@ -654,7 +659,7 @@ let fileMenuViewActions model dispatch =
 
 ///  Set up wavesim data that may not exist and is needed
 let updateWaveSimFromInitData (waveSvg,clkRulerSvg) compIds  model (ws: WaveSimModel) : WaveSimModel =
-    match makeSimData model, model.Diagram.GetCanvasState() with
+    match startWaveSimulation model, model.Diagram.GetCanvasState() with
     | Some (Ok sD), Some canvState ->
         // current diagram netlist
         let netList = Helpers.getNetList <| extractState canvState
@@ -679,12 +684,14 @@ let updateWaveSimFromInitData (waveSvg,clkRulerSvg) compIds  model (ws: WaveSimM
                 Ports = waPorts'
 
             } )
-    | Some (Error _), _ | None, _ | _, None -> initWS 
+    | Some (Error _), _ | None, _ | _, None -> 
+        printfn "updateWaveSimFromInitData uses InitWS"
+        initWS 
 
 /// actions triggered by pressing the Simulate >> button
 let simulateButtonFunc compIds model dispatch =
     // based on simulation results determine color of button and what happens if it is clicked
-    match model.SimulationIsStale, currWS model, makeSimData model, model.Diagram.GetCanvasState() with
+    match model.SimulationIsStale, currWS model, startWaveSimulation model, model.Diagram.GetCanvasState() with
     | true, Some wSModel, Some (Ok simData), Some jsCanvState ->
         // display the waveAdder window if circuit is OK
         let netList = extractState jsCanvState |> Helpers.getNetList

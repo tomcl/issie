@@ -7,16 +7,12 @@
     the FRP model.
 *)
 
-module rec DiagramModelType
+module DiagramModelType
 
 open CommonTypes
 open DiagramMessageType
 open SimulatorTypes
 open Draw2dWrapper
-
-//================================//
-// Componenents loaded from files //
-//================================//
 
 type Notifications = {
     FromDiagram : ((Msg -> unit) -> Fable.React.ReactElement) option
@@ -32,19 +28,19 @@ type AutoSaveT = Saving | Deleting | Inactive
 
 type AsyncTasksT = {
     AutoSave: AutoSaveT
-    LastAutoSave: Map<string,System.DateTime>
+    LastAutoSave: System.DateTime
     LastAutoSaveCheck: System.DateTime
-    LastSavedCanvasState: Map<string,CanvasState>
+    LastSavedCanvasState: CanvasState option
     RunningSimulation: bool // placeholder - not used yet
     }
 
-[<CustomEquality;NoComparison>]
+
 type Model = {
     AsyncActivity: AsyncTasksT
     Diagram : Draw2dWrapper
     SimulationIsStale: bool
     LastSimulatedCanvasState: CanvasState option // reduced (without layout) canvas state
-    LastSelectedIds: string list * string list
+    LastSelected: Component list * Connection list
     CurrentSelected: Component list * Connection list
     LastUsedDialogWidth: int
     SelectedComponent : Component option // None if no component is selected.
@@ -62,63 +58,15 @@ type Model = {
     TopMenu : TopMenu
     DragMode: DragMode
     ViewerWidth: int // waveform viewer width in pixels
-    SimulationInProgress:  Result<NetGroup array,{| LastClk: uint; Curs: uint; ClkW: float |}> option
-    ConnsToBeHighlighted: bool
-    CheckScrollPos: bool
-} with
- 
-    override this.GetHashCode() =
-        hash (reduce this)
-        
-    override this.Equals(x) = 
-        match x with
-        | :? Model as x' -> reduce this = reduce x'
-        | _ -> false
-
-let reduce (this: Model) = {|
-         RightTab = this.RightTab
-         Hilighted = this.Hilighted
-         Clipboard = this.Clipboard
-         AsyncActivity = this.AsyncActivity
-        
-         SimulationIsStale = this.SimulationIsStale
-         LastSimulatedCanvasState = this.LastSimulatedCanvasState
-         LastSelectedIds = this.LastSelectedIds
-         CurrentSelected = this.CurrentSelected
-         LastUsedDialogWidth = this.LastUsedDialogWidth
-         SelectedComponent= this.SelectedComponent
-         CreateComponent = this.CreateComponent
-         HasUnsavedChanges = this.HasUnsavedChanges
-         CurrProject = match this.Popup with None -> false | _ -> true
-         PopupDialogData = this.PopupDialogData
-         TopMenu = this.TopMenu
-         DragMode = this.DragMode
-         ViewerWidth = this.ViewerWidth
-         SimulationInProgress = this.SimulationInProgress
-         ConnsToBeHighlighted = this.ConnsToBeHighlighted
-
- |} 
-       
-let reduceApprox (this: Model) = {|
-         RightTab = this.RightTab
-         Clipboard = this.Clipboard
-         CurrProject = match this.Popup with None -> false | _ -> true
-         SimulationIsStale = this.SimulationIsStale
-         LastUsedDialogWidth = this.LastUsedDialogWidth
-         CreateComponent = this.CreateComponent
-         HasUnsavedChanges = this.HasUnsavedChanges
-         CurrProject = match this.Popup with None -> false | _ -> true
-         PopupDialogData = this.PopupDialogData
-         DragMode = this.DragMode
-         ViewerWidth = this.ViewerWidth
-         SimulationInProgress = this.SimulationInProgress
- |} 
+}
 
 /// Lens to facilitate changing AsyncActivity
 let setActivity (f: AsyncTasksT -> AsyncTasksT) (model: Model) =
     {model with AsyncActivity = f model.AsyncActivity }
     
 let changeSimulationIsStale (b:bool) (m:Model) = {m with SimulationIsStale = b}
+<<<<<<< Updated upstream
+=======
 
 let getComponentIds (model: Model) =
     let extractIds (jsComps,jsConns) = 
@@ -172,8 +120,8 @@ let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
 
 let spComp (comp:Component) =
     match comp.Type with
-    | Custom {Name=name; InputLabels=il; OutputLabels=ol} -> sprintf "Custom:%s(ins=%A:outs=%A)" name il il
-    | x -> sprintf "%A" x
+    | Custom {Name=name; InputLabels=il; OutputLabels=ol} -> sprintf "Custom:%s(ins=%A:outs=%A)" name il ol
+    | x -> sprintf "%A:%s" x comp.Label
 
 let spConn (conn:Connection) = 
     sprintf "Conn:%A" conn.Vertices
@@ -219,3 +167,4 @@ let updateLdCompsWithCompOpt (newCompOpt:LoadedComponent option) (ldComps: Loade
         | None -> newComp :: ldComps
         | Some _ -> updateLdComps newComp.Name (fun _ -> newComp) ldComps
 
+>>>>>>> Stashed changes

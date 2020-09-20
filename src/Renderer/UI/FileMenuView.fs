@@ -43,11 +43,12 @@ let private displayFileErrorNotification err dispatch =
     |> dispatch
 
 /// Send messages to change Diagram Canvas and specified sheet waveSim in model
-let private loadStateIntoCanvas state model waveSim dispatch =
+let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps model dispatch =
+    let name = compToSetup.Name
     dispatch <| SetHighlighted([], []) // Remove current highlights.
     model.Diagram.ClearCanvas() // Clear the canvas.
     // Finally load the new state in the canvas.
-    let components, connections = state
+    let components, connections = compToSetup.CanvasState
     List.map model.Diagram.LoadComponent components |> ignore
     List.map (model.Diagram.LoadConnection true) connections |> ignore
     model.Diagram.FlushCommandStack() // Discard all undo/redo.
@@ -60,9 +61,16 @@ let private loadStateIntoCanvas state model waveSim dispatch =
     |> JSDiagramMsg
     |> dispatch
     // set waveSim data
-    SetWaveSimModel waveSim
+    SetWaveSimModel(name, waveSim)
     |> dispatch
     SetSimIsStale true
+    |> dispatch
+    {
+        ProjectPath = dirName compToSetup.FilePath
+        OpenFileName =  compToSetup.Name
+        LoadedComponents = ldComps
+    }
+    |> SetProject // this message actually changes the project in model
     |> dispatch
 
 let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lcLst: LoadedComponent list) =
@@ -116,6 +124,7 @@ let saveOpenFileAction isAuto model =
     match model.Diagram.GetCanvasState (), model.CurrProject with
     | None, _ | _, None -> None
     | Some jsState, Some project ->
+        let reducedState = extractReducedState jsState
         extractState jsState
         |> (fun state -> 
                 let savedState = state, getSavedWave model
@@ -125,14 +134,20 @@ let saveOpenFileAction isAuto model =
                 else 
                     saveStateToFile project.ProjectPath project.OpenFileName savedState
                     removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName
-                    Some {  (project.LoadedComponents 
-                            |> List.find (fun lc -> lc.Name = project.OpenFileName))
-                                with CanvasState = state})
+                    let origLdComp =
+                        project.LoadedComponents
+                        |> List.find (fun lc -> lc.Name = project.OpenFileName)
+                    let savedWaveSim =
+                        Map.tryFind project.OpenFileName (fst model.WaveSim)
+                        |> Option.map waveSimModel2SavedWaveInfo
+                    Some (makeLoadedComponentFromCanvasData state origLdComp.FilePath DateTime.Now savedWaveSim, reducedState))
 
 
 
 let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
-    let ldcOpt = saveOpenFileAction false model
+    let opt = saveOpenFileAction false model
+    let ldcOpt = Option.map fst opt
+    let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
     match model.CurrProject with
     | None -> failwithf "What? Should never be able to save sheet when project=None"
     | Some p -> 
@@ -140,6 +155,9 @@ let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
       updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
       |> (fun lc -> {p with LoadedComponents=lc})
       |> SetProject
+      |> dispatch
+      // update Autosave info
+      SetLastSavedCanvas (p.OpenFileName,reducedState)
       |> dispatch
     SetHasUnsavedChanges false
     |> JSDiagramMsg
@@ -197,13 +215,12 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
     | Some p ->
         dispatch EndSimulation // Message ends any running simulation.
         // TODO: make each sheet wavesim remember the list of waveforms.
-        dispatch <| SetWaveSimModel(p.OpenFileName, initWS) // Message closes down old waveSim, resets to safe initial state.
     let waveSim = 
         compToSetup.WaveInfo
         |> Option.map savedWaveInfo2WaveSimModel 
         |> Option.defaultValue DiagramMessageType.initWS
 
-    loadStateIntoCanvas compToSetup.CanvasState model (compToSetup.Name,waveSim) dispatch
+    loadStateIntoModel compToSetup waveSim ldComps model dispatch
     {
         ProjectPath = dirName compToSetup.FilePath
         OpenFileName =  compToSetup.Name
@@ -223,7 +240,8 @@ let private openFileInProject name project model dispatch =
         match updateProjectFromCanvas model with
         | None -> failwithf "What? current project cannot be None at this point in openFileInProject"
         | Some p ->
-            let ldcOpt = saveOpenFileAction false model
+            let opt = saveOpenFileAction false model
+            let ldcOpt = Option.map fst opt
             let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
             setupProjectFromComponents name ldComps model dispatch
 

@@ -314,8 +314,19 @@ let private handleJSDiagramMsg msg model =
 let private handleKeyboardShortcutMsg msg model =
     match msg with
     | CtrlS ->
-        saveOpenFileAction false model 
-        { model with HasUnsavedChanges = false }
+        let ldcOpt = 
+            saveOpenFileAction false model 
+        let proj' =
+            match model.CurrProject with
+            | Some p -> 
+                let lcs = updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
+                Some {p with LoadedComponents=lcs}
+            | None -> None
+            
+        { model with 
+            HasUnsavedChanges = false
+            CurrProject = proj'
+        }
     | AltC ->
         // Similar to the body of OnDiagramButtonsView.copyAction but without
         // dispatching the SetClipboard message.
@@ -342,7 +353,7 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
                 printfn "PNG is %d bytes" png.Length
                 FilesIO.savePngFile p.ProjectPath p.OpenFileName  png)
     | MenuSaveFile -> 
-        FileMenuView.saveOpenFileAction false model
+        FileMenuView.saveOpenFileActionWithModelUpdate model dispatch
         SetHasUnsavedChanges false
         |> JSDiagramMsg |> dispatch
     | MenuNewFile -> 
@@ -437,7 +448,7 @@ let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
                     |> updateTimeStamp
                     |> setActivity (fun a -> {a with LastSavedCanvasState = addReducedState a})
                     |> (fun model' -> 
-                        saveOpenFileAction true model'
+                        saveOpenFileAction true model' |> ignore
                         setActivity (fun a -> {a with LastAutoSave = a.LastAutoSave.Add(proj.OpenFileName,System.DateTime.Now)}) model')
                 else
                     model
@@ -468,8 +479,11 @@ let private setSelWavesHighlighted model connIds =
 
 
 let update msg model =
-    //let inP f = Option.map f model.CurrProject
-    //printfn "UPDATE: %A (dirty=%A, project=%A)" msg model.HasUnsavedChanges (inP (fun p -> p.ProjectPath))
+    match msg with
+    | SelectionHasChanged | SetHighlighted _ -> ()
+    | _ ->          
+        printfn "\n--------------------------\n%s\n" (spMess msg)
+        pp model
     match msg with
     | SetDragMode mode -> {model with DragMode= mode}, Cmd.none
     | SetViewerWidth w -> {model with ViewerWidth = w}, Cmd.none

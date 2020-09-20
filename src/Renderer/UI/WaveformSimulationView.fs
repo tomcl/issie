@@ -622,9 +622,8 @@ let private waveAdderView model netList wSMod dispatch =
           MarginLeft "5%"
           MarginTop "15px" ] ]
       [ Heading.h4 [] [ str "Waveform Simulation" ]
-        str "Add nets to view simulated waveforms by clicking connections in diagram or ticking net names below"
-        br []
-        str "To test combinational logic with varying inputs use Simulate tab"
+        str "Add nets to view waveforms by clicking connections in diagram or tick-boxes below."
+        str "Test combinational logic using Simulate tab."
         hr []
         div []
             [ waveAdderButs model netList wSMod dispatch

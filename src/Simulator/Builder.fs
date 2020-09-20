@@ -654,7 +654,8 @@ let private buildSimulationGraph (canvasState : CanvasState) : (SimulationGraph)
 /// Validate a diagram and generate its simulation graph.
 let runCanvasStateChecksAndBuildGraph
         (canvasState : CanvasState)
+        (loadedComponents: LoadedComponent list)
         : Result<SimulationGraph, SimulationError> =
-    match analyseState canvasState with
+    match analyseState canvasState loadedComponents with
     | Some err -> Error err
     | None -> Ok <| buildSimulationGraph canvasState

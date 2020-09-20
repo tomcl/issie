@@ -138,7 +138,7 @@ let private buildDependencyMap
         : Result<DependencyMap, SimulationError> =
     let dependenciesRes =
         loadedDependencies
-        |> List.map (fun dep -> dep.Name, runCanvasStateChecksAndBuildGraph dep.CanvasState)
+        |> List.map (fun dep -> dep.Name, runCanvasStateChecksAndBuildGraph dep.CanvasState loadedDependencies)
     // Check if any dependency has given an error.
     let hasError (name, res) = match res with | Error _ -> true | Ok _ -> false
     let extractOk (name, res) = match res with | Ok d -> name, d | Error e -> failwithf "what? Dependency %s expected to be Ok, but has error %A" name e

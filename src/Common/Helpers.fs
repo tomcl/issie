@@ -52,9 +52,8 @@ let cropToLength (len : int) (fromStart : bool) (str : string) =
     | false -> "..." + str.[str.Length - len..]     // From end.
 
 
-(*------------------------------
-
-Helper Functions------------------------------------------*)
+//--------------------Helper Functions-------------------------------//
+//-------------------------------------------------------------------//
 
 let getNetList ((comps,conns) : CanvasState) =
     let id2X f =

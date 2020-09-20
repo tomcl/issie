@@ -166,3 +166,56 @@ let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
         LastCanvasState = None 
     }
       
+//----------------------Print functions-----------------------------//
+//------------------------------------------------------------------//
+
+
+let spComp (comp:Component) =
+    match comp.Type with
+    | Custom {Name=name; InputLabels=il; OutputLabels=ol} -> sprintf "Custom:%s(ins=%A:outs=%A)" name il il
+    | x -> sprintf "%A" x
+
+let spConn (conn:Connection) = 
+    sprintf "Conn:%A" conn.Vertices
+
+let spState ((comps,conns):CanvasState) = 
+    sprintf "Canvas<%A,%A>" (List.map spComp comps) (List.map spConn conns)
+
+let spCanvas (model:Model) = 
+    model.Diagram.GetCanvasState()
+    |> Option.map Extractor.extractState
+    |> Option.map spState
+    |> Option.defaultValue "None"
+
+let spComps comps =  
+    sprintf "Comps%A" (List.map spComp comps)
+
+let spOpt f thingOpt = match thingOpt with |None -> "None" | Some x -> sprintf "Some %s" (f x)
+
+let spLdComp (ldc: LoadedComponent) =
+    sprintf "LDC<%s:%A:%s>" ldc.Name ldc.TimeStamp ((fst >>spComps) ldc.CanvasState)
+
+let spProj (p:Project) =
+    sprintf "PROJ||Sheet=%s\n%s||ENDP\n" p.OpenFileName (String.concat "\n" (List.map spLdComp p.LoadedComponents))
+
+let pp model =
+    printf "\n%s\n%s" (spCanvas model) (spOpt spProj model.CurrProject)
+
+let spMess msg =
+    match msg with
+    | SetProject p -> sprintf "MSG<<SetProject:%s>>ENDM" (spProj p)
+    | SetLastSimulatedCanvasState canvasOpt-> sprintf "MSG<SetLastSimCanv:%s>>ENDM" (spOpt spState canvasOpt)
+    | x -> sprintf "MSG<<%20A>>ENDM" x
+
+let updateLdComps (name:string) (changeFun: LoadedComponent -> LoadedComponent)  (ldComps: LoadedComponent list)=
+    ldComps
+    |> List.map (fun ldc -> if ldc.Name=name then changeFun ldc else ldc)
+
+let updateLdCompsWithCompOpt (newCompOpt:LoadedComponent option) (ldComps: LoadedComponent list) =
+    match newCompOpt with 
+    | None -> ldComps // no update
+    | Some newComp -> 
+        match List.tryFind (fun (ldc:LoadedComponent) -> ldc.Name = newComp.Name) ldComps with
+        | None -> newComp :: ldComps
+        | Some _ -> updateLdComps newComp.Name (fun _ -> newComp) ldComps
+

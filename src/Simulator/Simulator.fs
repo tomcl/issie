@@ -28,7 +28,7 @@ let prepareSimulation
         (canvasState : CanvasState)
         (loadedDependencies : LoadedComponent list)
         : Result<SimulationData, SimulationError> =
-    match runCanvasStateChecksAndBuildGraph canvasState with
+    match runCanvasStateChecksAndBuildGraph canvasState loadedDependencies with
     | Error err -> Error err
     | Ok graph ->
         match mergeDependencies diagramName graph

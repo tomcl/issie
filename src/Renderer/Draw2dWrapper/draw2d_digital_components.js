@@ -625,7 +625,7 @@ draw2d.shape.digital.Custom = draw2d.shape.digital.extend({
         const padding = 7;
         const fontHeight = 10;
         const fontWidth = 6;
-        this.svgHeight = Math.max(this.inputs.length, this.outputs.length) * portSpace;
+        this.svgHeight = Math.max(this.inputs.length, this.outputs.length,1) * portSpace;
         this.svgWidth = Math.max(
             50,
             30 + (this.maxStringLen(this.inputs) + this.maxStringLen(this.outputs)) * fontWidth

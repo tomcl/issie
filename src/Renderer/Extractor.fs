@@ -155,8 +155,13 @@ let extractState (state : JSCanvasState) : CanvasState =
 /// Transform the JSCanvasState into an f# data structure, with layout data removed (for checking significant changes).
 let extractReducedState (state : JSCanvasState) : CanvasState =
     let (components : JSComponent list), (connections : JSConnection list) = state
-    let comps, conns = List.map extractReducedComponent components,
-                       List.map extractReducedConnection connections
+    let comps = 
+        List.map extractReducedComponent components
+        |> List.sortBy (fun comp -> comp.Id)
+                       
+    let conns =                   
+        List.map extractReducedConnection connections
+        |> List.sortBy (fun conn -> conn.Id)
     // Sort components by their location.
     comps, conns
  

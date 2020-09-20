@@ -314,6 +314,47 @@ let private checkIOLabels (canvasState : CanvasState) : SimulationError option =
           checkDuplicate outputs (toMap outputs) "Output" with
     | Some err, _| _, Some err -> Some err
     | None, None -> None
+type CustomComponentError =
+    | NoSheet of string
+    | BadInputs of ComponentSheet: string * InstLists: ((string*int) list)* CompLists: ((string*int) list)
+    | BadOutputs of ComponentSheet: string * InstLists: ((string*int) list)* CompLists: ((string*int) list)
+
+/// Check a single custom component for correct I/Os
+let checkCustomComponentForOkIOs  (c:Component) (args:CustomComponentType) (sheets: LoadedComponent list)=
+    let inouts = args.InputLabels,args.OutputLabels
+    let name = args.Name
+    sheets
+    |> List.tryFind (fun sheet -> sheet.Name = name)
+    |> Option.map (fun sheet -> sheet, sheet.InputLabels = args.InputLabels, sheet.OutputLabels = args.OutputLabels)
+    |> function
+            | None -> Error ( c, NoSheet name)
+            | Some(_, true,true) -> Ok ()
+            | Some(sheet,false,_) -> Error <| (c, BadInputs( name, sheet.InputLabels, args.InputLabels))
+            | Some(sheet,true,false) -> Error <| (c, BadOutputs( name, sheet.OutputLabels, args.OutputLabels))
+           
+    
+
+/// Custom components have I/Os which are the same (names) as the I/Os in the corresponding sheet
+/// This can change if a sheet made into a custom component is edited
+/// We do this check whenever a new sheet is opened
+let checkCustomComponentsOk ((comps,_): CanvasState) (sheets: LoadedComponent list): SimulationError option =
+    let error (c:Component) msg = Some {
+            Msg = msg
+            InDependency = None
+            ComponentsAffected = [ComponentId c.Id]
+            ConnectionsAffected = []
+            }
+    comps
+    |> List.collect (function | {Type=Custom args} as c -> [checkCustomComponentForOkIOs c args sheets] | _ -> [])
+    |> Helpers.tryFindError
+    |> function | Ok _ -> None
+                | Error (c, NoSheet cName) -> 
+                   error c <| sprintf "Can't find a design sheet named %s for the custom component of this name" cName              
+                | Error (c, BadInputs(cName, instIns, compIns)) -> 
+                    error c <|  sprintf "Sheet %s is used as a custom component. Instance In ports %A are different from Component In ports %A." cName instIns compIns            
+                | Error (c, BadOutputs(cName, instOuts, compOuts)) -> 
+                    error c <|  sprintf "Sheet %s is used as a custom component. Instance Out ports %A are different from Component Out ports %A." cName instOuts compOuts
+               
 
 /// Checks that all connections have consistent widths.
 /// This function relies on the bus inferer, but also makes sure that all widths
@@ -345,11 +386,13 @@ let private checkConnectionsWidths
 /// Analyse a CanvasState and return any error (or None).
 let analyseState
         (state : CanvasState)
+        (ldComps: LoadedComponent list)
         : SimulationError option =
     [
         checkPortTypesAreConsistent state
         checkPortsAreConnectedProperly state
         checkIOLabels state
+        checkCustomComponentsOk state ldComps
         checkConnectionsWidths state
     ]
     |> List.tryFind Option.isSome

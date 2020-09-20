@@ -144,6 +144,7 @@ type Msg =
     | JSDiagramMsg of JSDiagramMsg
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
+    | SetLastSavedCanvas of string * CanvasState
     | SetCurrFileWSMod of WaveSimModel
     | SetWSError of SimulationError option
     | AddWaveSimFile of string * WaveSimModel

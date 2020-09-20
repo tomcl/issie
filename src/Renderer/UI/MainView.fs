@@ -314,8 +314,10 @@ let private handleJSDiagramMsg msg model =
 let private handleKeyboardShortcutMsg msg model =
     match msg with
     | CtrlS ->
-        let ldcOpt = 
+        let opt = 
             saveOpenFileAction false model 
+        let ldcOpt = Option.map fst opt
+        let redState = Option.map snd opt
         let proj' =
             match model.CurrProject with
             | Some p -> 
@@ -326,6 +328,15 @@ let private handleKeyboardShortcutMsg msg model =
         { model with 
             HasUnsavedChanges = false
             CurrProject = proj'
+            AsyncActivity = {
+                model.AsyncActivity with 
+                    LastSavedCanvasState = 
+                        model.AsyncActivity.LastSavedCanvasState
+                        |>  match opt with
+                            | None -> id
+                            | Some (ldc, redState) -> (fun aState ->                                
+                                   aState.Add(ldc.Name, redState))
+            }
         }
     | AltC ->
         // Similar to the body of OnDiagramButtonsView.copyAction but without
@@ -461,17 +472,25 @@ let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
           
 let private setSelWavesHighlighted model connIds =
     let (_, errConnIds), oldConnIds = model.Hilighted
+    let currentConnIds = 
+        model.Diagram.GetCanvasState()
+        |> Option.map extractState
+        |> Option.map (snd >> List.map (fun conn -> conn.Id))
+        |> Option.defaultValue []
+        |> Set
+    let isCurrent cId = Set.contains cId currentConnIds
+ 
     oldConnIds
     |> List.map (fun (ConnectionId c) -> 
         match List.contains (ConnectionId c) errConnIds with
-        | true -> ()
-        | false -> model.Diagram.UnHighlightConnection c )
+        | false when isCurrent c -> model.Diagram.UnHighlightConnection c 
+        | _ -> ())
     |> ignore
     connIds
     |> List.map (fun (ConnectionId c) -> 
         match List.contains (ConnectionId c) errConnIds with
-        | true -> ()
-        | false -> model.Diagram.HighlightConnection c "green")
+        | false when isCurrent c -> model.Diagram.HighlightConnection c "green"
+        | _ -> ())
     |> ignore
     List.fold (fun st cId -> if List.contains cId errConnIds 
                                 then st
@@ -490,6 +509,8 @@ let update msg model =
     | JSDiagramMsg msg' -> handleJSDiagramMsg msg' model, Cmd.none
     | KeyboardShortcutMsg msg' -> handleKeyboardShortcutMsg msg' model, Cmd.none
     // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).
+    | SetLastSavedCanvas(name,state) -> 
+        setActivity (fun a -> {a with LastSavedCanvasState= Map.add name state a.LastSavedCanvasState}) model, Cmd.none
     | StartSimulation simData -> { model with Simulation = Some simData }, Cmd.none
     | SetCurrFileWSMod wSMod' -> 
         match FileMenuView.getCurrFile model with

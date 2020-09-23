@@ -272,13 +272,13 @@ let displayView model dispatch =
 
                                 match currWS model with
                                 | Some wSMod ->
-                                    match wSMod.WaveAdder with
-                                    | Some {SimData = Some _}-> 
+                                    match wSMod.WaveData with
+                                    | Some {SimDataOLD = Some _}-> 
                                         Tabs.tab
                                             [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
                                             [ a [ OnClick (fun _ -> ChangeRightTab WaveSim |> dispatch) ] 
                                             [ str "WaveSim" ] ] 
-                                    | Some {SimData=None} -> failwithf "Unexpected WaveAdder with SimData=None"
+                                    | Some {SimDataOLD=None} -> failwithf "Unexpected WaveAdder with SimData=None"
                                     | None -> div [] []
                                 | _ -> div [] []
                               ]

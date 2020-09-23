@@ -137,35 +137,53 @@ let getComponentIds (model: Model) =
 /// get saveable record of waveform setup
 let waveSimModel2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
     { 
-        Ports = wsMod.Ports
         ClkWidth = wsMod.ClkWidth
         Cursor = wsMod.Cursor
         Radix = wsMod.Radix
         LastClk = wsMod.LastClk
-        WaveAdderOpen = wsMod.WaveAdderOpen
-        WaveAdderPorts = 
-            wsMod.WaveAdder
-            |> Option.map (fun wa -> wa.Ports)
-            |> Option.defaultValue [||]
+        DisplayedPortIds = 
+            wsMod.DispPorts 
+            |> Array.map (fun p -> p.driverNet.[0].TargetCompId)
+            |> Array.map (fun cId -> match cId with | ComponentId n -> n)
     }
 
 /// setup current WaveSimModel from saved record
 let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
     {   
-        SimData = [||]
-        WaveTable = [||]
-        WaveNames = [||]
-        Ports = sWInfo.Ports
+        SimDataCache = [||]
+        DispWaveSVGCache = [||]
+        DispWaveNames = [||]
+        DispPorts = [||]
         ClkWidth = sWInfo.ClkWidth
         Cursor = sWInfo.Cursor
         CursorEmpty = false
         Radix = sWInfo.Radix
         LastClk = sWInfo.LastClk
-        WaveAdderOpen = sWInfo.WaveAdderOpen
-        WaveAdder = None
-        LastCanvasState = None 
+        WaveAdderOpen = false
+        WaveData = None
+        LastCanvasState = None           
     }
-      
+
+let getSheetWaveSimOpt (model:Model) = 
+    model.CurrProject
+    |> Option.map (fun p -> Map.tryFind p.OpenFileName (fst model.WaveSim))
+    |> Option.defaultValue None
+
+let getSheetWaveSimErr (model:Model) =
+    model.CurrProject
+    |> Option.map (fun p -> snd model.WaveSim)
+    |> Option.defaultValue None
+
+let getSheetWaveCanvasState (model:Model) =
+    getSheetWaveSimOpt model
+    |> Option.map (fun (ws:WaveSimModel) -> ws.LastCanvasState)
+    |> Option.defaultValue None
+
+let getSheetWaveNetList (model:Model) =
+    getSheetWaveCanvasState model
+    |> Option.map Helpers.getNetList
+   
+
 //----------------------Print functions-----------------------------//
 //------------------------------------------------------------------//
 

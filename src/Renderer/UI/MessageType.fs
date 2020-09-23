@@ -44,7 +44,36 @@ type JSDiagramMsg =
 type KeyboardShortcutMsg =
     | CtrlS | AltC | AltV | AltZ | AltShiftZ
 
-// WaveSim types 
+//---------------------------------------------------------------
+//---------------------WaveSim types-----------------------------
+//---------------------------------------------------------------
+
+(*
+WaveSim state.
+
+Principles: 
+1) at any time wavesim simulates a stored model.LastSimulatedCanvas circuit which is guaranteed working if it exists 
+2) pressing "simulate button" updates this circuit
+3) wavesim has two views: adder and waveforms. each waveform is the signal on a netGroup (set of connections from one driver to multiple sources).
+4) waveforms display view based on: selected waveforms, zoom, cursor position, etc
+5) simulation is rerun automatically as needed to generate current display, but previous simulation results are reused where possible
+6) adder view interfaces with current circuit, colouring selected nets green, and allowing selection on nets to determine
+selected waveforms. If current circuit has changed only driving components still on circuit can be used this way.
+7) simulate button color determines status; if circuit has chnaged from that simulated it will be orange (errors) or green (OK to rerun simulation).
+8) list of currently displayed ports is held in state and saved / restored with each sheet. LastSimulatedCanvas (and simulation data) are not saved/restored but
+are recalculated when needed. List of possible to display ports used by waveadder
+
+Data structures for internal state
+
+LastSimulatedState: Record with canvas, netlist, ports, initial simulation etc all recreated whenever simulation button is pressed and absent initially and after simulating with errors.
+WaveAdder: Record always present contains simulation parameters, including which ports are currently selected
+
+WaveAdder is
+
+
+*)
+
+
 
 type WaveName = string
 
@@ -59,24 +88,24 @@ type SimTime = Sample array
 type Waveform = Sample array
 
 
-type WaveAdderModel = {
+type WaveTempT = {
     /// generate data using this, which comes from makesimdata
-    SimData : SimulationData option
+    SimDataOLD : SimulationData option
     /// all the nets that exist in the currently simulated design
-    Ports : NetGroup array;
-    /// names for all ports in current design
-    WaveNames : WaveName array
+    AllNetGroups : NetGroup array;
+    /// names for all ports in currently simulated design
+    AllWaveNames : WaveName array
 }
 
 type WaveSimModel = {
-    /// array of variable length (but always >= lastclock)
-    SimData: SimulatorTypes.SimulationData array
+    /// array of variable length
+    SimDataCache: SimulatorTypes.SimulationData array
     /// waveform names displayed, use findName
-    WaveNames: string array
+    DispWaveNames: string array
     /// react SVG for each waveform
-    WaveTable: ReactElement array
+    DispWaveSVGCache: ReactElement array
     /// NetGroups displayed, as in WaveNames
-    Ports: NetGroup array
+    DispPorts: NetGroup array
     /// width of one clock in SVG units
     ClkWidth: float
     /// position of cursor (0 = first cycle)
@@ -90,27 +119,29 @@ type WaveSimModel = {
     /// if Adder window is currently open (changing tab does not effect it)
     WaveAdderOpen: bool
     /// data needed by the waveform Edit window (adder)
-    WaveAdder: WaveAdderModel option
+    WaveData: WaveTempT option
     /// the circuit that is being simulated - the canvas may have changed
     LastCanvasState: CanvasState option 
 }
 
-let initWA = 
-    { SimData = None; Ports = [||]; WaveNames = [||] }
+let initWA netGroups= 
+    { SimDataOLD = None; AllNetGroups = netGroups; AllWaveNames = [||] }
 
 let initWS: WaveSimModel =
-    { SimData = [||]
-      WaveNames = [||]
-      WaveTable = [||]
-      Ports = [||] 
+    { SimDataCache = [||]
+      DispWaveNames = [||]
+      DispWaveSVGCache = [||]
+      DispPorts = [||] 
       ClkWidth = 1.0
       Cursor = 0u
       CursorEmpty = false
       Radix = Bin
       LastClk = 9u 
-      WaveAdderOpen = true
-      WaveAdder = None
-      LastCanvasState = None }
+      WaveAdderOpen = false
+      WaveData = None
+      LastCanvasState = None 
+    }
+
 
 type DiagEl = | Comp of Component | Conn of Connection
 

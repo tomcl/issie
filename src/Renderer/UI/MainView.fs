@@ -30,6 +30,7 @@ open Fable.Core.JsInterop
 
 // -- Init Model
 
+/// Initial value of activity subrecord in model
 let initActivity = {
     AutoSave = Inactive
     LastSavedCanvasState = Map.empty
@@ -38,6 +39,7 @@ let initActivity = {
     RunningSimulation = false
     }
 
+/// Initial value of model
 let init() = {
     AsyncActivity = initActivity
     Diagram = new Draw2dWrapper()
@@ -89,6 +91,7 @@ let private repaintConnections model connsWidth =
     )
     |> ignore
 
+/// subfunction in bus inference painting
 let private mapPortIdsToConnWidth (conns:Connection list) connsWidth = 
     (Map.empty, conns) ||> List.fold (fun map conn ->
         let width = getConnectionWidth connsWidth <| ConnectionId conn.Id
@@ -96,6 +99,7 @@ let private mapPortIdsToConnWidth (conns:Connection list) connsWidth =
         map.Add (conn.Target.Id, width)
     )
 
+/// Repaint the components that change due to bus inferred width
 let private repaintBusComponents model connsWidth state =
     let comps, conns = state
     let portIdsToConnWidth = mapPortIdsToConnWidth conns connsWidth
@@ -120,6 +124,8 @@ let private repaintBusComponents model connsWidth state =
         | _ -> () // Ignore other components.
     ) |> ignore
 
+/// Alter diagram with highlighting of busses. This runs the width inference algorithm and then 
+/// colors Diagram but does NOT set model.Highlighted. This needs to be done separately.
 let private runBusWidthInference model =
     match model.Diagram.GetCanvasState () with
     | None -> model
@@ -170,6 +176,7 @@ let private viewRightTab model dispatch =
         div [ Style [Width "100%"; Height "calc(100% - 48px)"; MarginTop "15px" ] ]
             ( viewWaveSim model dispatch )
 
+/// determine whether moving the mouse drags the bar or not
 let setDragMode (modeIsOn:bool) (model:Model) dispatch =
     fun (ev: Browser.Types.MouseEvent) ->        
         makeSelectionChangeMsg model dispatch ev
@@ -179,7 +186,7 @@ let setDragMode (modeIsOn:bool) (model:Model) dispatch =
         | false, DragModeOn _ -> SetDragMode DragModeOff |> dispatch
         | _ -> ()
 
-
+/// Draggable vertivcal bar used to divide Wavesim window from Diagram window
 let dividerbar (model:Model) dispatch =
     let isDraggable = model.RightTab = WaveSim
     let variableStyle = 
@@ -202,6 +209,10 @@ let dividerbar (model:Model) dispatch =
             OnMouseDown (setDragMode true model dispatch)       
         ] []
 
+//---------------------------------------------------------------------------------------------------------//
+//------------------------------------------VIEW FUNCTION--------------------------------------------------//
+//---------------------------------------------------------------------------------------------------------//
+/// Top-level application view: as react components that create a react virtual-DOM
 let displayView model dispatch =
     let windowX,windowY =
         int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
@@ -212,13 +223,8 @@ let displayView model dispatch =
     let sd = scrollData model
     let x' = sd.SheetLeft+sd.SheetX
     let y' = sd.SheetTop+sd.SheetY
-    //selectedComps
-    //|> List.map (fun comp -> sprintf "(%d,%d)" comp.X  comp.Y )
-    //|> String.concat ","
-    //|> (fun comps -> printfn "W=(%d,%d) Top=(%d,%d) Bot=(%d,%d)Comps=[%s]\n%A\n\n"  windowX windowY sd.SheetLeft sd.SheetTop x' y' comps sd)
-        
-
-
+ 
+    /// used only to make the divider bar draggable
     let processMouseMove (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         if ev.buttons = 1. then dispatch SelectionHasChanged
@@ -230,7 +236,7 @@ let displayView model dispatch =
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth)
             SetViewerWidth w |> dispatch
-            match currWS model with
+            match currWaveSimModel model with
             | Some wSMod when w > maxWidth wSMod && not wSMod.WaveAdderOpen ->
                 {| LastClk = wSMod.LastClk + 10u
                    ClkW = wSMod.ClkWidth
@@ -241,52 +247,66 @@ let displayView model dispatch =
         | DragModeOn _, _ ->  SetDragMode DragModeOff |> dispatch
         | DragModeOff, _-> ()
 
+    // the whole app window
     div [ OnMouseUp (fun ev -> setDragMode false model dispatch ev; dispatch SelectionHasChanged);
           OnMouseDown (makeSelectionChangeMsg model dispatch)
           OnMouseMove processMouseMove
           Style [ BorderTop "2px solid lightgray"; BorderBottom "2px solid lightgray" ] ] [
+        // transient
         viewNoProjectMenu model dispatch
+        // transient overlay
         viewPopup model
-        viewTopMenu model fileMenuViewActions simulateButtonFunc dispatch
+        // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
+        // main top bar function is early in compile order
+        viewTopMenu model WaveSimHelpers.fileMenuViewActions WaveSimHelpers.simulateButtonFunc dispatch
+        // Draw2D editor Diagram component with canvas of components and connections
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode ) 
+        // transient pop-ups
         viewNotifications model dispatch
+        // editing buttons overlaid bottom-left on canvas
         viewOnDiagramButtons model dispatch
+        //--------------------------------------------------------------------------------------//
+        //---------------------------------right section----------------------------------------//
+        // right section has horizontal divider bar and tabs
         div [ rightSectionStyle model ]
+              // vertical and draggable divider bar
             [ dividerbar model dispatch
+              // tabs for different functions
               div [ Style [ Height "100%" ] ] 
                   [ Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs"
-                                Tabs.Props [Style [Margin 0] ] ]
-                              [ Tabs.tab
+                                Tabs.Props [Style [Margin 0] ] ]                              
+                              [ Tabs.tab // catalogue tab to add components
                                     [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
                                     [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] 
-                                    [ JSHelpers.tipStr "bottom" "Catalogue" "List of components and custom components from other design sheets to add to this sheet"] ]
-                                Tabs.tab
+                                    [ JSHelpers.tipStr "bottom" "Catalogue" "List of components and custom components from other design sheets to add to this sheet"] ]                                
+                                Tabs.tab // Properties tab to view/chnage component properties
                                     [ Tabs.Tab.IsActive (model.RightTab = Properties) ]
                                     [ a [ OnClick (fun _ -> ChangeRightTab Properties |> dispatch ) ] 
                                     [ JSHelpers.tipStr "bottom" "Properties" "View or change component name, width, etc"] ]
 
-                                Tabs.tab
+                                Tabs.tab // simulation tab to do combinational simulation
                                     [ Tabs.Tab.IsActive (model.RightTab = Simulation) ]
                                     [ a [ OnClick (fun _ -> ChangeRightTab Simulation |> dispatch ) ] 
                                     [ JSHelpers.tipStr "bottom" "Simulation" "Simple simulation for combinational logic which allows inputs to be changed manually" ] ]
-
-                                match currWS model with
-                                | Some wSMod ->
-                                    match wSMod.WaveData with
-                                    | Some {SimDataOLD = Some _}-> 
-                                        Tabs.tab
-                                            [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
-                                            [ a [ OnClick (fun _ -> ChangeRightTab WaveSim |> dispatch) ] 
-                                            [ str "WaveSim" ] ] 
-                                    | Some {SimDataOLD=None} -> failwithf "Unexpected WaveAdder with SimData=None"
-                                    | None -> div [] []
+                                /// Optional wavesim tab. If present contains waveforms or waveform aditor window
+                                match currWaveSimModel model with
+                                | Some {WaveData = Some {SimDataOLD =  Some _}} ->
+                                    Tabs.tab // WaveSim tab - if wavesim exists
+                                        [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
+                                        [ a [ OnClick (fun _ -> ChangeRightTab WaveSim |> dispatch) ] 
+                                        [ str "WaveSim" ] ] 
+                                | Some {WaveData = Some {SimDataOLD = None }} -> 
+                                    failwithf "Unexpected WaveAdder with SimData=None"
                                 | _ -> div [] []
                               ]
                     viewRightTab model dispatch ] ] ]
 
-    
-// -- Update Model
+//---------------------------------------------------------------------------------------------//
+//---------------------------------------------------------------------------------------------//
+//---------------------------------- Update Model ---------------------------------------------//
+//---------------------------------------------------------------------------------------------//
 
+/// subfunction used in model update function
 let private getSimulationDataOrFail model msg =
     match model.Simulation with
     | None -> failwithf "what? Getting simulation data when no simulation is running: %s" msg
@@ -295,7 +315,7 @@ let private getSimulationDataOrFail model msg =
         | Error _ -> failwithf "what? Getting simulation data when could not start because of error: %s" msg
         | Ok simData -> simData
 
-// Handle messages triggered by the JS diagram.
+/// Handle messages triggered by the JS diagram.
 let private handleJSDiagramMsg msg model =
     match msg with
     | InitCanvas canvas -> // Should be triggered only once.
@@ -310,7 +330,7 @@ let private handleJSDiagramMsg msg model =
     | SetHasUnsavedChanges s ->
         { model with HasUnsavedChanges = s }
 
-// Handle messages triggered by keyboard shortcuts.
+/// Handle messages triggered by keyboard shortcuts.
 let private handleKeyboardShortcutMsg msg model =
     match msg with
     | CtrlS ->
@@ -354,6 +374,7 @@ let private handleKeyboardShortcutMsg msg model =
         model.Diagram.Redo ()
         model
 
+/// handle menus (never used?)
 let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
     match act with
     | MenuPrint ->
@@ -374,7 +395,7 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
     model
 
 /// get timestamp of current loaded component.
-/// is this ever used?
+/// is this ever used? No.
 let getCurrentTimeStamp model =
     match model.CurrProject with
     | None -> System.DateTime.MinValue
@@ -385,7 +406,8 @@ let getCurrentTimeStamp model =
                     | None -> failwithf "Project inconsistency: can't find component %s in %A"
                                 p.OpenFileName ( p.LoadedComponents |> List.map (fun lc -> lc.Name))
 
-/// replace timestamp of current loaded component in model project by current time
+/// Replace timestamp of current loaded component in model project by current time
+/// Used in update function
 let updateTimeStamp model =
     let setTimeStamp (lc:LoadedComponent) = {lc with TimeStamp = System.DateTime.Now}
     match model.CurrProject with
@@ -396,6 +418,8 @@ let updateTimeStamp model =
         |> fun lcs -> { model with CurrProject=Some {p with LoadedComponents = lcs}}
 
 /// Check whether current selection is identical to previous selection and 
+/// emit SelectionHasChanged if not, return model updated with new selection.
+/// Uses LastSelectedIDs, updates CurrentSelection, LasSelectedIds
 let checkSelection model cmd =
     let extractIds (jsComps,jsConns) =
         let compIds = jsComps |> List.map (fun comp -> JSHelpers.getFailIfNull comp ["id"] : string)
@@ -469,7 +493,8 @@ let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
                                 | false -> a)
                 |> (fun model -> changeSimulationIsStale simUpdate model, cmd)
        
-          
+/// Uses model.Hilighted to track what is currently highlighted (green or red)
+/// Changes green highlighting as determined by connIds
 let private setSelWavesHighlighted model connIds =
     let (_, errConnIds), oldConnIds = model.Hilighted
     let currentConnIds = 
@@ -496,13 +521,19 @@ let private setSelWavesHighlighted model connIds =
                                 then st
                                 else cId :: st ) [] connIds
 
+//----------------------------------------------------------------------------------------------------------------//
+//-----------------------------------------------UPDATE-----------------------------------------------------------//
+//----------------------------------------------------------------------------------------------------------------//
 
+/// Main MVU model update function
 let update msg model =
+    // initial (short0 code used for debug printout
     match msg with
     | SelectionHasChanged | SetHighlighted _ -> ()
     | _ ->          
         printfn "\n--------------------------\n%s\n" (spMess msg)
         pp model
+    // main dispatch based on message
     match msg with
     | SetDragMode mode -> {model with DragMode= mode}, Cmd.none
     | SetViewerWidth w -> {model with ViewerWidth = w}, Cmd.none
@@ -620,7 +651,7 @@ let update msg model =
         getMenuView act model dispatch, Cmd.none
     | DiagramMouseEvent -> model, Cmd.none
     | SelectionHasChanged -> 
-        match currWS model with
+        match currWaveSimModel model with
         | Some _ ->
             { model with ConnsToBeHighlighted = true }
         | None -> model
@@ -633,7 +664,7 @@ let update msg model =
         // do the simulation for WaveSim and generate new SVGs
         match FileMenuView.getCurrFile model with
         | Some fileName ->
-            match currWS model, par with
+            match currWaveSimModel model, par with
             | Some wSMod, Ok ports -> 
                 // does the actual simulation and SVG generation, if needed
                 let wsMod' = waveGen model waveSvg clkRulerSvg wSMod ports
@@ -660,6 +691,8 @@ let update msg model =
             let sims,err = model.WaveSim
             sims.Add(sheetName, wSModel), err
         {model with WaveSim = updateWaveSim sheetName wSModel model}, Cmd.none
+    // post-update check always done which deals with regular tasks like updating connections and 
+    // auto-saving files
     |> checkForAutoSaveOrSelectionChanged msg
 
 

@@ -31,7 +31,7 @@ let getCurrFile (model: Model) =
     | None -> None
 
 /// returns a WaveSimModel option if a file is loaded, otherwise None
-let currWS (model: Model) =
+let currWaveSimModel (model: Model) =
     match getCurrFile model with
     | Some fileName when Map.containsKey fileName (fst model.WaveSim) -> Some (fst model.WaveSim).[fileName]
     | _ -> None
@@ -103,7 +103,7 @@ let updateProjectFromCanvas (model:Model) =
 
 /// extract SavedwaveInfo from model to be saved
 let getSavedWave (model:Model) : SavedWaveInfo option = 
-    match currWS model with
+    match currWaveSimModel model with
     | Some wSModel -> waveSimModel2SavedWaveInfo wSModel |> Some
     | None -> None
 

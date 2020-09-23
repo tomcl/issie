@@ -36,7 +36,7 @@ let private gaps2pos (wSModel: WaveSimModel) (wave: Waveform) gaps =
 
 /// get values position of bus labels
 let private busLabels (model: Model) waveData =
-    match currWS model with
+    match currWaveSimModel model with
     | Some wSModel ->
         (Array.transpose waveData, Array.map makeGaps (transitions waveData)) 
         ||> Array.map2 (gaps2pos wSModel)
@@ -400,7 +400,7 @@ let private cursorButtons (model: Model) wSMod dispatch =
                     SpellCheck false
                     Step 1 ]
                 Input.Id "cursor"
-                match currWS model with
+                match currWaveSimModel model with
                 | Some wSMod when wSMod.CursorEmpty = false -> 
                     string wSMod.Cursor
                 | Some _ -> ""
@@ -654,7 +654,7 @@ let private waveformsView compIds model netList wSMod dispatch =
 /// ReactElement list of the whole waveform simulator
 let viewWaveSim (model: Model) dispatch =
     let compIds = getComponentIds model
-    match currWS model, snd model.WaveSim with
+    match currWaveSimModel model, snd model.WaveSim with
 
     // normal case, display waveform adder window or waveforms
     | Some wSModel, None ->

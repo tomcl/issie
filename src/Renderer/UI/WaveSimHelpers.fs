@@ -85,7 +85,7 @@ let private isNetListTrgtInNetList (netList: NetList) (nlTrgt: NLTarget) =
 
 /// get array of TrgtLstGroup with the non-existing NLTargets removed
 let private getReloadableNetGroups (model: Model) (netList: NetList) =
-    match currWS model with
+    match currWaveSimModel model with
     | Some wSModel ->
         Array.map (fun netGroup -> netGroup.driverNet) wSModel.DispPorts
         |> Array.map (List.filter <| isNetListTrgtInNetList netList)
@@ -647,7 +647,7 @@ let getAdderOrInit (model:Model) waveSim =
 let fileMenuViewActions model dispatch =
     if model.ConnsToBeHighlighted
     then  
-        match currWS model with
+        match currWaveSimModel model with
         | Some wSModel ->
             if wSModel.WaveAdderOpen then getAllNetGroups wSModel else wSModel.DispPorts
             |> Array.map (fun net -> if isWaveSelected model (wsModel2netList wSModel) net
@@ -696,7 +696,7 @@ let updateWaveSimFromInitData (waveSvg,clkRulerSvg) compIds  model (ws: WaveSimM
 /// actions triggered by pressing the Simulate >> button
 let simulateButtonFunc compIds model dispatch =
     // based on simulation results determine color of button and what happens if it is clicked
-    match model.SimulationIsStale, currWS model, makeSimData model, model.Diagram.GetCanvasState() with
+    match model.SimulationIsStale, currWaveSimModel model, makeSimData model, model.Diagram.GetCanvasState() with
     | true, Some wSModel, Some (Ok simData), Some jsCanvState ->
         // display the waveAdder window if circuit is OK
         let canvas = extractState jsCanvState 

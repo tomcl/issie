@@ -192,6 +192,80 @@ let selWave2selConn model (netGrp: NetGroup) on =
     |> List.collect (fun (ConnectionId cId) -> connId2JSConn model cId) 
     |> model.Diagram.SetSelected on
 
+/// returns labels of all custom component instances of sheet in lComp
+let findInstancesOf sheet (lComp:LoadedComponent) =
+    lComp.CanvasState
+    |> fst
+    |> List.collect (function | {Type=(Custom {Name=sheet'})} as comp when sheet' = sheet-> [comp.Label] | _ -> [])
+  
+
+/// finds out if current sheet is used in some other sheet.
+/// works recursively to find root sheet
+/// returns current sheet if there is a cycle, or more than one path to a root
+let getRootSheet  (model:Model) =
+    match model with
+    | {CurrProject = (Some ({LoadedComponents=lComps} as proj))} ->
+        let openSheet = proj.OpenFileName
+        let getParentData (sheet:string) =
+            lComps
+            |> List.filter (fun lComp -> lComp.Name <> sheet) // can't be own parent
+            |> List.collect (fun lComp -> 
+                let parentName = lComp.Name
+                match findInstancesOf sheet lComp with
+                | [] -> [] //not a parent
+                | [_] -> [parentName]
+                | _ -> [openSheet]) // if more than one instance can't analyse
+        let rec findRoot (traversedSheets:string list) (sheet:string) =
+            if List.contains sheet traversedSheets then 
+                openSheet
+            else
+                match getParentData sheet with
+                | [root] -> findRoot (sheet :: traversedSheets) root
+                | [] -> sheet
+                | _ -> openSheet
+        Some <| findRoot [] openSheet
+    | _ -> None // should never happen
+
+let getCustoms (cid:ComponentId,comp:SimulationComponent) =
+    match comp.Type with
+    | Custom c -> [cid, c.Name,comp]
+    | _ -> []
+
+let simGraphOrFail (comp:SimulationComponent) =
+    match comp.CustomSimulationGraph with
+    | Some x -> x
+    | None -> failwithf "What? a Custom component %A appears to have no simulation graph" comp
+
+/// return a function which can extract the correct SimulationGraph from the current simulation
+/// for the given sheet. The parameter is a sample SumulationGraph
+let getSimGraph (sheet:string) (graph:SimulationGraph) =
+    let makeSelector cids =
+        (id, List.rev cids) 
+        ||> List.fold (fun selFun cid -> 
+                            let func graph = simGraphOrFail (Map.find cid graph)
+                            selFun >> func)
+       
+        
+    let rec getGraph (customs:ComponentId list) (thisSheet:string) (graph:SimulationGraph) : (SimulationGraph -> SimulationGraph) array =
+        if sheet = thisSheet 
+        then 
+            [|id|]
+        else          
+            Map.toArray graph
+            |> Array.collect (getCustoms >> List.toArray)
+            |> Array.collect (fun (cid,sheet',comp) -> 
+                if sheet' = sheet then 
+                    [|makeSelector (cid :: customs)|]
+                else 
+                    getGraph (cid :: customs) sheet' (Option.defaultValue (failwithf "What? %A should have a CustomSimulationGraph" comp) comp.CustomSimulationGraph))
+      
+    getGraph [] sheet graph
+    |> function | [|f|] -> f | x -> failwithf "Wrong number of candidates %A to find %s in Simgraph" x sheet
+
+                    
+
+                
+
 ///////////////////////////
 /// Naming of waveforms ///
 ///////////////////////////
@@ -480,7 +554,7 @@ let initFileWS (model:Model) dispatch =
     | _ -> ()
 
 /// set model.WaveSim & model.WaveAdder to show the list of waveforms that can be selected
-let private setWaveAdder compIds model wSMod dispatch (simData: SimulationData) netList =
+let startNewWaveSimulation compIds model wSMod dispatch (simData: SimulationData) netList =
     SetViewerWidth minViewerWidth |> dispatch
     getReducedCanvState model |> SetLastSimulatedCanvasState |> dispatch
     SetSimIsStale false |> dispatch
@@ -489,7 +563,7 @@ let private setWaveAdder compIds model wSMod dispatch (simData: SimulationData) 
         availableNetGroups model
 
     let wA' =
-        { SimDataOLD = Some simData
+        { InitWaveSimGraph = Some simData
           AllNetGroups = netGroups  
           AllWaveNames = Array.map (netGroup2Label compIds simData.Graph netList) netGroups }
     { wSMod with
@@ -505,6 +579,9 @@ let private setWaveAdder compIds model wSMod dispatch (simData: SimulationData) 
     |> Array.map2 (selWave2selConn model) netGroups |> ignore
 
     ChangeRightTab WaveSim |> dispatch
+
+
+
 
 /// ReactElement array of the box containing the waveform's SVG
 let private waveCol waveSvg clkRulerSvg model wsMod waveData =
@@ -556,7 +633,7 @@ let updateWSMod waveSvg clkRulerSvg (model: Model) (wsMod: WaveSimModel)
 /// get waveform names
 let private getWaveNames compIds netList (wsMod: WaveSimModel) =
     match wsMod.WaveData with
-    | Some {SimDataOLD = Some sD} -> Array.map (netGroup2Label compIds sD.Graph netList) wsMod.DispPorts
+    | Some {InitWaveSimGraph = Some sD} -> Array.map (netGroup2Label compIds sD.Graph netList) wsMod.DispPorts
     | _ -> [||]
 
 /// change sim data if required
@@ -565,12 +642,12 @@ let private getWaveNames compIds netList (wsMod: WaveSimModel) =
 let waveGen model waveSvg clkRulerSvg (wSMod: WaveSimModel) ports =
     let simData', wa = 
         match wSMod.WaveData with
-        | Some ({SimDataOLD = Some  sD} as wa) ->
+        | Some ({InitWaveSimGraph = Some  sD} as wa) ->
             wSMod.LastClk
             |> extractSimData sD
             |> Array.append [| sD |]
             |> (fun sd -> sd, wa)
-        | Some {SimDataOLD = None} -> failwith "waveGen called when WaveAdder.SimData is None"
+        | Some {InitWaveSimGraph = None} -> failwith "waveGen called when WaveAdder.SimData is None"
         | None -> failwith "waveGen called when WaveAdder is None"
 
     let names =
@@ -677,7 +754,7 @@ let updateWaveSimFromInitData (waveSvg,clkRulerSvg) compIds  model (ws: WaveSimM
         let sD' = Array.append [| sD |] (extractSimData sD ws.LastClk)
         { ws with 
             WaveData = Some { 
-                SimDataOLD = Some sD
+                InitWaveSimGraph = Some sD
                 AllNetGroups = waPorts'
                 AllWaveNames = 
                     Array.map (netGroup2Label compIds sD.Graph netList) waPorts'
@@ -693,39 +770,47 @@ let updateWaveSimFromInitData (waveSvg,clkRulerSvg) compIds  model (ws: WaveSimM
             } )
     | Some (Error _), _ | None, _ | _, None -> initWS 
 
-/// actions triggered by pressing the Simulate >> button
+/// Actions triggered by pressing the Waveforms >> button
 let simulateButtonFunc compIds model dispatch =
     // based on simulation results determine color of button and what happens if it is clicked
-    match model.SimulationIsStale, currWaveSimModel model, makeSimData model, model.Diagram.GetCanvasState() with
-    | true, Some wSModel, Some (Ok simData), Some jsCanvState ->
-        // display the waveAdder window if circuit is OK
-        let canvas = extractState jsCanvState 
-        let netList = Helpers.getNetList canvas
-        Button.button
-            [ 
-                Button.Color IsSuccess
-                Button.OnClick(fun _ ->
-                    setWaveAdder compIds model wSModel dispatch simData netList
-                    ChangeRightTab WaveSim |> dispatch )
-                  ]
-    | true, Some _, Some (Error err), _ -> 
-        // display the current error if circuit has errors
-        Button.button
-            [   Button.Color IsWarning
-                Button.OnClick(fun _ ->
-                  Some err |> SetWSError |> dispatch
-                  ChangeRightTab WaveSim |> dispatch ) ]
-    | _, None, _, _ -> 
-        // If we have never yet run wavesim create initial wSModel
-              match model.CurrProject with
-              | Some _ -> 
-                    initFileWS model dispatch
-              | None -> ()
-              Button.button 
+    let simulationButton =
+        match currWaveSimModel model with
+
+        | None ->
+            // If we have never yet run wavesim create initial wSModel
+            match model.CurrProject with
+            | Some _ -> 
+                initFileWS model dispatch
+            | None -> ()
+            Button.button 
                 [ Button.OnClick(fun _ -> ChangeRightTab WaveSim |> dispatch) ]
-    | _ -> Button.button 
-                [ Button.OnClick(fun _ -> ChangeRightTab WaveSim |> dispatch) ]
-    |> (fun but -> but [ str "Waveforms >>" ])
+        | Some wSModel ->
+            match model.SimulationIsStale, makeSimData model, model.Diagram.GetCanvasState() with
+            | true, Some (Ok simData), Some jsCanvState ->
+                // display the waveAdder window if circuit is OK
+                let canvas = extractState jsCanvState 
+                let netList = Helpers.getNetList canvas
+                Button.button
+                    [ 
+                        Button.Color IsSuccess
+                        Button.OnClick(fun _ ->
+                            startNewWaveSimulation compIds model wSModel dispatch simData netList
+                            ChangeRightTab WaveSim |> dispatch )
+                          ]
+            | true, Some (Error err), _ -> 
+                // display the current error if circuit has errors
+                Button.button
+                    [   Button.Color IsWarning
+                        Button.OnClick(fun _ ->
+                          Some err |> SetWSError |> dispatch
+                          ChangeRightTab WaveSim |> dispatch ) ]
+            | _ -> 
+                Button.button 
+                        [ Button.OnClick(fun _ -> ChangeRightTab WaveSim |> dispatch) ]
+    simulationButton [ str "Waveforms >>" ]
+
+
+
 
 ///////////////////////////
 // Auto-scroll functions //
@@ -746,34 +831,7 @@ let makeCursorVisiblePos wSMod divWidth =
     cursMid - (divWidth / 2.0)
 
 /////////////////////////////////////////
-// Functions to manage waveSim state
+// Functions to manage waveSim state   //
 /////////////////////////////////////////
 
-
-/// setup current WaveSimModel from saved record
-(*
-let savedWaveInfo2wsModelold compIds waveSvg clkRulerSvg model (sWInfo: SavedWaveInfo) : WaveSimModel =
-    match makeSimData model, model.Diagram.GetCanvasState() with
-    | Some (Ok sD), Some canvState ->
-        let netList = Helpers.getNetList <| extractState canvState
-        let ports' = getReloadableTrgtLstGroups model netList
-        let sD' = Array.append [| sD |] (extractSimData sD sWInfo.LastClk)
-        let waPorts' = availableNLTrgtLstGroups model
-        { SimData = sD'
-          WaveTable = [||]
-          WaveNames = [||]
-          Ports = ports'
-          ClkWidth = sWInfo.ClkWidth
-          Cursor = sWInfo.Cursor
-          CursorEmpty = false
-          Radix = sWInfo.Radix
-          LastClk = sWInfo.LastClk
-          WaveAdderOpen = sWInfo.WaveAdderOpen
-          WaveAdder = { SimData = Some sD
-                        Ports = waPorts'
-                        WaveNames = Array.map (nlTrgtLstGroup2Label compIds sD.Graph netList) waPorts' }
-          LastCanvasState = getReducedCanvState model }
-        |> (fun m -> { m with WaveTable = waveCol waveSvg clkRulerSvg model m (getWaveData m) } )
-    | Some (Error _), _ | None, _ | _, None -> initWS 
-*)
 

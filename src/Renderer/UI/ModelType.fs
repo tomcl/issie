@@ -117,8 +117,9 @@ let reduceApprox (this: Model) = {|
 /// Lens to facilitate changing AsyncActivity
 let setActivity (f: AsyncTasksT -> AsyncTasksT) (model: Model) =
     {model with AsyncActivity = f model.AsyncActivity }
-    
-let changeSimulationIsStale (b:bool) (m:Model) = {m with SimulationIsStale = b}
+
+let changeSimulationIsStale (b:bool) (m:Model) = 
+    { m with SimulationIsStale = b}
 
 let getComponentIds (model: Model) =
     let extractIds (jsComps,jsConns) = 
@@ -164,10 +165,10 @@ let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
         LastCanvasState = None           
     }
 
-let getSheetWaveSimOpt (model:Model) = 
+let getSheetWaveSimOpt (model:Model) : WaveSimModel option = 
     model.CurrProject
-    |> Option.map (fun p -> Map.tryFind p.OpenFileName (fst model.WaveSim))
-    |> Option.defaultValue None
+    |> Option.bind (fun p -> Map.tryFind p.OpenFileName (fst model.WaveSim))
+    
 
 let getSheetWaveSimErr (model:Model) =
     model.CurrProject

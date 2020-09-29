@@ -90,7 +90,7 @@ type Waveform = Sample array
 
 type WaveTempT = {
     /// generate data using this, which comes from makesimdata
-    SimDataOLD : SimulationData option
+    InitWaveSimGraph : SimulationData option
     /// all the nets that exist in the currently simulated design
     AllNetGroups : NetGroup array;
     /// names for all ports in currently simulated design
@@ -125,7 +125,7 @@ type WaveSimModel = {
 }
 
 let initWA netGroups= 
-    { SimDataOLD = None; AllNetGroups = netGroups; AllWaveNames = [||] }
+    { InitWaveSimGraph = None; AllNetGroups = netGroups; AllWaveNames = [||] }
 
 let initWS: WaveSimModel =
     { SimDataCache = [||]
@@ -221,4 +221,5 @@ type Msg =
     | SimulateWhenInProgress of Result<NetGroup array,{| LastClk: uint; Curs: uint; ClkW: float |}>
     | SetSimNotInProgress
     | SetLastSimulatedCanvasState of CanvasState option
+ //   | StartNewWaveSimulation of CanvasState
     | UpdateScrollPos of bool

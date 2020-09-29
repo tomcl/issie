@@ -290,12 +290,12 @@ let displayView model dispatch =
                                     [ JSHelpers.tipStr "bottom" "Simulation" "Simple simulation for combinational logic which allows inputs to be changed manually" ] ]
                                 /// Optional wavesim tab. If present contains waveforms or waveform aditor window
                                 match currWaveSimModel model with
-                                | Some {WaveData = Some {SimDataOLD =  Some _}} ->
+                                | Some {WaveData = Some {InitWaveSimGraph =  Some _}} ->
                                     Tabs.tab // WaveSim tab - if wavesim exists
                                         [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
                                         [ a [ OnClick (fun _ -> ChangeRightTab WaveSim |> dispatch) ] 
                                         [ str "WaveSim" ] ] 
-                                | Some {WaveData = Some {SimDataOLD = None }} -> 
+                                | Some {WaveData = Some {InitWaveSimGraph = None }} -> 
                                     failwithf "Unexpected WaveAdder with SimData=None"
                                 | _ -> div [] []
                               ]

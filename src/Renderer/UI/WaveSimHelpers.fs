@@ -556,12 +556,14 @@ let initFileWS (model:Model) dispatch =
 /// set model.WaveSim & model.WaveAdder to show the list of waveforms that can be selected
 let startNewWaveSimulation compIds model wSMod dispatch (simData: SimulationData) netList =
     SetViewerWidth minViewerWidth |> dispatch
-    getReducedCanvState model |> SetLastSimulatedCanvasState |> dispatch
+    let simCanvasOpt = getReducedCanvState model    
+    SetLastSimulatedCanvasState simCanvasOpt  |> dispatch
     SetSimIsStale false |> dispatch
+    printfn "***Starting simulation with (%A) canvas***" (Option.map (fun (comps,conns) -> List.length comps, List.length conns) simCanvasOpt)
 
     let netGroups = 
-        availableNetGroups model
-
+        availableNetGroups {model with LastSimulatedCanvasState = simCanvasOpt}
+    printfn "***Netgroups=%A***" (Array.length netGroups)
     let wA' =
         { InitWaveSimGraph = Some simData
           AllNetGroups = netGroups  
@@ -569,7 +571,7 @@ let startNewWaveSimulation compIds model wSMod dispatch (simData: SimulationData
     { wSMod with
           WaveAdderOpen = true
           WaveData = Some wA'
-          LastCanvasState = getReducedCanvState model }
+          LastCanvasState = simCanvasOpt }
     |> SetCurrFileWSMod
     |> dispatch
 
@@ -726,7 +728,14 @@ let fileMenuViewActions model dispatch =
     then  
         match currWaveSimModel model with
         | Some wSModel ->
-            if wSModel.WaveAdderOpen then getAllNetGroups wSModel else wSModel.DispPorts
+            let netList = 
+                model.LastSimulatedCanvasState
+                |> Option.map Helpers.getNetList 
+                |> Option.defaultValue (Map.empty)
+            if wSModel.WaveAdderOpen then 
+                netList2NetGroups netList
+                
+            else wSModel.DispPorts
             |> Array.map (fun net -> if isWaveSelected model (wsModel2netList wSModel) net
                                      then wave2ConnIds net
                                      else [||])

@@ -671,10 +671,11 @@ let private waveEditorButtons (model: Model) netList wSModel dispatch =
                 Array.filter (isWaveSelected model netList) (getAllNetGroups wSModel)                
                 |> Ok
                 |> SetSimInProgress |> dispatch
-                model.Diagram.GetCanvasState()
-                |> Option.map Extractor.extractState 
-                |> SetLastSimulatedCanvasState
-                |> dispatch) ]
+                //model.Diagram.GetCanvasState()
+                //|> Option.map Extractor.extractState 
+                //|> SetLastSimulatedCanvasState
+                //|> dispatch) 
+                    )]
         | false -> [ Button.CustomClass "disabled" ]
         |> (fun lst -> Button.Props [ Style [ MarginLeft "10px" ] ] :: lst)
     let cancelButton =
@@ -689,6 +690,7 @@ let private waveEditorButtons (model: Model) netList wSModel dispatch =
     div [ Style [ Display DisplayOptions.Block ] ] buttons
 
 /// ReactElement list of the WaveAdder 
+/// netList comes from model.LastSimulatedCanvasState
 let private waveEditorView model netList wSMod dispatch =
     [ div
     [ Style
@@ -723,7 +725,8 @@ let viewWaveSim (model: Model) dispatch =
 
     // normal case, display waveform adder window or waveforms
     | Some wSModel, None ->
-        let netList = wsModel2netList wSModel
+        // we derive all the waveSim circuit details from LastSimulatedCanvasstate which does not chnage until a new simulation is run
+        let netList = Helpers.getNetList  <| Option.defaultValue ([],[]) model.LastSimulatedCanvasState
         match wSModel.WaveAdderOpen, model.SimulationInProgress with
         | true, None -> // display waveAdder if simulation has not finished and adder is open
             waveEditorView  model netList wSModel dispatch      

@@ -222,8 +222,8 @@ let pp model =
 
 let spMess msg =
     match msg with
-    | SetProject p -> sprintf "MSG<<SetProject:%s>>ENDM" (spProj p)
-    | SetLastSimulatedCanvasState canvasOpt-> sprintf "MSG<SetLastSimCanv:%s>>ENDM" (spOpt spState canvasOpt)
+    //| SetProject p -> sprintf "MSG<<SetProject:%s>>ENDM" (spProj p)
+    //| SetLastSimulatedCanvasState canvasOpt-> sprintf "MSG<SetLastSimCanv:%s>>ENDM" (spOpt spState canvasOpt)
     | x -> sprintf "MSG<<%20A>>ENDM" x
 
 let updateLdComps (name:string) (changeFun: LoadedComponent -> LoadedComponent)  (ldComps: LoadedComponent list)=

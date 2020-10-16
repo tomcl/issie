@@ -528,12 +528,13 @@ let private setSelWavesHighlighted model connIds =
 /// Main MVU model update function
 let update msg model =
     // initial (short0 code used for debug printout
+    (*
     match msg with
     | SelectionHasChanged | SetHighlighted _ -> ()
     | _ ->          
         printfn "\n--------------------------\n%s\n" (spMess msg)
-        pp model
-    // main dispatch based on message
+        //pp model
+    // main dispatch based on message *)
     match msg with
     | SetDragMode mode -> {model with DragMode= mode}, Cmd.none
     | SetViewerWidth w -> {model with ViewerWidth = w}, Cmd.none

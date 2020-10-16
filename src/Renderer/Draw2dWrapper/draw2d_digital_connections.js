@@ -104,7 +104,8 @@ draw2d.policy.line.OrthogonalSelectionFeedbackPolicy = draw2d.policy.line.Orthog
 })
 
 /// Setup circuit-like connections in the diagram.
-let router = new draw2d.layout.connection.CircuitConnectionRouter();
+let router = new draw2d.layout.connection.InteractiveManhattanConnectionRouter();
+//let router = new draw2d.layout.connection.CircuitConnectionRouter();
 // TODO: use CircuitConnectionRouter instead?
 router.abortRoutingOnFirstVertexNode = false;
 

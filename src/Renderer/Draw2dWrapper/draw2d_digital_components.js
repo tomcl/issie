@@ -643,7 +643,7 @@ draw2d.shape.digital.Custom = draw2d.shape.digital.extend({
             const x = padding;
             const y = this.svgHeight / (this.inputs.length + 1) * (i + 1) - fontHeight / 2;
             this.svgElements.push({
-                path: `<text x="${x}" y="${y}" fill="black" font-family="monospace">${inputLabel}</text>`,
+                path: `<text x="${x}" y="${y}" fill="black" font-family="courier">${inputLabel}</text>`,
                 toFill: false
             });
         }

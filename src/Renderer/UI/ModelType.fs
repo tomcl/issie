@@ -7,10 +7,10 @@
     the FRP model.
 *)
 
-module rec DiagramModelType
+module rec ModelType
 
 open CommonTypes
-open DiagramMessageType
+open MessageType
 open SimulatorTypes
 open Draw2dWrapper
 
@@ -44,6 +44,7 @@ type Model = {
     Diagram : Draw2dWrapper
     SimulationIsStale: bool
     LastSimulatedCanvasState: CanvasState option // reduced (without layout) canvas state
+    LastDetailedState: CanvasState
     LastSelectedIds: string list * string list
     CurrentSelected: Component list * Connection list
     LastUsedDialogWidth: int
@@ -55,6 +56,7 @@ type Model = {
     Clipboard : CanvasState // Components and connections that have been selected and copied.
     CreateComponent : Component option // Track the last added component
     HasUnsavedChanges : bool
+    IsLoading: bool
     CurrProject : Project option
     Popup : (PopupDialogData -> Fable.React.ReactElement) option
     PopupDialogData : PopupDialogData
@@ -80,7 +82,6 @@ let reduce (this: Model) = {|
          Hilighted = this.Hilighted
          Clipboard = this.Clipboard
          AsyncActivity = this.AsyncActivity
-        
          SimulationIsStale = this.SimulationIsStale
          LastSimulatedCanvasState = this.LastSimulatedCanvasState
          LastSelectedIds = this.LastSelectedIds
@@ -88,7 +89,7 @@ let reduce (this: Model) = {|
          LastUsedDialogWidth = this.LastUsedDialogWidth
          SelectedComponent= this.SelectedComponent
          CreateComponent = this.CreateComponent
-         HasUnsavedChanges = this.HasUnsavedChanges
+         HasUnsavedChanges = false
          CurrProject = match this.Popup with None -> false | _ -> true
          PopupDialogData = this.PopupDialogData
          TopMenu = this.TopMenu
@@ -106,7 +107,7 @@ let reduceApprox (this: Model) = {|
          SimulationIsStale = this.SimulationIsStale
          LastUsedDialogWidth = this.LastUsedDialogWidth
          CreateComponent = this.CreateComponent
-         HasUnsavedChanges = this.HasUnsavedChanges
+         HasUnsavedChanges = false
          CurrProject = match this.Popup with None -> false | _ -> true
          PopupDialogData = this.PopupDialogData
          DragMode = this.DragMode
@@ -117,6 +118,22 @@ let reduceApprox (this: Model) = {|
 /// Lens to facilitate changing AsyncActivity
 let setActivity (f: AsyncTasksT -> AsyncTasksT) (model: Model) =
     {model with AsyncActivity = f model.AsyncActivity }
+
+let getDetailedState (model:Model) =
+    model.Diagram.GetCanvasState()
+    |> Option.map Extractor.extractState
+    |> Option.defaultValue ([],[])
+
+let getReducedState (model:Model) =
+    model.Diagram.GetCanvasState()
+    |> Option.map Extractor.extractReducedState 
+
+let addReducedState a name model =
+    let lastState = a.LastSavedCanvasState
+    match getReducedState model with
+    | None -> lastState
+    | Some state -> lastState.Add(name, state)
+
 
 let changeSimulationIsStale (b:bool) (m:Model) = 
     { m with SimulationIsStale = b}
@@ -160,7 +177,7 @@ let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
         CursorEmpty = false
         Radix = sWInfo.Radix
         LastClk = sWInfo.LastClk
-        WaveAdderOpen = false
+        WaveSimState = false
         WaveData = None
         LastCanvasState = None           
     }

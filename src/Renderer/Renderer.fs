@@ -10,7 +10,7 @@ open Fable.Core
 open Fable.Core.JsInterop
 open Electron
 open Electron.Helpers
-open DiagramMessageType
+open MessageType
 
 
 
@@ -20,7 +20,8 @@ open DiagramMessageType
 *
 ****************************************************************************************************)
 
-
+let exitApp() =
+    electron.ipcRenderer.send("exit-the-app",[||])
 
 let menuSeparator =
    let sep = createEmpty<MenuItemOptions>
@@ -74,11 +75,12 @@ let makeMenu (name : string) (table : MenuItemOptions list) =
 
 
 
-let fileMenu (dispatch:Dispatch<DiagramMessageType.Msg>) =
+let fileMenu (dispatch:Dispatch<MessageType.Msg>) =
     makeMenu "Sheet" [
         makeItem "New" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
         makeItem "Save" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
         makeItem "Print" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
+        makeItem "Exit" None (fun ev -> exitApp())
         makeCondItem (JSHelpers.debugLevel <> 0) "Reload page" None (fun _ -> 
             let webContents = electron.remote.getCurrentWebContents()
             webContents.reload())
@@ -110,18 +112,18 @@ let viewMenu dispatch =
 // shortcuts. According to electron documentation, the way to configure keyboard
 // shortcuts is by creating a menu.
 let editMenu dispatch =
-    let dispatch = DiagramMessageType.KeyboardShortcutMsg >> dispatch
+    let dispatch = MessageType.KeyboardShortcutMsg >> dispatch
 
     jsOptions<MenuItemOptions> <| fun invisibleMenu ->
         invisibleMenu.``type`` <- MenuItemType.SubMenu
         invisibleMenu.label <- "Edit"
         invisibleMenu.visible <- false
         invisibleMenu.submenu <-
-            [| makeElmItem "Save Sheet" "CmdOrCtrl+S" (fun () -> dispatch DiagramMessageType.CtrlS)
-               makeElmItem "Copy" "Alt+C" (fun () -> dispatch DiagramMessageType.AltC)
-               makeElmItem "Paste" "Alt+V" (fun () -> dispatch DiagramMessageType.AltV)
-               makeElmItem "Undo" "Alt+Z" (fun () -> dispatch DiagramMessageType.AltZ)
-               makeElmItem "Redo" "Alt+Shift+Z" (fun () -> dispatch DiagramMessageType.AltShiftZ) |]
+            [| makeElmItem "Save Sheet" "CmdOrCtrl+S" (fun () -> dispatch MessageType.CtrlS)
+               makeElmItem "Copy" "Alt+C" (fun () -> dispatch MessageType.AltC)
+               makeElmItem "Paste" "Alt+V" (fun () -> dispatch MessageType.AltV)
+               makeElmItem "Undo" "Alt+Z" (fun () -> dispatch MessageType.AltZ)
+               makeElmItem "Redo" "Alt+Shift+Z" (fun () -> dispatch MessageType.AltShiftZ) |]
             |> U2.Case1
 
 let attachMenusAndKeyShortcuts dispatch =
@@ -141,9 +143,9 @@ let attachMenusAndKeyShortcuts dispatch =
 
 // This setup is useful to add other pages, in case they are needed.
 
-type Model = DiagramModelType.Model
+type Model = ModelType.Model
 
-type Messages = DiagramMessageType.Msg
+type Messages = MessageType.Msg
 
 // -- Init Model
 
@@ -155,7 +157,7 @@ let view model dispatch = DiagramMainView.displayView model dispatch
 
 // -- Update Model
 
-let update msg model = DiagramMainView.update msg model
+let update msg model = Update.update msg model
 
 printfn "Starting renderer..."
 

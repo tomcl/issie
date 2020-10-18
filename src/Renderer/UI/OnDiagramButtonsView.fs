@@ -12,8 +12,8 @@ open Elmish.React
 open Fable.React
 open Fable.React.Props
 
-open DiagramMessageType
-open DiagramModelType
+open MessageType
+open ModelType
 open CommonTypes
 open DiagramStyle
 open Extractor

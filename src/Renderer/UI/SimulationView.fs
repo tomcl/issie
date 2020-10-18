@@ -16,8 +16,8 @@ open JSHelpers
 open DiagramStyle
 open PopupView
 open MemoryEditorView
-open DiagramMessageType
-open DiagramModelType
+open MessageType
+open ModelType
 open CommonTypes
 open SimulatorTypes
 open Extractor
@@ -231,7 +231,7 @@ let viewSimulation model dispatch =
                | Ok simData -> Ok simData
                | Error simError ->
                   if simError.InDependency.IsNone then
-                      // Highligh the affected components and connection only if
+                      // Highlight the affected components and connection only if
                       // the error is in the current diagram and not in a
                       // dependency.
                       (simError.ComponentsAffected, simError.ConnectionsAffected)
@@ -242,9 +242,9 @@ let viewSimulation model dispatch =
     match model.Simulation with
     | None ->
         div [] [
-            str "This simulation will allow combinational logic to be tested by manually changing input values."
+            str "Simulate simple logic using this tab."
             br []
-            str "Use the wave simulator (Waveforms >> button) to get waveforms of clocked logic"
+            str "Use the top bar Waveforms >> button for clocked logic waveforms"
             br []; br []
             Button.button
                 [ Button.Color IsSuccess; Button.OnClick (fun _ -> startSimulation()) ]

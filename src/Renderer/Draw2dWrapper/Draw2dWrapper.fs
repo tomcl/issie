@@ -6,7 +6,7 @@ module Draw2dWrapper
 
 open CommonTypes
 open JSTypes
-open DiagramMessageType
+open MessageType
 open JSHelpers
 //open DiagramStyle
 open SimulatorTypes

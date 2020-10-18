@@ -1,4 +1,4 @@
-module DiagramMessageType
+module MessageType
 
 open CommonTypes
 open JSTypes
@@ -117,7 +117,7 @@ type WaveSimModel = {
     /// last clock cycle (index) of the generated SVG
     LastClk: uint32
     /// if Adder window is currently open (changing tab does not effect it)
-    WaveAdderOpen: bool
+    WaveSimState: bool
     /// data needed by the waveform Edit window (adder)
     WaveData: WaveTempT option
     /// the circuit that is being simulated - the canvas may have changed
@@ -137,7 +137,7 @@ let initWS: WaveSimModel =
       CursorEmpty = false
       Radix = Bin
       LastClk = 9u 
-      WaveAdderOpen = false
+      WaveSimState = false
       WaveData = None
       LastCanvasState = None 
     }
@@ -216,6 +216,7 @@ type Msg =
     | DiagramMouseEvent
     | SelectionHasChanged
     | SetSimIsStale of bool
+    | SetIsLoading of bool
     | SetSimInProgress of Result<NetGroup array,{| LastClk: uint; Curs: uint; ClkW: float |}>
     | SetWaveSimModel of Sheet: string * WSModel: WaveSimModel
     | SimulateWhenInProgress of Result<NetGroup array,{| LastClk: uint; Curs: uint; ClkW: float |}>

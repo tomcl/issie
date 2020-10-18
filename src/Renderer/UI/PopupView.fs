@@ -19,14 +19,18 @@ open Fable.React.Props
 
 open JSHelpers
 open Helpers
-open DiagramMessageType
-open DiagramModelType
+open MessageType
+open ModelType
 open CommonTypes
 open DiagramStyle
+
 
 //=======//
 //HELPERS//
 //=======//
+
+let openInBrowser url =
+    (fun _ -> Electron.Electron.electron.shell.openExternal url |> ignore)
 
 let extractLabelBase (text:string) : string =
     text.ToUpper()
@@ -337,6 +341,17 @@ let errorNotification text closeMsg =
             str text
         ]
 
+let warningNotification text closeMsg =
+    fun dispatch ->
+        let close = (fun _ -> dispatch closeMsg)
+        Notification.notification [
+            Notification.Color IsWarning
+            Notification.Props [ notificationStyle ]
+        ] [
+            Delete.delete [ Delete.OnClick close ] []
+            str text
+        ]
+
 let viewNotifications model dispatch =
     [ model.Notifications.FromDiagram
       model.Notifications.FromSimulation
@@ -367,21 +382,18 @@ let viewInfoPopup dispatch =
     
         str "Issie designs are made of one or more sheets. Each sheet contains components and Input and Output Connectors. \
         If you have a single sheet that is your complete design. Otherwise any \
-        sheet can include the hardware defined in other sheets by adding a custom component from the My Project section \
-        of the Catalogue. Custom components defined like this can be used any number of times, and any sheet can contain custom components \
-        so allowing an arbitrary design hierarchy." 
-        br[]
-        str "Issie provides a simple Simulator (Simulation tab) used mainly for combinational logic (although it can also show clocked logic) \
-        and an interactive Waveform Simulator (WaveSim tab, green top 'Waveforms >>' button) for clocked logic." 
-        br[]
-        str "In Issie all clocked components use the same clock signal - so called synchronous logic. \
-        Therefore in any hardware design clk connections are not shown: all clk ports are
-        automatically connected together. In the waveform simulation active clock edges are indicated \
-        by verticals line through all the waveforms that demarcate clock cycles. With this there is then no need to show \
-        the clock signal itself. The clock is a square wave with positive edges aligned with the vertical lines."
-        br[]    
-        str "If you find bugs in Issie or have feature requests you can create issues on the repo: https://github.com/tomcl/ISSIE"
-        br[]
+        sheet can include the hardware defined another by adding a custom component from My Project in the Catalog. Multiple copies of other sheets can be added." 
+        br[]; br[]
+        str "The Simulation Tab is used mainly for combinational logic and simple clocked logic: \
+        the top 'Waveforms >>' button works with clocked circuits and displays waveforms." 
+        br[]; br[];
+        str "In Issie all clocked components use the same clock signal. \
+        Clk connections are not shown: all clk ports are
+        automatically connected together. In the waveforms active clock edges are indicated \
+        by verticals line through all the waveforms that separate clock cycles. The clock is not shown."
+        br[]  ; br[];  
+        button [OnClick <| openInBrowser "https://github.com/tomcl/ISSIE"] [ str "See the Issie Github Repo for more information"]
+        br[] ; br[]
         makeH "Keyboard shortcuts"
         str "On Mac use Command instead of Ctrl."
         ul [] [

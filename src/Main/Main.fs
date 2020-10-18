@@ -148,3 +148,7 @@ electron.app.onActivate <| fun _ _ ->
     if mainWindow.IsNone then
         createMainWindow()
 |> ignore
+
+// quit programmatically from renderer
+electron.ipcMain.on ("exit-the-app", fun _ -> 
+    electron.app.quit()) |> ignore

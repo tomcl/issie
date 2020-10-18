@@ -73,8 +73,8 @@ open Fulma
 open Fable.React
 open Fable.React.Props
 
-open DiagramMessageType
-open DiagramModelType
+open MessageType
+open ModelType
 open DiagramStyle
 open CommonTypes
 open WaveSimHelpers
@@ -171,7 +171,7 @@ let maxWidth (wSMod: WaveSimModel) =
 /// toggle selection of a waveform when clicking its checkbox
 let private toggleSelect (model: Model) (wSMod: WaveSimModel) netList ind =
     let trgtLstGroup = 
-        match  wSMod.WaveAdderOpen, wSMod.WaveData with
+        match  wSMod.WaveSimState, wSMod.WaveData with
         | true, Some {AllNetGroups = adderPorts} -> adderPorts.[ind]
         | _ ->  wSMod.DispPorts.[ind]
     trgtLstGroup
@@ -273,7 +273,7 @@ let private openCloseWaveEditor (waveSvg,clkRulerSvg) model (netList:NetList) (w
             |> standardWaveformOrderWaveAdder
         | false ->
             Option.defaultValue (initWA (availableNetGroups model)) wSModel.WaveData
-    { wSModel with WaveAdderOpen = on
+    { wSModel with WaveSimState = on
                    WaveData = Some wA }
     |> SetCurrFileWSMod 
     |> dispatch
@@ -727,7 +727,7 @@ let viewWaveSim (model: Model) dispatch =
     | Some wSModel, None ->
         // we derive all the waveSim circuit details from LastSimulatedCanvasstate which does not chnage until a new simulation is run
         let netList = Helpers.getNetList  <| Option.defaultValue ([],[]) model.LastSimulatedCanvasState
-        match wSModel.WaveAdderOpen, model.SimulationInProgress with
+        match wSModel.WaveSimState, model.SimulationInProgress with
         | true, None -> // display waveAdder if simulation has not finished and adder is open
             waveEditorView  model netList wSModel dispatch      
         | _  ->         // otherwise display waveforms 

@@ -5,8 +5,8 @@ open Fable.React.Props
 
 open Fulma
 
-open DiagramMessageType
-open DiagramModelType
+open MessageType
+open ModelType
 open DiagramStyle
 open CommonTypes
 open FileMenuView
@@ -569,7 +569,7 @@ let startNewWaveSimulation compIds model wSMod dispatch (simData: SimulationData
           AllNetGroups = netGroups  
           AllWaveNames = Array.map (netGroup2Label compIds simData.Graph netList) netGroups }
     { wSMod with
-          WaveAdderOpen = true
+          WaveSimState = true
           WaveData = Some wA'
           LastCanvasState = simCanvasOpt }
     |> SetCurrFileWSMod
@@ -662,7 +662,7 @@ let waveGen model waveSvg clkRulerSvg (wSMod: WaveSimModel) ports =
             SimDataCache = simData'
             DispWaveNames = names
             DispPorts = ports
-            WaveAdderOpen = false }
+            WaveSimState = false }
 
     { wSMod' with DispWaveSVGCache = waveCol waveSvg clkRulerSvg model wSMod' (getWaveData wSMod') }
 
@@ -732,7 +732,7 @@ let fileMenuViewActions model dispatch =
                 model.LastSimulatedCanvasState
                 |> Option.map Helpers.getNetList 
                 |> Option.defaultValue (Map.empty)
-            if wSModel.WaveAdderOpen then 
+            if wSModel.WaveSimState then 
                 netList2NetGroups netList
                 
             else wSModel.DispPorts
@@ -779,8 +779,8 @@ let updateWaveSimFromInitData (waveSvg,clkRulerSvg) compIds  model (ws: WaveSimM
             } )
     | Some (Error _), _ | None, _ | _, None -> initWS 
 
-/// Actions triggered by pressing the Waveforms >> button
-let simulateButtonFunc compIds model dispatch =
+/// Waveforms >> Button React element with actions triggered by pressing the button
+let WaveformButtonFunc compIds model dispatch =
     // based on simulation results determine color of button and what happens if it is clicked
     let simulationButton =
         match currWaveSimModel model with
@@ -796,16 +796,35 @@ let simulateButtonFunc compIds model dispatch =
         | Some wSModel ->
             match model.SimulationIsStale, makeSimData model, model.Diagram.GetCanvasState() with
             | true, Some (Ok simData), Some jsCanvState ->
-                // display the waveAdder window if circuit is OK
-                let canvas = extractState jsCanvState 
-                let netList = Helpers.getNetList canvas
-                Button.button
-                    [ 
-                        Button.Color IsSuccess
-                        Button.OnClick(fun _ ->
-                            startNewWaveSimulation compIds model wSModel dispatch simData netList
-                            ChangeRightTab WaveSim |> dispatch )
-                          ]
+                let isClocked = SynchronousUtils.hasSynchronousComponents simData.Graph
+                if isClocked then
+                    // display the waveAdder window if circuit is OK
+                    let canvas = extractState jsCanvState 
+                    let netList = Helpers.getNetList canvas
+                    Button.button
+                        [ 
+                            Button.Color IsSuccess
+                            Button.OnClick(fun _ ->
+                                if simData.Inputs <> [] then
+                                    let inputs = 
+                                        simData.Inputs
+                                        |> List.map (fun (_,ComponentLabel lab,_) -> lab)
+                                        |> String.concat ","
+                                    PopupView.warningNotification (sprintf "Inputs (%s) will be set to 0." inputs) ClosePropertiesNotification
+                                    |> SetPropertiesNotification |> dispatch
+                                startNewWaveSimulation compIds model wSModel dispatch simData netList
+                                ChangeRightTab WaveSim |> dispatch )
+                              ]
+                else
+                    Button.button
+                        [ 
+                            //Button.Color IsSuccess
+                            Button.OnClick(fun _ -> 
+                                            PopupView.errorNotification "Combinational logic does not have waveforms" ClosePropertiesNotification
+                                            |> SetPropertiesNotification |> dispatch
+                                )
+                              ]
+                    
             | true, Some (Error err), _ -> 
                 // display the current error if circuit has errors
                 Button.button

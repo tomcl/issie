@@ -14,8 +14,8 @@ open Helpers
 open NumberHelpers
 open JSHelpers
 open CommonTypes
-open DiagramMessageType
-open DiagramModelType
+open MessageType
+open ModelType
 open PopupView
 
 let private popupExtraStyle = [ Width "65%"; Height "80%" ]

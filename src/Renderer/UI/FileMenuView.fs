@@ -13,8 +13,8 @@ open Fable.React.Props
 open Helpers
 open JSHelpers
 open DiagramStyle
-open DiagramMessageType
-open DiagramModelType
+open MessageType
+open ModelType
 open CommonTypes
 open FilesIO
 open Extractor
@@ -44,34 +44,35 @@ let private displayFileErrorNotification err dispatch =
 
 /// Send messages to change Diagram Canvas and specified sheet waveSim in model
 let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps model dispatch =
+    let JSdispatch mess = 
+        mess
+        |> JSDiagramMsg
+        |> dispatch
     let name = compToSetup.Name
     dispatch <| SetHighlighted([], []) // Remove current highlights.
     model.Diagram.ClearCanvas() // Clear the canvas.
     // Finally load the new state in the canvas.
+    dispatch <| SetIsLoading true
     let components, connections = compToSetup.CanvasState
     List.map model.Diagram.LoadComponent components |> ignore
     List.map (model.Diagram.LoadConnection true) connections |> ignore
     model.Diagram.FlushCommandStack() // Discard all undo/redo.
     // Run the a connection widths inference.
-    InferWidths()
-    |> JSDiagramMsg
-    |> dispatch
+    JSdispatch <| InferWidths()
     // Set no unsaved changes.
-    SetHasUnsavedChanges false
-    |> JSDiagramMsg
-    |> dispatch
+    JSdispatch <| SetHasUnsavedChanges false
     // set waveSim data
-    SetWaveSimModel(name, waveSim)
-    |> dispatch
-    SetSimIsStale true
-    |> dispatch
-    {
-        ProjectPath = dirName compToSetup.FilePath
-        OpenFileName =  compToSetup.Name
-        LoadedComponents = ldComps
-    }
-    |> SetProject // this message actually changes the project in model
-    |> dispatch
+    dispatch <| SetWaveSimModel(name, waveSim)
+    dispatch <| SetSimIsStale true
+    dispatch <| (
+        {
+            ProjectPath = dirName compToSetup.FilePath
+            OpenFileName =  compToSetup.Name
+            LoadedComponents = ldComps
+        }
+        |> SetProject) // this message actually changes the project in model
+    dispatch <| SetIsLoading false 
+    
 
 let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lcLst: LoadedComponent list) =
     let n = List.tryFindIndex (fun (lc: LoadedComponent) -> lc.Name = name) lcLst
@@ -143,7 +144,7 @@ let saveOpenFileAction isAuto model =
                     Some (makeLoadedComponentFromCanvasData state origLdComp.FilePath DateTime.Now savedWaveSim, reducedState))
 
 
-
+// save current open file, updating model etc, and returning the loaded component and the saved (unreduced) canvas state
 let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
     let opt = saveOpenFileAction false model
     let ldcOpt = Option.map fst opt
@@ -162,6 +163,7 @@ let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
     SetHasUnsavedChanges false
     |> JSDiagramMsg
     |> dispatch
+    opt
 
 let private getFileInProject name project = project.LoadedComponents |> List.tryFind (fun comp -> comp.Name = name)
 
@@ -218,7 +220,7 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
     let waveSim = 
         compToSetup.WaveInfo
         |> Option.map savedWaveInfo2WaveSimModel 
-        |> Option.defaultValue DiagramMessageType.initWS
+        |> Option.defaultValue MessageType.initWS
 
     loadStateIntoModel compToSetup waveSim ldComps model dispatch
     {
@@ -243,6 +245,17 @@ let private openFileInProject name project model dispatch =
             let opt = saveOpenFileAction false model
             let ldcOpt = Option.map fst opt
             let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
+            let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
+            match model.CurrProject with
+            | None -> failwithf "What? Should never be able to save sheet when project=None"
+            | Some p -> 
+                // update Autosave info
+                SetLastSavedCanvas (p.OpenFileName,reducedState)
+                |> dispatch
+            SetHasUnsavedChanges false
+            |> JSDiagramMsg
+            |> dispatch
+
             setupProjectFromComponents name ldComps model dispatch
 
 /// Remove file.
@@ -560,7 +573,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                           [ Navbar.Item.div []
                                 [ Button.button
                                     [ Button.Color(if model.HasUnsavedChanges then IsSuccess else IsWhite)
-                                      Button.OnClick(fun _ -> saveOpenFileActionWithModelUpdate model dispatch) ] [ str "Save" ] ] ]
+                                      Button.OnClick(fun _ -> saveOpenFileActionWithModelUpdate model dispatch |> ignore) ] [ str "Save" ] ] ]
                       Navbar.End.div []
                           [ 
                             Navbar.Item.div [] 

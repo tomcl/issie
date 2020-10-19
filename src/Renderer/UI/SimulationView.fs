@@ -282,7 +282,8 @@ let private viewSimulationData (simData : SimulationData) model dispatch =
 
         maybeStatefulComponents
     ]
-    
+
+  
 
 let viewSimulation model dispatch =
     let JSState = model.Diagram.GetCanvasState ()
@@ -320,7 +321,7 @@ let viewSimulation model dispatch =
         div [] [
             str "Simulate simple logic using this tab."
             br []
-            str (if isSync then "You can also useWaveforms >> button to view waveforms" else "")
+            str (if isSync then "You can also use the Waveforms >> button to view waveforms" else "")
             br []; br []
             Button.button
                 [ Button.Color buttonColor; Button.OnClick (fun _ -> startSimulation()) ]

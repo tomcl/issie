@@ -23,7 +23,9 @@ open SimulationGraphAnalyser
 //    simulation process.
 
 /// Builds the graph and simulates it with all inputs zeroed.
-let prepareSimulation
+
+
+let rec prepareSimulation
         (diagramName : string)
         (canvasState : CanvasState)
         (loadedDependencies : LoadedComponent list)
@@ -68,3 +70,5 @@ let extractStatefulComponents
     |> List.map snd
     |> List.filter (fun comp -> comp.State <> NoState)
     // TODO: recursively search custom components?
+
+

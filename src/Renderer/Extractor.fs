@@ -153,6 +153,7 @@ let extractState (state : JSCanvasState) : CanvasState =
     comps, conns
 
 /// Transform the JSCanvasState into an f# data structure, with layout data removed (for checking significant changes).
+/// Components and connections are sorted to make them order-invariant - selecting components alters order.
 let extractReducedState (state : JSCanvasState) : CanvasState =
     let (components : JSComponent list), (connections : JSConnection list) = state
     let comps = 

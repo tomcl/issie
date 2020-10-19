@@ -36,20 +36,7 @@ let wsModel2netList wsModel =
 // Simulation Helpers //
 ////////////////////////
 
-/// Start simulating the current Diagram.
-/// Return SimulationData that can be used to extend the simulation
-/// as needed, or error if simulation fails
-let private makeSimData model =
-    match model.Diagram.GetCanvasState(), model.CurrProject with
-    | None, _ -> None
-    | _, None -> None
-    | Some jsState, Some project ->
-        let otherComponents = 
-            project.LoadedComponents 
-            |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-        (extractState jsState, otherComponents)
-        ||> prepareSimulation project.OpenFileName
-        |> Some
+
 
 /// get TargetListGroup from nlTrgtLst which represents the group of nlTrgtLsts connected by IOLabels
 let rec private getTrgtLstGroup (netList: NetList) nlTrgtLst =
@@ -160,7 +147,7 @@ let getWaveData (wsMod: WaveSimModel) =
 let private appendSimData (model: Model) (wSModel: WaveSimModel) nCycles = 
     match wSModel.SimDataCache with
     | [||] ->
-        makeSimData model
+        SimulationView.makeSimData model
         |> ( Option.map (Result.map (fun sd -> extractSimData sd nCycles))) // TODO simulate this ncycles no init data
     | dat ->
         extractSimData (Array.last dat) nCycles
@@ -752,7 +739,7 @@ let fileMenuViewActions model dispatch =
 
 ///  Set up wavesim data that may not exist and is needed
 let updateWaveSimFromInitData (waveSvg,clkRulerSvg) compIds  model (ws: WaveSimModel) : WaveSimModel =
-    match makeSimData model, model.Diagram.GetCanvasState() with
+    match SimulationView.makeSimData model, model.Diagram.GetCanvasState() with
     | Some (Ok sD), Some canvState ->
         // current diagram netlist
         let netList = Helpers.getNetList <| extractState canvState
@@ -794,7 +781,7 @@ let WaveformButtonFunc compIds model dispatch =
             Button.button 
                 [ Button.OnClick(fun _ -> ChangeRightTab WaveSim |> dispatch) ]
         | Some wSModel ->
-            match model.SimulationIsStale, makeSimData model, model.Diagram.GetCanvasState() with
+            match model.SimulationIsStale, SimulationView.makeSimData model, model.Diagram.GetCanvasState() with
             | true, Some (Ok simData), Some jsCanvState ->
                 let isClocked = SynchronousUtils.hasSynchronousComponents simData.Graph
                 if isClocked then

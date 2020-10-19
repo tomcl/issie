@@ -24,6 +24,74 @@ open Extractor
 open Simulator
 open NumberHelpers
 
+//----------------------------View level simulation helpers------------------------------------//
+
+type SimCache = {
+    Name: string
+    StoredState: CanvasState
+    StoredResult: Result<SimulationData, SimulationError>
+    }
+
+
+
+let simCacheInit name = {
+    Name = name; 
+    StoredState = ([],[]) 
+    StoredResult = Ok {
+        Graph = Map.empty
+        Inputs = []
+        Outputs = []
+        IsSynchronous=false
+        NumberBase = NumberBase.Hex
+        ClockTickNumber = 0
+        }
+    }
+        
+
+let mutable simCache: SimCache = simCacheInit ""
+
+let rec prepareSimulationMemoised
+        (diagramName : string)
+        (canvasState : JSCanvasState)
+        (loadedDependencies : LoadedComponent list)
+        : Result<SimulationData, SimulationError> =
+    let rState = extractReducedState canvasState
+    if diagramName <> simCache.Name then
+        simCache <- simCacheInit diagramName
+        prepareSimulationMemoised diagramName canvasState loadedDependencies
+    else
+        let isSame = rState = simCache.StoredState
+        if  isSame then
+            simCache.StoredResult
+        else
+            let simResult = prepareSimulation diagramName rState loadedDependencies
+            simCache <- {
+                Name = diagramName
+                StoredState = rState
+                StoredResult = simResult
+                }
+            simResult
+
+    
+    
+
+
+/// Start simulating the current Diagram.
+/// Return SimulationData that can be used to extend the simulation
+/// as needed, or error if simulation fails
+let makeSimData model =
+    match model.Diagram.GetCanvasState(), model.CurrProject with
+    | None, _ -> None
+    | _, None -> None
+    | Some jsState, Some project ->
+        let otherComponents = 
+            project.LoadedComponents 
+            |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        (jsState, otherComponents)
+        ||> prepareSimulationMemoised project.OpenFileName
+        |> Some
+
+
 let changeBase dispatch numBase = numBase |> SetSimulationBase |> dispatch
 
 /// A line that can be used for an input, an output, or a state.
@@ -217,16 +285,17 @@ let private viewSimulationData (simData : SimulationData) model dispatch =
     
 
 let viewSimulation model dispatch =
+    let JSState = model.Diagram.GetCanvasState ()
     let startSimulation () =
-        match model.Diagram.GetCanvasState (), model.CurrProject with
+        match JSState, model.CurrProject with
         | None, _ -> ()
         | _, None -> failwith "what? Cannot start a simulation without a project"
         | Some jsState, Some project ->
             let otherComponents =
                 project.LoadedComponents
                 |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-            (extractState jsState, otherComponents)
-            ||> prepareSimulation project.OpenFileName
+            (jsState, otherComponents)
+            ||> prepareSimulationMemoised project.OpenFileName
             |> function
                | Ok simData -> Ok simData
                | Error simError ->
@@ -241,14 +310,21 @@ let viewSimulation model dispatch =
             |> dispatch
     match model.Simulation with
     | None ->
+        let simRes = makeSimData model
+        let isSync = match simRes with | Some( Ok {IsSynchronous=true}) | _ -> false
+        let buttonColor, buttonText = 
+            match simRes with
+            | None -> IColor.IsWhite, ""
+            | Some (Ok _) -> IsSuccess, "Start Simulation"
+            | Some (Error _) -> IsWarning, "See Problems"
         div [] [
             str "Simulate simple logic using this tab."
             br []
-            str "Use the top bar Waveforms >> button for clocked logic waveforms"
+            str (if isSync then "You can also useWaveforms >> button to view waveforms" else "")
             br []; br []
             Button.button
-                [ Button.Color IsSuccess; Button.OnClick (fun _ -> startSimulation()) ]
-                [ str "Start simulation" ]
+                [ Button.Color buttonColor; Button.OnClick (fun _ -> startSimulation()) ]
+                [ str buttonText ]
         ]
     | Some sim ->
         let body = match sim with

@@ -207,3 +207,4 @@ let canvasWidthContext = testCanvas.getContext_2d()
 let getTextWidthInPixels(txt:string, font:string) =
    canvasWidthContext.font <- font; // e.g. "16px times new roman";
    canvasWidthContext.measureText(txt).width;
+

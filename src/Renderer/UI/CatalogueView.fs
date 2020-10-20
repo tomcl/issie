@@ -419,13 +419,15 @@ let stdLabel (compType: ComponentType) (model:Model) =
         | _ -> ""
 
     let samePrefPlusNum (word: string)  = 
+        printfn "word=%s, prefix=%s" word prefix
         match word.[0..String.length prefix - 1] = prefix with
         | true -> 
-            word.[String.length prefix..String.length word - 1]
-            |> Seq.forall Char.IsDigit
+            let w = word.[String.length prefix..String.length word - 1]
+            w
+            |> (fun w -> Seq.forall Char.IsDigit w, w)
             |> function
-               | true -> [ int word.[String.length prefix..String.length word - 1] ]
-               | false -> []
+               | _, "" | false, _ -> []
+               | true,_ -> [ int  word.[String.length prefix..String.length word - 1] ]
         | false -> []
 
     let sortedLst2ind lst =

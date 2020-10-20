@@ -54,7 +54,7 @@ let rec prepareSimulationMemoised
         (diagramName : string)
         (canvasState : JSCanvasState)
         (loadedDependencies : LoadedComponent list)
-        : Result<SimulationData, SimulationError> =
+        : Result<SimulationData, SimulationError> * CanvasState =
     let rState = extractReducedState canvasState
     if diagramName <> simCache.Name then
         simCache <- simCacheInit diagramName
@@ -62,7 +62,7 @@ let rec prepareSimulationMemoised
     else
         let isSame = rState = simCache.StoredState
         if  isSame then
-            simCache.StoredResult
+            simCache.StoredResult, rState
         else
             let simResult = prepareSimulation diagramName rState loadedDependencies
             simCache <- {
@@ -70,7 +70,7 @@ let rec prepareSimulationMemoised
                 StoredState = rState
                 StoredResult = simResult
                 }
-            simResult
+            simResult, rState
 
     
     
@@ -298,8 +298,8 @@ let viewSimulation model dispatch =
             (jsState, otherComponents)
             ||> prepareSimulationMemoised project.OpenFileName
             |> function
-               | Ok simData -> Ok simData
-               | Error simError ->
+               | Ok (simData), state -> Ok simData
+               | Error simError, state ->
                   if simError.InDependency.IsNone then
                       // Highlight the affected components and connection only if
                       // the error is in the current diagram and not in a
@@ -312,12 +312,12 @@ let viewSimulation model dispatch =
     match model.Simulation with
     | None ->
         let simRes = makeSimData model
-        let isSync = match simRes with | Some( Ok {IsSynchronous=true}) | _ -> false
+        let isSync = match simRes with | Some( Ok {IsSynchronous=true},_) | _ -> false
         let buttonColor, buttonText = 
             match simRes with
             | None -> IColor.IsWhite, ""
-            | Some (Ok _) -> IsSuccess, "Start Simulation"
-            | Some (Error _) -> IsWarning, "See Problems"
+            | Some (Ok _, _) -> IsSuccess, "Start Simulation"
+            | Some (Error _, _) -> IsWarning, "See Problems"
         div [] [
             str "Simulate simple logic using this tab."
             br []

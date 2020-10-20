@@ -148,6 +148,7 @@ let private appendSimData (model: Model) (wSModel: WaveSimModel) nCycles =
     match wSModel.SimDataCache with
     | [||] ->
         SimulationView.makeSimData model
+        |> Option.map fst
         |> ( Option.map (Result.map (fun sd -> extractSimData sd nCycles))) // TODO simulate this ncycles no init data
     | dat ->
         extractSimData (Array.last dat) nCycles
@@ -156,8 +157,8 @@ let private appendSimData (model: Model) (wSModel: WaveSimModel) nCycles =
         |> Some
 
 /// get JSConnection list from ConnectionId (as a string)
-let private connId2JSConn (model: Model) connId =
-    match model.Diagram.GetCanvasState() with
+let private connId2JSConn (diagram:Draw2dWrapper.Draw2dWrapper) connId =
+    match diagram.GetCanvasState() with
     | Some (_, jsConns) -> 
         List.tryFind (fun jsConn -> (extractConnection jsConn).Id = connId) jsConns
     | None -> None
@@ -172,12 +173,12 @@ let private wave2ConnIds (netGrp: NetGroup) =
         List.toArray net 
         |> Array.map (fun net -> net.TargetConnId))
 
-/// select the connections of a given waveform
-let selWave2selConn model (netGrp: NetGroup) on =
+/// select or deselect the connections of a given netGrp
+let selectNetGrpConns diagram (netGrp: NetGroup) on =
     wave2ConnIds netGrp
     |> Array.toList
-    |> List.collect (fun (ConnectionId cId) -> connId2JSConn model cId) 
-    |> model.Diagram.SetSelected on
+    |> List.collect (fun (ConnectionId cId) -> connId2JSConn diagram cId) 
+    |> diagram.SetSelected on
 
 /// returns labels of all custom component instances of sheet in lComp
 let findInstancesOf sheet (lComp:LoadedComponent) =
@@ -541,15 +542,14 @@ let initFileWS (model:Model) dispatch =
     | _ -> ()
 
 /// set model.WaveSim & model.WaveAdder to show the list of waveforms that can be selected
-let startNewWaveSimulation compIds model wSMod dispatch (simData: SimulationData) netList =
-    SetViewerWidth minViewerWidth |> dispatch
-    let simCanvasOpt = getReducedCanvState model    
-    SetLastSimulatedCanvasState simCanvasOpt  |> dispatch
+let startNewWaveSimulation compIds model wSMod dispatch (simData: SimulationData) (rState:CanvasState) =
+    dispatch <| SetViewerWidth minViewerWidth 
+    dispatch <| SetLastSimulatedCanvasState (Some rState) 
     SetSimIsStale false |> dispatch
-    printfn "***Starting simulation with (%A) canvas***" (Option.map (fun (comps,conns) -> List.length comps, List.length conns) simCanvasOpt)
-
-    let netGroups = 
-        availableNetGroups {model with LastSimulatedCanvasState = simCanvasOpt}
+    printfn "***Starting simulation with (%A) canvas***" (rState |> 
+                                                         (fun (comps,conns) -> List.length comps, List.length conns))
+    let netList = Helpers.getNetList rState
+    let netGroups = netList2NetGroups netList
     printfn "***Netgroups=%A***" (Array.length netGroups)
     let wA' =
         { InitWaveSimGraph = Some simData
@@ -558,21 +558,19 @@ let startNewWaveSimulation compIds model wSMod dispatch (simData: SimulationData
     { wSMod with
           WaveSimState = true
           WaveData = Some wA'
-          LastCanvasState = simCanvasOpt }
+          LastCanvasState = Some rState }
     |> SetCurrFileWSMod
     |> dispatch
-
-    let isInReloadable trgtListGroup = 
-        Array.contains trgtListGroup (getReloadableNetGroups model netList)
-    Array.map isInReloadable netGroups
-    |> Array.map2 (selWave2selConn model) netGroups |> ignore
+    netGroups
+    |> Array.map (fun ng -> false)
+    |> Array.map2 (selectNetGrpConns model.Diagram) netGroups |> ignore
 
     ChangeRightTab WaveSim |> dispatch
 
 
 
 
-/// ReactElement array of the box containing the waveform's SVG
+/// ReactElselectNetGrpConnsthe box containing the waveform's SVG
 let private waveCol waveSvg clkRulerSvg model wsMod waveData =
     let waveTableRow rowClass cellClass svgClass svgChildren =
         tr rowClass [ td cellClass [ makeSvg svgClass svgChildren ] ]
@@ -681,8 +679,8 @@ let private isNLTrgtLstGroupSelected (netList: NetList) ((comps, conns): CanvasS
     |> Array.exists (isNLTrgtLstSelected netList (comps, conns)) 
 
 /// is the given waveform selected by the current diagram selection
-let isWaveSelected model netList (nlTrgtLstGroup: NetGroup) = 
-    match model.Diagram.GetSelected() with
+let isWaveSelected (diagram:Draw2dWrapper.Draw2dWrapper) netList (nlTrgtLstGroup: NetGroup) = 
+    match diagram.GetSelected() with
     | Some selectedCompsConnsJS ->
         let selectedCompsConns = extractState selectedCompsConnsJS
         isNLTrgtLstGroupSelected netList selectedCompsConns nlTrgtLstGroup
@@ -723,7 +721,7 @@ let fileMenuViewActions model dispatch =
                 netList2NetGroups netList
                 
             else wSModel.DispPorts
-            |> Array.map (fun net -> if isWaveSelected model (wsModel2netList wSModel) net
+            |> Array.map (fun net -> if isWaveSelected model.Diagram (wsModel2netList wSModel) net
                                      then wave2ConnIds net
                                      else [||])
             |> Array.concat
@@ -739,10 +737,10 @@ let fileMenuViewActions model dispatch =
 
 ///  Set up wavesim data that may not exist and is needed
 let updateWaveSimFromInitData (waveSvg,clkRulerSvg) compIds  model (ws: WaveSimModel) : WaveSimModel =
-    match SimulationView.makeSimData model, model.Diagram.GetCanvasState() with
-    | Some (Ok sD), Some canvState ->
+    match SimulationView.makeSimData model with
+    | Some (Ok sD, rState) ->
         // current diagram netlist
-        let netList = Helpers.getNetList <| extractState canvState
+        let netList = Helpers.getNetList <| rState
         // all ports on current diagram
         let waPorts' = getReloadableNetGroups model netList
         //
@@ -764,7 +762,7 @@ let updateWaveSimFromInitData (waveSvg,clkRulerSvg) compIds  model (ws: WaveSimM
                 DispPorts = waPorts'
 
             } )
-    | Some (Error _), _ | None, _ | _, None -> initWS 
+    | Some (Error _, _) | None -> initWS 
 
 /// Waveforms >> Button React element with actions triggered by pressing the button
 let WaveformButtonFunc compIds model dispatch =
@@ -781,13 +779,11 @@ let WaveformButtonFunc compIds model dispatch =
             Button.button 
                 [ Button.OnClick(fun _ -> ChangeRightTab WaveSim |> dispatch) ]
         | Some wSModel ->
-            match model.SimulationIsStale, SimulationView.makeSimData model, model.Diagram.GetCanvasState() with
-            | true, Some (Ok simData), Some jsCanvState ->
+            match model.SimulationIsStale, SimulationView.makeSimData model with
+            | true, Some (Ok simData, rState) ->
                 let isClocked = SynchronousUtils.hasSynchronousComponents simData.Graph
                 if isClocked then
                     // display the waveAdder window if circuit is OK
-                    let canvas = extractState jsCanvState 
-                    let netList = Helpers.getNetList canvas
                     Button.button
                         [ 
                             Button.Color IsSuccess
@@ -799,7 +795,7 @@ let WaveformButtonFunc compIds model dispatch =
                                         |> String.concat ","
                                     PopupView.warningNotification (sprintf "Inputs (%s) will be set to 0." inputs) ClosePropertiesNotification
                                     |> SetPropertiesNotification |> dispatch
-                                startNewWaveSimulation compIds model wSModel dispatch simData netList
+                                startNewWaveSimulation compIds model wSModel dispatch simData rState
                                 ChangeRightTab WaveSim |> dispatch )
                               ]
                 else
@@ -812,7 +808,7 @@ let WaveformButtonFunc compIds model dispatch =
                                 )
                               ]
                     
-            | true, Some (Error err), _ -> 
+            | true, Some (Error err, _) -> 
                 // display the current error if circuit has errors
                 Button.button
                     [   Button.Color IsWarning

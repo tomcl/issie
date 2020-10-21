@@ -32,37 +32,57 @@ let wsModel2netList wsModel =
     | Some canvState -> Helpers.getNetList canvState
     | None -> Map.empty
 
+// Look up netgroup (= waveform) name from WaveData and netgroup
+// If Netgroup is not in AllNetGroups return "ERROR"
+let waveNameOf (wa:WaveTempT) (ng:NetGroup) =
+    Array.tryFindIndex ((=) ng) wa.AllNetGroups
+    |> Option.bind (fun i -> Array.tryItem i wa.AllWaveNames)
+    |> Option.defaultValue "ERROR"
+        
+// Look up netgroup (= waveform) name from WaveSimModel and NetGroup.
+// if NetGroup is not in AllNetGroups return "NO WAVEDATA"
+let waveNameOfWSModel (wSMod: WaveSimModel) =
+    match wSMod.WaveData with
+    | None -> fun _ -> "NO WAVEDATA"
+    | Some wa -> waveNameOf wa
+       
+
+    
+
 ////////////////////////
 // Simulation Helpers //
 ////////////////////////
 
 
 
-/// get TargetListGroup from nlTrgtLst which represents the group of nlTrgtLsts connected by IOLabels
-let rec private getTrgtLstGroup (netList: NetList) nlTrgtLst =
-    let connectedLblNames = 
-        List.filter (fun netListTrgt -> netList.[netListTrgt.TargetCompId].Type = IOLabel) nlTrgtLst
+/// get NetGroup from targets which represents the group of nLTargets connected by IOLabels
+let rec private getNetGroup (netList: NetList) targets =
+    let connectedLblNames =
+        targets
+        |> List.filter (fun netListTrgt -> netList.[netListTrgt.TargetCompId].Type = IOLabel)
         |> List.map (fun netListTrgt -> netList.[netListTrgt.TargetCompId].Label)
         |> List.distinct
     let connectedNLsources' =
-        Map.filter (fun _ (netListComp: NetListComponent) -> 
+        netList
+        |> Map.filter (fun _ (netListComp: NetListComponent) -> 
                         List.contains netListComp.Label connectedLblNames 
-                        && netListComp.Type = IOLabel) netList
+                        && netListComp.Type = IOLabel)
         |> Map.map (fun _ nlComp -> 
             nlComp.Outputs.[OutputPortNumber 0]
-            |> getTrgtLstGroup netList
+            |> getNetGroup netList
             |> (fun nlSrcGroup -> Array.append [|nlSrcGroup.driverNet|] nlSrcGroup.connectedNets ) )
         |> Map.toArray
         |> Array.collect snd
     let driverNet' =
         let lstIsSubset lstSmall lstBig =
-            List.forall (fun el -> List.contains el lstBig) lstSmall
+            lstSmall
+            |> List.forall (fun el -> List.contains el lstBig) 
         Map.tryPick (fun _ (nlComp: NetListComponent) -> 
             Map.toArray nlComp.Outputs
-            |> Array.tryFind (fun (_, lst) -> lstIsSubset nlTrgtLst lst)) netList
+            |> Array.tryFind (fun (_, lst) -> lstIsSubset targets lst)) netList
         |> function
         | Some (_, lst) -> lst
-        | None -> nlTrgtLst
+        | None -> targets
     { driverNet = driverNet'; connectedNets = connectedNLsources' }
 
 /// returns a bool representing if the given NLTarget is present in the given NetList
@@ -77,7 +97,7 @@ let private getReloadableNetGroups (model: Model) (netList: NetList) =
         Array.map (fun netGroup -> netGroup.driverNet) wSModel.DispPorts
         |> Array.map (List.filter <| isNetListTrgtInNetList netList)
         |> Array.filter ((<>) [])
-        |> Array.map (getTrgtLstGroup netList)
+        |> Array.map (getNetGroup netList)
     | None -> [||]
 
 /// advance SimulationData by 1 clock cycle
@@ -105,8 +125,10 @@ let netList2NetGroups netList =
            | SplitWire _ | MergeWires _ | IOLabel |Constant _ -> false
            | _ -> true )
     |> Array.collect (fun (_,nlComp) -> 
-        Map.map (fun _ lst -> getTrgtLstGroup netList lst) nlComp.Outputs 
-        |> Map.toArray |> Array.map snd)
+        Map.map (fun _ lst -> 
+                    getNetGroup netList lst) nlComp.Outputs 
+                    |> Map.toArray 
+                    |> Array.map snd)
 
 /// get array of available NLSource in current canvas state
 let availableNetGroups (model: Model) =
@@ -399,6 +421,7 @@ let private bitLimsString (a, b) =
 /// get the label of a waveform
 let netGroup2Label compIds graph netList (netGrp: NetGroup) =
     let waveLbl = findName compIds graph netList netGrp netGrp.driverNet
+    printfn "LABEL: %A | driver %A\n\n\n || connected %A\n\n\n-----------------\n\n" waveLbl netGrp.driverNet netGrp.connectedNets
     let tl =
         match waveLbl.ComposingLabels with
         | [ el ] -> el.LabName + bitLimsString el.BitLimits
@@ -626,6 +649,7 @@ let private getWaveNames compIds netList (wsMod: WaveSimModel) =
 /// change sim data if required
 /// call waveCol with the current Simulation Data 
 /// to generate the required svgs
+/// set Disp* fields to display ports netgroups
 let waveGen model waveSvg clkRulerSvg (wSMod: WaveSimModel) ports =
     let simData', wa = 
         match wSMod.WaveData with
@@ -742,7 +766,7 @@ let updateWaveSimFromInitData (waveSvg,clkRulerSvg) compIds  model (ws: WaveSimM
         // current diagram netlist
         let netList = Helpers.getNetList <| rState
         // all ports on current diagram
-        let waPorts' = getReloadableNetGroups model netList
+        let waPorts' = getAllNetGroups ws
         //
         // simulation data of correct length
         let sD' = Array.append [| sD |] (extractSimData sD ws.LastClk)

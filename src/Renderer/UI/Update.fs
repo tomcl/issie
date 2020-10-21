@@ -464,13 +464,13 @@ let update msg model =
         changeSimulationIsStale b model, Cmd.none
     | SetIsLoading b ->
         {model with IsLoading = b}, Cmd.none
-    | SetSimInProgress par -> 
-        { model with SimulationInProgress = Some par }, Cmd.none
-    | SimulateWhenInProgress par ->
+    | SetSimInProgress waveInfo -> 
+        { model with SimulationInProgress = Some waveInfo }, Cmd.none
+    | SimulateWhenInProgress waveInfo ->
         // do the simulation for WaveSim and generate new SVGs
         match FileMenuView.getCurrFile model with
         | Some fileName ->
-            match currWaveSimModel model, par with
+            match currWaveSimModel model, waveInfo with
             | Some wSMod, Ok ports -> 
                 // does the actual simulation and SVG generation, if needed
                 let wsMod' = waveGen model waveSvg clkRulerSvg wSMod ports

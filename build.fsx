@@ -376,6 +376,10 @@ Target.create "Dev" <| fun _ ->
 Target.create "DistWin" <| fun _ ->
     Yarn.exec "distwin" id
 
+// Build artifacts
+Target.create "DistMac" <| fun _ ->
+    Yarn.exec "distmac" id
+
 // Gets latest docker image to build for linux
 Target.create "PullDockerImage" <| fun _ ->
     CmdLine.Empty

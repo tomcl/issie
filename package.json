@@ -19,7 +19,8 @@
     "compile": "electron-webpack",
     "dev": "electron-webpack dev",
     "dist": "yarn compile && electron-builder",
-    "distwin": "yarn compile && electron-builder -w"
+    "distwin": "yarn compile && electron-builder -w",
+    "distmac": "yarn compile && electron-builder -m"
   },
   "electronWebpack": {
     "main": {

@@ -71,8 +71,10 @@ let createMainWindow () =
         options.backgroundColor <-  "#5F9EA0"
         // fix for icons not working on linux
         // requires better solution for dist, maybe
-        if Api.``process``.platform <> Base.Linux then
+        if Api.``process``.platform = Base.Win32 then
             options.icon <- (U2.Case2 (path.join(staticDir(), "icon.ico")))
+        elif Api.``process``.platform = Base.Darwin then
+            options.icon <- (U2.Case2 (path.join(staticDir(), "icon.icns")))   
         options.title <- "ISSIE"
         options.webPreferences <-
             jsOptions<WebPreferences> <| fun o ->

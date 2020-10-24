@@ -1,6 +1,5 @@
 ﻿module Renderer
 
-open Browser.Types
 open Elmish
 open Elmish.React
 open Elmish.Debug
@@ -8,11 +7,10 @@ open Elmish.HMR
 
 open Fable.Core
 open Fable.Core.JsInterop
+open Browser.Types
 open Electron
 open Electron.Helpers
 open MessageType
-
-
 
 (****************************************************************************************************
 *
@@ -73,6 +71,8 @@ let makeMenu (name : string) (table : MenuItemOptions list) =
    subMenu
 
 
+    
+    
 
 
 let fileMenu (dispatch:Dispatch<MessageType.Msg>) =
@@ -81,6 +81,7 @@ let fileMenu (dispatch:Dispatch<MessageType.Msg>) =
         makeItem "Save" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
         makeItem "Print" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
         makeItem "Exit" None (fun ev -> exitApp())
+        makeItem ("About Issie " + Version.VersionString) None (fun ev -> PopupView.viewInfoPopup dispatch)
         makeCondItem (JSHelpers.debugLevel <> 0) "Reload page" None (fun _ -> 
             let webContents = electron.remote.getCurrentWebContents()
             webContents.reload())

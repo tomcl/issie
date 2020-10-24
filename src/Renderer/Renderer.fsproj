@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="scss\main.scss" />
+    <Compile Include="Version.fs" />
     <Compile Include="JSTypes.fs" />
     <Compile Include="JSHelpers.fs" />
     <Compile Include="Extractor.fs" />

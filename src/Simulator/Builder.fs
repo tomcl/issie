@@ -291,12 +291,12 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
             | None -> notReadyReducerOutput NoState // Wait for more inputs.
             | Some [select; data] ->
                 let out =
-                    let selN = convertWireDataToInt data
+                    let selN = convertWireDataToInt select |> int
                     let dataN = convertWireDataToInt data |> int
                     [0..3] |> 
                     List.map (fun n -> 
-                        let outBit = if n = int selN then dataN else 0
-                        OutputPortNumber n, convertIntToWireData 4 (int64 outBit))
+                        let outBit = if n = selN then dataN else 0
+                        OutputPortNumber n, convertIntToWireData 1 (int64 outBit))
                     |> Map.ofList
                 makeReducerOutput NoState out
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput

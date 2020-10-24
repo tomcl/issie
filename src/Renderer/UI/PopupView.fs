@@ -373,7 +373,7 @@ let viewInfoPopup dispatch =
 
     let body = div [] [
         makeH "Version"
-        str "v1.01"
+        str Version.VersionString
         br []; br []
         makeH "Acknowledgments"
         str "ISSIE was created by Marco Selvatici (EIE 3rd year) as his BEng final year project. The waveform viewer was created by Edoardo Santi (EEE 3rd year) during Summer UROP work."
@@ -406,3 +406,4 @@ let viewInfoPopup dispatch =
     ]
     let foot = div [] []
     closablePopup title body foot [Width 800] dispatch
+

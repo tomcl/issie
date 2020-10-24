@@ -53,37 +53,99 @@ let waveNameOfWSModel (wSMod: WaveSimModel) =
 // Simulation Helpers //
 ////////////////////////
 
+// NB - all the NetGroup functions assume a working netlist in which NO NET IS UNDRIVEN
+// Every Net must be driven by exactly one componnet output port (NLSource).
+// IOLabels are nout counted as drivers themselves; every group of same label IOlabels 
+// and all of their output nets 
+// makes a netgroup which must be driven by just one NLSource (connected to one of the IOLabel inputs).
+// every net is therefore part of one netgroup which is either a single net, or a group of nets associated
+// with a set of IOLabel connectors having a given common label.
+
+let mapKeys (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map fst |> Array.ofSeq
+let mapValues (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map snd |> Array.ofSeq
+let mapItems (map:Map<'a,'b>) = map |> Map.toSeq |> Array.ofSeq
+
+let private allNComps (netList:NetList) =
+    netList |> mapValues
+
+type NGrp = {
+    Driven: string list; 
+    DriverLabel: string list
+    Driver: NLTarget list
+    }
+ 
+    
+    
+let private makeAllNetGroups (netList:NetList) :NetGroup array=
+
+    let comps = allNComps netList
+
+    let labelConnectedNets: Map<string,NLTarget list array> =       
+        comps
+        |> Array.collect (fun comp ->
+            if comp.Type = IOLabel then [|comp.Label, comp.Outputs.[OutputPortNumber 0]|] else [||])
+        |> Array.groupBy (fun (label, _) -> label)
+        |> Array.map (fun (lab, labOutArr)-> lab, (labOutArr |> Array.map (snd)))
+        |> Map.ofArray
+
+    let makeNetGroup (targets:NLTarget list) =
+        let connected = 
+            targets
+            |> List.toArray
+            |> Array.collect (fun target -> 
+                let comp = netList.[target.TargetCompId]
+                if comp.Type = IOLabel then labelConnectedNets.[comp.Label] else [||])
+        {driverNet=targets; connectedNets=connected}
 
 
-/// get NetGroup from targets which represents the group of nLTargets connected by IOLabels
-let rec private getNetGroup (netList: NetList) targets =
-    let connectedLblNames =
+    let allNetGroups =
+        comps
+        |> Array.collect (fun comp -> 
+            match comp.Type with
+            | IOLabel -> [||]
+            | _ -> mapValues comp.Outputs |> Array.map makeNetGroup)
+    allNetGroups
+          
+               
+ 
+
+        
+
+
+
+
+
+
+
+    
+    
+
+/// Get NetGroup from targets which represents the group of nLTargets connected by IOLabels.
+/// targets:list of inputs connected to a single driving component output (e.g. a connected Net).
+/// Return the containing NetGroup, where Nets connected by IOLabels form single Netgroups.
+let rec private getNetGroup (netList: NetList) targets = failwithf "this function is no longer implemented"
+(*    let isSubList lstSmall lstBig =
+        lstSmall
+        |> List.forall (fun el -> List.contains el lstBig) 
+
+    let ioLabelsOfTargets =
         targets
         |> List.filter (fun netListTrgt -> netList.[netListTrgt.TargetCompId].Type = IOLabel)
         |> List.map (fun netListTrgt -> netList.[netListTrgt.TargetCompId].Label)
         |> List.distinct
-    let connectedNLsources' =
-        netList
-        |> Map.filter (fun _ (netListComp: NetListComponent) -> 
-                        List.contains netListComp.Label connectedLblNames 
-                        && netListComp.Type = IOLabel)
-        |> Map.map (fun _ nlComp -> 
-            nlComp.Outputs.[OutputPortNumber 0]
-            |> getNetGroup netList
-            |> (fun nlSrcGroup -> Array.append [|nlSrcGroup.driverNet|] nlSrcGroup.connectedNets ) )
-        |> Map.toArray
-        |> Array.collect snd
+
+
+
+ 
+
     let driverNet' =
-        let lstIsSubset lstSmall lstBig =
-            lstSmall
-            |> List.forall (fun el -> List.contains el lstBig) 
         Map.tryPick (fun _ (nlComp: NetListComponent) -> 
             Map.toArray nlComp.Outputs
-            |> Array.tryFind (fun (_, lst) -> lstIsSubset targets lst)) netList
+            |> Array.tryFind (fun (_, lst) -> isSubList targets lst)) netList
         |> function
         | Some (_, lst) -> lst
         | None -> targets
-    { driverNet = driverNet'; connectedNets = connectedNLsources' }
+    { driverNet = driverNet'; connectedNets = connectedNLsources' }*)
 
 /// returns a bool representing if the given NLTarget is present in the given NetList
 let private isNetListTrgtInNetList (netList: NetList) (nlTrgt: NLTarget) =
@@ -118,17 +180,17 @@ let extractSimData simData nCycles =
 let private drivingOutput (netList: NetList) compId inPortN =
     netList.[compId].Inputs.[inPortN]
 
-let netList2NetGroups netList =
-    Map.toArray netList
+let netList2NetGroups netList = makeAllNetGroups netList
+    (*Map.toArray netList
     |> Array.filter (fun (_, (nlComp: NetListComponent)) -> 
            match nlComp.Type with
            | SplitWire _ | MergeWires _ | IOLabel |Constant _ -> false
            | _ -> true )
     |> Array.collect (fun (_,nlComp) -> 
-        Map.map (fun _ lst -> 
-                    getNetGroup netList lst) nlComp.Outputs 
-                    |> Map.toArray 
-                    |> Array.map snd)
+        nlComp.Outputs
+        |> Map.map (fun _ targets -> getNetGroup netList targets)  
+        |> Map.toArray 
+        |> Array.map snd)*)
 
 /// get array of available NLSource in current canvas state
 let availableNetGroups (model: Model) =
@@ -421,7 +483,6 @@ let private bitLimsString (a, b) =
 /// get the label of a waveform
 let netGroup2Label compIds graph netList (netGrp: NetGroup) =
     let waveLbl = findName compIds graph netList netGrp netGrp.driverNet
-    printfn "LABEL: %A | driver %A\n\n\n || connected %A\n\n\n-----------------\n\n" waveLbl netGrp.driverNet netGrp.connectedNets
     let tl =
         match waveLbl.ComposingLabels with
         | [ el ] -> el.LabName + bitLimsString el.BitLimits

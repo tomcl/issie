@@ -278,7 +278,7 @@ let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
                 let newReducedState = getReducedState model
                 let update = not model.IsLoading && needsAutoSave proj newReducedState  model.AsyncActivity.LastSavedCanvasState
                 let simUpdate = simIsStale newReducedState model.LastSimulatedCanvasState
-                printfn "SimUpdate=%A" simUpdate
+                //printfn "SimUpdate=%A" simUpdate
                 if update
                 then
                     printfn "AutoSaving at '%s'" (System.DateTime.Now.ToString("mm:ss"))

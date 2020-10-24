@@ -716,7 +716,6 @@ Target.create "QDev" <| fun _ ->
 "Clean"
   ==> "AssemblyInfo"
   ==> "Restore"
-  ==> "PackageJson"
   ==> "YarnInstall"
   ==> "Build"
   ==> "BuildElectron"

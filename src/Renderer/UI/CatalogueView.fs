@@ -647,7 +647,7 @@ let viewCatalogue model dispatch =
         let viewCatOfModel = fun model ->                 
             let catTipInstall el = 
                     if not (isNull el) then
-                        printfn "Installing cat"
+                        //printfn "Installing cat"
                         let props = JSHelpers.tippyOpts "left"
                         match tippys with
                         | Some tips ->

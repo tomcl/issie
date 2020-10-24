@@ -275,10 +275,6 @@ let private standardWaveformOrderWaveAdder wSModel =
 /// open/close the WaveAdder view 
 /// sets wavesim for new view
 let private openCloseWaveEditor (waveSvg,clkRulerSvg) model (netList:NetList) (wSModel: WaveSimModel) on dispatch = 
-    if (model.LastSimulatedCanvasState = None) then
-        printfn "Setting up wave editor"
-
-    printfn "openCloewaveAdder (1) allNGs=%A" (wSModel.WaveData |> Option.map (fun wd -> wd.AllNetGroups.Length))
 
     let compIds = getComponentIds model
     let wA = 
@@ -290,7 +286,6 @@ let private openCloseWaveEditor (waveSvg,clkRulerSvg) model (netList:NetList) (w
             |> standardWaveformOrderWaveAdder
         | false ->
             Option.defaultValue (initWA (availableNetGroups model)) wSModel.WaveData
-    printfn "openCloseWaveAdder on=%A allNGs=%A"  on (wA.AllNetGroups.Length)
 
     { wSModel with WaveSimState = on
                    WaveData = Some wA }
@@ -569,8 +564,7 @@ let private wavesCol model (wSModel: WaveSimModel) rows dispatch =
     let htmlElementRef (el: Browser.Types.Element) =
         if not (isNull el) then // el can be Null, in which case we do nothing
             element := Some el // set mutable reference to the HTML element for later use
-        printf "Scroll el = %A" !element // print out the element
-        
+       
         match model.SimulationInProgress, !element with
         | Some (Ok par), _ -> Ok par |> SimulateWhenInProgress |> dispatch
         | Some (Error par), Some e -> 
@@ -628,8 +622,8 @@ let private viewWaveformViewer compIds model netList wSMod dispatch =
 
 /// ReactElement of the zoom buttons
 let private viewZoomDiv compIds model wSMod dispatch =
-    div [ Class "zoomDiv" ]
-        [ button [ Button.CustomClass "zoomButLeft" ] (fun _ -> zoom compIds false model wSMod dispatch) "-"
+    div [ Class "zoomDiv"]
+        [ button [Button.Option.IsOutlined; Button.CustomClass "zoomButLeft"] (fun _ -> zoom compIds false model wSMod dispatch) "-"
           button [ Button.CustomClass "zoomButRight" ] (fun _ -> zoom compIds true model wSMod dispatch) "+" ]
 
 /// ReactElement of the top row of the WaveAdder (where Select All is)
@@ -687,7 +681,6 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
     let isSelected (ng:NetGroup) = isWaveSelected model.Diagram netList ng
     /// this is what actually gets displayed when editor exits
     let waveEditorViewSimButtonAction =
-        printfn "SimButtonAction allNGs=%A" (wSModel.WaveData |> Option.map (fun wd -> wd.AllNetGroups.Length))
         let viewableNetGroups = 
             getAllNetGroups wSModel
             |> (fun gps -> standardOrderGroups gps wSModel)

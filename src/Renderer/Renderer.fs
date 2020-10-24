@@ -154,15 +154,17 @@ let init() = DiagramMainView.init(), Cmd.none
 
 // -- Create View
 
+let view1 (model:Model) (dispatch:Msg->Unit) : Fable.React.ReactElement= Fable.React.Standard.div [] []
 let view model dispatch = DiagramMainView.displayView model dispatch
 
 // -- Update Model
 
+let update1 msg model = model,Cmd.none
 let update msg model = Update.update msg model
 
 printfn "Starting renderer..."
 
-Program.mkProgram init update view
+Program.mkProgram init update1 view1
 |> Program.withReactBatched "app"
 |> Program.withSubscription attachMenusAndKeyShortcuts
 |> Program.run

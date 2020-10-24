@@ -161,13 +161,21 @@ let tippyOpts p =
 
 type TippyInstance =
     abstract setProps: obj -> unit
+    abstract destroy: unit -> unit
+
+type TippySingleton =
+    abstract setProps: obj -> unit
+    abstract destroy: unit -> unit
     
 /// top-level function from tippy.js to make tooltips
 /// #id will make tooltip on element id
 ///
 let tippy' (rClass : string, tippyOpts : obj): TippyInstance array  = importDefault<TippyInstance array> "tippy.js"
 
-let createSingleton (tippys: TippyInstance array, props: obj): unit = import "createSingleton" "tippy.js"
+let tippyDom (els : Browser.Types.Element array, tippyOpts : obj): TippyInstance array  = importDefault<TippyInstance array> "tippy.js"
+
+
+let createSingleton (tippys: TippyInstance array, props: obj): TippySingleton = import "createSingleton" "tippy.js"
 
 import "*"  "tippy.js/themes/material.css"
 let tippy (tippyOpts: obj) (rClass:string) = tippy'(rClass, tippyOpts)

@@ -616,10 +616,16 @@ let private makeMenuGroup title menuList =
         Menu.list [] menuList
     ]
 
+
+let mutable firstTip = true
+
+let mutable tippyNodes: Browser.Types.Element list = []
+
 let private makeMenuGroupWithTip  title tip menuList =
     let addTip (el: Browser.Types.Element) =
-        if not (isNull el) then 
-            el.setAttribute("data-tippy-content",tip)    
+        if not (isNull el) && firstTip then 
+            el.setAttribute("data-tippy-content",tip)
+            tippyNodes <- el :: tippyNodes
     details [Open false; Ref addTip] [
         summary [menuLabelStyle] [ str title ]
         Menu.list [] menuList
@@ -641,28 +647,36 @@ let compareModelsApprox (m1:Model) (m2:Model) =
     b
 
 
-let mutable tippys: JSHelpers.TippyInstance array option = None
+let mutable tippys: (JSHelpers.TippySingleton * JSHelpers.TippyInstance array) option = None
 
 let viewCatalogue model dispatch =
         let viewCatOfModel = fun model ->                 
-            let catTipInstall el = 
-                    if not (isNull el) then
-                        //printfn "Installing cat"
-                        let props = JSHelpers.tippyOpts "left"
-                        match tippys with
-                        | Some tips ->
-                            Array.iter (fun tip -> tip?destroy()) tips
-                        | None  -> ()
-                        let tip = JSHelpers.tippy' ("[data-tippy-content]", props)
-                        tippys <- Some tip
-                        JSHelpers.createSingleton(tip, props);
+            let catTipInstall el =            
+                if not (isNull el) && firstTip then
+                    printfn "Installing cat"
+                    let props = JSHelpers.tippyOpts "left"
+                    match tippys with
+                    | Some (single,tips) ->
+                        single.destroy()
+                        tips |> Array.iter (fun tip -> tip.destroy())
+                    | None  -> ()
+                    let tip = JSHelpers.tippyDom (tippyNodes |> List.toArray, props)
+                    let single = JSHelpers.createSingleton(tip, props);
+                    tippys <- Some (single,tip)
+                    tippyNodes <- []
+                    printfn "done"
+                    firstTip <- false
                         
 
  
             let catTip1 name func (tip:string) = 
-                div [Props.Ref (fun element -> 
-                        if not (isNull element) then 
-                            element.setAttribute("data-tippy-content",tip))] [menuItem name func]
+                div [
+                    Props.Ref (fun element -> 
+                        if not (isNull element) && firstTip then 
+                            element.setAttribute("data-tippy-content",tip)
+                            tippyNodes <- element :: tippyNodes)
+                    ] [menuItem name func]
+                            
             Menu.menu [Props [Class "py-1"; Ref catTipInstall]]  [
                     makeMenuGroup
                         "Input / Output"

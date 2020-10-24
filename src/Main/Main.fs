@@ -73,8 +73,8 @@ let createMainWindow () =
         // requires better solution for dist, maybe
         if Api.``process``.platform = Base.Win32 then
             options.icon <- (U2.Case2 (path.join(staticDir(), "icon.ico")))
-        elif Api.``process``.platform = Base.Darwin then
-            options.icon <- (U2.Case2 (path.join(staticDir(), "icon.icns")))   
+        //elif Api.``process``.platform = Base.Darwin then
+            //options.icon <- (U2.Case2 (path.join(staticDir(), "icon.icns")))   (the icns icon does not work)
         options.title <- "ISSIE"
         options.webPreferences <-
             jsOptions<WebPreferences> <| fun o ->

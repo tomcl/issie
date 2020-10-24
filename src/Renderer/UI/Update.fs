@@ -130,12 +130,12 @@ let private handleJSDiagramMsg msg model =
             Set comps1 <> Set comps2 || Set conns1 <> Set conns2           
         let nState = getDetailedState model
         if s && isNotEquiv model.LastDetailedState nState && not model.IsLoading then
-            printfn "Setting Changed %A" s
+            //printfn "Setting Changed %A" s
             { model with 
                 HasUnsavedChanges = s 
             }
         elif not s then
-            printfn "Setting Changed %A" false
+            //printfn "Setting Changed %A" false
             { model with 
                 LastDetailedState = nState
                 HasUnsavedChanges = false }

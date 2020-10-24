@@ -214,7 +214,7 @@ let displayView model dispatch =
                                 Tabs.Props [Style [Margin 0] ] ]                              
                               [ Tabs.tab // catalogue tab to add components
                                     [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
-                                    [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] 
+                                    [ a [ OnClick (fun _ -> CatalogueView.firstTip <- true; ChangeRightTab Catalogue |> dispatch ) ] 
                                     [ JSHelpers.tipStr "bottom" "Catalogue" "List of components and custom components from other design sheets to add to this sheet"] ]                                
                                 Tabs.tab // Properties tab to view/chnage component properties
                                     [ Tabs.Tab.IsActive (model.RightTab = Properties) ]

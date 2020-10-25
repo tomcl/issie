@@ -473,14 +473,14 @@ let update msg model =
             match currWaveSimModel model, waveInfo with
             | Some wSMod, Ok ports -> 
                 // does the actual simulation and SVG generation, if needed
-                let wsMod' = waveGen waveSvg clkRulerSvg wSMod ports
+                let wsMod' = waveGen wSMod ports
                 { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model [] 
                              WaveSim = Map.add fileName wsMod' (fst model.WaveSim), 
                                        snd model.WaveSim
                              SimulationInProgress = None }, Cmd.ofMsg SetSimNotInProgress
             | Some wSMod, Error par -> 
                 // in this case 
-                { model with WaveSim = Map.add fileName (updateWSMod waveSvg clkRulerSvg model wSMod par) (fst model.WaveSim), 
+                { model with WaveSim = Map.add fileName (updateWSMod model wSMod par) (fst model.WaveSim), 
                                        snd model.WaveSim 
                              SimulationInProgress = None }, Cmd.ofMsg SetSimNotInProgress
             | _ -> 

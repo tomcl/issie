@@ -281,9 +281,9 @@ let private openCloseWaveEditor (waveSvg,clkRulerSvg) model (netList:NetList) (w
         match on with 
         | true -> 
             selectAllOn model.Diagram wSModel |> ignore
-            wSModel
+            wSModel // startwith DispPorts order - for waveforms currently displayed
             |> updateWaveSimFromInitData (waveSvg,clkRulerSvg) compIds  model
-            |> standardWaveformOrderWaveAdder
+            |> standardWaveformOrderWaveAdder // work out correct order for waveadder
         | false ->
             Option.defaultValue (initWA (availableNetGroups model)) wSModel.WaveData
 
@@ -406,6 +406,7 @@ let clkRulerSvg (model: WaveSimModel) =
 
 /// tuple of React elements of middle column, left column, right column.
 /// shows waveforms and labels and cursor col.
+/// The vertical order is fixed and as in DispPorts, DispWaveNames and DispWaveSVGCache
 let private waveSimRows compIds diagram (netList: NetList) (wsMod: WaveSimModel) dispatch =
     let waveData = getWaveData wsMod
     let netGroups = wsMod.DispPorts

@@ -660,13 +660,16 @@ let private waveCol waveSvg clkRulerSvg model wsMod waveData =
         tr rowClass [ td cellClass [ makeSvg svgClass svgChildren ] ]
     let bgSvg = backgroundSvg wsMod
 
-    [| waveTableRow [ Class "fullHeight" ] (lwaveCell wsMod) (waveCellSvg wsMod true) bgSvg |]
-    |> Array.append
-        (Array.map
-            (fun wave ->
-                waveTableRow [ Class "rowHeight" ] (waveCell wsMod) (waveCellSvg wsMod false)
-                    (Array.append bgSvg wave )) (waveSvg model wsMod waveData))
-    |> Array.append [| tr [ Class "rowHeight" ] [ td (waveCell wsMod) [ clkRulerSvg wsMod ] ] |]
+    let lastRow = [| waveTableRow [ Class "fullHeight" ] (lwaveCell wsMod) (waveCellSvg wsMod true) bgSvg |]
+    let firstRow = [| tr [ Class "rowHeight" ] [ td (waveCell wsMod) [ clkRulerSvg wsMod ] ] |]
+
+    let midRows =
+        waveSvg model wsMod waveData
+        |> Array.map (fun wave ->
+                let waveWithBg = Array.append bgSvg wave
+                waveTableRow [ Class "rowHeight" ] (waveCell wsMod) (waveCellSvg wsMod false) waveWithBg)
+    Array.concat [| firstRow ; midRows ; lastRow |]
+                     
 
 /// adjust parameters before feeding them into updateWSMod 
 let adjustPars (wsMod: WaveSimModel) (pars: {| LastClk: uint; Curs: uint; ClkW: float |}) rightLim dispatch =
@@ -827,26 +830,30 @@ let updateWaveSimFromInitData (waveSvg,clkRulerSvg) compIds  model (ws: WaveSimM
         // current diagram netlist
         let netList = Helpers.getNetList <| rState
         // all ports on current diagram
-        let waPorts' = getAllNetGroups ws
+        // order does not matter.
+        let allPorts = netList2NetGroups netList
+        let allNames = Array.map (netGroup2Label compIds sD.Graph netList) allPorts
+        let nameMap = Array.zip allNames allPorts |> Map.ofArray
+        let lookup name = Map.tryFind name nameMap
+        let dispNames, dispPorts = // filter remembered names by whether they are still valid, lookup new ports (in case those have changed)
+            ws.DispWaveNames
+            |> Array.collect (fun name -> match lookup  name with | Some netGroup -> [|name,netGroup|] | None -> [||])
+            |> Array.unzip
         //
         // simulation data of correct length
         let sD' = Array.append [| sD |] (extractSimData sD ws.LastClk)
         { ws with 
             WaveData = Some { 
                 InitWaveSimGraph = Some sD
-                AllNetGroups = waPorts'
-                AllWaveNames = 
-                    Array.map (netGroup2Label compIds sD.Graph netList) waPorts'
+                AllNetGroups = allPorts
+                AllWaveNames = allNames // must be same order as AllNetgroups
             }
+            DispPorts = dispPorts
+            DispWaveNames = dispNames        
             LastCanvasState = getReducedCanvState model 
-
         }
-        |> (fun m -> 
-            { m with 
-                DispWaveSVGCache = waveCol waveSvg clkRulerSvg model m (getWaveData m) 
-                DispPorts = waPorts'
-
-            } )
+        |> (fun ws -> { 
+                ws with DispWaveSVGCache = waveCol waveSvg clkRulerSvg model ws (getWaveData ws) })
     | Some (Error _, _) | None -> initWS 
 
 /// Waveforms >> Button React element with actions triggered by pressing the button

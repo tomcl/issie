@@ -654,21 +654,25 @@ let startNewWaveSimulation compIds model wSMod dispatch (simData: SimulationData
 
 
 
-/// ReactElselectNetGrpConnsthe box containing the waveform's SVG
-let private waveCol waveSvg clkRulerSvg model wsMod waveData =
+/// Calculate and add the waveform SVGs to the current wsModel.
+/// waveSVG and clkRulerSvg are constant functions passed in because defined after this
+/// TODO: reorder functions!
+let addSVGToWaveSimModel waveSvg clkRulerSvg wSModel =
+    let waveData = getWaveData wSModel
     let waveTableRow rowClass cellClass svgClass svgChildren =
         tr rowClass [ td cellClass [ makeSvg svgClass svgChildren ] ]
-    let bgSvg = backgroundSvg wsMod
+    let bgSvg = backgroundSvg wSModel
 
-    let lastRow = [| waveTableRow [ Class "fullHeight" ] (lwaveCell wsMod) (waveCellSvg wsMod true) bgSvg |]
-    let firstRow = [| tr [ Class "rowHeight" ] [ td (waveCell wsMod) [ clkRulerSvg wsMod ] ] |]
+    let lastRow = [| waveTableRow [ Class "fullHeight" ] (lwaveCell wSModel) (waveCellSvg wSModel true) bgSvg |]
+    let firstRow = [| tr [ Class "rowHeight" ] [ td (waveCell wSModel) [ clkRulerSvg wSModel ] ] |]
 
     let midRows =
-        waveSvg model wsMod waveData
+        waveSvg wSModel waveData
         |> Array.map (fun wave ->
                 let waveWithBg = Array.append bgSvg wave
-                waveTableRow [ Class "rowHeight" ] (waveCell wsMod) (waveCellSvg wsMod false) waveWithBg)
-    Array.concat [| firstRow ; midRows ; lastRow |]
+                waveTableRow [ Class "rowHeight" ] (waveCell wSModel) (waveCellSvg wSModel false) waveWithBg)
+    let svgs = Array.concat [| firstRow ; midRows ; lastRow |]
+    {wSModel with DispWaveSVGCache = svgs}
                      
 
 /// adjust parameters before feeding them into updateWSMod 
@@ -701,7 +705,7 @@ let updateWSMod waveSvg clkRulerSvg (model: Model) (wsMod: WaveSimModel)
                                        | Some (Error e) -> failwithf "%A" e
                  Cursor = par.Curs 
                  ClkWidth = par.ClkW }
-    |> (fun m -> { m with DispWaveSVGCache = waveCol waveSvg clkRulerSvg model m (getWaveData m) })
+    |> addSVGToWaveSimModel waveSvg clkRulerSvg
 
 
 /// get waveform names
@@ -714,7 +718,7 @@ let private getWaveNames compIds netList (wsMod: WaveSimModel) =
 /// call waveCol with the current Simulation Data 
 /// to generate the required svgs
 /// set Disp* fields to display ports netgroups
-let waveGen model waveSvg clkRulerSvg (wSMod: WaveSimModel) ports =
+let waveGen waveSvg clkRulerSvg (wSMod: WaveSimModel) ports =
     let simData', wa = 
         match wSMod.WaveData with
         | Some ({InitWaveSimGraph = Some  sD} as wa) ->
@@ -737,7 +741,7 @@ let waveGen model waveSvg clkRulerSvg (wSMod: WaveSimModel) ports =
             DispPorts = ports
             WaveSimState = false }
 
-    { wSMod' with DispWaveSVGCache = waveCol waveSvg clkRulerSvg model wSMod' (getWaveData wSMod') }
+    addSVGToWaveSimModel waveSvg clkRulerSvg wSMod'
 
 //////////////////////////////////////
 /// Interaction with Model.Diagram ///
@@ -852,8 +856,7 @@ let updateWaveSimFromInitData (waveSvg,clkRulerSvg) compIds  model (ws: WaveSimM
             DispWaveNames = dispNames        
             LastCanvasState = getReducedCanvState model 
         }
-        |> (fun ws -> { 
-                ws with DispWaveSVGCache = waveCol waveSvg clkRulerSvg model ws (getWaveData ws) })
+        |> addSVGToWaveSimModel waveSvg clkRulerSvg
     | Some (Error _, _) | None -> initWS 
 
 /// Waveforms >> Button React element with actions triggered by pressing the button

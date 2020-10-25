@@ -98,12 +98,9 @@ let private gaps2pos (wSModel: WaveSimModel) (wave: Waveform) gaps =
            XPosArray = Array.map (gapAndInd2Pos gap) [| 1 .. nSpaces gap - 1 |] |} )
 
 /// get values position of bus labels
-let private busLabels (model: Model) waveData =
-    match currWaveSimModel model with
-    | Some wSModel ->
-        (Array.transpose waveData, Array.map makeGaps (transitions waveData)) 
-        ||> Array.map2 (gaps2pos wSModel)
-    | None -> failwith "busLabels called when currWS model is None"
+let private busLabels (wSModel: WaveSimModel) waveData =
+    (Array.transpose waveData, Array.map makeGaps (transitions waveData)) 
+    ||> Array.map2 (gaps2pos wSModel)
 
 /// get the labels of a waveform for a period in which the value doesn't change
 let private busLabelOneValue wsMod (busLabelValAndPos: {| Sample: Sample; XPosArray: float [] |}) =
@@ -364,9 +361,9 @@ let private makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * i
         |> Array.append [| topL; botL |]
 
 /// get SVG of a single waveform
-let waveSvg model wsMod waveData  =
+let waveSvg wsMod waveData  =
     let valueLabels =
-        busLabels model waveData
+        busLabels wsMod waveData
         |> Array.map (Array.collect (busLabelOneValue wsMod))
 
     let makeWaveSvg (sampArr: Waveform) (transArr: (int * int) []): ReactElement [] =
@@ -769,3 +766,5 @@ let viewWaveSim (model: Model) dispatch =
     | None, _ ->
         initFileWS model dispatch
         []
+
+let x = addSVGToWaveSimModel waveSvg clkRulerSvg

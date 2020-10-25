@@ -195,7 +195,7 @@ let displayView model dispatch =
         PopupView.viewPopup model
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
         // main top bar function is early in compile order
-        FileMenuView.viewTopMenu model WaveSimHelpers.fileMenuViewActions WaveSimHelpers.WaveformButtonFunc dispatch
+        FileMenuView.viewTopMenu model WaveSimHelpers.fileMenuViewActions WaveformSimulationView.WaveformButtonFunc dispatch
         // Draw2D editor Diagram component with canvas of components and connections
         model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode ) 
         // transient pop-ups

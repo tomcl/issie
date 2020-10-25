@@ -21,7 +21,7 @@ let maxLastClk = 500u
 /////////////////////////////
 
 /// get an option of the reduced canvas state
-let private getReducedCanvState model =
+let getReducedCanvState model =
     match model.Diagram.GetCanvasState() with
     | Some cS -> Some <| extractReducedState cS
     | None -> None
@@ -607,9 +607,146 @@ let makeGaps trans =
         {| GapLen = Array.max times - Array.min times + 1
            GapStart = Array.min times |})
 
+/// get values position of bus labels from the transition gaps (for one Waveform)
+let private gaps2pos (wSModel: WaveSimModel) (wave: Waveform) gaps =
+    let clkWidth = int wSModel.ClkWidth
+    let nSpaces (g: {| GapLen: int; GapStart: int |}) = 
+        (g.GapLen * clkWidth / (maxBusValGap + 1) + 2)
+    let gapAndInd2Pos (g: {| GapLen: int; GapStart: int |}) i =
+        float g.GapStart + float i * float g.GapLen / float (nSpaces g)
+    gaps
+    |> Array.map (fun (gap: {| GapLen: int; GapStart: int |}) ->
+        {| Sample = wave.[gap.GapStart]
+           XPosArray = Array.map (gapAndInd2Pos gap) [| 1 .. nSpaces gap - 1 |] |} )
+
+/// get values position of bus labels
+let private busLabels (wSModel: WaveSimModel) waveData =
+    (Array.transpose waveData, Array.map makeGaps (transitions waveData)) 
+    ||> Array.map2 (gaps2pos wSModel)
+
+/// get the labels of a waveform for a period in which the value doesn't change
+let private busLabelOneValue wsMod (busLabelValAndPos: {| Sample: Sample; XPosArray: float [] |}) =
+    let addLabel nLabels xInd = makeText (inWaveLabel nLabels xInd wsMod)
+    match busLabelValAndPos.Sample with
+    | Wire w when w.NBits > 1u ->
+        Array.map (fun xInd -> 
+            addLabel 1 xInd (n2StringOfRadix w.BitData w.NBits wsMod.Radix)) busLabelValAndPos.XPosArray
+    | _ -> [||]
+
 ///////////////////////
 /// WaveSim Actions ///
 ///////////////////////
+
+/// get SVG of a single waveform for one clock cycle
+let private makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * int) =
+    let top = spacing
+    let bot = top + sigHeight - sigLineThick
+    let left = float xInd * clkW
+    let right = left + float clkW
+
+    let makeSigLine =
+        makeLinePoints
+            [ Class "sigLineStyle"
+              Style [ Stroke("blue") ] ]
+
+    match data with
+    | Wire w when w.NBits = 1u ->
+        let y =
+            match w.BitData with
+            | n when n = bigint 1 -> top
+            | _ -> bot
+        let sigLine = makeSigLine (left, y) (right, y)
+        match snd trans with
+        | 1 -> [| makeSigLine (right, bot + sigLineThick / 2.0) (right, top - sigLineThick / 2.0) |]
+        | 0 -> [||]
+        | _ -> failwith "What? Transition has value other than 0 or 1"
+        |> Array.append [| sigLine |]
+    | _ ->
+        let leftInner = if fst trans = 1 then left + transLen else left
+        let rightInner = if snd trans = 1 then right - transLen else right
+        let cen = (top + bot) / 2.0
+
+        //make lines
+        let topL = makeSigLine (leftInner, top) (rightInner, top)
+        let botL = makeSigLine (leftInner, bot) (rightInner, bot)
+        let topLeft = makeSigLine (left, cen) (leftInner, top)
+        let botLeft = makeSigLine (left, cen) (leftInner, bot)
+        let topRight = makeSigLine (right, cen) (rightInner, top)
+        let botRight = makeSigLine (right, cen) (rightInner, bot)
+
+        match trans with
+        | 1, 1 -> [| topLeft; botLeft; topRight; botRight |]
+        | 1, 0 -> [| topLeft; botLeft |]
+        | 0, 1 -> [| topRight; botRight |]
+        | 0, 0 -> [||]
+        | _ -> failwith "What? Transition has value other than 0 or 1"
+        |> Array.append [| topL; botL |]
+
+
+
+
+/// SVG of the clock numbers above the waveforms
+let clkRulerSvg (model: WaveSimModel) =
+    let makeClkRulLbl i =
+        match model.ClkWidth with
+        | clkW when clkW < 0.5 && i % 5 <> 0 -> [||]
+        | _ -> [| makeText (cursRectText model i) (string i) |]
+    [| 0 .. int model.LastClk |]
+    |> Array.collect makeClkRulLbl
+    |> Array.append (backgroundSvg model)
+    |> makeSvg (clkRulerStyle model)
+
+/// get SVG of a single waveform
+let waveSvg wsMod waveData  =
+    let valueLabels =
+        busLabels wsMod waveData
+        |> Array.map (Array.collect (busLabelOneValue wsMod))
+
+    let makeWaveSvg (sampArr: Waveform) (transArr: (int * int) []): ReactElement [] =
+        (sampArr, transArr)
+        ||> Array.mapi2 (makeSegment wsMod.ClkWidth)
+        |> Array.concat
+
+    let padTrans t =
+        match Array.length t with
+        | 0 -> [| 1, 1 |]
+        | 1 ->
+            [| (1, t.[0])
+               (t.[0], 1) |]
+        | _ ->
+            Array.pairwise t
+            |> (fun pairs ->
+                Array.concat
+                    [ [| 1, fst pairs.[0] |]
+                      pairs
+                      [| snd (Array.last pairs), 1 |] ])
+
+    transitions waveData
+    |> Array.map padTrans
+    |> Array.map2 makeWaveSvg (Array.transpose waveData)
+    |> Array.map2 Array.append valueLabels
+
+
+/// Calculate and add the waveform SVGs to the current wsModel.
+/// waveSVG and clkRulerSvg are constant functions passed in because defined after this
+/// TODO: reorder functions!
+let addSVGToWaveSimModel wSModel =
+    let waveData = getWaveData wSModel
+    let waveTableRow rowClass cellClass svgClass svgChildren =
+        tr rowClass [ td cellClass [ makeSvg svgClass svgChildren ] ]
+    let bgSvg = backgroundSvg wSModel
+
+    let lastRow = [| waveTableRow [ Class "fullHeight" ] (lwaveCell wSModel) (waveCellSvg wSModel true) bgSvg |]
+    let firstRow = [| tr [ Class "rowHeight" ] [ td (waveCell wSModel) [ clkRulerSvg wSModel ] ] |]
+
+    let midRows =
+        waveSvg wSModel waveData
+        |> Array.map (fun wave ->
+                let waveWithBg = Array.append bgSvg wave
+                waveTableRow [ Class "rowHeight" ] (waveCell wSModel) (waveCellSvg wSModel false) waveWithBg)
+    let svgs = Array.concat [| firstRow ; midRows ; lastRow |]
+    {wSModel with DispWaveSVGCache = svgs}
+
 
 /// add entry with key: current fileName and data: initWS to model.WaveSim
 let initFileWS (model:Model) dispatch =
@@ -651,28 +788,13 @@ let startNewWaveSimulation compIds model wSMod dispatch (simData: SimulationData
 
     ChangeRightTab WaveSim |> dispatch
 
+/// get wave name labels from waveforms names
+let makeLabels waveNames =
+    let makeLbl l = label [ Class "waveLbl" ] [ str l ]
+    Array.map makeLbl waveNames
 
 
 
-/// Calculate and add the waveform SVGs to the current wsModel.
-/// waveSVG and clkRulerSvg are constant functions passed in because defined after this
-/// TODO: reorder functions!
-let addSVGToWaveSimModel waveSvg clkRulerSvg wSModel =
-    let waveData = getWaveData wSModel
-    let waveTableRow rowClass cellClass svgClass svgChildren =
-        tr rowClass [ td cellClass [ makeSvg svgClass svgChildren ] ]
-    let bgSvg = backgroundSvg wSModel
-
-    let lastRow = [| waveTableRow [ Class "fullHeight" ] (lwaveCell wSModel) (waveCellSvg wSModel true) bgSvg |]
-    let firstRow = [| tr [ Class "rowHeight" ] [ td (waveCell wSModel) [ clkRulerSvg wSModel ] ] |]
-
-    let midRows =
-        waveSvg wSModel waveData
-        |> Array.map (fun wave ->
-                let waveWithBg = Array.append bgSvg wave
-                waveTableRow [ Class "rowHeight" ] (waveCell wSModel) (waveCellSvg wSModel false) waveWithBg)
-    let svgs = Array.concat [| firstRow ; midRows ; lastRow |]
-    {wSModel with DispWaveSVGCache = svgs}
                      
 
 /// adjust parameters before feeding them into updateWSMod 
@@ -695,7 +817,7 @@ let adjustPars (wsMod: WaveSimModel) (pars: {| LastClk: uint; Curs: uint; ClkW: 
     | _ -> pars
 
 /// update the WaveSimModel entry of the current file with new parameters
-let updateWSMod waveSvg clkRulerSvg (model: Model) (wsMod: WaveSimModel) 
+let updateWSMod (model: Model) (wsMod: WaveSimModel) 
                 (par: {| LastClk: uint; Curs: uint; ClkW: float |}) : WaveSimModel =
     { wsMod with LastClk = par.LastClk
                  SimDataCache = par.LastClk + 1u - uint (Array.length wsMod.SimDataCache)
@@ -705,7 +827,7 @@ let updateWSMod waveSvg clkRulerSvg (model: Model) (wsMod: WaveSimModel)
                                        | Some (Error e) -> failwithf "%A" e
                  Cursor = par.Curs 
                  ClkWidth = par.ClkW }
-    |> addSVGToWaveSimModel waveSvg clkRulerSvg
+    |> addSVGToWaveSimModel
 
 
 /// get waveform names
@@ -718,7 +840,7 @@ let private getWaveNames compIds netList (wsMod: WaveSimModel) =
 /// call waveCol with the current Simulation Data 
 /// to generate the required svgs
 /// set Disp* fields to display ports netgroups
-let waveGen waveSvg clkRulerSvg (wSMod: WaveSimModel) ports =
+let waveGen (wSMod: WaveSimModel) ports =
     let simData', wa = 
         match wSMod.WaveData with
         | Some ({InitWaveSimGraph = Some  sD} as wa) ->
@@ -741,7 +863,7 @@ let waveGen waveSvg clkRulerSvg (wSMod: WaveSimModel) ports =
             DispPorts = ports
             WaveSimState = false }
 
-    addSVGToWaveSimModel waveSvg clkRulerSvg wSMod'
+    addSVGToWaveSimModel wSMod'
 
 //////////////////////////////////////
 /// Interaction with Model.Diagram ///
@@ -823,97 +945,6 @@ let fileMenuViewActions model dispatch =
     else ()
 
 
-////////////////////////////////////////////////////////////////////////
-///                        Simulation                                ///
-////////////////////////////////////////////////////////////////////////
-
-///  Set up wavesim data that may not exist and is needed
-let updateWaveSimFromInitData (waveSvg,clkRulerSvg) compIds  model (ws: WaveSimModel) : WaveSimModel =
-    match SimulationView.makeSimData model with
-    | Some (Ok sD, rState) ->
-        // current diagram netlist
-        let netList = Helpers.getNetList <| rState
-        // all ports on current diagram
-        // order does not matter.
-        let allPorts = netList2NetGroups netList
-        let allNames = Array.map (netGroup2Label compIds sD.Graph netList) allPorts
-        let nameMap = Array.zip allNames allPorts |> Map.ofArray
-        let lookup name = Map.tryFind name nameMap
-        let dispNames, dispPorts = // filter remembered names by whether they are still valid, lookup new ports (in case those have changed)
-            ws.DispWaveNames
-            |> Array.collect (fun name -> match lookup  name with | Some netGroup -> [|name,netGroup|] | None -> [||])
-            |> Array.unzip
-        //
-        // simulation data of correct length
-        let sD' = Array.append [| sD |] (extractSimData sD ws.LastClk)
-        { ws with 
-            WaveData = Some { 
-                InitWaveSimGraph = Some sD
-                AllNetGroups = allPorts
-                AllWaveNames = allNames // must be same order as AllNetgroups
-            }
-            DispPorts = dispPorts
-            DispWaveNames = dispNames        
-            LastCanvasState = getReducedCanvState model 
-        }
-        |> addSVGToWaveSimModel waveSvg clkRulerSvg
-    | Some (Error _, _) | None -> initWS 
-
-/// Waveforms >> Button React element with actions triggered by pressing the button
-let WaveformButtonFunc compIds model dispatch =
-    // based on simulation results determine color of button and what happens if it is clicked
-    let simulationButton =
-        match currWaveSimModel model with
-
-        | None ->
-            // If we have never yet run wavesim create initial wSModel
-            match model.CurrProject with
-            | Some _ -> 
-                initFileWS model dispatch
-            | None -> ()
-            Button.button 
-                [ Button.OnClick(fun _ -> ChangeRightTab WaveSim |> dispatch) ]
-        | Some wSModel ->
-            match model.SimulationIsStale, SimulationView.makeSimData model with
-            | true, Some (Ok simData, rState) ->
-                let isClocked = SynchronousUtils.hasSynchronousComponents simData.Graph
-                if isClocked then
-                    // display the waveAdder window if circuit is OK
-                    Button.button
-                        [ 
-                            Button.Color IsSuccess
-                            Button.OnClick(fun _ ->
-                                if simData.Inputs <> [] then
-                                    let inputs = 
-                                        simData.Inputs
-                                        |> List.map (fun (_,ComponentLabel lab,_) -> lab)
-                                        |> String.concat ","
-                                    PopupView.warningNotification (sprintf "Inputs (%s) will be set to 0." inputs) ClosePropertiesNotification
-                                    |> SetPropertiesNotification |> dispatch
-                                startNewWaveSimulation compIds model wSModel dispatch simData rState
-                                ChangeRightTab WaveSim |> dispatch )
-                              ]
-                else
-                    Button.button
-                        [ 
-                            //Button.Color IsSuccess
-                            Button.OnClick(fun _ -> 
-                                            PopupView.errorNotification "Combinational logic does not have waveforms" ClosePropertiesNotification
-                                            |> SetPropertiesNotification |> dispatch
-                                )
-                              ]
-                    
-            | true, Some (Error err, _) -> 
-                // display the current error if circuit has errors
-                Button.button
-                    [   Button.Color IsWarning
-                        Button.OnClick(fun _ ->
-                          Some err |> SetWSError |> dispatch
-                          ChangeRightTab WaveSim |> dispatch ) ]
-            | _ -> 
-                Button.button 
-                        [ Button.OnClick(fun _ -> ChangeRightTab WaveSim |> dispatch) ]
-    simulationButton [ str "Waveforms >>" ]
 
 
 

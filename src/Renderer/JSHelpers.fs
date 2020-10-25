@@ -97,7 +97,7 @@ let setDebugLevel() =
     let argV =
         electron.remote.``process``.argv
         |> Seq.toList
-        |> List.tail
+        |> (function | [] -> [] | _ :: args' -> args')
         |> List.map (fun s -> s.ToLower())
     let isArg s = List.contains s argV
 

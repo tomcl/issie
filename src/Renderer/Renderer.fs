@@ -88,7 +88,6 @@ let fileMenu (dispatch) =
     ]
 
 let viewMenu dispatch =
-    JSHelpers.debugLevel <- setDebugLevel()
     let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
     makeMenu false "View" [
         makeRoleItem "Toggle Fullscreen" (Some "F11") MenuItemRole.ToggleFullScreen
@@ -151,7 +150,9 @@ type Messages = MessageType.Msg
 
 // -- Init Model
 
-let init() = DiagramMainView.init(), Cmd.none
+let init() = 
+    JSHelpers.setDebugLevel()
+    DiagramMainView.init(), Cmd.none
 
 let init1() = (),Cmd.none
 

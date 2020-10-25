@@ -65,9 +65,9 @@ let makeElmItem (label:string) (accelerator : string) (action : unit -> unit) =
 
 
 /// Make a new menu from a a list of menu items
-let makeMenu (name : string) (table : MenuItemOptions list) =
+let makeMenu (topLevel: bool) (name : string) (table : MenuItemOptions list) =
    let subMenu = createEmpty<MenuItemOptions>
-   subMenu.``type`` <- MenuItemType.SubMenu
+   subMenu.``type`` <- if topLevel then MenuItemType.Normal else MenuItemType.SubMenu
    subMenu.label <- name
    subMenu.submenu <- U2.Case1 (table |> Array.ofList)
    subMenu
@@ -78,7 +78,7 @@ let nullMenu = createEmpty<MenuItemOptions>
 
 
 let fileMenu (dispatch) =
-    makeMenu "Sheet" [
+    makeMenu true "Sheet" [
         makeItem "New" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
         makeItem "Save" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
         makeItem "Print" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
@@ -94,7 +94,7 @@ let fileMenu (dispatch) =
 let viewMenu dispatch =
     JSHelpers.debugLevel <- 1
     let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
-    makeMenu "View" [
+    makeMenu true "View" [
         makeRoleItem "Toggle Fullscreen" (Some "F11") MenuItemRole.ToggleFullScreen
         menuSeparator
         makeRoleItem "Zoom In" (Some "CmdOrCtrl+Plus") MenuItemRole.ZoomIn
@@ -118,7 +118,7 @@ let editMenu dispatch =
     let dispatch = MessageType.KeyboardShortcutMsg >> dispatch
 
     jsOptions<MenuItemOptions> <| fun invisibleMenu ->
-        invisibleMenu.``type`` <- MenuItemType.SubMenu
+        invisibleMenu.``type`` <- MenuItemType.Normal
         invisibleMenu.label <- "Edit"
         invisibleMenu.visible <- true
         invisibleMenu.submenu <-
@@ -133,7 +133,7 @@ let attachMenusAndKeyShortcuts dispatch =
     let sub dispatch =
         let menu =
             [|
-                (if isMac then fileMenu dispatch else nullMenu)
+               // (if isMac then fileMenu dispatch else nullMenu)
 
                 fileMenu dispatch
 

@@ -473,7 +473,7 @@ let update msg model =
             match currWaveSimModel model, waveInfo with
             | Some wSMod, Ok ports -> 
                 // does the actual simulation and SVG generation, if needed
-                let wsMod' = waveGen model waveSvg clkRulerSvg wSMod ports
+                let wsMod' = waveGen waveSvg clkRulerSvg wSMod ports
                 { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model [] 
                              WaveSim = Map.add fileName wsMod' (fst model.WaveSim), 
                                        snd model.WaveSim

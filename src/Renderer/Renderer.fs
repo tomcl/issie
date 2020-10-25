@@ -75,27 +75,32 @@ let makeMenu (name : string) (table : MenuItemOptions list) =
     
 
 
-let fileMenu (dispatch:Dispatch<MessageType.Msg>) =
+let fileMenu (dispatch) =
     makeMenu "File" [
         makeItem "New" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
         makeItem "Save" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
         makeItem "Print" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
         makeItem "Exit" None (fun ev -> exitApp())
-        makeItem ("About Issie " + Version.VersionString) None (fun ev -> PopupView.viewInfoPopup dispatch)
-        makeCondItem (JSHelpers.debugLevel <> 0) "Reload page" None (fun _ -> 
+        makeItem ("About Issie " (*+ Version.VersionString*)) None (fun ev -> PopupView.viewInfoPopup dispatch)
+        (* makeCondItem (JSHelpers.debugLevel <> 0) "Reload page" None (fun _ -> 
             let webContents = electron.remote.getCurrentWebContents()
-            webContents.reload())
+            webContents.reload())*)
 
 
     ]
 
 let viewMenu dispatch =
-    JSHelpers.setDebugLevel()
+
+    let rec nfib i = 
+        if i = 35 then printfn "%A" i; nfib 34
+        elif i < 2 then 1 else nfib (i-1) + nfib (i-2)
+    nfib 35 |> ignore
+    //JSHelpers.setDebugLevel()
     let devToolsKey = if Node.Api.``process``.platform = Node.Base.Darwin then "Alt+Command+I" else "Ctrl+Shift+I"
-    makeMenu "View" [
+    makeMenu "View1" [
         makeRoleItem "Toggle Fullscreen" (Some "F11") MenuItemRole.ToggleFullScreen
         menuSeparator
-        makeRoleItem "Zoom In2" (Some "CmdOrCtrl+Plus") MenuItemRole.ZoomIn
+        makeRoleItem "Zoom In4" (Some "CmdOrCtrl+Plus") MenuItemRole.ZoomIn
         makeRoleItem "Zoom Out" (Some "CmdOrCtrl+-") MenuItemRole.ZoomOut
         makeRoleItem "Reset Zoom" (Some "CmdOrCtrl+0") MenuItemRole.ResetZoom
         menuSeparator
@@ -131,8 +136,15 @@ let attachMenusAndKeyShortcuts dispatch =
     let sub dispatch =
         let menu =
             [|
+                fileMenu dispatch // last menu chnages name as expected but
+                                  // but also has no items on mac
                 fileMenu dispatch
-                (* editMenu dispatch *)
+                viewMenu dispatch
+                //editMenu dispatch // does not work on mac
+                viewMenu dispatch
+                viewMenu dispatch
+                viewMenu dispatch
+                viewMenu dispatch
                 viewMenu dispatch
             |]
             |> Array.map U2.Case1

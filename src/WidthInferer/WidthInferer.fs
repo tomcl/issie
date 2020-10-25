@@ -166,13 +166,13 @@ let private calculateOutputPortsWidth
             let out = Map.empty.Add (getOutputPortId comp 0, numberOfBits)
             let out = out.Add (getOutputPortId comp 1, 1)
             Ok out
-        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
-        | [Some 1; Some n; Some m] when n = numberOfBits && m = numberOfBits -> okOutMap
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
+        | [Some n; Some m] when n = numberOfBits && m = numberOfBits -> okOutMap
         | [Some n; _; _] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 0]
         | [_; Some n; _] when n <> numberOfBits -> makeWidthInferErrorEqual numberOfBits n [getConnectionIdForPort 1]
         | [_; _; Some n] when n <> numberOfBits -> makeWidthInferErrorEqual numberOfBits n [getConnectionIdForPort 2]
         | [_; _; _] -> okOutMap
-        | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
+        | x -> failwithf "what? Impossible case (%A) in calculateOutputPortsWidth for: %A" x comp.Type
     | Decode4  ->
         assertInputsSize inputConnectionsWidth 2 comp
         let okOutMap =

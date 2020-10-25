@@ -5,8 +5,8 @@ open Fable.Core.JsInterop
 open Electron
 open Node
 
-electron.systemPreferences.setUserDefault("NSDisabledDictationMenuItem",UserDefaultValueType.Boolean, "true")
-electron.systemPreferences.setUserDefault("NSDisabledCharacterPaletteMenuItem",UserDefaultValueType.Boolean, "true")
+electron.systemPreferences.setUserDefault?("NSDisabledDictationMenuItem","boolean", "true")
+electron.systemPreferences.setUserDefault?("NSDisabledCharacterPaletteMenu","boolean", "true")
 
 let args = 
     Api.``process``.argv
@@ -95,7 +95,7 @@ let createMainWindow () =
     // Load the index.html of the app.    
 
 #if DEBUG
-    //DevTools.installAllDevTools window
+    DevTools.installAllDevTools window
     //DevTools.connectRemoteDevViaExtension()
 
     if debug then

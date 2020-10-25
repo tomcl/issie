@@ -76,7 +76,7 @@ let makeMenu (name : string) (table : MenuItemOptions list) =
 
 
 let fileMenu (dispatch:Dispatch<MessageType.Msg>) =
-    makeMenu "Sheet" [
+    makeMenu "File" [
         makeItem "New" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
         makeItem "Save" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
         makeItem "Print" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
@@ -95,7 +95,7 @@ let viewMenu dispatch =
     makeMenu "View" [
         makeRoleItem "Toggle Fullscreen" (Some "F11") MenuItemRole.ToggleFullScreen
         menuSeparator
-        makeRoleItem "Zoom In" (Some "CmdOrCtrl+Plus") MenuItemRole.ZoomIn
+        makeRoleItem "Zoom In2" (Some "CmdOrCtrl+Plus") MenuItemRole.ZoomIn
         makeRoleItem "Zoom Out" (Some "CmdOrCtrl+-") MenuItemRole.ZoomOut
         makeRoleItem "Reset Zoom" (Some "CmdOrCtrl+0") MenuItemRole.ResetZoom
         menuSeparator
@@ -132,7 +132,7 @@ let attachMenusAndKeyShortcuts dispatch =
         let menu =
             [|
                 fileMenu dispatch
-                editMenu dispatch
+                (* editMenu dispatch *)
                 viewMenu dispatch
             |]
             |> Array.map U2.Case1
@@ -152,9 +152,11 @@ type Messages = MessageType.Msg
 
 let init() = DiagramMainView.init(), Cmd.none
 
+let init1() = (),Cmd.none
+
 // -- Create View
 
-let view1 (model:Model) (dispatch:Msg->Unit) : Fable.React.ReactElement= Fable.React.Standard.div [] []
+let view1 (model:Unit) (dispatch:Msg->Unit) : Fable.React.ReactElement= Fable.React.Standard.div [] []
 let view model dispatch = DiagramMainView.displayView model dispatch
 
 // -- Update Model
@@ -164,7 +166,7 @@ let update msg model = Update.update msg model
 
 printfn "Starting renderer..."
 
-Program.mkProgram init update1 view1
+Program.mkProgram init1 update1 view1
 |> Program.withReactBatched "app"
 |> Program.withSubscription attachMenusAndKeyShortcuts
 |> Program.run

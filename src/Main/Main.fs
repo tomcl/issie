@@ -17,7 +17,7 @@ let argFlagIsOn (flags:string list) =
 
 let hasDebugArgs() = argFlagIsOn ["--debug";"-d"]
 
-let debug = true
+let debug = false
 
 module DevTools =
     let private installDevTools (extensionRef: obj) (forceDownload: bool): JS.Promise<string> =
@@ -92,8 +92,8 @@ let createMainWindow () =
     // Load the index.html of the app.    
 
 #if DEBUG
-    DevTools.installAllDevTools window
-    DevTools.connectRemoteDevViaExtension()
+    //DevTools.installAllDevTools window
+    //DevTools.connectRemoteDevViaExtension()
 
     if debug then
         window.webContents.openDevTools()

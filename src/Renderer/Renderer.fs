@@ -70,21 +70,17 @@ let makeMenu (topLevel: bool) (name : string) (table : MenuItemOptions list) =
    subMenu.``type`` <- if topLevel then MenuItemType.Normal else MenuItemType.SubMenu
    subMenu.label <- name
    subMenu.submenu <- U2.Case1 (table |> Array.ofList)
-   subMenu
-
-let nullMenu = createEmpty<MenuItemOptions>
-    
-    
+   subMenu    
 
 
 let fileMenu (dispatch) =
-    makeMenu true "Sheet" [
-        makeItem "New" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
-        makeItem "Save" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
-        makeItem "Print" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
-        makeItem "Exit" None (fun ev -> exitApp())
+    makeMenu false "Sheet" [
+        makeItem "New Sheet" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
+        makeItem "Save Sheet" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
+        makeItem "Print Sheet" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
+        makeItem "Exit Issie" None (fun ev -> exitApp())
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> PopupView.viewInfoPopup dispatch)
-        makeCondItem (JSHelpers.debugLevel <> 0) "Reload page" None (fun _ -> 
+        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Restart app" None (fun _ -> 
             let webContents = electron.remote.getCurrentWebContents()
             webContents.reload())
 
@@ -92,9 +88,9 @@ let fileMenu (dispatch) =
     ]
 
 let viewMenu dispatch =
-    JSHelpers.debugLevel <- 1
+    JSHelpers.debugLevel <- setDebugLevel()
     let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
-    makeMenu true "View" [
+    makeMenu false "View" [
         makeRoleItem "Toggle Fullscreen" (Some "F11") MenuItemRole.ToggleFullScreen
         menuSeparator
         makeRoleItem "Zoom In" (Some "CmdOrCtrl+Plus") MenuItemRole.ZoomIn
@@ -118,7 +114,7 @@ let editMenu dispatch =
     let dispatch = MessageType.KeyboardShortcutMsg >> dispatch
 
     jsOptions<MenuItemOptions> <| fun invisibleMenu ->
-        invisibleMenu.``type`` <- MenuItemType.Normal
+        invisibleMenu.``type`` <- MenuItemType.SubMenu
         invisibleMenu.label <- "Edit"
         invisibleMenu.visible <- true
         invisibleMenu.submenu <-
@@ -131,19 +127,18 @@ let editMenu dispatch =
 
 let attachMenusAndKeyShortcuts dispatch =
     let sub dispatch =
-        let menu =
+        let menu = 
             [|
-               // (if isMac then fileMenu dispatch else nullMenu)
 
                 fileMenu dispatch
 
                 editMenu dispatch 
 
                 viewMenu dispatch
-            |]
+            |]          
             |> Array.map U2.Case1
             |> electron.remote.Menu.buildFromTemplate   
-        menu.items.[0].visible <- Some false
+        menu.items.[0].visible <- Some true
         electron.remote.app.applicationMenu <- Some menu
 
     Cmd.ofSub sub    

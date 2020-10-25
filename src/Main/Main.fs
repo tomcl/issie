@@ -5,6 +5,9 @@ open Fable.Core.JsInterop
 open Electron
 open Node
 
+electron.systemPreferences.setUserDefault("NSDisabledDictationMenuItem",UserDefaultValueType.Boolean, "true")
+electron.systemPreferences.setUserDefault("NSDisabledCharacterPaletteMenuItem",UserDefaultValueType.Boolean, "true")
+
 let args = 
     Api.``process``.argv
     |> Seq.toList

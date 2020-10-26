@@ -87,6 +87,7 @@ type private IDraw2d =
     abstract getAllJsConnections          : canvas:JSCanvas -> JSConnections
     abstract getSelectedJsComponents      : canvas:JSCanvas -> JSComponents
     abstract getSelectedJsConnections     : canvas:JSCanvas -> JSConnections
+    abstract deleteSelection              : canvas: JSCanvas -> unit
     abstract undoLastAction               : canvas:JSCanvas -> unit
     abstract redoLastAction               : canvas:JSCanvas -> unit
     abstract flushCommandStack            : canvas:JSCanvas -> unit
@@ -511,4 +512,9 @@ type Draw2dWrapper() =
     member this.ResetSelected =
         match canvas with
         | Some c -> draw2dLib.resetSelection c
+        | None -> ()
+
+    member this.DeleteSelected ()=
+        match canvas with
+        | Some c -> draw2dLib.deleteSelection c
         | None -> ()

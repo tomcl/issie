@@ -120,6 +120,7 @@ let editMenu dispatch =
             [| makeElmItem "Save Sheet" "CmdOrCtrl+S" (fun () -> dispatch MessageType.CtrlS)
                makeElmItem "Copy" "Alt+C" (fun () -> dispatch MessageType.AltC)
                makeElmItem "Paste" "Alt+V" (fun () -> dispatch MessageType.AltV)
+               makeElmItem "Delete"  "delete" (fun () -> dispatch MessageType.DEL)
                makeElmItem "Undo" "Alt+Z" (fun () -> dispatch MessageType.AltZ)
                makeElmItem "Redo" "Alt+Shift+Z" (fun () -> dispatch MessageType.AltShiftZ) |]
             |> U2.Case1

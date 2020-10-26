@@ -184,6 +184,9 @@ let private handleKeyboardShortcutMsg msg model =
     | AltShiftZ ->
         model.Diagram.Redo ()
         model
+    | DEL ->
+        model.Diagram.DeleteSelected()
+        model
 
 /// handle menus (never used?)
 let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =

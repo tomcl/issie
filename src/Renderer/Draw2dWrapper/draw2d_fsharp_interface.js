@@ -443,6 +443,18 @@ function getSelectedJsConnections(canvas) {
     return connections;
 }
 
+function deleteSelection(canvas) {
+    canvas.getCommandStack().startTransaction(draw2d.Configuration.i18n.command.deleteShape);
+    canvas.getSelection().each($.proxy(function (index, figure) {
+        var cmd = figure.createCommand(new draw2d.command.CommandType(draw2d.command.CommandType.DELETE));
+        if (cmd !== null) {
+            canvas.getCommandStack().execute(cmd);
+        }
+    }, this));
+    // execute all single commands at once.
+    canvas.getCommandStack().commitTransaction();
+}
+
 function undoLastAction(canvas) {
     canvas.getCommandStack().undo();
 }
@@ -541,4 +553,5 @@ export {
     resetSelection,
     addCompSelection,
     addConnSelection,
+    deleteSelection
 };

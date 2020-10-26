@@ -42,7 +42,7 @@ type JSDiagramMsg =
 
 // Messages that will be triggered on key combinations.
 type KeyboardShortcutMsg =
-    | CtrlS | AltC | AltV | AltZ | AltShiftZ
+    | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL
 
 //---------------------------------------------------------------
 //---------------------WaveSim types-----------------------------

@@ -247,7 +247,28 @@ let private checkCounts (conns: Connection list) connMap bins binMap cond errMsg
     let totals = countPortsConnections conns connMap bins binMap 
     checkEvery totals cond errMsg
 
-
+let private checkConns (conns: Connection list) (m : MapData) : SimulationError option=
+    let compOfPort p = m.ToComp.[ComponentId p.HostId]
+    conns
+    |> List.tryPick (fun conn ->
+        let s = compOfPort conn.Source
+        let t = compOfPort conn.Target
+        if s.Type = IOLabel &&  t.Type = IOLabel then
+            Some ( s, t, conn )
+        else None)
+        |> Option.map (fun (s, t, conn) ->
+            (sprintf "You can't connect two Bus Labels with a wire. Delete the connecting wire. If you want to join two bus labels \
+                     you need only give them the same name - then they will form a single net.")
+            |> (fun errMsg -> {
+                Msg = errMsg
+                InDependency = None
+                ComponentsAffected = [ComponentId s.Id ; ComponentId t.Id]
+                ConnectionsAffected = [ConnectionId conn.Id] 
+                }   )      
+        )
+         
+        
+    
 
 /// Check that:
 /// - any port has at least one connection,
@@ -263,6 +284,7 @@ let private checkPortsAreConnectedProperly
     let l2Pid (lst: Port list) = lst |> List.map (fun x -> x.Id)
 
     [
+
         checkCounts m.OtherTargetConns (fun conn -> conn.Target.Id) (l2Pid m.OtherInputPorts) (inPIdMap >> portMap) ((=) 1) (
                 "A wire must have precisely one driving component, but %d \
                 were found. If you want to merge wires together use a MergeWires component")
@@ -277,6 +299,10 @@ let private checkPortsAreConnectedProperly
         checkCounts m.OtherSourceConns (fun conn -> conn.Source) m.OtherOutputPorts portMap ((<) 0) (
                 "Output ports must have at least one, not %d, connections. If the output \
                 is meant to be disconnected you can add a wire label to stop this error")
+
+
+        checkConns conns m 
+                
 
 
     ] |> List.tryPick id

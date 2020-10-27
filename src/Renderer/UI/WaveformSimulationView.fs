@@ -641,6 +641,14 @@ let viewWaveSim (model: Model) dispatch =
 
     // Set the current simulation error message
     | Some _, Some simError ->
+        if simError.InDependency.IsNone then
+           // Highlight the affected components and connection only if
+           // the error is in the current diagram and not in a
+           // dependency.
+           (simError.ComponentsAffected, simError.ConnectionsAffected)
+           |> SetHighlighted 
+           |> dispatch
+
         [ div [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]
               [ SimulationView.viewSimulationError simError
                 button [ Button.Color IsDanger ] (fun _ -> 

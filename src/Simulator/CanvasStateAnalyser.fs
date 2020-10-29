@@ -409,6 +409,37 @@ let private checkConnectionsWidths
             ComponentsAffected = []
         }
 
+
+/// check component labels are all unique and do not include protected values (CLK)
+let checkComponentNamesAreOk ((comps,conns): CanvasState) =
+    let badNameErrors =
+        comps
+        |> List.collect (fun comp ->
+            let label = comp.Label.ToUpper()
+            match label with
+            | "CLK" -> [[comp], "Clk is not allowed as a name for a component or a Net. \
+                        Use the properties tab to give a different name to the highlighted component(s)."]
+            | "" -> [[comp], "All components must have a unique alphanumeric name (e.g. 'G1'). \
+                        Use the properties tab to give a name to the highlighted component(s)."]
+            | _ -> [])
+    let duplicateNameErrors =
+        comps
+        |> List.filter (function | {Type = IOLabel _ } -> false | _ -> true)
+        |> List.groupBy (fun comp -> comp.Label)
+        |> List.filter (fun (_, compL) -> List.length compL > 1)
+        |> List.map (fun (_, compL) -> compL,  "Component names must be distinct. \
+                            Use the properties tab to give different names to the highlighted components")
+    List.tryHead (badNameErrors @ duplicateNameErrors)
+    |> Option.map (fun (comps,msg) ->
+        {
+            Msg = msg
+            InDependency = None
+            ConnectionsAffected = []                            
+            ComponentsAffected = comps |> List.map (fun comp -> ComponentId comp.Id)
+        })
+
+
+
 /// Analyse a CanvasState and return any error (or None).
 let analyseState
         (state : CanvasState)
@@ -420,6 +451,7 @@ let analyseState
         checkIOLabels state
         checkCustomComponentsOk state ldComps
         checkConnectionsWidths state
+        checkComponentNamesAreOk state
     ]
     |> List.tryFind Option.isSome
     |> Option.flatten

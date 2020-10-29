@@ -65,7 +65,7 @@ let private makeMemoryInfo descr mem compId model dispatch =
         br []; br []
         str <| sprintf "Address width: %d bit(s)" mem.AddressWidth
         br []
-        str <| sprintf "Number of elements: %d" (pow2 mem.AddressWidth)
+        str <| sprintf "Number of elements: %d" (1UL <<< mem.AddressWidth)
         br []
         str <| sprintf "Word width: %d bit(s)" mem.WordWidth
         br []; br []

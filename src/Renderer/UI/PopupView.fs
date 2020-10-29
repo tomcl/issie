@@ -11,6 +11,32 @@
     that notifications can be created from messages dispatched by JS code.
 *)
 
+
+(*
+
+Popups must be careful in handling internal state because this cannot be updated by
+dispatch as would be expected.
+
+viewpopup model ->
+model.Popup model.PopupDialogData -> (PopupDialogData contains memory setup data (widths) but not memory component data)
+
+model.Popup <-- 
+    unclosablePopup maybeTitle (body memoryEditorData) maybeFoot extraStyle
+        (from showMemoryEditorPopup maybeTitle body maybeFoot extraStyle dispatch)
+
+        Here body contains the relevant state and is generated from:
+
+        let openMemoryEditor memory compId model dispatch : unit =
+        ....
+        let body = makeEditor memory compId model dispatch
+        ....
+        showMemoryEditorPopup (Some title) body (Some foot) popupExtraStyle dispatch
+
+
+Although showPopup
+
+*)
+
 module PopupView
 
 open Fulma
@@ -59,11 +85,9 @@ let formatLabel (comp:Component) (text:string) =
 
 let setComponentLabel model (comp:Component) text =
     let label = formatLabel comp text
-    printf "Setting label %s" label
     model.Diagram.EditComponentLabel comp.Id label
 
 let setComponentLabelFromText model (comp:Component) text =
-    printf "Setting label %s" text
     model.Diagram.EditComponentLabel comp.Id text
 
 //========//
@@ -84,7 +108,7 @@ let getMemorySetup (dialogData : PopupDialogData) =
 
 let getMemoryEditor (dialogData : PopupDialogData) =
     Option.defaultValue
-        { Address = None; OnlyDiff = false; NumberBase = Hex }
+        { Address = None; OnlyDiff = false; NumberBase = Hex ; Start = 0L}
         dialogData.MemoryEditorData
 
 /// Unclosable popup.

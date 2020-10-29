@@ -100,19 +100,15 @@ let private packBit (bit : Bit) : WireData = [bit]
 
 /// Read the content of the memory at the specified address.
 let private readMemory (mem : Memory) (address : WireData) : WireData =
-    assertThat (mem.Data.Length = pow2 mem.AddressWidth)
-    <| sprintf "Memory has wrong Data.Length: expected %d but got %d" (pow2 mem.AddressWidth) mem.Data.Length
     let intAddr = convertWireDataToInt address
-    let outDataInt = mem.Data.[int intAddr]
+    let outDataInt = Helpers.getMemData intAddr mem
     convertIntToWireData mem.WordWidth outDataInt
 
 /// Write the content of the memory at the specified address.
 let private writeMemory (mem : Memory) (address : WireData) (data : WireData) : Memory =
-    assertThat (mem.Data.Length = pow2 mem.AddressWidth)
-    <| sprintf "Memory has wrong Data.Length: expected %d but got %d" (pow2 mem.AddressWidth) mem.Data.Length
-    let intAddr = int <| convertWireDataToInt address
+    let intAddr = convertWireDataToInt address
     let intData = convertWireDataToInt data
-    {mem with Data = listSet mem.Data intData intAddr}
+    {mem with Data = Map.add intAddr intData mem.Data}
 
 /// Reducer outputs for when a component has not enough inputs to produce an
 /// actual output.

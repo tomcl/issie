@@ -50,7 +50,7 @@ type Memory = {
     // 64 bit integer. This makes words longer than 64 bits not supported.
     // This can be changed by using strings instead of int64, but that is way
     // less memory efficient.
-    Data : int64 list
+    Data : Map<int64,int64>
 }
 
 // Types instantiating objects in the Digital extension.
@@ -245,3 +245,5 @@ type WaveLabel = {
     /// Identifies the driving components' names
     ComposingLabels : LabelSegment list 
 }
+
+

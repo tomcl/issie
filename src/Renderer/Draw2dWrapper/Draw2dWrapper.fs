@@ -72,7 +72,7 @@ type private IDraw2d =
     abstract createDigitalROM             : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
     abstract createDigitalRAM             : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
-    abstract writeMemoryLine              : comp:JSComponent -> addr:int -> value:int64 -> unit
+    abstract writeMemoryLine              : comp:JSComponent -> memData:(int64*int64) list -> unit
     abstract setNumberOfBits              : comp:JSComponent -> numberOfBits:int -> unit
     abstract setLsbBitNumber              : comp:JSComponent -> lsbBitNumber:int -> unit
     abstract setConstantNumber            : comp:JSComponent -> constValue:int -> unit
@@ -164,13 +164,13 @@ let private createComponent
         | RegisterE width -> draw2dLib.createDigitalRegisterE x y width
         | AsyncROM mem ->
             draw2dLib.createDigitalAsyncROM
-                x y mem.AddressWidth mem.WordWidth (fshaprListToJsList mem.Data)
+                x y mem.AddressWidth mem.WordWidth (fshaprListToJsList (mem.Data |>Map.toList))
         | ROM mem ->
             draw2dLib.createDigitalROM
-                x y mem.AddressWidth mem.WordWidth (fshaprListToJsList mem.Data)
+                x y mem.AddressWidth mem.WordWidth (fshaprListToJsList (mem.Data |> Map.toList))
         | RAM mem ->
             draw2dLib.createDigitalRAM
-                x y mem.AddressWidth mem.WordWidth (fshaprListToJsList mem.Data)
+                x y mem.AddressWidth mem.WordWidth (fshaprListToJsList (mem.Data |> Map.toList))
     // Every component is assumed to have a label (may be empty string).
 
     draw2dLib.addComponentLabel comp label
@@ -447,10 +447,10 @@ type Draw2dWrapper() =
             draw2dLib.updateSplitWireLabels jsComp inputWidth topOutputWidth bottomOutputWidth
         |> tryActionWithCanvas "UpdateSplitWireLabels"
 
-    member this.WriteMemoryLine compId addr value =
+    member this.WriteMemoryLine compId memData =
         fun c ->
             let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "WriteMemoryLine"
-            draw2dLib.writeMemoryLine jsComp addr value
+            draw2dLib.writeMemoryLine jsComp memData
         |> tryActionWithCanvas "WriteMemoryLine"
 
     member this.SetNumberOfBits compId numberOfBits =

@@ -3,10 +3,16 @@ module CanvasStatesMemories
 open CommonTypes
 open Helpers
 
+let makeData (lst: int list) =
+    lst 
+    |> List.indexed
+    |> List.map (fun (a,d) -> int64 a, int64 d)
+    |> Map
+
 let mem1 = {
     AddressWidth = 2
     WordWidth = 4
-    Data = [0; 1; 4; 15] |> List.map int64
+    Data = [0; 1; 4; 15] |> makeData
 }
 
 /// Synchronous ROM connected to address and output.
@@ -25,7 +31,7 @@ let stateMem1 : CanvasState =
 let mem2 = {
     AddressWidth = 8
     WordWidth = 8
-    Data = [0..pow2(8)-1] |> List.map int64
+    Data = [0..pow2(8)-1] |> makeData
 }
 
 /// Synchronous ROM connected to address and output. ROM is big.
@@ -43,7 +49,7 @@ let stateMem2 : CanvasState =
 let mem3 = {
     AddressWidth = 3
     WordWidth = 4
-    Data = [0; 0; 0; 0; 0; 0; 0; 0] |> List.map int64
+    Data = [0; 0; 0; 0; 0; 0; 0; 0] |> makeData
 }
 
 /// Fully connected RAM.

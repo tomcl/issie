@@ -34,7 +34,7 @@ let private textFormField name defaultValue onChange =
             Input.Props [ SpellCheck false; Name name; AutoFocus true; Style [ Width "200px"]]
             Input.DefaultValue defaultValue
             Input.Type Input.Text
-            Input.Placeholder "Name (optional)"
+            Input.Placeholder "Name (required)"
             Input.OnChange (getTextEventValue >> onChange)
         ] 
     ]

@@ -44,10 +44,13 @@ let private extractPorts (jsPorts : JSPorts) : Port list =
 let private extractMemoryData (jsComponent : JSComponent) : Memory = {
     AddressWidth = getFailIfNull jsComponent ["addressWidth"]
     WordWidth = getFailIfNull jsComponent ["wordWidth"]
-    Data = jsListToFSharpList <| getFailIfNull jsComponent ["memData"]
+    Data = 
+        let data = getFailIfNull jsComponent ["memData"]
+        data
+        |> Map.ofList
 }
 
-let private extractComponentType (jsComponent : JSComponent) : ComponentType =
+let extractComponentType (jsComponent : JSComponent) : ComponentType =
     match getFailIfNull jsComponent ["componentType"] with
     | "Input"  -> Input <| getFailIfNull jsComponent ["numberOfBits"]
     | "Constant" ->
@@ -97,17 +100,19 @@ let extractComponent (jsComponent : JSComponent) : Component =
     let x = ( (jsComponent?getOuterBoundingBox ()))
     let h = x?getHeight()
     let w = x?getWidth()
+  
     {
-    Id          = getFailIfNull jsComponent ["id"]
-    Type        = extractComponentType jsComponent
-    InputPorts  = extractPorts <| getFailIfNull jsComponent ["inputPorts"; "data"]
-    OutputPorts = extractPorts <| getFailIfNull jsComponent ["outputPorts"; "data"]
-    Label       = extractLabel <| getFailIfNull jsComponent ["children"; "data"]
-    X           = getFailIfNull jsComponent ["x"]
-    Y           = getFailIfNull jsComponent ["y"]
-    H           = h
-    W           = w
-}
+        Id          = getFailIfNull jsComponent ["id"]
+        Type        = extractComponentType jsComponent
+        InputPorts  = extractPorts <| getFailIfNull jsComponent ["inputPorts"; "data"]
+        OutputPorts = extractPorts <| getFailIfNull jsComponent ["outputPorts"; "data"]
+        Label       = extractLabel <| getFailIfNull jsComponent ["children"; "data"]
+        X           = getFailIfNull jsComponent ["x"]
+        Y           = getFailIfNull jsComponent ["y"]
+        H           = h
+        W           = w
+    }
+     
 
 /// Transform a JSComponent into an f# data structure.
 let extractReducedComponent (jsComponent : JSComponent) : Component = 
@@ -115,16 +120,17 @@ let extractReducedComponent (jsComponent : JSComponent) : Component =
     let h = x?getHeight()
     let w = x?getWidth()
     {
-    Id          = getFailIfNull jsComponent ["id"]
-    Type        = extractComponentType jsComponent
-    InputPorts  = extractPorts <| getFailIfNull jsComponent ["inputPorts"; "data"]
-    OutputPorts = extractPorts <| getFailIfNull jsComponent ["outputPorts"; "data"]
-    Label       = extractLabel <| getFailIfNull jsComponent ["children"; "data"]
-    X = 0
-    Y = 0
-    H = 0
-    W = 0
-}
+        Id          = getFailIfNull jsComponent ["id"]
+        Type        = extractComponentType jsComponent
+        InputPorts  = extractPorts <| getFailIfNull jsComponent ["inputPorts"; "data"]
+        OutputPorts = extractPorts <| getFailIfNull jsComponent ["outputPorts"; "data"]
+        Label       = extractLabel <| getFailIfNull jsComponent ["children"; "data"]
+        X = 0
+        Y = 0
+        H = 0
+        W = 0
+    }
+    
 
 let extractConnection (jsConnection : JSConnection) : Connection = {
     Id       = getFailIfNull jsConnection ["id"]

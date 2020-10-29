@@ -338,7 +338,7 @@ let getNewComponentPosition (model:Model) =
                               {LTop= pt; RBot = pt}
                      | lst -> List.maxBy checkDistance lst)
         |> (fun bb -> bb.LTop)
-    |> (fun (x,y) -> printf "Pos=(%d,%d)" x y; (x,y))
+//    |> (fun (x,y) -> printf "Pos=(%d,%d)" x y; (x,y))
         
 
  
@@ -600,7 +600,7 @@ let private createMemoryPopup memType model dispatch =
             let memory = {
                 AddressWidth = addressWidth
                 WordWidth = wordWidth
-                Data = List.replicate (pow2 addressWidth) (int64 0) // Initialise with zeros.
+                Data = Map.empty                   
             }
             createCompStdLabel (memType memory) model dispatch
             dispatch ClosePopup

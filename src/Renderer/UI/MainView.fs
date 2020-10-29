@@ -153,10 +153,10 @@ let dividerbar (model:Model) dispatch =
 let displayView model dispatch =
     let windowX,windowY =
         int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
-    let selectedComps, selectedconns = 
-        model.Diagram.GetSelected()
-        |> Option.map extractState
-        |> Option.defaultValue ([],[])
+    //let selectedComps, selectedconns = 
+    //    model.Diagram.GetSelected()
+    //    |> Option.map extractState
+    //    |> Option.defaultValue ([],[])
     let sd = scrollData model
     let x' = sd.SheetLeft+sd.SheetX
     let y' = sd.SheetTop+sd.SheetY

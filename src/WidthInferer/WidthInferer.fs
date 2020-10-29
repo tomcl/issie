@@ -117,7 +117,7 @@ let addVirtualBusLabelConnections
     |> Map.toSeq
     |> Seq.append (extraLabelConns |> Seq.ofList)
     |> Map.ofSeq
-    |> (fun m -> printfn "%A" m; m)
+   
 
 /// For width inference, because IOLabel components join nets,
 /// the single allowed input connection to a set of labels must
@@ -463,7 +463,6 @@ let rec private infer
 
     getInputPortsConnectionsWidth connectionsWidth currNode inputPortIdsToConnectionIds
     |> calculateOutputPortsWidth currNode outputPortsOfBusLabels
-    |> (fun r -> printfn "\n---------\nComp = %A,%s: widths= %A\n---------\n" currNode.Type currNode.Label connectionsWidth; r)
     |> Result.bind (fun outputPortsWidths ->
         // For each output in the map:
         // - Get all connections that are connected to that port.

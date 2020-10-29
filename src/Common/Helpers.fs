@@ -25,11 +25,11 @@ let tryFindError (lst : Result<'a,'b> list) : Result<'a list, 'b> =
 
 /// Return 2^exponent.
 let pow2 (exponent : int) : int =
-    int (2. ** float(exponent)) // TODO use bit-shift.
+    1 <<< exponent // TODO use bit-shift.
 
 /// Return 2^exponent, packed into an int64.
 let pow2int64 (exponent : int) : int64 =
-    int64 (2. ** float(exponent))
+    1L <<< exponent
 
 /// Set an element of the list at the specified position.
 /// This function is slow: O(n). Do not use unless necessary.
@@ -51,6 +51,12 @@ let cropToLength (len : int) (fromStart : bool) (str : string) =
     | false when fromStart -> str.[..len-1] + "..." // From start.
     | false -> "..." + str.[str.Length - len..]     // From end.
 
+
+let getMemData (address: int64) (memData: Memory) =
+    assertThat (memData.AddressWidth > 63 || (1UL <<< memData.AddressWidth) > (uint64 address)) (
+        sprintf "Inconsistent memory access: address %A, memData %A" address memData)
+    Map.tryFind address memData.Data
+    |> Option.defaultValue 0L
 
 //--------------------Helper Functions-------------------------------//
 //-------------------------------------------------------------------//
@@ -138,3 +144,7 @@ let getNetList ((comps,conns) : CanvasState) =
         |> updateInputsComp (ComponentId tComp.Id)tgt.InputPort src
 
     (initNets, conns) ||> List.fold addConnectionsToNets
+
+
+
+

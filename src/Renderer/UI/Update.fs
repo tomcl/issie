@@ -327,6 +327,23 @@ let private setSelWavesHighlighted model connIds =
                                 then st
                                 else cId :: st ) [] connIds
 
+let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) =
+    match compOpt with
+    | None -> None
+    | Some ({Type= (AsyncROM mem as ct)} as comp)
+    | Some ({Type = (ROM mem as ct)} as comp)
+    | Some ({Type= (RAM mem as ct)} as comp) -> 
+        let update mem ct =
+            match ct with
+            | AsyncROM _ -> AsyncROM mem
+            | ROM _ -> ROM mem
+            | RAM _ -> RAM mem
+            | _ -> ct
+        let mem' = {mem with Data = mem.Data |> Map.add addr data}
+        printfn "changing memory component to %A" (update mem' ct)
+        Some {comp with Type= update mem' ct}
+    | _ -> compOpt
+        
 //----------------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------UPDATE-----------------------------------------------------------//
 //----------------------------------------------------------------------------------------------------------------//
@@ -420,6 +437,10 @@ let update msg model =
         { model with PopupDialogData = {model.PopupDialogData with MemorySetup = m} }, Cmd.none
     | SetPopupMemoryEditorData m ->
         { model with PopupDialogData = {model.PopupDialogData with MemoryEditorData = m} }, Cmd.none
+    | SetSelectedComponentMemoryLocation (addr,data) ->
+        printfn "updating component memory %d %d" addr data
+        {model with SelectedComponent = updateComponentMemory addr data model.SelectedComponent}, Cmd.none
+    
     | CloseDiagramNotification ->
         { model with Notifications = {model.Notifications with FromDiagram = None} }, Cmd.none
     | SetSimulationNotification n ->

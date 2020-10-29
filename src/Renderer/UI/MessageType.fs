@@ -13,7 +13,8 @@ type RightTab =
 
 type MemoryEditorData = {
     OnlyDiff : bool // Only show diffs in Memory Diff Viewer.
-    Address : int option // Only show the specified memory address.
+    Address : int64 option // Only show the specified memory address.
+    Start: int64
     NumberBase : NumberBase
 }
 
@@ -198,6 +199,7 @@ type Msg =
     | SetPopupDialogTwoInts of (int option * IntMode)
     | SetPopupDialogMemorySetup of (int * int) option
     | SetPopupMemoryEditorData of MemoryEditorData option
+    | SetSelectedComponentMemoryLocation of int64 * int64
     | CloseDiagramNotification
     | SetSimulationNotification of ((Msg -> unit) -> ReactElement)
     | CloseSimulationNotification

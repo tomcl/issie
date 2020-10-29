@@ -37,13 +37,41 @@ let private hexToBin (hStr : string) : string =
             | c -> failwithf "Invalid char %c while converting hex %s to binary" c hStr
         firstDigit + (convert chars')
 
+let addZeros64 (width:int) (pFun:int64 -> string) (n: int64) =
+    let s = pFun n
+    let bits = 
+        match s.[1] with
+        | 'x' -> 4
+        | 'b' -> 1
+        | _ -> failwithf "Wrong use of addZeros64: s = %s" s
+    let extra = (width - (s.Length - 2)*bits) / bits
+    s.[0..1] + String.replicate extra "0" + s.[2..]
+
+let addZeros (width:int) (pFun:int -> string) (n: int) =
+    let s = pFun n
+    let bits = 
+        match s.[1] with
+        | 'x' -> 4
+        | 'b' -> 1
+        | _ -> failwithf "Wrong use of addZeros: s = %s" s
+    let extra = ((width - (s.Length - 2))*bits + (2<<<bits - 1)) / bits
+    s.[0..1] + String.replicate extra "0" + s.[2..]
+
 let hex64 (num : int64) = "0x" + num.ToString("X")
+let fillHex64 width = addZeros64 width hex64
+
 let bin64 (num : int64) = "0b" + (hexToBin <| num.ToString("X"))
 let sDec64 (num : int64) = num.ToString()
 let dec64 (num: int64) = (uint64 num).ToString()
+
 let hex (num : int) = hex64 <| int64 num
+let fillHex width = addZeros width hex
+
 let bin (num : int) = bin64 <| int64 num
 let dec (num : int) = dec64 <| int64 num
+
+let fillBin64 width = addZeros64 width bin64
+let fillBin width = addZeros width bin
 
 /// Convert a bit to string.
 let bitToString (bit : Bit) : string =

@@ -638,6 +638,35 @@ let private busLabelOneValue wsMod (busLabelValAndPos: {| Sample: Sample; XPosAr
 ///////////////////////
 
 /// get SVG of a single waveform for one clock cycle
+let private makeClkSegment (clkW: float) (xInd: int)  =
+    let top = spacing
+    let bot = top + sigHeight - sigLineThick
+    let left = float xInd * clkW
+    let right = left + float clkW
+    let mid = left + float clkW / 2.
+
+    let makeSigLine =
+        makeLinePoints
+            [ Class "sigLineStyle"
+              Style [ Stroke("blue") ] ]
+
+    let clkPoints = [
+        (left, top)
+        (mid, top)
+        (mid, bot)
+        (right, bot)
+        (right, top)
+    ]
+
+    clkPoints
+    |> List.pairwise
+    |> List.map (fun (p1,p2) -> makeSigLine p1 p2)
+    |> List.toArray
+
+
+
+
+/// get SVG of a single waveform for one clock cycle
 let private makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * int) =
     let top = spacing
     let bot = top + sigHeight - sigLineThick
@@ -696,7 +725,16 @@ let clkRulerSvg (model: WaveSimModel) =
     |> Array.append (backgroundSvg model)
     |> makeSvg (clkRulerStyle model)
 
-/// get SVG of a single waveform
+
+/// get SVG of a positive edge trigerred CLK waveform
+let makeClkSvg (sampArr: Waveform) (wsMod): ReactElement [] =
+    [|0.. Array.length sampArr - 1|]
+    |> Array.map (makeClkSegment (wsMod.ClkWidth / 2.))
+    |> Array.concat
+
+ 
+
+/// get SVG of the array of waveforms in wsMod
 let waveSvg wsMod waveData  =
     let valueLabels =
         busLabels wsMod waveData

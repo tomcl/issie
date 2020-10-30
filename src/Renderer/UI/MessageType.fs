@@ -88,6 +88,7 @@ type Sample = | Wire of Wire | StateSample of StateSample
 type SimTime = Sample array
 type Waveform = Sample array
 
+type WaveDispT = { Port: NetGroup; Name: string}
 
 type WaveTempT = {
     /// generate data using this, which comes from makesimdata

@@ -328,15 +328,15 @@ let viewSimulation model dispatch =
                 [ str buttonText ]
         ]
     | Some sim ->
-        let body = match sim with
-                   | Error simError -> viewSimulationError simError
-                   | Ok simData -> viewSimulationData simData model dispatch
+        let key, body = match sim with
+                   | Error simError -> "", viewSimulationError simError
+                   | Ok simData -> simData.NumberBase.ToString(), viewSimulationData simData model dispatch
         let endSimulation _ =
             dispatch CloseSimulationNotification // Close error notifications.
             dispatch <| SetHighlighted ([], []) // Remove highlights.
             dispatch EndSimulation // End simulation.
             dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
-        div [] [
+        div [Key=key] [
             Button.button
                 [ Button.Color IsDanger; Button.OnClick endSimulation ]
                 [ str "End simulation" ]

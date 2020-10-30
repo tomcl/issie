@@ -601,8 +601,8 @@ let inferConnectionsWidth
                )
         // If this is too slow, one could start the process only from input
         // components. To do so, pass the (getAllInputNodes components) instead
-        // of components.
-        (Ok connectionsWidth, getAllInputNodes comps)
+        // of components. (But this would not work for ckts with no inputs).
+        (Ok connectionsWidth, comps)
         ||> List.fold (fun connectionsWidthRes inputNode ->
             connectionsWidthRes |> Result.bind (fun connectionsWidth ->
                 infer staticMaps inputNode connectionsWidth

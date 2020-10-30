@@ -142,6 +142,7 @@ let private viewSimulationInputs
             | bits ->
                 let defValue = viewNum numberBase <| convertWireDataToInt bits
                 Input.text [
+                    Input.Key (numberBase.ToString())
                     Input.DefaultValue defValue
                     Input.Props [
                         simulationNumberStyle
@@ -174,7 +175,8 @@ let private staticBitButton bit =
     ] [ str <| bitToString bit ]
 
 let private staticNumberBox numBase bits =
-    let value = viewNum numBase <| convertWireDataToInt bits
+    let width = List.length bits
+    let value = viewFilledNum width numBase <| convertWireDataToInt bits
     Input.text [
         Input.IsReadOnly true
         Input.Value value
@@ -328,15 +330,15 @@ let viewSimulation model dispatch =
                 [ str buttonText ]
         ]
     | Some sim ->
-        let key, body = match sim with
-                   | Error simError -> "", viewSimulationError simError
-                   | Ok simData -> simData.NumberBase.ToString(), viewSimulationData simData model dispatch
+        let body = match sim with
+                   | Error simError -> viewSimulationError simError
+                   | Ok simData -> viewSimulationData simData model dispatch
         let endSimulation _ =
             dispatch CloseSimulationNotification // Close error notifications.
             dispatch <| SetHighlighted ([], []) // Remove highlights.
             dispatch EndSimulation // End simulation.
             dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
-        div [Key=key] [
+        div [] [
             Button.button
                 [ Button.Color IsDanger; Button.OnClick endSimulation ]
                 [ str "End simulation" ]

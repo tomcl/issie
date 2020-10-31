@@ -286,7 +286,7 @@ let private checkPortsAreConnectedProperly
     [
 
         checkCounts m.OtherTargetConns (fun conn -> conn.Target.Id) (l2Pid m.OtherInputPorts) (inPIdMap >> portMap) ((=) 1) (
-                "A wire must have precisely one driving component, but %d \
+                "A component input port must have precisely one driving component, but %d \
                 were found. If you want to merge wires together use a MergeWires component")
 
         checkCounts m.LabTargetConns (fun conn -> m.ToComp.[ComponentId conn.Target.HostId].Label) (m.LabGroup |> Map.toList |> List.map fst)  labMap ((=) 1) (

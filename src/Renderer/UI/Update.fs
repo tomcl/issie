@@ -369,6 +369,7 @@ let update msg model =
         setActivity (fun a -> {a with LastSavedCanvasState= Map.add name state a.LastSavedCanvasState}) model, Cmd.none
     | StartSimulation simData -> { model with Simulation = Some simData }, Cmd.none
     | SetCurrFileWSMod wSMod' -> 
+        printfn "Setting %A in wsMod" wSMod'.WaveSimEditorOpen
         match FileMenuView.getCurrFile model with
         | Some fileName ->
             { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), 
@@ -490,7 +491,7 @@ let update msg model =
     | SetIsLoading b ->
         {model with IsLoading = b}, Cmd.none
     | SetSimInProgress waveInfo -> 
-        { model with SimulationInProgress = Some waveInfo }, Cmd.none
+        { model with SimulationInProgress = Some waveInfo }, Cmd.ofMsg (SimulateWhenInProgress <| Some waveInfo)
     | SimulateWhenInProgress waveInfo ->
         // do the simulation for WaveSim and generate new SVGs
         match FileMenuView.getCurrFile model with

@@ -87,8 +87,8 @@ let private makeNumberOfBitsField model (comp:Component) text setter dispatch =
         fun newWidth ->
             if newWidth < 1
             then
-                errorNotification "Invalid number of bits." ClosePropertiesNotification
-                |> SetPropertiesNotification |> dispatch
+                let props = errorPropsNotification "Invalid number of bits."
+                dispatch <| SetPropertiesNotification props
             else
                 setter comp.Id newWidth // change the JS component
                 let text' = match comp.Type with | BusSelection _ -> text | _ -> formatLabelAsBus newWidth text
@@ -105,15 +105,15 @@ let private makeConstantValueField model (comp:Component) setter dispatch =
         | Constant(width,cVal) -> cVal, width
         | _ -> failwithf "makeConstantValuefield called from %A" comp.Type
     if width > 32 then
-        errorNotification "Invalid Constant width" ClosePropertiesNotification
-        |> SetPropertiesNotification |> dispatch
+        let note = errorPropsNotification "Invalid Constant width"
+        dispatch <| SetPropertiesNotification note
     intFormFieldNoMin "Value of the wire:" cVal (
         fun newCVal ->
             if int64 newCVal >= (1L <<< width) || int64 newCVal < -(1L <<< (width-1))
             then
                 let errMsg = sprintf "Constant value too large for number of bits: %d requires more than %d bits" newCVal width
-                errorNotification errMsg  ClosePropertiesNotification
-                |> SetPropertiesNotification |> dispatch
+                let note = errorPropsNotification errMsg
+                dispatch <| SetPropertiesNotification note
             else
                 setter comp.Id newCVal // change the JS component
                 let lastUsedWidth = model.LastUsedDialogWidth
@@ -132,8 +132,8 @@ let private makeLsbBitNumberField model (comp:Component) setter dispatch =
         fun newLsb ->
             if newLsb < 0
             then
-                errorNotification "Invalid LSB bit position" ClosePropertiesNotification
-                |> SetPropertiesNotification |> dispatch
+                let note = errorPropsNotification "Invalid LSB bit position"
+                dispatch <| SetPropertiesNotification note
             else
                 setter comp.Id newLsb // change the JS component
                 let lastUsedWidth = match comp.Type with | SplitWire _ | BusSelection _ -> model.LastUsedDialogWidth | _ ->  newLsb

@@ -119,8 +119,10 @@ let setDragMode (modeIsOn:bool) (model:Model) dispatch =
         makeSelectionChangeMsg model dispatch ev
         //printfn "START X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         match modeIsOn, model.DragMode with
-        | true, DragModeOff ->  SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
-        | false, DragModeOn _ -> SetDragMode DragModeOff |> dispatch
+        | true, DragModeOff ->  
+            dispatch <| SetDragMode (DragModeOn (int ev.clientX))
+        | false, DragModeOn _ -> 
+            dispatch <| SetDragMode DragModeOff
         | _ -> ()
 
 /// Draggable vertivcal bar used to divide Wavesim window from Diagram window
@@ -164,7 +166,8 @@ let displayView model dispatch =
     /// used only to make the divider bar draggable
     let processMouseMove (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
-        if ev.buttons = 1. then dispatch SelectionHasChanged
+        if ev.buttons = 1. then 
+            dispatch SelectionHasChanged
         match model.DragMode, ev.buttons with
         | DragModeOn pos , 1.-> 
             let newWidth = model.ViewerWidth - int ev.clientX + pos
@@ -172,20 +175,24 @@ let displayView model dispatch =
                 newWidth
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth)
-            SetViewerWidth w |> dispatch
+            dispatch <| SetViewerWidth w 
             match currWaveSimModel model with
-            | Some wSMod when w > maxWidth wSMod && not wSMod.WaveSimState ->
-                {| LastClk = wSMod.LastClk + 10u
-                   ClkW = wSMod.ClkWidth
-                   Curs = wSMod.Cursor |}
-                |> Error |> SetSimInProgress |> dispatch
+            | Some wSMod when w > maxWidth wSMod && wSMod.WaveSimEditorOpen <> WSEditorOpen ->
+                let simProgressState = 
+                    {|  LastClk = wSMod.LastClk + 10u
+                        ClkW = wSMod.ClkWidth
+                        Curs = wSMod.Cursor |}
+                dispatch <| SetSimInProgress (ChangeParameters simProgressState)
             | _ -> ()
-            SetDragMode (DragModeOn (int ev.clientX)) |> dispatch
-        | DragModeOn _, _ ->  SetDragMode DragModeOff |> dispatch
+            dispatch <| SetDragMode (DragModeOn (int ev.clientX))
+        | DragModeOn _, _ ->  
+            dispatch <| SetDragMode DragModeOff
         | DragModeOff, _-> ()
 
     // the whole app window
-    div [ OnMouseUp (fun ev -> setDragMode false model dispatch ev; dispatch SelectionHasChanged);
+    div [ OnMouseUp (fun ev -> 
+            setDragMode false model dispatch ev; 
+            dispatch SelectionHasChanged);
           OnMouseDown (makeSelectionChangeMsg model dispatch)
           OnMouseMove processMouseMove
           Style [ BorderTop "2px solid lightgray"; BorderBottom "2px solid lightgray" ] ] [
@@ -218,22 +225,20 @@ let displayView model dispatch =
                                     [ JSHelpers.tipStr "bottom" "Catalogue" "List of components and custom components from other design sheets to add to this sheet"] ]                                
                                 Tabs.tab // Properties tab to view/chnage component properties
                                     [ Tabs.Tab.IsActive (model.RightTab = Properties) ]
-                                    [ a [ OnClick (fun _ -> ChangeRightTab Properties |> dispatch ) ] 
+                                    [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties ) ] 
                                     [ JSHelpers.tipStr "bottom" "Properties" "View or change component name, width, etc"] ]
 
                                 Tabs.tab // simulation tab to do combinational simulation
                                     [ Tabs.Tab.IsActive (model.RightTab = Simulation) ]
-                                    [ a [ OnClick (fun _ -> ChangeRightTab Simulation |> dispatch ) ] 
+                                    [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] 
                                     [ JSHelpers.tipStr "bottom" "Simulation" "Simple simulation for combinational logic which allows inputs to be changed manually" ] ]
                                 /// Optional wavesim tab. If present contains waveforms or waveform aditor window
                                 match currWaveSimModel model with
-                                | Some {WaveData = Some {InitWaveSimGraph =  Some _}} ->
+                                | Some {InitWaveSimGraph =  Some _} ->
                                     Tabs.tab // WaveSim tab - if wavesim exists
                                         [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
-                                        [ a [ OnClick (fun _ -> ChangeRightTab WaveSim |> dispatch) ] 
+                                        [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab WaveSim ) ] 
                                         [ str "WaveSim" ] ] 
-                                | Some {WaveData = Some {InitWaveSimGraph = None }} -> 
-                                    failwithf "Unexpected WaveAdder with SimData=None"
                                 | _ -> div [] []
                               ]
                     viewRightTab model dispatch ] ] ]

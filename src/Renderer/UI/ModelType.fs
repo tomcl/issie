@@ -64,7 +64,7 @@ type Model = {
     TopMenu : TopMenu
     DragMode: DragMode
     ViewerWidth: int // waveform viewer width in pixels
-    SimulationInProgress:  Result<NetGroup array,{| LastClk: uint; Curs: uint; ClkW: float |}> option
+    SimulationInProgress:  SimActionT option
     ConnsToBeHighlighted: bool
     CheckScrollPos: bool
 } with
@@ -160,25 +160,26 @@ let waveSimModel2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
         Radix = wsMod.Radix
         LastClk = wsMod.LastClk
         DisplayedPortIds = 
-            wsMod.DispPorts 
+            dispPorts wsMod
             |> Array.map (fun p -> p.driverNet.[0].TargetCompId)
             |> Array.map (fun cId -> match cId with | ComponentId n -> n)
     }
 
 /// setup current WaveSimModel from saved record
 let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
-    {   
+    { 
+        InitWaveSimGraph = None
         SimDataCache = [||]
-        DispWaveSVGCache = [||]
+        DispWaveSVGCache = {Bottom=[||]; Waves = [||]; Top = [||]}
         DispWaveNames = [||]
-        DispPorts = [||]
+        AllWaveNames = [||]
+        AllPorts = Map.empty
         ClkWidth = sWInfo.ClkWidth
         Cursor = sWInfo.Cursor
         CursorEmpty = false
         Radix = sWInfo.Radix
         LastClk = sWInfo.LastClk
-        WaveSimState = false
-        WaveData = None
+        WaveSimEditorOpen = NoWS
         LastCanvasState = None           
     }
 

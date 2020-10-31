@@ -95,9 +95,10 @@ let private runBusWidthInference model =
             |> List.map (fun (ConnectionId c) -> model.Diagram.HighlightConnection c)
             |> ignore
             // Display notification with error message.
-            { model with Notifications =
-                            { model.Notifications with FromDiagram =
-                                                        Some <| errorNotification e.Msg CloseDiagramNotification} }
+            { model with 
+                Notifications =
+                    { model.Notifications with 
+                        FromDiagram = Some <| errorNotification e.Msg CloseDiagramNotification} }
         | Ok connsWidth ->
             repaintConnections model connsWidth
             repaintBusComponents model connsWidth state
@@ -495,23 +496,21 @@ let update msg model =
         match FileMenuView.getCurrFile model with
         | Some fileName ->
             match currWaveSimModel model, waveInfo with
-            | Some wSMod, Ok ports -> 
+            | Some wSMod, Some (MakeSVGs ports) -> 
                 // does the actual simulation and SVG generation, if needed
                 let wsMod' = waveGen wSMod ports
                 { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model [] 
                              WaveSim = Map.add fileName wsMod' (fst model.WaveSim), 
                                        snd model.WaveSim
-                             SimulationInProgress = None }, Cmd.ofMsg SetSimNotInProgress
-            | Some wSMod, Error par -> 
+                             SimulationInProgress = None }, Cmd.none
+            | Some wSMod, Some (ChangeParameters par) -> 
                 // in this case 
                 { model with WaveSim = Map.add fileName (updateWSMod model wSMod par) (fst model.WaveSim), 
                                        snd model.WaveSim 
-                             SimulationInProgress = None }, Cmd.ofMsg SetSimNotInProgress
+                             SimulationInProgress = None }, Cmd.none
             | _ -> 
                 failwith "SetSimInProgress dispatched when currWS model is None"
         | None -> failwith "SetSimInProgress dispatched when getCurrFile model is None"
-    | SetSimNotInProgress ->
-        model, Cmd.none
     | SetLastSimulatedCanvasState cS ->
         { model with LastSimulatedCanvasState = cS }, Cmd.none
     | UpdateScrollPos b ->

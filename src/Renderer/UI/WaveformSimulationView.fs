@@ -138,6 +138,7 @@ let maxWidth (wSMod: WaveSimModel) =
 
 /// change selection of a waveform's connections
 let private changeNetGroupConnsSelect  (selFun: NetGroup -> bool) (diagram) (wSMod: WaveSimModel) netList ind =
+    printfn "ind=%d, wavenames = %A" ind wSMod.AllWaveNames
     let netGroup =  wSMod.AllPorts.[wSMod.AllWaveNames.[ind]]
     netGroup
     |> selFun
@@ -202,25 +203,23 @@ let private moveWave diagram netList (wSMod: WaveSimModel) up =
     let addLastPort arr p =
         Array.mapi (fun i el -> if i <> Array.length arr - 1 then el
                                 else fst el, Array.append (snd el) [| p |]) arr
-    let wTFirst, wTLast = wSMod.DispWaveSVGCache.Bottom, wSMod.DispWaveSVGCache.Top
-    Array.zip (dispPorts wSMod) wSMod.DispWaveSVGCache.Waves
-    |> Array.map (fun p -> isWaveSelected diagram netList (fst p), p) 
-    |> Array.fold (fun (arr, prevSel) (sel,p) -> 
-        match sel, prevSel with 
-        | true, true -> addLastPort arr p, sel
-        | s, _ -> Array.append arr [| s, [|p|] |], s ) ([||], false)
-    |> fst
-    |> Array.mapi (fun i (sel, ports) -> if sel
-                                           then float i + moveBy, ports
-                                           else float i, ports)
-    |> Array.sortBy fst
-    |> Array.collect snd
-    |> Array.unzip 
-    |> (fun (p, wT) -> {wSMod with
-                                   DispWaveNames = Array.map (waveNameOf wSMod) p
-                                   DispWaveSVGCache = {Bottom=wTFirst;Waves=wT;Top=wTLast}})
+    let svgCache = wSMod.DispWaveSVGCache
+    let wTFirst, wTLast = svgCache.Top, svgCache.Bottom
+    let movedNames =
+        wSMod.DispWaveNames
+        |> Array.map (fun name -> isWaveSelected diagram netList (wSMod.AllPorts.[name]), name)
+        |> Array.fold (fun (arr, prevSel) (sel,p) -> 
+            match sel, prevSel with 
+            | true, true -> addLastPort arr p, sel
+            | s, _ -> Array.append arr [| s, [|p|] |], s ) ([||], false)
+        |> fst
+        |> Array.mapi (fun i (sel, ports) -> if sel
+                                               then float i + moveBy, ports
+                                               else float i, ports)
+        |> Array.sortBy fst
+        |> Array.collect snd 
+    {wSMod with DispWaveNames = movedNames}
     |> SetCurrFileWSMod
-
 
 /// display set of netGroups in a standard order
 /// dispPort ones first.
@@ -471,7 +470,9 @@ let private wavesCol model (wSModel: WaveSimModel) rows dispatch =
             // can use dispatch here to make something happen based on scroll position
             // scroll position = min or max => at end
             printfn "scrolling with scrollPos=%f" e.scrollLeft
-        
+    let waves = 
+        wSModel.DispWaveNames 
+        |> Array.map (fun name -> rows.Waves.[name]) 
     div [ Ref htmlElementRef 
           OnScroll scrollFun 
           Style [ MaxWidth(maxWavesColWidth wSModel)
@@ -479,7 +480,7 @@ let private wavesCol model (wSModel: WaveSimModel) rows dispatch =
           Class "wavesTable" ]
         [ div [ Class "cursorRectStyle"; cursRectStyle wSModel ] [ str " " ]
           table [ Style [ Height "100%" ] ] 
-                [ tbody [ Style [ Height "100%" ] ] (Array.concat [|rows.Bottom; rows.Waves; rows.Top|]) ] ]
+                [ tbody [ Style [ Height "100%" ] ] (Array.concat [|rows.Top; waves; rows.Bottom|]) ] ]
 
 /// ReactElement of the bottom part of the waveform simulator when waveforms are being displayed
 let private viewWaveformViewer compIds model netList wSMod dispatch =
@@ -555,6 +556,7 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
     let isSelected (ng:NetGroup) = isWaveSelected model.Diagram netList ng
     /// this is what actually gets displayed when editor exits
     let waveEditorViewSimButtonAction =
+        //
         let viewableNetGroups = 
             getAllNetGroups wSModel
             |> (fun gps -> standardOrderGroups gps wSModel)
@@ -570,7 +572,9 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
                     let action = MakeSVGs viewableNetGroups                
                     dispatch <|  SetSimInProgress action)
             ]
-        |> (fun lst -> Button.Props [ Style [ MarginLeft "10px" ] ] :: lst)
+        |> (fun lst -> 
+                dispatch ClosePropertiesNotification
+                Button.Props [ Style [ MarginLeft "10px" ] ] :: lst)
     let cancelButton =
         Button.button
             [ Button.Color IsDanger
@@ -702,6 +706,7 @@ let startNewWaveSimulation compIds model wSMod dispatch (simData: SimulatorTypes
     let wSMod = { 
         wSMod with       
           AllPorts = allPorts 
+          AllWaveNames = allNames
           WaveSimEditorOpen = WSEditorOpen
           InitWaveSimGraph = Some simData
           LastCanvasState = Some rState 
@@ -788,8 +793,8 @@ let viewWaveSim (model: Model) dispatch =
             waveEditorView  model netList wSModel dispatch      
         | WSViewerOpen, None  ->         // otherwise display waveforms 
             waveformsView compIds model netList wSModel dispatch  
-        | _  -> 
-            printfn "ViewWaveSim should not be called when NoWS is set"
+        | _, prog  -> 
+            printfn "ViewWaveSim should not be called when WaveSimEditorOpen =%A, inProgress = %A" wSModel.WaveSimEditorOpen prog
             [ div [] [] ]
 
     // Set the current simulation error message

@@ -88,9 +88,9 @@ type Sample = | Wire of Wire | StateSample of StateSample
 type SimTime = Sample array
 type Waveform = Sample array
 type SVGCacheT = {
-    Bottom: ReactElement []
-    Waves: ReactElement []
     Top: ReactElement []
+    Waves: Map<string,ReactElement>
+    Bottom: ReactElement []
     }
 
 type WaveSimStateT = NoWS | WSEditorOpen | WSViewerOpen
@@ -149,7 +149,7 @@ let initWS (allNames:string array) (allPorts: Map<string,NetGroup>): WaveSimMode
       AllWaveNames = allNames
       SimDataCache = [||]
       DispWaveNames = [||]
-      DispWaveSVGCache = { Bottom = [||]; Waves = [||]; Top = [||]}
+      DispWaveSVGCache = { Top = [||]; Waves = Map.empty; Bottom = [||]}
       ClkWidth = 1.0
       Cursor = 0u
       CursorEmpty = false

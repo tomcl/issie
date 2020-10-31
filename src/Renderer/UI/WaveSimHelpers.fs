@@ -767,7 +767,9 @@ let waveSvg wsMod waveData  =
 /// waveSVG and clkRulerSvg are constant functions passed in because defined after this
 /// TODO: reorder functions!
 let addSVGToWaveSimModel wSModel =
-    let waveData = getWaveData wSModel
+    let waveData = 
+        getWaveData wSModel
+
     let waveTableRow rowClass cellClass svgClass svgChildren =
         tr rowClass [ td cellClass [ makeSvg svgClass svgChildren ] ]
     let bgSvg = backgroundSvg wSModel
@@ -777,10 +779,13 @@ let addSVGToWaveSimModel wSModel =
 
     let midRows =
         waveSvg wSModel waveData
-        |> Array.map (fun wave ->
+        |> Array.zip wSModel.DispWaveNames
+        |> Array.map (fun (name,wave) ->
                 let waveWithBg = Array.append bgSvg wave
-                waveTableRow [ Class "rowHeight" ] (waveCell wSModel) (waveCellSvg wSModel false) waveWithBg)
-    let svgs = {Bottom =  firstRow ; Waves =  midRows; Top = lastRow }
+                let svg = waveTableRow [ Class "rowHeight" ] (waveCell wSModel) (waveCellSvg wSModel false) waveWithBg
+                name,svg)
+        |> Map.ofArray
+    let svgs = {Top =  firstRow ; Waves =  midRows; Bottom = lastRow }
     {wSModel with DispWaveSVGCache = svgs}
 
 

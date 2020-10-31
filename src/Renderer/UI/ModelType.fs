@@ -170,7 +170,7 @@ let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
     { 
         InitWaveSimGraph = None
         SimDataCache = [||]
-        DispWaveSVGCache = {Bottom=[||]; Waves = [||]; Top = [||]}
+        DispWaveSVGCache = {Top=[||]; Waves = Map.empty; Bottom = [||]}
         DispWaveNames = [||]
         AllWaveNames = [||]
         AllPorts = Map.empty

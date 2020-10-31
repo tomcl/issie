@@ -87,28 +87,37 @@ type StateSample = string array
 type Sample = | Wire of Wire | StateSample of StateSample
 type SimTime = Sample array
 type Waveform = Sample array
+type SVGCacheT = {
+    Bottom: ReactElement []
+    Waves: ReactElement []
+    Top: ReactElement []
+    }
 
-type WaveDispT = { Port: NetGroup; Name: string}
+type WaveSimStateT = NoWS | WSEditorOpen | WSViewerOpen
 
-type WaveTempT = {
-    /// generate data using this, which comes from makesimdata
-    InitWaveSimGraph : SimulationData option
-    /// all the nets that exist in the currently simulated design
-    AllNetGroups : NetGroup array;
-    /// names for all ports in currently simulated design
-    AllWaveNames : WaveName array
-}
+type SimActionT = 
+    | MakeSVGs of NetGroup array 
+    | ChangeParameters of {| LastClk: uint; Curs: uint; ClkW: float |}
+
 
 type WaveSimModel = {
+    /// generate data using this, which comes from makesimdata
+    InitWaveSimGraph : SimulationData option
     /// array of variable length
     SimDataCache: SimulatorTypes.SimulationData array
-    /// waveform names displayed, use findName
+    // array of all possible waveform names
+
+    AllWaveNames: string array
+    /// array of displayed waveform names displayed, use findName on ports to generate
     DispWaveNames: string array
-    /// react SVG for each waveform
-    DispWaveSVGCache: ReactElement array
-    /// NetGroups displayed, as in WaveNames
-    DispPorts: NetGroup array
+
+    /// Map of all the nets that exist in the currently simulated design
+    AllPorts: Map<string,NetGroup>
+
+    /// react SVG for each waveform, indexed by name
+    DispWaveSVGCache: SVGCacheT 
     /// width of one clock in SVG units
+
     ClkWidth: float
     /// position of cursor (0 = first cycle)
     Cursor: uint32 
@@ -119,28 +128,34 @@ type WaveSimModel = {
     /// last clock cycle (index) of the generated SVG
     LastClk: uint32
     /// if Adder window is currently open (changing tab does not effect it)
-    WaveSimState: bool
-    /// data needed by the waveform Edit window (adder)
-    WaveData: WaveTempT option
+    WaveSimEditorOpen: WaveSimStateT
     /// the circuit that is being simulated - the canvas may have changed
     LastCanvasState: CanvasState option 
-}
+    } 
 
-let initWA netGroups= 
-    { InitWaveSimGraph = None; AllNetGroups = netGroups; AllWaveNames = [||] }
+let inline getPort (ws:WaveSimModel) (name: string) = ws.AllPorts.[name]
 
-let initWS: WaveSimModel =
-    { SimDataCache = [||]
+let inline dispPorts (ws: WaveSimModel) =
+    ws.DispWaveNames
+    |> Array.map (fun name -> ws.AllPorts.[name])
+
+let inline AllPorts (ws: WaveSimModel) =
+    ws.AllWaveNames
+
+let initWS (allNames:string array) (allPorts: Map<string,NetGroup>): WaveSimModel =
+    { 
+      InitWaveSimGraph = None
+      AllPorts = allPorts
+      AllWaveNames = allNames
+      SimDataCache = [||]
       DispWaveNames = [||]
-      DispWaveSVGCache = [||]
-      DispPorts = [||] 
+      DispWaveSVGCache = { Bottom = [||]; Waves = [||]; Top = [||]}
       ClkWidth = 1.0
       Cursor = 0u
       CursorEmpty = false
       Radix = Bin
       LastClk = 9u 
-      WaveSimState = false
-      WaveData = None
+      WaveSimEditorOpen = NoWS
       LastCanvasState = None 
     }
 
@@ -220,10 +235,9 @@ type Msg =
     | SelectionHasChanged
     | SetSimIsStale of bool
     | SetIsLoading of bool
-    | SetSimInProgress of Result<NetGroup array,{| LastClk: uint; Curs: uint; ClkW: float |}>
     | SetWaveSimModel of Sheet: string * WSModel: WaveSimModel
-    | SimulateWhenInProgress of Result<NetGroup array,{| LastClk: uint; Curs: uint; ClkW: float |}>
-    | SetSimNotInProgress
+    | SimulateWhenInProgress of SimActionT option
+    | SetSimInProgress of SimActionT
     | SetLastSimulatedCanvasState of CanvasState option
  //   | StartNewWaveSimulation of CanvasState
     | UpdateScrollPos of bool

@@ -34,20 +34,10 @@ let wsModel2netList wsModel =
 
 // Look up netgroup (= waveform) name from WaveData and netgroup
 // If Netgroup is not in AllNetGroups return "ERROR"
-let waveNameOf (wa:WaveTempT) (ng:NetGroup) =
-    Array.tryFindIndex ((=) ng) wa.AllNetGroups
-    |> Option.bind (fun i -> Array.tryItem i wa.AllWaveNames)
+let waveNameOf (ws:WaveSimModel) (ng:NetGroup) =
+    Map.tryFindKey (fun _ p -> p = ng) ws.AllPorts
     |> Option.defaultValue "ERROR"
-        
-// Look up netgroup (= waveform) name from WaveSimModel and NetGroup.
-// if NetGroup is not in AllNetGroups return "NO WAVEDATA"
-let waveNameOfWSModel (wSMod: WaveSimModel) =
-    match wSMod.WaveData with
-    | None -> fun _ -> "NO WAVEDATA"
-    | Some wa -> waveNameOf wa
-       
-
-    
+            
 
 ////////////////////////
 // Simulation Helpers //
@@ -156,7 +146,8 @@ let private isNetListTrgtInNetList (netList: NetList) (nlTrgt: NLTarget) =
 let private getReloadableNetGroups (model: Model) (netList: NetList) =
     match currWaveSimModel model with
     | Some wSModel ->
-        Array.map (fun netGroup -> netGroup.driverNet) wSModel.DispPorts
+        dispPorts wSModel
+        |> Array.map (fun netGroup -> netGroup.driverNet) 
         |> Array.map (List.filter <| isNetListTrgtInNetList netList)
         |> Array.filter ((<>) [])
         |> Array.map (getNetGroup netList)
@@ -202,6 +193,8 @@ let availableNetGroups (model: Model) =
         |> Helpers.getNetList
         |> netList2NetGroups
 
+
+
 /// get instantaneous value of a port
 let private simWireData2Wire wireData =
     wireData
@@ -225,7 +218,7 @@ let getSimTime (trgtLstGroups: NetGroup array) (simGraph: SimulationGraph) =
 /// get values of waveforms
 let getWaveData (wsMod: WaveSimModel) =
         Array.map (fun sD -> sD.Graph) wsMod.SimDataCache
-        |> Array.map (getSimTime wsMod.DispPorts) 
+        |> Array.map (getSimTime (dispPorts wsMod))
     
 /// extend WaveSimModel.SimData by n cycles
 let private appendSimData (model: Model) (wSModel: WaveSimModel) nCycles = 
@@ -262,7 +255,7 @@ let selectNetGrpConns diagram (netGrp: NetGroup) on =
     wave2ConnIds netGrp
     |> Array.toList
     |> List.collect (fun (ConnectionId cId) -> connId2JSConn diagram cId) 
-    |> diagram.SetSelected on
+    |> diagram.ChangeSelectionOfTheseConnections on
 
 /// returns labels of all custom component instances of sheet in lComp
 let findInstancesOf sheet (lComp:LoadedComponent) =
@@ -389,6 +382,7 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
     | None -> { OutputsAndIOLabels = []; ComposingLabels = [] }
     | Some nlSource ->
         if not (Set.contains nlSource.SourceCompId compIds) then
+            printfn "What? graph, net, netGrp, nltrgtList should all be consistent, compIds is deprecated"
             // component is no longer in circuit due to changes
             { OutputsAndIOLabels = []; ComposingLabels = [] }
         else   
@@ -498,7 +492,11 @@ let netGroup2Label compIds graph netList (netGrp: NetGroup) =
         List.fold appendName "" hdLbls
         |> (fun hd -> hd.[0..String.length hd - 3] + " : " + tl)
         
-
+// Required wSModel with correct simulation.
+// Sets AllWaveNames and AllPorts from netlist derived from simulation
+// filters 
+let setWSAllPorts (availablePorts: NetGroup array) (wSModel:WaveSimModel) : WaveSimModel  = failwithf "not implemented"
+    
 //////////////////
 /// SVG shapes ///
 //////////////////
@@ -782,7 +780,7 @@ let addSVGToWaveSimModel wSModel =
         |> Array.map (fun wave ->
                 let waveWithBg = Array.append bgSvg wave
                 waveTableRow [ Class "rowHeight" ] (waveCell wSModel) (waveCellSvg wSModel false) waveWithBg)
-    let svgs = Array.concat [| firstRow ; midRows ; lastRow |]
+    let svgs = {Bottom =  firstRow ; Waves =  midRows; Top = lastRow }
     {wSModel with DispWaveSVGCache = svgs}
 
 
@@ -790,41 +788,13 @@ let addSVGToWaveSimModel wSModel =
 let initFileWS (model:Model) dispatch =
     let netListOpt = getSheetWaveNetList model
     match getCurrFile model,netListOpt with
-    | Some fileName, Some netList ->
-        (fileName, {initWS with 
-                        WaveData =
-                            netList2NetGroups netList 
-                            |> initWA
-                            |> Some})
+    | Some fileName, Some _netList ->
+        (fileName, initWS [||] Map.empty)
         |> AddWaveSimFile
         |> dispatch
     | _ -> ()
 
-/// set model.WaveSim & model.WaveAdder to show the list of waveforms that can be selected
-let startNewWaveSimulation compIds model wSMod dispatch (simData: SimulationData) (rState:CanvasState) =
-    dispatch <| SetViewerWidth minViewerWidth 
-    dispatch <| SetLastSimulatedCanvasState (Some rState) 
-    SetSimIsStale false |> dispatch
-    printfn "***Starting simulation with (%A) canvas***" (rState |> 
-                                                         (fun (comps,conns) -> List.length comps, List.length conns))
-    let netList = Helpers.getNetList rState
-    let netGroups = netList2NetGroups netList
-    printfn "***Netgroups=%A***" (Array.length netGroups)
-    let wA' =
-        { InitWaveSimGraph = Some simData
-          AllNetGroups = netGroups  
-          AllWaveNames = Array.map (netGroup2Label compIds simData.Graph netList) netGroups }
-    { wSMod with
-          WaveSimState = true
-          WaveData = Some wA'
-          LastCanvasState = Some rState }
-    |> SetCurrFileWSMod
-    |> dispatch
-    netGroups
-    |> Array.map (fun ng -> false)
-    |> Array.map2 (selectNetGrpConns model.Diagram) netGroups |> ignore
 
-    ChangeRightTab WaveSim |> dispatch
 
 /// get wave name labels from waveforms names
 let makeLabels waveNames =
@@ -869,9 +839,9 @@ let updateWSMod (model: Model) (wsMod: WaveSimModel)
 
 
 /// get waveform names
-let private getWaveNames compIds netList (wsMod: WaveSimModel) =
-    match wsMod.WaveData with
-    | Some {InitWaveSimGraph = Some sD} -> Array.map (netGroup2Label compIds sD.Graph netList) wsMod.DispPorts
+let private getWaveNames compIds netList (wSMod: WaveSimModel) =
+    match wSMod with
+    | {InitWaveSimGraph = Some sD} -> Array.map (netGroup2Label compIds sD.Graph netList) (dispPorts wSMod)
     | _ -> [||]
 
 /// change sim data if required
@@ -880,26 +850,24 @@ let private getWaveNames compIds netList (wsMod: WaveSimModel) =
 /// set Disp* fields to display ports netgroups
 let waveGen (wSMod: WaveSimModel) ports =
     let simData', wa = 
-        match wSMod.WaveData with
-        | Some ({InitWaveSimGraph = Some  sD} as wa) ->
+        match wSMod with
+        | {InitWaveSimGraph = Some  sD} as wa ->
             wSMod.LastClk
             |> extractSimData sD
             |> Array.append [| sD |]
             |> (fun sd -> sd, wa)
-        | Some {InitWaveSimGraph = None} -> failwith "waveGen called when WaveAdder.SimData is None"
-        | None -> failwith "waveGen called when WaveAdder is None"
+        | {InitWaveSimGraph = None} -> failwith "waveGen called when WaveAdder.SimData is None"
 
     let names =
-        Array.zip wa.AllNetGroups wa.AllWaveNames
-        |> Array.filter (fun (p, _) -> Array.contains p ports)
-        |> Array.map snd
+        Map.toArray wSMod.AllPorts
+        |> Array.filter (fun (_, p) -> Array.contains p ports)
+        |> Array.map fst
 
     let wSMod' =
         { wSMod with
             SimDataCache = simData'
             DispWaveNames = names
-            DispPorts = ports
-            WaveSimState = false }
+            WaveSimEditorOpen = WSViewerOpen }
 
     addSVGToWaveSimModel wSMod'
 
@@ -944,42 +912,44 @@ let isWaveSelected (diagram:Draw2dWrapper.Draw2dWrapper) netList (nlTrgtLstGroup
 /// Functions fed into FileMenuView View function ///
 /////////////////////////////////////////////////////
 
-let getAllNetGroups waveSim = 
-    match waveSim.WaveData with
-    | None -> [||]
-    | Some wa -> wa.AllNetGroups
+let getAllNetGroups (waveSim:WaveSimModel) = 
+    mapValues waveSim.AllPorts
 
-let getAdderOrInit (model:Model) waveSim =
-    match waveSim.WaveData with
-    | None -> 
-        Option.defaultValue ([],[]) model.LastSimulatedCanvasState
-        |> Helpers.getNetList
-        |> netList2NetGroups
-        |> initWA
-    | Some wa -> wa
+
+/// In wave simulation highlight nets which are ticked on viewer or editor
+/// Nets can be highlighted or unhighlighted by clicking on nets, or tick-boxes
+let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
+    match currWaveSimModel model with
+    | Some wSModel ->
+        let netList = 
+            model.LastSimulatedCanvasState
+            |> Option.map Helpers.getNetList 
+            |> Option.defaultValue (Map.empty)
+
+        let netGroups =
+            match wSModel.WaveSimEditorOpen with 
+            | WSEditorOpen -> netList2NetGroups netList
+            | WSViewerOpen -> dispPorts wSModel
+            | NoWS -> [||]
+
+        let selectedConnectionIds (ng:NetGroup) =
+            if isWaveSelected model.Diagram netList ng then 
+                wave2ConnIds ng
+            else [||]
+                
+        let selectedIds =  Array.collect selectedConnectionIds netGroups
+        dispatch <| SetSelWavesHighlighted selectedIds
+    | _ -> ()
+
+
+
+
 
 
 /// actions triggered whenever the fileMenuView function is executed
 let fileMenuViewActions model dispatch =
-    if model.ConnsToBeHighlighted
-    then  
-        match currWaveSimModel model with
-        | Some wSModel ->
-            let netList = 
-                model.LastSimulatedCanvasState
-                |> Option.map Helpers.getNetList 
-                |> Option.defaultValue (Map.empty)
-            if wSModel.WaveSimState then 
-                netList2NetGroups netList
-                
-            else wSModel.DispPorts
-            |> Array.map (fun net -> if isWaveSelected model.Diagram (wsModel2netList wSModel) net
-                                     then wave2ConnIds net
-                                     else [||])
-            |> Array.concat
-            |> SetSelWavesHighlighted
-            |> dispatch
-        | _ -> ()
+    if model.ConnsToBeHighlighted then 
+        highlightConnectionsFromNetGroups  model dispatch
     else ()
 
 

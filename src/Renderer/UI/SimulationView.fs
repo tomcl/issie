@@ -149,8 +149,8 @@ let private viewSimulationInputs
                         OnChange (getTextEventValue >> (fun text ->
                             match strToIntCheckWidth text width with
                             | Error err ->
-                                errorNotification err CloseSimulationNotification
-                                |> SetSimulationNotification |> dispatch
+                                let note = errorPropsNotification err
+                                dispatch  <| SetSimulationNotification note
                             | Ok num ->
                                 let bits = convertIntToWireData width num
                                 // Close simulation notifications.

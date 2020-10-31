@@ -38,9 +38,8 @@ let currWaveSimModel (model: Model) =
 
    
 let private displayFileErrorNotification err dispatch =
-    errorNotification err CloseFilesNotification
-    |> SetFilesNotification
-    |> dispatch
+    let note = errorFilesNotification err
+    dispatch <| SetFilesNotification note
 
 /// Send messages to change Diagram Canvas and specified sheet waveSim in model
 let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps model dispatch =
@@ -220,7 +219,8 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
     let waveSim = 
         compToSetup.WaveInfo
         |> Option.map savedWaveInfo2WaveSimModel 
-        |> Option.defaultValue MessageType.initWS
+        |> Option.defaultValue (MessageType.initWS [||] Map.empty)
+
 
     loadStateIntoModel compToSetup waveSim ldComps model dispatch
     {

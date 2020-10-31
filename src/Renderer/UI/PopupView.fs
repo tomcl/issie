@@ -365,6 +365,9 @@ let errorNotification text closeMsg =
             str text
         ]
 
+let errorPropsNotification text = errorNotification text ClosePropertiesNotification
+let errorFilesNotification text  = errorNotification text CloseFilesNotification
+
 let warningNotification text closeMsg =
     fun dispatch ->
         let close = (fun _ -> dispatch closeMsg)
@@ -375,6 +378,8 @@ let warningNotification text closeMsg =
             Delete.delete [ Delete.OnClick close ] []
             str text
         ]
+
+let warningPropsNotification text = warningNotification text ClosePropertiesNotification
 
 let viewNotifications model dispatch =
     [ model.Notifications.FromDiagram

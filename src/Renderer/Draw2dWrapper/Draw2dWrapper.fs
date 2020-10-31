@@ -491,8 +491,9 @@ type Draw2dWrapper() =
             match isNull jsComp with
             | true -> Error <| sprintf "Could not find component with Id: %s" compId
             | false -> Ok jsComp
-        
-    member this.SetSelected on (changeConns: JSConnection list) =
+
+    /// set or clear selection of specified connections in diagram    
+    member this.ChangeSelectionOfTheseConnections on (changeConns: JSConnection list) =
         match canvas with
         | Some c -> 
             let comps, conns =
@@ -508,7 +509,8 @@ type Draw2dWrapper() =
             List.map (draw2dLib.addConnSelection c) conns' |> ignore
             ()
         | None -> ()
-
+    
+    /// clear the current diagram selection
     member this.ResetSelected =
         match canvas with
         | Some c -> draw2dLib.resetSelection c

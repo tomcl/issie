@@ -41,21 +41,21 @@ type AsyncTasksT = {
 [<CustomEquality;NoComparison>]
 type Model = {
     AsyncActivity: AsyncTasksT
+    WaveSim : Map<string, WaveSimModel> * (SimulationError option)
     Diagram : Draw2dWrapper
-    SimulationIsStale: bool
+    WaveSimulationIsStale: bool
     LastSimulatedCanvasState: CanvasState option // reduced (without layout) canvas state
     LastDetailedState: CanvasState
     LastSelectedIds: string list * string list
     CurrentSelected: Component list * Connection list
     LastUsedDialogWidth: int
     SelectedComponent : Component option // None if no component is selected.
-    Simulation : Result<SimulationData,SimulationError> option // None if no simulation is running.
-    WaveSim : Map<string, WaveSimModel> * (SimulationError option)
+    CurrentSimulatorStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
     RightTab : RightTab
     Hilighted : (ComponentId list * ConnectionId list) * ConnectionId list
     Clipboard : CanvasState // Components and connections that have been selected and copied.
     CreateComponent : Component option // Track the last added component
-    HasUnsavedChanges : bool
+    SheetHasUnsavedChanges : bool
     IsLoading: bool
     CurrProject : Project option
     Popup : (PopupDialogData -> Fable.React.ReactElement) option
@@ -77,12 +77,15 @@ type Model = {
         | :? Model as x' -> reduce this = reduce x'
         | _ -> false
 
+
+
+
 let reduce (this: Model) = {|
          RightTab = this.RightTab
          Hilighted = this.Hilighted
          Clipboard = this.Clipboard
          AsyncActivity = this.AsyncActivity
-         SimulationIsStale = this.SimulationIsStale
+         SimulationIsStale = this.WaveSimulationIsStale
          LastSimulatedCanvasState = this.LastSimulatedCanvasState
          LastSelectedIds = this.LastSelectedIds
          CurrentSelected = this.CurrentSelected
@@ -104,7 +107,7 @@ let reduceApprox (this: Model) = {|
          RightTab = this.RightTab
          Clipboard = this.Clipboard
          CurrProject = match this.Popup with None -> false | _ -> true
-         SimulationIsStale = this.SimulationIsStale
+         SimulationIsStale = this.WaveSimulationIsStale
          LastUsedDialogWidth = this.LastUsedDialogWidth
          CreateComponent = this.CreateComponent
          HasUnsavedChanges = false
@@ -136,7 +139,7 @@ let addReducedState a name model =
 
 
 let changeSimulationIsStale (b:bool) (m:Model) = 
-    { m with SimulationIsStale = b}
+    { m with WaveSimulationIsStale = b}
 
 let getComponentIds (model: Model) =
     let extractIds (jsComps,jsConns) = 
@@ -256,3 +259,21 @@ let updateLdCompsWithCompOpt (newCompOpt:LoadedComponent option) (ldComps: Loade
         | None -> newComp :: ldComps
         | Some _ -> updateLdComps newComp.Name (fun _ -> newComp) ldComps
 
+let getCurrFileWSMod(model: Model) =
+    let wsMap = model.WaveSim
+    match model.CurrProject with
+    | None -> None
+    | Some proj -> Map.tryFind proj.OpenFileName (fst wsMap)
+
+
+let updateCurrFileWSMod(updateFun: WaveSimModel -> WaveSimModel) (model: Model) (dispatch: Msg -> unit) =
+    let wsMap = model.WaveSim
+    match model.CurrProject with
+    | None -> ()
+    | Some proj ->
+        Map.tryFind proj.OpenFileName (fst wsMap)
+        |> Option.map ( fun wsModel ->
+                let ws' = updateFun wsModel
+                dispatch <| SetCurrFileWSMod ws')
+        |> ignore
+ 

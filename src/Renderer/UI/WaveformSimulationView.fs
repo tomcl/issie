@@ -434,7 +434,8 @@ let private wavesCol model (wSModel: WaveSimModel) rows dispatch =
             element := Some el // set mutable reference to the HTML element for later use
        
         match model.SimulationInProgress, !element with
-        | Some (MakeSVGs par), _ -> Some (MakeSVGs par) |> SimulateWhenInProgress |> dispatch
+        | (Some (MakeSVGs par)) as simAction, _ -> 
+            dispatch <| SimulateWhenInProgress simAction
         | Some (ChangeParameters par), Some e -> 
             let newPars = adjustPars wSModel par (e.clientWidth + e.scrollLeft) dispatch
             dispatch <| SimulateWhenInProgress (Some <| ChangeParameters newPars)
@@ -569,11 +570,11 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
             [ 
                 Button.Color IsSuccess
                 Button.OnClick(fun _ -> 
+                    dispatch ClosePropertiesNotification
                     let action = MakeSVGs viewableNetGroups                
                     dispatch <|  SetSimInProgress action)
             ]
         |> (fun lst -> 
-                dispatch ClosePropertiesNotification
                 Button.Props [ Style [ MarginLeft "10px" ] ] :: lst)
     let cancelButton =
         Button.button
@@ -621,6 +622,13 @@ let private waveformsView compIds model netList wSMod dispatch =
 ///         TOP-LEVEL WAVE SIMULATION TRANSITIONS AND VIEWS          ///
 ////////////////////////////////////////////////////////////////////////
 
+let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (dispatch: Msg -> Unit) =
+    if simError.InDependency.IsNone then
+       // Highlight the affected components and connection only if
+       // the error is in the current diagram and not in a
+       // dependency.
+       let thingsToHighlight = (simError.ComponentsAffected, simError.ConnectionsAffected)
+       dispatch <| SetHighlighted thingsToHighlight
 
 
 
@@ -634,28 +642,31 @@ let private openCloseWaveEditor model (netList:NetList) (wSModel: WaveSimModel) 
         | WSEditorOpen -> 
             selectAllOn model.Diagram wSModel |> ignore
             wSModel // startwith DispPorts order - for waveforms currently displayed
-            |> waveSimWithSimulation compIds  model
+            |> setupWaveViewerSimulation compIds  model
             |> standardWaveformOrderWaveAdder // work out correct order for waveadder
         | WSViewerOpen ->
             let diagramNetGroups = availableNetGroups model
             //setWSAllPorts diagramNetGroups wSModel
             wSModel
-            |> waveSimWithSimulation compIds  model
+            |> setupWaveViewerSimulation compIds  model
             |> standardWaveformOrderWaveAdder // work out correct order for waveadder
 
         | NoWS -> 
             failwithf "What? openCloseWaveadder can't be called with NoWS"
     dispatch <| SetCurrFileWSMod { wSModel with WaveSimEditorOpen = editorState}
     
-
-let getNewWS (rState: CanvasState) (simDat: SimulatorTypes.SimulationData) (ws: WaveSimModel) (model: Model) =
+/// This function sets up an initial waveSim for waveform viewing.
+/// initSimDat must be the initial clock tick 0 simulation data.
+/// It returns the correct simulation data.
+/// In addition it works out from initSimDat the Netgroup etc data needed for the viewer.
+let extendSimInWaveSimModel (rState: CanvasState) (initSimDat: SimulatorTypes.SimulationData) (ws: WaveSimModel) (model: Model) =
     let compIds = getComponentIds model
     // current diagram netlist
     let netList = Helpers.getNetList <| rState
     // all ports on current diagram
     // order does not matter.
     let netGroups = netList2NetGroups netList
-    let allNames = Array.map (netGroup2Label compIds simDat.Graph netList) netGroups
+    let allNames = Array.map (netGroup2Label compIds initSimDat.Graph netList) netGroups
     let allPorts = Array.zip allNames netGroups |> Map.ofArray
     let lookup name = Map.tryFind name allPorts
     let dispNames = // filter remembered names by whether they are still valid, lookup new ports (in case those have changed)
@@ -663,9 +674,11 @@ let getNewWS (rState: CanvasState) (simDat: SimulatorTypes.SimulationData) (ws: 
         |> Array.filter (fun name -> match lookup  name with | Some netGroup ->true | None -> false)
     //
     // simulation data of correct length
-    let sD' = Array.append [| simDat |] (extractSimData simDat ws.LastClk)
+    // simulation here is done immediately in the transition function, without GUI warning
+    let sD' = Array.append [| initSimDat |] (extractSimData initSimDat ws.LastClk)
     { ws with 
-        InitWaveSimGraph = Some simDat
+        InitWaveSimGraph = Some initSimDat
+        SimDataCache = sD'
         AllPorts = allPorts
         AllWaveNames = allNames // must be same order as AllNetgroups
         DispWaveNames = dispNames        
@@ -674,12 +687,13 @@ let getNewWS (rState: CanvasState) (simDat: SimulatorTypes.SimulationData) (ws: 
 
 
 /// TRANSITION HELPER: 
-/// Create updated wsModel data from initial simulation of current canvasState.
-/// Returns wsModel, does not actually make the state change
-let waveSimWithSimulation compIds (model:Model) (ws: WaveSimModel) : WaveSimModel =
+/// Does the correct length simulation to display initial waveView, and adds in the correct waveform SVGs.
+/// Creates updated wsModel data from initial simulation of current canvasState.
+/// Returns wsModel, does not actually make the wsmodel state change
+let setupWaveViewerSimulation compIds (model:Model) (ws: WaveSimModel) : WaveSimModel =
     match SimulationView.makeSimData model with
     | Some (Ok sD, rState) ->
-        getNewWS rState sD ws model
+        extendSimInWaveSimModel rState sD ws model
         |> addSVGToWaveSimModel
     | Some (Error _, _) | None -> initWS [||] Map.empty
 
@@ -688,6 +702,7 @@ let waveSimWithSimulation compIds (model:Model) (ws: WaveSimModel) : WaveSimMode
 /// TRANSITION
 /// Set wsModel to show the list of waveforms that can be selected from a new simulation
 /// Sets data persistent over editor open and close.
+/// Sets WaveSim to have editor open
 let startNewWaveSimulation compIds model wSMod dispatch (simData: SimulatorTypes.SimulationData) (rState:CanvasState) =
     dispatch <| SetViewerWidth minViewerWidth 
     dispatch <| SetLastSimulatedCanvasState (Some rState) 
@@ -719,6 +734,16 @@ let startNewWaveSimulation compIds model wSMod dispatch (simData: SimulatorTypes
 /// Waveforms >> Button React element with actions triggered by pressing the button
 /// This sets up all the data needed in wsModel after a new circuit is successfully simulated
 let WaveformButtonFunc compIds model dispatch =
+    /// subfunction to generate popup over waveeditor screen if tehre are undriven input connections
+    let displayInputWarningPopup (simData:SimulatorTypes.SimulationData) dispatch =
+        if simData.Inputs <> [] then
+            let inputs = 
+                simData.Inputs
+                |> List.map (fun (_,ComponentLabel lab,_) -> lab)
+                |> String.concat ","
+            let popup = PopupView.warningPropsNotification (sprintf "Inputs (%s) will be set to 0." inputs)
+            dispatch <| SetPropertiesNotification popup
+
     // based on simulation results determine color of button and what happens if it is clicked
     let simulationButton =
         match currWaveSimModel model with
@@ -734,22 +759,16 @@ let WaveformButtonFunc compIds model dispatch =
                     dispatch <| ChangeRightTab WaveSim)
                 ]
         | Some wSModel ->
-            match model.SimulationIsStale, SimulationView.makeSimData model with
+            match model.WaveSimulationIsStale, SimulationView.makeSimData model with
             | true, Some (Ok simData, rState) ->
                 let isClocked = SynchronousUtils.hasSynchronousComponents simData.Graph
                 if isClocked then
-                    // display the waveAdder window if circuit is OK
+                    // display the WaveEditor window if circuit is OK
                     Button.button
                         [ 
                             Button.Color IsSuccess
                             Button.OnClick(fun _ ->
-                                if simData.Inputs <> [] then
-                                    let inputs = 
-                                        simData.Inputs
-                                        |> List.map (fun (_,ComponentLabel lab,_) -> lab)
-                                        |> String.concat ","
-                                    let popup = PopupView.warningPropsNotification (sprintf "Inputs (%s) will be set to 0." inputs)
-                                    dispatch <| SetPropertiesNotification popup
+                                displayInputWarningPopup simData dispatch
                                 startNewWaveSimulation compIds model wSModel dispatch simData rState
                                 dispatch <| ChangeRightTab WaveSim)
                               ]
@@ -769,7 +788,8 @@ let WaveformButtonFunc compIds model dispatch =
                     [   Button.Color IsWarning
                         Button.OnClick(fun _ ->
                           dispatch <| SetWSError (Some err) 
-                          dispatch <| ChangeRightTab WaveSim) 
+                          dispatch <| ChangeRightTab WaveSim
+                          SetSimErrorFeedback err dispatch) 
                     ]
             | _ -> 
                 Button.button 
@@ -784,9 +804,9 @@ let viewWaveSim (model: Model) dispatch =
     let compIds = getComponentIds model
     match currWaveSimModel model, snd model.WaveSim with
 
-    // normal case, display waveform adder window or waveforms
+    // normal case, display waveform adder editor or waveforms
     | Some wSModel, None ->
-        // we derive all the waveSim circuit details from LastSimulatedCanvasstate which does not chnage until a new simulation is run
+        // we derive all the waveSim circuit details from LastSimulatedCanvasState which does not change until a new simulation is run
         let netList = Helpers.getNetList  <| Option.defaultValue ([],[]) model.LastSimulatedCanvasState
         match wSModel.WaveSimEditorOpen, model.SimulationInProgress with
         | WSEditorOpen, None -> // display waveAdder if simulation has not finished and adder is open
@@ -799,17 +819,15 @@ let viewWaveSim (model: Model) dispatch =
 
     // Set the current simulation error message
     | Some _, Some simError ->
-        if simError.InDependency.IsNone then
-           // Highlight the affected components and connection only if
-           // the error is in the current diagram and not in a
-           // dependency.
-           let thingsToHighlight = (simError.ComponentsAffected, simError.ConnectionsAffected)
-           dispatch <| SetHighlighted thingsToHighlight
 
         [ div [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]
               [ SimulationView.viewSimulationError simError
                 button [ Button.Color IsDanger ] (fun _ -> 
+                    dispatch CloseSimulationNotification // Close error notifications.
+                    dispatch <| SetHighlighted ([], []) // Remove highlights.
+                    dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
                     dispatch <| SetWSError None 
+                    updateCurrFileWSMod (fun ws -> {ws with InitWaveSimGraph=None}) model dispatch
                     dispatch <| ChangeRightTab Catalogue 
                     ) 
                     "Ok" ] ]

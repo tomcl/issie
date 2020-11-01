@@ -90,6 +90,12 @@ let mutable debugLevel = 1
 let mutable debugLevel = 0
 #endif
 
+let mutable debugTrace: string Set = Set []
+
+/// Call debugAction() and print its result if traceDebug mutable contains traceCode
+let traceIf traceCode debugAction =
+    if Set.contains traceCode debugTrace then printfn <| debugAction()
+
 /// Hack to provide a constant global variable
 /// set from command line arguments of main process.
 /// 0 => production. 1 => dev. 2 => debug.

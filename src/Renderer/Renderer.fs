@@ -83,6 +83,10 @@ let fileMenu (dispatch) =
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Restart app" None (fun _ -> 
             let webContents = electron.remote.getCurrentWebContents()
             webContents.reload())
+        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace all" None (fun _ -> 
+            JSHelpers.debugTrace <- Set.ofList ["update";"view"])
+        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace off" None (fun _ -> 
+            JSHelpers.debugTrace <- Set.ofList [])
 
 
     ]

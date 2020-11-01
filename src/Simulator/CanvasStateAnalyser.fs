@@ -294,10 +294,10 @@ let private checkPortsAreConnectedProperly
                 were found. If you want to merge wires together use a MergeWires component. \
                 If you are driving two labels from the same component delete one of them: \
                 a set of labels with the same name are all connected together and only one \
-                label in each set must be driven.")
+                label in each same-name set must be driven.")
 
         checkCounts m.OtherSourceConns (fun conn -> conn.Source) m.OtherOutputPorts portMap ((<) 0) (
-                "Output ports must have at least one, not %d, connections. If the output \
+                "A component output port must have at least one, not %d, connections. If the component output \
                 is meant to be disconnected you can add a wire label to stop this error")
 
 

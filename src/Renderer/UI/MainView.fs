@@ -43,7 +43,7 @@ let initActivity = {
 let init() = {
     AsyncActivity = initActivity
     Diagram = new Draw2dWrapper()
-    SimulationIsStale = true
+    WaveSimulationIsStale = true
     IsLoading = false
     LastDetailedState = ([],[])
     LastSimulatedCanvasState = None
@@ -51,14 +51,14 @@ let init() = {
     CurrentSelected = [],[]
     SelectedComponent = None
     LastUsedDialogWidth = 1
-    Simulation = None
+    CurrentSimulatorStep = None
     WaveSim = Map.empty, None
     RightTab = Catalogue
     CurrProject = None
     Hilighted = ([], []), []
     Clipboard = [], []
     CreateComponent = None
-    HasUnsavedChanges = false
+    SheetHasUnsavedChanges = false
     Popup = None
     PopupDialogData = {
         Text = None
@@ -153,6 +153,7 @@ let dividerbar (model:Model) dispatch =
 //---------------------------------------------------------------------------------------------------------//
 /// Top-level application view: as react components that create a react virtual-DOM
 let displayView model dispatch =
+    JSHelpers.traceIf "view" (fun _ -> "View Function...")
     let windowX,windowY =
         int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
     //let selectedComps, selectedconns = 

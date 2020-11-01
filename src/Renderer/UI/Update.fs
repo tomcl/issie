@@ -107,7 +107,7 @@ let private runBusWidthInference model =
 
 /// subfunction used in model update function
 let private getSimulationDataOrFail model msg =
-    match model.Simulation with
+    match model.CurrentSimulatorStep with
     | None -> failwithf "what? Getting simulation data when no simulation is running: %s" msg
     | Some sim ->
         match sim with
@@ -133,13 +133,13 @@ let private handleJSDiagramMsg msg model =
         if s && isNotEquiv model.LastDetailedState nState && not model.IsLoading then
             //printfn "Setting Changed %A" s
             { model with 
-                HasUnsavedChanges = s 
+                SheetHasUnsavedChanges = s 
             }
         elif not s then
             //printfn "Setting Changed %A" false
             { model with 
                 LastDetailedState = nState
-                HasUnsavedChanges = false }
+                SheetHasUnsavedChanges = false }
         else model
 
 /// Handle messages triggered by keyboard shortcuts.
@@ -158,7 +158,7 @@ let private handleKeyboardShortcutMsg msg model =
             | None -> None
             
         { model with 
-            HasUnsavedChanges = false
+            SheetHasUnsavedChanges = false
             CurrProject = proj'
             AsyncActivity = {
                 model.AsyncActivity with 
@@ -286,7 +286,7 @@ let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
                 if update
                 then
                     printfn "AutoSaving at '%s'" (System.DateTime.Now.ToString("mm:ss"))
-                    {model with HasUnsavedChanges=true}
+                    {model with SheetHasUnsavedChanges=true}
                     |> updateTimeStamp
                     |> setActivity (fun a -> {a with LastSavedCanvasState = addReducedState a proj.OpenFileName model})
                     |> (fun model' -> 
@@ -351,14 +351,9 @@ let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) 
 
 /// Main MVU model update function
 let update msg model =
-    // initial (short0 code used for debug printout
-    (*
-    match msg with
-    | SelectionHasChanged | SetHighlighted _ -> ()
-    | _ ->          
-        printfn "\n--------------------------\n%s\n" (spMess msg)
-        //pp model
-    // main dispatch based on message *)
+    if Set.contains "update" JSHelpers.debugTrace then
+        let msgS = (sprintf "%A..." msg) |> Seq.truncate 60 |> Seq.map (fun c -> sprintf "%c" c) |> String.concat ""
+        printfn "%s" msgS
     match msg with
     | SetDragMode mode -> {model with DragMode= mode}, Cmd.none
     | SetViewerWidth w -> {model with ViewerWidth = w}, Cmd.none
@@ -367,7 +362,7 @@ let update msg model =
     // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).
     | SetLastSavedCanvas(name,state) -> 
         setActivity (fun a -> {a with LastSavedCanvasState= Map.add name state a.LastSavedCanvasState}) model, Cmd.none
-    | StartSimulation simData -> { model with Simulation = Some simData }, Cmd.none
+    | StartSimulation simData -> { model with CurrentSimulatorStep = Some simData }, Cmd.none
     | SetCurrFileWSMod wSMod' -> 
         printfn "Setting %A in wsMod" wSMod'.WaveSimEditorOpen
         match FileMenuView.getCurrFile model with
@@ -376,19 +371,20 @@ let update msg model =
                                    snd model.WaveSim }
         | None -> model 
         |> (fun x -> x, Cmd.none)
-    | SetWSError err -> { model with WaveSim = fst model.WaveSim, err }, Cmd.none
+    | SetWSError err -> 
+        { model with WaveSim = fst model.WaveSim, err}, Cmd.none
     | AddWaveSimFile (fileName, wSMod') ->
         { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim}, Cmd.none
     | SetSimulationGraph graph ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
-        { model with Simulation = { simData with Graph = graph } |> Ok |> Some }, Cmd.none
+        { model with CurrentSimulatorStep = { simData with Graph = graph } |> Ok |> Some }, Cmd.none
     | SetSimulationBase numBase ->
         let simData = getSimulationDataOrFail model "SetSimulationBase"
-        { model with Simulation = { simData with NumberBase = numBase } |> Ok |> Some }, Cmd.none
+        { model with CurrentSimulatorStep = { simData with NumberBase = numBase } |> Ok |> Some }, Cmd.none
     | IncrementSimulationClockTick ->
         let simData = getSimulationDataOrFail model "IncrementSimulationClockTick"
-        { model with Simulation = { simData with ClockTickNumber = simData.ClockTickNumber+1 } |> Ok |> Some }, Cmd.none
-    | EndSimulation -> { model with Simulation = None }, Cmd.none
+        { model with CurrentSimulatorStep = { simData with ClockTickNumber = simData.ClockTickNumber+1 } |> Ok |> Some }, Cmd.none
+    | EndSimulation -> { model with CurrentSimulatorStep = None }, Cmd.none
     | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
     | ChangeRightTab newTab -> 
         { model with RightTab = newTab }, 
@@ -491,7 +487,7 @@ let update msg model =
     | SetIsLoading b ->
         {model with IsLoading = b}, Cmd.none
     | SetSimInProgress waveInfo -> 
-        { model with SimulationInProgress = Some waveInfo }, Cmd.ofMsg (SimulateWhenInProgress <| Some waveInfo)
+        { model with SimulationInProgress = Some waveInfo }, Cmd.none
     | SimulateWhenInProgress waveInfo ->
         // do the simulation for WaveSim and generate new SVGs
         match FileMenuView.getCurrFile model with

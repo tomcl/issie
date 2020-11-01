@@ -311,7 +311,7 @@ let viewSimulation model dispatch =
                   Error simError
             |> StartSimulation
             |> dispatch
-    match model.Simulation with
+    match model.CurrentSimulatorStep with
     | None ->
         let simRes = makeSimData model
         let isSync = match simRes with | Some( Ok {IsSynchronous=true},_) | _ -> false

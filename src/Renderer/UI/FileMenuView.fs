@@ -572,7 +572,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                       Navbar.Item.div []
                           [ Navbar.Item.div []
                                 [ Button.button
-                                    [ Button.Color(if model.HasUnsavedChanges then IsSuccess else IsWhite)
+                                    [ Button.Color(if model.SheetHasUnsavedChanges then IsSuccess else IsWhite)
                                       Button.OnClick(fun _ -> saveOpenFileActionWithModelUpdate model dispatch |> ignore) ] [ str "Save" ] ] ]
                       Navbar.End.div []
                           [ 

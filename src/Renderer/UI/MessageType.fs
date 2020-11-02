@@ -93,50 +93,78 @@ type SVGCacheT = {
     Bottom: ReactElement []
     }
 
-type WaveSimStateT = NoWS | WSEditorOpen | WSViewerOpen
+type SimParamsT = {
+    /// radix for numbers on SVG waveforms display
+    Radix: NumberBase
+    /// last clock cycle (index) of the generated SVG
+    LastClk: uint
+    /// position of cursor (0 = first cycle)
+    Cursor: uint
+    /// width of one clock in SVG units
+    ClkWidth: float
+    /// names of ports selected in editor and displayed in viewer
+    DispNames: string array
+}
+
+
+type WSViewT = 
+    | NoWS 
+    | WSInitEditorOpen
+    | WSEditorOpen
+    | WSViewerOpen
+
+type WSStateT = { View: WSViewT ; NextView: (SimParamsT * WSViewT) option}
 
 type SimActionT = 
     | MakeSVGs of NetGroup array 
-    | ChangeParameters of {| LastClk: uint; Curs: uint; ClkW: float |}
+    | ChangeParameters of SimParamsT
 
 
 type WaveSimModel = {
     /// generate data using this, which comes from makesimdata
     InitWaveSimGraph : SimulationData option
-    /// array of variable length
-    SimDataCache: SimulatorTypes.SimulationData array
-    // array of all possible waveform names
+    
+    /// parameters determining the viewer wave display
+    SimParams: SimParamsT
 
+    /// port names shown in the editor
     AllWaveNames: string array
-    /// array of displayed waveform names displayed, use findName on ports to generate
-    DispWaveNames: string array
-
     /// Map of all the nets that exist in the currently simulated design
     AllPorts: Map<string,NetGroup>
 
     /// react SVG for each waveform, indexed by name
     DispWaveSVGCache: SVGCacheT 
-    /// width of one clock in SVG units
-
-    ClkWidth: float
-    /// position of cursor (0 = first cycle)
-    Cursor: uint32 
-    /// tracks when the cursor text box is empty string
+    /// Simulation output sample array of variable length
+    SimDataCache: SimulatorTypes.SimulationData array
+    
+    /// Hack to detect when  cursor text box is empty and use 0.
+    /// TODO - get rid of this - it should not be needed
     CursorEmpty: bool
-    /// for waveforms display
-    Radix: NumberBase
-    /// last clock cycle (index) of the generated SVG
-    LastClk: uint32
-    /// if Adder window is currently open (changing tab does not effect it)
-    WaveSimEditorOpen: WaveSimStateT
+   
+    WSState: WSStateT
     /// the circuit that is being simulated - the canvas may have changed
     LastCanvasState: CanvasState option 
     } 
 
+let setSimParams (setFn: SimParamsT -> SimParamsT) (wsm:WaveSimModel) =
+    {wsm with SimParams = setFn wsm.SimParams}
+
+let setDispNames names wsMod = 
+    setSimParams (fun sp -> {sp with DispNames=names}) wsMod
+
+let setEditorView view wsModel =
+    {wsModel with WSState = {wsModel.WSState with View = view; NextView = None}}
+
+let setEditorNextView nView simParas wsModel =
+    {wsModel with WSState = {wsModel.WSState with NextView = Some(nView,simParas)}}
+    
+
+    
+
 let inline getPort (ws:WaveSimModel) (name: string) = ws.AllPorts.[name]
 
 let inline dispPorts (ws: WaveSimModel) =
-    ws.DispWaveNames
+    ws.SimParams.DispNames
     |> Array.map (fun name -> ws.AllPorts.[name])
 
 let inline AllPorts (ws: WaveSimModel) =
@@ -148,15 +176,17 @@ let initWS (allNames:string array) (allPorts: Map<string,NetGroup>): WaveSimMode
       AllPorts = allPorts
       AllWaveNames = allNames
       SimDataCache = [||]
-      DispWaveNames = [||]
       DispWaveSVGCache = { Top = [||]; Waves = Map.empty; Bottom = [||]}
-      ClkWidth = 1.0
-      Cursor = 0u
-      CursorEmpty = false
-      Radix = Bin
-      LastClk = 9u 
-      WaveSimEditorOpen = NoWS
+      SimParams = {
+        DispNames = [||]
+        ClkWidth = 1.0
+        Cursor = 0u
+        Radix = Bin
+        LastClk = 9u 
+      }
+      WSState = {View=NoWS; NextView=None}
       LastCanvasState = None 
+      CursorEmpty = false
     }
 
 

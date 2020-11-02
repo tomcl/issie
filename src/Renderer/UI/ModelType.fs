@@ -79,7 +79,6 @@ type Model = {
 
 
 
-
 let reduce (this: Model) = {|
          RightTab = this.RightTab
          Hilighted = this.Hilighted
@@ -157,11 +156,12 @@ let getComponentIds (model: Model) =
 
 /// get saveable record of waveform setup
 let waveSimModel2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
+    let pars = wsMod.SimParams
     { 
-        ClkWidth = wsMod.ClkWidth
-        Cursor = wsMod.Cursor
-        Radix = wsMod.Radix
-        LastClk = wsMod.LastClk
+        ClkWidth = pars.ClkWidth
+        Cursor = pars.Cursor
+        Radix = pars.Radix
+        LastClk = pars.LastClk
         DisplayedPortIds = 
             dispPorts wsMod
             |> Array.map (fun p -> p.driverNet.[0].TargetCompId)
@@ -172,18 +172,21 @@ let waveSimModel2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
 let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
     { 
         InitWaveSimGraph = None
+        AllPorts = Map.empty
         SimDataCache = [||]
         DispWaveSVGCache = {Top=[||]; Waves = Map.empty; Bottom = [||]}
-        DispWaveNames = [||]
         AllWaveNames = [||]
-        AllPorts = Map.empty
-        ClkWidth = sWInfo.ClkWidth
-        Cursor = sWInfo.Cursor
+        SimParams = {
+            DispNames = [||]
+            ClkWidth = sWInfo.ClkWidth
+            Cursor = sWInfo.Cursor
+            Radix = sWInfo.Radix
+            LastClk = sWInfo.LastClk
+        }
+        WSState = { View=NoWS; NextView=None}
+        LastCanvasState = None  
         CursorEmpty = false
-        Radix = sWInfo.Radix
-        LastClk = sWInfo.LastClk
-        WaveSimEditorOpen = NoWS
-        LastCanvasState = None           
+
     }
 
 let getSheetWaveSimOpt (model:Model) : WaveSimModel option = 

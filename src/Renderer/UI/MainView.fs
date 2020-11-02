@@ -85,7 +85,7 @@ let init() = {
 
 
 
-let private makeSelectionChangeMsg (model:Model) (dispatch: Msg -> Unit) (ev: 'a) =
+let makeSelectionChangeMsg (model:Model) (dispatch: Msg -> Unit) (ev: 'a) =
     dispatch SelectionHasChanged
 
 // -- Create View
@@ -114,7 +114,7 @@ let private viewRightTab model dispatch =
             ( WaveformSimulationView.viewWaveSim model dispatch )
 
 /// determine whether moving the mouse drags the bar or not
-let setDragMode (modeIsOn:bool) (model:Model) dispatch =
+let inline setDragMode (modeIsOn:bool) (model:Model) dispatch =
     fun (ev: Browser.Types.MouseEvent) ->        
         makeSelectionChangeMsg model dispatch ev
         //printfn "START X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
@@ -163,9 +163,23 @@ let displayView model dispatch =
     let sd = scrollData model
     let x' = sd.SheetLeft+sd.SheetX
     let y' = sd.SheetTop+sd.SheetY
+    let wsModelOpt = getCurrFileWSMod model
+
+    /// Feed chnaged viewer width from draggable bar back to Viewer parameters
+    let inline setViewerWidthInWaveSim w =
+        match currWaveSimModel model with
+        | Some wSMod when w > maxWidth wSMod && wSMod.WSState.View <> WSEditorOpen ->
+            match wsModelOpt with
+            | Some ws ->
+                let simProgressState = 
+                    {ws.SimParams with LastClk = ws.SimParams.LastClk + 10u}
+                dispatch <| SetSimInProgress (ChangeParameters simProgressState)
+            | _ -> ()
+        | _ -> ()
+
  
     /// used only to make the divider bar draggable
-    let processMouseMove (ev: Browser.Types.MouseEvent) =
+    let inline processMouseMove (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         if ev.buttons = 1. then 
             dispatch SelectionHasChanged
@@ -177,14 +191,7 @@ let displayView model dispatch =
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth)
             dispatch <| SetViewerWidth w 
-            match currWaveSimModel model with
-            | Some wSMod when w > maxWidth wSMod && wSMod.WaveSimEditorOpen <> WSEditorOpen ->
-                let simProgressState = 
-                    {|  LastClk = wSMod.LastClk + 10u
-                        ClkW = wSMod.ClkWidth
-                        Curs = wSMod.Cursor |}
-                dispatch <| SetSimInProgress (ChangeParameters simProgressState)
-            | _ -> ()
+            setViewerWidthInWaveSim w
             dispatch <| SetDragMode (DragModeOn (int ev.clientX))
         | DragModeOn _, _ ->  
             dispatch <| SetDragMode DragModeOff

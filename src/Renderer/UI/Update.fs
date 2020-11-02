@@ -364,7 +364,7 @@ let update msg model =
         setActivity (fun a -> {a with LastSavedCanvasState= Map.add name state a.LastSavedCanvasState}) model, Cmd.none
     | StartSimulation simData -> { model with CurrentSimulatorStep = Some simData }, Cmd.none
     | SetCurrFileWSMod wSMod' -> 
-        printfn "Setting %A in wsMod" wSMod'.WaveSimEditorOpen
+        printfn "Setting %A in wsMod" wSMod'.WSState
         match FileMenuView.getCurrFile model with
         | Some fileName ->
             { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), 

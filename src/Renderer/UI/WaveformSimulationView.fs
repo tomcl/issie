@@ -84,20 +84,21 @@ open FileMenuView
 
 /// strings of the values displayed in the rigth column of the simulator
 let private cursValStrings (wSMod: WaveSimModel) (waveData: Sample [] []) =
+    let paras = wSMod.SimParams
     let pref =
-        match wSMod.Radix with
+        match paras.Radix with
         | Bin -> "0b"
         | Hex -> "0x"
         | _ -> ""
 
     let makeCursVal sample =
         match sample with
-        | Wire w when w.NBits > 1u -> [| pref + n2StringOfRadix w.BitData w.NBits wSMod.Radix |]
+        | Wire w when w.NBits > 1u -> [| pref + n2StringOfRadix w.BitData w.NBits paras.Radix |]
         | Wire w -> [| pref + string w.BitData |]
         | StateSample s -> s
 
-    match int wSMod.Cursor < Array.length wSMod.SimDataCache with
-    | true -> Array.map makeCursVal waveData.[int wSMod.Cursor]
+    match int paras.Cursor < Array.length wSMod.SimDataCache with
+    | true -> Array.map makeCursVal waveData.[int paras.Cursor]
     | false -> [||]
 
 /// maximum width of the waveform simulator viewer
@@ -112,7 +113,7 @@ let maxWidth (wSMod: WaveSimModel) =
             |> Array.max
             |> max 25.0
     let namesColWidth =
-        match wSMod.DispWaveNames with
+        match wSMod.SimParams.DispNames with
         | [||] -> 0.0
         | wN ->
             Array.map strWidth wN
@@ -155,45 +156,49 @@ let private selectAllOn model (wSMod: WaveSimModel) =
 /// stretch waveforms horizontally
 let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
     let netList = wsModel2netList wSMod
+    let pars = wSMod.SimParams
     let newClkW =
         if plus then zoomFactor else 1.0 / zoomFactor
-        |> (*) wSMod.ClkWidth
+        |> (*) pars.ClkWidth
         |> max minZoom
         |> min maxZoom
     let newPars =
         match int (float m.ViewerWidth * zoomFactor) > maxWidth wSMod with
         | true ->
             ChangeParameters
-                {| LastClk = (wSMod.LastClk + 1u) * (uint zoomFactor) + 10u
-                   Curs = wSMod.Cursor
-                   ClkW = newClkW |}
+                { pars with
+                   LastClk = (pars.LastClk + 1u) * (uint zoomFactor) + 10u
+                   Cursor = pars.Cursor
+                   ClkWidth = newClkW }
         | false -> 
             ChangeParameters 
-                {| 
-                    LastClk = wSMod.LastClk
-                    Curs = wSMod.Cursor
-                    ClkW = newClkW 
-                |}
+                {pars with 
+                    LastClk = pars.LastClk
+                    Cursor = pars.Cursor
+                    ClkWidth = newClkW 
+                }
     dispatch <| SetSimInProgress newPars
         
 
 /// change cursor value
 let private changeCurs (wSMod: WaveSimModel) dispatch newCurs =
+    let pars = wSMod.SimParams
     let curs' = min maxLastClk newCurs
-    match 0u <= curs', curs' <= wSMod.LastClk with
+    match 0u <= curs', curs' <= pars.LastClk with
     | true, true ->
-        { wSMod with Cursor = curs' }
+        wSMod
+        |> setSimParams (fun sp -> {sp with Cursor = curs' })
         |> SetCurrFileWSMod |> dispatch
         UpdateScrollPos true |> dispatch
     | true, false ->
-        let pars = {| Curs = curs'; ClkW = wSMod.ClkWidth; LastClk = wSMod.LastClk |}
-        dispatch <| SetSimInProgress (ChangeParameters pars)
+        let pars' = { pars with Cursor = curs'; ClkWidth = pars.ClkWidth; LastClk = pars.LastClk }
+        dispatch <| SetSimInProgress (ChangeParameters pars')
         UpdateScrollPos true |> dispatch
     | false, _ -> ()
 
 /// change cursor value by 1 up or down
 let private cursorMove increase (wSMod: WaveSimModel) dispatch =
-    match increase, wSMod.Cursor with
+    match increase, wSMod.SimParams.Cursor with
     | true, n -> n + 1u |> changeCurs wSMod dispatch
     | false, n -> n - 1u |> changeCurs wSMod dispatch
 
@@ -206,7 +211,7 @@ let private moveWave diagram netList (wSMod: WaveSimModel) up =
     let svgCache = wSMod.DispWaveSVGCache
     let wTFirst, wTLast = svgCache.Top, svgCache.Bottom
     let movedNames =
-        wSMod.DispWaveNames
+        wSMod.SimParams.DispNames
         |> Array.map (fun name -> isWaveSelected diagram netList (wSMod.AllPorts.[name]), name)
         |> Array.fold (fun (arr, prevSel) (sel,p) -> 
             match sel, prevSel with 
@@ -218,7 +223,7 @@ let private moveWave diagram netList (wSMod: WaveSimModel) up =
                                                else float i, ports)
         |> Array.sortBy fst
         |> Array.collect snd 
-    {wSMod with DispWaveNames = movedNames}
+    setDispNames movedNames wSMod
     |> SetCurrFileWSMod
 
 /// display set of netGroups in a standard order
@@ -273,12 +278,12 @@ let private makeCursVals model waveData =
 
 /// tuple of React elements of middle column, left column, right column.
 /// shows waveforms and labels and cursor col.
-/// The vertical order is fixed and as in DispPorts, DispWaveNames and DispWaveSVGCache
+/// The vertical order is fixed and as in DispNames
 let private waveSimRows compIds diagram (netList: NetList) (wsMod: WaveSimModel) dispatch =
     let waveData = getWaveData wsMod
     let netGroups = dispPorts wsMod
     let labelCols =
-        makeLabels wsMod.DispWaveNames
+        makeLabels wsMod.SimParams.DispNames
         |> Array.mapi (fun i l ->
             tr [ Class "rowHeight" ]
                 [ td [ Class "checkboxCol" ]
@@ -308,7 +313,7 @@ let private radixTabs (model: WaveSimModel) dispatch =
 
     let radTab rad =
         Tabs.tab
-            [ Tabs.Tab.IsActive(model.Radix = rad)
+            [ Tabs.Tab.IsActive(model.SimParams.Radix = rad)
               Tabs.Tab.Props
                   [ Style
                       [ Width "35px"
@@ -318,7 +323,7 @@ let private radixTabs (model: WaveSimModel) dispatch =
                     [ Padding "0 0 0 0"
                       Height "30px" ]
                   OnClick(fun _ ->
-                      { model with Radix = rad }
+                      setSimParams (fun sp -> {sp with Radix = rad}) model
                       |> SetCurrFileWSMod
                       |> dispatch) ] [ str (radixString.[rad]) ] ]
     Tabs.tabs
@@ -350,7 +355,7 @@ let private cursorButtons (model: Model) wSMod dispatch =
                 Input.Id "cursor"
                 match currWaveSimModel model with
                 | Some wSMod when wSMod.CursorEmpty = false -> 
-                    string wSMod.Cursor
+                    string wSMod.SimParams.Cursor
                 | Some _ -> ""
                 | None -> "0"
                 |> Input.Value 
@@ -427,6 +432,7 @@ let private nameLabelsCol model netList (wsMod: WaveSimModel) labelRows dispatch
 
 /// ReactElement of the waveform SVGs' column
 let private wavesCol model (wSModel: WaveSimModel) rows dispatch =
+    let pars = wSModel.SimParams
     let element =  ref None
     /// get reference to HTML elemnt that is scrolled
     let htmlElementRef (el: Browser.Types.Element) =
@@ -455,16 +461,16 @@ let private wavesCol model (wSModel: WaveSimModel) rows dispatch =
         | Some e ->
             if e.scrollWidth - e.clientWidth - e.scrollLeft < 10.0
                 then 
-                    let pars =
-                        {| 
-                            ClkW = wSModel.ClkWidth
-                            Curs = wSModel.Cursor
+                    let pars' =
+                        { pars with
+                            ClkWidth = pars.ClkWidth
+                            Cursor = pars.Cursor
                             LastClk =  
-                                max ((float wSModel.LastClk + 1.0) * 0.1 |> uint) 10u 
-                                |> (+) wSModel.LastClk
+                                max ((float pars.LastClk + 1.0) * 0.1 |> uint) 10u 
+                                |> (+) pars.LastClk
                                 |> min maxLastClk 
-                        |}
-                    dispatch <| SetSimInProgress (ChangeParameters pars)
+                        }
+                    dispatch <| SetSimInProgress (ChangeParameters pars')
                     printfn "working"
                 else printfn "not working"
             //e.scrollLeft <- 100. // this shows how to set scroll position COMMENT THIS OUT
@@ -472,14 +478,14 @@ let private wavesCol model (wSModel: WaveSimModel) rows dispatch =
             // scroll position = min or max => at end
             printfn "scrolling with scrollPos=%f" e.scrollLeft
     let waves = 
-        wSModel.DispWaveNames 
+        wSModel.SimParams.DispNames 
         |> Array.map (fun name -> rows.Waves.[name]) 
     div [ Ref htmlElementRef 
           OnScroll scrollFun 
           Style [ MaxWidth(maxWavesColWidth wSModel)
                   MinHeight "100%" ]
           Class "wavesTable" ]
-        [ div [ Class "cursorRectStyle"; cursRectStyle wSModel ] [ str " " ]
+        [ div [ Class "cursorRectStyle"; cursRectStyle wSModel.SimParams ] [ str " " ]
           table [ Style [ Height "100%" ] ] 
                 [ tbody [ Style [ Height "100%" ] ] (Array.concat [|rows.Top; waves; rows.Bottom|]) ] ]
 
@@ -634,7 +640,7 @@ let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (dispatch: Msg
 
 /// TRANSITION: Switch between WaveformEditor (editorIsOn = true) and WaveformViewer (editorIsOn = false) view
 /// sets wsModel for the new view
-let private openCloseWaveEditor model (netList:NetList) (wSModel: WaveSimModel) (editorState: WaveSimStateT) dispatch = 
+let private openCloseWaveEditor model (netList:NetList) (wSModel: WaveSimModel) (editorState: WSViewT) dispatch = 
 
     let compIds = getComponentIds model
     let wSModel = 
@@ -653,7 +659,8 @@ let private openCloseWaveEditor model (netList:NetList) (wSModel: WaveSimModel) 
 
         | NoWS -> 
             failwithf "What? openCloseWaveadder can't be called with NoWS"
-    dispatch <| SetCurrFileWSMod { wSModel with WaveSimEditorOpen = editorState}
+        | _ -> failwithf "Note yet implemented"
+    dispatch <| SetCurrFileWSMod (setEditorView editorState wSModel)
     
 /// This function sets up an initial waveSim for waveform viewing.
 /// initSimDat must be the initial clock tick 0 simulation data.
@@ -670,20 +677,20 @@ let extendSimInWaveSimModel (rState: CanvasState) (initSimDat: SimulatorTypes.Si
     let allPorts = Array.zip allNames netGroups |> Map.ofArray
     let lookup name = Map.tryFind name allPorts
     let dispNames = // filter remembered names by whether they are still valid, lookup new ports (in case those have changed)
-        ws.DispWaveNames
+        ws.SimParams.DispNames
         |> Array.filter (fun name -> match lookup  name with | Some netGroup ->true | None -> false)
     //
     // simulation data of correct length
     // simulation here is done immediately in the transition function, without GUI warning
-    let sD' = Array.append [| initSimDat |] (extractSimData initSimDat ws.LastClk)
+    let sD' = Array.append [| initSimDat |] (extractSimData initSimDat ws.SimParams.LastClk)
     { ws with 
         InitWaveSimGraph = Some initSimDat
         SimDataCache = sD'
         AllPorts = allPorts
-        AllWaveNames = allNames // must be same order as AllNetgroups
-        DispWaveNames = dispNames        
+        AllWaveNames = allNames // must be same order as AllNetgroups     
         LastCanvasState = Some rState 
     }
+    |> setDispNames dispNames   
 
 
 /// TRANSITION HELPER: 
@@ -718,14 +725,15 @@ let startNewWaveSimulation compIds model wSMod dispatch (simData: SimulatorTypes
         |> Map.ofArray
     let allNames = mapKeys allPorts
     printfn "***Netgroups=%A***" (Array.length netGroups)
-    let wSMod = { 
+    let wSMod = 
+        { 
         wSMod with       
           AllPorts = allPorts 
           AllWaveNames = allNames
-          WaveSimEditorOpen = WSEditorOpen
           InitWaveSimGraph = Some simData
           LastCanvasState = Some rState 
-         }
+        }
+        |> setEditorView WSEditorOpen
     dispatch <| SetCurrFileWSMod wSMod
     Array.iter (fun ng -> selectNetGrpConns model.Diagram ng false) netGroups
     dispatch <| ChangeRightTab WaveSim
@@ -808,13 +816,13 @@ let viewWaveSim (model: Model) dispatch =
     | Some wSModel, None ->
         // we derive all the waveSim circuit details from LastSimulatedCanvasState which does not change until a new simulation is run
         let netList = Helpers.getNetList  <| Option.defaultValue ([],[]) model.LastSimulatedCanvasState
-        match wSModel.WaveSimEditorOpen, model.SimulationInProgress with
+        match wSModel.WSState.View, wSModel.WSState.NextView with
         | WSEditorOpen, None -> // display waveAdder if simulation has not finished and adder is open
             waveEditorView  model netList wSModel dispatch      
         | WSViewerOpen, None  ->         // otherwise display waveforms 
             waveformsView compIds model netList wSModel dispatch  
         | _, prog  -> 
-            printfn "ViewWaveSim should not be called when WaveSimEditorOpen =%A, inProgress = %A" wSModel.WaveSimEditorOpen prog
+            printfn "ViewWaveSim should not be called when WaveSimEditorOpen =%A, inProgress = %A" wSModel.WSState prog
             [ div [] [] ]
 
     // Set the current simulation error message

@@ -515,7 +515,7 @@ let makeText style t = text style [ str t ]
 
 let backgroundSvg (model: WaveSimModel) =
     let clkLine x = makeLinePoints [ Class "clkLineStyle" ] (x, vPos) (x, vPos + sigHeight + spacing)
-    [| 1u .. model.LastClk + 1u |] |> Array.map ((fun x -> float x * model.ClkWidth) >> clkLine)
+    [| 1u .. model.SimParams.LastClk + 1u |] |> Array.map ((fun x -> float x * model.SimParams.ClkWidth) >> clkLine)
 
 let button options func label = 
     Button.button (List.append options [ Button.OnClick func ]) [ str label ]
@@ -607,7 +607,7 @@ let makeGaps trans =
 
 /// get values position of bus labels from the transition gaps (for one Waveform)
 let private gaps2pos (wSModel: WaveSimModel) (wave: Waveform) gaps =
-    let clkWidth = int wSModel.ClkWidth
+    let clkWidth = int wSModel.SimParams.ClkWidth
     let nSpaces (g: {| GapLen: int; GapStart: int |}) = 
         (g.GapLen * clkWidth / (maxBusValGap + 1) + 2)
     let gapAndInd2Pos (g: {| GapLen: int; GapStart: int |}) i =
@@ -715,10 +715,10 @@ let private makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * i
 /// SVG of the clock numbers above the waveforms
 let clkRulerSvg (model: WaveSimModel) =
     let makeClkRulLbl i =
-        match model.ClkWidth with
+        match model.SimParams.ClkWidth with
         | clkW when clkW < 0.5 && i % 5 <> 0 -> [||]
         | _ -> [| makeText (cursRectText model i) (string i) |]
-    [| 0 .. int model.LastClk |]
+    [| 0 .. int model.SimParams.LastClk |]
     |> Array.collect makeClkRulLbl
     |> Array.append (backgroundSvg model)
     |> makeSvg (clkRulerStyle model)
@@ -736,11 +736,11 @@ let makeClkSvg (sampArr: Waveform) (wsMod): ReactElement [] =
 let waveSvg wsMod waveData  =
     let valueLabels =
         busLabels wsMod waveData
-        |> Array.map (Array.collect (busLabelOneValue wsMod))
+        |> Array.map (Array.collect (busLabelOneValue wsMod.SimParams))
 
     let makeWaveSvg (sampArr: Waveform) (transArr: (int * int) []): ReactElement [] =
         (sampArr, transArr)
-        ||> Array.mapi2 (makeSegment wsMod.ClkWidth)
+        ||> Array.mapi2 (makeSegment wsMod.SimParams.ClkWidth)
         |> Array.concat
 
     let padTrans t =
@@ -779,7 +779,7 @@ let addSVGToWaveSimModel wSModel =
 
     let midRows =
         waveSvg wSModel waveData
-        |> Array.zip wSModel.DispWaveNames
+        |> Array.zip wSModel.SimParams.DispNames
         |> Array.map (fun (name,wave) ->
                 let waveWithBg = Array.append bgSvg wave
                 let svg = waveTableRow [ Class "rowHeight" ] (waveCell wSModel) (waveCellSvg wSModel false) waveWithBg
@@ -811,19 +811,20 @@ let makeLabels waveNames =
                      
 
 /// adjust parameters before feeding them into updateWSMod 
-let adjustPars (wsMod: WaveSimModel) (pars: {| LastClk: uint; Curs: uint; ClkW: float |}) rightLim dispatch =
-    match wsMod.ClkWidth = pars.ClkW, wsMod.Cursor = pars.Curs, wsMod.LastClk = pars.LastClk with
+let adjustPars (wsMod: WaveSimModel) (pars: SimParamsT) rightLim dispatch =
+    let currPars = wsMod.SimParams
+    match currPars.ClkWidth = pars.ClkWidth, currPars.Cursor = currPars.Cursor, currPars.LastClk = currPars.LastClk with
     // zooming
     | false, true, true -> 
-        rightLim / (wsMod.ClkWidth * 40.0)
+        rightLim / (currPars.ClkWidth * 40.0)
         |> uint
-        |> max wsMod.Cursor
+        |> max currPars.Cursor
         |> (+) 10u
-        |> (fun newClk -> {| pars with LastClk = newClk |})
+        |> (fun newClk -> { pars with LastClk = newClk })
     // changing cursor
     | true, false, true -> 
         UpdateScrollPos true |> dispatch
-        {| pars with LastClk = max pars.LastClk (pars.Curs + 10u) |> min maxLastClk |}
+        { pars with LastClk = max pars.LastClk (pars.Cursor + 10u) |> min maxLastClk }
     // generating longer simulation
     | true, true, false -> pars
     // other situations should not occur, by default, don't change parameters
@@ -831,15 +832,17 @@ let adjustPars (wsMod: WaveSimModel) (pars: {| LastClk: uint; Curs: uint; ClkW: 
 
 /// update the WaveSimModel entry of the current file with new parameters
 let updateWSMod (model: Model) (wsMod: WaveSimModel) 
-                (par: {| LastClk: uint; Curs: uint; ClkW: float |}) : WaveSimModel =
-    { wsMod with LastClk = par.LastClk
-                 SimDataCache = par.LastClk + 1u - uint (Array.length wsMod.SimDataCache)
-                           |> appendSimData model wsMod
-                           |> function | Some (Ok dat) -> dat
-                                       | None -> failwithf "No simulation data when Some are expected"
-                                       | Some (Error e) -> failwithf "%A" e
-                 Cursor = par.Curs 
-                 ClkWidth = par.ClkW }
+                (par: SimParamsT) : WaveSimModel =
+    let newData =
+        par.LastClk + 1u - uint (Array.length wsMod.SimDataCache)
+        |> appendSimData model wsMod
+        |> function | Some (Ok dat) -> dat
+                    | None -> failwithf "No simulation data when Some are expected"
+                    | Some (Error e) -> failwithf "%A" e
+
+    let par' = {par with DispNames = wsMod.SimParams.DispNames}
+    { wsMod with SimDataCache = newData
+                 SimParams = par' }
     |> addSVGToWaveSimModel
 
 
@@ -857,11 +860,11 @@ let waveGen (wSMod: WaveSimModel) ports =
     let simData', wa = 
         match wSMod with
         | {InitWaveSimGraph = Some  sD} as wa ->
-            wSMod.LastClk
+            wSMod.SimParams.LastClk
             |> extractSimData sD
             |> Array.append [| sD |]
             |> (fun sd -> sd, wa)
-        | {InitWaveSimGraph = None} -> failwith "waveGen called when WaveAdder.SimData is None"
+        | {InitWaveSimGraph = None} -> failwith "waveGen called when wsmodel.InitWaveSimGraph is None"
 
     let names =
         Map.toArray wSMod.AllPorts
@@ -871,10 +874,9 @@ let waveGen (wSMod: WaveSimModel) ports =
     let wSMod' =
         { wSMod with
             SimDataCache = simData'
-            DispWaveNames = names
-            WaveSimEditorOpen = WSViewerOpen }
-
-    addSVGToWaveSimModel wSMod'
+            WSState = failwithf "not implemented"} //{View=WSViewerOpen;NextView= None }}
+    setSimParams (fun sp -> {sp with DispNames = names}) wSMod'
+    |> addSVGToWaveSimModel
 
 //////////////////////////////////////
 /// Interaction with Model.Diagram ///
@@ -932,8 +934,8 @@ let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
             |> Option.defaultValue (Map.empty)
 
         let netGroups =
-            match wSModel.WaveSimEditorOpen with 
-            | WSEditorOpen -> netList2NetGroups netList
+            match wSModel.WSState.View with 
+            | WSEditorOpen | WSInitEditorOpen -> netList2NetGroups netList
             | WSViewerOpen -> dispPorts wSModel
             | NoWS -> [||]
 
@@ -968,16 +970,16 @@ let fileMenuViewActions model dispatch =
 
 /// returns true when the cursor rectangle is in the visible section of the scrollable div
 let isCursorVisible wSMod divWidth scrollPos =
-    let cursLeftPos = cursorLeftPx wSMod <| float wSMod.Cursor
-    let cursMid = cursLeftPos + (wSMod.ClkWidth * 40.0 / 2.0)
+    let cursLeftPos = cursorLeftPx wSMod.SimParams <| float wSMod.SimParams.Cursor
+    let cursMid = cursLeftPos + (wSMod.SimParams.ClkWidth * 40.0 / 2.0)
     let leftScreenLim = scrollPos
     let rightScreenLim = leftScreenLim + divWidth
     cursLeftPos >= cursMid && cursMid <= rightScreenLim
 
 /// returns horizontal scrolling position required so that the cursor becomes visible
 let makeCursorVisiblePos wSMod divWidth = 
-    let cursLeftPos = cursorLeftPx wSMod <| float wSMod.Cursor
-    let cursMid = cursLeftPos + (wSMod.ClkWidth * 40.0 / 2.0)
+    let cursLeftPos = cursorLeftPx wSMod.SimParams <| float wSMod.SimParams.Cursor
+    let cursMid = cursLeftPos + (wSMod.SimParams.ClkWidth * 40.0 / 2.0)
     cursMid - (divWidth / 2.0)
 
 /////////////////////////////////////////

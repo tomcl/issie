@@ -134,7 +134,7 @@ let sigLineThick = 0.025;
 let spacing = 0.4
 let sigHeight = 0.3 
 
-let vbWidth m = m.ClkWidth * (float m.LastClk + 1.0)
+let vbWidth m = m.SimParams.ClkWidth * (float m.SimParams.LastClk + 1.0)
 let maxWavesColWidthFloat m = vbWidth m * 40.0 + 4.0
 let maxWavesColWidth m = string (maxWavesColWidthFloat m) + "px"
 let waveCellWidth m = Width (maxWavesColWidth m)
@@ -159,7 +159,7 @@ let cursRectStyle m = Style [
 
 let cursRectText m i : IProp list = [
     Class "clkNumStyle"
-    X (m.ClkWidth * (float i + 0.5)) 
+    X (m.SimParams.ClkWidth * (float i + 0.5)) 
     Y 0.5
 ]
 

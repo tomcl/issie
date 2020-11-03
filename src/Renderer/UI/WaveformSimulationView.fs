@@ -177,7 +177,7 @@ let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
                     Cursor = pars.Cursor
                     ClkWidth = newClkW 
                 }
-    dispatch <| SetSimInProgress newPars
+    dispatch <| InitiateWaveSimulation(WSViewerOpen, newPars)
         
 
 /// change cursor value
@@ -375,15 +375,16 @@ let private cursorButtons (model: Model) wSMod dispatch =
           button [ Button.CustomClass "cursRight" ] (fun _ -> cursorMove true wSMod dispatch) "▶" ]
 
 /// ReactElement of the loading button
-let private loadingButton model =
-    match model.SimulationInProgress with
+let private loadingButton wsMod dispatch =
+    dispatch <| WaveSimulateNow
+    match wsMod.WSState.NextView with
     | Some _ -> button [Button.Color IsDanger] (fun _ -> ()) "loading..."
     | None -> str ""
 
 /// React Element of the buttons Bar at the top of the waveform simulator
 let private viewWaveSimButtonsBar model wSMod dispatch =
     div [ Style [ Height "45px" ] ]
-        [ loadingButton model
+        [ loadingButton wSMod dispatch
           radixTabs wSMod dispatch
           cursorButtons model wSMod dispatch ]
 
@@ -444,7 +445,7 @@ let private wavesCol model (wSModel: WaveSimModel) rows dispatch =
             dispatch <| SimulateWhenInProgress simAction
         | Some (ChangeParameters par), Some e -> 
             let newPars = adjustPars wSModel par (e.clientWidth + e.scrollLeft) dispatch
-            dispatch <| SimulateWhenInProgress (Some <| ChangeParameters newPars)
+            dispatch <| InitiateWaveSimulation(WSViewerOpen, newPars)
         | None, Some e -> 
             match model.CheckScrollPos with
             | true when not (isCursorVisible wSModel e.clientWidth e.scrollLeft) -> 
@@ -470,7 +471,7 @@ let private wavesCol model (wSModel: WaveSimModel) rows dispatch =
                                 |> (+) pars.LastClk
                                 |> min maxLastClk 
                         }
-                    dispatch <| SetSimInProgress (ChangeParameters pars')
+                    dispatch <| InitiateWaveSimulation(WSViewerOpen, pars')
                     printfn "working"
                 else printfn "not working"
             //e.scrollLeft <- 100. // this shows how to set scroll position COMMENT THIS OUT
@@ -835,7 +836,7 @@ let viewWaveSim (model: Model) dispatch =
                     dispatch <| SetHighlighted ([], []) // Remove highlights.
                     dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
                     dispatch <| SetWSError None 
-                    updateCurrFileWSMod (fun ws -> {ws with InitWaveSimGraph=None}) model dispatch
+                    dispatch <| updateCurrFileWSMod (fun ws -> {ws with InitWaveSimGraph=None}) model
                     dispatch <| ChangeRightTab Catalogue 
                     ) 
                     "Ok" ] ]

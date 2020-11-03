@@ -121,7 +121,7 @@ type SimActionT =
 
 
 type WaveSimModel = {
-    /// generate data using this, which comes from makesimdata
+    /// generate data using this 0 clock simulation, which comes from makeSimData
     InitWaveSimGraph : SimulationData option
     
     /// parameters determining the viewer wave display
@@ -155,8 +155,14 @@ let setDispNames names wsMod =
 let setEditorView view wsModel =
     {wsModel with WSState = {wsModel.WSState with View = view; NextView = None}}
 
+let getEditorNextView wsModel =
+    wsModel.WSState.NextView
+    
 let setEditorNextView nView simParas wsModel =
-    {wsModel with WSState = {wsModel.WSState with NextView = Some(nView,simParas)}}
+    {wsModel with WSState = {wsModel.WSState with NextView = Some(simParas, nView)}}
+
+let clearEditorNextView wsModel =
+    {wsModel with WSState = {wsModel.WSState with NextView = None}}
     
 
     
@@ -266,8 +272,8 @@ type Msg =
     | SetSimIsStale of bool
     | SetIsLoading of bool
     | SetWaveSimModel of Sheet: string * WSModel: WaveSimModel
-    | SimulateWhenInProgress of SimActionT option
-    | SetSimInProgress of SimActionT
+    | WaveSimulateNow
+    | InitiateWaveSimulation of (WSViewT * SimParamsT)
     | SetLastSimulatedCanvasState of CanvasState option
  //   | StartNewWaveSimulation of CanvasState
     | UpdateScrollPos of bool

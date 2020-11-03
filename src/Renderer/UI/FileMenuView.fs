@@ -24,11 +24,7 @@ open System
     
 
 
-/// returns a string option representig the current file name if file is loaded, otherwise None
-let getCurrFile (model: Model) =
-    match model.CurrProject with
-    | Some proj -> Some proj.OpenFileName
-    | None -> None
+
 
 /// returns a WaveSimModel option if a file is loaded, otherwise None
 let currWaveSimModel (model: Model) =

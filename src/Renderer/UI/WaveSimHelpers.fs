@@ -830,6 +830,8 @@ let adjustPars (wsMod: WaveSimModel) (pars: SimParamsT) rightLim dispatch =
     // other situations should not occur, by default, don't change parameters
     | _ -> pars
 
+/// Do a new simulation (if needed)
+/// recalculate the wave SVGs given new parameters
 /// update the WaveSimModel entry of the current file with new parameters
 let updateWSMod (model: Model) (wsMod: WaveSimModel) 
                 (par: SimParamsT) : WaveSimModel =
@@ -877,6 +879,10 @@ let waveGen (wSMod: WaveSimModel) ports =
             WSState = failwithf "not implemented"} //{View=WSViewerOpen;NextView= None }}
     setSimParams (fun sp -> {sp with DispNames = names}) wSMod'
     |> addSVGToWaveSimModel
+
+
+
+
 
 //////////////////////////////////////
 /// Interaction with Model.Diagram ///

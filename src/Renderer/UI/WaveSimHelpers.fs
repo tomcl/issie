@@ -95,19 +95,6 @@ let private makeAllNetGroups (netList:NetList) :NetGroup array=
             | IOLabel -> [||]
             | _ -> mapValues comp.Outputs |> Array.map makeNetGroup)
     allNetGroups
-          
-               
- 
-
-        
-
-
-
-
-
-
-
-    
     
 
 /// Get NetGroup from targets which represents the group of nLTargets connected by IOLabels.
@@ -123,9 +110,6 @@ let rec private getNetGroup (netList: NetList) targets = failwithf "this functio
         |> List.filter (fun netListTrgt -> netList.[netListTrgt.TargetCompId].Type = IOLabel)
         |> List.map (fun netListTrgt -> netList.[netListTrgt.TargetCompId].Label)
         |> List.distinct
-
-
-
  
 
     let driverNet' =
@@ -764,7 +748,6 @@ let waveSvg wsMod waveData  =
 
 
 /// Calculate and add the waveform SVGs to the current wsModel.
-/// waveSVG and clkRulerSvg are constant functions passed in because defined after this
 /// TODO: reorder functions!
 let addSVGToWaveSimModel wSModel =
     let waveData = 
@@ -841,8 +824,8 @@ let updateWSMod (model: Model) (wsMod: WaveSimModel)
         |> function | Some (Ok dat) -> dat
                     | None -> failwithf "No simulation data when Some are expected"
                     | Some (Error e) -> failwithf "%A" e
-
-    let par' = {par with DispNames = wsMod.SimParams.DispNames}
+    printfn "DispNames = %A" par.DispNames
+    let par' = {par with DispNames = par.DispNames}
     { wsMod with SimDataCache = newData
                  SimParams = par' }
     |> addSVGToWaveSimModel
@@ -925,6 +908,15 @@ let isWaveSelected (diagram:Draw2dWrapper.Draw2dWrapper) netList (nlTrgtLstGroup
 /// Functions fed into FileMenuView View function ///
 /////////////////////////////////////////////////////
 
+let showSimulationLoading (wsModel: WaveSimModel) (dispatch: Msg ->Unit) =
+    let nv = wsModel.WSState.NextView
+    let v = wsModel.WSState.View
+    match nv, v with
+    | None, _ -> false
+    | Some _, _ -> 
+        dispatch <| WaveSimulateNow
+        true
+
 let getAllNetGroups (waveSim:WaveSimModel) = 
     mapValues waveSim.AllPorts
 
@@ -962,6 +954,7 @@ let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
 /// actions triggered whenever the fileMenuView function is executed
 let fileMenuViewActions model dispatch =
     if model.ConnsToBeHighlighted then 
+        printfn "from filemenuview"
         highlightConnectionsFromNetGroups  model dispatch
     else ()
 

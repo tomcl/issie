@@ -215,6 +215,7 @@ let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
             Cursor = sWInfo.Cursor
             Radix = sWInfo.Radix
             LastClk = sWInfo.LastClk
+            LastScrollPos = None
         }
         WSState = { View=NoWS; NextView=None}
         LastCanvasState = None  

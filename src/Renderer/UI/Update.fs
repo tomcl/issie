@@ -245,8 +245,16 @@ let checkSelection model cmd =
     | Some newSelection ->
         let newSelectedIds =  extractIds newSelection
         if newSelectedIds = model.LastSelectedIds then
-            {model with CurrentSelected = extractState newSelection; LastSelectedIds = newSelectedIds}, cmd
+            //let model = 
+            //    {model with 
+            //        CurrentSelected = extractState newSelection; 
+            //        LastSelectedIds = newSelectedIds}
+            model, cmd
         else
+            let model = 
+                {model with 
+                    CurrentSelected = extractState newSelection; 
+                    LastSelectedIds = newSelectedIds}
             model, Cmd.batch [cmd; Cmd.ofMsg SelectionHasChanged]
 
 /// Check whether current message could mark a change in Diagram worth saving.
@@ -486,6 +494,7 @@ let update msg model =
         // do the simulation for WaveSim and generate new SVGs
         match getCurrFileWSMod model, getCurrFileWSModNextView model  with
         | Some wsMod, Some (pars, nView) -> 
+            printfn "Simulating: %A: (%A -> %A)" pars wsMod.WSState.View (Option.map snd wsMod.WSState.NextView)
             // does the actual simulation and SVG generation, if needed
             let wsMod' = 
                 updateWSMod model wsMod pars
@@ -506,6 +515,9 @@ let update msg model =
         { model with LastSimulatedCanvasState = cS }, Cmd.none
     | UpdateScrollPos b ->
         { model with CheckScrollPos = b}, Cmd.none
+    | SetLastScrollPos posOpt ->
+        let updateParas (sp:SimParamsT) = {sp with LastScrollPos = posOpt}
+        updateCurrFileWSMod (fun (ws:WaveSimModel) -> setSimParams updateParas ws) model, Cmd.none
     | SetWaveSimModel( sheetName, wSModel) -> 
         let updateWaveSim sheetName wSModel model =
             let sims,err = model.WaveSim

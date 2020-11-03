@@ -165,13 +165,11 @@ let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
     let newPars =
         match int (float m.ViewerWidth * zoomFactor) > maxWidth wSMod with
         | true ->
-            ChangeParameters
                 { pars with
                    LastClk = (pars.LastClk + 1u) * (uint zoomFactor) + 10u
                    Cursor = pars.Cursor
                    ClkWidth = newClkW }
-        | false -> 
-            ChangeParameters 
+        | false ->  
                 {pars with 
                     LastClk = pars.LastClk
                     Cursor = pars.Cursor
@@ -192,7 +190,7 @@ let private changeCurs (wSMod: WaveSimModel) dispatch newCurs =
         UpdateScrollPos true |> dispatch
     | true, false ->
         let pars' = { pars with Cursor = curs'; ClkWidth = pars.ClkWidth; LastClk = pars.LastClk }
-        dispatch <| SetSimInProgress (ChangeParameters pars')
+        dispatch <| InitiateWaveSimulation(WSViewerOpen, pars')
         UpdateScrollPos true |> dispatch
     | false, _ -> ()
 
@@ -376,10 +374,9 @@ let private cursorButtons (model: Model) wSMod dispatch =
 
 /// ReactElement of the loading button
 let private loadingButton wsMod dispatch =
-    dispatch <| WaveSimulateNow
-    match wsMod.WSState.NextView with
-    | Some _ -> button [Button.Color IsDanger] (fun _ -> ()) "loading..."
-    | None -> str ""
+    if showSimulationLoading wsMod dispatch then 
+        button [Button.Color IsDanger; Button.IsLoading true] (fun _ -> ()) ""
+    else str ""
 
 /// React Element of the buttons Bar at the top of the waveform simulator
 let private viewWaveSimButtonsBar model wSMod dispatch =
@@ -432,20 +429,22 @@ let private nameLabelsCol model netList (wsMod: WaveSimModel) labelRows dispatch
               Height "100%" ] ] [ table [ Class "leftTable" ] [ tbody [] leftCol ] ]
 
 /// ReactElement of the waveform SVGs' column
-let private wavesCol model (wSModel: WaveSimModel) rows dispatch =
+let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRows dispatch =
     let pars = wSModel.SimParams
     let element =  ref None
     /// get reference to HTML elemnt that is scrolled
-    let htmlElementRef (el: Browser.Types.Element) =
+    let allWaveformsHtmlRef (el: Browser.Types.Element) =
         if not (isNull el) then // el can be Null, in which case we do nothing
             element := Some el // set mutable reference to the HTML element for later use
-       
+            let scrollPos = el.clientWidth + el.scrollLeft
+            if Some scrollPos <> pars.LastScrollPos then
+                SetLastScrollPos (Some scrollPos) |> ignore
         match model.SimulationInProgress, !element with
-        | (Some (MakeSVGs par)) as simAction, _ -> 
+        (*| (Some (MakeSVGs par)) as simAction, _ -> 
             dispatch <| SimulateWhenInProgress simAction
         | Some (ChangeParameters par), Some e -> 
             let newPars = adjustPars wSModel par (e.clientWidth + e.scrollLeft) dispatch
-            dispatch <| InitiateWaveSimulation(WSViewerOpen, newPars)
+            dispatch <| InitiateWaveSimulation(WSViewerOpen, newPars)*)
         | None, Some e -> 
             match model.CheckScrollPos with
             | true when not (isCursorVisible wSModel e.clientWidth e.scrollLeft) -> 
@@ -455,6 +454,7 @@ let private wavesCol model (wSModel: WaveSimModel) rows dispatch =
         | _, None ->
             //dispatch <| SetSimInProgress None
             UpdateScrollPos false |> dispatch
+        | _ -> failwithf "This case should never happen?"
 
     let scrollFun (ev:Browser.Types.UIEvent) = // function called whenever scroll position is changed
         match !element with // element should now be the HTMl element that is scrolled
@@ -480,15 +480,15 @@ let private wavesCol model (wSModel: WaveSimModel) rows dispatch =
             printfn "scrolling with scrollPos=%f" e.scrollLeft
     let waves = 
         wSModel.SimParams.DispNames 
-        |> Array.map (fun name -> rows.Waves.[name]) 
-    div [ Ref htmlElementRef 
+        |> Array.map (fun name -> waveformSvgRows.Waves.[name]) 
+    div [ Ref allWaveformsHtmlRef 
           OnScroll scrollFun 
           Style [ MaxWidth(maxWavesColWidth wSModel)
                   MinHeight "100%" ]
           Class "wavesTable" ]
         [ div [ Class "cursorRectStyle"; cursRectStyle wSModel.SimParams ] [ str " " ]
           table [ Style [ Height "100%" ] ] 
-                [ tbody [ Style [ Height "100%" ] ] (Array.concat [|rows.Top; waves; rows.Bottom|]) ] ]
+                [ tbody [ Style [ Height "100%" ] ] (Array.concat [|waveformSvgRows.Top; waves; waveformSvgRows.Bottom|]) ] ]
 
 /// ReactElement of the bottom part of the waveform simulator when waveforms are being displayed
 let private viewWaveformViewer compIds model netList wSMod dispatch =
@@ -501,7 +501,7 @@ let private viewWaveformViewer compIds model netList wSMod dispatch =
         [ cursValsCol cursValsRows
           div [ Style [ Height "100%" ] ]
               [ nameLabelsCol model netList wSMod nameColMiddle dispatch
-                wavesCol model wSMod tableWaves dispatch ] ]
+                allWaveformsTableElement model wSMod tableWaves dispatch ] ]
 
 /// ReactElement of the zoom buttons
 let private viewZoomDiv compIds model wSMod dispatch =
@@ -576,10 +576,11 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
         | _ ->
             [ 
                 Button.Color IsSuccess
+                Button.IsLoading (showSimulationLoading wSModel dispatch)
                 Button.OnClick(fun _ -> 
                     dispatch ClosePropertiesNotification
-                    let action = MakeSVGs viewableNetGroups                
-                    dispatch <|  SetSimInProgress action)
+                    let par' = {wSModel.SimParams with DispNames = Array.map (getDispName wSModel) viewableNetGroups }            
+                    dispatch <|  InitiateWaveSimulation( WSViewerOpen, par'))
             ]
         |> (fun lst -> 
                 Button.Props [ Style [ MarginLeft "10px" ] ] :: lst)
@@ -818,9 +819,9 @@ let viewWaveSim (model: Model) dispatch =
         // we derive all the waveSim circuit details from LastSimulatedCanvasState which does not change until a new simulation is run
         let netList = Helpers.getNetList  <| Option.defaultValue ([],[]) model.LastSimulatedCanvasState
         match wSModel.WSState.View, wSModel.WSState.NextView with
-        | WSEditorOpen, None -> // display waveAdder if simulation has not finished and adder is open
+        | WSEditorOpen, _ -> // display waveAdder if simulation has not finished and adder is open
             waveEditorView  model netList wSModel dispatch      
-        | WSViewerOpen, None  ->         // otherwise display waveforms 
+        | WSViewerOpen, _  ->         // otherwise display waveforms 
             waveformsView compIds model netList wSModel dispatch  
         | _, prog  -> 
             printfn "ViewWaveSim should not be called when WaveSimEditorOpen =%A, inProgress = %A" wSModel.WSState prog
@@ -835,8 +836,11 @@ let viewWaveSim (model: Model) dispatch =
                     dispatch CloseSimulationNotification // Close error notifications.
                     dispatch <| SetHighlighted ([], []) // Remove highlights.
                     dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
-                    dispatch <| SetWSError None 
-                    dispatch <| updateCurrFileWSMod (fun ws -> {ws with InitWaveSimGraph=None}) model
+                    dispatch <| SetWSError None
+                    match getCurrFileWSMod model with
+                    | Some ws -> 
+                        dispatch <| SetCurrFileWSMod {ws with InitWaveSimGraph=None}
+                    | _ -> ()                   
                     dispatch <| ChangeRightTab Catalogue 
                     ) 
                     "Ok" ] ]

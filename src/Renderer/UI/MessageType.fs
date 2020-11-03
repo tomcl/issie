@@ -104,6 +104,8 @@ type SimParamsT = {
     ClkWidth: float
     /// names of ports selected in editor and displayed in viewer
     DispNames: string array
+    /// current scrolling position of waveform svg (used to possibly extend svgs)
+    LastScrollPos: float option
 }
 
 
@@ -169,6 +171,11 @@ let clearEditorNextView wsModel =
 
 let inline getPort (ws:WaveSimModel) (name: string) = ws.AllPorts.[name]
 
+let inline getDispName (ws:WaveSimModel) (port:NetGroup) =
+    Map.tryFindKey (fun k v -> v = port) ws.AllPorts
+    |> Option.defaultValue "name not found"
+    
+
 let inline dispPorts (ws: WaveSimModel) =
     ws.SimParams.DispNames
     |> Array.map (fun name -> ws.AllPorts.[name])
@@ -189,6 +196,7 @@ let initWS (allNames:string array) (allPorts: Map<string,NetGroup>): WaveSimMode
         Cursor = 0u
         Radix = Bin
         LastClk = 9u 
+        LastScrollPos = None
       }
       WSState = {View=NoWS; NextView=None}
       LastCanvasState = None 
@@ -277,3 +285,4 @@ type Msg =
     | SetLastSimulatedCanvasState of CanvasState option
  //   | StartNewWaveSimulation of CanvasState
     | UpdateScrollPos of bool
+    | SetLastScrollPos of float option

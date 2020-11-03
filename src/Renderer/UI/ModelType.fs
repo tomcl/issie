@@ -32,40 +32,70 @@ type AutoSaveT = Saving | Deleting | Inactive
 
 type AsyncTasksT = {
     AutoSave: AutoSaveT
+    /// time when last actually auto-saved
     LastAutoSave: Map<string,System.DateTime>
+    /// time when system last checked canvas components with previous autosave value
     LastAutoSaveCheck: System.DateTime
+    /// copy of what was last saved for real
     LastSavedCanvasState: Map<string,CanvasState>
     RunningSimulation: bool // placeholder - not used yet
     }
 
 [<CustomEquality;NoComparison>]
 type Model = {
+    /// data used to peform auto-save
     AsyncActivity: AsyncTasksT
+    /// All the data for waveform simulation (separate for each sheet)
+    /// TODO: remove the simulation error.
     WaveSim : Map<string, WaveSimModel> * (SimulationError option)
+    /// draw canvas
     Diagram : Draw2dWrapper
+    /// if canvas is now different from that which is currently used by wave sim.
     WaveSimulationIsStale: bool
+    /// canvas used for wave sim
     LastSimulatedCanvasState: CanvasState option // reduced (without layout) canvas state
-    LastDetailedState: CanvasState
+    /// used to determine whether current canvas has been saved (includes any change)
+    LastDetailedSavedState: CanvasState
+    /// component ids and connection ids currently selected
     LastSelectedIds: string list * string list
     CurrentSelected: Component list * Connection list
+    /// last used bus width in bits - used as default in next component create dialog
     LastUsedDialogWidth: int
+    /// component currently selected in properties dialog
     SelectedComponent : Component option // None if no component is selected.
+    /// used by step simulator: simgraph for current clock tick
     CurrentSimulatorStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
+    /// which of the tabbed panes is currentlky visible
     RightTab : RightTab
+    /// components and connections which are highlighted
     Hilighted : (ComponentId list * ConnectionId list) * ConnectionId list
-    Clipboard : CanvasState // Components and connections that have been selected and copied.
-    CreateComponent : Component option // Track the last added component
+    /// Components and connections that have been selected and copied.
+    Clipboard : CanvasState 
+    /// Track the last added component
+    CreateComponent : Component option 
+    /// used to enable "SAVE" button
     SheetHasUnsavedChanges : bool
+    /// true during period when a sheet or project is loading
     IsLoading: bool
+    /// the project contains, as loadable components, the state of each of its sheets
     CurrProject : Project option
+    /// function to create popup pane if present
     Popup : (PopupDialogData -> Fable.React.ReactElement) option
+    /// data to populate popup (may not all be used)
     PopupDialogData : PopupDialogData
+    /// record containing functions that create react elements of notifications
     Notifications : Notifications
+    /// menu for sheets etc
     TopMenu : TopMenu
+    /// used to determine whether mouse is currently dragging the divider, or used normally
     DragMode: DragMode
-    ViewerWidth: int // waveform viewer width in pixels
+    /// viewer width in pixels altered by dragging the divider
+    ViewerWidth: int
+    /// TODO - delete this
     SimulationInProgress:  SimActionT option
+    /// if true highlight connections from wavesim editor
     ConnsToBeHighlighted: bool
+    /// true if wavesim scroll position needs checking
     CheckScrollPos: bool
 } with
  
@@ -120,6 +150,9 @@ let reduceApprox (this: Model) = {|
 /// Lens to facilitate changing AsyncActivity
 let setActivity (f: AsyncTasksT -> AsyncTasksT) (model: Model) =
     {model with AsyncActivity = f model.AsyncActivity }
+
+
+
 
 let getDetailedState (model:Model) =
     model.Diagram.GetCanvasState()
@@ -269,14 +302,33 @@ let getCurrFileWSMod(model: Model) =
     | Some proj -> Map.tryFind proj.OpenFileName (fst wsMap)
 
 
-let updateCurrFileWSMod(updateFun: WaveSimModel -> WaveSimModel) (model: Model) (dispatch: Msg -> unit) =
+let getCurrFileWSModNextView(model:Model) =
+    getCurrFileWSMod model
+    |> Option.bind (fun ws -> ws.WSState.NextView)
+
+
+/// returns a string option representig the current file name if file is loaded, otherwise None
+let getCurrFile (model: Model) =
+    match model.CurrProject with
+    | Some proj -> Some proj.OpenFileName
+    | None -> None
+
+let setCurrFileWSMod (ws: WaveSimModel) (model: Model) =
+    match getCurrFile model with
+    | Some fileName ->
+        { model with WaveSim = Map.add fileName ws (fst model.WaveSim), 
+                               snd model.WaveSim }
+    | None -> model 
+
+
+let updateCurrFileWSMod(updateFun: WaveSimModel -> WaveSimModel) (model: Model) =
     let wsMap = model.WaveSim
     match model.CurrProject with
-    | None -> ()
+    | None -> model
     | Some proj ->
         Map.tryFind proj.OpenFileName (fst wsMap)
         |> Option.map ( fun wsModel ->
                 let ws' = updateFun wsModel
-                dispatch <| SetCurrFileWSMod ws')
-        |> ignore
+                setCurrFileWSMod ws' model)
+        |> Option.defaultValue model
  

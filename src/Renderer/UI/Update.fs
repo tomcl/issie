@@ -130,7 +130,7 @@ let private handleJSDiagramMsg msg model =
         let isNotEquiv (comps1,conns1) (comps2,conns2) =
             Set comps1 <> Set comps2 || Set conns1 <> Set conns2           
         let nState = getDetailedState model
-        if s && isNotEquiv model.LastDetailedState nState && not model.IsLoading then
+        if s && isNotEquiv model.LastDetailedSavedState nState && not model.IsLoading then
             //printfn "Setting Changed %A" s
             { model with 
                 SheetHasUnsavedChanges = s 
@@ -138,7 +138,7 @@ let private handleJSDiagramMsg msg model =
         elif not s then
             //printfn "Setting Changed %A" false
             { model with 
-                LastDetailedState = nState
+                LastDetailedSavedState = nState
                 SheetHasUnsavedChanges = false }
         else model
 
@@ -363,14 +363,8 @@ let update msg model =
     | SetLastSavedCanvas(name,state) -> 
         setActivity (fun a -> {a with LastSavedCanvasState= Map.add name state a.LastSavedCanvasState}) model, Cmd.none
     | StartSimulation simData -> { model with CurrentSimulatorStep = Some simData }, Cmd.none
-    | SetCurrFileWSMod wSMod' -> 
-        printfn "Setting %A in wsMod" wSMod'.WSState
-        match FileMenuView.getCurrFile model with
-        | Some fileName ->
-            { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), 
-                                   snd model.WaveSim }
-        | None -> model 
-        |> (fun x -> x, Cmd.none)
+    | SetCurrFileWSMod wSMod -> 
+        setCurrFileWSMod wSMod model, Cmd.none
     | SetWSError err -> 
         { model with WaveSim = fst model.WaveSim, err}, Cmd.none
     | AddWaveSimFile (fileName, wSMod') ->
@@ -486,28 +480,28 @@ let update msg model =
         changeSimulationIsStale b model, Cmd.none
     | SetIsLoading b ->
         {model with IsLoading = b}, Cmd.none
-    | SetSimInProgress waveInfo -> 
-        { model with SimulationInProgress = Some waveInfo }, Cmd.none
-    | SimulateWhenInProgress waveInfo ->
+    | InitiateWaveSimulation (view, paras)  -> 
+        updateCurrFileWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.none
+    | WaveSimulateNow ->
         // do the simulation for WaveSim and generate new SVGs
-        match FileMenuView.getCurrFile model with
-        | Some fileName ->
-            match currWaveSimModel model, waveInfo with
-            | Some wSMod, Some (MakeSVGs ports) -> 
-                // does the actual simulation and SVG generation, if needed
-                let wsMod' = waveGen wSMod ports
-                { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model [] 
-                             WaveSim = Map.add fileName wsMod' (fst model.WaveSim), 
-                                       snd model.WaveSim
-                             SimulationInProgress = None }, Cmd.none
-            | Some wSMod, Some (ChangeParameters par) -> 
-                // in this case 
-                { model with WaveSim = Map.add fileName (updateWSMod model wSMod par) (fst model.WaveSim), 
-                                       snd model.WaveSim 
-                             SimulationInProgress = None }, Cmd.none
-            | _ -> 
-                failwith "SetSimInProgress dispatched when currWS model is None"
-        | None -> failwith "SetSimInProgress dispatched when getCurrFile model is None"
+        match getCurrFileWSMod model, getCurrFileWSModNextView model  with
+        | Some wsMod, Some (pars, nView) -> 
+            // does the actual simulation and SVG generation, if needed
+            let wsMod' = 
+                updateWSMod model wsMod pars
+                |> clearEditorNextView
+                |> setEditorView nView
+            { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model []}
+            |> setCurrFileWSMod wsMod'
+            |> (fun model -> model, Cmd.none)
+        | Some _, None -> 
+            // This case may happen if WaveSimulateNow commands are stacked up due to 
+            // repeated view function calls before the WaveSimNow trigger message is processed
+            // Only the first one will actually do anything. TODO: eliminate extra calls?
+            model, Cmd.none
+        | _ -> 
+            failwith "SetSimInProgress dispatched when getCurrFileWSMod is None"
+
     | SetLastSimulatedCanvasState cS ->
         { model with LastSimulatedCanvasState = cS }, Cmd.none
     | UpdateScrollPos b ->

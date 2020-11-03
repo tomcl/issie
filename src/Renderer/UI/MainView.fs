@@ -45,7 +45,7 @@ let init() = {
     Diagram = new Draw2dWrapper()
     WaveSimulationIsStale = true
     IsLoading = false
-    LastDetailedState = ([],[])
+    LastDetailedSavedState = ([],[])
     LastSimulatedCanvasState = None
     LastSelectedIds = [],[]
     CurrentSelected = [],[]
@@ -165,15 +165,15 @@ let displayView model dispatch =
     let y' = sd.SheetTop+sd.SheetY
     let wsModelOpt = getCurrFileWSMod model
 
-    /// Feed chnaged viewer width from draggable bar back to Viewer parameters
+    /// Feed changed viewer width from draggable bar back to Viewer parameters
     let inline setViewerWidthInWaveSim w =
         match currWaveSimModel model with
-        | Some wSMod when w > maxWidth wSMod && wSMod.WSState.View <> WSEditorOpen ->
+        | Some wSMod when w > maxWidth wSMod && wSMod.WSState.View = WSViewerOpen ->
             match wsModelOpt with
             | Some ws ->
                 let simProgressState = 
                     {ws.SimParams with LastClk = ws.SimParams.LastClk + 10u}
-                dispatch <| SetSimInProgress (ChangeParameters simProgressState)
+                dispatch <| InitiateWaveSimulation(WSViewerOpen, simProgressState)
             | _ -> ()
         | _ -> ()
 

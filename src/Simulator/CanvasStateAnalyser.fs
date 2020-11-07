@@ -414,17 +414,20 @@ let private checkConnectionsWidths
 let checkComponentNamesAreOk ((comps,conns): CanvasState) =
     let badNameErrors =
         comps
+        |> List.filter (function | {Type = MergeWires _} -> false | _ -> true)
         |> List.collect (fun comp ->
             let label = comp.Label.ToUpper()
             match label with
-            | "CLK" -> [[comp], "Clk is not allowed as a name for a component or a Net. \
+            | "CLK" -> [comp, "Clk is not allowed as a name for a component or a Net. \
                         Use the properties tab to give a different name to the highlighted component(s)."]
-            | "" -> [[comp], "All components must have a unique alphanumeric name (e.g. 'G1'). \
+            | "" -> [comp, "All components must have a unique alphanumeric name (e.g. 'G1'). \
                         Use the properties tab to give a name to the highlighted component(s)."]
             | _ -> [])
+        |> List.groupBy snd
+        |> List.map (fun (msg, eLst) -> List.map fst eLst, msg) 
     let duplicateNameErrors =
         comps
-        |> List.filter (function | {Type = IOLabel _ } -> false | _ -> true)
+        |> List.filter (function | {Type = IOLabel _ } | {Type = MergeWires _} -> false | _ -> true)
         |> List.groupBy (fun comp -> comp.Label)
         |> List.filter (fun (_, compL) -> List.length compL > 1)
         |> List.map (fun (_, compL) -> compL,  "Component names must be distinct. \

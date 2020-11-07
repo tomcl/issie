@@ -484,7 +484,7 @@ let update msg model =
             { model with ConnsToBeHighlighted = true }
         | None -> model
         |> (fun m -> m, Cmd.none)
-    | SetSimIsStale b -> 
+    | SetWaveSimIsStale b -> 
         changeSimulationIsStale b model, Cmd.none
     | SetIsLoading b ->
         {model with IsLoading = b}, Cmd.none
@@ -494,15 +494,18 @@ let update msg model =
         // do the simulation for WaveSim and generate new SVGs
         match getCurrFileWSMod model, getCurrFileWSModNextView model  with
         | Some wsMod, Some (pars, nView) -> 
+            let checkCursor = wsMod.SimParams.Cursor <> pars.Cursor
             printfn "Simulating: %A: (%A -> %A)" pars wsMod.WSState.View (Option.map snd wsMod.WSState.NextView)
+            let pars' = adjustPars wsMod pars wsMod.SimParams.LastScrollPos
+
             // does the actual simulation and SVG generation, if needed
             let wsMod' = 
-                updateWSMod model wsMod pars
+                simulateAndMakeWaves model wsMod pars'
                 |> clearEditorNextView
                 |> setEditorView nView
             { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model []}
             |> setCurrFileWSMod wsMod'
-            |> (fun model -> model, Cmd.none)
+            |> (fun model -> {model with CheckScrollPos=checkCursor}, Cmd.none)
         | Some _, None -> 
             // This case may happen if WaveSimulateNow commands are stacked up due to 
             // repeated view function calls before the WaveSimNow trigger message is processed

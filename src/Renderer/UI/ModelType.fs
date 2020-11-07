@@ -211,10 +211,10 @@ let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
         AllWaveNames = [||]
         SimParams = {
             DispNames = [||]
-            ClkWidth = sWInfo.ClkWidth
-            Cursor = sWInfo.Cursor
+            ClkWidth = 1.0
+            Cursor = 0u
             Radix = sWInfo.Radix
-            LastClk = sWInfo.LastClk
+            LastClk = 9u
             LastScrollPos = None
         }
         WSState = { View=NoWS; NextView=None}
@@ -302,6 +302,10 @@ let getCurrFileWSMod(model: Model) =
     | None -> None
     | Some proj -> Map.tryFind proj.OpenFileName (fst wsMap)
 
+let getWSModelOrFail (model:Model) (errMsg: string) =
+    match getCurrFileWSMod model with
+    | Some ws -> ws
+    | None -> failwithf "%s" errMsg
 
 let getCurrFileWSModNextView(model:Model) =
     getCurrFileWSMod model

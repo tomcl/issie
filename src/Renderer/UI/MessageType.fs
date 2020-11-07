@@ -277,7 +277,7 @@ type Msg =
     | MenuAction of MenuCommand * (Msg -> unit)
     | DiagramMouseEvent
     | SelectionHasChanged
-    | SetSimIsStale of bool
+    | SetWaveSimIsStale of bool
     | SetIsLoading of bool
     | SetWaveSimModel of Sheet: string * WSModel: WaveSimModel
     | WaveSimulateNow

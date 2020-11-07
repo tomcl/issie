@@ -9,6 +9,13 @@ open CommonTypes
 
 (*-----------------------------------General helpers-----------------------------------------*)
 
+/// print initial n characters of a string
+let sprintInitial n (s:string) = 
+    s
+    |> Seq.truncate n
+    |> Seq.map (sprintf "%c")
+    |> String.concat ""
+
 let assertThat cond msg =
     if not cond
     then failwithf "what? assert failed: %s" msg

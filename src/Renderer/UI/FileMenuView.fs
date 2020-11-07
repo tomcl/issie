@@ -51,6 +51,17 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
     let components, connections = compToSetup.CanvasState
     List.map model.Diagram.LoadComponent components |> ignore
     List.map (model.Diagram.LoadConnection true) connections |> ignore
+    let errs = model.Diagram.GetAndClearLoadConnectionErrors()
+    if errs <> [] then
+        let errMsg =  
+            (sprintf "Issie failed to load %d connections: which were incorrectly 
+                saved due to a bug in the draw library.\n 
+                Please recreate these connections, altering slightly component positions,\n 
+                or drawing connections in the opposite direction,
+                to work around this bug. \n 
+                If the error repeats please make a bug report" (List.length errs))
+        let error = errorFilesNotification errMsg
+        dispatch <| SetFilesNotification error
     model.Diagram.FlushCommandStack() // Discard all undo/redo.
     // Run the a connection widths inference.
     JSdispatch <| InferWidths()
@@ -58,7 +69,6 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
     JSdispatch <| SetHasUnsavedChanges false
     // set waveSim data
     dispatch <| SetWaveSimModel(name, waveSim)
-    dispatch <| SetSimIsStale true
     dispatch <| (
         {
             ProjectPath = dirName compToSetup.FilePath
@@ -66,6 +76,7 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
             LoadedComponents = ldComps
         }
         |> SetProject) // this message actually changes the project in model
+    dispatch <| SetWaveSimIsStale true
     dispatch <| SetIsLoading false 
     
 

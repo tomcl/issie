@@ -389,6 +389,7 @@ let update msg model =
     | EndSimulation -> { model with CurrentSimulatorStep = None }, Cmd.none
     | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
     | ChangeRightTab newTab -> 
+        firstTip <- true
         { model with RightTab = newTab }, 
         match newTab with 
         | Properties -> Cmd.ofMsg <| SetSelWavesHighlighted [||]

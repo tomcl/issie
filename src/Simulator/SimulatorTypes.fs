@@ -129,4 +129,22 @@ type JSConnection  = | JSConnection of obj
 /// State retrieves directly from Diagram has Javascript objects
 type JSCanvasState = JSComponent list * JSConnection list
 
+//-------------------------------------------------------------------------------------//
+//-------------------Helper functions for simulation types-----------------------------//
+//-------------------------------------------------------------------------------------//
+
+let sprintSimComponent (sComp: SimulationComponent) =
+    sprintf "'%A': %20s" sComp.Label (sComp.Type.ToString() |> Helpers.sprintInitial 20)
+
+
+let printSimGraph (sg: SimulationGraph) =
+    printfn "%s" (String.concat "\n" (sg |> Map.toList |> List.map (fun (ComponentId id,comp) -> sprintSimComponent comp + id)))
+
+let tryGetCompLabel (compId: ComponentId) (sg: SimulationGraph) =
+    Map.tryPick (fun k v -> if k = compId then Some v else None) sg
+    |> Option.map (fun comp -> comp.Label)
+    |> Option.map (fun (ComponentLabel s) -> s)
+    |> Option.defaultValue "'Not in SimGraph'"
+
+
 

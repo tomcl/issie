@@ -194,16 +194,30 @@ let private simWireData2Wire wireData =
 let getSimTime (trgtLstGroups: NetGroup array) (simGraph: SimulationGraph) =
     Array.map (fun trgtLstGroup -> trgtLstGroup.driverNet) trgtLstGroups
     |> Array.map (fun trgtLst ->
-        let wD = simGraph.[trgtLst.[0].TargetCompId].Inputs.[trgtLst.[0].InputPort]
-        Wire
-            { NBits = uint (List.length wD)
-              BitData = simWireData2Wire wD } )
+        try 
+            let compId = trgtLst.[0].TargetCompId
+            let inputPorts = simGraph.[compId].Inputs
+            let portNum = trgtLst.[0].InputPort
+            let wD = inputPorts.[portNum]
+            Wire
+                { NBits = uint (List.length wD)
+                  BitData = simWireData2Wire wD }
+        with
+        | e -> 
+            printfn "Exception: %A" e
+            printSimGraph simGraph
+            let compId = trgtLst.[0].TargetCompId
+            printfn "\nComponent %s\n" (tryGetCompLabel compId simGraph)
+            failwithf "What? This error in getSimTime should not be possible"
+
+        )
 
 /// get values of waveforms
 let getWaveData (wsMod: WaveSimModel) =
+        let netGroups = dispPorts wsMod
         Array.map (fun sD -> sD.Graph) wsMod.SimDataCache
-        |> Array.map (getSimTime (dispPorts wsMod))
-    
+        |> Array.map (getSimTime netGroups)
+
 /// extend WaveSimModel.SimData by n cycles
 let private appendSimData (model: Model) (wSModel: WaveSimModel) nCycles = 
     match wSModel.SimDataCache with
@@ -217,7 +231,7 @@ let private appendSimData (model: Model) (wSModel: WaveSimModel) nCycles =
         |> Ok
         |> Some
 
-/// get JSConnection list from ConnectionId (as a string)
+/// get JSConnection list (1 or 0) from ConnectionId (as a string)
 let private connId2JSConn (diagram:Draw2dWrapper.Draw2dWrapper) connId =
     match diagram.GetCanvasState() with
     | Some (_, jsConns) -> 
@@ -240,6 +254,27 @@ let selectNetGrpConns diagram (netGrp: NetGroup) on =
     |> Array.toList
     |> List.collect (fun (ConnectionId cId) -> connId2JSConn diagram cId) 
     |> diagram.ChangeSelectionOfTheseConnections on
+
+let setSelNamesHighlighted (names: string array) model (dispatch: Msg -> Unit) =
+    match getCurrFileWSMod model with
+    | None -> ()
+    |Some ws ->
+        let connIds = 
+            names
+            |> Array.map (fun name -> ws.AllPorts.[name])
+            |> Array.collect wave2ConnIds
+        dispatch <| SetSelWavesHighlighted connIds
+        
+
+let selectNGConns (model:Model) (netGroups: NetGroup array) on =
+    netGroups
+    |> Array.collect wave2ConnIds
+    |> Array.toList
+    |> List.collect (fun (ConnectionId cId) -> connId2JSConn model.Diagram cId) 
+    |> model.Diagram.ChangeSelectionOfTheseConnections on
+
+
+        
 
 /// returns labels of all custom component instances of sheet in lComp
 let findInstancesOf sheet (lComp:LoadedComponent) =
@@ -748,7 +783,7 @@ let waveSvg wsMod waveData  =
 
 
 /// Calculate and add the waveform SVGs to the current wsModel.
-/// TODO: reorder functions!
+/// TODO: only recalculate as needed on DispWave change
 let addSVGToWaveSimModel wSModel =
     let waveData = 
         getWaveData wSModel
@@ -793,10 +828,11 @@ let makeLabels waveNames =
 
                      
 
-/// adjust parameters before feeding them into updateWSMod 
-let adjustPars (wsMod: WaveSimModel) (pars: SimParamsT) rightLim dispatch =
+/// adjust parameters before feeding them into simulateAndMakeWaves 
+let adjustPars (wsMod: WaveSimModel) (pars: SimParamsT) rightLim =
     let currPars = wsMod.SimParams
-    match currPars.ClkWidth = pars.ClkWidth, currPars.Cursor = currPars.Cursor, currPars.LastClk = currPars.LastClk with
+    let rightLim = match rightLim with | Some x -> x | None -> 0.
+    match currPars.ClkWidth = pars.ClkWidth, currPars.Cursor = pars.Cursor, currPars.LastClk = pars.LastClk with
     // zooming
     | false, true, true -> 
         rightLim / (currPars.ClkWidth * 40.0)
@@ -806,18 +842,19 @@ let adjustPars (wsMod: WaveSimModel) (pars: SimParamsT) rightLim dispatch =
         |> (fun newClk -> { pars with LastClk = newClk })
     // changing cursor
     | true, false, true -> 
-        UpdateScrollPos true |> dispatch
         { pars with LastClk = max pars.LastClk (pars.Cursor + 10u) |> min maxLastClk }
     // generating longer simulation
     | true, true, false -> pars
     // other situations should not occur, by default, don't change parameters
     | _ -> pars
 
-/// Do a new simulation (if needed)
-/// recalculate the wave SVGs given new parameters
-/// update the WaveSimModel entry of the current file with new parameters
-let updateWSMod (model: Model) (wsMod: WaveSimModel) 
+/// Update wavesim based on new parameters in par.
+/// Update waveSimCache as needed with a new longer simulation to view new parameters.
+/// Update  DispWaveSVGCache with new wave SVGs and/or added SVGs as determined by new parameters.
+/// Update the WaveSimModel entry of the current file with new parameters
+let simulateAndMakeWaves (model: Model) (wsMod: WaveSimModel) 
                 (par: SimParamsT) : WaveSimModel =
+    
     let newData =
         par.LastClk + 1u - uint (Array.length wsMod.SimDataCache)
         |> appendSimData model wsMod
@@ -836,34 +873,6 @@ let private getWaveNames compIds netList (wSMod: WaveSimModel) =
     match wSMod with
     | {InitWaveSimGraph = Some sD} -> Array.map (netGroup2Label compIds sD.Graph netList) (dispPorts wSMod)
     | _ -> [||]
-
-/// change sim data if required
-/// call waveCol with the current Simulation Data 
-/// to generate the required svgs
-/// set Disp* fields to display ports netgroups
-let waveGen (wSMod: WaveSimModel) ports =
-    let simData', wa = 
-        match wSMod with
-        | {InitWaveSimGraph = Some  sD} as wa ->
-            wSMod.SimParams.LastClk
-            |> extractSimData sD
-            |> Array.append [| sD |]
-            |> (fun sd -> sd, wa)
-        | {InitWaveSimGraph = None} -> failwith "waveGen called when wsmodel.InitWaveSimGraph is None"
-
-    let names =
-        Map.toArray wSMod.AllPorts
-        |> Array.filter (fun (_, p) -> Array.contains p ports)
-        |> Array.map fst
-
-    let wSMod' =
-        { wSMod with
-            SimDataCache = simData'
-            WSState = failwithf "not implemented"} //{View=WSViewerOpen;NextView= None }}
-    setSimParams (fun sp -> {sp with DispNames = names}) wSMod'
-    |> addSVGToWaveSimModel
-
-
 
 
 
@@ -890,16 +899,16 @@ let private isNLTrgtLstSelected (netList: NetList) ((comps, conns): CanvasState)
            isConnInNLTrgtLst (ConnectionId conn.Id) nlTrgtLst) conns
 
 /// is the given waveform selected by the given selection
-let private isNLTrgtLstGroupSelected (netList: NetList) ((comps, conns): CanvasState) (trgtLstGroup: NetGroup) =
+let private isNetGroupSelected (netList: NetList) ((comps, conns): CanvasState) (trgtLstGroup: NetGroup) =
     Array.append [|trgtLstGroup.driverNet|] trgtLstGroup.connectedNets
     |> Array.exists (isNLTrgtLstSelected netList (comps, conns)) 
 
 /// is the given waveform selected by the current diagram selection
-let isWaveSelected (diagram:Draw2dWrapper.Draw2dWrapper) netList (nlTrgtLstGroup: NetGroup) = 
+let isWaveSelected (diagram:Draw2dWrapper.Draw2dWrapper) netList (netgrp: NetGroup) = 
     match diagram.GetSelected() with
     | Some selectedCompsConnsJS ->
         let selectedCompsConns = extractState selectedCompsConnsJS
-        isNLTrgtLstGroupSelected netList selectedCompsConns nlTrgtLstGroup
+        isNetGroupSelected netList selectedCompsConns netgrp
     | _ -> false 
 
 

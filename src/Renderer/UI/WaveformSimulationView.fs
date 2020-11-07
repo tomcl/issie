@@ -138,16 +138,15 @@ let maxWidth (wSMod: WaveSimModel) =
 /////////////////////
 
 /// change selection of a waveform's connections
-let private changeNetGroupConnsSelect  (selFun: NetGroup -> bool) (diagram) (wSMod: WaveSimModel) netList ind =
-    printfn "ind=%d, wavenames = %A" ind wSMod.AllWaveNames
-    let netGroup =  wSMod.AllPorts.[wSMod.AllWaveNames.[ind]]
+let private changeNetGroupConnsSelect  (selFun: NetGroup -> bool) (diagram) (wSMod: WaveSimModel) name =
+    let netGroup =  wSMod.AllPorts.[name]
     netGroup
     |> selFun
     |> selectNetGrpConns diagram netGroup
 
 /// toggle selection of a waveform's connections
-let private toggleNetGroupConnsSelect (diagram) (wSMod: WaveSimModel) netList ind =
-    changeNetGroupConnsSelect (isWaveSelected diagram netList >> not) diagram wSMod netList ind
+let private toggleNetGroupConnsSelect (diagram) (wSMod: WaveSimModel) (netList:NetList) name =
+    changeNetGroupConnsSelect (isWaveSelected diagram netList >> not) diagram wSMod name
 
 /// select all waveforms
 let private selectAllOn model (wSMod: WaveSimModel) =
@@ -155,6 +154,15 @@ let private selectAllOn model (wSMod: WaveSimModel) =
 
 /// stretch waveforms horizontally
 let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
+    let rec adjustLastClk viewW wsModel =
+        let pars = wsModel.SimParams
+        if viewW * 1.4 < float (maxWidth wsModel) then
+            let lastClk' = pars.LastClk+2u
+            adjustLastClk viewW (setSimParams (fun sp -> {sp with LastClk = lastClk'}) wsModel)
+        else
+            printfn "New LastClk=%d" pars.LastClk
+            pars.LastClk
+        
     let netList = wsModel2netList wSMod
     let pars = wSMod.SimParams
     let newClkW =
@@ -162,17 +170,13 @@ let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
         |> (*) pars.ClkWidth
         |> max minZoom
         |> min maxZoom
+    let wSModNewClk = setSimParams (fun sp -> {sp with ClkWidth=newClkW}) wSMod
     let newPars =
-        match int (float m.ViewerWidth * zoomFactor) > maxWidth wSMod with
+        match int (float m.ViewerWidth) > maxWidth wSModNewClk with
         | true ->
-                { pars with
-                   LastClk = (pars.LastClk + 1u) * (uint zoomFactor) + 10u
-                   Cursor = pars.Cursor
-                   ClkWidth = newClkW }
+                { pars with LastClk = adjustLastClk (float m.ViewerWidth) wSModNewClk}
         | false ->  
                 {pars with 
-                    LastClk = pars.LastClk
-                    Cursor = pars.Cursor
                     ClkWidth = newClkW 
                 }
     dispatch <| InitiateWaveSimulation(WSViewerOpen, newPars)
@@ -279,21 +283,22 @@ let private makeCursVals model waveData =
 /// The vertical order is fixed and as in DispNames
 let private waveSimRows compIds diagram (netList: NetList) (wsMod: WaveSimModel) dispatch =
     let waveData = getWaveData wsMod
-    let netGroups = dispPorts wsMod
+    let allPorts = wsMod.AllPorts
     let labelCols =
         makeLabels wsMod.SimParams.DispNames
-        |> Array.mapi (fun i l ->
+        |> Array.zip wsMod.SimParams.DispNames
+        |> Array.map (fun (name, lab) ->
             tr [ Class "rowHeight" ]
                 [ td [ Class "checkboxCol" ]
                       [ input
                           [ Type "checkbox"
                             Class "check"
-                            Checked <| isWaveSelected diagram netList netGroups.[i]
+                            Checked <| isWaveSelected diagram netList allPorts.[name]
                             Style [ Float FloatOptions.Left ]
-                            OnChange(fun _ -> toggleNetGroupConnsSelect diagram wsMod netList i) ] ]
+                            OnChange(fun _ -> toggleNetGroupConnsSelect diagram wsMod netList name) ] ]
                   td
                       [ Class "waveNamesCol"
-                        Style [ TextAlign TextAlignOptions.Right ] ] [ l ] ])
+                        Style [ TextAlign TextAlignOptions.Right ] ] [ lab ] ])
 
     let cursValCol = 
         makeCursVals wsMod waveData 
@@ -302,7 +307,7 @@ let private waveSimRows compIds diagram (netList: NetList) (wsMod: WaveSimModel)
     wsMod.DispWaveSVGCache, labelCols, cursValCol
 
 /// ReactElement of the tabs for changing displayed radix
-let private radixTabs (model: WaveSimModel) dispatch =
+let private radixTabs (wsModel: WaveSimModel) dispatch =
     let radixString =
         [ Dec,  "uDec"
           Bin,  "Bin"
@@ -311,7 +316,7 @@ let private radixTabs (model: WaveSimModel) dispatch =
 
     let radTab rad =
         Tabs.tab
-            [ Tabs.Tab.IsActive(model.SimParams.Radix = rad)
+            [ Tabs.Tab.IsActive(wsModel.SimParams.Radix = rad)
               Tabs.Tab.Props
                   [ Style
                       [ Width "35px"
@@ -321,8 +326,7 @@ let private radixTabs (model: WaveSimModel) dispatch =
                     [ Padding "0 0 0 0"
                       Height "30px" ]
                   OnClick(fun _ ->
-                      setSimParams (fun sp -> {sp with Radix = rad}) model
-                      |> SetCurrFileWSMod
+                      InitiateWaveSimulation (WSViewerOpen,{wsModel.SimParams with Radix = rad})
                       |> dispatch) ] [ str (radixString.[rad]) ] ]
     Tabs.tabs
         [ Tabs.IsToggle
@@ -402,7 +406,9 @@ let private nameLabelsCol model netList (wsMod: WaveSimModel) labelRows dispatch
            [ Button.button
            [ Button.CustomClass "newWaveButton"
              Button.Color IsSuccess
-             Button.OnClick(fun _ -> openCloseWaveEditor model netList wsMod WSEditorOpen dispatch) ] [ str "Edit list..." ] ]
+             Button.OnClick(fun _ -> 
+                printfn "opening editor with Dispnames = %A" wsMod.SimParams.DispNames
+                openCloseWaveEditor model  WSEditorOpen dispatch) ] [ str "Edit list..." ] ]
 
     let top =
         [| tr [ Class "rowHeight" ]
@@ -439,22 +445,21 @@ let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRo
             let scrollPos = el.clientWidth + el.scrollLeft
             if Some scrollPos <> pars.LastScrollPos then
                 SetLastScrollPos (Some scrollPos) |> ignore
-        match model.SimulationInProgress, !element with
+        match !element with
         (*| (Some (MakeSVGs par)) as simAction, _ -> 
             dispatch <| SimulateWhenInProgress simAction
         | Some (ChangeParameters par), Some e -> 
             let newPars = adjustPars wSModel par (e.clientWidth + e.scrollLeft) dispatch
             dispatch <| InitiateWaveSimulation(WSViewerOpen, newPars)*)
-        | None, Some e -> 
+        | Some e -> 
             match model.CheckScrollPos with
             | true when not (isCursorVisible wSModel e.clientWidth e.scrollLeft) -> 
                 e.scrollLeft <- makeCursorVisiblePos wSModel e.clientWidth
                 UpdateScrollPos false |> dispatch
             | _ -> ()
-        | _, None ->
+        | None ->
             //dispatch <| SetSimInProgress None
             UpdateScrollPos false |> dispatch
-        | _ -> failwithf "This case should never happen?"
 
     let scrollFun (ev:Browser.Types.UIEvent) = // function called whenever scroll position is changed
         match !element with // element should now be the HTMl element that is scrolled
@@ -528,8 +533,8 @@ let private waveEditorSelectAllRow model netList wSModel =
 
 /// ReactElement of WaveAdder waveform row
 /// displays a tickbox and the NetGroup driver name
-let private waveAdderTickBoxRow model netList wSModel ind dispatch =
-    let allNetGroups = getAllNetGroups wSModel
+let private waveAdderTickBoxRow model netList wSModel name dispatch =
+    let allPorts = wSModel.AllPorts
     tr
         [ Class "rowHeight"
           Style [ VerticalAlign "middle" ] ]
@@ -540,14 +545,14 @@ let private waveAdderTickBoxRow model netList wSModel ind dispatch =
               [ input
                   [ Type "checkbox"
                     Class "check"
-                    Checked <| isWaveSelected model.Diagram netList allNetGroups.[ind]
+                    Checked <| isWaveSelected model.Diagram netList allPorts.[name]
                     Style [ Float FloatOptions.Left ]
-                    OnChange(fun _ -> toggleNetGroupConnsSelect model.Diagram wSModel netList ind) ] ]
-          td [] [ label [] [ str wSModel.AllWaveNames.[ind] ] ] ]
+                    OnChange(fun _ -> toggleNetGroupConnsSelect model.Diagram wSModel netList name) ] ]
+          td [] [ label [] [ str name ] ] ]
 
 /// ReactElement of all WaveAdder waveform rows
 let private waveEditorTickBoxRows model netList wSModel dispatch = 
-    Array.mapi (fun i _ -> waveAdderTickBoxRow model netList wSModel i dispatch) (getAllNetGroups wSModel) 
+    Array.map (fun name -> waveAdderTickBoxRow model netList wSModel name dispatch) wSModel.AllWaveNames
 
 /// ReactElement of the bottom section of the WaveAdder.
 /// Contains tick-boxes for NetGroups
@@ -563,6 +568,12 @@ let private waveEditorTickBoxesAndNames (model: Model) netList wSModel dispatch 
 let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) dispatch =
     let isSelected (ng:NetGroup) = isWaveSelected model.Diagram netList ng
     /// this is what actually gets displayed when editor exits
+    let closeWaveSimButtonAction _ev =
+        dispatch <| SetCurrFileWSMod {wSModel with InitWaveSimGraph=None}
+        dispatch <| ChangeRightTab Catalogue
+        dispatch <| SetWaveSimIsStale true
+        
+
     let waveEditorViewSimButtonAction =
         //
         let viewableNetGroups = 
@@ -586,8 +597,8 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
                 Button.Props [ Style [ MarginLeft "10px" ] ] :: lst)
     let cancelButton =
         Button.button
-            [ Button.Color IsDanger
-              Button.OnClick(fun _ -> openCloseWaveEditor model netList wSModel WSViewerOpen dispatch) ] [ str "Cancel" ]
+            [ Button.Color IsSuccess
+              Button.OnClick(closeWaveSimButtonAction) ] [ str "Close" ]
 
     let actionButtons =
         match dispPorts wSModel with
@@ -642,34 +653,28 @@ let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (dispatch: Msg
 
 /// TRANSITION: Switch between WaveformEditor (editorIsOn = true) and WaveformViewer (editorIsOn = false) view
 /// sets wsModel for the new view
-let private openCloseWaveEditor model (netList:NetList) (wSModel: WaveSimModel) (editorState: WSViewT) dispatch = 
 
-    let compIds = getComponentIds model
-    let wSModel = 
-        match editorState with 
-        | WSEditorOpen -> 
-            selectAllOn model.Diagram wSModel |> ignore
-            wSModel // startwith DispPorts order - for waveforms currently displayed
-            |> setupWaveViewerSimulation compIds  model
-            |> standardWaveformOrderWaveAdder // work out correct order for waveadder
-        | WSViewerOpen ->
-            let diagramNetGroups = availableNetGroups model
-            //setWSAllPorts diagramNetGroups wSModel
-            wSModel
-            |> setupWaveViewerSimulation compIds  model
-            |> standardWaveformOrderWaveAdder // work out correct order for waveadder
-
-        | NoWS -> 
-            failwithf "What? openCloseWaveadder can't be called with NoWS"
-        | _ -> failwithf "Note yet implemented"
-    dispatch <| SetCurrFileWSMod (setEditorView editorState wSModel)
+let private openCloseWaveEditor model (editorState: WSViewT) dispatch = 
+    let wsModel = getWSModelOrFail model "What? no wsModel in openCloseWaveEditor"
+    let wsModel' =
+        wsModel
+        |> standardWaveformOrderWaveAdder // work out correct order for waveadder
+        |> setEditorNextView editorState wsModel.SimParams 
+    dispatch <| SetCurrFileWSMod wsModel'
     
+   
+
+
 /// This function sets up an initial waveSim for waveform viewing.
 /// initSimDat must be the initial clock tick 0 simulation data.
 /// It returns the correct simulation data.
 /// In addition it works out from initSimDat the Netgroup etc data needed for the viewer.
-let extendSimInWaveSimModel (rState: CanvasState) (initSimDat: SimulatorTypes.SimulationData) (ws: WaveSimModel) (model: Model) =
-    let compIds = getComponentIds model
+let makeNewSimulationWsModel (rState: CanvasState) (initSimDat: SimulatorTypes.SimulationData) (ws: WaveSimModel)  (model: Model) =
+    let compIds = // TODO - remove compids refs - should not be needed.
+        ws.InitWaveSimGraph
+        |> Option.map (fun g -> mapKeys g.Graph)
+        |> Option.defaultValue [||]
+        |> set
     // current diagram netlist
     let netList = Helpers.getNetList <| rState
     // all ports on current diagram
@@ -702,50 +707,20 @@ let extendSimInWaveSimModel (rState: CanvasState) (initSimDat: SimulatorTypes.Si
 let setupWaveViewerSimulation compIds (model:Model) (ws: WaveSimModel) : WaveSimModel =
     match SimulationView.makeSimData model with
     | Some (Ok sD, rState) ->
-        extendSimInWaveSimModel rState sD ws model
+        makeNewSimulationWsModel rState sD ws model
         |> addSVGToWaveSimModel
     | Some (Error _, _) | None -> initWS [||] Map.empty
 
 
-
+//-----------------------------------------------------------------------------------------------------------------
 /// TRANSITION
+/// This starts a wave simulation of a new circuit
 /// Set wsModel to show the list of waveforms that can be selected from a new simulation
 /// Sets data persistent over editor open and close.
 /// Sets WaveSim to have editor open
-let startNewWaveSimulation compIds model wSMod dispatch (simData: SimulatorTypes.SimulationData) (rState:CanvasState) =
-    dispatch <| SetViewerWidth minViewerWidth 
-    dispatch <| SetLastSimulatedCanvasState (Some rState) 
-    dispatch <| SetSimIsStale false
-    printfn "***Starting simulation with (%A) canvas***" (rState |> 
-          (fun (comps,conns) -> List.length comps, List.length conns))
-    let netList = Helpers.getNetList rState
-    let netGroups = netList2NetGroups netList
-    let nameOf ng = netGroup2Label compIds simData.Graph netList ng
-    let allPorts = 
-        netGroups 
-        |> Array.map (fun ng -> nameOf ng, ng)
-        |> Map.ofArray
-    let allNames = mapKeys allPorts
-    printfn "***Netgroups=%A***" (Array.length netGroups)
-    let wSMod = 
-        { 
-        wSMod with       
-          AllPorts = allPorts 
-          AllWaveNames = allNames
-          InitWaveSimGraph = Some simData
-          LastCanvasState = Some rState 
-        }
-        |> setEditorView WSEditorOpen
-    dispatch <| SetCurrFileWSMod wSMod
-    Array.iter (fun ng -> selectNetGrpConns model.Diagram ng false) netGroups
-    dispatch <| ChangeRightTab WaveSim
-
-/// TRANSITION: initial or old wsModel -> new wsModel
-/// Waveforms >> Button React element with actions triggered by pressing the button
-/// This sets up all the data needed in wsModel after a new circuit is successfully simulated
-let WaveformButtonFunc compIds model dispatch =
-    /// subfunction to generate popup over waveeditor screen if tehre are undriven input connections
-    let displayInputWarningPopup (simData:SimulatorTypes.SimulationData) dispatch =
+let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model dispatch _ev =
+    /// subfunction to generate popup over waveeditor screen if there are undriven input connections
+    let inputWarningPopup (simData:SimulatorTypes.SimulationData) dispatch =
         if simData.Inputs <> [] then
             let inputs = 
                 simData.Inputs
@@ -754,6 +729,42 @@ let WaveformButtonFunc compIds model dispatch =
             let popup = PopupView.warningPropsNotification (sprintf "Inputs (%s) will be set to 0." inputs)
             dispatch <| SetPropertiesNotification popup
 
+    let startingWsModel =
+        let wsModel = getWSModelOrFail model "What? Can't get wsModel at start of new simulation"
+        let netList = Helpers.getNetList rState
+        let netGroups = netList2NetGroups netList
+        let nameOf ng = netGroup2Label compIds simData.Graph netList ng
+        let allPorts = 
+            netGroups 
+            |> Array.map (fun ng -> nameOf ng, ng)
+            |> Map.ofArray
+        let allNames = mapKeys allPorts
+        let dispNames = 
+            wsModel.SimParams.DispNames
+            |> Array.filter (fun name -> Array.contains name allNames)
+        Array.iter (fun ng -> selectNetGrpConns model.Diagram ng false) netGroups
+        printfn "***Netgroups=%A***" (Array.length netGroups)
+        { 
+        wsModel with       
+            AllPorts = allPorts 
+            AllWaveNames = allNames
+            SimParams = {wsModel.SimParams with DispNames = dispNames}
+            InitWaveSimGraph = Some simData // start with 0 sample only
+            LastCanvasState = Some rState 
+            WSState = {wsModel.WSState with View = WSEditorOpen; NextView = None}
+        }
+    dispatch <| SetCurrFileWSMod startingWsModel
+    dispatch <| SetViewerWidth minViewerWidth 
+    dispatch <| SetLastSimulatedCanvasState (Some rState) 
+    dispatch <| SetWaveSimIsStale false
+    inputWarningPopup simData dispatch
+    dispatch <| ChangeRightTab WaveSim
+
+//------------------------------------------------------------------------------------------------------------
+
+
+/// Waveforms >> Button React element with colour determined by current circuit error state
+let WaveformButtonFunc compIds model dispatch =
     // based on simulation results determine color of button and what happens if it is clicked
     let simulationButton =
         match currWaveSimModel model with
@@ -777,10 +788,7 @@ let WaveformButtonFunc compIds model dispatch =
                     Button.button
                         [ 
                             Button.Color IsSuccess
-                            Button.OnClick(fun _ ->
-                                displayInputWarningPopup simData dispatch
-                                startNewWaveSimulation compIds model wSModel dispatch simData rState
-                                dispatch <| ChangeRightTab WaveSim)
+                            Button.OnClick( startWaveSim compIds  rState simData model dispatch)
                               ]
                 else
                     Button.button

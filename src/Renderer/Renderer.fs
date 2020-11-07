@@ -159,16 +159,13 @@ let init() =
     JSHelpers.setDebugLevel()
     DiagramMainView.init(), Cmd.none
 
-let init1() = (),Cmd.none
 
 // -- Create View
 
-let view1 (model:Unit) (dispatch:Msg->Unit) : Fable.React.ReactElement= Fable.React.Standard.div [] []
 let view model dispatch = DiagramMainView.displayView model dispatch
 
 // -- Update Model
 
-let update1 msg model = model,Cmd.none
 let update msg model = Update.update msg model
 
 printfn "Starting renderer..."

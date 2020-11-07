@@ -191,6 +191,16 @@ let private createComponent
     draw2dLib.addComponentToCanvas canvas comp
     comp
 
+
+let private trySetConnectionVertices conn vertices jsList=
+    try 
+        Ok <| draw2dLib.setConnectionVertices conn jsList
+    with
+    | e -> Error <| sprintf "Draw2d Error in trySetConnection vertices:\n%A\n\
+                Failed to create connection." vertices
+
+let mutable createConnectionError: string list   =  []
+        
 let private createConnection
         (canvas : JSCanvas)
         (maybeId : string option)
@@ -204,8 +214,15 @@ let private createConnection
     vertices
     |> List.map (fun (x, y) -> createObj ["x" ==> x; "y" ==> y])
     |> fshaprListToJsList
-    |> draw2dLib.setConnectionVertices conn
-    draw2dLib.addConnectionToCanvas canvas conn
+    |> trySetConnectionVertices conn vertices
+    |> (fun r ->
+        match r with
+        | Ok _ -> draw2dLib.addConnectionToCanvas canvas conn
+        | Error msg -> 
+            createConnectionError <- msg :: createConnectionError
+            () 
+    )
+
 
 let private editComponentLabel (canvas : JSCanvas) (id : string) (newLabel : string) : unit =
     let jsComponent = draw2dLib.getComponentById canvas id
@@ -341,6 +358,12 @@ type Draw2dWrapper() =
             let connId = if useId then Some conn.Id else None
             createConnection c connId conn.Vertices sourcePort targetPort
         |> tryActionWithCanvas "LoadConnection"
+
+    member this.GetAndClearLoadConnectionErrors () =
+        let errs = createConnectionError
+        createConnectionError <- []
+        errs
+     
 
     member this.EditComponentLabel componentId newLabel =
         fun c ->

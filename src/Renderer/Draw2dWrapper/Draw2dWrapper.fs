@@ -200,6 +200,7 @@ let private trySetConnectionVertices conn vertices jsList=
                 Failed to create connection." vertices
 
 let mutable createConnectionError: string list   =  []
+let mutable createComponentError: string list   =  []
         
 let private createConnection
         (canvas : JSCanvas)
@@ -215,7 +216,12 @@ let private createConnection
     |> List.map (fun (x, y) -> createObj ["x" ==> x; "y" ==> y])
     |> fshaprListToJsList
     |> trySetConnectionVertices conn vertices
-    |> (fun r ->
+    |> Result.bind (fun r -> 
+        try
+            Ok (draw2dLib.addConnectionToCanvas canvas conn)
+        with
+        | e -> Error "Draw2D error: can't add connection to canvas!")
+    |>  (fun r -> 
         match r with
         | Ok _ -> draw2dLib.addConnectionToCanvas canvas conn
         | Error msg -> 
@@ -338,12 +344,22 @@ type Draw2dWrapper() =
 
     /// Create a JS component from the passed component and add it to the canvas.
     member this.LoadComponent (comp : Component) =
-        match canvas, dispatch with
-        | None, _ | _, None -> log "Warning: Draw2dWrapper.LoadComponent called when canvas or dispatch is None"
-        | Some c, Some d -> ignore <| createComponent
-                                c d (Some comp.Id) comp.Type comp.Label
-                                (Some comp.InputPorts) (Some comp.OutputPorts)
-                                comp.X comp.Y
+        try
+            match canvas, dispatch with
+            | None, _ | _, None -> log "Warning: Draw2dWrapper.LoadComponent called when canvas or dispatch is None"
+            | Some c, Some d -> ignore <| createComponent
+                                    c d (Some comp.Id) comp.Type comp.Label
+                                    (Some comp.InputPorts) (Some comp.OutputPorts)
+                                    comp.X comp.Y
+            |> Ok
+        with
+            | e -> 
+                let msg = sprintf "Draw2d Error in LoadComponent:\n%A %A\n\
+                                Failed to create component." comp.Label comp.Type
+                createComponentError <- msg :: createComponentError
+                Error msg
+ 
+
 
     member this.LoadConnection (useId : bool) (conn : Connection) =
         fun c ->
@@ -363,7 +379,12 @@ type Draw2dWrapper() =
         let errs = createConnectionError
         createConnectionError <- []
         errs
-     
+
+    member this.GetAndClearLoadComponentErrors () =
+        let errs = createComponentError
+        createComponentError <- []
+        errs
+    
 
     member this.EditComponentLabel componentId newLabel =
         fun c ->

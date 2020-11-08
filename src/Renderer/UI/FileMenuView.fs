@@ -90,7 +90,7 @@ let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lc
 
 let updateProjectFromCanvas (model:Model) =
     match model.Diagram.GetCanvasState() with
-    | None -> model.CurrProject
+    | None -> model.CurrentProj
     | Some state ->  
         extractState state
         |> fun canvas ->
@@ -101,7 +101,7 @@ let updateProjectFromCanvas (model:Model) =
                     InputLabels = inputs
                     OutputLabels = outputs
                 }
-            model.CurrProject
+            model.CurrentProj
             |> Option.map (fun p -> 
                 {   
                     p with LoadedComponents = updateLoadedComponents p.OpenFileName setLc p.LoadedComponents
@@ -128,7 +128,7 @@ let setSavedWave compIds (wave: SavedWaveInfo option) model : Model =
 
 /// Save the sheet currently open, return  the new sheet's Loadedcomponent if this has changed
 let saveOpenFileAction isAuto model =
-    match model.Diagram.GetCanvasState (), model.CurrProject with
+    match model.Diagram.GetCanvasState (), model.CurrentProj with
     | None, _ | _, None -> None
     | Some jsState, Some project ->
         let reducedState = extractReducedState jsState
@@ -155,7 +155,7 @@ let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
     let opt = saveOpenFileAction false model
     let ldcOpt = Option.map fst opt
     let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
-    match model.CurrProject with
+    match model.CurrentProj with
     | None -> failwithf "What? Should never be able to save sheet when project=None"
     | Some p -> 
       // update loaded components for saved file
@@ -218,7 +218,7 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
             match comps |> List.tryFind (fun comp -> comp.Name = sheetName) with
             | None -> failwithf "What? can't find sheet %s in loaded sheets %A" sheetName (comps |> List.map (fun c -> c.Name))
             | Some comp -> comp
-    match model.CurrProject with
+    match model.CurrentProj with
     | None -> ()
     | Some p ->
         dispatch EndSimulation // Message ends any running simulation.
@@ -253,7 +253,7 @@ let private openFileInProject name project model dispatch =
             let ldcOpt = Option.map fst opt
             let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
             let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
-            match model.CurrProject with
+            match model.CurrentProj with
             | None -> failwithf "What? Should never be able to save sheet when project=None"
             | Some p -> 
                 // update Autosave info
@@ -291,7 +291,7 @@ let private removeFileInProject name project model dispatch =
 
 /// Create a new file in this project and open it automatically.
 let addFileToProject model dispatch =
-    match model.CurrProject with
+    match model.CurrentProj with
     | None -> log "Warning: addFileToProject called when no project is currently open"
     | Some project ->
         // Prepare dialog popup.
@@ -443,7 +443,7 @@ let viewNoProjectMenu model dispatch =
                   [ menuItem "New project" (newProject model dispatch)
                     menuItem "Open project" (openProject model dispatch) ] ]
 
-    match model.CurrProject with
+    match model.CurrentProj with
     | Some _ -> div [] []
     | None -> unclosablePopup None initialMenu None []
 
@@ -458,7 +458,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
     let style = Style [ Width "100%" ] //leftSectionWidth model
 
     let projectPath, fileName =
-        match model.CurrProject with
+        match model.CurrentProj with
         | None -> "no open project", "no open sheet"
         | Some project -> project.ProjectPath, project.OpenFileName
 
@@ -511,7 +511,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                     [ str "delete" ] ] ] ] ]
 
     let fileTab =
-        match model.CurrProject with
+        match model.CurrentProj with
         | None -> Navbar.Item.div [] []
         | Some project ->
             let projectFiles = project.LoadedComponents |> List.map (fun comp -> makeFileLine comp.Name project)
@@ -519,7 +519,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                 [ Navbar.Item.HasDropdown
                   Navbar.Item.Props
                       [ OnClick(fun _ ->
-                          if model.TopMenu = Files then Closed else Files
+                          if model.TopMenuOpenState = Files then Closed else Files
                           |> SetTopMenu
                           |> dispatch) ] ]
                 [ Navbar.Link.a [] [ str "Sheets" ]
@@ -527,7 +527,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                       [ Navbar.Dropdown.Props
                           [ Style
                               [ Display
-                                  (if (let b = model.TopMenu = Files
+                                  (if (let b = model.TopMenuOpenState = Files
                                        b) then
                                       DisplayOptions.Block
                                    else
@@ -552,7 +552,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                         [ Navbar.Item.HasDropdown
                           Navbar.Item.Props
                               [ OnClick(fun _ ->
-                                  if model.TopMenu = Project then Closed else Project
+                                  if model.TopMenuOpenState = Project then Closed else Project
                                   |> SetTopMenu
                                   |> dispatch) ] ]
                           [ Navbar.Link.a [] [ str "Project" ]
@@ -560,7 +560,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                 [ Navbar.Dropdown.Props
                                     [ Style
                                         [ Display
-                                            (if model.TopMenu = Project then
+                                            (if model.TopMenuOpenState = Project then
                                                 DisplayOptions.Block
                                              else
                                                  DisplayOptions.None) ] ] ]
@@ -579,7 +579,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                       Navbar.Item.div []
                           [ Navbar.Item.div []
                                 [ Button.button
-                                    [ Button.Color(if model.SheetHasUnsavedChanges then IsSuccess else IsWhite)
+                                    [ Button.Color(if model.SavedSheetIsOutOfDate then IsSuccess else IsWhite)
                                       Button.OnClick(fun _ -> saveOpenFileActionWithModelUpdate model dispatch |> ignore) ] [ str "Save" ] ] ]
                       Navbar.End.div []
                           [ 

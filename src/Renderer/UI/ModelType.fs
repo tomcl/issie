@@ -50,53 +50,57 @@ type Model = {
     WaveSim : Map<string, WaveSimModel> * (SimulationError option)
     /// draw canvas
     Diagram : Draw2dWrapper
+    /// true during period when a sheet or project is loading
+
+    IsLoading: bool
     /// if canvas is now different from that which is currently used by wave sim.
-    WaveSimulationIsStale: bool
-    /// canvas used for wave sim
+    WaveSimulationIsOutOfDate: bool
+
+    /// top-level canvas used for current wave simulation
     LastSimulatedCanvasState: CanvasState option // reduced (without layout) canvas state
     /// used to determine whether current canvas has been saved (includes any change)
     LastDetailedSavedState: CanvasState
-    /// component ids and connection ids currently selected
-    LastSelectedIds: string list * string list
+    /// components and connections currently selected
+
     CurrentSelected: Component list * Connection list
+    /// component ids and connection ids previously selected (used to detect changes)
+    LastSelectedIds: string list * string list
     /// last used bus width in bits - used as default in next component create dialog
     LastUsedDialogWidth: int
     /// component currently selected in properties dialog
     SelectedComponent : Component option // None if no component is selected.
-    /// used by step simulator: simgraph for current clock tick
-    CurrentSimulatorStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
+    /// used during step simulation: simgraph for current clock tick
+    CurrentStepSimulationStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
     /// which of the tabbed panes is currentlky visible
-    RightTab : RightTab
+    RightPaneTabVisible : RightTab
     /// components and connections which are highlighted
     Hilighted : (ComponentId list * ConnectionId list) * ConnectionId list
     /// Components and connections that have been selected and copied.
     Clipboard : CanvasState 
     /// Track the last added component
-    CreateComponent : Component option 
+    LastCreatedComponent : Component option 
     /// used to enable "SAVE" button
-    SheetHasUnsavedChanges : bool
-    /// true during period when a sheet or project is loading
-    IsLoading: bool
+    SavedSheetIsOutOfDate : bool
     /// the project contains, as loadable components, the state of each of its sheets
-    CurrProject : Project option
+    CurrentProj : Project option
     /// function to create popup pane if present
-    Popup : (PopupDialogData -> Fable.React.ReactElement) option
+    PopupViewFunc : (PopupDialogData -> Fable.React.ReactElement) option
     /// data to populate popup (may not all be used)
     PopupDialogData : PopupDialogData
     /// record containing functions that create react elements of notifications
     Notifications : Notifications
-    /// menu for sheets etc
-    TopMenu : TopMenu
+    /// State of menus for sheets, projects etc
+    TopMenuOpenState : TopMenu
     /// used to determine whether mouse is currently dragging the divider, or used normally
-    DragMode: DragMode
+    DividerDragMode: DragMode
     /// viewer width in pixels altered by dragging the divider
-    ViewerWidth: int
-    /// TODO - delete this
+    WaveSimViewerWidth: int
+    /// TODO - delete this, I think no longer needed
     SimulationInProgress:  SimActionT option
     /// if true highlight connections from wavesim editor
-    ConnsToBeHighlighted: bool
+    ConnsOfSelectedWavesAreHighlighted: bool
     /// true if wavesim scroll position needs checking
-    CheckScrollPos: bool
+    CheckWaveformScrollPosition: bool
 } with
  
     override this.GetHashCode() =
@@ -110,40 +114,40 @@ type Model = {
 
 
 let reduce (this: Model) = {|
-         RightTab = this.RightTab
+         RightTab = this.RightPaneTabVisible
          Hilighted = this.Hilighted
          Clipboard = this.Clipboard
          AsyncActivity = this.AsyncActivity
-         SimulationIsStale = this.WaveSimulationIsStale
+         SimulationIsStale = this.WaveSimulationIsOutOfDate
          LastSimulatedCanvasState = this.LastSimulatedCanvasState
          LastSelectedIds = this.LastSelectedIds
          CurrentSelected = this.CurrentSelected
          LastUsedDialogWidth = this.LastUsedDialogWidth
          SelectedComponent= this.SelectedComponent
-         CreateComponent = this.CreateComponent
+         CreateComponent = this.LastCreatedComponent
          HasUnsavedChanges = false
-         CurrProject = match this.Popup with None -> false | _ -> true
+         CurrProject = match this.PopupViewFunc with None -> false | _ -> true
          PopupDialogData = this.PopupDialogData
-         TopMenu = this.TopMenu
-         DragMode = this.DragMode
-         ViewerWidth = this.ViewerWidth
+         TopMenu = this.TopMenuOpenState
+         DragMode = this.DividerDragMode
+         ViewerWidth = this.WaveSimViewerWidth
          SimulationInProgress = this.SimulationInProgress
-         ConnsToBeHighlighted = this.ConnsToBeHighlighted
+         ConnsToBeHighlighted = this.ConnsOfSelectedWavesAreHighlighted
 
  |} 
        
 let reduceApprox (this: Model) = {|
-         RightTab = this.RightTab
+         RightTab = this.RightPaneTabVisible
          Clipboard = this.Clipboard
-         CurrProject = match this.Popup with None -> false | _ -> true
-         SimulationIsStale = this.WaveSimulationIsStale
+         CurrProject = match this.PopupViewFunc with None -> false | _ -> true
+         SimulationIsStale = this.WaveSimulationIsOutOfDate
          LastUsedDialogWidth = this.LastUsedDialogWidth
-         CreateComponent = this.CreateComponent
+         CreateComponent = this.LastCreatedComponent
          HasUnsavedChanges = false
-         CurrProject = match this.Popup with None -> false | _ -> true
+         CurrProject = match this.PopupViewFunc with None -> false | _ -> true
          PopupDialogData = this.PopupDialogData
-         DragMode = this.DragMode
-         ViewerWidth = this.ViewerWidth
+         DragMode = this.DividerDragMode
+         ViewerWidth = this.WaveSimViewerWidth
          SimulationInProgress = this.SimulationInProgress
  |} 
 
@@ -172,7 +176,7 @@ let addReducedState a name model =
 
 let changeSimulationIsStale (b:bool) (m:Model) = 
     printfn "Changing WaveSimulationIsStale to %A" b
-    { m with WaveSimulationIsStale = b}
+    { m with WaveSimulationIsOutOfDate = b}
 
 let getComponentIds (model: Model) =
     let extractIds (jsComps,jsConns) = 
@@ -192,10 +196,10 @@ let getComponentIds (model: Model) =
 let waveSimModel2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
     let pars = wsMod.SimParams
     { 
-        ClkWidth = pars.ClkWidth
-        Cursor = pars.Cursor
-        Radix = pars.Radix
-        LastClk = pars.LastClk
+        ClkWidth = pars.ClkSvgWidth
+        Cursor = pars.CursorTime
+        Radix = pars.WaveViewerRadix
+        LastClk = pars.LastClkTime
         DisplayedPortIds = 
             dispPorts wsMod
             |> Array.map (fun p -> p.driverNet.[0].TargetCompId)
@@ -212,25 +216,25 @@ let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
         AllWaveNames = [||]
         SimParams = {
             DispNames = [||]
-            ClkWidth = 1.0
-            Cursor = 0u
-            Radix = sWInfo.Radix
-            LastClk = 9u
+            ClkSvgWidth = 1.0
+            CursorTime = 0u
+            WaveViewerRadix = sWInfo.Radix
+            LastClkTime = 9u
             LastScrollPos = None
         }
-        WSState = { View=NoWS; NextView=None}
+        WSState = { View=WSClosed; NextView=None}
         LastCanvasState = None  
-        CursorEmpty = false
+        CursorBoxIsEmpty = false
 
     }
 
 let getSheetWaveSimOpt (model:Model) : WaveSimModel option = 
-    model.CurrProject
+    model.CurrentProj
     |> Option.bind (fun p -> Map.tryFind p.OpenFileName (fst model.WaveSim))
     
 
 let getSheetWaveSimErr (model:Model) =
-    model.CurrProject
+    model.CurrentProj
     |> Option.map (fun p -> snd model.WaveSim)
     |> Option.defaultValue None
 
@@ -277,7 +281,7 @@ let spProj (p:Project) =
     sprintf "PROJ||Sheet=%s\n%s||ENDP\n" p.OpenFileName (String.concat "\n" (List.map spLdComp p.LoadedComponents))
 
 let pp model =
-    printf "\n%s\n%s" (spCanvas model) (spOpt spProj model.CurrProject)
+    printf "\n%s\n%s" (spCanvas model) (spOpt spProj model.CurrentProj)
 
 let spMess msg =
     match msg with
@@ -299,7 +303,7 @@ let updateLdCompsWithCompOpt (newCompOpt:LoadedComponent option) (ldComps: Loade
 
 let getCurrFileWSMod(model: Model) =
     let wsMap = model.WaveSim
-    match model.CurrProject with
+    match model.CurrentProj with
     | None -> None
     | Some proj -> Map.tryFind proj.OpenFileName (fst wsMap)
 
@@ -315,7 +319,7 @@ let getCurrFileWSModNextView(model:Model) =
 
 /// returns a string option representig the current file name if file is loaded, otherwise None
 let getCurrFile (model: Model) =
-    match model.CurrProject with
+    match model.CurrentProj with
     | Some proj -> Some proj.OpenFileName
     | None -> None
 
@@ -329,7 +333,7 @@ let setCurrFileWSMod (ws: WaveSimModel) (model: Model) =
 
 let updateCurrFileWSMod(updateFun: WaveSimModel -> WaveSimModel) (model: Model) =
     let wsMap = model.WaveSim
-    match model.CurrProject with
+    match model.CurrentProj with
     | None -> model
     | Some proj ->
         Map.tryFind proj.OpenFileName (fst wsMap)

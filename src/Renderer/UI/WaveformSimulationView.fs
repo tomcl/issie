@@ -86,19 +86,19 @@ open FileMenuView
 let private cursValStrings (wSMod: WaveSimModel) (waveData: Sample [] []) =
     let paras = wSMod.SimParams
     let pref =
-        match paras.Radix with
+        match paras.WaveViewerRadix with
         | Bin -> "0b"
         | Hex -> "0x"
         | _ -> ""
 
     let makeCursVal sample =
         match sample with
-        | Wire w when w.NBits > 1u -> [| pref + n2StringOfRadix w.BitData w.NBits paras.Radix |]
+        | Wire w when w.NBits > 1u -> [| pref + n2StringOfRadix w.BitData w.NBits paras.WaveViewerRadix |]
         | Wire w -> [| pref + string w.BitData |]
         | StateSample s -> s
 
-    match int paras.Cursor < Array.length wSMod.SimDataCache with
-    | true -> Array.map makeCursVal waveData.[int paras.Cursor]
+    match int paras.CursorTime < Array.length wSMod.SimDataCache with
+    | true -> Array.map makeCursVal waveData.[int paras.CursorTime]
     | false -> [||]
 
 /// maximum width of the waveform simulator viewer
@@ -157,29 +157,29 @@ let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
     let rec adjustLastClk viewW wsModel =
         let pars = wsModel.SimParams
         if viewW * 1.4 < float (maxWidth wsModel) then
-            adjustLastClk viewW (setSimParams (fun sp -> {sp with LastClk = pars.LastClk + 2u}) wsModel)
+            adjustLastClk viewW (setSimParams (fun sp -> {sp with LastClkTime = pars.LastClkTime + 2u}) wsModel)
         else
-            printfn "New LastClk=%d" pars.LastClk
-            pars.LastClk
+            printfn "New LastClk=%d" pars.LastClkTime
+            pars.LastClkTime
         
     let netList = wsModel2netList wSMod
     let pars = wSMod.SimParams
     let newClkW =
         if plus then zoomFactor else 1.0 / zoomFactor
-        |> (*) pars.ClkWidth
+        |> (*) pars.ClkSvgWidth
         |> max minZoom
         |> min maxZoom
-    let wSModNewClk = setSimParams (fun sp -> {sp with ClkWidth=newClkW}) wSMod
+    let wSModNewClk = setSimParams (fun sp -> {sp with ClkSvgWidth=newClkW}) wSMod
     let newPars =
-        match int (float m.ViewerWidth) > maxWidth wSModNewClk with
+        match int (float m.WaveSimViewerWidth) > maxWidth wSModNewClk with
         | true ->
                 { pars with 
-                    LastClk = adjustLastClk (float m.ViewerWidth) wSModNewClk
-                    ClkWidth = newClkW
+                    LastClkTime = adjustLastClk (float m.WaveSimViewerWidth) wSModNewClk
+                    ClkSvgWidth = newClkW
                 }
         | false ->  
                 {pars with 
-                    ClkWidth = newClkW 
+                    ClkSvgWidth = newClkW 
                 }
     dispatch <| InitiateWaveSimulation(WSViewerOpen, newPars)
         
@@ -188,21 +188,21 @@ let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
 let private changeCurs (wSMod: WaveSimModel) dispatch newCurs =
     let pars = wSMod.SimParams
     let curs' = min maxLastClk newCurs
-    match 0u <= curs', curs' <= pars.LastClk with
+    match 0u <= curs', curs' <= pars.LastClkTime with
     | true, true ->
         wSMod
-        |> setSimParams (fun sp -> {sp with Cursor = curs' })
+        |> setSimParams (fun sp -> {sp with CursorTime = curs' })
         |> SetCurrFileWSMod |> dispatch
         UpdateScrollPos true |> dispatch
     | true, false ->
-        let pars' = { pars with Cursor = curs'; ClkWidth = pars.ClkWidth; LastClk = pars.LastClk }
+        let pars' = { pars with CursorTime = curs'; ClkSvgWidth = pars.ClkSvgWidth; LastClkTime = pars.LastClkTime }
         dispatch <| InitiateWaveSimulation(WSViewerOpen, pars')
         UpdateScrollPos true |> dispatch
     | false, _ -> ()
 
 /// change cursor value by 1 up or down
 let private cursorMove increase (wSMod: WaveSimModel) dispatch =
-    match increase, wSMod.SimParams.Cursor with
+    match increase, wSMod.SimParams.CursorTime with
     | true, n -> n + 1u |> changeCurs wSMod dispatch
     | false, n -> n - 1u |> changeCurs wSMod dispatch
 
@@ -318,7 +318,7 @@ let private radixTabs (wsModel: WaveSimModel) dispatch =
 
     let radTab rad =
         Tabs.tab
-            [ Tabs.Tab.IsActive(wsModel.SimParams.Radix = rad)
+            [ Tabs.Tab.IsActive(wsModel.SimParams.WaveViewerRadix = rad)
               Tabs.Tab.Props
                   [ Style
                       [ Width "35px"
@@ -328,7 +328,7 @@ let private radixTabs (wsModel: WaveSimModel) dispatch =
                     [ Padding "0 0 0 0"
                       Height "30px" ]
                   OnClick(fun _ ->
-                      InitiateWaveSimulation (WSViewerOpen,{wsModel.SimParams with Radix = rad})
+                      InitiateWaveSimulation (WSViewerOpen,{wsModel.SimParams with WaveViewerRadix = rad})
                       |> dispatch) ] [ str (radixString.[rad]) ] ]
     Tabs.tabs
         [ Tabs.IsToggle
@@ -358,23 +358,23 @@ let private cursorButtons (model: Model) wSMod dispatch =
                     Step 1 ]
                 Input.Id "cursor"
                 match currWaveSimModel model with
-                | Some wSMod when wSMod.CursorEmpty = false -> 
-                    string wSMod.SimParams.Cursor
+                | Some wSMod when wSMod.CursorBoxIsEmpty = false -> 
+                    string wSMod.SimParams.CursorTime
                 | Some _ -> ""
                 | None -> "0"
                 |> Input.Value 
                 Input.OnChange(fun c ->
                     match System.Int32.TryParse c.Value with
                     | true, n when n >= 0 -> 
-                        { wSMod with CursorEmpty = false }
+                        { wSMod with CursorBoxIsEmpty = false }
                         |> SetCurrFileWSMod |> dispatch
                         changeCurs wSMod dispatch <| uint n
                     | false, _ when c.Value = "" -> 
-                        { wSMod with CursorEmpty = true }
+                        { wSMod with CursorBoxIsEmpty = true }
                         |> SetCurrFileWSMod |> dispatch
                         changeCurs wSMod dispatch 0u
                     | _ -> 
-                        { wSMod with CursorEmpty = false }
+                        { wSMod with CursorBoxIsEmpty = false }
                         |> SetCurrFileWSMod |> dispatch ) ]
           button [ Button.CustomClass "cursRight" ] (fun _ -> cursorMove true wSMod dispatch) "▶" ]
 
@@ -454,7 +454,7 @@ let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRo
             let newPars = adjustPars wSModel par (e.clientWidth + e.scrollLeft) dispatch
             dispatch <| InitiateWaveSimulation(WSViewerOpen, newPars)*)
         | Some e -> 
-            match model.CheckScrollPos with
+            match model.CheckWaveformScrollPosition with
             | true when not (isCursorVisible wSModel e.clientWidth e.scrollLeft) -> 
                 e.scrollLeft <- makeCursorVisiblePos wSModel e.clientWidth
                 UpdateScrollPos false |> dispatch
@@ -471,11 +471,11 @@ let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRo
                 then 
                     let pars' =
                         { pars with
-                            ClkWidth = pars.ClkWidth
-                            Cursor = pars.Cursor
-                            LastClk =  
-                                max ((float pars.LastClk + 1.0) * 0.1 |> uint) 10u 
-                                |> (+) pars.LastClk
+                            ClkSvgWidth = pars.ClkSvgWidth
+                            CursorTime = pars.CursorTime
+                            LastClkTime =  
+                                max ((float pars.LastClkTime + 1.0) * 0.1 |> uint) 10u 
+                                |> (+) pars.LastClkTime
                                 |> min maxLastClk 
                         }
                     dispatch <| InitiateWaveSimulation(WSViewerOpen, pars')
@@ -691,7 +691,7 @@ let makeNewSimulationWsModel (rState: CanvasState) (initSimDat: SimulatorTypes.S
     //
     // simulation data of correct length
     // simulation here is done immediately in the transition function, without GUI warning
-    let sD' = Array.append [| initSimDat |] (extractSimData initSimDat ws.SimParams.LastClk)
+    let sD' = Array.append [| initSimDat |] (extractSimData initSimDat ws.SimParams.LastClkTime)
     { ws with 
         InitWaveSimGraph = Some initSimDat
         SimDataCache = sD'
@@ -765,7 +765,7 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model d
     match duplicateNames with
     | [] -> ()
     | name :: _ -> 
-        let dupNameMessage = sprintf "Multiple waveforms have the same name: %s. " name    
+        let dupNameMessage = sprintf "Multiple waveforms have the same name: %s. This may cause confusing behaviour" name    
         PopupView.warningSimNotification dupNameMessage dispatch |> ignore
     dispatch <| SetCurrFileWSMod startingWsModel
     dispatch <| SetViewerWidth minViewerWidth 
@@ -785,7 +785,7 @@ let WaveformButtonFunc compIds model dispatch =
 
         | None ->
             // If we have never yet run wavesim create initial wSModel
-            match model.CurrProject with
+            match model.CurrentProj with
             | Some _ -> 
                 initFileWS model dispatch
             | None -> ()
@@ -794,8 +794,8 @@ let WaveformButtonFunc compIds model dispatch =
                     dispatch <| ChangeRightTab WaveSim)
                 ]
         | Some wSModel ->
-            match wSModel.WSState.View, model.WaveSimulationIsStale, SimulationView.makeSimData model with
-            | NoWS, _, Some (Ok simData, rState)
+            match wSModel.WSState.View, model.WaveSimulationIsOutOfDate, SimulationView.makeSimData model with
+            | WSClosed, _, Some (Ok simData, rState)
             | _, true, Some (Ok simData, rState) ->
                 let isClocked = SynchronousUtils.hasSynchronousComponents simData.Graph
                 if isClocked then
@@ -814,7 +814,7 @@ let WaveformButtonFunc compIds model dispatch =
                                 dispatch <| SetPropertiesNotification popup
                                 )
                         ]
-            | NoWS, _, Some( Error err,_)        
+            | WSClosed, _, Some( Error err,_)        
             | _, true, Some (Error err, _) -> 
                 // display the current error if circuit has errors
                 Button.button

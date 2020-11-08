@@ -13,10 +13,10 @@ let minEditorWidth = 400
 let rightSectionWidthViewerDefault = 650
 
 let rightSectionWidth (model:Model) =
-    match model.RightTab with
+    match model.RightPaneTabVisible with
     | MessageType.RightTab.Properties | MessageType.RightTab.Catalogue -> rightSectionWidthS
     | MessageType.RightTab.Simulation ->  rightSectionWidthL
-    | MessageType.RightTab.WaveSim -> sprintf "%dpx" model.ViewerWidth
+    | MessageType.RightTab.WaveSim -> sprintf "%dpx" model.WaveSimViewerWidth
 
 let leftSectionWidth model = Style [
     Width (sprintf "calc(100%s - %s - 10px)" "%" (rightSectionWidth model))
@@ -134,7 +134,7 @@ let sigLineThick = 0.025;
 let spacing = 0.4
 let sigHeight = 0.3 
 
-let vbWidth m = m.SimParams.ClkWidth * (float m.SimParams.LastClk + 1.0)
+let vbWidth m = m.SimParams.ClkSvgWidth * (float m.SimParams.LastClkTime + 1.0)
 let maxWavesColWidthFloat m = vbWidth m * 40.0 + 4.0
 let maxWavesColWidth m = string (maxWavesColWidthFloat m) + "px"
 let waveCellWidth m = Width (maxWavesColWidth m)
@@ -150,22 +150,22 @@ let clkRulerStyle m : IProp list =
                   PreserveAspectRatio "none" ]
 
 let cursorLeftPx m cursor =
-    cursor * (m.ClkWidth * 40.0 + 4.0 / (float m.LastClk + 1.0)) 
+    cursor * (m.ClkSvgWidth * 40.0 + 4.0 / (float m.LastClkTime + 1.0)) 
 
 let cursRectStyle m = Style [
-        Left (float m.Cursor |> cursorLeftPx m |> string |> (fun w -> w + "px"))
-        Width (40.0 * (m.ClkWidth - clkLineWidth))
+        Left (float m.CursorTime |> cursorLeftPx m |> string |> (fun w -> w + "px"))
+        Width (40.0 * (m.ClkSvgWidth - clkLineWidth))
 ]
 
 let cursRectText m i : IProp list = [
     Class "clkNumStyle"
-    X (m.SimParams.ClkWidth * (float i + 0.5)) 
+    X (m.SimParams.ClkSvgWidth * (float i + 0.5)) 
     Y 0.5
 ]
 
 let inWaveLabel nLabels xInd m : IProp list = [
     Class "busValueStyle"
-    X (xInd * m.ClkWidth)
+    X (xInd * m.ClkSvgWidth)
     Y (spacing + sigHeight * 0.7 - 0.3 * sigHeight * (float nLabels - 1.0) / 2.0)
     SVGAttr.FontSize (busLabelTextSize * sigHeight / float nLabels) 
 ]

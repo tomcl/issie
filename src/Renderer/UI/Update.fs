@@ -107,7 +107,7 @@ let private runBusWidthInference model =
 
 /// subfunction used in model update function
 let private getSimulationDataOrFail model msg =
-    match model.CurrentSimulatorStep with
+    match model.CurrentStepSimulationStep with
     | None -> failwithf "what? Getting simulation data when no simulation is running: %s" msg
     | Some sim ->
         match sim with
@@ -133,13 +133,13 @@ let private handleJSDiagramMsg msg model =
         if s && isNotEquiv model.LastDetailedSavedState nState && not model.IsLoading then
             //printfn "Setting Changed %A" s
             { model with 
-                SheetHasUnsavedChanges = s 
+                SavedSheetIsOutOfDate = s 
             }
         elif not s then
             //printfn "Setting Changed %A" false
             { model with 
                 LastDetailedSavedState = nState
-                SheetHasUnsavedChanges = false }
+                SavedSheetIsOutOfDate = false }
         else model
 
 /// Handle messages triggered by keyboard shortcuts.
@@ -151,15 +151,15 @@ let private handleKeyboardShortcutMsg msg model =
         let ldcOpt = Option.map fst opt
         let redState = Option.map snd opt
         let proj' =
-            match model.CurrProject with
+            match model.CurrentProj with
             | Some p -> 
                 let lcs = updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
                 Some {p with LoadedComponents=lcs}
             | None -> None
             
         { model with 
-            SheetHasUnsavedChanges = false
-            CurrProject = proj'
+            SavedSheetIsOutOfDate = false
+            CurrentProj = proj'
             AsyncActivity = {
                 model.AsyncActivity with 
                     LastSavedCanvasState = 
@@ -193,7 +193,7 @@ let private handleKeyboardShortcutMsg msg model =
 let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
     match act with
     | MenuPrint ->
-        match model.CurrProject with
+        match model.CurrentProj with
         | None -> ()
         | Some p ->
             model.Diagram.printCanvas( fun (fn:string) (png:string) -> 
@@ -211,7 +211,7 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
 /// get timestamp of current loaded component.
 /// is this ever used? No.
 let getCurrentTimeStamp model =
-    match model.CurrProject with
+    match model.CurrentProj with
     | None -> System.DateTime.MinValue
     | Some p ->
         p.LoadedComponents
@@ -224,12 +224,12 @@ let getCurrentTimeStamp model =
 /// Used in update function
 let updateTimeStamp model =
     let setTimeStamp (lc:LoadedComponent) = {lc with TimeStamp = System.DateTime.Now}
-    match model.CurrProject with
+    match model.CurrentProj with
     | None -> model
     | Some p ->
         p.LoadedComponents
         |> List.map (fun lc -> if lc.Name = p.OpenFileName then setTimeStamp lc else lc)
-        |> fun lcs -> { model with CurrProject=Some {p with LoadedComponents = lcs}}
+        |> fun lcs -> { model with CurrentProj=Some {p with LoadedComponents = lcs}}
 
 /// Check whether current selection is identical to previous selection and 
 /// emit SelectionHasChanged if not, return model updated with new selection.
@@ -282,7 +282,7 @@ let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
         else
             let model,cmd = checkSelection model cmd
             let model = setActivity (fun a -> {a with LastAutoSaveCheck=System.DateTime.Now}) model
-            match model.CurrProject with
+            match model.CurrentProj with
             | None -> 
                 model, cmd // do nothing
             | Some proj ->
@@ -293,7 +293,7 @@ let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
                 if update
                 then
                     printfn "AutoSaving at '%s'" (System.DateTime.Now.ToString("mm:ss"))
-                    {model with SheetHasUnsavedChanges=true}
+                    {model with SavedSheetIsOutOfDate=true}
                     |> updateTimeStamp
                     |> setActivity (fun a -> {a with LastSavedCanvasState = addReducedState a proj.OpenFileName model})
                     |> (fun model' -> 
@@ -308,7 +308,7 @@ let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
                 |> (fun model -> changeSimulationIsStale simUpdate model, cmd)
        
 /// Uses model.Hilighted to track what is currently highlighted (green or red)
-/// Changes green highlighting as determined by connIds
+/// Changes green highlighting on all connections as determined by connIds
 let private setSelWavesHighlighted model connIds =
     let (_, errConnIds), oldConnIds = model.Hilighted
     let currentConnIds = 
@@ -371,14 +371,14 @@ let update msg model =
         let msgS = (sprintf "%A..." msg) |> Seq.truncate 60 |> Seq.map (fun c -> sprintf "%c" c) |> String.concat ""
         printfn "%d %s" sdlen msgS
     match msg with
-    | SetDragMode mode -> {model with DragMode= mode}, Cmd.none
-    | SetViewerWidth w -> {model with ViewerWidth = w}, Cmd.none
+    | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none
+    | SetViewerWidth w -> {model with WaveSimViewerWidth = w}, Cmd.none
     | JSDiagramMsg msg' -> handleJSDiagramMsg msg' model, Cmd.none
     | KeyboardShortcutMsg msg' -> handleKeyboardShortcutMsg msg' model, Cmd.none
     // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).
     | SetLastSavedCanvas(name,state) -> 
         setActivity (fun a -> {a with LastSavedCanvasState= Map.add name state a.LastSavedCanvasState}) model, Cmd.none
-    | StartSimulation simData -> { model with CurrentSimulatorStep = Some simData }, Cmd.none
+    | StartSimulation simData -> { model with CurrentStepSimulationStep = Some simData }, Cmd.none
     | SetCurrFileWSMod wSMod -> 
         setCurrFileWSMod wSMod model, Cmd.none
     | SetWSError err -> 
@@ -387,18 +387,18 @@ let update msg model =
         { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim}, Cmd.none
     | SetSimulationGraph graph ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
-        { model with CurrentSimulatorStep = { simData with Graph = graph } |> Ok |> Some }, Cmd.none
+        { model with CurrentStepSimulationStep = { simData with Graph = graph } |> Ok |> Some }, Cmd.none
     | SetSimulationBase numBase ->
         let simData = getSimulationDataOrFail model "SetSimulationBase"
-        { model with CurrentSimulatorStep = { simData with NumberBase = numBase } |> Ok |> Some }, Cmd.none
+        { model with CurrentStepSimulationStep = { simData with NumberBase = numBase } |> Ok |> Some }, Cmd.none
     | IncrementSimulationClockTick ->
         let simData = getSimulationDataOrFail model "IncrementSimulationClockTick"
-        { model with CurrentSimulatorStep = { simData with ClockTickNumber = simData.ClockTickNumber+1 } |> Ok |> Some }, Cmd.none
-    | EndSimulation -> { model with CurrentSimulatorStep = None }, Cmd.none
+        { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber+1 } |> Ok |> Some }, Cmd.none
+    | EndSimulation -> { model with CurrentStepSimulationStep = None }, Cmd.none
     | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
     | ChangeRightTab newTab -> 
         firstTip <- true
-        { model with RightTab = newTab }, 
+        { model with RightPaneTabVisible = newTab }, 
         match newTab with 
         | Properties -> Cmd.ofMsg <| SetSelWavesHighlighted [||]
         | Catalogue -> Cmd.ofMsg <| SetSelWavesHighlighted [||]
@@ -422,15 +422,15 @@ let update msg model =
     | SetSelWavesHighlighted connIds ->
         setSelWavesHighlighted model (Array.toList connIds)
         |> (fun lst -> { model with Hilighted = fst model.Hilighted, lst
-                                    ConnsToBeHighlighted = false }, Cmd.none)
+                                    ConnsOfSelectedWavesAreHighlighted = false }, Cmd.none)
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
-    | SetCreateComponent pos -> { model with CreateComponent = Some pos }, Cmd.none
+    | SetCreateComponent pos -> { model with LastCreatedComponent = Some pos }, Cmd.none
     | SetProject project -> 
-        { model with CurrProject = Some project}, Cmd.none
-    | CloseProject -> { model with CurrProject = None }, Cmd.none
-    | ShowPopup popup -> { model with Popup = Some popup }, Cmd.none
+        { model with CurrentProj = Some project}, Cmd.none
+    | CloseProject -> { model with CurrentProj = None }, Cmd.none
+    | ShowPopup popup -> { model with PopupViewFunc = Some popup }, Cmd.none
     | ClosePopup ->
-        { model with Popup = None; PopupDialogData =
+        { model with PopupViewFunc = None; PopupDialogData =
                     { Text = None; Int = None; Int2 = None; MemorySetup = None; MemoryEditorData = None} }, Cmd.none
     | SetPopupDialogText text ->
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
@@ -474,7 +474,7 @@ let update msg model =
     | ClosePropertiesNotification ->
         { model with Notifications = { model.Notifications with FromProperties = None} }, Cmd.none
     | SetTopMenu t ->
-        { model with TopMenu = t}, Cmd.none
+        { model with TopMenuOpenState = t}, Cmd.none
     | ReloadSelectedComponent width ->
         match model.SelectedComponent with
         | None -> {model with LastUsedDialogWidth = width}
@@ -489,7 +489,7 @@ let update msg model =
     | SelectionHasChanged -> 
         match currWaveSimModel model with
         | Some _ ->
-            { model with ConnsToBeHighlighted = true }
+            { model with ConnsOfSelectedWavesAreHighlighted = true }
         | None -> model
         |> (fun m -> m, Cmd.none)
     | SetWaveSimIsStale b -> 
@@ -502,7 +502,7 @@ let update msg model =
         // do the simulation for WaveSim and generate new SVGs
         match getCurrFileWSMod model, getCurrFileWSModNextView model  with
         | Some wsMod, Some (pars, nView) -> 
-            let checkCursor = wsMod.SimParams.Cursor <> pars.Cursor
+            let checkCursor = wsMod.SimParams.CursorTime <> pars.CursorTime
             let pars' = adjustPars wsMod pars wsMod.SimParams.LastScrollPos
 
             // does the actual simulation and SVG generation, if needed
@@ -512,7 +512,7 @@ let update msg model =
                 |> setEditorView nView
             { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model []}
             |> setCurrFileWSMod wsMod'
-            |> (fun model -> {model with CheckScrollPos=checkCursor}, Cmd.none)
+            |> (fun model -> {model with CheckWaveformScrollPosition=checkCursor}, Cmd.none)
         | Some _, None -> 
             // This case may happen if WaveSimulateNow commands are stacked up due to 
             // repeated view function calls before the WaveSimNow trigger message is processed
@@ -524,7 +524,7 @@ let update msg model =
     | SetLastSimulatedCanvasState cS ->
         { model with LastSimulatedCanvasState = cS }, Cmd.none
     | UpdateScrollPos b ->
-        { model with CheckScrollPos = b}, Cmd.none
+        { model with CheckWaveformScrollPosition = b}, Cmd.none
     | SetLastScrollPos posOpt ->
         let updateParas (sp:SimParamsT) = {sp with LastScrollPos = posOpt}
         updateCurrFileWSMod (fun (ws:WaveSimModel) -> setSimParams updateParas ws) model, Cmd.none

@@ -380,6 +380,7 @@ let warningNotification text closeMsg =
         ]
 
 let warningPropsNotification text = warningNotification text ClosePropertiesNotification
+let warningSimNotification text = warningNotification text CloseSimulationNotification
 
 let viewNotifications model dispatch =
     [ model.Notifications.FromDiagram

@@ -415,7 +415,9 @@ let stdLabel (compType: ComponentType) (model:Model) =
         | AsyncROM _ -> "AROM"
         | ROM _ -> "ROM"
         | RAM _ -> "RAM"
-        | Custom c -> c.Name
+        | Custom c -> c.Name + ".I"
+        | Constant _ -> "C"
+        | BusSelection _ -> "B" 
         | _ -> ""
 
     let samePrefPlusNum (word: string)  = 

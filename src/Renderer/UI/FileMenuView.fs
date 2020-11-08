@@ -44,13 +44,17 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
         |> JSDiagramMsg
         |> dispatch
     let name = compToSetup.Name
+    printfn "Loading..."
     dispatch <| SetHighlighted([], []) // Remove current highlights.
     model.Diagram.ClearCanvas() // Clear the canvas.
     // Finally load the new state in the canvas.
     dispatch <| SetIsLoading true
+    printfn "Check 1..."
     let components, connections = compToSetup.CanvasState
     List.map model.Diagram.LoadComponent components |> ignore
+    printfn "Check 2..."
     List.map (model.Diagram.LoadConnection true) connections |> ignore
+    printfn "Check 3..."
     let errs = model.Diagram.GetAndClearLoadConnectionErrors()
     if errs <> [] then
         let errMsg =  
@@ -62,9 +66,22 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
                 If the error repeats please make a bug report" (List.length errs))
         let error = errorFilesNotification errMsg
         dispatch <| SetFilesNotification error
+    let errs = model.Diagram.GetAndClearLoadComponentErrors()
+    if errs <> [] then
+        let errMsg =  
+            (sprintf "Issie failed to load %d component: which were incorrectly 
+                saved due to a bug in the draw library.\n 
+                Please recreate these connections, altering slightly component positions,\n 
+                or drawing connections in the opposite direction,
+                to work around this bug. \n 
+                If the error repeats please make a bug report. Details: %s\n\n" (List.length errs)) (String.concat "\n\n" errs + "\n\n")
+        let error = errorFilesNotification errMsg
+        dispatch <| SetFilesNotification error
     model.Diagram.FlushCommandStack() // Discard all undo/redo.
     // Run the a connection widths inference.
+    printfn "Check 4..."
     JSdispatch <| InferWidths()
+    printfn "Check 5..."
     // Set no unsaved changes.
     JSdispatch <| SetHasUnsavedChanges false
     // set waveSim data
@@ -78,6 +95,7 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
         |> SetProject) // this message actually changes the project in model
     dispatch <| SetWaveSimIsStale true
     dispatch <| SetIsLoading false 
+    printfn "Check 6..."
     
 
 let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lcLst: LoadedComponent list) =

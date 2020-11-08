@@ -387,12 +387,29 @@ let netGroup2outputsAndIOLabels netList (netGrp: NetGroup) =
     |> Array.toList
     |> List.collect (net2outputsAndIOLabels netList)
     |> List.distinct
+
+
+let rec private removeSubSeq startC endC chars =
+    ((false,[]), chars)
+    ||> Seq.fold (fun (removing,res) ch ->
+                    match removing,ch with
+                    | true, ch when ch = endC -> false,res
+                    | true, _ -> true, res
+                    | false, ch when ch = startC -> true,res
+                    |false, ch -> false, ch :: res)
+    |> snd
+    |> List.rev
+    |> List.map string
+    |> String.concat ""
+                 
+    
+    
+    
+
 /// truncate names to remove redundant width specs
 let private simplifyName name =
     name
-    |> Seq.takeWhile ((<>) '(')
-    |> Seq.map (sprintf "%c")
-    |> String.concat ""
+    |> removeSubSeq '(' ')'
 
 /// get WaveLabel corresponding to a NLTarget list
 let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (net: NetList) netGrp nlTrgtList =
@@ -432,7 +449,7 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
             | RAM mem | AsyncROM mem | ROM mem -> 
                 [ { LabName = compLbl + ".Dout"; BitLimits = mem.WordWidth - 1, 0 } ]
             | Custom c -> 
-                [ { LabName = compLbl + "." + simplifyName (fst c.OutputLabels.[outPortInt])
+                [ { LabName = compLbl + "." + (fst c.OutputLabels.[outPortInt])
                     BitLimits = snd c.OutputLabels.[outPortInt] - 1, 0 } ]
             | MergeWires -> 
                 List.append (drivingOutputName (InputPortNumber 1)).ComposingLabels 
@@ -486,6 +503,7 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
             |> (fun composingLbls -> { OutputsAndIOLabels = netGroup2outputsAndIOLabels net netGrp
                                        ComposingLabels = composingLbls })
 
+
 /// get string in the [x:x] format given the bit limits
 let private bitLimsString (a, b) =
     match (a, b) with
@@ -510,6 +528,7 @@ let netGroup2Label compIds graph netList (netGrp: NetGroup) =
     | hdLbls -> 
         List.fold appendName "" hdLbls
         |> (fun hd -> hd.[0..String.length hd - 3] + " : " + tl)
+    |> simplifyName
         
 // Required wSModel with correct simulation.
 // Sets AllWaveNames and AllPorts from netlist derived from simulation

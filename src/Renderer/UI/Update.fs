@@ -368,7 +368,7 @@ let update msg model =
         |> getGraphSize
 
     if Set.contains "update" JSHelpers.debugTrace then
-        let msgS = (sprintf "%A..." msg) |> Seq.truncate 60 |> Seq.map (fun c -> sprintf "%c" c) |> String.concat ""
+        let msgS = (sprintf "%A..." msg) |> Seq.truncate 60 |> Seq.map (fun c -> string c) |> String.concat ""
         printfn "%d %s" sdlen msgS
     match msg with
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none

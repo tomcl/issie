@@ -13,7 +13,7 @@ open CommonTypes
 let sprintInitial n (s:string) = 
     s
     |> Seq.truncate n
-    |> Seq.map (sprintf "%c")
+    |> Seq.map string
     |> String.concat ""
 
 let assertThat cond msg =

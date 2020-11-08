@@ -168,7 +168,7 @@ let displayView model dispatch =
     /// Feed changed viewer width from draggable bar back to Viewer parameters
     let inline setViewerWidthInWaveSim w =
         match currWaveSimModel model with
-        | Some wSMod when w > maxWidth wSMod && wSMod.WSState.View = WSViewerOpen ->
+        | Some wSMod when w > maxUsedViewerWidth wSMod && wSMod.WSState.View = WSViewerOpen ->
             match wsModelOpt with
             | Some ws ->
                 let simProgressState = 

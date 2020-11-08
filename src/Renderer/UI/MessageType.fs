@@ -102,9 +102,9 @@ type SimParamsT = {
     CursorTime: uint
     /// width of one clock in SVG units
     ClkSvgWidth: float
-    /// names of ports selected in editor and displayed in viewer
+    /// names of NetGroups selected in wave editor and displayed in wave viewer
     DispNames: string array
-    /// current scrolling position of waveform svg (used to possibly extend svgs)
+    /// current scrolling position of waveform svg (used to possibly extend svgs if scrolling off screen)
     LastScrollPos: float option
 }
 
@@ -124,15 +124,16 @@ type SimActionT =
 
 type WaveSimModel = {
     /// generate data using this 0 clock simulation, which comes from makeSimData
+    /// TODO: get rid of this and use only SimDataCache, since this is SimDataCache[0]
     InitWaveSimGraph : SimulationData option
     
-    /// parameters determining the viewer wave display
+    /// parameters determining how and which viewer waves are displayed
     SimParams: SimParamsT
 
-    /// port names shown in the editor
+    /// NetGroup names shown in the editor
     AllWaveNames: string array
     /// Map of all the nets that exist in the currently simulated design
-    AllPorts: Map<string,NetGroup>
+    AllNets: Map<string,NetGroup>
 
     /// react SVG for each waveform, indexed by name
     DispWaveSVGCache: SVGCacheT 
@@ -169,16 +170,16 @@ let clearEditorNextView wsModel =
 
     
 
-let inline getPort (ws:WaveSimModel) (name: string) = ws.AllPorts.[name]
+let inline getPort (ws:WaveSimModel) (name: string) = ws.AllNets.[name]
 
 let inline getDispName (ws:WaveSimModel) (port:NetGroup) =
-    Map.tryFindKey (fun k v -> v = port) ws.AllPorts
+    Map.tryFindKey (fun k v -> v = port) ws.AllNets
     |> Option.defaultValue "name not found"
     
 
 let inline dispPorts (ws: WaveSimModel) =
     ws.SimParams.DispNames
-    |> Array.map (fun name -> ws.AllPorts.[name])
+    |> Array.map (fun name -> ws.AllNets.[name])
 
 let inline AllPorts (ws: WaveSimModel) =
     ws.AllWaveNames
@@ -186,7 +187,7 @@ let inline AllPorts (ws: WaveSimModel) =
 let initWS (allNames:string array) (allPorts: Map<string,NetGroup>): WaveSimModel =
     { 
       InitWaveSimGraph = None
-      AllPorts = allPorts
+      AllNets = allPorts
       AllWaveNames = allNames
       SimDataCache = [||]
       DispWaveSVGCache = { Top = [||]; Waves = Map.empty; Bottom = [||]}

@@ -16,6 +16,13 @@ open SimulatorTypes
 
 let maxLastClk = 500u
 
+type WaveGapT = {
+    /// length of stable waveform in cycles
+    GapLen: int
+    /// starting cycle of stable waveform
+    GapStart: int
+    }
+
 /////////////////////////////
 // General WaveSim Helpers //
 /////////////////////////////
@@ -35,7 +42,7 @@ let wsModel2netList wsModel =
 // Look up netgroup (= waveform) name from WaveData and netgroup
 // If Netgroup is not in AllNetGroups return "ERROR"
 let waveNameOf (ws:WaveSimModel) (ng:NetGroup) =
-    Map.tryFindKey (fun _ p -> p = ng) ws.AllPorts
+    Map.tryFindKey (fun _ p -> p = ng) ws.AllNets
     |> Option.defaultValue "ERROR"
             
 
@@ -193,11 +200,17 @@ let getSimTime (trgtLstGroups: NetGroup array) (simGraph: SimulationGraph) =
 
         )
 
-/// get values of waveforms
-let getWaveData (wsMod: WaveSimModel) =
+/// get all values of waveforms
+let getAllWaveSimDataBySample (wsMod: WaveSimModel) =
         let netGroups = dispPorts wsMod
         Array.map (fun sD -> sD.Graph) wsMod.SimDataCache
         |> Array.map (getSimTime netGroups)
+
+/// get values of waveforms for one sample
+let getWaveSimDataOneSample (wsMod: WaveSimModel) (sample:int) =
+    let netGroups = dispPorts wsMod
+    wsMod.SimDataCache.[sample].Graph
+    |> getSimTime netGroups
 
 /// extend WaveSimModel.SimData by n cycles
 let private appendSimData (model: Model) (wSModel: WaveSimModel) nCycles = 
@@ -242,7 +255,7 @@ let setSelNamesHighlighted (names: string array) model (dispatch: Msg -> Unit) =
     |Some ws ->
         let connIds = 
             names
-            |> Array.map (fun name -> ws.AllPorts.[name])
+            |> Array.map (fun name -> ws.AllNets.[name])
             |> Array.collect wave2ConnIds
         dispatch <| SetSelWavesHighlighted connIds
         
@@ -521,7 +534,8 @@ let makeText style t = text style [ str t ]
 
 let backgroundSvg (model: WaveSimModel) =
     let clkLine x = makeLinePoints [ Class "clkLineStyle" ] (x, vPos) (x, vPos + sigHeight + spacing)
-    [| 1u .. model.SimParams.LastClkTime + 1u |] |> Array.map ((fun x -> float x * model.SimParams.ClkSvgWidth) >> clkLine)
+    [| 1u .. model.SimParams.LastClkTime + 1u |] 
+    |> Array.map ((fun x -> float x * model.SimParams.ClkSvgWidth) >> clkLine)
 
 let button options func label = 
     Button.button (List.append options [ Button.OnClick func ]) [ str label ]
@@ -599,7 +613,7 @@ let transitions waveData =
     Array.transpose waveData
     |> Array.map (Array.pairwise >> Array.map isDiff)
 
-/// get gaps from transition array
+/// get gaps - periods for which waveform is stable - from transition array
 let makeGaps trans =
     Array.append trans [| 1 |]
     |> Array.mapFold (fun tot t -> tot, tot + t) 0
@@ -608,30 +622,32 @@ let makeGaps trans =
     |> Array.groupBy snd
     |> Array.map (fun (_, gL) ->
         let times = Array.map fst gL
-        {| GapLen = Array.max times - Array.min times + 1
-           GapStart = Array.min times |})
+        {
+            GapLen = Array.max times - Array.min times + 1
+            GapStart = Array.min times 
+        })
 
-/// get values position of bus labels from the transition gaps (for one Waveform)
-let private gaps2pos (wSModel: WaveSimModel) (wave: Waveform) gaps =
-    let clkWidth = int wSModel.SimParams.ClkSvgWidth
-    let nSpaces (g: {| GapLen: int; GapStart: int |}) = 
-        (g.GapLen * clkWidth / (maxBusValGap + 1) + 2)
-    let gapAndInd2Pos (g: {| GapLen: int; GapStart: int |}) i =
+/// get value positions of bus labels from the transition gaps (for one Waveform)
+let private busLabelPositions (wSModel: WaveSimModel) (wave: Waveform) gaps =
+    let clkWidth = wSModel.SimParams.ClkSvgWidth
+    let nSpaces gap = 
+        (float gap.GapLen * clkWidth / (float maxBusValGap + 1.) + 2.)
+    let busLabelXPosition g i =
         float g.GapStart + float i * float g.GapLen / float (nSpaces g)
     gaps
-    |> Array.map (fun (gap: {| GapLen: int; GapStart: int |}) ->
-        {| Sample = wave.[gap.GapStart]
-           XPosArray = Array.map (gapAndInd2Pos gap) [| 1 .. nSpaces gap - 1 |] |} )
+    |> Array.map (fun (gap) ->
+        {| WaveValue = wave.[gap.GapStart]
+           XPosArray = Array.map (busLabelXPosition gap) [| 1 .. int (nSpaces gap) - 1 |] |} )
 
 /// get values position of bus labels
 let private busLabels (wSModel: WaveSimModel) waveData =
     (Array.transpose waveData, Array.map makeGaps (transitions waveData)) 
-    ||> Array.map2 (gaps2pos wSModel)
+    ||> Array.map2 (busLabelPositions wSModel)
 
 /// get the labels of a waveform for a period in which the value doesn't change
-let private busLabelOneValue wsMod (busLabelValAndPos: {| Sample: Sample; XPosArray: float [] |}) =
+let private busLabelRepeats wsMod (busLabelValAndPos: {| WaveValue: Sample; XPosArray: float [] |}) =
     let addLabel nLabels xInd = makeText (inWaveLabel nLabels xInd wsMod)
-    match busLabelValAndPos.Sample with
+    match busLabelValAndPos.WaveValue with
     | Wire w when w.NBits > 1u ->
         Array.map (fun xInd -> 
             addLabel 1 xInd (n2StringOfRadix w.BitData w.NBits wsMod.WaveViewerRadix)) busLabelValAndPos.XPosArray
@@ -742,7 +758,7 @@ let makeClkSvg (sampArr: Waveform) (wsMod): ReactElement [] =
 let waveSvg wsMod waveData  =
     let valueLabels =
         busLabels wsMod waveData
-        |> Array.map (Array.collect (busLabelOneValue wsMod.SimParams))
+        |> Array.map (Array.collect (busLabelRepeats wsMod.SimParams))
 
     let makeWaveSvg (sampArr: Waveform) (transArr: (int * int) []): ReactElement [] =
         (sampArr, transArr)
@@ -773,7 +789,7 @@ let waveSvg wsMod waveData  =
 /// TODO: only recalculate as needed on DispWave change
 let addSVGToWaveSimModel wSModel =
     let waveData = 
-        getWaveData wSModel
+        getAllWaveSimDataBySample wSModel
 
     let waveTableRow rowClass cellClass svgClass svgChildren =
         tr rowClass [ td cellClass [ makeSvg svgClass svgChildren ] ]
@@ -823,21 +839,14 @@ let adjustPars (wsMod: WaveSimModel) (pars: SimParamsT) rightLim =
         | [||] -> 600.0
         | _ -> maxWavesColWidthFloat wsMod
     let rightLim = match rightLim with | Some x -> x | None -> defRightLim
-    match currPars.ClkSvgWidth = pars.ClkSvgWidth, currPars.CursorTime = pars.CursorTime, currPars.LastClkTime = pars.LastClkTime with
-    // zooming
-    | false, true, true -> 
+    let lastClkTime = 
         rightLim / (currPars.ClkSvgWidth * 40.0)
         |> uint
         |> max currPars.CursorTime
         |> (+) 10u
-        |> (fun newClk -> { pars with LastClkTime = newClk })
-    // changing cursor
-    | true, false, true -> 
-        { pars with LastClkTime = max pars.LastClkTime (pars.CursorTime + 10u) |> min maxLastClk }
-    // generating longer simulation
-    | true, true, false -> pars
-    // other situations should not occur, by default, don't change parameters
-    | _ -> pars
+        |> max pars.LastClkTime
+        |> min maxLastClk 
+    {pars with LastClkTime = lastClkTime}
 
 /// Update wavesim based on new parameters in par.
 /// Update waveSimCache as needed with a new longer simulation to view new parameters.
@@ -852,19 +861,10 @@ let simulateAndMakeWaves (model: Model) (wsMod: WaveSimModel)
         |> function | Some (Ok dat) -> dat
                     | None -> failwithf "No simulation data when Some are expected"
                     | Some (Error e) -> failwithf "%A" e
-//    printfn "DispNames = %A" par.DispNames
-//    printSimGraph (match wsMod.InitWaveSimGraph with | Some sg -> sg.Graph | None -> Map.empty)
     let par' = {par with DispNames = par.DispNames}
     { wsMod with SimDataCache = newData
                  SimParams = par' }
     |> addSVGToWaveSimModel
-
-
-/// get waveform names
-let private getWaveNames compIds netList (wSMod: WaveSimModel) =
-    match wSMod with
-    | {InitWaveSimGraph = Some sD} -> Array.map (netGroup2Label compIds sD.Graph netList) (dispPorts wSMod)
-    | _ -> [||]
 
 
 
@@ -919,7 +919,7 @@ let showSimulationLoading (wsModel: WaveSimModel) (dispatch: Msg ->Unit) =
         true
 
 let getAllNetGroups (waveSim:WaveSimModel) = 
-    mapValues waveSim.AllPorts
+    mapValues waveSim.AllNets
 
 
 /// In wave simulation highlight nets which are ticked on viewer or editor
@@ -967,6 +967,26 @@ let fileMenuViewActions model dispatch =
 ///////////////////////////
 // Auto-scroll functions //
 ///////////////////////////
+
+/// strings of the values displayed in the right column of the simulator
+let cursorValueStrings (wSMod: WaveSimModel) =
+    let paras = wSMod.SimParams
+    let pref =
+        match paras.WaveViewerRadix with
+        | Bin -> "0b"
+        | Hex -> "0x"
+        | _ -> ""
+
+    let makeCursVal sample =
+        match sample with
+        | Wire w when w.NBits > 1u -> [| pref + n2StringOfRadix w.BitData w.NBits paras.WaveViewerRadix |]
+        | Wire w -> [| pref + string w.BitData |]
+        | StateSample s -> s
+
+    match int paras.CursorTime < Array.length wSMod.SimDataCache with
+    | true -> Array.map makeCursVal (getWaveSimDataOneSample wSMod (int paras.CursorTime))
+    | false -> [||]
+
 
 /// returns true when the cursor rectangle is in the visible section of the scrollable div
 let isCursorVisible wSMod divWidth scrollPos =

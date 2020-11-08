@@ -101,25 +101,6 @@ let private makeAllNetGroups (netList:NetList) :NetGroup array=
 /// targets:list of inputs connected to a single driving component output (e.g. a connected Net).
 /// Return the containing NetGroup, where Nets connected by IOLabels form single Netgroups.
 let rec private getNetGroup (netList: NetList) targets = failwithf "this function is no longer implemented"
-(*    let isSubList lstSmall lstBig =
-        lstSmall
-        |> List.forall (fun el -> List.contains el lstBig) 
-
-    let ioLabelsOfTargets =
-        targets
-        |> List.filter (fun netListTrgt -> netList.[netListTrgt.TargetCompId].Type = IOLabel)
-        |> List.map (fun netListTrgt -> netList.[netListTrgt.TargetCompId].Label)
-        |> List.distinct
- 
-
-    let driverNet' =
-        Map.tryPick (fun _ (nlComp: NetListComponent) -> 
-            Map.toArray nlComp.Outputs
-            |> Array.tryFind (fun (_, lst) -> isSubList targets lst)) netList
-        |> function
-        | Some (_, lst) -> lst
-        | None -> targets
-    { driverNet = driverNet'; connectedNets = connectedNLsources' }*)
 
 /// returns a bool representing if the given NLTarget is present in the given NetList
 let private isNetListTrgtInNetList (netList: NetList) (nlTrgt: NLTarget) =
@@ -393,6 +374,12 @@ let netGroup2outputsAndIOLabels netList (netGrp: NetGroup) =
     |> Array.toList
     |> List.collect (net2outputsAndIOLabels netList)
     |> List.distinct
+/// truncate names to remove redundant width specs
+let private simplifyName name =
+    name
+    |> Seq.takeWhile ((<>) '(')
+    |> Seq.map (sprintf "%c")
+    |> String.concat ""
 
 /// get WaveLabel corresponding to a NLTarget list
 let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (net: NetList) netGrp nlTrgtList =
@@ -420,19 +407,19 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
             | Input w | Output w | Constant(w, _) -> 
                 [ { LabName = compLbl; BitLimits = w - 1, 0 } ] 
             | Demux2 -> 
-                [ { LabName = compLbl + "_" + string outPortInt; BitLimits = 0, 0 } ]
+                [ { LabName = compLbl + "." + string outPortInt; BitLimits = 0, 0 } ]
             | NbitsAdder w ->
                 match outPortInt with
-                | 0 -> [ { LabName = compLbl + "_sum"; BitLimits = w - 1, 0 } ]
-                | _ -> [ { LabName = compLbl + "Cout"; BitLimits = w - 1, 0 } ]
+                | 0 -> [ { LabName = compLbl + ".Sum"; BitLimits = w - 1, 0 } ]
+                | _ -> [ { LabName = compLbl + ".Cout"; BitLimits = w - 1, 0 } ]
             | DFF | DFFE -> 
-                [ { LabName = compLbl + "_Q"; BitLimits = 0, 0 } ]
+                [ { LabName = compLbl + ".Q"; BitLimits = 0, 0 } ]
             | Register w | RegisterE w -> 
-                [ { LabName = compLbl + "_data-out"; BitLimits = w-1, 0 } ]
+                [ { LabName = compLbl + ".Dout"; BitLimits = w-1, 0 } ]
             | RAM mem | AsyncROM mem | ROM mem -> 
-                [ { LabName = compLbl + "_data-out"; BitLimits = mem.WordWidth - 1, 0 } ]
+                [ { LabName = compLbl + ".Dout"; BitLimits = mem.WordWidth - 1, 0 } ]
             | Custom c -> 
-                [ { LabName = compLbl + "_" + fst c.OutputLabels.[outPortInt]
+                [ { LabName = compLbl + "." + simplifyName (fst c.OutputLabels.[outPortInt])
                     BitLimits = snd c.OutputLabels.[outPortInt] - 1, 0 } ]
             | MergeWires -> 
                 List.append (drivingOutputName (InputPortNumber 1)).ComposingLabels 
@@ -831,7 +818,11 @@ let makeLabels waveNames =
 /// adjust parameters before feeding them into simulateAndMakeWaves 
 let adjustPars (wsMod: WaveSimModel) (pars: SimParamsT) rightLim =
     let currPars = wsMod.SimParams
-    let rightLim = match rightLim with | Some x -> x | None -> 0.
+    let defRightLim =
+        match dispPorts wsMod with
+        | [||] -> 600.0
+        | _ -> maxWavesColWidthFloat wsMod
+    let rightLim = match rightLim with | Some x -> x | None -> defRightLim
     match currPars.ClkWidth = pars.ClkWidth, currPars.Cursor = pars.Cursor, currPars.LastClk = pars.LastClk with
     // zooming
     | false, true, true -> 
@@ -861,7 +852,8 @@ let simulateAndMakeWaves (model: Model) (wsMod: WaveSimModel)
         |> function | Some (Ok dat) -> dat
                     | None -> failwithf "No simulation data when Some are expected"
                     | Some (Error e) -> failwithf "%A" e
-    printfn "DispNames = %A" par.DispNames
+//    printfn "DispNames = %A" par.DispNames
+//    printSimGraph (match wsMod.InitWaveSimGraph with | Some sg -> sg.Graph | None -> Map.empty)
     let par' = {par with DispNames = par.DispNames}
     { wsMod with SimDataCache = newData
                  SimParams = par' }

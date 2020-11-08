@@ -157,8 +157,7 @@ let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
     let rec adjustLastClk viewW wsModel =
         let pars = wsModel.SimParams
         if viewW * 1.4 < float (maxWidth wsModel) then
-            let lastClk' = pars.LastClk+2u
-            adjustLastClk viewW (setSimParams (fun sp -> {sp with LastClk = lastClk'}) wsModel)
+            adjustLastClk viewW (setSimParams (fun sp -> {sp with LastClk = pars.LastClk + 2u}) wsModel)
         else
             printfn "New LastClk=%d" pars.LastClk
             pars.LastClk
@@ -174,7 +173,10 @@ let private zoom compIds plus (m: Model) (wSMod: WaveSimModel) dispatch =
     let newPars =
         match int (float m.ViewerWidth) > maxWidth wSModNewClk with
         | true ->
-                { pars with LastClk = adjustLastClk (float m.ViewerWidth) wSModNewClk}
+                { pars with 
+                    LastClk = adjustLastClk (float m.ViewerWidth) wSModNewClk
+                    ClkWidth = newClkW
+                }
         | false ->  
                 {pars with 
                     ClkWidth = newClkW 
@@ -379,7 +381,7 @@ let private cursorButtons (model: Model) wSMod dispatch =
 /// ReactElement of the loading button
 let private loadingButton wsMod dispatch =
     if showSimulationLoading wsMod dispatch then 
-        button [Button.Color IsDanger; Button.IsLoading true] (fun _ -> ()) ""
+        button [Button.Color Color.IsBlackBis; Button.IsLoading true] (fun _ -> ()) ""
     else str ""
 
 /// React Element of the buttons Bar at the top of the waveform simulator
@@ -742,17 +744,29 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model d
         let dispNames = 
             wsModel.SimParams.DispNames
             |> Array.filter (fun name -> Array.contains name allNames)
+        //printfn "Starting comps = %A" (fst rState |> List.map (fun comp -> comp.Label, comp.Type))
+        //SimulatorTypes.printSimGraph simData.Graph
         Array.iter (fun ng -> selectNetGrpConns model.Diagram ng false) netGroups
-        printfn "***Netgroups=%A***" (Array.length netGroups)
         { 
         wsModel with       
             AllPorts = allPorts 
             AllWaveNames = allNames
             SimParams = {wsModel.SimParams with DispNames = dispNames}
             InitWaveSimGraph = Some simData // start with 0 sample only
+            SimDataCache = [| simData |]
             LastCanvasState = Some rState 
             WSState = {wsModel.WSState with View = WSEditorOpen; NextView = None}
         }
+    let duplicateNames =
+        startingWsModel.AllWaveNames
+        |> Array.toList
+        |> List.groupBy id
+        |> List.collect (fun (name, names) -> if names.Length > 1 then [name] else [])
+    match duplicateNames with
+    | [] -> ()
+    | name :: _ -> 
+        let dupNameMessage = sprintf "Multiple waveforms have the same name: %s. " name    
+        PopupView.warningSimNotification dupNameMessage dispatch |> ignore
     dispatch <| SetCurrFileWSMod startingWsModel
     dispatch <| SetViewerWidth minViewerWidth 
     dispatch <| SetLastSimulatedCanvasState (Some rState) 
@@ -780,8 +794,9 @@ let WaveformButtonFunc compIds model dispatch =
                     dispatch <| ChangeRightTab WaveSim)
                 ]
         | Some wSModel ->
-            match model.WaveSimulationIsStale, SimulationView.makeSimData model with
-            | true, Some (Ok simData, rState) ->
+            match wSModel.WSState.View, model.WaveSimulationIsStale, SimulationView.makeSimData model with
+            | NoWS, _, Some (Ok simData, rState)
+            | _, true, Some (Ok simData, rState) ->
                 let isClocked = SynchronousUtils.hasSynchronousComponents simData.Graph
                 if isClocked then
                     // display the WaveEditor window if circuit is OK
@@ -799,8 +814,8 @@ let WaveformButtonFunc compIds model dispatch =
                                 dispatch <| SetPropertiesNotification popup
                                 )
                         ]
-                    
-            | true, Some (Error err, _) -> 
+            | NoWS, _, Some( Error err,_)        
+            | _, true, Some (Error err, _) -> 
                 // display the current error if circuit has errors
                 Button.button
                     [   Button.Color IsWarning

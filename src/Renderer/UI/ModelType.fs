@@ -171,6 +171,7 @@ let addReducedState a name model =
 
 
 let changeSimulationIsStale (b:bool) (m:Model) = 
+    printfn "Changing WaveSimulationIsStale to %A" b
     { m with WaveSimulationIsStale = b}
 
 let getComponentIds (model: Model) =

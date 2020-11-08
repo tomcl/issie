@@ -197,7 +197,6 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
         | None -> ()
         | Some p ->
             model.Diagram.printCanvas( fun (fn:string) (png:string) -> 
-                printfn "PNG is %d bytes" png.Length
                 FilesIO.savePngFile p.ProjectPath p.OpenFileName  png)
     | MenuSaveFile -> 
         FileMenuView.saveOpenFileActionWithModelUpdate model dispatch |> ignore
@@ -349,7 +348,6 @@ let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) 
             | RAM _ -> RAM mem
             | _ -> ct
         let mem' = {mem with Data = mem.Data |> Map.add addr data}
-        printfn "changing memory component to %A" (update mem' ct)
         Some {comp with Type= update mem' ct}
     | _ -> compOpt
         
@@ -359,9 +357,19 @@ let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) 
 
 /// Main MVU model update function
 let update msg model =
+    let getGraphSize g =
+        g
+        |> Option.map (fun sd -> sd.Graph |> Map.toList |> List.length)
+        |> Option.defaultValue -1
+   
+    let sdlen = 
+        getCurrFileWSMod model 
+        |> Option.bind (fun ws -> ws.InitWaveSimGraph) 
+        |> getGraphSize
+
     if Set.contains "update" JSHelpers.debugTrace then
         let msgS = (sprintf "%A..." msg) |> Seq.truncate 60 |> Seq.map (fun c -> sprintf "%c" c) |> String.concat ""
-        printfn "%s" msgS
+        printfn "%d %s" sdlen msgS
     match msg with
     | SetDragMode mode -> {model with DragMode= mode}, Cmd.none
     | SetViewerWidth w -> {model with ViewerWidth = w}, Cmd.none
@@ -439,7 +447,6 @@ let update msg model =
     | SetPopupMemoryEditorData m ->
         { model with PopupDialogData = {model.PopupDialogData with MemoryEditorData = m} }, Cmd.none
     | SetSelectedComponentMemoryLocation (addr,data) ->
-        printfn "updating component memory %d %d" addr data
         {model with SelectedComponent = updateComponentMemory addr data model.SelectedComponent}, Cmd.none
     
     | CloseDiagramNotification ->
@@ -496,7 +503,6 @@ let update msg model =
         match getCurrFileWSMod model, getCurrFileWSModNextView model  with
         | Some wsMod, Some (pars, nView) -> 
             let checkCursor = wsMod.SimParams.Cursor <> pars.Cursor
-            printfn "Simulating: %A: (%A -> %A)" pars wsMod.WSState.View (Option.map snd wsMod.WSState.NextView)
             let pars' = adjustPars wsMod pars wsMod.SimParams.LastScrollPos
 
             // does the actual simulation and SVG generation, if needed

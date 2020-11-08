@@ -95,13 +95,13 @@ type SVGCacheT = {
 
 type SimParamsT = {
     /// radix for numbers on SVG waveforms display
-    Radix: NumberBase
+    WaveViewerRadix: NumberBase
     /// last clock cycle (index) of the generated SVG
-    LastClk: uint
+    LastClkTime: uint
     /// position of cursor (0 = first cycle)
-    Cursor: uint
+    CursorTime: uint
     /// width of one clock in SVG units
-    ClkWidth: float
+    ClkSvgWidth: float
     /// names of ports selected in editor and displayed in viewer
     DispNames: string array
     /// current scrolling position of waveform svg (used to possibly extend svgs)
@@ -110,7 +110,7 @@ type SimParamsT = {
 
 
 type WSViewT = 
-    | NoWS 
+    | WSClosed 
     | WSInitEditorOpen
     | WSEditorOpen
     | WSViewerOpen
@@ -141,7 +141,7 @@ type WaveSimModel = {
     
     /// Hack to detect when  cursor text box is empty and use 0.
     /// TODO - get rid of this - it should not be needed
-    CursorEmpty: bool
+    CursorBoxIsEmpty: bool
    
     WSState: WSStateT
     /// the circuit that is being simulated - the canvas may have changed
@@ -192,15 +192,15 @@ let initWS (allNames:string array) (allPorts: Map<string,NetGroup>): WaveSimMode
       DispWaveSVGCache = { Top = [||]; Waves = Map.empty; Bottom = [||]}
       SimParams = {
         DispNames = [||]
-        ClkWidth = 1.0
-        Cursor = 0u
-        Radix = Bin
-        LastClk = 9u 
+        ClkSvgWidth = 1.0
+        CursorTime = 0u
+        WaveViewerRadix = Bin
+        LastClkTime = 9u 
         LastScrollPos = None
       }
-      WSState = {View=NoWS; NextView=None}
+      WSState = {View=WSClosed; NextView=None}
       LastCanvasState = None 
-      CursorEmpty = false
+      CursorBoxIsEmpty = false
     }
 
 

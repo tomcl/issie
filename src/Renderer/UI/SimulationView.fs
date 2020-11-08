@@ -80,7 +80,7 @@ let rec prepareSimulationMemoised
 /// Return SimulationData that can be used to extend the simulation
 /// as needed, or error if simulation fails
 let makeSimData model =
-    match model.Diagram.GetCanvasState(), model.CurrProject with
+    match model.Diagram.GetCanvasState(), model.CurrentProj with
     | None, _ -> None
     | _, None -> None
     | Some jsState, Some project ->
@@ -290,7 +290,7 @@ let private viewSimulationData (simData : SimulationData) model dispatch =
 let viewSimulation model dispatch =
     let JSState = model.Diagram.GetCanvasState ()
     let startSimulation () =
-        match JSState, model.CurrProject with
+        match JSState, model.CurrentProj with
         | None, _ -> ()
         | _, None -> failwith "what? Cannot start a simulation without a project"
         | Some jsState, Some project ->
@@ -311,7 +311,7 @@ let viewSimulation model dispatch =
                   Error simError
             |> StartSimulation
             |> dispatch
-    match model.CurrentSimulatorStep with
+    match model.CurrentStepSimulationStep with
     | None ->
         let simRes = makeSimData model
         let isSync = match simRes with | Some( Ok {IsSynchronous=true},_) | _ -> false

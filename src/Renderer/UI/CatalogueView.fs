@@ -289,7 +289,7 @@ let getNewComponentPosition (model:Model) =
 
     /// get from model the correct draw2d coords of the last component added.
     let lastCompPos =
-        match model.CreateComponent with
+        match model.LastCreatedComponent with
         | None -> None
         | Some cComp -> 
             match List.tryFind (fun (comp:Component) -> comp.Id = cComp.Id) comps with
@@ -469,7 +469,7 @@ let private makeCustom model (loadedComponent: LoadedComponent) =
     )
 
 let private makeCustomList model =
-    match model.CurrProject with
+    match model.CurrentProj with
     | None -> []
     | Some project ->
         // Do no show the open component in the catalogue.

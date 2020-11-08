@@ -269,7 +269,7 @@ let findInstancesOf sheet (lComp:LoadedComponent) =
 /// returns current sheet if there is a cycle, or more than one path to a root
 let getRootSheet  (model:Model) =
     match model with
-    | {CurrProject = (Some ({LoadedComponents=lComps} as proj))} ->
+    | {CurrentProj = (Some ({LoadedComponents=lComps} as proj))} ->
         let openSheet = proj.OpenFileName
         let getParentData (sheet:string) =
             lComps
@@ -521,7 +521,7 @@ let makeText style t = text style [ str t ]
 
 let backgroundSvg (model: WaveSimModel) =
     let clkLine x = makeLinePoints [ Class "clkLineStyle" ] (x, vPos) (x, vPos + sigHeight + spacing)
-    [| 1u .. model.SimParams.LastClk + 1u |] |> Array.map ((fun x -> float x * model.SimParams.ClkWidth) >> clkLine)
+    [| 1u .. model.SimParams.LastClkTime + 1u |] |> Array.map ((fun x -> float x * model.SimParams.ClkSvgWidth) >> clkLine)
 
 let button options func label = 
     Button.button (List.append options [ Button.OnClick func ]) [ str label ]
@@ -613,7 +613,7 @@ let makeGaps trans =
 
 /// get values position of bus labels from the transition gaps (for one Waveform)
 let private gaps2pos (wSModel: WaveSimModel) (wave: Waveform) gaps =
-    let clkWidth = int wSModel.SimParams.ClkWidth
+    let clkWidth = int wSModel.SimParams.ClkSvgWidth
     let nSpaces (g: {| GapLen: int; GapStart: int |}) = 
         (g.GapLen * clkWidth / (maxBusValGap + 1) + 2)
     let gapAndInd2Pos (g: {| GapLen: int; GapStart: int |}) i =
@@ -634,7 +634,7 @@ let private busLabelOneValue wsMod (busLabelValAndPos: {| Sample: Sample; XPosAr
     match busLabelValAndPos.Sample with
     | Wire w when w.NBits > 1u ->
         Array.map (fun xInd -> 
-            addLabel 1 xInd (n2StringOfRadix w.BitData w.NBits wsMod.Radix)) busLabelValAndPos.XPosArray
+            addLabel 1 xInd (n2StringOfRadix w.BitData w.NBits wsMod.WaveViewerRadix)) busLabelValAndPos.XPosArray
     | _ -> [||]
 
 ///////////////////////
@@ -721,10 +721,10 @@ let private makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * i
 /// SVG of the clock numbers above the waveforms
 let clkRulerSvg (model: WaveSimModel) =
     let makeClkRulLbl i =
-        match model.SimParams.ClkWidth with
+        match model.SimParams.ClkSvgWidth with
         | clkW when clkW < 0.5 && i % 5 <> 0 -> [||]
         | _ -> [| makeText (cursRectText model i) (string i) |]
-    [| 0 .. int model.SimParams.LastClk |]
+    [| 0 .. int model.SimParams.LastClkTime |]
     |> Array.collect makeClkRulLbl
     |> Array.append (backgroundSvg model)
     |> makeSvg (clkRulerStyle model)
@@ -746,7 +746,7 @@ let waveSvg wsMod waveData  =
 
     let makeWaveSvg (sampArr: Waveform) (transArr: (int * int) []): ReactElement [] =
         (sampArr, transArr)
-        ||> Array.mapi2 (makeSegment wsMod.SimParams.ClkWidth)
+        ||> Array.mapi2 (makeSegment wsMod.SimParams.ClkSvgWidth)
         |> Array.concat
 
     let padTrans t =
@@ -823,17 +823,17 @@ let adjustPars (wsMod: WaveSimModel) (pars: SimParamsT) rightLim =
         | [||] -> 600.0
         | _ -> maxWavesColWidthFloat wsMod
     let rightLim = match rightLim with | Some x -> x | None -> defRightLim
-    match currPars.ClkWidth = pars.ClkWidth, currPars.Cursor = pars.Cursor, currPars.LastClk = pars.LastClk with
+    match currPars.ClkSvgWidth = pars.ClkSvgWidth, currPars.CursorTime = pars.CursorTime, currPars.LastClkTime = pars.LastClkTime with
     // zooming
     | false, true, true -> 
-        rightLim / (currPars.ClkWidth * 40.0)
+        rightLim / (currPars.ClkSvgWidth * 40.0)
         |> uint
-        |> max currPars.Cursor
+        |> max currPars.CursorTime
         |> (+) 10u
-        |> (fun newClk -> { pars with LastClk = newClk })
+        |> (fun newClk -> { pars with LastClkTime = newClk })
     // changing cursor
     | true, false, true -> 
-        { pars with LastClk = max pars.LastClk (pars.Cursor + 10u) |> min maxLastClk }
+        { pars with LastClkTime = max pars.LastClkTime (pars.CursorTime + 10u) |> min maxLastClk }
     // generating longer simulation
     | true, true, false -> pars
     // other situations should not occur, by default, don't change parameters
@@ -847,7 +847,7 @@ let simulateAndMakeWaves (model: Model) (wsMod: WaveSimModel)
                 (par: SimParamsT) : WaveSimModel =
     
     let newData =
-        par.LastClk + 1u - uint (Array.length wsMod.SimDataCache)
+        par.LastClkTime + 1u - uint (Array.length wsMod.SimDataCache)
         |> appendSimData model wsMod
         |> function | Some (Ok dat) -> dat
                     | None -> failwithf "No simulation data when Some are expected"
@@ -936,7 +936,7 @@ let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
             match wSModel.WSState.View with 
             | WSEditorOpen | WSInitEditorOpen -> netList2NetGroups netList
             | WSViewerOpen -> dispPorts wSModel
-            | NoWS -> [||]
+            | WSClosed -> [||]
 
         let selectedConnectionIds (ng:NetGroup) =
             if isWaveSelected model.Diagram netList ng then 
@@ -954,7 +954,7 @@ let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
 
 /// actions triggered whenever the fileMenuView function is executed
 let fileMenuViewActions model dispatch =
-    if model.ConnsToBeHighlighted then 
+    if model.ConnsOfSelectedWavesAreHighlighted then 
         printfn "from filemenuview"
         highlightConnectionsFromNetGroups  model dispatch
     else ()
@@ -970,16 +970,16 @@ let fileMenuViewActions model dispatch =
 
 /// returns true when the cursor rectangle is in the visible section of the scrollable div
 let isCursorVisible wSMod divWidth scrollPos =
-    let cursLeftPos = cursorLeftPx wSMod.SimParams <| float wSMod.SimParams.Cursor
-    let cursMid = cursLeftPos + (wSMod.SimParams.ClkWidth * 40.0 / 2.0)
+    let cursLeftPos = cursorLeftPx wSMod.SimParams <| float wSMod.SimParams.CursorTime
+    let cursMid = cursLeftPos + (wSMod.SimParams.ClkSvgWidth * 40.0 / 2.0)
     let leftScreenLim = scrollPos
     let rightScreenLim = leftScreenLim + divWidth
     cursLeftPos >= cursMid && cursMid <= rightScreenLim
 
 /// returns horizontal scrolling position required so that the cursor becomes visible
 let makeCursorVisiblePos wSMod divWidth = 
-    let cursLeftPos = cursorLeftPx wSMod.SimParams <| float wSMod.SimParams.Cursor
-    let cursMid = cursLeftPos + (wSMod.SimParams.ClkWidth * 40.0 / 2.0)
+    let cursLeftPos = cursorLeftPx wSMod.SimParams <| float wSMod.SimParams.CursorTime
+    let cursMid = cursLeftPos + (wSMod.SimParams.ClkSvgWidth * 40.0 / 2.0)
     cursMid - (divWidth / 2.0)
 
 /////////////////////////////////////////

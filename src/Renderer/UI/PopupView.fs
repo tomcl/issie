@@ -346,7 +346,7 @@ let choicePopup title body buttonTrueText buttonFalseText buttonAction dispatch 
 
 /// Display popup, if any is present.
 let viewPopup model =
-    match model.Popup with
+    match model.PopupViewFunc with
     | None -> div [] []
     | Some popup -> popup model.PopupDialogData
 

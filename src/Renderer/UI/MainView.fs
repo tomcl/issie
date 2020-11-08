@@ -43,7 +43,7 @@ let initActivity = {
 let init() = {
     AsyncActivity = initActivity
     Diagram = new Draw2dWrapper()
-    WaveSimulationIsStale = true
+    WaveSimulationIsOutOfDate = true
     IsLoading = false
     LastDetailedSavedState = ([],[])
     LastSimulatedCanvasState = None
@@ -51,15 +51,15 @@ let init() = {
     CurrentSelected = [],[]
     SelectedComponent = None
     LastUsedDialogWidth = 1
-    CurrentSimulatorStep = None
+    CurrentStepSimulationStep = None
     WaveSim = Map.empty, None
-    RightTab = Catalogue
-    CurrProject = None
+    RightPaneTabVisible = Catalogue
+    CurrentProj = None
     Hilighted = ([], []), []
     Clipboard = [], []
-    CreateComponent = None
-    SheetHasUnsavedChanges = false
-    Popup = None
+    LastCreatedComponent = None
+    SavedSheetIsOutOfDate = false
+    PopupViewFunc = None
     PopupDialogData = {
         Text = None
         Int = None
@@ -75,12 +75,12 @@ let init() = {
         FromMemoryEditor = None
         FromProperties = None
     }
-    TopMenu = Closed
-    DragMode = DragModeOff
-    ViewerWidth = rightSectionWidthViewerDefault
+    TopMenuOpenState = Closed
+    DividerDragMode = DragModeOff
+    WaveSimViewerWidth = rightSectionWidthViewerDefault
     SimulationInProgress = None
-    ConnsToBeHighlighted= false
-    CheckScrollPos = false
+    ConnsOfSelectedWavesAreHighlighted= false
+    CheckWaveformScrollPosition = false
 }
 
 
@@ -92,7 +92,7 @@ let makeSelectionChangeMsg (model:Model) (dispatch: Msg -> Unit) (ev: 'a) =
 
 /// Display the content of the right tab.
 let private viewRightTab model dispatch =
-    match model.RightTab with
+    match model.RightPaneTabVisible with
     | Catalogue ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str "Catalogue" ]
@@ -118,7 +118,7 @@ let inline setDragMode (modeIsOn:bool) (model:Model) dispatch =
     fun (ev: Browser.Types.MouseEvent) ->        
         makeSelectionChangeMsg model dispatch ev
         //printfn "START X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
-        match modeIsOn, model.DragMode with
+        match modeIsOn, model.DividerDragMode with
         | true, DragModeOff ->  
             dispatch <| SetDragMode (DragModeOn (int ev.clientX))
         | false, DragModeOn _ -> 
@@ -127,7 +127,7 @@ let inline setDragMode (modeIsOn:bool) (model:Model) dispatch =
 
 /// Draggable vertivcal bar used to divide Wavesim window from Diagram window
 let dividerbar (model:Model) dispatch =
-    let isDraggable = model.RightTab = WaveSim
+    let isDraggable = model.RightPaneTabVisible = WaveSim
     let variableStyle = 
         if isDraggable then [
             BackgroundColor "grey"
@@ -172,7 +172,7 @@ let displayView model dispatch =
             match wsModelOpt with
             | Some ws ->
                 let simProgressState = 
-                    {ws.SimParams with LastClk = ws.SimParams.LastClk + 10u}
+                    {ws.SimParams with LastClkTime = ws.SimParams.LastClkTime + 10u}
                 dispatch <| InitiateWaveSimulation(WSViewerOpen, simProgressState)
             | _ -> ()
         | _ -> ()
@@ -183,9 +183,9 @@ let displayView model dispatch =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         if ev.buttons = 1. then 
             dispatch SelectionHasChanged
-        match model.DragMode, ev.buttons with
+        match model.DividerDragMode, ev.buttons with
         | DragModeOn pos , 1.-> 
-            let newWidth = model.ViewerWidth - int ev.clientX + pos
+            let newWidth = model.WaveSimViewerWidth - int ev.clientX + pos
             let w = 
                 newWidth
                 |> max minViewerWidth
@@ -228,23 +228,23 @@ let displayView model dispatch =
                   [ Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs"
                                 Tabs.Props [Style [Margin 0] ] ]                              
                               [ Tabs.tab // catalogue tab to add components
-                                    [ Tabs.Tab.IsActive (model.RightTab = Catalogue) ]
+                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
                                     [ a [ OnClick (fun _ -> CatalogueView.firstTip <- true; ChangeRightTab Catalogue |> dispatch ) ] 
                                     [ JSHelpers.tipStr "bottom" "Catalogue" "List of components and custom components from other design sheets to add to this sheet"] ]                                
                                 Tabs.tab // Properties tab to view/chnage component properties
-                                    [ Tabs.Tab.IsActive (model.RightTab = Properties) ]
+                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]
                                     [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties ) ] 
                                     [ JSHelpers.tipStr "bottom" "Properties" "View or change component name, width, etc"] ]
 
                                 Tabs.tab // simulation tab to do combinational simulation
-                                    [ Tabs.Tab.IsActive (model.RightTab = Simulation) ]
+                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
                                     [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] 
                                     [ JSHelpers.tipStr "bottom" "Simulation" "Simple simulation for combinational logic which allows inputs to be changed manually" ] ]
                                 /// Optional wavesim tab. If present contains waveforms or waveform aditor window
                                 match currWaveSimModel model with
                                 | Some {InitWaveSimGraph =  Some _} ->
                                     Tabs.tab // WaveSim tab - if wavesim exists
-                                        [ Tabs.Tab.IsActive (model.RightTab = WaveSim) ]
+                                        [ Tabs.Tab.IsActive (model.RightPaneTabVisible = WaveSim) ]
                                         [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab WaveSim ) ] 
                                         [ str "WaveSim" ] ] 
                                 | _ -> div [] []

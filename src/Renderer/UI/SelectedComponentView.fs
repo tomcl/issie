@@ -27,14 +27,14 @@ let private readOnlyFormField name body =
         body
     ]
 
-let private textFormField name defaultValue onChange =
+let private textFormField isRequired name defaultValue onChange =
     Field.div [] [
         Label.label [] [ str name ]
         Input.text [
             Input.Props [ SpellCheck false; Name name; AutoFocus true; Style [ Width "200px"]]
             Input.DefaultValue defaultValue
             Input.Type Input.Text
-            Input.Placeholder "Name (required)"
+            Input.Placeholder (if isRequired then "Name (required)" else "Name (optional)")
             Input.OnChange (getTextEventValue >> onChange)
         ] 
     ]
@@ -237,7 +237,8 @@ let viewSelectedComponent model dispatch =
             let label' = extractLabelBase comp.Label
             readOnlyFormField "Description" <| makeDescription comp model dispatch
             makeExtraInfo model comp label' dispatch
-            textFormField "Component Name" label' (fun text -> 
+            let required = match comp.Type with | SplitWire _ | MergeWires -> false | _ -> true
+            textFormField required "Component Name" label' (fun text -> 
                 setComponentLabel model comp (formatLabel comp text)
                 //updateNames model (fun _ _ -> model.WaveSim.Ports) |> StartWaveSim |> dispatch
                 dispatch (ReloadSelectedComponent model.LastUsedDialogWidth) // reload the new component

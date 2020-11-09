@@ -563,6 +563,9 @@ let button options func label =
 /// Radix conversion ///
 ////////////////////////
 
+
+// TODO: Rationalise by deleting these and using instead the functions in Helpers.
+
 let private charList2String (charLst: char list) = 
     List.map string charLst
     |> List.toSeq
@@ -602,12 +605,18 @@ let dec2sdec (n: bigint) (nBits: uint32) =
     |> string
 
 /// convert number to number string of the chosen radix
-let n2StringOfRadix (n: bigint) (nBits: uint32) (rad: NumberBase) =
+let n2StringOfRadix (hasRadixPrefix: bool) (n: bigint) (nBits: uint32) (rad: NumberBase) =
+    let pref =
+        match rad with
+        | Bin -> "0b"
+        | Hex -> "0x"
+        | _ -> ""
     match rad with
     | Dec -> string n
     | Bin -> dec2bin n nBits |> charList2String
     | Hex -> dec2hex n nBits
     | SDec -> dec2sdec n nBits
+    |> (fun numberRepStr -> (if hasRadixPrefix then pref else "") + numberRepStr)
 
 
 ///////////////////
@@ -669,7 +678,7 @@ let private busLabelRepeats wsMod (busLabelValAndPos: {| WaveValue: Sample; XPos
     match busLabelValAndPos.WaveValue with
     | Wire w when w.NBits > 1u ->
         Array.map (fun xInd -> 
-            addLabel 1 xInd (n2StringOfRadix w.BitData w.NBits wsMod.WaveViewerRadix)) busLabelValAndPos.XPosArray
+            addLabel 1 xInd (n2StringOfRadix true w.BitData w.NBits wsMod.WaveViewerRadix)) busLabelValAndPos.XPosArray
     | _ -> [||]
 
 ///////////////////////
@@ -990,16 +999,11 @@ let fileMenuViewActions model dispatch =
 /// strings of the values displayed in the right column of the simulator
 let cursorValueStrings (wSMod: WaveSimModel) =
     let paras = wSMod.SimParams
-    let pref =
-        match paras.WaveViewerRadix with
-        | Bin -> "0b"
-        | Hex -> "0x"
-        | _ -> ""
 
     let makeCursVal sample =
         match sample with
-        | Wire w when w.NBits > 1u -> [| pref + n2StringOfRadix w.BitData w.NBits paras.WaveViewerRadix |]
-        | Wire w -> [| pref + string w.BitData |]
+        | Wire w when w.NBits > 1u -> [| n2StringOfRadix true  w.BitData w.NBits paras.WaveViewerRadix |]
+        | Wire w -> [| string w.BitData |]
         | StateSample s -> s
 
     match int paras.CursorTime < Array.length wSMod.SimDataCache with

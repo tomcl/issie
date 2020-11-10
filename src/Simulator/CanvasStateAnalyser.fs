@@ -422,7 +422,7 @@ let checkComponentNamesAreOk ((comps,conns): CanvasState) =
                         Use the properties tab to give a different name to the highlighted component(s)."]
             | "" -> [comp, "All components must have a unique alphanumeric name (e.g. 'G1'). An empty name is not allowed except for split and join.\
                         Use the properties tab to give a non-empty name to the highlighted component(s)."]
-            | _ -> [])
+            | _ -> []) 
         |> List.groupBy snd
         |> List.map (fun (msg, eLst) -> List.map fst eLst, msg) 
     let duplicateNameErrors =

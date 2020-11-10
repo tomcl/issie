@@ -9,6 +9,11 @@ open CommonTypes
 
 (*-----------------------------------General helpers-----------------------------------------*)
 
+let shortPComp (comp:Component) =
+    match comp.Type with
+    | Custom sc -> sprintf "%s:Custom.%s.%A->%A" comp.Label sc.Name sc.InputLabels sc.OutputLabels
+    | _ -> sprintf "%s:%A" comp.Label comp.Type
+
 /// print initial n characters of a string
 let sprintInitial n (s:string) = 
     s

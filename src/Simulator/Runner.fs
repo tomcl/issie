@@ -12,6 +12,8 @@ open Helpers
 open SimulatorTypes
 open SynchronousUtils
 
+let mutable simTrace = Some [ "d-flip_flop.I0"; "ripple-carry adder.I0"; "A0"; "REG0"]
+
 // During simulation, a Component Reducer function will produce the output only
 // when all of the expected inputs have a value. Once this happens, it will
 // calculate its outputs and set them in the next simulationComponent(s).
@@ -34,6 +36,14 @@ let diffReducerInputsOrOutputs
         | Some oldData when oldData = wireData -> diff
         | _ -> failwith "what? Impossible case in diffReducerInputsOrOutputs"
     )
+
+let traceReduction action (comp:SimulationComponent) (reducerInput:ReducerInput) (reducerOutput:ReducerOutput) =
+    match simTrace, comp with
+    | None,_ -> ()
+    | Some traceLabs, {Label=ComponentLabel lab} when List.contains lab traceLabs ->
+        printfn "%s -> %A into %A output=%A newState=%A" 
+            action reducerInput.Inputs (shortPSComp comp)  reducerOutput.Outputs reducerOutput.NewState
+    | _ -> ()
 
 /// Take the Input, and feed it to the Component with the specified Id.
 /// This function should be used to feed combinational logic inputs, not to
@@ -73,6 +83,9 @@ let rec private feedInput
     // Try to reduce the component.
     let reducerOutput = comp.Reducer reducerInput
     // Check wether the reducer produced any outputs.
+
+    traceReduction "feeding" comp reducerInput reducerOutput
+
     match reducerOutput.Outputs with
     | None -> graph // Keep on waiting for more inputs.
     | Some outputMap ->
@@ -124,6 +137,7 @@ let feedClockTick (graph : SimulationGraph) : SimulationGraph =
             IsClockTick = Yes comp.State
         }
         let reducerOutput = comp.Reducer reducerInput
+        traceReduction "clockTick" comp reducerInput reducerOutput
         match reducerOutput.Outputs with
         | None -> failwithf "what? A clocked component should ALWAYS produce outputs after a clock tick: %A" comp
         | Some outputMap ->

@@ -136,6 +136,12 @@ type JSCanvasState = JSComponent list * JSConnection list
 let sprintSimComponent (sComp: SimulationComponent) =
     sprintf "'%A': %20s" sComp.Label (sComp.Type.ToString() |> Helpers.sprintInitial 20)
 
+let shortPSComp (comp:SimulationComponent) =
+    let lab = match comp.Label with | ComponentLabel lab' -> lab'
+    match comp.Type with
+    | Custom sc -> sprintf "%s:Custom.(%s.%A->%A)" lab sc.Name sc.InputLabels sc.OutputLabels
+    | _ -> sprintf "%s:%A.{%A}" lab comp.Type comp.State
+
 
 let printSimGraph (sg: SimulationGraph) =
     printfn "%s" (String.concat "\n" (sg |> Map.toList |> List.map (fun (ComponentId id,comp) -> sprintSimComponent comp + id)))

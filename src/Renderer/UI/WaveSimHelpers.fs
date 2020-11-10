@@ -1026,7 +1026,54 @@ let makeCursorVisiblePos wSMod divWidth =
     cursMid - (divWidth / 2.0)
 
 /////////////////////////////////////////
-// Functions to manage waveSim state   //
+// Functions to Manage Wave Editor     //
 /////////////////////////////////////////
 
+type SheetInfo = {
+    SheetName: ComponentId; 
+    Canvas: CanvasState; 
+    SheetGraph: SimulationGraph; 
+    Instance: string * ComponentLabel
+    SheetPath: ComponentId list; 
+    InstancePath: (string * ComponentLabel) list
+    NetL: NetList
+    }
+
+let rec getSubSheets 
+        (sheets: ComponentId list) 
+        (instances: (string * ComponentLabel) list) 
+        (graph: SimulatorTypes.SimulationGraph) 
+        (model:Model) : SheetInfo list =
+    mapValues graph
+    |> Array.toList
+    |> List.collect (fun sComp -> 
+        let label = sComp.Label                
+        match sComp.Type with 
+        | Custom cusComp -> 
+            let canvas = 
+                match model.CurrentProj with
+                | Some {LoadedComponents= lst} ->
+                    match List.tryFind (fun ldComp -> ldComp.Name = cusComp.Name) lst with
+                    | None -> failwithf "Can't find canvas for sheet"
+                    | Some ldComp -> ldComp.CanvasState
+                | _ -> failwithf "Can't find project"
+            match sComp.CustomSimulationGraph with
+            | None -> failwithf "Custom compnent without simulation graph? InstancePath=%A, Instance=%A" instances label
+            | Some sg ->
+                let thisSheet =
+                    {
+                        SheetPath = List.rev sheets
+                        InstancePath = List.rev instances
+                        SheetName = sComp.Id
+                        Instance = cusComp.Name, sComp.Label
+                        SheetGraph = sg
+                        Canvas = canvas
+                        NetL = Helpers.getNetList canvas
+                    }
+                let otherSheets = getSubSheets (sComp.Id :: sheets) (thisSheet.Instance ::instances) graph model
+                thisSheet :: otherSheets
+        | _ -> [])
+
+
+            
 

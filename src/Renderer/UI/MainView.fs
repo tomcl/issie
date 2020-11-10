@@ -207,6 +207,7 @@ let displayView model dispatch =
         // transient
         FileMenuView.viewNoProjectMenu model dispatch
         // transient overlay
+        Modal.modal [] [str "TEST"]
         PopupView.viewPopup model
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
         // main top bar function is early in compile order

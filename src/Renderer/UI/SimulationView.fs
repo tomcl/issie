@@ -256,7 +256,13 @@ let private viewSimulationData (simData : SimulationData) model dispatch =
             Button.button [
                 Button.Color IsSuccess
                 Button.OnClick (fun _ ->
+                    if SimulationRunner.simTrace <> None then
+                        printfn "*********************Incrementing clock from simulator button******************************"
+                        printfn "-------------------------------------------------------------------------------------------"
                     feedClockTick simData.Graph |> SetSimulationGraph |> dispatch
+                    if SimulationRunner.simTrace <> None then
+                        printfn "-------------------------------------------------------------------------------------------"
+                        printfn "*******************************************************************************************"
                     IncrementSimulationClockTick |> dispatch
                 )
             ] [ str <| sprintf "Clock Tick %d" simData.ClockTickNumber ]

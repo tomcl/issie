@@ -12,7 +12,7 @@ open Helpers
 open SimulatorTypes
 open SynchronousUtils
 
-let mutable simTrace = Some [ "d-flip_flop.I0"; "ripple-carry adder.I0"; "A0"; "REG0"]
+let mutable simTrace = Some [ "REG0"; "adder4new.I0"; "A0"; "REG0"]
 
 // During simulation, a Component Reducer function will produce the output only
 // when all of the expected inputs have a value. Once this happens, it will
@@ -41,8 +41,8 @@ let traceReduction action (comp:SimulationComponent) (reducerInput:ReducerInput)
     match simTrace, comp with
     | None,_ -> ()
     | Some traceLabs, {Label=ComponentLabel lab} when List.contains lab traceLabs ->
-        printfn "%s -> %A into %A output=%A newState=%A" 
-            action reducerInput.Inputs (shortPSComp comp)  reducerOutput.Outputs reducerOutput.NewState
+        printfn "\n%s>>>>> %A \n\toutputs: %A \n\tinputs=%A \n\tnewState=%A" 
+            action (shortPSComp comp) reducerOutput.Outputs reducerInput.Inputs    reducerOutput.NewState
     | _ -> ()
 
 /// Take the Input, and feed it to the Component with the specified Id.
@@ -84,7 +84,7 @@ let rec private feedInput
     let reducerOutput = comp.Reducer reducerInput
     // Check wether the reducer produced any outputs.
 
-    traceReduction "feeding" comp reducerInput reducerOutput
+    traceReduction "comb-feedin" comp reducerInput reducerOutput
 
     match reducerOutput.Outputs with
     | None -> graph // Keep on waiting for more inputs.
@@ -114,6 +114,8 @@ and private feedReducerOutput
         | None when comp.Type = IOLabel -> graph // special case, these components can generate output that is connected to nothing!
         | None -> failwithf "what? Reducer produced inexistent output portNumber %A in component %A" outPortNumber comp
         | Some targets ->
+            let lookup (cid,pNum) = graph.[cid].Label,pNum
+            printfn "\tComb outputs fed to -> %A" (List.map lookup targets)
             // Trigger simulation step with the newly produced input in
             // every target.
             (graph, targets) ||> List.fold (fun graph (nextCompId, nextPortNumber) ->
@@ -137,7 +139,7 @@ let feedClockTick (graph : SimulationGraph) : SimulationGraph =
             IsClockTick = Yes comp.State
         }
         let reducerOutput = comp.Reducer reducerInput
-        traceReduction "clockTick" comp reducerInput reducerOutput
+        traceReduction (sprintf "clockTick %A" reducerInput.IsClockTick)  comp reducerInput reducerOutput
         match reducerOutput.Outputs with
         | None -> failwithf "what? A clocked component should ALWAYS produce outputs after a clock tick: %A" comp
         | Some outputMap ->
@@ -172,9 +174,9 @@ let feedClockTick (graph : SimulationGraph) : SimulationGraph =
 let feedSimulationInput graph inputId wireData =
     feedInput graph inputId (InputPortNumber 0, wireData)
 
-/// Feed in constant outputs do that they propagated to things connected to them
+/// Feed in constant outputs so that they propagated to things connected to them
 /// This function is supposed to be used with Components of type Constant
-let feedSimulationConstants (graph:SimulationGraph) =
+let rec feedSimulationConstants (graph:SimulationGraph) =
     let comps = 
         graph 
         |> Map.toList 
@@ -184,11 +186,19 @@ let feedSimulationConstants (graph:SimulationGraph) =
         | Constant (w,c) -> NumberHelpers.convertIntToWireData w (int64 c) 
         | _ -> failwithf "What? Problem with non-constant component used in feedSimulationConstants"
     comps
-    |> List.filter (fun c -> match c.Type with | Constant _ -> true | _ -> false)
+    |> List.filter (fun c -> match c.Type with | Custom cComp -> true| Constant _ -> true | _ -> false)
     |> (fun cL ->
-            let feedConstant graph comp =
-                feedReducerOutput comp graph (Map.ofList [OutputPortNumber 0, getWireData comp])
-            (graph, cL) ||> List.fold feedConstant)
+                let feedConstant graph (comp:SimulationComponent) =
+                    match comp.Type with
+                    | Constant _ -> 
+                        feedReducerOutput comp graph (Map.ofList [OutputPortNumber 0, getWireData comp])
+                    | Custom cComp -> 
+                        Option.map feedSimulationConstants comp.CustomSimulationGraph
+                        |> (fun graphOpt -> {comp with CustomSimulationGraph = graphOpt})
+                        |> (fun comp' -> Map.add comp.Id comp' graph)
+                    | _ -> failwithf "What? other components are filtered out"
+                (graph, cL) ||> List.fold feedConstant)
+
 
 /// Feed zeros to all simulation inputs, and feed a single clock tick.
 /// This way all combinational logic has been touched once and had produced its

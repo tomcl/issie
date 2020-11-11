@@ -129,10 +129,13 @@ let feedClockTick (graph : SimulationGraph) : SimulationGraph =
     // Take a snapshot of each clocked component with its inputs just before the
     // clock tick.
     let clockedCompsBeforeTick =
-        graph |> Map.filter (fun _ comp -> couldBeSynchronousComponent comp.Type)
+        graph 
+        |> Map.toArray
+        |> Array.filter (fun (_,comp) -> couldBeSynchronousComponent comp.Type)
+        |> Array.sortBy (fun (cid,comp) -> match comp.Type with Custom _ -> 0 | _ -> 1)
     // For each clocked component, feed the clock tick together with the inputs
     // snapshotted just before the clock tick.
-    (graph, clockedCompsBeforeTick) ||> Map.fold (fun graph compId comp ->
+    (graph, clockedCompsBeforeTick) ||> Array.fold (fun graph (compId,comp) ->
         let reducerInput = {
             Inputs = comp.Inputs
             CustomSimulationGraph = comp.CustomSimulationGraph

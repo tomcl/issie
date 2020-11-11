@@ -92,16 +92,16 @@ let private runBusWidthInference model =
             // TODO: this makes the content of the model.Higlighted inconsistent.
             // Need to dispatch SetHighlighted (can do by using mkProgram).
             e.ConnectionsAffected
-            //|> List.map (fun (ConnectionId c) -> model.Diagram.HighlightConnection c)
-            |> ignore
+            |> List.iter (fun (ConnectionId c) -> model.Diagram.HighlightConnection c "red")
+           
             // Display notification with error message.
             { model with 
                 Notifications =
                     { model.Notifications with 
                         FromDiagram = Some <| errorNotification e.Msg CloseDiagramNotification} }
         | Ok connsWidth ->
-            //repaintConnections model connsWidth
-            //repaintBusComponents model connsWidth state
+            repaintConnections model connsWidth
+            repaintBusComponents model connsWidth state
             // Close the notification if all is good.
             { model with Notifications = {model.Notifications with FromDiagram = None} }
 

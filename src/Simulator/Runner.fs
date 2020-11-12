@@ -12,7 +12,7 @@ open Helpers
 open SimulatorTypes
 open SynchronousUtils
 
-let mutable simTrace = Some [ "REG0"; "adder4new.I0"; "A0"; "REG0"]
+let mutable simTrace = None
 
 // During simulation, a Component Reducer function will produce the output only
 // when all of the expected inputs have a value. Once this happens, it will
@@ -115,7 +115,7 @@ and private feedReducerOutput
         | None -> failwithf "what? Reducer produced inexistent output portNumber %A in component %A" outPortNumber comp
         | Some targets ->
             let lookup (cid,pNum) = graph.[cid].Label,pNum
-            printfn "\tComb outputs fed to -> %A" (List.map lookup targets)
+            //printfn "\tComb outputs fed to -> %A" (List.map lookup targets)
             // Trigger simulation step with the newly produced input in
             // every target.
             (graph, targets) ||> List.fold (fun graph (nextCompId, nextPortNumber) ->

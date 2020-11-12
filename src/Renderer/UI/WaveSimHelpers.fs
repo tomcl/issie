@@ -186,7 +186,8 @@ let getSimTime (trgtLstGroups: NetGroup array) (simGraph: SimulationGraph) =
             let compId = trgtLst.[0].TargetCompId
             let inputPorts = simGraph.[compId].Inputs
             let portNum = trgtLst.[0].InputPort
-            let wD = inputPorts.[portNum]
+            let wD = Map.tryFind portNum inputPorts
+                     |> Option.defaultValue []
             Wire
                 { NBits = uint (List.length wD)
                   BitData = simWireData2Wire wD }
@@ -195,7 +196,7 @@ let getSimTime (trgtLstGroups: NetGroup array) (simGraph: SimulationGraph) =
             printfn "Exception: %A" e
             printSimGraph simGraph
             let compId = trgtLst.[0].TargetCompId
-            printfn "\nComponent %s\n" (tryGetCompLabel compId simGraph)
+            printfn "\nComponent %s\n\n" (tryGetCompLabel compId simGraph)
             failwithf "What? This error in getSimTime should not be possible"
 
         )

@@ -453,10 +453,10 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
                 [ { LabName = compLbl + "." + (fst c.OutputLabels.[outPortInt])
                     BitLimits = snd c.OutputLabels.[outPortInt] - 1, 0 } ]
             | MergeWires -> 
-                List.append (drivingOutputName (InputPortNumber 1)).ComposingLabels 
-                            (drivingOutputName (InputPortNumber 0)).ComposingLabels
+                List.append (drivingOutputName (InputPortNumber 0)).ComposingLabels 
+                            (drivingOutputName (InputPortNumber 1)).ComposingLabels
             | SplitWire w ->
-                let predicate (_, b) =
+                let mostsigBranch (_, b) =
                     match outPortInt with
                     | 0 -> b >= w
                     | 1 -> b < w
@@ -464,7 +464,7 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
 
                 let split { LabName = name; BitLimits = msb, lsb } st =
                     List.zip [ lsb .. msb ] [ st + msb - lsb .. -1 .. st ]
-                    |> List.filter predicate
+                    |> List.filter mostsigBranch
                     |> List.unzip
                     |> function
                     | [], _ -> None 

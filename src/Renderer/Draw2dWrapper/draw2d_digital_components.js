@@ -150,7 +150,7 @@ draw2d.shape.digital.Constant = draw2d.shape.digital.extend({
         this.numberOfBits = attr.numberOfBits;
         this.constValue = attr.constValue;
 
-        this.createDigitalPort("output", new draw2d.layout.locator.XYRelPortLocator(100, 41), this.numberOfBits > 1);
+        this.createDigitalPort("output", new draw2d.layout.locator.XYRelPortLocator(100, 46), this.numberOfBits > 1);
     },
 });
 

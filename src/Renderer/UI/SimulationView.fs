@@ -61,7 +61,7 @@ let rec prepareSimulationMemoised
         prepareSimulationMemoised diagramName canvasState loadedDependencies
     else
         let isSame = rState = simCache.StoredState
-        if  false then
+        if  isSame then
             simCache.StoredResult, rState
         else
             let simResult = prepareSimulation diagramName rState loadedDependencies

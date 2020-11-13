@@ -134,8 +134,8 @@ let private viewSimulationInputs
                         let newBit = match bit with
                                      | Zero -> One
                                      | One -> Zero
-                        feedSimulationInput simulationGraph
-                                            (ComponentId inputId) [newBit]
+                        (fst <| feedSimulationInput simulationGraph
+                                            (ComponentId inputId) [newBit])
                         |> SetSimulationGraph |> dispatch
                     )
                 ] [ str <| bitToString bit ]
@@ -156,8 +156,8 @@ let private viewSimulationInputs
                                 // Close simulation notifications.
                                 CloseSimulationNotification |> dispatch
                                 // Feed input.
-                                feedSimulationInput simulationGraph
-                                                    (ComponentId inputId) bits
+                                (fst <| feedSimulationInput simulationGraph
+                                                    (ComponentId inputId) bits)
                                 |> SetSimulationGraph |> dispatch
                         ))
                     ]

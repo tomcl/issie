@@ -31,6 +31,7 @@ type IsClockTick =
     | No
     | Yes of SimulationComponentState // Pass the state only for clock ticks.
 
+
 /// Like Component but with additional dynamic info used by simulator
 /// Clocked components have state data.
 /// All components have optional data on inputs that propagates
@@ -92,6 +93,12 @@ and ReducerOutput = {
     NewCustomSimulationGraph: SimulationGraph option
     NewState: SimulationComponentState // Will be saved only after clock ticks.
 }
+
+/// contains info needed to propagate wire value changes through a simulation.
+and OutputChange = {
+    CComp: SimulationComponent
+    COutputs: Map<OutputPortNumber, WireData>
+    }
 
 /// For every IO node, keep track of its Id, Label and wire width.
 /// - Id: to feed values into the simulationGraph.

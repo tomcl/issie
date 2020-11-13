@@ -414,7 +414,7 @@ let private checkConnectionsWidths
 let checkComponentNamesAreOk ((comps,conns): CanvasState) =
     let badNameErrors =
         comps
-        |> List.filter (function | {Type = MergeWires _} | {Type = SplitWire _}  -> false | _ -> true)
+        |> List.filter (function | {Type = MergeWires _} | {Type = SplitWire _} | {Type = BusSelection _} -> false | _ -> true)
         |> List.collect (fun comp ->
             let label = comp.Label.ToUpper()
             match label with

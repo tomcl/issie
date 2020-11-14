@@ -357,6 +357,8 @@ let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) 
 
 /// Main MVU model update function
 let update msg model =
+    // number of top-level components in graph
+    // mostly, we only operate on top-level components
     let getGraphSize g =
         g
         |> Option.map (fun sd -> sd.Graph |> Map.toList |> List.length)
@@ -371,10 +373,17 @@ let update msg model =
         let msgS = (sprintf "%A..." msg) |> Seq.truncate 60 |> Seq.map (fun c -> string c) |> String.concat ""
         printfn "%d %s" sdlen msgS
     match msg with
+
+    // special mesages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none
     | SetViewerWidth w -> {model with WaveSimViewerWidth = w}, Cmd.none
+
+    // messages that control Draw2D diagram
     | JSDiagramMsg msg' -> handleJSDiagramMsg msg' model, Cmd.none
+
+    // messages from shortcut keys
     | KeyboardShortcutMsg msg' -> handleKeyboardShortcutMsg msg' model, Cmd.none
+
     // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).
     | SetLastSavedCanvas(name,state) -> 
         setActivity (fun a -> {a with LastSavedCanvasState= Map.add name state a.LastSavedCanvasState}) model, Cmd.none
@@ -397,12 +406,20 @@ let update msg model =
     | EndSimulation -> { model with CurrentStepSimulationStep = None }, Cmd.none
     | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
     | ChangeRightTab newTab -> 
+        let inferMsg = JSDiagramMsg <| InferWidths()
+        let editCmds = [inferMsg] |> List.map Cmd.ofMsg
         firstTip <- true
-        { model with RightPaneTabVisible = newTab }, 
+        if newTab <> WaveSim then 
+            printfn "Running inference"
+            model.Diagram.ResetSelected()
+            runBusWidthInference model
+        else
+            model
+        |> (fun model -> { model with RightPaneTabVisible = newTab }), 
         match newTab with 
-        | Properties -> Cmd.ofMsg <| SetSelWavesHighlighted [||]
-        | Catalogue -> Cmd.ofMsg <| SetSelWavesHighlighted [||]
-        | Simulation -> Cmd.ofMsg <| SetSelWavesHighlighted [||]
+        | Properties -> Cmd.batch <| editCmds
+        | Catalogue -> Cmd.batch  <| editCmds
+        | Simulation -> Cmd.batch <| editCmds
         | WaveSim -> Cmd.none
     | SetHighlighted (componentIds, connectionIds) ->
         let oldComponentIds, oldConnectionIds = fst model.Hilighted
@@ -488,9 +505,9 @@ let update msg model =
     | DiagramMouseEvent -> model, Cmd.none
     | SelectionHasChanged -> 
         match currWaveSimModel model with
+        | None | Some {WSViewState=WSClosed} -> model
         | Some _ ->
             { model with ConnsOfSelectedWavesAreHighlighted = true }
-        | None -> model
         |> (fun m -> m, Cmd.none)
     | SetWaveSimIsStale b -> 
         changeSimulationIsStale b model, Cmd.none
@@ -504,11 +521,11 @@ let update msg model =
         | Some wsMod, Some (pars, nView) -> 
             let checkCursor = wsMod.SimParams.CursorTime <> pars.CursorTime
             let pars' = adjustPars wsMod pars wsMod.SimParams.LastScrollPos
-
+            model.Diagram.ResetSelected()
             // does the actual simulation and SVG generation, if needed
             let wsMod' = 
                 simulateAndMakeWaves model wsMod pars'
-                |> clearEditorNextView
+                |> (fun ws -> {ws with WSViewState=nView; WSTransition = None})
                 |> setEditorView nView
             { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model []}
             |> setCurrFileWSMod wsMod'

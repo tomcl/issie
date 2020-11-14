@@ -168,7 +168,7 @@ let displayView model dispatch =
     /// Feed changed viewer width from draggable bar back to Viewer parameters
     let inline setViewerWidthInWaveSim w =
         match currWaveSimModel model with
-        | Some wSMod when w > maxUsedViewerWidth wSMod && wSMod.WSState.View = WSViewerOpen ->
+        | Some wSMod when w > maxUsedViewerWidth wSMod && wSMod.WSViewState = WSViewerOpen ->
             match wsModelOpt with
             | Some ws ->
                 let simProgressState = 
@@ -243,12 +243,12 @@ let displayView model dispatch =
                                     [ JSHelpers.tipStr "bottom" "Simulation" "Simple simulation for combinational logic which allows inputs to be changed manually" ] ]
                                 /// Optional wavesim tab. If present contains waveforms or waveform aditor window
                                 match currWaveSimModel model with
-                                | Some {InitWaveSimGraph =  Some _} ->
+                                | Some {WSViewState=WSClosed} -> div [] []
+                                | _ ->
                                     Tabs.tab // WaveSim tab - if wavesim exists
                                         [ Tabs.Tab.IsActive (model.RightPaneTabVisible = WaveSim) ]
                                         [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab WaveSim ) ] 
                                         [ str "WaveSim" ] ] 
-                                | _ -> div [] []
                               ]
                     viewRightTab model dispatch ] ] ]
 

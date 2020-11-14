@@ -5,6 +5,7 @@ module JSTypes
 //=========================================//
 
 type JSCanvas      = | JSCanvas of obj
+type JSFigures     = | JSFigures of obj
 type JSComponents  = | JSComponents of obj // JS list of JSComponent.
 type JSConnections = | JSConnections of obj // JS list of JSConnection.
 type JSPort        = | JSPort of obj

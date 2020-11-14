@@ -95,6 +95,7 @@ type private IDraw2d =
     abstract getZoom                      : canvas: JSCanvas -> float
     abstract setScrollZoom                : canvas: JSCanvas -> scrollLeft: int -> scrollTop:int -> zoom: float -> unit
     abstract resetSelection               : canvas: JSCanvas -> unit
+    abstract setCurrentSelection          : canvas: JSCanvas -> JSFigures -> unit
     abstract addCompSelection             : canvas: JSCanvas -> comp: JSComponent -> unit
     abstract addConnSelection             : canvas: JSCanvas -> conn: JSConnection -> unit
 
@@ -555,7 +556,7 @@ type Draw2dWrapper() =
         | None -> ()
     
     /// clear the current diagram selection
-    member this.ResetSelected =
+    member this.ResetSelected () =
         match canvas with
         | Some c -> draw2dLib.resetSelection c
         | None -> ()

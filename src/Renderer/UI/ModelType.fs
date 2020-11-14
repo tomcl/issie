@@ -222,7 +222,8 @@ let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
             LastClkTime = 9u
             LastScrollPos = None
         }
-        WSState = { View=WSClosed; NextView=None}
+        WSViewState =WSClosed
+        WSTransition =None
         LastCanvasState = None  
         CursorBoxIsEmpty = false
 
@@ -314,7 +315,7 @@ let getWSModelOrFail (model:Model) (errMsg: string) =
 
 let getCurrFileWSModNextView(model:Model) =
     getCurrFileWSMod model
-    |> Option.bind (fun ws -> ws.WSState.NextView)
+    |> Option.bind (fun ws -> ws.WSTransition)
 
 
 /// returns a string option representig the current file name if file is loaded, otherwise None

@@ -469,6 +469,10 @@ function resetSelection(canvas) {
     canvas.setCurrentSelection(lst);
 }
 
+function setCurrentSelection(canvas,figs) {
+    canvas.setCurrentSelection(figs);
+}
+
 function addCompSelection(canvas, comp) {
     canvas.addSelection(comp);
 }
@@ -548,6 +552,7 @@ export {
     redoLastAction,
     flushCommandStack,
     resetSelection,
+    setCurrentSelection,
     addCompSelection,
     addConnSelection,
     deleteSelection

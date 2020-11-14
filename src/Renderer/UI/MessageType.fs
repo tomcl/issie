@@ -115,8 +115,6 @@ type WSViewT =
     | WSEditorOpen
     | WSViewerOpen
 
-type WSStateT = { View: WSViewT ; NextView: (SimParamsT * WSViewT) option}
-
 type SimActionT = 
     | MakeSVGs of NetGroup array 
     | ChangeParameters of SimParamsT
@@ -144,7 +142,9 @@ type WaveSimModel = {
     /// TODO - get rid of this - it should not be needed
     CursorBoxIsEmpty: bool
    
-    WSState: WSStateT
+    WSViewState: WSViewT
+
+    WSTransition: (SimParamsT * WSViewT) option
     /// the circuit that is being simulated - the canvas may have changed
     LastCanvasState: CanvasState option 
     } 
@@ -156,16 +156,14 @@ let setDispNames names wsMod =
     setSimParams (fun sp -> {sp with DispNames=names}) wsMod
 
 let setEditorView view wsModel =
-    {wsModel with WSState = {wsModel.WSState with View = view; NextView = None}}
+    {wsModel with WSViewState = view; WSTransition = None}
 
-let getEditorNextView wsModel =
-    wsModel.WSState.NextView
+
     
 let setEditorNextView nView simParas wsModel =
-    {wsModel with WSState = {wsModel.WSState with NextView = Some(simParas, nView)}}
+    {wsModel with WSTransition = Some(simParas, nView)}
 
-let clearEditorNextView wsModel =
-    {wsModel with WSState = {wsModel.WSState with NextView = None}}
+
     
 
     
@@ -199,7 +197,8 @@ let initWS (allNames:string array) (allPorts: Map<string,NetGroup>): WaveSimMode
         LastClkTime = 9u 
         LastScrollPos = None
       }
-      WSState = {View=WSClosed; NextView=None}
+      WSViewState = WSClosed
+      WSTransition =None
       LastCanvasState = None 
       CursorBoxIsEmpty = false
     }

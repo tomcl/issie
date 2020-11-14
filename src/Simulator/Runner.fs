@@ -118,8 +118,6 @@ and private feedReducerOutput
         | None -> failwithf "what? Reducer produced inexistent output portNumber %A in component %A" outPortNumber comp
         | Some targets ->
             comp.OutputsPropagated.[opNum] <- true // disable further propagation if clocked.
-            let lookup (cid,pNum) = graph.[cid].Label,pNum
-            //printfn "\tComb outputs fed to -> %A" (List.map lookup targets)
             // Trigger simulation step with the newly produced input in
             // every target.
             (graph, targets) ||> List.fold (fun graph (nextCompId, nextPortNumber) ->

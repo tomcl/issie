@@ -381,7 +381,7 @@ let private nameLabelsCol model netList (wsMod: WaveSimModel) labelRows dispatch
              Button.Color IsSuccess
              Button.OnClick(fun _ -> 
                 printfn "opening editor with Dispnames = %A" wsMod.SimParams.DispNames
-                openCloseWaveEditor model  WSEditorOpen dispatch) ] [ str "Edit list..." ] ]
+                openEditorFromViewer model  WSEditorOpen dispatch) ] [ str "Edit list..." ] ]
 
     let top =
         [| tr [ Class "rowHeight" ]
@@ -542,7 +542,7 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
     let isSelected (ng:NetGroup) = isWaveSelected model.Diagram netList ng
     /// this is what actually gets displayed when editor exits
     let closeWaveSimButtonAction _ev =
-        dispatch <| SetCurrFileWSMod {wSModel with InitWaveSimGraph=None}
+        dispatch <| SetCurrFileWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
         dispatch <| ChangeRightTab Catalogue
         dispatch <| SetWaveSimIsStale true
         
@@ -624,15 +624,16 @@ let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (dispatch: Msg
 
 
 
-/// TRANSITION: Switch between WaveformEditor (editorIsOn = true) and WaveformViewer (editorIsOn = false) view
+/// TRANSITION: Switch between WaveformEditor (WSEditorOpen) and WaveformViewer (WSVieweropen) view
 /// sets wsModel for the new view
 
-let private openCloseWaveEditor model (editorState: WSViewT) dispatch = 
+let private openEditorFromViewer model (editorState: WSViewT) dispatch = 
     let wsModel = getWSModelOrFail model "What? no wsModel in openCloseWaveEditor"
     let wsModel' =
         wsModel
         |> standardWaveformOrderWaveAdder // work out correct order for waveadder
         |> setEditorNextView editorState wsModel.SimParams 
+    //dispatch SetSelWavesHighlighted
     dispatch <| SetCurrFileWSMod wsModel'
     
    
@@ -696,6 +697,7 @@ let setupWaveViewerSimulation compIds (model:Model) (ws: WaveSimModel) : WaveSim
 /// Sets WaveSim to have editor open
 let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model dispatch _ev =
     /// subfunction to generate popup over waveeditor screen if there are undriven input connections
+    printfn "Starting waveSim"
     let inputWarningPopup (simData:SimulatorTypes.SimulationData) dispatch =
         if simData.Inputs <> [] then
             let inputs = 
@@ -729,7 +731,8 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model d
             InitWaveSimGraph = Some simData // start with 0 sample only
             SimDataCache = [| simData |]
             LastCanvasState = Some rState 
-            WSState = {wsModel.WSState with View = WSEditorOpen; NextView = None}
+            WSViewState = WSEditorOpen; 
+            WSTransition = None
         }
     let duplicateNames =
         startingWsModel.AllWaveNames
@@ -754,13 +757,16 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model d
 /// Waveforms >> Button React element with colour determined by current circuit error state
 let WaveformButtonFunc compIds model dispatch =
     // based on simulation results determine color of button and what happens if it is clicked
+    printfn "button!"
     let simulationButton =
+        printfn "buttonInner"
         match currWaveSimModel model with
 
         | None ->
             // If we have never yet run wavesim create initial wSModel
             match model.CurrentProj with
             | Some _ -> 
+                printfn "initialising"
                 initFileWS model dispatch
             | None -> ()
             Button.button 
@@ -768,18 +774,20 @@ let WaveformButtonFunc compIds model dispatch =
                     dispatch <| ChangeRightTab WaveSim)
                 ]
         | Some wSModel ->
-            match wSModel.WSState.View, model.WaveSimulationIsOutOfDate, SimulationView.makeSimData model with
+            match wSModel.WSViewState, model.WaveSimulationIsOutOfDate, SimulationView.makeSimData model with
             | WSClosed, _, Some (Ok simData, rState)
             | _, true, Some (Ok simData, rState) ->
                 let isClocked = SynchronousUtils.hasSynchronousComponents simData.Graph
                 if isClocked then
                     // display the WaveEditor window if circuit is OK
+                    printfn "clocked"
                     Button.button
                         [ 
                             Button.Color IsSuccess
                             Button.OnClick( startWaveSim compIds  rState simData model dispatch)
                               ]
                 else
+                    printfn "unclocked"
                     Button.button
                         [ 
                             //Button.Color White
@@ -791,6 +799,7 @@ let WaveformButtonFunc compIds model dispatch =
             | WSClosed, _, Some( Error err,_)        
             | _, true, Some (Error err, _) -> 
                 // display the current error if circuit has errors
+                printfn "error"
                 Button.button
                     [   Button.Color IsWarning
                         Button.OnClick(fun _ ->
@@ -798,7 +807,8 @@ let WaveformButtonFunc compIds model dispatch =
                           dispatch <| ChangeRightTab WaveSim
                           SetSimErrorFeedback err dispatch) 
                     ]
-            | _ -> 
+            | x,y,z -> 
+                printfn "other%A %A %A" x y (match z with | None -> "None" | Some ((Error c),_) -> "Some Error" | Some ((Ok _),_) -> "Some Ok")
                 Button.button 
                     [ Button.OnClick(fun _ -> 
                           dispatch <| ChangeRightTab WaveSim) 
@@ -815,13 +825,13 @@ let viewWaveSim (model: Model) dispatch =
     | Some wSModel, None ->
         // we derive all the waveSim circuit details from LastSimulatedCanvasState which does not change until a new simulation is run
         let netList = Helpers.getNetList  <| Option.defaultValue ([],[]) model.LastSimulatedCanvasState
-        match wSModel.WSState.View, wSModel.WSState.NextView with
+        match wSModel.WSViewState, wSModel.WSTransition with
         | WSEditorOpen, _ -> // display waveAdder if simulation has not finished and adder is open
             waveEditorView  model netList wSModel dispatch      
         | WSViewerOpen, _  ->         // otherwise display waveforms 
             waveformsView compIds model netList wSModel dispatch  
         | _, prog  -> 
-            printfn "ViewWaveSim should not be called when WaveSimEditorOpen =%A, inProgress = %A" wSModel.WSState prog
+            printfn "ViewWaveSim should not be called when WaveSimEditorOpen =%A, inProgress = %A" wSModel.WSViewState prog
             [ div [] [] ]
 
     // Set the current simulation error message

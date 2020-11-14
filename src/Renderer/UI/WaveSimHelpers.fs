@@ -939,8 +939,8 @@ let isWaveSelected (diagram:Draw2dWrapper.Draw2dWrapper) netList (netgrp: NetGro
 /////////////////////////////////////////////////////
 
 let showSimulationLoading (wsModel: WaveSimModel) (dispatch: Msg ->Unit) =
-    let nv = wsModel.WSState.NextView
-    let v = wsModel.WSState.View
+    let nv = wsModel.WSTransition
+    let v = wsModel.WSViewState
     match nv, v with
     | None, _ -> false
     | Some _, _ -> 
@@ -962,7 +962,7 @@ let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
             |> Option.defaultValue (Map.empty)
 
         let netGroups =
-            match wSModel.WSState.View with 
+            match wSModel.WSViewState with 
             | WSEditorOpen | WSInitEditorOpen -> netList2NetGroups netList
             | WSViewerOpen -> dispPorts wSModel
             | WSClosed -> [||]

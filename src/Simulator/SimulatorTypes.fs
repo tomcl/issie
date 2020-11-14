@@ -46,11 +46,17 @@ type SimulationComponent = {
     Label : ComponentLabel
     // Mapping from each input port number to its value (it will be set
     // during the simulation process).
-    // TODO: maybe using a list would improve performace?
+    // TODO: maybe using a list would improve performance?
     Inputs : Map<InputPortNumber, WireData>
     // Mapping from each output port number to all of the ports and
     // Components connected to that port.
-    Outputs : Map<OutputPortNumber, (ComponentId * InputPortNumber) list>
+    Outputs : Map<OutputPortNumber,(ComponentId * InputPortNumber) list>
+    // this is MUTABLE and used only during clock tick change propagation
+    // location n = true => the output (of a synchronous component) has been
+    // propagated in propagateStateChanges. Location n corresponds to
+    // OutputPortNumber n.
+    // not used except for synchronous components and custom components
+    OutputsPropagated: bool array
     // This CustomSimulationGraph should only be Some when the component Type is
     // Custom. A custom component keeps track of its internal state using this
     // CustomSimulationGraph. This graph will be passed to the reducer and
@@ -99,6 +105,7 @@ and OutputChange = {
     CComp: SimulationComponent
     COutputs: Map<OutputPortNumber, WireData>
     }
+
 
 /// For every IO node, keep track of its Id, Label and wire width.
 /// - Id: to feed values into the simulationGraph.

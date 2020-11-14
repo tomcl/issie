@@ -83,9 +83,9 @@ let private getCustomCombinatorialOutputs
             | None -> failwithf "what? getCustomCombinatorialOutputs 2"
             | Some outputs -> outputs
     // Filter only the children of the combinatorial outputs.
-    Map.filter
-        (fun outputPortNumber _ -> List.contains outputPortNumber combOutputs)
-        customNode.Outputs
+    customNode.Outputs
+    |> Map.filter (fun outputPortNumber _ -> List.contains outputPortNumber combOutputs)
+
 
 /// Given a map of combinatorial routes from inputs to outputs for every
 /// simulation graph, perform a lookup to find the combinatorial routes from a

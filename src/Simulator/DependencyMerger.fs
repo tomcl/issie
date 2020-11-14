@@ -283,7 +283,7 @@ let private makeCustomReducer
                             graphInputs
                             |> List.find (fun (_, ComponentLabel inpLabel, _) ->
                                           inpLabel = inputLabel)
-                        fst <| feedSimulationInput graph inputId wireData
+                        feedSimulationInput graph inputId wireData
                     )
                 let outputs =
                     extractOutputValuesAsMap graph graphOutputs outputLabels

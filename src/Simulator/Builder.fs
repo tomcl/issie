@@ -562,11 +562,14 @@ let private buildSimulationComponent
             | None when comp.Type=IOLabel -> [] // IOLabels are allowed to be connected to nothing
             | None -> failwithf "what? Unconnected output port %s in comp %s" port.Id comp.Id
             | Some targets -> [
-                                OutputPortNumber (getPortNumberOrFail port.PortNumber),
+                                OutputPortNumber <| getPortNumberOrFail port.PortNumber,
                                 mapPortIdsToPortNumbers targets
                               ]
         )
         |> Map.ofList
+
+
+
     // The inputs will be set during the simulation, we just need to initialise
     // the ones for Output nodes, see below.
     let inputs =
@@ -589,6 +592,7 @@ let private buildSimulationComponent
         Label = ComponentLabel comp.Label
         Inputs = inputs
         Outputs = outputs
+        OutputsPropagated = Array.replicate 0 false // default for non-clocked components
         CustomSimulationGraph = None // Custom components will be augumented by the DependencyMerger.
         State = getDefaultState comp.Type
         Reducer = getReducer comp.Type

@@ -6,6 +6,7 @@ open SimulatorTests
 open SimulatorSyncTests
 open SimulatorMemoriesTests
 open WidthInfererTests
+open EEExtensions
 
 let runSimulatorTest (diagramName, state, loadedComponents, inputs) =
     // Build simulation graph.
@@ -54,7 +55,30 @@ let simulatorMemoriesTests =
 let widthInfererTests =
     createTestList "widthInferer" inferConnectionsWidth testCasesWidthInferer
 
+let mutable Watches: Map<string,System.Diagnostics.Stopwatch> = Map.empty
+
+
+/// dotnet core timer function
+let stopTimer s =
+    let timer = Map.tryFind s Watches
+    match timer with
+    | None -> failwithf "error: Timer '%s' has been stopped before it was started. timers: %A" s (Map.keys Watches)
+    | Some stopWatch ->
+        stopWatch.Stop()
+        printfn "%s: %.4fms" s stopWatch.Elapsed.TotalMilliseconds
+
+/// dotnet core timer function
+let startTimer s = 
+    Watches <-  Map.add s (System.Diagnostics.Stopwatch.StartNew()) Watches
+
+/// measure various dotnet core performance stats
+/// m = structure size.
+/// n = number of iterations.
+let displayPerformance m n = Helpers.checkPerformance m n startTimer stopTimer
+
+
 [<EntryPoint>]
 let main argv =
-    TestLib.runTests ()
+    displayPerformance 100 1000000
+    //TestLib.runTests ()
     0

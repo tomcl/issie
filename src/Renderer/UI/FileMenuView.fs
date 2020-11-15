@@ -105,7 +105,7 @@ let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lc
     | Some n ->
         List.mapi (fun i x -> if i = n then setFun x else x) lcLst
 
-
+/// return current project with current sheet updated from canvas
 let updateProjectFromCanvas (model:Model) =
     match model.Diagram.GetCanvasState() with
     | None -> model.CurrentProj
@@ -283,6 +283,104 @@ let private openFileInProject name project model dispatch =
 
             setupProjectFromComponents name ldComps model dispatch
 
+/// rename a sheet
+let renameSheet oldName newName (model:Model) dispatch =
+
+    let renameComps oldName newName (comps:Component list) : Component list = 
+        comps
+        |> List.map (fun comp -> 
+            match comp with 
+            | {Type= Custom ({Name = compName} as customType)} when compName = oldName-> 
+                {comp with Type = Custom {customType with Name = newName} }
+            | c -> c)
+
+    let renameCustomComponents newName (ldComp:LoadedComponent) =
+        let state = ldComp.CanvasState
+        {ldComp with CanvasState = renameComps oldName newName (fst state), snd state}
+
+    let renameSheetInProject oldName newName proj =
+        {proj with
+            OpenFileName = if proj.OpenFileName = oldName then newName else proj.OpenFileName
+            LoadedComponents =
+                proj.LoadedComponents
+                |> List.map (fun ldComp -> 
+                    match ldComp with
+                    | {Name = lcName} when lcName = oldName -> 
+                        {ldComp with Name=newName}
+                    | _ ->
+                        renameCustomComponents newName ldComp )
+        }
+    match updateProjectFromCanvas model with
+    | None -> failwithf "What? current project cannot be None at this point in renamesheet"
+    | Some p ->
+        let opt = saveOpenFileAction false model
+        let ldcOpt = Option.map fst opt
+        let ldComps = updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
+        let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
+        // update Autosave info
+        SetLastSavedCanvas (p.OpenFileName,reducedState)
+        |> dispatch
+        SetHasUnsavedChanges false
+        |> JSDiagramMsg
+        |> dispatch
+        let proj' = renameSheetInProject oldName newName p
+        setupProjectFromComponents proj'.OpenFileName proj'.LoadedComponents model dispatch
+        [".dgm";".dgmauto"] |> List.iter (fun extn -> renameFile extn proj'.ProjectPath oldName newName) 
+    
+
+
+/// rename file
+let renameFileInProject name project model dispatch =
+    match model.CurrentProj with
+    | None -> log "Warning: renameFileInProject called when no project is currently open"
+    | Some project ->
+        // Prepare dialog popup.
+        let title = "Rename sheet in project"
+
+        let before =
+            fun (dialogData: PopupDialogData) ->
+                let dialogText = getText dialogData
+
+                let maybeWarning =
+                    if isFileInProject dialogText project then
+                        div [ Style [ Color "red" ] ] [ str "This sheet already exists." ]
+                    elif String.exists ((=) '.') dialogText then
+                        div [ Style [ Color "red" ] ] [ str "The new name cannot contain a file suffix" ]
+                    elif not <| String.forall Char.IsLetterOrDigit dialogText then
+                        div [ Style [ Color "red" ] ] [ str "The new name must be alphanumeric" ]
+                    elif ((dialogText |> Seq.tryItem 0) |> Option.map Char.IsDigit) = Some true then
+                        div [ Style [ Color "red" ] ] [ str "The new name must not start with a digit" ]
+                    else div [] []
+                div []
+                    [ 
+                      str <| "Warning: the current sheet will be saved, and the project re-opened, during this operation."
+                      br []
+                      str <| sprintf "Sheet %s will be renamed as %s:" name dialogText
+                      br []
+                      //str <| dialogText + ".dgm"
+                      maybeWarning ]
+
+        let placeholder = "New name for design sheet"
+        let body = dialogPopupBodyOnlyText before placeholder dispatch
+        let buttonText = "Rename"
+
+        let buttonAction =
+            fun (dialogData: PopupDialogData) ->
+                // Create empty file.
+                let newName = (getText dialogData).ToLower()
+                // rename the file in the project.
+                renameSheet name newName model dispatch
+                dispatch ClosePopup
+
+        let isDisabled =
+            fun (dialogData: PopupDialogData) ->
+                let dialogText = getText dialogData
+                (isFileInProject dialogText project) || (dialogText = "")
+
+        dialogPopup title body buttonText buttonAction isDisabled dispatch
+
+
+
 /// Remove file.
 let private removeFileInProject name project model dispatch =
     removeFile project.ProjectPath name
@@ -372,6 +470,7 @@ let private closeProject model dispatch _ =
     dispatch EndSimulation // End any running simulation.
     dispatch CloseProject
     model.Diagram.ClearCanvas()
+
 
 /// Create a new project.
 let private newProject model dispatch _ =
@@ -492,15 +591,17 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                     Button.Color IsPrimary
                                     Button.Disabled(name = project.OpenFileName)
                                     Button.OnClick(fun _ ->
-                                        openFileInProject name project model dispatch) ] [ str "open" ] ]
+                                        openFileInProject name project model dispatch) ] [ str "open" ] 
+                          ]
                           // Add option to rename?
-                          //Level.item [] [
-                          //    Button.button [
-                          //        Button.Size IsSmall
-                          //        Button.IsOutlined
-                          //        Button.Color IsInfo
-                          //    ] [ str "rename" ]
-                          //]
+                          Level.item [] [
+                              Button.button [
+                                  Button.Size IsSmall
+                                  Button.IsOutlined
+                                  Button.Color IsInfo
+                                  Button.OnClick(fun _ ->
+                                      renameFileInProject name project model dispatch) ] [ str "rename" ]
+                          ]
                           Level.item []
                               [ Button.button
                                   [ Button.Size IsSmall
@@ -588,6 +689,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                       [ str "Open project" ]
                                   Navbar.Item.a [ Navbar.Item.Props [ OnClick <| closeProject model dispatch ] ]
                                       [ str "Close project" ] ] ]
+
                       fileTab
                       Navbar.Item.div []
                           [ Navbar.Item.div []

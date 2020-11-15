@@ -370,6 +370,11 @@ let checkCustomComponentsOk ((comps,_): CanvasState) (sheets: LoadedComponent li
             ComponentsAffected = [ComponentId c.Id]
             ConnectionsAffected = []
             }
+    let disp portL =
+        portL
+        |> List.map fst
+        |> String.concat " , "
+        |> sprintf "%s"
     comps
     |> List.collect (function | {Type=Custom args} as c -> [checkCustomComponentForOkIOs c args sheets] | _ -> [])
     |> Helpers.tryFindError
@@ -377,9 +382,11 @@ let checkCustomComponentsOk ((comps,_): CanvasState) (sheets: LoadedComponent li
                 | Error (c, NoSheet cName) -> 
                    error c <| sprintf "Can't find a design sheet named %s for the custom component of this name" cName              
                 | Error (c, BadInputs(cName, instIns, compIns)) -> 
-                    error c <|  sprintf "Sheet %s is used as a custom component. Instance In ports %A are different from Component In ports %A." cName instIns compIns            
+                    let instIns,compIns = disp instIns, disp compIns
+                    error c <|  sprintf "Sheet %s is used as a custom component. Instance In ports: %A are different from Component In ports: %A." cName instIns compIns            
                 | Error (c, BadOutputs(cName, instOuts, compOuts)) -> 
-                    error c <|  sprintf "Sheet %s is used as a custom component. Instance Out ports %A are different from Component Out ports %A." cName instOuts compOuts
+                    let instOus,compOuts = disp instOuts, disp compOuts
+                    error c <|  sprintf "Sheet %s is used as a custom component. Instance Out ports: %A are different from Component Out ports: %A." cName instOuts compOuts
                
 
 /// Checks that all connections have consistent widths.

@@ -10,8 +10,6 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Renderer", "src\Renderer\Re
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Simulator", "src\Simulator\Simulator.fsproj", "{0CC7924C-3EEA-4E9C-865F-B66F9F7B7E8C}"
 EndProject
-Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "WidthInferer", "src\WidthInferer\WidthInferer.fsproj", "{5E1B2401-584D-4248-82E5-49F7652A5205}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionItems", "{A2545711-2C3E-4CBF-BB76-AEF8C3665C50}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
@@ -59,10 +57,6 @@ Global
 		{0CC7924C-3EEA-4E9C-865F-B66F9F7B7E8C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0CC7924C-3EEA-4E9C-865F-B66F9F7B7E8C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0CC7924C-3EEA-4E9C-865F-B66F9F7B7E8C}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5E1B2401-584D-4248-82E5-49F7652A5205}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5E1B2401-584D-4248-82E5-49F7652A5205}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5E1B2401-584D-4248-82E5-49F7652A5205}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5E1B2401-584D-4248-82E5-49F7652A5205}.Release|Any CPU.Build.0 = Release|Any CPU
 		{80E0270E-5C89-4718-814F-B808A0D7A1CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{80E0270E-5C89-4718-814F-B808A0D7A1CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{80E0270E-5C89-4718-814F-B808A0D7A1CA}.Release|Any CPU.ActiveCfg = Release|Any CPU

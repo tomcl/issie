@@ -1,7 +1,6 @@
 module WidthInfererTests
 
 open CommonTypes
-open BusTypes
 open CanvasStates
 open CanvasStatesWithBuses
 

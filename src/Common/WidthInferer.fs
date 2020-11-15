@@ -1,6 +1,5 @@
 module BusWidthInferer
 
-open BusTypes
 open CommonTypes
 open Helpers
 

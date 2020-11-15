@@ -398,7 +398,7 @@ let private checkConnectionsWidths
         (canvasState : CanvasState)
         : SimulationError option =
     let convertConnId (ConnectionId cId) = ConnectionId cId
-    let convertError (err : BusTypes.WidthInferError) : SimulationError = {
+    let convertError (err : WidthInferError) : SimulationError = {
         Msg = err.Msg
         InDependency = None
         ConnectionsAffected = err.ConnectionsAffected |> List.map convertConnId

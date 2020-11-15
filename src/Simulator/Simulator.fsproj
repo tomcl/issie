@@ -18,7 +18,6 @@
   <!-- Dependencies -->
   <ItemGroup>
     <ProjectReference Include="../Common/Common.fsproj" />
-    <ProjectReference Include="../WidthInferer/WidthInferer.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

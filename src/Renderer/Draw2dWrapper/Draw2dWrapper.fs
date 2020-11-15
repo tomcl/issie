@@ -307,7 +307,7 @@ type Draw2dWrapper() =
         | Some _ -> canvas <- Some newCanvas
 
     member this.printCanvas (handler: (string -> string -> unit)) =
-        printfn "printing canvas!"
+        //printfn "printing canvas!"
         tryActionWithCanvas "PrintCanvas" (fun canvas -> draw2dLib.printCanvas canvas handler)
     
     member this.ClearCanvas () =

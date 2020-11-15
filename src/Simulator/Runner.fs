@@ -14,6 +14,8 @@ open SynchronousUtils
 
 let mutable simTrace = None //Some ["adder40";"4bitbusmux20";"dff430"]
 
+
+
 // During simulation, a Component Reducer function will produce the output only
 // when all of the expected inputs have a value. Once this happens, it will
 // calculate its outputs and set them in the next simulationComponent(s).

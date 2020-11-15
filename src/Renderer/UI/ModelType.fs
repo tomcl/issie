@@ -449,7 +449,7 @@ let addReducedState a name model =
 
 
 let changeSimulationIsStale (b:bool) (m:Model) = 
-    printfn "Changing WaveSimulationIsStale to %A" b
+    //printfn "Changing WaveSimulationIsStale to %A" b
     { m with WaveSimulationIsOutOfDate = b}
 
 let getComponentIds (model: Model) =

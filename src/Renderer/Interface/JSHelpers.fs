@@ -90,7 +90,7 @@ let mutable debugLevel = 1
 let mutable debugLevel = 0
 #endif
 
-let mutable debugTrace: string Set = Set ["view"]
+let mutable debugTrace: string Set = Set []
 
 /// Call debugAction() and print its result if traceDebug mutable contains traceCode
 let traceIf traceCode debugAction =
@@ -190,12 +190,7 @@ let tippy1 rId pos mess = tippy (tippyOptsWithContent pos mess) ("#"+rId)
 let mutable tippyRecord: Map<string,TippyInstance list> = Map.ofList []
 
 let recordTippyInstance (prefix: string) (tip: TippyInstance array) =
-    () (*
-    printfn "Recording new instance of Tippy: %s" prefix
-    Map.tryFind prefix tippyRecord
-    |> Option.defaultValue []
-    |> (fun lst -> tippyRecord <- Map.add prefix (tip :: lst) tippyRecord) *)
-    
+    () 
 
 let tipRef (prefix:string) (pos:string) (text:string) (element: ReactElement) (tip: string) =
     let ids = prefix + (

@@ -55,22 +55,18 @@ WaveSim state.
 Principles: 
 1) at any time wavesim simulates a stored model.LastSimulatedCanvas circuit which is guaranteed working if it exists 
 2) pressing "simulate button" updates this circuit
-3) wavesim has two views: adder and waveforms. each waveform is the signal on a netGroup (set of connections from one driver to multiple sources).
+3) wavesim has two views: editor and waveforms. each waveform is the signal on a NetGroup (set of connections from one driver to multiple inputs).
 4) waveforms display view based on: selected waveforms, zoom, cursor position, etc
-5) simulation is rerun automatically as needed to generate current display, but previous simulation results are reused where possible
-6) adder view interfaces with current circuit, colouring selected nets green, and allowing selection on nets to determine
-selected waveforms. If current circuit has changed only driving components still on circuit can be used this way.
+5) simulation is rerun automatically as needed to generate current display
+6) editor view interfaces with current circuit, colouring selected nets green, and allowing selection on nets to determine
+default selected waveforms. If current circuit has changed only driving components still on circuit can be used this way.
 7) simulate button color determines status; if circuit has chnaged from that simulated it will be orange (errors) or green (OK to rerun simulation).
 8) list of currently displayed ports is held in state and saved / restored with each sheet. LastSimulatedCanvas (and simulation data) are not saved/restored but
 are recalculated when needed. List of possible to display ports used by waveadder
 
 Data structures for internal state
 
-LastSimulatedState: Record with canvas, netlist, ports, initial simulation etc all recreated whenever simulation button is pressed and absent initially and after simulating with errors.
-WaveAdder: Record always present contains simulation parameters, including which ports are currently selected
-
-WaveAdder is
-
+SimParams: parameters that can be changed during simulation of one ckt that affect what is displayed.
 
 *)
 

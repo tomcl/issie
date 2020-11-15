@@ -258,7 +258,9 @@ let private makeCursVals wsModel  =
 let private waveSimRows compIds diagram (netList: NetList) (wsMod: WaveSimModel) dispatch =
     let allPorts = wsMod.AllNets
     let labelCols =
-        makeLabels wsMod.SimParams.DispNames
+        wsMod.SimParams.DispNames
+        |> Array.map removeSuffixFromWaveLabel
+        |> makeLabels 
         |> Array.zip wsMod.SimParams.DispNames
         |> Array.map (fun (name, lab) ->
             tr [ Class "rowHeight" ]
@@ -419,11 +421,6 @@ let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRo
             if Some scrollPos <> pars.LastScrollPos then
                 SetLastScrollPos (Some scrollPos) |> ignore
         match !element with
-        (*| (Some (MakeSVGs par)) as simAction, _ -> 
-            dispatch <| SimulateWhenInProgress simAction
-        | Some (ChangeParameters par), Some e -> 
-            let newPars = adjustPars wSModel par (e.clientWidth + e.scrollLeft) dispatch
-            dispatch <| InitiateWaveSimulation(WSViewerOpen, newPars)*)
         | Some e -> 
             match model.CheckWaveformScrollPosition with
             | true when not (isCursorVisible wSModel e.clientWidth e.scrollLeft) -> 
@@ -431,7 +428,6 @@ let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRo
                 UpdateScrollPos false |> dispatch
             | _ -> ()
         | None ->
-            //dispatch <| SetSimInProgress None
             UpdateScrollPos false |> dispatch
 
     let scrollFun (ev:Browser.Types.UIEvent) = // function called whenever scroll position is changed
@@ -455,7 +451,7 @@ let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRo
             //e.scrollLeft <- 100. // this shows how to set scroll position COMMENT THIS OUT
             // can use dispatch here to make something happen based on scroll position
             // scroll position = min or max => at end
-            printfn "scrolling with scrollPos=%f" e.scrollLeft
+            //printfn "scrolling with scrollPos=%f" e.scrollLeft
     let waves = 
         wSModel.SimParams.DispNames 
         |> Array.map (fun name -> waveformSvgRows.Waves.[name]) 
@@ -521,7 +517,7 @@ let private waveAdderTickBoxRow model netList wSModel name dispatch =
                     Checked <| isWaveSelected model.Diagram netList allPorts.[name]
                     Style [ Float FloatOptions.Left ]
                     OnChange(fun _ -> toggleNetGroupConnsSelect model.Diagram wSModel netList name) ] ]
-          td [] [ label [] [ str name ] ] ]
+          td [] [ label [] [ str <| removeSuffixFromWaveLabel name ] ] ]
 
 /// ReactElement of all WaveAdder waveform rows
 let private waveEditorTickBoxRows model netList wSModel dispatch = 
@@ -545,6 +541,7 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
         dispatch <| SetCurrFileWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
         dispatch <| ChangeRightTab Catalogue
         dispatch <| SetWaveSimIsStale true
+        dispatch ClosePropertiesNotification
         
 
     let waveEditorViewSimButtonAction =
@@ -635,58 +632,6 @@ let private openEditorFromViewer model (editorState: WSViewT) dispatch =
         |> setEditorNextView editorState wsModel.SimParams 
     //dispatch SetSelWavesHighlighted
     dispatch <| SetCurrFileWSMod wsModel'
-    
-   
-
-
-/// This function sets up an initial waveSim for waveform viewing.
-/// initSimDat must be the initial clock tick 0 simulation data.
-/// It returns the correct simulation data.
-/// In addition it works out from initSimDat the Netgroup etc data needed for the viewer.
-let makeNewSimulationWsModel (rState: CanvasState) (initSimDat: SimulatorTypes.SimulationData) (ws: WaveSimModel)  (model: Model) =
-    let compIds = // TODO - remove compids refs - should not be needed.
-        ws.InitWaveSimGraph
-        |> Option.map (fun g -> mapKeys g.Graph)
-        |> Option.defaultValue [||]
-        |> set
-    // current diagram netlist
-    let netList = Helpers.getNetList <| rState
-    // all ports on current diagram
-    // order does not matter.
-    let netGroups = netList2NetGroups netList
-    let allNames = Array.map (netGroup2Label compIds initSimDat.Graph netList) netGroups
-    let allPorts = Array.zip allNames netGroups |> Map.ofArray
-    let lookup name = Map.tryFind name allPorts
-    let dispNames = // filter remembered names by whether they are still valid, lookup new ports (in case those have changed)
-        ws.SimParams.DispNames
-        |> Array.filter (fun name -> 
-            match lookup  name with 
-            | Some netGroup ->true 
-            | None -> false)
-    //
-    // simulation data of correct length
-    // simulation here is done immediately in the transition function, without GUI warning
-    let sD' = Array.append [| initSimDat |] (extractSimData initSimDat ws.SimParams.LastClkTime)
-    { ws with 
-        InitWaveSimGraph = Some initSimDat
-        SimDataCache = sD'
-        AllNets = allPorts
-        AllWaveNames = allNames // must be same order as AllNetgroups     
-        LastCanvasState = Some rState 
-    }
-    |> setDispNames dispNames   
-
-
-/// TRANSITION HELPER: 
-/// Does the correct length simulation to display initial waveView, and adds in the correct waveform SVGs.
-/// Creates updated wsModel data from initial simulation of current canvasState.
-/// Returns wsModel, does not actually make the wsmodel state change
-let setupWaveViewerSimulation compIds (model:Model) (ws: WaveSimModel) : WaveSimModel =
-    match SimulationView.makeSimData model with
-    | Some (Ok sD, rState) ->
-        makeNewSimulationWsModel rState sD ws model
-        |> addSVGToWaveSimModel
-    | Some (Error _, _) | None -> initWS [||] Map.empty
 
 
 //-----------------------------------------------------------------------------------------------------------------
@@ -709,17 +654,47 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model d
 
     let startingWsModel =
         let wsModel = getWSModelOrFail model "What? Can't get wsModel at start of new simulation"
+        /// NetList is a simplified version of circuit with connections and layout info removed.
+        /// Component ports are connected directly
+        /// connection ids are preserved so we can reference connections on diagram
         let netList = Helpers.getNetList rState
+        /// Netgroups are connected Nets: note the iolabel components can connect together multiple nets
+        /// on the schematic into a single NetGroup
+        /// Wave simulation allows every distinct NetGroup to be named and displayed
         let netGroups = netList2NetGroups netList
+        /// work out a good human readable name for a Netgroup. Merge and split and busselet components are removed,
+        /// replaced by corresponding selectors on busses. names are tagged with labels or IO connectors
+        /// It is easy to change these names to make them more human readable.
         let nameOf ng = netGroup2Label compIds simData.Graph netList ng
+        /// findName (via netGroup3label) will possibly not generate unique names for each netgroup
+        /// Names are defined via waveSimModel.AllPorts which adds to each name
+        /// a unique numeric suffic (.2 etc). These suffixes are stripped from names
+        /// when they are displayed
+        /// TODO: make sure suffixes are uniquely defines based on component ids (which will not change)
+        /// display then in wave windows where needed to disambiguate waveforms.        
+        /// Allports is the single reference throughout simulation of a circuit that associates names with netgroups
         let allPorts = 
             netGroups 
-            |> Array.map (fun ng -> nameOf ng, ng)
+            |> Array.mapi (fun i ng -> sprintf  "%s.%d" (nameOf ng) i, ng) // add numeric suffix
             |> Map.ofArray
         let allNames = mapKeys allPorts
+        /// DispNames are a subset of Allnames - the ones currently displayed in the wave viewer
+        /// The filters here are needed because DispNames are preserved with a circuit as it is modified, 
+        /// but some of the preserved names may no longer exist.
+        /// A comparison is done between AllNames and DispN amesignoring suffixes. 
+        /// This will occasionally make the default displayed waveforms add a few
+        /// clashing names, but allow DispNames to remain relevant when components are added or deleted.
+        /// TODO: remove suffixes on all except clashing names - that would be better
         let dispNames = 
+            let pairWithRoot name = name, removeSuffixFromWaveLabel name
+            let allRoots = 
+                allNames
+                |> Array.map pairWithRoot
             wsModel.SimParams.DispNames
-            |> Array.filter (fun name -> Array.contains name allNames)
+            |> Array.map pairWithRoot
+            |> Array.filter (fun (name,root) -> Array.exists (fun (name',root') -> root' = root) allRoots)
+            |> Array.collect (fun (_,root) -> Array.filter (fun (name',root') -> root' = root) allRoots)
+            |> Array.map fst
         //printfn "Starting comps = %A" (fst rState |> List.map (fun comp -> comp.Label, comp.Type))
         //SimulatorTypes.printSimGraph simData.Graph
         Array.iter (fun ng -> selectNetGrpConns model.Diagram ng false) netGroups

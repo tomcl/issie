@@ -201,21 +201,23 @@ let waveSimModel2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
         Radix = pars.WaveViewerRadix
         LastClk = pars.LastClkTime
         DisplayedPortIds = 
-            dispPorts wsMod
-            |> Array.map (fun p -> p.driverNet.[0].TargetCompId)
-            |> Array.map (fun cId -> match cId with | ComponentId n -> n)
+            wsMod.SimParams.DispNames
     }
 
 /// setup current WaveSimModel from saved record
+/// currently only the set of nets displayed by default and the radix is actually preserved
+/// TODO: work out better idea for what should be preserved here.
+/// NB - note that SavedWaveInfo can only be changed if code is added to make loading backwards compatible with
+/// old designs
 let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
     { 
         InitWaveSimGraph = None
-        AllNets = Map.empty
+        AllNets = Map.empty // will be reconstituted
         SimDataCache = [||]
         DispWaveSVGCache = {Top=[||]; Waves = Map.empty; Bottom = [||]}
-        AllWaveNames = [||]
+        AllWaveNames = [||] // will be reconstituted
         SimParams = {
-            DispNames = [||]
+            DispNames = sWInfo.DisplayedPortIds // actually names not ids
             ClkSvgWidth = 1.0
             CursorTime = 0u
             WaveViewerRadix = sWInfo.Radix

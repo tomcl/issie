@@ -67,11 +67,11 @@ let createMainWindow () =
     let options = jsOptions<BrowserWindowOptions> <| fun options ->
         options.width <- 1200
         options.height <- 800
-        options.show <- true
+        options.show <- false
         options.autoHideMenuBar <- false
         options.frame <- true
         options.hasShadow <- true
-        options.backgroundColor <-  "#5F9EA0"
+        options.backgroundColor <-  "#505050"
         // fix for icons not working on linux
         // requires better solution for dist, maybe
         if Api.``process``.platform = Base.Win32 then
@@ -88,7 +88,7 @@ let createMainWindow () =
 
     window.onceReadyToShow <| fun _ ->
         if window.isMinimized() then window.show()
-        options.backgroundColor <- "#F0F0F0"
+        options.backgroundColor <- "#505050"
         window.focus()
     |> ignore
 

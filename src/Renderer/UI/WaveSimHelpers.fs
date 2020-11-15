@@ -458,8 +458,8 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
             | SplitWire w ->
                 let mostsigBranch (_, b) =
                     match outPortInt with
-                    | 0 -> b >= w
-                    | 1 -> b < w
+                    | 0 -> b >= 16 - w
+                    | 1 -> b < 16 - w
                     | _ -> failwith "SplitWire output port number greater than 1"
 
                 let split { LabName = name; BitLimits = msb, lsb } st =
@@ -530,7 +530,20 @@ let netGroup2Label compIds graph netList (netGrp: NetGroup) =
         List.fold appendName "" hdLbls
         |> (fun hd -> hd.[0..String.length hd - 3] + " : " + tl)
     |> simplifyName
-        
+
+/// findName will possibly not generate unique names for each netgroup
+/// Names are defined via waveSimModel.AllPorts which adds to each name
+/// a unique numeric suffic (.2 etc). These suffixes are stripped from names
+/// when they are displayed
+/// TODO: make sure suffixes are uniquely defines based on component ids (which will not change)
+/// display then in wave windows where needed to disambiguate waveforms.
+let removeSuffixFromWaveLabel (label:string)  =
+    label
+    |> Seq.takeWhile (fun ch -> ch <> '.')
+    |> Seq.map string
+    |> String.concat ""
+
+
 // Required wSModel with correct simulation.
 // Sets AllWaveNames and AllPorts from netlist derived from simulation
 // filters 

@@ -340,6 +340,8 @@ let private checkIOLabels (canvasState : CanvasState) : SimulationError option =
           checkDuplicate outputs (toMap outputs) "Output" with
     | Some err, _| _, Some err -> Some err
     | None, None -> None
+
+
 type CustomComponentError =
     | NoSheet of string
     | BadInputs of ComponentSheet: string * InstLists: ((string*int) list)* CompLists: ((string*int) list)

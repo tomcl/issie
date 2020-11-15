@@ -4,8 +4,6 @@ open Fable.React
 open Fable.React.Props
 
 open Fulma
-
-open MessageType
 open ModelType
 open DiagramStyle
 open CommonTypes

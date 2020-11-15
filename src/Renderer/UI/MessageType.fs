@@ -1,4 +1,4 @@
-module MessageType
+module MessageType1
 
 open CommonTypes
 open JSTypes

@@ -7,22 +7,14 @@ open Fable.React
 open Fable.React.Props
 
 open BusWidthInferer
-
-open DiagramStyle
 open SimulatorTypes
-open MessageType
 open ModelType
 open CommonTypes
-open Draw2dWrapper
 open Extractor
-open OnDiagramButtonsView
 open CatalogueView
-open SelectedComponentView
-open SimulationView
 open PopupView
 open FileMenuView
 open WaveSimHelpers
-open WaveformSimulationView
 
 open Fable.Core
 open Fable.Core.JsInterop
@@ -176,7 +168,7 @@ let private handleKeyboardShortcutMsg msg model =
         | None -> model
         | Some jsState -> { model with Clipboard = extractState jsState }
     | AltV ->
-        pasteAction model
+        DiagramMainView.pasteAction model
         model
     | AltZ ->
         model.Diagram.Undo ()

@@ -4,6 +4,7 @@
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="EEExtensions.fs" />
     <Compile Include="CommonTypes.fs" />
     <Compile Include="Helpers.fs" />
     <Compile Include="WidthInferer.fs" />

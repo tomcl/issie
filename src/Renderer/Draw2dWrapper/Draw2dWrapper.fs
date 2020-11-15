@@ -6,7 +6,6 @@ module Draw2dWrapper
 
 open CommonTypes
 open JSTypes
-open MessageType
 open JSHelpers
 //open DiagramStyle
 open SimulatorTypes
@@ -15,6 +14,8 @@ open Fable.Core
 open Fable.Core.JsInterop
 open Fable.React
 open Fable.React.Props
+
+type JSDiagramMsg = JSDiagramMsg<JSCanvas,JSComponent>
 
 // Interface with JS library.
 

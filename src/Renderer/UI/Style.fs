@@ -1,6 +1,6 @@
 module DiagramStyle
 
-open MessageType
+
 open ModelType
 open Fable.React.Props
 
@@ -14,9 +14,9 @@ let rightSectionWidthViewerDefault = 650
 
 let rightSectionWidth (model:Model) =
     match model.RightPaneTabVisible with
-    | MessageType.RightTab.Properties | MessageType.RightTab.Catalogue -> rightSectionWidthS
-    | MessageType.RightTab.Simulation ->  rightSectionWidthL
-    | MessageType.RightTab.WaveSim -> sprintf "%dpx" model.WaveSimViewerWidth
+    | RightTab.Properties | RightTab.Catalogue -> rightSectionWidthS
+    | RightTab.Simulation ->  rightSectionWidthL
+    | RightTab.WaveSim -> sprintf "%dpx" model.WaveSimViewerWidth
 
 let leftSectionWidth model = Style [
     Width (sprintf "calc(100%s - %s - 10px)" "%" (rightSectionWidth model))

@@ -13,11 +13,9 @@ open Fable.React.Props
 open JSHelpers
 open Helpers
 open ModelType
-open MessageType
 open CommonTypes
 open MemoryEditorView
 open PopupView
-open OnDiagramButtonsView
 
 
 

@@ -13,7 +13,6 @@ open Fable.React.Props
 open Helpers
 open JSHelpers
 open DiagramStyle
-open MessageType
 open ModelType
 open CommonTypes
 open FilesIO
@@ -244,7 +243,7 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
     let waveSim = 
         compToSetup.WaveInfo
         |> Option.map savedWaveInfo2WaveSimModel 
-        |> Option.defaultValue (MessageType.initWS [||] Map.empty)
+        |> Option.defaultValue (ModelType.initWS [||] Map.empty)
 
 
     loadStateIntoModel compToSetup waveSim ldComps model dispatch

@@ -14,7 +14,6 @@ open Fable.React.Props
 open Helpers
 open DiagramStyle
 open ModelType
-open MessageType
 open CommonTypes
 open PopupView
 open Extractor

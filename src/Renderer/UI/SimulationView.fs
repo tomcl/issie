@@ -16,7 +16,6 @@ open JSHelpers
 open DiagramStyle
 open PopupView
 open MemoryEditorView
-open MessageType
 open ModelType
 open CommonTypes
 open SimulatorTypes

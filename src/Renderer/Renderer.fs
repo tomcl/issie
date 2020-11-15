@@ -10,7 +10,8 @@ open Fable.Core.JsInterop
 open Browser.Types
 open Electron
 open Electron.Helpers
-open MessageType
+open ModelType
+
 
 let isMac = Node.Api.``process``.platform = Node.Base.Darwin
 
@@ -114,19 +115,19 @@ let viewMenu dispatch =
 // shortcuts. According to electron documentation, the way to configure keyboard
 // shortcuts is by creating a menu.
 let editMenu dispatch =
-    let dispatch = MessageType.KeyboardShortcutMsg >> dispatch
+    let dispatch = ModelType.KeyboardShortcutMsg >> dispatch
 
     jsOptions<MenuItemOptions> <| fun invisibleMenu ->
         invisibleMenu.``type`` <- MenuItemType.SubMenu
         invisibleMenu.label <- "Edit"
         invisibleMenu.visible <- true
         invisibleMenu.submenu <-
-            [| makeElmItem "Save Sheet" "CmdOrCtrl+S" (fun () -> dispatch MessageType.CtrlS)
-               makeElmItem "Copy" "Alt+C" (fun () -> dispatch MessageType.AltC)
-               makeElmItem "Paste" "Alt+V" (fun () -> dispatch MessageType.AltV)
-               makeElmItem "Delete"  (if isMac then "Backspace" else "delete") (fun () -> dispatch MessageType.DEL)
-               makeElmItem "Undo" "Alt+Z" (fun () -> dispatch MessageType.AltZ)
-               makeElmItem "Redo" "Alt+Shift+Z" (fun () -> dispatch MessageType.AltShiftZ) |]
+            [| makeElmItem "Save Sheet" "CmdOrCtrl+S" (fun () -> dispatch ModelType.CtrlS)
+               makeElmItem "Copy" "Alt+C" (fun () -> dispatch ModelType.AltC)
+               makeElmItem "Paste" "Alt+V" (fun () -> dispatch ModelType.AltV)
+               makeElmItem "Delete"  (if isMac then "Backspace" else "delete") (fun () -> dispatch ModelType.DEL)
+               makeElmItem "Undo" "Alt+Z" (fun () -> dispatch ModelType.AltZ)
+               makeElmItem "Redo" "Alt+Shift+Z" (fun () -> dispatch ModelType.AltShiftZ) |]
             |> U2.Case1
 
 let attachMenusAndKeyShortcuts dispatch =
@@ -151,7 +152,7 @@ let attachMenusAndKeyShortcuts dispatch =
 
 type Model = ModelType.Model
 
-type Messages = MessageType.Msg
+type Messages = ModelType.Msg
 
 // -- Init Model
 

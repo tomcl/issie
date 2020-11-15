@@ -45,7 +45,6 @@ open Fable.React.Props
 
 open JSHelpers
 open Helpers
-open MessageType
 open ModelType
 open CommonTypes
 open DiagramStyle

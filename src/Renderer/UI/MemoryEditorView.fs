@@ -14,7 +14,6 @@ open Helpers
 open NumberHelpers
 open JSHelpers
 open CommonTypes
-open MessageType
 open ModelType
 open PopupView
 

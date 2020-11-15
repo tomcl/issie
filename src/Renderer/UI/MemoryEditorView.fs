@@ -153,20 +153,20 @@ let private makeEditorBody memory compId memoryEditorData model dispatch =
         | Ok {Type=RAM mem} | Ok {Type=ROM mem} | Ok {Type = AsyncROM mem} -> mem
         | _ -> memory
 
-    printfn "Making body with data=%A, dynamic %A" memory.Data dynamicMem
+    //printfn "Making body with data=%A, dynamic %A" memory.Data dynamicMem
     let memory = dynamicMem
     let makeRow (memData: Map<int64,int64>) (addr: uint64) =
         let addr = int64 addr
         let content = 
             Map.tryFind (int64 addr) memData
             |> Option.defaultValue 0L
-        printfn "load"
+        //printfn "load"
         tr [ SpellCheck false; Style [  Display (if true then DisplayOptions.TableRow else DisplayOptions.None)] ] [
             td [] [ str <| viewNumA (int64 addr) ]
             td [] [
                 let handleInput  (ev: Browser.Types.FocusEvent) =
                     let text = getTextEventValue ev
-                    printfn "change"
+                    //printfn "change"
                     match strToIntCheckWidth text memory.WordWidth with
                     | Ok value ->
                         // Close error notification.
@@ -182,7 +182,7 @@ let private makeEditorBody memory compId memoryEditorData model dispatch =
                         |> Map.toList
                         |> model.Diagram.WriteMemoryLine compId
                         dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)
-                        printfn "setting value=%d, addr=%d" value addr                       
+                        //printfn "setting value=%d, addr=%d" value addr                       
                     | Error err -> 
                         showError err dispatch
                 

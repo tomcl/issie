@@ -995,7 +995,7 @@ let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
 /// actions triggered whenever the fileMenuView function is executed
 let fileMenuViewActions model dispatch =
     if model.ConnsOfSelectedWavesAreHighlighted then 
-        printfn "from filemenuview"
+        //printfn "from filemenuview"
         highlightConnectionsFromNetGroups  model dispatch
     else ()
 

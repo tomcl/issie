@@ -401,7 +401,7 @@ let update msg model =
         let editCmds = [inferMsg] |> List.map Cmd.ofMsg
         firstTip <- true
         if newTab <> WaveSim then 
-            printfn "Running inference"
+            //printfn "Running inference"
             model.Diagram.ResetSelected()
             runBusWidthInference model
         else

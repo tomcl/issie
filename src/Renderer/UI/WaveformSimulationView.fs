@@ -381,7 +381,6 @@ let private nameLabelsCol model netList (wsMod: WaveSimModel) labelRows dispatch
            [ Button.CustomClass "newWaveButton"
              Button.Color IsSuccess
              Button.OnClick(fun _ -> 
-                printfn "opening editor with Dispnames = %A" wsMod.SimParams.DispNames
                 openEditorFromViewer model  WSEditorOpen dispatch) ] [ str "Edit list..." ] ]
 
     let top =
@@ -641,7 +640,6 @@ let private openEditorFromViewer model (editorState: WSViewT) dispatch =
 /// Sets WaveSim to have editor open
 let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model dispatch _ev =
     /// subfunction to generate popup over waveeditor screen if there are undriven input connections
-    printfn "Starting waveSim"
     let inputWarningPopup (simData:SimulatorTypes.SimulationData) dispatch =
         if simData.Inputs <> [] then
             let inputs = 
@@ -731,16 +729,13 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model d
 /// Waveforms >> Button React element with colour determined by current circuit error state
 let WaveformButtonFunc compIds model dispatch =
     // based on simulation results determine color of button and what happens if it is clicked
-    printfn "button!"
     let simulationButton =
-        printfn "buttonInner"
         match currWaveSimModel model with
 
         | None ->
             // If we have never yet run wavesim create initial wSModel
             match model.CurrentProj with
             | Some _ -> 
-                printfn "initialising"
                 initFileWS model dispatch
             | None -> ()
             Button.button 
@@ -754,14 +749,12 @@ let WaveformButtonFunc compIds model dispatch =
                 let isClocked = SynchronousUtils.hasSynchronousComponents simData.Graph
                 if isClocked then
                     // display the WaveEditor window if circuit is OK
-                    printfn "clocked"
                     Button.button
                         [ 
                             Button.Color IsSuccess
                             Button.OnClick( startWaveSim compIds  rState simData model dispatch)
                               ]
                 else
-                    printfn "unclocked"
                     Button.button
                         [ 
                             //Button.Color White
@@ -773,7 +766,6 @@ let WaveformButtonFunc compIds model dispatch =
             | WSClosed, _, Some( Error err,_)        
             | _, true, Some (Error err, _) -> 
                 // display the current error if circuit has errors
-                printfn "error"
                 Button.button
                     [   Button.Color IsWarning
                         Button.OnClick(fun _ ->
@@ -782,7 +774,7 @@ let WaveformButtonFunc compIds model dispatch =
                           SetSimErrorFeedback err dispatch) 
                     ]
             | x,y,z -> 
-                printfn "other%A %A %A" x y (match z with | None -> "None" | Some ((Error c),_) -> "Some Error" | Some ((Ok _),_) -> "Some Ok")
+                //printfn "other%A %A %A" x y (match z with | None -> "None" | Some ((Error c),_) -> "Some Error" | Some ((Ok _),_) -> "Some Ok")
                 Button.button 
                     [ Button.OnClick(fun _ -> 
                           dispatch <| ChangeRightTab WaveSim) 

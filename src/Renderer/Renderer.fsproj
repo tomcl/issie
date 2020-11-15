@@ -5,12 +5,12 @@
 
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Interface\Version.fs" />
+    <Compile Include="Interface\JSTypes.fs" />
+    <Compile Include="Interface\JSHelpers.fs" />
+    <Compile Include="Interface\Extractor.fs" />
+    <Compile Include="Interface\FilesIO.fs" />
     <None Include="scss\main.scss" />
-    <Compile Include="Version.fs" />
-    <Compile Include="JSTypes.fs" />
-    <Compile Include="JSHelpers.fs" />
-    <Compile Include="Extractor.fs" />
-    <Compile Include="FilesIO.fs" />
 
     <!-- UI -->
     <None Include="Draw2dWrapper\drag_connection_create_policy_fixed.js" />
@@ -31,10 +31,7 @@
     <Compile Include="UI/WaveformSimulationView.fs" />
     <Compile Include="UI\MainView.fs" />
     <Compile Include="UI\Update.fs" />
-
     <Compile Include="Renderer.fs" />
-
-    <None Include="main.js" />
   </ItemGroup>
   <!-- Dependencies -->
   <ItemGroup>

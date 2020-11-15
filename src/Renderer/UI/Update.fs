@@ -7,7 +7,6 @@ open Fable.React
 open Fable.React.Props
 
 open BusWidthInferer
-open BusTypes
 
 open DiagramStyle
 open SimulatorTypes

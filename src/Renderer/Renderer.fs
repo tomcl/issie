@@ -73,6 +73,8 @@ let makeMenu (topLevel: bool) (name : string) (table : MenuItemOptions list) =
    subMenu.submenu <- U2.Case1 (table |> Array.ofList)
    subMenu    
 
+let displayPerformance n m = Helpers.checkPerformance n m JSHelpers.startTimer JSHelpers.stopAndLogTimer
+
 
 let fileMenu (dispatch) =
     makeMenu false "Sheet" [
@@ -88,6 +90,9 @@ let fileMenu (dispatch) =
             JSHelpers.debugTrace <- Set.ofList ["update";"view"])
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace off" None (fun _ -> 
             JSHelpers.debugTrace <- Set.ofList [])
+        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Run performance check" None (fun _ -> 
+            JSHelpers.displayPerformance 3 1000000)
+
 
 
     ]

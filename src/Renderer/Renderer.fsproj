@@ -5,6 +5,8 @@
 
   </PropertyGroup>
   <ItemGroup>
+    
+    <!-- JS and File interface -->
     <Compile Include="Interface\Version.fs" />
     <Compile Include="Interface\JSTypes.fs" />
     <Compile Include="Interface\JSHelpers.fs" />
@@ -12,13 +14,15 @@
     <Compile Include="Interface\FilesIO.fs" />
     <None Include="scss\main.scss" />
 
-    <!-- UI -->
+    <!-- Draw2D diagram -->
     <None Include="Draw2dWrapper\drag_connection_create_policy_fixed.js" />
     <None Include="Draw2dWrapper\draw2d_digital_components.js" />
     <None Include="Draw2dWrapper\draw2d_digital_connections.js" />
     <None Include="Draw2dWrapper\draw2d_fsharp_interface.js" />
     <None Include="Draw2dWrapper\MVU_messages.js" />
     <Compile Include="Draw2dWrapper/Draw2dWrapper.fs" />
+    
+    <!-- UI -->
     <Compile Include="UI/ModelType.fs" />
     <Compile Include="UI/Style.fs" />
     <Compile Include="UI/PopupView.fs" />

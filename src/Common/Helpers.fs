@@ -159,4 +159,101 @@ let getNetList ((comps,conns) : CanvasState) =
 
 
 
+let checkPerformance m n startTimer stopTimer =
+    printfn "Checking performance with size = %d, iterations = %d" m n
+    let arrayBuffer() = 
+        let buff =
+            [|0..m-1|]
+            |> Array.map (fun i -> (i+1) % m)
+        let mutable index = 0
+        let mutable el = 0
+        startTimer "Array"
+        while index < n do
+             index <- index + 1
+             el <- buff.[el]    
+        el |> ignore
+        stopTimer "Array"   
+
+
+    let mutableArrayBuffer() = 
+         let buff =
+             [|0..m-1|]
+             |> Array.map (fun i -> (i+1) % m)
+         let mutable index = 0
+         let mutable el = 0
+         startTimer "Mutable Array"
+         while index < n do
+              index <- index + 1
+              el <- if el+1 < m then el+1 else 0
+              buff.[el]  <- index    
+         buff |> ignore
+         stopTimer "Mutable Array"   
+
+
+    let updateArrayBuffer() = 
+         let buff =
+             [|0..m-1|]
+             |> Array.map (fun i -> (i+1) % m)
+         let mutable index = 0
+         let mutable el = 0
+         let mutable arr = buff
+         startTimer "Copy-update Array"
+         let z = (buff,[0..n]) ||> List.fold (fun buff i -> 
+            let r = (Array.copy buff)
+            r.[i % m] <- i
+            r)
+         z.[0] |> ignore          
+         stopTimer "Copy-update Array"   
+
+    let listBuffer() = 
+        let buff =
+            [0..m-1]
+            |> List.map (fun i -> (i+1) % m)
+        let mutable index = 0
+        let mutable el = 0
+        startTimer "List"
+        while index < n do
+             index <- index + 1
+             el <- buff.[el]
+        el |> ignore
+        stopTimer "List"   
+
+    let mapBuffer() = 
+        let buff =
+            [|0..m-1|]
+            |> Array.map (fun i -> i,(i+1) % m)
+            |> Map.ofArray
+        let mutable index = 0
+        let mutable el = 0
+        startTimer "Map"
+        while index < n do
+            index <- index + 1
+            el <- buff.[el]
+        index |> ignore
+        stopTimer "Map"   
+
+    let updateMapBuffer() = 
+        let buff =
+            [|0..m-1|]
+            |> Array.map (fun i -> i,(i+1) % m)
+            |> Map.ofArray
+        startTimer "UpdateMap"
+        let buf = (buff, [|0..n-1|]) ||> Array.fold (fun buff i -> Map.add (i % m) i buff)
+        stopTimer "UpdateMap" 
+        buf.Count |> ignore
+
+
+    arrayBuffer()
+    arrayBuffer()
+    mutableArrayBuffer()
+    mutableArrayBuffer()
+    updateArrayBuffer()
+    updateArrayBuffer()
+    listBuffer()
+    listBuffer()
+    mapBuffer()
+    mapBuffer()
+    updateMapBuffer()
+    updateMapBuffer()
+
 

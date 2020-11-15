@@ -182,6 +182,12 @@ let removeFileWithExtn extn folderPath baseName  =
     let path = path.join [| folderPath; baseName + extn |]
     fs.unlink (U2.Case1 path, ignore) // Asynchronous.
 
+let renameFile extn folderPath baseName newBaseName =
+    let oldPath = path.join [| folderPath; baseName + extn |]
+    let newPath = path.join [| folderPath; newBaseName + extn |]
+    if fs.existsSync <| U2.Case1 oldPath then
+        fs.renameSync (oldPath, newPath) // synchronous.
+
 let removeFile (folderPath:string) (baseName:string) = removeFileWithExtn ".dgm" folderPath baseName
 
 let removeAutoFile folderPath baseName =

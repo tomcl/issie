@@ -416,11 +416,10 @@ let stdLabel (compType: ComponentType) (model:Model) =
         | RAM _ -> "RAM"
         | Custom c -> c.Name + ".I"
         | Constant _ -> "C"
-        | BusSelection _ -> "B" 
         | _ -> ""
-
-    let samePrefPlusNum (word: string)  = 
-        printfn "word=%s, prefix=%s" word prefix
+    
+    /// returns, as singleton list, just the numeric suffix in word for word matching prefix, or else empty list.
+    let samePrefixPlusNum (word: string)  = 
         match word.[0..String.length prefix - 1] = prefix with
         | true -> 
             let w = word.[String.length prefix..String.length word - 1]
@@ -428,26 +427,24 @@ let stdLabel (compType: ComponentType) (model:Model) =
             |> (fun w -> Seq.forall Char.IsDigit w, w)
             |> function
                | _, "" | false, _ -> []
-               | true,_ -> [ int  word.[String.length prefix..String.length word - 1] ]
+               | true,_ -> [ int w ]
         | false -> []
-
-    let sortedLst2ind lst =
-        match List.tryFind (fun (a,b) -> b > a + 1) (List.pairwise lst) with
-        | None when List.length lst = 0 -> -1
-        | None when List.length lst = 1 -> lst.[0]
-        | None -> lst.[List.length lst - 1]
-        | Some (a,_) -> a
-        |> (+) 1
+    /// looks for gaps in sorted list of numbers given with required prefix
+    let pickSuffixNumberNotUsed lst =
+        0 :: lst // 0 to make sure max works
+        |> List.max
+        |> (fun n -> [1..n + 1]) // large enough that filter must have result
+        |> List.filter (fun i -> not <| List.contains i lst)
+        |> List.head
 
     match model.Diagram.GetCanvasState () with
-    | None when prefix <> "" -> prefix + "0"
+    | None when prefix <> "" -> prefix + "1"
     | Some jsState when prefix <> "" -> 
         extractState jsState
         |> fst
         |> List.map (fun c -> c.Label) 
-        |> List.collect samePrefPlusNum
-        |> List.sort
-        |> sortedLst2ind
+        |> List.collect samePrefixPlusNum
+        |> pickSuffixNumberNotUsed
         |> string
         |> (+) prefix
     | _ -> ""

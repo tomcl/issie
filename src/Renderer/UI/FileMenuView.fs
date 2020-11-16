@@ -143,6 +143,9 @@ let setSavedWave compIds (wave: SavedWaveInfo option) model : Model =
     | Some waveInfo, _ -> model
             
 
+
+
+
 /// Save the sheet currently open, return  the new sheet's Loadedcomponent if this has changed
 let saveOpenFileAction isAuto model =
     match model.Diagram.GetCanvasState (), model.CurrentProj with
@@ -285,6 +288,15 @@ let private openFileInProject name project model dispatch =
 /// rename a sheet
 let renameSheet oldName newName (model:Model) dispatch =
 
+    let saveAllFilesFromProject (proj: Project) =
+        proj.LoadedComponents
+        |> List.iter (fun ldc ->
+            let name = ldc.Name
+            let state = ldc.CanvasState
+            let waveInfo = ldc.WaveInfo
+            saveStateToFile proj.ProjectPath name (state,waveInfo)
+            removeFileWithExtn ".dgmauto" proj.ProjectPath name)
+
     let renameComps oldName newName (comps:Component list) : Component list = 
         comps
         |> List.map (fun comp -> 
@@ -297,7 +309,7 @@ let renameSheet oldName newName (model:Model) dispatch =
         let state = ldComp.CanvasState
         {ldComp with CanvasState = renameComps oldName newName (fst state), snd state}
 
-    let renameSheetInProject oldName newName proj =
+    let renameSheetsInProject oldName newName proj =
         {proj with
             OpenFileName = if proj.OpenFileName = oldName then newName else proj.OpenFileName
             LoadedComponents =
@@ -322,9 +334,13 @@ let renameSheet oldName newName (model:Model) dispatch =
         SetHasUnsavedChanges false
         |> JSDiagramMsg
         |> dispatch
-        let proj' = renameSheetInProject oldName newName p
+        let proj' = renameSheetsInProject oldName newName p
         setupProjectFromComponents proj'.OpenFileName proj'.LoadedComponents model dispatch
-        [".dgm";".dgmauto"] |> List.iter (fun extn -> renameFile extn proj'.ProjectPath oldName newName) 
+        [".dgm";".dgmauto"] |> List.iter (fun extn -> renameFile extn proj'.ProjectPath oldName newName)
+        /// save all the other files
+        saveAllFilesFromProject proj'
+
+        
     
 
 
@@ -352,10 +368,13 @@ let renameFileInProject name project model dispatch =
                     else div [] []
                 div []
                     [ 
-                      str <| "Warning: the current sheet will be saved, and the project re-opened, during this operation."
+                      str <| "Warning: the current sheet will be saved during this operation."
                       br []
+                      str <| "Names of existing components in other sheets that use the renamed sheet will still reflect the old sheet name.";
+                      str <| " You may change names manually if you wish, operation does not depend on the name."
+                      br []; br []
                       str <| sprintf "Sheet %s will be renamed as %s:" name dialogText
-                      br []
+                      br []; br []
                       //str <| dialogText + ".dgm"
                       maybeWarning ]
 

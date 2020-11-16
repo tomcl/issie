@@ -94,7 +94,7 @@ let createMainWindow () =
 
     // Load the index.html of the app.    
 
-#if DEBUG
+#if !DEBUG
     DevTools.installAllDevTools window
     //DevTools.connectRemoteDevViaExtension()
 

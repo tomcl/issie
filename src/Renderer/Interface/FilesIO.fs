@@ -178,6 +178,7 @@ let tryCreateFolder (path : string) =
 
 
 /// Asyncronously remove file.
+/// ignore if file does not exist
 let removeFileWithExtn extn folderPath baseName  =
     let path = path.join [| folderPath; baseName + extn |]
     fs.unlink (U2.Case1 path, ignore) // Asynchronous.
@@ -223,7 +224,7 @@ let saveAutoStateToFile folderPath baseName state = // TODO: catch error?
     let data = stateToJsonString state
     writeFile path data
 
-/// Save state to normal file. Automatically add the .dgauto suffix.
+/// Save state to normal file. Automatically add the .dgm suffix.
 let saveStateToFile folderPath baseName state = // TODO: catch error?
     let path = pathJoin [| folderPath; baseName + ".dgm" |]
     let data = stateToJsonString state

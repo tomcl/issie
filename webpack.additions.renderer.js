@@ -8,7 +8,7 @@ function resolve(filePath) {
 
 
 module.exports = {
-    entry: [resolve("src/Renderer/Renderer.fsproj"), resolve("src/Renderer/scss/main.scss"), resolve('static/index.html')],
+    entry: [resolve("src/Renderer/Renderer.fs.js"), resolve("src/Renderer/scss/main.scss"), resolve('static/index.html')],
     resolve: {
         modules: ['node_modules', resolve('/../app/node_modules'), resolve('resources/app/node_modules')]
     },
@@ -22,12 +22,7 @@ module.exports = {
     ],
     module: {
         rules: [
-            {
-                test: /\.fs(x|proj)?$/,
-                use: {
-                    loader: "fable-loader"
-                }
-            }
+
         ]
     }
 }

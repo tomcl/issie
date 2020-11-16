@@ -259,14 +259,16 @@ let private tryLoadComponentFromPath filePath : Result<LoadedComponent, string> 
 
 
 type LoadStatus =
-    | Resolve of LoadedComponent * LoadedComponent
+    | Resolve  of LoadedComponent * LoadedComponent
     | OkComp of LoadedComponent
     | OkAuto of LoadedComponent
 
     
 /// load all files in folderpath. Return Ok list of LoadStatus or a single Error.
 let loadAllComponentFiles (folderPath:string) = 
-    fs.readdirSync (U2.Case1 folderPath)
+    let x = fs.readdirSync (U2.Case1 folderPath)
+    printfn "loadallComponentFiles %s %A" folderPath (x |> Seq.toList)
+    x
     |> Seq.toList
     |> List.filter (path.extname >> ((=) ".dgm"))
     |> List.map (fun fileName ->

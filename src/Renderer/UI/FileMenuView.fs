@@ -92,7 +92,7 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
             LoadedComponents = ldComps
         }
         |> SetProject) // this message actually changes the project in model
-    dispatch <| SetWaveSimIsStale true
+    dispatch <| SetWaveSimIsOutOfDate true
     dispatch <| SetIsLoading false 
     //printfn "Check 6..."
     

@@ -254,7 +254,7 @@ let private makeCursVals wsModel  =
 /// tuple of React elements of middle column, left column, right column.
 /// shows waveforms and labels and cursor col.
 /// The vertical order is fixed and as in DispNames
-let private waveSimRows compIds diagram (netList: NetList) (wsMod: WaveSimModel) dispatch =
+let private waveSimViewerRows compIds diagram (netList: NetList) (wsMod: WaveSimModel) dispatch =
     let allPorts = wsMod.AllNets
     let labelCols =
         wsMod.SimParams.DispNames
@@ -364,7 +364,7 @@ let private viewWaveSimButtonsBar model wSMod dispatch =
           cursorButtons model wSMod dispatch ]
 
 /// ReactElement of the right column of the waveform simulator
-let private cursValsCol rows =
+let private cursorValuesCol rows =
     let rightCol = Array.append [| tr [ Class "rowHeight" ] [ td [ Class "rowHeight" ] [] ] |] rows
     div
         [ Style
@@ -464,13 +464,13 @@ let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRo
 
 /// ReactElement of the bottom part of the waveform simulator when waveforms are being displayed
 let private viewWaveformViewer compIds model netList wSMod dispatch =
-    let tableWaves, nameColMiddle, cursValsRows = waveSimRows compIds model.Diagram netList wSMod dispatch
+    let tableWaves, nameColMiddle, cursValsRows = waveSimViewerRows compIds model.Diagram netList wSMod dispatch
     div
         [ Style
             [ Height "calc(100% - 45px)"
               Width "100%"
               OverflowY OverflowOptions.Auto ] ]
-        [ cursValsCol cursValsRows
+        [ cursorValuesCol cursValsRows
           div [ Style [ Height "100%" ] ]
               [ nameLabelsCol model netList wSMod nameColMiddle dispatch
                 allWaveformsTableElement model wSMod tableWaves dispatch ] ]
@@ -498,9 +498,9 @@ let private waveEditorSelectAllRow model netList wSModel =
                     OnChange(fun _ -> waveAdderSelectAll model netList wSModel) ] ]
           td [ Style [ FontWeight "bold" ] ] [ str "Select All" ] ]
 
-/// ReactElement of WaveAdder waveform row
+/// ReactElement of Wave Editor waveform row
 /// displays a tickbox and the NetGroup driver name
-let private waveAdderTickBoxRow model netList wSModel name dispatch =
+let private waveEditorTickBoxAndNameRow model netList wSModel name dispatch =
     let allPorts = wSModel.AllNets
     tr
         [ Class "rowHeight"
@@ -517,9 +517,17 @@ let private waveAdderTickBoxRow model netList wSModel name dispatch =
                     OnChange(fun _ -> toggleNetGroupConnsSelect model.Diagram wSModel netList name) ] ]
           td [] [ label [] [ str <| removeSuffixFromWaveLabel name ] ] ]
 
-/// ReactElement of all WaveAdder waveform rows
-let private waveEditorTickBoxRows model netList wSModel dispatch = 
-    Array.map (fun name -> waveAdderTickBoxRow model netList wSModel name dispatch) wSModel.AllWaveNames
+let sortEditorNameOrder wsModel =
+    let otherNames = 
+        wsModel.AllWaveNames
+        |> Array.filter (fun name -> not <| Array.contains name wsModel.SimParams.DispNames)
+    Array.append wsModel.SimParams.DispNames otherNames
+
+/// ReactElement of all Wave Editor waveform rows
+let private waveEditorTickBoxRows model netList wsModel dispatch = 
+    let editorNameOrder = sortEditorNameOrder wsModel
+    sortEditorNameOrder wsModel
+    |> Array.map (fun name -> waveEditorTickBoxAndNameRow model netList wsModel name dispatch)
 
 /// ReactElement of the bottom section of the WaveAdder.
 /// Contains tick-boxes for NetGroups
@@ -538,7 +546,7 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
     let closeWaveSimButtonAction _ev =
         dispatch <| SetCurrFileWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
         dispatch <| ChangeRightTab Catalogue
-        dispatch <| SetWaveSimIsStale true
+        dispatch <| SetWaveSimIsOutOfDate true
         dispatch ClosePropertiesNotification
         
 
@@ -659,11 +667,12 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model d
         /// on the schematic into a single NetGroup
         /// Wave simulation allows every distinct NetGroup to be named and displayed
         let netGroups = netList2NetGroups netList
-        /// work out a good human readable name for a Netgroup. Merge and split and busselet components are removed,
-        /// replaced by corresponding selectors on busses. names are tagged with labels or IO connectors
+        /// work out a good human readable name for a Netgroup. Normally this is the label of the driver of the NetgGroup.
+        /// Merge and Split and BusSelection components (as drivers) are removed,
+        /// replaced by corresponding selectors on busses. Names are tagged with labels or IO connectors
         /// It is easy to change these names to make them more human readable.
         let nameOf ng = netGroup2Label compIds simData.Graph netList ng
-        /// findName (via netGroup3label) will possibly not generate unique names for each netgroup
+        /// findName (via netGroup2Label) will possibly not generate unique names for each netgroup
         /// Names are defined via waveSimModel.AllPorts which adds to each name
         /// a unique numeric suffic (.2 etc). These suffixes are stripped from names
         /// when they are displayed
@@ -678,7 +687,7 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model d
         /// DispNames are a subset of Allnames - the ones currently displayed in the wave viewer
         /// The filters here are needed because DispNames are preserved with a circuit as it is modified, 
         /// but some of the preserved names may no longer exist.
-        /// A comparison is done between AllNames and DispN amesignoring suffixes. 
+        /// A comparison is done between AllNames and DispNames ignoring suffixes. 
         /// This will occasionally make the default displayed waveforms add a few
         /// clashing names, but allow DispNames to remain relevant when components are added or deleted.
         /// TODO: remove suffixes on all except clashing names - that would be better
@@ -706,20 +715,11 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model d
             WSViewState = WSEditorOpen; 
             WSTransition = None
         }
-    let duplicateNames =
-        startingWsModel.AllWaveNames
-        |> Array.toList
-        |> List.groupBy id
-        |> List.collect (fun (name, names) -> if names.Length > 1 then [name] else [])
-    match duplicateNames with
-    | [] -> ()
-    | name :: _ -> 
-        let dupNameMessage = sprintf "Multiple waveforms have the same name: %s. This may cause confusing behaviour" name    
-        PopupView.warningSimNotification dupNameMessage dispatch |> ignore
+
     dispatch <| SetCurrFileWSMod startingWsModel
     dispatch <| SetViewerWidth minViewerWidth 
     dispatch <| SetLastSimulatedCanvasState (Some rState) 
-    dispatch <| SetWaveSimIsStale false
+    dispatch <| SetWaveSimIsOutOfDate false
     inputWarningPopup simData dispatch
     dispatch <| ChangeRightTab WaveSim
 

@@ -500,7 +500,7 @@ let update msg model =
         | Some _ ->
             { model with ConnsOfSelectedWavesAreHighlighted = true }
         |> (fun m -> m, Cmd.none)
-    | SetWaveSimIsStale b -> 
+    | SetWaveSimIsOutOfDate b -> 
         changeSimulationIsStale b model, Cmd.none
     | SetIsLoading b ->
         {model with IsLoading = b}, Cmd.none

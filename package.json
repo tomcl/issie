@@ -18,6 +18,7 @@
     "clean-dev-win": "taskkill /f /im node.exe && taskkill /f /im dotnet.exe && taskkill /f /im issie.exe",
     "compile": "dotnet fable src/main && dotnet fable src/renderer",
     "dev": "dotnet fable src/main && dotnet fable watch src/renderer --run electron-webpack dev",
+    "watchmain": "dotnet fable watch src/main",
     "webpack": "electron-webpack dev",
     "dist": "npm run compile && electron-builder",
     "distwin": "npm run compile && electron-builder -w",

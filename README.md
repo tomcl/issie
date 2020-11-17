@@ -162,4 +162,5 @@ run `build killzombies` to remove orphan processes that lock build files.
 * Incorporate zombie process killing into the build scripts to make manual run unnecessary. Requires care.
 * Work out how to incorporate Node and npm dependencies (do we need npm given Fake uses it?). Paket nuget should be used for them.
 * Should Node be upgraded to v14?
+* Remove source map support? Depends on whether Fable 3 will integrate it. Clean up dev tools.
 

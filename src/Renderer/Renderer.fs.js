@@ -94,7 +94,7 @@ export function displayPerformance(n, m) {
 }
 
 export function fileMenu(dispatch) {
-    return makeMenu(false, "Sheet", ofArray([makeItem("New  Sheet", "CmdOrCtrl+N", (ev) => {
+    return makeMenu(false, "Sheet", ofArray([makeItem("New Sheet", "CmdOrCtrl+N", (ev) => {
         dispatch(new Msg(41, new MenuCommand(2), dispatch));
     }), makeItem("Save Sheet", "CmdOrCtrl+S", (ev_1) => {
         dispatch(new Msg(41, new MenuCommand(1), dispatch));

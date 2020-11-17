@@ -500,7 +500,7 @@ let private waveEditorSelectAllRow model netList wSModel =
 
 /// ReactElement of Wave Editor waveform row
 /// displays a tickbox and the NetGroup driver name
-let private waveEditorTickBoxAndNameRow model netList wSModel name dispatch =
+let private waveEditorTickBoxAndNameRow model  netList wSModel name dispatch =
     let allPorts = wSModel.AllNets
     tr
         [ Class "rowHeight"

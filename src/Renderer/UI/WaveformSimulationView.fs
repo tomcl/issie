@@ -502,6 +502,12 @@ let private waveEditorSelectAllRow model netList wSModel =
 /// displays a tickbox and the NetGroup driver name
 let private waveEditorTickBoxAndNameRow model netList wSModel name dispatch =
     let allPorts = wSModel.AllNets
+
+    let getColorProp name  =
+        if Array.contains name wSModel.SimParams.DispNames then
+            [FontWeight "Bold"]
+        else
+            []
     tr
         [ Class "rowHeight"
           Style [ VerticalAlign "middle" ] ]
@@ -515,7 +521,7 @@ let private waveEditorTickBoxAndNameRow model netList wSModel name dispatch =
                     Checked <| isWaveSelected model.Diagram netList allPorts.[name]
                     Style [ Float FloatOptions.Left ]
                     OnChange(fun _ -> toggleNetGroupConnsSelect model.Diagram wSModel netList name) ] ]
-          td [] [ label [] [ str <| removeSuffixFromWaveLabel name ] ] ]
+          td [] [ label [Style (getColorProp name)] [ str <| removeSuffixFromWaveLabel name] ] ]
 
 let sortEditorNameOrder wsModel =
     let otherNames = 

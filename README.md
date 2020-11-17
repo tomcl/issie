@@ -16,7 +16,7 @@ This documentation is partly based on the excellent [VisUAL2](https://github.com
 
 For the Issie website go [here](https://tomcl.github.io/issie/).
 
-The application is mostly written in F#, which gets transpiled to JavaScript via the [fable](https://fable.io/) compiler. [Electron](https://www.electronjs.org/) is then used to convert the developed web-app to a cross-platform application. [Electron](electronjs.org) provides access to platform-level APIs (such as access to the file system) which would not be available to vanilla browser web-apps.
+The application is mostly written in F#, which gets transpiled to JavaScript via the [Fable](https://fable.io/) compiler. [Electron](https://www.electronjs.org/) is then used to convert the developed web-app to a cross-platform application. [Electron](electronjs.org) provides access to platform-level APIs (such as access to the file system) which would not be available to vanilla browser web-apps.
 
 [Webpack 4](https://webpack.js.org/) is the module bundler responsible for the JavaScript concatenation and automated building process: the eelctron-webpack build 
 is automated with the all-in-one electron-webpack package.
@@ -102,11 +102,11 @@ This is boilerplate which you do not need to change; normally the F# project fil
 Contains numerous tests for the WidthInferer and Simulator. Based on F# Expecto testing library.
 
 
-### `static` folder
+### `Static` folder
 
 Contains static files used in the application.
 
-### `docsrc` folder
+### `Docsrc` folder
 
 Contains source information copied (or compiled) into the `docs` directory that controls the project 
 [Github Pages](https://pages.github.com/) website, with url [https://tomcl.github.io/issie/](https://tomcl.github.io/issie/).
@@ -117,16 +117,23 @@ ISSIE allows the users to create projects and files within those projects. A ISS
 
 When opening a project, ISSIE will search the given repository for `.dgm` files, parse their content, and allow the user to open them in ISSIE or use them as components in other designs.
 
+## Build Magic
+
+This project uses modern F# / dotnet cross-platform build. The build tools all install cross-platform under dotnet, downloaded automatically by paket. The Fake 
+tool (F# make) automates the rest of the build and also downloads Node.
+
+
 ## Getting Started
 
 If you just want to run the app go to the [releases page](https://github.com/tomcl/issie/releases) and follow the instructions on how to 
-download and run the prebuilt binaries.
+download and run the prebuilt binaries. Note that the Windows binary will run on Linux under WINE.
 
 If you want to get started as a developer, follow these steps:
 
 1. Download and install the latest [Dotnet Core SDK](https://www.microsoft.com/net/learn/get-started).  
 For Mac and Linux users, download and install [Mono](http://www.mono-project.com/download/stable/) from official website 
-(the version from brew is incomplete, may lead to MSB error later).
+(the version from brew is incomplete, may lead to MSB error later). If the build fails due to lack of Node.js, 
+download and install [Node.js v12](https://nodejs.org/dist/latest-v12.x/) and npm.
 
 2. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or if contributing clone it locally, or fork it on github and then clone it locally.
 
@@ -135,15 +142,24 @@ that you have a _tabbed_ command-line interpreter that can be started direct fro
 That makes things a lot more pleasant. The new [Windows Terminal](https://github.com/microsoft/terminal) works well.
 
 4. Run `build.cmd` under Windows or `build.sh` under linux or macos. This will download all dependencies and create auto-documentation and binaries, then launch the application with HMR.
+  
   * HMR: the application will automatically recompile and update while running if you save updated source files
   * To initialise and reload: `File -> reload page`
   * To exit: after you exit the application the auto-compile script will terminate after about 15s
-  * To recompile the application `npm run dev`
+  * To recompile the application `npm run dev`.
   * To generate distributable binaries for dev host system `npm run dist`.
-  * If you have changed node modules use `build dev`. Note that this project uses npm, not yarn. If npm gets stuck use `build cleanNode` and try again.
+  * If you have changed node modules use `build dev`. Note that this project uses npm, not yarn. If npm gets stuck use `build cleannode` and try again.
+  * From time to time run `build killzombies` to terminate orphan node and dotnet processes which accumulate using this dev chain.
 
 
 ## Reinstalling Compiler and Libraries
 
-To reinstall the build environment (without changing project code) rerun `build.cmd` (Windows) or `build.sh` (Linux and MacOS).
+To reinstall the build environment (without changing project code) rerun `build.cmd` (Windows) or `build.sh` (Linux and MacOS). You may need first to
+run `build killzombies` to remove orphan processes that lock build files.
+
+## TODO
+
+* Incorporate zombie process killing into the build scripts to make manual run unnecessary. Requires care.
+* Work out how to incorporate Node and npm dependencies (do we need npm given Fake uses it?). Paket nuget should be used for them.
+* Should Node be upgraded to v14?
 

@@ -1,4 +1,1 @@
-group FakeBuild
-  dotnet-fake
-  dotnet-fable
 

@@ -7,6 +7,7 @@ app/*.ttf
 app/main.js*
 app/renderer.js*
 
+
 public/bundle.js*
 electron/Content/app/main.js*
 electron/Content/app/renderer.js*
@@ -238,4 +239,7 @@ docs/
 !/docsrc/tools
 !/docsrc/tools/templates
 !/docsrc/tools/templates/*
+
+# Fable 3 Output
+*.fs.js
 

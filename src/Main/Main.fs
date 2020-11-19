@@ -13,6 +13,8 @@ let args =
     |> Seq.toList
     |> List.map (fun s -> s.ToLower())
 
+printfn "Args = %A" args
+
 /// Returns true if any of flags are present as command line argument.    
 let argFlagIsOn (flags:string list) = 
     let fl = List.map (fun (s:string) -> s.ToLower()) flags
@@ -94,7 +96,7 @@ let createMainWindow () =
 
     // Load the index.html of the app.    
 
-#if DEBUG
+#if !DDDD
     DevTools.installAllDevTools window
     //DevTools.connectRemoteDevViaExtension()
 

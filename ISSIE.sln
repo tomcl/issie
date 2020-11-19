@@ -16,15 +16,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionIt
 		build.fsx = build.fsx
 		LICENSE = LICENSE
 		Nuget.Config = Nuget.Config
+		package.json = package.json
 		paket.dependencies = paket.dependencies
-		paket.lock = paket.lock
-		src\paket.references = src\paket.references
 		README.md = README.md
-		setup.bat = setup.bat
-		setup.sh = setup.sh
 		webpack.additions.main.js = webpack.additions.main.js
 		webpack.additions.renderer.js = webpack.additions.renderer.js
-		yarn.lock = yarn.lock
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "static", "static", "{EB34148C-70A6-4D00-BA10-87BBDFD4ACBF}"

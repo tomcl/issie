@@ -5,15 +5,10 @@ function resolve(filePath) {
 }
 
 module.exports = {
-    entry: resolve("src/Main/Main.fsproj"),
+    entry: resolve("src/Main/Main.fs.js"),
     module: {
         rules: [
-            {
-                test: /\.fs(x|proj)?$/,
-                use: {
-                    loader: "fable-loader"
-                }
-            }
+
         ]
     }
 }

@@ -540,6 +540,8 @@ type Draw2dWrapper() =
 
     /// set or clear selection of specified connections in diagram    
     member this.ChangeSelectionOfTheseConnections on (changeConns: JSConnection list) =
+        let getId (x: JSConnection) : string  = x?("id")
+        let changeConnsIds = List.map getId changeConns
         match canvas with
         | Some c -> 
             let comps, conns =
@@ -548,8 +550,8 @@ type Draw2dWrapper() =
                 | None -> [], []
             let conns' =
                 match on with
-                | false -> List.filter (fun c -> List.contains c changeConns |> not) conns
-                | true -> List.append changeConns conns |> List.distinct
+                | false -> List.filter (fun c -> List.contains (getId c) changeConnsIds |> not) conns
+                | true -> List.append changeConns conns |> List.distinctBy getId
             draw2dLib.resetSelection c
             List.map (draw2dLib.addCompSelection c) comps |> ignore
             List.map (draw2dLib.addConnSelection c) conns' |> ignore

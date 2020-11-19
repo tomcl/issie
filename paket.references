@@ -1,4 +1,4 @@
+group FakeBuild
+  dotnet-fake
+  dotnet-fable
 
-group Tooling
-	dotnet-fake
-	dotnet-fable

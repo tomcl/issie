@@ -38,9 +38,30 @@ module JsonHelpers =
             | CanvasWithFileWaveInfo (_,waveInfo,_) -> waveInfo
 
 
+
     let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option) : string =
         let time = System.DateTime.Now
-        SimpleJson.stringify (CanvasWithFileWaveInfo (cState, waveInfo, time))
+        try (*
+             printfn "\n--------cState----------\n%A\n" cState
+             printfn "\n-----savedWaveInfo--------\n%A\n------------\n" waveInfo
+
+             SimpleJson.stringify ([||]) |> ignore
+             printfn "testWI:"
+             SimpleJson.stringify (testWI) |> ignore
+             printfn "\ntrying to stringify waveinfo"
+             SimpleJson.stringify (waveInfo) |> ignore
+             printfn "\n trying to stringify cState"
+             SimpleJson.stringify (cState) |> ignore
+             printfn "\n trying to stringify time"
+             SimpleJson.stringify (time) |> ignore
+             printfn "\n\nTrying to stringify all" *)
+             
+             Json.serialize<SavedInfo> (CanvasWithFileWaveInfo (cState, waveInfo, time))
+        with
+        | e -> 
+            printfn "HELP: exception in SimpleJson.stringify %A" e
+            "Error in stringify"
+            
 
     let jsonStringToState (jsonString : string) =
          Json.tryParseAs<CanvasState> jsonString

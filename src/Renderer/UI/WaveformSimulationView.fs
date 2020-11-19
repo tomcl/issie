@@ -73,6 +73,7 @@ open Fulma
 open Fable.React
 open Fable.React.Props
 
+
 open ModelType
 open DiagramStyle
 open CommonTypes

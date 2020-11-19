@@ -1,110 +1,60 @@
-version 5.226.0
+
 
 framework: auto-detect
-
-source https://nuget.org/api/v2
 source https://api.nuget.org/v3/index.json
-nuget Fable.Browser.Css 2.0.0
-
-group Core
-	source https://nuget.org/api/v2
-	source https://api.nuget.org/v3/index.json
-   
-	nuget Elmish.Bridge.Giraffe ~> 3.0
-	nuget Fable.Elmish ~> 3.0
-	nuget Fake.Core.Environment ~> 5.18
-	nuget Fake.Core.Process ~> 5.18
-	nuget Fake.IO.FileSystem ~> 5.18
-	nuget Fake.Net.Http ~> 5.18
-	nuget Fake.Windows.Registry ~> 5.18
-	nuget FastRsyncNet ~> 2.3
-	nuget FParsec ~> 1.0
-	nuget FSharp.Core ~> 4.7 redirects:force
-	nuget FSharp.Data ~> 3.1
-	nuget FSharp.Json ~> 0.3
-    nuget Logary ~> 5.0.0-rc.13
-	nuget Microsoft.NETCore.Platforms ~> 3.0
-	nuget Saturn ~> 0.10
+nuget Fable.Browser.Css
 
 group Electron
-	source https://nuget.org/api/v2
 	source https://api.nuget.org/v3/index.json
 
-    nuget Elmish.Bridge.Client ~> 3.1
+   
     nuget Fable.Core 
 	nuget Fable.Electron 
 	nuget Fable.Elmish 
-	nuget Fable.Elmish.Debugger ~> 3.0
+	nuget Fable.Elmish.Debugger
 	nuget Fable.Elmish.HMR 
 	nuget Fable.Elmish.React 
-	nuget Fable.Import.Node ~> 0.4.0
+	nuget Fable.Import.Node
 	clitool dotnet-fable
 	nuget Fable.Browser.Dom
-	nuget Fable.Recharts ~> 1.1
+
 	nuget Fable.SimpleJson
-	nuget Fable.Promise ~> 2.0
-	nuget Fable.React ~> 5.2
-	nuget Fable.Validation ~> 0.2.1
-	nuget FSharp.Core ~> 4.7 redirects:force
-    nuget Thoth.Json 3.3
+	nuget Fable.Promise 
+	nuget Fable.React  
+	nuget FSharp.Core  redirects:force
 	nuget Fulma
 
 group Testing
-	source https://nuget.org/api/v2
 	source https://api.nuget.org/v3/index.json
 
-	nuget Expecto ~> 8.11
-	nuget Expecto.BenchmarkDotNet ~> 8.11
-	nuget Expecto.FsCheck ~> 8.11
-	nuget Expecto.TestResults ~> 8.10
-	nuget Foq ~> 1.8
-	nuget FSharp.Core ~> 4.7 redirects:force
-	nuget FSharp.Data ~> 3.1
-    nuget Logary ~> 5.0.0-rc.13
-	nuget Microsoft.NETCore.Platforms ~> 3.0
+	nuget Expecto 
+	nuget Expecto.BenchmarkDotNet
+	nuget Expecto.FsCheck 
+	nuget Expecto.TestResults 
+	nuget Foq 
+	nuget FSharp.Core redirects:force
+	nuget FSharp.Data 
+    nuget Logary 
+	nuget Microsoft.NETCore.Platforms
 
-group Tooling
-	source https://nuget.org/api/v2
-	source https://api.nuget.org/v3/index.json
 
-	nuget Fake.IO.FileSystem ~> 5.18
-	nuget FastRsyncNet ~> 2.3
-	nuget FSharp.Core ~> 4.7 redirects:force
-	nuget FSharp.Json ~> 0.3
-	nuget FSharpLint.Core 0.12.6
-	nuget Yarnpkg.Yarn ~> 1.15
-	nuget Microsoft.NETCore.Platforms ~> 3.0
-
-	clitool dotnet-fable ~> 2.0
-	clitool dotnet-fake ~> 5.18
-	clitool Femto ~> 0.5
-
-group Formatting
-	source https://nuget.org/api/v2
-	source https://ci.appveyor.com/nuget/fsharp-formatting
-
-	nuget FSharp.Formatting ~> 3.1
-	nuget FSharp.Formatting.CommandTool ~> 3.1
 
 group FakeBuild
 	source https://api.nuget.org/v3/index.json
 
 	storage: none
 
-    nuget BlackFox.CommandLine ~> 1.0
-	nuget Fake.Core.Target ~> 5.18
-	nuget Fake.Core.ReleaseNotes ~> 5.18
-	nuget Fake.DotNet.AssemblyInfoFile ~> 5.18
-	nuget Fake.DotNet.Cli ~> 5.18
-	nuget Fake.DotNet.FSFormatting ~> 5.18
-	nuget Fake.DotNet.MSBuild ~> 5.18
-	nuget Fake.DotNet.Paket ~> 5.18
-	nuget Fake.IO.FileSystem ~> 5.18
-	nuget Fake.Tools.Git ~> 5.18
-	nuget Fake.JavaScript.Yarn ~> 5.18
-	nuget Fake.JavaScript.Npm ~> 5.18
-    nuget Fantomas ~> 3.1
-	nuget FastRsyncNet ~> 2.3
-	nuget FSharp.Json ~> 0.3
-	nuget FSharpLint.Core  0.12.6
+    nuget Fake.Core.Target 
+	nuget Fake.Core.ReleaseNotes 
+	nuget Fake.DotNet.AssemblyInfoFile 
+	nuget Fake.DotNet.Cli 
+    nuget Fake.DotNet.MSBuild 
+	nuget Fake.DotNet.Paket 
+	nuget Fake.IO.FileSystem 
+	nuget Fake.Tools.Git 
+    nuget Fake.JavaScript.Npm 
+	nuget FSharp.Json 
+	nuget dotnet-fake
+	nuget dotnet-fable
+
 	

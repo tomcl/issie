@@ -16,11 +16,13 @@
   "scripts": {
     "clean-dev-mac": "sudo killall -9 node && sudo killall -9 dotnet && sudo killall -9 issie",
     "clean-dev-win": "taskkill /f /im node.exe && taskkill /f /im dotnet.exe && taskkill /f /im issie.exe",
-    "compile": "electron-webpack",
-    "dev": "electron-webpack dev",
-    "dist": "yarn compile && electron-builder",
-    "distwin": "yarn compile && electron-builder -w",
-    "distmac": "yarn compile && electron-builder -m"
+    "compile": "dotnet fable src/main && dotnet fable src/renderer",
+    "dev": "cd src/main && dotnet fable watch . --run npm run devr",
+    "devr": "cd src/renderer && dotnet fable watch . --run npm run webpack",
+    "webpack": "electron-webpack dev",
+    "dist": "npm run compile && electron-builder",
+    "distwin": "npm run compile && electron-builder -w",
+    "distmac": "npm  compile && electron-builder -m"
   },
   "electronWebpack": {
     "main": {
@@ -58,15 +60,11 @@
     "tippy.js": "^6.2.6"
   },
   "devDependencies": {
-    "@babel/core": "^7.10.4",
-    "babel-loader": "8.1.0",
     "bufferutil": "^4.0.1",
     "devtron": "^1.4.0",
     "electron": "^9.1.0",
     "electron-builder": "^22.7",
     "electron-webpack": "^2.8.2",
-    "fable-compiler": "^2.10.1",
-    "fable-loader": "^2.1.9",
     "file-loader": "^3.0.1",
     "html-webpack-plugin": "^4.3.0",
     "loglevel": "^1.6.8",

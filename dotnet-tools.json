@@ -19,6 +19,12 @@
       "commands": [
         "fantomas"
       ]
+    },
+    "fable": {
+      "version": "3.0.0-nagareyama-rc-007",
+      "commands": [
+        "fable"
+      ]
     }
   }
 }

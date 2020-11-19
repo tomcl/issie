@@ -93,8 +93,6 @@ let fileMenu (dispatch) =
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Run performance check" None (fun _ -> 
             displayPerformance 100 1000000)
 
-
-
     ]
 
 let viewMenu dispatch =
@@ -102,8 +100,8 @@ let viewMenu dispatch =
     makeMenu false "View" [
         makeRoleItem "Toggle Fullscreen" (Some "F11") MenuItemRole.ToggleFullScreen
         menuSeparator
-        makeRoleItem "Zoom In" (Some "CmdOrCtrl+Plus") MenuItemRole.ZoomIn
-        makeRoleItem "Zoom Out" (Some "CmdOrCtrl+-") MenuItemRole.ZoomOut
+        makeRoleItem "Zoom  In" (Some "CmdOrCtrl+Plus") MenuItemRole.ZoomIn
+        makeRoleItem "Zoom  Out" (Some "CmdOrCtrl+-") MenuItemRole.ZoomOut
         makeRoleItem "Reset Zoom" (Some "CmdOrCtrl+0") MenuItemRole.ResetZoom
         menuSeparator
         makeItem "Diagram Zoom In" (Some "CmdOrCtrl+z") (fun ev -> dispatch <| MenuAction(MenuZoom 1.25, dispatch))

@@ -17,12 +17,15 @@
     "clean-dev-mac": "sudo killall -9 node && sudo killall -9 dotnet && sudo killall -9 issie",
     "clean-dev-win": "taskkill /f /im node.exe && taskkill /f /im dotnet.exe && taskkill /f /im issie.exe",
     "compile": "dotnet fable src/main && dotnet fable src/renderer",
-    "dev": "cd src/main && dotnet fable watch . --run npm run devr",
-    "devr": "cd src/renderer && dotnet fable watch . --run npm run webpack",
-    "webpack": "electron-webpack dev",
-    "dist": "npm run compile && electron-builder",
-    "distwin": "npm run compile && electron-builder -w",
-    "distmac": "npm  compile && electron-builder -m"
+    "dev": "cd src/main && dotnet fable watch . --run npm run devrenderer",
+    "devmain": "cd src/main && dotnet fable watch . --run npm run webpackdev",
+    "devrenderer": "cd src/renderer && dotnet fable watch . --run npm run webpackdev",
+    "webpackdev": "electron-webpack dev",
+    "webpack": "electron-webpack",
+    "dist": "npm run compile && npm run webpack &&  electron-builder",
+    "distwin": "npm run compile && electron-webpack && electron-builder -w",
+    "distmac": "npm run compile && electron-webpack && electron-builder -m",
+    "buildonly": "electron-builder"
   },
   "electronWebpack": {
     "main": {
@@ -49,6 +52,7 @@
     "cross-zip-cli": "^1.0.0",
     "draw2d": "^1.0.38",
     "electron-devtools-installer": "^3.1.0",
+    "electron-is-dev": "^1.2.0",
     "font-awesome": "^4.7.0",
     "jquery": "^3.5.1",
     "jquery-ui": "^1.12.1",

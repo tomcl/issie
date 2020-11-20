@@ -13,7 +13,7 @@ let args =
     |> Seq.toList
     |> List.map (fun s -> s.ToLower())
 
-printfn "Args = %A" args
+printfn "Argsxx = %A" args
 
 /// Returns true if any of flags are present as command line argument.    
 let argFlagIsOn (flags:string list) = 
@@ -23,6 +23,7 @@ let argFlagIsOn (flags:string list) =
 let hasDebugArgs() = argFlagIsOn ["--debug";"-d"]
 
 let debug = false
+
 
 module DevTools =
     let private installDevTools (extensionRef: obj) (forceDownload: bool): JS.Promise<string> =
@@ -88,6 +89,12 @@ let createMainWindow () =
 
     let window = electron.BrowserWindow.Create(options)
 
+    
+    printfn "defaultApp=%A, istrue=%A" ``process``?defaultApp (``process``?defaultApp = true)
+
+    let isDev = (``process``?defaultApp = true)
+    
+
     window.onceReadyToShow <| fun _ ->
         if window.isMinimized() then window.show()
         options.backgroundColor <- "#505050"
@@ -96,32 +103,35 @@ let createMainWindow () =
 
     // Load the index.html of the app.    
 
-#if !DDDD
-    DevTools.installAllDevTools window
+    if isDev then
+        DevTools.installAllDevTools window
     //DevTools.connectRemoteDevViaExtension()
 
-    if debug then
-        window.webContents.openDevTools()
+        if debug then
+            window.webContents.openDevTools()
 
-    sprintf "http://localhost:%s" ``process``.env?ELECTRON_WEBPACK_WDS_PORT
-    |> window.loadURL
-    |> ignore
+        sprintf "http://localhost:%s" ``process``.env?ELECTRON_WEBPACK_WDS_PORT
+        |> window.loadURL
+        |> ignore
 
-    ``process``.on("uncaughtException", fun err -> JS.console.error(err))
-    |> ignore
+        ``process``.on("uncaughtException", fun err -> JS.console.error(err))
+        |> ignore
 
     
-#else
-    let url =
-        path.join ( __dirname,  "index.html")
-        |> sprintf "file:///%s" 
-        |> Api.URL.Create
+    else
+        let index = path.join ( staticDir(),  "index.html")
+        let url =
+            index
+            |> sprintf "file:///%s" 
+            |> Api.URL.Create
+        printfn "creating url"
+        let opt = createEmpty<Url.IFormatOptions>
+        printfn "index=%A, opt=%A\n" index opt
+        Api.URL.format(url, opt)
+        |> window.loadURL
+        |> ignore
 
-    Api.URL.format(url, createEmpty<Url.IFormatOptions>)
-    |> window.loadURL
-    |> ignore
-
-#endif    
+       
     
     // Emitted when the window is closed.
     window.onClosed <| fun _ ->

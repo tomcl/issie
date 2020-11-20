@@ -558,8 +558,7 @@ let private openProject model dispatch _ =
         match loadAllComponentFiles path with
         | Error err ->
             log err
-            let errMsg = "Could not load diagrams files in the project. The files may be malformed."
-            displayFileErrorNotification errMsg dispatch
+            displayFileErrorNotification err dispatch
         | Ok componentsToResolve ->
             resolveComponentOpenPopup path [] componentsToResolve model dispatch
 

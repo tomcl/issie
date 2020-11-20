@@ -61,16 +61,18 @@ module JsonHelpers =
         | e -> 
             printfn "HELP: exception in SimpleJson.stringify %A" e
             "Error in stringify"
-            
+        
 
     let jsonStringToState (jsonString : string) =
          Json.tryParseAs<CanvasState> jsonString
          |> (function
-                | Ok state -> Some (CanvasOnly state)
+                | Ok state -> Ok (CanvasOnly state)
                 | Error _ ->
                     match Json.tryParseAs<SavedInfo> jsonString with
-                    | Ok state -> Some state
-                    | Error _ -> None)
+                    | Ok state -> Ok state
+                    | Error str -> 
+                        printfn "Error in Json parse of %s : %s" jsonString str
+                        Error str)
 
 
 let private fileExistsWithExtn extn folderPath baseName =
@@ -79,10 +81,14 @@ let private fileExistsWithExtn extn folderPath baseName =
 
 let private tryLoadStateFromPath (filePath: string) =
     if not (fs.existsSync (U2.Case1 filePath)) then
-        None
+        Error <| sprintf "Can't read file from %s because it does not seem to exist!" filePath
+      
     else
         fs.readFileSync(filePath, "utf8")
         |> jsonStringToState
+        |> ( function
+            | Error msg  -> Error <| sprintf "could not convert file '%s' to a valid issie design sheet. Details: %s" filePath msg
+            | Ok res -> Ok res)
 
 
 let pathJoin args = path.join args
@@ -272,8 +278,8 @@ let makeLoadedComponentFromCanvasData canvas filePath timeStamp waveInfo =
 
 let private tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
     match tryLoadStateFromPath filePath with
-    | None -> Result.Error <| sprintf "Can't load component from '%s'" filePath
-    | Some state ->
+    | Result.Error msg ->  Error <| sprintf "Can't load component %s because of Error: %s" (getBaseNameNoExtension filePath)  msg
+    | Ok state ->
         makeLoadedComponentFromCanvasData state.getCanvas filePath state.getTimeStamp state.getWaveInfo
         |> Result.Ok
 
@@ -287,22 +293,29 @@ type LoadStatus =
     
 /// load all files in folderpath. Return Ok list of LoadStatus or a single Error.
 let loadAllComponentFiles (folderPath:string) = 
-    let x = fs.readdirSync (U2.Case1 folderPath)
-    printfn "loadallComponentFiles %s %A" folderPath (x |> Seq.toList)
-    x
-    |> Seq.toList
-    |> List.filter (path.extname >> ((=) ".dgm"))
-    |> List.map (fun fileName ->
-            let filePath = path.join [| folderPath; fileName |]
-            let ldComp =  filePath |> tryLoadComponentFromPath
-            let autoComp = filePath + "auto" |> tryLoadComponentFromPath
-            match (ldComp, autoComp) with
-            | Ok ldComp, Ok autoComp when ldComp.TimeStamp < autoComp.TimeStamp ->
-                Resolve(ldComp,autoComp) |> Ok
-            | Ok ldComp, _ -> 
-                OkComp ldComp |> Ok
-            | Error _, Ok autoComp ->
-                OkAuto autoComp |> Ok
-            | Error msg, _ -> Error msg
-        )
-    |> tryFindError
+    let x = 
+        try
+            Ok <| fs.readdirSync (U2.Case1 folderPath)
+        with
+        | e -> Error <| sprintf "Error reading Issie project directory at '%s: %A" folderPath e
+    match x with
+    | Error msg -> Error msg
+    | Ok x ->
+        printfn "loadallComponentFiles %s %A" folderPath (x |> Seq.toList)
+        x
+        |> Seq.toList
+        |> List.filter (path.extname >> ((=) ".dgm"))
+        |> List.map (fun fileName ->
+                let filePath = path.join [| folderPath; fileName |]
+                let ldComp =  filePath |> tryLoadComponentFromPath
+                let autoComp = filePath + "auto" |> tryLoadComponentFromPath
+                match (ldComp, autoComp) with
+                | Ok ldComp, Ok autoComp when ldComp.TimeStamp < autoComp.TimeStamp ->
+                    Resolve(ldComp,autoComp) |> Ok
+                | Ok ldComp, _ -> 
+                    OkComp ldComp |> Ok
+                | Error _, Ok autoComp ->
+                    OkAuto autoComp |> Ok
+                | Error msg, _ -> Error msg
+            )
+        |> tryFindError

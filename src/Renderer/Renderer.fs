@@ -12,6 +12,8 @@ open Electron
 open Electron.Helpers
 open ModelType
 
+open Fable.SimpleJson
+
 
 let isMac = Node.Api.``process``.platform = Node.Base.Darwin
 
@@ -20,6 +22,8 @@ let isMac = Node.Api.``process``.platform = Node.Base.Darwin
 *                                  MENU HELPER FUNCTIONS
 *
 ****************************************************************************************************)
+
+
 
 let exitApp() =
     electron.ipcRenderer.send("exit-the-app",[||])
@@ -75,6 +79,14 @@ let makeMenu (topLevel: bool) (name : string) (table : MenuItemOptions list) =
 
 let displayPerformance n m = Helpers.checkPerformance n m JSHelpers.startTimer JSHelpers.stopAndLogTimer
 
+let checkJson () =
+    let json = """{"H":43,"Id":"60dd5d7b-6466-e522-7295-19e9ee39def8","InputPorts":[],
+                "Label":"ZERO(3:0)","OutputPorts":[{"HostId":"60dd5d7b-6466-e522-7295-19e9ee39def8",
+                "Id":"8120bfaf-432f-8aa9-feba-26fa433be4a6","PortNumber":0,"PortType":"Output"}],
+                "Type":{"Input":4},"W":66,"X":370,"Y":208} """
+    Json.tryParseAs<CommonTypes.Component> json
+    |> printfn "%A"
+
 
 let fileMenu (dispatch) =
     makeMenu false "Sheet" [
@@ -92,8 +104,7 @@ let fileMenu (dispatch) =
             JSHelpers.debugTrace <- Set.ofList [])
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Run performance check" None (fun _ -> 
             displayPerformance 100 1000000)
-
-    ]
+     ]
 
 let viewMenu dispatch =
     let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
@@ -160,6 +171,7 @@ type Messages = ModelType.Msg
 // -- Init Model
 
 let init() = 
+    checkJson()
     JSHelpers.setDebugLevel()
     DiagramMainView.init(), Cmd.none
 

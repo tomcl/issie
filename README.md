@@ -81,9 +81,9 @@ Both processes run Javascript under Node.
 
 The `src/Main/Main.fs` source configures electron start-up and is boilerplate. It is transpiled to the root project directory so it can be automatically picked up by Electron.
 
-The remaining app code is arranged in fourferent sections, each being a separate F# project. This separation allows all the non-web-based code (which can equally be run and tested under .Net) to be run and tested under F# directly in addition to being transpiled and run under Electron.
+The remaining app code is arranged in four different sections, each being a separate F# project. This separation allows all the non-web-based code (which can equally be run and tested under .Net) to be run and tested under F# directly in addition to being transpiled and run under Electron.
 
-The project relies on the draw2d JavaScript (node) library, which is extended to support digital electronics components. The extensions are in the `draw2d` sub-folder of teh renderer project source files. 
+The project relies on the draw2d JavaScript (node) library, which is extended to support digital electronics components. The extensions are in the `draw2d` sub-folder of the renderer project source files. 
 
 The code that turns the F# project source into `renderer.js` is the FABLE compiler followed by the Node Webpack bundler that combines multiple Javascript files into a single `renderer.js`.
 
@@ -118,43 +118,51 @@ Contains source information copied (or compiled) into the `docs` directory that 
 
 ## Project versus File in the Issie application
 
-ISSIE allows the users to create projects and files within those projects. A ISSIE project is simply a folder named `<project-name>` that contains an empty file named `<project_name>.dprj` (dprj stands for diagram project). The project folder any non-zero number of design files, each named `<component_name>.dgm` (dgm stands for diagram). each deisgn file represents one design sheet of a hierarchical hardware design, sheets can contain, as components, other sheets.
+Issie allows the users to create projects and files within those projects. A Issie project is simply a folder named `<project-name>` that contains an empty file named `<project_name>.dprj` (dprj stands for diagram project). The project folder any non-zero number of design files, each named `<component_name>.dgm` (dgm stands for diagram). each deisgn file represents one design sheet of a hierarchical hardware design, sheets can contain, as components, other sheets.
 
-When opening a project, ISSIE will initially search the given repository for `.dgm` files, parse and load their content, and allow the user to open them in ISSIE or use them as components in other designs.
+When opening a project, Issie will initially search the given repository for `.dgm` files, parse and load their content, and allow the user to open them in Issie or use them as components in other designs.
 
 ## Build Magic
 
-This project uses modern F# / dotnet cross-platform build. The build process runs as follows:
+This project uses modern F# / dotnet cross-platform build. The build process does not normally concern a developer, but here is an overview for if it needs to be adjusted.
 
-* Before anything can be built dotnet must be installed: there is no other external dependence because everything else will be automatically installed. Dotnet includes the paket tool which will manage other dependencies.
-* Initially (the first time `build.cmd` is run) the tools categorised in `dotnet-tools.json` are installed by `dotnet tool restore`.
+* Before anything can be built Dotnet & Node.js are manually be (globally) installed. Dotnet includes the `paket` tool which will manage other dotnet-related dependencies. Node.js includes `npm` which will do the same for Node-related dependencies. NB - there are other popular packet managers for Node, e.g. Yarn. They do not mix with npm, so make sure you do not use them. Confusingly, they will sort-of work, but cause install incompatibilities.
+  * Dotnet dependencies are executable programs or libraries that run under dotnet and are written in C#'. F#, etc.
+  * Node dependencies are (always) Javascript modules which run under node.
+* Initially (the first time `build.cmd` is run) the build tools categorised in `dotnet-tools.json` are installed by `dotnet tool restore`.
    * fake (with the F# compiler) 
    * fable
-* Next all the project dotnet dependencies (`paket.dependencies` for the whole project, selected from by the `paket.references` in each project directory, are loaded by the `paket` packet manager.
-* Finally fake runs `build.fsx` (this is platform-independent) to install all the node (Javascript) dependencies listed in `package.json`. That includes tools like webpack and electron, which run under node, as well as the node libraries that will be used by needed by the running electron app, including electron itself. These are all loaded by the `npm` packet manager. To run `npm` Node must be installed, this is also done through a dotnet package. (TODO: is it? Or must it be installed maniually?).
-
-The initial setup does not normally need changing. It is complicated by the fact that dependencies are both dotnet (dotnet build tools and dotnet F#projects) and Node (all the javascript libraries). These are configured and loaded by separate tools: paket for dotnet, and 
-
+* Next all the project Dotnet dependencies (`paket.dependencies` for the whole project, selected from by the `paket.references` in each project directory, are loaded by the `paket` packet manager.
+* Finally fake runs `build.fsx` (this is platform-independent) which uses `npm` to install all the node (Javascript) dependencies listed in `package.json`. That includes tools like webpack and electron, which run under node, as well as the node libraries that will be used by needed by the running electron app, including electron itself. These are all loaded by the `npm` packet manager. 
 
 ## Getting Started
 
 If you just want to run the app go to the [releases page](https://github.com/tomcl/issie/releases) and follow the instructions on how to 
 download and run the prebuilt binaries. Note that the Windows binary will run on Linux under WINE.
 
-If you want to get started as a developer, follow these steps:
+If you want to get started as a developer, follow these steps.
 
-1. Download and install the latest [Dotnet Core SDK](https://www.microsoft.com/net/learn/get-started).  
-For Mac and Linux users, download and install [Mono](http://www.mono-project.com/download/stable/) from official website 
-(the version from brew is incomplete, may lead to MSB error later). If the build fails due to lack of Node.js, 
-download and install [Node.js v12](https://nodejs.org/dist/latest-v12.x/) and npm.
+### Install Prerequisites
 
-2. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or if contributing clone it locally, or fork it on github and then clone it locally.
+Download and install (if you already have these tools installed just check the version constraints).
+
+* [Dotnet Core SDK](https://www.microsoft.com/net/learn/get-started).  Version >= 3.1
+    * For Mac and Linux users, download and install [Mono](http://www.mono-project.com/download/stable/) 
+      from official website (the version from brew is incomplete, may lead to MSB error later). 
+
+* [Node.js v12](https://nodejs.org/dist/latest-v12.x/). Version >= 12
+    * Node.js includes the `npm` package manager, so this does not need to be installed separately.
+    * The lastest LTS version of Node is now v14. That will almost certainly also work.
+
+### Issie Development
+
+1. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or if contributing clone it locally, or fork it on github and then clone it locally.
 
 3. Navigate to the project root directory (which contains this README) in a command-line interpreter. For Windows usage make sure if possible for convenience 
 that you have a _tabbed_ command-line interpreter that can be started direct from file explorer within a specific directory (by right-clicking on the explorer directory view). 
 That makes things a lot more pleasant. The new [Windows Terminal](https://github.com/microsoft/terminal) works well.
 
-4. Run `build.cmd` under Windows or `build.sh` under linux or macos. This will download all dependencies and create auto-documentation and binaries, then launch the application with HMR.
+4. Run `build.cmd` under Windows or `build.sh` under linux or macos. This will download and install all dependencies then launch the application with HMR.
   
   * HMR: the application will automatically recompile and update while running if you save updated source files
   * To initialise and reload: `File -> reload page`
@@ -173,7 +181,7 @@ run `build killzombies` to remove orphan processes that lock build files.
 ## TODO
 
 * Incorporate zombie process killing into the build scripts to make manual run unnecessary. Requires care.
-* Work out how to incorporate Node and npm dependencies (do we need npm given Fake uses it?). Paket nuget should be used for them.
 * Should Node be upgraded to v14?
-* Remove source map support? Depends on whether Fable 3 will integrate it. Clean up dev tools.
+* Remove source map support? Depends on whether Fable 3 will integrate it.
+* Clean up Paket dependencies
 

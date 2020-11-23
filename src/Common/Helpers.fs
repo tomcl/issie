@@ -7,6 +7,68 @@
 module Helpers
 open CommonTypes
 
+    [<AutoOpen>]
+    module JsonHelpers =
+        open Fable.SimpleJson
+
+
+        type SavedInfo =
+            | CanvasOnly of CanvasState
+            | CanvasWithFileWaveInfo of CanvasState * SavedWaveInfo option * System.DateTime
+
+            member self.getCanvas = 
+                match self with
+                | CanvasOnly c -> c 
+                | CanvasWithFileWaveInfo (c,_,_) -> c
+
+            member self.getTimeStamp = 
+                match self with
+                | CanvasOnly _ -> System.DateTime.MinValue 
+                | CanvasWithFileWaveInfo (_,_,ts) -> ts
+            member self.getWaveInfo =
+                match self with
+                | CanvasOnly _ -> None 
+                | CanvasWithFileWaveInfo (_,waveInfo,_) -> waveInfo
+
+
+
+        let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option) : string =
+            let time = System.DateTime.Now
+            try (*
+                 printfn "\n--------cState----------\n%A\n" cState
+                 printfn "\n-----savedWaveInfo--------\n%A\n------------\n" waveInfo
+
+                 SimpleJson.stringify ([||]) |> ignore
+                 printfn "testWI:"
+                 SimpleJson.stringify (testWI) |> ignore
+                 printfn "\ntrying to stringify waveinfo"
+                 SimpleJson.stringify (waveInfo) |> ignore
+                 printfn "\n trying to stringify cState"
+                 SimpleJson.stringify (cState) |> ignore
+                 printfn "\n trying to stringify time"
+                 SimpleJson.stringify (time) |> ignore
+                 printfn "\n\nTrying to stringify all" *)
+             
+                 Json.serialize<SavedInfo> (CanvasWithFileWaveInfo (cState, waveInfo, time))
+            with
+            | e -> 
+                printfn "HELP: exception in SimpleJson.stringify %A" e
+                "Error in stringify"
+        
+
+        let jsonStringToState (jsonString : string) =
+             Json.tryParseAs<CanvasState> jsonString
+             |> (function
+                    | Ok state -> Ok (CanvasOnly state)
+                    | Error _ ->
+                        match Json.tryParseAs<SavedInfo> jsonString with
+                        | Ok state -> Ok state
+                        | Error str -> 
+                            printfn "Error in Json parse of %s : %s" jsonString str
+                            Error str)
+
+
+
 (*-----------------------------------General helpers-----------------------------------------*)
 
 let shortPComp (comp:Component) =

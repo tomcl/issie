@@ -7,7 +7,7 @@ nuget Fable.Browser.Css
 group Electron
 	source https://api.nuget.org/v3/index.json
 
-   
+    nuget Fable.Browser.Css
     nuget Fable.Core 
 	nuget Fable.Electron 
 	nuget Fable.Elmish 
@@ -15,9 +15,7 @@ group Electron
 	nuget Fable.Elmish.HMR 
 	nuget Fable.Elmish.React 
 	nuget Fable.Import.Node
-	clitool dotnet-fable
 	nuget Fable.Browser.Dom
-
 	nuget Fable.SimpleJson
 	nuget Fable.Promise 
 	nuget Fable.React  

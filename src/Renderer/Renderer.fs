@@ -79,6 +79,13 @@ let makeMenu (topLevel: bool) (name : string) (table : MenuItemOptions list) =
 
 let displayPerformance n m = Helpers.checkPerformance n m JSHelpers.startTimer JSHelpers.stopAndLogTimer
 
+let checkJson () =
+    let json = """{"H":43,"Id":"60dd5d7b-6466-e522-7295-19e9ee39def8","InputPorts":[],
+                "Label":"ZERO(3:0)","OutputPorts":[{"HostId":"60dd5d7b-6466-e522-7295-19e9ee39def8",
+                "Id":"8120bfaf-432f-8aa9-feba-26fa433be4a6","PortNumber":0,"PortType":"Output"}],
+                "Type":{"Input":4},"W":66,"X":370,"Y":208} """
+    Json.tryParseAs<CommonTypes.Component> json
+    |> printfn "%A"
 
 
 let fileMenu (dispatch) =
@@ -91,7 +98,6 @@ let fileMenu (dispatch) =
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Restart app" None (fun _ -> 
             let webContents = electron.remote.getCurrentWebContents()
             webContents.reload())
-        makeCondRoleItem (JSHelpers.debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace all" None (fun _ -> 
             JSHelpers.debugTrace <- Set.ofList ["update";"view"])
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace off" None (fun _ -> 

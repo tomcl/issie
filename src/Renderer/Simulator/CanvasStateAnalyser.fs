@@ -351,9 +351,11 @@ type CustomComponentError =
 let checkCustomComponentForOkIOs  (c:Component) (args:CustomComponentType) (sheets: LoadedComponent list)=
     let inouts = args.InputLabels,args.OutputLabels
     let name = args.Name
+    let compare labs1 labs2 = 
+        (labs1 |> Set) = (labs2 |> Set)
     sheets
     |> List.tryFind (fun sheet -> sheet.Name = name)
-    |> Option.map (fun sheet -> sheet, sheet.InputLabels = args.InputLabels, sheet.OutputLabels = args.OutputLabels)
+    |> Option.map (fun sheet -> sheet, compare sheet.InputLabels args.InputLabels, compare sheet.OutputLabels args.OutputLabels)
     |> function
             | None -> Error ( c, NoSheet name)
             | Some(_, true,true) -> Ok ()

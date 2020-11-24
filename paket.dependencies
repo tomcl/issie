@@ -2,13 +2,10 @@
 
 framework: auto-detect
 source https://api.nuget.org/v3/index.json
-nuget Fable.Browser.Css
 
 group Electron
 	source https://api.nuget.org/v3/index.json
-
-    nuget Fable.Browser.Css
-    nuget Fable.Core 
+	nuget Fable.Browser.Css
 	nuget Fable.Electron 
 	nuget Fable.Elmish 
 	nuget Fable.Elmish.Debugger

@@ -165,7 +165,6 @@ type Messages = ModelType.Msg
 // -- Init Model
 
 let init() = 
-    checkJson()
     JSHelpers.setDebugLevel()
     DiagramMainView.init(), Cmd.none
 

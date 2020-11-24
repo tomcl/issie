@@ -5,7 +5,7 @@
 *)
 
 module SimulatorTypes
-open Fable.Core
+
 open CommonTypes
 
 /// Binary data used in simulation
@@ -137,12 +137,8 @@ type SimulationError = {
 }
 
 /// Wrapper for Javascript (Diagram) component. Why here?
-
-[<Erase>]
 type JSComponent   = | JSComponent of obj
 /// Wrapper for Javascript (Diagram) connection. Why here?
-
-[<Erase>]
 type JSConnection  = | JSConnection of obj
 /// State retrieves directly from Diagram has Javascript objects
 type JSCanvasState = JSComponent list * JSConnection list

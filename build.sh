@@ -9,7 +9,7 @@ set -o pipefail
 dotnet restore build.proj
 
 if [ ! -f build.fsx ]; then
-    fake run init.fsx
+    dotnet fake run init.fsx
 fi
 
 fake build $@

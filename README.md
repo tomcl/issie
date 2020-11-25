@@ -172,6 +172,25 @@ That makes things a lot more pleasant. The new [Windows Terminal](https://github
   * If you have changed node modules use `build dev`. Note that this project uses npm, not yarn. If npm gets stuck use `build cleannode` and try again.
   * From time to time run `build killzombies` to terminate orphan node and dotnet processes which accumulate using this dev chain.
 
+#### Development on Macos
+
+In theory the build should work equally well on macos. Practically that is not now (11/20) the case. Having installed the normal prerequisites, and Visual Studio for Mac, which itself has the F# compiler, the one-off setup can be done manually from the various build steps needed:
+
+* git clone to local project directory as normal (with github desktop or command line git - one off)
+* dotnet tool restore  (build tools - one off)
+* paket install (install dotnet packages one off)
+* npm install (install node packages - one off)
+* npm run dev (run the dev envt) 
+
+
+One unresolved issue that can occur on Macs is file permission problems. Best practice is for all installation and dev to run under the current (non-admin) user. If any part of the necessary downloaded development files gets written as root then subsequent development commands that modify it will need to be executed using sudo.
+
+```
+sudo npm run dev
+```
+
+If possible, try to avoid this, but if necessary it can be done. Probably the better solution is to investigate properly which install steps introduce these root owner files, change the file owndship back to current user with `chown -R <username> <directory>`. Please document any progress made with mac builds (detailing which mac OS) on an issue.
+
 
 ## Reinstalling Compiler and Libraries
 

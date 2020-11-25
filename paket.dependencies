@@ -38,7 +38,7 @@ group FakeBuild
 	source https://api.nuget.org/v3/index.json
 
 	storage: none
-
+	nuget FSharp.Core ~> 4.7.2 redirects:force
     nuget Fake.Core.Target 
 	nuget Fake.Core.ReleaseNotes 
 	nuget Fake.DotNet.AssemblyInfoFile 

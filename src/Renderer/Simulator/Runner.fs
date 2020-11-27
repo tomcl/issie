@@ -211,19 +211,28 @@ let rec feedSimulationConstants (graph:SimulationGraph) =
         match comp.Type with 
         | Constant (w,c) -> NumberHelpers.convertIntToWireData w (int64 c) 
         | _ -> failwithf "What? Problem with non-constant component used in feedSimulationConstants"
-    comps
-    |> List.filter (fun c -> match c.Type with | Custom cComp -> true| Constant _ -> true | _ -> false)
-    |> (fun cL ->
-                let feedConstant graph (comp:SimulationComponent) =
-                    match comp.Type with
-                    | Constant _ -> 
+
+    // Feed Constants into components first, as Custom components can depend on
+    // these.
+    let constantGraph =
+        comps
+        |> List.filter (fun c -> match c.Type with | Constant _ -> true | _ -> false)
+        |> (fun cL ->
+                    let feedConstant graph (comp:SimulationComponent) =
                         feedReducerOutput comp graph (Map.ofList [OutputPortNumber 0, getWireData comp])
-                    | Custom cComp -> 
+                    (graph, cL) ||> List.fold feedConstant)
+
+    // Finally, propagate any constants inside other Custom components.
+    constantGraph                    
+        |> Map.toList
+        |> List.map snd
+        |> List.filter (fun c -> match c.Type with | Custom cComp -> true | _ -> false)
+        |> (fun cL ->
+                    let feedConstant graph (comp:SimulationComponent) =
                         Option.map feedSimulationConstants comp.CustomSimulationGraph
                         |> (fun graphOpt -> {comp with CustomSimulationGraph = graphOpt})
                         |> (fun comp' -> Map.add comp.Id comp' graph)
-                    | _ -> failwithf "What? other components are filtered out"
-                (graph, cL) ||> List.fold feedConstant)
+                    (constantGraph, cL) ||> List.fold feedConstant)
 
 
 /// Feed zeros to all simulation inputs, and feed a single clock tick.

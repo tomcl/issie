@@ -42,13 +42,13 @@ module DevTools =
     let installAllDevTools (win: BrowserWindow) =
         installDevTool REACT_DEVELOPER_TOOLS
         installDevTool REDUX_DEVTOOLS
-        win.webContents.executeJavaScript ("require('devtron').install()")
+        //win.webContents.executeJavaScript ("require('devtron').install()")
         |> ignore
 
     let uninstallAllDevTools (win: BrowserWindow) =
         main.Session.defaultSession.removeExtension("React Developer Tools")
         main.Session.defaultSession.removeExtension("Redux DevTools")
-        win.webContents.executeJavaScript ("require('devtron').uninstall()")
+        //win.webContents.executeJavaScript ("require('devtron').uninstall()")
         
 
     let connectRemoteDevViaExtension: unit -> unit = import "connectViaExtension" "remotedev"
@@ -99,11 +99,12 @@ let createMainWindow () =
     let isDev = (``process``?defaultApp = true)
 
     if isDev then
-        DevTools.installAllDevTools window
+        // these use electron-devtols-installer and give weird warnings - TODO: find bettr dev tools
+        //DevTools.installAllDevTools window
         //DevTools.connectRemoteDevViaExtension()
 
         if debug then
-            window.webContents.openDevTools()
+            window.webContents.openDevTools() // default open in this case
 
         sprintf "http://localhost:%s" ``process``.env?ELECTRON_WEBPACK_WDS_PORT
         |> window.loadURL

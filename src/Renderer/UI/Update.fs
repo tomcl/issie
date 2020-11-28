@@ -400,13 +400,15 @@ let update msg model =
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg] |> List.map Cmd.ofMsg
         firstTip <- true
-        if newTab <> WaveSim then 
+        if newTab <> WaveSim && model.RightPaneTabVisible = WaveSim then 
             //printfn "Running inference"
             model.Diagram.ResetSelected()
-            runBusWidthInference model
+            model
         else
             model
-        |> (fun model -> { model with RightPaneTabVisible = newTab }), 
+        |>  runBusWidthInference
+        |> (fun model -> 
+            { model with RightPaneTabVisible = newTab }), 
         match newTab with 
         | Properties -> Cmd.batch <| editCmds
         | Catalogue -> Cmd.batch  <| editCmds

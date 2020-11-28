@@ -211,29 +211,23 @@ let rec feedSimulationConstants (graph:SimulationGraph) =
         match comp.Type with 
         | Constant (w,c) -> NumberHelpers.convertIntToWireData w (int64 c) 
         | _ -> failwithf "What? Problem with non-constant component used in feedSimulationConstants"
-
-    // Feed Constants into components first, as Custom components can depend on
-    // these.
-    let constantGraph =
-        comps
-        |> List.filter (fun c -> match c.Type with | Constant _ -> true | _ -> false)
-        |> (fun cL ->
-                    let feedConstant graph (comp:SimulationComponent) =
+    comps
+    |> List.filter (fun c -> match c.Type with | Custom cComp -> true| Constant _ -> true | _ -> false)
+    |> (fun cL ->
+                let feedConstant (graph:SimulationGraph) (comp:SimulationComponent) =
+                    // graph gets updates each iteration of fold, but cL (and hence comp) does not
+                    // we need to extract the Id from comp and look up the fold updated version in graph
+                    let comp = graph.[comp.Id] // refresh to get latest version of comp as updated by fold
+                    match comp.Type with
+                    | Constant _ -> 
                         feedReducerOutput comp graph (Map.ofList [OutputPortNumber 0, getWireData comp])
-                    (graph, cL) ||> List.fold feedConstant)
-
-    // Finally, propagate any constants inside other Custom components.
-    constantGraph                    
-        |> Map.toList
-        |> List.map snd
-        |> List.filter (fun c -> match c.Type with | Custom cComp -> true | _ -> false)
-        |> (fun cL ->
-                    let feedConstant graph (comp:SimulationComponent) =
+                    | Custom cComp -> 
+                  
                         Option.map feedSimulationConstants comp.CustomSimulationGraph
                         |> (fun graphOpt -> {comp with CustomSimulationGraph = graphOpt})
                         |> (fun comp' -> Map.add comp.Id comp' graph)
-                    (constantGraph, cL) ||> List.fold feedConstant)
-
+                    | _ -> failwithf "What? other components are filtered out"
+                (graph, cL) ||> List.fold feedConstant)
 
 /// Feed zeros to all simulation inputs, and feed a single clock tick.
 /// This way all combinational logic has been touched once and had produced its

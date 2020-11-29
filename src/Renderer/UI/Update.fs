@@ -441,7 +441,7 @@ let update msg model =
     | ShowPopup popup -> { model with PopupViewFunc = Some popup }, Cmd.none
     | ClosePopup ->
         { model with PopupViewFunc = None; PopupDialogData =
-                    { Text = None; Int = None; Int2 = None; MemorySetup = None; MemoryEditorData = None} }, Cmd.none
+                    { Text = None; Int = None; Int2 = None; MemorySetup = None; MemoryEditorData = None; WaveSetup=None} }, Cmd.none
     | SetPopupDialogText text ->
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
     | SetPopupDialogInt int ->
@@ -454,6 +454,9 @@ let update msg model =
         }, Cmd.none
     | SetPopupDialogMemorySetup m ->
         { model with PopupDialogData = {model.PopupDialogData with MemorySetup = m} }, Cmd.none
+    | SetPopupWaveSetup m ->
+        { model with PopupDialogData = {model.PopupDialogData with WaveSetup = Some m} }, Cmd.none
+
     | SetPopupMemoryEditorData m ->
         { model with PopupDialogData = {model.PopupDialogData with MemoryEditorData = m} }, Cmd.none
     | SetSelectedComponentMemoryLocation (addr,data) ->

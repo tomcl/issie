@@ -28,6 +28,18 @@ type MemoryEditorData = {
     NumberBase : NumberBase
 }
 
+type RamInstance = {
+    InstanceName: string
+    Locations: int list
+    }
+type SheetWave = {
+    RamInstances: RamInstance list
+    WaveLabels: string list
+    }
+
+type MoreWaveSetup = {
+    OtherSheets: SheetWave list}
+
 /// Possible fields that may (or may not) be used in a dialog popup.
 type PopupDialogData = {
     Text : string option;
@@ -35,6 +47,7 @@ type PopupDialogData = {
     Int2: int option
     MemorySetup : (int * int) option // AddressWidth, WordWidth. 
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
+    WaveSetup: MoreWaveSetup option
 }
 
 type TopMenu = | Closed | Project | Files
@@ -259,6 +272,7 @@ type Msg =
     | SetPopupDialogTwoInts of (int option * IntMode)
     | SetPopupDialogMemorySetup of (int * int) option
     | SetPopupMemoryEditorData of MemoryEditorData option
+    | SetPopupWaveSetup of MoreWaveSetup
     | SetSelectedComponentMemoryLocation of int64 * int64
     | CloseDiagramNotification
     | SetSimulationNotification of ((Msg -> unit) -> ReactElement)

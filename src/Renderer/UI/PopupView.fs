@@ -149,6 +149,14 @@ let private buildPopup title body foot close extraStyle =
             ]
         ]
 
+
+
+let showWaveSetupPopup maybeTitle (popupBody: MoreWaveSetup option ->ReactElement) maybeFoot extraStyle dispatch =
+    fun (dialogData:PopupDialogData)->
+        unclosablePopup maybeTitle (popupBody dialogData.WaveSetup) maybeFoot extraStyle
+    |> ShowPopup |> dispatch
+
+
 /// Body and foot are functions that take a string of text and produce a
 /// reactElement. The meaning of the input string to those functions is the
 /// content of PopupDialogText (i.e. in a dialog popup, the string is the

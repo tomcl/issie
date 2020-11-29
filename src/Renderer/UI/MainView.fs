@@ -128,6 +128,7 @@ let init() = {
         Int2 = None
         MemorySetup = None
         MemoryEditorData = None
+        WaveSetup = None
     }
     Notifications = {
         FromDiagram = None

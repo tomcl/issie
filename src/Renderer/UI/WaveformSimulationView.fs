@@ -555,8 +555,18 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
         dispatch <| ChangeRightTab Catalogue
         dispatch <| SetWaveSimIsOutOfDate true
         dispatch ClosePropertiesNotification
-        
 
+    let getWaveSetup ws = failwithf "Not implemneted"
+
+    let getWavePopup dispatch (data: MoreWaveSetup option) = 
+        div [] [str "Wave Popup Not Implemented"; Button.button [Button.OnClick (fun _ -> dispatch <| ClosePopup)] [str "Close"]]
+
+    let moreWaveEditorButtonAction _ =
+        dispatch <| SetPopupWaveSetup (getWaveSetup wSModel)
+        PopupView.showWaveSetupPopup (Some "Waveform Viewer Setup") (getWavePopup dispatch) None [] dispatch
+
+
+    
     let waveEditorViewSimButtonAction =
         //
         let viewableNetGroups = 
@@ -583,10 +593,15 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
             [ Button.Color IsSuccess
               Button.OnClick(closeWaveSimButtonAction) ] [ str "Close" ]
 
+    let moreButton =
+        Button.button
+            [ Button.Color IsSuccess
+              Button.OnClick(moreWaveEditorButtonAction) ] [ str "More" ]
+
     let actionButtons =
         match dispPorts wSModel with
-        | [||] -> [ Button.button waveEditorViewSimButtonAction [ str "View selected" ] ]
-        | _ -> [ cancelButton; Button.button waveEditorViewSimButtonAction [ str "View" ] ]
+        | [||] -> [ moreButton ; Button.button waveEditorViewSimButtonAction [ str "View selected" ] ]
+        | _ -> [ moreButton; cancelButton; Button.button waveEditorViewSimButtonAction [ str "View" ] ]
     div [ Style [ Display DisplayOptions.Block ] ] actionButtons
 
 /// ReactElement list of the WaveAdder 

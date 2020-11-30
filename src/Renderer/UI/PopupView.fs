@@ -153,6 +153,7 @@ let private buildPopup title body foot close extraStyle =
 
 let showWaveSetupPopup maybeTitle (popupBody: MoreWaveSetup option ->ReactElement) maybeFoot extraStyle dispatch =
     fun (dialogData:PopupDialogData)->
+        printfn "starting morewavesetup popup function"
         unclosablePopup maybeTitle (popupBody dialogData.WaveSetup) maybeFoot extraStyle
     |> ShowPopup |> dispatch
 

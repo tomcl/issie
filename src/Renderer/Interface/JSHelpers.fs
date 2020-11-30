@@ -90,11 +90,12 @@ let mutable debugLevel = 1
 let mutable debugLevel = 0
 #endif
 
-let mutable debugTrace: string Set = Set []
+/// trace UI execution: "view" - mark view function. "update" print update messages.
+let mutable debugTraceUI: string Set = Set ["view";"update"]
 
-/// Call debugAction() and print its result if traceDebug mutable contains traceCode
+/// Call debugAction() and print its result if debugTraceUI mutable contains string traceCode
 let traceIf traceCode debugAction =
-    if Set.contains traceCode debugTrace then printfn <| debugAction()
+    if Set.contains traceCode debugTraceUI then printfn <| debugAction()
 
 /// Hack to provide a constant global variable
 /// set from command line arguments of main process.

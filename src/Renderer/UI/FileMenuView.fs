@@ -20,8 +20,30 @@ open Extractor
 open PopupView
 open System
 
-    
+/// Interlock to ensure we do not do two file-related operations at the same time 
+/// should really be handled by making all state-chnage actions go through messages and model update
+/// this is a hack.
+let mutable fileProcessingBusy: string list = []
 
+let requestFileActivity (a:string) dispatch =
+    let busy = fileProcessingBusy <> []
+    if busy then
+        let notification = 
+            warningNotification "please wait till previous file operation has finished before starting another!" CloseFilesNotification
+        dispatch <| SetFilesNotification notification
+        false
+    else
+        fileProcessingBusy <- a :: fileProcessingBusy
+        true
+
+let releaseFileActivity (a:string) =
+    match fileProcessingBusy with
+    | a' :: rest when a' = a -> 
+        fileProcessingBusy <- rest
+        if fileProcessingBusy <> [] then
+            failwithf "What? A blocking file operation has terminated leaving busy interlock: %A" fileProcessingBusy
+    | _ ->
+        failwithf "What? releaseFileActivity '%A' called when activities = %A" a fileProcessingBusy
 
 
 
@@ -263,31 +285,34 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
 /// Terminates a simulation if one is running
 /// Closes waveadder if it is open
 let private openFileInProject name project model dispatch =
-    match getFileInProject name project with
-    | None -> log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
-    | Some lc ->
-        match updateProjectFromCanvas model with
-        | None -> failwithf "What? current project cannot be None at this point in openFileInProject"
-        | Some p ->
-            let opt = saveOpenFileAction false model
-            let ldcOpt = Option.map fst opt
-            let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
-            let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
-            match model.CurrentProj with
-            | None -> failwithf "What? Should never be able to save sheet when project=None"
-            | Some p -> 
-                // update Autosave info
-                SetLastSavedCanvas (p.OpenFileName,reducedState)
+    if requestFileActivity "openFileInProject" dispatch then
+       match getFileInProject name project with
+        | None -> 
+            log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
+            releaseFileActivity "openFileInProject" 
+        | Some lc ->
+            match updateProjectFromCanvas model with
+            | None -> failwithf "What? current project cannot be None at this point in openFileInProject"
+            | Some p ->
+                let opt = saveOpenFileAction false model
+                let ldcOpt = Option.map fst opt
+                let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
+                let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
+                match model.CurrentProj with
+                | None -> failwithf "What? Should never be able to save sheet when project=None"
+                | Some p -> 
+                    // update Autosave info
+                    SetLastSavedCanvas (p.OpenFileName,reducedState)
+                    |> dispatch
+                SetHasUnsavedChanges false
+                |> JSDiagramMsg
                 |> dispatch
-            SetHasUnsavedChanges false
-            |> JSDiagramMsg
-            |> dispatch
+                setupProjectFromComponents name ldComps model dispatch
+                releaseFileActivity "openFileInProject"
 
-            setupProjectFromComponents name ldComps model dispatch
 
 /// rename a sheet
 let renameSheet oldName newName (model:Model) dispatch =
-
     let saveAllFilesFromProject (proj: Project) =
         proj.LoadedComponents
         |> List.iter (fun ldc ->
@@ -321,24 +346,26 @@ let renameSheet oldName newName (model:Model) dispatch =
                     | _ ->
                         renameCustomComponents newName ldComp )
         }
-    match updateProjectFromCanvas model with
-    | None -> failwithf "What? current project cannot be None at this point in renamesheet"
-    | Some p ->
-        let opt = saveOpenFileAction false model
-        let ldcOpt = Option.map fst opt
-        let ldComps = updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
-        let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
-        // update Autosave info
-        SetLastSavedCanvas (p.OpenFileName,reducedState)
-        |> dispatch
-        SetHasUnsavedChanges false
-        |> JSDiagramMsg
-        |> dispatch
-        let proj' = renameSheetsInProject oldName newName p
-        setupProjectFromComponents proj'.OpenFileName proj'.LoadedComponents model dispatch
-        [".dgm";".dgmauto"] |> List.iter (fun extn -> renameFile extn proj'.ProjectPath oldName newName)
-        /// save all the other files
-        saveAllFilesFromProject proj'
+    if requestFileActivity "renameSheet" dispatch then
+        match updateProjectFromCanvas model with
+        | None -> failwithf "What? current project cannot be None at this point in renamesheet"
+        | Some p ->
+            let opt = saveOpenFileAction false model
+            let ldcOpt = Option.map fst opt
+            let ldComps = updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
+            let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
+            // update Autosave info
+            SetLastSavedCanvas (p.OpenFileName,reducedState)
+            |> dispatch
+            SetHasUnsavedChanges false
+            |> JSDiagramMsg
+            |> dispatch
+            let proj' = renameSheetsInProject oldName newName p
+            setupProjectFromComponents proj'.OpenFileName proj'.LoadedComponents model dispatch
+            [".dgm";".dgmauto"] |> List.iter (fun extn -> renameFile extn proj'.ProjectPath oldName newName)
+            /// save all the other files
+            saveAllFilesFromProject proj'
+            releaseFileActivity "renameSheet"
 
         
     
@@ -346,9 +373,12 @@ let renameSheet oldName newName (model:Model) dispatch =
 
 /// rename file
 let renameFileInProject name project model dispatch =
-    match model.CurrentProj with
-    | None -> log "Warning: renameFileInProject called when no project is currently open"
-    | Some project ->
+    match model.CurrentProj, getCurrentWSMod model with
+    | None,_ -> log "Warning: renameFileInProject called when no project is currently open"
+    | Some project, Some ws when ws.WSViewState<>WSClosed ->
+        displayFileErrorNotification "Sorry, you must close the wave simulator before renaming design sheets!" dispatch
+        switchToWaveEditor model dispatch
+    | Some project, _ ->
         // Prepare dialog popup.
         let title = "Rename sheet in project"
 
@@ -401,27 +431,32 @@ let renameFileInProject name project model dispatch =
 
 /// Remove file.
 let private removeFileInProject name project model dispatch =
-    removeFile project.ProjectPath name
-    removeFile project.ProjectPath (name + "auto")
-    // Remove the file from the dependencies and update project.
-    let newComponents = List.filter (fun (lc: LoadedComponent) -> lc.Name <> name) project.LoadedComponents
-    // Make sure there is at least one file in the project.
-    let newComponents =
-        match List.isEmpty newComponents with
-        | false -> newComponents
-        | true -> [ (createEmptyDiagramFile project.ProjectPath "main") ]
+    match getCurrentWSMod model with
+    | Some ws when ws.WSViewState<>WSClosed ->
+        displayFileErrorNotification "Sorry, you must close the wave simulator before removing design sheets!" dispatch
+        switchToWaveEditor model dispatch
+    | _ ->
+        removeFile project.ProjectPath name
+        removeFile project.ProjectPath (name + "auto")
+        // Remove the file from the dependencies and update project.
+        let newComponents = List.filter (fun (lc: LoadedComponent) -> lc.Name <> name) project.LoadedComponents
+        // Make sure there is at least one file in the project.
+        let newComponents =
+            match List.isEmpty newComponents with
+            | false -> newComponents
+            | true -> [ (createEmptyDiagramFile project.ProjectPath "main") ]
 
-    let project = { project with LoadedComponents = newComponents }
-    project
-    |> SetProject
-    |> dispatch
-    // If the file was displayed, open and display another one instead.
-    // It is safe to access position 0 as we are guaranteed that there is at
-    // least one element in newComponents.
-    assertThat (not <| List.isEmpty project.LoadedComponents) "removeFileInProject"
-    match name = project.OpenFileName with
-    | false -> ()
-    | true -> openFileInProject project.LoadedComponents.[0].Name project model dispatch
+        let project = { project with LoadedComponents = newComponents }
+        project
+        |> SetProject
+        |> dispatch
+        // If the file was displayed, open and display another one instead.
+        // It is safe to access position 0 as we are guaranteed that there is at
+        // least one element in newComponents.
+        assertThat (not <| List.isEmpty project.LoadedComponents) "removeFileInProject"
+        match name = project.OpenFileName with
+        | false -> ()
+        | true -> openFileInProject project.LoadedComponents.[0].Name project model dispatch
 
 /// Create a new file in this project and open it automatically.
 let addFileToProject model dispatch =
@@ -555,12 +590,15 @@ let private openProject model dispatch _ =
     match askForExistingProjectPath () with
     | None -> () // User gave no path.
     | Some path ->
+        traceIf "project" (fun () -> "loading files")
         match loadAllComponentFiles path with
         | Error err ->
             log err
             displayFileErrorNotification err dispatch
         | Ok componentsToResolve ->
+            traceIf "project " (fun () -> "resolving popups...")
             resolveComponentOpenPopup path [] componentsToResolve model dispatch
+            traceIf "project" (fun () ->  "project successfully opened.")
 
 
 /// Display the initial Open/Create Project menu at the beginning if no project

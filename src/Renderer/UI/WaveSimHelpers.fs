@@ -42,7 +42,22 @@ let wsModel2netList wsModel =
 let waveNameOf (ws:WaveSimModel) (ng:NetGroup) =
     Map.tryFindKey (fun _ p -> p = ng) ws.AllNets
     |> Option.defaultValue "ERROR"
-            
+
+let reactTickBoxRow name nameStyle ticked toggleFun =   
+    tr
+        [ Class "rowHeight"
+          Style [ VerticalAlign "middle" ] ]
+        [ td
+            [ Class "wAcheckboxCol"
+              Class "rowHeight"
+              Style [ VerticalAlign "middle" ] ]
+              [ input
+                  [ Type "checkbox"
+                    Class "check"
+                    Checked <| ticked
+                    Style [ Float FloatOptions.Left ]
+                    OnChange toggleFun ] ]
+          td [] [ label [Style nameStyle] [ str name] ] ]           
 
 ////////////////////////
 // Simulation Helpers //
@@ -100,8 +115,91 @@ let private makeAllNetGroups (netList:NetList) :NetGroup array=
             | IOLabel -> [||]
             | _ -> mapValues comp.Outputs |> Array.map makeNetGroup)
     allNetGroups
-    
 
+/// get components on other sheets, and RAMs, formatted for setting up "more" waveform selection.
+/// The output is used as data for the "more wave select" popup.
+let getWaveSetup (ws:WaveSimModel) (model:Model): MoreWaveSetup =
+    /// get immediate subsheets of given sheet (sg,name,path)
+    let rec subSheets ((sg,name,label,path):SimulationGraph*string*ComponentLabel*ComponentId list) : (SimulationGraph*string*ComponentLabel*ComponentId list) list =
+        Map.toList sg
+        |> List.collect (fun (cId,comp) -> 
+            match comp.Type with
+            | Custom custComp -> [Option.get comp.CustomSimulationGraph,  custComp.Name, comp.Label, path @ [cId]] | _ -> [])
+    /// get all sheets rooted in (sg,name,path)
+    let rec allSheets ((sg,name,label,path): SimulationGraph * string *ComponentLabel* ComponentId list) =
+        match subSheets (sg,name,label,path) with
+        | [] -> [sg,name,label,path]
+        | sheets -> [sg,name,label,path] @ List.collect allSheets sheets
+    let mainSheet = ((Option.get ws.InitWaveSimGraph).Graph, model.WaveSimSheet,ComponentLabel "", [])
+    let sheets = allSheets mainSheet
+    let getSortOf path (comp:SimulationComponent) = 
+        match comp.Type, path with 
+        | RAM _,_ -> Some (4, "RAM")
+        | AsyncROM _,_ | ROM _,_ -> Some (5, "ROM")
+        | _,[] | _, [_] -> None
+        | Input _,_-> Some (1,"Input")
+        | Output _,_ -> Some (2, "Output")
+        | IOLabel,_  -> Some (3, "Bus Label")
+        | _ -> None
+    let sheetCol =
+        fun (sg, name, ComponentLabel label,path) ->
+            Map.toList sg
+            |> List.map (fun (cid,comp) -> getSortOf path comp, path @ [cid])
+            |> List.sort
+            |> List.collect (function | (Some (i,ctyp),path) -> [{Label = label;Sheet=name; Path=path;CSort=ctyp}] | _ -> [])
+    sheets
+    |> List.collect sheetCol
+    |> (fun cols -> cols, snd ws.SimParams.MoreWaves)
+
+let rec getSimComp (sg:SimulationGraph) path =
+    match path with
+    | [] -> failwithf "What? Path cannot be [] looking up sim component in wave sim"
+    | [cid]-> sg.[cid]
+    | h :: t -> 
+        match sg.[h].CustomSimulationGraph with
+        | Some sg -> getSimComp sg t
+        | None -> failwithf "What? A non-terminal part of a path must have a customSimulationgraph"
+
+
+
+let reactMoreWaves ((sheets,ticks): MoreWaveSetup) (sg:SimulationGraph) (dispatch: Msg -> Unit) =
+    let makeTableCell r =   td [Style [VerticalAlign Top]] [r]
+    let makeWaveReactList (swL:SheetWave list) =
+        swL
+        |> List.map (fun sw ->
+            let comp = getSimComp sg sw.Path
+            let ticked = Set.contains sw.Path ticks
+            let toggle _ =
+                let ticks = if ticked then Set.remove sw.Path ticks else Set.add sw.Path ticks
+                dispatch <| SetPopupWaveSetup(sheets,ticks)
+            let name = comp.Label |> function | ComponentLabel lab -> lab
+            (sw.Label+":"+name),ticked, toggle)
+        |> (fun els -> 
+                let uniques = 
+                    List.countBy (fun (name,ticked,toggle) -> name) els
+                    |> List.filter (fun (el,i)-> i = 1)
+                    |> List.map fst
+                    |> Set
+                List.filter (fun (name,ticked,toggle) -> Set.contains name uniques) els)
+        |> List.map (fun (name, ticked, toggle) -> reactTickBoxRow name [] ticked toggle)
+        
+    let makeReactCol (name, sheetWaves) =
+        let colBody = makeWaveReactList sheetWaves
+        if colBody <> [] then 
+            table [Style [Display DisplayOptions.InlineBlock; VerticalAlign Top; PaddingLeft "5px"; PaddingRight "5px"]] 
+                    [tbody [Style [Display DisplayOptions.Inline]] <| [tr [] [th [ColSpan 2; Style [TextAlign TextAlignOptions.Center]] [str name]]] @ colBody]
+        else div [] []
+    
+    let cols =
+        sheets
+        |> List.groupBy (fun {Sheet=name}->name)
+        |> List.map makeReactCol
+        |> List.map makeTableCell
+    if cols = [] then
+        str "There are no subsheets with internal bus labels or I/Os, nor memories (RAM or ROM), in this design."
+    else 
+        table [] [tbody [] [tr [] cols]]
+    
 /// Get NetGroup from targets which represents the group of nLTargets connected by IOLabels.
 /// targets:list of inputs connected to a single driving component output (e.g. a connected Net).
 /// Return the containing NetGroup, where Nets connected by IOLabels form single Netgroups.
@@ -249,7 +347,7 @@ let selectNetGrpConns diagram (netGrp: NetGroup) on =
     |> diagram.ChangeSelectionOfTheseConnections on
 
 let setSelNamesHighlighted (names: string array) model (dispatch: Msg -> Unit) =
-    match getCurrFileWSMod model with
+    match getCurrentWSMod model with
     | None -> ()
     |Some ws ->
         let connIds = 
@@ -278,11 +376,13 @@ let findInstancesOf sheet (lComp:LoadedComponent) =
 
 /// finds out if current sheet is used in some other sheet.
 /// works recursively to find root sheet
-/// returns current sheet if there is a cycle, or more than one path to a root
+/// returns current wavesim sheet if there is a cycle, or more than one path to a root
 let getRootSheet  (model:Model) =
     match model with
     | {CurrentProj = (Some ({LoadedComponents=lComps} as proj))} ->
-        let openSheet = proj.OpenFileName
+        let openSheet = model.WaveSimSheet
+        if List.tryFind (fun lc -> lc.Name = openSheet) proj.LoadedComponents = None
+            then failwithf "Can't find wavesim sheet in loadedcomponents"
         let getParentData (sheet:string) =
             lComps
             |> List.filter (fun lComp -> lComp.Name <> sheet) // can't be own parent
@@ -891,7 +991,7 @@ let adjustPars (wsMod: WaveSimModel) (pars: SimParamsT) rightLim =
 /// Update wavesim based on new parameters in par.
 /// Update waveSimCache as needed with a new longer simulation to view new parameters.
 /// Update  DispWaveSVGCache with new wave SVGs and/or added SVGs as determined by new parameters.
-/// Update the WaveSimModel entry of the current file with new parameters
+/// Update the currentWaveSimModel entry with new parameters
 let simulateAndMakeWaves (model: Model) (wsMod: WaveSimModel) 
                 (par: SimParamsT) : WaveSimModel =
     

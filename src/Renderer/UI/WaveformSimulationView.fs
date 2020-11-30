@@ -174,7 +174,7 @@ let private changeCursorPos (wSModel: WaveSimModel) dispatch newCursorPos =
     | true, true ->
         wSModel
         |> setSimParams (fun sp -> {sp with CursorTime = curs' })
-        |> SetCurrFileWSMod |> dispatch
+        |> SetWSMod |> dispatch
         UpdateScrollPos true |> dispatch
     | true, false ->
         let pars' = { pars with CursorTime = curs'; ClkSvgWidth = pars.ClkSvgWidth; LastClkTime = pars.LastClkTime }
@@ -209,7 +209,7 @@ let private moveWave diagram netList (wSMod: WaveSimModel) up =
         |> Array.sortBy fst
         |> Array.collect snd 
     setDispNames movedNames wSMod
-    |> SetCurrFileWSMod
+    |> SetWSMod
 
 /// display set of netGroups in a standard order
 /// dispPort ones first.
@@ -340,15 +340,15 @@ let private cursorButtons (model: Model) wSMod dispatch =
                     match System.Int32.TryParse c.Value with
                     | true, n when n >= 0 -> 
                         { wSMod with CursorBoxIsEmpty = false }
-                        |> SetCurrFileWSMod |> dispatch
+                        |> SetWSMod |> dispatch
                         changeCursorPos wSMod dispatch <| uint n
                     | false, _ when c.Value = "" -> 
                         { wSMod with CursorBoxIsEmpty = true }
-                        |> SetCurrFileWSMod |> dispatch
+                        |> SetWSMod |> dispatch
                         changeCursorPos wSMod dispatch 0u
                     | _ -> 
                         { wSMod with CursorBoxIsEmpty = false }
-                        |> SetCurrFileWSMod |> dispatch ) ]
+                        |> SetWSMod |> dispatch ) ]
           button [ Button.CustomClass "cursRight" ] (fun _ -> cursorMove true wSMod dispatch) "▶" ]
 
 /// ReactElement of the loading button
@@ -551,19 +551,26 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
     let isSelected (ng:NetGroup) = isWaveSelected model.Diagram netList ng
     /// this is what actually gets displayed when editor exits
     let closeWaveSimButtonAction _ev =
-        dispatch <| SetCurrFileWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
+        dispatch <| SetWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
         dispatch <| ChangeRightTab Catalogue
         dispatch <| SetWaveSimIsOutOfDate true
         dispatch ClosePropertiesNotification
-
-    let getWaveSetup ws = failwithf "Not implemneted"
+    
 
     let getWavePopup dispatch (data: MoreWaveSetup option) = 
-        div [] [str "Wave Popup Not Implemented"; Button.button [Button.OnClick (fun _ -> dispatch <| ClosePopup)] [str "Close"]]
+        match data with
+        | None -> div [] []
+        | Some moreData ->
+            div [] [
+                reactMoreWaves moreData (Option.get wSModel.InitWaveSimGraph).Graph dispatch; 
+                div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; JustifyContent "Center"]] [
+                    Button.button [Button.OnClick (fun _ -> dispatch <| ClosePopup)] [str "Close"]]
+                    ]
 
     let moreWaveEditorButtonAction _ =
-        dispatch <| SetPopupWaveSetup (getWaveSetup wSModel)
-        PopupView.showWaveSetupPopup (Some "Waveform Viewer Setup") (getWavePopup dispatch) None [] dispatch
+        printfn "getWaveSetup with wSModel=%A\n" wSModel.SimParams
+        dispatch <| SetPopupWaveSetup (getWaveSetup wSModel model)
+        PopupView.showWaveSetupPopup (Some "Waveform Viewer Additional Setup") (getWavePopup dispatch) None [] dispatch
 
 
     
@@ -596,6 +603,7 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
     let moreButton =
         Button.button
             [ Button.Color IsSuccess
+              Button.Props [ Style [ MarginRight "10px" ] ]
               Button.OnClick(moreWaveEditorButtonAction) ] [ str "More" ]
 
     let actionButtons =
@@ -659,7 +667,7 @@ let private openEditorFromViewer model (editorState: WSViewT) dispatch =
         |> standardWaveformOrderWaveAdder // work out correct order for waveadder
         |> setEditorNextView editorState wsModel.SimParams 
     //dispatch SetSelWavesHighlighted
-    dispatch <| SetCurrFileWSMod wsModel'
+    dispatch <| SetWSMod wsModel'
 
 
 //-----------------------------------------------------------------------------------------------------------------
@@ -680,7 +688,8 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model d
             dispatch <| SetPropertiesNotification popup
 
     let startingWsModel =
-        let wsModel = getWSModelOrFail model "What? Can't get wsModel at start of new simulation"
+        let modelWithWaveSimSheet = {model with WaveSimSheet = Option.get (getCurrFile model)}
+        let wsModel = getWSModelOrFail modelWithWaveSimSheet "What? Can't get wsModel at start of new simulation"
         /// NetList is a simplified version of circuit with connections and layout info removed.
         /// Component ports are connected directly
         /// connection ids are preserved so we can reference connections on diagram
@@ -737,8 +746,7 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model d
             WSViewState = WSEditorOpen; 
             WSTransition = None
         }
-
-    dispatch <| SetCurrFileWSMod startingWsModel
+    dispatch <| SetWSModAndSheet(startingWsModel, Option.get (getCurrFile model))
     dispatch <| SetViewerWidth minViewerWidth 
     dispatch <| SetLastSimulatedCanvasState (Some rState) 
     dispatch <| SetWaveSimIsOutOfDate false
@@ -832,9 +840,9 @@ let viewWaveSim (model: Model) dispatch =
                     dispatch <| SetHighlighted ([], []) // Remove highlights.
                     dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
                     dispatch <| SetWSError None
-                    match getCurrFileWSMod model with
+                    match getCurrentWSMod model with
                     | Some ws -> 
-                        dispatch <| SetCurrFileWSMod {ws with InitWaveSimGraph=None}
+                        dispatch <| SetWSMod {ws with InitWaveSimGraph=None}
                     | _ -> ()                   
                     dispatch <| ChangeRightTab Catalogue 
                     ) 

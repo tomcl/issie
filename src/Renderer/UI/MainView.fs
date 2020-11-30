@@ -115,6 +115,7 @@ let init() = {
     LastUsedDialogWidth = 1
     CurrentStepSimulationStep = None
     WaveSim = Map.empty, None
+    WaveSimSheet = ""
     RightPaneTabVisible = Catalogue
     CurrentProj = None
     Hilighted = ([], []), []
@@ -226,7 +227,7 @@ let displayView model dispatch =
     let sd = scrollData model
     let x' = sd.SheetLeft+sd.SheetX
     let y' = sd.SheetTop+sd.SheetY
-    let wsModelOpt = getCurrFileWSMod model
+    let wsModelOpt = getCurrentWSMod model
 
     /// Feed changed viewer width from draggable bar back to Viewer parameters
     let inline setViewerWidthInWaveSim w =
@@ -269,8 +270,6 @@ let displayView model dispatch =
           Style [ BorderTop "2px solid lightgray"; BorderBottom "2px solid lightgray" ] ] [
         // transient
         FileMenuView.viewNoProjectMenu model dispatch
-        // transient overlay
-        Modal.modal [] [str "TEST"]
         PopupView.viewPopup model
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
         // main top bar function is early in compile order

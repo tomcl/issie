@@ -356,11 +356,11 @@ let update msg model =
         |> Option.defaultValue -1
    
     let sdlen = 
-        getCurrFileWSMod model 
+        getCurrentWSMod model 
         |> Option.bind (fun ws -> ws.InitWaveSimGraph) 
         |> getGraphSize
 
-    if Set.contains "update" JSHelpers.debugTrace then
+    if Set.contains "update" JSHelpers.debugTraceUI then
         let msgS = (sprintf "%A..." msg) |> Seq.truncate 60 |> Seq.map (fun c -> string c) |> String.concat ""
         printfn "%d %s" sdlen msgS
     match msg with
@@ -379,8 +379,23 @@ let update msg model =
     | SetLastSavedCanvas(name,state) -> 
         setActivity (fun a -> {a with LastSavedCanvasState= Map.add name state a.LastSavedCanvasState}) model, Cmd.none
     | StartSimulation simData -> { model with CurrentStepSimulationStep = Some simData }, Cmd.none
-    | SetCurrFileWSMod wSMod -> 
-        setCurrFileWSMod wSMod model, Cmd.none
+    | SetWSMod wSMod -> 
+        setWSMod wSMod model, Cmd.none
+    | SetWSModAndSheet(ws,sheet) ->
+        match model.CurrentProj with
+        | None -> failwithf "What? SetWSModAndSheet: Can't set wavesim if no project is loaded"
+        | Some p ->
+            let sheets = p.LoadedComponents |> List.map (fun lc -> lc.Name)
+            match List.contains sheet sheets with
+            | false -> 
+                failwithf "What? sheet %A can't be used in wavesim because it does not exist in project sheets %A" sheet sheets
+            | true ->
+                let model =
+                    {model with WaveSimSheet = sheet}
+                    |> setWSMod ws
+                model,Cmd.none
+                
+                
     | SetWSError err -> 
         { model with WaveSim = fst model.WaveSim, err}, Cmd.none
     | AddWaveSimFile (fileName, wSMod') ->
@@ -456,7 +471,6 @@ let update msg model =
         { model with PopupDialogData = {model.PopupDialogData with MemorySetup = m} }, Cmd.none
     | SetPopupWaveSetup m ->
         { model with PopupDialogData = {model.PopupDialogData with WaveSetup = Some m} }, Cmd.none
-
     | SetPopupMemoryEditorData m ->
         { model with PopupDialogData = {model.PopupDialogData with MemoryEditorData = m} }, Cmd.none
     | SetSelectedComponentMemoryLocation (addr,data) ->
@@ -510,10 +524,10 @@ let update msg model =
     | SetIsLoading b ->
         {model with IsLoading = b}, Cmd.none
     | InitiateWaveSimulation (view, paras)  -> 
-        updateCurrFileWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.none
+        updateCurrentWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.none
     | WaveSimulateNow ->
         // do the simulation for WaveSim and generate new SVGs
-        match getCurrFileWSMod model, getCurrFileWSModNextView model  with
+        match getCurrentWSMod model, getCurrentWSModNextView model  with
         | Some wsMod, Some (pars, nView) -> 
             let checkCursor = wsMod.SimParams.CursorTime <> pars.CursorTime
             let pars' = adjustPars wsMod pars wsMod.SimParams.LastScrollPos
@@ -524,7 +538,7 @@ let update msg model =
                 |> (fun ws -> {ws with WSViewState=nView; WSTransition = None})
                 |> setEditorView nView
             { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model []}
-            |> setCurrFileWSMod wsMod'
+            |> setWSMod wsMod'
             |> (fun model -> {model with CheckWaveformScrollPosition=checkCursor}, Cmd.none)
         | Some _, None -> 
             // This case may happen if WaveSimulateNow commands are stacked up due to 
@@ -540,7 +554,7 @@ let update msg model =
         { model with CheckWaveformScrollPosition = b}, Cmd.none
     | SetLastScrollPos posOpt ->
         let updateParas (sp:SimParamsT) = {sp with LastScrollPos = posOpt}
-        updateCurrFileWSMod (fun (ws:WaveSimModel) -> setSimParams updateParas ws) model, Cmd.none
+        updateCurrentWSMod (fun (ws:WaveSimModel) -> setSimParams updateParas ws) model, Cmd.none
     | SetWaveSimModel( sheetName, wSModel) -> 
         let updateWaveSim sheetName wSModel model =
             let sims,err = model.WaveSim

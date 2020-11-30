@@ -93,9 +93,9 @@ let fileMenu (dispatch) =
             webContents.reload())
         makeCondRoleItem (JSHelpers.debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace all" None (fun _ -> 
-            JSHelpers.debugTrace <- Set.ofList ["update";"view"])
+            JSHelpers.debugTraceUI <- Set.ofList ["update";"view"])
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace off" None (fun _ -> 
-            JSHelpers.debugTrace <- Set.ofList [])
+            JSHelpers.debugTraceUI <- Set.ofList [])
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Run performance check" None (fun _ -> 
             displayPerformance 100 1000000)
      ]

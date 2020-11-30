@@ -568,7 +568,6 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
                     ]
 
     let moreWaveEditorButtonAction _ =
-        printfn "getWaveSetup with wSModel=%A\n" wSModel.SimParams
         dispatch <| SetPopupWaveSetup (getWaveSetup wSModel model)
         PopupView.showWaveSetupPopup (Some "Waveform Viewer Additional Setup") (getWavePopup dispatch) None [] dispatch
 

@@ -121,6 +121,7 @@ type SimParamsT = {
     /// nets in other sheets, and also RAMs, to be displayed
     MoreWaves: MoreWaveSetup
     /// current scrolling position of waveform svg (used to possibly extend svgs if scrolling off screen)
+    MoreNames: MoreWaveData list
     LastScrollPos: float option
 }
 

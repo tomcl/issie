@@ -53,6 +53,7 @@ module CommonTypes
         Data : Map<int64,int64>
     }
 
+
     // Types instantiating objects in the Digital extension.
     type ComponentType =
         | Input of BusWidth: int | Output of BusWidth: int | IOLabel 
@@ -150,6 +151,12 @@ module CommonTypes
     type OutputPortNumber = | OutputPortNumber of int
 
     (*---------------------------Types for wave Simulation----------------------------------------*)
+
+
+    type MoreWaveData =
+        | RamWaveData of addr: uint32 * ramPath: ComponentId list * label:string
+        | ExtraData of ramPath: ComponentId list * label:string
+
 
     // The "NetList" types contain all the circuit from Diagram in an abstracted form that
     // removed layout info and connections as separate entities. However, connection Ids are

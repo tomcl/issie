@@ -79,6 +79,32 @@ let changeBase memoryEditorData dispatch numBase =
 //========//
 // Editor //
 //========//
+/// Function creating react input box for memory address for use in WaveSim code (could also be used here).
+/// setMemoryAddress dispatches a message to set the memory address to that typed in the input box.
+/// numberBase, addressWidth configure the view.
+/// TODO: make box width variable according to memory width?
+let reactMemoryAddressInputBox numberBase addressWidth setMemoryAddress dispatch =
+    Input.text [
+        Input.Props [ Style [ MarginLeft "10px"; Width "80px" ] ]
+        Input.DefaultValue ""
+        Input.Placeholder <| viewNum numberBase (int64 0)
+        Input.OnChange (getTextEventValue >> fun text ->
+            match text with
+            | "" -> closeError dispatch
+                    dispatch <| setMemoryAddress None
+            | t ->
+                match strToInt t with
+                | Error err -> showError err dispatch
+                | Ok addr ->
+                    let addr = uint64 addr
+                    let w = addressWidth
+                    if w < 64 && addr >= (1UL <<< w)
+                    then showError "Address out of bounds." dispatch
+                    else closeError dispatch
+                         dispatch <| setMemoryAddress (Some (int64 addr))
+                         
+        )
+    ]
 
 let private makeEditorHeader memory isDiff memoryEditorData dispatch =
     div [headerStyle; SpellCheck false] [

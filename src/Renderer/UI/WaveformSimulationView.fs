@@ -252,6 +252,12 @@ let private makeCursVals wsModel  =
     let string2Lbl = Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
     Array.map string2Lbl <| cursorValueStrings wsModel
 
+let private makeRamVals wsModel =
+    let string2Lbl = Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
+    Array.map string2Lbl <|  Array.map (fun (i:int) -> [|dec2hex (bigint i) 4u|]) [|0;1;2;3;4;5;6;7;8;9;10;11;12;13;14;15|]
+
+
+
 /// tuple of React elements of middle column, left column, right column.
 /// shows waveforms and labels and cursor col.
 /// The vertical order is fixed and as in DispNames
@@ -279,7 +285,10 @@ let private waveSimViewerRows compIds diagram (netList: NetList) (wsMod: WaveSim
         makeCursVals wsMod
         |> Array.map (fun c -> tr [ Class "rowHeight" ] [ td [ Class "cursValsCol" ] c ])
 
-    wsMod.DispWaveSVGCache, labelCols, cursValCol
+    let ramValsCol =
+        makeRamVals wsMod
+        |> Array.map (fun c -> tr [ Class "rowHeight" ] [ td [ Class "cursValsCol" ] c ])
+    wsMod.DispWaveSVGCache, labelCols, cursValCol,ramValsCol
 
 /// ReactElement of the tabs for changing displayed radix
 let private radixTabs (wsModel: WaveSimModel) dispatch =
@@ -465,13 +474,14 @@ let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRo
 
 /// ReactElement of the bottom part of the waveform simulator when waveforms are being displayed
 let private viewWaveformViewer compIds model netList wSMod dispatch =
-    let tableWaves, nameColMiddle, cursValsRows = waveSimViewerRows compIds model.Diagram netList wSMod dispatch
+    let tableWaves, nameColMiddle, cursValsRows,ramValsRows = waveSimViewerRows compIds model.Diagram netList wSMod dispatch
     div
         [ Style
             [ Height "calc(100% - 45px)"
               Width "100%"
               OverflowY OverflowOptions.Auto ] ]
-        [ cursorValuesCol cursValsRows
+        [ cursorValuesCol ramValsRows
+          cursorValuesCol cursValsRows
           div [ Style [ Height "100%" ] ]
               [ nameLabelsCol model netList wSMod nameColMiddle dispatch
                 allWaveformsTableElement model wSMod tableWaves dispatch ] ]

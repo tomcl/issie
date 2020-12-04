@@ -23,6 +23,7 @@ let hasDebugArgs() = argFlagIsOn ["--debug";"-d"]
 let debug = false
 
 let isMacos = Api.``process``.platform = Base.Darwin
+let isWin = Api.``process``.platform = Base.Win32
 
 module DevTools =
     let private installDevTools (extensionRef: obj) (forceDownload: bool): JS.Promise<string> =
@@ -69,7 +70,7 @@ let createMainWindow () =
     let options = jsOptions<BrowserWindowOptions> <| fun options ->
         options.width <- 1200
         options.height <- 800
-        options.show <- isMacos
+        options.show <- not isWin
         options.autoHideMenuBar <- false
         options.frame <- true
         options.hasShadow <- true

@@ -208,6 +208,7 @@ let initWS (allNames:string array) (allPorts: Map<string,NetGroup>): WaveSimMode
       SimDataCache = [||]
       DispWaveSVGCache = { Top = [||]; Waves = Map.empty; Bottom = [||]}
       SimParams = {
+        MoreNames = []
         DispNames = [||]
         ClkSvgWidth = 1.0
         CursorTime = 0u
@@ -515,6 +516,7 @@ let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
         DispWaveSVGCache = {Top=[||]; Waves = Map.empty; Bottom = [||]}
         AllWaveNames = [||] // will be reconstituted
         SimParams = {
+            MoreNames = []
             DispNames = sWInfo.DisplayedPortIds // actually names not ids
             ClkSvgWidth = 1.0
             CursorTime = 0u

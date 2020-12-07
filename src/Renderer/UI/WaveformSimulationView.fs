@@ -480,7 +480,7 @@ let private viewWaveformViewer compIds model netList wSMod dispatch =
             [ Height "calc(100% - 45px)"
               Width "100%"
               OverflowY OverflowOptions.Auto ] ]
-        [ cursorValuesCol ramValsRows
+        [ (* cursorValuesCol ramValsRows *)
           cursorValuesCol cursValsRows
           div [ Style [ Height "100%" ] ]
               [ nameLabelsCol model netList wSMod nameColMiddle dispatch
@@ -617,8 +617,8 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
 
     let actionButtons =
         match dispPorts wSModel with
-        | [||] -> [ moreButton ; Button.button waveEditorViewSimButtonAction [ str "View selected" ] ]
-        | _ -> [ moreButton; cancelButton; Button.button waveEditorViewSimButtonAction [ str "View" ] ]
+        | [||] -> [ (*moreButton ; *) Button.button waveEditorViewSimButtonAction [ str "View selected" ] ]
+        | _ -> [ (* moreButton; cancelButton; *) Button.button waveEditorViewSimButtonAction [ str "View" ] ]
     div [ Style [ Display DisplayOptions.Block ] ] actionButtons
 
 /// ReactElement list of the WaveAdder 

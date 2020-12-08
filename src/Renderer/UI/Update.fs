@@ -268,7 +268,7 @@ let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
     match msg with 
     | DiagramMouseEvent -> checkSelection model cmd
     | _ -> 
-        if System.DateTime.Now < (model.AsyncActivity.LastAutoSaveCheck).AddSeconds 0.1 then
+        if System.DateTime.Now < (model.AsyncActivity.LastAutoSaveCheck).AddSeconds 0.1 || fileProcessingBusy <> [] then
             model, cmd
         else
             let model,cmd = checkSelection model cmd

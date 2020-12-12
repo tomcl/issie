@@ -618,7 +618,7 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
     let actionButtons =
         match dispPorts wSModel with
         | [||] -> [ (*moreButton ; *) Button.button waveEditorViewSimButtonAction [ str "View selected" ] ]
-        | _ -> [ (* moreButton; cancelButton; *) Button.button waveEditorViewSimButtonAction [ str "View" ] ]
+        | _ -> [ (* moreButton;*) cancelButton; Button.button waveEditorViewSimButtonAction [ str "View" ] ]
     div [ Style [ Display DisplayOptions.Block ] ] actionButtons
 
 /// ReactElement list of the WaveAdder 

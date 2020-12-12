@@ -118,8 +118,14 @@ let private handleJSDiagramMsg msg model =
     | InferWidths () ->
         runBusWidthInference model
     | SetHasUnsavedChanges s -> 
+        let quicklyKnowItHasChanged comps1 comps2 =
+            match (comps1:Component list), (comps2:Component list) with
+            | {Id=id1;X=x1;Y=y1}::_, {Id=id2;X=x2;Y=y2}::_ when id1 = id2 && (x1 <> x2 || y1 <> y2)
+                -> true
+            | _ -> false
         let isNotEquiv (comps1,conns1) (comps2,conns2) =
-            Set comps1 <> Set comps2 || Set conns1 <> Set conns2           
+            quicklyKnowItHasChanged comps1 comps2 ||
+                Set comps1 <> Set comps2 || Set conns1 <> Set conns2           
         let nState = getDetailedState model
         if s && isNotEquiv model.LastDetailedSavedState nState && not model.IsLoading then
             //printfn "Setting Changed %A" s

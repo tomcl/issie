@@ -371,7 +371,7 @@ type Model = {
     SelectedComponent : Component option // None if no component is selected.
     /// used during step simulation: simgraph for current clock tick
     CurrentStepSimulationStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
-    /// which of the tabbed panes is currentlky visible
+    /// which of the tabbed panes is currently visible
     RightPaneTabVisible : RightTab
     /// components and connections which are highlighted
     Hilighted : (ComponentId list * ConnectionId list) * ConnectionId list

@@ -305,9 +305,7 @@ let displayView model dispatch =
                                     [ JSHelpers.tipStr "bottom" "Simulation" "Simple simulation for combinational logic which allows inputs to be changed manually" ] ]
                                 /// Optional wavesim tab. If present contains waveforms or waveform editor window
                                 match currWaveSimModel model with
-                                | Some {WSViewState=WSClosed} -> 
-                                    dispatch <| ChangeRightTab Catalogue
-                                    div [] []
+                                | Some {WSViewState=WSClosed} -> div [] []
                                 | _ ->
                                     Tabs.tab // WaveSim tab - if wavesim exists
                                         [ Tabs.Tab.IsActive (model.RightPaneTabVisible = WaveSim) ]

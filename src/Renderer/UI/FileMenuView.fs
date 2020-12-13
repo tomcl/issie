@@ -620,25 +620,26 @@ let rec resolveComponentOpenPopup
             resolveComponentOpenPopup pPath (comp :: components) rLst  model dispatch   
         // special case when autosave data is most recent
         let title = "Warning!"
-        let message =
+        let message, color =
             match compChanges + connChanges with
             | 0 -> 
-                sprintf "There were layout changes made sheet %s after your last save.\
+                sprintf "There were layout but no circuit changes made in sheet %s after your last save. \
                          There is an automatically saved version which is \
                          more uptodate. Do you want to keep the newer AutoSaved version or \
-                         the older saved version?"  ldComp.Name  
+                         the older Saved version?"  ldComp.Name, "green"  
             | n when n < 3 ->   
                 sprintf "Warning: %d component and %d connection changes were made to sheet '%s' after your last Save. \
                          There is an automatically saved version which is \
                          more uptodate. Do you want to keep the newer AutoSaved version or \
-                         the older saved version?"  compChanges connChanges ldComp.Name 
+                         the older saved version?"  compChanges connChanges ldComp.Name, "orange"
             | n -> 
                 sprintf "Warning: %d component and %d connection changes were made to sheet '%s' after your last Save. \
                          There is an automatically saved version which is \
                          more uptodate. Do you want to keep the newer AutoSaved version or \
-                         the older saved version? This is a large change so the option you do not choose\
-                         will be saved as file '%s.dgmbackup'"  compChanges connChanges ldComp.Name ldComp.Name
-        let body = str message
+                         the older saved version? This is a large change so the option you do not choose \
+                         will be saved as file 'backup/%s.dgm'"  compChanges connChanges ldComp.Name ldComp.Name, "red"
+        let body = 
+            div [Style [Color color]] [str message] 
         choicePopup title body "Newer AutoSaved file" "Older Saved file" buttonAction dispatch
     | OkAuto autoComp :: rLst ->
          let errMsg = "Could not load saved project file '%s' - using autosave file instead"

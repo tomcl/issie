@@ -419,7 +419,7 @@ let update msg model =
     | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
-        let editCmds = [inferMsg] |> List.map Cmd.ofMsg
+        let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
         firstTip <- true
         if newTab <> WaveSim && model.RightPaneTabVisible = WaveSim then 
             //printfn "Running inference"

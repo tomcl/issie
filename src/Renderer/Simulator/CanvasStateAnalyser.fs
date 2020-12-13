@@ -431,14 +431,14 @@ let checkComponentNamesAreOk ((comps,conns): CanvasState) =
             match label with
             | "CLK" -> [comp, "Clk is not allowed as a name for a component or a Net. \
                         Use the properties tab to give a different name to the highlighted component(s)."]
-            | "" -> [comp, "All components must have a unique alphanumeric name (e.g. 'G1'). An empty name is not allowed except for split and join.\
+            | "" -> [comp, "All components must have a unique alphanumeric name (e.g. 'G1'). An empty name is not allowed except for split and join and bus select.\
                         Use the properties tab to give a non-empty name to the highlighted component(s)."]
             | _ -> []) 
         |> List.groupBy snd
         |> List.map (fun (msg, eLst) -> List.map fst eLst, msg) 
     let duplicateNameErrors =
         comps
-        |> List.filter (function | {Type = IOLabel _ } | {Type = MergeWires _} | {Type=SplitWire _} -> false | _ -> true)
+        |> List.filter (function | {Type = IOLabel _ } | {Type = MergeWires _} | {Type=SplitWire _} | {Type = BusSelection _} -> false | _ -> true)
         |> List.groupBy (fun comp -> comp.Label)
         |> List.filter (fun (_, compL) -> List.length compL > 1)
         |> List.map (fun (_, compL) -> compL,  "Component names must be distinct. \

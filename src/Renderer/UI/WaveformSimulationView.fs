@@ -31,7 +31,7 @@ The waveforms last simulated are thus displayed while the circuit can be updated
 this click, if the circuit has errors the old waveforms are replaced by an error message, otherwise a new simulation
 replaces the old simulation.
 
-Allowing simultaneous view (and interactive chnage as above) of old waveforms while letting the design be changed
+Allowing simultaneous view (and interactive change as above) of old waveforms while letting the design be changed
 requires careful state management:
 
 model.LastSimulatedCanvasState - circuit last simulated

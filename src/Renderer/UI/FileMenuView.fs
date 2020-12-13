@@ -21,7 +21,7 @@ open PopupView
 open System
 
 /// Interlock to ensure we do not do two file-related operations at the same time 
-/// should really be handled by making all state-chnage actions go through messages and model update
+/// should really be handled by making all state-change actions go through messages and model update
 /// this is a hack.
 let mutable fileProcessingBusy: string list = []
 
@@ -299,21 +299,25 @@ let private openFileInProject' saveCurrent name project (model:Model) dispatch =
         match updateProjectFromCanvas model with
         | None -> failwithf "What? current project cannot be None at this point in openFileInProject"
         | Some p ->
-            if saveCurrent then 
-                let opt = saveOpenFileAction false model
-                let ldcOpt = Option.map fst opt
-                let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
-                let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
-                match model.CurrentProj with
-                | None -> failwithf "What? Should never be able to save sheet when project=None"
-                | Some p -> 
-                    // update Autosave info
-                    SetLastSavedCanvas (p.OpenFileName,reducedState)
+            let ldcs =
+                if saveCurrent then 
+                    let opt = saveOpenFileAction false model
+                    let ldcOpt = Option.map fst opt
+                    let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
+                    let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
+                    match model.CurrentProj with
+                    | None -> failwithf "What? Should never be able to save sheet when project=None"
+                    | Some p -> 
+                        // update Autosave info
+                        SetLastSavedCanvas (p.OpenFileName,reducedState)
+                        |> dispatch
+                    SetHasUnsavedChanges false
+                    |> JSDiagramMsg
                     |> dispatch
-                SetHasUnsavedChanges false
-                |> JSDiagramMsg
-                |> dispatch
-            setupProjectFromComponents name project.LoadedComponents newModel dispatch
+                    ldComps
+                else
+                    project.LoadedComponents
+            setupProjectFromComponents name ldcs newModel dispatch
 
 let openFileInProject name project (model:Model) dispatch =
     if requestFileActivity "openFileInProject" dispatch then 
@@ -563,7 +567,9 @@ let private newProject model dispatch _ =
 
 
 
-
+/// Works out number of components and connections changed between two LoadedComponent circuits
+/// a new ID => a change even if the circuit topology is identical. Layout differences do not
+/// mean changes, as is implemented in the reduce functions which remove layout.
 let quantifyChanges (ldc1:LoadedComponent) (ldc2:LoadedComponent) =
     let comps1,conns1 = ldc1.CanvasState
     let comps2,conns2 = ldc2.CanvasState
@@ -572,10 +578,10 @@ let quantifyChanges (ldc1:LoadedComponent) (ldc2:LoadedComponent) =
     let reduceConn conn1 =
         {conn1 with Vertices = []}
     /// Counts the number of unequal items in the two lists.
-    /// Determine equality from whether reduced applied to each item is equal
+    /// Determine equality from whether reduce applied to each item is equal
     let unmatched reduce lst1 lst2 =
-        let rL1 = Set <| List.map reduce lst1
-        let rL2 = Set <| List.map reduce lst2
+        let mapToSet = List.map reduce >> Set
+        let rL1, rL2 = mapToSet lst1, mapToSet lst2
         Set.union (Set.difference rL1 rL2) (Set.difference rL2 rL1)
         |> Set.count
     unmatched reduceComp comps1 comps2, unmatched reduceConn conns1 conns2

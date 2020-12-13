@@ -256,7 +256,7 @@ let checkSelection model cmd =
 /// Check whether current message could mark a change in Diagram worth saving.
 /// If so, check whether Diagram has a significant circuit change (don't count layout).
 /// If so, do an autosave. TODO: make the autosave asynchronous
-/// similarly, check for chnage in selection and send message if there is one
+/// similarly, check for change in selection and send message if there is one
 let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
     let simIsStale (newState:CanvasState option) (simState:CanvasState option) =
         match newState,simState with

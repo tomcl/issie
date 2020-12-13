@@ -566,6 +566,9 @@ let update msg model =
             let sims,err = model.WaveSim
             sims.Add(sheetName, wSModel), err
         {model with WaveSim = updateWaveSim sheetName wSModel model}, Cmd.none
+    | ReleaseFileActivity a ->
+        releaseFileActivityImplementation a
+        model, Cmd.none
     // post-update check always done which deals with regular tasks like updating connections and 
     // auto-saving files
     |> checkForAutoSaveOrSelectionChanged msg

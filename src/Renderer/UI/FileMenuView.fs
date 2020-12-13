@@ -37,7 +37,10 @@ let requestFileActivity (a:string) dispatch =
         fileProcessingBusy <- a :: fileProcessingBusy
         true
 
-let releaseFileActivity (a:string) =
+let releaseFileActivity (a:string) (dispatch)=
+    dispatch <| ModelType.ReleaseFileActivity a
+
+let releaseFileActivityImplementation a =
     match fileProcessingBusy with
     | a' :: rest when a' = a -> 
         fileProcessingBusy <- rest
@@ -287,33 +290,36 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
 /// Creates messages sufficient to do all necessary model and diagram change
 /// Terminates a simulation if one is running
 /// Closes waveadder if it is open
-let private openFileInProject saveCurrent name project (model:Model) dispatch =
+let private openFileInProject' saveCurrent name project (model:Model) dispatch =
     let newModel = {model with CurrentProj = Some project}
-    if (not saveCurrent) || requestFileActivity "openFileInProject" dispatch then
-       match getFileInProject name project with
-        | None -> 
-            log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
-            if saveCurrent then releaseFileActivity "openFileInProject" 
-        | Some lc ->
-            match updateProjectFromCanvas model with
-            | None -> failwithf "What? current project cannot be None at this point in openFileInProject"
-            | Some p ->
-                if saveCurrent then 
-                    let opt = saveOpenFileAction false model
-                    let ldcOpt = Option.map fst opt
-                    let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
-                    let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
-                    match model.CurrentProj with
-                    | None -> failwithf "What? Should never be able to save sheet when project=None"
-                    | Some p -> 
-                        // update Autosave info
-                        SetLastSavedCanvas (p.OpenFileName,reducedState)
-                        |> dispatch
-                    SetHasUnsavedChanges false
-                    |> JSDiagramMsg
+    match getFileInProject name project with
+    | None -> 
+        log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
+    | Some lc ->
+        match updateProjectFromCanvas model with
+        | None -> failwithf "What? current project cannot be None at this point in openFileInProject"
+        | Some p ->
+            if saveCurrent then 
+                let opt = saveOpenFileAction false model
+                let ldcOpt = Option.map fst opt
+                let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
+                let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
+                match model.CurrentProj with
+                | None -> failwithf "What? Should never be able to save sheet when project=None"
+                | Some p -> 
+                    // update Autosave info
+                    SetLastSavedCanvas (p.OpenFileName,reducedState)
                     |> dispatch
-                setupProjectFromComponents name project.LoadedComponents newModel dispatch
-                if saveCurrent then releaseFileActivity "openFileInProject"
+                SetHasUnsavedChanges false
+                |> JSDiagramMsg
+                |> dispatch
+            setupProjectFromComponents name project.LoadedComponents newModel dispatch
+
+let openFileInProject name project (model:Model) dispatch =
+    if requestFileActivity "openFileInProject" dispatch then 
+        openFileInProject' true name project (model:Model) dispatch
+        dispatch <| ReleaseFileActivity "openFileInProject"
+
 
 /// return a react warning message if name if not valid for a sheet Add or Rename, or else None
 let maybeWarning dialogText project =
@@ -385,7 +391,7 @@ let renameSheet oldName newName (model:Model) dispatch =
             [".dgm";".dgmauto"] |> List.iter (fun extn -> renameFile extn proj'.ProjectPath oldName newName)
             /// save all the other files
             saveAllFilesFromProject proj'
-            releaseFileActivity "renameSheet"
+            dispatch <| ReleaseFileActivity "renameSheet"
 
         
     
@@ -458,15 +464,15 @@ let private removeFileInProject name project model dispatch =
             match newComponents, name = project.OpenFileName with
             | [],true -> 
                 let newComponents = [ (createEmptyDiagramFile project.ProjectPath "main") ]
-                openFileInProject false project.LoadedComponents.[0].Name project' model dispatch
+                openFileInProject' false project.LoadedComponents.[0].Name project' model dispatch
             | [], false -> 
                 failwithf "What? - this cannot happen"
             | nc, true ->
-                openFileInProject false project'.LoadedComponents.[0].Name project' model dispatch
+                openFileInProject' false project'.LoadedComponents.[0].Name project' model dispatch
             | nc, false ->
                 // nothing chnages except LoadedComponents
                 dispatch <| SetProject project'
-        releaseFileActivity "removefileinproject"
+        dispatch <| ReleaseFileActivity "removefileinproject"
 
                 
 
@@ -493,31 +499,32 @@ let addFileToProject model dispatch =
         let placeholder = "Insert design sheet name"
         let body = dialogPopupBodyOnlyText before placeholder dispatch
         let buttonText = "Add"
-
         let buttonAction =
             fun (dialogData: PopupDialogData) ->
-                // Create empty file.
-                let name = (getText dialogData).ToLower()
-                createEmptyDgmFile project.ProjectPath name
-                // Add the file to the project.
-                let newComponent = {
-                    Name = name
-                    TimeStamp = System.DateTime.Now
-                    WaveInfo = None
-                    FilePath = pathJoin [|project.ProjectPath; name + ".dgm"|]
-                    CanvasState = [],[]
-                    InputLabels = []
-                    OutputLabels = []
-                }
-                let updatedProject =
-                    { project with
-                          LoadedComponents = newComponent :: project.LoadedComponents
-                          OpenFileName = name }
+                if requestFileActivity "add file" dispatch then 
+                    // Create empty file.
+                    let name = (getText dialogData).ToLower()
+                    createEmptyDgmFile project.ProjectPath name
+                    // Add the file to the project.
+                    let newComponent = {
+                        Name = name
+                        TimeStamp = System.DateTime.Now
+                        WaveInfo = None
+                        FilePath = pathJoin [|project.ProjectPath; name + ".dgm"|]
+                        CanvasState = [],[]
+                        InputLabels = []
+                        OutputLabels = []
+                    }
+                    let updatedProject =
+                        { project with
+                              LoadedComponents = newComponent :: project.LoadedComponents
+                              OpenFileName = name }
  
-                // Open the file, updating the project, saving current file
-                openFileInProject true name updatedProject model dispatch
-                // Close the popup.
-                dispatch ClosePopup
+                    // Open the file, updating the project, saving current file
+                    openFileInProject' true name updatedProject model dispatch
+                    // Close the popup.
+                    dispatch ClosePopup
+                    dispatch <| ReleaseFileActivity "add file"
 
         let isDisabled =
             fun (dialogData: PopupDialogData) ->
@@ -555,6 +562,23 @@ let private newProject model dispatch _ =
 
 
 
+let quantifyChanges (ldc1:LoadedComponent) (ldc2:LoadedComponent) =
+    let comps1,conns1 = ldc1.CanvasState
+    let comps2,conns2 = ldc2.CanvasState
+    let reduceComp comp1 =
+        {comp1 with X=0;Y=0}
+    let reduceConn conn1 =
+        {conn1 with Vertices = []}
+    /// Counts the number of unequal items in the two lists.
+    /// Determine equality from whether reduced applied to each item is equal
+    let unmatched reduce lst1 lst2 =
+        let rL1 = Set <| List.map reduce lst1
+        let rL2 = Set <| List.map reduce lst2
+        Set.union (Set.difference rL1 rL2) (Set.difference rL2 rL1)
+        |> Set.count
+    unmatched reduceComp comps1 comps2, unmatched reduceConn conns1 conns2
+
+
 
 
 
@@ -573,17 +597,46 @@ let rec resolveComponentOpenPopup
     | [] -> setupProjectFromComponents (chooseWhichToOpen components) components model dispatch
     | Resolve (ldComp,autoComp) :: rLst ->
         // ldComp, autocomp are from attemps to load saved file and its autosave version.
-        let buttonAction autoSave _ =
-            let comp = {(if autoSave then autoComp else ldComp) with TimeStamp = DateTime.Now}
+        let compChanges, connChanges = quantifyChanges ldComp autoComp
+        let writeComponentToFile comp =
             let data =  stateToJsonString (comp.CanvasState,comp.WaveInfo)
             writeFile comp.FilePath data
+        let buttonAction autoSave _ =
+            let comp = {(if autoSave then autoComp else ldComp) with TimeStamp = DateTime.Now}
+            writeComponentToFile comp
+            if compChanges + connChanges >= 3 then
+                let backupComp = 
+                    let comp = if autoSave then ldComp else autoComp
+                    let path = pathWithoutExtension comp.FilePath +  ".dgm"
+                    ensureDirectory <| pathJoin [| dirName path ; "backup" |]
+                    let backupPath = pathJoin [| dirName path ; "backup" ; baseName path |]
+                    printfn "Writing backup file to %s" backupPath
+                    {comp with 
+                        TimeStamp = DateTime.Now
+                        FilePath = backupPath}
+                writeComponentToFile backupComp
             resolveComponentOpenPopup pPath (comp :: components) rLst  model dispatch   
         // special case when autosave data is most recent
         let title = "Warning!"
-        let body = str <|  sprintf "Warning: changes were made to sheet '%s' after your last Save. \
-                                There is an automatically saved version which is \
-                                more uptodate. Do you want to keep the newer AutoSaved version or \
-                                the older saved version?"  ldComp.Name  
+        let message =
+            match compChanges + connChanges with
+            | 0 -> 
+                sprintf "There were layout changes made sheet %s after your last save.\
+                         There is an automatically saved version which is \
+                         more uptodate. Do you want to keep the newer AutoSaved version or \
+                         the older saved version?"  ldComp.Name  
+            | n when n < 3 ->   
+                sprintf "Warning: %d component and %d connection changes were made to sheet '%s' after your last Save. \
+                         There is an automatically saved version which is \
+                         more uptodate. Do you want to keep the newer AutoSaved version or \
+                         the older saved version?"  compChanges connChanges ldComp.Name 
+            | n -> 
+                sprintf "Warning: %d component and %d connection changes were made to sheet '%s' after your last Save. \
+                         There is an automatically saved version which is \
+                         more uptodate. Do you want to keep the newer AutoSaved version or \
+                         the older saved version? This is a large change so the option you do not choose\
+                         will be saved as file '%s.dgmbackup'"  compChanges connChanges ldComp.Name ldComp.Name
+        let body = str message
         choicePopup title body "Newer AutoSaved file" "Older Saved file" buttonAction dispatch
     | OkAuto autoComp :: rLst ->
          let errMsg = "Could not load saved project file '%s' - using autosave file instead"
@@ -654,7 +707,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                     Button.Color IsPrimary
                                     Button.Disabled(name = project.OpenFileName)
                                     Button.OnClick(fun _ ->
-                                        openFileInProject true name project model dispatch) ] [ str "open" ] 
+                                        openFileInProject name project model dispatch) ] [ str "open" ] 
                           ]
                           // Add option to rename?
                           Level.item [] [

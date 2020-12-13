@@ -13,6 +13,7 @@ open Fable.Core.JsInterop
 open Fable.Import
 open Electron
 open Node
+open EEExtensions
 
 
 let private fileExistsWithExtn extn folderPath baseName =
@@ -34,6 +35,20 @@ let private tryLoadStateFromPath (filePath: string) =
 let pathJoin args = path.join args
 let baseName filePath = path.basename filePath
 let dirName filePath = path.dirname filePath
+let ensureDirectory dPath =
+    if (not <| fs.existsSync (U2.Case1 dPath)) then 
+        fs.mkdirSync(dPath);
+    
+
+
+let pathWithoutExtension filePath =
+    let ext = path.extname filePath
+    filePath 
+    |> Seq.rev
+    |> Seq.skip ext.Length
+    |> Seq.rev
+    |> String.ofSeq
+
 
 let fileNameIsBad name = 
     name 

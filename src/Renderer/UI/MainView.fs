@@ -306,7 +306,8 @@ let displayView model dispatch =
                                 /// Optional wavesim tab. If present contains waveforms or waveform editor window
                                 match currWaveSimModel model with
                                 | Some {WSViewState=WSClosed} -> 
-                                    dispatch <| ChangeRightTab Catalogue
+                                    if model.RightPaneTabVisible = WaveSim then
+                                        dispatch <| ChangeRightTab Catalogue
                                     div [] []
                                 | _ ->
                                     Tabs.tab // WaveSim tab - if wavesim exists

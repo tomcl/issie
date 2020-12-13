@@ -25,11 +25,12 @@ open System
 /// this is a hack.
 let mutable fileProcessingBusy: string list = []
 
+/// returns true if file activity lock is gained
 let requestFileActivity (a:string) dispatch =
     let busy = fileProcessingBusy <> []
     if busy then
         let notification = 
-            warningNotification "please wait till previous file operation has finished before starting another!" CloseFilesNotification
+            warningNotification $"Please wait till previous file operation {fileProcessingBusy} has finished before starting another!" CloseFilesNotification
         dispatch <| SetFilesNotification notification
         false
     else
@@ -122,11 +123,13 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
 let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lcLst: LoadedComponent list) =
     let n = List.tryFindIndex (fun (lc: LoadedComponent) -> lc.Name = name) lcLst
     match n with
-    | None -> failwithf "Can't find name='%s' in components:%A" name lcLst
+    | None -> 
+        printf "In updateLoadedcomponents can't find name='%s' in components:%A" name lcLst
+        lcLst
     | Some n ->
         List.mapi (fun i x -> if i = n then setFun x else x) lcLst
 
-/// return current project with current sheet updated from canvas
+/// return current project with current sheet updated from canvas if needed
 let updateProjectFromCanvas (model:Model) =
     match model.Diagram.GetCanvasState() with
     | None -> model.CurrentProj
@@ -284,31 +287,48 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
 /// Creates messages sufficient to do all necessary model and diagram change
 /// Terminates a simulation if one is running
 /// Closes waveadder if it is open
-let private openFileInProject name project model dispatch =
-    if requestFileActivity "openFileInProject" dispatch then
+let private openFileInProject saveCurrent name project (model:Model) dispatch =
+    let newModel = {model with CurrentProj = Some project}
+    if (not saveCurrent) || requestFileActivity "openFileInProject" dispatch then
        match getFileInProject name project with
         | None -> 
             log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
-            releaseFileActivity "openFileInProject" 
+            if saveCurrent then releaseFileActivity "openFileInProject" 
         | Some lc ->
             match updateProjectFromCanvas model with
             | None -> failwithf "What? current project cannot be None at this point in openFileInProject"
             | Some p ->
-                let opt = saveOpenFileAction false model
-                let ldcOpt = Option.map fst opt
-                let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
-                let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
-                match model.CurrentProj with
-                | None -> failwithf "What? Should never be able to save sheet when project=None"
-                | Some p -> 
-                    // update Autosave info
-                    SetLastSavedCanvas (p.OpenFileName,reducedState)
+                if saveCurrent then 
+                    let opt = saveOpenFileAction false model
+                    let ldcOpt = Option.map fst opt
+                    let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
+                    let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
+                    match model.CurrentProj with
+                    | None -> failwithf "What? Should never be able to save sheet when project=None"
+                    | Some p -> 
+                        // update Autosave info
+                        SetLastSavedCanvas (p.OpenFileName,reducedState)
+                        |> dispatch
+                    SetHasUnsavedChanges false
+                    |> JSDiagramMsg
                     |> dispatch
-                SetHasUnsavedChanges false
-                |> JSDiagramMsg
-                |> dispatch
-                setupProjectFromComponents name ldComps model dispatch
-                releaseFileActivity "openFileInProject"
+                setupProjectFromComponents name project.LoadedComponents newModel dispatch
+                if saveCurrent then releaseFileActivity "openFileInProject"
+
+/// return a react warning message if name if not valid for a sheet Add or Rename, or else None
+let maybeWarning dialogText project =
+    let redText txt = Some <| div [ Style [ Color "red" ] ] [ str txt ]
+    if isFileInProject dialogText project then
+        redText "This sheet already exists." 
+    elif dialogText.StartsWith " " || dialogText.EndsWith " " then
+        redText "The name cannot start or end with a space."
+    elif String.exists ((=) '.') dialogText then
+        redText "The name cannot contain a file suffix."
+    elif not <| String.forall (fun c -> Char.IsLetterOrDigit c || c = ' ') dialogText then
+        redText "The name must be alphanumeric."
+    elif ((dialogText |> Seq.tryItem 0) |> Option.map Char.IsDigit) = Some true then
+        redText "The name must not start with a digit"
+    else None
 
 
 /// rename a sheet
@@ -386,16 +406,6 @@ let renameFileInProject name project model dispatch =
             fun (dialogData: PopupDialogData) ->
                 let dialogText = getText dialogData
 
-                let maybeWarning =
-                    if isFileInProject dialogText project then
-                        div [ Style [ Color "red" ] ] [ str "This sheet already exists." ]
-                    elif String.exists ((=) '.') dialogText then
-                        div [ Style [ Color "red" ] ] [ str "The new name cannot contain a file suffix" ]
-                    elif not <| String.forall Char.IsLetterOrDigit dialogText then
-                        div [ Style [ Color "red" ] ] [ str "The new name must be alphanumeric" ]
-                    elif ((dialogText |> Seq.tryItem 0) |> Option.map Char.IsDigit) = Some true then
-                        div [ Style [ Color "red" ] ] [ str "The new name must not start with a digit" ]
-                    else div [] []
                 div []
                     [ 
                       str <| "Warning: the current sheet will be saved during this operation."
@@ -406,7 +416,7 @@ let renameFileInProject name project model dispatch =
                       str <| sprintf "Sheet %s will be renamed as %s:" name dialogText
                       br []; br []
                       //str <| dialogText + ".dgm"
-                      maybeWarning ]
+                      Option.defaultValue (div [] []) (maybeWarning dialogText project)]
 
         let placeholder = "New name for design sheet"
         let body = dialogPopupBodyOnlyText before placeholder dispatch
@@ -431,32 +441,34 @@ let renameFileInProject name project model dispatch =
 
 /// Remove file.
 let private removeFileInProject name project model dispatch =
-    match getCurrentWSMod model with
-    | Some ws when ws.WSViewState<>WSClosed ->
-        displayFileErrorNotification "Sorry, you must close the wave simulator before removing design sheets!" dispatch
-        switchToWaveEditor model dispatch
-    | _ ->
-        removeFile project.ProjectPath name
-        removeFile project.ProjectPath (name + "auto")
-        // Remove the file from the dependencies and update project.
-        let newComponents = List.filter (fun (lc: LoadedComponent) -> lc.Name <> name) project.LoadedComponents
-        // Make sure there is at least one file in the project.
-        let newComponents =
-            match List.isEmpty newComponents with
-            | false -> newComponents
-            | true -> [ (createEmptyDiagramFile project.ProjectPath "main") ]
+    if requestFileActivity "removefileinproject" dispatch
+    then 
+        match getCurrentWSMod model with
+        | Some ws when ws.WSViewState<>WSClosed ->
+            displayFileErrorNotification "Sorry, you must close the wave simulator before removing design sheets!" dispatch
+            switchToWaveEditor model dispatch
+        | _ ->
+        
+            removeFile project.ProjectPath name
+            removeFile project.ProjectPath (name + "auto")
+            // Remove the file from the dependencies and update project.
+            let newComponents = List.filter (fun (lc: LoadedComponent) -> lc.Name.ToLower() <> name.ToLower()) project.LoadedComponents
+            // Make sure there is at least one file in the project.
+            let project' = {project with LoadedComponents = newComponents}
+            match newComponents, name = project.OpenFileName with
+            | [],true -> 
+                let newComponents = [ (createEmptyDiagramFile project.ProjectPath "main") ]
+                openFileInProject false project.LoadedComponents.[0].Name project' model dispatch
+            | [], false -> 
+                failwithf "What? - this cannot happen"
+            | nc, true ->
+                openFileInProject false project'.LoadedComponents.[0].Name project' model dispatch
+            | nc, false ->
+                // nothing chnages except LoadedComponents
+                dispatch <| SetProject project'
+        releaseFileActivity "removefileinproject"
 
-        let project = { project with LoadedComponents = newComponents }
-        project
-        |> SetProject
-        |> dispatch
-        // If the file was displayed, open and display another one instead.
-        // It is safe to access position 0 as we are guaranteed that there is at
-        // least one element in newComponents.
-        assertThat (not <| List.isEmpty project.LoadedComponents) "removeFileInProject"
-        match name = project.OpenFileName with
-        | false -> ()
-        | true -> openFileInProject project.LoadedComponents.[0].Name project model dispatch
+                
 
 /// Create a new file in this project and open it automatically.
 let addFileToProject model dispatch =
@@ -469,18 +481,14 @@ let addFileToProject model dispatch =
         let before =
             fun (dialogData: PopupDialogData) ->
                 let dialogText = getText dialogData
-
-                let maybeWarning =
-                    if isFileInProject dialogText project
-                    then div [ Style [ Color "red" ] ] [ str "This sheet already exists." ]
-                    else div [] []
+                let warn = maybeWarning dialogText project
                 div []
                     [ str "A new sheet will be created at:"
                       br []
                       str <| pathJoin
                                  [| project.ProjectPath
                                     dialogText + ".dgm" |]
-                      maybeWarning ]
+                      Option.defaultValue (div [] []) warn ]
 
         let placeholder = "Insert design sheet name"
         let body = dialogPopupBodyOnlyText before placeholder dispatch
@@ -507,14 +515,14 @@ let addFileToProject model dispatch =
                           OpenFileName = name }
  
                 // Open the file, updating the project, saving current file
-                openFileInProject name updatedProject model dispatch
+                openFileInProject true name updatedProject model dispatch
                 // Close the popup.
                 dispatch ClosePopup
 
         let isDisabled =
             fun (dialogData: PopupDialogData) ->
                 let dialogText = getText dialogData
-                (isFileInProject dialogText project) || (dialogText = "")
+                (isFileInProject dialogText project) || (dialogText = "") || (maybeWarning dialogText project <> None)
 
         dialogPopup title body buttonText buttonAction isDisabled dispatch
 
@@ -646,7 +654,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                     Button.Color IsPrimary
                                     Button.Disabled(name = project.OpenFileName)
                                     Button.OnClick(fun _ ->
-                                        openFileInProject name project model dispatch) ] [ str "open" ] 
+                                        openFileInProject true name project model dispatch) ] [ str "open" ] 
                           ]
                           // Add option to rename?
                           Level.item [] [

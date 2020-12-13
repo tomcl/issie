@@ -35,6 +35,11 @@ let pathJoin args = path.join args
 let baseName filePath = path.basename filePath
 let dirName filePath = path.dirname filePath
 
+let fileNameIsBad name = 
+    name 
+    |> Seq.filter (fun ch -> not (ch = ' ' || System.Char.IsLetter ch || System.Char.IsDigit ch))
+    |> Seq.isEmpty
+    |> not
 
 
 /// Extract the labels and bus widths of the inputs and outputs nodes.
@@ -148,7 +153,10 @@ let tryCreateFolder (path : string) =
 /// ignore if file does not exist
 let removeFileWithExtn extn folderPath baseName  =
     let path = path.join [| folderPath; baseName + extn |]
-    fs.unlink (U2.Case1 path, ignore) // Asynchronous.
+    if fs.existsSync (U2.Case1 path) then
+        fs.unlink (U2.Case1 path, ignore) // Asynchronous.
+    else
+        ()
 
 let renameFile extn folderPath baseName newBaseName =
     let oldPath = path.join [| folderPath; baseName + extn |]

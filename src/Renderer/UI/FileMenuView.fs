@@ -374,7 +374,9 @@ let renameSheet oldName newName (model:Model) dispatch =
         }
     if requestFileActivity "renameSheet" dispatch then
         match updateProjectFromCanvas model with
-        | None -> failwithf "What? current project cannot be None at this point in renamesheet"
+        | None -> 
+            releaseFileActivity "renameSheet" dispatch
+            failwithf "What? current project cannot be None at this point in renamesheet"
         | Some p ->
             let opt = saveOpenFileAction false model
             let ldcOpt = Option.map fst opt

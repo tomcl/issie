@@ -158,8 +158,10 @@ let private calculateOutputPortsWidth
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
         | [None] -> Ok Map.empty
-        | [Some n] when n = width -> Ok Map.empty // Output node has no outputs.
-        | [Some n] when n <> width -> makeWidthInferErrorEqual width n [getConnectionIdForPort 0]
+        | [Some n] -> if (int64 n) = (int64 width) then Ok Map.empty // Output node has no outputs.
+                      else  
+                        printfn "Width =%d, n = %d" (int64 width) (int64 n)
+                        makeWidthInferErrorEqual width n [getConnectionIdForPort 0]
         | _ -> failwithf "what? Impossible case in case in calculateOutputPortsWidth for: %A" comp.Type
     | IOLabel->
         match getWidthsForPorts inputConnectionsWidth ([InputPortNumber 0]) with

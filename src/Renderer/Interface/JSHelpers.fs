@@ -78,7 +78,7 @@ let getTextEventValue (event: Event) =
 
 /// Get the value for a change event in an input number box.
 let getIntEventValue (event: Event) =
-    getFailIfNull event.currentTarget ["value"] |> unbox<int>
+    getFailIfNull event.currentTarget ["value"] |> unbox<float> |> int
 
 /// Get the value for a blur event in an input textbox.
 let getTextFocusEventValue (event: FocusEvent) =

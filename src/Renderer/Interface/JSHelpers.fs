@@ -76,7 +76,14 @@ let fshaprListToJsList (list : 'a list) =
 let getTextEventValue (event: Event) =
     getFailIfNull event.currentTarget ["value"] |> unbox<string>
 
-/// Get the value for a change event in an input number box.
+// Due to the way FABLE embeds integers in floats, with type erasure at runtime,
+// values that need to be int in F# code must be explicitly converted
+// to int as here. Otherwise obscure bugs can happen where a JS apparent integer
+// turns into an F# integer value that is not precisely equal to
+// the real F# integer.
+
+/// Get the value for a change event in an input number box, 
+/// making sure it is an F# integer (JS integer values may not be precise)
 let getIntEventValue (event: Event) =
     getFailIfNull event.currentTarget ["value"] |> unbox<float> |> int
 

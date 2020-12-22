@@ -10,6 +10,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionItems", "SolutionIt
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
 		build.fsx = build.fsx
+		dotnet-tools.json = dotnet-tools.json
 		LICENSE = LICENSE
 		Nuget.Config = Nuget.Config
 		package.json = package.json

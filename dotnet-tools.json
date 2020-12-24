@@ -14,12 +14,6 @@
         "paket"
       ]
     },
-    "fantomas-tool": {
-      "version": "3.3.0",
-      "commands": [
-        "fantomas"
-      ]
-    },
     "fable": {
       "version": "3.0.5",
       "commands": [

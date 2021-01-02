@@ -536,6 +536,13 @@ let private mapOutputPortIdsToConnections
     |> List.groupBy (fun conn -> OutputPortId conn.Source.Id)
     |> Map.ofList
 
+/// Here each input port has asociated with the connection that drives it.
+/// Normally that is the connection connected to the port.
+/// However BusLabels are a special case because a set of similarly named labels
+/// have outputs all connected together and driven by the single connection that goes to
+/// one of the BusLabel inputs (there must be exactly one such).
+/// In this function any input driven by a connection from a BusLabel output gets associated
+/// with the Buslable set input connection, allowing correct width inference.
 let private mapInputPortIdsToVirtualConnectionIds (conns: Connection list) (comps:Component list) =
     let mapPortIdToConnId = mapInputPortIdsToConnectionIds conns
 
@@ -584,7 +591,17 @@ let private mapInputPortIdsToVirtualConnectionIds (conns: Connection list) (comp
         |> Ok
 
 
-/// Infer width of all connections or return an error
+/// Return Inferred width of all connections or an error.
+/// Width inference is done without mutable state. The value
+/// returned by this function should (probably) be part of the Elmish Model
+/// and updated by messages that trigger re-inference of widths.
+/// at the moment, because Draw2D is not Elmish, this is kludged.
+/// The Elmish update function calls Update.runBusWidthInference
+/// whenever an update might possibly change connection widths.
+/// This is normally when an "InferWidths" message is received from the
+/// Draw2D block (e.g. whenever a wire is connected to a component or deleted)
+/// It is also be run when component widths are changed.
+/// Note that it does not matter (except for performance) if it is run too many times.
 let inferConnectionsWidth
         ((comps,conns) : CanvasState)
         : Result<ConnectionsWidth, WidthInferError> =
@@ -599,9 +616,9 @@ let inferConnectionsWidth
                 staticMapComponentIdsToComponents,
                 makeOutputPortsOfLabels comps
                )
-        // If this is too slow, one could start the process only from input
+        // If this is too slow, one could start the process only from input and constant
         // components. To do so, pass the (getAllInputNodes components) instead
-        // of components. (But this would not work for ckts with no inputs).
+        // of components. (But this would not work for ckts with no inputs or constants).
         (Ok connectionsWidth, comps)
         ||> List.fold (fun connectionsWidthRes inputNode ->
             connectionsWidthRes |> Result.bind (fun connectionsWidth ->

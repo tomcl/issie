@@ -161,7 +161,7 @@ let rec getSimComp (sg:SimulationGraph) path =
         | None -> failwithf "What? A non-terminal part of a path must have a customSimulationgraph"
 
 
-
+/// get the form data for RAM (and other extra) simulation setup
 let reactMoreWaves ((sheets,ticks): MoreWaveSetup) (sg:SimulationGraph) (dispatch: Msg -> Unit) =
     let makeTableCell r =   td [Style [VerticalAlign Top]] [r]
     let makeWaveReactList (swL:SheetWave list) =
@@ -173,15 +173,16 @@ let reactMoreWaves ((sheets,ticks): MoreWaveSetup) (sg:SimulationGraph) (dispatc
                 let ticks = if ticked then Set.remove sw.Path ticks else Set.add sw.Path ticks
                 dispatch <| SetPopupWaveSetup(sheets,ticks)
             let name = comp.Label |> function | ComponentLabel lab -> lab
-            (sw.Label+":"+name),ticked, toggle)
+            (sw.Label+":"+name),ticked, comp, toggle)
         |> (fun els -> 
+                let isRamOrRom (comp: SimulationComponent) = match comp.Type with | RAM _ | ROM _ | AsyncROM _ -> true | _ -> false
                 let uniques = 
-                    List.countBy (fun (name,ticked,toggle) -> name) els
+                    List.countBy (fun (name,ticked,comp, toggle) -> name) els
                     |> List.filter (fun (el,i)-> i = 1)
                     |> List.map fst
                     |> Set
-                List.filter (fun (name,ticked,toggle) -> Set.contains name uniques) els)
-        |> List.map (fun (name, ticked, toggle) -> reactTickBoxRow name [] ticked toggle)
+                List.filter (fun (name,ticked,comp, toggle) -> isRamOrRom comp && Set.contains name uniques) els)
+        |> List.map (fun (name, ticked, comp, toggle) -> reactTickBoxRow name [] ticked toggle)
         
     let makeReactCol (name, sheetWaves) =
         let colBody = makeWaveReactList sheetWaves

@@ -566,7 +566,7 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
         dispatch <| SetWaveSimIsOutOfDate true
         dispatch ClosePropertiesNotification
     
-
+    /// Return the RAM etc view options window. data is the current (initial) set of RAMs to be viewed.
     let getWavePopup dispatch (data: MoreWaveSetup option) = 
         match data with
         | None -> div [] []
@@ -613,12 +613,12 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
         Button.button
             [ Button.Color IsSuccess
               Button.Props [ Style [ MarginRight "10px" ] ]
-              Button.OnClick(moreWaveEditorButtonAction) ] [ str "More" ]
+              Button.OnClick(moreWaveEditorButtonAction) ] [ str "RAM" ]
 
     let actionButtons =
         match dispPorts wSModel with
-        | [||] -> [ (*moreButton ; *) Button.button waveEditorViewSimButtonAction [ str "View selected" ] ]
-        | _ -> [ (* moreButton;*) cancelButton; Button.button waveEditorViewSimButtonAction [ str "View" ] ]
+        | [||] -> [ moreButton ;  Button.button waveEditorViewSimButtonAction [ str "View selected" ] ]
+        | _ -> [ moreButton; cancelButton; Button.button waveEditorViewSimButtonAction [ str "View" ] ]
     div [ Style [ Display DisplayOptions.Block ] ] actionButtons
 
 /// ReactElement list of the WaveAdder 

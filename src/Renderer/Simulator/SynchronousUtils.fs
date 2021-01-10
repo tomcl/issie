@@ -16,7 +16,7 @@ let couldBeSynchronousComponent compType : bool =
     match compType with
     | DFF | DFFE | Register _ | RegisterE _ | ROM _ | RAM _ | Custom _ -> true // We have to assume custom components are clocked as they may be.
     | Input _ | Output _ | IOLabel | Constant _ | BusSelection _ | MergeWires | SplitWire _ | Not | And | Or | Xor
-    | Nand | Nor | Xnor | Mux2 | Demux2 | NbitsAdder _ | Decode4 | AsyncROM _ -> false
+    | Nand | Nor | Xnor | Mux2 | Demux2 | NbitsAdder _ | NbitsXor _ | Decode4 | AsyncROM _ -> false
 
 /// Find out whether a simulation graph has some synchronous components.
 let rec hasSynchronousComponents graph : bool =
@@ -26,7 +26,7 @@ let rec hasSynchronousComponents graph : bool =
             | DFF | DFFE | Register _ | RegisterE _ | ROM _ | RAM _ -> true
             | Custom _ -> hasSynchronousComponents <| Option.get comp.CustomSimulationGraph
             | Input _ | Output _ | IOLabel | BusSelection _ | MergeWires | SplitWire _ | Not | And | Or
-            | Xor | Nand | Nor | Xnor | Mux2 | Demux2 | NbitsAdder _ | Decode4 | AsyncROM _ | Constant _ -> false
+            | Xor | Nand | Nor | Xnor | Mux2 | Demux2 | NbitsAdder _ | NbitsXor _ | Decode4 | AsyncROM _ | Constant _ -> false
         )
     |> Map.tryPick (fun compId isSync -> if isSync then Some () else None)
     |> function | Some _ -> true | None -> false

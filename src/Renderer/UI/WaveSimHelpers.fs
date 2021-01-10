@@ -671,6 +671,8 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
                 [ { LabName = compLbl; BitLimits = w - 1, 0 } ] 
             | Demux2 -> 
                 [ { LabName = compLbl + "." + string outPortInt; BitLimits = 0, 0 } ]
+            | NbitsXor w -> 
+                [ { LabName = compLbl; BitLimits = w - 1, 0 } ]
             | NbitsAdder w ->
                 match outPortInt with
                 | 0 -> [ { LabName = compLbl + ".Sum"; BitLimits = w - 1, 0 } ]

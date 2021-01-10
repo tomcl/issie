@@ -76,7 +76,7 @@ let private makeMemoryInfo descr mem compId model dispatch =
 let private makeNumberOfBitsField model (comp:Component) text setter dispatch =
     let title, width =
         match comp.Type with
-        | Input w | Output w | NbitsAdder w | Register w -> "Number of bits", w
+        | Input w | Output w | NbitsAdder w | NbitsXor w | Register w -> "Number of bits", w
         | SplitWire w -> "Number of bits in the top wire", w
         | BusSelection( w, _) -> "Number of bits selected: width", w
         | Constant(w, _) -> "Number of bits in the wire", w
@@ -168,6 +168,7 @@ let private makeDescription (comp:Component) model dispatch =
     | MergeWires -> div [] [ str "Merge two wires of width n and m into a single wire of width n+m." ]
     | SplitWire _ -> div [] [ str "Split a wire of width n+m into two wires of width n and m."]
     | NbitsAdder numberOfBits -> div [] [ str <| sprintf "%d bit(s) adder." numberOfBits ]
+    | NbitsXor numberOfBits  -> div [] [ str <| sprintf "%d XOR gates with %d outputs." numberOfBits numberOfBits]
     | Decode4 -> div [] [ str <| "4 bit decoder: Data is output on the Sel output, all other outputs are 0."]
     | Custom custom ->
         let toHTMLList =
@@ -209,7 +210,7 @@ let private makeDescription (comp:Component) model dispatch =
 
 let private makeExtraInfo model (comp:Component) text dispatch =
     match comp.Type with
-    | Input _ | Output _ | NbitsAdder _ ->
+    | Input _ | Output _ | NbitsAdder _ | NbitsXor _ ->
         makeNumberOfBitsField model comp text model.Diagram.SetNumberOfBits dispatch
     | SplitWire _ ->
         makeNumberOfBitsField model comp text model.Diagram.SetTopOutputWidth dispatch

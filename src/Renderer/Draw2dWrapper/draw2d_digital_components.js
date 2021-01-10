@@ -592,6 +592,43 @@ draw2d.shape.digital.NbitsAdder = draw2d.shape.digital.extend({
     },
 });
 
+draw2d.shape.digital.NbitsXor = draw2d.shape.digital.extend({
+
+    NAME: "draw2d.shape.digital.NbitsXor",
+
+        componentType : "NbitsXor",
+            svgHeight : 120,
+                svgWidth : 100,
+                    numberOfBits : null, // int
+
+                        getSvgElements : function() {
+                            const title = this.numberOfBits === 1 ? "\u00a0\u00a0\u00a0\u00a0XOR" : (this.numberOfBits > 9 ? `\u00a0XOR(${this.numberOfBits - 1}:0)` : `\u00a0\u00a0XOR(${this.numberOfBits - 1}:0)`)
+                            return [
+                                { path: '<rect width="70" height="120" stroke="black" stroke-width="1" fill="lightgray"/>', toFill: true },
+                                { path: `<text x="4" y="3" fill="black" font-family="monospace">${title}</text>`, toFill: false },
+                                { path: '<text x="8" y="35" fill="black" font-family="monospace">P</text>', toFill: false },
+                                { path: `<text x="8" y="75" fill="black" font-family="monospace">Q</text>`, toFill: false },
+                                // Out.
+                                { path: `<text x="45" y="52" fill="black" font-family="monospace">Out</text>`, toFill: false },
+                            ]
+                        },
+
+    init: function(attr, setter, getter) {
+        this._super(
+            $.extend({ width: this.svgWidth, height: this.svgHeight }, attr),
+            setter,
+            getter
+        );
+
+        console.assert(typeof attr.numberOfBits === "number", "numberOfBits is not a number when creating a NbitsAdder component");
+        this.numberOfBits = attr.numberOfBits;
+
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
+    },
+    });
+
 /**
  * Custom components.
  */

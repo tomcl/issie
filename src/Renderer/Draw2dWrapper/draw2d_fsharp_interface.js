@@ -230,6 +230,16 @@ function createDigitalNbitsAdder(x, y, numberOfBits) {
     });
 }
 
+function createDigitalNbitsXor(x, y, numberOfBits) {
+    return new draw2d.shape.digital.NbitsXor({
+        x: x,
+        y: y,
+        resizeable: false,
+        numberOfBits: numberOfBits
+    });
+}
+
+
 function createDigitalDecode4(x, y) {
     return new draw2d.shape.digital.Decode4({
         x: x,
@@ -522,6 +532,7 @@ export {
     createDigitalDemux2,
     createDigitalDecode4,
     createDigitalNbitsAdder,
+    createDigitalNbitsXor,
     createDigitalCustom,
     createDigitalMergeWires,
     createDigitalSplitWire,

@@ -348,6 +348,7 @@ let getPortNames (cType: ComponentType) =
     | Constant _ -> [], ["Out"]
     | And | Or | Nand | Nor | Xor | Xnor -> ["In1";"In2"], ["Out"]
     | NbitsAdder _ -> ["Cin"; "A"; "B"], ["Sum";"Cout"]
+    | NbitsXor _ -> ["P"; "Q"], ["Out"]
     | Decode4 -> ["Sel";"Data"], ["0";"1";"2";"3"]
     | Not | BusSelection _ -> ["In"],["Out"]
     | Mux2 -> ["0";"1";"Sel"],["Out"]
@@ -409,6 +410,7 @@ let stdLabel (compType: ComponentType) (model:Model) =
         | Mux2 -> "MUX"
         | Demux2 -> "DM"
         | NbitsAdder _ -> "A"
+        | NbitsXor _ -> "XOR"
         | DFF | DFFE -> "FF"
         | Register _ | RegisterE _ -> "REG"
         | AsyncROM _ -> "AROM"
@@ -514,6 +516,25 @@ let private createNbitsAdderPopup (model:Model) dispatch =
     let isDisabled =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled dispatch
+
+
+let private createNbitsXorPopup (model:Model) dispatch =
+    let title = sprintf "Add N bits XOR gates"
+    let beforeInt =
+        fun _ -> str "How many bits should each operand have?"
+    let intDefault = model.LastUsedDialogWidth
+    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let inputInt = getInt dialogData
+            printfn "creating XOR %d" inputInt
+            createCompStdLabel (NbitsXor inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+    dialogPopup title body buttonText buttonAction isDisabled dispatch
+
 
 let private createSplitWirePopup model dispatch =
     let title = sprintf "Add SplitWire node" 
@@ -709,7 +730,9 @@ let viewCatalogue model dispatch =
                                                                                                 of the 2 bit sel input is equal to Data, the others are 0"]
                     makeMenuGroup
                         "Arithmetic"
-                        [ catTip1 "N bits adder" (fun _ -> createNbitsAdderPopup model dispatch) "N bit Binary adder with carry in to bit 0 and carry out from bit N-1"]
+                        [ catTip1 "N bits adder" (fun _ -> createNbitsAdderPopup model dispatch) "N bit Binary adder with carry in to bit 0 and carry out from bit N-1"
+                          catTip1 "N bits XOR" (fun _ -> createNbitsXorPopup model dispatch) "N bit XOR gates - use to make subtractor or comparator"]
+
                     makeMenuGroup
                         "Flip Flops and Registers"
                         [ catTip1 "D-flip-flop" (fun _ -> createCompStdLabel DFF model dispatch) "D flip-flop - note that clock is assumed always connected to a global clock, \

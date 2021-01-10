@@ -279,6 +279,22 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 let out = out.Add (OutputPortNumber 1, cout)
                 makeReducerOutput NoState out
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+    | NbitsXor numberOfBits ->
+        fun reducerInput ->
+            assertNoClockTick reducerInput componentType
+            assertNotTooManyInputs reducerInput componentType 2
+            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
+            | None -> notReadyReducerOutput NoState // Wait for more inputs.
+            | Some [A; B] ->
+                let outVal =
+                    [A ; B]
+                    |> List.map convertWireDataToInt
+                    |> (function | [A;B] -> A ^^^ B | _ -> failwithf "What? impossible!")
+                    |> convertIntToWireData (numberOfBits + 1)              
+                let out = Map.empty.Add (OutputPortNumber 0, outVal )
+                makeReducerOutput NoState out
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+
     | Decode4 ->
         fun reducerInput ->
             assertNoClockTick reducerInput componentType
@@ -530,7 +546,7 @@ let private mapInputPortIdToPortNumber
 let private getDefaultState compType =
     match compType with
     | Input _ | Output _ | IOLabel | BusSelection _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 | Decode4
-    | Demux2 | NbitsAdder _ | Custom _ | MergeWires | SplitWire _ | ROM _  -> NoState
+    | Demux2 | NbitsAdder _ |NbitsXor _ | Custom _ | MergeWires | SplitWire _ | ROM _  -> NoState
     | Constant (w, c) -> NoState //convertIntToWireData w (if c < 0 then (1L <<< w) - int64 c else int64 c)
     | AsyncROM _ -> NoState
     | DFF | DFFE -> DffState Zero

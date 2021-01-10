@@ -461,8 +461,22 @@ let update msg model =
     | CloseProject -> { model with CurrentProj = None }, Cmd.none
     | ShowPopup popup -> { model with PopupViewFunc = Some popup }, Cmd.none
     | ClosePopup ->
-        { model with PopupViewFunc = None; PopupDialogData =
-                    { Text = None; Int = None; Int2 = None; MemorySetup = None; MemoryEditorData = None; WaveSetup=None} }, Cmd.none
+        let model' =
+            match getSheetWaveSimOpt model, model.PopupDialogData.WaveSetup with
+            | Some wsMod, Some(sheetWaves, paths) -> 
+                setWSMod (setSimParams (fun sp -> {sp with MoreWaves = Set.toList paths}) wsMod) model
+            | _ -> model
+        { model' with 
+            PopupViewFunc = None;
+            PopupDialogData =
+                    { 
+                        Text = None; 
+                        Int = None; 
+                        Int2 = None; 
+                        MemorySetup = None; 
+                        MemoryEditorData = None; 
+                        WaveSetup = model.PopupDialogData.WaveSetup} 
+                    }, Cmd.none
     | SetPopupDialogText text ->
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
     | SetPopupDialogInt int ->

@@ -118,8 +118,8 @@ type SimParamsT = {
     ClkSvgWidth: float
     /// names of NetGroups selected in wave editor and displayed in wave viewer
     DispNames: string array
-    /// nets in other sheets, and also RAMs, to be displayed
-    MoreWaves: MoreWaveSetup
+    /// RAMs to be displayed
+    MoreWaves: ComponentId list list
     /// current scrolling position of waveform svg (used to possibly extend svgs if scrolling off screen)
     MoreNames: MoreWaveData list
     LastScrollPos: float option
@@ -215,7 +215,7 @@ let initWS (allNames:string array) (allPorts: Map<string,NetGroup>): WaveSimMode
         WaveViewerRadix = Bin
         LastClkTime = 9u 
         LastScrollPos = None
-        MoreWaves = [], Set []
+        MoreWaves = []
       }
       WSViewState = WSClosed
       WSTransition =None
@@ -524,7 +524,7 @@ let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
             WaveViewerRadix = sWInfo.Radix
             LastClkTime = 9u
             LastScrollPos = None
-            MoreWaves = [],Set []
+            MoreWaves = []
         }
         WSViewState =WSClosed
         WSTransition =None

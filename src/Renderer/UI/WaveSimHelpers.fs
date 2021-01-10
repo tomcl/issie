@@ -21,6 +21,66 @@ type WaveGapT = {
     GapStart: int
     }
 
+////////////////////////
+/// Radix conversion ///
+////////////////////////
+
+
+// TODO: Rationalise by deleting these and using instead the functions in Helpers.
+
+let private charList2String (charLst: char list) = 
+    List.map string charLst
+    |> List.toSeq
+    |> String.concat ""
+
+let dec2bin (n:bigint) (nBits:uint32) =
+    [0u..nBits - 1u]
+    |> List.rev
+    |> List.map (fun bitNum -> if n &&& (1I <<< int bitNum) = 0I then '0' else '1')
+
+let dec2hex (n: bigint) (nBits: uint32): string =
+    let seqPad = 
+        let times = (4 - int nBits % 4) % 4
+        Seq.replicate times '0'
+
+    let paddedBin =
+        dec2bin n nBits
+        |> Seq.append seqPad
+        |> Seq.toList
+
+    let fourBit2HexDig =
+        let bit vec n = if (1 <<< n) &&& vec = 0 then '0' else '1'
+        let hexDigOf n = (sprintf "%x" n).[0]
+        [0..15]
+        |> List.map (fun dig -> 
+                List.map (bit dig) [3..-1..0], hexDigOf dig)
+        |> Map.ofList
+
+    [ 0 .. 4 .. List.length paddedBin - 4 ]
+    |> List.map (fun i -> fourBit2HexDig.[ paddedBin.[i..i + 3] ])
+    |> charList2String
+
+let dec2sdec (n: bigint) (nBits: uint32) =
+    if (dec2bin n nBits).[0] = '1' 
+        then n - bigint (2.0 ** (float nBits)) 
+        else n
+    |> string
+
+/// convert number to number string of the chosen radix
+let n2StringOfRadix (hasRadixPrefix: bool) (n: bigint) (nBits: uint32) (rad: NumberBase) =
+    let pref =
+        match rad with
+        | Bin -> "0b"
+        | Hex -> "0x"
+        | _ -> ""
+    match rad with
+    | Dec -> string n
+    | Bin -> dec2bin n nBits |> charList2String
+    | Hex -> dec2hex n nBits
+    | SDec -> dec2sdec n nBits
+    |> (fun numberRepStr -> (if hasRadixPrefix then pref else "") + numberRepStr)
+
+
 /////////////////////////////
 // General WaveSim Helpers //
 /////////////////////////////
@@ -86,35 +146,11 @@ type NGrp = {
  
     
     
-let private makeAllNetGroups (netList:NetList) :NetGroup array=
-
-    let comps = allNComps netList
-
-    let labelConnectedNets: Map<string,NLTarget list array> =       
-        comps
-        |> Array.collect (fun comp ->
-            if comp.Type = IOLabel then [|comp.Label, comp.Outputs.[OutputPortNumber 0]|] else [||])
-        |> Array.groupBy (fun (label, _) -> label)
-        |> Array.map (fun (lab, labOutArr)-> lab, (labOutArr |> Array.map (snd)))
-        |> Map.ofArray
-
-    let makeNetGroup (targets:NLTarget list) =
-        let connected = 
-            targets
-            |> List.toArray
-            |> Array.collect (fun target -> 
-                let comp = netList.[target.TargetCompId]
-                if comp.Type = IOLabel then labelConnectedNets.[comp.Label] else [||])
-        {driverNet=targets; connectedNets=connected}
 
 
-    let allNetGroups =
-        comps
-        |> Array.collect (fun comp -> 
-            match comp.Type with
-            | IOLabel -> [||]
-            | _ -> mapValues comp.Outputs |> Array.map makeNetGroup)
-    allNetGroups
+//-------------------------------------------------------------------------------------------------------//
+//---------------------------------More wave Helpers-----------------------------------------------------//
+//-------------------------------------------------------------------------------------------------------//
 
 /// get components on other sheets, and RAMs, formatted for setting up "more" waveform selection.
 /// The output is used as data for the "more wave select" popup.
@@ -149,8 +185,9 @@ let getWaveSetup (ws:WaveSimModel) (model:Model): MoreWaveSetup =
             |> List.collect (function | (Some (i,ctyp),path) -> [{Label = label;Sheet=name; Path=path;CSort=ctyp}] | _ -> [])
     sheets
     |> List.collect sheetCol
-    |> (fun cols -> cols, snd ws.SimParams.MoreWaves)
+    |> (fun cols -> cols, (Set.ofList ws.SimParams.MoreWaves))
 
+/// get component from graph subsheet with given name path
 let rec getSimComp (sg:SimulationGraph) path =
     match path with
     | [] -> failwithf "What? Path cannot be [] looking up sim component in wave sim"
@@ -160,8 +197,18 @@ let rec getSimComp (sg:SimulationGraph) path =
         | Some sg -> getSimComp sg t
         | None -> failwithf "What? A non-terminal part of a path must have a customSimulationgraph"
 
+/// get component from graph subsheet with given name path
+let rec getSimCompOpt (sg:SimulationGraph) path =
+    match path with
+    | [] -> None
+    | [cid]-> Map.tryFind cid sg
+    | h :: t -> 
+        match Map.tryFind h sg with
+        | Some {CustomSimulationGraph = Some sg} -> getSimCompOpt sg t
+        | Some x -> failwithf "What? Lookup of compnent in simulationgraph failed"
+        | None -> None
 
-/// get the form data for RAM (and other extra) simulation setup
+/// Get the form data for RAM (and other extra) simulation setup
 let reactMoreWaves ((sheets,ticks): MoreWaveSetup) (sg:SimulationGraph) (dispatch: Msg -> Unit) =
     let makeTableCell r =   td [Style [VerticalAlign Top]] [r]
     let makeWaveReactList (swL:SheetWave list) =
@@ -200,7 +247,90 @@ let reactMoreWaves ((sheets,ticks): MoreWaveSetup) (sg:SimulationGraph) (dispatc
         str "There are no subsheets with internal bus labels or I/Os, nor memories (RAM or ROM), in this design."
     else 
         table [] [tbody [] [tr [] cols]]
+
+let formatMemory (mem:Memory) =
+    let maxFilledGap = 2L
+    let sortedLocs = 
+        Map.toList mem.Data
+        |> List.sort
+        |> List.filter (fun (a,d) -> d <> 0L)
+    let makeRamLoc (addr: int64) (dat:int64) =
+        let disp (v:int64) w = dec2hex (bigint v) (uint32 w)
+        sprintf "[0x%s]: 0x%s" (disp addr mem.AddressWidth) (disp dat mem.WordWidth)
+    let dispGap endG startG =
+        match endG - startG with
+        | x when x > maxFilledGap -> 
+            [ "[...]: 0x0" ]
+        | _ -> 
+            [startG..endG - 1L]
+            |> List.map (fun a -> makeRamLoc a 0L)
+
+    let rec fillGaps curAddr lst =
+        match lst with
+        | [] -> dispGap ((1L <<< mem.AddressWidth) - 1L) curAddr
+        | (addr, dat) :: lst' -> dispGap addr curAddr @ [ makeRamLoc addr dat ] @ fillGaps (addr+1L) lst'
+    fillGaps 0L sortedLocs
+
+
+/// return sample at current cursor position
+let getCursorSampleFromGraph (wSMod: WaveSimModel) =
+    let n = int wSMod.SimParams.CursorTime
+    wSMod.SimDataCache.[n].Graph
+
+/// get Ram contents as array to display. RAM contents is
+/// determined on cursor sample from wSMod
+let getRamInfoToDisplay wSMod path =
+    let sg = getCursorSampleFromGraph wSMod
+    let sCompOpt = getSimCompOpt sg path
+    match sCompOpt with
+    | None -> "", []
+    | Some sComp ->
+        match sComp.Type with
+        | RAM dat | ROM dat | AsyncROM dat ->
+            let lab = match sComp.Label with |  ComponentLabel lab -> lab
+            lab, formatMemory dat
+        | _ -> "", []
     
+
+
+
+
+//------------------------------------------------------------------------------------------------------//
+//--------------------------------------NetGroup Helpers------------------------------------------------//
+//------------------------------------------------------------------------------------------------------//
+
+
+
+let private makeAllNetGroups (netList:NetList) :NetGroup array=
+
+    let comps = allNComps netList
+
+    let labelConnectedNets: Map<string,NLTarget list array> =       
+        comps
+        |> Array.collect (fun comp ->
+            if comp.Type = IOLabel then [|comp.Label, comp.Outputs.[OutputPortNumber 0]|] else [||])
+        |> Array.groupBy (fun (label, _) -> label)
+        |> Array.map (fun (lab, labOutArr)-> lab, (labOutArr |> Array.map (snd)))
+        |> Map.ofArray
+
+    let makeNetGroup (targets:NLTarget list) =
+        let connected = 
+            targets
+            |> List.toArray
+            |> Array.collect (fun target -> 
+                let comp = netList.[target.TargetCompId]
+                if comp.Type = IOLabel then labelConnectedNets.[comp.Label] else [||])
+        {driverNet=targets; connectedNets=connected}
+
+
+    let allNetGroups =
+        comps
+        |> Array.collect (fun comp -> 
+            match comp.Type with
+            | IOLabel -> [||]
+            | _ -> mapValues comp.Outputs |> Array.map makeNetGroup)
+    allNetGroups
+
 /// Get NetGroup from targets which represents the group of nLTargets connected by IOLabels.
 /// targets:list of inputs connected to a single driving component output (e.g. a connected Net).
 /// Return the containing NetGroup, where Nets connected by IOLabels form single Netgroups.
@@ -309,6 +439,9 @@ let getWaveSimDataOneSample (wsMod: WaveSimModel) (sample:int) =
     let netGroups = dispPorts wsMod
     wsMod.SimDataCache.[sample].Graph
     |> getSimTime netGroups
+
+
+
 
 /// extend WaveSimModel.SimData by n cycles
 let private appendSimData (model: Model) (wSModel: WaveSimModel) nCycles = 
@@ -672,64 +805,6 @@ let backgroundSvg (model: WaveSimModel) =
 let button options func label = 
     Button.button (List.append options [ Button.OnClick func ]) [ str label ]
 
-////////////////////////
-/// Radix conversion ///
-////////////////////////
-
-
-// TODO: Rationalise by deleting these and using instead the functions in Helpers.
-
-let private charList2String (charLst: char list) = 
-    List.map string charLst
-    |> List.toSeq
-    |> String.concat ""
-
-let dec2bin (n:bigint) (nBits:uint32) =
-    [0u..nBits - 1u]
-    |> List.rev
-    |> List.map (fun bitNum -> if n &&& (1I <<< int bitNum) = 0I then '0' else '1')
-
-let dec2hex (n: bigint) (nBits: uint32): string =
-    let seqPad = 
-        let times = (4 - int nBits % 4) % 4
-        Seq.replicate times '0'
-
-    let paddedBin =
-        dec2bin n nBits
-        |> Seq.append seqPad
-        |> Seq.toList
-
-    let fourBit2HexDig =
-        let bit vec n = if (1 <<< n) &&& vec = 0 then '0' else '1'
-        let hexDigOf n = (sprintf "%x" n).[0]
-        [0..15]
-        |> List.map (fun dig -> 
-                List.map (bit dig) [3..-1..0], hexDigOf dig)
-        |> Map.ofList
-
-    [ 0 .. 4 .. List.length paddedBin - 4 ]
-    |> List.map (fun i -> fourBit2HexDig.[ paddedBin.[i..i + 3] ])
-    |> charList2String
-
-let dec2sdec (n: bigint) (nBits: uint32) =
-    if (dec2bin n nBits).[0] = '1' 
-        then n - bigint (2.0 ** (float nBits)) 
-        else n
-    |> string
-
-/// convert number to number string of the chosen radix
-let n2StringOfRadix (hasRadixPrefix: bool) (n: bigint) (nBits: uint32) (rad: NumberBase) =
-    let pref =
-        match rad with
-        | Bin -> "0b"
-        | Hex -> "0x"
-        | _ -> ""
-    match rad with
-    | Dec -> string n
-    | Bin -> dec2bin n nBits |> charList2String
-    | Hex -> dec2hex n nBits
-    | SDec -> dec2sdec n nBits
-    |> (fun numberRepStr -> (if hasRadixPrefix then pref else "") + numberRepStr)
 
 
 ///////////////////
@@ -1123,6 +1198,19 @@ let cursorValueStrings (wSMod: WaveSimModel) =
     | true -> Array.map makeCursVal (getWaveSimDataOneSample wSMod (int paras.CursorTime))
     | false -> [||]
 
+/// strings of the values displayed for a RAM
+let ramValueStrings (wSMod: WaveSimModel) (ramName: string) =
+    let paras = wSMod.SimParams
+
+    let makeRamVal sample =
+        match sample with
+        | Wire w when w.NBits > 1u -> [| n2StringOfRadix true  w.BitData w.NBits paras.WaveViewerRadix |]
+        | Wire w -> [| string w.BitData |]
+        | StateSample s -> s
+
+    match int paras.CursorTime < Array.length wSMod.SimDataCache with
+    | true -> Array.map makeRamVal (getWaveSimDataOneSample wSMod (int paras.CursorTime))
+    | false -> [||]
 
 /// returns true when the cursor rectangle is in the visible section of the scrollable div
 let isCursorVisible wSMod divWidth scrollPos =

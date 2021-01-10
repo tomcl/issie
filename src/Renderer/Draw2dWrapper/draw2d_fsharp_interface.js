@@ -184,6 +184,10 @@ function createDigitalBusSelection(x, y, numberOfBits, lsbBitNumber) {
     return new draw2d.shape.digital.BusSelection({ x: x, y: y, numberOfBits: numberOfBits, lsbBitNumber: lsbBitNumber, resizeable: false });
 }
 
+function createDigitalBusCompare(x, y, numberOfBits, compareVal) {
+    return new draw2d.shape.digital.BusCompare({ x: x, y: y, numberOfBits: numberOfBits, compareVal: compareVal, resizeable: false });
+}
+
 
 function createDigitalNot(x, y) {
     return new draw2d.shape.digital.Not({x:x,y:y,resizeable:false});
@@ -366,6 +370,16 @@ function setLsbBitNumber(comp, lsbBitNumber) {
     comp.setSVG(comp.getSVG()); // Refresh svg.
 }
 
+/// Should only be used for Input, Output and NbitsAdder components.
+function setCompareVal(comp, compareVal) {
+    if (comp.compareVal === null || comp.compareVal === "undefined") {
+        throw `Cannot set comparison value of component: ${comp.componentType}`;
+    }
+    comp.compareVal = compareVal;
+    dispatchInferWidthsMessage();
+    comp.setSVG(comp.getSVG()); // Refresh svg.
+}
+
 /// Should only be used for SplitWire nodes.
 function setTopOutputWidth(comp, topOutputWidth) {
     if (comp.topOutputWidth === null || comp.topOutputWidth === "undefined") {
@@ -520,6 +534,7 @@ export {
     createDigitalOutput,
     createDigitalLabel,
     createDigitalBusSelection,
+    createDigitalBusCompare,
     createDigitalConstant,
     createDigitalNot,
     createDigitalAnd,
@@ -548,6 +563,7 @@ export {
     setNumberOfBits,
     setConstantNumber,
     setLsbBitNumber,
+    setCompareVal,
     setTopOutputWidth,
     setRegisterWidth,
     updateMergeWiresLabels,

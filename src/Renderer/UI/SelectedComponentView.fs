@@ -79,6 +79,7 @@ let private makeNumberOfBitsField model (comp:Component) text setter dispatch =
         | Input w | Output w | NbitsAdder w | NbitsXor w | Register w -> "Number of bits", w
         | SplitWire w -> "Number of bits in the top wire", w
         | BusSelection( w, _) -> "Number of bits selected: width", w
+        | BusCompare( w, _) -> "Bus width", w
         | Constant(w, _) -> "Number of bits in the wire", w
         | c -> failwithf "makeNumberOfBitsField called with invalid component: %A" c
     intFormField title width 1 (
@@ -121,28 +122,48 @@ let private makeConstantValueField model (comp:Component) setter dispatch =
 
 
 let private makeLsbBitNumberField model (comp:Component) setter dispatch =
-    let lsbPos =
+    let lsbPos, infoText =
         match comp.Type with 
-        | BusSelection(width,lsb) -> lsb
+        | BusSelection(width,lsb) -> lsb, "Least Significant Bit number selected: lsb"
+        | BusCompare(width,cVal) -> cVal, "Compare with"
         | _ -> failwithf "makeLsbBitNumberfield called from %A" comp.Type
 
-    intFormField "Least Significant Bit number selected: lsb" lsbPos 0 (
-        fun newLsb ->
-            if newLsb < 0
-            then
-                let note = errorPropsNotification "Invalid LSB bit position"
-                dispatch <| SetPropertiesNotification note
-            else
-                setter comp.Id newLsb // change the JS component
-                let lastUsedWidth = match comp.Type with | SplitWire _ | BusSelection _ -> model.LastUsedDialogWidth | _ ->  newLsb
-                dispatch (ReloadSelectedComponent (lastUsedWidth)) // reload the new component
-                dispatch ClosePropertiesNotification
-    )
+    match comp.Type with
+    | BusCompare(width,cVal) -> 
+        intFormField infoText lsbPos model.LastUsedDialogWidth (
+            fun cVal ->
+                if cVal < 0 || uint32 cVal > uint32 ((1 <<< width) - 1)
+                then
+                    let note = errorPropsNotification <| sprintf "Invalid Comparison Value for bus of width %d" width
+                    dispatch <| SetPropertiesNotification note
+                else
+                    setter comp.Id cVal // change the JS component
+                    let lastUsedWidth = width
+                    dispatch (ReloadSelectedComponent (lastUsedWidth)) // reload the new component
+                    dispatch ClosePropertiesNotification
+        )
+    | _ -> 
+        intFormField infoText lsbPos model.LastUsedDialogWidth (
+            fun newLsb ->
+                if newLsb < 0
+                then
+                    let note = errorPropsNotification "Invalid LSB bit position"
+                    dispatch <| SetPropertiesNotification note
+                else
+                    setter comp.Id newLsb // change the JS component
+                    let lastUsedWidth = match comp.Type with | SplitWire _ | BusSelection _ -> model.LastUsedDialogWidth | _ ->  newLsb
+                    dispatch (ReloadSelectedComponent (lastUsedWidth)) // reload the new component
+                    dispatch ClosePropertiesNotification
+        )
+
+
+
 let private makeDescription (comp:Component) model dispatch =
     match comp.Type with
     | Input _ -> str "Input."
     | Constant _ -> str "Constant Wire."
     | Output _ -> str "Output."
+    | BusCompare _ -> str "The output is one if the bus unsigned binary value is equal to the integer specified."
     | BusSelection _ -> div [] [
                 str "Bus Selection."
                 br []
@@ -221,6 +242,12 @@ let private makeExtraInfo model (comp:Component) text dispatch =
             makeNumberOfBitsField model comp text model.Diagram.SetNumberOfBits dispatch
             makeLsbBitNumberField model comp model.Diagram.SetLsbBitNumber dispatch
             ]
+    | BusCompare _ -> 
+        div [] [
+            makeNumberOfBitsField model comp text model.Diagram.SetNumberOfBits dispatch
+            makeLsbBitNumberField model comp model.Diagram.SetCompareVal dispatch
+            ]
+
     | Constant _ ->
         div [] [
              makeNumberOfBitsField model comp text model.Diagram.SetNumberOfBits dispatch

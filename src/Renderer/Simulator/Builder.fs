@@ -229,6 +229,20 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 let out = Map.empty.Add (OutputPortNumber 0, outBits)
                 makeReducerOutput NoState out
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput    
+    | BusCompare(width, compareVal) ->
+        fun reducerInput ->
+            assertNoClockTick reducerInput componentType
+            assertNotTooManyInputs reducerInput componentType 1
+            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
+            | None -> notReadyReducerOutput NoState // Wait for more inputs.
+            | Some [bits] ->
+                assertThat (bits.Length = width)
+                <| sprintf "Bus Compare received wrong number of bits: expecting  %d but got %d" width bits.Length
+                let inputNum = convertWireDataToInt bits
+                let outNum: WireData = [if inputNum = int64 compareVal then One else Zero]
+                let out = Map.empty.Add (OutputPortNumber 0, outNum)
+                makeReducerOutput NoState out
+            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput    
     | And  -> getBinaryGateReducer bitAnd And
     | Or   -> getBinaryGateReducer bitOr Or
     | Xor  -> getBinaryGateReducer bitXor Xor
@@ -290,7 +304,7 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                     [A ; B]
                     |> List.map convertWireDataToInt
                     |> (function | [A;B] -> A ^^^ B | _ -> failwithf "What? impossible!")
-                    |> convertIntToWireData (numberOfBits + 1)              
+                    |> convertIntToWireData (numberOfBits)              
                 let out = Map.empty.Add (OutputPortNumber 0, outVal )
                 makeReducerOutput NoState out
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
@@ -545,7 +559,7 @@ let private mapInputPortIdToPortNumber
 /// ROMs are stateless (they are only defined by their initial content).
 let private getDefaultState compType =
     match compType with
-    | Input _ | Output _ | IOLabel | BusSelection _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 | Decode4
+    | Input _ | Output _ | IOLabel | BusSelection _ | BusCompare _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 | Decode4
     | Demux2 | NbitsAdder _ |NbitsXor _ | Custom _ | MergeWires | SplitWire _ | ROM _  -> NoState
     | Constant (w, c) -> NoState //convertIntToWireData w (if c < 0 then (1L <<< w) - int64 c else int64 c)
     | AsyncROM _ -> NoState

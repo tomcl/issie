@@ -82,6 +82,10 @@ let extractComponentType (jsComponent : JSComponent) : ComponentType =
         let width = getFailIfNull jsComponent ["numberOfBits"]
         let lsb = getFailIfNull jsComponent ["lsbBitNumber"]
         BusSelection <| (width, lsb)
+    | "BusCompare" -> 
+        let busWidth = getFailIfNull jsComponent ["numberOfBits"]
+        let compareVal = getFailIfNull jsComponent ["compareVal"]
+        BusCompare <| (busWidth, compareVal)
     | "DFF"        -> DFF
     | "DFFE"       -> DFFE
     | "Register"   -> Register  <| getFailIfNull jsComponent ["regWidth"]

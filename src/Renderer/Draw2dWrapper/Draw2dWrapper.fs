@@ -51,6 +51,7 @@ type private IDraw2d =
     abstract createDigitalOutput          : x:int -> y:int -> numberOfBits:int -> JSComponent
     abstract createDigitalLabel           : x:int -> y:int -> JSComponent
     abstract createDigitalBusSelection    : x : int -> y: int -> numberOfBits: int -> bitSelected: int -> JSComponent
+    abstract createDigitalBusCompare    : x : int -> y: int -> numberOfBits: int -> compareVal: int -> JSComponent
     abstract createDigitalNot             : x:int -> y:int -> JSComponent
     abstract createDigitalAnd             : x:int -> y:int -> JSComponent
     abstract createDigitalOr              : x:int -> y:int -> JSComponent
@@ -77,6 +78,7 @@ type private IDraw2d =
     abstract writeMemoryLine              : comp:JSComponent -> memData:(int64*int64) list -> unit
     abstract setNumberOfBits              : comp:JSComponent -> numberOfBits:int -> unit
     abstract setLsbBitNumber              : comp:JSComponent -> lsbBitNumber:int -> unit
+    abstract setCompareVal                : comp:JSComponent -> compareVal:int -> unit
     abstract setConstantNumber            : comp:JSComponent -> constValue:int -> unit
     abstract setTopOutputWidth            : comp:JSComponent -> topOutputWidth: int -> unit
     abstract setRegisterWidth             : comp:JSComponent -> topOutputWidth: int -> unit
@@ -141,6 +143,7 @@ let private createComponent
         | Output w -> draw2dLib.createDigitalOutput x y w
         | IOLabel -> draw2dLib.createDigitalLabel x y
         | BusSelection (w,lsb) -> draw2dLib.createDigitalBusSelection x y w lsb
+        | BusCompare (w,cVal) -> draw2dLib.createDigitalBusCompare x y w cVal
         | Constant (w,c) -> draw2dLib.createDigitalConstant x y w c
         | Not    -> draw2dLib.createDigitalNot x y
         | And    -> draw2dLib.createDigitalAnd x y
@@ -519,6 +522,12 @@ type Draw2dWrapper() =
             let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "SetLsbBitNumber"
             draw2dLib.setLsbBitNumber jsComp lsbBitNumber
         |> tryActionWithCanvas "SetLsbBitNumber"
+
+    member this.SetCompareVal compId compareVal =
+        fun c ->
+            let jsComp = assertNotNull (draw2dLib.getComponentById c compId) "SetCompareVal"
+            draw2dLib.setCompareVal jsComp compareVal
+        |> tryActionWithCanvas "SetCompareVal"
 
     member this.SetTopOutputWidth compId topOutputWidth =
         fun c ->

@@ -61,7 +61,7 @@ module CommonTypes
         | Constant of Width: int * ConstValue: int
         | Not | And | Or | Xor | Nand | Nor | Xnor |Decode4
         | Mux2 | Demux2
-        | NbitsAdder of BusWidth: int
+        | NbitsAdder of BusWidth: int | NbitsXor of BusWidth:int
         | Custom of CustomComponentType // schematic sheet used as component
         | MergeWires | SplitWire of BusWidth: int // int is bus width
         // DFFE is a DFF with an enable signal.

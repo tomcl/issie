@@ -252,9 +252,13 @@ let private makeCursVals wsModel  =
     let string2Lbl = Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
     Array.map string2Lbl <| cursorValueStrings wsModel
 
-let private makeRamVals wsModel =
-    let string2Lbl = Array.map (fun l -> label [ Class "cursVals" ] [ str l ])
-    Array.map string2Lbl <|  Array.map (fun (i:int) -> [|dec2hex (bigint i) 4u|]) [|0;1;2;3;4;5;6;7;8;9;10;11;12;13;14;15|]
+let private makeRamReactCol (wsModel: WaveSimModel) ramPath =
+    let makeReactEl l = 
+        
+        [| label [ Class "ramVals"; Style [FontSize "12px"] ] [ str l ] |]
+    let ramName, ramLocs = getRamInfoToDisplay wsModel ramPath
+    [| label [ Class "ramVals"; ] [p [Style [FontWeight "Bold"; TextAlign TextAlignOptions.Center]] [str ramName]] |] :: List.map makeReactEl ramLocs
+    |> List.toArray
 
 
 
@@ -285,10 +289,7 @@ let private waveSimViewerRows compIds diagram (netList: NetList) (wsMod: WaveSim
         makeCursVals wsMod
         |> Array.map (fun c -> tr [ Class "rowHeight" ] [ td [ Class "cursValsCol" ] c ])
 
-    let ramValsCol =
-        makeRamVals wsMod
-        |> Array.map (fun c -> tr [ Class "rowHeight" ] [ td [ Class "cursValsCol" ] c ])
-    wsMod.DispWaveSVGCache, labelCols, cursValCol,ramValsCol
+    wsMod.DispWaveSVGCache, labelCols, cursValCol
 
 /// ReactElement of the tabs for changing displayed radix
 let private radixTabs (wsModel: WaveSimModel) dispatch =
@@ -472,19 +473,26 @@ let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRo
           table [ Style [ Height "100%" ] ] 
                 [ tbody [ Style [ Height "100%" ] ] (Array.concat [|waveformSvgRows.Top; waves; waveformSvgRows.Bottom|]) ] ]
 
+let waveSimViewerRamDisplay wSMod ramPath =
+    makeRamReactCol wSMod ramPath
+    |> Array.map (fun c -> tr [] [ td [ Class "cursValsCol" ] c ])
+  
+
 /// ReactElement of the bottom part of the waveform simulator when waveforms are being displayed
 let private viewWaveformViewer compIds model netList wSMod dispatch =
-    let tableWaves, nameColMiddle, cursValsRows,ramValsRows = waveSimViewerRows compIds model.Diagram netList wSMod dispatch
+    let tableWaves, nameColMiddle, cursValsRows = waveSimViewerRows compIds model.Diagram netList wSMod dispatch
     div
         [ Style
             [ Height "calc(100% - 45px)"
               Width "100%"
               OverflowY OverflowOptions.Auto ] ]
-        [ (* cursorValuesCol ramValsRows *)
+        ((List.map (fun ramPath -> cursorValuesCol (waveSimViewerRamDisplay wSMod ramPath)) wSMod.SimParams.MoreWaves) @
+        [
           cursorValuesCol cursValsRows
           div [ Style [ Height "100%" ] ]
               [ nameLabelsCol model netList wSMod nameColMiddle dispatch
-                allWaveformsTableElement model wSMod tableWaves dispatch ] ]
+                allWaveformsTableElement model wSMod tableWaves dispatch ] 
+        ])
 
 /// ReactElement of the zoom buttons
 let private viewZoomDiv compIds model wSMod dispatch =
@@ -579,7 +587,7 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
 
     let moreWaveEditorButtonAction _ =
         dispatch <| SetPopupWaveSetup (getWaveSetup wSModel model)
-        PopupView.showWaveSetupPopup (Some "Waveform Viewer Additional Setup") (getWavePopup dispatch) None [] dispatch
+        PopupView.showWaveSetupPopup (Some "RAM Viewer Setup: tick to view RAM or ROM contents") (getWavePopup dispatch) None [] dispatch
 
 
     

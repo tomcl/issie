@@ -227,6 +227,50 @@ draw2d.shape.digital.BusSelection = draw2d.shape.digital.extend({
     },
 });
 
+draw2d.shape.digital.BusCompare = draw2d.shape.digital.extend({
+
+    NAME: "draw2d.shape.digital.BusCompare",
+
+    componentType: "BusCompare",
+    svgHeight: 24,
+    svgWidth: 40,
+    numberOfbits: 1,
+    compareVal: 0,
+
+
+    getSvgElements: function () {
+        let bitsLabel = `=${this.compareVal}`;
+        let size = "14";
+        if (this.compareVal > 99) {
+            size = "11";
+        };
+        if (this.compareVal > 9999) {
+            size = "9";
+        };
+
+        return [
+            { path: '<polygon points="0,24 0,0 25,0 35,6 45,6 45,18 35,18 25,24" stroke="black" stroke-width="1" fill="lightgray" />', toFill: true },
+            { path: `<text x=17 y=6 fill="black" text-anchor="middle" font-weight="bolder" font-size="${size}px">${bitsLabel}</text>`, toFill: false }
+        ];
+    },
+
+    init: function (attr, setter, getter) {
+        this._super(
+            $.extend({ width: this.svgWidth, height: this.svgHeight }, attr),
+            setter,
+            getter
+        );
+        console.assert(typeof attr.numberOfBits === "number", "numberOfBits is not a number when creating a BusCompare node");
+        this.numberOfBits = attr.numberOfBits;
+        console.assert(typeof attr.compareVal === "number", "compareVal is not a number when creating a BusCompare node");
+        this.compareVal = attr.compareVal;
+
+
+        this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), this.numberOfBits > 1);
+        this.createDigitalPort("output", new draw2d.layout.locator.OutputPortLocator(), false);
+    },
+});
+
 draw2d.shape.digital.Label = draw2d.shape.digital.extend({
 
     NAME: "draw2d.shape.digital.Label",

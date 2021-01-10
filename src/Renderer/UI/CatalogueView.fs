@@ -350,7 +350,7 @@ let getPortNames (cType: ComponentType) =
     | NbitsAdder _ -> ["Cin"; "A"; "B"], ["Sum";"Cout"]
     | NbitsXor _ -> ["P"; "Q"], ["Out"]
     | Decode4 -> ["Sel";"Data"], ["0";"1";"2";"3"]
-    | Not | BusSelection _ -> ["In"],["Out"]
+    | Not | BusSelection _ | BusCompare _ -> ["In"],["Out"]
     | Mux2 -> ["0";"1";"Sel"],["Out"]
     | Demux2 ->["In";"Sel"],["0";"1"]
     | ROM _ | AsyncROM _ -> ["Addr"],["Dout"]
@@ -418,6 +418,7 @@ let stdLabel (compType: ComponentType) (model:Model) =
         | RAM _ -> "RAM"
         | Custom c -> c.Name + ".I"
         | Constant _ -> "C"
+        | BusCompare _ -> "EQ"
         | _ -> ""
     
     /// returns, as singleton list, just the numeric suffix in word for word matching prefix, or else empty list.
@@ -592,6 +593,28 @@ let private createBusSelectPopup model dispatch =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1 || getInt2 dialogData < 0
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
+let private createBusComparePopup model dispatch =
+    let title = sprintf "Add Bus Compare node" 
+    let beforeInt2 =
+        fun _ -> str "What is the value to compare the input with?"
+    let beforeInt =
+        fun _ -> str "How many bits width is the input bus?"
+    let intDefault = 1
+    let intDefault2 = 0
+    let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, intDefault2) dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let width = getInt dialogData
+            let cVal = getInt2 dialogData
+            createCompStdLabel (BusCompare(width,cVal)) model dispatch
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) -> 
+            let w = getInt dialogData
+            let cVal = getInt2 dialogData
+            w > 32 || w < 1 || cVal < 0 || cVal > (1 <<< w) - 1
+    dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 let private createRegisterPopup regType (model:Model) dispatch =
     let title = sprintf "Add Register" 
@@ -710,8 +733,10 @@ let viewCatalogue model dispatch =
                                                                                        join the bits of a two busses to make a wider bus"
                           catTip1 "SplitWire" (fun _ -> createSplitWirePopup model dispatch) "Use Splitwire when you want to split the \
                                                                                              bits of a bus into two sets"
-                          catTip1 "Bus Select" (fun _ -> createBusSelectPopup model dispatch) "Bus Select output connects to one or 
-                                                                                                more selected bits of its input" ]
+                          catTip1 "Bus Select" (fun _ -> createBusSelectPopup model dispatch) "Bus Select output connects to one or \
+                                                                                                more selected bits of its input"
+                          catTip1 "Bus Compare" (fun _ -> createBusComparePopup model dispatch) "Bus compare outputs 1 if the input bus \
+                                                                                                 matches a constant value" ]
                     makeMenuGroup
                         "Gates"
                         [ catTip1 "Not"  (fun _ -> createCompStdLabel Not model dispatch) "Invertor: output is negation of input"

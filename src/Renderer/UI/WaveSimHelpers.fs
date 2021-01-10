@@ -665,7 +665,7 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
                 | None ->  { OutputsAndIOLabels = []; ComposingLabels = [] } 
 
             match net.[nlSource.SourceCompId].Type with
-            | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4 | Mux2 -> 
+            | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4 | Mux2 | BusCompare _ -> 
                 [ { LabName = compLbl; BitLimits = 0, 0 } ] 
             | Input w | Output w | Constant(w, _) -> 
                 [ { LabName = compLbl; BitLimits = w - 1, 0 } ] 

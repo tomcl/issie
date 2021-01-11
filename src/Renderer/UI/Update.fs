@@ -368,7 +368,7 @@ let update msg model =
 
     if Set.contains "update" JSHelpers.debugTraceUI then
         let msgS = (sprintf "%A..." msg) |> Seq.truncate 60 |> Seq.map (fun c -> string c) |> String.concat ""
-        //printfn "%d %s" sdlen msgS
+        printfn "%d %s" sdlen msgS
     match msg with
 
     // special mesages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab

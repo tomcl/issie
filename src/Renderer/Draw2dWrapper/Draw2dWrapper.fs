@@ -75,6 +75,7 @@ type private IDraw2d =
     abstract createDigitalROM             : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
     abstract createDigitalRAM             : x:int -> y:int -> addressWidth:int -> wordWidth:int -> memData:'jsInt64List -> JSComponent
     abstract createDigitalConnection      : source:JSPort -> target:JSPort -> JSConnection
+    abstract setRouterInteractive         : isInteractive:bool -> unit
     abstract writeMemoryLine              : comp:JSComponent -> memData:(int64*int64) list -> unit
     abstract setNumberOfBits              : comp:JSComponent -> numberOfBits:int -> unit
     abstract setLsbBitNumber              : comp:JSComponent -> lsbBitNumber:int -> unit
@@ -580,3 +581,6 @@ type Draw2dWrapper() =
         match canvas with
         | Some c -> draw2dLib.deleteSelection c
         | None -> ()
+
+    member this.SetRouterInteractive isInteractive =
+        draw2dLib.setRouterInteractive isInteractive

@@ -310,6 +310,7 @@ type Msg =
     | UpdateScrollPos of bool
     | SetLastScrollPos of float option
     | ReleaseFileActivity of string
+    | SetRouterInteractive of bool
 
 
 //================================//

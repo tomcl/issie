@@ -87,6 +87,8 @@ let fileMenu (dispatch) =
         makeItem "Save Sheet" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
         makeItem "Print Sheet" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
         makeItem "Exit Issie" None (fun ev -> exitApp())
+        makeItem "Add Fixed Connections" None (fun ev -> dispatch (SetRouterInteractive false))
+        makeItem "Add Interactive Connections" None (fun ev -> dispatch (SetRouterInteractive true))
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> PopupView.viewInfoPopup dispatch)
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Restart app" None (fun _ -> 
             let webContents = electron.remote.getCurrentWebContents()

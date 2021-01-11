@@ -104,10 +104,25 @@ draw2d.policy.line.OrthogonalSelectionFeedbackPolicy = draw2d.policy.line.Orthog
 })
 
 /// Setup circuit-like connections in the diagram.
-//let router = new draw2d.layout.connection.InteractiveManhattanConnectionRouter();
-let router = new draw2d.layout.connection.CircuitConnectionRouter();
+let routerInteractive = new draw2d.layout.connection.InteractiveManhattanConnectionRouter();
+let routerFixed = new draw2d.layout.connection.CircuitConnectionRouter();
 // TODO: use CircuitConnectionRouter instead?
+
+let router = routerInteractive
 router.abortRoutingOnFirstVertexNode = false;
+
+export function setRouterInteractive(isInteractive) {
+    if (isInteractive) {
+        router = routerInteractive;
+        console.log(`setting intractive`);
+        router.abortRoutingOnFirstVertexNode = false;
+    } else {
+        router = routerFixed;
+        console.log(`setting fixed`);
+        router.abortRoutingOnFirstVertexNode = false;
+    }
+}
+
 
 export function createDigitalConnection(sourcePort, targetPort) {
     if (sourcePort === "undefined" || targetPort === "undefined") {

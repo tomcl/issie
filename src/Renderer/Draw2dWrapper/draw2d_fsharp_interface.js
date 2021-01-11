@@ -4,6 +4,7 @@
 
 import { setDispatchMessages } from "./MVU_messages.js"
 import { createDigitalConnection } from "./draw2d_digital_connections.js"
+import { setRouterInteractive } from "./draw2d_digital_connections.js"
 import "./draw2d_digital_components.js"
 import "./drag_connection_create_policy_fixed.js"
 
@@ -559,6 +560,7 @@ export {
     createDigitalROM,
     createDigitalRAM,
     createDigitalConnection,
+    setRouterInteractive,
     writeMemoryLine,
     setNumberOfBits,
     setConstantNumber,

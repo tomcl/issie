@@ -380,7 +380,6 @@ let checkCustomComponentsOk ((comps,_): CanvasState) (sheets: LoadedComponent li
         |> String.concat " , "
         |> sprintf "%s"
     comps
-    |> (fun c -> printfn "%A" c ; c)
     |> List.collect (function | {Type=Custom args} as c -> [checkCustomComponentForOkIOs c args sheets] | _ -> [])
     |> Helpers.tryFindError
     |> function | Ok _ -> None

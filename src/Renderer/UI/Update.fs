@@ -274,7 +274,7 @@ let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
     match msg with 
     | DiagramMouseEvent -> checkSelection model cmd
     | _ -> 
-        if System.DateTime.Now < (model.AsyncActivity.LastAutoSaveCheck).AddSeconds 0.1 || fileProcessingBusy <> [] then
+        if System.DateTime.Now < (model.AsyncActivity.LastAutoSaveCheck).AddSeconds 1.0 || fileProcessingBusy <> [] then
             model, cmd
         else
             let model,cmd = checkSelection model cmd
@@ -368,7 +368,7 @@ let update msg model =
 
     if Set.contains "update" JSHelpers.debugTraceUI then
         let msgS = (sprintf "%A..." msg) |> Seq.truncate 60 |> Seq.map (fun c -> string c) |> String.concat ""
-        printfn "%d %s" sdlen msgS
+        //printfn "%d %s" sdlen msgS
     match msg with
 
     // special mesages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab

@@ -58,7 +58,7 @@ module CommonTypes
     type ComponentType =
         | Input of BusWidth: int | Output of BusWidth: int | IOLabel 
         | BusSelection of OutputWidth: int * OutputLSBit: int
-        | BusCompare of BusWidth: int * CompareValue: int
+        | BusCompare of BusWidth: int * CompareValue: uint32
         | Constant of Width: int * ConstValue: int
         | Not | And | Or | Xor | Nand | Nor | Xnor |Decode4
         | Mux2 | Demux2

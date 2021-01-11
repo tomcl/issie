@@ -51,7 +51,7 @@ type private IDraw2d =
     abstract createDigitalOutput          : x:int -> y:int -> numberOfBits:int -> JSComponent
     abstract createDigitalLabel           : x:int -> y:int -> JSComponent
     abstract createDigitalBusSelection    : x : int -> y: int -> numberOfBits: int -> bitSelected: int -> JSComponent
-    abstract createDigitalBusCompare    : x : int -> y: int -> numberOfBits: int -> compareVal: int -> JSComponent
+    abstract createDigitalBusCompare    : x : int -> y: int -> numberOfBits: int -> compareVal: uint32 -> JSComponent
     abstract createDigitalNot             : x:int -> y:int -> JSComponent
     abstract createDigitalAnd             : x:int -> y:int -> JSComponent
     abstract createDigitalOr              : x:int -> y:int -> JSComponent

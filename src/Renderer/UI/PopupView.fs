@@ -197,7 +197,7 @@ let dialogPopupBodyOnlyInt beforeInt intDefault dispatch =
             ]
         ]
 /// Create the body of a dialog Popup with two ints.
-let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) dispatch =
+let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) (width2:string) dispatch =
 
     let setPopupTwoInts (whichInt:IntMode) =
         fun n -> (Some n, whichInt) |> SetPopupDialogTwoInts |> dispatch
@@ -218,7 +218,7 @@ let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) dis
             beforeInt2 dialogData
             br []
             Input.number [
-                Input.Props [Style [Width "60px"]; AutoFocus true]
+                Input.Props [Style [Width width2]; AutoFocus true]
                 Input.DefaultValue <| sprintf "%d" intDefault2
                 Input.OnChange (getIntEventValue >> setPopupTwoInts SecondInt)
             ]

@@ -114,11 +114,9 @@ router.abortRoutingOnFirstVertexNode = false;
 export function setRouterInteractive(isInteractive) {
     if (isInteractive) {
         router = routerInteractive;
-        console.log(`setting intractive`);
         router.abortRoutingOnFirstVertexNode = false;
     } else {
         router = routerFixed;
-        console.log(`setting fixed`);
         router.abortRoutingOnFirstVertexNode = false;
     }
 }

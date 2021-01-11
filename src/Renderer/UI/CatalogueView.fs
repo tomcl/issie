@@ -511,7 +511,7 @@ let private createNbitsAdderPopup (model:Model) dispatch =
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
-            printfn "creating adder %d" inputInt
+            //printfn "creating adder %d" inputInt
             createCompStdLabel (NbitsAdder inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
@@ -529,7 +529,7 @@ let private createNbitsXorPopup (model:Model) dispatch =
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let inputInt = getInt dialogData
-            printfn "creating XOR %d" inputInt
+            //printfn "creating XOR %d" inputInt
             createCompStdLabel (NbitsXor inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
@@ -684,8 +684,8 @@ let compareModelsApprox (m1:Model) (m2:Model) =
     let m1r = reduceApprox m1
     let m2r = reduceApprox m2
     let b = m1r = m2r
-    printfn "Model equality:%A" b
-    if b = false then printfn "\n\n%A\n\n%A\n\n" m1r m2r
+    //printfn "Model equality:%A" b
+    //if b = false then printfn "\n\n%A\n\n%A\n\n" m1r m2r
     b
 
 

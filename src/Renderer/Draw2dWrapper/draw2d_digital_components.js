@@ -965,7 +965,6 @@ draw2d.shape.digital.Register = draw2d.shape.digital.extend({
         );
 
         console.assert(typeof attr.regWidth === "number", "regWidth is not a number when creating a register component");
-        console.log(`regWidth= ${attr.regWidth}`)
         this.regWidth = attr.regWidth;
 
         this.createDigitalPort("input", new draw2d.layout.locator.InputPortLocator(), false);

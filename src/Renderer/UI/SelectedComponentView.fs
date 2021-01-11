@@ -37,11 +37,11 @@ let private textFormField isRequired name defaultValue onChange =
         ] 
     ]
 
-let private intFormField name defaultValue minValue onChange =
+let private intFormField name (width:string) defaultValue minValue onChange =
     Field.div [] [
         Label.label [] [ str name ]
         Input.number [
-            Input.Props [Style [Width "60px"]; Min minValue]
+            Input.Props [Style [Width width]; Min minValue]
             Input.DefaultValue <| sprintf "%d" defaultValue
             Input.OnChange (getIntEventValue >> onChange)
         ]
@@ -82,7 +82,7 @@ let private makeNumberOfBitsField model (comp:Component) text setter dispatch =
         | BusCompare( w, _) -> "Bus width", w
         | Constant(w, _) -> "Number of bits in the wire", w
         | c -> failwithf "makeNumberOfBitsField called with invalid component: %A" c
-    intFormField title width 1 (
+    intFormField title "60px" width 1 (
         fun newWidth ->
             if newWidth < 1
             then
@@ -124,13 +124,13 @@ let private makeConstantValueField model (comp:Component) setter dispatch =
 let private makeLsbBitNumberField model (comp:Component) setter dispatch =
     let lsbPos, infoText =
         match comp.Type with 
-        | BusSelection(width,lsb) -> lsb, "Least Significant Bit number selected: lsb"
+        | BusSelection(width,lsb) -> uint32 lsb, "Least Significant Bit number selected: lsb"
         | BusCompare(width,cVal) -> cVal, "Compare with"
         | _ -> failwithf "makeLsbBitNumberfield called from %A" comp.Type
 
     match comp.Type with
     | BusCompare(width,cVal) -> 
-        intFormField infoText lsbPos model.LastUsedDialogWidth (
+        intFormField infoText "120px"  model.LastUsedDialogWidth 0 (
             fun cVal ->
                 if cVal < 0 || uint32 cVal > uint32 ((1 <<< width) - 1)
                 then
@@ -143,7 +143,7 @@ let private makeLsbBitNumberField model (comp:Component) setter dispatch =
                     dispatch ClosePropertiesNotification
         )
     | _ -> 
-        intFormField infoText lsbPos model.LastUsedDialogWidth (
+        intFormField infoText "60px" model.LastUsedDialogWidth (int lsbPos) (
             fun newLsb ->
                 if newLsb < 0
                 then
@@ -263,7 +263,7 @@ let viewSelectedComponent model dispatch =
             let label' = extractLabelBase comp.Label
             readOnlyFormField "Description" <| makeDescription comp model dispatch
             makeExtraInfo model comp label' dispatch
-            let required = match comp.Type with | SplitWire _ | MergeWires -> false | _ -> true
+            let required = match comp.Type with | SplitWire _ | MergeWires | BusSelection _ -> false | _ -> true
             textFormField required "Component Name" label' (fun text -> 
                 setComponentLabel model comp (formatLabel comp text)
                 //updateNames model (fun _ _ -> model.WaveSim.Ports) |> StartWaveSim |> dispatch

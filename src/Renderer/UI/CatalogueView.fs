@@ -561,7 +561,7 @@ let private createConstantPopup model dispatch =
         fun _ -> str "How many bits has wire carrying the constant?"
     let intDefault = 1
     let intDefault2 = 0
-    let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, intDefault2) dispatch
+    let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, intDefault2) "120px" dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
@@ -581,7 +581,7 @@ let private createBusSelectPopup model dispatch =
         fun _ -> str "How many bits width is the output bus?"
     let intDefault = 1
     let intDefault2 = 0
-    let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, intDefault2) dispatch
+    let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, intDefault2) "60px" dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
@@ -593,27 +593,27 @@ let private createBusSelectPopup model dispatch =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1 || getInt2 dialogData < 0
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
-let private createBusComparePopup model dispatch =
+let private createBusComparePopup (model:Model) dispatch =
     let title = sprintf "Add Bus Compare node" 
     let beforeInt2 =
-        fun _ -> str "What is the value to compare the input with?"
+        fun _ -> str "What is the decimal value to compare the input with?"
     let beforeInt =
         fun _ -> str "How many bits width is the input bus?"
-    let intDefault = 1
+    let intDefault = model.LastUsedDialogWidth
     let intDefault2 = 0
-    let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, intDefault2) dispatch
+    let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, intDefault2) "120px" dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let width = getInt dialogData
             let cVal = getInt2 dialogData
-            createCompStdLabel (BusCompare(width,cVal)) model dispatch
+            createCompStdLabel (BusCompare(width, uint32 cVal)) model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) -> 
             let w = getInt dialogData
-            let cVal = getInt2 dialogData
-            w > 32 || w < 1 || cVal < 0 || cVal > (1 <<< w) - 1
+            let cVal = getInt2 dialogData |> uint32
+            w > 32 || w < 1 || cVal > (1u <<< w) - 1u
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 let private createRegisterPopup regType (model:Model) dispatch =

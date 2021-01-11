@@ -476,6 +476,7 @@ let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRo
 let waveSimViewerRamDisplay wSMod ramPath =
     makeRamReactCol wSMod ramPath
     |> Array.map (fun c -> tr [] [ td [ Class "cursValsCol" ] c ])
+    |> (fun r -> [|div [Style [Height "calc(100vh - 150px)"; OverflowY OverflowOptions.Auto]] r|])
   
 
 /// ReactElement of the bottom part of the waveform simulator when waveforms are being displayed

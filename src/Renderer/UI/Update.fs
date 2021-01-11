@@ -585,6 +585,9 @@ let update msg model =
         model, Cmd.none
     // post-update check always done which deals with regular tasks like updating connections and 
     // auto-saving files
+    | SetRouterInteractive isInteractive ->
+        model.Diagram.SetRouterInteractive isInteractive
+        model, Cmd.none
     |> checkForAutoSaveOrSelectionChanged msg
 
 

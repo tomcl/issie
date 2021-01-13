@@ -5,7 +5,8 @@
 *)
 
 module FilesIO
-
+open Fulma
+open Fable.React.Props
 open Helpers
 open CommonTypes
 open Fable.Core
@@ -16,6 +17,39 @@ open Node
 open EEExtensions
 
 
+
+
+
+let pathJoin args = path.join args
+let baseName filePath = path.basename filePath
+
+
+let dirName filePath = path.dirname filePath
+let ensureDirectory dPath =
+    if (not <| fs.existsSync (U2.Case1 dPath)) then 
+        fs.mkdirSync(dPath);
+    
+
+
+let pathWithoutExtension filePath =
+    let ext = path.extname filePath
+    filePath 
+    |> Seq.rev
+    |> Seq.skip ext.Length
+    |> Seq.rev
+    |> String.ofSeq
+
+let baseNameWithoutExtension =
+    pathWithoutExtension >> baseName
+
+let fileNameIsBad name = 
+    name 
+    |> Seq.filter (fun ch -> not (ch = ' ' || System.Char.IsLetter ch || System.Char.IsDigit ch))
+    |> Seq.isEmpty
+    |> not
+
+let filePathIsBad = 
+    baseNameWithoutExtension >> fileNameIsBad
 
 let fileExistsWithExtn extn folderPath baseName =
     let path = path.join [| folderPath; baseName + extn |]
@@ -45,8 +79,7 @@ let latestBackupFileData (path:string) (baseName: string) =
 /// return Error if file does not exist or cannot be parsed.
 let private tryLoadStateFromPath (filePath: string) =
     if not (fs.existsSync (U2.Case1 filePath)) then
-        Error <| sprintf "Can't read file from %s because it does not seem to exist!" filePath
-      
+        Error <| sprintf "Can't read file from %s because it does not seem to exist!" filePath      
     else
         fs.readFileSync(filePath, "utf8")
         |> jsonStringToState
@@ -55,35 +88,6 @@ let private tryLoadStateFromPath (filePath: string) =
             | Ok res -> Ok res)
 
 
-let pathJoin args = path.join args
-let baseName filePath = path.basename filePath
-
-let baseNameWithoutExtension filePath =
-    baseName filePath
-    |> String.splitString [|"."|]
-    |> function | [|name ; extn|] -> name | arr -> arr.[0]
-
-let dirName filePath = path.dirname filePath
-let ensureDirectory dPath =
-    if (not <| fs.existsSync (U2.Case1 dPath)) then 
-        fs.mkdirSync(dPath);
-    
-
-
-let pathWithoutExtension filePath =
-    let ext = path.extname filePath
-    filePath 
-    |> Seq.rev
-    |> Seq.skip ext.Length
-    |> Seq.rev
-    |> String.ofSeq
-
-
-let fileNameIsBad name = 
-    name 
-    |> Seq.filter (fun ch -> not (ch = ' ' || System.Char.IsLetter ch || System.Char.IsDigit ch))
-    |> Seq.isEmpty
-    |> not
 
 
 /// Extract the labels and bus widths of the inputs and outputs nodes.
@@ -172,7 +176,7 @@ let rec askForNewProjectPath () : string option =
             then
                 electron.remote.dialog.showErrorBox(
                     "Invalid project directory",
-                    "You are trying to craete a new Issie project inside an existing project directory. \
+                    "You are trying to create a new Issie project inside an existing project directory. \
                      This is not allowed, please choose a different directory")
                 askForNewProjectPath()
             
@@ -285,7 +289,7 @@ type LoadStatus =
 
     
 /// load all files in folderpath. Return Ok list of LoadStatus or a single Error.
-let loadAllComponentFiles (folderPath:string) = 
+let loadAllComponentFiles (folderPath:string)  = 
     let x = 
         try
             Ok <| fs.readdirSync (U2.Case1 folderPath)
@@ -294,22 +298,27 @@ let loadAllComponentFiles (folderPath:string) =
     match x with
     | Error msg -> Error msg
     | Ok x ->
-        printfn "loadallComponentFiles %s %A" folderPath (x |> Seq.toList)
+        printfn "loadAllComponentFiles %s %A" folderPath (x |> Seq.toList)
         x
         |> Seq.toList
         |> List.filter (path.extname >> ((=) ".dgm"))
         |> List.map (fun fileName ->
-                let filePath = path.join [| folderPath; fileName |]
-                let ldComp =  filePath |> tryLoadComponentFromPath
-                let autoComp = filePath + "auto" |> tryLoadComponentFromPath
-                match (ldComp, autoComp) with
-                | Ok ldComp, Ok autoComp when ldComp.TimeStamp < autoComp.TimeStamp ->
-                    Resolve(ldComp,autoComp) |> Ok
-                | Ok ldComp, _ -> 
-                    OkComp ldComp |> Ok
-                | Error _, Ok autoComp ->
-                    OkAuto autoComp |> Ok
-                | Error msg, _ -> Error msg
+                if fileNameIsBad (pathWithoutExtension fileName)
+                then
+                    Error <| sprintf @"Can't load file name '%s' from project '%s' because it contains incorrect characters.\n \
+                    File names used as sheets must contain only alphanumeric and space characters before the '.dgm' extension" fileName folderPath
+                else 
+                    let filePath = path.join [| folderPath; fileName |]
+                    let ldComp =  filePath |> tryLoadComponentFromPath
+                    let autoComp = filePath + "auto" |> tryLoadComponentFromPath
+                    match (ldComp, autoComp) with
+                    | Ok ldComp, Ok autoComp when ldComp.TimeStamp < autoComp.TimeStamp ->
+                        Resolve(ldComp,autoComp) |> Ok
+                    | Ok ldComp, _ -> 
+                        OkComp ldComp |> Ok
+                    | Error _, Ok autoComp ->
+                        OkAuto autoComp |> Ok
+                    | Error msg, _ -> Error msg
             )
         |> tryFindError
 

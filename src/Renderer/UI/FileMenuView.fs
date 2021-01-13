@@ -51,6 +51,72 @@ let releaseFileActivityImplementation a =
 
 
 
+/// Works out number of components and connections changed between two LoadedComponent circuits
+/// a new ID => a change even if the circuit topology is identical. Layout differences do not
+/// mean changes, as is implemented in the reduce functions which remove layout.
+let quantifyChanges (ldc1:LoadedComponent) (ldc2:LoadedComponent) =
+    let comps1,conns1 = ldc1.CanvasState
+    let comps2,conns2 = ldc2.CanvasState
+    let reduceComp comp1 =
+        {comp1 with X=0;Y=0}
+    let reduceConn conn1 =
+        {conn1 with Vertices = []}
+    /// Counts the number of unequal items in the two lists.
+    /// Determine equality from whether reduce applied to each item is equal
+    let unmatched reduce lst1 lst2 =
+        let mapToSet = List.map reduce >> Set
+        let rL1, rL2 = mapToSet lst1, mapToSet lst2
+        Set.union (Set.difference rL1 rL2) (Set.difference rL2 rL1)
+        |> Set.count
+    unmatched reduceComp comps1 comps2, unmatched reduceConn conns1 conns2
+
+//------------------------------------------Backup facility-------------------------------------------//
+
+let writeComponentToFile comp =
+    let data =  stateToJsonString (comp.CanvasState,comp.WaveInfo)
+    writeFile comp.FilePath data
+
+/// return an option containing sequence data and file path of the latest
+/// backup file for given component, if it exists.
+let readLastBackup comp =
+    let path = pathWithoutExtension comp.FilePath 
+    let baseN = baseName path
+    let backupDir = pathJoin [| dirName path ; "backup" |]
+    latestBackupFileData backupDir baseN
+  
+
+
+/// Write comp to a backup file unless the latest backup canvas is within numChanges distance from 
+/// the comp canvas.
+let writeComponentToBackupFile numChanges comp = 
+    let nSeq, backFilePath =
+        match readLastBackup comp with
+        | Some( n, fp) -> n+1,fp
+        | None -> 0, ""
+    let wantToWrite =
+        if backFilePath = "" then
+            true
+        else
+            match tryLoadComponentFromPath backFilePath with
+            | Ok comp' ->
+                let nComps,nConns = quantifyChanges comp' comp
+                nComps + nConns  >= numChanges
+            | _ -> true
+    if wantToWrite then       
+        let path = pathWithoutExtension comp.FilePath
+        let baseN = baseName path
+        let timestamp = System.DateTime.Now
+        let ds = EEExtensions.String.replaceChar '/' '-' (timestamp.ToShortDateString())
+        let suffix = EEExtensions.String.replaceChar ' ' '-' (sprintf "%s-%02dh-%02dm" ds timestamp.Hour timestamp.Minute)
+        ensureDirectory <| pathJoin [| dirName path ; "backup" |]
+        let backupDir = pathJoin [| dirName path ; "backup" |]
+        let backupPath = pathJoin [| dirName path ; "backup" ; sprintf "%s-%03d-%s.dgm" baseN nSeq suffix |]
+        printfn "Writing backup file to %s" backupPath
+        {comp with 
+            TimeStamp = timestamp
+            FilePath = backupPath}
+        |> writeComponentToFile
+
 /// returns a WaveSimModel option if a file is loaded, otherwise None
 let currWaveSimModel (model: Model) =
     match getCurrFile model with
@@ -130,6 +196,10 @@ let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lc
         printf "In updateLoadedcomponents can't find name='%s' in components:%A" name lcLst
         lcLst
     | Some n ->
+        let newLc = setFun lcLst.[n]
+        let nComps,nConns = quantifyChanges newLc lcLst.[n]
+        if nComps + nConns > 0 then
+            writeComponentToBackupFile 0 newLc
         List.mapi (fun i x -> if i = n then setFun x else x) lcLst
 
 /// return current project with current sheet updated from canvas if needed
@@ -198,26 +268,32 @@ let saveOpenFileAction isAuto model =
                     Some (makeLoadedComponentFromCanvasData state origLdComp.FilePath DateTime.Now savedWaveSim, reducedState))
 
 
+
 // save current open file, updating model etc, and returning the loaded component and the saved (unreduced) canvas state
 let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
-    let opt = saveOpenFileAction false model
-    let ldcOpt = Option.map fst opt
-    let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
-    match model.CurrentProj with
-    | None -> failwithf "What? Should never be able to save sheet when project=None"
-    | Some p -> 
-      // update loaded components for saved file
-      updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
-      |> (fun lc -> {p with LoadedComponents=lc})
-      |> SetProject
-      |> dispatch
-      // update Autosave info
-      SetLastSavedCanvas (p.OpenFileName,reducedState)
-      |> dispatch
-    SetHasUnsavedChanges false
-    |> JSDiagramMsg
-    |> dispatch
-    opt
+    if requestFileActivity "save" dispatch then
+        let opt = saveOpenFileAction false model
+        let ldcOpt = Option.map fst opt
+        let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
+        match model.CurrentProj with
+        | None -> failwithf "What? Should never be able to save sheet when project=None"
+        | Some p -> 
+          // update loaded components for saved file
+          updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
+          |> (fun lc -> {p with LoadedComponents=lc})
+          |> SetProject
+          |> dispatch
+          // update Autosave info
+          SetLastSavedCanvas (p.OpenFileName,reducedState)
+          |> dispatch
+        SetHasUnsavedChanges false
+        |> JSDiagramMsg
+        |> dispatch
+        releaseFileActivity "save" dispatch
+        opt
+    else
+        None
+
 
 let private getFileInProject name project = project.LoadedComponents |> List.tryFind (fun comp -> comp.Name = name)
 
@@ -299,9 +375,10 @@ let private openFileInProject' saveCurrent name project (model:Model) dispatch =
         match updateProjectFromCanvas model with
         | None -> failwithf "What? current project cannot be None at this point in openFileInProject"
         | Some p ->
+            let updatedModel = {model with CurrentProj = Some p}
             let ldcs =
                 if saveCurrent then 
-                    let opt = saveOpenFileAction false model
+                    let opt = saveOpenFileAction false updatedModel
                     let ldcOpt = Option.map fst opt
                     let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
                     let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
@@ -382,7 +459,8 @@ let renameSheet oldName newName (model:Model) dispatch =
             releaseFileActivity "renameSheet" dispatch
             failwithf "What? current project cannot be None at this point in renamesheet"
         | Some p ->
-            let opt = saveOpenFileAction false model
+            let updatedModel = {model with CurrentProj = Some p}
+            let opt = saveOpenFileAction false updatedModel
             let ldcOpt = Option.map fst opt
             let ldComps = updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
             let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
@@ -567,24 +645,7 @@ let private newProject model dispatch _ =
 
 
 
-/// Works out number of components and connections changed between two LoadedComponent circuits
-/// a new ID => a change even if the circuit topology is identical. Layout differences do not
-/// mean changes, as is implemented in the reduce functions which remove layout.
-let quantifyChanges (ldc1:LoadedComponent) (ldc2:LoadedComponent) =
-    let comps1,conns1 = ldc1.CanvasState
-    let comps2,conns2 = ldc2.CanvasState
-    let reduceComp comp1 =
-        {comp1 with X=0;Y=0}
-    let reduceConn conn1 =
-        {conn1 with Vertices = []}
-    /// Counts the number of unequal items in the two lists.
-    /// Determine equality from whether reduce applied to each item is equal
-    let unmatched reduce lst1 lst2 =
-        let mapToSet = List.map reduce >> Set
-        let rL1, rL2 = mapToSet lst1, mapToSet lst2
-        Set.union (Set.difference rL1 rL2) (Set.difference rL2 rL1)
-        |> Set.count
-    unmatched reduceComp comps1 comps2, unmatched reduceConn conns1 conns2
+
 
 
 
@@ -606,23 +667,11 @@ let rec resolveComponentOpenPopup
     | Resolve (ldComp,autoComp) :: rLst ->
         // ldComp, autocomp are from attemps to load saved file and its autosave version.
         let compChanges, connChanges = quantifyChanges ldComp autoComp
-        let writeComponentToFile comp =
-            let data =  stateToJsonString (comp.CanvasState,comp.WaveInfo)
-            writeFile comp.FilePath data
         let buttonAction autoSave _ =
             let comp = {(if autoSave then autoComp else ldComp) with TimeStamp = DateTime.Now}
             writeComponentToFile comp
-            if compChanges + connChanges >= 3 then
-                let backupComp = 
-                    let comp = if autoSave then ldComp else autoComp
-                    let path = pathWithoutExtension comp.FilePath +  ".dgm"
-                    ensureDirectory <| pathJoin [| dirName path ; "backup" |]
-                    let backupPath = pathJoin [| dirName path ; "backup" ; baseName path |]
-                    printfn "Writing backup file to %s" backupPath
-                    {comp with 
-                        TimeStamp = DateTime.Now
-                        FilePath = backupPath}
-                writeComponentToFile backupComp
+            if compChanges + connChanges > 0 then
+                writeComponentToBackupFile 0 comp 
             resolveComponentOpenPopup pPath (comp :: components) rLst  model dispatch   
         // special case when autosave data is most recent
         let title = "Warning!"

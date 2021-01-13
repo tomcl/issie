@@ -16,10 +16,33 @@ open Node
 open EEExtensions
 
 
-let private fileExistsWithExtn extn folderPath baseName =
+
+let fileExistsWithExtn extn folderPath baseName =
     let path = path.join [| folderPath; baseName + extn |]
     fs.existsSync (U2.Case1 path)
 
+let readFilesFromDirectory (path:string) : string list =
+    if fs.existsSync (U2.Case1 path) then
+        fs.readdirSync(U2.Case1 path)
+        |> Seq.toList
+    else
+        []
+
+/// returns the sequence number and name of the most recent (highest sequence number) backup file
+let latestBackupFileData (path:string) (baseName: string) =
+    readFilesFromDirectory path
+    |> List.filter (fun fn -> String.startsWith (baseName + "-") fn)
+    |> List.map (fun fn -> 
+            String.splitString [|"-"|] fn 
+            |> Array.tryItem 1
+            |> Option.bind (String.tryParseWith System.Int32.TryParse)
+            |> fun n -> n,fn)
+    |> List.sortDescending
+    |> List.tryHead
+    |> Option.bind (function | None,_ -> None | Some n, fn -> Some(n, fn))
+
+/// read canvas state from file found on filePath (which includes .dgm suffix etc).
+/// return Error if file does not exist or cannot be parsed.
 let private tryLoadStateFromPath (filePath: string) =
     if not (fs.existsSync (U2.Case1 filePath)) then
         Error <| sprintf "Can't read file from %s because it does not seem to exist!" filePath
@@ -34,6 +57,12 @@ let private tryLoadStateFromPath (filePath: string) =
 
 let pathJoin args = path.join args
 let baseName filePath = path.basename filePath
+
+let baseNameWithoutExtension filePath =
+    baseName filePath
+    |> String.splitString [|"."|]
+    |> function | [|name ; extn|] -> name | arr -> arr.[0]
+
 let dirName filePath = path.dirname filePath
 let ensureDirectory dPath =
     if (not <| fs.existsSync (U2.Case1 dPath)) then 
@@ -238,8 +267,9 @@ let makeLoadedComponentFromCanvasData canvas filePath timeStamp waveInfo =
     }
 
 
-
-let private tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
+/// Make a loadedComponent from the file read from filePath.
+/// Return the component, or an Error string.
+let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
     match tryLoadStateFromPath filePath with
     | Result.Error msg ->  Error <| sprintf "Can't load component %s because of Error: %s" (getBaseNameNoExtension filePath)  msg
     | Ok state ->
@@ -282,3 +312,6 @@ let loadAllComponentFiles (folderPath:string) =
                 | Error msg, _ -> Error msg
             )
         |> tryFindError
+
+
+

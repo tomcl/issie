@@ -76,32 +76,37 @@ let writeComponentToFile comp =
     let data =  stateToJsonString (comp.CanvasState,comp.WaveInfo)
     writeFile comp.FilePath data
 
-/// return an option containing sequence data and file path of the latest
+/// return an option containing sequence data and file name and directory of the latest
 /// backup file for given component, if it exists.
 let readLastBackup comp =
     let path = pathWithoutExtension comp.FilePath 
     let baseN = baseName path
     let backupDir = pathJoin [| dirName path ; "backup" |]
     latestBackupFileData backupDir baseN
+    |> Option.map (fun (seq, fName) -> seq, fName, backupDir)
   
 
 
 /// Write comp to a backup file unless the latest backup canvas is within numChanges distance from 
 /// the comp canvas.
 let writeComponentToBackupFile numChanges comp = 
-    let nSeq, backFilePath =
+    let nSeq, backupFileName, backFilePath =
         match readLastBackup comp with
-        | Some( n, fp) -> n+1,fp
-        | None -> 0, ""
+        | Some( n, fp, path) -> n+1,fp, path
+        | None -> 0, "", pathJoin [|comp.FilePath; "backup"|]
+    //printfn "seq=%d,name=%s,path=%s" nSeq backupFileName backFilePath
     let wantToWrite =
-        if backFilePath = "" then
+        if backupFileName = "" then
             true
         else
-            match tryLoadComponentFromPath backFilePath with
+            let oldBackupFile = pathJoin [|backFilePath ; backupFileName|]
+            match tryLoadComponentFromPath (oldBackupFile) with
             | Ok comp' ->
                 let nComps,nConns = quantifyChanges comp' comp
-                nComps + nConns  >= numChanges
-            | _ -> true
+                nComps + nConns  > numChanges
+            | err -> 
+                printfn "Error: writeComponentToBackup\n%A" err
+                true
     if wantToWrite then       
         let path = pathWithoutExtension comp.FilePath
         let baseN = baseName path
@@ -111,7 +116,6 @@ let writeComponentToBackupFile numChanges comp =
         ensureDirectory <| pathJoin [| dirName path ; "backup" |]
         let backupDir = pathJoin [| dirName path ; "backup" |]
         let backupPath = pathJoin [| dirName path ; "backup" ; sprintf "%s-%03d-%s.dgm" baseN nSeq suffix |]
-        printfn "Writing backup file to %s" backupPath
         {comp with 
             TimeStamp = timestamp
             FilePath = backupPath}
@@ -196,11 +200,10 @@ let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lc
         printf "In updateLoadedcomponents can't find name='%s' in components:%A" name lcLst
         lcLst
     | Some n ->
-        let newLc = setFun lcLst.[n]
-        let nComps,nConns = quantifyChanges newLc lcLst.[n]
-        if nComps + nConns > 0 then
-            writeComponentToBackupFile 0 newLc
-        List.mapi (fun i x -> if i = n then setFun x else x) lcLst
+        let oldLc = lcLst.[n]
+        let newLc = setFun oldLc
+        writeComponentToBackupFile 0 oldLc
+        List.mapi (fun i x -> if i = n then newLc else x) lcLst
 
 /// return current project with current sheet updated from canvas if needed
 let updateProjectFromCanvas (model:Model) =
@@ -265,7 +268,9 @@ let saveOpenFileAction isAuto model =
                     let savedWaveSim =
                         Map.tryFind project.OpenFileName (fst model.WaveSim)
                         |> Option.map waveSimModel2SavedWaveInfo
-                    Some (makeLoadedComponentFromCanvasData state origLdComp.FilePath DateTime.Now savedWaveSim, reducedState))
+                    let newLdc, newState = makeLoadedComponentFromCanvasData state origLdComp.FilePath DateTime.Now savedWaveSim, reducedState
+                    writeComponentToBackupFile 4 newLdc
+                    Some (newLdc,newState))
 
 
 

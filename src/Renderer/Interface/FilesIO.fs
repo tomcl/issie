@@ -73,7 +73,9 @@ let latestBackupFileData (path:string) (baseName: string) =
             |> fun n -> n,fn)
     |> List.sortDescending
     |> List.tryHead
-    |> Option.bind (function | None,_ -> None | Some n, fn -> Some(n, fn))
+    |> Option.bind (function 
+        | None,_ -> None 
+        | Some n, fn -> Some(n, fn))
 
 /// read canvas state from file found on filePath (which includes .dgm suffix etc).
 /// return Error if file does not exist or cannot be parsed.
@@ -298,7 +300,6 @@ let loadAllComponentFiles (folderPath:string)  =
     match x with
     | Error msg -> Error msg
     | Ok x ->
-        printfn "loadAllComponentFiles %s %A" folderPath (x |> Seq.toList)
         x
         |> Seq.toList
         |> List.filter (path.extname >> ((=) ".dgm"))

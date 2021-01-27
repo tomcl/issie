@@ -129,8 +129,8 @@ let private makeLsbBitNumberField model (comp:Component) setter dispatch =
         | _ -> failwithf "makeLsbBitNumberfield called from %A" comp.Type
 
     match comp.Type with
-    | BusCompare(width,cVal) -> 
-        intFormField infoText "120px"  model.LastUsedDialogWidth 0 (
+    | BusCompare(width, _) -> 
+        intFormField infoText "120px"  (int lsbPos) 1  (
             fun cVal ->
                 if cVal < 0 || uint32 cVal > uint32 ((1 <<< width) - 1)
                 then
@@ -138,12 +138,11 @@ let private makeLsbBitNumberField model (comp:Component) setter dispatch =
                     dispatch <| SetPropertiesNotification note
                 else
                     setter comp.Id cVal // change the JS component
-                    let lastUsedWidth = width
-                    dispatch (ReloadSelectedComponent (lastUsedWidth)) // reload the new component
+                    dispatch (ReloadSelectedComponent (width)) // reload the new component
                     dispatch ClosePropertiesNotification
         )
-    | _ -> 
-        intFormField infoText "60px" model.LastUsedDialogWidth (int lsbPos) (
+    | BusSelection(width, _) -> 
+        intFormField infoText "60px" (int lsbPos) 1 (
             fun newLsb ->
                 if newLsb < 0
                 then
@@ -151,10 +150,10 @@ let private makeLsbBitNumberField model (comp:Component) setter dispatch =
                     dispatch <| SetPropertiesNotification note
                 else
                     setter comp.Id newLsb // change the JS component
-                    let lastUsedWidth = match comp.Type with | SplitWire _ | BusSelection _ -> model.LastUsedDialogWidth | _ ->  newLsb
-                    dispatch (ReloadSelectedComponent (lastUsedWidth)) // reload the new component
+                    dispatch (ReloadSelectedComponent (width)) // reload the new component
                     dispatch ClosePropertiesNotification
         )
+    | _ -> failwithf "What? invalid component for lsbpos in properties"
 
 
 

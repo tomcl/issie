@@ -631,6 +631,7 @@ let private closeProject model dispatch _ =
 
 /// Create a new project.
 let private newProject model dispatch _ =
+    dispatch <| SetRouterInteractive false
     match askForNewProjectPath() with
     | None -> () // User gave no path.
     | Some path ->
@@ -710,7 +711,8 @@ let rec resolveComponentOpenPopup
  
 
 /// open an existing project
-let private openProject model dispatch _ =
+let private openProject useInteractiveRouter model dispatch _ =
+    dispatch <| SetRouterInteractive useInteractiveRouter
     match askForExistingProjectPath () with
     | None -> () // User gave no path.
     | Some path ->
@@ -737,7 +739,9 @@ let viewNoProjectMenu model dispatch =
         Menu.menu []
             [ Menu.list []
                   [ menuItem "New project" (newProject model dispatch)
-                    menuItem "Open project" (openProject model dispatch) ] ]
+                    menuItem "Open project (convert all conns to ugly, safe, form)" (openProject false model dispatch) 
+                    menuItem "Open project (nicer, but may crash, connections)" (openProject true model dispatch) ]
+            ]
 
     match model.CurrentProj with
     | Some _ -> div [] []
@@ -864,8 +868,8 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                                  DisplayOptions.None) ] ] ]
                                 [ Navbar.Item.a [ Navbar.Item.Props [ OnClick <| newProject model dispatch ] ]
                                       [ str "New project" ]
-                                  Navbar.Item.a [ Navbar.Item.Props [ OnClick <| openProject model dispatch ] ]
-                                      [ str "Open project" ]
+                                  Navbar.Item.a [ Navbar.Item.Props [ OnClick <| openProject false model dispatch ] ]
+                                      [ str "Open (convert to safe, ugly, connections) project" ]
                                   Navbar.Item.a [ Navbar.Item.Props [ OnClick <| closeProject model dispatch ] ]
                                       [ str "Close project" ] ] ]
 

@@ -244,7 +244,7 @@ let reactMoreWaves ((sheets,ticks): MoreWaveSetup) (sg:SimulationGraph) (dispatc
         |> List.map makeReactCol
         |> List.map makeTableCell
     if cols = [] then
-        str "There are no subsheets with internal bus labels or I/Os, nor memories (RAM or ROM), in this design."
+        str "There are no memories (RAM or ROM), in this design."
     else 
         table [] [tbody [] [tr [] cols]]
 
@@ -773,8 +773,12 @@ let netGroup2Label compIds graph netList (netGrp: NetGroup) =
 /// display then in wave windows where needed to disambiguate waveforms.
 let removeSuffixFromWaveLabel (label:string)  =
     label
-    |> Seq.takeWhile (fun ch -> ch <> '.')
-    |> Seq.map string
+    |> Seq.toList
+    |> List.rev
+    |> List.skipWhile (fun ch -> ch <> '.')
+    |> (function | '.' :: rest -> rest | chars -> chars)
+    |> List.rev
+    |> List.map string
     |> String.concat ""
 
 

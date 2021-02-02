@@ -540,7 +540,7 @@ let private createNbitsXorPopup (model:Model) dispatch =
 let private createSplitWirePopup model dispatch =
     let title = sprintf "Add SplitWire node" 
     let beforeInt =
-        fun _ -> str "How many bits should go to the top wire? The remaining bits will go to the bottom wire."
+        fun _ -> str "How many bits should go to the top (LSB) wire? The remaining bits will go to the bottom (MSB) wire."
     let intDefault = 1
     let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
     let buttonText = "Add"

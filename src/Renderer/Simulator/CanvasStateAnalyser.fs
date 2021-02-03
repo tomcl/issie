@@ -244,10 +244,19 @@ let private countPortsConnections
 
 
 let private checkCounts (conns: Connection list) connMap bins binMap cond errMsg =
-    let totals = countPortsConnections conns connMap bins binMap 
-    checkEvery totals cond errMsg
+    try
+        let totals = countPortsConnections conns connMap bins binMap 
+        checkEvery totals cond errMsg
+    with
+        | e -> 
+            Some {
+                Msg = "This is an undocumented circuit error, please report this do that Issie can be improved and give a helpful message"
+                InDependency = None
+                ComponentsAffected = []
+                ConnectionsAffected = []
+            }
 
-let private checkConns (conns: Connection list) (m : MapData) : SimulationError option=
+let private checkConns' (conns: Connection list) (m : MapData) : SimulationError option=
     let compOfPort p = m.ToComp.[ComponentId p.HostId]
     conns
     |> List.tryPick (fun conn ->
@@ -266,8 +275,18 @@ let private checkConns (conns: Connection list) (m : MapData) : SimulationError 
                 ConnectionsAffected = [ConnectionId conn.Id] 
                 }   )      
         )
-         
-        
+
+let private checkConns (conns: Connection list) (m : MapData) : SimulationError option=       
+    try
+        checkConns' conns m
+    with
+        | e -> 
+            Some {
+                Msg = "This is an undocumented circuit error, please report this do that Issie can be improved and give a helpful message"
+                InDependency = None
+                ComponentsAffected = []
+                ConnectionsAffected = []
+            }       
     
 
 /// Check that:

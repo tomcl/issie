@@ -120,7 +120,11 @@ let private checkCombinatorialCycle
                 let connectionsAffected =
                     match connectionsOpt with
                     | None -> []
-                    | Some conns -> calculateConnectionsAffected conns cycle
+                    | Some conns -> 
+                        try
+                            calculateConnectionsAffected conns cycle
+                        with
+                            | e -> []
                 Some {
                     Msg = "Cycle detected in combinatorial logic."
                     InDependency = inDependency

@@ -250,7 +250,7 @@ let private checkCounts (conns: Connection list) connMap bins binMap cond errMsg
     with
         | e -> 
             Some {
-                Msg = "This is an undocumented circuit connection counting error, please report this do that Issie can be improved and give a helpful message"
+                Msg = "This is an undocumented circuit error, please report this do that Issie can be improved and give a helpful message"
                 InDependency = None
                 ComponentsAffected = []
                 ConnectionsAffected = []

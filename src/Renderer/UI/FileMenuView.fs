@@ -146,10 +146,17 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
     dispatch <| SetIsLoading true
     //printfn "Check 1..."
     let components, connections = compToSetup.CanvasState
-    List.map model.Diagram.LoadComponent components |> ignore
-    //printfn "Check 2..."
-    List.map (model.Diagram.LoadConnection true) connections |> ignore
-    //printfn "Check 3..."
+    let loadExceptErr =
+        try
+            List.map model.Diagram.LoadComponent components |> ignore
+            //printfn "Check 2..."
+            List.map (model.Diagram.LoadConnection true) connections |> ignore
+            //printfn "Check 3..."
+        with
+            | e -> 
+                let errMsg = "An Issie exception occurred while loading: trying to recover..."
+                let error = errorFilesNotification errMsg
+                dispatch <| SetFilesNotification error
     let errs = model.Diagram.GetAndClearLoadConnectionErrors()
     if errs <> [] then
         let errMsg =  

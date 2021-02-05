@@ -305,7 +305,7 @@ let private makeDiffViewerBody memory1 memory2 memoryEditorData =
                 th [] [str "Current content"]
             ] ]
             tbody [] (
-                [addr..addr2] |> List.map (makeRow (getData addr memory1.Data) (getData addr memory2.Data))
+                [addr..addr2] |> List.map (fun a -> (makeRow (getData a memory1.Data) (getData a memory2.Data) a))
             )
         ]
     ]

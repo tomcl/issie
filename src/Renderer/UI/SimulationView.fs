@@ -212,6 +212,7 @@ let private viewStatefulComponents comps numBase model dispatch =
                     Button.Props [ simulationBitStyle ]
                     Button.Color IsPrimary
                     Button.OnClick (fun _ ->
+                        printfn "MEM=%A" mem
                         openMemoryDiffViewer (initialMem comp.Type) mem model dispatch
                     )
                 ] [ str "View" ]

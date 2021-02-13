@@ -285,10 +285,10 @@ let getRamInfoToDisplay wSMod path =
     match sCompOpt with
     | None -> "", []
     | Some sComp ->
-        match sComp.Type with
-        | RAM dat | ROM dat | AsyncROM dat ->
+        match sComp.State with
+        | RamState m ->
             let lab = match sComp.Label with |  ComponentLabel lab -> lab
-            lab, formatMemory dat
+            lab, formatMemory m
         | _ -> "", []
     
 

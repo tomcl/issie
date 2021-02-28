@@ -254,6 +254,7 @@ type Project = {
 
 
 type Msg =
+    | ExecuteWithCurrentModel of (Model -> (Msg->Unit)-> Unit)* (Msg -> Unit)
     | JSDiagramMsg of JSDiagramMsg<JSCanvas,JSComponent>
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>

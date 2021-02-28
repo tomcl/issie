@@ -41,6 +41,7 @@ let releaseFileActivity (a:string) (dispatch)=
     dispatch <| ModelType.ReleaseFileActivity a
 
 let releaseFileActivityImplementation a =
+    printfn "Releasing %s" a
     match fileProcessingBusy with
     | a' :: rest when a' = a -> 
         fileProcessingBusy <- rest
@@ -380,6 +381,7 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
 /// Closes waveadder if it is open
 let private openFileInProject' saveCurrent name project (model:Model) dispatch =
     let newModel = {model with CurrentProj = Some project}
+    printfn "Opening %s" name
     match getFileInProject name project with
     | None -> 
         log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
@@ -408,10 +410,17 @@ let private openFileInProject' saveCurrent name project (model:Model) dispatch =
                     project.LoadedComponents
             setupProjectFromComponents name ldcs newModel dispatch
 
-let openFileInProject name project (model:Model) dispatch =
-    if requestFileActivity "openFileInProject" dispatch then 
-        openFileInProject' true name project (model:Model) dispatch
-        dispatch <| ReleaseFileActivity "openFileInProject"
+let openFileInProject name (model:Model) dispatch =
+    match model.CurrentProj with
+    | Some proj ->
+        printfn "opening %s... " name
+        if requestFileActivity "openFileInProject" dispatch then 
+            printfn "Starting..."
+            openFileInProject' true name proj (model:Model) dispatch
+            dispatch <| ReleaseFileActivity "openFileInProject"
+        else
+            printfn "cancelled"
+    | None -> ()
 
 
 /// return a react warning message if name if not valid for a sheet Add or Rename, or else None
@@ -494,7 +503,7 @@ let renameSheet oldName newName (model:Model) dispatch =
 
 
 /// rename file
-let renameFileInProject name project model dispatch =
+let renameFileInProject name model dispatch =
     match model.CurrentProj, getCurrentWSMod model with
     | None,_ -> log "Warning: renameFileInProject called when no project is currently open"
     | Some project, Some ws when ws.WSViewState<>WSClosed ->
@@ -781,7 +790,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                     Button.Color IsPrimary
                                     Button.Disabled(name = project.OpenFileName)
                                     Button.OnClick(fun _ ->
-                                        openFileInProject name project model dispatch) ] [ str "open" ] 
+                                        dispatch <| ExecuteWithCurrentModel (openFileInProject name,dispatch)) ] [ str "open" ] 
                           ]
                           // Add option to rename?
                           Level.item [] [
@@ -790,7 +799,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                   Button.IsOutlined
                                   Button.Color IsInfo
                                   Button.OnClick(fun _ ->
-                                      renameFileInProject name project model dispatch) ] [ str "rename" ]
+                                      dispatch <| ExecuteWithCurrentModel (renameFileInProject name, dispatch)) ] [ str "rename" ]
                           ]
                           Level.item []
                               [ Button.button

@@ -39,7 +39,7 @@
     "title": true
   },
   "build": {
-    "appId": "ISSIE.116",
+    "appId": "ISSIE.117",
     "asar": true,
     "win": {
       "target": "zip"

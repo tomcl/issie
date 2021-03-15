@@ -27,6 +27,22 @@
         | [One] -> Bit 1u
         | w when n <= 32 -> Word (bitsToInt w, w.Length)
         | w -> BigWord(bitsToBig w, n)
+
+    let rec fastToWire (f: FastData) =
+        match f with
+        | Bit 0u -> [Zero]
+        | Bit 1u -> [One]
+        | Word(x,l) -> 
+            [0..l-1]
+            |> List.map (fun n -> if (x &&& (1u <<< n)) = 0u then Zero else One)
+        | BigWord(n,l) ->
+            if l < 30 then fastToWire (Word(uint32 n,l)) else 
+            let b = BigWord(n >>> 30, l-30)
+            let digit = Word( uint32 (n % (bigint 1 <<< 30)), 30)
+            fastToWire digit @ fastToWire b
+        | _ -> failwithf "%A is not a valid FastData value" f
+            
+           
     
     [<Erase>]
     type InputPortNumber = | InputPortNumber of int

@@ -1,13 +1,44 @@
 ﻿module Fast
     open Fable.Core
     open CommonTypes
+    open Helpers
     open SimulatorTypes
 
-
+    // We use all three options for efficiency
+    // Bit is more efficient than word for known boolean ops but it can be normalised to Word to make implementation
+    // of multiple bit components (that may carry one bit) simpler.
+    // BigWord is needed for > 32 bits, and much less efficient for < 32 bits.
     type FastData =
         | Bit of uint32 // must be 0 or 1, allows bitwise logical operators
         | Word of dat:uint32 * width:int
-        | BigWord of dat:bigint * width:int 
+        | BigWord of dat:bigint * width:int with
+        /// convert to form where single Bit is turned into Word equivalent
+        member inline this.Normalise = 
+            match this with 
+            | Bit n -> Word(n, 1) 
+            | BigWord(x, n) when n <= 32 -> Word(uint32 x, n)
+            | x -> x
+        /// return width of the data
+        member inline this.Width = match this with | Bit _ -> 1 | Word (_,n) -> n | BigWord(_,n) -> n
+        /// return Some 0 or Some 1 as the single bit, or None if not a single bit
+        member inline this.GetBitAsInt = 
+            match this with 
+            | Bit n -> Some n 
+            | Word(n, 1) -> Some n 
+            | _ -> None
+        member inline this.GetBigInt =
+            match this with
+            | Bit n -> bigint n
+            | Word(n,_) -> bigint n
+            | BigWord(n,_) -> n
+        /// return Some uint32 representing data if possible else None
+        member inline this.GetUint32 =
+            match this with
+            | Bit n -> Some n
+            | Word(n,w) -> Some n
+            | BigWord(n, w) when w <= 32 -> Some (uint32 n)
+            | _ -> None
+            
 
     let rec bitsToInt (lst:Bit list) =
         match lst with
@@ -19,7 +50,7 @@
         | [] -> bigint 0
         | x :: rest -> (if x = Zero then bigint 0 else bigint 1) + ((bitsToBig rest) <<< 1)
       
-
+    /// convert Wiredata to FastData equivalent
     let rec wireToFast (w: WireData) =
         let n = w.Length
         match w with
@@ -27,22 +58,65 @@
         | [One] -> Bit 1u
         | w when n <= 32 -> Word (bitsToInt w, w.Length)
         | w -> BigWord(bitsToBig w, n)
-
+    
+    /// convert FastData to Wiredata equivalent
     let rec fastToWire (f: FastData) =
         match f with
-        | Bit 0u -> [Zero]
-        | Bit 1u -> [One]
+        | Bit 0u | Word(0u,1) -> 
+            [Zero]
+        | Bit 1u | Word(1u,1) -> 
+            [One]
         | Word(x,l) -> 
             [0..l-1]
             |> List.map (fun n -> if (x &&& (1u <<< n)) = 0u then Zero else One)
         | BigWord(n,l) ->
-            if l < 30 then fastToWire (Word(uint32 n,l)) else 
-            let b = BigWord(n >>> 30, l-30)
-            let digit = Word( uint32 (n % (bigint 1 <<< 30)), 30)
-            fastToWire digit @ fastToWire b
+            if l < 30 then 
+                fastToWire (Word(uint32 n,l)) 
+            else 
+                let b = BigWord(n >>> 30, l-30)
+                let digit = Word( uint32 (n % (bigint 1 <<< 30)), 30)
+                fastToWire digit @ fastToWire b
         | _ -> failwithf "%A is not a valid FastData value" f
+
+    /// Extract bit field (msb:lsb) from f. Bits are numbered little-endian from 0.
+    /// Note that for a single bit result the un-normalised version is used, so it will
+    /// be compatible with fast implementation of boolean logic.
+    let getBits (msb: int) (lsb: int) (f: FastData)  =
+        assertThat 
+            (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
+            (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
+        let f = f.Normalise // get rid of Bit
+        match f with
+        | Word(x, n) -> 
+            let bits = (x >>> lsb) % (1u <<< (msb + 1))
+            match f.Width, bits with
+            | 1, a -> Bit a
+            | n, a -> Word(a, n)
+        | BigWord(x,n) ->
+            let bits = (x >>> lsb) % (bigint 1 <<< (msb + 1))
+            if n <= 32 then
+                Word(uint32 bits,n)
+            else
+                BigWord( bits, n)
+
+        | Bit _ -> failwith "What? Impossible after Normalise"
+
+    let appendBits (fMS: FastData) (fLS: FastData) : FastData =
+        let ms = fMS.Normalise
+        let ls = fMS.Normalise
+        let w = fMS.Width + fLS.Width
+        match ms,ls with
+        | Word(x1, _), Word(x2,m) when w <= 32 ->
+            Word ((x1 <<< m) + x2, w)
+        | Word(x1, _), Word(x2,m)  ->
+            BigWord ((bigint x1 <<< m) + bigint x2, w)
+        | _ ->  
+            BigWord((ms.GetBigInt <<< ls.Width) ||| ls.GetBigInt, w)
             
-           
+        
+
+            
+
     
     [<Erase>]
     type InputPortNumber = | InputPortNumber of int
@@ -59,9 +133,9 @@
         SimComponent: SimulationComponent
         accessPath: ComponentId list
         } with
-        member inline this.getInput (Epoch epoch)  (InputPortNumber n) = let a, (OutputPortNumber index) = this.Inputs.[n]
+        member inline this.GetInput (Epoch epoch)  (InputPortNumber n) = let a, (OutputPortNumber index) = this.Inputs.[n]
                                                                          a.[epoch].[index]
-        member inline this.putOutput (Epoch epoch) (OutputPortNumber n) dat = this.Outputs.[epoch].[n] <- dat
+        member inline this.PutOutput (Epoch epoch) (OutputPortNumber n) dat = this.Outputs.[epoch].[n] <- dat
         member inline this.Id = this.SimComponent.Id
                  
     // The fast simulation components are similar to the issie conmponents they are based on but with addition of arrays

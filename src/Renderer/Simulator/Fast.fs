@@ -19,7 +19,11 @@
             | BigWord(x, n) when n <= 32 -> Word(uint32 x, n)
             | x -> x
         /// return width of the data
-        member inline this.Width = match this with | Bit _ -> 1 | Word (_,n) -> n | BigWord(_,n) -> n
+        member inline this.Width = 
+            match this with 
+            | Bit _ -> 1 
+            | Word (_,n) -> n 
+            | BigWord(_,n) -> n
         /// return Some 0 or Some 1 as the single bit, or None if not a single bit
         member inline this.GetBitAsInt = 
             match this with 
@@ -99,7 +103,7 @@
             else
                 BigWord( bits, n)
 
-        | Bit _ -> failwith "What? Impossible after Normalise"
+        | _ -> failwith "What? Impossible after Normalise"
 
     let appendBits (fMS: FastData) (fLS: FastData) : FastData =
         let ms = fMS.Normalise

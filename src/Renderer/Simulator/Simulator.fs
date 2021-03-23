@@ -51,6 +51,15 @@ let rec prepareSimulation
                 NumberBase = Hex
                 ClockTickNumber = 0
             }
+            |> Result.map (fun sg -> 
+                try
+                    let fs = Fast.buildFastSimulation 10 graph; 
+                    sg
+                with
+                | e ->   
+                    printfn "\nEXCEPTION:\n\n%A\n%A" e.Message e.StackTrace
+                    sg)
+
 
 /// Expose the feedSimulationInput function from SimulationRunner.
 let feedSimulationInput = SimulationRunner.feedSimulationInput

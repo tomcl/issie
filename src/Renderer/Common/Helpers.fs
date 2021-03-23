@@ -7,6 +7,8 @@
 module Helpers
 open CommonTypes
 
+     
+
     [<AutoOpen>]
     module JsonHelpers =
         open Fable.SimpleJson
@@ -70,6 +72,10 @@ open CommonTypes
 
 
 (*-----------------------------------General helpers-----------------------------------------*)
+
+let mapKeys (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map fst |> Array.ofSeq
+let mapValues (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map snd |> Array.ofSeq
+let mapItems (map:Map<'a,'b>) = map |> Map.toSeq |> Array.ofSeq
 
 let shortPComp (comp:Component) =
     match comp.Type with

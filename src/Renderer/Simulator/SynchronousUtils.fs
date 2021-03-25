@@ -34,6 +34,8 @@ let rec hasSynchronousComponents graph : bool =
 let isInput = function | Input _ -> true | _ -> false
 let isOutput = function | Output _ -> true | _ -> false
 let isCustom = function | Custom _ -> true | _ -> false
+let isIOLabel = function | IOLabel _ -> true | _ -> false
+
 let getCustomName =
     function
     | Custom custom -> custom.Name

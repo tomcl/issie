@@ -5,10 +5,6 @@ open Helpers
 open SimulatorTypes
 open SynchronousUtils
 open NumberHelpers
-    
-
-[<Emit("typeof $0")>]
-let jsType (var: obj) : unit = jsNative
 
 //----------------------------------------------------------------------------------------------//
 //--------------------------------Fast Digital Bus Data Type------------------------------------//
@@ -217,17 +213,18 @@ let createFastComponent
     // dummy arrays wil be replaced by real ones when components are linked after being created
     let ins = 
         [|0..inPortNum-1|]
-        |> Array.map (fun n -> Array.create numSteps [])
+        |> Array.map (fun n -> Array.create (numSteps+1) [])
     let outs = 
         [|0..outPortNum-1|]
-        |> Array.map (fun n -> Array.create numSteps [])
+        |> Array.map (fun n -> Array.create (numSteps+1) [])
     let inps =
         let dat =
             match accessPath,sComp.Type with 
             // top-level input needs special inputs because they can't be calculated
             | [], Input width ->  List.replicate width Zero
             | _ -> []
-        Array.create inPortNum (Array.create numSteps dat)
+        [|0..inPortNum-1|] 
+        |> Array.map (fun i ->  (Array.create (numSteps+1) dat))
     {
         OutputWidth  = getOutputWidths sComp (Array.create outPortNum None)
         State = NoState
@@ -240,7 +237,7 @@ let createFastComponent
         InputLinks = ins
         Outputs = outs
         FullName = ""
-        Inactive = false
+        Inactive = isIOLabel sComp.Type
     }
     
       
@@ -269,6 +266,7 @@ type FastSimulation = {
     FConstantComps: FastComponent array
     FClockedComps: FastComponent array
     FOrderedComps: FastComponent array
+    FIOLabels: Map<ComponentLabel*ComponentId list,FComponentId list>
     FComps: Map<FComponentId,FastComponent>
     FSComps: Map<FComponentId,SimulationComponent * ComponentId list>
     G: GatherData
@@ -282,6 +280,7 @@ and  GatherData = {
     /// link from component input port to its custom driving output component
     CustomOutputCompLinks: Map<FComponentId,  FComponentId * OutputPortNumber>
     Labels: Map<ComponentId,string>
+    IOLabels: Map<ComponentLabel*ComponentId list,FComponentId list>
     AllComps: Map<ComponentId*ComponentId list,SimulationComponent * ComponentId list> // maps to component and its path in the graph
     /// List of component Input components that are driven externally to simulation
     } with
@@ -292,11 +291,12 @@ and  GatherData = {
             |> String.concat "."
 
 let emptyGather = {
-    Simulation = Map.empty
     Labels = Map.empty
+    Simulation = Map.empty
     CustomInputCompLinks=Map.empty
     CustomOutputCompLinks=Map.empty
     AllComps=Map.empty
+    IOLabels = Map.empty
 }
 
 let emptyFastSimulation() =
@@ -306,6 +306,7 @@ let emptyFastSimulation() =
         FConstantComps = Array.empty
         FClockedComps = Array.empty
         FOrderedComps = Array.empty
+        FIOLabels = Map.empty
         FComps = Map.empty
         FSComps = Map.empty
         G = emptyGather
@@ -397,12 +398,12 @@ let inline private bitXnor bit0 bit1 =
 let private fastReduce (simStep: int) (comp : FastComponent) : Unit =
     let componentType = comp.FType
        
-    //printfn "Reducing %A...%A"  comp.FType (comp.FullName)
+    printfn "Reducing %A...%A (step %d)"  comp.FType (comp.FullName) simStep
     let n = comp.InputLinks.Length
-    let inline ins i = 
+    let ins i = 
         assertThat (i < n) (sprintf "What? Invalid input port (%d:step%d) used by %s (%A) reducer with %d Ins" 
                                     i simStep comp.FullName componentType n)
-        let fd = comp.GetInput (SimStep simStep) (InputPortNumber i)
+        let fd = comp.InputLinks.[i].[simStep]
         assertThat (fd <> []) (sprintf "What? Invalid data %A  found in input port (%d:step%d) used by %s (%A) reducer" 
                                     fd i simStep comp.FullName componentType)
         fd
@@ -460,8 +461,8 @@ let private fastReduce (simStep: int) (comp : FastComponent) : Unit =
         checkWidth width bits
         put0 bits
     | IOLabel -> 
-        if not comp.Inactive then
             let bits = ins 0
+            //let bits = comp.InputLinks.[0].[simStep]
             //printfn "Reducing IOLabel %A" comp.SimComponent.Label
             put0 bits
     | Not ->
@@ -580,6 +581,7 @@ let private fastReduce (simStep: int) (comp : FastComponent) : Unit =
         <| sprintf "RegisterE received data with wrong width: expected %d but got %A" width bits.Length
         if (extractBit enable = One)
         then put0 bits
+        else put0 (getLastCycleOut 0)
     | AsyncROM mem -> // Asynchronous ROM.
         let addr = ins 0
         assertThat (addr.Length = mem.AddressWidth)
@@ -628,10 +630,22 @@ let rec gatherPhase
         (gather: GatherData) : GatherData =
     (gather, graph)
     ||> Map.fold ( fun gather cid comp ->
+        // add this component
         let gather = 
             { gather with 
                 AllComps = Map.add (cid,ap) (comp,ap) gather.AllComps
                 Labels = Map.add cid ((fun (ComponentLabel s) -> s) comp.Label) gather.Labels
+                IOLabels =
+                    let lab = comp.Label,ap
+                    let ioLabels = gather.IOLabels
+                    if isIOLabel comp.Type then
+                        let ioList =
+                            match Map.tryFind lab ioLabels with
+                            | Some fCompL -> (cid,ap) :: fCompL
+                            | None -> [cid,ap]
+                        Map.add lab ioList ioLabels
+                    else
+                        ioLabels
             }
         match comp.Type, comp.CustomSimulationGraph, ap with
         | Custom ct, Some csg, _->
@@ -655,6 +669,7 @@ let rec gatherPhase
                 ct.InputLabels
                 |> List.mapi (fun i (lab,labOutWidth) -> (((cid,ap), InputPortNumber i), (inputs.[ComponentLabel lab,labOutWidth],ap')))
                 |> Map.ofList
+
 
             let g = gatherPhase ap' numSteps csg gather
             {g with
@@ -680,8 +695,8 @@ let rec createInitFastCompPhase (numSteps:int) (g:GatherData) (f:FastSimulation)
         let outs: FData array array = 
             (if isOutput comp.Type then
                 let n = Option.defaultValue 1 fc.OutputWidth.[0]
-                let outs = [| Array.create numSteps [] |]
-                outs.[0].[0] <- List.replicate n Zero
+                let outs = [| Array.create (numSteps+1) [] |]
+                outs.[0].[0] <- [] //List.replicate n Zero
                 outs
             else 
                 fc.Outputs)
@@ -694,29 +709,21 @@ let rec createInitFastCompPhase (numSteps:int) (g:GatherData) (f:FastSimulation)
     {f with 
         FComps = comps
         FSComps = g.AllComps
+        FIOLabels = g.IOLabels
     }        
 
-/// has side effect of making IOLabels of same name all use same output array
+/// has side effect of making IOLabels of same name (in the same graph) all use same output array
 /// this means that an input to any one will produce an output on all, for no effort.
 /// IOLabels without driven inputs that are thus not used are later on flagged inactive
 /// they must not be reduced, and will not be included in the ordered component list
 let reLinkIOLabels (fs: FastSimulation) =
-    (Map.empty,fs.FComps)
-    ||> Map.fold (fun labs fid fComp -> 
-        if fComp.FType = IOLabel then
-            let (_,ap) = fid
-            let name = (fst fs.FSComps.[fid]).Label
-            match Map.tryFind (name,ap) labs with
-            | None -> Map.add (name,ap) fComp.Outputs.[0] labs
-            | Some (outArray) -> 
-                fComp.Outputs.[0] <- outArray
-                labs
-            //|> (fun labs -> printfn "IOLabel outputs: <%A>" fComp.Outputs;labs)
-
-        else labs) 
-    |> ignore // execute this only for its side effect of commoning up the IOLabel output arrays
-   
-                
+    let setOutput0Array (lab:FastComponent) (rest:FastComponent list) =
+        List.iter (fun fc -> fc.Outputs.[0] <- lab.Outputs.[0]) rest
+    fs.FIOLabels
+    |> Map.iter (fun (lab,ap) fCompL ->
+        match fCompL with
+        | [] -> ()
+        | fid :: rest -> setOutput0Array fs.FComps.[fid] (List.map (fun fid -> fs.FComps.[fid]) rest))
 
 let linkFastComponents (g: GatherData) (f:FastSimulation) =
     let outer = List.rev >> List.tail >> List.rev
@@ -768,7 +775,11 @@ let linkFastComponents (g: GatherData) (f:FastSimulation) =
             //|> (fun x -> printfn "Link array from getlinks has %d items: %A" x.Length x ; x )
             |> Array.iter (fun (cid, opn, InputPortNumber ipn) ->
                 //printfn "\nLink found %s-%d -> %s-%d (opn=%d)" (g.getFullName fid) iOut (g.getFullName cid) ipn opn
-                //printfn "Link %A.%A <- %A.%A\n\n"  (g.getFullName cid) ipn  (g.getFullName fComp.fId) opn
+                printfn "Link (%A) %A.%A <- %A.%A\n\n" 
+                    (if f.FComps.[cid].Inactive then "U" else "A")
+                    (g.getFullName cid) 
+                    ipn  
+                    (g.getFullName fComp.fId) opn
                 let linked = Map.tryFind (cid,InputPortNumber ipn) linkCheck
                 match linked with
                 | None -> ()
@@ -776,33 +787,66 @@ let linkFastComponents (g: GatherData) (f:FastSimulation) =
                     failwithf "Multiple linkage: (previous driver was %A,%A)" (g.getFullName fid) opn
 
                 linkCheck <- Map.add (cid,InputPortNumber ipn) (fComp.fId,OutputPortNumber opn) linkCheck
-                f.FComps.[cid].Inactive <- true
-                f.FComps.[cid].InputLinks.[ipn] <- fComp.Outputs.[opn])))
+                let fcDriven = f.FComps.[cid]
+                let (ComponentId sid,ap) = cid
+                if isIOLabel fcDriven.FType then 
+                    let ioLabs = f.FIOLabels.[fcDriven.SimComponent.Label,ap]
+                    if List.forall (fun (fc':FComponentId) -> f.FComps.[fc'].Inactive) ioLabs then
+                        printfn "IOLabel %A %A making active, was %A\n"
+                            fcDriven.FullName 
+                            (EEExtensions.String.substringLength 0 5 sid)
+                            (if fcDriven.Inactive then "U" else "A")
+                        fcDriven.Inactive <- false
+                if not fcDriven.Inactive then
+                    fcDriven.InputLinks.[ipn] <- fComp.Outputs.[opn])))
     f
- 
+
+let isValidData (fd: WireData) = fd <> []
+
+let isComb (comp:FastComponent) =
+    match comp.FType with
+    | Input _ when comp.AccessPath = [] -> false
+    | ct when couldBeSynchronousComponent ct -> false
+    | _ -> true
+
+let canBeReduced (step: int) (fc:FastComponent) =
+    //printfn "checking %A can be reduced <%A> len=%d" fc.FType fc.InputLinks fc.InputLinks.Length
+    //printfn "Checking canbereduced: %A:<%A>" fc.SimComponent.Label fc.InputLinks
+    //assertThat ((not (isNull fc.InputLinks)) && fc.InputLinks.Length > 0) <| sprintf "No input links"
+    isComb fc && not fc.Touched && not fc.Inactive && Array.forall (fun (arr: FData array) -> 
+                arr.Length > 0 && isValidData arr.[step]) fc.InputLinks
+
+let printComps (step:int) (fs:FastSimulation) =
+
+
+    let printComp (step:int) (fc:FastComponent) =
+        let (ComponentId cid), _ = fc.fId
+        let sFid = EEExtensions.String.substringLength 0 5 cid
+        let attr = 
+            [
+                if isComb fc then "Co" else "  "
+                if fc.Touched then "T" else "U"
+                if fc.Inactive then "I" else "A"
+                "    "
+                (fc.InputLinks
+                |> Array.map (fun (arr: FData array) -> arr.Length > 0 && isValidData arr.[step])
+                |> Array.map (function | true -> "*" | false -> "X")
+                |> String.concat "")
+            ]
+            |> String.concat ""
+        sprintf "%25s %s %15s %A" sFid fc.FullName attr (canBeReduced step fc)
+
+    fs.FComps
+    |> mapValues
+    |> Array.map (fun fComp -> printComp step fComp)
+    |> String.concat "\n"
+    |> printfn "COMPONENTS\n----------------\n%s\n---------------"
+
+
                         
 let orderCombinationalComponents (numSteps: int) (fs: FastSimulation): FastSimulation =
 
-    let isValidData (fd: WireData) = fd <> []
 
-    let isComb (comp:FastComponent) =
-        match comp.FType with
-        | Input _ when comp.AccessPath = [] -> false
-        | ct when couldBeSynchronousComponent ct -> false
-        | _ -> true
-
-    let canBeReduced (fc:FastComponent) =
-        //printfn "checking %A can be reduced <%A> len=%d" fc.FType fc.InputLinks fc.InputLinks.Length
-        //printfn "Checking canbereduced: %A:<%A>" fc.SimComponent.Label fc.InputLinks
-        //assertThat ((not (isNull fc.InputLinks)) && fc.InputLinks.Length > 0) <| sprintf "No input links"
-        let can = isComb fc && not fc.Touched && Array.forall (fun (arr: FData array) -> 
-                    arr.Length > 5 && isValidData arr.[0]) fc.InputLinks
-        //let name = fc.SimComponent.Label
-        //printf "canbereduced %A %A: notTtouched %A, comb %A, Inputs <%A>, <=%A>" 
-        //        can name (not fc.Touched) (isComb fc) fc.InputLinks (Array.map (fun (arr: FData array) -> isValidData arr.[0]) fc.InputLinks)
-        //printfn "num inputs = %d" fc.InputLinks.Length
-
-        can
 
     let init fc =
         fastReduce 0 fc
@@ -810,8 +854,9 @@ let orderCombinationalComponents (numSteps: int) (fs: FastSimulation): FastSimul
 
     let initInput (fc:FastComponent) =
         //printfn "Init input..."
-        fc.InputLinks.[0] <- Array.create numSteps (List.replicate (Option.defaultValue 1 fc.OutputWidth.[0]) Zero)
-        //printfn "Initialised input: %A" fc.InputLinks
+        fc.InputLinks.[0] 
+        |> Array.iteri (fun i _ -> fc.InputLinks.[0].[i] <- (List.replicate (Option.defaultValue 1 fc.OutputWidth.[0]) Zero))
+    //printfn "Initialised input: %A" fc.InputLinks
         fastReduce 0 fc
         fc.Touched <- true
 
@@ -828,18 +873,24 @@ let orderCombinationalComponents (numSteps: int) (fs: FastSimulation): FastSimul
                 fc.State <- RamState mem
             | _ -> ())
 
-    printfn "Ordering %d clocked outputs" fs.FClockedComps.Length
+    let pp (fL: FastComponent array) = 
+        Array.map (fun fc -> sprintf "%A (%A)" fc.FullName fc.FType) fL
+        |> String.concat ","
+    printComps 0 fs
+    printfn "Ordering %d clocked outputs: " fs.FClockedComps.Length
     fs.FClockedComps |> Array.iter initClockedOuts    
     printfn "Ordering %d constants" fs.FConstantComps.Length
     fs.FConstantComps |> Array.iter init
     printfn "Ordering %d global inputs" fs.FGlobalInputComps.Length
     fs.FGlobalInputComps |> Array.iter initInput
+    printComps 0 fs
     printfn "Setup done..."
+    printfn "Constants: %A\nClocked: %A\nInputs:%A\n" (pp fs.FConstantComps) (pp fs.FClockedComps) (pp fs.FGlobalInputComps)
     let mutable orderedComps: FastComponent list = 
         List.ofArray <| Array.concat [|fs.FClockedComps ; fs.FConstantComps ; fs.FGlobalInputComps|]
     let fComps = mapValues fs.FComps
     printfn "%A" (fComps |> Array.map (fun comp -> comp.SimComponent.Label))
-    let mutable nextBatch = Array.filter canBeReduced fComps
+    let mutable nextBatch = Array.filter (canBeReduced 0) fComps
     printfn "Loop init done"
     printfn "%d constant, %d input, %d clocked, %d read to reduce, from %d" 
         fs.FConstantComps.Length
@@ -848,29 +899,17 @@ let orderCombinationalComponents (numSteps: int) (fs: FastSimulation): FastSimul
         nextBatch.Length
         fs.FComps.Count
     while nextBatch.Length <> 0 do
-        printf "Adding %d combinational components" nextBatch.Length
+        printf "Adding %d combinational components %A" nextBatch.Length (pp nextBatch)
         nextBatch
         |> Array.iter (fun fc -> 
             if (not fc.Touched) then 
                 fastReduce 0 fc
-                fc.Inactive <- false // in case it was an IOLabel, this one is the driver.
                 orderedComps <- fc :: orderedComps
-            fc.Touched <- true
-            if fc.SimComponent.Type = IOLabel then
-                let name = fc.SimComponent.Label
-                let ap = fc.AccessPath
-                fComps
-                |> Array.iter ( fun fc' -> 
-                    let sc = fc'.SimComponent
-                    //printf "labrl=%A, outs=%A" sc.Label fc.Outputs
-                    if sc.Label = name && sc.Type = IOLabel && fc'.AccessPath = ap && fc'.fId <> fc.fId
-                    then 
-                        //printfn "Touching %A" sc.Label
-                        fc'.Inactive <- true // prevent any otehr labels from being reduced
-                 ))
+                fc.Touched <- true)
         printfn "Total is now %d" orderedComps.Length
+        printComps 0 fs
         // work out new components that can still be added
-        nextBatch <- Array.filter canBeReduced (mapValues fs.FComps)
+        nextBatch <- Array.filter (canBeReduced 0) (mapValues fs.FComps)
     let orderedSet =
         orderedComps 
         |> List.toArray
@@ -882,11 +921,10 @@ let orderCombinationalComponents (numSteps: int) (fs: FastSimulation): FastSimul
         |> Set  
     let notOrdered = Set.difference allSet orderedSet
     printfn "Component order:"
-    allSet
-    |> Set.map (fun fid -> fs.G.getFullName fid, fid)
-    |> Set.toList
+    orderedComps
+    |> List.rev 
+    |> List.map (fun fc -> fc.FullName, fc.fId)
     |> List.map (fun (s,fid) -> sprintf " %s %s\n" (if Set.contains fid notOrdered then "*" else " ") s)
-    |> List.sort
     |> List.iter (printfn "%s")
     printfn "Ordering finished\n"
     let badComps =
@@ -899,7 +937,7 @@ let orderCombinationalComponents (numSteps: int) (fs: FastSimulation): FastSimul
                 printfn "\n-----------------\n%A: inputs=%A, touched=%A, canbereduced=%A" 
                     fc.FullName 
                     fc.InputLinks 
-                    fc.Touched (canBeReduced fc)
+                    fc.Touched (canBeReduced 0 fc)
                 printfn "%A: inputvalid=%A\n--------------\n" 
                     fc.FullName (Array.map (fun (arr: FData array) -> 
                                             arr.Length > 5 && isValidData arr.[0]) fc.InputLinks))
@@ -910,7 +948,7 @@ let orderCombinationalComponents (numSteps: int) (fs: FastSimulation): FastSimul
        
 let stepSimulation (fs: FastSimulation) =
     let (SimStep n) = fs.Step
-    Array.iter (fastReduce (n + 1)) fs.FOrderedComps 
+    Array.iter (fastReduce (n+1)) fs.FOrderedComps 
     {fs with Step = SimStep(n+1)}
 
             
@@ -925,7 +963,7 @@ let stepSimulation (fs: FastSimulation) =
 /// similar to the reducer builder in Builder, but with inputs and outputs using the FastSimulation
 /// mutable arrays
 let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : FastSimulation =
-    let numberOfSteps = 1000
+    let numberOfSteps = 10
     let gather = gatherPhase [] numberOfSteps graph (emptyGather)
     printGather gather
     let fs = createInitFastCompPhase numberOfSteps gather (emptyFastSimulation())
@@ -948,10 +986,10 @@ let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : FastSimu
     }
     |> orderCombinationalComponents numberOfSteps
     |> (fun fs -> 
-            (fs, [0..998])
+            (fs, [0..numberOfSteps - 1])
             ||> List.fold (fun fs n -> 
                 if n % 20 = 0 then printfn "Step %d" n
-                stepSimulation fs))
+                stepSimulation {fs with Step = SimStep n}))
  
         
 

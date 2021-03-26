@@ -43,22 +43,28 @@ let rec prepareSimulation
             let inputs, outputs = getSimulationIOs components
             match analyseSimulationGraph diagramName graph connections with
             | Some err -> Error err
-            | None -> Ok {
-                Graph = graph |> InitialiseGraphWithZeros inputs;
-                Inputs = inputs;
-                Outputs = outputs
-                IsSynchronous = hasSynchronousComponents graph
-                NumberBase = Hex
-                ClockTickNumber = 0
-            }
-            |> Result.map (fun sg -> 
+            | None -> 
                 try
-                    let fs = Fast.buildFastSimulation 10 graph; 
-                    sg
+                    Ok {
+                        FastSim = Fast.buildFastSimulation 100 graph
+                        Graph = graph |> InitialiseGraphWithZeros inputs;
+                        Inputs = inputs;
+                        Outputs = outputs
+                        IsSynchronous = hasSynchronousComponents graph
+                        NumberBase = Hex
+                        ClockTickNumber = 0
+                    }
                 with
-                | e ->   
+                | e -> 
                     printfn "\nEXCEPTION:\n\n%A\n%A" e.Message e.StackTrace
-                    sg)
+                    Error {
+                        Msg = sprintf "\nInternal ERROR in Issie fast simulation:\n\n%A\n%A\n" e.Message e.StackTrace
+                        InDependency = None
+                        ComponentsAffected = []
+                        ConnectionsAffected = []
+                    }
+                |> Result.map (fun sd -> (Fast.compareFastWithGraph sd |> ignore); sd)
+
 
 
 /// Expose the feedSimulationInput function from SimulationRunner.

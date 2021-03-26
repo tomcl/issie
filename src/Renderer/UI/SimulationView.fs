@@ -37,6 +37,7 @@ let simCacheInit name = {
     Name = name; 
     StoredState = ([],[]) 
     StoredResult = Ok {
+        FastSim = Fast.emptyFastSimulation()
         Graph = Map.empty
         Inputs = []
         Outputs = []
@@ -260,6 +261,9 @@ let private viewSimulationData (simData : SimulationData) model dispatch =
                         printfn "*********************Incrementing clock from simulator button******************************"
                         printfn "-------------------------------------------------------------------------------------------"
                     feedClockTick simData.Graph |> SetSimulationGraph |> dispatch
+                    Fast.runFastSimulation simData.ClockTickNumber simData.FastSim
+                    printfn "Comparing clock tick %d" simData.ClockTickNumber
+                    Fast.compareFastWithGraph simData |> ignore
                     if SimulationRunner.simTrace <> None then
                         printfn "-------------------------------------------------------------------------------------------"
                         printfn "*******************************************************************************************"

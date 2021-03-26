@@ -77,6 +77,11 @@ let mapKeys (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map fst |> Array.ofSeq
 let mapValues (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map snd |> Array.ofSeq
 let mapItems (map:Map<'a,'b>) = map |> Map.toSeq |> Array.ofSeq
 
+let mapUnion m1 m2 =
+    (m2, m1)
+    ||> Map.fold (fun m key value -> Map.add key value m )
+
+
 let shortPComp (comp:Component) =
     match comp.Type with
     | Custom sc -> sprintf "%s:Custom.%s.%A->%A" comp.Label sc.Name sc.InputLabels sc.OutputLabels

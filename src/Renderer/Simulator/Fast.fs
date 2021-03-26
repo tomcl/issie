@@ -5,53 +5,14 @@ open Helpers
 open SimulatorTypes
 open SynchronousUtils
 open NumberHelpers
+             
+//------------------------------------------------------------------------------//
+//-----------------------------Fast Simulation----------------------------------//
+//------------------------------------------------------------------------------//
 
-//----------------------------------------------------------------------------------------------//
-//--------------------------------Fast Digital Bus Data Type------------------------------------//
-//----------------------------------------------------------------------------------------------//
-// data is stored differently according to its buswidth.
-// We use all three options for efficiency
-// Bit is more efficient than word for known boolean ops but it can be normalised to Word 
-// to make implementation of multiple bit components (that may carry one bit) simpler.
-// BigWord is needed for > 32 bits, and much less efficient for < 32 bits.
-type FastData =
-    | Bit of uint32 // must be 0 or 1, allows bitwise logical operators
-    | Word of dat:uint32 * width:int
-    | BigWord of dat:bigint * width:int with
-    /// convert to form where single Bit is turned into Word equivalent
-    member inline this.Normalise = 
-        match this with 
-        | Bit n -> Word(n, 1) 
-        | BigWord(x, n) when n <= 32 -> Word(uint32 x, n)
-        | x -> x
-    /// return width of the data
-    member inline this.Width = 
-        match this with 
-        | Bit _ -> 1 
-        | Word (_,n) -> n 
-        | BigWord(_,n) -> n
-    /// return Some 0 or Some 1 as the single bit, or None if not a single bit
-    member inline this.GetBitAsInt = // not possible if too large
-        match this with 
-        | Bit n -> Some n 
-        | Word(n, 1) -> Some n 
-        | _ -> None
-    member inline this.GetBigInt = // always possible
-        match this with
-        | Bit n -> bigint n
-        | Word(n,_) -> bigint n
-        | BigWord(n,_) -> n
-    /// return Some uint32 representing data if possible else None
-    member inline this.GetUint32 = // not possible if too large
-        match this with
-        | Bit n -> Some n
-        | Word(n,w) -> Some n
-        | BigWord(n, w) when w <= 32 -> Some (uint32 n)
-        | _ -> None
-    
 let fastBit (n: uint32) =
     assertThat (n < 2u) (sprintf "Can't convert %d to a single bit FastData" n)
-    Bit n
+    FBit n
 
 let rec bitsToInt (lst:Bit list) =
     match lst with
@@ -67,17 +28,17 @@ let rec bitsToBig (lst:Bit list) =
 let rec wireToFast (w: WireData) =
     let n = w.Length
     match w with
-    | [Zero] -> Bit 0u
-    | [One] -> Bit 1u
+    | [Zero] -> FBit 0u
+    | [One] -> FBit 1u
     | w when n <= 32 -> Word (bitsToInt w, w.Length)
     | w -> BigWord(bitsToBig w, n)
     
 /// convert FastData to Wiredata equivalent
 let rec fastToWire (f: FastData) =
     match f with
-    | Bit 0u | Word(0u,1) -> 
+    | FBit 0u | Word(0u,1) -> 
         [Zero]
-    | Bit 1u | Word(1u,1) -> 
+    | FBit 1u | Word(1u,1) -> 
         [One]
     | Word(x,l) -> 
         [0..l-1]
@@ -103,7 +64,7 @@ let getBits (msb: int) (lsb: int) (f: FastData)  =
     | Word(x, n) -> 
         let bits = (x >>> lsb) % (1u <<< (msb + 1))
         match f.Width, bits with
-        | 1, a -> Bit a
+        | 1, a -> FBit a
         | n, a -> Word(a, n)
     | BigWord(x,n) ->
         let bits = (x >>> lsb) % (bigint 1 <<< (msb + 1))
@@ -127,241 +88,6 @@ let appendBits (fMS: FastData) (fLS: FastData) : FastData =
         BigWord((ms.GetBigInt <<< ls.Width) ||| ls.GetBigInt, w)
             
         
-//--------------------------------Fast Simulation Data Structure-------------------------//
-//---------------------------------------------------------------------------------------//
-            
-
-    
-
-
-[<Erase>]
-type SimStep = | SimStep of int
-
-   
-type FComponentId = ComponentId * ComponentId list
-
-
-type FData = WireData // for now...
-
-type FastComponent = {
-    fId: FComponentId
-    cId: ComponentId
-    FType: ComponentType
-    mutable State: SimulationComponentState
-    mutable Inactive: bool
-    OutputWidth: int option array
-    InputLinks: FData array array
-    Outputs: FData array array
-    SimComponent: SimulationComponent
-    AccessPath: ComponentId list
-    FullName: string
-    mutable Touched: bool
-
-    } with
-
-    member inline this.GetInput (SimStep epoch)  (InputPortNumber n) = this.InputLinks.[n].[epoch]
-    member this.ShortId =
-        let (ComponentId sid,ap) = this.fId
-        (EEExtensions.String.substringLength 0 5 sid)
-    member inline this.PutOutput (SimStep epoch) (OutputPortNumber n) dat = this.Outputs.[n].[epoch] <- dat
-    member inline this.Id = this.SimComponent.Id
-    
-let getFid (cid: ComponentId) (ap: ComponentId list) =
-    let ff (ComponentId Id) = Id
-    (cid,ap)
-      
-
-let getPortNumbers (sc: SimulationComponent) =
-    let ins =
-        match sc.Type with
-        | Constant _ -> 0
-        | Input _ | Output _ | BusSelection _ | BusCompare _ | Not | DFF 
-        | Register _ | IOLabel | SplitWire _ -> 1
-        | Mux2 _ | NbitsAdder _ -> 3
-        | _ -> 2
-    let outs =
-        match sc.Type with
-        | Decode4 -> 4
-        | NbitsAdder _ | SplitWire _ -> 2
-        | _ -> 1
-    ins,outs
-
-let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
-
-    let putW0 w = wa.[0] <- Some w
-    let putW1 w = wa.[1] <- Some w
-    let putW2 w = wa.[2] <- Some w
-    let putW3 w = wa.[3] <- Some w
-
-    match sc.Type with
-    | Input w | Output w | Register w | RegisterE w | SplitWire w | BusSelection(w,_)
-    | Constant (w,_) | NbitsXor w -> putW0 w
-    | NbitsAdder w -> putW0 w; putW1 1
-    | Not | And | Or  | Xor  | Nand  | Nor   | Xnor | BusCompare _ -> putW0 1
-    | AsyncROM mem | ROM mem | RAM mem -> putW0 mem.WordWidth; putW1 mem.AddressWidth
-    | Custom _ -> ()
-    | DFF | DFFE -> putW0 1
-    | Decode4 -> putW0 1; putW1 1; putW2 1; putW3 1
-    | Demux2 | Mux2 | IOLabel | MergeWires -> ()
-    wa
-
-        
-
-let createFastComponent 
-        (numSteps: int) 
-        (sComp: SimulationComponent) 
-        (accessPath: ComponentId list) =
-    let inPortNum,outPortNum = getPortNumbers sComp
-    // dummy arrays wil be replaced by real ones when components are linked after being created
-    let ins = 
-        [|0..inPortNum-1|]
-        |> Array.map (fun n -> Array.create (numSteps+1) [])
-    let outs = 
-        [|0..outPortNum-1|]
-        |> Array.map (fun n -> Array.create (numSteps+1) [])
-    let inps =
-        let dat =
-            match accessPath,sComp.Type with 
-            // top-level input needs special inputs because they can't be calculated
-            | [], Input width ->  List.replicate width Zero
-            | _ -> []
-        [|0..inPortNum-1|] 
-        |> Array.map (fun i ->  (Array.create (numSteps+1) dat))
-    {
-        OutputWidth  = getOutputWidths sComp (Array.create outPortNum None)
-        State = NoState
-        SimComponent = sComp
-        fId = getFid sComp.Id accessPath
-        cId = sComp.Id
-        FType = sComp.Type
-        AccessPath = accessPath
-        Touched = false 
-        InputLinks = ins
-        Outputs = outs
-        FullName = ""
-        Inactive = isIOLabel sComp.Type
-    }
-    
-      
-
-// The fast simulation components are similar to the issie components they are based on but with addition of arrays
-// for direct lookup of inputs and fast access of outputs. The input arrays contain pointers to the output arrays the
-// inputs are connected to, the InputPortNumber integer indexes this.
-// In addition outputs are contained in a big array indexed by epoch (simulation time). This allows results for multiple
-// steps to begin built efficiently and also allows clocked outputs for the next cycle to be constructed without overwriting
-// previous outputs needed for that construction.
-//
-// For reasons of efficiency Issie's list-style WireData type is optimised by using integers as bit arrays.
-//
-// For ease of implementation Input and Output components are given a single output (input) port not present on issie.
-// this allows sub-sheet I/Os to be linked as normal in the constructed graph via their respective Input and Output connections.
-//
-// Although keeping input and output connections in the new graph is slightly less efficient it makes things simpler because there is a
-// 1-1 connection between components (except for custom components which are removed by the gathering process).
-// Note that custom component info is still kept because each component in the graph has a path - the list of custom component ids
-// between its graph and root. Following issie this does not include a custom component for the sheet being simulated, which is viewed as
-// root. Since custom components have been removed this no longer complicates the simulation.
-
-type FastSimulation = {
-    Step: SimStep
-    /// top-level inputs to the simulation
-    FGlobalInputComps: FastComponent array
-    /// constants
-    FConstantComps: FastComponent array
-    /// clocked components
-    FClockedComps: FastComponent array
-    /// Components that will be reduced in order allowing sequential reduction to implement simulation
-    FOrderedComps: FastComponent array
-    /// Additional record of IOLabels, with list of all the IOLabel components
-    /// In the simulation only one of these will actually be reduced, but all outputs will
-    /// use the same array.
-    FIOLabels: Map<ComponentLabel*ComponentId list,FComponentId list>
-    /// Fast components: this array is longer than FOrderedComps because it contains
-    /// IOlabel components that are redundant in the simulation
-    FComps: Map<FComponentId,FastComponent>
-    FSComps: Map<FComponentId,SimulationComponent * ComponentId list>
-    /// look up from output port of custom component to the relevant Output component
-    FCustomOutputCompLookup: Map<(ComponentId*ComponentId list)*OutputPortNumber, FComponentId>
-    /// GatherData from which this simulation was made
-    G: GatherData
-    } with
-        member this.getSimulationData (step: int) ((cid,ap): FComponentId) (opn: OutputPortNumber) =
-            let (OutputPortNumber n) = opn
-            match Map.tryFind (cid,ap) this.FComps with
-            | Some fc -> fc.Outputs.[n].[step]
-            | None ->
-                match Map.tryFind ((cid,ap), opn) this.FCustomOutputCompLookup with
-                | Some fid -> this.FComps.[fid].Outputs.[0].[step]
-                | None -> failwithf "What? can't find %A in the fast simulation data" (cid,ap)
-
-and  GatherData = {
-    /// Existing Issie data structure representing circuit for simulation - generated by runCanvasStateChecksAndBuildGraph
-    Simulation: SimulationGraph
-    /// Maps Custom Component Id and input port number to corresponding Input 
-    /// Component Id (of an Input component which is not top-level)
-    CustomInputCompLinks: Map<FComponentId * InputPortNumber, FComponentId>
-    /// Maps (non-top-level) Output component Id to corresponding Custom Component Id & output port number
-    CustomOutputCompLinks: Map<FComponentId,  FComponentId * OutputPortNumber>
-    /// Shortcut to find the label of a component; notice that the access path is not needed here because
-    /// Labels of teh graph inside a custom component are identical for different instances of the component
-    Labels: Map<ComponentId,string>
-    /// Each entry here corresponds to one linked set of IOLabels, indexed by name and access path. the map looks up
-    /// the list of all corresponding IOLabel components
-    IOLabels: Map<ComponentLabel*ComponentId list,FComponentId list>
-    /// This indexes the SimulationGraph components from Id and access path. Note that the same simulation
-    /// component Id can appear with different access paths if a sheet is instantiated more than once.
-    /// Each entry corresponds to a single FastComponent.
-    /// Note that Custom components are not included in this list.
-    AllComps: Map<ComponentId*ComponentId list,SimulationComponent * ComponentId list> // maps to component and its path in the graph
-    /// List of component Input components that are driven externally to simulation
-    } with
-
-
-    member this.getFullName (cid,ap) = 
-            List.map ( fun cid -> match Map.tryFind cid this.Labels with | Some lab -> lab | None -> "*" ) (ap @ [cid])
-            |> String.concat "."
-
-let emptyGather = {
-    Labels = Map.empty
-    Simulation = Map.empty
-    CustomInputCompLinks=Map.empty
-    CustomOutputCompLinks=Map.empty
-    AllComps=Map.empty
-    IOLabels = Map.empty
-}
-
-let emptyFastSimulation() =
-    {
-        Step = SimStep 0
-        FGlobalInputComps = Array.empty
-        FConstantComps = Array.empty
-        FClockedComps = Array.empty
-        FOrderedComps = Array.empty
-        FIOLabels = Map.empty
-        FComps = Map.empty
-        FSComps = Map.empty
-        FCustomOutputCompLookup = Map.empty
-        G = emptyGather
-    }
-let getPathIds (cid,ap) =
-    let rec getPath ap =
-        match ap with
-        | [] -> []
-        | cid :: rest ->
-            (cid, List.rev rest) :: getPath rest                
-    getPath (List.rev ap) |> List.rev
-    
-
- 
-                
-                
-
-
-
-let mapUnion m1 m2 =
-    (m2, m1)
-    ||> Map.fold (fun m key value -> Map.add key value m )
-
 
     
 /// Assert that the wireData only contain a single bit, and return such bit.
@@ -454,17 +180,17 @@ let private fastReduce (simStep: int) (comp : FastComponent) : Unit =
     let inline insOld i = 
             assertThat (i < n) (sprintf "What? Invalid input port (%d:step%d) used by %s (%A) reducer with %d Ins" 
                                     i simStep comp.FullName componentType n)
-            let fd = comp.GetInput (SimStep (simStep-1)) (InputPortNumber i)
+            let fd = comp.GetInput (simStep-1) (InputPortNumber i)
             assertThat (fd <> []) 
                        (sprintf "What? Invalid data %A  found in input port (%d:step%d) used by %s (%A) reducer" 
                                     fd i simStep comp.FullName componentType)
             fd
              
-    let inline put0 fd = comp.PutOutput (SimStep simStep) (OutputPortNumber 0) fd
-    let inline put1 fd = comp.PutOutput (SimStep simStep) (OutputPortNumber 1) fd
-    let inline put2 fd = comp.PutOutput (SimStep simStep) (OutputPortNumber 2) fd
-    let inline put3 fd = comp.PutOutput (SimStep simStep) (OutputPortNumber 3) fd
-    let inline put4 fd = comp.PutOutput (SimStep simStep) (OutputPortNumber 4) fd
+    let inline put0 fd = comp.PutOutput (simStep) (OutputPortNumber 0) fd
+    let inline put1 fd = comp.PutOutput (simStep) (OutputPortNumber 1) fd
+    let inline put2 fd = comp.PutOutput (simStep) (OutputPortNumber 2) fd
+    let inline put3 fd = comp.PutOutput (simStep) (OutputPortNumber 3) fd
+    let inline put4 fd = comp.PutOutput (simStep) (OutputPortNumber 4) fd
 
     let inline putW num w = comp.OutputWidth.[num] <- Some w
 
@@ -656,6 +382,115 @@ let private fastReduce (simStep: int) (comp : FastComponent) : Unit =
 //-----------------------------Fast Simulation----------------------------------//
 //------------------------------------------------------------------------------//
 
+let emptyGather = {
+    Labels = Map.empty
+    Simulation = Map.empty
+    CustomInputCompLinks=Map.empty
+    CustomOutputCompLinks=Map.empty
+    AllComps=Map.empty
+    IOLabels = Map.empty
+}
+
+let emptyFastSimulation() =
+    {
+        Step = 0
+        MaxStepNum = -1 // this muts be over-written
+        FGlobalInputComps = Array.empty
+        FConstantComps = Array.empty
+        FClockedComps = Array.empty
+        FOrderedComps = Array.empty
+        FIOLabels = Map.empty
+        FComps = Map.empty
+        FSComps = Map.empty
+        FCustomOutputCompLookup = Map.empty
+        G = emptyGather
+    }
+let getPathIds (cid,ap) =
+    let rec getPath ap =
+        match ap with
+        | [] -> []
+        | cid :: rest ->
+            (cid, List.rev rest) :: getPath rest                
+    getPath (List.rev ap) |> List.rev
+    
+
+let getFid (cid: ComponentId) (ap: ComponentId list) =
+    let ff (ComponentId Id) = Id
+    (cid,ap)
+      
+
+let getPortNumbers (sc: SimulationComponent) =
+    let ins =
+        match sc.Type with
+        | Constant _ -> 0
+        | Input _ | Output _ | BusSelection _ | BusCompare _ | Not | DFF 
+        | Register _ | IOLabel | SplitWire _ -> 1
+        | Mux2 _ | NbitsAdder _ -> 3
+        | _ -> 2
+    let outs =
+        match sc.Type with
+        | Decode4 -> 4
+        | NbitsAdder _ | SplitWire _ -> 2
+        | _ -> 1
+    ins,outs
+
+let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
+
+    let putW0 w = wa.[0] <- Some w
+    let putW1 w = wa.[1] <- Some w
+    let putW2 w = wa.[2] <- Some w
+    let putW3 w = wa.[3] <- Some w
+
+    match sc.Type with
+    | Input w | Output w | Register w | RegisterE w | SplitWire w | BusSelection(w,_)
+    | Constant (w,_) | NbitsXor w -> putW0 w
+    | NbitsAdder w -> putW0 w; putW1 1
+    | Not | And | Or  | Xor  | Nand  | Nor   | Xnor | BusCompare _ -> putW0 1
+    | AsyncROM mem | ROM mem | RAM mem -> putW0 mem.WordWidth
+    | Custom _ -> ()
+    | DFF | DFFE -> putW0 1
+    | Decode4 -> putW0 1; putW1 1; putW2 1; putW3 1
+    | Demux2 | Mux2 | IOLabel | MergeWires -> ()
+    wa
+
+        
+
+let createFastComponent 
+        (numSteps: int) 
+        (sComp: SimulationComponent) 
+        (accessPath: ComponentId list) =
+    let inPortNum,outPortNum = getPortNumbers sComp
+    // dummy arrays wil be replaced by real ones when components are linked after being created
+    let ins = 
+        [|0..inPortNum-1|]
+        |> Array.map (fun n -> Array.create (numSteps+1) [])
+    let outs = 
+        [|0..outPortNum-1|]
+        |> Array.map (fun n -> Array.create (numSteps+1) [])
+    let inps =
+        let dat =
+            match accessPath,sComp.Type with 
+            // top-level input needs special inputs because they can't be calculated
+            | [], Input width ->  List.replicate width Zero
+            | _ -> []
+        [|0..inPortNum-1|] 
+        |> Array.map (fun i ->  (Array.create (numSteps+1) dat))
+    {
+        OutputWidth  = getOutputWidths sComp (Array.create outPortNum None)
+        State = NoState
+        SimComponent = sComp
+        fId = getFid sComp.Id accessPath
+        cId = sComp.Id
+        FType = sComp.Type
+        AccessPath = accessPath
+        Touched = false 
+        InputLinks = ins
+        Outputs = outs
+        FullName = ""
+        Inactive = match sComp.Type with | IOLabel _ -> true | _ -> false
+    }
+
+
 /// Create an initial gatherdata object with inputs, non-ordered components, simulationgraph, etc
 /// This must explore graph recursively extracting all the initial information.
 /// Custom components are scanned and links added, one for each input and output
@@ -754,6 +589,7 @@ let rec createInitFastCompPhase (numSteps:int) (g:GatherData) (f:FastSimulation)
         |> Map.ofList
     {f with 
         FComps = comps
+        MaxStepNum = numSteps
         FSComps = g.AllComps
         FIOLabels = g.IOLabels
         FCustomOutputCompLookup = customOutLookup
@@ -906,14 +742,18 @@ let orderCombinationalComponents (numSteps: int) (fs: FastSimulation): FastSimul
     let initClockedOuts (fc: FastComponent) =
         fc.Outputs
         |> Array.iteri  (fun i vec -> 
-            match fc.OutputWidth.[i] with
-            | Some n ->  
-                vec.[0] <- List.replicate n Zero
-            | _ -> ()
-            match fc.FType with
-            | RAM mem ->
+            match fc.FType, fc.OutputWidth.[i] with
+            | RAM mem, Some w ->
                 fc.State <- RamState mem
-            | _ -> ())
+                let initD =
+                    match Map.tryFind 0L mem.Data with
+                    | Some n -> convertIntToWireData w n
+                    | _ -> convertIntToWireData w 0L
+                vec.[0] <- initD
+            | RAM _, _  -> failwithf "What? Bad initial values for RAM %s output %d state <%A>" fc.FullName i fc.FType
+            | _, Some w-> vec.[0] <- List.replicate w Zero
+            | _ -> failwithf "What? Can't find width for %s output %d" fc.FullName i)
+
 
     let pp (fL: FastComponent array) = 
         Array.map (fun fc -> sprintf "%A (%A)" fc.FullName fc.FType) fL
@@ -989,9 +829,8 @@ let orderCombinationalComponents (numSteps: int) (fs: FastSimulation): FastSimul
     {fs with FOrderedComps = orderedComps |> Array.ofList |> Array.rev}
        
 let stepSimulation (fs: FastSimulation) =
-    let (SimStep n) = fs.Step
-    Array.iter (fastReduce (n+1)) fs.FOrderedComps 
-    {fs with Step = SimStep(n+1)}
+    Array.iter (fastReduce (fs.Step + 1 )) fs.FOrderedComps 
+    fs.Step <- fs.Step + 1
 
             
 
@@ -999,13 +838,12 @@ let stepSimulation (fs: FastSimulation) =
       
            
 
-/// create a fast simulation data structure, with all necessary arrays, and components
+/// Create a fast simulation data structure, with all necessary arrays, and components
 /// ordered for evaluation.
-/// this function also creates the reducer functions for each component
+/// This function also creates the reducer functions for each component
 /// similar to the reducer builder in Builder, but with inputs and outputs using the FastSimulation
 /// mutable arrays
 let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : FastSimulation =
-    let numberOfSteps = 300
     let gather = gatherPhase [] numberOfSteps graph (emptyGather)
     //printGather gather
     let fs = createInitFastCompPhase numberOfSteps gather (emptyFastSimulation())
@@ -1027,11 +865,19 @@ let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : FastSimu
         G = gather
     }
     |> orderCombinationalComponents numberOfSteps
-    |> (fun fs -> 
-            (fs, [0..numberOfSteps - 1])
-            ||> List.fold (fun fs n -> 
-                if n % 100 = 0 then printfn "Step %d" n
-                stepSimulation {fs with Step = SimStep n}))
+
+/// Run an existing fast simulation up to the given number of steps. If it was initially
+/// created with MaxstepNum < required number fail. This function will mutate the write-once data arrays
+/// of simulation data and only simulate the new steps needed, so it may return immediately doing no work.
+let runFastSimulation  (numberOfSteps:int) (fs:FastSimulation) : Unit =
+    assertThat
+        (numberOfSteps <= fs.MaxStepNum)
+        (sprintf "Simulation error: Can't advance this fast simulation to %d, last step is %d" numberOfSteps fs.MaxStepNum)
+    let start = fs.Step + 1
+    [start..numberOfSteps]
+    |> List.iter (fun n -> 
+        if n % 50 = 0 then printfn "Step %d" n
+        stepSimulation fs)
  
         
 
@@ -1039,8 +885,59 @@ let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : FastSimu
 let setSimulationData (fSim: FastSimulation) (graph: SimulationGraph) = failwithf "Not Implemented"
 
 /// write Simulation data back to an Issie structure.
-let writeSimulationData (fSim: FastSimulation) (step: SimStep) (graph: SimulationGraph) : SimulationGraph = failwithf "Not Implemented"
+let writeSimulationData (fSim: FastSimulation) (step: int) (graph: SimulationGraph) : SimulationGraph = failwithf "Not Implemented"
 
-/// run a simulation for a given number of steps
+/// run a simulation for a given number of steps building it from the graph
 let runSimulationZeroInputs (steps: int) (graph: SimulationGraph) : FastSimulation = 
-    buildFastSimulation steps graph
+    let fs = buildFastSimulation steps graph
+    runFastSimulation steps fs
+    fs
+
+let rec findSimulationComponentOpt ((cid,ap): ComponentId*ComponentId list) (graph:SimulationGraph) =
+    match ap with
+    | [] -> 
+        Map.tryFind cid graph
+    | customCompId :: ap' ->
+        Map.tryFind customCompId graph
+        |> Option.bind (fun graph -> 
+            graph.CustomSimulationGraph
+            |> Option.bind (fun graph -> 
+                findSimulationComponentOpt (cid,ap') graph))
+
+let findSimulationComponent ((cid,ap): ComponentId*ComponentId list) (sd:SimulationData) =
+    let fs = sd.FastSim
+    let graph = sd.Graph
+    match findSimulationComponentOpt (cid,ap) graph with
+    | None -> 
+        failwithf "What? Can't find component %A in SimulationData" fs.FComps.[cid,ap].FullName
+    | Some sComp -> sComp
+    
+/// check FastSimulation and normal simulation for consistency, returning a list of components
+/// with different outputs in the two cases
+let compareFastWithGraph (sd: SimulationData) =
+    let fs = sd.FastSim
+    let graph = sd.Graph
+    assertThat
+        (sd.ClockTickNumber <= fs.Step)
+        (sprintf "Can't compare FastSim because it is on step %d when simulationdata is step %d" fs.Step sd.ClockTickNumber)
+    fs.FComps
+    |> Map.toList
+    |> List.collect (fun ((cid,ap), fc) ->
+        if isIOLabel fc.FType then
+            [] // don't check IOLabels - too difficult
+        else
+            let sComp = findSimulationComponent (cid,ap) sd
+            sComp.Inputs
+            |> Map.toList
+            |> List.collect ( fun (InputPortNumber n, wd) ->
+                let wd' = fc.InputLinks.[n].[sd.ClockTickNumber]
+                if wd <> wd' then
+                 let msg = sprintf "Data Error: %25s:In%d fast=<%A> old=<%A>" fc.FullName n wd' wd
+                 printfn "%s" msg
+                 [ msg ]
+                else [] ))
+
+
+
+
+

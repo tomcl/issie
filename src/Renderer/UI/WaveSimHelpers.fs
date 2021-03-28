@@ -4,6 +4,7 @@ open Fable.React
 open Fable.React.Props
 
 open Fulma
+open Helpers
 open ModelType
 open DiagramStyle
 open CommonTypes
@@ -131,9 +132,6 @@ let reactTickBoxRow name nameStyle ticked toggleFun =
 // every net is therefore part of one netgroup which is either a single net, or a group of nets associated
 // with a set of IOLabel connectors having a given common label.
 
-let mapKeys (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map fst |> Array.ofSeq
-let mapValues (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map snd |> Array.ofSeq
-let mapItems (map:Map<'a,'b>) = map |> Map.toSeq |> Array.ofSeq
 
 let private allNComps (netList:NetList) =
     netList |> mapValues
@@ -353,17 +351,27 @@ let private getReloadableNetGroups (model: Model) (netList: NetList) =
     | None -> [||]
 
 /// advance SimulationData by 1 clock cycle
-let private clkAdvance (sD: SimulationData) =
+let private clkAdvance (sD: SimulationData) = 
+    let sD =
+        if sD.ClockTickNumber = 0 then
+            // set up the initial fast simulation
+            {sD with FastSim = Fast.buildFastSimulation (int maxLastClk) sD.Graph}
+        else
+            sD
     feedClockTick sD.Graph
     |> (fun graph ->
+        let newClock = sD.ClockTickNumber + 1
+        Fast.runFastSimulation newClock sD.FastSim
         { sD with
               Graph = graph
-              ClockTickNumber = sD.ClockTickNumber + 1 })
+              ClockTickNumber = newClock })
 
 /// array of SimData for the given number of cycles
 let extractSimData simData nCycles =
     (simData, [| 1u .. nCycles |])
-    ||> Array.mapFold (fun s _ -> clkAdvance s, clkAdvance s)
+    ||> Array.mapFold (fun s _ -> 
+         let s' = clkAdvance s
+         (s',s'))
     |> fst
 
 /// get NLSource option from ComponentId and InputPortNumber

@@ -37,6 +37,7 @@ let simCacheInit name = {
     Name = name; 
     StoredState = ([],[]) 
     StoredResult = Ok {
+        FastSim = Fast.emptyFastSimulation()
         Graph = Map.empty
         Inputs = []
         Outputs = []
@@ -113,9 +114,10 @@ let private makeIOLabel label width =
 
 let private viewSimulationInputs
         (numberBase : NumberBase)
-        (simulationGraph : SimulationGraph)
+        (simulationData : SimulationData)
         (inputs : (SimulationIO * WireData) list)
         dispatch =
+    let simulationGraph = simulationData.Graph
     let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel, width), wireData) =
         assertThat (List.length wireData = width)
         <| sprintf "Inconsistent wireData length in viewSimulationInput for %s: expcted %d but got %d" inputLabel width wireData.Length
@@ -133,9 +135,10 @@ let private viewSimulationInputs
                         let newBit = match bit with
                                      | Zero -> One
                                      | One -> Zero
-                        feedSimulationInput simulationGraph
+                        let graph = feedSimulationInput simulationGraph
                                             (ComponentId inputId) [newBit]
-                        |> SetSimulationGraph |> dispatch
+                        Fast.changeInput (ComponentId inputId) [newBit] simulationData.ClockTickNumber simulationData.FastSim
+                        dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
                     )
                 ] [ str <| bitToString bit ]
             | bits ->
@@ -155,9 +158,11 @@ let private viewSimulationInputs
                                 // Close simulation notifications.
                                 CloseSimulationNotification |> dispatch
                                 // Feed input.
-                                feedSimulationInput simulationGraph
+                                let graph = feedSimulationInput simulationGraph
                                                     (ComponentId inputId) bits
-                                |> SetSimulationGraph |> dispatch
+                                Fast.changeInput (ComponentId inputId) bits simulationData.ClockTickNumber simulationData.FastSim
+                                dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
+
                         ))
                     ]
                 ]
@@ -194,31 +199,31 @@ let private viewSimulationOutputs numBase (simOutputs : (SimulationIO * WireData
         splittedLine (str <| makeIOLabel outputLabel width) valueHandle
     div [] <| List.map makeOutputLine simOutputs
 
-let private viewStatefulComponents comps numBase model dispatch =
-    let getWithDefault (ComponentLabel lab) = if lab = "" then "no-label" else lab
-    let makeStateLine (comp : SimulationComponent) =
-        match comp.State with
-        | DffState bit ->
-            let label = sprintf "DFF: %s" <| getWithDefault comp.Label
+let private viewStatefulComponents step comps numBase model dispatch =
+    let getWithDefault (lab:string) = if lab = "" then "no-label" else lab
+    let makeStateLine ((fc,state) : FastComponent*SimulationComponentState) =
+        let label = getWithDefault fc.FullName
+        match state with
+        | RegisterState [bit] ->
+            let label = sprintf "DFF: %s" <| label
             [ splittedLine (str label) (staticBitButton bit) ]
         | RegisterState bits ->
-            let label = sprintf "Register: %s (%d bits)" (getWithDefault comp.Label) bits.Length
+            let label = sprintf "Register: %s (%d bits)" label bits.Length
             [ splittedLine (str label) (staticNumberBox numBase bits) ]
         | RamState mem ->
-            let label = sprintf "RAM: %s" <| getWithDefault comp.Label
+            let label = sprintf "RAM: %s" <| label
             let initialMem compType = match compType with RAM m -> m | _ -> failwithf "what? viewStatefulComponents expected RAM component but got: %A" compType
             let viewDiffBtn =
                 Button.button [
                     Button.Props [ simulationBitStyle ]
                     Button.Color IsPrimary
                     Button.OnClick (fun _ ->
-                        printfn "MEM=%A" mem
-                        openMemoryDiffViewer (initialMem comp.Type) mem model dispatch
+                        openMemoryDiffViewer (initialMem fc.FType) mem model dispatch
                     )
                 ] [ str "View" ]
             [ splittedLine (str label) viewDiffBtn ]
-        | NoState -> []
-    div [] ( List.collect makeStateLine comps )
+        | _ -> []
+    div [] (List.collect makeStateLine comps )
 
 let viewSimulationError (simError : SimulationError) =
     let error = 
@@ -242,7 +247,7 @@ let viewSimulationError (simError : SimulationError) =
         error
     ]
 
-let private viewSimulationData (simData : SimulationData) model dispatch =
+let private viewSimulationData (step: int) (simData : SimulationData) model dispatch =
     let hasMultiBitOutputs =
         simData.Outputs |> List.filter (fun (_,_,w) -> w > 1) |> List.isEmpty |> not
     let maybeBaseSelector =
@@ -259,7 +264,11 @@ let private viewSimulationData (simData : SimulationData) model dispatch =
                     if SimulationRunner.simTrace <> None then
                         printfn "*********************Incrementing clock from simulator button******************************"
                         printfn "-------------------------------------------------------------------------------------------"
-                    feedClockTick simData.Graph |> SetSimulationGraph |> dispatch
+                    let graph = feedClockTick simData.Graph
+                    Fast.runFastSimulation (simData.ClockTickNumber+1) simData.FastSim 
+                    dispatch <| SetSimulationGraph(graph, simData.FastSim)                    
+                    printfn "Comparing clock tick %d" simData.ClockTickNumber
+                    Fast.compareFastWithGraph simData |> ignore
                     if SimulationRunner.simTrace <> None then
                         printfn "-------------------------------------------------------------------------------------------"
                         printfn "*******************************************************************************************"
@@ -267,12 +276,14 @@ let private viewSimulationData (simData : SimulationData) model dispatch =
                 )
             ] [ str <| sprintf "Clock Tick %d" simData.ClockTickNumber ]
     let maybeStatefulComponents =
-        let stateful = extractStatefulComponents simData.Graph
+        let stateful = 
+            Fast.extractStatefulComponents simData.ClockTickNumber simData.FastSim
+            |> Array.toList
         match List.isEmpty stateful with
         | true -> div [] []
         | false -> div [] [
             Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Stateful components" ]
-            viewStatefulComponents (extractStatefulComponents simData.Graph) simData.NumberBase model dispatch
+            viewStatefulComponents step stateful simData.NumberBase model dispatch
         ]
     div [] [
         splittedLine maybeBaseSelector maybeClockTickBtn
@@ -280,13 +291,13 @@ let private viewSimulationData (simData : SimulationData) model dispatch =
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Inputs" ]
         viewSimulationInputs
             simData.NumberBase
-            simData.Graph
-            (extractSimulationIOs simData.Inputs simData.Graph)
+            simData
+            (Fast.extractFastSimulationIOs simData.Inputs simData)
             dispatch
 
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Outputs" ]
         viewSimulationOutputs simData.NumberBase
-        <| extractSimulationIOs simData.Outputs simData.Graph
+        <| Fast.extractFastSimulationIOs simData.Outputs simData
 
         maybeStatefulComponents
     ]
@@ -338,7 +349,7 @@ let viewSimulation model dispatch =
     | Some sim ->
         let body = match sim with
                    | Error simError -> viewSimulationError simError
-                   | Ok simData -> viewSimulationData simData model dispatch
+                   | Ok simData -> viewSimulationData simData.ClockTickNumber simData model dispatch
         let endSimulation _ =
             dispatch CloseSimulationNotification // Close error notifications.
             dispatch <| SetHighlighted ([], []) // Remove highlights.

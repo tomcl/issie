@@ -409,9 +409,9 @@ let update msg model =
         { model with WaveSim = fst model.WaveSim, err}, Cmd.none
     | AddWaveSimFile (fileName, wSMod') ->
         { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim}, Cmd.none
-    | SetSimulationGraph graph ->
+    | SetSimulationGraph (graph,fastSim) ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
-        { model with CurrentStepSimulationStep = { simData with Graph = graph } |> Ok |> Some }, Cmd.none
+        { model with CurrentStepSimulationStep = { simData with Graph = graph ; FastSim = fastSim} |> Ok |> Some }, Cmd.none
     | SetSimulationBase numBase ->
         let simData = getSimulationDataOrFail model "SetSimulationBase"
         { model with CurrentStepSimulationStep = { simData with NumberBase = numBase } |> Ok |> Some }, Cmd.none

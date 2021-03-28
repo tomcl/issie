@@ -81,6 +81,12 @@ let mapUnion m1 m2 =
     (m2, m1)
     ||> Map.fold (fun m key value -> Map.add key value m )
 
+let mapInverse (m:Map<'A,'B>) =
+    m
+    |> Map.toArray
+    |> Array.map (fun (a,b) -> b,a)
+    |> Map.ofArray
+
 
 let shortPComp (comp:Component) =
     match comp.Type with

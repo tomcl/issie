@@ -79,7 +79,7 @@ open DiagramStyle
 open CommonTypes
 open WaveSimHelpers
 open FileMenuView
-
+open Helpers
 
 
 

@@ -30,6 +30,10 @@ let rec prepareSimulation
         (canvasState : CanvasState)
         (loadedDependencies : LoadedComponent list)
         : Result<SimulationData, SimulationError> =
+
+    /// Tune for performance of initial zero-length simulation versus longer run.
+    /// Probably this is not critical.
+    let initMaxSteps = 25
     match runCanvasStateChecksAndBuildGraph canvasState loadedDependencies with
     | Error err -> Error err
     | Ok graph ->
@@ -43,14 +47,29 @@ let rec prepareSimulation
             let inputs, outputs = getSimulationIOs components
             match analyseSimulationGraph diagramName graph connections with
             | Some err -> Error err
-            | None -> Ok {
-                Graph = graph |> InitialiseGraphWithZeros inputs;
-                Inputs = inputs;
-                Outputs = outputs
-                IsSynchronous = hasSynchronousComponents graph
-                NumberBase = Hex
-                ClockTickNumber = 0
-            }
+            | None -> 
+                try
+                    Ok {
+                        FastSim = Fast.buildFastSimulation initMaxSteps graph
+                        Graph = graph |> InitialiseGraphWithZeros inputs;
+                        Inputs = inputs;
+                        Outputs = outputs
+                        IsSynchronous = hasSynchronousComponents graph
+                        NumberBase = Hex
+                        ClockTickNumber = 0
+                    }
+                with
+                | e -> 
+                    printfn "\nEXCEPTION:\n\n%A\n%A" e.Message e.StackTrace
+                    Error {
+                        Msg = sprintf "\nInternal ERROR in Issie fast simulation:\n\n%A\n%A\n" e.Message e.StackTrace
+                        InDependency = None
+                        ComponentsAffected = []
+                        ConnectionsAffected = []
+                    }
+                |> Result.map (fun sd -> (Fast.compareFastWithGraph sd |> ignore); sd)
+
+
 
 /// Expose the feedSimulationInput function from SimulationRunner.
 let feedSimulationInput = SimulationRunner.feedSimulationInput

@@ -203,10 +203,14 @@ module CommonTypes
     (*-----------------------------------------------------------------------------*)
     // Types used within waveform Simulation code, and for saved wavesim configuartion
 
-    /// Identifies a connected net
-    /// Does this tie together labelled nets? If so it should have a ComponentLabel option.
+    /// Identifies a fully connected net
+    /// This ties together labelled nets.
     /// should it include the display name(s)? this can be calculated
-    type NetGroup = { driverNet: NLTarget list; connectedNets: NLTarget list array }
+    type NetGroup = { 
+        driverComp: NetListComponent
+        driverPort: OutputPortNumber
+        driverNet: NLTarget list
+        connectedNets: NLTarget list array }
 
     /// Info saved by Wave Sim.
     /// This info is not necessarilu uptodate with deletions or additions in the Diagram.

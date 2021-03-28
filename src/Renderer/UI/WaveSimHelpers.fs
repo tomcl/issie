@@ -311,14 +311,14 @@ let private makeAllNetGroups (netList:NetList) :NetGroup array=
         |> Array.map (fun (lab, labOutArr)-> lab, (labOutArr |> Array.map (snd)))
         |> Map.ofArray
 
-    let makeNetGroup (targets:NLTarget list) =
+    let makeNetGroup (comp: NetListComponent) (opn: OutputPortNumber) (targets:NLTarget list) =
         let connected = 
             targets
             |> List.toArray
             |> Array.collect (fun target -> 
                 let comp = netList.[target.TargetCompId]
                 if comp.Type = IOLabel then labelConnectedNets.[comp.Label] else [||])
-        {driverNet=targets; connectedNets=connected}
+        {driverComp=comp; driverPort=opn; driverNet=targets; connectedNets=connected}
 
 
     let allNetGroups =
@@ -326,7 +326,7 @@ let private makeAllNetGroups (netList:NetList) :NetGroup array=
         |> Array.collect (fun comp -> 
             match comp.Type with
             | IOLabel -> [||]
-            | _ -> mapValues comp.Outputs |> Array.map makeNetGroup)
+            | _ -> Map.map (makeNetGroup comp) comp.Outputs |> mapValues)
     allNetGroups
 
 /// Get NetGroup from targets which represents the group of nLTargets connected by IOLabels.
@@ -358,13 +358,13 @@ let private clkAdvance (sD: SimulationData) =
             {sD with FastSim = Fast.buildFastSimulation (int maxLastClk) sD.Graph}
         else
             sD
-    feedClockTick sD.Graph
-    |> (fun graph ->
-        let newClock = sD.ClockTickNumber + 1
-        Fast.runFastSimulation newClock sD.FastSim
-        { sD with
-              Graph = graph
-              ClockTickNumber = newClock })
+    //feedClockTick sD.Graph
+    //|> (fun graph ->
+    let newClock = sD.ClockTickNumber + 1
+    Fast.runFastSimulation newClock sD.FastSim
+    { sD with
+              Graph = sD.Graph
+              ClockTickNumber = newClock }
 
 /// array of SimData for the given number of cycles
 let extractSimData simData nCycles =
@@ -414,7 +414,34 @@ let private simWireData2Wire wireData =
     |> List.sum
 
 /// extract current value of the given array of SourceGroup
-let getSimTime (netgrps: NetGroup array) (simGraph: SimulationGraph) =
+let getSimTime (netgrps: NetGroup array) (simData: SimulationData) =
+    let fs = simData.FastSim
+    let step = simData.ClockTickNumber
+    let topLevelComps = simData.FastSim.FComps
+    Fast.runFastSimulation step fs
+    netgrps
+    |> Array.map (fun netGrp ->
+        try 
+            let driver = netGrp.driverComp.Id,[]
+            let opn = netGrp.driverPort
+            let wD = Fast.extractFastSimulationOutput fs step driver opn
+            Wire
+                { NBits = uint (List.length wD)
+                  BitData = simWireData2Wire wD }
+        with
+        | e -> 
+            printfn "Exception: %A" e.StackTrace
+            printSimGraph simData.Graph
+            let compId = netGrp.driverNet.[0].TargetCompId
+            printfn "\nComponent %s\n\n" (tryGetCompLabel compId simData.Graph)
+            failwithf "What? This error in getSimTime should not be possible"
+
+        )
+ 
+
+/// extract current value of the given array of SourceGroup
+let getSlowTime (netgrps: NetGroup array) (simData: SimulationData) =
+    let simGraph = simData.Graph
     Array.map (fun netGrp -> netGrp.driverNet) netgrps
     |> Array.map (fun netGrp ->
         try 
@@ -439,13 +466,13 @@ let getSimTime (netgrps: NetGroup array) (simGraph: SimulationGraph) =
 /// get all values of waveforms
 let getAllWaveSimDataBySample (wsMod: WaveSimModel) =
         let netGroups = dispPorts wsMod
-        Array.map (fun sD -> sD.Graph) wsMod.SimDataCache
+        wsMod.SimDataCache
         |> Array.map (getSimTime netGroups)
 
 /// get values of waveforms for one sample
 let getWaveSimDataOneSample (wsMod: WaveSimModel) (sample:int) =
     let netGroups = dispPorts wsMod
-    wsMod.SimDataCache.[sample].Graph
+    wsMod.SimDataCache.[sample]
     |> getSimTime netGroups
 
 

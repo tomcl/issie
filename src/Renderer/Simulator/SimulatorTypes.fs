@@ -207,15 +207,24 @@ type FComponentId = ComponentId * ComponentId list
 
 type FData = WireData // for now...
 
+/// Wrapper to allow arrays to be resized for longer simulations while keeping the links between inputs
+/// and outputs
+type StepArray<'T> = {
+    /// this field is mutable to allow resizing
+    mutable Step: 'T array
+    }
+
+
+
 type FastComponent = {
     fId: FComponentId
     cId: ComponentId
     FType: ComponentType
-    mutable State: SimulationComponentState
+    State: StepArray<SimulationComponentState> option
     mutable Inactive: bool
     OutputWidth: int option array
-    InputLinks: FData array array
-    Outputs: FData array array
+    InputLinks: StepArray<FData> array
+    Outputs: StepArray<FData> array
     SimComponent: SimulationComponent
     AccessPath: ComponentId list
     FullName: string
@@ -223,11 +232,11 @@ type FastComponent = {
 
     } with
 
-    member inline this.GetInput (epoch)  (InputPortNumber n) = this.InputLinks.[n].[epoch]
+    member inline this.GetInput (epoch)  (InputPortNumber n) = this.InputLinks.[n].Step.[epoch]
     member this.ShortId =
         let (ComponentId sid,ap) = this.fId
         (EEExtensions.String.substringLength 0 5 sid)
-    member inline this.PutOutput (epoch) (OutputPortNumber n) dat = this.Outputs.[n].[epoch] <- dat
+    member inline this.PutOutput (epoch) (OutputPortNumber n) dat = this.Outputs.[n].Step.[epoch] <- dat
     member inline this.Id = this.SimComponent.Id
     
     
@@ -253,10 +262,10 @@ type FastComponent = {
 
 type FastSimulation = {
     /// last step number (starting from 0) which is simulated.
-    mutable Step: int
+    mutable ClockTick: int
     /// The step number of the last step that can be simulated in the
     /// current simulation outputs
-    MaxStepNum: int 
+    mutable MaxStepNum: int 
     /// top-level inputs to the simulation
     FGlobalInputComps: FastComponent array
     /// constants
@@ -281,10 +290,10 @@ type FastSimulation = {
         member this.getSimulationData (step: int) ((cid,ap): FComponentId) (opn: OutputPortNumber) =
             let (OutputPortNumber n) = opn
             match Map.tryFind (cid,ap) this.FComps with
-            | Some fc -> fc.Outputs.[n].[step]
+            | Some fc -> fc.Outputs.[n].Step.[step]
             | None ->
                 match Map.tryFind ((cid,ap), opn) this.FCustomOutputCompLookup with
-                | Some fid -> this.FComps.[fid].Outputs.[0].[step]
+                | Some fid -> this.FComps.[fid].Outputs.[0].Step.[step]
                 | None -> failwithf "What? can't find %A in the fast simulation data" (cid,ap)
 
 and  GatherData = {
@@ -295,8 +304,11 @@ and  GatherData = {
     CustomInputCompLinks: Map<FComponentId * InputPortNumber, FComponentId>
     /// Maps (non-top-level) Output component Id to corresponding Custom Component Id & output port number
     CustomOutputCompLinks: Map<FComponentId,  FComponentId * OutputPortNumber>
+    /// Maps custom component output to corresponding output FastComponent.
+    /// Inverse of CustomOutputCompLinks
+    CustomOutputLookup: Map<FComponentId * OutputPortNumber, FComponentId>
     /// Shortcut to find the label of a component; notice that the access path is not needed here because
-    /// Labels of teh graph inside a custom component are identical for different instances of the component
+    /// Labels of the graph inside a custom component are identical for different instances of the component
     Labels: Map<ComponentId,string>
     /// Each entry here corresponds to one linked set of IOLabels, indexed by name and access path. the map looks up
     /// the list of all corresponding IOLabel components

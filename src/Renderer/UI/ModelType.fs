@@ -263,7 +263,7 @@ type Msg =
     | SetWSModAndSheet of (WaveSimModel*string)
     | SetWSError of SimulationError option
     | AddWaveSimFile of string * WaveSimModel
-    | SetSimulationGraph of SimulationGraph
+    | SetSimulationGraph of SimulationGraph * FastSimulation
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick
     | EndSimulation

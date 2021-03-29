@@ -159,51 +159,32 @@ type JSCanvasState = JSComponent list * JSConnection list
 // Bit is more efficient than word for known boolean ops but it can be normalised to Word 
 // to make implementation of multiple bit components (that may carry one bit) simpler.
 // BigWord is needed for > 32 bits, and much less efficient for < 32 bits.
+type FastBits =
+    | Word of dat:uint32 
+    | BigWord of dat:bigint 
+    
 type FastData =
-    | FBit of uint32 // must be 0 or 1, allows bitwise logical operators
-    | Word of dat:uint32 * width:int
-    | BigWord of dat:bigint * width:int with
-    /// convert to form where single Bit is turned into Word equivalent
-    member inline this.Normalise = 
-        match this with 
-        | FBit n -> Word(n, 1) 
-        | BigWord(x, n) when n <= 32 -> Word(uint32 x, n)
-        | x -> x
-    /// return width of the data
-    member inline this.Width = 
-        match this with 
-        | FBit _ -> 1 
-        | Word (_,n) -> n 
-        | BigWord(_,n) -> n
-    /// return Some 0 or Some 1 as the single bit, or None if not a single bit
-    member inline this.GetBitAsInt = // not possible if too large
-        match this with 
-        | FBit n -> Some n 
-        | Word(n, 1) -> Some n 
-        | _ -> None
+    {
+        Dat : FastBits
+        Width : int
+    } with
+
     member inline this.GetBigInt = // always possible
-        match this with
-        | FBit n -> bigint n
-        | Word(n,_) -> bigint n
-        | BigWord(n,_) -> n
+        match this.Dat with
+        | Word n -> bigint n
+        | BigWord n -> n
+
     /// return Some uint32 representing data if possible else None
     member inline this.GetUint32 = // not possible if too large
-        match this with
-        | FBit n -> Some n
-        | Word(n,w) -> Some n
-        | BigWord(n, w) when w <= 32 -> Some (uint32 n)
+        match this.Dat with
+        | Word n -> Some n
+        | BigWord n when this.Width <= 32 -> Some (uint32 n)
         | _ -> None
     
-
 //--------------------------------Fast Simulation Data Structure-------------------------//
 //---------------------------------------------------------------------------------------//
-            
-
-    
-
    
 type FComponentId = ComponentId * ComponentId list
-
 
 type FData = WireData // for now...
 
@@ -213,8 +194,6 @@ type StepArray<'T> = {
     /// this field is mutable to allow resizing
     mutable Step: 'T array
     }
-
-
 
 type FastComponent = {
     fId: FComponentId

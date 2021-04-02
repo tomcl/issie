@@ -200,14 +200,16 @@ type FastComponent = {
     cId: ComponentId
     FType: ComponentType
     State: StepArray<SimulationComponentState> option
-    mutable Inactive: bool
+    mutable Active: bool
     OutputWidth: int option array
     InputLinks: StepArray<FData> array
+    InputDrivers: (FComponentId * OutputPortNumber) option array
     Outputs: StepArray<FData> array
     SimComponent: SimulationComponent
     AccessPath: ComponentId list
     FullName: string
     mutable Touched: bool
+    mutable VerilogOutputName: string array
 
     } with
 
@@ -253,10 +255,11 @@ type FastSimulation = {
     FClockedComps: FastComponent array
     /// Components that will be reduced in order allowing sequential reduction to implement simulation
     FOrderedComps: FastComponent array
-    /// Additional record of IOLabels, with list of all the IOLabel components
-    /// In the simulation only one of these will actually be reduced, but all outputs will
-    /// use the same array.
-    FIOLabels: Map<ComponentLabel*ComponentId list,FComponentId list>
+    /// which is the active component for each set of labels?
+    mutable FIOActive: Map<ComponentLabel*ComponentId list,FastComponent>
+    /// list of deferred links driven from inactive IOlabls - at end of linkage the
+    /// corresponding active IOLabel can be substituted as driver an dthe link made
+    mutable FIOLinks: ((FastComponent*InputPortNumber)*FastComponent) list
     /// Fast components: this array is longer than FOrderedComps because it contains
     /// IOlabel components that are redundant in the simulation
     FComps: Map<FComponentId,FastComponent>
@@ -289,9 +292,6 @@ and  GatherData = {
     /// Shortcut to find the label of a component; notice that the access path is not needed here because
     /// Labels of the graph inside a custom component are identical for different instances of the component
     Labels: Map<ComponentId,string>
-    /// Each entry here corresponds to one linked set of IOLabels, indexed by name and access path. the map looks up
-    /// the list of all corresponding IOLabel components
-    IOLabels: Map<ComponentLabel*ComponentId list,FComponentId list>
     /// This indexes the SimulationGraph components from Id and access path. Note that the same simulation
     /// component Id can appear with different access paths if a sheet is instantiated more than once.
     /// Each entry corresponds to a single FastComponent.

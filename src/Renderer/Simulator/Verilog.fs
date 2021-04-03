@@ -14,6 +14,43 @@ type VWireType =
     | VlogRegister of int
     | VlogComb of int
 
+/// take FullName and convert it into a verilog compatible form
+let verilogNameConvert (s:string) = 
+    let maxIdentifierLength = 50
+    let baseName = 
+        EEExtensions.String.split [|'('|] s
+        |> Array.toList
+        |> function | h :: _ -> h | [] -> ""
+        |> String.replace "." "_" 
+        |> String.replace " " "_"
+    let extraLength = baseName.Length - maxIdentifierLength
+    if extraLength > 0 then
+        baseName.[extraLength..]
+        |> Seq.map string
+        |> string
+    else
+        baseName
+        
+let writeVerilogNames (fs: FastSimulation) =
+    fs.FComps
+    |> Map.toArray
+    |> Array.iteri (fun i (fid,fc) ->
+        let oName =
+            match fc.SimComponent.Label with 
+            | ComponentLabel lab -> lab
+        let vName = verilogNameConvert oName
+        let name = $"{vName}_{i}"
+        fc.VerilogComponentName <- name
+        fc.VerilogOutputName
+        |> Array.iteri (fun portNum _ ->
+            let outName = $"{name}_out{portNum}"
+            printf "Writing outputname %s for %s (%A)" outName name fc.FType
+            fc.VerilogOutputName.[portNum] <- outName))
+
+
+    
+
+
 /// write a guaranteed globally unique name for each Verilog output
 let addUniqueVerilogNames (fs: FastSimulation) =
     /// convert an index into an equivalent alphabetic suffix
@@ -28,13 +65,6 @@ let addUniqueVerilogNames (fs: FastSimulation) =
         |> mapValues
         |> Array.filter (fun fc -> fc.Active)
 
-    /// take FullName and convert it into a verilog compatible form
-    let verilogNameConvert (s:string) = 
-        EEExtensions.String.split [|'('|] s
-        |> Array.toList
-        |> function | h :: _ -> h | [] -> ""
-        |> String.replace "." "_" 
-        |> String.replace " " "_"
 
     /// Make sure all names are unique by appending to names disambiguating characters
     /// don't allow "" as a name, so similarly append to that.
@@ -79,19 +109,43 @@ let makeAsyncRomModule (moduleName: string) (mem: Memory) =
     let dMax = mem.WordWidth - 1
     let numWords = 1 <<< mem.AddressWidth
     let romInits = 
-        [|0..numWords-1|]
-        |> Array.map (fun a -> match Map.tryFind (int64 a) mem.Data with | None -> a, 0uL | Some x -> a, uint64 x)
+        mem.Data
+        |> Map.toArray
         |> Array.map (fun(a,d)-> sprintf $"rom[%d{a}] = %d{d};")
         |> String.concat "\n"
 
     sprintf $"""
 
-    module rom_single(q, a);
+    module %s{moduleName}(q, a);
     output[%d{dMax}:0] q;
     input [%d{aMax}:0] a;
 
     wire [%d{dMax}:0] rom [%d{numWords-1}:0];
     assign q <= rom[a]
+    initial
+    begin
+        %s{romInits}
+    end
+     """
+
+let makeRomModule (moduleName: string) (mem: Memory) =
+    let aMax = mem.AddressWidth - 1
+    let dMax = mem.WordWidth - 1
+    let numWords = 1 <<< mem.AddressWidth
+    let romInits = 
+        mem.Data
+        |> Map.toArray
+        |> Array.map (fun(a,d)-> sprintf $"rom[%d{a}] = %d{d};")
+        |> String.concat "\n"
+
+    sprintf $"""
+
+    module %s{moduleName}(q, a, clk);
+    output reg [%d{dMax}:0] q;
+    input [%d{aMax}:0] a;
+
+    reg [%d{dMax}:0] rom [%d{numWords-1}:0];
+    always @(posedge clk) q <= rom[a];
     initial
     begin
         %s{romInits}
@@ -110,16 +164,16 @@ let makeRamModule (moduleName: string) (mem: Memory) =
 
     sprintf $"""
 
-    module ram_single(q, a, d, we, clk);
-    output[%d{dMax}:0] q;
+    module %s{moduleName}(q, a, d, we, clk);
+    output reg [%d{dMax}:0] q;
     input [%d{dMax}:0] d;
     input [%d{aMax}:0] a;
     input we, clk;
-    reg [%d{dMax}:0] mem [%d{numWords}:0];
+    reg [%d{dMax}:0] ram [%d{numWords-1u}:0];
      always @(posedge clk) begin
          if (we)
-             mem[a] <= d;
-         q <= mem[a];
+             ram[a] <= d;
+         q <= ram[a];
      end    
 
     initial
@@ -129,7 +183,21 @@ let makeRamModule (moduleName: string) (mem: Memory) =
     endmodule    
     
     """
+let getInstantiatedModules (fs:FastSimulation) =
+    fs.FComps
+    |> Map.toArray
+    |> Array.collect (fun (fid,fc) ->
+        let name = fc.VerilogComponentName
+        match fc.FType with
+        | RAM mem ->
+            [|makeRamModule name mem|]
+        | ROM mem ->
+            [|makeRomModule name mem|]
+        | AsyncROM mem ->
+            [|makeAsyncRomModule name mem|]
+        | _ -> [||])
 
+    
 let activeComps (fs:FastSimulation) =
     [
         fs.FConstantComps
@@ -153,7 +221,7 @@ let wireType (fc:FastComponent) (OutputPortNumber opn: OutputPortNumber) =
     match fc.FType, fc.AccessPath with
     | Input n,[] -> VlogInput n
     | Output n, [] -> VlogOutput n
-    | DFF,_ | DFFE,_ -> VlogComb 1
+    | DFF,_ | DFFE,_ -> VlogRegister 1
     | Register n,_ | RegisterE n, _ -> VlogRegister n
     | _ ->
         match fc.OutputWidth.[opn] with
@@ -198,8 +266,8 @@ let getVPortOutWithSlice (fc:FastComponent) (opn: OutputPortNumber) =
     let (OutputPortNumber n) = opn
     let width = Option.get fc.OutputWidth.[n]
     match width with
-    | 1 ->  $"{name}"
-    | _ -> $"[{width-1}:0] {name}"
+    | 1 ->  $"%s{name}"
+    | _ -> $" [%d{width-1}:0] {name}"
 
 let getVPortInput (fs: FastSimulation) (fc:FastComponent) (InputPortNumber ipn): string = 
     let labBase = fc.FullName
@@ -210,6 +278,7 @@ let getVPortInput (fs: FastSimulation) (fc:FastComponent) (InputPortNumber ipn):
 let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     let ins i = getVPortInput fs fc (InputPortNumber i)
     let outs i = getVPortOut fc (OutputPortNumber i)
+    let name = fc.VerilogComponentName
 
     let outW i = 
         match fc.OutputWidth.[i] with
@@ -263,12 +332,12 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
             let a = ins 0
             let b = ins 1
             let xor = outs 0
-            sprintf $"assign %s{xor} <= %s{a} ^ %s{b};\n"
+            $"assign {xor} = {a} ^ {b};\n"
         | Mux2 ->
             sprintf $"assign %s{outs 0} = %s{ins 2} ? %s{ins 1} : %s{ins 0};\n"
         | BusSelection(outW,lsb) ->
             let sel = sprintf "[%d:%d]" (outW+lsb-1) lsb
-            sprintf $"assign %s{outs 0} = %s{ins 0}%s{sel};\n"
+            sprintf $"assign {outs 0} = {ins 0}{sel};\n"
         | BusCompare(w,c) ->
             sprintf $"assign %s{outs 0} = %s{ins 0} == %s{makeBits w (uint64 (uint32 c))};\n"
         | MergeWires ->
@@ -279,18 +348,15 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
             sprintf $"assign %s{outs 0} = %s{ins 0}[%d{lsbBits-1}:0];\n" +
             sprintf $"assign %s{outs 1} = %s{ins 0}[%d{msbBits+lsbBits-1}:%d{msbBits}];\n"
         | AsyncROM mem ->
-            let modName = fc.FullName + "__ROM"
-            makeAsyncRomModule modName mem
+            sprintf $"%s{name} I1 (%s{outs 0}, %s{ins 0});\n"
         | ROM mem ->
-            ""
+            sprintf $"%s{name} I1 (%s{outs 0}, %s{ins 0}, clk);\n"
         | RAM mem -> 
-            let modName = fc.FullName + "__RAM"
-            makeRamModule modName mem    
+            sprintf $"%s{name} I1 (%s{outs 0}, %s{ins 0}, %s{ins 1}, %s{ins 2}, clk);\n"  
         | Custom _ -> 
             failwithf "What? custom components cannot exist in fast Simulation data structure"
         | _ -> failwithf "What? impossible!: fc.FType =%A" fc.FType
 
-let getInstantiatedModules (fs:FastSimulation) = [||]
 
 let getMainHeader (fs:FastSimulation) =
     Array.append 
@@ -317,6 +383,15 @@ let getMainSignalDefinitions (fs:FastSimulation) =
     |> Array.sort
     |> Array.append [|"input clk;\n"|]
 
+let extractRamDefinitions (fs:FastSimulation) =
+    fs.FOrderedComps
+    |> Array.collect (
+        (fun  fc ->
+            match fc.FType with
+            | ROM mem | RAM mem | AsyncROM mem -> [|verilogNameConvert fc.FullName, fc.FType|]
+            | _ -> [||]))
+
+
 let getMainHardware (fs:FastSimulation) =
     let hardware =
         [|
@@ -328,7 +403,7 @@ let getMainHardware (fs:FastSimulation) =
 let getVerilog (fs:FastSimulation) =
     /// make sure we have Ok names to use for output
     printfn "%d components" fs.FComps.Count
-    addUniqueVerilogNames fs
+    writeVerilogNames fs
     [|
         getInstantiatedModules fs
         getMainHeader fs

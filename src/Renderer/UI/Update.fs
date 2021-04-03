@@ -203,6 +203,8 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
         FileMenuView.addFileToProject model dispatch
     | MenuZoom z -> 
         zoomDiagram z model
+    | MenuVerilogOutput ->
+        SimulationView.verilogOutput model dispatch
     model
 
 /// get timestamp of current loaded component.

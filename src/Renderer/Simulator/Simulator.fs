@@ -60,14 +60,16 @@ let rec prepareSimulation
                     }
                 with
                 | e -> 
-                    printfn "\nEXCEPTION:\n\n%A\n%A" e.Message e.StackTrace
+                    printfn "\nEXCEPTION:\n\n%A\n%A\n\n" e.Message e.StackTrace
                     Error {
-                        Msg = sprintf "\nInternal ERROR in Issie fast simulation:\n\n%A\n%A\n" e.Message e.StackTrace
+                        Msg = sprintf "\nInternal ERROR in Issie fast simulation: %A\n\n%A\n" e.Message e.StackTrace
                         InDependency = None
                         ComponentsAffected = []
                         ConnectionsAffected = []
                     }
-                |> Result.map (fun sd -> (Fast.compareFastWithGraph sd |> ignore); sd)
+                |> Result.map (fun sd ->
+                    Fast.compareFastWithGraph sd |> ignore
+                    sd)
 
 
 

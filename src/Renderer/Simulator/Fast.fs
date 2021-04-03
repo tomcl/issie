@@ -1182,8 +1182,6 @@ let checkAndValidate (fs:FastSimulation) =
                 fc.OutputWidth.[i] <- Some n
             | _ -> () // Ok in this case
         ))
-    printComps 0 fs
-    
     fs
     
 

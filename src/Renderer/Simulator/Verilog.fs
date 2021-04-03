@@ -183,6 +183,8 @@ let makeRamModule (moduleName: string) (mem: Memory) =
     endmodule    
     
     """
+/// get all the RAM and ROM modules used
+/// NB at the moment each instance is made a separately named module, for simplicity
 let getInstantiatedModules (fs:FastSimulation) =
     fs.FComps
     |> Map.toArray
@@ -200,7 +202,6 @@ let getInstantiatedModules (fs:FastSimulation) =
     
 let activeComps (fs:FastSimulation) =
     [
-        fs.FConstantComps
         fs.FClockedComps
         fs.FOrderedComps
     ]
@@ -216,7 +217,7 @@ let makeAccessPathIndex (fs: FastSimulation) =
     |> Map.ofArray
 
 
-
+/// what type of declaration should teh output signal be?
 let wireType (fc:FastComponent) (OutputPortNumber opn: OutputPortNumber) =
     match fc.FType, fc.AccessPath with
     | Input n,[] -> VlogInput n
@@ -228,6 +229,7 @@ let wireType (fc:FastComponent) (OutputPortNumber opn: OutputPortNumber) =
         | Some n -> VlogComb n
         | None -> failwithf "No output width found for %A output %d" fc.FullName opn
 
+/// make a declaration for a signal 9wire, reg, input, output)
 let getWire (wType: VWireType) (name: string) =
     let make s n = sprintf $"%s{s} %s{name};\n"
     match wType with
@@ -236,11 +238,12 @@ let getWire (wType: VWireType) (name: string) =
     | VlogComb n -> make "wire" n
     | VlogRegister n -> make "reg" n
 
-
+/// generate an instance of a module named block
 let getInstanceOf (block:string) (instanceName:string) (ports: string array) =
     let portNames = ports |> String.concat ","
     sprintf $"%s{block} %s{instanceName} (%s{portNames});\n"
-    
+
+/// implement binary operator for two-input gate    
 let getVerilogBinaryOp cType op1 op2 =
     let bin opS = sprintf "%s %s %s" op1 opS op2
     let not exp = sprintf "!(%s)" exp
@@ -253,14 +256,18 @@ let getVerilogBinaryOp cType op1 op2 =
     | Xnor -> sprintf "!((%s && !%s) || (!%s) && %s)" op1 op2 op1 op2
     | _ -> failwithf "operator %A not defined" cType
 
+/// get valid Verilog constant for bus of given width (may be 1)
 let makeBits w (c:uint64) =
     sprintf $"%d{w}'h%x{c}"
 
 
-
+/// get output port name
 let getVPortOut (fc:FastComponent) (OutputPortNumber opn) =
     fc.VerilogOutputName.[opn]
 
+/// Get string corresponding to output port name with its width prepended as a Verilog
+/// slice.
+/// All output ports are internal wire or reg definitions.
 let getVPortOutWithSlice (fc:FastComponent) (opn: OutputPortNumber) =
     let name = getVPortOut fc opn
     let (OutputPortNumber n) = opn
@@ -269,12 +276,14 @@ let getVPortOutWithSlice (fc:FastComponent) (opn: OutputPortNumber) =
     | 1 ->  $"%s{name}"
     | _ -> $" [%d{width-1}:0] {name}"
 
+/// Get string corresponding to name of signal that drives component input port
 let getVPortInput (fs: FastSimulation) (fc:FastComponent) (InputPortNumber ipn): string = 
     let labBase = fc.FullName
     match fc.InputDrivers.[ipn] with
     | Some (fid,opn) -> getVPortOut fs.FComps.[fid] opn
     | None -> failwithf "Can't find input driver for %A port %d"  fc.FullName ipn
 
+/// Translates from a component to its Verilog description
 let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     let ins i = getVPortInput fs fc (InputPortNumber i)
     let outs i = getVPortOut fc (OutputPortNumber i)
@@ -357,7 +366,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
             failwithf "What? custom components cannot exist in fast Simulation data structure"
         | _ -> failwithf "What? impossible!: fc.FType =%A" fc.FType
 
-
+/// return the header of the main verilog module with hardware inputs and outputs in header.
 let getMainHeader (fs:FastSimulation) =
     Array.append 
         fs.FGlobalInputComps 
@@ -368,9 +377,10 @@ let getMainHeader (fs:FastSimulation) =
             [|fc.VerilogOutputName.[0]|]
         | _ -> [||])
     |> String.concat ",\n\t"
-    |> sprintf "module topLevel (\n\tclk,\n\t%s);"
+    |> sprintf "module main (\n\tclk,\n\t%s);"
     |> fun s -> [| s |]
 
+/// return the wire and reg definitions needed to make the verilog design work.
 let getMainSignalDefinitions (fs:FastSimulation) =
     fs.FComps
     |> mapValues
@@ -383,6 +393,12 @@ let getMainSignalDefinitions (fs:FastSimulation) =
     |> Array.sort
     |> Array.append [|"input clk;\n"|]
 
+/// get the module definitions (one per RAM instance) that define RAMs used
+/// TODO: make output more compact by using multiple instances of one module where possible.
+/// NB. Initial statement is used to initialise RAM as per simulation: should work with Quartus.
+/// NB - there is some inconsistency between this definition and current simulation, which will output
+/// ram[0] contents in clock 0 on q. the simulation is incompatible with FPGA tools and should change so
+/// that initial ram output is always 0.
 let extractRamDefinitions (fs:FastSimulation) =
     fs.FOrderedComps
     |> Array.collect (
@@ -391,7 +407,7 @@ let extractRamDefinitions (fs:FastSimulation) =
             | ROM mem | RAM mem | AsyncROM mem -> [|verilogNameConvert fc.FullName, fc.FType|]
             | _ -> [||]))
 
-
+/// get the verilog statements output from each component
 let getMainHardware (fs:FastSimulation) =
     let hardware =
         [|
@@ -399,10 +415,16 @@ let getMainHardware (fs:FastSimulation) =
             fs.FOrderedComps
         |] |> Array.concat
     Array.map (getVerilogComponent fs) hardware
-    
+
+
+/// Outputs a string which contains a single verilog file with the hardware in verilog form.
+/// The top-level simulation moudle is called main - other modules may be included for RAM & ROM
+/// this can be called any time after after buildFastSimulation has created the initila FastSimulation
+/// data structure.
+/// To simulate this you would need to set up clk as a clock input, and provide stimulus for other inputs if
+/// there are any.
 let getVerilog (fs:FastSimulation) =
     /// make sure we have Ok names to use for output
-    printfn "%d components" fs.FComps.Count
     writeVerilogNames fs
     [|
         getInstantiatedModules fs

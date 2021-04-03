@@ -236,6 +236,7 @@ type MenuCommand =
     | MenuSaveFile
     | MenuNewFile
     | MenuZoom of float
+    | MenuVerilogOutput
 
 
 /// Type for an open project which represents a complete design.

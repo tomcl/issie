@@ -23,6 +23,35 @@ open Extractor
 open Simulator
 open NumberHelpers
 
+/// save verilog file
+/// TODO: the simulation error display here is shared with step simulation and also waveform simulation -
+/// maybe it should be a subfunction.
+let verilogOutput (model: Model) (dispatch: Msg -> Unit) =
+    printfn "Verilog output"
+    match FileMenuView.updateProjectFromCanvas model, model.Diagram.GetCanvasState() with
+        | Some proj, Some state ->
+            if FileMenuView.fileProcessingBusy <> [] then 
+                () // do nothing if in middle of I/O operation
+            else
+                prepareSimulation proj.OpenFileName (extractState state) proj.LoadedComponents 
+                |> (function 
+                    | Ok sim -> 
+                        let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
+                        printfn "writing %s" proj.ProjectPath
+                        FilesIO.writeFile path (Verilog.getVerilog sim.FastSim)
+                    | Error simError ->
+                       if simError.InDependency.IsNone then
+                           // Highlight the affected components and connection only if
+                           // the error is in the current diagram and not in a
+                           // dependency.
+                           (simError.ComponentsAffected, simError.ConnectionsAffected)
+                           |> SetHighlighted |> dispatch
+                       Error simError
+                       |> StartSimulation
+                       |> dispatch)
+        | _ -> () // do nothing if no project is loaded
+    
+
 //----------------------------View level simulation helpers------------------------------------//
 
 type SimCache = {

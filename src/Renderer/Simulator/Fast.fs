@@ -664,6 +664,7 @@ let private createFastComponent (numSteps: int) (sComp: SimulationComponent) (ac
       Outputs = outs
       FullName = ""
       VerilogOutputName = Array.create outPortNum ""
+      VerilogComponentName = ""
       Active =
           match sComp.Type with
           | IOLabel _ -> false

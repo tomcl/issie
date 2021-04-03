@@ -210,6 +210,7 @@ type FastComponent = {
     FullName: string
     mutable Touched: bool
     mutable VerilogOutputName: string array
+    mutable VerilogComponentName: string
 
     } with
 

@@ -69,7 +69,6 @@ let rec prepareSimulation
                     }
                 |> Result.map (fun sd ->
                     Fast.compareFastWithGraph sd |> ignore
-                    printfn "-------Verilog------\n%s\n" (Verilog.getVerilog sd.FastSim)
                     sd)
 
 

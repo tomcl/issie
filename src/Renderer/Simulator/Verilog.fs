@@ -20,7 +20,7 @@ let verilogNameConvert (s:string) =
     let baseName = 
         EEExtensions.String.split [|'('|] s
         |> Array.toList
-        |> function | h :: _ -> h | [] -> ""
+        |> function | h :: _ -> h | [] -> "v"
         |> String.replace "." "_" 
         |> String.replace " " "_"
     let extraLength = baseName.Length - maxIdentifierLength
@@ -39,12 +39,16 @@ let writeVerilogNames (fs: FastSimulation) =
             match fc.SimComponent.Label with 
             | ComponentLabel lab -> lab
         let vName = verilogNameConvert oName
+        let vName = 
+            if vName = "" then 
+                "v" + vName 
+            else 
+                vName
         let name = $"{vName}_{i}"
         fc.VerilogComponentName <- name
         fc.VerilogOutputName
         |> Array.iteri (fun portNum _ ->
             let outName = $"{name}_out{portNum}"
-            printf "Writing outputname %s for %s (%A)" outName name fc.FType
             fc.VerilogOutputName.[portNum] <- outName))
 
 
@@ -141,12 +145,20 @@ let makeRomModule (moduleName: string) (mem: Memory) =
     sprintf $"""
 
     module %s{moduleName}(q, a, clk);
-    output reg [%d{dMax}:0] q;
+    output reg [%d{dMax}:0] q = 0;
     input [%d{aMax}:0] a;
 
     reg [%d{dMax}:0] rom [%d{numWords-1}:0];
     always @(posedge clk) q <= rom[a];
+
+    integer i;
+
     initial
+    begin
+        for (i=0; i < {numWords}; i=i+1)
+        begin
+            ram[i] = 0;
+        end
     begin
         %s{romInits}
     end
@@ -165,7 +177,7 @@ let makeRamModule (moduleName: string) (mem: Memory) =
     sprintf $"""
 
     module %s{moduleName}(q, a, d, we, clk);
-    output reg [%d{dMax}:0] q;
+    output reg [%d{dMax}:0] q = 0;
     input [%d{dMax}:0] d;
     input [%d{aMax}:0] a;
     input we, clk;
@@ -174,10 +186,17 @@ let makeRamModule (moduleName: string) (mem: Memory) =
          if (we)
              ram[a] <= d;
          q <= ram[a];
-     end    
+     end   
+     
+    integer i;
 
     initial
     begin
+        for (i=0; i < {numWords}; i=i+1)
+        begin
+            ram[i] = 0;
+        end
+        
         %s{ramInits}
     end
     endmodule    
@@ -217,26 +236,7 @@ let makeAccessPathIndex (fs: FastSimulation) =
     |> Map.ofArray
 
 
-/// what type of declaration should teh output signal be?
-let wireType (fc:FastComponent) (OutputPortNumber opn: OutputPortNumber) =
-    match fc.FType, fc.AccessPath with
-    | Input n,[] -> VlogInput n
-    | Output n, [] -> VlogOutput n
-    | DFF,_ | DFFE,_ -> VlogRegister 1
-    | Register n,_ | RegisterE n, _ -> VlogRegister n
-    | _ ->
-        match fc.OutputWidth.[opn] with
-        | Some n -> VlogComb n
-        | None -> failwithf "No output width found for %A output %d" fc.FullName opn
 
-/// make a declaration for a signal 9wire, reg, input, output)
-let getWire (wType: VWireType) (name: string) =
-    let make s n = sprintf $"%s{s} %s{name};\n"
-    match wType with
-    | VlogInput n -> make "input" n
-    | VlogOutput n -> make "output" n
-    | VlogComb n -> make "wire" n
-    | VlogRegister n -> make "reg" n
 
 /// generate an instance of a module named block
 let getInstanceOf (block:string) (instanceName:string) (ports: string array) =
@@ -260,10 +260,10 @@ let getVerilogBinaryOp cType op1 op2 =
 let makeBits w (c:uint64) =
     sprintf $"%d{w}'h%x{c}"
 
-
 /// get output port name
 let getVPortOut (fc:FastComponent) (OutputPortNumber opn) =
     fc.VerilogOutputName.[opn]
+
 
 /// Get string corresponding to output port name with its width prepended as a Verilog
 /// slice.
@@ -282,6 +282,25 @@ let getVPortInput (fs: FastSimulation) (fc:FastComponent) (InputPortNumber ipn):
     match fc.InputDrivers.[ipn] with
     | Some (fid,opn) -> getVPortOut fs.FComps.[fid] opn
     | None -> failwithf "Can't find input driver for %A port %d"  fc.FullName ipn
+
+
+
+let getZeros width =
+    match width with
+    | 1 ->  "1'b0"
+    | _ -> $"{width}'h0"
+
+/// what verilog declaration should the output signal have?
+let fastOutputDefinition (fc:FastComponent) (opn:OutputPortNumber) =
+    let (OutputPortNumber n) = opn
+    let name = fc.VerilogOutputName.[n]
+    let vDef = getVPortOutWithSlice fc opn
+    match fc.FType, fc.AccessPath with
+    | Output n, [] -> $"output {vDef};\n"
+    | DFF,_ | DFFE,_ -> $"reg {vDef} = 1'b0;\n"
+    | Input n, []| Register n,_ | RegisterE n, _ -> $"reg {vDef} = {getZeros n};\n"
+    | Input n, _ -> $"wire {vDef};\n"
+    | _ -> $"wire {vDef};\n"
 
 /// Translates from a component to its Verilog description
 let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
@@ -316,7 +335,9 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
             sprintf "assign %s = ! %s;\n" (outs 0) (ins 0)
         | And | Or | Xor | Nand | Nor | Xor -> 
             sprintf "assign %s = %s;\n" (outs 0) (getVerilogBinaryOp fc.FType (ins 0) (ins 1))
-        | DFF | DFFE | Register _ | RegisterE _ ->
+        | DFFE | RegisterE _  ->
+            $"always @(posedge clk) %s{outs 0} <= %s{ins 1} ? %s{ins 0} : %s{outs 0};\n"
+        | DFF |  Register _ ->
             $"always @(posedge clk) %s{outs 0} <= %s{ins 0};\n"
         | Constant(w,c) ->
             $"assign %s{outs 0} = %s{makeBits w (uint64 (uint32 c))};\n"
@@ -373,11 +394,11 @@ let getMainHeader (fs:FastSimulation) =
         (Array.filter (fun fc -> isOutput fc.FType && fc.AccessPath = []) fs.FOrderedComps)
     |> Array.collect (fun fc -> 
         match fc.FType, fc.AccessPath with
-        | Input _, [] | Output _, [] -> 
+        | Output _, [] -> // NB - inputs are assigned zero and not included in module header
             [|fc.VerilogOutputName.[0]|]
         | _ -> [||])
     |> String.concat ",\n\t"
-    |> sprintf "module main (\n\tclk,\n\t%s);"
+    |> sprintf "module main (\n\t%s);"
     |> fun s -> [| s |]
 
 /// return the wire and reg definitions needed to make the verilog design work.
@@ -387,11 +408,10 @@ let getMainSignalDefinitions (fs:FastSimulation) =
     |> Array.filter (fun fc -> fc.Active)
     |> Array.collect (fun fc ->
         fc.Outputs
-        |> Array.mapi (fun i opn ->
-            let wt = wireType fc (OutputPortNumber i)
-            getWire wt (getVPortOutWithSlice fc (OutputPortNumber i))))
+        |> Array.mapi (fun i _ ->
+            fastOutputDefinition fc (OutputPortNumber i)))
     |> Array.sort
-    |> Array.append [|"input clk;\n"|]
+    |> Array.append [|"reg clk;\n"|]
 
 /// get the module definitions (one per RAM instance) that define RAMs used
 /// TODO: make output more compact by using multiple instances of one module where possible.
@@ -416,6 +436,53 @@ let getMainHardware (fs:FastSimulation) =
         |] |> Array.concat
     Array.map (getVerilogComponent fs) hardware
 
+let getInitialSimulationBlock (fs:FastSimulation) =
+
+    let inDefs =
+        fs.FGlobalInputComps
+        |> Array.map (fun fc ->
+            let width = Option.get fc.OutputWidth.[0]
+            let sigName = fc.VerilogOutputName.[0]
+            $"assign {sigName} = {makeBits width 0uL};")
+        |> String.concat "\n"
+    let outNames, (outFormat, outVars) =
+        fs.FComps
+        |> Map.toArray
+        |> Array.filter (function | _,{AccessPath = []; FType=Output _} -> true| _ -> false)
+        |> Array.map (fun (_,fc) ->
+            let sigName = fc.VerilogOutputName.[0]
+            let hexWidth = (Option.get fc.OutputWidth.[0] - 1)/4 + 1
+            let (ComponentLabel heading) = fc.SimComponent.Label
+            let heading = verilogNameConvert heading
+            let padding = max 0 (hexWidth - heading.Length)
+            let heading = (String.replicate padding " ") +  heading
+            heading, (max hexWidth heading.Length,  $"{sigName}"))
+        |> Array.unzip
+        |> (fun (a, b) -> a, Array.unzip b)
+    let outNames = String.concat " " outNames
+    let outFormat = 
+        outFormat
+        |> Array.map (fun width -> "%" + $"{width}h")
+        |> String.concat " " 
+    let outVars = String.concat "," outVars
+        
+    [|
+        $"""
+        initial
+                begin
+                {inDefs}
+                clk = 1'b0;
+                $display("{outNames}");
+                while ($time < 300) 
+                begin
+                    $display("{outFormat}",{outVars});
+                    #5 clk = !clk;
+                    #5 clk = !clk;
+                end
+                end
+    """
+    |]
+
 
 /// Outputs a string which contains a single verilog file with the hardware in verilog form.
 /// The top-level simulation moudle is called main - other modules may be included for RAM & ROM
@@ -431,6 +498,7 @@ let getVerilog (fs:FastSimulation) =
         getMainHeader fs
         getMainSignalDefinitions fs
         getMainHardware fs
+        getInitialSimulationBlock fs
         [| "endmodule\n" |]
     |]
     |> Array.map (String.concat "")

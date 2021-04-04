@@ -59,70 +59,6 @@ let writeVerilogNames (fs: FastSimulation) =
                     let outName = $"{name}_out{portNum}"
                     fc.VerilogOutputName.[portNum] <- outName))
 
-
-
-
-
-/// write a guaranteed globally unique name for each Verilog output.
-/// NB - not used now, delete it?
-let addUniqueVerilogNames (fs: FastSimulation) =
-    /// convert an index into an equivalent alphabetic suffix
-    let numToChars (root: char) n =
-        $"%d{n}"
-        |> Seq.map (fun ch -> int ch + int root - int '0' |> char |> string)
-        |> String.concat ""
-
-    /// these are the components we need to give disambuated outputs
-    let activeComps =
-        fs.FComps
-        |> mapValues
-        |> Array.filter (fun fc -> fc.Active)
-
-    /// Make sure all names are unique by appending to names disambiguating characters
-    /// don't allow "" as a name, so similarly append to that.
-    let rec disambiguate (root: char) (nameL: ('a * string) array) =
-        let groups =
-            nameL |> Array.groupBy (fun (fc, vName) -> vName)
-
-        match groups with
-        | _ when groups.Length = nameL.Length -> nameL
-        | groups ->
-            groups
-            |> Array.collect
-                (fun (vName, fcA) ->
-                    fcA
-                    |> Array.mapi
-                        (fun i (fc, vName) ->
-                            match i with
-                            | 0
-                            | 0 -> fc, vName
-                            | i -> fc, vName + numToChars root i))
-            // recursively disambiguate in case we have created a new name clash
-            |> disambiguate root
-
-    let uniqueNames =
-        activeComps
-        |> Array.map (fun fc -> fc, verilogNameConvert fc.FullName)
-        |> Array.map
-            (function
-            | (fc, "") -> fc, "NULL"
-            | x -> x)
-        |> disambiguate 'a'
-        |> Array.collect
-            (fun (fc, vName) ->
-                [| 0 .. fc.Outputs.Length - 1 |]
-                |> Array.map
-                    (fun i ->
-                        match fc.FType, fc.AccessPath with
-                        | Output _, []
-                        | Input _, [] -> ((fc, OutputPortNumber i), $"{vName}")
-                        | _ -> ((fc, OutputPortNumber i), $"{vName}_out{i}")))
-        |> disambiguate 'q'
-
-    uniqueNames
-    |> Array.iter (fun ((fc, OutputPortNumber n), name) -> fc.VerilogOutputName.[n] <- name)
-
-
 let makeAsyncRomModule (moduleName: string) (mem: Memory) =
     let aMax = mem.AddressWidth - 1
     let dMax = mem.WordWidth - 1
@@ -384,33 +320,27 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
             let b = ins 2
             let sum = outs 0
             let cout = outs 1
-
-            sprintf
-                "%s"
-                ("assign {"
-                 + $"%s{cout},%s{sum}"
-                 + "} = "
-                 + $"%s{a} + %s{b} + %s{cin};\n")
+            $"assign {{%s{cout},%s{sum} }} = %s{a} + %s{b} + %s{cin};\n"
         | NbitsXor n ->
             let a = ins 0
             let b = ins 1
             let xor = outs 0
             $"assign {xor} = {a} ^ {b};\n"
-        | Mux2 -> sprintf $"assign %s{outs 0} = %s{ins 2} ? %s{ins 1} : %s{ins 0};\n"
+        | Mux2 -> $"assign %s{outs 0} = %s{ins 2} ? %s{ins 1} : %s{ins 0};\n"
         | BusSelection (outW, lsb) ->
             let sel = sprintf "[%d:%d]" (outW + lsb - 1) lsb
-            sprintf $"assign {outs 0} = {ins 0}{sel};\n"
-        | BusCompare (w, c) -> sprintf $"assign %s{outs 0} = %s{ins 0} == %s{makeBits w (uint64 (uint32 c))};\n"
-        | MergeWires -> sprintf "assign %s = {%s,%s};\n" (outs 0) (ins 0) (ins 1)
+            $"assign {outs 0} = {ins 0}{sel};\n"
+        | BusCompare (w, c) -> $"assign %s{outs 0} = %s{ins 0} == %s{makeBits w (uint64 (uint32 c))};\n"
+        | MergeWires -> $"assign {outs 0} = {{ {ins 0},{ins 1} }};\n"  
         | SplitWire _ ->
             let lsbBits = outW 0
             let msbBits = outW 1
 
-            sprintf $"assign %s{outs 0} = %s{ins 0}[%d{lsbBits - 1}:0];\n"
-            + sprintf $"assign %s{outs 1} = %s{ins 0}[%d{msbBits + lsbBits - 1}:%d{msbBits}];\n"
+            $"assign %s{outs 0} = %s{ins 0}[%d{lsbBits - 1}:0];\n"
+            + $"assign %s{outs 1} = %s{ins 0}[%d{msbBits + lsbBits - 1}:%d{msbBits}];\n"
         | AsyncROM mem -> sprintf $"%s{name} I1 (%s{outs 0}, %s{ins 0});\n"
-        | ROM mem -> sprintf $"%s{name} I1 (%s{outs 0}, %s{ins 0}, clk);\n"
-        | RAM mem -> sprintf $"%s{name} I1 (%s{outs 0}, %s{ins 0}, %s{ins 1}, %s{ins 2}, clk);\n"
+        | ROM mem -> $"%s{name} I1 (%s{outs 0}, %s{ins 0}, clk);\n"
+        | RAM mem -> $"%s{name} I1 (%s{outs 0}, %s{ins 0}, %s{ins 1}, %s{ins 2}, clk);\n"
         | Custom _ -> failwithf "What? custom components cannot exist in fast Simulation data structure"
         | _ -> failwithf "What? impossible!: fc.FType =%A" fc.FType
 

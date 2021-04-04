@@ -39,6 +39,8 @@ let verilogOutput (model: Model) (dispatch: Msg -> Unit) =
                         let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
                         printfn "writing %s" proj.ProjectPath
                         FilesIO.writeFile path (Verilog.getVerilog sim.FastSim)
+                        let note = successSimulationNotification $"verilog output written to file {path}"
+                        dispatch  <| SetSimulationNotification note
                     | Error simError ->
                        if simError.InDependency.IsNone then
                            // Highlight the affected components and connection only if

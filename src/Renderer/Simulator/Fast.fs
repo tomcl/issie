@@ -1037,8 +1037,8 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                         match Map.tryFind 0L mem.Data with
                         | Some n -> convertIntToWireData w n
                         | _ -> convertIntToWireData w 0L
-
-                    vec.Step.[0] <- initD
+                    // change simulation semantics to output 0 in cycle 0
+                    vec.Step.[0] <- convertIntToWireData w 0L
                 | RAM _, _ ->
                     failwithf "What? Bad initial values for RAM %s output %d state <%A>" fc.FullName i fc.FType
                 | _, Some w -> vec.Step.[0] <- List.replicate w Zero

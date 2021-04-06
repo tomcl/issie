@@ -186,7 +186,7 @@ let private fastReduce (simStep: int) (comp: FastComponent) : Unit =
     let n = comp.InputLinks.Length
 
     ///  get data feom input i of component
-    let ins i =
+    let inline ins i =
         //assertThat (i < n) (sprintf "What? Invalid input port (%d:step%d) used by %s:%s (%A) reducer with %d Ins"
         //                            i simStep comp.FullName comp.ShortId  componentType n)
         let fd = comp.InputLinks.[i].Step.[simStep]

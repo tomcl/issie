@@ -425,7 +425,6 @@ let update msg model =
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
-        firstTip <- true
         if newTab <> WaveSim && model.RightPaneTabVisible = WaveSim then 
             //printfn "Running inference"
             model.Diagram.ResetSelected()

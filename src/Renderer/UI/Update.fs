@@ -205,6 +205,7 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
         zoomDiagram z model
     | MenuVerilogOutput ->
         SimulationView.verilogOutput model dispatch
+        failwithf "try to break here..."
     model
 
 /// get timestamp of current loaded component.

@@ -11,4 +11,5 @@ group Electron
 	Fable.Promise
 	Fable.React
 	Fulma
+	Fulma.Extensions.Wikiki.Tooltip
 	Fable.SimpleJson

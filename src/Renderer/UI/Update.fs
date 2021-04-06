@@ -205,6 +205,7 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
         zoomDiagram z model
     | MenuVerilogOutput ->
         SimulationView.verilogOutput model dispatch
+        failwithf "try to break here..."
     model
 
 /// get timestamp of current loaded component.
@@ -425,7 +426,6 @@ let update msg model =
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
-        firstTip <- true
         if newTab <> WaveSim && model.RightPaneTabVisible = WaveSim then 
             //printfn "Running inference"
             model.Diagram.ResetSelected()

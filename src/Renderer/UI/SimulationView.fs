@@ -7,6 +7,7 @@
 module SimulationView
 
 open Fulma
+open Fulma.Extensions.Wikiki
 open Fable.React
 open Fable.React.Props
 
@@ -374,7 +375,12 @@ let viewSimulation model dispatch =
             str (if isSync then "You can also use the Waveforms >> button to view waveforms" else "")
             br []; br []
             Button.button
-                [ Button.Color buttonColor; Button.OnClick (fun _ -> startSimulation()) ]
+                [ 
+                    Button.Color buttonColor; 
+                    Button.OnClick (fun _ -> startSimulation()) ; 
+                    Button.Props [Tooltip.dataTooltip "I am a tooltip"]
+                    Button.CustomClass Tooltip.ClassName;
+                ]
                 [ str buttonText ]
         ]
     | Some sim ->

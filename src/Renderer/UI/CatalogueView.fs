@@ -7,6 +7,8 @@
 module CatalogueView
 
 open Fulma
+open Fulma.Extensions.Wikiki
+
 open Fable.Core.JsInterop
 open Fable.React
 open Fable.React.Props
@@ -663,13 +665,15 @@ let mutable firstTip = true
 
 let mutable tippyNodes: Browser.Types.Element list = []
 
-let private makeMenuGroupWithTip  title tip menuList =
-    let addTip (el: Browser.Types.Element) =
-        if not (isNull el) && firstTip then 
-            el.setAttribute("data-tippy-content",tip)
-            tippyNodes <- el :: tippyNodes
-    details [Open false; Ref addTip] [
-        summary [menuLabelStyle] [ str title ]
+let private makeMenuGroupWithTip  title (tip:string) (menuList:ReactElement list) =
+    details [Open false] [
+        summary [
+                    Tooltip.dataTooltip tip
+                    HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
+                ] [
+                    a [ menuLabelStyle ] [ str title ] 
+             ]
+
         Menu.list [] menuList
     ]
 
@@ -689,36 +693,18 @@ let compareModelsApprox (m1:Model) (m2:Model) =
     b
 
 
-let mutable tippys: (JSHelpers.TippySingleton * JSHelpers.TippyInstance array) option = None
 
 let viewCatalogue model dispatch =
-        let viewCatOfModel = fun model ->                 
-            let catTipInstall el =            
-                if not (isNull el) && firstTip then
-                    //printfn "Installing cat"
-                    let props = JSHelpers.tippyOpts "left"
-                    match tippys with
-                    | Some (single,tips) ->
-                        single.destroy()
-                        tips |> Array.iter (fun tip -> tip.destroy())
-                    | None  -> ()
-                    let tip = JSHelpers.tippyDom (tippyNodes |> List.toArray, props)
-                    let single = JSHelpers.createSingleton(tip, props);
-                    tippys <- Some (single,tip)
-                    tippyNodes <- []
-                    firstTip <- false
-                        
-
- 
+        let viewCatOfModel = fun model ->  
+        
             let catTip1 name func (tip:string) = 
-                div [
-                    Props.Ref (fun element -> 
-                        if not (isNull element) && firstTip then 
-                            element.setAttribute("data-tippy-content",tip)
-                            tippyNodes <- element :: tippyNodes)
-                    ] [menuItem name func]
+                let react = menuItem name func
+                div [ HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
+                      Tooltip.dataTooltip tip
+                    ]
+                    [ react ]
                             
-            Menu.menu [Props [Class "py-1"; Ref catTipInstall]]  [
+            Menu.menu [Props [Class "py-1"]]  [
                     makeMenuGroup
                         "Input / Output"
                         [ catTip1 "Input"  (fun _ -> createIOPopup true "input" Input model dispatch) "Input connection to current sheet: one or more bits"

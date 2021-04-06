@@ -33,7 +33,7 @@ let rec prepareSimulation
 
     /// Tune for performance of initial zero-length simulation versus longer run.
     /// Probably this is not critical.
-    let initMaxSteps = 25
+    let initMaxSteps = 50
     match runCanvasStateChecksAndBuildGraph canvasState loadedDependencies with
     | Error err -> Error err
     | Ok graph ->
@@ -50,7 +50,8 @@ let rec prepareSimulation
             | None -> 
                 try
                     Ok {
-                        FastSim = Fast.buildFastSimulation initMaxSteps graph
+                        FastSim = 
+                            Fast.buildFastSimulation initMaxSteps graph
                         Graph = graph |> InitialiseGraphWithZeros inputs;
                         Inputs = inputs;
                         Outputs = outputs

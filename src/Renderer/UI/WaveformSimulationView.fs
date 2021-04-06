@@ -455,8 +455,8 @@ let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRo
                                 |> min maxLastClk 
                         }
                     dispatch <| InitiateWaveSimulation(WSViewerOpen, pars')
-                    printfn "working"
-                else printfn "not working"
+                    //printfn "working"
+                //else printfn "not working"
             //e.scrollLeft <- 100. // this shows how to set scroll position COMMENT THIS OUT
             // can use dispatch here to make something happen based on scroll position
             // scroll position = min or max => at end

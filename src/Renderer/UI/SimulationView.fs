@@ -96,7 +96,9 @@ let rec prepareSimulationMemoised
         if  isSame then
             simCache.StoredResult, rState
         else
-            let simResult = prepareSimulation diagramName rState loadedDependencies
+            let simResult = 
+                let sim = prepareSimulation diagramName rState loadedDependencies
+                sim
             simCache <- {
                 Name = diagramName
                 StoredState = rState

@@ -661,9 +661,6 @@ let private makeMenuGroup title menuList =
     ]
 
 
-let mutable firstTip = true
-
-let mutable tippyNodes: Browser.Types.Element list = []
 
 let private makeMenuGroupWithTip  title (tip:string) (menuList:ReactElement list) =
     details [Open false] [

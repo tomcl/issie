@@ -3,6 +3,8 @@
 open Elmish
 
 open Fulma
+open Fulma.Extensions.Wikiki
+
 open Fable.React
 open Fable.React.Props
 
@@ -291,20 +293,21 @@ let displayView model dispatch =
                   [ Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs"
                                 Tabs.Props [Style [Margin 0] ] ]                              
                               [ Tabs.tab // catalogue tab to add components
-                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
-                                    [ a [ OnClick (fun _ -> CatalogueView.firstTip <- true; ChangeRightTab Catalogue |> dispatch ) ] 
-                                    [ JSHelpers.tipStr "bottom" "Catalogue" "List of components and custom components from other design sheets to add to this sheet"] ]                                
+                                    [   Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
+                                    [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] [str "Catalogue" ] ] 
+                                                                  
                                 Tabs.tab // Properties tab to view/change component properties
-                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]
-                                    [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties ) ] 
-                                    [ JSHelpers.tipStr "bottom" "Properties" "View or change component name, width, etc"] ]
+                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]                                   
+                                    [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ] 
 
-                                Tabs.tab // simulation tab to do combinational simulation
+                     
+                                (Tabs.tab // simulation tab to do combinational simulation
                                     [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
-                                    [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] 
-                                    [ JSHelpers.tipStr "bottom" "Simulation" "Simple simulation for combinational logic which allows inputs to be changed manually" ] ]
+                                    [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) 
+                                        ] [str "Simulation"] ] )
+                            
                                 /// Optional wavesim tab. If present contains waveforms or waveform editor window
-                                match currWaveSimModel model with
+                                (match currWaveSimModel model with
                                 | Some {WSViewState=WSClosed} -> 
                                     if model.RightPaneTabVisible = WaveSim then
                                         dispatch <| ChangeRightTab Catalogue
@@ -313,7 +316,7 @@ let displayView model dispatch =
                                     Tabs.tab // WaveSim tab - if wavesim exists
                                         [ Tabs.Tab.IsActive (model.RightPaneTabVisible = WaveSim) ]
                                         [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab WaveSim ) ] 
-                                        [ str "WaveSim" ] ] 
+                                        [ str "WaveSim" ] ] ) 
                               ]
-                    viewRightTab model dispatch ] ] ]
+                    viewRightTab model dispatch  ] ] ]
 

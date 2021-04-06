@@ -242,4 +242,4 @@ docs/
 
 # Fable 3 Output
 *.fs.js
-
+*.fs.js.map

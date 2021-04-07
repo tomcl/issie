@@ -238,7 +238,6 @@ type MenuCommand =
     | MenuZoom of float
     | MenuVerilogOutput
 
-
 /// Type for an open project which represents a complete design.
 /// ProjectPath is directory containing project files.
 /// OpenFileName is name of file from which current schematic sheet is loaded/saved, without extension or path
@@ -255,7 +254,7 @@ type Project = {
 
 
 type Msg =
-    | ExecuteWithCurrentModel of (Model -> (Msg->Unit)-> Unit)* (Msg -> Unit)
+    | Sheet of Sheet.Msg
     | JSDiagramMsg of JSDiagramMsg<JSCanvas,JSComponent>
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
@@ -264,7 +263,7 @@ type Msg =
     | SetWSModAndSheet of (WaveSimModel*string)
     | SetWSError of SimulationError option
     | AddWaveSimFile of string * WaveSimModel
-    | SetSimulationGraph of SimulationGraph * FastSimulation
+    | SetSimulationGraph of SimulationGraph  * FastSimulation
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick
     | EndSimulation
@@ -351,8 +350,10 @@ type Model = {
     WaveSim : Map<string, WaveSimModel> * (SimulationError option)
     /// which top-level sheet is used by wavesim
     WaveSimSheet: string
-    /// draw canvas
-    Diagram : Draw2dWrapper
+        
+    /// Draw Canvas
+    Sheet: Sheet.Model
+    
     /// true during period when a sheet or project is loading
 
     IsLoading: bool
@@ -460,35 +461,35 @@ let setActivity (f: AsyncTasksT -> AsyncTasksT) (model: Model) =
 
 
 
-
-let getDetailedState (model:Model) =
-    model.Diagram.GetCanvasState()
-    |> Option.map Extractor.extractState
-    |> Option.defaultValue ([],[])
-
-let getReducedState (model:Model) =
-    model.Diagram.GetCanvasState()
-    |> Option.map Extractor.extractReducedState 
-
-let addReducedState a name model =
-    let lastState = a.LastSavedCanvasState
-    match getReducedState model with
-    | None -> lastState
-    | Some state -> lastState.Add(name, state)
+// TODO
+//let getDetailedState (model:Model) =
+//    model.Diagram.GetCanvasState()
+//    |> Option.map Extractor.extractState
+//    |> Option.defaultValue ([],[])
+//
+//let getReducedState (model:Model) =
+//    model.Diagram.GetCanvasState()
+//    |> Option.map Extractor.extractReducedState 
+//
+//let addReducedState a name model =
+//    let lastState = a.LastSavedCanvasState
+//    match getReducedState model with
+//    | None -> lastState
+//    | Some state -> lastState.Add(name, state)
 
 
 let changeSimulationIsStale (b:bool) (m:Model) = 
     //printfn "Changing WaveSimulationIsStale to %A" b
     { m with WaveSimulationIsOutOfDate = b}
 
+
 let getComponentIds (model: Model) =
-    let extractIds (jsComps,jsConns) = 
-        jsComps
-        |> List.map Extractor.extractComponent
+    let extractIds ((comps,conns): Component list * Connection list) = 
+        conns
         |> List.map (fun comp -> ComponentId comp.Id)
-    model.Diagram.GetCanvasState()
-    |> Option.map extractIds
-    |> Option.defaultValue []
+        
+    model.Sheet.GetCanvasState()
+    |> extractIds
     |> Set.ofList
 
 ////////////////////////////
@@ -571,11 +572,12 @@ let spConn (conn:Connection) =
 let spState ((comps,conns):CanvasState) = 
     sprintf "Canvas<%A,%A>" (List.map spComp comps) (List.map spConn conns)
 
-let spCanvas (model:Model) = 
-    model.Diagram.GetCanvasState()
-    |> Option.map Extractor.extractState
-    |> Option.map spState
-    |> Option.defaultValue "None"
+// TODO
+//let spCanvas (model:Model) = 
+//    model.Diagram.GetCanvasState()
+//    |> Option.map Extractor.extractState
+//    |> Option.map spState
+//    |> Option.defaultValue "None"
 
 let spComps comps =  
     sprintf "Comps%A" (List.map spComp comps)
@@ -588,8 +590,9 @@ let spLdComp (ldc: LoadedComponent) =
 let spProj (p:Project) =
     sprintf "PROJ||Sheet=%s\n%s||ENDP\n" p.OpenFileName (String.concat "\n" (List.map spLdComp p.LoadedComponents))
 
-let pp model =
-    printf "\n%s\n%s" (spCanvas model) (spOpt spProj model.CurrentProj)
+// TODO
+//let pp model =
+//    printf "\n%s\n%s" (spCanvas model) (spOpt spProj model.CurrentProj)
 
 let spMess msg =
     match msg with

@@ -6,7 +6,8 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Common definitions --> 
-    <Compile Include="Common\EEExtensions.fs" />
+    <Compile Include="Common\EEEHelpers.fs" /> 
+    <Compile Include="Common\EEExtensions.fs" /> 
     <Compile Include="Common\CommonTypes.fs" />
     <Compile Include="Common\Helpers.fs" />
     <Compile Include="Common\WidthInferer.fs" />
@@ -38,6 +39,9 @@
     <None Include="Draw2dWrapper\draw2d_fsharp_interface.js" />
     <None Include="Draw2dWrapper\MVU_messages.js" />
     <Compile Include="Draw2dWrapper/Draw2dWrapper.fs" />
+    <Compile Include="Draw2dWrapper\Symbol.fs" />
+    <Compile Include="Draw2dWrapper\BusWire.fs" />
+    <Compile Include="Draw2dWrapper\Sheet.fs" />
     
     <!-- UI -->
     <Compile Include="UI/ModelType.fs" />

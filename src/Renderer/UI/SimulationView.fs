@@ -7,6 +7,7 @@
 module SimulationView
 
 open Fulma
+open Fulma.Extensions.Wikiki
 open Fable.React
 open Fable.React.Props
 
@@ -29,12 +30,12 @@ open NumberHelpers
 /// maybe it should be a subfunction.
 let verilogOutput (model: Model) (dispatch: Msg -> Unit) =
     printfn "Verilog output"
-    match FileMenuView.updateProjectFromCanvas model, model.Diagram.GetCanvasState() with
-        | Some proj, Some state ->
+    match FileMenuView.updateProjectFromCanvas model, model.Sheet.GetCanvasState() with
+        | Some proj, state ->
             if FileMenuView.fileProcessingBusy <> [] then 
                 () // do nothing if in middle of I/O operation
             else
-                prepareSimulation proj.OpenFileName (extractState state) proj.LoadedComponents 
+                prepareSimulation proj.OpenFileName (state) proj.LoadedComponents 
                 |> (function 
                     | Ok sim -> 
                         let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]

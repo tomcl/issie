@@ -25,40 +25,6 @@ open Fable.Core.JsInterop
 //------------------Buttons overlaid on Draw2D Diagram----------------------------------//
 //--------------------------------------------------------------------------------------//
 
-// TODO
-//let private copyAction model dispatch =
-//    match model.Diagram.GetSelected () with
-//    | None -> ()
-//    | Some jsState -> extractState jsState |> SetClipboard |> dispatch
-
-/// Map the port Ids of the old component to the equivalent Ports of the new
-/// component. For example, if the component is a Not, the mapping will have two
-/// entries, the input port and the output port.
-let private mapPorts (oldComp : Component) (newComp : Component) : (string * Port) list =
-    let mapPort oldPort newPort =
-        assertThat (oldPort.PortNumber = newPort.PortNumber) <| "cloned components have different port numbers"
-        assertThat (oldPort.PortType = newPort.PortType) <| "cloned components have different port types"
-        oldPort.Id, newPort
-    assertThat (oldComp.Id <> newComp.Id) "cloned component has same id as old one"
-    assertThat (oldComp.Type = newComp.Type) "cloned components have different types"
-    assertThat (oldComp.Label = newComp.Label) "cloned components have different labels"
-    let inputs = (oldComp.InputPorts, newComp.InputPorts) ||> List.map2 mapPort
-    let outputs = (oldComp.OutputPorts, newComp.OutputPorts) ||> List.map2 mapPort
-    inputs @ outputs
-
-/// Transform a connection replacing the ports using the provided mapping.
-let private mapToNewConnection (portMappings : Map<string,Port>) oldConnection : Connection =
-    let mapGet pId = match portMappings.TryFind pId with
-                     | None -> failwithf "what? Could not find port Id %s while cloning" pId
-                     | Some port -> port
-    {
-        Id = "" // This will be ignored and replaced with an actual new Id.
-        Source = { (mapGet oldConnection.Source.Id) with PortNumber = None }
-        Target = { (mapGet oldConnection.Target.Id) with PortNumber = None }
-        Vertices = oldConnection.Vertices |> List.map (fun (x,y)->x+30.0,y+30.0)
-    }
-
-
 let viewOnDiagramButtons model dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let dispatch = Sheet.KeyPress >> sheetDispatch
@@ -285,7 +251,10 @@ let displayView model dispatch =
               // vertical and draggable divider bar
             [ dividerbar model dispatch
               // tabs for different functions
-              div [ Style [ Height "100%" ] ] 
+              div [ 
+                    HTMLAttr.Id "RightSelection"
+                    Style [ Height "100%" ] 
+                  ] 
                   [ Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs"
                                 Tabs.Props [Style [Margin 0] ] ]                              
                               [ Tabs.tab // catalogue tab to add components

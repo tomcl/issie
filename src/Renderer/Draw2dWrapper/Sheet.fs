@@ -778,8 +778,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let wholeApp = document.getElementById "WholeApp"
         let rightSelection = document.getElementById "RightSelection"
         
-//        printfn "DEBUG: Right Selection %A" rightSelection.clientWidth
-//        printfn "DEBUG: Whole App %A" wholeApp.clientWidth
+        //printfn "DEBUG: Right Selection %A" rightSelection.clientWidth
+        //printfn "DEBUG: Whole App %A" wholeApp.clientWidth
         
         let leftScreenEdge = canvas.scrollLeft
         let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.clientWidth
@@ -788,12 +788,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let mPosX = model.ScrollingLastMousePos.X * model.Zoom // Un-compensate for zoom as we want raw distance from mouse to edge screen
         let mPosY = model.ScrollingLastMousePos.Y * model.Zoom // Un-compensate for zoom as we want raw distance from mouse to edge screen
         
-//        printfn "DEBUG: Mouse X: %A" mPosX
-//        printfn "DEBUG: Mouse Y: %A" mPosY
-//        printfn "DEBUG: Left Screen Edge: %A" leftScreenEdge
-//        printfn "DEBUG: Right Screen Edge: %A" rightScreenEdge
-//        printfn "DEBUG: Upper Screen Edge: %A" upperScreenEdge
-//        printfn "DEBUG: Lower Screen Edge: %A" lowerScreenEdge
+        //printfn "DEBUG: Mouse X: %A" mPosX
+        //printfn "DEBUG: Mouse Y: %A" mPosY
+        //printfn "DEBUG: Left Screen Edge: %A" leftScreenEdge
+        //printfn "DEBUG: Right Screen Edge: %A" rightScreenEdge
+        //printfn "DEBUG: Upper Screen Edge: %A" upperScreenEdge
+        //printfn "DEBUG: Lower Screen Edge: %A" lowerScreenEdge
         
         let checkForAutomaticScrolling1D (edge: float) (mPos: float) =
             let scrollMargin = 100.0

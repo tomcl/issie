@@ -3,8 +3,6 @@
 open Elmish
 
 open Fulma
-open Fulma.Extensions.Wikiki
-
 open Fable.React
 open Fable.React.Props
 
@@ -14,6 +12,7 @@ open CommonTypes
 open Draw2dWrapper
 open Extractor
 open CatalogueView
+open System
 open FileMenuView
 open WaveformSimulationView
 open Helpers
@@ -24,10 +23,11 @@ open Fable.Core.JsInterop
 //------------------Buttons overlaid on Draw2D Diagram----------------------------------//
 //--------------------------------------------------------------------------------------//
 
-let private copyAction model dispatch =
-    match model.Diagram.GetSelected () with
-    | None -> ()
-    | Some jsState -> extractState jsState |> SetClipboard |> dispatch
+// TODO
+//let private copyAction model dispatch =
+//    match model.Diagram.GetSelected () with
+//    | None -> ()
+//    | Some jsState -> extractState jsState |> SetClipboard |> dispatch
 
 /// Map the port Ids of the old component to the equivalent Ports of the new
 /// component. For example, if the component is a Not, the mapping will have two
@@ -56,40 +56,19 @@ let private mapToNewConnection (portMappings : Map<string,Port>) oldConnection :
         Vertices = oldConnection.Vertices |> List.map (fun (x,y)->x+30.0,y+30.0)
     }
 
-let pasteAction model =
-    let oldComponents, oldConnections = model.Clipboard
-    // Copy the old components and add them to the diagram.
-    let newComponents =
-        oldComponents
-        |> List.map ((fun comp ->
-            match model.Diagram.CreateComponent comp.Type comp.Label (comp.X+30) (comp.Y+30) with
-            | None -> failwithf "what? Could not paste component %A" comp
-            | Some jsComp -> jsComp) >> extractComponent)
-    // The new (copied) components have been added to the diagram, now we need
-    // to copy the connections among them.
-
-    // Map the old components' ports to the new components' ports.
-    let portMappings =
-        (oldComponents, newComponents)
-        ||> List.map2 mapPorts
-        |> List.concat
-        |> Map.ofList
-    // Iterate over the old connections replacing the ports to refer to the new
-    // components, and add the newly created connections to the diagram.
-    oldConnections
-    |> List.map ((mapToNewConnection portMappings) >>
-                 (model.Diagram.LoadConnection false))
-    |> ignore
 
 let viewOnDiagramButtons model dispatch =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    let dispatch = Sheet.KeyPress >> sheetDispatch
+
     div [ canvasSmallMenuStyle ] [
         let canvasBut func label = 
             Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick func ] ] 
                           [ str label ]
-        canvasBut (fun _ -> model.Diagram.Undo ()) "< undo"
-        canvasBut (fun _ -> model.Diagram.Redo ()) "redo >"
-        canvasBut (fun _ -> copyAction model dispatch) "copy"
-        canvasBut (fun _ -> pasteAction model) "paste"
+        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlZ ) "< undo"
+        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlY ) "redo >"
+        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlC ) "copy"
+        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlV ) "paste"
     ]
 
 // -- Init Model
@@ -106,7 +85,8 @@ let initActivity = {
 /// Initial value of model
 let init() = {
     AsyncActivity = initActivity
-    Diagram = new Draw2dWrapper()
+    // Diagram = new Draw2dWrapper()
+    Sheet = fst (Sheet.init())
     WaveSimulationIsOutOfDate = true
     IsLoading = false
     LastDetailedSavedState = ([],[])
@@ -170,6 +150,7 @@ let private viewRightTab model dispatch =
             Heading.h4 [] [ str "Component properties" ]
             SelectedComponentView.viewSelectedComponent model dispatch
         ]
+
     | Simulation ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str "Simulation" ]
@@ -226,12 +207,14 @@ let displayView model dispatch =
     //    model.Diagram.GetSelected()
     //    |> Option.map extractState
     //    |> Option.defaultValue ([],[])
-    let sd = scrollData model
-    let x' = sd.SheetLeft+sd.SheetX
-    let y' = sd.SheetTop+sd.SheetY
+    
+    // TODO
+//    let sd = scrollData model
+//    let x' = sd.SheetLeft+sd.SheetX
+//    let y' = sd.SheetTop+sd.SheetY
     let wsModelOpt = getCurrentWSMod model
 
-    /// Feed changed viewer width from draggable bar back to Viewer parameters
+    /// Feed changed viewer width from draggable bar back to Viewer parameters TODO
     let inline setViewerWidthInWaveSim w =
         match currWaveSimModel model with
         | Some wSMod when w > maxUsedViewerWidth wSMod && wSMod.WSViewState = WSViewerOpen ->
@@ -263,12 +246,16 @@ let displayView model dispatch =
             dispatch <| SetDragMode DragModeOff
         | DragModeOff, _-> ()
 
+    let headerHeight = getHeaderHeight
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
     // the whole app window
-    div [ OnMouseUp (fun ev -> 
-            setDragMode false model dispatch ev; 
-            dispatch SelectionHasChanged);
-          OnMouseDown (makeSelectionChangeMsg model dispatch)
-          OnMouseMove processMouseMove
+
+    div [ HTMLAttr.Id "WholeApp"
+//          OnMouseUp (fun ev -> 
+//          setDragMode false model dispatch ev; 
+//          dispatch SelectionHasChanged);
+//          OnMouseDown (makeSelectionChangeMsg model dispatch)
+//          OnMouseMove processMouseMove
           Style [ BorderTop "2px solid lightgray"; BorderBottom "2px solid lightgray" ] ] [
         // transient
         FileMenuView.viewNoProjectMenu model dispatch
@@ -276,12 +263,19 @@ let displayView model dispatch =
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
         // main top bar function is early in compile order
         FileMenuView.viewTopMenu model WaveSimHelpers.fileMenuViewActions WaveformSimulationView.WaveformButtonFunc dispatch
-        // Draw2D editor Diagram component with canvas of components and connections
-        model.Diagram.CanvasReactElement (JSDiagramMsg >> dispatch) (canvasVisibleStyle model |> DispMode ) 
+
+        Sheet.view model.Sheet headerHeight (canvasVisibleStyleList model) sheetDispatch
+        
         // transient pop-ups
         PopupView.viewNotifications model dispatch
         // editing buttons overlaid bottom-left on canvas
         viewOnDiagramButtons model dispatch
+        
+        
+        //--------------------------------------------------------------------------------------//
+        //------------------------ left section for Sheet (NOT USED) ---------------------------//
+        // div [ leftSectionStyle model ] [ div [ Style [ Height "100%" ] ] [ Sheet.view model.Sheet sheetDispatch ] ]
+
         //--------------------------------------------------------------------------------------//
         //---------------------------------right section----------------------------------------//
         // right section has horizontal divider bar and tabs
@@ -289,25 +283,26 @@ let displayView model dispatch =
               // vertical and draggable divider bar
             [ dividerbar model dispatch
               // tabs for different functions
-              div [ Style [ Height "100%" ] ] 
+              div [ HTMLAttr.Id "RightSelection"
+                    Style [ Height "100%" ]
+                  ] 
                   [ Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs"
                                 Tabs.Props [Style [Margin 0] ] ]                              
                               [ Tabs.tab // catalogue tab to add components
-                                    [   Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
-                                    [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] [str "Catalogue" ] ] 
-                                                                  
+                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
+                                    [ a [ OnClick (fun _ -> CatalogueView.firstTip <- true; ChangeRightTab Catalogue |> dispatch ) ] 
+                                    [ JSHelpers.tipStr "bottom" "Catalogue" "List of components and custom components from other design sheets to add to this sheet"] ]                                
                                 Tabs.tab // Properties tab to view/change component properties
-                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]                                   
-                                    [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ] 
+                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]
+                                    [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties ) ] 
+                                    [ JSHelpers.tipStr "bottom" "Properties" "View or change component name, width, etc"] ]
 
-                     
-                                (Tabs.tab // simulation tab to do combinational simulation
+                                Tabs.tab // simulation tab to do combinational simulation
                                     [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
-                                    [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) 
-                                        ] [str "Simulation"] ] )
-                            
+                                    [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] 
+                                    [ JSHelpers.tipStr "bottom" "Simulation" "Simple simulation for combinational logic which allows inputs to be changed manually" ] ]
                                 /// Optional wavesim tab. If present contains waveforms or waveform editor window
-                                (match currWaveSimModel model with
+                                match currWaveSimModel model with 
                                 | Some {WSViewState=WSClosed} -> 
                                     if model.RightPaneTabVisible = WaveSim then
                                         dispatch <| ChangeRightTab Catalogue
@@ -316,7 +311,7 @@ let displayView model dispatch =
                                     Tabs.tab // WaveSim tab - if wavesim exists
                                         [ Tabs.Tab.IsActive (model.RightPaneTabVisible = WaveSim) ]
                                         [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab WaveSim ) ] 
-                                        [ str "WaveSim" ] ] ) 
+                                        [ str "WaveSim" ] ] 
                               ]
-                    viewRightTab model dispatch  ] ] ]
+                    viewRightTab model dispatch ] ] ]
 

@@ -192,8 +192,6 @@ let propagateStateChanges (graph : SimulationGraph) (changes: OutputChange list)
         graph
     )
 
-
-
 let checkPropagation (graph : SimulationGraph) : SimulationGraph =
     let ll (ComponentLabel s) = s
     let customComps =
@@ -268,8 +266,6 @@ let checkPropagation (graph : SimulationGraph) : SimulationGraph =
             // printfn "Propagation checks OK for %d components and %d customs!" graph.Count customComps.Length)
             ())
     propagateCombinationalComponents graph
-
-        
 
 let feedClockTick (graph : SimulationGraph) : SimulationGraph =
     calculateStateChanges graph

@@ -102,16 +102,19 @@ let fileMenu (dispatch) =
      ]
 
 let viewMenu dispatch =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    let dispatch = Sheet.KeyPress >> sheetDispatch
+    
     let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
     makeMenu false "View" [
         makeRoleItem "Toggle Fullscreen" (Some "F11") MenuItemRole.ToggleFullScreen
         menuSeparator
-        makeRoleItem "Zoom  In" (Some "CmdOrCtrl+Plus") MenuItemRole.ZoomIn
-        makeRoleItem "Zoom  Out" (Some "CmdOrCtrl+-") MenuItemRole.ZoomOut
+        makeRoleItem "Zoom  In" (Some "CmdOrCtrl+Shift+Plus") MenuItemRole.ZoomIn
+        makeRoleItem "Zoom  Out" (Some "CmdOrCtrl+Shift+-") MenuItemRole.ZoomOut
         makeRoleItem "Reset Zoom" (Some "CmdOrCtrl+0") MenuItemRole.ResetZoom
         menuSeparator
-        makeItem "Diagram Zoom In" (Some "CmdOrCtrl+z") (fun ev -> dispatch <| MenuAction(MenuZoom 1.25, dispatch))
-        makeItem "Diagram Zoom Out" (Some "CmdOrCtrl+y") (fun ev -> dispatch <| MenuAction(MenuZoom (1. / 1.25), dispatch))
+        makeItem "Diagram Zoom In" (Some "Shift+Plus") (fun ev -> dispatch Sheet.KeyboardMsg.ZoomIn)
+        makeItem "Diagram Zoom Out" (Some "Shift+-") (fun ev -> dispatch Sheet.KeyboardMsg.ZoomOut)
         menuSeparator
         makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ -> 
             let webContents = electron.remote.getCurrentWebContents()
@@ -124,19 +127,22 @@ let viewMenu dispatch =
 // shortcuts. According to electron documentation, the way to configure keyboard
 // shortcuts is by creating a menu.
 let editMenu dispatch =
-    let dispatch = ModelType.KeyboardShortcutMsg >> dispatch
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    let dispatch = Sheet.KeyPress >> sheetDispatch
 
     jsOptions<MenuItemOptions> <| fun invisibleMenu ->
         invisibleMenu.``type`` <- MenuItemType.SubMenu
         invisibleMenu.label <- "Edit"
         invisibleMenu.visible <- true
         invisibleMenu.submenu <-
-            [| makeElmItem "Save Sheet" "CmdOrCtrl+S" (fun () -> dispatch ModelType.CtrlS)
-               makeElmItem "Copy" "Alt+C" (fun () -> dispatch ModelType.AltC)
-               makeElmItem "Paste" "Alt+V" (fun () -> dispatch ModelType.AltV)
-               makeElmItem "Delete"  (if isMac then "Backspace" else "delete") (fun () -> dispatch ModelType.DEL)
-               makeElmItem "Undo" "Alt+Z" (fun () -> dispatch ModelType.AltZ)
-               makeElmItem "Redo" "Alt+Shift+Z" (fun () -> dispatch ModelType.AltShiftZ) |]
+            [| // makeElmItem "Save Sheet" "CmdOrCtrl+S" (fun () -> ())
+               makeElmItem "Copy" "CmdOrCtrl+C" (fun () -> dispatch Sheet.KeyboardMsg.CtrlC)
+               makeElmItem "Paste" "CmdOrCtrl+V" (fun () -> dispatch Sheet.KeyboardMsg.CtrlV)
+               makeElmItem "Select All" "CmdOrCtrl+A" (fun () -> dispatch Sheet.KeyboardMsg.CtrlA)
+               makeElmItem "Delete"  (if isMac then "Backspace" else "delete") (fun () -> dispatch Sheet.KeyboardMsg.DEL)
+               makeElmItem "Undo" "CmdOrCtrl+Z" (fun () -> dispatch Sheet.KeyboardMsg.CtrlZ)
+               makeElmItem "Redo" "CmdOrCtrl+Y" (fun () -> dispatch Sheet.KeyboardMsg.CtrlY)
+               makeElmItem "Cancel" "ESC" (fun () -> dispatch Sheet.KeyboardMsg.ESC) |]
             |> U2.Case1
 
 let attachMenusAndKeyShortcuts dispatch =

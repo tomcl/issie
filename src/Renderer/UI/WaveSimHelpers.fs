@@ -87,10 +87,7 @@ let n2StringOfRadix (hasRadixPrefix: bool) (n: bigint) (nBits: uint32) (rad: Num
 /////////////////////////////
 
 /// get an option of the reduced canvas state
-let getReducedCanvState model =
-    match model.Diagram.GetCanvasState() with
-    | Some cS -> Some <| extractReducedState cS
-    | None -> None
+let getReducedCanvState model = extractReducedState <| model.Sheet.GetCanvasState ()
     
 /// get NetList from WaveSimModel
 let wsModel2netList wsModel =
@@ -132,6 +129,9 @@ let reactTickBoxRow name nameStyle ticked toggleFun =
 // every net is therefore part of one netgroup which is either a single net, or a group of nets associated
 // with a set of IOLabel connectors having a given common label.
 
+let mapKeys (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map fst |> Array.ofSeq
+let mapValues (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map snd |> Array.ofSeq
+let mapItems (map:Map<'a,'b>) = map |> Map.toSeq |> Array.ofSeq
 
 let private allNComps (netList:NetList) =
     netList |> mapValues
@@ -283,10 +283,10 @@ let getRamInfoToDisplay wSMod path =
     match sCompOpt with
     | None -> "", []
     | Some sComp ->
-        match sComp.State with
-        | RamState m ->
+        match sComp.Type with
+        | RAM dat | ROM dat | AsyncROM dat ->
             let lab = match sComp.Label with |  ComponentLabel lab -> lab
-            lab, formatMemory m
+            lab, formatMemory dat
         | _ -> "", []
     
 
@@ -351,7 +351,7 @@ let private getReloadableNetGroups (model: Model) (netList: NetList) =
     | None -> [||]
 
 /// advance SimulationData by 1 clock cycle
-let private clkAdvance (sD: SimulationData) = 
+let private clkAdvance (sD: SimulationData) =
     let sD =
         if sD.ClockTickNumber = 0 then
             // set up the initial fast simulation
@@ -491,14 +491,13 @@ let private appendSimData (model: Model) (wSModel: WaveSimModel) nCycles =
         |> Ok
         |> Some
 
-/// get JSConnection list (1 or 0) from ConnectionId (as a string)
-let private connId2JSConn (diagram:Draw2dWrapper.Draw2dWrapper) connId =
-    match diagram.GetCanvasState() with
-    | Some (_, jsConns) -> 
-        List.tryFind (fun jsConn -> (extractConnection jsConn).Id = connId) jsConns
-    | None -> None
+/// get Connection list (1 or 0) from ConnectionId (as a string)
+let private connId2Conn (sheet: Sheet.Model) (connId: ConnectionId) : Connection list =
+    match sheet.GetCanvasState() with
+    | (_, conns) -> 
+        List.tryFind (fun (conn: Connection) -> ConnectionId conn.Id = connId) conns
     |> function
-       | Some jsConn -> [ jsConn ]
+       | Some conn -> [ conn ]
        | None -> []
 
 /// get Ids of connections in a trgtLstGroup
@@ -508,12 +507,13 @@ let private wave2ConnIds (netGrp: NetGroup) =
         List.toArray net 
         |> Array.map (fun net -> net.TargetConnId))
 
+
 /// select or deselect the connections of a given netGrp
-let selectNetGrpConns diagram (netGrp: NetGroup) on =
+let selectNetGrpConns (sheet: Sheet.Model) (netGrp: NetGroup) (dispatch: Msg -> unit) =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
     wave2ConnIds netGrp
     |> Array.toList
-    |> List.collect (fun (ConnectionId cId) -> connId2JSConn diagram cId) 
-    |> diagram.ChangeSelectionOfTheseConnections on
+    |> sheet.SelectConnections sheetDispatch
 
 let setSelNamesHighlighted (names: string array) model (dispatch: Msg -> Unit) =
     match getCurrentWSMod model with
@@ -525,13 +525,13 @@ let setSelNamesHighlighted (names: string array) model (dispatch: Msg -> Unit) =
             |> Array.collect wave2ConnIds
         dispatch <| SetSelWavesHighlighted connIds
         
-
-let selectNGConns (model:Model) (netGroups: NetGroup array) on =
-    netGroups
-    |> Array.collect wave2ConnIds
-    |> Array.toList
-    |> List.collect (fun (ConnectionId cId) -> connId2JSConn model.Diagram cId) 
-    |> model.Diagram.ChangeSelectionOfTheseConnections on
+//
+//let selectNGConns (model:Model) (netGroups: NetGroup array) on =
+//    netGroups
+//    |> Array.collect wave2ConnIds
+//    |> Array.toList
+//    |> List.collect (fun (ConnectionId cId) -> connId2JSConn model.Diagram cId) 
+//    |> model.Diagram.ChangeSelectionOfTheseConnections on
 
 
         
@@ -1152,16 +1152,11 @@ let private isNetGroupSelected (netList: NetList) ((comps, conns): CanvasState) 
     Array.append [|trgtLstGroup.driverNet|] trgtLstGroup.connectedNets
     |> Array.exists (isNLTrgtLstSelected netList (comps, conns)) 
 
+
 /// is the given waveform selected by the current diagram selection
-let isWaveSelected (diagram:Draw2dWrapper.Draw2dWrapper) netList (netgrp: NetGroup) = 
-    match diagram.GetSelected() with
-    | Some selectedCompsConnsJS ->
-        let selectedCompsConns = extractState selectedCompsConnsJS
-        isNetGroupSelected netList selectedCompsConns netgrp
-    | _ -> false 
-
-
-
+let isWaveSelected (sheet:Sheet.Model) netList (netgrp: NetGroup) = 
+    isNetGroupSelected netList sheet.GetSelectedCanvasState netgrp
+    
 /////////////////////////////////////////////////////
 /// Functions fed into FileMenuView View function ///
 /////////////////////////////////////////////////////
@@ -1196,7 +1191,7 @@ let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
             | WSClosed -> [||]
 
         let selectedConnectionIds (ng:NetGroup) =
-            if isWaveSelected model.Diagram netList ng then 
+            if isWaveSelected model.Sheet netList ng then 
                 wave2ConnIds ng
             else [||]
                 

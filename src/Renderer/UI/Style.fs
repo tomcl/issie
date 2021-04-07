@@ -4,7 +4,8 @@ module DiagramStyle
 open ModelType
 open Fable.React.Props
 
-let private headerHeight = "72px"
+let headerHeight = "72px"
+let private headerHeightWithBorderOffset = "74px"
 let private rightSectionWidthS = "400px" // Small right section.
 let private rightSectionWidthL = "650px" // Large right section.
 let minViewerWidth = 400
@@ -12,6 +13,12 @@ let minEditorWidth = 400
 
 let rightSectionWidthViewerDefault = 650
 
+// Get 
+let getHeaderHeight =
+    headerHeight
+    |> String.filter (fun c -> (int(c) <= 57 && int(c) >= 48))
+    |> float
+    
 let rightSectionWidth (model:Model) =
     match model.RightPaneTabVisible with
     | RightTab.Properties | RightTab.Catalogue -> rightSectionWidthS
@@ -25,6 +32,24 @@ let leftSectionWidth model = Style [
 let navbarStyle model = Style [
     Width "100%"
     Height headerHeight
+]
+
+/// For making Sheet contained inside left section (don't want sheet behind right section tabs) NOT USED
+let leftSectionStyle model =
+    let leftSectionWidth = leftSectionWidth model
+    Style [
+        Position PositionOptions.Fixed
+        Left "0px"
+        Top "0px"
+        Height  "100%" //(sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
+        Width leftSectionWidth
+        OverflowX OverflowOptions.Hidden
+        OverflowY OverflowOptions.Hidden
+        BorderTop "2px solid lightgray"
+        UserSelect UserSelectOptions.None
+        ZIndex 31
+        BackgroundColor "white"
+        //UserSelect UserSelectOptions.None
 ]
 
 let rightSectionStyle model = 
@@ -57,10 +82,21 @@ let canvasVisibleStyle model =
         Right widthRightSec
         BorderTop "2px solid lightgray"
     ]
-
-
-
-
+    
+// Used by Sheet
+let canvasVisibleStyleList model = 
+    let widthRightSec = rightSectionWidth model
+    [
+        Display DisplayOptions.Block
+        Position PositionOptions.Absolute // Required to work.
+        OverflowX OverflowOptions.Scroll
+        OverflowY OverflowOptions.Scroll
+        Top headerHeight // Placed under header with offset for the border. // headerHeight // Placed just under the header.
+        Left "0px"
+        Bottom "0px"
+        Right widthRightSec
+        BorderTop "2px solid lightgray"
+    ]
 
 let canvasSmallMenuStyle = Style [
     Display DisplayOptions.Block

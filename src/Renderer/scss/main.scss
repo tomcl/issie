@@ -3,6 +3,10 @@ $fa-font-path: './../../../node_modules/font-awesome/fonts/';
 @import './../../../node_modules/font-awesome/scss/font-awesome.scss';
 @import './../../../node_modules/bulma';
 @import './../../../node_modules/~bulma-tooltip';
+@import './../../../node_modules/bulma/bulma.sass';
+@import './../../../node_modules/tippy.js/dist/tippy.css';
+@import './../../../node_modules/tippy.js/themes/light.css';
+@import './../../../node_modules/tippy.js/animations/perspective.css';
 
 
 #Draw2dCanvas {

@@ -335,4 +335,11 @@ let checkPerformance m n startTimer stopTimer =
     updateMapBuffer()
     updateMapBuffer()
 
+let getTimeMs() = Fable.Core.JS.Constructors.Date.now()
 
+let printInterval name startTime =
+    printfn $"%s{name}: %.1f{getTimeMs() - startTime}ms"
+
+
+
+    

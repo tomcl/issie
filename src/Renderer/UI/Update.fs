@@ -357,6 +357,7 @@ let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) 
 
 /// Main MVU model update function
 let update msg model =
+    let startUpdate = Helpers.getTimeMs()
     // number of top-level components in graph
     // mostly, we only operate on top-level components
     let getGraphSize g =
@@ -593,7 +594,11 @@ let update msg model =
     | SetRouterInteractive isInteractive ->
         model.Diagram.SetRouterInteractive isInteractive
         model, Cmd.none
-    |> checkForAutoSaveOrSelectionChanged msg
+    |> (fun x ->
+            let interval =Helpers.getTimeMs() - startUpdate
+            let updateType = if interval < 50. then "" else $"%A{msg}"
+            printfn "%s" $"update: %.1f{interval} %s{updateType}"
+            checkForAutoSaveOrSelectionChanged msg x)
 
 
 

@@ -7,6 +7,9 @@
 module CatalogueView
 
 open Fulma
+open Fulma.Extensions.Wikiki
+
+open Fulma
 open Fable.Core.JsInterop
 open Fable.React
 open Fable.React.Props
@@ -264,35 +267,17 @@ let compareModelsApprox (m1:Model) (m2:Model) =
     //if b = false then printfn "\n\n%A\n\n%A\n\n" m1r m2r
     b
 
-
-let mutable tippys: (JSHelpers.TippySingleton * JSHelpers.TippyInstance array) option = None
-
 let viewCatalogue model dispatch =
         let viewCatOfModel = fun model ->                 
-            let catTipInstall el =            
-                if not (isNull el) && firstTip then
-                    //printfn "Installing cat"
-                    let props = JSHelpers.tippyOpts "left"
-                    match tippys with
-                    | Some (single,tips) ->
-                        single.destroy()
-                        tips |> Array.iter (fun tip -> tip.destroy())
-                    | None  -> ()
-                    let tip = JSHelpers.tippyDom (tippyNodes |> List.toArray, props)
-                    let single = JSHelpers.createSingleton(tip, props);
-                    tippys <- Some (single,tip)
-                    tippyNodes <- []
-                    firstTip <- false
-                        
+            
             let catTip1 name func (tip:string) = 
-                div [
-                    Props.Ref (fun element -> 
-                        if not (isNull element) && firstTip then 
-                            element.setAttribute("data-tippy-content",tip)
-                            tippyNodes <- element :: tippyNodes)
-                    ] [menuItem name func]
+                let react = menuItem name func
+                div [ HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
+                      Tooltip.dataTooltip tip
+                    ]
+                    [ react ]
                             
-            Menu.menu [Props [Class "py-1"; Ref catTipInstall]]  [
+            Menu.menu [Props [Class "py-1"]]  [
                 // TODO
                     makeMenuGroup
                         "Input / Output"

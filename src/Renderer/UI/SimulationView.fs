@@ -114,6 +114,7 @@ let rec prepareSimulationMemoised
 /// Return SimulationData that can be used to extend the simulation
 /// as needed, or error if simulation fails
 let makeSimData model =
+    let start = Helpers.getTimeMs()
     match model.Diagram.GetCanvasState(), model.CurrentProj with
     | None, _ -> None
     | _, None -> None
@@ -124,6 +125,7 @@ let makeSimData model =
         (jsState, otherComponents)
         ||> prepareSimulationMemoised project.OpenFileName
         |> Some
+    |> (fun x -> Helpers.printInterval "makeSimdata" start)
 
 
 let changeBase dispatch numBase = numBase |> SetSimulationBase |> dispatch

@@ -180,7 +180,15 @@ let update msg model = Update.update msg model
 
 printfn "Starting renderer..."
 
-Program.mkProgram init update view
+let view' model dispatch =
+    let start = Helpers.getTimeMs()
+    let ret = view model dispatch
+    Helpers.printInterval "view" start
+    ret
+
+
+
+Program.mkProgram init update view'
 |> Program.withReactBatched "app"
 |> Program.withSubscription attachMenusAndKeyShortcuts
 |> Program.run

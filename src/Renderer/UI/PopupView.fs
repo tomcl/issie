@@ -376,9 +376,20 @@ let errorNotification text closeMsg =
             Delete.delete [ Delete.OnClick close ] []
             str text
         ]
+let successNotification text closeMsg =
+    fun dispatch ->
+        let close = (fun _ -> dispatch closeMsg)
+        Notification.notification [
+            Notification.Color  Color.IsSuccess
+            Notification.Props [ notificationStyle ]
+        ] [
+            Delete.delete [ Delete.OnClick close ] []
+            str text
+        ]
 
 let errorPropsNotification text = errorNotification text ClosePropertiesNotification
 let errorFilesNotification text  = errorNotification text CloseFilesNotification
+let successSimulationNotification text = successNotification text CloseSimulationNotification
 
 let warningNotification text closeMsg =
     fun dispatch ->

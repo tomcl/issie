@@ -307,7 +307,7 @@ type Msg =
     | WaveSimulateNow
     | InitiateWaveSimulation of (WSViewT * SimParamsT)
     | SetLastSimulatedCanvasState of CanvasState option
- //   | StartNewWaveSimulation of CanvasState
+    | StartNewWaveSimulation of CanvasState
     | UpdateScrollPos of bool
     | SetLastScrollPos of float option
     | ReleaseFileActivity of string
@@ -459,18 +459,16 @@ let reduceApprox (this: Model) = {|
 let setActivity (f: AsyncTasksT -> AsyncTasksT) (model: Model) =
     {model with AsyncActivity = f model.AsyncActivity }
 
-
-
-// TODO
+// -----------------------------//
+// NOTE- TODO - ASK ABOUT THIS
+// -----------------------------//
 //let getDetailedState (model:Model) =
-//    model.Diagram.GetCanvasState()
-//    |> Option.map Extractor.extractState
-//    |> Option.defaultValue ([],[])
-//
+//    model.Sheet.GetCanvasState()
+
 //let getReducedState (model:Model) =
-//    model.Diagram.GetCanvasState()
-//    |> Option.map Extractor.extractReducedState 
-//
+//    model.Sheet.GetCanvasState()
+//    |> Extractor.extractReducedState 
+
 //let addReducedState a name model =
 //    let lastState = a.LastSavedCanvasState
 //    match getReducedState model with
@@ -572,12 +570,9 @@ let spConn (conn:Connection) =
 let spState ((comps,conns):CanvasState) = 
     sprintf "Canvas<%A,%A>" (List.map spComp comps) (List.map spConn conns)
 
-// TODO
-//let spCanvas (model:Model) = 
-//    model.Diagram.GetCanvasState()
-//    |> Option.map Extractor.extractState
-//    |> Option.map spState
-//    |> Option.defaultValue "None"
+let spCanvas (model : Model) = 
+    model.Sheet.GetCanvasState()
+    |> spState
 
 let spComps comps =  
     sprintf "Comps%A" (List.map spComp comps)
@@ -590,9 +585,8 @@ let spLdComp (ldc: LoadedComponent) =
 let spProj (p:Project) =
     sprintf "PROJ||Sheet=%s\n%s||ENDP\n" p.OpenFileName (String.concat "\n" (List.map spLdComp p.LoadedComponents))
 
-// TODO
-//let pp model =
-//    printf "\n%s\n%s" (spCanvas model) (spOpt spProj model.CurrentProj)
+let pp model =
+    printf "\n%s\n%s" (spCanvas model) (spOpt spProj model.CurrentProj)
 
 let spMess msg =
     match msg with

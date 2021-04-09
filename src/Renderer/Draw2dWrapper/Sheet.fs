@@ -262,9 +262,7 @@ let findNearbyComponents (model: Model) (pos: XYPos) =
 let mouseOnPort portList (pos: XYPos) (margin: float) =
     let radius = 5.0 // TODO Currently hard coded radius, change in group phase.
     
-    let insidePortCircle (pos: XYPos) (portLocation: XYPos): bool =
-        let printTest = (portLocation.X, portLocation.Y)
-        
+    let insidePortCircle (pos: XYPos) (portLocation: XYPos): bool =        
         let distance = ((pos.X - portLocation.X) ** 2.0 + (pos.Y - portLocation.Y) ** 2.0) ** 0.5
         distance <= radius + margin
 
@@ -378,10 +376,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                                       PosDirection = (mMsg.Pos.Y - model.LastMousePosForSnap.Y) |}
         
         let errorComponents  = 
-            match notIntersectingComponents model boundingBox compId with  
-            | true -> [] 
-            | false -> [compId]
-
+            if notIntersectingComponents model boundingBox compId then [] else [compId]
 
         let updateLastMousePosForSnap , updateMouseCounter = 
                                 if model.MouseCounter > 5 then 
@@ -661,14 +656,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | KeyPress AltShiftZ ->
         printStats() 
         model, Cmd.none
-    | KeyPress CtrlC -> //| KeyPress CmdC -> // Copy Symbols and Wires, TODO Make Ctrl keys work
+    | KeyPress CtrlC ->
         model,
         Cmd.batch [
             symbolCmd (Symbol.CopySymbols model.SelectedComponents) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
             wireCmd (BusWire.CopyWires model.SelectedWires)
         ]
-    | KeyPress CtrlV -> //| KeyPress CmdV-> // Paste Symbols
-        // let newSymbols = Symbol.Symbols model.BusWire.Symbol model.CopiedComponents
+    | KeyPress CtrlV ->
         let newSymbolModel, pastedCompIds = Symbol.pasteSymbols model.Wire.Symbol model.LastMousePos // Symbol has Copied Symbols stored
         let newBusWireModel, pastedConnIds = BusWire.pasteWires { model.Wire with Symbol = newSymbolModel } pastedCompIds
         
@@ -870,17 +864,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         }, Cmd.none
     | UpdateSelectedWires connIds -> { model with SelectedWires = connIds }, wireCmd (BusWire.SelectWires connIds)
     | DoNothing | _ -> model, Cmd.none
-    
-
-
-// let mutable topMenuBarHeight = 0.0 // Need to wait until top menu it has loaded
-
-// Call after top menu has loaded
-//let checkForTopMenu () =
-//    let topMenuBar = document.getElementById "TopMenu"
-//
-//    topMenuBarHeight <- topMenuBar.clientHeight
-
 
 /// This function zooms an SVG canvas by transforming its content and altering its size.
 /// Currently the zoom expands based on top left corner. 

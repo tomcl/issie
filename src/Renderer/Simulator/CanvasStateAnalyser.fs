@@ -242,10 +242,6 @@ let private countPortsConnections
                 | Some (binCount, binConns) -> counts.Add(key, (binCount + 1, conn :: binConns))
                 | None -> counts
                 
-                
-//                let binCount, binConns = counts.[key] // TODO Crashes here for some reason
-//                counts.Add( key, (binCount + 1, conn :: binConns))
-                
             countPortsConnections' conns' countsRes
     countPortsConnections' conns (bins |> List.map (fun b -> b,(0,[])) |> Map.ofList)
 

@@ -210,8 +210,18 @@ type Model = {
     member this.WriteMemoryLine dispatch connId addr value =
         dispatch <| (Wire (BusWire.Symbol (Symbol.WriteMemoryLine (connId, addr, value))))
         
+    /// Hilight test
+    member this.HilightComps compIds colour =
+       match colour with
+       | "red" -> Wire (BusWire.Symbol (Symbol.SelectSymbols compIds))
+       | "green" -> Wire (BusWire.Symbol (Symbol.SymbolsHaveError compIds))
+       | _ -> failwithf "Unexpected colour in Sheet.HilightComps"
 
-        
+    member this.HilightConns connIds colour =
+        match colour with
+        | "red" -> Wire (BusWire.ErrorWires connIds)
+        | "green" -> Wire (BusWire.SelectWires connIds)
+        | _ -> failwithf "Unexpected colour in Sheet.HilightComps"
 
 // ---------------------------- CONSTANTS ----------------------------- //
 let gridSize = 30.0 // Size of each square grid

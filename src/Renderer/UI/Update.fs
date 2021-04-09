@@ -376,26 +376,26 @@ let update msg model =
         | Catalogue -> Cmd.batch  <| editCmds
         | Simulation -> Cmd.batch <| editCmds
         | WaveSim -> Cmd.none
-// TODO
-//    | SetHighlighted (componentIds, connectionIds) ->
-//        let oldComponentIds, oldConnectionIds = fst model.Hilighted
-//        oldComponentIds
-//        |> List.map (fun (ComponentId c) -> model.Diagram.UnHighlightComponent c)
-//        |> ignore
-//        componentIds
-//        |> List.map (fun (ComponentId c) -> model.Diagram.HighlightComponent Red c)
-//        |> ignore
-//        oldConnectionIds
-//        |> List.map (fun (ConnectionId c) -> model.Diagram.UnHighlightConnection c)
-//        |> ignore
-//        connectionIds
-//        |> List.map (fun (ConnectionId c) -> model.Diagram.HighlightConnection c "red")
-//        |> ignore
-//        { model with Hilighted = (componentIds, connectionIds), snd model.Hilighted }, Cmd.none
-//    | SetSelWavesHighlighted connIds ->
-//        setSelWavesHighlighted model (Array.toList connIds)
-//        |> (fun lst -> { model with Hilighted = fst model.Hilighted, lst
-//                                    ConnsOfSelectedWavesAreHighlighted = false }, Cmd.none)
+ 
+    //| SetHighlighted (componentIds, connectionIds) ->
+    //    let oldComponentIds, oldConnectionIds = fst model.Hilighted
+    //    oldComponentIds
+    //    |> List.map (fun (ComponentId c) -> model.Sheet.UnHighlightComponent c)
+    //    |> ignore
+    //    componentIds
+    //    |> List.map (fun (ComponentId c) -> model.Sheet.HighlightComponent Red c)
+    //    |> ignore
+    //    oldConnectionIds
+    //    |> List.map (fun (ConnectionId c) -> model.Sheet.UnHighlightConnection c)
+    //    |> ignore
+    //    connectionIds
+    //    |> List.map (fun (ConnectionId c) -> model.Sheet.HighlightConnection c "red")
+    //    |> ignore
+    //    { model with Hilighted = (componentIds, connectionIds), snd model.Hilighted }, Cmd.none
+    //| SetSelWavesHighlighted connIds ->
+    //    setSelWavesHighlighted model (Array.toList connIds)
+    //    |> (fun lst -> { model with Hilighted = fst model.Hilighted, lst
+    //                                ConnsOfSelectedWavesAreHighlighted = false }, Cmd.none)
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
     | SetCreateComponent pos -> { model with LastCreatedComponent = Some pos }, Cmd.none
     | SetProject project -> 
@@ -487,29 +487,29 @@ let update msg model =
         {model with IsLoading = b}, Cmd.none
     | InitiateWaveSimulation (view, paras)  -> 
         updateCurrentWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.none
-    // TODO
-//    | WaveSimulateNow ->
-//        // do the simulation for WaveSim and generate new SVGs
-//        match getCurrentWSMod model, getCurrentWSModNextView model  with
-//        | Some wsMod, Some (pars, nView) -> 
-//            let checkCursor = wsMod.SimParams.CursorTime <> pars.CursorTime
-//            let pars' = adjustPars wsMod pars wsMod.SimParams.LastScrollPos
-//            model.Diagram.ResetSelected()
-//            // does the actual simulation and SVG generation, if needed
-//            let wsMod' = 
-//                simulateAndMakeWaves model wsMod pars'
-//                |> (fun ws -> {ws with WSViewState=nView; WSTransition = None})
-//                |> setEditorView nView
-//            { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model []}
-//            |> setWSMod wsMod'
-//            |> (fun model -> {model with CheckWaveformScrollPosition=checkCursor}, Cmd.none)
-//        | Some _, None -> 
-//            // This case may happen if WaveSimulateNow commands are stacked up due to 
-//            // repeated view function calls before the WaveSimNow trigger message is processed
-//            // Only the first one will actually do anything. TODO: eliminate extra calls?
-//            model, Cmd.none
-//        | _ -> 
-//            failwith "SetSimInProgress dispatched when getCurrFileWSMod is None"
+    //TODO
+    //| WaveSimulateNow ->
+    //    // do the simulation for WaveSim and generate new SVGs
+    //    match getCurrentWSMod model, getCurrentWSModNextView model  with
+    //    | Some wsMod, Some (pars, nView) -> 
+    //        let checkCursor = wsMod.SimParams.CursorTime <> pars.CursorTime
+    //        let pars' = adjustPars wsMod pars wsMod.SimParams.LastScrollPos
+    //        model.Sheet.ResetSelected()
+    //        // does the actual simulation and SVG generation, if needed
+    //        let wsMod' = 
+    //            simulateAndMakeWaves model wsMod pars'
+    //            |> (fun ws -> {ws with WSViewState=nView; WSTransition = None})
+    //            |> setEditorView nView
+    //        { model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model []}
+    //        |> setWSMod wsMod'
+    //        |> (fun model -> {model with CheckWaveformScrollPosition=checkCursor}, Cmd.none)
+    //    | Some _, None -> 
+    //        // This case may happen if WaveSimulateNow commands are stacked up due to 
+    //        // repeated view function calls before the WaveSimNow trigger message is processed
+    //        // Only the first one will actually do anything. TODO: eliminate extra calls?
+    //        model, Cmd.none
+    //    | _ -> 
+    //        failwith "SetSimInProgress dispatched when getCurrFileWSMod is None"
 
     | SetLastSimulatedCanvasState cS ->
         { model with LastSimulatedCanvasState = cS }, Cmd.none

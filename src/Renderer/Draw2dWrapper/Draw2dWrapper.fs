@@ -423,7 +423,7 @@ type Draw2dWrapper() =
 
     /// Highlight a specific component
     /// Color is from CommonTypes.HighLightColor - colors can be added, JS color name is same as D.U. case name.
-    member this.HighlightComponent (color: CommonTypes.HighLightColor) componentId = 
+    member this.HighlightComponent (color : CommonTypes.HighLightColor) componentId = 
         fun c ->
             let comp =
                 assertNotNull (draw2dLib.getComponentById c componentId) "HighlightComponent"

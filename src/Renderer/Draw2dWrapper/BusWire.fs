@@ -249,7 +249,6 @@ let makeInitialSegmentsList (hostId : ConnectionId) (portCoords : XYPos * XYPos)
                                 if i%2=0 then Horizontal else Vertical
                               else
                                   if i%2=0 then Vertical else Horizontal;
-                    //Dir = if i%2=0 then Horizontal else Vertical; //not used in current implementation
                     HostId  = hostId;
                     JumpCoordinateList = [];
                     Draggable = if i = 0 || i = 1 || i = lastSegIndex || i = (lastSegIndex - 1) then false else true
@@ -1228,8 +1227,6 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         let newWX =
             conns 
             |> List.map ( fun conn ->
-                            let portOnePos, portTwoPos = Symbol.getTwoPortLocations model.Symbol ( InputPortId conn.Target.Id ) ( OutputPortId conn.Source.Id )
-                            
                             (ConnectionId conn.Id),
                             { Id = ConnectionId conn.Id
                               InputPort = InputPortId conn.Target.Id
@@ -1312,11 +1309,3 @@ let getPortIdsOfWires (model: Model) (connIds: ConnectionId list) : (InputPortId
     ||> List.fold (fun (inputPorts, outputPorts) connId ->
             (model.WX.[connId].InputPort :: inputPorts, model.WX.[connId].OutputPort :: outputPorts))
 
-//----------------------interface to Issie-----------------------//
-// To be implemented in the group phase, if agreed on as a team.
-
-let extractWire (wModel : Model) (sId : ComponentId) : Component = 
-    failwithf "Not implemented"
-
-let extractWires (wModel : Model) : list<Component> = 
-    failwithf "Not implemented"

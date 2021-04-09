@@ -247,18 +247,16 @@ let updateTimeStamp model =
 //                                | false -> a)
 //                |> (fun model -> changeSimulationIsStale simUpdate model, cmd)
 //       
-///// Uses model.Hilighted to track what is currently highlighted (green or red)
-///// Changes green highlighting on all connections as determined by connIds
+/// Uses model.Hilighted to track what is currently highlighted (green or red)
+/// Changes green highlighting on all connections as determined by connIds
 //let private setSelWavesHighlighted model connIds =
 //    let (_, errConnIds), oldConnIds = model.Hilighted
 //    let currentConnIds = 
-//        model.Diagram.GetCanvasState()
-//        |> Option.map extractState
-//        |> Option.map (snd >> List.map (fun conn -> conn.Id))
-//        |> Option.defaultValue []
+//        model.Sheet.GetCanvasState()
+//        |> (snd >> List.map (fun conn -> conn.Id))
 //        |> Set
 //    let isCurrent cId = Set.contains cId currentConnIds
-// 
+ 
 //    oldConnIds
 //    |> List.map (fun (ConnectionId c) -> 
 //        match List.contains (ConnectionId c) errConnIds with
@@ -377,21 +375,10 @@ let update msg model =
         | Simulation -> Cmd.batch <| editCmds
         | WaveSim -> Cmd.none
  
-    //| SetHighlighted (componentIds, connectionIds) ->
-    //    let oldComponentIds, oldConnectionIds = fst model.Hilighted
-    //    oldComponentIds
-    //    |> List.map (fun (ComponentId c) -> model.Sheet.UnHighlightComponent c)
-    //    |> ignore
-    //    componentIds
-    //    |> List.map (fun (ComponentId c) -> model.Sheet.HighlightComponent Red c)
-    //    |> ignore
-    //    oldConnectionIds
-    //    |> List.map (fun (ConnectionId c) -> model.Sheet.UnHighlightConnection c)
-    //    |> ignore
-    //    connectionIds
-    //    |> List.map (fun (ConnectionId c) -> model.Sheet.HighlightConnection c "red")
-    //    |> ignore
-    //    { model with Hilighted = (componentIds, connectionIds), snd model.Hilighted }, Cmd.none
+    | SetHighlighted (componentIds, connectionIds) ->
+        let sModel = Sheet.update (model.Sheet.HilightComps componentIds "red") model.Sheet |> fst
+        let sModel2 = Sheet.update (sModel.HilightConns connectionIds "red") sModel |> fst
+        { model with Sheet = sModel2; Hilighted = (componentIds, connectionIds), snd model.Hilighted }, Cmd.none
     //| SetSelWavesHighlighted connIds ->
     //    setSelWavesHighlighted model (Array.toList connIds)
     //    |> (fun lst -> { model with Hilighted = fst model.Hilighted, lst

@@ -295,6 +295,7 @@ let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) 
 
 /// Main MVU model update function
 let update msg model =
+    let startUpdate = Helpers.getTimeMs()
     // number of top-level components in graph
     // mostly, we only operate on top-level components
     let getGraphSize g =
@@ -513,6 +514,7 @@ let update msg model =
     | ReleaseFileActivity a ->
         releaseFileActivityImplementation a
         model, Cmd.none
+
 //    // post-update check always done which deals with regular tasks like updating connections and 
 //    // auto-saving files
 //    | SetRouterInteractive isInteractive ->
@@ -522,6 +524,11 @@ let update msg model =
     | msg ->
     printfn $"DEBUG: Leftover Message needs to be deleted: {msg}" // TODO
     model, Cmd.none
+    |> (fun x ->
+            let interval =Helpers.getTimeMs() - startUpdate
+            let updateType = if interval < 50. then "" else $"%A{msg}"
+            printfn "%s" $"update: %.1f{interval} %s{updateType}"
+            x)
 
 
 

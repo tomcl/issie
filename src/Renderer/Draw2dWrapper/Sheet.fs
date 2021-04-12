@@ -685,7 +685,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     symbolCmd (Symbol.SelectSymbols []) // Select to unhighlight all other symbols
                     symbolCmd (Symbol.PasteSymbols pastedCompIds)
                     wireCmd (BusWire.SelectWires [])
-                    wireCmd (BusWire.PasteWires pastedConnIds) ]
+                    wireCmd (BusWire.ColorWires (pastedConnIds, HighLightColor.Thistle)) ]
     | KeyPress ESC -> // Cancel Pasting Symbols, and other possible actions in the future
         match model.Action with
         | DragAndDrop ->

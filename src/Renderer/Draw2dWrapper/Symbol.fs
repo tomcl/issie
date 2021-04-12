@@ -51,6 +51,7 @@ type Msg =
     | SymbolsHaveError of sIds: ComponentId list
     | ChangeLabel of sId : ComponentId * newLabel : string
     | PasteSymbols of sIds: ComponentId list
+    | ColorSymbols of compList : ComponentId list * colour : HighLightColor
     | ErrorSymbols of errorIds: ComponentId list * selectIds: ComponentId list * isDragAndDrop: bool
     | ChangeNumberOfBits of compId:ComponentId * NewBits:int 
     | ChangeLsb of compId:ComponentId * NewBits:int 
@@ -734,6 +735,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             (List.fold (fun prevSymbols sId -> Map.add sId { model.Symbols.[sId] with Opacity = 0.4 } prevSymbols) model.Symbols compList)
         { model with Symbols = newSymbols }, Cmd.none  
     
+    | ColorSymbols (compList, colour) -> 
+        let newSymbols = 
+            Map.map (fun sId sym -> if List.contains sId compList then {sym with Colour = string colour} else sym) model.Symbols
+        { model with Symbols = newSymbols }, Cmd.none 
+    
     | ChangeNumberOfBits (compId, newBits) ->
         let newsymbol = changeNumberOfBitsf model compId newBits
         let symbolswithoutone = model.Symbols.Remove compId
@@ -805,4 +811,3 @@ let extractComponents (symModel: Model) : Component list =
     symModel.Symbols
     |> Map.toList
     |> List.map (fun (key, _) -> extractComponent symModel key)
-

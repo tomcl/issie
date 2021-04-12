@@ -69,7 +69,7 @@ type Msg =
     | SelectWires of list<ConnectionId>
     | UpdateWires of list<ComponentId>
     | DragWire of ConnectionId * MouseT
-    | PasteWires of list<ConnectionId>
+    | ColorWires of list<ConnectionId> * HighLightColor
     | ErrorWires of list<ConnectionId>
     | ResetJumps of list<ConnectionId>
     | MakeJumps of list<ConnectionId>
@@ -1200,9 +1200,9 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         | _ -> model, Cmd.none
 
 
-    | PasteWires connIds -> // Just Changes the colour of the wires, Sheet calls pasteWires before this
+    | ColorWires (connIds, color) -> // Just Changes the colour of the wires, Sheet calls pasteWires before this
         let newWires =
-            (List.fold (fun prevWires cId -> Map.add cId { model.WX.[cId] with Color = HighLightColor.Thistle } prevWires) model.WX connIds)
+            (List.fold (fun prevWires cId -> Map.add cId { model.WX.[cId] with Color = color } prevWires) model.WX connIds)
         { model with WX = newWires }, Cmd.none
     
     | ResetJumps connIds ->
@@ -1308,4 +1308,3 @@ let getPortIdsOfWires (model: Model) (connIds: ConnectionId list) : (InputPortId
     (([], []), connIds)
     ||> List.fold (fun (inputPorts, outputPorts) connId ->
             (model.WX.[connId].InputPort :: inputPorts, model.WX.[connId].OutputPort :: outputPorts))
-

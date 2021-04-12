@@ -119,24 +119,6 @@ let makeSimData model =
         ||> prepareSimulationMemoised project.OpenFileName
         |> Some
 
-
-//
-///// Start simulating the current Diagram.
-///// Return SimulationData that can be used to extend the simulation
-///// as needed, or error if simulation fails
-//let makeSimData model =
-//    match model.Diagram.GetCanvasState(), model.CurrentProj with
-//    | None, _ -> None
-//    | _, None -> None
-//    | Some jsState, Some project ->
-//        let otherComponents = 
-//            project.LoadedComponents 
-//            |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-//        (jsState, otherComponents)
-//        ||> prepareSimulationMemoised project.OpenFileName
-//        |> Some
-
-
 let changeBase dispatch numBase = numBase |> SetSimulationBase |> dispatch
 
 /// A line that can be used for an input, an output, or a state.

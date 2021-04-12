@@ -524,17 +524,7 @@ let setSelNamesHighlighted (names: string array) model (dispatch: Msg -> Unit) =
             |> Array.map (fun name -> ws.AllNets.[name])
             |> Array.collect wave2ConnIds
         dispatch <| SetSelWavesHighlighted connIds
-        
-//
-//let selectNGConns (model:Model) (netGroups: NetGroup array) on =
-//    netGroups
-//    |> Array.collect wave2ConnIds
-//    |> Array.toList
-//    |> List.collect (fun (ConnectionId cId) -> connId2JSConn model.Diagram cId) 
-//    |> model.Diagram.ChangeSelectionOfTheseConnections on
-
-
-        
+          
 
 /// returns labels of all custom component instances of sheet in lComp
 let findInstancesOf sheet (lComp:LoadedComponent) =

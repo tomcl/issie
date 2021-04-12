@@ -1,9 +1,9 @@
-(*
-    SimulationView.fs
-
-    View for simulation in the right tab.
-*)
-
+//(*
+//    SimulationView.fs
+//
+//    View for simulation in the right tab.
+//*)
+//
 module SimulationView
 
 open Fulma
@@ -24,17 +24,18 @@ open Extractor
 open Simulator
 open NumberHelpers
 
+
 /// save verilog file
 /// TODO: the simulation error display here is shared with step simulation and also waveform simulation -
 /// maybe it should be a subfunction.
 let verilogOutput (model: Model) (dispatch: Msg -> Unit) =
     printfn "Verilog output"
-    match FileMenuView.updateProjectFromCanvas model, model.Diagram.GetCanvasState() with
-        | Some proj, Some state ->
+    match FileMenuView.updateProjectFromCanvas model, model.Sheet.GetCanvasState() with
+        | Some proj, state ->
             if FileMenuView.fileProcessingBusy <> [] then 
                 () // do nothing if in middle of I/O operation
             else
-                prepareSimulation proj.OpenFileName (extractState state) proj.LoadedComponents 
+                prepareSimulation proj.OpenFileName (state) proj.LoadedComponents 
                 |> (function 
                     | Ok sim -> 
                         let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
@@ -53,7 +54,6 @@ let verilogOutput (model: Model) (dispatch: Msg -> Unit) =
                        |> StartSimulation
                        |> dispatch)
         | _ -> () // do nothing if no project is loaded
-    
 
 //----------------------------View level simulation helpers------------------------------------//
 
@@ -84,7 +84,7 @@ let mutable simCache: SimCache = simCacheInit ""
 
 let rec prepareSimulationMemoised
         (diagramName : string)
-        (canvasState : JSCanvasState)
+        (canvasState : CanvasState)
         (loadedDependencies : LoadedComponent list)
         : Result<SimulationData, SimulationError> * CanvasState =
     let rState = extractReducedState canvasState
@@ -96,37 +96,31 @@ let rec prepareSimulationMemoised
         if  isSame then
             simCache.StoredResult, rState
         else
-            let simResult = 
-                let sim = prepareSimulation diagramName rState loadedDependencies
-                sim
+            let simResult = prepareSimulation diagramName rState loadedDependencies
             simCache <- {
                 Name = diagramName
                 StoredState = rState
                 StoredResult = simResult
                 }
             simResult, rState
-
-    
-    
-
+   
 
 /// Start simulating the current Diagram.
 /// Return SimulationData that can be used to extend the simulation
 /// as needed, or error if simulation fails
 let makeSimData model =
     let start = Helpers.getTimeMs()
-    match model.Diagram.GetCanvasState(), model.CurrentProj with
+    match model.Sheet.GetCanvasState(), model.CurrentProj with
     | None, _ -> None
     | _, None -> None
-    | Some jsState, Some project ->
+    | canvasState, Some project ->
         let otherComponents = 
             project.LoadedComponents 
             |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-        (jsState, otherComponents)
+        (canvasState, otherComponents)
         ||> prepareSimulationMemoised project.OpenFileName
         |> Some
     |> (fun x -> Helpers.printInterval "makeSimdata" start; x)
-
 
 let changeBase dispatch numBase = numBase |> SetSimulationBase |> dispatch
 
@@ -198,7 +192,6 @@ let private viewSimulationInputs
                                                     (ComponentId inputId) bits
                                 Fast.changeInput (ComponentId inputId) bits simulationData.ClockTickNumber simulationData.FastSim
                                 dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
-
                         ))
                     ]
                 ]
@@ -341,16 +334,16 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
   
 
 let viewSimulation model dispatch =
-    let JSState = model.Diagram.GetCanvasState ()
+    let state = model.Sheet.GetCanvasState ()
+    // let JSState = model.Diagram.GetCanvasState ()
     let startSimulation () =
-        match JSState, model.CurrentProj with
-        | None, _ -> ()
+        match state, model.CurrentProj with
         | _, None -> failwith "what? Cannot start a simulation without a project"
-        | Some jsState, Some project ->
+        | canvasState, Some project ->
             let otherComponents =
                 project.LoadedComponents
                 |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-            (jsState, otherComponents)
+            (canvasState, otherComponents)
             ||> prepareSimulationMemoised project.OpenFileName
             |> function
                | Ok (simData), state -> Ok simData

@@ -226,44 +226,39 @@ let private checkEvery
 
 /// Count the number of connections that target each port or group of label input ports
 let private countPortsConnections 
-        (conns: Connection list)
-        (connMap: Connection -> 'b)
-        (bins: 'b list)
-        (binMap: 'b -> Component list) =
-    let rec countPortsConnections' (conns: (Connection list)) (counts : Map<'b, int*Connection list>) =
+        (conns : Connection list)
+        (connMap : Connection -> 'b)
+        (bins : 'b list)
+        (binMap : 'b -> Component list) =
+    let rec countPortsConnections' (conns : Connection list) (counts : Map<'b, int*Connection list>) =
         match conns with
-        | [] -> counts |> Map.toList |> List.map (fun (key, (count,conns)) -> (binMap key, conns),count)
+        | [] -> counts |> Map.toList |> List.map (fun (key, (count, conns)) -> (binMap key, conns), count)
         | conn :: conns' ->
             let countsRes =
                 let key = connMap conn
-                let binCount, binConns = counts.[key]
-                counts.Add( key, (binCount + 1, conn :: binConns))
+                
+                // Hacky fix
+                match Map.tryFind key counts with
+                | Some (binCount, binConns) -> counts.Add(key, (binCount + 1, conn :: binConns))
+                | None -> counts
+                
             countPortsConnections' conns' countsRes
     countPortsConnections' conns (bins |> List.map (fun b -> b,(0,[])) |> Map.ofList)
 
 
 
-let private checkCounts (conns: Connection list) connMap bins binMap cond errMsg =
-    try
-        let totals = countPortsConnections conns connMap bins binMap 
-        checkEvery totals cond errMsg
-    with
-        | e -> 
-            Some {
-                Msg = "This is an undocumented circuit error, please report this do that Issie can be improved and give a helpful message"
-                InDependency = None
-                ComponentsAffected = []
-                ConnectionsAffected = []
-            }
+let private checkCounts (conns : Connection list) connMap bins binMap cond errMsg =
+    let totals = countPortsConnections conns connMap bins binMap 
+    checkEvery totals cond errMsg
 
-let private checkConns' (conns: Connection list) (m : MapData) : SimulationError option=
+let private checkConns (conns : Connection list) (m : MapData) : SimulationError option =
     let compOfPort p = m.ToComp.[ComponentId p.HostId]
     conns
     |> List.tryPick (fun conn ->
         let s = compOfPort conn.Source
         let t = compOfPort conn.Target
         if s.Type = IOLabel &&  t.Type = IOLabel then
-            Some ( s, t, conn )
+            Some (s, t, conn)
         else None)
         |> Option.map (fun (s, t, conn) ->
             (sprintf "You can't connect two Bus Labels with a wire. Delete the connecting wire. If you want to join two bus labels \
@@ -275,18 +270,8 @@ let private checkConns' (conns: Connection list) (m : MapData) : SimulationError
                 ConnectionsAffected = [ConnectionId conn.Id] 
                 }   )      
         )
-
-let private checkConns (conns: Connection list) (m : MapData) : SimulationError option=       
-    try
-        checkConns' conns m
-    with
-        | e -> 
-            Some {
-                Msg = "This is an undocumented Issie circuit connection checking error, please report this so that Issie can be improved and give a helpful message"
-                InDependency = None
-                ComponentsAffected = []
-                ConnectionsAffected = []
-            }       
+         
+        
     
 
 /// Check that:

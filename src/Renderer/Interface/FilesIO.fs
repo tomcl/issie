@@ -259,8 +259,23 @@ let saveStateToFile folderPath baseName state = // TODO: catch error?
 let createEmptyDgmFile folderPath baseName =
     saveStateToFile folderPath baseName (([],[]), None)
 
+let stripVertices (conn: Connection) =
+    {conn with Vertices = []}
+
+let getLatestCanvas state =
+    let stripConns canvas =
+        let (comps,conns) = canvas
+        let noVertexConns = List.map stripVertices conns
+        comps, noVertexConns
+    match state  with
+    | CanvasOnly canvas -> stripConns canvas
+    | CanvasWithFileWaveInfo(canvas, infoOpt, date) -> stripConns canvas
+    | CanvasWithFileWaveInfoAndNewConns(canvas, _, _) -> canvas
+
+
 /// load a component from its canvas and other elements
-let makeLoadedComponentFromCanvasData canvas filePath timeStamp waveInfo =
+let rec makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp waveInfo =
+    
     let inputs, outputs = parseDiagramSignature canvas
     {
         Name = getBaseNameNoExtension filePath
@@ -279,7 +294,7 @@ let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
     match tryLoadStateFromPath filePath with
     | Result.Error msg ->  Error <| sprintf "Can't load component %s because of Error: %s" (getBaseNameNoExtension filePath)  msg
     | Ok state ->
-        makeLoadedComponentFromCanvasData state.getCanvas filePath state.getTimeStamp state.getWaveInfo
+        makeLoadedComponentFromCanvasData (getLatestCanvas state) filePath state.getTimeStamp state.getWaveInfo
         |> Result.Ok
 
 

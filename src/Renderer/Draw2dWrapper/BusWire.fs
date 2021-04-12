@@ -83,7 +83,10 @@ let segmentsToVertices (segList:Segment list) =
     [firstCoord] @ verticesExceptFirst
 
 /// Connection to Wire
-let verticesToSegments (connId) (vertList: list<float*float> ) =
+let verticesToSegments 
+        (connId) 
+        (vertList: list<float*float>) =
+
     let wireStartX, wireEndX = fst(List.head vertList), fst(List.last vertList)
 
     let vertexPairsList = List.pairwise vertList
@@ -254,6 +257,8 @@ let makeInitialSegmentsList (hostId : ConnectionId) (portCoords : XYPos * XYPos)
                     Draggable = if i = 0 || i = 1 || i = lastSegIndex || i = (lastSegIndex - 1) then false else true
                 }
         )
+
+
 
 /// Given the current state of the BusWire model,
 /// the identifier of a wire to be updated and
@@ -1228,13 +1233,22 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         let newWX =
             conns 
             |> List.map ( fun conn ->
-                            (ConnectionId conn.Id),
+                            let inputId = InputPortId conn.Target.Id
+                            let outputId = OutputPortId conn.Source.Id
+                            let connId = ConnectionId conn.Id
+                            let segments =
+                                match conn.Vertices with
+                                | [] -> 
+                                    let portCoords = Symbol.getTwoPortLocations model.Symbol inputId outputId
+                                    makeInitialSegmentsList connId portCoords
+                                | _ -> verticesToSegments conn.Id conn.Vertices 
+                            connId,
                             { Id = ConnectionId conn.Id
-                              InputPort = InputPortId conn.Target.Id
-                              OutputPort = OutputPortId conn.Source.Id
+                              InputPort = inputId
+                              OutputPort = outputId
                               Color = HighLightColor.DarkSlateGrey
                               Width = 1
-                              Segments = verticesToSegments conn.Id conn.Vertices }
+                              Segments = segments}
                         )
             |> Map.ofList
         

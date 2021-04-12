@@ -15,20 +15,26 @@ open CommonTypes
         type SavedInfo =
             | CanvasOnly of CanvasState
             | CanvasWithFileWaveInfo of CanvasState * SavedWaveInfo option * System.DateTime
+            | CanvasWithFileWaveInfoAndNewConns of CanvasState * SavedWaveInfo option * System.DateTime
 
             member self.getCanvas = 
                 match self with
                 | CanvasOnly c -> c 
                 | CanvasWithFileWaveInfo (c,_,_) -> c
+                | CanvasWithFileWaveInfoAndNewConns (c,_,_) -> c
 
             member self.getTimeStamp = 
                 match self with
                 | CanvasOnly _ -> System.DateTime.MinValue 
                 | CanvasWithFileWaveInfo (_,_,ts) -> ts
+                | CanvasWithFileWaveInfoAndNewConns (_,_,ts) -> ts
+
             member self.getWaveInfo =
                 match self with
                 | CanvasOnly _ -> None 
                 | CanvasWithFileWaveInfo (_,waveInfo,_) -> waveInfo
+                | CanvasWithFileWaveInfoAndNewConns (_,waveInfo,_) -> waveInfo
+
 
 
 
@@ -49,7 +55,7 @@ open CommonTypes
                  SimpleJson.stringify (time) |> ignore
                  printfn "\n\nTrying to stringify all" *)
              
-                 Json.serialize<SavedInfo> (CanvasWithFileWaveInfo (cState, waveInfo, time))
+                 Json.serialize<SavedInfo> (CanvasWithFileWaveInfoAndNewConns (cState, waveInfo, time))
             with
             | e -> 
                 printfn "HELP: exception in SimpleJson.stringify %A" e

@@ -1,9 +1,9 @@
-(*
-    MemoryEditorView.fs
-
-    A simple Popup editor to view and change the content of a memory.
-*)
-
+//(*
+//    MemoryEditorView.fs
+//
+//    A simple Popup editor to view and change the content of a memory.
+//*)
+//
 module MemoryEditorView
 
 open Fulma
@@ -53,6 +53,9 @@ let viewFilledNum width numBase =
     match numBase with | Hex -> fillHex64 width | Dec -> dec64 | Bin -> fillBin64 width | SDec -> sDec64
 
 // let private baseToStr b = match b with | Hex -> "hex" | Dec -> "dec" | Bin -> "bin"
+
+
+let mutable dynamicMem: Memory = { WordWidth = 0; AddressWidth = 0; Data = Map.empty } // Need to use a mutable dynamic memory and update it locally so that the shown values are correct since the model is not immediately updated
 
 let baseSelector numBase changeBase =
     Level.item [ Level.Item.HasTextCentered ] [
@@ -160,7 +163,9 @@ let private makeEditorHeader memory isDiff memoryEditorData dispatch =
         ))
     ]
 
-let private makeEditorBody memory compId memoryEditorData model dispatch =
+let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -> unit) =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    
     let showRow = showRowWithAdrr memoryEditorData
     let viewNumD = viewFilledNum memory.WordWidth memoryEditorData.NumberBase
     let viewNumA = viewFilledNum memory.AddressWidth memoryEditorData.NumberBase
@@ -174,16 +179,13 @@ let private makeEditorBody memory compId memoryEditorData model dispatch =
             let maxDispLocWrapped = a + numLocsToDisplay - 1UL
             let maxDispLoc = if maxDispLocWrapped > a then maxDispLocWrapped else uint64 (-1L)
             a, min  maxDispLoc maxLocAddr
-    let dynamicMem =
-        match model.Diagram.GetComponentById compId |> Result.map Extractor.extractComponent with
-        | Ok {Type=RAM mem} | Ok {Type=ROM mem} | Ok {Type = AsyncROM mem} -> mem
-        | _ -> memory
+    //printfn "makeEditorBody called"
 
     //printfn "Making body with data=%A, dynamic %A" memory.Data dynamicMem
-    let memory = dynamicMem
+    // let memory = dynamicMem
     let makeRow (memData: Map<int64,int64>) (addr: uint64) =
         let addr = int64 addr
-        let content = 
+        let content =  // Need to keep the changes locally as well, since the model does not immediately get updated
             Map.tryFind (int64 addr) memData
             |> Option.defaultValue 0L
         //printfn "load"
@@ -198,15 +200,16 @@ let private makeEditorBody memory compId memoryEditorData model dispatch =
                         // Close error notification.
                         closeError dispatch
                         // Write new value.
-                        let oldData = 
-                            model.Diagram.GetComponentById compId
-                            |> Result.map Extractor.extractComponentType
-                            |> (function | Ok (RAM d) | Ok (ROM d) | Ok (AsyncROM d) -> d | _ -> memory)
-                        oldData.Data
-                        |> Map.add addr value
-                        |> Map.filter (fun k v -> v <> 0L)
-                        |> Map.toList
-                        |> model.Diagram.WriteMemoryLine compId
+                        let oldData =
+                            let comp = model.Sheet.GetComponentById compId
+                            comp.Type |> (function | (RAM d) | (ROM d) | (AsyncROM d) -> d
+                                                    | _ ->
+                                                       printfn "Should not be here"
+                                                       memory)
+
+                        dynamicMem <- { dynamicMem with Data = Map.add addr value dynamicMem.Data }
+                        model.Sheet.WriteMemoryLine sheetDispatch compId addr value // Only update one row
+                        
                         dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)
                         //printfn "setting value=%d, addr=%d" value addr                       
                     | Error err -> 
@@ -252,7 +255,8 @@ let private makeFoot isDiffMode dispatch (model: Model)=
     ]
 
 let private makeEditor memory compId model dispatch =
-    let dynamicMem =
+    // printfn "makeEditor called"
+    dynamicMem <- // Need to use a mutable dynamic memory and update it locally so that the shown values are correct since the model is not immediately updated
         match model.SelectedComponent with
         | Some {Type=RAM mem} | Some {Type=ROM mem} |Some {Type = AsyncROM mem} -> mem
         | _ -> memory
@@ -305,7 +309,7 @@ let private makeDiffViewerBody memory1 memory2 memoryEditorData =
                 th [] [str "Current content"]
             ] ]
             tbody [] (
-                [addr..addr2] |> List.map (fun a -> (makeRow (getData a memory1.Data) (getData a memory2.Data) a))
+                [addr..addr2] |> List.map (makeRow (getData addr memory1.Data) (getData addr memory2.Data))
             )
         ]
     ]

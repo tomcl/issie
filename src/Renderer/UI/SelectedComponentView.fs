@@ -17,8 +17,6 @@ open CommonTypes
 open MemoryEditorView
 open PopupView
 
-
-
 let private readOnlyFormField name body =
     Field.div [] [
         Label.label [] [ str name ]
@@ -73,7 +71,9 @@ let private makeMemoryInfo descr mem compId model dispatch =
         ] [str "View/Edit memory content"]
     ]
 
-let private makeNumberOfBitsField model (comp:Component) text setter dispatch =
+let private makeNumberOfBitsField model (comp:Component) text dispatch =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    
     let title, width =
         match comp.Type with
         | Input w | Output w | NbitsAdder w | NbitsXor w | Register w -> "Number of bits", w
@@ -89,7 +89,7 @@ let private makeNumberOfBitsField model (comp:Component) text setter dispatch =
                 let props = errorPropsNotification "Invalid number of bits."
                 dispatch <| SetPropertiesNotification props
             else
-                setter comp.Id newWidth // change the JS component
+                model.Sheet.ChangeWidth sheetDispatch (ComponentId comp.Id) newWidth
                 let text' = match comp.Type with | BusSelection _ -> text | _ -> formatLabelAsBus newWidth text
                 setComponentLabelFromText model comp text' // change the JS component label
                 let lastUsedWidth = match comp.Type with | SplitWire _ | BusSelection _ -> model.LastUsedDialogWidth | _ ->  newWidth
@@ -98,7 +98,9 @@ let private makeNumberOfBitsField model (comp:Component) text setter dispatch =
     )
 
 
-let private makeConstantValueField model (comp:Component) setter dispatch =
+let private makeConstantValueField model (comp:Component) dispatch =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    
     let cVal, width =
         match comp.Type with 
         | Constant(width,cVal) -> cVal, width
@@ -114,14 +116,15 @@ let private makeConstantValueField model (comp:Component) setter dispatch =
                 let note = errorPropsNotification errMsg
                 dispatch <| SetPropertiesNotification note
             else
-                setter comp.Id newCVal // change the JS component
+                model.Sheet.ChangeWidth sheetDispatch (ComponentId comp.Id) newCVal
                 let lastUsedWidth = model.LastUsedDialogWidth
                 dispatch (ReloadSelectedComponent (lastUsedWidth)) // reload the new component
                 dispatch ClosePropertiesNotification
     )
 
 
-let private makeLsbBitNumberField model (comp:Component) setter dispatch =
+let private makeLsbBitNumberField model (comp:Component) dispatch =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let lsbPos, infoText =
         match comp.Type with 
         | BusSelection(width,lsb) -> uint32 lsb, "Least Significant Bit number selected: lsb"
@@ -137,7 +140,7 @@ let private makeLsbBitNumberField model (comp:Component) setter dispatch =
                     let note = errorPropsNotification <| sprintf "Invalid Comparison Value for bus of width %d" width
                     dispatch <| SetPropertiesNotification note
                 else
-                    setter comp.Id cVal // change the JS component
+                    model.Sheet.ChangeLSB sheetDispatch (ComponentId comp.Id) cVal
                     dispatch (ReloadSelectedComponent (width)) // reload the new component
                     dispatch ClosePropertiesNotification
         )
@@ -149,7 +152,7 @@ let private makeLsbBitNumberField model (comp:Component) setter dispatch =
                     let note = errorPropsNotification "Invalid LSB bit position"
                     dispatch <| SetPropertiesNotification note
                 else
-                    setter comp.Id newLsb // change the JS component
+                    model.Sheet.ChangeLSB sheetDispatch (ComponentId comp.Id) newLsb
                     dispatch (ReloadSelectedComponent (width)) // reload the new component
                     dispatch ClosePropertiesNotification
         )
@@ -214,10 +217,10 @@ let private makeDescription (comp:Component) model dispatch =
                       clock." ]
     | AsyncROM mem ->
         let descr = "Asynchronous ROM: the output is updated as soon as the address changes."
-        makeMemoryInfo descr mem comp.Id model dispatch
+        makeMemoryInfo descr mem (ComponentId comp.Id) model dispatch
     | ROM mem ->
         let descr = "Synchronous ROM: the output is updated only after a clock tick. The component is implicitly connected to the global clock."
-        makeMemoryInfo descr mem comp.Id model dispatch
+        makeMemoryInfo descr mem (ComponentId comp.Id) model dispatch
     | RAM mem ->
         let descr =
             "RAM memory. At every clock tick, the RAM can either read or write
@@ -226,46 +229,53 @@ let private makeDescription (comp:Component) model dispatch =
             is set to the value of data-in. This value will also be propagated
             to data-out immediately. The component is implicitly connected to
             the global clock."
-        makeMemoryInfo descr mem comp.Id model dispatch
+        makeMemoryInfo descr mem (ComponentId comp.Id) model dispatch
 
 let private makeExtraInfo model (comp:Component) text dispatch =
     match comp.Type with
     | Input _ | Output _ | NbitsAdder _ | NbitsXor _ ->
-        makeNumberOfBitsField model comp text model.Diagram.SetNumberOfBits dispatch
+        makeNumberOfBitsField model comp text dispatch
     | SplitWire _ ->
-        makeNumberOfBitsField model comp text model.Diagram.SetTopOutputWidth dispatch
+        makeNumberOfBitsField model comp text dispatch
     | Register _ ->
-        makeNumberOfBitsField model comp text model.Diagram.SetRegisterWidth dispatch
+        makeNumberOfBitsField model comp text dispatch
     | BusSelection _ -> 
         div [] [
-            makeNumberOfBitsField model comp text model.Diagram.SetNumberOfBits dispatch
-            makeLsbBitNumberField model comp model.Diagram.SetLsbBitNumber dispatch
+            makeNumberOfBitsField model comp text dispatch
+            makeLsbBitNumberField model comp dispatch
             ]
     | BusCompare _ -> 
         div [] [
-            makeNumberOfBitsField model comp text model.Diagram.SetNumberOfBits dispatch
-            makeLsbBitNumberField model comp model.Diagram.SetCompareVal dispatch
+            makeNumberOfBitsField model comp text dispatch
+            makeLsbBitNumberField model comp dispatch
             ]
 
     | Constant _ ->
         div [] [
-             makeNumberOfBitsField model comp text model.Diagram.SetNumberOfBits dispatch
-             makeConstantValueField model comp model.Diagram.SetConstantNumber dispatch
+             makeNumberOfBitsField model comp text dispatch
+             makeConstantValueField model comp dispatch
              ]
     | _ -> div [] []
 
-let viewSelectedComponent model dispatch =
-    match model.SelectedComponent with
-    | None -> div [] [ str "Select a component in the diagram to view or change its properties, for example number of bits." ]
-    | Some comp ->
+
+let viewSelectedComponent (model: ModelType.Model) dispatch =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    match model.Sheet.SelectedComponents with
+    | [ compId ] ->
+        let comp = Symbol.extractComponent model.Sheet.Wire.Symbol compId
         div [Key comp.Id] [
-            let label' = extractLabelBase comp.Label
+            // let label' = extractLabelBase comp.Label
+            let label' = comp.Label // No formatting atm
             readOnlyFormField "Description" <| makeDescription comp model dispatch
             makeExtraInfo model comp label' dispatch
             let required = match comp.Type with | SplitWire _ | MergeWires | BusSelection _ -> false | _ -> true
-            textFormField required "Component Name" label' (fun text -> 
-                setComponentLabel model comp (formatLabel comp text)
+            textFormField required "Component Name" label' (fun text ->
+                // TODO: removed formatLabel for now
+                //setComponentLabel model sheetDispatch comp (formatLabel comp text)
+                setComponentLabel model sheetDispatch comp text
                 //updateNames model (fun _ _ -> model.WaveSim.Ports) |> StartWaveSim |> dispatch
                 dispatch (ReloadSelectedComponent model.LastUsedDialogWidth) // reload the new component
                 )
-        ]
+        ]    
+    | _ -> div [] [ str "Select a component in the diagram to view or change its properties, for example number of bits." ]
+

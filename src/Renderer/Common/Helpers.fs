@@ -7,8 +7,6 @@
 module Helpers
 open CommonTypes
 
-     
-
     [<AutoOpen>]
     module JsonHelpers =
         open Fable.SimpleJson
@@ -86,7 +84,6 @@ let mapInverse (m:Map<'A,'B>) =
     |> Map.toArray
     |> Array.map (fun (a,b) -> b,a)
     |> Map.ofArray
-
 
 let shortPComp (comp:Component) =
     match comp.Type with

@@ -125,7 +125,7 @@ let makeSimData model =
         (jsState, otherComponents)
         ||> prepareSimulationMemoised project.OpenFileName
         |> Some
-    |> (fun x -> Helpers.printInterval "makeSimdata" start)
+    |> (fun x -> Helpers.printInterval "makeSimdata" start; x)
 
 
 let changeBase dispatch numBase = numBase |> SetSimulationBase |> dispatch

@@ -111,7 +111,6 @@ let rec prepareSimulationMemoised
 let makeSimData model =
     let start = Helpers.getTimeMs()
     match model.Sheet.GetCanvasState(), model.CurrentProj with
-    | None, _ -> None
     | _, None -> None
     | canvasState, Some project ->
         let otherComponents = 
@@ -120,7 +119,7 @@ let makeSimData model =
         (canvasState, otherComponents)
         ||> prepareSimulationMemoised project.OpenFileName
         |> Some
-    |> (fun x -> Helpers.printInterval "makeSimdata" start; x)
+        |> (fun x -> Helpers.printInterval "makeSimdata" start; x)
 
 let changeBase dispatch numBase = numBase |> SetSimulationBase |> dispatch
 

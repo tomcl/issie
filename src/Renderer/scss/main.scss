@@ -29,13 +29,13 @@ $sigLineThick: 0.025;
     height: 30px;
 }
 
-.floatLeft{
+.floatLeft {
     float: left;
 }
 
 //waveform svg elements
 
-.sigLineStyle { 
+.sigLineStyle {
     stroke-width: $sigLineThick;
 }
 
@@ -124,7 +124,7 @@ $sigLineThick: 0.025;
     width: 20%;
 }
 
-.cursorDivStyle { 
+.cursorDivStyle {
     float: right;
     width: 150px;
     position: relative;
@@ -163,7 +163,7 @@ $sigLineThick: 0.025;
 
 .wavesTable {
     min-height: 100%;
-   // height: fit-content;
+    // height: fit-content;
     position: relative;
     border: 2px solid rgb(219,219,219);
     overflow-x: scroll;
@@ -187,8 +187,8 @@ $sigLineThick: 0.025;
 }
 
 .rightSectionTabs {
-    font-size: 80%; 
-    overflow-x: hidden; 
+    font-size: 80%;
+    overflow-x: hidden;
     height: 33px;
 }
 
@@ -264,7 +264,7 @@ $sigLineThick: 0.025;
     border-color: gray;
     border-width: 1px;
     border-radius: 0;
-} 
+}
 
 //cursor group
 
@@ -359,4 +359,3 @@ input::-webkit-inner-spin-button {
     border-top-right-radius: 4px;
     border-bottom-right-radius: 4px;
 }
-

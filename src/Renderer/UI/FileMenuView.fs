@@ -1,8 +1,8 @@
-(*
-    FileMenuView.fs
-
-    View for the top menu, and related functionalities.
-*)
+//(*
+//    FileMenuView.fs
+//
+//    View for the top menu, and related functionalities.
+//*)
 
 module FileMenuView
 
@@ -41,7 +41,6 @@ let releaseFileActivity (a:string) (dispatch)=
     dispatch <| ModelType.ReleaseFileActivity a
 
 let releaseFileActivityImplementation a =
-    printfn "Releasing %s" a
     match fileProcessingBusy with
     | a' :: rest when a' = a -> 
         fileProcessingBusy <- rest
@@ -71,7 +70,7 @@ let quantifyChanges (ldc1:LoadedComponent) (ldc2:LoadedComponent) =
         |> Set.count
     unmatched reduceComp comps1 comps2, unmatched reduceConn conns1 conns2
 
-//------------------------------------------Backup facility-------------------------------------------//
+////------------------------------------------Backup facility-------------------------------------------//
 
 let writeComponentToFile comp =
     let data =  stateToJsonString (comp.CanvasState,comp.WaveInfo)
@@ -86,8 +85,6 @@ let readLastBackup comp =
     latestBackupFileData backupDir baseN
     |> Option.map (fun (seq, fName) -> seq, fName, backupDir)
   
-
-
 /// Write comp to a backup file unless the latest backup canvas is within numChanges distance from 
 /// the comp canvas.
 let writeComponentToBackupFile numChanges comp = 
@@ -128,13 +125,16 @@ let currWaveSimModel (model: Model) =
     | Some fileName when Map.containsKey fileName (fst model.WaveSim) -> Some (fst model.WaveSim).[fileName]
     | _ -> None
 
-   
 let private displayFileErrorNotification err dispatch =
     let note = errorFilesNotification err
     dispatch <| SetFilesNotification note
 
 /// Send messages to change Diagram Canvas and specified sheet waveSim in model
 let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps model dispatch =
+    
+    // Don't need anymore. Sheet.checkForTopMenu () // A bit hacky, but need to call this once after everything has loaded to compensate mouse coordinates.
+    
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let JSdispatch mess = 
         mess
         |> JSDiagramMsg
@@ -142,50 +142,27 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
     let name = compToSetup.Name
     //printfn "Loading..."
     dispatch <| SetHighlighted([], []) // Remove current highlights.
-    model.Diagram.ClearCanvas() // Clear the canvas.
+    
+    model.Sheet.ClearCanvas sheetDispatch // Clear the canvas.
+    
     // Finally load the new state in the canvas.
     dispatch <| SetIsLoading true
     //printfn "Check 1..."
+    
     let components, connections = compToSetup.CanvasState
-    let loadExceptErr =
-        try
-            List.map model.Diagram.LoadComponent components |> ignore
-            //printfn "Check 2..."
-            List.map (model.Diagram.LoadConnection true) connections |> ignore
-            //printfn "Check 3..."
-        with
-            | e -> 
-                let errMsg = "An Issie exception occurred while loading: trying to recover..."
-                let error = errorFilesNotification errMsg
-                dispatch <| SetFilesNotification error
-    let errs = model.Diagram.GetAndClearLoadConnectionErrors()
-    if errs <> [] then
-        let errMsg =  
-            (sprintf "Issie failed to load %d connections: which were incorrectly 
-                saved due to a bug in the draw library.\n 
-                Please recreate these connections, altering slightly component positions,\n 
-                or drawing connections in the opposite direction,
-                to work around this bug. \n 
-                If the error repeats please make a bug report" (List.length errs))
-        let error = errorFilesNotification errMsg
-        dispatch <| SetFilesNotification error
-    let errs = model.Diagram.GetAndClearLoadComponentErrors()
-    if errs <> [] then
-        let errMsg =  
-            (sprintf "Issie failed to load %d component: which were incorrectly 
-                saved due to a bug in the draw library.\n 
-                Please recreate these connections, altering slightly component positions,\n 
-                or drawing connections in the opposite direction,
-                to work around this bug. \n 
-                If the error repeats please make a bug report. Details: %s\n\n" (List.length errs)) (String.concat "\n\n" errs + "\n\n")
-        let error = errorFilesNotification errMsg
-        dispatch <| SetFilesNotification error
-    model.Diagram.FlushCommandStack() // Discard all undo/redo.
+    model.Sheet.LoadComponents sheetDispatch components
+    
+    model.Sheet.LoadConnections sheetDispatch connections
+
+    model.Sheet.FlushCommandStack sheetDispatch // Discard all undo/redo.
     // Run the a connection widths inference.
     //printfn "Check 4..."
-    JSdispatch <| InferWidths()
+    
+    model.Sheet.DoBusWidthInference sheetDispatch
+    // JSdispatch <| InferWidths()
     //printfn "Check 5..."
     // Set no unsaved changes.
+    
     JSdispatch <| SetHasUnsavedChanges false
     // set waveSim data
     dispatch <| SetWaveSimModel(name, waveSim)
@@ -215,10 +192,10 @@ let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lc
 
 /// return current project with current sheet updated from canvas if needed
 let updateProjectFromCanvas (model:Model) =
-    match model.Diagram.GetCanvasState() with
-    | None -> model.CurrentProj
-    | Some state ->  
-        extractState state
+    match model.Sheet.GetCanvasState() with
+    | ([], []) -> model.CurrentProj
+    | canvasState ->  
+        canvasState
         |> fun canvas ->
             let inputs, outputs = parseDiagramSignature canvas
             let setLc lc =
@@ -240,7 +217,6 @@ let getSavedWave (model:Model) : SavedWaveInfo option =
     | Some wSModel -> waveSimModel2SavedWaveInfo wSModel |> Some
     | None -> None
 
-
 /// add waveInfo to model
 let setSavedWave compIds (wave: SavedWaveInfo option) model : Model =
     match wave, getCurrFile model with
@@ -250,18 +226,19 @@ let setSavedWave compIds (wave: SavedWaveInfo option) model : Model =
                                                 (fst model.WaveSim), 
                                snd model.WaveSim }
     | Some waveInfo, _ -> model
-            
-
-
-
 
 /// Save the sheet currently open, return  the new sheet's Loadedcomponent if this has changed
 let saveOpenFileAction isAuto model =
-    match model.Diagram.GetCanvasState (), model.CurrentProj with
-    | None, _ | _, None -> None
-    | Some jsState, Some project ->
-        let reducedState = extractReducedState jsState
-        extractState jsState
+    match model.Sheet.GetCanvasState (), model.CurrentProj with
+    | _, None -> None
+    | canvasState, Some project ->
+        // "DEBUG: Saving Sheet"
+        // printfn "DEBUG: %A" project.ProjectPath
+        // printfn "DEBUG: %A" project.OpenFileName
+        
+        let reducedState = extractReducedState canvasState
+        
+        reducedState
         |> (fun state -> 
                 let savedState = state, getSavedWave model
                 if isAuto then
@@ -279,10 +256,8 @@ let saveOpenFileAction isAuto model =
                     let newLdc, newState = makeLoadedComponentFromCanvasData state origLdComp.FilePath DateTime.Now savedWaveSim, reducedState
                     writeComponentToBackupFile 4 newLdc
                     Some (newLdc,newState))
-
-
-
-// save current open file, updating model etc, and returning the loaded component and the saved (unreduced) canvas state
+        
+/// save current open file, updating model etc, and returning the loaded component and the saved (unreduced) canvas state
 let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
     if requestFileActivity "save" dispatch then
         let opt = saveOpenFileAction false model
@@ -365,7 +340,7 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
         |> Option.map savedWaveInfo2WaveSimModel 
         |> Option.defaultValue (ModelType.initWS [||] Map.empty)
 
-
+    // TODO
     loadStateIntoModel compToSetup waveSim ldComps model dispatch
     {
         ProjectPath = dirName compToSetup.FilePath
@@ -381,7 +356,6 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
 /// Closes waveadder if it is open
 let private openFileInProject' saveCurrent name project (model:Model) dispatch =
     let newModel = {model with CurrentProj = Some project}
-    printfn "Opening %s" name
     match getFileInProject name project with
     | None -> 
         log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
@@ -410,17 +384,10 @@ let private openFileInProject' saveCurrent name project (model:Model) dispatch =
                     project.LoadedComponents
             setupProjectFromComponents name ldcs newModel dispatch
 
-let openFileInProject name (model:Model) dispatch =
-    match model.CurrentProj with
-    | Some proj ->
-        printfn "opening %s... " name
-        if requestFileActivity "openFileInProject" dispatch then 
-            printfn "Starting..."
-            openFileInProject' true name proj (model:Model) dispatch
-            dispatch <| ReleaseFileActivity "openFileInProject"
-        else
-            printfn "cancelled"
-    | None -> ()
+let openFileInProject name project (model:Model) dispatch =
+    if requestFileActivity "openFileInProject" dispatch then 
+        openFileInProject' true name project (model:Model) dispatch
+        dispatch <| ReleaseFileActivity "openFileInProject"
 
 
 /// return a react warning message if name if not valid for a sheet Add or Rename, or else None
@@ -503,7 +470,7 @@ let renameSheet oldName newName (model:Model) dispatch =
 
 
 /// rename file
-let renameFileInProject name model dispatch =
+let renameFileInProject name project model dispatch =
     match model.CurrentProj, getCurrentWSMod model with
     | None,_ -> log "Warning: renameFileInProject called when no project is currently open"
     | Some project, Some ws when ws.WSViewState<>WSClosed ->
@@ -640,10 +607,10 @@ let addFileToProject model dispatch =
 
 /// Close current project, if any.
 let private closeProject model dispatch _ =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg) 
     dispatch EndSimulation // End any running simulation.
     dispatch CloseProject
-    model.Diagram.ClearCanvas()
-
+    model.Sheet.ClearCanvas sheetDispatch
 
 /// Create a new project.
 let private newProject model dispatch _ =
@@ -727,8 +694,7 @@ let rec resolveComponentOpenPopup
  
 
 /// open an existing project
-let private openProject useInteractiveRouter model dispatch _ =
-    dispatch <| SetRouterInteractive useInteractiveRouter
+let private openProject model dispatch _ =
     match askForExistingProjectPath () with
     | None -> () // User gave no path.
     | Some path ->
@@ -754,9 +720,9 @@ let viewNoProjectMenu model dispatch =
     let initialMenu =
         Menu.menu []
             [ Menu.list []
-                  [ menuItem "New project" (newProject model dispatch)
-                    menuItem "Open project (convert all conns to ugly, safe, form)" (openProject false model dispatch) 
-                    menuItem "Open project (nicer, but may crash, connections)" (openProject true model dispatch) ]
+                  [ menuItem "New project" (newProject model dispatch) // TODO
+                    // menuItem "Open project (convert all conns to ugly, safe, form)" (openProject model dispatch) 
+                    menuItem "Open project" (openProject model dispatch) ]
             ]
 
     match model.CurrentProj with
@@ -790,7 +756,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                     Button.Color IsPrimary
                                     Button.Disabled(name = project.OpenFileName)
                                     Button.OnClick(fun _ ->
-                                        dispatch <| ExecuteWithCurrentModel (openFileInProject name,dispatch)) ] [ str "open" ] 
+                                        openFileInProject name project model dispatch) ] [ str "open" ] 
                           ]
                           // Add option to rename?
                           Level.item [] [
@@ -799,7 +765,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                   Button.IsOutlined
                                   Button.Color IsInfo
                                   Button.OnClick(fun _ ->
-                                      dispatch <| ExecuteWithCurrentModel (renameFileInProject name, dispatch)) ] [ str "rename" ]
+                                      renameFileInProject name project model dispatch) ] [ str "rename" ]
                           ]
                           Level.item []
                               [ Button.button
@@ -849,16 +815,20 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                        b) then
                                       DisplayOptions.Block
                                    else
-                                       DisplayOptions.None) ] ] ]
+                                      DisplayOptions.None) ] ] ]
                       ([ Navbar.Item.a [ Navbar.Item.Props [ OnClick(fun _ -> addFileToProject model dispatch) ] ]
                              [ str "New Sheet" ]
                          Navbar.divider [] [] ]
                        @ projectFiles) ]
 
-    div [ leftSectionWidth model ]
+    div [   HTMLAttr.Id "TopMenu"
+            leftSectionWidth model
+            Style [ Position PositionOptions.Absolute
+                    UserSelect UserSelectOptions.None ]
+        ]
         [ Navbar.navbar
             [ Navbar.Props
-                [ Style
+                [  Style
                     [ Height "100%"
                       Width "100%" ] ] ]
               [ Navbar.Brand.div
@@ -884,8 +854,8 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                                  DisplayOptions.None) ] ] ]
                                 [ Navbar.Item.a [ Navbar.Item.Props [ OnClick <| newProject model dispatch ] ]
                                       [ str "New project" ]
-                                  Navbar.Item.a [ Navbar.Item.Props [ OnClick <| openProject false model dispatch ] ]
-                                      [ str "Open (convert to safe, ugly, connections) project" ]
+                                  Navbar.Item.a [ Navbar.Item.Props [ OnClick <| openProject model dispatch ] ]
+                                      [ str "Open project" ]
                                   Navbar.Item.a [ Navbar.Item.Props [ OnClick <| closeProject model dispatch ] ]
                                       [ str "Close project" ] ] ]
 
@@ -907,4 +877,3 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                       Navbar.End.div []
                           [ Navbar.Item.div []
                                 [ Button.button [ Button.OnClick(fun _ -> PopupView.viewInfoPopup dispatch) ] [ str "Info" ] ] ] ] ] ]
-

@@ -238,7 +238,6 @@ type MenuCommand =
     | MenuZoom of float
     | MenuVerilogOutput
 
-
 /// Type for an open project which represents a complete design.
 /// ProjectPath is directory containing project files.
 /// OpenFileName is name of file from which current schematic sheet is loaded/saved, without extension or path
@@ -255,7 +254,7 @@ type Project = {
 
 
 type Msg =
-    | ExecuteWithCurrentModel of (Model -> (Msg->Unit)-> Unit)* (Msg -> Unit)
+    | Sheet of Sheet.Msg
     | JSDiagramMsg of JSDiagramMsg<JSCanvas,JSComponent>
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
@@ -264,7 +263,7 @@ type Msg =
     | SetWSModAndSheet of (WaveSimModel*string)
     | SetWSError of SimulationError option
     | AddWaveSimFile of string * WaveSimModel
-    | SetSimulationGraph of SimulationGraph * FastSimulation
+    | SetSimulationGraph of SimulationGraph  * FastSimulation
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick
     | EndSimulation
@@ -308,7 +307,7 @@ type Msg =
     | WaveSimulateNow
     | InitiateWaveSimulation of (WSViewT * SimParamsT)
     | SetLastSimulatedCanvasState of CanvasState option
- //   | StartNewWaveSimulation of CanvasState
+    | StartNewWaveSimulation of CanvasState
     | UpdateScrollPos of bool
     | SetLastScrollPos of float option
     | ReleaseFileActivity of string
@@ -351,8 +350,10 @@ type Model = {
     WaveSim : Map<string, WaveSimModel> * (SimulationError option)
     /// which top-level sheet is used by wavesim
     WaveSimSheet: string
-    /// draw canvas
-    Diagram : Draw2dWrapper
+        
+    /// Draw Canvas
+    Sheet: Sheet.Model
+    
     /// true during period when a sheet or project is loading
 
     IsLoading: bool
@@ -458,37 +459,35 @@ let reduceApprox (this: Model) = {|
 let setActivity (f: AsyncTasksT -> AsyncTasksT) (model: Model) =
     {model with AsyncActivity = f model.AsyncActivity }
 
+// -----------------------------//
+// NOTE- TODO - ASK ABOUT THIS
+// -----------------------------//
+//let getDetailedState (model:Model) =
+//    model.Sheet.GetCanvasState()
 
+//let getReducedState (model:Model) =
+//    model.Sheet.GetCanvasState()
+//    |> Extractor.extractReducedState 
 
-
-let getDetailedState (model:Model) =
-    model.Diagram.GetCanvasState()
-    |> Option.map Extractor.extractState
-    |> Option.defaultValue ([],[])
-
-let getReducedState (model:Model) =
-    model.Diagram.GetCanvasState()
-    |> Option.map Extractor.extractReducedState 
-
-let addReducedState a name model =
-    let lastState = a.LastSavedCanvasState
-    match getReducedState model with
-    | None -> lastState
-    | Some state -> lastState.Add(name, state)
+//let addReducedState a name model =
+//    let lastState = a.LastSavedCanvasState
+//    match getReducedState model with
+//    | None -> lastState
+//    | Some state -> lastState.Add(name, state)
 
 
 let changeSimulationIsStale (b:bool) (m:Model) = 
     //printfn "Changing WaveSimulationIsStale to %A" b
     { m with WaveSimulationIsOutOfDate = b}
 
+
 let getComponentIds (model: Model) =
-    let extractIds (jsComps,jsConns) = 
-        jsComps
-        |> List.map Extractor.extractComponent
+    let extractIds ((comps,conns): Component list * Connection list) = 
+        conns
         |> List.map (fun comp -> ComponentId comp.Id)
-    model.Diagram.GetCanvasState()
-    |> Option.map extractIds
-    |> Option.defaultValue []
+        
+    model.Sheet.GetCanvasState()
+    |> extractIds
     |> Set.ofList
 
 ////////////////////////////
@@ -571,11 +570,9 @@ let spConn (conn:Connection) =
 let spState ((comps,conns):CanvasState) = 
     sprintf "Canvas<%A,%A>" (List.map spComp comps) (List.map spConn conns)
 
-let spCanvas (model:Model) = 
-    model.Diagram.GetCanvasState()
-    |> Option.map Extractor.extractState
-    |> Option.map spState
-    |> Option.defaultValue "None"
+let spCanvas (model : Model) = 
+    model.Sheet.GetCanvasState()
+    |> spState
 
 let spComps comps =  
     sprintf "Comps%A" (List.map spComp comps)

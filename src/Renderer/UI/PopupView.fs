@@ -82,12 +82,16 @@ let formatLabelFromType compType (text:string) =
 let formatLabel (comp:Component) (text:string) =
     formatLabelFromType comp.Type (text:string)
 
-let setComponentLabel model (comp:Component) text =
-    let label = formatLabel comp text
-    model.Diagram.EditComponentLabel comp.Id label
+// TODO: removed formatLabel for now
+let setComponentLabel model (sheetDispatch) (comp:Component) text =
+    // let label = formatLabel comp text
+    let label = text // TODO
 
-let setComponentLabelFromText model (comp:Component) text =
-    model.Diagram.EditComponentLabel comp.Id text
+    model.Sheet.ChangeLabel sheetDispatch (ComponentId comp.Id) label
+    //model.Diagram.EditComponentLabel comp.Id label
+
+let setComponentLabelFromText model (comp:Component) text = ()
+    //model.Diagram.EditComponentLabel comp.Id text
 
 //========//
 // Popups //
@@ -366,14 +370,12 @@ let errorNotification text closeMsg =
     fun dispatch ->
         let close = (fun _ -> dispatch closeMsg)
         Notification.notification [
-            Notification.Color  Color.IsDanger
+            Notification.Color IsDanger
             Notification.Props [ notificationStyle ]
         ] [
             Delete.delete [ Delete.OnClick close ] []
             str text
         ]
-
-
 let successNotification text closeMsg =
     fun dispatch ->
         let close = (fun _ -> dispatch closeMsg)
@@ -384,6 +386,7 @@ let successNotification text closeMsg =
             Delete.delete [ Delete.OnClick close ] []
             str text
         ]
+
 let errorPropsNotification text = errorNotification text ClosePropertiesNotification
 let errorFilesNotification text  = errorNotification text CloseFilesNotification
 let successSimulationNotification text = successNotification text CloseSimulationNotification
@@ -403,7 +406,13 @@ let warningPropsNotification text = warningNotification text ClosePropertiesNoti
 let warningSimNotification text = warningNotification text CloseSimulationNotification
 
 let viewNotifications model dispatch =
-    [ model.Notifications.FromDiagram
+    let sheetNotifications =
+        match model.Sheet.GetNotifications with
+        | Some msg -> Some <| errorNotification msg CloseDiagramNotification
+        | None -> None
+            
+    [ //model.Notifications.FromDiagram
+      sheetNotifications
       model.Notifications.FromSimulation
       model.Notifications.FromFiles
       model.Notifications.FromMemoryEditor

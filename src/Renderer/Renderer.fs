@@ -17,6 +17,27 @@ open Fable.SimpleJson
 
 let isMac = Node.Api.``process``.platform = Node.Base.Darwin
 
+let testMaps() =
+    let modMap = 
+        [0..1000] 
+        |> List.map (fun n -> n, (n*256+1) % 1001)
+        |> Map.ofList
+
+
+    let iterMap count =
+        let mutable x: int = 1
+        let mutable i:int = 0
+        while i < count do
+            x <- modMap.[x]
+            i <- i + 1
+        
+    let count = 1000000
+    let start = Helpers.getTimeMs()
+    let result = iterMap count
+    let interval = Helpers.getTimeMs() - start
+    printfn "%d iterations of iterMap took %.1fms" count interval
+
+
 (****************************************************************************************************
 *
 *                                  MENU HELPER FUNCTIONS
@@ -98,6 +119,7 @@ let fileMenu (dispatch) =
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace off" None (fun _ -> 
             JSHelpers.debugTraceUI <- Set.ofList [])
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Run performance check" None (fun _ -> 
+            testMaps()
             displayPerformance 100 1000000)
      ]
 
@@ -186,7 +208,15 @@ let update msg model = Update.update msg model
 
 printfn "Starting renderer..."
 
-Program.mkProgram init update view
+let view' model dispatch =
+    let start = Helpers.getTimeMs()
+    let ret = view model dispatch
+    Helpers.printInterval "view" start
+    ret
+
+
+
+Program.mkProgram init update view'
 |> Program.withReactBatched "app"
 |> Program.withSubscription attachMenusAndKeyShortcuts
 |> Program.run

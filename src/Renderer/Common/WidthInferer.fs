@@ -621,6 +621,7 @@ let private mapInputPortIdsToVirtualConnectionIds (conns: Connection list) (comp
 let inferConnectionsWidth
         ((comps,conns) : CanvasState)
         : Result<ConnectionsWidth, WidthInferError> =
+    let start = Helpers.getTimeMs()
     let connectionsWidth = initialiseConnectionsWidth conns // start with all as None 
     match mapInputPortIdsToVirtualConnectionIds conns comps with
     | Error e -> Error e
@@ -641,3 +642,4 @@ let inferConnectionsWidth
                 infer staticMaps inputNode connectionsWidth
             )
         )
+    |> (fun x -> Helpers.printInterval "widthInfer algorithm" start; x)

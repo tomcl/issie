@@ -223,7 +223,7 @@ let displayView model dispatch =
 //          setDragMode false model dispatch ev; 
 //          dispatch SelectionHasChanged);
 //          OnMouseDown (makeSelectionChangeMsg model dispatch)
-//          OnMouseMove processMouseMove
+          OnMouseMove processMouseMove
           Style [ BorderTop "2px solid lightgray"; BorderBottom "2px solid lightgray" ] ] [
         // transient
         FileMenuView.viewNoProjectMenu model dispatch

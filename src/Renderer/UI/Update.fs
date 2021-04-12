@@ -260,7 +260,7 @@ let updateTimeStamp model =
 //    oldConnIds
 //    |> List.map (fun (ConnectionId c) -> 
 //        match List.contains (ConnectionId c) errConnIds with
-//        | false when isCurrent c -> model.Diagram.UnHighlightConnection c 
+//        | false when isCurrent c -> Sheet.update model.Diagram.UnHighlightConnection c  //unhighlight wires colour = darkslategrey, components = light
 //        | _ -> ())
 //    |> ignore
 //    connIds
@@ -376,9 +376,8 @@ let update msg model =
         | WaveSim -> Cmd.none
  
     | SetHighlighted (componentIds, connectionIds) ->
-        let sModel = Sheet.update (model.Sheet.HilightComps componentIds "red") model.Sheet |> fst
-        let sModel2 = Sheet.update (sModel.HilightConns connectionIds "red") sModel |> fst
-        { model with Sheet = sModel2; Hilighted = (componentIds, connectionIds), snd model.Hilighted }, Cmd.none
+        let sModel, sCmd = Sheet.update (Sheet.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
+        {model with Sheet = sModel}, Cmd.map Sheet sCmd
     //| SetSelWavesHighlighted connIds ->
     //    setSelWavesHighlighted model (Array.toList connIds)
     //    |> (fun lst -> { model with Hilighted = fst model.Hilighted, lst

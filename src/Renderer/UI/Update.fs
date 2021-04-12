@@ -525,9 +525,11 @@ let update msg model =
     printfn $"DEBUG: Leftover Message needs to be deleted: {msg}" // TODO
     model, Cmd.none
     |> (fun x ->
-            let interval =Helpers.getTimeMs() - startUpdate
-            let updateType = if interval < 50. then "" else $"%A{msg}"
-            printfn "%s" $"update: %.1f{interval} %s{updateType}"
+            if Helpers.instrumentation then
+                let interval =Helpers.getTimeMs() - startUpdate
+                if interval > Helpers.threshold then
+                    let updateType = if interval < Helpers.updateThreshold then "" else $"%A{msg}"
+                    printfn "%s" $"update: %.1f{interval} %s{updateType}"
             x)
 
 

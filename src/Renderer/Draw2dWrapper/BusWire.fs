@@ -693,7 +693,7 @@ let MapToSortedList map : Wire list =
     listUnSelected @ listErrorUnselected @ listErrorSelected @ listSelected @ listCopied
     
 let view (model : Model) (dispatch : Dispatch<Msg>) =
-
+    let start = Helpers.getTimeMs()
     let wires =
         model.WX
         |> MapToSortedList
@@ -718,6 +718,7 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
     let symbols = Symbol.view model.Symbol (Symbol >> dispatch)
 
     g [] [(g [] wires); symbols]
+    |> Helpers.instrumentInterval "buswire" start
 
 /// Returns a list of all the intersection coordinates between the given
 /// segment and all other segments in the model, along with the HostId and

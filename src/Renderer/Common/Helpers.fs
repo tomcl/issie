@@ -332,10 +332,22 @@ let checkPerformance m n startTimer stopTimer =
     updateMapBuffer()
     updateMapBuffer()
 
+// true for printout of times for updates and parts of view function
+let mutable instrumentation = true
+let mutable threshold = 0.
+let mutable updateThreshold = 5.
+
 let getTimeMs() = Fable.Core.JS.Constructors.Date.now()
 
 let printInterval name startTime =
-    printfn $"%s{name}: %.1f{getTimeMs() - startTime}ms"
+    if instrumentation then 
+        printfn $"%s{name}: %.1f{getTimeMs() - startTime}ms"
+
+let instrumentInterval name startTime output =
+    let interval = getTimeMs() - startTime
+    if interval > threshold then
+        printInterval name startTime
+    output
 
 
 

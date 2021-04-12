@@ -404,6 +404,7 @@ let MapsIntoLists map =
 
 
 let view (model : Model) (dispatch : Msg -> unit) = 
+    let start = Helpers.getTimeMs()
     model.Symbols
     |> MapsIntoLists
     |> List.map (fun ({Id = ComponentId id} as symbol) ->
@@ -415,6 +416,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
             }
     )
     |> ofList
+    |> Helpers.instrumentInterval "SymbolView" start
 
 //------------------------GET BOUNDING BOXES FUNCS--------------------------------used by sheet.
 // Function that returns the bounding box of a symbol. It is defined by the height and the width as well as the x,y position of the symbol

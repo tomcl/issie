@@ -119,7 +119,7 @@ let makeSimData model =
         (canvasState, otherComponents)
         ||> prepareSimulationMemoised project.OpenFileName
         |> Some
-        |> (fun x -> Helpers.printInterval "makeSimdata" start; x)
+        |> Helpers.instrumentInterval "makeSimdata" start
 
 let changeBase dispatch numBase = numBase |> SetSimulationBase |> dispatch
 

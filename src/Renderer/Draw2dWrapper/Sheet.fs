@@ -927,6 +927,7 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
 
 /// View function, displays symbols / wires and possibly also a grid / drag-to-select box / connecting ports line / snap-to-grid visualisation
 let view (model:Model) (headerHeight: float) (style) (dispatch : Msg -> unit) =
+    let start = Helpers.getTimeMs()
     let wDispatch wMsg = dispatch (Wire wMsg)
     let wireSvg = BusWire.view model.Wire wDispatch
     
@@ -995,6 +996,7 @@ let view (model:Model) (headerHeight: float) (style) (dispatch : Msg -> unit) =
         displaySvgWithZoom model headerHeight style ( displayElements @ snapIndicatorLineX @ snapIndicatorLineY ) dispatch
     | _ ->
         displaySvgWithZoom model headerHeight style displayElements dispatch
+    |> Helpers.instrumentInterval "sheet" start
 
 /// Init function
 let init () = 

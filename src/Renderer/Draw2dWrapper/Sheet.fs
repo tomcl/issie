@@ -87,6 +87,7 @@ type Msg =
     | FlushCommandStack
     | ResetModel
     | UpdateSelectedWires of ConnectionId list
+    | ColourSelection of compIds : ComponentId list * connIds : ConnectionId list * colour : HighLightColor
 
 
 // ------------------ Helper Functions that need to be before the Model type --------------------------- //
@@ -209,19 +210,6 @@ type Model = {
     /// Update the memory of component specified by connId at location addr with data value
     member this.WriteMemoryLine dispatch connId addr value =
         dispatch <| (Wire (BusWire.Symbol (Symbol.WriteMemoryLine (connId, addr, value))))
-        
-    /// Hilight test
-    member this.HilightComps compIds colour =
-       match colour with
-       | "red" -> Wire (BusWire.Symbol (Symbol.SelectSymbols compIds))
-       | "green" -> Wire (BusWire.Symbol (Symbol.SymbolsHaveError compIds))
-       | _ -> failwithf "Unexpected colour in Sheet.HilightComps"
-
-    member this.HilightConns connIds colour =
-        match colour with
-        | "red" -> Wire (BusWire.ErrorWires connIds)
-        | "green" -> Wire (BusWire.SelectWires connIds)
-        | _ -> failwithf "Unexpected colour in Sheet.HilightComps"
 
 // ---------------------------- CONSTANTS ----------------------------- //
 let gridSize = 30.0 // Size of each square grid
@@ -873,6 +861,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             LastMousePosForSnap = { X = 0.0; Y = 0.0 }    
         }, Cmd.none
     | UpdateSelectedWires connIds -> { model with SelectedWires = connIds }, wireCmd (BusWire.SelectWires connIds)
+    | ColourSelection (compIds, connIds, colour) ->
+        model,
+        Cmd.batch [
+            symbolCmd (Symbol.ColorSymbols (compIds, colour)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
+            wireCmd (BusWire.ColorWires (connIds, colour))
+        ]
     | DoNothing | _ -> model, Cmd.none
 
 /// This function zooms an SVG canvas by transforming its content and altering its size.

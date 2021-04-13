@@ -338,21 +338,79 @@ let checkPerformance m n startTimer stopTimer =
     updateMapBuffer()
     updateMapBuffer()
 
-// true for printout of times for updates and parts of view function
-let mutable instrumentation = true
-let mutable threshold = 0.
-let mutable updateThreshold = 5.
-
 let getTimeMs() = Fable.Core.JS.Constructors.Date.now()
 
+
+let getInterval (startTime:float) =
+    getTimeMs() - startTime
+
+
+
+
+/// controls how time intervals are collected and displayed
+type InstrumentationControl =
+    | ImmediatePrint of Threshold: float * UpdateThreshold:float
+    | Aggregate of AggregateInterval: float * CollectedTimes: Map<string,float> * LastPrintout: float option
+    | Off
+
+let immediate threshold updateThreshold =
+    ImmediatePrint(threshold,updateThreshold)
+
+let aggregate(aggTimeMs:float) =
+    Aggregate( aggTimeMs, Map.empty, Some (getTimeMs()))
+
+                     
+let mutable instrumentation: InstrumentationControl = 
+    aggregate 2000.  
+
+let printIntervals (ints: Map<string,float>) =
+    printf "Times in ms"
+    ints
+    |> Map.toList
+    |> List.sortBy (fun (_,t) -> t)
+    |> List.iter (fun (s, time) ->
+        printf "%s" $"\t%.1f{time}\t%10s{s}")
+    printf ""
+    instrumentation <-
+        match instrumentation with
+        | Aggregate( aggInterval,_, _) -> Aggregate(aggInterval, Map.empty, Some (getTimeMs ()))
+        | _ -> failwithf "%s" $"What? Can't print intervals when instrumentation ({instrumentation}) is not set for aggregate printing"
+
+let changeTimes (times: Map<string,float>) (thing: string) (time: float)=
+    let oldTime = 
+        Map.tryFind thing times
+        |> Option.defaultValue 0.
+    Map.add thing (oldTime + time) times
+
+let instrumentTime (intervalName: string) (intervalStartTime: float) =
+    match instrumentation with
+    | Off -> ()
+    | ImmediatePrint(threshold,updateThreshold) ->
+        let interval = getInterval intervalStartTime
+        let threshold = if intervalName.StartsWith "update" then updateThreshold else threshold 
+        if interval > threshold then
+            printfn "%s" $"{intervalName}: %.1f{interval}ms"
+    | Aggregate( aggInterval,collectedTimes,lastPrintTime) ->
+            match lastPrintTime with
+            | None ->
+                instrumentation <- Aggregate(aggInterval, changeTimes Map.empty intervalName intervalStartTime, Some (getTimeMs()))
+                
+            | Some last ->
+                if getInterval last > aggInterval then
+                    printIntervals collectedTimes
+                else
+                    let interval = getTimeMs() - intervalStartTime
+                    instrumentation <- Aggregate(aggInterval, changeTimes collectedTimes intervalName interval, lastPrintTime)
+                
+
+
+
+
 let printInterval name startTime =
-    if instrumentation then 
-        printfn $"%s{name}: %.1f{getTimeMs() - startTime}ms"
+    instrumentTime name startTime
 
 let instrumentInterval name startTime output =
-    let interval = getTimeMs() - startTime
-    if interval > threshold then
-        printInterval name startTime
+    printInterval name startTime
     output
 
 

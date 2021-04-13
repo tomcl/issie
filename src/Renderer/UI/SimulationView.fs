@@ -296,7 +296,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                     Fast.runFastSimulation (simData.ClockTickNumber+1) simData.FastSim 
                     dispatch <| SetSimulationGraph(graph, simData.FastSim)                    
                     printfn "Comparing clock tick %d" simData.ClockTickNumber
-                    Fast.compareFastWithGraph simData |> ignore
+                    //Fast.compareFastWithGraph simData |> ignore
                     if SimulationRunner.simTrace <> None then
                         printfn "-------------------------------------------------------------------------------------------"
                         printfn "*******************************************************************************************"

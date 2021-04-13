@@ -235,27 +235,23 @@ let saveOpenFileAction isAuto model =
         // "DEBUG: Saving Sheet"
         // printfn "DEBUG: %A" project.ProjectPath
         // printfn "DEBUG: %A" project.OpenFileName
-        
-        let reducedState = extractReducedState canvasState
-        
-        reducedState
-        |> (fun state -> 
-                let savedState = state, getSavedWave model
-                if isAuto then
-                    saveAutoStateToFile project.ProjectPath project.OpenFileName savedState
-                    None
-                else 
-                    saveStateToFile project.ProjectPath project.OpenFileName savedState
-                    removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName
-                    let origLdComp =
-                        project.LoadedComponents
-                        |> List.find (fun lc -> lc.Name = project.OpenFileName)
-                    let savedWaveSim =
-                        Map.tryFind project.OpenFileName (fst model.WaveSim)
-                        |> Option.map waveSimModel2SavedWaveInfo
-                    let newLdc, newState = makeLoadedComponentFromCanvasData state origLdComp.FilePath DateTime.Now savedWaveSim, reducedState
-                    writeComponentToBackupFile 4 newLdc
-                    Some (newLdc,newState))
+                
+        let savedState = canvasState, getSavedWave model
+        if isAuto then
+            saveAutoStateToFile project.ProjectPath project.OpenFileName savedState
+            None
+        else 
+            saveStateToFile project.ProjectPath project.OpenFileName savedState
+            removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName
+            let origLdComp =
+                project.LoadedComponents
+                |> List.find (fun lc -> lc.Name = project.OpenFileName)
+            let savedWaveSim =
+                Map.tryFind project.OpenFileName (fst model.WaveSim)
+                |> Option.map waveSimModel2SavedWaveInfo
+            let newLdc, newState = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim, canvasState
+            writeComponentToBackupFile 4 newLdc
+            Some (newLdc,newState)
         
 /// save current open file, updating model etc, and returning the loaded component and the saved (unreduced) canvas state
 let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =

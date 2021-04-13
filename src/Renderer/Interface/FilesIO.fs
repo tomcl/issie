@@ -262,14 +262,24 @@ let createEmptyDgmFile folderPath baseName =
 let stripVertices (conn: Connection) =
     {conn with Vertices = []}
 
+let magnifySheet magnification (comp: Component) =
+    {comp with 
+        X = int <| round (magnification * float (comp.X + comp.W / 2 )); 
+        Y = int <| round (magnification * float (comp.Y + comp.H/2))}
+
+/// Interface function that can read old-style circuits (without wire vertices)
+/// as well as new circuits with vertices. Old circuits have an expansion parameter
+/// since new symbols are larger (in units) than old ones.
 let getLatestCanvas state =
+    let oldCircuitMagnification = 2.0
     let stripConns canvas =
         let (comps,conns) = canvas
         let noVertexConns = List.map stripVertices conns
-        comps, noVertexConns
+        let expandedComps = List.map (magnifySheet oldCircuitMagnification) comps
+        expandedComps, noVertexConns
     match state  with
     | CanvasOnly canvas -> stripConns canvas
-    | CanvasWithFileWaveInfo(canvas, infoOpt, date) -> stripConns canvas
+    | CanvasWithFileWaveInfo(canvas, _, _) -> stripConns canvas
     | CanvasWithFileWaveInfoAndNewConns(canvas, _, _) -> canvas
 
 

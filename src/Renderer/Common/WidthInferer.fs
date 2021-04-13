@@ -642,4 +642,4 @@ let inferConnectionsWidth
                 infer staticMaps inputNode connectionsWidth
             )
         )
-    |> instrumentInterval "widthInfer algorithm" start
+    |> instrumentInterval "widthInference" start

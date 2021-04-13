@@ -361,7 +361,9 @@ let aggregate(aggTimeMs:float) =
 
                      
 let mutable instrumentation: InstrumentationControl = 
-    aggregate 2000.  
+    aggregate 2000. // for aggregate printing
+    // immediate 2. 2. // for immediate printing
+    // Off // for no printing
 
 let printIntervals (ints: Map<string,float>) =
     printf "Times in ms"
@@ -387,20 +389,25 @@ let instrumentTime (intervalName: string) (intervalStartTime: float) =
     | Off -> ()
     | ImmediatePrint(threshold,updateThreshold) ->
         let interval = getInterval intervalStartTime
-        let threshold = if intervalName.StartsWith "update" then updateThreshold else threshold 
+        let threshold = 
+            if intervalName.StartsWith "update" 
+            then updateThreshold 
+            else threshold 
         if interval > threshold then
             printfn "%s" $"{intervalName}: %.1f{interval}ms"
     | Aggregate( aggInterval,collectedTimes,lastPrintTime) ->
             match lastPrintTime with
             | None ->
-                instrumentation <- Aggregate(aggInterval, changeTimes Map.empty intervalName intervalStartTime, Some (getTimeMs()))
+                instrumentation <- 
+                    Aggregate(aggInterval, changeTimes Map.empty intervalName intervalStartTime, Some (getTimeMs()))
                 
             | Some last ->
                 if getInterval last > aggInterval then
                     printIntervals collectedTimes
                 else
                     let interval = getTimeMs() - intervalStartTime
-                    instrumentation <- Aggregate(aggInterval, changeTimes collectedTimes intervalName interval, lastPrintTime)
+                    instrumentation <- 
+                        Aggregate(aggInterval, changeTimes collectedTimes intervalName interval, lastPrintTime)
                 
 
 

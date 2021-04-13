@@ -303,7 +303,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                     IncrementSimulationClockTick |> dispatch
                 )
             ] [ str <| sprintf "Clock Tick %d" simData.ClockTickNumber ]
-    let maybeStatefulComponents =
+    let maybeStatefulComponents() =
         let stateful = 
             Fast.extractStatefulComponents simData.ClockTickNumber simData.FastSim
             |> Array.toList
@@ -327,7 +327,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
         viewSimulationOutputs simData.NumberBase
         <| Fast.extractFastSimulationIOs simData.Outputs simData
 
-        maybeStatefulComponents
+        maybeStatefulComponents()
     ]
 
   

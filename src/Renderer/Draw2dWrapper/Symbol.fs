@@ -760,17 +760,22 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let compIdsWithSymbols =
             comps
             |> List.map ( fun comp -> (
-
+                                        let xyPos = {X = float comp.X; Y = float comp.Y}
                                         ComponentId comp.Id,
-                                        { Pos = {X = float comp.X; Y = float comp.Y}
+                                        { Pos = xyPos
                                           ShowInputPorts = false //do not show input ports initially
                                           ShowOutputPorts = false //do not show output ports initially
                                           Colour = "lightgrey"     // initial color 
                                           Id = ComponentId comp.Id
-                                          Compo = comp
+                                          Compo = { // needed to set W,H only in the case that comp is an old-style component
+                                                    // from the previous version of Issie
+                                                    makeComp xyPos comp.Type comp.Id comp.Label with
+                                                        InputPorts = comp.InputPorts
+                                                        OutputPorts = comp.OutputPorts}
                                           Opacity = 1.0
                                           Moving = false
-                                        }))
+                                        }
+                                        ))
         
         let symbolList =
             compIdsWithSymbols

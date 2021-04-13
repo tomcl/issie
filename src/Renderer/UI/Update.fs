@@ -321,6 +321,7 @@ let update msg model =
 
     // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).
     | SetLastSavedCanvas(name,state) -> 
+        // this field is (potentially) used to determine when a new autosave is taken. Now maybe not used?
         setActivity (fun a -> {a with LastSavedCanvasState= Map.add name state a.LastSavedCanvasState}) model, Cmd.none
     | StartSimulation simData -> { model with CurrentStepSimulationStep = Some simData }, Cmd.none
     | SetWSMod wSMod -> 

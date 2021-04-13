@@ -40,6 +40,7 @@ open CommonTypes
 
         let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option) : string =
             let time = System.DateTime.Now
+            printfn "%A" cState
             try (*
                  printfn "\n--------cState----------\n%A\n" cState
                  printfn "\n-----savedWaveInfo--------\n%A\n------------\n" waveInfo

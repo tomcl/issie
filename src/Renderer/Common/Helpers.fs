@@ -77,6 +77,26 @@ open CommonTypes
 
 (*-----------------------------------General helpers-----------------------------------------*)
 
+/// Return a memoized version of funcToMemoize where.
+/// Repeated calls with equivalent inputs return a stored result.
+/// Inputs a, a' are deemed equivalent if keyFunc a = keyFunc a'.
+/// Use this as well as LazyView etc, it has a different usage since it need not
+/// have React output and comparison is via a key function.
+let memoizeBy (keyFunc: 'a -> 'k) (funcToMemoize: 'a -> 'c) : 'a -> 'c =
+    let mutable lastKey: 'k option = None
+    let mutable lastValue: 'c option = None
+    fun (a: 'a) ->
+        let newKey = Some (keyFunc a)
+        if newKey = lastKey 
+        then Option.get lastValue
+        else 
+            lastKey <-newKey
+            let v = funcToMemoize a
+            lastValue <- Some v
+            v
+
+            
+
 let mapKeys (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map fst |> Array.ofSeq
 let mapValues (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map snd |> Array.ofSeq
 let mapItems (map:Map<'a,'b>) = map |> Map.toSeq |> Array.ofSeq

@@ -379,12 +379,13 @@ let immediate threshold updateThreshold =
 let aggregate(aggTimeMs:float) =
     Aggregate( aggTimeMs, Map.empty, Some (getTimeMs()))
 
-                     
+/// Parameter that controls how recorded times are processed.                     
 let mutable instrumentation: InstrumentationControl = 
     aggregate 2000. // for aggregate printing
     // immediate 2. 2. // for immediate printing
     // Off // for no printing
 
+/// print out the current aggregate of recorded times. Initialise aggregate totals to 0.
 let printIntervals (ints: Map<string,float>) =
     printf "Times in ms"
     ints
@@ -398,12 +399,16 @@ let printIntervals (ints: Map<string,float>) =
         | Aggregate( aggInterval,_, _) -> Aggregate(aggInterval, Map.empty, Some (getTimeMs ()))
         | _ -> failwithf "%s" $"What? Can't print intervals when instrumentation ({instrumentation}) is not set for aggregate printing"
 
+/// add a new time to the times contained in times.
 let changeTimes (times: Map<string,float>) (thing: string) (time: float)=
     let oldTime = 
         Map.tryFind thing times
         |> Option.defaultValue 0.
     Map.add thing (oldTime + time) times
 
+/// According to current settings, process and/or print a named time interval.
+/// the interval is between intervalStartTime passed as arg 2, and the time at
+/// which this function is called (all times obtained using getTimeMs).
 let instrumentTime (intervalName: string) (intervalStartTime: float) =
     match instrumentation with
     | Off -> ()
@@ -432,14 +437,24 @@ let instrumentTime (intervalName: string) (intervalStartTime: float) =
 
 
 
-
-let printInterval name startTime =
+/// print out a time interval
+let private printInterval name startTime =
     instrumentTime name startTime
 
+/// This function with its first two args should be put in a pipe after the code to be timed.
+/// it will return its piped input, with the side effect of recording the time delay in the
+/// function. Parameter start must be defined at the start of the code to be timed using getTimeMs.
 let instrumentInterval name startTime output =
     printInterval name startTime
     output
 
+/// Record the elapsed time taken in execution of (func arg).
+/// Return the result from (func arg).
+let instrumentFunctionCall name func arg =
+    let startTime = getTimeMs()
+    func arg
+    |> instrumentInterval name
+   
 
 
     

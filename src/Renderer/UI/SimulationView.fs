@@ -82,7 +82,7 @@ let simCacheInit name = {
 
 let mutable simCache: SimCache = simCacheInit ""
 
-let rec prepareSimulationMemoised
+let rec prepareSimulationMemoized
         (diagramName : string)
         (canvasState : CanvasState)
         (loadedDependencies : LoadedComponent list)
@@ -90,7 +90,7 @@ let rec prepareSimulationMemoised
     let rState = extractReducedState canvasState
     if diagramName <> simCache.Name then
         simCache <- simCacheInit diagramName
-        prepareSimulationMemoised diagramName canvasState loadedDependencies
+        prepareSimulationMemoized diagramName canvasState loadedDependencies
     else
         let isSame = rState = simCache.StoredState
         if  isSame then
@@ -117,7 +117,7 @@ let makeSimData model =
             project.LoadedComponents 
             |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         (canvasState, otherComponents)
-        ||> prepareSimulationMemoised project.OpenFileName
+        ||> prepareSimulationMemoized project.OpenFileName
         |> Some
         |> Helpers.instrumentInterval "makeSimdata" start
 
@@ -343,7 +343,7 @@ let viewSimulation model dispatch =
                 project.LoadedComponents
                 |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
             (canvasState, otherComponents)
-            ||> prepareSimulationMemoised project.OpenFileName
+            ||> prepareSimulationMemoized project.OpenFileName
             |> function
                | Ok (simData), state -> Ok simData
                | Error simError, state ->

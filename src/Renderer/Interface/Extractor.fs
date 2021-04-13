@@ -84,11 +84,11 @@ let extractReducedState (state : CanvasState) : CanvasState =
     let (components : Component list), (connections : Connection list) = state
     let comps = 
         components
+        |> List.map (fun comp -> {comp with H=0;W=0;X=0;Y=0})
         |> List.sortBy (fun comp -> comp.Id)
                        
     let conns =                   
         connections
+        |> List.map (fun conn -> {conn with Vertices = []})
         |> List.sortBy (fun conn -> conn.Id)
-        
-    // Sort components by their location.
     comps, conns

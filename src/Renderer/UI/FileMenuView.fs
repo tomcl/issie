@@ -258,7 +258,7 @@ let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
     if requestFileActivity "save" dispatch then
         let opt = saveOpenFileAction false model
         let ldcOpt = Option.map fst opt
-        let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
+        let state = Option.map snd opt |> Option.defaultValue ([],[])
         match model.CurrentProj with
         | None -> failwithf "What? Should never be able to save sheet when project=None"
         | Some p -> 
@@ -268,7 +268,7 @@ let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
           |> SetProject
           |> dispatch
           // update Autosave info
-          SetLastSavedCanvas (p.OpenFileName,reducedState)
+          SetLastSavedCanvas (p.OpenFileName, state)
           |> dispatch
         SetHasUnsavedChanges false
         |> JSDiagramMsg

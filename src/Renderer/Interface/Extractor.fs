@@ -75,11 +75,11 @@ let extractComponent (jsComponent : JSComponent) : Component =
         W           = w
     }
     
-let private sortComponents comps =
-    comps |> List.sortBy (fun comp -> comp.X + comp.Y)
 
-/// Transform the JSCanvasState into an f# data structure, with layout data removed (for checking significant changes).
+/// Transform the JSCanvasState into an f# data structure, with layout data removed (for checking electrically significant changes).
 /// Components and connections are sorted to make them order-invariant - selecting components alters order.
+/// This is currently not properly used because the save and autosave logic is not yet properly re-implemented
+/// after change to new draw block.
 let extractReducedState (state : CanvasState) : CanvasState =
     let (components : Component list), (connections : Connection list) = state
     let comps = 

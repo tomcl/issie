@@ -99,13 +99,10 @@ let verticesToSegments
             Index = i
             Start = {X=startX;Y=startY};
             End = {X=endX;Y=endY};
-            Dir = if i = 0 || i = lastSegIndex then
+            Dir = if (startX-endX)*(startX-endX) > (startY-endY)*(startY-endY) then
                       Horizontal
                   else 
-                      if (wireStartX - wireEndX) > 40.0 then
-                        if i%2=0 then Horizontal else Vertical
-                      else
-                          if i%2=0 then Vertical else Horizontal;
+                      Vertical
             HostId  = (ConnectionId connId);
             JumpCoordinateList = [];
             Draggable = if i = 0 || i = 1 || i = lastSegIndex || i = (lastSegIndex - 1) then false else true

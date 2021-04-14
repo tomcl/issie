@@ -131,8 +131,8 @@ let private displayFileErrorNotification err dispatch =
 
 /// Send messages to change Diagram Canvas and specified sheet waveSim in model
 let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps model dispatch =
-    
-    // Don't need anymore. Sheet.checkForTopMenu () // A bit hacky, but need to call this once after everything has loaded to compensate mouse coordinates.
+    // it seems still need this, however code has been deleted!
+    //Sheet.checkForTopMenu () // A bit hacky, but need to call this once after everything has loaded to compensate mouse coordinates.
     
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let JSdispatch mess = 

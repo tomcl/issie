@@ -265,13 +265,19 @@ let stripVertices (conn: Connection) =
 let magnifySheet magnification (comp: Component) =
     {comp with 
         X = int <| round (magnification * float (comp.X + comp.W / 2 )); 
-        Y = int <| round (magnification * float (comp.Y + comp.H/2))}
+        Y = int <| round (magnification * float (comp.Y + comp.H/2))
+        H = -1 // overwritten correctly by Sheet based on componnet type
+        W = -1 // as above
+    }
+
+
+ 
 
 /// Interface function that can read old-style circuits (without wire vertices)
 /// as well as new circuits with vertices. Old circuits have an expansion parameter
 /// since new symbols are larger (in units) than old ones.
 let getLatestCanvas state =
-    let oldCircuitMagnification = 2.0
+    let oldCircuitMagnification = 1.5
     let stripConns canvas =
         let (comps,conns) = canvas
         let noVertexConns = List.map stripVertices conns

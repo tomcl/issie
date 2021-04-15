@@ -881,7 +881,7 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
             dispatch <| (ManualKeyDown key.key) )
     document.onkeyup <- (fun key -> dispatch <| (ManualKeyUp key.key))
     
-    let canvasSize = 10000.0 // In pixels
+    let canvasSize = 3500.0 // In pixels
     let sizeInPixels = sprintf "%.2fpx" ((canvasSize * model.Zoom))
 
     /// Is the mouse button currently down?

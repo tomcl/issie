@@ -432,7 +432,7 @@ let printAgg (agg: AggregatedData) =
         let timeLines = 
             (mapKeys agg.Counts)
             |> Array.map getData
-            |> Array.filter (fun (av,_) -> av > 0.2)
+            |> Array.filter (fun (tot,_) -> tot > 10.)
             |> Array.sortBy fst
             |> Array.map snd
             |> String.concat "\n"

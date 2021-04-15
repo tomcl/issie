@@ -457,10 +457,14 @@ let viewInfoPopup dispatch =
         str "On Mac use Command instead of Ctrl."
         ul [] [
             li [] [str "Save: Ctrl + S"]
-            li [] [str "Copy selected diagram items: Alt + C"]
-            li [] [str "Paste diagram items: Alt + V"]
-            li [] [str "Undo last diagram action: Alt + Z"]
-            li [] [str "Redo last diagram action: Alt + Shift + Z"]
+            li [] [str "Copy selected diagram items: Ctrl + C"]
+            li [] [str "Paste diagram items: Ctrl + V"]
+            li [] [str "Undo last diagram action: Ctrl + Z"]
+            li [] [str "Redo last diagram action: Ctrl + V"]
+            li [] [str "Zoom application in: Ctrl + Shift + ="]
+            li [] [str "Zoom application out: Ctrl + Shift + -"]
+            li [] [str "Zoom canvas in: Shift + ="]
+            li [] [str "Zoom canvas out: Shift + -"]
         ]
     ]
     let foot = div [] []

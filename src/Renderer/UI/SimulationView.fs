@@ -106,6 +106,7 @@ let rec prepareSimulationMemoized
         if  isSame then
             simCache.StoredResult, rState
         else
+            printfn "New simulation"
             let simResult = prepareSimulation diagramName rState loadedDependencies
             simCache <- {
                 Name = diagramName
@@ -130,7 +131,7 @@ let makeSimData model =
         (canvasState, otherComponents)
         ||> prepareSimulationMemoized project.OpenFileName
         |> Some
-        |> Helpers.instrumentInterval "makeSimdata" start
+        |> Helpers.instrumentInterval "MakeSimData" start
 
 let changeBase dispatch numBase = numBase |> SetSimulationBase |> dispatch
 

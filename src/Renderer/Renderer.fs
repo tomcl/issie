@@ -211,7 +211,7 @@ printfn "Starting renderer..."
 let view' model dispatch =
     let start = Helpers.getTimeMs()
     view model dispatch
-    |> Helpers.instrumentInterval "view" start
+    |> Helpers.instrumentInterval "View" start
    
 
 

@@ -996,7 +996,7 @@ let view (model:Model) (headerHeight: float) (style) (dispatch : Msg -> unit) =
         displaySvgWithZoom model headerHeight style ( displayElements @ snapIndicatorLineX @ snapIndicatorLineY ) dispatch
     | _ ->
         displaySvgWithZoom model headerHeight style displayElements dispatch
-    |> Helpers.instrumentInterval "sheet" start
+    |> Helpers.instrumentInterval "SheetView" start
 
 /// Init function
 let init () = 

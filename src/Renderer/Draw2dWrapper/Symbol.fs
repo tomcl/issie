@@ -6,6 +6,7 @@ open Elmish
 open Elmish.React
 open EEEHelpers
 open CommonTypes
+open System.Text.RegularExpressions
 
 
 /// --------- STATIC VARIABLES --------- ///
@@ -509,43 +510,50 @@ let getCopiedSymbols (symModel: Model) : (ComponentId list) =
 let filterString string = 
     string
     |> String.filter (fun c -> (int(c) > 57 || int(c) < 48))
+   
+let regex (str : string) = 
+    let index = Regex.Match(str, @"\d+")
+    match index with
+    | null -> 0
+    | _ -> int index.Value
 
-let sumOfMap map (compTList: ComponentType list) = 
-    compTList
-    |>List.map (fun x -> 
-        match Map.tryFind x map with //need these cause when summing all gates there might be some not in the model.
-        |Some x -> x
-        |None -> 0
-    ) 
-    |>List.reduce (+)
-
-///Counts how many of each component there exist currently in the model 
-let countingElements (map : Map<ComponentType, int>) (compType : ComponentType) : int = 
+let getCompList compType listSymbols =
+    printfn "DEBUG: getcomplist \n %A" listSymbols
     match compType with 
-    | Not | And | Or | Xor | Nand | Nor | Xnor -> sumOfMap map [Not;And;Or;Xor;Nand;Nor;Xnor] // those gave a title of "G" n (where n depends on how many gates there are)
-    | DFF | DFFE -> sumOfMap map [DFF;DFFE]
-    | Register x | RegisterE x -> sumOfMap map [Register x; RegisterE x]
-    | NbitsAdder _ -> sumOfMap map [ (NbitsAdder 1) ] // a hacky way to fix a bug that was created where the "NbitsAdder n"
-    | NbitsXor _ -> sumOfMap map [ (NbitsXor 1) ]     // and "NbitsXor n" were different if they had different n
-    // EXTENSION:| Mux2 | Mux4 | Mux8 -> sumOfMap map [Mux2; Mux4; Mux8]
-    // EXTENSION:| Demux2| Demux4 | Demux8 -> sumOfMap map [Demux2; Demux4; Demux8]
-    | _ -> sumOfMap map [compType] //not counting the ones that are gonna be copy pasted now 
+       | Not | And | Or | Xor | Nand | Nor | Xnor -> 
+            listSymbols
+            |> List.filter (fun sym ->
+                (sym.Compo.Type = Not || sym.Compo.Type = And 
+                || sym.Compo.Type = Or || sym.Compo.Type = Xor
+                || sym.Compo.Type = Nand || sym.Compo.Type = Nor
+                || sym.Compo.Type = Xnor)
+                )
+       | DFF | DFFE -> 
+            listSymbols
+            |> List.filter (fun sym ->
+                (sym.Compo.Type = DFF || sym.Compo.Type = DFFE))
+       | Register x | RegisterE x ->
+            listSymbols
+            |> List.filter (fun sym ->
+                (sym.Compo.Type = Register x || sym.Compo.Type = RegisterE x))
+       | _ ->
+            listSymbols
+            |> List.filter (fun sym -> sym.Compo.Type = compType)
+
+let getIndex listSymbols compType =
+    let symbolList = 
+        getCompList compType listSymbols
+
+    if List.isEmpty symbolList then 1 
+    else symbolList
+        |> List.map (fun sym -> regex sym.Compo.Label)
+        |> List.max
+        |> (+) 1
 
 ///Generates the number to be put in the title of symbols  
 let labelGenNumber (model: Model) (compType: ComponentType) (label : string) = 
-    let initialMap = Map.empty 
-    let listSymbols = List.map snd (Map.toList model.Symbols)
-
-    let map = (List.fold (fun prevSymbols sym -> 
-        let compT = match sym.Compo.Type with 
-                    | NbitsAdder _ -> NbitsAdder 1  // the hacky fix described in lines 519 and 520
-                    | NbitsXor _ -> NbitsXor 1   // the hacky fix described in lines 519 and 520
-                    | _ -> sym.Compo.Type
-        if Map.containsKey compT prevSymbols
-        then Map.add compT (prevSymbols.[compT]+1) prevSymbols
-        else Map.add compT 1 prevSymbols ) initialMap listSymbols)
-    
-    filterString label + string((countingElements map compType) + 1)
+    let listSymbols = List.map snd (Map.toList model.Symbols)    
+    filterString label + string(getIndex listSymbols compType)
 
 ///Generates the label for a component type
 let generateLabel (model: Model) (compType: ComponentType) : string =
@@ -623,7 +631,9 @@ let getEquivalentCopiedPorts (model: Model) (copiedIds) (pastedIds) (InputPortId
 let addSymbol (model: Model) pos compType lbl =
     let newSym = createNewSymbol pos compType lbl
     let newPorts = addToPortModel model newSym
-    { model with Symbols = Map.add newSym.Id newSym model.Symbols; Ports = newPorts }, newSym.Id
+    let newSymModel = Map.add newSym.Id newSym model.Symbols
+    printfn "DEBUG in addSymbol: \n OldSyms \n %A \n\n NewSyms \n %A" model.Symbols newSymModel
+    { model with Symbols = newSymModel; Ports = newPorts }, newSym.Id
 
 // Helper function to change the number of bits expected in a port of each component type
 let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
@@ -661,9 +671,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
     | DeleteSymbols compList ->
         let newSymbols = List.fold (fun prevModel sId -> Map.remove sId prevModel) model.Symbols compList
+
+        printfn "DEBUG in DeleteSymbols: \n OldSyms \n %A \n\n NewSyms \n %A" model.Symbols newSymbols
+
         { model with Symbols = newSymbols }, Cmd.none //filters out symbol with a specified id
 
     | AddSymbol (pos,compType, lbl) ->
+        printfn "DEBUG in AddSymbol: %A" model.Symbols
         let (newModel, _) = addSymbol model pos compType lbl
         newModel, Cmd.none
 

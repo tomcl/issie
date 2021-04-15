@@ -377,6 +377,7 @@ let update msg model =
         | WaveSim -> Cmd.none
  
     | SetHighlighted (componentIds, connectionIds) ->
+        printf "DEBUG: SETHIGHLIGHTED ENTERED"
         let sModel, sCmd = Sheet.update (Sheet.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
         {model with Sheet = sModel}, Cmd.map Sheet sCmd
     //| SetSelWavesHighlighted connIds ->

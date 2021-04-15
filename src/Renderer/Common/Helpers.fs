@@ -40,7 +40,7 @@ open CommonTypes
 
         let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option) : string =
             let time = System.DateTime.Now
-            printfn "%A" cState
+            //printfn "%A" cState
             try (*
                  printfn "\n--------cState----------\n%A\n" cState
                  printfn "\n-----savedWaveInfo--------\n%A\n------------\n" waveInfo
@@ -102,6 +102,13 @@ let mapKeys (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map fst |> Array.ofSeq
 let mapValues (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map snd |> Array.ofSeq
 let mapItems (map:Map<'a,'b>) = map |> Map.toSeq |> Array.ofSeq
 
+let mapFindWithDef (defVal: 'b) (key: 'a) (map:Map<'a,'b>) = 
+    Option.defaultValue defVal (Map.tryFind key map)
+
+let mapUpdateWithDef (defVal: 'b) (key: 'a) (update: 'b -> 'b) (map:Map<'a,'b>)  =
+    let v = Option.defaultValue defVal (Map.tryFind key map)
+    Map.add key (update v) map
+
 let mapUnion m1 m2 =
     (m2, m1)
     ||> Map.fold (fun m key value -> Map.add key value m )
@@ -117,7 +124,7 @@ let shortPComp (comp:Component) =
     | Custom sc -> sprintf "%s:Custom.%s.%A->%A" comp.Label sc.Name sc.InputLabels sc.OutputLabels
     | _ -> sprintf "%s:%A" comp.Label comp.Type
 
-/// print initial n characters of a string
+/// return initial n characters of a string
 let sprintInitial n (s:string) = 
     s
     |> Seq.truncate n
@@ -366,19 +373,35 @@ let getInterval (startTime:float) =
     getTimeMs() - startTime
 
 
-
+type AggregatedData = {
+    PrintInterval: float
+    LastPrintTime: float
+    Counts: Map<string,int>
+    Times: Map<string,float>
+    MinVals: Map<string,float>
+    MaxVals: Map<string,float>
+}
 
 /// controls how time intervals are collected and displayed
 type InstrumentationControl =
-    | ImmediatePrint of Threshold: float * UpdateThreshold:float
-    | Aggregate of AggregateInterval: float * CollectedTimes: Map<string,float> * LastPrintout: float option
+    | ImmediatePrint of Threshold: float * UpdateThreshold: float
+    | Aggregate of AggregatedData
     | Off
 
+/// initialise instrumentation parameter for immediate time printing
 let immediate threshold updateThreshold =
     ImmediatePrint(threshold,updateThreshold)
 
-let aggregate(aggTimeMs:float) =
-    Aggregate( aggTimeMs, Map.empty, Some (getTimeMs()))
+/// initialse instrumentation parameter for aggregate time printing
+let aggregate(printInterval: float ) =
+    Aggregate {
+        PrintInterval = printInterval
+        LastPrintTime = Fable.Core.JS.Constructors.Date.now()
+        Times = Map.empty
+        MinVals = Map.empty
+        MaxVals = Map.empty
+        Counts = Map.empty
+    }
 
 /// Parameter that controls how recorded times are processed.                     
 let mutable instrumentation: InstrumentationControl = 
@@ -386,26 +409,50 @@ let mutable instrumentation: InstrumentationControl =
     // immediate 2. 2. // for immediate printing
     // Off // for no printing
 
-/// print out the current aggregate of recorded times. Initialise aggregate totals to 0.
-let printIntervals (ints: Map<string,float>) =
-    printf "Times in ms"
-    ints
-    |> Map.toList
-    |> List.sortBy (fun (_,t) -> t)
-    |> List.iter (fun (s, time) ->
-        printf "%s" $"\t%.1f{time}\t%10s{s}")
-    printf ""
-    instrumentation <-
-        match instrumentation with
-        | Aggregate( aggInterval,_, _) -> Aggregate(aggInterval, Map.empty, Some (getTimeMs ()))
-        | _ -> failwithf "%s" $"What? Can't print intervals when instrumentation ({instrumentation}) is not set for aggregate printing"
+/// print out the current aggregate of recorded times if this is requried. 
+/// Return initialised aggregate totals after print
+let printAgg (agg: AggregatedData) =
+    let now = Fable.Core.JS.Constructors.Date.now()
+    let getData name =
+        let num = mapFindWithDef  0 name agg.Counts
+        let numF = float num
+        if num = 0 then 
+            0.,"" 
+        else
+            let tot = (mapFindWithDef 0. name agg.Times)
+            tot,
+            $"%8.2f{tot/numF}%8.1f{mapFindWithDef 0. name agg.MaxVals}\
+            %8.1f{mapFindWithDef 0. name agg.MinVals}%8.1f{tot}  %s{name}"
+            
+    let intv = now - agg.LastPrintTime
+    if intv < agg.PrintInterval then
+        agg // do nothing
+    else
+        let head = sprintf "Interval times in ms after %.1fs\n      Av     Max     Min  Total    Name\n" (intv / 1000.)
+        let timeLines = 
+            (mapKeys agg.Counts)
+            |> Array.map getData
+            |> Array.filter (fun (av,_) -> av > 0.2)
+            |> Array.sortBy fst
+            |> Array.map snd
+            |> String.concat "\n"
+        printfn "%s" (head + timeLines)
+        { agg with 
+            LastPrintTime = now
+            Counts = Map.empty
+            MaxVals = Map.empty
+            MinVals = Map.empty
+            Times=Map.empty}
 
-/// add a new time to the times contained in times.
-let changeTimes (times: Map<string,float>) (thing: string) (time: float)=
-    let oldTime = 
-        Map.tryFind thing times
-        |> Option.defaultValue 0.
-    Map.add thing (oldTime + time) times
+/// process a new time interval updating the aggregated data for future printout
+let updateAgg (name:string) (time: float) (agg: AggregatedData) =
+    { agg with
+        Counts = mapUpdateWithDef 0 name ((+) 1) agg.Counts
+        Times = mapUpdateWithDef 0. name ((+) time) agg.Times
+        MaxVals = mapUpdateWithDef 0. name (max time) agg.MaxVals
+        MinVals = mapUpdateWithDef 1.0E10 name (min time) agg.MinVals
+    }
+
 
 /// According to current settings, process and/or print a named time interval.
 /// the interval is between intervalStartTime passed as arg 2, and the time at
@@ -421,19 +468,12 @@ let instrumentTime (intervalName: string) (intervalStartTime: float) =
             else threshold 
         if interval > threshold then
             printfn "%s" $"{intervalName}: %.1f{interval}ms"
-    | Aggregate( aggInterval,collectedTimes,lastPrintTime) ->
-            match lastPrintTime with
-            | None ->
-                instrumentation <- 
-                    Aggregate(aggInterval, changeTimes Map.empty intervalName intervalStartTime, Some (getTimeMs()))
-                
-            | Some last ->
-                if getInterval last > aggInterval then
-                    printIntervals collectedTimes
-                else
-                    let interval = getTimeMs() - intervalStartTime
-                    instrumentation <- 
-                        Aggregate(aggInterval, changeTimes collectedTimes intervalName interval, lastPrintTime)
+    | Aggregate agg ->
+        let interval = getTimeMs() - intervalStartTime
+        let agg = updateAgg intervalName interval agg
+        let agg = printAgg agg
+        instrumentation <- Aggregate agg
+
                 
 
 

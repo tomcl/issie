@@ -523,9 +523,9 @@ let update msg model =
 //        model, Cmd.none
 //    |> checkForAutoSaveOrSelectionChanged msg
     | msg ->
-    printfn $"DEBUG: Leftover Message needs to be deleted: {msg}" // TODO
-    model, Cmd.none
-    |> Helpers.instrumentInterval $"update: %A{msg}" startUpdate
+        printfn $"DEBUG: Leftover Message needs to be deleted: {msg}" // TODO
+        model, Cmd.none
+    |> Helpers.instrumentInterval (Helpers.sprintInitial 20 $"Update: %A{msg}") startUpdate
 
 
 

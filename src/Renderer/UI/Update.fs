@@ -246,32 +246,7 @@ let updateTimeStamp model =
 //                                | true -> {a with LastSavedCanvasState = addReducedState a proj.OpenFileName model}
 //                                | false -> a)
 //                |> (fun model -> changeSimulationIsStale simUpdate model, cmd)
-//       
-/// Uses model.Hilighted to track what is currently highlighted (green or red)
-/// Changes green highlighting on all connections as determined by connIds
-//let private setSelWavesHighlighted model connIds =
-//    let (_, errConnIds), oldConnIds = model.Hilighted
-//    let currentConnIds = 
-//        model.Sheet.GetCanvasState()
-//        |> (snd >> List.map (fun conn -> conn.Id))
-//        |> Set
-//    let isCurrent cId = Set.contains cId currentConnIds
- 
-//    oldConnIds
-//    |> List.map (fun (ConnectionId c) -> 
-//        match List.contains (ConnectionId c) errConnIds with
-//        | false when isCurrent c -> Sheet.update model.Diagram.UnHighlightConnection c  //unhighlight wires colour = darkslategrey, components = light
-//        | _ -> ())
-//    |> ignore
-//    connIds
-//    |> List.map (fun (ConnectionId c) -> 
-//        match List.contains (ConnectionId c) errConnIds with
-//        | false when isCurrent c -> model.Diagram.HighlightConnection c "green"
-//        | _ -> ())
-//    |> ignore
-//    List.fold (fun st cId -> if List.contains cId errConnIds 
-//                                then st
-//                                else cId :: st ) [] connIds
+//
 
 let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) =
     match compOpt with
@@ -377,13 +352,8 @@ let update msg model =
         | WaveSim -> Cmd.none
  
     | SetHighlighted (componentIds, connectionIds) ->
-        printf "DEBUG: SETHIGHLIGHTED ENTERED"
         let sModel, sCmd = Sheet.update (Sheet.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
         {model with Sheet = sModel}, Cmd.map Sheet sCmd
-    //| SetSelWavesHighlighted connIds ->
-    //    setSelWavesHighlighted model (Array.toList connIds)
-    //    |> (fun lst -> { model with Hilighted = fst model.Hilighted, lst
-    //                                ConnsOfSelectedWavesAreHighlighted = false }, Cmd.none)
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
     | SetCreateComponent pos -> { model with LastCreatedComponent = Some pos }, Cmd.none
     | SetProject project -> 
@@ -487,7 +457,6 @@ let update msg model =
                 simulateAndMakeWaves model wsMod pars'
                 |> (fun ws -> {ws with WSViewState=nView; WSTransition = None})
                 |> setEditorView nView
-            //{ model with Hilighted = fst model.Hilighted, setSelWavesHighlighted model []}
             model
             |> setWSMod wsMod'
             |> (fun model -> {model with CheckWaveformScrollPosition=checkCursor}, Cmd.none)

@@ -544,16 +544,20 @@ let getIndex listSymbols compType =
     let symbolList = 
         getCompList compType listSymbols
 
-    if List.isEmpty symbolList then 1 
-    else symbolList
-        |> List.map (fun sym -> regex sym.Compo.Label)
-        |> List.max
-        |> (+) 1
+    match compType with
+    | MergeWires | SplitWire _ -> ""
+    | _ ->
+        if List.isEmpty symbolList then 1 
+        else symbolList
+            |> List.map (fun sym -> regex sym.Compo.Label)
+            |> List.max
+            |> (+) 1
+        |> string
 
 ///Generates the number to be put in the title of symbols  
 let labelGenNumber (model: Model) (compType: ComponentType) (label : string) = 
     let listSymbols = List.map snd (Map.toList model.Symbols)    
-    filterString label + string(getIndex listSymbols compType)
+    filterString label + (getIndex listSymbols compType)
 
 ///Generates the label for a component type
 let generateLabel (model: Model) (compType: ComponentType) : string =

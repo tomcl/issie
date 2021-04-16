@@ -134,6 +134,15 @@ let createMainWindow () =
         mainWindow <- Option.None
     |> ignore
 
+    window.on("close", 
+         // called when attempt is made to close the window
+         // send this to renderer to let it decide what to do
+         unbox (fun e ->
+                   // prevent default closure
+                   e?preventDefault () |> ignore
+                   window.webContents.send "closingWindow"
+         )) |> ignore
+
     // Maximize the window
     window.maximize()
 

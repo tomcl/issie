@@ -254,6 +254,7 @@ type Project = {
 
 
 type Msg =
+    | ShowExitDialog
     | Sheet of Sheet.Msg
     | JSDiagramMsg of JSDiagramMsg<JSCanvas,JSComponent>
     | KeyboardShortcutMsg of KeyboardShortcutMsg

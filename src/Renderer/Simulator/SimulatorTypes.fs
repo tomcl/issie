@@ -67,18 +67,7 @@ type SimulationComponent = {
     // The state should only be changed when clock ticks are fed. Other changes
     // will be ignored.
     State : SimulationComponentState
-    // Function that takes the inputs and transforms them into the outputs,
-    // according to the behaviour of the component.
-    // The size of the Inputs map, must be as expected by the component,
-    // otherwhise the reducer will return None (i.e. keep on waiting for more
-    // inputs to arrive).
-    // The idea is similar to partial application, keep on providing inputs
-    // until the output can be evaluated.
-    // The reducer should fail if more inputs than expected are received.
-    // The reducer accepts a SimulationGraph for custom components only.
-    // The reducer accepts an IsClockTick flag that tells you if that is an
-    // update due to the global clock.
-    Reducer : ReducerInput -> ReducerOutput
+
 }
 
 /// Map every ComponentId to its SimulationComponent.

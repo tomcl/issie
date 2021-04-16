@@ -603,7 +603,7 @@ let mMoveUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
     | DragAndDrop -> moveSymbols model mMsg
     | InitialisedCreateComponent (compType, lbl) ->
 
-        let labelTest = Symbol.generateLabel model.Wire.Symbol compType
+        let labelTest = if lbl = "" then Symbol.generateLabel model.Wire.Symbol compType else lbl
         let newSymbolModel, newCompId = Symbol.addSymbol model.Wire.Symbol mMsg.Pos compType labelTest
         
 

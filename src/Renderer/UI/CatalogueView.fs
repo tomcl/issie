@@ -30,11 +30,9 @@ let private menuItem label onClick =
 let private createComponent compType label model dispatch =
     Sheet (Sheet.InitialiseCreateComponent (compType, label)) |> dispatch
 
-let stdLabel (compType: ComponentType) (model:Model) =
-    model.Sheet.GenerateLabel compType
+let stdLabel (compType: ComponentType) (model:Model) = ""
     
 let createCompStdLabel comp model dispatch =
-    printf"DEBUG in createComponent: \n newModel: \n %A" model.Sheet.Wire.Symbol
     createComponent comp (stdLabel comp model) model dispatch
 
 let private makeCustom model dispatch (loadedComponent: LoadedComponent)  =

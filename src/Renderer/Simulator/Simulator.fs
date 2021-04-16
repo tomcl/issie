@@ -52,7 +52,7 @@ let rec prepareSimulation
                     Ok {
                         FastSim = 
                             Fast.buildFastSimulation initMaxSteps graph
-                        Graph = graph 
+                        Graph = graph |> InitialiseGraphWithZeros inputs;
                         Inputs = inputs;
                         Outputs = outputs
                         IsSynchronous = hasSynchronousComponents graph
@@ -74,7 +74,11 @@ let rec prepareSimulation
 
 
 
+/// Expose the feedSimulationInput function from SimulationRunner.
+let feedSimulationInput = SimulationRunner.feedSimulationInput
 
+/// Expose the feedClockTick function from SimulationRunner.
+let feedClockTick = SimulationRunner.feedClockTick
 
 /// Expose the extractSimulationIOs function from SimulationRunner.
 let extractSimulationIOs = SimulationRunner.extractSimulationIOs

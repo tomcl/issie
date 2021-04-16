@@ -176,8 +176,10 @@ let private viewSimulationInputs
                         let newBit = match bit with
                                      | Zero -> One
                                      | One -> Zero
+                        let graph = feedSimulationInput simulationGraph
+                                            (ComponentId inputId) [newBit]
                         Fast.changeInput (ComponentId inputId) [newBit] simulationData.ClockTickNumber simulationData.FastSim
-                        dispatch <| SetSimulationGraph(simulationData.Graph, simulationData.FastSim)
+                        dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
                     )
                 ] [ str <| bitToString bit ]
             | bits ->
@@ -197,7 +199,8 @@ let private viewSimulationInputs
                                 // Close simulation notifications.
                                 CloseSimulationNotification |> dispatch
                                 // Feed input.
-                                let graph = simulationGraph
+                                let graph = feedSimulationInput simulationGraph
+                                                    (ComponentId inputId) bits
                                 Fast.changeInput (ComponentId inputId) bits simulationData.ClockTickNumber simulationData.FastSim
                                 dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
                         ))
@@ -298,11 +301,17 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
             Button.button [
                 Button.Color IsSuccess
                 Button.OnClick (fun _ ->
-                    let graph = simData.Graph
+                    if SimulationRunner.simTrace <> None then
+                        printfn "*********************Incrementing clock from simulator button******************************"
+                        printfn "-------------------------------------------------------------------------------------------"
+                    let graph = feedClockTick simData.Graph
                     Fast.runFastSimulation (simData.ClockTickNumber+1) simData.FastSim 
                     dispatch <| SetSimulationGraph(graph, simData.FastSim)                    
                     printfn "Comparing clock tick %d" simData.ClockTickNumber
                     //Fast.compareFastWithGraph simData |> ignore
+                    if SimulationRunner.simTrace <> None then
+                        printfn "-------------------------------------------------------------------------------------------"
+                        printfn "*******************************************************************************************"
                     IncrementSimulationClockTick |> dispatch
                 )
             ] [ str <| sprintf "Clock Tick %d" simData.ClockTickNumber ]

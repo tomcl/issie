@@ -5,7 +5,7 @@ open Elmish
 open Fulma
 open Fable.React
 open Fable.React.Props
-
+open Electron
 open BusWidthInferer
 open SimulatorTypes
 open ModelType
@@ -288,6 +288,11 @@ let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) 
         let mem' = {mem with Data = mem.Data |> Map.add addr data}
         Some {comp with Type= update mem' ct}
     | _ -> compOpt
+
+let exitApp() =
+    // send message to main process to initiate window close and app shutdown
+    //Electron.electron.ipcRenderer.send("exit-the-app",[||])
+    printfn "trying to exit..."
         
 //----------------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------UPDATE-----------------------------------------------------------//
@@ -312,6 +317,10 @@ let update msg model =
         let msgS = (sprintf "%A..." msg) |> Seq.truncate 60 |> Seq.map (fun c -> string c) |> String.concat ""
         printfn "%d %s" sdlen msgS
     match msg with
+    | ShowExitDialog ->
+        // TODO: replace this immediate exit function with a proper dialog
+        exitApp()
+        model, Cmd.none
     | Sheet sMsg ->
         let sModel, sCmd = Sheet.update sMsg model.Sheet
         { model with Sheet = sModel }, Cmd.map Sheet sCmd

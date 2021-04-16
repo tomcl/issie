@@ -30,10 +30,9 @@ let private menuItem label onClick =
 let private createComponent compType label model dispatch =
     Sheet (Sheet.InitialiseCreateComponent (compType, label)) |> dispatch
 
-let stdLabel (compType: ComponentType) (model:Model) = ""
-    
+//Anything requiring a standard label should be checked and updated with the correct number suffix in Symbol/Sheet, so give the label ""
 let createCompStdLabel comp model dispatch =
-    createComponent comp (stdLabel comp model) model dispatch
+    createComponent comp "" model dispatch
 
 let private makeCustom model dispatch (loadedComponent: LoadedComponent)  =
     menuItem loadedComponent.Name (fun _ ->
@@ -43,7 +42,7 @@ let private makeCustom model dispatch (loadedComponent: LoadedComponent)  =
             OutputLabels = loadedComponent.OutputLabels
         }
         
-        Sheet (Sheet.InitialiseCreateComponent (custom, (stdLabel custom model))) |> dispatch
+        Sheet (Sheet.InitialiseCreateComponent (custom, "")) |> dispatch
     )
 
 let private makeCustomList model dispatch =

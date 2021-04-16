@@ -291,8 +291,8 @@ let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) 
 
 let exitApp() =
     // send message to main process to initiate window close and app shutdown
-    //Electron.electron.ipcRenderer.send("exit-the-app",[||])
-    printfn "trying to exit..."
+    Electron.electron.ipcRenderer.send("exit-the-app",[||])
+   
         
 //----------------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------UPDATE-----------------------------------------------------------//

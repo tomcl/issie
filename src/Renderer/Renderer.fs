@@ -50,12 +50,14 @@ let menuSeparator =
    sep
 
 // Set up window close interlock using IPC from/to main process
-let setupExitInterlock dispatch =
+let attachExitHandler dispatch =
     // set up callback called when attempt is made to close main window
     electron.ipcRenderer.on ("closingWindow", (fun (event: Event)->
-        printfn "dispatching exit dialog..."
+        printfn "dispatching ShowExitDialog"
+        // send a message which will process the request to exit
         dispatch <| ShowExitDialog
         )) |> ignore
+    
 
 /// Make action menu item from name, opt key to trigger, and action.
 let makeItem (label : string) (accelerator : string option) (iAction : KeyboardEvent -> unit) =
@@ -171,8 +173,8 @@ let editMenu dispatch =
             |> U2.Case1
 
 let attachMenusAndKeyShortcuts dispatch =
+    //setupExitInterlock dispatch
     let sub dispatch =
-        setupExitInterlock dispatch
         let menu = 
             [|
 
@@ -186,6 +188,7 @@ let attachMenusAndKeyShortcuts dispatch =
             |> electron.remote.Menu.buildFromTemplate   
         menu.items.[0].visible <- Some true
         electron.remote.app.applicationMenu <- Some menu
+        attachExitHandler dispatch
 
     Cmd.ofSub sub    
 
@@ -217,6 +220,7 @@ let view' model dispatch =
     view model dispatch
     |> Helpers.instrumentInterval "View" start
    
+
 
 
 

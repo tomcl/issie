@@ -511,6 +511,7 @@ let filterString string =
     string
     |> String.filter (fun c -> (int(c) > 57 || int(c) < 48))
    
+///Returns the number of the component label (i.e. the number 1 from IN1)
 let regex (str : string) = 
     let index = Regex.Match(str, @"\d+")
     match index with
@@ -518,7 +519,6 @@ let regex (str : string) =
     | _ -> int index.Value
 
 let getCompList compType listSymbols =
-    printfn "DEBUG: getcomplist \n %A" listSymbols
     match compType with 
        | Not | And | Or | Xor | Nand | Nor | Xnor -> 
             listSymbols

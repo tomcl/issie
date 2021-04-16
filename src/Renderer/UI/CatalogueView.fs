@@ -34,6 +34,7 @@ let stdLabel (compType: ComponentType) (model:Model) =
     model.Sheet.GenerateLabel compType
     
 let createCompStdLabel comp model dispatch =
+    printf"DEBUG in createComponent: \n newModel: \n %A" model.Sheet.Wire.Symbol
     createComponent comp (stdLabel comp model) model dispatch
 
 let private makeCustom model dispatch (loadedComponent: LoadedComponent)  =

@@ -602,7 +602,13 @@ let mMoveUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
     match model.Action with
     | DragAndDrop -> moveSymbols model mMsg
     | InitialisedCreateComponent (compType, lbl) ->
-        let newSymbolModel, newCompId = Symbol.addSymbol model.Wire.Symbol mMsg.Pos compType lbl
+
+        let labelTest = Symbol.generateLabel model.Wire.Symbol compType
+        let newSymbolModel, newCompId = Symbol.addSymbol model.Wire.Symbol mMsg.Pos compType labelTest
+        
+
+        printf"DEBUG in InitialisedCreateComponent: \n newModel: \n %A" newSymbolModel
+
         { model with Wire = { model.Wire with Symbol = newSymbolModel }
                      Action = DragAndDrop
                      SelectedComponents = [ newCompId ]

@@ -316,11 +316,24 @@ let update msg model =
     if Set.contains "update" JSHelpers.debugTraceUI then
         let msgS = (sprintf "%A..." msg) |> Seq.truncate 60 |> Seq.map (fun c -> string c) |> String.concat ""
         printfn "%d %s" sdlen msgS
+    // main message dispatch match expression
     match msg with
+
     | ShowExitDialog ->
         // TODO: replace this immediate exit function with a proper dialog
-        exitApp()
-        model, Cmd.none
+        //exitApp()
+        match model.CurrentProj with
+        | Some p when model.SavedSheetIsOutOfDate ->
+            // TODO - replace with exit dialog implemented in main menu
+            //
+            exitApp()
+            {model with ExitDialog = true}, Cmd.none
+        | _ -> 
+            // exit immediately since nothing to save
+            exitApp()
+            model, Cmd.none
+            
+        
     | Sheet sMsg ->
         let sModel, sCmd = Sheet.update sMsg model.Sheet
         { model with Sheet = sModel }, Cmd.map Sheet sCmd

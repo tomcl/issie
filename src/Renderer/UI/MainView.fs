@@ -56,6 +56,7 @@ let init() = {
     // Diagram = new Draw2dWrapper()
     Sheet = fst (Sheet.init())
     WaveSimulationIsOutOfDate = true
+    ExitDialog = false
     IsLoading = false
     LastDetailedSavedState = ([],[])
     LastSimulatedCanvasState = None

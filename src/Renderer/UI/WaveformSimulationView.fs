@@ -237,7 +237,7 @@ let private waveAdderSelectAll model netList (wSMod: WaveSimModel) dispatch =
         |> Array.forall (isWaveSelected model netList) 
 
     mapValues wSMod.AllNets
-    |> Array.map (fun netGrp -> selectNetGrpConns model netGrp true dispatch) 
+    |> Array.map (fun netGrp -> selectNetGrpConns model netGrp (not setTo) dispatch) 
     |> ignore
 
 //////////////////////////////////////////////

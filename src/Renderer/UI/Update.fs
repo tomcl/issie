@@ -232,8 +232,6 @@ let update msg model =
         { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber+1 } |> Ok |> Some }, Cmd.none
     | EndSimulation -> { model with CurrentStepSimulationStep = None }, Cmd.none
     | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
-            
-
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
@@ -258,6 +256,9 @@ let update msg model =
     | SetHighlighted (componentIds, connectionIds) ->
         let sModel, sCmd = Sheet.update (Sheet.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
         {model with Sheet = sModel}, Cmd.map Sheet sCmd
+    | SetSelWavesHighlighted connIds ->
+        let wModel, wCmd = Sheet.update (Sheet.ColourSelection ([], Array.toList connIds, HighLightColor.Blue)) model.Sheet
+        {model with Sheet = wModel}, Cmd.map Sheet wCmd
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
     | SetCreateComponent pos -> { model with LastCreatedComponent = Some pos }, Cmd.none
     | SetProject project -> 
@@ -336,13 +337,13 @@ let update msg model =
 //        |> (fun x -> x, Cmd.none)
     | MenuAction(act,dispatch) ->
         getMenuView act model dispatch, Cmd.none
-//    | DiagramMouseEvent -> model, Cmd.none
-//    | SelectionHasChanged -> 
-//        match currWaveSimModel model with
-//        | None | Some {WSViewState=WSClosed} -> model
-//        | Some _ ->
-//            { model with ConnsOfSelectedWavesAreHighlighted = true }
-//        |> (fun m -> m, Cmd.none)
+    | DiagramMouseEvent -> model, Cmd.none
+    | SelectionHasChanged -> 
+        match currWaveSimModel model with
+        | None | Some {WSViewState=WSClosed} -> model
+        | Some _ ->
+            { model with ConnsOfSelectedWavesAreHighlighted = true }
+        |> (fun m -> m, Cmd.none)
     | SetWaveSimIsOutOfDate b -> 
         changeSimulationIsStale b model, Cmd.none
     | SetIsLoading b ->

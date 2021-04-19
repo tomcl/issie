@@ -696,7 +696,9 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
 
     let wires =
         model.WX
-        |> MapToSortedList
+        //|> MapToSortedList
+        |> Map.toList
+        |> List.map snd
         |> List.map
             (
                 fun wire ->

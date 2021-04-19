@@ -67,10 +67,10 @@ type SimCache = {
 
 let simCacheInit name = {
     Name = name; 
-    StoredState = ([],[]) 
+    StoredState = ([],[]) // reduced canvas state from extractReducedState
     StoredResult = Ok {
         FastSim = Fast.emptyFastSimulation()
-        Graph = Map.empty
+        Graph = Map.empty 
         Inputs = []
         Outputs = []
         IsSynchronous=false
@@ -79,10 +79,19 @@ let simCacheInit name = {
         }
     }
         
-
+/// Used to store last canvas state and its simulation
 let mutable simCache: SimCache = simCacheInit ""
 
-let rec prepareSimulationMemoised
+/// Start up a simulation, doing all necessary checks and generating simulation errors
+/// if necesary. The code to do this is quite long so results are memoized. this is complicated because
+/// we want the comparison (in the case nothing has chnaged) to be fast.
+/// 1. If the current sheet changes we redo the simulation. 
+/// 2. While current sheet does not change we assume the other sheets
+/// ( and so subsheet content) cannot change. 
+/// 3. Therefore we need only compare current sheet canvasState with its
+/// initial value. This is compared using extractReducedState to make a copy that has geometry info removed 
+/// from components and connections.
+let rec prepareSimulationMemoized
         (diagramName : string)
         (canvasState : CanvasState)
         (loadedDependencies : LoadedComponent list)
@@ -90,12 +99,14 @@ let rec prepareSimulationMemoised
     let rState = extractReducedState canvasState
     if diagramName <> simCache.Name then
         simCache <- simCacheInit diagramName
-        prepareSimulationMemoised diagramName canvasState loadedDependencies
+        // recursive call having initialised the cache state on sheet change
+        prepareSimulationMemoized diagramName canvasState loadedDependencies
     else
         let isSame = rState = simCache.StoredState
         if  isSame then
             simCache.StoredResult, rState
         else
+            printfn "New simulation"
             let simResult = prepareSimulation diagramName rState loadedDependencies
             simCache <- {
                 Name = diagramName
@@ -107,7 +118,8 @@ let rec prepareSimulationMemoised
 
 /// Start simulating the current Diagram.
 /// Return SimulationData that can be used to extend the simulation
-/// as needed, or error if simulation fails
+/// as needed, or error if simulation fails.
+/// Note that simulation is only redone if current canvas changes.
 let makeSimData model =
     let start = Helpers.getTimeMs()
     match model.Sheet.GetCanvasState(), model.CurrentProj with
@@ -117,9 +129,9 @@ let makeSimData model =
             project.LoadedComponents 
             |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         (canvasState, otherComponents)
-        ||> prepareSimulationMemoised project.OpenFileName
+        ||> prepareSimulationMemoized project.OpenFileName
         |> Some
-        |> (fun x -> Helpers.printInterval "makeSimdata" start; x)
+        |> Helpers.instrumentInterval "MakeSimData" start
 
 let changeBase dispatch numBase = numBase |> SetSimulationBase |> dispatch
 
@@ -296,14 +308,14 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                     Fast.runFastSimulation (simData.ClockTickNumber+1) simData.FastSim 
                     dispatch <| SetSimulationGraph(graph, simData.FastSim)                    
                     printfn "Comparing clock tick %d" simData.ClockTickNumber
-                    Fast.compareFastWithGraph simData |> ignore
+                    //Fast.compareFastWithGraph simData |> ignore
                     if SimulationRunner.simTrace <> None then
                         printfn "-------------------------------------------------------------------------------------------"
                         printfn "*******************************************************************************************"
                     IncrementSimulationClockTick |> dispatch
                 )
             ] [ str <| sprintf "Clock Tick %d" simData.ClockTickNumber ]
-    let maybeStatefulComponents =
+    let maybeStatefulComponents() =
         let stateful = 
             Fast.extractStatefulComponents simData.ClockTickNumber simData.FastSim
             |> Array.toList
@@ -327,7 +339,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
         viewSimulationOutputs simData.NumberBase
         <| Fast.extractFastSimulationIOs simData.Outputs simData
 
-        maybeStatefulComponents
+        maybeStatefulComponents()
     ]
 
   
@@ -343,7 +355,7 @@ let viewSimulation model dispatch =
                 project.LoadedComponents
                 |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
             (canvasState, otherComponents)
-            ||> prepareSimulationMemoised project.OpenFileName
+            ||> prepareSimulationMemoized project.OpenFileName
             |> function
                | Ok (simData), state -> Ok simData
                | Error simError, state ->

@@ -259,8 +259,39 @@ let saveStateToFile folderPath baseName state = // TODO: catch error?
 let createEmptyDgmFile folderPath baseName =
     saveStateToFile folderPath baseName (([],[]), None)
 
+let stripVertices (conn: Connection) =
+    {conn with Vertices = []}
+
+let magnifySheet magnification (comp: Component) =
+    {comp with 
+        X = int <| round (magnification * float (comp.X + comp.W / 2 )); 
+        Y = int <| round (magnification * float (comp.Y + comp.H/2))
+        H = -1 // overwritten correctly by Sheet based on componnet type
+        W = -1 // as above
+    }
+
+
+ 
+
+/// Interface function that can read old-style circuits (without wire vertices)
+/// as well as new circuits with vertices. Old circuits have an expansion parameter
+/// since new symbols are larger (in units) than old ones.
+let getLatestCanvas state =
+    let oldCircuitMagnification = 1.5
+    let stripConns canvas =
+        let (comps,conns) = canvas
+        let noVertexConns = List.map stripVertices conns
+        let expandedComps = List.map (magnifySheet oldCircuitMagnification) comps
+        expandedComps, noVertexConns
+    match state  with
+    | CanvasOnly canvas -> stripConns canvas
+    | CanvasWithFileWaveInfo(canvas, _, _) -> stripConns canvas
+    | CanvasWithFileWaveInfoAndNewConns(canvas, _, _) -> canvas
+
+
 /// load a component from its canvas and other elements
-let makeLoadedComponentFromCanvasData canvas filePath timeStamp waveInfo =
+let rec makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp waveInfo =
+    
     let inputs, outputs = parseDiagramSignature canvas
     {
         Name = getBaseNameNoExtension filePath
@@ -279,7 +310,7 @@ let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
     match tryLoadStateFromPath filePath with
     | Result.Error msg ->  Error <| sprintf "Can't load component %s because of Error: %s" (getBaseNameNoExtension filePath)  msg
     | Ok state ->
-        makeLoadedComponentFromCanvasData state.getCanvas filePath state.getTimeStamp state.getWaveInfo
+        makeLoadedComponentFromCanvasData (getLatestCanvas state) filePath state.getTimeStamp state.getWaveInfo
         |> Result.Ok
 
 

@@ -1271,8 +1271,7 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
     |> Array.collect
         (fun fc ->
             match fc.AccessPath with
-            | [] -> [||]
-            | _ ->
+            | [] ->
                 match fc.FType with
                 | DFF _
                 | DFFE _
@@ -1285,7 +1284,9 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
                           |> Option.map (fun state -> state.Step.[step]) with
                     | None -> failwithf "Missing RAM state for step %d of %s" step fc.FullName
                     | Some memState -> [| fc, memState |]
-                | _ -> failwithf "Unsupported state extraction from clocked component type %s %A" fc.FullName fc.FType)
+                | _ -> failwithf "Unsupported state extraction from clocked component type %s %A" fc.FullName fc.FType
+            | _ -> [||])
+
 
 /// Run an existing fast simulation up to the given number of steps. This function will mutate the write-once data arrays
 /// of simulation data and only simulate the new steps needed, so it may return immediately doing no work.

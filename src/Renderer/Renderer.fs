@@ -44,15 +44,20 @@ let testMaps() =
 *
 ****************************************************************************************************)
 
-
-
-let exitApp() =
-    electron.ipcRenderer.send("exit-the-app",[||])
-
 let menuSeparator =
    let sep = createEmpty<MenuItemOptions>
    sep.``type`` <- MenuItemType.Separator
    sep
+
+// Set up window close interlock using IPC from/to main process
+let attachExitHandler dispatch =
+    // set up callback called when attempt is made to close main window
+    electron.ipcRenderer.on ("closingWindow", (fun (event: Event)->
+        printfn "dispatching ShowExitDialog"
+        // send a message which will process the request to exit
+        dispatch <| ShowExitDialog
+        )) |> ignore
+    
 
 /// Make action menu item from name, opt key to trigger, and action.
 let makeItem (label : string) (accelerator : string option) (iAction : KeyboardEvent -> unit) =
@@ -108,7 +113,7 @@ let fileMenu (dispatch) =
         makeItem "Save Sheet" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
         makeItem "Print Sheet" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
         makeItem "Write Sheet as Verilog" None (fun ev -> dispatch (MenuAction(MenuVerilogOutput,dispatch)))
-        makeItem "Exit Issie" None (fun ev -> exitApp())
+        makeItem "Exit Issie" None (fun ev -> dispatch Msg.ShowExitDialog)
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> PopupView.viewInfoPopup dispatch)
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Restart app" None (fun _ -> 
             let webContents = electron.remote.getCurrentWebContents()
@@ -168,6 +173,7 @@ let editMenu dispatch =
             |> U2.Case1
 
 let attachMenusAndKeyShortcuts dispatch =
+    //setupExitInterlock dispatch
     let sub dispatch =
         let menu = 
             [|
@@ -182,6 +188,7 @@ let attachMenusAndKeyShortcuts dispatch =
             |> electron.remote.Menu.buildFromTemplate   
         menu.items.[0].visible <- Some true
         electron.remote.app.applicationMenu <- Some menu
+        attachExitHandler dispatch
 
     Cmd.ofSub sub    
 
@@ -210,9 +217,10 @@ printfn "Starting renderer..."
 
 let view' model dispatch =
     let start = Helpers.getTimeMs()
-    let ret = view model dispatch
-    Helpers.printInterval "view" start
-    ret
+    view model dispatch
+    |> Helpers.instrumentInterval "View" start
+   
+
 
 
 

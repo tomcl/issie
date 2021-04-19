@@ -254,6 +254,7 @@ type Project = {
 
 
 type Msg =
+    | ShowExitDialog
     | Sheet of Sheet.Msg
     | JSDiagramMsg of JSDiagramMsg<JSCanvas,JSComponent>
     | KeyboardShortcutMsg of KeyboardShortcutMsg
@@ -353,10 +354,13 @@ type Model = {
         
     /// Draw Canvas
     Sheet: Sheet.Model
-    
-    /// true during period when a sheet or project is loading
 
+    /// true when exit dialog is displayed
+    ExitDialog: bool
+
+    /// true during period when a sheet or project is loading
     IsLoading: bool
+
     /// if canvas is now different from that which is currently used by wave sim.
     WaveSimulationIsOutOfDate: bool
 
@@ -418,6 +422,7 @@ type Model = {
 
 
 let reduce (this: Model) = {|
+         ExitDialog = this.ExitDialog
          RightTab = this.RightPaneTabVisible
          Hilighted = this.Hilighted
          Clipboard = this.Clipboard
@@ -441,6 +446,7 @@ let reduce (this: Model) = {|
  |} 
        
 let reduceApprox (this: Model) = {|
+         ExitDialog = this.ExitDialog
          RightTab = this.RightPaneTabVisible
          Clipboard = this.Clipboard
          CurrProject = match this.PopupViewFunc with None -> false | _ -> true

@@ -86,7 +86,8 @@ let n2StringOfRadix (hasRadixPrefix: bool) (n: bigint) (nBits: uint32) (rad: Num
 // General WaveSim Helpers //
 /////////////////////////////
 
-/// get an option of the reduced canvas state
+/// Get an option of the reduced canvas state, with geometry eliminated, good for electrical
+/// circuit comparisons
 let getReducedCanvState model = extractReducedState <| model.Sheet.GetCanvasState ()
     
 /// get NetList from WaveSimModel

@@ -867,8 +867,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let newWires = 
             if on then oldWires @ connIds
             else List.filter (fun conId -> List.contains conId connIds |> not) oldWires
-
-        { model with SelectedWires = newWires}, wireCmd (BusWire.SelectWires connIds)
+        {model with SelectedWires = newWires}, wireCmd (BusWire.SelectWires newWires)
     | ColourSelection (compIds, connIds, colour) ->
         model,
         Cmd.batch [

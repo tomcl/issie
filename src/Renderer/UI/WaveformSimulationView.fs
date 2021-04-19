@@ -128,10 +128,6 @@ let private changeNetGroupConnsSelect  (selFun: NetGroup -> bool) (sheet) (wSMod
 let private toggleNetGroupConnsSelect (diagram) (wSMod: WaveSimModel) (netList:NetList) name (dispatch: Msg -> unit) =
     changeNetGroupConnsSelect (isWaveSelected diagram netList >> not) diagram wSMod name dispatch
 
-/// select all waveforms
-let private selectAllOn model (wSModel: WaveSimModel) dispatch =
-    Array.map (fun trgtLstGroup -> selectNetGrpConns model trgtLstGroup dispatch) (dispPorts wSModel)
-
 /// stretch waveforms horizontally
 let private changeViewerZoom compIds plus (m: Model) (wsModel: WaveSimModel) dispatch =
     let rec adjustLastClk viewW wsModel =

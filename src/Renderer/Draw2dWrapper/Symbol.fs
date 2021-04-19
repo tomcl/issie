@@ -636,7 +636,6 @@ let addSymbol (model: Model) pos compType lbl =
     let newSym = createNewSymbol pos compType lbl
     let newPorts = addToPortModel model newSym
     let newSymModel = Map.add newSym.Id newSym model.Symbols
-    printfn "DEBUG in addSymbol: \n OldSyms \n %A \n\n NewSyms \n %A" model.Symbols newSymModel
     { model with Symbols = newSymModel; Ports = newPorts }, newSym.Id
 
 // Helper function to change the number of bits expected in a port of each component type
@@ -675,13 +674,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
     | DeleteSymbols compList ->
         let newSymbols = List.fold (fun prevModel sId -> Map.remove sId prevModel) model.Symbols compList
-
-        printfn "DEBUG in DeleteSymbols: \n OldSyms \n %A \n\n NewSyms \n %A" model.Symbols newSymbols
-
         { model with Symbols = newSymbols }, Cmd.none //filters out symbol with a specified id
 
     | AddSymbol (pos,compType, lbl) ->
-        printfn "DEBUG in AddSymbol: %A" model.Symbols
         let (newModel, _) = addSymbol model pos compType lbl
         newModel, Cmd.none
 

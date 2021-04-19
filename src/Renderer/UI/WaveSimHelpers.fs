@@ -675,11 +675,13 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
     //nlTrgtLst is not connected to any driving components
     | None -> { OutputsAndIOLabels = []; ComposingLabels = [] }
     | Some nlSource ->
-        if not (Set.contains nlSource.SourceCompId compIds) then
-            printfn "What? graph, net, netGrp, nltrgtList should all be consistent, compIds is deprecated"
-            // component is no longer in circuit due to changes
-            { OutputsAndIOLabels = []; ComposingLabels = [] }
-        else   
+        
+        //if not (Set.contains nlSource.SourceCompId compIds) then
+        //    printfn "DEBUG: In findname, if not \n nlSource = %A \n compIds = %A" nlSource compIds
+        //    printfn "What? graph, net, netGrp, nltrgtList should all be consistent, compIds is deprecated"
+        //    // component is no longer in circuit due to changes
+        //    { OutputsAndIOLabels = []; ComposingLabels = [] }
+        //else   
             let compLbl = labelNoParenthesis net nlSource.SourceCompId
             let outPortInt = outPortInt2int nlSource.OutputPort
             let drivingOutputName inPortN =

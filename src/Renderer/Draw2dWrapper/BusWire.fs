@@ -667,13 +667,40 @@ let singleWireView =
     , equalsButFunctions
     )
 
- 
+///
+let MapToSortedList map : Wire list = 
+    let listSelected = 
+        Map.filter (fun id wire -> wire.Color = HighLightColor.Purple) map
+        |> Map.toList
+        |> List.map snd
+    let listErrorSelected =
+        Map.filter (fun id wire -> wire.Color = HighLightColor.Brown) map
+        |> Map.toList
+        |> List.map snd
+    let listErrorUnselected =
+        Map.filter (fun id wire -> wire.Color = HighLightColor.Red) map
+        |> Map.toList
+        |> List.map snd
+    let listUnSelected = 
+        Map.filter (fun id wire -> wire.Color = HighLightColor.DarkSlateGrey) map
+        |> Map.toList
+        |> List.map snd
+    let listCopied = 
+        Map.filter (fun id wire -> wire.Color = HighLightColor.Thistle) map
+        |> Map.toList
+        |> List.map snd
+    let listWaves = 
+        Map.filter (fun id wire -> wire.Color = HighLightColor.Blue) map
+        |> Map.toList
+        |> List.map snd
+
+    listUnSelected @ listErrorUnselected @ listErrorSelected @ listSelected @ listWaves @ listCopied
+    
 let view (model : Model) (dispatch : Dispatch<Msg>) =
 
     let wires =
         model.WX
-        |> Map.toList
-        |> List.map snd
+        |> MapToSortedList
         |> List.map
             (
                 fun wire ->

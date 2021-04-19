@@ -57,7 +57,7 @@ type Msg =
     | ChangeNumberOfBits of compId:ComponentId * NewBits:int 
     | ChangeLsb of compId:ComponentId * NewBits:int 
     | ResetModel // For Issie Integration
-    | LoadComponents of Component list // For Issie Integration
+    | LoadComponents of  Component list // For Issie Integration
     | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 
 
 //---------------------------------helper for demo-----------------------------------//
@@ -405,6 +405,7 @@ let MapsIntoLists map =
 
 
 let view (model : Model) (dispatch : Msg -> unit) = 
+    let start = Helpers.getTimeMs()
     model.Symbols
     |> MapsIntoLists
     |> List.map (fun ({Id = ComponentId id} as symbol) ->
@@ -416,6 +417,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
             }
     )
     |> ofList
+    |> Helpers.instrumentInterval "SymbolView" start
 
 //------------------------GET BOUNDING BOXES FUNCS--------------------------------used by sheet.
 // Function that returns the bounding box of a symbol. It is defined by the height and the width as well as the x,y position of the symbol
@@ -771,17 +773,24 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let compIdsWithSymbols =
             comps
             |> List.map ( fun comp -> (
-
+                                        let xyPos = {X = float comp.X; Y = float comp.Y}
+                                        let (h,w) =
+                                            if comp.H = -1 && comp.W = -1 then
+                                                let comp' = makeComp xyPos comp.Type comp.Id comp.Label
+                                                comp'.H,comp'.W
+                                            else
+                                                comp.H, comp.W
                                         ComponentId comp.Id,
-                                        { Pos = {X = float comp.X; Y = float comp.Y}
+                                        { Pos = xyPos
                                           ShowInputPorts = false //do not show input ports initially
                                           ShowOutputPorts = false //do not show output ports initially
                                           Colour = "lightgrey"     // initial color 
                                           Id = ComponentId comp.Id
-                                          Compo = comp
+                                          Compo = {comp with H=h ; W = w}
                                           Opacity = 1.0
                                           Moving = false
-                                        }))
+                                        }
+                                        ))
         
         let symbolList =
             compIdsWithSymbols

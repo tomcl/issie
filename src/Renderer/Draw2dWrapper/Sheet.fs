@@ -888,7 +888,7 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
             dispatch <| (ManualKeyDown key.key) )
     document.onkeyup <- (fun key -> dispatch <| (ManualKeyUp key.key))
     
-    let canvasSize = 10000.0 // In pixels
+    let canvasSize = 3500.0 // In pixels
     let sizeInPixels = sprintf "%.2fpx" ((canvasSize * model.Zoom))
 
     /// Is the mouse button currently down?
@@ -934,6 +934,7 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
 
 /// View function, displays symbols / wires and possibly also a grid / drag-to-select box / connecting ports line / snap-to-grid visualisation
 let view (model:Model) (headerHeight: float) (style) (dispatch : Msg -> unit) =
+    let start = Helpers.getTimeMs()
     let wDispatch wMsg = dispatch (Wire wMsg)
     let wireSvg = BusWire.view model.Wire wDispatch
     
@@ -1002,6 +1003,7 @@ let view (model:Model) (headerHeight: float) (style) (dispatch : Msg -> unit) =
         displaySvgWithZoom model headerHeight style ( displayElements @ snapIndicatorLineX @ snapIndicatorLineY ) dispatch
     | _ ->
         displaySvgWithZoom model headerHeight style displayElements dispatch
+    |> Helpers.instrumentInterval "SheetView" start
 
 /// Init function
 let init () = 

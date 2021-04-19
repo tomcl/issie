@@ -83,7 +83,10 @@ let segmentsToVertices (segList:Segment list) =
     [firstCoord] @ verticesExceptFirst
 
 /// Connection to Wire
-let verticesToSegments (connId) (vertList: list<float*float> ) =
+let verticesToSegments 
+        (connId) 
+        (vertList: list<float*float>) =
+
     let wireStartX, wireEndX = fst(List.head vertList), fst(List.last vertList)
 
     let vertexPairsList = List.pairwise vertList
@@ -96,13 +99,10 @@ let verticesToSegments (connId) (vertList: list<float*float> ) =
             Index = i
             Start = {X=startX;Y=startY};
             End = {X=endX;Y=endY};
-            Dir = if i = 0 || i = lastSegIndex then
+            Dir = if (startX-endX)*(startX-endX) > (startY-endY)*(startY-endY) then
                       Horizontal
                   else 
-                      if (wireStartX - wireEndX) > 40.0 then
-                        if i%2=0 then Horizontal else Vertical
-                      else
-                          if i%2=0 then Vertical else Horizontal;
+                      Vertical
             HostId  = (ConnectionId connId);
             JumpCoordinateList = [];
             Draggable = if i = 0 || i = 1 || i = lastSegIndex || i = (lastSegIndex - 1) then false else true
@@ -254,6 +254,8 @@ let makeInitialSegmentsList (hostId : ConnectionId) (portCoords : XYPos * XYPos)
                     Draggable = if i = 0 || i = 1 || i = lastSegIndex || i = (lastSegIndex - 1) then false else true
                 }
         )
+
+
 
 /// Given the current state of the BusWire model,
 /// the identifier of a wire to be updated and
@@ -628,14 +630,30 @@ let updateOverlappingWires (model : Model) (bb :  BoundingBox) : Model =
 ///
 type WireRenderProps =
     {
-        Key: ConnectionId
+        key: string
         Segments: list<Segment>
         ColorP: HighLightColor
         StrokeWidthP: int
         OutputPortLocation: XYPos
     }
 
-///
+
+let mutable cache:Map<string,WireRenderProps*ReactElement> = Map.empty
+
+let memoOf (f: WireRenderProps -> ReactElement, _, _) =
+    (fun props ->
+        match Map.tryFind props.key cache with
+        | None -> 
+            let re = f props
+            cache <- Map.add props.key (props,re) cache 
+            re
+        | Some (props',re) ->  
+            if props' = props then re else
+                let re = f props
+                cache <- Map.add props.key (props,re) cache
+                re)
+
+
 let singleWireView = 
     FunctionComponent.Of(
         fun (props: WireRenderProps) ->
@@ -660,7 +678,6 @@ let singleWireView =
                     }
                 let textString = string props.StrokeWidthP
                 makeText (props.OutputPortLocation.X+10.0) (props.OutputPortLocation.Y-7.0) (textString) textParameters
-
             g [] ([ renderWireWidthText ] @ renderWireSegmentList)
         
     , "Wire"
@@ -697,11 +714,15 @@ let MapToSortedList map : Wire list =
     listUnSelected @ listErrorUnselected @ listErrorSelected @ listSelected @ listWaves @ listCopied
     
 let view (model : Model) (dispatch : Dispatch<Msg>) =
-
-    let wires =
+    let start = Helpers.getTimeMs()
+    let wires1 =
         model.WX
         |> MapToSortedList
-        |> List.map
+    let rStart = Helpers.getTimeMs()
+    let wires =
+        wires1
+        |> List.toArray
+        |> Array.map
             (
                 fun wire ->
                     let stringOutId =
@@ -711,17 +732,18 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
                     let outputPortLocation = Symbol.getOnePortLocation model.Symbol stringOutId PortType.Output
                     let props =
                         {
-                            Key = wire.Id
+                            key = match wire.Id with | ConnectionId s -> s
                             Segments = wire.Segments
                             ColorP = wire.Color
                             StrokeWidthP = wire.Width
                             OutputPortLocation = outputPortLocation
                         }
-                    singleWireView props
-            )
+                    singleWireView props)
+    Helpers.instrumentInterval "WireRender" rStart ()
     let symbols = Symbol.view model.Symbol (Symbol >> dispatch)
-
+ 
     g [] [(g [] wires); symbols]
+    |> Helpers.instrumentInterval "WireView" start
 
 /// Returns a list of all the intersection coordinates between the given
 /// segment and all other segments in the model, along with the HostId and
@@ -1231,13 +1253,22 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         let newWX =
             conns 
             |> List.map ( fun conn ->
-                            (ConnectionId conn.Id),
+                            let inputId = InputPortId conn.Target.Id
+                            let outputId = OutputPortId conn.Source.Id
+                            let connId = ConnectionId conn.Id
+                            let segments =
+                                match conn.Vertices with
+                                | [] -> 
+                                    let portCoords = Symbol.getTwoPortLocations model.Symbol inputId outputId
+                                    makeInitialSegmentsList connId portCoords
+                                | _ -> verticesToSegments conn.Id conn.Vertices 
+                            connId,
                             { Id = ConnectionId conn.Id
-                              InputPort = InputPortId conn.Target.Id
-                              OutputPort = OutputPortId conn.Source.Id
+                              InputPort = inputId
+                              OutputPort = outputId
                               Color = HighLightColor.DarkSlateGrey
                               Width = 1
-                              Segments = verticesToSegments conn.Id conn.Vertices }
+                              Segments = segments}
                         )
             |> Map.ofList
         

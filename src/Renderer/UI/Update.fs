@@ -5,7 +5,7 @@ open Elmish
 open Fulma
 open Fable.React
 open Fable.React.Props
-
+open Electron
 open BusWidthInferer
 open SimulatorTypes
 open ModelType
@@ -167,6 +167,11 @@ let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) 
         let mem' = {mem with Data = mem.Data |> Map.add addr data}
         Some {comp with Type= update mem' ct}
     | _ -> compOpt
+
+let exitApp() =
+    // send message to main process to initiate window close and app shutdown
+    Electron.electron.ipcRenderer.send("exit-the-app",[||])
+   
         
 //----------------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------UPDATE-----------------------------------------------------------//
@@ -190,7 +195,24 @@ let update msg model =
     if Set.contains "update" JSHelpers.debugTraceUI then
         let msgS = (sprintf "%A..." msg) |> Seq.truncate 60 |> Seq.map (fun c -> string c) |> String.concat ""
         printfn "%d %s" sdlen msgS
+    // main message dispatch match expression
     match msg with
+
+    | ShowExitDialog ->
+        // TODO: replace this immediate exit function with a proper dialog
+        //exitApp()
+        match model.CurrentProj with
+        | Some p when model.SavedSheetIsOutOfDate ->
+            // TODO - replace with exit dialog implemented in main menu
+            //
+            exitApp()
+            {model with ExitDialog = true}, Cmd.none
+        | _ -> 
+            // exit immediately since nothing to save
+            exitApp()
+            model, Cmd.none
+            
+        
     | Sheet sMsg ->
         let sModel, sCmd = Sheet.update sMsg model.Sheet
         { model with Sheet = sModel }, Cmd.map Sheet sCmd
@@ -200,6 +222,7 @@ let update msg model =
 
     // Messages triggered by the "classic" Elmish UI (e.g. buttons and so on).
     | SetLastSavedCanvas(name,state) -> 
+        // this field is (potentially) used to determine when a new autosave is taken. Now maybe not used?
         setActivity (fun a -> {a with LastSavedCanvasState= Map.add name state a.LastSavedCanvasState}) model, Cmd.none
     | StartSimulation simData -> { model with CurrentStepSimulationStep = Some simData }, Cmd.none
     | SetWSMod wSMod -> 
@@ -397,13 +420,9 @@ let update msg model =
 //        model, Cmd.none
 //    |> checkForAutoSaveOrSelectionChanged msg
     | msg ->
-    printfn $"DEBUG: Leftover Message needs to be deleted: {msg}" // TODO
-    model, Cmd.none
-    |> (fun x ->
-            let interval =Helpers.getTimeMs() - startUpdate
-            let updateType = if interval < 50. then "" else $"%A{msg}"
-            printfn "%s" $"update: %.1f{interval} %s{updateType}"
-            x)
+        printfn $"DEBUG: Leftover Message needs to be deleted: {msg}" // TODO
+        model, Cmd.none
+    |> Helpers.instrumentInterval (Helpers.sprintInitial 20 $"Update: %A{msg}") startUpdate
 
 
 

@@ -75,20 +75,58 @@ let extractComponent (jsComponent : JSComponent) : Component =
         W           = w
     }
     
-let private sortComponents comps =
-    comps |> List.sortBy (fun comp -> comp.X + comp.Y)
 
-/// Transform the JSCanvasState into an f# data structure, with layout data removed (for checking significant changes).
+/// Transform the CanvasState into an f# data structure, with layout data removed (for checking electrically significant changes).
 /// Components and connections are sorted to make them order-invariant - selecting components alters order.
+/// This is currently not properly used because the save and autosave logic is not yet properly re-implemented
+/// after change to new draw block.
 let extractReducedState (state : CanvasState) : CanvasState =
     let (components : Component list), (connections : Connection list) = state
     let comps = 
         components
+        |> List.map (fun comp -> {comp with H=0;W=0;X=0;Y=0})
         |> List.sortBy (fun comp -> comp.Id)
                        
     let conns =                   
         connections
+        |> List.map (fun conn -> {conn with Vertices = []})
         |> List.sortBy (fun conn -> conn.Id)
-        
-    // Sort components by their location.
     comps, conns
+
+/// Are two lists of vertices identical
+let verticesAreSame (conns1:(float*float) list) (conns2: (float*float) list) =
+    let sq x = x*x
+    conns1.Length = conns2.Length &&
+    List.zip conns1 conns2
+    |> List.map (fun ((x1,y1),(x2,y2)) -> sq(x1-x2) + sq(y1-y2))
+    |> List.sum
+    |> (fun d -> d < 5.)
+
+/// Are two lists of connections identical
+let compareConns conns1 conns2 =
+    let connIdMap (conns:Connection List) =
+        conns
+        |> List.map (fun conn -> conn.Id,conn)
+        |> Map.ofList       
+    let connsMap1 = connIdMap conns1
+    let connsMap2 = connIdMap conns2
+    (connsMap1 |> Helpers.mapKeys |> Set) = (connsMap2 |> Helpers.mapKeys |> Set) &&
+    (connsMap1
+    |> Map.map (fun k conn1 -> 
+        let conn2 = connsMap2.[k]
+        verticesAreSame conn1.Vertices conn2.Vertices)
+    |> Helpers.mapValues
+    |> Array.forall id)
+
+/// Robust comparison of two schematics
+/// cannot use equality because float vertices may not be identical
+/// use to detemine whether schematic needs to be saved
+/// NB for electrical circuit comparison use extractReducedState
+let compareCanvas 
+        ((comps1,conns1):CanvasState) 
+        ((comps2,conns2):CanvasState) =
+    comps1 = comps2 &&
+    compareConns conns1 conns1
+
+
+

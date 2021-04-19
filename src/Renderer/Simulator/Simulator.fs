@@ -69,7 +69,7 @@ let rec prepareSimulation
                         ConnectionsAffected = []
                     }
                 |> Result.map (fun sd ->
-                    Fast.compareFastWithGraph sd |> ignore
+                    //Fast.compareFastWithGraph sd |> ignore
                     sd)
 
 

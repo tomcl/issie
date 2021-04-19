@@ -685,6 +685,7 @@ let private openEditorFromViewer model (editorState: WSViewT) dispatch =
         wsModel
         |> standardWaveformOrderWaveAdder // work out correct order for waveadder
         |> setEditorNextView editorState wsModel.SimParams 
+    //TODO: CHECK SHOULD THIS BE COMMENTED?
     //dispatch SetSelWavesHighlighted
     dispatch <| SetWSMod wsModel'
 

@@ -86,7 +86,7 @@ type Msg =
     | InitialiseCreateComponent of ComponentType * string // Need to initialise for drag-and-drop
     | FlushCommandStack
     | ResetModel
-    | UpdateSelectedWires of ConnectionId list
+    | UpdateSelectedWires of ConnectionId list * bool
     | ColourSelection of compIds : ComponentId list * connIds : ConnectionId list * colour : HighLightColor
 
 
@@ -204,8 +204,8 @@ type Model = {
         this.GetSelectedComponents, this.GetSelectedConnections
         
     /// Given a list of connIds, select those connections
-    member this.SelectConnections dispatch connIds =
-        dispatch <| UpdateSelectedWires connIds
+    member this.SelectConnections dispatch on connIds =
+        dispatch <| UpdateSelectedWires (connIds, on)
         
     /// Update the memory of component specified by connId at location addr with data value
     member this.WriteMemoryLine dispatch connId addr value =
@@ -862,7 +862,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             MouseCounter = 0
             LastMousePosForSnap = { X = 0.0; Y = 0.0 }    
         }, Cmd.none
-    | UpdateSelectedWires connIds -> { model with SelectedWires = connIds }, wireCmd (BusWire.SelectWires connIds)
+    | UpdateSelectedWires (connIds, on) -> 
+        let oldWires = model.SelectedWires
+        let newWires = 
+            if on then oldWires @ connIds
+            else List.filter (fun conId -> List.contains conId connIds |> not) oldWires
+
+        { model with SelectedWires = newWires}, wireCmd (BusWire.SelectWires connIds)
     | ColourSelection (compIds, connIds, colour) ->
         model,
         Cmd.batch [

@@ -509,11 +509,11 @@ let private wave2ConnIds (netGrp: NetGroup) =
 
 
 /// select or deselect the connections of a given netGrp
-let selectNetGrpConns (sheet: Sheet.Model) (netGrp: NetGroup) (dispatch: Msg -> unit) =
+let selectNetGrpConns (sheet: Sheet.Model) (netGrp: NetGroup) (on : bool) (dispatch: Msg -> unit) =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    wave2ConnIds netGrp
+    wave2ConnIds netGrp 
     |> Array.toList
-    |> sheet.SelectConnections sheetDispatch
+    |> sheet.SelectConnections sheetDispatch on
 
 let setSelNamesHighlighted (names: string array) model (dispatch: Msg -> Unit) =
     match getCurrentWSMod model with

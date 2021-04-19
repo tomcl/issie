@@ -675,7 +675,7 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
     //nlTrgtLst is not connected to any driving components
     | None -> { OutputsAndIOLabels = []; ComposingLabels = [] }
     | Some nlSource ->
-        
+        //TODO check if its ok to comment this?
         //if not (Set.contains nlSource.SourceCompId compIds) then
         //    printfn "DEBUG: In findname, if not \n nlSource = %A \n compIds = %A" nlSource compIds
         //    printfn "What? graph, net, netGrp, nltrgtList should all be consistent, compIds is deprecated"
@@ -1169,12 +1169,14 @@ let getAllNetGroups (waveSim:WaveSimModel) =
 /// In wave simulation highlight nets which are ticked on viewer or editor
 /// Nets can be highlighted or unhighlighted by clicking on nets, or tick-boxes
 let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
+    
     match currWaveSimModel model with
     | Some wSModel ->
         let netList = 
             model.LastSimulatedCanvasState
             |> Option.map Helpers.getNetList 
             |> Option.defaultValue (Map.empty)
+        
 
         let netGroups =
             match wSModel.WSViewState with 
@@ -1199,7 +1201,6 @@ let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
 /// actions triggered whenever the fileMenuView function is executed
 let fileMenuViewActions model dispatch =
     if model.ConnsOfSelectedWavesAreHighlighted then 
-        //printfn "from filemenuview"
         highlightConnectionsFromNetGroups  model dispatch
     else ()
 

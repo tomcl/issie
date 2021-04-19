@@ -121,11 +121,8 @@ let maxUsedViewerWidth (wSMod: WaveSimModel) =
 
 /// change selection of a waveform's connections
 let private changeNetGroupConnsSelect  (selFun: NetGroup -> bool) (sheet) (wSModel: WaveSimModel) name (dispatch: Msg -> unit) =
-    let netGroup =  wSModel.AllNets.[name]
-//    netGroup
-//    |> selFun
-//    |>
-    selectNetGrpConns sheet netGroup dispatch // TODO
+    let netGroup =  wSModel.AllNets.[name] 
+    selectNetGrpConns sheet netGroup (selFun netGroup) dispatch
 
 /// toggle selection of a waveform's connections
 let private toggleNetGroupConnsSelect (diagram) (wSMod: WaveSimModel) (netList:NetList) name (dispatch: Msg -> unit) =
@@ -240,7 +237,7 @@ let private waveAdderSelectAll model netList (wSMod: WaveSimModel) dispatch =
         |> Array.forall (isWaveSelected model netList) 
 
     mapValues wSMod.AllNets
-    |> Array.map (fun netGrp -> selectNetGrpConns model netGrp dispatch) 
+    |> Array.map (fun netGrp -> selectNetGrpConns model netGrp true dispatch) 
     |> ignore
 
 //////////////////////////////////////////////
@@ -754,7 +751,7 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
             |> Array.map fst
         //printfn "Starting comps = %A" (fst rState |> List.map (fun comp -> comp.Label, comp.Type))
         //SimulatorTypes.printSimGraph simData.Graph
-        Array.iter (fun ng -> selectNetGrpConns model.Sheet ng dispatch) netGroups
+        Array.iter (fun ng -> selectNetGrpConns model.Sheet ng false dispatch) netGroups
         { 
         wsModel with       
             AllNets = allPorts 

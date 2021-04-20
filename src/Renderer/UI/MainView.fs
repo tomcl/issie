@@ -228,6 +228,9 @@ let displayView model dispatch =
           Style [ BorderTop "2px solid lightgray"; BorderBottom "2px solid lightgray" ] ] [
         // transient
         FileMenuView.viewNoProjectMenu model dispatch
+        
+        FileMenuView.viewExitDialog model dispatch
+        
         PopupView.viewPopup model
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
         // main top bar function is early in compile order

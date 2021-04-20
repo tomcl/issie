@@ -19,6 +19,7 @@ open FilesIO
 open Extractor
 open PopupView
 open System
+open Electron
 
 /// Interlock to ensure we do not do two file-related operations at the same time 
 /// should really be handled by making all state-change actions go through messages and model update
@@ -704,7 +705,6 @@ let private openProject model dispatch _ =
             resolveComponentOpenPopup path [] componentsToResolve model dispatch
             traceIf "project" (fun () ->  "project successfully opened.")
 
-
 /// Display the initial Open/Create Project menu at the beginning if no project
 /// is open.
 let viewNoProjectMenu model dispatch =
@@ -716,14 +716,39 @@ let viewNoProjectMenu model dispatch =
     let initialMenu =
         Menu.menu []
             [ Menu.list []
-                  [ menuItem "New project" (newProject model dispatch) // TODO
-                    // menuItem "Open project (convert all conns to ugly, safe, form)" (openProject model dispatch) 
+                  [ menuItem "New project" (newProject model dispatch)
                     menuItem "Open project" (openProject model dispatch) ]
             ]
 
     match model.CurrentProj with
     | Some _ -> div [] []
     | None -> unclosablePopup None initialMenu None []
+
+//TODO ASK WHY WE NEED TO DO THIS _ VARIABLE FOR IT TO WORK?
+//These two functions deal with the fact that there is a type error otherwise..
+let goBackToProject model dispatch _ =
+    dispatch (SetExitDialog false)
+
+let closeApp model dispatch _ =
+    dispatch CloseApp
+
+/// Display the exit dialog
+let viewExitDialog model (dispatch : Msg -> unit) =
+    let menuItem label action =
+        Menu.Item.li
+            [ Menu.Item.IsActive false
+              Menu.Item.OnClick action ] [ str label ]
+
+    let exitMenu =
+        Menu.menu []
+            [ Menu.list []
+                  [ menuItem "Save Changes?" (goBackToProject model dispatch)
+                    menuItem "Close without saving" (closeApp model dispatch) ]
+            ]
+
+    if model.ExitDialog then unclosablePopup None exitMenu None []
+    else div [] []
+
 
 
 /// Display top menu.

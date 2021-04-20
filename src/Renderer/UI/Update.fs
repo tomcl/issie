@@ -82,7 +82,7 @@ let findChange (model : Model) : bool =
             prj.LoadedComponents
             |> List.find (fun lc -> lc.Name = prj.OpenFileName)
         printf "DEBUG in findChange \n savedCanvas: \n %A \n\n currentCanvas: \n %A" savedComponent.CanvasState (getReducedCanvState model)
-        savedComponent.CanvasState <> (getReducedCanvState model)
+        savedComponent.CanvasState <> (model.Sheet.GetCanvasState ())
     
 
 let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) =

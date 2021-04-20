@@ -791,11 +791,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                                           Moving = false
                                         }
                                         ))
-        
         let symbolList =
             compIdsWithSymbols
             |> List.map snd
-        
+
         let symbolMap =
             compIdsWithSymbols   
             |> Map.ofList
@@ -804,7 +803,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             { currModel with Ports = addToPortModel currModel sym }
             
         let newModel = ( model, symbolList ) ||> List.fold folder
-            
         { newModel with Symbols = symbolMap }, Cmd.none
  
     | WriteMemoryLine (compId, addr, value) ->

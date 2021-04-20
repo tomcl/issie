@@ -73,84 +73,17 @@ let updateTimeStamp model =
         |> List.map (fun lc -> if lc.Name = p.OpenFileName then setTimeStamp lc else lc)
         |> fun lcs -> { model with CurrentProj=Some {p with LoadedComponents = lcs}}
 
-/// Check whether current selection is identical to previous selection and 
-/// emit SelectionHasChanged if not, return model updated with new selection.
-/// Uses LastSelectedIDs, updates CurrentSelection, LasSelectedIds
-// TODO
-//let checkSelection model cmd =
-//    let extractIds (jsComps,jsConns) =
-//        let compIds = jsComps |> List.map (fun comp -> JSHelpers.getFailIfNull comp ["id"] : string)
-//        let connIds = jsConns |> List.map (fun conn -> JSHelpers.getFailIfNull conn ["id"] : string)
-//        compIds,connIds
-//    match model.Diagram.GetSelected() with
-//    | None -> model,cmd // can't do anything yet
-//    | Some newSelection ->
-//        let newSelectedIds =  extractIds newSelection
-//        if newSelectedIds = model.LastSelectedIds then
-//            //let model = 
-//            //    {model with 
-//            //        CurrentSelected = extractState newSelection; 
-//            //        LastSelectedIds = newSelectedIds}
-//            model, cmd
-//        else
-//            let model = 
-//                {model with 
-//                    CurrentSelected = extractState newSelection; 
-//                    LastSelectedIds = newSelectedIds}
-//            model, Cmd.batch [cmd; Cmd.ofMsg SelectionHasChanged]
-
-/// Check whether current message could mark a change in Diagram worth saving.
-/// If so, check whether Diagram has a significant circuit change (don't count layout).
-/// If so, do an autosave. TODO: make the autosave asynchronous
-/// similarly, check for change in selection and send message if there is one
-// TODO
-//let checkForAutoSaveOrSelectionChanged msg (model, cmd) =
-//    let simIsStale (newState:CanvasState option) (simState:CanvasState option) =
-//        match newState,simState with
-//        | None, _  -> false
-//        | Some (ncomps,nconns), Some (comps,conns) -> 
-//            Set ncomps <> Set comps || Set nconns <> Set conns
-//        | _ -> true
-//
-//    let needsAutoSave (proj: Project) (newState:CanvasState option) (state:Map<string,CanvasState>) =
-//        match newState, Map.tryFind proj.OpenFileName state with
-//        | None, _ | _, None -> 
-//            false
-//        | Some (ncomps,nconns), Some (comps,conns) -> 
-//            Set ncomps <> Set comps || Set nconns <> Set conns
-//    match msg with 
-//    | DiagramMouseEvent -> checkSelection model cmd
-//    | _ -> 
-//        if System.DateTime.Now < (model.AsyncActivity.LastAutoSaveCheck).AddSeconds 1.0 || fileProcessingBusy <> [] then
-//            model, cmd
-//        else
-//            let model,cmd = checkSelection model cmd
-//            let model = setActivity (fun a -> {a with LastAutoSaveCheck=System.DateTime.Now}) model
-//            match model.CurrentProj with
-//            | None -> 
-//                model, cmd // do nothing
-//            | Some proj ->
-//                let newReducedState = getReducedState model
-//                let update = not model.IsLoading && needsAutoSave proj newReducedState  model.AsyncActivity.LastSavedCanvasState
-//                let simUpdate = simIsStale newReducedState model.LastSimulatedCanvasState
-//                //printfn "SimUpdate=%A" simUpdate
-//                if update
-//                then
-//                    printfn "AutoSaving at '%s'" (System.DateTime.Now.ToString("mm:ss"))
-//                    {model with SavedSheetIsOutOfDate=true}
-//                    |> updateTimeStamp
-//                    |> setActivity (fun a -> {a with LastSavedCanvasState = addReducedState a proj.OpenFileName model})
-//                    |> (fun model' -> 
-//                        saveOpenFileAction true model' |> ignore
-//                        setActivity (fun a -> {a with LastAutoSave = a.LastAutoSave.Add(proj.OpenFileName,System.DateTime.Now)}) model')
-//                else
-//                    model
-//                |> setActivity (fun a ->
-//                                match update || Map.tryFind proj.OpenFileName a.LastSavedCanvasState = None with
-//                                | true -> {a with LastSavedCanvasState = addReducedState a proj.OpenFileName model}
-//                                | false -> a)
-//                |> (fun model -> changeSimulationIsStale simUpdate model, cmd)
-//
+//Finds if a change has occured
+let findChange (model : Model) : bool = 
+    match model.CurrentProj with
+    | None -> false
+    | Some prj ->
+        let savedComponent = 
+            prj.LoadedComponents
+            |> List.find (fun lc -> lc.Name = prj.OpenFileName)
+        printf "DEBUG in findChange \n savedCanvas: \n %A \n\n currentCanvas: \n %A" savedComponent.CanvasState (getReducedCanvState model)
+        savedComponent.CanvasState <> (getReducedCanvState model)
+    
 
 let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) =
     match compOpt with
@@ -210,7 +143,8 @@ let update msg model =
         {model with ExitDialog = status}, Cmd.none
     | Sheet sMsg ->
         let sModel, sCmd = Sheet.update sMsg model.Sheet
-        { model with Sheet = sModel; SavedSheetIsOutOfDate = true }, Cmd.map Sheet sCmd //SavedSheetIsOutOfDate for testing, TODO check for differences
+        let newModel = { model with Sheet = sModel} 
+        {newModel with SavedSheetIsOutOfDate = findChange newModel}, Cmd.map Sheet sCmd 
     // special mesages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none
     | SetViewerWidth w -> {model with WaveSimViewerWidth = w}, Cmd.none

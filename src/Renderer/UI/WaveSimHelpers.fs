@@ -778,7 +778,7 @@ let private bitLimsString (a, b) =
 let netGroup2Label compIds graph netList (netGrp: NetGroup) =
     let start = getTimeMs()
     let waveLbl = findName compIds graph netList netGrp netGrp.driverNet
-    printfn "Finding label for %A\n%A\n\n" netGrp.driverComp.Label waveLbl.OutputsAndIOLabels
+    //printfn "Finding label for %A\n%A\n\n" netGrp.driverComp.Label waveLbl.OutputsAndIOLabels
     let tl =
         match waveLbl.ComposingLabels with
         | [ el ] -> el.LabName + bitLimsString el.BitLimits

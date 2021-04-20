@@ -858,7 +858,9 @@ let viewWaveSim (model: Model) dispatch =
         let netList = Helpers.getNetList  <| Option.defaultValue ([],[]) model.LastSimulatedCanvasState
         match wSModel.WSViewState, wSModel.WSTransition with
         | WSEditorOpen, _ -> // display waveAdder if simulation has not finished and adder is open
-            waveEditorView  model netList wSModel dispatch      
+            let start = Helpers.getTimeMs()
+            waveEditorView  model netList wSModel dispatch  
+            |> Helpers.instrumentInterval "Wave Editor open" start
         | WSViewerOpen, _  ->         // otherwise display waveforms 
             waveformsView compIds model netList wSModel dispatch  
         | _, prog  -> 

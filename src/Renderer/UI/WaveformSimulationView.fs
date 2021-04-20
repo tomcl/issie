@@ -690,6 +690,9 @@ let private openEditorFromViewer model (editorState: WSViewT) dispatch =
 /// Sets data persistent over editor open and close.
 /// Sets WaveSim to have editor open
 let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (dispatch: Msg -> unit) _ev =
+    let comps,conns = model.Sheet.GetCanvasState()
+    let compIds = comps |> List.map (fun c -> ComponentId c.Id) |> Set
+    let rState = Extractor.extractReducedState (comps,conns)
     /// subfunction to generate popup over waveeditor screen if there are undriven input connections
     let inputWarningPopup (simData:SimulatorTypes.SimulationData) dispatch =
         if simData.Inputs <> [] then
@@ -703,6 +706,20 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
     let startingWsModel =
         let modelWithWaveSimSheet = {model with WaveSimSheet = Option.get (getCurrFile model)}
         let wsModel = getWSModelOrFail modelWithWaveSimSheet "What? Can't get wsModel at start of new simulation"
+        let okCompNum = (Set.intersect compIds (simData.Graph |> mapKeys |> Set)).Count
+        let simCompNum = simData.Graph.Count
+        printfn 
+            "DEBUG: sheet=%s, modelSheet=%s, okNum = %d, wavesim num = %d drawNum=%d"
+            modelWithWaveSimSheet.WaveSimSheet 
+            model.WaveSimSheet
+            okCompNum
+            simCompNum
+            compIds.Count
+        printfn
+            "DEBUG: simComps=%A\n\ndrawcomps=%A\n\n"  
+            (simData.Graph |> mapValues |> Array.map (fun c -> c.Label) |> Array.sort)
+            (model.Sheet.GetCanvasState() |> fst |> List.map (fun c -> c.Label) |> List.sort)
+
         /// NetList is a simplified version of circuit with connections and layout info removed.
         /// Component ports are connected directly
         /// connection ids are preserved so we can reference connections on diagram
@@ -723,11 +740,13 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
         /// TODO: make sure suffixes are uniquely defines based on component ids (which will not change)
         /// display then in wave windows where needed to disambiguate waveforms.        
         /// Allports is the single reference throughout simulation of a circuit that associates names with netgroups
+
         let allPorts = 
             netGroups 
-            |> Array.mapi (fun i ng -> sprintf  "%s.%d" (nameOf ng) i, ng) // add numeric suffix
+            |> Array.mapi (fun i ng -> sprintf  "%s!%d" (nameOf ng) i, ng) // add numeric suffix
             |> Map.ofArray
         let allNames = mapKeys allPorts
+      
         /// DispNames are a subset of Allnames - the ones currently displayed in the wave viewer
         /// The filters here are needed because DispNames are preserved with a circuit as it is modified, 
         /// but some of the preserved names may no longer exist.
@@ -739,7 +758,9 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
             let pairWithRoot name = name, removeSuffixFromWaveLabel name
             let allRoots = 
                 allNames
-                |> Array.map pairWithRoot
+                |> Array.groupBy removeSuffixFromWaveLabel
+                |> Array.filter (fun (g,lst) -> lst.Length = 1)
+                |> Array.map (function | (root,[|name|]) -> name,root | _ -> failwithf "What?")
             wsModel.SimParams.DispNames
             |> Array.map pairWithRoot
             |> Array.filter (fun (name,root) -> Array.exists (fun (name',root') -> root' = root) allRoots)

@@ -350,7 +350,12 @@ let update msg model =
     | msg ->
         //printfn $"DEBUG: Leftover Message needs to be deleted: {msg}" // TODO
         model, Cmd.none
-    |> Helpers.instrumentInterval (Helpers.sprintInitial 20 $"Update: %A{msg}") startUpdate
+    |> Helpers.instrumentInterval (
+        let name =
+            match msg with 
+            | SetWSMod _ -> $"U(SetWSMod)"
+            | _ -> $"U(%.10A{msg})"
+        Helpers.sprintInitial 20 name)  startUpdate
 
 
 

@@ -167,12 +167,11 @@ let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) 
         let mem' = {mem with Data = mem.Data |> Map.add addr data}
         Some {comp with Type= update mem' ct}
     | _ -> compOpt
-
+   
 let exitApp() =
     // send message to main process to initiate window close and app shutdown
     Electron.electron.ipcRenderer.send("exit-the-app",[||])
-   
-        
+
 //----------------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------UPDATE-----------------------------------------------------------//
 //----------------------------------------------------------------------------------------------------------------//
@@ -197,25 +196,21 @@ let update msg model =
         printfn "%d %s" sdlen msgS
     // main message dispatch match expression
     match msg with
-
     | ShowExitDialog ->
-        // TODO: replace this immediate exit function with a proper dialog
-        //exitApp()
         match model.CurrentProj with
         | Some p when model.SavedSheetIsOutOfDate ->
-            // TODO - replace with exit dialog implemented in main menu
-            //
-            exitApp()
             {model with ExitDialog = true}, Cmd.none
-        | _ -> 
-            // exit immediately since nothing to save
+        | _ -> // exit immediately since nothing to save
             exitApp()
             model, Cmd.none
-            
-        
+    | CloseApp ->
+        exitApp()
+        model, Cmd.none
+    | SetExitDialog status ->
+        {model with ExitDialog = status}, Cmd.none
     | Sheet sMsg ->
         let sModel, sCmd = Sheet.update sMsg model.Sheet
-        { model with Sheet = sModel }, Cmd.map Sheet sCmd
+        { model with Sheet = sModel; SavedSheetIsOutOfDate = true }, Cmd.map Sheet sCmd //SavedSheetIsOutOfDate for testing, TODO check for differences
     // special mesages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none
     | SetViewerWidth w -> {model with WaveSimViewerWidth = w}, Cmd.none
@@ -412,7 +407,6 @@ let update msg model =
     | ReleaseFileActivity a ->
         releaseFileActivityImplementation a
         model, Cmd.none
-
 //    // post-update check always done which deals with regular tasks like updating connections and 
 //    // auto-saving files
 //    | SetRouterInteractive isInteractive ->

@@ -742,7 +742,7 @@ let viewExitDialog model (dispatch : Msg -> unit) =
     let exitMenu =
         Menu.menu []
             [ Menu.list []
-                  [ menuItem "Save Changes?" (goBackToProject model dispatch)
+                  [ menuItem "You have unsaved changes, go back to project?" (goBackToProject model dispatch)
                     menuItem "Close without saving" (closeApp model dispatch) ]
             ]
 

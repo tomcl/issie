@@ -728,7 +728,7 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
         /// on the schematic into a single NetGroup
         /// Wave simulation allows every distinct NetGroup to be named and displayed
         let netGroups = netList2NetGroups netList
-        /// work out a good human readable name for a Netgroup. Normally this is the label of the driver of the NetgGroup.
+        /// work out a good human readable name for a Netgroup. Normally this is the label of the driver of the NetGroup.
         /// Merge and Split and BusSelection components (as drivers) are removed,
         /// replaced by corresponding selectors on busses. Names are tagged with labels or IO connectors
         /// It is easy to change these names to make them more human readable.
@@ -743,6 +743,7 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
 
         let allPorts = 
             netGroups 
+            |> Array.sortBy (fun ng -> ng.driverComp.Id)
             |> Array.mapi (fun i ng -> sprintf  "%s!%d" (nameOf ng) i, ng) // add numeric suffix
             |> Map.ofArray
         let allNames = mapKeys allPorts

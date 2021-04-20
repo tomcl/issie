@@ -81,7 +81,7 @@ let findChange (model : Model) : bool =
         let savedComponent = 
             prj.LoadedComponents
             |> List.find (fun lc -> lc.Name = prj.OpenFileName)
-        printf "DEBUG in findChange \n savedCanvas: \n %A \n\n currentCanvas: \n %A" savedComponent.CanvasState (getReducedCanvState model)
+        //printf "DEBUG in findChange \n savedCanvas: \n %A \n\n currentCanvas: \n %A" savedComponent.CanvasState (getReducedCanvState model)
         savedComponent.CanvasState <> (model.Sheet.GetCanvasState ())
     
 
@@ -348,7 +348,7 @@ let update msg model =
 //        model, Cmd.none
 //    |> checkForAutoSaveOrSelectionChanged msg
     | msg ->
-        printfn $"DEBUG: Leftover Message needs to be deleted: {msg}" // TODO
+        //printfn $"DEBUG: Leftover Message needs to be deleted: {msg}" // TODO
         model, Cmd.none
     |> Helpers.instrumentInterval (Helpers.sprintInitial 20 $"Update: %A{msg}") startUpdate
 

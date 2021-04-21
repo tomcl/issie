@@ -353,7 +353,12 @@ let update msg model =
     |> Helpers.instrumentInterval (
         let name =
             match msg with 
-            | SetWSMod _ -> $"U(SetWSMod)"
+            | SetWSMod _ -> "U(SetWSMod)"
+            | SetWaveSimModel _ -> "U(SetWaveSimModel)"
+            | SetWSModAndSheet _ -> "U(SetWsModAndSheet)"
+            | StartSimulation _ -> "U(StartSimulation)"
+            | SetSimulationGraph _ -> "U(SetSimulationGraph)"
+            | SetPopupMemoryEditorData _ -> "U(SetPopupmemoryEditorData)"
             | _ -> $"U(%.10A{msg})"
         Helpers.sprintInitial 20 name)  startUpdate
 

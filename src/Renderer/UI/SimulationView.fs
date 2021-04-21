@@ -161,7 +161,7 @@ let private viewSimulationInputs
     let simulationGraph = simulationData.Graph
     let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel, width), wireData) =
         assertThat (List.length wireData = width)
-        <| sprintf "Inconsistent wireData length in viewSimulationInput for %s: expcted %d but got %d" inputLabel width wireData.Length
+        <| sprintf "Inconsistent wireData length in viewSimulationInput for %s: expected %d but got %A" inputLabel width wireData.Length
         let valueHandle =
             match wireData with
             | [] -> failwith "what? Empty wireData while creating a line in simulation inputs."

@@ -405,7 +405,7 @@ let aggregate(printInterval: float ) =
 
 /// Parameter that controls how recorded times are processed.                     
 let mutable instrumentation: InstrumentationControl = 
-    aggregate 2000. // for aggregate printing
+    aggregate 10000. // for aggregate printing
     // immediate 2. 2. // for immediate printing
     // Off // for no printing
 

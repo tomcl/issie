@@ -354,13 +354,15 @@ let update msg model =
         let name =
             match msg with 
             | SetWSMod _ -> "U(SetWSMod)"
+            | Sheet( Sheet.Msg.Wire (BusWire.Msg.Symbol _ )) -> "U(Sheet(Wire(Symbol)))"
+            | Sheet (Sheet.Msg.Wire (BusWire.UpdateWires _)) -> "U(Sheet(Wire(UpdateWires)))"
             | SetWaveSimModel _ -> "U(SetWaveSimModel)"
             | SetWSModAndSheet _ -> "U(SetWsModAndSheet)"
             | StartSimulation _ -> "U(StartSimulation)"
             | SetSimulationGraph _ -> "U(SetSimulationGraph)"
             | SetPopupMemoryEditorData _ -> "U(SetPopupmemoryEditorData)"
-            | _ -> $"U(%.10A{msg})"
-        Helpers.sprintInitial 20 name)  startUpdate
+            | _ -> $"U(%.20A{msg})"
+        Helpers.sprintInitial 30 name)  startUpdate
 
 
 

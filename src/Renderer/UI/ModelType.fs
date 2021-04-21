@@ -315,7 +315,6 @@ type Msg =
     | SetRouterInteractive of bool
     | CloseApp
     | SetExitDialog of bool
-    | ExecutePendingMessages of int
 
 
 //================================//
@@ -412,8 +411,6 @@ type Model = {
     ConnsOfSelectedWavesAreHighlighted: bool
     /// true if wavesim scroll position needs checking
     CheckWaveformScrollPosition: bool
-    /// Contains a list of pending messages
-    Pending: Msg list
 } with
  
     override this.GetHashCode() =

@@ -96,7 +96,6 @@ let init() = {
     SimulationInProgress = None
     ConnsOfSelectedWavesAreHighlighted= false
     CheckWaveformScrollPosition = false
-    Pending = []
 }
 
 

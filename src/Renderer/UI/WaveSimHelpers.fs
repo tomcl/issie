@@ -677,12 +677,12 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
     | None -> { OutputsAndIOLabels = []; ComposingLabels = [] }
     | Some nlSource ->
         //TODO check if its ok to comment this?
-        //if not (Set.contains nlSource.SourceCompId compIds) then
-        //    printfn "DEBUG: In findname, if not \n nlSource = %A \n compIds = %A" nlSource compIds
-        //    printfn "What? graph, net, netGrp, nltrgtList should all be consistent, compIds is deprecated"
-        //    // component is no longer in circuit due to changes
-        //    { OutputsAndIOLabels = []; ComposingLabels = [] }
-        //else   
+        if not (Set.contains nlSource.SourceCompId compIds) then
+            // printfn "DEBUG: In findname, if not \n nlSource = %A \n compIds = %A" nlSource compIds
+            // printfn "What? graph, net, netGrp, nltrgtList should all be consistent, compIds is deprecated"
+            // component is no longer in circuit due to changes
+            { OutputsAndIOLabels = []; ComposingLabels = [] }
+        else   
             let compLbl = labelNoParenthesis net nlSource.SourceCompId
             let outPortInt = outPortInt2int nlSource.OutputPort
             let drivingOutputName inPortN =
@@ -776,7 +776,9 @@ let private bitLimsString (a, b) =
 
 /// get the label of a waveform
 let netGroup2Label compIds graph netList (netGrp: NetGroup) =
+    let start = getTimeMs()
     let waveLbl = findName compIds graph netList netGrp netGrp.driverNet
+    //printfn "Finding label for %A\n%A\n\n" netGrp.driverComp.Label waveLbl.OutputsAndIOLabels
     let tl =
         match waveLbl.ComposingLabels with
         | [ el ] -> el.LabName + bitLimsString el.BitLimits
@@ -792,6 +794,7 @@ let netGroup2Label compIds graph netList (netGrp: NetGroup) =
         List.fold appendName "" hdLbls
         |> (fun hd -> hd.[0..String.length hd - 3] + " : " + tl)
     |> simplifyName
+    |> instrumentInterval "netGroup2Label" start
 
 /// findName will possibly not generate unique names for each netgroup
 /// Names are defined via waveSimModel.AllPorts which adds to each name
@@ -803,8 +806,8 @@ let removeSuffixFromWaveLabel (label:string)  =
     label
     |> Seq.toList
     |> List.rev
-    |> List.skipWhile (fun ch -> ch <> '.')
-    |> (function | '.' :: rest -> rest | chars -> chars)
+    |> List.skipWhile (fun ch -> ch <> '!')
+    |> (function | '!' :: rest -> rest | chars -> chars)
     |> List.rev
     |> List.map string
     |> String.concat ""

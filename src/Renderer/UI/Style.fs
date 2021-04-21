@@ -122,6 +122,7 @@ let canvasSmallButtonStyle = Style [
 let notificationStyle = Style [
     ZIndex 100 // In front of everything.
     Position PositionOptions.Absolute
+    UserSelect UserSelectOptions.None
     Right "20px"
     Bottom "20px"
 ]

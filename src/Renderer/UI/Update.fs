@@ -158,7 +158,6 @@ let update (msg : Msg) model =
 
     //Add any message recieved to the pending message queue
     let model = {model with Pending = msg :: model.Pending}
-    printf "DEBUG in update \n\n New model: \n %A" model.Pending
 
     //Check if the current message is stored as pending, if so execute all pending messages currently in the queue
     let cmd = 
@@ -188,7 +187,7 @@ let update (msg : Msg) model =
     | Sheet sMsg ->
         let sModel, sCmd = Sheet.update sMsg model.Sheet
         let newModel = { model with Sheet = sModel} 
-        {newModel with SavedSheetIsOutOfDate = findChange newModel}, Cmd.map Sheet sCmd 
+        {newModel with SavedSheetIsOutOfDate = findChange newModel}, Cmd.batch[cmd; Cmd.map Sheet sCmd] //TODO - just testing the Cmd here for now as just with drag operations
     // special mesages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none
     | SetViewerWidth w -> {model with WaveSimViewerWidth = w}, Cmd.none
@@ -392,6 +391,7 @@ let update (msg : Msg) model =
 //        model, Cmd.none
 //    |> checkForAutoSaveOrSelectionChanged msg
     | ExecutePendingMessages n ->
+        printf "DEBUG: in ExecutePendingMessages"
         if n = List.length model.Pending 
         //get the last mouse msg for better performance
         then 

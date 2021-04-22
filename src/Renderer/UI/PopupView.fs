@@ -438,7 +438,7 @@ let viewInfoPopup dispatch =
         makeH "Acknowledgments"
         str "ISSIE was created by Marco Selvatici (EIE 3rd year) as his BEng final year project. The waveform viewer was created \
              by Edoardo Santi (EEE 3rd year) during Summer UROP work. The new schematic editor was written as 2021 coursework by HLP students in EEE, \
-             and particularly Team 4. The new editor was integrated and the application enhanced by Jo Merrick (EIE 3rd year) for her BEng \
+             and particularly Team 4. The new editor was integrated and the application enhanced by Jo Merrick (EIE 3rd year) for her BEng final year project. \
              project."
         br []; br []
         makeH "Introduction"

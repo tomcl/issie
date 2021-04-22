@@ -73,15 +73,15 @@ let updateTimeStamp model =
         |> List.map (fun lc -> if lc.Name = p.OpenFileName then setTimeStamp lc else lc)
         |> fun lcs -> { model with CurrentProj=Some {p with LoadedComponents = lcs}}
 
-//Finds if a change has occured
+//Finds if the current canvas is different from the saved canvas
 let findChange (model : Model) : bool = 
     match model.CurrentProj with
     | None -> false
     | Some prj ->
+        //For better efficiency just check if the save button
         let savedComponent = 
             prj.LoadedComponents
             |> List.find (fun lc -> lc.Name = prj.OpenFileName)
-        //printf "DEBUG in findChange \n savedCanvas: \n %A \n\n currentCanvas: \n %A" savedComponent.CanvasState (getReducedCanvState model)
         savedComponent.CanvasState <> (model.Sheet.GetCanvasState ())
     
 
@@ -105,13 +105,39 @@ let exitApp() =
     // send message to main process to initiate window close and app shutdown
     Electron.electron.ipcRenderer.send("exit-the-app",[||])
 
+///Tests physical equality on two objects
+///Used because Msg type does not support structural equality
+let isSameMsg = LanguagePrimitives.PhysicalEquality 
+
+///Used to filter only drag messages for now, is there a better way to do this?
+let matchMouseMsg (msg : Msg) : bool =
+    match msg with
+    | Sheet sMsg ->
+        match sMsg with
+        | Sheet.MouseMsg mMsg ->
+            match mMsg.Op with
+            | EEEHelpers.Drag -> true
+            | _ -> false
+        | _ -> false
+    | _ -> false
+
+///Returns None if no mouse drag message found, returns Some (lastMouseMsg, msgQueueWithoutMouseMsgs) if a drag message was found
+let getLastMouseMsg msgQueue =
+    msgQueue
+    |> List.filter matchMouseMsg
+    |> function
+    | [] -> None
+    | lst -> Some (lst.Head, List.filter (matchMouseMsg >> not) msgQueue) //First item in the list was the last to be added (most recent)
+
+
 //----------------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------UPDATE-----------------------------------------------------------//
 //----------------------------------------------------------------------------------------------------------------//
 
 /// Main MVU model update function
-let update msg model =
+let update (msg : Msg) model =
     let startUpdate = Helpers.getTimeMs()
+    printf "DEBUG in update \n\n Original model: \n %A" model.Pending
     // number of top-level components in graph
     // mostly, we only operate on top-level components
     let getGraphSize g =
@@ -130,11 +156,18 @@ let update msg model =
     
     //TODO
     ////Check if the current message is stored as pending, if so execute all pending messages currently in the queue
-    //let msg = 
-    //    if List.contains msg model.Pending then ExecutePendingMessages (List.length model.Pending)
-    //    else msg
-    ////Add any message to the pending message queue
-    //let model = {model with Pending = msg :: model.Pending}
+    let msg = 
+        List.tryFind (fun x -> isSameMsg x msg) model.Pending 
+        |> function
+        | Some _ -> 
+            printf "DEBUG in update: Some entered"
+            ExecutePendingMessages (List.length model.Pending)
+        | None -> 
+            printf "DEBUG in update: None entered"
+            msg
+    //Add any message to the pending message queue
+    let model = {model with Pending = msg :: model.Pending}
+    printf "DEBUG in update \n\n New model: \n %A" model.Pending
     // main message dispatch match expression
     match msg with
     | ShowExitDialog ->
@@ -355,6 +388,25 @@ let update msg model =
 //        model.Diagram.SetRouterInteractive isInteractive
 //        model, Cmd.none
 //    |> checkForAutoSaveOrSelectionChanged msg
+    | ExecutePendingMessages n ->
+        if n = List.length model.Pending 
+        //get the last mouse msg for better performance
+        then 
+            getLastMouseMsg model.Pending
+            |> function
+            | None -> 
+                //need to execute messages in reverse order as they get prepended
+                let nextMsg = 
+                    model.Pending
+                    |> List.rev
+                    |> List.head
+
+                {model with Pending = List.tail model.Pending}, Cmd.ofMsg nextMsg
+
+            | Some (mMsg, msgQueue) -> {model with Pending = msgQueue}, Cmd.ofMsg mMsg
+        
+        //ignore the exectue message
+        else model, Cmd.none
     | msg ->
         //printfn $"DEBUG: Leftover Message needs to be deleted: {msg}" // TODO
         model, Cmd.none

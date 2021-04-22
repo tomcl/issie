@@ -155,19 +155,22 @@ let update (msg : Msg) model =
         printfn "%d %s" sdlen msgS
     
     //TODO
-    ////Check if the current message is stored as pending, if so execute all pending messages currently in the queue
-    let msg = 
+
+    //Add any message recieved to the pending message queue
+    let model = {model with Pending = msg :: model.Pending}
+    printf "DEBUG in update \n\n New model: \n %A" model.Pending
+
+    //Check if the current message is stored as pending, if so execute all pending messages currently in the queue
+    let cmd = 
         List.tryFind (fun x -> isSameMsg x msg) model.Pending 
         |> function
         | Some _ -> 
             printf "DEBUG in update: Some entered"
-            ExecutePendingMessages (List.length model.Pending)
+            Cmd.ofMsg (ExecutePendingMessages (List.length model.Pending))
         | None -> 
             printf "DEBUG in update: None entered"
-            msg
-    //Add any message to the pending message queue
-    let model = {model with Pending = msg :: model.Pending}
-    printf "DEBUG in update \n\n New model: \n %A" model.Pending
+            Cmd.none   
+    
     // main message dispatch match expression
     match msg with
     | ShowExitDialog ->

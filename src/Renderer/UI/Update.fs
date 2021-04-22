@@ -127,6 +127,14 @@ let update msg model =
     if Set.contains "update" JSHelpers.debugTraceUI then
         let msgS = (sprintf "%A..." msg) |> Seq.truncate 60 |> Seq.map (fun c -> string c) |> String.concat ""
         printfn "%d %s" sdlen msgS
+    
+    //TODO
+    ////Check if the current message is stored as pending, if so execute all pending messages currently in the queue
+    //let msg = 
+    //    if List.contains msg model.Pending then ExecutePendingMessages (List.length model.Pending)
+    //    else msg
+    ////Add any message to the pending message queue
+    //let model = {model with Pending = msg :: model.Pending}
     // main message dispatch match expression
     match msg with
     | ShowExitDialog ->

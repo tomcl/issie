@@ -116,10 +116,11 @@ let getMemoryEditor (dialogData : PopupDialogData) =
 
 /// Unclosable popup.
 let unclosablePopup maybeTitle body maybeFoot extraStyle =
+    let propStyle extraStyle  = Props [Style (UserSelect UserSelectOptions.None :: extraStyle)]
     let head =
         match maybeTitle with
         | None -> div [] []
-        | Some title -> Modal.Card.head [] [ Modal.Card.title [] [ str title ] ]
+        | Some title -> Modal.Card.head [propStyle []] [ Modal.Card.title [] [ str title ] ]
     let foot =
         match maybeFoot with
         | None -> div [] []
@@ -143,7 +144,7 @@ let private buildPopup title body foot close extraStyle =
     fun (dialogData : PopupDialogData) ->
         Modal.modal [ Modal.IsActive true; Modal.CustomClass "modal1"] [
             Modal.background [ Props [ OnClick close ]] []
-            Modal.Card.card [ Props [Style extraStyle] ] [
+            Modal.Card.card [ Props [Style (UserSelect UserSelectOptions.None :: extraStyle)] ] [
                 Modal.Card.head [] [
                     Modal.Card.title [] [ str title ]
                     Delete.delete [ Delete.OnClick close ] []
@@ -435,7 +436,10 @@ let viewInfoPopup dispatch =
         str Version.VersionString
         br []; br []
         makeH "Acknowledgments"
-        str "ISSIE was created by Marco Selvatici (EIE 3rd year) as his BEng final year project. The waveform viewer was created by Edoardo Santi (EEE 3rd year) during Summer UROP work."
+        str "ISSIE was created by Marco Selvatici (EIE 3rd year) as his BEng final year project. The waveform viewer was created \
+             by Edoardo Santi (EEE 3rd year) during Summer UROP work. The new schematic editor was written as 2021 coursework by HLP students in EEE, \
+             and particularly Team 4. The new editor was integrated and the application enhanced by Jo Merrick (EIE 3rd year) for her BEng \
+             project."
         br []; br []
         makeH "Introduction"
     
@@ -446,10 +450,10 @@ let viewInfoPopup dispatch =
         str "The Simulation Tab is used mainly for combinational logic and simple clocked logic: \
         the top 'Waveforms >>' button works with clocked circuits and displays waveforms." 
         br[]; br[];
-        str "In Issie all clocked components use the same clock signal. \
+        str "In Issie all clocked components use the same clock signal Clk. \
         Clk connections are not shown: all clk ports are
         automatically connected together. In the waveforms active clock edges are indicated \
-        by verticals line through all the waveforms that separate clock cycles. The clock is not shown."
+        by vertical line through all the waveforms that separate clock cycles. The clock is not shown."
         br[]  ; br[];  
         button [OnClick <| openInBrowser "https://github.com/tomcl/ISSIE"] [ str "See the Issie Github Repo for more information"]
         br[] ; br[]
@@ -460,7 +464,7 @@ let viewInfoPopup dispatch =
             li [] [str "Copy selected diagram items: Ctrl + C"]
             li [] [str "Paste diagram items: Ctrl + V"]
             li [] [str "Undo last diagram action: Ctrl + Z"]
-            li [] [str "Redo last diagram action: Ctrl + V"]
+            li [] [str "Redo last diagram action: Ctrl + Y"]
             li [] [str "Zoom application in: Ctrl + Shift + ="]
             li [] [str "Zoom application out: Ctrl + Shift + -"]
             li [] [str "Zoom canvas in: Shift + ="]

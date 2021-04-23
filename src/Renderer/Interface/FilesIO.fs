@@ -15,6 +15,7 @@ open Fable.Import
 open Electron
 open Node
 open EEExtensions
+open Fable.SimpleJson
 
 
 
@@ -89,8 +90,54 @@ let private tryLoadStateFromPath (filePath: string) =
             | Error msg  -> Error <| sprintf "could not convert file '%s' to a valid issie design sheet. Details: %s" filePath msg
             | Ok res -> Ok res)
 
+let makeData aWidth dWidth makeFun =
+    let a = aWidth / 2
+    let inp = [|0..a - 1|]
+    Array.allPairs inp inp
+    |> Array.map (fun (x,y) -> int64 ((x <<< a) + y), int64 (makeFun x y))
+    |> Map.ofArray
 
 
+
+let makeFixedROM addr data mem =
+    match mem.Init, addr, data with
+    | UnsignedMultiplier, a, d when d = a * 2 ->
+        Ok <| makeData a d (fun (x:int) (y:int) -> (x * y) % (1 <<< d))
+    | UnsignedMultiplier, a, d when d = a * 2 ->
+        Ok <| makeData a d (fun (x:int) (y:int) -> (x * y) % (1 <<< d))
+    | FromData,_, _ -> Ok mem.Data
+    | _ -> Error $"Can't make a fixed ROM component of type '{mem.Init}' and addressWidth={addr*2} and dataWidth={data}"
+
+
+let jsonStringToMem (jsonString : string) =
+     Json.tryParseAs<Map<int64,int64>> jsonString
+
+
+let InitialiseMem (mem: Memory1) (projectPath:string) =
+    let memResult =
+        match mem.Init with
+        | UnsignedMultiplier
+        | SignedMultiplier ->
+            if mem.AddressWidth > 16 then
+                Error "Can't implement fixed multiplier ROM of greater size than 8X8"
+            elif mem.AddressWidth % 2 <> 0 then
+                Error "Can't implement fixed multiplier ROM with odd number of address bits"
+            else                    
+                makeFixedROM (mem.AddressWidth / 2) mem.WordWidth mem
+        | FromData -> 
+            Ok mem.Data
+                    
+        | FromFile name -> 
+            let path = pathJoin [|projectPath; name + ".ram"|]
+            if not (fs.existsSync (U2.Case1 path)) then
+                Error <| sprintf "Can't read file from %s because it does not seem to exist!" path      
+            else
+                fs.readFileSync(path, "utf8")
+                |> jsonStringToMem
+    memResult
+    |> Result.map (fun data -> {mem with Data = data})
+            
+   
 
 /// Extract the labels and bus widths of the inputs and outputs nodes.
 let parseDiagramSignature canvasState
@@ -271,22 +318,42 @@ let magnifySheet magnification (comp: Component) =
     }
 
 
- 
+/// Update from old component types to new
+/// The standard way to add functionality to an existing component is to create a new
+/// component type, keeping the old type. Then on reading sheets from disk both new and old
+/// will be correctly read. This function will be called on load and will convert from the old
+/// type to the new one so that the rest of issie need only process new types, but compatibility
+/// with saved old types remains.
+let getLatestComp (comp: Component) =
+    let updateMem (mem:Memory) : Memory1 =
+        {
+            Init = FromData
+            Data = mem.Data
+            AddressWidth = mem.AddressWidth
+            WordWidth = mem.WordWidth
+        }
+    match comp.Type with
+    | RAM mem -> {comp with Type = RAM1 (updateMem mem)}
+    | ROM mem -> {comp with Type = ROM1 (updateMem mem)}
+    | AsyncROM mem -> { comp with Type = AsyncROM1 (updateMem mem)}
+    | _ -> comp
 
 /// Interface function that can read old-style circuits (without wire vertices)
 /// as well as new circuits with vertices. Old circuits have an expansion parameter
 /// since new symbols are larger (in units) than old ones.
 let getLatestCanvas state =
-    let oldCircuitMagnification = 1.5
+    let oldCircuitMagnification = 1.25
     let stripConns canvas =
         let (comps,conns) = canvas
         let noVertexConns = List.map stripVertices conns
         let expandedComps = List.map (magnifySheet oldCircuitMagnification) comps
         expandedComps, noVertexConns
-    match state  with
-    | CanvasOnly canvas -> stripConns canvas
-    | CanvasWithFileWaveInfo(canvas, _, _) -> stripConns canvas
-    | CanvasWithFileWaveInfoAndNewConns(canvas, _, _) -> canvas
+    let comps,conns =
+        match state  with
+        | CanvasOnly canvas -> stripConns canvas
+        | CanvasWithFileWaveInfo(canvas, _, _) -> stripConns canvas
+        | CanvasWithFileWaveInfoAndNewConns(canvas, _, _) -> canvas
+    List.map getLatestComp comps, conns
 
 
 /// load a component from its canvas and other elements

@@ -55,7 +55,22 @@ let private intFormFieldNoMin name defaultValue onChange =
         ]
     ]
 
-let private makeMemoryInfo descr mem compId model dispatch =
+
+
+let getInitSource (mem: Memory1) =
+    let a = mem.AddressWidth
+    match mem.Init with
+    | SignedMultiplier -> 
+        $"Dout = (signed) addr({a-1}:{a/2}) * addr({a/2-1}:0)"
+    | UnsignedMultiplier ->
+        $"Dout = (unsigned) addr({a-1}:{a/2}) * addr({a/2-1}:0)"
+    | FromData ->
+        "See Memory Viewer"
+    | FromFile name | ToFile name | ToFileBadName name ->
+        $"From '{name}.ram' file"
+   
+
+let private makeMemoryInfo descr mem compId cType model dispatch =
     div [] [
         str descr
         br []; br []
@@ -64,6 +79,15 @@ let private makeMemoryInfo descr mem compId model dispatch =
         str <| sprintf "Number of elements: %d" (1UL <<< mem.AddressWidth)
         br []
         str <| sprintf "Word width: %d bit(s)" mem.WordWidth
+        br []
+        str <| sprintf "%sData: %s"  
+                (match cType with 
+                 | RAM1 _ -> "Initial "
+                 | ROM1 _ | AsyncROM1 _ -> ""
+                 | _ -> failwithf $"What - wrong component type ({cType} here")
+                (getInitSource mem)
+        br []
+        //makeSourceMenu model (Option.get model.CurrentProj) mem dispatch
         br []; br []
         Button.button [
             Button.Color IsPrimary
@@ -162,6 +186,8 @@ let private makeLsbBitNumberField model (comp:Component) dispatch =
 
 let private makeDescription (comp:Component) model dispatch =
     match comp.Type with
+    | ROM _ | RAM _ | AsyncROM _ -> 
+        failwithf "What? Legacy RAM component types should never occur"
     | Input _ -> str "Input."
     | Constant _ -> str "Constant Wire."
     | Output _ -> str "Output."
@@ -215,13 +241,13 @@ let private makeDescription (comp:Component) model dispatch =
                       state of the Register will be updated at the next clock
                       cycle. The component is implicitly connected to the global
                       clock." ]
-    | AsyncROM mem ->
+    | AsyncROM1 mem ->
         let descr = "Asynchronous ROM: the output is updated as soon as the address changes."
-        makeMemoryInfo descr mem (ComponentId comp.Id) model dispatch
-    | ROM mem ->
+        makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
+    | ROM1 mem ->
         let descr = "Synchronous ROM: the output is updated only after a clock tick. The component is implicitly connected to the global clock."
-        makeMemoryInfo descr mem (ComponentId comp.Id) model dispatch
-    | RAM mem ->
+        makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
+    | RAM1 mem ->
         let descr =
             "RAM memory. At every clock tick, the RAM can either read or write
             the content of the memory location selected by the address. If the
@@ -229,7 +255,7 @@ let private makeDescription (comp:Component) model dispatch =
             is set to the value of data-in. This value will also be propagated
             to data-out immediately. The component is implicitly connected to
             the global clock."
-        makeMemoryInfo descr mem (ComponentId comp.Id) model dispatch
+        makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
 
 let private makeExtraInfo model (comp:Component) text dispatch =
     match comp.Type with

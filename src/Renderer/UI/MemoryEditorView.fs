@@ -55,7 +55,12 @@ let viewFilledNum width numBase =
 // let private baseToStr b = match b with | Hex -> "hex" | Dec -> "dec" | Bin -> "bin"
 
 
-let mutable dynamicMem: Memory = { WordWidth = 0; AddressWidth = 0; Data = Map.empty } // Need to use a mutable dynamic memory and update it locally so that the shown values are correct since the model is not immediately updated
+let mutable dynamicMem: Memory1 = { 
+    Init = FromData; 
+    WordWidth = 0; 
+    AddressWidth = 0; 
+    Data = Map.empty 
+    } // Need to use a mutable dynamic memory and update it locally so that the shown values are correct since the model is not immediately updated
 
 let baseSelector numBase changeBase =
     Level.item [ Level.Item.HasTextCentered ] [
@@ -202,7 +207,7 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
                         // Write new value.
                         let oldData =
                             let comp = model.Sheet.GetComponentById compId
-                            comp.Type |> (function | (RAM d) | (ROM d) | (AsyncROM d) -> d
+                            comp.Type |> (function | (RAM1 d) | (ROM1 d) | (AsyncROM1 d) -> d
                                                     | _ ->
                                                        printfn "Should not be here"
                                                        memory)
@@ -258,7 +263,7 @@ let private makeEditor memory compId model dispatch =
     // printfn "makeEditor called"
     dynamicMem <- // Need to use a mutable dynamic memory and update it locally so that the shown values are correct since the model is not immediately updated
         match model.SelectedComponent with
-        | Some {Type=RAM mem} | Some {Type=ROM mem} |Some {Type = AsyncROM mem} -> mem
+        | Some {Type=RAM1 mem} | Some {Type=ROM1 mem} |Some {Type = AsyncROM1 mem} -> mem
         | _ -> memory
     fun memoryEditorData ->
         div [] [

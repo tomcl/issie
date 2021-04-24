@@ -127,7 +127,12 @@ let getLastMouseMsg msgQueue =
     |> List.filter matchMouseMsg
     |> function
     | [] -> None
-    | lst -> Some (lst.Head, List.filter (matchMouseMsg >> not) msgQueue) //First item in the list was the last to be added (most recent)
+    | lst -> Some lst.Head //First item in the list was the last to be added (most recent)
+
+let sheetMsg sMsg model = 
+    let sModel, sCmd = Sheet.update sMsg model.Sheet
+    let newModel = { model with Sheet = sModel} 
+    {newModel with SavedSheetIsOutOfDate = findChange newModel}, Cmd.map Sheet sCmd
 
 
 //----------------------------------------------------------------------------------------------------------------//
@@ -135,9 +140,9 @@ let getLastMouseMsg msgQueue =
 //----------------------------------------------------------------------------------------------------------------//
 
 /// Main MVU model update function
-let update (msg : Msg) model =
+let update (msg : Msg) oldModel =
+
     let startUpdate = Helpers.getTimeMs()
-    printf "DEBUG in update \n\n Original model: \n %A" model.Pending
     // number of top-level components in graph
     // mostly, we only operate on top-level components
     let getGraphSize g =
@@ -146,7 +151,7 @@ let update (msg : Msg) model =
         |> Option.defaultValue -1
    
     let sdlen = 
-        getCurrentWSMod model 
+        getCurrentWSMod oldModel 
         |> Option.bind (fun ws -> ws.InitWaveSimGraph) 
         |> getGraphSize
 
@@ -154,24 +159,25 @@ let update (msg : Msg) model =
         let msgS = (sprintf "%A..." msg) |> Seq.truncate 60 |> Seq.map (fun c -> string c) |> String.concat ""
         printfn "%d %s" sdlen msgS
     
-    //TODO
-
-    //Add any message recieved to the pending message queue
-    let model = {model with Pending = msg :: model.Pending}
+    //Add the message to the pending queue if it is a mouse drag message
+    let model = 
+        if matchMouseMsg msg 
+        then {oldModel with Pending = msg :: oldModel.Pending}
+        else oldModel
+    
 
     //Check if the current message is stored as pending, if so execute all pending messages currently in the queue
-    let cmd = 
+    let testMsg, cmd = 
         List.tryFind (fun x -> isSameMsg x msg) model.Pending 
         |> function
         | Some _ -> 
-            printf "DEBUG in update: Some entered"
-            Cmd.ofMsg (ExecutePendingMessages (List.length model.Pending))
-        | None -> 
-            printf "DEBUG in update: None entered"
-            Cmd.none   
-    
+            //Add any message recieved to the pending message queue
+            DoNothing, Cmd.ofMsg (ExecutePendingMessages (List.length model.Pending))
+        | None ->
+            msg, Cmd.none   
+
     // main message dispatch match expression
-    match msg with
+    match testMsg with
     | ShowExitDialog ->
         match model.CurrentProj with
         | Some p when model.SavedSheetIsOutOfDate ->
@@ -185,9 +191,7 @@ let update (msg : Msg) model =
     | SetExitDialog status ->
         {model with ExitDialog = status}, Cmd.none
     | Sheet sMsg ->
-        let sModel, sCmd = Sheet.update sMsg model.Sheet
-        let newModel = { model with Sheet = sModel} 
-        {newModel with SavedSheetIsOutOfDate = findChange newModel}, Cmd.batch[cmd; Cmd.map Sheet sCmd] //TODO - just testing the Cmd here for now as just with drag operations
+        sheetMsg sMsg model
     // special mesages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none
     | SetViewerWidth w -> {model with WaveSimViewerWidth = w}, Cmd.none
@@ -391,27 +395,22 @@ let update (msg : Msg) model =
 //        model, Cmd.none
 //    |> checkForAutoSaveOrSelectionChanged msg
     | ExecutePendingMessages n ->
-        printf "DEBUG: in ExecutePendingMessages"
-        if n = List.length model.Pending 
-        //get the last mouse msg for better performance
+        if n = (List.length model.Pending)
         then 
             getLastMouseMsg model.Pending
             |> function
-            | None -> 
-                //need to execute messages in reverse order as they get prepended
-                let nextMsg = 
-                    model.Pending
-                    |> List.rev
-                    |> List.head
-
-                {model with Pending = List.tail model.Pending}, Cmd.ofMsg nextMsg
-
-            | Some (mMsg, msgQueue) -> {model with Pending = msgQueue}, Cmd.ofMsg mMsg
+            | None -> failwithf "shouldn't happen"
+            | Some mMsg -> 
+                match mMsg with
+                | Sheet sMsg -> sheetMsg sMsg model
+                | _ -> failwithf "shouldn't happen "
         
         //ignore the exectue message
-        else model, Cmd.none
+        else 
+            model, Cmd.none
+    | DoNothing -> //Acts as a placeholder to propergrate the ExecutePendingMessages message in a Cmd
+        model, cmd
     | msg ->
-        //printfn $"DEBUG: Leftover Message needs to be deleted: {msg}" // TODO
         model, Cmd.none
     |> Helpers.instrumentInterval (
         let name =

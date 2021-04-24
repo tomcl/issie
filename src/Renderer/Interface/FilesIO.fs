@@ -29,8 +29,6 @@ let dirName filePath = path.dirname filePath
 let ensureDirectory dPath =
     if (not <| fs.existsSync (U2.Case1 dPath)) then 
         fs.mkdirSync(dPath);
-    
-
 
 let pathWithoutExtension filePath =
     let ext = path.extname filePath
@@ -56,12 +54,38 @@ let fileExistsWithExtn extn folderPath baseName =
     let path = path.join [| folderPath; baseName + extn |]
     fs.existsSync (U2.Case1 path)
 
+/// Write base64 encoded data to file.
+/// Create file if it does not exist.
+let writeFileBase64 path data =
+    let options = createObj ["encoding" ==> "base64"] |> Some
+    fs.writeFileSync(path, data, options)
+
+/// Write utf8 encoded data to file.
+/// Create file if it does not exist.
+let writeFile path data =
+    let options = createObj ["encoding" ==> "utf8"] |> Some
+    fs.writeFileSync(path, data, options)
+
+
 let readFilesFromDirectory (path:string) : string list =
     if fs.existsSync (U2.Case1 path) then
         fs.readdirSync(U2.Case1 path)
         |> Seq.toList
     else
         []
+
+let hasExtn extn fName =
+    (String.toLower fName).EndsWith (String.toLower extn)
+
+
+let readFilesFromDirectoryWithExtn (path:string) (extn:string) : string list =
+    readFilesFromDirectory path
+    |> List.filter (fun name -> hasExtn extn name)
+
+let removeExtn extn fName = 
+    if hasExtn extn fName
+    then Some fName.[0..extn.Length]
+    else None
 
 /// returns the sequence number and name of the most recent (highest sequence number) backup file
 let latestBackupFileData (path:string) (baseName: string) =
@@ -91,51 +115,41 @@ let private tryLoadStateFromPath (filePath: string) =
             | Ok res -> Ok res)
 
 let makeData aWidth dWidth makeFun =
+    let truncate n =
+        match dWidth with
+        | 64 -> n
+        | w -> ((1UL <<< w) - 1UL) &&& n
+        |> int64
     let a = aWidth / 2
     let inp = [|0..a - 1|]
     Array.allPairs inp inp
-    |> Array.map (fun (x,y) -> int64 ((x <<< a) + y), int64 (makeFun x y))
+    |> Array.map (fun (x,y) -> int64 ((int64 x <<< a) + int64 y), truncate (uint64 (makeFun x y)))
     |> Map.ofArray
 
 
 
 let makeFixedROM addr data mem =
+    let signExtend w n =
+        if n &&& (1 <<< (w - 1)) <> 0 then
+            ((-1 <<< w) ||| n) &&& 0xFFFFFFFF
+        else
+            n
+            
     match mem.Init, addr, data with
-    | UnsignedMultiplier, a, d when d = a * 2 ->
+    | UnsignedMultiplier, a, d when a % 2 = 0 && a <= 16 ->
         Ok <| makeData a d (fun (x:int) (y:int) -> (x * y) % (1 <<< d))
-    | UnsignedMultiplier, a, d when d = a * 2 ->
-        Ok <| makeData a d (fun (x:int) (y:int) -> (x * y) % (1 <<< d))
+    | SignedMultiplier, a, d when a % 2 = 0 && a <= 16 ->
+        let w = a / 2
+        Ok <| makeData a d (fun (x:int) (y:int) -> (signExtend w x * signExtend w y) &&& ((1 <<< d) - 1))
     | FromData,_, _ -> Ok mem.Data
-    | _ -> Error $"Can't make a fixed ROM component of type '{mem.Init}' and addressWidth={addr*2} and dataWidth={data}"
+    | _ -> Error $"Can't make a fixed ROM component of type '{mem.Init}' and addressWidth={addr*2} and dataWidth={data}. The address must be even and <= 16."
 
 
 let jsonStringToMem (jsonString : string) =
      Json.tryParseAs<Map<int64,int64>> jsonString
 
 
-let InitialiseMem (mem: Memory1) (projectPath:string) =
-    let memResult =
-        match mem.Init with
-        | UnsignedMultiplier
-        | SignedMultiplier ->
-            if mem.AddressWidth > 16 then
-                Error "Can't implement fixed multiplier ROM of greater size than 8X8"
-            elif mem.AddressWidth % 2 <> 0 then
-                Error "Can't implement fixed multiplier ROM with odd number of address bits"
-            else                    
-                makeFixedROM (mem.AddressWidth / 2) mem.WordWidth mem
-        | FromData -> 
-            Ok mem.Data
-                    
-        | FromFile name -> 
-            let path = pathJoin [|projectPath; name + ".ram"|]
-            if not (fs.existsSync (U2.Case1 path)) then
-                Error <| sprintf "Can't read file from %s because it does not seem to exist!" path      
-            else
-                fs.readFileSync(path, "utf8")
-                |> jsonStringToMem
-    memResult
-    |> Result.map (fun data -> {mem with Data = data})
+
             
    
 
@@ -267,19 +281,86 @@ let removeAutoFile folderPath baseName =
     let path = path.join [| folderPath; baseName + ".dgmauto" |]
     fs.unlink (U2.Case1 path, ignore) // Asynchronous.
 
+let readMemDefnLine (addressWidth:int) (wordWidth: int) (s:string) =
+    let nums = String.splitRemoveEmptyEntries [|' ';'\t';',';';';'"'|] s 
+    match nums with
+    | [|addr;data|] ->
+        let addrNum = NumberHelpers.strToIntCheckWidth addr addressWidth
+        let dataNum = NumberHelpers.strToIntCheckWidth data wordWidth
+        match addrNum,dataNum with
+        | Ok a, Ok d -> Ok (a,d)
+        | Error aErr,_ -> Error $"Line '%s{s} has incorrect width {addressWidth} number '%s{addr}' %s{aErr}"
+        | _, Error dErr -> Error $"Line '%s{s} has incorrect width {wordWidth} number '%s{data}' %s{dErr}"
+    | _ -> Error "Line '%s' has more or less than two numbers: valid lines consist of two numbers"
+
+let readMemLines (addressWidth:int) (wordWidth: int) (lines: string array) =
+    let parse = 
+        Array.map String.trim lines
+        |> Array.filter ((<>) "")
+        |> Array.map (readMemDefnLine addressWidth wordWidth)
+    match Array.tryFind (function | Error _ -> true | _ -> false) parse with
+    | None ->
+        let defs = (Array.map (function |Ok x -> x | _ -> failwithf "What?") parse)
+        let repeats =
+            Array.groupBy fst defs
+            |> Array.filter (fun (num, vals) -> num <> 1L)
+        if repeats <> [||] then 
+            Error $"addresses must not have repeated values: %A{repeats}"
+        else
+            Ok defs
+
+    | Some (Error firstErr) -> 
+        Error firstErr
+    | _ -> failwithf "What? can't happen"
+
+let readMemDefns (addressWidth:int) (wordWidth: int) (fPath: string) =
+    fs.readFileSync(fPath, "utf8")
+    |> String.splitRemoveEmptyEntries [|'\n';'\r'|]
+    |> readMemLines addressWidth wordWidth 
+    |> Result.map Map.ofArray
+
+    
+    
+
+let writeMemDefns (fPath: string) (mem: Memory1) =
+    Map.toArray mem.Data
+    |> Array.sortBy fst
+    |> Array.map (fun (a,b) -> $"{NumberHelpers.hex64 a}\t{NumberHelpers.hex64 b}")
+    |> String.concat "\n"
+    |> writeFile fPath
+
+let initialiseMem (mem: Memory1) (projectPath:string) =
+    let memResult =
+        match mem.Init with
+        | UnsignedMultiplier
+        | SignedMultiplier ->
+            if mem.AddressWidth > 16 then
+                Error "Can't implement fixed multiplier ROM of greater size than 8X8"
+            elif mem.AddressWidth % 2 <> 0 then
+                Error "Can't implement fixed multiplier ROM with odd number of address bits"
+            else                    
+                makeFixedROM (mem.AddressWidth / 2) mem.WordWidth mem
+
+        | ToFile name ->
+            let fPath = pathJoin [| projectPath; name + ".ram"|]
+            writeMemDefns fPath mem
+            Ok mem.Data
+
+        | FromFile name ->
+            let fPath = pathJoin [| projectPath; name + ".ram"|]
+            readMemDefns mem.AddressWidth mem.WordWidth fPath
+
+        | FromData ->
+            Ok mem.Data
+        | ToFileBadName s ->
+            failwithf "What? Can't have a bad file name when initialising memory"
+       
+    memResult
+    |> Result.map (fun data -> {mem with Data = data})
 
 
-/// Write base64 encoded data to file.
-/// Create file if it does not exist.
-let writeFileBase64 path data =
-    let options = createObj ["encoding" ==> "base64"] |> Some
-    fs.writeFileSync(path, data, options)
 
-/// Write utf8 encoded data to file.
-/// Create file if it does not exist.
-let writeFile path data =
-    let options = createObj ["encoding" ==> "utf8"] |> Some
-    fs.writeFileSync(path, data, options)
+
 
 /// Save a PNG file (encoded base64, as from draw2d)
 /// Overwrite existing file if needed
@@ -290,11 +371,7 @@ let savePngFile folderPath baseName png = // TODO: catch error?
 let formatSavedState (canvas,wave) =
     CanvasWithFileWaveInfo(canvas,wave,System.DateTime.Now)
 
-/// Save state to autosave file. Automatically add the .dgmauto suffix.
-let saveAutoStateToFile folderPath baseName state = // TODO: catch error?
-    let path = pathJoin [| folderPath; baseName + ".dgmauto" |]
-    let data = stateToJsonString state
-    writeFile path data
+
 
 /// Save state to normal file. Automatically add the .dgm suffix.
 let saveStateToFile folderPath baseName state = // TODO: catch error?

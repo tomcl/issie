@@ -214,8 +214,14 @@ let update msg model =
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
     | SetCreateComponent pos -> { model with LastCreatedComponent = Some pos }, Cmd.none
     | SetProject project -> 
-        { model with CurrentProj = Some project}, Cmd.none
-    | CloseProject -> { model with CurrentProj = None }, Cmd.none
+        { model with 
+            CurrentProj = Some project
+            PopupDialogData = {model.PopupDialogData with ProjectPath = project.ProjectPath}
+        }, Cmd.none
+    | CloseProject -> 
+        { model with 
+            CurrentProj = None
+        }, Cmd.none
     | ShowPopup popup -> { model with PopupViewFunc = Some popup }, Cmd.none
     | ClosePopup ->
         let model' =
@@ -226,14 +232,13 @@ let update msg model =
         { model' with 
             PopupViewFunc = None;
             PopupDialogData =
-                    { 
+                    { model.PopupDialogData with
                         Text = None; 
                         Int = None; 
                         Int2 = None; 
                         MemorySetup = None; 
                         MemoryEditorData = None; 
-                        WaveSetup = model.PopupDialogData.WaveSetup} 
-                    }, Cmd.none
+                    }}, Cmd.none
     | SetPopupDialogText text ->
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
     | SetPopupDialogInt int ->

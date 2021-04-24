@@ -24,7 +24,7 @@ type SimulationComponentState =
     | NoState // For all stateless components.
     | DffState of Bit
     | RegisterState of WireData
-    | RamState of Memory
+    | RamState of Memory1
 
 /// Message used to feed forward evaluation. Clock
 /// tick => state changes to that in next cycle

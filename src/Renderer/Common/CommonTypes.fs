@@ -69,7 +69,9 @@ module CommonTypes
 
     type InitMemData = 
         | FromData // old method (from data field)
-        | FromFile of string // read a file FromFile.ram for data
+        | FromFile of string // FromFile fName => read a file fName.ram for data
+        | ToFile of string // ToFile fName => write data to a file fName.ram
+        | ToFileBadName of string // as ToFile but the name does not validate
         | UnsignedMultiplier
         | SignedMultiplier
 

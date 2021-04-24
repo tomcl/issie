@@ -693,6 +693,9 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
                 | None ->  { OutputsAndIOLabels = []; ComposingLabels = [] } 
 
             match net.[nlSource.SourceCompId].Type with
+            | ROM _ | RAM _ | AsyncROM _ -> 
+                    failwithf "What? Legacy RAM component types should never occur"
+
             | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4 | Mux2 | BusCompare _ -> 
                 [ { LabName = compLbl; BitLimits = 0, 0 } ] 
             | Input w | Output w | Constant(w, _) -> 
@@ -709,7 +712,7 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
                 [ { LabName = compLbl + ".Q"; BitLimits = 0, 0 } ]
             | Register w | RegisterE w -> 
                 [ { LabName = compLbl + ".Dout"; BitLimits = w-1, 0 } ]
-            | RAM mem | AsyncROM mem | ROM mem -> 
+            | RAM1 mem | AsyncROM1 mem | ROM1 mem -> 
                 [ { LabName = compLbl + ".Dout"; BitLimits = mem.WordWidth - 1, 0 } ]
             | Custom c -> 
                 [ { LabName = compLbl + "." + (fst c.OutputLabels.[outPortInt])

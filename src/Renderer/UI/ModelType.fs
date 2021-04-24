@@ -316,6 +316,7 @@ type Msg =
     | CloseApp
     | SetExitDialog of bool
     | ExecutePendingMessages of int
+    | DoNothing
 
 
 //================================//

@@ -30,13 +30,15 @@ let viewOnDiagramButtons model dispatch =
     let dispatch = Sheet.KeyPress >> sheetDispatch
 
     div [ canvasSmallMenuStyle ] [
-        let canvasBut func label = 
-            Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick func ] ] 
+        let canvasBut func label active = 
+            Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick func ]
+                            Button.IsActive active] 
                           [ str label ]
-        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlZ ) "< undo"
-        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlY ) "redo >"
-        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlC ) "copy"
-        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlV ) "paste"
+        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlZ ) "< undo" false
+        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlY ) "redo >" false
+        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlC ) "copy" false
+        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlV ) "paste" false
+        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.Ctrl ) "toggle" model.Sheet.Toggle
     ]
 
 // -- Init Model

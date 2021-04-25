@@ -735,11 +735,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         { model with ScrollPos = { X = scrollX; Y = scrollY }; ScrollingLastMousePos = newLastScrollingPos }, cmd
     | KeyPress ZoomIn ->
-        let oldScreenCentre = getScreenCentre model
-        { model with Zoom = model.Zoom + 0.05 }, Cmd.ofMsg (KeepZoomCentered oldScreenCentre)
+        { model with Zoom = model.Zoom + 0.05 }, Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
     | KeyPress ZoomOut ->
-        let oldScreenCentre = getScreenCentre model
-        { model with Zoom = model.Zoom - 0.05 }, Cmd.ofMsg (KeepZoomCentered oldScreenCentre)
+        { model with Zoom = model.Zoom - 0.05 }, Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
     | KeepZoomCentered oldScreenCentre ->
         let canvas = document.getElementById "Canvas"
         let newScreenCentre = getScreenCentre model 

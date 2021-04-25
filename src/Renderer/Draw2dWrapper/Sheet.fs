@@ -7,6 +7,9 @@ open Elmish
 open Elmish.React
 open EEEHelpers
 
+///Static variables
+let canvasSize = 3500.0
+
 /// Used to keep track of what the mouse is on
 type MouseOn =
     | InputPort of CommonTypes.InputPortId * XYPos
@@ -737,7 +740,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | KeyPress ZoomIn ->
         { model with Zoom = model.Zoom + 0.05 }, Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
     | KeyPress ZoomOut ->
-        { model with Zoom = model.Zoom - 0.05 }, Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
+
+        let canvas = document.getElementById "Canvas"
+        let wholeApp = document.getElementById "WholeApp"
+        let rightSelection = document.getElementById "RightSelection"
+        let leftScreenEdge = canvas.scrollLeft
+        let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.clientWidth
+        //Check if the new zoom will exceed the canvas width
+        let newZoom = 
+            if rightScreenEdge - leftScreenEdge < (canvasSize * (model.Zoom - 0.05)) then model.Zoom - 0.05
+            else model.Zoom
+        { model with Zoom = newZoom }, Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
     | KeepZoomCentered oldScreenCentre ->
         let canvas = document.getElementById "Canvas"
         let newScreenCentre = getScreenCentre model 
@@ -885,8 +898,7 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
         else
             dispatch <| (ManualKeyDown key.key) )
     document.onkeyup <- (fun key -> dispatch <| (ManualKeyUp key.key))
-    
-    let canvasSize = 3500.0 // In pixels
+
     let sizeInPixels = sprintf "%.2fpx" ((canvasSize * model.Zoom))
 
     /// Is the mouse button currently down?

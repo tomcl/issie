@@ -169,8 +169,8 @@ let getWaveSetup (ws:WaveSimModel) (model:Model): MoreWaveSetup =
     let sheets = allSheets mainSheet
     let getSortOf path (comp:SimulationComponent) = 
         match comp.Type, path with 
-        | RAM _,_ -> Some (4, "RAM")
-        | AsyncROM _,_ | ROM _,_ -> Some (5, "ROM")
+        | RAM1 _,_ -> Some (4, "RAM")
+        | AsyncROM1 _,_ | ROM1 _,_ -> Some (5, "ROM")
         | _,[] | _, [_] -> None
         | Input _,_-> Some (1,"Input")
         | Output _,_ -> Some (2, "Output")
@@ -221,7 +221,8 @@ let reactMoreWaves ((sheets,ticks): MoreWaveSetup) (sg:SimulationGraph) (dispatc
             let name = comp.Label |> function | ComponentLabel lab -> lab
             (sw.Label+":"+name),ticked, comp, toggle)
         |> (fun els -> 
-                let isRamOrRom (comp: SimulationComponent) = match comp.Type with | RAM _ | ROM _ | AsyncROM _ -> true | _ -> false
+                let isRamOrRom (comp: SimulationComponent) = 
+                    match comp.Type with | RAM1 _ | ROM1 _ | AsyncROM1 _ -> true | _ -> false
                 let uniques = 
                     List.countBy (fun (name,ticked,comp, toggle) -> name) els
                     |> List.filter (fun (el,i)-> i = 1)
@@ -247,7 +248,7 @@ let reactMoreWaves ((sheets,ticks): MoreWaveSetup) (sg:SimulationGraph) (dispatc
     else 
         table [] [tbody [] [tr [] cols]]
 
-let formatMemory (mem:Memory) =
+let formatMemory (mem:Memory1) =
     let maxFilledGap = 2L
     let sortedLocs = 
         Map.toList mem.Data
@@ -285,7 +286,7 @@ let getRamInfoToDisplay wSMod path =
     | None -> "", []
     | Some sComp ->
         match sComp.Type with
-        | RAM dat | ROM dat | AsyncROM dat ->
+        | RAM1 dat | ROM1 dat | AsyncROM1 dat ->
             let lab = match sComp.Label with |  ComponentLabel lab -> lab
             lab, formatMemory dat
         | _ -> "", []

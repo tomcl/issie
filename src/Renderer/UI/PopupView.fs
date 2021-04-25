@@ -107,8 +107,8 @@ let getInt (dialogData : PopupDialogData) =
 let getInt2 (dialogData : PopupDialogData) =
     Option.defaultValue 0 dialogData.Int2
 
-let getMemorySetup (dialogData : PopupDialogData) =
-    Option.defaultValue (1,1,FromData,None) dialogData.MemorySetup
+let getMemorySetup (dialogData : PopupDialogData) wordWidthDefault =
+    Option.defaultValue (1,wordWidthDefault,FromData,None) dialogData.MemorySetup
 
 let getMemoryEditor (dialogData : PopupDialogData) =
     Option.defaultValue
@@ -264,7 +264,7 @@ let makeSourceMenu
             FromData
 
     let onSelect key  =
-        let n1,n2, _,_ = getMemorySetup dialog
+        let n1,n2, _,_ = getMemorySetup dialog 1
         printfn $"Select {key}"
         dispatch <| ModelType.SetPopupDialogMemorySetup (Some(n1,n2,key,None))
 
@@ -280,7 +280,7 @@ let makeSourceMenu
          |> not
  
     let fileEntryBox =
-        let n1,n2, _,_ = getMemorySetup dialog
+        let n1,n2, _,_ = getMemorySetup dialog 1
         match popupKey with
         | ToFile fName | ToFileBadName fName ->
             Input.text [
@@ -298,7 +298,7 @@ let makeSourceMenu
 
        
     let existingFiles =
-        List.map (fun fName ->  FromFile (Option.get (FilesIO.removeExtn fName ".ram"))) files
+        List.map FromFile files
 
     let printSource inList key =
         match key with
@@ -344,12 +344,20 @@ let makeSourceMenu
 /// WordWidth, two integers.
 let dialogPopupBodyMemorySetup intDefault dispatch =
 
-    Some (4, intDefault, FromData, None) 
-    |> SetPopupDialogMemorySetup |> dispatch
+    //Some (4, intDefault, FromData, None) 
+    //|> SetPopupDialogMemorySetup |> dispatch
     fun (dialogData : PopupDialogData) ->
-        let addressWidth, wordWidth, source,_ = getMemorySetup dialogData
+        let setup =
+            match dialogData.MemorySetup with 
+            | None -> 
+                let setup = getMemorySetup dialogData intDefault
+                dispatch <| SetPopupDialogMemorySetup (Some setup)
+                setup
+            | Some setup ->
+                setup
+        let addressWidth, wordWidth, source, errorOpt = setup
         div [] [
-            str "How many bits should be used to address the data in memory?"
+            str $"How many bits should be used to address the data in memory?"
             br []
             str <| sprintf "%d bits yield %d memory locations." addressWidth (pow2int64 addressWidth)
             br []
@@ -357,7 +365,7 @@ let dialogPopupBodyMemorySetup intDefault dispatch =
                 Input.Props [Style [Width "60px"] ; AutoFocus true]
                 Input.DefaultValue (sprintf "%d" 4)
                 Input.OnChange (getIntEventValue >> fun newAddrWidth ->
-                    Some (newAddrWidth, wordWidth, FromData,None) 
+                    Some (newAddrWidth, wordWidth, source, None) 
                     |> SetPopupDialogMemorySetup |> dispatch
                 )
             ]
@@ -369,7 +377,7 @@ let dialogPopupBodyMemorySetup intDefault dispatch =
                 Input.Props [Style [Width "60px"]]
                 Input.DefaultValue (sprintf "%d" intDefault)
                 Input.OnChange (getIntEventValue >> fun newWordWidth ->
-                    Some (addressWidth, newWordWidth, FromData,None) 
+                    Some (addressWidth, newWordWidth, source, None) 
                     |> SetPopupDialogMemorySetup |> dispatch
                 )
             ]
@@ -379,9 +387,10 @@ let dialogPopupBodyMemorySetup intDefault dispatch =
             br []
             br []
             str "You will be able to set the content of the memory from the Component Properties menu."
-            match dialogData.MemorySetup with
-            | Some( _,_,_, Some msg) -> div [Style [Color IsDanger]] [ br [] ; str msg]
-            | _ -> str ""
+            br []
+            match errorOpt with
+            | Some msg -> div [Style [Color "red"]] [ str msg]
+            | _ -> br []
 
         ]
 

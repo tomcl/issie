@@ -84,7 +84,7 @@ let readFilesFromDirectoryWithExtn (path:string) (extn:string) : string list =
 
 let removeExtn extn fName = 
     if hasExtn extn fName
-    then Some fName.[0..extn.Length]
+    then Some fName.[0..(fName.Length - extn.Length - 1)]
     else None
 
 /// returns the sequence number and name of the most recent (highest sequence number) backup file
@@ -142,8 +142,7 @@ let makeFixedROM addr data mem =
         let w = a / 2
         Ok <| makeData a d (fun (x:int) (y:int) -> (signExtend w x * signExtend w y) &&& ((1 <<< d) - 1))
     | FromData,_, _ -> Ok mem.Data
-    | _ -> Error $"Can't make a fixed ROM component of type '{mem.Init}' and addressWidth={addr*2} and dataWidth={data}. The address must be even and <= 16."
-
+    | _ -> failwithf $"addr={addr}, data={data}, int={mem.Init} not allowed in makeFixedROM"
 
 let jsonStringToMem (jsonString : string) =
      Json.tryParseAs<Map<int64,int64>> jsonString
@@ -289,9 +288,9 @@ let readMemDefnLine (addressWidth:int) (wordWidth: int) (s:string) =
         let dataNum = NumberHelpers.strToIntCheckWidth data wordWidth
         match addrNum,dataNum with
         | Ok a, Ok d -> Ok (a,d)
-        | Error aErr,_ -> Error $"Line '%s{s} has incorrect width {addressWidth} number '%s{addr}' %s{aErr}"
-        | _, Error dErr -> Error $"Line '%s{s} has incorrect width {wordWidth} number '%s{data}' %s{dErr}"
-    | _ -> Error "Line '%s' has more or less than two numbers: valid lines consist of two numbers"
+        | Error aErr,_ -> Error $"Line '%s{s}' has incorrect width {addressWidth} number '%s{addr}' %s{aErr}"
+        | _, Error dErr -> Error $"Line '%s{s}' has incorrect width {wordWidth} number '%s{data}' %s{dErr}"
+    | _ -> Error $"Line '%s{s} has more or less than two numbers: valid lines consist of two numbers"
 
 let readMemLines (addressWidth:int) (wordWidth: int) (lines: string array) =
     let parse = 
@@ -333,13 +332,8 @@ let initialiseMem (mem: Memory1) (projectPath:string) =
     let memResult =
         match mem.Init with
         | UnsignedMultiplier
-        | SignedMultiplier ->
-            if mem.AddressWidth > 16 then
-                Error "Can't implement fixed multiplier ROM of greater size than 8X8"
-            elif mem.AddressWidth % 2 <> 0 then
-                Error "Can't implement fixed multiplier ROM with odd number of address bits"
-            else                    
-                makeFixedROM (mem.AddressWidth / 2) mem.WordWidth mem
+        | SignedMultiplier ->                  
+            makeFixedROM mem.AddressWidth mem.WordWidth mem
 
         | ToFile name ->
             let fPath = pathJoin [| projectPath; name + ".ram"|]
@@ -433,10 +427,32 @@ let getLatestCanvas state =
     List.map getLatestComp comps, conns
 
 
+let checkMemoryContents (projectPath:string) (comp: Component) : Component =
+    match comp.Type with
+    | RAM1 mem | ROM1 mem | AsyncROM1 mem when not (String.endsWith "backup" (String.toLower projectPath))->
+        match mem.Init with
+        | FromFile fName ->
+            let fPath = pathJoin [|projectPath ; (fName + ".ram")|]
+            let memData = readMemDefns mem.AddressWidth mem.WordWidth fPath
+            match memData with
+            | Ok memDat -> 
+                if memDat <> mem.Data then
+                    printfn "%s" $"Warning! RAM file {fPath} has chnaged so component {comp.Label} is now different"
+                let mem = {mem with Data = memDat}
+                {comp with Type = getMemType comp.Type mem}
+            | Error msg ->
+                printfn $"Error relaoding component {comp.Label} from its file {fPath}"
+                comp // ignore errors for now
+        | _ -> comp
+    | _ -> comp
+
 /// load a component from its canvas and other elements
-let rec makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp waveInfo =
-    
+let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp waveInfo =
+    let projectPath = path.dirname filePath
     let inputs, outputs = parseDiagramSignature canvas
+    let comps,conns = canvas
+    let comps = List.map (checkMemoryContents projectPath) comps
+    let canvas = comps,conns
     {
         Name = getBaseNameNoExtension filePath
         TimeStamp = timeStamp
@@ -452,9 +468,14 @@ let rec makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeSta
 /// Return the component, or an Error string.
 let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
     match tryLoadStateFromPath filePath with
-    | Result.Error msg ->  Error <| sprintf "Can't load component %s because of Error: %s" (getBaseNameNoExtension filePath)  msg
+    | Result.Error msg ->  
+        Error <| sprintf "Can't load component %s because of Error: %s" (getBaseNameNoExtension filePath)  msg
     | Ok state ->
-        makeLoadedComponentFromCanvasData (getLatestCanvas state) filePath state.getTimeStamp state.getWaveInfo
+        makeLoadedComponentFromCanvasData 
+            (getLatestCanvas state) 
+            filePath 
+            state.getTimeStamp 
+            state.getWaveInfo
         |> Result.Ok
 
 

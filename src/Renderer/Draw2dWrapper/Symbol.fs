@@ -722,12 +722,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let resetSymbols = Map.map (fun _ sym ->  { sym with Colour = "Lightgray"; Opacity = 1.0 }) model.Symbols
         let newSymbols =
             (List.fold (fun prevSymbols sId -> Map.add sId {resetSymbols.[sId] with Colour = "lightgreen"} prevSymbols) resetSymbols compList)
-        let test = 
-            newSymbols
-            |> Map.toList
-            |> List.map (fun (cId, sym) -> (cId, sym.Colour))
-        printf "DEBUG SelectSymbols compList: \n %A" compList
-        printf "DEBUG SelectSymbols: \n %A" test 
         { model with Symbols = newSymbols }, Cmd.none  
 
     | ErrorSymbols (errorCompList,selectCompList,isDragAndDrop) -> 

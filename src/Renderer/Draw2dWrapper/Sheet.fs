@@ -463,31 +463,24 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
             {model with Action = ConnectingOutput portId; ConnectPortsLine = portLoc, mMsg.Pos; TmpModel=Some model},
             symbolCmd Symbol.ShowAllInputPorts
         | Component compId ->
-            
-                printf "DEBUG TOGGLE COMPONENT: %A" model.Toggle
                 if model.Toggle 
                 then 
-                    let newComponents, newWires =
+                    let newComponents =
                         if List.contains compId model.SelectedComponents
-                        then List.filter (fun cId -> cId <> compId) model.SelectedComponents, model.SelectedWires // If component selected was already in the list, remove it
-                        else compId :: model.SelectedComponents, [] // If user clicked on a new component add it to the selected list
-                    
-                    printf "DEBUG TOGGLE newcomponent: \n %A" newComponents
-                    {model with SelectedComponents = newComponents; LastValidPos = mMsg.Pos ; LastValidBoundingBoxes=model.BoundingBoxes ; SelectedWires = newWires; Action = Idle; LastMousePos = mMsg.Pos; TmpModel = Some model},
-                    Cmd.batch [ symbolCmd (Symbol.SelectSymbols newComponents)
-                                wireCmd (BusWire.SelectWires newWires) ]
+                        then List.filter (fun cId -> cId <> compId) model.SelectedComponents // If component selected was already in the list, remove it
+                        else compId :: model.SelectedComponents // If user clicked on a new component add it to the selected list
+
+                    {model with SelectedComponents = newComponents; LastValidPos = mMsg.Pos ; LastValidBoundingBoxes=model.BoundingBoxes ; Action = Idle; LastMousePos = mMsg.Pos; TmpModel = Some model},
+                    symbolCmd (Symbol.SelectSymbols newComponents)
                 else
                     let newComponents, newWires =
                         if List.contains compId model.SelectedComponents
                         then model.SelectedComponents, model.SelectedWires // Keep selection for symbol movement
-                        else [ compId ], [] // If user clicked on a new component, select that one instead
+                        else [compId], [] // If user clicked on a new component, select that one instead
                     {model with SelectedComponents = newComponents; LastValidPos = mMsg.Pos ; LastValidBoundingBoxes=model.BoundingBoxes ; SelectedWires = newWires; Action = InitialiseMoving compId; LastMousePos = mMsg.Pos; TmpModel = Some model},
                     Cmd.batch [ symbolCmd (Symbol.SelectSymbols newComponents)
                                 wireCmd (BusWire.SelectWires newWires) ]
 
-            
-            
-            
         | Connection connId ->
             { model with SelectedComponents = []; SelectedWires = [ connId ]; Action = MovingWire connId; TmpModel=Some model},
             Cmd.batch [ symbolCmd (Symbol.SelectSymbols [])

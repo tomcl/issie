@@ -169,7 +169,8 @@ let editMenu dispatch =
                makeElmItem "Delete"  (if isMac then "Backspace" else "delete") (fun () -> dispatch Sheet.KeyboardMsg.DEL)
                makeElmItem "Undo" "CmdOrCtrl+Z" (fun () -> dispatch Sheet.KeyboardMsg.CtrlZ)
                makeElmItem "Redo" "CmdOrCtrl+Y" (fun () -> dispatch Sheet.KeyboardMsg.CtrlY)
-               makeElmItem "Cancel" "ESC" (fun () -> dispatch Sheet.KeyboardMsg.ESC) |]
+               makeElmItem "Cancel" "ESC" (fun () -> dispatch Sheet.KeyboardMsg.ESC)
+               makeElmItem "Toggle selection" "CmdOrCtrl" (fun () -> dispatch Sheet.KeyboardMsg.Ctrl)|]
             |> U2.Case1
 
 let attachMenusAndKeyShortcuts dispatch =

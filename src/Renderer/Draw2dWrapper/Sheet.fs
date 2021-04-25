@@ -71,7 +71,7 @@ type SnapIndicator =
 
 /// For Keyboard messages
 type KeyboardMsg =
-    | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC
+    | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC | Ctrl
 
 type Msg =
     | Wire of BusWire.Msg
@@ -131,6 +131,7 @@ type Model = {
     // Scrolling: bool // True if mouse is currently near edge and is automatically scrolling. Can't have in CurrentAction as we need both CurrentAction and Scrolling
     MouseCounter: int
     LastMousePosForSnap: XYPos
+    Toggle : bool
     } with
     
     // ---------------------------------- Issie Interfacing functions ----------------------------- //
@@ -461,14 +462,19 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
             {model with Action = ConnectingOutput portId; ConnectPortsLine = portLoc, mMsg.Pos; TmpModel=Some model},
             symbolCmd Symbol.ShowAllInputPorts
         | Component compId ->
-            let newComponents, newWires = 
-                match List.contains compId model.SelectedComponents with
-                | true -> model.SelectedComponents, model.SelectedWires // Keep selection for symbol movement
-                | false -> [ compId ], [] // If user clicked on a new component, select that one instead
+            if model.Toggle 
+            then 
+                printf "DEBUG TOGGLE"
+                model, Cmd.none
+            else
+                let newComponents, newWires = 
+                    match List.contains compId model.SelectedComponents with
+                    | true -> model.SelectedComponents, model.SelectedWires // Keep selection for symbol movement
+                    | false -> [ compId ], [] // If user clicked on a new component, select that one instead
 
-            {model with SelectedComponents = newComponents; LastValidPos = mMsg.Pos ; LastValidBoundingBoxes=model.BoundingBoxes ; SelectedWires = newWires; Action = InitialiseMoving compId; LastMousePos = mMsg.Pos; TmpModel = Some model},
-            Cmd.batch [ symbolCmd (Symbol.SelectSymbols newComponents)
-                        wireCmd (BusWire.SelectWires newWires) ]
+                {model with SelectedComponents = newComponents; LastValidPos = mMsg.Pos ; LastValidBoundingBoxes=model.BoundingBoxes ; SelectedWires = newWires; Action = InitialiseMoving compId; LastMousePos = mMsg.Pos; TmpModel = Some model},
+                Cmd.batch [ symbolCmd (Symbol.SelectSymbols newComponents)
+                            wireCmd (BusWire.SelectWires newWires) ]
         | Connection connId ->
             { model with SelectedComponents = []; SelectedWires = [ connId ]; Action = MovingWire connId; TmpModel=Some model},
             Cmd.batch [ symbolCmd (Symbol.SelectSymbols [])
@@ -711,6 +717,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         } , Cmd.batch [ symbolCmd (Symbol.SelectSymbols symbols)
                         wireCmd (BusWire.SelectWires wires) ]
 
+    | KeyPress Ctrl ->
+        {model with Toggle = not model.Toggle}, Cmd.none
+
     | MouseMsg mMsg -> // Mouse Update Functions can be found above, update function got very messy otherwise
         // printf "%A" mMsg
         match mMsg.Op with
@@ -773,7 +782,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 elif Set.contains "A" newPressedKeys then
                     Cmd.ofMsg (KeyPress CtrlA)
                 else
-                    Cmd.none
+                    Cmd.ofMsg (KeyPress Ctrl)
             | false -> Cmd.none
             
         { model with CurrentKeyPresses = newPressedKeys }, newCmd
@@ -1047,5 +1056,6 @@ let init () =
         AutomaticScrolling = false
         ScrollingLastMousePos = { X = 0.0; Y = 0.0 }
         MouseCounter = 0
-        LastMousePosForSnap = { X = 0.0; Y = 0.0 }    
+        LastMousePosForSnap = { X = 0.0; Y = 0.0 }
+        Toggle = false
     }, Cmd.none

@@ -532,9 +532,10 @@ let loadAllComponentFiles (folderPath:string)  =
 
 /// Ask the user a new project path, with a dialog window.
 /// Return None if the user exits withouth selecting a path.
-let rec askForNewFile () : string option =
+let rec askForNewFile (projectPath: string) : string option =
     let options = createEmpty<SaveDialogOptions>
     options.filters <- ramFileFilters
+    options.defaultPath <- projectPath
     options.title <- "Enter new file name"
     options.nameFieldLabel <- "New file name"
     options.buttonLabel <- "Save memory content to file"
@@ -547,8 +548,8 @@ let rec askForNewFile () : string option =
         
 
 
-let openWriteDialogAndWriteMemory mem =
-    match askForNewFile() with
+let openWriteDialogAndWriteMemory mem path =
+    match askForNewFile path with
     | None -> 
         None
     | Some fpath ->

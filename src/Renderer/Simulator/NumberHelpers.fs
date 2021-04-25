@@ -125,7 +125,7 @@ let private checkWidth (width : int) (num : int64) : string option =
     let bitsCount = countBits num
     match bitsCount <= width with
     | true -> None
-    | false -> Some <| sprintf "Too many bits. Expected up to %d but got %d." width bitsCount
+    | false -> Some <| sprintf "Expected <= %d, but found %d, bits." width bitsCount
 
 /// Convert a string to a number making sure that it has no more bits than
 /// specified in width.

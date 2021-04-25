@@ -15,6 +15,7 @@ open Fable.Import
 open Electron
 open Node
 open EEExtensions
+open Fable.SimpleJson
 
 
 
@@ -28,8 +29,6 @@ let dirName filePath = path.dirname filePath
 let ensureDirectory dPath =
     if (not <| fs.existsSync (U2.Case1 dPath)) then 
         fs.mkdirSync(dPath);
-    
-
 
 let pathWithoutExtension filePath =
     let ext = path.extname filePath
@@ -55,12 +54,38 @@ let fileExistsWithExtn extn folderPath baseName =
     let path = path.join [| folderPath; baseName + extn |]
     fs.existsSync (U2.Case1 path)
 
+/// Write base64 encoded data to file.
+/// Create file if it does not exist.
+let writeFileBase64 path data =
+    let options = createObj ["encoding" ==> "base64"] |> Some
+    fs.writeFileSync(path, data, options)
+
+/// Write utf8 encoded data to file.
+/// Create file if it does not exist.
+let writeFile path data =
+    let options = createObj ["encoding" ==> "utf8"] |> Some
+    fs.writeFileSync(path, data, options)
+
+
 let readFilesFromDirectory (path:string) : string list =
     if fs.existsSync (U2.Case1 path) then
         fs.readdirSync(U2.Case1 path)
         |> Seq.toList
     else
         []
+
+let hasExtn extn fName =
+    (String.toLower fName).EndsWith (String.toLower extn)
+
+
+let readFilesFromDirectoryWithExtn (path:string) (extn:string) : string list =
+    readFilesFromDirectory path
+    |> List.filter (fun name -> hasExtn extn name)
+
+let removeExtn extn fName = 
+    if hasExtn extn fName
+    then Some fName.[0..(fName.Length - extn.Length - 1)]
+    else None
 
 /// returns the sequence number and name of the most recent (highest sequence number) backup file
 let latestBackupFileData (path:string) (baseName: string) =
@@ -89,8 +114,43 @@ let private tryLoadStateFromPath (filePath: string) =
             | Error msg  -> Error <| sprintf "could not convert file '%s' to a valid issie design sheet. Details: %s" filePath msg
             | Ok res -> Ok res)
 
+let makeData aWidth dWidth makeFun =
+    let truncate n =
+        match dWidth with
+        | 64 -> n
+        | w -> ((1UL <<< w) - 1UL) &&& n
+        |> int64
+    let a = aWidth / 2
+    let inp = [|0..a - 1|]
+    Array.allPairs inp inp
+    |> Array.map (fun (x,y) -> int64 ((int64 x <<< a) + int64 y), truncate (uint64 (makeFun x y)))
+    |> Map.ofArray
 
 
+
+let makeFixedROM addr data mem =
+    let signExtend w n =
+        if n &&& (1 <<< (w - 1)) <> 0 then
+            ((-1 <<< w) ||| n) &&& 0xFFFFFFFF
+        else
+            n
+            
+    match mem.Init, addr, data with
+    | UnsignedMultiplier, a, d when a % 2 = 0 && a <= 16 ->
+        Ok <| makeData a d (fun (x:int) (y:int) -> (x * y) % (1 <<< d))
+    | SignedMultiplier, a, d when a % 2 = 0 && a <= 16 ->
+        let w = a / 2
+        Ok <| makeData a d (fun (x:int) (y:int) -> (signExtend w x * signExtend w y) &&& ((1 <<< d) - 1))
+    | FromData,_, _ -> Ok mem.Data
+    | _ -> failwithf $"addr={addr}, data={data}, int={mem.Init} not allowed in makeFixedROM"
+
+let jsonStringToMem (jsonString : string) =
+     Json.tryParseAs<Map<int64,int64>> jsonString
+
+
+
+            
+   
 
 /// Extract the labels and bus widths of the inputs and outputs nodes.
 let parseDiagramSignature canvasState
@@ -220,19 +280,84 @@ let removeAutoFile folderPath baseName =
     let path = path.join [| folderPath; baseName + ".dgmauto" |]
     fs.unlink (U2.Case1 path, ignore) // Asynchronous.
 
+let readMemDefnLine (addressWidth:int) (wordWidth: int) (lineNo: int) (s:string) =
+    let nums = String.splitRemoveEmptyEntries [|' ';'\t';',';';';'"'|] s 
+    match nums with
+    | [|addr;data|] ->
+        let addrNum = NumberHelpers.strToIntCheckWidth addr addressWidth
+        let dataNum = NumberHelpers.strToIntCheckWidth data wordWidth
+        match addrNum,dataNum with
+        | Ok a, Ok d -> Ok (a,d)
+        | Error aErr,_ -> Error $"Line {lineNo}:'%s{s}' has invalid address ({addr}). {aErr}"
+        | _, Error dErr -> Error $"Line '%s{s}' has invalid data item ({data}). {dErr}"
+    | x -> Error $"Line {lineNo}:'%s{s}' has {x.Length} items: valid lines consist of two numbers"
+
+let readMemLines (addressWidth:int) (wordWidth: int) (lines: string array) =
+    let parse = 
+        Array.map String.trim lines
+        |> Array.filter ((<>) "")
+        |> Array.mapi (readMemDefnLine addressWidth wordWidth)
+    match Array.tryFind (function | Error _ -> true | _ -> false) parse with
+    | None ->
+        let defs = (Array.map (function |Ok x -> x | _ -> failwithf "What?") parse)
+        Array.iter (fun (a,b) -> printfn "a=%d, b=%d" a b) defs
+        let repeats =
+            Array.groupBy fst defs
+            |> Array.filter (fun (num, vals) -> vals.Length > 1)
+        if repeats <> [||] then 
+            repeats
+            |> Array.map fst
+            |> fun aLst -> Error $"Memory addresses %A{aLst} are repeated"
+        else
+            Ok defs
+
+    | Some (Error firstErr) -> 
+        Error firstErr
+    | _ -> failwithf "What? can't happen"
+
+let readMemDefns (addressWidth:int) (wordWidth: int) (fPath: string) =
+    fs.readFileSync(fPath, "utf8")
+    |> String.splitRemoveEmptyEntries [|'\n';'\r'|]
+    |> readMemLines addressWidth wordWidth 
+    |> Result.map Map.ofArray
+
+    
+    
+
+let writeMemDefns (fPath: string) (mem: Memory1) =
+    Map.toArray mem.Data
+    |> Array.sortBy fst
+    |> Array.map (fun (a,b) -> $"{NumberHelpers.hex64 a}\t{NumberHelpers.hex64 b}")
+    |> String.concat "\n"
+    |> writeFile fPath
+
+let initialiseMem (mem: Memory1) (projectPath:string) =
+    let memResult =
+        match mem.Init with
+        | UnsignedMultiplier
+        | SignedMultiplier ->                  
+            makeFixedROM mem.AddressWidth mem.WordWidth mem
+
+        | ToFile name ->
+            let fPath = pathJoin [| projectPath; name + ".ram"|]
+            writeMemDefns fPath mem
+            Ok mem.Data
+
+        | FromFile name ->
+            let fPath = pathJoin [| projectPath; name + ".ram"|]
+            readMemDefns mem.AddressWidth mem.WordWidth fPath
+
+        | FromData ->
+            Ok mem.Data
+        | ToFileBadName s ->
+            failwithf "What? Can't have a bad file name when initialising memory"
+       
+    memResult
+    |> Result.map (fun data -> {mem with Data = data})
 
 
-/// Write base64 encoded data to file.
-/// Create file if it does not exist.
-let writeFileBase64 path data =
-    let options = createObj ["encoding" ==> "base64"] |> Some
-    fs.writeFileSync(path, data, options)
 
-/// Write utf8 encoded data to file.
-/// Create file if it does not exist.
-let writeFile path data =
-    let options = createObj ["encoding" ==> "utf8"] |> Some
-    fs.writeFileSync(path, data, options)
+
 
 /// Save a PNG file (encoded base64, as from draw2d)
 /// Overwrite existing file if needed
@@ -243,11 +368,7 @@ let savePngFile folderPath baseName png = // TODO: catch error?
 let formatSavedState (canvas,wave) =
     CanvasWithFileWaveInfo(canvas,wave,System.DateTime.Now)
 
-/// Save state to autosave file. Automatically add the .dgmauto suffix.
-let saveAutoStateToFile folderPath baseName state = // TODO: catch error?
-    let path = pathJoin [| folderPath; baseName + ".dgmauto" |]
-    let data = stateToJsonString state
-    writeFile path data
+
 
 /// Save state to normal file. Automatically add the .dgm suffix.
 let saveStateToFile folderPath baseName state = // TODO: catch error?
@@ -271,28 +392,70 @@ let magnifySheet magnification (comp: Component) =
     }
 
 
- 
+/// Update from old component types to new
+/// The standard way to add functionality to an existing component is to create a new
+/// component type, keeping the old type. Then on reading sheets from disk both new and old
+/// will be correctly read. This function will be called on load and will convert from the old
+/// type to the new one so that the rest of issie need only process new types, but compatibility
+/// with saved old types remains.
+let getLatestComp (comp: Component) =
+    let updateMem (mem:Memory) : Memory1 =
+        {
+            Init = FromData
+            Data = mem.Data
+            AddressWidth = mem.AddressWidth
+            WordWidth = mem.WordWidth
+        }
+    match comp.Type with
+    | RAM mem -> {comp with Type = RAM1 (updateMem mem)}
+    | ROM mem -> {comp with Type = ROM1 (updateMem mem)}
+    | AsyncROM mem -> { comp with Type = AsyncROM1 (updateMem mem)}
+    | _ -> comp
 
 /// Interface function that can read old-style circuits (without wire vertices)
 /// as well as new circuits with vertices. Old circuits have an expansion parameter
 /// since new symbols are larger (in units) than old ones.
 let getLatestCanvas state =
-    let oldCircuitMagnification = 1.5
+    let oldCircuitMagnification = 1.25
     let stripConns canvas =
         let (comps,conns) = canvas
         let noVertexConns = List.map stripVertices conns
         let expandedComps = List.map (magnifySheet oldCircuitMagnification) comps
         expandedComps, noVertexConns
-    match state  with
-    | CanvasOnly canvas -> stripConns canvas
-    | CanvasWithFileWaveInfo(canvas, _, _) -> stripConns canvas
-    | CanvasWithFileWaveInfoAndNewConns(canvas, _, _) -> canvas
+    let comps,conns =
+        match state  with
+        | CanvasOnly canvas -> stripConns canvas
+        | CanvasWithFileWaveInfo(canvas, _, _) -> stripConns canvas
+        | CanvasWithFileWaveInfoAndNewConns(canvas, _, _) -> canvas
+    List.map getLatestComp comps, conns
 
+
+let checkMemoryContents (projectPath:string) (comp: Component) : Component =
+    match comp.Type with
+    | RAM1 mem | ROM1 mem | AsyncROM1 mem when not (String.endsWith "backup" (String.toLower projectPath))->
+        match mem.Init with
+        | FromFile fName ->
+            let fPath = pathJoin [|projectPath ; (fName + ".ram")|]
+            let memData = readMemDefns mem.AddressWidth mem.WordWidth fPath
+            match memData with
+            | Ok memDat -> 
+                if memDat <> mem.Data then
+                    printfn "%s" $"Warning! RAM file {fPath} has changed so component {comp.Label} is now different"
+                let mem = {mem with Data = memDat}
+                {comp with Type = getMemType comp.Type mem}
+            | Error msg ->
+                printfn $"Error relaoding component {comp.Label} from its file {fPath}:\n{msg}"
+                comp // ignore errors for now
+        | _ -> comp
+    | _ -> comp
 
 /// load a component from its canvas and other elements
-let rec makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp waveInfo =
-    
+let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp waveInfo =
+    let projectPath = path.dirname filePath
     let inputs, outputs = parseDiagramSignature canvas
+    let comps,conns = canvas
+    let comps = List.map (checkMemoryContents projectPath) comps
+    let canvas = comps,conns
     {
         Name = getBaseNameNoExtension filePath
         TimeStamp = timeStamp
@@ -308,9 +471,14 @@ let rec makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeSta
 /// Return the component, or an Error string.
 let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
     match tryLoadStateFromPath filePath with
-    | Result.Error msg ->  Error <| sprintf "Can't load component %s because of Error: %s" (getBaseNameNoExtension filePath)  msg
+    | Result.Error msg ->  
+        Error <| sprintf "Can't load component %s because of Error: %s" (getBaseNameNoExtension filePath)  msg
     | Ok state ->
-        makeLoadedComponentFromCanvasData (getLatestCanvas state) filePath state.getTimeStamp state.getWaveInfo
+        makeLoadedComponentFromCanvasData 
+            (getLatestCanvas state) 
+            filePath 
+            state.getTimeStamp 
+            state.getWaveInfo
         |> Result.Ok
 
 

@@ -46,7 +46,8 @@ type PopupDialogData = {
     Text : string option;
     Int : int option;
     Int2: int option
-    MemorySetup : (int * int) option // AddressWidth, WordWidth. 
+    ProjectPath: string
+    MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth. 
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
     WaveSetup: MoreWaveSetup option
 }
@@ -281,7 +282,7 @@ type Msg =
     | SetPopupDialogText of string option
     | SetPopupDialogInt of int option
     | SetPopupDialogTwoInts of (int option * IntMode)
-    | SetPopupDialogMemorySetup of (int * int) option
+    | SetPopupDialogMemorySetup of (int * int * InitMemData * string option) option
     | SetPopupMemoryEditorData of MemoryEditorData option
     | SetPopupWaveSetup of MoreWaveSetup
     | SetSelectedComponentMemoryLocation of int64 * int64

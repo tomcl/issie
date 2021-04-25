@@ -99,13 +99,13 @@ let private extractBit (wireData : WireData) : Bit =
 let private packBit (bit : Bit) : WireData = [bit]
 
 /// Read the content of the memory at the specified address.
-let private readMemory (mem : Memory) (address : WireData) : WireData =
+let private readMemory (mem : Memory1) (address : WireData) : WireData =
     let intAddr = convertWireDataToInt address
     let outDataInt = Helpers.getMemData intAddr mem
     convertIntToWireData mem.WordWidth outDataInt
 
 /// Write the content of the memory at the specified address.
-let private writeMemory (mem : Memory) (address : WireData) (data : WireData) : Memory =
+let private writeMemory (mem : Memory1) (address : WireData) (data : WireData) : Memory1 =
     let intAddr = convertWireDataToInt address
     let intData = convertWireDataToInt data
     {mem with Data = Map.add intAddr intData mem.Data}
@@ -446,7 +446,7 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 let newState = RegisterState newStateBits
                 Map.empty.Add (OutputPortNumber 0, newStateBits)
                 |> makeReducerOutput newState
-    | AsyncROM mem -> // Asynchronous ROM.
+    | AsyncROM1 mem -> // Asynchronous ROM.
         fun reducerInput ->
             assertNoClockTick reducerInput componentType
             assertNotTooManyInputs reducerInput componentType 1
@@ -459,7 +459,7 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 Map.empty.Add (OutputPortNumber 0, outData)
                 |> makeReducerOutput NoState
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-    | ROM mem -> // Synchronous ROM.
+    | ROM1 mem -> // Synchronous ROM.
         fun reducerInput ->
             match reducerInput.IsClockTick with
             | No ->
@@ -481,7 +481,7 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 let outData = readMemory mem address
                 Map.empty.Add (OutputPortNumber 0, outData)
                 |> makeReducerOutput NoState
-    | RAM _ ->
+    | RAM1 _ ->
         fun reducerInput ->
             match reducerInput.IsClockTick with
             | No ->
@@ -522,6 +522,8 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                         writeMemory mem address dataIn, dataIn
                 Map.empty.Add (OutputPortNumber 0, dataOut)
                 |> makeReducerOutput (RamState mem)
+    | x -> failwithf $"legacy components {x} should never occur"
+
 
 /// Build a map that, for each source port in the connections, keeps track of
 /// the ports it targets.
@@ -559,13 +561,15 @@ let private mapInputPortIdToPortNumber
 /// ROMs are stateless (they are only defined by their initial content).
 let private getDefaultState compType =
     match compType with
+    | ROM _ | RAM _ | AsyncROM _ -> 
+        failwithf "What? Legacy RAM component types should never occur"
     | Input _ | Output _ | IOLabel | BusSelection _ | BusCompare _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 | Decode4
-    | Demux2 | NbitsAdder _ |NbitsXor _ | Custom _ | MergeWires | SplitWire _ | ROM _  -> NoState
+    | Demux2 | NbitsAdder _ |NbitsXor _ | Custom _ | MergeWires | SplitWire _ | ROM1 _  -> NoState
     | Constant (w, c) -> NoState //convertIntToWireData w (if c < 0 then (1L <<< w) - int64 c else int64 c)
-    | AsyncROM _ -> NoState
+    | AsyncROM1 _ -> NoState
     | DFF | DFFE -> DffState Zero
     | Register w | RegisterE w -> RegisterState <| List.replicate w Zero
-    | RAM memory -> RamState memory // The RamState content may change during
+    | RAM1 memory -> RamState memory // The RamState content may change during
                                     // the simulation.
 
 /// Build a simulation component.

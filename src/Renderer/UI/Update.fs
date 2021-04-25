@@ -88,14 +88,14 @@ let findChange (model : Model) : bool =
 let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) =
     match compOpt with
     | None -> None
-    | Some ({Type= (AsyncROM mem as ct)} as comp)
-    | Some ({Type = (ROM mem as ct)} as comp)
-    | Some ({Type= (RAM mem as ct)} as comp) -> 
+    | Some ({Type= (AsyncROM1 mem as ct)} as comp)
+    | Some ({Type = (ROM1 mem as ct)} as comp)
+    | Some ({Type= (RAM1 mem as ct)} as comp) -> 
         let update mem ct =
             match ct with
-            | AsyncROM _ -> AsyncROM mem
-            | ROM _ -> ROM mem
-            | RAM _ -> RAM mem
+            | AsyncROM1 _ -> AsyncROM1 mem
+            | ROM1 _ -> ROM1 mem
+            | RAM1 _ -> RAM1 mem
             | _ -> ct
         let mem' = {mem with Data = mem.Data |> Map.add addr data}
         Some {comp with Type= update mem' ct}
@@ -214,8 +214,14 @@ let update msg model =
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
     | SetCreateComponent pos -> { model with LastCreatedComponent = Some pos }, Cmd.none
     | SetProject project -> 
-        { model with CurrentProj = Some project}, Cmd.none
-    | CloseProject -> { model with CurrentProj = None }, Cmd.none
+        { model with 
+            CurrentProj = Some project
+            PopupDialogData = {model.PopupDialogData with ProjectPath = project.ProjectPath}
+        }, Cmd.none
+    | CloseProject -> 
+        { model with 
+            CurrentProj = None
+        }, Cmd.none
     | ShowPopup popup -> { model with PopupViewFunc = Some popup }, Cmd.none
     | ClosePopup ->
         let model' =
@@ -226,14 +232,13 @@ let update msg model =
         { model' with 
             PopupViewFunc = None;
             PopupDialogData =
-                    { 
+                    { model.PopupDialogData with
                         Text = None; 
                         Int = None; 
                         Int2 = None; 
                         MemorySetup = None; 
                         MemoryEditorData = None; 
-                        WaveSetup = model.PopupDialogData.WaveSetup} 
-                    }, Cmd.none
+                    }}, Cmd.none
     | SetPopupDialogText text ->
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
     | SetPopupDialogInt int ->

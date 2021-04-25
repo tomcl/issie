@@ -823,23 +823,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let wholeApp = document.getElementById "WholeApp"
         let rightSelection = document.getElementById "RightSelection"
         
-        //printfn "DEBUG: Right Selection %A" rightSelection.clientWidth
-        //printfn "DEBUG: Whole App %A" wholeApp.clientWidth
-        
         let leftScreenEdge = canvas.scrollLeft
         let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.clientWidth
         let upperScreenEdge = canvas.scrollTop
         let lowerScreenEdge = upperScreenEdge + canvas.clientHeight
         let mPosX = model.ScrollingLastMousePos.X * model.Zoom // Un-compensate for zoom as we want raw distance from mouse to edge screen
         let mPosY = model.ScrollingLastMousePos.Y * model.Zoom // Un-compensate for zoom as we want raw distance from mouse to edge screen
-        
-        //printfn "DEBUG: Mouse X: %A" mPosX
-        //printfn "DEBUG: Mouse Y: %A" mPosY
-        //printfn "DEBUG: Left Screen Edge: %A" leftScreenEdge
-        //printfn "DEBUG: Right Screen Edge: %A" rightScreenEdge
-        //printfn "DEBUG: Upper Screen Edge: %A" upperScreenEdge
-        //printfn "DEBUG: Lower Screen Edge: %A" lowerScreenEdge
-        
+                
         let checkForAutomaticScrolling1D (edge: float) (mPos: float) =
             let scrollMargin = 100.0
             let scrollSpeed = 10.0
@@ -860,8 +850,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         if xDiff <> 0.0 || yDiff <> 0.0 then // Did any automatic scrolling happen?
             let newMPos = { X = model.LastMousePos.X + xDiff / model.Zoom ; Y = model.LastMousePos.Y + yDiff / model.Zoom }
             
-//            printfn "DEBUG: newMPos %A" newMPos
-//            printfn "DEBUG: Zoom %A" model.Zoom
             // Need to update mouse movement as well since the scrolling moves the mouse relative to the canvas, but no actual mouse movement will be detected.
             // E.g. a moving symbol should stick to the mouse as the automatic scrolling happens and not lag behind.
             let outputModel, outputCmd =
@@ -881,6 +869,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             { model with AutomaticScrolling = false }, Cmd.none
                 
     // ---------------------------- Issie Messages ---------------------------- //
+
     | InitialiseCreateComponent (compType, lbl) ->
         { model with Action = (InitialisedCreateComponent (compType, lbl)) ; TmpModel = Some model}, Cmd.none
     | FlushCommandStack -> { model with UndoList = []; RedoList = []; TmpModel = None }, Cmd.none

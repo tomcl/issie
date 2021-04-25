@@ -435,7 +435,6 @@ let appendUndoList (undoList: Model List) (model_in: Model): Model List =
 
 /// Mouse Down Update, Can have clicked on: InputPort / OutputPort / Component / Wire / Canvas. Do correct action for each.
 let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
-    printf "DEBUG mDown selected: \n %A" model.SelectedComponents
     let newModel = 
         match model.TmpModel with 
         | None -> model
@@ -506,11 +505,10 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
         | Canvas ->
             let newComponents, newWires =
                 if model.Toggle
-                then model.SelectedComponents, model.SelectedWires
+                then model.SelectedComponents, model.SelectedWires //do not deselect if in toggle mode
                 else [], []
             // Start Creating Selection Box and Reset Selected Components
             let initialiseSelection = {model.DragToSelectBox with X=mMsg.Pos.X; Y=mMsg.Pos.Y}
-            printf "DEBUG CANVAS \n %A \n %A" newComponents newWires
             {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires },
             Cmd.batch [ symbolCmd (Symbol.SelectSymbols newComponents)
                         wireCmd (BusWire.SelectWires newWires) ]
@@ -580,7 +578,6 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
         Cmd.batch [ wireCmd (BusWire.DragWire (connId, mMsg))
                     wireCmd (BusWire.MakeJumps [ connId ] ) ]
     | Selecting ->
-        
         let newComponents = findIntersectingComponents model model.DragToSelectBox
         let newWires = BusWire.getIntersectingWires model.Wire model.DragToSelectBox
         let resetDragToSelectBox = {model.DragToSelectBox with H = 0.0; W = 0.0}

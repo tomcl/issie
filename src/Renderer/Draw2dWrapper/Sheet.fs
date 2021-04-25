@@ -223,6 +223,13 @@ let unSnapMargin = gridSize / 5.0 // How much movement there needs to be for un-
 
 // ------------------------------------------- Helper Functions ------------------------------------------- //
 
+//Calculates the symmetric difference of two lists, returning a list of the given type
+let symDiff lst1 lst2 =
+    let a = Set.ofList lst1
+    let b = Set.ofList lst2
+    (a - b) + (b - a)
+    |> Set.toList
+
 /// Calculates the change in coordinates of two XYPos
 let posDiff (a: XYPos) (b: XYPos) = {X=a.X-b.X; Y=a.Y-b.Y}
     
@@ -488,11 +495,16 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                         wireCmd (BusWire.DragWire (connId, mMsg))
                         wireCmd (BusWire.ResetJumps [ connId ] ) ]
         | Canvas ->
+            let newComponents, newWires =
+                if model.Toggle
+                then model.SelectedComponents, model.SelectedWires
+                else [], []
             // Start Creating Selection Box and Reset Selected Components
             let initialiseSelection = {model.DragToSelectBox with X=mMsg.Pos.X; Y=mMsg.Pos.Y}
-            {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = []; SelectedWires = [] },
-            Cmd.batch [ symbolCmd (Symbol.SelectSymbols [])
-                        wireCmd (BusWire.SelectWires []) ]
+            printf "DEBUG CANVAS \n %A \n %A" newComponents newWires
+            {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires },
+            Cmd.batch [ symbolCmd (Symbol.SelectSymbols newComponents)
+                        wireCmd (BusWire.SelectWires newWires) ]
         
 /// Mouse Drag Update, can be: drag-to-selecting, moving symbols, connecting wire between ports.
 let mDragUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = 
@@ -559,13 +571,20 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
         Cmd.batch [ wireCmd (BusWire.DragWire (connId, mMsg))
                     wireCmd (BusWire.MakeJumps [ connId ] ) ]
     | Selecting ->
+        
         let newComponents = findIntersectingComponents model model.DragToSelectBox
         let newWires = BusWire.getIntersectingWires model.Wire model.DragToSelectBox
         let resetDragToSelectBox = {model.DragToSelectBox with H = 0.0; W = 0.0}
-        
-        { model with DragToSelectBox = resetDragToSelectBox; Action = Idle; SelectedComponents = newComponents; SelectedWires = newWires; AutomaticScrolling = false },
-        Cmd.batch [ symbolCmd (Symbol.SelectSymbols newComponents)
-                    wireCmd (BusWire.SelectWires newWires) ]
+        let selectComps, selectWires = 
+            if model.Toggle 
+            then 
+                symDiff newComponents model.SelectedComponents, symDiff newWires model.SelectedWires
+            else newComponents, newWires
+
+        { model with DragToSelectBox = resetDragToSelectBox; Action = Idle; SelectedComponents = selectComps; SelectedWires = selectWires; AutomaticScrolling = false },
+        Cmd.batch [ symbolCmd (Symbol.SelectSymbols selectComps)
+                    wireCmd (BusWire.SelectWires selectWires) ]
+
     | InitialiseMoving compId -> // If user clicked on a component and never moved it, then select that component instead. (resets multi-selection as well)
             { model with Action = Idle; SelectedComponents = [ compId ]; SelectedWires = [] },
             Cmd.batch [ symbolCmd (Symbol.SelectSymbols [ compId ])

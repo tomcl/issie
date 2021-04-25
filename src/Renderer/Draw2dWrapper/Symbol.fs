@@ -264,9 +264,9 @@ let getPortPosModel (model: Model) (port:Port) =
 let addText posX posY name txtPos (bold: bool)=
     let text =
         if bold then
-            {defaultText with TextAnchor = txtPos; FontWeight = "Bold"; FontSize = "12px"}
+            {defaultText with TextAnchor = txtPos; FontWeight = "Bold"; FontSize = "14px"}
         else
-            {defaultText with TextAnchor = txtPos; FontSize = "10px"}
+            {defaultText with TextAnchor = txtPos; FontSize = "12px"}
     [makeText posX posY name text]
 
 // Generate circles
@@ -276,9 +276,10 @@ let portCircles x y  =
 let portText x y name portType=
     let xPos = 
         if portType = PortType.Output
-        then (x - (float(String.length name)*4.0)-12.0)
-        else x + 6.0
-    (addText xPos (y - 4.0) name "left" false)
+        then x - 3.
+        else x + 3.
+    let test = if portType = PortType.Output then "end" else "start"
+    (addText xPos (y - 7.0) name test false)
 
 // Print the name of each port 
 let drawPortsText (portList: Port List) (listOfNames: string List) (comp: Component)= 

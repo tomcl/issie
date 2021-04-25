@@ -311,16 +311,17 @@ let makeSourceMenu
         | FromData -> [str "Enter data later"]
         | SignedMultiplier -> [str "Signed multiply"]
         | UnsignedMultiplier -> [str "Unsigned multipy"]
-        | ToFile _ | ToFileBadName _ -> [ str "Enter data later - create a new file " ; if inList then str "" else fileEntryBox]
+        | ToFile _ | ToFileBadName _ -> // not needed - direct write from properties is better
+            [ str "Enter data later - create a new file " ; if inList then str "" else fileEntryBox]
         | FromFile s -> [str $"{s}.ram"]
 
     let sources =
-        [
-            FromData
-            SignedMultiplier
-            UnsignedMultiplier
-            ToFileBadName ""
-        ] @ existingFiles
+            [
+                FromData
+                SignedMultiplier
+                UnsignedMultiplier
+                //ToFileBadName ""
+            ] @ existingFiles
 
 
     let isActiveFile key = 
@@ -514,6 +515,7 @@ let successNotification text closeMsg =
 let errorPropsNotification text = errorNotification text ClosePropertiesNotification
 let errorFilesNotification text  = errorNotification text CloseFilesNotification
 let successSimulationNotification text = successNotification text CloseSimulationNotification
+let successPropertiesNotification text = successNotification text ClosePropertiesNotification
 
 let warningNotification text closeMsg =
     fun dispatch ->

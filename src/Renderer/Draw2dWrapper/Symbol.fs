@@ -276,8 +276,8 @@ let portCircles x y  =
 let portText x y name portType=
     let xPos = 
         if portType = PortType.Output
-        then x - 3.
-        else x + 3.
+        then x - 5.
+        else x + 5.
     let test = if portType = PortType.Output then "end" else "start"
     (addText xPos (y - 7.0) name test false)
 

@@ -191,6 +191,14 @@ let private projectFileFilters =
     |> unbox<FileFilter> 
     |> Array.singleton
 
+let private ramFileFilters =
+    createObj !![
+        "name" ==> "Memory contents File"
+        "extensions" ==> ResizeArray [ "ram" ]
+    ] 
+    |> unbox<FileFilter> 
+    |> Array.singleton
+
 let private projectFilters =
     createObj !![ 
         "name" ==> "ISSIE project"   
@@ -521,6 +529,37 @@ let loadAllComponentFiles (folderPath:string)  =
                     | Error msg, _ -> Error msg
             )
         |> tryFindError
+
+/// Ask the user a new project path, with a dialog window.
+/// Return None if the user exits withouth selecting a path.
+let rec askForNewFile () : string option =
+    let options = createEmpty<SaveDialogOptions>
+    options.filters <- ramFileFilters
+    options.title <- "Enter new file name"
+    options.nameFieldLabel <- "New file name"
+    options.buttonLabel <- "Save memory content to file"
+    options.properties <- [|
+        SaveDialogFeature.ShowOverwriteConfirmation
+        |]
+    match renderer.remote.getCurrentWindow() with
+    | w ->
+        electron.remote.dialog.showSaveDialogSync(options)
+        
+
+
+let openWriteDialogAndWriteMemory mem =
+    match askForNewFile() with
+    | None -> 
+        None
+    | Some fpath ->
+        let fpath' =
+            if not (String.contains "." fpath) then
+                fpath + ".ram"
+            else
+                fpath
+        writeMemDefns fpath' mem
+        Some fpath'
+    
 
 
 

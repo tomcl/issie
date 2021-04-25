@@ -93,6 +93,19 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
             Button.Color IsPrimary
             Button.OnClick (fun _ -> openMemoryEditor mem compId model dispatch)
         ] [str "View/Edit memory content"]
+        br []; br [];
+        Button.button [
+            Button.Color IsPrimary
+            Button.OnClick (fun _ -> 
+                FilesIO.openWriteDialogAndWriteMemory mem
+                |> (function
+                        | None -> ()
+                        | Some path ->
+                            let note = successPropertiesNotification $"Memory content written to '{path}'"
+                            dispatch <| SetPropertiesNotification note)
+                )
+        ] [str "Write content to file"]
+
     ]
 
 let private makeNumberOfBitsField model (comp:Component) text dispatch =

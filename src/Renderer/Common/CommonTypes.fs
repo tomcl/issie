@@ -105,10 +105,17 @@ module CommonTypes
         // DFFE is a DFF with an enable signal.
         // No initial state for DFF or Register? Default 0.
         | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int 
-        | AsyncROM of Memory | ROM of Memory | RAM of Memory // memory is contents
+        | AsyncROM of Memory | ROM of Memory | RAM of Memory // legacy components - to be deleted
         | AsyncROM1 of Memory1 | ROM1 of Memory1 | RAM1 of Memory1
 
-    
+    /// get memory component type constructor
+    /// NB only works with new-style memory components
+    let getMemType (cType: ComponentType) =
+        match cType with
+        | RAM1 _ -> RAM1
+        | ROM1 _ -> ROM1
+        | AsyncROM1 _ -> AsyncROM1
+        | _ -> failwithf $"Can't get memory type from {cType}"
 
 
     /// JSComponent mapped to F# record.

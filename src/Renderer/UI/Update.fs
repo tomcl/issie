@@ -88,14 +88,14 @@ let findChange (model : Model) : bool =
 let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) =
     match compOpt with
     | None -> None
-    | Some ({Type= (AsyncROM mem as ct)} as comp)
-    | Some ({Type = (ROM mem as ct)} as comp)
-    | Some ({Type= (RAM mem as ct)} as comp) -> 
+    | Some ({Type= (AsyncROM1 mem as ct)} as comp)
+    | Some ({Type = (ROM1 mem as ct)} as comp)
+    | Some ({Type= (RAM1 mem as ct)} as comp) -> 
         let update mem ct =
             match ct with
-            | AsyncROM _ -> AsyncROM mem
-            | ROM _ -> ROM mem
-            | RAM _ -> RAM mem
+            | AsyncROM1 _ -> AsyncROM1 mem
+            | ROM1 _ -> ROM1 mem
+            | RAM1 _ -> RAM1 mem
             | _ -> ct
         let mem' = {mem with Data = mem.Data |> Map.add addr data}
         Some {comp with Type= update mem' ct}

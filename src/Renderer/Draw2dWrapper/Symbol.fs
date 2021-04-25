@@ -347,7 +347,7 @@ let compSymbol (comp:Component) (colour:string) (showInputPorts:bool) (showOutpu
         | SplitWire _ -> (addHorizontalLine halfW w (0.33*float(h)) opacity) @ (addHorizontalLine halfW w (0.66*float(h)) opacity) @ (addHorizontalLine 0 halfW (0.5*float(h)) opacity)
         | DFF |DFFE -> (addClock 0 h colour opacity)
         | Register _ |RegisterE _ -> (addClock 0 h colour opacity)
-        | ROM _ |RAM _ -> (addClock 0 h colour opacity)
+        | ROM1 _ |RAM1 _ -> (addClock 0 h colour opacity)
         | BusSelection(x,y) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-2.0) (bustitle x y) "middle" false)
         | BusCompare (_,y) -> (addText  (float(w/2)-6.0) (float(h)/2.7-3.5) ("=" + string(y)) "middle" true)
         | Input (x) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-3.0) (title "" x) "middle" false)
@@ -813,9 +813,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         
         let newCompType =
             match comp.Type with
-            | RAM mem -> RAM { mem with Data = Map.add addr value mem.Data }
-            | ROM mem -> ROM { mem with Data = Map.add addr value mem.Data }
-            | AsyncROM mem -> AsyncROM { mem with Data = Map.add addr value mem.Data }
+            | RAM1 mem -> RAM1 { mem with Data = Map.add addr value mem.Data }
+            | ROM1 mem -> ROM1 { mem with Data = Map.add addr value mem.Data }
+            | AsyncROM1 mem -> AsyncROM1 { mem with Data = Map.add addr value mem.Data }
             | _ -> comp.Type
         
         let newComp = { comp with Type = newCompType }

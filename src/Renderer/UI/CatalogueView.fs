@@ -225,7 +225,7 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
-            let addressWidth, wordWidth, source, msgOpt = getMemorySetup dialogData
+            let addressWidth, wordWidth, source, msgOpt = getMemorySetup dialogData intDefault
             let initMem = {
                 AddressWidth = addressWidth
                 WordWidth = wordWidth
@@ -242,18 +242,29 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
                 dispatch <| SetPopupDialogMemorySetup (addError (Some mess) dialogData.MemorySetup)
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
-            let addressWidth, wordWidth, source,_ = getMemorySetup dialogData
-            let validKey = 
+            let addressWidth, wordWidth, source,_ = getMemorySetup dialogData 1
+            let error = 
                 match dialogData.MemorySetup with 
-                | Some(_,_,ToFileBadName _,_) 
+                | Some(_,_,ToFileBadName _,_) ->
+                    Some "File name must be alphanumeric without prefix"
                 | None -> 
-                    false 
-                | Some (_,_,SignedMultiplier,_)
+                    Some ""
+                | Some (_,_,SignedMultiplier,_) 
                 | Some(_,_,UnsignedMultiplier,_) ->
-                    addressWidth % 2 = 0 && addressWidth <= 16
+                    if addressWidth % 2 <> 0 then
+                        Some "The address width must be even for a multiplier"
+                    elif addressWidth > 16 then
+                        Some "The maximum multiplier size is 8X8 - 16 address bits"
+                    else None
                 | _ -> 
-                    true
-            addressWidth < 1 || wordWidth < 1 || not validKey
+                    None
+            match error with
+            | Some msg when msg <> "" ->
+                match dialogData.MemorySetup with
+                | Some (_,_,_,e) when e = Some msg -> ()
+                | _ -> dispatch <| SetPopupDialogMemorySetup (addError (Some msg) dialogData.MemorySetup)
+            | _ -> ()
+            addressWidth < 1 || wordWidth < 1 || error <> None
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 let private makeMenuGroup title menuList =

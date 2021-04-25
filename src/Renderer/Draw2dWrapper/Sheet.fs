@@ -428,6 +428,7 @@ let appendUndoList (undoList: Model List) (model_in: Model): Model List =
 
 /// Mouse Down Update, Can have clicked on: InputPort / OutputPort / Component / Wire / Canvas. Do correct action for each.
 let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
+    printf "DEBUG mDown selected: \n %A" model.SelectedComponents
     let newModel = 
         match model.TmpModel with 
         | None -> model
@@ -462,19 +463,31 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
             {model with Action = ConnectingOutput portId; ConnectPortsLine = portLoc, mMsg.Pos; TmpModel=Some model},
             symbolCmd Symbol.ShowAllInputPorts
         | Component compId ->
-            if model.Toggle 
-            then 
-                printf "DEBUG TOGGLE"
-                model, Cmd.none
-            else
-                let newComponents, newWires = 
-                    match List.contains compId model.SelectedComponents with
-                    | true -> model.SelectedComponents, model.SelectedWires // Keep selection for symbol movement
-                    | false -> [ compId ], [] // If user clicked on a new component, select that one instead
+            
+                printf "DEBUG TOGGLE COMPONENT: %A" model.Toggle
+                if model.Toggle 
+                then 
+                    let newComponents, newWires =
+                        if List.contains compId model.SelectedComponents
+                        then List.filter (fun cId -> cId <> compId) model.SelectedComponents, model.SelectedWires // If component selected was already in the list, remove it
+                        else compId :: model.SelectedComponents, [] // If user clicked on a new component add it to the selected list
+                    
+                    printf "DEBUG TOGGLE newcomponent: \n %A" newComponents
+                    {model with SelectedComponents = newComponents; LastValidPos = mMsg.Pos ; LastValidBoundingBoxes=model.BoundingBoxes ; SelectedWires = newWires; Action = Idle; LastMousePos = mMsg.Pos; TmpModel = Some model},
+                    Cmd.batch [ symbolCmd (Symbol.SelectSymbols newComponents)
+                                wireCmd (BusWire.SelectWires newWires) ]
+                else
+                    let newComponents, newWires =
+                        if List.contains compId model.SelectedComponents
+                        then model.SelectedComponents, model.SelectedWires // Keep selection for symbol movement
+                        else [ compId ], [] // If user clicked on a new component, select that one instead
+                    {model with SelectedComponents = newComponents; LastValidPos = mMsg.Pos ; LastValidBoundingBoxes=model.BoundingBoxes ; SelectedWires = newWires; Action = InitialiseMoving compId; LastMousePos = mMsg.Pos; TmpModel = Some model},
+                    Cmd.batch [ symbolCmd (Symbol.SelectSymbols newComponents)
+                                wireCmd (BusWire.SelectWires newWires) ]
 
-                {model with SelectedComponents = newComponents; LastValidPos = mMsg.Pos ; LastValidBoundingBoxes=model.BoundingBoxes ; SelectedWires = newWires; Action = InitialiseMoving compId; LastMousePos = mMsg.Pos; TmpModel = Some model},
-                Cmd.batch [ symbolCmd (Symbol.SelectSymbols newComponents)
-                            wireCmd (BusWire.SelectWires newWires) ]
+            
+            
+            
         | Connection connId ->
             { model with SelectedComponents = []; SelectedWires = [ connId ]; Action = MovingWire connId; TmpModel=Some model},
             Cmd.batch [ symbolCmd (Symbol.SelectSymbols [])
@@ -718,7 +731,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         wireCmd (BusWire.SelectWires wires) ]
 
     | KeyPress Ctrl ->
-        {model with Toggle = not model.Toggle}, Cmd.none
+        {model with Toggle = not model.Toggle}, Cmd.none //TODO : make this work for holding ctrl - currently just press on/off
 
     | MouseMsg mMsg -> // Mouse Update Functions can be found above, update function got very messy otherwise
         // printf "%A" mMsg

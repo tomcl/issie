@@ -310,7 +310,7 @@ let addInvertor posX posY colour opacity =
 let addClock posX posY colour opacity =
     let points = (sprintf "%i,%i %i,%i %i,%i" posX (posY-1) (posX+8) (posY-7) posX (posY-13))
     createPolygon points colour opacity
-    |> List.append (addText (float(posX+10)) (float(posY-12)) "clk" "left" false)
+    |> List.append (addText (float(posX+10)) (float(posY-13)) " clk" "start" false)
 
 let addHorizontalLine posX1 posX2 posY opacity = // TODO: Line instead of polygon?
     let points = (sprintf "%i,%f %i,%f" posX1 posY posX2 posY)

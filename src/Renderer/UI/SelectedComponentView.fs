@@ -71,6 +71,7 @@ let getInitSource (mem: Memory1) =
    
 
 let private makeMemoryInfo descr mem compId cType model dispatch =
+    let projectPath = (Option.get model.CurrentProj).ProjectPath
     div [] [
         str descr
         br []; br []
@@ -97,7 +98,7 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
         Button.button [
             Button.Color IsPrimary
             Button.OnClick (fun _ -> 
-                FilesIO.openWriteDialogAndWriteMemory mem
+                FilesIO.openWriteDialogAndWriteMemory mem projectPath
                 |> (function
                         | None -> ()
                         | Some path ->

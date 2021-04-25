@@ -280,7 +280,7 @@ let removeAutoFile folderPath baseName =
     let path = path.join [| folderPath; baseName + ".dgmauto" |]
     fs.unlink (U2.Case1 path, ignore) // Asynchronous.
 
-let readMemDefnLine (addressWidth:int) (wordWidth: int) (s:string) =
+let readMemDefnLine (addressWidth:int) (wordWidth: int) (lineNo: int) (s:string) =
     let nums = String.splitRemoveEmptyEntries [|' ';'\t';',';';';'"'|] s 
     match nums with
     | [|addr;data|] ->
@@ -288,23 +288,26 @@ let readMemDefnLine (addressWidth:int) (wordWidth: int) (s:string) =
         let dataNum = NumberHelpers.strToIntCheckWidth data wordWidth
         match addrNum,dataNum with
         | Ok a, Ok d -> Ok (a,d)
-        | Error aErr,_ -> Error $"Line '%s{s}' has incorrect width {addressWidth} number '%s{addr}' %s{aErr}"
-        | _, Error dErr -> Error $"Line '%s{s}' has incorrect width {wordWidth} number '%s{data}' %s{dErr}"
-    | _ -> Error $"Line '%s{s} has more or less than two numbers: valid lines consist of two numbers"
+        | Error aErr,_ -> Error $"Line {lineNo}:'%s{s}' has invalid address ({addr}). {aErr}"
+        | _, Error dErr -> Error $"Line '%s{s}' has invalid data item ({data}). {dErr}"
+    | x -> Error $"Line {lineNo}:'%s{s}' has {x.Length} items: valid lines consist of two numbers"
 
 let readMemLines (addressWidth:int) (wordWidth: int) (lines: string array) =
     let parse = 
         Array.map String.trim lines
         |> Array.filter ((<>) "")
-        |> Array.map (readMemDefnLine addressWidth wordWidth)
+        |> Array.mapi (readMemDefnLine addressWidth wordWidth)
     match Array.tryFind (function | Error _ -> true | _ -> false) parse with
     | None ->
         let defs = (Array.map (function |Ok x -> x | _ -> failwithf "What?") parse)
+        Array.iter (fun (a,b) -> printfn "a=%d, b=%d" a b) defs
         let repeats =
             Array.groupBy fst defs
-            |> Array.filter (fun (num, vals) -> num <> 1L)
+            |> Array.filter (fun (num, vals) -> vals.Length > 1)
         if repeats <> [||] then 
-            Error $"addresses must not have repeated values: %A{repeats}"
+            repeats
+            |> Array.map fst
+            |> fun aLst -> Error $"Memory addresses %A{aLst} are repeated"
         else
             Ok defs
 
@@ -437,11 +440,11 @@ let checkMemoryContents (projectPath:string) (comp: Component) : Component =
             match memData with
             | Ok memDat -> 
                 if memDat <> mem.Data then
-                    printfn "%s" $"Warning! RAM file {fPath} has chnaged so component {comp.Label} is now different"
+                    printfn "%s" $"Warning! RAM file {fPath} has changed so component {comp.Label} is now different"
                 let mem = {mem with Data = memDat}
                 {comp with Type = getMemType comp.Type mem}
             | Error msg ->
-                printfn $"Error relaoding component {comp.Label} from its file {fPath}"
+                printfn $"Error relaoding component {comp.Label} from its file {fPath}:\n{msg}"
                 comp // ignore errors for now
         | _ -> comp
     | _ -> comp

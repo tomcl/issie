@@ -489,11 +489,20 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                                 wireCmd (BusWire.SelectWires newWires) ]
 
         | Connection connId ->
-            { model with SelectedComponents = []; SelectedWires = [ connId ]; Action = MovingWire connId; TmpModel=Some model},
-            Cmd.batch [ symbolCmd (Symbol.SelectSymbols [])
-                        wireCmd (BusWire.SelectWires [ connId ])
-                        wireCmd (BusWire.DragWire (connId, mMsg))
-                        wireCmd (BusWire.ResetJumps [ connId ] ) ]
+            if model.Toggle
+            then 
+                let newWires = 
+                    if List.contains connId model.SelectedWires
+                    then List.filter (fun cId -> cId <> connId) model.SelectedWires // If component selected was already in the list, remove it
+                    else connId :: model.SelectedWires // If user clicked on a new component add it to the selected list
+                { model with SelectedWires = newWires; Action = Idle; TmpModel = Some model},
+                wireCmd (BusWire.SelectWires newWires)
+            else
+                { model with SelectedComponents = []; SelectedWires = [ connId ]; Action = MovingWire connId; TmpModel=Some model},
+                Cmd.batch [ symbolCmd (Symbol.SelectSymbols [])
+                            wireCmd (BusWire.SelectWires [ connId ])
+                            wireCmd (BusWire.DragWire (connId, mMsg))
+                            wireCmd (BusWire.ResetJumps [ connId ] ) ]
         | Canvas ->
             let newComponents, newWires =
                 if model.Toggle

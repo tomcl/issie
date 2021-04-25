@@ -140,6 +140,8 @@ let private createComponent
         : JSComponent =
     let comp =
         match componentType with
+        | ROM _ | RAM _ | AsyncROM _ -> 
+            failwithf "What? Legacy RAM component types should never occur"
         | Input w  -> draw2dLib.createDigitalInput x y w
         | Output w -> draw2dLib.createDigitalOutput x y w
         | IOLabel -> draw2dLib.createDigitalLabel x y
@@ -171,13 +173,13 @@ let private createComponent
         | Register  width -> 
             draw2dLib.createDigitalRegister x y width
         | RegisterE width -> draw2dLib.createDigitalRegisterE x y width
-        | AsyncROM mem ->
+        | AsyncROM1 mem ->
             draw2dLib.createDigitalAsyncROM
                 x y mem.AddressWidth mem.WordWidth (fshaprListToJsList (mem.Data |>Map.toList))
-        | ROM mem ->
+        | ROM1 mem ->
             draw2dLib.createDigitalROM
                 x y mem.AddressWidth mem.WordWidth (fshaprListToJsList (mem.Data |> Map.toList))
-        | RAM mem ->
+        | RAM1 mem ->
             draw2dLib.createDigitalRAM
                 x y mem.AddressWidth mem.WordWidth (fshaprListToJsList (mem.Data |> Map.toList))
     // Every component is assumed to have a label (may be empty string).

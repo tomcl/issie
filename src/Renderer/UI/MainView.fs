@@ -75,6 +75,7 @@ let init() = {
     SavedSheetIsOutOfDate = false
     PopupViewFunc = None
     PopupDialogData = {
+        ProjectPath = ""
         Text = None
         Int = None
         Int2 = None

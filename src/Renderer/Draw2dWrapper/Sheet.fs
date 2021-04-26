@@ -71,7 +71,7 @@ type SnapIndicator =
 
 /// For Keyboard messages
 type KeyboardMsg =
-    | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC | Ctrl
+    | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC
 
 type Msg =
     | Wire of BusWire.Msg
@@ -91,6 +91,8 @@ type Msg =
     | ResetModel
     | UpdateSelectedWires of ConnectionId list * bool
     | ColourSelection of compIds : ComponentId list * connIds : ConnectionId list * colour : HighLightColor
+    | ToggleSelectionOpen
+    | ToggleSelectionClose
 
 
 // ------------------ Helper Functions that need to be before the Model type --------------------------- //
@@ -748,8 +750,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         } , Cmd.batch [ symbolCmd (Symbol.SelectSymbols symbols)
                         wireCmd (BusWire.SelectWires wires) ]
 
-    | KeyPress Ctrl ->
-        {model with Toggle = not model.Toggle}, Cmd.none //TODO : make this work for holding ctrl - currently just press on/off
+    | ToggleSelectionOpen ->
+        //if List.isEmpty model.SelectedComponents && List.isEmpty model.SelectedWires then  
+        //    model, Cmd.none
+        //else
+            {model with Toggle = true}, Cmd.none
+    | ToggleSelectionClose -> 
+        {model with Toggle = false}, Cmd.none
 
     | MouseMsg mMsg -> // Mouse Update Functions can be found above, update function got very messy otherwise
         // printf "%A" mMsg
@@ -813,7 +820,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 elif Set.contains "A" newPressedKeys then
                     Cmd.ofMsg (KeyPress CtrlA)
                 else
-                    Cmd.ofMsg (KeyPress Ctrl)
+                    Cmd.none
             | false -> Cmd.none
             
         { model with CurrentKeyPresses = newPressedKeys }, newCmd
@@ -948,13 +955,14 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
             else
                 dispatch <| KeyPress ZoomIn
         else () // Scroll normally if Ctrl is not held down
+
     div [ HTMLAttr.Id "Canvas"
           Style (CSSProp.Cursor (model.CursorType.Text()) :: style)
           OnMouseDown (fun ev -> (mouseOp Down ev)) 
           OnMouseUp (fun ev -> (mouseOp Up ev)) 
           OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
           OnScroll (fun _ -> scrollUpdate ())
-          OnWheel wheelUpdate       
+          OnWheel wheelUpdate
         ]
         [ 
           svg

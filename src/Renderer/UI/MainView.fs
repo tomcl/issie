@@ -38,7 +38,6 @@ let viewOnDiagramButtons model dispatch =
         canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlY ) "redo >" false
         canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlC ) "copy" false
         canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlV ) "paste" false
-        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.Ctrl ) "toggle" model.Sheet.Toggle
     ]
 
 // -- Init Model

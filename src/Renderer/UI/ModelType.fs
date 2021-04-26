@@ -670,7 +670,7 @@ let updateCurrentWSMod(updateFun: WaveSimModel -> WaveSimModel) (model: Model) =
 
 let switchToWaveEditor (model:Model) dispatch =
     match getCurrentWSMod model with
-    | None -> () // done
+    | None -> ()
     | Some ws when ws.WSViewState = WSClosed ->
         printf "What? Can't switch to wave editor when wave sim is closed!"
     | Some ws -> 

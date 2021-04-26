@@ -93,6 +93,7 @@ type Msg =
     | ColourSelection of compIds : ComponentId list * connIds : ConnectionId list * colour : HighLightColor
     | ToggleSelectionOpen
     | ToggleSelectionClose
+    | ResetSelection
 
 
 // ------------------ Helper Functions that need to be before the Model type --------------------------- //
@@ -920,6 +921,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         Cmd.batch [
             symbolCmd (Symbol.ColorSymbols (compIds, colour)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
             wireCmd (BusWire.ColorWires (connIds, colour))
+        ]
+    | ResetSelection ->
+        {model with SelectedComponents = []; SelectedWires = []},
+        Cmd.batch [
+            symbolCmd (Symbol.SelectSymbols []) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
+            wireCmd (BusWire.SelectWires [])
         ]
     | DoNothing | _ -> model, Cmd.none
 

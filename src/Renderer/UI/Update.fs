@@ -256,6 +256,7 @@ let update (msg : Msg) oldModel =
         let sModel, sCmd = Sheet.update (Sheet.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
         {model with Sheet = sModel}, Cmd.map Sheet sCmd
     | SetSelWavesHighlighted connIds ->
+        printf "DEBUG setSelWavesHighlighted: connIds \n %A " connIds
         let wModel, wCmd = Sheet.update (Sheet.ColourSelection ([], Array.toList connIds, HighLightColor.Blue)) model.Sheet
         {model with Sheet = wModel}, Cmd.map Sheet wCmd
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none

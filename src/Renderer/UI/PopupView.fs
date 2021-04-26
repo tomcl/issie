@@ -40,6 +40,7 @@ Although showPopup
 module PopupView
 
 open Fulma
+open Fulma.Extensions.Wikiki
 open Fable.React
 open Fable.React.Props
 
@@ -306,11 +307,54 @@ let makeSourceMenu
     let existingFiles =
         List.map FromFile files
 
+    /// Create one item in the drop-down RAM source menu
     let printSource inList key =
+
+        let hSpace width = span [Style [Display DisplayOptions.InlineBlock; Width width]] []
+
+        let questionIcon = str "\u003F"
+
+        let tip txt =
+            span [
+                    Style [Float FloatOptions.Right]
+                    HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
+                    Tooltip.dataTooltip txt
+                ]
+                [
+                    Text.span [
+                        Modifiers [
+                            Modifier.TextWeight TextWeight.Bold
+                            Modifier.TextColor IsLight
+                            Modifier.BackgroundColor IsPrimary]
+                        Props [
+                            Style [
+                                Display DisplayOptions.InlineBlock
+                                Width "50px"
+                                TextAlign TextAlignOptions.Center]]
+                ] [questionIcon] ]
+
+        let (aWidth,dWidth,_,_) = getMemorySetup dialog 1
+
+        let multiplyTip mType =
+            tip ($"Dout = Addr[{aWidth-1}:{aWidth/2}] * Addr[{aWidth/2-1}:0]. \
+            Multiplication is {mType}." + 
+            (if dWidth < aWidth then 
+                $"The result will be truncated to bits [{dWidth-1}:0] on Dout."
+            else
+                ""))
+
         match key with
         | FromData -> [str "Enter data later"]
-        | SignedMultiplier -> [str "Signed multiply"]
-        | UnsignedMultiplier -> [str "Unsigned multipy"]
+        | SignedMultiplier -> [
+            str "Signed multiply"
+            hSpace "30px"
+            multiplyTip "signed"
+            ]
+        | UnsignedMultiplier -> [
+            str "Unsigned multiply "; 
+            hSpace "30px"
+            multiplyTip "unsigned"
+            ]
         | ToFile _ | ToFileBadName _ -> // not needed - direct write from properties is better
             [ str "Enter data later - create a new file " ; if inList then str "" else fileEntryBox]
         | FromFile s -> [str $"{s}.ram"]
@@ -339,8 +383,8 @@ let makeSourceMenu
     Dropdown.dropdown [ Dropdown.IsUp; Dropdown.IsHoverable; ]
         [ Dropdown.trigger [ ]
             [ Button.button [Button.Color IsPrimary; Button.IsLight] (printSource false popupKey) ]                                
-          Dropdown.menu []
-            [ Dropdown.content [Props [Style [ZIndex 1000 ]] ]
+          Dropdown.menu [Props [Style [Width "300px"] ]]
+            [ Dropdown.content [Props [Style [ZIndex 1000]] ]
                 [ Dropdown.Item.div [ ] [
                     Menu.menu []
                         [ Menu.list [] (List.map menuItem sources) ]

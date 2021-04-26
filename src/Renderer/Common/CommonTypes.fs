@@ -66,7 +66,31 @@ module CommonTypes
         // less memory efficient.
         Data : Map<int64,int64>
     }
-    
+
+    type InitMemData = 
+        | FromData // old method (from data field)
+        | FromFile of string // FromFile fName => read a file fName.ram for data
+        | ToFile of string // ToFile fName => write data to a file fName.ram
+        | ToFileBadName of string // as ToFile but the name does not validate
+        | UnsignedMultiplier
+        | SignedMultiplier
+
+
+    type Memory1 = {
+    // is the data initialised from a file name.ram in the project directory, or some other way?
+    Init: InitMemData
+    // How many bits the address should have.
+    // The memory will have 2^AddressWidth memory locations.
+    AddressWidth : int 
+    // How wide each memory word should be, in bits.
+    WordWidth : int
+    // Data is a list of <2^AddressWidth> elements, where each element is a
+    // 64 bit integer. This makes words longer than 64 bits not supported.
+    // This can be changed by using strings instead of int64, but that is way
+    // less memory efficient.
+    Data : Map<int64,int64>  
+    } 
+
     // Types instantiating objects in the Digital extension.
     type ComponentType =
         | Input of BusWidth: int | Output of BusWidth: int | IOLabel 
@@ -81,7 +105,17 @@ module CommonTypes
         // DFFE is a DFF with an enable signal.
         // No initial state for DFF or Register? Default 0.
         | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int 
-        | AsyncROM of Memory | ROM of Memory | RAM of Memory // memory is contents
+        | AsyncROM of Memory | ROM of Memory | RAM of Memory // legacy components - to be deleted
+        | AsyncROM1 of Memory1 | ROM1 of Memory1 | RAM1 of Memory1
+
+    /// get memory component type constructor
+    /// NB only works with new-style memory components
+    let getMemType (cType: ComponentType) =
+        match cType with
+        | RAM1 _ -> RAM1
+        | ROM1 _ -> ROM1
+        | AsyncROM1 _ -> AsyncROM1
+        | _ -> failwithf $"Can't get memory type from {cType}"
 
 
     /// JSComponent mapped to F# record.

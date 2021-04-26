@@ -97,9 +97,9 @@ let prefix compType =
     | NbitsXor _ -> "XOR"
     | DFF | DFFE -> "FF"
     | Register _ | RegisterE _ -> "REG"
-    | AsyncROM _ -> "AROM"
-    | ROM _ -> "ROM"
-    | RAM _ -> "RAM"
+    | AsyncROM1 _ -> "AROM"
+    | ROM1 _ -> "ROM"
+    | RAM1 _ -> "RAM"
     | Custom c -> c.Name + ".I"
     | Constant _ -> "C"
     | BusCompare _ -> "EQ"
@@ -120,9 +120,9 @@ let gateDecoderType (comp:Component) =
     | Decode4 -> "decode"
     | NbitsAdder x -> title "adder" x
     | Register _ | RegisterE _-> "register"
-    | AsyncROM _ -> "Async-ROM"
-    | ROM _ -> "ROM"
-    | RAM _ -> "RAM"
+    | AsyncROM1 _ -> "Async-ROM"
+    | ROM1 _ -> "ROM"
+    | RAM1 _ -> "RAM"
     | DFF -> "DFF"
     | DFFE -> "DFFE"
     | NbitsXor (x)->   title "Xor" x
@@ -134,12 +134,12 @@ let portDecName (comp:Component) = //(input port names, output port names)
     match comp.Type with
     | Decode4 -> (["Sel";"Data"],["0"; "1";"2"; "3"])
     | NbitsAdder _ -> (["Cin";"A";"B"],["Sum "; "Cout"])
-    | Register _ -> (["data_in"],["data_out"])
-    | RegisterE _ -> (["data_in"; "en"],["data_out"])
-    | ROM _ |AsyncROM _ -> (["adress"],["data"])
-    | RAM _ -> (["adress"; "data-in";"write" ],["data_out"])
+    | Register _ -> (["D"],["Q"])
+    | RegisterE _ -> (["D"; "EN"],["Q"])
+    | ROM1 _ |AsyncROM1 _ -> (["address"],["data"])
+    | RAM1 _ -> (["address"; "data-in";"write" ],["data_out"])
     | DFF -> (["D"],["Q"])
-    | DFFE -> (["D";"en"],["Q"])
+    | DFFE -> (["D";"EN"],["Q"])
     | Mux2 -> (["0"; "1";"SEL"],["OUT"])
     | Demux2 -> (["IN" ; "SEL"],["0"; "1"])
     | NbitsXor _ -> (["P"; "Q"], ["Out"])
@@ -190,6 +190,8 @@ let makeComp (pos: XYPos) (comptype: ComponentType) (id:string) (label:string) :
     // 4-tuple of the form ( number of input ports, number of output ports, Height, Width)
     let args = 
         match comptype with
+        | ROM _ | RAM _ | AsyncROM _ -> 
+            failwithf "What? Legacy RAM component types should never occur"
         | And | Nand | Or | Nor | Xnor | Xor ->  (2 , 1, 2*GridSize , 2*GridSize) 
         | Not -> ( 1 , 1, 2*GridSize ,  2*GridSize) 
         | ComponentType.Input (a) -> ( 0 , 1, GridSize ,  2*GridSize)                
@@ -211,9 +213,9 @@ let makeComp (pos: XYPos) (comptype: ComponentType) (id:string) (label:string) :
         | DFFE -> ( 2  , 1, 3*GridSize  , 3*GridSize) 
         | Register (a) -> ( 1 , 1, 3*GridSize  , 4*GridSize )
         | RegisterE (a) -> ( 2 , 1, 3*GridSize  , 4*GridSize) 
-        | AsyncROM (a)  -> (  1 , 1, 3*GridSize  , 4*GridSize) 
-        | ROM (a) -> (   1 , 1, 3*GridSize  , 4*GridSize) 
-        | RAM (a)-> ( 3 , 1, 3*GridSize  , 4*GridSize) 
+        | AsyncROM1 (a)  -> (  1 , 1, 3*GridSize  , 4*GridSize) 
+        | ROM1 (a) -> (   1 , 1, 3*GridSize  , 4*GridSize) 
+        | RAM1 (a)-> ( 3 , 1, 3*GridSize  , 4*GridSize) 
         | NbitsXor (n) -> (  2 , 1, 3*GridSize  , 4*GridSize) 
         | NbitsAdder (n) -> (  3 , 2, 3*GridSize  , 4*GridSize) 
         | Custom x -> let h = (GridSize + GridSize*(List.max [List.length x.InputLabels; List.length x.OutputLabels]))
@@ -346,7 +348,7 @@ let compSymbol (comp:Component) (colour:string) (showInputPorts:bool) (showOutpu
         | SplitWire _ -> (addHorizontalLine halfW w (0.33*float(h)) opacity) @ (addHorizontalLine halfW w (0.66*float(h)) opacity) @ (addHorizontalLine 0 halfW (0.5*float(h)) opacity)
         | DFF |DFFE -> (addClock 0 h colour opacity)
         | Register _ |RegisterE _ -> (addClock 0 h colour opacity)
-        | ROM _ |RAM _ -> (addClock 0 h colour opacity)
+        | ROM1 _ |RAM1 _ -> (addClock 0 h colour opacity)
         | BusSelection(x,y) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-2.0) (bustitle x y) "middle" false)
         | BusCompare (_,y) -> (addText  (float(w/2)-6.0) (float(h)/2.7-3.5) ("=" + string(y)) "middle" true)
         | Input (x) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-3.0) (title "" x) "middle" false)
@@ -812,9 +814,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         
         let newCompType =
             match comp.Type with
-            | RAM mem -> RAM { mem with Data = Map.add addr value mem.Data }
-            | ROM mem -> ROM { mem with Data = Map.add addr value mem.Data }
-            | AsyncROM mem -> AsyncROM { mem with Data = Map.add addr value mem.Data }
+            | RAM1 mem -> RAM1 { mem with Data = Map.add addr value mem.Data }
+            | ROM1 mem -> ROM1 { mem with Data = Map.add addr value mem.Data }
+            | AsyncROM1 mem -> AsyncROM1 { mem with Data = Map.add addr value mem.Data }
             | _ -> comp.Type
         
         let newComp = { comp with Type = newCompType }

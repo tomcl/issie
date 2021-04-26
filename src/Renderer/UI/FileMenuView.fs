@@ -239,7 +239,7 @@ let saveOpenFileAction isAuto model =
                 
         let savedState = canvasState, getSavedWave model
         if isAuto then
-            saveAutoStateToFile project.ProjectPath project.OpenFileName savedState
+            failwithf "Auto saving is no longer used"
             None
         else 
             saveStateToFile project.ProjectPath project.OpenFileName savedState
@@ -890,12 +890,21 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                       Navbar.Item.div []
                           [ Navbar.Item.div []
                                 [ Button.button
-                                    [ Button.Color(if model.SavedSheetIsOutOfDate then IsSuccess else IsWhite)
-                                      Button.OnClick(fun _ -> saveOpenFileActionWithModelUpdate model dispatch |> ignore) ] [ str "Save" ] ] ]
+                                    ((if model.SavedSheetIsOutOfDate then 
+                                        []
+                                       else
+                                        [ Button.Color IsLight ]) @
+                                    [
+                                      Button.Color IsSuccess  
+                                      
+                                      Button.OnClick(fun _ -> saveOpenFileActionWithModelUpdate model dispatch |> ignore) ]) [ str "Save" ] ] ]
                       Navbar.End.div []
                           [ 
                             Navbar.Item.div [] 
                                 [ simulateButtonFunc compIds model dispatch ] ]
                       Navbar.End.div []
                           [ Navbar.Item.div []
-                                [ Button.button [ Button.OnClick(fun _ -> PopupView.viewInfoPopup dispatch) ] [ str "Info" ] ] ] ] ] ]
+                                [ Button.button 
+                                    [ Button.OnClick(fun _ -> PopupView.viewInfoPopup dispatch) 
+                                      Button.Color IsInfo
+                                    ] [ str "Info" ] ] ] ] ] ]

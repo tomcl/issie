@@ -209,24 +209,62 @@ let private createRegisterPopup regType (model:Model) dispatch =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
-let private createMemoryPopup memType model dispatch =
+
+ 
+    
+
+let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
     let title = "Create memory"
-    let body = dialogPopupBodyMemorySetup model.LastUsedDialogWidth dispatch
+    let intDefault = model.LastUsedDialogWidth
+    let addError errorOpt (memSetup:(int*int*InitMemData*string option) option) : (int*int*InitMemData*string option) option =
+        match memSetup with
+        | Some (n1,n2,mem, _) ->
+            Some (n1,n2,mem,errorOpt)
+        | _ -> None
+    let body = dialogPopupBodyMemorySetup intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
-            let addressWidth, wordWidth = getMemorySetup dialogData
-            let memory = {
+            let addressWidth, wordWidth, source, msgOpt = getMemorySetup dialogData intDefault
+            let initMem = {
                 AddressWidth = addressWidth
                 WordWidth = wordWidth
-                Data = Map.empty                   
-            }
-            createCompStdLabel (memType memory) model dispatch
-            dispatch ClosePopup
+                Init = source
+                Data = Map.empty
+                }
+
+            let memory = FilesIO.initialiseMem  initMem dialogData.ProjectPath
+            match memory with
+            | Ok mem ->
+                createCompStdLabel (memType mem)  model dispatch
+                dispatch ClosePopup
+            | Error mess ->
+                dispatch <| SetPopupDialogMemorySetup (addError (Some mess) dialogData.MemorySetup)
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
-            let addressWidth, wordWidth = getMemorySetup dialogData
-            addressWidth < 1 || wordWidth < 1
+            let addressWidth, wordWidth, source,_ = getMemorySetup dialogData 1
+            let error = 
+                match dialogData.MemorySetup with 
+                | Some(_,_,ToFileBadName _,_) ->
+                    Some "File name must be alphanumeric without prefix"
+                | None -> 
+                    Some ""
+                | Some (_,_,SignedMultiplier,_) 
+                | Some(_,_,UnsignedMultiplier,_) ->
+                    if addressWidth % 2 <> 0 then
+                        Some "The address width must be even for a multiplier"
+                    elif addressWidth > 16 then
+                        Some "The maximum multiplier size is 8X8 - 16 address bits"
+                    else None
+                | _ -> 
+                    None
+            match error with
+            | Some msg when msg <> "" ->
+                match dialogData.MemorySetup with
+                | Some (_,_,_,e) when e = Some msg -> ()
+                | _ -> dispatch <| SetPopupDialogMemorySetup (addError (Some msg) dialogData.MemorySetup)
+            | _ -> ()
+            addressWidth < 1 || wordWidth < 1 || error <> None
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 let private makeMenuGroup title menuList =
@@ -325,11 +363,11 @@ let viewCatalogue model dispatch =
                           catTip1 "Register with enable" (fun _ -> createRegisterPopup RegisterE model dispatch) "As register but outputs stay the same if En is 0"]
                     makeMenuGroup
                         "Memories"
-                        [ catTip1 "ROM (asynchronous)" (fun _ -> createMemoryPopup AsyncROM model dispatch) "This is combinational: \
+                        [ catTip1 "ROM (asynchronous)" (fun _ -> createMemoryPopup AsyncROM1 model dispatch) "This is combinational: \
                                                     the output is available in the same clock cycle that the address is presented"
-                          catTip1 "ROM (synchronous)" (fun _ -> createMemoryPopup ROM model dispatch) "A ROM whose output contains \
+                          catTip1 "ROM (synchronous)" (fun _ -> createMemoryPopup ROM1 model dispatch) "A ROM whose output contains \
                                                     the addressed data in the clock cycle after the address is presented"
-                          catTip1 "RAM" (fun _ -> createMemoryPopup RAM model dispatch)  "A RAM whose output contains the addressed \
+                          catTip1 "RAM" (fun _ -> createMemoryPopup RAM1 model dispatch)  "A RAM whose output contains the addressed \
                                                    data in the clock cycle after the address is presented" ]
                     makeMenuGroupWithTip 
                         "This project"

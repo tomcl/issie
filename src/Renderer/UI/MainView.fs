@@ -76,6 +76,7 @@ let init() = {
     SavedSheetIsOutOfDate = false
     PopupViewFunc = None
     PopupDialogData = {
+        ProjectPath = ""
         Text = None
         Int = None
         Int2 = None
@@ -222,6 +223,7 @@ let displayView model dispatch =
     // the whole app window
 
     div [ HTMLAttr.Id "WholeApp"
+          Style [UserSelect UserSelectOptions.None]
 //          OnMouseUp (fun ev -> 
 //          setDragMode false model dispatch ev; 
 //          dispatch SelectionHasChanged);

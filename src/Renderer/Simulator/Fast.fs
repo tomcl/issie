@@ -111,20 +111,20 @@ let private packBit (bit: Bit) : WireData = [ bit ]
 
 
 /// Read the content of the memory at the specified address.
-let private readMemory (mem: Memory) (address: WireData) : WireData =
+let private readMemory (mem: Memory1) (address: WireData) : WireData =
     let intAddr = convertWireDataToInt address
     let outDataInt = Helpers.getMemData intAddr mem
     convertIntToWireData mem.WordWidth outDataInt
 
 /// Write the content of the memory at the specified address.
-let private writeMemory (mem: Memory) (address: WireData) (data: WireData) : Memory =
+let private writeMemory (mem: Memory1) (address: WireData) (data: WireData) : Memory1 =
     let intAddr = convertWireDataToInt address
     let intData = convertWireDataToInt data
 
     { mem with
           Data = Map.add intAddr intData mem.Data }
 
-let private getRamStateMemory step (state: StepArray<SimulationComponentState> option) memory : Memory =
+let private getRamStateMemory step (state: StepArray<SimulationComponentState> option) memory : Memory1 =
     match state, step with
     | _, 0 -> memory
     | Some arr, _ ->
@@ -280,6 +280,8 @@ let private fastReduce (simStep: int) (comp: FastComponent) : Unit =
 
     // reduce the component in this match
     match componentType with
+    | ROM _ | RAM _ | AsyncROM _ -> 
+        failwithf "What? Legacy RAM component types should never occur"
     | Input width ->
         if comp.Active then
             let bits = ins 0
@@ -459,7 +461,7 @@ let private fastReduce (simStep: int) (comp: FastComponent) : Unit =
             put0 bits
         else
             put0 (getLastCycleOut 0)
-    | AsyncROM mem -> // Asynchronous ROM.
+    | AsyncROM1 mem -> // Asynchronous ROM.
         let addr = ins 0
 
         assertThat (addr.Length = mem.AddressWidth)
@@ -467,7 +469,7 @@ let private fastReduce (simStep: int) (comp: FastComponent) : Unit =
 
         let outData = readMemory mem addr
         put0 outData
-    | ROM mem -> // Synchronous ROM.
+    | ROM1 mem -> // Synchronous ROM.
         let addr = insOld 0
 
         assertThat (addr.Length = mem.AddressWidth)
@@ -475,7 +477,7 @@ let private fastReduce (simStep: int) (comp: FastComponent) : Unit =
 
         let outData = readMemory mem addr
         put0 outData
-    | RAM memory ->
+    | RAM1 memory ->
         let mem =
             getRamStateMemory (simStep - 1) comp.State memory
 
@@ -581,6 +583,8 @@ let private getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     let putW3 w = wa.[3] <- Some w
 
     match sc.Type with
+    | ROM _ | RAM _ | AsyncROM _ -> 
+        failwithf "What? Legacy RAM component types should never occur"
     | Input w
     | Output w
     | Register w
@@ -600,9 +604,9 @@ let private getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | Nor
     | Xnor
     | BusCompare _ -> putW0 1
-    | AsyncROM mem
-    | ROM mem
-    | RAM mem -> putW0 mem.WordWidth
+    | AsyncROM1 mem
+    | ROM1 mem
+    | RAM1 mem -> putW0 mem.WordWidth
     | Custom _ -> ()
     | DFF
     | DFFE -> putW0 1
@@ -1028,7 +1032,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 fc.Touched <- true
 
                 match fc.FType, fc.OutputWidth.[i] with
-                | RAM mem, Some w ->
+                | RAM1 mem, Some w ->
                     match fc.State with
                     | Some arr -> arr.Step.[0] <- RamState mem
                     | _ -> failwithf "Component %s does not have correct state vector" fc.FullName
@@ -1039,7 +1043,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                         | _ -> convertIntToWireData w 0L
                     // change simulation semantics to output 0 in cycle 0
                     vec.Step.[0] <- convertIntToWireData w 0L
-                | RAM _, _ ->
+                | RAM1 _, _ ->
                     failwithf "What? Bad initial values for RAM %s output %d state <%A>" fc.FullName i fc.FType
                 | _, Some w -> vec.Step.[0] <- List.replicate w Zero
                 | _ -> failwithf "What? Can't find width for %s output %d" fc.FullName i)
@@ -1277,9 +1281,9 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
                 | DFFE _
                 | Register _
                 | RegisterE _ -> [| fc, RegisterState fc.Outputs.[0].Step.[step] |]
-                | ROM state
-                | AsyncROM state -> [| fc, RamState state |]
-                | RAM _ ->
+                | ROM1 state
+                | AsyncROM1 state -> [| fc, RamState state |]
+                | RAM1 _ ->
                     match fc.State
                           |> Option.map (fun state -> state.Step.[step]) with
                     | None -> failwithf "Missing RAM state for step %d of %s" step fc.FullName

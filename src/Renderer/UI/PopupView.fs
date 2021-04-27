@@ -131,7 +131,7 @@ let unclosablePopup maybeTitle body maybeFoot extraStyle =
         Modal.background [] []
         Modal.Card.card [Props [Style  extraStyle]] [
             head
-            Modal.Card.body [] [ body ]
+            Modal.Card.body [Props [Style [UserSelect UserSelectOptions.None]]] [ body ]
             foot
         ]
     ]

@@ -505,6 +505,7 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                     if List.contains connId model.SelectedWires
                     then List.filter (fun cId -> cId <> connId) model.SelectedWires // If component selected was already in the list, remove it
                     else connId :: model.SelectedWires // If user clicked on a new component add it to the selected list
+
                 { model with SelectedWires = newWires; Action = Idle; TmpModel = Some model; PrevWireSelection = model.SelectedWires},
                 Cmd.batch [wireCmd (BusWire.SelectWires newWires); Cmd.ofMsg msg]
             else
@@ -931,24 +932,23 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             wireCmd (BusWire.ColorWires (connIds, colour))
         ]
     | ResetSelection ->
-        printf "DEBUG SetWaveSimMode %A" false
         {model with SelectedComponents = []; SelectedWires = []; IsWaveSim = false},
         Cmd.batch [
             symbolCmd (Symbol.SelectSymbols []) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
             wireCmd (BusWire.SelectWires [])
         ]
     | SetWaveSimMode ->
-        printf "DEBUG SetWaveSimMode %A" true
         {model with IsWaveSim = true}, Cmd.none
     | SelectWires cIds ->
-        
+        //If any of the cIds of the netgroup given are inside the previous selection (not current as this will always be true)
+        //then deselect (remove from the selected list) any wires from the selected list that are in that cId list
+        //otherwise add the cId list to the selectedwires model
         let newWires =
             if List.exists (fun cId -> List.contains cId model.PrevWireSelection) cIds then
                 List.filter (fun cId -> List.contains cId cIds |> not) model.PrevWireSelection
             else
                 List.append cIds model.PrevWireSelection
-        printf "DEBUG in SelectWires: \n\n prevWires = \n %A \n\n cIds = \n %A \n\n oldWires = \n %A \n\n newWires = \n %A" model.PrevWireSelection cIds model.SelectedWires newWires
-        {model with SelectedWires = newWires}, Cmd.ofMsg (ColourSelection([], newWires, HighLightColor.Blue))
+        {model with SelectedWires = newWires}, Cmd.batch[Cmd.ofMsg (ColourSelection([], newWires, HighLightColor.Blue)); wireCmd (BusWire.SelectWires newWires)]
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
 
 /// This function zooms an SVG canvas by transforming its content and altering its size.

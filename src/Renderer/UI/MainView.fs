@@ -31,12 +31,20 @@ let viewOnDiagramButtons model dispatch =
 
     div [ canvasSmallMenuStyle ] [
         let canvasBut func label = 
-            Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick func ]] 
-                          [ str label ]
+            Button.button [ 
+                Button.Props [ canvasSmallButtonStyle; OnClick func ] 
+                Button.Modifiers [
+                    //Modifier.TextWeight TextWeight.Bold
+                    Modifier.TextColor IsLight
+                    Modifier.BackgroundColor IsSuccess
+                    ]
+                ] 
+                [ str label ]
         canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlZ ) "< undo" 
         canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlY ) "redo >" 
         canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlC ) "copy" 
         canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlV ) "paste" 
+
     ]
 
 // -- Init Model
@@ -287,8 +295,7 @@ let displayView model dispatch =
                                 | _ ->
                                     Tabs.tab // WaveSim tab - if wavesim exists
                                         [ Tabs.Tab.IsActive (model.RightPaneTabVisible = WaveSim) ]
-                                        [ a [ OnClick (fun _ -> 
-                                            dispatch <| ChangeRightTab WaveSim) ] 
+                                        [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab WaveSim ) ] 
                                         [ str "WaveSim" ] ] ) 
                               ]
                     viewRightTab model dispatch  ] ] ]

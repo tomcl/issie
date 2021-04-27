@@ -897,7 +897,10 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                     [
                                       Button.Color IsSuccess  
                                       
-                                      Button.OnClick(fun _ -> saveOpenFileActionWithModelUpdate model dispatch |> ignore) ]) [ str "Save" ] ] ]
+                                      Button.OnClick(fun _ -> 
+                                        saveOpenFileActionWithModelUpdate model dispatch |> ignore
+                                        dispatch <| Sheet(Sheet.DoNothing) //To update the savedsheetisoutofdate send a sheet message
+                                        ) ]) [ str "Save" ] ] ]
                       Navbar.End.div []
                           [ 
                             Navbar.Item.div [] 

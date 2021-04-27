@@ -287,7 +287,8 @@ let displayView model dispatch =
                                 | _ ->
                                     Tabs.tab // WaveSim tab - if wavesim exists
                                         [ Tabs.Tab.IsActive (model.RightPaneTabVisible = WaveSim) ]
-                                        [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab WaveSim ) ] 
+                                        [ a [ OnClick (fun _ -> 
+                                            dispatch <| ChangeRightTab WaveSim) ] 
                                         [ str "WaveSim" ] ] ) 
                               ]
                     viewRightTab model dispatch  ] ] ]

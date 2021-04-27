@@ -193,9 +193,7 @@ let update (msg : Msg) oldModel =
     | Sheet sMsg ->
         match sMsg with 
         | Sheet.ToggleNet conn -> 
-            let cmd = getNetSelection conn model
-            printf "DEBUG in update getNetSelection: %A" cmd
-            model, Cmd.ofMsg cmd
+            model, Cmd.ofMsg (Sheet (Sheet.SelectWires (getNetSelection conn model)))
         | _ -> sheetMsg sMsg model
     // special mesages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none

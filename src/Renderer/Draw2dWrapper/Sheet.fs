@@ -6,6 +6,7 @@ open Browser
 open Elmish
 open Elmish.React
 open EEEHelpers
+open Helpers
 
 ///Static variables
 let canvasSize = 3500.0
@@ -94,6 +95,9 @@ type Msg =
     | ToggleSelectionOpen
     | ToggleSelectionClose
     | ResetSelection
+    | SetWaveSimMode
+    | ToggleNet of Connection
+    | SelectWires of ConnectionId list
 
 
 // ------------------ Helper Functions that need to be before the Model type --------------------------- //
@@ -135,6 +139,8 @@ type Model = {
     MouseCounter: int
     LastMousePosForSnap: XYPos
     Toggle : bool
+    IsWaveSim : bool
+    PrevWireSelection : ConnectionId list
     } with
     
     // ---------------------------------- Issie Interfacing functions ----------------------------- //
@@ -493,18 +499,20 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
         | Connection connId ->
             if model.Toggle
             then 
+                let msg = if model.IsWaveSim then ToggleNet (BusWire.extractConnection model.Wire connId) else DoNothing
+                printf "DEBUG in mDown Connection msg = %A" msg 
                 let newWires = 
                     if List.contains connId model.SelectedWires
                     then List.filter (fun cId -> cId <> connId) model.SelectedWires // If component selected was already in the list, remove it
                     else connId :: model.SelectedWires // If user clicked on a new component add it to the selected list
-                { model with SelectedWires = newWires; Action = Idle; TmpModel = Some model},
-                wireCmd (BusWire.SelectWires newWires)
+                { model with SelectedWires = newWires; Action = Idle; TmpModel = Some model; PrevWireSelection = model.SelectedWires},
+                Cmd.batch [wireCmd (BusWire.SelectWires newWires); Cmd.ofMsg msg]
             else
                 { model with SelectedComponents = []; SelectedWires = [ connId ]; Action = MovingWire connId; TmpModel=Some model},
                 Cmd.batch [ symbolCmd (Symbol.SelectSymbols [])
                             wireCmd (BusWire.SelectWires [ connId ])
                             wireCmd (BusWire.DragWire (connId, mMsg))
-                            wireCmd (BusWire.ResetJumps [ connId ] ) ]
+                            wireCmd (BusWire.ResetJumps [ connId ] )]
         | Canvas ->
             let newComponents, newWires =
                 if model.Toggle
@@ -917,18 +925,31 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             else List.filter (fun conId -> List.contains conId connIds |> not) oldWires
         {model with SelectedWires = newWires}, wireCmd (BusWire.SelectWires newWires)
     | ColourSelection (compIds, connIds, colour) ->
-        model,
+        {model with SelectedComponents = compIds; SelectedWires = connIds},
         Cmd.batch [
             symbolCmd (Symbol.ColorSymbols (compIds, colour)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
             wireCmd (BusWire.ColorWires (connIds, colour))
         ]
     | ResetSelection ->
-        {model with SelectedComponents = []; SelectedWires = []},
+        printf "DEBUG SetWaveSimMode %A" false
+        {model with SelectedComponents = []; SelectedWires = []; IsWaveSim = false},
         Cmd.batch [
             symbolCmd (Symbol.SelectSymbols []) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
             wireCmd (BusWire.SelectWires [])
         ]
-    | DoNothing | _ -> model, Cmd.none
+    | SetWaveSimMode ->
+        printf "DEBUG SetWaveSimMode %A" true
+        {model with IsWaveSim = true}, Cmd.none
+    | SelectWires cIds ->
+        
+        let newWires =
+            if List.exists (fun cId -> List.contains cId model.PrevWireSelection) cIds then
+                List.filter (fun cId -> List.contains cId cIds |> not) model.PrevWireSelection
+            else
+                List.append cIds model.PrevWireSelection
+        printf "DEBUG in SelectWires: \n\n prevWires = \n %A \n\n cIds = \n %A \n\n oldWires = \n %A \n\n newWires = \n %A" model.PrevWireSelection cIds model.SelectedWires newWires
+        {model with SelectedWires = newWires}, Cmd.ofMsg (ColourSelection([], newWires, HighLightColor.Blue))
+    | ToggleNet _ | DoNothing | _ -> model, Cmd.none
 
 /// This function zooms an SVG canvas by transforming its content and altering its size.
 /// Currently the zoom expands based on top left corner. 
@@ -1093,4 +1114,6 @@ let init () =
         MouseCounter = 0
         LastMousePosForSnap = { X = 0.0; Y = 0.0 }
         Toggle = false
+        IsWaveSim = false
+        PrevWireSelection = []
     }, Cmd.none

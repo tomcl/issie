@@ -96,7 +96,7 @@ type Msg =
     | ToggleSelectionClose
     | ResetSelection
     | SetWaveSimMode
-    | ToggleNet of Connection
+    | ToggleNet of Connection //This message does nothing in sheet, but will be picked up by the update function
     | SelectWires of ConnectionId list
 
 

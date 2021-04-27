@@ -1173,6 +1173,7 @@ let showSimulationLoading (wsModel: WaveSimModel) (dispatch: Msg ->Unit) =
 let getAllNetGroups (waveSim:WaveSimModel) = 
     mapValues waveSim.AllNets
 
+///Takes a connection and model, and returns the netgroup as a list of connectionIds associated with that connection
 let getNetSelection (conn : Connection) (model : Model) =
     
     let testCanvas = ([], [conn])
@@ -1190,11 +1191,8 @@ let getNetSelection (conn : Connection) (model : Model) =
             wave2ConnIds ng
         else [||]
             
-    let selectedIds = 
-        Array.collect selectedConnectionIds netGroups
-        |> Array.toList
-
-    Sheet (Sheet.SelectWires selectedIds)
+    Array.collect selectedConnectionIds netGroups
+    |> Array.toList
 
 /// In wave simulation highlight nets which are ticked on viewer or editor
 /// Nets can be highlighted or unhighlighted by clicking on nets, or tick-boxes

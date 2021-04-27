@@ -500,7 +500,6 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
             if model.Toggle
             then 
                 let msg = if model.IsWaveSim then ToggleNet (BusWire.extractConnection model.Wire connId) else DoNothing
-                printf "DEBUG in mDown Connection msg = %A" msg 
                 let newWires = 
                     if List.contains connId model.SelectedWires
                     then List.filter (fun cId -> cId <> connId) model.SelectedWires // If component selected was already in the list, remove it

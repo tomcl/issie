@@ -169,7 +169,7 @@ let editMenu dispatch =
                makeElmItem "Delete"  (if isMac then "Backspace" else "delete") (fun () -> dispatch Sheet.KeyboardMsg.DEL)
                makeElmItem "Undo" "CmdOrCtrl+Z" (fun () -> dispatch Sheet.KeyboardMsg.CtrlZ)
                makeElmItem "Redo" "CmdOrCtrl+Y" (fun () -> dispatch Sheet.KeyboardMsg.CtrlY)
-               makeElmItem "Cancel" "ESC" (fun () -> dispatch Sheet.KeyboardMsg.ESC) |]
+               makeElmItem "Cancel" "ESC" (fun () -> dispatch Sheet.KeyboardMsg.ESC)|]
             |> U2.Case1
 
 let attachMenusAndKeyShortcuts dispatch =
@@ -220,11 +220,28 @@ let view' model dispatch =
     view model dispatch
     |> Helpers.instrumentInterval "View" start
    
+let mutable firstPress = true
 
+///Used to listen for pressing down of Ctrl for selection toggle
+let keyPressListener initial = 
+    let subDown dispatch =
+        Browser.Dom.document.addEventListener("keydown", fun e ->
+                                                let ke: KeyboardEvent = downcast e
+                                                if ke.ctrlKey && firstPress then 
+                                                    firstPress <- false 
+                                                    dispatch <| Sheet(Sheet.ToggleSelectionOpen)
+                                                else 
+                                                    ())
+    let subUp dispatch = 
+        Browser.Dom.document.addEventListener("keyup", fun e -> 
+                                                    firstPress <- true
+                                                    dispatch <| Sheet(Sheet.ToggleSelectionClose))
+    Cmd.batch [Cmd.ofSub subDown; Cmd.ofSub subUp] 
 
 
 
 Program.mkProgram init update view'
 |> Program.withReactBatched "app"
 |> Program.withSubscription attachMenusAndKeyShortcuts
+|> Program.withSubscription keyPressListener
 |> Program.run

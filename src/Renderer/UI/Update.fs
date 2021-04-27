@@ -73,15 +73,15 @@ let updateTimeStamp model =
         |> List.map (fun lc -> if lc.Name = p.OpenFileName then setTimeStamp lc else lc)
         |> fun lcs -> { model with CurrentProj=Some {p with LoadedComponents = lcs}}
 
-//Finds if a change has occured
+//Finds if the current canvas is different from the saved canvas
 let findChange (model : Model) : bool = 
     match model.CurrentProj with
     | None -> false
     | Some prj ->
+        //For better efficiency just check if the save button
         let savedComponent = 
             prj.LoadedComponents
             |> List.find (fun lc -> lc.Name = prj.OpenFileName)
-        //printf "DEBUG in findChange \n savedCanvas: \n %A \n\n currentCanvas: \n %A" savedComponent.CanvasState (getReducedCanvState model)
         savedComponent.CanvasState <> (model.Sheet.GetCanvasState ())
     
 
@@ -105,12 +105,43 @@ let exitApp() =
     // send message to main process to initiate window close and app shutdown
     Electron.electron.ipcRenderer.send("exit-the-app",[||])
 
+///Tests physical equality on two objects
+///Used because Msg type does not support structural equality
+let isSameMsg = LanguagePrimitives.PhysicalEquality 
+
+///Used to filter only drag messages for now, is there a better way to do this?
+let matchMouseMsg (msg : Msg) : bool =
+    match msg with
+    | Sheet sMsg ->
+        match sMsg with
+        | Sheet.MouseMsg mMsg ->
+            match mMsg.Op with
+            | EEEHelpers.Drag -> true
+            | _ -> false
+        | _ -> false
+    | _ -> false
+
+///Returns None if no mouse drag message found, returns Some (lastMouseMsg, msgQueueWithoutMouseMsgs) if a drag message was found
+let getLastMouseMsg msgQueue =
+    msgQueue
+    |> List.filter matchMouseMsg
+    |> function
+    | [] -> None
+    | lst -> Some lst.Head //First item in the list was the last to be added (most recent)
+
+let sheetMsg sMsg model = 
+    let sModel, sCmd = Sheet.update sMsg model.Sheet
+    let newModel = { model with Sheet = sModel} 
+    {newModel with SavedSheetIsOutOfDate = findChange newModel}, Cmd.map Sheet sCmd
+
+
 //----------------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------UPDATE-----------------------------------------------------------//
 //----------------------------------------------------------------------------------------------------------------//
 
 /// Main MVU model update function
-let update msg model =
+let update (msg : Msg) oldModel =
+
     let startUpdate = Helpers.getTimeMs()
     // number of top-level components in graph
     // mostly, we only operate on top-level components
@@ -120,15 +151,33 @@ let update msg model =
         |> Option.defaultValue -1
    
     let sdlen = 
-        getCurrentWSMod model 
+        getCurrentWSMod oldModel 
         |> Option.bind (fun ws -> ws.InitWaveSimGraph) 
         |> getGraphSize
 
     if Set.contains "update" JSHelpers.debugTraceUI then
         let msgS = (sprintf "%A..." msg) |> Seq.truncate 60 |> Seq.map (fun c -> string c) |> String.concat ""
         printfn "%d %s" sdlen msgS
+    
+    //Add the message to the pending queue if it is a mouse drag message
+    let model = 
+        if matchMouseMsg msg 
+        then {oldModel with Pending = msg :: oldModel.Pending}
+        else oldModel
+    
+
+    //Check if the current message is stored as pending, if so execute all pending messages currently in the queue
+    let testMsg, cmd = 
+        List.tryFind (fun x -> isSameMsg x msg) model.Pending 
+        |> function
+        | Some _ -> 
+            //Add any message recieved to the pending message queue
+            DoNothing, Cmd.ofMsg (ExecutePendingMessages (List.length model.Pending))
+        | None ->
+            msg, Cmd.none   
+
     // main message dispatch match expression
-    match msg with
+    match testMsg with
     | ShowExitDialog ->
         match model.CurrentProj with
         | Some p when model.SavedSheetIsOutOfDate ->
@@ -142,9 +191,7 @@ let update msg model =
     | SetExitDialog status ->
         {model with ExitDialog = status}, Cmd.none
     | Sheet sMsg ->
-        let sModel, sCmd = Sheet.update sMsg model.Sheet
-        let newModel = { model with Sheet = sModel} 
-        {newModel with SavedSheetIsOutOfDate = findChange newModel}, Cmd.map Sheet sCmd 
+        sheetMsg sMsg model
     // special mesages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none
     | SetViewerWidth w -> {model with WaveSimViewerWidth = w}, Cmd.none
@@ -209,6 +256,7 @@ let update msg model =
         let sModel, sCmd = Sheet.update (Sheet.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
         {model with Sheet = sModel}, Cmd.map Sheet sCmd
     | SetSelWavesHighlighted connIds ->
+        printf "DEBUG setSelWavesHighlighted: connIds \n %A " connIds
         let wModel, wCmd = Sheet.update (Sheet.ColourSelection ([], Array.toList connIds, HighLightColor.Blue)) model.Sheet
         {model with Sheet = wModel}, Cmd.map Sheet wCmd
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
@@ -352,8 +400,23 @@ let update msg model =
 //        model.Diagram.SetRouterInteractive isInteractive
 //        model, Cmd.none
 //    |> checkForAutoSaveOrSelectionChanged msg
+    | ExecutePendingMessages n ->
+        if n = (List.length model.Pending)
+        then 
+            getLastMouseMsg model.Pending
+            |> function
+            | None -> failwithf "shouldn't happen"
+            | Some mMsg -> 
+                match mMsg with
+                | Sheet sMsg -> sheetMsg sMsg model
+                | _ -> failwithf "shouldn't happen "
+        
+        //ignore the exectue message
+        else 
+            model, Cmd.none
+    | DoNothing -> //Acts as a placeholder to propergrate the ExecutePendingMessages message in a Cmd
+        model, cmd
     | msg ->
-        //printfn $"DEBUG: Leftover Message needs to be deleted: {msg}" // TODO
         model, Cmd.none
     |> Helpers.instrumentInterval (
         let name =

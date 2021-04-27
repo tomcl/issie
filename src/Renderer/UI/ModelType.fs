@@ -316,6 +316,8 @@ type Msg =
     | SetRouterInteractive of bool
     | CloseApp
     | SetExitDialog of bool
+    | ExecutePendingMessages of int
+    | DoNothing
 
 
 //================================//
@@ -412,6 +414,8 @@ type Model = {
     ConnsOfSelectedWavesAreHighlighted: bool
     /// true if wavesim scroll position needs checking
     CheckWaveformScrollPosition: bool
+    /// Contains a list of pending messages
+    Pending: Msg list
 } with
  
     override this.GetHashCode() =
@@ -666,7 +670,7 @@ let updateCurrentWSMod(updateFun: WaveSimModel -> WaveSimModel) (model: Model) =
 
 let switchToWaveEditor (model:Model) dispatch =
     match getCurrentWSMod model with
-    | None -> () // done
+    | None -> ()
     | Some ws when ws.WSViewState = WSClosed ->
         printf "What? Can't switch to wave editor when wave sim is closed!"
     | Some ws -> 

@@ -525,6 +525,7 @@ let setSelNamesHighlighted (names: string array) model (dispatch: Msg -> Unit) =
             names
             |> Array.map (fun name -> ws.AllNets.[name])
             |> Array.collect wave2ConnIds
+        printf "DEBUG set highlighted connids \n %A" connIds
         dispatch <| SetSelWavesHighlighted connIds
           
 
@@ -1198,6 +1199,7 @@ let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
             else [||]
                 
         let selectedIds =  Array.collect selectedConnectionIds netGroups
+        printf "DEBUG selectedIds \n %A " selectedIds
         dispatch <| SetSelWavesHighlighted selectedIds
     | _ -> ()
 

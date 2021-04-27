@@ -31,12 +31,20 @@ let viewOnDiagramButtons model dispatch =
 
     div [ canvasSmallMenuStyle ] [
         let canvasBut func label = 
-            Button.button [ Button.Props [ canvasSmallButtonStyle; OnClick func ]] 
-                          [ str label ]
+            Button.button [ 
+                Button.Props [ canvasSmallButtonStyle; OnClick func ] 
+                Button.Modifiers [
+                    //Modifier.TextWeight TextWeight.Bold
+                    Modifier.TextColor IsLight
+                    Modifier.BackgroundColor IsSuccess
+                    ]
+                ] 
+                [ str label ]
         canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlZ ) "< undo" 
         canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlY ) "redo >" 
         canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlC ) "copy" 
         canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlV ) "paste" 
+
     ]
 
 // -- Init Model

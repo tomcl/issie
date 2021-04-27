@@ -7,6 +7,9 @@ open Elmish
 open Elmish.React
 open EEEHelpers
 
+///Static variables
+let canvasSize = 3500.0
+
 /// Used to keep track of what the mouse is on
 type MouseOn =
     | InputPort of CommonTypes.InputPortId * XYPos
@@ -88,6 +91,9 @@ type Msg =
     | ResetModel
     | UpdateSelectedWires of ConnectionId list * bool
     | ColourSelection of compIds : ComponentId list * connIds : ConnectionId list * colour : HighLightColor
+    | ToggleSelectionOpen
+    | ToggleSelectionClose
+    | ResetSelection
 
 
 // ------------------ Helper Functions that need to be before the Model type --------------------------- //
@@ -128,6 +134,7 @@ type Model = {
     // Scrolling: bool // True if mouse is currently near edge and is automatically scrolling. Can't have in CurrentAction as we need both CurrentAction and Scrolling
     MouseCounter: int
     LastMousePosForSnap: XYPos
+    Toggle : bool
     } with
     
     // ---------------------------------- Issie Interfacing functions ----------------------------- //
@@ -218,6 +225,13 @@ let unSnapMargin = gridSize / 5.0 // How much movement there needs to be for un-
 
 
 // ------------------------------------------- Helper Functions ------------------------------------------- //
+
+//Calculates the symmetric difference of two lists, returning a list of the given type
+let symDiff lst1 lst2 =
+    let a = Set.ofList lst1
+    let b = Set.ofList lst2
+    (a - b) + (b - a)
+    |> Set.toList
 
 /// Calculates the change in coordinates of two XYPos
 let posDiff (a: XYPos) (b: XYPos) = {X=a.X-b.X; Y=a.Y-b.Y}
@@ -458,26 +472,49 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
             {model with Action = ConnectingOutput portId; ConnectPortsLine = portLoc, mMsg.Pos; TmpModel=Some model},
             symbolCmd Symbol.ShowAllInputPorts
         | Component compId ->
-            let newComponents, newWires = 
-                match List.contains compId model.SelectedComponents with
-                | true -> model.SelectedComponents, model.SelectedWires // Keep selection for symbol movement
-                | false -> [ compId ], [] // If user clicked on a new component, select that one instead
+                if model.Toggle 
+                then 
+                    let newComponents =
+                        if List.contains compId model.SelectedComponents
+                        then List.filter (fun cId -> cId <> compId) model.SelectedComponents // If component selected was already in the list, remove it
+                        else compId :: model.SelectedComponents // If user clicked on a new component add it to the selected list
 
-            {model with SelectedComponents = newComponents; LastValidPos = mMsg.Pos ; LastValidBoundingBoxes=model.BoundingBoxes ; SelectedWires = newWires; Action = InitialiseMoving compId; LastMousePos = mMsg.Pos; TmpModel = Some model},
-            Cmd.batch [ symbolCmd (Symbol.SelectSymbols newComponents)
-                        wireCmd (BusWire.SelectWires newWires) ]
+                    {model with SelectedComponents = newComponents; LastValidPos = mMsg.Pos ; LastValidBoundingBoxes=model.BoundingBoxes ; Action = Idle; LastMousePos = mMsg.Pos; TmpModel = Some model},
+                    symbolCmd (Symbol.SelectSymbols newComponents)
+                else
+                    let newComponents, newWires =
+                        if List.contains compId model.SelectedComponents
+                        then model.SelectedComponents, model.SelectedWires // Keep selection for symbol movement
+                        else [compId], [] // If user clicked on a new component, select that one instead
+                    {model with SelectedComponents = newComponents; LastValidPos = mMsg.Pos ; LastValidBoundingBoxes=model.BoundingBoxes ; SelectedWires = newWires; Action = InitialiseMoving compId; LastMousePos = mMsg.Pos; TmpModel = Some model},
+                    Cmd.batch [ symbolCmd (Symbol.SelectSymbols newComponents)
+                                wireCmd (BusWire.SelectWires newWires) ]
+
         | Connection connId ->
-            { model with SelectedComponents = []; SelectedWires = [ connId ]; Action = MovingWire connId; TmpModel=Some model},
-            Cmd.batch [ symbolCmd (Symbol.SelectSymbols [])
-                        wireCmd (BusWire.SelectWires [ connId ])
-                        wireCmd (BusWire.DragWire (connId, mMsg))
-                        wireCmd (BusWire.ResetJumps [ connId ] ) ]
+            if model.Toggle
+            then 
+                let newWires = 
+                    if List.contains connId model.SelectedWires
+                    then List.filter (fun cId -> cId <> connId) model.SelectedWires // If component selected was already in the list, remove it
+                    else connId :: model.SelectedWires // If user clicked on a new component add it to the selected list
+                { model with SelectedWires = newWires; Action = Idle; TmpModel = Some model},
+                wireCmd (BusWire.SelectWires newWires)
+            else
+                { model with SelectedComponents = []; SelectedWires = [ connId ]; Action = MovingWire connId; TmpModel=Some model},
+                Cmd.batch [ symbolCmd (Symbol.SelectSymbols [])
+                            wireCmd (BusWire.SelectWires [ connId ])
+                            wireCmd (BusWire.DragWire (connId, mMsg))
+                            wireCmd (BusWire.ResetJumps [ connId ] ) ]
         | Canvas ->
+            let newComponents, newWires =
+                if model.Toggle
+                then model.SelectedComponents, model.SelectedWires //do not deselect if in toggle mode
+                else [], []
             // Start Creating Selection Box and Reset Selected Components
             let initialiseSelection = {model.DragToSelectBox with X=mMsg.Pos.X; Y=mMsg.Pos.Y}
-            {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = []; SelectedWires = [] },
-            Cmd.batch [ symbolCmd (Symbol.SelectSymbols [])
-                        wireCmd (BusWire.SelectWires []) ]
+            {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires },
+            Cmd.batch [ symbolCmd (Symbol.SelectSymbols newComponents)
+                        wireCmd (BusWire.SelectWires newWires) ]
         
 /// Mouse Drag Update, can be: drag-to-selecting, moving symbols, connecting wire between ports.
 let mDragUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = 
@@ -547,10 +584,16 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
         let newComponents = findIntersectingComponents model model.DragToSelectBox
         let newWires = BusWire.getIntersectingWires model.Wire model.DragToSelectBox
         let resetDragToSelectBox = {model.DragToSelectBox with H = 0.0; W = 0.0}
-        
-        { model with DragToSelectBox = resetDragToSelectBox; Action = Idle; SelectedComponents = newComponents; SelectedWires = newWires; AutomaticScrolling = false },
-        Cmd.batch [ symbolCmd (Symbol.SelectSymbols newComponents)
-                    wireCmd (BusWire.SelectWires newWires) ]
+        let selectComps, selectWires = 
+            if model.Toggle 
+            then 
+                symDiff newComponents model.SelectedComponents, symDiff newWires model.SelectedWires
+            else newComponents, newWires
+
+        { model with DragToSelectBox = resetDragToSelectBox; Action = Idle; SelectedComponents = selectComps; SelectedWires = selectWires; AutomaticScrolling = false },
+        Cmd.batch [ symbolCmd (Symbol.SelectSymbols selectComps)
+                    wireCmd (BusWire.SelectWires selectWires) ]
+
     | InitialiseMoving compId -> // If user clicked on a component and never moved it, then select that component instead. (resets multi-selection as well)
             { model with Action = Idle; SelectedComponents = [ compId ]; SelectedWires = [] },
             Cmd.batch [ symbolCmd (Symbol.SelectSymbols [ compId ])
@@ -708,6 +751,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         } , Cmd.batch [ symbolCmd (Symbol.SelectSymbols symbols)
                         wireCmd (BusWire.SelectWires wires) ]
 
+    | ToggleSelectionOpen ->
+        //if List.isEmpty model.SelectedComponents && List.isEmpty model.SelectedWires then  
+        //    model, Cmd.none
+        //else
+            {model with Toggle = true}, Cmd.none
+    | ToggleSelectionClose -> 
+        {model with Toggle = false}, Cmd.none
+
     | MouseMsg mMsg -> // Mouse Update Functions can be found above, update function got very messy otherwise
         // printf "%A" mMsg
         match mMsg.Op with
@@ -735,11 +786,19 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         { model with ScrollPos = { X = scrollX; Y = scrollY }; ScrollingLastMousePos = newLastScrollingPos }, cmd
     | KeyPress ZoomIn ->
-        let oldScreenCentre = getScreenCentre model
-        { model with Zoom = model.Zoom + 0.05 }, Cmd.ofMsg (KeepZoomCentered oldScreenCentre)
+        { model with Zoom = model.Zoom + 0.05 }, Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
     | KeyPress ZoomOut ->
-        let oldScreenCentre = getScreenCentre model
-        { model with Zoom = model.Zoom - 0.05 }, Cmd.ofMsg (KeepZoomCentered oldScreenCentre)
+
+        let canvas = document.getElementById "Canvas"
+        let wholeApp = document.getElementById "WholeApp"
+        let rightSelection = document.getElementById "RightSelection"
+        let leftScreenEdge = canvas.scrollLeft
+        let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.clientWidth
+        //Check if the new zoom will exceed the canvas width
+        let newZoom = 
+            if rightScreenEdge - leftScreenEdge < (canvasSize * (model.Zoom - 0.05)) then model.Zoom - 0.05
+            else model.Zoom
+        { model with Zoom = newZoom }, Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
     | KeepZoomCentered oldScreenCentre ->
         let canvas = document.getElementById "Canvas"
         let newScreenCentre = getScreenCentre model 
@@ -772,23 +831,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let wholeApp = document.getElementById "WholeApp"
         let rightSelection = document.getElementById "RightSelection"
         
-        //printfn "DEBUG: Right Selection %A" rightSelection.clientWidth
-        //printfn "DEBUG: Whole App %A" wholeApp.clientWidth
-        
         let leftScreenEdge = canvas.scrollLeft
         let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.clientWidth
         let upperScreenEdge = canvas.scrollTop
         let lowerScreenEdge = upperScreenEdge + canvas.clientHeight
         let mPosX = model.ScrollingLastMousePos.X * model.Zoom // Un-compensate for zoom as we want raw distance from mouse to edge screen
         let mPosY = model.ScrollingLastMousePos.Y * model.Zoom // Un-compensate for zoom as we want raw distance from mouse to edge screen
-        
-        //printfn "DEBUG: Mouse X: %A" mPosX
-        //printfn "DEBUG: Mouse Y: %A" mPosY
-        //printfn "DEBUG: Left Screen Edge: %A" leftScreenEdge
-        //printfn "DEBUG: Right Screen Edge: %A" rightScreenEdge
-        //printfn "DEBUG: Upper Screen Edge: %A" upperScreenEdge
-        //printfn "DEBUG: Lower Screen Edge: %A" lowerScreenEdge
-        
+                
         let checkForAutomaticScrolling1D (edge: float) (mPos: float) =
             let scrollMargin = 100.0
             let scrollSpeed = 10.0
@@ -809,8 +858,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         if xDiff <> 0.0 || yDiff <> 0.0 then // Did any automatic scrolling happen?
             let newMPos = { X = model.LastMousePos.X + xDiff / model.Zoom ; Y = model.LastMousePos.Y + yDiff / model.Zoom }
             
-//            printfn "DEBUG: newMPos %A" newMPos
-//            printfn "DEBUG: Zoom %A" model.Zoom
             // Need to update mouse movement as well since the scrolling moves the mouse relative to the canvas, but no actual mouse movement will be detected.
             // E.g. a moving symbol should stick to the mouse as the automatic scrolling happens and not lag behind.
             let outputModel, outputCmd =
@@ -830,6 +877,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             { model with AutomaticScrolling = false }, Cmd.none
                 
     // ---------------------------- Issie Messages ---------------------------- //
+
     | InitialiseCreateComponent (compType, lbl) ->
         { model with Action = (InitialisedCreateComponent (compType, lbl)) ; TmpModel = Some model}, Cmd.none
     | FlushCommandStack -> { model with UndoList = []; RedoList = []; TmpModel = None }, Cmd.none
@@ -874,6 +922,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             symbolCmd (Symbol.ColorSymbols (compIds, colour)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
             wireCmd (BusWire.ColorWires (connIds, colour))
         ]
+    | ResetSelection ->
+        {model with SelectedComponents = []; SelectedWires = []},
+        Cmd.batch [
+            symbolCmd (Symbol.SelectSymbols []) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
+            wireCmd (BusWire.SelectWires [])
+        ]
     | DoNothing | _ -> model, Cmd.none
 
 /// This function zooms an SVG canvas by transforming its content and altering its size.
@@ -887,8 +941,7 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
         else
             dispatch <| (ManualKeyDown key.key) )
     document.onkeyup <- (fun key -> dispatch <| (ManualKeyUp key.key))
-    
-    let canvasSize = 3500.0 // In pixels
+
     let sizeInPixels = sprintf "%.2fpx" ((canvasSize * model.Zoom))
 
     /// Is the mouse button currently down?
@@ -909,13 +962,14 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
             else
                 dispatch <| KeyPress ZoomIn
         else () // Scroll normally if Ctrl is not held down
+
     div [ HTMLAttr.Id "Canvas"
           Style (CSSProp.Cursor (model.CursorType.Text()) :: style)
           OnMouseDown (fun ev -> (mouseOp Down ev)) 
           OnMouseUp (fun ev -> (mouseOp Up ev)) 
           OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
           OnScroll (fun _ -> scrollUpdate ())
-          OnWheel wheelUpdate       
+          OnWheel wheelUpdate
         ]
         [ 
           svg
@@ -1037,5 +1091,6 @@ let init () =
         AutomaticScrolling = false
         ScrollingLastMousePos = { X = 0.0; Y = 0.0 }
         MouseCounter = 0
-        LastMousePosForSnap = { X = 0.0; Y = 0.0 }    
+        LastMousePosForSnap = { X = 0.0; Y = 0.0 }
+        Toggle = false
     }, Cmd.none

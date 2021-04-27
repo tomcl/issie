@@ -266,9 +266,9 @@ let getPortPosModel (model: Model) (port:Port) =
 let addText posX posY name txtPos (bold: bool)=
     let text =
         if bold then
-            {defaultText with TextAnchor = txtPos; FontWeight = "Bold"; FontSize = "12px"}
+            {defaultText with TextAnchor = txtPos; FontWeight = "Bold"; FontSize = "14px"}
         else
-            {defaultText with TextAnchor = txtPos; FontSize = "10px"}
+            {defaultText with TextAnchor = txtPos; FontSize = "12px"}
     [makeText posX posY name text]
 
 // Generate circles
@@ -278,9 +278,10 @@ let portCircles x y  =
 let portText x y name portType=
     let xPos = 
         if portType = PortType.Output
-        then (x - (float(String.length name)*4.0)-12.0)
-        else x + 6.0
-    (addText xPos (y - 4.0) name "left" false)
+        then x - 5.
+        else x + 5.
+    let test = if portType = PortType.Output then "end" else "start"
+    (addText xPos (y - 7.0) name test false)
 
 // Print the name of each port 
 let drawPortsText (portList: Port List) (listOfNames: string List) (comp: Component)= 
@@ -311,7 +312,7 @@ let addInvertor posX posY colour opacity =
 let addClock posX posY colour opacity =
     let points = (sprintf "%i,%i %i,%i %i,%i" posX (posY-1) (posX+8) (posY-7) posX (posY-13))
     createPolygon points colour opacity
-    |> List.append (addText (float(posX+10)) (float(posY-12)) "clk" "left" false)
+    |> List.append (addText (float(posX+10)) (float(posY-13)) " clk" "start" false)
 
 let addHorizontalLine posX1 posX2 posY opacity = // TODO: Line instead of polygon?
     let points = (sprintf "%i,%f %i,%f" posX1 posY posX2 posY)

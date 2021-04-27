@@ -40,10 +40,11 @@ let viewOnDiagramButtons model dispatch =
                     ]
                 ] 
                 [ str label ]
-        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlZ ) "< undo"
-        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlY ) "redo >"
-        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlC ) "copy"
-        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlV ) "paste"
+        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlZ ) "< undo" 
+        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlY ) "redo >" 
+        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlC ) "copy" 
+        canvasBut (fun _ -> dispatch Sheet.KeyboardMsg.CtrlV ) "paste" 
+
     ]
 
 // -- Init Model
@@ -104,6 +105,7 @@ let init() = {
     SimulationInProgress = None
     ConnsOfSelectedWavesAreHighlighted= false
     CheckWaveformScrollPosition = false
+    Pending = []
 }
 
 

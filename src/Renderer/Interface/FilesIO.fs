@@ -121,7 +121,7 @@ let makeData aWidth dWidth makeFun =
         | w -> ((1UL <<< w) - 1UL) &&& n
         |> int64
     let a = aWidth / 2
-    let inp = [|0..a - 1|]
+    let inp = [|0..(1 <<< a) - 1|]
     Array.allPairs inp inp
     |> Array.map (fun (x,y) -> int64 ((int64 x <<< a) + int64 y), truncate (uint64 (makeFun x y)))
     |> Map.ofArray

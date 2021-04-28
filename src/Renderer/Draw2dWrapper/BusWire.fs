@@ -1247,7 +1247,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             
         newModel, Cmd.none
     
-    | ResetModel -> { model with WX = Map.empty; CopiedWX = Map.empty; ErrorWires = []; Notifications = None }, Cmd.none
+    | ResetModel -> { model with WX = Map.empty; ErrorWires = []; Notifications = None }, Cmd.none
     
     | LoadConnections conns ->
         let newWX =

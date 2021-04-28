@@ -770,7 +770,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let newSymbolsWithChangedSymbol = symbolswithoutone.Add (compId, newsymbol)
         { model with Symbols = newSymbolsWithChangedSymbol }, Cmd.none
     
-    | ResetModel -> { model with Symbols = Map.empty; CopiedSymbols = Map.empty; Ports = Map.empty }, Cmd.none
+    | ResetModel -> { model with Symbols = Map.empty; Ports = Map.empty }, Cmd.none
     
     | LoadComponents comps ->
         let compIdsWithSymbols =

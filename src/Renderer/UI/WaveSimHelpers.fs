@@ -1174,9 +1174,7 @@ let getAllNetGroups (waveSim:WaveSimModel) =
     mapValues waveSim.AllNets
 
 ///Takes a connection and model, and returns the netgroup as a list of connectionIds associated with that connection
-let getNetSelection (conn : Connection) (model : Model) =
-    
-    let testCanvas = ([], [conn])
+let getNetSelection (canvas : CanvasState) (model : Model) =
     
     let netList = 
         model.LastSimulatedCanvasState
@@ -1187,7 +1185,7 @@ let getNetSelection (conn : Connection) (model : Model) =
     let netGroups = netList2NetGroups netList
 
     let selectedConnectionIds (ng:NetGroup) =
-        if isNetGroupSelected netList testCanvas ng then 
+        if isNetGroupSelected netList canvas ng then 
             wave2ConnIds ng
         else [||]
             

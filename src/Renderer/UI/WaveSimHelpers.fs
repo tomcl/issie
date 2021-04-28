@@ -1197,7 +1197,6 @@ let getNetSelection (conn : Connection) (model : Model) =
 /// In wave simulation highlight nets which are ticked on viewer or editor
 /// Nets can be highlighted or unhighlighted by clicking on nets, or tick-boxes
 let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
-    
     match currWaveSimModel model with
     | Some wSModel ->
         let netList = 
@@ -1228,7 +1227,7 @@ let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
 
 /// actions triggered whenever the fileMenuView function is executed
 let fileMenuViewActions model dispatch =
-    if model.ConnsOfSelectedWavesAreHighlighted then 
+    if model.Sheet.IsWaveSim then 
         highlightConnectionsFromNetGroups  model dispatch
     else ()
 

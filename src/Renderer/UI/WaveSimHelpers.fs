@@ -1174,9 +1174,7 @@ let getAllNetGroups (waveSim:WaveSimModel) =
     mapValues waveSim.AllNets
 
 ///Takes a connection and model, and returns the netgroup as a list of connectionIds associated with that connection
-let getNetSelection (conn : Connection) (model : Model) =
-    
-    let testCanvas = ([], [conn])
+let getNetSelection (canvas : CanvasState) (model : Model) =
     
     let netList = 
         model.LastSimulatedCanvasState
@@ -1187,7 +1185,7 @@ let getNetSelection (conn : Connection) (model : Model) =
     let netGroups = netList2NetGroups netList
 
     let selectedConnectionIds (ng:NetGroup) =
-        if isNetGroupSelected netList testCanvas ng then 
+        if isNetGroupSelected netList canvas ng then 
             wave2ConnIds ng
         else [||]
             
@@ -1197,7 +1195,6 @@ let getNetSelection (conn : Connection) (model : Model) =
 /// In wave simulation highlight nets which are ticked on viewer or editor
 /// Nets can be highlighted or unhighlighted by clicking on nets, or tick-boxes
 let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
-    
     match currWaveSimModel model with
     | Some wSModel ->
         let netList = 
@@ -1228,7 +1225,7 @@ let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
 
 /// actions triggered whenever the fileMenuView function is executed
 let fileMenuViewActions model dispatch =
-    if model.ConnsOfSelectedWavesAreHighlighted then 
+    if model.Sheet.IsWaveSim then 
         highlightConnectionsFromNetGroups  model dispatch
     else ()
 

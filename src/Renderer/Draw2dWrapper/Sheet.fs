@@ -96,7 +96,7 @@ type Msg =
     | ToggleSelectionClose
     | ResetSelection
     | SetWaveSimMode
-    | ToggleNet of Connection //This message does nothing in sheet, but will be picked up by the update function
+    | ToggleNet of CanvasState //This message does nothing in sheet, but will be picked up by the update function
     | SelectWires of ConnectionId list
 
 
@@ -480,13 +480,19 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
         | Component compId ->
                 if model.Toggle 
                 then 
+
+                    let msg = 
+                        if model.IsWaveSim then 
+                            ToggleNet ([Symbol.extractComponent model.Wire.Symbol compId], []) 
+                        else DoNothing
+
                     let newComponents =
                         if List.contains compId model.SelectedComponents
                         then List.filter (fun cId -> cId <> compId) model.SelectedComponents // If component selected was already in the list, remove it
                         else compId :: model.SelectedComponents // If user clicked on a new component add it to the selected list
 
-                    {model with SelectedComponents = newComponents; LastValidPos = mMsg.Pos ; LastValidBoundingBoxes=model.BoundingBoxes ; Action = Idle; LastMousePos = mMsg.Pos; TmpModel = Some model},
-                    symbolCmd (Symbol.SelectSymbols newComponents)
+                    {model with SelectedComponents = newComponents; LastValidPos = mMsg.Pos ; LastValidBoundingBoxes=model.BoundingBoxes ; Action = Idle; LastMousePos = mMsg.Pos; TmpModel = Some model; PrevWireSelection = model.SelectedWires},
+                    Cmd.batch [symbolCmd (Symbol.SelectSymbols newComponents); Cmd.ofMsg msg]
                 else
                     let newComponents, newWires =
                         if List.contains compId model.SelectedComponents
@@ -499,7 +505,12 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
         | Connection connId ->
             if model.Toggle
             then 
-                let msg = if model.IsWaveSim then ToggleNet (BusWire.extractConnection model.Wire connId) else DoNothing
+
+                let msg = 
+                    if model.IsWaveSim then 
+                        ToggleNet ([], [BusWire.extractConnection model.Wire connId]) 
+                    else DoNothing
+
                 let newWires = 
                     if List.contains connId model.SelectedWires
                     then List.filter (fun cId -> cId <> connId) model.SelectedWires // If component selected was already in the list, remove it

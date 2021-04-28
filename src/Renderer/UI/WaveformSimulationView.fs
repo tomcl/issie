@@ -635,8 +635,8 @@ let private waveEditorView model netList wSMod (dispatch: Msg -> unit) =
           MarginLeft "5%"
           MarginTop "15px" ] ]
       [ Heading.h4 [] [ str "Waveform Simulation" ]
-        str "Add nets to view waveforms by clicking connections in diagram or tick-boxes below."
-        str "Test combinational logic using Simulate tab."
+        str "Add or remove nets to view waveforms by Ctrl-clicking connections in diagram or using tick-boxes below."
+        str "Test combinational logic by closing and using Simulate tab."
         hr []
         div []
             [ waveEditorButtons model netList wSMod dispatch

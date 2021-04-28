@@ -22,9 +22,9 @@ open PopupView
 open Extractor
 open System
 
-let private menuItem label onClick =
+let private menuItem styles label onClick =
     Menu.Item.li
-        [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick ] ]
+        [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick; Style styles ] ]
         [ str label ]
 
 let private createComponent compType label model dispatch =
@@ -35,7 +35,7 @@ let createCompStdLabel comp model dispatch =
     createComponent comp "" model dispatch
 
 let private makeCustom model dispatch (loadedComponent: LoadedComponent)  =
-    menuItem loadedComponent.Name (fun _ ->
+    menuItem [] loadedComponent.Name (fun _ ->
         let custom = Custom {
             Name = loadedComponent.Name
             InputLabels = loadedComponent.InputLabels
@@ -305,15 +305,19 @@ let compareModelsApprox (m1:Model) (m2:Model) =
 
 let viewCatalogue model dispatch =
         let viewCatOfModel = fun model ->                 
-            
+            let styles = 
+                match model.Sheet.Action with
+                | Sheet.InitialisedCreateComponent _ -> printfn "Cat: grabbed"; [Cursor "grabbing"]
+                | _ -> printfn "Cat: Normal"; []
+
             let catTip1 name func (tip:string) = 
-                let react = menuItem name func
+                let react = menuItem styles name func
                 div [ HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
                       Tooltip.dataTooltip tip
+                      Style styles
                     ]
                     [ react ]
-                            
-            Menu.menu [Props [Class "py-1"]]  [
+            Menu.menu [Props [Class "py-1"; Style styles]]  [
                 // TODO
                     makeMenuGroup
                         "Input / Output"
@@ -376,5 +380,6 @@ let viewCatalogue model dispatch =
                         (makeCustomList model dispatch)
                 ]
 
-        (Elmish.React.Common.lazyView viewCatOfModel) model // This prevented the model from automatically updating which lead to label generation not being updated unless the catalogue viewer was reloaded.
-        // viewCatOfModel model
+        (viewCatOfModel) model // This prevented the model from automatically updating which lead to label generation not being 
+                                                            // updated unless the catalogue viewer was reloaded.
+                                                            // viewCatOfModel model

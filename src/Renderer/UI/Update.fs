@@ -191,7 +191,10 @@ let update (msg : Msg) oldModel =
     | SetExitDialog status ->
         {model with ExitDialog = status}, Cmd.none
     | Sheet sMsg ->
-        sheetMsg sMsg model
+        match sMsg with 
+        | Sheet.ToggleNet conn -> 
+            model, Cmd.ofMsg (Sheet (Sheet.SelectWires (getNetSelection conn model)))
+        | _ -> sheetMsg sMsg model
     // special mesages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none
     | SetViewerWidth w -> {model with WaveSimViewerWidth = w}, Cmd.none
@@ -250,13 +253,12 @@ let update (msg : Msg) oldModel =
         | Properties -> Cmd.batch <| editCmds
         | Catalogue -> Cmd.batch  <| editCmds
         | Simulation -> Cmd.batch <| editCmds
-        | WaveSim -> Cmd.none
+        | WaveSim -> Cmd.ofMsg (Sheet (Sheet.SetWaveSimMode))
  
     | SetHighlighted (componentIds, connectionIds) ->
         let sModel, sCmd = Sheet.update (Sheet.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
         {model with Sheet = sModel}, Cmd.map Sheet sCmd
     | SetSelWavesHighlighted connIds ->
-        printf "DEBUG setSelWavesHighlighted: connIds \n %A " connIds
         let wModel, wCmd = Sheet.update (Sheet.ColourSelection ([], Array.toList connIds, HighLightColor.Blue)) model.Sheet
         {model with Sheet = wModel}, Cmd.map Sheet wCmd
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none

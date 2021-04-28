@@ -525,7 +525,6 @@ let setSelNamesHighlighted (names: string array) model (dispatch: Msg -> Unit) =
             names
             |> Array.map (fun name -> ws.AllNets.[name])
             |> Array.collect wave2ConnIds
-        printf "DEBUG set highlighted connids \n %A" connIds
         dispatch <| SetSelWavesHighlighted connIds
           
 
@@ -1174,6 +1173,26 @@ let showSimulationLoading (wsModel: WaveSimModel) (dispatch: Msg ->Unit) =
 let getAllNetGroups (waveSim:WaveSimModel) = 
     mapValues waveSim.AllNets
 
+///Takes a connection and model, and returns the netgroup as a list of connectionIds associated with that connection
+let getNetSelection (conn : Connection) (model : Model) =
+    
+    let testCanvas = ([], [conn])
+    
+    let netList = 
+        model.LastSimulatedCanvasState
+        |> Option.map Helpers.getNetList 
+        |> Option.defaultValue (Map.empty)
+    
+
+    let netGroups = netList2NetGroups netList
+
+    let selectedConnectionIds (ng:NetGroup) =
+        if isNetGroupSelected netList testCanvas ng then 
+            wave2ConnIds ng
+        else [||]
+            
+    Array.collect selectedConnectionIds netGroups
+    |> Array.toList
 
 /// In wave simulation highlight nets which are ticked on viewer or editor
 /// Nets can be highlighted or unhighlighted by clicking on nets, or tick-boxes
@@ -1199,7 +1218,6 @@ let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
             else [||]
                 
         let selectedIds =  Array.collect selectedConnectionIds netGroups
-        printf "DEBUG selectedIds \n %A " selectedIds
         dispatch <| SetSelWavesHighlighted selectedIds
     | _ -> ()
 

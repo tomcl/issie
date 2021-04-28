@@ -564,7 +564,6 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
     let isSelected (ng:NetGroup) = isWaveSelected model.Sheet netList ng
     /// this is what actually gets displayed when editor exits
     let closeWaveSimButtonAction _ev =
-        printf "DEBUG closeWaveSimButton"
         dispatch <| SetWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
         dispatch <| ChangeRightTab Catalogue
         dispatch <| SetWaveSimIsOutOfDate true

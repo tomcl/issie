@@ -323,7 +323,6 @@ type Msg =
     | StartNewWaveSimulation of CanvasState
     | UpdateScrollPos of bool
     | SetLastScrollPos of float option
-    | ReleaseFileActivity of string
     | SetRouterInteractive of bool
     | CloseApp
     | SetExitDialog of bool

@@ -64,6 +64,17 @@ type TopMenu = | Closed | Project | Files
 type KeyboardShortcutMsg =
     | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL
 
+type UICommandType =
+    | CloseProject
+    | ChangeSheet
+    | RenameSheet
+    | DeleteSheet
+    | SaveSheet
+    | StartWaveSim
+    | ViewWaveSim
+    | CloseWaveSim
+    
+
 //---------------------------------------------------------------
 //---------------------WaveSim types-----------------------------
 //---------------------------------------------------------------
@@ -276,7 +287,6 @@ type Msg =
     | SetClipboard of CanvasState
     | SetCreateComponent of Component
     | SetProject of Project
-    | CloseProject
     | ShowPopup of (PopupDialogData -> ReactElement)
     | ClosePopup
     | SetPopupDialogText of string option
@@ -318,6 +328,8 @@ type Msg =
     | SetExitDialog of bool
     | ExecutePendingMessages of int
     | DoNothing
+    | StartUICmd of UICommandType
+    | FinishUICmd
 
 
 //================================//
@@ -416,6 +428,7 @@ type Model = {
     CheckWaveformScrollPosition: bool
     /// Contains a list of pending messages
     Pending: Msg list
+    UIState: UICommandType Option
 } with
  
     override this.GetHashCode() =

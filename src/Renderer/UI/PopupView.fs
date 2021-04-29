@@ -467,7 +467,9 @@ let dialogPopup title body buttonText buttonAction isDisabled dispatch =
                     Level.item [] [
                         Button.button [
                             Button.Color IsLight
-                            Button.OnClick (fun _ -> dispatch ClosePopup)
+                            Button.OnClick (fun _ -> 
+                                dispatch ClosePopup
+                                dispatch FinishUICmd) //In case user presses cancel on 'rename sheet' popup
                         ] [ str "Cancel" ]
                     ]
                     Level.item [] [

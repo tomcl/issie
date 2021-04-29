@@ -362,7 +362,7 @@ let update (msg : Msg) oldModel =
     | SetIsLoading b ->
         {model with IsLoading = b}, Cmd.none
     | InitiateWaveSimulation (view, paras)  -> 
-        updateCurrentWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.none
+        updateCurrentWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.ofMsg FinishUICmd
     //TODO
     | WaveSimulateNow ->
         // do the simulation for WaveSim and generate new SVGs

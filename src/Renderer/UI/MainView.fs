@@ -106,6 +106,7 @@ let init() = {
     ConnsOfSelectedWavesAreHighlighted= false
     CheckWaveformScrollPosition = false
     Pending = []
+    UIState = None
 }
 
 

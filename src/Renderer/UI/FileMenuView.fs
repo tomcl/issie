@@ -385,6 +385,7 @@ let openFileInProject name project (model:Model) dispatch =
     if requestFileActivity "openFileInProject" dispatch then 
         openFileInProject' true name project (model:Model) dispatch
         dispatch <| ReleaseFileActivity "openFileInProject"
+        dispatch FinishUICmd
 
 
 /// return a react warning message if name if not valid for a sheet Add or Rename, or else None
@@ -461,6 +462,7 @@ let renameSheet oldName newName (model:Model) dispatch =
             /// save all the other files
             saveAllFilesFromProject proj'
             dispatch <| ReleaseFileActivity "renameSheet"
+            dispatch FinishUICmd
 
         
     
@@ -604,10 +606,11 @@ let addFileToProject model dispatch =
 
 /// Close current project, if any.
 let private closeProject model dispatch _ =
+    dispatch (StartUICmd CloseProject)
     let sheetDispatch sMsg = dispatch (Sheet sMsg) 
     dispatch EndSimulation // End any running simulation.
-    dispatch CloseProject
     model.Sheet.ClearCanvas sheetDispatch
+    dispatch FinishUICmd
 
 /// Create a new project.
 let private newProject model dispatch _ =
@@ -778,6 +781,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                     Button.Color IsPrimary
                                     Button.Disabled(name = project.OpenFileName)
                                     Button.OnClick(fun _ ->
+                                        dispatch (StartUICmd ChangeSheet)
                                         openFileInProject name project model dispatch) ] [ str "open" ] 
                           ]
                           // Add option to rename?
@@ -787,6 +791,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                   Button.IsOutlined
                                   Button.Color IsInfo
                                   Button.OnClick(fun _ ->
+                                      dispatch (StartUICmd RenameSheet)
                                       renameFileInProject name project model dispatch) ] [ str "rename" ]
                           ]
                           Level.item []

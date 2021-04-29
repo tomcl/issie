@@ -161,11 +161,10 @@ let update (msg : Msg) oldModel =
     
     //Add the message to the pending queue if it is a mouse drag message
     let model = 
-        if matchMouseMsg msg 
-        then {oldModel with Pending = msg :: oldModel.Pending}
+        if matchMouseMsg msg then {oldModel with Pending = msg :: oldModel.Pending}
         else oldModel
     
-
+    printf "DEBUG UIState = %A " model.UIState
     //Check if the current message is stored as pending, if so execute all pending messages currently in the queue
     let testMsg, cmd = 
         List.tryFind (fun x -> isSameMsg x msg) model.Pending 
@@ -178,6 +177,14 @@ let update (msg : Msg) oldModel =
 
     // main message dispatch match expression
     match testMsg with
+    | StartUICmd uiCmd ->
+        let newModel = {model with UIState = Some uiCmd}
+        match uiCmd with
+        | CloseProject ->
+            {newModel with CurrentProj = None}, Cmd.none
+        | _ -> newModel, Cmd.none
+    | FinishUICmd _ ->
+        {model with UIState = None}, Cmd.none
     | ShowExitDialog ->
         match model.CurrentProj with
         | Some p when model.SavedSheetIsOutOfDate ->
@@ -267,10 +274,6 @@ let update (msg : Msg) oldModel =
         { model with 
             CurrentProj = Some project
             PopupDialogData = {model.PopupDialogData with ProjectPath = project.ProjectPath}
-        }, Cmd.none
-    | CloseProject -> 
-        { model with 
-            CurrentProj = None
         }, Cmd.none
     | ShowPopup popup -> { model with PopupViewFunc = Some popup }, Cmd.none
     | ClosePopup ->
@@ -392,7 +395,6 @@ let update (msg : Msg) oldModel =
             let sims,err = model.WaveSim
             sims.Add(sheetName, wSModel), err
         {model with WaveSim = updateWaveSim sheetName wSModel model}, Cmd.none
-// TODO
     | ReleaseFileActivity a ->
         releaseFileActivityImplementation a
         model, Cmd.none

@@ -275,6 +275,7 @@ let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
         |> JSDiagramMsg
         |> dispatch
         releaseFileActivity "save" dispatch
+        dispatch FinishUICmd
         opt
     else
         None
@@ -544,6 +545,7 @@ let private removeFileInProject name project model dispatch =
                 // nothing chnages except LoadedComponents
                 dispatch <| SetProject project'
         dispatch <| ReleaseFileActivity "removefileinproject"
+        dispatch FinishUICmd
 
                 
 
@@ -596,6 +598,7 @@ let addFileToProject model dispatch =
                     // Close the popup.
                     dispatch ClosePopup
                     dispatch <| ReleaseFileActivity "add file"
+                    dispatch FinishUICmd
 
         let isDisabled =
             fun (dialogData: PopupDialogData) ->
@@ -816,6 +819,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
 
                                         let buttonAction =
                                             fun _ ->
+                                                dispatch (StartUICmd DeleteSheet)
                                                 removeFileInProject name project model dispatch
                                                 dispatch ClosePopup
                                         confirmationPopup title body buttonText buttonAction dispatch) ]
@@ -843,7 +847,9 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                       DisplayOptions.Block
                                    else
                                       DisplayOptions.None) ] ] ]
-                      ([ Navbar.Item.a [ Navbar.Item.Props [ OnClick(fun _ -> addFileToProject model dispatch) ] ]
+                      ([ Navbar.Item.a [ Navbar.Item.Props [ OnClick(fun _ -> 
+                            dispatch (StartUICmd AddSheet)
+                            addFileToProject model dispatch) ] ]
                              [ str "New Sheet" ]
                          Navbar.divider [] [] ]
                        @ projectFiles) ]
@@ -903,6 +909,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                       Button.Color IsSuccess  
                                       
                                       Button.OnClick(fun _ -> 
+                                        dispatch (StartUICmd SaveSheet)
                                         saveOpenFileActionWithModelUpdate model dispatch |> ignore
                                         dispatch <| Sheet(Sheet.DoNothing) //To update the savedsheetisoutofdate send a sheet message
                                         ) ]) [ str "Save" ] ] ]

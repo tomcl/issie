@@ -69,6 +69,7 @@ type UICommandType =
     | ChangeSheet
     | RenameSheet
     | DeleteSheet
+    | AddSheet
     | SaveSheet
     | StartWaveSim
     | ViewWaveSim

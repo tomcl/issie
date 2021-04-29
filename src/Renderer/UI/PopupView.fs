@@ -338,9 +338,9 @@ let makeSourceMenu
         let multiplyTip mType =
             tip ($"Dout = Addr[{aWidth-1}:{aWidth/2}] * Addr[{aWidth/2-1}:0]. \
             Multiplication is {mType}." + 
-            (if dWidth < aWidth then 
+             (if dWidth < aWidth then 
                 $"The result will be truncated to bits [{dWidth-1}:0] on Dout."
-            else
+             else
                 ""))
 
         match key with

@@ -178,11 +178,14 @@ let update (msg : Msg) oldModel =
     // main message dispatch match expression
     match testMsg with
     | StartUICmd uiCmd ->
-        let newModel = {model with UIState = Some uiCmd}
-        match uiCmd with
-        | CloseProject ->
-            {newModel with CurrentProj = None}, Cmd.none
-        | _ -> newModel, Cmd.none
+        match model.UIState with
+        | None -> //if nothing is currently being processed, allow the ui command operation to take place
+            match uiCmd with
+            | CloseProject ->
+                {model with CurrentProj = None; UIState = Some uiCmd}, Cmd.none
+            | _ -> 
+                {model with UIState = Some uiCmd}, Cmd.none
+        | _ -> model, Cmd.none //otherwise discard the message
     | FinishUICmd _ ->
         {model with UIState = None}, Cmd.none
     | ShowExitDialog ->

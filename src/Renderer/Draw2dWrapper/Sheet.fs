@@ -841,7 +841,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | ManualKeyDown key -> // Needed for e.g. Ctrl + C and Ctrl + V as they are not picked up by Electron
         let newPressedKeys = model.CurrentKeyPresses.Add (key.ToUpper()) // Make it fully upper case to remove CAPS dependency
         let newCmd =
-            match Set.contains "CONTROL" newPressedKeys with
+            match Set.contains "CONTROL" newPressedKeys || Set.contains "META" newPressedKeys with
             | true ->
                 if Set.contains "C" newPressedKeys then
                     Cmd.ofMsg (KeyPress CtrlC)

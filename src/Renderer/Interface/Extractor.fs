@@ -128,5 +128,10 @@ let compareCanvas
     comps1 = comps2 &&
     compareConns conns1 conns1
 
+/// Compare the name and IOs of two sheets as loadedcomponents
+/// For backups, if these chnage something major has happened
+let compareIOs (ldc1:LoadedComponent)  (ldc2:LoadedComponent) =
+    Set(ldc1.InputLabels) = Set(ldc2.InputLabels) && ldc1.Name = ldc2.Name
+
 
 

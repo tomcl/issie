@@ -55,39 +55,61 @@ let readLastBackup comp =
     latestBackupFileData backupDir baseN
     |> Option.map (fun (seq, fName) -> seq, fName, backupDir)
   
-/// Write comp to a backup file unless the latest backup canvas is within numChanges distance from 
-/// the comp canvas.
-let writeComponentToBackupFile numChanges comp = 
+/// Write Loadedcomponent comp to a backup file if there has been any change.
+/// Overwrite the existing backup file only if it is a small, and recent, change.
+/// Parameters determine thresholds of smallness and recency
+let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp = 
     let nSeq, backupFileName, backFilePath =
         match readLastBackup comp with
         | Some( n, fp, path) -> n+1,fp, path
         | None -> 0, "", pathJoin [|comp.FilePath; "backup"|]
     //printfn "seq=%d,name=%s,path=%s" nSeq backupFileName backFilePath
-    let wantToWrite =
+    let wantToWrite, oldFile =
         if backupFileName = "" then
-            true
+            true, None
         else
             let oldBackupFile = pathJoin [|backFilePath ; backupFileName|]
             match tryLoadComponentFromPath (oldBackupFile) with
             | Ok comp' ->
-                let nComps,nConns = quantifyChanges comp' comp
-                nComps + nConns  > numChanges
+                if not (compareIOs comp comp') then
+                    true, None // need to save, to a new backup file
+                elif compareCanvas comp.CanvasState comp'.CanvasState then
+                    false, None // no need for a new backup
+                else
+                    let nComps,nConns = quantifyChanges comp' comp
+                    let interval = comp.TimeStamp - comp'.TimeStamp
+                    if interval.TotalHours > numHours || nComps + nConns  > numCircuitChanges then
+                        true, None
+                    else
+                        true, Some oldBackupFile
+                        
             | err -> 
                 printfn "Error: writeComponentToBackup\n%A" err
-                true
-    if wantToWrite then       
-        let path = pathWithoutExtension comp.FilePath
-        let baseN = baseName path
+                true, None
+    if wantToWrite then
         let timestamp = System.DateTime.Now
-        let ds = EEExtensions.String.replaceChar '/' '-' (timestamp.ToShortDateString())
-        let suffix = EEExtensions.String.replaceChar ' ' '-' (sprintf "%s-%02dh-%02dm" ds timestamp.Hour timestamp.Minute)
-        ensureDirectory <| pathJoin [| dirName path ; "backup" |]
-        let backupDir = pathJoin [| dirName path ; "backup" |]
-        let backupPath = pathJoin [| dirName path ; "backup" ; sprintf "%s-%03d-%s.dgm" baseN nSeq suffix |]
+        let backupPath =
+                // work out new path to write based on time.
+                let path = pathWithoutExtension comp.FilePath
+                let baseN = baseName path
+                let ds = EEExtensions.String.replaceChar '/' '-' (timestamp.ToShortDateString())
+                let suffix = EEExtensions.String.replaceChar ' ' '-' (sprintf "%s-%02dh-%02dm" ds timestamp.Hour timestamp.Minute)
+                let backupDir = pathJoin [| dirName path ; "backup" |]
+                ensureDirectory <| pathJoin [| dirName path ; "backup" |]
+                pathJoin [| dirName path ; "backup" ; sprintf "%s-%03d-%s.dgm" baseN nSeq suffix |]
+        // write the new backup file
         {comp with 
             TimeStamp = timestamp
             FilePath = backupPath}
         |> writeComponentToFile
+        /// if necessary delete the old backup file
+        match oldFile with
+        | Some oldPath when oldPath <> backupPath ->
+            if Node.Api.fs.existsSync (Fable.Core.U2.Case1 oldPath) then
+                Node.Api.fs.unlink (Fable.Core.U2.Case1 oldPath, ignore) // Asynchronous.
+            else
+                ()
+        | _ -> ()
 
 /// returns a WaveSimModel option if a file is loaded, otherwise None
 let currWaveSimModel (model: Model) =
@@ -157,7 +179,7 @@ let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lc
     | Some n ->
         let oldLc = lcLst.[n]
         let newLc = setFun oldLc
-        writeComponentToBackupFile 0 oldLc
+        writeComponentToBackupFile 0 1. oldLc
         List.mapi (fun i x -> if i = n then newLc else x) lcLst
 
 /// return current project with current sheet updated from canvas if needed
@@ -220,7 +242,7 @@ let saveOpenFileAction isAuto model =
                 Map.tryFind project.OpenFileName (fst model.WaveSim)
                 |> Option.map waveSimModel2SavedWaveInfo
             let newLdc, newState = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim, canvasState
-            writeComponentToBackupFile 4 newLdc
+            writeComponentToBackupFile 4 1. newLdc
             Some (newLdc,newState)
         
 /// save current open file, updating model etc, and returning the loaded component and the saved (unreduced) canvas state
@@ -617,7 +639,7 @@ let rec resolveComponentOpenPopup
             let comp = {(if autoSave then autoComp else ldComp) with TimeStamp = DateTime.Now}
             writeComponentToFile comp
             if compChanges + connChanges > 0 then
-                writeComponentToBackupFile 0 comp 
+                writeComponentToBackupFile 0 1. comp 
             resolveComponentOpenPopup pPath (comp :: components) rLst  model dispatch   
         // special case when autosave data is most recent
         let title = "Warning!"

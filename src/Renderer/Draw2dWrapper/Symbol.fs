@@ -196,6 +196,7 @@ let makeComp (pos: XYPos) (comptype: ComponentType) (id:string) (label:string) :
         | Not -> ( 1 , 1, 2*GridSize ,  2*GridSize) 
         | ComponentType.Input (a) -> ( 0 , 1, GridSize ,  2*GridSize)                
         | ComponentType.Output (a) -> (  1 , 0, GridSize ,  2*GridSize) 
+        | ComponentType.Viewer a -> (  1 , 0, GridSize ,  2*GridSize) 
         | ComponentType.IOLabel  ->(  1 , 1, GridSize ,  2*GridSize) 
         | Decode4 ->( 2 , 4 , 4*GridSize  , 3*GridSize) 
         | Constant (a, b) ->(  0 , 1, GridSize ,  2*GridSize) 
@@ -353,6 +354,7 @@ let compSymbol (comp:Component) (colour:string) (showInputPorts:bool) (showOutpu
         | BusCompare (_,y) -> (addText  (float(w/2)-6.0) (float(h)/2.7-3.5) ("=" + string(y)) "middle" true)
         | Input (x) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-3.0) (title "" x) "middle" false)
         | Output (x) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-3.0) (title "" x) "right" false)
+        | Viewer (x) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-3.0) (title "" x) "right" false)
         | _ -> []
    
     // Put everything together 
@@ -651,6 +653,7 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
         match symbol.Compo.Type with
         | Input _ -> Input newBits
         | Output _ -> Output newBits
+        | Viewer _ -> Viewer newBits
         | NbitsAdder _ -> NbitsAdder newBits
         | NbitsXor _ -> NbitsXor newBits
         | Register _ -> Register newBits

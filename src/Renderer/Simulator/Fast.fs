@@ -299,6 +299,12 @@ let private fastReduce (simStep: int) (comp: FastComponent) : Unit =
         //printfn "In output bits=%A, ins = %A" bits comp.InputLinks
         checkWidth width bits
         put0 bits
+    | Viewer width ->
+        let bits = ins 0
+        //printfn "In output bits=%A, ins = %A" bits comp.InputLinks
+        checkWidth width bits
+        put0 bits
+
     | IOLabel ->
         let bits = ins 0
         //let bits = comp.InputLinks.[0].[simStep]
@@ -554,6 +560,7 @@ let private getPortNumbers (sc: SimulationComponent) =
         | Constant _ -> 0
         | Input _
         | Output _
+        | Viewer _ 
         | BusSelection _
         | BusCompare _
         | Not
@@ -587,6 +594,7 @@ let private getOutputWidths (sc: SimulationComponent) (wa: int option array) =
         failwithf "What? Legacy RAM component types should never occur"
     | Input w
     | Output w
+    | Viewer w
     | Register w
     | RegisterE w
     | SplitWire w

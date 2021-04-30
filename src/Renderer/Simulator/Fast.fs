@@ -159,7 +159,8 @@ let inline private bitXor bit0 bit1 =
     match bit0, bit1 with
     | Zero, One
     | One, Zero -> One
-    | _, _ -> Zero
+    | Zero, Zero
+    | One, One -> Zero
 
 let inline private bitNand bit0 bit1 = bitAnd bit0 bit1 |> bitNot
 
@@ -1416,3 +1417,42 @@ let extractFastSimulationIOs
     |> List.map
         (fun ((cid, label, width) as io) ->
             io, extractFastSimulationOutput fs simulationData.ClockTickNumber (cid, []) (OutputPortNumber 0))
+
+let getFLabel (fs:FastSimulation) (fId:FComponentId) =
+    let comps =
+        fs.FComps
+        |> Map.filter (fun (cid, cids) fc -> cid = fst fId)
+        |> Map.toList
+    match comps with
+    | [ fId,fc ] -> 
+        let (ComponentLabel name) = fc.SimComponent.Label
+        name
+    | (_,fc) :: _ -> fc.FullName
+    | [] -> failwithf "What? comps empty is not possible!"
+    |> ComponentLabel
+        
+
+
+
+
+/// Extract all Viewer components with names and wire widths. Used by legacy code.
+let extractViewers
+    (simulationData: SimulationData)
+    : (ComponentLabel * int * FData) list =
+    let fs = simulationData.FastSim
+
+    let comps = 
+        simulationData.FastSim.FComps
+        |> Map.map (fun fid fc -> fc.FType)
+        |> mapValues
+
+    let viewers = 
+        simulationData.FastSim.FComps
+        |> Map.filter (fun fid fc -> match fc.FType with |Viewer _ -> true | _ -> false)
+    printfn "FComps=%A, viewers=%A"  comps viewers
+    viewers
+    |> Map.toList
+    |> List.map
+        (fun (fid,fc) ->
+            let width = Option.get fc.OutputWidth.[0]
+            getFLabel fs fid, width, extractFastSimulationOutput fs simulationData.ClockTickNumber fid (OutputPortNumber 0))

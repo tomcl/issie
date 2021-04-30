@@ -239,6 +239,18 @@ let private viewSimulationOutputs numBase (simOutputs : (SimulationIO * WireData
         splittedLine (str <| makeIOLabel outputLabel width) valueHandle
     div [] <| List.map makeOutputLine simOutputs
 
+let private viewViewers numBase (simViewers : (ComponentLabel * int * WireData) list) =
+    let makeOutputLine (ComponentLabel outputLabel, width, wireData) =
+        assertThat (List.length wireData = width)
+        <| sprintf "Inconsistent wireData length in viewViewer for %s: expcted %d but got %d" outputLabel width wireData.Length
+        let valueHandle =
+            match wireData with
+            | [] -> failwith "what? Empty wireData while creating a line in simulation output."
+            | [bit] -> staticBitButton bit
+            | bits -> staticNumberBox numBase bits
+        splittedLine (str <| makeIOLabel outputLabel width) valueHandle
+    div [] <| List.map makeOutputLine simViewers
+
 let private viewStatefulComponents step comps numBase model dispatch =
     let getWithDefault (lab:string) = if lab = "" then "no-label" else lab
     let makeStateLine ((fc,state) : FastComponent*SimulationComponentState) =
@@ -334,6 +346,10 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
             simData
             (Fast.extractFastSimulationIOs simData.Inputs simData)
             dispatch
+
+        Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Viewers" ]
+        let viewers = Fast.extractViewers simData
+        viewViewers simData.NumberBase viewers
 
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Outputs" ]
         viewSimulationOutputs simData.NumberBase

@@ -286,6 +286,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     match fc.FType, fc.AccessPath with
     | Input _, [] -> failwithf "What? cannot call getVerilogComponent to find code for global Input"
     | Output _, _
+    | Viewer _,_
     | IOLabel _, _
     | Input _, _ -> sprintf $"assign %s{outs 0} = %s{ins 0};\n"
     | _ ->

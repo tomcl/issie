@@ -205,6 +205,7 @@ let private makeDescription (comp:Component) model dispatch =
     | Input _ -> str "Input."
     | Constant _ -> str "Constant Wire."
     | Output _ -> str "Output."
+    | Viewer _ -> str "Viewer."
     | BusCompare _ -> str "The output is one if the bus unsigned binary value is equal to the integer specified."
     | BusSelection _ -> div [] [
                 str "Bus Selection."
@@ -273,7 +274,7 @@ let private makeDescription (comp:Component) model dispatch =
 
 let private makeExtraInfo model (comp:Component) text dispatch =
     match comp.Type with
-    | Input _ | Output _ | NbitsAdder _ | NbitsXor _ ->
+    | Input _ | Output _ | NbitsAdder _ | NbitsXor _ | Viewer _ ->
         makeNumberOfBitsField model comp text dispatch
     | SplitWire _ ->
         makeNumberOfBitsField model comp text dispatch

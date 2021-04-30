@@ -43,6 +43,7 @@ type MouseOp =
 
 type MouseT = {
     Pos: XYPos
+    Movement: XYPos
     Op: MouseOp}
 
 /// Record to help create SVG lines

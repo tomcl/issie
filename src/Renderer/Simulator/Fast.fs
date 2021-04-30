@@ -1242,12 +1242,21 @@ let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : FastSimu
     |> checkAndValidate
 
 
+/// sets up default no-change input values for the next step
+let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
+    if step > 0 then
+        fastSim.FGlobalInputComps
+        |> Array.iter
+            (fun fc ->
+                let vec = fc.Outputs.[0]
+                vec.Step.[step] <- vec.Step.[step - 1])
+
 /// advance the simulation one step
 let private stepSimulation (fs: FastSimulation) =
+    propagateInputsFromLastStep (fs.ClockTick + 1) fs
     Array.iter
         (fastReduce (fs.ClockTick + 1))
-        (Array.concat [ fs.FGlobalInputComps
-                        fs.FClockedComps
+        (Array.concat [ fs.FClockedComps
                         fs.FOrderedComps ])
 
     fs.ClockTick <- fs.ClockTick + 1
@@ -1258,14 +1267,7 @@ let private setSimulationInput (cid: ComponentId) (fd: FData) (step: int) (fastS
     | Some fc -> fc.Outputs.[0].Step.[step] <- fd
     | None -> failwithf "Can't find %A in FastSim" cid
 
-/// sets up default no-change input values for the next step
-let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
-    if step > 0 then
-        fastSim.FGlobalInputComps
-        |> Array.iter
-            (fun fc ->
-                let vec = fc.Outputs.[0]
-                vec.Step.[step] <- vec.Step.[step - 1])
+
 
 /// Re-evaluates the combinational logic for the given timestep - used if a combinational
 /// input has changed

@@ -11,6 +11,12 @@ open Helpers
 ///Static variables
 let canvasSize = 3500.0
 
+/// Used to keep mouse movement (AKA velocity) info as well as position
+type XYPosMov = {
+    Pos: XYPos
+    Move: XYPos
+    }
+
 /// Used to keep track of what the mouse is on
 type MouseOn =
     | InputPort of CommonTypes.InputPortId * XYPos
@@ -134,7 +140,7 @@ type Model = {
     UndoList: Model List
     RedoList: Model List
     AutomaticScrolling: bool // True if mouse is near the edge of the screen and is currently scrolling. This improved performance for manual scrolling with mouse wheel (don't check for automatic scrolling if there is no reason to)
-    ScrollingLastMousePos: XYPos // For keeping track of mouse movement when scrolling. Can't use LastMousePos as it's used for moving symbols (won't be able to move and scroll symbols at same time)
+    ScrollingLastMousePos: XYPosMov // For keeping track of mouse movement when scrolling. Can't use LastMousePos as it's used for moving symbols (won't be able to move and scroll symbols at same time)
     // Scrolling: bool // True if mouse is currently near edge and is automatically scrolling. Can't have in CurrentAction as we need both CurrentAction and Scrolling
     MouseCounter: int
     LastMousePosForSnap: XYPos
@@ -404,7 +410,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
         {model with
              Action = nextAction
              LastMousePos = mMsg.Pos
-             ScrollingLastMousePos = mMsg.Pos
+             ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}
              ErrorComponents = errorComponents
              Snap = {XSnap = snapX.SnapInfo; YSnap = snapY.SnapInfo}
              SnapIndicator = {XLine = snapX.Indicator; YLine = snapY.Indicator}
@@ -420,7 +426,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
             model.SelectedComponents
             |> List.filter (fun sId -> not (notIntersectingComponents model model.BoundingBoxes.[sId] sId))
 
-        {model with Action = nextAction ; LastMousePos = mMsg.Pos; ScrollingLastMousePos = mMsg.Pos; ErrorComponents = errorComponents },
+        {model with Action = nextAction ; LastMousePos = mMsg.Pos; ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}; ErrorComponents = errorComponents },
         Cmd.batch [ symbolCmd (Symbol.MoveSymbols (model.SelectedComponents, posDiff mMsg.Pos model.LastMousePos))
                     symbolCmd (Symbol.ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
                     Cmd.ofMsg UpdateBoundingBoxes
@@ -544,7 +550,7 @@ let mDragUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
         let initialY = model.DragToSelectBox.Y
         let newDragToSelectBox = {model.DragToSelectBox with W = (mMsg.Pos.X - initialX); H = (mMsg.Pos.Y - initialY)}
         {model with DragToSelectBox = newDragToSelectBox
-                    ScrollingLastMousePos = mMsg.Pos
+                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}
                     LastMousePos = mMsg.Pos
          }, Cmd.ofMsg CheckAutomaticScrolling
     | InitialiseMoving _ ->
@@ -567,7 +573,7 @@ let mDragUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                     ConnectPortsLine = (fst model.ConnectPortsLine, drawLineTarget)
                     TargetPortId = targetPort
                     LastMousePos = mMsg.Pos
-                    ScrollingLastMousePos = mMsg.Pos }        
+                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}}        
         , Cmd.ofMsg CheckAutomaticScrolling
     | ConnectingOutput _ -> 
         let nearbyComponents = findNearbyComponents model mMsg.Pos
@@ -583,7 +589,7 @@ let mDragUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                     ConnectPortsLine = (fst model.ConnectPortsLine, drawLineTarget)
                     TargetPortId = targetPort
                     LastMousePos = mMsg.Pos
-                    ScrollingLastMousePos = mMsg.Pos }        
+                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement} }        
         , Cmd.ofMsg CheckAutomaticScrolling
     | _ -> model, Cmd.none
     
@@ -672,7 +678,7 @@ let mMoveUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                      SelectedComponents = [ newCompId ]
                      SelectedWires = []
                      LastMousePos = mMsg.Pos
-                     ScrollingLastMousePos = mMsg.Pos },
+                     ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement} },
         Cmd.batch [ Cmd.ofMsg UpdateBoundingBoxes
                     symbolCmd (Symbol.SelectSymbols [])
                     symbolCmd (Symbol.PasteSymbols [ newCompId ]) ]
@@ -684,7 +690,7 @@ let mMoveUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
             | InputPort _ | OutputPort _ -> ClickablePort // Change cursor if on port
             | _ -> Default
             
-        { model with NearbyComponents = nearbyComponents; CursorType = newCursor; LastMousePos = mMsg.Pos; ScrollingLastMousePos = mMsg.Pos },
+        { model with NearbyComponents = nearbyComponents; CursorType = newCursor; LastMousePos = mMsg.Pos; ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement} },
         symbolCmd (Symbol.ShowPorts nearbyComponents) // Show Ports of nearbyComponents
     
 let getScreenCentre (model : Model) : XYPos =
@@ -794,8 +800,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let scrollDif = posDiff { X = scrollX; Y = scrollY } model.ScrollPos
         let newLastScrollingPos =
             {
-                X = model.ScrollingLastMousePos.X + scrollDif.X / model.Zoom
-                Y = model.ScrollingLastMousePos.Y + scrollDif.Y / model.Zoom
+             Pos =
+                {
+                    X = model.ScrollingLastMousePos.Pos.X + scrollDif.X / model.Zoom
+                    Y = model.ScrollingLastMousePos.Pos.Y + scrollDif.Y / model.Zoom                
+                }
+             Move = model.ScrollingLastMousePos.Move
             }
         let cmd =
             if model.AutomaticScrolling then
@@ -854,22 +864,24 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.clientWidth
         let upperScreenEdge = canvas.scrollTop
         let lowerScreenEdge = upperScreenEdge + canvas.clientHeight
-        let mPosX = model.ScrollingLastMousePos.X * model.Zoom // Un-compensate for zoom as we want raw distance from mouse to edge screen
-        let mPosY = model.ScrollingLastMousePos.Y * model.Zoom // Un-compensate for zoom as we want raw distance from mouse to edge screen
-                
-        let checkForAutomaticScrolling1D (edge: float) (mPos: float) =
+        let mPosX = model.ScrollingLastMousePos.Pos.X * model.Zoom // Un-compensate for zoom as we want raw distance from mouse to edge screen
+        let mPosY = model.ScrollingLastMousePos.Pos.Y * model.Zoom // Un-compensate for zoom as we want raw distance from mouse to edge screen
+        let mMovX = model.ScrollingLastMousePos.Move.X
+        let mMovY = model.ScrollingLastMousePos.Move.Y
+        /// no scrolling if too far from edge, or if moving away from edge
+        let checkForAutomaticScrolling1D (edge: float) (mPos: float) (mMov: float) =
             let scrollMargin = 100.0
             let scrollSpeed = 10.0
             let edgeDistance = abs (edge - mPos)
             
-            if edgeDistance < scrollMargin
+            if edgeDistance < scrollMargin && mMov >= 0.
             then scrollSpeed * (scrollMargin - edgeDistance) / scrollMargin // Speed should be faster the closer the mouse is to the screen edge
             else 0.0
         
-        canvas.scrollLeft <- canvas.scrollLeft - (checkForAutomaticScrolling1D leftScreenEdge mPosX) // Check left-screen edge
-        canvas.scrollLeft <- canvas.scrollLeft + (checkForAutomaticScrolling1D rightScreenEdge mPosX) // Check right-screen edge
-        canvas.scrollTop <- canvas.scrollTop - (checkForAutomaticScrolling1D upperScreenEdge mPosY) // Check upper-screen edge
-        canvas.scrollTop <- canvas.scrollTop + (checkForAutomaticScrolling1D lowerScreenEdge mPosY) // Check lower-screen edge
+        canvas.scrollLeft <- canvas.scrollLeft - (checkForAutomaticScrolling1D leftScreenEdge mPosX -mMovX) // Check left-screen edge
+        canvas.scrollLeft <- canvas.scrollLeft + (checkForAutomaticScrolling1D rightScreenEdge mPosX mMovX) // Check right-screen edge
+        canvas.scrollTop <- canvas.scrollTop - (checkForAutomaticScrolling1D upperScreenEdge mPosY -mMovY) // Check upper-screen edge
+        canvas.scrollTop <- canvas.scrollTop + (checkForAutomaticScrolling1D lowerScreenEdge mPosY mMovY) // Check lower-screen edge
         
         let xDiff = canvas.scrollLeft - leftScreenEdge
         let yDiff = canvas.scrollTop - upperScreenEdge
@@ -882,9 +894,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let outputModel, outputCmd =
                 match model.Action with
                 | DragAndDrop ->
-                    mMoveUpdate { model with AutomaticScrolling = true } { Pos = newMPos; Op = Move }
+                    mMoveUpdate { model with AutomaticScrolling = true } { Pos = newMPos; Op = Move;  Movement = {X=0.;Y=0.}}
                 | MovingSymbols | ConnectingInput _ | ConnectingOutput _ | Selecting ->
-                    mDragUpdate { model with AutomaticScrolling = true } { Pos = newMPos; Op = Drag }
+                    mDragUpdate { model with AutomaticScrolling = true } { Pos = newMPos; Op = Drag; Movement = {X=0.;Y=0.}}
                 | _ -> 
                     { model with AutomaticScrolling = true }, Cmd.none
             
@@ -925,7 +937,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             TmpModel = None
             Zoom = 1.0
             AutomaticScrolling = false
-            ScrollingLastMousePos = { X = 0.0; Y = 0.0 }
+            ScrollingLastMousePos = {Pos={ X = 0.0; Y = 0.0 };Move={X=0.0; Y=0.0}}
             MouseCounter = 0
             LastMousePosForSnap = { X = 0.0; Y = 0.0 }    
         }, Cmd.none
@@ -980,7 +992,14 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
 
     /// Dispatch a MouseMsg (compensated for zoom)
     let mouseOp op (ev:Types.MouseEvent) =
-        dispatch <| MouseMsg {Op = op ; Pos = { X = (ev.pageX + model.ScrollPos.X) / model.Zoom  ; Y = (ev.pageY - headerHeight + model.ScrollPos.Y) / model.Zoom }}
+        printfn "%s" $"Op:{ev.movementX},{ev.movementY}"
+        dispatch <| MouseMsg {
+            Op = op ; 
+            Movement = {X= ev.movementX;Y=ev.movementY}
+            Pos = { 
+                X = (ev.pageX + model.ScrollPos.X) / model.Zoom  ; 
+                Y = (ev.pageY - headerHeight + model.ScrollPos.Y) / model.Zoom}
+            }
         // dispatch <| MouseMsg {Op = op ; Pos = { X = (ev.pageX + model.ScrollPos.X) / model.Zoom  ; Y = (ev.pageY - topMenuBarHeight + model.ScrollPos.Y) / model.Zoom }}
     let scrollUpdate () =
         let canvas = document.getElementById "Canvas"
@@ -1120,7 +1139,7 @@ let init () =
         TmpModel = None
         Zoom = 1.0
         AutomaticScrolling = false
-        ScrollingLastMousePos = { X = 0.0; Y = 0.0 }
+        ScrollingLastMousePos = {Pos={ X = 0.0; Y = 0.0 }; Move={X = 0.0; Y  =0.0}}
         MouseCounter = 0
         LastMousePosForSnap = { X = 0.0; Y = 0.0 }
         Toggle = false

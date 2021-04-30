@@ -87,8 +87,8 @@ let removeExtn extn fName =
     then Some fName.[0..(fName.Length - extn.Length - 1)]
     else None
 
-/// returns the sequence number and name of the most recent (highest sequence number) backup file
-let latestBackupFileData (path:string) (baseName: string) =
+/// returns the list of backup files in descending chronological order.
+let backupFileData (path:string) (baseName: string) =
     readFilesFromDirectory path
     |> List.filter (fun fn -> String.startsWith (baseName + "-") fn)
     |> List.map (fun fn -> 
@@ -97,10 +97,18 @@ let latestBackupFileData (path:string) (baseName: string) =
             |> Option.bind (String.tryParseWith System.Int32.TryParse)
             |> fun n -> n,fn)
     |> List.sortDescending
+
+
+
+/// returns the sequence number and name of the most recent (highest sequence number) backup file
+let latestBackupFileData (path:string) (baseName: string) =
+    backupFileData path baseName
     |> List.tryHead
     |> Option.bind (function 
         | None,_ -> None 
         | Some n, fn -> Some(n, fn))
+
+
 
 /// read canvas state from file found on filePath (which includes .dgm suffix etc).
 /// return Error if file does not exist or cannot be parsed.

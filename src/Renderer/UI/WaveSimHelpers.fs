@@ -517,15 +517,7 @@ let selectNetGrpConns (sheet: Sheet.Model) (netGrp: NetGroup) (on : bool) (dispa
     |> Array.toList
     |> sheet.SelectConnections sheetDispatch on
 
-let setSelNamesHighlighted (names: string array) model (dispatch: Msg -> Unit) =
-    match getCurrentWSMod model with
-    | None -> ()
-    |Some ws ->
-        let connIds = 
-            names
-            |> Array.map (fun name -> ws.AllNets.[name])
-            |> Array.collect wave2ConnIds
-        dispatch <| SetSelWavesHighlighted connIds
+
           
 
 /// returns labels of all custom component instances of sheet in lComp
@@ -1194,6 +1186,8 @@ let getNetSelection (canvas : CanvasState) (model : Model) =
 
 /// In wave simulation highlight nets which are ticked on viewer or editor
 /// Nets can be highlighted or unhighlighted by clicking on nets, or tick-boxes
+/// TODO: rewrite this code and SetSelWaveHighlighted message avoiding
+/// loops and fixes for loops.
 let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
     match currWaveSimModel model with
     | Some wSModel ->
@@ -1215,7 +1209,17 @@ let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
             else [||]
                 
         let selectedIds =  Array.collect selectedConnectionIds netGroups
-        dispatch <| SetSelWavesHighlighted selectedIds
+        let wrongColorIds =
+            selectedIds
+            |> Array.map (fun cid -> Map.tryFind cid model.Sheet.Wire.WX)
+            |> Array.filter ((<>) None)
+            |> Array.map Option.get
+            |> Array.filter (fun wire -> wire.Color <> HighLightColor.Blue)
+            |> Array.map (fun wire -> wire.Id)
+        // break loop while ensuring that connections are colored if needed
+        // nasty fix
+        if wrongColorIds <> [||] then
+            dispatch <| SetSelWavesHighlighted selectedIds
     | _ -> ()
 
 

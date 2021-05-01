@@ -1444,7 +1444,6 @@ let extractViewers
     let viewers = 
         simulationData.FastSim.FComps
         |> Map.filter (fun fid fc -> match fc.FType with |Viewer _ -> true | _ -> false)
-    printfn "FComps=%A, viewers=%A"  comps viewers
     viewers
     |> Map.toList
     |> List.map

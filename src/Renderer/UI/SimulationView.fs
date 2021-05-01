@@ -240,6 +240,26 @@ let private viewSimulationOutputs numBase (simOutputs : (SimulationIO * WireData
         splittedLine (str <| makeIOLabel outputLabel width) valueHandle
     div [] <| List.map makeOutputLine simOutputs
 
+let private viewViewers numBase (simViewers : ((string*string) * int * WireData) list) =
+    let makeViewerOutputLine ((label,fullName), width, wireData) =
+        assertThat (List.length wireData = width)
+        <| sprintf "Inconsistent wireData length in viewViewer for %s: expcted %d but got %d" label width wireData.Length
+        let valueHandle =
+            match wireData with
+            | [] -> failwith "what? Empty wireData while creating a line in simulation output."
+            | [bit] -> staticBitButton bit
+            | bits -> staticNumberBox numBase bits
+        let addToolTip tip react = 
+            div [ 
+                HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-right"
+                Tooltip.dataTooltip tip
+            ] [react]
+        let line = 
+            str <| makeIOLabel label width
+            |> (fun r -> if fullName <> "" then addToolTip fullName r else r)
+        splittedLine line valueHandle
+    div [] <| List.map makeViewerOutputLine simViewers
+
 let private viewStatefulComponents step comps numBase model dispatch =
     let getWithDefault (lab:string) = if lab = "" then "no-label" else lab
     let makeStateLine ((fc,state) : FastComponent*SimulationComponentState) =
@@ -326,6 +346,25 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
             Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Stateful components" ]
             viewStatefulComponents step stateful simData.NumberBase model dispatch
         ]
+    let questionIcon = str "\u003F"
+
+    let tip tipTxt txt =
+        span [
+                //Style [Float FloatOptions.Left]
+                HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
+                Tooltip.dataTooltip tipTxt
+            ]
+            [
+                Text.span [
+                    Modifiers [
+                        Modifier.TextColor IsPrimary
+                    ]
+                    Props [
+                        Style [
+                            Display DisplayOptions.InlineBlock
+                            Width "80px"
+                            TextAlign TextAlignOptions.Center]]
+            ] [str txt] ]
     div [] [
         splittedLine maybeBaseSelector maybeClockTickBtn
 
@@ -336,7 +375,14 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
             (Fast.extractFastSimulationIOs simData.Inputs simData)
             dispatch
 
-        Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Outputs" ]
+
+        Heading.h5 [ 
+            Heading.Props [ Style [ MarginTop "15px" ] ] 
+            ] [ 
+                str "Outputs &" 
+                tip "Add Viewer components to any sheet in the simulation" "Viewers"
+            ]
+        viewViewers simData.NumberBase <| List.sort (Fast.extractViewers simData)
         viewSimulationOutputs simData.NumberBase
         <| Fast.extractFastSimulationIOs simData.Outputs simData
 

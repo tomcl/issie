@@ -307,8 +307,8 @@ let viewCatalogue model dispatch =
         let viewCatOfModel = fun model ->                 
             let styles = 
                 match model.Sheet.Action with
-                | Sheet.InitialisedCreateComponent _ -> printfn "Cat: grabbed"; [Cursor "grabbing"]
-                | _ -> printfn "Cat: Normal"; []
+                | Sheet.InitialisedCreateComponent _ -> [Cursor "grabbing"]
+                | _ -> []
 
             let catTip1 name func (tip:string) = 
                 let react = menuItem styles name func
@@ -323,6 +323,7 @@ let viewCatalogue model dispatch =
                         "Input / Output"
                         [ catTip1 "Input"  (fun _ -> createIOPopup true "input" Input model dispatch) "Input connection to current sheet: one or more bits"
                           catTip1 "Output" (fun _ -> createIOPopup true "output" Output model dispatch) "Output connection from current sheet: one or more bits"
+                          catTip1 "Viewer" (fun _ -> createIOPopup true "viewer" Viewer model dispatch) "Viewer of current sheet to expose value in simulation"
                           catTip1 "Constant" (fun _ -> createConstantPopup model dispatch) "Define a one or more bit constant value, \
                                                                                             e.g. 0 or 1 to drive an unused input"
                           catTip1 "Wire Label" (fun _ -> createIOPopup false "label" (fun _ -> IOLabel) model dispatch) "Labels with the same name connect \

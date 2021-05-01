@@ -1421,17 +1421,10 @@ let extractFastSimulationIOs
             io, extractFastSimulationOutput fs simulationData.ClockTickNumber (cid, []) (OutputPortNumber 0))
 
 let getFLabel (fs:FastSimulation) (fId:FComponentId) =
-    let comps =
-        fs.FComps
-        |> Map.filter (fun (cid, cids) fc -> cid = fst fId)
-        |> Map.toList
-    match comps with
-    | [ fId,fc ] -> 
-        let (ComponentLabel name) = fc.SimComponent.Label
-        name
-    | (_,fc) :: _ -> fc.FullName
-    | [] -> failwithf "What? comps empty is not possible!"
-    |> ComponentLabel
+    let fc = fs.FComps.[fId]
+    let (ComponentLabel name) = fc.SimComponent.Label
+    name, fc.FullName
+
         
 
 
@@ -1440,7 +1433,7 @@ let getFLabel (fs:FastSimulation) (fId:FComponentId) =
 /// Extract all Viewer components with names and wire widths. Used by legacy code.
 let extractViewers
     (simulationData: SimulationData)
-    : (ComponentLabel * int * FData) list =
+    : ((string*string) * int * FData) list =
     let fs = simulationData.FastSim
 
     let comps = 

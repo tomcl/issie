@@ -598,7 +598,7 @@ let private waveEditorButtons (model: Model) netList (wSModel:WaveSimModel) disp
             |> Array.filter isSelected
         
         match viewableNetGroups.Length with
-        | 0 -> [ Button.CustomClass "disabled" ]
+        | 0 -> [ Button.IsLight; Button.Color IsSuccess ]
         | _ ->
             [ 
                 Button.Color IsSuccess
@@ -829,7 +829,8 @@ let WaveformButtonFunc compIds model dispatch =
                 else
                     Button.button
                         [ 
-                            //Button.Color White
+                            Button.Color IsSuccess
+                            Button.IsLight
                             Button.OnClick(fun _ -> 
                                 let popup = PopupView.errorPropsNotification "Combinational logic does not have waveforms"
                                 dispatch <| SetPropertiesNotification popup
@@ -848,7 +849,9 @@ let WaveformButtonFunc compIds model dispatch =
             | x,y,z -> 
                 //printfn "other%A %A %A" x y (match z with | None -> "None" | Some ((Error c),_) -> "Some Error" | Some ((Ok _),_) -> "Some Ok")
                 Button.button 
-                    [ Button.OnClick(fun _ -> 
+                    [ Button.Color IsSuccess
+                      Button.IsLight
+                      Button.OnClick(fun _ -> 
                           dispatch <| ChangeRightTab WaveSim) 
                     ]
     simulationButton [ str "Waveforms >>" ]

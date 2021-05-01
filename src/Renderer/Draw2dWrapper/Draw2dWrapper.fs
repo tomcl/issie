@@ -143,7 +143,7 @@ let private createComponent
         | ROM _ | RAM _ | AsyncROM _ -> 
             failwithf "What? Legacy RAM component types should never occur"
         | Input w  -> draw2dLib.createDigitalInput x y w
-        | Output w -> draw2dLib.createDigitalOutput x y w
+        | Output w | Viewer w -> draw2dLib.createDigitalOutput x y w
         | IOLabel -> draw2dLib.createDigitalLabel x y
         | BusSelection (w,lsb) -> draw2dLib.createDigitalBusSelection x y w lsb
         | BusCompare (w,cVal) -> draw2dLib.createDigitalBusCompare x y w cVal

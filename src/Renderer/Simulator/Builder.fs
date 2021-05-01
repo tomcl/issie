@@ -184,7 +184,8 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
             assertNoClockTick reducerInput componentType
             assertNotTooManyInputs reducerInput componentType 1
             Map.empty.Add (OutputPortNumber 0, convertIntToWireData width (int64 (uint32 cVal))) |> makeReducerOutput NoState
-    | Output width ->
+    | Output width
+    | Viewer width ->
         fun reducerInput ->
             assertNoClockTick reducerInput componentType
             assertNotTooManyInputs reducerInput componentType 1
@@ -564,7 +565,7 @@ let private getDefaultState compType =
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
     | Input _ | Output _ | IOLabel | BusSelection _ | BusCompare _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 | Decode4
-    | Demux2 | NbitsAdder _ |NbitsXor _ | Custom _ | MergeWires | SplitWire _ | ROM1 _  -> NoState
+    | Demux2 | NbitsAdder _ |NbitsXor _ | Custom _ | MergeWires | SplitWire _ | ROM1 _  | Viewer _ -> NoState
     | Constant (w, c) -> NoState //convertIntToWireData w (if c < 0 then (1L <<< w) - int64 c else int64 c)
     | AsyncROM1 _ -> NoState
     | DFF | DFFE -> DffState Zero

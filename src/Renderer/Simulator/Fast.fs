@@ -159,7 +159,8 @@ let inline private bitXor bit0 bit1 =
     match bit0, bit1 with
     | Zero, One
     | One, Zero -> One
-    | _, _ -> Zero
+    | Zero, Zero
+    | One, One -> Zero
 
 let inline private bitNand bit0 bit1 = bitAnd bit0 bit1 |> bitNot
 
@@ -299,6 +300,12 @@ let private fastReduce (simStep: int) (comp: FastComponent) : Unit =
         //printfn "In output bits=%A, ins = %A" bits comp.InputLinks
         checkWidth width bits
         put0 bits
+    | Viewer width ->
+        let bits = ins 0
+        //printfn "In output bits=%A, ins = %A" bits comp.InputLinks
+        checkWidth width bits
+        put0 bits
+
     | IOLabel ->
         let bits = ins 0
         //let bits = comp.InputLinks.[0].[simStep]
@@ -554,6 +561,7 @@ let private getPortNumbers (sc: SimulationComponent) =
         | Constant _ -> 0
         | Input _
         | Output _
+        | Viewer _ 
         | BusSelection _
         | BusCompare _
         | Not
@@ -587,6 +595,7 @@ let private getOutputWidths (sc: SimulationComponent) (wa: int option array) =
         failwithf "What? Legacy RAM component types should never occur"
     | Input w
     | Output w
+    | Viewer w
     | Register w
     | RegisterE w
     | SplitWire w
@@ -1233,12 +1242,21 @@ let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : FastSimu
     |> checkAndValidate
 
 
+/// sets up default no-change input values for the next step
+let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
+    if step > 0 then
+        fastSim.FGlobalInputComps
+        |> Array.iter
+            (fun fc ->
+                let vec = fc.Outputs.[0]
+                vec.Step.[step] <- vec.Step.[step - 1])
+
 /// advance the simulation one step
 let private stepSimulation (fs: FastSimulation) =
+    propagateInputsFromLastStep (fs.ClockTick + 1) fs
     Array.iter
         (fastReduce (fs.ClockTick + 1))
-        (Array.concat [ fs.FGlobalInputComps
-                        fs.FClockedComps
+        (Array.concat [ fs.FClockedComps
                         fs.FOrderedComps ])
 
     fs.ClockTick <- fs.ClockTick + 1
@@ -1249,14 +1267,7 @@ let private setSimulationInput (cid: ComponentId) (fd: FData) (step: int) (fastS
     | Some fc -> fc.Outputs.[0].Step.[step] <- fd
     | None -> failwithf "Can't find %A in FastSim" cid
 
-/// sets up default no-change input values for the next step
-let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
-    if step > 0 then
-        fastSim.FGlobalInputComps
-        |> Array.iter
-            (fun fc ->
-                let vec = fc.Outputs.[0]
-                vec.Step.[step] <- vec.Step.[step - 1])
+
 
 /// Re-evaluates the combinational logic for the given timestep - used if a combinational
 /// input has changed
@@ -1408,3 +1419,35 @@ let extractFastSimulationIOs
     |> List.map
         (fun ((cid, label, width) as io) ->
             io, extractFastSimulationOutput fs simulationData.ClockTickNumber (cid, []) (OutputPortNumber 0))
+
+let getFLabel (fs:FastSimulation) (fId:FComponentId) =
+    let fc = fs.FComps.[fId]
+    let (ComponentLabel name) = fc.SimComponent.Label
+    name, fc.FullName
+
+        
+
+
+
+
+/// Extract all Viewer components with names and wire widths. Used by legacy code.
+let extractViewers
+    (simulationData: SimulationData)
+    : ((string*string) * int * FData) list =
+    let fs = simulationData.FastSim
+
+    let comps = 
+        simulationData.FastSim.FComps
+        |> Map.map (fun fid fc -> fc.FType)
+        |> mapValues
+
+    let viewers = 
+        simulationData.FastSim.FComps
+        |> Map.filter (fun fid fc -> match fc.FType with |Viewer _ -> true | _ -> false)
+    printfn "FComps=%A, viewers=%A"  comps viewers
+    viewers
+    |> Map.toList
+    |> List.map
+        (fun (fid,fc) ->
+            let width = Option.get fc.OutputWidth.[0]
+            getFLabel fs fid, width, extractFastSimulationOutput fs simulationData.ClockTickNumber fid (OutputPortNumber 0))

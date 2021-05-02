@@ -146,10 +146,8 @@ type WaveSimModel = {
     /// parameters determining how and which viewer waves are displayed
     SimParams: SimParamsT
 
-    /// NetGroup names shown in the editor
-    AllWaveNames: string array
-    /// Map of all the nets that exist in the currently simulated design
-    AllNets: Map<string,NetGroup>
+    /// Waveform names and details shown in the editor
+    AllWaves: Map<string,WaveformSpec>
 
     /// react SVG for each waveform, indexed by name
     DispWaveSVGCache: SVGCacheT 
@@ -187,25 +185,24 @@ let setEditorNextView nView simParas wsModel =
 
     
 
-let inline getPort (ws:WaveSimModel) (name: string) = ws.AllNets.[name]
+let inline getWave (ws:WaveSimModel) (name: string) = ws.AllWaves.[name]
 
-let inline getDispName (ws:WaveSimModel) (port:NetGroup) =
-    Map.tryFindKey (fun k v -> v = port) ws.AllNets
+let inline getDispName (ws:WaveSimModel) (wave:WaveformSpec) =
+    Map.tryFindKey (fun k v -> v = wave) ws.AllWaves
     |> Option.defaultValue "name not found"
     
 
-let inline dispPorts (ws: WaveSimModel) =
+let inline dispWaves (ws: WaveSimModel) =
     ws.SimParams.DispNames
-    |> Array.map (fun name -> ws.AllNets.[name])
+    |> Array.map (fun name -> ws.AllWaves.[name])
 
 let inline AllPorts (ws: WaveSimModel) =
-    ws.AllWaveNames
+    ws.AllWaves
 
 let initWS (allNames:string array) (allPorts: Map<string,NetGroup>): WaveSimModel =
     { 
       InitWaveSimGraph = None
-      AllNets = allPorts
-      AllWaveNames = allNames
+      AllWaves = Map.empty
       SimDataCache = [||]
       DispWaveSVGCache = { Top = [||]; Waves = Map.empty; Bottom = [||]}
       SimParams = {
@@ -527,10 +524,9 @@ let waveSimModel2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
 let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
     { 
         InitWaveSimGraph = None
-        AllNets = Map.empty // will be reconstituted
         SimDataCache = [||]
         DispWaveSVGCache = {Top=[||]; Waves = Map.empty; Bottom = [||]}
-        AllWaveNames = [||] // will be reconstituted
+        AllWaves = Map.empty // will be reconstituted
         SimParams = {
             MoreNames = []
             DispNames = sWInfo.DisplayedPortIds // actually names not ids

@@ -98,8 +98,8 @@ let wsModel2netList wsModel =
 
 // Look up netgroup (= waveform) name from WaveData and netgroup
 // If Netgroup is not in AllNetGroups return "ERROR"
-let waveNameOf (ws:WaveSimModel) (ng:NetGroup) =
-    Map.tryFindKey (fun _ p -> p = ng) ws.AllNets
+let waveNameOf (ws:WaveSimModel) (wave: WaveformSpec) =
+    Map.tryFindKey (fun _ p -> p = wave) ws.AllWaves
     |> Option.defaultValue "ERROR"
 
 let reactTickBoxRow name nameStyle ticked toggleFun =   
@@ -119,29 +119,9 @@ let reactTickBoxRow name nameStyle ticked toggleFun =
           td [] [ label [Style nameStyle] [ str name] ] ]           
 
 ////////////////////////
-// Simulation Helpers //
-////////////////////////
 
-// NB - all the NetGroup functions assume a working netlist in which NO NET IS UNDRIVEN
-// Every Net must be driven by exactly one componnet output port (NLSource).
-// IOLabels are nout counted as drivers themselves; every group of same label IOlabels 
-// and all of their output nets 
-// makes a netgroup which must be driven by just one NLSource (connected to one of the IOLabel inputs).
-// every net is therefore part of one netgroup which is either a single net, or a group of nets associated
-// with a set of IOLabel connectors having a given common label.
 
-let mapKeys (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map fst |> Array.ofSeq
-let mapValues (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map snd |> Array.ofSeq
-let mapItems (map:Map<'a,'b>) = map |> Map.toSeq |> Array.ofSeq
 
-let private allNComps (netList:NetList) =
-    netList |> mapValues
-
-type NGrp = {
-    Driven: string list; 
-    DriverLabel: string list
-    Driver: NLTarget list
-    }
  
     
     
@@ -301,35 +281,7 @@ let getRamInfoToDisplay wSMod path =
 
 
 
-let private makeAllNetGroups (netList:NetList) :NetGroup array=
 
-    let comps = allNComps netList
-
-    let labelConnectedNets: Map<string,NLTarget list array> =       
-        comps
-        |> Array.collect (fun comp ->
-            if comp.Type = IOLabel then [|comp.Label, comp.Outputs.[OutputPortNumber 0]|] else [||])
-        |> Array.groupBy (fun (label, _) -> label)
-        |> Array.map (fun (lab, labOutArr)-> lab, (labOutArr |> Array.map (snd)))
-        |> Map.ofArray
-
-    let makeNetGroup (comp: NetListComponent) (opn: OutputPortNumber) (targets:NLTarget list) =
-        let connected = 
-            targets
-            |> List.toArray
-            |> Array.collect (fun target -> 
-                let comp = netList.[target.TargetCompId]
-                if comp.Type = IOLabel then labelConnectedNets.[comp.Label] else [||])
-        {driverComp=comp; driverPort=opn; driverNet=targets; connectedNets=connected}
-
-
-    let allNetGroups =
-        comps
-        |> Array.collect (fun comp -> 
-            match comp.Type with
-            | IOLabel -> [||]
-            | _ -> Map.map (makeNetGroup comp) comp.Outputs |> mapValues)
-    allNetGroups
 
 /// Get NetGroup from targets which represents the group of nLTargets connected by IOLabels.
 /// targets:list of inputs connected to a single driving component output (e.g. a connected Net).
@@ -341,16 +293,17 @@ let private isNetListTrgtInNetList (netList: NetList) (nlTrgt: NLTarget) =
     Map.exists (fun _ (nlComp: NetListComponent) -> 
                     Map.exists (fun _ nlTrgtLst -> List.contains nlTrgt nlTrgtLst) nlComp.Outputs) netList
 
+                    (*
 /// get array of TrgtLstGroup with the non-existing NLTargets removed
 let private getReloadableNetGroups (model: Model) (netList: NetList) =
     match currWaveSimModel model with
     | Some wSModel ->
-        dispPorts wSModel
+        dispWaves wSModel
         |> Array.map (fun netGroup -> netGroup.driverNet) 
         |> Array.map (List.filter <| isNetListTrgtInNetList netList)
         |> Array.filter ((<>) [])
         |> Array.map (getNetGroup netList)
-    | None -> [||]
+    | None -> [||] *)
 
 /// advance SimulationData by 1 clock cycle
 let private clkAdvance (sD: SimulationData) =
@@ -380,17 +333,7 @@ let extractSimData simData nCycles =
 let private drivingOutput (netList: NetList) compId inPortN =
     netList.[compId].Inputs.[inPortN]
 
-let netList2NetGroups netList = makeAllNetGroups netList
-    (*Map.toArray netList
-    |> Array.filter (fun (_, (nlComp: NetListComponent)) -> 
-           match nlComp.Type with
-           | SplitWire _ | MergeWires _ | IOLabel |Constant _ -> false
-           | _ -> true )
-    |> Array.collect (fun (_,nlComp) -> 
-        nlComp.Outputs
-        |> Map.map (fun _ targets -> getNetGroup netList targets)  
-        |> Map.toArray 
-        |> Array.map snd)*)
+
 
 /// get array of available NLSource in current canvas state
 let availableNetGroups (model: Model) =
@@ -400,7 +343,7 @@ let availableNetGroups (model: Model) =
         waveSim.LastCanvasState
         |> Option.defaultValue ([],[])
         |> Helpers.getNetList
-        |> netList2NetGroups
+        |> makeAllNetGroups
 
 
 
@@ -416,16 +359,15 @@ let private simWireData2Wire wireData =
     |> List.sum
 
 /// extract current value of the given array of SourceGroup
-let getSimTime (netgrps: NetGroup array) (simData: SimulationData) =
+let getSimTime (waves: WaveformSpec array) (simData: SimulationData) =
     let fs = simData.FastSim
     let step = simData.ClockTickNumber
     let topLevelComps = simData.FastSim.FComps
     Fast.runFastSimulation step fs
-    netgrps
-    |> Array.map (fun netGrp ->
+    waves
+    |> Array.map (fun wave ->
         try 
-            let driver = netGrp.driverComp.Id,[]
-            let opn = netGrp.driverPort
+            let driver,opn = wave.Driver
             let wD = Fast.extractFastSimulationOutput fs step driver opn
             Wire
                 { NBits = uint (List.length wD)
@@ -434,8 +376,6 @@ let getSimTime (netgrps: NetGroup array) (simData: SimulationData) =
         | e -> 
             printfn "Exception: %A" e.StackTrace
             printSimGraph simData.Graph
-            let compId = netGrp.driverNet.[0].TargetCompId
-            printfn "\nComponent %s\n\n" (tryGetCompLabel compId simData.Graph)
             failwithf "What? This error in getSimTime should not be possible"
 
         )
@@ -467,15 +407,15 @@ let getSlowTime (netgrps: NetGroup array) (simData: SimulationData) =
 
 /// get all values of waveforms
 let getAllWaveSimDataBySample (wsMod: WaveSimModel) =
-        let netGroups = dispPorts wsMod
+        let waves = dispWaves wsMod
         wsMod.SimDataCache
-        |> Array.map (getSimTime netGroups)
+        |> Array.map (getSimTime waves)
 
 /// get values of waveforms for one sample
 let getWaveSimDataOneSample (wsMod: WaveSimModel) (sample:int) =
-    let netGroups = dispPorts wsMod
+    let waves = dispWaves wsMod
     wsMod.SimDataCache.[sample]
-    |> getSimTime netGroups
+    |> getSimTime waves
 
 
 
@@ -510,12 +450,22 @@ let private wave2ConnIds (netGrp: NetGroup) =
         |> Array.map (fun net -> net.TargetConnId))
 
 
-/// select or deselect the connections of a given netGrp
-let selectNetGrpConns (sheet: Sheet.Model) (netGrp: NetGroup) (on : bool) (dispatch: Msg -> unit) =
+/// select or deselect the connections of a given waveSpec
+let selectWaveConns (model: Model)  (on : bool) (wave: WaveformSpec) (dispatch: Msg -> unit) =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    wave2ConnIds netGrp 
+    wave.Conns
     |> Array.toList
-    |> sheet.SelectConnections sheetDispatch on
+    |> model.Sheet.SelectConnections sheetDispatch on
+
+let selectExactConns (model: Model)  (conns: ConnectionId array) (dispatch: Msg -> unit) =
+    let allConns =
+        snd <| model.Sheet.GetCanvasState()
+        |> List.map (fun conn -> ConnectionId conn.Id)
+        |> Set.ofList
+    let otherConns = allConns - Set.ofArray conns
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    model.Sheet.SelectConnections sheetDispatch true (conns |> Array.toList)
+    model.Sheet.SelectConnections sheetDispatch false (Set.toList otherConns)
 
 
           
@@ -1084,7 +1034,7 @@ let makeLabels waveNames =
 let adjustPars (wsMod: WaveSimModel) (pars: SimParamsT) rightLim =
     let currPars = wsMod.SimParams
     let defRightLim =
-        match dispPorts wsMod with
+        match dispWaves wsMod with
         | [||] -> 600.0
         | _ -> maxWavesColWidthFloat wsMod
     let rightLim = match rightLim with | Some x -> x | None -> defRightLim
@@ -1146,8 +1096,13 @@ let private isNetGroupSelected (netList: NetList) ((comps, conns): CanvasState) 
 
 
 /// is the given waveform selected by the current diagram selection
-let isWaveSelected (sheet:Sheet.Model) netList (netgrp: NetGroup) = 
-    isNetGroupSelected netList sheet.GetSelectedCanvasState netgrp
+let isWaveSelected (model:Model) (wSpec: WaveformSpec) = 
+    match wSpec.WType, wSpec.Conns with
+    | ViewerWaveform selected,_ -> selected
+    | NormalWaveform, [||] -> false // can't select a wave with no connections (maybe this case does not exist)
+    | NormalWaveform, conns -> 
+        model.Sheet.GetSelectedConnections
+        |> List.exists (fun conn -> ConnectionId conn.Id = wSpec.Conns.[0]) 
     
 /////////////////////////////////////////////////////
 /// Functions fed into FileMenuView View function ///
@@ -1162,8 +1117,8 @@ let showSimulationLoading (wsModel: WaveSimModel) (dispatch: Msg ->Unit) =
         dispatch <| WaveSimulateNow
         true
 
-let getAllNetGroups (waveSim:WaveSimModel) = 
-    mapValues waveSim.AllNets
+let getAllWaves (waveSim:WaveSimModel) = 
+    mapValues waveSim.AllWaves
 
 ///Takes a connection and model, and returns the netgroup as a list of connectionIds associated with that connection
 let getNetSelection (canvas : CanvasState) (model : Model) =
@@ -1174,7 +1129,7 @@ let getNetSelection (canvas : CanvasState) (model : Model) =
         |> Option.defaultValue (Map.empty)
     
 
-    let netGroups = netList2NetGroups netList
+    let netGroups = makeAllNetGroups netList
 
     let selectedConnectionIds (ng:NetGroup) =
         if isNetGroupSelected netList canvas ng then 
@@ -1188,27 +1143,24 @@ let getNetSelection (canvas : CanvasState) (model : Model) =
 /// Nets can be highlighted or unhighlighted by clicking on nets, or tick-boxes
 /// TODO: rewrite this code and SetSelWaveHighlighted message avoiding
 /// loops and fixes for loops.
-let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
+let highlightConnectionsFromWaves (model: Model) (dispatch: Msg -> Unit) =
     match currWaveSimModel model with
     | Some wSModel ->
-        let netList = 
-            model.LastSimulatedCanvasState
-            |> Option.map Helpers.getNetList 
-            |> Option.defaultValue (Map.empty)
-        
-
-        let netGroups =
+        let waves =
             match wSModel.WSViewState with 
-            | WSEditorOpen | WSInitEditorOpen -> netList2NetGroups netList
-            | WSViewerOpen -> dispPorts wSModel
+            | WSEditorOpen 
+            | WSInitEditorOpen -> 
+                mapValues wSModel.AllWaves                
+            | WSViewerOpen       
             | WSClosed -> [||]
-
-        let selectedConnectionIds (ng:NetGroup) =
-            if isWaveSelected model.Sheet netList ng then 
-                wave2ConnIds ng
+  
+            
+        let selectedConnectionIds (wave: WaveformSpec) =
+            if isWaveSelected model wave then 
+                wave.Conns
             else [||]
                 
-        let selectedIds =  Array.collect selectedConnectionIds netGroups
+        let selectedIds =  Array.collect selectedConnectionIds waves
         let wrongColorIds =
             selectedIds
             |> Array.map (fun cid -> Map.tryFind cid model.Sheet.Wire.WX)
@@ -1229,9 +1181,7 @@ let highlightConnectionsFromNetGroups (model: Model) (dispatch: Msg -> Unit) =
 
 /// actions triggered whenever the fileMenuView function is executed
 let fileMenuViewActions model dispatch =
-    if model.Sheet.IsWaveSim then 
-        highlightConnectionsFromNetGroups  model dispatch
-    else ()
+    ()
 
 
 

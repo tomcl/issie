@@ -315,7 +315,7 @@ let mouseOn (model: Model) (pos: XYPos) : MouseOn =
             match insideBox model.BoundingBoxes pos with
             | Some compId -> Component compId
             | None -> 
-                match BusWire.getWireIfClicked model.Wire pos with
+                match BusWire.getWireIfClicked model.Wire pos (5./model.Zoom) with
                 | Some connId -> Connection connId
                 | None -> Canvas
 

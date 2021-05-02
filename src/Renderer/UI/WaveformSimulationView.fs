@@ -262,11 +262,12 @@ let private makeRamReactCol (wsModel: WaveSimModel) ramPath =
 /// The vertical order is fixed and as in DispNames
 let private waveSimViewerRows compIds model (wsMod: WaveSimModel) (dispatch: Msg -> unit) =
     let allWaves = wsMod.AllWaves
+    let names = wsMod.SimParams.DispNames
+    let displayNames = names |> Array.map (fun name -> allWaves.[name].DisplayName)
     let labelCols =
-        wsMod.SimParams.DispNames
-        |> Array.map removeSuffixFromWaveLabel
+        names
         |> makeLabels 
-        |> Array.zip wsMod.SimParams.DispNames
+        |> Array.zip displayNames
         |> Array.map (fun (name, lab) ->
             tr [ Class "rowHeight" ]
                 [ td [ Class "checkboxCol" ]
@@ -511,7 +512,7 @@ let private waveEditorSelectAllRow model wSModel dispatch =
                     Class "check"
                     Checked allOn
                     Style [ Float FloatOptions.Left ]
-                    OnChange(fun _ -> waveAdderSelectAll model wSModel (not allOn) dispatch) ] ]
+                    OnChange(fun _ -> waveAdderSelectAll model wSModel (not allOn) dispatch ) ] ]
           td [ Style [ FontWeight "bold" ] ] [ str "Select All" ] ]
 
 /// ReactElement of Wave Editor waveform row
@@ -537,7 +538,7 @@ let private waveEditorTickBoxAndNameRow model  wSModel name (dispatch: Msg -> un
                     Checked <| isWaveSelected model allWaves.[name]
                     Style [ Float FloatOptions.Left ]
                     OnChange(fun _ -> toggleWaveConnsSelect model wSModel name dispatch) ] ]
-          td [] [ label [Style (getColorProp name)] [ str <| removeSuffixFromWaveLabel name] ] ]
+          td [] [ label [Style (getColorProp name)] [ str <| allWaves.[name].DisplayName ] ] ]
 
 let sortEditorNameOrder wsModel =
     let otherNames = 
@@ -638,8 +639,8 @@ let private waveEditorView model wSMod (dispatch: Msg -> unit) =
               MarginLeft "5%"
               MarginTop "15px" ] ]
        [ Heading.h4 [] [ str "Waveform Simulation" ] 
-         str "Add or remove nets to view waveforms by Ctrl-clicking connections in diagram or using tick-boxes below."
-         str "Test combinational logic by closing and using Simulate tab."
+         str "Ctrl-click on diagram connections or use tick boxes below to add or remove waveforms."
+         str "Test combinational logic by closing this simulator and using Simulate tab."
          hr []
          div []
             [ waveEditorButtons model wSMod dispatch
@@ -715,7 +716,7 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
         let modelWithWaveSimSheet = {model with WaveSimSheet = Option.get (getCurrFile model)}
         let wsModel = getWSModelOrFail modelWithWaveSimSheet "What? Can't get wsModel at start of new simulation"
         let okCompNum = (Set.intersect compIds (simData.Graph |> mapKeys |> Set)).Count
-        let simCompNum = simData.Graph.Count
+        let simCompNum = simData.Graph.Count (*
         printfn 
             "DEBUG: sheet=%s, modelSheet=%s, okNum = %d, wavesim num = %d drawNum=%d"
             modelWithWaveSimSheet.WaveSimSheet 
@@ -726,7 +727,7 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
         printfn
             "DEBUG: simComps=%A\n\ndrawcomps=%A\n\n"  
             (simData.Graph |> mapValues |> Array.map (fun c -> c.Label) |> Array.sort)
-            (model.Sheet.GetCanvasState() |> fst |> List.map (fun c -> c.Label) |> List.sort)
+            (model.Sheet.GetCanvasState() |> fst |> List.map (fun c -> c.Label) |> List.sort) *)
 
         let wSpecs = 
             SimulatorTypes.getWaveformSpecifications (netGroup2Label compIds) simData rState

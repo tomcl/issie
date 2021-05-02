@@ -669,14 +669,14 @@ let singleWireView =
                 let textParameters =
                     {
                         TextAnchor = "middle";
-                        FontSize = "15px";
+                        FontSize = "12px";
                         FontWeight = "Bold";
                         FontFamily = "Verdana, Arial, Helvetica, sans-serif";
                         Fill = props.ColorP.Text();
                         UserSelect = UserSelectOptions.None;
                         DominantBaseline = "middle";
                     }
-                let textString = string props.StrokeWidthP
+                let textString = if props.StrokeWidthP = 1 then "" else string props.StrokeWidthP //Only print width > 1
                 makeText (props.OutputPortLocation.X+10.0) (props.OutputPortLocation.Y-7.0) (textString) textParameters
             g [] ([ renderWireWidthText ] @ renderWireSegmentList)
         

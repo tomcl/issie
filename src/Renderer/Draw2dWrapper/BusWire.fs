@@ -1293,9 +1293,10 @@ let getIntersectingWires (wModel : Model) (selectBox : BoundingBox) : list<Conne
     |> Map.toList
     |> List.map (fun (id,bool) -> id)
 
-///
-let getWireIfClicked (wModel : Model) (pos : XYPos) : ConnectionId Option =
-    let boundingBox = {BoundingBox.X = pos.X - 5.0; Y = pos.Y - 5.0; H = 10.0; W = 10.0}
+///searches if the position of the cursor is on a wire in a model
+///Where n is 5 pixels adjusted for top level zoom
+let getWireIfClicked (wModel : Model) (pos : XYPos) (n : float) : ConnectionId Option =
+    let boundingBox = {BoundingBox.X = pos.X - n; Y = pos.Y - n; H = n*2.; W = n*2.}
     let intersectingWires = getIntersectingWires (wModel : Model) boundingBox
     List.tryHead intersectingWires
 

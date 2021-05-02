@@ -742,21 +742,7 @@ let netGroup2Label compIds graph netList (netGrp: NetGroup) =
     |> simplifyName
     |> instrumentInterval "netGroup2Label" start
 
-/// findName will possibly not generate unique names for each netgroup
-/// Names are defined via waveSimModel.AllPorts which adds to each name
-/// a unique numeric suffic (.2 etc). These suffixes are stripped from names
-/// when they are displayed
-/// TODO: make sure suffixes are uniquely defines based on component ids (which will not change)
-/// display then in wave windows where needed to disambiguate waveforms.
-let removeSuffixFromWaveLabel (label:string)  =
-    label
-    |> Seq.toList
-    |> List.rev
-    |> List.skipWhile (fun ch -> ch <> '!')
-    |> (function | '!' :: rest -> rest | chars -> chars)
-    |> List.rev
-    |> List.map string
-    |> String.concat ""
+
 
 
 // Required wSModel with correct simulation.
@@ -1151,7 +1137,9 @@ let highlightConnectionsFromWaves (model: Model) (dispatch: Msg -> Unit) =
             | WSEditorOpen 
             | WSInitEditorOpen -> 
                 mapValues wSModel.AllWaves                
-            | WSViewerOpen       
+            | WSViewerOpen  ->
+                wSModel.SimParams.DispNames
+                |> Array.map (fun name -> wSModel.AllWaves.[name])
             | WSClosed -> [||]
   
             
@@ -1181,7 +1169,9 @@ let highlightConnectionsFromWaves (model: Model) (dispatch: Msg -> Unit) =
 
 /// actions triggered whenever the fileMenuView function is executed
 let fileMenuViewActions model dispatch =
-    ()
+    if model.Sheet.IsWaveSim then 
+        highlightConnectionsFromWaves  model dispatch
+    else ()
 
 
 

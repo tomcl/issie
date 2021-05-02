@@ -425,10 +425,22 @@ let makeConnectionMap (ngs: NetGroup array) =
             |> List.map (List.map (fun tgt -> tgt.TargetConnId))
             |> List.concat
             |> List.toArray
-    Array.collect connsOfNG ngs
-    |> (fun conns -> Array.map (fun conn -> conn,conns) conns)
+    Array.map connsOfNG ngs
+    |> Array.collect(fun conns -> Array.map (fun conn -> conn,conns) conns)
     |> Map.ofArray
-    
+ 
+ 
+let getFastDriver (fs: FastSimulation) (driverComp: NetListComponent) (driverPort: OutputPortNumber) =
+    match driverComp.Type with
+    | Custom _ ->
+        let customFId:FComponentId = driverComp.Id,[]
+        let customOutput = fs.FCustomOutputCompLookup.[customFId,driverPort]
+        assertThat (Map.containsKey customOutput fs.FComps)
+            (sprintf "Help: can't find custom component output in fast Simulation")
+        customOutput, OutputPortNumber 0
+        
+    | _ -> 
+        (driverComp.Id,[]),driverPort
 
 let getWaveformSpecFromNetGroup 
         (fs: FastSimulation)
@@ -436,7 +448,7 @@ let getWaveformSpecFromNetGroup
         (nameOf: NetGroup -> string) 
         (ng: NetGroup) =
     let ngName = nameOf ng
-    let fId = ng.driverComp.Id,[]
+    let fId, opn = getFastDriver fs ng.driverComp ng.driverPort
     let driverConn = ng.driverNet.[0].TargetConnId
     let conns =
         Map.tryFind driverConn connMap
@@ -448,9 +460,9 @@ let getWaveformSpecFromNetGroup
         WType = NormalWaveform
         Conns = conns
         SheetId = [] // all NetGroups are from top sheet at the moment
-        Driver = fId,ng.driverPort
+        Driver = fId,opn
         DisplayName = ngName
-        Width = getFastOutputWidth fs.FComps.[fId] (OutputPortNumber 0)
+        Width = getFastOutputWidth fs.FComps.[fId] opn
     }
 
 let standardOrderWaves prevDispNames isWanted (waves: Map<string,WaveformSpec>) =
@@ -487,6 +499,7 @@ let getWaveformSpecifications
     let netGroups = makeAllNetGroups netList
     /// connMap maps each connection to the set of connected connections within the same sheet
     let connMap = makeConnectionMap netGroups
+    //Map.iter (fun key conns -> printfn "DEBUG: Key=%A, %d conns" key (Array.length conns)) connMap
     /// work out a good human readable name for a Netgroup. Normally this is the label of the driver of the NetGroup.
     /// Merge and Split and BusSelection components (as drivers) are removed,
     /// replaced by corresponding selectors on busses. Names are tagged with labels or IO connectors

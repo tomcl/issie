@@ -690,7 +690,8 @@ let private openEditorFromViewer model (editorState: WSViewT) dispatch =
     let viewedConns = 
         wsModel.SimParams.DispNames
         |> Array.collect (fun name -> wsModel.AllWaves.[name].Conns)
-    dispatch <| Sheet Sheet.ResetSelection
+    printf "DEBUG viewedConns = %A" viewedConns
+    //dispatch <| Sheet Sheet.ResetSelection
     dispatch <| SetSelWavesHighlighted viewedConns
     dispatch <| SetWSMod wsModel'
 

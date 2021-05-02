@@ -164,7 +164,6 @@ let update (msg : Msg) oldModel =
         if matchMouseMsg msg then {oldModel with Pending = msg :: oldModel.Pending}
         else oldModel
     
-    printf "DEBUG UIState = %A " model.UIState
     //Check if the current message is stored as pending, if so execute all pending messages currently in the queue
     let testMsg, cmd = 
         List.tryFind (fun x -> isSameMsg x msg) model.Pending 

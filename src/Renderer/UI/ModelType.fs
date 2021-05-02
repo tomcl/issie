@@ -259,6 +259,7 @@ type Msg =
     | StartSimulation of Result<SimulationData, SimulationError>
     | SetLastSavedCanvas of string * CanvasState
     | SetWSMod of WaveSimModel
+    | UpdateWSModel of (WaveSimModel -> WaveSimModel)
     | SetWSModAndSheet of (WaveSimModel*string)
     | SetWSError of SimulationError option
     | AddWaveSimFile of string * WaveSimModel

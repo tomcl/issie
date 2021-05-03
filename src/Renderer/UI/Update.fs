@@ -215,6 +215,8 @@ let update (msg : Msg) oldModel =
     | StartSimulation simData -> { model with CurrentStepSimulationStep = Some simData }, Cmd.none
     | SetWSMod wSMod -> 
         setWSMod wSMod model, Cmd.none
+    | UpdateWSModel updateFn ->
+        updateCurrentWSMod updateFn model, Cmd.none
     | SetWSModAndSheet(ws,sheet) ->
         match model.CurrentProj with
         | None -> failwithf "What? SetWSModAndSheet: Can't set wavesim if no project is loaded"
@@ -365,6 +367,7 @@ let update (msg : Msg) oldModel =
     //TODO
     | WaveSimulateNow ->
         // do the simulation for WaveSim and generate new SVGs
+        printfn "Starting...!"
         match getCurrentWSMod model, getCurrentWSModNextView model  with
         | Some wsMod, Some (pars, nView) -> 
             let checkCursor = wsMod.SimParams.CursorTime <> pars.CursorTime

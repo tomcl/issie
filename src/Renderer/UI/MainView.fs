@@ -11,7 +11,6 @@ open Fable.React.Props
 open DiagramStyle
 open ModelType
 open CommonTypes
-open Draw2dWrapper
 open Extractor
 open CatalogueView
 open System

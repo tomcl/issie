@@ -323,7 +323,7 @@ let viewCatalogue model dispatch =
                         "Input / Output"
                         [ catTip1 "Input"  (fun _ -> createIOPopup true "input" Input model dispatch) "Input connection to current sheet: one or more bits"
                           catTip1 "Output" (fun _ -> createIOPopup true "output" Output model dispatch) "Output connection from current sheet: one or more bits"
-                          catTip1 "Viewer" (fun _ -> createIOPopup true "viewer" Viewer model dispatch) "Viewer of current sheet to expose value in simulation"
+                          catTip1 "Viewer" (fun _ -> createIOPopup true "viewer" Viewer model dispatch) "Viewer to expose value in simulation: works in subsheets"
                           catTip1 "Constant" (fun _ -> createConstantPopup model dispatch) "Define a one or more bit constant value, \
                                                                                             e.g. 0 or 1 to drive an unused input"
                           catTip1 "Wire Label" (fun _ -> createIOPopup false "label" (fun _ -> IOLabel) model dispatch) "Labels with the same name connect \
@@ -381,6 +381,4 @@ let viewCatalogue model dispatch =
                         (makeCustomList model dispatch)
                 ]
 
-        (viewCatOfModel) model // This prevented the model from automatically updating which lead to label generation not being 
-                                                            // updated unless the catalogue viewer was reloaded.
-                                                            // viewCatOfModel model
+        (viewCatOfModel) model 

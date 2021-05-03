@@ -440,8 +440,6 @@ let viewSimulation model dispatch =
                 [ 
                     Button.Color buttonColor; 
                     Button.OnClick (fun _ -> startSimulation()) ; 
-                    Button.Props [Tooltip.dataTooltip "I am a tooltip"]
-                    Button.CustomClass Tooltip.ClassName;
                 ]
                 [ str buttonText ]
         ]

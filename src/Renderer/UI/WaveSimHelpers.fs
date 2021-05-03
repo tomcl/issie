@@ -1169,9 +1169,12 @@ let highlightConnectionsFromWaves (model: Model) (dispatch: Msg -> Unit) =
 
 /// actions triggered whenever the fileMenuView function is executed
 let fileMenuViewActions model dispatch =
-    if model.Sheet.IsWaveSim then 
+    match getCurrentWSMod model with
+    | None 
+    | Some {WSViewState = WSClosed} -> ()
+    | _ ->
         highlightConnectionsFromWaves  model dispatch
-    else ()
+
 
 
 

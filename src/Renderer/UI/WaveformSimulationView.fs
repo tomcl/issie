@@ -236,24 +236,6 @@ let private waveAdderSelectAll model (wSMod: WaveSimModel) (on: bool) dispatch =
     selectExactConns model conns dispatch
     viewerWaveSet waves on wSMod dispatch
 
-let showSimulationLoading (wsModel: WaveSimModel) (dispatch: Msg ->Unit) =
-    let nv = wsModel.WSTransition
-    let v = wsModel.WSViewState
-    let resetV waves =
-         waves
-         |> Map.map (fun wid wave -> 
-             match wave.WType with
-             | ViewerWaveform _  ->
-                 {wave with WType = ViewerWaveform false}
-             | _ -> wave)
-    match nv, v with
-    | None, _ -> false
-    | Some _, _ -> 
-        dispatch <| WaveSimulateNow
-        dispatch <| Sheet Sheet.ResetSelection
-        dispatch <| UpdateWSModel (fun wsm -> {wsm with AllWaves = resetV wsm.AllWaves})
-        true
-
 
 //////////////////////////////////////////////
 // ReactElements of the Waveformm Simulator //
@@ -281,14 +263,12 @@ let private makeRamReactCol (wsModel: WaveSimModel) ramPath =
 let private waveSimViewerRows compIds model (wsMod: WaveSimModel) (dispatch: Msg -> unit) =
     let allWaves = wsMod.AllWaves
     let names = wsMod.SimParams.DispNames
+    let displayNames = names |> Array.map (fun name -> allWaves.[name].DisplayName)
     let labelCols =
         names
         |> makeLabels 
-        |> Array.zip names
-        |> Array.map (fun (name,lab) ->
-            if Map.tryFind name allWaves = None then
-                printfn "Help - cannot lookup %A in allwaves for label %A" name lab
-                failwithf "Terminating!"
+        |> Array.zip displayNames
+        |> Array.map (fun (name, lab) ->
             tr [ Class "rowHeight" ]
                 [ td [ Class "checkboxCol" ]
                       [ input
@@ -408,7 +388,7 @@ let private nameLabelsCol model (wsMod: WaveSimModel) labelRows (dispatch: Msg -
            [ Button.CustomClass "newWaveButton"
              Button.Color IsSuccess
              Button.OnClick(fun _ -> 
-                openEditorFromViewer model  dispatch) ] [ str "Edit list..." ] ]
+                openEditorFromViewer model  WSEditorOpen dispatch) ] [ str "Edit list..." ] ]
 
     let top =
         [| tr [ Class "rowHeight" ]
@@ -634,7 +614,6 @@ let private waveEditorButtons (model: Model) (wSModel:WaveSimModel) dispatch =
                     dispatch ClosePropertiesNotification
                     let par' = {wSModel.SimParams with DispNames = viewableWaves }            
                     dispatch <|  InitiateWaveSimulation( WSViewerOpen, par'))
-
             ]
         |> (fun lst -> 
                 Button.Props [ Style [ MarginLeft "10px" ] ] :: lst)
@@ -702,13 +681,19 @@ let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (dispatch: Msg
 /// TRANSITION: Switch between WaveformEditor (WSEditorOpen) and WaveformViewer (WSVieweropen) view
 /// sets wsModel for the new view
 
-let private openEditorFromViewer model (dispatch: Msg -> Unit) : Unit = 
+let private openEditorFromViewer model (editorState: WSViewT) dispatch = 
     let wsModel = getWSModelOrFail model "What? no wsModel in openCloseWaveEditor"
-    // set the currently displayed waves as selected in wave editor
-    let waves = wsModel.SimParams.DispNames |> Array.map (fun name -> wsModel.AllWaves.[name])
-    Array.iter (fun wave -> selectWaveConns model true wave dispatch) waves
-    viewerWaveSet waves true wsModel dispatch
-    dispatch <| UpdateWSModel (setEditorView WSEditorOpen)
+    let wsModel' =
+        wsModel
+        |> setEditorNextView editorState wsModel.SimParams 
+    //TODO: CHECK SHOULD THIS BE COMMENTED?
+    let viewedConns = 
+        wsModel.SimParams.DispNames
+        |> Array.collect (fun name -> wsModel.AllWaves.[name].Conns)
+    printf "DEBUG viewedConns = %A" viewedConns
+    //dispatch <| Sheet Sheet.ResetSelection
+    dispatch <| SetSelWavesHighlighted viewedConns
+    dispatch <| SetWSMod wsModel'
 
 
 //-----------------------------------------------------------------------------------------------------------------
@@ -756,14 +741,6 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
             wsModel.SimParams.DispNames
             |> Array.filter (fun name -> Map.containsKey name wSpecs)
         Array.iter (fun wave -> selectWaveConns model false wave dispatch) (mapValues wSpecs)
-        let waves = allowedNames |> Array.map (fun name -> wsModel.AllWaves.[name])
-        Array.iter (fun wave -> selectWaveConns model true wave dispatch) waves
-        let wSpecs =
-            wSpecs
-            |> Map.map (fun name spec ->
-                match spec.WType, Array.contains name allowedNames with
-                | ViewerWaveform _, isDisplayed -> {spec with WType = ViewerWaveform isDisplayed}
-                | _ -> spec)
         { 
         wsModel with       
             AllWaves = wSpecs
@@ -774,7 +751,6 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
             WSViewState = WSEditorOpen; 
             WSTransition = None
         }
-    dispatch EndSimulation // end a step simulation just in case
     dispatch <| SetWSModAndSheet(startingWsModel, Option.get (getCurrFile model))
     dispatch <| SetViewerWidth minViewerWidth 
     dispatch <| SetLastSimulatedCanvasState (Some rState) 

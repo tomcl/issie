@@ -264,7 +264,7 @@ let update (msg : Msg) oldModel =
         | Properties -> Cmd.batch <| editCmds
         | Catalogue -> Cmd.batch  <| editCmds
         | Simulation -> Cmd.batch <| editCmds
-        | WaveSim -> Cmd.ofMsg (Sheet (Sheet.SetWaveSimMode))
+        | WaveSim -> Cmd.ofMsg (Sheet (Sheet.SetWaveSimMode true))
  
     | SetHighlighted (componentIds, connectionIds) ->
         let sModel, sCmd = Sheet.update (Sheet.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet

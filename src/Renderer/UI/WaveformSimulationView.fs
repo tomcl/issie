@@ -594,6 +594,7 @@ let private waveEditorButtons (model: Model) (wSModel:WaveSimModel) dispatch =
         dispatch <| ChangeRightTab Catalogue
         dispatch <| SetWaveSimIsOutOfDate true
         dispatch <| Sheet (Sheet.ResetSelection)
+        dispatch <| Sheet (Sheet.SetWaveSimMode false)
         dispatch ClosePropertiesNotification
         dispatch FinishUICmd
     

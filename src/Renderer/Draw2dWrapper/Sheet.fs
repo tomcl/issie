@@ -101,7 +101,7 @@ type Msg =
     | ToggleSelectionOpen
     | ToggleSelectionClose
     | ResetSelection
-    | SetWaveSimMode
+    | SetWaveSimMode of bool
     | ToggleNet of CanvasState //This message does nothing in sheet, but will be picked up by the update function
     | SelectWires of ConnectionId list
 
@@ -959,8 +959,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             symbolCmd (Symbol.SelectSymbols []) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
             wireCmd (BusWire.SelectWires [])
         ]
-    | SetWaveSimMode ->
-        {model with IsWaveSim = true}, Cmd.none
+    | SetWaveSimMode mode ->
+        {model with IsWaveSim = mode}, Cmd.none
     | SelectWires cIds ->
         //If any of the cIds of the netgroup given are inside the previous selection (not current as this will always be true)
         //then deselect (remove from the selected list) any wires from the selected list that are in that cId list

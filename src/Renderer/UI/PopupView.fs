@@ -148,7 +148,7 @@ let private buildPopup title body foot close extraStyle =
             Modal.background [ Props [ OnClick close ]] []
             Modal.Card.card [ Props [
                 Style ([
-                    OverflowY OverflowOptions.Visible
+                    OverflowY OverflowOptions.Auto
                     OverflowX OverflowOptions.Visible
                     UserSelect UserSelectOptions.None
                     ] @ extraStyle)

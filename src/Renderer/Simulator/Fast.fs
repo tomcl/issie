@@ -111,20 +111,20 @@ let private packBit (bit: Bit) : WireData = [ bit ]
 
 
 /// Read the content of the memory at the specified address.
-let private readMemory (mem: Memory) (address: WireData) : WireData =
+let private readMemory (mem: Memory1) (address: WireData) : WireData =
     let intAddr = convertWireDataToInt address
     let outDataInt = Helpers.getMemData intAddr mem
     convertIntToWireData mem.WordWidth outDataInt
 
 /// Write the content of the memory at the specified address.
-let private writeMemory (mem: Memory) (address: WireData) (data: WireData) : Memory =
+let private writeMemory (mem: Memory1) (address: WireData) (data: WireData) : Memory1 =
     let intAddr = convertWireDataToInt address
     let intData = convertWireDataToInt data
 
     { mem with
           Data = Map.add intAddr intData mem.Data }
 
-let private getRamStateMemory step (state: StepArray<SimulationComponentState> option) memory : Memory =
+let private getRamStateMemory step (state: StepArray<SimulationComponentState> option) memory : Memory1 =
     match state, step with
     | _, 0 -> memory
     | Some arr, _ ->
@@ -159,7 +159,8 @@ let inline private bitXor bit0 bit1 =
     match bit0, bit1 with
     | Zero, One
     | One, Zero -> One
-    | _, _ -> Zero
+    | Zero, Zero
+    | One, One -> Zero
 
 let inline private bitNand bit0 bit1 = bitAnd bit0 bit1 |> bitNot
 
@@ -280,6 +281,8 @@ let private fastReduce (simStep: int) (comp: FastComponent) : Unit =
 
     // reduce the component in this match
     match componentType with
+    | ROM _ | RAM _ | AsyncROM _ -> 
+        failwithf "What? Legacy RAM component types should never occur"
     | Input width ->
         if comp.Active then
             let bits = ins 0
@@ -297,6 +300,12 @@ let private fastReduce (simStep: int) (comp: FastComponent) : Unit =
         //printfn "In output bits=%A, ins = %A" bits comp.InputLinks
         checkWidth width bits
         put0 bits
+    | Viewer width ->
+        let bits = ins 0
+        //printfn "In output bits=%A, ins = %A" bits comp.InputLinks
+        checkWidth width bits
+        put0 bits
+
     | IOLabel ->
         let bits = ins 0
         //let bits = comp.InputLinks.[0].[simStep]
@@ -459,7 +468,7 @@ let private fastReduce (simStep: int) (comp: FastComponent) : Unit =
             put0 bits
         else
             put0 (getLastCycleOut 0)
-    | AsyncROM mem -> // Asynchronous ROM.
+    | AsyncROM1 mem -> // Asynchronous ROM.
         let addr = ins 0
 
         assertThat (addr.Length = mem.AddressWidth)
@@ -467,7 +476,7 @@ let private fastReduce (simStep: int) (comp: FastComponent) : Unit =
 
         let outData = readMemory mem addr
         put0 outData
-    | ROM mem -> // Synchronous ROM.
+    | ROM1 mem -> // Synchronous ROM.
         let addr = insOld 0
 
         assertThat (addr.Length = mem.AddressWidth)
@@ -475,7 +484,7 @@ let private fastReduce (simStep: int) (comp: FastComponent) : Unit =
 
         let outData = readMemory mem addr
         put0 outData
-    | RAM memory ->
+    | RAM1 memory ->
         let mem =
             getRamStateMemory (simStep - 1) comp.State memory
 
@@ -552,6 +561,7 @@ let private getPortNumbers (sc: SimulationComponent) =
         | Constant _ -> 0
         | Input _
         | Output _
+        | Viewer _ 
         | BusSelection _
         | BusCompare _
         | Not
@@ -581,8 +591,11 @@ let private getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     let putW3 w = wa.[3] <- Some w
 
     match sc.Type with
+    | ROM _ | RAM _ | AsyncROM _ -> 
+        failwithf "What? Legacy RAM component types should never occur"
     | Input w
     | Output w
+    | Viewer w
     | Register w
     | RegisterE w
     | SplitWire w
@@ -600,9 +613,9 @@ let private getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | Nor
     | Xnor
     | BusCompare _ -> putW0 1
-    | AsyncROM mem
-    | ROM mem
-    | RAM mem -> putW0 mem.WordWidth
+    | AsyncROM1 mem
+    | ROM1 mem
+    | RAM1 mem -> putW0 mem.WordWidth
     | Custom _ -> ()
     | DFF
     | DFFE -> putW0 1
@@ -1028,7 +1041,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 fc.Touched <- true
 
                 match fc.FType, fc.OutputWidth.[i] with
-                | RAM mem, Some w ->
+                | RAM1 mem, Some w ->
                     match fc.State with
                     | Some arr -> arr.Step.[0] <- RamState mem
                     | _ -> failwithf "Component %s does not have correct state vector" fc.FullName
@@ -1039,7 +1052,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                         | _ -> convertIntToWireData w 0L
                     // change simulation semantics to output 0 in cycle 0
                     vec.Step.[0] <- convertIntToWireData w 0L
-                | RAM _, _ ->
+                | RAM1 _, _ ->
                     failwithf "What? Bad initial values for RAM %s output %d state <%A>" fc.FullName i fc.FType
                 | _, Some w -> vec.Step.[0] <- List.replicate w Zero
                 | _ -> failwithf "What? Can't find width for %s output %d" fc.FullName i)
@@ -1229,12 +1242,21 @@ let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : FastSimu
     |> checkAndValidate
 
 
+/// sets up default no-change input values for the next step
+let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
+    if step > 0 then
+        fastSim.FGlobalInputComps
+        |> Array.iter
+            (fun fc ->
+                let vec = fc.Outputs.[0]
+                vec.Step.[step] <- vec.Step.[step - 1])
+
 /// advance the simulation one step
 let private stepSimulation (fs: FastSimulation) =
+    propagateInputsFromLastStep (fs.ClockTick + 1) fs
     Array.iter
         (fastReduce (fs.ClockTick + 1))
-        (Array.concat [ fs.FGlobalInputComps
-                        fs.FClockedComps
+        (Array.concat [ fs.FClockedComps
                         fs.FOrderedComps ])
 
     fs.ClockTick <- fs.ClockTick + 1
@@ -1245,14 +1267,7 @@ let private setSimulationInput (cid: ComponentId) (fd: FData) (step: int) (fastS
     | Some fc -> fc.Outputs.[0].Step.[step] <- fd
     | None -> failwithf "Can't find %A in FastSim" cid
 
-/// sets up default no-change input values for the next step
-let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
-    if step > 0 then
-        fastSim.FGlobalInputComps
-        |> Array.iter
-            (fun fc ->
-                let vec = fc.Outputs.[0]
-                vec.Step.[step] <- vec.Step.[step - 1])
+
 
 /// Re-evaluates the combinational logic for the given timestep - used if a combinational
 /// input has changed
@@ -1271,21 +1286,22 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
     |> Array.collect
         (fun fc ->
             match fc.AccessPath with
-            | [] -> [||]
-            | _ ->
+            | [] ->
                 match fc.FType with
                 | DFF _
                 | DFFE _
                 | Register _
                 | RegisterE _ -> [| fc, RegisterState fc.Outputs.[0].Step.[step] |]
-                | ROM state
-                | AsyncROM state -> [| fc, RamState state |]
-                | RAM _ ->
+                | ROM1 state
+                | AsyncROM1 state -> [| fc, RamState state |]
+                | RAM1 _ ->
                     match fc.State
                           |> Option.map (fun state -> state.Step.[step]) with
                     | None -> failwithf "Missing RAM state for step %d of %s" step fc.FullName
                     | Some memState -> [| fc, memState |]
-                | _ -> failwithf "Unsupported state extraction from clocked component type %s %A" fc.FullName fc.FType)
+                | _ -> failwithf "Unsupported state extraction from clocked component type %s %A" fc.FullName fc.FType
+            | _ -> [||])
+
 
 /// Run an existing fast simulation up to the given number of steps. This function will mutate the write-once data arrays
 /// of simulation data and only simulate the new steps needed, so it may return immediately doing no work.
@@ -1403,3 +1419,34 @@ let extractFastSimulationIOs
     |> List.map
         (fun ((cid, label, width) as io) ->
             io, extractFastSimulationOutput fs simulationData.ClockTickNumber (cid, []) (OutputPortNumber 0))
+
+let getFLabel (fs:FastSimulation) (fId:FComponentId) =
+    let fc = fs.FComps.[fId]
+    let (ComponentLabel name) = fc.SimComponent.Label
+    name, fc.FullName
+
+        
+
+
+
+
+/// Extract all Viewer components with names and wire widths. Used by legacy code.
+let extractViewers
+    (simulationData: SimulationData)
+    : ((string*string) * int * FData) list =
+    let fs = simulationData.FastSim
+
+    let comps = 
+        simulationData.FastSim.FComps
+        |> Map.map (fun fid fc -> fc.FType)
+        |> mapValues
+
+    let viewers = 
+        simulationData.FastSim.FComps
+        |> Map.filter (fun fid fc -> match fc.FType with |Viewer _ -> true | _ -> false)
+    viewers
+    |> Map.toList
+    |> List.map
+        (fun (fid,fc) ->
+            let width = Option.get fc.OutputWidth.[0]
+            getFLabel fs fid, width, extractFastSimulationOutput fs simulationData.ClockTickNumber fid (OutputPortNumber 0))

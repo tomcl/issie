@@ -10,7 +10,6 @@ module CommonTypes
 
     // Specify the position and type of a port in a JSComponent.
     type PortType = Input | Output
-
     /// A component I/O.
     /// Id (like any other Id) is a string generated with 32 random hex charactes,
     /// so it is (practically) globally unique. These Ids are used by the draw2d
@@ -25,10 +24,25 @@ module CommonTypes
         // For example, an And would have input ports 0 and 1, and output port 0.
         // If the port is used in a Connection record as Source or Target, the Number is None. 
         PortNumber : int option
-        PortType : PortType
+        PortType : PortType 
         HostId : string
     }
 
+    /// This width is for wire displaying, >8 buswires displayed with 8px thickness. Actual size stored in Port type
+    type Width = One | Two | Three | Four | Five | Six | Seven | Eight
+    with
+        member this.Text() = // the match statement is used for performance
+            match this with
+            | One -> "1px"
+            | Two -> "2px"
+            | Three -> "3px"
+            | Four -> "4px"
+            | Five -> "5px"
+            | Six -> "6px"
+            | Seven -> "7px"
+            | Eight -> "8px"
+            
+            
     /// Name identified the LoadedComponent used.
     /// The labels define legends on symbol.
     /// Label strings are unique per CustomComponent.
@@ -53,10 +67,33 @@ module CommonTypes
         Data : Map<int64,int64>
     }
 
+    type InitMemData = 
+        | FromData // old method (from data field)
+        | FromFile of string // FromFile fName => read a file fName.ram for data
+        | ToFile of string // ToFile fName => write data to a file fName.ram
+        | ToFileBadName of string // as ToFile but the name does not validate
+        | UnsignedMultiplier
+        | SignedMultiplier
+
+
+    type Memory1 = {
+    // is the data initialised from a file name.ram in the project directory, or some other way?
+    Init: InitMemData
+    // How many bits the address should have.
+    // The memory will have 2^AddressWidth memory locations.
+    AddressWidth : int 
+    // How wide each memory word should be, in bits.
+    WordWidth : int
+    // Data is a list of <2^AddressWidth> elements, where each element is a
+    // 64 bit integer. This makes words longer than 64 bits not supported.
+    // This can be changed by using strings instead of int64, but that is way
+    // less memory efficient.
+    Data : Map<int64,int64>  
+    } 
 
     // Types instantiating objects in the Digital extension.
     type ComponentType =
-        | Input of BusWidth: int | Output of BusWidth: int | IOLabel 
+        | Input of BusWidth: int | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel 
         | BusCompare of BusWidth: int * CompareValue: uint32
         | BusSelection of OutputWidth: int * OutputLSBit: int
         | Constant of Width: int * ConstValue: int
@@ -68,7 +105,18 @@ module CommonTypes
         // DFFE is a DFF with an enable signal.
         // No initial state for DFF or Register? Default 0.
         | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int 
-        | AsyncROM of Memory | ROM of Memory | RAM of Memory // memory is contents
+        | AsyncROM of Memory | ROM of Memory | RAM of Memory // legacy components - to be deleted
+        | AsyncROM1 of Memory1 | ROM1 of Memory1 | RAM1 of Memory1
+
+    /// get memory component type constructor
+    /// NB only works with new-style memory components
+    let getMemType (cType: ComponentType) =
+        match cType with
+        | RAM1 _ -> RAM1
+        | ROM1 _ -> ROM1
+        | AsyncROM1 _ -> AsyncROM1
+        | _ -> failwithf $"Can't get memory type from {cType}"
+
 
     /// JSComponent mapped to F# record.
     /// Id uniquely identifies the component within a sheet and is used by draw2d library.
@@ -101,64 +149,85 @@ module CommonTypes
     // Other //
     //=======//
 
+    ///unconfigured replaces Some -1, Error replaces None, Configured of int replaces Some (positive int)
+    type WireWidth = | Configured of int | Unconfigured | ErrorWidth
+
     type NumberBase = | Hex | Dec | Bin | SDec
 
     /// Colors to highlight components
-    /// Case name is used (lowercase) as HTML color name
+    /// Case name is used as HTML color name.
     /// See JSHelpers.getColorString
     /// lots of colors can be added, see https://www.w3schools.com/colors/colors_names.asp
-    type HighLightColor = Red | Blue | Yellow | Green | Orange 
+    /// The Text() method converts it to the correct HTML string
+    /// Where speed matters the color must be added as a case in the match statement
+    type HighLightColor = Red | Blue | Yellow | Green | Orange | Grey | White | Purple | DarkSlateGrey | Thistle | Brown
+    with 
+        member this.Text() = // the match statement is used for performance
+            match this with
+            | Red -> "Red"
+            | Blue -> "Blue"
+            | Yellow -> "Yellow"
+            | Green -> "Green"
+            | Grey -> "Grey"
+            | Purple -> "Purple"
+            | DarkSlateGrey -> "darkslategrey"
+            | Thistle -> "thistle"
+            | c -> sprintf "%A" c
+            
+            
 
     // The next types are not strictly necessary, but help in understanding what is what.
     // Used consistently they provide type protection that greatly reduces coding errors
 
     /// SHA hash unique to a component - common between JS and F#
-
     [<Erase>]
     type ComponentId      = | ComponentId of string
+
+    /// SHA hash unique to a segment
+    type SegmentId      = | SegmentId of string
+
     /// SHA hash unique to a connection - common between JS and F#
 
+    /// SHA hash unique to a connection - common between JS and F#
     [<Erase>]
     type ConnectionId     = | ConnectionId of string
+
     /// Human-readable name of component as displayed on sheet.
     /// For I/O/labelIO components a width indication eg (7:0) is also displayed, but NOT included here
-
     [<Erase>]
     type ComponentLabel   = | ComponentLabel of string
+
     /// SHA hash unique to a component port - common between JS and F#.
     /// Connection ports and connected component ports have the same port Id
     /// InputPortId and OutputPortID wrap the hash to distinguish component
     /// inputs and outputs some times (e.g. in simulation)
-
     [<Erase>]
     type InputPortId      = | InputPortId of string
+
     /// SHA hash unique to a component port - common between JS and F#.
     /// Connection ports and connected component ports have the same port Id
     /// InputPortId and OutputPortID wrap the hash to distinguish component
     /// inputs and outputs some times (e.g. in simulation)
-
     [<Erase>]
     type OutputPortId     = | OutputPortId of string
 
     /// Port numbers are sequential unique with port lists.
     /// Inputs and Outputs are both numberd from 0 up.
-
     [<Erase>]
     type InputPortNumber  = | InputPortNumber of int
+
     /// Port numbers are sequential unique with port lists.
     /// Inputs and Outputs are both numberd from 0 up.
-
     [<Erase>]
     type OutputPortNumber = | OutputPortNumber of int
 
     (*---------------------------Types for wave Simulation----------------------------------------*)
 
-
+    
     type MoreWaveData =
         | RamWaveData of addr: uint32 * ramPath: ComponentId list * label:string
         | ExtraData of ramPath: ComponentId list * label:string
-
-
+        
     // The "NetList" types contain all the circuit from Diagram in an abstracted form that
     // removed layout info and connections as separate entities. However, connection Ids are
     // available as fileds in components for interface to the Diagram conmponents

@@ -17,21 +17,47 @@ open Fable.SimpleJson
 
 let isMac = Node.Api.``process``.platform = Node.Base.Darwin
 
+let testMaps() =
+    let modMap = 
+        [0..1000] 
+        |> List.map (fun n -> n, (n*256+1) % 1001)
+        |> Map.ofList
+
+
+    let iterMap count =
+        let mutable x: int = 1
+        let mutable i:int = 0
+        while i < count do
+            x <- modMap.[x]
+            i <- i + 1
+        
+    let count = 1000000
+    let start = Helpers.getTimeMs()
+    let result = iterMap count
+    let interval = Helpers.getTimeMs() - start
+    printfn "%d iterations of iterMap took %.1fms" count interval
+
+
 (****************************************************************************************************
 *
 *                                  MENU HELPER FUNCTIONS
 *
 ****************************************************************************************************)
 
-
-
-let exitApp() =
-    electron.ipcRenderer.send("exit-the-app",[||])
-
 let menuSeparator =
    let sep = createEmpty<MenuItemOptions>
    sep.``type`` <- MenuItemType.Separator
    sep
+
+// Set up window close interlock using IPC from/to main process
+let attachExitHandler dispatch =
+    // set up callback called when attempt is made to close main window
+    electron.ipcRenderer.on ("closingWindow", (fun (event: Event)->
+        printfn "dispatching ShowExitDialog"
+        // send a message which will process the request to exit
+        dispatch <| ShowExitDialog
+        )) |> ignore
+    
 
 /// Make action menu item from name, opt key to trigger, and action.
 let makeItem (label : string) (accelerator : string option) (iAction : KeyboardEvent -> unit) =
@@ -87,7 +113,7 @@ let fileMenu (dispatch) =
         makeItem "Save Sheet" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
         makeItem "Print Sheet" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
         makeItem "Write Sheet as Verilog" None (fun ev -> dispatch (MenuAction(MenuVerilogOutput,dispatch)))
-        makeItem "Exit Issie" None (fun ev -> exitApp())
+        makeItem "Exit Issie" None (fun ev -> dispatch Msg.ShowExitDialog)
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> PopupView.viewInfoPopup dispatch)
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Restart app" None (fun _ -> 
             let webContents = electron.remote.getCurrentWebContents()
@@ -98,20 +124,24 @@ let fileMenu (dispatch) =
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace off" None (fun _ -> 
             JSHelpers.debugTraceUI <- Set.ofList [])
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Run performance check" None (fun _ -> 
+            testMaps()
             displayPerformance 100 1000000)
      ]
 
 let viewMenu dispatch =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    let dispatch = Sheet.KeyPress >> sheetDispatch
+    
     let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
     makeMenu false "View" [
         makeRoleItem "Toggle Fullscreen" (Some "F11") MenuItemRole.ToggleFullScreen
         menuSeparator
-        makeRoleItem "Zoom  In" (Some "CmdOrCtrl+Plus") MenuItemRole.ZoomIn
-        makeRoleItem "Zoom  Out" (Some "CmdOrCtrl+-") MenuItemRole.ZoomOut
+        makeRoleItem "Zoom  In" (Some "CmdOrCtrl+Shift+Plus") MenuItemRole.ZoomIn
+        makeRoleItem "Zoom  Out" (Some "CmdOrCtrl+Shift+-") MenuItemRole.ZoomOut
         makeRoleItem "Reset Zoom" (Some "CmdOrCtrl+0") MenuItemRole.ResetZoom
         menuSeparator
-        makeItem "Diagram Zoom In" (Some "CmdOrCtrl+z") (fun ev -> dispatch <| MenuAction(MenuZoom 1.25, dispatch))
-        makeItem "Diagram Zoom Out" (Some "CmdOrCtrl+y") (fun ev -> dispatch <| MenuAction(MenuZoom (1. / 1.25), dispatch))
+        makeItem "Diagram Zoom In" (Some "Shift+Plus") (fun ev -> dispatch Sheet.KeyboardMsg.ZoomIn)
+        makeItem "Diagram Zoom Out" (Some "Shift+-") (fun ev -> dispatch Sheet.KeyboardMsg.ZoomOut)
         menuSeparator
         makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ -> 
             let webContents = electron.remote.getCurrentWebContents()
@@ -124,22 +154,26 @@ let viewMenu dispatch =
 // shortcuts. According to electron documentation, the way to configure keyboard
 // shortcuts is by creating a menu.
 let editMenu dispatch =
-    let dispatch = ModelType.KeyboardShortcutMsg >> dispatch
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    let dispatch = Sheet.KeyPress >> sheetDispatch
 
     jsOptions<MenuItemOptions> <| fun invisibleMenu ->
         invisibleMenu.``type`` <- MenuItemType.SubMenu
         invisibleMenu.label <- "Edit"
         invisibleMenu.visible <- true
         invisibleMenu.submenu <-
-            [| makeElmItem "Save Sheet" "CmdOrCtrl+S" (fun () -> dispatch ModelType.CtrlS)
-               makeElmItem "Copy" "Alt+C" (fun () -> dispatch ModelType.AltC)
-               makeElmItem "Paste" "Alt+V" (fun () -> dispatch ModelType.AltV)
-               makeElmItem "Delete"  (if isMac then "Backspace" else "delete") (fun () -> dispatch ModelType.DEL)
-               makeElmItem "Undo" "Alt+Z" (fun () -> dispatch ModelType.AltZ)
-               makeElmItem "Redo" "Alt+Shift+Z" (fun () -> dispatch ModelType.AltShiftZ) |]
+            [| // makeElmItem "Save Sheet" "CmdOrCtrl+S" (fun () -> ())
+               makeElmItem "Copy" "CmdOrCtrl+C" (fun () -> dispatch Sheet.KeyboardMsg.CtrlC)
+               makeElmItem "Paste" "CmdOrCtrl+V" (fun () -> dispatch Sheet.KeyboardMsg.CtrlV)
+               makeElmItem "Select All" "CmdOrCtrl+A" (fun () -> dispatch Sheet.KeyboardMsg.CtrlA)
+               makeElmItem "Delete"  (if isMac then "Backspace" else "delete") (fun () -> dispatch Sheet.KeyboardMsg.DEL)
+               makeElmItem "Undo" "CmdOrCtrl+Z" (fun () -> dispatch Sheet.KeyboardMsg.CtrlZ)
+               makeElmItem "Redo" "CmdOrCtrl+Y" (fun () -> dispatch Sheet.KeyboardMsg.CtrlY)
+               makeElmItem "Cancel" "ESC" (fun () -> dispatch Sheet.KeyboardMsg.ESC)|]
             |> U2.Case1
 
 let attachMenusAndKeyShortcuts dispatch =
+    //setupExitInterlock dispatch
     let sub dispatch =
         let menu = 
             [|
@@ -154,6 +188,7 @@ let attachMenusAndKeyShortcuts dispatch =
             |> electron.remote.Menu.buildFromTemplate   
         menu.items.[0].visible <- Some true
         electron.remote.app.applicationMenu <- Some menu
+        attachExitHandler dispatch
 
     Cmd.ofSub sub    
 
@@ -180,7 +215,33 @@ let update msg model = Update.update msg model
 
 printfn "Starting renderer..."
 
-Program.mkProgram init update view
+let view' model dispatch =
+    let start = Helpers.getTimeMs()
+    view model dispatch
+    |> Helpers.instrumentInterval "View" start
+   
+let mutable firstPress = true
+
+///Used to listen for pressing down of Ctrl for selection toggle
+let keyPressListener initial = 
+    let subDown dispatch =
+        Browser.Dom.document.addEventListener("keydown", fun e ->
+                                                let ke: KeyboardEvent = downcast e
+                                                if ke.ctrlKey && firstPress then 
+                                                    firstPress <- false 
+                                                    dispatch <| Sheet(Sheet.ToggleSelectionOpen)
+                                                else 
+                                                    ())
+    let subUp dispatch = 
+        Browser.Dom.document.addEventListener("keyup", fun e -> 
+                                                    firstPress <- true
+                                                    dispatch <| Sheet(Sheet.ToggleSelectionClose))
+    Cmd.batch [Cmd.ofSub subDown; Cmd.ofSub subUp] 
+
+
+
+Program.mkProgram init update view'
 |> Program.withReactBatched "app"
 |> Program.withSubscription attachMenusAndKeyShortcuts
+|> Program.withSubscription keyPressListener
 |> Program.run

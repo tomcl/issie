@@ -15,12 +15,21 @@ open Fake.IO.Globbing.Operators
 open Fake.IO.FileSystemOperators
 open Fake.JavaScript
 
+Target.create "CleanDev" (fun _ ->
+  !! "src/**/bin"
+  ++ "src/**/obj"
+  ++ "dist"
+  ++ ".fable"
+  |> Shell.cleanDirs
+)
+
 Target.create "Clean" (fun _ ->
   !! "src/**/bin"
   ++ "src/**/obj"
   ++ "dist"
   ++ ".fable"
   |> Shell.cleanDirs
+  Target.run 1 "KillZombies" []
 )
 
 Target.create "CleanFableJS" <| fun _ ->
@@ -64,7 +73,14 @@ Target.create "KillZombies" <| fun _ ->
     Fake.Core.Process.killAllByName "dotnet"
 
 // Build order
-"Clean"
+
+"CleanFableJS"
+  ==> "Clean"
+
+"CleanFableJS"
+  ==> "CleanDev"
+
+"CleanDev"
   ==> "DotnetRestore"
   ==> "NpmInstall"
   ==> "Build"
@@ -77,6 +93,9 @@ Target.create "KillZombies" <| fun _ ->
 
 "NpmInstall"
   ==> "DistDir"
+
+"CleanFableJS"
+ ==> "dev"
 
 // start build
 Target.runOrDefaultWithArguments "Dev"

@@ -1,9 +1,9 @@
-(*
-    SimulationView.fs
-
-    View for simulation in the right tab.
-*)
-
+//(*
+//    SimulationView.fs
+//
+//    View for simulation in the right tab.
+//*)
+//
 module SimulationView
 
 open Fulma
@@ -24,17 +24,19 @@ open Extractor
 open Simulator
 open NumberHelpers
 
+
 /// save verilog file
 /// TODO: the simulation error display here is shared with step simulation and also waveform simulation -
 /// maybe it should be a subfunction.
 let verilogOutput (model: Model) (dispatch: Msg -> Unit) =
     printfn "Verilog output"
-    match FileMenuView.updateProjectFromCanvas model, model.Diagram.GetCanvasState() with
-        | Some proj, Some state ->
-            if FileMenuView.fileProcessingBusy <> [] then 
+    match FileMenuView.updateProjectFromCanvas model, model.Sheet.GetCanvasState() with
+        | Some proj, state ->
+            match model.UIState with  //TODO should this be its own UI operation?
+            | Some _ ->
                 () // do nothing if in middle of I/O operation
-            else
-                prepareSimulation proj.OpenFileName (extractState state) proj.LoadedComponents 
+            | None ->
+                prepareSimulation proj.OpenFileName (state) proj.LoadedComponents 
                 |> (function 
                     | Ok sim -> 
                         let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
@@ -53,7 +55,6 @@ let verilogOutput (model: Model) (dispatch: Msg -> Unit) =
                        |> StartSimulation
                        |> dispatch)
         | _ -> () // do nothing if no project is loaded
-    
 
 //----------------------------View level simulation helpers------------------------------------//
 
@@ -67,10 +68,10 @@ type SimCache = {
 
 let simCacheInit name = {
     Name = name; 
-    StoredState = ([],[]) 
+    StoredState = ([],[]) // reduced canvas state from extractReducedState
     StoredResult = Ok {
         FastSim = Fast.emptyFastSimulation()
-        Graph = Map.empty
+        Graph = Map.empty 
         Inputs = []
         Outputs = []
         IsSynchronous=false
@@ -79,52 +80,59 @@ let simCacheInit name = {
         }
     }
         
-
+/// Used to store last canvas state and its simulation
 let mutable simCache: SimCache = simCacheInit ""
 
-let rec prepareSimulationMemoised
+/// Start up a simulation, doing all necessary checks and generating simulation errors
+/// if necesary. The code to do this is quite long so results are memoized. this is complicated because
+/// we want the comparison (in the case nothing has chnaged) to be fast.
+/// 1. If the current sheet changes we redo the simulation. 
+/// 2. While current sheet does not change we assume the other sheets
+/// ( and so subsheet content) cannot change. 
+/// 3. Therefore we need only compare current sheet canvasState with its
+/// initial value. This is compared using extractReducedState to make a copy that has geometry info removed 
+/// from components and connections.
+let rec prepareSimulationMemoized
         (diagramName : string)
-        (canvasState : JSCanvasState)
+        (canvasState : CanvasState)
         (loadedDependencies : LoadedComponent list)
         : Result<SimulationData, SimulationError> * CanvasState =
     let rState = extractReducedState canvasState
     if diagramName <> simCache.Name then
         simCache <- simCacheInit diagramName
-        prepareSimulationMemoised diagramName canvasState loadedDependencies
+        // recursive call having initialised the cache state on sheet change
+        prepareSimulationMemoized diagramName canvasState loadedDependencies
     else
         let isSame = rState = simCache.StoredState
         if  isSame then
             simCache.StoredResult, rState
         else
-            let simResult = 
-                let sim = prepareSimulation diagramName rState loadedDependencies
-                sim
+            printfn "New simulation"
+            let simResult = prepareSimulation diagramName rState loadedDependencies
             simCache <- {
                 Name = diagramName
                 StoredState = rState
                 StoredResult = simResult
                 }
             simResult, rState
-
-    
-    
-
+   
 
 /// Start simulating the current Diagram.
 /// Return SimulationData that can be used to extend the simulation
-/// as needed, or error if simulation fails
+/// as needed, or error if simulation fails.
+/// Note that simulation is only redone if current canvas changes.
 let makeSimData model =
-    match model.Diagram.GetCanvasState(), model.CurrentProj with
-    | None, _ -> None
+    let start = Helpers.getTimeMs()
+    match model.Sheet.GetCanvasState(), model.CurrentProj with
     | _, None -> None
-    | Some jsState, Some project ->
+    | canvasState, Some project ->
         let otherComponents = 
             project.LoadedComponents 
             |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-        (jsState, otherComponents)
-        ||> prepareSimulationMemoised project.OpenFileName
+        (canvasState, otherComponents)
+        ||> prepareSimulationMemoized project.OpenFileName
         |> Some
-
+        |> Helpers.instrumentInterval "MakeSimData" start
 
 let changeBase dispatch numBase = numBase |> SetSimulationBase |> dispatch
 
@@ -154,7 +162,7 @@ let private viewSimulationInputs
     let simulationGraph = simulationData.Graph
     let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel, width), wireData) =
         assertThat (List.length wireData = width)
-        <| sprintf "Inconsistent wireData length in viewSimulationInput for %s: expcted %d but got %d" inputLabel width wireData.Length
+        <| sprintf "Inconsistent wireData length in viewSimulationInput for %s: expected %d but got %A" inputLabel width wireData.Length
         let valueHandle =
             match wireData with
             | [] -> failwith "what? Empty wireData while creating a line in simulation inputs."
@@ -196,7 +204,6 @@ let private viewSimulationInputs
                                                     (ComponentId inputId) bits
                                 Fast.changeInput (ComponentId inputId) bits simulationData.ClockTickNumber simulationData.FastSim
                                 dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
-
                         ))
                     ]
                 ]
@@ -233,6 +240,26 @@ let private viewSimulationOutputs numBase (simOutputs : (SimulationIO * WireData
         splittedLine (str <| makeIOLabel outputLabel width) valueHandle
     div [] <| List.map makeOutputLine simOutputs
 
+let private viewViewers numBase (simViewers : ((string*string) * int * WireData) list) =
+    let makeViewerOutputLine ((label,fullName), width, wireData) =
+        assertThat (List.length wireData = width)
+        <| sprintf "Inconsistent wireData length in viewViewer for %s: expcted %d but got %d" label width wireData.Length
+        let valueHandle =
+            match wireData with
+            | [] -> failwith "what? Empty wireData while creating a line in simulation output."
+            | [bit] -> staticBitButton bit
+            | bits -> staticNumberBox numBase bits
+        let addToolTip tip react = 
+            div [ 
+                HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-right"
+                Tooltip.dataTooltip tip
+            ] [react]
+        let line = 
+            str <| makeIOLabel label width
+            |> (fun r -> if fullName <> "" then addToolTip fullName r else r)
+        splittedLine line valueHandle
+    div [] <| List.map makeViewerOutputLine simViewers
+
 let private viewStatefulComponents step comps numBase model dispatch =
     let getWithDefault (lab:string) = if lab = "" then "no-label" else lab
     let makeStateLine ((fc,state) : FastComponent*SimulationComponentState) =
@@ -246,7 +273,7 @@ let private viewStatefulComponents step comps numBase model dispatch =
             [ splittedLine (str label) (staticNumberBox numBase bits) ]
         | RamState mem ->
             let label = sprintf "RAM: %s" <| label
-            let initialMem compType = match compType with RAM m -> m | _ -> failwithf "what? viewStatefulComponents expected RAM component but got: %A" compType
+            let initialMem compType = match compType with RAM1 m -> m | _ -> failwithf "what? viewStatefulComponents expected RAM component but got: %A" compType
             let viewDiffBtn =
                 Button.button [
                     Button.Props [ simulationBitStyle ]
@@ -302,14 +329,14 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                     Fast.runFastSimulation (simData.ClockTickNumber+1) simData.FastSim 
                     dispatch <| SetSimulationGraph(graph, simData.FastSim)                    
                     printfn "Comparing clock tick %d" simData.ClockTickNumber
-                    Fast.compareFastWithGraph simData |> ignore
+                    //Fast.compareFastWithGraph simData |> ignore
                     if SimulationRunner.simTrace <> None then
                         printfn "-------------------------------------------------------------------------------------------"
                         printfn "*******************************************************************************************"
                     IncrementSimulationClockTick |> dispatch
                 )
             ] [ str <| sprintf "Clock Tick %d" simData.ClockTickNumber ]
-    let maybeStatefulComponents =
+    let maybeStatefulComponents() =
         let stateful = 
             Fast.extractStatefulComponents simData.ClockTickNumber simData.FastSim
             |> Array.toList
@@ -319,6 +346,25 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
             Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Stateful components" ]
             viewStatefulComponents step stateful simData.NumberBase model dispatch
         ]
+    let questionIcon = str "\u003F"
+
+    let tip tipTxt txt =
+        span [
+                //Style [Float FloatOptions.Left]
+                HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
+                Tooltip.dataTooltip tipTxt
+            ]
+            [
+                Text.span [
+                    Modifiers [
+                        Modifier.TextColor IsPrimary
+                    ]
+                    Props [
+                        Style [
+                            Display DisplayOptions.InlineBlock
+                            Width "80px"
+                            TextAlign TextAlignOptions.Center]]
+            ] [str txt] ]
     div [] [
         splittedLine maybeBaseSelector maybeClockTickBtn
 
@@ -329,27 +375,34 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
             (Fast.extractFastSimulationIOs simData.Inputs simData)
             dispatch
 
-        Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Outputs" ]
+
+        Heading.h5 [ 
+            Heading.Props [ Style [ MarginTop "15px" ] ] 
+            ] [ 
+                str "Outputs &" 
+                tip "Add Viewer components to any sheet in the simulation" "Viewers"
+            ]
+        viewViewers simData.NumberBase <| List.sort (Fast.extractViewers simData)
         viewSimulationOutputs simData.NumberBase
         <| Fast.extractFastSimulationIOs simData.Outputs simData
 
-        maybeStatefulComponents
+        maybeStatefulComponents()
     ]
 
   
 
 let viewSimulation model dispatch =
-    let JSState = model.Diagram.GetCanvasState ()
+    let state = model.Sheet.GetCanvasState ()
+    // let JSState = model.Diagram.GetCanvasState ()
     let startSimulation () =
-        match JSState, model.CurrentProj with
-        | None, _ -> ()
+        match state, model.CurrentProj with
         | _, None -> failwith "what? Cannot start a simulation without a project"
-        | Some jsState, Some project ->
+        | canvasState, Some project ->
             let otherComponents =
                 project.LoadedComponents
                 |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-            (jsState, otherComponents)
-            ||> prepareSimulationMemoised project.OpenFileName
+            (canvasState, otherComponents)
+            ||> prepareSimulationMemoized project.OpenFileName
             |> function
                | Ok (simData), state -> Ok simData
                | Error simError, state ->
@@ -362,6 +415,14 @@ let viewSimulation model dispatch =
                   Error simError
             |> StartSimulation
             |> dispatch
+            let sheetName = project.OpenFileName
+            match Map.tryFind sheetName (fst model.WaveSim) with
+            | Some wSModel ->
+                printfn "Closing wavesim..."
+                dispatch <| SetWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
+                dispatch <| SetWaveSimIsOutOfDate true
+                dispatch <| Sheet (Sheet.ResetSelection)
+            | None -> ()
     match model.CurrentStepSimulationStep with
     | None ->
         let simRes = makeSimData model
@@ -380,8 +441,6 @@ let viewSimulation model dispatch =
                 [ 
                     Button.Color buttonColor; 
                     Button.OnClick (fun _ -> startSimulation()) ; 
-                    Button.Props [Tooltip.dataTooltip "I am a tooltip"]
-                    Button.CustomClass Tooltip.ClassName;
                 ]
                 [ str buttonText ]
         ]

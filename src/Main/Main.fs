@@ -66,6 +66,8 @@ let mutable mainWindow: BrowserWindow option = Option.None
 [<Emit("__static")>]
 let staticDir() :string = jsNative
 
+let mutable closeAfterSave = false
+
 let createMainWindow () =
     let options = jsOptions<BrowserWindowOptions> <| fun options ->
         options.width <- 1200
@@ -134,6 +136,16 @@ let createMainWindow () =
         mainWindow <- Option.None
     |> ignore
 
+    window.on("close", 
+         // called when attempt is made to close the window
+         // send this to renderer to let it decide what to do
+         unbox (fun e ->
+                    if not closeAfterSave then
+                        // prevent default closure
+                        e?preventDefault () |> ignore
+                        window.webContents.send "closingWindow"
+         )) |> ignore
+
     // Maximize the window
     window.maximize()
 
@@ -161,4 +173,5 @@ electron.app.onActivate <| fun _ _ ->
 
 // quit programmatically from renderer
 electron.ipcMain.on ("exit-the-app", fun _ -> 
-    electron.app.quit()) |> ignore
+    closeAfterSave <- true
+    (Option.get mainWindow).close() ) |> ignore

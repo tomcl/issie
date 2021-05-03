@@ -281,12 +281,14 @@ let private makeRamReactCol (wsModel: WaveSimModel) ramPath =
 let private waveSimViewerRows compIds model (wsMod: WaveSimModel) (dispatch: Msg -> unit) =
     let allWaves = wsMod.AllWaves
     let names = wsMod.SimParams.DispNames
-    let displayNames = names |> Array.map (fun name -> allWaves.[name].DisplayName)
     let labelCols =
         names
         |> makeLabels 
-        |> Array.zip displayNames
-        |> Array.map (fun (name, lab) ->
+        |> Array.zip names
+        |> Array.map (fun (name,lab) ->
+            if Map.tryFind name allWaves = None then
+                printfn "Help - cannot lookup %A in allwaves for label %A" name lab
+                failwithf "Terminating!"
             tr [ Class "rowHeight" ]
                 [ td [ Class "checkboxCol" ]
                       [ input

@@ -1094,7 +1094,14 @@ let isWaveSelected (model:Model) (wSpec: WaveformSpec) =
 /// Functions fed into FileMenuView View function ///
 /////////////////////////////////////////////////////
 
-
+let showSimulationLoading (wsModel: WaveSimModel) (dispatch: Msg ->Unit) =
+    let nv = wsModel.WSTransition
+    let v = wsModel.WSViewState
+    match nv, v with
+    | None, _ -> false
+    | Some _, _ -> 
+        dispatch <| WaveSimulateNow
+        true
 
 let getAllWaves (waveSim:WaveSimModel) = 
     mapValues waveSim.AllWaves

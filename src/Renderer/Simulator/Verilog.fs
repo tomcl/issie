@@ -59,7 +59,7 @@ let writeVerilogNames (fs: FastSimulation) =
                     let outName = $"{name}_out{portNum}"
                     fc.VerilogOutputName.[portNum] <- outName))
 
-let makeAsyncRomModule (moduleName: string) (mem: Memory) =
+let makeAsyncRomModule (moduleName: string) (mem: Memory1) =
     let aMax = mem.AddressWidth - 1
     let dMax = mem.WordWidth - 1
     let numWords = 1 <<< mem.AddressWidth
@@ -84,7 +84,7 @@ let makeAsyncRomModule (moduleName: string) (mem: Memory) =
     end
      """
 
-let makeRomModule (moduleName: string) (mem: Memory) =
+let makeRomModule (moduleName: string) (mem: Memory1) =
     let aMax = mem.AddressWidth - 1
     let dMax = mem.WordWidth - 1
     let numWords = 1 <<< mem.AddressWidth
@@ -115,7 +115,7 @@ let makeRomModule (moduleName: string) (mem: Memory) =
     end
      """
 
-let makeRamModule (moduleName: string) (mem: Memory) =
+let makeRamModule (moduleName: string) (mem: Memory1) =
     let aMax = mem.AddressWidth - 1
     let dMax = mem.WordWidth - 1
     let numWords = 1u <<< mem.AddressWidth
@@ -164,9 +164,9 @@ let getInstantiatedModules (fs: FastSimulation) =
             let name = fc.VerilogComponentName
 
             match fc.FType with
-            | RAM mem -> [| makeRamModule name mem |]
-            | ROM mem -> [| makeRomModule name mem |]
-            | AsyncROM mem -> [| makeAsyncRomModule name mem |]
+            | RAM1 mem -> [| makeRamModule name mem |]
+            | ROM1 mem -> [| makeRomModule name mem |]
+            | AsyncROM1 mem -> [| makeAsyncRomModule name mem |]
             | _ -> [||])
 
 
@@ -286,6 +286,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     match fc.FType, fc.AccessPath with
     | Input _, [] -> failwithf "What? cannot call getVerilogComponent to find code for global Input"
     | Output _, _
+    | Viewer _,_
     | IOLabel _, _
     | Input _, _ -> sprintf $"assign %s{outs 0} = %s{ins 0};\n"
     | _ ->
@@ -338,9 +339,9 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
 
             $"assign %s{outs 0} = %s{ins 0}[%d{lsbBits - 1}:0];\n"
             + $"assign %s{outs 1} = %s{ins 0}[%d{msbBits + lsbBits - 1}:%d{msbBits}];\n"
-        | AsyncROM mem -> sprintf $"%s{name} I1 (%s{outs 0}, %s{ins 0});\n"
-        | ROM mem -> $"%s{name} I1 (%s{outs 0}, %s{ins 0}, clk);\n"
-        | RAM mem -> $"%s{name} I1 (%s{outs 0}, %s{ins 0}, %s{ins 1}, %s{ins 2}, clk);\n"
+        | AsyncROM1 mem -> sprintf $"%s{name} I1 (%s{outs 0}, %s{ins 0});\n"
+        | ROM1 mem -> $"%s{name} I1 (%s{outs 0}, %s{ins 0}, clk);\n"
+        | RAM1 mem -> $"%s{name} I1 (%s{outs 0}, %s{ins 0}, %s{ins 1}, %s{ins 2}, clk);\n"
         | Custom _ -> failwithf "What? custom components cannot exist in fast Simulation data structure"
         | _ -> failwithf "What? impossible!: fc.FType =%A" fc.FType
 
@@ -382,9 +383,9 @@ let extractRamDefinitions (fs: FastSimulation) =
     |> Array.collect (
         (fun fc ->
             match fc.FType with
-            | ROM mem
-            | RAM mem
-            | AsyncROM mem -> [| verilogNameConvert fc.FullName, fc.FType |]
+            | ROM1 mem
+            | RAM1 mem
+            | AsyncROM1 mem -> [| verilogNameConvert fc.FullName, fc.FType |]
             | _ -> [||])
     )
 

@@ -14,19 +14,21 @@ open SimulatorTypes
 /// considered synchronous.
 let couldBeSynchronousComponent compType : bool =
     match compType with
-    | DFF | DFFE | Register _ | RegisterE _ | ROM _ | RAM _ | Custom _ -> true // We have to assume custom components are clocked as they may be.
+    | DFF | DFFE | Register _ | RegisterE _ | ROM1 _ | RAM1 _ | Custom _ -> true // We have to assume custom components are clocked as they may be.
     | Input _ | Output _ | IOLabel | Constant _ | BusSelection _ | BusCompare _ | MergeWires | SplitWire _ | Not | And | Or | Xor
-    | Nand | Nor | Xnor | Mux2 | Demux2 | NbitsAdder _ | NbitsXor _ | Decode4 | AsyncROM _ -> false
+    | Nand | Nor | Xnor | Mux2 | Demux2 | NbitsAdder _ | NbitsXor _ | Decode4 | AsyncROM1 _ | Viewer _ -> false
+    | _ -> failwithf $"Legacy components {compType} should never be read!"
 
 /// Find out whether a simulation graph has some synchronous components.
 let rec hasSynchronousComponents graph : bool =
     graph
     |> Map.map (fun compId comp ->
             match comp.Type with
-            | DFF | DFFE | Register _ | RegisterE _ | ROM _ | RAM _ -> true
+            | DFF | DFFE | Register _ | RegisterE _ | ROM1 _ | RAM1 _ -> true
             | Custom _ -> hasSynchronousComponents <| Option.get comp.CustomSimulationGraph
             | Input _ | Output _ | IOLabel | BusSelection _ | BusCompare _ | MergeWires | SplitWire _ | Not | And | Or
-            | Xor | Nand | Nor | Xnor | Mux2 | Demux2 | NbitsAdder _ | NbitsXor _ | Decode4 | AsyncROM _ | Constant _ -> false
+            | Xor | Nand | Nor | Xnor | Mux2 | Demux2 | NbitsAdder _ | NbitsXor _ | Decode4 | AsyncROM1 _ | Constant _ | Viewer _ -> false
+            | _ -> failwithf $"legacy components should never be read {comp.Type}"
         )
     |> Map.tryPick (fun compId isSync -> if isSync then Some () else None)
     |> function | Some _ -> true | None -> false

@@ -149,12 +149,14 @@ let private calculateOutputPortsWidth
     let getConnectionIdForPort =
         InputPortNumber >> (getConnectionIdForPort inputConnectionsWidth)
     match comp.Type with
+    | ROM _ | RAM _ | AsyncROM _ -> 
+        failwithf "What? Legacy RAM component types should never occur"
     | Input width | Constant(width,_) ->
         // Expects no inputs, and has an outgoing wire of the given width.
         assertInputsSize inputConnectionsWidth 0 comp
         Ok <| Map.empty.Add (getOutputPortId comp 0, width)
         
-    | Output width ->
+    | Output width | Viewer width ->
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
         | [None] -> Ok Map.empty
@@ -328,7 +330,7 @@ let private calculateOutputPortsWidth
         | [_; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 1]
         | [_; _] -> Ok <| Map.empty.Add (getOutputPortId comp 0, width)
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
-    | AsyncROM mem | ROM mem ->
+    | AsyncROM1 mem | ROM1 mem ->
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
         | [None] -> Ok <| Map.empty.Add (getOutputPortId comp 0, mem.WordWidth)
@@ -337,7 +339,7 @@ let private calculateOutputPortsWidth
         | [Some aw]  when aw <> mem.AddressWidth ->
             makeWidthInferErrorEqual mem.AddressWidth aw [getConnectionIdForPort 0]
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
-    | RAM mem ->
+    | RAM1 mem ->
         assertInputsSize inputConnectionsWidth 3 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
         | [Some addr; Some datain; Some write] when addr = mem.AddressWidth &&
@@ -621,6 +623,7 @@ let private mapInputPortIdsToVirtualConnectionIds (conns: Connection list) (comp
 let inferConnectionsWidth
         ((comps,conns) : CanvasState)
         : Result<ConnectionsWidth, WidthInferError> =
+    let start = Helpers.getTimeMs()
     let connectionsWidth = initialiseConnectionsWidth conns // start with all as None 
     match mapInputPortIdsToVirtualConnectionIds conns comps with
     | Error e -> Error e
@@ -641,3 +644,4 @@ let inferConnectionsWidth
                 infer staticMaps inputNode connectionsWidth
             )
         )
+    |> instrumentInterval "widthInference" start

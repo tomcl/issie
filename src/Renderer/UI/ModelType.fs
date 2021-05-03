@@ -11,7 +11,6 @@ module rec ModelType
 
 open CommonTypes
 open SimulatorTypes
-open Draw2dWrapper
 open JSTypes
 open Fable.React
 
@@ -46,7 +45,8 @@ type PopupDialogData = {
     Text : string option;
     Int : int option;
     Int2: int option
-    MemorySetup : (int * int) option // AddressWidth, WordWidth. 
+    ProjectPath: string
+    MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth. 
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
     WaveSetup: MoreWaveSetup option
 }
@@ -62,6 +62,18 @@ type TopMenu = | Closed | Project | Files
 // Messages that will be triggered on key combinations.
 type KeyboardShortcutMsg =
     | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL
+
+type UICommandType =
+    | CloseProject
+    | ChangeSheet
+    | RenameSheet
+    | DeleteSheet
+    | AddSheet
+    | SaveSheet
+    | StartWaveSim
+    | ViewWaveSim
+    | CloseWaveSim
+    
 
 //---------------------------------------------------------------
 //---------------------WaveSim types-----------------------------
@@ -145,10 +157,8 @@ type WaveSimModel = {
     /// parameters determining how and which viewer waves are displayed
     SimParams: SimParamsT
 
-    /// NetGroup names shown in the editor
-    AllWaveNames: string array
-    /// Map of all the nets that exist in the currently simulated design
-    AllNets: Map<string,NetGroup>
+    /// Waveform names and details shown in the editor
+    AllWaves: Map<string,WaveformSpec>
 
     /// react SVG for each waveform, indexed by name
     DispWaveSVGCache: SVGCacheT 
@@ -186,25 +196,24 @@ let setEditorNextView nView simParas wsModel =
 
     
 
-let inline getPort (ws:WaveSimModel) (name: string) = ws.AllNets.[name]
+let inline getWave (ws:WaveSimModel) (name: string) = ws.AllWaves.[name]
 
-let inline getDispName (ws:WaveSimModel) (port:NetGroup) =
-    Map.tryFindKey (fun k v -> v = port) ws.AllNets
+let inline getDispName (ws:WaveSimModel) (wave:WaveformSpec) =
+    Map.tryFindKey (fun k v -> v = wave) ws.AllWaves
     |> Option.defaultValue "name not found"
     
 
-let inline dispPorts (ws: WaveSimModel) =
+let inline dispWaves (ws: WaveSimModel) =
     ws.SimParams.DispNames
-    |> Array.map (fun name -> ws.AllNets.[name])
+    |> Array.map (fun name -> ws.AllWaves.[name])
 
 let inline AllPorts (ws: WaveSimModel) =
-    ws.AllWaveNames
+    ws.AllWaves
 
 let initWS (allNames:string array) (allPorts: Map<string,NetGroup>): WaveSimModel =
     { 
       InitWaveSimGraph = None
-      AllNets = allPorts
-      AllWaveNames = allNames
+      AllWaves = Map.empty
       SimDataCache = [||]
       DispWaveSVGCache = { Top = [||]; Waves = Map.empty; Bottom = [||]}
       SimParams = {
@@ -238,7 +247,6 @@ type MenuCommand =
     | MenuZoom of float
     | MenuVerilogOutput
 
-
 /// Type for an open project which represents a complete design.
 /// ProjectPath is directory containing project files.
 /// OpenFileName is name of file from which current schematic sheet is loaded/saved, without extension or path
@@ -255,16 +263,18 @@ type Project = {
 
 
 type Msg =
-    | ExecuteWithCurrentModel of (Model -> (Msg->Unit)-> Unit)* (Msg -> Unit)
+    | ShowExitDialog
+    | Sheet of Sheet.Msg
     | JSDiagramMsg of JSDiagramMsg<JSCanvas,JSComponent>
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
     | SetLastSavedCanvas of string * CanvasState
     | SetWSMod of WaveSimModel
+    | UpdateWSModel of (WaveSimModel -> WaveSimModel)
     | SetWSModAndSheet of (WaveSimModel*string)
     | SetWSError of SimulationError option
     | AddWaveSimFile of string * WaveSimModel
-    | SetSimulationGraph of SimulationGraph * FastSimulation
+    | SetSimulationGraph of SimulationGraph  * FastSimulation
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick
     | EndSimulation
@@ -275,13 +285,12 @@ type Msg =
     | SetClipboard of CanvasState
     | SetCreateComponent of Component
     | SetProject of Project
-    | CloseProject
     | ShowPopup of (PopupDialogData -> ReactElement)
     | ClosePopup
     | SetPopupDialogText of string option
     | SetPopupDialogInt of int option
     | SetPopupDialogTwoInts of (int option * IntMode)
-    | SetPopupDialogMemorySetup of (int * int) option
+    | SetPopupDialogMemorySetup of (int * int * InitMemData * string option) option
     | SetPopupMemoryEditorData of MemoryEditorData option
     | SetPopupWaveSetup of MoreWaveSetup
     | SetSelectedComponentMemoryLocation of int64 * int64
@@ -308,11 +317,16 @@ type Msg =
     | WaveSimulateNow
     | InitiateWaveSimulation of (WSViewT * SimParamsT)
     | SetLastSimulatedCanvasState of CanvasState option
- //   | StartNewWaveSimulation of CanvasState
+    | StartNewWaveSimulation of CanvasState
     | UpdateScrollPos of bool
     | SetLastScrollPos of float option
-    | ReleaseFileActivity of string
     | SetRouterInteractive of bool
+    | CloseApp
+    | SetExitDialog of bool
+    | ExecutePendingMessages of int
+    | DoNothing
+    | StartUICmd of UICommandType
+    | FinishUICmd
 
 
 //================================//
@@ -351,11 +365,16 @@ type Model = {
     WaveSim : Map<string, WaveSimModel> * (SimulationError option)
     /// which top-level sheet is used by wavesim
     WaveSimSheet: string
-    /// draw canvas
-    Diagram : Draw2dWrapper
-    /// true during period when a sheet or project is loading
+        
+    /// Draw Canvas
+    Sheet: Sheet.Model
 
+    /// true when exit dialog is displayed
+    ExitDialog: bool
+
+    /// true during period when a sheet or project is loading
     IsLoading: bool
+
     /// if canvas is now different from that which is currently used by wave sim.
     WaveSimulationIsOutOfDate: bool
 
@@ -404,6 +423,9 @@ type Model = {
     ConnsOfSelectedWavesAreHighlighted: bool
     /// true if wavesim scroll position needs checking
     CheckWaveformScrollPosition: bool
+    /// Contains a list of pending messages
+    Pending: Msg list
+    UIState: UICommandType Option
 } with
  
     override this.GetHashCode() =
@@ -417,6 +439,7 @@ type Model = {
 
 
 let reduce (this: Model) = {|
+         ExitDialog = this.ExitDialog
          RightTab = this.RightPaneTabVisible
          Hilighted = this.Hilighted
          Clipboard = this.Clipboard
@@ -440,6 +463,7 @@ let reduce (this: Model) = {|
  |} 
        
 let reduceApprox (this: Model) = {|
+         ExitDialog = this.ExitDialog
          RightTab = this.RightPaneTabVisible
          Clipboard = this.Clipboard
          CurrProject = match this.PopupViewFunc with None -> false | _ -> true
@@ -458,37 +482,35 @@ let reduceApprox (this: Model) = {|
 let setActivity (f: AsyncTasksT -> AsyncTasksT) (model: Model) =
     {model with AsyncActivity = f model.AsyncActivity }
 
+// -----------------------------//
+// NOTE- TODO - ASK ABOUT THIS
+// -----------------------------//
+//let getDetailedState (model:Model) =
+//    model.Sheet.GetCanvasState()
 
+//let getReducedState (model:Model) =
+//    model.Sheet.GetCanvasState()
+//    |> Extractor.extractReducedState 
 
-
-let getDetailedState (model:Model) =
-    model.Diagram.GetCanvasState()
-    |> Option.map Extractor.extractState
-    |> Option.defaultValue ([],[])
-
-let getReducedState (model:Model) =
-    model.Diagram.GetCanvasState()
-    |> Option.map Extractor.extractReducedState 
-
-let addReducedState a name model =
-    let lastState = a.LastSavedCanvasState
-    match getReducedState model with
-    | None -> lastState
-    | Some state -> lastState.Add(name, state)
+//let addReducedState a name model =
+//    let lastState = a.LastSavedCanvasState
+//    match getReducedState model with
+//    | None -> lastState
+//    | Some state -> lastState.Add(name, state)
 
 
 let changeSimulationIsStale (b:bool) (m:Model) = 
     //printfn "Changing WaveSimulationIsStale to %A" b
     { m with WaveSimulationIsOutOfDate = b}
 
+
 let getComponentIds (model: Model) =
-    let extractIds (jsComps,jsConns) = 
-        jsComps
-        |> List.map Extractor.extractComponent
+    let extractIds ((comps,conns): Component list * Connection list) = 
+        conns
         |> List.map (fun comp -> ComponentId comp.Id)
-    model.Diagram.GetCanvasState()
-    |> Option.map extractIds
-    |> Option.defaultValue []
+        
+    model.Sheet.GetCanvasState()
+    |> extractIds
     |> Set.ofList
 
 ////////////////////////////
@@ -515,10 +537,9 @@ let waveSimModel2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
 let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
     { 
         InitWaveSimGraph = None
-        AllNets = Map.empty // will be reconstituted
         SimDataCache = [||]
         DispWaveSVGCache = {Top=[||]; Waves = Map.empty; Bottom = [||]}
-        AllWaveNames = [||] // will be reconstituted
+        AllWaves = Map.empty // will be reconstituted
         SimParams = {
             MoreNames = []
             DispNames = sWInfo.DisplayedPortIds // actually names not ids
@@ -571,11 +592,9 @@ let spConn (conn:Connection) =
 let spState ((comps,conns):CanvasState) = 
     sprintf "Canvas<%A,%A>" (List.map spComp comps) (List.map spConn conns)
 
-let spCanvas (model:Model) = 
-    model.Diagram.GetCanvasState()
-    |> Option.map Extractor.extractState
-    |> Option.map spState
-    |> Option.defaultValue "None"
+let spCanvas (model : Model) = 
+    model.Sheet.GetCanvasState()
+    |> spState
 
 let spComps comps =  
     sprintf "Comps%A" (List.map spComp comps)
@@ -660,7 +679,7 @@ let updateCurrentWSMod(updateFun: WaveSimModel -> WaveSimModel) (model: Model) =
 
 let switchToWaveEditor (model:Model) dispatch =
     match getCurrentWSMod model with
-    | None -> () // done
+    | None -> ()
     | Some ws when ws.WSViewState = WSClosed ->
         printf "What? Can't switch to wave editor when wave sim is closed!"
     | Some ws -> 

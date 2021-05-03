@@ -161,11 +161,9 @@ let update (msg : Msg) oldModel =
     
     //Add the message to the pending queue if it is a mouse drag message
     let model = 
-        if matchMouseMsg msg 
-        then {oldModel with Pending = msg :: oldModel.Pending}
+        if matchMouseMsg msg then {oldModel with Pending = msg :: oldModel.Pending}
         else oldModel
     
-
     //Check if the current message is stored as pending, if so execute all pending messages currently in the queue
     let testMsg, cmd = 
         List.tryFind (fun x -> isSameMsg x msg) model.Pending 
@@ -178,6 +176,17 @@ let update (msg : Msg) oldModel =
 
     // main message dispatch match expression
     match testMsg with
+    | StartUICmd uiCmd ->
+        match model.UIState with
+        | None -> //if nothing is currently being processed, allow the ui command operation to take place
+            match uiCmd with
+            | CloseProject ->
+                {model with CurrentProj = None; UIState = Some uiCmd}, Cmd.none
+            | _ -> 
+                {model with UIState = Some uiCmd}, Cmd.none
+        | _ -> model, Cmd.none //otherwise discard the message
+    | FinishUICmd _ ->
+        {model with UIState = None}, Cmd.none
     | ShowExitDialog ->
         match model.CurrentProj with
         | Some p when model.SavedSheetIsOutOfDate ->
@@ -270,10 +279,6 @@ let update (msg : Msg) oldModel =
             CurrentProj = Some project
             PopupDialogData = {model.PopupDialogData with ProjectPath = project.ProjectPath}
         }, Cmd.none
-    | CloseProject -> 
-        { model with 
-            CurrentProj = None
-        }, Cmd.none
     | ShowPopup popup -> { model with PopupViewFunc = Some popup }, Cmd.none
     | ClosePopup ->
         let model' =
@@ -358,7 +363,7 @@ let update (msg : Msg) oldModel =
     | SetIsLoading b ->
         {model with IsLoading = b}, Cmd.none
     | InitiateWaveSimulation (view, paras)  -> 
-        updateCurrentWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.none
+        updateCurrentWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.ofMsg FinishUICmd
     //TODO
     | WaveSimulateNow ->
         // do the simulation for WaveSim and generate new SVGs
@@ -395,10 +400,6 @@ let update (msg : Msg) oldModel =
             let sims,err = model.WaveSim
             sims.Add(sheetName, wSModel), err
         {model with WaveSim = updateWaveSim sheetName wSModel model}, Cmd.none
-// TODO
-    | ReleaseFileActivity a ->
-        releaseFileActivityImplementation a
-        model, Cmd.none
 //    // post-update check always done which deals with regular tasks like updating connections and 
 //    // auto-saving files
 //    | SetRouterInteractive isInteractive ->

@@ -32,9 +32,10 @@ let verilogOutput (model: Model) (dispatch: Msg -> Unit) =
     printfn "Verilog output"
     match FileMenuView.updateProjectFromCanvas model, model.Sheet.GetCanvasState() with
         | Some proj, state ->
-            if FileMenuView.fileProcessingBusy <> [] then 
+            match model.UIState with  //TODO should this be its own UI operation?
+            | Some _ ->
                 () // do nothing if in middle of I/O operation
-            else
+            | None ->
                 prepareSimulation proj.OpenFileName (state) proj.LoadedComponents 
                 |> (function 
                     | Ok sim -> 

@@ -589,11 +589,13 @@ let private waveEditorButtons (model: Model) (wSModel:WaveSimModel) dispatch =
             
     /// this is what actually gets displayed when editor exits
     let closeWaveSimButtonAction _ev =
+        dispatch <| StartUICmd CloseWaveSim
         dispatch <| SetWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
         dispatch <| ChangeRightTab Catalogue
         dispatch <| SetWaveSimIsOutOfDate true
         dispatch <| Sheet (Sheet.ResetSelection)
         dispatch ClosePropertiesNotification
+        dispatch FinishUICmd
     
     /// Return the RAM etc view options window. data is the current (initial) set of RAMs to be viewed.
     let getWavePopup dispatch (data: MoreWaveSetup option) = 
@@ -628,6 +630,7 @@ let private waveEditorButtons (model: Model) (wSModel:WaveSimModel) dispatch =
                 Button.Color IsSuccess
                 Button.IsLoading (showSimulationLoading wSModel dispatch)
                 Button.OnClick(fun _ -> 
+                    dispatch (StartUICmd ViewWaveSim)
                     dispatch ClosePropertiesNotification
                     let par' = {wSModel.SimParams with DispNames = viewableWaves }            
                     dispatch <|  InitiateWaveSimulation( WSViewerOpen, par'))
@@ -708,8 +711,6 @@ let private openEditorFromViewer model (dispatch: Msg -> Unit) : Unit =
     dispatch <| UpdateWSModel (setEditorView WSEditorOpen)
 
 
-
-
 //-----------------------------------------------------------------------------------------------------------------
 /// TRANSITION
 /// This starts a wave simulation of a new circuit
@@ -780,6 +781,7 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
     dispatch <| SetWaveSimIsOutOfDate false
     inputWarningPopup simData dispatch
     dispatch <| ChangeRightTab WaveSim
+    dispatch FinishUICmd
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -810,7 +812,9 @@ let WaveformButtonFunc compIds model dispatch =
                     Button.button
                         [ 
                             Button.Color IsSuccess
-                            Button.OnClick( startWaveSim compIds rState simData model dispatch)
+                            Button.OnClick(fun ev -> 
+                                dispatch (StartUICmd StartWaveSim)
+                                (startWaveSim compIds rState simData model dispatch ev))
                               ]
                 else
                     Button.button

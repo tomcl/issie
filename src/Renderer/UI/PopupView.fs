@@ -631,14 +631,17 @@ let viewInfoPopup dispatch =
         str "On Mac use Command instead of Ctrl."
         ul [] [
             li [] [str "Save: Ctrl + S"]
+            li [] [str "Select all: Ctrl + A"]
             li [] [str "Copy selected diagram items: Ctrl + C"]
             li [] [str "Paste diagram items: Ctrl + V"]
             li [] [str "Undo last diagram action: Ctrl + Z"]
             li [] [str "Redo last diagram action: Ctrl + Y"]
             li [] [str "Zoom application in: Ctrl + Shift + ="]
             li [] [str "Zoom application out: Ctrl + Shift + -"]
+            li [] [str "Zoom canvas in/out: Ctrl + MouseWheel"]
             li [] [str "Zoom canvas in: Shift + ="]
             li [] [str "Zoom canvas out: Shift + -"]
+            li [] [str "Zoom canvas to fit screen: Ctrl + W"]
         ]
     ]
     let foot = div [] []

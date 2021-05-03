@@ -247,6 +247,14 @@ let symDiff lst1 lst2 =
 
 /// Calculates the change in coordinates of two XYPos
 let posDiff (a: XYPos) (b: XYPos) = {X=a.X-b.X; Y=a.Y-b.Y}
+
+let getScreenEdgeCoords () = 
+    let canvas = document.getElementById "Canvas"
+    let wholeApp = document.getElementById "WholeApp"
+    let rightSelection = document.getElementById "RightSelection"
+    let leftScreenEdge = canvas.scrollLeft
+    let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.clientWidth
+    (leftScreenEdge, rightScreenEdge)
     
 /// Checks if pos is inside any of the bounding boxes of the components in boundingBoxes
 let insideBox (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>) (pos: XYPos) : CommonTypes.ComponentId Option =
@@ -776,12 +784,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         } , Cmd.batch [ symbolCmd (Symbol.SelectSymbols symbols)
                         wireCmd (BusWire.SelectWires wires) ]
     | KeyPress CtrlW ->
-        let canvas = document.getElementById "Canvas"
-        let wholeApp = document.getElementById "WholeApp"
-        let rightSelection = document.getElementById "RightSelection"
-        let leftScreenEdge = canvas.scrollLeft
-        let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.clientWidth
-        //Check if the new zoom will exceed the canvas width
+        let leftScreenEdge, rightScreenEdge = getScreenEdgeCoords()
         let newZoom = (rightScreenEdge - leftScreenEdge) / canvasSize
 
         { model with Zoom = newZoom }, Cmd.none
@@ -826,16 +829,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | KeyPress ZoomIn ->
         { model with Zoom = model.Zoom + 0.05 }, Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
     | KeyPress ZoomOut ->
-
-        let canvas = document.getElementById "Canvas"
-        let wholeApp = document.getElementById "WholeApp"
-        let rightSelection = document.getElementById "RightSelection"
-        let leftScreenEdge = canvas.scrollLeft
-        let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.clientWidth
+        let leftScreenEdge, rightScreenEdge = getScreenEdgeCoords()
         //Check if the new zoom will exceed the canvas width
         let newZoom = 
             if rightScreenEdge - leftScreenEdge < (canvasSize * (model.Zoom - 0.05)) then model.Zoom - 0.05
             else model.Zoom
+
         { model with Zoom = newZoom }, Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
     | KeepZoomCentered oldScreenCentre ->
         let canvas = document.getElementById "Canvas"

@@ -78,7 +78,7 @@ type SnapIndicator =
 
 /// For Keyboard messages
 type KeyboardMsg =
-    | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC
+    | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC
 
 type Msg =
     | Wire of BusWire.Msg
@@ -775,7 +775,16 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             SelectedWires = wires
         } , Cmd.batch [ symbolCmd (Symbol.SelectSymbols symbols)
                         wireCmd (BusWire.SelectWires wires) ]
+    | KeyPress CtrlW ->
+        let canvas = document.getElementById "Canvas"
+        let wholeApp = document.getElementById "WholeApp"
+        let rightSelection = document.getElementById "RightSelection"
+        let leftScreenEdge = canvas.scrollLeft
+        let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.clientWidth
+        //Check if the new zoom will exceed the canvas width
+        let newZoom = (rightScreenEdge - leftScreenEdge) / canvasSize
 
+        { model with Zoom = newZoom }, Cmd.none
     | ToggleSelectionOpen ->
         //if List.isEmpty model.SelectedComponents && List.isEmpty model.SelectedWires then  
         //    model, Cmd.none
@@ -849,6 +858,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     Cmd.ofMsg (KeyPress CtrlV)
                 elif Set.contains "A" newPressedKeys then
                     Cmd.ofMsg (KeyPress CtrlA)
+                elif Set.contains "W" newPressedKeys then
+                    Cmd.ofMsg (KeyPress CtrlW)
                 else
                     Cmd.none
             | false -> Cmd.none

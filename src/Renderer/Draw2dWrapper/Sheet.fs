@@ -954,7 +954,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             wireCmd (BusWire.ColorWires (connIds, colour))
         ]
     | ResetSelection ->
-        {model with SelectedComponents = []; SelectedWires = []; IsWaveSim = false},
+        {model with SelectedComponents = []; SelectedWires = []},
         Cmd.batch [
             symbolCmd (Symbol.SelectSymbols []) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
             wireCmd (BusWire.SelectWires [])

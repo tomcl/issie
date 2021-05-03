@@ -415,14 +415,6 @@ let viewSimulation model dispatch =
                   Error simError
             |> StartSimulation
             |> dispatch
-            let sheetName = project.OpenFileName
-            match Map.tryFind sheetName (fst model.WaveSim) with
-            | Some wSModel ->
-                printfn "Closing wavesim..."
-                dispatch <| SetWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
-                dispatch <| SetWaveSimIsOutOfDate true
-                dispatch <| Sheet (Sheet.ResetSelection)
-            | None -> ()
     match model.CurrentStepSimulationStep with
     | None ->
         let simRes = makeSimData model
@@ -441,6 +433,8 @@ let viewSimulation model dispatch =
                 [ 
                     Button.Color buttonColor; 
                     Button.OnClick (fun _ -> startSimulation()) ; 
+                    Button.Props [Tooltip.dataTooltip "I am a tooltip"]
+                    Button.CustomClass Tooltip.ClassName;
                 ]
                 [ str buttonText ]
         ]

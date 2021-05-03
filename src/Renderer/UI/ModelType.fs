@@ -11,7 +11,6 @@ module rec ModelType
 
 open CommonTypes
 open SimulatorTypes
-open Draw2dWrapper
 open JSTypes
 open Fable.React
 

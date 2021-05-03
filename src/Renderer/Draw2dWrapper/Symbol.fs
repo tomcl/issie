@@ -264,12 +264,9 @@ let getPortPosModel (model: Model) (port:Port) =
 
 //-----------------------------------------DRAWING HELPERS ---------------------------------------------------
 // Text adding function with many parameters (such as bold, position and text)
-let addText posX posY name txtPos (bold: bool)=
+let addText posX posY name txtPos weight size=
     let text =
-        if bold then
-            {defaultText with TextAnchor = txtPos; FontWeight = "Bold"; FontSize = "14px"}
-        else
-            {defaultText with TextAnchor = txtPos; FontSize = "12px"}
+            {defaultText with TextAnchor = txtPos; FontWeight = weight; FontSize = size}
     [makeText posX posY name text]
 
 // Generate circles
@@ -282,7 +279,7 @@ let portText x y name portType=
         then x - 5.
         else x + 5.
     let test = if portType = PortType.Output then "end" else "start"
-    (addText xPos (y - 7.0) name test false)
+    (addText xPos (y - 7.0) name test "normal" "12px")
 
 // Print the name of each port 
 let drawPortsText (portList: Port List) (listOfNames: string List) (comp: Component)= 
@@ -313,7 +310,7 @@ let addInvertor posX posY colour opacity =
 let addClock posX posY colour opacity =
     let points = (sprintf "%i,%i %i,%i %i,%i" posX (posY-1) (posX+8) (posY-7) posX (posY-13))
     createPolygon points colour opacity
-    |> List.append (addText (float(posX+10)) (float(posY-13)) " clk" "start" false)
+    |> List.append (addText (float(posX+10)) (float(posY-13)) " clk" "start" "normal" "12px")
 
 let addHorizontalLine posX1 posX2 posY opacity = // TODO: Line instead of polygon?
     let points = (sprintf "%i,%f %i,%f" posX1 posY posX2 posY)
@@ -344,18 +341,18 @@ let compSymbol (comp:Component) (colour:string) (showInputPorts:bool) (showOutpu
         | _ -> (sprintf "%i,%i %i,%i %i,%i %i,%i" 0 (comp.H) comp.W (comp.H) comp.W 0 0 0)
     let additions =       // Helper function to add certain characteristics on specific symbols (inverter, enables, clocks)
         match comp.Type with
-        | Constant (_,y) -> (addHorizontalLine halfW w (float(halfH)) opacity @ addText (float (halfW)-5.0) (float(h)-8.0) (string(y)) "middle" false) 
+        | Constant (_,y) -> (addHorizontalLine halfW w (float(halfH)) opacity @ addText (float (halfW)-5.0) (float(h)-8.0) (string(y)) "middle" "normal" "12px") 
         | Nand | Nor | Xnor |Not -> (addInvertor w halfH colour opacity)
         | MergeWires -> (addHorizontalLine 0 halfW (0.33*float(h)) opacity) @ (addHorizontalLine 0 halfW (0.66*float(h)) opacity) @ (addHorizontalLine halfW w (0.5*float(h)) opacity)
         | SplitWire _ -> (addHorizontalLine halfW w (0.33*float(h)) opacity) @ (addHorizontalLine halfW w (0.66*float(h)) opacity) @ (addHorizontalLine 0 halfW (0.5*float(h)) opacity)
         | DFF |DFFE -> (addClock 0 h colour opacity)
         | Register _ |RegisterE _ -> (addClock 0 h colour opacity)
         | ROM1 _ |RAM1 _ -> (addClock 0 h colour opacity)
-        | BusSelection(x,y) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-2.0) (bustitle x y) "middle" false)
-        | BusCompare (_,y) -> (addText  (float(w/2)-6.0) (float(h)/2.7-3.5) ("=" + string(y)) "middle" true)
-        | Input (x) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-3.0) (title "" x) "middle" false)
-        | Output (x) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-3.0) (title "" x) "right" false)
-        | Viewer (x) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-3.0) (title "" x) "right" false)
+        | BusSelection(x,y) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-2.0) (bustitle x y) "middle" "normal" "12px")
+        | BusCompare (_,y) -> (addText  (float(w/2)-6.0) (float(h)/2.7-3.5) ("=" + string(y)) "middle" "bold" "14px")
+        | Input (x) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-3.0) (title "" x) "middle" "normal" "12px")
+        | Output (x) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-3.0) (title "" x) "right" "normal" "12px")
+        | Viewer (x) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-3.0) (title "" x) "right" "normal" "12px")
         | _ -> []
    
     // Put everything together 
@@ -364,8 +361,8 @@ let compSymbol (comp:Component) (colour:string) (showInputPorts:bool) (showOutpu
     |> List.append (drawPorts comp.InputPorts showInputPorts comp)
     |> List.append (drawPortsText comp.InputPorts (fst(portDecName comp)) comp)
     |> List.append (drawPortsText comp.OutputPorts (snd(portDecName comp)) comp)  
-    |> List.append (addText (float halfW) (+5.0) (gateDecoderType comp) "middle" true) 
-    |> List.append (addText (float halfW) (-15.0) comp.Label "middle" false)
+    |> List.append (addText (float halfW) (+5.0) (gateDecoderType comp) "middle" "bold" "14px") 
+    |> List.append (addText (float halfW) (-20.0) comp.Label "middle" "normal" "16px")
     |> List.append (additions)
     |> List.append (createPolygon points colour opacity)
 

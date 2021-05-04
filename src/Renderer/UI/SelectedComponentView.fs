@@ -154,9 +154,8 @@ let private makeConstantValueField model (comp:Component) dispatch =
                 let note = errorPropsNotification errMsg
                 dispatch <| SetPropertiesNotification note
             else
-                model.Sheet.ChangeWidth sheetDispatch (ComponentId comp.Id) newCVal
-                let lastUsedWidth = model.LastUsedDialogWidth
-                dispatch (ReloadSelectedComponent (lastUsedWidth)) // reload the new component
+                model.Sheet.ChangeLSB sheetDispatch (ComponentId comp.Id) newCVal
+                dispatch (ReloadSelectedComponent (width))
                 dispatch ClosePropertiesNotification
     )
 

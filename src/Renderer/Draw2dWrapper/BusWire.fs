@@ -295,7 +295,7 @@ let updateSegmentsList (model:Model) (hostId : ConnectionId) (portCoords : XYPos
 /// using the colour and width properties given.
 let renderSegment (segment : Segment) (colour : string) (width : string) : ReactElement = 
     let renderWidth = if width = "1" then 1.5 else 3.5
-    let halfWidth = (renderWidth/2.0) - (1.0)
+    let halfWidth = (renderWidth/2.0) - (0.75)
     let lineParameters = { defaultLine with Stroke = colour; StrokeWidth = string renderWidth }
     let circleParameters = { defaultCircle with R = halfWidth; Stroke = colour; Fill = colour }
 

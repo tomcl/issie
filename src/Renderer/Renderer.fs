@@ -227,7 +227,7 @@ let keyPressListener initial =
     let subDown dispatch =
         Browser.Dom.document.addEventListener("keydown", fun e ->
                                                 let ke: KeyboardEvent = downcast e
-                                                if ke.ctrlKey && firstPress then 
+                                                if (ke.ctrlKey || ke.metaKey) && firstPress then 
                                                     firstPress <- false 
                                                     dispatch <| Sheet(Sheet.ToggleSelectionOpen)
                                                 else 

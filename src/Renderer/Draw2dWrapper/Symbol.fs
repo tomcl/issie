@@ -669,8 +669,9 @@ let changeLsbf (symModel:Model) (compId:ComponentId) (newLsb:int) =
     let symbol = Map.find compId symModel.Symbols
     let newcompotype = 
         match symbol.Compo.Type with
-        | BusSelection (w, lsb) -> BusSelection (w, newLsb)
-        | BusCompare (w, lsb) -> BusCompare (w, uint32(newLsb))    
+        | BusSelection (w, _) -> BusSelection (w, newLsb)
+        | BusCompare (w, _) -> BusCompare (w, uint32(newLsb)) 
+        | Constant(w, _) -> Constant (w, newLsb)
         | _ -> failwithf "this shouldnt happen, incorrect call of message changeLsb"
     let newcompo = {symbol.Compo with Type = newcompotype}
     {symbol with Compo = newcompo}

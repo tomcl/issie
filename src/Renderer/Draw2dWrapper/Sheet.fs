@@ -1002,7 +1002,7 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
 
     /// Dispatch a MouseMsg (compensated for zoom)
     let mouseOp op (ev:Types.MouseEvent) =
-        printfn "%s" $"Op:{ev.movementX},{ev.movementY}"
+        //printfn "%s" $"Op:{ev.movementX},{ev.movementY}"
         dispatch <| MouseMsg {
             Op = op ; 
             Movement = {X= ev.movementX;Y=ev.movementY}

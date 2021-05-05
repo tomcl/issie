@@ -141,7 +141,6 @@ let private constantValueMessage w (cVal:int64) =
             0xffffffffffffffffUL 
         else 
             (1UL <<< w) - 1UL
-    printfn $"%x{mask}"
     let uVal = (uint64 cVal) &&& mask
     let sVal = ((int64 uVal) <<< 64 - w) >>> 64 - w
     let hVal = NumberHelpers.fillHex64 w (int64 uVal)

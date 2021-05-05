@@ -584,12 +584,30 @@ let addFileToProject model dispatch =
         dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 /// Close current project, if any.
-let private closeProject model dispatch _ =
+let forceCloseProject model dispatch =
     dispatch (StartUICmd CloseProject)
     let sheetDispatch sMsg = dispatch (Sheet sMsg) 
     dispatch EndSimulation // End any running simulation.
     model.Sheet.ClearCanvas sheetDispatch
     dispatch FinishUICmd
+
+let private closeProject model dispatch _ =
+    let closeDialogButtons keepOpen _ =
+        if keepOpen then
+            dispatch ClosePopup
+        else
+            forceCloseProject model dispatch
+
+    if model.SavedSheetIsOutOfDate then 
+        choicePopup 
+                "Close Project?" 
+                (div [] [ str "The current file has unsaved changes."])
+                "Go back to project" "Close project without saving changes"  
+                closeDialogButtons 
+                dispatch
+    else
+        forceCloseProject model dispatch
+
 
 /// Create a new project.
 let private newProject model dispatch _ =

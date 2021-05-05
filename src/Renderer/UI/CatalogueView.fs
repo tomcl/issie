@@ -135,10 +135,16 @@ let private twoErrorLines errMsg1 errMsg2 =
     span [Style [Color Red]] [str errMsg1; br []; str errMsg2; br [] ]
 
 /// two line message giving constant value
-let private constantValueMessage w cVal =
-    let uVal = cVal &&& ((1L <<< w) - 1L)
-    let sVal = (uVal <<< 64 - w) >>> 64 - w
-    let hVal = NumberHelpers.fillHex64 w uVal
+let private constantValueMessage w (cVal:int64) =
+    let mask = 
+        if w = 64 then 
+            0xffffffffffffffffUL 
+        else 
+            (1UL <<< w) - 1UL
+    printfn $"%x{mask}"
+    let uVal = (uint64 cVal) &&& mask
+    let sVal = ((int64 uVal) <<< 64 - w) >>> 64 - w
+    let hVal = NumberHelpers.fillHex64 w (int64 uVal)
     let line1 = $"Decimal value: %d{uVal} (%d{sVal} signed)"
     let line2 = $"Hex value: %s{hVal}"
     span [] [str line1; br [] ; str line2; br [] ]

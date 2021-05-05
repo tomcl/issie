@@ -74,7 +74,12 @@ let updateTimeStamp model =
         |> fun lcs -> { model with CurrentProj=Some {p with LoadedComponents = lcs}}
 
 //Finds if the current canvas is different from the saved canvas
+// waits 50ms from last check
+
 let findChange (model : Model) : bool = 
+    let last = model.LastChangeCheckTime // NB no check to reduce total findChange time implemented yet - TODO if needed
+    let start = Helpers.getTimeMs()
+
     match model.CurrentProj with
     | None -> false
     | Some prj ->
@@ -82,7 +87,10 @@ let findChange (model : Model) : bool =
         let savedComponent = 
             prj.LoadedComponents
             |> List.find (fun lc -> lc.Name = prj.OpenFileName)
-        savedComponent.CanvasState <> (model.Sheet.GetCanvasState ())
+        let canv = savedComponent.CanvasState
+        let canv' = model.Sheet.GetCanvasState ()
+        (canv <> canv') && not (compareCanvas 500. canv canv')
+        |> Helpers.instrumentInterval "findChange" start
 
 /// Needed so that constant properties selection will work
 /// Maybe good idea for other things too?

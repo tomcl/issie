@@ -73,7 +73,7 @@ let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp =
             | Ok comp' ->
                 if not (compareIOs comp comp') then
                     true, None // need to save, to a new backup file
-                elif compareCanvas comp.CanvasState comp'.CanvasState then
+                elif compareCanvas 10000. comp.CanvasState comp'.CanvasState then
                     false, None // no need for a new backup
                 else
                     let nComps,nConns = quantifyChanges comp' comp

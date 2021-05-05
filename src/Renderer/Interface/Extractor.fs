@@ -94,39 +94,42 @@ let extractReducedState (state : CanvasState) : CanvasState =
     comps, conns
 
 /// Are two lists of vertices identical
-let verticesAreSame (conns1:(float*float) list) (conns2: (float*float) list) =
+let verticesAreSame tolerance (conns1:(float*float) list) (conns2: (float*float) list) =
     let sq x = x*x
     conns1.Length = conns2.Length &&
     List.zip conns1 conns2
     |> List.map (fun ((x1,y1),(x2,y2)) -> sq(x1-x2) + sq(y1-y2))
     |> List.sum
-    |> (fun d -> d < 5.)
+    |> (fun d -> d < tolerance)
 
 /// Are two lists of connections identical
-let compareConns conns1 conns2 =
-    let connIdMap (conns:Connection List) =
+let compareConns tolerance conns1 conns2 =
+    let connIdA (conns:Connection List) =
         conns
-        |> List.map (fun conn -> conn.Id,conn)
-        |> Map.ofList       
-    let connsMap1 = connIdMap conns1
-    let connsMap2 = connIdMap conns2
-    (connsMap1 |> Helpers.mapKeys |> Set) = (connsMap2 |> Helpers.mapKeys |> Set) &&
-    (connsMap1
-    |> Map.map (fun k conn1 -> 
-        let conn2 = connsMap2.[k]
-        verticesAreSame conn1.Vertices conn2.Vertices)
-    |> Helpers.mapValues
-    |> Array.forall id)
+        |> Array.ofList
+        |> Array.sortBy (fun conn -> conn.Id)      
+    let connsA1 = connIdA conns1
+    let connsA2 = connIdA conns2
+    connsA1.Length = connsA2.Length &&
+        Array.forall2 (fun c1 c2 ->verticesAreSame tolerance c1.Vertices c2.Vertices)  connsA1 connsA2
 
-/// Robust comparison of two schematics
+
+/// Robust comparison of two schematics. Tolerance determines how similar
+/// counts as equal.
 /// cannot use equality because float vertices may not be identical
 /// use to detemine whether schematic needs to be saved
-/// NB for electrical circuit comparison use extractReducedState
+/// NB for electrical circuit comparison use extractReducedState.
 let compareCanvas 
+        tolerance
         ((comps1,conns1):CanvasState) 
         ((comps2,conns2):CanvasState) =
-    comps1 = comps2 &&
-    compareConns conns1 conns1
+    let reduce comps =
+        comps
+        |> List.toArray
+        |> Array.map (fun comp -> {comp with H=0;W=0;X=0;Y=0})
+        |> Array.sortBy (fun comp -> comp.Id)
+    reduce comps1 = reduce comps2 &&
+    compareConns tolerance conns1 conns2
 
 /// Compare the name and IOs of two sheets as loadedcomponents
 /// For backups, if these chnage something major has happened

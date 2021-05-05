@@ -379,6 +379,10 @@ type Model = {
     /// if canvas is now different from that which is currently used by wave sim.
     WaveSimulationIsOutOfDate: bool
 
+    // last time check for changes was made
+
+    LastChangeCheckTime: float
+
     /// top-level canvas used for current wave simulation
     LastSimulatedCanvasState: CanvasState option // reduced (without layout) canvas state
     /// used to determine whether current canvas has been saved (includes any change)

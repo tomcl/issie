@@ -44,7 +44,7 @@ type MoreWaveSetup = SheetWave list * Set<ComponentId list>
 type PopupDialogData = {
     Text : string option;
     Int : int option;
-    Int2: int option
+    Int2: int64 option
     ProjectPath: string
     MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth. 
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
@@ -289,7 +289,8 @@ type Msg =
     | ClosePopup
     | SetPopupDialogText of string option
     | SetPopupDialogInt of int option
-    | SetPopupDialogTwoInts of (int option * IntMode)
+    | SetPopupDialogTwoInts of (int64 option * IntMode * string option)
+    | SetPropertiesExtraDialogText of string option
     | SetPopupDialogMemorySetup of (int * int * InitMemData * string option) option
     | SetPopupMemoryEditorData of MemoryEditorData option
     | SetPopupWaveSetup of MoreWaveSetup

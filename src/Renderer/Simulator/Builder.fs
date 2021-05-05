@@ -179,7 +179,7 @@ let private getReducer (componentType : ComponentType) : ReducerInput -> Reducer
                 assertThat (bits.Length = width) <| sprintf "Input node reducer received wrong number of bits: expected %d but got %d" width bits.Length
                 Map.empty.Add (OutputPortNumber 0, bits) |> makeReducerOutput NoState
             | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-    | Constant (width, cVal) ->
+    | Constant1 (width, cVal,_) ->
         fun reducerInput ->
             assertNoClockTick reducerInput componentType
             assertNotTooManyInputs reducerInput componentType 1
@@ -566,7 +566,7 @@ let private getDefaultState compType =
         failwithf "What? Legacy RAM component types should never occur"
     | Input _ | Output _ | IOLabel | BusSelection _ | BusCompare _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 | Decode4
     | Demux2 | NbitsAdder _ |NbitsXor _ | Custom _ | MergeWires | SplitWire _ | ROM1 _  | Viewer _ -> NoState
-    | Constant (w, c) -> NoState //convertIntToWireData w (if c < 0 then (1L <<< w) - int64 c else int64 c)
+    | Constant1 _ | Constant _ -> NoState 
     | AsyncROM1 _ -> NoState
     | DFF | DFFE -> DffState Zero
     | Register w | RegisterE w -> RegisterState <| List.replicate w Zero

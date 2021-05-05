@@ -302,7 +302,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         | RegisterE _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 1} ? %s{ins 0} : %s{outs 0};\n"
         | DFF
         | Register _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 0};\n"
-        | Constant (w, c) -> $"assign %s{outs 0} = %s{makeBits w (uint64 (uint32 c))};\n"
+        | Constant1 (w, c,_) -> $"assign %s{outs 0} = %s{makeBits w (uint64 (uint32 c))};\n"
         | Decode4 ->
             let w = outW 1
 

@@ -174,7 +174,7 @@ type Model = {
         this.DoBusWidthInference dispatch
         
     /// Given a compId and a LSB, update the LSB of the Component specified by compId
-    member this.ChangeLSB (dispatch: Dispatch<Msg>) (compId: ComponentId) (lsb: int) =
+    member this.ChangeLSB (dispatch: Dispatch<Msg>) (compId: ComponentId) (lsb: int64) =
         dispatch <| (Wire (BusWire.Symbol (Symbol.ChangeLsb (compId, lsb) ) ) )
         
     /// Return Some string if Sheet / BusWire / Symbol has a notification, if there is none then return None

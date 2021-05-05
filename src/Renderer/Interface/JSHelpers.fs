@@ -86,6 +86,12 @@ let getTextEventValue (event: Event) =
 let getIntEventValue (event: Event) =
     getFailIfNull event.currentTarget ["value"] |> unbox<float> |> int
 
+let getInt64EventValue( event: Event) =
+    let boxText = getFailIfNull event ["target";"value"] |> unbox<string>
+    let (ok,n) = System.Int64.TryParse boxText
+    if not ok then 0L else n
+
+
 /// Get the value for a blur event in an input textbox.
 let getTextFocusEventValue (event: FocusEvent) =
     getFailIfNull event ["target";"value"] |> unbox<string>

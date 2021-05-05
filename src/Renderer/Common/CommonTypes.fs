@@ -96,7 +96,8 @@ module CommonTypes
         | Input of BusWidth: int | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel 
         | BusCompare of BusWidth: int * CompareValue: uint32
         | BusSelection of OutputWidth: int * OutputLSBit: int
-        | Constant of Width: int * ConstValue: int
+        | Constant of Width: int * ConstValue: int64 
+        | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
         | Not | And | Or | Xor | Nand | Nor | Xnor |Decode4
         | Mux2 | Demux2
         | NbitsAdder of BusWidth: int | NbitsXor of BusWidth:int

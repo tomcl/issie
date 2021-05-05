@@ -130,24 +130,57 @@ let private createSplitWirePopup model dispatch =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
+/// two react text lines in red
+let private twoErrorLines errMsg1 errMsg2 =
+    span [Style [Color Red]] [str errMsg1; br []; str errMsg2; br [] ]
+
+/// two line message giving constant value
+let private constantValueMessage w cVal =
+    let uVal = cVal &&& ((1L <<< w) - 1L)
+    let sVal = (uVal <<< 64 - w) >>> 64 - w
+    let hVal = NumberHelpers.fillHex64 w uVal
+    let line1 = $"Decimal value: %d{uVal} (%d{sVal} signed)"
+    let line2 = $"Hex value: %s{hVal}"
+    span [] [str line1; br [] ; str line2; br [] ]
+
+/// check constant parameters and return two react lines with
+/// error message or value details
+let parseConstant w cText =
+    if w < 1 || w > 64 then
+            twoErrorLines $"Constant width must be in the range 1..64" "", None
+    else
+        match NumberHelpers.strToIntCheckWidth w cText with
+        | Ok n ->
+            constantValueMessage w n, Some (Constant1 (w,n,cText))
+        | Error msg ->
+            twoErrorLines msg "", None
+
+/// create react popup to set a constant
 let private createConstantPopup model dispatch =
     let title = sprintf "Add Constant" 
-    let beforeInt2 =
-        fun _ -> str "What is the decimal value of the constant?"
     let beforeInt =
-        fun _ -> str "How many bits has wire carrying the constant?"
+        fun _ -> str "How many bits has the wire carrying the constant?"
     let intDefault = 1
-    let intDefault2 = 0
-    let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, intDefault2) "120px" dispatch
+    let parseConstantDialog dialog =
+        parseConstant 
+            (Option.defaultValue intDefault dialog.Int)
+            (Option.defaultValue "" dialog.Text)
+    let beforeText = (fun d -> div [] [d |> parseConstantDialog |> fst; br [] ])
+    let placeholder = "Value: decimal, 0x... hex, 0b... binary"   
+    let body = dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let width = getInt dialogData
-            let constant = getInt2 dialogData
-            createCompStdLabel (Constant(width,constant)) model dispatch
+            let text = Option.defaultValue "" dialogData.Text
+            let constant = 
+                match NumberHelpers.strToIntCheckWidth width text with
+                | Ok n -> n
+                | Error _ -> 0L // should never happen?
+            let text' = if text = "" then "0" else text
+            createCompStdLabel (Constant1(width,constant,text')) model dispatch
             dispatch ClosePopup
-    let isDisabled =
-        fun (dialogData : PopupDialogData) -> getInt dialogData < 1 || getInt dialogData > 32
+    let isDisabled = parseConstantDialog >> snd >> Option.isNone
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 let private createBusSelectPopup model dispatch =
@@ -157,17 +190,17 @@ let private createBusSelectPopup model dispatch =
     let beforeInt =
         fun _ -> str "How many bits width is the output bus?"
     let intDefault = 1
-    let intDefault2 = 0
-    let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, intDefault2) "60px" dispatch
+    let intDefault2 = 0L
+    let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, int64 intDefault2) "60px" dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
             let width = getInt dialogData
-            let lsb = getInt2 dialogData
+            let lsb = int32 (getInt2 dialogData)
             createCompStdLabel (BusSelection(width,lsb)) model dispatch
             dispatch ClosePopup
     let isDisabled =
-        fun (dialogData : PopupDialogData) -> getInt dialogData < 1 || getInt2 dialogData < 0
+        fun (dialogData : PopupDialogData) -> getInt dialogData < 1 || getInt2 dialogData < 0L
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 let private createBusComparePopup (model:Model) dispatch =
@@ -177,8 +210,8 @@ let private createBusComparePopup (model:Model) dispatch =
     let beforeInt =
         fun _ -> str "How many bits width is the input bus?"
     let intDefault = model.LastUsedDialogWidth
-    let intDefault2 = 0
-    let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, intDefault2) "120px" dispatch
+    let intDefault2 = 0L
+    let body = dialogPopupBodyTwoInts (beforeInt,beforeInt2) (intDefault, int64 intDefault2) "120px" dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->

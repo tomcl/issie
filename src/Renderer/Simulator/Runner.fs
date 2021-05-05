@@ -214,7 +214,7 @@ let checkPropagation (graph : SimulationGraph) : SimulationGraph =
             let comp = graph.[cid]
             match comp.Type, couldBeSynchronousComponent comp.Type with
             | _,true -> graph
-            | Input _,_ | Constant _, _-> graph
+            | Input _,_ | Constant1 _, _-> graph
             | _,false -> 
                 let reducerInput = {
                     Inputs = comp.Inputs
@@ -286,17 +286,17 @@ let rec feedSimulationConstants (graph:SimulationGraph) =
         |> List.map snd
     let getWireData (comp:SimulationComponent) =
         match comp.Type with 
-        | Constant (w,c) -> NumberHelpers.convertIntToWireData w (int64 c) 
+        | Constant1 (w,c,_) -> NumberHelpers.convertIntToWireData w (int64 c) 
         | _ -> failwithf "What? Problem with non-constant component used in feedSimulationConstants"
     comps
-    |> List.filter (fun c -> match c.Type with | Custom cComp -> true| Constant _ -> true | _ -> false)
+    |> List.filter (fun c -> match c.Type with | Custom cComp -> true| Constant1 _ -> true | _ -> false)
     |> (fun cL ->
                 let feedConstant (graph:SimulationGraph) (comp:SimulationComponent) =
                     // graph gets updates each iteration of fold, but cL (and hence comp) does not
                     // we need to extract the Id from comp and look up the fold updated version in graph
                     let comp = graph.[comp.Id] // refresh to get latest version of comp as updated by fold
                     match comp.Type with
-                    | Constant _ -> 
+                    | Constant1 _ -> 
                         feedReducerOutput comp graph (Map.ofList [OutputPortNumber 0, getWireData comp])
                     | Custom cComp -> 
                   

@@ -55,7 +55,8 @@ type Msg =
     | ColorSymbols of compList : ComponentId list * colour : HighLightColor
     | ErrorSymbols of errorIds: ComponentId list * selectIds: ComponentId list * isDragAndDrop: bool
     | ChangeNumberOfBits of compId:ComponentId * NewBits:int 
-    | ChangeLsb of compId:ComponentId * NewBits:int 
+    | ChangeLsb of compId: ComponentId * NewBits:int64 
+    | ChangeConstant of compId: ComponentId * NewBits:int64 * NewText:string
     | ResetModel // For Issie Integration
     | LoadComponents of  Component list // For Issie Integration
     | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 
@@ -101,7 +102,7 @@ let prefix compType =
     | ROM1 _ -> "ROM"
     | RAM1 _ -> "RAM"
     | Custom c -> c.Name + ".I"
-    | Constant _ -> "C"
+    | Constant1 _ -> "C"
     | BusCompare _ -> "EQ"
     | Decode4 -> "DEC"
     | BusSelection _ -> "SEL"
@@ -199,7 +200,7 @@ let makeComp (pos: XYPos) (comptype: ComponentType) (id:string) (label:string) :
         | ComponentType.Viewer a -> (  1 , 0, GridSize ,  GridSize) 
         | ComponentType.IOLabel  ->(  1 , 1, GridSize ,  2*GridSize) 
         | Decode4 ->( 2 , 4 , 4*GridSize  , 3*GridSize) 
-        | Constant (a, b) ->(  0 , 1, GridSize ,  2*GridSize) 
+        | Constant1 (a, b,_) | Constant(a, b) -> (  0 , 1, GridSize ,  2*GridSize) 
         | MergeWires -> ( 2 , 1, 2*GridSize ,  2*GridSize) 
         | SplitWire (a) ->(  1 , 2 , 2*GridSize ,  2*GridSize) 
         | Mux2 -> ( 3  , 1, 3*GridSize ,  2*GridSize) 
@@ -327,7 +328,7 @@ let compSymbol (comp:Component) (colour:string) (showInputPorts:bool) (showOutpu
     let points =            // Points that specify each symbol 
         match comp.Type with
         | Input _ -> (sprintf "%i,%i %i,%i %f,%i %i,%i %f,%i" 0 0 0 h (float(w)*(0.66)) h w halfH (float(w)*(0.66)) 0)
-        | Constant _ -> (sprintf "%i,%i %i,%i %i,%i" 0 comp.H halfW halfH 0 0)
+        | Constant1 _ -> (sprintf "%i,%i %i,%i %i,%i" 0 comp.H halfW halfH 0 0)
         | IOLabel -> (sprintf "%f,%i %i,%i %f,%i %f,%i %i,%i %f,%i"  (float(w)*(0.33)) 0 0 halfH (float(w)*(0.33)) h (float(w)*(0.66)) h w halfH (float(w)*(0.66)) 0)
         | Output _ -> (sprintf "%f,%i %i,%i %f,%i %i,%i %i,%i" (float(w)*(0.2)) 0 0 halfH (float(w)*(0.2)) h w h w 0)
         | Viewer _ -> (sprintf "%f,%i %i,%i %f,%i %i,%i %i,%i" (float(w)*(0.2)) 0 0 halfH (float(w)*(0.2)) h w h w 0)
@@ -341,7 +342,7 @@ let compSymbol (comp:Component) (colour:string) (showInputPorts:bool) (showOutpu
         | _ -> (sprintf "%i,%i %i,%i %i,%i %i,%i" 0 (comp.H) comp.W (comp.H) comp.W 0 0 0)
     let additions =       // Helper function to add certain characteristics on specific symbols (inverter, enables, clocks)
         match comp.Type with
-        | Constant (_,y) -> (addHorizontalLine halfW w (float(halfH)) opacity @ addText (float (halfW)-5.0) (float(h)-8.0) (string(y)) "middle" "normal" "12px") 
+        | Constant1 (_,_,txt) -> (addHorizontalLine halfW w (float(halfH)) opacity @ addText (float (halfW)-5.0) (float(h)-8.0) txt "middle" "normal" "12px") 
         | Nand | Nor | Xnor |Not -> (addInvertor w halfH colour opacity)
         | MergeWires -> (addHorizontalLine 0 halfW (0.33*float(h)) opacity) @ (addHorizontalLine 0 halfW (0.66*float(h)) opacity) @ (addHorizontalLine halfW w (0.5*float(h)) opacity)
         | SplitWire _ -> (addHorizontalLine halfW w (0.33*float(h)) opacity) @ (addHorizontalLine halfW w (0.66*float(h)) opacity) @ (addHorizontalLine 0 halfW (0.5*float(h)) opacity)
@@ -658,22 +659,32 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
         | SplitWire _ -> SplitWire newBits
         | BusSelection (_,b) -> BusSelection (newBits,b)
         | BusCompare (_,b) -> BusCompare (newBits,b)
-        | Constant (_,b) -> Constant (newBits,b)
+        | Constant1 (_,b,txt) -> Constant1 (newBits,b,txt)
         | c -> c
 
     let newcompo = {symbol.Compo with Type = newcompotype}
     {symbol with Compo = newcompo}
 
 // Helper function to change the number of bits expected in the LSB port of BusSelection and BusCompare
-let changeLsbf (symModel:Model) (compId:ComponentId) (newLsb:int) =
+let changeLsbf (symModel:Model) (compId:ComponentId) (newLsb:int64) =
     let symbol = Map.find compId symModel.Symbols
     let newcompotype = 
         match symbol.Compo.Type with
-        | BusSelection (w, _) -> BusSelection (w, newLsb)
+        | BusSelection (w, _) -> BusSelection (w, int32(newLsb))
         | BusCompare (w, _) -> BusCompare (w, uint32(newLsb)) 
-        | Constant(w, _) -> Constant (w, newLsb)
+        | Constant1(w, _,txt) -> Constant1 (w, newLsb,txt)
         | _ -> failwithf "this shouldnt happen, incorrect call of message changeLsb"
     let newcompo = {symbol.Compo with Type = newcompotype}
+    {symbol with Compo = newcompo}
+
+let changeConstantf (symModel:Model) (compId:ComponentId) (constantVal:int64) (constantText: string) =
+    let symbol = Map.find compId symModel.Symbols
+    let newcompotype = 
+        match symbol.Compo.Type with
+        | Constant1 (w, _, _) -> Constant1 (w, constantVal,constantText)
+        | _ -> failwithf "this shouldnt happen, incorrect call of message changeLsb"
+    let newcompo = {symbol.Compo with Type = newcompotype}
+    printfn "Changing symbol to: %A" newcompotype
     {symbol with Compo = newcompo}
     
 /// update function which displays symbols
@@ -768,6 +779,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     
     | ChangeLsb (compId, newLsb) -> 
         let newsymbol = changeLsbf model compId newLsb
+        let symbolswithoutone = model.Symbols.Remove compId
+        let newSymbolsWithChangedSymbol = symbolswithoutone.Add (compId, newsymbol)
+        { model with Symbols = newSymbolsWithChangedSymbol }, Cmd.none
+
+    | ChangeConstant (compId, newVal, newText) -> 
+        let newsymbol = changeConstantf model compId newVal newText
         let symbolswithoutone = model.Symbols.Remove compId
         let newSymbolsWithChangedSymbol = symbolswithoutone.Add (compId, newsymbol)
         { model with Symbols = newSymbolsWithChangedSymbol }, Cmd.none

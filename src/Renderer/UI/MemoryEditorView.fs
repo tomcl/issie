@@ -210,7 +210,7 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
                 let handleInput  (ev: Browser.Types.FocusEvent) =
                     let text = getTextEventValue ev
                     //printfn "change"
-                    match strToIntCheckWidth text memory.WordWidth with
+                    match strToIntCheckWidth memory.WordWidth text with
                     | Ok value ->
                         // Close error notification.
                         closeError dispatch
@@ -238,7 +238,7 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
                     Input.Disabled isReadOnly
                     Input.DefaultValue <| viewNumD content
                     Input.Option.OnChange <| (getTextEventValue >> (fun text ->
-                        match strToIntCheckWidth text memory.WordWidth with
+                        match strToIntCheckWidth memory.WordWidth text with
                         | Error err -> showError err dispatch
                         | Ok _ -> closeError dispatch))                    
                 ]

@@ -83,7 +83,14 @@ let findChange (model : Model) : bool =
             prj.LoadedComponents
             |> List.find (fun lc -> lc.Name = prj.OpenFileName)
         savedComponent.CanvasState <> (model.Sheet.GetCanvasState ())
-    
+
+/// Needed so that constant properties selection will work
+/// Maybe good idea for other things too?
+let resetDialogIfSelectionHasChanged newModel oldModel =
+    let newSelected = newModel.Sheet.SelectedComponents
+    if newSelected.Length = 1 && newSelected <> oldModel.Sheet.SelectedComponents then
+        {newModel with PopupDialogData = {newModel.PopupDialogData with Text = None ; Int = None}}
+    else newModel
 
 let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) =
     match compOpt with
@@ -303,8 +310,8 @@ let update (msg : Msg) oldModel =
     | SetPopupDialogTwoInts data ->
         { model with PopupDialogData = 
                         match data with
-                        | n, FirstInt ->  {model.PopupDialogData with Int  = n}
-                        | n, SecondInt -> {model.PopupDialogData with Int2 = n}
+                        | n, FirstInt,_ ->  {model.PopupDialogData with Int  = Option.map int32 n}
+                        | n, SecondInt, optText -> {model.PopupDialogData with Int2 = n}
         }, Cmd.none
     | SetPopupDialogMemorySetup m ->
         { model with PopupDialogData = {model.PopupDialogData with MemorySetup = m} }, Cmd.none
@@ -424,6 +431,7 @@ let update (msg : Msg) oldModel =
         model, cmd
     | msg ->
         model, Cmd.none
+    |> (fun (newModel,cmd) -> resetDialogIfSelectionHasChanged newModel oldModel,cmd)
     |> Helpers.instrumentInterval (
         let name =
             match msg with 

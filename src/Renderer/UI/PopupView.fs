@@ -92,8 +92,7 @@ let setComponentLabel model (sheetDispatch) (comp:Component) text =
     model.Sheet.ChangeLabel sheetDispatch (ComponentId comp.Id) label
     //model.Diagram.EditComponentLabel comp.Id label
 
-let setComponentLabelFromText model (comp:Component) text = ()
-    //model.Diagram.EditComponentLabel comp.Id text
+
 
 //========//
 // Popups //
@@ -105,8 +104,8 @@ let getText (dialogData : PopupDialogData) =
 let getInt (dialogData : PopupDialogData) =
     Option.defaultValue 1 dialogData.Int
 
-let getInt2 (dialogData : PopupDialogData) =
-    Option.defaultValue 0 dialogData.Int2
+let getInt2 (dialogData : PopupDialogData) : int64 =
+    Option.defaultValue 0L dialogData.Int2
 
 let getMemorySetup (dialogData : PopupDialogData) wordWidthDefault =
     Option.defaultValue (4,wordWidthDefault,FromData,None) dialogData.MemorySetup
@@ -212,11 +211,11 @@ let dialogPopupBodyOnlyInt beforeInt intDefault dispatch =
 /// Create the body of a dialog Popup with two ints.
 let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) (width2:string) dispatch =
 
-    let setPopupTwoInts (whichInt:IntMode) =
-        fun n -> (Some n, whichInt) |> SetPopupDialogTwoInts |> dispatch
+    let setPopupTwoInts (whichInt:IntMode, optText) =
+        fun (n:int64) -> (Some n, whichInt, optText) |> SetPopupDialogTwoInts |> dispatch
 
-    setPopupTwoInts FirstInt intDefault1 
-    setPopupTwoInts SecondInt intDefault2 
+    setPopupTwoInts (FirstInt,None) (int64 intDefault1)
+    setPopupTwoInts (SecondInt, None) intDefault2 
 
     fun (dialogData : PopupDialogData) ->
         div [] [
@@ -225,15 +224,18 @@ let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) (wi
             Input.number [
                 Input.Props [Style [Width "60px"]; AutoFocus true]
                 Input.DefaultValue <| sprintf "%d" intDefault1
-                Input.OnChange (getIntEventValue >> setPopupTwoInts FirstInt)
+                Input.OnChange (getIntEventValue >> int64 >> setPopupTwoInts (FirstInt,None))
             ]
             br []
             beforeInt2 dialogData
             br []
-            Input.number [
+            Input.text [
                 Input.Props [Style [Width width2]; AutoFocus true]
                 Input.DefaultValue <| sprintf "%d" intDefault2
-                Input.OnChange (getIntEventValue >> setPopupTwoInts SecondInt)
+                Input.OnChange (fun ev ->
+                    let text = getTextEventValue ev
+                    let n = getInt64EventValue ev
+                    setPopupTwoInts(SecondInt, Some text) n)
             ]
         ]
 
@@ -257,6 +259,29 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
                 Input.DefaultValue <| sprintf "%d" intDefault
                 Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
             ]
+        ]
+
+/// Create the body of a dialog Popup with both text and int.
+let dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispatch =
+    intDefault |> Some |> SetPopupDialogInt |> dispatch
+    fun (dialogData : PopupDialogData) ->
+        div [] [
+            beforeInt dialogData
+            br []
+            Input.number [
+                Input.Props [Style [Width "60px"]]
+                Input.DefaultValue <| sprintf "%d" intDefault
+                Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
+            ]
+            br []
+            br []
+            beforeText dialogData
+            Input.text [
+                Input.Props [AutoFocus true; SpellCheck false]
+                Input.Placeholder placeholder
+                Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
+            ]
+
         ]
 
 let makeSourceMenu 

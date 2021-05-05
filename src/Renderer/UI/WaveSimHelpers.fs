@@ -641,7 +641,7 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
 
             | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4 | Mux2 | BusCompare _ -> 
                 [ { LabName = compLbl; BitLimits = 0, 0 } ] 
-            | Input w | Output w | Constant(w, _) | Viewer w -> 
+            | Input w | Output w | Constant1(w, _,_) | Constant(w,_) | Viewer w -> 
                 [ { LabName = compLbl; BitLimits = w - 1, 0 } ] 
             | Demux2 -> 
                 [ { LabName = compLbl + "." + string outPortInt; BitLimits = 0, 0 } ]

@@ -35,6 +35,18 @@ let private textFormField isRequired name defaultValue onChange =
         ] 
     ]
 
+let private textFormFieldSimple name defaultValue onChange =
+    Field.div [] [
+        Label.label [] [ str name ]
+        Input.text [
+            Input.Props [ SpellCheck false; Name name; AutoFocus true; Style [ Width "200px"]]
+            Input.DefaultValue defaultValue
+            Input.Type Input.Text
+            Input.OnChange (getTextEventValue >> onChange)
+        ] 
+    ]
+
+
 let private intFormField name (width:string) defaultValue minValue onChange =
     Field.div [] [
         Label.label [] [ str name ]
@@ -42,6 +54,16 @@ let private intFormField name (width:string) defaultValue minValue onChange =
             Input.Props [Style [Width width]; Min minValue]
             Input.DefaultValue <| sprintf "%d" defaultValue
             Input.OnChange (getIntEventValue >> onChange)
+        ]
+    ]
+
+let private int64FormField name (width:string) defaultValue minValue onChange =
+    Field.div [] [
+        Label.label [] [ str name ]
+        Input.number [
+            Input.Props [Style [Width width]; Min minValue]
+            Input.DefaultValue <| sprintf "%d" defaultValue
+            Input.OnChange (getInt64EventValue >> onChange)
         ]
     ]
 
@@ -55,6 +77,15 @@ let private intFormFieldNoMin name defaultValue onChange =
         ]
     ]
 
+let private int64FormFieldNoMin name (defaultValue:int64) (currentText:string option) onChange =
+    Field.div [] [
+        Label.label [] [ str name ]
+        Input.text [
+            Input.Props [Style [Width "180px"]]
+            Input.DefaultValue <| Option.defaultValue $"{defaultValue}" currentText
+            Input.OnChange (getTextEventValue >> onChange)
+        ]
+    ]
 
 
 let getInitSource (mem: Memory1) =
@@ -118,7 +149,7 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
         | SplitWire w -> "Number of bits in the top (LSB) wire", w
         | BusSelection( w, _) -> "Number of bits selected: width", w
         | BusCompare( w, _) -> "Bus width", w
-        | Constant(w, _) -> "Number of bits in the wire", w
+        | Constant1(w, _,_) -> "Number of bits in the wire", w
         | c -> failwithf "makeNumberOfBitsField called with invalid component: %A" c
     intFormField title "60px" width 1 (
         fun newWidth ->
@@ -129,36 +160,71 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
             else
                 model.Sheet.ChangeWidth sheetDispatch (ComponentId comp.Id) newWidth
                 let text' = match comp.Type with | BusSelection _ -> text | _ -> formatLabelAsBus newWidth text
-                setComponentLabelFromText model comp text' // change the JS component label
-                let lastUsedWidth = match comp.Type with | SplitWire _ | BusSelection _ -> model.LastUsedDialogWidth | _ ->  newWidth
+                //SetComponentLabelFromText model comp text' // change the JS component label
+                let lastUsedWidth = 
+                    match comp.Type with 
+                    | SplitWire _ | BusSelection _ | Constant1 _ -> 
+                        model.LastUsedDialogWidth 
+                    | _ ->  
+                        newWidth
                 dispatch (ReloadSelectedComponent (lastUsedWidth)) // reload the new component
+                dispatch <| SetPopupDialogInt (Some newWidth)
                 dispatch ClosePropertiesNotification
     )
 
 
-let private makeConstantValueField model (comp:Component) dispatch =
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    
-    let cVal, width =
-        match comp.Type with 
-        | Constant(width,cVal) -> cVal, width
-        | _ -> failwithf "makeConstantValuefield called from %A" comp.Type
-    if width > 32 then
-        let note = errorPropsNotification "Invalid Constant width"
-        dispatch <| SetPropertiesNotification note
-    intFormFieldNoMin "Value of the wire:" cVal (
-        fun newCVal ->
-            if int64 newCVal >= (1L <<< width) || int64 newCVal < -(1L <<< (width-1))
-            then
-                let errMsg = sprintf "Constant value too large for number of bits: %d requires more than %d bits" newCVal width
-                let note = errorPropsNotification errMsg
-                dispatch <| SetPropertiesNotification note
-            else
-                model.Sheet.ChangeLSB sheetDispatch (ComponentId comp.Id) newCVal
-                dispatch (ReloadSelectedComponent (width))
-                dispatch ClosePropertiesNotification
-    )
 
+
+
+let mockDispatchS msgFun msg =
+    match msg with
+    | Sheet (Sheet.Msg.Wire (BusWire.Msg.Symbol sMsg)) ->
+        msgFun msg
+    | _ -> ()
+
+
+
+let msgToS = 
+    BusWire.Msg.Symbol >> Sheet.Msg.Wire >> Msg.Sheet
+  
+/// Return dialog fileds used by constant, or default values
+let constantDialogWithDefault (w,cText) dialog =
+    let w = Option.defaultValue w dialog.Int
+    let cText = Option.defaultValue cText dialog.Text
+    w, cText
+
+/// Create react to chnage constant properties
+let makeConstantDialog (model:Model) (comp: Component) (text:string) (dispatch: Msg -> Unit): ReactElement =
+        let symbolDispatch msg = dispatch <| msgToS msg
+        let wComp, txtComp =
+            match comp.Type with | Constant1( w,_,txt) -> w,txt | _ -> failwithf "What? impossible" 
+        let w = Option.defaultValue wComp model.PopupDialogData.Int
+        let cText = Option.defaultValue txtComp model.PopupDialogData.Text
+        let reactMsg, compTOpt = CatalogueView.parseConstant w cText
+        match compTOpt with
+        | None -> ()
+        | Some (Constant1(w,cVal,cText) as compT) ->
+            if compT <> comp.Type then
+                printfn $"compT={compT} comp.Type={comp.Type}"
+                model.Sheet.ChangeWidth (Sheet >> dispatch) (ComponentId comp.Id) w
+                symbolDispatch <| Symbol.ChangeConstant (ComponentId comp.Id, cVal, cText)
+                dispatch (ReloadSelectedComponent w)
+                dispatch ClosePropertiesNotification
+        | _ -> failwithf "What? impossible"
+
+        div [] [
+                makeNumberOfBitsField model comp text dispatch
+                br []
+                reactMsg
+                br []
+                textFormFieldSimple 
+                    "Enter constant value in decimal, hex, or binary:" 
+                    cText 
+                    (fun txt -> 
+                        printfn $"Setting {txt}"
+                        dispatch <| SetPopupDialogText (Some txt))
+                
+            ]              
 
 let private makeLsbBitNumberField model (comp:Component) dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
@@ -177,7 +243,7 @@ let private makeLsbBitNumberField model (comp:Component) dispatch =
                     let note = errorPropsNotification <| sprintf "Invalid Comparison Value for bus of width %d" width
                     dispatch <| SetPropertiesNotification note
                 else
-                    model.Sheet.ChangeLSB sheetDispatch (ComponentId comp.Id) cVal
+                    model.Sheet.ChangeLSB sheetDispatch (ComponentId comp.Id) (int64 cVal)
                     dispatch (ReloadSelectedComponent (width)) // reload the new component
                     dispatch ClosePropertiesNotification
         )
@@ -189,7 +255,7 @@ let private makeLsbBitNumberField model (comp:Component) dispatch =
                     let note = errorPropsNotification "Invalid LSB bit position"
                     dispatch <| SetPropertiesNotification note
                 else
-                    model.Sheet.ChangeLSB sheetDispatch (ComponentId comp.Id) newLsb
+                    model.Sheet.ChangeLSB sheetDispatch (ComponentId comp.Id) (int64 newLsb)
                     dispatch (ReloadSelectedComponent (width)) // reload the new component
                     dispatch ClosePropertiesNotification
         )
@@ -202,7 +268,7 @@ let private makeDescription (comp:Component) model dispatch =
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
     | Input _ -> str "Input."
-    | Constant _ -> str "Constant Wire."
+    | Constant1 _ | Constant _ -> str "Constant Wire."
     | Output _ -> str "Output."
     | Viewer _ -> str "Viewer."
     | BusCompare _ -> str "The output is one if the bus unsigned binary value is equal to the integer specified."
@@ -290,11 +356,8 @@ let private makeExtraInfo model (comp:Component) text dispatch =
             makeLsbBitNumberField model comp dispatch
             ]
 
-    | Constant _ ->
-        div [] [
-             makeNumberOfBitsField model comp text dispatch
-             makeConstantValueField model comp dispatch
-             ]
+    | Constant1 _ ->         
+             makeConstantDialog model comp text dispatch
     | _ -> div [] []
 
 
@@ -306,6 +369,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
         div [Key comp.Id] [
             // let label' = extractLabelBase comp.Label
             let label' = comp.Label // No formatting atm
+            printfn "Entering view selected with %A" comp.Type
             readOnlyFormField "Description" <| makeDescription comp model dispatch
             makeExtraInfo model comp label' dispatch
             let required = match comp.Type with | SplitWire _ | MergeWires | BusSelection _ -> false | _ -> true

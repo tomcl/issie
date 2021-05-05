@@ -191,7 +191,7 @@ let private viewSimulationInputs
                     Input.Props [
                         simulationNumberStyle
                         OnChange (getTextEventValue >> (fun text ->
-                            match strToIntCheckWidth text width with
+                            match strToIntCheckWidth width text with
                             | Error err ->
                                 let note = errorPropsNotification err
                                 dispatch  <| SetSimulationNotification note

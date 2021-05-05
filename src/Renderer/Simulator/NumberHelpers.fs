@@ -117,22 +117,54 @@ let strToInt (str : string) : Result<int64, string> =
     with
         | _ -> Error <| "Invalid number."
 
+        (*
+
+let toInt = EEExtensions.Char.toInt
+
+/// convert a digit character: binary, decimal, or hexadecimal, to its numeric value
+let cDigitInt (ch:char) =
+    match toInt ch with
+    | d when d >= int32 '0' && d <= int32 '9' -> Some(d - int32 '0')
+    | d when d >= toInt 'A' && d <= toInt 'Z' -> Some(d - toInt 'A' + 10)
+    | _ -> None
+
+let convertUInt64 (stringToConvert: string) =
+    let rec pow64 n = 
+    let getRadixNum (radix:int) (ns: int option list) =
+        if Seq.forall (function | Some n -> n < radix && n >= 0 | None -> false) ns
+        then Some (List.sumBy (fun n -> uint64 n + ))
+
+    let aInt = toInt 'A'
+    let s = EEExtensions.String.trim (EEExtensions.String.toUpper stringToConvert)
+    if EEExtensions.String.startsWith "0X" s then
+        let hexDigits = s.[2..s.Length-1]
+        let convDigits = hexDigits |> List.map cDigitInt 
+        if checkRadix 16
+
+*)
+
 let private countBits (num : int64) : int =
     (String.length <| bin64 num) - 2
 
 /// Check a number is formed by at most <width> bits.
-let private checkWidth (width : int) (num : int64) : string option =
-    let bitsCount = countBits num
-    match bitsCount <= width with
-    | true -> None
-    | false -> Some <| sprintf "Expected <= %d, but found %d, bits." width bitsCount
+let rec private checkWidth (width : int) (num : int64) : string option =
+    if num < 0L then
+        checkWidth width <| (-num) - 1L
+    else    
+        let bitsCount = countBits num
+        match bitsCount <= width with
+        | true -> None
+        | false -> Some <| sprintf "Expected %d or less bits." width
 
 /// Convert a string to a number making sure that it has no more bits than
 /// specified in width.
-let strToIntCheckWidth (str : string) (width : int) : Result<int64, string> =
-    strToInt str
-    |> Result.bind (fun num ->
-        match checkWidth width num with
-        | None -> Ok num
-        | Some err -> Error err
-    )
+let strToIntCheckWidth (width : int) (str : string)  : Result<int64, string> =
+    match str.Trim() with
+    | "" -> Ok 0L // special case
+    | str ->
+        strToInt str
+        |> Result.bind (fun num ->
+            match checkWidth width num with
+            | None -> Ok num
+            | Some err -> Error err
+        )

@@ -292,7 +292,7 @@ let private fastReduce (simStep: int) (comp: FastComponent) : Unit =
             put0 bits
     //printfn "Finished!"
 
-    | Constant (width, cVal) ->
+    | Constant1 (width, cVal,_) | Constant (width,cVal)->
         put0
         <| convertIntToWireData width (int64 (uint32 cVal))
     | Output width ->
@@ -558,7 +558,7 @@ let private getFid (cid: ComponentId) (ap: ComponentId list) =
 let private getPortNumbers (sc: SimulationComponent) =
     let ins =
         match sc.Type with
-        | Constant _ -> 0
+        | Constant1 _ -> 0
         | Input _
         | Output _
         | Viewer _ 
@@ -600,7 +600,8 @@ let private getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | RegisterE w
     | SplitWire w
     | BusSelection (w, _)
-    | Constant (w, _)
+    | Constant1 (w, _,_)
+    | Constant (w,_)
     | NbitsXor w -> putW0 w
     | NbitsAdder w ->
         putW0 w
@@ -1230,7 +1231,7 @@ let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : FastSimu
               |> getArrayOf
                   (fun fc ->
                       match fc.FType with
-                      | Constant _ -> true
+                      | Constant1 _ -> true
                       | _ -> false)
           FClockedComps =
               fs.FComps

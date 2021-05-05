@@ -300,8 +300,8 @@ let readMemDefnLine (addressWidth:int) (wordWidth: int) (lineNo: int) (s:string)
     let nums = String.splitRemoveEmptyEntries [|' ';'\t';',';';';'"'|] s 
     match nums with
     | [|addr;data|] ->
-        let addrNum = NumberHelpers.strToIntCheckWidth addr addressWidth
-        let dataNum = NumberHelpers.strToIntCheckWidth data wordWidth
+        let addrNum = NumberHelpers.strToIntCheckWidth addressWidth addr
+        let dataNum = NumberHelpers.strToIntCheckWidth wordWidth data
         match addrNum,dataNum with
         | Ok a, Ok d -> Ok (a,d)
         | Error aErr,_ -> Error $"Line {lineNo}:'%s{s}' has invalid address ({addr}). {aErr}"
@@ -426,6 +426,7 @@ let getLatestComp (comp: Component) =
     | RAM mem -> {comp with Type = RAM1 (updateMem mem)}
     | ROM mem -> {comp with Type = ROM1 (updateMem mem)}
     | AsyncROM mem -> { comp with Type = AsyncROM1 (updateMem mem)}
+    | Constant(width,cVal) -> {comp with Type = Constant1(width, cVal, $"%d{cVal}")}
     | _ -> comp
 
 /// Interface function that can read old-style circuits (without wire vertices)

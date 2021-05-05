@@ -757,7 +757,7 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
             wsModel.SimParams.DispNames
             |> Array.filter (fun name -> Map.containsKey name wSpecs)
         Array.iter (fun wave -> selectWaveConns model false wave dispatch) (mapValues wSpecs)
-        let waves = allowedNames |> Array.map (fun name -> wsModel.AllWaves.[name])
+        let waves = allowedNames |> Array.map (fun name -> wSpecs.[name])
         Array.iter (fun wave -> selectWaveConns model true wave dispatch) waves
         let wSpecs =
             wSpecs

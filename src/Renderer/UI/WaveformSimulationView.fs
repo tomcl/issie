@@ -697,6 +697,7 @@ let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (dispatch: Msg
        // dependency.
        let thingsToHighlight = (simError.ComponentsAffected, simError.ConnectionsAffected)
        dispatch <| SetHighlighted thingsToHighlight
+       dispatch <| Sheet(Sheet.SetWaveSimMode false)
 
 
 

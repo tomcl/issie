@@ -21,6 +21,157 @@ open PopupView
 open System
 open Electron
 
+//--------------------------------------------------------------------------------------------//
+//--------------------------------------------------------------------------------------------//
+//-------------------------------Custom Component Management----------------------------------//
+//--------------------------------------------------------------------------------------------//
+
+
+// Basic idea. When the I/Os of the current sheet are changed this may affect instances of the sheet embedded in other
+// project sheets. Check for this whenever current sheet is saved (which will happen when Issie exits or the
+// edited sheet is changed). Offer, in a dialog, to change all of the affected custom component instances to maintain
+// compatibility. This will usually break the other sheets.
+// all of this code uses the project data structure and (if needed) returns an updated structure.
+
+type IODirection = InputIO | OutputIO
+
+type IOMatchType = 
+    | Identity // Ids are the same
+    | BitsChanged of int // names and types are the same
+    | NameChanged of string * int
+    | Deleted  // the signature item no longer exists
+    | AddedToInstances // the signature item must be added to instances
+
+type Match = {
+    MType: IOMatchType
+    MLabel: string
+    Width: int
+    MDir: IODirection
+    }
+
+let getIOSignature (c: Component) =
+    match c.Type with
+    | Input n -> {MLabel = c.Label; Width = n ; MDir = InputIO; MType = Identity}
+    | Output n -> {MLabel = c.Label ; Width = n ; MDir = OutputIO; MType = Identity}
+    | _ -> failwithf "What? getIOSignature can only be used on input or output components"
+
+let ioMatchComponents (c1:Component) (c2:Component) =
+    match c1, c2 with
+    | {Label = lab1; Type = Input n1}, {Label = lab2; Type = Input n2} 
+    | {Label = lab1; Type = Output n1}, {Label = lab2; Type = Output n2} ->
+        if lab1 = lab2 && n1 = n2 then
+            Some (getIOSignature c1)
+        elif lab1 = lab2 then
+            Some {getIOSignature c1 with MType = BitsChanged (getIOSignature c2).Width}
+        else None
+    | {Id = id1}, {Id=id2} when id1 = id2 ->
+            let c2Sig = getIOSignature c2
+            Some { getIOSignature c1 with MType =  NameChanged( c2Sig.MLabel, c2Sig.Width)}
+    | _ -> None
+
+let ioMatchCompWithList (comps:Component list) (ioComp:Component)  =
+    List.tryPick (ioMatchComponents ioComp)  comps
+    |> Option.defaultValue {getIOSignature ioComp with MType = AddedToInstances}
+
+let ioMatchLists (comps1: Component list) (comps2: Component list) =
+    comps1
+    |> List.map (ioMatchCompWithList comps2)
+
+/// compare two I/O signature lists and return arrays:
+/// Common: the matching I/Os (with how well they match).
+/// Diffs: unmatched I/Os from either signature
+/// IOMap: look up details of the match (matching comps1 IO with comps2)
+let ioCompareLists (comps1: Component list) (comps2: Component list) =
+    let map (ml: Match list) = 
+        List.map (fun m -> (m.MDir, m.MLabel), m) ml |> Map.ofList
+    let ioMap1 = ioMatchLists comps1 comps2 |> map
+    let ioMap2 = ioMatchLists comps2 comps1 |> map
+    let ioMap = mapUnion ioMap1 ioMap2
+    let set1,set2 = set (mapKeys ioMap1), set (mapKeys ioMap2)
+    let common = Set.intersect set1 set2
+    let diff = (set1 - set2) + (set2 - set1)
+    let common = 
+        common
+        |> Set.toArray
+        |> Array.sortBy 
+            (fun m -> 
+                match ioMap.[m].MType with 
+                | Identity -> 1 
+                | BitsChanged _-> 2 
+                | NameChanged _ ->  3 
+                | _ -> 4)
+    {| Common = common; Diffs= diff; IOMap = ioMap|}
+
+let findInstancesOfCurrentSheet (project:Project) =
+    let thisSheet = project.OpenFileName
+    let ldcs = project.LoadedComponents
+    let getInstance (comp:Component) =
+        match comp.Type with
+        | Custom ({Name=thisSheet} as cType) -> Some (ComponentId comp.Id, cType)
+        | _ -> None
+
+    let getSheetInstances (ldc:LoadedComponent) =
+        fst ldc.CanvasState
+        |> List.choose getInstance
+
+    ldcs
+    |> List.collect (fun ldc -> 
+        getSheetInstances ldc
+        |> List.map (fun ins -> ldc.Name, ins))
+
+let updateDependency ins (p: Project) =
+    ()
+
+type Deps =
+    | NoDependencies
+    | OneSig of ((string * int) list * (string * int) list) * (string * (ComponentId * CustomComponentType)) list
+    | Mixed of (string * int) list
+
+let getDependencyInfo (p: Project)  =
+    let instances = findInstancesOfCurrentSheet p
+    let gps = 
+        instances
+        |> List.groupBy (fun (_, (_,{InputLabels=ips; OutputLabels=ops})) -> (ips |> List.sort), (ops |> List.sort))
+        |> List.sortByDescending (fun (tag,items) -> items.Length)
+
+    match gps with
+    | [] -> NoDependencies // no dependencies - nothing to do
+    | [sg, items] -> OneSig(sg, items) // normal case, all dependencies have same signature
+    | _ -> // dependencies have mixed signatures
+        instances
+        |> List.groupBy fst
+        |> List.map (fun (tag, lst) -> tag, lst.Length)
+        |> Mixed
+
+let displayDependencyInfoPopup _ _ _ = failwithf "Not implemented"
+
+let checkDependencies (model: Model) (p: Project) (dispatch: Msg -> Unit) =
+    match getDependencyInfo p with
+    | NoDependencies -> ()
+    | Mixed lst ->
+        displayDependencyInfoPopup lst model dispatch
+    | OneSig (signature, instances) ->
+        
+        let body = div [] []
+
+        let buttonAction isUpdate _ =
+            if isUpdate then
+                failwithf "?" //List.map updateDependency ins p
+        choicePopup "Update Sheet Dependencies" body "Update all" "Save without updating" buttonAction dispatch
+
+
+       
+
+ 
+
+
+
+
+//--------------------------------------------------------------------------------------------//
+//--------------------------------------------------------------------------------------------//
+//---------------------Code for CanvasState comparison and FILE BACKUP------------------------//
+//--------------------------------------------------------------------------------------------//
+
 /// Works out number of components and connections changed between two LoadedComponent circuits
 /// a new ID => a change even if the circuit topology is identical. Layout differences do not
 /// mean changes, as is implemented in the reduce functions which remove layout.

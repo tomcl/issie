@@ -18,7 +18,14 @@ open EEExtensions
 open Fable.SimpleJson
 
 
+[<Emit("__static")>]
+let staticDir() :string = jsNative
 
+/// absolute path to repo directory ./static
+/// NB this path is not fixed (even as relative path) between
+/// production and dev builds, so this must be used to access static
+/// assets.
+let staticFileDirectory = staticDir()
 
 
 let pathJoin args = path.join args

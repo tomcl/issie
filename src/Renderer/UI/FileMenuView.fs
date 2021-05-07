@@ -35,72 +35,73 @@ open Electron
 
 type IODirection = InputIO | OutputIO
 
-type IOMatchType = 
-    | Identity // Ids are the same
-    | BitsChanged of int // names and types are the same
-    | NameChanged of string * int
-    | Deleted  // the signature item no longer exists
-    | AddedToInstances // the signature item must be added to instances
+
 
 type Match = {
-    MType: IOMatchType
     MLabel: string
-    Width: int
+    MWidth: int
     MDir: IODirection
     }
 
-let getIOSignature (c: Component) =
-    match c.Type with
-    | Input n -> {MLabel = c.Label; Width = n ; MDir = InputIO; MType = Identity}
-    | Output n -> {MLabel = c.Label ; Width = n ; MDir = OutputIO; MType = Identity}
-    | _ -> failwithf "What? getIOSignature can only be used on input or output components"
+type PortChange = {
+    Direction: IODirection
+    Old: (string * int) option
+    New: (string * int) option
+    Message: string
+    }
 
-let ioMatchComponents (c1:Component) (c2:Component) =
-    match c1, c2 with
-    | {Label = lab1; Type = Input n1}, {Label = lab2; Type = Input n2} 
-    | {Label = lab1; Type = Output n1}, {Label = lab2; Type = Output n2} ->
-        if lab1 = lab2 && n1 = n2 then
-            Some (getIOSignature c1)
-        elif lab1 = lab2 then
-            Some {getIOSignature c1 with MType = BitsChanged (getIOSignature c2).Width}
-        else None
-    | {Id = id1}, {Id=id2} when id1 = id2 ->
-            let c2Sig = getIOSignature c2
-            Some { getIOSignature c1 with MType =  NameChanged( c2Sig.MLabel, c2Sig.Width)}
-    | _ -> None
+type Signature = (string*int) list * (string*int) list
 
-let ioMatchCompWithList (comps:Component list) (ioComp:Component)  =
-    List.tryPick (ioMatchComponents ioComp)  comps
-    |> Option.defaultValue {getIOSignature ioComp with MType = AddedToInstances}
+let getIOMatchFromSig (inputs, outputs)  =
 
-let ioMatchLists (comps1: Component list) (comps2: Component list) =
-    comps1
-    |> List.map (ioMatchCompWithList comps2)
+    let makeSig dir (ios: (string * int) list) =
+        ios
+        |> List.map (fun (name,num) -> {MLabel = name; MWidth = num ; MDir = dir})
+    (makeSig InputIO inputs) @
+    (makeSig OutputIO outputs)
+ 
 
-/// compare two I/O signature lists and return arrays:
-/// Common: the matching I/Os (with how well they match).
-/// Diffs: unmatched I/Os from either signature
-/// IOMap: look up details of the match (matching comps1 IO with comps2)
-let ioCompareLists (comps1: Component list) (comps2: Component list) =
-    let map (ml: Match list) = 
-        List.map (fun m -> (m.MDir, m.MLabel), m) ml |> Map.ofList
-    let ioMap1 = ioMatchLists comps1 comps2 |> map
-    let ioMap2 = ioMatchLists comps2 comps1 |> map
+
+/// compare two I/O signature lists 
+let ioCompareSigs (sig1: Signature) (sig2: Signature) =
+    let map (sg: Signature) = 
+        getIOMatchFromSig sg
+        |> List.map (fun m -> (m.MDir, m.MLabel), m)
+        |> Map.ofList
+
+    let ioMap1 = sig1 |> map
+    let ioMap2 = sig2 |> map
     let ioMap = mapUnion ioMap1 ioMap2
     let set1,set2 = set (mapKeys ioMap1), set (mapKeys ioMap2)
     let common = Set.intersect set1 set2
-    let diff = (set1 - set2) + (set2 - set1)
-    let common = 
-        common
-        |> Set.toArray
-        |> Array.sortBy 
-            (fun m -> 
-                match ioMap.[m].MType with 
-                | Identity -> 1 
-                | BitsChanged _-> 2 
-                | NameChanged _ ->  3 
-                | _ -> 4)
-    {| Common = common; Diffs= diff; IOMap = ioMap|}
+    let diff1 = set1 - set2
+    let diff2 = set2 - set1
+    mapKeys ioMap
+    |> Array.map 
+        (fun m -> 
+            let getDetails m (ioMap: Map<IODirection*string,Match>) =
+                let ma = Map.tryFind m ioMap
+                let labWidth = ma |> Option.map (fun m -> m.MLabel, m.MWidth)
+                labWidth
+                    
+            let newLW = getDetails m ioMap1
+            let oldLW = getDetails m ioMap2
+            let message =
+                match newLW, oldLW with 
+                |  Some (l1,w1), Some (l2,w2) when l1=l2 && w1=w2 -> "No Change"
+                |  Some _, Some _ -> "New Port added"
+                | None, Some _ -> "Port and old connections deleted"
+                | _ -> failwithf $"What? never happens: {newLW} {oldLW}"
+            {
+                Message = message
+                Direction = fst m
+                New = newLW
+                Old = oldLW
+            })
+
+    
+
+
 
 let findInstancesOfCurrentSheet (project:Project) =
     let thisSheet = project.OpenFileName
@@ -147,9 +148,7 @@ let changeAllDependents (p: Project) (dispatch: Msg -> Unit) =
     printfn "Changing dependents is not implemented yet!"
 
 let displayDependentsInfoPopup (depL: (string * int) list) (model:Model) (dispatch: Msg -> Unit) = 
-    match model.CurrentProj with
-    | None -> ()
-    | Some p ->
+    mapOverProject () model <| fun p ->
 
         let headCell heading = th [ ] [ str heading ]
 
@@ -184,52 +183,81 @@ let displayDependentsInfoPopup (depL: (string * int) list) (model:Model) (dispat
             action
             dispatch
 
-let makePortName name width =
-    match width with
-    | 1 -> name
-    | w -> $"%s{name}({w-1}:{w}"
+let makePortName (nameWidth :(string*int) option) =
+    match nameWidth with
+    | None -> ""
+    | Some (name,w) -> $"%s{name}({w-1}:{w}"
+    | _ -> "What? Impossible"
     |> str
 
 
-let checkDependents (model: Model) (p: Project) (dispatch: Msg -> Unit) =
-    match getDependentsInfo p with
-    | NoDependents -> ()
-    | Mixed lst ->
-        displayDependentsInfoPopup lst model dispatch
-    | OneSig ((inputSigs, outputSigs), instances) ->
-        let headCell heading =  th [ ] [ str heading ]
-        let makeRow isInput (name,width) = 
-            tr []
-                [
-                    td [] [str (if isInput then "Input" else "Output")]
-                    td [] [makePortName name width]
-                    td [] [makePortName name width]
-                    td [] [str "?"]
-                ]
-        let body = 
-            div [] 
-                [
-                    str "You can automatically update all dependent sheets to match the current sheet."
-                    str "Ports will need to be reconnected only if they cannot be automatically matched."
-                    table []
-                        [ 
-                            thead [] [ tr [] (List.map headCell ["Type" ;"Old port"; "New port" ; "No change?"]) ]
-                            tbody []   (List.map (makeRow true) inputSigs) 
-                            tbody []   (List.map (makeRow false) outputSigs) 
+let getDependents (model:Model)  =
+    mapOverProject None model <| fun p ->
+         let sheetName = p.OpenFileName
+         let newSig = 
+             p.LoadedComponents
+             |> List.find (fun ldc -> ldc.Name = sheetName)
+             |> (fun ldc -> parseDiagramSignature ldc.CanvasState)
+         let instances =
+             p.LoadedComponents
+             |> List.collect (fun ldc -> 
+                 fst ldc.CanvasState
+                 |> List.collect (
+                     function 
+                         | {Type = Custom { Name=sheetName; InputLabels=ins; OutputLabels=outs}
+                            Id = cid} -> [ldc.Name, cid,  (ins,outs)]
+                         | _ -> []))
+         let sortLists (a,b) = List.sort a, List.sort b
+         let nsg = sortLists newSig
+         let allTheSame = List.forall (fun (_,_,sg) -> sortLists sg = nsg)
+         Some(newSig, instances, allTheSame)
 
-                        ]
-                ]
+let openSheetHasDependents (model:Model) =
+    match getDependents model with
+    |None
+    |Some(_, [], _) -> false
+    | _ -> true
+    
 
-        let buttonAction isUpdate _ =
-            if isUpdate then
-                changeAllDependents p dispatch
-        choicePopup 
-            "Update Sheet Dependencies" 
-            body 
-            "Update all" 
-            "Save without updating" 
-            buttonAction 
-            dispatch
+let checkDependents (model: Model) (dispatch: Msg -> Unit) =
+        match getDependents model  with
+        | None
+        | Some (_,[],_) -> ()
+        | Some(newSig, (((firstSheet,firstCid,firstSig) :: rest) as instances), allTheSame) ->
+            let changes = ioCompareSigs newSig firstSig
+            let headCell heading =  th [ ] [ str heading ]
+            let makeRow (change:PortChange) = 
+                tr []
+                    [
+                        td [] [str (if change.Direction = InputIO  then "Input" else "Output")]
+                        td [] [makePortName change.New]
+                        td [] [makePortName change.Old]
+                        td [] [str change.Message]
+                    ]
+            let body = 
+                div [] 
+                    [
+                        str "You can automatically update all dependent sheets to match the current sheet."
+                        str "Ports will need to be reconnected only if they cannot be automatically matched."
+                        table []
+                            [ 
+                                thead [] [ tr [] (List.map headCell ["Type" ;"Old port"; "New port" ; "No change?"]) ]
+                                tbody []   (Array.map makeRow  changes) 
+                                tbody []   (Array.map makeRow changes) 
+
+                            ]
+                    ]
+
+            let buttonAction isUpdate _ =
+                if isUpdate then
+                    changeAllDependents p dispatch
+            choicePopup 
+                "Update Sheet Dependencies" 
+                body 
+                "Update all" 
+                "Save without updating" 
+                buttonAction 
+                dispatch
 
 
        

@@ -48,18 +48,10 @@ let viewOnDiagramButtons model dispatch =
 
 // -- Init Model
 
-/// Initial value of activity subrecord in model
-let initActivity = {
-    AutoSave = Inactive
-    LastSavedCanvasState = Map.empty
-    LastAutoSaveCheck = System.DateTime.MinValue
-    LastAutoSave = Map.empty
-    RunningSimulation = false
-    }
+
 
 /// Initial value of model
 let init() = {
-    AsyncActivity = initActivity
     LastChangeCheckTime = 0.
     // Diagram = new Draw2dWrapper()
     Sheet = fst (Sheet.init())

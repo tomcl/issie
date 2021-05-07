@@ -481,9 +481,7 @@ let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
         |> (fun lc -> {p with LoadedComponents=lc})
         |> SetProject
         |> dispatch
-        // update Autosave info
-        SetLastSavedCanvas (p.OpenFileName, state)
-        |> dispatch
+
     SetHasUnsavedChanges false
     |> JSDiagramMsg
     |> dispatch
@@ -577,12 +575,6 @@ let private openFileInProject' saveCurrent name project (model:Model) dispatch =
                     let ldcOpt = Option.map fst opt
                     let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
                     let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
-                    match model.CurrentProj with
-                    | None -> failwithf "What? Should never be able to save sheet when project=None"
-                    | Some p -> 
-                        // update Autosave info
-                        SetLastSavedCanvas (p.OpenFileName,reducedState)
-                        |> dispatch
                     SetHasUnsavedChanges false
                     |> JSDiagramMsg
                     |> dispatch
@@ -656,9 +648,6 @@ let renameSheet oldName newName (model:Model) dispatch =
         let ldcOpt = Option.map fst opt
         let ldComps = updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
         let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
-        // update Autosave info
-        SetLastSavedCanvas (p.OpenFileName,reducedState)
-        |> dispatch
         SetHasUnsavedChanges false
         |> JSDiagramMsg
         |> dispatch
@@ -668,9 +657,6 @@ let renameSheet oldName newName (model:Model) dispatch =
         /// save all the other files
         saveAllFilesFromProject proj'
         dispatch FinishUICmd
-
-        
-    
 
 
 /// rename file

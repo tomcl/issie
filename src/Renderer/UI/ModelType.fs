@@ -185,16 +185,9 @@ let setDispNames names wsMod =
 
 let setEditorView view wsModel =
     {wsModel with WSViewState = view; WSTransition = None}
-
-
     
 let setEditorNextView nView simParas wsModel =
-    {wsModel with WSTransition = Some(simParas, nView)}
-
-
-    
-
-    
+    {wsModel with WSTransition = Some(simParas, nView)}   
 
 let inline getWave (ws:WaveSimModel) (name: string) = ws.AllWaves.[name]
 
@@ -202,7 +195,6 @@ let inline getDispName (ws:WaveSimModel) (wave:WaveformSpec) =
     Map.tryFindKey (fun k v -> v = wave) ws.AllWaves
     |> Option.defaultValue "name not found"
     
-
 let inline dispWaves (ws: WaveSimModel) =
     ws.SimParams.DispNames
     |> Array.map (fun name -> ws.AllWaves.[name])
@@ -268,7 +260,6 @@ type Msg =
     | JSDiagramMsg of JSDiagramMsg<JSCanvas,JSComponent>
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
-    | SetLastSavedCanvas of string * CanvasState
     | SetWSMod of WaveSimModel
     | UpdateWSModel of (WaveSimModel -> WaveSimModel)
     | SetWSModAndSheet of (WaveSimModel*string)
@@ -344,23 +335,10 @@ type Notifications = {
 }
 
 
-type AutoSaveT = Saving | Deleting | Inactive
 
-type AsyncTasksT = {
-    AutoSave: AutoSaveT
-    /// time when last actually auto-saved
-    LastAutoSave: Map<string,System.DateTime>
-    /// time when system last checked canvas components with previous autosave value
-    LastAutoSaveCheck: System.DateTime
-    /// copy of what was last saved for real
-    LastSavedCanvasState: Map<string,CanvasState>
-    RunningSimulation: bool // placeholder - not used yet
-    }
 
-[<CustomEquality;NoComparison>]
+
 type Model = {
-    /// data used to peform auto-save
-    AsyncActivity: AsyncTasksT
     /// All the data for waveform simulation (separate for each sheet)
     /// TODO: remove the simulation error.
     WaveSim : Map<string, WaveSimModel> * (SimulationError option)
@@ -431,15 +409,7 @@ type Model = {
     /// Contains a list of pending messages
     Pending: Msg list
     UIState: UICommandType Option
-} with
- 
-    override this.GetHashCode() =
-        hash (reduce this)
-        
-    override this.Equals(x) = 
-        match x with
-        | :? Model as x' -> reduce this = reduce x'
-        | _ -> false
+} 
 
 
 
@@ -448,7 +418,6 @@ let reduce (this: Model) = {|
          RightTab = this.RightPaneTabVisible
          Hilighted = this.Hilighted
          Clipboard = this.Clipboard
-         AsyncActivity = this.AsyncActivity
          SimulationIsStale = this.WaveSimulationIsOutOfDate
          LastSimulatedCanvasState = this.LastSimulatedCanvasState
          LastSelectedIds = this.LastSelectedIds
@@ -483,25 +452,10 @@ let reduceApprox (this: Model) = {|
          SimulationInProgress = this.SimulationInProgress
  |} 
 
-/// Lens to facilitate changing AsyncActivity
-let setActivity (f: AsyncTasksT -> AsyncTasksT) (model: Model) =
-    {model with AsyncActivity = f model.AsyncActivity }
-
-// -----------------------------//
-// NOTE- TODO - ASK ABOUT THIS
-// -----------------------------//
-//let getDetailedState (model:Model) =
-//    model.Sheet.GetCanvasState()
-
-//let getReducedState (model:Model) =
-//    model.Sheet.GetCanvasState()
-//    |> Extractor.extractReducedState 
-
-//let addReducedState a name model =
-//    let lastState = a.LastSavedCanvasState
-//    match getReducedState model with
-//    | None -> lastState
-//    | Some state -> lastState.Add(name, state)
+let mapOverProject defaultValue (model: Model) transform =
+    match model.CurrentProj with
+    | None -> defaultValue
+    | Some p -> transform p
 
 
 let changeSimulationIsStale (b:bool) (m:Model) = 

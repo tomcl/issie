@@ -119,15 +119,15 @@ let findInstancesOfCurrentSheet (project:Project) =
         getSheetInstances ldc
         |> List.map (fun ins -> ldc.Name, ins))
 
-let updateDependency ins (p: Project) =
+let updateDependents ins (p: Project) =
     ()
 
 type Deps =
-    | NoDependencies
+    | NoDependents
     | OneSig of ((string * int) list * (string * int) list) * (string * (ComponentId * CustomComponentType)) list
     | Mixed of (string * int) list
 
-let getDependencyInfo (p: Project)  =
+let getDependentsInfo (p: Project)  =
     let instances = findInstancesOfCurrentSheet p
     let gps = 
         instances
@@ -135,7 +135,7 @@ let getDependencyInfo (p: Project)  =
         |> List.sortByDescending (fun (tag,items) -> items.Length)
 
     match gps with
-    | [] -> NoDependencies // no dependencies - nothing to do
+    | [] -> NoDependents // no dependencies - nothing to do
     | [sg, items] -> OneSig(sg, items) // normal case, all dependencies have same signature
     | _ -> // dependencies have mixed signatures
         instances
@@ -143,21 +143,93 @@ let getDependencyInfo (p: Project)  =
         |> List.map (fun (tag, lst) -> tag, lst.Length)
         |> Mixed
 
-let displayDependencyInfoPopup _ _ _ = failwithf "Not implemented"
+let changeAllDependents (p: Project) (dispatch: Msg -> Unit) =
+    printfn "Changing dependents is not implemented yet!"
 
-let checkDependencies (model: Model) (p: Project) (dispatch: Msg -> Unit) =
-    match getDependencyInfo p with
-    | NoDependencies -> ()
-    | Mixed lst ->
-        displayDependencyInfoPopup lst model dispatch
-    | OneSig (signature, instances) ->
+let displayDependentsInfoPopup (depL: (string * int) list) (model:Model) (dispatch: Msg -> Unit) = 
+    match model.CurrentProj with
+    | None -> ()
+    | Some p ->
+
+        let headCell heading = th [ ] [ str heading ]
+
+        let row (sheetName, number) =
+            tr [] 
+                [ td [ ] [ str sheetName ]
+                  td [ ] [ str $"%d{number}" ] ]
         
-        let body = div [] []
+        let body = 
+            div [] 
+                [       
+                    str "The current sheet is used as a custom component in multiple other sheets with different input or output ports. \
+                        Issie can update all these instances automatically to be compatible with this sheet: you will need to check to see which require \
+                        manual reconnection because of changed port definitions. Automatic update is normally the best option."
+                    br []
+                    str "Dependent instances"
+                    br []
+                    Table.table [ Table.IsHoverable ]
+                        [ 
+                            thead [ ] [ tr [] [headCell "Sheet"; headCell "Number"] ]                
+                            tbody [ ] (List.map row depL)
+                        ]
+                ]
+        let action doUpdate _  =
+            if doUpdate then changeAllDependents p dispatch
+        
+        choicePopup 
+            "Dependent Sheets use inconsistent definitions" 
+            body  
+            "Update all component instances" 
+            "Save this sheet without updating dependents" 
+            action
+            dispatch
+
+let makePortName name width =
+    match width with
+    | 1 -> name
+    | w -> $"%s{name}({w-1}:{w}"
+    |> str
+
+
+let checkDependents (model: Model) (p: Project) (dispatch: Msg -> Unit) =
+    match getDependentsInfo p with
+    | NoDependents -> ()
+    | Mixed lst ->
+        displayDependentsInfoPopup lst model dispatch
+    | OneSig ((inputSigs, outputSigs), instances) ->
+        let headCell heading =  th [ ] [ str heading ]
+        let makeRow isInput (name,width) = 
+            tr []
+                [
+                    td [] [str (if isInput then "Input" else "Output")]
+                    td [] [makePortName name width]
+                    td [] [makePortName name width]
+                    td [] [str "?"]
+                ]
+        let body = 
+            div [] 
+                [
+                    str "You can automatically update all dependent sheets to match the current sheet."
+                    str "Ports will need to be reconnected only if they cannot be automatically matched."
+                    table []
+                        [ 
+                            thead [] [ tr [] (List.map headCell ["Type" ;"Old port"; "New port" ; "No change?"]) ]
+                            tbody []   (List.map (makeRow true) inputSigs) 
+                            tbody []   (List.map (makeRow false) outputSigs) 
+
+                        ]
+                ]
 
         let buttonAction isUpdate _ =
             if isUpdate then
-                failwithf "?" //List.map updateDependency ins p
-        choicePopup "Update Sheet Dependencies" body "Update all" "Save without updating" buttonAction dispatch
+                changeAllDependents p dispatch
+        choicePopup 
+            "Update Sheet Dependencies" 
+            body 
+            "Update all" 
+            "Save without updating" 
+            buttonAction 
+            dispatch
 
 
        

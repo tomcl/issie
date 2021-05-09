@@ -167,8 +167,8 @@ let getDependents (model:Model)  =
                  fst ldc.CanvasState
                  |> List.collect (
                      function 
-                         | {Type = Custom { Name=sheetName; InputLabels=ins; OutputLabels=outs}
-                            Id = cid} -> [ldc.Name, cid,  (ins,outs)]
+                         | {Type = Custom { Name=name; InputLabels=ins; OutputLabels=outs}
+                            Id = cid} when name = sheetName-> [ldc.Name, cid,  (ins,outs)]
                          | _ -> []))
          Some(newSig, instances)
 

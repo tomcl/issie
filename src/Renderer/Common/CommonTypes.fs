@@ -325,6 +325,19 @@ module CommonTypes
         OutputLabels : (string * int) list
     }
 
+    /// Type for an open project which represents a complete design.
+    /// ProjectPath is directory containing project files.
+    /// OpenFileName is name of file from which current schematic sheet is loaded/saved, without extension or path
+    /// LoadedComponents contains the list of schematic sheets, each as a component, one per sheet.
+    type Project = {
+        /// directory which contains the project files
+        ProjectPath : string
+        /// name of open sheet (without extension)
+        OpenFileName : string
+        /// componnets have one-one correspondence with files
+        LoadedComponents : LoadedComponent list
+        }
+
     (*-----------------------------------------------------------------------------*)
     // Types used for naming of waveforms in the Waveform Simulator
 

@@ -48,18 +48,10 @@ let viewOnDiagramButtons model dispatch =
 
 // -- Init Model
 
-/// Initial value of activity subrecord in model
-let initActivity = {
-    AutoSave = Inactive
-    LastSavedCanvasState = Map.empty
-    LastAutoSaveCheck = System.DateTime.MinValue
-    LastAutoSave = Map.empty
-    RunningSimulation = false
-    }
+
 
 /// Initial value of model
 let init() = {
-    AsyncActivity = initActivity
     LastChangeCheckTime = 0.
     // Diagram = new Draw2dWrapper()
     Sheet = fst (Sheet.init())
@@ -243,7 +235,7 @@ let displayView model dispatch =
         
         FileMenuView.viewExitDialog model dispatch
         
-        PopupView.viewPopup model
+        PopupView.viewPopup model dispatch
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
         // main top bar function is early in compile order
         FileMenuView.viewTopMenu model WaveSimHelpers.fileMenuViewActions WaveformSimulationView.WaveformButtonFunc dispatch

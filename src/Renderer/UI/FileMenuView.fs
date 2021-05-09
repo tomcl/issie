@@ -21,6 +21,380 @@ open PopupView
 open System
 open Electron
 
+//--------------------------------------------------------------------------------------------//
+//--------------------------------------------------------------------------------------------//
+//-------------------------------Custom Component Management----------------------------------//
+//--------------------------------------------------------------------------------------------//
+
+
+// Basic idea. When the I/Os of the current sheet are changed this may affect instances of the sheet embedded in other
+// project sheets. Check for this whenever current sheet is saved (which will happen when Issie exits or the
+// edited sheet is changed). Offer, in a dialog, to change all of the affected custom component instances to maintain
+// compatibility. This will usually break the other sheets.
+// all of this code uses the project data structure and (if needed) returns an updated structure.
+
+type IODirection = InputIO | OutputIO
+
+
+
+type Match = {
+    MLabel: string
+    MWidth: int
+    MDir: IODirection
+    }
+
+type PortChange = {
+    Direction: IODirection
+    Old: (string * int) option
+    New: (string * int) option
+    Message: string
+    }
+
+type Signature = (string*int) list * (string*int) list
+
+let getIOMatchFromSig (inputs, outputs)  =
+
+    let makeSig dir (ios: (string * int) list) =
+        ios
+        |> List.map (fun (name,num) -> {MLabel = name; MWidth = num ; MDir = dir})
+    (makeSig InputIO inputs) @
+    (makeSig OutputIO outputs)
+ 
+
+
+/// compare two I/O signature lists 
+let ioCompareSigs (sig1: Signature) (sig2: Signature) =
+    let map (sg: Signature) = 
+        getIOMatchFromSig sg
+        |> List.map (fun m -> (m.MDir, m.MLabel), m)
+        |> Map.ofList
+
+    let ioMap1 = sig1 |> map
+    let ioMap2 = sig2 |> map
+    let ioMap = mapUnion ioMap1 ioMap2
+    let set1,set2 = set (mapKeys ioMap1), set (mapKeys ioMap2)
+    let common = Set.intersect set1 set2
+    let diff1 = set1 - set2
+    let diff2 = set2 - set1
+    mapKeys ioMap
+    |> Array.map 
+        (fun m -> 
+            let getDetails m (ioMap: Map<IODirection*string,Match>) =
+                let ma = Map.tryFind m ioMap
+                let labWidth = ma |> Option.map (fun m -> m.MLabel, m.MWidth)
+                labWidth
+                    
+            let newLW = getDetails m ioMap1
+            let oldLW = getDetails m ioMap2
+            let message =
+                match newLW, oldLW with 
+                |  Some (l1,w1), Some (l2,w2) when l1=l2 && w1=w2 -> "No Change"
+                |  Some (l1,_), Some (l2,_) when l1 = l2 -> "Port width changed"
+                | None, Some _ -> "Port and old connections deleted"
+                | Some _, None -> "New Port will be added"
+                | _ -> failwithf $"What? never happens: {newLW} {oldLW}"
+            {
+                Message = message
+                Direction = fst m
+                New = newLW
+                Old = oldLW
+            })
+
+    
+
+
+
+let findInstancesOfCurrentSheet (project:Project) =
+    let thisSheet = project.OpenFileName
+    let ldcs = project.LoadedComponents
+    let getInstance (comp:Component) =
+        match comp.Type with
+        | Custom ({Name=thisSheet} as cType) -> Some (ComponentId comp.Id, cType)
+        | _ -> None
+
+    let getSheetInstances (ldc:LoadedComponent) =
+        fst ldc.CanvasState
+        |> List.choose getInstance
+
+    ldcs
+    |> List.collect (fun ldc -> 
+        getSheetInstances ldc
+        |> List.map (fun ins -> ldc.Name, ins))
+
+
+type Deps =
+    | NoDependents
+    | OneSig of ((string * int) list * (string * int) list) * (string * (ComponentId * CustomComponentType)) list
+    | Mixed of (string * int) list
+
+let getDependentsInfo (p: Project)  =
+    let instances = findInstancesOfCurrentSheet p
+    let gps = 
+        instances
+        |> List.groupBy (fun (_, (_,{InputLabels=ips; OutputLabels=ops})) -> (ips |> List.sort), (ops |> List.sort))
+        |> List.sortByDescending (fun (tag,items) -> items.Length)
+
+    match gps with
+    | [] -> NoDependents // no dependencies - nothing to do
+    | [sg, items] -> OneSig(sg, items) // normal case, all dependencies have same signature
+    | _ -> // dependencies have mixed signatures
+        instances
+        |> List.groupBy fst
+        |> List.map (fun (tag, lst) -> tag, lst.Length)
+        |> Mixed
+
+
+           
+
+let makePortName (nameWidth :(string*int) option) =
+    match nameWidth with
+    | None -> ""
+    | Some (name,w) -> $"%s{name}({w-1}:{0})"
+    |> str
+
+
+let getDependents (model:Model)  =
+    mapOverProject None model <| fun p ->
+         let sheetName = p.OpenFileName
+         let newSig = 
+             p.LoadedComponents
+             |> List.find (fun ldc -> ldc.Name = sheetName)
+             |> (fun ldc -> parseDiagramSignature ldc.CanvasState)
+         let instances =
+             p.LoadedComponents
+             |> List.filter (fun ldc -> ldc.Name <> sheetName)
+             |> List.collect (fun ldc -> 
+                 fst ldc.CanvasState
+                 |> List.collect (
+                     function 
+                         | {Type = Custom { Name=sheetName; InputLabels=ins; OutputLabels=outs}
+                            Id = cid} -> [ldc.Name, cid,  (ins,outs)]
+                         | _ -> []))
+         Some(newSig, instances)
+
+let dependencyDoesNotMatchSignature newSig oldSig =
+    let sortLists (a,b) = List.sort a, List.sort b
+    sortLists newSig <> sortLists oldSig
+
+
+
+let getOutOfDateDependents (model:Model) =
+    match getDependents model with
+    | None
+    | Some(_, []) -> None
+    | Some (newSig, (_,_,sg) :: _otherInstances) as deps when 
+            dependencyDoesNotMatchSignature newSig sg-> deps
+    | _ -> None
+
+
+/// Return canvasState updated with bad connections that have lost either of their connecting components deleted
+let deleteIncompleteConnections ((comps,conns): CanvasState) =
+    let arrayOfIds (pL: Port list) =
+        Array.ofList pL
+        |> Array.map (fun p -> p.Id)
+    let okPorts = 
+        Array.ofList comps
+        |> Array.collect (fun comp ->
+            Array.append (arrayOfIds comp.InputPorts) (arrayOfIds comp.OutputPorts))
+        |> Set
+    let conns' = List.filter (fun (conn:Connection) -> 
+        Set.contains conn.Source.Id okPorts && 
+        Set.contains conn.Target.Id okPorts) conns
+    comps,conns'
+
+// Updating custom component instances changes the input and output port specifications.
+// The CanvasState inside the custom component is always looked up from the corresponding sheet
+// and not contained in the instance.
+// Inputs and outputs ports have separate lists but work in the same way. A custom component instance
+// is defined in TWO records: comp: Component and ct: CustomComponentType.
+// ct = match comp.Type with | Custom ct -> ct (where for a custom component instance this match always succeeds)
+// ct.InputLabels: (string * int) list -- associates an input port name with the port width. The position in the Inputlabels list is the port number
+// comp.InputPorts: Port list -- input port list contains the input ports, each port record contains .PortNumber its number and .Id its (unique) id.
+// Input port numbers are contiguous set of integers starting from 0.
+// NB output port numbers are similar, thus a number does not uniquely identify a port on a component.
+// Port names are likely to be unique but (maybe) do not have to be for the same reason.
+
+/// Change the items x in lst where uPred x with x -> uFunc x.
+/// Useful to replace one item of a list
+let listUpdate (uPred: 'a -> bool) (uFunc: 'a -> 'a) (lst: 'a list) =
+    lst
+    |> List.map (fun item -> if uPred item then uFunc item else item)
+
+type PortInfo = (string * int) list * Port list
+
+/// Return updated custom component with ports changed as per change
+/// If a port is deleted any corresponding connections must be deleted
+/// to keep the CanvasState consistent. That is done elsewhere, since
+/// deleting not fully connected connections is a straightforward operation
+/// on CanvasState, as done by deleteIncompleteConnections
+let changeInstance (comp:Component) (change: PortChange) =
+    let updateInfo (dir: IODirection) (f: PortInfo -> PortInfo) (comp: Component)=
+        match dir with
+        | InputIO ->
+            let labels,ct = 
+                match comp.Type with 
+                | Custom ct -> ct.InputLabels,ct
+                | cType -> failwithf $"What? '{cType}' not allowed"
+            let ports = comp.InputPorts
+            let (labels,ports) = f (labels,ports)
+            {comp with InputPorts = ports; Type = Custom {ct with InputLabels = labels }}
+        | OutputIO ->
+            let labels,ct = 
+                match comp.Type with 
+                | Custom ct -> ct.OutputLabels,ct 
+                | cType -> failwithf $"What? '{cType}' not allowed"
+            let ports = comp.OutputPorts
+            let (labels, ports) = f (labels,ports)
+            {comp with OutputPorts = ports; Type = Custom {ct with OutputLabels = labels }}
+
+    /// To change a port width only InputLabels (or OutputLabels) need change
+    let changePortWidth (dir: IODirection) (name: string) (newWidth:int) (comp: Component) = 
+        let upf = fun (labels,ports) ->
+            listUpdate (fun (s,_) -> s = name) (fun (s,_) -> (s,newWidth)) labels, ports
+        updateInfo dir upf comp
+    /// To add a port we add it to both lists, creating a new Port record with unique id, and using the next available port number
+    let addPort (dir: IODirection) (name:string) (width:int) (comp:Component) =
+        let upf = fun ((labels,ports):PortInfo) ->
+            let labels = labels @ [name,width]
+            let newPort:Port = 
+                {
+                    Id = EEEHelpers.uuid ()
+                    PortNumber = Some ports.Length // next available number
+                    HostId = comp.Id
+                    PortType = match dir with | InputIO -> PortType.Input | OutputIO -> PortType.Output
+                }
+            let ports = ports @ [newPort]
+            labels,ports
+        updateInfo dir upf comp
+    /// To delete a port we remove it from both lists but also must renumber all of the port records to keep numbers aligned
+    let deletePort (dir: IODirection) (name:string) (comp:Component) =
+        let upf = fun ((labels,ports):PortInfo) ->
+            // first get the port number of the label we will delete
+            let portNum = List.findIndex (fun (s,_) -> s = name) labels
+            // delete the label we do not want
+            let labels = List.filter (fun (s,_) -> s <> name) labels
+            // renumber the ports contiguously, preserving order
+            let ports = 
+                List.filter (fun (port:Port) -> port.PortNumber <> Some portNum) ports
+                |> List.sortBy (fun port -> port.PortNumber)
+                |> List.mapi (fun i port -> {port with PortNumber = Some i})
+            printfn $"deleteport:{labels.Length},{ports.Length}"
+            labels,ports
+        updateInfo dir upf comp
+    let dir = change.Direction
+    match change.New, change.Old with
+    | x,y when x = y -> comp // no change in this case
+    | Some(name,newWidth), Some _ -> changePortWidth dir name newWidth comp
+    | Some(name,width), None -> addPort dir name width comp
+    | None, Some(name,width) -> deletePort dir name comp
+    | newC, oldC -> failwithf $"What? Change with new={newC} and old = {oldC} should not be possible"
+    
+
+let updateInstance (newSig: Signature) (sheet:string,cid:string,oldSig:Signature) (p: Project) =
+    assertThat 
+        (sheet <> p.OpenFileName)
+        $"What? Instances to be changed in {sheet} must not be in custom \
+        component sheet{p.OpenFileName}"
+    let ldc =
+        p.LoadedComponents
+        |> List.find (fun ldc -> ldc.Name = sheet)
+    let (comps,conns) = ldc.CanvasState
+    let comp =
+        comps |> List.find (fun comp -> comp.Id = cid)
+    let changes = ioCompareSigs newSig oldSig
+    let comp' =
+        (comp, changes)
+        ||> Array.fold (fun comp change ->
+            let comp'' = changeInstance comp change
+            comp''
+            )
+    let comps' =
+        comps
+        |> List.map (fun comp -> if comp.Id = cid then comp' else comp)
+    let ldc' = {ldc with CanvasState = deleteIncompleteConnections (comps',conns)}
+    let ldcLst = ldc' :: List.except [ldc] p.LoadedComponents
+    {p with LoadedComponents = ldcLst}
+
+
+
+            
+let updateDependents (newSig: Signature) (instances:(string*string*Signature) list) model dispatch =
+    match model.CurrentProj with
+    | None -> ()
+    | Some p ->
+        (p,instances)
+        ||> List.fold (fun p instance -> updateInstance newSig instance p)
+        |> SetProject
+        |> dispatch
+    
+/// returns a popup function to show the dependents update dialog if this is needed
+let optCurrentSheetDependentsPopup (model: Model) =
+        let sheet = model.CurrentProj |> Option.map (fun p -> p.OpenFileName)
+        match getOutOfDateDependents model  with
+        | None -> None
+        | Some (newSig, (((firstSheet,firstCid,firstSig) :: rest) as instances)) ->
+            let changes = ioCompareSigs newSig firstSig
+            let headCell heading =  th [ ] [ str heading ]
+            let makeRow (change:PortChange) = 
+                tr []
+                    [
+                       
+                        td [] [str (if change.Direction = InputIO  then "Input" else "Output")]
+                        td [] [makePortName change.New]
+                        td [] [makePortName change.Old]
+                        td [] [str change.Message]
+                    ]
+            let body = 
+                div [Style [ MarginTop "15px" ] ] 
+                    [
+                        Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [str $"{sheet}"]
+                        str $"You have changed the inputs or outputs of the current '{sheet}' sheet. "
+                        br []
+                        str "This dialog will automatically update all dependent sheets to match this. "
+                        br []
+                        str $"The '{sheet}' sheet is instantiated as a component {instances.Length} times in dependent sheets. "
+                        str $"If you do not automatically update the instances you will need to delete and recreate each one."
+                        br []
+                        Table.table [
+                               Table.IsHoverable                               
+                               Table.IsBordered
+                               Table.IsNarrow
+                               Table.Props [Style [ MarginTop "15px" ]]]
+                            [ 
+                                thead [] [ tr [] (List.map headCell ["Type" ;"New port"; "Old port" ; "Change"]) ]
+                                tbody []   (Array.map makeRow  changes) 
+                            ]
+                    ]
+
+            let buttonAction isUpdate dispatch  _ =
+                if isUpdate then
+                    updateDependents newSig instances model dispatch
+                    mapOverProject () model  (fun p -> saveAllProjectFilesFromLoadedComponentsToDisk p)
+                dispatch <| ClosePopup
+            choicePopupFunc 
+                "Update All Sheet Instances" 
+                (fun _ -> body)
+                "Update all instances" 
+                "Save the sheet without updating instances" 
+                buttonAction 
+            |> Some
+              
+
+        | _ -> failwithf "What? Impossible"
+
+
+       
+
+ 
+
+
+
+
+//--------------------------------------------------------------------------------------------//
+//--------------------------------------------------------------------------------------------//
+//---------------------Code for CanvasState comparison and FILE BACKUP------------------------//
+//--------------------------------------------------------------------------------------------//
+
 /// Works out number of components and connections changed between two LoadedComponent circuits
 /// a new ID => a change even if the circuit topology is identical. Layout differences do not
 /// mean changes, as is implemented in the reduce functions which remove layout.
@@ -258,9 +632,7 @@ let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
         |> (fun lc -> {p with LoadedComponents=lc})
         |> SetProject
         |> dispatch
-        // update Autosave info
-        SetLastSavedCanvas (p.OpenFileName, state)
-        |> dispatch
+
     SetHasUnsavedChanges false
     |> JSDiagramMsg
     |> dispatch
@@ -354,12 +726,6 @@ let private openFileInProject' saveCurrent name project (model:Model) dispatch =
                     let ldcOpt = Option.map fst opt
                     let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
                     let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
-                    match model.CurrentProj with
-                    | None -> failwithf "What? Should never be able to save sheet when project=None"
-                    | Some p -> 
-                        // update Autosave info
-                        SetLastSavedCanvas (p.OpenFileName,reducedState)
-                        |> dispatch
                     SetHasUnsavedChanges false
                     |> JSDiagramMsg
                     |> dispatch
@@ -391,14 +757,6 @@ let maybeWarning dialogText project =
 
 /// rename a sheet
 let renameSheet oldName newName (model:Model) dispatch =
-    let saveAllFilesFromProject (proj: Project) =
-        proj.LoadedComponents
-        |> List.iter (fun ldc ->
-            let name = ldc.Name
-            let state = ldc.CanvasState
-            let waveInfo = ldc.WaveInfo
-            saveStateToFile proj.ProjectPath name (state,waveInfo)
-            removeFileWithExtn ".dgmauto" proj.ProjectPath name)
 
     let renameComps oldName newName (comps:Component list) : Component list = 
         comps
@@ -433,9 +791,6 @@ let renameSheet oldName newName (model:Model) dispatch =
         let ldcOpt = Option.map fst opt
         let ldComps = updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
         let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
-        // update Autosave info
-        SetLastSavedCanvas (p.OpenFileName,reducedState)
-        |> dispatch
         SetHasUnsavedChanges false
         |> JSDiagramMsg
         |> dispatch
@@ -443,11 +798,8 @@ let renameSheet oldName newName (model:Model) dispatch =
         setupProjectFromComponents proj'.OpenFileName proj'.LoadedComponents model dispatch
         [".dgm";".dgmauto"] |> List.iter (fun extn -> renameFile extn proj'.ProjectPath oldName newName)
         /// save all the other files
-        saveAllFilesFromProject proj'
+        saveAllProjectFilesFromLoadedComponentsToDisk proj'
         dispatch FinishUICmd
-
-        
-    
 
 
 /// rename file
@@ -584,12 +936,31 @@ let addFileToProject model dispatch =
         dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 /// Close current project, if any.
-let private closeProject model dispatch _ =
+let forceCloseProject model dispatch =
     dispatch (StartUICmd CloseProject)
     let sheetDispatch sMsg = dispatch (Sheet sMsg) 
     dispatch EndSimulation // End any running simulation.
     model.Sheet.ClearCanvas sheetDispatch
     dispatch FinishUICmd
+
+let private closeProject model dispatch _ =
+    let closeDialogButtons keepOpen _ =
+        if keepOpen then
+            dispatch ClosePopup
+        else
+            forceCloseProject model dispatch
+
+    if model.SavedSheetIsOutOfDate then 
+        choicePopup 
+                "Close Project?" 
+                (div [] [ str "The current file has unsaved changes."])
+                "Go back to project" 
+                "Close project without saving changes"  
+                closeDialogButtons 
+                dispatch
+    else
+        forceCloseProject model dispatch
+
 
 /// Create a new project.
 let private newProject model dispatch _ =
@@ -704,7 +1075,7 @@ let viewNoProjectMenu model dispatch =
 
     match model.CurrentProj with
     | Some _ -> div [] []
-    | None -> unclosablePopup None initialMenu None []
+    | None -> unclosablePopup None initialMenu None [] dispatch
 
 //TODO ASK WHY WE NEED TO DO THIS _ VARIABLE FOR IT TO WORK?
 //These two functions deal with the fact that there is a type error otherwise..
@@ -729,7 +1100,7 @@ let viewExitDialog model (dispatch : Msg -> unit) =
                     menuItem "Close without saving" (closeApp model dispatch) ]
             ]
 
-    if model.ExitDialog then unclosablePopup None exitMenu None []
+    if model.ExitDialog then unclosablePopup None exitMenu None [] dispatch
     else div [] []
 
 

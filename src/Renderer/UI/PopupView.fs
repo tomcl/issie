@@ -77,7 +77,7 @@ let formatLabelFromType compType (text:string) =
     let text' = extractLabelBase text
     match compType with
     | Input 1 | Output 1 -> text'
-    | Input width | Output width -> sprintf "%s(%d:%d)" text' (width-1) 0
+    //| Input width | Output width -> sprintf "%s(%d:%d)" text' (width-1) 0
     | _ -> text'
 
 
@@ -116,35 +116,42 @@ let getMemoryEditor (dialogData : PopupDialogData) =
         dialogData.MemoryEditorData
 
 /// Unclosable popup.
-let unclosablePopup maybeTitle body maybeFoot extraStyle =
-    let propStyle extraStyle  = Props [Style (UserSelect UserSelectOptions.None :: extraStyle)]
-    let head =
-        match maybeTitle with
-        | None -> div [] []
-        | Some title -> Modal.Card.head [propStyle []] [ Modal.Card.title [] [ str title ] ]
-    let foot =
-        match maybeFoot with
-        | None -> div [] []
-        | Some foot -> Modal.Card.foot [] [ foot ]
-    Modal.modal [ Modal.IsActive true ] [
-        Modal.background [] []
-        Modal.Card.card [Props [Style  extraStyle]] [
-            head
-            Modal.Card.body [Props [Style [UserSelect UserSelectOptions.None]]] [ body ]
-            foot
+let unclosablePopup maybeTitle (body:ReactElement) (maybeFoot: ReactElement option) extraStyle =
+    fun dispatch  ->
+        let propStyle extraStyle  = Props [Style (UserSelect UserSelectOptions.None :: extraStyle)]
+        let head =
+            match maybeTitle with
+            | None -> div [] []
+            | Some title -> Modal.Card.head [propStyle []] [ Modal.Card.title [] [ str title ] ]
+        let foot =
+            match maybeFoot with
+            | None -> div [] []
+            | Some foot -> Modal.Card.foot [] [ foot ]
+        Modal.modal [ Modal.IsActive true ] [
+            Modal.background [] []
+            Modal.Card.card [Props [Style  extraStyle]] [
+                head
+                Modal.Card.body [Props [Style [UserSelect UserSelectOptions.None]]] [ body ]
+                foot
+            ]
         ]
-    ]
+
+let noDispatch (react: ReactElement) =
+    fun (_dispatch: Msg->Unit) -> react
+
+let mapNoDispatch (optReact: ReactElement option) =
+    Option.map noDispatch optReact
 
 let showMemoryEditorPopup maybeTitle body maybeFoot extraStyle dispatch =
-    fun dialogData ->
+    fun _ dialogData->
         let memoryEditorData = getMemoryEditor dialogData
-        unclosablePopup maybeTitle (body memoryEditorData) maybeFoot extraStyle
+        unclosablePopup maybeTitle (body memoryEditorData) maybeFoot extraStyle dispatch
     |> ShowPopup |> dispatch
 
 let private buildPopup title body foot close extraStyle =
-    fun (dialogData : PopupDialogData) ->
+    fun (dispatch:Msg->Unit) (dialogData : PopupDialogData) ->
         Modal.modal [ Modal.IsActive true; Modal.CustomClass "modal1"] [
-            Modal.background [ Props [ OnClick close ]] []
+            Modal.background [ Props [ OnClick (close dispatch)]] []
             Modal.Card.card [ Props [
                 Style ([
                     OverflowY OverflowOptions.Auto
@@ -154,19 +161,19 @@ let private buildPopup title body foot close extraStyle =
                 ] ] [
                 Modal.Card.head [] [
                     Modal.Card.title [] [ str title ]
-                    Delete.delete [ Delete.OnClick close ] []
+                    Delete.delete [ Delete.OnClick (close dispatch) ] []
                 ]
-                Modal.Card.body [Props [Style [ OverflowY OverflowOptions.Visible ;OverflowX OverflowOptions.Visible]]] [ body dialogData ]
-                Modal.Card.foot [] [ foot dialogData ]
+                Modal.Card.body [Props [Style [ OverflowY OverflowOptions.Visible ;OverflowX OverflowOptions.Visible]]] [ body dispatch dialogData ]
+                Modal.Card.foot [] [ foot dispatch dialogData ]
             ]
         ]
 
 
 
 let showWaveSetupPopup maybeTitle (popupBody: MoreWaveSetup option ->ReactElement) maybeFoot extraStyle dispatch =
-    fun (dialogData:PopupDialogData)->
+    fun _ (dialogData:PopupDialogData)->
         printfn "starting morewavesetup popup function"
-        unclosablePopup maybeTitle (popupBody dialogData.WaveSetup) maybeFoot extraStyle
+        unclosablePopup maybeTitle (popupBody dialogData.WaveSetup) maybeFoot extraStyle dispatch
     |> ShowPopup |> dispatch
 
 
@@ -174,14 +181,24 @@ let showWaveSetupPopup maybeTitle (popupBody: MoreWaveSetup option ->ReactElemen
 /// reactElement. The meaning of the input string to those functions is the
 /// content of PopupDialogText (i.e. in a dialog popup, the string is the
 /// current value of the input box.).
-let private dynamicClosablePopup title body foot extraStyle dispatch =
-    buildPopup title body foot (fun _ -> dispatch ClosePopup) extraStyle
+let private dynamicClosablePopup title (body:PopupDialogData -> ReactElement) (foot: PopupDialogData -> ReactElement) (extraStyle: CSSProp list) (dispatch: Msg->Unit) =
+    buildPopup title (fun _ -> body) (fun _ -> foot) (fun dispatch _ -> dispatch ClosePopup) extraStyle
     |> ShowPopup |> dispatch
+
+/// As dynamicClosablePopup but accept functions of dispatch and return the popup function
+let private dynamicClosablePopupFunc title body foot extraStyle =
+        buildPopup title body foot (fun dispatch _ -> dispatch ClosePopup) extraStyle
+
 
 /// Create a popup and add it to the page. Body and foot are static content.
 /// Can be closed by the ClosePopup message.
 let closablePopup title body foot extraStyle dispatch =
     dynamicClosablePopup title (fun _ -> body) (fun _ -> foot) extraStyle dispatch
+
+/// As closablePopup but accept functions and return the popup function
+/// Can be closed by the ClosePopup message.
+let closablePopupFunc title (body:(Msg->Unit)->ReactElement) (foot:(Msg->Unit)->ReactElement) extraStyle  =
+        dynamicClosablePopupFunc title (fun dispatch _ -> body dispatch) (fun dispatch _ -> foot dispatch) extraStyle
 
 /// Create the body of a dialog Popup with only text.
 let dialogPopupBodyOnlyText before placeholder dispatch =
@@ -530,33 +547,43 @@ let confirmationPopup title body buttonText buttonAction dispatch =
         ]
     closablePopup title body foot [] dispatch
 
-/// A static choice dialog popup.
-let choicePopup title body buttonTrueText buttonFalseText buttonAction dispatch =
-    let foot =
+/// A static choice dialog popup returning the popup function
+let choicePopupFunc 
+        title 
+        (body:(Msg->Unit)->ReactElement) 
+        buttonTrueText 
+        buttonFalseText 
+        (buttonAction: bool -> (Msg->Unit) -> Browser.Types.MouseEvent -> Unit) =
+    let foot dispatch =
         Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
             Level.left [] []
             Level.right [] [
                 Level.item [] [
                     Button.button [
                         Button.Color IsLight
-                        Button.OnClick (buttonAction false)
+                        Button.OnClick (buttonAction false dispatch)
                     ] [ str buttonFalseText ]
                 ]
                 Level.item [] [
                     Button.button [
                         Button.Color IsPrimary
-                        Button.OnClick (buttonAction true)
+                        Button.OnClick (buttonAction true dispatch)
                     ] [ str buttonTrueText ]
                 ]
             ]
         ]
-    closablePopup title body foot [] dispatch
+    closablePopupFunc title body foot []
+
+/// A static choice dialog popup.
+let choicePopup title (body:ReactElement) buttonTrueText buttonFalseText (buttonAction: bool -> Browser.Types.MouseEvent -> Unit) dispatch =
+    let popup = choicePopupFunc title (fun _ -> body) buttonTrueText buttonFalseText (fun bool dispatch-> buttonAction bool)
+    dispatch <| ShowPopup popup
 
 /// Display popup, if any is present.
-let viewPopup model =
+let viewPopup model dispatch=
     match model.PopupViewFunc with
     | None -> div [] []
-    | Some popup -> popup model.PopupDialogData
+    | Some popup -> popup dispatch model.PopupDialogData
 
 //===============//
 // Notifications //

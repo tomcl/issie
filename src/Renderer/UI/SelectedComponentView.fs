@@ -369,7 +369,6 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
         div [Key comp.Id] [
             // let label' = extractLabelBase comp.Label
             let label' = comp.Label // No formatting atm
-            printfn "Entering view selected with %A" comp.Type
             readOnlyFormField "Description" <| makeDescription comp model dispatch
             makeExtraInfo model comp label' dispatch
             let required = match comp.Type with | SplitWire _ | MergeWires | BusSelection _ -> false | _ -> true

@@ -239,18 +239,8 @@ type MenuCommand =
     | MenuZoom of float
     | MenuVerilogOutput
 
-/// Type for an open project which represents a complete design.
-/// ProjectPath is directory containing project files.
-/// OpenFileName is name of file from which current schematic sheet is loaded/saved, without extension or path
-/// LoadedComponents contains the list of schematic sheets, each as a component, one per sheet.
-type Project = {
-    /// directory which contains the project files
-    ProjectPath : string
-    /// name of open sheet (without extension)
-    OpenFileName : string
-    /// componnets have one-one correspondence with files
-    LoadedComponents : LoadedComponent list
-}
+
+
 
 
 
@@ -276,7 +266,7 @@ type Msg =
     | SetClipboard of CanvasState
     | SetCreateComponent of Component
     | SetProject of Project
-    | ShowPopup of (PopupDialogData -> ReactElement)
+    | ShowPopup of ((Msg -> Unit) -> PopupDialogData -> ReactElement)
     | ClosePopup
     | SetPopupDialogText of string option
     | SetPopupDialogInt of int option
@@ -389,7 +379,7 @@ type Model = {
     /// the project contains, as loadable components, the state of each of its sheets
     CurrentProj : Project option
     /// function to create popup pane if present
-    PopupViewFunc : (PopupDialogData -> Fable.React.ReactElement) option
+    PopupViewFunc : ((Msg -> Unit) -> PopupDialogData -> Fable.React.ReactElement) option
     /// data to populate popup (may not all be used)
     PopupDialogData : PopupDialogData
     /// record containing functions that create react elements of notifications

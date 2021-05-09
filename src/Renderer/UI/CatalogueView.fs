@@ -34,8 +34,8 @@ let private createComponent compType label model dispatch =
 let createCompStdLabel comp model dispatch =
     createComponent comp "" model dispatch
 
-let private makeCustom model dispatch (loadedComponent: LoadedComponent)  =
-    menuItem [] loadedComponent.Name (fun _ ->
+let private makeCustom styles model dispatch (loadedComponent: LoadedComponent)  =
+    menuItem styles loadedComponent.Name (fun _ ->
         let custom = Custom {
             Name = loadedComponent.Name
             InputLabels = loadedComponent.InputLabels
@@ -45,14 +45,14 @@ let private makeCustom model dispatch (loadedComponent: LoadedComponent)  =
         Sheet (Sheet.InitialiseCreateComponent (custom, "")) |> dispatch
     )
 
-let private makeCustomList model dispatch =
+let private makeCustomList styles model dispatch =
     match model.CurrentProj with
     | None -> []
     | Some project ->
         // Do no show the open component in the catalogue.
         project.LoadedComponents
         |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-        |> List.map (makeCustom model dispatch)
+        |> List.map (makeCustom styles model dispatch)
 
 let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
     let title = sprintf "Add %s node" typeStr
@@ -316,11 +316,12 @@ let mutable firstTip = true
 
 let mutable tippyNodes: Browser.Types.Element list = []
 
-let private makeMenuGroupWithTip  title tip menuList =
+let private makeMenuGroupWithTip styles  title tip menuList =
     details [
         Open false;
         HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
         Tooltip.dataTooltip tip
+        Style styles
     ] [
         summary [menuLabelStyle] [ str title ]
         Menu.list [] menuList
@@ -406,11 +407,11 @@ let viewCatalogue model dispatch =
                                                     the addressed data in the clock cycle after the address is presented"
                           catTip1 "RAM" (fun _ -> createMemoryPopup RAM1 model dispatch)  "A RAM whose output contains the addressed \
                                                    data in the clock cycle after the address is presented" ]
-                    makeMenuGroupWithTip 
+                    makeMenuGroupWithTip styles
                         "This project"
                         "Every design sheet is available for use in other sheets as a custom component: \
                         it can be added any number of times, each instance replicating the sheet logic"
-                        (makeCustomList model dispatch)
+                        (makeCustomList styles model dispatch)
                 ]
 
         (viewCatOfModel) model 

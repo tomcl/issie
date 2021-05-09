@@ -235,7 +235,7 @@ let displayView model dispatch =
         
         FileMenuView.viewExitDialog model dispatch
         
-        PopupView.viewPopup model
+        PopupView.viewPopup model dispatch
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
         // main top bar function is early in compile order
         FileMenuView.viewTopMenu model WaveSimHelpers.fileMenuViewActions WaveformSimulationView.WaveformButtonFunc dispatch

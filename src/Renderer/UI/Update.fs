@@ -201,7 +201,8 @@ let update (msg : Msg) oldModel =
                 {model with UIState = Some uiCmd}, Cmd.none
         | _ -> model, Cmd.none //otherwise discard the message
     | FinishUICmd _ ->
-        {model with UIState = None}, Cmd.none
+        let popup = FileMenuView.optCurrentSheetDependentsPopup model
+        {model with UIState = None; PopupViewFunc = popup}, Cmd.none
     | ShowExitDialog ->
         match model.CurrentProj with
         | Some p when model.SavedSheetIsOutOfDate ->

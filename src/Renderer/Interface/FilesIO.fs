@@ -562,7 +562,14 @@ let rec askForNewFile (projectPath: string) : string option =
     | w ->
         electron.remote.dialog.showSaveDialogSync(options)
         
-
+let saveAllProjectFilesFromLoadedComponentsToDisk (proj: Project) =
+    proj.LoadedComponents
+    |> List.iter (fun ldc ->
+        let name = ldc.Name
+        let state = ldc.CanvasState
+        let waveInfo = ldc.WaveInfo
+        saveStateToFile proj.ProjectPath name (state,waveInfo)
+        removeFileWithExtn ".dgmauto" proj.ProjectPath name)
 
 let openWriteDialogAndWriteMemory mem path =
     match askForNewFile path with

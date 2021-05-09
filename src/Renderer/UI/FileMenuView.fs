@@ -151,6 +151,43 @@ let ioCompareSigs (sig1: Signature) (sig2: Signature) =
                 Old = oldLW
             })
 
+let guessAtRenamedPorts (matches: PortChange array)  : PortChange array =
+    let matches = Array.toList matches
+    let portsByWidthFiltered (ports: ((string*int) * PortChange) list) =
+        ports
+        |> List.groupBy (fst >> snd)
+        |> List.collect (function |(width, [item]) -> [width,item] | _ -> [] )
+        |> Map.ofList
+  
+    let additions = 
+        matches
+        |> List.collect (function | {New = Some (name,width); Old = None; Direction = dir } as m -> [(name,width), m] | _ -> [])
+        |> portsByWidthFiltered
+
+    let deletions = 
+        matches
+        |> List.collect (function | {Old = Some (name,width); New = None; Direction = dir } as m -> [(name,width), m] | _ -> [])
+        |> portsByWidthFiltered
+
+    let guessedRenames, deletedMatches =
+        Set.intersect (Set (mapKeys additions)) (Set (mapKeys deletions))
+        |> Set.toList
+        |> List.map (fun n -> 
+            {
+                New = Some (fst additions.[n])
+                Old = Some (fst deletions.[n])
+                Direction = (additions.[n] |> snd).Direction
+                Message = "This appears to be a renamed port, connections will be kept"
+            }, [snd additions.[n]; snd deletions.[n]])
+        |> List.unzip
+
+    let deletedMatches = List.concat deletedMatches
+    // the final result
+    Set matches - Set deletedMatches
+    |> Set.union (Set guessedRenames)
+    |> Set.toArray
+
+        
     
 
 
@@ -279,6 +316,7 @@ type PortInfo = (string * int) list * Port list
 /// deleting not fully connected connections is a straightforward operation
 /// on CanvasState, as done by deleteIncompleteConnections
 let changeInstance (comp:Component) (change: PortChange) =
+
     let updateInfo (dir: IODirection) (f: PortInfo -> PortInfo) (comp: Component)=
         match dir with
         | InputIO ->
@@ -303,6 +341,13 @@ let changeInstance (comp:Component) (change: PortChange) =
         let upf = fun (labels,ports) ->
             listUpdate (fun (s,_) -> s = name) (fun (s,_) -> (s,newWidth)) labels, ports
         updateInfo dir upf comp
+
+    /// To rename a port width only InputLabels (or OutputLabels) need change
+    let changePortName (dir: IODirection) (newName: string) (oldName:string) (comp: Component) = 
+        let upf = fun (labels,ports) ->
+            listUpdate (fun (s,_) -> s = oldName) (fun (_,w) -> (newName,w)) labels, ports
+        updateInfo dir upf comp
+
     /// To add a port we add it to both lists, creating a new Port record with unique id, and using the next available port number
     let addPort (dir: IODirection) (name:string) (width:int) (comp:Component) =
         let upf = fun ((labels,ports):PortInfo) ->
@@ -317,6 +362,7 @@ let changeInstance (comp:Component) (change: PortChange) =
             let ports = ports @ [newPort]
             labels,ports
         updateInfo dir upf comp
+
     /// To delete a port we remove it from both lists but also must renumber all of the port records to keep numbers aligned
     let deletePort (dir: IODirection) (name:string) (comp:Component) =
         let upf = fun ((labels,ports):PortInfo) ->
@@ -332,13 +378,24 @@ let changeInstance (comp:Component) (change: PortChange) =
             printfn $"deleteport:{labels.Length},{ports.Length}"
             labels,ports
         updateInfo dir upf comp
+
     let dir = change.Direction
     match change.New, change.Old with
-    | x,y when x = y -> comp // no change in this case
-    | Some(name,newWidth), Some _ -> changePortWidth dir name newWidth comp
-    | Some(name,width), None -> addPort dir name width comp
-    | None, Some(name,width) -> deletePort dir name comp
-    | newC, oldC -> failwithf $"What? Change with new={newC} and old = {oldC} should not be possible"
+    | x,y when x = y -> 
+        comp // no change in this case
+    | Some (newName,width'), Some(oldName,width) when width'=width ->
+        // a guessed rename operation
+        changePortName dir newName oldName comp
+    | Some(name',newWidth), Some (name,oldWidth) when name=name' -> 
+        changePortWidth dir name newWidth comp
+    | Some newC, Some oldC -> 
+        failwithf $"What? Change with new={newC} and old = {oldC} should not be possible"
+    | Some(name,width), None -> 
+        addPort dir name width comp
+    | None, Some(name,width) -> 
+        deletePort dir name comp
+    | newC, oldC -> 
+        failwithf $"What? Change with new={newC} and old = {oldC} should not be possible"
     
 
 let updateInstance (newSig: Signature) (sheet:string,cid:string,oldSig:Signature) (p: Project) =
@@ -377,61 +434,77 @@ let updateDependents (newSig: Signature) (instances:(string*string*Signature) li
         ||> List.fold (fun p instance -> updateInstance newSig instance p)
         |> SetProject
         |> dispatch
+
+let checkCanvasStateIsOk (model:Model) =
+    mapOverProject false model (fun p ->
+        let ldc = List.find (fun ldc -> ldc.Name = p.OpenFileName) p.LoadedComponents
+        let comps,conns = ldc.CanvasState
+        let ioNames =
+            comps
+            |> List.filter (fun comp -> match comp.Type with | Input _ | Output _ -> true | _ -> false)
+            |> List.map (fun comp -> comp.Label)
+        ioNames.Length = (List.distinct ioNames).Length
+        )
     
 /// returns a popup function to show the dependents update dialog if this is needed
 let optCurrentSheetDependentsPopup (model: Model) =
         let sheet = model.CurrentProj |> Option.map (fun p -> p.OpenFileName)
-        match getOutOfDateDependents model  with
-        | None -> None
-        | Some (newSig, (((firstSheet,firstCid,firstSig) :: rest) as instances)) ->
-            let changes = ioCompareSigs newSig firstSig
-            let headCell heading =  th [ ] [ str heading ]
-            let makeRow (change:PortChange) = 
-                tr []
-                    [
+        if not <| checkCanvasStateIsOk model then
+            None // do nothing if IOs are not currently valid
+        else       
+            match getOutOfDateDependents model  with
+            | None -> None
+            | Some (newSig, (((firstSheet,firstCid,firstSig) :: rest) as instances)) ->
+                let changes = 
+                    ioCompareSigs newSig firstSig
+                    |> guessAtRenamedPorts
+                let headCell heading =  th [ ] [ str heading ]
+                let makeRow (change:PortChange) = 
+                    tr []
+                        [
                        
-                        td [] [str (if change.Direction = InputIO  then "Input" else "Output")]
-                        td [] [makePortName change.New]
-                        td [] [makePortName change.Old]
-                        td [] [str change.Message]
-                    ]
-            let body = 
-                div [Style [ MarginTop "15px" ] ] 
-                    [
-                        Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [str $"{sheet}"]
-                        str $"You have changed the inputs or outputs of the current '{sheet}' sheet. "
-                        br []
-                        str "This dialog will automatically update all dependent sheets to match this. "
-                        br []
-                        str $"The '{sheet}' sheet is instantiated as a component {instances.Length} times in dependent sheets. "
-                        str $"If you do not automatically update the instances you will need to delete and recreate each one."
-                        br []
-                        Table.table [
-                               Table.IsHoverable                               
-                               Table.IsBordered
-                               Table.IsNarrow
-                               Table.Props [Style [ MarginTop "15px" ]]]
-                            [ 
-                                thead [] [ tr [] (List.map headCell ["Type" ;"New port"; "Old port" ; "Change"]) ]
-                                tbody []   (Array.map makeRow  changes) 
-                            ]
-                    ]
+                            td [] [str (if change.Direction = InputIO  then "Input" else "Output")]
+                            td [] [makePortName change.New]
+                            td [] [makePortName change.Old]
+                            td [] [str change.Message]
+                        ]
+                let body = 
+                    div [Style [ MarginTop "15px" ] ] 
+                        [
+                            Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [str $"{sheet}"]
+                            str $"You have changed the inputs or outputs of the current '{sheet}' sheet. "
+                            br []
+                            str "This dialog will automatically update all dependent sheets to match this. "
+                            br []
+                            str $"The '{sheet}' sheet is instantiated as a component {instances.Length} times in dependent sheets. "
+                            str $"If you do not automatically update the instances you will need to delete and recreate each one."
+                            br []
+                            Table.table [
+                                   Table.IsHoverable                               
+                                   Table.IsBordered
+                                   Table.IsNarrow
+                                   Table.Props [Style [ MarginTop "15px" ]]]
+                                [ 
+                                    thead [] [ tr [] (List.map headCell ["Type" ;"New port"; "Old port" ; "Change"]) ]
+                                    tbody []   (Array.map makeRow  changes) 
+                                ]
+                        ]
 
-            let buttonAction isUpdate dispatch  _ =
-                if isUpdate then
-                    updateDependents newSig instances model dispatch
-                    mapOverProject () model  (fun p -> saveAllProjectFilesFromLoadedComponentsToDisk p)
-                dispatch <| ClosePopup
-            choicePopupFunc 
-                "Update All Sheet Instances" 
-                (fun _ -> body)
-                "Update all instances" 
-                "Save the sheet without updating instances" 
-                buttonAction 
-            |> Some
+                let buttonAction isUpdate dispatch  _ =
+                    if isUpdate then
+                        updateDependents newSig instances model dispatch
+                        mapOverProject () model  (fun p -> saveAllProjectFilesFromLoadedComponentsToDisk p)
+                    dispatch <| ClosePopup
+                choicePopupFunc 
+                    "Update All Sheet Instances" 
+                    (fun _ -> body)
+                    "Update all instances" 
+                    "Save the sheet without updating instances" 
+                    buttonAction 
+                |> Some
               
 
-        | _ -> failwithf "What? Impossible"
+            | _ -> failwithf "What? Impossible"
 
 
        

@@ -96,23 +96,33 @@ let memoizeBy (keyFunc: 'a -> 'k) (funcToMemoize: 'a -> 'c) : 'a -> 'c =
             lastValue <- Some v
             v
 
-            
 
+            
+/// Array of map keys
 let mapKeys (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map fst |> Array.ofSeq
+
+/// Array of map values
 let mapValues (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map snd |> Array.ofSeq
+
+/// Array of map key,value items
 let mapItems (map:Map<'a,'b>) = map |> Map.toSeq |> Array.ofSeq
 
+/// Look up key in map, return defVal if key is not found
 let mapFindWithDef (defVal: 'b) (key: 'a) (map:Map<'a,'b>) = 
     Option.defaultValue defVal (Map.tryFind key map)
 
-let mapUpdateWithDef (defVal: 'b) (key: 'a) (update: 'b -> 'b) (map:Map<'a,'b>)  =
+/// If key exists in map: (key:v) -> (key:update v), otherwise create new item
+/// (key : update v)
+let mapUpdateWithDef (defVal: 'b) (update: 'b -> 'b) (key: 'a) (map:Map<'a,'b>)  =
     let v = Option.defaultValue defVal (Map.tryFind key map)
     Map.add key (update v) map
 
+/// Union of maps, common keys take m1 value
 let mapUnion m1 m2 =
     (m2, m1)
     ||> Map.fold (fun m key value -> Map.add key value m )
 
+/// create inverse map
 let mapInverse (m:Map<'A,'B>) =
     m
     |> Map.toArray
@@ -447,10 +457,10 @@ let printAgg (agg: AggregatedData) =
 /// process a new time interval updating the aggregated data for future printout
 let updateAgg (name:string) (time: float) (agg: AggregatedData) =
     { agg with
-        Counts = mapUpdateWithDef 0 name ((+) 1) agg.Counts
-        Times = mapUpdateWithDef 0. name ((+) time) agg.Times
-        MaxVals = mapUpdateWithDef 0. name (max time) agg.MaxVals
-        MinVals = mapUpdateWithDef 1.0E10 name (min time) agg.MinVals
+        Counts = mapUpdateWithDef 0 ((+) 1) name agg.Counts
+        Times = mapUpdateWithDef 0. ((+) time) name agg.Times
+        MaxVals = mapUpdateWithDef 0. (max time) name agg.MaxVals
+        MinVals = mapUpdateWithDef 1.0E10 (min time) name agg.MinVals
     }
 
 

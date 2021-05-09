@@ -317,11 +317,11 @@ let mutable firstTip = true
 let mutable tippyNodes: Browser.Types.Element list = []
 
 let private makeMenuGroupWithTip  title tip menuList =
-    let addTip (el: Browser.Types.Element) =
-        if not (isNull el) && firstTip then 
-            el.setAttribute("data-tippy-content",tip)
-            tippyNodes <- el :: tippyNodes
-    details [Open false; Ref addTip] [
+    details [
+        Open false;
+        HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
+        Tooltip.dataTooltip tip
+    ] [
         summary [menuLabelStyle] [ str title ]
         Menu.list [] menuList
     ]

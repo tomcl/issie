@@ -294,6 +294,19 @@ let checkPerformance m n startTimer stopTimer =
         el |> ignore
         stopTimer "Array"   
 
+    let arrayBufferLookup() = 
+        let buff =
+            [|0..m-1|]
+            |> Array.map (fun i -> (i+1) % m)
+        let mutable index = 0
+        let mutable el = 0
+        startTimer "ArrayBufferLookup"
+        while index < n / 2 do
+             for i = 0 to m-1 do
+                index <- index + buff.[i]
+                el <- el + m
+        el |> ignore
+        stopTimer "ArrayBufferLookup"   
 
     let mutableArrayBuffer() = 
          let buff =
@@ -338,6 +351,19 @@ let checkPerformance m n startTimer stopTimer =
         el |> ignore
         stopTimer "List"   
 
+    let dictBuffer() =
+        let dict = System.Collections.Generic.Dictionary()
+        [|0..m-1|]
+        |> Array.iter (fun i -> dict.[i] <- (i+1) % m)
+        let mutable index = 0
+        let mutable el = 0
+        startTimer "Dict"
+        while index < n do
+            index <- index + 1
+            el <- dict.[el]
+        index |> ignore
+        stopTimer "Dict"   
+
     let mapBuffer() = 
         let buff =
             [|0..m-1|]
@@ -362,9 +388,20 @@ let checkPerformance m n startTimer stopTimer =
         stopTimer "UpdateMap" 
         buf.Count |> ignore
 
+    let updateDictBuffer() = 
+        let dict = System.Collections.Generic.Dictionary()
+        [|0..m-1|]
+        |> Array.iter (fun i -> dict.[i] <- (i+1) % m)
+        startTimer "UpdateDict"
+        let dict = (dict, [|0..n-1|]) ||> Array.fold (fun dict i -> 
+            let d = System.Collections.Generic.Dictionary(dict)
+            d)
+        stopTimer "UpdateDict" 
+
 
     arrayBuffer()
     arrayBuffer()
+    arrayBufferLookup()
     mutableArrayBuffer()
     mutableArrayBuffer()
     updateArrayBuffer()
@@ -373,8 +410,11 @@ let checkPerformance m n startTimer stopTimer =
     listBuffer()
     mapBuffer()
     mapBuffer()
+    dictBuffer()
+    dictBuffer()
     updateMapBuffer()
     updateMapBuffer()
+    updateDictBuffer()
 
 let getTimeMs() = Fable.Core.JS.Constructors.Date.now()
 

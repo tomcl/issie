@@ -243,11 +243,13 @@ let makePortName (nameWidth :(string*int) option) =
 
 let getDependents (model:Model)  =
     mapOverProject None model <| fun p ->
+         printfn "depcheck2a"
          let sheetName = p.OpenFileName
          let newSig = 
              p.LoadedComponents
              |> List.find (fun ldc -> ldc.Name = sheetName)
              |> (fun ldc -> parseDiagramSignature ldc.CanvasState)
+         printfn "depcheck2b"
          let instances =
              p.LoadedComponents
              |> List.filter (fun ldc -> ldc.Name <> sheetName)
@@ -258,6 +260,7 @@ let getDependents (model:Model)  =
                          | {Type = Custom { Name=name; InputLabels=ins; OutputLabels=outs}
                             Id = cid} when name = sheetName-> [ldc.Name, cid,  (ins,outs)]
                          | _ -> []))
+         printfn "depcheck2c"
          Some(newSig, instances)
 
 let dependencyDoesNotMatchSignature newSig oldSig =
@@ -288,6 +291,8 @@ let deleteIncompleteConnections ((comps,conns): CanvasState) =
     let conns' = List.filter (fun (conn:Connection) -> 
         Set.contains conn.Source.Id okPorts && 
         Set.contains conn.Target.Id okPorts) conns
+    if conns <> conns' then
+        printfn "%d Connections deleted" (conns.Length - conns'.Length)
     comps,conns'
 
 // Updating custom component instances changes the input and output port specifications.
@@ -409,7 +414,9 @@ let updateInstance (newSig: Signature) (sheet:string,cid:string,oldSig:Signature
     let (comps,conns) = ldc.CanvasState
     let comp =
         comps |> List.find (fun comp -> comp.Id = cid)
-    let changes = ioCompareSigs newSig oldSig
+    let changes = 
+        ioCompareSigs newSig oldSig
+        |> guessAtRenamedPorts
     let comp' =
         (comp, changes)
         ||> Array.fold (fun comp change ->
@@ -448,16 +455,20 @@ let checkCanvasStateIsOk (model:Model) =
     
 /// returns a popup function to show the dependents update dialog if this is needed
 let optCurrentSheetDependentsPopup (model: Model) =
+        printfn "depcheck1"
         let sheet = model.CurrentProj |> Option.map (fun p -> p.OpenFileName)
         if not <| checkCanvasStateIsOk model then
             None // do nothing if IOs are not currently valid
-        else       
+        else     
+            printfn "depcheck2"
             match getOutOfDateDependents model  with
             | None -> None
             | Some (newSig, (((firstSheet,firstCid,firstSig) :: rest) as instances)) ->
+                printfn "depcheck3"
                 let changes = 
                     ioCompareSigs newSig firstSig
                     |> guessAtRenamedPorts
+                printfn "depcheck4"
                 let headCell heading =  th [ ] [ str heading ]
                 let makeRow (change:PortChange) = 
                     tr []

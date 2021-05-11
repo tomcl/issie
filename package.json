@@ -16,7 +16,7 @@
   "scripts": {
     "clean-dev-mac": "sudo killall -9 node && sudo killall -9 dotnet && sudo killall -9 issie",
     "clean-dev-win": "taskkill /f /im node.exe && taskkill /f /im dotnet.exe && taskkill /f /im issie.exe",
-    "compile": "dotnet fable src/Main && dotnet fable src/Renderer",
+    "compile": "dotnet fable src/Main -s && dotnet fable src/Renderer -s",
     "dev": "dotnet fable watch src/Main -s --run npm run devrenderer",
     "devmain": "dotnet fable watch src/Main --run npm run webpackdev",
     "devrenderer": "dotnet fable watch src/Renderer -s --run npm run webpackdev",

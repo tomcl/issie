@@ -421,7 +421,7 @@ let viewSimulation model dispatch =
                 printfn "Closing wavesim..."
                 dispatch <| SetWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
                 dispatch <| SetWaveSimIsOutOfDate true
-                dispatch <| Sheet (Sheet.ResetSelection)
+                //dispatch <| Sheet (Sheet.ResetSelection)
             | None -> ()
     match model.CurrentStepSimulationStep with
     | None ->
@@ -450,7 +450,7 @@ let viewSimulation model dispatch =
                    | Ok simData -> viewSimulationData simData.ClockTickNumber simData model dispatch
         let endSimulation _ =
             dispatch CloseSimulationNotification // Close error notifications.
-            dispatch <| SetHighlighted ([], []) // Remove highlights.
+            dispatch <| Sheet (Sheet.ResetSelection) // Remove highlights.
             dispatch EndSimulation // End simulation.
             dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
         div [] [

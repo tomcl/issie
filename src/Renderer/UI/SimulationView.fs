@@ -421,7 +421,6 @@ let viewSimulation model dispatch =
                 printfn "Closing wavesim..."
                 dispatch <| SetWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
                 dispatch <| SetWaveSimIsOutOfDate true
-                //dispatch <| Sheet (Sheet.ResetSelection)
             | None -> ()
     match model.CurrentStepSimulationStep with
     | None ->

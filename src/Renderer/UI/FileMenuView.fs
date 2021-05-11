@@ -464,6 +464,11 @@ let optCurrentSheetDependentsPopup (model: Model) =
             match getOutOfDateDependents model  with
             | None -> None
             | Some (newSig, (((firstSheet,firstCid,firstSig) :: rest) as instances)) ->
+                let depSheets = 
+                    instances
+                    |> List.map (fun (sheet,_,_) -> sheet)
+                    |> List.distinct
+                    |> String.concat ","
                 printfn "depcheck3"
                 let changes = 
                     ioCompareSigs newSig firstSig
@@ -487,7 +492,7 @@ let optCurrentSheetDependentsPopup (model: Model) =
                             br []
                             str "This dialog will automatically update all dependent sheets to match this. "
                             br []
-                            str $"The '{sheet}' sheet is instantiated as a component {instances.Length} times in dependent sheets. "
+                            str $"The '{sheet}' sheet is instantiated as a component {instances.Length} times in dependent sheets: '{depSheets}'. "
                             str $"If you do not automatically update the instances you will need to delete and recreate each one."
                             br []
                             Table.table [

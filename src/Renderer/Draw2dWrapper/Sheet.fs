@@ -311,13 +311,13 @@ let findNearbyPorts (model: Model) =
 
 /// Returns what is located at pos
 /// Priority Order: InputPort -> OutputPort -> Component -> Wire -> Canvas
-let mouseOn (model: Model) (posIn: XYPos) : MouseOn =
+let mouseOn (model: Model) (pos: XYPos) : MouseOn =
     let inputPorts, outputPorts = findNearbyPorts model
 
     //TODO FIX THIS - QUICK FIX TO MAKE WORK, NOT IDEAL
     //The ports/wires are being loaded in the correct place but the detection is not working 
     //Something is wrong with the mouse coordinates somewhere, might be caused by zoom? not sure
-    let pos = {X = posIn.X - 2.; Y = posIn.Y - 4.} 
+    //let pos = {X = posIn.X - 2.; Y = posIn.Y - 4.} 
 
     match mouseOnPort inputPorts pos 2.5 with
     | Some (portId, portLoc) -> InputPort (portId, portLoc)

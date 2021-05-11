@@ -589,7 +589,6 @@ let private waveEditorButtons (model: Model) (wSModel:WaveSimModel) dispatch =
             
     /// this is what actually gets displayed when editor exits
     let closeWaveSimButtonAction _ev =
-        printf "DEBUG closeWavesimbutton"
         dispatch <| StartUICmd CloseWaveSim
         dispatch <| SetWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
         dispatch <| ChangeRightTab Catalogue
@@ -876,7 +875,6 @@ let viewWaveSim (model: Model) dispatch =
         [ div [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]
               [ SimulationView.viewSimulationError simError
                 button [ Button.Color IsDanger ] (fun _ -> 
-                    printf "DEBUG button clicked"
                     dispatch CloseSimulationNotification // Close error notifications.
                     dispatch <| Sheet(Sheet.ResetSelection) // Remove highlights.
                     dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.

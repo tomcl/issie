@@ -266,6 +266,8 @@ type Msg =
     | SetClipboard of CanvasState
     | SetCreateComponent of Component
     | SetProject of Project
+    | UpdateProject of (Project -> Project)
+    | UpdateProjectWithoutSyncing of (Project->Project)
     | ShowPopup of ((Msg -> Unit) -> PopupDialogData -> ReactElement)
     | ClosePopup
     | SetPopupDialogText of string option

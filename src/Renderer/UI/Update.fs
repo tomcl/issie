@@ -290,6 +290,10 @@ let update (msg : Msg) oldModel =
             CurrentProj = Some project
             PopupDialogData = {model.PopupDialogData with ProjectPath = project.ProjectPath}
         }, Cmd.none
+    | UpdateProject update -> 
+        FileMenuView.updateProjectFiles true update model, Cmd.none
+    | UpdateProjectWithoutSyncing update -> 
+        FileMenuView.updateProjectFiles false update model,Cmd.none
     | ShowPopup popup -> { model with PopupViewFunc = Some popup }, Cmd.none
     | ClosePopup ->
         let model' =

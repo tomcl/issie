@@ -156,7 +156,7 @@ let sheetMsg sMsg model =
 
 /// Main MVU model update function
 let update (msg : Msg) oldModel =
-    printfn "DEBUG msg = %A" msg
+    printf "DEBUG msg = %A" msg
     let startUpdate = Helpers.getTimeMs()
     // number of top-level components in graph
     // mostly, we only operate on top-level components
@@ -278,7 +278,6 @@ let update (msg : Msg) oldModel =
         | WaveSim -> Cmd.ofMsg (Sheet (Sheet.SetWaveSimMode true))
  
     | SetHighlighted (componentIds, connectionIds) ->
-        printf "DEBUG setHighlighted: \n componentIds : %A \n\n connectionIds : %A" componentIds connectionIds
         let sModel, sCmd = Sheet.update (Sheet.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
         {model with Sheet = sModel}, Cmd.map Sheet sCmd
     | SetSelWavesHighlighted connIds ->

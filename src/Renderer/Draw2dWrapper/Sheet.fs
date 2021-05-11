@@ -963,7 +963,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             else List.filter (fun conId -> List.contains conId connIds |> not) oldWires
         {model with SelectedWires = newWires}, wireCmd (BusWire.SelectWires newWires)
     | ColourSelection (compIds, connIds, colour) ->
-        printf "DEBUG ColourSelection \n compIds: %A \n\n connIds : %A \n\n colour : %A" compIds connIds colour
         {model with SelectedComponents = compIds; SelectedWires = connIds},
         Cmd.batch [
             symbolCmd (Symbol.ColorSymbols (compIds, colour)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.

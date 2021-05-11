@@ -170,6 +170,14 @@ let portLists numOfPorts hostID portType =
 
 //-----------------------Skeleton Message type for symbols---------------------//
 
+///Rounds an integer to any given number. The first parameter is the number to round to, the second parameter is the input number that will be rounded
+let roundToN (n : int) (x : int) =
+    x + abs((x % n) - n)
+
+let customToLength (lst : (string * int) list) =
+    List.map (fst >> String.length) lst
+    |> List.max
+
 // helper function to initialise each type of component
 let makeComp (pos: XYPos) (comptype: ComponentType) (id:string) (label:string) : Component =
 
@@ -220,8 +228,13 @@ let makeComp (pos: XYPos) (comptype: ComponentType) (id:string) (label:string) :
         | RAM1 (a)-> ( 3 , 1, 3*GridSize  , 4*GridSize) 
         | NbitsXor (n) -> (  2 , 1, 3*GridSize  , 4*GridSize) 
         | NbitsAdder (n) -> (  3 , 2, 3*GridSize  , 4*GridSize) 
-        | Custom x -> let h = (GridSize + GridSize*(List.max [List.length x.InputLabels; List.length x.OutputLabels]))
-                      ( List.length x.InputLabels, List.length x.OutputLabels, h ,  4*GridSize )
+        | Custom x -> 
+            let h = GridSize + GridSize * (List.max [List.length x.InputLabels; List.length x.OutputLabels])
+            let maxInLength, maxOutLength = customToLength x.InputLabels, customToLength x.OutputLabels
+            let maxW = (max maxInLength maxOutLength) + label.Length
+            let scaledW = roundToN GridSize (maxW * GridSize / 3) //Divide by 3 is just abitrary as otherwise the symbols would be too wide 
+            let w = max scaledW (GridSize * 4) //Ensures a minimum width if the labels are very small
+            ( List.length x.InputLabels, List.length x.OutputLabels, h ,  w)
                 
     makeComponent args label
    

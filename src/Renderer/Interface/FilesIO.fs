@@ -65,19 +65,30 @@ let fileExistsWithExtn extn folderPath baseName =
 /// Create file if it does not exist.
 let writeFileBase64 path data =
     let options = createObj ["encoding" ==> "base64"] |> Some
-    fs.writeFileSync(path, data, options)
+    try
+        fs.writeFileSync(path, data, options)
+        Ok ()
+    with
+        | e -> Error $"Error '{e.Message}' writing file '{path}'"   
 
 /// Write utf8 encoded data to file.
 /// Create file if it does not exist.
 let writeFile path data =
-    let options = createObj ["encoding" ==> "utf8"] |> Some
-    fs.writeFileSync(path, data, options)
+    try
+        let options = createObj ["encoding" ==> "utf8"] |> Some
+        fs.writeFileSync(path, data, options)
+        Ok ()
+    with
+        | e -> Error $"Error '{e.Message}' writing file '{path}'"
 
 
 let readFilesFromDirectory (path:string) : string list =
     if fs.existsSync (U2.Case1 path) then
-        fs.readdirSync(U2.Case1 path)
-        |> Seq.toList
+        try 
+            fs.readdirSync(U2.Case1 path)
+            |> Seq.toList
+        with 
+            | _ -> []
     else
         []
 
@@ -123,8 +134,12 @@ let private tryLoadStateFromPath (filePath: string) =
     if not (fs.existsSync (U2.Case1 filePath)) then
         Error <| sprintf "Can't read file from %s because it does not seem to exist!" filePath      
     else
-        fs.readFileSync(filePath, "utf8")
-        |> jsonStringToState
+        try
+            Ok (fs.readFileSync(filePath, "utf8"))
+        with
+            | e -> Error $"Error {e.Message} reading file '{filePath}'"
+
+        |> Result.map jsonStringToState
         |> ( function
             | Error msg  -> Error <| sprintf "could not convert file '%s' to a valid issie design sheet. Details: %s" filePath msg
             | Ok res -> Ok res)
@@ -279,7 +294,7 @@ let tryCreateFolder (path : string) =
         try
             Result.Ok <| fs.mkdirSync path
         with
-            | ex -> Result.Error <| sprintf "%A" ex
+            | ex -> Result.Error <| $"Can't create folder '{path}': {ex.Message}"
 
 
 /// Asyncronously remove file.
@@ -287,7 +302,10 @@ let tryCreateFolder (path : string) =
 let removeFileWithExtn extn folderPath baseName  =
     let path = path.join [| folderPath; baseName + extn |]
     if fs.existsSync (U2.Case1 path) then
-        fs.unlink (U2.Case1 path, ignore) // Asynchronous.
+        try 
+            fs.unlink (U2.Case1 path, ignore) // Asynchronous.
+        with
+            | _ -> ()
     else
         ()
 
@@ -295,7 +313,12 @@ let renameFile extn folderPath baseName newBaseName =
     let oldPath = path.join [| folderPath; baseName + extn |]
     let newPath = path.join [| folderPath; newBaseName + extn |]
     if fs.existsSync <| U2.Case1 oldPath then
-        fs.renameSync (oldPath, newPath) // synchronous.
+        try
+            Ok <| fs.renameSync (oldPath, newPath) // synchronous.
+        with
+            | e -> Error  $"Rename of '{baseName}' in '{folderPath}' failed"
+    else
+        Error $"Error: The file '{baseName}' appears to have been removed"
 
 let removeFile (folderPath:string) (baseName:string) = removeFileWithExtn ".dgm" folderPath baseName
 
@@ -348,11 +371,15 @@ let readMemDefns (addressWidth:int) (wordWidth: int) (fPath: string) =
     
 
 let writeMemDefns (fPath: string) (mem: Memory1) =
-    Map.toArray mem.Data
-    |> Array.sortBy fst
-    |> Array.map (fun (a,b) -> $"{NumberHelpers.hex64 a}\t{NumberHelpers.hex64 b}")
-    |> String.concat "\n"
-    |> writeFile fPath
+    try
+        Map.toArray mem.Data
+        |> Array.sortBy fst
+        |> Array.map (fun (a,b) -> $"{NumberHelpers.hex64 a}\t{NumberHelpers.hex64 b}")
+        |> String.concat "\n"
+        |> writeFile fPath
+        |> Ok
+    with
+        | e -> Error $"Error writing file '{fPath}': {e.Message}"
 
 let initialiseMem (mem: Memory1) (projectPath:string) =
     let memResult =
@@ -364,7 +391,7 @@ let initialiseMem (mem: Memory1) (projectPath:string) =
         | ToFile name ->
             let fPath = pathJoin [| projectPath; name + ".ram"|]
             writeMemDefns fPath mem
-            Ok mem.Data
+            |> Result.map ( fun _ -> mem.Data)
 
         | FromFile name ->
             let fPath = pathJoin [| projectPath; name + ".ram"|]
@@ -495,9 +522,10 @@ let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp w
 /// Return the component, or an Error string.
 let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
     match tryLoadStateFromPath filePath with
-    | Result.Error msg ->  
+    | Result.Error msg  
+    | Ok (Result.Error msg) ->
         Error <| sprintf "Can't load component %s because of Error: %s" (getBaseNameNoExtension filePath)  msg
-    | Ok state ->
+    | Ok (Ok state) ->
         makeLoadedComponentFromCanvasData 
             (getLatestCanvas state) 
             filePath 
@@ -568,7 +596,7 @@ let saveAllProjectFilesFromLoadedComponentsToDisk (proj: Project) =
         let name = ldc.Name
         let state = ldc.CanvasState
         let waveInfo = ldc.WaveInfo
-        saveStateToFile proj.ProjectPath name (state,waveInfo)
+        saveStateToFile proj.ProjectPath name (state,waveInfo) |> ignore
         removeFileWithExtn ".dgmauto" proj.ProjectPath name)
 
 let openWriteDialogAndWriteMemory mem path =
@@ -581,7 +609,7 @@ let openWriteDialogAndWriteMemory mem path =
                 fpath + ".ram"
             else
                 fpath
-        writeMemDefns fpath' mem
+        writeMemDefns fpath' mem |> ignore
         Some fpath'
     
 

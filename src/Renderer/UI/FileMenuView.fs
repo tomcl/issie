@@ -26,6 +26,11 @@ open Electron
 //-------------------------------New-style project update and saving--------------------------//
 //--------------------------------------------------------------------------------------------//
 
+let displayAlertOnError (dispatch: Msg -> Unit) res =
+    match res with
+    | Error e -> 
+        dispatch <| SetFilesNotification (errorFilesNotification e)
+    | _ -> ()
 
 /// Save any changed sheets to disk in the project directory
 let syncLoadedComponentsToDisk newProj oldProj =
@@ -36,6 +41,7 @@ let syncLoadedComponentsToDisk newProj oldProj =
         let state = ldc.CanvasState
         let waveInfo = ldc.WaveInfo
         saveStateToFile newProj.ProjectPath ldc.Name (state,waveInfo)
+        |> ignore
         removeFileWithExtn ".dgmauto" oldProj.ProjectPath ldc.Name
 
     let nameOf sheet (ldc:LoadedComponent) = ldc.Name = sheet
@@ -567,7 +573,7 @@ let readLastBackup comp =
 /// Write Loadedcomponent comp to a backup file if there has been any change.
 /// Overwrite the existing backup file only if it is a small, and recent, change.
 /// Parameters determine thresholds of smallness and recency
-let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp = 
+let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (dispatch: Msg -> Unit)= 
     let nSeq, backupFileName, backFilePath =
         match readLastBackup comp with
         | Some( n, fp, path) -> n+1,fp, path
@@ -611,6 +617,7 @@ let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp =
             TimeStamp = timestamp
             FilePath = backupPath}
         |> writeComponentToFile
+        |> displayAlertOnError dispatch
         /// if necessary delete the old backup file
         match oldFile with
         | Some oldPath when oldPath <> backupPath ->
@@ -679,7 +686,7 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
     //printfn "Check 6..."
     
 
-let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lcLst: LoadedComponent list) =
+let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lcLst: LoadedComponent list) (dispatch: Msg -> Unit)=
     let n = List.tryFindIndex (fun (lc: LoadedComponent) -> lc.Name = name) lcLst
     match n with
     | None -> 
@@ -688,11 +695,11 @@ let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lc
     | Some n ->
         let oldLc = lcLst.[n]
         let newLc = setFun oldLc
-        writeComponentToBackupFile 0 1. oldLc
+        writeComponentToBackupFile 0 1. oldLc dispatch
         List.mapi (fun i x -> if i = n then newLc else x) lcLst
 
 /// return current project with current sheet updated from canvas if needed
-let updateProjectFromCanvas (model:Model) =
+let updateProjectFromCanvas (model:Model) (dispatch:Msg -> Unit) =
     match model.Sheet.GetCanvasState() with
     | ([], []) -> model.CurrentProj
     | canvasState ->  
@@ -708,7 +715,7 @@ let updateProjectFromCanvas (model:Model) =
             model.CurrentProj
             |> Option.map (fun p -> 
                 {   
-                    p with LoadedComponents = updateLoadedComponents p.OpenFileName setLc p.LoadedComponents
+                    p with LoadedComponents = updateLoadedComponents p.OpenFileName setLc p.LoadedComponents dispatch
                 })
 
 
@@ -729,7 +736,7 @@ let setSavedWave compIds (wave: SavedWaveInfo option) model : Model =
     | Some waveInfo, _ -> model
 
 /// Save the sheet currently open, return  the new sheet's Loadedcomponent if this has changed
-let saveOpenFileAction isAuto model =
+let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
     match model.Sheet.GetCanvasState (), model.CurrentProj with
     | _, None -> None
     | canvasState, Some project ->
@@ -743,6 +750,7 @@ let saveOpenFileAction isAuto model =
             None
         else 
             saveStateToFile project.ProjectPath project.OpenFileName savedState
+            |> displayAlertOnError dispatch
             removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName
             let origLdComp =
                 project.LoadedComponents
@@ -751,12 +759,12 @@ let saveOpenFileAction isAuto model =
                 Map.tryFind project.OpenFileName (fst model.WaveSim)
                 |> Option.map waveSimModel2SavedWaveInfo
             let newLdc, newState = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim, canvasState
-            writeComponentToBackupFile 4 1. newLdc
+            writeComponentToBackupFile 4 1. newLdc dispatch
             Some (newLdc,newState)
         
 /// save current open file, updating model etc, and returning the loaded component and the saved (unreduced) canvas state
 let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
-    let opt = saveOpenFileAction false model
+    let opt = saveOpenFileAction false model dispatch
     let ldcOpt = Option.map fst opt
     let state = Option.map snd opt |> Option.defaultValue ([],[])
     match model.CurrentProj with
@@ -784,7 +792,7 @@ let private isFileInProject name project =
 
 /// Create a new empty .dgm file and return corresponding loaded component.
 let private createEmptyDiagramFile projectPath name =
-    createEmptyDgmFile projectPath name
+    createEmptyDgmFile projectPath name |> ignore
 
     {   
         Name = name
@@ -797,8 +805,8 @@ let private createEmptyDiagramFile projectPath name =
     }
 
 
-let createEmptyComponentAndFile (pPath:string)  (sheetName: string) : LoadedComponent =
-    createEmptyDgmFile pPath sheetName
+let createEmptyComponentAndFile (pPath:string)  (sheetName: string): LoadedComponent =
+    createEmptyDgmFile pPath sheetName |> ignore
     {
         Name=sheetName
         WaveInfo = None
@@ -808,6 +816,7 @@ let createEmptyComponentAndFile (pPath:string)  (sheetName: string) : LoadedComp
         InputLabels = []
         OutputLabels = []
     }
+    
 
 /// Load a new project as defined by parameters.
 /// Ends any existing simulation
@@ -851,13 +860,13 @@ let private openFileInProject' saveCurrent name project (model:Model) dispatch =
     | None -> 
         log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
     | Some lc ->
-        match updateProjectFromCanvas model with
+        match updateProjectFromCanvas model dispatch with
         | None -> failwithf "What? current project cannot be None at this point in openFileInProject"
         | Some p ->
             let updatedModel = {model with CurrentProj = Some p}
             let ldcs =
                 if saveCurrent then 
-                    let opt = saveOpenFileAction false updatedModel
+                    let opt = saveOpenFileAction false updatedModel dispatch
                     let ldcOpt = Option.map fst opt
                     let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
                     let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
@@ -917,12 +926,12 @@ let renameSheet oldName newName (model:Model) dispatch =
                     | _ ->
                         renameCustomComponents newName ldComp )
         }
-    match updateProjectFromCanvas model with
+    match updateProjectFromCanvas model dispatch with
     | None -> 
         failwithf "What? current project cannot be None at this point in renamesheet"
     | Some p ->
         let updatedModel = {model with CurrentProj = Some p}
-        let opt = saveOpenFileAction false updatedModel
+        let opt = saveOpenFileAction false updatedModel dispatch
         let ldcOpt = Option.map fst opt
         let ldComps = updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
         let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
@@ -931,7 +940,9 @@ let renameSheet oldName newName (model:Model) dispatch =
         |> dispatch
         let proj' = renameSheetsInProject oldName newName p
         setupProjectFromComponents proj'.OpenFileName proj'.LoadedComponents model dispatch
-        [".dgm";".dgmauto"] |> List.iter (fun extn -> renameFile extn proj'.ProjectPath oldName newName)
+        [".dgm";".dgmauto"] |> List.iter (fun extn -> 
+            renameFile extn proj'.ProjectPath oldName newName
+            |> displayAlertOnError dispatch)
         /// save all the other files
         saveAllProjectFilesFromLoadedComponentsToDisk proj'
         dispatch FinishUICmd
@@ -1042,6 +1053,7 @@ let addFileToProject model dispatch =
                     // Create empty file.
                     let name = (getText dialogData).ToLower()
                     createEmptyDgmFile project.ProjectPath name
+                    |> displayAlertOnError dispatch
                     // Add the file to the project.
                     let newComponent = {
                         Name = name
@@ -1113,6 +1125,7 @@ let private newProject model dispatch _ =
             // Create empty placeholder projectFile.
             let projectFile = baseName path + ".dprj"
             writeFile (pathJoin [| path; projectFile |]) ""
+            |> displayAlertOnError dispatch
             // Create empty initial diagram file.
             let initialComponent = createEmptyComponentAndFile path "main"
             setupProjectFromComponents "main" [initialComponent] model dispatch
@@ -1144,8 +1157,9 @@ let rec resolveComponentOpenPopup
         let buttonAction autoSave _ =
             let comp = {(if autoSave then autoComp else ldComp) with TimeStamp = DateTime.Now}
             writeComponentToFile comp
+            |> displayAlertOnError dispatch
             if compChanges + connChanges > 0 then
-                writeComponentToBackupFile 0 1. comp 
+                writeComponentToBackupFile 0 1. comp dispatch
             resolveComponentOpenPopup pPath (comp :: components) rLst  model dispatch   
         // special case when autosave data is most recent
         let title = "Warning!"

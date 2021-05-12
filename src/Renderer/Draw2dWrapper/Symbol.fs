@@ -175,8 +175,9 @@ let roundToN (n : int) (x : int) =
     x + abs((x % n) - n)
 
 let customToLength (lst : (string * int) list) =
-    List.map (fst >> String.length) lst
-    |> List.max
+    let labelList = List.map (fst >> String.length) lst
+    if List.isEmpty labelList then 0 //if a component has no inputs or outputs list max will fail
+    else List.max labelList
 
 // helper function to initialise each type of component
 let makeComp (pos: XYPos) (comptype: ComponentType) (id:string) (label:string) : Component =
@@ -231,8 +232,8 @@ let makeComp (pos: XYPos) (comptype: ComponentType) (id:string) (label:string) :
         | Custom x -> 
             let h = GridSize + GridSize * (List.max [List.length x.InputLabels; List.length x.OutputLabels])
             let maxInLength, maxOutLength = customToLength x.InputLabels, customToLength x.OutputLabels
-            let maxW = (max maxInLength maxOutLength) + label.Length
-            let scaledW = roundToN GridSize (maxW * GridSize / 3) //Divide by 3 is just abitrary as otherwise the symbols would be too wide 
+            let maxW = maxInLength + maxOutLength + label.Length
+            let scaledW = roundToN GridSize (maxW * GridSize / 5) //Divide by 5 is just abitrary as otherwise the symbols would be too wide 
             let w = max scaledW (GridSize * 4) //Ensures a minimum width if the labels are very small
             ( List.length x.InputLabels, List.length x.OutputLabels, h ,  w)
                 

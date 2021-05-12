@@ -30,7 +30,7 @@ open NumberHelpers
 /// maybe it should be a subfunction.
 let verilogOutput (model: Model) (dispatch: Msg -> Unit) =
     printfn "Verilog output"
-    match FileMenuView.updateProjectFromCanvas model, model.Sheet.GetCanvasState() with
+    match FileMenuView.updateProjectFromCanvas model dispatch, model.Sheet.GetCanvasState() with
         | Some proj, state ->
             match model.UIState with  //TODO should this be its own UI operation?
             | Some _ ->
@@ -42,6 +42,8 @@ let verilogOutput (model: Model) (dispatch: Msg -> Unit) =
                         let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
                         printfn "writing %s" proj.ProjectPath
                         FilesIO.writeFile path (Verilog.getVerilog sim.FastSim)
+                        |> FileMenuView.displayAlertOnError dispatch
+
                         let note = successSimulationNotification $"verilog output written to file {path}"
                         dispatch  <| SetSimulationNotification note
                     | Error simError ->

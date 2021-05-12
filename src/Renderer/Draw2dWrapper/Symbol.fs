@@ -552,10 +552,80 @@ let getCompList compType listSymbols =
             listSymbols
             |> List.filter (fun sym ->
                 (sym.Compo.Type = DFF || sym.Compo.Type = DFFE))
-       | Register x | RegisterE x ->
+       //The following components require this pattern matching in order to correctly identify all of the components in the circuit of that type
+       //Normally this is because they are defined by a width as well as a type
+       | Register _ | RegisterE _ ->
             listSymbols
             |> List.filter (fun sym ->
-                (sym.Compo.Type = Register x || sym.Compo.Type = RegisterE x))
+                match sym.Compo.Type with 
+                | Register _ | RegisterE _ -> true
+                | _ -> false)
+       | Constant1 _ ->
+            listSymbols
+            |> List.filter (fun sym ->
+                match sym.Compo.Type with 
+                | Constant1 _ -> true
+                | _ -> false)
+       | Input _ ->
+           listSymbols
+           |> List.filter (fun sym ->
+               match sym.Compo.Type with 
+               | Input _ -> true
+               | _ -> false)
+       | Output _ ->
+           listSymbols
+           |> List.filter (fun sym ->
+               match sym.Compo.Type with 
+               | Output _ -> true
+               | _ -> false)
+       | Viewer _ ->
+           listSymbols
+           |> List.filter (fun sym ->
+               match sym.Compo.Type with 
+               | Viewer _ -> true
+               | _ -> false)
+       | BusSelection _ ->
+           listSymbols
+           |> List.filter (fun sym ->
+               match sym.Compo.Type with 
+               | BusSelection _ -> true
+               | _ -> false)
+       | BusCompare _ ->
+           listSymbols
+           |> List.filter (fun sym ->
+               match sym.Compo.Type with 
+               | BusCompare _ -> true
+               | _ -> false)
+       | NbitsAdder _ ->
+           listSymbols
+           |> List.filter (fun sym ->
+               match sym.Compo.Type with 
+               | NbitsAdder _ -> true
+               | _ -> false)
+       | NbitsXor _ ->
+           listSymbols
+           |> List.filter (fun sym ->
+               match sym.Compo.Type with 
+               | NbitsXor _ -> true
+               | _ -> false)
+       | AsyncROM1 _ ->
+           listSymbols
+           |> List.filter (fun sym ->
+               match sym.Compo.Type with 
+               | AsyncROM1 _ -> true
+               | _ -> false)
+       | ROM1 _ ->
+           listSymbols
+           |> List.filter (fun sym ->
+               match sym.Compo.Type with 
+               | ROM1 _ -> true
+               | _ -> false)
+       | RAM1 _ ->
+           listSymbols
+           |> List.filter (fun sym ->
+               match sym.Compo.Type with 
+               | RAM1 _ -> true
+               | _ -> false)
        | _ ->
             listSymbols
             |> List.filter (fun sym -> sym.Compo.Type = compType)

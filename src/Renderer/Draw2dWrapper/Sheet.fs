@@ -1040,7 +1040,6 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
           svg
             [ Style 
                 [
-                    Border "3px solid green"
                     Height sizeInPixels
                     Width sizeInPixels           
                 ]

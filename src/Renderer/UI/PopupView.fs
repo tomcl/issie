@@ -693,7 +693,7 @@ let viewInfoPopup dispatch =
             li [] [str "Zoom canvas in/out: Ctrl + MouseWheel"]
             li [] [str "Zoom canvas in: Shift + ="]
             li [] [str "Zoom canvas out: Shift + -"]
-            li [] [str "Zoom canvas to fit screen: Ctrl + W"]
+            li [] [str "Zoom circuit to fit screen: Ctrl + W"]
         ]
     ]
     let foot = div [] []

@@ -11,6 +11,9 @@ open Helpers
 ///Static variables
 let canvasSize = 3500.0
 
+let mutable canvasDiv:Types.Element option = None
+
+
 /// Used to keep mouse movement (AKA velocity) info as well as position
 type XYPosMov = {
     Pos: XYPos
@@ -252,9 +255,12 @@ let getScreenEdgeCoords () =
     let canvas = document.getElementById "Canvas"
     let wholeApp = document.getElementById "WholeApp"
     let rightSelection = document.getElementById "RightSelection"
+    let topMenu = document.getElementById "TopMenu"
     let leftScreenEdge = canvas.scrollLeft
     let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.clientWidth
-    (leftScreenEdge, rightScreenEdge)
+    let topScreenEdge = canvas.scrollTop
+    let bottomScreenEdge = topScreenEdge + rightSelection.offsetHeight - topMenu.clientHeight
+    (leftScreenEdge, rightScreenEdge,topScreenEdge,bottomScreenEdge)
     
 /// Checks if pos is inside any of the bounding boxes of the components in boundingBoxes
 let insideBox (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>) (pos: XYPos) : CommonTypes.ComponentId Option =
@@ -264,7 +270,74 @@ let insideBox (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>) (pos: X
     
     boundingBoxes
     |> Map.tryFindKey insideOneBox // If there are multiple components overlapping (should not happen), return first one found
+
+let standardiseBox (box:BoundingBox) =
+    let x = min box.X (box.X+box.W)
+    let y = min box.Y (box.Y+box.H)
+    let w = abs box.W
+    let h = abs box.H
+    { X=x; Y=y; W=w;H=h}
+
+    //X = (ev.pageX + model.ScrollPos.X) / model.Zoom  ; 
+    //Y = (ev.pageY - headerHeight + model.ScrollPos.Y) / model.Zoom}
+
+let transformScreenToPos (screenPos:XYPos) (scrollPos:XYPos) mag =
+    {X=(screenPos.X + scrollPos.X)/mag; 
+     Y=(screenPos.Y + scrollPos.Y)/mag}
     
+
+///calculates the smallest bounding box that contains two BBs, in form with W,H > 0
+/// Inputs must also have W,H > 0
+let symbolBBUnion (model:Model) = 
+    let maxMag = 2.
+    let boxEdge = 0.
+    let symbolBox = 
+        let symbols =
+            model.Wire.Symbol.Symbols
+            |> Map.toList
+        match symbols with
+        | [] -> None
+        | (_,sym) :: rest ->
+            let co = sym.Compo
+            ({X= float co.X; Y=float co.Y; W=float (co.W); H=float (co.H)}, rest)
+            ||> List.fold (fun (box:BoundingBox) (_,sym) ->
+                    let co = sym.Compo
+                    let maxX = max (box.X+box.W) (float (co.X + co.W))
+                    let maxY = max (box.Y + box.H) (float (co.Y + co.H))
+                    let minX = min box.X (float co.X)
+                    let minY = min box.Y (float co.Y)
+                    {
+                        X = minX
+                        Y = minY
+                        W = maxX - minX
+                        H = maxY - minY
+                    }) |> Some
+        |> (fun boxOpt -> 
+                match boxOpt with
+                | None -> {X=100.; Y=100.; W=100.; H=100.} // default
+                | Some box -> 
+                    let boxEdge = (max box.W box.H) * 0.1
+                    let x = max 0. (box.X - boxEdge)
+                    let y = max 0. (box.Y - boxEdge)
+                    {
+                            X = x
+                            Y = y
+                            W = min (box.W + 2.*boxEdge) (canvasSize - x)
+                            H = min (box.H + 2.*boxEdge) (canvasSize - y)
+                    })
+    let lh,rh,top,bottom = getScreenEdgeCoords()
+    printfn $"Screen: ({lh},{rh}) ({top},{bottom})\nSymbols:({symbolBox.X},{symbolBox.X+symbolBox.W}) ({symbolBox.Y},{symbolBox.Y+symbolBox.H})"
+    let wantedMag = min ((rh - lh)/symbolBox.W) ((bottom-top)/symbolBox.H)
+    let magToUse = min wantedMag maxMag
+    let x = symbolBox.X*magToUse
+    let y = symbolBox.Y*magToUse
+    printfn $"magToUse={magToUse}"
+    x,y,magToUse
+    
+    
+    
+
+
 /// Calculates if two bounding boxes intersect by comparing corner coordinates of each box
 let boxesIntersect (box1: BoundingBox) (box2: BoundingBox) =
     // Requires min and max since H & W can be negative, i.e. we don't know which corner is which automatically
@@ -789,10 +862,16 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         } , Cmd.batch [ symbolCmd (Symbol.SelectSymbols symbols)
                         wireCmd (BusWire.SelectWires wires) ]
     | KeyPress CtrlW ->
-        let leftScreenEdge, rightScreenEdge = getScreenEdgeCoords()
+        let leftScreenEdge, rightScreenEdge,_,_ = getScreenEdgeCoords()
         let newZoom = (rightScreenEdge - leftScreenEdge) / canvasSize
-
-        { model with Zoom = newZoom }, Cmd.none
+        match canvasDiv with
+        | None -> model, Cmd.none
+        | Some el -> 
+            let x,y,magToUse = symbolBBUnion model
+            el.scrollTop <- y
+            el.scrollLeft <- x
+            { model with Zoom = magToUse; ScrollPos={X=x;Y=y}}, Cmd.none
+            //model, Cmd.none
     | ToggleSelectionOpen ->
         //if List.isEmpty model.SelectedComponents && List.isEmpty model.SelectedWires then  
         //    model, Cmd.none
@@ -834,7 +913,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | KeyPress ZoomIn ->
         { model with Zoom = model.Zoom + 0.05 }, Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
     | KeyPress ZoomOut ->
-        let leftScreenEdge, rightScreenEdge = getScreenEdgeCoords()
+        let leftScreenEdge, rightScreenEdge,_,_ = getScreenEdgeCoords()
         //Check if the new zoom will exceed the canvas width
         let newZoom = 
             if rightScreenEdge - leftScreenEdge < (canvasSize * (model.Zoom - 0.05)) then model.Zoom - 0.05
@@ -988,6 +1067,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with SelectedWires = newWires}, Cmd.batch[Cmd.ofMsg (ColourSelection([], newWires, HighLightColor.Blue)); wireCmd (BusWire.SelectWires newWires)]
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
 
+
 /// This function zooms an SVG canvas by transforming its content and altering its size.
 /// Currently the zoom expands based on top left corner. 
 let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list) (svgReact: ReactElement List) (dispatch: Dispatch<Msg>)=
@@ -1027,13 +1107,13 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
             else
                 dispatch <| KeyPress ZoomIn
         else () // Scroll normally if Ctrl is not held down
-
     div [ HTMLAttr.Id "Canvas"
           Style (CSSProp.Cursor (model.CursorType.Text()) :: style)
           OnMouseDown (fun ev -> (mouseOp Down ev)) 
           OnMouseUp (fun ev -> (mouseOp Up ev)) 
           OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
           OnScroll (fun _ -> scrollUpdate ())
+          Ref (fun el -> canvasDiv <- Some el)
           OnWheel wheelUpdate
         ]
         [ 

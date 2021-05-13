@@ -292,8 +292,8 @@ let findNearbyComponents (model: Model) (pos: XYPos) =
     
 /// Checks if pos is inside any of the ports in portList    
 let mouseOnPort portList (pos: XYPos) (margin: float) =
-    let radius = 5.0 // TODO Currently hard coded radius, change in group phase.
-    
+    let radius = 5.0
+
     let insidePortCircle (pos: XYPos) (portLocation: XYPos): bool =        
         let distance = ((pos.X - portLocation.X) ** 2.0 + (pos.Y - portLocation.Y) ** 2.0) ** 0.5
         distance <= radius + margin
@@ -313,6 +313,11 @@ let findNearbyPorts (model: Model) =
 /// Priority Order: InputPort -> OutputPort -> Component -> Wire -> Canvas
 let mouseOn (model: Model) (pos: XYPos) : MouseOn =
     let inputPorts, outputPorts = findNearbyPorts model
+
+    //TODO FIX THIS - QUICK FIX TO MAKE WORK, NOT IDEAL
+    //The ports/wires are being loaded in the correct place but the detection is not working 
+    //Something is wrong with the mouse coordinates somewhere, might be caused by zoom? not sure
+    //let pos = {X = posIn.X - 2.; Y = posIn.Y - 4.} 
 
     match mouseOnPort inputPorts pos 2.5 with
     | Some (portId, portLoc) -> InputPort (portId, portLoc)
@@ -1035,7 +1040,6 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
           svg
             [ Style 
                 [
-                    Border "3px solid green"
                     Height sizeInPixels
                     Width sizeInPixels           
                 ]

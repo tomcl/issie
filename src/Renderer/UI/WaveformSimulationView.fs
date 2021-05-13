@@ -876,7 +876,7 @@ let viewWaveSim (model: Model) dispatch =
               [ SimulationView.viewSimulationError simError
                 button [ Button.Color IsDanger ] (fun _ -> 
                     dispatch CloseSimulationNotification // Close error notifications.
-                    dispatch <| SetHighlighted ([], []) // Remove highlights.
+                    dispatch <| Sheet(Sheet.ResetSelection) // Remove highlights.
                     dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
                     dispatch <| SetWSError None
                     match getCurrentWSMod model with

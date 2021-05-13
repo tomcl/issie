@@ -156,7 +156,6 @@ let sheetMsg sMsg model =
 
 /// Main MVU model update function
 let update (msg : Msg) oldModel =
-
     let startUpdate = Helpers.getTimeMs()
     // number of top-level components in graph
     // mostly, we only operate on top-level components

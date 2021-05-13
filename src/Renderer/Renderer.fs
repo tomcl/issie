@@ -142,6 +142,7 @@ let viewMenu dispatch =
         menuSeparator
         makeItem "Diagram Zoom In" (Some "Shift+Plus") (fun ev -> dispatch Sheet.KeyboardMsg.ZoomIn)
         makeItem "Diagram Zoom Out" (Some "Shift+-") (fun ev -> dispatch Sheet.KeyboardMsg.ZoomOut)
+        makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch Sheet.KeyboardMsg.CtrlW)
         menuSeparator
         makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ -> 
             let webContents = electron.remote.getCurrentWebContents()

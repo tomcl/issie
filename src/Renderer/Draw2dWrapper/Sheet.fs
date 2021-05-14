@@ -257,7 +257,7 @@ let getScreenEdgeCoords () =
     let rightSelection = document.getElementById "RightSelection"
     let topMenu = document.getElementById "TopMenu"
     let leftScreenEdge = canvas.scrollLeft
-    let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.clientWidth
+    let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.offsetWidth
     let topScreenEdge = canvas.scrollTop
     let bottomScreenEdge = topScreenEdge + rightSelection.offsetHeight - topMenu.clientHeight
     (leftScreenEdge, rightScreenEdge,topScreenEdge,bottomScreenEdge)
@@ -286,53 +286,62 @@ let transformScreenToPos (screenPos:XYPos) (scrollPos:XYPos) mag =
      Y=(screenPos.Y + scrollPos.Y)/mag}
     
 
-///calculates the smallest bounding box that contains two BBs, in form with W,H > 0
-/// Inputs must also have W,H > 0
+/// calculates the smallest bounding box that contains two BBs, in form with W,H > 0
+let boxUnion (box:BoundingBox) (box':BoundingBox) =
+    let maxX = max (box.X+box.W) (box'.X + box'.W)
+    let maxY = max (box.Y + box.H) (box'.Y + box'.H)
+    let minX = min box.X box'.X
+    let minY = min box.Y box'.Y
+    {
+        X = minX
+        Y = minY
+        W = maxX - minX
+        H = maxY - minY
+    }
+
+let symbolToBB (symbol:Symbol.Symbol) =
+    let co = symbol.Compo 
+    {X= float co.X; Y=float co.Y; W=float (co.W); H=float (co.H)}
+    
+
+/// Inputs must also have W,H > 0.
+/// Maybe this should include wires as well?
 let symbolBBUnion (model:Model) = 
-    let maxMag = 2.
-    let boxEdge = 0.
-    let symbolBox = 
-        let symbols =
-            model.Wire.Symbol.Symbols
-            |> Map.toList
-        match symbols with
-        | [] -> None
-        | (_,sym) :: rest ->
-            let co = sym.Compo
-            ({X= float co.X; Y=float co.Y; W=float (co.W); H=float (co.H)}, rest)
-            ||> List.fold (fun (box:BoundingBox) (_,sym) ->
-                    let co = sym.Compo
-                    let maxX = max (box.X+box.W) (float (co.X + co.W))
-                    let maxY = max (box.Y + box.H) (float (co.Y + co.H))
-                    let minX = min box.X (float co.X)
-                    let minY = min box.Y (float co.Y)
-                    {
-                        X = minX
-                        Y = minY
-                        W = maxX - minX
-                        H = maxY - minY
-                    }) |> Some
-        |> (fun boxOpt -> 
-                match boxOpt with
-                | None -> {X=100.; Y=100.; W=100.; H=100.} // default
-                | Some box -> 
-                    let boxEdge = (max box.W box.H) * 0.1
-                    let x = max 0. (box.X - boxEdge)
-                    let y = max 0. (box.Y - boxEdge)
-                    {
-                            X = x
-                            Y = y
-                            W = min (box.W + 2.*boxEdge) (canvasSize - x)
-                            H = min (box.H + 2.*boxEdge) (canvasSize - y)
-                    })
+    let symbols =
+        model.Wire.Symbol.Symbols
+        |> Map.toList
+    match symbols with
+    | [] -> None
+    | (_,sym) :: rest ->
+        (symbolToBB sym, rest)
+        ||> List.fold (fun (box:BoundingBox) (_,sym) ->
+                boxUnion box (symbolToBB sym)) 
+        |> Some
+
+let fitCircuitToWindowParas (model:Model) =
+    let maxMagnification = 2.
+    let boxOpt = symbolBBUnion model
+    let sBox =
+        match boxOpt with
+        | None -> {X=100.; Y=100.; W=100.; H=100.} // default if sheet is empty
+        | Some box -> 
+            {
+                    X = box.X
+                    Y = box.Y
+                    W = box.W
+                    H = box.H
+            }
+    let boxEdge = max 30. ((max sBox.W sBox.H) * 0.05)
     let lh,rh,top,bottom = getScreenEdgeCoords()
-    printfn $"Screen: ({lh},{rh}) ({top},{bottom})\nSymbols:({symbolBox.X},{symbolBox.X+symbolBox.W}) ({symbolBox.Y},{symbolBox.Y+symbolBox.H})"
-    let wantedMag = min ((rh - lh)/symbolBox.W) ((bottom-top)/symbolBox.H)
-    let magToUse = min wantedMag maxMag
-    let x = symbolBox.X*magToUse
-    let y = symbolBox.Y*magToUse
-    printfn $"magToUse={magToUse}"
-    x,y,magToUse
+    //printfn $"DEBUG: Screen: ({lh},{rh}) ({top},{bottom})\nSymbols:({sBox.X},{sBox.X+sBox.W}) ({sBox.Y},{sBox.Y+sBox.H})"
+    let wantedMag = min ((rh - lh)/(sBox.W+2.*boxEdge)) ((bottom-top)/(sBox.H+2.*boxEdge))
+    let magToUse = min wantedMag maxMagnification
+    let xMiddle = (sBox.X + sBox.W/2.)*magToUse
+    let xScroll = xMiddle - (rh-lh)/2.
+    let yMiddle = (sBox.Y + (sBox.H)/2.)*magToUse
+    let yScroll = yMiddle - (bottom-top)/2.
+
+    {|ScrollX=xScroll; ScrollY=yScroll; MagToUse=magToUse|}
     
     
     
@@ -862,16 +871,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         } , Cmd.batch [ symbolCmd (Symbol.SelectSymbols symbols)
                         wireCmd (BusWire.SelectWires wires) ]
     | KeyPress CtrlW ->
-        let leftScreenEdge, rightScreenEdge,_,_ = getScreenEdgeCoords()
-        let newZoom = (rightScreenEdge - leftScreenEdge) / canvasSize
         match canvasDiv with
         | None -> model, Cmd.none
         | Some el -> 
-            let x,y,magToUse = symbolBBUnion model
-            el.scrollTop <- y
-            el.scrollLeft <- x
-            { model with Zoom = magToUse; ScrollPos={X=x;Y=y}}, Cmd.none
-            //model, Cmd.none
+            let paras = fitCircuitToWindowParas model
+            el.scrollTop <- paras.ScrollY
+            el.scrollLeft <- paras.ScrollX
+            { model with Zoom = paras.MagToUse; ScrollPos={X=paras.ScrollX;Y=paras.ScrollY}}, Cmd.none
     | ToggleSelectionOpen ->
         //if List.isEmpty model.SelectedComponents && List.isEmpty model.SelectedWires then  
         //    model, Cmd.none

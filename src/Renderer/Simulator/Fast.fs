@@ -1408,6 +1408,26 @@ let rec extractFastSimulationOutput
         | Some (cid, ap) -> extractFastSimulationOutput fs step (cid, ap) (OutputPortNumber 0)
         | None -> failwithf "What? extracting component data failed - can't find component from id"
 
+/// return output port data from simulation
+let rec extractFastSimulationState
+    (fs: FastSimulation)
+    (step: int)
+    ((cid, ap): ComponentId * ComponentId list) =
+
+    match Map.tryFind (cid, ap) fs.FComps with
+    | Some fc ->
+        match fc.State with
+        | None -> failwithf "What? extracting State in step %d from %s failed" step fc.FullName
+        | Some stepArr ->
+            match Array.tryItem step stepArr.Step with
+            | Some state -> state
+            | None ->
+                failwithf $"What? Can't extract state in step {step} from {fc.FullName}"
+    | None -> 
+        failwithf $"What? Can't find fast component {(cid,ap)}"
+
+
+
 /// Extract top-level inputs or outputs with names and wire widths. Used by legacy code.
 let extractFastSimulationIOs
     (simIOs: SimulationIO list)

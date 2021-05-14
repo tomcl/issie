@@ -259,17 +259,19 @@ let getCursorSampleFromGraph (wSMod: WaveSimModel) =
 
 /// get Ram contents as array to display. RAM contents is
 /// determined on cursor sample from wSMod
-let getRamInfoToDisplay wSMod path =
-    let sg = getCursorSampleFromGraph wSMod
-    let sCompOpt = getSimCompOpt sg path
-    match sCompOpt with
-    | None -> "", []
-    | Some sComp ->
-        match sComp.Type with
-        | RAM1 dat | ROM1 dat | AsyncROM1 dat ->
-            let lab = match sComp.Label with |  ComponentLabel lab -> lab
+let getRamInfoToDisplay wSMod (path: ComponentId list) =
+    let cursorStep = wSMod.SimParams.CursorTime
+    let sdOpt = Array.tryItem (int cursorStep) wSMod.SimDataCache
+    let apLst = path |> List.rev |> function | (h::rest) -> h :: (List.rev rest) | [] -> []
+    match sdOpt, apLst with
+    | Some sd, (cid :: ap)  ->
+        let state = Fast.extractFastSimulationState sd.FastSim (int cursorStep) (cid,ap)
+        let lab = match sd.FastSim.FComps.[cid,ap].SimComponent.Label with |  ComponentLabel lab -> lab
+        match state with
+        | RamState dat  ->
             lab, formatMemory dat
-        | _ -> "", []
+        | _ -> lab, []
+    | _ -> "",[]
     
 
 

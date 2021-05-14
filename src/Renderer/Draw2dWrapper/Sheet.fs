@@ -877,7 +877,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let paras = fitCircuitToWindowParas model
             el.scrollTop <- paras.ScrollY
             el.scrollLeft <- paras.ScrollX
-            { model with Zoom = paras.MagToUse; ScrollPos={X=paras.ScrollX;Y=paras.ScrollY}}, Cmd.none
+            { model with Zoom = paras.MagToUse}, Cmd.ofMsg (UpdateScrollPos (el.scrollLeft, el.scrollTop))
     | ToggleSelectionOpen ->
         //if List.isEmpty model.SelectedComponents && List.isEmpty model.SelectedWires then  
         //    model, Cmd.none

@@ -248,6 +248,9 @@ type FastSimulation = {
     /// The step number of the last step that can be simulated in the
     /// current simulation outputs
     mutable MaxStepNum: int 
+    /// The step number of the first step simulated, and the offset used when
+    /// lookip up a clock tick number in the output arrays.
+    mutable OffsetStepNum: int
     /// top-level inputs to the simulation
     FGlobalInputComps: FastComponent array
     /// constants

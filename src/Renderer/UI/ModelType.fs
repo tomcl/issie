@@ -257,7 +257,7 @@ type Msg =
     | AddWaveSimFile of string * WaveSimModel
     | SetSimulationGraph of SimulationGraph  * FastSimulation
     | SetSimulationBase of NumberBase
-    | IncrementSimulationClockTick
+    | IncrementSimulationClockTick of int
     | EndSimulation
     | EndWaveSim
     | ChangeRightTab of RightTab

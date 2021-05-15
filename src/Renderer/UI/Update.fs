@@ -250,9 +250,9 @@ let update (msg : Msg) oldModel =
     | SetSimulationBase numBase ->
         let simData = getSimulationDataOrFail model "SetSimulationBase"
         { model with CurrentStepSimulationStep = { simData with NumberBase = numBase } |> Ok |> Some }, Cmd.none
-    | IncrementSimulationClockTick ->
+    | IncrementSimulationClockTick n ->
         let simData = getSimulationDataOrFail model "IncrementSimulationClockTick"
-        { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber+1 } |> Ok |> Some }, Cmd.none
+        { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber + n } |> Ok |> Some }, Cmd.none
     | EndSimulation -> { model with CurrentStepSimulationStep = None }, Cmd.none
     | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
     | ChangeRightTab newTab -> 

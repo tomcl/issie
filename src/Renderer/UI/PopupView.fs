@@ -189,6 +189,34 @@ let private dynamicClosablePopup title (body:PopupDialogData -> ReactElement) (f
 let private dynamicClosablePopupFunc title body foot extraStyle =
         buildPopup title body foot (fun dispatch _ -> dispatch ClosePopup) extraStyle
 
+/// Popup to track progress of some long operation. Progress is captured via two dialog integers, current and max number.
+/// Typically the number is number of steps.
+/// A work message is input that performs a chunk of the required work where the chunk size (measured in steps) is input
+/// The popup continues to fire work messages, one after another, until the workload is completed.
+/// Work messages are timed by each message firing another similar until the end at which point the popup is closed.
+let private dynamicProgressPopupFunc title (work: int -> Msg) (workLoad: int) =
+    let body (dispatch:Msg->Unit) (dialog:PopupDialogData) =
+        let n = Option.defaultValue 0 dialog.Int        
+        Progress.progress
+            [   Progress.Color IsSuccess
+                Progress.Value n
+                Progress.Max (int (Option.defaultValue 100L (dialog.Int2))) ]
+            [ str $"{n}"]
+
+    let foot (dispatch:Msg->Unit) (dialog:PopupDialogData) =
+        Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
+            Level.left [] []
+            Level.right [] [
+                Level.item [] [
+                    Button.button [
+                        Button.Color IsLight
+                        Button.OnClick (fun _ -> dispatch ClosePopup)
+                    ] [ str "Cancel" ]
+                ]
+            ]
+        ]
+        
+    buildPopup title body foot (fun dispatch _ -> dispatch ClosePopup) []
 
 /// Create a popup and add it to the page. Body and foot are static content.
 /// Can be closed by the ClosePopup message.

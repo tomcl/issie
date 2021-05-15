@@ -310,6 +310,43 @@ let viewSimulationError (simError : SimulationError) =
         error
     ]
 
+let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg -> Unit) (dialog:PopupDialogData) =
+    let step = simData.ClockTickNumber
+    div [] 
+        [
+            h6 [] [str $"This simulation contains {simData.FastSim.FOrderedComps.Length} components"]
+            (match dialog.Int with 
+            | Some n when n > step -> 
+                Text.p [
+                    Modifiers [Modifier.TextWeight TextWeight.Bold] 
+                  ] [str "Goto Tick:"]
+            | _ -> Text.p [
+                            Modifiers [
+                                Modifier.TextWeight TextWeight.Bold
+                                Modifier.TextColor IsDanger] 
+                          ] [str $"The clock tick must be > {step}"])
+            br []
+            Input.number [
+                Input.Props [AutoFocus true;Style [Width "100px"]]
+                Input.DefaultValue <| sprintf "%d" step
+                Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
+            ]
+
+        ]
+
+
+let simulationClockChangeAction dispatch simData (dialog:PopupDialogData) =
+    let clock = 
+        match dialog.Int with
+        | None -> failwithf "What - must have some number from dialog"
+        | Some clock -> clock
+    Fast.runFastSimulation (clock) simData.FastSim 
+    dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)
+    dispatch <| IncrementSimulationClockTick (clock - simData.ClockTickNumber)
+    dispatch <| ClosePopup
+
+
+
 let private viewSimulationData (step: int) (simData : SimulationData) model dispatch =
     let hasMultiBitOutputs =
         simData.Outputs |> List.filter (fun (_,_,w) -> w > 1) |> List.isEmpty |> not
@@ -318,26 +355,45 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
         | false -> div [] []
         | true -> baseSelector simData.NumberBase (changeBase dispatch)
     let maybeClockTickBtn =
+        let step = simData.ClockTickNumber
         match simData.IsSynchronous with
         | false -> div [] []
         | true ->
-            Button.button [
-                Button.Color IsSuccess
-                Button.OnClick (fun _ ->
-                    if SimulationRunner.simTrace <> None then
-                        printfn "*********************Incrementing clock from simulator button******************************"
-                        printfn "-------------------------------------------------------------------------------------------"
-                    let graph = feedClockTick simData.Graph
-                    Fast.runFastSimulation (simData.ClockTickNumber+1) simData.FastSim 
-                    dispatch <| SetSimulationGraph(graph, simData.FastSim)                    
-                    printfn "Comparing clock tick %d" simData.ClockTickNumber
-                    //Fast.compareFastWithGraph simData |> ignore
-                    if SimulationRunner.simTrace <> None then
-                        printfn "-------------------------------------------------------------------------------------------"
-                        printfn "*******************************************************************************************"
-                    IncrementSimulationClockTick |> dispatch
-                )
-            ] [ str <| sprintf "Clock Tick %d" simData.ClockTickNumber ]
+            div [] [
+                Button.button [
+                    Button.Color IsSuccess
+                    Button.OnClick (fun _ ->
+                        let isDisabled (dialogData:PopupDialogData) =
+                            match dialogData.Int with
+                            | Some n -> n <= step
+                            | None -> true
+                        dialogPopup 
+                            "Advance Simulation"
+                            (simulationClockChangePopup simData dispatch)
+                            "Goto Tick"
+                            (simulationClockChangeAction dispatch simData)
+                            isDisabled
+                            dispatch)
+                        ] [ str "Goto" ]
+                str " "
+                Button.button [
+                    Button.Color IsSuccess
+                    Button.OnClick (fun _ ->
+                        if SimulationRunner.simTrace <> None then
+                            printfn "*********************Incrementing clock from simulator button******************************"
+                            printfn "-------------------------------------------------------------------------------------------"
+                        let graph = feedClockTick simData.Graph
+                        Fast.runFastSimulation (simData.ClockTickNumber+1) simData.FastSim 
+                        dispatch <| SetSimulationGraph(graph, simData.FastSim)                    
+                        printfn "Comparing clock tick %d" simData.ClockTickNumber
+                        //Fast.compareFastWithGraph simData |> ignore
+                        if SimulationRunner.simTrace <> None then
+                            printfn "-------------------------------------------------------------------------------------------"
+                            printfn "*******************************************************************************************"
+                        IncrementSimulationClockTick 1 |> dispatch
+                    )
+                ] [ str <| sprintf "Clock Tick %d" simData.ClockTickNumber ]
+            ]
     let maybeStatefulComponents() =
         let stateful = 
             Fast.extractStatefulComponents simData.ClockTickNumber simData.FastSim

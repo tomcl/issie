@@ -1029,7 +1029,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             Snap = { XSnap = None; YSnap = None}
             SnapIndicator = { XLine = None; YLine = None }
             CursorType = Default
-            ScrollPos = { X = 0.0; Y = 0.0 }
+            //ScrollPos = { X = 0.0; Y = 0.0 } Fix for scroll bug on changing sheets
             LastValidPos = { X = 0.0; Y = 0.0 }
             CurrentKeyPresses = Set.empty
             UndoList = []

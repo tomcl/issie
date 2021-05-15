@@ -191,10 +191,8 @@ let private dynamicClosablePopupFunc title body foot extraStyle =
 
 /// Popup to track progress of some long operation. Progress is captured via two dialog integers, current and max number.
 /// Typically the number is number of steps.
-/// A work message is input that performs a chunk of the required work where the chunk size (measured in steps) is input
-/// The popup continues to fire work messages, one after another, until the workload is completed.
-/// Work messages are timed by each message firing another similar until the end at which point the popup is closed.
-let private dynamicProgressPopupFunc title (work: int -> Msg) (workLoad: int) =
+/// The popup display is controlled by model.PopupDialog integers. Progress model updates must change these.
+let dynamicProgressPopupFunc title (cancel: (Msg -> Unit) -> Unit) =
     let body (dispatch:Msg->Unit) (dialog:PopupDialogData) =
         let n = Option.defaultValue 0 dialog.Int        
         Progress.progress
@@ -210,7 +208,9 @@ let private dynamicProgressPopupFunc title (work: int -> Msg) (workLoad: int) =
                 Level.item [] [
                     Button.button [
                         Button.Color IsLight
-                        Button.OnClick (fun _ -> dispatch ClosePopup)
+                        Button.OnClick (fun _ -> 
+                            cancel dispatch
+                            dispatch ClosePopup)
                     ] [ str "Cancel" ]
                 ]
             ]

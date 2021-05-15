@@ -877,7 +877,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let paras = fitCircuitToWindowParas model
             el.scrollTop <- paras.ScrollY
             el.scrollLeft <- paras.ScrollX
-            { model with Zoom = paras.MagToUse; ScrollPos={X=paras.ScrollX;Y=paras.ScrollY}}, Cmd.none
+            { model with Zoom = paras.MagToUse}, Cmd.ofMsg (UpdateScrollPos (el.scrollLeft, el.scrollTop))
     | ToggleSelectionOpen ->
         //if List.isEmpty model.SelectedComponents && List.isEmpty model.SelectedWires then  
         //    model, Cmd.none
@@ -1029,7 +1029,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             Snap = { XSnap = None; YSnap = None}
             SnapIndicator = { XLine = None; YLine = None }
             CursorType = Default
-            ScrollPos = { X = 0.0; Y = 0.0 }
+            //ScrollPos = { X = 0.0; Y = 0.0 } Fix for scroll bug on changing sheets
             LastValidPos = { X = 0.0; Y = 0.0 }
             CurrentKeyPresses = Set.empty
             UndoList = []

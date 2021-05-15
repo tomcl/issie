@@ -529,6 +529,7 @@ let private emptyGather =
 
 let emptyFastSimulation () =
     { ClockTick = 0
+      OffsetStepNum = 0
       MaxStepNum = -1 // this muts be over-written
       FGlobalInputComps = Array.empty
       FConstantComps = Array.empty
@@ -685,21 +686,29 @@ let private createFastComponent (numSteps: int) (sComp: SimulationComponent) (ac
           | _ -> true }
 
 /// extends the simulation data arrays of the component to allow more steps
-let private extendFastComponent (numSteps: int) (fc: FastComponent) =
-    let oldNumSteps = fc.Outputs.[0].Step.Length
+let private extendFastComponent (numSteps: int) (minStep:int) (oldOffset:int ) (fc: FastComponent) =
+    let oldNumSteps = fc.Outputs.[0].Step.Length + oldOffset
 
-    if numSteps + 1 <= oldNumSteps then
+    assertThat 
+        (minStep >= oldOffset)
+        $"Error: trying to extend array back in time: minStep={minStep}, offset = {oldOffset}"
+    assertThat
+        (numSteps > minStep)
+        $"Error: empty simulation arrays: numSteps={numSteps}, minstep={minStep}"
+
+    if numSteps + 1 <= oldNumSteps  && minStep = oldOffset then
         () // done
     else
         let extendArray (arr: StepArray<'T>) (dat: 'T) =
             let oldArr = arr.Step
-
             let a =
                 Array.init
-                    (numSteps + 1 - oldNumSteps)
+                    (numSteps + 1 - minStep)
                     (fun i ->
-                        if i < Array.length oldArr then
-                            oldArr.[i]
+                        let step = i + minStep
+                        let oldIndex = step - oldOffset
+                        if oldIndex < Array.length oldArr then
+                            oldArr.[oldIndex]
                         else
                             dat)
 
@@ -710,7 +719,7 @@ let private extendFastComponent (numSteps: int) (fc: FastComponent) =
         // Input inputs at top level are a special case not mapped to outputs.
         // They must be separately extended.
         match fc.FType, fc.AccessPath with
-        | Input _, [] -> extendArray fc.InputLinks.[0] fc.InputLinks.[0].Step.[oldNumSteps - 1]
+        | Input _, [] -> extendArray fc.InputLinks.[0] fc.InputLinks.[0].Step.[oldNumSteps - oldOffset - 1]
         | _ -> ()
 
         [| 0 .. outPortNum - 1 |]
@@ -718,21 +727,24 @@ let private extendFastComponent (numSteps: int) (fc: FastComponent) =
 
         Option.iter
             (fun (stateArr: StepArray<SimulationComponentState>) ->
-                extendArray stateArr stateArr.Step.[oldNumSteps - 1])
+                extendArray stateArr stateArr.Step.[oldNumSteps - oldOffset - 1])
             fc.State
 
+
 /// extends the simulation data arrays of all components to allow more steps
-let private extendFastSimulation (numSteps: int) (fs: FastSimulation) =
-    if numSteps + 1 < fs.MaxStepNum then
+/// also truncates fast simulation to prevent memory overuse.
+let private extendFastSimulation (numSteps: int) (minStep: int) (fs: FastSimulation) =
+    if numSteps + 1 < fs.MaxStepNum && minStep = fs.OffsetStepNum then
         ()
     else
         [| fs.FOrderedComps
            fs.FConstantComps
            fs.FClockedComps
            fs.FGlobalInputComps |]
-        |> Array.iter (Array.iter (extendFastComponent numSteps))
+        |> Array.iter (Array.iter (extendFastComponent numSteps minStep fs.OffsetStepNum))
 
         fs.MaxStepNum <- numSteps
+        fs.OffsetStepNum <- minStep
 
 
 /// Create an initial gatherdata object with inputs, non-ordered components, simulationgraph, etc
@@ -1254,9 +1266,10 @@ let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
 
 /// advance the simulation one step
 let private stepSimulation (fs: FastSimulation) =
-    propagateInputsFromLastStep (fs.ClockTick + 1) fs
+    let index = fs.ClockTick + 1 - fs.OffsetStepNum
+    propagateInputsFromLastStep index fs
     Array.iter
-        (fastReduce (fs.ClockTick + 1))
+        (fastReduce index)
         (Array.concat [ fs.FClockedComps
                         fs.FOrderedComps ])
 
@@ -1265,7 +1278,7 @@ let private stepSimulation (fs: FastSimulation) =
 /// sets the mutable simulation data for a given input at a given time step
 let private setSimulationInput (cid: ComponentId) (fd: FData) (step: int) (fastSim: FastSimulation) =
     match Map.tryFind (cid, []) fastSim.FComps with
-    | Some fc -> fc.Outputs.[0].Step.[step] <- fd
+    | Some fc -> fc.Outputs.[0].Step.[step-fastSim.OffsetStepNum] <- fd
     | None -> failwithf "Can't find %A in FastSim" cid
 
 
@@ -1274,7 +1287,7 @@ let private setSimulationInput (cid: ComponentId) (fd: FData) (step: int) (fastS
 /// input has changed
 let private runCombinationalLogic (step: int) (fastSim: FastSimulation) =
     fastSim.FOrderedComps
-    |> Array.iter (fastReduce step)
+    |> Array.iter (fastReduce (step-fastSim.OffsetStepNum))
 
 /// Change an input and make simulation correct. N.B. step must be the latest
 /// time-step since future steps are not rerun (TODO: perhaps they should be!)
@@ -1292,12 +1305,12 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
                 | DFF _
                 | DFFE _
                 | Register _
-                | RegisterE _ -> [| fc, RegisterState fc.Outputs.[0].Step.[step] |]
+                | RegisterE _ -> [| fc, RegisterState fc.Outputs.[0].Step.[step-fastSim.OffsetStepNum] |]
                 | ROM1 state
                 | AsyncROM1 state -> [| fc, RamState state |]
                 | RAM1 _ ->
                     match fc.State
-                          |> Option.map (fun state -> state.Step.[step]) with
+                          |> Option.map (fun state -> state.Step.[step-fastSim.OffsetStepNum]) with
                     | None -> failwithf "Missing RAM state for step %d of %s" step fc.FullName
                     | Some memState -> [| fc, memState |]
                 | _ -> failwithf "Unsupported state extraction from clocked component type %s %A" fc.FullName fc.FType
@@ -1306,23 +1319,35 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
 
 /// Run an existing fast simulation up to the given number of steps. This function will mutate the write-once data arrays
 /// of simulation data and only simulate the new steps needed, so it may return immediately doing no work.
-/// If the simulation data arrays are not large enough they are extended.
-let runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
-    if numberOfSteps > fs.MaxStepNum then
-        let newMaxNum =
-            numberOfSteps
-            + max 50 (int (float numberOfSteps * 1.5))
+/// If the simulation data arrays are not large enough they are extended. If they are too large they are truncated.
+let rec runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
+    if numberOfSteps - fs.ClockTick > 1000 then
+        runFastSimulation (fs.ClockTick + 1000) fs
+        runFastSimulation numberOfSteps fs
+    else
+        if numberOfSteps > fs.MaxStepNum then
+            let newMaxNum =
+                numberOfSteps
+                + max 50 (int (min 500. (float numberOfSteps * 1.5)))
 
-        printfn "Extending simulation array length to %d steps" newMaxNum
-        extendFastSimulation newMaxNum fs
+            let size = newMaxNum - fs.OffsetStepNum
+            let newMinNum = 0 (*
+                if size > 2000 then 
+                    min fs.ClockTick (fs.OffsetStepNum + 1000)
+                else
+                    fs.OffsetStepNum*)
+            if newMinNum > 0 then
+                printfn $"Truncating array before step {newMinNum} (previous offset = {fs.OffsetStepNum})"
+            printfn $"In Tick {fs.ClockTick} Creating simulation array from {newMaxNum} to {newMinNum} length of {newMaxNum - newMinNum} steps" 
+            extendFastSimulation newMaxNum newMinNum fs
 
-    let start = fs.ClockTick + 1
+        let start = fs.ClockTick + 1
 
-    [ start .. numberOfSteps ]
-    |> List.iter
-        (fun n ->
-            if n % 250 = 0 then printfn "Step %d" n
-            stepSimulation fs)
+        [ start .. numberOfSteps ]
+        |> List.iter
+            (fun n ->
+                if n % 250 = 0 then printfn "Step %d" n
+                stepSimulation fs)
 
 /// Run a fast simulation for a given number of steps building it from the graph
 let runSimulationZeroInputs (steps: int) (graph: SimulationGraph) : FastSimulation =
@@ -1350,43 +1375,7 @@ let findSimulationComponent ((cid, ap): ComponentId * ComponentId list) (sd: Sim
     | None -> failwithf "What? Can't find component %A in SimulationData" fs.FComps.[cid, ap].FullName
     | Some sComp -> sComp
 
-/// check FastSimulation and normal simulation for consistency, returning a list of components
-/// with different outputs in the two cases
-let compareFastWithGraph (sd: SimulationData) =
-    let fs = sd.FastSim
-    let graph = sd.Graph
 
-    assertThat
-        (sd.ClockTickNumber <= fs.ClockTick)
-        (sprintf
-            "Can't compare FastSim because it is on step %d when simulationdata is step %d"
-            fs.ClockTick
-            sd.ClockTickNumber)
-
-    fs.FComps
-    |> Map.toList
-    |> List.collect
-        (fun ((cid, ap), fc) ->
-            if isIOLabel fc.FType then
-                [] // don't check IOLabels - too difficult
-            else
-                let sComp = findSimulationComponent (cid, ap) sd
-
-                sComp.Inputs
-                |> Map.toList
-                |> List.collect
-                    (fun ((InputPortNumber n), wd) ->
-                        let wd' =
-                            fc.InputLinks.[n].Step.[sd.ClockTickNumber]
-
-                        if wd <> wd' then
-                            let msg =
-                                sprintf "Data Error step: %d %25s:In%d fast=<%A> old=<%A>" sd.ClockTickNumber fc.FullName n wd' wd
-
-                            printfn "%s" msg
-                            [ msg ]
-                        else
-                            []))
 
 /// return output port data from simulation
 let rec extractFastSimulationOutput
@@ -1399,7 +1388,7 @@ let rec extractFastSimulationOutput
 
     match Map.tryFind (cid, ap) fs.FComps with
     | Some fc ->
-        match Array.tryItem step fc.Outputs.[n].Step with
+        match Array.tryItem (step-fs.OffsetStepNum) fc.Outputs.[n].Step with
         | None -> failwithf "What? extracting output %d in step %d from %s failed" n step fc.FullName
         | Some fd -> fd
     | None ->
@@ -1408,7 +1397,7 @@ let rec extractFastSimulationOutput
         | Some (cid, ap) -> extractFastSimulationOutput fs step (cid, ap) (OutputPortNumber 0)
         | None -> failwithf "What? extracting component data failed - can't find component from id"
 
-/// return output port data from simulation
+/// return state data from simulation
 let rec extractFastSimulationState
     (fs: FastSimulation)
     (step: int)
@@ -1419,7 +1408,7 @@ let rec extractFastSimulationState
         match fc.State with
         | None -> failwithf "What? extracting State in step %d from %s failed" step fc.FullName
         | Some stepArr ->
-            match Array.tryItem step stepArr.Step with
+            match Array.tryItem (step-fs.OffsetStepNum) stepArr.Step with
             | Some state -> state
             | None ->
                 failwithf $"What? Can't extract state in step {step} from {fc.FullName}"

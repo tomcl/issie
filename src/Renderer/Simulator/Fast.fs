@@ -1321,7 +1321,7 @@ let runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
     [ start .. numberOfSteps ]
     |> List.iter
         (fun n ->
-            if n % 50 = 0 then printfn "Step %d" n
+            if n % 250 = 0 then printfn "Step %d" n
             stepSimulation fs)
 
 /// Run a fast simulation for a given number of steps building it from the graph

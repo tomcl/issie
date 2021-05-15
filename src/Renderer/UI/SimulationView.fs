@@ -376,6 +376,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                             dispatch)
                         ] [ str "Goto" ]
                 str " "
+                str " "
                 Button.button [
                     Button.Color IsSuccess
                     Button.OnClick (fun _ ->
@@ -459,6 +460,7 @@ let viewSimulation model dispatch =
             let otherComponents =
                 project.LoadedComponents
                 |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+            simCache <- simCacheInit ""
             (canvasState, otherComponents)
             ||> prepareSimulationMemoized project.OpenFileName
             |> function

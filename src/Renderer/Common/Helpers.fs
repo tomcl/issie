@@ -304,7 +304,7 @@ let checkPerformance m n startTimer stopTimer =
         while index < n / 2 do
              for i = 0 to m-1 do
                 index <- index + buff.[i]
-                el <- el + m
+                el <- buff.[el]
         el |> ignore
         stopTimer "ArrayBufferLookup"   
 
@@ -378,6 +378,37 @@ let checkPerformance m n startTimer stopTimer =
         index |> ignore
         stopTimer "Map"   
 
+    let hMapBuffer() = 
+        let third (_,_,x) = x
+        let arr =
+            [|0..m-1|]
+            |> Array.map (fun a -> 
+                let sha = EEEHelpers.uuid()
+                ( sha, (sha |> getFastHash),(a+1) % m))
+        let buff = arr |> arrayToHmap getFastHItem getFastSHA
+        printfn $"hMap count = {hMapCount buff}"
+        let mutable index = 0
+        let mutable el = 0
+        startTimer "HMap"
+        while index < n do
+            index <- index + 1
+            el <- third (Option.get <| hMapTryFind getFastHItem (getFastSHA) arr.[el] buff)
+        index |> ignore
+        stopTimer "HMap"   
+
+    let updateHMapBuffer() = 
+        let third (_,_,x) = x
+        let arr =
+            [|0..m-1|]
+            |> Array.map (fun a -> 
+                let sha = EEEHelpers.uuid()
+                ( sha, (sha |> getFastHash),(a+1) % m))
+        let buff = arr |> arrayToHmap getFastHItem getFastSHA
+        printfn $"hMap count = {hMapCount buff}"
+        startTimer "UpdateHMap"
+        let buf = (buff, [|0..n-1|]) ||> Array.fold (fun buff i -> hMapAdd getFastHItem getFastSHA arr.[i % m] buff)
+        stopTimer "UpdateHMap" 
+        
     let updateMapBuffer() = 
         let buff =
             [|0..m-1|]
@@ -410,10 +441,14 @@ let checkPerformance m n startTimer stopTimer =
     listBuffer()
     mapBuffer()
     mapBuffer()
+    hMapBuffer()
+    hMapBuffer()
     dictBuffer()
     dictBuffer()
     updateMapBuffer()
     updateMapBuffer()
+    updateHMapBuffer()
+    updateHMapBuffer()
     updateDictBuffer()
 
 let getTimeMs() = Fable.Core.JS.Constructors.Date.now()

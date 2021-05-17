@@ -100,6 +100,10 @@ let appendBits (fMS: FastData) (fLS: FastData) : FastData =
 // ----------Subfunctions used by fastReduce to evaluate a component-----------//
 //------------------------------------------------------------------------------//
 
+let inline assertThat cond msg = 
+    if not cond
+    then failwithf "what? assert failed: %s" msg
+
 /// Assert that the wireData only contain a single bit, and return such bit.
 let private extractBit (wireData: WireData) : Bit =
     assertThat (wireData.Length = 1)
@@ -572,6 +576,7 @@ let private getPortNumbers (sc: SimulationComponent) =
         | SplitWire _ -> 1
         | Mux2 _
         | NbitsAdder _ -> 3
+        | AsyncROM1 _ -> 1
         | _ -> 2
 
     let outs =
@@ -991,7 +996,9 @@ let canBeReduced (fs: FastSimulation) (step: int) (fc: FastComponent) =
     && Array.forall 
         (function 
             | (Some (fid: FComponentId,_)) -> fs.FComps.[fid].Touched 
-            | None -> failwithf "Missing input link on %A" fc.FullName ) fc.InputDrivers
+            | None -> 
+                let drivers = $"Input drivers: {fc.InputDrivers}"
+                failwithf "Missing input link on %A\n\n. %s" fc.FullName drivers ) fc.InputDrivers
 
 
 /// print function for debugging
@@ -1306,8 +1313,7 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
                 | DFFE _
                 | Register _
                 | RegisterE _ -> [| fc, RegisterState fc.Outputs.[0].Step.[step-fastSim.OffsetStepNum] |]
-                | ROM1 state
-                | AsyncROM1 state -> [| fc, RamState state |]
+                | ROM1 state -> [| fc, RamState state |]
                 | RAM1 _ ->
                     match fc.State
                           |> Option.map (fun state -> state.Step.[step-fastSim.OffsetStepNum]) with
@@ -1321,21 +1327,33 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
 /// of simulation data and only simulate the new steps needed, so it may return immediately doing no work.
 /// If the simulation data arrays are not large enough they are extended. If they are too large they are truncated.
 let rec runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
-    if numberOfSteps - fs.ClockTick > 1000 then
-        runFastSimulation (fs.ClockTick + 1000) fs
+   
+    let start = fs.ClockTick + 1
+    [start..min numberOfSteps fs.MaxStepNum]
+    |> List.iter (fun n ->
+        if n % 250 = 0 then printfn "Step %d" n
+        stepSimulation fs)  
+
+    let truncate = false
+    let increment = max 100 (min 1000 (max fs.ClockTick numberOfSteps))
+    if numberOfSteps - fs.ClockTick > increment then
+        runFastSimulation (fs.ClockTick + increment) fs
         runFastSimulation numberOfSteps fs
     else
         if numberOfSteps > fs.MaxStepNum then
             let newMaxNum =
                 numberOfSteps
-                + max 50 (int (min 500. (float numberOfSteps * 1.5)))
+                + max 50 (int (min 1000. (float numberOfSteps * 1.5)))
 
             let size = newMaxNum - fs.OffsetStepNum
-            let newMinNum = 0 (*
-                if size > 2000 then 
-                    min fs.ClockTick (fs.OffsetStepNum + 1000)
+            let newMinNum =
+                if truncate then
+                    if size > 1000 && fs.ClockTick > 0 then 
+                        min (fs.ClockTick-1) newMaxNum
+                    else
+                        fs.OffsetStepNum
                 else
-                    fs.OffsetStepNum*)
+                    0
             if newMinNum > 0 then
                 printfn $"Truncating array before step {newMinNum} (previous offset = {fs.OffsetStepNum})"
             printfn $"In Tick {fs.ClockTick} Creating simulation array from {newMaxNum} to {newMinNum} length of {newMaxNum - newMinNum} steps" 

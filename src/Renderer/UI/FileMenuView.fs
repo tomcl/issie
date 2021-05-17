@@ -1431,5 +1431,5 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                   // add space padding on RH of navbar to improve top bar formatting
                                   // this is a bit of a hack - but much easier than matching styles
                                   Text.div 
-                                    [Props [Style [PaddingRight "1000px"]]] [str ""]
+                                    [Props [Style [PaddingRight "7000px"]]] [str ""]
                                 ] ] ] ] ]

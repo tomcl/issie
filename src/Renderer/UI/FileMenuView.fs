@@ -1365,7 +1365,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                 [  Style
                     [ Height "100%"
                       Width "100%" ] ] ]
-              [ Navbar.Brand.div
+            [ Navbar.Brand.div
                   [ Props
                       [ Style
                           [ Height "100%"
@@ -1423,4 +1423,10 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                 [ Button.button 
                                     [ Button.OnClick(fun _ -> PopupView.viewInfoPopup dispatch) 
                                       Button.Color IsInfo
-                                    ] [ str "Info" ] ] ] ] ] ]
+                                    ] 
+                                    [ str "Info" ] 
+                                  // add space padding on RH of navbar to improve top bar formatting
+                                  // this is a bit of a hack - but much easier than matching styles
+                                  Text.div 
+                                    [Props [Style [PaddingRight "1000px"]]] [str ""]
+                                ] ] ] ] ]

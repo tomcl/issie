@@ -1266,7 +1266,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
     messagesFunc model dispatch
 
     //printfn "FileView"
-    let style = Style [ Width "100%" ] //leftSectionWidth model
+    let style = Style [ Width "100%" ; BorderBottom "2px solid lightgray"] //leftSectionWidth model
 
     let projectPath, fileName =
         match model.CurrentProj with
@@ -1274,7 +1274,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
         | Some project -> project.ProjectPath, project.OpenFileName
 
     let makeFileLine name project =
-        Navbar.Item.div [ Navbar.Item.Props [ style ] ]
+        Navbar.Item.div [ Navbar.Item.Props [ style  ] ]
             [ Level.level [ Level.Level.Props [ style ] ]
                   [ Level.left [] [ Level.item [] [ str name ] ]
                     Level.right [ Props [ Style [ MarginLeft "20px" ] ] ]
@@ -1358,13 +1358,16 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
     div [   HTMLAttr.Id "TopMenu"
             leftSectionWidth model
             Style [ Position PositionOptions.Absolute
-                    UserSelect UserSelectOptions.None ]
+                    UserSelect UserSelectOptions.None
+
+                    ]
         ]
         [ Navbar.navbar
             [ Navbar.Props
                 [  Style
                     [ Height "100%"
-                      Width "100%" ] ] ]
+                      Width "100%" 
+                      BorderBottom "2px solid lightgray"] ] ]
             [ Navbar.Brand.div
                   [ Props
                       [ Style

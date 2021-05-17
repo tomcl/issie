@@ -576,6 +576,7 @@ let private getPortNumbers (sc: SimulationComponent) =
         | SplitWire _ -> 1
         | Mux2 _
         | NbitsAdder _ -> 3
+        | ROM1 _
         | AsyncROM1 _ -> 1
         | _ -> 2
 

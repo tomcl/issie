@@ -52,7 +52,7 @@ let rec prepareSimulation
                     Ok {
                         FastSim = 
                             Fast.buildFastSimulation initMaxSteps graph
-                        Graph = graph |> InitialiseGraphWithZeros inputs;
+                        Graph = graph // NB graph is now not initialised with data
                         Inputs = inputs;
                         Outputs = outputs
                         IsSynchronous = hasSynchronousComponents graph

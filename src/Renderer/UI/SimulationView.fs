@@ -383,9 +383,9 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                         if SimulationRunner.simTrace <> None then
                             printfn "*********************Incrementing clock from simulator button******************************"
                             printfn "-------------------------------------------------------------------------------------------"
-                        let graph = feedClockTick simData.Graph
+                        //let graph = feedClockTick simData.Graph
                         Fast.runFastSimulation (simData.ClockTickNumber+1) simData.FastSim 
-                        dispatch <| SetSimulationGraph(graph, simData.FastSim)                    
+                        dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)                    
                         if SimulationRunner.simTrace <> None then
                             printfn "-------------------------------------------------------------------------------------------"
                             printfn "*******************************************************************************************"

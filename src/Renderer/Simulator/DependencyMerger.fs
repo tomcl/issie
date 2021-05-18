@@ -299,7 +299,6 @@ let private makeCustomReducer
             // components, in which case those stateful components keep their
             // own state in the CustomSimulationGraph.
             assertThat (state = NoState) <| sprintf "Custom components should be stateles, but received state: %A" state
-            let graph = feedClockTick graph
             let outputs =
                 extractOutputValuesAsMap graph graphOutputs outputLabels
             { Outputs = Some outputs

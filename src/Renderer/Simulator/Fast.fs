@@ -105,13 +105,13 @@ let inline assertThat cond msg =
     then failwithf "what? assert failed: %s" msg
 
 /// Assert that the wireData only contain a single bit, and return such bit.
-let private extractBit (wireData: WireData) : Bit =
+let inline extractBit (wireData: WireData) : Bit =
     assertThat (wireData.Length = 1)
     <| sprintf "extractBit called with wireData: %A" wireData
 
     wireData.[0]
 
-let private packBit (bit: Bit) : WireData = [ bit ]
+let inline packBit (bit: Bit) : WireData = [ bit ]
 
 
 /// Read the content of the memory at the specified address.
@@ -184,7 +184,7 @@ let inline private bitXnor bit0 bit1 = bitXor bit0 bit1 |> bitNot
 /// Outputs and inputs are both contained as time sequences in arrays. This function will calculate
 /// simStep outputs from 9previously calculated) simStep outputs and clocked (simStep-1) outputs.
 /// Memory has state separate from simStep-1 output, for this the state is recalculated.
-let private fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
+let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
     let componentType = comp.FType
 
     //printfn "Reducing %A...%A %A (step %d)"  comp.FType comp.ShortId comp.FullName simStep

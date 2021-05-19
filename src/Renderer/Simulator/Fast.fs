@@ -14,7 +14,9 @@ open NumberHelpers
 //-------------------EXPERIMENTAL - new data structure to replace WireData------//
 
 let fastBit (n: uint32) =
+#if DEBUG
     assertThat (n < 2u) (sprintf "Can't convert %d to a single bit FastData" n)
+#endif
     { Dat = Word n; Width = 1}
 
 let rec bitsToInt (lst: Bit list) =
@@ -67,10 +69,11 @@ let rec fastToWire (f: FastData) =
 /// Note that for a single bit result the un-normalised version is used, so it will
 /// be compatible with fast implementation of boolean logic.
 let getBits (msb: int) (lsb: int) (f: FastData) =
+#if DEBUG
     assertThat
         (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
         (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
-
+#endif
     match f.Dat with
     | Word x ->
         let bits = (x >>> lsb) % (1u <<< (msb + 1))
@@ -106,8 +109,10 @@ let inline assertThat cond msg =
 
 /// Assert that the wireData only contain a single bit, and return such bit.
 let inline extractBit (wireData: WireData) : Bit =
+#if DEBUG
     assertThat (wireData.Length = 1)
-    <| sprintf "extractBit called with wireData: %A" wireData
+    <| sprintf "extractBit called with wireData: %A" wireData 
+#endif
 
     wireData.[0]
 
@@ -196,11 +201,15 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
 
     ///  get data feom input i of component
     let inline ins i =
-        //assertThat (i < n) (sprintf "What? Invalid input port (%d:step%d) used by %s:%s (%A) reducer with %d Ins"
-        //                            i simStep comp.FullName comp.ShortId  componentType n)
+#if DEBUG
+        assertThat (i < n) (sprintf "What? Invalid input port (%d:step%d) used by %s:%s (%A) reducer with %d Ins"
+                                    i simStep comp.FullName comp.ShortId  componentType n)
+#endif
         let fd = comp.InputLinks.[i].Step.[simStep]
-        //assertThat (fd <> []) (sprintf "What? Invalid data %A  found in input port (%d:step%d) used by %s:%s (%A) reducer"
-        //                            fd i simStep comp.FullName comp.ShortId componentType)
+#if DEBUG
+        assertThat (fd <> []) (sprintf "What? Invalid data %A  found in input port (%d:step%d) used by %s:%s (%A) reducer"
+                                    fd i simStep comp.FullName comp.ShortId componentType)
+#endif
         fd
 
     /// get last cycle data from output i (for clocked components)
@@ -210,12 +219,15 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
             | None, _ -> failwithf "Can't reduce %A (%A) because outputwidth is not known" comp.FullName comp.FType
             | Some w, 0 -> List.replicate w Zero
             | Some w, _ -> comp.Outputs.[n].Step.[simStepOld]
-        //assertThat (fd <> [])
-        //<| sprintf "Bad data ([]) returned from getLstCycleOut n=%A, t=%A, id=%A " n simStep comp.ShortId
+#if DEBUG
+        assertThat (fd <> [])
+        <| sprintf "Bad data ([]) returned from getLstCycleOut n=%A, t=%A, id=%A " n simStep comp.ShortId
+#endif
         fd
 
     /// get last cycle data from output i for component
-    let inline insOld i =
+    let inline insOld i = 
+#if DEBUG
         assertThat
             (i < n)
             (sprintf
@@ -225,10 +237,11 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
                 comp.FullName
                 componentType
                 n)
+#endif
 
         let fd =
-            comp.GetInput(simStepOld) (InputPortNumber i)
-
+            comp.GetInput(simStepOld) (InputPortNumber i) 
+#if DEBUG
         assertThat
             (fd <> [])
             (sprintf
@@ -238,6 +251,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
                 simStep
                 comp.FullName
                 componentType)
+#endif
 
         fd
 
@@ -276,7 +290,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
         put0 <| packBit (op bit1 bit0)
 
     /// Error checking (not required in production code) check widths are consistent
-    let inline checkWidth width (bits: FData) =
+    let inline checkWidth width (bits: FData) = 
+#if DEBUG
         assertThat
             (bits.Length = width)
             (sprintf
@@ -286,6 +301,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
                 simStep
                 width
                 bits.Length)
+#else
+        ()
+#endif
 
     // reduce the component in this match
     match componentType with
@@ -324,21 +342,21 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
         put0 <| packBit (bitNot bit)
     | BusSelection (width, lsb) ->
         let bits = ins 0
-
+#if DEBUG
         assertThat
             (bits.Length >= width + lsb)
             (sprintf "Bus Selection received too few bits: expected at least %d but got %d" (width + lsb) bits.Length)
-
+#endif
         let outBits = bits.[lsb..lsb + width - 1]
         put0 outBits
     | BusCompare (width, compareVal) ->
         //printfn "Reducing compare %A" comp.SimComponent.Label
         let bits = ins 0
-
+#if DEBUG
         assertThat
             (bits.Length = width)
             (sprintf "Bus Compare received wrong number of bits: expecting  %d but got %d" width bits.Length)
-
+#endif
         let inputNum = convertWireDataToInt bits
 
         let outNum : WireData =
@@ -356,10 +374,10 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
     | Xnor -> getBinaryGateReducer bitXnor
     | Mux2 ->
         let bits0, bits1, bitSelect = ins 0, ins 1, ins 2
-
+#if DEBUG
         assertThat (bits0.Length = bits1.Length)
         <| sprintf "Mux2 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName bits0 bits1
-
+#endif
         let out =
             if (extractBit bitSelect) = Zero then
                 bits0
@@ -436,10 +454,10 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
         putW 0 outBits.Length
     | SplitWire topWireWidth ->
         let bits = ins 0
-
+#if DEBUG
         assertThat (bits.Length >= topWireWidth + 1)
         <| sprintf "SplitWire received too little bits: expected at least %d but got %d" (topWireWidth + 1) bits.Length
-
+#endif
         let bits0, bits1 = List.splitAt topWireWidth bits
         // Little endian, bits leaving from the top wire are the least
         // significant.
@@ -460,36 +478,36 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
 
     | Register width ->
         let bits = insOld 0
-
+#if DEBUG
         assertThat (bits.Length = width)
         <| sprintf "Register received data with wrong width: expected %d but got %A" width bits.Length
-
+#endif
         put0 bits
 
     | RegisterE width ->
         let bits, enable = insOld 0, insOld 1
-
+#if DEBUG
         assertThat (bits.Length = width)
         <| sprintf "RegisterE received data with wrong width: expected %d but got %A" width bits.Length
-
+#endif
         if (extractBit enable = One) then
             put0 bits
         else
             put0 (getLastCycleOut 0)
     | AsyncROM1 mem -> // Asynchronous ROM.
         let addr = ins 0
-
+#if DEBUG
         assertThat (addr.Length = mem.AddressWidth)
         <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth addr
-
+#endif
         let outData = readMemory mem addr
         put0 outData
     | ROM1 mem -> // Synchronous ROM.
         let addr = insOld 0
-
+#if DEBUG
         assertThat (addr.Length = mem.AddressWidth)
         <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth addr
-
+#endif
         let outData = readMemory mem addr
         put0 outData
     | RAM1 memory ->
@@ -497,15 +515,15 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
             getRamStateMemory numStep (simStepOld) comp.State memory
 
         let address = insOld 0
-
+#if DEBUG
         assertThat (address.Length = mem.AddressWidth)
         <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth address
-
+#endif
         let dataIn = insOld 1
-
+#if DEBUG
         assertThat (dataIn.Length = mem.WordWidth)
         <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataIn
-
+#endif
         let write = extractBit (insOld 2)
         // If write flag is on, write the memory content.
         let mem, dataOut =
@@ -904,7 +922,9 @@ let private linkFastComponents (g: GatherData) (f: FastSimulation) =
         | true, _, None ->
             //printfn "checking 1:%A %A" (g.getFullName(cid,ap)) (Map.map (fun k v -> g.getFullName k) g.CustomOutputCompLinks)
             let cid, opn = g.CustomOutputCompLinks.[cid, ap]
+#if DEBUG
             assertThat (isCustom (fst sComps.[cid]).Type) "What? this should be a custom component output"
+#endif
             getLinks cid opn None // go from inner output to CC output and recurse
         | false, true, Some ipn ->
             //printfn "checking 2:%A:IPN<%A>" (g.getFullName(cid,ap)) ipn
@@ -1164,10 +1184,11 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 (Array.map
                     (fun (arr: StepArray<FData>) -> arr.Step.Length > 5 && isValidData arr.Step.[0])
                     fc.InputLinks))
-
+#if DEBUG
     assertThat
         (badComps.Length = 0)
         (sprintf "Components not linked: %A\n" (badComps |> List.map (fun fc -> fc.FullName)))
+#endif
 
     { fs with
           FOrderedComps = orderedComps |> Array.ofList |> Array.rev }

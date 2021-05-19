@@ -39,7 +39,9 @@ let stopAndLogTimer (label : string) : unit = jsNative
 
 /// Assert js object is not null, and return it.
 let assertNotNull obj msg =
+#if DEBUG
     Helpers.assertThat (not <| isNull obj) ("(assertNotNull) " + msg)
+#endif
     obj
 
 /// Access nested fields of a js object, failing if at any point of the chain

@@ -410,10 +410,12 @@ let changeInstance (comp:Component) (change: PortChange) =
     
 
 let updateInstance (newSig: Signature) (sheet:string,cid:string,oldSig:Signature) (p: Project) =
+#if DEBUG
     assertThat 
         (sheet <> p.OpenFileName)
         $"What? Instances to be changed in {sheet} must not be in custom \
         component sheet{p.OpenFileName}"
+#endif
     let ldc =
         p.LoadedComponents
         |> List.find (fun ldc -> ldc.Name = sheet)

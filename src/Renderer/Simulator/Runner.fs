@@ -29,7 +29,9 @@ let diffReducerInputsOrOutputs
     // New inputs/outputs either:
     // - have more keys than old ones,
     // - have the same keys as old ones, but their values have changed.
+#if DEBUG
     assertThat (oldIO.Count <= newIO.Count) (sprintf "diffReducerInputsOrOutputs: (%A:%A)" oldIO newIO)
+#endif
     (Map.empty, newIO)
     ||> Map.fold (fun diff portNumber wireData ->
         match oldIO.TryFind portNumber with

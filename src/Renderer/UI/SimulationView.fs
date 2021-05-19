@@ -163,8 +163,10 @@ let private viewSimulationInputs
         dispatch =
     let simulationGraph = simulationData.Graph
     let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel, width), wireData) =
+#if DEBUG
         assertThat (List.length wireData = width)
         <| sprintf "Inconsistent wireData length in viewSimulationInput for %s: expected %d but got %A" inputLabel width wireData.Length
+#endif
         let valueHandle =
             match wireData with
             | [] -> failwith "what? Empty wireData while creating a line in simulation inputs."
@@ -232,8 +234,10 @@ let private staticNumberBox numBase bits =
 
 let private viewSimulationOutputs numBase (simOutputs : (SimulationIO * WireData) list) =
     let makeOutputLine ((ComponentId _, ComponentLabel outputLabel, width), wireData) =
+#if DEBUG
         assertThat (List.length wireData = width)
         <| sprintf "Inconsistent wireData length in viewSimulationOutput for %s: expcted %d but got %d" outputLabel width wireData.Length
+#endif
         let valueHandle =
             match wireData with
             | [] -> failwith "what? Empty wireData while creating a line in simulation output."
@@ -244,8 +248,10 @@ let private viewSimulationOutputs numBase (simOutputs : (SimulationIO * WireData
 
 let private viewViewers numBase (simViewers : ((string*string) * int * WireData) list) =
     let makeViewerOutputLine ((label,fullName), width, wireData) =
+#if DEBUG
         assertThat (List.length wireData = width)
         <| sprintf "Inconsistent wireData length in viewViewer for %s: expcted %d but got %d" label width wireData.Length
+#endif
         let valueHandle =
             match wireData with
             | [] -> failwith "what? Empty wireData while creating a line in simulation output."

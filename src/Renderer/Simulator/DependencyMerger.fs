@@ -180,8 +180,10 @@ let private checkDependenciesAndBuildMap
         | Backtracking _ -> // Impossible.
             failwith "what? checkDependencyCycle finished while Backtracking"
         | Cycle cycle ->
+#if DEBUG
             assertThat (cycle.Length >= 2)
             <| sprintf "Cycle must have at least 2 dependencies: %A" cycle
+#endif
             Error {
                 Msg = sprintf "Found a cycle in dependencies: %s."
                       <| prettyPrintCycle cycle
@@ -208,7 +210,9 @@ let private labelToPortNumber label (labels : string list) =
 
 /// Convert the portNumber of a custom componetnt to its port lablel.
 let private portNumberToLabel (InputPortNumber pNumber) (inputLabels : string list) =
+#if DEBUG
     assertThat (inputLabels.Length > pNumber) "portNumberToLabel"
+#endif
     inputLabels.[pNumber]
 
 /// Extract simulation input values as map.
@@ -234,10 +238,14 @@ let private extractOutputValuesAsMap graph graphOutputs outputLabels : Map<Outpu
 let private assertConsistentCustomOutputs
         (outputs : Map<OutputPortNumber, WireData>)
         (oldOutputs : Map<OutputPortNumber, WireData>) =
+#if DEBUG
     outputs |> Map.map (fun pNumber _ ->
         assertThat (Option.isSome <| oldOutputs.TryFind pNumber)
         <| sprintf "assertConsistentCustomOutputs, old %A, new %A" oldOutputs outputs
     ) |> ignore
+#else
+    ()
+#endif
 
 /// Create the Reducer for a custom component.
 /// Passing graphInputs and graphOutputs would not be strictly necessary, but it
@@ -298,7 +306,9 @@ let private makeCustomReducer
             // Custom components are stateless. They may contain stateful
             // components, in which case those stateful components keep their
             // own state in the CustomSimulationGraph.
+#if DEBUG
             assertThat (state = NoState) <| sprintf "Custom components should be stateles, but received state: %A" state
+#endif
             let outputs =
                 extractOutputValuesAsMap graph graphOutputs outputLabels
             { Outputs = Some outputs

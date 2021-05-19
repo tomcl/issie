@@ -437,8 +437,10 @@ let getFastDriver (fs: FastSimulation) (driverComp: NetListComponent) (driverPor
     | Custom _ ->
         let customFId:FComponentId = driverComp.Id,[]
         let customOutput = fs.FCustomOutputCompLookup.[customFId,driverPort]
+#if DEBUG
         assertThat (Map.containsKey customOutput fs.FComps)
             (sprintf "Help: can't find custom component output in fast Simulation")
+#endif
         customOutput, OutputPortNumber 0
         
     | _ -> 

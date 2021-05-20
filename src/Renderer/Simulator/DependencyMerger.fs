@@ -256,64 +256,7 @@ let private makeCustomReducer
         (graphInputs : SimulationIO list)
         (graphOutputs : SimulationIO list)
         : ReducerInput -> ReducerOutput =
-    let inputLabels = List.map (fun (label, _) -> label) custom.InputLabels
-    let outputLabels = List.map (fun (label, _) -> label) custom.OutputLabels
-    fun reducerInput ->
-        // Extract custom component simulation graph.
-        let graph = match reducerInput.CustomSimulationGraph with
-                    | None -> failwithf "what? CustomSimulationGraph should always be Some in Custom component: %s" custom.Name
-                    | Some graph -> graph
-        match reducerInput.IsClockTick with
-        | No ->
-            // Extract combinational logic inputs.
-            let inputs = reducerInput.Inputs
-            match inputs.Count = custom.InputLabels.Length with
-            | false ->
-                // Not enough inputs, return graph unchanged.
-                {
-                    Outputs = None
-                    NewCustomSimulationGraph = Some graph
-                    NewState = NoState
-                }
-            | true ->
-                // Feed only new inputs or inputs that changed, for performance.
-                let oldInputs =
-                    extractInputValuesAsMap graph graphInputs inputLabels
-                let oldOutputs =
-                    extractOutputValuesAsMap graph graphOutputs outputLabels
-                let diffedInputs = diffReducerInputsOrOutputs inputs oldInputs
-                let graph =
-                    (graph, diffedInputs)
-                    ||> Map.fold (fun graph inputPortNumber wireData ->
-                        let inputLabel =
-                            portNumberToLabel inputPortNumber inputLabels
-                        let inputId, _, _ =
-                            graphInputs
-                            |> List.find (fun (_, ComponentLabel inpLabel, _) ->
-                                          inpLabel = inputLabel)
-                        feedSimulationInput graph inputId wireData
-                    )
-                let outputs =
-                    extractOutputValuesAsMap graph graphOutputs outputLabels
-                // Only return outputs that have changed.
-                assertConsistentCustomOutputs outputs oldOutputs
-                let diffedOutputs = diffReducerInputsOrOutputs outputs oldOutputs
-                // Return the outputs toghether with the updated graph.
-                { Outputs = Some diffedOutputs
-                  NewCustomSimulationGraph = Some graph
-                  NewState = NoState }
-        | Yes state ->
-            // Custom components are stateless. They may contain stateful
-            // components, in which case those stateful components keep their
-            // own state in the CustomSimulationGraph.
-#if DEBUG
-            assertThat (state = NoState) <| sprintf "Custom components should be stateles, but received state: %A" state
-#endif
-            let outputs =
-                extractOutputValuesAsMap graph graphOutputs outputLabels
-            { Outputs = Some outputs
-              NewCustomSimulationGraph = Some graph
-              NewState = NoState }
+        failwithf "Custom rducer should never be called"
 
 /// Recursively merge the simulationGraph with its dependencies (a dependecy can
 /// have its own dependencies).

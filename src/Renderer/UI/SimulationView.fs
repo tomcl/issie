@@ -181,8 +181,7 @@ let private viewSimulationInputs
                         let newBit = match bit with
                                      | Zero -> One
                                      | One -> Zero
-                        let graph = feedSimulationInput simulationGraph
-                                            (ComponentId inputId) [newBit]
+                        let graph = simulationGraph
                         Fast.changeInput (ComponentId inputId) [newBit] simulationData.ClockTickNumber simulationData.FastSim
                         dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
                     )
@@ -204,8 +203,7 @@ let private viewSimulationInputs
                                 // Close simulation notifications.
                                 CloseSimulationNotification |> dispatch
                                 // Feed input.
-                                let graph = feedSimulationInput simulationGraph
-                                                    (ComponentId inputId) bits
+                                let graph = simulationGraph
                                 Fast.changeInput (ComponentId inputId) bits simulationData.ClockTickNumber simulationData.FastSim
                                 dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
                         ))
@@ -273,12 +271,13 @@ let private viewStatefulComponents step comps numBase model dispatch =
     let makeStateLine ((fc,state) : FastComponent*SimulationComponentState) =
         let label = getWithDefault fc.FullName
         match state with
-        | RegisterState [bit] ->
+        | RegisterState fd when fd.Width = 1 ->
+            let bit = if fd = SimulatorTypes.fastDataZero then Zero else One
             let label = sprintf "DFF: %s" <| label
             [ splittedLine (str label) (staticBitButton bit) ]
         | RegisterState bits ->
-            let label = sprintf "Register: %s (%d bits)" label bits.Length
-            [ splittedLine (str label) (staticNumberBox numBase bits) ]
+            let label = sprintf "Register: %s (%d bits)" label bits.Width
+            [ splittedLine (str label) (staticNumberBox numBase (bits |> convertFastDataToWireData)) ]
         | RamState mem ->
             let label = sprintf "RAM: %s" <| label
             let initialMem compType = match compType with RAM1 m -> m | _ -> failwithf "what? viewStatefulComponents expected RAM component but got: %A" compType

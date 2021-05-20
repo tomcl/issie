@@ -109,6 +109,45 @@ let convertWireDataToInt (bits : WireData) : int64 =
         | One :: bits' -> pow2int64(idx) + convert bits' (idx + 1)
     convert bits 0
 
+
+let convertInt64ToFastData (width:int) (n:int64) =
+    let n' = uint64 n
+    let dat = 
+        if n' >= (1UL <<< 32) then BigWord (bigint n') else Word (uint32 n')
+    {Dat=dat; Width = width}
+
+let convertIntToFastData (width:int) (n:uint32) =
+    if width <= 32 then 
+        {Dat = Word n; Width = width}
+    else
+        {Dat = BigWord (bigint n); Width = width} 
+
+let convertBigintToFastData (width:int) (b:bigint) =
+    {Dat = BigWord b; Width = width}
+
+let convertFastDataToInt64 (d:FastData) =
+    match d.Dat with
+    | Word n -> uint64 n
+    | BigWord n -> uint64 n
+
+let convertFastDataToBigint (d:FastData) =
+    match d.Dat with
+    | Word n -> bigint n
+    | BigWord n -> n
+
+let convertFastDataToInt (d:FastData) =
+    match d.Dat with
+    | Word n -> n
+    | BigWord _ -> failwithf "Can't convert {d.dat} to integer" 
+
+let convertFastDataToWireData bits =
+    bits |> convertFastDataToInt64 |> int64 |> convertIntToWireData bits.Width
+
+let emptyFastData = {Width=0; Dat=Word 0u}
+
+
+
+
 /// Try to convert a string to an int, or return an error message if that was
 /// not possible.
 let strToInt (str : string) : Result<int64, string> =

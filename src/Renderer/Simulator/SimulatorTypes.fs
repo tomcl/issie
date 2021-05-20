@@ -22,8 +22,8 @@ type WireData = Bit list
 /// have no state.
 type SimulationComponentState =
     | NoState // For all stateless components.
-    | DffState of Bit
-    | RegisterState of WireData
+    | DffState of uint32
+    | RegisterState of FastData
     | RamState of Memory1
 
 /// Message used to feed forward evaluation. Clock
@@ -180,13 +180,115 @@ type FastData =
         | Word n -> Some n
         | BigWord n when this.Width <= 32 -> Some (uint32 n)
         | _ -> None
-    
+    /// can fail - for fast access to word data
+    member inline this.GetQUint32 =
+        match this.Dat with
+        | Word n -> n
+        | BigWord n when this.Width <= 32 -> uint32 n
+        | _ -> failwithf $"Can't turn {this} into a uint32"
+
+
+
+
+//------------------------------------------------------------------------------//
+//-------------------EXPERIMENTAL - new data structure to replace WireData------//
+//------------------------------------------------------------------------------//
+
+let fastBit (n: uint32) =
+#if DEBUG
+    assertThat (n < 2u) (sprintf "Can't convert %d to a single bit FastData" n)
+#endif
+    { Dat = Word n; Width = 1}
+
+let rec bitsToInt (lst: Bit list) =
+    match lst with
+    | [] -> 0u
+    | x :: rest ->
+        (if x = Zero then 0u else 1u) * 2u
+        + bitsToInt rest
+
+let rec bitsToBig (lst: Bit list) =
+    match lst with
+    | [] -> bigint 0
+    | x :: rest ->
+        (if x = Zero then bigint 0 else bigint 1)
+        * bigint 2
+        + bitsToBig rest
+
+/// convert Wiredata to FastData equivalent
+let rec wireToFast (wd: WireData) =
+    let n = wd.Length
+    let dat = 
+        if n <= 32 then
+            Word (bitsToInt wd)
+        else 
+            BigWord (bitsToBig wd)
+    { Dat = dat; Width = n}
+
+/// convert FastData to WireData equivalent
+let rec fastToWire (f: FastData) =
+    match f.Dat with
+    | Word x ->
+        [ 0 .. f.Width - 1 ]
+        |> List.map
+            (fun n ->
+                if (x &&& (1u <<< n)) = 0u then
+                    Zero
+                else
+                    One)
+    | BigWord x ->
+        [ 0 .. f.Width - 1 ]
+        |> List.map
+            (fun n ->
+                if (x &&& (bigint 1 <<< n)) = bigint 0 then
+                    Zero
+                else
+                    One)
+
+let fastDataZero = {Dat=Word 0u; Width = 1}
+let fastDataOne = {Dat=Word 1u; Width = 1}
+
+/// Extract bit field (msb:lsb) from f. Bits are numbered little-endian from 0.
+/// Note that for a single bit result the un-normalised version is used, so it will
+/// be compatible with fast implementation of boolean logic.
+let getBits (msb: int) (lsb: int) (f: FastData) =
+    let outW = msb - lsb + 1
+#if DEBUG
+    assertThat
+        (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
+        (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
+#endif
+    match f.Dat with
+    | Word x ->
+        let bits = (x >>> lsb) % (1u <<< (msb + 1))
+        {Dat = Word bits; Width = outW}
+    | BigWord x ->
+        let bits = (x >>> lsb) % (bigint 1 <<< (msb + 1))
+        let dat =
+            if f.Width <= 32 then
+                Word(uint32 bits)
+            else
+                BigWord bits
+        { Dat = dat; Width = outW}
+
+let appendBits (fMS: FastData) (fLS: FastData) : FastData =
+    let ms = fMS.Dat
+    let ls = fMS.Dat
+    let w = fMS.Width + fLS.Width
+    let dat = 
+        match ms, ls with
+        | Word x1, Word x2 when w <= 32 -> Word((x1 <<< fLS.Width) + x2)
+        | Word x1, Word x2 -> BigWord((bigint x1 <<< fLS.Width) + bigint x2)
+        | _ -> BigWord((fMS.GetBigInt <<< fLS.Width) ||| fLS.GetBigInt)
+    {Dat=dat;Width=w}
+
+//---------------------------------------------------------------------------------------//   
 //--------------------------------Fast Simulation Data Structure-------------------------//
 //---------------------------------------------------------------------------------------//
    
 type FComponentId = ComponentId * ComponentId list
 
-type FData = WireData // for now...
+type FData = FastData // for now...
 
 /// Wrapper to allow arrays to be resized for longer simulations while keeping the links between inputs
 /// and outputs
@@ -407,7 +509,7 @@ let makeAllNetGroups (netList:NetList) :NetGroup array=
 
 let getFastOutputWidth (fc: FastComponent) (opn: OutputPortNumber) =
     let (OutputPortNumber n) = opn
-    fc.Outputs.[n].Step.[0].Length
+    fc.Outputs.[n].Step.[0].Width
 
 let getWaveformSpecFromFC (fc: FastComponent) =
     let viewerName = extractLabel fc.SimComponent.Label

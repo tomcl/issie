@@ -14,6 +14,17 @@ open CommonTypes
 open SimulatorTypes
 open CanvasStateAnalyser
 
+/// Assert that the FData only contain a single bit, and return such bit.
+let inline extractBit (fd: FData) : uint32 =
+#if DEBUG
+    assertThat (fd.Width = 1)
+    <| sprintf "extractBit called with wireData: %A" fd
+#endif
+    match fd.Dat with | Word n -> n | BigWord _ -> failwithf "Can't extract 1 bit from BigWord data {wireData}"
+
+let inline packBit (bit: uint32) : FData = if bit = 0u then {Dat=Word 0u; Width = 1} else {Dat = Word 1u; Width = 1}
+
+
 /// This function should only be called on Component ports, never on Connection
 /// ports: ports in Components should always have Some portNumber, ports in
 /// Connections should have None.
@@ -104,14 +115,6 @@ let rec private getValuesForPorts
             | None -> None
             | Some values -> Some <| wireData :: values
 
-/// Assert that the wireData only contain a single bit, and return such bit.
-let private extractBit (wireData : WireData) : Bit =
-#if DEBUG
-    assertThat (wireData.Length = 1) <| sprintf "extractBit called with wireData: %A" wireData
-#endif
-    wireData.[0]
-
-let private packBit (bit : Bit) : WireData = [bit]
 
 /// Read the content of the memory at the specified address.
 let private readMemory (mem : Memory1) (address : WireData) : WireData =
@@ -140,19 +143,6 @@ let private makeReducerOutput state outputs = {
     NewState = state
 }
 
-let private getBinaryGateReducer (op : Bit -> Bit -> Bit) componentType : ReducerInput -> ReducerOutput =
-    fun reducerInput ->
-        assertNoClockTick reducerInput componentType
-        assertNotTooManyInputs reducerInput componentType 2
-        match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
-        | None -> notReadyReducerOutput NoState // Wait for more inputs.
-        | Some [bit0; bit1] ->
-            let bit0 = extractBit bit0
-            let bit1 = extractBit bit1
-            Map.empty.Add (OutputPortNumber 0, packBit (op bit1 bit0))
-            |> makeReducerOutput NoState
-        | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-
 let private getDffStateBit state =
     match state with
     | DffState bit -> bit
@@ -178,415 +168,8 @@ let private getRamStateMemory state =
 /// RegisterE and DFF and DFFE. It is probably a good idea to merge them
 /// together to avoid duplicated logic.
 let private getReducer (componentType : ComponentType) : ReducerInput -> ReducerOutput =
-    // Always ignore the CustomSimulationGraph here, both in inputs and output.
-    // The Reducer for Custom components, which use it, will be replaced in the
-    // DependencyMerger.
-    match componentType with
-    | Input width ->
-        fun reducerInput ->
-            assertNoClockTick reducerInput componentType
-            assertNotTooManyInputs reducerInput componentType 1
-            // Simply forward the input.
-            // Note that the input of an Input node must be fed in manually.
-            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
-            | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [bits] ->
-#if DEBUG
-                assertThat (bits.Length = width) <| sprintf "Input node reducer received wrong number of bits: expected %d but got %d" width bits.Length
-#endif
-                Map.empty.Add (OutputPortNumber 0, bits) |> makeReducerOutput NoState
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-    | Constant1 (width, cVal,_) ->
-        fun reducerInput ->
-#if DEBUG
-            assertNoClockTick reducerInput componentType
-            assertNotTooManyInputs reducerInput componentType 1
-#endif
-            Map.empty.Add (OutputPortNumber 0, convertIntToWireData width (int64 (uint32 cVal))) |> makeReducerOutput NoState
-    | Output width
-    | Viewer width ->
-        fun reducerInput ->
-#if DEBUG
-            assertNoClockTick reducerInput componentType
-            assertNotTooManyInputs reducerInput componentType 1
-#endif
-            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
-            | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [bits] ->
-#if DEBUG
-                assertThat (bits.Length = width) <| sprintf "Output node reducer received wrong number of bits: expected %d but got %d" width bits.Length
-#endif
-                notReadyReducerOutput NoState // Do nothing with it. Just make sure it is received.
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-    | IOLabel -> 
-        fun reducerInput ->
-#if DEBUG
-            assertNoClockTick reducerInput componentType
-            assertNotTooManyInputs reducerInput componentType 1
-#endif
-            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
-            | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [bits] ->
-                let out = Map.empty.Add (OutputPortNumber 0, bits)
-                makeReducerOutput NoState out
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
+    fun _ -> failwithf "Reducer function is legacy code and should never be called!"
 
-    | Not ->
-        fun reducerInput ->
-#if DEBUG
-            assertNoClockTick reducerInput componentType
-            assertNotTooManyInputs reducerInput componentType 1
-#endif
-            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
-            | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [bit] ->
-                let bit = extractBit bit
-                Map.empty.Add (OutputPortNumber 0, packBit (bitNot bit))
-                |> makeReducerOutput NoState
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-    | BusSelection(width, lsb) ->
-        fun reducerInput ->
-#if DEBUG
-            assertNoClockTick reducerInput componentType
-            assertNotTooManyInputs reducerInput componentType 1
-#endif
-            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
-            | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [bits] ->
-                assertThat (bits.Length >= width + lsb)
-                <| sprintf "Bus Selection received too few bits: expected at least %d but got %d" (width + lsb) bits.Length
-                let outBits = bits.[lsb .. lsb + width - 1]
-                let out = Map.empty.Add (OutputPortNumber 0, outBits)
-                makeReducerOutput NoState out
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput    
-    | BusCompare(width, compareVal) ->
-        fun reducerInput ->
-#if DEBUG
-            assertNoClockTick reducerInput componentType
-            assertNotTooManyInputs reducerInput componentType 1
-#endif
-            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
-            | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [bits] ->
-#if DEBUG
-                assertThat (bits.Length = width)
-                <| sprintf "Bus Compare received wrong number of bits: expecting  %d but got %d" width bits.Length
-#endif
-                let inputNum = convertWireDataToInt bits
-                let outNum: WireData = [if inputNum = int64 compareVal then One else Zero]
-                let out = Map.empty.Add (OutputPortNumber 0, outNum)
-                makeReducerOutput NoState out
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput    
-    | And  -> getBinaryGateReducer bitAnd And
-    | Or   -> getBinaryGateReducer bitOr Or
-    | Xor  -> getBinaryGateReducer bitXor Xor
-    | Nand -> getBinaryGateReducer bitNand Nand
-    | Nor  -> getBinaryGateReducer bitNor Nor
-    | Xnor -> getBinaryGateReducer bitXnor Xnor
-    | Mux2 ->
-        fun reducerInput ->
-#if DEBUG
-            assertNoClockTick reducerInput componentType
-            assertNotTooManyInputs reducerInput componentType 3
-#endif
-            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
-            | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [bits0; bits1; bitSelect] ->
-#if DEBUG
-                assertThat (bits0.Length = bits1.Length)
-                <| sprintf "Mux received two inputs with different widths: %A and %A" bits0 bits1
-#endif
-                let out = if (extractBit bitSelect) = Zero then bits0 else bits1
-                Map.empty.Add (OutputPortNumber 0, out)
-                |> makeReducerOutput NoState
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-    | Demux2 ->
-        fun reducerInput ->
-#if DEBUG
-            assertNoClockTick reducerInput componentType
-            assertNotTooManyInputs reducerInput componentType 2
-#endif
-            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
-            | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [bitsIn; bitSelect] ->
-                let zeros = List.replicate bitsIn.Length Zero
-                let out0, out1 = if (extractBit bitSelect) = Zero
-                                 then bitsIn, zeros else zeros, bitsIn
-                let out = Map.empty.Add (OutputPortNumber 0, out0)
-                let out = out.Add (OutputPortNumber 1, out1)
-                makeReducerOutput NoState out
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-    | NbitsAdder numberOfBits ->
-        fun reducerInput ->
-#if DEBUG
-            assertNoClockTick reducerInput componentType
-            assertNotTooManyInputs reducerInput componentType 3
-#endif
-            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
-            | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [cin; A; B] ->
-                let sum, cout =
-                    [cin; A; B]
-                    |> List.map convertWireDataToInt
-                    |> List.reduce (+)
-                    |> convertIntToWireData (numberOfBits + 1)
-                    |> List.splitAt numberOfBits
-                let out = Map.empty.Add (OutputPortNumber 0, sum)
-                let out = out.Add (OutputPortNumber 1, cout)
-                makeReducerOutput NoState out
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-    | NbitsXor numberOfBits ->
-        fun reducerInput ->
-#if DEBUG
-            assertNoClockTick reducerInput componentType
-            assertNotTooManyInputs reducerInput componentType 2
-#endif
-            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
-            | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [A; B] ->
-                let outVal =
-                    [A ; B]
-                    |> List.map convertWireDataToInt
-                    |> (function | [A;B] -> A ^^^ B | _ -> failwithf "What? impossible!")
-                    |> convertIntToWireData (numberOfBits)              
-                let out = Map.empty.Add (OutputPortNumber 0, outVal )
-                makeReducerOutput NoState out
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-
-    | Decode4 ->
-        fun reducerInput ->
-#if DEBUG
-            assertNoClockTick reducerInput componentType
-            assertNotTooManyInputs reducerInput componentType 2
-#endif
-            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
-            | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [select; data] ->
-                let out =
-                    let selN = convertWireDataToInt select |> int
-                    let dataN = convertWireDataToInt data |> int
-                    [0..3] |> 
-                    List.map (fun n -> 
-                        let outBit = if n = selN then dataN else 0
-                        OutputPortNumber n, convertIntToWireData 1 (int64 outBit))
-                    |> Map.ofList
-                makeReducerOutput NoState out
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-    | Custom c ->
-        fun _ ->
-            // The custom reducer is produced by the DependencyMerger.
-            failwithf "what? Custom components reducer should be overridden before using it in a simulation: %A" c
-    | MergeWires ->
-        fun reducerInput ->
-#if DEBUG
-            assertNoClockTick reducerInput componentType
-            assertNotTooManyInputs reducerInput componentType 2
-#endif
-            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
-            | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [bits0; bits1] ->
-                // Little endian, bits coming from the top wire are the least
-                // significant.
-                Map.empty.Add (OutputPortNumber 0, bits0 @ bits1)
-                |> makeReducerOutput NoState
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-    | SplitWire topWireWidth ->
-        fun reducerInput ->
-#if DEBUG
-            assertNoClockTick reducerInput componentType
-            assertNotTooManyInputs reducerInput componentType 1
-#endif
-            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
-            | None -> notReadyReducerOutput NoState // Wait for more inputs.
-            | Some [bits] ->
-#if DEBUG
-                assertThat (bits.Length >= topWireWidth + 1)
-                <| sprintf "SplitWire received too little bits: expected at least %d but got %d" (topWireWidth + 1) bits.Length
-#endif
-                let bits0, bits1 = List.splitAt topWireWidth bits
-                // Little endian, bits leaving from the top wire are the least
-                // significant.
-                let out = Map.empty.Add (OutputPortNumber 0, bits0)
-                let out = out.Add (OutputPortNumber 1, bits1)
-                makeReducerOutput NoState out
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-    | DFF ->
-        fun reducerInput ->
-            match reducerInput.IsClockTick with
-            | No ->
-                // If it is not a clock tick, just ignore the changes on the
-                // input.
-                // The newState returned does not matter! It is ignored unless
-                // Input is a clock tick.
-                notReadyReducerOutput NoState
-            | Yes dffState ->
-                let stateBit = getDffStateBit dffState
-                // Store and propagate the current inputs.
-                let newStateBit =
-                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
-                    | None -> stateBit
-                    | Some [bit] -> extractBit bit
-                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-                let newState = DffState newStateBit
-                Map.empty.Add (OutputPortNumber 0, packBit newStateBit)
-                |> makeReducerOutput newState
-    | DFFE ->
-        fun reducerInput ->
-            match reducerInput.IsClockTick with
-            | No ->
-                // If it is not a clock tick, just ignore the changes on the
-                // input.
-                // The newState returned does not matter! It is ignored unless
-                // Input is a clock tick.
-                notReadyReducerOutput NoState
-            | Yes dffState ->
-                let stateBit = getDffStateBit dffState
-                // Store and propagate the current inputs.
-                let newStateBit =
-                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
-                    | None -> stateBit
-                    | Some [bit; enable] -> if (extractBit enable = Zero)
-                                            then stateBit else extractBit bit
-                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-                let newState = DffState newStateBit
-                Map.empty.Add (OutputPortNumber 0, packBit newStateBit)
-                |> makeReducerOutput newState
-    | Register width ->
-        fun reducerInput ->
-            match reducerInput.IsClockTick with
-            | No ->
-                // If it is not a clock tick, just ignore the changes on the
-                // input.
-                // The newState returned does not matter! It is ignored unless
-                // Input is a clock tick.
-                notReadyReducerOutput NoState
-            | Yes regState ->
-                let stateBits = getRegisterStateBits regState
-                // Store and propagate the current inputs.
-                let newStateBits =
-                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
-                    | None -> stateBits
-                    | Some [bits] ->
-#if DEBUG
-                        assertThat (bits.Length = width)
-                        <| sprintf "Register received data with wrong width: expected %d but got %A" width bits.Length
-#endif
-                        bits
-                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-                let newState = RegisterState newStateBits
-                Map.empty.Add (OutputPortNumber 0, newStateBits)
-                |> makeReducerOutput newState
-    | RegisterE width ->
-        fun reducerInput ->
-            match reducerInput.IsClockTick with
-            | No ->
-                // If it is not a clock tick, just ignore the changes on the
-                // input.
-                // The newState returned does not matter! It is ignored unless
-                // Input is a clock tick.
-                notReadyReducerOutput NoState
-            | Yes regState ->
-                let stateBits = getRegisterStateBits regState
-                // Store and propagate the current inputs.
-                let newStateBits =
-                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 0; InputPortNumber 1] with
-                    | None -> stateBits
-                    | Some [bits; enable] ->
-#if DEBUG
-                        assertThat (bits.Length = width)
-                        <| sprintf "RegisterE received data with wrong width: expected %d but got %A" width bits.Length
-#endif
-                        if (extractBit enable = Zero)
-                        then stateBits else bits
-                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-                let newState = RegisterState newStateBits
-                Map.empty.Add (OutputPortNumber 0, newStateBits)
-                |> makeReducerOutput newState
-    | AsyncROM1 mem -> // Asynchronous ROM.
-        fun reducerInput ->
-#if DEBUG
-            assertNoClockTick reducerInput componentType
-            assertNotTooManyInputs reducerInput componentType 1
-#endif
-            match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
-            | None -> notReadyReducerOutput NoState // Not ready yet.
-            | Some [addr] ->
-                assertThat (addr.Length = mem.AddressWidth)
-                <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth addr
-                let outData = readMemory mem addr
-                Map.empty.Add (OutputPortNumber 0, outData)
-                |> makeReducerOutput NoState
-            | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-    | ROM1 mem -> // Synchronous ROM.
-        fun reducerInput ->
-            match reducerInput.IsClockTick with
-            | No ->
-                // If it is not a clock tick, just ignore the changes on the
-                // input.
-                notReadyReducerOutput NoState
-            | Yes state ->
-#if DEBUG
-                assertThat (state = NoState) "ROM component is stateless (only defined by initial data)."
-#endif
-                let address =
-                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
-                    | None ->
-                        // By default, output the content of mem[0].
-                        List.replicate mem.AddressWidth Zero
-                    | Some [addr] ->
-#if DEBUG
-                        assertThat (addr.Length = mem.AddressWidth)
-                        <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth addr
-#endif
-                        addr
-                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-                let outData = readMemory mem address
-                Map.empty.Add (OutputPortNumber 0, outData)
-                |> makeReducerOutput NoState
-    | RAM1 _ ->
-        fun reducerInput ->
-            match reducerInput.IsClockTick with
-            | No ->
-                // If it is not a clock tick, just ignore the changes on the
-                // input. The state returned is ignored.
-                notReadyReducerOutput NoState
-            | Yes state ->
-                let mem = getRamStateMemory state
-                let address =
-                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 0] with
-                    | None -> List.replicate mem.AddressWidth Zero
-                    | Some [addr] ->
-                        assertThat (addr.Length = mem.AddressWidth)
-                        <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addr
-                        addr
-                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-                let dataIn =
-                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 1] with
-                    | None -> List.replicate mem.WordWidth Zero
-                    | Some [dataIn] ->
-#if DEBUG
-                        assertThat (dataIn.Length = mem.WordWidth)
-                        <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataIn
-#endif
-                        dataIn
-                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-                let write =
-                    match getValuesForPorts reducerInput.Inputs [InputPortNumber 2] with
-                    | None -> packBit Zero
-                    | Some [bit] -> bit |> extractBit |> packBit // Ensure it is a single bit.
-                    | _ -> failwithf "what? Unexpected inputs to %A: %A" componentType reducerInput
-                // If write flag is on, write the memory content.
-                let mem, dataOut =
-                    match extractBit write with
-                    | Zero ->
-                        // Read memory address and return memory unchanged.
-                        mem, readMemory mem address
-                    | One ->
-                        // Update memory and return new content.
-                        writeMemory mem address dataIn, dataIn
-                Map.empty.Add (OutputPortNumber 0, dataOut)
-                |> makeReducerOutput (RamState mem)
-    | x -> failwithf $"legacy components {x} should never occur"
 
 
 /// Build a map that, for each source port in the connections, keeps track of
@@ -631,8 +214,8 @@ let private getDefaultState compType =
     | Demux2 | NbitsAdder _ |NbitsXor _ | Custom _ | MergeWires | SplitWire _ | ROM1 _  | Viewer _ -> NoState
     | Constant1 _ | Constant _ -> NoState 
     | AsyncROM1 _ -> NoState
-    | DFF | DFFE -> DffState Zero
-    | Register w | RegisterE w -> RegisterState <| List.replicate w Zero
+    | DFF | DFFE -> DffState 0u
+    | Register w | RegisterE w -> RegisterState <| convertIntToFastData w 0u
     | RAM1 memory -> RamState memory // The RamState content may change during
                                     // the simulation.
 

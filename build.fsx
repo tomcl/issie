@@ -20,6 +20,7 @@ Target.create "CleanDev" (fun _ ->
   ++ "src/**/obj"
   ++ "dist"
   ++ ".fable"
+  ++ "src/**/*.map"
   |> Shell.cleanDirs
 )
 
@@ -28,6 +29,7 @@ Target.create "Clean" (fun _ ->
   ++ "src/**/obj"
   ++ "dist"
   ++ ".fable"
+  ++ "src/**/*.map"
   |> Shell.cleanDirs
   Target.run 1 "KillZombies" []
 )

@@ -116,7 +116,7 @@ let inline extractBit (wireData: WireData) : Bit =
 
     wireData.[0]
 
-let inline packBit (bit: Bit) : WireData = [ bit ]
+let inline packBit (bit: Bit) : WireData = if bit = Zero then [Zero] else [One]
 
 
 /// Read the content of the memory at the specified address.
@@ -1343,7 +1343,11 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
 /// Run an existing fast simulation up to the given number of steps. This function will mutate the write-once data arrays
 /// of simulation data and only simulate the new steps needed, so it may return immediately doing no work.
 /// If the simulation data arrays are not large enough they are extended up to a limit. After that, they act as a circular buffer.
-let rec runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
+let runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
+
+        let simStartTime = getTimeMs()
+        let stepsToDo = float (numberOfSteps - fs.ClockTick)
+        let numComponents = float fs.FComps.Count
    
         if numberOfSteps > fs.MaxStepNum then
             if fs.MaxStepNum < fs.MaxArraySize then
@@ -1360,8 +1364,11 @@ let rec runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
         [ start .. numberOfSteps ]
         |> List.iter
             (fun n ->
-                if n % 250 = 0 then printfn "Step %d" n
+                if n % (100 * (int (1. + 3000. / numComponents))) = 0 then printfn "Step %d" n
                 stepSimulation fs)
+        let sTime = getTimeMs() - simStartTime
+        if stepsToDo > 99. then
+            printfn $"Simulation speed: {numComponents*stepsToDo/sTime} Component-Steps/ms ({int stepsToDo} steps, {int numComponents} components)"
 
 /// Run a fast simulation for a given number of steps building it from the graph
 let runSimulationZeroInputs (steps: int) (graph: SimulationGraph) : FastSimulation =

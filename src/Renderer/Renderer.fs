@@ -125,8 +125,10 @@ let fileMenu (dispatch) =
             JSHelpers.debugTraceUI <- Set.ofList [])
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Run performance check" None (fun _ -> 
             testMaps()
-            displayPerformance 1000 100000)
+            
+            displayPerformance 100 4000000)
      ]
+
 
 let viewMenu dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)

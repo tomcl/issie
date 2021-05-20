@@ -306,9 +306,9 @@ let checkPerformance m n startTimer stopTimer =
         let mutable el = 0
         startTimer "ArrayBufferLookup"
         while index < n / 2 do
-             for i = 0 to m-1 do
-                index <- index + buff.[i]
-                el <- buff.[el]
+            index <- index + 1
+            for i = 0 to (m-1)/2 do
+                el <- buff.[el] + index
         el |> ignore
         stopTimer "ArrayBufferLookup"   
 
@@ -436,6 +436,7 @@ let checkPerformance m n startTimer stopTimer =
 
     arrayBuffer()
     arrayBuffer()
+    arrayBufferLookup()
     arrayBufferLookup()
     mutableArrayBuffer()
     mutableArrayBuffer()

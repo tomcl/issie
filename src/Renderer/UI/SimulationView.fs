@@ -320,7 +320,7 @@ let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg 
     let step = simData.ClockTickNumber
     div [] 
         [
-            h6 [] [str $"This simulation contains {simData.FastSim.FOrderedComps.Length} components"]
+            h6 [] [str $"This simulation contains {simData.FastSim.FComps.Count} components"]
             (match dialog.Int with 
             | Some n when n > step -> 
                 Text.p [

@@ -33,12 +33,18 @@ let private extractComponentPortNumber port =
     | None -> failwithf "what? extractComponentPortNumber should always be called with component ports: %A" port
     | Some pNumber -> pNumber
 
+
 let private assertInputsSize
         (inputs : Map<InputPortNumber, (int option * ConnectionId) option>)
         (expected : int)
         (comp : Component) =
+#if DEBUG
     assertThat (inputs.Count = expected)
     <| sprintf "assertInputsSize failed for: %A" comp
+#else
+        ()
+#endif
+
 
 
 

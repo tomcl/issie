@@ -8,7 +8,7 @@ function resolve(filePath) {
 
 
 module.exports = {
-    entry: [resolve("src/Renderer/Renderer.fs.js"), resolve("src/Renderer/scss/main.scss")],
+    entry: [resolve("src/Renderer/scss/main.css"),resolve("src/Renderer/Renderer.fs.js")],
     resolve: {
         modules: ['node_modules']
     },
@@ -16,9 +16,7 @@ module.exports = {
         filename: "renderer.js"
     },
     plugins: [
-        new HtmlWebpackPlugin({
-            template: path.resolve(__dirname, 'static/index.html')
-        })
+
     ],
     module: {
         rules: [

@@ -277,7 +277,7 @@ let feedClockTick (graph : SimulationGraph) : SimulationGraph =
 /// Feed zero to a simulation input.
 /// This function is supposed to be used with Components of type Input.
 let feedSimulationInput graph inputId wireData =
-    feedInput graph inputId (InputPortNumber 0, wireData)
+    failwithf "this function should never be called"
 
 /// Feed in constant outputs so that they propagated to things connected to them
 /// This function is supposed to be used with Components of type Constant
@@ -317,13 +317,14 @@ let InitialiseGraphWithZeros
         : SimulationGraph =
     // Feed a clock tick to initialize all of the nets that are after clocked
     // components, which cannot be initialised by just feeding the inputs.
-    let graph = feedClockTick graph
+    (*let graph = feedClockTick graph
     // Feed zero to all simulation inputs.
     (graph, inputIds) ||> List.fold (fun graph (inputId, _, width) ->
         let data = List.replicate width Zero
         feedSimulationInput graph inputId data
     )
-    |> feedSimulationConstants 
+    |> feedSimulationConstants *)
+    graph
     
 
 /// Given a list of IO nodes (i.e. Inputs or outputs) extract their value.

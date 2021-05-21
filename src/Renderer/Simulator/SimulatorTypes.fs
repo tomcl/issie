@@ -583,7 +583,7 @@ let standardOrderWaves prevDispNames isWanted (waves: Map<string,WaveformSpec>) 
     Array.append prev' others
 
 let getWaveformSpecifications 
-        (netGroup2Label: SimulationGraph -> NetList -> NetGroup -> string) 
+        (netGroup2Label: SimulationData -> NetList -> NetGroup -> string) 
         (sd: SimulationData) 
         (rState: CanvasState) =
     let comps,conns = rState
@@ -610,7 +610,7 @@ let getWaveformSpecifications
     /// Merge and Split and BusSelection components (as drivers) are removed,
     /// replaced by corresponding selectors on busses. Names are tagged with labels or IO connectors
     /// It is easy to change these names to make them more human readable.
-    let nameOf ng  = netGroup2Label sd.Graph netList ng
+    let nameOf ng  = netGroup2Label sd netList ng
     /// findName (via netGroup2Label) will possibly not generate unique names for each netgroup
     /// Names are defined via waveSimModel.AllPorts which adds to each name
     /// an optional unique numeric suffic (.2 etc). These suffixes are stripped from names

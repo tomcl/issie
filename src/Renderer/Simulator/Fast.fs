@@ -1449,7 +1449,10 @@ let getFLabel (fs:FastSimulation) (fId:FComponentId) =
     let (ComponentLabel name) = fc.SimComponent.Label
     name, fc.FullName
 
-        
+let extractFastSimulationWidth (fs:FastSimulation)   (fid: FComponentId) (opn: OutputPortNumber) =
+    let (OutputPortNumber n) = opn
+    fs.FComps.[fid].OutputWidth.[n]
+    
 
 
 

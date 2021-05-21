@@ -383,30 +383,6 @@ let getSimTime (waves: WaveformSpec array) (simData: SimulationData) =
         )
  
 
-/// extract current value of the given array of SourceGroup
-let getSlowTime (netgrps: NetGroup array) (simData: SimulationData) =
-    let simGraph = simData.Graph
-    Array.map (fun netGrp -> netGrp.driverNet) netgrps
-    |> Array.map (fun netGrp ->
-        try 
-            let compId = netGrp.[0].TargetCompId
-            let inputPorts = simGraph.[compId].Inputs
-            let portNum = netGrp.[0].InputPort
-            let wD = Map.tryFind portNum inputPorts
-                     |> Option.defaultValue []
-            Wire
-                { NBits = uint (List.length wD)
-                  BitData = simWireData2Wire wD }
-        with
-        | e -> 
-            printfn "Exception: %A" e
-            printSimGraph simGraph
-            let compId = netGrp.[0].TargetCompId
-            printfn "\nComponent %s\n\n" (tryGetCompLabel compId simGraph)
-            failwithf "What? This error in getSimTime should not be possible"
-
-        )
-
 /// get all values of waveforms
 let getAllWaveSimDataBySample (wsMod: WaveSimModel) =
         let waves = dispWaves wsMod
@@ -616,7 +592,9 @@ let private simplifyName name =
     |> removeSubSeq '(' ')'
 
 /// get WaveLabel corresponding to a NLTarget list
-let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (net: NetList) netGrp nlTrgtList =
+let rec private findName (compIds: ComponentId Set) (sd: SimulationData) (net: NetList) netGrp nlTrgtList =
+    let graph = sd.Graph
+    let fs = sd.FastSim
     match nlTrgtLst2CommonNLSource net nlTrgtList with
     //nlTrgtLst is not connected to any driving components
     | None -> { OutputsAndIOLabels = []; ComposingLabels = [] }
@@ -634,9 +612,9 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
                 match drivingOutput net nlSource.SourceCompId inPortN with
                 | Some nlSource' ->
                     net.[nlSource'.SourceCompId].Outputs.[nlSource'.OutputPort]
-                    |> findName compIds graph net netGrp
+                    |> findName compIds sd net netGrp
                 | None ->  { OutputsAndIOLabels = []; ComposingLabels = [] } 
-
+            let srcComp = net.[nlSource.SourceCompId]
             match net.[nlSource.SourceCompId].Type with
             | ROM _ | RAM _ | AsyncROM _ -> 
                     failwithf "What? Legacy RAM component types should never occur"
@@ -707,9 +685,15 @@ let rec private findName (compIds: ComponentId Set) (graph: SimulationGraph) (ne
                 |> List.choose id
                 |> List.rev
             | IOLabel -> 
-                let ioLblWidth = List.length graph.[nlTrgtList.[0].TargetCompId].Inputs.[nlTrgtList.[0].InputPort]
-                [ { LabName = compLbl
-                    BitLimits = ioLblWidth - 1, 0 } ]
+                let drivingComp = fs.FIOActive.[ComponentLabel srcComp.Label,[]]
+                let ioLblWidth = Fast.extractFastSimulationWidth fs (drivingComp.Id,[]) (OutputPortNumber 0)
+                match ioLblWidth with
+                | None ->
+                    failwithf $"What? Can't find width for IOLabel {net.[srcComp.Id].Label}$ "
+                | Some width ->
+                            
+                            [ { LabName = compLbl
+                                BitLimits = width - 1, 0 } ]
 
             |> (fun composingLbls -> { OutputsAndIOLabels = netGroup2outputsAndIOLabels net netGrp
                                        ComposingLabels = composingLbls })
@@ -723,9 +707,9 @@ let private bitLimsString (a, b) =
     | (msb, lsb) -> sprintf "[%d:%d]" msb lsb
 
 /// get the label of a waveform
-let netGroup2Label compIds graph netList (netGrp: NetGroup) =
+let netGroup2Label compIds (sd:SimulationData) netList (netGrp: NetGroup) =
     let start = getTimeMs()
-    let waveLbl = findName compIds graph netList netGrp netGrp.driverNet
+    let waveLbl = findName compIds sd netList netGrp netGrp.driverNet
     //printfn "Finding label for %A\n%A\n\n" netGrp.driverComp.Label waveLbl.OutputsAndIOLabels
     let tl =
         match waveLbl.ComposingLabels with

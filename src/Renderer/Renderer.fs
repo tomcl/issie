@@ -112,7 +112,10 @@ let fileMenu (dispatch) =
         makeItem "New Sheet" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
         makeItem "Save Sheet" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
         makeItem "Print Sheet" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
-        makeItem "Write Sheet as Verilog" None (fun ev -> dispatch (MenuAction(MenuVerilogOutput,dispatch)))
+        makeItem "Write Sheet as Verilog for Simulation" None (fun ev -> 
+            dispatch (MenuAction(MenuVerilogOutput Verilog.ForSimulation,dispatch)))
+        makeItem "Write Sheet as Verilog for Synthesis" None (fun ev -> 
+            dispatch (MenuAction(MenuVerilogOutput Verilog.ForSynthesis,dispatch)))
         makeItem "Exit Issie" None (fun ev -> dispatch Msg.ShowExitDialog)
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> PopupView.viewInfoPopup dispatch)
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Restart app" None (fun _ -> 

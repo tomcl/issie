@@ -28,7 +28,7 @@ open NumberHelpers
 /// save verilog file
 /// TODO: the simulation error display here is shared with step simulation and also waveform simulation -
 /// maybe it should be a subfunction.
-let verilogOutput (model: Model) (dispatch: Msg -> Unit) =
+let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) =
     printfn "Verilog output"
     match FileMenuView.updateProjectFromCanvas model dispatch, model.Sheet.GetCanvasState() with
         | Some proj, state ->
@@ -41,7 +41,7 @@ let verilogOutput (model: Model) (dispatch: Msg -> Unit) =
                     | Ok sim -> 
                         let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
                         printfn "writing %s" proj.ProjectPath
-                        FilesIO.writeFile path (Verilog.getVerilog sim.FastSim)
+                        FilesIO.writeFile path (Verilog.getVerilog vType sim.FastSim)
                         |> FileMenuView.displayAlertOnError dispatch
 
                         let note = successSimulationNotification $"verilog output written to file {path}"

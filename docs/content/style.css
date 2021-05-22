@@ -1,11 +1,20 @@
 @import url(https://fonts.googleapis.com/css?family=Droid+Sans|Droid+Sans+Mono|Open+Sans:400,600,700);
 
+/* COLOUR THEME */
+/*
+	Backround (white): #FBFFFE
+	Highlight/secondary background (yellow): #FAA916
+	Highlight (blue): #01ABAA
+	TextColour (off black): #272838
+*/
+
 /*--------------------------------------------------------------------------
   Formatting for F# code snippets
 /*--------------------------------------------------------------------------*/
-
 /* strings --- and stlyes for other string related formats */
-span.s { color:#E0E268; }
+span.s {
+	color: #E0E268;
+}
 /* printf formatters */
 span.pf { color:#E0C57F; }
 /* escaped chars */
@@ -116,6 +125,7 @@ table.pre td.lines {
 
 body {
   font-family: 'Open Sans', serif;
+  margin: 0;
   padding-top: 0px;
   padding-bottom: 40px;
 }
@@ -167,6 +177,71 @@ td.title, thead {
 
 #menu li {
   line-height:25px;
+}
+
+/* -------- NAVIGATION BAR STYLE ---------- */
+
+/* Add a black background color to the top navigation */
+.topnav {
+	background-color: #FAA916;
+	overflow: hidden;
+}
+
+/* Style the links inside the navigation bar */
+.topnav a {
+	float: left;
+	color: #272838;
+	text-align: center;
+	padding: 14px 16px;
+	text-decoration: none;
+	font-size: 17px;
+	border-top: 20px solid #FAA916;
+	border-bottom: 20px solid #FAA916;
+	line-height: 24px;
+	vertical-align: bottom;
+}
+
+/* Change the color of links on hover */
+.topnav a:hover {
+	background-color: #FBFFFE;
+	color: #272838;
+}
+
+/* Right-aligned section inside the top navigation */
+.topnav-right {
+	float: right;
+	background-color: #01ABAA;
+	border-right: 10px solid #FAA916;
+	border-top: 20px solid #FAA916;
+	border-bottom: 20px solid #FAA916;
+}
+
+.topnav-right a {
+	color: #FBFFFE;
+	border: 1px solid #FBFFFE;
+}
+
+/* -------- PANNEL STYLE ------- */
+
+.Intro {
+	margin-top: 5px;
+	background-color: #FAA916;
+
+}
+
+/* Responsive layout - when the screen is less than 700px wide, make the two columns stack on top of each other instead of next to each other */
+@media screen and (max-width: 700px) {
+	.row {
+		flex-direction: column;
+	}
+}
+
+/* Responsive layout - when the screen is less than 400px wide, make the navigation links stack on top of each other instead of next to each other */
+@media screen and (max-width: 400px) {
+	.navbar a {
+		float: none;
+		width: 100%;
+	}
 }
 
 /* Change font sizes for headings etc. */

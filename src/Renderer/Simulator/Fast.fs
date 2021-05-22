@@ -532,8 +532,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
                 // Read memory address and return memory unchanged.
                 mem, readMemory mem address
             | One ->
-                // Update memory and return new content.
-                writeMemory mem address dataIn, dataIn
+                // Update memory and return old content.
+                // NB - this was previously new content - but that is inconsistent and less useful.
+                writeMemory mem address dataIn, readMemory mem address
 
         putState (RamState mem)
         put0 dataOut

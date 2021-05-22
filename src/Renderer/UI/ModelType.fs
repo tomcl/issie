@@ -239,7 +239,7 @@ type MenuCommand =
     | MenuSaveFile
     | MenuNewFile
     | MenuZoom of float
-    | MenuVerilogOutput of Verilog.VMode
+    | MenuVerilogOutput
 
 
 

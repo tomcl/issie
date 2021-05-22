@@ -35,7 +35,38 @@ let private getSimulationDataOrFail model msg =
         | Error _ -> failwithf "what? Getting simulation data when could not start because of error: %s" msg
         | Ok simData -> simData
 
-/// handle menus (never used?)
+
+
+let verilogOutput sheet fPath  =
+    div [] [
+        str $"You can write sheet '{sheet}' (and its subsheets) to a single Verilog file"
+        Text.div [ 
+            Modifiers [ Modifier.TextWeight TextWeight.Bold]
+            Props [Style [TextAlign TextAlignOptions.Center; Padding "10px"]]] [str $"%s{fPath}.v"]
+        Columns.columns [ ]
+            [ Column.column [ ]
+                [ Panel.panel [ Panel.Color IsInfo ]
+                    [ Panel.heading [ ] [ str "Simulation output"]
+                      Panel.Block.div [] [ str "Simulation output will run on an online synthesis tool such as Icarus v10 to check that Issie's Verilog output is working"]
+                      Panel.Block.div [] 
+                        [ Button.button 
+                            [   Button.Color IsSuccess
+                               
+                                Button.IsFullWidth
+                                Button.OnClick <| openInBrowser "https://www.tutorialspoint.com/compile_verilog_online.php"
+                            ]
+                            [ str "Icarus v10 Verilog simulator"]
+                        ]
+                    ]
+                ]
+              Column.column [ ]
+                [ Panel.panel [ Panel.Color IsInfo ]
+                    [ Panel.heading [ ] [ str "Synthesis output"]
+                      Panel.Block.div [] [str "Synthesis output can be used as input to FPGA synthesis tools." ]
+                         ] ] ] ] 
+
+
+/// handle Menu actions that may need Model data
 let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
     match act with
     | MenuSaveFile -> 
@@ -44,8 +75,22 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
         |> JSDiagramMsg |> dispatch
     | MenuNewFile -> 
         FileMenuView.addFileToProject model dispatch
-    | MenuVerilogOutput vType ->
-        SimulationView.verilogOutput vType model dispatch
+    | MenuVerilogOutput ->
+        mapOverProject () model (fun p ->
+            let sheet = p.OpenFileName
+            let fPath = FilesIO.pathJoin [|p.ProjectPath ; sheet|]
+            PopupView.choicePopup
+                "Verilog Output"
+                (verilogOutput sheet fPath)
+                "Write Synthesis Verilog"
+                "Write Simulation Verilog"
+                (fun forSim _ -> 
+                    match forSim with
+                    | true -> SimulationView.verilogOutput Verilog.ForSynthesis model dispatch
+                    | false -> SimulationView.verilogOutput Verilog.ForSimulation model dispatch
+                    dispatch ClosePopup)
+                dispatch)
+            
     | _ -> ()
     model
 

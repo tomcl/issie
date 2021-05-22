@@ -454,12 +454,13 @@ let getInitialSimulationBlock (vType:VMode) (fs: FastSimulation) =
                     begin
                     {inDefs}
                     clk = 1'b0;
+                    #10
                     $display("{outNames}");
                     while ($time < 300)
                     begin
                         $display("{outFormat}",{outVars});
-                        #5 clk = !clk;
-                        #5 clk = !clk;
+                        #5 clk = ~clk;
+                        #5 clk = ~clk;
                     end
                     end
         """ |]

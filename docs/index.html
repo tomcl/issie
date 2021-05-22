@@ -19,7 +19,8 @@
     <![endif]-->
   </head>
   <body>
-      <div class="topnav">
+
+      <div class="topnav" name="Home">
           <a href="#Home" style="font-size: 30px; font-weight:bold">ISSIE</a>
           <a href="#UserGuide">User Guide</a>
           <a href="#FAQ">FAQ</a>
@@ -30,13 +31,16 @@
           </div>
       </div>
 
-      <div class="Intro">
-          TEST
-          <div class="topnav-right">
-              <a href="#Info">Learn more</a>
-          </div>
-          <div class="topnav-right">
-              <a href="#Something">Something</a>
+      <div class="IntroBackground">
+          <div class="IntroLayer">
+              <p style="font-size: 24px; margin-left: 0.5%; font-weight:bold; color: #272838; text-align: center">
+                  <br><br> Discover, Learn & Create with the ISSIE circuit schematic editor!
+              </p>
+              <div class="topnav-right">
+                  <a href="#Info">Learn more</a>
+                  <a href="#Contributing">Something</a>
+              </div>
+              <br><br><br><br><br>
           </div>
       </div>
 
@@ -64,7 +68,6 @@
           Go to the <a href="https://github.com/tomcl/issie/releases">releases</a> page on the Github repo and download the
           package most applicable to your operating system. Linux users can run the windows vrsion under WINE.
       </p>
-
       <h2><a name="Documentation" class="anchor" href="#Documentation">Documentation</a></h2>
       <ul>
           <li>Functionality - Some example use cases for the application.</li>
@@ -83,7 +86,7 @@
       <script>
           // Used to toggle the menu on small screens when clicking on the menu button
           function myFunction() {
-              var x = document.getElementById("navDemo");
+              var x = document.getElementById("topNav");
               if (x.className.indexOf("w3-show") == -1) {
                   x.className += " w3-show";
               } else {

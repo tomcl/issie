@@ -1,5 +1,5 @@
 @import url(https://fonts.googleapis.com/css?family=Droid+Sans|Droid+Sans+Mono|Open+Sans:400,600,700);
-
+@import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@200;300;400;500;600;700;800;900&display=swap');
 /* COLOUR THEME */
 /*
 	Backround (white): #FBFFFE
@@ -7,7 +7,6 @@
 	Highlight (blue): #01ABAA
 	TextColour (off black): #272838
 */
-
 /*--------------------------------------------------------------------------
   Formatting for F# code snippets
 /*--------------------------------------------------------------------------*/
@@ -124,7 +123,7 @@ table.pre td.lines {
 /*--------------------------------------------------------------------------*/
 
 body {
-  font-family: 'Open Sans', serif;
+  font-family: 'Inconsolata', 'Helvetica';
   margin: 0;
   padding-top: 0px;
   padding-bottom: 40px;
@@ -187,6 +186,7 @@ td.title, thead {
 	overflow: hidden;
 	line-height: 20px;
 	vertical-align: middle;
+	font-weight: 600;
 }
 
 /* Style the links inside the navigation bar */

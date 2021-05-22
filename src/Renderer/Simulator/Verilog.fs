@@ -8,6 +8,8 @@ open Fast
 open Helpers
 open NumberHelpers
 
+type VMode = ForSynthesis | ForSimulation
+
 
 /// take FullName and convert it into a verilog compatible form
 let verilogNameConvert (s: string) =
@@ -246,7 +248,7 @@ let getZeros width =
     | _ -> $"{width}'h0"
 
 /// what verilog declaration should the output signal have?
-let fastOutputDefinition (fc: FastComponent) (opn: OutputPortNumber) =
+let fastOutputDefinition (vType:VMode) (fc: FastComponent) (opn: OutputPortNumber) =
     let (OutputPortNumber n) = opn
     let name = fc.VerilogOutputName.[n]
     let vDef = getVPortOutWithSlice fc opn
@@ -255,10 +257,12 @@ let fastOutputDefinition (fc: FastComponent) (opn: OutputPortNumber) =
     | Output n, [] -> $"output {vDef};\n"
     | DFF, _
     | DFFE, _ -> $"reg {vDef} = 1'b0;\n"
-    | Input n, []
+    | Input n, [] ->
+        match vType with 
+        | ForSynthesis -> $"input {vDef};\n"
+        | ForSimulation -> $"reg {vDef} = {getZeros n};\n"
     | Register n, _
     | RegisterE n, _ -> $"reg {vDef} = {getZeros n};\n"
-    | Input n, _ -> $"wire {vDef};\n"
     | _ -> $"wire {vDef};\n"
 
 /// Translates from a component to its Verilog description
@@ -284,6 +288,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         | None -> failwithf "Can't find output width for output port %d of %A\n" opn fs.FComps.[fid]
 
     match fc.FType, fc.AccessPath with
+    | Viewer _, _ -> ""
     | Input _, [] -> failwithf "What? cannot call getVerilogComponent to find code for global Input"
     | Output _, _
     | Viewer _,_
@@ -346,31 +351,33 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         | _ -> failwithf "What? impossible!: fc.FType =%A" fc.FType
 
 /// return the header of the main verilog module with hardware inputs and outputs in header.
-let getMainHeader (fs: FastSimulation) =
+let getMainHeader (vType:VMode) (fs: FastSimulation) =
     Array.append
         fs.FGlobalInputComps
         (Array.filter (fun fc -> isOutput fc.FType && fc.AccessPath = []) fs.FOrderedComps)
     |> Array.collect
         (fun fc -> // NB - inputs are assigned zero and not included in module header
             match fc.FType, fc.AccessPath with
-            | Output _, [] -> // NB - inputs are assigned zero and not included in module header
+            | Output _, [] -> // NB - inputs are assigned zero in synthesis and not included in module header
                 [| fc.VerilogOutputName.[0] |]
+            | Input _, [] when vType = ForSynthesis -> [| fc.VerilogOutputName.[0] |]
             | _ -> [||])
+    |> Array.append (match vType with | ForSynthesis -> [|"clk"|] | ForSimulation -> [||])
     |> String.concat ",\n\t"
     |> sprintf "module main (\n\t%s);"
     |> fun s -> [| s |]
 
 /// return the wire and reg definitions needed to make the verilog design work.
-let getMainSignalDefinitions (fs: FastSimulation) =
+let getMainSignalDefinitions (vType: VMode) (fs: FastSimulation) =
     fs.FComps
     |> mapValues
     |> Array.filter (fun fc -> fc.Active)
     |> Array.collect
         (fun fc ->
             fc.Outputs
-            |> Array.mapi (fun i _ -> fastOutputDefinition fc (OutputPortNumber i)))
+            |> Array.mapi (fun i _ -> fastOutputDefinition vType fc (OutputPortNumber i)))
     |> Array.sort
-    |> Array.append [| "reg clk;\n" |]
+    |> Array.append (match vType with | ForSimulation -> [| "reg clk;\n" |] | ForSynthesis -> [||])
 
 /// get the module definitions (one per RAM instance) that define RAMs used
 /// TODO: make output more compact by using multiple instances of one module where possible.
@@ -398,7 +405,7 @@ let getMainHardware (fs: FastSimulation) =
     Array.map (getVerilogComponent fs) hardware
 
 /// make a simple testbench which displays module outputs for the first 30 clock cycles
-let getInitialSimulationBlock (fs: FastSimulation) =
+let getInitialSimulationBlock (vType:VMode) (fs: FastSimulation) =
 
     let inDefs =
         fs.FGlobalInputComps
@@ -439,21 +446,23 @@ let getInitialSimulationBlock (fs: FastSimulation) =
         |> String.concat " "
 
     let outVars = String.concat "," outVars
-
-    [| $"""
-        initial
-                begin
-                {inDefs}
-                clk = 1'b0;
-                $display("{outNames}");
-                while ($time < 300)
-                begin
-                    $display("{outFormat}",{outVars});
-                    #5 clk = !clk;
-                    #5 clk = !clk;
-                end
-                end
-    """ |]
+    match vType with
+    | ForSynthesis -> [||]
+    | ForSimulation ->
+        [| $"""
+            initial
+                    begin
+                    {inDefs}
+                    clk = 1'b0;
+                    $display("{outNames}");
+                    while ($time < 300)
+                    begin
+                        $display("{outFormat}",{outVars});
+                        #5 clk = !clk;
+                        #5 clk = !clk;
+                    end
+                    end
+        """ |]
 
 
 /// Outputs a string which contains a single verilog file with the hardware in verilog form.
@@ -462,15 +471,15 @@ let getInitialSimulationBlock (fs: FastSimulation) =
 /// data structure.
 /// To simulate this you would need to set up clk as a clock input, and provide stimulus for other inputs if
 /// there are any.
-let getVerilog (fs: FastSimulation) =
+let getVerilog (vType: VMode) (fs: FastSimulation) =
     // make sure we have Ok names to use for output
     writeVerilogNames fs
 
     [| getInstantiatedModules fs
-       getMainHeader fs
-       getMainSignalDefinitions fs
+       getMainHeader vType fs
+       getMainSignalDefinitions vType fs
        getMainHardware fs
-       getInitialSimulationBlock fs
+       getInitialSimulationBlock vType fs
        [| "endmodule\n" |] |]
     |> Array.map (String.concat "")
     |> String.concat "\n"

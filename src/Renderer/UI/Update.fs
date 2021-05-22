@@ -44,9 +44,8 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
         |> JSDiagramMsg |> dispatch
     | MenuNewFile -> 
         FileMenuView.addFileToProject model dispatch
-    | MenuVerilogOutput ->
-        SimulationView.verilogOutput model dispatch
-        failwithf "try to break here..."
+    | MenuVerilogOutput vType ->
+        SimulationView.verilogOutput vType model dispatch
     | _ -> ()
     model
 

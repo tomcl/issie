@@ -37,9 +37,9 @@ let private getSimulationDataOrFail model msg =
 
 
 
-let verilogOutput sheet fPath  =
+let verilogOutputPage sheet fPath  =
     div [] [
-        str $"You can write sheet '{sheet}' (and its subsheets) to a single Verilog file"
+        str $"You can write sheet '{sheet}' (and its subsheets) in either simulation of synthesis format. the output will be written to:"
         Text.div [ 
             Modifiers [ Modifier.TextWeight TextWeight.Bold]
             Props [Style [TextAlign TextAlignOptions.Center; Padding "10px"]]] [str $"%s{fPath}.v"]
@@ -81,7 +81,7 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
             let fPath = FilesIO.pathJoin [|p.ProjectPath ; sheet|]
             PopupView.choicePopup
                 "Verilog Output"
-                (verilogOutput sheet fPath)
+                (verilogOutputPage sheet fPath)
                 "Write Synthesis Verilog"
                 "Write Simulation Verilog"
                 (fun forSim _ -> 

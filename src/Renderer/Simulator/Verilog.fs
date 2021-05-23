@@ -101,7 +101,7 @@ let makeRomModule (moduleName: string) (mem: Memory1) =
         $"""
 
     module %s{moduleName}(q, a, clk);
-    output reg [%d{dMax}:0] q = 0;
+    output reg [%d{dMax}:0] q;
     input [%d{aMax}:0] a;
     reg [%d{dMax}:0] rom [%d{numWords - 1}:0];
     always @(posedge clk) q <= rom[a];
@@ -364,7 +364,9 @@ let getMainHeader (vType:VMode) (fs: FastSimulation) =
             | _ -> [||])
     |> Array.append (match vType with | ForSynthesis -> [|"clk"|] | ForSimulation -> [||])
     |> String.concat ",\n\t"
-    |> sprintf "module main (\n\t%s);"
+    |> (fun header -> 
+            let clock = match vType with ForSimulation -> "" | ForSynthesis -> "input clk;"
+            $"module main (\n\t{header})\n{clock}")
     |> fun s -> [| s |]
 
 /// return the wire and reg definitions needed to make the verilog design work.

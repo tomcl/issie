@@ -183,9 +183,10 @@ module CommonTypes
             | Eight -> "8px"
             
             
-    /// Name identified the LoadedComponent used.
-    /// The labels define legends on symbol.
+    /// Name identifies the LoadedComponent used.
+    /// The labels define legends on symbol designating inputs or outputs: and are the names of the Input or Output components of the CC sheet.
     /// Label strings are unique per CustomComponent.
+    /// Label position in list determines inputportnumber or outputportnumber of label.
     /// Multiple CustomComponent instances are differentiated by Component data.
     type CustomComponentType = {
         Name: string

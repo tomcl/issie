@@ -63,6 +63,15 @@ let verilogOutputPage sheet fPath  =
                 [ Panel.panel [ Panel.Color IsInfo ]
                     [ Panel.heading [ ] [ str "Synthesis output"]
                       Panel.Block.div [] [str "Synthesis output can be used as input to FPGA synthesis tools." ]
+                      Panel.Block.div [] 
+                        [ Button.button 
+                            [   Button.Color IsSuccess                          
+                                Button.IsFullWidth
+                                Button.OnClick <| openInBrowser "https://github.com/edstott/issie-synth"
+                            ]
+                            [ str "Instructions for synthesis work-flow"] 
+                        ]
+                      
                          ] ] ] ] 
 
 

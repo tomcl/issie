@@ -39,7 +39,7 @@ let private getSimulationDataOrFail model msg =
 
 let verilogOutputPage sheet fPath  =
     div [] [
-        str $"You can write sheet '{sheet}' (and its subsheets) in either simulation of synthesis format. the output will be written to:"
+        str $"You can write sheet '{sheet}' (and its subsheets) in either simulation or synthesis format. The output will be written to:"
         Text.div [ 
             Modifiers [ Modifier.TextWeight TextWeight.Bold]
             Props [Style [TextAlign TextAlignOptions.Center; Padding "10px"]]] [str $"%s{fPath}.v"]

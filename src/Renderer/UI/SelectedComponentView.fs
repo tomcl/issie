@@ -303,11 +303,16 @@ let private makeDescription (comp:Component) model dispatch =
         let toHTMLList =
             List.map (fun (label, width) -> li [] [str <| sprintf "%s: %d bit(s)" label width])
         div [] [
-            str <| sprintf "%s: user defined component." custom.Name
+            str <| $"{custom.Name}: user defined component." 
             br []
-            span [Style [FontStyle "italic"]] [str <| "Inputs"]
+            p [  Style [ FontStyle "italic"; FontSize "12px"; LineHeight "1.1"]] [
+                str <| $"Input or Output ports are displayed on the '{custom.Name}' symbol sorted by the \
+                    vertical position on the design sheet of the Input or Output components at the time the symbol is added."]
+            
+            span [Style [FontWeight "bold"; FontSize "15px"]] [str <| "Inputs"]
             ul [] (toHTMLList custom.InputLabels)
-            span [Style [FontStyle "italic"]] [str <| "Outputs"]
+            br[]
+            span [Style [FontWeight "bold"; FontSize "15px"]] [str <| "Outputs"]
             ul [] (toHTMLList custom.OutputLabels)
         ]
     | DFF -> div [] [ str "D-flip-flop. The component is implicitly connected to the global clock." ]

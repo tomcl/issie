@@ -682,20 +682,36 @@ let viewInfoPopup dispatch =
         ] ] [str h; br[]]
     let title = "ISSIE: Interactive Schematic Simulator and Integrated Editor"
 
-    let body = div [] [
+    let about = div [] [
         makeH "Version"
         str Version.VersionString
         br []; br []
         makeH "Acknowledgments"
-        str "ISSIE was created by Marco Selvatici (EIE 3rd year) as his BEng final year project. The waveform viewer was created \
-             by Edoardo Santi (EEE 3rd year) during Summer UROP work. The new schematic editor was written as 2021 coursework by HLP students in EEE, \
-             and particularly Team 4. The new editor was integrated and the application enhanced by Jo Merrick (EIE 3rd year) for her BEng final year project."
-        br []; br []
-        makeH "Introduction"
-    
+        str "ISSIE was created by Marco Selvatici (EIE 3rd year) as his BEng final year project. \
+             The waveform viewer was created \
+             by Edoardo Santi (EEE 3rd year) during Summer UROP work. The new schematic editor \
+             was written as 2021 coursework by HLP students in EEE, \
+             and particularly Team 4. The new editor was integrated and the application enhanced \
+             by Jo Merrick (EIE 3rd year) for her BEng final year project."
+        br []; br [] 
+        makeH "Technology"
+        Text.span [] [
+            str "ISSIE is written in "
+            a [OnClick <| openInBrowser "https://fsharp.org/"] [str "F#"] 
+            str " compiled to Javascript by "
+            a [OnClick <| openInBrowser "https://fable.io/"] [str "FABLE"]
+            str " and running under the "
+            a [OnClick <| openInBrowser "https://www.electronjs.org/"] [str "Electron"]
+            str " framework" 
+            ]    
+        ]
+
+    let intro = div [] [
         str "Issie designs are made of one or more sheets. Each sheet contains components and Input and Output Connectors. \
         If you have a single sheet that is your complete design. Otherwise any \
-        sheet can include the hardware defined another by adding a custom component from My Project in the Catalog. Multiple copies of other sheets can be added." 
+        sheet can include the hardware defined in another sheet by adding a 'custom component' \
+        from the My Project section of the Catalog. \
+        Multiple copies of other sheets can be added." 
         br[]; br[]
         str "The Simulation Tab is used mainly for combinational logic and simple clocked logic: \
         the top 'Waveforms >>' button works with clocked circuits and displays waveforms." 
@@ -705,10 +721,14 @@ let viewInfoPopup dispatch =
         automatically connected together. In the waveforms active clock edges are indicated \
         by vertical line through all the waveforms that separate clock cycles. The clock is not shown."
         br[]  ; br[];  
-        button [OnClick <| openInBrowser "https://github.com/tomcl/ISSIE"] [ str "See the Issie Github Repo for more information"]
-        br[] ; br[]
-        makeH "Keyboard shortcuts"
-        str "On Mac use Command instead of Ctrl."
+        button 
+            [OnClick <| openInBrowser "https://github.com/tomcl/ISSIE"] 
+            [ str "See the Issie Github Repo for more information"]
+        br[] ; br[] ]
+
+    let keys = div [] [
+        makeH "Keyboard shortcuts - also available on top menus"
+        span [Style [FontStyle "Italic"]] [str "On Mac use Command instead of Ctrl."]
         ul [] [
             li [] [str "Save: Ctrl + S"]
             li [] [str "Select all: Ctrl + A"]
@@ -722,8 +742,30 @@ let viewInfoPopup dispatch =
             li [] [str "Zoom canvas in: Shift + ="]
             li [] [str "Zoom canvas out: Shift + -"]
             li [] [str "Zoom circuit to fit screen: Ctrl + W"]
+        ] ]
+    let body (dialogData:PopupDialogData) =
+        
+        let tab = dialogData.Int
+        div [] [
+            Tabs.tabs 
+                [ Tabs.IsFullWidth
+                  Tabs.IsBoxed ]
+                [ Tabs.tab [ Tabs.Tab.IsActive (tab = Some 0) ]
+                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 0)) ]
+                    [ str "About Issie" ] ]
+                  Tabs.tab [ Tabs.Tab.IsActive (tab = Some 1) ]
+                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 1)) ]
+                    [ str "Keyboard Shortcuts" ] ]
+                  Tabs.tab [ Tabs.Tab.IsActive (tab = Some 2) ]
+                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 2)) ]
+                    [ str "Introduction" ] ] ]
+            match tab with
+            | Some 0 -> about
+            | Some 1 -> keys
+            | Some 2 -> intro
+            | _ -> dispatch <| SetPopupDialogInt (Some 0)
         ]
-    ]
-    let foot = div [] []
-    closablePopup title body foot [Width 800] dispatch
+
+    let foot _ = div [] []
+    dynamicClosablePopup title body foot [Width 800] dispatch
 

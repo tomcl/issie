@@ -20,7 +20,6 @@ Target.create "CleanDev" (fun _ ->
   ++ "src/**/obj"
   ++ "dist"
   ++ ".fable"
-  ++ "src/**/*.map"
   |> Shell.cleanDirs
 )
 
@@ -29,13 +28,13 @@ Target.create "Clean" (fun _ ->
   ++ "src/**/obj"
   ++ "dist"
   ++ ".fable"
-  ++ "src/**/*.map"
   |> Shell.cleanDirs
   Target.run 1 "KillZombies" []
 )
 
 Target.create "CleanFableJS" <| fun _ ->
     !! (__SOURCE_DIRECTORY__  @@ "src/**/*.fs.js")
+    ++ (__SOURCE_DIRECTORY__  @@ "src/**/*.map")
     |> Seq.toList
     |> File.deleteAll
 

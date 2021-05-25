@@ -334,12 +334,13 @@ let private makeDescription (comp:Component) model dispatch =
         makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
     | RAM1 mem ->
         let descr =
-            "RAM memory. At every clock tick, the RAM can either read or write
+            "RAM memory. At every clock tick, the RAM can read and optionally write
             the content of the memory location selected by the address. If the
             write signal is high, the content of the selected memory location
-            is set to the value of data-in. This value will also be propagated
-            to data-out immediately. The component is implicitly connected to
-            the global clock."
+            is set to the value of data-in. In cycle 0 data-out is 0, otherwise
+            data-out is the contents of the memory location addressed in the
+            previous cycle, before any optional write.
+            The component is implicitly connected to the global clock."
         makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
 
 let private makeExtraInfo model (comp:Component) text dispatch =

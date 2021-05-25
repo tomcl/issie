@@ -16,7 +16,7 @@ open CanvasStateAnalyser
 
 /// Assert that the FData only contain a single bit, and return such bit.
 let inline extractBit (fd: FData) : uint32 =
-#if DEBUG
+#if ASSERTS
     assertThat (fd.Width = 1)
     <| sprintf "extractBit called with wireData: %A" fd
 #endif
@@ -115,14 +115,7 @@ let rec private getValuesForPorts
             | None -> None
             | Some values -> Some <| wireData :: values
 
-/// Assert that the wireData only contain a single bit, and return such bit.
-let private extractBit (wireData : WireData) : Bit =
-#if ASSERTS
-    assertThat (wireData.Length = 1) <| sprintf "extractBit called with wireData: %A" wireData
-#endif
-    wireData.[0]
 
-let private packBit (bit : Bit) : WireData = [bit]
 
 /// Read the content of the memory at the specified address.
 let private readMemory (mem : Memory1) (address : WireData) : WireData =

@@ -426,7 +426,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
         <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth address
 #endif
         let dataIn = insOld 1
-#if DEBUG
+#if ASSERTS
         assertThat (dataIn.Width = mem.WordWidth)
         <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataIn
 #endif
@@ -441,6 +441,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
                 // Update memory and return old content.
                 // NB - this was previously new content - but that is inconsistent and less useful.
                 writeMemory mem address dataIn, readMemory mem address
+            | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
 
         putState (RamState mem)
         put0 dataOut
@@ -1360,7 +1361,7 @@ let extractFastSimulationIOs
     |> List.map
         (fun ((cid, label, width) as io) ->
             let wd = extractFastSimulationOutput fs simulationData.ClockTickNumber (cid, []) (OutputPortNumber 0)
-            printfn $"Extrcating: {io} --- {wd}"
+            //printfn $"Extrcating: {io} --- {wd}"
             io, wd)
 
 let getFLabel (fs:FastSimulation) (fId:FComponentId) =

@@ -163,7 +163,7 @@ let private viewSimulationInputs
         dispatch =
     let simulationGraph = simulationData.Graph
     let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel, width), wireData) =
-#if DEBUG
+#if ASSERTS
         assertThat (List.length wireData = width)
         <| sprintf "Inconsistent wireData length in viewSimulationInput for %s: expected %d but got %A" inputLabel width wireData.Length
 #endif

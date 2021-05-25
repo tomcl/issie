@@ -39,7 +39,7 @@ let stopAndLogTimer (label : string) : unit = jsNative
 
 /// Assert js object is not null, and return it.
 let assertNotNull obj msg =
-#if DEBUG
+#if ASSERTS
     Helpers.assertThat (not <| isNull obj) ("(assertNotNull) " + msg)
 #endif
     obj
@@ -98,7 +98,7 @@ let getInt64EventValue( event: Event) =
 let getTextFocusEventValue (event: FocusEvent) =
     getFailIfNull event ["target";"value"] |> unbox<string>
 
-#if DEBUG
+#if ASSERTS
 let mutable debugLevel = 1
 #else
 let mutable debugLevel = 0

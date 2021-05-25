@@ -159,10 +159,11 @@ type JSCanvasState = JSComponent list * JSConnection list
 // Bit is more efficient than word for known boolean ops but it can be normalised to Word 
 // to make implementation of multiple bit components (that may carry one bit) simpler.
 // BigWord is needed for > 32 bits, and much less efficient for < 32 bits.
+
 type FastBits =
     | Word of dat:uint32 
     | BigWord of dat:bigint 
-    
+  
 type FastData =
     {
         Dat : FastBits
@@ -437,7 +438,7 @@ let getFastDriver (fs: FastSimulation) (driverComp: NetListComponent) (driverPor
     | Custom _ ->
         let customFId:FComponentId = driverComp.Id,[]
         let customOutput = fs.FCustomOutputCompLookup.[customFId,driverPort]
-#if DEBUG
+#if ASSERTS
         assertThat (Map.containsKey customOutput fs.FComps)
             (sprintf "Help: can't find custom component output in fast Simulation")
 #endif

@@ -180,7 +180,7 @@ let private checkDependenciesAndBuildMap
         | Backtracking _ -> // Impossible.
             failwith "what? checkDependencyCycle finished while Backtracking"
         | Cycle cycle ->
-#if DEBUG
+#if ASSERTS
             assertThat (cycle.Length >= 2)
             <| sprintf "Cycle must have at least 2 dependencies: %A" cycle
 #endif
@@ -210,7 +210,7 @@ let private labelToPortNumber label (labels : string list) =
 
 /// Convert the portNumber of a custom componetnt to its port lablel.
 let private portNumberToLabel (InputPortNumber pNumber) (inputLabels : string list) =
-#if DEBUG
+#if ASSERTS
     assertThat (inputLabels.Length > pNumber) "portNumberToLabel"
 #endif
     inputLabels.[pNumber]
@@ -238,7 +238,7 @@ let private extractOutputValuesAsMap graph graphOutputs outputLabels : Map<Outpu
 let private assertConsistentCustomOutputs
         (outputs : Map<OutputPortNumber, WireData>)
         (oldOutputs : Map<OutputPortNumber, WireData>) =
-#if DEBUG
+#if ASSERTS
     outputs |> Map.map (fun pNumber _ ->
         assertThat (Option.isSome <| oldOutputs.TryFind pNumber)
         <| sprintf "assertConsistentCustomOutputs, old %A, new %A" oldOutputs outputs
@@ -306,7 +306,7 @@ let private makeCustomReducer
             // Custom components are stateless. They may contain stateful
             // components, in which case those stateful components keep their
             // own state in the CustomSimulationGraph.
-#if DEBUG
+#if ASSERTS
             assertThat (state = NoState) <| sprintf "Custom components should be stateles, but received state: %A" state
 #endif
             let outputs =

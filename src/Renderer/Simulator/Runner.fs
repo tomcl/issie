@@ -29,7 +29,7 @@ let diffReducerInputsOrOutputs
     // New inputs/outputs either:
     // - have more keys than old ones,
     // - have the same keys as old ones, but their values have changed.
-#if DEBUG
+#if ASSERTS
     assertThat (oldIO.Count <= newIO.Count) (sprintf "diffReducerInputsOrOutputs: (%A:%A)" oldIO newIO)
 #endif
     (Map.empty, newIO)

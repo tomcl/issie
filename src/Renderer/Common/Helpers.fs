@@ -166,7 +166,7 @@ let pow2int64 (exponent : int) : int64 =
 /// Set an element of the list at the specified position.
 /// This function is slow: O(n). Do not use unless necessary.
 let listSet (lst : 'a list) (item : 'a) (idx : int) : 'a list =
-#if DEBUG
+#if ASSERTS
     assertThat (idx >= 0 && idx < lst.Length)
     <| sprintf "Index out of range in listSet. Idx: %d, list length: %d" idx lst.Length
 #endif
@@ -187,7 +187,7 @@ let cropToLength (len : int) (fromStart : bool) (str : string) =
 
 
 let getMemData (address: int64) (memData: Memory1) =
-#if DEBUG
+#if ASSERTS
     assertThat (memData.AddressWidth > 63 || (1UL <<< memData.AddressWidth) > (uint64 address)) (
         sprintf "Inconsistent memory access: address %A, memData %A" address memData)
 #endif

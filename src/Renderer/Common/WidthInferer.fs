@@ -38,7 +38,7 @@ let private assertInputsSize
         (inputs : Map<InputPortNumber, (int option * ConnectionId) option>)
         (expected : int)
         (comp : Component) =
-#if DEBUG
+#if ASSERTS
     assertThat (inputs.Count = expected)
     <| sprintf "assertInputsSize failed for: %A" comp
 #else

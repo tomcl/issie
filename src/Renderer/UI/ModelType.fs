@@ -232,6 +232,8 @@ type DragMode = DragModeOn of int | DragModeOff
 
 type IntMode = FirstInt | SecondInt
 
+
+
 type MenuCommand =
     | MenuPrint
     | MenuSaveFile

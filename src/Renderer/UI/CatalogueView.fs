@@ -34,12 +34,24 @@ let private createComponent compType label model dispatch =
 let createCompStdLabel comp model dispatch =
     createComponent comp "" model dispatch
 
+let getOrderedCompLabels compType (ldc:LoadedComponent) =
+    let (comps,_) = ldc.CanvasState
+    comps
+    |> List.collect (fun comp -> 
+        let sortKey = comp.Y,comp.X
+        match comp.Type, compType with 
+        | Input n, Input _ -> [sortKey,(comp.Label, n)]
+        | Output n, Output _ -> [sortKey, (comp.Label,n)] 
+        | _ -> [])
+    |> List.sortBy fst
+    |> List.map snd
+
 let private makeCustom styles model dispatch (loadedComponent: LoadedComponent)  =
     menuItem styles loadedComponent.Name (fun _ ->
         let custom = Custom {
             Name = loadedComponent.Name
-            InputLabels = loadedComponent.InputLabels
-            OutputLabels = loadedComponent.OutputLabels
+            InputLabels = getOrderedCompLabels (Input 0) loadedComponent
+            OutputLabels = getOrderedCompLabels (Output 0) loadedComponent
         }
         
         Sheet (Sheet.InitialiseCreateComponent (custom, "")) |> dispatch

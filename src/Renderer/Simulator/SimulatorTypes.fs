@@ -196,7 +196,7 @@ type FastData =
 //------------------------------------------------------------------------------//
 
 let fastBit (n: uint32) =
-#if DEBUG
+#if ASSERTS
     assertThat (n < 2u) (sprintf "Can't convert %d to a single bit FastData" n)
 #endif
     { Dat = Word n; Width = 1}
@@ -254,7 +254,7 @@ let fastDataOne = {Dat=Word 1u; Width = 1}
 /// be compatible with fast implementation of boolean logic.
 let getBits (msb: int) (lsb: int) (f: FastData) =
     let outW = msb - lsb + 1
-#if DEBUG
+#if ASSERTS
     assertThat
         (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
         (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)

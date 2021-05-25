@@ -366,7 +366,7 @@ let getMainHeader (vType:VMode) (fs: FastSimulation) =
     |> String.concat ",\n\t"
     |> (fun header -> 
             let clock = match vType with ForSimulation -> "" | ForSynthesis -> "input clk;"
-            $"module main (\n\t{header})\n{clock}")
+            $"module main (\n\t{header});\n{clock}")
     |> fun s -> [| s |]
 
 /// return the wire and reg definitions needed to make the verilog design work.

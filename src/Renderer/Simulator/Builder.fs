@@ -69,7 +69,7 @@ let private assertNotTooManyInputs
         (cType : ComponentType)
         (expected : int)
         : unit =
-#if DEBUG
+#if ASSERTS
     assertThat (reducerInput.Inputs.Count <= expected)
     <| sprintf "assertNotTooManyInputs failed for %A: %d > %d" cType reducerInput.Inputs.Count expected  
 #else
@@ -81,7 +81,7 @@ let private assertNoClockTick
             (reducerInput : ReducerInput)
             (cType : ComponentType)
             : unit =
-#if DEBUG
+#if ASSERTS
     assertThat (reducerInput.IsClockTick = No)
     <| sprintf "Unexpected IsClockTick = Yes in combinational logic reducer input for %A" cType
 #else
@@ -90,7 +90,7 @@ let private assertNoClockTick
 
 
 let private assertValidBus (bus : WireData) (minWidth : int) compType : unit =
-#if DEBUG
+#if ASSERTS
     assertThat (bus.Length >= minWidth)
     <| sprintf "%A bus has invalid width: %d < %d" compType bus.Length minWidth
 #else
@@ -115,6 +115,14 @@ let rec private getValuesForPorts
             | None -> None
             | Some values -> Some <| wireData :: values
 
+/// Assert that the wireData only contain a single bit, and return such bit.
+let private extractBit (wireData : WireData) : Bit =
+#if ASSERTS
+    assertThat (wireData.Length = 1) <| sprintf "extractBit called with wireData: %A" wireData
+#endif
+    wireData.[0]
+
+let private packBit (bit : Bit) : WireData = [bit]
 
 /// Read the content of the memory at the specified address.
 let private readMemory (mem : Memory1) (address : WireData) : WireData =

@@ -360,7 +360,7 @@ let private makeDiffViewer memory1 memory2 dispatch =
         ]
 
 let openMemoryDiffViewer memory1 memory2 model dispatch : unit =
-#if DEBUG
+#if ASSERTS
     assertThat (memory1.AddressWidth = memory2.AddressWidth &&
                 memory1.WordWidth = memory2.WordWidth)
     <| sprintf "Memories in diffViewer do not match: %A\n%A" memory1 memory2

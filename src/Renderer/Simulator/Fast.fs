@@ -1357,7 +1357,7 @@ let runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
                         fs.MaxArraySize
                         (numberOfSteps + max 50 (int (float numberOfSteps * 1.5)))
 
-                printfn $"In Tick {fs.ClockTick} Creating simulation array length of {newMaxNum} steps" 
+                //printfn $"In Tick {fs.ClockTick} Creating simulation array length of {newMaxNum} steps" 
                 extendFastSimulation newMaxNum fs
 
         let start = fs.ClockTick + 1
@@ -1365,10 +1365,10 @@ let runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
         [ start .. numberOfSteps ]
         |> List.iter
             (fun n ->
-                if n % (100 * (int (1. + 3000. / numComponents))) = 0 then printfn "Step %d" n
+                //if n % (100 * (int (1. + 3000. / numComponents))) = 0 then printfn "Step %d" n
                 stepSimulation fs)
         let sTime = getTimeMs() - simStartTime
-        if stepsToDo > 99. then
+        if sTime > 50. then
             printfn $"Simulation speed: {numComponents*stepsToDo/sTime} Component-Steps/ms ({int stepsToDo} steps, {int numComponents} components)"
 
 /// Run a fast simulation for a given number of steps building it from the graph
@@ -1411,7 +1411,7 @@ let rec extractFastSimulationOutput
     match Map.tryFind (cid, ap) fs.FComps with
     | Some fc ->
         match Array.tryItem (step % fs.MaxArraySize) fc.Outputs.[n].Step with
-        | None -> failwithf "What? extracting output %d in step %d from %s failed" n step fc.FullName
+        | None -> failwithf $"What? extracting output {n} in step {step} from {fc.FullName} failed with clockTick={fs.ClockTick}"
         | Some fd -> fd
     | None ->
         /// if it is a custom component output extract from the corresponding Output FastComponent

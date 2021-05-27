@@ -82,6 +82,7 @@ let init() = {
         MemorySetup = None
         MemoryEditorData = None
         WaveSetup = None
+        Progress = None
     }
     Notifications = {
         FromDiagram = None

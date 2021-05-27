@@ -49,6 +49,7 @@ type PopupDialogData = {
     MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth. 
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
     WaveSetup: MoreWaveSetup option
+    Progress: PopupProgress option
 }
 
 type TopMenu = | Closed | Project | Files
@@ -241,7 +242,20 @@ type MenuCommand =
     | MenuZoom of float
     | MenuVerilogOutput
 
+type SimulationProgress =
+    {
+        InitialClock: int
+        FinalClock: int
+        ClocksPerChunk: int       
+    }
 
+type PopupProgress =
+    {
+        Value: int
+        Max: int
+        Title: string
+        Speed: float
+    }
 
 
 
@@ -279,6 +293,9 @@ type Msg =
     | SetPopupDialogMemorySetup of (int * int * InitMemData * string option) option
     | SetPopupMemoryEditorData of MemoryEditorData option
     | SetPopupWaveSetup of MoreWaveSetup
+    | SetPopupProgress of PopupProgress option
+    | UpdatePopupProgress of (PopupProgress -> PopupProgress)
+    | SimulateWithProgressBar of SimulationProgress
     | SetSelectedComponentMemoryLocation of int64 * int64
     | CloseDiagramNotification
     | SetSimulationNotification of ((Msg -> unit) -> ReactElement)
@@ -313,6 +330,8 @@ type Msg =
     | DoNothing
     | StartUICmd of UICommandType
     | FinishUICmd
+    | ExecCmd of Elmish.Cmd<Msg>
+    | ExecCmdAsynch of Elmish.Cmd<Msg>
 
 
 //================================//

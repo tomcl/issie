@@ -208,7 +208,7 @@ let private checkPortTypesAreConsistent (canvasState : CanvasState) : Simulation
 let private checkEvery
         (counts : List<(Component list*Connection  list)*int>) // 'a is either InputPortId or OutputPortId.
         (cond : int -> bool)
-        errMsg
+        (errMsg0, errMsg)
         : SimulationError option =
     (None, counts) ||> List.fold (fun maybeErr ((comps, conns), count)  ->
         match maybeErr with
@@ -217,7 +217,7 @@ let private checkEvery
             match cond count with
             | true -> None
             | false -> Some {
-                Msg = sprintf errMsg count 
+                Msg = if count = 0 then sprintf errMsg0 else sprintf errMsg count 
                 InDependency = None
                 ComponentsAffected = comps |> List.map (fun comp -> ComponentId comp.Id)
                 ConnectionsAffected = conns |> List.map (fun conn -> ConnectionId conn.Id)  }
@@ -261,7 +261,7 @@ let private checkConns (conns : Connection list) (m : MapData) : SimulationError
             Some (s, t, conn)
         else None)
         |> Option.map (fun (s, t, conn) ->
-            (sprintf "You can't connect two Bus Labels with a wire. Delete the connecting wire. If you want to join two bus labels \
+            (sprintf "You can't connect two Wire Labels with a wire. Delete the connecting wire. If you want to join two bus labels \
                      you need only give them the same name - then they will form a single net.")
             |> (fun errMsg -> {
                 Msg = errMsg
@@ -290,19 +290,21 @@ let private checkPortsAreConnectedProperly
     [
 
         checkCounts m.OtherTargetConns (fun conn -> conn.Target.Id) (l2Pid m.OtherInputPorts) (inPIdMap >> portMap) ((=) 1) (
+                "Every component input port must be connected: but no connection was found",
                 "A component input port must have precisely one driving component, but %d \
-                were found. If you want to merge wires together use a MergeWires component")
+                were found. If you want to merge wires together use a MergeWires component, not direct connection")
 
         checkCounts m.LabTargetConns (fun conn -> m.ToComp.[ComponentId conn.Target.HostId].Label) (m.LabGroup |> Map.toList |> List.map fst)  labMap ((=) 1) (
+                "A set of labelled wires must be driven (on the input of one of the labels): but no such driver was found",
                 "A set of labelled wires must have precisely one driving component, but %d \
-                were found. If you want to merge wires together use a MergeWires component. \
+                were found. \
                 If you are driving two labels from the same component delete one of them: \
                 a set of labels with the same name are all connected together and only one \
                 label in each same-name set must be driven.")
 
         checkCounts m.OtherSourceConns (fun conn -> conn.Source) m.OtherOutputPorts portMap ((<) 0) (
-                "A component output port must have at least one, not %d, connections. If the component output \
-                is meant to be disconnected you can add a wire label to stop this error")
+                "A component output port must have at least one connection. If the component output \
+                is meant to be disconnected you can add a wire label to stop this error", "%d")
 
 
         checkConns conns m 

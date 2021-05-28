@@ -757,10 +757,30 @@ let viewInfoPopup dispatch =
             [ str "See the Issie Github Repo for more information"]
         br[] ; br[] ]
 
+    let bugReport = 
+        let oTextList txtL = Content.content [] [Content.Ol.ol [] (List.map (fun txt -> li [] [str txt]) txtL)]
+        div [] [
+            str
+                "If you think Issie is not working it is very helpful if you can give us details, and we usually answer \
+                and fix bugs, if they exist, very quickly. Before you contact us, look at the list below and answer as much \
+                as possible to make your Bug Report (sometimes it is not all possible, send what you can)."
+            oTextList 
+                [
+                    "Which version of Issie (Info tab, About Issie)"
+                    "Which platform (Windows, Macos)"    
+                    "What did you do that led to unexpected behaviour?"   
+                    "What result did you expect?"   
+                    "What result did you get?"   
+                    "What project files caused this, the top-level sheet? Enclose project as zipped file \
+                    deleting the maybe large backup directory when you zip."   
+                    "If you can reproduce the bug yourself, try opening dev tools (Ctrl-Shift-I). You can do this after the bug happens. 2/3 \
+                    of problems result in error messages displayed there. Screenshot the error and its backtrace and send it."   
+                    "What precise actions (if you know them) led to the bug after loading this project"
+                ]
+            ]
     let keyOf2 s1 s2 = span [] [bSpan s1; tSpan " + "; bSpan s2]
     let keyOf3 s1 s2 s3 = span [] [bSpan s1; tSpan " + "; bSpan s2 ; tSpan " + "; bSpan s3]
     let rule = hr [Style [MarginTop "0.5em"; MarginBottom "0.5em"]]
-
     let keys = div [] [
         makeH "Keyboard shortcuts - also available on top menus"
         span [Style [FontStyle "Italic"]] [str "On Mac use Cmd instead of Ctrl."]
@@ -781,6 +801,7 @@ let viewInfoPopup dispatch =
     let body (dialogData:PopupDialogData) =
         
         let tab = dialogData.Int
+
         div [] [
             Tabs.tabs 
                 [ Tabs.IsFullWidth
@@ -788,16 +809,21 @@ let viewInfoPopup dispatch =
                 [ Tabs.tab [ Tabs.Tab.IsActive (tab = Some 0) ]
                     [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 0)) ]
                     [ str "About Issie" ] ]
+                  Tabs.tab [ Tabs.Tab.IsActive (tab = Some 2) ]
+                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 2)) ]
+                    [ str "Introduction" ] ]  
                   Tabs.tab [ Tabs.Tab.IsActive (tab = Some 1) ]
                     [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 1)) ]
                     [ str "Keyboard Shortcuts" ] ]
-                  Tabs.tab [ Tabs.Tab.IsActive (tab = Some 2) ]
-                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 2)) ]
-                    [ str "Introduction" ] ] ]
+                  Tabs.tab [ Tabs.Tab.IsActive (tab = Some 3) ]
+                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 3)) ]
+                    [ str "Bug Reports" ] ] ]
+
             match tab with
             | Some 0 -> about
             | Some 1 -> keys
             | Some 2 -> intro
+            | Some 3 -> bugReport
             | _ -> dispatch <| SetPopupDialogInt (Some 0)
         ]
 

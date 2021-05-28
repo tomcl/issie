@@ -46,11 +46,7 @@ let writeVerilogNames (fs: FastSimulation) =
 
             let vName = verilogNameConvert oName
 
-            let vName =
-                if vName = "" then
-                    "v" + vName
-                else
-                    vName
+            let vName = "v_" + vName
 
             let name = $"{vName}_{i}"
             fc.VerilogComponentName <- name
@@ -132,7 +128,7 @@ let makeRamModule (moduleName: string) (mem: Memory1) =
         $"""
 
     module %s{moduleName}(q, a, d, we, clk);
-    output reg [%d{dMax}:0] q = 0;
+    output reg [%d{dMax}:0] q;
     input [%d{dMax}:0] d;
     input [%d{aMax}:0] a;
     input we, clk;
@@ -302,6 +298,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         | Xor
         | Nand
         | Nor
+        | Xnor
         | Xor -> sprintf "assign %s = %s;\n" (outs 0) (getVerilogBinaryOp fc.FType (ins 0) (ins 1))
         | DFFE
         | RegisterE _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 1} ? %s{ins 0} : %s{outs 0};\n"

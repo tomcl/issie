@@ -371,6 +371,13 @@ let update (msg : Msg) oldModel =
         { model with PopupDialogData = {model.PopupDialogData with WaveSetup = Some m} }, Cmd.none
     | SetPopupMemoryEditorData m ->
         { model with PopupDialogData = {model.PopupDialogData with MemoryEditorData = m} }, Cmd.none
+    | SetPopupProgress progOpt ->
+        { model with PopupDialogData = {model.PopupDialogData with Progress = progOpt} }, Cmd.none
+    | UpdatePopupProgress updateFn ->
+        { model with PopupDialogData = {model.PopupDialogData with Progress = Option.map updateFn model.PopupDialogData.Progress} }, Cmd.none
+
+    | SimulateWithProgressBar simPars ->
+        SimulationView.simulateWithProgressBar simPars model
     | SetSelectedComponentMemoryLocation (addr,data) ->
         {model with SelectedComponent = updateComponentMemory addr data model.SelectedComponent}, Cmd.none
     | CloseDiagramNotification ->
@@ -399,15 +406,15 @@ let update (msg : Msg) oldModel =
         { model with Notifications = { model.Notifications with FromProperties = None} }, Cmd.none
     | SetTopMenu t ->
         { model with TopMenuOpenState = t}, Cmd.none
-// TODO
-//    | ReloadSelectedComponent width ->
-//        match model.SelectedComponent with
-//        | None -> {model with LastUsedDialogWidth = width}
-//        | Some comp ->
-//            match model.Diagram.GetComponentById comp.Id with
-//            | Error err -> {model with LastUsedDialogWidth=width}
-//            | Ok jsComp -> { model with SelectedComponent = Some <| extractComponent jsComp ; LastUsedDialogWidth=width}
-//        |> (fun x -> x, Cmd.none)
+    | ExecCmd cmd ->
+        model, cmd
+    | ExecCmdAsynch cmd ->
+        let cmd' = 
+            Elmish.Cmd.OfAsyncImmediate.result (async { 
+                do! (Async.Sleep 0)
+                return (ExecCmd cmd)})
+        model, cmd'
+
     | MenuAction(act,dispatch) ->
         getMenuView act model dispatch, Cmd.none
     | DiagramMouseEvent -> model, Cmd.none

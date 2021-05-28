@@ -300,10 +300,16 @@ let private makeDescription (comp:Component) model dispatch =
     | NbitsXor numberOfBits  -> div [] [ str <| sprintf "%d XOR gates with %d outputs." numberOfBits numberOfBits]
     | Decode4 -> div [] [ str <| "4 bit decoder: Data is output on the Sel output, all other outputs are 0."]
     | Custom custom ->
+        let styledSpan styles txt = span [Style styles] [str <| txt]
+        let boldSpan txt = styledSpan [FontWeight "bold"] txt
+        let italicSpan txt = styledSpan [FontStyle "italic"] txt
+
         let toHTMLList =
             List.map (fun (label, width) -> li [] [str <| sprintf "%s: %d bit(s)" label width])
         div [] [
-            str <| $"{custom.Name}: user defined component." 
+            boldSpan $"{custom.Name}"
+            span [] [str <| ": user defined (custom) component."]
+            br []
             br []
             p [  Style [ FontStyle "italic"; FontSize "12px"; LineHeight "1.1"]] [
                 str <| $"Input or Output ports are displayed on the '{custom.Name}' symbol sorted by the \

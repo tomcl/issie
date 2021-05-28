@@ -607,11 +607,37 @@ let choicePopup title (body:ReactElement) buttonTrueText buttonFalseText (button
     let popup = choicePopupFunc title (fun _ -> body) buttonTrueText buttonFalseText (fun bool dispatch-> buttonAction bool)
     dispatch <| ShowPopup popup
 
+/// a popup diaplysing a progress bar
+let progressPopup (legend: Model -> PopupProgress -> ReactElement) (model: Model) (dispatch: Msg->Unit) =
+    let extraStyle = []
+    let pp = Option.get model.PopupDialogData.Progress
+    let body _ _ =  
+        div [] [
+            legend model pp
+            Fulma.Progress.progress [Progress.Value pp.Value; Progress.Max pp.Max; Progress.Color Color.IsPrimary ] []
+        ]
+    let foot _ _ = div [] []
+    let close dispatch _ = 
+        dispatch <| SetPopupProgress None
+    buildPopup pp.Title body foot close extraStyle dispatch model.PopupDialogData
+    
+
+let simulationLegend (model:Model) (pp: PopupProgress) =
+    match model.CurrentStepSimulationStep with
+    | Some (Ok simData) ->
+        let speed = pp.Speed
+        str <| $"simulation speed: %6.0f{speed} component-clocks / ms"
+    | _ -> div [] []
+
+
 /// Display popup, if any is present.
-let viewPopup model dispatch=
-    match model.PopupViewFunc with
-    | None -> div [] []
-    | Some popup -> popup dispatch model.PopupDialogData
+/// A progress popup, if present, overrides any other active popup.
+let viewPopup model dispatch =
+    match model.PopupDialogData.Progress, model.PopupViewFunc with
+    | None, None -> div [] []
+    | Some amount, _ ->
+        progressPopup simulationLegend model dispatch
+    | None, Some popup -> popup dispatch model.PopupDialogData
 
 //===============//
 // Notifications //
@@ -680,6 +706,11 @@ let viewInfoPopup dispatch =
             Modifier.TextSize (Screen.Desktop, TextSize.Is6)
             Modifier.TextWeight TextWeight.Bold
         ] ] [str h; br[]]
+    let styledSpan styles txt = span [Style styles] [str <| txt]
+    let bSpan txt = styledSpan [FontWeight "bold"] txt
+    let iSpan txt = styledSpan [FontStyle "italic"] txt
+    let tSpan txt = span [] [str txt]
+
     let title = "ISSIE: Interactive Schematic Simulator and Integrated Editor"
 
     let about = div [] [
@@ -709,16 +740,16 @@ let viewInfoPopup dispatch =
     let intro = div [] [
         str "Issie designs are made of one or more sheets. Each sheet contains components and Input and Output Connectors. \
         If you have a single sheet that is your complete design. Otherwise any \
-        sheet can include the hardware defined in another sheet by adding a 'custom component' \
+        sheet can include as a single component the hardware defined in another sheet by adding a 'custom component' \
         from the My Project section of the Catalog. \
-        Multiple copies of other sheets can be added." 
+        Multiple copies of other sheets can be added in this way." 
         br[]; br[]
         str "The Simulation Tab is used mainly for combinational logic and simple clocked logic: \
         the top 'Waveforms >>' button works with clocked circuits and displays waveforms." 
         br[]; br[];
         str "In Issie all clocked components use the same clock signal Clk. \
         Clk connections are not shown: all clk ports are
-        automatically connected together. In the waveforms active clock edges are indicated \
+        automatically connected together. In the waveform display active clock edges are indicated \
         by vertical line through all the waveforms that separate clock cycles. The clock is not shown."
         br[]  ; br[];  
         button 
@@ -726,26 +757,51 @@ let viewInfoPopup dispatch =
             [ str "See the Issie Github Repo for more information"]
         br[] ; br[] ]
 
+    let bugReport = 
+        let oTextList txtL = Content.content [] [Content.Ol.ol [] (List.map (fun txt -> li [] [str txt]) txtL)]
+        div [] [
+            str
+                "If you think Issie is not working it is very helpful if you can give us details, and we usually answer \
+                and fix bugs, if they exist, very quickly. Before you contact us, look at the list below and answer as much \
+                as possible to make your Bug Report (sometimes it is not all possible, send what you can)."
+            oTextList 
+                [
+                    "Which version of Issie (Info tab, About Issie)"
+                    "Which platform (Windows, Macos)"    
+                    "What did you do that led to unexpected behaviour?"   
+                    "What result did you expect?"   
+                    "What result did you get?"   
+                    "What project files caused this, the top-level sheet? Enclose project as zipped file \
+                    deleting the maybe large backup directory when you zip."   
+                    "If you can reproduce the bug yourself, try opening dev tools (Ctrl-Shift-I). You can do this after the bug happens. 2/3 \
+                    of problems result in error messages displayed there. Screenshot the error and its backtrace and send it."   
+                    "What precise actions (if you know them) led to the bug after loading this project"
+                ]
+            ]
+    let keyOf2 s1 s2 = span [] [bSpan s1; tSpan " + "; bSpan s2]
+    let keyOf3 s1 s2 s3 = span [] [bSpan s1; tSpan " + "; bSpan s2 ; tSpan " + "; bSpan s3]
+    let rule = hr [Style [MarginTop "0.5em"; MarginBottom "0.5em"]]
     let keys = div [] [
         makeH "Keyboard shortcuts - also available on top menus"
-        span [Style [FontStyle "Italic"]] [str "On Mac use Command instead of Ctrl."]
+        span [Style [FontStyle "Italic"]] [str "On Mac use Cmd instead of Ctrl."]
         ul [] [
-            li [] [str "Save: Ctrl + S"]
-            li [] [str "Select all: Ctrl + A"]
-            li [] [str "Copy selected diagram items: Ctrl + C"]
-            li [] [str "Paste diagram items: Ctrl + V"]
-            li [] [str "Undo last diagram action: Ctrl + Z"]
-            li [] [str "Redo last diagram action: Ctrl + Y"]
-            li [] [str "Zoom application in: Ctrl + Shift + ="]
-            li [] [str "Zoom application out: Ctrl + Shift + -"]
-            li [] [str "Zoom canvas in/out: Ctrl + MouseWheel"]
-            li [] [str "Zoom canvas in: Shift + ="]
-            li [] [str "Zoom canvas out: Shift + -"]
-            li [] [str "Zoom circuit to fit screen: Ctrl + W"]
+            li [] [rule; tSpan "Save: "; keyOf2 "Ctrl" "S"; rule]
+            li [] [tSpan "Select all: " ; keyOf2  "Ctrl" "A"]
+            li [] [tSpan "Copy selected diagram items: " ; keyOf2  "Ctrl" "C"]
+            li [] [tSpan "Paste diagram items: " ; keyOf2  "Ctrl" "V"; rule]
+            li [] [tSpan "Undo last diagram action: " ; keyOf2  "Ctrl" "Z"]
+            li [] [tSpan "Redo last diagram action: " ; keyOf2  "Ctrl" "Y"; rule]
+            li [] [tSpan "Zoom application in: " ; keyOf3  "Ctrl" "Shift" "="]
+            li [] [tSpan "Zoom application out: " ; keyOf3  "Ctrl" "Shift" "-"; rule]
+            li [] [tSpan "Zoom canvas in/out: " ; keyOf2  "Ctrl" "MouseWheel"]
+            li [] [tSpan "Zoom canvas in: " ; keyOf2  "Shift" "="]
+            li [] [tSpan "Zoom canvas out: " ; keyOf2  "Shift" "-"; rule]
+            li [] [tSpan "Zoom circuit to fit screen: " ; keyOf2  "Ctrl" "W"]
         ] ]
     let body (dialogData:PopupDialogData) =
         
         let tab = dialogData.Int
+
         div [] [
             Tabs.tabs 
                 [ Tabs.IsFullWidth
@@ -753,16 +809,21 @@ let viewInfoPopup dispatch =
                 [ Tabs.tab [ Tabs.Tab.IsActive (tab = Some 0) ]
                     [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 0)) ]
                     [ str "About Issie" ] ]
+                  Tabs.tab [ Tabs.Tab.IsActive (tab = Some 2) ]
+                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 2)) ]
+                    [ str "Introduction" ] ]  
                   Tabs.tab [ Tabs.Tab.IsActive (tab = Some 1) ]
                     [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 1)) ]
                     [ str "Keyboard Shortcuts" ] ]
-                  Tabs.tab [ Tabs.Tab.IsActive (tab = Some 2) ]
-                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 2)) ]
-                    [ str "Introduction" ] ] ]
+                  Tabs.tab [ Tabs.Tab.IsActive (tab = Some 3) ]
+                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 3)) ]
+                    [ str "Bug Reports" ] ] ]
+
             match tab with
             | Some 0 -> about
             | Some 1 -> keys
             | Some 2 -> intro
+            | Some 3 -> bugReport
             | _ -> dispatch <| SetPopupDialogInt (Some 0)
         ]
 

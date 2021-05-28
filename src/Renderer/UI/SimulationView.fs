@@ -339,16 +339,94 @@ let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg 
 
         ]
 
+let simulateWithTime steps simData =
+    let startTime = getTimeMs()
+    Fast.runFastSimulation (steps + simData.ClockTickNumber) simData.FastSim 
+    getTimeMs() - startTime
+
+let cmd block =
+    Elmish.Cmd.OfAsyncWith.perform block
+
+let doBatchOfMsgsAsynch (msgs: seq<Msg>) =
+    msgs
+    |> Seq.map Elmish.Cmd.ofMsg 
+    |> Elmish.Cmd.batch
+    |> ExecCmdAsynch
+    |> Elmish.Cmd.ofMsg
+
+
+
+let simulateWithProgressBar (simProg: SimulationProgress) (model:Model) =
+    match model.CurrentStepSimulationStep, model.PopupDialogData.Progress with
+    | Some (Ok simData), Some barData ->
+        let nComps = float simData.FastSim.FComps.Count
+        let oldClock = simData.FastSim.ClockTick
+        let clock = min simProg.FinalClock (simProg.ClocksPerChunk + oldClock)
+        let t1 = getTimeMs()
+        Fast.runFastSimulation clock simData.FastSim 
+        let t2 = getTimeMs()
+        let speed = if t2 = t1 then 0. else (float clock - float oldClock) * nComps / (t2 - t1)
+        let messages =
+            if clock - oldClock < simProg.ClocksPerChunk then [   
+                SetSimulationGraph(simData.Graph, simData.FastSim)
+                IncrementSimulationClockTick (clock - simData.ClockTickNumber); 
+                SetPopupProgress None ]
+            else [
+                SetSimulationGraph(simData.Graph, simData.FastSim)
+                IncrementSimulationClockTick simProg.ClocksPerChunk
+                UpdatePopupProgress (fun barData -> {barData with Value = clock - simProg.InitialClock; Speed = speed})
+                SimulateWithProgressBar simProg ]
+        model, doBatchOfMsgsAsynch messages       
+    | _ -> 
+        model, Elmish.Cmd.ofMsg (SetPopupProgress None)
+    
+    
 
 let simulationClockChangeAction dispatch simData (dialog:PopupDialogData) =
     let clock = 
         match dialog.Int with
         | None -> failwithf "What - must have some number from dialog"
         | Some clock -> clock
-    Fast.runFastSimulation (clock) simData.FastSim 
-    dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)
-    dispatch <| IncrementSimulationClockTick (clock - simData.ClockTickNumber)
-    dispatch <| ClosePopup
+    let initClock = simData.ClockTickNumber
+    let steps = clock - initClock
+    let numComps = simData.FastSim.FComps.Count
+    let initChunk = min steps (20000/(numComps + 1))
+    let initTime = getTimeMs()
+    let estimatedTime = (float steps / float initChunk) * (simulateWithTime initChunk simData + 0.0000001)
+    let chunkTime = min 2000. (estimatedTime / 5.)
+    let chunk = int <| float steps * chunkTime / estimatedTime
+    if steps > 2*initChunk && estimatedTime > 500. then 
+        dispatch <| SetPopupProgress 
+            (Some {
+                Speed = float (numComps * steps) / estimatedTime
+                Value=initChunk; 
+                Max=steps; 
+                Title= "running simulation..."
+                })
+        [
+            SetSimulationGraph(simData.Graph, simData.FastSim)
+            IncrementSimulationClockTick (initChunk)
+            ClosePopup
+            SimulateWithProgressBar {
+                FinalClock = clock; 
+                InitialClock = initChunk + initClock; 
+                ClocksPerChunk = chunk 
+                }
+        ]
+        |> Seq.map Elmish.Cmd.ofMsg 
+        |> Elmish.Cmd.batch
+        |> ExecCmdAsynch
+        |> dispatch
+    else
+        [
+            SetSimulationGraph(simData.Graph, simData.FastSim)
+            IncrementSimulationClockTick (clock - simData.ClockTickNumber)
+            ClosePopup
+        ]
+        |> Seq.map Elmish.Cmd.ofMsg 
+        |> Elmish.Cmd.batch
+        |> ExecCmdAsynch
+        |> dispatch
 
 
 

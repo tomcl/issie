@@ -26,7 +26,7 @@ let inline extractBit (fd: FData) : uint32 =
     assertThat (fd.Width = 1)
     <| sprintf "extractBit called with wireData: %A" fd
 #endif
-    match fd.Dat with | Word n -> n | BigWord _ -> failwithf "Can't extract 1 bit from BigWord data {wireData}"
+    match fd.Dat with | Word n -> n | BigWord _ -> failwithf $"Can't extract 1 bit from BigWord data {fd.Dat} of width {fd.Width}"
 
 let inline packBit (bit: uint32) : FData = if bit = 0u then {Dat=Word 0u; Width = 1} else {Dat = Word 1u; Width = 1}
 
@@ -298,22 +298,23 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
                 let cout = uint32 (sumInt >>> 32)
                 let sum = convertIntToFastData w (uint32 sumInt)
                 sum, packBit cout
-            | a, b -> failwithf $"Inconsistent inputs to NBitsAdder A={a},{A}; B={b},{B}"
+            | a, b -> 
+                failwithf $"Inconsistent inputs to NBitsAdder {comp.FullName} A={a},{A}; B={b},{B}"
 
         put0 sum
         put1 cout
     | NbitsXor numberOfBits ->
         let A, B = ins 0, ins 1
+        let outDat =
+            match A.Dat, B.Dat with
+            | BigWord a, BigWord b ->
+                BigWord (a ^^^ b)
+            | Word a, Word b -> 
+                Word (a ^^^ b)
+            | a,b -> 
+                failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{A}; B={b},{B}"
 
-        let outVal =
-            [ A; B ]
-            |> List.map convertFastDataToInt
-            |> (function
-            | [ A; B ] -> A ^^^ B
-            | _ -> failwithf "What? impossible!")
-            |> convertIntToFastData (numberOfBits)
-
-        put0 outVal
+        put0 {A with Dat = outDat}
     | Decode4 ->
         let select, data = ins 0, ins 1
         let selN = convertFastDataToInt select |> int

@@ -113,7 +113,12 @@ let convertWireDataToInt (bits : WireData) : int64 =
 let convertInt64ToFastData (width:int) (n:int64) =
     let n' = uint64 n
     let dat = 
-        if n' >= (1UL <<< 32) then BigWord (bigint n') else Word (uint32 n')
+        if width > 32 then 
+            let mask = (bigint 1 <<< width) - bigint 1
+            BigWord (bigint n' &&& mask) 
+        else 
+            let mask = (1u <<< width) - 1u
+            Word (uint32 n' &&& mask)
     {Dat=dat; Width = width}
 
 let convertIntToFastData (width:int) (n:uint32) =
@@ -138,7 +143,7 @@ let convertFastDataToBigint (d:FastData) =
 let convertFastDataToInt (d:FastData) =
     match d.Dat with
     | Word n -> n
-    | BigWord _ -> failwithf "Can't convert {d.dat} to integer" 
+    | BigWord _ -> failwithf $"Can't convert {d.Dat} to integer" 
 
 let convertFastDataToWireData bits =
     bits |> convertFastDataToInt64 |> int64 |> convertIntToWireData bits.Width

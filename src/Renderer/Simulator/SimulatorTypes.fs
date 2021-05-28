@@ -266,7 +266,7 @@ let getBits (msb: int) (lsb: int) (f: FastData) =
     | BigWord x ->
         let bits = (x >>> lsb) % (bigint 1 <<< (msb + 1))
         let dat =
-            if f.Width <= 32 then
+            if outW <= 32 then
                 Word(uint32 bits)
             else
                 BigWord bits

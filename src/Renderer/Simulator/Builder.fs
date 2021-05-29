@@ -33,69 +33,6 @@ let private getPortNumberOrFail port =
     | None -> failwithf "what? Component ports should always have a portNumber"
     | Some p -> p
 
-let private bitNot bit =
-    match bit with
-    | Zero -> One
-    | One -> Zero
-
-let private bitAnd bit0 bit1 =
-    match bit0, bit1 with
-    | One, One -> One
-    | _, _ -> Zero
-
-let private bitOr bit0 bit1 =
-    match bit0, bit1 with
-    | Zero, Zero -> Zero
-    | _, _ -> One
-
-let private bitXor bit0 bit1 =
-    match bit0, bit1 with
-    | Zero, One | One, Zero -> One
-    | _, _ -> Zero
-
-let private bitNand bit0 bit1 =
-    bitAnd bit0 bit1 |> bitNot
-
-let private bitNor bit0 bit1 =
-    bitOr bit0 bit1 |> bitNot
-
-let private bitXnor bit0 bit1 =
-    bitXor bit0 bit1 |> bitNot
-
-/// Make sure that the size of the inputs of a SimulationComponent is as
-/// expected.
-let private assertNotTooManyInputs
-        (reducerInput : ReducerInput)
-        (cType : ComponentType)
-        (expected : int)
-        : unit =
-#if ASSERTS
-    assertThat (reducerInput.Inputs.Count <= expected)
-    <| sprintf "assertNotTooManyInputs failed for %A: %d > %d" cType reducerInput.Inputs.Count expected  
-#else
-    ()
-#endif
-
-/// Make sure combinational logic does not handle clock ticks.
-let private assertNoClockTick
-            (reducerInput : ReducerInput)
-            (cType : ComponentType)
-            : unit =
-#if ASSERTS
-    assertThat (reducerInput.IsClockTick = No)
-    <| sprintf "Unexpected IsClockTick = Yes in combinational logic reducer input for %A" cType
-#else
-    ()
-#endif
-
-
-let private assertValidBus (bus : WireData) (minWidth : int) compType : unit =
-#if ASSERTS
-    assertThat (bus.Length >= minWidth)
-    <| sprintf "%A bus has invalid width: %d < %d" compType bus.Length minWidth
-#else
-    ()
-#endif
 
 /// Extract the values of the inputs of a SimulationComponent.
 /// If any of these inputs is missing, return None.
@@ -117,47 +54,7 @@ let rec private getValuesForPorts
 
 
 
-/// Read the content of the memory at the specified address.
-let private readMemory (mem : Memory1) (address : WireData) : WireData =
-    let intAddr = convertWireDataToInt address
-    let outDataInt = Helpers.getMemData intAddr mem
-    convertIntToWireData mem.WordWidth outDataInt
 
-/// Write the content of the memory at the specified address.
-let private writeMemory (mem : Memory1) (address : WireData) (data : WireData) : Memory1 =
-    let intAddr = convertWireDataToInt address
-    let intData = convertWireDataToInt data
-    {mem with Data = Map.add intAddr intData mem.Data}
-
-/// Reducer outputs for when a component has not enough inputs to produce an
-/// actual output.
-let private notReadyReducerOutput state = {
-    Outputs = None
-    NewCustomSimulationGraph = None
-    NewState = state
-}
-
-/// Make reducer outputs for NOT-custom components.
-let private makeReducerOutput state outputs = {
-    Outputs = Some outputs
-    NewCustomSimulationGraph = None
-    NewState = state
-}
-
-let private getDffStateBit state =
-    match state with
-    | DffState bit -> bit
-    | _ -> failwithf "what? getDffStateBit called with an invalid state: %A" state
-
-let private getRegisterStateBits state =
-    match state with
-    | RegisterState bits -> bits
-    | _ -> failwithf "what? getRegisterStateBits called with an invalid state: %A" state
-
-let private getRamStateMemory state =
-    match state with
-    | RamState memory -> memory
-    | _ -> failwithf "what? getRamStateMemory called with an invalid state: %A" state
 
 /// Given a component type, return a function takes a ReducerInput and
 /// transform it into a ReducerOuptut.

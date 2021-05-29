@@ -250,6 +250,10 @@ module CommonTypes
         | AsyncROM of Memory | ROM of Memory | RAM of Memory // legacy components - to be deleted
         | AsyncROM1 of Memory1 | ROM1 of Memory1 | RAM1 of Memory1
 
+    let (|IsBinaryCompType|_|) cType =
+        match cType with
+         | _ -> None
+
     /// get memory component type constructor
     /// NB only works with new-style memory components
     let getMemType (cType: ComponentType) =

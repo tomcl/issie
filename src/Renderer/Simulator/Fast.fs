@@ -492,9 +492,10 @@ let private getFid (cid: ComponentId) (ap: ComponentId list) =
 
 
 let private getPortNumbers (sc: SimulationComponent) =
-    let ins =
+    let ins,outs =
         match sc.Type with
-        | Constant1 _ -> 0
+        | Constant1 _ | Constant _ ->
+            0,1
         | Input _
         | Output _
         | Viewer _ 
@@ -503,21 +504,30 @@ let private getPortNumbers (sc: SimulationComponent) =
         | Not
         | DFF
         | Register _
-        | IOLabel
-        | SplitWire _ -> 1
-        | Mux2 _
-        | NbitsAdder _ -> 3
-        | ROM1 _
-        | AsyncROM1 _ -> 1
-        | _ -> 2
-
-    let outs =
-        match sc.Type with
-        | Decode4 -> 4
-        | NbitsAdder _
-        | SplitWire _
-        | Demux2 _ -> 2
-        | _ -> 1
+        | IOLabel  
+        | ROM1 _ 
+        | AsyncROM1 _->
+            1,1
+        | MergeWires
+        | NbitsXor _
+        | RegisterE _
+        | DFFE -> 
+            2,1
+        | SplitWire _ -> 
+            1,2
+        | Mux2 _ -> 
+            3,1
+        | NbitsAdder _ -> 
+            3,2
+        | RAM1 _ -> 
+            2,1
+        | Decode4 -> 
+            2,4
+        | Demux2 -> 
+            2,2
+        | Not | And | Or | Xor | Nand | Nor | Xnor -> 2,1
+        | Custom _ -> failwithf "Custom components should not occur in fast simulation"
+        | AsyncROM _ | RAM _ | ROM _ -> failwithf "legacy component type is not supported"
 
     ins, outs
 

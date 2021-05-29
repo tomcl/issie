@@ -283,69 +283,73 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         | Some n -> n
         | None -> failwithf "Can't find output width for output port %d of %A\n" opn fs.FComps.[fid]
 
-    match fc.FType, fc.AccessPath with
-    | Viewer _, _ -> ""
-    | Input _, [] -> failwithf "What? cannot call getVerilogComponent to find code for global Input"
-    | Output _, _
-    | Viewer _,_
-    | IOLabel _, _
-    | Input _, _ -> sprintf $"assign %s{outs 0} = %s{ins 0};\n"
-    | _ ->
-        match fc.FType with
-        | Not -> sprintf "assign %s = ! %s;\n" (outs 0) (ins 0)
-        | And
-        | Or
-        | Xor
-        | Nand
-        | Nor
-        | Xnor
-        | Xor -> sprintf "assign %s = %s;\n" (outs 0) (getVerilogBinaryOp fc.FType (ins 0) (ins 1))
-        | DFFE
-        | RegisterE _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 1} ? %s{ins 0} : %s{outs 0};\n"
-        | DFF
-        | Register _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 0};\n"
-        | Constant1 (w, c,_) -> $"assign %s{outs 0} = %s{makeBits w (uint64 c)};\n"
-        | Decode4 ->
-            let w = outW 1
+    match fc.FType with
+    | Viewer _ -> ""
+    | Input _ when fc.AccessPath = [] 
+        -> failwithf "What? cannot call getVerilogComponent to find code for global Input"
+    | Output _
+    | Viewer _
+    | IOLabel _
+    | Input _ -> sprintf $"assign %s{outs 0} = %s{ins 0};\n"
 
-            $"assign %s{outs 0} = (%s{ins 0} == 2'b00) ? %s{ins 1} : {makeBits w (uint64 0)};\n"
-            + $"assign %s{outs 1} = (%s{ins 0} == 2'b01) ? %s{ins 1} : {makeBits w (uint64 0)};\n"
-            + $"assign %s{outs 2} = (%s{ins 0} == 2'b10) ? %s{ins 1} : {makeBits w (uint64 0)};\n"
-            + $"assign %s{outs 3} = (%s{ins 0} == 2'b11) ? %s{ins 1} : {makeBits w (uint64 0)};\n"
-        | Demux2 ->
-            let w = outW 0
+    | Not -> sprintf "assign %s = ! %s;\n" (outs 0) (ins 0)
+    | And
+    | Or
+    | Xor
+    | Nand
+    | Nor
+    | Xnor
+    | Xor -> sprintf "assign %s = %s;\n" (outs 0) (getVerilogBinaryOp fc.FType (ins 0) (ins 1))
+    | DFFE
+    | RegisterE _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 1} ? %s{ins 0} : %s{outs 0};\n"
+    | DFF
+    | Register _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 0};\n"
+    | Constant1 (w, c,_) 
+    | Constant (w, c)
+        -> $"assign %s{outs 0} = %s{makeBits w (uint64 c)};\n"
+    | Decode4 ->
+        let w = outW 1
 
-            $"assign %s{outs 0} = %s{ins 1} ? {makeBits w (uint64 0)} : %s{ins 0};\n"
-            + $"assign %s{outs 1} = %s{ins 1} ? %s{ins 0} : {makeBits w (uint64 0)};\n"
-        | NbitsAdder n ->
-            let cin = ins 0
-            let a = ins 1
-            let b = ins 2
-            let sum = outs 0
-            let cout = outs 1
-            $"assign {{%s{cout},%s{sum} }} = %s{a} + %s{b} + %s{cin};\n"
-        | NbitsXor n ->
-            let a = ins 0
-            let b = ins 1
-            let xor = outs 0
-            $"assign {xor} = {a} ^ {b};\n"
-        | Mux2 -> $"assign %s{outs 0} = %s{ins 2} ? %s{ins 1} : %s{ins 0};\n"
-        | BusSelection (outW, lsb) ->
-            let sel = sprintf "[%d:%d]" (outW + lsb - 1) lsb
-            $"assign {outs 0} = {ins 0}{sel};\n"
-        | BusCompare (w, c) -> $"assign %s{outs 0} = %s{ins 0} == %s{makeBits w (uint64 (uint32 c))};\n"
-        | MergeWires -> $"assign {outs 0} = {{ {ins 0},{ins 1} }};\n"  
-        | SplitWire _ ->
-            let lsbBits = outW 0
-            let msbBits = outW 1
+        $"assign %s{outs 0} = (%s{ins 0} == 2'b00) ? %s{ins 1} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 1} = (%s{ins 0} == 2'b01) ? %s{ins 1} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 2} = (%s{ins 0} == 2'b10) ? %s{ins 1} : {makeBits w (uint64 0)};\n"
+        + $"assign %s{outs 3} = (%s{ins 0} == 2'b11) ? %s{ins 1} : {makeBits w (uint64 0)};\n"
+    | Demux2 ->
+        let w = outW 0
 
-            $"assign %s{outs 0} = %s{ins 0}[%d{lsbBits - 1}:0];\n"
-            + $"assign %s{outs 1} = %s{ins 0}[%d{msbBits + lsbBits - 1}:%d{msbBits}];\n"
-        | AsyncROM1 mem -> sprintf $"%s{name} I1 (%s{outs 0}, %s{ins 0});\n"
-        | ROM1 mem -> $"%s{name} I1 (%s{outs 0}, %s{ins 0}, clk);\n"
-        | RAM1 mem -> $"%s{name} I1 (%s{outs 0}, %s{ins 0}, %s{ins 1}, %s{ins 2}, clk);\n"
-        | Custom _ -> failwithf "What? custom components cannot exist in fast Simulation data structure"
-        | _ -> failwithf "What? impossible!: fc.FType =%A" fc.FType
+        $"assign %s{outs 0} = %s{ins 1} ? {makeBits w (uint64 0)} : %s{ins 0};\n"
+        + $"assign %s{outs 1} = %s{ins 1} ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+    | NbitsAdder n ->
+        let cin = ins 0
+        let a = ins 1
+        let b = ins 2
+        let sum = outs 0
+        let cout = outs 1
+        $"assign {{%s{cout},%s{sum} }} = %s{a} + %s{b} + %s{cin};\n"
+    | NbitsXor n ->
+        let a = ins 0
+        let b = ins 1
+        let xor = outs 0
+        $"assign {xor} = {a} ^ {b};\n"
+    | Mux2 -> $"assign %s{outs 0} = %s{ins 2} ? %s{ins 1} : %s{ins 0};\n"
+    | BusSelection (outW, lsb) ->
+        let sel = sprintf "[%d:%d]" (outW + lsb - 1) lsb
+        $"assign {outs 0} = {ins 0}{sel};\n"
+    | BusCompare (w, c) -> $"assign %s{outs 0} = %s{ins 0} == %s{makeBits w (uint64 (uint32 c))};\n"
+    | MergeWires -> $"assign {outs 0} = {{ {ins 0},{ins 1} }};\n"  
+    | SplitWire _ ->
+        let lsbBits = outW 0
+        let msbBits = outW 1
+
+        $"assign %s{outs 0} = %s{ins 0}[%d{lsbBits - 1}:0];\n"
+        + $"assign %s{outs 1} = %s{ins 0}[%d{msbBits + lsbBits - 1}:%d{msbBits}];\n"
+    | AsyncROM1 mem -> sprintf $"%s{name} I1 (%s{outs 0}, %s{ins 0});\n"
+    | ROM1 mem -> $"%s{name} I1 (%s{outs 0}, %s{ins 0}, clk);\n"
+    | RAM1 mem -> $"%s{name} I1 (%s{outs 0}, %s{ins 0}, %s{ins 1}, %s{ins 2}, clk);\n"
+    | Custom _ -> failwithf "What? custom components cannot exist in fast Simulation data structure"
+    | AsyncROM _ | RAM _ | ROM _ -> 
+        failwithf $"Invalid legacy component type '{fc.FType}'"
+
 
 /// return the header of the main verilog module with hardware inputs and outputs in header.
 let getMainHeader (vType:VMode) (fs: FastSimulation) =

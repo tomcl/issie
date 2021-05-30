@@ -1259,7 +1259,46 @@ let viewExitDialog model (dispatch : Msg -> unit) =
     if model.ExitDialog then unclosablePopup None exitMenu None [] dispatch
     else div [] []
 
+type SheetTree = {
+    Node: string
+    Size: int
+    SubSheets: SheetTree list
+    }
 
+
+/// get the subsheet tree for aa sheets
+let getSheetTrees (p:Project) =
+    let ldcMap = 
+        p.LoadedComponents
+        |> List.map (fun ldc -> ldc.Name,ldc)
+        |> Map.ofList
+    let rec subSheets (path: string list) (sheet: string) : SheetTree=
+        let ldc = ldcMap.[sheet]
+        let comps,_ = ldc.CanvasState
+        comps
+        |> List.collect (fun comp -> 
+                match comp.Type with 
+                | Custom ct when not <| List.contains ct.Name path -> 
+                    [subSheets (ct.Name :: path) ct.Name]
+                | _ -> 
+                    [])
+        |> (fun subs -> {
+            Node=sheet; 
+            Size = List.sumBy (fun sub -> sub.Size) subs + 1; 
+            SubSheets= subs
+            })
+    p.LoadedComponents
+    |> List.map (fun ldc ->ldc.Name, subSheets []  ldc.Name)
+    |> Map.ofList
+
+
+    
+
+
+    
+    
+    
+        
 
 /// Display top menu.
 let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
@@ -1275,10 +1314,14 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
         | None -> "no open project", "no open sheet"
         | Some project -> project.ProjectPath, project.OpenFileName
 
-    let makeFileLine name project =
+    let makeFileLine isSubSheet name project =
+        let nameProps = 
+            if isSubSheet then 
+                [] else  
+                [Props [Style [FontWeight "bold"]]]
         Navbar.Item.div [ Navbar.Item.Props [ style  ] ]
             [ Level.level [ Level.Level.Props [ style ] ]
-                  [ Level.left [] [ Level.item [] [ str name ] ]
+                  [ Level.left nameProps [ Level.item [] [ str name ] ]
                     Level.right [ Props [ Style [ MarginLeft "20px" ] ] ]
                         [ Level.item []
                               [ Button.button
@@ -1332,7 +1375,28 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
         match model.CurrentProj with
         | None -> Navbar.Item.div [] []
         | Some project ->
-            let projectFiles = project.LoadedComponents |> List.map (fun comp -> makeFileLine comp.Name project)
+
+            let sTrees = getSheetTrees project
+
+            let rec subSheetsOf sh =
+                sTrees.[sh].SubSheets
+                |> List.collect (fun ssh -> ssh.Node :: subSheetsOf ssh.Node)
+                |> List.distinct
+
+            let allSubSheets =
+                mapKeys sTrees
+                |> Array.toList
+                |> List.collect subSheetsOf
+                |> Set
+            let isSubSheet sh = Set.contains sh allSubSheets
+
+            let projectFiles = 
+                project.LoadedComponents 
+                |> List.map (fun comp -> 
+                    let tree = sTrees.[comp.Name]
+                    makeFileLine (isSubSheet tree.Node) comp.Name project, tree)
+                |> List.sortBy (fun (line,tree) -> isSubSheet tree.Node, tree.Node, -tree.Size, tree.Node.ToLower())
+                |> List.map fst
             Navbar.Item.div
                 [ Navbar.Item.HasDropdown
                   Navbar.Item.Props

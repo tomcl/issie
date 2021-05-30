@@ -231,13 +231,13 @@ td.title, thead {
 .IntroBackground {
 	margin-top: 0.5%;
 	background: url('../content/img/circuit/circuitcropped.png');
-	clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 50%);
+	clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 70%);
 }
 
 .IntroLayer {
 	margin-top: 0.5%;
 	background-color: rgba(250, 169, 22, 0.8);
-	clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 50%);
+	clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 70%);
 }
 
 /* ------- GENERAL TEXT PARAGRAPH STYLE ------ */

@@ -24,11 +24,10 @@
     <div class="topnav">
         <a href="index.html" style="font-size: 30px; font-weight:bolder">ISSIE</a>
         <a href="UserGuide.html">User Guide</a>
-        <a href="#FAQ">FAQ</a>
-        <a href="#DeveloperInfo">Developer Info</a>
-        <a href="#Contact">Contact</a>
+        <a href="DeveloperInfo.html">Developer Info</a>
+        <a href="Contact.html">Contact</a>
         <div class="topnav-right">
-            <a href="#Download">Download</a>
+            <a href="Download.html">Download</a>
         </div>
     </div>
 
@@ -38,102 +37,48 @@
             <p class="toc_title">Contents</p>
             <ul class="toc_list">
                 <li>
-                    <a href="#ComponentLibrary">1 Components</a>
-                </li>
-                <li><a href="#WireRouting">2 Wire Routing</a></li>
-                <li><a href="#WidthInference">3 Width Inference</a></li>
-                <li>
-                    <a href="#Simulation">4 Circuit Simulation</a>
+                    <a href="#ProjectInfo">1 Project Info</a>
                     <ul>
-                        <li><a href="#StepSimulation">4.1 Step Simulation</a></li>
-                        <li><a href="#WaveformSimulation">4.2 Waveform Simulation</a></li>
+                        <li><a href="#CreatingProject">1.1 Creating a project</a></li>
+                        <li><a href="#Saving">1.2 Saving a project</a></li>
+                        <li><a href="#DesignSheets">1.3 Design sheets</a></li>
+                        <li><a href="#Exiting">1.4 Exiting the program</a></li>
                     </ul>
                 </li>
-                <li><a href="#Verilog">5 Verilog Output</a></li>
-                <li><a href="#Memory">6 Memory Editor</a></li>
+                <li>
+                    <a href="#Components">2 Components</a>
+                    <ul>
+                        <li><a href="#Catalogue">2.1 Catalogue</a></li>
+                        <li><a href="#AddingComponents">2.2 Adding Components</a></li>
+                        <li><a href="#EditingComponents">2.3 Editing Components</a></li>
+                        <li><a href="#MovingComponents">2.4 Moving Components</a></li>
+                        <li><a href="#DeletingComponents">2.5 Deleting Components</a></li>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#Wires">3 Wires</a>
+                    <ul>
+                        <li><a href="#Auto-routing">3.1 Auto-routing</a></li>
+                        <li><a href="#Manual-routing">3.2 Manual-routing</a></li>
+                    </ul>
+                </li>
+                <li><a href="#WidthInference">4 Width Inference</a></li>
+                <li>
+                    <a href="#Simulation">5 Circuit Simulation</a>
+                    <ul>
+                        <li><a href="#StepSimulation">5.1 Step Simulation</a></li>
+                        <li><a href="#WaveformSimulation">5.2 Waveform Simulation</a></li>
+                    </ul>
+                </li>
+                <li><a href="#Verilog">6 Verilog Output</a></li>
+                <li><a href="#Memory">7 Memory Editor</a></li>
             </ul>
         </div>
 
-        <div class="section" id="halfwidth"><h3><a name="ComponentLibrary" class="anchor" href="#ComponentLibrary">Component Library</a></h3></div>
+        <br>
         <p>
-            ISSIE has an extensive and complete library of components available in the 'Catalogue' menu,
-            with additional helpful components for ease of use such as 'Viewer' and 'Bus Selector'
-            which allow specific waveforms and circuit attributes to be inspected.
+            CURRENTLY IN PROGRESS, CHECK BACK SOON!
         </p>
-        <div class="img">
-            <img src="C:\Users\joann\source\repos\issie_tom\docs\content\img\circuit\catalog.png" alt="Initial circuit and Component tab" />
-        </div><br>
-
-        <div class="section" id="halfwidth"><h3><a name="WireRouting" class="anchor" href="#WireRouting">Wire Routing</a></h3></div>
-        <p>
-            ISSIE has two methods of routing wires: Auto-routing and Manual-routing. Wires will all start out as Auto-routed,
-            which means that the wire's path is created automatically by the program. This path will update when moving any connected components.
-            ISSIE also allows for manual routing, where the user may manipulate the wire as desired to make the circuit more readable.
-        </p><br>
-
-
-        <div class="section" id="halfwidth"><h3><a name="WidthInference" class="anchor" href="#WidthInference">Width Inference</a></h3></div>
-        <p>
-            Wires will automatically be created the correct width using a width inference algorithm.
-            Wires connecting two ports of incompatible widths will be highlighted red and an error message shown.
-        </p>
-        <div class="img">
-            <img src="C:\Users\joann\source\repos\issie_tom\docs\content\img\circuit\wireerror.png" alt="Width Inferer Error Message" />
-        </div><br>
-
-
-        <div class="section" id="halfwidth"><h3><a name="CircuitSimulation" class="anchor" href="#CircuitSimulation">Circuit Simulation</a></h3></div>
-        <p>
-            ISSIE includes two simulations in order to inspect and test circuit schematics: The step simulator, and waveform simulator.
-            This allows users to visualise the information in different ways to best suit their needs and understanding.
-        </p><br>
-
-
-        <div class="section" id="halfwidth"><h4><a name="StepSimulation" class="anchor" href="#StepSimulation">Step Simulation</a></h4></div>
-        <p>
-            Step Simulation allows the user to 'step' or cycle through each clock tick, and view the current design sheet's Output and Viewer component information.
-            It also allows users to view how the state changes in stateful components such as RAM.
-        </p>
-        <div class="img">
-            <img src="C:\Users\joann\source\repos\issie_tom\docs\content\img\circuit\simulation tab.png" alt="Step simulator example" />
-        </div><br>
-
-
-        <div class="section" id="halfwidth"><h4><a name="WaveformSimulation" class="anchor" href="#WaveformSimulation">Waveform Simulation</a></h4></div>
-        <p>
-            Waveform Simulation allows the user to see the values in each selected connected circuit element (<a href="https://en.wikipedia.org/wiki/Netlist">Netlist</a>) over time as a waveform.
-            The waveform simulator allows users to move waveforms up/down in the list to make the simulation more readable.
-            Users may cycle through the simulator using the arrows to directly go to a specific clock cycle.
-            Alternatively there is a scrollbar for the Waveform simulator that will automatically lengthen the simulation once the end is reached.
-            The values in the waveform simulator can be viewed in various formats: binary, hexadecimal, unsigned decimal and signed decimal.
-            The Waveform Simulator also features a draggable sidebar to allow for a better view.
-        </p>
-        <div class="img">
-            <img src="C:\Users\joann\source\repos\issie_tom\docs\content\img\circuit\waveformsimulation.png" alt="Waveform simulator example" />
-        </div>
-
-        <p>
-            Waveform Simulation also allows for the simulation of memory components such as RAM.
-        </p>
-        <div class="img">
-            <img src="C:\Users\joann\source\repos\issie_tom\docs\content\img\circuit\wavesimramview.png" alt="Waveform simulator with RAM example" />
-        </div><br>
-
-
-
-        <div class="section" id="halfwidth"><h3><a name="Verilog" class="anchor" href="#Verilog">Verilog Output</a></h3></div>
-        <p>
-            Users may convert their ISSIE schematic design into a Verilog file using the 'Write as verilog' option found in the header bar of the application.
-            This allows great flexibility as ISSIE designs may be used in more complex design tools and other programs that use Verilog; allowing ISSIE to be used as a top-level design that can be further developed if needed.
-        </p><br>
-
-        <div class="section" id="halfwidth"><h3><a name="Memory" class="anchor" href="#Memory">Memory Editor</a></h3></div>
-        <p>
-            ISSIE allows users to directly edit the contents of Memory components, for more versitility and ease of use.
-        </p>
-        <div class="img">
-            <img src="C:\Users\joann\source\repos\issie_tom\docs\content\img\circuit\memoryeditor.png" alt="RAM editor example" />
-        </div><br>
     </div>
 
 </body>

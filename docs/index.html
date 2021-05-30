@@ -33,7 +33,6 @@
         </div>
     </div>
 
-    <h1><a name="Banner" href="#Banner"></a></h1>
     <div class="IntroBackground">
         <div class="IntroLayer">
             <p style="font-size: 24px; margin-left: 0.5%; font-weight:bolder; color: #272838; text-align: center">
@@ -48,8 +47,8 @@
     </div>
     <div class="GeneralText">
         <br><br><br>
-        <h1><a name="Info" class="anchor" href="#Info">What is Issie?</a></h1>
 
+        <div class="section"><h1><a name="Info" class="anchor" href="#Info">What is Issie?</a></h1></div>
         <p>
             Issie (Interactive Schematic Simulator and Integrated Editor) is a very easy to use and capable block schematic based digital logic editor and simulator,
             originally made for the 1st year undergraduate Digital Electronics and Computer Architecture module at the
@@ -61,7 +60,8 @@
             library.
         </p><br>
 
-        <h2><a name="Features" class="anchor" href="#Features">Key Features</a></h2>
+        <div class="section"><h2><a name="Features" class="anchor" href="#Features">Key Features</a></h2></div>
+        <br>
         <div id="toc_container">
             <p class="toc_title">Contents</p>
             <ul class="toc_list">
@@ -80,8 +80,7 @@
             </ul>
         </div>
 
-
-        <h3><a name="ComponentLibrary" class="anchor" href="#ComponentLibrary">Component Library</a></h3>
+        <div class="section" id="halfwidth"><h3><a name="ComponentLibrary" class="anchor" href="#ComponentLibrary">Component Library</a></h3></div>
         <p>
             ISSIE has an extensive and complete library of components available in the 'Catalogue' menu,
             with additional helpful components for ease of use such as 'Viewer' and 'Bus Selector'
@@ -91,8 +90,7 @@
             <img src="C:\Users\joann\source\repos\issie_tom\docs\content\img\circuit\catalog.png" alt="Initial circuit and Component tab" />
         </div><br>
 
-
-        <h3><a name="WireRouting" class="anchor" href="#WireRouting">Wire Routing</a></h3>
+        <div class="section" id="halfwidth"><h3><a name="WireRouting" class="anchor" href="#WireRouting">Wire Routing</a></h3></div>
         <p>
             ISSIE has two methods of routing wires: Auto-routing and Manual-routing. Wires will all start out as Auto-routed,
             which means that the wire's path is created automatically by the program. This path will update when moving any connected components.
@@ -100,7 +98,7 @@
         </p><br>
 
 
-        <h3><a name="WidthInference" class="anchor" href="#WidthInference">Width Inference</a></h3>
+        <div class="section" id="halfwidth"><h3><a name="WidthInference" class="anchor" href="#WidthInference">Width Inference</a></h3></div>
         <p>
             Wires will automatically be created the correct width using a width inference algorithm.
             Wires connecting two ports of incompatible widths will be highlighted red and an error message shown.
@@ -110,14 +108,14 @@
         </div><br>
 
 
-        <h3><a name="CircuitSimulation" class="anchor" href="#CircuitSimulation">Circuit Simulation</a></h3>
+        <div class="section" id="halfwidth"><h3><a name="CircuitSimulation" class="anchor" href="#CircuitSimulation">Circuit Simulation</a></h3></div>
         <p>
             ISSIE includes two simulations in order to inspect and test circuit schematics: The step simulator, and waveform simulator.
             This allows users to visualise the information in different ways to best suit their needs and understanding.
         </p><br>
 
 
-        <h4><a name="StepSimulation" class="anchor" href="#StepSimulation">Step Simulation</a></h4>
+        <div class="section" id="halfwidth"><h4><a name="StepSimulation" class="anchor" href="#StepSimulation">Step Simulation</a></h4></div>
         <p>
             Step Simulation allows the user to 'step' or cycle through each clock tick, and view the current design sheet's Output and Viewer component information.
             It also allows users to view how the state changes in stateful components such as RAM.
@@ -127,7 +125,7 @@
         </div><br>
 
 
-        <h4><a name="WaveformSimulation" class="anchor" href="#WaveformSimulation">Waveform Simulation</a></h4>
+        <div class="section" id="halfwidth"><h4><a name="WaveformSimulation" class="anchor" href="#WaveformSimulation">Waveform Simulation</a></h4></div>
         <p>
             Waveform Simulation allows the user to see the values in each selected connected circuit element (<a href="https://en.wikipedia.org/wiki/Netlist">Netlist</a>) over time as a waveform.
             The waveform simulator allows users to move waveforms up/down in the list to make the simulation more readable.
@@ -149,13 +147,13 @@
 
 
 
-        <h3><a name="Verilog" class="anchor" href="#Verilog">Verilog Output</a></h3>
+        <div class="section" id="halfwidth"><h3><a name="Verilog" class="anchor" href="#Verilog">Verilog Output</a></h3></div>
         <p>
             Users may convert their ISSIE schematic design into a Verilog file using the 'Write as verilog' option found in the header bar of the application.
             This allows great flexibility as ISSIE designs may be used in more complex design tools and other programs that use Verilog; allowing ISSIE to be used as a top-level design that can be further developed if needed.
         </p><br>
 
-        <h3><a name="Memory" class="anchor" href="#Memory">Memory Editor</a></h3>
+        <div class="section" id="halfwidth"><h3><a name="Memory" class="anchor" href="#Memory">Memory Editor</a></h3></div>
         <p>
             ISSIE allows users to directly edit the contents of Memory components, for more versitility and ease of use.
         </p>
@@ -166,36 +164,16 @@
 
         <br>
 
-        <h1><a name="Acknowledgements" class="anchor" href="#Acknowledgements">Acknowledgements:</a></h1>
+        <div class="section"><h1><a name="Acknowledgements" class="anchor" href="#Acknowledgements">Acknowledgements:</a></h1></div>
         <ul>
             <li>Marco Selvatici for the 8K lines of base code written for his 3rd year BEng <a href="https://github.com/MarcoSelvatici/DEflow">FYP</a></li>
             <li>An awesome automatic FAKE build system based on Cody Johnson's <a href="https://github.com/Shmew/MordhauBuddy">MordhausBuddy</a></li>
             <li>Edoardo Santi for work improving Issie over Summer 2020.</li>
+            <li>High Level Programming 2020 cohort for providing the base code of the draw block</li>
+            <li>Jo Merrick for work improving ISSIE for her 3rd year BEng Project</li>
+            <li>Dr Tom Clarke for work maintaining and improving ISSIE</li>
         </ul>
 
-        <h2><a name="Background-and-Technical-Details" class="anchor" href="#Background-and-Technical-Details">Background and Technical Details</a></h2>
-        <p>Marco's <a href="https://tomcl.github.com/issie/marco-report.pdf">Dissertation</a> or his <a href="https://tomcl.github.com/issie/marco-poster.pdf">Poster</a>.</p>
-
-        <h2><a name="How-to-get-Issie" class="anchor" href="#How-to-get-Issie">How to get Issie</a></h2>
-        <p>
-            Go to the <a href="https://github.com/tomcl/issie/releases">releases</a> page on the Github repo and download the
-            package most applicable to your operating system. Linux users can run the windows vrsion under WINE.
-        </p>
-
-        <h2><a name="Documentation" class="anchor" href="#Documentation">Documentation</a></h2>
-        <ul>
-            <li>Functionality - Some example use cases for the application.</li>
-            <li>
-                <a href="reference/index.html">API Reference</a> contains automatically generated documentation for all types, modules
-                and functions in the library. This includes additional brief samples on using most of the functions.
-                This is only helpful if you plan on contributing.
-            </li>
-        </ul>
-        <h2><a name="Contributing" class="anchor" href="#Contributing">Contributing</a></h2>
-        <p>
-            The project is hosted on <a href="https://github.com/tomcl/issie">Github</a> where you can <a href="https://github.com/tomcl/issie/issues">report issues</a>, fork the project and submit pull
-            requests. Please take a look at the <a href="contributing.html">contribution guidelines</a> for more information.
-        </p>
     </div>
 
 

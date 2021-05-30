@@ -187,6 +187,7 @@ td.title, thead {
 	line-height: 20px;
 	vertical-align: middle;
 	font-weight: 600;
+	flex-direction: column;
 }
 
 /* Style the links inside the navigation bar */
@@ -197,7 +198,7 @@ td.title, thead {
 	color: #272838;
 	text-align: center;
 	text-decoration: none;
-	font-size: 17px;
+	font-size: 18px;
 	
 }
 
@@ -210,6 +211,7 @@ td.title, thead {
 
 /* Right-aligned section inside the top navigation */
 .topnav-right {
+	flex-direction: column;
 	overflow: hidden;
 	vertical-align: middle;
 }
@@ -323,6 +325,8 @@ li{
 #main ul { font-size: 11pt; margin-top:10px; }
 #main li { font-size: 11pt; margin: 5px 0px 5px 0px; }
 #main strong { font-weight:700; }
+
+
 
 /*--------------------------------------------------------------------------
   Formatting for API reference

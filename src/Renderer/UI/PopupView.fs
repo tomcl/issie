@@ -742,15 +742,16 @@ let viewInfoPopup dispatch =
         If you have a single sheet that is your complete design. Otherwise any \
         sheet can include as a single component the hardware defined in another sheet by adding a 'custom component' \
         from the My Project section of the Catalog. \
-        Multiple copies of other sheets can be added in this way." 
+        Multiple copies of other sheets can be added in this way. \
+        Top-level sheets which are not used as subsheets are bolded on the sheet menu." 
         br[]; br[]
         str "The Simulation Tab is used mainly for combinational logic and simple clocked logic: \
         the top 'Waveforms >>' button works with clocked circuits and displays waveforms." 
         br[]; br[];
         str "In Issie all clocked components use the same clock signal Clk. \
-        Clk connections are not shown: all clk ports are
-        automatically connected together. In the waveform display active clock edges are indicated \
-        by vertical line through all the waveforms that separate clock cycles. The clock is not shown."
+        Clk connections are not shown: all Clk ports are
+        automatically connected together. In the waveform display active clock edges, 1 per clock cycle, are indicated \
+        by vertical lines through the waveforms. The clock waveform has two edges for each clock cycle and is not shown."
         br[]  ; br[];  
         button 
             [OnClick <| openInBrowser "https://github.com/tomcl/ISSIE"] 

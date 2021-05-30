@@ -75,8 +75,11 @@
                         <li><a href="#WaveformSimulation">4.2 Waveform Simulation</a></li>
                     </ul>
                 </li>
+                <li><a href="#Verilog">5 Verilog Output</a></li>
+                <li><a href="#Memory">6 Memory Editor</a></li>
             </ul>
         </div>
+
 
         <h3><a name="ComponentLibrary" class="anchor" href="#ComponentLibrary">Component Library</a></h3>
         <p>
@@ -84,10 +87,10 @@
             with additional helpful components for ease of use such as 'Viewer' and 'Bus Selector'
             which allow specific waveforms and circuit attributes to be inspected.
         </p>
-
         <div class="img">
             <img src="C:\Users\joann\source\repos\issie_tom\docs\content\img\circuit\catalog.png" alt="Initial circuit and Component tab" />
         </div><br>
+
 
         <h3><a name="WireRouting" class="anchor" href="#WireRouting">Wire Routing</a></h3>
         <p>
@@ -95,6 +98,7 @@
             which means that the wire's path is created automatically by the program. This path will update when moving any connected components.
             ISSIE also allows for manual routing, where the user may manipulate the wire as desired to make the circuit more readable.
         </p><br>
+
 
         <h3><a name="WidthInference" class="anchor" href="#WidthInference">Width Inference</a></h3>
         <p>
@@ -105,11 +109,13 @@
             <img src="C:\Users\joann\source\repos\issie_tom\docs\content\img\circuit\wireerror.png" alt="Width Inferer Error Message" />
         </div><br>
 
+
         <h3><a name="CircuitSimulation" class="anchor" href="#CircuitSimulation">Circuit Simulation</a></h3>
         <p>
             ISSIE includes two simulations in order to inspect and test circuit schematics: The step simulator, and waveform simulator.
             This allows users to visualise the information in different ways to best suit their needs and understanding.
         </p><br>
+
 
         <h4><a name="StepSimulation" class="anchor" href="#StepSimulation">Step Simulation</a></h4>
         <p>
@@ -120,10 +126,43 @@
             <img src="C:\Users\joann\source\repos\issie_tom\docs\content\img\circuit\simulation tab.png" alt="Step simulator example" />
         </div><br>
 
+
         <h4><a name="WaveformSimulation" class="anchor" href="#WaveformSimulation">Waveform Simulation</a></h4>
         <p>
-            Waveform Simulation allows the user to see the values in each connected circuit element (<a href="https://en.wikipedia.org/wiki/Netlist">Netlist</a>).
+            Waveform Simulation allows the user to see the values in each selected connected circuit element (<a href="https://en.wikipedia.org/wiki/Netlist">Netlist</a>) over time as a waveform.
+            The waveform simulator allows users to move waveforms up/down in the list to make the simulation more readable.
+            Users may cycle through the simulator using the arrows to directly go to a specific clock cycle.
+            Alternatively there is a scrollbar for the Waveform simulator that will automatically lengthen the simulation once the end is reached.
+            The values in the waveform simulator can be viewed in various formats: binary, hexadecimal, unsigned decimal and signed decimal.
+            The Waveform Simulator also features a draggable sidebar to allow for a better view.
         </p>
+        <div class="img">
+            <img src="C:\Users\joann\source\repos\issie_tom\docs\content\img\circuit\waveformsimulation.png" alt="Waveform simulator example" />
+        </div>
+
+        <p>
+            Waveform Simulation also allows for the simulation of memory components such as RAM.
+        </p>
+        <div class="img">
+            <img src="C:\Users\joann\source\repos\issie_tom\docs\content\img\circuit\wavesimramview.png" alt="Waveform simulator with RAM example" />
+        </div><br>
+
+
+
+        <h3><a name="Verilog" class="anchor" href="#Verilog">Verilog Output</a></h3>
+        <p>
+            Users may convert their ISSIE schematic design into a Verilog file using the 'Write as verilog' option found in the header bar of the application.
+            This allows great flexibility as ISSIE designs may be used in more complex design tools and other programs that use Verilog; allowing ISSIE to be used as a top-level design that can be further developed if needed.
+        </p><br>
+
+        <h3><a name="Memory" class="anchor" href="#Memory">Memory Editor</a></h3>
+        <p>
+            ISSIE allows users to directly edit the contents of Memory components, for more versitility and ease of use.
+        </p>
+        <div class="img">
+            <img src="C:\Users\joann\source\repos\issie_tom\docs\content\img\circuit\memoryeditor.png" alt="RAM editor example" />
+        </div><br>
+
 
         <br>
 
@@ -159,18 +198,6 @@
         </p>
     </div>
 
-
-    <script>
-        // Used to toggle the menu on small screens when clicking on the menu button
-        function myFunction() {
-            var x = document.getElementById("topNav");
-            if (x.className.indexOf("w3-show") == -1) {
-                x.className += " w3-show";
-            } else {
-                x.className = x.className.replace(" w3-show", "");
-            }
-        }
-    </script>
 
 </body>
   </html>

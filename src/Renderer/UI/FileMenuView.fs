@@ -1273,20 +1273,23 @@ let getSheetTrees (p:Project) =
         |> List.map (fun ldc -> ldc.Name,ldc)
         |> Map.ofList
     let rec subSheets (path: string list) (sheet: string) : SheetTree=
-        let ldc = ldcMap.[sheet]
-        let comps,_ = ldc.CanvasState
-        comps
-        |> List.collect (fun comp -> 
-                match comp.Type with 
-                | Custom ct when not <| List.contains ct.Name path -> 
-                    [subSheets (ct.Name :: path) ct.Name]
-                | _ -> 
-                    [])
-        |> (fun subs -> {
-            Node=sheet; 
-            Size = List.sumBy (fun sub -> sub.Size) subs + 1; 
-            SubSheets= subs
-            })
+        let ldc = Map.tryFind sheet ldcMap
+        match ldc with
+        | None -> {Node=sheet; Size = 1;SubSheets = []}
+        | Some ldc ->
+            let comps,_ = ldc.CanvasState
+            comps
+            |> List.collect (fun comp -> 
+                    match comp.Type with 
+                    | Custom ct when not <| List.contains ct.Name path -> 
+                        [subSheets (ct.Name :: path) ct.Name]
+                    | _ -> 
+                        [])
+            |> (fun subs -> {
+                Node=sheet; 
+                Size = List.sumBy (fun sub -> sub.Size) subs + 1; 
+                SubSheets= subs
+                })
     p.LoadedComponents
     |> List.map (fun ldc ->ldc.Name, subSheets []  ldc.Name)
     |> Map.ofList
@@ -1379,7 +1382,9 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
             let sTrees = getSheetTrees project
 
             let rec subSheetsOf sh =
-                sTrees.[sh].SubSheets
+                match Map.tryFind sh sTrees with
+                | Some tree -> tree.SubSheets
+                | None -> []
                 |> List.collect (fun ssh -> ssh.Node :: subSheetsOf ssh.Node)
                 |> List.distinct
 

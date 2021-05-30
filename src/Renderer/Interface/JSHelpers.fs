@@ -98,7 +98,7 @@ let getInt64EventValue( event: Event) =
 let getTextFocusEventValue (event: FocusEvent) =
     getFailIfNull event ["target";"value"] |> unbox<string>
 
-#if ASSERTS
+#if (ASSERTS || DEBUG)
 let mutable debugLevel = 1
 #else
 let mutable debugLevel = 0

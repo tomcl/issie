@@ -19,84 +19,88 @@
       <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
     <![endif]-->
 </head>
-  <body>
+<body>
 
-      <h><a name="Home" href="#Home"></a></h>
-      <div class="topnav">
-          <a href="#Home" style="font-size: 30px; font-weight:bolder">ISSIE</a>
-          <a href="#UserGuide">User Guide</a>
-          <a href="#FAQ">FAQ</a>
-          <a href="#DeveloperInfo">Developer Info</a>
-          <a href="#Contact">Contact</a>
-          <div class="topnav-right">
-              <a href="#Download">Download</a>
-          </div>
-      </div>
+    <h><a name="Home" href="#Home"></a></h>
+    <div class="topnav">
+        <a href="#Home" style="font-size: 30px; font-weight:bolder">ISSIE</a>
+        <a href="#UserGuide">User Guide</a>
+        <a href="#FAQ">FAQ</a>
+        <a href="#DeveloperInfo">Developer Info</a>
+        <a href="#Contact">Contact</a>
+        <div class="topnav-right">
+            <a href="#Download">Download</a>
+        </div>
+    </div>
 
-      <h1><a name="Banner" href="#Banner"></a></h1>
-      <div class="IntroBackground">
-          <div class="IntroLayer">
-              <p style="font-size: 24px; margin-left: 0.5%; font-weight:bolder; color: #272838; text-align: center">
-                  <br><br> Discover, Learn & Create with the ISSIE circuit schematic editor!
-              </p>
-              <div class="topnav-right">
-                  <a href="#Home">Learn more</a>
-                  <a href="#Contributing">Something</a>
-              </div>
-              <br><br><br><br><br>
-          </div>
-      </div>
+    <h1><a name="Banner" href="#Banner"></a></h1>
+    <div class="IntroBackground">
+        <div class="IntroLayer">
+            <p style="font-size: 24px; margin-left: 0.5%; font-weight:bolder; color: #272838; text-align: center">
+                <br><br><br> Discover, Learn & Create with the ISSIE circuit schematic editor!
+            </p>
+            <div class="topnav-right">
+                <a href="#Info">Learn more</a>
+                <a href="#Acknowledgements">Acknowledgements</a>
+            </div>
+            <br><br><br><br><br>
+        </div>
+    </div>
+    <div class="GeneralText">
+        <br><br><br>
+        <h1><a name="Info" class="anchor" href="#Info">What is Issie?</a></h1>
 
-      <h1><a name="What-is-Issie" class="anchor" href="#What-is-Issie">What is Issie?</a></h1>
-      <p>
-          Issie (Interactive Schematic Simulator and Integrated Editor) is a very easy to use and capable block schematic based digital logic editor and simulator,
-          originally made for the 1st year undergraduate Digital Electronics and Computer Architecture module at the
-          Department of Electronic and Electrical Engineering, Imperial College London.
-      </p>
-      <p>
-          Issie is coded in F# transpiled to Javascript by <a href="http://fable.io">FABLE</a>, and uses the
-          very capable <a href="https://github.com/freegroup/draw2d">Draw2D</a>
-          library.
-      </p>
-      <h2><a name="Acknowledgements" class="anchor" href="#Acknowledgements">Acknowledgements:</a></h2>
-      <ul>
-          <li>Marco Selvatici for the 8K lines of base code written for his 3rd year BEng <a href="https://github.com/MarcoSelvatici/DEflow">FYP</a></li>
-          <li>An awesome automatic FAKE build system based on Cody Johnson's <a href="https://github.com/Shmew/MordhauBuddy">MordhausBuddy</a></li>
-          <li>Edoardo Santi for work improving Issie over Summer 2020.</li>
-      </ul>
-      <h2><a name="Background-and-Technical-Details" class="anchor" href="#Background-and-Technical-Details">Background and Technical Details</a></h2>
-      <p>Marco's <a href="https://tomcl.github.com/issie/marco-report.pdf">Dissertation</a> or his <a href="https://tomcl.github.com/issie/marco-poster.pdf">Poster</a>.</p>
-      <h2><a name="How-to-get-Issie" class="anchor" href="#How-to-get-Issie">How to get Issie</a></h2>
-      <p>
-          Go to the <a href="https://github.com/tomcl/issie/releases">releases</a> page on the Github repo and download the
-          package most applicable to your operating system. Linux users can run the windows vrsion under WINE.
-      </p>
-      <h2><a name="Documentation" class="anchor" href="#Documentation">Documentation</a></h2>
-      <ul>
-          <li>Functionality - Some example use cases for the application.</li>
-          <li>
-              <a href="reference/index.html">API Reference</a> contains automatically generated documentation for all types, modules
-              and functions in the library. This includes additional brief samples on using most of the functions.
-              This is only helpful if you plan on contributing.
-          </li>
-      </ul>
-      <h2><a name="Contributing" class="anchor" href="#Contributing">Contributing</a></h2>
-      <p>
-          The project is hosted on <a href="https://github.com/tomcl/issie">Github</a> where you can <a href="https://github.com/tomcl/issie/issues">report issues</a>, fork the project and submit pull
-          requests. Please take a look at the <a href="contributing.html">contribution guidelines</a> for more information.
-      </p>
+        <p>
+            Issie (Interactive Schematic Simulator and Integrated Editor) is a very easy to use and capable block schematic based digital logic editor and simulator,
+            originally made for the 1st year undergraduate Digital Electronics and Computer Architecture module at the
+            Department of Electronic and Electrical Engineering, Imperial College London.
+        </p>
+        <p>
+            Issie is coded in F# transpiled to Javascript by <a href="http://fable.io">FABLE</a>, and uses the
+            very capable <a href="https://github.com/freegroup/draw2d">Draw2D</a>
+            library.
+        </p>
+        <h2><a name="Acknowledgements" class="anchor" href="#Acknowledgements">Acknowledgements:</a></h2>
+        <ul>
+            <li>Marco Selvatici for the 8K lines of base code written for his 3rd year BEng <a href="https://github.com/MarcoSelvatici/DEflow">FYP</a></li>
+            <li>An awesome automatic FAKE build system based on Cody Johnson's <a href="https://github.com/Shmew/MordhauBuddy">MordhausBuddy</a></li>
+            <li>Edoardo Santi for work improving Issie over Summer 2020.</li>
+        </ul>
+        <h2><a name="Background-and-Technical-Details" class="anchor" href="#Background-and-Technical-Details">Background and Technical Details</a></h2>
+        <p>Marco's <a href="https://tomcl.github.com/issie/marco-report.pdf">Dissertation</a> or his <a href="https://tomcl.github.com/issie/marco-poster.pdf">Poster</a>.</p>
+        <h2><a name="How-to-get-Issie" class="anchor" href="#How-to-get-Issie">How to get Issie</a></h2>
+        <p>
+            Go to the <a href="https://github.com/tomcl/issie/releases">releases</a> page on the Github repo and download the
+            package most applicable to your operating system. Linux users can run the windows vrsion under WINE.
+        </p>
+        <h2><a name="Documentation" class="anchor" href="#Documentation">Documentation</a></h2>
+        <ul>
+            <li>Functionality - Some example use cases for the application.</li>
+            <li>
+                <a href="reference/index.html">API Reference</a> contains automatically generated documentation for all types, modules
+                and functions in the library. This includes additional brief samples on using most of the functions.
+                This is only helpful if you plan on contributing.
+            </li>
+        </ul>
+        <h2><a name="Contributing" class="anchor" href="#Contributing">Contributing</a></h2>
+        <p>
+            The project is hosted on <a href="https://github.com/tomcl/issie">Github</a> where you can <a href="https://github.com/tomcl/issie/issues">report issues</a>, fork the project and submit pull
+            requests. Please take a look at the <a href="contributing.html">contribution guidelines</a> for more information.
+        </p>
+    </div>
 
-      <script>
-          // Used to toggle the menu on small screens when clicking on the menu button
-          function myFunction() {
-              var x = document.getElementById("topNav");
-              if (x.className.indexOf("w3-show") == -1) {
-                  x.className += " w3-show";
-              } else {
-                  x.className = x.className.replace(" w3-show", "");
-              }
-          }
-      </script>
 
-  </body>
+    <script>
+        // Used to toggle the menu on small screens when clicking on the menu button
+        function myFunction() {
+            var x = document.getElementById("topNav");
+            if (x.className.indexOf("w3-show") == -1) {
+                x.className += " w3-show";
+            } else {
+                x.className = x.className.replace(" w3-show", "");
+            }
+        }
+    </script>
+
+</body>
   </html>

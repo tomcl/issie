@@ -228,7 +228,7 @@ td.title, thead {
 
 .IntroBackground {
 	margin-top: 0.5%;
-	background: url('../content/img/circuit.png');
+	background: url('../content/img/circuit/circuitcropped.png');
 	clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 50%);
 }
 
@@ -236,6 +236,11 @@ td.title, thead {
 	margin-top: 0.5%;
 	background-color: rgba(250, 169, 22, 0.8);
 	clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 50%);
+}
+
+/* ------- GENERAL TEXT PARAGRAPH STYLE ------ */
+.GeneralText {
+	margin: 0.5%
 }
 
 /* Responsive layout - when the screen is less than 700px wide, make the two columns stack on top of each other instead of next to each other */

@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <title>
-        ISSIE
+        User Guide
     </title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Schematic Editor and Simulator" />
@@ -20,11 +20,10 @@
     <![endif]-->
 </head>
 <body>
-
-    <h><a name="Home" href="#Home"></a></h>
+    <h><a name="Home" href="index.html"></a></h>
     <div class="topnav">
-        <a href="#Home" style="font-size: 30px; font-weight:bolder">ISSIE</a>
-        <a href="#UserGuide">User Guide</a>
+        <a href="index.html" style="font-size: 30px; font-weight:bolder">ISSIE</a>
+        <a href="UserGuide.html">User Guide</a>
         <a href="#FAQ">FAQ</a>
         <a href="#DeveloperInfo">Developer Info</a>
         <a href="#Contact">Contact</a>
@@ -33,39 +32,14 @@
         </div>
     </div>
 
-    <div class="IntroBackground">
-        <div class="IntroLayer">
-            <p style="font-size: 24px; margin-left: 0.5%; font-weight:bolder; color: #272838; text-align: center">
-                <br><br><br> Discover, Learn & Create with the ISSIE circuit schematic editor!
-            </p>
-            <div class="topnav-right">
-                <a href="#Info">About ISSIE</a>
-                <a href="#Acknowledgements">Acknowledgements</a>
-            </div>
-            <br><br><br><br><br>
-        </div>
-    </div>
     <div class="GeneralText">
-        <br><br><br>
 
-        <div class="section"><h1><a name="Info" class="anchor" href="#Info">What is Issie?</a></h1></div>
-        <p>
-            Issie (Interactive Schematic Simulator and Integrated Editor) is a very easy to use and capable block schematic based digital logic editor and simulator,
-            originally made for the 1st year undergraduate Digital Electronics and Computer Architecture module at the
-            Department of Electronic and Electrical Engineering, Imperial College London.
-        </p>
-        <p>
-            Issie is coded in F# transpiled to Javascript by <a href="http://fable.io">FABLE</a>, and uses the
-            very capable <a href="https://github.com/freegroup/draw2d">Draw2D</a>
-            library.
-        </p><br>
-
-        <div class="section"><h2><a name="Features" class="anchor" href="#Features">Key Features</a></h2></div>
-        <br>
         <div id="toc_container">
             <p class="toc_title">Contents</p>
             <ul class="toc_list">
-                <li><a href="#ComponentLibrary">1 Component Library</a></li>
+                <li>
+                    <a href="#ComponentLibrary">1 Components</a>
+                </li>
                 <li><a href="#WireRouting">2 Wire Routing</a></li>
                 <li><a href="#WidthInference">3 Width Inference</a></li>
                 <li>
@@ -160,22 +134,7 @@
         <div class="img">
             <img src="C:\Users\joann\source\repos\issie_tom\docs\content\img\circuit\memoryeditor.png" alt="RAM editor example" />
         </div><br>
-
-
-        <br>
-
-        <div class="section"><h1><a name="Acknowledgements" class="anchor" href="#Acknowledgements">Acknowledgements:</a></h1></div>
-        <ul>
-            <li>Marco Selvatici for the 8K lines of base code written for his 3rd year BEng <a href="https://github.com/MarcoSelvatici/DEflow">FYP</a></li>
-            <li>An awesome automatic FAKE build system based on Cody Johnson's <a href="https://github.com/Shmew/MordhauBuddy">MordhausBuddy</a></li>
-            <li>Edoardo Santi for work improving Issie over Summer 2020.</li>
-            <li>High Level Programming 2020 cohort for providing the base code of the draw block</li>
-            <li>Jo Merrick for work improving ISSIE for her 3rd year BEng Project</li>
-            <li>Dr Tom Clarke for work maintaining and improving ISSIE</li>
-        </ul>
-
     </div>
 
-
 </body>
-  </html>
+</html>

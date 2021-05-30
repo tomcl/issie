@@ -243,6 +243,25 @@ td.title, thead {
 	margin: 0.5%
 }
 
+#toc_container {
+	background: rgba(250, 169, 22, 0.65) none repeat scroll 0 0;
+	border: 3px solid #FAA916;
+	display: table;
+	margin-bottom: 1em;
+	padding: 20px;
+	width: auto;
+}
+
+.toc_title {
+	font-weight: 700;
+	text-align: left;
+	color: #272838
+}
+
+#toc_container li, #toc_container ul, #toc_container ul li {
+	list-style: outside none none !important;
+}
+
 /* Responsive layout - when the screen is less than 700px wide, make the two columns stack on top of each other instead of next to each other */
 @media screen and (max-width: 700px) {
 	.row {

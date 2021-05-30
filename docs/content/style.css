@@ -242,7 +242,8 @@ td.title, thead {
 
 /* ------- GENERAL TEXT PARAGRAPH STYLE ------ */
 .GeneralText {
-	margin: 5%
+	margin: 5%;
+	color: #272838;
 }
 
 

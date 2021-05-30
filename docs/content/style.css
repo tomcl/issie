@@ -264,10 +264,12 @@ td.title, thead {
 }
 
 img {
-	transform: scale(0.75);
-	width: 100%;
+	max-width: 100%;
 	height: auto;
 	text-align: center;
+	width: 50%;
+	margin-left: auto;
+	margin-right: auto;
 	display: block;
 }
 

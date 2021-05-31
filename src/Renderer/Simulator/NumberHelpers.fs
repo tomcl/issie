@@ -114,7 +114,7 @@ let convertInt64ToFastData (width:int) (n:int64) =
     let n' = uint64 n
     let dat = 
         if width > 32 then 
-            let mask = (bigint 1 <<< width) - bigint 1
+            let mask = bigIntMask width
             BigWord (bigint n' &&& mask) 
         else 
             let mask = (1u <<< width) - 1u
@@ -128,12 +128,18 @@ let convertIntToFastData (width:int) (n:uint32) =
         {Dat = BigWord (bigint n); Width = width} 
 
 let convertBigintToFastData (width:int) (b:bigint) =
-    {Dat = BigWord b; Width = width}
+    if width <= 32 then
+        {Dat = BigWord b; Width = width}
+    else
+        failwithf "Converting a small (<= 32 bit) bigint should be to a word not a bigint fastdata"
 
 let convertFastDataToInt64 (d:FastData) =
     match d.Dat with
     | Word n -> uint64 n
-    | BigWord n -> uint64 n
+    | BigWord n -> 
+        if d.Width > 64 then
+            failwithf $"Can't convert a {d.Width} width bigint to int64"
+        uint64 n
 
 let convertFastDataToBigint (d:FastData) =
     match d.Dat with

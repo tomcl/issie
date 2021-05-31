@@ -530,7 +530,15 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
         maybeStatefulComponents()
     ]
 
-  
+let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (dispatch: Msg -> Unit) =
+    if simError.InDependency.IsNone then
+       // Highlight the affected components and connection only if
+       // the error is in the current diagram and not in a
+       // dependency.
+       let thingsToHighlight = (simError.ComponentsAffected, simError.ConnectionsAffected)
+       dispatch <| SetHighlighted thingsToHighlight
+       dispatch <| Sheet(Sheet.SetWaveSimMode false)
+
 
 let viewSimulation model dispatch =
     let state = model.Sheet.GetCanvasState ()
@@ -548,12 +556,8 @@ let viewSimulation model dispatch =
             |> function
                | Ok (simData), state -> Ok simData
                | Error simError, state ->
-                  if simError.InDependency.IsNone then
-                      // Highlight the affected components and connection only if
-                      // the error is in the current diagram and not in a
-                      // dependency.
-                      (simError.ComponentsAffected, simError.ConnectionsAffected)
-                      |> SetHighlighted |> dispatch
+                  printfn $"ERROR:{simError}"
+                  SetSimErrorFeedback simError dispatch
                   Error simError
             |> StartSimulation
             |> dispatch

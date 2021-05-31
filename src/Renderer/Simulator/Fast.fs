@@ -290,7 +290,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
             match A.Dat, B.Dat with
             | BigWord a, BigWord b ->
                 let sumInt = if cin = 0u then a + b else a + b + bigint 1
-                let sum = getBits (w-1) 0 {Dat = BigWord sumInt; Width = w}
+                let sum = {Dat = BigWord (sumInt &&& bigIntMask w); Width = w}
                 let cout = if (sumInt >>> w) = bigint 0 then 0u else 1u
                 sum, packBit cout
             | Word a, Word b ->
@@ -1235,7 +1235,7 @@ let private runCombinationalLogic (step: int) (fastSim: FastSimulation) =
 /// Change an input and make simulation correct. N.B. step must be the latest
 /// time-step since future steps are not rerun (TODO: perhaps they should be!)
 let changeInput (cid: ComponentId) (wd: WireData) (step: int) (fastSim: FastSimulation) =
-    let fd = (wd |> convertWireDataToInt |> convertInt64ToFastData wd.Length)
+    let fd = (wd |> wireToFast)
     setSimulationInput cid fd step fastSim
     printfn $"Changing {fastSim.FComps.[cid,[]].FullName} to {fd}"
     runCombinationalLogic step fastSim
@@ -1333,7 +1333,7 @@ let rec extractFastSimulationOutput
         match Array.tryItem (step % fs.MaxArraySize) fc.Outputs.[n].Step with
         | None -> failwithf $"What? extracting output {n} in step {step} from {fc.FullName} failed with clockTick={fs.ClockTick}"
         | Some fd -> fd
-        |> (fun fd -> fd |> convertFastDataToInt64 |> int64 |>  convertIntToWireData fd.Width)
+        |> (fun fd -> fd |> fastToWire)
     | None ->
         /// if it is a custom component output extract from the corresponding Output FastComponent
         match Map.tryFind ((cid, ap), opn) fs.G.CustomOutputLookup with

@@ -690,14 +690,7 @@ let private waveformsView compIds model netList wSMod dispatch =
 ///         TOP-LEVEL WAVE SIMULATION TRANSITIONS AND VIEWS          ///
 ////////////////////////////////////////////////////////////////////////
 
-let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (dispatch: Msg -> Unit) =
-    if simError.InDependency.IsNone then
-       // Highlight the affected components and connection only if
-       // the error is in the current diagram and not in a
-       // dependency.
-       let thingsToHighlight = (simError.ComponentsAffected, simError.ConnectionsAffected)
-       dispatch <| SetHighlighted thingsToHighlight
-       dispatch <| Sheet(Sheet.SetWaveSimMode false)
+
 
 
 
@@ -836,7 +829,7 @@ let WaveformButtonFunc compIds model dispatch =
                         Button.OnClick(fun _ ->
                           dispatch <| SetWSError (Some err) 
                           dispatch <| ChangeRightTab WaveSim
-                          SetSimErrorFeedback err dispatch) 
+                          SimulationView.SetSimErrorFeedback err dispatch) 
                     ]
             | x,y,z -> 
                 //printfn "other%A %A %A" x y (match z with | None -> "None" | Some ((Error c),_) -> "Some Error" | Some ((Ok _),_) -> "Some Ok")

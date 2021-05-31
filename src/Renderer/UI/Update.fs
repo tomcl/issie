@@ -221,10 +221,6 @@ let update (msg : Msg) oldModel =
         getCurrentWSMod oldModel 
         |> Option.bind (fun ws -> ws.InitWaveSimGraph) 
         |> getGraphSize
-
-    if Set.contains "update" JSHelpers.debugTraceUI then
-        let msgS = (sprintf "%A..." msg) |> Seq.truncate 60 |> Seq.map (fun c -> string c) |> String.concat ""
-        printfn "%d %s" sdlen msgS
     
     //Add the message to the pending queue if it is a mouse drag message
     let model = 
@@ -277,7 +273,12 @@ let update (msg : Msg) oldModel =
     | SetViewerWidth w -> {model with WaveSimViewerWidth = w}, Cmd.none
     | StartSimulation simData -> 
         { model with CurrentStepSimulationStep = Some simData }, 
-        Cmd.batch[Cmd.ofMsg (Sheet (Sheet.SetWaveSimMode false)); Cmd.ofMsg (Sheet(Sheet.ResetSelection))] //Close wavesim
+        Cmd.batch[
+            Cmd.ofMsg (Sheet (Sheet.SetWaveSimMode false)); 
+            // hack to make sure wavesim highlighting is reset - but step simulation error highlighting is not.
+            // the state here clearly needs refactoring
+            if model.Sheet.IsWaveSim then Cmd.ofMsg (Sheet(Sheet.ResetSelection)) else Cmd.none
+            ] //Close wavesim
     | SetWSMod wSMod -> 
         setWSMod wSMod model, Cmd.none
     | UpdateWSModel updateFn ->
@@ -491,19 +492,25 @@ let update (msg : Msg) oldModel =
     | msg ->
         model, Cmd.none
     |> (fun (newModel,cmd) -> resetDialogIfSelectionHasChanged newModel oldModel,cmd)
-    |> Helpers.instrumentInterval (
-        let name =
-            match msg with 
-            | SetWSMod _ -> "U(SetWSMod)"
-            | Sheet( Sheet.Msg.Wire (BusWire.Msg.Symbol _ )) -> "U(Sheet(Wire(Symbol)))"
-            | Sheet (Sheet.Msg.Wire (BusWire.UpdateWires _)) -> "U(Sheet(Wire(UpdateWires)))"
-            | SetWaveSimModel _ -> "U(SetWaveSimModel)"
-            | SetWSModAndSheet _ -> "U(SetWsModAndSheet)"
-            | StartSimulation _ -> "U(StartSimulation)"
-            | SetSimulationGraph _ -> "U(SetSimulationGraph)"
-            | SetPopupMemoryEditorData _ -> "U(SetPopupmemoryEditorData)"
-            | _ -> $"U(%.20A{msg})"
-        Helpers.sprintInitial 30 name)  startUpdate
+    |> (fun res -> 
+        if JSHelpers.debugLevel > 0 then
+            Helpers.instrumentInterval (
+                let name =
+                    match msg with 
+                    | SetWSMod _ -> "U(SetWSMod)"
+                    | Sheet( Sheet.Msg.Wire (BusWire.Msg.Symbol _ )) -> "U(Sheet(Wire(Symbol)))"
+                    | Sheet (Sheet.Msg.Wire (BusWire.UpdateWires _)) -> "U(Sheet(Wire(UpdateWires)))"
+                    | SetWaveSimModel _ -> "U(SetWaveSimModel)"
+                    | SetWSModAndSheet _ -> "U(SetWsModAndSheet)"
+                    | StartSimulation _ -> "U(StartSimulation)"
+                    | SetSimulationGraph _ -> "U(SetSimulationGraph)"
+                    | SetPopupMemoryEditorData _ -> "U(SetPopupmemoryEditorData)"
+                    | _ -> $"U(%.20A{msg})"
+                let debugMsg = Helpers.sprintInitial 30 name
+                if Set.contains "update" JSHelpers.debugTraceUI then
+                    printfn "%s" debugMsg
+                debugMsg)  startUpdate |> ignore
+        res)
 
 
 

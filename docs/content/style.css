@@ -1,11 +1,19 @@
 @import url(https://fonts.googleapis.com/css?family=Droid+Sans|Droid+Sans+Mono|Open+Sans:400,600,700);
-
+@import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@200;300;400;500;600;700;800;900&display=swap');
+/* COLOUR THEME */
+/*
+	Backround (white): #FBFFFE
+	Highlight/secondary background (yellow): #FAA916
+	Highlight (blue): #01ABAA
+	TextColour (off black): #272838
+*/
 /*--------------------------------------------------------------------------
   Formatting for F# code snippets
 /*--------------------------------------------------------------------------*/
-
 /* strings --- and stlyes for other string related formats */
-span.s { color:#E0E268; }
+span.s {
+	color: #E0E268;
+}
 /* printf formatters */
 span.pf { color:#E0C57F; }
 /* escaped chars */
@@ -115,7 +123,8 @@ table.pre td.lines {
 /*--------------------------------------------------------------------------*/
 
 body {
-  font-family: 'Open Sans', serif;
+  font-family: 'Inconsolata', 'Helvetica';
+  margin: 0;
   padding-top: 0px;
   padding-bottom: 40px;
 }
@@ -169,14 +178,156 @@ td.title, thead {
   line-height:25px;
 }
 
+/* -------- NAVIGATION BAR STYLE ---------- */
+
+/* Add a black background color to the top navigation */
+.topnav {
+	background-color: #FAA916;
+	overflow: hidden;
+	line-height: 20px;
+	vertical-align: middle;
+	font-weight: 600;
+	flex-direction: column;
+}
+
+/* Style the links inside the navigation bar */
+.topnav a {
+	float: left;
+	margin: 0.5%;
+	padding: 0.75%;	
+	color: #272838;
+	text-align: center;
+	text-decoration: none;
+	font-size: 18px;
+	
+}
+
+/* Change the color of links on hover */
+.topnav a:hover {
+	border-radius: 5px;
+	background-color: #FBFFFE;
+	color: #272838;
+}
+
+/* Right-aligned section inside the top navigation */
+.topnav-right {
+	flex-direction: column;
+	overflow: hidden;
+	vertical-align: middle;
+}
+
+.topnav-right a {
+	float: right;
+	margin: 0.5%;
+	padding: 0.75%;
+	color: #FBFFFE;
+	background-color: #01ABAA;
+	border: 1px solid #FBFFFE;
+	border-radius: 5px;
+}
+
+/* -------- PANNEL STYLE -------  */
+
+.IntroBackground {
+	margin-top: 0.5%;
+	background: url('../content/img/circuit/circuitcropped.png');
+	clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 70%);
+}
+
+.IntroLayer {
+	margin-top: 0.5%;
+	background-color: rgba(250, 169, 22, 0.8);
+	clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 70%);
+}
+
+/* ------- GENERAL TEXT PARAGRAPH STYLE ------ */
+.GeneralText {
+	margin: 5%;
+	color: #272838;
+}
+
+
+/* -------- TABLE OF CONTENTS STYLE ------- */
+
+#toc_container {
+	background: rgba(250, 169, 22, 0.65) none repeat scroll 0 0;
+	border: 3px solid #FAA916;
+	display: table;
+	margin-bottom: 1em;
+	padding: 20px;
+	width: auto;
+}
+
+.toc_title {
+	font-weight: 700;
+	text-align: left;
+	color: #272838
+}
+
+#toc_container li, #toc_container ul, #toc_container ul li {
+	list-style: outside none none !important;
+	margin-bottom: 5px;
+}
+
+
+/* ------ GENERIC IMAGE FORMATTING -------- */
+
+img {
+	max-width: 100%;
+	height: auto;
+	text-align: center;
+	width: 50%;
+	margin-left: auto;
+	margin-right: auto;
+	display: block;
+}
+
+
+/* ------- CLASSES TO ADD LINES BETWEEN SECTIONS -------- */
+
+.section {
+	border-bottom: 1px solid #FAA916;
+}
+
+#halfwidth {
+	width: 50%;
+}
+
+
+/* -------- List formatting --------- */
+
+li{
+	margin: 10px 0;
+}
+
+/* Responsive layout - when the screen is less than 700px wide, make the two columns stack on top of each other instead of next to each other */
+@media screen and (max-width: 700px) {
+	.topnav {
+		flex-direction: column;
+	}
+	.topnav-right {
+		flex-direction: column;
+	}
+}
+
+/* Responsive layout - when the screen is less than 400px wide, make the navigation links stack on top of each other instead of next to each other */
+@media screen and (max-width: 400px) {
+	.topnav-right {
+		float: none;
+		width: 100%;
+	}
+}
+
 /* Change font sizes for headings etc. */
-#main h1 { font-size: 26pt; margin:10px 0px 15px 0px; font-weight:400; }
-#main h2 { font-size: 20pt; margin:20px 0px 0px 0px; font-weight:400; }
+#main h1 { font-size: 26pt; margin:10px 0px 15px 0px; font-weight:400; border: 1px solid #272838; border-width: 0 1px;} 
+#main h2 { font-size: 20pt; margin:20px 0px 0px 0px; font-weight:400; border-bottom: 1px solid #272838; }
 #main h3 { font-size: 14pt; margin:15px 0px 0px 0px; font-weight:600; }
 #main p  { font-size: 11pt; margin:5px 0px 15px 0px; }
 #main ul { font-size: 11pt; margin-top:10px; }
 #main li { font-size: 11pt; margin: 5px 0px 5px 0px; }
 #main strong { font-weight:700; }
+
+
 
 /*--------------------------------------------------------------------------
   Formatting for API reference

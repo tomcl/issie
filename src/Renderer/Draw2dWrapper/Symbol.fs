@@ -393,7 +393,7 @@ type private RenderSymbolProps =
     {
         Symbol : Symbol 
         Dispatch : Dispatch<Msg>
-        Key: string 
+        key: string 
     }
 
 /// View for one symbol. Using FunctionComponent.Of to improve efficiency (not printing all symbols but only those that are changing)
@@ -431,7 +431,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
             {
                 Symbol = symbol
                 Dispatch = dispatch
-                Key = id
+                key = id
             }
     )
     |> ofList

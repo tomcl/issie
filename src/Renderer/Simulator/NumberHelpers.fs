@@ -128,10 +128,7 @@ let convertIntToFastData (width:int) (n:uint32) =
         {Dat = BigWord (bigint n); Width = width} 
 
 let convertBigintToFastData (width:int) (b:bigint) =
-    if width <= 32 then
         {Dat = BigWord b; Width = width}
-    else
-        failwithf "Converting a small (<= 32 bit) bigint should be to a word not a bigint fastdata"
 
 let convertFastDataToInt64 (d:FastData) =
     match d.Dat with

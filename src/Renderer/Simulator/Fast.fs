@@ -295,8 +295,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
                 sum, packBit cout
             | Word a, Word b ->
                 let sumInt = uint64 a + uint64 b + uint64 cin
-                let cout = uint32 (sumInt >>> 32)
-                let sum = convertIntToFastData w (uint32 sumInt)
+                let cout = uint32 ((sumInt >>> numberOfBits) &&& 1UL)
+                let sum = convertIntToFastData w (uint32 (sumInt &&& ((1UL <<< numberOfBits) - 1UL) ) )
                 sum, packBit cout
             | a, b -> 
                 failwithf $"Inconsistent inputs to NBitsAdder {comp.FullName} A={a},{A}; B={b},{B}"

@@ -289,15 +289,27 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
             let w = A.Width
             match A.Dat, B.Dat with
             | BigWord a, BigWord b ->
+                let mask = bigIntMask w
+                let a = a &&& mask
+                let b = b &&& mask
                 let sumInt = if cin = 0u then a + b else a + b + bigint 1
                 let sum = {Dat = BigWord (sumInt &&& bigIntMask w); Width = w}
                 let cout = if (sumInt >>> w) = bigint 0 then 0u else 1u
                 sum, packBit cout
             | Word a, Word b ->
-                let sumInt = uint64 a + uint64 b + uint64 cin
-                let cout = uint32 ((sumInt >>> numberOfBits) &&& 1UL)
-                let sum = convertIntToFastData w (uint32 (sumInt &&& ((1UL <<< numberOfBits) - 1UL) ) )
-                sum, packBit cout
+                let mask = (1ul <<< w) - 1ul
+                if w = 32 then
+                    // mask is not needed, but 64 bit adition is needed!
+                    let sumInt =  uint64 a + uint64 b + uint64 (cin &&& 1u)
+                    let cout = uint32 (sumInt >>> w) &&& 1u
+                    let sum = convertIntToFastData w (uint32 sumInt) 
+                    sum, packBit cout
+                else
+                    let sumInt =  (a &&& mask) + (b &&& mask) + (cin &&& 1u)
+                    let cout = (sumInt >>> w) &&& 1u
+                    let sum = convertIntToFastData w (sumInt &&& mask) 
+                    sum, packBit cout
+                    
             | a, b -> 
                 failwithf $"Inconsistent inputs to NBitsAdder {comp.FullName} A={a},{A}; B={b},{B}"
 

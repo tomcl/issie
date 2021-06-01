@@ -345,13 +345,13 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
                 match bits0.Dat, bits1.Dat with
                 | Word b0, Word b1 ->
                     (b1 <<< bits0.Width) ||| b0
-                    |> (fun n -> convertIntToFastData wOut n)
+                    |> (fun n ->  convertIntToFastData wOut n)
                 | _ -> failwithf $"inconsistent merge widths: {bits0},{bits1}"
             else
                 let b0 = convertFastDataToBigint bits0
                 let b1 = convertFastDataToBigint bits1
                 (b1 <<< bits0.Width) ||| b0
-                |> convertBigintToFastData wOut                
+                |> convertBigintToFastData wOut  
         put0 outBits
         putW 0 outBits.Width
     | SplitWire topWireWidth ->
@@ -1235,6 +1235,7 @@ let private runCombinationalLogic (step: int) (fastSim: FastSimulation) =
 /// Change an input and make simulation correct. N.B. step must be the latest
 /// time-step since future steps are not rerun (TODO: perhaps they should be!)
 let changeInput (cid: ComponentId) (wd: WireData) (step: int) (fastSim: FastSimulation) =
+    printfn "wd=%A" wd
     let fd = (wd |> wireToFast)
     setSimulationInput cid fd step fastSim
     printfn $"Changing {fastSim.FComps.[cid,[]].FullName} to {fd}"

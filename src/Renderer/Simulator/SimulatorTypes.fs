@@ -329,16 +329,15 @@ let rec bitsToInt (lst: Bit list) =
     match lst with
     | [] -> 0u
     | x :: rest ->
-        (if x = Zero then 0u else 1u) * 2u
-        + bitsToInt rest
+        (if x = Zero then 0u else 1u)
+        + (bitsToInt rest)*2u
 
 let rec bitsToBig (lst: Bit list) =
     match lst with
     | [] -> bigint 0
     | x :: rest ->
         (if x = Zero then bigint 0 else bigint 1)
-        * bigint 2
-        + bitsToBig rest
+        + ((bitsToBig rest) <<< 1)
 
 /// convert Wiredata to FastData equivalent
 let rec wireToFast (wd: WireData) =
@@ -397,11 +396,11 @@ let getBits (msb: int) (lsb: int) (f: FastData) =
 #endif
     match f.Dat with
     | Word x ->
-        let bits = (x >>> lsb) % (1u <<< (msb + 1))
+        let bits = (x >>> lsb) &&& ((1u <<< (msb - lsb + 1)) - 1u)
         {Dat = Word bits; Width = outW}
     | BigWord x ->
-        let bits = (x >>> lsb) 
-        if outW <= 32 then printfn $"lsb={lsb},msb={msb},outW={outW}, x={b2s x},x/lsb = {b2s(x >>> lsb)} bits={b2s bits}, bits=%x{uint32 bits}"
+        let bits = (x >>> lsb) &&& (bigIntBitMask (msb - lsb + 1))
+        //if outW <= 32 then printfn $"lsb={lsb},msb={msb},outW={outW}, x={b2s x},x/lsb = {b2s(x >>> lsb)} bits={b2s bits}, bits=%x{uint32 bits}"
         let dat =
             if outW <= 32 then
                 Word ((uint32 bits) &&& (1u <<< outW) - 1u)

@@ -271,6 +271,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
 
     let outW i =
         match fc.OutputWidth.[i] with
+        | Some n when n > 64 -> failwithf "Sorry - Verilog output does not yet work for busses > 64 bit. Output failed"
         | Some n -> n
         | None -> failwithf "Can't find output width for output port %d of %A\n" i fc.FullName
 

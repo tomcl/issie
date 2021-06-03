@@ -399,8 +399,9 @@ let getBits (msb: int) (lsb: int) (f: FastData) =
         let bits = (x >>> lsb) &&& ((1u <<< (msb - lsb + 1)) - 1u)
         {Dat = Word bits; Width = outW}
     | BigWord x ->
-        let bits = (x >>> lsb) &&& (bigIntBitMask (msb - lsb + 1))
-        //if outW <= 32 then printfn $"lsb={lsb},msb={msb},outW={outW}, x={b2s x},x/lsb = {b2s(x >>> lsb)} bits={b2s bits}, bits=%x{uint32 bits}"
+        let mask = bigIntMask (msb - lsb + 1)
+        let bits = (x >>> lsb) &&& mask
+        //printfn $"lsb={lsb},msb={msb},outW={outW}, mask={b2s mask}, x={b2s x},x/lsb = {b2s(x >>> lsb)} bits={b2s bits}, bits=%x{uint32 bits}"
         let dat =
             if outW <= 32 then
                 Word ((uint32 bits) &&& (1u <<< outW) - 1u)

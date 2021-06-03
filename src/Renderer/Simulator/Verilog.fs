@@ -209,7 +209,9 @@ let getVerilogBinaryOp cType op1 op2 =
     | _ -> failwithf "operator %A not defined" cType
 
 /// get valid Verilog constant for bus of given width (may be 1)
-let makeBits w (c: uint64) = sprintf $"%d{w}'h%x{c}"
+let makeBits w (c: uint64) = 
+    let c = c &&& ((1UL <<< w) - 1UL)
+    sprintf $"%d{w}'h%x{c}"
 
 /// get output port name
 let getVPortOut (fc: FastComponent) (OutputPortNumber opn) = fc.VerilogOutputName.[opn]
@@ -269,6 +271,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
 
     let outW i =
         match fc.OutputWidth.[i] with
+        | Some n when n > 64 -> failwithf "Sorry - Verilog output does not yet work for busses > 64 bit. Output failed"
         | Some n -> n
         | None -> failwithf "Can't find output width for output port %d of %A\n" i fc.FullName
 

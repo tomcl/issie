@@ -41,7 +41,10 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
                     | Ok sim -> 
                         let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
                         printfn "writing %s" proj.ProjectPath
-                        FilesIO.writeFile path (Verilog.getVerilog vType sim.FastSim)
+                        try 
+                            FilesIO.writeFile path (Verilog.getVerilog vType sim.FastSim)
+                        with
+                        | e -> Error e.Message
                         |> FileMenuView.displayAlertOnError dispatch
 
                         let note = successSimulationNotification $"verilog output written to file {path}"

@@ -21,7 +21,7 @@ The application is mostly written in F#, which gets transpiled to JavaScript via
 [Webpack 4](https://webpack.js.org/) is the module bundler responsible for the JavaScript concatenation and automated building process: the electron-webpack build 
 is automated with the all-in-one electron-webpack package.
 
-The drawing capabilities are provided by the [draw2d](http://www.draw2d.org/draw2d/) JavaScript library, which has been extended to support digital electronics components.
+The drawing capabilities are provided (now) by a custom schemetic editor library implemented in F# and specialised for digital components.
 
 The choice of F# as main programming language for the app has been dictated by a few factors:
 

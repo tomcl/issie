@@ -60,6 +60,7 @@ type Msg =
     | ResetModel // For Issie Integration
     | LoadComponents of  Component list // For Issie Integration
     | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 
+    | WriteMemoryType of ComponentId * ComponentType
 
 //---------------------------------helper for demo-----------------------------------//
 
@@ -929,8 +930,24 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let newSymbols = Map.add compId { symbol with Compo = newComp } model.Symbols
         
         { model with Symbols = newSymbols }, Cmd.none
-
-
+    | WriteMemoryType (compId, memory) ->
+        let symbol = model.Symbols.[compId]
+        let comp = symbol.Compo       
+        let newCompType =
+            match comp.Type with
+            | RAM1 mem -> memory
+            | ROM1 mem -> memory
+            | AsyncROM1 mem -> memory
+            | _ -> 
+                printfn $"Warning: improper use of WriteMemoryType on {comp} ignored"
+                comp.Type
+        
+        let newComp = { comp with Type = newCompType }
+        
+        let newSymbols = Map.add compId { symbol with Compo = newComp } model.Symbols
+        
+        { model with Symbols = newSymbols }, Cmd.none
+        
 // ----------------------interface to Issie----------------------------- //
 let extractComponent (symModel: Model) (sId:ComponentId) : Component = 
     symModel.Symbols.[sId].Compo

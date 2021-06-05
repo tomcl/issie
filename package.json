@@ -1,6 +1,6 @@
 {
   "name": "issie",
-  "version": "2.0.18",
+  "version": "2.0.19",
   "description": "Schematic editor and Simulator",
   "homepage": "https://github.com/tomcl/issie",
   "bugs": {
@@ -42,7 +42,7 @@
     "title": true
   },
   "build": {
-    "appId": "ISSIE.0218",
+    "appId": "ISSIE.0219",
     "asar": true,
     "win": {
       "target": "zip"

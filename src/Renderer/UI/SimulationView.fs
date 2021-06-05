@@ -367,12 +367,13 @@ let simulateWithProgressBar (simProg: SimulationProgress) (model:Model) =
         let clock = min simProg.FinalClock (simProg.ClocksPerChunk + oldClock)
         let t1 = getTimeMs()
         Fast.runFastSimulation clock simData.FastSim 
+        printfn $"clokctick after runFastSim{clock} from {oldClock} is {simData.FastSim.ClockTick}"
         let t2 = getTimeMs()
         let speed = if t2 = t1 then 0. else (float clock - float oldClock) * nComps / (t2 - t1)
         let messages =
             if clock - oldClock < simProg.ClocksPerChunk then [   
                 SetSimulationGraph(simData.Graph, simData.FastSim)
-                IncrementSimulationClockTick (clock - simData.ClockTickNumber); 
+                IncrementSimulationClockTick (clock - oldClock); 
                 SetPopupProgress None ]
             else [
                 SetSimulationGraph(simData.Graph, simData.FastSim)
@@ -421,6 +422,7 @@ let simulationClockChangeAction dispatch simData (dialog:PopupDialogData) =
         |> ExecCmdAsynch
         |> dispatch
     else
+        Fast.runFastSimulation (clock - simData.ClockTickNumber) simData.FastSim 
         [
             SetSimulationGraph(simData.Graph, simData.FastSim)
             IncrementSimulationClockTick (clock - simData.ClockTickNumber)

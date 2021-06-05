@@ -241,54 +241,58 @@ let displayView model dispatch =
         // main top bar function is early in compile order
         FileMenuView.viewTopMenu model WaveSimHelpers.fileMenuViewActions WaveformSimulationView.WaveformButtonFunc dispatch
 
-        Sheet.view model.Sheet headerHeight (canvasVisibleStyleList model) sheetDispatch
+        if model.PopupDialogData.Progress = None then
+            Sheet.view model.Sheet headerHeight (canvasVisibleStyleList model) sheetDispatch
         
         // transient pop-ups
         PopupView.viewNotifications model dispatch
         // editing buttons overlaid bottom-left on canvas
-        viewOnDiagramButtons model dispatch
+        if model.PopupDialogData.Progress <> None  then
+            div [] []
+        else
+            viewOnDiagramButtons model dispatch
         
         
-        //--------------------------------------------------------------------------------------//
-        //------------------------ left section for Sheet (NOT USED) ---------------------------//
-        // div [ leftSectionStyle model ] [ div [ Style [ Height "100%" ] ] [ Sheet.view model.Sheet sheetDispatch ] ]
+            //--------------------------------------------------------------------------------------//
+            //------------------------ left section for Sheet (NOT USED) ---------------------------//
+            // div [ leftSectionStyle model ] [ div [ Style [ Height "100%" ] ] [ Sheet.view model.Sheet sheetDispatch ] ]
 
-        //--------------------------------------------------------------------------------------//
-        //---------------------------------right section----------------------------------------//
-        // right section has horizontal divider bar and tabs
-        div [ rightSectionStyle model ]
-              // vertical and draggable divider bar
-            [ dividerbar model dispatch
-              // tabs for different functions
-              div [ 
-                    HTMLAttr.Id "RightSelection"
-                    Style [ Height "100%" ] 
-                  ] 
-                  [ Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs"
-                                Tabs.Props [Style [Margin 0] ] ]                              
-                              [ Tabs.tab // catalogue tab to add components
-                                    [   Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
-                                    [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] [str "Catalogue" ] ] 
+            //--------------------------------------------------------------------------------------//
+            //---------------------------------right section----------------------------------------//
+            // right section has horizontal divider bar and tabs
+            div [ rightSectionStyle model ]
+                  // vertical and draggable divider bar
+                [ dividerbar model dispatch
+                  // tabs for different functions
+                  div [ 
+                        HTMLAttr.Id "RightSelection"
+                        Style [ Height "100%" ] 
+                      ] 
+                      [ Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs"
+                                    Tabs.Props [Style [Margin 0] ] ]                              
+                                  [ Tabs.tab // catalogue tab to add components
+                                        [   Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
+                                        [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] [str "Catalogue" ] ] 
                                                                   
-                                Tabs.tab // Properties tab to view/change component properties
-                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]                                   
-                                    [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ] 
+                                    Tabs.tab // Properties tab to view/change component properties
+                                        [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]                                   
+                                        [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ] 
 
                      
-                                (Tabs.tab // simulation tab to do combinational simulation
-                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
-                                    [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) 
-                                        ] [str "Simulation"] ] )
+                                    (Tabs.tab // simulation tab to do combinational simulation
+                                        [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
+                                        [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) 
+                                            ] [str "Simulation"] ] )
                             
-                                /// Optional wavesim tab. If present contains waveforms or waveform editor window
-                                (match currWaveSimModel model with
-                                | Some {WSViewState=WSClosed} -> 
-                                    div [] []
-                                | _ ->
-                                    Tabs.tab // WaveSim tab - if wavesim exists
-                                        [ Tabs.Tab.IsActive (model.RightPaneTabVisible = WaveSim) ]
-                                        [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab WaveSim ) ] 
-                                        [ str "WaveSim" ] ] ) 
-                              ]
-                    viewRightTab model dispatch  ] ] ]
+                                    /// Optional wavesim tab. If present contains waveforms or waveform editor window
+                                    (match currWaveSimModel model with
+                                    | Some {WSViewState=WSClosed} -> 
+                                        div [] []
+                                    | _ ->
+                                        Tabs.tab // WaveSim tab - if wavesim exists
+                                            [ Tabs.Tab.IsActive (model.RightPaneTabVisible = WaveSim) ]
+                                            [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab WaveSim ) ] 
+                                            [ str "WaveSim" ] ] ) 
+                                  ]
+                        viewRightTab model dispatch  ] ] ]
 

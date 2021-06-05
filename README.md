@@ -199,8 +199,8 @@ run `build killzombies` to remove orphan processes that lock build files.
 
 ## TODO
 
-* Incorporate zombie process killing into the build scripts to make manual run unnecessary. Requires care.
+
 * Should Node be upgraded to v14?
-* Remove source map support? Depends on whether Fable 3 will integrate it.
+* Make source map support work more consistently (sourceroot option on compiler?)
 * Clean up Paket dependencies
 

@@ -1346,7 +1346,9 @@ let rec extractFastSimulationOutput
         match Array.tryItem (step % fs.MaxArraySize) fc.Outputs.[n].Step with
         | None -> failwithf $"What? extracting output {n} in step {step} from {fc.FullName} failed with clockTick={fs.ClockTick}"
         | Some fd -> fd
-        |> (fun fd -> fd |> fastToWire)
+        |> (fun fd -> 
+                if fd.Width=0 then failwithf $"Can't find valid data in step {step}:index{step % fs.MaxArraySize} from {fc.FullName} with clockTick={fs.ClockTick}"
+                fd |> fastToWire)
     | None ->
         /// if it is a custom component output extract from the corresponding Output FastComponent
         match Map.tryFind ((cid, ap), opn) fs.G.CustomOutputLookup with

@@ -506,8 +506,8 @@ let update (msg : Msg) oldModel =
                     | StartSimulation _ -> "U(StartSimulation)"
                     | SetSimulationGraph _ -> "U(SetSimulationGraph)"
                     | SetPopupMemoryEditorData _ -> "U(SetPopupmemoryEditorData)"
-                    | _ -> $"U(%.20A{msg})"
-                let debugMsg = Helpers.sprintInitial 30 name
+                    | _ -> $"U(%.40A{msg})"
+                let debugMsg = Helpers.sprintInitial 40 name
                 if Set.contains "update" JSHelpers.debugTraceUI then
                     printfn "%s" debugMsg
                 debugMsg)  startUpdate |> ignore

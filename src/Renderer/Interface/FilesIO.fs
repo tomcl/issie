@@ -505,17 +505,23 @@ let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp w
     let projectPath = path.dirname filePath
     let inputs, outputs = parseDiagramSignature canvas
     let comps,conns = canvas
-    let comps = List.map (checkMemoryContents projectPath) comps
-    let canvas = comps,conns
-    {
-        Name = getBaseNameNoExtension filePath
-        TimeStamp = timeStamp
-        WaveInfo = waveInfo
-        FilePath = filePath
-        CanvasState = canvas
-        InputLabels = inputs
-        OutputLabels = outputs
-    }
+    let comps' = List.map (checkMemoryContents projectPath) comps
+    let canvas = comps',conns
+    let ramChanges = 
+        List.zip comps' comps
+        |> List.filter (fun (c1,c2) -> c1.Type <> c2.Type)
+        |> List.map fst
+    let ldc =
+        {
+            Name = getBaseNameNoExtension filePath
+            TimeStamp = timeStamp
+            WaveInfo = waveInfo
+            FilePath = filePath
+            CanvasState = canvas
+            InputLabels = inputs
+            OutputLabels = outputs
+        }
+    ldc, ramChanges
 
 
 /// Make a loadedComponent from the file read from filePath.
@@ -531,6 +537,7 @@ let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
             filePath 
             state.getTimeStamp 
             state.getWaveInfo
+        |> fst // ignore ram change info, they will always be loaded
         |> Result.Ok
 
 

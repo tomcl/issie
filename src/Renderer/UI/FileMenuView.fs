@@ -765,7 +765,18 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
             let savedWaveSim =
                 Map.tryFind project.OpenFileName (fst model.WaveSim)
                 |> Option.map waveSimModel2SavedWaveInfo
-            let newLdc, newState = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim, canvasState
+            let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim 
+            let newState =
+                canvasState
+                |> (fun (comps, conns) -> 
+                        comps
+                        |> List.map (fun comp -> 
+                            match List.tryFind (fun (c:Component) -> c.Id=comp.Id) ramCheck with
+                            | Some newRam -> 
+                                // TODO: create consistent helpers for messages
+                                dispatch <| Sheet (Sheet.Wire (BusWire.Symbol (Symbol.WriteMemoryType (ComponentId comp.Id, newRam.Type))))
+                                newRam
+                            | _ -> comp), conns)
             writeComponentToBackupFile 4 1. newLdc dispatch
             Some (newLdc,newState)
         

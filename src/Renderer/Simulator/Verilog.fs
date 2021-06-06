@@ -23,6 +23,7 @@ let verilogNameConvert (s: string) =
         | [] -> "v"
         |> String.replace "." "_"
         |> String.replace " " "_"
+        |> String.replace "-" "___"
 
     let extraLength = baseName.Length - maxIdentifierLength
 
@@ -430,7 +431,9 @@ let getInitialSimulationBlock (vType:VMode) (fs: FastSimulation) =
                 let sigName = fc.VerilogOutputName.[0]
 
                 let hexWidth =
-                    (Option.get fc.OutputWidth.[0] - 1) / 4 + 1
+                    let w = Option.get fc.OutputWidth.[0]
+                    if w <= 0 then failwithf $"Unexpected width ({w})in verilog output for {fc.FullName}"
+                    (w - 1) / 4 + 1
 
                 let (ComponentLabel heading) = fc.SimComponent.Label
                 let heading = verilogNameConvert heading

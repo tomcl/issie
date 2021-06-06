@@ -81,6 +81,8 @@ let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData : PopupDialogData) ->
+            // TODO: format text for only uppercase and allowed chars (-, not number start)
+            // TODO: repeat this throughout this file and selectedcomponentview (use functions)
             let inputText = getText dialogData
             let inputInt = getInt dialogData
             createComponent (compType inputInt) (formatLabelFromType (compType inputInt) inputText) model dispatch

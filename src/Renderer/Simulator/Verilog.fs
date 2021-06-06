@@ -75,11 +75,19 @@ let makeAsyncRomModule (moduleName: string) (mem: Memory1) =
     module %s{moduleName}(q, a);
     output[%d{dMax}:0] q;
     input [%d{aMax}:0] a;
-    wire [%d{dMax}:0] rom [%d{numWords - 1}:0];
+    reg [%d{dMax}:0] rom [%d{numWords - 1}:0];
 
     assign q = rom[a];
+    integer i;
+    initial
+    begin
+        for (i=0; i < {numWords}; i=i+1)
+        begin
+            rom[i] = 0;
+        end
     
-    %s{romInits}
+        %s{romInits}
+    end
     endmodule
      """
 
@@ -110,7 +118,7 @@ let makeRomModule (moduleName: string) (mem: Memory1) =
         begin
             rom[i] = 0;
         end
-        q <= 0;
+        q = 0;
     
         %s{romInits}
     end

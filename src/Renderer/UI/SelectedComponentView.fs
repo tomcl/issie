@@ -380,6 +380,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
         let comp = Symbol.extractComponent model.Sheet.Wire.Symbol compId
         div [Key comp.Id] [
             // let label' = extractLabelBase comp.Label
+            // TODO: normalise labels so they only contain allowed chars all uppercase
             let label' = comp.Label // No formatting atm
             readOnlyFormField "Description" <| makeDescription comp model dispatch
             makeExtraInfo model comp label' dispatch

@@ -12,6 +12,7 @@ type VMode = ForSynthesis | ForSimulation
 
 
 /// take FullName and convert it into a verilog compatible form
+/// this is not 1-1, so outputs may not be unique, that is OK
 let verilogNameConvert (s: string) =
     let maxIdentifierLength = 50
 
@@ -21,9 +22,10 @@ let verilogNameConvert (s: string) =
         |> function
         | h :: _ -> h
         | [] -> "v"
-        |> String.replace "." "_"
-        |> String.replace " " "_"
-        |> String.replace "-" "___"
+        |> Seq.map (function | ch when System.Char.IsLetterOrDigit ch -> string ch | _ -> "$")
+        |> String.concat ""
+        |> (fun s -> "v$" + s)
+
 
     let extraLength = baseName.Length - maxIdentifierLength
 
@@ -46,8 +48,6 @@ let writeVerilogNames (fs: FastSimulation) =
                 | ComponentLabel lab -> lab
 
             let vName = verilogNameConvert oName
-
-            let vName = "v_" + vName
 
             let name = $"{vName}_{i}"
             fc.VerilogComponentName <- name
@@ -81,6 +81,7 @@ let makeAsyncRomModule (moduleName: string) (mem: Memory1) =
     begin
         %s{romInits}
     end
+    endmodule
      """
 
 let makeRomModule (moduleName: string) (mem: Memory1) =
@@ -112,6 +113,7 @@ let makeRomModule (moduleName: string) (mem: Memory1) =
     begin
         %s{romInits}
     end
+    endmodule
      """
 
 let makeRamModule (moduleName: string) (mem: Memory1) =

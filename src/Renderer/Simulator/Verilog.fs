@@ -76,11 +76,10 @@ let makeAsyncRomModule (moduleName: string) (mem: Memory1) =
     output[%d{dMax}:0] q;
     input [%d{aMax}:0] a;
     wire [%d{dMax}:0] rom [%d{numWords - 1}:0];
-    assign q <= rom[a]
-    initial
-    begin
-        %s{romInits}
-    end
+
+    assign q = rom[a];
+    
+    %s{romInits}
     endmodule
      """
 
@@ -100,6 +99,7 @@ let makeRomModule (moduleName: string) (mem: Memory1) =
 
     module %s{moduleName}(q, a, clk);
     output reg [%d{dMax}:0] q;
+    input clk;
     input [%d{aMax}:0] a;
     reg [%d{dMax}:0] rom [%d{numWords - 1}:0];
     always @(posedge clk) q <= rom[a];
@@ -108,9 +108,10 @@ let makeRomModule (moduleName: string) (mem: Memory1) =
     begin
         for (i=0; i < {numWords}; i=i+1)
         begin
-            ram[i] = 0;
+            rom[i] = 0;
         end
-    begin
+        q <= 0;
+    
         %s{romInits}
     end
     endmodule
@@ -149,6 +150,8 @@ let makeRamModule (moduleName: string) (mem: Memory1) =
         begin
             ram[i] = 0;
         end
+
+        q = 0;
 
         %s{ramInits}
     end
@@ -271,6 +274,11 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     let ins i = getVPortInput fs fc (InputPortNumber i)
     let outs i = getVPortOut fc (OutputPortNumber i)
     let name = fc.VerilogComponentName
+    let idNum =
+        name
+        |> String.split [|'_'|]
+        |> Array.last
+        
 
     let outW i =
         match fc.OutputWidth.[i] with
@@ -347,9 +355,9 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
 
             $"assign %s{outs 0} = %s{ins 0}[%d{lsbBits - 1}:0];\n"
             + $"assign %s{outs 1} = %s{ins 0}[%d{msbBits + lsbBits - 1}:%d{msbBits}];\n"
-        | AsyncROM1 mem -> sprintf $"%s{name} I1 (%s{outs 0}, %s{ins 0});\n"
-        | ROM1 mem -> $"%s{name} I1 (%s{outs 0}, %s{ins 0}, clk);\n"
-        | RAM1 mem -> $"%s{name} I1 (%s{outs 0}, %s{ins 0}, %s{ins 1}, %s{ins 2}, clk);\n"
+        | AsyncROM1 mem -> sprintf $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0});\n"
+        | ROM1 mem -> $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0}, clk);\n"
+        | RAM1 mem -> $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0}, %s{ins 1}, %s{ins 2}, clk);\n"
         | Custom _ -> failwithf "What? custom components cannot exist in fast Simulation data structure"
         | _ -> failwithf "What? impossible!: fc.FType =%A" fc.FType
 

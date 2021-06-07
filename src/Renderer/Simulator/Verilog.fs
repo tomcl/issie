@@ -118,7 +118,6 @@ let makeRomModule (moduleName: string) (mem: Memory1) =
         begin
             rom[i] = 0;
         end
-        q = 0;
     
         %s{romInits}
     end
@@ -158,8 +157,6 @@ let makeRamModule (moduleName: string) (mem: Memory1) =
         begin
             ram[i] = 0;
         end
-
-        q = 0;
 
         %s{ramInits}
     end

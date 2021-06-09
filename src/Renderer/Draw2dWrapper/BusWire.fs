@@ -523,11 +523,39 @@ let getIntersectingSegments (model:Model) (wireId:ConnectionId) (selectBox:Bound
     model.WX.[wireId].Segments
     |> List.filter (fun seg -> fst(segmentIntersectsBoundingBoxCoordinates seg selectBox))
 
+
+//Finds the absolute difference between two points
+let getMidXYPos (a : XYPos) (b : XYPos) : XYPos =
+    {
+        X = abs b.X - abs a.X
+        Y = abs b.Y - abs a.Y
+    } 
+
+//Finds eucledian distance between two points
+let getDist (a : XYPos) (b : XYPos) : float =
+    sqrt ((a.X - b.X) ** 2.) + ((a.Y - b.Y) ** 2.)
+
+//Finds the closest segment in a wire to a point using euclidean distance
+//This currently uses the centre of the wire
+//TODO - Should this use vectors and calculate the closest distance to any point on the wire segments?
+let getClosestSegment (model : Model) (wireId : ConnectionId) (pos : XYPos) : Segment =
+    model.WX.[wireId].Segments
+    |> List.minBy (
+        fun seg -> 
+            getMidXYPos seg.Start seg.End 
+            |> getDist pos)
+
 /// Function called when a wire has been clicked, so no need to be an option
 let getClickedSegment (model:Model) (wireId: ConnectionId) (pos: XYPos) : SegmentId =
     let boundingBox = {X = pos.X - 5.0; Y = pos.Y - 5.0; H = 10.0; W = 10.0}
     let intersectingSegments = getIntersectingSegments model wireId boundingBox
-    (List.head intersectingSegments).Id
+
+    //getIntersecting segments may not return anything at low resolutions as the mouse was not on any segment, but in range of the wire bbox
+    //In this case just return the segment closest to mouse position
+    //TODO - should it just do this anyway?
+    if List.isEmpty intersectingSegments 
+    then (getClosestSegment model wireId pos).Id
+    else (List.head intersectingSegments).Id
 
 ///
 let moveSegment (seg:Segment) (distance:float) (model:Model) = 
@@ -802,7 +830,10 @@ let segmentIntersectionCoordinatesWithAllOtherSegments (wModel : Model) (segment
                 else
                     let horizontalSegment =
                         wModel.WX.[hWid].Segments
-                        |> List.find (fun seg -> seg.Id = hSid)
+                        |> List.tryFind (fun seg -> seg.Id = hSid)
+                        |> function
+                        | Some seg -> seg
+                        | None -> failwithf "Error in 808 couldnt find segId %A" hSid
                     let startX, endX = min horizontalSegment.Start.X horizontalSegment.End.X, max horizontalSegment.Start.X horizontalSegment.End.X
                     not ( ((startX + 5.0) > intersectCoords.X) || ((endX - 5.0) < intersectCoords.X) )
         )

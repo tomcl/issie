@@ -1189,6 +1189,18 @@ let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) =
         }
     else autorouteWire model wire
 
+//Moves a wire by a specified amount by adding a XYPos to each start and end point of each segment
+let moveWire (wire : Wire) (diff : XYPos) =    
+    {wire with 
+        Segments = 
+            wire.Segments
+            |> List.map (fun seg -> 
+                {seg with
+                    Start = Symbol.posAdd seg.Start diff
+                    End = Symbol.posAdd seg.End diff
+                })
+    }
+
 ///updateWire re-routes a single wire in the model
 let updateWire (model : Model) (wire : Wire) =
     let newInput = Symbol.getInputPortLocation model.Symbol wire.InputPort
@@ -1204,6 +1216,7 @@ let updateWire (model : Model) (wire : Wire) =
         else newInputWire
         
     else autorouteWire model wire
+
 
 
 ///Re-routes the wires in the model based on a list of components that have been altered

@@ -67,7 +67,7 @@ type Msg =
     | CopyWires of list<ConnectionId>
     | DeleteWires of list<ConnectionId>
     | SelectWires of list<ConnectionId>
-    | UpdateWires of list<ComponentId>
+    | UpdateWires of list<ComponentId> * XYPos
     | DragWire of ConnectionId * MouseT
     | ColorWires of list<ConnectionId> * HighLightColor
     | ErrorWires of list<ConnectionId>
@@ -836,15 +836,7 @@ let segmentIntersectionCoordinatesWithAllOtherSegments (wModel : Model) (segment
         )
 
 ///
-let updateWireSegmentJumps (wireList : list<ConnectionId>) (wModelIn : Model) : Model =
-    let wModel =
-        {wModelIn with 
-            WX = 
-                wModelIn.WX
-                |> Map.toList
-                |> List.map (fun (cId, wire) -> (cId, {wire with Segments = List.map makeSegPos wire.Segments}))
-                |> Map.ofList
-        }
+let updateWireSegmentJumps (wireList : list<ConnectionId>) (wModel : Model) : Model =
 
     let updateSegment (seg : Segment) : list<ConnectionId * SegmentId * ConnectionId * SegmentId * XYPos> =
         (wModel, seg)
@@ -1130,6 +1122,15 @@ let getConnectedWires (wModel : Model) (compIds : list<ComponentId>) : list<Conn
         |> List.map (fun wire -> wire.Id)
         |> List.distinct
 
+let isFullyConnected (wModel : Model) (compIds : list<ComponentId>) : list<ConnectionId> =
+    let inputPorts, outputPorts = Symbol.getPortLocations wModel.Symbol compIds
+
+    wModel.WX
+    |> Map.toList
+    |> List.map snd
+    |> List.filter (fun wire -> Map.containsKey wire.InputPort inputPorts && Map.containsKey wire.OutputPort outputPorts)
+    |> List.map (fun wire -> wire.Id)
+    |> List.distinct
 
 //Returns a newly autorouted wire given a model and wire
 let autorouteWire (model : Model) (wire : Wire) : Wire =
@@ -1196,18 +1197,20 @@ let moveWire (wire : Wire) (diff : XYPos) =
             wire.Segments
             |> List.map (fun seg -> 
                 {seg with
-                    Start = Symbol.posAdd seg.Start diff
-                    End = Symbol.posAdd seg.End diff
+                    Start = Symbol.posAdd (getAbsXY seg.Start) diff
+                    End = Symbol.posAdd (getAbsXY seg.End) diff
                 })
     }
 
 ///updateWire re-routes a single wire in the model
 let updateWire (model : Model) (wire : Wire) =
+    printf "debug updatewire wire %A" wire
     let newInput = Symbol.getInputPortLocation model.Symbol wire.InputPort
     let newOutput = Symbol.getOutputPortLocation model.Symbol wire.OutputPort
 
     if checkManual wire 
     then
+        printf "DEBUG manual input"
         let newInputWire = manualInput wire newInput model
         //If the new input routing caused the wire to autoroute, we do not need to do any more routing
         //If the wire stayed manual, then we need to also check the output port
@@ -1215,21 +1218,27 @@ let updateWire (model : Model) (wire : Wire) =
         then manualOutput newInputWire newOutput model
         else newInputWire
         
-    else autorouteWire model wire
+    else
+        printf "debug auto immediate"
+        autorouteWire model wire
 
 
 
 ///Re-routes the wires in the model based on a list of components that have been altered
 ///Keeps manual wires manual (up to a point)
 ///Otherwise it will auto-route wires
-let updateWires (model : Model) (compIdList : ComponentId list) =
+let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
 
     let connectedWires = getConnectedWires model compIdList
+    let fullyConnectedWires = isFullyConnected model compIdList
+
     let newWires = 
         model.WX
         |> Map.toList
         |> List.map (fun (cId, wire) -> 
-            if List.contains cId connectedWires //Only route wires connected to ports that moved for efficiency
+            if List.contains cId fullyConnectedWires //Do not route wires that are connected to moving components on both sides
+            then (cId, moveWire wire diff)
+            elif List.contains cId connectedWires //Only route wires connected to ports that moved for efficiency
             then (cId, updateWire model wire)
             else (cId, wire))
         |> Map.ofList
@@ -1245,8 +1254,8 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         {model with Symbol=sm}, Cmd.map Symbol sCmd
 
 
-    | UpdateWires (componentIdList : list<ComponentId>) -> 
-        updateWires model componentIdList, Cmd.none
+    | UpdateWires (componentIdList, diff)-> 
+        updateWires model componentIdList diff, Cmd.none
 
     | AddWire ( (inputId, outputId) : (InputPortId * OutputPortId) ) ->
         let portOnePos, portTwoPos = Symbol.getTwoPortLocations model.Symbol inputId outputId
@@ -1354,6 +1363,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                     | Vertical -> mMsg.Pos.X - seg.Start.X
 
                 let newWire = moveSegment seg distanceToMove model
+                printf "debug newWire = %A" newWire
                 let newWX = Map.add seg.HostId newWire model.WX
  
                 {model with WX = newWX}, Cmd.none

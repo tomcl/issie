@@ -515,7 +515,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                     Cmd.ofMsg (UpdateSingleBoundingBox model.SelectedComponents.Head) 
                     symbolCmd (Symbol.ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
                     Cmd.ofMsg CheckAutomaticScrolling 
-                    wireCmd (BusWire.UpdateWires model.SelectedComponents)]
+                    wireCmd (BusWire.UpdateWires (model.SelectedComponents, posDiff mMsg.Pos model.LastMousePos))]
     | _ -> // Moving multiple symbols -> don't do snap-to-grid
         let errorComponents = 
             model.SelectedComponents
@@ -526,7 +526,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                     symbolCmd (Symbol.ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
                     Cmd.ofMsg UpdateBoundingBoxes
                     Cmd.ofMsg CheckAutomaticScrolling 
-                    wireCmd (BusWire.UpdateWires model.SelectedComponents)]
+                    wireCmd (BusWire.UpdateWires (model.SelectedComponents, posDiff mMsg.Pos model.LastMousePos))]
         
 // ----------------------------------------- Mouse Update Helper Functions ----------------------------------------- //
 // (Kept in separate functions since Update function got too long otherwise)
@@ -742,7 +742,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
                 AutomaticScrolling = false }, 
             Cmd.batch [ symbolCmd (Symbol.MoveSymbols (model.SelectedComponents, (posDiff model.LastValidPos mMsg.Pos)))
                         symbolCmd (Symbol.SelectSymbols (model.SelectedComponents))
-                        wireCmd (BusWire.UpdateWires model.SelectedComponents)
+                        wireCmd (BusWire.UpdateWires (model.SelectedComponents, posDiff model.LastValidPos mMsg.Pos))
                         wireCmd (BusWire.MakeJumps movingWires) ]
     | ConnectingInput inputPortId ->
         let cmd, undoList ,redoList =

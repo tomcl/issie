@@ -1211,13 +1211,11 @@ let moveWire (wire : Wire) (diff : XYPos) =
 
 ///updateWire re-routes a single wire in the model
 let updateWire (model : Model) (wire : Wire) =
-    printf "debug updatewire wire %A" wire
     let newInput = Symbol.getInputPortLocation model.Symbol wire.InputPort
     let newOutput = Symbol.getOutputPortLocation model.Symbol wire.OutputPort
 
     if checkManual wire 
     then
-        printf "DEBUG manual input"
         let newInputWire = manualInput wire newInput model
         //If the new input routing caused the wire to autoroute, we do not need to do any more routing
         //If the wire stayed manual, then we need to also check the output port
@@ -1226,7 +1224,6 @@ let updateWire (model : Model) (wire : Wire) =
         else newInputWire
         
     else
-        printf "debug auto immediate"
         autorouteWire model wire
 
 
@@ -1370,7 +1367,6 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                     | Vertical -> mMsg.Pos.X - seg.Start.X
 
                 let newWire = moveSegment seg distanceToMove model
-                printf "debug newWire = %A" newWire
                 let newWX = Map.add seg.HostId newWire model.WX
  
                 {model with WX = newWX}, Cmd.none

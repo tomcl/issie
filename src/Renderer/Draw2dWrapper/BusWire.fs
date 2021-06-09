@@ -579,7 +579,6 @@ let moveSegment (seg:Segment) (distance:float) (model:Model) =
     let newNextSeg = {nextSeg with Start = newNextStart}
 
     let newSegments = wire.Segments.[.. index-2] @ [newPrevSeg; newSeg; newNextSeg] @ wire.Segments.[index+2 ..]
-    printf "debug moveSegment \n new segs = %A" newSegments
     {wire with Segments = newSegments}
 
 ///
@@ -837,7 +836,15 @@ let segmentIntersectionCoordinatesWithAllOtherSegments (wModel : Model) (segment
         )
 
 ///
-let updateWireSegmentJumps (wireList : list<ConnectionId>) (wModel : Model) : Model =
+let updateWireSegmentJumps (wireList : list<ConnectionId>) (wModelIn : Model) : Model =
+    let wModel =
+        {wModelIn with 
+            WX = 
+                wModelIn.WX
+                |> Map.toList
+                |> List.map (fun (cId, wire) -> (cId, {wire with Segments = List.map makeSegPos wire.Segments}))
+                |> Map.ofList
+        }
 
     let updateSegment (seg : Segment) : list<ConnectionId * SegmentId * ConnectionId * SegmentId * XYPos> =
         (wModel, seg)

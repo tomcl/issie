@@ -740,7 +740,15 @@ let MapToSortedList map : Wire list =
         |> List.map snd
 
     listUnSelected @ listErrorUnselected @ listErrorSelected @ listSelected @ listWaves @ listCopied
-    
+
+let getAbsXY (pos : XYPos) = 
+    {X = abs pos.X; Y = abs pos.Y}
+
+let makeSegPos (seg : Segment) =
+    {seg with
+        Start = getAbsXY seg.Start
+        End = getAbsXY seg.End }
+
 let view (model : Model) (dispatch : Dispatch<Msg>) =
     let start = Helpers.getTimeMs()
     let wires1 =
@@ -761,7 +769,7 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
                     let props =
                         {
                             key = match wire.Id with | ConnectionId s -> s
-                            Segments = wire.Segments
+                            Segments = List.map makeSegPos wire.Segments
                             ColorP = wire.Color
                             StrokeWidthP = wire.Width
                             OutputPortLocation = outputPortLocation

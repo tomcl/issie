@@ -1183,7 +1183,7 @@ let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) =
         }
     else autorouteWire model wire
 
-let updateWire (model : Model) (wire : Wire) (newInPorts) =
+let updateWire (model : Model) (wire : Wire) =
 
     let newInput = Symbol.getInputPortLocation model.Symbol wire.InputPort
     let newOutput = Symbol.getOutputPortLocation model.Symbol wire.OutputPort
@@ -1200,12 +1200,6 @@ let updateWire (model : Model) (wire : Wire) (newInPorts) =
     else autorouteWire model wire
 
 let updateWires (model : Model) (compIdList : ComponentId list) =
-    let (newInputs, newOutputs) = Symbol.getPortLocations model.Symbol compIdList
-
-    let newInPorts =
-        newInputs
-        |> Map.toList
-        |> List.map (fun (pId, _) -> pId)
 
     let connectedWires = getConnectedWires model compIdList
     let newWires = 
@@ -1213,7 +1207,7 @@ let updateWires (model : Model) (compIdList : ComponentId list) =
         |> Map.toList
         |> List.map (fun (cId, wire) -> 
             if List.contains cId connectedWires 
-            then (cId, updateWire model wire newInPorts)
+            then (cId, updateWire model wire)
             else (cId, wire))
         |> Map.ofList
         
@@ -1229,13 +1223,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
 
     | UpdateWires (componentIdList : list<ComponentId>) -> 
-        //let wiresConnectedToSymbolsBeingDragged = getConnectedWires model componentIdList
-        //let newModel = 
-        //    model
-        //    |> routeGivenWiresBasedOnPortPositions wiresConnectedToSymbolsBeingDragged
-        
-            
-        (updateWires model componentIdList), Cmd.none
+        updateWires model componentIdList, Cmd.none
 
     | AddWire ( (inputId, outputId) : (InputPortId * OutputPortId) ) ->
         let portOnePos, portTwoPos = Symbol.getTwoPortLocations model.Symbol inputId outputId

@@ -1154,10 +1154,7 @@ let manualInput (wire : Wire) (newInput : XYPos) (model : Model) =
             }
 
         let midSeg = wire.Segments.[i-1]
-        let newMidSeg = 
-            match midSeg.Dir with
-            | Horizontal -> {midSeg with End = {midSeg.End with X = newInput.X}}
-            | Vertical -> {midSeg with End = {midSeg.End with Y = newInput.Y}} //TODO - Does this case ever happen?
+        let newMidSeg = {midSeg with End = {midSeg.End with Y = newInput.Y}}
         
 
         {wire with
@@ -1178,10 +1175,8 @@ let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) =
                 End = {wire.Segments.[0].End with Y = newOutput.Y}
             }
         let midSeg = wire.Segments.[1]
-        let newMidSeg = 
-            match midSeg.Dir with
-            | Horizontal -> {midSeg with Start = {midSeg.Start with X = newOutput.X}}
-            | Vertical -> {midSeg with Start = {midSeg.Start with Y = newOutput.Y}} //TODO - Does this case ever happen?
+        let newMidSeg = {midSeg with Start = {midSeg.Start with Y = newOutput.Y}}
+           
         {wire with
             Segments = [newFirstSeg; newMidSeg] @ wire.Segments.[2..]
         }

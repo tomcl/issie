@@ -1125,6 +1125,82 @@ let getConnectedWires (wModel : Model) (compIds : list<ComponentId>) : list<Conn
         |> List.map (fun wire -> wire.Id)
         |> List.distinct
 
+
+//Returns a newly autorouted wire given a model and wire
+let autorouteWire (model : Model) (wire : Wire) : Wire =
+    let posTuple = Symbol.getTwoPortLocations (model.Symbol) (wire.InputPort) (wire.OutputPort)
+    {wire with Segments = updateSegmentsList model wire.Id posTuple}
+    
+//Checks if the wire is manually routed or not by seeing if any segment has a XYPos < 0.
+//Returns true if the wire is manual
+//Returns false if the wire is auto-routed
+let checkManual (wire : Wire) =
+    wire.Segments
+    |> List.tryFind (fun seg -> seg.Start.X < 0. || seg.End.X < 0. )
+    |> function
+    | Some _ -> true
+    | None -> false
+
+let manualInput (wire : Wire) (newInput : XYPos) (model : Model) =
+    if newInput.X < wire.Segments.[0].Start.X //If the component DOES NOT move beyond the first segment, keep manual routing
+    then 
+        let firstSeg = wire.Segments.[0]
+        {wire with
+            Segments = List.append ([{firstSeg with Start = {X = -firstSeg.Start.X; Y = -newInput.Y}}]) (List.tail wire.Segments)
+        }
+    else autorouteWire model wire
+
+let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) = 
+    if newOutput.X > (List.last wire.Segments).End.X //If the output port DOES NOT move before the last segment, keep manual routing
+    then 
+        //Removes the final element from the list
+        let subList = 
+            wire.Segments
+            |> List.rev
+            |> List.tail
+            |> List.rev
+        let lastSeg = List.last wire.Segments
+        {wire with
+            Segments = List.append subList ([{lastSeg with End = {X = -lastSeg.End.X; Y = -newOutput.Y}}])
+        }
+    else autorouteWire model wire
+
+let updateWire (model : Model) (wire : Wire) (newInPorts) =
+
+    let newInput = Symbol.getInputPortLocation model.Symbol wire.InputPort
+    let newOutput = Symbol.getOutputPortLocation model.Symbol wire.OutputPort
+
+    if checkManual wire 
+    then 
+        let newInputWire = manualInput wire newInput model
+        //If the new input routing caused the wire to autoroute, we do not need to do any more routing
+        //If the wire stayed manual, then we need to also check the output port
+        if checkManual newInputWire 
+        then manualOutput newInputWire newOutput model
+        else newInputWire
+        
+    else autorouteWire model wire
+
+let updateWires (model : Model) (compIdList : ComponentId list) =
+    let (newInputs, newOutputs) = Symbol.getPortLocations model.Symbol compIdList
+
+    let newInPorts =
+        newInputs
+        |> Map.toList
+        |> List.map (fun (pId, _) -> pId)
+
+    let connectedWires = getConnectedWires model compIdList
+    let newWires = 
+        model.WX
+        |> Map.toList
+        |> List.map (fun (cId, wire) -> 
+            if List.contains cId connectedWires 
+            then (cId, updateWire model wire newInPorts)
+            else (cId, wire))
+        |> Map.ofList
+        
+    {model with WX = newWires}
+
 ///
 let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
     
@@ -1135,12 +1211,13 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
 
     | UpdateWires (componentIdList : list<ComponentId>) -> 
-        let wiresConnectedToSymbolsBeingDragged = getConnectedWires model componentIdList
-        let newModel = 
-            model
-            |> routeGivenWiresBasedOnPortPositions wiresConnectedToSymbolsBeingDragged
+        //let wiresConnectedToSymbolsBeingDragged = getConnectedWires model componentIdList
+        //let newModel = 
+        //    model
+        //    |> routeGivenWiresBasedOnPortPositions wiresConnectedToSymbolsBeingDragged
+        
             
-        newModel, Cmd.none
+        (updateWires model componentIdList), Cmd.none
 
     | AddWire ( (inputId, outputId) : (InputPortId * OutputPortId) ) ->
         let portOnePos, portTwoPos = Symbol.getTwoPortLocations model.Symbol inputId outputId

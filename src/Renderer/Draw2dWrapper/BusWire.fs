@@ -190,6 +190,14 @@ let segmentIntersectsSegment ((p1, q1) : (XYPos * XYPos)) ((p2, q2) : (XYPos * X
         then true
     else false
 
+let getAbsXY (pos : XYPos) = 
+    {X = abs pos.X; Y = abs pos.Y}
+
+let makeSegPos (seg : Segment) =
+    {seg with
+        Start = getAbsXY seg.Start
+        End = getAbsXY seg.End }
+
 /// Given two coordinates, this function returns the euclidean
 /// distance between them.
 let distanceBetweenTwoPoints (pos1 : XYPos) (pos2 : XYPos) : float =
@@ -263,7 +271,7 @@ let makeInitialSegmentsList (hostId : ConnectionId) (portCoords : XYPos * XYPos)
 ///correspond to the endpoints of that particular wire,
 /// this function returns a list of Segment(s).
 let updateSegmentsList (model:Model) (hostId : ConnectionId) (portCoords : XYPos * XYPos) : list<Segment> =
-    let segments = model.WX.[hostId].Segments
+    let segments = model.WX.[hostId].Segments |> List.map makeSegPos
     let verticesList = makeInitialWireVerticesList portCoords
     let lastSegIndex = (List.length verticesList) - 1
     let startX, endX = fst(portCoords).X, snd(portCoords).X
@@ -446,7 +454,8 @@ let getTopLeftAndBottomRightCorner (box : BoundingBox) : XYPos * XYPos =
 /// - (false, None) if the segment does not intersect the bounding box
 /// - (true, None) if the segment is fully included inside the bounding box
 /// - (true, Some coordinate)  if the segment intersects the bounding box
-let segmentIntersectsBoundingBoxCoordinates (seg : Segment) (bb : BoundingBox) : bool * Option<XYPos> =
+let segmentIntersectsBoundingBoxCoordinates (segIn : Segment) (bb : BoundingBox) : bool * Option<XYPos> =
+    let seg = makeSegPos segIn
     let ({X = x; Y = y} : XYPos), ({X = a; Y = b} : XYPos) = getTopLeftAndBottomRightCorner bb
     let w , h = (a-x), (b-y) // a = x+w;  b = y+h
     let x1, y1, x2, y2 = seg.Start.X, seg.Start.Y, seg.End.X, seg.End.Y 
@@ -524,26 +533,12 @@ let getIntersectingSegments (model:Model) (wireId:ConnectionId) (selectBox:Bound
     |> List.filter (fun seg -> fst(segmentIntersectsBoundingBoxCoordinates seg selectBox))
 
 
-//Finds the absolute difference between two points
-let getMidXYPos (a : XYPos) (b : XYPos) : XYPos =
-    {
-        X = abs b.X - abs a.X
-        Y = abs b.Y - abs a.Y
-    } 
-
-//Finds eucledian distance between two points
-let getDist (a : XYPos) (b : XYPos) : float =
-    sqrt ((a.X - b.X) ** 2.) + ((a.Y - b.Y) ** 2.)
-
 //Finds the closest segment in a wire to a point using euclidean distance
-//This currently uses the centre of the wire
-//TODO - Should this use vectors and calculate the closest distance to any point on the wire segments?
 let getClosestSegment (model : Model) (wireId : ConnectionId) (pos : XYPos) : Segment =
     model.WX.[wireId].Segments
     |> List.minBy (
         fun seg -> 
-            getMidXYPos seg.Start seg.End 
-            |> getDist pos)
+            distanceFromPointToSegment pos seg)
 
 /// Function called when a wire has been clicked, so no need to be an option
 let getClickedSegment (model:Model) (wireId: ConnectionId) (pos: XYPos) : SegmentId =
@@ -567,21 +562,22 @@ let moveSegment (seg:Segment) (distance:float) (model:Model) =
     let newPrevEnd, newSegStart, newSegEnd, newNextStart = 
         match seg.Dir with
         | Vertical -> 
-            {prevSeg.End with X = prevSeg.End.X + distance}, 
-            {seg.Start with X = seg.Start.X + distance}, 
-            {seg.End with X = seg.End.X + distance}, 
-            {nextSeg.Start with X = nextSeg.Start.X + distance}
+            {prevSeg.End with X = - (prevSeg.End.X + distance)}, 
+            {seg.Start with X = - (seg.Start.X + distance)}, 
+            {seg.End with X = - (seg.End.X + distance)}, 
+            {nextSeg.Start with X = - (nextSeg.Start.X + distance)}
         | Horizontal -> 
-            {prevSeg.End with Y = prevSeg.End.Y + distance}, 
-            {seg.Start with Y = seg.Start.Y + distance}, 
-            {seg.End with Y = seg.End.Y + distance}, 
-            {nextSeg.Start with Y = nextSeg.Start.Y + distance}
+            {prevSeg.End with Y = - (prevSeg.End.Y + distance)}, 
+            {seg.Start with Y = - (seg.Start.Y + distance)}, 
+            {seg.End with Y = - (seg.End.Y + distance)}, 
+            {nextSeg.Start with Y = - (nextSeg.Start.Y + distance)}
 
     let newPrevSeg = {prevSeg with End = newPrevEnd}
     let newSeg = {seg with Start = newSegStart;End = newSegEnd}
     let newNextSeg = {nextSeg with Start = newNextStart}
 
     let newSegments = wire.Segments.[.. index-2] @ [newPrevSeg; newSeg; newNextSeg] @ wire.Segments.[index+2 ..]
+    printf "debug moveSegment \n new segs = %A" newSegments
     {wire with Segments = newSegments}
 
 ///
@@ -740,14 +736,6 @@ let MapToSortedList map : Wire list =
         |> List.map snd
 
     listUnSelected @ listErrorUnselected @ listErrorSelected @ listSelected @ listWaves @ listCopied
-
-let getAbsXY (pos : XYPos) = 
-    {X = abs pos.X; Y = abs pos.Y}
-
-let makeSegPos (seg : Segment) =
-    {seg with
-        Start = getAbsXY seg.Start
-        End = getAbsXY seg.End }
 
 let view (model : Model) (dispatch : Dispatch<Msg>) =
     let start = Helpers.getTimeMs()
@@ -1144,32 +1132,54 @@ let autorouteWire (model : Model) (wire : Wire) : Wire =
 //Returns false if the wire is auto-routed
 let checkManual (wire : Wire) =
     wire.Segments
-    |> List.tryFind (fun seg -> seg.Start.X < 0. || seg.End.X < 0. )
+    |> List.tryFind (fun seg -> seg.Start.X < 0. || seg.Start.Y < 0. || seg.End.X < 0. || seg.End.Y < 0. )
     |> function
     | Some _ -> true
     | None -> false
 
 let manualInput (wire : Wire) (newInput : XYPos) (model : Model) =
-    if newInput.X < wire.Segments.[0].Start.X //If the component DOES NOT move beyond the first segment, keep manual routing
+    //If the component DOES NOT move beyond the first segment, keep manual routing
+    //3. for tolerance - sometimes the output positions change in the system despite not being moved
+    if newInput.X + 3. >= abs (List.last wire.Segments).Start.X 
     then 
-        let firstSeg = wire.Segments.[0]
+        let i = List.length wire.Segments - 1
+        let lastSeg = List.last wire.Segments
+        let newLastSeg = 
+            {lastSeg with
+                Start = {lastSeg.Start with Y = newInput.Y}
+                End = {X = newInput.X; Y = newInput.Y}
+            }
+
+        let midSeg = wire.Segments.[i-1]
+        let newMidSeg = 
+            match midSeg.Dir with
+            | Horizontal -> {midSeg with End = {midSeg.End with X = newInput.X}}
+            | Vertical -> {midSeg with End = {midSeg.End with Y = newInput.Y}}
+        
+
         {wire with
-            Segments = List.append ([{firstSeg with Start = {X = -firstSeg.Start.X; Y = -newInput.Y}}]) (List.tail wire.Segments)
+            Segments = wire.Segments.[.. i-2] @ [newMidSeg; newLastSeg]
         }
+
     else autorouteWire model wire
 
 let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) = 
-    if newOutput.X > (List.last wire.Segments).End.X //If the output port DOES NOT move before the last segment, keep manual routing
+    //If the output port DOES NOT move before the last segment, keep manual routing
+    //3. for tolerance - sometimes the output positions change in the system despite not being moved
+    if newOutput.X - 3. <= abs wire.Segments.[0].End.X  
     then 
-        //Removes the final element from the list
-        let subList = 
-            wire.Segments
-            |> List.rev
-            |> List.tail
-            |> List.rev
-        let lastSeg = List.last wire.Segments
+        let newFirstSeg = 
+            {wire.Segments.[0] with 
+                Start = {X = newOutput.X; Y = newOutput.Y}
+                End = {wire.Segments.[0].End with Y = newOutput.Y}
+            }
+        let midSeg = wire.Segments.[1]
+        let newMidSeg = 
+            match midSeg.Dir with
+            | Horizontal -> {midSeg with Start = {midSeg.Start with X = newOutput.X}}
+            | Vertical -> {midSeg with Start = {midSeg.Start with Y = newOutput.Y}}
         {wire with
-            Segments = List.append subList ([{lastSeg with End = {X = -lastSeg.End.X; Y = -newOutput.Y}}])
+            Segments = [newFirstSeg; newMidSeg] @ wire.Segments.[2..]
         }
     else autorouteWire model wire
 
@@ -1179,7 +1189,7 @@ let updateWire (model : Model) (wire : Wire) (newInPorts) =
     let newOutput = Symbol.getOutputPortLocation model.Symbol wire.OutputPort
 
     if checkManual wire 
-    then 
+    then
         let newInputWire = manualInput wire newInput model
         //If the new input routing caused the wire to autoroute, we do not need to do any more routing
         //If the wire stayed manual, then we need to also check the output port

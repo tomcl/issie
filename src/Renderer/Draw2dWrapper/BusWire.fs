@@ -1190,6 +1190,13 @@ let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) =
         }
     else autorouteWire model wire
 
+//Returns the new positions keeping manual coordinates negative, and auto coordinates positive
+let negXYPos (pos : XYPos) (diff : XYPos) : XYPos =
+    let newPos = Symbol.posAdd (getAbsXY pos) diff
+    if pos.X < 0. || pos.Y < 0. then {X = - newPos.X; Y = - newPos.Y}
+    else newPos
+
+
 //Moves a wire by a specified amount by adding a XYPos to each start and end point of each segment
 let moveWire (wire : Wire) (diff : XYPos) =    
     {wire with 
@@ -1197,8 +1204,8 @@ let moveWire (wire : Wire) (diff : XYPos) =
             wire.Segments
             |> List.map (fun seg -> 
                 {seg with
-                    Start = Symbol.posAdd (getAbsXY seg.Start) diff
-                    End = Symbol.posAdd (getAbsXY seg.End) diff
+                    Start = negXYPos seg.Start diff
+                    End = negXYPos seg.End diff
                 })
     }
 

@@ -1136,9 +1136,10 @@ let checkManual (wire : Wire) =
     |> function
     | Some _ -> true
     | None -> false
-
+    
+///determines the new manual wire routing for wires CONNECTED TO INPUT ports - i.e. The last wire segment(s)
 let manualInput (wire : Wire) (newInput : XYPos) (model : Model) =
-    //If the component DOES NOT move beyond the first segment, keep manual routing
+    //If the component DOES NOT move before the last segment, keep manual routing
     //3. for tolerance - sometimes the output positions change in the system despite not being moved
     if newInput.X + 3. >= abs (List.last wire.Segments).Start.X 
     then 
@@ -1154,7 +1155,7 @@ let manualInput (wire : Wire) (newInput : XYPos) (model : Model) =
         let newMidSeg = 
             match midSeg.Dir with
             | Horizontal -> {midSeg with End = {midSeg.End with X = newInput.X}}
-            | Vertical -> {midSeg with End = {midSeg.End with Y = newInput.Y}}
+            | Vertical -> {midSeg with End = {midSeg.End with Y = newInput.Y}} //TODO - Does this case ever happen?
         
 
         {wire with
@@ -1163,8 +1164,9 @@ let manualInput (wire : Wire) (newInput : XYPos) (model : Model) =
 
     else autorouteWire model wire
 
+///determines the new manual wire routing for wires CONNECTED TO OUTPUT ports - i.e. The first wire segment(s)
 let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) = 
-    //If the output port DOES NOT move before the last segment, keep manual routing
+    //If the output port DOES NOT move beyond the first segment, keep manual routing
     //3. for tolerance - sometimes the output positions change in the system despite not being moved
     if newOutput.X - 3. <= abs wire.Segments.[0].End.X  
     then 
@@ -1177,14 +1179,14 @@ let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) =
         let newMidSeg = 
             match midSeg.Dir with
             | Horizontal -> {midSeg with Start = {midSeg.Start with X = newOutput.X}}
-            | Vertical -> {midSeg with Start = {midSeg.Start with Y = newOutput.Y}}
+            | Vertical -> {midSeg with Start = {midSeg.Start with Y = newOutput.Y}} //TODO - Does this case ever happen?
         {wire with
             Segments = [newFirstSeg; newMidSeg] @ wire.Segments.[2..]
         }
     else autorouteWire model wire
 
+///updateWire re-routes a single wire in the model
 let updateWire (model : Model) (wire : Wire) =
-
     let newInput = Symbol.getInputPortLocation model.Symbol wire.InputPort
     let newOutput = Symbol.getOutputPortLocation model.Symbol wire.OutputPort
 
@@ -1199,6 +1201,10 @@ let updateWire (model : Model) (wire : Wire) =
         
     else autorouteWire model wire
 
+
+///Re-routes the wires in the model based on a list of components that have been altered
+///Keeps manual wires manual (up to a point)
+///Otherwise it will auto-route wires
 let updateWires (model : Model) (compIdList : ComponentId list) =
 
     let connectedWires = getConnectedWires model compIdList
@@ -1206,7 +1212,7 @@ let updateWires (model : Model) (compIdList : ComponentId list) =
         model.WX
         |> Map.toList
         |> List.map (fun (cId, wire) -> 
-            if List.contains cId connectedWires 
+            if List.contains cId connectedWires //Only route wires connected to ports that moved for efficiency
             then (cId, updateWire model wire)
             else (cId, wire))
         |> Map.ofList

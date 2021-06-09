@@ -190,9 +190,11 @@ let segmentIntersectsSegment ((p1, q1) : (XYPos * XYPos)) ((p2, q2) : (XYPos * X
         then true
     else false
 
+///Returns the abs of an XYPos object
 let getAbsXY (pos : XYPos) = 
     {X = abs pos.X; Y = abs pos.Y}
 
+///Returns a segment with positive Start and End coordinates
 let makeSegPos (seg : Segment) =
     {seg with
         Start = getAbsXY seg.Start
@@ -271,7 +273,7 @@ let makeInitialSegmentsList (hostId : ConnectionId) (portCoords : XYPos * XYPos)
 ///correspond to the endpoints of that particular wire,
 /// this function returns a list of Segment(s).
 let updateSegmentsList (model:Model) (hostId : ConnectionId) (portCoords : XYPos * XYPos) : list<Segment> =
-    let segments = model.WX.[hostId].Segments |> List.map makeSegPos
+    let segments = model.WX.[hostId].Segments |> List.map makeSegPos //Manual routing causes negative segment XYPos
     let verticesList = makeInitialWireVerticesList portCoords
     let lastSegIndex = (List.length verticesList) - 1
     let startX, endX = fst(portCoords).X, snd(portCoords).X

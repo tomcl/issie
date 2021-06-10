@@ -582,77 +582,6 @@ let moveSegment (seg:Segment) (distance:float) (model:Model) =
     {wire with Segments = newSegments}
 
 ///
-let moveAroundBoundingBox (seg:Segment) (bb:BoundingBox) (model:Model) (snapPos:SnapPosition) = 
-    let distToHigh, distToLow = 
-        match seg.Dir with
-        | Horizontal -> (bb.Y+bb.H) - seg.Start.Y, bb.Y - seg.Start.Y
-        | Vertical -> (bb.X+bb.W) - seg.Start.X, bb.X - seg.Start.Y
-    match snapPos with
-    | Mid ->
-        if distToHigh > distToLow then
-            moveSegment seg distToLow model
-        else
-            moveSegment seg distToHigh model
-    | High ->
-        moveSegment seg distToHigh model
-    | Low ->
-        moveSegment seg distToLow model
-
-///
-let updateOverlappingWires (model : Model) (bb :  BoundingBox) : Model =
-    //1. get <connectionId, overlapping segments list>
-    //2. for each wire, check if segment 3 (index 2) is overlapping. if it is, move it, and check all wires again
-    //3. match segment index with 1 next and move it, and then 3 and move it.
-    let overlappingSegments (wMap : Map<ConnectionId,Wire>) = 
-        wMap
-        |> Map.toList
-        |> List.collect (fun (x,y) -> y.Segments)
-        |> List.filter (fun seg -> fst(segmentIntersectsBoundingBoxCoordinates seg bb))
-
-    let updateWireFromSegment (seg : Segment) (index : int) : Wire = //since all segment 3s will be fed in, then segment 2s, then segment 4s, no segments from the same wire can be fed in
-        let (inputPos, outputPos) = Symbol.getTwoPortLocations model.Symbol model.WX.[seg.HostId].InputPort model.WX.[seg.HostId].OutputPort
-
-        if inputPos.X + 40.0 < outputPos.X then //logic for list1 wire type
-            match index with
-            | 2 -> moveAroundBoundingBox seg bb model Mid
-            | 1 -> moveAroundBoundingBox seg bb model Mid
-            | 3 -> moveAroundBoundingBox seg bb model Mid
-            | _ -> model.WX.[seg.HostId] //do nothing
-
-        else //logic for list2 wire type
-            match index with
-            | 2 -> moveAroundBoundingBox seg bb model Mid
-            | 1 -> moveAroundBoundingBox seg bb model High
-            | 3 -> moveAroundBoundingBox seg bb model Low
-            | _ -> model.WX.[seg.HostId] //do nothing
-
-    let segUpdatedWiresMap (index : int) = 
-        model.WX
-        |> overlappingSegments
-        |> List.filter (fun seg -> seg.Index = index)
-        |> List.map (fun seg -> (seg.HostId,updateWireFromSegment seg index))
-        |> Map.ofList
-
-    let updateModel updatedWireMap inputModel = 
-        let updatedWX = 
-            inputModel.WX
-            |> Map.map
-                (
-                    fun id wire -> 
-                        if Map.containsKey id updatedWireMap then
-                            updatedWireMap.[id]
-                        else
-                            wire
-                )
-        {model with WX = updatedWX}
-
-    //return new model after avoiding one bounding box with 3rd segment
-    let newModel1 = updateModel (segUpdatedWiresMap 2) model
-    let newModel2 = updateModel (segUpdatedWiresMap 1) newModel1
-    let newModel3 = updateModel (segUpdatedWiresMap 3) newModel2
-    newModel3
-
-///
 type WireRenderProps =
     {
         key: string
@@ -1153,31 +1082,43 @@ let checkManual (wire : Wire) =
     | None -> false
     
 ///determines the new manual wire routing for wires CONNECTED TO INPUT ports - i.e. The last wire segment(s)
-let manualInput (wire : Wire) (newInput : XYPos) (model : Model) =
+let manualInput (wire : Wire) (newInput : XYPos) (model : Model) (diff : XYPos) =
     //If the component DOES NOT move before the last segment, keep manual routing
     //3. for tolerance - sometimes the port positions change in the system despite not being moved
-    if newInput.X + 3. >= abs (List.last wire.Segments).Start.X 
+    let i = List.length wire.Segments - 1
+
+    if newInput.X + 3. >= abs wire.Segments.[i-2].End.X 
     then 
         let lastSeg = List.last wire.Segments
+        let x = lastSeg.Start.X + diff.X
         let newLastSeg = 
             {lastSeg with
-                Start = {lastSeg.Start with Y = newInput.Y}
+                Start = {X = x; Y = newInput.Y}
                 End = {X = newInput.X; Y = newInput.Y}
             }
 
-        let i = List.length wire.Segments - 1
-        let midSeg = wire.Segments.[i-1]
-        let newMidSeg = {midSeg with End = {midSeg.End with Y = newInput.Y}}
         
+        let penultSeg = wire.Segments.[i-1]
+        let newPenultSeg = 
+            {penultSeg with
+                Start = {penultSeg.Start with X = x}
+                End = {X = x; Y = newInput.Y}
+            }
+        
+        let midSeg = wire.Segments.[i-2]
+        let newMidSeg =
+            {midSeg with
+                End = {midSeg.End with X = - x}
+            }
 
         {wire with
-            Segments = wire.Segments.[.. i-2] @ [newMidSeg; newLastSeg]
+            Segments = wire.Segments.[.. i-3] @ [newMidSeg; newPenultSeg; newLastSeg]
         }
 
     else autorouteWire model wire
 
 ///determines the new manual wire routing for wires CONNECTED TO OUTPUT ports - i.e. The first wire segment(s)
-let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) = 
+let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) (diff : XYPos) = 
     //If the output port DOES NOT move beyond the first segment, keep manual routing
     //3. for tolerance - sometimes the port positions change in the system despite not being moved
     if newOutput.X - 3. <= abs wire.Segments.[0].End.X  
@@ -1215,17 +1156,17 @@ let moveWire (wire : Wire) (diff : XYPos) =
     }
 
 ///updateWire re-routes a single wire in the model
-let updateWire (model : Model) (wire : Wire) =
+let updateWire (model : Model) (wire : Wire) (diff : XYPos) =
     let newInput = Symbol.getInputPortLocation model.Symbol wire.InputPort
     let newOutput = Symbol.getOutputPortLocation model.Symbol wire.OutputPort
 
     if checkManual wire 
     then
-        let newInputWire = manualInput wire newInput model
+        let newInputWire = manualInput wire newInput model diff
         //If the new input routing caused the wire to autoroute, we do not need to do any more routing
         //If the wire stayed manual, then we need to also check the output port
         if checkManual newInputWire 
-        then manualOutput newInputWire newOutput model
+        then manualOutput newInputWire newOutput model diff
         else newInputWire
         
     else
@@ -1249,7 +1190,7 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
             if List.contains cId fullyConnectedWires //Translate wires that are connected to moving components on both sides
             then (cId, moveWire wire diff)
             elif List.contains cId connectedWires //Only route wires connected to ports that moved for efficiency
-            then (cId, updateWire model wire)
+            then (cId, updateWire model wire diff)
             else (cId, wire))
         |> Map.ofList
         

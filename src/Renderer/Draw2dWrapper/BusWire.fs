@@ -1045,8 +1045,18 @@ let init () =
     } , Cmd.none
 
 
-///
 let getConnectedWires (wModel : Model) (compIds : list<ComponentId>) =
+    let inputPorts, outputPorts = Symbol.getPortLocations wModel.Symbol compIds
+
+    wModel.WX
+    |> Map.toList
+    |> List.map snd
+    |> List.filter (fun wire -> Map.containsKey wire.InputPort inputPorts || Map.containsKey wire.OutputPort outputPorts)
+    |> List.map (fun wire -> wire.Id)
+    |> List.distinct
+
+///
+let filterWiresByCompMoved (wModel : Model) (compIds : list<ComponentId>) =
         let inputPorts, outputPorts = Symbol.getPortLocations wModel.Symbol compIds
         let lst = 
             wModel.WX
@@ -1193,7 +1203,7 @@ let updateWire (model : Model) (wire : Wire) (diff : XYPos) (inOut : bool) =
 ///Otherwise it will auto-route wires connected to components that have moved
 let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
 
-    let (inputWires, outputWires, fullyConnected) = getConnectedWires model compIdList
+    let (inputWires, outputWires, fullyConnected) = filterWiresByCompMoved model compIdList
 
     let newWires = 
         model.WX

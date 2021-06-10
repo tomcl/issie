@@ -1103,8 +1103,8 @@ let manualInput (wire : Wire) (newInput : XYPos) (model : Model) (diff : XYPos) 
     //If the component DOES NOT move before the last segment, keep manual routing
     //3. for tolerance - sometimes the port positions change in the system despite not being moved
     let i = List.length wire.Segments - 1
-
-    if newInput.X + 3. >= abs wire.Segments.[i-2].End.X 
+    
+    if newInput.X + 3. >= abs wire.Segments.[i-2].Start.X 
     then 
         let lastSeg = List.last wire.Segments
         let newLastSeg = 
@@ -1113,12 +1113,35 @@ let manualInput (wire : Wire) (newInput : XYPos) (model : Model) (diff : XYPos) 
                 End = {X = newInput.X; Y = newInput.Y}
             }
 
-        let midSeg = wire.Segments.[i-1]
-        let newMidSeg = {midSeg with End = {midSeg.End with Y = newInput.Y}}
+        let penultSeg = wire.Segments.[i-1]
+        let midSeg = wire.Segments.[i-2]
+        if penultSeg.End.Y > newInput.Y && wire.Segments.[1].End.X > newInput.X
+        then
+            let newPenultSeg = 
+                {penultSeg with 
+                    Start = {penultSeg.Start with Y = newInput.Y}
+                    End = {penultSeg.End with Y = newInput.Y}
+                }
         
-        {wire with
-            Segments = wire.Segments.[.. i-2] @ [newMidSeg; newLastSeg]
-        }
+            
+            let newMidSeg = 
+                {midSeg with 
+                    End = {midSeg.End with Y = newInput.Y}
+                }
+
+            {wire with
+                Segments = wire.Segments.[.. i-3] @ [newMidSeg; newPenultSeg; newLastSeg]
+            }
+        else
+            let newPenultSeg = 
+                {penultSeg with 
+                    End = {penultSeg.End with Y = newInput.Y}
+                }
+            {wire with
+                Segments = wire.Segments.[.. i-2] @ [newPenultSeg; newLastSeg]
+            }
+
+
 
     else autorouteWire model wire
 
@@ -1133,12 +1156,39 @@ let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) (diff : XYPos
                 Start = {X = newOutput.X; Y = newOutput.Y}
                 End = {wire.Segments.[0].End with Y = newOutput.Y}
             }
-        let midSeg = wire.Segments.[1]
-        let newMidSeg = {midSeg with Start = {midSeg.Start with Y = newOutput.Y}}
-           
-        {wire with
-            Segments = [newFirstSeg; newMidSeg] @ wire.Segments.[2..]
-        }
+        
+        let sndSeg = wire.Segments.[1]
+        let midSeg = wire.Segments.[2]
+
+        if sndSeg.Start.Y > newOutput.Y && (List.last wire.Segments).End.X < newOutput.X
+        then
+            let newSndSeg = 
+                {sndSeg with 
+                    Start = {sndSeg.Start with Y = newOutput.Y}
+                    End = {sndSeg.End with Y = newOutput.Y}
+                }
+        
+            
+            let newMidSeg = 
+                {midSeg with 
+                    Start = {midSeg.Start with Y = newOutput.Y}
+                }
+
+            {wire with
+                Segments = [newFirstSeg; newSndSeg; newMidSeg] @ wire.Segments.[3..]
+            }
+        else
+            let midSeg = wire.Segments.[1]
+            let newMidSeg = 
+                {midSeg with 
+                    Start = {midSeg.Start with Y = newOutput.Y}
+                }
+               
+            {wire with
+                Segments = [newFirstSeg; newMidSeg] @ wire.Segments.[2..]
+            }
+
+
     else autorouteWire model wire
 
 ///Returns the new positions keeping manual coordinates negative, and auto coordinates positive

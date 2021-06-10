@@ -774,14 +774,16 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
 /// segment and all other segments in the model, along with the HostId and
 /// the index of the horizontal intersecting segment inside Wire's Segment list.
 /// If no intersection exists then it returns an empty list.
-let segmentIntersectionCoordinatesWithAllOtherSegments (wModel : Model) (segment : Segment) : list<ConnectionId * SegmentId * ConnectionId * SegmentId * XYPos> = 
+let segmentIntersectionCoordinatesWithAllOtherSegments (wModel : Model) (segmentIn : Segment) : list<ConnectionId * SegmentId * ConnectionId * SegmentId * XYPos> = 
+    let segment = makeSegPos segmentIn
     wModel.WX
     |> Map.filter (fun wireId wire -> wireId <> segment.HostId)
     |> Map.toList
     |> List.collect (fun (wireId, wire) -> wire.Segments)
     |> List.filter
         (
-            fun seg ->
+            fun segIn ->
+                let seg = makeSegPos segIn
                 (seg.Dir <> segment.Dir) &&
                 (distanceBetweenTwoPoints (seg.Start) (seg.End) >= 0.1) &&
                 (wModel.WX.[seg.HostId].OutputPort <> wModel.WX.[segment.HostId].OutputPort) &&
@@ -789,7 +791,8 @@ let segmentIntersectionCoordinatesWithAllOtherSegments (wModel : Model) (segment
         )
     |> List.map
         (
-            fun seg ->
+            fun segIn ->
+                let seg = makeSegPos segIn
                 if (seg.Dir = Horizontal) then
                     seg.HostId,
                     seg.Id,
@@ -830,7 +833,7 @@ let segmentIntersectionCoordinatesWithAllOtherSegments (wModel : Model) (segment
                         |> List.tryFind (fun seg -> seg.Id = hSid)
                         |> function
                         | Some seg -> seg
-                        | None -> failwithf "Error in 808 couldnt find segId %A" hSid
+                        | None -> failwithf "Couldn't find segId %A in makejumps" hSid
                     let startX, endX = min horizontalSegment.Start.X horizontalSegment.End.X, max horizontalSegment.Start.X horizontalSegment.End.X
                     not ( ((startX + 5.0) > intersectCoords.X) || ((endX - 5.0) < intersectCoords.X) )
         )
@@ -849,8 +852,8 @@ let updateWireSegmentJumps (wireList : list<ConnectionId>) (wModel : Model) : Mo
         | [] -> wModel
 
         | firstElement :: tailList ->
-            let hWid, hSid, vWid, vSid, coord = firstElement
-
+            let hWid, hSid, vWid, vSid, coordIn = firstElement
+            let coord = getAbsXY coordIn
             let newWireSegments =
                 wModel.WX.[hWid].Segments
                 |> List.map
@@ -905,7 +908,9 @@ let updateWireSegmentJumps (wireList : list<ConnectionId>) (wModel : Model) : Mo
             let listOfSegmentIntersections =
                 wModel.WX.[firstElement].Segments
                 |> List.filter
-                    (fun seg -> distanceBetweenTwoPoints (seg.Start) (seg.End) >= 0.1)
+                    (fun segIn -> 
+                        let seg = makeSegPos segIn
+                        distanceBetweenTwoPoints (seg.Start) (seg.End) >= 0.1)
                 |> List.collect updateSegment
             
             let listOfNewIntersections =
@@ -1150,10 +1155,9 @@ let checkManual (wire : Wire) =
 ///determines the new manual wire routing for wires CONNECTED TO INPUT ports - i.e. The last wire segment(s)
 let manualInput (wire : Wire) (newInput : XYPos) (model : Model) =
     //If the component DOES NOT move before the last segment, keep manual routing
-    //3. for tolerance - sometimes the output positions change in the system despite not being moved
+    //3. for tolerance - sometimes the port positions change in the system despite not being moved
     if newInput.X + 3. >= abs (List.last wire.Segments).Start.X 
     then 
-        let i = List.length wire.Segments - 1
         let lastSeg = List.last wire.Segments
         let newLastSeg = 
             {lastSeg with
@@ -1161,6 +1165,7 @@ let manualInput (wire : Wire) (newInput : XYPos) (model : Model) =
                 End = {X = newInput.X; Y = newInput.Y}
             }
 
+        let i = List.length wire.Segments - 1
         let midSeg = wire.Segments.[i-1]
         let newMidSeg = {midSeg with End = {midSeg.End with Y = newInput.Y}}
         
@@ -1174,7 +1179,7 @@ let manualInput (wire : Wire) (newInput : XYPos) (model : Model) =
 ///determines the new manual wire routing for wires CONNECTED TO OUTPUT ports - i.e. The first wire segment(s)
 let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) = 
     //If the output port DOES NOT move beyond the first segment, keep manual routing
-    //3. for tolerance - sometimes the output positions change in the system despite not being moved
+    //3. for tolerance - sometimes the port positions change in the system despite not being moved
     if newOutput.X - 3. <= abs wire.Segments.[0].End.X  
     then 
         let newFirstSeg = 
@@ -1190,14 +1195,14 @@ let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) =
         }
     else autorouteWire model wire
 
-//Returns the new positions keeping manual coordinates negative, and auto coordinates positive
+///Returns the new positions keeping manual coordinates negative, and auto coordinates positive
 let negXYPos (pos : XYPos) (diff : XYPos) : XYPos =
     let newPos = Symbol.posAdd (getAbsXY pos) diff
     if pos.X < 0. || pos.Y < 0. then {X = - newPos.X; Y = - newPos.Y}
     else newPos
 
 
-//Moves a wire by a specified amount by adding a XYPos to each start and end point of each segment
+///Moves a wire by a specified amount by adding a XYPos to each start and end point of each segment
 let moveWire (wire : Wire) (diff : XYPos) =    
     {wire with 
         Segments = 
@@ -1229,8 +1234,9 @@ let updateWire (model : Model) (wire : Wire) =
 
 
 ///Re-routes the wires in the model based on a list of components that have been altered
+///If the wire input and output ports are both in the list of moved components, does not re-route wire but instead translates it
 ///Keeps manual wires manual (up to a point)
-///Otherwise it will auto-route wires
+///Otherwise it will auto-route wires connected to components that have moved
 let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
 
     let connectedWires = getConnectedWires model compIdList
@@ -1240,7 +1246,7 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
         model.WX
         |> Map.toList
         |> List.map (fun (cId, wire) -> 
-            if List.contains cId fullyConnectedWires //Do not route wires that are connected to moving components on both sides
+            if List.contains cId fullyConnectedWires //Translate wires that are connected to moving components on both sides
             then (cId, moveWire wire diff)
             elif List.contains cId connectedWires //Only route wires connected to ports that moved for efficiency
             then (cId, updateWire model wire)
@@ -1258,7 +1264,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         {model with Symbol=sm}, Cmd.map Symbol sCmd
 
 
-    | UpdateWires (componentIdList, diff)-> 
+    | UpdateWires (componentIdList, diff) -> 
         updateWires model componentIdList diff, Cmd.none
 
     | AddWire ( (inputId, outputId) : (InputPortId * OutputPortId) ) ->

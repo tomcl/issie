@@ -1044,7 +1044,7 @@ let init () =
         Notifications = None
     } , Cmd.none
 
-
+///Returns the wires connected to a list of components given by componentIds
 let getConnectedWires (wModel : Model) (compIds : list<ComponentId>) =
     let inputPorts, outputPorts = Symbol.getPortLocations wModel.Symbol compIds
 
@@ -1055,7 +1055,7 @@ let getConnectedWires (wModel : Model) (compIds : list<ComponentId>) =
     |> List.map (fun wire -> wire.Id)
     |> List.distinct
 
-///
+///Returns a tuple of: wires connected to inputs ONLY, wires connected to outputs ONLY, wires connected to both inputs and outputs
 let filterWiresByCompMoved (wModel : Model) (compIds : list<ComponentId>) =
         let inputPorts, outputPorts = Symbol.getPortLocations wModel.Symbol compIds
         let lst = 

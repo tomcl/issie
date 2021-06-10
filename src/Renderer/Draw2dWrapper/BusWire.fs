@@ -1107,29 +1107,17 @@ let manualInput (wire : Wire) (newInput : XYPos) (model : Model) (diff : XYPos) 
     if newInput.X + 3. >= abs wire.Segments.[i-2].End.X 
     then 
         let lastSeg = List.last wire.Segments
-        let x = lastSeg.Start.X + diff.X
         let newLastSeg = 
             {lastSeg with
-                Start = {X = x; Y = newInput.Y}
+                Start = {lastSeg.Start with Y = newInput.Y}
                 End = {X = newInput.X; Y = newInput.Y}
             }
 
+        let midSeg = wire.Segments.[i-1]
+        let newMidSeg = {midSeg with End = {midSeg.End with Y = newInput.Y}}
         
-        let penultSeg = wire.Segments.[i-1]
-        let newPenultSeg = 
-            {penultSeg with
-                Start = {penultSeg.Start with X = x}
-                End = {X = x; Y = newInput.Y}
-            }
-        
-        let midSeg = wire.Segments.[i-2]
-        let newMidSeg =
-            {midSeg with
-                End = {midSeg.End with X = - x}
-            }
-
         {wire with
-            Segments = wire.Segments.[.. i-3] @ [newMidSeg; newPenultSeg; newLastSeg]
+            Segments = wire.Segments.[.. i-2] @ [newMidSeg; newLastSeg]
         }
 
     else autorouteWire model wire
@@ -1140,29 +1128,16 @@ let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) (diff : XYPos
     //3. for tolerance - sometimes the port positions change in the system despite not being moved
     if newOutput.X - 3. <= abs wire.Segments.[1].End.X  
     then 
-        let firstSeg = wire.Segments.[0]
-        let x = firstSeg.End.X + diff.X
         let newFirstSeg = 
-            {firstSeg with 
+            {wire.Segments.[0] with 
                 Start = {X = newOutput.X; Y = newOutput.Y}
-                End = {X = x; Y = newOutput.Y}
+                End = {wire.Segments.[0].End with Y = newOutput.Y}
             }
-
-        let sndSeg = wire.Segments.[1]
-        let newSndSeg = 
-            {sndSeg with
-                Start = {X = x; Y = newOutput.Y}
-                End = {sndSeg.End with X = x}
-            }
-
-        let midSeg = wire.Segments.[2]
-        let newMidSeg = 
-            {midSeg with 
-                Start = {midSeg.Start with X = - x}
-            }
+        let midSeg = wire.Segments.[1]
+        let newMidSeg = {midSeg with Start = {midSeg.Start with Y = newOutput.Y}}
            
         {wire with
-            Segments = [newFirstSeg; newSndSeg; newMidSeg] @ wire.Segments.[3..]
+            Segments = [newFirstSeg; newMidSeg] @ wire.Segments.[2..]
         }
     else autorouteWire model wire
 

@@ -1046,25 +1046,32 @@ let init () =
 
 
 ///
-let getConnectedWires (wModel : Model) (compIds : list<ComponentId>) : list<ConnectionId> =
+let getConnectedWires (wModel : Model) (compIds : list<ComponentId>) =
         let inputPorts, outputPorts = Symbol.getPortLocations wModel.Symbol compIds
+        let lst = 
+            wModel.WX
+            |> Map.toList
+            |> List.map snd
 
-        wModel.WX
-        |> Map.toList
-        |> List.map snd
-        |> List.filter (fun wire -> Map.containsKey wire.InputPort inputPorts || Map.containsKey wire.OutputPort outputPorts)
-        |> List.map (fun wire -> wire.Id)
-        |> List.distinct
+        let inputWires =
+            lst
+            |> List.filter (fun wire -> Map.containsKey wire.InputPort inputPorts)
+            |> List.map (fun wire -> wire.Id)
+            |> List.distinct
 
-let isFullyConnected (wModel : Model) (compIds : list<ComponentId>) : list<ConnectionId> =
-    let inputPorts, outputPorts = Symbol.getPortLocations wModel.Symbol compIds
+        let outputWires =
+            lst
+            |> List.filter (fun wire -> Map.containsKey wire.OutputPort outputPorts)
+            |> List.map (fun wire -> wire.Id)
+            |> List.distinct
 
-    wModel.WX
-    |> Map.toList
-    |> List.map snd
-    |> List.filter (fun wire -> Map.containsKey wire.InputPort inputPorts && Map.containsKey wire.OutputPort outputPorts)
-    |> List.map (fun wire -> wire.Id)
-    |> List.distinct
+        let fullyConnected =
+            lst
+            |> List.filter (fun wire -> Map.containsKey wire.InputPort inputPorts && Map.containsKey wire.OutputPort outputPorts)
+            |> List.map (fun wire -> wire.Id)
+            |> List.distinct
+
+        (inputWires, outputWires, fullyConnected)
 
 //Returns a newly autorouted wire given a model and wire
 let autorouteWire (model : Model) (wire : Wire) : Wire =
@@ -1121,18 +1128,31 @@ let manualInput (wire : Wire) (newInput : XYPos) (model : Model) (diff : XYPos) 
 let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) (diff : XYPos) = 
     //If the output port DOES NOT move beyond the first segment, keep manual routing
     //3. for tolerance - sometimes the port positions change in the system despite not being moved
-    if newOutput.X - 3. <= abs wire.Segments.[0].End.X  
+    if newOutput.X - 3. <= abs wire.Segments.[1].End.X  
     then 
+        let firstSeg = wire.Segments.[0]
+        let x = firstSeg.End.X + diff.X
         let newFirstSeg = 
-            {wire.Segments.[0] with 
+            {firstSeg with 
                 Start = {X = newOutput.X; Y = newOutput.Y}
-                End = {wire.Segments.[0].End with Y = newOutput.Y}
+                End = {X = x; Y = newOutput.Y}
             }
-        let midSeg = wire.Segments.[1]
-        let newMidSeg = {midSeg with Start = {midSeg.Start with Y = newOutput.Y}}
+
+        let sndSeg = wire.Segments.[1]
+        let newSndSeg = 
+            {sndSeg with
+                Start = {X = x; Y = newOutput.Y}
+                End = {sndSeg.End with X = x}
+            }
+
+        let midSeg = wire.Segments.[2]
+        let newMidSeg = 
+            {midSeg with 
+                Start = {midSeg.Start with X = - x}
+            }
            
         {wire with
-            Segments = [newFirstSeg; newMidSeg] @ wire.Segments.[2..]
+            Segments = [newFirstSeg; newSndSeg; newMidSeg] @ wire.Segments.[3..]
         }
     else autorouteWire model wire
 
@@ -1156,19 +1176,12 @@ let moveWire (wire : Wire) (diff : XYPos) =
     }
 
 ///updateWire re-routes a single wire in the model
-let updateWire (model : Model) (wire : Wire) (diff : XYPos) =
-    let newInput = Symbol.getInputPortLocation model.Symbol wire.InputPort
-    let newOutput = Symbol.getOutputPortLocation model.Symbol wire.OutputPort
-
+let updateWire (model : Model) (wire : Wire) (diff : XYPos) (inOut : bool) =
     if checkManual wire 
     then
-        let newInputWire = manualInput wire newInput model diff
-        //If the new input routing caused the wire to autoroute, we do not need to do any more routing
-        //If the wire stayed manual, then we need to also check the output port
-        if checkManual newInputWire 
-        then manualOutput newInputWire newOutput model diff
-        else newInputWire
-        
+        //Only need to manual route when either input OR output port was moved, but not both.
+        if inOut then manualInput wire (Symbol.getInputPortLocation model.Symbol wire.InputPort) model diff
+        else manualOutput wire (Symbol.getOutputPortLocation model.Symbol wire.OutputPort) model diff        
     else
         autorouteWire model wire
 
@@ -1180,17 +1193,18 @@ let updateWire (model : Model) (wire : Wire) (diff : XYPos) =
 ///Otherwise it will auto-route wires connected to components that have moved
 let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
 
-    let connectedWires = getConnectedWires model compIdList
-    let fullyConnectedWires = isFullyConnected model compIdList
+    let (inputWires, outputWires, fullyConnected) = getConnectedWires model compIdList
 
     let newWires = 
         model.WX
         |> Map.toList
         |> List.map (fun (cId, wire) -> 
-            if List.contains cId fullyConnectedWires //Translate wires that are connected to moving components on both sides
+            if List.contains cId fullyConnected //Translate wires that are connected to moving components on both sides
             then (cId, moveWire wire diff)
-            elif List.contains cId connectedWires //Only route wires connected to ports that moved for efficiency
-            then (cId, updateWire model wire diff)
+            elif List.contains cId inputWires //Only route wires connected to ports that moved for efficiency
+            then (cId, updateWire model wire diff true)
+            elif List.contains cId outputWires
+            then (cId, updateWire model wire diff false)
             else (cId, wire))
         |> Map.ofList
         

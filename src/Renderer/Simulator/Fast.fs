@@ -633,6 +633,8 @@ let private createFastComponent (numSteps: int) (sComp: SimulationComponent) (ac
       FType = sComp.Type
       AccessPath = accessPath
       Touched = false
+      DrivenComponents = []
+      NumMissingInputValues = inPortNum
       InputLinks = ins
       InputDrivers = Array.create inPortNum None
       Outputs = outs
@@ -777,6 +779,7 @@ let private printGather (g: GatherData) =
 
 
 let rec private createInitFastCompPhase (numSteps: int) (g: GatherData) (f: FastSimulation) =
+    let start = getTimeMs()
     let makeFastComp cid =
         let comp, ap = g.AllComps.[cid]
         let fc = createFastComponent numSteps comp ap
@@ -808,7 +811,7 @@ let rec private createInitFastCompPhase (numSteps: int) (g: GatherData) (f: Fast
         |> Map.toList
         |> List.map (fun (a, b) -> b, a)
         |> Map.ofList
-
+    instrumentTime "createInitFastCompPhase" start
     { f with
           FComps = comps
           MaxStepNum = numSteps
@@ -828,6 +831,7 @@ let private reLinkIOLabels (fs: FastSimulation) =
         let fcActiveDriver = fs.FIOActive.[labKey]
         fcDriven.InputLinks.[ipn] <- fcActiveDriver.Outputs.[0]
         fcDriven.InputDrivers.[ipn] <- Some (fcActiveDriver.fId, OutputPortNumber 0)
+        fcActiveDriver.DrivenComponents <- fcDriven :: fcActiveDriver.DrivenComponents
         ioDriver.Outputs.[0] <- fcActiveDriver.Outputs.[0])
 
 /// Use the Outputs links from the original SimulationComponents in gather to link together the data arrays
@@ -838,6 +842,7 @@ let private reLinkIOLabels (fs: FastSimulation) =
 /// The custom component itself is not linked, and does not exist as a FastComponent. Instead its CustomSimulationGraph Input and Output components
 /// are linked to the components that connect the corresponding inputs and outputs of the custom component.
 let private linkFastComponents (g: GatherData) (f: FastSimulation) =
+    let start = getTimeMs()
     let outer = List.rev >> List.tail >> List.rev
     let sComps = g.AllComps
     let fComps = f.FComps
@@ -918,9 +923,11 @@ let private linkFastComponents (g: GatherData) (f: FastSimulation) =
                             else
                                 // if driver is not IO label make the link now
                                 fDriven.InputLinks.[ipn] <- fDriver.Outputs.[opn]
+                                fDriver.DrivenComponents <- fDriven :: fDriver.DrivenComponents
                                 fDriven.InputDrivers.[ipn] <- Some (fDriver.fId, OutputPortNumber opn)
                                 )))
     reLinkIOLabels f
+    instrumentTime "linkFastComponents" start
     f
 
 
@@ -987,7 +994,7 @@ let private printComps (step: int) (fs: FastSimulation) =
 /// Combinational components are ordered: clokced, constant, global input components are
 /// separated.
 let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : FastSimulation =
-
+    let startTime  = getTimeMs()
     let init fc = 
         fastReduce 0 0 fc
         fc.Touched <- true
@@ -1120,6 +1127,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
         (badComps.Length = 0)
         (sprintf "Components not linked: %A\n" (badComps |> List.map (fun fc -> fc.FullName)))
 #endif
+    instrumentTime "orderCombinationalComponents" startTime
 
     { fs with
           FOrderedComps = orderedComps |> Array.ofList |> Array.rev }
@@ -1127,6 +1135,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
 /// Check all the active FastComponents to ensure everything is valid
 /// Use data from initialisation to write any not-yet-written component output widths
 let checkAndValidate (fs:FastSimulation) =
+    let start = getTimeMs()
     let activeComps = 
         fs.FComps 
         |> mapValues
@@ -1163,6 +1172,7 @@ let checkAndValidate (fs:FastSimulation) =
                 fc.OutputWidth.[i] <- Some n
             | _ -> () // Ok in this case
         ))
+    instrumentTime "checkAndValidate" start
     fs
     
 
@@ -1175,7 +1185,9 @@ let checkAndValidate (fs:FastSimulation) =
 /// mutable arrays
 let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : FastSimulation =
     let gather =
+        let start = getTimeMs()
         gatherPhase [] numberOfSteps graph (emptyGather)
+        |> instrumentInterval "gatherPhase" start
     //printGather gather
     let fs =
         createInitFastCompPhase numberOfSteps gather (emptyFastSimulation ())

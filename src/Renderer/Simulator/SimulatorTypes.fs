@@ -448,7 +448,11 @@ type FastComponent = {
     SimComponent: SimulationComponent
     AccessPath: ComponentId list
     FullName: string
-    mutable Touched: bool
+    // these fields are used only to determine component ordering for correct evaluation
+    mutable Touched: bool // legacy field
+    mutable DrivenComponents: FastComponent list
+    mutable NumMissingInputValues: int
+    // these fields are used only by the Verilog output code
     mutable VerilogOutputName: string array
     mutable VerilogComponentName: string
 

@@ -703,6 +703,8 @@ let private createFastComponent (numSteps: int) (sComp: SimulationComponent) (ac
       FType = sComp.Type
       AccessPath = accessPath
       Touched = false
+      DrivenComponents = []
+      NumMissingInputValues = inPortNum
       InputLinks = ins
       InputDrivers = Array.create inPortNum None
       Outputs = outs
@@ -899,6 +901,7 @@ let private reLinkIOLabels (fs: FastSimulation) =
         let fcActiveDriver = fs.FIOActive.[labKey]
         fcDriven.InputLinks.[ipn] <- fcActiveDriver.Outputs.[0]
         fcDriven.InputDrivers.[ipn] <- Some (fcActiveDriver.fId, OutputPortNumber 0)
+        fcActiveDriver.DrivenComponents <- fcDriven :: fcActiveDriver.DrivenComponents
         ioDriver.Outputs.[0] <- fcActiveDriver.Outputs.[0])
 
 /// Use the Outputs links from the original SimulationComponents in gather to link together the data arrays
@@ -990,6 +993,7 @@ let private linkFastComponents (g: GatherData) (f: FastSimulation) =
                             else
                                 // if driver is not IO label make the link now
                                 fDriven.InputLinks.[ipn] <- fDriver.Outputs.[opn]
+                                fDriver.DrivenComponents <- fDriven :: fDriver.DrivenComponents
                                 fDriven.InputDrivers.[ipn] <- Some (fDriver.fId, OutputPortNumber opn)
                                 )))
     reLinkIOLabels f

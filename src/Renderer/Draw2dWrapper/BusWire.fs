@@ -8,6 +8,9 @@ open Elmish
 open Elmish.React
 open EEEHelpers
 
+//Static Vars
+let minSegLen = 5.
+
 //------------------------------------------------------------------------//
 //------------------------------BusWire Types-----------------------------//
 //------------------------------------------------------------------------//
@@ -564,15 +567,15 @@ let moveSegment (seg:Segment) (distance:float) (model:Model) =
     let newPrevEnd, newSegStart, newSegEnd, newNextStart = 
         match seg.Dir with
         | Vertical -> 
-            {prevSeg.End with X = - (prevSeg.End.X + distance)}, 
-            {seg.Start with X = - (seg.Start.X + distance)}, 
-            {seg.End with X = - (seg.End.X + distance)}, 
-            {nextSeg.Start with X = - (nextSeg.Start.X + distance)}
+            {prevSeg.End with X = - (abs prevSeg.End.X + distance)}, 
+            {seg.Start with X = - (abs seg.Start.X + distance)}, 
+            {seg.End with X = - (abs seg.End.X + distance)}, 
+            {nextSeg.Start with X = - (abs nextSeg.Start.X + distance)}
         | Horizontal -> 
-            {prevSeg.End with Y = - (prevSeg.End.Y + distance)}, 
-            {seg.Start with Y = - (seg.Start.Y + distance)}, 
-            {seg.End with Y = - (seg.End.Y + distance)}, 
-            {nextSeg.Start with Y = - (nextSeg.Start.Y + distance)}
+            {prevSeg.End with Y = - (abs prevSeg.End.Y + distance)}, 
+            {seg.Start with Y = - (abs seg.Start.Y + distance)}, 
+            {seg.End with Y = - (abs seg.End.Y + distance)}, 
+            {nextSeg.Start with Y = - (abs nextSeg.Start.Y + distance)}
 
     let newPrevSeg = {prevSeg with End = newPrevEnd}
     let newSeg = {seg with Start = newSegStart;End = newSegEnd}
@@ -1097,99 +1100,255 @@ let checkManual (wire : Wire) =
     |> function
     | Some _ -> true
     | None -> false
+
+///Returns the segment indicies which are manually routed by checking negativity
+let getManualIndx (wire : Wire) =
+    wire.Segments
+    |> List.indexed
+    |> List.filter (fun (_, x) -> getAbsXY x.Start <> x.Start && getAbsXY x.End <> x.End)
+    |> List.map fst
+
+///Divides an int by 2 and gives the floor of that result
+let div2Floor (i : int) =
+    float i / 2. |> floor
+
+///Calculates the position required based on an int indicating segment start/end, the sublength, and the origin position
+let newPos (i : int) (len : float) (origin : float) =
+    div2Floor i
+    |> (*) len 
+    |> (+) origin
     
 ///determines the new manual wire routing for wires CONNECTED TO INPUT ports - i.e. The last wire segment(s)
 let manualInput (wire : Wire) (newInput : XYPos) (model : Model) (diff : XYPos) =
-    //If the component DOES NOT move before the last segment, keep manual routing
-    //3. for tolerance - sometimes the port positions change in the system despite not being moved
-    let i = List.length wire.Segments - 1
     
-    if newInput.X + 3. >= abs wire.Segments.[i-2].Start.X 
-    then 
-        let lastSeg = List.last wire.Segments
-        let newLastSeg = 
-            {lastSeg with
-                Start = {lastSeg.Start with Y = newInput.Y}
-                End = {X = newInput.X; Y = newInput.Y}
+    let manualI = getManualIndx wire |> List.max
+    let closestManualSeg = wire.Segments.[manualI]
+    let denom = div2Floor (7 - manualI)
+    let len = abs (newInput.X - abs closestManualSeg.End.X)
+    let newAutoLenX = len / denom
+    let newX (i : int) = newPos i (-newAutoLenX) newInput.X
+
+    //Manually routed segments may expand/shrink in alignments (i.e. a horizontal segment may expand horizontally only)
+    let newManualSeg = 
+        match closestManualSeg.Dir with
+        | Vertical ->
+            {closestManualSeg with 
+                End = {closestManualSeg.End with Y = - newInput.Y}
+            }
+        | Horizontal ->
+            {closestManualSeg with 
+                End = {closestManualSeg.End with X = - newX (7 - manualI)}
             }
 
-        let penultSeg = wire.Segments.[i-1]
-        let midSeg = wire.Segments.[i-2]
-        if penultSeg.End.Y > newInput.Y && wire.Segments.[1].End.X > newInput.X
+    //if the output port is left of the input port
+    //this is the general case for manual routing
+    //everything not manual will be kept in Y-axis alignment with the output port
+    if wire.Segments.[0].Start.X < (List.last wire.Segments).End.X
+    then
+        //if the input port does not move before the first manual segment - the min length of number of segments between
+        //then keep manual routing
+        if newInput.X > abs closestManualSeg.Start.X + ((float manualI) * minSegLen) 
+        then 
+            let autoSegList = 
+                wire.Segments
+                |> List.indexed
+                |> List.filter (fun (i, _) -> i > manualI)
+                |> List.map (fun (idx, seg) ->  
+                    let i = (7 - idx)
+                    match seg.Dir with
+                    | Vertical when idx = manualI + 1 ->
+                        {seg with 
+                            End = {X = newX i; Y = newInput.Y}
+                            Start = {seg.Start with X = newX (i + 1)}}
+                    | Vertical ->
+                        {seg with 
+                            End = {X = newX i; Y = newInput.Y}
+                            Start = {X = newX (i + 1); Y = newInput.Y}}
+                    | _ ->
+                        {seg with 
+                            End = {X = newX i; Y = newInput.Y}
+                            Start = {X = newX (i + 1); Y = newInput.Y}}
+                    )
+               
+            {wire with
+                Segments = wire.Segments.[0..(manualI - 1)] @ [newManualSeg] @ autoSegList
+            }
+
+        else autorouteWire model wire
+                               
+    else    
+        //If the new position has become more right than the first semgnet, then autoroute, otherwise keep manual
+        if newInput.X < wire.Segments.[0].End.X
         then
-            let newPenultSeg = 
-                {penultSeg with 
-                    Start = {penultSeg.Start with Y = newInput.Y}
-                    End = {penultSeg.End with Y = newInput.Y}
-                }
-        
-            
-            let newMidSeg = 
-                {midSeg with 
-                    End = {midSeg.End with Y = newInput.Y}
-                }
+            //if the segment after input segment IS MANUALLY ROUTED
+            //this segment is always vertical, and we want only 1 segment before it to expand horizontally
+            if manualI = 4
+            //if the new position is greater than the x pos of the manually routed wire + min length of output seg
+            //then manually route only allowing the first seg to move in the X axis, otherwise autoroute
+            then 
+                if newInput.X > abs wire.Segments.[manualI].End.X + minSegLen
+                then
+                    let newFirstSeg = 
+                        {wire.Segments.[6] with 
+                            End = {X = newInput.X; Y = newInput.Y}
+                            Start = {X = newInput.X - newAutoLenX; Y = newInput.Y}
+                        }
+                    let newSndSeg = 
+                        {wire.Segments.[5] with 
+                            End = {X = newInput.X - newAutoLenX; Y = newInput.Y}
+                            Start = {X = -(newInput.X - newAutoLenX); Y = newManualSeg.Start.Y}}
+                    
+                    {wire with Segments = wire.Segments.[0..3] @ [newManualSeg; newSndSeg; newFirstSeg]}
+                else autorouteWire model wire
 
-            {wire with
-                Segments = wire.Segments.[.. i-3] @ [newMidSeg; newPenultSeg; newLastSeg]
-            }
-        else
-            let newPenultSeg = 
-                {penultSeg with 
-                    End = {penultSeg.End with Y = newInput.Y}
-                }
-            {wire with
-                Segments = wire.Segments.[.. i-2] @ [newPenultSeg; newLastSeg]
-            }
+            //If the second segment is not manually routed, but the third is, then we want both to expand horizontally
+            //until the new output goes more left than the segment connected to the input port, which resets to autorouting
+            //In this case the 'newAutoSeg' will be half the value necessary (as the 1st and 3rd segments will be parallel)
+            elif manualI = 3
+            then 
+                let newFirstSeg = 
+                    {wire.Segments.[6] with 
+                        End = {X = newInput.X; Y = newInput.Y}
+                        Start = {X = newInput.X - len; Y = newInput.Y}
+                    }
+                        
+                let newManualSeg2 =
+                    {closestManualSeg with 
+                        End = {closestManualSeg.Start with X = - (newInput.X - len)}}
+                
+                let newSndSeg = 
+                    {wire.Segments.[5] with 
+                        End = {X = newInput.X - len; Y = newInput.Y}
+                        Start = {X = newInput.X - len; Y = abs newManualSeg2.Start.Y}}
 
+                let newTrdSeg = 
+                    {wire.Segments.[4] with 
+                        End = {X = newInput.X - len; Y = newInput.Y}
+                        Start = {X = - (newInput.X - len); Y = newInput.Y}}
 
+                {wire with Segments = wire.Segments.[0..2] @ [newManualSeg; newTrdSeg; newSndSeg; newFirstSeg]}
 
-    else autorouteWire model wire
+            else autorouteWire model wire
+        else autorouteWire model wire 
 
 ///determines the new manual wire routing for wires CONNECTED TO OUTPUT ports - i.e. The first wire segment(s)
 let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) (diff : XYPos) = 
-    //If the output port DOES NOT move beyond the first segment, keep manual routing
-    //3. for tolerance - sometimes the port positions change in the system despite not being moved
-    if newOutput.X - 3. <= abs wire.Segments.[1].End.X  
-    then 
-        let newFirstSeg = 
-            {wire.Segments.[0] with 
-                Start = {X = newOutput.X; Y = newOutput.Y}
-                End = {wire.Segments.[0].End with Y = newOutput.Y}
-            }
-        
-        let sndSeg = wire.Segments.[1]
-        let midSeg = wire.Segments.[2]
+    
+    let manualI = getManualIndx wire |> List.min
+    let closestManualSeg = wire.Segments.[manualI]
+    let denom = div2Floor (manualI + 1)
+    let len = abs (abs closestManualSeg.Start.X - newOutput.X)
+    let newAutoLenX = len / denom
+    let newX (i : int) = newPos i newAutoLenX newOutput.X
 
-        if sndSeg.Start.Y > newOutput.Y && (List.last wire.Segments).End.X < newOutput.X
-        then
-            let newSndSeg = 
-                {sndSeg with 
-                    Start = {sndSeg.Start with Y = newOutput.Y}
-                    End = {sndSeg.End with Y = newOutput.Y}
-                }
-        
-            
-            let newMidSeg = 
-                {midSeg with 
-                    Start = {midSeg.Start with Y = newOutput.Y}
-                }
-
-            {wire with
-                Segments = [newFirstSeg; newSndSeg; newMidSeg] @ wire.Segments.[3..]
+    //Manually routed segments may expand/shrink in alignments (i.e. a horizontal segment may expand horizontally only)
+    let newManualSeg = 
+        match closestManualSeg.Dir with
+        | Vertical ->
+            {closestManualSeg with 
+                Start = {closestManualSeg.Start with Y = - newOutput.Y}
             }
-        else
-            let midSeg = wire.Segments.[1]
-            let newMidSeg = 
-                {midSeg with 
-                    Start = {midSeg.Start with Y = newOutput.Y}
-                }
+        | Horizontal ->
+            {closestManualSeg with 
+                Start = {closestManualSeg.Start with X = - newX manualI}
+            }
+
+    //if the output port is left of the input port
+    //this is the general case for manual routing
+    //everything not manual will be kept in Y-axis alignment with the output port
+    if wire.Segments.[0].Start.X < (List.last wire.Segments).End.X
+    then
+        //if the output port does not move beyond the first manual segment - the min length of number of segments between
+        //then keep manual routing
+        if newOutput.X < abs closestManualSeg.Start.X - ((float manualI) * minSegLen) 
+        then 
+            let autoSegList = 
+                wire.Segments
+                |> List.indexed
+                |> List.filter (fun (i, _) -> i < manualI)
+                |> List.map (fun (idx, seg) ->  
+                    let i = idx + 1
+                    match seg.Dir with
+                    | Vertical when idx = manualI - 1 ->
+                        {seg with 
+                            Start = {X = newX i; Y = newOutput.Y}
+                            End = {seg.End with X = newX (i + 1)}}
+                    | Vertical ->
+                        {seg with 
+                            Start = {X = newX i; Y = newOutput.Y}
+                            End = {X = newX (i + 1); Y = newOutput.Y}}
+                    | _ ->
+                        {seg with 
+                            Start = {X = newX i; Y = newOutput.Y}
+                            End = {X = newX (i + 1); Y = newOutput.Y}}
+                    )
+
+            let finalI = List.length autoSegList |> (+) 1
                
             {wire with
-                Segments = [newFirstSeg; newMidSeg] @ wire.Segments.[2..]
+                Segments = autoSegList @ [newManualSeg] @ wire.Segments.[finalI..]
             }
 
+        else autorouteWire model wire
+                               
+    else    
+        //If the new position has become more left than the last semgnet, then autoroute, otherwise keep manual
+        if newOutput.X > (List.last wire.Segments).Start.X
+        then
+            //if the segment after output segment IS MANUALLY ROUTED
+            //this segment is always vertical, and we want only 1 segment before it to expand horizontally
+            if manualI = 2
+            //if the new position is greater than the x pos of the manually routed wire + min length of output seg
+            //then manually route only allowing the first seg to move in the X axis, otherwise autoroute
+            then 
+                if newOutput.X < abs wire.Segments.[manualI].Start.X - minSegLen
+                then
+                    let newFirstSeg = 
+                        {wire.Segments.[0] with 
+                            Start = {X = newOutput.X; Y = newOutput.Y}
+                            End = {X = newOutput.X + newAutoLenX; Y = newOutput.Y}
+                        }
+                    let newSndSeg = 
+                        {wire.Segments.[1] with 
+                            Start = {X = newOutput.X + newAutoLenX; Y = newOutput.Y}
+                            End = {X = -(newOutput.X + newAutoLenX); Y = newManualSeg.Start.Y}}
+                    
+                    {wire with
+                        Segments = [newFirstSeg; newSndSeg; newManualSeg] @ wire.Segments.[3..]}
 
-    else autorouteWire model wire
+                else autorouteWire model wire
+
+            //If the second segment is not manually routed, but the third is, then we want both to expand horizontally
+            //until the new output goes more left than the segment connected to the input port, which resets to autorouting
+            //In this case the 'newAutoSeg' will be half the value necessary (as the 1st and 3rd segments will be parallel)
+            elif manualI = 3
+            then 
+                let newFirstSeg = 
+                    {wire.Segments.[0] with 
+                        Start = {X = newOutput.X; Y = newOutput.Y}
+                        End = {X = newOutput.X + len; Y = newOutput.Y}
+                    }
+                        
+                let newManualSeg2 =
+                    {closestManualSeg with 
+                        Start = {closestManualSeg.Start with X = - (newOutput.X + len)}}
+                
+                let newSndSeg = 
+                    {wire.Segments.[1] with 
+                        Start = {X = newOutput.X + len; Y = newOutput.Y}
+                        End = {X = newOutput.X + len; Y = abs newManualSeg2.Start.Y}}
+
+                let newTrdSeg = 
+                    {wire.Segments.[2] with 
+                        Start = {X = newOutput.X + len; Y = newOutput.Y}
+                        End = {X = - (newOutput.X + len); Y = newOutput.Y}}
+
+                {wire with
+                    Segments = [newFirstSeg; newSndSeg; newTrdSeg; newManualSeg2] @ wire.Segments.[4..]}
+
+            else autorouteWire model wire
+        else autorouteWire model wire 
+
 
 ///Returns the new positions keeping manual coordinates negative, and auto coordinates positive
 let negXYPos (pos : XYPos) (diff : XYPos) : XYPos =
@@ -1359,8 +1518,8 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             if seg.Draggable then
                 let distanceToMove = 
                     match seg.Dir with
-                    | Horizontal -> mMsg.Pos.Y - seg.Start.Y
-                    | Vertical -> mMsg.Pos.X - seg.Start.X
+                    | Horizontal -> mMsg.Pos.Y - abs seg.Start.Y
+                    | Vertical -> mMsg.Pos.X - abs seg.Start.X
 
                 let newWire = moveSegment seg distanceToMove model
                 let newWX = Map.add seg.HostId newWire model.WX

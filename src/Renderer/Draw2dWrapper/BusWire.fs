@@ -567,21 +567,23 @@ let moveSegment (seg:Segment) (distance:float) (model:Model) =
     let newPrevEnd, newSegStart, newSegEnd, newNextStart = 
         match seg.Dir with
         | Vertical -> 
-            {prevSeg.End with X = - (abs prevSeg.End.X + distance)}, 
+            {prevSeg.End with X = - (abs seg.Start.X + distance)}, 
             {seg.Start with X = - (abs seg.Start.X + distance)}, 
             {seg.End with X = - (abs seg.End.X + distance)}, 
-            {nextSeg.Start with X = - (abs nextSeg.Start.X + distance)}
+            {nextSeg.Start with X = - (abs seg.End.X + distance)}
         | Horizontal -> 
-            {prevSeg.End with Y = - (abs prevSeg.End.Y + distance)}, 
+            {prevSeg.End with Y = - (abs seg.Start.Y + distance)}, 
             {seg.Start with Y = - (abs seg.Start.Y + distance)}, 
             {seg.End with Y = - (abs seg.End.Y + distance)}, 
-            {nextSeg.Start with Y = - (abs nextSeg.Start.Y + distance)}
+            {nextSeg.Start with Y = - (abs seg.End.Y + distance)}
 
     let newPrevSeg = {prevSeg with End = newPrevEnd}
     let newSeg = {seg with Start = newSegStart;End = newSegEnd}
     let newNextSeg = {nextSeg with Start = newNextStart}
 
     let newSegments = wire.Segments.[.. index-2] @ [newPrevSeg; newSeg; newNextSeg] @ wire.Segments.[index+2 ..]
+    
+    printf "debug newsegments = %A" newSegments
     {wire with Segments = newSegments}
 
 ///
@@ -1219,12 +1221,12 @@ let manualInput (wire : Wire) (newInput : XYPos) (model : Model) (diff : XYPos) 
                 let newSndSeg = 
                     {wire.Segments.[5] with 
                         End = {X = newInput.X - len; Y = newInput.Y}
-                        Start = {X = newInput.X - len; Y = abs newManualSeg2.Start.Y}}
+                        Start = {X = newInput.X - len; Y = newInput.Y}}
 
                 let newTrdSeg = 
                     {wire.Segments.[4] with 
                         End = {X = newInput.X - len; Y = newInput.Y}
-                        Start = {X = - (newInput.X - len); Y = newInput.Y}}
+                        Start = {X = - (newInput.X - len); Y = abs newManualSeg2.Start.Y}}
 
                 {wire with Segments = wire.Segments.[0..2] @ [newManualSeg; newTrdSeg; newSndSeg; newFirstSeg]}
 
@@ -1336,12 +1338,12 @@ let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) (diff : XYPos
                 let newSndSeg = 
                     {wire.Segments.[1] with 
                         Start = {X = newOutput.X + len; Y = newOutput.Y}
-                        End = {X = newOutput.X + len; Y = abs newManualSeg2.Start.Y}}
+                        End = {X = newOutput.X + len; Y = newOutput.Y}}
 
                 let newTrdSeg = 
                     {wire.Segments.[2] with 
                         Start = {X = newOutput.X + len; Y = newOutput.Y}
-                        End = {X = - (newOutput.X + len); Y = newOutput.Y}}
+                        End = {X = - (newOutput.X + len); Y = - abs newManualSeg2.Start.Y}}
 
                 {wire with
                     Segments = [newFirstSeg; newSndSeg; newTrdSeg; newManualSeg2] @ wire.Segments.[4..]}

@@ -216,27 +216,27 @@ let makeInitialWireVerticesList (portCoords : XYPos * XYPos) : list<XYPos * XYPo
 
     let list1 = 
         [
-            ({X = xs; Y = ys}, {X = xs+20.0; Y = ys});
-            ({X = xs+20.0; Y = ys}, {X = xs+20.0; Y = ys});
-            ({X = xs+20.0; Y = ys}, {X = (xs+Xt)/2.0; Y = ys});
+            ({X = xs; Y = ys}, {X = xs+10.0; Y = ys});
+            ({X = xs+10.0; Y = ys}, {X = xs+10.0; Y = ys});
+            ({X = xs+10.0; Y = ys}, {X = (xs+Xt)/2.0; Y = ys});
             ({X = (xs+Xt)/2.0; Y = ys}, {X = (xs+Xt)/2.0; Y = Yt});
-            ({X = (xs+Xt)/2.0; Y = Yt}, {X = Xt-20.0; Y = Yt});
-            ({X = Xt-20.0; Y = Yt}, {X = Xt-20.0; Y = Yt});
-            ({X = Xt-20.0; Y = Yt}, {X = Xt; Y = Yt})
+            ({X = (xs+Xt)/2.0; Y = Yt}, {X = Xt-10.0; Y = Yt});
+            ({X = Xt-10.0; Y = Yt}, {X = Xt-10.0; Y = Yt});
+            ({X = Xt-10.0; Y = Yt}, {X = Xt; Y = Yt})
         ]
     
     let list2 =
         [
-            ({X = xs; Y = ys}, {X = xs+20.0; Y = ys});
-            ({X = xs+20.0; Y = ys}, {X = xs+20.0; Y = ys});
-            ({X = xs+20.0; Y = ys}, {X = xs+20.0; Y = (ys+Yt)/2.0});
-            ({X = xs+20.0; Y = (ys+Yt)/2.0}, {X = Xt-20.0; Y = (ys+Yt)/2.0});
-            ({X = Xt-20.0; Y = (ys+Yt)/2.0}, {X = Xt-20.0; Y = Yt});
-            ({X = Xt-20.0; Y = Yt}, {X = Xt-20.0; Y = Yt});
-            ({X = Xt-20.0; Y = Yt}, {X = Xt; Y = Yt})
+            ({X = xs; Y = ys}, {X = xs+10.0; Y = ys});
+            ({X = xs+10.0; Y = ys}, {X = xs+10.0; Y = ys});
+            ({X = xs+10.0; Y = ys}, {X = xs+10.0; Y = (ys+Yt)/2.0});
+            ({X = xs+10.0; Y = (ys+Yt)/2.0}, {X = Xt-10.0; Y = (ys+Yt)/2.0});
+            ({X = Xt-10.0; Y = (ys+Yt)/2.0}, {X = Xt-10.0; Y = Yt});
+            ({X = Xt-10.0; Y = Yt}, {X = Xt-10.0; Y = Yt});
+            ({X = Xt-10.0; Y = Yt}, {X = Xt; Y = Yt})
         ]
 
-    if (xs-Xt) < (-40.0) then list1
+    if (xs-Xt) < (-20.0) then list1
     else list2
 
 /// Given the coordinates of two port locations that correspond
@@ -289,7 +289,7 @@ let updateSegmentsList (model:Model) (hostId : ConnectionId) (portCoords : XYPos
                     if i = 0 || i = lastSegIndex then
                         Horizontal
                     else 
-                        if (startX - endX) > 40.0 then
+                        if (startX - endX) > 20.0 then
                             if i%2=0 then Horizontal else Vertical
                         else
                             if i%2=0 then Vertical else Horizontal;

@@ -582,8 +582,6 @@ let moveSegment (seg:Segment) (distance:float) (model:Model) =
     let newNextSeg = {nextSeg with Start = newNextStart}
 
     let newSegments = wire.Segments.[.. index-2] @ [newPrevSeg; newSeg; newNextSeg] @ wire.Segments.[index+2 ..]
-    
-    printf "debug newsegments = %A" newSegments
     {wire with Segments = newSegments}
 
 ///

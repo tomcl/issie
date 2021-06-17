@@ -230,7 +230,7 @@ let displayView model dispatch =
 //          dispatch SelectionHasChanged);
 //          OnMouseDown (makeSelectionChangeMsg model dispatch)
           OnMouseMove processMouseMove
-          Style [ BorderTop "2px solid lightgray"; BorderBottom "2px solid lightgray" ] ] [
+          Style [ BorderTop "2px solid lightgray"; BorderBottom "2px solid lightgray"; Cursor (match model.Sheet.CursorType with | Sheet.Spinner -> "wait" |_ -> "")] ] [
         // transient
         FileMenuView.viewNoProjectMenu model dispatch
         

@@ -630,12 +630,16 @@ let private waveEditorButtons (model: Model) (wSModel:WaveSimModel) dispatch =
             [ 
                 Button.Color IsSuccess
                 Button.IsLoading (showSimulationLoading wSModel dispatch)
-                Button.OnClick(fun _ -> 
-                    dispatch (StartUICmd ViewWaveSim)
-                    dispatch ClosePropertiesNotification
-                    let par' = {wSModel.SimParams with DispNames = viewableWaves }            
-                    dispatch <|  InitiateWaveSimulation( WSViewerOpen, par'))
-
+                Button.OnClick(fun _ ->
+                    let par' = {wSModel.SimParams with DispNames = viewableWaves }
+                    let msgs = 
+                        [
+                         (StartUICmd ViewWaveSim)
+                         ClosePropertiesNotification
+                         (InitiateWaveSimulation( WSViewerOpen, par'))
+                        ]
+                    dispatch (Sheet (Sheet.SetSpinner true))
+                    dispatch <| SendSeqMsgAsynch msgs)
             ]
         |> (fun lst -> 
                 Button.Props [ Style [ MarginLeft "10px" ] ] :: lst)

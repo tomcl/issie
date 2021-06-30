@@ -6,6 +6,8 @@ The application is was initially developed by Marco Selvatici, as a Final Year P
 
 The interactive waveform simulator was developed by Edoardo Santi over a Summer UROP.
 
+The new draw block was taken from the HLP 2021 Team 4 and improved upon by Joanna Merrick as a Final Year Project 
+
 It is currently being maintained and developed by Tom Clarke (owner). 
 
 If you are just interested in using the application, jump to the [Getting Started](#getting-started) section. For more info about the project, read on.
@@ -14,7 +16,7 @@ This documentation is partly based on the excellent [VisUAL2](https://github.com
 
 ## Introduction
 
-For the Issie website go [here](https://tomcl.github.io/issie/).
+For the Issie website go [here](https://tomcl.github.io/issie/). The website is written in HTML and styled with CSS.
 
 The application is mostly written in F#, which gets transpiled to JavaScript via the [Fable](https://fable.io/) compiler. [Electron](https://www.electronjs.org/) is then used to convert the developed web-app to a cross-platform application. [Electron](electronjs.org) provides access to platform-level APIs (such as access to the file system) which would not be available to vanilla browser web-apps.
 

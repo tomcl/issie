@@ -413,10 +413,13 @@ let update (msg : Msg) oldModel =
     | ExecCmdAsynch cmd ->
         let cmd' = 
             Elmish.Cmd.OfAsyncImmediate.result (async { 
-                do! (Async.Sleep 0)
+            //wavesim - 0 sleep will never update cursor in time, 100 will SOMETIMES be enough, 300 always works
+            //this number only seems to affect the wavesim spinner cursor, it does not help with open project/change sheet spinner cursor
+                do! (Async.Sleep 300) 
                 return (ExecCmd cmd)})
         model, cmd'
-
+    | SendSeqMsgAsynch msgs ->
+        model, SimulationView.doBatchOfMsgsAsynch msgs
     | MenuAction(act,dispatch) ->
         getMenuView act model dispatch, Cmd.none
     | DiagramMouseEvent -> model, Cmd.none
@@ -429,7 +432,8 @@ let update (msg : Msg) oldModel =
     | SetWaveSimIsOutOfDate b -> 
         changeSimulationIsStale b model, Cmd.none
     | SetIsLoading b ->
-        {model with IsLoading = b}, Cmd.none
+        let cmd = if b then Cmd.none else Cmd.ofMsg (Sheet (Sheet.SetSpinner false)) //Turn off spinner after project/sheet is loaded
+        {model with IsLoading = b}, cmd
     | InitiateWaveSimulation (view, paras)  -> 
         updateCurrentWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.ofMsg FinishUICmd
     //TODO
@@ -447,7 +451,9 @@ let update (msg : Msg) oldModel =
                 |> setEditorView nView
             model
             |> setWSMod wsMod'
-            |> (fun model -> {model with CheckWaveformScrollPosition=checkCursor}, Cmd.none)
+            |> (fun model -> 
+                {model with CheckWaveformScrollPosition=checkCursor}, 
+                Cmd.ofMsg (Sheet(Sheet.SetSpinner false))) //turn off spinner after wavesim is loaded
         | Some _, None -> 
             // This case may happen if WaveSimulateNow commands are stacked up due to 
             // repeated view function calls before the WaveSimNow trigger message is processed

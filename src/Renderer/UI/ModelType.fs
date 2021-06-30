@@ -332,6 +332,7 @@ type Msg =
     | FinishUICmd
     | ExecCmd of Elmish.Cmd<Msg>
     | ExecCmdAsynch of Elmish.Cmd<Msg>
+    | SendSeqMsgAsynch of seq<Msg>
 
 
 //================================//

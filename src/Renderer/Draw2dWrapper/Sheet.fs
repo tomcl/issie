@@ -65,12 +65,14 @@ type CursorType =
     | Default
     | ClickablePort
     | NoCursor
+    | Spinner
 with
     member this.Text() = 
         match this with
         | Default -> "default"
         | ClickablePort -> "move"
         | NoCursor -> "none"
+        | Spinner -> "wait"
 
 /// Keeps track of coordinates of visual snap-to-grid indicators.
 type SnapIndicator =
@@ -107,6 +109,7 @@ type Msg =
     | SetWaveSimMode of bool
     | ToggleNet of CanvasState //This message does nothing in sheet, but will be picked up by the update function
     | SelectWires of ConnectionId list
+    | SetSpinner of bool
 
 
 // ------------------ Helper Functions that need to be before the Model type --------------------------- //
@@ -515,7 +518,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                     Cmd.ofMsg (UpdateSingleBoundingBox model.SelectedComponents.Head) 
                     symbolCmd (Symbol.ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
                     Cmd.ofMsg CheckAutomaticScrolling 
-                    wireCmd (BusWire.UpdateWires model.SelectedComponents)]
+                    wireCmd (BusWire.UpdateWires (model.SelectedComponents, posDiff mMsg.Pos model.LastMousePos))]
     | _ -> // Moving multiple symbols -> don't do snap-to-grid
         let errorComponents = 
             model.SelectedComponents
@@ -526,7 +529,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                     symbolCmd (Symbol.ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
                     Cmd.ofMsg UpdateBoundingBoxes
                     Cmd.ofMsg CheckAutomaticScrolling 
-                    wireCmd (BusWire.UpdateWires model.SelectedComponents)]
+                    wireCmd (BusWire.UpdateWires (model.SelectedComponents, posDiff mMsg.Pos model.LastMousePos))]
         
 // ----------------------------------------- Mouse Update Helper Functions ----------------------------------------- //
 // (Kept in separate functions since Update function got too long otherwise)
@@ -742,7 +745,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
                 AutomaticScrolling = false }, 
             Cmd.batch [ symbolCmd (Symbol.MoveSymbols (model.SelectedComponents, (posDiff model.LastValidPos mMsg.Pos)))
                         symbolCmd (Symbol.SelectSymbols (model.SelectedComponents))
-                        wireCmd (BusWire.UpdateWires model.SelectedComponents)
+                        wireCmd (BusWire.UpdateWires (model.SelectedComponents, posDiff model.LastValidPos mMsg.Pos))
                         wireCmd (BusWire.MakeJumps movingWires) ]
     | ConnectingInput inputPortId ->
         let cmd, undoList ,redoList =
@@ -781,9 +784,12 @@ let mMoveUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
         let nearbyComponents = findNearbyComponents model mMsg.Pos // TODO Group Stage: Make this more efficient, update less often etc, make a counter?
         
         let newCursor =
-            match mouseOn { model with NearbyComponents = nearbyComponents } mMsg.Pos with // model.NearbyComponents can be outdated e.g. if symbols have been deleted -> send with updated nearbyComponents.
-            | InputPort _ | OutputPort _ -> ClickablePort // Change cursor if on port
-            | _ -> Default
+            match model.CursorType with
+            | Spinner -> Spinner
+            | _ ->
+                match mouseOn { model with NearbyComponents = nearbyComponents } mMsg.Pos with // model.NearbyComponents can be outdated e.g. if symbols have been deleted -> send with updated nearbyComponents.
+                | InputPort _ | OutputPort _ -> ClickablePort // Change cursor if on port
+                | _ -> Default
             
         { model with NearbyComponents = nearbyComponents; CursorType = newCursor; LastMousePos = mMsg.Pos; ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement} },
         symbolCmd (Symbol.ShowPorts nearbyComponents) // Show Ports of nearbyComponents
@@ -1028,7 +1034,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             LastMousePos = { X = 0.0; Y = 0.0 }
             Snap = { XSnap = None; YSnap = None}
             SnapIndicator = { XLine = None; YLine = None }
-            CursorType = Default
             //ScrollPos = { X = 0.0; Y = 0.0 } Fix for scroll bug on changing sheets
             LastValidPos = { X = 0.0; Y = 0.0 }
             CurrentKeyPresses = Set.empty
@@ -1071,6 +1076,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             else
                 List.append cIds model.PrevWireSelection
         {model with SelectedWires = newWires}, Cmd.batch[Cmd.ofMsg (ColourSelection([], newWires, HighLightColor.Blue)); wireCmd (BusWire.SelectWires newWires)]
+    | SetSpinner isOn ->
+        if isOn then {model with CursorType = Spinner}, Cmd.none
+        else {model with CursorType = Default}, Cmd.none
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
 
 

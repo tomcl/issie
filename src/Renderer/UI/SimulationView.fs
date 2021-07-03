@@ -400,6 +400,7 @@ let simulationClockChangeAction dispatch simData (dialog:PopupDialogData) =
     let chunkTime = min 2000. (estimatedTime / 5.)
     let chunk = int <| float steps * chunkTime / estimatedTime
     if steps > 2*initChunk && estimatedTime > 500. then 
+        printfn "test1"
         dispatch <| SetPopupProgress 
             (Some {
                 Speed = float (numComps * steps) / estimatedTime
@@ -422,7 +423,8 @@ let simulationClockChangeAction dispatch simData (dialog:PopupDialogData) =
         |> ExecCmdAsynch
         |> dispatch
     else
-        Fast.runFastSimulation (clock - simData.ClockTickNumber) simData.FastSim 
+        Fast.runFastSimulation clock simData.FastSim 
+        printfn $"test2 clock={clock}, clokcticknumber= {simData.ClockTickNumber}, {simData.FastSim.ClockTick}"
         [
             SetSimulationGraph(simData.Graph, simData.FastSim)
             IncrementSimulationClockTick (clock - simData.ClockTickNumber)

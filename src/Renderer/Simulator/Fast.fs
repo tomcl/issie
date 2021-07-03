@@ -593,7 +593,8 @@ let private getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     wa
 
 
-
+/// create a FastComponent data structure with data arrays from a SimulationComponent.
+/// numSteps is the number of past clocks data kept - arrays are managed as circular buffers.
 let private createFastComponent (numSteps: int) (sComp: SimulationComponent) (accessPath: ComponentId list) =
     let inPortNum, outPortNum = getPortNumbers sComp
     // dummy arrays wil be replaced by real ones when components are linked after being created
@@ -647,6 +648,7 @@ let private createFastComponent (numSteps: int) (sComp: SimulationComponent) (ac
           | _ -> true }
 
 /// extends the simulation data arrays of the component to allow more steps
+/// No longer used now arrays are circular?
 let private extendFastComponent (numSteps: int) (fc: FastComponent) =
     let oldNumSteps = fc.Outputs.[0].Step.Length
 
@@ -702,81 +704,111 @@ let private extendFastSimulation (numSteps: int) (fs: FastSimulation) =
 /// Create an initial gatherdata object with inputs, non-ordered components, simulationgraph, etc
 /// This must explore graph recursively extracting all the initial information.
 /// Custom components are scanned and links added, one for each input and output
-let rec private gatherPhase (ap: ComponentId list) (numSteps: int) (graph: SimulationGraph) (gather: GatherData) : GatherData =
-    (gather, graph)
-    ||> Map.fold
-            (fun gather cid comp ->
-                // add this component
-                let gather =
-                    { gather with
-                          AllComps = Map.add (cid, ap) (comp, ap) gather.AllComps
-                          Labels = Map.add cid ((fun (ComponentLabel s) -> s) comp.Label) gather.Labels
-                    }
-                match comp.Type, comp.CustomSimulationGraph, ap with
-                | Custom ct, Some csg, _ ->
-                    let ap' = ap @ [ cid ]
-                    let allComps = Map.toList csg |> List.map snd
-                    /// Function making links to custom component input or output components
-                    /// For those component types selected by compSelectFun (inputs or ouputs):
-                    /// Link label and width (which will also be the custom comp port label and width)
-                    /// to the Id of the relevant Input or output component.
-                    let getCustomNameIdsOf compSelectFun =
-                        allComps
-                        |> List.filter (fun comp -> compSelectFun comp.Type)
-                        |> List.map
-                            (fun comp ->
-                                (comp.Label,
-                                 match comp.Type with
-                                 | Input n -> n
-                                 | Output n -> n
-                                 | _ -> -1),
-                                comp.Id)
-                        |> Map.ofList
+let rec private flattenPhase (ap: ComponentId list) (graph: SimulationGraph) =
+    let graphL = Map.toList graph
+    let allComps = 
+        graphL
+        |> List.map (fun (cid,comp) ->  (cid, ap),(comp, ap))
+    let labels = List.map (fun (cid,comp) -> cid, ((fun (ComponentLabel s) -> s) comp.Label)) graphL
+    let topGather =
+        {
+            Labels = labels
+            AllCompsT = allComps
+            CustomInputCompLinksT = []
+            CustomOutputCompLinksT = []
+        }
+    let customComps = 
+        graphL
+        |> List.collect ( fun (cid,comp) -> 
+            match comp.Type, comp.CustomSimulationGraph with 
+            | Custom ct, Some csg -> [cid, ct, csg] 
+            | _ -> [])
+    let insideCustomGathers = 
+        customComps
+        |> List.map (fun  (cid, ct, csg) ->
+                let ap' = ap @ [ cid ]
+                let gatherT = flattenPhase ap' csg
+                let compsInCustomComp = Map.toList csg |> List.map snd
+                /// Function making links to custom component input or output components
+                /// For those component types selected by compSelectFun (inputs or ouputs):
+                /// Link label and width (which will also be the custom comp port label and width)
+                /// to the Id of the relevant Input or output component.
+                let getCustomNameIdsOf compSelectFun =
+                    compsInCustomComp
+                    |> List.filter (fun comp -> compSelectFun comp.Type)
+                    |> List.map
+                        (fun comp ->
+                            (comp.Label,
+                                match comp.Type with
+                                | Input n -> n
+                                | Output n -> n
+                                | _ -> -1),
+                            comp.Id)
 
-                    let outputs = getCustomNameIdsOf isOutput
-                    /// maps Output component Id to corresponding Custom component Id & output port
-                    let outLinks =
-                        ct.OutputLabels
-                        |> List.mapi
-                            (fun i (lab, labOutWidth) ->
-                                (outputs.[ComponentLabel lab, labOutWidth], ap'), ((cid, ap), OutputPortNumber i))
-                        |> Map.ofList
+                let outputs = getCustomNameIdsOf isOutput
+                /// maps Output component Id to corresponding Custom component Id & output port
+                let outLinks =
+                    ct.OutputLabels
+                    |> List.mapi
+                        (fun i (lab, labOutWidth) ->
+                            let out = 
+                                List.find (fun (k,v) -> k = (ComponentLabel lab, labOutWidth)) outputs
+                                |> snd
+                            (out, ap'), ((cid, ap), OutputPortNumber i))
 
-                    let inputs = getCustomNameIdsOf isInput
-                    /// maps Custom Component Id and input port number to corresponding Input Component Id
-                    let inLinks =
-                        ct.InputLabels
-                        |> List.mapi
-                            (fun i (lab, labOutWidth) ->
-                                (((cid, ap), InputPortNumber i), (inputs.[ComponentLabel lab, labOutWidth], ap')))
-                        |> Map.ofList
+                let inputs = getCustomNameIdsOf isInput
+                /// maps Custom Component Id and input port number to corresponding Input Component Id
+                let inLinks =
+                    ct.InputLabels
+                    |> List.mapi
+                        (fun i (lab, labOutWidth) ->
+                            let inp = 
+                                List.find (fun (k,v) -> k = (ComponentLabel lab, labOutWidth)) inputs
+                                |> snd
+                            (((cid, ap), InputPortNumber i), (inp, ap')))
+                {
+                     CustomInputCompLinksT = inLinks @ gatherT.CustomInputCompLinksT
+                     CustomOutputCompLinksT = outLinks @ gatherT.CustomOutputCompLinksT
+                     Labels = labels @ gatherT.Labels
+                     AllCompsT = gatherT.AllCompsT                      
+                })
+    (topGather, insideCustomGathers)
+    ||> List.fold (fun total thisGather ->
+        {
+            CustomInputCompLinksT = thisGather.CustomInputCompLinksT @ total.CustomInputCompLinksT
+            CustomOutputCompLinksT = thisGather.CustomOutputCompLinksT @ total.CustomOutputCompLinksT
+            Labels = thisGather.Labels @ total.Labels
+            AllCompsT = thisGather.AllCompsT @ total.AllCompsT                     
 
-
-                    let g = gatherPhase ap' numSteps csg gather
-
-                    { g with
-                          Simulation = graph
-                          CustomInputCompLinks = mapUnion inLinks g.CustomInputCompLinks
-                          CustomOutputCompLinks = mapUnion outLinks g.CustomOutputCompLinks
-                          AllComps =
-                              mapUnion
-                                  ((Map.toList
-                                    >> List.map (fun (k, v) -> (k, ap), (v, ap))
-                                    >> Map.ofList)
-                                      graph)
-                                  g.AllComps }
-                | _ -> gather)
+        })
+/// convert the data in the flattened structure into maps for easy access
+let gatherPhase (graph: SimulationGraph) =
+    flattenPhase [] graph
     |> (fun g ->
-        { g with
-              CustomOutputLookup = mapInverse g.CustomOutputCompLinks })
+        { 
+            Simulation = graph
+            CustomInputCompLinks = Map.ofList g.CustomInputCompLinksT
+            CustomOutputCompLinks = Map.ofList g.CustomOutputCompLinksT
+            Labels = Map.ofList g.Labels
+            AllComps = Map.ofList g.AllCompsT                     
+            CustomOutputLookup = Map.ofList (List.map (fun (k,v) -> v,k) g.CustomOutputCompLinksT)
+        })
+            
 
 let private printGather (g: GatherData) =
     printfn "%d components" g.AllComps.Count
 
     Map.iter
-        (fun (cid, ap) (comp: SimulationComponent, ap') -> printfn "%s: %A" (g.getFullName (cid, ap)) comp.Outputs)
+        (fun (cid, ap) (comp: SimulationComponent, ap') -> printfn "%s (%A:%A): %A" (g.getFullName (cid, ap)) cid ap comp.Outputs)
         g.AllComps
+    
+    Map.iter
+        (fun ((cid, ap),ipn) (cid', ap') -> printfn "inlink: %s -> %A" (g.getFullName (cid, ap)) (cid',ap'))
+        g.CustomInputCompLinks
 
+    Map.iter
+        (fun (cid', ap') ((cid, ap),opn) -> printfn "outlink: %A -> %s" (cid',ap') (g.getFullName (cid, ap)) )
+        g.CustomOutputCompLinks
 
 let rec private createInitFastCompPhase (numSteps: int) (g: GatherData) (f: FastSimulation) =
     let start = getTimeMs()
@@ -846,7 +878,12 @@ let private linkFastComponents (g: GatherData) (f: FastSimulation) =
     let outer = List.rev >> List.tail >> List.rev
     let sComps = g.AllComps
     let fComps = f.FComps
-    let getSComp (cid, ap) = fst sComps.[cid, ap]
+    let getSComp (cid, ap) =
+        let x = Map.tryFind (cid, ap) sComps
+        match x with
+        | None -> 
+            failwithf $"Error in linkFastComponents: can't find\n---{cid}\n----{ap}\n"
+        | Some comp -> fst comp
     let apOf fid = fComps.[fid].AccessPath
     /// This function recursively propagates a component output across Custom component boundaries to find the
     ///
@@ -857,11 +894,11 @@ let private linkFastComponents (g: GatherData) (f: FastSimulation) =
         | true, _, None when apOf (cid, ap) = [] -> [||] // no links in this case from global output
         | true, _, None ->
             //printfn "checking 1:%A %A" (g.getFullName(cid,ap)) (Map.map (fun k v -> g.getFullName k) g.CustomOutputCompLinks)
-            let cid, opn = g.CustomOutputCompLinks.[cid, ap]
+            let fid, opn = g.CustomOutputCompLinks.[cid, ap]
 #if ASSERTS
             assertThat (isCustom (fst sComps.[cid]).Type) "What? this should be a custom component output"
 #endif
-            getLinks cid opn None // go from inner output to CC output and recurse
+            getLinks fid opn None // go from inner output to CC output and recurse
         | false, true, Some ipn ->
             //printfn "checking 2:%A:IPN<%A>" (g.getFullName(cid,ap)) ipn
             //printfn "CustomInCompLinks=\n%A" (Map.map (fun (vfid,vipn) fid ->
@@ -1186,8 +1223,9 @@ let checkAndValidate (fs:FastSimulation) =
 let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : FastSimulation =
     let gather =
         let start = getTimeMs()
-        gatherPhase [] numberOfSteps graph (emptyGather)
+        gatherPhase graph
         |> instrumentInterval "gatherPhase" start
+    printfn "Gathered with %d components" gather.AllComps.Count
     //printGather gather
     let fs =
         createInitFastCompPhase numberOfSteps gather (emptyFastSimulation ())

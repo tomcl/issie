@@ -246,11 +246,11 @@ let update (msg : Msg) oldModel =
             | CloseProject ->
                 {model with CurrentProj = None; UIState = Some uiCmd}, Cmd.none
             | _ -> 
-                {model with UIState = Some uiCmd}, Cmd.none
+                {model with UIState = Some uiCmd}, Cmd.ofMsg (Sheet (Sheet.SetSpinner true))
         | _ -> model, Cmd.none //otherwise discard the message
     | FinishUICmd _ ->
         let popup = FileMenuView.optCurrentSheetDependentsPopup model
-        {model with UIState = None; PopupViewFunc = popup}, Cmd.none
+        {model with UIState = None; PopupViewFunc = popup}, Cmd.ofMsg (Sheet (Sheet.SetSpinner false))
     | ShowExitDialog ->
         match model.CurrentProj with
         | Some p when model.SavedSheetIsOutOfDate ->
@@ -410,12 +410,23 @@ let update (msg : Msg) oldModel =
         { model with TopMenuOpenState = t}, Cmd.none
     | ExecCmd cmd ->
         model, cmd
+    | ExecFuncAsynch func ->
+             let cmd' = 
+                Elmish.Cmd.OfAsyncImmediate.result (async { 
+                //wavesim - 0 sleep will never update cursor in time, 100 will SOMETIMES be enough, 300 always works
+                //this number only seems to affect the wavesim spinner cursor, it does not help with open project/change sheet spinner cursor
+                    do! (Async.Sleep 100) 
+                    if Set.contains "update" JSHelpers.debugTraceUI then
+                        printfn "Starting ExecFuncAsynch payload"
+                    let cmd = func ()                    
+                    return (ExecCmd cmd)})
+             model, cmd'
     | ExecCmdAsynch cmd ->
         let cmd' = 
             Elmish.Cmd.OfAsyncImmediate.result (async { 
             //wavesim - 0 sleep will never update cursor in time, 100 will SOMETIMES be enough, 300 always works
-            //this number only seems to affect the wavesim spinner cursor, it does not help with open project/change sheet spinner cursor
-                do! (Async.Sleep 300) 
+            //this number only seems to affect the wavesim spinner cursor.
+                do! (Async.Sleep 300)
                 return (ExecCmd cmd)})
         model, cmd'
     | SendSeqMsgAsynch msgs ->

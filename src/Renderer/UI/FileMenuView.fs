@@ -649,48 +649,59 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
     // it seems still need this, however code has been deleted!
     //Sheet.checkForTopMenu () // A bit hacky, but need to call this once after everything has loaded to compensate mouse coordinates.
     
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    let JSdispatch mess = 
-        mess
-        |> JSDiagramMsg
-        |> dispatch
     let name = compToSetup.Name
-    //printfn "Loading..."
-    dispatch <| SetHighlighted([], []) // Remove current highlights.
-    
-    model.Sheet.ClearCanvas sheetDispatch // Clear the canvas.
-    
-    // Finally load the new state in the canvas.
-    dispatch <| SetIsLoading true
-    //printfn "Check 1..."
-    
     let components, connections = compToSetup.CanvasState
-    model.Sheet.LoadComponents sheetDispatch components
+    //printfn "Loading..."
+    let msgs = 
+        [
+            SetHighlighted([], []) // Remove current highlights.
     
-    model.Sheet.LoadConnections sheetDispatch connections
+            // Clear the canvas.
+            Sheet Sheet.ResetModel
+            Sheet (Sheet.Wire BusWire.ResetModel)
+            Sheet (Sheet.Wire (BusWire.Symbol (Symbol.ResetModel ) ) )
+    
+            // Finally load the new state in the canvas.
+            SetIsLoading true
+            //printfn "Check 1..."
+    
+            //Load components
+            Sheet (Sheet.Wire (BusWire.Symbol (Symbol.LoadComponents components )))
+            Sheet Sheet.UpdateBoundingBoxes
+    
+            Sheet (Sheet.Wire (BusWire.LoadConnections connections))
 
-    model.Sheet.FlushCommandStack sheetDispatch // Discard all undo/redo.
-    // Run the a connection widths inference.
-    //printfn "Check 4..."
+            Sheet Sheet.FlushCommandStack // Discard all undo/redo.
+            // Run the a connection widths inference.
+            //printfn "Check 4..."
     
-    model.Sheet.DoBusWidthInference sheetDispatch
-    // JSdispatch <| InferWidths()
-    //printfn "Check 5..."
-    // Set no unsaved changes.
+            Sheet (Sheet.Wire (BusWire.BusWidths))
+            // JSdispatch <| InferWidths()
+            //printfn "Check 5..."
+            // Set no unsaved changes.
     
-    JSdispatch <| SetHasUnsavedChanges false
-    // set waveSim data
-    dispatch <| SetWaveSimModel(name, waveSim)
-    dispatch <| (
-        {
-            ProjectPath = dirName compToSetup.FilePath
-            OpenFileName =  compToSetup.Name
-            LoadedComponents = ldComps
-        }
-        |> SetProject) // this message actually changes the project in model
-    dispatch <| SetWaveSimIsOutOfDate true
-    dispatch <| SetIsLoading false 
-    //printfn "Check 6..."
+        
+            JSDiagramMsg (SetHasUnsavedChanges false)
+            // set waveSim data
+            SetWaveSimModel(name, waveSim)
+            (
+                {
+                    ProjectPath = dirName compToSetup.FilePath
+                    OpenFileName =  compToSetup.Name
+                    LoadedComponents = ldComps
+                }
+                |> SetProject) // this message actually changes the project in model
+            SetWaveSimIsOutOfDate true
+            SetIsLoading false 
+        
+            //printfn "Check 6..."
+        ]
+
+    //INFO - Currently the spinner will ALWAYS load after 'SetTopMenu x', probably it is the last command in a chain
+    //Ideally it should happen before this, but it is not currently doing this despite the async call
+    //This will set a spinner for both Open project and Change sheet which are the two most lengthly processes
+    dispatch <| (Sheet (Sheet.SetSpinner true))
+    dispatch <| SendSeqMsgAsynch msgs
     
 
 let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lcLst: LoadedComponent list) (dispatch: Msg -> Unit)=
@@ -1212,18 +1223,25 @@ let rec resolveComponentOpenPopup
 
 /// open an existing project
 let private openProject model dispatch _ =
+    //trying to force the spinner to load earlier
+    //doesn't really work right now
+    dispatch (Sheet (Sheet.SetSpinner true))
     match askForExistingProjectPath () with
     | None -> () // User gave no path.
     | Some path ->
-        traceIf "project" (fun () -> "loading files")
-        match loadAllComponentFiles path with
-        | Error err ->
-            log err
-            displayFileErrorNotification err dispatch
-        | Ok componentsToResolve ->
-            traceIf "project " (fun () -> "resolving popups...")
-            resolveComponentOpenPopup path [] componentsToResolve model dispatch
-            traceIf "project" (fun () ->  "project successfully opened.")
+        dispatch (ExecFuncAsynch <| fun () ->
+            traceIf "project" (fun () -> "loading files")
+            match loadAllComponentFiles path with
+            | Error err ->
+                log err
+                displayFileErrorNotification err dispatch
+            | Ok componentsToResolve ->
+                traceIf "project" (fun () -> "resolving popups...")
+            
+                resolveComponentOpenPopup path [] componentsToResolve model dispatch
+                traceIf "project" (fun () ->  "project successfully opened.")
+
+            Elmish.Cmd.none)
 
 /// Display the initial Open/Create Project menu at the beginning if no project
 /// is open.
@@ -1244,7 +1262,6 @@ let viewNoProjectMenu model dispatch =
     | Some _ -> div [] []
     | None -> unclosablePopup None initialMenu None [] dispatch
 
-//TODO ASK WHY WE NEED TO DO THIS _ VARIABLE FOR IT TO WORK?
 //These two functions deal with the fact that there is a type error otherwise..
 let goBackToProject model dispatch _ =
     dispatch (SetExitDialog false)

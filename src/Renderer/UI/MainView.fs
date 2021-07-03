@@ -222,15 +222,18 @@ let displayView model dispatch =
     let headerHeight = getHeaderHeight
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     // the whole app window
+    let cursorText = model.Sheet.CursorType.Text()
 
     div [ HTMLAttr.Id "WholeApp"
-          Style [UserSelect UserSelectOptions.None]
-//          OnMouseUp (fun ev -> 
-//          setDragMode false model dispatch ev; 
-//          dispatch SelectionHasChanged);
-//          OnMouseDown (makeSelectionChangeMsg model dispatch)
+          Key cursorText
           OnMouseMove processMouseMove
-          Style [ BorderTop "2px solid lightgray"; BorderBottom "2px solid lightgray"; Cursor (match model.Sheet.CursorType with | Sheet.Spinner -> "wait" |_ -> "")] ] [
+          Style [ 
+            //CSSProp.Cursor cursorText
+            UserSelect UserSelectOptions.None
+            UserSelect UserSelectOptions.None
+            BorderTop "2px solid lightgray"
+            BorderBottom "2px solid lightgray"
+            Cursor (match model.Sheet.CursorType with | Sheet.Spinner -> "wait" |_ -> "")] ] [
         // transient
         FileMenuView.viewNoProjectMenu model dispatch
         

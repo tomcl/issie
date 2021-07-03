@@ -1226,20 +1226,22 @@ let private openProject model dispatch _ =
     //trying to force the spinner to load earlier
     //doesn't really work right now
     dispatch (Sheet (Sheet.SetSpinner true))
-    dispatch (ExecCmdAsynch [])
     match askForExistingProjectPath () with
     | None -> () // User gave no path.
     | Some path ->
-        traceIf "project" (fun () -> "loading files")
-        match loadAllComponentFiles path with
-        | Error err ->
-            log err
-            displayFileErrorNotification err dispatch
-        | Ok componentsToResolve ->
-            traceIf "project " (fun () -> "resolving popups...")
+        dispatch (ExecFuncAsynch <| fun () ->
+            traceIf "project" (fun () -> "loading files")
+            match loadAllComponentFiles path with
+            | Error err ->
+                log err
+                displayFileErrorNotification err dispatch
+            | Ok componentsToResolve ->
+                traceIf "project" (fun () -> "resolving popups...")
             
-            resolveComponentOpenPopup path [] componentsToResolve model dispatch
-            traceIf "project" (fun () ->  "project successfully opened.")
+                resolveComponentOpenPopup path [] componentsToResolve model dispatch
+                traceIf "project" (fun () ->  "project successfully opened.")
+
+            Elmish.Cmd.none)
 
 /// Display the initial Open/Create Project menu at the beginning if no project
 /// is open.

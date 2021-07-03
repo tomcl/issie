@@ -1079,6 +1079,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | SetSpinner isOn ->
         if isOn then {model with CursorType = Spinner}, Cmd.none
         else {model with CursorType = Default}, Cmd.none
+
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
 
 
@@ -1121,8 +1122,10 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
             else
                 dispatch <| KeyPress ZoomIn
         else () // Scroll normally if Ctrl is not held down
+    let cursorText = model.CursorType.Text()
     div [ HTMLAttr.Id "Canvas"
-          Style (CSSProp.Cursor (model.CursorType.Text()) :: style)
+          Key cursorText // force cursor change to be rendered
+          Style (CSSProp.Cursor cursorText :: style)
           OnMouseDown (fun ev -> (mouseOp Down ev)) 
           OnMouseUp (fun ev -> (mouseOp Up ev)) 
           OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)

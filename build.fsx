@@ -43,10 +43,7 @@ Target.create "CleanNode" <| fun _ ->
     File.delete (__SOURCE_DIRECTORY__ @@ "package-lock.json")
 
 Target.create "DotnetRestore" (fun _ ->
-  DotNet.restore
-    (DotNet.Options.withWorkingDirectory __SOURCE_DIRECTORY__)
-    "issie.sln"
-)
+    Shell.Exec("dotnet","restore issie.sln") |> ignore)
 
 Target.create "NpmInstall" (fun _ ->
   Npm.install id

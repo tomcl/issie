@@ -898,7 +898,7 @@ let private linkFastComponents (g: GatherData) (f: FastSimulation) =
             //printfn "checking 1:%A %A" (g.getFullName(cid,ap)) (Map.map (fun k v -> g.getFullName k) g.CustomOutputCompLinks)
             let fid, opn = g.CustomOutputCompLinks.[cid, ap]
 #if ASSERTS
-            assertThat (isCustom (fst sComps.[cid]).Type) "What? this should be a custom component output"
+            assertThat (isCustom (fst sComps.[fid]).Type) "What? this should be a custom component output"
 #endif
             getLinks fid opn None // go from inner output to CC output and recurse
         | false, true, Some ipn ->

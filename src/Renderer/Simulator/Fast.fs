@@ -701,10 +701,10 @@ let private extendFastSimulation (numSteps: int) (fs: FastSimulation) =
         fs.MaxStepNum <- numSteps
 
 
-/// Create an initial gatherdata object with inputs, non-ordered components, simulationgraph, etc
+/// Create an initial flattened and expanded version of the simulation graph with inputs, non-ordered components, simulationgraph, etc
 /// This must explore graph recursively extracting all the initial information.
 /// Custom components are scanned and links added, one for each input and output
-let rec private flattenPhase (ap: ComponentId list) (graph: SimulationGraph) =
+let rec private createFlattenedSimulation (ap: ComponentId list) (graph: SimulationGraph) =
     let graphL = Map.toList graph
     let allComps = 
         graphL
@@ -727,7 +727,7 @@ let rec private flattenPhase (ap: ComponentId list) (graph: SimulationGraph) =
         customComps
         |> List.map (fun  (cid, ct, csg) ->
                 let ap' = ap @ [ cid ]
-                let gatherT = flattenPhase ap' csg
+                let gatherT = createFlattenedSimulation ap' csg
                 let compsInCustomComp = Map.toList csg |> List.map snd
                 /// Function making links to custom component input or output components
                 /// For those component types selected by compSelectFun (inputs or ouputs):
@@ -782,8 +782,9 @@ let rec private flattenPhase (ap: ComponentId list) (graph: SimulationGraph) =
 
         })
 /// convert the data in the flattened structure into maps for easy access
-let gatherPhase (graph: SimulationGraph) =
-    flattenPhase [] graph
+let gatherSimulation (graph: SimulationGraph) =
+    let startTime = getTimeMs()
+    createFlattenedSimulation [] graph
     |> (fun g ->
         { 
             Simulation = graph
@@ -793,6 +794,7 @@ let gatherPhase (graph: SimulationGraph) =
             AllComps = Map.ofList g.AllCompsT                     
             CustomOutputLookup = Map.ofList (List.map (fun (k,v) -> v,k) g.CustomOutputCompLinksT)
         })
+    |> instrumentInterval "gatherGraph" startTime
             
 
 let private printGather (g: GatherData) =
@@ -1215,27 +1217,7 @@ let checkAndValidate (fs:FastSimulation) =
     instrumentTime "checkAndValidate" start
     fs
     
-
-
-
-/// Create a fast simulation data structure, with all necessary arrays, and components
-/// ordered for evaluation.
-/// This function also creates the reducer functions for each component
-/// similar to the reducer builder in Builder, but with inputs and outputs using the FastSimulation
-/// mutable arrays
-let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : FastSimulation =
-    let gather =
-        let start = getTimeMs()
-        gatherPhase graph
-        |> instrumentInterval "gatherPhase" start
-    printfn "Gathered with %d components" gather.AllComps.Count
-    //printGather gather
-    let fs =
-        createInitFastCompPhase numberOfSteps gather (emptyFastSimulation ())
-    //printfn "Fast components:"
-    //(mapKeys fs.FComps) |> Array.iter (fun x -> printfn "%s" (gather.getFullName x))
-    let fs = linkFastComponents gather fs
-    //printfn "Linking finished"
+let createFastArrays fs gather =
     let getArrayOf pred fComps =
         fComps
         |> Map.filter (fun cid comp -> pred comp)
@@ -1259,6 +1241,20 @@ let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : FastSimu
           FOrderedComps = Array.empty
           FSComps = gather.AllComps
           G = gather }
+
+
+/// Create a fast simulation data structure, with all necessary arrays, and components
+/// ordered for evaluation.
+/// This function also creates the reducer functions for each component
+/// similar to the reducer builder in Builder, but with inputs and outputs using the FastSimulation
+/// mutable arrays
+let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : FastSimulation =
+    let gather = gatherSimulation graph
+    let fs =  
+        createInitFastCompPhase numberOfSteps gather (emptyFastSimulation ())
+        |> linkFastComponents gather
+    gather
+    |> createFastArrays fs
     |> orderCombinationalComponents numberOfSteps
     |> checkAndValidate
 

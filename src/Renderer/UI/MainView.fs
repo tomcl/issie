@@ -221,8 +221,10 @@ let displayView model dispatch =
 
     let headerHeight = getHeaderHeight
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
+
     // the whole app window
     let cursorText = model.Sheet.CursorType.Text()
+    let topCursorText = match model.Sheet.CursorType with | Sheet.Spinner -> "wait" | _ -> ""
 
     div [ HTMLAttr.Id "WholeApp"
           Key cursorText
@@ -230,16 +232,15 @@ let displayView model dispatch =
           Style [ 
             //CSSProp.Cursor cursorText
             UserSelect UserSelectOptions.None
-            UserSelect UserSelectOptions.None
             BorderTop "2px solid lightgray"
             BorderBottom "2px solid lightgray"
-            Cursor (match model.Sheet.CursorType with | Sheet.Spinner -> "wait" |_ -> "")] ] [
+            Cursor topCursorText ] ] [
         // transient
         FileMenuView.viewNoProjectMenu model dispatch
         
         FileMenuView.viewExitDialog model dispatch
         
-        PopupView.viewPopup model dispatch
+        PopupView.viewPopup model dispatch 
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
         // main top bar function is early in compile order
         FileMenuView.viewTopMenu model WaveSimHelpers.fileMenuViewActions WaveformSimulationView.WaveformButtonFunc dispatch

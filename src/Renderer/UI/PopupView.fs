@@ -637,7 +637,7 @@ let viewPopup model dispatch =
     | None, None -> div [] []
     | Some amount, _ ->
         progressPopup simulationLegend model dispatch
-    | None, Some popup -> popup dispatch model.PopupDialogData
+    | None, Some popup -> popup dispatch model.PopupDialogData 
 
 //===============//
 // Notifications //

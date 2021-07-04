@@ -972,7 +972,7 @@ let private linkFastComponents (g: GatherData) (f: FastSimulation) =
 let private isValidData (fd: FastData) = fd <> emptyFastData
 
 /// True if the component is combinational
-let private isComb (comp: FastComponent) =
+let inline isComb (comp: FastComponent) =
     match comp.FType with
     | Input _ when comp.AccessPath = [] -> false
     | ct when couldBeSynchronousComponent ct -> false
@@ -980,16 +980,9 @@ let private isComb (comp: FastComponent) =
 
 /// True if all conditions are fulfiled for the component to be in the next batch to be reduced.
 /// Used when ordering components.
-let canBeReduced (fs: FastSimulation) (step: int) (fc: FastComponent) =
-    isComb fc
-    && not fc.Touched
-    && fc.Active
-    && Array.forall 
-        (function 
-            | (Some (fid: FComponentId,_)) -> fs.FComps.[fid].Touched 
-            | None -> 
-                let drivers = $"Input drivers: {fc.InputDrivers}"
-                failwithf "Missing input link on %A\n\n. %s" fc.FullName drivers ) fc.InputDrivers
+let inline canBeReduced (fs: FastSimulation) (step: int) (fc: FastComponent) =
+    not fc.Touched
+    && fc.NumMissingInputValues = 0
 
 
 /// print function for debugging
@@ -1026,6 +1019,9 @@ let private printComps (step: int) (fs: FastSimulation) =
     |> String.concat "\n"
     |> printfn "COMPONENTS\n----------------\n%s\n---------------"
 
+let inline propagateEval (fc:FastComponent) =
+    fc.DrivenComponents
+    |> List.iter (fun fc' -> fc'.NumMissingInputValues <- fc'.NumMissingInputValues - 1)
 
 /// Create arrays of components in corrected format for efficient reduction
 /// Combinational components are ordered: clokced, constant, global input components are
@@ -1035,6 +1031,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
     let init fc = 
         fastReduce 0 0 fc
         fc.Touched <- true
+        propagateEval fc
 
     let initInput (fc: FastComponent) =
         //printfn "Init input..."
@@ -1044,12 +1041,14 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
         //printfn "Initialised input: %A" fc.InputLinks
         fastReduce fs.MaxArraySize 0 fc
         fc.Touched <- true
+        propagateEval fc
 
     let initClockedOuts (fc: FastComponent) =
         fc.Outputs
         |> Array.iteri
             (fun i vec ->
                 fc.Touched <- true
+                propagateEval fc
 
                 match fc.FType, fc.OutputWidth.[i] with
                 | RAM1 mem, Some w ->
@@ -1082,7 +1081,9 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
     //printfn "Setup done..."
     //printfn "Constants: %A\nClocked: %A\nInputs:%A\n" (pp fs.FConstantComps) (pp fs.FClockedComps) (pp fs.FGlobalInputComps)
     let mutable orderedComps : FastComponent list = fs.FConstantComps |> Array.toList
-    let fComps = mapValues fs.FComps
+    let fComps = 
+        mapValues fs.FComps
+        |> Array.filter (fun fc -> isComb fc && fc.Active)
     //printfn "%A" (fComps |> Array.map (fun comp -> comp.SimComponent.Label))
     let mutable nextBatch = Array.filter (canBeReduced fs 0) fComps
     //printfn "Loop init done"
@@ -1102,11 +1103,12 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 if (not fc.Touched) then
                     fastReduce fs.MaxArraySize 0 fc
                     orderedComps <- fc :: orderedComps
-                    fc.Touched <- true)
+                    fc.Touched <- true
+                    propagateEval fc)
         //printfn "Total is now %d" orderedComps.Length
         //printComps 0 fs
         // work out new components that can still be added
-        nextBatch <- Array.filter (canBeReduced fs 0) (mapValues fs.FComps)
+        nextBatch <- Array.filter (canBeReduced fs 0) fComps
 
     let orderedSet =
         orderedComps

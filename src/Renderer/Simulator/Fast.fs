@@ -981,8 +981,10 @@ let inline isComb (comp: FastComponent) =
 /// True if all conditions are fulfiled for the component to be in the next batch to be reduced.
 /// Used when ordering components.
 let inline canBeReduced (fs: FastSimulation) (step: int) (fc: FastComponent) =
-    not fc.Touched
-    && fc.NumMissingInputValues = 0
+    fc.NumMissingInputValues = 0
+    && not fc.Touched
+    && fc.Active
+    && isComb fc
 
 
 /// print function for debugging
@@ -1019,15 +1021,25 @@ let private printComps (step: int) (fs: FastSimulation) =
     |> String.concat "\n"
     |> printfn "COMPONENTS\n----------------\n%s\n---------------"
 
-let inline propagateEval (fc:FastComponent) =
-    fc.DrivenComponents
-    |> List.iter (fun fc' -> fc'.NumMissingInputValues <- fc'.NumMissingInputValues - 1)
+
+
 
 /// Create arrays of components in corrected format for efficient reduction
 /// Combinational components are ordered: clokced, constant, global input components are
 /// separated.
 let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : FastSimulation =
     let startTime  = getTimeMs()
+    let mutable readyToReduce: FastComponent list = []
+    let mutable orderedComps : FastComponent list = fs.FConstantComps |> Array.toList
+
+
+    let propagateEval (fc:FastComponent) =
+        fc.DrivenComponents
+        |> List.iter (fun fc' -> 
+            fc'.NumMissingInputValues <- fc'.NumMissingInputValues - 1
+            if canBeReduced fs 0 fc' then 
+                readyToReduce <- fc' :: readyToReduce)
+    
     let init fc = 
         fastReduce 0 0 fc
         fc.Touched <- true
@@ -1077,44 +1089,34 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
     fs.FConstantComps |> Array.iter init
     //printfn "Ordering %d global inputs" fs.FGlobalInputComps.Length
     fs.FGlobalInputComps |> Array.iter initInput
-    //printComps 0 fs
-    //printfn "Setup done..."
-    //printfn "Constants: %A\nClocked: %A\nInputs:%A\n" (pp fs.FConstantComps) (pp fs.FClockedComps) (pp fs.FGlobalInputComps)
-    let mutable orderedComps : FastComponent list = fs.FConstantComps |> Array.toList
-    let fComps = 
-        mapValues fs.FComps
-        |> Array.filter (fun fc -> isComb fc && fc.Active)
-    //printfn "%A" (fComps |> Array.map (fun comp -> comp.SimComponent.Label))
-    let mutable nextBatch = Array.filter (canBeReduced fs 0) fComps
     //printfn "Loop init done"
     printfn
-        "%d constant, %d input, %d clocked, %d read to reduce, from %d"
+        "%d constant, %d input, %d clocked, %d ready to reduce from %d"
         fs.FConstantComps.Length
         fs.FGlobalInputComps.Length
         fs.FClockedComps.Length
-        nextBatch.Length
+        readyToReduce.Length
         fs.FComps.Count
 
-    while nextBatch.Length <> 0 do
+    while readyToReduce.Length <> 0 do
         //printf "Adding %d combinational components %A" nextBatch.Length (pp nextBatch)
-        nextBatch
-        |> Array.iter
-            (fun fc ->
-                if (not fc.Touched) then
+        let readyL = readyToReduce
+        readyToReduce <- []
+        readyL
+        |> List.iter (fun fc ->
                     fastReduce fs.MaxArraySize 0 fc
                     orderedComps <- fc :: orderedComps
                     fc.Touched <- true
                     propagateEval fc)
-        //printfn "Total is now %d" orderedComps.Length
-        //printComps 0 fs
-        // work out new components that can still be added
-        nextBatch <- Array.filter (canBeReduced fs 0) fComps
 
     let orderedSet =
         orderedComps
         |> List.toArray
         |> Array.map (fun co -> co.fId)
         |> Set
+
+    #if ASSERTS
+    
     /// this is the input set of all (fast) components.
     /// it corresponds to thise in SimulationGraph except
     /// there are no custom components
@@ -1161,7 +1163,6 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 (Array.map
                     (fun (arr: StepArray<FData>) -> arr.Step.Length > 5 && isValidData arr.Step.[0])
                     fc.InputLinks))
-#if ASSERTS
     assertThat
         (badComps.Length = 0)
         (sprintf "Components not linked: %A\n" (badComps |> List.map (fun fc -> fc.FullName)))

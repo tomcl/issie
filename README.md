@@ -1,22 +1,15 @@
 # Issie - an Interactive Schematic Simulator with Integrated Editor
 
-Issie (Interactive Schematic Simulator with Integrated Editor) is an application for digital circuit design and simulation. It is targeted at students and hobbyists that want to get a grasp of Digital Electronics concepts in a simple and fun way. Issie is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues.
+Issie (Interactive Schematic Simulator with Integrated Editor) is an application for digital circuit design and simulation. It is targeted at students and hobbyists that want to get a grasp of Digital Electronics concepts in a simple and fun way. Issie is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues. Issie is developed and actively used in teaching at Imperial College London.
 
-The application is was initially developed by Marco Selvatici, as a Final Year Project.
+* If you are just interested in using the application, jump to the [Getting Started](#getting-started) section. 
+* If you want user documentation and news go to the [web pages](https://tomcl.github.io/issie/).
 
-The interactive waveform simulator was developed by Edoardo Santi over a Summer UROP.
-
-The new draw block was taken from the HLP 2021 Team 4 and improved upon by Joanna Merrick as a Final Year Project 
-
-It is currently being maintained and developed by Tom Clarke (owner). 
-
-If you are just interested in using the application, jump to the [Getting Started](#getting-started) section. For more info about the project, read on.
-
-This documentation is partly based on the excellent [VisUAL2](https://github.com/ImperialCollegeLondon/Visual2) documentation, given the similarity in the technology stack used.
+For more technical info about the project, read on. This documentation is partly based on the excellent [VisUAL2](https://github.com/ImperialCollegeLondon/Visual2) documentation, given the similarity in the technology stack used.
 
 ## Introduction
 
-For the Issie website go [here](https://tomcl.github.io/issie/). The website is written in HTML and styled with CSS.
+For the Issie website go [here](https://tomcl.github.io/issie/).
 
 The application is mostly written in F#, which gets transpiled to JavaScript via the [Fable](https://fable.io/) compiler. [Electron](https://www.electronjs.org/) is then used to convert the developed web-app to a cross-platform application. [Electron](electronjs.org) provides access to platform-level APIs (such as access to the file system) which would not be available to vanilla browser web-apps.
 
@@ -139,12 +132,18 @@ This project uses modern F# / dotnet cross-platform build. The build process doe
 
 ## Getting Started
 
-If you just want to run the app go to the [releases page](https://github.com/tomcl/issie/releases) and follow the instructions on how to 
-download and run the prebuilt binaries. Note that the Windows binary will run on Linux under WINE.
+If you just want to run the app go to the [releases page](https://github.com/tomcl/issie/releases) and download 
+download and run the prebuilt binaries.
+
+* Windows: unzip \*.zip anywhere and double-click the top-level Issie.exe application un the unzipped files.
+* Macos: Double click the dmg and run the application inside the folder, or drag and drop to to install.
+    * The binaries are not signed. You will need to [perform a one-off security bypass](https://www.wikihow.com/Install-Software-from-Unsigned-Developers-on-a-Mac).
+
+
 
 If you want to get started as a developer, follow these steps.
 
-### Install Prerequisites
+### Development Install Prerequisites
 
 Download and install (if you already have these tools installed just check the version constraints).
 
@@ -188,10 +187,10 @@ In theory the build should work equally well on macos. Practically that is not n
 One unresolved issue that can occur on Macs is file permission problems. Best practice is for all installation and dev to run under the current (non-admin) user. If any part of the necessary downloaded development files gets written as root then subsequent development commands that modify it will need to be executed using sudo.
 
 ```
-sudo npm run dev
+sudo npm run devfast
 ```
 
-If possible, try to avoid this, but if necessary it can be done. Probably the better solution is to investigate properly which install steps introduce these root owner files, change the file owndship back to current user with `chown -R <username> <directory>`. Please document any progress made with mac builds (detailing which mac OS) on an issue.
+If possible, try to avoid this, but if necessary it can be done. Probably the better solution is to investigate properly which install steps introduce these root owner files, change the file ownership back to current user with `chown -R <username> <directory>`. Please document any progress made with mac builds (detailing which mac OS) on an issue.
 
 
 ## Reinstalling Compiler and Libraries

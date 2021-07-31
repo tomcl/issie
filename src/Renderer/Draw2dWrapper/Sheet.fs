@@ -920,7 +920,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 Cmd.ofMsg CheckAutomaticScrolling // Also check if there is automatic scrolling to continue
             else
                 Cmd.none
-
         { model with ScrollPos = { X = scrollX; Y = scrollY }; ScrollingLastMousePos = newLastScrollingPos }, cmd
     | KeyPress ZoomIn ->
         { model with Zoom = model.Zoom + 0.05 }, Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
@@ -988,7 +987,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         canvas.scrollLeft <- canvas.scrollLeft + (checkForAutomaticScrolling1D rightScreenEdge mPosX mMovX) // Check right-screen edge
         canvas.scrollTop <- canvas.scrollTop - (checkForAutomaticScrolling1D upperScreenEdge mPosY -mMovY) // Check upper-screen edge
         canvas.scrollTop <- canvas.scrollTop + (checkForAutomaticScrolling1D lowerScreenEdge mPosY mMovY) // Check lower-screen edge
-        
         let xDiff = canvas.scrollLeft - leftScreenEdge
         let yDiff = canvas.scrollTop - upperScreenEdge
 
@@ -1123,6 +1121,7 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
                 dispatch <| KeyPress ZoomIn
         else () // Scroll normally if Ctrl is not held down
     let cursorText = model.CursorType.Text()
+
     div [ HTMLAttr.Id "Canvas"
           Key cursorText // force cursor change to be rendered
           Style (CSSProp.Cursor cursorText :: style)
@@ -1130,7 +1129,12 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
           OnMouseUp (fun ev -> (mouseOp Up ev)) 
           OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
           OnScroll (fun _ -> scrollUpdate ())
-          Ref (fun el -> canvasDiv <- Some el)
+          Ref (fun el -> 
+            canvasDiv <- Some el
+            if not (isNull el) then
+                // in case this element is newly created, set scroll position from model
+                el.scrollLeft <- model.ScrollPos.X
+                el.scrollTop <- model.ScrollPos.Y)
           OnWheel wheelUpdate
         ]
         [ 
@@ -1138,7 +1142,7 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
             [ Style 
                 [
                     Height sizeInPixels
-                    Width sizeInPixels           
+                    Width sizeInPixels 
                 ]
             ]
             [ g // group list of elements with list of attributes

@@ -225,8 +225,6 @@ let update msg model = Update.update msg model
 printfn "Starting renderer..."
 
 let view' model dispatch =
-    if JSHelpers.debugLevel > 0 then
-        printfn "Rendering with %s cursor" (model.Sheet.CursorType.Text())
     let start = Helpers.getTimeMs()
     view model dispatch
     |> Helpers.instrumentInterval "View" start

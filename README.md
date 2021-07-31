@@ -147,13 +147,10 @@ If you want to get started as a developer, follow these steps.
 
 Download and install (if you already have these tools installed just check the version constraints).
 
-* [Dotnet Core SDK](https://www.microsoft.com/net/learn/get-started).  Version >= 3.1
-    * For Mac and Linux users, download and install [Mono](http://www.mono-project.com/download/stable/) 
-      from official website (the version from brew is incomplete, may lead to MSB error later). 
-
-* [Node.js v12](https://nodejs.org/dist/latest-v12.x/). Version >= 12
+* [.Net 5 SDK](https://dotnet.microsoft.com/download/dotnet/5.0).  Version >= 5.0
+* [Node.js v12](https://nodejs.org/dist/latest-v12.x/). **Version 12**
     * Node.js includes the `npm` package manager, so this does not need to be installed separately.
-    * The lastest LTS version of Node is now v14. That will almost certainly also work.
+    * The lastest LTS version of Node is now v14. That will currently NOT work.
 
 ### Issie Development
 
@@ -168,10 +165,10 @@ That makes things a lot more pleasant. The new [Windows Terminal](https://github
   * HMR: the application will automatically recompile and update while running if you save updated source files
   * To initialise and reload: `File -> reload page`
   * To exit: after you exit the application the auto-compile script will terminate after about 15s
-  * To recompile the application `npm run dev`.
+  * To recompile the application `npm run dev` or `npm run devfast` (devfast switches off some debugging to make simulation run a lot faster).
   * To generate distributable binaries for dev host system `npm run dist`.
   * If you have changed node modules use `build dev`. Note that this project uses npm, not yarn. If npm gets stuck use `build cleannode` and try again.
-  * From time to time run `build killzombies` to terminate orphan node and dotnet processes which accumulate using this dev chain.
+  * From time to time run `build killzombies` to terminate orphan node and dotnet processes which accumulate using this dev chain. (Not sure if this is still needed)
 
 #### Development on Macos
 

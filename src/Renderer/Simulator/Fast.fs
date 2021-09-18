@@ -88,9 +88,9 @@ let inline private bitXnor bit0 bit1 = bitXor bit0 bit1 |> bitNot
 
 /// Given a component, compute its outputs from its inputs, which must already be evaluated.
 /// Outputs and inputs are both contained as time sequences in arrays. This function will calculate
-/// simStep outputs from 9previously calculated) simStep outputs and clocked (simStep-1) outputs.
+/// simStep outputs from (previously calculated) simStep outputs and clocked (simStep-1) outputs.
 /// Memory has state separate from simStep-1 output, for this the state is recalculated.
-let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
+let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (comp: FastComponent) : Unit =
     let componentType = comp.FType
 
     //printfn "Reducing %A...%A %A (step %d)"  comp.FType comp.ShortId comp.FullName simStep
@@ -458,6 +458,48 @@ let fastReduce (maxArraySize: int) (numStep: int) (comp: FastComponent) : Unit =
 
         putState (RamState mem)
         put0 dataOut
+    // AsyncRAM1 component must be evaluated twice. Once (first) as clocked component 
+    // to update state based on previous cycle. Then again as combinational component to update output
+    //
+    | AsyncRAM1 memory ->
+        if isClockedReduction then
+            // here we propagate the state to current timestep, doing a state change if need be.
+            let mem =
+                getRamStateMemory numStep (simStepOld) comp.State memory
+
+            let address = insOld 0
+#if ASSERTS
+            assertThat (address.Width = mem.AddressWidth)
+            <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth address
+#endif
+            let dataIn = insOld 1
+#if ASSERTS
+            assertThat (dataIn.Width = mem.WordWidth)
+            <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataIn
+#endif
+            let write = extractBit (insOld 2)
+            // If write flag is on, write the memory content.
+            let mem, dataOut =
+                match write with
+                | 0u ->
+                    // Read memory address and return memory unchanged.
+                    mem, readMemory mem address
+                | 1u ->
+                    // Update memory and return old content.
+                    // NB - this was previously new content - but that is inconsistent and less useful.
+                    writeMemory mem address dataIn, readMemory mem address
+                | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
+
+            putState (RamState mem)
+        else
+            // here we do the async read using current step address and state
+            // note that state will have been written for this step previously by clocked invocation of this component
+            let mem =
+                getRamStateMemory numStep simStep comp.State memory
+
+            let address = ins 0
+            
+            put0 (readMemory mem address)
 
 
 //------------------------------------------------------------------------------//
@@ -531,6 +573,7 @@ let private getPortNumbers (sc: SimulationComponent) =
             3,1
         | NbitsAdder _ -> 
             3,2
+        | AsyncRAM1 _
         | RAM1 _ -> 
             2,1
         | Decode4 -> 
@@ -576,7 +619,8 @@ let private getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | BusCompare _ -> putW0 1
     | AsyncROM1 mem
     | ROM1 mem
-    | RAM1 mem -> putW0 mem.WordWidth
+    | RAM1 mem
+    | AsyncRAM1 mem -> putW0 mem.WordWidth
     | Custom _ -> ()
     | DFF
     | DFFE -> putW0 1
@@ -626,6 +670,14 @@ let private createFastComponent (numSteps: int) (sComp: SimulationComponent) (ac
 
     let fId = getFid sComp.Id accessPath
 
+    let reduceIfHybrid sc ipn =
+        if isHybridComponent sc.Type then
+            [0..ipn]
+            |> List.sumBy (fun ipn -> 
+                getHybridComponentAsyncOuts sc.Type (InputPortNumber ipn)
+                |> function | None | Some [] -> 0 | Some _ -> 1)
+        else ipn
+
     { OutputWidth = getOutputWidths sComp (Array.create outPortNum None)
       State = Option.map makeStepArray state
       SimComponent = sComp
@@ -635,7 +687,7 @@ let private createFastComponent (numSteps: int) (sComp: SimulationComponent) (ac
       AccessPath = accessPath
       Touched = false
       DrivenComponents = []
-      NumMissingInputValues = inPortNum
+      NumMissingInputValues = reduceIfHybrid sComp inPortNum
       InputLinks = ins
       InputDrivers = Array.create inPortNum None
       Outputs = outs
@@ -694,7 +746,7 @@ let private extendFastSimulation (numSteps: int) (fs: FastSimulation) =
     else
         [| fs.FOrderedComps
            fs.FConstantComps
-           fs.FClockedComps
+           Array.filter (fun fc -> not (isHybridComponent fc.FType)) fs.FClockedComps
            fs.FGlobalInputComps |]
         |> Array.iter (Array.iter (extendFastComponent numSteps))
 
@@ -865,7 +917,12 @@ let private reLinkIOLabels (fs: FastSimulation) =
         let fcActiveDriver = fs.FIOActive.[labKey]
         fcDriven.InputLinks.[ipn] <- fcActiveDriver.Outputs.[0]
         fcDriven.InputDrivers.[ipn] <- Some (fcActiveDriver.fId, OutputPortNumber 0)
-        fcActiveDriver.DrivenComponents <- fcDriven :: fcActiveDriver.DrivenComponents
+        // DrivenComponents must only include asynchronous drive paths on hybrid components
+        // on clocked components, or combinational components, it can include all drive paths
+        match getHybridComponentAsyncOuts fcDriven.FType (InputPortNumber ipn) with
+        | None | Some (_ :: _) ->
+            fcActiveDriver.DrivenComponents <- fcDriven :: fcActiveDriver.DrivenComponents
+        | _ -> ()
         ioDriver.Outputs.[0] <- fcActiveDriver.Outputs.[0])
 
 /// Use the Outputs links from the original SimulationComponents in gather to link together the data arrays
@@ -962,7 +1019,13 @@ let private linkFastComponents (g: GatherData) (f: FastSimulation) =
                             else
                                 // if driver is not IO label make the link now
                                 fDriven.InputLinks.[ipn] <- fDriver.Outputs.[opn]
-                                fDriver.DrivenComponents <- fDriven :: fDriver.DrivenComponents
+                                // DrivenComponents must only include asynchronous drive paths on hybrid components
+                                // on clocked components, or combinational components, it can include all drive paths
+                                match getHybridComponentAsyncOuts fDriven.FType (InputPortNumber ipn) with
+                                | None | Some (_ :: _) ->
+                                    fDriver.DrivenComponents <- fDriven :: fDriver.DrivenComponents
+                                | _ -> ()
+
                                 fDriven.InputDrivers.[ipn] <- Some (fDriver.fId, OutputPortNumber opn)
                                 )))
     reLinkIOLabels f
@@ -977,6 +1040,7 @@ let private isValidData (fd: FastData) = fd <> emptyFastData
 let inline isComb (comp: FastComponent) =
     match comp.FType with
     | Input _ when comp.AccessPath = [] -> false
+    | AsyncRAM1 _ -> true
     | ct when couldBeSynchronousComponent ct -> false
     | _ -> true
 
@@ -1043,7 +1107,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 readyToReduce <- fc' :: readyToReduce)
     
     let init fc = 
-        fastReduce 0 0 fc
+        fastReduce 0 0 false fc
         fc.Touched <- true
         propagateEval fc
 
@@ -1053,7 +1117,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
         |> Array.iteri
             (fun i _ -> fc.InputLinks.[0].Step.[i] <- (convertIntToFastData (Option.defaultValue 1 fc.OutputWidth.[0]) 0u))
         //printfn "Initialised input: %A" fc.InputLinks
-        fastReduce fs.MaxArraySize 0 fc
+        fastReduce fs.MaxArraySize 0 false fc
         fc.Touched <- true
         propagateEval fc
 
@@ -1061,11 +1125,12 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
         fc.Outputs
         |> Array.iteri
             (fun i vec ->
-                fc.Touched <- true
+                if not (isHybridComponent fc.FType) then 
+                    fc.Touched <- true
                 propagateEval fc
 
                 match fc.FType, fc.OutputWidth.[i] with
-                | RAM1 mem, Some w ->
+                | RAM1 mem, Some w | AsyncRAM1 mem, Some w ->
                     match fc.State with
                     | Some arr -> arr.Step.[0] <- RamState mem
                     | _ -> failwithf "Component %s does not have correct state vector" fc.FullName
@@ -1076,7 +1141,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                         | _ -> convertIntToFastData w 0u
                     // change simulation semantics to output 0 in cycle 0
                     vec.Step.[0] <- convertIntToFastData w 0u
-                | RAM1 _, _ ->
+                | RAM1 _, _ | AsyncRAM1 _, _->
                     failwithf "What? Bad initial values for RAM %s output %d state <%A>" fc.FullName i fc.FType
                 | _, Some w -> vec.Step.[0] <- convertIntToFastData w 0u
                 | _ -> failwithf "What? Can't find width for %s output %d" fc.FullName i)
@@ -1106,7 +1171,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
         readyToReduce <- []
         readyL
         |> List.iter (fun fc ->
-                    fastReduce fs.MaxArraySize 0 fc
+                    fastReduce fs.MaxArraySize 0 false fc // this is always a combinational reduction
                     orderedComps <- fc :: orderedComps
                     fc.Touched <- true
                     propagateEval fc)
@@ -1184,7 +1249,7 @@ let checkAndValidate (fs:FastSimulation) =
         |> Array.filter (fun fc -> fc.Active)
     let inSimulationComps =
         [|
-            fs.FClockedComps
+            Array.filter (fun fc -> not (isHybridComponent fc.FType)) fs.FClockedComps
             fs.FGlobalInputComps
             fs.FOrderedComps
         |] |> Array.concat
@@ -1272,10 +1337,8 @@ let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
 let private stepSimulation (fs: FastSimulation) =
     let index = (fs.ClockTick + 1) % fs.MaxArraySize
     propagateInputsFromLastStep index fs
-    Array.iter
-        (fastReduce fs.MaxArraySize index)
-        (Array.concat [ fs.FClockedComps
-                        fs.FOrderedComps ])
+    Array.iter (fastReduce fs.MaxArraySize index true) fs.FClockedComps
+    Array.iter (fastReduce fs.MaxArraySize index false) fs.FOrderedComps
 
     fs.ClockTick <- fs.ClockTick + 1
 
@@ -1291,7 +1354,7 @@ let private setSimulationInput (cid: ComponentId) (fd: FData) (step: int) (fs: F
 /// input has changed
 let private runCombinationalLogic (step: int) (fastSim: FastSimulation) =
     fastSim.FOrderedComps
-    |> Array.iter (fastReduce fastSim.MaxArraySize (step % fastSim.MaxArraySize))
+    |> Array.iter (fastReduce fastSim.MaxArraySize (step % fastSim.MaxArraySize) false)
 
 /// Change an input and make simulation correct. N.B. step must be the latest
 /// time-step since future steps are not rerun (TODO: perhaps they should be!)
@@ -1314,7 +1377,7 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
                 | Register _
                 | RegisterE _ -> [| fc, RegisterState fc.Outputs.[0].Step.[step % fastSim.MaxArraySize] |]
                 | ROM1 state -> [| fc, RamState state |]
-                | RAM1 _ ->
+                | RAM1 _ | AsyncRAM1 _ ->
                     match fc.State
                           |> Option.map (fun state -> state.Step.[step % fastSim.MaxArraySize]) with
                     | None -> failwithf "Missing RAM state for step %d of %s" step fc.FullName

@@ -114,7 +114,7 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
         br []
         str <| sprintf "%sData: %s"  
                 (match cType with 
-                 | RAM1 _ -> "Initial "
+                 | RAM1 _ | AsyncRAM1 _ -> "Initial "
                  | ROM1 _ | AsyncROM1 _ -> ""
                  | _ -> failwithf $"What - wrong component type ({cType} here")
                 (getInitSource mem)
@@ -340,12 +340,23 @@ let private makeDescription (comp:Component) model dispatch =
         makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
     | RAM1 mem ->
         let descr =
-            "RAM memory. At every clock tick, the RAM can read and optionally write
+            "synchronous read and write RAM memory. 
+            At every clock tick, the RAM can read and optionally write
             the content of the memory location selected by the address. If the
             write signal is high, the content of the selected memory location
             is set to the value of data-in. In cycle 0 data-out is 0, otherwise
             data-out is the contents of the memory location addressed in the
             previous cycle, before any optional write.
+            The component is implicitly connected to the global clock."
+        makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
+    | AsyncRAM1 mem ->
+        let descr =
+            "Asynchronous read, synchronous write RAM memory. 
+            At every clock tick, optionally write
+            the content of the memory location selected by the address. If the
+            write signal is high, the content of the selected memory location
+            is set to the value of data-in. data-out is the contents of the memory 
+            location addressed by the current cycle addres.
             The component is implicitly connected to the global clock."
         makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
 

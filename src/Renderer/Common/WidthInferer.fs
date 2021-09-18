@@ -345,7 +345,7 @@ let private calculateOutputPortsWidth
         | [Some aw]  when aw <> mem.AddressWidth ->
             makeWidthInferErrorEqual mem.AddressWidth aw [getConnectionIdForPort 0]
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
-    | RAM1 mem ->
+    | RAM1 mem | AsyncRAM1 mem->
         assertInputsSize inputConnectionsWidth 3 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2] with
         | [Some addr; Some datain; Some write] when addr = mem.AddressWidth &&

@@ -419,8 +419,11 @@ let viewCatalogue model dispatch =
                                                     the output is available in the same clock cycle that the address is presented"
                           catTip1 "ROM (synchronous)" (fun _ -> createMemoryPopup ROM1 model dispatch) "A ROM whose output contains \
                                                     the addressed data in the clock cycle after the address is presented"
-                          catTip1 "RAM" (fun _ -> createMemoryPopup RAM1 model dispatch)  "A RAM whose output contains the addressed \
-                                                   data in the clock cycle after the address is presented" ]
+                          catTip1 "RAM (synchronous)" (fun _ -> createMemoryPopup RAM1 model dispatch)  "A RAM whose output contains the addressed \
+                                                   data in the clock cycle after the address is presented" 
+                          catTip1 "RAM (async read)" (fun _ -> createMemoryPopup AsyncRAM1 model dispatch)  "A RAM whose output contains the addressed \
+                                                   data in the same clock cycle as address is presented" ]
+
                     makeMenuGroupWithTip styles
                         "This project"
                         "Every design sheet is available for use in other sheets as a custom component: \

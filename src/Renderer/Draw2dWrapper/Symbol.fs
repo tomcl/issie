@@ -102,6 +102,7 @@ let prefix compType =
     | AsyncROM1 _ -> "AROM"
     | ROM1 _ -> "ROM"
     | RAM1 _ -> "RAM"
+    | AsyncRAM1 _ -> "ARAM"
     | Custom c -> c.Name + ".I"
     | Constant1 _ -> "C"
     | BusCompare _ -> "EQ"
@@ -125,6 +126,7 @@ let gateDecoderType (comp:Component) =
     | AsyncROM1 _ -> "Async-ROM"
     | ROM1 _ -> "ROM"
     | RAM1 _ -> "RAM"
+    | AsyncRAM1 _ -> "ARAM"
     | DFF -> "DFF"
     | DFFE -> "DFFE"
     | NbitsXor (x)->   title "Xor" x
@@ -140,6 +142,7 @@ let portDecName (comp:Component) = //(input port names, output port names)
     | RegisterE _ -> (["D"; "EN"],["Q"])
     | ROM1 _ |AsyncROM1 _ -> (["address"],["data"])
     | RAM1 _ -> (["address"; "data-in";"write" ],["data_out"])
+    | AsyncRAM1 _ -> (["address"; "data-in";"write" ],["data_out"])
     | DFF -> (["D"],["Q"])
     | DFFE -> (["D";"EN"],["Q"])
     | Mux2 -> (["0"; "1";"SEL"],["OUT"])
@@ -227,7 +230,7 @@ let makeComp (pos: XYPos) (comptype: ComponentType) (id:string) (label:string) :
         | RegisterE (a) -> ( 2 , 1, 3*GridSize  , 4*GridSize) 
         | AsyncROM1 (a)  -> (  1 , 1, 3*GridSize  , 4*GridSize) 
         | ROM1 (a) -> (   1 , 1, 3*GridSize  , 4*GridSize) 
-        | RAM1 (a)-> ( 3 , 1, 3*GridSize  , 4*GridSize) 
+        | RAM1 (a) | AsyncRAM1 a -> ( 3 , 1, 3*GridSize  , 4*GridSize) 
         | NbitsXor (n) -> (  2 , 1, 3*GridSize  , 4*GridSize) 
         | NbitsAdder (n) -> (  3 , 2, 3*GridSize  , 4*GridSize) 
         | Custom x -> 
@@ -363,7 +366,7 @@ let compSymbol (comp:Component) (colour:string) (showInputPorts:bool) (showOutpu
         | SplitWire _ -> (addHorizontalLine halfW w (0.33*float(h)) opacity) @ (addHorizontalLine halfW w (0.66*float(h)) opacity) @ (addHorizontalLine 0 halfW (0.5*float(h)) opacity)
         | DFF |DFFE -> (addClock 0 h colour opacity)
         | Register _ |RegisterE _ -> (addClock 0 h colour opacity)
-        | ROM1 _ |RAM1 _ -> (addClock 0 h colour opacity)
+        | ROM1 _ |RAM1 _ | AsyncRAM1 _ -> (addClock 0 h colour opacity)
         | BusSelection(x,y) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-2.0) (bustitle x y) "middle" "normal" "12px")
         | BusCompare (_,y) -> (addText  (float(w/2)-6.0) (float(h)/2.7-3.5) ("=" + string(y)) "middle" "bold" "14px")
         | Input (x) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-3.0) (title "" x) "middle" "normal" "12px")
@@ -627,6 +630,13 @@ let getCompList compType listSymbols =
                match sym.Compo.Type with 
                | RAM1 _ -> true
                | _ -> false)
+       | AsyncRAM1 _ ->
+           listSymbols
+           |> List.filter (fun sym ->
+               match sym.Compo.Type with 
+               | AsyncRAM1 _ -> true
+               | _ -> false)
+
        | _ ->
             listSymbols
             |> List.filter (fun sym -> sym.Compo.Type = compType)
@@ -921,6 +931,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let newCompType =
             match comp.Type with
             | RAM1 mem -> RAM1 { mem with Data = Map.add addr value mem.Data }
+            | AsyncRAM1 mem -> AsyncRAM1 { mem with Data = Map.add addr value mem.Data }
             | ROM1 mem -> ROM1 { mem with Data = Map.add addr value mem.Data }
             | AsyncROM1 mem -> AsyncROM1 { mem with Data = Map.add addr value mem.Data }
             | _ -> comp.Type
@@ -935,7 +946,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let comp = symbol.Compo       
         let newCompType =
             match comp.Type with
-            | RAM1 mem -> memory
+            | RAM1 mem | AsyncRAM1 mem -> memory
             | ROM1 mem -> memory
             | AsyncROM1 mem -> memory
             | _ -> 

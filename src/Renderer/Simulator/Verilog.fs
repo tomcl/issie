@@ -163,6 +163,49 @@ let makeRamModule (moduleName: string) (mem: Memory1) =
     endmodule
 
     """
+
+let makeAsyncRamModule (moduleName: string) (mem: Memory1) =
+    let aMax = mem.AddressWidth - 1
+    let dMax = mem.WordWidth - 1
+    let numWords = 1u <<< mem.AddressWidth
+
+    let ramInits =
+        mem.Data
+        |> Map.toArray
+        |> (Array.map (fun (a, d) -> sprintf $"ram[%d{a}] = %d{d};"))
+        |> String.concat "\n"
+
+    sprintf
+        $"""
+
+    module %s{moduleName}(q, a, d, we, clk);
+    output reg [%d{dMax}:0];
+    output q [%d{dMax}:0];
+    input [%d{dMax}:0] d;
+    input [%d{aMax}:0] a;
+    input we, clk;
+    reg [%d{dMax}:0] ram [%d{numWords - 1u}:0];
+     always @(posedge clk) begin
+         if (we)
+             ram[a] <= d;
+     end
+    q <= ram[a];
+
+
+    integer i;
+    initial
+    begin
+        for (i=0; i < {numWords}; i=i+1)
+        begin
+            ram[i] = 0;
+        end
+
+        %s{ramInits}
+    end
+    endmodule
+
+    """
+
 /// get all the RAM and ROM modules used
 /// NB at the moment each instance is made a separately named module, for simplicity
 let getInstantiatedModules (fs: FastSimulation) =
@@ -174,13 +217,16 @@ let getInstantiatedModules (fs: FastSimulation) =
 
             match fc.FType with
             | RAM1 mem -> [| makeRamModule name mem |]
+            | AsyncRAM1 mem -> [| makeAsyncRamModule name mem |]
             | ROM1 mem -> [| makeRomModule name mem |]
             | AsyncROM1 mem -> [| makeAsyncRomModule name mem |]
             | _ -> [||])
 
+let removeHybridComps (fa: FastComponent array) =
+    Array.filter (fun fc -> not (isHybridComponent fc.FType)) fa
 
 let activeComps (fs: FastSimulation) =
-    [ fs.FClockedComps; fs.FOrderedComps ]
+    [ fs.FClockedComps; removeHybridComps fs.FOrderedComps ]
     |> Array.concat
 
 let makeAccessPathIndex (fs: FastSimulation) =
@@ -365,7 +411,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         + $"assign %s{outs 1} = %s{ins 0}[%d{msbBits + lsbBits - 1}:%d{msbBits}];\n"
     | AsyncROM1 mem -> sprintf $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0});\n"
     | ROM1 mem -> $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0}, clk);\n"
-    | RAM1 mem -> $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0}, %s{ins 1}, %s{ins 2}, clk);\n"
+    | RAM1 mem | AsyncRAM1 mem -> $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0}, %s{ins 1}, %s{ins 2}, clk);\n"
     | Custom _ -> failwithf "What? custom components cannot exist in fast Simulation data structure"
     | AsyncROM _ | RAM _ | ROM _ -> 
         failwithf $"Invalid legacy component type '{fc.FType}'"
@@ -415,6 +461,7 @@ let extractRamDefinitions (fs: FastSimulation) =
             match fc.FType with
             | ROM1 mem
             | RAM1 mem
+            | AsyncRAM1 mem
             | AsyncROM1 mem -> [| verilogNameConvert fc.FullName, fc.FType |]
             | _ -> [||])
     )

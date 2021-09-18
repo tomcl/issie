@@ -150,7 +150,8 @@ let getWaveSetup (ws:WaveSimModel) (model:Model): MoreWaveSetup =
     let getSortOf path (comp:SimulationComponent) = 
         match comp.Type, path with 
         | RAM1 _,_ -> Some (4, "RAM")
-        | AsyncROM1 _,_ | ROM1 _,_ -> Some (5, "ROM")
+        | AsyncRAM1 _,_ -> Some(5,"ARAM")
+        | AsyncROM1 _,_ | ROM1 _,_ -> Some (6, "ROM")
         | _,[] | _, [_] -> None
         | Input _,_-> Some (1,"Input")
         | Output _,_ -> Some (2, "Output")
@@ -202,7 +203,7 @@ let reactMoreWaves ((sheets,ticks): MoreWaveSetup) (sg:SimulationGraph) (dispatc
             (sw.Label+":"+name),ticked, comp, toggle)
         |> (fun els -> 
                 let isRamOrRom (comp: SimulationComponent) = 
-                    match comp.Type with | RAM1 _ | ROM1 _ | AsyncROM1 _ -> true | _ -> false
+                    match comp.Type with | RAM1 _ | AsyncRAM1 _ | ROM1 _ | AsyncROM1 _ -> true | _ -> false
                 let uniques = 
                     List.countBy (fun (name,ticked,comp, toggle) -> name) els
                     |> List.filter (fun (el,i)-> i = 1)
@@ -635,7 +636,7 @@ let rec private findName (compIds: ComponentId Set) (sd: SimulationData) (net: N
                 [ { LabName = compLbl + ".Q"; BitLimits = 0, 0 } ]
             | Register w | RegisterE w -> 
                 [ { LabName = compLbl + ".Dout"; BitLimits = w-1, 0 } ]
-            | RAM1 mem | AsyncROM1 mem | ROM1 mem -> 
+            | RAM1 mem | AsyncRAM1 mem | AsyncROM1 mem | ROM1 mem -> 
                 [ { LabName = compLbl + ".Dout"; BitLimits = mem.WordWidth - 1, 0 } ]
             | Custom c -> 
                 [ { LabName = compLbl + "." + (fst c.OutputLabels.[outPortInt])

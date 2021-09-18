@@ -114,7 +114,7 @@ let private getDefaultState compType =
     | AsyncROM1 _ -> NoState
     | DFF | DFFE -> DffState 0u
     | Register w | RegisterE w -> RegisterState <| convertIntToFastData w 0u
-    | RAM1 memory -> RamState memory // The RamState content may change during
+    | RAM1 memory | AsyncRAM1 memory -> RamState memory // The RamState content may change during
                                     // the simulation.
 
 /// Build a simulation component.

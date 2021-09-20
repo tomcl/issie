@@ -102,7 +102,7 @@ let verticesToSegments
             Index = i
             Start = {X=startX;Y=startY};
             End = {X=endX;Y=endY};
-            Dir = if (startX-endX)*(startX-endX) > (startY-endY)*(startY-endY) then
+            Dir = if (abs startX - abs endX)*(abs startX - abs endX) > (abs startY - abs endY)*(abs startY - abs endY) then
                       Horizontal
                   else 
                       Vertical
@@ -214,54 +214,76 @@ let distanceBetweenTwoPoints (pos1 : XYPos) (pos2 : XYPos) : float =
 let makeInitialWireVerticesList (portCoords : XYPos * XYPos) : list<XYPos * XYPos> = 
     let xs, ys, Xt, Yt = snd(portCoords).X, snd(portCoords).Y, fst(portCoords).X, fst(portCoords).Y
 
-    let list1 = 
+    let makeSegs (points: XYPos list) =
+        List.pairwise points
+
+    let leftToRight = 
         [
-            ({X = xs; Y = ys}, {X = xs+10.0; Y = ys});
-            ({X = xs+10.0; Y = ys}, {X = xs+10.0; Y = ys});
-            ({X = xs+10.0; Y = ys}, {X = (xs+Xt)/2.0; Y = ys});
-            ({X = (xs+Xt)/2.0; Y = ys}, {X = (xs+Xt)/2.0; Y = Yt});
-            ({X = (xs+Xt)/2.0; Y = Yt}, {X = Xt-10.0; Y = Yt});
-            ({X = Xt-10.0; Y = Yt}, {X = Xt-10.0; Y = Yt});
-            ({X = Xt-10.0; Y = Yt}, {X = Xt; Y = Yt})
+            {X = xs; Y = ys};
+            {X = xs+10.0; Y = ys};
+            {X = xs+10.0; Y = ys};
+            {X = (xs+Xt)/2.0; Y = ys};
+            {X = (xs+Xt)/2.0; Y = Yt};
+            {X = Xt-10.0; Y = Yt}
+            {X = Xt-10.0; Y = Yt}
+            {X = Xt; Y = Yt}
         ]
     
-    let list2 =
+    let rightToLeft =
         [
-            ({X = xs; Y = ys}, {X = xs+10.0; Y = ys});
-            ({X = xs+10.0; Y = ys}, {X = xs+10.0; Y = ys});
-            ({X = xs+10.0; Y = ys}, {X = xs+10.0; Y = (ys+Yt)/2.0});
-            ({X = xs+10.0; Y = (ys+Yt)/2.0}, {X = Xt-10.0; Y = (ys+Yt)/2.0});
-            ({X = Xt-10.0; Y = (ys+Yt)/2.0}, {X = Xt-10.0; Y = Yt});
-            ({X = Xt-10.0; Y = Yt}, {X = Xt-10.0; Y = Yt});
-            ({X = Xt-10.0; Y = Yt}, {X = Xt; Y = Yt})
+            {X = xs; Y = ys}
+            {X = xs+10.0; Y = ys}
+            {X = xs+10.0; Y = ys}
+            {X = xs+10.0; Y = (ys+Yt)/2.0}
+            {X = Xt-10.0; Y = (ys+Yt)/2.0}
+            {X = Xt-10.0; Y = Yt}
+            {X = Xt-10.0; Y = Yt}
+            {X = Xt; Y = Yt}
         ]
 
-    if (xs-Xt) < (-20.0) then list1
-    else list2
+    let rightToLeftHorizontal =
+        [
+            {X = xs; Y = ys}
+            {X = xs+10.0; Y = ys}
+            {X = xs+10.0; Y = ys}
+            {X = xs+10.0; Y = ys + 10.0}
+            {X = Xt-10.0; Y = ys + 10.0}
+            {X = Xt-10.0; Y = Yt}
+            {X = Xt-10.0; Y = Yt}
+            {X = Xt; Y = Yt}
+        ]
+
+    if (xs-Xt) < (-20.0) then leftToRight
+    elif abs (ys - Yt) < 2.0 then rightToLeftHorizontal
+    else rightToLeft
+    |> makeSegs
 
 /// Given the coordinates of two port locations that correspond
 /// to the endpoints of a wire, this function returns a list of
 /// Segment(s).
 let makeInitialSegmentsList (hostId : ConnectionId) (portCoords : XYPos * XYPos) : list<Segment> =
-    let lastSegIndex = List.length (makeInitialWireVerticesList portCoords) - 1
+    let verticesList = makeInitialWireVerticesList portCoords
+    let lastSegIndex = List.length verticesList - 1
     let startX, endX = fst(portCoords).X, snd(portCoords).X
-    portCoords
-    |> makeInitialWireVerticesList 
+    let startY, endY = fst(portCoords).Y, snd(portCoords).Y
+
+    verticesList
     |> List.mapi
         (
             fun i (coordsTuple : XYPos * XYPos) -> 
+                let startPt,endPt = coordsTuple
                 {
                     Id = SegmentId(uuid())
                     Index = i
-                    Start = fst(coordsTuple);
-                    End = snd(coordsTuple);
+                    Start = startPt
+                    End = endPt
                     Dir = if i = 0 || i = lastSegIndex then
                               Horizontal
                           else 
-                              if (startX - endX) > 40.0 then
-                                if i%2=0 then Horizontal else Vertical
+                              if abs (abs startPt.X - abs endPt.X) >= abs (abs startPt.Y - abs endPt.Y) then
+                                Horizontal
                               else
-                                  if i%2=0 then Vertical else Horizontal;
+                                Vertical;
                     HostId  = hostId;
                     JumpCoordinateList = [];
                     Draggable = if i = 0 || i = 1 || i = lastSegIndex || i = (lastSegIndex - 1) then false else true
@@ -280,24 +302,27 @@ let updateSegmentsList (model:Model) (hostId : ConnectionId) (portCoords : XYPos
     let verticesList = makeInitialWireVerticesList portCoords
     let lastSegIndex = (List.length verticesList) - 1
     let startX, endX = fst(portCoords).X, snd(portCoords).X
+    let startY, endY = fst(portCoords).Y, snd(portCoords).Y
+
 
     segments
     |> List.mapi
         (
             fun i seg -> 
+                let startPt, endPt = verticesList.[i]
                 let updatedDir = 
                     if i = 0 || i = lastSegIndex then
                         Horizontal
                     else 
-                        if (startX - endX) > 20.0 then
-                            if i%2=0 then Horizontal else Vertical
+                        if  abs (abs startPt.X - abs endPt.X) >= abs (abs startPt.Y - abs endPt.Y) then
+                            Horizontal
                         else
-                            if i%2=0 then Vertical else Horizontal;
+                            Vertical
                 
                 {
                     seg with
-                        Start = fst(verticesList.[i]);
-                        End = snd(verticesList.[i]);
+                        Start = startPt;
+                        End = endPt;
                         Dir = updatedDir
                 }
         )
@@ -557,12 +582,22 @@ let getClickedSegment (model:Model) (wireId: ConnectionId) (pos: XYPos) : Segmen
     then (getClosestSegment model wireId pos).Id
     else (List.head intersectingSegments).Id
 
-///
+let checkSegmentAngle (seg:Segment) (name:string) =
+    match seg.Dir with
+    | Vertical -> abs (abs seg.Start.X - abs seg.End.X) < 0.000001
+    | Horizontal -> abs (abs seg.Start.Y - abs seg.End.Y) < 0.000001
+    |> (fun ok ->
+        if not ok then  
+            printfn $"Weird segment '{name}':\n{seg}\n\n fails angle checking")
+
 let moveSegment (seg:Segment) (distance:float) (model:Model) = 
     let wire = model.WX.[seg.HostId]
     let index = seg.Index
+    if index < 1 || index >= wire.Segments.Length - 1 then
+        failwithf $"Buswire segment index {index} out of range in moveSegment in wire length {wire.Segments.Length}"
     let prevSeg = wire.Segments.[index-1]
     let nextSeg = wire.Segments.[index+1]
+
 
     let newPrevEnd, newSegStart, newSegEnd, newNextStart = 
         match seg.Dir with
@@ -580,6 +615,9 @@ let moveSegment (seg:Segment) (distance:float) (model:Model) =
     let newPrevSeg = {prevSeg with End = newPrevEnd}
     let newSeg = {seg with Start = newSegStart;End = newSegEnd}
     let newNextSeg = {nextSeg with Start = newNextStart}
+    checkSegmentAngle newPrevSeg "prev segment"
+    checkSegmentAngle newNextSeg "next segment "
+    checkSegmentAngle newSeg "moved segment"
 
     let newSegments = wire.Segments.[.. index-2] @ [newPrevSeg; newSeg; newNextSeg] @ wire.Segments.[index+2 ..]
     {wire with Segments = newSegments}
@@ -1096,10 +1134,8 @@ let autorouteWire (model : Model) (wire : Wire) : Wire =
 //Returns false if the wire is auto-routed
 let checkManual (wire : Wire) =
     wire.Segments
-    |> List.tryFind (fun seg -> seg.Start.X < 0. || seg.Start.Y < 0. || seg.End.X < 0. || seg.End.Y < 0. )
-    |> function
-    | Some _ -> true
-    | None -> false
+    |> List.exists (fun seg -> seg.Start.X < 0. || seg.Start.Y < 0. || seg.End.X < 0. || seg.End.Y < 0. )
+
 
 ///Returns the segment indicies which are manually routed by checking negativity
 let getManualIndx (wire : Wire) =
@@ -1533,7 +1569,14 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
     | ColorWires (connIds, color) -> // Just Changes the colour of the wires, Sheet calls pasteWires before this
         let newWires =
-            (List.fold (fun prevWires cId -> Map.add cId { model.WX.[cId] with Color = color } prevWires) model.WX connIds)
+            (List.fold (fun prevWires cId -> 
+                let oldWireOpt = Map.tryFind cId model.WX
+                match oldWireOpt with
+                | None -> 
+                    printfn "BusWire error: expected wire in ColorWires does not exist"
+                    prevWires
+                | Some oldWire ->
+                    Map.add cId { oldWire with Color = color } prevWires) model.WX connIds)
         { model with WX = newWires }, Cmd.none
     
     | ResetJumps connIds ->

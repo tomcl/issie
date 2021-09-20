@@ -70,7 +70,7 @@ let formatLabelAsBus (width:int) (text:string) =
     let text' = extractLabelBase text
     match width with
     | 1 -> text'
-    | _ -> sprintf "%s(%d:%d)" text' (width-1) 0
+    | _ -> sprintf "%s(%d:%d)" (text'.ToUpper()) (width-1) 0
    
 
 let formatLabelFromType compType (text:string) =
@@ -85,9 +85,9 @@ let formatLabel (comp:Component) (text:string) =
     formatLabelFromType comp.Type (text:string)
 
 // TODO: removed formatLabel for now
-let setComponentLabel model (sheetDispatch) (comp:Component) text =
+let setComponentLabel model (sheetDispatch) (comp:Component) (text:string) =
     // let label = formatLabel comp text
-    let label = text // TODO
+    let label = text.ToUpper() // TODO
 
     model.Sheet.ChangeLabel sheetDispatch (ComponentId comp.Id) label
     //model.Diagram.EditComponentLabel comp.Id label
@@ -745,8 +745,8 @@ let viewInfoPopup dispatch =
         Multiple copies of other sheets can be added in this way. \
         Top-level sheets which are not used as subsheets are bolded on the sheet menu." 
         br[]; br[]
-        str "The Simulation Tab is used mainly for combinational logic and simple clocked logic: \
-        the top 'Waveforms >>' button works with clocked circuits and displays waveforms." 
+        str "Issie has two types of simulation: The Simulation Tab is used mainly for combinational logic and simple clocked logic: \
+        the top 'Waveforms >>' button works with clocked circuits and displays waveforms. Use whichever works for you." 
         br[]; br[];
         str "In Issie all clocked components use the same clock signal Clk. \
         Clk connections are not shown: all Clk ports are
@@ -762,7 +762,7 @@ let viewInfoPopup dispatch =
         let oTextList txtL = Content.content [] [Content.Ol.ol [] (List.map (fun txt -> li [] [str txt]) txtL)]
         div [] [
             str
-                "If you think Issie is not working it is very helpful if you can give us details, and we usually answer \
+                "If you think Issie is not working it is very helpful if you can give us details: we usually answer \
                 and fix bugs, if they exist, very quickly. Before you contact us, look at the list below and answer as much \
                 as possible to make your Bug Report (sometimes it is not all possible, send what you can)."
             oTextList 

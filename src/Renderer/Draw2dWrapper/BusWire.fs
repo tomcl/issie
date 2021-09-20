@@ -217,6 +217,7 @@ let makeInitialWireVerticesList (portCoords : XYPos * XYPos) : list<XYPos * XYPo
     let makeSegs (points: XYPos list) =
         List.pairwise points
 
+    // the simple case of a wire travelling from output to input in a left-to-right (positive X) direction
     let leftToRight = 
         [
             {X = xs; Y = ys};
@@ -228,7 +229,7 @@ let makeInitialWireVerticesList (portCoords : XYPos * XYPos) : list<XYPos * XYPo
             {X = Xt-10.0; Y = Yt}
             {X = Xt; Y = Yt}
         ]
-    
+    // the case of a wire travelling from output to input in a right-to-left (negative X) direction. Thus must bend back on itself.
     let rightToLeft =
         [
             {X = xs; Y = ys}
@@ -241,6 +242,8 @@ let makeInitialWireVerticesList (portCoords : XYPos * XYPos) : list<XYPos * XYPo
             {X = Xt; Y = Yt}
         ]
 
+    // the special case of a wire travelling right-to-left where the two ends are vertically almost identical. 
+    // In this case we ad an offset to the main horizontal segment so it is more visible and can be easily re-routed manually.
     let rightToLeftHorizontal =
         [
             {X = xs; Y = ys}

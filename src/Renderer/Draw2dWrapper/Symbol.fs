@@ -323,7 +323,7 @@ let createPolygon points colour opacity =
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
 
 let addInvertor posX posY colour opacity =
-    let points = (sprintf "%i,%i %i,%i %i,%i" posX (posY) (posX+12) (posY) posX (posY-8))
+    let points = (sprintf "%i,%i %i,%i %i,%i" posX (posY) (posX+9) (posY) posX (posY-8))
     createPolygon points colour opacity
 
 let addClock posX posY colour opacity =

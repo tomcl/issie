@@ -299,7 +299,7 @@ let makeInitialSegmentsList (hostId : ConnectionId) (portCoords : XYPos * XYPos)
 /// this function returns a list of Segment(s).
 let updateSegmentsList (model:Model) (hostId : ConnectionId) (portCoords : XYPos * XYPos) : list<Segment> =
     let segments = model.WX.[hostId].Segments |> List.map makeSegPos //Manual routing causes negative segment XYPos
-    let verticesList = makeInitialWireVerticesList portCoords
+    let verticesList = makeInitialWireVerticesList portCoords // the vertices for the wire if auto-routed
     let lastSegIndex = (List.length verticesList) - 1
     let startX, endX = fst(portCoords).X, snd(portCoords).X
     let startY, endY = fst(portCoords).Y, snd(portCoords).Y
@@ -590,6 +590,37 @@ let checkSegmentAngle (seg:Segment) (name:string) =
         if not ok then  
             printfn $"Weird segment '{name}':\n{seg}\n\n fails angle checking")
 
+let segPointsLeft seg =
+    abs seg.Start.X > abs seg.End.X && seg.Dir = Horizontal
+
+let segXDelta seg = abs seg.End.X - abs seg.Start.X
+
+/// change the middle X coordinate of the joined ends of two segments (seg0 is LH, seg1 is RH).
+/// compensate for negative signs in coordinates using as value but preserving sign
+/// xPos is asumed positive
+let moveXJoinPos xPos seg0 seg1 =
+    let changeXKeepingSign (coord:XYPos) =
+        if coord.X < 0.0 then {coord with X = -xPos}
+        else {coord with X = xPos}
+    [ {seg0 with End = changeXKeepingSign seg0.End}; {seg1 with Start = changeXKeepingSign seg1.Start} ]
+
+let changeLengths isAtEnd seg0 seg1 =
+    let outerSeg, innerSeg =
+        if isAtEnd then seg1, seg0 else seg0, seg1
+    let innerX = segXDelta innerSeg
+    let outerX = segXDelta outerSeg
+
+    // should never happen, can't do anything
+    if seg0.Dir <> Horizontal || seg1.Dir <> Horizontal || outerX < 0.0 then [seg0 ; seg1]
+    elif innerX < 0.0 then  
+        // the case where we need to shorten the first or last segment (seg0 here)
+        moveXJoinPos (if isAtEnd then seg1.End.X - 10.0 else seg0.Start.X + 10.0) seg0 seg1
+    else [ seg0; seg1]
+
+/// This function allows a wire segment to be moved a given amount in a direction perpedicular to
+/// its orientation (Horizontal or Vertical). Used to manually adjuts routing by mouse drag.
+/// The moved segment is tagged by negating one of its coordinates so that it cannot be auto-routed
+/// after the move, thus keeping the moved position.
 let moveSegment (seg:Segment) (distance:float) (model:Model) = 
     let wire = model.WX.[seg.HostId]
     let index = seg.Index
@@ -615,11 +646,11 @@ let moveSegment (seg:Segment) (distance:float) (model:Model) =
     let newPrevSeg = {prevSeg with End = newPrevEnd}
     let newSeg = {seg with Start = newSegStart;End = newSegEnd}
     let newNextSeg = {nextSeg with Start = newNextStart}
-    checkSegmentAngle newPrevSeg "prev segment"
-    checkSegmentAngle newNextSeg "next segment "
-    checkSegmentAngle newSeg "moved segment"
+    let endIndex = wire.Segments.Length-1
 
-    let newSegments = wire.Segments.[.. index-2] @ [newPrevSeg; newSeg; newNextSeg] @ wire.Segments.[index+2 ..]
+        
+    let newSegments =
+        wire.Segments.[.. index-2] @ [newPrevSeg; newSeg; newNextSeg] @ wire.Segments.[index+2 ..]
     {wire with Segments = newSegments}
 
 ///
@@ -1138,7 +1169,7 @@ let checkManual (wire : Wire) =
 
 
 ///Returns the segment indicies which are manually routed by checking negativity
-let getManualIndx (wire : Wire) =
+let getAllManualIndices (wire : Wire) =
     wire.Segments
     |> List.indexed
     |> List.filter (fun (_, x) -> getAbsXY x.Start <> x.Start && getAbsXY x.End <> x.End)
@@ -1148,16 +1179,36 @@ let getManualIndx (wire : Wire) =
 let div2Floor (i : int) =
     float i / 2. |> floor
 
-///Calculates the position required based on an int indicating segment start/end, the sublength, and the origin position
+///Calculates the position required for each vertex based on an int indicating wire vertex up to which the stretch happens, the amount added per vertex, and the origin position
 let newPos (i : int) (len : float) (origin : float) =
     div2Floor i
     |> (*) len 
     |> (+) origin
+
+/// change the X vertices of coordinates of a list of segments to alter the X position of one end, keeping the other end fixed. startisFixed = true => last segment in list moves most
+/// if the segments are vertical both vertices have the same offset applied. The stretch can be implemented as a linear stretch of all X vertex coordinates.
+/// it is possible that coordinates may be negated, in which case this must be compensated
+let stretchHorizontally startIsFixed offset (segs: Segment list) =
+    let n = segs.Length
+    let finishX = abs (List.last segs).End.X
+    let startX = abs (List.head segs).Start.X
+    let origWidth = finishX - startX
+    let scaleFactor = (origWidth + offset) / origWidth
+    let fixedX = if startIsFixed then startX else finishX
+    let stretch x = (x - fixedX)*scaleFactor + fixedX
+    let stretchXKeepingSign (pos: XYPos) = 
+        let x = if pos.X < 0.0 then  - (stretch -pos.X) else stretch pos.X
+        {pos with X = x}
+    let stretchSeg (seg:Segment) = {seg with Start = stretchXKeepingSign seg.Start; End = stretchXKeepingSign seg.End}
+    segs 
+    |> List.map stretchSeg
+
     
-///determines the new manual wire routing for wires CONNECTED TO INPUT ports - i.e. The last wire segment(s)
-let manualInput (wire : Wire) (newInput : XYPos) (model : Model) (diff : XYPos) =
     
-    let manualI = getManualIndx wire |> List.max
+///Determines the new partly autorouted wire routing for wires when the input port end moves - i.e. The final wire segment(s)
+let partialAutoRouteFromInputOld (wire : Wire) (newInput : XYPos) (model : Model) (diff : XYPos) =
+    
+    let manualI = getAllManualIndices wire |> List.max
     let closestManualSeg = wire.Segments.[manualI]
     let denom = div2Floor (7 - manualI)
     let len = abs (newInput.X - abs closestManualSeg.End.X)
@@ -1267,10 +1318,207 @@ let manualInput (wire : Wire) (newInput : XYPos) (model : Model) (diff : XYPos) 
             else autorouteWire model wire
         else autorouteWire model wire 
 
-///determines the new manual wire routing for wires CONNECTED TO OUTPUT ports - i.e. The first wire segment(s)
-let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) (diff : XYPos) = 
+/// reverse segment order, and Start, End coordinates, so list can be processed from input to output
+/// this function is self-inverse
+let revSegments (segs:Segment list) =
+    List.rev segs
+    |> List.map (fun seg -> {seg with Start = seg.End; End = seg.Start})
+
+/// transforms the list of segments so all stay horizontal or vertical and the start point moved by Diff and end point the same.
+/// the first segment can never have its length changed. Other segments have lengths chnaged as early as possible
+/// in the lits to match the needed offset
+let addDifference (diff: XYPos) (segL: Segment list) =
+    let addAbs coord diff = 
+        let coord' = (abs coord + diff)
+        if coord >= 0.0 then coord' else -coord'
+    // Now we need to adjust the length segments 2 (H) and 3 (V). We add diff.X, or diff.Y or both onto segment vertices.
+    // Helper functions.
+    let add (diff: XYPos) (pos:XYPos) = {X= addAbs pos.X diff.X; Y = addAbs pos.Y diff.Y}
+    let offset startDiff endDiff seg = {seg with Start = add startDiff seg.Start; End = add endDiff seg.End}
+    let rec addDifference' (diff:XYPos) segs =
+        match segs with
+        | ({Dir=Horizontal} as seg) :: segs' when diff.X <> 0.0 && diff.X < seg.End.X - seg.Start.X -> 
+            let diff' = {diff with X = 0.0}
+            offset diff diff' seg :: addDifference' diff' segs'
+        | ({Dir=Vertical} as seg) :: segs' when diff.Y <> 0.0 && diff.Y < seg.End.Y - seg.Start.Y -> 
+            let diff' = {diff with Y = 0.0}
+            offset diff diff' seg :: addDifference' diff' segs'
+        | segs when diff = {X=0.0;Y=0.0} -> segs
+        | seg :: segs' -> offset diff diff seg :: addDifference' diff segs'
+        | [] -> []
+            
+    match segL with
+    | init :: seg :: segs when seg.End = seg.Start ->
+        offset diff diff init :: offset diff diff seg :: addDifference' diff segs
+    | init :: segs ->
+        offset diff diff init :: addDifference' diff segs
+    | _ -> failwithf "What? impossible!"
+
+let addDifferenceAtEnd (diff:XYPos) segs =
+    segs
+    |> revSegments
+    |> addDifference diff
+    |> revSegments
     
-    let manualI = getManualIndx wire |> List.min
+let getFirstFixedCoord invertFun (segments:Segment list) =
+    let leftToRight = invertFun (segments.[6].Start.X - segments.[0].End.X > 0.0) 
+    let rec gffc isInit hDone vDone (segs:Segment list) =
+        match isInit, segs with
+        | true, init :: segs' -> gffc false false false segs'
+        | _, {Dir=Horizontal; Start = sPos; End = ePos} :: segs' when leftToRight || invertFun (sPos.X > ePos.X) -> gffc false true vDone segs'
+        | _, {Dir=Vertical} :: segs' -> gffc false hDone true segs'
+        | _, seg :: segs' when not (hDone && vDone) -> gffc false hDone vDone segs'
+        | _, seg :: _ when hDone && vDone -> seg.Start
+        | _ -> failwithf $"What? end of segments <{segments}> is encountered in getFirstFixedCoord"
+    gffc true false false segments       
+//
+//  ====================================================================================================================
+//
+//                                        WIRE SEGMENTS FOR ROUTING
+//
+//
+// Segments, going from Start (output port) to End (input port) coords, are summarised as:
+// H => Horizontal (incr X)
+// V => Vertical (incr Y)
+// 0 => zero length segment (never used)
+//
+// segment qualifiers:
+// - => decr not incr (segment moves in West or South direction)
+// F => fixed length (next to output or input, never changes)
+//
+// "Simple" case where output.X < input.X
+//  S0.FH  S1.0  S2.H  S3.V  S4.H  S5.0 S6.FH
+//
+// "Complex" case where output.X . input.X
+//  S0.FH  S1.H  S2.V  S3.-H  S4.V  S5.H S6.FH
+//
+// To determine adjustment on End change we just reverse the segment and apply the Start change algorithm
+// Adjustment => reverse list of segments, swap Start and End, and alter the sign of all coordinates
+// For simplicity, due to the encoding of manual changes into coordinates by negating them (yuk!)
+// we do not alter coordinate sign. Instead we invert all numeric comparisons.
+// There are no constants used in the algorithm (if there were, they would need to be negated)
+//
+// ======================================================================================================================
+
+let inline isComplexRoute (reverse: bool -> bool) (segs: Segment list) =
+    reverse (segs.[0].End.X > segs.[6].Start.X )
+
+// length of a segment line, always positive
+let inline segLen (seg:Segment) =
+    match seg.Dir with
+    | Horizontal -> abs (abs seg.Start.X - abs seg.End.X)
+    | Vertical -> abs (abs seg.Start.Y - abs seg.End.Y)
+
+let inline addPosPos (pos1: XYPos) (pos:XYPos) =
+    {X = pos1.X + pos.X; Y = pos1.Y + pos.Y}
+
+let inline addPosX (x: float) (pos:XYPos) =
+    {pos with X = pos.X + x}
+
+let inline addPosY (y: float) (pos:XYPos) =
+    {pos with Y = pos.Y + y}
+
+let inline moveEnd (mover: XYPos -> XYPos) (n:int) =
+    List.mapi (fun i (seg:Segment) -> if i = n then {seg with End = mover seg.End} else seg)
+
+
+let inline moveStart (mover: XYPos -> XYPos) (n:int) =
+    List.mapi (fun i (seg:Segment) -> if i = n then {seg with Start = mover seg.Start} else seg)
+
+let inline moveAll (mover: XYPos -> XYPos) (n : int) =
+    List.mapi (fun i (seg:Segment) -> if i = n then {seg with Start = mover seg.Start; End = mover seg.End} else seg)
+
+
+let partialAutoRoute (reverseFun: bool -> bool) (segs: Segment list) (newPortPos: XYPos) =
+    let xo = newPortPos.X - abs segs.[0].Start.X
+    let yo = newPortPos.Y - abs segs.[0].Start.Y
+    let moveAllX xo (n: int) = moveAll (addPosX xo) n
+    let moveAllY yo (n: int) = moveAll (addPosY yo) n
+    let segs' = // this always happens
+        segs
+        |> moveAllX xo 0
+        |> moveAllY yo 0
+
+    let complex = isComplexRoute reverseFun segs
+    let moveXCoords xo (segs:Segment list) : (Segment list) option =
+        if not complex then
+            let segs = 
+                segs'
+                |> moveAllX xo 1
+                |> moveAllY yo 1
+            if reverseFun (xo > abs segs.[2].End.X - abs segs.[2].Start.X) then
+                None
+            else 
+                segs'               
+                |> moveAllX xo 1
+                |> moveStart (addPosX xo) 2
+                |> Some
+        else
+            if reverseFun (xo < segs.[1].Start.X) then
+                segs
+                |> moveStart (addPosX xo) 2
+                |> Some
+            else
+                segs
+                |> moveStart (addPosX (xo 2
+                
+            
+    Some segs'
+    |> Option.bind (moveXCoords xo)
+    |> Option.bind (moveYCoords yo)
+
+
+        
+        
+        
+    
+    
+
+/// Determines the partially autorouted wire routing for wires CONNECTED TO moved ports - i.e. The initial wire segment(s)
+/// Simple policy: if any of wire has been manually routed then adjust length of just two segments to make the movement, otherwise autoroute entire wire.
+/// in addition: if wire topology changes, autoroute it all anyway.
+/// All wires have 7 segments. The outer segments never change length and are short)
+/// diff = (newOutput - pos of existing wire output port), redundant but useful
+let partialAutoRouteFromOutput invertFun (wire : Wire) (newOutput : XYPos) (model : Model) (diff : XYPos) = 
+    let WS = wire.Segments
+    let diff: XYPos = {X=newOutput.X - WS.[0].Start.X; Y = newOutput.Y - WS.[0].Start.Y}
+    let hasManualRouting = getAllManualIndices wire <> []
+    // checks to see if the wire topology has changed
+    let topology (outPos:XYPos) (inPos: XYPos) = 
+        (abs outPos.X - abs inPos.X) >= 0.0, (abs outPos.Y - abs inPos.Y) >= 0.0
+    let fixedCoord = getFirstFixedCoord invertFun WS
+    // checks to see if initial segments will change topology. Segment zero is fixed
+    let initSegX = WS.[0].End.X - WS.[0].Start.X
+    let initTopology (outPos:XYPos) = 
+        topology {outPos with X = outPos.X + initSegX} fixedCoord
+    let inPos =  (List.last wire.Segments).End
+    // sanity check - if the wire chnages topology in any way then just autoroute it
+    let okTop = topology newOutput inPos = topology WS.[0].Start inPos
+    let okInitTop = initTopology newOutput = initTopology WS.[0].Start
+    if not okTop || not okInitTop then
+        printfn $"okTop = {okTop}, okInitTop={okInitTop}"
+        autorouteWire model wire
+    else
+        printfn "preserving manual routing"
+        // Deal with possibly negative coordinates (maybe this is not necessary)
+        // finally we can translate the first 3 segments
+
+        let newSegments = addDifference diff WS
+        //printfn $"{segmentsToVertices newSegments}"
+        {wire with Segments = newSegments}
+
+
+let partialAutoRouteFromInput (wire : Wire) (newInput : XYPos) (model : Model) (diff : XYPos) = 
+    let wire' = {wire with Segments = revSegments wire.Segments}
+    let wire'' = partialAutoRouteFromOutput not wire' newInput model diff
+    {wire'' with Segments = revSegments wire''.Segments}
+     
+(*
+
+///determines the partially autorouted wire routing for wires CONNECTED TO moved ports - i.e. The initial wire segment(s)
+let partialAutoRouteFromOutputOld (wire : Wire) (newOutput : XYPos) (model : Model) (diff : XYPos) = 
+    
+    let manualI = getAllManualIndices wire |> List.min
     let closestManualSeg = wire.Segments.[manualI]
     let denom = div2Floor (manualI + 1)
     let len = abs (abs closestManualSeg.Start.X - newOutput.X)
@@ -1384,7 +1632,7 @@ let manualOutput (wire : Wire) (newOutput : XYPos) (model : Model) (diff : XYPos
 
             else autorouteWire model wire
         else autorouteWire model wire 
-
+*)
 
 ///Returns the new positions keeping manual coordinates negative, and auto coordinates positive
 let negXYPos (pos : XYPos) (diff : XYPos) : XYPos =
@@ -1410,8 +1658,8 @@ let updateWire (model : Model) (wire : Wire) (diff : XYPos) (inOut : bool) =
     if checkManual wire 
     then
         //Only need to manual route when either input OR output port was moved, but not both.
-        if inOut then manualInput wire (Symbol.getInputPortLocation model.Symbol wire.InputPort) model diff
-        else manualOutput wire (Symbol.getOutputPortLocation model.Symbol wire.OutputPort) model diff        
+        if inOut then partialAutoRouteFromInput wire (Symbol.getInputPortLocation model.Symbol wire.InputPort) model diff
+        else partialAutoRouteFromOutput id wire (Symbol.getOutputPortLocation model.Symbol wire.OutputPort) model diff        
     else
         autorouteWire model wire
 

@@ -94,6 +94,11 @@ let verticesToSegments
 
     let vertexPairsList = List.pairwise vertList
     let lastSegIndex = List.length vertexPairsList - 1
+    let midVertexPair = vertexPairsList.[lastSegIndex / 2]
+    let _, (xs,_) = vertexPairsList.[0]
+    let (xe,_), _ = vertexPairsList.[lastSegIndex]
+    let xDir = abs xe - abs xs
+
 
     List.mapi (
         fun i ((startX, startY), (endX,endY)) ->
@@ -108,7 +113,11 @@ let verticesToSegments
                       Vertical
             HostId  = (ConnectionId connId);
             JumpCoordinateList = [];
-            Draggable = if i = 0 || i = 1 || i = lastSegIndex || i = (lastSegIndex - 1) then false else true
+            Draggable =
+                match i, lastSegIndex - i with
+                | 0,_ | 1,_ | _,0 | _,1 -> false
+                | 2,_ | _,2 ->  not (xDir > 0.0)
+                | _ -> true
         } 
         ) vertexPairsList
     
@@ -217,6 +226,7 @@ let makeInitialWireVerticesList (portCoords : XYPos * XYPos) : list<XYPos * XYPo
     let makeSegs (points: XYPos list) =
         List.pairwise points
 
+    // the simple case of a wire travelling from output to input in a left-to-right (positive X) direction
     let leftToRight = 
         [
             {X = xs; Y = ys};
@@ -228,7 +238,7 @@ let makeInitialWireVerticesList (portCoords : XYPos * XYPos) : list<XYPos * XYPo
             {X = Xt-10.0; Y = Yt}
             {X = Xt; Y = Yt}
         ]
-    
+    // the case of a wire travelling from output to input in a right-to-left (negative X) direction. Thus must bend back on itself.
     let rightToLeft =
         [
             {X = xs; Y = ys}
@@ -241,6 +251,8 @@ let makeInitialWireVerticesList (portCoords : XYPos * XYPos) : list<XYPos * XYPo
             {X = Xt; Y = Yt}
         ]
 
+    // the special case of a wire travelling right-to-left where the two ends are vertically almost identical. 
+    // In this case we ad an offset to the main horizontal segment so it is more visible and can be easily re-routed manually.
     let rightToLeftHorizontal =
         [
             {X = xs; Y = ys}
@@ -266,6 +278,10 @@ let makeInitialSegmentsList (hostId : ConnectionId) (portCoords : XYPos * XYPos)
     let lastSegIndex = List.length verticesList - 1
     let startX, endX = fst(portCoords).X, snd(portCoords).X
     let startY, endY = fst(portCoords).Y, snd(portCoords).Y
+    let _, ({X=xs}:XYPos) = verticesList.[0]
+    let ({X=xe}:XYPos), _ = verticesList.[lastSegIndex]
+
+    let xDir = abs xe - abs xs
 
     verticesList
     |> List.mapi
@@ -286,7 +302,11 @@ let makeInitialSegmentsList (hostId : ConnectionId) (portCoords : XYPos * XYPos)
                                 Vertical;
                     HostId  = hostId;
                     JumpCoordinateList = [];
-                    Draggable = if i = 0 || i = 1 || i = lastSegIndex || i = (lastSegIndex - 1) then false else true
+                    Draggable =
+                        match i, lastSegIndex - i with
+                        | 0,_ | 1,_ | _,0 | _,1 -> false
+                        | 2,_ | _,2 ->  not (xDir > 0.0)
+                        | _ -> true
                 }
         )
 
@@ -647,6 +667,9 @@ let moveSegment (seg:Segment) (distance:float) (model:Model) =
     let newSeg = {seg with Start = newSegStart;End = newSegEnd}
     let newNextSeg = {nextSeg with Start = newNextStart}
     let endIndex = wire.Segments.Length-1
+    //checkSegmentAngle newPrevSeg "prev segment"
+    //checkSegmentAngle newNextSeg "next segment "
+    //checkSegmentAngle newSeg "moved segment"
 
         
     let newSegments =
@@ -1203,6 +1226,16 @@ let stretchHorizontally startIsFixed offset (segs: Segment list) =
     segs 
     |> List.map stretchSeg
 
+
+let correctDraggableSegments (segs:Segment list) =
+    let xs = segs.[0].End.X
+    let xe = segs.[6].Start.X
+    let dragNow = xs - xe < 0.0
+    if dragNow = segs.[2].Draggable then
+        segs
+    else
+        segs
+        |> List.mapi (fun i seg -> if i = 2 || i = 4 then {seg with Draggable = dragNow} else seg)
     
     
 ///Determines the new partly autorouted wire routing for wires when the input port end moves - i.e. The final wire segment(s)
@@ -1258,7 +1291,9 @@ let partialAutoRouteFromInputOld (wire : Wire) (newInput : XYPos) (model : Model
                     )
                
             {wire with
-                Segments = wire.Segments.[0..(manualI - 1)] @ [newManualSeg] @ autoSegList
+                Segments = 
+                    wire.Segments.[0..(manualI - 1)] @ [newManualSeg] @ autoSegList
+                    |> correctDraggableSegments
             }
 
         else autorouteWire model wire
@@ -1285,7 +1320,9 @@ let partialAutoRouteFromInputOld (wire : Wire) (newInput : XYPos) (model : Model
                             End = {X = newInput.X - newAutoLenX; Y = newInput.Y}
                             Start = {X = -(newInput.X - newAutoLenX); Y = newManualSeg.Start.Y}}
                     
-                    {wire with Segments = wire.Segments.[0..3] @ [newManualSeg; newSndSeg; newFirstSeg]}
+                    {wire with Segments = 
+                                  wire.Segments.[0..3] @ [newManualSeg; newSndSeg; newFirstSeg]
+                                  |> correctDraggableSegments}
                 else autorouteWire model wire
 
             //If the second segment is not manually routed, but the third is, then we want both to expand horizontally
@@ -1313,7 +1350,8 @@ let partialAutoRouteFromInputOld (wire : Wire) (newInput : XYPos) (model : Model
                         End = {X = newInput.X - len; Y = newInput.Y}
                         Start = {X = - (newInput.X - len); Y = abs newManualSeg2.Start.Y}}
 
-                {wire with Segments = wire.Segments.[0..2] @ [newManualSeg; newTrdSeg; newSndSeg; newFirstSeg]}
+                {wire with Segments = wire.Segments.[0..2] @ [newManualSeg; newTrdSeg; newSndSeg; newFirstSeg] 
+                                      |> correctDraggableSegments}
 
             else autorouteWire model wire
         else autorouteWire model wire 
@@ -1571,6 +1609,7 @@ let partialAutoRouteFromOutputOld (wire : Wire) (newOutput : XYPos) (model : Mod
                
             {wire with
                 Segments = autoSegList @ [newManualSeg] @ wire.Segments.[finalI..]
+                |> correctDraggableSegments
             }
 
         else autorouteWire model wire
@@ -1598,7 +1637,9 @@ let partialAutoRouteFromOutputOld (wire : Wire) (newOutput : XYPos) (model : Mod
                             End = {X = -(newOutput.X + newAutoLenX); Y = newManualSeg.Start.Y}}
                     
                     {wire with
-                        Segments = [newFirstSeg; newSndSeg; newManualSeg] @ wire.Segments.[3..]}
+                        Segments = 
+                            [newFirstSeg; newSndSeg; newManualSeg] @ wire.Segments.[3..]
+                            |> correctDraggableSegments}
 
                 else autorouteWire model wire
 
@@ -1628,7 +1669,9 @@ let partialAutoRouteFromOutputOld (wire : Wire) (newOutput : XYPos) (model : Mod
                         End = {X = - (newOutput.X + len); Y = - abs newManualSeg2.Start.Y}}
 
                 {wire with
-                    Segments = [newFirstSeg; newSndSeg; newTrdSeg; newManualSeg2] @ wire.Segments.[4..]}
+                    Segments = 
+                        [newFirstSeg; newSndSeg; newTrdSeg; newManualSeg2] @ wire.Segments.[4..]
+                        |> correctDraggableSegments}
 
             else autorouteWire model wire
         else autorouteWire model wire 

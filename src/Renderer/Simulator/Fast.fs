@@ -479,17 +479,16 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
 #endif
             let write = extractBit (insOld 2)
             // If write flag is on, write the memory content.
-            let mem, dataOut =
+            let mem =
                 match write with
                 | 0u ->
                     // Read memory address and return memory unchanged.
-                    mem, readMemory mem address
+                    mem
                 | 1u ->
                     // Update memory and return old content.
                     // NB - this was previously new content - but that is inconsistent and less useful.
-                    writeMemory mem address dataIn, readMemory mem address
+                    writeMemory mem address dataIn
                 | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
-
             putState (RamState mem)
         else
             // here we do the async read using current step address and state
@@ -1127,7 +1126,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
             (fun i vec ->
                 if not (isHybridComponent fc.FType) then 
                     fc.Touched <- true
-                propagateEval fc
+                    propagateEval fc
 
                 match fc.FType, fc.OutputWidth.[i] with
                 | RAM1 mem, Some w | AsyncRAM1 mem, Some w ->
@@ -1359,10 +1358,10 @@ let private runCombinationalLogic (step: int) (fastSim: FastSimulation) =
 /// Change an input and make simulation correct. N.B. step must be the latest
 /// time-step since future steps are not rerun (TODO: perhaps they should be!)
 let changeInput (cid: ComponentId) (wd: WireData) (step: int) (fastSim: FastSimulation) =
-    printfn "wd=%A" wd
+    //printfn "wd=%A" wd
     let fd = (wd |> wireToFast)
     setSimulationInput cid fd step fastSim
-    printfn $"Changing {fastSim.FComps.[cid,[]].FullName} to {fd}"
+    //printfn $"Changing {fastSim.FComps.[cid,[]].FullName} to {fd}"
     runCombinationalLogic step fastSim
 
 let extractStatefulComponents (step: int) (fastSim: FastSimulation) =

@@ -93,7 +93,7 @@ let inline private bitXnor bit0 bit1 = bitXor bit0 bit1 |> bitNot
 let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (comp: FastComponent) : Unit =
     let componentType = comp.FType
 
-    //printfn "Reducing %A...%A %A (step %d)"  comp.FType comp.ShortId comp.FullName simStep
+    //printfn "Reducing %A...%A %A (step %d) clocked=%A"  comp.FType comp.ShortId comp.FullName numStep isClockedReduction
     let n = comp.InputLinks.Length
 
     let simStep = numStep % maxArraySize 
@@ -494,11 +494,12 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             // here we do the async read using current step address and state
             // note that state will have been written for this step previously by clocked invocation of this component
             let mem =
-                getRamStateMemory numStep simStep comp.State memory
+                getRamStateMemory (numStep+1) simStep comp.State memory
 
             let address = ins 0
-            
-            put0 (readMemory mem address)
+            let data = readMemory mem address
+            //printfn $"reading {data} from addr={address} with state = {RamState mem}"
+            put0 data
 
 
 //------------------------------------------------------------------------------//
@@ -1448,19 +1449,19 @@ let rec extractFastSimulationOutput
     (fs: FastSimulation)
     (step: int)
     ((cid, ap): ComponentId * ComponentId list)
-    (opn: OutputPortNumber) : WireData
-    =
-    let (OutputPortNumber n) = opn
-
-    match Map.tryFind (cid, ap) fs.FComps with
-    | Some fc ->
+    (opn: OutputPortNumber) : WireData =
+    
+   let (OutputPortNumber n) = opn
+   match Map.tryFind (cid, ap) fs.FComps with
+   | Some fc ->
+        //printfn $"Extracting port {opn} from {fc.FullName} in step {step}"
         match Array.tryItem (step % fs.MaxArraySize) fc.Outputs.[n].Step with
         | None -> failwithf $"What? extracting output {n} in step {step} from {fc.FullName} failed with clockTick={fs.ClockTick}"
         | Some fd -> fd
         |> (fun fd -> 
                 if fd.Width=0 then failwithf $"Can't find valid data in step {step}:index{step % fs.MaxArraySize} from {fc.FullName} with clockTick={fs.ClockTick}"
                 fd |> fastToWire)
-    | None ->
+   | None ->
         /// if it is a custom component output extract from the corresponding Output FastComponent
         match Map.tryFind ((cid, ap), opn) fs.G.CustomOutputLookup with
         | Some (cid, ap) -> extractFastSimulationOutput fs step (cid, ap) (OutputPortNumber 0)

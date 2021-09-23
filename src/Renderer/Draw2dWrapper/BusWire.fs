@@ -1221,134 +1221,7 @@ let stretchHorizontally startIsFixed offset (segs: Segment list) =
     |> List.map stretchSeg
 
 
-let correctDraggableSegments (segs:Segment list) =
-    let xs = segs.[0].End.X
-    let xe = segs.[6].Start.X
-    let dragNow = xs - xe < 0.0
-    if dragNow = segs.[2].Draggable then
-        segs
-    else
-        segs
-        |> List.mapi (fun i seg -> if i = 2 || i = 4 then {seg with Draggable = dragNow} else seg)
-    
-    
-///Determines the new partly autorouted wire routing for wires when the input port end moves - i.e. The final wire segment(s)
-let partialAutoRouteFromInputOld (wire : Wire) (newInput : XYPos) (model : Model) (diff : XYPos) =
-    
-    let manualI = getAllManualIndices wire |> List.max
-    let closestManualSeg = wire.Segments.[manualI]
-    let denom = div2Floor (7 - manualI)
-    let len = abs (newInput.X - abs closestManualSeg.End.X)
-    let newAutoLenX = len / denom
-    let newX (i : int) = newPos i (-newAutoLenX) newInput.X
 
-    //Manually routed segments may expand/shrink in alignments (i.e. a horizontal segment may expand horizontally only)
-    let newManualSeg = 
-        match closestManualSeg.Dir with
-        | Vertical ->
-            {closestManualSeg with 
-                End = {closestManualSeg.End with Y = - newInput.Y}
-            }
-        | Horizontal ->
-            {closestManualSeg with 
-                End = {closestManualSeg.End with X = - newX (7 - manualI)}
-            }
-
-    //if the output port is left of the input port
-    //this is the general case for manual routing
-    //everything not manual will be kept in Y-axis alignment with the output port
-    if wire.Segments.[0].Start.X < (List.last wire.Segments).End.X
-    then
-        //if the input port does not move before the first manual segment - the min length of number of segments between
-        //then keep manual routing
-        if newInput.X > abs closestManualSeg.Start.X + ((float manualI) * minSegLen) 
-        then 
-            let autoSegList = 
-                wire.Segments
-                |> List.indexed
-                |> List.filter (fun (i, _) -> i > manualI)
-                |> List.map (fun (idx, seg) ->  
-                    let i = (7 - idx)
-                    match seg.Dir with
-                    | Vertical when idx = manualI + 1 ->
-                        {seg with 
-                            End = {X = newX i; Y = newInput.Y}
-                            Start = {seg.Start with X = newX (i + 1)}}
-                    | Vertical ->
-                        {seg with 
-                            End = {X = newX i; Y = newInput.Y}
-                            Start = {X = newX (i + 1); Y = newInput.Y}}
-                    | _ ->
-                        {seg with 
-                            End = {X = newX i; Y = newInput.Y}
-                            Start = {X = newX (i + 1); Y = newInput.Y}}
-                    )
-               
-            {wire with
-                Segments = 
-                    wire.Segments.[0..(manualI - 1)] @ [newManualSeg] @ autoSegList
-                    |> correctDraggableSegments
-            }
-
-        else autorouteWire model wire
-                               
-    else    
-        //If the new position has become more right than the first semgnet, then autoroute, otherwise keep manual
-        if newInput.X < wire.Segments.[0].End.X
-        then
-            //if the segment after input segment IS MANUALLY ROUTED
-            //this segment is always vertical, and we want only 1 segment before it to expand horizontally
-            if manualI = 4
-            //if the new position is greater than the x pos of the manually routed wire + min length of output seg
-            //then manually route only allowing the first seg to move in the X axis, otherwise autoroute
-            then 
-                if newInput.X > abs wire.Segments.[manualI].End.X + minSegLen
-                then
-                    let newFirstSeg = 
-                        {wire.Segments.[6] with 
-                            End = {X = newInput.X; Y = newInput.Y}
-                            Start = {X = newInput.X - newAutoLenX; Y = newInput.Y}
-                        }
-                    let newSndSeg = 
-                        {wire.Segments.[5] with 
-                            End = {X = newInput.X - newAutoLenX; Y = newInput.Y}
-                            Start = {X = -(newInput.X - newAutoLenX); Y = newManualSeg.Start.Y}}
-                    
-                    {wire with Segments = 
-                                  wire.Segments.[0..3] @ [newManualSeg; newSndSeg; newFirstSeg]
-                                  |> correctDraggableSegments}
-                else autorouteWire model wire
-
-            //If the second segment is not manually routed, but the third is, then we want both to expand horizontally
-            //until the new output goes more left than the segment connected to the input port, which resets to autorouting
-            //In this case the 'newAutoSeg' will be half the value necessary (as the 1st and 3rd segments will be parallel)
-            elif manualI = 3
-            then 
-                let newFirstSeg = 
-                    {wire.Segments.[6] with 
-                        End = {X = newInput.X; Y = newInput.Y}
-                        Start = {X = newInput.X - len; Y = newInput.Y}
-                    }
-                        
-                let newManualSeg2 =
-                    {closestManualSeg with 
-                        End = {closestManualSeg.Start with X = - (newInput.X - len)}}
-                
-                let newSndSeg = 
-                    {wire.Segments.[5] with 
-                        End = {X = newInput.X - len; Y = newInput.Y}
-                        Start = {X = newInput.X - len; Y = newInput.Y}}
-
-                let newTrdSeg = 
-                    {wire.Segments.[4] with 
-                        End = {X = newInput.X - len; Y = newInput.Y}
-                        Start = {X = - (newInput.X - len); Y = abs newManualSeg2.Start.Y}}
-
-                {wire with Segments = wire.Segments.[0..2] @ [newManualSeg; newTrdSeg; newSndSeg; newFirstSeg] 
-                                      |> correctDraggableSegments}
-
-            else autorouteWire model wire
-        else autorouteWire model wire 
 
 /// reverse segment order, and Start, End coordinates, so list can be processed from input to output
 /// this function is self-inverse
@@ -1356,53 +1229,6 @@ let revSegments (segs:Segment list) =
     List.rev segs
     |> List.map (fun seg -> {seg with Start = seg.End; End = seg.Start})
 
-/// transforms the list of segments so all stay horizontal or vertical and the start point moved by Diff and end point the same.
-/// the first segment can never have its length changed. Other segments have lengths chnaged as early as possible
-/// in the lits to match the needed offset
-let addDifference (diff: XYPos) (segL: Segment list) =
-    let addAbs coord diff = 
-        let coord' = (abs coord + diff)
-        if coord >= 0.0 then coord' else -coord'
-    // Now we need to adjust the length segments 2 (H) and 3 (V). We add diff.X, or diff.Y or both onto segment vertices.
-    // Helper functions.
-    let add (diff: XYPos) (pos:XYPos) = {X= addAbs pos.X diff.X; Y = addAbs pos.Y diff.Y}
-    let offset startDiff endDiff seg = {seg with Start = add startDiff seg.Start; End = add endDiff seg.End}
-    let rec addDifference' (diff:XYPos) segs =
-        match segs with
-        | ({Dir=Horizontal} as seg) :: segs' when diff.X <> 0.0 && diff.X < seg.End.X - seg.Start.X -> 
-            let diff' = {diff with X = 0.0}
-            offset diff diff' seg :: addDifference' diff' segs'
-        | ({Dir=Vertical} as seg) :: segs' when diff.Y <> 0.0 && diff.Y < seg.End.Y - seg.Start.Y -> 
-            let diff' = {diff with Y = 0.0}
-            offset diff diff' seg :: addDifference' diff' segs'
-        | segs when diff = {X=0.0;Y=0.0} -> segs
-        | seg :: segs' -> offset diff diff seg :: addDifference' diff segs'
-        | [] -> []
-            
-    match segL with
-    | init :: seg :: segs when seg.End = seg.Start ->
-        offset diff diff init :: offset diff diff seg :: addDifference' diff segs
-    | init :: segs ->
-        offset diff diff init :: addDifference' diff segs
-    | _ -> failwithf "What? impossible!"
-
-let addDifferenceAtEnd (diff:XYPos) segs =
-    segs
-    |> revSegments
-    |> addDifference diff
-    |> revSegments
-    
-let getFirstFixedCoord invertFun (segments:Segment list) =
-    let leftToRight = invertFun (segments.[6].Start.X - segments.[0].End.X > 0.0) 
-    let rec gffc isInit hDone vDone (segs:Segment list) =
-        match isInit, segs with
-        | true, init :: segs' -> gffc false false false segs'
-        | _, {Dir=Horizontal; Start = sPos; End = ePos} :: segs' when leftToRight || invertFun (sPos.X > ePos.X) -> gffc false true vDone segs'
-        | _, {Dir=Vertical} :: segs' -> gffc false hDone true segs'
-        | _, seg :: segs' when not (hDone && vDone) -> gffc false hDone vDone segs'
-        | _, seg :: _ when hDone && vDone -> seg.Start
-        | _ -> failwithf $"What? end of segments <{segments}> is encountered in getFirstFixedCoord"
-    gffc true false false segments       
 //
 //  ====================================================================================================================
 //
@@ -1432,23 +1258,10 @@ let getFirstFixedCoord invertFun (segments:Segment list) =
 //
 // ======================================================================================================================
 
-let inline isComplexRoute (reverse: bool -> bool) (segs: Segment list) =
-    reverse (segs.[0].End.X > segs.[6].Start.X )
-
-// length of a segment line, always positive
-let inline segLen (seg:Segment) =
-    match seg.Dir with
-    | Horizontal -> abs (abs seg.Start.X - abs seg.End.X)
-    | Vertical -> abs (abs seg.Start.Y - abs seg.End.Y)
 
 let inline addPosPos (pos1: XYPos) (pos:XYPos) =
     {X = pos1.X + pos.X; Y = pos1.Y + pos.Y}
 
-let inline addPosX (x: float) (pos:XYPos) =
-    {pos with X = pos.X + x}
-
-let inline addPosY (y: float) (pos:XYPos) =
-    {pos with Y = pos.Y + y}
 
 let inline moveEnd (mover: XYPos -> XYPos) (n:int) =
     List.mapi (fun i (seg:Segment) -> if i = n then {seg with End = mover seg.End} else seg)
@@ -1478,7 +1291,7 @@ let topology (pos1: XYPos) (pos2:XYPos) =
 let partialAutoRoute (reverseFun: bool -> bool) (segs: Segment list) (newPortPos: XYPos) =
     let wirePos = segs.[0].End
     let portPos = segs.[0].Start
-    let newWirePos = {newPortPos with X = newPortPos.X + (wirePos.X - portPos.X) }
+    let newWirePos = {newPortPos with X = newPortPos.X + (abs wirePos.X - portPos.X) }
     let (diff:XYPos) = {X=newPortPos.X-portPos.X; Y= newPortPos.Y - portPos.Y}
     let lastAutoIndex =
         let isNegative (pos:XYPos) = pos.X < 0.0 || pos.Y < 0.0
@@ -1487,13 +1300,16 @@ let partialAutoRoute (reverseFun: bool -> bool) (segs: Segment list) (newPortPos
         segs
         |> List.takeWhile isAutoSeg
         |> List.length
-        |> (fun n -> if n > 5 then None else Some (n-1))
-
+        |> (fun n -> if n > 5 then None else Some (n + 1))
     let scaleBeforeSegmentEnd segIndex =
         let seg = segs.[segIndex]
         let fixedPt = getAbsXY seg.End
-        let scaleX x = (x - fixedPt.X)*(newWirePos.X - fixedPt.X)/(wirePos.X - fixedPt.X) + fixedPt.X
-        let scaleY y = (y - fixedPt.Y)*(newWirePos.Y - fixedPt.Y) / (wirePos.Y - fixedPt.Y) + fixedPt.Y
+        if wirePos.X = fixedPt.X then printfn $"****warning {wirePos.X} duplicated"
+        if wirePos.Y = fixedPt.Y then printfn $"****warning {wirePos.Y} duplicated"
+        let scale x fx nx wx =
+            if nx = fx then x else ((abs x - fx)*(nx-fx)/(abs wx - fx) + fx) * float (sign x)
+        let scaleX x = scale x fixedPt.X newWirePos.X wirePos.X
+        let scaleY y = scale y fixedPt.Y newWirePos.Y wirePos.Y
         match List.splitAt (segIndex+1) segs with
         | (firstSeg :: scaledSegs), otherSegs ->
             Some ((moveAll (addPosPos diff) 0 [firstSeg] @ List.map (transformSeg scaleX scaleY) scaledSegs) @ otherSegs)
@@ -1501,149 +1317,19 @@ let partialAutoRoute (reverseFun: bool -> bool) (segs: Segment list) (newPortPos
 
     let checkTopology common x =
         if topology newWirePos common = topology wirePos common then
-            None 
-        else Some x
-        
+            Some x 
+        else None
     lastAutoIndex
     |> Option.bind (checkTopology segs.[6].Start)
     |> Option.bind (fun index -> checkTopology segs.[index].End index)
     |> Option.bind scaleBeforeSegmentEnd
 
 
-
-     
-(*
-
-///determines the partially autorouted wire routing for wires CONNECTED TO moved ports - i.e. The initial wire segment(s)
-let partialAutoRouteFromOutputOld (wire : Wire) (newOutput : XYPos) (model : Model) (diff : XYPos) = 
-    
-    let manualI = getAllManualIndices wire |> List.min
-    let closestManualSeg = wire.Segments.[manualI]
-    let denom = div2Floor (manualI + 1)
-    let len = abs (abs closestManualSeg.Start.X - newOutput.X)
-    let newAutoLenX = len / denom
-    let newX (i : int) = newPos i newAutoLenX newOutput.X
-
-    //Manually routed segments may expand/shrink in alignments (i.e. a horizontal segment may expand horizontally only)
-    let newManualSeg = 
-        match closestManualSeg.Dir with
-        | Vertical ->
-            {closestManualSeg with 
-                Start = {closestManualSeg.Start with Y = - newOutput.Y}
-            }
-        | Horizontal ->
-            {closestManualSeg with 
-                Start = {closestManualSeg.Start with X = - newX manualI}
-            }
-
-    //if the output port is left of the input port
-    //this is the general case for manual routing
-    //everything not manual will be kept in Y-axis alignment with the output port
-    if wire.Segments.[0].Start.X < (List.last wire.Segments).End.X
-    then
-        //if the output port does not move beyond the first manual segment - the min length of number of segments between
-        //then keep manual routing
-        if newOutput.X < abs closestManualSeg.Start.X - ((float manualI) * minSegLen) 
-        then 
-            let autoSegList = 
-                wire.Segments
-                |> List.indexed
-                |> List.filter (fun (i, _) -> i < manualI)
-                |> List.map (fun (idx, seg) ->  
-                    let i = idx + 1
-                    match seg.Dir with
-                    | Vertical when idx = manualI - 1 ->
-                        {seg with 
-                            Start = {X = newX i; Y = newOutput.Y}
-                            End = {seg.End with X = newX (i + 1)}}
-                    | Vertical ->
-                        {seg with 
-                            Start = {X = newX i; Y = newOutput.Y}
-                            End = {X = newX (i + 1); Y = newOutput.Y}}
-                    | _ ->
-                        {seg with 
-                            Start = {X = newX i; Y = newOutput.Y}
-                            End = {X = newX (i + 1); Y = newOutput.Y}}
-                    )
-
-            let finalI = List.length autoSegList |> (+) 1
-               
-            {wire with
-                Segments = autoSegList @ [newManualSeg] @ wire.Segments.[finalI..]
-                |> correctDraggableSegments
-            }
-
-        else autorouteWire model wire
-                               
-    else    
-        //If the new position has become more left than the last semgnet, then autoroute, otherwise keep manual
-        if newOutput.X > (List.last wire.Segments).Start.X
-        then
-            //if the segment after output segment IS MANUALLY ROUTED
-            //this segment is always vertical, and we want only 1 segment before it to expand horizontally
-            if manualI = 2
-            //if the new position is greater than the x pos of the manually routed wire + min length of output seg
-            //then manually route only allowing the first seg to move in the X axis, otherwise autoroute
-            then 
-                if newOutput.X < abs wire.Segments.[manualI].Start.X - minSegLen
-                then
-                    let newFirstSeg = 
-                        {wire.Segments.[0] with 
-                            Start = {X = newOutput.X; Y = newOutput.Y}
-                            End = {X = newOutput.X + newAutoLenX; Y = newOutput.Y}
-                        }
-                    let newSndSeg = 
-                        {wire.Segments.[1] with 
-                            Start = {X = newOutput.X + newAutoLenX; Y = newOutput.Y}
-                            End = {X = -(newOutput.X + newAutoLenX); Y = newManualSeg.Start.Y}}
-                    
-                    {wire with
-                        Segments = 
-                            [newFirstSeg; newSndSeg; newManualSeg] @ wire.Segments.[3..]
-                            |> correctDraggableSegments}
-
-                else autorouteWire model wire
-
-            //If the second segment is not manually routed, but the third is, then we want both to expand horizontally
-            //until the new output goes more left than the segment connected to the input port, which resets to autorouting
-            //In this case the 'newAutoSeg' will be half the value necessary (as the 1st and 3rd segments will be parallel)
-            elif manualI = 3
-            then 
-                let newFirstSeg = 
-                    {wire.Segments.[0] with 
-                        Start = {X = newOutput.X; Y = newOutput.Y}
-                        End = {X = newOutput.X + len; Y = newOutput.Y}
-                    }
-                        
-                let newManualSeg2 =
-                    {closestManualSeg with 
-                        Start = {closestManualSeg.Start with X = - (newOutput.X + len)}}
-                
-                let newSndSeg = 
-                    {wire.Segments.[1] with 
-                        Start = {X = newOutput.X + len; Y = newOutput.Y}
-                        End = {X = newOutput.X + len; Y = newOutput.Y}}
-
-                let newTrdSeg = 
-                    {wire.Segments.[2] with 
-                        Start = {X = newOutput.X + len; Y = newOutput.Y}
-                        End = {X = - (newOutput.X + len); Y = - abs newManualSeg2.Start.Y}}
-
-                {wire with
-                    Segments = 
-                        [newFirstSeg; newSndSeg; newTrdSeg; newManualSeg2] @ wire.Segments.[4..]
-                        |> correctDraggableSegments}
-
-            else autorouteWire model wire
-        else autorouteWire model wire 
-*)
-
 ///Returns the new positions keeping manual coordinates negative, and auto coordinates positive
 let negXYPos (pos : XYPos) (diff : XYPos) : XYPos =
     let newPos = Symbol.posAdd (getAbsXY pos) diff
     if pos.X < 0. || pos.Y < 0. then {X = - newPos.X; Y = - newPos.Y}
     else newPos
-
 
 ///Moves a wire by a specified amount by adding a XYPos to each start and end point of each segment
 let moveWire (wire : Wire) (diff : XYPos) =    

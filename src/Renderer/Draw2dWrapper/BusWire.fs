@@ -1182,46 +1182,6 @@ let filterWiresByCompMoved (wModel : Model) (compIds : list<ComponentId>) =
 let autorouteWire (model : Model) (wire : Wire) : Wire =
     let posTuple = Symbol.getTwoPortLocations (model.Symbol) (wire.InputPort) (wire.OutputPort)
     {wire with Segments = updateSegmentsList model wire.Id posTuple}
-    
-
-
-///Returns the segment indicies which are manually routed by checking negativity
-let getAllManualIndices (wire : Wire) =
-    wire.Segments
-    |> List.indexed
-    |> List.filter (fun (_, x) -> getAbsXY x.Start <> x.Start && getAbsXY x.End <> x.End)
-    |> List.map fst
-
-///Divides an int by 2 and gives the floor of that result
-let div2Floor (i : int) =
-    float i / 2. |> floor
-
-///Calculates the position required for each vertex based on an int indicating wire vertex up to which the stretch happens, the amount added per vertex, and the origin position
-let newPos (i : int) (len : float) (origin : float) =
-    div2Floor i
-    |> (*) len 
-    |> (+) origin
-
-/// change the X vertices of coordinates of a list of segments to alter the X position of one end, keeping the other end fixed. startisFixed = true => last segment in list moves most
-/// if the segments are vertical both vertices have the same offset applied. The stretch can be implemented as a linear stretch of all X vertex coordinates.
-/// it is possible that coordinates may be negated, in which case this must be compensated
-let stretchHorizontally startIsFixed offset (segs: Segment list) =
-    let n = segs.Length
-    let finishX = abs (List.last segs).End.X
-    let startX = abs (List.head segs).Start.X
-    let origWidth = finishX - startX
-    let scaleFactor = (origWidth + offset) / origWidth
-    let fixedX = if startIsFixed then startX else finishX
-    let stretch x = (x - fixedX)*scaleFactor + fixedX
-    let stretchXKeepingSign (pos: XYPos) = 
-        let x = if pos.X < 0.0 then  - (stretch -pos.X) else stretch pos.X
-        {pos with X = x}
-    let stretchSeg (seg:Segment) = {seg with Start = stretchXKeepingSign seg.Start; End = stretchXKeepingSign seg.End}
-    segs 
-    |> List.map stretchSeg
-
-
-
 
 /// reverse segment order, and Start, End coordinates, so list can be processed from input to output
 /// this function is self-inverse
@@ -1288,7 +1248,7 @@ let topology (pos1: XYPos) (pos2:XYPos) =
 /// ReverseFun must equal not or id. not => the segments go from input to output (reverse of normal).
 /// This allows the same code to work on both ends of the wire, with segment reversal done outside this
 /// function to implement input -> output direction.
-let partialAutoRoute (reverseFun: bool -> bool) (segs: Segment list) (newPortPos: XYPos) =
+let partialAutoRoute (segs: Segment list) (newPortPos: XYPos) =
     let wirePos = segs.[0].End
     let portPos = segs.[0].Start
     let newWirePos = {newPortPos with X = newPortPos.X + (abs wirePos.X - portPos.X) }
@@ -1315,13 +1275,23 @@ let partialAutoRoute (reverseFun: bool -> bool) (segs: Segment list) (newPortPos
             Some ((moveAll (addPosPos diff) 0 [firstSeg] @ List.map (transformSeg scaleX scaleY) scaledSegs) @ otherSegs)
         | _ -> None
 
-    let checkTopology common x =
-        if topology newWirePos common = topology wirePos common then
-            Some x 
-        else None
+    let checkTopology index =
+        let finalPt = segs.[6].Start
+        let oldTop x = topology wirePos x
+        let newTop x = topology newWirePos x
+        if oldTop finalPt <> newTop finalPt then
+            // always aandon manual routing
+            None 
+        else
+            let manSegEndPt = segs.[index].End
+            let oldT = oldTop manSegEndPt
+            let newT = newTop manSegEndPt
+            if oldT = newT then
+                Some index
+            else
+                None
     lastAutoIndex
-    |> Option.bind (checkTopology segs.[6].Start)
-    |> Option.bind (fun index -> checkTopology segs.[index].End index)
+    |> Option.bind checkTopology
     |> Option.bind scaleBeforeSegmentEnd
 
 
@@ -1343,26 +1313,26 @@ let moveWire (wire : Wire) (diff : XYPos) =
                 })
     }
 
-///updateWire re-routes a single wire in the model
-let updateWire (model : Model) (wire : Wire) (diff : XYPos) (inOut : bool) =
+/// Re-routes a single wire in the model when its ports move.
+/// Tries to preserve manual routing when this makes sense, otherwise re-routes with autoroute.
+/// Partial routing from input end is done by reversing segments and and swapping Start/End
+let updateWire (model : Model) (wire : Wire) (inOut : bool) =
     let newPort = 
         match inOut with
         | true -> Symbol.getInputPortLocation model.Symbol wire.InputPort
         | false -> Symbol.getOutputPortLocation model.Symbol wire.OutputPort
     if inOut then
-        partialAutoRoute not (revSegments wire.Segments) newPort
+        partialAutoRoute (revSegments wire.Segments) newPort
         |> Option.map revSegments
     else 
-        partialAutoRoute id wire.Segments newPort
+        partialAutoRoute wire.Segments newPort
     |> Option.map (fun segs -> {wire with Segments = segs})
     |> Option.defaultValue (autorouteWire model wire)
 
-
-
-///Re-routes the wires in the model based on a list of components that have been altered
-///If the wire input and output ports are both in the list of moved components, does not re-route wire but instead translates it
-///Keeps manual wires manual (up to a point)
-///Otherwise it will auto-route wires connected to components that have moved
+/// Re-routes the wires in the model based on a list of components that have been altered.
+/// If the wire input and output ports are both in the list of moved components, does not re-route wire but instead translates it.
+/// Keeps manual wires manual (up to a point).
+/// Otherwise it will auto-route wires connected to components that have moved
 let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
 
     let (inputWires, outputWires, fullyConnected) = filterWiresByCompMoved model compIdList
@@ -1374,9 +1344,9 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
             if List.contains cId fullyConnected //Translate wires that are connected to moving components on both sides
             then (cId, moveWire wire diff)
             elif List.contains cId inputWires //Only route wires connected to ports that moved for efficiency
-            then (cId, updateWire model wire diff true)
+            then (cId, updateWire model wire true)
             elif List.contains cId outputWires
-            then (cId, updateWire model wire diff false)
+            then (cId, updateWire model wire false)
             else (cId, wire))
         |> Map.ofList
         

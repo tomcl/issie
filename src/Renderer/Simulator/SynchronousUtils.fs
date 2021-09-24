@@ -120,12 +120,17 @@ let getCombinatorialOutputs
         // with a custom component an inputPortNumber is expected as well.
         getCustomCombinatorialOutputs combRoutes node
         <| Option.get inputPortNumberOpt
+    | AsyncRAM1 _ when inputPortNumberOpt = Some (InputPortNumber 0) ->
+            // special case of hybrid component
+            node.Outputs
     | comp when couldBeSynchronousComponent comp ->
         // Synchronous components, no combinatorial outputs.
         Map.empty
     | comp ->
         // Combinatorial component, return all outpus.
         node.Outputs
+    |> (fun outs -> printfn $"getting children: {node.Label}->{outs}"; outs)
+
 
 /// Start a dfs from the given node and input port number. Return the labels
 /// of all output nodes that can be reached from there via a combinatorial path.
@@ -150,10 +155,10 @@ let rec private dfs
             exploreChildren visited outputsReached children'
 
     let currNode = getNodeOrFail graph currId
-    // Ignore the info about port number unless node is custom node.
+    // Ignore the info about port number unless node is custom node, or a hybrid component
     let inputPortNumber =
         match currNode.Type with
-        | Custom _ -> Some inputPortNumber
+        | Custom _  | AsyncRAM1 _ ->  Some inputPortNumber
         | _ -> None
 
     match visited.Contains (currId, inputPortNumber) with

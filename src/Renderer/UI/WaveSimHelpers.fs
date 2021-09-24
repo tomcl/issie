@@ -313,7 +313,7 @@ let private clkAdvance (sD: SimulationData) =
     let sD =
         if sD.ClockTickNumber = 0 then
             // set up the initial fast simulation
-            {sD with FastSim = Fast.buildFastSimulation (int maxLastClk) sD.Graph}
+            {sD with FastSim = match Fast.buildFastSimulation (int maxLastClk) sD.Graph with | Ok fs -> fs | Error e -> failwithf "fast simulation error"}
         else
             sD
     //feedClockTick sD.Graph

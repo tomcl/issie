@@ -717,7 +717,7 @@ let singleWireView =
             let renderWireWidthText : ReactElement =
                 let textParameters =
                     {
-                        TextAnchor = "middle";
+                        TextAnchor = "left";
                         FontSize = "12px";
                         FontWeight = "Bold";
                         FontFamily = "Verdana, Arial, Helvetica, sans-serif";
@@ -726,7 +726,7 @@ let singleWireView =
                         DominantBaseline = "middle";
                     }
                 let textString = if props.StrokeWidthP = 1 then "" else string props.StrokeWidthP //Only print width > 1
-                makeText (props.OutputPortLocation.X+10.0) (props.OutputPortLocation.Y-7.0) (textString) textParameters
+                makeText (props.OutputPortLocation.X+1.0) (props.OutputPortLocation.Y-7.0) (textString) textParameters
             g [] ([ renderWireWidthText ] @ renderWireSegmentList)
         
     , "Wire"
@@ -1387,13 +1387,8 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
     | BusWidths ->
 
-        let canvasState = (Symbol.extractComponents model.Symbol, extractConnections model )
-        
-        match BusWidthInferer.inferConnectionsWidth canvasState with
-        
-        | Ok connWidths ->
-
-            let folder (wireMap: Map<ConnectionId, Wire>) _ wire  =
+        let processConWidths (connWidths: ConnectionsWidth) =
+            let addWireWidthFolder (wireMap: Map<ConnectionId, Wire>) _ wire  =
                 let width =
                     match connWidths.[wire.Id] with
                     | Some a -> a
@@ -1401,11 +1396,47 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 let newColor = if wire.Color = Purple || wire.Color = Brown then Purple else DarkSlateGrey
                 wireMap.Add ( wire.Id, { wire with Width = width ; Color = newColor} )
 
-            let newWX = ((Map.empty, model.WX) ||> Map.fold folder)
-            { model with WX = newWX; Notifications = None ; ErrorWires=[]}, Cmd.none    
+            let addSymbolWidthFolder (m: Map<ComponentId,Symbol.Symbol>) (_: ConnectionId) (wire: Wire) =
+                    let inPort = model.Symbol.Ports.[match wire.InputPort with InputPortId ip -> ip]
+                    let symId = ComponentId inPort.HostId
+                    let symbol = m.[symId]
+
+                    match symbol.Compo.Type with
+                    | SplitWire n ->
+                        match inPort.PortNumber with 
+                        | Some 0 -> {symbol with InWidth0 = Some wire.Width}
+                        | x -> failwithf $"What? wire found with input port {x} other than 0 connecting to SplitWire"
+                        |> (fun sym -> Map.add symId sym m)
+                    | MergeWires ->
+                        match inPort.PortNumber with 
+                        | Some 0 -> 
+                            Map.add symId  {symbol with InWidth0 = Some wire.Width} m
+                        | Some 1 -> 
+                            Map.add symId {symbol with InWidth1 = Some wire.Width} m
+                        | x -> failwithf $"What? wire found with input port {x} other than 0 or 1 connecting to MergeWires"
+                    | _ -> m
+
+            let newWX = ((Map.empty, model.WX) ||> Map.fold addWireWidthFolder)
+
+            let symbolsWithWidths =
+                (model.Symbol.Symbols, newWX) ||> Map.fold addSymbolWidthFolder
+
+            { model with 
+                WX = newWX; Notifications = None ; 
+                ErrorWires=[]; 
+                Symbol = {model.Symbol with Symbols = symbolsWithWidths}}, Cmd.none    
         
+
+
+        let canvasState = (Symbol.extractComponents model.Symbol, extractConnections model )
+        
+        
+        match BusWidthInferer.inferConnectionsWidth canvasState with
+        | Ok connWidths ->
+            processConWidths connWidths
         | Error e ->
-                { model with Notifications = Some e.Msg }, Cmd.ofMsg (ErrorWires e.ConnectionsAffected)
+                { model with 
+                    Notifications = Some e.Msg }, Cmd.ofMsg (ErrorWires e.ConnectionsAffected)
     
     | CopyWires (connIds : list<ConnectionId>) ->
         let copiedWires = Map.filter (fun connId _ -> List.contains connId connIds) model.WX

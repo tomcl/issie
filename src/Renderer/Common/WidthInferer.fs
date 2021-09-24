@@ -616,15 +616,8 @@ let private mapInputPortIdsToVirtualConnectionIds (conns: Connection list) (comp
 
 
 /// Return Inferred width of all connections or an error.
-/// Width inference is done without mutable state. The value
-/// returned by this function should (probably) be part of the Elmish Model
-/// and updated by messages that trigger re-inference of widths.
-/// at the moment, because Draw2D is not Elmish, this is kludged.
-/// The Elmish update function calls Update.runBusWidthInference
-/// whenever an update might possibly change connection widths.
-/// This is normally when an "InferWidths" message is received from the
-/// Draw2D block (e.g. whenever a wire is connected to a component or deleted)
-/// It is also be run when component widths are changed.
+/// Width inference is done without mutable state. 
+/// It is to be run when component widths or circuit is changed,
 /// Note that it does not matter (except for performance) if it is run too many times.
 let inferConnectionsWidth
         ((comps,conns) : CanvasState)

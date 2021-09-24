@@ -49,16 +49,18 @@ let rec prepareSimulation
             | Some err -> Error err
             | None -> 
                 try
-                    Ok {
-                        FastSim = 
-                            Fast.buildFastSimulation initMaxSteps graph
-                        Graph = graph // NB graph is now not initialised with data
-                        Inputs = inputs;
-                        Outputs = outputs
-                        IsSynchronous = hasSynchronousComponents graph
-                        NumberBase = Hex
-                        ClockTickNumber = 0
-                    }
+                    match Fast.buildFastSimulation initMaxSteps graph with
+                    | Ok fs -> 
+                        Ok {
+                            FastSim = fs                           
+                            Graph = graph // NB graph is now not initialised with data
+                            Inputs = inputs;
+                            Outputs = outputs
+                            IsSynchronous = hasSynchronousComponents graph
+                            NumberBase = Hex
+                            ClockTickNumber = 0
+                        }
+                    | Error  e -> Error  e
                 with
                 | e -> 
                     printfn "\nEXCEPTION:\n\n%A\n%A\n\n" e.Message e.StackTrace

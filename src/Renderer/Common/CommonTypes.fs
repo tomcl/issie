@@ -152,9 +152,8 @@ module CommonTypes
     type PortType = Input | Output
     /// A component I/O.
     /// Id (like any other Id) is a string generated with 32 random hex charactes,
-    /// so it is (practically) globally unique. These Ids are used by the draw2d
-    /// library to uniquely refer to ports and components. They are generated via:
-    /// http://www.draw2d.org/draw2d_touch/jsdoc_6/#!/api/draw2d.util.UUID.
+    /// so it is (practically) globally unique. These Ids are used 
+    /// to uniquely refer to ports and components. They are generated via uuid().
     /// PortNumber is used to identify which port on a component, contiguous from 0
     /// separately for inputs and outputs.
     /// HostId is the unique Id of the component where the port is. For example,

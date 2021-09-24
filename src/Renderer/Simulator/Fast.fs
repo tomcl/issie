@@ -1261,26 +1261,36 @@ let checkAndValidate (fs:FastSimulation) =
             |> Array.iter (fun fc -> printfn "Simulation: %s\n" (printComp fs 0 fc))
             fs.FComps
             |> Map.iter (fun fid fc -> printfn "FComps: %s\n" (printComp fs 0 fc))
-
-            failwithf "What? this should never happen..."
+            let possibleCycleComps =
+                Set (List.ofArray activeComps |> List.map (fun fc -> fc.SimComponent.Id)) - 
+                Set (List.ofArray inSimulationComps |> List.map (fun fc -> fc.SimComponent.Id))
+                |> Set.toList
+            Error {
+                Msg = sprintf $"Issie has discovered an asynchronous cyclic path in your circuit - probably through asynchronous RAM address and dout ports. This is not allowed.\
+                    This cycle detection is not precise, the components in red comprise this cycle and all components driven only from it"
+                InDependency = None
+                ComponentsAffected = possibleCycleComps
+                ConnectionsAffected = []
+            }
 
     // check and add (if necessary) output widths
-    activeComps
-    |> Array.iter ( fun fc ->
-        fc.OutputWidth
-        |> Array.iteri ( fun i opn ->
-            let data = fc.Outputs.[i].Step.[0]
-            match data.Width, fc.OutputWidth.[i] with
-            | n, Some m when n <> m ->
-                failwithf "Inconsistent simulation data %A data found on signal output width %d from %s:%d" data m fc.FullName i
-            | 0, _ ->
-                failwithf "Unexpected output data %A found on initialised component %s:%d" data fc.FullName i
-            | n, None ->
-                fc.OutputWidth.[i] <- Some n
-            | _ -> () // Ok in this case
-        ))
-    instrumentTime "checkAndValidate" start
-    fs
+    else
+        activeComps
+        |> Array.iter ( fun fc ->
+            fc.OutputWidth
+            |> Array.iteri ( fun i opn ->
+                let data = fc.Outputs.[i].Step.[0]
+                match data.Width, fc.OutputWidth.[i] with
+                | n, Some m when n <> m ->
+                    failwithf "Inconsistent simulation data %A data found on signal output width %d from %s:%d" data m fc.FullName i
+                | 0, _ ->
+                    failwithf "Unexpected output data %A found on initialised component %s:%d" data fc.FullName i
+                | n, None ->
+                    fc.OutputWidth.[i] <- Some n
+                | _ -> () // Ok in this case
+            ))
+        instrumentTime "checkAndValidate" start
+        Ok fs
     
 let createFastArrays fs gather =
     let getArrayOf pred fComps =
@@ -1313,7 +1323,7 @@ let createFastArrays fs gather =
 /// This function also creates the reducer functions for each component
 /// similar to the reducer builder in Builder, but with inputs and outputs using the FastSimulation
 /// mutable arrays
-let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : FastSimulation =
+let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : Result<FastSimulation,SimulationError> =
     let gather = gatherSimulation graph
     let fs =  
         createInitFastCompPhase numberOfSteps gather (emptyFastSimulation ())
@@ -1417,10 +1427,12 @@ let runFastSimulation (numberOfSteps: int) (fs: FastSimulation) : Unit =
             printfn $"Simulation speed: {numComponents*stepsToDo/sTime} Component-Steps/ms ({int stepsToDo} steps, {int numComponents} components)"
 
 /// Run a fast simulation for a given number of steps building it from the graph
-let runSimulationZeroInputs (steps: int) (graph: SimulationGraph) : FastSimulation =
-    let fs = buildFastSimulation steps graph
-    runFastSimulation steps fs
-    fs
+let runSimulationZeroInputs (steps: int) (graph: SimulationGraph) : Result<FastSimulation,SimulationError> =
+    let fsResult = buildFastSimulation steps graph
+    fsResult
+    |> Result.map (runFastSimulation steps)
+    |> ignore
+    fsResult
 
 /// Look up a simulation (not a FastSimulation) component or return None.
 let rec findSimulationComponentOpt ((cid, ap): ComponentId * ComponentId list) (graph: SimulationGraph) =

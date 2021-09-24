@@ -115,8 +115,8 @@ let verticesToSegments
             JumpCoordinateList = [];
             Draggable =
                 match i, lastSegIndex - i with
-                | 0,_ | 1,_ | _,0 | _,1 -> false
-                | 2,_ | _,2 ->  not (xDir > 0.0)
+                | 0,_  | _,0  -> false
+                | 2,_ | _,2 ->  true
                 | _ -> true
         } 
         ) vertexPairsList
@@ -296,7 +296,7 @@ let makeInitialSegmentsList (hostId : ConnectionId) (portCoords : XYPos * XYPos)
                     Dir = if i = 0 || i = lastSegIndex then
                               Horizontal
                           else 
-                              if abs (abs startPt.X - abs endPt.X) >= abs (abs startPt.Y - abs endPt.Y) then
+                              if abs (abs startPt.X - abs endPt.X) > abs (abs startPt.Y - abs endPt.Y) then
                                 Horizontal
                               else
                                 Vertical;
@@ -304,8 +304,8 @@ let makeInitialSegmentsList (hostId : ConnectionId) (portCoords : XYPos * XYPos)
                     JumpCoordinateList = [];
                     Draggable =
                         match i, lastSegIndex - i with
-                        | 0,_ | 1,_ | _,0 | _,1 -> false
-                        | 2,_ | _,2 ->  not (xDir > 0.0)
+                        | 0,_ |  _,0  -> false
+                        | 2,_ | _,2 ->  true
                         | _ -> true
                 }
         )
@@ -334,7 +334,7 @@ let updateSegmentsList (model:Model) (hostId : ConnectionId) (portCoords : XYPos
                     if i = 0 || i = lastSegIndex then
                         Horizontal
                     else 
-                        if  abs (abs startPt.X - abs endPt.X) >= abs (abs startPt.Y - abs endPt.Y) then
+                        if  abs (abs startPt.X - abs endPt.X) > abs (abs startPt.Y - abs endPt.Y) then
                             Horizontal
                         else
                             Vertical
@@ -651,6 +651,7 @@ let moveSegment (seg:Segment) (distance:float) (model:Model) =
 
 
     let newPrevEnd, newSegStart, newSegEnd, newNextStart = 
+        printfn $"seg {index} dir = {seg.Dir}"
         match seg.Dir with
         | Vertical -> 
             {prevSeg.End with X = - (abs seg.Start.X + distance)}, 
@@ -1268,17 +1269,21 @@ let partialAutoRoute (segs: Segment list) (newPortPos: XYPos) =
         if wirePos.Y = fixedPt.Y then printfn $"****warning {wirePos.Y} duplicated"
         let scale x fx nx wx =
             if nx = fx then x else ((abs x - fx)*(nx-fx)/(abs wx - fx) + fx) * float (sign x)
-        let scaleX x = scale x fixedPt.X newWirePos.X wirePos.X
-        let scaleY y = scale y fixedPt.Y newWirePos.Y wirePos.Y
-        match List.splitAt (segIndex+1) segs with
-        | (firstSeg :: scaledSegs), otherSegs ->
+        let startPos = if segIndex = 1 then portPos else wirePos
+        let newStartPos = if segIndex = 1 then newPortPos else newWirePos
+        let scaleX x = scale x fixedPt.X newStartPos.X startPos.X
+        let scaleY y = scale y fixedPt.Y newStartPos.Y startPos.Y
+        match List.splitAt (segIndex+1) segs, segIndex with
+        | ((scaledSegs), otherSegs), 1 ->
+            Some ((List.map (transformSeg scaleX scaleY) scaledSegs) @ otherSegs)
+        | ((firstSeg :: scaledSegs), otherSegs), _ ->
             Some ((moveAll (addPosPos diff) 0 [firstSeg] @ List.map (transformSeg scaleX scaleY) scaledSegs) @ otherSegs)
         | _ -> None
 
     let checkTopology index =
         let finalPt = segs.[6].Start
-        let oldTop x = topology wirePos x
-        let newTop x = topology newWirePos x
+        let oldTop x = topology (if index = 1 then portPos else wirePos) x
+        let newTop x = topology (if index = 1 then newPortPos else newWirePos) x
         if oldTop finalPt <> newTop finalPt then
             // always aandon manual routing
             None 

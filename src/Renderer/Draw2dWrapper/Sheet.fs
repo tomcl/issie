@@ -159,7 +159,6 @@ type Model = {
     
     /// Given a compType, return a label
     member this.GenerateLabel (compType: ComponentType) : string =
-        // printfn "%A" this.Wire.Symbol.Symbols.Count
         Symbol.generateLabel this.Wire.Symbol compType
     
     /// Given a compId, return the corresponding component
@@ -336,7 +335,6 @@ let fitCircuitToWindowParas (model:Model) =
             }
     let boxEdge = max 30. ((max sBox.W sBox.H) * 0.05)
     let lh,rh,top,bottom = getScreenEdgeCoords()
-    //printfn $"DEBUG: Screen: ({lh},{rh}) ({top},{bottom})\nSymbols:({sBox.X},{sBox.X+sBox.W}) ({sBox.Y},{sBox.Y+sBox.H})"
     let wantedMag = min ((rh - lh)/(sBox.W+2.*boxEdge)) ((bottom-top)/(sBox.H+2.*boxEdge))
     let magToUse = min wantedMag maxMagnification
     let xMiddle = (sBox.X + sBox.W/2.)*magToUse
@@ -429,8 +427,6 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
         | DragAndDrop -> DragAndDrop, true
         | _ -> MovingSymbols, false
     
-    // printfn "%A" nextAction
-
     match model.SelectedComponents.Length with
     | 1 -> // Attempt Snap-to-Grid if there is only one moving component
         

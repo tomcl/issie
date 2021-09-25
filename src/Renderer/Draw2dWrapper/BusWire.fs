@@ -35,6 +35,8 @@ type Segment =
         Draggable : bool
     }
 
+
+
 ///
 type Wire =
     {
@@ -45,6 +47,10 @@ type Wire =
         Width: int
         Segments: list<Segment>
     }
+
+    with static member stickLength = 14.0
+
+
 
 ///
 type Model =
@@ -105,7 +111,7 @@ let verticesToSegments
         let dir = 
             if (abs startX - abs endX)*(abs startX - abs endX) > (abs startY - abs endY)*(abs startY - abs endY) then
                 Horizontal
-            elif (i <= 1 || i >= lastSegIndex - 1) && xDir <= 0.0 then
+            elif (i < 1 || i > lastSegIndex - 1) && startY = endY && xDir <= 0.0 then
                 Horizontal
             else 
                 Vertical
@@ -227,6 +233,14 @@ let distanceBetweenTwoPoints (pos1 : XYPos) (pos2 : XYPos) : float =
 let makeInitialWireVerticesList (portCoords : XYPos * XYPos) : list<XYPos * XYPos> = 
     let xs, ys, Xt, Yt = snd(portCoords).X, snd(portCoords).Y, fst(portCoords).X, fst(portCoords).Y
 
+    // adjust length of segments 0 and 6 - the sticks - so that when two ports are aligned and close you still get left-to-right routing.
+    let adjStick = 
+        let d = List.max [ (xs - Xt) ; (ys - Yt) ; Wire.stickLength / 4.0 ]
+        if (Xt - xs > 0.0) then
+            min d Wire.stickLength
+        else
+            Wire.stickLength
+
     let makeSegs (points: XYPos list) =
         List.pairwise points
 
@@ -234,24 +248,24 @@ let makeInitialWireVerticesList (portCoords : XYPos * XYPos) : list<XYPos * XYPo
     let leftToRight = 
         [
             {X = xs; Y = ys};
-            {X = xs+10.0; Y = ys};
-            {X = xs+10.0; Y = ys};
+            {X = xs+adjStick; Y = ys};
+            {X = xs+adjStick; Y = ys};
             {X = (xs+Xt)/2.0; Y = ys};
             {X = (xs+Xt)/2.0; Y = Yt};
-            {X = Xt-10.0; Y = Yt}
-            {X = Xt-10.0; Y = Yt}
+            {X = Xt-adjStick; Y = Yt}
+            {X = Xt-adjStick; Y = Yt}
             {X = Xt; Y = Yt}
         ]
     // the case of a wire travelling from output to input in a right-to-left (negative X) direction. Thus must bend back on itself.
     let rightToLeft =
         [
             {X = xs; Y = ys}
-            {X = xs+10.0; Y = ys}
-            {X = xs+10.0; Y = ys}
-            {X = xs+10.0; Y = (ys+Yt)/2.0}
-            {X = Xt-10.0; Y = (ys+Yt)/2.0}
-            {X = Xt-10.0; Y = Yt}
-            {X = Xt-10.0; Y = Yt}
+            {X = xs+Wire.stickLength; Y = ys}
+            {X = xs+Wire.stickLength; Y = ys}
+            {X = xs+Wire.stickLength; Y = (ys+Yt)/2.0}
+            {X = Xt-Wire.stickLength; Y = (ys+Yt)/2.0}
+            {X = Xt-Wire.stickLength; Y = Yt}
+            {X = Xt-Wire.stickLength; Y = Yt}
             {X = Xt; Y = Yt}
         ]
 
@@ -260,17 +274,17 @@ let makeInitialWireVerticesList (portCoords : XYPos * XYPos) : list<XYPos * XYPo
     let rightToLeftHorizontal =
         [
             {X = xs; Y = ys}
-            {X = xs+10.0; Y = ys}
-            {X = xs+10.0; Y = ys}
-            {X = xs+10.0; Y = ys + 10.0}
-            {X = Xt-10.0; Y = ys + 10.0}
-            {X = Xt-10.0; Y = Yt}
-            {X = Xt-10.0; Y = Yt}
+            {X = xs+Wire.stickLength; Y = ys}
+            {X = xs+Wire.stickLength; Y = ys}
+            {X = xs+Wire.stickLength; Y = ys + Wire.stickLength}
+            {X = Xt-Wire.stickLength; Y = ys + Wire.stickLength}
+            {X = Xt-Wire.stickLength; Y = Yt}
+            {X = Xt-Wire.stickLength; Y = Yt}
             {X = Xt; Y = Yt}
         ]
 
-    if (xs-Xt) < (-20.0) then leftToRight
-    elif abs (ys - Yt) < 2.0 then rightToLeftHorizontal
+    if (xs-Xt) <= - (adjStick * 2.0) then leftToRight
+    elif abs (ys - Yt) < 4.0 then rightToLeftHorizontal
     else rightToLeft
     |> makeSegs
 
@@ -295,7 +309,7 @@ let makeInitialSegmentsList (hostId : ConnectionId) (portCoords : XYPos * XYPos)
                 let dir = 
                     if (abs startX - abs endX)*(abs startX - abs endX) > (abs startY - abs endY)*(abs startY - abs endY) then
                         Horizontal
-                    elif (i <= 1 || i >=  lastSegIndex - 1) && xDir <= 0.0 then
+                    elif (i <= 1 || i >=  lastSegIndex - 1) && (abs (abs startY - abs endY) < 0.0001) && xDir <= 0.0 then
                         Horizontal
                     else 
                         Vertical
@@ -338,7 +352,7 @@ let updateSegmentsList (model:Model) (hostId : ConnectionId) (portCoords : XYPos
                 let updatedDir = 
                     if i = 0 || i = lastSegIndex then
                         Horizontal
-                    elif (i = 1 || i = lastSegIndex - 1) && startX <= endX then
+                    elif (i = 1 || i = lastSegIndex - 1) && abs (abs startY - abs endY) < 0.00001 then
                         Horizontal
                     else 
                         if  abs (abs startPt.X - abs endPt.X) > abs (abs startPt.Y - abs endPt.Y) then
@@ -641,49 +655,82 @@ let changeLengths isAtEnd seg0 seg1 =
     if seg0.Dir <> Horizontal || seg1.Dir <> Horizontal || outerX < 0.0 then [seg0 ; seg1]
     elif innerX < 0.0 then  
         // the case where we need to shorten the first or last segment (seg0 here)
-        moveXJoinPos (if isAtEnd then seg1.End.X - 10.0 else seg0.Start.X + 10.0) seg0 seg1
+        moveXJoinPos (if isAtEnd then seg1.End.X - Wire.stickLength else seg0.Start.X + Wire.stickLength) seg0 seg1
     else [ seg0; seg1]
+       
+
+/// Called for segments 1, 2, 3, 4, 5 - if they are vertical and move horizontally.
+/// The function returns distance reduced if need be to prevent wires moving into components
+/// approx equality test is safer tehn exact equality - but probably not needed.
+let getSafeDistanceForMove (seg: Segment) (seg0:Segment) (seg6:Segment) (distance:float) =
+    let shrink = match seg.Index with | 1 |5 -> 0.5 |2 | _ -> 1.0
+    match seg.Index with
+    | _ when seg.Dir = Horizontal ->
+        distance
+    | 3 when distance < 0.0 && abs (abs seg0.Start.Y - abs seg.Start.Y) > 0.0001 ->
+        distance
+    | 3 when distance > 0.0 && abs (abs seg6.Start.Y - abs seg.End.Y) > 0.0001 ->
+        distance
+    | 1 | 2 -> 
+        let minDistance = seg0.Start.X + Wire.stickLength * shrink - abs seg.End.X
+        max minDistance distance
+    | 4 | 5 ->
+        let maxDistance = seg6.End.X -  Wire.stickLength * shrink - abs seg.Start.X
+        min maxDistance distance
+    | 3 ->
+        let minDistance = abs seg0.Start.X + Wire.stickLength * shrink - abs seg.Start.X
+        let maxDistance = abs seg6.End.X -  Wire.stickLength * shrink - abs seg.Start.X
+        distance
+        |> max minDistance
+        |> min maxDistance        
+        
+    | _ -> 
+        distance
+        
+
+    
 
 /// This function allows a wire segment to be moved a given amount in a direction perpedicular to
-/// its orientation (Horizontal or Vertical). Used to manually adjuts routing by mouse drag.
+/// its orientation (Horizontal or Vertical). Used to manually adjust routing by mouse drag.
 /// The moved segment is tagged by negating one of its coordinates so that it cannot be auto-routed
 /// after the move, thus keeping the moved position.
 let moveSegment (seg:Segment) (distance:float) (model:Model) = 
     let wire = model.WX.[seg.HostId]
     let index = seg.Index
-    if index < 1 || index >= wire.Segments.Length - 1 then
+    if index <= 0 || index >= wire.Segments.Length - 1 then
         failwithf $"Buswire segment index {index} out of range in moveSegment in wire length {wire.Segments.Length}"
     let prevSeg = wire.Segments.[index-1]
     let nextSeg = wire.Segments.[index+1]
     if seg.Dir = prevSeg.Dir || seg.Dir = nextSeg.Dir then
+        printf $"bypass {index}"
         wire
     else
-        let newPrevEnd, newSegStart, newSegEnd, newNextStart = 
-            printfn $"seg {index} dir = {seg.Dir}"
-            match seg.Dir with
-            | Vertical -> 
-                {prevSeg.End with X = - (abs seg.Start.X + distance)}, 
-                {seg.Start with X = - (abs seg.Start.X + distance)}, 
-                {seg.End with X = - (abs seg.End.X + distance)}, 
-                {nextSeg.Start with X = - (abs seg.End.X + distance)}
-            | Horizontal -> 
-                {prevSeg.End with Y = - (abs seg.Start.Y + distance)}, 
-                {seg.Start with Y = - (abs seg.Start.Y + distance)}, 
-                {seg.End with Y = - (abs seg.End.Y + distance)}, 
-                {nextSeg.Start with Y = - (abs seg.End.Y + distance)}
+        //runTestFable()
+        distance      
+        |> getSafeDistanceForMove seg wire.Segments.[0] wire.Segments.[6]   
+        |> (fun distance' ->
+            let newPrevEnd, newSegStart, newSegEnd, newNextStart = 
+                match seg.Dir with
 
-        let newPrevSeg = {prevSeg with End = newPrevEnd}
-        let newSeg = {seg with Start = newSegStart;End = newSegEnd}
-        let newNextSeg = {nextSeg with Start = newNextStart}
-        let endIndex = wire.Segments.Length-1
-        //checkSegmentAngle newPrevSeg "prev segment"
-        //checkSegmentAngle newNextSeg "next segment "
-        //checkSegmentAngle newSeg "moved segment"
+                | Vertical -> 
+                    {prevSeg.End with X = - (abs seg.Start.X + distance')}, 
+                    {seg.Start with X = - (abs seg.Start.X + distance')}, 
+                    {seg.End with X = - (abs seg.End.X + distance')}, 
+                    {nextSeg.Start with X = - (abs seg.End.X + distance')}
 
+                | Horizontal -> 
+                    {prevSeg.End with Y = - (abs seg.Start.Y + distance')}, 
+                    {seg.Start with Y = - (abs seg.Start.Y + distance')}, 
+                    {seg.End with Y = - (abs seg.End.Y + distance')}, 
+                    {nextSeg.Start with Y = - (abs seg.End.Y + distance')}
+
+            let newPrevSeg = {prevSeg with End = newPrevEnd}
+            let newSeg = {seg with Start = newSegStart;End = newSegEnd}
+            let newNextSeg = {nextSeg with Start = newNextStart}
         
-        let newSegments =
-            wire.Segments.[.. index-2] @ [newPrevSeg; newSeg; newNextSeg] @ wire.Segments.[index+2 ..]
-        {wire with Segments = newSegments}
+            let newSegments =
+                wire.Segments.[.. index-2] @ [newPrevSeg; newSeg; newNextSeg] @ wire.Segments.[index+2 ..]
+            {wire with Segments = newSegments})
 
 ///
 type WireRenderProps =
@@ -1273,8 +1320,6 @@ let partialAutoRoute (segs: Segment list) (newPortPos: XYPos) =
     let scaleBeforeSegmentEnd segIndex =
         let seg = segs.[segIndex]
         let fixedPt = getAbsXY seg.End
-        if wirePos.X = fixedPt.X then printfn $"****warning {wirePos.X} duplicated"
-        if wirePos.Y = fixedPt.Y then printfn $"****warning {wirePos.Y} duplicated"
         let scale x fx nx wx =
             if nx = fx then x else ((abs x - fx)*(nx-fx)/(abs wx - fx) + fx) * float (sign x)
         let startPos = if segIndex = 1 then portPos else wirePos
@@ -1506,7 +1551,6 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 | h::t -> if h.Id = segId then h else getSeg t
                 | _ -> failwithf "segment Id not found in segment list"
             let seg = getSeg model.WX.[connId].Segments
-            printfn $"dir={seg.Dir} draggable={seg.Draggable} {seg.Start}X{seg.End}"
             if seg.Draggable then
                 let distanceToMove = 
                     match seg.Dir with

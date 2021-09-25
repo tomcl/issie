@@ -102,21 +102,25 @@ let verticesToSegments
 
     List.mapi (
         fun i ((startX, startY), (endX,endY)) ->
+        let dir = 
+            if (abs startX - abs endX)*(abs startX - abs endX) > (abs startY - abs endY)*(abs startY - abs endY) then
+                Horizontal
+            elif (i <= 1 || i >= lastSegIndex - 1) && xDir <= 0.0 then
+                Horizontal
+            else 
+                Vertical
         {
             Id = SegmentId(uuid())
             Index = i
             Start = {X=startX;Y=startY};
             End = {X=endX;Y=endY};
-            Dir = if (abs startX - abs endX)*(abs startX - abs endX) > (abs startY - abs endY)*(abs startY - abs endY) then
-                      Horizontal
-                  else 
-                      Vertical
+            Dir = dir
             HostId  = (ConnectionId connId);
             JumpCoordinateList = [];
             Draggable =
                 match i, lastSegIndex - i with
+                | 1,_ | _,1 ->  dir = Vertical
                 | 0,_  | _,0  -> false
-                | 2,_ | _,2 ->  true
                 | _ -> true
         } 
         ) vertexPairsList
@@ -288,24 +292,25 @@ let makeInitialSegmentsList (hostId : ConnectionId) (portCoords : XYPos * XYPos)
         (
             fun i (coordsTuple : XYPos * XYPos) -> 
                 let startPt,endPt = coordsTuple
+                let dir = 
+                    if (abs startX - abs endX)*(abs startX - abs endX) > (abs startY - abs endY)*(abs startY - abs endY) then
+                        Horizontal
+                    elif (i <= 1 || i >=  lastSegIndex - 1) && xDir <= 0.0 then
+                        Horizontal
+                    else 
+                        Vertical
                 {
                     Id = SegmentId(uuid())
                     Index = i
                     Start = startPt
                     End = endPt
-                    Dir = if i = 0 || i = lastSegIndex then
-                              Horizontal
-                          else 
-                              if abs (abs startPt.X - abs endPt.X) > abs (abs startPt.Y - abs endPt.Y) then
-                                Horizontal
-                              else
-                                Vertical;
+                    Dir = dir
                     HostId  = hostId;
                     JumpCoordinateList = [];
                     Draggable =
                         match i, lastSegIndex - i with
                         | 0,_ |  _,0  -> false
-                        | 2,_ | _,2 ->  true
+                        | 1,_ | _,1 ->  dir = Vertical
                         | _ -> true
                 }
         )
@@ -332,6 +337,8 @@ let updateSegmentsList (model:Model) (hostId : ConnectionId) (portCoords : XYPos
                 let startPt, endPt = verticesList.[i]
                 let updatedDir = 
                     if i = 0 || i = lastSegIndex then
+                        Horizontal
+                    elif (i = 1 || i = lastSegIndex - 1) && startX <= endX then
                         Horizontal
                     else 
                         if  abs (abs startPt.X - abs endPt.X) > abs (abs startPt.Y - abs endPt.Y) then
@@ -648,34 +655,35 @@ let moveSegment (seg:Segment) (distance:float) (model:Model) =
         failwithf $"Buswire segment index {index} out of range in moveSegment in wire length {wire.Segments.Length}"
     let prevSeg = wire.Segments.[index-1]
     let nextSeg = wire.Segments.[index+1]
+    if seg.Dir = prevSeg.Dir || seg.Dir = nextSeg.Dir then
+        wire
+    else
+        let newPrevEnd, newSegStart, newSegEnd, newNextStart = 
+            printfn $"seg {index} dir = {seg.Dir}"
+            match seg.Dir with
+            | Vertical -> 
+                {prevSeg.End with X = - (abs seg.Start.X + distance)}, 
+                {seg.Start with X = - (abs seg.Start.X + distance)}, 
+                {seg.End with X = - (abs seg.End.X + distance)}, 
+                {nextSeg.Start with X = - (abs seg.End.X + distance)}
+            | Horizontal -> 
+                {prevSeg.End with Y = - (abs seg.Start.Y + distance)}, 
+                {seg.Start with Y = - (abs seg.Start.Y + distance)}, 
+                {seg.End with Y = - (abs seg.End.Y + distance)}, 
+                {nextSeg.Start with Y = - (abs seg.End.Y + distance)}
 
-
-    let newPrevEnd, newSegStart, newSegEnd, newNextStart = 
-        printfn $"seg {index} dir = {seg.Dir}"
-        match seg.Dir with
-        | Vertical -> 
-            {prevSeg.End with X = - (abs seg.Start.X + distance)}, 
-            {seg.Start with X = - (abs seg.Start.X + distance)}, 
-            {seg.End with X = - (abs seg.End.X + distance)}, 
-            {nextSeg.Start with X = - (abs seg.End.X + distance)}
-        | Horizontal -> 
-            {prevSeg.End with Y = - (abs seg.Start.Y + distance)}, 
-            {seg.Start with Y = - (abs seg.Start.Y + distance)}, 
-            {seg.End with Y = - (abs seg.End.Y + distance)}, 
-            {nextSeg.Start with Y = - (abs seg.End.Y + distance)}
-
-    let newPrevSeg = {prevSeg with End = newPrevEnd}
-    let newSeg = {seg with Start = newSegStart;End = newSegEnd}
-    let newNextSeg = {nextSeg with Start = newNextStart}
-    let endIndex = wire.Segments.Length-1
-    //checkSegmentAngle newPrevSeg "prev segment"
-    //checkSegmentAngle newNextSeg "next segment "
-    //checkSegmentAngle newSeg "moved segment"
+        let newPrevSeg = {prevSeg with End = newPrevEnd}
+        let newSeg = {seg with Start = newSegStart;End = newSegEnd}
+        let newNextSeg = {nextSeg with Start = newNextStart}
+        let endIndex = wire.Segments.Length-1
+        //checkSegmentAngle newPrevSeg "prev segment"
+        //checkSegmentAngle newNextSeg "next segment "
+        //checkSegmentAngle newSeg "moved segment"
 
         
-    let newSegments =
-        wire.Segments.[.. index-2] @ [newPrevSeg; newSeg; newNextSeg] @ wire.Segments.[index+2 ..]
-    {wire with Segments = newSegments}
+        let newSegments =
+            wire.Segments.[.. index-2] @ [newPrevSeg; newSeg; newNextSeg] @ wire.Segments.[index+2 ..]
+        {wire with Segments = newSegments}
 
 ///
 type WireRenderProps =
@@ -1498,7 +1506,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 | h::t -> if h.Id = segId then h else getSeg t
                 | _ -> failwithf "segment Id not found in segment list"
             let seg = getSeg model.WX.[connId].Segments
-            
+            printfn $"dir={seg.Dir} draggable={seg.Draggable} {seg.Start}X{seg.End}"
             if seg.Draggable then
                 let distanceToMove = 
                     match seg.Dir with

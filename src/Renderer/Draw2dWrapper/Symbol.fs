@@ -426,7 +426,7 @@ let compSymbol (symbol:Symbol) (comp:Component) (colour:string) (showInputPorts:
         | Register _ |RegisterE _ -> (addClock 0 h colour opacity)
         | ROM1 _ |RAM1 _ | AsyncRAM1 _ -> (addClock 0 h colour opacity)
         | BusSelection(x,y) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-2.0) (bustitle x y) "middle" "normal" "12px")
-        | BusCompare (_,y) -> (addText  (float(w/2)-6.0) (float(h)/2.7-3.5) ("=" + string(y)) "middle" "bold" "14px")
+        | BusCompare (_,y) -> (addText  (float(w/2)-6.0) (float(h)/2.7-1.0) ("=" + NumberHelpers.hex(int y)) "middle" "bold" "10px")
         | Input (x) -> (addText  (float(w/2)-5.0) ((float(h)/2.7)-3.0) (title "" x) "middle" "normal" "12px")
         | Output (x) -> (addText  (float(w/2)) ((float(h)/2.7)-3.0) (title "" x) "middle" "normal" "12px")
         | Viewer (x) -> (addText  (float(w/2)-10.0) ((float(h)/2.7)-1.25) (title "" x) "middle" "normal" "9px")

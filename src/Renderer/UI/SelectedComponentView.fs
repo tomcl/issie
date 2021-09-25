@@ -205,7 +205,6 @@ let makeConstantDialog (model:Model) (comp: Component) (text:string) (dispatch: 
         | None -> ()
         | Some (Constant1(w,cVal,cText) as compT) ->
             if compT <> comp.Type then
-                printfn $"compT={compT} comp.Type={comp.Type}"
                 model.Sheet.ChangeWidth (Sheet >> dispatch) (ComponentId comp.Id) w
                 symbolDispatch <| Symbol.ChangeConstant (ComponentId comp.Id, cVal, cText)
                 dispatch (ReloadSelectedComponent w)
@@ -271,7 +270,7 @@ let private makeDescription (comp:Component) model dispatch =
     | Constant1 _ | Constant _ -> str "Constant Wire."
     | Output _ -> str "Output."
     | Viewer _ -> str "Viewer."
-    | BusCompare _ -> str "The output is one if the bus unsigned binary value is equal to the integer specified."
+    | BusCompare _ -> str "The output is one if the bus unsigned binary value is equal to the integer specified. This will display in hex on the design sheet, and decimal in this dialog. Busses of greater than 32 bits are not supported"
     | BusSelection _ -> div [] [
                 str "Bus Selection."
                 br []

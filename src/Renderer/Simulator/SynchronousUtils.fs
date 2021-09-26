@@ -129,7 +129,6 @@ let getCombinatorialOutputs
     | comp ->
         // Combinatorial component, return all outpus.
         node.Outputs
-    |> (fun outs -> printfn $"getting children: {node.Label}->{outs}"; outs)
 
 
 /// Start a dfs from the given node and input port number. Return the labels

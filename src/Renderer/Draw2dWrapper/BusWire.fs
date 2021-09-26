@@ -145,7 +145,7 @@ let makeInitialWireVerticesList (portCoords : XYPos * XYPos)  =
             {X = Xt; Y = Yt}
         ]
 
-    if (xs-Xt) <= - (adjStick * 2.0) then 
+    if Xt - xs >= adjStick * 2.0 then 
         leftToRight, true
     elif abs (ys - Yt) < 4.0 then 
         rightToLeftHorizontal, false

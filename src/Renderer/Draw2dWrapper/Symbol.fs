@@ -334,11 +334,11 @@ let drawPorts (portList: Port List) (printPorts:bool) (comp: Component)=
 let createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
 
-let createBiColorPolygon points colour strokeColor opacity = 
+let createBiColorPolygon points colour strokeColor opacity strokeWidth= 
     if strokeColor <> "black" then 
-        [makePolygon points {defaultPolygon with Fill = colour; Stroke = strokeColor; FillOpacity = opacity}]
+        [makePolygon points {defaultPolygon with Fill = colour; Stroke = strokeColor; FillOpacity = opacity; StrokeWidth=strokeWidth}]
     else   
-        [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
+        [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity; StrokeWidth = strokeWidth}]
 
 let addInvertor posX posY colour opacity =
     let points = (sprintf "%i,%i %i,%i %i,%i" posX (posY) (posX+9) (posY) posX (posY-8))
@@ -355,14 +355,15 @@ let addHorizontalLine posX1 posX2 posY opacity = // TODO: Line instead of polygo
 
 let outlineColor (color:string) =
     match color.ToLower() with
-    | "lightgray" -> "black"
-    | "lightgreen" -> "green"
-    | c -> c
+    | "lightgray" | "lightgrey" -> "black"
+    | c -> 
+        printfn $"color={color}"
+        c
 
 let addHorizontalColorLine posX1 posX2 posY opacity (color:string) = // TODO: Line instead of polygon?
     let points = (sprintf "%i,%f %i,%f" posX1 posY posX2 posY)
     let olColor = outlineColor color
-    [makePolygon points {defaultPolygon with Fill = "lightgrey"; Stroke=olColor; FillOpacity = opacity}]
+    [makePolygon points {defaultPolygon with Fill = "olcolor"; Stroke=olColor; StrokeWidth = "2.0"; FillOpacity = opacity}]
 
 
 
@@ -432,10 +433,10 @@ let compSymbol (symbol:Symbol) (comp:Component) (colour:string) (showInputPorts:
         | Viewer (x) -> (addText  (float(w/2)) ((float(h)/2.7)-1.25) (title "" x) "middle" "normal" "9px")
         | _ -> []
 
-    let olColour =
+    let olColour, strokeWidth =
         match comp.Type with
-        | SplitWire _ | MergeWires -> outlineColor colour
-        | _ -> colour
+        | SplitWire _ | MergeWires -> outlineColor colour, "2.0"
+        | _ -> "black", "1.0"
    
     // Put everything together 
     
@@ -446,7 +447,7 @@ let compSymbol (symbol:Symbol) (comp:Component) (colour:string) (showInputPorts:
     |> List.append (addText (float halfW) (+5.0) (gateDecoderType comp) "middle" "bold" "14px") 
     |> List.append (addText (float halfW) (-20.0) comp.Label "middle" "normal" "16px")
     |> List.append (additions)
-    |> List.append (createBiColorPolygon points colour olColour opacity)
+    |> List.append (createBiColorPolygon points colour olColour opacity strokeWidth)
 
 
 

@@ -1119,28 +1119,29 @@ let forceCloseProject model dispatch =
     model.Sheet.ClearCanvas sheetDispatch
     dispatch FinishUICmd
 
-let private closeProject model dispatch _ =
+
+
+/// force either save of current file before action, or abort (closeProject is special case of this)
+let doActionWithSaveFileDialog (name: string) (nextAction: Msg)  model dispatch _ =
     let closeDialogButtons keepOpen _ =
         if keepOpen then
             dispatch ClosePopup
         else
-            forceCloseProject model dispatch
+            dispatch nextAction
 
     if model.SavedSheetIsOutOfDate then 
         choicePopup 
-                "Close Project?" 
-                (div [] [ str "The current file has unsaved changes."])
-                "Go back to project" 
-                "Close project without saving changes"  
+                $"{name}?" 
+                (div [] [ str "The current sheet has unsaved changes."])
+                "Go back to sheet" 
+                $"{name} without saving changes"  
                 closeDialogButtons 
                 dispatch
     else
-        forceCloseProject model dispatch
-
+        dispatch nextAction
 
 /// Create a new project.
-let private newProject model dispatch _ =
-    dispatch <| SetRouterInteractive false
+let private newProject model dispatch  =
     match askForNewProjectPath() with
     | None -> () // User gave no path.
     | Some path ->
@@ -1222,7 +1223,7 @@ let rec resolveComponentOpenPopup
  
 
 /// open an existing project
-let private openProject model dispatch _ =
+let private openProject model dispatch =
     //trying to force the spinner to load earlier
     //doesn't really work right now
     dispatch (Sheet (Sheet.SetSpinner true))
@@ -1243,6 +1244,9 @@ let private openProject model dispatch _ =
 
             Elmish.Cmd.none)
 
+
+    
+
 /// Display the initial Open/Create Project menu at the beginning if no project
 /// is open.
 let viewNoProjectMenu model dispatch =
@@ -1254,8 +1258,8 @@ let viewNoProjectMenu model dispatch =
     let initialMenu =
         Menu.menu []
             [ Menu.list []
-                  [ menuItem "New project" (newProject model dispatch)
-                    menuItem "Open project" (openProject model dispatch) ]
+                  [ menuItem "New project" (fun _ -> newProject model dispatch)
+                    menuItem "Open project" (fun _ -> openProject model dispatch) ]
             ]
 
     match model.CurrentProj with
@@ -1269,23 +1273,6 @@ let goBackToProject model dispatch _ =
 let closeApp model dispatch _ =
     dispatch CloseApp
 
-/// Display the exit dialog
-let viewExitDialog model (dispatch : Msg -> unit) =
-    let menuItem label action =
-        Menu.Item.li
-            [ Menu.Item.IsActive false
-              Menu.Item.OnClick action ] [ str label ]
-
-    let exitMenu =
-        Menu.menu []
-            [ Menu.label [] [str "You have unsaved changes"]
-              Menu.list []
-                  [ menuItem "Go back to project" (goBackToProject model dispatch)
-                    menuItem "Close without saving" (closeApp model dispatch) ]
-            ]
-
-    if model.ExitDialog then unclosablePopup None exitMenu None [] dispatch
-    else div [] []
 
 type SheetTree = {
     Node: string
@@ -1488,11 +1475,11 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                                 DisplayOptions.Block
                                              else
                                                  DisplayOptions.None) ] ] ]
-                                [ Navbar.Item.a [ Navbar.Item.Props [ OnClick <| newProject model dispatch ] ]
+                                [ Navbar.Item.a [ Navbar.Item.Props [ OnClick <| doActionWithSaveFileDialog "New project" (ExecFuncInMessage(newProject,dispatch)) model dispatch ] ]
                                       [ str "New project" ]
-                                  Navbar.Item.a [ Navbar.Item.Props [ OnClick <| openProject model dispatch ] ]
+                                  Navbar.Item.a [ Navbar.Item.Props [ OnClick <| doActionWithSaveFileDialog "Open project" (ExecFuncInMessage(openProject,dispatch)) model dispatch ] ]
                                       [ str "Open project" ]
-                                  Navbar.Item.a [ Navbar.Item.Props [ OnClick <| closeProject model dispatch ] ]
+                                  Navbar.Item.a [ Navbar.Item.Props [ OnClick <| doActionWithSaveFileDialog "Close project" (ExecFuncInMessage(forceCloseProject,dispatch)) model dispatch ] ]
                                       [ str "Close project" ] ] ]
 
                       fileTab

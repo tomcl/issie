@@ -239,6 +239,7 @@ type MenuCommand =
     | MenuPrint
     | MenuSaveFile
     | MenuNewFile
+    | MenuExit
     | MenuZoom of float
     | MenuVerilogOutput
 
@@ -331,6 +332,7 @@ type Msg =
     | StartUICmd of UICommandType
     | FinishUICmd
     | ExecCmd of Elmish.Cmd<Msg>
+    | ExecFuncInMessage of (Model -> (Msg->Unit) -> Unit) * (Msg -> Unit)
     | ExecFuncAsynch of (Unit -> Elmish.Cmd<Msg>)
     | ExecCmdAsynch of Elmish.Cmd<Msg>
     | SendSeqMsgAsynch of seq<Msg>
@@ -362,9 +364,6 @@ type Model = {
         
     /// Draw Canvas
     Sheet: Sheet.Model
-
-    /// true when exit dialog is displayed
-    ExitDialog: bool
 
     /// true during period when a sheet or project is loading
     IsLoading: bool
@@ -429,7 +428,6 @@ type Model = {
 
 
 let reduce (this: Model) = {|
-         ExitDialog = this.ExitDialog
          RightTab = this.RightPaneTabVisible
          Hilighted = this.Hilighted
          Clipboard = this.Clipboard
@@ -452,7 +450,6 @@ let reduce (this: Model) = {|
  |} 
        
 let reduceApprox (this: Model) = {|
-         ExitDialog = this.ExitDialog
          RightTab = this.RightPaneTabVisible
          Clipboard = this.Clipboard
          CurrProject = match this.PopupViewFunc with None -> false | _ -> true

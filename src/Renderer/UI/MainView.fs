@@ -56,7 +56,6 @@ let init() = {
     // Diagram = new Draw2dWrapper()
     Sheet = fst (Sheet.init())
     WaveSimulationIsOutOfDate = true
-    ExitDialog = false
     IsLoading = false
     LastDetailedSavedState = ([],[])
     LastSimulatedCanvasState = None
@@ -237,8 +236,6 @@ let displayView model dispatch =
             Cursor topCursorText ] ] [
         // transient
         FileMenuView.viewNoProjectMenu model dispatch
-        
-        FileMenuView.viewExitDialog model dispatch
         
         PopupView.viewPopup model dispatch 
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the

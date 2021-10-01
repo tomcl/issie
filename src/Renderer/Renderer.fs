@@ -57,7 +57,7 @@ let attachExitHandler dispatch =
     electron.ipcRenderer.on ("closingWindow", (fun (event: Event)->
         printfn "dispatching ShowExitDialog"
         // send a message which will process the request to exit
-        dispatch <| ShowExitDialog
+        dispatch <| MenuAction(MenuExit,dispatch)
         )) |> ignore
     
 
@@ -119,7 +119,7 @@ let fileMenu (dispatch) =
         makeItem "Save Sheet" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
         makeItem "Print Sheet" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
         makeItem "Write design as Verilog" None (fun ev -> dispatch (MenuAction(MenuVerilogOutput,dispatch)))
-        makeItem "Exit Issie" None (fun ev -> dispatch Msg.ShowExitDialog)
+        makeItem "Exit Issie" None (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> PopupView.viewInfoPopup dispatch)
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Restart app" None (fun _ -> 
             let webContents = electron.remote.getCurrentWebContents()

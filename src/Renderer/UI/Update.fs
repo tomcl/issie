@@ -84,6 +84,8 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
         |> JSDiagramMsg |> dispatch
     | MenuNewFile -> 
         FileMenuView.addFileToProject model dispatch
+    | MenuExit ->
+        FileMenuView.doActionWithSaveFileDialog "Exit ISSIE" CloseApp model dispatch ()
     | MenuVerilogOutput ->
         mapOverProject () model (fun p ->
             let sheet = p.OpenFileName
@@ -253,18 +255,18 @@ let update (msg : Msg) oldModel =
     | FinishUICmd _ ->
         let popup = FileMenuView.optCurrentSheetDependentsPopup model
         {model with UIState = None; PopupViewFunc = popup}, Cmd.ofMsg (Sheet (Sheet.SetSpinner false))
-    | ShowExitDialog ->
+    (*| ShowExitDialog ->
         match model.CurrentProj with
         | Some p when model.SavedSheetIsOutOfDate ->
             {model with ExitDialog = true}, Cmd.none
         | _ -> // exit immediately since nothing to save
             exitApp()
-            model, Cmd.none
+            model, Cmd.none*)
     | CloseApp ->
         exitApp()
         model, Cmd.none
-    | SetExitDialog status ->
-        {model with ExitDialog = status}, Cmd.none
+    (*| SetExitDialog status ->
+        {model with ExitDialog = status}, Cmd.none*)
     | Sheet sMsg ->
         match sMsg with 
         | Sheet.ToggleNet canvas -> 
@@ -410,6 +412,8 @@ let update (msg : Msg) oldModel =
         { model with Notifications = { model.Notifications with FromProperties = None} }, Cmd.none
     | SetTopMenu t ->
         { model with TopMenuOpenState = t}, Cmd.none
+    | ExecFuncInMessage (f,dispatch)->
+        (f model dispatch; model), Cmd.none
     | ExecCmd cmd ->
         model, cmd
     | ExecFuncAsynch func ->
@@ -487,12 +491,6 @@ let update (msg : Msg) oldModel =
             let sims,err = model.WaveSim
             sims.Add(sheetName, wSModel), err
         {model with WaveSim = updateWaveSim sheetName wSModel model}, Cmd.none
-//    // post-update check always done which deals with regular tasks like updating connections and 
-//    // auto-saving files
-//    | SetRouterInteractive isInteractive ->
-//        model.Diagram.SetRouterInteractive isInteractive
-//        model, Cmd.none
-//    |> checkForAutoSaveOrSelectionChanged msg
     | ExecutePendingMessages n ->
         if n = (List.length model.Pending)
         then 

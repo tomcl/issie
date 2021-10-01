@@ -57,8 +57,8 @@ type Model =
     {
         Symbol: Symbol.Model
         WX: Map<ConnectionId, Wire>
-        FromVerticalToHorizontalSegmentIntersections: Map<(ConnectionId * SegmentId), list<ConnectionId * SegmentId>>
-        FromHorizontalToVerticalSegmentIntersections: Map<(ConnectionId * SegmentId), list<ConnectionId * SegmentId>>
+        FromVerticalToHorizontalSegmentIntersections: Map<SegmentId, list<ConnectionId*SegmentId>>
+        FromHorizontalToVerticalSegmentIntersections: Map<SegmentId, list<ConnectionId*SegmentId>>
         CopiedWX: Map<ConnectionId, Wire> 
         SelectedSegment: SegmentId
         LastMousePos: XYPos
@@ -84,6 +84,74 @@ type Msg =
     | MakeJumps of list<ConnectionId>
     | ResetModel // For Issie Integration
     | LoadConnections of list<Connection> // For Issie Integration
+
+//-------------------------Debugging functions---------------------------------//
+let ppSId (sId:SegmentId) =
+    sId
+    |> (fun (SegmentId x) -> x)
+    |> Seq.toList
+    |> (fun chars -> chars.[0..2])
+    |> List.map string
+    |> String.concat ""
+
+let ppS (seg:Segment) =
+    sprintf $"|{seg.Index}:{ppSId seg.Id}|"
+
+let ppWId (wId:ConnectionId) =
+        wId
+        |> (fun (ConnectionId x) -> x)
+        |> Seq.toList
+        |> (fun chars -> chars.[0..2])
+        |> List.map string
+        |> String.concat ""
+
+let ppMaps (model:Model) =
+    let mhv = model.FromHorizontalToVerticalSegmentIntersections
+    let mvh = model.FromVerticalToHorizontalSegmentIntersections
+    let m1 =
+        mhv
+        |> Map.toList
+        |> List.map (fun (sid,lst) ->
+            List.map (snd >> ppSId) lst
+            |> (fun segs -> sprintf $"""<{ppSId sid}->[{String.concat ";" segs}]>"""))
+            |> String.concat ";\n"
+    let m2 =
+        mvh
+        |> Map.toList
+        |> List.map (fun (sid,lst) ->
+            List.map (snd >> ppSId) lst
+            |> (fun segs -> sprintf $"""<{ppSId sid}->[{String.concat ";" segs}]>"""))
+            |> String.concat ";\n"
+    let jumps =
+        model.WX
+        |> Map.toList
+        |> List.map (fun (wId,w) ->
+            sprintf $"Wire: {w.Segments |> List.collect (fun seg -> seg.JumpCoordinateList |> List.map (fun (f, sid) -> ppSId sid))}")
+            
+    printfn $"\n------------------\nMapHV:\n {m1} \n MapVH\n{m2} \nJumps:\n {jumps}\n------------------\n"
+
+
+
+let ppSeg seg (model: Model) = 
+        let cid,sid = seg
+        let wire = model.WX.[cid]
+        let sg = List.find (fun (s:Segment) -> s.Id = sid ) wire.Segments
+        let pxy (xy: XYPos) = sprintf $"{(xy.X,xy.Y)}"
+        sprintf $"""[{ppSId sg.Id}: {pxy sg.Start}->{pxy sg.End}]-{match sg.Dir with | Vertical -> "V" | _ -> "H"}-{sg.Index}"""
+
+let pp segs (model: Model)= 
+    segs
+    |> List.map  ( fun seg ->
+        let cid,sid = seg
+        let wire = model.WX.[cid]
+        match List.tryFind (fun (s:Segment) -> s.Id = sid ) wire.Segments with
+        | Some  sg ->
+            let pxy (xy: XYPos) = sprintf $"{(xy.X,xy.Y)}"
+            sprintf $"""[{pxy sg.Start}->{pxy sg.End}]-{match sg.Dir with | Vertical -> "V" | _ -> "H"}-{sg.Index}"""
+        | None -> "XX")
+    |> String.concat ";"
+
+//-------------------------------Implementation code----------------------------//
 
 /// Wire to Connection
 let segmentsToVertices (segList:Segment list) = 
@@ -278,12 +346,21 @@ let orientation (p : XYPos) (q : XYPos) (r : XYPos) : int =
     elif (result > 0.0) then 1 // clockwise
     else 2 //counterclockwise
 
+///Returns the abs of an XYPos object
+let getAbsXY (pos : XYPos) = 
+    {X = abs pos.X; Y = abs pos.Y}
   
 /// Given two sets of two points: (p1, q1) and (p2, q2)
 /// that define two segments, the function returns true
 /// if these two segments intersect and false otherwise.
 let segmentIntersectsSegment ((p1, q1) : (XYPos * XYPos)) ((p2, q2) : (XYPos * XYPos)) : bool =
-
+    // this is a terrible implementation
+    // determining intersection should be done by finding intersection point and comparing with coords
+    // since segments are always horizontal or vertical that is pretty easy.
+    // in addition the way that coordinates can be positive or negative but are absed when used is appalling
+    // the manual or auto route info per segment should be a separate field in Segmnet, not encoded in the sign of the coordinates
+    // that is needed when writing out or reading from Issie, but the write/read process can easily translate to a sane internal data structure in the draw blokc model
+    let p1,q1,p2,q2= getAbsXY p1, getAbsXY q1, getAbsXY p2, getAbsXY q2
     // Find the four orientations needed for general and 
     // special cases 
     let o1 = orientation (p1) (q1) (p2)
@@ -313,9 +390,7 @@ let segmentIntersectsSegment ((p1, q1) : (XYPos * XYPos)) ((p2, q2) : (XYPos * X
         then true
     else false
 
-///Returns the abs of an XYPos object
-let getAbsXY (pos : XYPos) = 
-    {X = abs pos.X; Y = abs pos.Y}
+
 
 ///Returns a segment with positive Start and End coordinates
 let makeSegPos (seg : Segment) =
@@ -347,7 +422,12 @@ let makeInitialSegmentsList (hostId : ConnectionId) (portCoords : XYPos * XYPos)
 /// using the data stored inside it),
 /// using the colour and width properties given.
 let renderSegment (segment : Segment) (colour : string) (width : string) : ReactElement = 
-    let renderWidth = if width = "1" then 1.5 else 3.5
+    let wOpt = EEExtensions.String.tryParseWith System.Int32.TryParse width
+    let renderWidth = 
+        match wOpt with
+        | Some 1 -> 1.5
+        | Some n when n < int "8" -> 2.5
+        | _ -> 3.5
     let halfWidth = (renderWidth/2.0) - (0.75)
     let lineParameters = { defaultLine with Stroke = colour; StrokeWidth = string renderWidth }
     let circleParameters = { defaultCircle with R = halfWidth; Stroke = colour; Fill = colour }
@@ -473,8 +553,8 @@ let renderSegment (segment : Segment) (colour : string) (width : string) : React
 let segmentIntersectsSegmentCoordinates ((p1, q1) : (XYPos * XYPos)) ((p2, q2) : (XYPos * XYPos)) : Option<XYPos> =
     
     if (segmentIntersectsSegment (p1, q1) (p2, q2)) then
-        let x1, y1, x2, y2 = p1.X, p1.Y, q1.X, q1.Y
-        let x3, y3, x4, y4 = p2.X, p2.Y, q2.X, q2.Y
+        let x1, y1, x2, y2 = abs p1.X, abs p1.Y, abs q1.X, abs q1.Y
+        let x3, y3, x4, y4 = abs p2.X, abs p2.Y, abs q2.X, abs q2.Y
         let uA = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) / ((y4-y3)*(x2-x1) - (x4-x3)*(y2-y1))
 
         let intersectionX = x1 + (uA * (x2-x1)) // if coordinates are wanted, maybe useful later
@@ -537,8 +617,8 @@ let segmentIntersectsBoundingBoxCoordinates (segIn : Segment) (bb : BoundingBox)
 /// This distance is given a point and a segment
 /// and it returns the distance between them.
 let distanceFromPointToSegment (point : XYPos) (segment : Segment) : float = 
-    let x0, y0 = point.X, point.Y
-    let x1, y1, x2, y2 = segment.Start.X, segment.Start.Y, segment.End.X, segment.End.Y
+    let x0, y0 = point.X, abs point.Y
+    let x1, y1, x2, y2 = abs segment.Start.X, abs segment.Start.Y, abs segment.End.X, abs segment.End.Y
 
     if (x1 = x2) then abs (x1 - x0)
     elif (y1 = y2) then abs (y1 - y0)
@@ -852,335 +932,69 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
     g [] [(g [] wires); symbols]
     |> Helpers.instrumentInterval "WireView" start
 
-/// Returns a list of all the intersection coordinates between the given
-/// segment and all other segments in the model, along with the HostId and
-/// the index of the horizontal intersecting segment inside Wire's Segment list.
-/// If no intersection exists then it returns an empty list.
-let segmentIntersectionCoordinatesWithAllOtherSegments (wModel : Model) (segmentIn : Segment) : list<ConnectionId * SegmentId * ConnectionId * SegmentId * XYPos> = 
-    let segment = makeSegPos segmentIn
-    wModel.WX
-    |> Map.filter (fun wireId wire -> wireId <> segment.HostId)
-    |> Map.toList
-    |> List.collect (fun (wireId, wire) -> wire.Segments)
-    |> List.filter
-        (
-            fun segIn ->
-                let seg = makeSegPos segIn
-                (seg.Dir <> segment.Dir) &&
-                (distanceBetweenTwoPoints (seg.Start) (seg.End) >= 0.1) &&
-                (wModel.WX.[seg.HostId].OutputPort <> wModel.WX.[segment.HostId].OutputPort) &&
-                (wModel.WX.[seg.HostId].InputPort <> wModel.WX.[segment.HostId].InputPort) // Only interested in segments of different orientations
-        )
-    |> List.map
-        (
-            fun segIn ->
-                let seg = makeSegPos segIn
-                if (seg.Dir = Horizontal) then
-                    seg.HostId,
-                    seg.Id,
-                    segment.HostId,
-                    segment.Id,
-                    segmentIntersectsSegmentCoordinates (segment.Start, segment.End) (seg.Start, seg.End)
-                else
-                    segment.HostId,
-                    segment.Id,
-                    seg.HostId,
-                    seg.Id,
-                    segmentIntersectsSegmentCoordinates (segment.Start, segment.End) (seg.Start, seg.End)
-        )
-    |> List.distinctBy ( fun (hWid, hSid, _, _, intersectCoords) -> (hWid, hSid, intersectCoords) )    
-    |> List.filter
-        (
-            fun (_, _, _, _, intersectCoords) ->
-                match intersectCoords with
-                | Some _ -> true
-                | None -> false
-        )
-    |> List.map
-        (
-            fun (hWid, hSid, vWid, vSid, intersectCoords) ->
-                match intersectCoords with
-                | Some coord -> (hWid, hSid, vWid, vSid, coord)
-                | None -> failwithf "This case should never arise."
-        )
-    |> List.filter
-        (
-            fun (hWid, hSid, vWid, vSid, intersectCoords) ->
-                if (segment.Dir = Horizontal) then
-                    let startX, endX = min segment.Start.X segment.End.X, max segment.Start.X segment.End.X
-                    not ( ((startX + 5.0) > intersectCoords.X) || ((endX - 5.0) < intersectCoords.X) )
-                else
-                    let horizontalSegment =
-                        wModel.WX.[hWid].Segments
-                        |> List.tryFind (fun seg -> seg.Id = hSid)
-                        |> function
-                        | Some seg -> seg
-                        | None -> failwithf "Couldn't find segId %A in makejumps" hSid
-                    let startX, endX = min horizontalSegment.Start.X horizontalSegment.End.X, max horizontalSegment.Start.X horizontalSegment.End.X
-                    not ( ((startX + 5.0) > intersectCoords.X) || ((endX - 5.0) < intersectCoords.X) )
-        )
-
-///
-let updateWireSegmentJumps (wireList : list<ConnectionId>) (wModel : Model) : Model =
-
-    let updateSegment (seg : Segment) : list<ConnectionId * SegmentId * ConnectionId * SegmentId * XYPos> =
-        (wModel, seg)
-        ||> segmentIntersectionCoordinatesWithAllOtherSegments
 
 
-    let rec listOfSegmentIntersectionsHelperFunction (wModel : Model) (listOfSegIntersection : list<ConnectionId * SegmentId * ConnectionId * SegmentId * XYPos>) : Model =
-        match listOfSegIntersection with
+let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model:Model) =
+    let mutable newWX = model.WX
+    let changeJumps wid index jumps =
+        let changeSegment segs = List.mapi (fun i x -> if i <> index then x else {x with JumpCoordinateList=jumps}) segs
+        newWX <- Map.add wid { newWX.[wid] with Segments = changeSegment newWX.[wid].Segments} newWX 
+    let segs =
+        model.WX
+        |> Map.toArray
+        |> Array.mapi (fun i (wid,w) -> List.toArray w.Segments)
+    for w1 in 0 .. segs.Length-1 do
+        for h in segs.[w1] do
+            if h.Dir = Horizontal then
+                // work out what jumps this segment should have
+                let mutable jumps: (float*SegmentId) list = []
+                if not (List.contains h.HostId wiresWithNoJumps) then            
+                    for w2 in 0 .. segs.Length-1 do
+                        for v in segs.[w2] do 
+                            match v.Dir with
+                            | Vertical ->
+                                let x, x1, x2 = abs v.Start.X, abs h.Start.X, abs h.End.X
+                                let y, y1, y2 = abs h.Start.Y, abs v.Start.Y, abs v.End.Y
+                                let xhi, xlo = max x1 x2 , min x1 x2
+                                let yhi,ylo = max y1 y2, min y1 y2
+                                //printfn $"{[xlo;x;xhi]}, {[ylo;y;yhi]}"
+                                if x < xhi - 5.0 && x > xlo + 5.0 && y < yhi - 5.0 && y > ylo + 5.0 then
+                                    //printfn "found a jump!"
+                                    jumps <- (x,v.Id) :: jumps
+                            | _ -> ()
+                // compare jumps with what segment now has, and chnage newWX if need be
+                match jumps, h.JumpCoordinateList with
+                | [],[] -> 
+                    ()
+                | [], _ | _, [] -> 
+                    changeJumps h.HostId h.Index jumps
+                | [a], [b] -> 
+                    if a <> b then 
+                        changeJumps h.HostId h.Index jumps
+                | x , y when Set x = Set y -> 
+                    ()
+                | _ -> 
+                    changeJumps h.HostId h.Index jumps
+    {model with WX = newWX}
 
-        | [] -> wModel
 
-        | firstElement :: tailList ->
-            let hWid, hSid, vWid, vSid, coordIn = firstElement
-            let coord = getAbsXY coordIn
-            let newWireSegments =
-                wModel.WX.[hWid].Segments
-                |> List.map
-                    (
-                        fun seg ->
-                            if (seg.Id = hSid) then
-                                let jumpCoordinates =
-                                    seg.JumpCoordinateList
-                                    |> List.map fst
+                        
 
-                                if (not (List.contains (coord.X) (jumpCoordinates))) then
-                                    let newJumpCoordinateList = (coord.X, vSid) :: seg.JumpCoordinateList
-                                    {seg with JumpCoordinateList = newJumpCoordinateList}
-                                
-                                else seg
-                            else seg
-                    )
-            let newWire = {wModel.WX.[hWid] with Segments = newWireSegments}
-            let newWX = Map.add (hWid) (newWire) (wModel.WX)
-
-            let lst1 =
-                match ( Map.tryFind (vWid, vSid) (wModel.FromVerticalToHorizontalSegmentIntersections) ) with
-                | Some currList -> (hWid, hSid) :: currList
-                | None -> [(hWid, hSid)]
-
-            let newFromVerticalToHorizontalSegmentIntersections = Map.add (vWid, vSid) (lst1) (wModel.FromVerticalToHorizontalSegmentIntersections)
+                        
             
-            let lst2 =
-                match ( Map.tryFind (hWid, hSid) (wModel.FromHorizontalToVerticalSegmentIntersections) ) with
-                | Some currList -> (vWid, vSid) :: currList
-                | None -> [(vWid, vSid)]
 
-            let newFromHorizontalToVerticalSegmentIntersections = Map.add (hWid, hSid) (lst2) (wModel.FromHorizontalToVerticalSegmentIntersections)
-
-            let newModel = 
-                {
-                    wModel with
-                        WX = newWX;
-                        FromVerticalToHorizontalSegmentIntersections = newFromVerticalToHorizontalSegmentIntersections;
-                        FromHorizontalToVerticalSegmentIntersections = newFromHorizontalToVerticalSegmentIntersections;
-                }
-
-            listOfSegmentIntersectionsHelperFunction (newModel) (tailList)
-
-
-    let rec updateWireModelForJumps (wModel : Model) (wList : list<ConnectionId>) (alreadyFoundIntersections : list<ConnectionId * SegmentId * ConnectionId * SegmentId * XYPos>) : Model =
-        match wList with
-
-        | [] -> wModel
-
-        | firstElement :: tailList ->
-            let listOfSegmentIntersections =
-                wModel.WX.[firstElement].Segments
-                |> List.filter
-                    (fun segIn -> 
-                        let seg = makeSegPos segIn
-                        distanceBetweenTwoPoints (seg.Start) (seg.End) >= 0.1)
-                |> List.collect updateSegment
-            
-            let listOfNewIntersections =
-                (listOfSegmentIntersections, alreadyFoundIntersections)
-                ||> List.fold
-                    (
-                        fun state segmentIntersection ->
-                            let currentNewSegmentIntersections =
-                                state
-                                |> List.map (fun (hWid, hSid, _, _, intersectCoords) -> (hWid, hSid, intersectCoords))
-
-                            let HWID, HSID, _, _, intersectCoords = segmentIntersection
-                            
-                            if (List.contains (HWID, HSID, intersectCoords) (currentNewSegmentIntersections)) then
-                                state
-                                |> List.filter
-                                    (
-                                        fun (hWid, hSid, _, _, coord) ->
-                                            (HWID <> hWid) ||
-                                            (HSID <> hSid) ||
-                                            (intersectCoords <> coord)
-                                    )
-                            else state
-                    )
-            
-            let newModel = listOfSegmentIntersectionsHelperFunction wModel listOfNewIntersections
-
-            updateWireModelForJumps (newModel) (tailList) (alreadyFoundIntersections @ listOfNewIntersections)
-
-
-
-    updateWireModelForJumps (wModel) (wireList) ([])
-
-/// This function updates the wire model by updating the horizontal wire segments that intersect
-/// with other segments on the canvas sheet.
-let resetWireSegmentJumps (wireList : list<ConnectionId>) (wModel : Model) : Model =
     
-    let resetWireModelForHorizontalSegments (listOfHorizontalSegments : list<ConnectionId * SegmentId>) (listOfVerticalSegments : list<ConnectionId * SegmentId>) (model : Model) : Model =
-        (model, listOfHorizontalSegments)
-        ||> List.fold
-            (
-                fun state horizontalSegment ->
-                    let hWid, hSid = horizontalSegment
-                    let newSegments =
-                        state.WX.[hWid].Segments
-                        |> List.map
-                            (
-                                fun seg ->
-                                    if (seg.Id = hSid) then
-                                        let newJumpCoordinateList =
-                                            seg.JumpCoordinateList
-                                            |> List.filter
-                                                (
-                                                    fun (_, sId) ->
-                                                        let lst =
-                                                            listOfVerticalSegments
-                                                            |> List.map snd
-                                                        not (List.contains (sId) (lst))
-                                                )
-                                        {seg with JumpCoordinateList = newJumpCoordinateList}
-                                    else seg
-                            )
-                    let newWire = {state.WX.[hWid] with Segments = newSegments}
-                    let newWX = Map.add (hWid) (newWire) (state.WX)
 
-                    {state with WX = newWX}
-            )
+let updateWireSegmentJumps (wireList: list<ConnectionId>) (wModel: Model) : Model =
+    makeAllJumps [] wModel
 
-    let rec resetWireModelForJumps (wModel : Model) (wList : list<ConnectionId>) : Model =
-        match wList with
 
-        | [] -> wModel
+/// This function updates the wire model by removing from the stored lists of intersections
+/// all those generated by wireList wires.
+/// intersetcions are stored in maps on the model and on the horizontal segments containing the jumps
+let resetWireSegmentJumps (wireList : list<ConnectionId>) (wModel : Model) : Model =
+    makeAllJumps wireList wModel
 
-        | firstElement :: tailList ->
-
-            let listOfVerticalSegmentsOfCurrentWire =
-                wModel.WX.[firstElement].Segments
-                |> List.filter (fun seg -> seg.Dir = Vertical)
-                |> List.map (fun seg -> (firstElement, seg.Id))
-
-            let listOfHorizontalSegmentsOfCurrentWire =
-                wModel.WX.[firstElement].Segments
-                |> List.filter (fun seg -> seg.Dir = Horizontal)
-                |> List.map (fun seg -> (firstElement, seg.Id))
-            
-            let listOfVerticalSegmentsInOtherWiresToBeResetted =
-                ([], listOfHorizontalSegmentsOfCurrentWire)
-                ||> List.fold
-                    (
-                        fun state horizontalSegmentOfCurrentWire ->
-                            if (Map.containsKey (horizontalSegmentOfCurrentWire) (wModel.FromHorizontalToVerticalSegmentIntersections)) then
-                                state @ wModel.FromHorizontalToVerticalSegmentIntersections.[horizontalSegmentOfCurrentWire]
-                            else
-                                state
-                    )
-
-            let listOfHorizontalSegmentsInOtherWiresToBeResetted =
-                ([], listOfVerticalSegmentsOfCurrentWire)
-                ||> List.fold
-                    (
-                        fun state verticalSegmentOfCurrentWire ->
-                            if (Map.containsKey (verticalSegmentOfCurrentWire) (wModel.FromVerticalToHorizontalSegmentIntersections)) then
-                                state @ wModel.FromVerticalToHorizontalSegmentIntersections.[verticalSegmentOfCurrentWire]
-                            else
-                                state
-                    )
-            
-
-            let newModel1 =
-                wModel
-                |> resetWireModelForHorizontalSegments (listOfHorizontalSegmentsOfCurrentWire) (listOfVerticalSegmentsInOtherWiresToBeResetted)
-                |> resetWireModelForHorizontalSegments (listOfHorizontalSegmentsInOtherWiresToBeResetted) (listOfVerticalSegmentsOfCurrentWire)
-
-            
-            let newModel2 =
-                (newModel1, listOfVerticalSegmentsInOtherWiresToBeResetted)
-                ||> List.fold
-                    (
-                        fun state verticalSegment ->
-                            let newListOfHorizontalSegments =
-                                state.FromVerticalToHorizontalSegmentIntersections.[verticalSegment]
-                                |> List.filter
-                                    (
-                                        fun horizontalSegment ->
-                                            not (List.contains horizontalSegment listOfHorizontalSegmentsOfCurrentWire)
-                                    )
-                            let newFromVerticalToHorizontalSegmentIntersections =
-                                Map.add (verticalSegment) (newListOfHorizontalSegments) (state.FromVerticalToHorizontalSegmentIntersections)
-
-                            {
-                                state with
-                                    FromVerticalToHorizontalSegmentIntersections = newFromVerticalToHorizontalSegmentIntersections;
-                            }
-                    )
-            
-            let newModel3 =
-                (newModel2, listOfHorizontalSegmentsInOtherWiresToBeResetted)
-                ||> List.fold
-                    (
-                        fun state horizontalSegment ->
-                            let newListOfVerticalSegments =
-                                state.FromHorizontalToVerticalSegmentIntersections.[horizontalSegment]
-                                |> List.filter
-                                    (
-                                        fun verticalSegment ->
-                                            not (List.contains verticalSegment listOfVerticalSegmentsOfCurrentWire)
-                                    )
-                            let newFromHorizontalToVerticalSegmentIntersections =
-                                Map.add (horizontalSegment) (newListOfVerticalSegments) (state.FromHorizontalToVerticalSegmentIntersections)
-
-                            {
-                                state with
-                                    FromHorizontalToVerticalSegmentIntersections = newFromHorizontalToVerticalSegmentIntersections;
-                            }
-                    )
-            
-            let newModel4 =
-                (newModel3, listOfHorizontalSegmentsOfCurrentWire)
-                ||> List.fold
-                    (
-                        fun state horizontalSegment ->
-                            let newFromHorizontalToVerticalSegmentIntersections =
-                                Map.remove (horizontalSegment) (state.FromHorizontalToVerticalSegmentIntersections)
-
-                            {
-                                state with
-                                    FromHorizontalToVerticalSegmentIntersections = newFromHorizontalToVerticalSegmentIntersections;
-                            }
-                    )
-            
-            let newModel5 =
-                (newModel4, listOfVerticalSegmentsOfCurrentWire)
-                ||> List.fold
-                    (
-                        fun state verticalSegment ->
-                            let newFromVerticalToHorizontalSegmentIntersections =
-                                Map.remove (verticalSegment) (state.FromVerticalToHorizontalSegmentIntersections)
-
-                            {
-                                state with
-                                    FromVerticalToHorizontalSegmentIntersections = newFromVerticalToHorizontalSegmentIntersections;
-                            }
-                    )
-            
-
-            resetWireModelForJumps (newModel5) (tailList)
-
-    resetWireModelForJumps (wModel) (wireList)
 
 /// Initialisatiton with no wires
 let init () =
@@ -1265,8 +1079,8 @@ let revSegments (segs:Segment list) =
 // "Simple" case where output.X < input.X
 //  S0.FH  S1.0  S2.H  S3.V  S4.H  S5.0 S6.FH
 //
-// "Complex" case where output.X . input.X
-//  S0.FH  S1.H  S2.V  S3.-H  S4.V  S5.H S6.FH
+// "Complex" case where output.X > input.X
+//  S0.FH  S1.V  S2.H  S3.V  S4.H  S5.V S6.FH
 //
 // To determine adjustment on End change we just reverse the segment and apply the Start change algorithm
 // Adjustment => reverse list of segments, swap Start and End, and alter the sign of all coordinates
@@ -1582,7 +1396,8 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         { model with WX = newWires }, Cmd.none
     
     | ResetJumps connIds ->
-
+        printfn $"resetting jumps on {connIds.Length} wires"
+        
         let newModel =
             model
             |> resetWireSegmentJumps connIds
@@ -1590,6 +1405,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         newModel, Cmd.none
     
     | MakeJumps connIds ->
+        printfn $"making jumps on {connIds.Length} wires"
 
         let newModel =
             model

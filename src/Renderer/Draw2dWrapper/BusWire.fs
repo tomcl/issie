@@ -950,6 +950,9 @@ let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model:Model) =
                 let mutable jumps: (float*SegmentId) list = []
                 if not (List.contains h.HostId wiresWithNoJumps) then            
                     for w2 in 0 .. segs.Length-1 do
+                        // everything inside the inner loop should be very highly optimised
+                        // it is executed n^2 time where n is the number of segments (maybe 5000)
+                        // the abs here are because segment coordinates my be nagated to indicate manual routing
                         for v in segs.[w2] do 
                             match v.Dir with
                             | Vertical ->
@@ -962,19 +965,25 @@ let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model:Model) =
                                     //printfn "found a jump!"
                                     jumps <- (x,v.Id) :: jumps
                             | _ -> ()
-                // compare jumps with what segment now has, and chnage newWX if need be
+                // compare jumps with what segment now has, and change newWX if need be
+                // simple cases are done without sort for speed, proably not necessary!
+                // The jump list is sorted in model to enable easier rendering of segments
                 match jumps, h.JumpCoordinateList with
                 | [],[] -> 
                     ()
-                | [], _ | _, [] -> 
+                | [a], [b] when a <> b -> 
                     changeJumps h.HostId h.Index jumps
-                | [a], [b] -> 
-                    if a <> b then 
-                        changeJumps h.HostId h.Index jumps
-                | x , y when Set x = Set y -> 
-                    ()
-                | _ -> 
+                | [], _ ->
                     changeJumps h.HostId h.Index jumps
+                |  _, [] -> // in this case we need to sort the jump list
+                    changeJumps h.HostId h.Index (List.sort jumps)
+                | newJumps , oldJ -> 
+                    let newJ = List.sort newJumps
+                    // oldJ is already sorted (we only ever write newJ back to model)
+                    if newJ <> oldJ then
+                        changeJumps h.HostId h.Index newJumps
+                    else
+                        ()
     {model with WX = newWX}
 
 

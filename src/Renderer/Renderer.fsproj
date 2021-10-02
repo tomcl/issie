@@ -33,9 +33,9 @@
     <None Include="scss\main.scss" />
 
     <!-- Draw2D diagram -->
-    <Compile Include="Draw2dWrapper\Symbol.fs" />
-    <Compile Include="Draw2dWrapper\BusWire.fs" />
-    <Compile Include="Draw2dWrapper\Sheet.fs" />
+    <Compile Include="DrawBlock\Symbol.fs" />
+    <Compile Include="DrawBlock\BusWire.fs" />
+    <Compile Include="DrawBlock\Sheet.fs" />
     
     <!-- UI -->
     <Compile Include="UI/ModelType.fs" />

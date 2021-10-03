@@ -996,9 +996,7 @@ let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model: Model) =
 
 let updateWireSegmentJumps (wireList: list<ConnectionId>) (wModel: Model) : Model =
     let startT = Helpers.getTimeMs()
-    let model = 
-        (wModel,[0..100])
-        ||> List.fold (fun wModel _ -> makeAllJumps [] wModel) 
+    let model = makeAllJumps [] wModel
     Helpers.instrumentTime "UpdateJumps" startT
     model
 

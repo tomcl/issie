@@ -825,8 +825,12 @@ type WireRenderProps =
     }
 
 
+// ------------------------------redundant wire memoisation code------------------------------
+// this code is not used because React (via Function.Of) does this caching anyway - better tha it can be
+// done here
 let mutable cache:Map<string,WireRenderProps*ReactElement> = Map.empty
 
+/// not used
 let memoOf (f: WireRenderProps -> ReactElement, _, _) =
     (fun props ->
         match Map.tryFind props.key cache with
@@ -839,7 +843,7 @@ let memoOf (f: WireRenderProps -> ReactElement, _, _) =
                 let re = f props
                 cache <- Map.add props.key (props,re) cache
                 re)
-
+//-------------------------------------------------------------------------------------------
 
 let singleWireView = 
     FunctionComponent.Of(
@@ -899,16 +903,17 @@ let MapToSortedList map : Wire list =
         |> List.map snd
 
     listUnSelected @ listErrorUnselected @ listErrorSelected @ listSelected @ listWaves @ listCopied
-
+   
 let view (model : Model) (dispatch : Dispatch<Msg>) =
     let start = Helpers.getTimeMs()
     let wires1 =
         model.WX
-        |> MapToSortedList
+        |> Map.toArray
+        |> Array.map snd
+    Helpers.instrumentTime "WirePropsSort" start
     let rStart = Helpers.getTimeMs()
     let wires =
         wires1
-        |> List.toArray
         |> Array.map
             (
                 fun wire ->
@@ -916,7 +921,7 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
                         match wire.OutputPort with
                         | OutputPortId stringId -> stringId
                         
-                    let outputPortLocation = Symbol.getOnePortLocation model.Symbol stringOutId PortType.Output
+                    let outputPortLocation = Symbol.getOnePortLocationNew model.Symbol stringOutId PortType.Output
                     let props =
                         {
                             key = match wire.Id with | ConnectionId s -> s
@@ -926,7 +931,7 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
                             OutputPortLocation = outputPortLocation
                         }
                     singleWireView props)
-    Helpers.instrumentInterval "WireRender" rStart ()
+    Helpers.instrumentInterval "WirePrepareProps" rStart ()
     let symbols = Symbol.view model.Symbol (Symbol >> dispatch)
  
     g [] [(g [] wires); symbols]
@@ -934,68 +939,69 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
 
 
 
-let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model:Model) =
+let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model: Model) =
     let mutable newWX = model.WX
+
     let changeJumps wid index jumps =
-        let changeSegment segs = List.mapi (fun i x -> if i <> index then x else {x with JumpCoordinateList=jumps}) segs
-        newWX <- Map.add wid { newWX.[wid] with Segments = changeSegment newWX.[wid].Segments} newWX 
+        let changeSegment segs =
+            List.mapi (fun i x -> if i <> index then x else { x with JumpCoordinateList = jumps }) segs
+
+        newWX <- Map.add wid { newWX.[wid] with Segments = changeSegment newWX.[wid].Segments } newWX
+
     let segs =
         model.WX
         |> Map.toArray
-        |> Array.mapi (fun i (wid,w) -> List.toArray w.Segments)
-    for w1 in 0 .. segs.Length-1 do
+        |> Array.mapi (fun i (wid, w) -> List.toArray w.Segments)
+
+    for w1 in 0 .. segs.Length - 1 do
         for h in segs.[w1] do
             if h.Dir = Horizontal then
                 // work out what jumps this segment should have
-                let mutable jumps: (float*SegmentId) list = []
-                if not (List.contains h.HostId wiresWithNoJumps) then            
-                    for w2 in 0 .. segs.Length-1 do
+                let mutable jumps: (float * SegmentId) list = []
+
+                if not (List.contains h.HostId wiresWithNoJumps) then
+                    for w2 in 0 .. segs.Length - 1 do
                         // everything inside the inner loop should be very highly optimised
                         // it is executed n^2 time where n is the number of segments (maybe 5000)
-                        // the abs here are because segment coordinates my be nagated to indicate manual routing
-                        for v in segs.[w2] do 
+                        // the abs here are because segment coordinates my be negated to indicate manual routing
+                        for v in segs.[w2] do
                             match v.Dir with
                             | Vertical ->
                                 let x, x1, x2 = abs v.Start.X, abs h.Start.X, abs h.End.X
                                 let y, y1, y2 = abs h.Start.Y, abs v.Start.Y, abs v.End.Y
-                                let xhi, xlo = max x1 x2 , min x1 x2
-                                let yhi,ylo = max y1 y2, min y1 y2
+                                let xhi, xlo = max x1 x2, min x1 x2
+                                let yhi, ylo = max y1 y2, min y1 y2
                                 //printfn $"{[xlo;x;xhi]}, {[ylo;y;yhi]}"
                                 if x < xhi - 5.0 && x > xlo + 5.0 && y < yhi - 5.0 && y > ylo + 5.0 then
                                     //printfn "found a jump!"
-                                    jumps <- (x,v.Id) :: jumps
+                                    jumps <- (x, v.Id) :: jumps
                             | _ -> ()
                 // compare jumps with what segment now has, and change newWX if need be
+                // note that if no change is needed we do not update WX
                 // simple cases are done without sort for speed, proably not necessary!
                 // The jump list is sorted in model to enable easier rendering of segments
                 match jumps, h.JumpCoordinateList with
-                | [],[] -> 
-                    ()
-                | [a], [b] when a <> b -> 
-                    changeJumps h.HostId h.Index jumps
-                | [], _ ->
-                    changeJumps h.HostId h.Index jumps
-                |  _, [] -> // in this case we need to sort the jump list
+                | [], [] -> ()
+                | [ a ], [ b ] when a <> b -> changeJumps h.HostId h.Index jumps
+                | [], _ -> changeJumps h.HostId h.Index jumps
+                | _, [] -> // in this case we need to sort the jump list
                     changeJumps h.HostId h.Index (List.sort jumps)
-                | newJumps , oldJ -> 
+                | newJumps, oldJ ->
                     let newJ = List.sort newJumps
                     // oldJ is already sorted (we only ever write newJ back to model)
-                    if newJ <> oldJ then
-                        changeJumps h.HostId h.Index newJumps
-                    else
-                        ()
-    {model with WX = newWX}
+                    if newJ <> oldJ then changeJumps h.HostId h.Index newJumps else ()
 
+    { model with WX = newWX }
 
-                        
-
-                        
-            
-
-    
 
 let updateWireSegmentJumps (wireList: list<ConnectionId>) (wModel: Model) : Model =
-    makeAllJumps [] wModel
+    let startT = Helpers.getTimeMs()
+    let model = 
+        (wModel,[0..100])
+        ||> List.fold (fun wModel _ -> makeAllJumps [] wModel) 
+    Helpers.instrumentTime "UpdateJumps" startT
+    model
+
 
 
 /// This function updates the wire model by removing from the stored lists of intersections
@@ -1082,14 +1088,13 @@ let revSegments (segs:Segment list) =
 // 0 => zero length segment (never used)
 //
 // segment qualifiers:
-// - => decr not incr (segment moves in West or South direction)
-// F => fixed length (next to output or input, never changes)
+// F => min length (next to output or input, cannot be shortened)
 //
-// "Simple" case where output.X < input.X
-//  S0.FH  S1.0  S2.H  S3.V  S4.H  S5.0 S6.FH
+// "Simple" case where output.X < input.X and 3 segment autoroute is possible
+//  S0.FH  S1.0V  S2.H  S3.V  S4.H  S5.0V S6.FH
 //
-// "Complex" case where output.X > input.X
-//  S0.FH  S1.V  S2.H  S3.V  S4.H  S5.V S6.FH
+// "Complex" case where output.X > input.X and wire ends back for 5 segment autoroute
+//  S0.FH  S1.V  S2.H  S3.V  S4.H  S5.0V S6.FH (not sure if H and V are correct here)
 //
 // To determine adjustment on End change we just reverse the segment and apply the Start change algorithm
 // Adjustment => reverse list of segments, swap Start and End, and alter the sign of all coordinates

@@ -5,6 +5,7 @@ module CommonTypes
     // Faster version of Map for objects with SHA hash //
     //=================================================//
 
+    // Currently not used. Does it work?
     
     type HMap<'T> = 
         | Tree of HMap<'T> array
@@ -166,6 +167,8 @@ module CommonTypes
         PortType : PortType 
         HostId : string
     }
+
+    // NB - this.Text() is not currently used.
 
     /// This width is for wire displaying, >8 buswires displayed with 8px thickness. Actual size stored in Port type
     type Width = One | Two | Three | Four | Five | Six | Seven | Eight
@@ -330,6 +333,7 @@ module CommonTypes
     type ComponentId      = | ComponentId of string
 
     /// SHA hash unique to a segment
+    [<Erase>]
     type SegmentId      = | SegmentId of string
 
     /// SHA hash unique to a connection - common between JS and F#

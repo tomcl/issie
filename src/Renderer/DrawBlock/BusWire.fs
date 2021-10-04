@@ -941,6 +941,8 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
 
 let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model: Model) =
     let mutable newWX = model.WX
+    // Arrays are faster to check than lists
+    let wiresWithNoJumpsA = List.toArray wiresWithNoJumps
 
     let changeJumps wid index jumps =
         let changeSegment segs =
@@ -958,25 +960,26 @@ let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model: Model) =
             if h.Dir = Horizontal then
                 // work out what jumps this segment should have
                 let mutable jumps: (float * SegmentId) list = []
-
-                if not (List.contains h.HostId wiresWithNoJumps) then
+                
+                if not (Array.contains h.HostId wiresWithNoJumpsA) then
                     for w2 in 0 .. segs.Length - 1 do
                         // everything inside the inner loop should be very highly optimised
                         // it is executed n^2 time where n is the number of segments (maybe 5000)
                         // the abs here are because segment coordinates my be negated to indicate manual routing
                         for v in segs.[w2] do
-                            match v.Dir with
-                            | Vertical ->
-                                let x, x1, x2 = abs v.Start.X, abs h.Start.X, abs h.End.X
-                                let y, y1, y2 = abs h.Start.Y, abs v.Start.Y, abs v.End.Y
-                                let xhi, xlo = max x1 x2, min x1 x2
-                                let yhi, ylo = max y1 y2, min y1 y2
-                                //printfn $"{[xlo;x;xhi]}, {[ylo;y;yhi]}"
-                                if x < xhi - 5.0 && x > xlo + 5.0 && y < yhi - 5.0 && y > ylo + 5.0 then
-                                    //printfn "found a jump!"
-                                    jumps <- (x, v.Id) :: jumps
-                            | _ -> ()
-                // compare jumps with what segment now has, and change newWX if need be
+                            if not (Array.contains v.HostId wiresWithNoJumpsA) then
+                                match v.Dir with
+                                | Vertical ->
+                                    let x, x1, x2 = abs v.Start.X, abs h.Start.X, abs h.End.X
+                                    let y, y1, y2 = abs h.Start.Y, abs v.Start.Y, abs v.End.Y
+                                    let xhi, xlo = max x1 x2, min x1 x2
+                                    let yhi, ylo = max y1 y2, min y1 y2
+                                    //printfn $"{[xlo;x;xhi]}, {[ylo;y;yhi]}"
+                                    if x < xhi - 5.0 && x > xlo + 5.0 && y < yhi - 5.0 && y > ylo + 5.0 then
+                                        //printfn "found a jump!"
+                                        jumps <- (x, v.Id) :: jumps
+                                | _ -> ()
+                    // compare jumps with what segment now has, and change newWX if need be
                 // note that if no change is needed we do not update WX
                 // simple cases are done without sort for speed, proably not necessary!
                 // The jump list is sorted in model to enable easier rendering of segments

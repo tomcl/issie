@@ -22,7 +22,7 @@ let verilogNameConvert (s: string) =
         |> function
         | h :: _ -> h
         | [] -> "v"
-        |> Seq.map (function | ch when System.Char.IsLetterOrDigit ch -> string ch | _ -> "$")
+        |> Seq.map (function | ch when System.Char.IsLetterOrDigit ch -> string ch | _ -> "_")
         |> String.concat ""
         |> (fun s -> "v$" + s)
 
@@ -39,24 +39,51 @@ let verilogNameConvert (s: string) =
 /// simple way to assign to each component and component output a unique verilog compatible name.
 /// outputs will become reg or wire signals in the Verilog
 let writeVerilogNames (fs: FastSimulation) =
-    fs.FComps
-    |> Map.toArray
-    |> Array.iteri
-        (fun i (fid, fc) ->
-            let oName =
-                match fc.SimComponent.Label with
-                | ComponentLabel lab -> lab
+    // generate for each component a maybe non-unique name
+    // keep array of components and generated names in well defined order
+    let namesWithFC = 
+        fs.FComps
+        |> Map.toArray
+        |> Array.sortBy (fun (fid,_) -> fid)
+        |> Array.map (fun (fid, fc) ->
+            let name = 
+                match fc.fId, fc.SimComponent.Label with
+                | (_,[]), ComponentLabel name -> name
+                | _, ComponentLabel name -> name + "_"
+                |> verilogNameConvert
+            name, fc)
+    /// if the set of names is not distinct add suffixes as needed to make it so
+    /// recursive to deal with unusual case where adding a suffix causes another clash
+    let rec disambiguate names: (string * FastComponent) array =
+        if Array.length (Array.distinctBy fst names) = names.Length
+        then
+            names
+        else
+            names
+            |> Array.groupBy fst
+            |> Array.collect (fun (name, groupA) -> 
+                match groupA.Length with
+                | 1 -> groupA // if length 1 => unique and no suffix needed
+                | _ -> Array.mapi (fun i (vName,fc) -> $"{vName}${i}",fc) groupA)
+            |> disambiguate
 
-            let vName = verilogNameConvert oName
+    // write verilog names
+    disambiguate namesWithFC
+    |> Array.iter (fun (name, fc) -> 
+        fc.VerilogComponentName <- name
+        fc.VerilogOutputName
+        |> Array.iteri
+            (fun portNum _ ->
+                let suffix = 
+                    if fc. VerilogOutputName.Length = 1 then 
+                        "out" 
+                    else 
+                        $"out{portNum}"
+                let outName = $"{fc.VerilogComponentName}${suffix}"
+                fc.VerilogOutputName.[portNum] <- outName))
 
-            let name = $"{vName}_{i}"
-            fc.VerilogComponentName <- name
-
-            fc.VerilogOutputName
-            |> Array.iteri
-                (fun portNum _ ->
-                    let outName = $"{name}_out{portNum}"
-                    fc.VerilogOutputName.[portNum] <- outName))
+ 
+        
 
 let makeAsyncRomModule (moduleName: string) (mem: Memory1) =
     let aMax = mem.AddressWidth - 1

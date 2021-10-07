@@ -13,7 +13,7 @@ type VMode = ForSynthesis | ForSimulation
 
 /// take FullName and convert it into a verilog compatible form
 /// this is not 1-1, so outputs may not be unique, that is OK
-let verilogNameConvert (s: string) =
+let verilogNameConvert (maxChars:int) (s: string) =
     let maxIdentifierLength = 50
 
     let baseName =
@@ -21,10 +21,10 @@ let verilogNameConvert (s: string) =
         |> Array.toList
         |> function
         | h :: _ -> h
-        | [] -> "v"
-        |> Seq.map (function | ch when System.Char.IsLetterOrDigit ch -> string ch | _ -> "_")
+        | [] -> "x"
+        |> Seq.map (function | ch when System.Char.IsLetterOrDigit ch || ch = '_' -> string ch | _ -> "")
+        |> Seq.truncate maxChars
         |> String.concat ""
-        |> (fun s -> "v$" + s)
 
 
     let extraLength = baseName.Length - maxIdentifierLength
@@ -39,19 +39,35 @@ let verilogNameConvert (s: string) =
 /// simple way to assign to each component and component output a unique verilog compatible name.
 /// outputs will become reg or wire signals in the Verilog
 let writeVerilogNames (fs: FastSimulation) =
-    // generate for each component a maybe non-unique name
-    // keep array of components and generated names in well defined order
+    let getShortPath (path: ComponentId list) : string =
+        path
+        |> List.map (fun (ComponentId cid) -> cid)
+        |> (function | (t) -> t)
+        |> List.map (verilogNameConvert 1)
+        |> String.concat ""
+
+    /// generate from a component a maybe non-unique name made from its Label and abbreviated path
+    let getBaseVerilogName fc =
+        let sc = fc.SimComponent
+        let fakeName s = $"%s{s}{String.substringLength 0 2 (match sc.Id with | ComponentId s -> s)}"
+        let cLabel =
+            match sc.Label , sc.Type with
+            | ComponentLabel "", SplitWire _ -> fakeName "Split"
+            | ComponentLabel "", MergeWires ->  fakeName "Merge"
+            | ComponentLabel "", _ -> fakeName "Other"
+            | ComponentLabel lab,_ -> lab.ToUpper()
+
+        match fc.fId with
+        | (_,[]) -> verilogNameConvert 20 cLabel
+        | (_,path) -> verilogNameConvert 20 cLabel + "$" + getShortPath path
+ 
+    // keep array of components and base names in well defined order
     let namesWithFC = 
         fs.FComps
         |> Map.toArray
         |> Array.sortBy (fun (fid,_) -> fid)
         |> Array.map (fun (fid, fc) ->
-            let name = 
-                match fc.fId, fc.SimComponent.Label with
-                | (_,[]), ComponentLabel name -> name
-                | _, ComponentLabel name -> name + "_"
-                |> verilogNameConvert
-            name, fc)
+            getBaseVerilogName fc, fc)
     /// if the set of names is not distinct add suffixes as needed to make it so
     /// recursive to deal with unusual case where adding a suffix causes another clash
     let rec disambiguate names: (string * FastComponent) array =
@@ -75,11 +91,11 @@ let writeVerilogNames (fs: FastSimulation) =
         |> Array.iteri
             (fun portNum _ ->
                 let suffix = 
-                    if fc. VerilogOutputName.Length = 1 then 
-                        "out" 
+                    if fc.VerilogOutputName.Length = 1 then 
+                        "" 
                     else 
-                        $"out{portNum}"
-                let outName = $"{fc.VerilogComponentName}${suffix}"
+                        $"$o{portNum}"
+                let outName = $"{fc.VerilogComponentName}{suffix}"
                 fc.VerilogOutputName.[portNum] <- outName))
 
  
@@ -489,7 +505,7 @@ let extractRamDefinitions (fs: FastSimulation) =
             | ROM1 mem
             | RAM1 mem
             | AsyncRAM1 mem
-            | AsyncROM1 mem -> [| verilogNameConvert fc.FullName, fc.FType |]
+            | AsyncROM1 mem -> [| fc.VerilogComponentName, fc.FType |]
             | _ -> [||])
     )
 
@@ -530,7 +546,7 @@ let getInitialSimulationBlock (vType:VMode) (fs: FastSimulation) =
                     (w - 1) / 4 + 1
 
                 let (ComponentLabel heading) = fc.SimComponent.Label
-                let heading = verilogNameConvert heading
+                let heading = fc.VerilogComponentName
                 let padding = max 0 (hexWidth - heading.Length)
                 let heading = (String.replicate padding " ") + heading
                 heading, (max hexWidth heading.Length, $"{sigName}"))

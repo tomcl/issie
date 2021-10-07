@@ -44,12 +44,16 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
                         try 
                             FilesIO.writeFile path (Verilog.getVerilog vType sim.FastSim)
                         with
-                        | e -> Error e.Message
+                        | e -> 
+                            printfn $"Error in Verilog output: {e.Message}"
+                            Error e.Message
                         |> FileMenuView.displayAlertOnError dispatch
-
+                        dispatch <| ChangeRightTab Simulation
                         let note = successSimulationNotification $"verilog output written to file {path}"
                         dispatch  <| SetSimulationNotification note
                     | Error simError ->
+                       printfn $"Error in simulation prevents verilog output {simError.Msg}"
+                       dispatch <| ChangeRightTab Simulation
                        if simError.InDependency.IsNone then
                            // Highlight the affected components and connection only if
                            // the error is in the current diagram and not in a

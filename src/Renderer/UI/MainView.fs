@@ -270,19 +270,28 @@ let displayView model dispatch =
                         Style [ Height "100%" ] 
                       ] 
                       [ Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs"
-                                    Tabs.Props [Style [Margin 0] ] ]                              
+                                    Tabs.Props [Style [Margin 0] ] ]  
+                                    
                                   [ Tabs.tab // catalogue tab to add components
                                         [   Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
-                                        [ a [ OnClick (fun _ -> ChangeRightTab Catalogue |> dispatch ) ] [str "Catalogue" ] ] 
+                                        [ a [ OnClick (fun _ ->
+                                                if model.RightPaneTabVisible <> WaveSim 
+                                                then 
+                                                    dispatch <| ChangeRightTab Catalogue ) ] [str "Catalogue" ] ] 
                                                                   
                                     Tabs.tab // Properties tab to view/change component properties
                                         [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]                                   
-                                        [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ] 
-
-                     
+                                        [ a [ OnClick (fun _ -> 
+                                                if model.RightPaneTabVisible <> WaveSim 
+                                                then 
+                                                    dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ]
+                                                    
                                     (Tabs.tab // simulation tab to do combinational simulation
                                         [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
-                                        [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) 
+                                        [ a [  OnClick (fun _ -> 
+                                                if model.RightPaneTabVisible <> WaveSim 
+                                                then
+                                                    dispatch <| ChangeRightTab Simulation ) 
                                             ] [str "Simulation"] ] )
                             
                                     /// Optional wavesim tab. If present contains waveforms or waveform editor window

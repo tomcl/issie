@@ -130,7 +130,7 @@ This project uses modern F# / dotnet cross-platform build. The build process doe
 * Next all the project Dotnet dependencies (`paket.dependencies` for the whole project, selected from by the `paket.references` in each project directory, are loaded by the `paket` packet manager.
 * Finally fake runs `build.fsx` (this is platform-independent) which uses `npm` to install all the node (Javascript) dependencies listed in `package.json`. That includes tools like webpack and electron, which run under node, as well as the node libraries that will be used by needed by the running electron app, including electron itself. These are all loaded by the `npm` packet manager. 
 
-## Getting Started as User
+## Getting Started
 
 If you just want to run the app go to the [releases page](https://github.com/tomcl/issie/releases) and
 download and run the latest prebuilt binary for your platform (Windows or Macos). Issie will require in total about 200M of disk space.

@@ -1326,7 +1326,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
 
     //printfn "FileView"
     let style = Style [ Width "100%" ; BorderBottom "2px solid lightgray"] //leftSectionWidth model
-
+    let styleNoBorder = Style [Width "100%"]
     let projectPath, fileName =
         match model.CurrentProj with
         | None -> "no open project", "no open sheet"
@@ -1337,8 +1337,8 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
             if isSubSheet then 
                 [] else  
                 [Props [Style [FontWeight "bold"]]]
-        Navbar.Item.div [ Navbar.Item.Props [ style  ] ]
-            [ Level.level [ Level.Level.Props [ style ] ]
+        Navbar.Item.div [ Navbar.Item.Props [ styleNoBorder  ] ]
+            [ Level.level [ Level.Level.Props [ styleNoBorder ]]
                   [ Level.left nameProps [ Level.item [] [ str name ] ]
                     Level.right [ Props [ Style [ MarginLeft "20px" ] ] ]
                         [ Level.item []

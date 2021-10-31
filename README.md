@@ -132,14 +132,18 @@ This project uses modern F# / dotnet cross-platform build. The build process doe
 
 ## Getting Started
 
-If you just want to run the app go to the [releases page](https://github.com/tomcl/issie/releases) and download 
-download and run the prebuilt binaries.
+If you just want to run the app go to the [releases page](https://github.com/tomcl/issie/releases) and
+download and run the latest prebuilt binary for your platform (Windows or Macos). Issie will require in total about 200M of disk space.
 
 * Windows: unzip \*.zip anywhere and double-click the top-level Issie.exe application un the unzipped files.
-* Macos: Double click the dmg and run the application inside the folder, or drag and drop to to install.
+* Macos: Double click the dmg file  and run the application inside the folder, or drag and drop this to install.
     * The binaries are not signed. You will need to [perform a one-off security bypass](https://www.wikihow.com/Install-Software-from-Unsigned-Developers-on-a-Mac).
 
+###
 
+Issie installs and runs without making system changes - all of its code is inside the directory you download. You can delete this and replace it by a later version of Issie. Each design sheet is stored in a similarly named file under the porject directory. The subdirectory `backup` there contains a large numbers of backup snapshots for design recovery. These are not needed for Issie operation so you can delete them - or even the whole `backup` directory, if you wish.
+
+## Getting Started as Developer
 
 If you want to get started as a developer, follow these steps.
 

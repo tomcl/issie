@@ -80,7 +80,7 @@ let createMainWindow () =
         // fix for icons not working on linux
         // requires better solution for dist, maybe
         if Api.``process``.platform = Base.Win32 then
-            options.icon <- (U2.Case2 (path.join(staticDir(), "icon.ico")))
+            options.icon <- (U2.Case2 (path.join(staticDir(), "icon-1.png")))
         //elif Api.``process``.platform = Base.Darwin then
             //options.icon <- (U2.Case2 (path.join(staticDir(), "icon.icns")))   (the icns icon does not work)
         options.title <- "ISSIE"

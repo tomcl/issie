@@ -181,8 +181,8 @@ let private viewSimulationInputs
                 // For simple bits, just have a Zero/One button.
                 Button.button [
                     Button.Props [ simulationBitStyle ]
-                    Button.Color IsPrimary
-                    (match bit with Zero -> Button.IsOutlined | One -> Button.Color IsPrimary)
+                    //Button.Color IsPrimary
+                    (match bit with Zero -> Button.Color Color.IsGreyLighter | One -> Button.Color IsPrimary)
                     Button.IsHovered false
                     Button.OnClick (fun _ ->
                         let newBit = match bit with
@@ -222,8 +222,8 @@ let private viewSimulationInputs
 let private staticBitButton bit =
     Button.button [
         Button.Props [ simulationBitStyle ]
-        Button.Color IsPrimary
-        (match bit with Zero -> Button.IsOutlined | One -> Button.Color IsPrimary)
+        //Button.Color IsPrimary
+        (match bit with Zero -> Button.Color IsGreyLighter | One -> Button.Color IsPrimary)
         Button.IsHovered false
         Button.Disabled true
     ] [ str <| bitToString bit ]
@@ -541,12 +541,15 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
     ]
 
 let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (dispatch: Msg -> Unit) =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    let keyDispatch = Sheet.KeyPress >> sheetDispatch
     if simError.InDependency.IsNone then
        // Highlight the affected components and connection only if
        // the error is in the current diagram and not in a
        // dependency.
        let thingsToHighlight = (simError.ComponentsAffected, simError.ConnectionsAffected)
        dispatch <| SetHighlighted thingsToHighlight
+       keyDispatch <| Sheet.KeyboardMsg.CtrlW
        dispatch <| Sheet(Sheet.SetWaveSimMode false)
 
 

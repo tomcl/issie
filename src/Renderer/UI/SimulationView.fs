@@ -540,17 +540,19 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
         maybeStatefulComponents()
     ]
 
-let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (dispatch: Msg -> Unit) =
+let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) (dispatch: Msg -> Unit) =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let keyDispatch = Sheet.KeyPress >> sheetDispatch
     if simError.InDependency.IsNone then
-       // Highlight the affected components and connection only if
-       // the error is in the current diagram and not in a
-       // dependency.
-       let thingsToHighlight = (simError.ComponentsAffected, simError.ConnectionsAffected)
-       dispatch <| SetHighlighted thingsToHighlight
-       keyDispatch <| Sheet.KeyboardMsg.CtrlW
-       dispatch <| Sheet(Sheet.SetWaveSimMode false)
+        // Highlight the affected components and connection only if
+        // the error is in the current diagram and not in a
+        // dependency.
+        let (badComps,badConns) = (simError.ComponentsAffected, simError.ConnectionsAffected)
+        dispatch <| SetHighlighted (badComps,badConns)
+        if not (Sheet.isAllVisible model.Sheet badConns badComps) then
+            /// make whole diagram visible if any of the errors are not visible
+            keyDispatch <| Sheet.KeyboardMsg.CtrlW
+        dispatch <| Sheet(Sheet.SetWaveSimMode false)
 
 
 let viewSimulation model dispatch =
@@ -570,7 +572,7 @@ let viewSimulation model dispatch =
                | Ok (simData), state -> Ok simData
                | Error simError, state ->
                   printfn $"ERROR:{simError}"
-                  SetSimErrorFeedback simError dispatch
+                  SetSimErrorFeedback simError model dispatch
                   Error simError
             |> StartSimulation
             |> dispatch

@@ -833,7 +833,7 @@ let WaveformButtonFunc compIds model dispatch =
                         Button.OnClick(fun _ ->
                           dispatch <| SetWSError (Some err) 
                           dispatch <| ChangeRightTab WaveSim
-                          SimulationView.SetSimErrorFeedback err dispatch) 
+                          SimulationView.SetSimErrorFeedback err model dispatch) 
                     ]
             | x,y,z -> 
                 //printfn "other%A %A %A" x y (match z with | None -> "None" | Some ((Error c),_) -> "Some Error" | Some ((Ok _),_) -> "Some Ok")

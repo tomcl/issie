@@ -273,6 +273,8 @@ let insideBox (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>) (pos: X
     boundingBoxes
     |> Map.tryFindKey insideOneBox // If there are multiple components overlapping (should not happen), return first one found
 
+/// return a BB equivalent to input but with (X,Y) = LH Top coord, (X+W,Y+H) = RH bottom coord
+/// note that LH Top is lower end of the two screen coordinates
 let standardiseBox (box:BoundingBox) =
     let x = min box.X (box.X+box.W)
     let y = min box.Y (box.Y+box.H)
@@ -280,8 +282,6 @@ let standardiseBox (box:BoundingBox) =
     let h = abs box.H
     { X=x; Y=y; W=w;H=h}
 
-    //X = (ev.pageX + model.ScrollPos.X) / model.Zoom  ; 
-    //Y = (ev.pageY - headerHeight + model.ScrollPos.Y) / model.Zoom}
 
 let transformScreenToPos (screenPos:XYPos) (scrollPos:XYPos) mag =
     {X=(screenPos.X + scrollPos.X)/mag; 
@@ -344,6 +344,42 @@ let fitCircuitToWindowParas (model:Model) =
 
     {|ScrollX=xScroll; ScrollY=yScroll; MagToUse=magToUse|}
     
+    
+let isBBoxAllVisible (bb: BoundingBox) =
+    let lh,rh,top,bottom = getScreenEdgeCoords()
+    let bbs = standardiseBox bb
+    lh < bb.Y && 
+    top < bb.X && 
+    bb.Y+bb.H < bottom && 
+    bb.X+bb.W < rh
+
+/// could be made more efficient, since segments contain redundant info
+let getWireBBox (wire: BusWire.Wire) (model: Model) =
+    let coords = 
+        wire.Segments
+        |> List.collect (fun seg -> [seg.Start; seg.End])
+    let xCoords =  coords |> List.map (fun xy -> xy.X)
+    let yCoords =  coords |> List.map (fun xy -> xy.Y)
+    let lh,rh = List.min xCoords, List.max xCoords
+    let top,bottom = List.min yCoords, List.max yCoords
+    {X=lh; Y = top; W = rh - lh; H = bottom - top}
+    
+
+let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId list) =
+    let wVisible =
+        conns
+        |> List.map (fun cid -> Map.tryFind cid model.Wire.WX)
+        |> List.map (Option.map (fun wire -> getWireBBox wire model))
+        |> List.map (Option.map isBBoxAllVisible)
+        |> List.map (Option.defaultValue true)
+        |> List.fold (&&) true
+    let cVisible =
+        comps
+        |> List.map (Symbol.getOneBoundingBox model.Wire.Symbol)
+        |> List.map isBBoxAllVisible
+        |> List.fold (&&) true
+    wVisible && cVisible
+
     
     
 

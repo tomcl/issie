@@ -317,8 +317,10 @@ let renameFile extn folderPath baseName newBaseName =
             Ok <| fs.renameSync (oldPath, newPath) // synchronous.
         with
             | e -> Error  $"Rename of '{baseName}' in '{folderPath}' failed"
+    elif extn = ".dgm" then
+        Error $"Error: The file '{baseName}{extn} appears to have been removed"
     else
-        Error $"Error: The file '{baseName}' appears to have been removed"
+        Ok ()
 
 let removeFile (folderPath:string) (baseName:string) = removeFileWithExtn ".dgm" folderPath baseName
 

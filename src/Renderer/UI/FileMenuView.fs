@@ -580,6 +580,7 @@ let readLastBackup comp =
 /// Write Loadedcomponent comp to a backup file if there has been any change.
 /// Overwrite the existing backup file only if it is a small, and recent, change.
 /// Parameters determine thresholds of smallness and recency
+/// return () - display an error if the write goes wrong.
 let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (dispatch: Msg -> Unit)= 
     let nSeq, backupFileName, backFilePath =
         match readLastBackup comp with
@@ -703,8 +704,9 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
     dispatch <| (Sheet (Sheet.SetSpinner true))
     dispatch <| SendSeqMsgAsynch msgs
     
-
-let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lcLst: LoadedComponent list) (dispatch: Msg -> Unit)=
+/// Return LoadedComponents with sheet name updated according to setFun.
+/// Do not update model. 
+let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lcLst: LoadedComponent list) (dispatch: (Msg -> Unit))=
     let n = List.tryFindIndex (fun (lc: LoadedComponent) -> lc.Name = name) lcLst
     match n with
     | None -> 
@@ -716,7 +718,8 @@ let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lc
         writeComponentToBackupFile 0 1. oldLc dispatch
         List.mapi (fun i x -> if i = n then newLc else x) lcLst
 
-/// return current project with current sheet updated from canvas if needed
+/// return current project with current sheet updated from canvas if needed.
+/// Do not update model.
 let updateProjectFromCanvas (model:Model) (dispatch:Msg -> Unit) =
     match model.Sheet.GetCanvasState() with
     | ([], []) -> model.CurrentProj
@@ -753,7 +756,9 @@ let setSavedWave compIds (wave: SavedWaveInfo option) model : Model =
                                snd model.WaveSim }
     | Some waveInfo, _ -> model
 
-/// Save the sheet currently open, return  the new sheet's Loadedcomponent if this has changed
+/// Save the sheet currently open, return  the new sheet's Loadedcomponent if this has changed.
+/// Do not change model.
+/// update Symbol model with new RAM contents.
 let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
     match model.Sheet.GetCanvasState (), model.CurrentProj with
     | _, None -> None
@@ -967,11 +972,11 @@ let renameSheet oldName newName (model:Model) dispatch =
         SetHasUnsavedChanges false
         |> JSDiagramMsg
         |> dispatch
+        [".dgm";".dgmauto"] |> List.iter (fun extn -> 
+            renameFile extn p.ProjectPath oldName newName
+            |> displayAlertOnError dispatch)
         let proj' = renameSheetsInProject oldName newName p
         setupProjectFromComponents proj'.OpenFileName proj'.LoadedComponents model dispatch
-        [".dgm";".dgmauto"] |> List.iter (fun extn -> 
-            renameFile extn proj'.ProjectPath oldName newName
-            |> displayAlertOnError dispatch)
         /// save all the other files
         saveAllProjectFilesFromLoadedComponentsToDisk proj'
         dispatch FinishUICmd

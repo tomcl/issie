@@ -21,6 +21,12 @@ open PopupView
 open System
 open Electron
 
+let printSheetNames (model:Model) =
+    model.CurrentProj
+    |> Option.map (fun p -> 
+        printf $"SHEETS:{p.LoadedComponents |> List.map (fun ldc -> ldc.Name)}--->{p.OpenFileName}")
+    |> ignore
+
 //--------------------------------------------------------------------------------------------//
 //--------------------------------------------------------------------------------------------//
 //-------------------------------New-style project update and saving--------------------------//
@@ -889,7 +895,10 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
 /// Terminates a simulation if one is running
 /// Closes waveadder if it is open
 let private openFileInProject' saveCurrent name project (model:Model) dispatch =
+    printfn "open file"
+    printSheetNames model
     let newModel = {model with CurrentProj = Some project}
+    printSheetNames newModel
     match getFileInProject name project with
     | None -> 
         log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
@@ -897,20 +906,18 @@ let private openFileInProject' saveCurrent name project (model:Model) dispatch =
         match updateProjectFromCanvas model dispatch with
         | None -> failwithf "What? current project cannot be None at this point in openFileInProject"
         | Some p ->
-            let updatedModel = {model with CurrentProj = Some p}
+            let updatedModel = {newModel with CurrentProj = Some p}
+            printSheetNames updatedModel
             let ldcs =
                 if saveCurrent then 
                     let opt = saveOpenFileAction false updatedModel dispatch
                     let ldcOpt = Option.map fst opt
                     let ldComps = updateLdCompsWithCompOpt ldcOpt project.LoadedComponents
-                    let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
-                    SetHasUnsavedChanges false
-                    |> JSDiagramMsg
-                    |> dispatch
                     ldComps
                 else
                     project.LoadedComponents
-            setupProjectFromComponents name ldcs newModel dispatch
+            printSheetNames {newModel with CurrentProj = Some {Option.get newModel.CurrentProj with LoadedComponents = ldcs }}
+            setupProjectFromComponents name ldcs updatedModel dispatch
 
 let openFileInProject name project (model:Model) dispatch =
     openFileInProject' true name project (model:Model) dispatch
@@ -956,7 +963,7 @@ let renameSheet oldName newName (model:Model) dispatch =
                 |> List.map (fun ldComp -> 
                     match ldComp with
                     | {Name = lcName} when lcName = oldName -> 
-                        {ldComp with Name=newName}
+                        {ldComp with Name=newName; FilePath = pathJoin [|(dirName ldComp.FilePath);newName + ".dgm"|] }
                     | _ ->
                         renameCustomComponents newName ldComp )
         }
@@ -969,14 +976,16 @@ let renameSheet oldName newName (model:Model) dispatch =
         let ldcOpt = Option.map fst opt
         let ldComps = updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
         let reducedState = Option.map snd opt |> Option.defaultValue ([],[])
-        SetHasUnsavedChanges false
-        |> JSDiagramMsg
-        |> dispatch
-        [".dgm";".dgmauto"] |> List.iter (fun extn -> 
+        //SetHasUnsavedChanges false
+        //|> JSDiagramMsg
+        //|> dispatch
+        [".dgm"] |> List.iter (fun extn -> 
             renameFile extn p.ProjectPath oldName newName
             |> displayAlertOnError dispatch)
         let proj' = renameSheetsInProject oldName newName p
         setupProjectFromComponents proj'.OpenFileName proj'.LoadedComponents model dispatch
+        printfn "???Sheets after rename"
+        printSheetNames {model with CurrentProj = Some proj'}
         /// save all the other files
         saveAllProjectFilesFromLoadedComponentsToDisk proj'
         dispatch FinishUICmd
@@ -1018,7 +1027,7 @@ let renameFileInProject name project model dispatch =
                 // Create empty file.
                 let newName = (getText dialogData).ToLower()
                 // rename the file in the project.
-                renameSheet name newName model dispatch
+                dispatch(ExecFuncInMessage(renameSheet name newName, dispatch))
                 dispatch ClosePopup
 
         let isDisabled =
@@ -1039,22 +1048,28 @@ let private removeFileInProject name project model dispatch =
     | _ ->
         
         removeFile project.ProjectPath name
-        removeFile project.ProjectPath (name + "auto")
         // Remove the file from the dependencies and update project.
         let newComponents = List.filter (fun (lc: LoadedComponent) -> lc.Name.ToLower() <> name.ToLower()) project.LoadedComponents
         // Make sure there is at least one file in the project.
         let project' = {project with LoadedComponents = newComponents}
         match newComponents, name = project.OpenFileName with
         | [],true -> 
+            // reate a new empty file with default name main as sole file in project
             let newComponents = [ (createEmptyDiagramFile project.ProjectPath "main") ]
-            openFileInProject' false project.LoadedComponents.[0].Name project' model dispatch
+            let project' = {project' with LoadedComponents = newComponents; OpenFileName="main"}
+            openFileInProject' false newComponents.[0].Name project' model dispatch
         | [], false -> 
             failwithf "What? - this cannot happen"
         | nc, true ->
+            // open one of the undeleted loadedcomponents
+            printfn $"remove sheet '{name}'"
+            printSheetNames {model with CurrentProj = Some project'}
             openFileInProject' false project'.LoadedComponents.[0].Name project' model dispatch
         | nc, false ->
             // nothing chnages except LoadedComponents
-            dispatch <| SetProject project'
+            printfn $"remove sheet '{name}'"
+            printSheetNames {model with CurrentProj = Some project'}
+            //dispatch <| SetProject project'
         dispatch FinishUICmd
 
                 
@@ -1337,7 +1352,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
         | None -> "no open project", "no open sheet"
         | Some project -> project.ProjectPath, project.OpenFileName
 
-    let makeFileLine isSubSheet name project =
+    let makeFileLine isSubSheet name project model =
         let nameProps = 
             if isSubSheet then 
                 [] else  
@@ -1354,7 +1369,11 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                     Button.Disabled(name = project.OpenFileName)
                                     Button.OnClick(fun _ ->
                                         dispatch (StartUICmd ChangeSheet)
-                                        openFileInProject name project model dispatch) ] [ str "open" ] 
+                                        printSheetNames model
+                                        dispatch <| ExecFuncInMessage(
+                                            (fun model dispatch -> 
+                                                let p = Option.get model.CurrentProj
+                                                openFileInProject name p model dispatch), dispatch)) ] [ str "open" ] 
                           ]
                           // Add option to rename?
                           Level.item [] [
@@ -1389,12 +1408,12 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                         let buttonAction =
                                             fun _ ->
                                                 dispatch (StartUICmd DeleteSheet)
-                                                removeFileInProject name project model dispatch
+                                                dispatch <| ExecFuncInMessage(removeFileInProject name project,dispatch)
                                                 dispatch ClosePopup
                                         confirmationPopup title body buttonText buttonAction dispatch) ]
                                     [ str "delete" ] ] ] ] ]
 
-    let fileTab =
+    let fileTab model =
         match model.CurrentProj with
         | None -> Navbar.Item.div [] []
         | Some project ->
@@ -1419,13 +1438,14 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                 project.LoadedComponents 
                 |> List.map (fun comp -> 
                     let tree = sTrees.[comp.Name]
-                    makeFileLine (isSubSheet tree.Node) comp.Name project, tree)
+                    makeFileLine (isSubSheet tree.Node) comp.Name project model , tree)
                 |> List.sortBy (fun (line,tree) -> isSubSheet tree.Node, tree.Node, -tree.Size, tree.Node.ToLower())
                 |> List.map fst
             Navbar.Item.div
                 [ Navbar.Item.HasDropdown
                   Navbar.Item.Props
                       [ OnClick(fun _ ->
+                          printSheetNames model
                           if model.TopMenuOpenState = Files then Closed else Files
                           |> SetTopMenu
                           |> dispatch) ] ]
@@ -1487,7 +1507,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                   Navbar.Item.a [ Navbar.Item.Props [ OnClick <| doActionWithSaveFileDialog "Close project" (ExecFuncInMessage(forceCloseProject,dispatch)) model dispatch ] ]
                                       [ str "Close project" ] ] ]
 
-                      fileTab
+                      fileTab model
                       Navbar.Item.div []
                           [ Navbar.Item.div []
                                 [ Breadcrumb.breadcrumb [ Breadcrumb.HasArrowSeparator ]

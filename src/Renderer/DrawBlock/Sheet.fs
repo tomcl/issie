@@ -496,7 +496,8 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                 //printfn "%A" sortedMargins
 
                 match getMarginWithDirection sortedMargins input.PosDirection with // abs since there negative margins as well (e.g. snap left)
-                | margin, side when abs margin < snapMargin -> // Snap to grid and save info for future un-snapping
+                | margin, side when abs margin < snapMargin && not model.AutomaticScrolling -> // disable snap if autoscrolling
+                    // Snap to grid and save info for future un-snapping
                     {| DeltaPos = -margin
                        SnapInfo = Some {Pos = input.CurrMPos; SnapLength = -margin - (input.CurrMPos - input.LastMPos)} // Offset with (CurrMPos - LastMPos), so that the symbol stays aligned with the mouse after un-snapping
                        Indicator = Some (side - margin) |}
@@ -1009,7 +1010,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let scrollSpeed = 10.0
             let edgeDistance = abs (edge - mPos)
             
-            if edgeDistance < scrollMargin && mMov >= 0.0
+            if edgeDistance < scrollMargin && mMov >= -0.0000001 // just in case there are FP rounding errors
             then scrollSpeed * (scrollMargin - edgeDistance) / scrollMargin // Speed should be faster the closer the mouse is to the screen edge
             else 0.0
         

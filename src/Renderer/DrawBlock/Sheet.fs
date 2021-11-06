@@ -134,11 +134,9 @@ type Model = {
     TargetPortId: string // Keeps track of if a target port has been found for connecting two wires in-between.
     Action: CurrentAction 
     ShowGrid: bool // Always true at the moment, kept in-case we want an optional grid
-    LastMousePos: XYPos // For Symbol Movement
     Snap: MouseSnapInfo // For Snap-to-Grid
     SnapIndicator: SnapIndicator // For Snap-to-Grid
     CursorType: CursorType
-    ScrollPos: XYPos
     LastValidPos: XYPos
     CurrentKeyPresses: Set<string> // For manual key-press checking, e.g. CtrlC
     Zoom: float
@@ -146,10 +144,11 @@ type Model = {
     UndoList: Model List
     RedoList: Model List
     AutomaticScrolling: bool // True if mouse is near the edge of the screen and is currently scrolling. This improved performance for manual scrolling with mouse wheel (don't check for automatic scrolling if there is no reason to)
+    ScrollPos: XYPos // copies HTML canvas scrolling position: (canvas.scrollLeft,canvas.scrollTop)
+    LastMousePos: XYPos // For Symbol Movement
     ScrollingLastMousePos: XYPosMov // For keeping track of mouse movement when scrolling. Can't use LastMousePos as it's used for moving symbols (won't be able to move and scroll symbols at same time)
-    // Scrolling: bool // True if mouse is currently near edge and is automatically scrolling. Can't have in CurrentAction as we need both CurrentAction and Scrolling
-    MouseCounter: int
     LastMousePosForSnap: XYPos
+    MouseCounter: int
     Toggle : bool
     IsWaveSim : bool
     PrevWireSelection : ConnectionId list
@@ -555,7 +554,6 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
         let errorComponents = 
             model.SelectedComponents
             |> List.filter (fun sId -> not (notIntersectingComponents model model.BoundingBoxes.[sId] sId))
-
         {model with Action = nextAction ; LastMousePos = mMsg.Pos; ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}; ErrorComponents = errorComponents },
         Cmd.batch [ symbolCmd (Symbol.MoveSymbols (model.SelectedComponents, posDiff mMsg.Pos model.LastMousePos))
                     symbolCmd (Symbol.ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
@@ -925,7 +923,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with Toggle = false}, Cmd.none
 
     | MouseMsg mMsg -> // Mouse Update Functions can be found above, update function got very messy otherwise
-        // printf "%A" mMsg
+        //printf "%A" mMsg
         match mMsg.Op with
         | Down -> mDownUpdate model mMsg
         | Drag -> mDragUpdate model mMsg
@@ -1011,7 +1009,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let scrollSpeed = 10.0
             let edgeDistance = abs (edge - mPos)
             
-            if edgeDistance < scrollMargin && mMov >= 0.
+            if edgeDistance < scrollMargin && mMov >= 0.0
             then scrollSpeed * (scrollMargin - edgeDistance) / scrollMargin // Speed should be faster the closer the mouse is to the screen edge
             else 0.0
         
@@ -1024,7 +1022,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         if xDiff <> 0.0 || yDiff <> 0.0 then // Did any automatic scrolling happen?
             let newMPos = { X = model.LastMousePos.X + xDiff / model.Zoom ; Y = model.LastMousePos.Y + yDiff / model.Zoom }
-            
             // Need to update mouse movement as well since the scrolling moves the mouse relative to the canvas, but no actual mouse movement will be detected.
             // E.g. a moving symbol should stick to the mouse as the automatic scrolling happens and not lag behind.
             let outputModel, outputCmd =
@@ -1038,10 +1035,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             
             // Don't want to go into an infinite loop (program would crash), don't check for automatic scrolling immediately (let it be handled by OnScroll listener).
             let filteredOutputCmd = Cmd.map (fun msg -> if msg <> CheckAutomaticScrolling then msg else DoNothing) outputCmd
+            // keep model ScrollPos uptodate with real scrolling position
+            let outputModel = {outputModel with ScrollPos = {X = canvas.scrollLeft; Y = canvas.scrollTop}}
             
             outputModel, filteredOutputCmd
         else
-            { model with AutomaticScrolling = false }, Cmd.none
+            { model with AutomaticScrolling = false}, Cmd.none
                 
     // ---------------------------- Issie Messages ---------------------------- //
 

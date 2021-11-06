@@ -783,7 +783,7 @@ let viewInfoPopup dispatch =
     let keyOf3 s1 s2 s3 = span [] [bSpan s1; tSpan " + "; bSpan s2 ; tSpan " + "; bSpan s3]
     let rule = hr [Style [MarginTop "0.5em"; MarginBottom "0.5em"]]
     let keys = div [] [
-        makeH "Keyboard shortcuts - also available on top menus"
+        makeH "Keyboard & mouse gesture shortcuts - also available on top menus"
         span [Style [FontStyle "Italic"]] [str "On Mac use Cmd instead of Ctrl."]
         ul [] [
             li [] [rule; tSpan "Save: "; keyOf2 "Ctrl" "S"; rule]
@@ -798,6 +798,7 @@ let viewInfoPopup dispatch =
             li [] [tSpan "Zoom canvas in: " ; keyOf2  "Shift" "="]
             li [] [tSpan "Zoom canvas out: " ; keyOf2  "Shift" "-"; rule]
             li [] [tSpan "Zoom circuit to fit screen: " ; keyOf2  "Ctrl" "W"]
+            li [] [tSpan "Scroll: " ; bSpan "Two-finger scrolling on touchpad"]
         ] ]
     let body (dialogData:PopupDialogData) =
         

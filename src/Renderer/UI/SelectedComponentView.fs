@@ -385,20 +385,29 @@ let private makeExtraInfo model (comp:Component) text dispatch =
 
 let viewSelectedComponent (model: ModelType.Model) dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    let formatLabelText (txt: string) =
+        txt.ToUpper()
+        |> Seq.filter (function | ch when System.Char.IsLetterOrDigit ch -> true | '.' -> true | _ -> false)
+        |> Seq.skipWhile (System.Char.IsLetter >> not)
+        |> (fun chars -> match Seq.length chars with | 0 -> None | _ -> Some (String.concat "" (Seq.map string chars)))
     match model.Sheet.SelectedComponents with
     | [ compId ] ->
         let comp = Symbol.extractComponent model.Sheet.Wire.Symbol compId
         div [Key comp.Id] [
             // let label' = extractLabelBase comp.Label
             // TODO: normalise labels so they only contain allowed chars all uppercase
-            let label' = comp.Label // No formatting atm
+            let label' = Option.defaultValue "L" (formatLabelText comp.Label) // No formatting atm
             readOnlyFormField "Description" <| makeDescription comp model dispatch
             makeExtraInfo model comp label' dispatch
             let required = match comp.Type with | SplitWire _ | MergeWires | BusSelection _ -> false | _ -> true
             textFormField required "Component Name" label' (fun text ->
                 // TODO: removed formatLabel for now
                 //setComponentLabel model sheetDispatch comp (formatLabel comp text)
-                setComponentLabel model sheetDispatch comp text
+                match formatLabelText text with
+                | Some label -> 
+                    setComponentLabel model sheetDispatch comp label
+                    dispatch <| SetPopupDialogText (Some label)
+                | None -> ()
                 //updateNames model (fun _ _ -> model.WaveSim.Ports) |> StartWaveSim |> dispatch
                 dispatch (ReloadSelectedComponent model.LastUsedDialogWidth) // reload the new component
                 )

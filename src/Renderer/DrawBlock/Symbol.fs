@@ -105,7 +105,8 @@ let prefix compType =
     | ROM1 _ -> "ROM"
     | RAM1 _ -> "RAM"
     | AsyncRAM1 _ -> "ARAM"
-    | Custom c -> c.Name + ".I"
+    | Custom c ->
+        c.Name + (if c.Name |> Seq.last |> System.Char.IsDigit then "." else "")
     | Constant1 _ -> "C"
     | BusCompare _ -> "EQ"
     | Decode4 -> "DEC"
@@ -613,14 +614,14 @@ let getCopiedSymbols (symModel: Model) : (ComponentId list) =
     |> Map.toList
     |> List.map fst
 
-// function to filter out non-letter characters by using ASCII values 
-let filterString string = 
-    string
-    |> String.filter (fun c -> (int(c) > 57 || int(c) < 48))
+/// Function to filter out non-letter characters by using ASCII values.
+/// Modified to capitalise labels
+let filterString (string: string) = 
+    string.ToUpper()
    
-///Returns the number of the component label (i.e. the number 1 from IN1)
+///Returns the number of the component label (i.e. the number 1 from IN1 or ADDER16.1)
 let regex (str : string) = 
-    let index = Regex.Match(str, @"\d+")
+    let index = Regex.Match(str, @"\d+$")
     match index with
     | null -> 0
     | _ -> int index.Value
@@ -742,7 +743,7 @@ let getIndex listSymbols compType =
 let labelGenNumber (model: Model) (compType: ComponentType) (label : string) = 
     let listSymbols = List.map snd (Map.toList model.Symbols) 
     match compType with
-    | IOLabel -> label
+    | IOLabel -> filterString label
     | _ -> filterString label + (getIndex listSymbols compType)
 
 ///Generates the label for a component type

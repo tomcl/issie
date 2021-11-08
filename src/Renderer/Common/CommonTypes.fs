@@ -252,9 +252,12 @@ module CommonTypes
         | AsyncROM of Memory | ROM of Memory | RAM of Memory // legacy components - to be deleted
         | AsyncROM1 of Memory1 | ROM1 of Memory1 | RAM1 of Memory1 | AsyncRAM1 of Memory1
 
-    let (|IsBinaryCompType|_|) cType =
+    /// Active pattern which matches 2-input gate component types.
+    /// NB - NOT gates are not included here.
+    let (|IsBinaryGate|NotBinaryGate|) cType =
         match cType with
-         | _ -> None
+         | And | Or | Xor | Nand | Nor | Xnor -> IsBinaryGate
+         | _ -> NotBinaryGate
 
     /// get memory component type constructor
     /// NB only works with new-style memory components

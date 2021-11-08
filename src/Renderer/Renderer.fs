@@ -129,9 +129,10 @@ let fileMenu (dispatch) =
             JSHelpers.debugTraceUI <- Set.ofList ["update";"view"])
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace off" None (fun _ -> 
             JSHelpers.debugTraceUI <- Set.ofList [])
+        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Test Union Cases" None (fun _ -> 
+            Temp.testUnionNames())
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Run performance check" None (fun _ -> 
-            testMaps()
-            
+            testMaps()            
             displayPerformance 100 4000000)
      ]
 

@@ -4,11 +4,31 @@ open EEEHelpers
 open CommonTypes
 open System.Text.RegularExpressions
 
+//-------------------------FUNCTIONS TO DO TYPE REFLECTION---------------------------------//
+
+let getUnionCaseName x =
+    sprintf "%A" x
+    |> Seq.takeWhile System.Char.IsLetterOrDigit
+    |> Seq.map string
+    |> String.concat ""
+
+let testUnionNames() =
+    let testCases = [
+        And
+        Mux2
+        Custom {Name="Mytype"; InputLabels=[]; OutputLabels=[]}
+        NbitsAdder 16
+        ]
+    testCases 
+    |> List.map getUnionCaseName
+    |> List.iter (printfn "%s")
 
 
-/// ---------- SYMBOL TYPES ---------- ///
+//------------------------------------------- TYPES -------------------------------------------------//
+
 type Symbol =
     {
+        
         Pos: XYPos
         InWidth0: int option
         InWidth1: int option
@@ -21,7 +41,7 @@ type Symbol =
         Moving: bool
     }
 
-
+/// This is the Elmish Model type for the Symbol module
 type Model = {
     Symbols: Map<ComponentId, Symbol>
     CopiedSymbols: Map<ComponentId, Symbol>
@@ -32,6 +52,10 @@ type Model = {
 
     OutputPortsConnected: Map<OutputPortId, int>        // map of output port id to number of wires connected to that port
     }
+
+//------------------------------------------------------------------------------------------------------------------------------//
+//----------------------------------------------DEFAULT NAME GENERATION---------------------------------------------------------//
+//------------------------------------------------------------------------------------------------------------------------------//
 
 ///Decodes the component type into component labels
 let prefix compType = 

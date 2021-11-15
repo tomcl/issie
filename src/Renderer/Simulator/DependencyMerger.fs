@@ -213,7 +213,7 @@ let private portNumberToLabel (InputPortNumber pNumber) (inputLabels : string li
 #if ASSERTS
     assertThat (inputLabels.Length > pNumber) "portNumberToLabel"
 #endif
-    inputLabels.[pNumber]
+    inputLabels[pNumber]
 
 /// Extract simulation input values as map.
 let private extractInputValuesAsMap graph graphInputs inputLabels : Map<InputPortNumber, WireData> =

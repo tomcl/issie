@@ -121,7 +121,7 @@ and private feedReducerOutput
         | None when comp.Type = IOLabel -> graph // special case, these components can generate output that is connected to nothing!
         | None -> failwithf "what? Reducer produced inexistent output portNumber %A in component %A" outPortNumber comp
         | Some targets ->
-            comp.OutputsPropagated.[opNum] <- true // disable further propagation if clocked.
+            comp.OutputsPropagated[opNum] <- true // disable further propagation if clocked.
             // Trigger simulation step with the newly produced input in
             // every target.
             (graph, targets) ||> List.fold (fun graph (nextCompId, nextPortNumber) ->
@@ -185,7 +185,7 @@ let propagateStateChanges (graph : SimulationGraph) (changes: OutputChange list)
         let outputMap = 
             change.COutputs // if output has already been propagated don't propagate it here
             |> Map.filter (fun (OutputPortNumber n) wData ->  
-                not <| comp.OutputsPropagated.[n])
+                not <| comp.OutputsPropagated[n])
         if simTrace <> None then
             printfn "|prop|----> %A (%A)" comp.Label outputMap
         // Note that here we update component inputs in the graph as we propagate changes.
@@ -213,7 +213,7 @@ let checkPropagation (graph : SimulationGraph) : SimulationGraph =
     let propagateCombinationalComponents graph =
         (graph,graph)
         ||> Map.fold (fun graph cid comp ->
-            let comp = graph.[cid]
+            let comp = graph[cid]
             match comp.Type, couldBeSynchronousComponent comp.Type with
             | _,true -> graph
             | Input _,_ | Constant1 _, _-> graph
@@ -243,12 +243,12 @@ let checkPropagation (graph : SimulationGraph) : SimulationGraph =
             outLabs
             |> List.mapi (fun i (label,width) ->
                 let comp = findOutputComp (ComponentLabel label) cc.Graph
-                let propVal = comp.Inputs.[InputPortNumber 0]
-                let propToList = cc.Comp.Outputs.[OutputPortNumber i]
+                let propVal = comp.Inputs[InputPortNumber 0]
+                let propToList = cc.Comp.Outputs[OutputPortNumber i]
                 propToList
                 |> List.map (fun (cid, inPort) ->
-                    let receiver = graph.[cid]
-                    let recVal = receiver.Inputs.[inPort]
+                    let receiver = graph[cid]
+                    let recVal = receiver.Inputs[inPort]
                     if propVal <> recVal then 
                         printfn "***CustomOutput: %s on %s fails to propagate to %s\n \
                             output=%A\n propagated input=%A" label (ll cc.Comp.Label) (ll receiver.Label) propVal recVal    
@@ -296,7 +296,7 @@ let rec feedSimulationConstants (graph:SimulationGraph) =
                 let feedConstant (graph:SimulationGraph) (comp:SimulationComponent) =
                     // graph gets updates each iteration of fold, but cL (and hence comp) does not
                     // we need to extract the Id from comp and look up the fold updated version in graph
-                    let comp = graph.[comp.Id] // refresh to get latest version of comp as updated by fold
+                    let comp = graph[comp.Id] // refresh to get latest version of comp as updated by fold
                     match comp.Type with
                     | Constant1 _ -> 
                         feedReducerOutput comp graph (Map.ofList [OutputPortNumber 0, getWireData comp])

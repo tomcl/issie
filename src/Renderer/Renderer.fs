@@ -30,7 +30,7 @@ let testMaps() =
         let mutable x: int = 1
         let mutable i:int = 0
         while i < count do
-            x <- modMap.[x]
+            x <- modMap[x]
             i <- i + 1
         
     let count = 1000000
@@ -196,7 +196,7 @@ let attachMenusAndKeyShortcuts dispatch =
             |]          
             |> Array.map U2.Case1
             |> electron.remote.Menu.buildFromTemplate   
-        menu.items.[0].visible <- Some true
+        menu.items[0].visible <- Some true
         electron.remote.app.applicationMenu <- Some menu
         attachExitHandler dispatch
 

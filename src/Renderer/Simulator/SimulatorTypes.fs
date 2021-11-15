@@ -199,7 +199,7 @@ type FastData =
 type BitInt = uint32 array
 
 let getBIBit (bits: BitInt) (pos:int) : uint32 =
-    bits.[pos / 32] >>> (pos % 32)
+    bits[pos / 32] >>> (pos % 32)
 
 /// get a field of bits width 'width' offset by 'offset', return the field with 0 offset
 let inline getUpperField (x:uint32) (width:int) (offset:int) : uint32 =
@@ -213,7 +213,7 @@ let inline getLowerField (x:uint32) (width:int) (offset:int) : uint32 =
 let getBIBitsInt (bits:BitInt) (msb: int) (lsb:int) : uint32 =
     let width = msb - lsb + 1
     if width < 32 then
-        let lowerWord = bits.[lsb / 32]
+        let lowerWord = bits[lsb / 32]
         let offset = lsb % 32
         let lowerChunk = (lowerWord >>> offset) 
         if offset + width <= 32 then
@@ -221,7 +221,7 @@ let getBIBitsInt (bits:BitInt) (msb: int) (lsb:int) : uint32 =
             lowerChunk 
         else
             /// one word output from two words of source
-            let upperChunk = getLowerField bits.[lsb / 32 + 1] (width - offset - 32) offset
+            let upperChunk = getLowerField bits[lsb / 32 + 1] (width - offset - 32) offset
             lowerChunk ||| upperChunk
     else
         failwithf "Cannot extract bits {msb}..{lsb} as a single 32 bit word"
@@ -232,16 +232,16 @@ let getBIBits  (bits:BitInt) (msb: int) (lsb:int) : BitInt =
     let msw = msb / 32
     let offset = lsb % 32
     if offset = 0 then
-        bits.[msw..lsw]
+        bits[msw..lsw]
     else
         let outWords = outWidth / 32 + 1
         Array.init outWords (fun n ->
             match n with
             | n when n + lsw = msw ->
-                getLowerField bits.[msw] (outWidth - offset % 32) offset
+                getLowerField bits[msw] (outWidth - offset % 32) offset
             | n ->
-                getLowerField bits.[n + lsw + 1] (32 - offset) offset |||
-                getUpperField bits.[n + lsw] offset offset)
+                getLowerField bits[n + lsw + 1] (32 - offset) offset |||
+                getUpperField bits[n + lsw] offset offset)
 
 let floatCarryBit = Seq.init 32 (fun _ -> 2.) |> Seq.reduce (*)  
 
@@ -249,20 +249,20 @@ let addBIBits (bits1:BitInt) (bits2:BitInt) (cin: uint32) : BitInt * uint32 =
     let mutable tempCarry = if cin = 1u then floatCarryBit else 0.
     let outs =
         Array.init bits1.Length ( fun n ->
-            tempCarry <- float bits1.[n] + float bits2.[n] + (if tempCarry >= floatCarryBit then 1. else 0.)
+            tempCarry <- float bits1[n] + float bits2[n] + (if tempCarry >= floatCarryBit then 1. else 0.)
             uint32 tempCarry)
     outs, (if tempCarry >= floatCarryBit then 1u else 0u)
 
 let binopBIBits (op: uint32 -> uint32 -> uint32) (bits1:BitInt) (bits2:BitInt) : BitInt =
     Array.init bits1.Length (fun n ->
-        op bits1.[n] bits2.[n])
+        op bits1[n] bits2[n])
 
 /// invert bits1: assuming that width is the bit width of bits1
 /// MS bits not used by bits1 are not inverted.
 let invertBIBits (bits:BitInt) (width: int) =
     let msw = width / 32
     Array.init bits.Length (fun n ->
-        let x = bits.[n]
+        let x = bits[n]
         if n = msw then 
             x &&& ((1u <<< width % 32) - 1u)
         else x ^^^ 0xFFFFFFFFu)
@@ -279,23 +279,23 @@ let appendBIBits ((bits1:BitInt,width1:int)) ((bits2:BitInt, width2:int)) =
     elif outMSW = width1 / 32 then
         /// the added bits can be put in the existing MSW of width1
         let out = Array.copy bits1
-        out.[outMSW] <- out.[outMSW] ||| getLowerField bits2.[0] width2 offset
+        out[outMSW] <- out[outMSW] ||| getLowerField bits2[0] width2 offset
         out
     else
         Array.init (outMSW + 1) (fun n ->
          match n with
          | _ when n = outMSW -> 
-            getLowerField bits2.[n - msw1] (32 - offset) offset |||
-            getUpperField bits2.[n - msw1 + 1] (offset + outWidth - 32) offset            
+            getLowerField bits2[n - msw1] (32 - offset) offset |||
+            getUpperField bits2[n - msw1 + 1] (offset + outWidth - 32) offset            
 
          | _ when n = width1 / 32 -> 
-            getLowerField bits1.[n - width1 % 32] (32 - offset) offset |||
-            getUpperField bits2.[n - width1 / 32 + 1] offset offset            
+            getLowerField bits1[n - width1 % 32] (32 - offset) offset |||
+            getUpperField bits2[n - width1 / 32 + 1] offset offset            
          | _ when n >= width1 / 32 -> 
-            getLowerField bits2.[n - width1 / 32] (32 - offset) offset |||
-            getUpperField bits2.[n - width1 / 32 + 1] offset offset            
+            getLowerField bits2[n - width1 / 32] (32 - offset) offset |||
+            getUpperField bits2[n - width1 / 32 + 1] offset offset            
          | _  -> 
-            bits1.[n])
+            bits1[n])
 
 let bigIntMaskA =
     [|1..128|]
@@ -307,10 +307,10 @@ let bigIntBitMaskA =
     
     
 let bigIntMask width =
-    if width <= 128 then bigIntMaskA.[width] else (bigint 1 <<< width) - bigint 1
+    if width <= 128 then bigIntMaskA[width] else (bigint 1 <<< width) - bigint 1
 
 let bigIntBitMask pos =
-    if pos <= 128 then bigIntBitMaskA.[pos] else (bigint 1 <<< pos)   
+    if pos <= 128 then bigIntBitMaskA[pos] else (bigint 1 <<< pos)   
                 
     
 
@@ -458,11 +458,11 @@ type FastComponent = {
 
     } with
 
-    member inline this.GetInput (epoch)  (InputPortNumber n) = this.InputLinks.[n].Step.[epoch]
+    member inline this.GetInput (epoch)  (InputPortNumber n) = this.InputLinks[n].Step[epoch]
     member this.ShortId =
         let (ComponentId sid,ap) = this.fId
         (EEExtensions.String.substringLength 0 5 sid)
-    member inline this.PutOutput (epoch) (OutputPortNumber n) dat = this.Outputs.[n].Step.[epoch] <- dat
+    member inline this.PutOutput (epoch) (OutputPortNumber n) dat = this.Outputs[n].Step[epoch] <- dat
     member inline this.Id = this.SimComponent.Id
     
     
@@ -519,10 +519,10 @@ type FastSimulation = {
         member this.getSimulationData (step: int) ((cid,ap): FComponentId) (opn: OutputPortNumber) =
             let (OutputPortNumber n) = opn
             match Map.tryFind (cid,ap) this.FComps with
-            | Some fc -> fc.Outputs.[n].Step.[step]
+            | Some fc -> fc.Outputs[n].Step[step]
             | None ->
                 match Map.tryFind ((cid,ap), opn) this.FCustomOutputCompLookup with
-                | Some fid -> this.FComps.[fid].Outputs.[0].Step.[step]
+                | Some fid -> this.FComps[fid].Outputs[0].Step[step]
                 | None -> failwithf "What? can't find %A in the fast simulation data" (cid,ap)
 
 /// GatherTemp is the output type used to accumulate lists of data links when recursively exploring SimulationGraph
@@ -646,7 +646,7 @@ let makeAllNetGroups (netList:NetList) :NetGroup array=
     let labelConnectedNets: Map<string,NLTarget list array> =       
         comps
         |> Array.collect (fun comp ->
-            if comp.Type = IOLabel then [|comp.Label, comp.Outputs.[OutputPortNumber 0]|] else [||])
+            if comp.Type = IOLabel then [|comp.Label, comp.Outputs[OutputPortNumber 0]|] else [||])
         |> Array.groupBy (fun (label, _) -> label)
         |> Array.map (fun (lab, labOutArr)-> lab, (labOutArr |> Array.map (snd)))
         |> Map.ofArray
@@ -656,8 +656,8 @@ let makeAllNetGroups (netList:NetList) :NetGroup array=
             targets
             |> List.toArray
             |> Array.collect (fun target -> 
-                let comp = netList.[target.TargetCompId]
-                if comp.Type = IOLabel then labelConnectedNets.[comp.Label] else [||])
+                let comp = netList[target.TargetCompId]
+                if comp.Type = IOLabel then labelConnectedNets[comp.Label] else [||])
         {driverComp=comp; driverPort=opn; driverNet=targets; connectedNets=connected}
 
 
@@ -671,7 +671,7 @@ let makeAllNetGroups (netList:NetList) :NetGroup array=
 
 let getFastOutputWidth (fc: FastComponent) (opn: OutputPortNumber) =
     let (OutputPortNumber n) = opn
-    fc.Outputs.[n].Step.[0].Width
+    fc.Outputs[n].Step[0].Width
 
 let getWaveformSpecFromFC (fc: FastComponent) =
     let viewerName = extractLabel fc.SimComponent.Label
@@ -700,7 +700,7 @@ let getFastDriver (fs: FastSimulation) (driverComp: NetListComponent) (driverPor
     match driverComp.Type with
     | Custom _ ->
         let customFId:FComponentId = driverComp.Id,[]
-        let customOutput = fs.FCustomOutputCompLookup.[customFId,driverPort]
+        let customOutput = fs.FCustomOutputCompLookup[customFId,driverPort]
 #if ASSERTS
         assertThat (Map.containsKey customOutput fs.FComps)
             (sprintf "Help: can't find custom component output in fast Simulation")
@@ -717,7 +717,7 @@ let getWaveformSpecFromNetGroup
         (ng: NetGroup) =
     let ngName = nameOf ng
     let fId, opn = getFastDriver fs ng.driverComp ng.driverPort
-    let driverConn = ng.driverNet.[0].TargetConnId
+    let driverConn = ng.driverNet[0].TargetConnId
     let conns =
         Map.tryFind driverConn connMap
         |> Option.defaultValue [||]
@@ -730,7 +730,7 @@ let getWaveformSpecFromNetGroup
         SheetId = [] // all NetGroups are from top sheet at the moment
         Driver = fId,opn
         DisplayName = ngName
-        Width = getFastOutputWidth fs.FComps.[fId] opn
+        Width = getFastOutputWidth fs.FComps[fId] opn
     }
 
 let standardOrderWaves prevDispNames isWanted (waves: Map<string,WaveformSpec>) =
@@ -741,7 +741,7 @@ let standardOrderWaves prevDispNames isWanted (waves: Map<string,WaveformSpec>) 
         waves
         |> mapKeys
         |> Array.filter (fun wn -> isWanted wn && not <| Array.contains wn prev')
-        |> Array.sortBy (fun name -> match waves.[name].WType with | ViewerWaveform _ -> 0 | _ -> 1)
+        |> Array.sortBy (fun name -> match waves[name].WType with | ViewerWaveform _ -> 0 | _ -> 1)
     Array.append prev' others
 
 let getWaveformSpecifications 

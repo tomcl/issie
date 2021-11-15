@@ -40,22 +40,22 @@ let private hexToBin (hStr : string) : string =
 let addZeros64 (width:int) (pFun:int64 -> string) (n: int64) =
     let s = pFun n
     let bits = 
-        match s.[1] with
+        match s[1] with
         | 'x' -> 4
         | 'b' -> 1
         | _ -> failwithf "Wrong use of addZeros64: s = %s" s
     let extra = (width - (s.Length - 2)*bits) / bits
-    s.[0..1] + String.replicate extra "0" + s.[2..]
+    s[0..1] + String.replicate extra "0" + s[2..]
 
 let addZeros (width:int) (pFun:int -> string) (n: int) =
     let s = pFun n
     let bits = 
-        match s.[1] with
+        match s[1] with
         | 'x' -> 4
         | 'b' -> 1
         | _ -> failwithf "Wrong use of addZeros: s = %s" s
     let extra = ((width - (s.Length - 2))*bits + (2<<<bits - 1)) / bits
-    s.[0..1] + String.replicate extra "0" + s.[2..]
+    s[0..1] + String.replicate extra "0" + s[2..]
 
 let hex64 (num : int64) = "0x" + num.ToString("X")
 let fillHex64 width = addZeros64 width hex64
@@ -184,7 +184,7 @@ let convertUInt64 (stringToConvert: string) =
     let aInt = toInt 'A'
     let s = EEExtensions.String.trim (EEExtensions.String.toUpper stringToConvert)
     if EEExtensions.String.startsWith "0X" s then
-        let hexDigits = s.[2..s.Length-1]
+        let hexDigits = s[2..s.Length-1]
         let convDigits = hexDigits |> List.map cDigitInt 
         if checkRadix 16
 

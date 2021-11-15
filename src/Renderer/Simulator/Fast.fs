@@ -49,7 +49,7 @@ let private getRamStateMemory numSteps step (state: StepArray<SimulationComponen
     match state, numSteps with
     | _, 1 -> memory
     | Some arr, _ ->
-        match arr.Step.[step] with
+        match arr.Step[step] with
         | RamState memory -> memory
         | _ -> failwithf "What? getRamStateMemory called with invalid state"
     | _ -> failwithf "what? getRamStateMemory called with an invalid state: %A" state
@@ -106,16 +106,16 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         assertThat (i < n) (sprintf "What? Invalid input port (%d:step%d) used by %s:%s (%A) reducer with %d Ins"
                                     i simStep comp.FullName comp.ShortId  componentType n)
 #endif
-        let fd = comp.InputLinks.[i].Step.[simStep]
+        let fd = comp.InputLinks[i].Step[simStep]
         fd
 
     /// get last cycle data from output i (for clocked components)
     let inline getLastCycleOut n =
         let fd =
-            match comp.OutputWidth.[n], numStep with
+            match comp.OutputWidth[n], numStep with
             | None, _ -> failwithf "Can't reduce %A (%A) because outputwidth is not known" comp.FullName comp.FType
             | Some w, 0 -> if w < 33 then {Dat=Word 0u; Width = w} else {Dat =BigWord (bigint 0); Width = w}
-            | Some w, _ -> comp.Outputs.[n].Step.[simStepOld]
+            | Some w, _ -> comp.Outputs[n].Step[simStepOld]
         fd
 
     /// get last cycle data from output i for component
@@ -160,9 +160,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     let inline putState state =
         match comp.State with
         | None -> failwithf "Attempt to put state into component %s without state array" comp.FullName
-        | Some stateArr -> stateArr.Step.[simStep] <- state
+        | Some stateArr -> stateArr.Step[simStep] <- state
 
-    let inline putW num w = comp.OutputWidth.[num] <- Some w
+    let inline putW num w = comp.OutputWidth[num] <- Some w
 
     /// implement a binary combinational operation
     let inline getBinaryGateReducer (op: uint32 ->uint32 -> uint32) : Unit =
@@ -215,7 +215,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
 
     | IOLabel ->
         let bits = ins 0
-        //let bits = comp.InputLinks.[0].[simStep]
+        //let bits = comp.InputLinks[0][simStep]
         //printfn "Reducing IOLabel %A" comp.SimComponent.Label
         put0 bits
     | Not ->
@@ -339,10 +339,10 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     let outBit = if n = selN then dataN else 0
                     convertIntToFastData 1 (uint32 outBit))
 
-        put0 outs.[0]
-        put1 outs.[1]
-        put2 outs.[2]
-        put3 outs.[3]
+        put0 outs[0]
+        put1 outs[1]
+        put2 outs[2]
+        put3 outs[3]
 
     | Custom c ->
         // Custom components are removed
@@ -588,10 +588,10 @@ let private getPortNumbers (sc: SimulationComponent) =
 
 let private getOutputWidths (sc: SimulationComponent) (wa: int option array) =
 
-    let putW0 w = wa.[0] <- Some w
-    let putW1 w = wa.[1] <- Some w
-    let putW2 w = wa.[2] <- Some w
-    let putW3 w = wa.[3] <- Some w
+    let putW0 w = wa[0] <- Some w
+    let putW1 w = wa[1] <- Some w
+    let putW2 w = wa[2] <- Some w
+    let putW3 w = wa[3] <- Some w
 
     match sc.Type with
     | ROM _ | RAM _ | AsyncROM _ -> 
@@ -702,7 +702,7 @@ let private createFastComponent (numSteps: int) (sComp: SimulationComponent) (ac
 /// extends the simulation data arrays of the component to allow more steps
 /// No longer used now arrays are circular?
 let private extendFastComponent (numSteps: int) (fc: FastComponent) =
-    let oldNumSteps = fc.Outputs.[0].Step.Length
+    let oldNumSteps = fc.Outputs[0].Step.Length
 
 
     if numSteps + 1 <= oldNumSteps   then
@@ -715,7 +715,7 @@ let private extendFastComponent (numSteps: int) (fc: FastComponent) =
                     (numSteps + 1)
                     (fun i ->
                         if i < Array.length oldArr then
-                            oldArr.[i]
+                            oldArr[i]
                         else
                             dat)
 
@@ -726,15 +726,15 @@ let private extendFastComponent (numSteps: int) (fc: FastComponent) =
         // Input inputs at top level are a special case not mapped to outputs.
         // They must be separately extended.
         match fc.FType, fc.AccessPath with
-        | Input _, [] -> extendArray fc.InputLinks.[0] fc.InputLinks.[0].Step.[oldNumSteps - 1]
+        | Input _, [] -> extendArray fc.InputLinks[0] fc.InputLinks[0].Step[oldNumSteps - 1]
         | _ -> ()
 
         [| 0 .. outPortNum - 1 |]
-        |> Array.iter (fun n -> extendArray fc.Outputs.[n] emptyFastData)
+        |> Array.iter (fun n -> extendArray fc.Outputs[n] emptyFastData)
 
         Option.iter
             (fun (stateArr: StepArray<SimulationComponentState>) ->
-                extendArray stateArr stateArr.Step.[oldNumSteps - 1])
+                extendArray stateArr stateArr.Step[oldNumSteps - 1])
             fc.State
 
 
@@ -867,7 +867,7 @@ let private printGather (g: GatherData) =
 let rec private createInitFastCompPhase (numSteps: int) (g: GatherData) (f: FastSimulation) =
     let start = getTimeMs()
     let makeFastComp cid =
-        let comp, ap = g.AllComps.[cid]
+        let comp, ap = g.AllComps[cid]
         let fc = createFastComponent numSteps comp ap
         let fc = { fc with FullName = g.getFullName cid }
 
@@ -914,20 +914,20 @@ let private reLinkIOLabels (fs: FastSimulation) =
     fs.FIOLinks
     |> List.iter (fun ((fcDriven, InputPortNumber ipn), ioDriver) -> 
         let labKey = ioDriver.SimComponent.Label, ioDriver.AccessPath
-        let fcActiveDriver = fs.FIOActive.[labKey]
-        fcDriven.InputLinks.[ipn] <- fcActiveDriver.Outputs.[0]
-        fcDriven.InputDrivers.[ipn] <- Some (fcActiveDriver.fId, OutputPortNumber 0)
+        let fcActiveDriver = fs.FIOActive[labKey]
+        fcDriven.InputLinks[ipn] <- fcActiveDriver.Outputs[0]
+        fcDriven.InputDrivers[ipn] <- Some (fcActiveDriver.fId, OutputPortNumber 0)
         // DrivenComponents must only include asynchronous drive paths on hybrid components
         // on clocked components, or combinational components, it can include all drive paths
         match getHybridComponentAsyncOuts fcDriven.FType (InputPortNumber ipn) with
         | None | Some (_ :: _) ->
             fcActiveDriver.DrivenComponents <- fcDriven :: fcActiveDriver.DrivenComponents
         | _ -> ()
-        ioDriver.Outputs.[0] <- fcActiveDriver.Outputs.[0])
+        ioDriver.Outputs[0] <- fcActiveDriver.Outputs[0])
 
 /// Use the Outputs links from the original SimulationComponents in gather to link together the data arrays
 /// of the FastComponents.
-/// InputLinks.[i] array is set equal to the correct driving Outputs array so that Input i reads the data reduced by the
+/// InputLinks[i] array is set equal to the correct driving Outputs array so that Input i reads the data reduced by the
 /// correct output of the component that drives it.
 /// The main work is dealing with custom components which represent whole design sheets with recursively defined component graphs
 /// The custom component itself is not linked, and does not exist as a FastComponent. Instead its CustomSimulationGraph Input and Output components
@@ -943,7 +943,7 @@ let private linkFastComponents (g: GatherData) (f: FastSimulation) =
         | None -> 
             failwithf $"Error in linkFastComponents: can't find\n---{cid}\n----{ap}\n"
         | Some comp -> fst comp
-    let apOf fid = fComps.[fid].AccessPath
+    let apOf fid = fComps[fid].AccessPath
     /// This function recursively propagates a component output across Custom component boundaries to find the
     ///
     let rec getLinks ((cid, ap): FComponentId) (opn: OutputPortNumber) (ipnOpt: InputPortNumber option) =
@@ -953,9 +953,9 @@ let private linkFastComponents (g: GatherData) (f: FastSimulation) =
         | true, _, None when apOf (cid, ap) = [] -> [||] // no links in this case from global output
         | true, _, None ->
             //printfn "checking 1:%A %A" (g.getFullName(cid,ap)) (Map.map (fun k v -> g.getFullName k) g.CustomOutputCompLinks)
-            let fid, opn = g.CustomOutputCompLinks.[cid, ap]
+            let fid, opn = g.CustomOutputCompLinks[cid, ap]
 #if ASSERTS
-            assertThat (isCustom (fst sComps.[fid]).Type) "What? this should be a custom component output"
+            assertThat (isCustom (fst sComps[fid]).Type) "What? this should be a custom component output"
 #endif
             getLinks fid opn None // go from inner output to CC output and recurse
         | false, true, Some ipn ->
@@ -963,7 +963,7 @@ let private linkFastComponents (g: GatherData) (f: FastSimulation) =
             //printfn "CustomInCompLinks=\n%A" (Map.map (fun (vfid,vipn) fid ->
             //sprintf "%A:%A -> %A\n" (g.getFullName vfid) vipn (g.getFullName fid) ) g.CustomInputCompLinks |> mapValues)
             //printfn "Done"
-            [| g.CustomInputCompLinks.[(cid, ap), ipn], opn, InputPortNumber 0 |] // go from CC input to inner input: must be valid
+            [| g.CustomInputCompLinks[(cid, ap), ipn], opn, InputPortNumber 0 |] // go from CC input to inner input: must be valid
         | _, false, Some ipn -> [| (cid, ap), opn, ipn |] // must be a valid link
         | false, _, None ->
             sComp.Outputs
@@ -999,7 +999,7 @@ let private linkFastComponents (g: GatherData) (f: FastSimulation) =
                                 failwithf "Multiple linkage: (previous driver was %A,%A)" (g.getFullName fid) opn
 
                             linkCheck <- Map.add (fDrivenId, InputPortNumber ipn) (fDriverId, OutputPortNumber opn) linkCheck
-                            let fDriven = f.FComps.[fDrivenId]
+                            let fDriven = f.FComps[fDrivenId]
                             let (_, ap) = fDrivenId
 
                             // we have a link from fDriver to fDriven
@@ -1018,7 +1018,7 @@ let private linkFastComponents (g: GatherData) (f: FastSimulation) =
                                 f.FIOLinks <- ((fDriven, InputPortNumber ipn), fDriver) :: f.FIOLinks
                             else
                                 // if driver is not IO label make the link now
-                                fDriven.InputLinks.[ipn] <- fDriver.Outputs.[opn]
+                                fDriven.InputLinks[ipn] <- fDriver.Outputs[opn]
                                 // DrivenComponents must only include asynchronous drive paths on hybrid components
                                 // on clocked components, or combinational components, it can include all drive paths
                                 match getHybridComponentAsyncOuts fDriven.FType (InputPortNumber ipn) with
@@ -1026,7 +1026,7 @@ let private linkFastComponents (g: GatherData) (f: FastSimulation) =
                                     fDriver.DrivenComponents <- fDriven :: fDriver.DrivenComponents
                                 | _ -> ()
 
-                                fDriven.InputDrivers.[ipn] <- Some (fDriver.fId, OutputPortNumber opn)
+                                fDriven.InputDrivers[ipn] <- Some (fDriver.fId, OutputPortNumber opn)
                                 )))
     reLinkIOLabels f
     instrumentTime "linkFastComponents" start
@@ -1061,7 +1061,7 @@ let printComp (fs:FastSimulation) (step: int) (fc: FastComponent) =
           if fc.Active then "Act" else "Inact"
           "    "
           (fc.InputLinks
-           |> Array.map (fun (arr: StepArray<FData>) -> arr.Step.Length > 0 && isValidData arr.Step.[step])
+           |> Array.map (fun (arr: StepArray<FData>) -> arr.Step.Length > 0 && isValidData arr.Step[step])
            |> Array.map
                (function
                | true -> "*"
@@ -1072,7 +1072,7 @@ let printComp (fs:FastSimulation) (step: int) (fc: FastComponent) =
     let ins = (
         fc.InputDrivers 
         |> Array.map ( Option.map (fun (fid,_) -> 
-            let fc = fs.FComps.[fid]
+            let fc = fs.FComps[fid]
             fc.FullName, fc.ShortId)))
 
 
@@ -1113,9 +1113,9 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
 
     let initInput (fc: FastComponent) =
         //printfn "Init input..."
-        fc.InputLinks.[0].Step
+        fc.InputLinks[0].Step
         |> Array.iteri
-            (fun i _ -> fc.InputLinks.[0].Step.[i] <- (convertIntToFastData (Option.defaultValue 1 fc.OutputWidth.[0]) 0u))
+            (fun i _ -> fc.InputLinks[0].Step[i] <- (convertIntToFastData (Option.defaultValue 1 fc.OutputWidth[0]) 0u))
         //printfn "Initialised input: %A" fc.InputLinks
         fastReduce fs.MaxArraySize 0 false fc
         fc.Touched <- true
@@ -1129,10 +1129,10 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                     fc.Touched <- true
                     propagateEval fc
 
-                match fc.FType, fc.OutputWidth.[i] with
+                match fc.FType, fc.OutputWidth[i] with
                 | RAM1 mem, Some w | AsyncRAM1 mem, Some w ->
                     match fc.State with
-                    | Some arr -> arr.Step.[0] <- RamState mem
+                    | Some arr -> arr.Step[0] <- RamState mem
                     | _ -> failwithf "Component %s does not have correct state vector" fc.FullName
 
                     let initD =
@@ -1140,10 +1140,10 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                         | Some n -> convertInt64ToFastData w n
                         | _ -> convertIntToFastData w 0u
                     // change simulation semantics to output 0 in cycle 0
-                    vec.Step.[0] <- convertIntToFastData w 0u
+                    vec.Step[0] <- convertIntToFastData w 0u
                 | RAM1 _, _ | AsyncRAM1 _, _->
                     failwithf "What? Bad initial values for RAM %s output %d state <%A>" fc.FullName i fc.FType
-                | _, Some w -> vec.Step.[0] <- convertIntToFastData w 0u
+                | _, Some w -> vec.Step[0] <- convertIntToFastData w 0u
                 | _ -> failwithf "What? Can't find width for %s output %d" fc.FullName i)
     /// print function for debugging
     let pp (fL: FastComponent array) =
@@ -1209,7 +1209,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
     let badComps =
         notOrdered
         |> Set.toList
-        |> List.map (fun fId -> fs.FComps.[fId])
+        |> List.map (fun fId -> fs.FComps[fId])
         |> List.filter
             (function
             | { Active = a } -> a)
@@ -1228,7 +1228,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 "%A: inputvalid=%A\n--------------\n"
                 fc.FullName
                 (Array.map
-                    (fun (arr: StepArray<FData>) -> arr.Step.Length > 5 && isValidData arr.Step.[0])
+                    (fun (arr: StepArray<FData>) -> arr.Step.Length > 5 && isValidData arr.Step[0])
                     fc.InputLinks))
     assertThat
         (badComps.Length = 0)
@@ -1279,14 +1279,14 @@ let checkAndValidate (fs:FastSimulation) =
         |> Array.iter ( fun fc ->
             fc.OutputWidth
             |> Array.iteri ( fun i opn ->
-                let data = fc.Outputs.[i].Step.[0]
-                match data.Width, fc.OutputWidth.[i] with
+                let data = fc.Outputs[i].Step[0]
+                match data.Width, fc.OutputWidth[i] with
                 | n, Some m when n <> m ->
                     failwithf "Inconsistent simulation data %A data found on signal output width %d from %s:%d" data m fc.FullName i
                 | 0, _ ->
                     failwithf "Unexpected output data %A found on initialised component %s:%d" data fc.FullName i
                 | n, None ->
-                    fc.OutputWidth.[i] <- Some n
+                    fc.OutputWidth[i] <- Some n
                 | _ -> () // Ok in this case
             ))
         instrumentTime "checkAndValidate" start
@@ -1340,8 +1340,8 @@ let private propagateInputsFromLastStep (step: int) (fastSim: FastSimulation) =
         fastSim.FGlobalInputComps
         |> Array.iter
             (fun fc ->
-                let vec = fc.Outputs.[0]
-                vec.Step.[step] <- vec.Step.[step - 1])
+                let vec = fc.Outputs[0]
+                vec.Step[step] <- vec.Step[step - 1])
 
 /// advance the simulation one step
 let private stepSimulation (fs: FastSimulation) =
@@ -1355,7 +1355,7 @@ let private stepSimulation (fs: FastSimulation) =
 /// sets the mutable simulation data for a given input at a given time step
 let private setSimulationInput (cid: ComponentId) (fd: FData) (step: int) (fs: FastSimulation) =
     match Map.tryFind (cid, []) fs.FComps with
-    | Some fc -> fc.Outputs.[0].Step.[step % fs.MaxArraySize] <- fd
+    | Some fc -> fc.Outputs[0].Step[step % fs.MaxArraySize] <- fd
     | None -> failwithf "Can't find %A in FastSim" cid
 
 
@@ -1372,7 +1372,7 @@ let changeInput (cid: ComponentId) (wd: WireData) (step: int) (fastSim: FastSimu
     //printfn "wd=%A" wd
     let fd = (wd |> wireToFast)
     setSimulationInput cid fd step fastSim
-    //printfn $"Changing {fastSim.FComps.[cid,[]].FullName} to {fd}"
+    //printfn $"Changing {fastSim.FComps[cid,[]].FullName} to {fd}"
     runCombinationalLogic step fastSim
 
 let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
@@ -1385,11 +1385,11 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
                 | DFF _
                 | DFFE _
                 | Register _
-                | RegisterE _ -> [| fc, RegisterState fc.Outputs.[0].Step.[step % fastSim.MaxArraySize] |]
+                | RegisterE _ -> [| fc, RegisterState fc.Outputs[0].Step[step % fastSim.MaxArraySize] |]
                 | ROM1 state -> [| fc, RamState state |]
                 | RAM1 _ | AsyncRAM1 _ ->
                     match fc.State
-                          |> Option.map (fun state -> state.Step.[step % fastSim.MaxArraySize]) with
+                          |> Option.map (fun state -> state.Step[step % fastSim.MaxArraySize]) with
                     | None -> failwithf "Missing RAM state for step %d of %s" step fc.FullName
                     | Some memState -> [| fc, memState |]
                 | _ -> failwithf "Unsupported state extraction from clocked component type %s %A" fc.FullName fc.FType
@@ -1451,7 +1451,7 @@ let findSimulationComponent ((cid, ap): ComponentId * ComponentId list) (sd: Sim
     let graph = sd.Graph
 
     match findSimulationComponentOpt (cid, ap) graph with
-    | None -> failwithf "What? Can't find component %A in SimulationData" fs.FComps.[cid, ap].FullName
+    | None -> failwithf "What? Can't find component %A in SimulationData" fs.FComps[cid, ap].FullName
     | Some sComp -> sComp
 
 
@@ -1467,7 +1467,7 @@ let rec extractFastSimulationOutput
    match Map.tryFind (cid, ap) fs.FComps with
    | Some fc ->
         //printfn $"Extracting port {opn} from {fc.FullName} in step {step}"
-        match Array.tryItem (step % fs.MaxArraySize) fc.Outputs.[n].Step with
+        match Array.tryItem (step % fs.MaxArraySize) fc.Outputs[n].Step with
         | None -> failwithf $"What? extracting output {n} in step {step} from {fc.FullName} failed with clockTick={fs.ClockTick}"
         | Some fd -> fd
         |> (fun fd -> 
@@ -1515,13 +1515,13 @@ let extractFastSimulationIOs
             io, wd)
 
 let getFLabel (fs:FastSimulation) (fId:FComponentId) =
-    let fc = fs.FComps.[fId]
+    let fc = fs.FComps[fId]
     let (ComponentLabel name) = fc.SimComponent.Label
     name, fc.FullName
 
 let extractFastSimulationWidth (fs:FastSimulation)   (fid: FComponentId) (opn: OutputPortNumber) =
     let (OutputPortNumber n) = opn
-    fs.FComps.[fid].OutputWidth.[n]
+    fs.FComps[fid].OutputWidth[n]
     
 
 
@@ -1545,5 +1545,5 @@ let extractViewers
     |> Map.toList
     |> List.map
         (fun (fid,fc) ->
-            let width = Option.get fc.OutputWidth.[0]
+            let width = Option.get fc.OutputWidth[0]
             getFLabel fs fid, width, extractFastSimulationOutput fs simulationData.ClockTickNumber fid (OutputPortNumber 0))

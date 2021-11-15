@@ -217,10 +217,10 @@ let getBIBitsInt (bits:BitInt) (msb: int) (lsb:int) : uint32 =
         let offset = lsb % 32
         let lowerChunk = (lowerWord >>> offset) 
         if offset + width <= 32 then
-            /// output from only one word
+            // output from only one word
             lowerChunk 
         else
-            /// one word output from two words of source
+            // one word output from two words of source
             let upperChunk = getLowerField bits[lsb / 32 + 1] (width - offset - 32) offset
             lowerChunk ||| upperChunk
     else
@@ -274,10 +274,10 @@ let appendBIBits ((bits1:BitInt,width1:int)) ((bits2:BitInt, width2:int)) =
     let offset = width1 % 32
     let msw1 = width1 / 32
     if offset = 0 then
-        /// we can do straight array append
+        // we can do straight array append
         Array.append bits1 bits2
     elif outMSW = width1 / 32 then
-        /// the added bits can be put in the existing MSW of width1
+        // the added bits can be put in the existing MSW of width1
         let out = Array.copy bits1
         out[outMSW] <- out[outMSW] ||| getLowerField bits2[0] width2 offset
         out
@@ -431,7 +431,7 @@ type FData = FastData // for now...
 /// Wrapper to allow arrays to be resized for longer simulations while keeping the links between inputs
 /// and outputs
 type StepArray<'T> = {
-    /// this field is mutable to allow resizing
+    // this field is mutable to allow resizing
     mutable Step: 'T array
     }
 
@@ -487,33 +487,33 @@ type FastComponent = {
 // root. Since custom components have been removed this no longer complicates the simulation.
 
 type FastSimulation = {
-    /// last step number (starting from 0) which is simulated.
+    // last step number (starting from 0) which is simulated.
     mutable ClockTick: int
-    /// The step number of the last step that can be simulated in the
-    /// current simulation outputs
+    // The step number of the last step that can be simulated in the
+    // current simulation outputs
     mutable MaxStepNum: int 
-    /// Maximum size of simulation arrays - after which they form a circular buffer
+    // Maximum size of simulation arrays - after which they form a circular buffer
     MaxArraySize: int
-    /// top-level inputs to the simulation
+    // top-level inputs to the simulation
     FGlobalInputComps: FastComponent array
-    /// constants
+    // constants
     FConstantComps: FastComponent array
-    /// clocked components
+    // clocked components
     FClockedComps: FastComponent array
-    /// Components that will be reduced in order allowing sequential reduction to implement simulation
+    // Components that will be reduced in order allowing sequential reduction to implement simulation
     FOrderedComps: FastComponent array
-    /// which is the active component for each set of labels?
+    // which is the active component for each set of labels?
     mutable FIOActive: Map<ComponentLabel*ComponentId list,FastComponent>
-    /// list of deferred links driven from inactive IOlabls - at end of linkage the
-    /// corresponding active IOLabel can be substituted as driver an dthe link made
+    // list of deferred links driven from inactive IOlabls - at end of linkage the
+    // corresponding active IOLabel can be substituted as driver an dthe link made
     mutable FIOLinks: ((FastComponent*InputPortNumber)*FastComponent) list
-    /// Fast components: this array is longer than FOrderedComps because it contains
-    /// IOlabel components that are redundant in the simulation
+    // Fast components: this array is longer than FOrderedComps because it contains
+    // IOlabel components that are redundant in the simulation
     FComps: Map<FComponentId,FastComponent>
     FSComps: Map<FComponentId,SimulationComponent * ComponentId list>
-    /// look up from output port of custom component to the relevant Output component
+    // look up from output port of custom component to the relevant Output component
     FCustomOutputCompLookup: Map<(ComponentId*ComponentId list)*OutputPortNumber, FComponentId>
-    /// GatherData from which this simulation was made
+    // GatherData from which this simulation was made
     G: GatherData
     } with
         member this.getSimulationData (step: int) ((cid,ap): FComponentId) (opn: OutputPortNumber) =
@@ -530,41 +530,41 @@ type FastSimulation = {
 /// Each list of pairs is converted into a map at the end in the final GatherData structure
 /// The cost of creating maps makes it important to use lists here as the intermediate structures
 and GatherTemp = {
-    /// Links Custom Component Id and input port number to corresponding Input 
-    /// Component Id (of an Input component which is not top-level)
+    // Links Custom Component Id and input port number to corresponding Input 
+    // Component Id (of an Input component which is not top-level)
     CustomInputCompLinksT: ((FComponentId * InputPortNumber) * FComponentId) list
-    /// Links (non-top-level) Output component Id to corresponding Custom Component Id & output port number
+    // Links (non-top-level) Output component Id to corresponding Custom Component Id & output port number
     CustomOutputCompLinksT: (FComponentId * (FComponentId * OutputPortNumber)) list
-    /// Shortcut to find the label of a component; notice that the access path is not needed here because
-    /// Labels of the graph inside a custom component are identical for different instances of the component
+    // Shortcut to find the label of a component; notice that the access path is not needed here because
+    // Labels of the graph inside a custom component are identical for different instances of the component
     Labels: (ComponentId * string) list
-    /// This indexes the SimulationGraph components from Id and access path. Note that the same simulation
-    /// component Id can appear with different access paths if a sheet is instantiated more than once.
-    /// Each entry corresponds to a single FastComponent.
-    /// Note that Custom components are not included in this list.
+    // This indexes the SimulationGraph components from Id and access path. Note that the same simulation
+    // component Id can appear with different access paths if a sheet is instantiated more than once.
+    // Each entry corresponds to a single FastComponent.
+    // Note that Custom components are not included in this list.
     AllCompsT: ((ComponentId*ComponentId list) * (SimulationComponent * ComponentId list)) list // links to component and its path in the graph
 }
 
 and  GatherData = {
-    /// Existing Issie data structure representing circuit for simulation - generated by runCanvasStateChecksAndBuildGraph
+    // Existing Issie data structure representing circuit for simulation - generated by runCanvasStateChecksAndBuildGraph
     Simulation: SimulationGraph
-    /// Maps Custom Component Id and input port number to corresponding Input 
-    /// Component Id (of an Input component which is not top-level)
+    // Maps Custom Component Id and input port number to corresponding Input 
+    // Component Id (of an Input component which is not top-level)
     CustomInputCompLinks: Map<FComponentId * InputPortNumber, FComponentId>
-    /// Maps (non-top-level) Output component Id to corresponding Custom Component Id & output port number
+    // Maps (non-top-level) Output component Id to corresponding Custom Component Id & output port number
     CustomOutputCompLinks: Map<FComponentId,  FComponentId * OutputPortNumber>
-    /// Maps custom component output to corresponding output FastComponent.
-    /// Inverse of CustomOutputCompLinks
+    // Maps custom component output to corresponding output FastComponent.
+    // Inverse of CustomOutputCompLinks
     CustomOutputLookup: Map<FComponentId * OutputPortNumber, FComponentId>
-    /// Shortcut to find the label of a component; notice that the access path is not needed here because
-    /// Labels of the graph inside a custom component are identical for different instances of the component
+    // Shortcut to find the label of a component; notice that the access path is not needed here because
+    // Labels of the graph inside a custom component are identical for different instances of the component
     Labels: Map<ComponentId,string>
-    /// This indexes the SimulationGraph components from Id and access path. Note that the same simulation
-    /// component Id can appear with different access paths if a sheet is instantiated more than once.
-    /// Each entry corresponds to a single FastComponent.
-    /// Note that Custom components are not included in this list.
+    // This indexes the SimulationGraph components from Id and access path. Note that the same simulation
+    // component Id can appear with different access paths if a sheet is instantiated more than once.
+    // Each entry corresponds to a single FastComponent.
+    // Note that Custom components are not included in this list.
     AllComps: Map<ComponentId*ComponentId list,SimulationComponent * ComponentId list> // maps to component and its path in the graph
-    /// List of component Input components that are driven externally to simulation
+    // List of component Input components that are driven externally to simulation
     } with
 
 
@@ -767,19 +767,19 @@ let getWaveformSpecifications
     let netGroups = makeAllNetGroups netList
     /// connMap maps each connection to the set of connected connections within the same sheet
     let connMap = makeConnectionMap netGroups
-    //Map.iter (fun key conns -> printfn "DEBUG: Key=%A, %d conns" key (Array.length conns)) connMap
     /// work out a good human readable name for a Netgroup. Normally this is the label of the driver of the NetGroup.
     /// Merge and Split and BusSelection components (as drivers) are removed,
     /// replaced by corresponding selectors on busses. Names are tagged with labels or IO connectors
     /// It is easy to change these names to make them more human readable.
     let nameOf ng  = netGroup2Label sd netList ng
-    /// findName (via netGroup2Label) will possibly not generate unique names for each netgroup
-    /// Names are defined via waveSimModel.AllPorts which adds to each name
-    /// an optional unique numeric suffic (.2 etc). These suffixes are stripped from names
-    /// when they are displayed
-    /// TODO: make sure suffixes are uniquely defines based on component ids (which will not change)
-    /// display then in wave windows where needed to disambiguate waveforms.        
-    /// Allports is the single reference throughout simulation of a circuit that associates names with netgroups
+
+    // findName (via netGroup2Label) will possibly not generate unique names for each netgroup
+    // Names are defined via waveSimModel.AllPorts which adds to each name
+    // an optional unique numeric suffic (.2 etc). These suffixes are stripped from names
+    // when they are displayed
+    // TODO: make sure suffixes are uniquely defines based on component ids (which will not change)
+    // display then in wave windows where needed to disambiguate waveforms.        
+    // Allports is the single reference throughout simulation of a circuit that associates names with netgroups
 
     Array.append
         (Array.map (getWaveformSpecFromNetGroup  fs connMap nameOf) netGroups)

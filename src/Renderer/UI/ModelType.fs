@@ -29,7 +29,7 @@ type MemoryEditorData = {
 
 
 type SheetWave = {
-    /// path to sheet from simulation graph root
+    // path to sheet from simulation graph root
     Path: ComponentId list
     Sheet: string
     CSort: string
@@ -121,19 +121,19 @@ type SVGCacheT = {
     }
 
 type SimParamsT = {
-    /// radix for numbers on SVG waveforms display
+    // radix for numbers on SVG waveforms display
     WaveViewerRadix: NumberBase
-    /// last clock cycle (index) of the generated SVG
+    // last clock cycle (index) of the generated SVG
     LastClkTime: uint
-    /// position of cursor (0 = first cycle)
+    // position of cursor (0 = first cycle)
     CursorTime: uint
-    /// width of one clock in SVG units
+    // width of one clock in SVG units
     ClkSvgWidth: float
-    /// names of NetGroups selected in wave editor and displayed in wave viewer
+    // names of NetGroups selected in wave editor and displayed in wave viewer
     DispNames: string array
-    /// RAMs to be displayed
+    // RAMs to be displayed
     MoreWaves: ComponentId list list
-    /// current scrolling position of waveform svg (used to possibly extend svgs if scrolling off screen)
+    // current scrolling position of waveform svg (used to possibly extend svgs if scrolling off screen)
     MoreNames: MoreWaveData list
     LastScrollPos: float option
 }
@@ -151,31 +151,31 @@ type SimActionT =
 
 
 type WaveSimModel = {
-    /// generate data using this 0 clock simulation, which comes from makeSimData
-    /// TODO: get rid of this and use only SimDataCache, since this is SimDataCache[0]
+    // generate data using this 0 clock simulation, which comes from makeSimData
+    // TODO: get rid of this and use only SimDataCache, since this is SimDataCache[0]
     InitWaveSimGraph : SimulationData option
     
-    /// parameters determining how and which viewer waves are displayed
+    // parameters determining how and which viewer waves are displayed
     SimParams: SimParamsT
 
-    /// Waveform names and details shown in the editor
+    // Waveform names and details shown in the editor
     AllWaves: Map<string,WaveformSpec>
 
-    /// react SVG for each waveform, indexed by name
+    // react SVG for each waveform, indexed by name
     DispWaveSVGCache: SVGCacheT 
-    /// Simulation output sample array of variable length
+    // Simulation output sample array of variable length
     SimDataCache: SimulatorTypes.SimulationData array
     
-    /// Hack to detect when  cursor text box is empty and use 0.
-    /// TODO - get rid of this - it should not be needed
+    // Hack to detect when  cursor text box is empty and use 0.
+    // TODO - get rid of this - it should not be needed
     CursorBoxIsEmpty: bool
    
     WSViewState: WSViewT
 
     WSTransition: (SimParamsT * WSViewT) option
-    /// the circuit that is being simulated - the canvas may have changed
+    // the circuit that is being simulated - the canvas may have changed
     LastCanvasState: CanvasState option 
-    /// the top-level sheet thsi is being simulated - the canvas may have changed
+    // the top-level sheet thsi is being simulated - the canvas may have changed
     } 
 
 let setSimParams (setFn: SimParamsT -> SimParamsT) (wsm:WaveSimModel) =
@@ -356,71 +356,71 @@ type Notifications = {
 
 
 type Model = {
-    /// All the data for waveform simulation (separate for each sheet)
-    /// TODO: remove the simulation error.
+    // All the data for waveform simulation (separate for each sheet)
+    // TODO: remove the simulation error.
     WaveSim : Map<string, WaveSimModel> * (SimulationError option)
-    /// which top-level sheet is used by wavesim
+    // which top-level sheet is used by wavesim
     WaveSimSheet: string
         
-    /// Draw Canvas
+    // Draw Canvas
     Sheet: Sheet.Model
 
-    /// true during period when a sheet or project is loading
+    // true during period when a sheet or project is loading
     IsLoading: bool
 
-    /// if canvas is now different from that which is currently used by wave sim.
+    // if canvas is now different from that which is currently used by wave sim.
     WaveSimulationIsOutOfDate: bool
 
     // last time check for changes was made
 
     LastChangeCheckTime: float
 
-    /// top-level canvas used for current wave simulation
+    // top-level canvas used for current wave simulation
     LastSimulatedCanvasState: CanvasState option // reduced (without layout) canvas state
-    /// used to determine whether current canvas has been saved (includes any change)
+    // used to determine whether current canvas has been saved (includes any change)
     LastDetailedSavedState: CanvasState
-    /// components and connections currently selected
+    // components and connections currently selected
 
     CurrentSelected: Component list * Connection list
-    /// component ids and connection ids previously selected (used to detect changes)
+    // component ids and connection ids previously selected (used to detect changes)
     LastSelectedIds: string list * string list
-    /// last used bus width in bits - used as default in next component create dialog
+    // last used bus width in bits - used as default in next component create dialog
     LastUsedDialogWidth: int
-    /// component currently selected in properties dialog
+    // component currently selected in properties dialog
     SelectedComponent : Component option // None if no component is selected.
-    /// used during step simulation: simgraph for current clock tick
+    // used during step simulation: simgraph for current clock tick
     CurrentStepSimulationStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
-    /// which of the tabbed panes is currentlky visible
+    // which of the tabbed panes is currentlky visible
     RightPaneTabVisible : RightTab
-    /// components and connections which are highlighted
+    // components and connections which are highlighted
     Hilighted : (ComponentId list * ConnectionId list) * ConnectionId list
-    /// Components and connections that have been selected and copied.
+    // Components and connections that have been selected and copied.
     Clipboard : CanvasState 
-    /// Track the last added component
+    // Track the last added component
     LastCreatedComponent : Component option 
-    /// used to enable "SAVE" button
+    // used to enable "SAVE" button
     SavedSheetIsOutOfDate : bool
-    /// the project contains, as loadable components, the state of each of its sheets
+    // the project contains, as loadable components, the state of each of its sheets
     CurrentProj : Project option
-    /// function to create popup pane if present
+    // function to create popup pane if present
     PopupViewFunc : ((Msg -> Unit) -> PopupDialogData -> Fable.React.ReactElement) option
-    /// data to populate popup (may not all be used)
+    // data to populate popup (may not all be used)
     PopupDialogData : PopupDialogData
-    /// record containing functions that create react elements of notifications
+    // record containing functions that create react elements of notifications
     Notifications : Notifications
-    /// State of menus for sheets, projects etc
+    // State of menus for sheets, projects etc
     TopMenuOpenState : TopMenu
-    /// used to determine whether mouse is currently dragging the divider, or used normally
+    // used to determine whether mouse is currently dragging the divider, or used normally
     DividerDragMode: DragMode
-    /// viewer width in pixels altered by dragging the divider
+    // viewer width in pixels altered by dragging the divider
     WaveSimViewerWidth: int
-    /// TODO - delete this, I think no longer needed
+    // TODO - delete this, I think no longer needed
     SimulationInProgress:  SimActionT option
-    /// if true highlight connections from wavesim editor
+    // if true highlight connections from wavesim editor
     ConnsOfSelectedWavesAreHighlighted: bool
-    /// true if wavesim scroll position needs checking
+    // true if wavesim scroll position needs checking
     CheckWaveformScrollPosition: bool
-    /// Contains a list of pending messages
+    // Contains a list of pending messages
     Pending: Msg list
     UIState: UICommandType Option
 } 
@@ -484,9 +484,9 @@ let getComponentIds (model: Model) =
     |> extractIds
     |> Set.ofList
 
-////////////////////////////
-/// Saving WaveSim Model ///
-////////////////////////////
+//------------------------//
+// Saving WaveSim Model   //
+//------------------------//
 
 /// get saveable record of waveform setup
 let waveSimModel2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =

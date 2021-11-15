@@ -108,9 +108,8 @@ module String =
     [<CompiledName("EndsWith")>]
     let endsWith (value:string) (str:string) =
         str.EndsWith(value, DefaultComparison)
-
-    [<CompiledName("Equals")>]
     /// See String.Equals
+    [<CompiledName("Equals")>]
     let equals (comparisonType:StringComparison) (value:string) (str:string) =
         str.Equals(value, comparisonType)
 

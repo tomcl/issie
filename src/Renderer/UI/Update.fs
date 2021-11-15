@@ -278,7 +278,7 @@ let update (msg : Msg) oldModel =
     | ReloadSelectedComponent width -> {model with LastUsedDialogWidth=width}, Cmd.none
     | StartSimulation simData -> 
         { model with CurrentStepSimulationStep = Some simData }, 
-        Cmd.batch[
+        Cmd.batch [
             Cmd.ofMsg (Sheet (Sheet.SetWaveSimMode false)); 
             // hack to make sure wavesim highlighting is reset - but step simulation error highlighting is not.
             // the state here clearly needs refactoring

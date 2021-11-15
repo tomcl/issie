@@ -632,7 +632,7 @@ let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (d
             FilePath = backupPath}
         |> writeComponentToFile
         |> displayAlertOnError dispatch
-        /// if necessary delete the old backup file
+        // if necessary delete the old backup file
         match oldFile with
         | Some oldPath when oldPath <> backupPath ->
             if Node.Api.fs.existsSync (Fable.Core.U2.Case1 oldPath) then
@@ -986,7 +986,7 @@ let renameSheet oldName newName (model:Model) dispatch =
         setupProjectFromComponents proj'.OpenFileName proj'.LoadedComponents model dispatch
         printfn "???Sheets after rename"
         printSheetNames {model with CurrentProj = Some proj'}
-        /// save all the other files
+        // save all the other files
         saveAllProjectFilesFromLoadedComponentsToDisk proj'
         dispatch FinishUICmd
 

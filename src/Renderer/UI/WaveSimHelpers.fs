@@ -525,9 +525,9 @@ let getSimGraph (sheet:string) (graph:SimulationGraph) =
 
                 
 
-///////////////////////////
-/// Naming of waveforms ///
-///////////////////////////
+//--------------------------//
+//   Naming of waveforms    //
+//--------------------------//
 
 /// get common NLSource of list of NLTarget with the same source
 let private nlTrgtLst2CommonNLSource (netList: NetList) (nlTrgtLst: NLTarget list) : NLSource option =
@@ -763,9 +763,9 @@ let button options func label =
 
 
 
-///////////////////
-/// Transitions ///
-///////////////////
+//-----------------//
+//   Transitions   //
+//-----------------//
 
 /// get m x (n-1) array of integers representing when value change between clock cycles from m x n waveData
 /// (1: change, 0 no change)
@@ -825,9 +825,9 @@ let private busLabelRepeats wsMod (busLabelValAndPos: {| WaveValue: Sample; XPos
             addLabel 1 xInd (n2StringOfRadix true w.BitData w.NBits wsMod.WaveViewerRadix)) busLabelValAndPos.XPosArray
     | _ -> [||]
 
-///////////////////////
-/// WaveSim Actions ///
-///////////////////////
+//--------------------//
+//   WaveSim Actions  //
+//--------------------//
 
 /// get SVG of a single waveform for one clock cycle
 let private makeClkSegment (clkW: float) (xInd: int)  =
@@ -1040,9 +1040,9 @@ let simulateAndMakeWaves (model: Model) (wsMod: WaveSimModel)
 
 
 
-//////////////////////////////////////
-/// Interaction with Model.Diagram ///
-//////////////////////////////////////
+//------------------------------------//
+//    Interaction with Model.Diagram  //
+//------------------------------------//
 
 /// is the given connection in the given NLTarget list
 let private isConnInNLTrgtLst (connId: ConnectionId) (nlTrgtLst: NLTarget list) =
@@ -1077,9 +1077,9 @@ let isWaveSelected (model:Model) (wSpec: WaveformSpec) =
         model.Sheet.GetSelectedConnections
         |> List.exists (fun conn -> ConnectionId conn.Id = wSpec.Conns[0]) 
     
-/////////////////////////////////////////////////////
-/// Functions fed into FileMenuView View function ///
-/////////////////////////////////////////////////////
+//--------------------------------------------------//
+//  Functions fed into FileMenuView View function   //
+//--------------------------------------------------//
 
 
 
@@ -1161,9 +1161,9 @@ let fileMenuViewActions model dispatch =
 
 
 
-///////////////////////////
+//-----------------------//
 // Auto-scroll functions //
-///////////////////////////
+//-----------------------//
 
 /// strings of the values displayed in the right column of the simulator
 let cursorValueStrings (wSMod: WaveSimModel) =
@@ -1207,9 +1207,9 @@ let makeCursorVisiblePos wSMod divWidth =
     let cursMid = cursLeftPos + (wSMod.SimParams.ClkSvgWidth * 40.0 / 2.0)
     cursMid - (divWidth / 2.0)
 
-/////////////////////////////////////////
+//-------------------------------------//
 // Functions to Manage Wave Editor     //
-/////////////////////////////////////////
+//-------------------------------------//
 
 type SheetInfo = {
     SheetName: ComponentId; 

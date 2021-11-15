@@ -1474,7 +1474,7 @@ let rec extractFastSimulationOutput
                 if fd.Width=0 then failwithf $"Can't find valid data in step {step}:index{step % fs.MaxArraySize} from {fc.FullName} with clockTick={fs.ClockTick}"
                 fd |> fastToWire)
    | None ->
-        /// if it is a custom component output extract from the corresponding Output FastComponent
+        // if it is a custom component output extract from the corresponding Output FastComponent
         match Map.tryFind ((cid, ap), opn) fs.G.CustomOutputLookup with
         | Some (cid, ap) -> extractFastSimulationOutput fs step (cid, ap) (OutputPortNumber 0)
         | None -> failwithf "What? extracting component data failed - can't find component from id"

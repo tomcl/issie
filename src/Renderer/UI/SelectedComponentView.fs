@@ -316,7 +316,7 @@ let private makeDescription (comp:Component) model dispatch =
             
             span [Style [FontWeight "bold"; FontSize "15px"]] [str <| "Inputs"]
             ul [] (toHTMLList custom.InputLabels)
-            br[]
+            br []
             span [Style [FontWeight "bold"; FontSize "15px"]] [str <| "Outputs"]
             ul [] (toHTMLList custom.OutputLabels)
         ]

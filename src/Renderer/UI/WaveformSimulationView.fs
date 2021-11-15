@@ -690,9 +690,9 @@ let private waveformsView compIds model netList wSMod dispatch =
 
 
 
-////////////////////////////////////////////////////////////////////////
-///         TOP-LEVEL WAVE SIMULATION TRANSITIONS AND VIEWS          ///
-////////////////////////////////////////////////////////////////////////
+//-------------------------------------------------------------------//
+//         TOP-LEVEL WAVE SIMULATION TRANSITIONS AND VIEWS           //
+//-------------------------------------------------------------------//
 
 
 
@@ -700,7 +700,6 @@ let private waveformsView compIds model netList wSMod dispatch =
 
 /// TRANSITION: Switch between WaveformEditor (WSEditorOpen) and WaveformViewer (WSVieweropen) view
 /// sets wsModel for the new view
-
 let private openEditorFromViewer model (dispatch: Msg -> Unit) : Unit = 
     let wsModel = getWSModelOrFail model "What? no wsModel in openCloseWaveEditor"
     // set the currently displayed waves as selected in wave editor
@@ -711,6 +710,7 @@ let private openEditorFromViewer model (dispatch: Msg -> Unit) : Unit =
 
 
 //-----------------------------------------------------------------------------------------------------------------
+
 /// TRANSITION
 /// This starts a wave simulation of a new circuit
 /// Set wsModel to show the list of waveforms that can be selected from a new simulation
@@ -720,7 +720,7 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
     let comps,conns = model.Sheet.GetCanvasState()
     let compIds = comps |> List.map (fun c -> ComponentId c.Id) |> Set
     let rState = Extractor.extractReducedState (comps,conns)
-    /// subfunction to generate popup over waveeditor screen if there are undriven input connections
+    // subfunction to generate popup over waveeditor screen if there are undriven input connections
     let inputWarningPopup (simData:SimulatorTypes.SimulationData) dispatch =
         if simData.Inputs <> [] then
             let inputs = 
@@ -749,8 +749,8 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
 
         let wSpecs = 
             SimulatorTypes.getWaveformSpecifications (netGroup2Label compIds) simData rState
-        //printfn "Starting comps = %A" (fst rState |> List.map (fun comp -> comp.Label, comp.Type))
-        //SimulatorTypes.printSimGraph simData.Graph
+        // printfn "Starting comps = %A" (fst rState |> List.map (fun comp -> comp.Label, comp.Type))
+        // SimulatorTypes.printSimGraph simData.Graph
         let allowedNames = 
             wsModel.SimParams.DispNames
             |> Array.filter (fun name -> Map.containsKey name wSpecs)

@@ -294,7 +294,7 @@ let displayView model dispatch =
                                                     dispatch <| ChangeRightTab Simulation ) 
                                             ] [str "Simulation"] ] )
                             
-                                    /// Optional wavesim tab. If present contains waveforms or waveform editor window
+                                    // Optional wavesim tab. If present contains waveforms or waveform editor window
                                     (match currWaveSimModel model with
                                     | Some {WSViewState=WSClosed} -> 
                                         div [] []

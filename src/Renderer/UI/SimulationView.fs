@@ -501,7 +501,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
 
     let tip tipTxt txt =
         span [
-                //Style [Float FloatOptions.Left]
+                // Style [Float FloatOptions.Left]
                 HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
                 Tooltip.dataTooltip tipTxt
             ]
@@ -550,7 +550,7 @@ let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) 
         let (badComps,badConns) = (simError.ComponentsAffected, simError.ConnectionsAffected)
         dispatch <| SetHighlighted (badComps,badConns)
         if not (Sheet.isAllVisible model.Sheet badConns badComps) then
-            /// make whole diagram visible if any of the errors are not visible
+            // make whole diagram visible if any of the errors are not visible
             keyDispatch <| Sheet.KeyboardMsg.CtrlW
         dispatch <| Sheet(Sheet.SetWaveSimMode false)
 

@@ -187,24 +187,24 @@ let getLabelConnections (comps:Component list) (conns: Connection list) =
         |> List.map (fun co -> ComponentId co.Id, co)
         |> Map.ofList
 
-    let getComp n = compIdMap.[n]
+    let getComp n = compIdMap[n]
 
     let targetMap =
         conns
         |> List.map (fun conn -> ComponentId conn.Target.HostId, conn)
         |> Map.ofList
 
-    let getConnection (compTarget:Component) = targetMap.[ComponentId compTarget.Id]
+    let getConnection (compTarget:Component) = targetMap[ComponentId compTarget.Id]
 
     let copyConnection (conn: Connection) (compTarget:Component) (tagNum:int) =
-        {conn with Target = compTarget.InputPorts.[0]; Id = sprintf "iolab%d" tagNum + conn.Id}
+        {conn with Target = compTarget.InputPorts[0]; Id = sprintf "iolab%d" tagNum + conn.Id}
 
     let getDriverConnection (comps: Component list) =
         comps
         |> List.tryFind (fun co -> (Map.tryFind (ComponentId co.Id) targetMap) <> None)
         |> function 
             | None -> failwithf "What? component cannot be found in %A" targetMap
-            | Some comp -> targetMap.[ComponentId comp.Id]
+            | Some comp -> targetMap[ComponentId comp.Id]
 
     labels
     |> List.groupBy (fun co -> co.Label)

@@ -182,8 +182,8 @@ let listSet (lst : 'a list) (item : 'a) (idx : int) : 'a list =
 let cropToLength (len : int) (fromStart : bool) (str : string) =
     match str.Length <= len with
     | true -> str
-    | false when fromStart -> str.[..len-1] + "..." // From start.
-    | false -> "..." + str.[str.Length - len..]     // From end.
+    | false when fromStart -> str[..len-1] + "..." // From start.
+    | false -> "..." + str[str.Length - len..]     // From end.
 
 
 let getMemData (address: int64) (memData: Memory1) =
@@ -228,20 +228,20 @@ let getNetList ((comps,conns) : CanvasState) =
         |> Map.ofList
 
     let getOutputPortNumber (p:Port) = 
-        id2Outs.[ComponentId p.HostId]
+        id2Outs[ComponentId p.HostId]
         |> List.find (fun p1 -> p1.Id = p.Id)
         |> (fun p -> match p.PortNumber with Some n -> n | None -> failwithf "Missing input port number on %A" p.HostId)
         |> OutputPortNumber
        
    
     let getInputPortNumber (p:Port) = 
-        id2Ins.[ComponentId p.HostId]
+        id2Ins[ComponentId p.HostId]
         |> List.find (fun p1 -> p1.Id = p.Id)
         |> (fun p -> match p.PortNumber with Some n -> n | None -> failwithf "Missing input port number on %A" p.HostId)
         |> InputPortNumber
     
     let updateNComp compId updateFn (nets:NetList) =
-        Map.add compId (updateFn nets.[compId]) nets
+        Map.add compId (updateFn nets[compId]) nets
 
     let updateInputPorts pNum src (comp:NetListComponent) =
         { comp with Inputs = Map.add pNum (Some src) comp.Inputs}
@@ -251,7 +251,7 @@ let getNetList ((comps,conns) : CanvasState) =
         updateNComp compId uFn nets
 
     let updateOutputPorts pNum tgt (comp:NetListComponent) =
-        {comp with Outputs = Map.add pNum (tgt :: comp.Outputs.[pNum]) comp.Outputs}
+        {comp with Outputs = Map.add pNum (tgt :: comp.Outputs[pNum]) comp.Outputs}
 
     let updateOutputsComp compId pNum tgt nets =
         let uFn = updateOutputPorts pNum tgt
@@ -273,8 +273,8 @@ let getNetList ((comps,conns) : CanvasState) =
     let addConnectionsToNets (nets:Map<ComponentId,NetListComponent>) (conn:Connection) =
         let tgt = target conn
         let src = source conn
-        let tComp = id2Comp.[tgt.TargetCompId]
-        let sComp = id2Comp.[src.SourceCompId]
+        let tComp = id2Comp[tgt.TargetCompId]
+        let sComp = id2Comp[src.SourceCompId]
         nets
         |> updateOutputsComp (ComponentId sComp.Id) src.OutputPort tgt
         |> updateInputsComp (ComponentId tComp.Id)tgt.InputPort src
@@ -294,7 +294,7 @@ let checkPerformance m n startTimer stopTimer =
         startTimer "Array"
         while index < n do
              index <- index + 1
-             el <- buff.[el]    
+             el <- buff[el]    
         el |> ignore
         stopTimer "Array"   
 
@@ -308,7 +308,7 @@ let checkPerformance m n startTimer stopTimer =
         while index < n / 2 do
             index <- index + 1
             for i = 0 to (m-1)/2 do
-                el <- buff.[el] + index
+                el <- buff[el] + index
         el |> ignore
         stopTimer "ArrayBufferLookup"   
 
@@ -322,7 +322,7 @@ let checkPerformance m n startTimer stopTimer =
          while index < n do
               index <- index + 1
               el <- if el+1 < m then el+1 else 0
-              buff.[el]  <- index    
+              buff[el]  <- index    
          buff |> ignore
          stopTimer "Mutable Array"   
 
@@ -337,9 +337,9 @@ let checkPerformance m n startTimer stopTimer =
          startTimer "Copy-update Array"
          let z = (buff,[0..n]) ||> List.fold (fun buff i -> 
             let r = (Array.copy buff)
-            r.[i % m] <- i
+            r[i % m] <- i
             r)
-         z.[0] |> ignore          
+         z[0] |> ignore          
          stopTimer "Copy-update Array"   
 
     let listBuffer() = 
@@ -351,20 +351,20 @@ let checkPerformance m n startTimer stopTimer =
         startTimer "List"
         while index < n do
              index <- index + 1
-             el <- buff.[el]
+             el <- buff[el]
         el |> ignore
         stopTimer "List"   
 
     let dictBuffer() =
         let dict = System.Collections.Generic.Dictionary()
         [|0..m-1|]
-        |> Array.iter (fun i -> dict.[i] <- (i+1) % m)
+        |> Array.iter (fun i -> dict[i] <- (i+1) % m)
         let mutable index = 0
         let mutable el = 0
         startTimer "Dict"
         while index < n do
             index <- index + 1
-            el <- dict.[el]
+            el <- dict[el]
         index |> ignore
         stopTimer "Dict"   
 
@@ -378,7 +378,7 @@ let checkPerformance m n startTimer stopTimer =
         startTimer "Map"
         while index < n do
             index <- index + 1
-            el <- buff.[el]
+            el <- buff[el]
         index |> ignore
         stopTimer "Map"   
 
@@ -396,7 +396,7 @@ let checkPerformance m n startTimer stopTimer =
         startTimer "HMap"
         while index < n do
             index <- index + 1
-            el <- third (Option.get <| hMapTryFind getFastHItem (getFastSHA) arr.[el] buff)
+            el <- third (Option.get <| hMapTryFind getFastHItem (getFastSHA) arr[el] buff)
         index |> ignore
         stopTimer "HMap"   
 
@@ -410,7 +410,7 @@ let checkPerformance m n startTimer stopTimer =
         let buff = arr |> arrayToHmap getFastHItem getFastSHA
         printfn $"hMap count = {hMapCount buff}"
         startTimer "UpdateHMap"
-        let buf = (buff, [|0..n-1|]) ||> Array.fold (fun buff i -> hMapAdd getFastHItem getFastSHA arr.[i % m] buff)
+        let buf = (buff, [|0..n-1|]) ||> Array.fold (fun buff i -> hMapAdd getFastHItem getFastSHA arr[i % m] buff)
         stopTimer "UpdateHMap" 
         
     let updateMapBuffer() = 
@@ -426,7 +426,7 @@ let checkPerformance m n startTimer stopTimer =
     let updateDictBuffer() = 
         let dict = System.Collections.Generic.Dictionary()
         [|0..m-1|]
-        |> Array.iter (fun i -> dict.[i] <- (i+1) % m)
+        |> Array.iter (fun i -> dict[i] <- (i+1) % m)
         startTimer "UpdateDict"
         let dict = (dict, [|0..n-1|]) ||> Array.fold (fun dict i -> 
             let d = System.Collections.Generic.Dictionary(dict)

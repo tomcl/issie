@@ -99,7 +99,7 @@ let addVirtualBusLabelConnections
 
     let comps = mapValues compIdToComp
 
-    let inputPort0Id (comp:Component) = InputPortId comp.InputPorts.[0].Id
+    let inputPort0Id (comp:Component) = InputPortId comp.InputPorts[0].Id
 
     let labelGroups =
         comps
@@ -174,7 +174,7 @@ let private calculateOutputPortsWidth
         match getWidthsForPorts inputConnectionsWidth ([InputPortNumber 0]) with
         | [None] -> Ok <| Map.empty
         | [Some n] -> 
-            let outs = outputPortsOfBusLabels.[comp.Label]
+            let outs = outputPortsOfBusLabels[comp.Label]
             outs
             |> List.map (fun out -> out,n)
             |> Map.ofList |> Ok
@@ -582,7 +582,7 @@ let private mapInputPortIdsToVirtualConnectionIds (conns: Connection list) (comp
     let getBusLabelConns (compLst: Component list)  =
         compLst
         |> List.collect (fun comp ->
-            Map.tryFind (InputPortId comp.InputPorts.[0].Id) targetPortIdToConId
+            Map.tryFind (InputPortId comp.InputPorts[0].Id) targetPortIdToConId
             |> function | None -> [] | Some cId -> [cId])
     
     let mapLabels =
@@ -590,7 +590,7 @@ let private mapInputPortIdsToVirtualConnectionIds (conns: Connection list) (comp
         |> List.groupBy (fun comp -> comp.Label)
         |> List.map (fun (lab,compLst) ->
             match getBusLabelConns compLst  with
-            | [cId] -> List.map (fun comp -> (InputPortId comp.InputPorts.[0].Id, cId)) compLst |> Ok
+            | [cId] -> List.map (fun comp -> (InputPortId comp.InputPorts[0].Id, cId)) compLst |> Ok
             | h when h.Length <> 1 -> Error {
                 Msg = sprintf "A Labelled wire must no more than one driving component. '%s' labels have %d drivers" lab h.Length
                 ConnectionsAffected = h 

@@ -98,7 +98,7 @@ let private calculateConnectionsAffected
     if cycle.Length < 2 then failwithf "what? Cycle with length less than 2: %A" cycle
     // Find a connection among all pairs.
     cycle
-    |> List.mapi (fun i compId -> (compId, cycle.[(i + 1) % cycle.Length]))
+    |> List.mapi (fun i compId -> (compId, cycle[(i + 1) % cycle.Length]))
     |> List.map (findConnection connections)
 
 /// Check that the combinatorial logic contains no cycles, in a given graph.

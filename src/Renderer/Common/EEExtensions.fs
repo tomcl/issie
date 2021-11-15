@@ -206,7 +206,7 @@ module String =
     let regexMatchGroups (regex:string) (str:string) =
         let m = Text.RegularExpressions.Regex.Match(str, regex)
         if m.Success then 
-            Some [ for n in [1..m.Groups.Count] -> m.Groups.[n].Value ]
+            Some [ for n in [1..m.Groups.Count] -> m.Groups[n].Value ]
         else None
  
     /// Match a regular expression

@@ -71,8 +71,8 @@ let private genMaps ((comps,conns):CanvasState) =
         |> List.map (fun co -> ComponentId co.Id, co)
         |> Map.ofList
 
-    let targetIsLabel (c: Connection) = idToComp.[ComponentId c.Target.HostId].Type = IOLabel
-    let sourceIsLabel (c: Connection) = idToComp.[ComponentId c.Source.HostId].Type = IOLabel
+    let targetIsLabel (c: Connection) = idToComp[ComponentId c.Target.HostId].Type = IOLabel
+    let sourceIsLabel (c: Connection) = idToComp[ComponentId c.Source.HostId].Type = IOLabel
     let splitBy pred lst =
         (([],[]), lst) ||> List.fold (fun (is, isNot) x -> 
                 if pred x then (x :: is, isNot) else (is,x::isNot))
@@ -252,7 +252,7 @@ let private checkCounts (conns : Connection list) connMap bins binMap cond errMs
     checkEvery totals cond errMsg
 
 let private checkConns (conns : Connection list) (m : MapData) : SimulationError option =
-    let compOfPort p = m.ToComp.[ComponentId p.HostId]
+    let compOfPort p = m.ToComp[ComponentId p.HostId]
     conns
     |> List.tryPick (fun conn ->
         let s = compOfPort conn.Source
@@ -282,9 +282,9 @@ let private checkPortsAreConnectedProperly
         (canvasState : CanvasState) =
     let m = genMaps canvasState
     let conns = m.Connections
-    let portMap (p:Port) = [m.ToComp.[ComponentId p.HostId]]
-    let inPIdMap pid = m.ToInputPort.[InputPortId pid]
-    let labMap (lab:string) = m.LabGroup.[lab]
+    let portMap (p:Port) = [m.ToComp[ComponentId p.HostId]]
+    let inPIdMap pid = m.ToInputPort[InputPortId pid]
+    let labMap (lab:string) = m.LabGroup[lab]
     let l2Pid (lst: Port list) = lst |> List.map (fun x -> x.Id)
 
     [
@@ -294,7 +294,7 @@ let private checkPortsAreConnectedProperly
                 "A component input port must have precisely one driving component, but %d \
                 were found. If you want to merge wires together use a MergeWires component, not direct connection")
 
-        checkCounts m.LabTargetConns (fun conn -> m.ToComp.[ComponentId conn.Target.HostId].Label) (m.LabGroup |> Map.toList |> List.map fst)  labMap ((=) 1) (
+        checkCounts m.LabTargetConns (fun conn -> m.ToComp[ComponentId conn.Target.HostId].Label) (m.LabGroup |> Map.toList |> List.map fst)  labMap ((=) 1) (
                 "A set of labelled wires must be driven (on the input of one of the labels): but no such driver was found",
                 "A set of labelled wires must have precisely one driving component, but %d \
                 were found. \

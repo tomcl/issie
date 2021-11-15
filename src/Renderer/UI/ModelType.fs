@@ -190,7 +190,7 @@ let setEditorView view wsModel =
 let setEditorNextView nView simParas wsModel =
     {wsModel with WSTransition = Some(simParas, nView)}   
 
-let inline getWave (ws:WaveSimModel) (name: string) = ws.AllWaves.[name]
+let inline getWave (ws:WaveSimModel) (name: string) = ws.AllWaves[name]
 
 let inline getDispName (ws:WaveSimModel) (wave:WaveformSpec) =
     Map.tryFindKey (fun k v -> v = wave) ws.AllWaves
@@ -198,7 +198,7 @@ let inline getDispName (ws:WaveSimModel) (wave:WaveformSpec) =
     
 let inline dispWaves (ws: WaveSimModel) =
     ws.SimParams.DispNames
-    |> Array.map (fun name -> ws.AllWaves.[name])
+    |> Array.map (fun name -> ws.AllWaves[name])
 
 let inline AllPorts (ws: WaveSimModel) =
     ws.AllWaves

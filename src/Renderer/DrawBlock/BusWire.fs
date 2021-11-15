@@ -90,7 +90,7 @@ let ppSId (sId:SegmentId) =
     sId
     |> (fun (SegmentId x) -> x)
     |> Seq.toList
-    |> (fun chars -> chars.[0..2])
+    |> (fun chars -> chars[0..2])
     |> List.map string
     |> String.concat ""
 
@@ -101,7 +101,7 @@ let ppWId (wId:ConnectionId) =
         wId
         |> (fun (ConnectionId x) -> x)
         |> Seq.toList
-        |> (fun chars -> chars.[0..2])
+        |> (fun chars -> chars[0..2])
         |> List.map string
         |> String.concat ""
 
@@ -134,7 +134,7 @@ let ppMaps (model:Model) =
 
 let ppSeg seg (model: Model) = 
         let cid,sid = seg
-        let wire = model.WX.[cid]
+        let wire = model.WX[cid]
         let sg = List.find (fun (s:Segment) -> s.Id = sid ) wire.Segments
         let pxy (xy: XYPos) = sprintf $"{(xy.X,xy.Y)}"
         sprintf $"""[{ppSId sg.Id}: {pxy sg.Start}->{pxy sg.End}]-{match sg.Dir with | Vertical -> "V" | _ -> "H"}-{sg.Index}"""
@@ -143,7 +143,7 @@ let pp segs (model: Model)=
     segs
     |> List.map  ( fun seg ->
         let cid,sid = seg
-        let wire = model.WX.[cid]
+        let wire = model.WX[cid]
         match List.tryFind (fun (s:Segment) -> s.Id = sid ) wire.Segments with
         | Some  sg ->
             let pxy (xy: XYPos) = sprintf $"{(xy.X,xy.Y)}"
@@ -155,7 +155,7 @@ let pp segs (model: Model)=
 
 /// Wire to Connection
 let segmentsToVertices (segList:Segment list) = 
-    let firstCoord = (segList.[0].Start.X, segList.[0].Start.Y)
+    let firstCoord = (segList[0].Start.X, segList[0].Start.Y)
     let verticesExceptFirst = List.mapi (fun i seg -> (seg.End.X,seg.End.Y)) segList
     [firstCoord] @ verticesExceptFirst
 
@@ -228,8 +228,8 @@ let inferDirectionfromVertices (xyVerticesList: XYPos list) =
         | 1 -> Some Horizontal
         | -1 -> Some Vertical
         | _ -> None
-    let midS, midE = xyVerticesList.[3], xyVerticesList.[4]
-    let first,last = xyVerticesList.[1], xyVerticesList.[5]
+    let midS, midE = xyVerticesList[3], xyVerticesList[4]
+    let first,last = xyVerticesList[1], xyVerticesList[5]
     let xDelta = abs last.X - abs first.X
     match getDir midS midE, abs xDelta > 20.0, xDelta > 0.0 with
     | Some Horizontal, _, _ when midE.X < midS.X -> Some Horizontal
@@ -258,7 +258,7 @@ let xyVerticesToSegments connId (isLeftToRight: bool) (xyVerticesList: XYPos lis
                 Index = i
                 Start = {X=startX;Y=startY};
                 End = {X=endX;Y=endY};
-                Dir = dirs.[i]
+                Dir = dirs[i]
                 HostId  = connId;
                 JumpCoordinateList = [];
                 Draggable =
@@ -277,7 +277,7 @@ let issieVerticesToSegments
         |> List.map (fun (x,y) -> {X=x;Y=y})
 
     let makeSegmentsFromVertices (xyList: XYPos list) =
-        makeInitialWireVerticesList (xyList.[0], xyList.[xyList.Length - 1])
+        makeInitialWireVerticesList (xyList[0], xyList[xyList.Length - 1])
         |> (fun (vl, isLeftToRight) -> xyVerticesToSegments connId isLeftToRight vl)
         
 
@@ -307,7 +307,7 @@ let issieVerticesToSegments
 /// Connection type, offering an interface
 /// between our implementation and Issie.
 let extractConnection (wModel : Model) (cId : ConnectionId) : Connection =
-    let conn = wModel.WX.[cId]
+    let conn = wModel.WX[cId]
     let ConnectionId strId, InputPortId strInputPort, OutputPortId strOutputPort = conn.Id, conn.InputPort, conn.OutputPort
     {
         Id = strId
@@ -510,8 +510,8 @@ let renderSegment (segment : Segment) (colour : string) (width : string) : React
 
                 | lst ->
                      let y = seg.Start.Y // SHOULD be equal to seg.End.Y since ONLY horizontal segments have jumps
-                     let firstSegmentJumpCoordinate = lst.[0]
-                     let lastSegmentJumpCoordinate = lst.[(List.length lst) - 1]
+                     let firstSegmentJumpCoordinate = lst[0]
+                     let lastSegmentJumpCoordinate = lst[(List.length lst) - 1]
 
                      if (segment.Start.X > segment.End.X) then
                          renderWireSubSegment seg.Start {X = firstSegmentJumpCoordinate + segmentJumpHorizontalSize/2.0; Y = y}
@@ -531,7 +531,7 @@ let renderSegment (segment : Segment) (colour : string) (width : string) : React
         let wireSegmentReactElementList = segment
                                           |> completeWireSegmentRenderFunction
 
-        g[] wireSegmentReactElementList
+        g [] wireSegmentReactElementList
     
     else
         let Xa, Ya, Xb, Yb = segment.Start.X, segment.Start.Y, segment.End.X, segment.End.Y
@@ -543,7 +543,7 @@ let renderSegment (segment : Segment) (colour : string) (width : string) : React
             [
                 makeCircle Xb Yb circleParameters
             ]
-        g[] segmentElements
+        g [] segmentElements
 
 
 /// This function is given two couples of
@@ -634,7 +634,7 @@ let distanceFromPointToSegment (point : XYPos) (segment : Segment) : float =
 let routeGivenWiresBasedOnPortPositions (wiresToBeRouted : list<ConnectionId>) (model : Model) : Model = 
     let updatedWireMap = 
         wiresToBeRouted
-        |> List.map (fun id -> model.WX.[id])
+        |> List.map (fun id -> model.WX[id])
         |> List.map
             (
                 fun wire -> 
@@ -645,7 +645,7 @@ let routeGivenWiresBasedOnPortPositions (wiresToBeRouted : list<ConnectionId>) (
     
     let newWX = 
         model.WX
-        |> Map.map (fun id wire -> if Map.containsKey id updatedWireMap then updatedWireMap.[id] else wire)
+        |> Map.map (fun id wire -> if Map.containsKey id updatedWireMap then updatedWireMap[id] else wire)
 
     {model with WX = newWX}
 
@@ -654,13 +654,13 @@ let routeGivenWiresBasedOnPortPositions (wiresToBeRouted : list<ConnectionId>) (
 /// this function returns a list of Segments of the
 /// wire corresponding to the given id that intersect the bounding box.
 let getIntersectingSegments (model:Model) (wireId:ConnectionId) (selectBox:BoundingBox) : list<Segment> =     
-    model.WX.[wireId].Segments
+    model.WX[wireId].Segments
     |> List.filter (fun seg -> fst(segmentIntersectsBoundingBoxCoordinates seg selectBox))
 
 
 //Finds the closest segment in a wire to a point using euclidean distance
 let getClosestSegment (model : Model) (wireId : ConnectionId) (pos : XYPos) : Segment =
-    model.WX.[wireId].Segments
+    model.WX[wireId].Segments
     |> List.minBy (
         fun seg -> 
             distanceFromPointToSegment pos seg)
@@ -763,7 +763,7 @@ let removeRedundantSegments  (segs: Segment list) =
                 [setEndX seg1.Start.X seg1; setStartX seg1.End.X seg2]
         else
             [seg1;seg2]
-    adjust segs.[0] segs.[1] @  segs.[2..4] @ adjust segs.[5] segs.[6]
+    adjust segs[0] segs[1] @  segs[2..4] @ adjust segs[5] segs[6]
 
 
 
@@ -776,18 +776,18 @@ let removeRedundantSegments  (segs: Segment list) =
 /// The moved segment is tagged by negating one of its coordinates so that it cannot be auto-routed
 /// after the move, thus keeping the moved position.
 let moveSegment (seg:Segment) (distance:float) (model:Model) = 
-    let wire = model.WX.[seg.HostId]
+    let wire = model.WX[seg.HostId]
     let index = seg.Index
     if index <= 0 || index >= wire.Segments.Length - 1 then
         failwithf $"Buswire segment index {index} out of range in moveSegment in wire length {wire.Segments.Length}"
-    let prevSeg = wire.Segments.[index-1]
-    let nextSeg = wire.Segments.[index+1]
+    let prevSeg = wire.Segments[index-1]
+    let nextSeg = wire.Segments[index+1]
     if seg.Dir = prevSeg.Dir || seg.Dir = nextSeg.Dir then
         wire
     else
         //runTestFable()
         distance      
-        |> getSafeDistanceForMove seg wire.Segments.[0] wire.Segments.[6]   
+        |> getSafeDistanceForMove seg wire.Segments[0] wire.Segments[6]   
         |> (fun distance' ->
             let newPrevEnd, newSegStart, newSegEnd, newNextStart = 
                 match seg.Dir with
@@ -809,7 +809,7 @@ let moveSegment (seg:Segment) (distance:float) (model:Model) =
             let newNextSeg = {nextSeg with Start = newNextStart}
         
             let newSegments =
-                wire.Segments.[.. index-2] @ [newPrevSeg; newSeg; newNextSeg] @ wire.Segments.[index+2 ..]
+                wire.Segments[.. index-2] @ [newPrevSeg; newSeg; newNextSeg] @ wire.Segments[index+2 ..]
                 |> removeRedundantSegments
 
             {wire with Segments = newSegments})
@@ -948,7 +948,7 @@ let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model: Model) =
         let changeSegment segs =
             List.mapi (fun i x -> if i <> index then x else { x with JumpCoordinateList = jumps }) segs
 
-        newWX <- Map.add wid { newWX.[wid] with Segments = changeSegment newWX.[wid].Segments } newWX
+        newWX <- Map.add wid { newWX[wid] with Segments = changeSegment newWX[wid].Segments } newWX
 
     let segs =
         model.WX
@@ -956,7 +956,7 @@ let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model: Model) =
         |> Array.mapi (fun i (wid, w) -> List.toArray w.Segments)
 
     for w1 in 0 .. segs.Length - 1 do
-        for h in segs.[w1] do
+        for h in segs[w1] do
             if h.Dir = Horizontal then
                 // work out what jumps this segment should have
                 let mutable jumps: (float * SegmentId) list = []
@@ -966,7 +966,7 @@ let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model: Model) =
                         // everything inside the inner loop should be very highly optimised
                         // it is executed n^2 time where n is the number of segments (maybe 5000)
                         // the abs here are because segment coordinates my be negated to indicate manual routing
-                        for v in segs.[w2] do
+                        for v in segs[w2] do
                             if not (Array.contains v.HostId wiresWithNoJumpsA) then
                                 match v.Dir with
                                 | Vertical ->
@@ -1136,8 +1136,8 @@ let topology (pos1: XYPos) (pos2:XYPos) =
 /// This allows the same code to work on both ends of the wire, with segment reversal done outside this
 /// function to implement input -> output direction.
 let partialAutoRoute (segs: Segment list) (newPortPos: XYPos) =
-    let wirePos = segs.[0].End
-    let portPos = segs.[0].Start
+    let wirePos = segs[0].End
+    let portPos = segs[0].Start
     let newWirePos = {newPortPos with X = newPortPos.X + (abs wirePos.X - portPos.X) }
     let (diff:XYPos) = {X=newPortPos.X-portPos.X; Y= newPortPos.Y - portPos.Y}
     let lastAutoIndex =
@@ -1149,7 +1149,7 @@ let partialAutoRoute (segs: Segment list) (newPortPos: XYPos) =
         |> List.length
         |> (fun n -> if n > 5 then None else Some (n + 1))
     let scaleBeforeSegmentEnd segIndex =
-        let seg = segs.[segIndex]
+        let seg = segs[segIndex]
         let fixedPt = getAbsXY seg.End
         let scale x fx nx wx =
             if nx = fx then x else ((abs x - fx)*(nx-fx)/(abs wx - fx) + fx) * float (sign x)
@@ -1165,14 +1165,14 @@ let partialAutoRoute (segs: Segment list) (newPortPos: XYPos) =
         | _ -> None
 
     let checkTopology index =
-        let finalPt = segs.[6].Start
+        let finalPt = segs[6].Start
         let oldTop x = topology (if index = 1 then portPos else wirePos) x
         let newTop x = topology (if index = 1 then newPortPos else newWirePos) x
         if oldTop finalPt <> newTop finalPt then
             // always aandon manual routing
             None 
         else
-            let manSegEndPt = segs.[index].End
+            let manSegEndPt = segs[index].End
             let oldT = oldTop manSegEndPt
             let newT = newTop manSegEndPt
             if oldT = newT then
@@ -1279,16 +1279,16 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         let processConWidths (connWidths: ConnectionsWidth) =
             let addWireWidthFolder (wireMap: Map<ConnectionId, Wire>) _ wire  =
                 let width =
-                    match connWidths.[wire.Id] with
+                    match connWidths[wire.Id] with
                     | Some a -> a
                     | None -> wire.Width
                 let newColor = if wire.Color = Purple || wire.Color = Brown then Purple else DarkSlateGrey
                 wireMap.Add ( wire.Id, { wire with Width = width ; Color = newColor} )
 
             let addSymbolWidthFolder (m: Map<ComponentId,Symbol.Symbol>) (_: ConnectionId) (wire: Wire) =
-                    let inPort = model.Symbol.Ports.[match wire.InputPort with InputPortId ip -> ip]
+                    let inPort = model.Symbol.Ports[match wire.InputPort with InputPortId ip -> ip]
                     let symId = ComponentId inPort.HostId
-                    let symbol = m.[symId]
+                    let symbol = m[symId]
 
                     match symbol.Compo.Type with
                     | SplitWire n ->
@@ -1381,7 +1381,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 match segList with
                 | h::t -> if h.Id = segId then h else getSeg t
                 | _ -> failwithf "segment Id not found in segment list"
-            let seg = getSeg model.WX.[connId].Segments
+            let seg = getSeg model.WX[connId].Segments
             if seg.Draggable then
                 let distanceToMove = 
                     match seg.Dir with
@@ -1519,4 +1519,4 @@ let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list
 let getPortIdsOfWires (model: Model) (connIds: ConnectionId list) : (InputPortId list * OutputPortId list) =
     (([], []), connIds)
     ||> List.fold (fun (inputPorts, outputPorts) connId ->
-            (model.WX.[connId].InputPort :: inputPorts, model.WX.[connId].OutputPort :: outputPorts))
+            (model.WX[connId].InputPort :: inputPorts, model.WX[connId].OutputPort :: outputPorts))

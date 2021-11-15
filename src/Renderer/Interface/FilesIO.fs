@@ -102,7 +102,7 @@ let readFilesFromDirectoryWithExtn (path:string) (extn:string) : string list =
 
 let removeExtn extn fName = 
     if hasExtn extn fName
-    then Some fName.[0..(fName.Length - extn.Length - 1)]
+    then Some fName[0..(fName.Length - extn.Length - 1)]
     else None
 
 /// returns the list of backup files in descending chronological order.
@@ -209,7 +209,7 @@ let getBaseNameNoExtension filePath =
         // Quite ugly but works.
         let rest =
             ("", [0..splits.Length - 2]) ||> List.fold (fun baseName i ->
-                name + "." + splits.[i]
+                name + "." + splits[i]
             )
         firstSplit + rest
 

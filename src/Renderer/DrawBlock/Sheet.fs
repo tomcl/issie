@@ -481,15 +481,15 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                                 ((input.Side2 % gridSize) - gridSize), input.Side2 ]
                 
                 let getMarginWithDirection (sortedMargins: (float*float)list) (dir: float) = 
-                    if abs(fst(sortedMargins.[0]) - fst(sortedMargins.[1])) < 0.1 then
+                    if abs(fst(sortedMargins[0]) - fst(sortedMargins[1])) < 0.1 then
                         //printfn "HERE"
                         //printfn "%A" dir 
                         if dir > 0. then 
                         //    printf "HERE1"
-                            sortedMargins.[0] 
-                        else sortedMargins.[1]
+                            sortedMargins[0] 
+                        else sortedMargins[1]
                     else 
-                        sortedMargins.[0]
+                        sortedMargins[0]
 
                 let sortedMargins = List.rev (List.sortByDescending (fun (margin, _) -> abs margin) margins)
 
@@ -507,7 +507,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                        Indicator = None |} 
         
         let compId = model.SelectedComponents.Head
-        let boundingBox = model.BoundingBoxes.[compId]
+        let boundingBox = model.BoundingBoxes[compId]
         let x1, x2, y1, y2 = boundingBox.X, boundingBox.X + boundingBox.W, boundingBox.Y, boundingBox.Y + boundingBox.H
         
         // printfn "%A" mMsg.Pos.X
@@ -554,7 +554,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
     | _ -> // Moving multiple symbols -> don't do snap-to-grid
         let errorComponents = 
             model.SelectedComponents
-            |> List.filter (fun sId -> not (notIntersectingComponents model model.BoundingBoxes.[sId] sId))
+            |> List.filter (fun sId -> not (notIntersectingComponents model model.BoundingBoxes[sId] sId))
         {model with Action = nextAction ; LastMousePos = mMsg.Pos; ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}; ErrorComponents = errorComponents },
         Cmd.batch [ symbolCmd (Symbol.MoveSymbols (model.SelectedComponents, posDiff mMsg.Pos model.LastMousePos))
                     symbolCmd (Symbol.ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
@@ -588,7 +588,7 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
     | DragAndDrop ->
         let errorComponents = 
             model.SelectedComponents
-            |> List.filter (fun sId -> not (notIntersectingComponents model model.BoundingBoxes.[sId] sId))
+            |> List.filter (fun sId -> not (notIntersectingComponents model model.BoundingBoxes[sId] sId))
 
         match List.isEmpty errorComponents with 
         | false -> model, Cmd.none
@@ -1105,7 +1105,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 List.filter (fun cId -> List.contains cId cIds |> not) model.PrevWireSelection
             else
                 List.append cIds model.PrevWireSelection
-        {model with SelectedWires = newWires}, Cmd.batch[Cmd.ofMsg (ColourSelection([], newWires, HighLightColor.Blue)); wireCmd (BusWire.SelectWires newWires)]
+        {model with SelectedWires = newWires}, Cmd.batch [Cmd.ofMsg (ColourSelection([], newWires, HighLightColor.Blue)); wireCmd (BusWire.SelectWires newWires)]
     | SetSpinner isOn ->
         if isOn then {model with CursorType = Spinner}, Cmd.none
         else {model with CursorType = Default}, Cmd.none

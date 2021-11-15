@@ -186,11 +186,11 @@ let guessAtRenamedPorts (matches: PortChange array)  : PortChange array =
         |> Set.toList
         |> List.map (fun n -> 
             {
-                New = Some (fst additions.[n])
-                Old = Some (fst deletions.[n])
-                Direction = (additions.[n] |> snd).Direction
+                New = Some (fst additions[n])
+                Old = Some (fst deletions[n])
+                Direction = (additions[n] |> snd).Direction
                 Message = "This appears to be a renamed port, connections will be kept"
-            }, [snd additions.[n]; snd deletions.[n]])
+            }, [snd additions[n]; snd deletions[n]])
         |> List.unzip
 
     let deletedMatches = List.concat deletedMatches
@@ -644,7 +644,7 @@ let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (d
 /// returns a WaveSimModel option if a file is loaded, otherwise None
 let currWaveSimModel (model: Model) =
     match getCurrFile model with
-    | Some fileName when Map.containsKey fileName (fst model.WaveSim) -> Some (fst model.WaveSim).[fileName]
+    | Some fileName when Map.containsKey fileName (fst model.WaveSim) -> Some ((fst model.WaveSim)[fileName])
     | _ -> None
 
 let private displayFileErrorNotification err dispatch =
@@ -719,7 +719,7 @@ let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lc
         printf "In updateLoadedcomponents can't find name='%s' in components:%A" name lcLst
         lcLst
     | Some n ->
-        let oldLc = lcLst.[n]
+        let oldLc = lcLst[n]
         let newLc = setFun oldLc
         writeComponentToBackupFile 0 1. oldLc dispatch
         List.mapi (fun i x -> if i = n then newLc else x) lcLst
@@ -1057,14 +1057,14 @@ let private removeFileInProject name project model dispatch =
             // reate a new empty file with default name main as sole file in project
             let newComponents = [ (createEmptyDiagramFile project.ProjectPath "main") ]
             let project' = {project' with LoadedComponents = newComponents; OpenFileName="main"}
-            openFileInProject' false newComponents.[0].Name project' model dispatch
+            openFileInProject' false newComponents[0].Name project' model dispatch
         | [], false -> 
             failwithf "What? - this cannot happen"
         | nc, true ->
             // open one of the undeleted loadedcomponents
             printfn $"remove sheet '{name}'"
             printSheetNames {model with CurrentProj = Some project'}
-            openFileInProject' false project'.LoadedComponents.[0].Name project' model dispatch
+            openFileInProject' false project'.LoadedComponents[0].Name project' model dispatch
         | nc, false ->
             // nothing chnages except LoadedComponents
             printfn $"remove sheet '{name}'"
@@ -1437,7 +1437,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
             let projectFiles = 
                 project.LoadedComponents 
                 |> List.map (fun comp -> 
-                    let tree = sTrees.[comp.Name]
+                    let tree = sTrees[comp.Name]
                     makeFileLine (isSubSheet tree.Node) comp.Name project model , tree)
                 |> List.sortBy (fun (line,tree) -> isSubSheet tree.Node, tree.Node, -tree.Size, tree.Node.ToLower())
                 |> List.map fst

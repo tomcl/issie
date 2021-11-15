@@ -18,7 +18,7 @@ module CommonTypes
     let charCode0 = int '0' 
 
     let inline getHashDigit n (h:string) =
-        let ch = h.[n]
+        let ch = h[n]
         if System.Char.IsDigit ch then
             int ch - charCode0          
         elif System.Char.IsLetter ch then
@@ -34,7 +34,7 @@ module CommonTypes
 
     let getFastHItem (x,_,_) = x
 
-    let getFastSHA (sha:string, x:int array, _)  n = x.[n]
+    let getFastSHA (sha:string, x:int array, _)  n = x[n]
 
     let inline copyUpdate n item arr =
         Array.init 
@@ -55,15 +55,15 @@ module CommonTypes
                     let h' = hash' shaIndex
                     let arr = initHArray()
                     if h <> h' then
-                        arr.[h] <- Found item 
-                        arr.[h'] <- Found item'
+                        arr[h] <- Found item 
+                        arr[h'] <- Found item'
                         Tree arr
                     else 
-                        arr.[h'] <- hAdd (shaIndex+1) (Found item')
+                        arr[h'] <- hAdd (shaIndex+1) (Found item')
                         Tree arr
             | Tree arr ->
                 let h = hash shaIndex
-                let hm' = hAdd (shaIndex+1) arr.[h]
+                let hm' = hAdd (shaIndex+1) arr[h]
                 Tree <| copyUpdate h hm' arr
         hAdd 0 hm  
 
@@ -82,17 +82,17 @@ module CommonTypes
                     let h = hash shaIndex
                     let h' = hash' shaIndex
                     if h <> h' then
-                        arr.[h] <- Found item 
-                        arr.[h'] <- Found item'
+                        arr[h] <- Found item 
+                        arr[h'] <- Found item'
                         Tree arr
                     else 
-                        arr.[h'] <- hAdd (shaIndex+1) (Found item')
+                        arr[h'] <- hAdd (shaIndex+1) (Found item')
                         Tree arr
                         
             | Tree arr ->
                 let h = hash shaIndex
-                let hm' = hAdd (shaIndex+1) arr.[h]
-                arr.[h] <- hm'
+                let hm' = hAdd (shaIndex+1) arr[h]
+                arr[h] <- hm'
                 Tree arr
         hAdd 0 hm  
 
@@ -102,7 +102,7 @@ module CommonTypes
             | Found item' when getFastEq item' = getFastEq item ->
                 Some item'
             | Tree arr ->
-                let hit = arr.[getSHA item shaIndex]
+                let hit = arr[getSHA item shaIndex]
                 lookup (shaIndex+1) hit
             | _ -> None
         lookup 0 hm

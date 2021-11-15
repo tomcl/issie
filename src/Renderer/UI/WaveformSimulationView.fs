@@ -42,7 +42,7 @@ module rec WaveformSimulationView
 //
 //WaveSim: Map<string,waveSimModel>
 //accessed as:
-//model.WaveSim.[openSheetName]: WaveSimModel
+//model.WaveSim[openSheetName]: WaveSimModel
 //
 //TODO: The WaveSimModel is only valid when a project is open and the Wavesim data in reality should be part of
 //the current sheet LoadedComponent record, tus WaveSim record moves inside LoadedComponent record and no longer
@@ -122,7 +122,7 @@ let maxUsedViewerWidth (wSMod: WaveSimModel) =
 
 /// change selection of a waveform's connections
 let private changeWaveConnsSelect  (selFun: WaveformSpec -> bool) (model:Model) (wSModel: WaveSimModel) name (dispatch: Msg -> unit) =
-    let wave =  wSModel.AllWaves.[name] 
+    let wave =  wSModel.AllWaves[name] 
     let on = selFun wave
     match wave.WType with
     | ViewerWaveform _ -> 
@@ -198,7 +198,7 @@ let private moveWave (model:Model) (wSMod: WaveSimModel) up =
     let svgCache = wSMod.DispWaveSVGCache
     let movedNames =
         wSMod.SimParams.DispNames
-        |> Array.map (fun name -> isWaveSelected model wSMod.AllWaves.[name], name)
+        |> Array.map (fun name -> isWaveSelected model wSMod.AllWaves[name], name)
         |> Array.fold (fun (arr, prevSel) (sel,p) -> 
             match sel, prevSel with 
             | true, true -> addLastPort arr p, sel
@@ -294,7 +294,7 @@ let private waveSimViewerRows compIds model (wsMod: WaveSimModel) (dispatch: Msg
                       [ input
                           [ Type "checkbox"
                             Class "check"
-                            Checked <| isWaveSelected model allWaves.[name]
+                            Checked <| isWaveSelected model allWaves[name]
                             Style [ Float FloatOptions.Left ]
                             OnChange(fun _ -> toggleWaveConnsSelect model wsMod name dispatch) ] ]
                   td
@@ -328,7 +328,7 @@ let private radixTabs (wsModel: WaveSimModel) dispatch =
                       Height "30px" ]
                   OnClick(fun _ ->
                       InitiateWaveSimulation (WSViewerOpen,{wsModel.SimParams with WaveViewerRadix = rad})
-                      |> dispatch) ] [ str (radixString.[rad]) ] ]
+                      |> dispatch) ] [ str (radixString[rad]) ] ]
     Tabs.tabs
         [ Tabs.IsToggle
           Tabs.Props
@@ -441,11 +441,11 @@ let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRo
     /// get reference to HTML elemnt that is scrolled
     let allWaveformsHtmlRef (el: Browser.Types.Element) =
         if not (isNull el) then // el can be Null, in which case we do nothing
-            element := Some el // set mutable reference to the HTML element for later use
+            element.Value <- Some el // set mutable reference to the HTML element for later use
             let scrollPos = el.clientWidth + el.scrollLeft
             if Some scrollPos <> pars.LastScrollPos then
                 SetLastScrollPos (Some scrollPos) |> ignore
-        match !element with
+        match element.Value with
         | Some e -> 
             match model.CheckWaveformScrollPosition with
             | true when not (isCursorVisible wSModel e.clientWidth e.scrollLeft) -> 
@@ -456,7 +456,7 @@ let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRo
             UpdateScrollPos false |> dispatch
 
     let scrollFun (ev:Browser.Types.UIEvent) = // function called whenever scroll position is changed
-        match !element with // element should now be the HTMl element that is scrolled
+        match element.Value with // element should now be the HTMl element that is scrolled
         | None -> () // do nothing
         | Some e ->
             if e.scrollWidth - e.clientWidth - e.scrollLeft < 10.0
@@ -479,7 +479,7 @@ let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRo
             //printfn "scrolling with scrollPos=%f" e.scrollLeft
     let waves = 
         wSModel.SimParams.DispNames 
-        |> Array.map (fun name -> waveformSvgRows.Waves.[name]) 
+        |> Array.map (fun name -> waveformSvgRows.Waves[name]) 
     div [ Ref allWaveformsHtmlRef 
           OnScroll scrollFun 
           Style [ MaxWidth(maxWavesColWidth wSModel)
@@ -555,10 +555,10 @@ let private waveEditorTickBoxAndNameRow model  wSModel name (dispatch: Msg -> un
               [ input
                   [ Type "checkbox"
                     Class "check"
-                    Checked <| isWaveSelected model allWaves.[name]
+                    Checked <| isWaveSelected model allWaves[name]
                     Style [ Float FloatOptions.Left ]
                     OnChange(fun _ -> toggleWaveConnsSelect model wSModel name dispatch) ] ]
-          td [] [ label [Style (getColorProp name)] [ str <| allWaves.[name].DisplayName ] ] ]
+          td [] [ label [Style (getColorProp name)] [ str <| allWaves[name].DisplayName ] ] ]
 
 let sortEditorNameOrder wsModel =
     let otherNames = 
@@ -621,7 +621,7 @@ let private waveEditorButtons (model: Model) (wSModel:WaveSimModel) dispatch =
             allWaves
             
             |> standardOrderWaves wSModel.SimParams.DispNames (fun s -> 
-                Map.containsKey s allWaves && isWaveSelected model allWaves.[s])
+                Map.containsKey s allWaves && isWaveSelected model allWaves[s])
     
         
         match viewableWaves.Length with
@@ -704,7 +704,7 @@ let private waveformsView compIds model netList wSMod dispatch =
 let private openEditorFromViewer model (dispatch: Msg -> Unit) : Unit = 
     let wsModel = getWSModelOrFail model "What? no wsModel in openCloseWaveEditor"
     // set the currently displayed waves as selected in wave editor
-    let waves = wsModel.SimParams.DispNames |> Array.map (fun name -> wsModel.AllWaves.[name])
+    let waves = wsModel.SimParams.DispNames |> Array.map (fun name -> wsModel.AllWaves[name])
     Array.iter (fun wave -> selectWaveConns model true wave dispatch) waves
     viewerWaveSet waves true wsModel dispatch
     dispatch <| UpdateWSModel (setEditorView WSEditorOpen)
@@ -755,7 +755,7 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
             wsModel.SimParams.DispNames
             |> Array.filter (fun name -> Map.containsKey name wSpecs)
         Array.iter (fun wave -> selectWaveConns model false wave dispatch) (mapValues wSpecs)
-        let waves = allowedNames |> Array.map (fun name -> wSpecs.[name])
+        let waves = allowedNames |> Array.map (fun name -> wSpecs[name])
         Array.iter (fun wave -> selectWaveConns model true wave dispatch) waves
         let wSpecs =
             wSpecs

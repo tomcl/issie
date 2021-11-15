@@ -51,18 +51,18 @@ let dec2hex (n: bigint) (nBits: uint32): string =
 
     let fourBit2HexDig =
         let bit vec n = if (1 <<< n) &&& vec = 0 then '0' else '1'
-        let hexDigOf n = (sprintf "%x" n).[0]
+        let hexDigOf n = (sprintf "%x" n)[0]
         [0..15]
         |> List.map (fun dig -> 
                 List.map (bit dig) [3..-1..0], hexDigOf dig)
         |> Map.ofList
 
     [ 0 .. 4 .. List.length paddedBin - 4 ]
-    |> List.map (fun i -> fourBit2HexDig.[ paddedBin.[i..i + 3] ])
+    |> List.map (fun i -> fourBit2HexDig[ paddedBin[i..i + 3] ])
     |> charList2String
 
 let dec2sdec (n: bigint) (nBits: uint32) =
-    if (dec2bin n nBits).[0] = '1' 
+    if (dec2bin n nBits)[0] = '1' 
         then n - bigint (2.0 ** (float nBits)) 
         else n
     |> string
@@ -171,9 +171,9 @@ let getWaveSetup (ws:WaveSimModel) (model:Model): MoreWaveSetup =
 let rec getSimComp (sg:SimulationGraph) path =
     match path with
     | [] -> failwithf "What? Path cannot be [] looking up sim component in wave sim"
-    | [cid]-> sg.[cid]
+    | [cid]-> sg[cid]
     | h :: t -> 
-        match sg.[h].CustomSimulationGraph with
+        match sg[h].CustomSimulationGraph with
         | Some sg -> getSimComp sg t
         | None -> failwithf "What? A non-terminal part of a path must have a customSimulationgraph"
 
@@ -256,7 +256,7 @@ let formatMemory (mem:Memory1) =
 /// return sample at current cursor position
 let getCursorSampleFromGraph (wSMod: WaveSimModel) =
     let n = int wSMod.SimParams.CursorTime
-    wSMod.SimDataCache.[n].Graph
+    wSMod.SimDataCache[n].Graph
 
 /// get Ram contents as array to display. RAM contents is
 /// determined on cursor sample from wSMod
@@ -267,7 +267,7 @@ let getRamInfoToDisplay wSMod (path: ComponentId list) =
     match sdOpt, apLst with
     | Some sd, (cid :: ap)  ->
         let state = Fast.extractFastSimulationState sd.FastSim (int cursorStep) (cid,ap)
-        let lab = match sd.FastSim.FComps.[cid,ap].SimComponent.Label with |  ComponentLabel lab -> lab
+        let lab = match sd.FastSim.FComps[cid,ap].SimComponent.Label with |  ComponentLabel lab -> lab
         match state with
         | RamState dat  ->
             lab, formatMemory dat
@@ -334,7 +334,7 @@ let extractSimData simData nCycles =
 
 /// get NLSource option from ComponentId and InputPortNumber
 let private drivingOutput (netList: NetList) compId inPortN =
-    netList.[compId].Inputs.[inPortN]
+    netList[compId].Inputs[inPortN]
 
 
 
@@ -393,7 +393,7 @@ let getAllWaveSimDataBySample (wsMod: WaveSimModel) =
 /// get values of waveforms for one sample
 let getWaveSimDataOneSample (wsMod: WaveSimModel) (sample:int) =
     let waves = dispWaves wsMod
-    wsMod.SimDataCache.[sample]
+    wsMod.SimDataCache[sample]
     |> getSimTime waves
 
 
@@ -541,9 +541,9 @@ let private nlTrgtLst2CommonNLSource (netList: NetList) (nlTrgtLst: NLTarget lis
 
 /// get label without (x:x) part at the end
 let private labelNoParenthesis (netList: NetList) compId = 
-    let lbl = netList.[compId].Label
+    let lbl = netList[compId].Label
     match Seq.tryFindIndexBack ((=) '(') lbl with
-    | Some i -> lbl.[0..i - 1]
+    | Some i -> lbl[0..i - 1]
     | None -> lbl
 
 /// get integer from OutputPortInt
@@ -556,7 +556,7 @@ let net2outputsAndIOLabels (netList: NetList) (netLst: NLTarget list) =
     let nlTrgt2Lbls st nlTrgt = 
         match Map.tryFind nlTrgt.TargetCompId netList with
         | Some nlComp -> match nlComp.Type with
-                         | IOLabel | Output _ -> List.append st [netList.[nlTrgt.TargetCompId].Label]
+                         | IOLabel | Output _ -> List.append st [netList[nlTrgt.TargetCompId].Label]
                          | _ -> st
         | None -> st
     List.fold nlTrgt2Lbls [] netLst
@@ -612,11 +612,11 @@ let rec private findName (compIds: ComponentId Set) (sd: SimulationData) (net: N
             let drivingOutputName inPortN =
                 match drivingOutput net nlSource.SourceCompId inPortN with
                 | Some nlSource' ->
-                    net.[nlSource'.SourceCompId].Outputs.[nlSource'.OutputPort]
+                    net[nlSource'.SourceCompId].Outputs[nlSource'.OutputPort]
                     |> findName compIds sd net netGrp
                 | None ->  { OutputsAndIOLabels = []; ComposingLabels = [] } 
-            let srcComp = net.[nlSource.SourceCompId]
-            match net.[nlSource.SourceCompId].Type with
+            let srcComp = net[nlSource.SourceCompId]
+            match net[nlSource.SourceCompId].Type with
             | ROM _ | RAM _ | AsyncROM _ -> 
                     failwithf "What? Legacy RAM component types should never occur"
 
@@ -639,8 +639,8 @@ let rec private findName (compIds: ComponentId Set) (sd: SimulationData) (net: N
             | RAM1 mem | AsyncRAM1 mem | AsyncROM1 mem | ROM1 mem -> 
                 [ { LabName = compLbl + ".Dout"; BitLimits = mem.WordWidth - 1, 0 } ]
             | Custom c -> 
-                [ { LabName = compLbl + "." + (fst c.OutputLabels.[outPortInt])
-                    BitLimits = snd c.OutputLabels.[outPortInt] - 1, 0 } ]
+                [ { LabName = compLbl + "." + (fst c.OutputLabels[outPortInt])
+                    BitLimits = snd c.OutputLabels[outPortInt] - 1, 0 } ]
             | MergeWires -> 
                 List.append (drivingOutputName (InputPortNumber 1)).ComposingLabels 
                             (drivingOutputName (InputPortNumber 0)).ComposingLabels
@@ -686,11 +686,11 @@ let rec private findName (compIds: ComponentId Set) (sd: SimulationData) (net: N
                 |> List.choose id
                 |> List.rev
             | IOLabel -> 
-                let drivingComp = fs.FIOActive.[ComponentLabel srcComp.Label,[]]
+                let drivingComp = fs.FIOActive[ComponentLabel srcComp.Label,[]]
                 let ioLblWidth = Fast.extractFastSimulationWidth fs (drivingComp.Id,[]) (OutputPortNumber 0)
                 match ioLblWidth with
                 | None ->
-                    failwithf $"What? Can't find width for IOLabel {net.[srcComp.Id].Label}$ "
+                    failwithf $"What? Can't find width for IOLabel {net[srcComp.Id].Label}$ "
                 | Some width ->
                             
                             [ { LabName = compLbl
@@ -718,14 +718,14 @@ let netGroup2Label compIds (sd:SimulationData) netList (netGrp: NetGroup) =
         | lst when List.length lst > 0 ->
             let appendName st lblSeg = st + lblSeg.LabName + bitLimsString lblSeg.BitLimits + ", "
             List.fold appendName "{" lst 
-            |> (fun lbl -> lbl.[0..String.length lbl - 3] + "}")
+            |> (fun lbl -> lbl[0..String.length lbl - 3] + "}")
         |  _ -> ""
     let appendName st name = st + name + ", "
     match waveLbl.OutputsAndIOLabels with
     | [] -> tl
     | hdLbls -> 
         List.fold appendName "" hdLbls
-        |> (fun hd -> hd.[0..String.length hd - 3] + " : " + tl)
+        |> (fun hd -> hd[0..String.length hd - 3] + " : " + tl)
     |> simplifyName
     |> instrumentInterval "netGroup2Label" start
 
@@ -808,7 +808,7 @@ let private busLabelPositions (wSModel: WaveSimModel) (wave: Waveform) gaps =
         float g.GapStart + float i * float g.GapLen / float (nSpaces g)
     gaps
     |> Array.map (fun (gap) ->
-        {| WaveValue = wave.[gap.GapStart]
+        {| WaveValue = wave[gap.GapStart]
            XPosArray = Array.map (busLabelXPosition gap) [| 1 .. int (nSpaces gap) - 1 |] |} )
 
 /// get values position of bus labels
@@ -941,13 +941,13 @@ let waveSvg wsMod waveData  =
         match Array.length t with
         | 0 -> [| 1, 1 |]
         | 1 ->
-            [| (1, t.[0])
-               (t.[0], 1) |]
+            [| (1, t[0])
+               (t[0], 1) |]
         | _ ->
             Array.pairwise t
             |> (fun pairs ->
                 Array.concat
-                    [ [| 1, fst pairs.[0] |]
+                    [ [| 1, fst pairs[0] |]
                       pairs
                       [| snd (Array.last pairs), 1 |] ])
 
@@ -1075,7 +1075,7 @@ let isWaveSelected (model:Model) (wSpec: WaveformSpec) =
     | NormalWaveform, [||] -> false // can't select a wave with no connections (maybe this case does not exist)
     | NormalWaveform, conns -> 
         model.Sheet.GetSelectedConnections
-        |> List.exists (fun conn -> ConnectionId conn.Id = wSpec.Conns.[0]) 
+        |> List.exists (fun conn -> ConnectionId conn.Id = wSpec.Conns[0]) 
     
 /////////////////////////////////////////////////////
 /// Functions fed into FileMenuView View function ///
@@ -1119,7 +1119,7 @@ let highlightConnectionsFromWaves (model: Model) (dispatch: Msg -> Unit) =
                 mapValues wSModel.AllWaves                
             | WSViewerOpen  ->
                 wSModel.SimParams.DispNames
-                |> Array.map (fun name -> wSModel.AllWaves.[name])
+                |> Array.map (fun name -> wSModel.AllWaves[name])
             | WSClosed -> [||]
   
             

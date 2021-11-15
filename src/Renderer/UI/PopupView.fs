@@ -353,7 +353,7 @@ let makeSourceMenu
          (text = "" || 
             List.exists ((=) text) files || 
             not (Seq.forall System.Char.IsLetterOrDigit (text)) || 
-            not (System.Char.IsLetter (char text.[0])))
+            not (System.Char.IsLetter (char text[0])))
          |> not
  
     let fileEntryBox =
@@ -705,7 +705,7 @@ let viewInfoPopup dispatch =
         Text.span [ Modifiers [
             Modifier.TextSize (Screen.Desktop, TextSize.Is6)
             Modifier.TextWeight TextWeight.Bold
-        ] ] [str h; br[]]
+        ] ] [str h; br []]
     let styledSpan styles txt = span [Style styles] [str <| txt]
     let bSpan txt = styledSpan [FontWeight "bold"] txt
     let iSpan txt = styledSpan [FontStyle "italic"] txt
@@ -744,19 +744,19 @@ let viewInfoPopup dispatch =
         from the My Project section of the Catalog. \
         Multiple copies of other sheets can be added in this way. \
         Top-level sheets which are not used as subsheets are bolded on the sheet menu." 
-        br[]; br[]
+        br []; br []
         str "Issie has two types of simulation: The Simulation Tab is used mainly for combinational logic and simple clocked logic: \
         the top 'Waveforms >>' button works with clocked circuits and displays waveforms. Use whichever works for you." 
-        br[]; br[];
+        br []; br [];
         str "In Issie all clocked components use the same clock signal Clk. \
         Clk connections are not shown: all Clk ports are
         automatically connected together. In the waveform display active clock edges, 1 per clock cycle, are indicated \
         by vertical lines through the waveforms. The clock waveform has two edges for each clock cycle and is not shown."
-        br[]  ; br[];  
+        br []  ; br [];  
         button 
             [OnClick <| openInBrowser "https://github.com/tomcl/ISSIE"] 
             [ str "See the Issie Github Repo for more information"]
-        br[] ; br[] ]
+        br [] ; br [] ]
 
     let bugReport = 
         let oTextList txtL = Content.content [] [Content.Ol.ol [] (List.map (fun txt -> li [] [str txt]) txtL)]

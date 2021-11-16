@@ -237,14 +237,19 @@ let private projectFilters =
     |> unbox<FileFilter>
     |> Array.singleton
 
+let mutable firstProject = true // should really put this in model...
+
 /// Ask the user to choose a project file, with a dialog window.
 /// Return the folder containing the chosen project file.
 /// Return None if the user exits withouth selecting a path.
 let askForExistingProjectPath () : string option =
     let options = createEmpty<OpenDialogOptions>
     options.filters <- projectFileFilters
+    if firstProject then
+        options.defaultPath <- electron.remote.app.getPath AppPathName.Documents
     let w = renderer.remote.getCurrentWindow()
     electron.remote.dialog.showOpenDialogSync(w,options)
+    |> Option.map (fun fileName -> firstProject <- false; fileName)
     |> Option.bind (
         Seq.toList
         >> function

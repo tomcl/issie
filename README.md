@@ -151,14 +151,16 @@ If you want to get started as a developer, follow these steps.
 
 Download and install (if you already have these tools installed just check the version constraints).
 
-* [.Net 5 SDK](https://dotnet.microsoft.com/download/dotnet/5.0).  Version >= 5.0
-* [Node.js v12](https://nodejs.org/dist/latest-v12.x/). **Version 12**
+* [.Net 6 SDK](https://dotnet.microsoft.com/download/dotnet/6.0).  Version >= 6.0
+* [Node.js v12](https://nodejs.org/dist/latest-v12.x/). **Version > 12**
     * Node.js includes the `npm` package manager, so this does not need to be installed separately.
     * The lastest LTS version of Node is now v14. That will currently NOT work.
+* (recommended) Visual Studio 2022 which includes F# 6.0
+* (recommended) install [hyper.js](https://hyper.is/) to have a good command line interface - anything else you like ywill do.
 
 ### Issie Development
 
-1. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or if contributing clone it locally, or fork it on github and then clone it locally.
+1. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or if contributing clone it locally, or fork it on github and then clone it locally. Make sure you are contributing to the Issie repo - not the Issie parent repo, if cloning (Github desktop gives you this option when you clone).
 
 3. Navigate to the project root directory (which contains this README) in a command-line interpreter. For Windows usage make sure if possible for convenience 
 that you have a _tabbed_ command-line interpreter that can be started direct from file explorer within a specific directory (by right-clicking on the explorer directory view). 
@@ -176,7 +178,7 @@ That makes things a lot more pleasant. The new [Windows Terminal](https://github
 
 #### Development on Macos
 
-In theory the build should work equally well on macos. Practically that is not now (11/20) the case. Having installed the normal prerequisites, and Visual Studio for Mac, which itself has the F# compiler, the one-off setup can be done manually from the various build steps needed:
+In theory the build should work equally well on macos. Practically that is now (10/22) the case. Having installed the normal prerequisites, and Visual Studio for Mac, which itself has the F# compiler, the one-off setup can be done manually from the various build steps needed:
 
 * git clone to local project directory as normal (with github desktop or command line git - one off)
 * dotnet tool restore  (build tools - one off)

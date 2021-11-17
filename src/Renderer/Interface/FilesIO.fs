@@ -293,8 +293,8 @@ let rec askForNewProjectPath () : string option =
 
     
 let tryCreateFolder (path : string) =
-    if Seq.exists (fun (ch:char) -> (not (System.Char.IsLetterOrDigit ch))) (baseName path) then 
-        Result.Error <| "'%s' file or project names nust contain only letters or digits"
+    if Seq.exists (fun (ch:char) -> (not (System.Char.IsLetterOrDigit ch || ch = '_'))) (baseName path) then 
+        Result.Error <| "File or project names must contain only letters, digits, or underscores"
     else
         try
             Result.Ok <| fs.mkdirSync path

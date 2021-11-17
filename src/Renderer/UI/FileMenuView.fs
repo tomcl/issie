@@ -930,11 +930,11 @@ let maybeWarning dialogText project =
     if isFileInProject dialogText project then
         redText "This sheet already exists." 
     elif dialogText.StartsWith " " || dialogText.EndsWith " " then
-        redText "The name cannot start or end with a space."
+        redText "The sheet name cannot start or end with a space."
     elif String.exists ((=) '.') dialogText then
-        redText "The name cannot contain a file suffix."
-    elif not <| String.forall (fun c -> Char.IsLetterOrDigit c || c = ' ') dialogText then
-        redText "The name must be alphanumeric."
+        redText "The sheet name cannot contain a file suffix."
+    elif not <| String.forall (fun c -> Char.IsLetterOrDigit c || c = ' ' || c = '_') dialogText then
+        redText "The sheet name must contain only letters, digits, spaces or underscores"
     elif ((dialogText |> Seq.tryItem 0) |> Option.map Char.IsDigit) = Some true then
         redText "The name must not start with a digit"
     else None
@@ -1168,8 +1168,7 @@ let private newProject model dispatch  =
         match tryCreateFolder path with
         | Error err ->
             log err
-            let errMsg = "Could not create a folder for the project."
-            displayFileErrorNotification errMsg dispatch
+            displayFileErrorNotification err dispatch
         | Ok _ ->
             dispatch EndSimulation // End any running simulation.
             // Create empty placeholder projectFile.

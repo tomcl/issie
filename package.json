@@ -1,6 +1,6 @@
 {
   "name": "issie",
-  "version": "2.3.2",
+  "version": "2.3.3",
   "description": "Schematic editor and Simulator",
   "homepage": "https://github.com/tomcl/issie",
   "bugs": {
@@ -65,7 +65,7 @@
   "devDependencies": {
     "bufferutil": "^4.0.3",
     "electron": "^12",
-    "electron-builder": "^22.10.5",
+    "electron-builder": "^22",
     "electron-webpack": "^2.8.2",
     "file-loader": "^3.0.1",
     "html-webpack-plugin": "^4.5.2",

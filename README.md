@@ -199,6 +199,20 @@ If possible, try to avoid this, but if necessary it can be done. Probably the be
 To reinstall the build environment (without changing project code) rerun `build.cmd` (Windows) or `build.sh` (Linux and MacOS). You may need first to
 run `build killzombies` to remove orphan processes that lock build files.
 
+## Creating binaries
+
+`npm run dist` will generate the correct binaries for your system under `/dist`.
+
+### Issue as of November 2021
+
+Currently the build system uses `electron-webpack`, which uses `electron-builder`. 
+This downloads electron binaries automatically as part of `npm run dist`. This download,
+on some systems but not all, fails. The failure appears to be an obscure networking issue
+and is nothing to do with the system setup. The workaround
+is to run `npm run dist` again using Imperial College VPN. I have no idea whether 
+this is because the binaries are cached by Imperial College, or whether going through the
+VPN alters network timing and makes things work.
+
 ## TODO
 
 

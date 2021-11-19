@@ -46,6 +46,15 @@
     "asar": true,
     "win": {
       "target": "zip"
+    },
+    "mac": {
+      "target": {
+        "target": "default",
+        "arch": [
+          "x64",
+          "universal"
+        ]
+      }
     }
   },
   "dependencies": {

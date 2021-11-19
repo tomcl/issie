@@ -12,6 +12,18 @@ open Electron
 open Fable.React
 open JSTypes
 
+
+/// Fix to access the deprecated @electron.remote module.
+/// This must be enabled from main.fs
+/// NB the interface used here is not precisely correct, because it
+/// exposes the original electron-remote API. The @electron.remote API is
+/// a bit reduced, but with some extra code to control access.
+/// electronRemote replaces electron.remote and renderer.remote in old interface
+[<ImportAll("@electron/remote")>]
+let electronRemote : Remote = jsNative
+
+
+
 [<Emit("typeof $0")>]
 let jsType (var: obj) : unit = jsNative
 
@@ -116,7 +128,7 @@ let traceIf traceCode debugAction =
 /// 0 => production. 1 => dev. 2 => debug.
 let setDebugLevel() =
     let argV =
-        electron.remote.``process``.argv
+        electronRemote.``process``.argv
         |> Seq.toList
         |> (function | [] -> [] | _ :: args' -> args')
         |> List.map (fun s -> s.ToLower())

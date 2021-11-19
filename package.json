@@ -49,6 +49,7 @@
     }
   },
   "dependencies": {
+    "@electron/remote": "^2.0.1",
     "bulma": "^0.9.2",
     "bulma-tooltip": "^3.0.2",
     "core-js": "^3.12.1",
@@ -64,7 +65,7 @@
   },
   "devDependencies": {
     "bufferutil": "^4.0.3",
-    "electron": "^12",
+    "electron": "^14",
     "electron-builder": "^22",
     "electron-webpack": "^2.8.2",
     "file-loader": "^3.0.1",

@@ -15,6 +15,7 @@ open ModelType
 open Fable.SimpleJson
 open Fable.React
 open Fable.React.Props
+open JSHelpers
 
 
 let isMac = Node.Api.``process``.platform = Node.Base.Darwin
@@ -122,7 +123,7 @@ let fileMenu (dispatch) =
         makeItem "Exit Issie" None (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> PopupView.viewInfoPopup dispatch)
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Restart app" None (fun _ -> 
-            let webContents = electron.remote.getCurrentWebContents()
+            let webContents = electronRemote.getCurrentWebContents()
             webContents.reload())
         makeCondRoleItem (JSHelpers.debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace all" None (fun _ -> 
@@ -154,7 +155,7 @@ let viewMenu dispatch =
         makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch Sheet.KeyboardMsg.CtrlW)
         menuSeparator
         makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ -> 
-            let webContents = electron.remote.getCurrentWebContents()
+            let webContents = electronRemote.getCurrentWebContents()
             webContents.toggleDevTools())
     ]
 
@@ -195,9 +196,9 @@ let attachMenusAndKeyShortcuts dispatch =
                 viewMenu dispatch
             |]          
             |> Array.map U2.Case1
-            |> electron.remote.Menu.buildFromTemplate   
+            |> electronRemote.Menu.buildFromTemplate   
         menu.items[0].visible <- Some true
-        electron.remote.app.applicationMenu <- Some menu
+        electronRemote.app.applicationMenu <- Some menu
         attachExitHandler dispatch
 
     Cmd.ofSub sub    

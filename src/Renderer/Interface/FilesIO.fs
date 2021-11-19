@@ -16,6 +16,7 @@ open Electron
 open Node
 open EEExtensions
 open Fable.SimpleJson
+open JSHelpers
 
 
 [<Emit("__static")>]
@@ -246,9 +247,9 @@ let askForExistingProjectPath () : string option =
     let options = createEmpty<OpenDialogOptions>
     options.filters <- projectFileFilters
     if firstProject then
-        options.defaultPath <- electron.remote.app.getPath AppPathName.Documents
-    let w = renderer.remote.getCurrentWindow()
-    electron.remote.dialog.showOpenDialogSync(w,options)
+        options.defaultPath <- electronRemote.app.getPath AppPathName.Documents
+    let w = electronRemote.getCurrentWindow()
+    electronRemote.dialog.showOpenDialogSync(w,options)
     |> Option.map (fun fileName -> firstProject <- false; fileName)
     |> Option.bind (
         Seq.toList
@@ -271,15 +272,15 @@ let rec askForNewProjectPath () : string option =
         SaveDialogFeature.CreateDirectory
         SaveDialogFeature.ShowOverwriteConfirmation
         |]
-    match renderer.remote.getCurrentWindow() with
+    match electronRemote.getCurrentWindow() with
     | w ->
-        electron.remote.dialog.showSaveDialogSync(options)
+        electronRemote.dialog.showSaveDialogSync(options)
         |> Option.bind (fun dPath ->
             let dir = dirName dPath
             let files = fs.readdirSync <| U2.Case1 dir
             if Seq.exists (fun (fn:string) -> fn.EndsWith ".dprj") files
             then
-                electron.remote.dialog.showErrorBox(
+                electronRemote.dialog.showErrorBox(
                     "Invalid project directory",
                     "You are trying to create a new Issie project inside an existing project directory. \
                      This is not allowed, please choose a different directory")
@@ -600,9 +601,9 @@ let rec askForNewFile (projectPath: string) : string option =
     options.properties <- [|
         SaveDialogFeature.ShowOverwriteConfirmation
         |]
-    match renderer.remote.getCurrentWindow() with
+    match electronRemote.getCurrentWindow() with
     | w ->
-        electron.remote.dialog.showSaveDialogSync(options)
+        electronRemote.dialog.showSaveDialogSync(options)
         
 let saveAllProjectFilesFromLoadedComponentsToDisk (proj: Project) =
     proj.LoadedComponents

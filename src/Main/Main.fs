@@ -5,6 +5,7 @@ open Fable.Core.JsInterop
 open Electron
 open Node
 
+
 electron.systemPreferences.setUserDefault?("NSDisabledDictationMenuItem","boolean", "true")
 electron.systemPreferences.setUserDefault?("NSDisabledCharacterPaletteMenu","boolean", "true")
 
@@ -19,6 +20,24 @@ let argFlagIsOn (flags:string list) =
     List.exists (fun flag -> List.contains flag args) fl
 
 let hasDebugArgs() = argFlagIsOn ["--debug";"-d"]
+
+//[<Emit("require(@electron/remote/main).initialize()")>]
+//let initRemote():Unit = jsNative
+
+
+/// Fix to access the deprecated @electron.remote module.
+/// This must be enabled from main.fs
+/// NB the interface used here is not precisely correct, because it
+/// exposes the original electron-remote API. The @electron.remote API is
+/// a bit reduced, but with some extra code to control access.
+/// electronRemote replaces electron.remote and renderer.remote in old interface
+[<ImportAll("@electron/remote/main")>]
+let electronRemote : MainInterface = jsNative
+electronRemote?initialize() // one-off initialization (see also electronRemote.enable below)
+
+
+//initRemote()
+
 
 let debug = false
 
@@ -91,6 +110,9 @@ let createMainWindow () =
                 o.contextIsolation <- false
 
     let window = electron.BrowserWindow.Create(options)
+    let webContents = window.webContents
+    // enable electronRemote for the renderer window
+    electronRemote?enable webContents
 
     window.onceReadyToShow <| fun _ ->
         if window.isMinimized() then window.show()

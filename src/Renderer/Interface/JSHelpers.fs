@@ -8,7 +8,7 @@ module JSHelpers
 open Browser.Types
 open Fable.Core
 open Fable.Core.JsInterop
-open Electron
+open ElectronAPI
 open Fable.React
 open JSTypes
 
@@ -20,7 +20,7 @@ open JSTypes
 /// a bit reduced, but with some extra code to control access.
 /// electronRemote replaces electron.remote and renderer.remote in old interface
 [<ImportAll("@electron/remote")>]
-let electronRemote : Remote = jsNative
+let electronRemote : RemoteMainInterface = jsNative
 
 
 
@@ -86,7 +86,7 @@ let fshaprListToJsList (list : 'a list) =
     jsList
     
 /// Get the value for a change event in an input textbox.
-let getTextEventValue (event: Event) =
+let getTextEventValue (event: Browser.Types.Event) =
     getFailIfNull event.currentTarget ["value"] |> unbox<string>
 
 // Due to the way FABLE embeds integers in floats, with type erasure at runtime,
@@ -97,10 +97,10 @@ let getTextEventValue (event: Event) =
 
 /// Get the value for a change event in an input number box, 
 /// making sure it is an F# integer (JS integer values may not be precise)
-let getIntEventValue (event: Event) =
+let getIntEventValue (event: Browser.Types.Event) =
     getFailIfNull event.currentTarget ["value"] |> unbox<float> |> int
 
-let getInt64EventValue( event: Event) =
+let getInt64EventValue( event: Browser.Types.Event) =
     let boxText = getFailIfNull event ["target";"value"] |> unbox<string>
     let (ok,n) = System.Int64.TryParse boxText
     if not ok then 0L else n
@@ -127,16 +127,10 @@ let traceIf traceCode debugAction =
 /// set from command line arguments of main process.
 /// 0 => production. 1 => dev. 2 => debug.
 let setDebugLevel() =
-    let argV =
-        electronRemote.``process``.argv
-        |> Seq.toList
-        |> (function | [] -> [] | _ :: args' -> args')
-        |> List.map (fun s -> s.ToLower())
-    let isArg s = List.contains s argV
-
-    if isArg "--debug" || isArg "-d" then
+    let hasSwitch swName = electronRemote.app.commandLine.hasSwitch swName
+    if hasSwitch "debug" || hasSwitch "-d" then
         debugLevel <- 2
-    elif isArg "-w" then
+    elif hasSwitch "w" then
         debugLevel <- 1
 
 /// deliver string suitable for HTML color from a HighlightColor type value

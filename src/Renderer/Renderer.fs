@@ -8,7 +8,7 @@ open Elmish.HMR
 open Fable.Core
 open Fable.Core.JsInterop
 open Browser.Types
-open Electron
+open ElectronAPI
 open Electron.Helpers
 open ModelType
 
@@ -48,14 +48,14 @@ let testMaps() =
 ****************************************************************************************************)
 
 let menuSeparator =
-   let sep = createEmpty<MenuItemOptions>
-   sep.``type`` <- MenuItemType.Separator
+   let sep = createEmpty<MenuItemConstructorOptions>
+   sep.``type`` <- Some MenuItemType.Separator
    sep
 
 // Set up window close interlock using IPC from/to main process
 let attachExitHandler dispatch =
     // set up callback called when attempt is made to close main window
-    electron.ipcRenderer.on ("closingWindow", (fun (event: Event)->
+    renderer.ipcRenderer.on ("closingWindow", (fun (event: Event)->
         printfn "dispatching ShowExitDialog"
         // send a message which will process the request to exit
         dispatch <| MenuAction(MenuExit,dispatch)
@@ -64,46 +64,45 @@ let attachExitHandler dispatch =
 
 /// Make action menu item from name, opt key to trigger, and action.
 let makeItem (label : string) (accelerator : string option) (iAction : KeyboardEvent -> unit) =
-   let handlerCaster f = System.Action<MenuItem, BrowserWindow, KeyboardEvent> f 
-   let item = createEmpty<MenuItemOptions>
-   item.label <- label
-   match accelerator with | Some a -> item.accelerator <- a | _ -> ()
-   item.click <- handlerCaster (fun _ _ keyEvent-> iAction keyEvent)
+   let item = createEmpty<Electron.MenuItemConstructorOptions>
+   item.label <- Some label
+   item.accelerator <- accelerator
+   item.click <- Some (fun _ _ keyEvent -> iAction keyEvent)
    item
 
 /// Make role menu from name, opt key to trigger, and action.
 let makeRoleItem label accelerator role =
    let item = makeItem label accelerator (fun _ -> ())
-   item.role <- role
+   item.role <- Some role
    item
 
 /// make conditional menu item from condition, name, opt key to trigger, and role
 let makeCondRoleItem cond label accelerator role =
    let item = makeItem label accelerator (fun _ -> ())
-   item.role <- role
-   item.visible <- cond
+   item.role <- Some role
+   item.visible <- Some cond
    item
 
 /// make conditional menu item from condition, name, opt key to trigger, and action
 let makeCondItem cond label accelerator action =
    let item = makeItem label accelerator action
-   item.visible <- cond
+   item.visible <- Some cond
    item
 
 
 let makeElmItem (label:string) (accelerator : string) (action : unit -> unit) =
-    jsOptions<MenuItemOptions> <| fun item ->
-        item.label <- label
-        item.accelerator <- accelerator
-        item.click <- fun _ _ _ -> action()
+    jsOptions<MenuItemConstructorOptions> <| fun item ->
+        item.label <- Some label
+        item.accelerator <- Some accelerator
+        item.click <- Some (fun _ _ _ -> action())
 
 
 /// Make a new menu from a a list of menu items
-let makeMenu (topLevel: bool) (name : string) (table : MenuItemOptions list) =
-   let subMenu = createEmpty<MenuItemOptions>
-   subMenu.``type`` <- if topLevel then MenuItemType.Normal else MenuItemType.SubMenu
-   subMenu.label <- name
-   subMenu.submenu <- U2.Case1 (table |> Array.ofList)
+let makeMenu (topLevel: bool) (name : string) (table : MenuItemConstructorOptions list) =
+   let subMenu = createEmpty<MenuItemConstructorOptions>
+   subMenu.``type`` <- Some (if topLevel then MenuItemType.Normal else MenuItemType.Submenu)
+   subMenu.label <-Some name
+   subMenu.submenu <- Some (U2.Case1 (table |> ResizeArray))
    subMenu    
 
 let displayPerformance n m = Helpers.checkPerformance n m JSHelpers.startTimer JSHelpers.stopAndLogTimer
@@ -144,7 +143,7 @@ let viewMenu dispatch =
     
     let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
     makeMenu false "View" [
-        makeRoleItem "Toggle Fullscreen" (Some "F11") MenuItemRole.ToggleFullScreen
+        makeRoleItem "Toggle Fullscreen" (Some "F11") MenuItemRole.Togglefullscreen
         menuSeparator
         makeRoleItem "Zoom  In" (Some "CmdOrCtrl+Shift+Plus") MenuItemRole.ZoomIn
         makeRoleItem "Zoom  Out" (Some "CmdOrCtrl+Shift+-") MenuItemRole.ZoomOut
@@ -168,10 +167,10 @@ let editMenu dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let dispatch = Sheet.KeyPress >> sheetDispatch
 
-    jsOptions<MenuItemOptions> <| fun invisibleMenu ->
-        invisibleMenu.``type`` <- MenuItemType.SubMenu
-        invisibleMenu.label <- "Edit"
-        invisibleMenu.visible <- true
+    jsOptions<MenuItemConstructorOptions> <| fun invisibleMenu ->
+        invisibleMenu.``type`` <- Some MenuItemType.Submenu
+        invisibleMenu.label <- Some "Edit"
+        invisibleMenu.visible <- Some true
         invisibleMenu.submenu <-
             [| // makeElmItem "Save Sheet" "CmdOrCtrl+S" (fun () -> ())
                makeElmItem "Copy" "CmdOrCtrl+C" (fun () -> dispatch Sheet.KeyboardMsg.CtrlC)
@@ -181,7 +180,9 @@ let editMenu dispatch =
                makeElmItem "Undo" "CmdOrCtrl+Z" (fun () -> dispatch Sheet.KeyboardMsg.CtrlZ)
                makeElmItem "Redo" "CmdOrCtrl+Y" (fun () -> dispatch Sheet.KeyboardMsg.CtrlY)
                makeElmItem "Cancel" "ESC" (fun () -> dispatch Sheet.KeyboardMsg.ESC)|]
+            |> ResizeArray
             |> U2.Case1
+            |> Some
 
 let attachMenusAndKeyShortcuts dispatch =
     //setupExitInterlock dispatch

@@ -198,7 +198,7 @@ let attachMenusAndKeyShortcuts dispatch =
                 viewMenu dispatch
             |]          
             |> Array.map U2.Case1
-            |> electron.buildFromTemplate   //Help? How do we call buildfromtemplate
+            |> electronRemote.Menu.buildFromTemplate   //Help? How do we call buildfromtemplate
         menu.items[0].visible <- true
         electronRemote.app.applicationMenu <- Some menu
         attachExitHandler dispatch
@@ -240,7 +240,7 @@ let keyPressListener initial =
     let subDown dispatch =
         Browser.Dom.document.addEventListener("keydown", fun e ->
                                                 let ke: KeyboardEvent = downcast e
-                                                if (ke.ctrlKey || ke.metaKey) && firstPress then 
+                                                if (jsToBool ke.ctrlKey || jsToBool ke.metaKey) && firstPress then 
                                                     firstPress <- false 
                                                     dispatch <| Sheet(Sheet.ToggleSelectionOpen)
                                                 else 

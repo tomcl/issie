@@ -5,7 +5,7 @@ open Elmish
 open Fulma
 open Fable.React
 open Fable.React.Props
-open Electron
+open ElectronAPI
 open BusWidthInferer
 open SimulatorTypes
 open ModelType
@@ -175,7 +175,7 @@ let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) 
    
 let exitApp() =
     // send message to main process to initiate window close and app shutdown
-    Electron.electron.ipcRenderer.send("exit-the-app",[||])
+    renderer.ipcRenderer.send("exit-the-app",[||])
 
 ///Tests physical equality on two objects
 ///Used because Msg type does not support structural equality

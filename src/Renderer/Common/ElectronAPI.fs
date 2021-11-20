@@ -9,6 +9,8 @@ open Fable.Core
 open Fable.Core.JS
 open Browser.Types
 
+let jsToBool (b : bool option) = 
+    match b with | Some true -> true | _ -> false
 
 type NodeEventEmitter = Node.Events.EventEmitter
 
@@ -25,7 +27,7 @@ type [<AllowNullLiteral>] EventListenerOrEventListenerObject =
 
 [<Erase>] type KeyOf<'T> = Key of string
 type Array<'T> = System.Collections.Generic.IList<'T>
-type Error = System.Exception
+
 type Function = System.Action
 
 type Record<'T,'S> = 'T * 'S
@@ -41,11 +43,32 @@ type [<AllowNullLiteral>] GlobalEvent =
 
 [<AutoOpen>]
 module Electron =
-    let [<Import("Common","module/Electron")>] common: Common.IExports = jsNative
+    let [<Import("Common","Electron")>] common: Common.IExports = jsNative
     let electron = common
-    let [<Import("Main","module/Electron")>] main: Main.IExports = jsNative
+    let [<Import("Main","Electron")>] main: Main.IExports = jsNative
     let mainProcess = main
-    let [<Import("Renderer","module/Electron")>] renderer: Renderer.IExports = jsNative
+    let [<Import("Renderer","Electron")>] renderer: Renderer.IExports = jsNative
+
+    type Remote =
+      inherit RemoteMainInterface
+      /// Returns the object returned by require(module) in the main process.
+      /// Modules specified by their relative path will resolve relative to the
+      /// entrypoint of the main process.
+      abstract require: ``module``: string -> obj option
+      /// Returns the window to which this web page belongs.
+      ///
+      /// Note: Do not use removeAllListeners on BrowserWindow. Use of this can
+      /// remove all blur listeners, disable click events on touch bar buttons, and
+      /// other unintended consequences.
+      abstract getCurrentWindow: unit -> BrowserWindow
+      /// Returns the web contents of this web page.
+      abstract getCurrentWebContents: unit -> WebContents
+      /// Returns the global variable of name (e.g. global[name]) in the main
+      /// process.
+      abstract getGlobal: name: string -> obj option
+      /// The `process` object in the main process. This is the same as
+      /// remote.getGlobal('process') but is cached.
+      abstract ``process``: NodeJS.Process
 
     type [<AllowNullLiteral>] IExports =
         abstract NodeEventEmitter: obj
@@ -1101,10 +1124,10 @@ module Electron =
         [<Emit "$0.addListener('checking-for-update',$1)">] abstract ``addListener_checking-for-update``: listener: Function -> AutoUpdater
         [<Emit "$0.removeListener('checking-for-update',$1)">] abstract ``removeListener_checking-for-update``: listener: Function -> AutoUpdater
         /// Emitted when there is an error while updating.
-        [<Emit "$0.on('error',$1)">] abstract on_error: listener: (Error -> unit) -> AutoUpdater
-        [<Emit "$0.once('error',$1)">] abstract once_error: listener: (Error -> unit) -> AutoUpdater
-        [<Emit "$0.addListener('error',$1)">] abstract addListener_error: listener: (Error -> unit) -> AutoUpdater
-        [<Emit "$0.removeListener('error',$1)">] abstract removeListener_error: listener: (Error -> unit) -> AutoUpdater
+        [<Emit "$0.on('error',$1)">] abstract on_error: listener: (ExceptError -> unit) -> AutoUpdater
+        [<Emit "$0.once('error',$1)">] abstract once_error: listener: (ExceptError -> unit) -> AutoUpdater
+        [<Emit "$0.addListener('error',$1)">] abstract addListener_error: listener: (ExceptError -> unit) -> AutoUpdater
+        [<Emit "$0.removeListener('error',$1)">] abstract removeListener_error: listener: (ExceptError -> unit) -> AutoUpdater
         /// Emitted when there is an available update. The update is downloaded
         /// automatically.
         [<Emit "$0.on('update-available',$1)">] abstract ``on_update-available``: listener: Function -> AutoUpdater
@@ -2200,10 +2223,10 @@ module Electron =
         /// the <c>request</c> object emits an <c>error</c> event, a <c>close</c> event will subsequently
         /// follow and no response object will be provided.
         /// </summary>
-        [<Emit "$0.on('error',$1)">] abstract on_error: listener: (Error -> unit) -> ClientRequest
-        [<Emit "$0.once('error',$1)">] abstract once_error: listener: (Error -> unit) -> ClientRequest
-        [<Emit "$0.addListener('error',$1)">] abstract addListener_error: listener: (Error -> unit) -> ClientRequest
-        [<Emit "$0.removeListener('error',$1)">] abstract removeListener_error: listener: (Error -> unit) -> ClientRequest
+        [<Emit "$0.on('error',$1)">] abstract on_error: listener: (ExceptError -> unit) -> ClientRequest
+        [<Emit "$0.once('error',$1)">] abstract once_error: listener: (ExceptError -> unit) -> ClientRequest
+        [<Emit "$0.addListener('error',$1)">] abstract addListener_error: listener: (ExceptError -> unit) -> ClientRequest
+        [<Emit "$0.removeListener('error',$1)">] abstract removeListener_error: listener: (ExceptError -> unit) -> ClientRequest
         /// <summary>
         /// Emitted just after the last chunk of the <c>request</c>'s data has been written into
         /// the <c>request</c> object.
@@ -6618,10 +6641,10 @@ module Electron =
         /// Emitted when the preload script <c>preloadPath</c> throws an unhandled exception
         /// <c>error</c>.
         /// </summary>
-        [<Emit "$0.on('preload-error',$1)">] abstract ``on_preload-error``: listener: (Event -> string -> Error -> unit) -> WebContents
-        [<Emit "$0.once('preload-error',$1)">] abstract ``once_preload-error``: listener: (Event -> string -> Error -> unit) -> WebContents
-        [<Emit "$0.addListener('preload-error',$1)">] abstract ``addListener_preload-error``: listener: (Event -> string -> Error -> unit) -> WebContents
-        [<Emit "$0.removeListener('preload-error',$1)">] abstract ``removeListener_preload-error``: listener: (Event -> string -> Error -> unit) -> WebContents
+        [<Emit "$0.on('preload-error',$1)">] abstract ``on_preload-error``: listener: (Event -> string -> ExceptError -> unit) -> WebContents
+        [<Emit "$0.once('preload-error',$1)">] abstract ``once_preload-error``: listener: (Event -> string -> ExceptError -> unit) -> WebContents
+        [<Emit "$0.addListener('preload-error',$1)">] abstract ``addListener_preload-error``: listener: (Event -> string -> ExceptError -> unit) -> WebContents
+        [<Emit "$0.removeListener('preload-error',$1)">] abstract ``removeListener_preload-error``: listener: (Event -> string -> ExceptError -> unit) -> WebContents
         /// Emitted when the renderer process unexpectedly disappears.  This is normally
         /// because it was crashed or killed.
         [<Emit "$0.on('render-process-gone',$1)">] abstract ``on_render-process-gone``: listener: (Event -> RenderProcessGoneDetails -> unit) -> WebContents
@@ -7273,7 +7296,7 @@ module Electron =
         /// invoked by a gesture from the user. Setting <c>userGesture</c> to <c>true</c> will remove
         /// this limitation.
         /// </summary>
-        abstract executeJavaScript: code: string * ?userGesture: bool * ?callback: (obj option -> Error -> unit) -> Promise<obj option>
+        abstract executeJavaScript: code: string * ?userGesture: bool * ?callback: (obj option -> ExceptError -> unit) -> Promise<obj option>
         /// <summary>
         /// A promise that resolves with the result of the executed code or is rejected if
         /// execution could not start.
@@ -7284,7 +7307,7 @@ module Electron =
         /// reject and the <c>result</c> would be <c>undefined</c>. This is because Chromium does not
         /// dispatch errors of isolated worlds to foreign worlds.
         /// </summary>
-        abstract executeJavaScriptInIsolatedWorld: worldId: float * scripts: ResizeArray<WebSource> * ?userGesture: bool * ?callback: (obj option -> Error -> unit) -> Promise<obj option>
+        abstract executeJavaScriptInIsolatedWorld: worldId: float * scripts: ResizeArray<WebSource> * ?userGesture: bool * ?callback: (obj option -> ExceptError -> unit) -> Promise<obj option>
         /// <summary>
         /// A child of <c>webFrame</c> with the supplied <c>name</c>, <c>null</c> would be returned if
         /// there's no such frame or if the frame is not in the current renderer process.
@@ -10549,8 +10572,8 @@ module Electron =
         abstract inAppPurchase: InAppPurchase with get, set
         abstract IncomingMessage: obj with get, set
         abstract ipcMain: IpcMain with get, set
-        abstract Menu: obj with get, set
-        abstract MenuItem: obj with get, set
+        abstract Menu: MenuStatic with get, set
+        abstract MenuItem: MenuItemStatic with get, set
         abstract MessageChannelMain: obj with get, set
         abstract MessagePortMain: obj with get, set
         abstract nativeImage: obj with get, set
@@ -10579,7 +10602,7 @@ module Electron =
         abstract TouchBarSlider: obj with get, set
         abstract TouchBarSpacer: obj with get, set
         abstract Tray: obj with get, set
-        abstract webContents: obj with get, set
+        abstract webContents: WebContentsStatic with get, set
         abstract webFrameMain: obj with get, set
         abstract WebRequest: obj with get, set
 
@@ -13452,7 +13475,7 @@ module Electron =
         | Code
         | BypassHeatCheck
         | BypassHeatCheckAndEagerCompile
-
+type ExceptError = System.Exception
 type [<AllowNullLiteral>] NodeRequireFunction =
     [<Emit "$0.Invoke('electron')">] abstract Invoke_electron: unit -> obj
     [<Emit "$0.Invoke('electron/main')">] abstract ``Invoke_electron/main``: unit -> obj

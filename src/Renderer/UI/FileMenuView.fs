@@ -19,7 +19,7 @@ open FilesIO
 open Extractor
 open PopupView
 open System
-open Electron
+
 
 let printSheetNames (model:Model) =
     model.CurrentProj

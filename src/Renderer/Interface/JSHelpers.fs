@@ -20,7 +20,7 @@ open JSTypes
 /// a bit reduced, but with some extra code to control access.
 /// electronRemote replaces electron.remote and renderer.remote in old interface
 [<ImportAll("@electron/remote")>]
-let electronRemote : RemoteMainInterface = jsNative
+let electronRemote : Electron.Remote = jsNative
 
 
 

@@ -12,7 +12,8 @@ open CommonTypes
 open Fable.Core
 open Fable.Core.JsInterop
 open Fable.Import
-open Electron
+open ElectronAPI
+
 open Node
 open EEExtensions
 open Fable.SimpleJson
@@ -70,7 +71,7 @@ let writeFileBase64 path data =
         fs.writeFileSync(path, data, options)
         Ok ()
     with
-        | e -> Error $"Error '{e.Message}' writing file '{path}'"   
+        | e -> Result.Error $"Error '{e.Message}' writing file '{path}'"   
 
 /// Write utf8 encoded data to file.
 /// Create file if it does not exist.
@@ -80,7 +81,7 @@ let writeFile path data =
         fs.writeFileSync(path, data, options)
         Ok ()
     with
-        | e -> Error $"Error '{e.Message}' writing file '{path}'"
+        | e -> Result.Error $"Error '{e.Message}' writing file '{path}'"
 
 
 let readFilesFromDirectory (path:string) : string list =
@@ -133,16 +134,16 @@ let latestBackupFileData (path:string) (baseName: string) =
 /// return Error if file does not exist or cannot be parsed.
 let private tryLoadStateFromPath (filePath: string) =
     if not (fs.existsSync (U2.Case1 filePath)) then
-        Error <| sprintf "Can't read file from %s because it does not seem to exist!" filePath      
+        Result.Error <| sprintf "Can't read file from %s because it does not seem to exist!" filePath      
     else
         try
             Ok (fs.readFileSync(filePath, "utf8"))
         with
-            | e -> Error $"Error {e.Message} reading file '{filePath}'"
+            | e -> Result.Error $"Error {e.Message} reading file '{filePath}'"
 
         |> Result.map jsonStringToState
         |> ( function
-            | Error msg  -> Error <| sprintf "could not convert file '%s' to a valid issie design sheet. Details: %s" filePath msg
+            | Error msg  -> Result.Error <| sprintf "could not convert file '%s' to a valid issie design sheet. Details: %s" filePath msg
             | Ok res -> Ok res)
 
 let makeData aWidth dWidth makeFun =
@@ -244,10 +245,10 @@ let mutable firstProject = true // should really put this in model...
 /// Return the folder containing the chosen project file.
 /// Return None if the user exits withouth selecting a path.
 let askForExistingProjectPath () : string option =
-    let options = createEmpty<OpenDialogOptions>
-    options.filters <- projectFileFilters
+    let options = createEmpty<OpenDialogSyncOptions>
+    options.filters <- Some (projectFileFilters |> ResizeArray)
     if firstProject then
-        options.defaultPath <- electronRemote.app.getPath AppPathName.Documents
+        options.defaultPath <- Some <| electronRemote.app.getPath ElectronAPI.Electron.AppGetPath.Documents
     let w = electronRemote.getCurrentWindow()
     electronRemote.dialog.showOpenDialogSync(w,options)
     |> Option.map (fun fileName -> firstProject <- false; fileName)
@@ -263,14 +264,14 @@ let askForExistingProjectPath () : string option =
 /// Ask the user a new project path, with a dialog window.
 /// Return None if the user exits withouth selecting a path.
 let rec askForNewProjectPath () : string option =
-    let options = createEmpty<SaveDialogOptions>
-    options.filters <- projectFilters
-    options.title <- "Enter new ISSIE project directory and name"
-    options.nameFieldLabel <- "New project name"
-    options.buttonLabel <- "Create Project"
-    options.properties <- [|
-        SaveDialogFeature.CreateDirectory
-        SaveDialogFeature.ShowOverwriteConfirmation
+    let options = createEmpty<SaveDialogSyncOptions>
+    options.filters <- Some (projectFilters |> ResizeArray)
+    options.title <- Some "Enter new ISSIE project directory and name"
+    options.nameFieldLabel <- Some "New project name"
+    options.buttonLabel <- Some "Create Project"
+    options.properties <- Some [|
+        SaveDialogOptionsPropertiesArray.CreateDirectory
+        SaveDialogOptionsPropertiesArray.ShowOverwriteConfirmation
         |]
     match electronRemote.getCurrentWindow() with
     | w ->
@@ -592,15 +593,15 @@ let loadAllComponentFiles (folderPath:string)  =
 /// Ask the user a new project path, with a dialog window.
 /// Return None if the user exits withouth selecting a path.
 let rec askForNewFile (projectPath: string) : string option =
-    let options = createEmpty<SaveDialogOptions>
-    options.filters <- ramFileFilters
-    options.defaultPath <- projectPath
-    options.title <- "Enter new file name"
-    options.nameFieldLabel <- "New file name"
-    options.buttonLabel <- "Save memory content to file"
-    options.properties <- [|
-        SaveDialogFeature.ShowOverwriteConfirmation
-        |]
+    let options = createEmpty<SaveDialogSyncOptions>
+    options.filters <- Some (ramFileFilters |> ResizeArray)
+    options.defaultPath <- Some projectPath
+    options.title <- Some "Enter new file name"
+    options.nameFieldLabel <- Some "New file name"
+    options.buttonLabel <- Some "Save memory content to file"
+    options.properties <- Some [|
+        SaveDialogOptionsPropertiesArray.ShowOverwriteConfirmation
+        |] 
     match electronRemote.getCurrentWindow() with
     | w ->
         electronRemote.dialog.showSaveDialogSync(options)

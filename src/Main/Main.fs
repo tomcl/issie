@@ -96,6 +96,7 @@ let createMainWindow () =
         options.frame <- true
         options.hasShadow <- true
         options.backgroundColor <-  "#505050"
+        
         // fix for icons not working on linux
         // requires better solution for dist, maybe
         //if Api.``process``.platform = Base.Win32 then
@@ -108,17 +109,17 @@ let createMainWindow () =
                 o.nodeIntegration <- true
                 o.enableRemoteModule <- true
                 o.contextIsolation <- false
+                o.devTools <- true // allow dev tools to be opened
 
     let window = electron.BrowserWindow.Create(options)
     let webContents = window.webContents
     // enable electronRemote for the renderer window
     electronRemote?enable webContents
 
-    window.onceReadyToShow <| fun _ ->
+    window.onceReadyToShow (fun _ ->
         if window.isMinimized() then window.show()
         options.backgroundColor <- "#505050"
-        window.focus()
-    |> ignore
+        window.focus()) |> ignore
 
     // Load the index.html of the app.    
 
@@ -178,23 +179,31 @@ let createMainWindow () =
 // initialization and is ready to create browser windows.
 electron.app.onReady(fun _ _ -> createMainWindow()) |> ignore
 
-// Quit when all windows are closed.
-electron.app.onWindowAllClosed <| fun _ ->
-    // On OS X it is common for applications and their menu bar
-    // to stay active until the user quits explicitly with Cmd + Q
-    if Api.``process``.platform <> Base.Darwin then
-        electron.app.quit()
-
-|> ignore
-
-electron.app.onActivate <| fun _ _ ->
+electron.app.onActivate (fun _ _ ->
     // On OS X it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if mainWindow.IsNone then
-        createMainWindow()
-|> ignore
+        createMainWindow()) |> ignore
 
 // quit programmatically from renderer
 electron.ipcMain.on ("exit-the-app", fun _ -> 
     closeAfterSave <- true
-    (Option.get mainWindow).close() ) |> ignore
+    mainWindow
+    |> Option.iter (fun win -> win.close()))
+    |> ignore
+
+electron.ipcMain.on ("toggle-dev-tools", fun _ _ -> 
+    mainWindow
+    |> Option.iter (fun win -> win.webContents.toggleDevTools()))
+    |> ignore
+
+// Quit when all windows are closed.
+electron.app.onWindowAllClosed <| (fun _ ->
+    // On OS X it is common for applications and their menu bar
+    // to stay active until the user quits explicitly with Cmd + Q
+    if Api.``process``.platform <> Base.Darwin then
+        electron.app.quit()) |> ignore
+
+
+
+

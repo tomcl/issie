@@ -56,10 +56,9 @@ let menuSeparator =
 let attachExitHandler dispatch =
     // set up callback called when attempt is made to close main window
     renderer.ipcRenderer.on ("closingWindow", (fun (event: Event)->
-        printfn "dispatching ShowExitDialog"
         // send a message which will process the request to exit
         dispatch <| MenuAction(MenuExit,dispatch)
-        )) |> ignore
+        )) |> ignore 
     
 
 /// Make action menu item from name, opt key to trigger, and action.
@@ -121,10 +120,6 @@ let fileMenu (dispatch) =
         makeItem "Write design as Verilog" None (fun ev -> dispatch (MenuAction(MenuVerilogOutput,dispatch)))
         makeItem "Exit Issie" None (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> PopupView.viewInfoPopup dispatch)
-        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Restart app" None (fun _ -> 
-            let app = electronRemote.app
-            app.relaunch()
-            app.exit())
         makeCondRoleItem (JSHelpers.debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace all" None (fun _ -> 
             JSHelpers.debugTraceUI <- Set.ofList ["update";"view"])
@@ -155,8 +150,7 @@ let viewMenu dispatch =
         makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch Sheet.KeyboardMsg.CtrlW)
         menuSeparator
         makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ -> 
-            let webContents: BrowserWindow = unbox electronRemote.BrowserWindow
-            webContents.webContents.toggleDevTools())
+            renderer.ipcRenderer.send("toggle-dev-tools", [||]) |> ignore)
     ]
 
 

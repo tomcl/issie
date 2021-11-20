@@ -41,13 +41,17 @@ type [<AllowNullLiteral>] GlobalEvent =
     interface end
 
 
+
 [<AutoOpen>]
 module Electron =
-    let [<Import("Common","Electron")>] common: Common.IExports = jsNative
+    let [<ImportAll("electron")>] common: Common.IExports = jsNative
     let electron = common
-    let [<Import("Main","Electron")>] main: Main.IExports = jsNative
+
+    let [<ImportAll("electron")>] main: Main.IExports = jsNative
     let mainProcess = main
-    let [<Import("Renderer","Electron")>] renderer: Renderer.IExports = jsNative
+
+    [<ImportAll("electron")>] 
+    let renderer: Renderer.IExports = jsNative
 
     type Remote =
       inherit RemoteMainInterface
@@ -10555,8 +10559,8 @@ module Electron =
     type [<AllowNullLiteral>] RemoteMainInterface =
         abstract app: App with get, set
         abstract autoUpdater: AutoUpdater with get, set
-        abstract BrowserView: obj with get, set
-        abstract BrowserWindow: obj with get, set
+        abstract BrowserView: BrowserView with get, set
+        abstract BrowserWindow: BrowserWindow with get, set
         abstract ClientRequest: obj with get, set
         abstract clipboard: Clipboard with get, set
         abstract CommandLine: obj with get, set

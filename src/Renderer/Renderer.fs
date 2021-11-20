@@ -122,8 +122,9 @@ let fileMenu (dispatch) =
         makeItem "Exit Issie" None (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> PopupView.viewInfoPopup dispatch)
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Restart app" None (fun _ -> 
-            let webContents = electronRemote.getCurrentWebContents()
-            webContents.reload())
+            let app = electronRemote.app
+            app.relaunch()
+            app.exit())
         makeCondRoleItem (JSHelpers.debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace all" None (fun _ -> 
             JSHelpers.debugTraceUI <- Set.ofList ["update";"view"])
@@ -154,8 +155,8 @@ let viewMenu dispatch =
         makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch Sheet.KeyboardMsg.CtrlW)
         menuSeparator
         makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ -> 
-            let webContents = electronRemote.getCurrentWebContents()
-            webContents.toggleDevTools())
+            let webContents: BrowserWindow = unbox electronRemote.BrowserWindow
+            webContents.webContents.toggleDevTools())
     ]
 
 
@@ -187,7 +188,7 @@ let editMenu dispatch =
 let attachMenusAndKeyShortcuts dispatch =
     //setupExitInterlock dispatch
     let sub dispatch =
-        let menu = 
+        let menu:Menu = 
             [|
 
                 fileMenu dispatch
@@ -197,8 +198,8 @@ let attachMenusAndKeyShortcuts dispatch =
                 viewMenu dispatch
             |]          
             |> Array.map U2.Case1
-            |> electronRemote.Menu.buildFromTemplate   
-        menu.items[0].visible <- Some true
+            |> electron.buildFromTemplate   //Help? How do we call buildfromtemplate
+        menu.items[0].visible <- true
         electronRemote.app.applicationMenu <- Some menu
         attachExitHandler dispatch
 

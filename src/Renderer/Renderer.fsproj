@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Common definitions --> 
+    <Compile Include="Common\ElectronAPI.fs" /> 
     <Compile Include="Common\EEEHelpers.fs" /> 
     <Compile Include="Common\EEExtensions.fs" /> 
     <Compile Include="Common\CommonTypes.fs" />

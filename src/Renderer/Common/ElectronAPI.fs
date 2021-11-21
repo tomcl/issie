@@ -9,8 +9,10 @@ open Fable.Core
 open Fable.Core.JS
 open Browser.Types
 
+
+/// bool Option -> bool, with None -> false
 let jsToBool (b : bool option) = 
-    match b with | Some true -> true | _ -> false
+    Option.defaultValue false b
 
 type NodeEventEmitter = Node.Events.EventEmitter
 
@@ -47,7 +49,7 @@ module Electron =
     let [<ImportAll("electron")>] common: Common.IExports = jsNative
     let electron = common
 
-    let [<ImportAll("electron")>] main: Main.IExports = jsNative
+    let [<ImportAll("electron")>] main: Electron.IExports = jsNative
     let mainProcess = main
 
     [<ImportAll("electron")>] 

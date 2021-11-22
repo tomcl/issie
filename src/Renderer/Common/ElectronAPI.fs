@@ -136,7 +136,7 @@ module Electron =
         abstract session: obj
         abstract shell: Shell
         abstract systemPreferences: SystemPreferences
-        abstract webContents: obj
+        abstract webContents: WebContents
         abstract webFrame: WebFrame
         abstract webFrameMain: obj
         abstract webviewTag: WebviewTag

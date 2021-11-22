@@ -194,7 +194,8 @@ let attachMenusAndKeyShortcuts dispatch =
             |> Array.map U2.Case1
             |> electronRemote.Menu.buildFromTemplate   //Help? How do we call buildfromtemplate
         menu.items[0].visible <- true
-        electronRemote.app.applicationMenu <- Some menu
+        dispatch <| Msg.ExecFuncInMessage((fun _ _ -> 
+            electronRemote.app.applicationMenu <- Some menu), dispatch)
         attachExitHandler dispatch
 
     Cmd.ofSub sub    

@@ -62,15 +62,27 @@ let staticDir() :string = jsNative
 
 let mutable closeAfterSave = false
 
+let wait n cont =
+    Async.StartImmediate(async {
+    try
+        for i in [1..n] do
+            printf "%i before" i
+            do! Async.Sleep 1000
+            printfn "%i after" i
+    finally
+        cont ()
+        })
+
 let createMainWindow () =
     let options = jsOptions<BrowserWindowConstructorOptions> <| fun options ->
-        options.width <- Some 1200
-        options.height <- Some 800
-        options.show <- Some <| not isWin
+        options.width <- Some 600
+        options.height <- Some 600
+        options.show <- Some <| true
         options.autoHideMenuBar <- Some false
         options.frame <- Some true
         options.hasShadow <- Some true
-        options.backgroundColor <-  Some "#555"
+        options.backgroundColor <-  Some "#00b0a0"
+        options.opacity <- Some 1.0
         
         // fix for icons not working on linux
         // requires better solution for dist, maybe
@@ -86,47 +98,64 @@ let createMainWindow () =
                 o.devTools <- Some true) // allow dev tools to be opened
 
     let window = mainProcess.BrowserWindow.Create options
-    window.setBackgroundColor "#555"
 
     let webContents = window.webContents
     // enable electronRemote for the renderer window
     electronRemote?enable webContents
+    mainWindow <- Some window
+    window
 
-    window.``once_ready-to-show`` (fun _ ->
+    // This method will be called when Electron has finished
+    // initialization and is ready to create browser windows.
+let startRenderer (doAfterReady: BrowserWindow -> Unit) =
+    mainProcess.app.on_ready(fun _ _ -> 
+        let window = createMainWindow()
+        printfn "window created"
+        window
+        |> doAfterReady) |> ignore
+
+
+let loadAppIntoWidowWhenReady (window: BrowserWindow) =
+    printfn "setting up load when ready..."
+    let loadWindowContent (window: BrowserWindow) =
+        printfn "starting load..."
         if window.isMinimized() then window.show()
-        options.backgroundColor <- Some "#505050"
-        options.show <- Some true
-        window.focus()) |> ignore
 
-    // Load the index.html of the app.    
+        // Load the index.html of the app.    
 
-    let isDev = (``process``?defaultApp = true)
+        let isDev = (``process``?defaultApp = true)
 
-    if isDev then
-        // run the dev tools
-        if debug then window.webContents.openDevTools() // default open in this case
+        if isDev then
+            // run the dev tools
+            if debug then window.webContents.openDevTools() // default open in this case
 
-        sprintf $"http://localhost:{``process``.env?ELECTRON_WEBPACK_WDS_PORT}"
-        |> window.loadURL
-        |> ignore
+            sprintf $"http://localhost:{``process``.env?ELECTRON_WEBPACK_WDS_PORT}"
+            |> window.loadURL
+            |> ignore
 
-        ``process``.on("uncaughtException", fun err -> JS.console.error(err))
-        |> ignore
+            ``process``.on("uncaughtException", fun err -> JS.console.error(err))
+            |> ignore  
+        else
+            // run the app
+            let url =
+                path.join ( __dirname,  "index.html")
+                |> sprintf "file:///%s" 
+                |> Api.URL.Create
 
+            Api.URL.format(url, createEmpty<Url.IFormatOptions>)
+            |> window.loadURL
+            |> ignore
+        printfn "done load"
+    loadWindowContent window
+    window.webContents.on("did-finish-load", ( fun () -> 
+        window.show()
+        window.setSize(1200,800,true)
+        window.setContentSize(1200,800,true)))
     
-    else
-        // run the app
-        let url =
-            path.join ( __dirname,  "index.html")
-            |> sprintf "file:///%s" 
-            |> Api.URL.Create
-
-        Api.URL.format(url, createEmpty<Url.IFormatOptions>)
-        |> window.loadURL
-        |> ignore
    
-    
-    // Emitted when the window is closed.
+let addListeners (window: BrowserWindow) =    
+        // Emitted when the window is closed.
+    printfn "adding Main process listeners"
     window.on_closed <| (new Function(fun _ ->
         // Dereference the window object, usually you would store windows
         // in an array if your app supports multi windows, this is the time
@@ -135,50 +164,60 @@ let createMainWindow () =
     |> ignore
 
     (window.on: (string * (obj -> unit)) -> Events.EventEmitter)(
-         // called when attempt is made to close the window
-         // send this to renderer to let it decide what to do
-         "close",
-         (fun e ->
-                    if not closeAfterSave then
-                        // prevent default closure
-                        ((unbox e):Event).preventDefault() |> ignore
-                        window.webContents.send("closingWindow")
-         )) |> ignore
+            // called when attempt is made to close the window
+            // send this to renderer to let it decide what to do
+            // unless closeAfterSave is true.
+            "close", ( fun e ->
+                if not closeAfterSave then
+                    // prevent default closure
+                    ((unbox e):Event).preventDefault() |> ignore
+                    window.webContents.send("closingWindow")))
+            |> ignore
 
-    // Maximize the window
-    window.maximize()
+        
 
-    mainWindow <- Some window
+    // quit programmatically from renderer
+    mainProcess.ipcMain.on ("exit-the-app", fun _ -> 
+        closeAfterSave <- true
+        printfn "Closing Issie..."
+        mainWindow
+        |> Option.iter (fun win -> win.close()))
+        |> ignore
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-mainProcess.app.on_ready(fun _ _ -> createMainWindow()) |> ignore
+    mainProcess.ipcMain.on ("toggle-dev-tools", fun _ _ -> 
+        mainWindow
+        |> Option.iter (fun win -> win.webContents.toggleDevTools()))
+        |> ignore
+
+    // Quit when all windows are closed.
+    mainProcess.app.``on_window-all-closed`` <| Function(fun _ ->
+        // On OS X it is common for applications and their menu bar
+        // to stay active until the user quits explicitly with Cmd + Q
+        if Api.``process``.platform <> Base.Darwin then
+            mainProcess.app.quit()) |> ignore
+
+    mainProcess.app.on_activate (fun _ _ ->
+        // On OS X it's common to re-create a window in the app when the
+        // dock icon is clicked and there are no other windows open.
+        if mainWindow.IsNone then
+            printfn "recreating window..."
+            window = createMainWindow() |> ignore
+            loadAppIntoWidowWhenReady window |> ignore
+            mainWindow <- Some window) |> ignore
+    window
+
+let startup() =
+    startRenderer( fun win ->
+        win
+        |> addListeners
+        |> loadAppIntoWidowWhenReady
+        |> ignore)
+
+startup()
 
 
-mainProcess.app.on_activate (fun _ _ ->
-    // On OS X it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if mainWindow.IsNone then
-        createMainWindow()) |> ignore
 
-// quit programmatically from renderer
-mainProcess.ipcMain.on ("exit-the-app", fun _ -> 
-    closeAfterSave <- true
-    mainWindow
-    |> Option.iter (fun win -> win.close()))
-    |> ignore
-
-mainProcess.ipcMain.on ("toggle-dev-tools", fun _ _ -> 
-    mainWindow
-    |> Option.iter (fun win -> win.webContents.toggleDevTools()))
-    |> ignore
-
-// Quit when all windows are closed.
-mainProcess.app.``on_window-all-closed`` <| Function(fun _ ->
-    // On OS X it is common for applications and their menu bar
-    // to stay active until the user quits explicitly with Cmd + Q
-    if Api.``process``.platform <> Base.Darwin then
-        mainProcess.app.quit()) |> ignore
+                
 
 
 

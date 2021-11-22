@@ -15,6 +15,11 @@ module.exports = {
     output: {
         filename: "renderer.js"
     },
+    optimization: {
+        splitChunks: {
+            chunks: 'all',
+        },
+    },
     plugins: [
 
     ],

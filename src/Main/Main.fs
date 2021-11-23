@@ -75,14 +75,10 @@ let wait n cont =
 
 let createMainWindow () =
     let options = jsOptions<BrowserWindowConstructorOptions> <| fun options ->
-        options.width <- Some 600
-        options.height <- Some 600
         options.show <- Some <| true
         options.autoHideMenuBar <- Some false
-        options.frame <- Some true
-        options.hasShadow <- Some true
-        options.backgroundColor <-  Some "#00b0a0"
-        options.opacity <- Some 1.0
+        options.backgroundColor <-  Some "#00B0A0" // BUG - does not work
+        options.opacity <- Some 0.8
         
         // fix for icons not working on linux
         // requires better solution for dist, maybe
@@ -90,7 +86,7 @@ let createMainWindow () =
         options.icon <- Some (U2.Case2 (path.join(staticDir(), "icon-1.png")))
         //elif Api.``process``.platform = Base.Darwin then
             //options.icon <- (U2.Case2 (path.join(staticDir(), "icon.icns")))   (the icns icon does not work)
-        options.title <- Some "ISSIE"
+        options.title <- Some "issie"
         options.webPreferences <- Some (
             jsOptions<WebPreferences> <| fun o ->
                 o.nodeIntegration <- Some true
@@ -148,9 +144,8 @@ let loadAppIntoWidowWhenReady (window: BrowserWindow) =
         printfn "done load"
     loadWindowContent window
     window.webContents.on("did-finish-load", ( fun () -> 
-        window.show()
-        window.setSize(1200,800,true)
-        window.setContentSize(1200,800,true)))
+        window.setOpacity 1.0
+        window.maximize()))
     
    
 let addListeners (window: BrowserWindow) =    

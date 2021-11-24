@@ -77,7 +77,7 @@ let createMainWindow () =
     let options = jsOptions<BrowserWindowConstructorOptions> <| fun options ->
         options.show <- Some <| true
         options.autoHideMenuBar <- Some false
-        options.backgroundColor <-  Some "#00B0A0" // BUG - does not work
+        options.backgroundColor <-  Some "#FFFFFF" // BUG - colors do not work
         options.opacity <- Some 0.8
         
         // fix for icons not working on linux
@@ -106,15 +106,15 @@ let createMainWindow () =
 let startRenderer (doAfterReady: BrowserWindow -> Unit) =
     mainProcess.app.on_ready(fun _ _ -> 
         let window = createMainWindow()
-        printfn "window created"
+        //printfn "window created"
         window
         |> doAfterReady) |> ignore
 
 
 let loadAppIntoWidowWhenReady (window: BrowserWindow) =
-    printfn "setting up load when ready..."
+    //printfn "setting up load when ready..."
     let loadWindowContent (window: BrowserWindow) =
-        printfn "starting load..."
+        //printfn "starting load..."
         if window.isMinimized() then window.show()
 
         // Load the index.html of the app.    
@@ -141,16 +141,16 @@ let loadAppIntoWidowWhenReady (window: BrowserWindow) =
             Api.URL.format(url, createEmpty<Url.IFormatOptions>)
             |> window.loadURL
             |> ignore
-        printfn "done load"
+        //printfn "done load"
     loadWindowContent window
     window.webContents.on("did-finish-load", ( fun () -> 
         window.setOpacity 1.0
         window.maximize()))
     
    
-let addListeners (window: BrowserWindow) =    
+let rec addListeners (window: BrowserWindow) =    
         // Emitted when the window is closed.
-    printfn "adding Main process listeners"
+    //printfn "adding Main process listeners"
     window.on_closed <| (new Function(fun _ ->
         // Dereference the window object, usually you would store windows
         // in an array if your app supports multi windows, this is the time
@@ -167,14 +167,12 @@ let addListeners (window: BrowserWindow) =
                     // prevent default closure
                     ((unbox e):Event).preventDefault() |> ignore
                     window.webContents.send("closingWindow")))
-            |> ignore
-
-        
+            |> ignore      
 
     // quit programmatically from renderer
     mainProcess.ipcMain.on ("exit-the-app", fun _ -> 
         closeAfterSave <- true
-        printfn "Closing Issie..."
+        //printfn "Closing Issie..."
         mainWindow
         |> Option.iter (fun win -> win.close()))
         |> ignore
@@ -195,13 +193,15 @@ let addListeners (window: BrowserWindow) =
         // On OS X it's common to re-create a window in the app when the
         // dock icon is clicked and there are no other windows open.
         if mainWindow.IsNone then
-            printfn "recreating window..."
+            //printfn "recreating window..."
             window = createMainWindow() |> ignore
-            loadAppIntoWidowWhenReady window |> ignore
+            mainWindow <- Some window
+            addListeners window
+            |> loadAppIntoWidowWhenReady |> ignore
             mainWindow <- Some window) |> ignore
     window
 
-let startup() =
+let rec startup() =
     startRenderer( fun win ->
         win
         |> addListeners

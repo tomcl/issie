@@ -182,25 +182,26 @@ let jsonStringToMem (jsonString : string) =
 
 
             
+/// get sheet I/O labels in correct order based on position of components
+let getOrderedCompLabels compType ((comps,_): CanvasState) =
+    comps
+    |> List.collect (fun comp -> 
+        let sortKey = comp.Y,comp.X
+        match comp.Type, compType with 
+        | Input n, Input _ -> [sortKey,(comp.Label, n)]
+        | Output n, Output _ -> [sortKey, (comp.Label,n)] 
+        | _ -> [])
+    |> List.sortBy fst
+    |> List.map snd
    
 
-/// Extract the labels and bus widths of the inputs and outputs nodes.
+/// Extract the labels and bus widths of the inputs and outputs nodes as a signature.
+/// Form is inputs,outputs
 let parseDiagramSignature canvasState
         : (string * int) list * (string * int) list =
-    let rec extractIO
-            (components : Component list)
-            (inputs : (string * int) list)
-            (outputs : (string * int) list) =
-        match components with
-        | [] -> inputs, outputs
-        | comp :: components' ->
-            match comp.Type with
-            | Input width  -> extractIO components' ((comp.Label, width) :: inputs) outputs
-            | Output width -> extractIO components' inputs ((comp.Label, width) :: outputs)
-            | _ -> extractIO components' inputs outputs
-    let components, _ = canvasState
-    let inputs, outputs = extractIO components [] []
-    List.rev inputs, List.rev outputs
+    let inputs = getOrderedCompLabels (Input 0) canvasState
+    let outputs = getOrderedCompLabels (Output 0) canvasState
+    inputs, outputs
 
 let getBaseNameNoExtension filePath =
     let name = baseName filePath

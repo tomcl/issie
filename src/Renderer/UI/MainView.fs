@@ -14,6 +14,7 @@ open CommonTypes
 open Extractor
 open CatalogueView
 open System
+open Notifications
 open FileMenuView
 open WaveformSimulationView
 open Helpers
@@ -246,7 +247,7 @@ let displayView model dispatch =
             Sheet.view model.Sheet headerHeight (canvasVisibleStyleList model) sheetDispatch
         
         // transient pop-ups
-        PopupView.viewNotifications model dispatch
+        Notifications.viewNotifications model dispatch
         // editing buttons overlaid bottom-left on canvas
         if model.PopupDialogData.Progress <> None  then
             div [] []

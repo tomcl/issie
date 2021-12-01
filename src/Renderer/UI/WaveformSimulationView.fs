@@ -77,6 +77,7 @@ open Fable.React.Props
 open ModelType
 open DiagramStyle
 open CommonTypes
+open Notifications
 open WaveSimHelpers
 open FileMenuView
 open SimulatorTypes
@@ -727,7 +728,7 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
                 simData.Inputs
                 |> List.map (fun (_,ComponentLabel lab,_) -> lab)
                 |> String.concat ","
-            let popup = PopupView.warningPropsNotification (sprintf "Inputs (%s) will be set to 0." inputs)
+            let popup = Notifications.warningPropsNotification (sprintf "Inputs (%s) will be set to 0." inputs)
             dispatch <| SetPropertiesNotification popup
 
     let startingWsModel =
@@ -821,7 +822,7 @@ let WaveformButtonFunc compIds model dispatch =
                             Button.Color IsSuccess
                             Button.IsLight
                             Button.OnClick(fun _ -> 
-                                let popup = PopupView.errorPropsNotification "Combinational logic does not have waveforms"
+                                let popup = Notifications.errorPropsNotification "Combinational logic does not have waveforms"
                                 dispatch <| SetPropertiesNotification popup
                                 )
                         ]

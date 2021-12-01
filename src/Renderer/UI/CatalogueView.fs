@@ -19,7 +19,6 @@ open DiagramStyle
 open ModelType
 open CommonTypes
 open PopupView
-open Extractor
 open System
 
 let private menuItem styles label onClick =
@@ -30,28 +29,20 @@ let private menuItem styles label onClick =
 let private createComponent compType label model dispatch =
     Sheet (Sheet.InitialiseCreateComponent (compType, label)) |> dispatch
 
-//Anything requiring a standard label should be checked and updated with the correct number suffix in Symbol/Sheet, so give the label ""
+// Anything requiring a standard label should be checked and updated with the correct number suffix in Symbol/Sheet, 
+// so give the label ""
 let createCompStdLabel comp model dispatch =
     createComponent comp "" model dispatch
 
-let getOrderedCompLabels compType (ldc:LoadedComponent) =
-    let (comps,_) = ldc.CanvasState
-    comps
-    |> List.collect (fun comp -> 
-        let sortKey = comp.Y,comp.X
-        match comp.Type, compType with 
-        | Input n, Input _ -> [sortKey,(comp.Label, n)]
-        | Output n, Output _ -> [sortKey, (comp.Label,n)] 
-        | _ -> [])
-    |> List.sortBy fst
-    |> List.map snd
+
 
 let private makeCustom styles model dispatch (loadedComponent: LoadedComponent)  =
+    let canvas = loadedComponent.CanvasState
     menuItem styles loadedComponent.Name (fun _ ->
         let custom = Custom {
             Name = loadedComponent.Name
-            InputLabels = getOrderedCompLabels (Input 0) loadedComponent
-            OutputLabels = getOrderedCompLabels (Output 0) loadedComponent
+            InputLabels = FilesIO.getOrderedCompLabels (Input 0) canvas
+            OutputLabels = FilesIO.getOrderedCompLabels (Output 0) canvas
         }
         
         Sheet (Sheet.InitialiseCreateComponent (custom, "")) |> dispatch

@@ -253,7 +253,7 @@ let update (msg : Msg) oldModel =
                 {model with UIState = Some uiCmd}, Cmd.ofMsg (Sheet (Sheet.SetSpinner true))
         | _ -> model, Cmd.none //otherwise discard the message
     | FinishUICmd _ ->
-        let popup = FileMenuView.optCurrentSheetDependentsPopup model
+        let popup = CustomCompPorts.optCurrentSheetDependentsPopup model
         {model with UIState = None; PopupViewFunc = popup}, Cmd.ofMsg (Sheet (Sheet.SetSpinner false))
     (*| ShowExitDialog ->
         match model.CurrentProj with
@@ -341,9 +341,9 @@ let update (msg : Msg) oldModel =
             PopupDialogData = {model.PopupDialogData with ProjectPath = project.ProjectPath}
         }, Cmd.none
     | UpdateProject update -> 
-        FileMenuView.updateProjectFiles true update model, Cmd.none
+        CustomCompPorts.updateProjectFiles true update model, Cmd.none
     | UpdateProjectWithoutSyncing update -> 
-        FileMenuView.updateProjectFiles false update model,Cmd.none
+        CustomCompPorts.updateProjectFiles false update model,Cmd.none
     | ShowPopup popup -> { model with PopupViewFunc = Some popup }, Cmd.none
     | ClosePopup ->
         let model' =

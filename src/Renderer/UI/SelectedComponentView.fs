@@ -16,6 +16,7 @@ open ModelType
 open CommonTypes
 open MemoryEditorView
 open PopupView
+open Notifications
 
 let private readOnlyFormField name body =
     Field.div [] [

@@ -614,10 +614,15 @@ let getCopiedSymbols (symModel: Model) : (ComponentId list) =
     |> Map.toList
     |> List.map fst
 
-/// Function to filter out non-letter characters by using ASCII values.
+/// Function to filter out terminal non-letter characters.
 /// Modified to capitalise labels
 let filterString (string: string) = 
     string.ToUpper()
+    |> Seq.rev
+    |> Seq.skipWhile System.Char.IsDigit
+    |> Seq.rev
+    |> Seq.map System.Char.ToString
+    |> String.concat ""
    
 ///Returns the number of the component label (i.e. the number 1 from IN1 or ADDER16.1)
 let regex (str : string) = 
@@ -743,7 +748,7 @@ let getIndex listSymbols compType =
 let labelGenNumber (model: Model) (compType: ComponentType) (label : string) = 
     let listSymbols = List.map snd (Map.toList model.Symbols) 
     match compType with
-    | IOLabel -> filterString label
+    | IOLabel -> label
     | _ -> filterString label + (getIndex listSymbols compType)
 
 ///Generates the label for a component type

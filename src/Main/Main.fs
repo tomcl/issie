@@ -184,10 +184,11 @@ let rec addListeners (window: BrowserWindow) =
 
     // Quit when all windows are closed.
     mainProcess.app.``on_window-all-closed`` <| Function(fun _ ->
-        // On OS X it is common for applications and their menu bar
+        // On Macos it is common for applications and their menu bar
         // to stay active until the user quits explicitly with Cmd + Q
-        if Api.``process``.platform <> Base.Darwin then
-            mainProcess.app.quit()) |> ignore
+        // currently this feature can't be properly implemented
+        // if Api.``process``.platform <> Base.Darwin then
+        mainProcess.app.quit()) |> ignore
 
     mainProcess.app.on_activate (fun _ _ ->
         // On OS X it's common to re-create a window in the app when the

@@ -144,7 +144,7 @@ let findChange (model : Model) : bool =
             |> List.find (fun lc -> lc.Name = prj.OpenFileName)
         let canv = savedComponent.CanvasState
         let canv' = model.Sheet.GetCanvasState ()
-        (canv <> canv') && not (compareCanvas 500. canv canv')
+        (canv <> canv') && not (compareCanvas 100. canv canv')
         |> Helpers.instrumentInterval "findChange" start
 
 /// Needed so that constant properties selection will work

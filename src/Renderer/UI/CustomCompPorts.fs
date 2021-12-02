@@ -508,11 +508,13 @@ let optCurrentSheetDependentsPopup (model: Model) =
                     |> List.map (fun (sheet,_,_) -> sheet)
                     |> List.distinct
                     |> String.concat ","
-                printfn "depcheck3"
                 let changes = 
                     ioCompareSigs newSig firstSig
                     |> guessAtRenamedPorts
-                printfn "depcheck4"
+                let whatChanged = 
+                    match changes |> Array.exists (fun ch -> ch.Old <> ch.New) with
+                    | false -> "the vertical order of inputs or outputs"
+                    | true -> "the inputs or outputs"
                 let headCell heading =  th [ ] [ str heading ]
                 let makeRow (change:PortChange) = 
                     tr []
@@ -527,12 +529,14 @@ let optCurrentSheetDependentsPopup (model: Model) =
                     div [Style [ MarginTop "15px" ] ] 
                         [
                             Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [str $"{sheet}"]
-                            str $"You have changed the inputs or outputs of the current '{sheet}' sheet. "
+                            str $"You have changed the {whatChanged} of the current '{sheet}' sheet. "
                             br []
                             str "This dialog will automatically update all dependent sheets to match this. "
                             br []
-                            str $"The '{sheet}' sheet is instantiated as a component {instances.Length} times in dependent sheets: '{depSheets}'. "
-                            str $"If you do not automatically update the instances you will need to delete and recreate each one."
+                            str $"The '{sheet}' sheet is instantiated as a symbol {instances.Length} times in dependent sheets: '{depSheets}'. "
+                            str $"If you do not automatically update the symbols you will need to delete and recreate each one."
+                            br []
+                            str "If you automatically update symbols wires that no longer match will be autorouted correctly when you next load each sheet"
                             br []
                             Table.table [
                                    Table.IsHoverable                               

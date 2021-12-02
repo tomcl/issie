@@ -1441,8 +1441,9 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
     | LoadConnections conns -> // we assume components (and hence ports) are loaded before connections
         let posMatchesVertex (pos:XYPos) (vertex: float*float) =
             let epsilon = 0.00001
-            abs (pos.X - fst vertex) < epsilon &&
-            abs (pos.Y - snd vertex) < epsilon
+            abs (abs pos.X - abs (fst vertex)) < epsilon &&
+            abs (abs pos.Y - abs (snd vertex)) < epsilon
+            |> (fun b -> if not b then printf $"Bad wire endpoint match on {pos} {vertex}"; b else b)
         let newWX =
             conns 
             |> List.map ( fun conn ->
@@ -1454,11 +1455,11 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                                 match inOut with
                                 | true -> posMatchesVertex 
                                             (Symbol.getInputPortLocation model.Symbol inputId)
-                                            (List.last conn.Vertices)
+                                            (List.head conn.Vertices)
                                 | false ->
                                           posMatchesVertex 
                                             (Symbol.getOutputPortLocation model.Symbol outputId) 
-                                            (List.head conn.Vertices)
+                                            (List.last conn.Vertices)
                                 |> (fun b -> 
                                     if b then 
                                         wire 

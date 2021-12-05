@@ -81,7 +81,7 @@ let simCacheInit name = {
     Name = name; 
     StoredState = ([],[]) // reduced canvas state from extractReducedState
     StoredResult = Ok {
-        FastSim = Fast.emptyFastSimulation()
+        FastSim = FastCreate.emptyFastSimulation()
         Graph = Map.empty 
         Inputs = []
         Outputs = []
@@ -191,7 +191,7 @@ let private viewSimulationInputs
                                      | Zero -> One
                                      | One -> Zero
                         let graph = simulationGraph
-                        Fast.changeInput (ComponentId inputId) [newBit] simulationData.ClockTickNumber simulationData.FastSim
+                        FastRun.changeInput (ComponentId inputId) [newBit] simulationData.ClockTickNumber simulationData.FastSim
                         dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
                     )
                 ] [ str <| bitToString bit ]
@@ -213,7 +213,7 @@ let private viewSimulationInputs
                                 CloseSimulationNotification |> dispatch
                                 // Feed input.
                                 let graph = simulationGraph
-                                Fast.changeInput (ComponentId inputId) bits simulationData.ClockTickNumber simulationData.FastSim
+                                FastRun.changeInput (ComponentId inputId) bits simulationData.ClockTickNumber simulationData.FastSim
                                 dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
                         ))
                     ]
@@ -350,7 +350,7 @@ let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg 
 
 let simulateWithTime steps simData =
     let startTime = getTimeMs()
-    Fast.runFastSimulation (steps + simData.ClockTickNumber) simData.FastSim 
+    FastRun.runFastSimulation (steps + simData.ClockTickNumber) simData.FastSim 
     getTimeMs() - startTime
 
 let cmd block =
@@ -372,7 +372,7 @@ let simulateWithProgressBar (simProg: SimulationProgress) (model:Model) =
         let oldClock = simData.FastSim.ClockTick
         let clock = min simProg.FinalClock (simProg.ClocksPerChunk + oldClock)
         let t1 = getTimeMs()
-        Fast.runFastSimulation clock simData.FastSim 
+        FastRun.runFastSimulation clock simData.FastSim 
         printfn $"clokctick after runFastSim{clock} from {oldClock} is {simData.FastSim.ClockTick}"
         let t2 = getTimeMs()
         let speed = if t2 = t1 then 0. else (float clock - float oldClock) * nComps / (t2 - t1)
@@ -429,7 +429,7 @@ let simulationClockChangeAction dispatch simData (dialog:PopupDialogData) =
         |> ExecCmdAsynch
         |> dispatch
     else
-        Fast.runFastSimulation clock simData.FastSim 
+        FastRun.runFastSimulation clock simData.FastSim 
         printfn $"test2 clock={clock}, clokcticknumber= {simData.ClockTickNumber}, {simData.FastSim.ClockTick}"
         [
             SetSimulationGraph(simData.Graph, simData.FastSim)
@@ -480,7 +480,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                             printfn "*********************Incrementing clock from simulator button******************************"
                             printfn "-------------------------------------------------------------------------------------------"
                         //let graph = feedClockTick simData.Graph
-                        Fast.runFastSimulation (simData.ClockTickNumber+1) simData.FastSim 
+                        FastRun.runFastSimulation (simData.ClockTickNumber+1) simData.FastSim 
                         dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)                    
                         if SimulationRunner.simTrace <> None then
                             printfn "-------------------------------------------------------------------------------------------"
@@ -491,7 +491,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
             ]
     let maybeStatefulComponents() =
         let stateful = 
-            Fast.extractStatefulComponents simData.ClockTickNumber simData.FastSim
+            FastRun.extractStatefulComponents simData.ClockTickNumber simData.FastSim
             |> Array.toList
         match List.isEmpty stateful with
         | true -> div [] []
@@ -525,7 +525,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
         viewSimulationInputs
             simData.NumberBase
             simData
-            (Fast.extractFastSimulationIOs simData.Inputs simData)
+            (FastRun.extractFastSimulationIOs simData.Inputs simData)
             dispatch
 
 
@@ -535,9 +535,9 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                 str "Outputs &" 
                 tip "Add Viewer components to any sheet in the simulation" "Viewers"
             ]
-        viewViewers simData.NumberBase <| List.sort (Fast.extractViewers simData)
+        viewViewers simData.NumberBase <| List.sort (FastRun.extractViewers simData)
         viewSimulationOutputs simData.NumberBase
-        <| Fast.extractFastSimulationIOs simData.Outputs simData
+        <| FastRun.extractFastSimulationIOs simData.Outputs simData
 
         maybeStatefulComponents()
     ]

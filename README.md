@@ -135,7 +135,7 @@ This project uses modern F# / dotnet cross-platform build. The build process doe
 If you just want to run the app go to the [releases page](https://github.com/tomcl/issie/releases) and
 download and run the latest prebuilt binary for your platform (Windows or Macos). Issie will require in total about 200M of disk space.
 
-* Windows: unzip \*.zip anywhere and double-click the top-level Issie.exe application un the unzipped files.
+* Windows: unzip \*.zip anywhere and double-click the top-level `Issie.exe` application in the unzipped files.
 * Macos: Double click the dmg file  and run the application inside the folder, or drag and drop this to install.
     * The binaries are not signed. You will need to [perform a one-off security bypass](https://www.wikihow.com/Install-Software-from-Unsigned-Developers-on-a-Mac).
 
@@ -151,12 +151,15 @@ If you want to get started as a developer, follow these steps.
 
 Download and install (if you already have these tools installed just check the version constraints).
 
-* [.Net 6 SDK](https://dotnet.microsoft.com/download/dotnet/6.0).  Version >= 6.0
-* [Node.js v12](https://nodejs.org/dist/latest-v12.x/). **Version = latest 12.x.x**
+
+* [.Net 6 SDK](https://dotnet.microsoft.com/download/dotnet/5.0).  Version >= 6.0
+* [Node.js v14](https://nodejs.org/dist/latest-v14.x/). **Version 12 or (preferably) v14 - NOT latest 16**
     * Node.js includes the `npm` package manager, so this does not need to be installed separately.
-    * The lastest LTS version of Node is now v14. That will currently NOT work.
+    * The lastest LTS version of Node is now v16. That will currently NOT work.
+    * If you are using a different version of Node for developmnet on oytehr projects, global install 
+    (the default) may interfere with this. You will need to do a more complex local node install.
 * (recommended) Visual Studio 2022 which includes F# 6.0
-* (recommended) install [hyper.js](https://hyper.is/) to have a good command line interface - anything else you like ywill do.
+* (recommended) install [hyper.js](https://hyper.is/) to have a good command line interface - anything else you like will do.
 
 ### Issie Development
 
@@ -200,6 +203,15 @@ If possible, try to avoid this, but if necessary it can be done. Probably the be
 
 To reinstall the build environment (without changing project code) rerun `build.cmd` (Windows) or `build.sh` (Linux and MacOS). You may need first to
 run `build killzombies` to remove orphan processes that lock build files.
+
+## Creating binaries
+
+`npm run dist` will generate the correct binaries for your system under `/dist`.
+
+* There is a very rare bug in the code that downloads electron binaries that is sensitive to fast internet access: 
+going through a VPN makes it go away. It is one-off since the binaries are cached once downloaded. If this hits you
+the workaround is to run the build script again using Imperial College VPN. Having downloaded the binaries once
+the porblem will go away.
 
 ## TODO
 

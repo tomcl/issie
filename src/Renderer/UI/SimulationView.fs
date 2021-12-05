@@ -15,6 +15,7 @@ open NumberHelpers
 open Helpers
 open JSHelpers
 open DiagramStyle
+open Notifications
 open PopupView
 open MemoryEditorView
 open ModelType
@@ -22,6 +23,7 @@ open CommonTypes
 open SimulatorTypes
 open Extractor
 open Simulator
+open Notifications
 open NumberHelpers
 
 
@@ -47,7 +49,7 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
                         | e -> 
                             printfn $"Error in Verilog output: {e.Message}"
                             Error e.Message
-                        |> FileMenuView.displayAlertOnError dispatch
+                        |> Notifications.displayAlertOnError dispatch
                         dispatch <| ChangeRightTab Simulation
                         let note = successSimulationNotification $"verilog output written to file {path}"
                         dispatch  <| SetSimulationNotification note

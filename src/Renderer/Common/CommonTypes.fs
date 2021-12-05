@@ -149,14 +149,46 @@ module CommonTypes
     // Canvas state mapped to f# data structure //
     //==========================================//
 
-    // Specify the position and type of a port in a JSComponent.
+    /// Specify the type of a port in a Component.
     type PortType = Input | Output
+
+    (*
+    Note on Ports. Ports are used throughout Issie to represent I/Os of components.
+    Because a design sheet can be instantiated as a component they can also represent I/Os of a sheet.
+
+    1. Port records are used on both connections and components, a connection
+       source or target port will have port Id matching that of the port on the
+       component it connects to. All ports also specify the componentId of the
+       component they are on (HostID).
+    2. Port records on connections do NOT have port numbers, note this means that connection ports
+       cannot be the same as the corresponding component port.
+    3. Port numbers on components are contiguous from 0 separtely for input
+       and output ports.
+    4. Port numbers must match with the index of the port in the corresponding component
+       InputPorts or OutputPorts list
+    5. For custom components port numbers match index of the port in InputPortNames,OutputPortNames
+    6. For symbols port numbers determine the vertical order in which ports are displayed.
+    7. Thus when changing the order of number of I/Os on a custom component port numbers can be changed
+       as long as port lists and port name lists are similarly re-ordered.
+    8. In the simulation port numbers are not relevant for custom comps - connections match port names with the 
+       sheet input or output component for the port
+    9. In the simulation port numbers matter for all other ports: the simulator defines operation based on them.
+    10.In model.Symbol ports are kept in a single global map, including port numbers. If port numbers are permuted on
+       custom components the port numbers in this map must be changed. However this will normally happen since
+       model.Symbol symbols and ports are changed at the same time by AddSymbol or deleteSymbol or LoadComponents
+       messages.
+    *)
+
+
     /// A component I/O.
+    ///
     /// Id (like any other Id) is a string generated with 32 random hex charactes,
     /// so it is (practically) globally unique. These Ids are used 
     /// to uniquely refer to ports and components. They are generated via uuid().
-    /// PortNumber is used to identify which port on a component, contiguous from 0
-    /// separately for inputs and outputs.
+    ///
+    /// PortNumber is used to identify which port is which on a component, contiguous from 0
+    /// separately for inputs and outputs. See comments above type definition for details
+    ///
     /// HostId is the unique Id of the component where the port is. For example,
     /// all three ports on the same And component will have the same HostId.
     type Port = {
@@ -188,7 +220,7 @@ module CommonTypes
     /// Name identifies the LoadedComponent used.
     /// The labels define legends on symbol designating inputs or outputs: and are the names of the Input or Output components of the CC sheet.
     /// Label strings are unique per CustomComponent.
-    /// Label position in list determines inputportnumber or outputportnumber of label.
+    /// Label position in list determines inputPortNumber or outputPortNumber of label.
     /// Multiple CustomComponent instances are differentiated by Component data.
     type CustomComponentType = {
         Name: string
@@ -271,14 +303,14 @@ module CommonTypes
 
 
     /// JSComponent mapped to F# record.
-    /// Id uniquely identifies the component within a sheet and is used by draw2d library.
+    /// Id uniquely identifies the component within a sheet.
     /// Label is optional descriptor displayed on schematic.
     type Component = {
         Id : string
         Type : ComponentType
         Label : string // All components have a label that may be empty.
-        InputPorts : Port list
-        OutputPorts : Port list
+        InputPorts : Port list // position on this list determines inputPortNumber
+        OutputPorts : Port list // position in this lits determines OutputPortNumber
         X : int
         Y : int
         H : int

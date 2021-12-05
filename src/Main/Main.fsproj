@@ -4,6 +4,7 @@
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\Renderer\Common\ElectronAPI.fs" Link="ElectronAPI.fs" />
     <Compile Include="Main.fs" />
     <None Include="main.js" />
   </ItemGroup>

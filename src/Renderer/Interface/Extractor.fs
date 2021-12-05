@@ -111,8 +111,20 @@ let compareConns tolerance conns1 conns2 =
     let connsA1 = connIdA conns1
     let connsA2 = connIdA conns2
     connsA1.Length = connsA2.Length &&
-        Array.forall2 (fun c1 c2 ->verticesAreSame tolerance c1.Vertices c2.Vertices)  connsA1 connsA2
+        Array.forall2 (fun c1 c2 ->
+            verticesAreSame tolerance c1.Vertices c2.Vertices)  connsA1 connsA2
 
+/// Are two lists of components identical
+let compareComps tolerance comps1 comps2 =
+    let isClose a b = float ((a-b)*(a-b)) < tolerance
+    let compIdA (comps:Component List) =
+        comps
+        |> Array.ofList
+        |> Array.sortBy (fun comp -> comp.Id)      
+    let compsA1 = compIdA comps1
+    let compsA2 = compIdA comps2
+    compsA1.Length = compsA2.Length &&
+        Array.forall2 (fun (c1: Component) (c2:Component) -> isClose c1.X c2.X && isClose c1.Y c2.Y)  compsA1 compsA2
 
 /// Robust comparison of two schematics. Tolerance determines how similar
 /// counts as equal.
@@ -120,7 +132,7 @@ let compareConns tolerance conns1 conns2 =
 /// use to detemine whether schematic needs to be saved
 /// NB for electrical circuit comparison use extractReducedState.
 let compareCanvas 
-        tolerance
+        (tolerance: float)
         ((comps1,conns1):CanvasState) 
         ((comps2,conns2):CanvasState) =
     let reduce comps =
@@ -128,8 +140,10 @@ let compareCanvas
         |> List.toArray
         |> Array.map (fun comp -> {comp with H=0;W=0;X=0;Y=0})
         |> Array.sortBy (fun comp -> comp.Id)
-    reduce comps1 = reduce comps2 &&
-    compareConns tolerance conns1 conns2
+    let compsOk = reduce comps1 = reduce comps2
+    let compsSamePos = compareComps tolerance comps1 comps2
+    let connsOk = compareConns tolerance conns1 conns2
+    compsOk && compsSamePos && connsOk
 
 /// Compare the name and IOs of two sheets as loadedcomponents
 /// For backups, if these chnage something major has happened

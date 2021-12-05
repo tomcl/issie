@@ -16,6 +16,7 @@ open JSHelpers
 open CommonTypes
 open ModelType
 open PopupView
+open Notifications
 
 let private popupExtraStyle = [ Width "65%"; Height "80%" ]
 let private headerHeight = 60;

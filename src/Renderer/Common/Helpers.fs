@@ -96,7 +96,7 @@ let memoizeBy (keyFunc: 'a -> 'k) (funcToMemoize: 'a -> 'c) : 'a -> 'c =
             lastValue <- Some v
             v
 
-
+// NB mapKeys and mapValues should probably be changed to use F# 6 Map.kets, Map.values
             
 /// Array of map keys
 let mapKeys (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map fst |> Array.ofSeq
@@ -106,6 +106,11 @@ let mapValues (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map snd |> Array.ofSeq
 
 /// Array of map key,value items
 let mapItems (map:Map<'a,'b>) = map |> Map.toSeq |> Array.ofSeq
+
+/// Map a function over a pair of elements.
+/// mapPair f (x,y) = f x, f y.
+let mapPair (f: 'S -> 'T) ((p1,p2): 'S * 'S) =
+    f p1, f p2
 
 /// Look up key in map, return defVal if key is not found
 let mapFindWithDef (defVal: 'b) (key: 'a) (map:Map<'a,'b>) = 

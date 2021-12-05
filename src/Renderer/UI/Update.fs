@@ -5,7 +5,7 @@ open Elmish
 open Fulma
 open Fable.React
 open Fable.React.Props
-open Electron
+open ElectronAPI
 open BusWidthInferer
 open SimulatorTypes
 open ModelType
@@ -144,7 +144,7 @@ let findChange (model : Model) : bool =
             |> List.find (fun lc -> lc.Name = prj.OpenFileName)
         let canv = savedComponent.CanvasState
         let canv' = model.Sheet.GetCanvasState ()
-        (canv <> canv') && not (compareCanvas 500. canv canv')
+        (canv <> canv') && not (compareCanvas 100. canv canv')
         |> Helpers.instrumentInterval "findChange" start
 
 /// Needed so that constant properties selection will work
@@ -175,7 +175,7 @@ let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) 
    
 let exitApp() =
     // send message to main process to initiate window close and app shutdown
-    Electron.electron.ipcRenderer.send("exit-the-app",[||])
+    renderer.ipcRenderer.send("exit-the-app",[||])
 
 ///Tests physical equality on two objects
 ///Used because Msg type does not support structural equality
@@ -253,7 +253,7 @@ let update (msg : Msg) oldModel =
                 {model with UIState = Some uiCmd}, Cmd.ofMsg (Sheet (Sheet.SetSpinner true))
         | _ -> model, Cmd.none //otherwise discard the message
     | FinishUICmd _ ->
-        let popup = FileMenuView.optCurrentSheetDependentsPopup model
+        let popup = CustomCompPorts.optCurrentSheetDependentsPopup model
         {model with UIState = None; PopupViewFunc = popup}, Cmd.ofMsg (Sheet (Sheet.SetSpinner false))
     (*| ShowExitDialog ->
         match model.CurrentProj with
@@ -341,9 +341,9 @@ let update (msg : Msg) oldModel =
             PopupDialogData = {model.PopupDialogData with ProjectPath = project.ProjectPath}
         }, Cmd.none
     | UpdateProject update -> 
-        FileMenuView.updateProjectFiles true update model, Cmd.none
+        CustomCompPorts.updateProjectFiles true update model, Cmd.none
     | UpdateProjectWithoutSyncing update -> 
-        FileMenuView.updateProjectFiles false update model,Cmd.none
+        CustomCompPorts.updateProjectFiles false update model,Cmd.none
     | ShowPopup popup -> { model with PopupViewFunc = Some popup }, Cmd.none
     | ClosePopup ->
         let model' =

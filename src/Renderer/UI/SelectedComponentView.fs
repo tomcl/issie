@@ -16,6 +16,7 @@ open ModelType
 open CommonTypes
 open MemoryEditorView
 open PopupView
+open Notifications
 
 let private readOnlyFormField name body =
     Field.div [] [
@@ -387,7 +388,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let formatLabelText (txt: string) =
         txt.ToUpper()
-        |> Seq.filter (function | ch when System.Char.IsLetterOrDigit ch -> true | '.' -> true | _ -> false)
+        |> Seq.filter (function | ch when System.Char.IsLetterOrDigit ch -> true | '.' -> true | '_' -> true | _ -> false)
         |> Seq.skipWhile (System.Char.IsLetter >> not)
         |> (fun chars -> match Seq.length chars with | 0 -> None | _ -> Some (String.concat "" (Seq.map string chars)))
     match model.Sheet.SelectedComponents with

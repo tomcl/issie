@@ -185,7 +185,7 @@ In theory the build should work equally well on macos. Practically that is now (
 
 * git clone to local project directory as normal (with github desktop or command line git - one off)
 * dotnet tool restore  (build tools - one off)
-* paket install (install dotnet packages one off)
+* dotnet paket install (install dotnet packages one off)
 * npm install (install node packages - one off)
 * npm run dev (run the dev envt) 
 

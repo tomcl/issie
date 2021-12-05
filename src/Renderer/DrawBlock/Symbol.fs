@@ -123,16 +123,16 @@ let gateDecoderType (comp:Component) =
     | Or | Nor-> "≥1"
     | Xor | Xnor -> "=1"
     | Not -> "1"
-    | Decode4 -> "decode"
-    | NbitsAdder n -> title "adder" n
-    | Register n | RegisterE n-> title "register" n
+    | Decode4 -> "Decode"
+    | NbitsAdder n -> title "Adder" n
+    | Register n | RegisterE n-> title "Register" n
     | AsyncROM1 _ -> "Async-ROM"
-    | ROM1 _ -> "ROM"
-    | RAM1 _ -> "RAM"
-    | AsyncRAM1 _ -> "ARAM"
+    | ROM1 _ -> "Sync-ROM"
+    | RAM1 _ -> "Sync-RAM"
+    | AsyncRAM1 _ -> "Async-RAM"
     | DFF -> "DFF"
     | DFFE -> "DFFE"
-    | NbitsXor (x)->   title "Xor" x
+    | NbitsXor (x)->   title "N-bits-Xor" x
     | Custom x -> x.Name
     | _ -> ""
 
@@ -143,9 +143,9 @@ let portDecName (comp:Component) = //(input port names, output port names)
     | NbitsAdder _ -> (["Cin";"A";"B"],["Sum "; "Cout"])
     | Register _ -> (["D"],["Q"])
     | RegisterE _ -> (["D"; "EN"],["Q"])
-    | ROM1 _ |AsyncROM1 _ -> (["address"],["data"])
-    | RAM1 _ -> (["address"; "data-in";"write" ],["data_out"])
-    | AsyncRAM1 _ -> (["address"; "data-in";"write" ],["data_out"])
+    | ROM1 _ |AsyncROM1 _ -> (["Addr"],["Dout"])
+    | RAM1 _ -> (["Addr"; "Din";"Wen" ],["Dout"])
+    | AsyncRAM1 _ -> (["Addr"; "Din";"Wen" ],["Dout"])
     | DFF -> (["D"],["Q"])
     | DFFE -> (["D";"EN"],["Q"])
     | Mux2 -> (["0"; "1";"SEL"],["OUT"])
@@ -614,10 +614,15 @@ let getCopiedSymbols (symModel: Model) : (ComponentId list) =
     |> Map.toList
     |> List.map fst
 
-/// Function to filter out non-letter characters by using ASCII values.
+/// Function to filter out terminal non-letter characters.
 /// Modified to capitalise labels
 let filterString (string: string) = 
     string.ToUpper()
+    |> Seq.rev
+    |> Seq.skipWhile System.Char.IsDigit
+    |> Seq.rev
+    |> Seq.map System.Char.ToString
+    |> String.concat ""
    
 ///Returns the number of the component label (i.e. the number 1 from IN1 or ADDER16.1)
 let regex (str : string) = 
@@ -743,7 +748,7 @@ let getIndex listSymbols compType =
 let labelGenNumber (model: Model) (compType: ComponentType) (label : string) = 
     let listSymbols = List.map snd (Map.toList model.Symbols) 
     match compType with
-    | IOLabel -> filterString label
+    | IOLabel -> label
     | _ -> filterString label + (getIndex listSymbols compType)
 
 ///Generates the label for a component type
@@ -837,6 +842,7 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
         | NbitsAdder _ -> NbitsAdder newBits
         | NbitsXor _ -> NbitsXor newBits
         | Register _ -> Register newBits
+        | RegisterE _ -> RegisterE newBits
         | SplitWire _ -> SplitWire newBits
         | BusSelection (_,b) -> BusSelection (newBits,b)
         | BusCompare (_,b) -> BusCompare (newBits,b)

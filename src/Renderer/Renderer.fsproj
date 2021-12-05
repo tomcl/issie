@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Common definitions --> 
+    <Compile Include="Common\ElectronAPI.fs" /> 
     <Compile Include="Common\EEEHelpers.fs" /> 
     <Compile Include="Common\EEExtensions.fs" /> 
     <Compile Include="Common\CommonTypes.fs" />
@@ -41,8 +42,10 @@
     <!-- UI -->
     <Compile Include="UI/ModelType.fs" />
     <Compile Include="UI/Style.fs" />
+    <Compile Include="UI\Notifications.fs" />
     <Compile Include="UI/PopupView.fs" />
     <Compile Include="UI/MemoryEditorView.fs" />
+    <Compile Include="UI\CustomCompPorts.fs" />
     <Compile Include="UI/FileMenuView.fs" />
     <Compile Include="UI/SimulationView.fs" />
     <Compile Include="UI/CatalogueView.fs" />

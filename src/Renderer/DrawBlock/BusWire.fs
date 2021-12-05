@@ -943,8 +943,8 @@ let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model: Model) =
     let mutable newWX = model.WX
     // Arrays are faster to check than lists
     let wiresWithNoJumpsA = List.toArray wiresWithNoJumps
-
     let changeJumps wid index jumps =
+        let jumps = List.sortDescending jumps
         let changeSegment segs =
             List.mapi (fun i x -> if i <> index then x else { x with JumpCoordinateList = jumps }) segs
 
@@ -1205,6 +1205,7 @@ let moveWire (wire : Wire) (diff : XYPos) =
 /// Re-routes a single wire in the model when its ports move.
 /// Tries to preserve manual routing when this makes sense, otherwise re-routes with autoroute.
 /// Partial routing from input end is done by reversing segments and and swapping Start/End
+/// inout = true => reroute input (target) side of wire.
 let updateWire (model : Model) (wire : Wire) (inOut : bool) =
     let newPort = 
         match inOut with
@@ -1217,6 +1218,13 @@ let updateWire (model : Model) (wire : Wire) (inOut : bool) =
         partialAutoRoute wire.Segments newPort
     |> Option.map (fun segs -> {wire with Segments = segs})
     |> Option.defaultValue (autorouteWire model wire)
+
+
+
+   
+        
+
+
 
 /// Re-routes the wires in the model based on a list of components that have been altered.
 /// If the wire input and output ports are both in the list of moved components, does not re-route wire but instead translates it.
@@ -1430,7 +1438,12 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
     
     | ResetModel -> { model with WX = Map.empty; ErrorWires = []; Notifications = None }, Cmd.none
     
-    | LoadConnections conns ->
+    | LoadConnections conns -> // we assume components (and hence ports) are loaded before connections
+        let posMatchesVertex (pos:XYPos) (vertex: float*float) =
+            let epsilon = 0.00001
+            abs (abs pos.X - abs (fst vertex)) < epsilon &&
+            abs (abs pos.Y - abs (snd vertex)) < epsilon
+            |> (fun b -> if not b then printf $"Bad wire endpoint match on {pos} {vertex}"; b else b)
         let newWX =
             conns 
             |> List.map ( fun conn ->
@@ -1438,6 +1451,28 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                             let outputId = OutputPortId conn.Source.Id
                             let connId = ConnectionId conn.Id
                             let segments = issieVerticesToSegments connId conn.Vertices
+                            let makeWirePosMatchSymbol inOut (wire:Wire) =
+                                match inOut with
+                                | true -> posMatchesVertex 
+                                            (Symbol.getInputPortLocation model.Symbol inputId)
+                                            (List.head conn.Vertices)
+                                | false ->
+                                          posMatchesVertex 
+                                            (Symbol.getOutputPortLocation model.Symbol outputId) 
+                                            (List.last conn.Vertices)
+                                |> (fun b -> 
+                                    if b then 
+                                        wire 
+                                    else
+                                        let getS (connId:string) = 
+                                            Map.tryFind connId model.Symbol.Ports
+                                            |> Option.map (fun port -> port.HostId)
+                                            |> Option.bind (fun symId -> Map.tryFind (ComponentId symId) model.Symbol.Symbols)
+                                            |> Option.map (fun sym -> sym.Compo.Label)
+                                        printfn $"Updating loaded wire from {getS conn.Source.Id}->{getS conn.Target.Id} of wire "
+                                        updateWire model wire inOut)
+                                
+                                
                             connId,
                             { Id = ConnectionId conn.Id
                               InputPort = inputId
@@ -1445,6 +1480,8 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                               Color = HighLightColor.DarkSlateGrey
                               Width = 1
                               Segments = segments}
+                            |> makeWirePosMatchSymbol false
+                            |> makeWirePosMatchSymbol true
                         )
             |> Map.ofList
         

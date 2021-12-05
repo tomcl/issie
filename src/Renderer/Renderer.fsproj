@@ -19,7 +19,9 @@
     <Compile Include="Simulator\CanvasStateAnalyser.fs" />
     <Compile Include="Simulator\SimulationGraphAnalyser.fs" />
     <Compile Include="Simulator\Builder.fs" />
-    <Compile Include="Simulator\Fast.fs" />
+    <Compile Include="Simulator\FastCreate.fs" />
+    <Compile Include="Simulator\FastReduce.fs" />
+    <Compile Include="Simulator\FastRun.fs" />
     <Compile Include="Simulator\Verilog.fs" />
     <Compile Include="Simulator\Runner.fs" />
     <Compile Include="Simulator\DependencyMerger.fs" />

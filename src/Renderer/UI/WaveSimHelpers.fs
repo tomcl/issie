@@ -266,7 +266,7 @@ let getRamInfoToDisplay wSMod (path: ComponentId list) =
     let apLst = path |> List.rev |> function | (h::rest) -> h :: (List.rev rest) | [] -> []
     match sdOpt, apLst with
     | Some sd, (cid :: ap)  ->
-        let state = Fast.extractFastSimulationState sd.FastSim (int cursorStep) (cid,ap)
+        let state = FastRun.extractFastSimulationState sd.FastSim (int cursorStep) (cid,ap)
         let lab = match sd.FastSim.FComps[cid,ap].SimComponent.Label with |  ComponentLabel lab -> lab
         match state with
         | RamState dat  ->
@@ -313,13 +313,13 @@ let private clkAdvance (sD: SimulationData) =
     let sD =
         if sD.ClockTickNumber = 0 then
             // set up the initial fast simulation
-            {sD with FastSim = match Fast.buildFastSimulation (int maxLastClk) sD.Graph with | Ok fs -> fs | Error e -> failwithf "fast simulation error"}
+            {sD with FastSim = match FastRun.buildFastSimulation (int maxLastClk) sD.Graph with | Ok fs -> fs | Error e -> failwithf "fast simulation error"}
         else
             sD
     //feedClockTick sD.Graph
     //|> (fun graph ->
     let newClock = sD.ClockTickNumber + 1
-    Fast.runFastSimulation newClock sD.FastSim
+    FastRun.runFastSimulation newClock sD.FastSim
     { sD with
               Graph = sD.Graph
               ClockTickNumber = newClock }
@@ -366,12 +366,12 @@ let getSimTime (waves: WaveformSpec array) (simData: SimulationData) =
     let fs = simData.FastSim
     let step = simData.ClockTickNumber
     let topLevelComps = simData.FastSim.FComps
-    Fast.runFastSimulation step fs
+    FastRun.runFastSimulation step fs
     waves
     |> Array.map (fun wave ->
         try 
             let driver,opn = wave.Driver
-            let wD = Fast.extractFastSimulationOutput fs step driver opn
+            let wD = FastRun.extractFastSimulationOutput fs step driver opn
             Wire
                 { NBits = uint (List.length wD)
                   BitData = simWireData2Wire wD }
@@ -687,7 +687,7 @@ let rec private findName (compIds: ComponentId Set) (sd: SimulationData) (net: N
                 |> List.rev
             | IOLabel -> 
                 let drivingComp = fs.FIOActive[ComponentLabel srcComp.Label,[]]
-                let ioLblWidth = Fast.extractFastSimulationWidth fs (drivingComp.Id,[]) (OutputPortNumber 0)
+                let ioLblWidth = FastRun.extractFastSimulationWidth fs (drivingComp.Id,[]) (OutputPortNumber 0)
                 match ioLblWidth with
                 | None ->
                     failwithf $"What? Can't find width for IOLabel {net[srcComp.Id].Label}$ "

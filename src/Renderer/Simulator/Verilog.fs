@@ -4,7 +4,7 @@ open CommonTypes
 open SimulatorTypes
 open SynchronousUtils
 open EEExtensions
-open Fast
+open FastRun
 open Helpers
 open NumberHelpers
 

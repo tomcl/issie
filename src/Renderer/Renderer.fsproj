@@ -37,7 +37,6 @@
 
     <!-- Draw2D diagram -->
     <Compile Include="DrawBlock\Symbol.fs" />
-    <Compile Include="DrawBlock\Temp.fs" />
     <Compile Include="DrawBlock\BusWire.fs" />
     <Compile Include="DrawBlock\Sheet.fs" />
     

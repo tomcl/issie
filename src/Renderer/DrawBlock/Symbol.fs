@@ -123,16 +123,16 @@ let gateDecoderType (comp:Component) =
     | Or | Nor-> "≥1"
     | Xor | Xnor -> "=1"
     | Not -> "1"
-    | Decode4 -> "decode"
-    | NbitsAdder n -> title "adder" n
-    | Register n | RegisterE n-> title "register" n
+    | Decode4 -> "Decode"
+    | NbitsAdder n -> title "Adder" n
+    | Register n | RegisterE n-> title "Register" n
     | AsyncROM1 _ -> "Async-ROM"
-    | ROM1 _ -> "ROM"
-    | RAM1 _ -> "RAM"
-    | AsyncRAM1 _ -> "ARAM"
+    | ROM1 _ -> "Sync-ROM"
+    | RAM1 _ -> "Sync-RAM"
+    | AsyncRAM1 _ -> "Async-RAM"
     | DFF -> "DFF"
     | DFFE -> "DFFE"
-    | NbitsXor (x)->   title "Xor" x
+    | NbitsXor (x)->   title "N-bits-Xor" x
     | Custom x -> x.Name
     | _ -> ""
 
@@ -143,9 +143,9 @@ let portDecName (comp:Component) = //(input port names, output port names)
     | NbitsAdder _ -> (["Cin";"A";"B"],["Sum "; "Cout"])
     | Register _ -> (["D"],["Q"])
     | RegisterE _ -> (["D"; "EN"],["Q"])
-    | ROM1 _ |AsyncROM1 _ -> (["address"],["data"])
-    | RAM1 _ -> (["address"; "data-in";"write" ],["data_out"])
-    | AsyncRAM1 _ -> (["address"; "data-in";"write" ],["data_out"])
+    | ROM1 _ |AsyncROM1 _ -> (["Addr"],["Dout"])
+    | RAM1 _ -> (["Addr"; "Din";"Wen" ],["Dout"])
+    | AsyncRAM1 _ -> (["Addr"; "Din";"Wen" ],["Dout"])
     | DFF -> (["D"],["Q"])
     | DFFE -> (["D";"EN"],["Q"])
     | Mux2 -> (["0"; "1";"SEL"],["OUT"])

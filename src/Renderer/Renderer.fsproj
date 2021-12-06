@@ -14,8 +14,8 @@
     <!-- Common definitions --> 
     <Compile Include="Common\EEExtensions.fs" /> 
     <Compile Include="Common\ElectronAPI.fs" /> 
-    <Compile Include="Common\DrawHelpers.fs" /> 
-    <Compile Include="Common\CommonTypes.fs" />
+    <Compile Include="Common\CommonTypes.fs" /> 
+    <Compile Include="Common\DrawHelpers.fs" />
     <Compile Include="Common\Helpers.fs" />
     <Compile Include="Common\TimeHelpers.fs" />
     <Compile Include="Common\WidthInferer.fs" />
@@ -36,7 +36,6 @@
     
     <!-- JS and File interface -->
     <Compile Include="Interface\Version.fs" />
-    <Compile Include="Interface\JSTypes.fs" />
     <Compile Include="Interface\JSHelpers.fs" />
     <Compile Include="Interface\Extractor.fs" />
     <Compile Include="Interface\FilesIO.fs" />

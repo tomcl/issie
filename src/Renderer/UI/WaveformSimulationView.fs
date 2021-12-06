@@ -77,18 +77,16 @@ open Fable.React.Props
 open ModelType
 open DiagramStyle
 open CommonTypes
-open Notifications
 open WaveSimHelpers
 open FileMenuView
 open SimulatorTypes
-//
-//
-//
-//
-///// maximum width of the waveform simulator viewer
+
+
+
+/// maximum width of the waveform simulator viewer
 let maxUsedViewerWidth (wSMod: WaveSimModel) =
     let strWidth s = 
-        JSHelpers.getTextWidthInPixels (s, "12px segoe ui") //not sure which font
+        DrawHelpers.getTextWidthInPixels (s, "12px segoe ui") //not sure which font
     let curLblColWidth =
         match cursorValueStrings wSMod with
         | [||] -> 0.0

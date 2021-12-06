@@ -1,7 +1,9 @@
 ﻿module DrawHelpers
+open Browser.Types
 open Fable.Core.JsInterop
 open Fable.React
 open Fable.React.Props
+
 
 //-------------------------------------------------------------------------//
 //------------------------------Types--------------------------------------//
@@ -88,6 +90,13 @@ type Text = {
     /// auto/middle/hanging: vertical alignment vs (X,Y)
     DominantBaseline: string
 }
+
+let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
+let canvasWidthContext = testCanvas.getContext_2d()
+
+let getTextWidthInPixels(txt:string, font:string) =
+   canvasWidthContext.font <- font; // e.g. "16px times new roman";
+   canvasWidthContext.measureText(txt).width;
 
 
 /// Default line, change this one to create new lines
@@ -211,6 +220,13 @@ let makeText (posX: float) (posY: float) (displayedText: string) (textParameters
                 
             ]
         ] [str <| sprintf "%s" (displayedText)]
+
+
+
+/// deliver string suitable for HTML color from a HighlightColor type value
+let getColorString (col: CommonTypes.HighLightColor) =
+    (sprintf "%A" col).ToLower()
+
 
 
 //--------------------------------Constants----------------------------------//

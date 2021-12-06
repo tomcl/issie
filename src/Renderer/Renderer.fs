@@ -35,9 +35,9 @@ let testMaps() =
             i <- i + 1
         
     let count = 1000000
-    let start = Helpers.getTimeMs()
+    let start = TimeHelpers.getTimeMs()
     let result = iterMap count
-    let interval = Helpers.getTimeMs() - start
+    let interval = TimeHelpers.getTimeMs() - start
     printfn "%d iterations of iterMap took %.1fms" count interval
 
 
@@ -104,7 +104,7 @@ let makeMenu (topLevel: bool) (name : string) (table : MenuItemConstructorOption
    subMenu.submenu <- Some (U2.Case1 (table |> ResizeArray))
    subMenu    
 
-let displayPerformance n m = Helpers.checkPerformance n m JSHelpers.startTimer JSHelpers.stopAndLogTimer
+let displayPerformance n m = TimeHelpers.checkPerformance n m JSHelpers.startTimer JSHelpers.stopAndLogTimer
 
 
 
@@ -222,9 +222,9 @@ let update msg model = Update.update msg model
 printfn "Starting renderer..."
 
 let view' model dispatch =
-    let start = Helpers.getTimeMs()
+    let start = TimeHelpers.getTimeMs()
     view model dispatch
-    |> Helpers.instrumentInterval "View" start
+    |> TimeHelpers.instrumentInterval "View" start
    
 let mutable firstPress = true
 

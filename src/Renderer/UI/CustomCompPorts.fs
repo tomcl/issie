@@ -140,7 +140,7 @@ let ioCompareSigs (sig1: Signature) (sig2: Signature) =
     let diff1 = set1 - set2
     let diff2 = set2 - set1
     mapKeys ioMap
-    |> Array.map 
+    |> Seq.map 
         (fun m -> 
             let getDetails m (ioMap: Map<IODirection*string,Match>) =
                 let ma = Map.tryFind m ioMap
@@ -163,8 +163,8 @@ let ioCompareSigs (sig1: Signature) (sig2: Signature) =
                 Old = oldLW
             })
 
-let guessAtRenamedPorts (matches: PortChange array)  : PortChange array =
-    let matches = Array.toList matches
+let guessAtRenamedPorts (matches: PortChange seq)  : PortChange array =
+    let matches = Seq.toList matches
     let portsByWidthFiltered (ports: ((string*int) * PortChange) list) =
         ports
         |> List.groupBy (fst >> snd)
@@ -368,7 +368,7 @@ let changeInstance (comp:Component) (change: PortChange) =
             let labels = labels @ [name,width]
             let newPort:Port = 
                 {
-                    Id = EEEHelpers.uuid ()
+                    Id = DrawHelpers.uuid ()
                     PortNumber = Some ports.Length // next available number
                     HostId = comp.Id
                     PortType = match dir with | InputIO -> PortType.Input | OutputIO -> PortType.Output

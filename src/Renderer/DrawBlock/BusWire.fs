@@ -6,7 +6,7 @@ open Fable.React.Props
 open Browser
 open Elmish
 open Elmish.React
-open EEEHelpers
+open DrawHelpers
 
 //Static Vars
 let minSegLen = 5.
@@ -905,13 +905,13 @@ let MapToSortedList map : Wire list =
     listUnSelected @ listErrorUnselected @ listErrorSelected @ listSelected @ listWaves @ listCopied
    
 let view (model : Model) (dispatch : Dispatch<Msg>) =
-    let start = Helpers.getTimeMs()
+    let start = TimeHelpers.getTimeMs()
     let wires1 =
         model.WX
         |> Map.toArray
         |> Array.map snd
-    Helpers.instrumentTime "WirePropsSort" start
-    let rStart = Helpers.getTimeMs()
+    TimeHelpers.instrumentTime "WirePropsSort" start
+    let rStart = TimeHelpers.getTimeMs()
     let wires =
         wires1
         |> Array.map
@@ -931,11 +931,11 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
                             OutputPortLocation = outputPortLocation
                         }
                     singleWireView props)
-    Helpers.instrumentInterval "WirePrepareProps" rStart ()
+    TimeHelpers.instrumentInterval "WirePrepareProps" rStart ()
     let symbols = Symbol.view model.Symbol (Symbol >> dispatch)
  
     g [] [(g [] wires); symbols]
-    |> Helpers.instrumentInterval "WireView" start
+    |> TimeHelpers.instrumentInterval "WireView" start
 
 
 
@@ -998,9 +998,9 @@ let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model: Model) =
 
 
 let updateWireSegmentJumps (wireList: list<ConnectionId>) (wModel: Model) : Model =
-    let startT = Helpers.getTimeMs()
+    let startT = TimeHelpers.getTimeMs()
     let model = makeAllJumps [] wModel
-    Helpers.instrumentTime "UpdateJumps" startT
+    TimeHelpers.instrumentTime "UpdateJumps" startT
     model
 
 

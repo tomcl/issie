@@ -4,7 +4,7 @@ open CommonTypes
 open SimulatorTypes
 open SynchronousUtils
 open EEExtensions
-open Fast
+open FastRun
 open Helpers
 open NumberHelpers
 
@@ -483,13 +483,14 @@ let getMainHeader (vType:VMode) (fs: FastSimulation) =
 let getMainSignalDefinitions (vType: VMode) (fs: FastSimulation) =
     fs.FComps
     |> mapValues
-    |> Array.filter (fun fc -> fc.Active)
-    |> Array.collect
+    |> Seq.filter (fun fc -> fc.Active)
+    |> Seq.collect
         (fun fc ->
             fc.Outputs
             |> Array.mapi (fun i _ -> fastOutputDefinition vType fc (OutputPortNumber i)))
-    |> Array.sort
-    |> Array.append (match vType with | ForSimulation -> [| "reg clk;\n" |] | ForSynthesis -> [||])
+    |> Seq.sort
+    |> Seq.append (match vType with | ForSimulation -> [| "reg clk;\n" |] | ForSynthesis -> [||])
+    |> Seq.toArray
 
 /// get the module definitions (one per RAM instance) that define RAMs used
 /// TODO: make output more compact by using multiple instances of one module where possible.

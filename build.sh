@@ -7,7 +7,8 @@ set -eu
 set -o pipefail
 
 dotnet tool restore
-dotnet restore build.proj
+dotnet paket install
+# dotnet restore build.proj
 
 if [ ! -f build.fsx ]; then
     dotnet fake run init.fsx

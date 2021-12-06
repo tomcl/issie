@@ -905,8 +905,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
 
             let allSubSheets =
                 mapKeys sTrees
-                |> Array.toList
-                |> List.collect subSheetsOf
+                |> Seq.collect subSheetsOf
                 |> Set
             let isSubSheet sh = Set.contains sh allSubSheets
 

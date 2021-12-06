@@ -4,13 +4,20 @@
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
 
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <!-- Common definitions --> 
-    <Compile Include="Common\ElectronAPI.fs" /> 
-    <Compile Include="Common\EEEHelpers.fs" /> 
     <Compile Include="Common\EEExtensions.fs" /> 
+    <Compile Include="Common\ElectronAPI.fs" /> 
+    <Compile Include="Common\DrawHelpers.fs" /> 
     <Compile Include="Common\CommonTypes.fs" />
     <Compile Include="Common\Helpers.fs" />
+    <Compile Include="Common\TimeHelpers.fs" />
     <Compile Include="Common\WidthInferer.fs" />
     <!-- simulator -->
     <Compile Include="Simulator\SimulatorTypes.fs" />
@@ -19,7 +26,9 @@
     <Compile Include="Simulator\CanvasStateAnalyser.fs" />
     <Compile Include="Simulator\SimulationGraphAnalyser.fs" />
     <Compile Include="Simulator\Builder.fs" />
-    <Compile Include="Simulator\Fast.fs" />
+    <Compile Include="Simulator\FastCreate.fs" />
+    <Compile Include="Simulator\FastReduce.fs" />
+    <Compile Include="Simulator\FastRun.fs" />
     <Compile Include="Simulator\Verilog.fs" />
     <Compile Include="Simulator\Runner.fs" />
     <Compile Include="Simulator\DependencyMerger.fs" />
@@ -35,7 +44,6 @@
 
     <!-- Draw2D diagram -->
     <Compile Include="DrawBlock\Symbol.fs" />
-    <Compile Include="DrawBlock\Temp.fs" />
     <Compile Include="DrawBlock\BusWire.fs" />
     <Compile Include="DrawBlock\Sheet.fs" />
     

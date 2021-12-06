@@ -4,13 +4,20 @@
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
 
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <!-- Common definitions --> 
-    <Compile Include="Common\ElectronAPI.fs" /> 
-    <Compile Include="Common\EEEHelpers.fs" /> 
     <Compile Include="Common\EEExtensions.fs" /> 
+    <Compile Include="Common\ElectronAPI.fs" /> 
+    <Compile Include="Common\DrawHelpers.fs" /> 
     <Compile Include="Common\CommonTypes.fs" />
     <Compile Include="Common\Helpers.fs" />
+    <Compile Include="Common\TimeHelpers.fs" />
     <Compile Include="Common\WidthInferer.fs" />
     <!-- simulator -->
     <Compile Include="Simulator\SimulatorTypes.fs" />

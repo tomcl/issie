@@ -13,6 +13,7 @@ open Fable.React.Props
 
 open NumberHelpers
 open Helpers
+open TimeHelpers
 open JSHelpers
 open DiagramStyle
 open Notifications
@@ -133,7 +134,7 @@ let rec prepareSimulationMemoized
 /// as needed, or error if simulation fails.
 /// Note that simulation is only redone if current canvas changes.
 let makeSimData model =
-    let start = Helpers.getTimeMs()
+    let start = TimeHelpers.getTimeMs()
     match model.Sheet.GetCanvasState(), model.CurrentProj with
     | _, None -> None
     | canvasState, Some project ->
@@ -143,7 +144,7 @@ let makeSimData model =
         (canvasState, otherComponents)
         ||> prepareSimulationMemoized project.OpenFileName
         |> Some
-        |> Helpers.instrumentInterval "MakeSimData" start
+        |> TimeHelpers.instrumentInterval "MakeSimData" start
 
 let changeBase dispatch numBase = numBase |> SetSimulationBase |> dispatch
 

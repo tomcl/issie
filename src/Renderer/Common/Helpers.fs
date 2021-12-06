@@ -41,21 +41,7 @@ open CommonTypes
         let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option) : string =
             let time = System.DateTime.Now
             //printfn "%A" cState
-            try (*
-                 printfn "\n--------cState----------\n%A\n" cState
-                 printfn "\n-----savedWaveInfo--------\n%A\n------------\n" waveInfo
-
-                 SimpleJson.stringify ([||]) |> ignore
-                 printfn "testWI:"
-                 SimpleJson.stringify (testWI) |> ignore
-                 printfn "\ntrying to stringify waveinfo"
-                 SimpleJson.stringify (waveInfo) |> ignore
-                 printfn "\n trying to stringify cState"
-                 SimpleJson.stringify (cState) |> ignore
-                 printfn "\n trying to stringify time"
-                 SimpleJson.stringify (time) |> ignore
-                 printfn "\n\nTrying to stringify all" *)
-             
+            try            
                  Json.serialize<SavedInfo> (CanvasWithFileWaveInfoAndNewConns (cState, waveInfo, time))
             with
             | e -> 
@@ -96,43 +82,41 @@ let memoizeBy (keyFunc: 'a -> 'k) (funcToMemoize: 'a -> 'c) : 'a -> 'c =
             lastValue <- Some v
             v
 
+
 // NB mapKeys and mapValues should probably be changed to use F# 6 Map.kets, Map.values
-            
+
 /// Array of map keys
-let mapKeys (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map fst |> Array.ofSeq
+let inline mapKeys (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map fst
 
 /// Array of map values
-let mapValues (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map snd |> Array.ofSeq
-
-/// Array of map key,value items
-let mapItems (map:Map<'a,'b>) = map |> Map.toSeq |> Array.ofSeq
+let inline mapValues (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map snd 
 
 /// Map a function over a pair of elements.
 /// mapPair f (x,y) = f x, f y.
-let mapPair (f: 'S -> 'T) ((p1,p2): 'S * 'S) =
+let inline mapPair (f: 'S -> 'T) ((p1,p2): 'S * 'S) =
     f p1, f p2
 
 /// Look up key in map, return defVal if key is not found
-let mapFindWithDef (defVal: 'b) (key: 'a) (map:Map<'a,'b>) = 
+let inline mapFindWithDef (defVal: 'b) (key: 'a) (map:Map<'a,'b>) = 
     Option.defaultValue defVal (Map.tryFind key map)
 
 /// If key exists in map: (key:v) -> (key:update v), otherwise create new item
 /// (key : update v)
-let mapUpdateWithDef (defVal: 'b) (update: 'b -> 'b) (key: 'a) (map:Map<'a,'b>)  =
+let inline mapUpdateWithDef (defVal: 'b) (update: 'b -> 'b) (key: 'a) (map:Map<'a,'b>)  =
     let v = Option.defaultValue defVal (Map.tryFind key map)
     Map.add key (update v) map
 
 /// Union of maps, common keys take m1 value
-let mapUnion m1 m2 =
+let inline mapUnion m1 m2 =
     (m2, m1)
     ||> Map.fold (fun m key value -> Map.add key value m )
 
 /// create inverse map
-let mapInverse (m:Map<'A,'B>) =
+let inline mapInverse (m:Map<'A,'B>) =
     m
-    |> Map.toArray
-    |> Array.map (fun (a,b) -> b,a)
-    |> Map.ofArray
+    |> Map.toSeq
+    |> Seq.map (fun (a,b) -> b,a)
+    |> Map.ofSeq
 
 let shortPComp (comp:Component) =
     match comp.Type with
@@ -288,309 +272,6 @@ let getNetList ((comps,conns) : CanvasState) =
 
 
 
-let checkPerformance m n startTimer stopTimer =
-    printfn "Checking performance with size = %d, iterations = %d" m n
-    let arrayBuffer() = 
-        let buff =
-            [|0..m-1|]
-            |> Array.map (fun i -> (i+1) % m)
-        let mutable index = 0
-        let mutable el = 0
-        startTimer "Array"
-        while index < n do
-             index <- index + 1
-             el <- buff[el]    
-        el |> ignore
-        stopTimer "Array"   
-
-    let arrayBufferLookup() = 
-        let buff =
-            [|0..m-1|]
-            |> Array.map (fun i -> (i+1) % m)
-        let mutable index = 0
-        let mutable el = 0
-        startTimer "ArrayBufferLookup"
-        while index < n / 2 do
-            index <- index + 1
-            for i = 0 to (m-1)/2 do
-                el <- buff[el] + index
-        el |> ignore
-        stopTimer "ArrayBufferLookup"   
-
-    let mutableArrayBuffer() = 
-         let buff =
-             [|0..m-1|]
-             |> Array.map (fun i -> (i+1) % m)
-         let mutable index = 0
-         let mutable el = 0
-         startTimer "Mutable Array"
-         while index < n do
-              index <- index + 1
-              el <- if el+1 < m then el+1 else 0
-              buff[el]  <- index    
-         buff |> ignore
-         stopTimer "Mutable Array"   
-
-
-    let updateArrayBuffer() = 
-         let buff =
-             [|0..m-1|]
-             |> Array.map (fun i -> (i+1) % m)
-         let mutable index = 0
-         let mutable el = 0
-         let mutable arr = buff
-         startTimer "Copy-update Array"
-         let z = (buff,[0..n]) ||> List.fold (fun buff i -> 
-            let r = (Array.copy buff)
-            r[i % m] <- i
-            r)
-         z[0] |> ignore          
-         stopTimer "Copy-update Array"   
-
-    let listBuffer() = 
-        let buff =
-            [0..m-1]
-            |> List.map (fun i -> (i+1) % m)
-        let mutable index = 0
-        let mutable el = 0
-        startTimer "List"
-        while index < n do
-             index <- index + 1
-             el <- buff[el]
-        el |> ignore
-        stopTimer "List"   
-
-    let dictBuffer() =
-        let dict = System.Collections.Generic.Dictionary()
-        [|0..m-1|]
-        |> Array.iter (fun i -> dict[i] <- (i+1) % m)
-        let mutable index = 0
-        let mutable el = 0
-        startTimer "Dict"
-        while index < n do
-            index <- index + 1
-            el <- dict[el]
-        index |> ignore
-        stopTimer "Dict"   
-
-    let mapBuffer() = 
-        let buff =
-            [|0..m-1|]
-            |> Array.map (fun i -> i,(i+1) % m)
-            |> Map.ofArray
-        let mutable index = 0
-        let mutable el = 0
-        startTimer "Map"
-        while index < n do
-            index <- index + 1
-            el <- buff[el]
-        index |> ignore
-        stopTimer "Map"   
-
-    let hMapBuffer() = 
-        let third (_,_,x) = x
-        let arr =
-            [|0..m-1|]
-            |> Array.map (fun a -> 
-                let sha = EEEHelpers.uuid()
-                ( sha, (sha |> getFastHash),(a+1) % m))
-        let buff = arr |> arrayToHmap getFastHItem getFastSHA
-        printfn $"hMap count = {hMapCount buff}"
-        let mutable index = 0
-        let mutable el = 0
-        startTimer "HMap"
-        while index < n do
-            index <- index + 1
-            el <- third (Option.get <| hMapTryFind getFastHItem (getFastSHA) arr[el] buff)
-        index |> ignore
-        stopTimer "HMap"   
-
-    let updateHMapBuffer() = 
-        let third (_,_,x) = x
-        let arr =
-            [|0..m-1|]
-            |> Array.map (fun a -> 
-                let sha = EEEHelpers.uuid()
-                ( sha, (sha |> getFastHash),(a+1) % m))
-        let buff = arr |> arrayToHmap getFastHItem getFastSHA
-        printfn $"hMap count = {hMapCount buff}"
-        startTimer "UpdateHMap"
-        let buf = (buff, [|0..n-1|]) ||> Array.fold (fun buff i -> hMapAdd getFastHItem getFastSHA arr[i % m] buff)
-        stopTimer "UpdateHMap" 
-        
-    let updateMapBuffer() = 
-        let buff =
-            [|0..m-1|]
-            |> Array.map (fun i -> i,(i+1) % m)
-            |> Map.ofArray
-        startTimer "UpdateMap"
-        let buf = (buff, [|0..n-1|]) ||> Array.fold (fun buff i -> Map.add (i % m) i buff)
-        stopTimer "UpdateMap" 
-        buf.Count |> ignore
-
-    let updateDictBuffer() = 
-        let dict = System.Collections.Generic.Dictionary()
-        [|0..m-1|]
-        |> Array.iter (fun i -> dict[i] <- (i+1) % m)
-        startTimer "UpdateDict"
-        let dict = (dict, [|0..n-1|]) ||> Array.fold (fun dict i -> 
-            let d = System.Collections.Generic.Dictionary(dict)
-            d)
-        stopTimer "UpdateDict" 
-
-
-    arrayBuffer()
-    arrayBuffer()
-    arrayBufferLookup()
-    arrayBufferLookup()
-    mutableArrayBuffer()
-    mutableArrayBuffer()
-    updateArrayBuffer()
-    updateArrayBuffer()
-    listBuffer()
-    listBuffer()
-    mapBuffer()
-    mapBuffer()
-    hMapBuffer()
-    hMapBuffer()
-    dictBuffer()
-    dictBuffer()
-    updateMapBuffer()
-    updateMapBuffer()
-    updateHMapBuffer()
-    updateHMapBuffer()
-    updateDictBuffer()
-
-let getTimeMs() = Fable.Core.JS.Constructors.Date.now()
-
-
-let getInterval (startTime:float) =
-    getTimeMs() - startTime
-
-
-type AggregatedData = {
-    PrintInterval: float
-    LastPrintTime: float
-    Counts: Map<string,int>
-    Times: Map<string,float>
-    MinVals: Map<string,float>
-    MaxVals: Map<string,float>
-}
-
-/// controls how time intervals are collected and displayed
-type InstrumentationControl =
-    | ImmediatePrint of Threshold: float * UpdateThreshold: float
-    | Aggregate of AggregatedData
-    | Off
-
-/// initialise instrumentation parameter for immediate time printing
-let immediate threshold updateThreshold =
-    ImmediatePrint(threshold,updateThreshold)
-
-/// initialse instrumentation parameter for aggregate time printing
-let aggregate(printInterval: float ) =
-    Aggregate {
-        PrintInterval = printInterval
-        LastPrintTime = Fable.Core.JS.Constructors.Date.now()
-        Times = Map.empty
-        MinVals = Map.empty
-        MaxVals = Map.empty
-        Counts = Map.empty
-    }
-
-/// Parameter that controls how recorded times are processed.                     
-let mutable instrumentation: InstrumentationControl = 
-    //aggregate 10000.  // for aggregate printing every 10s
-    immediate 20. 50. // for immediate printing
-    // Off // for no printing
-
-/// print out the current aggregate of recorded times if this is requried. 
-/// Return initialised aggregate totals after print
-let printAgg (agg: AggregatedData) =
-    let now = Fable.Core.JS.Constructors.Date.now()
-    let getData name =
-        let num = mapFindWithDef  0 name agg.Counts
-        let numF = float num
-        if num = 0 then 
-            0.,"" 
-        else
-            let tot = (mapFindWithDef 0. name agg.Times)
-            tot,
-            $"%8.2f{tot/numF}%8.1f{mapFindWithDef 0. name agg.MaxVals}\
-            %8.1f{mapFindWithDef 0. name agg.MinVals}%8.1f{tot}  %s{name}"
-            
-    let intv = now - agg.LastPrintTime
-    if intv < agg.PrintInterval then
-        agg // do nothing
-    else
-        let head = sprintf "Interval times in ms after %.1fs\n      Av     Max     Min  Total    Name\n" (intv / 1000.)
-        let timeLines = 
-            (mapKeys agg.Counts)
-            |> Array.map getData
-            |> Array.filter (fun (tot,_) -> tot > 10.)
-            |> Array.sortBy fst
-            |> Array.map snd
-            |> String.concat "\n"
-        printfn "%s" (head + timeLines)
-        { agg with 
-            LastPrintTime = now
-            Counts = Map.empty
-            MaxVals = Map.empty
-            MinVals = Map.empty
-            Times=Map.empty}
-
-/// process a new time interval updating the aggregated data for future printout
-let updateAgg (name:string) (time: float) (agg: AggregatedData) =
-    { agg with
-        Counts = mapUpdateWithDef 0 ((+) 1) name agg.Counts
-        Times = mapUpdateWithDef 0. ((+) time) name agg.Times
-        MaxVals = mapUpdateWithDef 0. (max time) name agg.MaxVals
-        MinVals = mapUpdateWithDef 1.0E10 (min time) name agg.MinVals
-    }
-
-
-/// According to current settings, process and/or print a named time interval.
-/// the interval is between intervalStartTime passed as arg 2, and the time at
-/// which this function is called (all times obtained using getTimeMs).
-let instrumentTime (intervalName: string) (intervalStartTime: float) =
-    match instrumentation with
-    | Off -> ()
-    | ImmediatePrint(threshold,updateThreshold) ->
-        let interval = getInterval intervalStartTime
-        let threshold = 
-            if intervalName.StartsWith "update" 
-            then updateThreshold 
-            else threshold 
-        if interval > threshold then
-            printfn "%s" $"{intervalName}: %.1f{interval}ms"
-    | Aggregate agg ->
-        let interval = getTimeMs() - intervalStartTime
-        let agg = updateAgg intervalName interval agg
-        let agg = printAgg agg
-        instrumentation <- Aggregate agg
-
-                
-
-
-
-/// print out a time interval
-let private printInterval name startTime =
-    instrumentTime name startTime
-
-/// This function with its first two args should be put in a pipe after the code to be timed.
-/// it will return its piped input, with the side effect of recording the time delay in the
-/// function. Parameter start must be defined at the start of the code to be timed using getTimeMs.
-let instrumentInterval name startTime output =
-    printInterval name startTime
-    output
-
-/// Record the elapsed time taken in execution of (func arg).
-/// Return the result from (func arg).
-let instrumentFunctionCall name func arg =
-    let startTime = getTimeMs()
-    func arg
-    |> instrumentInterval name
-   
 
 
     

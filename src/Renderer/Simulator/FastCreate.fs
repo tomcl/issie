@@ -1,6 +1,6 @@
 ﻿module FastCreate
 open CommonTypes
-open Helpers
+open TimeHelpers
 open SimulatorTypes
 open SynchronousUtils
 open NumberHelpers
@@ -11,6 +11,10 @@ open NumberHelpers
 //------------------------------------------------------------------------------//
 
 //-----------------------------Fast Simulation Creation-------------------------//
+
+let inline assertThat cond msg = 
+    if not cond
+    then failwithf "what? assert failed: %s" msg
 
 let makeStepArray (arr: 'T array) : StepArray<'T> = { Step = arr }
 

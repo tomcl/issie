@@ -5,7 +5,7 @@ open Fable.React.Props
 open Browser
 open Elmish
 open Elmish.React
-open EEEHelpers
+open DrawHelpers
 open Helpers
 
 ///Static variables
@@ -854,7 +854,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         { model with BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol; UndoList = appendUndoList model.UndoList model ; RedoList = []},
         Cmd.batch [ symbolCmd (Symbol.AddSymbol ({X = 50.0; Y = 50.0}, And, "test 1")); Cmd.ofMsg UpdateBoundingBoxes ] // Need to update bounding boxes after adding a symbol.
     | KeyPress AltShiftZ ->
-        printStats() 
+        TimeHelpers.printStats() 
         model, Cmd.none
     | KeyPress CtrlC ->
         model,
@@ -1185,7 +1185,7 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
 
 /// View function, displays symbols / wires and possibly also a grid / drag-to-select box / connecting ports line / snap-to-grid visualisation
 let view (model:Model) (headerHeight: float) (style) (dispatch : Msg -> unit) =
-    let start = Helpers.getTimeMs()
+    let start = TimeHelpers.getTimeMs()
     let wDispatch wMsg = dispatch (Wire wMsg)
     let wireSvg = BusWire.view model.Wire wDispatch
     
@@ -1254,7 +1254,7 @@ let view (model:Model) (headerHeight: float) (style) (dispatch : Msg -> unit) =
         displaySvgWithZoom model headerHeight style ( displayElements @ snapIndicatorLineX @ snapIndicatorLineY ) dispatch
     | _ ->
         displaySvgWithZoom model headerHeight style displayElements dispatch
-    |> Helpers.instrumentInterval "SheetView" start
+    |> TimeHelpers.instrumentInterval "SheetView" start
 
 /// Init function
 let init () = 

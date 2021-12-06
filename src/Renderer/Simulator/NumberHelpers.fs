@@ -6,7 +6,6 @@
 *)
 
 module NumberHelpers
-
 open Helpers
 open SimulatorTypes
 

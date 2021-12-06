@@ -4,7 +4,7 @@ open Fable.React
 open Fable.React.Props
 
 open Fulma
-open Helpers
+open TimeHelpers
 open ModelType
 open DiagramStyle
 open CommonTypes

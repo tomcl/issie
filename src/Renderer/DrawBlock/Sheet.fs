@@ -203,15 +203,6 @@ type Model = {
         dispatch <| (Wire BusWire.ResetModel)
         dispatch <| (Wire (BusWire.Symbol (Symbol.ResetModel ) ) )
         
-    /// Loads components into Symbol model
-    (*member this.LoadComponents dispatch components = 
-        dispatch <| (Wire (BusWire.Symbol (Symbol.LoadComponents components ) ) )
-        dispatch <| UpdateBoundingBoxes
-        
-    /// Loads components into BusWire model
-    member this.LoadConnections dispatch connections =
-        dispatch <| (Wire (BusWire.LoadConnections connections))  *)      
-        
     /// Returns a list of selected components
     member this.GetSelectedComponents =
         this.SelectedComponents

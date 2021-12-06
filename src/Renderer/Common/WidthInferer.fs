@@ -622,7 +622,7 @@ let private mapInputPortIdsToVirtualConnectionIds (conns: Connection list) (comp
 let inferConnectionsWidth
         ((comps,conns) : CanvasState)
         : Result<ConnectionsWidth, WidthInferError> =
-    let start = Helpers.getTimeMs()
+    let start = TimeHelpers.getTimeMs()
     let connectionsWidth = initialiseConnectionsWidth conns // start with all as None 
     match mapInputPortIdsToVirtualConnectionIds conns comps with
     | Error e -> Error e
@@ -643,4 +643,4 @@ let inferConnectionsWidth
                 infer staticMaps inputNode connectionsWidth
             )
         )
-    |> instrumentInterval "widthInference" start
+    |> TimeHelpers.instrumentInterval "widthInference" start

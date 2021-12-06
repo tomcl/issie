@@ -133,7 +133,7 @@ let updateTimeStamp model =
 
 let findChange (model : Model) : bool = 
     let last = model.LastChangeCheckTime // NB no check to reduce total findChange time implemented yet - TODO if needed
-    let start = Helpers.getTimeMs()
+    let start = TimeHelpers.getTimeMs()
 
     match model.CurrentProj with
     | None -> false
@@ -145,7 +145,7 @@ let findChange (model : Model) : bool =
         let canv = savedComponent.CanvasState
         let canv' = model.Sheet.GetCanvasState ()
         (canv <> canv') && not (compareCanvas 100. canv canv')
-        |> Helpers.instrumentInterval "findChange" start
+        |> TimeHelpers.instrumentInterval "findChange" start
 
 /// Needed so that constant properties selection will work
 /// Maybe good idea for other things too?
@@ -188,7 +188,7 @@ let matchMouseMsg (msg : Msg) : bool =
         match sMsg with
         | Sheet.MouseMsg mMsg ->
             match mMsg.Op with
-            | EEEHelpers.Drag -> true
+            | DrawHelpers.Drag -> true
             | _ -> false
         | _ -> false
     | _ -> false
@@ -213,7 +213,7 @@ let sheetMsg sMsg model =
 
 /// Main MVU model update function
 let update (msg : Msg) oldModel =
-    let startUpdate = Helpers.getTimeMs()
+    let startUpdate = TimeHelpers.getTimeMs()
     // number of top-level components in graph
     // mostly, we only operate on top-level components
     let getGraphSize g =
@@ -512,7 +512,7 @@ let update (msg : Msg) oldModel =
     |> (fun (newModel,cmd) -> resetDialogIfSelectionHasChanged newModel oldModel,cmd)
     |> (fun res -> 
         if JSHelpers.debugLevel > 0 then
-            Helpers.instrumentInterval (
+            TimeHelpers.instrumentInterval (
                 let name =
                     match msg with 
                     | SetWSMod _ -> "U(SetWSMod)"

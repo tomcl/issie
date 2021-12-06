@@ -4,7 +4,7 @@ open Fable.React.Props
 open Browser
 open Elmish
 open Elmish.React
-open EEEHelpers
+open DrawHelpers
 open CommonTypes
 open System.Text.RegularExpressions
 
@@ -492,7 +492,7 @@ let MapsIntoLists map =
 
 
 let view (model : Model) (dispatch : Msg -> unit) = 
-    let start = Helpers.getTimeMs()
+    let start = TimeHelpers.getTimeMs()
     model.Symbols
     |> MapsIntoLists
     |> List.map (fun ({Id = ComponentId id} as symbol) ->
@@ -504,7 +504,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
             }
     )
     |> ofList
-    |> Helpers.instrumentInterval "SymbolView" start
+    |> TimeHelpers.instrumentInterval "SymbolView" start
 
 //------------------------GET BOUNDING BOXES FUNCS--------------------------------used by sheet.
 // Function that returns the bounding box of a symbol. It is defined by the height and the width as well as the x,y position of the symbol

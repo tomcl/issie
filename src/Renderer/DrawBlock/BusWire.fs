@@ -1,11 +1,16 @@
-﻿module BusWire
+﻿(*
+This module implements wires between symbol ports. Wires can be autorouted, or manually routed by dragging segments.
+Moving symbols causes the corresponding wires to move.
+Wires are read and written from Issie as lists of wire vertices, whatever teh internal representation is.
+*)
+
+
+module BusWire
 
 open CommonTypes
 open Fable.React
 open Fable.React.Props
-open Browser
 open Elmish
-open Elmish.React
 open DrawHelpers
 
 //Static Vars
@@ -254,7 +259,7 @@ let xyVerticesToSegments connId (isLeftToRight: bool) (xyVerticesList: XYPos lis
     |> List.mapi (
         fun i ({X=startX; Y=startY},{X=endX; Y=endY}) ->    
             {
-                Id = SegmentId(uuid())
+                Id = SegmentId(JSHelpers.uuid())
                 Index = i
                 Start = {X=startX;Y=startY};
                 End = {X=endX;Y=endY};
@@ -1264,7 +1269,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
     | AddWire ( (inputId, outputId) : (InputPortId * OutputPortId) ) ->
         let portOnePos, portTwoPos = Symbol.getTwoPortLocations model.Symbol inputId outputId
         let wireWidthFromSymbol = WireWidth.Configured 1
-        let wireId = ConnectionId(uuid())
+        let wireId = ConnectionId(JSHelpers.uuid())
         let segmentList = makeInitialSegmentsList wireId (portOnePos, portTwoPos)
         
         let newWire = 
@@ -1519,7 +1524,7 @@ let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list
     
     let pastedWires =
         let createNewWire (oldWire : Wire) : list<Wire> =
-            let newId = ConnectionId(uuid())
+            let newId = ConnectionId(JSHelpers.uuid())
     
             match Symbol.getEquivalentCopiedPorts wModel.Symbol oldCompIds newCompIds (oldWire.InputPort, oldWire.OutputPort) with
             | Some (newInputPort, newOutputPort) ->

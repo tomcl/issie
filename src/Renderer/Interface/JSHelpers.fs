@@ -130,5 +130,6 @@ let setDebugLevel() =
     elif hasSwitch "w" then
         debugLevel <- 1
 
-
+/// return a v4 (random) universally unique identifier (UUID)
+let uuid():string = import "v4" "uuid"
 

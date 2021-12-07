@@ -7,7 +7,8 @@
 module rec SimulatorTypes
 open Fable.Core
 open CommonTypes
-open Helpers
+
+
 
 /// Binary data used in simulation
 type Bit = Zero | One
@@ -316,7 +317,7 @@ let bigIntBitMask pos =
 
 let fastBit (n: uint32) =
 #if ASSERTS
-    assertThat (n < 2u) (sprintf "Can't convert %d to a single bit FastData" n)
+    Helpers.assertThat (n < 2u) (sprintf "Can't convert %d to a single bit FastData" n)
 #endif
     { Dat = Word n; Width = 1}
 
@@ -390,7 +391,7 @@ let rec b2s (b:bigint) =
 let getBits (msb: int) (lsb: int) (f: FastData) =
     let outW = msb - lsb + 1
 #if ASSERTS
-    assertThat
+    Helpers.assertThat
         (msb <= f.Width - 1 && lsb <= msb && lsb >= 0)
         (sprintf "Bits selected out of range (%d:%d) from %A" msb lsb f)
 #endif
@@ -702,7 +703,7 @@ let getFastDriver (fs: FastSimulation) (driverComp: NetListComponent) (driverPor
         let customFId:FComponentId = driverComp.Id,[]
         let customOutput = fs.FCustomOutputCompLookup[customFId,driverPort]
 #if ASSERTS
-        assertThat (Map.containsKey customOutput fs.FComps)
+        Helpers.assertThat (Map.containsKey customOutput fs.FComps)
             (sprintf "Help: can't find custom component output in fast Simulation")
 #endif
         customOutput, OutputPortNumber 0

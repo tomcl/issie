@@ -11,7 +11,6 @@ module rec ModelType
 
 open CommonTypes
 open SimulatorTypes
-open JSTypes
 open Fable.React
 
 type RightTab =
@@ -264,7 +263,7 @@ type PopupProgress =
 type Msg =
     | ShowExitDialog
     | Sheet of Sheet.Msg
-    | JSDiagramMsg of JSDiagramMsg<JSCanvas,JSComponent>
+    | JSDiagramMsg of JSDiagramMsg
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
     | SetWSMod of WaveSimModel

@@ -1,6 +1,6 @@
 (*
     JSHelpers.fs
-    Some JS related utility functions.
+    Some utility functions that rely on Node/JS functionality
 *)
 
 module JSHelpers
@@ -10,8 +10,6 @@ open Fable.Core
 open Fable.Core.JsInterop
 open ElectronAPI
 open Fable.React
-open JSTypes
-
 
 /// Fix to access the deprecated @electron.remote module.
 /// This must be enabled from main.fs
@@ -21,7 +19,6 @@ open JSTypes
 /// electronRemote replaces electron.remote and renderer.remote in old interface
 [<ImportAll("@electron/remote")>]
 let electronRemote : Electron.Remote = jsNative
-
 
 
 [<Emit("typeof $0")>]
@@ -133,16 +130,5 @@ let setDebugLevel() =
     elif hasSwitch "w" then
         debugLevel <- 1
 
-/// deliver string suitable for HTML color from a HighlightColor type value
-let getColorString (col: CommonTypes.HighLightColor) =
-    (sprintf "%A" col).ToLower()
 
 
-
-
-let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
-let canvasWidthContext = testCanvas.getContext_2d()
-
-let getTextWidthInPixels(txt:string, font:string) =
-   canvasWidthContext.font <- font; // e.g. "16px times new roman";
-   canvasWidthContext.measureText(txt).width;

@@ -1,9 +1,11 @@
-﻿module Symbol
+﻿(*
+This module draws schematics component symbols. Each symbol is associated with a unique Issie component.
+*)
+
+module Symbol
 open Fable.React
 open Fable.React.Props
-open Browser
 open Elmish
-open Elmish.React
 open DrawHelpers
 open CommonTypes
 open System.Text.RegularExpressions
@@ -168,7 +170,7 @@ let portLists numOfPorts hostID portType =
         [0..(numOfPorts-1)]
         |> List.collect (fun x ->
             [{
-                Id = uuid ()
+                Id = JSHelpers.uuid ()
                 PortNumber = Some x
                 PortType = portType
                 HostId = hostID
@@ -248,7 +250,7 @@ let makeComp (pos: XYPos) (comptype: ComponentType) (id:string) (label:string) :
    
 // Function to generate a new symbol
 let createNewSymbol (pos: XYPos) (comptype: ComponentType) (label:string) =
-    let id = uuid ()
+    let id = JSHelpers.uuid ()
     let comp = makeComp pos comptype id label
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
@@ -759,7 +761,7 @@ let generateLabel (model: Model) (compType: ComponentType) : string =
 /// Currently drag-and-drop
 let pasteSymbols (symModel: Model) (mPos: XYPos) : (Model * ComponentId list) =
     let createNewSymbol (basePos: XYPos) ((currSymbolModel, pastedIdsList) : Model * ComponentId List) (oldSymbol: Symbol): Model * ComponentId List =
-        let newId = uuid()
+        let newId = JSHelpers.uuid()
         let posDiff = posDiff oldSymbol.Pos basePos
         let newPos = posAdd posDiff mPos
         

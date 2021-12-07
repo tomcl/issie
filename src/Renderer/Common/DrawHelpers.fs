@@ -1,4 +1,8 @@
-﻿module DrawHelpers
+﻿(*
+  Helper functions for drawing on SVG canvas: mainly used by the draw block.
+*)
+
+module DrawHelpers
 open Browser.Types
 open Fable.Core.JsInterop
 open Fable.React
@@ -149,8 +153,7 @@ let portCircle = { defaultCircle with R = 5.0; Stroke = "Black"; StrokeWidth = "
 //-----------------------------Helpers--------------------------------------//
 //--------------------------------------------------------------------------//
 
-/// return a v4 (random) universally unique identifier (UUID)
-let uuid():string = import "v4" "uuid"
+
 
 // ----------------------------- SVG Helpers ----------------------------- //
 
@@ -231,9 +234,8 @@ let getColorString (col: CommonTypes.HighLightColor) =
 
 //--------------------------------Constants----------------------------------//
 
-/// these determine the size of the canvas relative to the objects on it.
-let canvasUnscaledDimensions : XYPos = 
-    {X = 1000. ; Y = 1000.}
+/// these determine the size of the draw block canvas relative to the objects on it.
+let canvasUnscaledSize = 3500.0
 
 
 

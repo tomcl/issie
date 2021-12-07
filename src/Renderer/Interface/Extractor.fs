@@ -1,5 +1,4 @@
 module Extractor
-
 open CommonTypes
 
 

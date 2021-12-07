@@ -11,7 +11,6 @@ open Fable.React
 open Fable.React.Props
 
 open JSHelpers
-open Helpers
 open ModelType
 open CommonTypes
 open MemoryEditorView

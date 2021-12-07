@@ -2,9 +2,8 @@
     ModelType.fs
 
     This module provides the type for the FRP UI.
-    It is not possible to put this type among the CommonTypes as it has to
-    depend on Draw2dWrapper. Furthermore, non-UI modules should be agnostic of
-    the FRP model.
+    It could be put next to CommonTypes but non-UI modules should be agnostic of
+    the FRP model and run independently of Fable
 *)
 
 module rec ModelType

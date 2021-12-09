@@ -418,10 +418,6 @@ let makeInitialSegmentsList (hostId : ConnectionId) (portCoords : XYPos * XYPos)
     |> xyVerticesToSegments hostId isLeftToRight
 
 
-
-
-
-
 /// This function renders the given
 /// segment (i.e. creates a ReactElement
 /// using the data stored inside it),
@@ -549,6 +545,130 @@ let renderSegment (segment : Segment) (colour : string) (width : string) : React
                 makeCircle Xb Yb circleParameters
             ]
         g [] segmentElements
+
+///
+type WireRenderProps =
+    {
+        key: string
+        Segments: list<Segment>
+        ColorP: HighLightColor
+        StrokeWidthP: int
+        OutputPortLocation: XYPos
+    }
+
+
+// ------------------------------redundant wire memoisation code------------------------------
+// this code is not used because React (via Function.Of) does this caching anyway - better tha it can be
+// done here
+let mutable cache:Map<string,WireRenderProps*ReactElement> = Map.empty
+
+/// not used
+let memoOf (f: WireRenderProps -> ReactElement, _, _) =
+    (fun props ->
+        match Map.tryFind props.key cache with
+        | None -> 
+            let re = f props
+            cache <- Map.add props.key (props,re) cache 
+            re
+        | Some (props',re) ->  
+            if props' = props then re else
+                let re = f props
+                cache <- Map.add props.key (props,re) cache
+                re)
+//-------------------------------------------------------------------------------------------
+
+let singleWireView = 
+    FunctionComponent.Of(
+        fun (props: WireRenderProps) ->
+            let renderWireSegmentList : list<ReactElement> =
+                props.Segments
+                |> List.map
+                    (
+                        fun (segment : Segment) -> renderSegment segment (props.ColorP.Text()) (string props.StrokeWidthP)
+                            //call a bunch of render helper functions to render the segment (*** DO NOT FORGET SEGMENT JUMPS ***)
+                    )
+            
+            let renderWireWidthText : ReactElement =
+                let textParameters =
+                    {
+                        TextAnchor = "left";
+                        FontSize = "12px";
+                        FontWeight = "Bold";
+                        FontFamily = "Verdana, Arial, Helvetica, sans-serif";
+                        Fill = props.ColorP.Text();
+                        UserSelect = UserSelectOptions.None;
+                        DominantBaseline = "middle";
+                    }
+                let textString = if props.StrokeWidthP = 1 then "" else string props.StrokeWidthP //Only print width > 1
+                makeText (props.OutputPortLocation.X+1.0) (props.OutputPortLocation.Y-7.0) (textString) textParameters
+            g [] ([ renderWireWidthText ] @ renderWireSegmentList)
+        
+    , "Wire"
+    , equalsButFunctions
+    )
+
+///
+let MapToSortedList map : Wire list = 
+    let listSelected = 
+        Map.filter (fun id wire -> wire.Color = HighLightColor.Purple) map
+        |> Map.toList
+        |> List.map snd
+    let listErrorSelected =
+        Map.filter (fun id wire -> wire.Color = HighLightColor.Brown) map
+        |> Map.toList
+        |> List.map snd
+    let listErrorUnselected =
+        Map.filter (fun id wire -> wire.Color = HighLightColor.Red) map
+        |> Map.toList
+        |> List.map snd
+    let listUnSelected = 
+        Map.filter (fun id wire -> wire.Color = HighLightColor.DarkSlateGrey) map
+        |> Map.toList
+        |> List.map snd
+    let listCopied = 
+        Map.filter (fun id wire -> wire.Color = HighLightColor.Thistle) map
+        |> Map.toList
+        |> List.map snd
+    let listWaves = 
+        Map.filter (fun id wire -> wire.Color = HighLightColor.Blue) map
+        |> Map.toList
+        |> List.map snd
+
+    listUnSelected @ listErrorUnselected @ listErrorSelected @ listSelected @ listWaves @ listCopied
+   
+let view (model : Model) (dispatch : Dispatch<Msg>) =
+    let start = TimeHelpers.getTimeMs()
+    let wires1 =
+        model.WX
+        |> Map.toArray
+        |> Array.map snd
+    TimeHelpers.instrumentTime "WirePropsSort" start
+    let rStart = TimeHelpers.getTimeMs()
+    let wires =
+        wires1
+        |> Array.map
+            (
+                fun wire ->
+                    let stringOutId =
+                        match wire.OutputPort with
+                        | OutputPortId stringId -> stringId
+                        
+                    let outputPortLocation = Symbol.getOnePortLocationNew model.Symbol stringOutId PortType.Output
+                    let props =
+                        {
+                            key = match wire.Id with | ConnectionId s -> s
+                            Segments = List.map makeSegPos wire.Segments
+                            ColorP = wire.Color
+                            StrokeWidthP = wire.Width
+                            OutputPortLocation = outputPortLocation
+                        }
+                    singleWireView props)
+    TimeHelpers.instrumentInterval "WirePrepareProps" rStart ()
+    let symbols = Symbol.view model.Symbol (Symbol >> dispatch)
+ 
+    g [] [(g [] wires); symbols]
+    |> TimeHelpers.instrumentInterval "WireView" start
+
 
 
 /// This function is given two couples of
@@ -769,12 +889,7 @@ let removeRedundantSegments  (segs: Segment list) =
         else
             [seg1;seg2]
     adjust segs[0] segs[1] @  segs[2..4] @ adjust segs[5] segs[6]
-
-
-
-
-
-        
+       
 
 /// This function allows a wire segment to be moved a given amount in a direction perpedicular to
 /// its orientation (Horizontal or Vertical). Used to manually adjust routing by mouse drag.
@@ -818,204 +933,6 @@ let moveSegment (seg:Segment) (distance:float) (model:Model) =
                 |> removeRedundantSegments
 
             {wire with Segments = newSegments})
-
-///
-type WireRenderProps =
-    {
-        key: string
-        Segments: list<Segment>
-        ColorP: HighLightColor
-        StrokeWidthP: int
-        OutputPortLocation: XYPos
-    }
-
-
-// ------------------------------redundant wire memoisation code------------------------------
-// this code is not used because React (via Function.Of) does this caching anyway - better tha it can be
-// done here
-let mutable cache:Map<string,WireRenderProps*ReactElement> = Map.empty
-
-/// not used
-let memoOf (f: WireRenderProps -> ReactElement, _, _) =
-    (fun props ->
-        match Map.tryFind props.key cache with
-        | None -> 
-            let re = f props
-            cache <- Map.add props.key (props,re) cache 
-            re
-        | Some (props',re) ->  
-            if props' = props then re else
-                let re = f props
-                cache <- Map.add props.key (props,re) cache
-                re)
-//-------------------------------------------------------------------------------------------
-
-let singleWireView = 
-    FunctionComponent.Of(
-        fun (props: WireRenderProps) ->
-            let renderWireSegmentList : list<ReactElement> =
-                props.Segments
-                |> List.map
-                    (
-                        fun (segment : Segment) -> renderSegment segment (props.ColorP.Text()) (string props.StrokeWidthP)
-                            //call a bunch of render helper functions to render the segment (*** DO NOT FORGET SEGMENT JUMPS ***)
-                    )
-            
-            let renderWireWidthText : ReactElement =
-                let textParameters =
-                    {
-                        TextAnchor = "left";
-                        FontSize = "12px";
-                        FontWeight = "Bold";
-                        FontFamily = "Verdana, Arial, Helvetica, sans-serif";
-                        Fill = props.ColorP.Text();
-                        UserSelect = UserSelectOptions.None;
-                        DominantBaseline = "middle";
-                    }
-                let textString = if props.StrokeWidthP = 1 then "" else string props.StrokeWidthP //Only print width > 1
-                makeText (props.OutputPortLocation.X+1.0) (props.OutputPortLocation.Y-7.0) (textString) textParameters
-            g [] ([ renderWireWidthText ] @ renderWireSegmentList)
-        
-    , "Wire"
-    , equalsButFunctions
-    )
-
-///
-let MapToSortedList map : Wire list = 
-    let listSelected = 
-        Map.filter (fun id wire -> wire.Color = HighLightColor.Purple) map
-        |> Map.toList
-        |> List.map snd
-    let listErrorSelected =
-        Map.filter (fun id wire -> wire.Color = HighLightColor.Brown) map
-        |> Map.toList
-        |> List.map snd
-    let listErrorUnselected =
-        Map.filter (fun id wire -> wire.Color = HighLightColor.Red) map
-        |> Map.toList
-        |> List.map snd
-    let listUnSelected = 
-        Map.filter (fun id wire -> wire.Color = HighLightColor.DarkSlateGrey) map
-        |> Map.toList
-        |> List.map snd
-    let listCopied = 
-        Map.filter (fun id wire -> wire.Color = HighLightColor.Thistle) map
-        |> Map.toList
-        |> List.map snd
-    let listWaves = 
-        Map.filter (fun id wire -> wire.Color = HighLightColor.Blue) map
-        |> Map.toList
-        |> List.map snd
-
-    listUnSelected @ listErrorUnselected @ listErrorSelected @ listSelected @ listWaves @ listCopied
-   
-let view (model : Model) (dispatch : Dispatch<Msg>) =
-    let start = TimeHelpers.getTimeMs()
-    let wires1 =
-        model.WX
-        |> Map.toArray
-        |> Array.map snd
-    TimeHelpers.instrumentTime "WirePropsSort" start
-    let rStart = TimeHelpers.getTimeMs()
-    let wires =
-        wires1
-        |> Array.map
-            (
-                fun wire ->
-                    let stringOutId =
-                        match wire.OutputPort with
-                        | OutputPortId stringId -> stringId
-                        
-                    let outputPortLocation = Symbol.getOnePortLocationNew model.Symbol stringOutId PortType.Output
-                    let props =
-                        {
-                            key = match wire.Id with | ConnectionId s -> s
-                            Segments = List.map makeSegPos wire.Segments
-                            ColorP = wire.Color
-                            StrokeWidthP = wire.Width
-                            OutputPortLocation = outputPortLocation
-                        }
-                    singleWireView props)
-    TimeHelpers.instrumentInterval "WirePrepareProps" rStart ()
-    let symbols = Symbol.view model.Symbol (Symbol >> dispatch)
- 
-    g [] [(g [] wires); symbols]
-    |> TimeHelpers.instrumentInterval "WireView" start
-
-
-
-let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model: Model) =
-    let mutable newWX = model.WX
-    // Arrays are faster to check than lists
-    let wiresWithNoJumpsA = List.toArray wiresWithNoJumps
-    let changeJumps wid index jumps =
-        let jumps = List.sortDescending jumps
-        let changeSegment segs =
-            List.mapi (fun i x -> if i <> index then x else { x with JumpCoordinateList = jumps }) segs
-
-        newWX <- Map.add wid { newWX[wid] with Segments = changeSegment newWX[wid].Segments } newWX
-
-    let segs =
-        model.WX
-        |> Map.toArray
-        |> Array.mapi (fun i (wid, w) -> List.toArray w.Segments)
-
-    for w1 in 0 .. segs.Length - 1 do
-        for h in segs[w1] do
-            if h.Dir = Horizontal then
-                // work out what jumps this segment should have
-                let mutable jumps: (float * SegmentId) list = []
-                
-                if not (Array.contains h.HostId wiresWithNoJumpsA) then
-                    for w2 in 0 .. segs.Length - 1 do
-                        // everything inside the inner loop should be very highly optimised
-                        // it is executed n^2 time where n is the number of segments (maybe 5000)
-                        // the abs here are because segment coordinates my be negated to indicate manual routing
-                        for v in segs[w2] do
-                            if not (Array.contains v.HostId wiresWithNoJumpsA) then
-                                match v.Dir with
-                                | Vertical ->
-                                    let x, x1, x2 = abs v.Start.X, abs h.Start.X, abs h.End.X
-                                    let y, y1, y2 = abs h.Start.Y, abs v.Start.Y, abs v.End.Y
-                                    let xhi, xlo = max x1 x2, min x1 x2
-                                    let yhi, ylo = max y1 y2, min y1 y2
-                                    //printfn $"{[xlo;x;xhi]}, {[ylo;y;yhi]}"
-                                    if x < xhi - 5.0 && x > xlo + 5.0 && y < yhi - 5.0 && y > ylo + 5.0 then
-                                        //printfn "found a jump!"
-                                        jumps <- (x, v.Id) :: jumps
-                                | _ -> ()
-                    // compare jumps with what segment now has, and change newWX if need be
-                // note that if no change is needed we do not update WX
-                // simple cases are done without sort for speed, proably not necessary!
-                // The jump list is sorted in model to enable easier rendering of segments
-                match jumps, h.JumpCoordinateList with
-                | [], [] -> ()
-                | [ a ], [ b ] when a <> b -> changeJumps h.HostId h.Index jumps
-                | [], _ -> changeJumps h.HostId h.Index jumps
-                | _, [] -> // in this case we need to sort the jump list
-                    changeJumps h.HostId h.Index (List.sort jumps)
-                | newJumps, oldJ ->
-                    let newJ = List.sort newJumps
-                    // oldJ is already sorted (we only ever write newJ back to model)
-                    if newJ <> oldJ then changeJumps h.HostId h.Index newJumps else ()
-
-    { model with WX = newWX }
-
-
-let updateWireSegmentJumps (wireList: list<ConnectionId>) (wModel: Model) : Model =
-    let startT = TimeHelpers.getTimeMs()
-    let model = makeAllJumps [] wModel
-    TimeHelpers.instrumentTime "UpdateJumps" startT
-    model
-
-
-
-/// This function updates the wire model by removing from the stored lists of intersections
-/// all those generated by wireList wires.
-/// intersetcions are stored in maps on the model and on the horizontal segments containing the jumps
-let resetWireSegmentJumps (wireList : list<ConnectionId>) (wModel : Model) : Model =
-    makeAllJumps wireList wModel
-
 
 /// Initialisatiton with no wires
 let init () =
@@ -1223,6 +1140,78 @@ let updateWire (model : Model) (wire : Wire) (inOut : bool) =
         partialAutoRoute wire.Segments newPort
     |> Option.map (fun segs -> {wire with Segments = segs})
     |> Option.defaultValue (autorouteWire model wire)
+
+let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model: Model) =
+    let mutable newWX = model.WX
+    // Arrays are faster to check than lists
+    let wiresWithNoJumpsA = List.toArray wiresWithNoJumps
+    let changeJumps wid index jumps =
+        let jumps = List.sortDescending jumps
+        let changeSegment segs =
+            List.mapi (fun i x -> if i <> index then x else { x with JumpCoordinateList = jumps }) segs
+
+        newWX <- Map.add wid { newWX[wid] with Segments = changeSegment newWX[wid].Segments } newWX
+
+    let segs =
+        model.WX
+        |> Map.toArray
+        |> Array.mapi (fun i (wid, w) -> List.toArray w.Segments)
+
+    for w1 in 0 .. segs.Length - 1 do
+        for h in segs[w1] do
+            if h.Dir = Horizontal then
+                // work out what jumps this segment should have
+                let mutable jumps: (float * SegmentId) list = []
+                
+                if not (Array.contains h.HostId wiresWithNoJumpsA) then
+                    for w2 in 0 .. segs.Length - 1 do
+                        // everything inside the inner loop should be very highly optimised
+                        // it is executed n^2 time where n is the number of segments (maybe 5000)
+                        // the abs here are because segment coordinates my be negated to indicate manual routing
+                        for v in segs[w2] do
+                            if not (Array.contains v.HostId wiresWithNoJumpsA) then
+                                match v.Dir with
+                                | Vertical ->
+                                    let x, x1, x2 = abs v.Start.X, abs h.Start.X, abs h.End.X
+                                    let y, y1, y2 = abs h.Start.Y, abs v.Start.Y, abs v.End.Y
+                                    let xhi, xlo = max x1 x2, min x1 x2
+                                    let yhi, ylo = max y1 y2, min y1 y2
+                                    //printfn $"{[xlo;x;xhi]}, {[ylo;y;yhi]}"
+                                    if x < xhi - 5.0 && x > xlo + 5.0 && y < yhi - 5.0 && y > ylo + 5.0 then
+                                        //printfn "found a jump!"
+                                        jumps <- (x, v.Id) :: jumps
+                                | _ -> ()
+                    // compare jumps with what segment now has, and change newWX if need be
+                // note that if no change is needed we do not update WX
+                // simple cases are done without sort for speed, proably not necessary!
+                // The jump list is sorted in model to enable easier rendering of segments
+                match jumps, h.JumpCoordinateList with
+                | [], [] -> ()
+                | [ a ], [ b ] when a <> b -> changeJumps h.HostId h.Index jumps
+                | [], _ -> changeJumps h.HostId h.Index jumps
+                | _, [] -> // in this case we need to sort the jump list
+                    changeJumps h.HostId h.Index (List.sort jumps)
+                | newJumps, oldJ ->
+                    let newJ = List.sort newJumps
+                    // oldJ is already sorted (we only ever write newJ back to model)
+                    if newJ <> oldJ then changeJumps h.HostId h.Index newJumps else ()
+
+    { model with WX = newWX }
+
+
+let updateWireSegmentJumps (wireList: list<ConnectionId>) (wModel: Model) : Model =
+    let startT = TimeHelpers.getTimeMs()
+    let model = makeAllJumps [] wModel
+    TimeHelpers.instrumentTime "UpdateJumps" startT
+    model
+
+
+
+/// This function updates the wire model by removing from the stored lists of intersections
+/// all those generated by wireList wires.
+/// intersetcions are stored in maps on the model and on the horizontal segments containing the jumps
+let resetWireSegmentJumps (wireList : list<ConnectionId>) (wModel : Model) : Model =
+    makeAllJumps wireList wModel
 
 
 

@@ -66,12 +66,6 @@ type Msg =
     | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 
     | WriteMemoryType of ComponentId * ComponentType
 
-//---------------------------------helper for demo-----------------------------------//
-
-/// This function should ONLY be used for the demo.
-let getModelPortsFORDEMO (sModel : Model) : Map<string, Port> =
-    sModel.Ports
-
 //---------------------------------helper types and functions----------------//
 
 let posDiff (a:XYPos) (b:XYPos) =
@@ -298,16 +292,16 @@ let getPortPosModel (model: Model) (port:Port) =
 
 //-----------------------------------------DRAWING HELPERS ---------------------------------------------------
 // Text adding function with many parameters (such as bold, position and text)
-let addText posX posY name txtPos weight size=
+let private addText posX posY name txtPos weight size=
     let text =
             {defaultText with TextAnchor = txtPos; FontWeight = weight; FontSize = size}
     [makeText posX posY name text]
 
 // Generate circles
-let portCircles x y  = 
+let private portCircles x y  = 
     [makeCircle x y portCircle]
 // Define the name of each port 
-let portText x y name portType=
+let private portText x y name portType=
     let xPos = 
         if portType = PortType.Output
         then x - 5.
@@ -316,7 +310,7 @@ let portText x y name portType=
     (addText xPos (y - 7.0) name test "normal" "12px")
 
 // Print the name of each port 
-let drawPortsText (portList: Port List) (listOfNames: string List) (comp: Component)= 
+let private drawPortsText (portList: Port List) (listOfNames: string List) (comp: Component)= 
     if listOfNames.Length < 1
         then  []
         else 
@@ -325,7 +319,7 @@ let drawPortsText (portList: Port List) (listOfNames: string List) (comp: Compon
             |> List.collect id
 
 // Function to draw ports using getPortPos. The ports are equidistant     
-let drawPorts (portList: Port List) (printPorts:bool) (comp: Component)= 
+let private drawPorts (portList: Port List) (printPorts:bool) (comp: Component)= 
     if (portList.Length)  < 1 
     then []
     else
@@ -334,7 +328,7 @@ let drawPorts (portList: Port List) (printPorts:bool) (comp: Component)=
         else []
 
 //------------------------------HELPER FUNCTIONS FOR DRAWING SYMBOLS-------------------------------------
-let createPolygon points colour opacity = 
+let private createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
 
 let createBiColorPolygon points colour strokeColor opacity strokeWidth= 
@@ -452,11 +446,7 @@ let compSymbol (symbol:Symbol) (comp:Component) (colour:string) (showInputPorts:
     |> List.append (additions)
     |> List.append (createBiColorPolygon points colour olColour opacity strokeWidth)
 
-
-
-//----------------------------View Function for Symbols----------------------------//
-
-let init () = //for demo only
+let init () = 
     { Symbols = Map.empty; CopiedSymbols = Map.empty; Ports = Map.empty ; InputPortsConnected= Set.empty ; OutputPortsConnected = Map.empty}, Cmd.none
 
 //----------------------------View Function for Symbols----------------------------//

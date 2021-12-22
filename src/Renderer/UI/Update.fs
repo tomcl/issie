@@ -6,7 +6,6 @@ open Fulma
 open Fable.React
 open Fable.React.Props
 open ElectronAPI
-open BusWidthInferer
 open SimulatorTypes
 open ModelType
 open CommonTypes
@@ -15,9 +14,6 @@ open CatalogueView
 open PopupView
 open FileMenuView
 open WaveSimHelpers
-
-open Fable.Core
-open Fable.Core.JsInterop
 
 
 

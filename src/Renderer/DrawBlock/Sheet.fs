@@ -1,15 +1,15 @@
-﻿module Sheet
+﻿(*
+  This module coordinates the draw block user interface managing component selection, moving, auto-scrolling etc
+*)
+
+module Sheet
 open CommonTypes
 open Fable.React
 open Fable.React.Props
 open Browser
 open Elmish
-open Elmish.React
 open DrawHelpers
-open Helpers
 
-///Static variables
-let canvasSize = 3500.0
 
 let mutable canvasDiv:Types.Element option = None
 
@@ -949,7 +949,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let leftScreenEdge, rightScreenEdge,_,_ = getScreenEdgeCoords()
         //Check if the new zoom will exceed the canvas width
         let newZoom = 
-            if rightScreenEdge - leftScreenEdge < (canvasSize * (model.Zoom - 0.05)) then model.Zoom - 0.05
+            if rightScreenEdge - leftScreenEdge < (DrawHelpers.canvasUnscaledSize * (model.Zoom - 0.05)) then model.Zoom - 0.05
             else model.Zoom
 
         { model with Zoom = newZoom }, Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
@@ -1116,7 +1116,7 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
             dispatch <| (ManualKeyDown key.key) )
     document.onkeyup <- (fun key -> dispatch <| (ManualKeyUp key.key))
 
-    let sizeInPixels = sprintf "%.2fpx" ((canvasSize * model.Zoom))
+    let sizeInPixels = sprintf "%.2fpx" ((DrawHelpers.canvasUnscaledSize * model.Zoom))
 
     /// Is the mouse button currently down?
     let mDown (ev:Types.MouseEvent) = ev.buttons <> 0.

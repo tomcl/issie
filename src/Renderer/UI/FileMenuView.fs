@@ -1,8 +1,8 @@
-//(*
-//    FileMenuView.fs
-//
-//    View for the top menu, and related functionalities.
-//*)
+(*
+    FileMenuView.fs
+
+    View for the top menu, and related functionalities: renamimg, loadimg, saving, deleting sheets
+*)
 
 module FileMenuView
 

@@ -1,3 +1,7 @@
+(*
+    These are types used throughout the application
+*)
+
 module CommonTypes
     open Fable.Core
 

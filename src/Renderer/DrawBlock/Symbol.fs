@@ -1,9 +1,11 @@
-﻿module Symbol
+﻿(*
+This module draws schematics component symbols. Each symbol is associated with a unique Issie component.
+*)
+
+module Symbol
 open Fable.React
 open Fable.React.Props
-open Browser
 open Elmish
-open Elmish.React
 open DrawHelpers
 open CommonTypes
 open System.Text.RegularExpressions
@@ -63,12 +65,6 @@ type Msg =
     | LoadComponents of  Component list // For Issie Integration
     | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 
     | WriteMemoryType of ComponentId * ComponentType
-
-//---------------------------------helper for demo-----------------------------------//
-
-/// This function should ONLY be used for the demo.
-let getModelPortsFORDEMO (sModel : Model) : Map<string, Port> =
-    sModel.Ports
 
 //---------------------------------helper types and functions----------------//
 
@@ -168,7 +164,7 @@ let portLists numOfPorts hostID portType =
         [0..(numOfPorts-1)]
         |> List.collect (fun x ->
             [{
-                Id = uuid ()
+                Id = JSHelpers.uuid ()
                 PortNumber = Some x
                 PortType = portType
                 HostId = hostID
@@ -248,7 +244,7 @@ let makeComp (pos: XYPos) (comptype: ComponentType) (id:string) (label:string) :
    
 // Function to generate a new symbol
 let createNewSymbol (pos: XYPos) (comptype: ComponentType) (label:string) =
-    let id = uuid ()
+    let id = JSHelpers.uuid ()
     let comp = makeComp pos comptype id label
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
@@ -296,16 +292,16 @@ let getPortPosModel (model: Model) (port:Port) =
 
 //-----------------------------------------DRAWING HELPERS ---------------------------------------------------
 // Text adding function with many parameters (such as bold, position and text)
-let addText posX posY name txtPos weight size=
+let private addText posX posY name txtPos weight size=
     let text =
             {defaultText with TextAnchor = txtPos; FontWeight = weight; FontSize = size}
     [makeText posX posY name text]
 
 // Generate circles
-let portCircles x y  = 
+let private portCircles x y  = 
     [makeCircle x y portCircle]
 // Define the name of each port 
-let portText x y name portType=
+let private portText x y name portType=
     let xPos = 
         if portType = PortType.Output
         then x - 5.
@@ -314,7 +310,7 @@ let portText x y name portType=
     (addText xPos (y - 7.0) name test "normal" "12px")
 
 // Print the name of each port 
-let drawPortsText (portList: Port List) (listOfNames: string List) (comp: Component)= 
+let private drawPortsText (portList: Port List) (listOfNames: string List) (comp: Component)= 
     if listOfNames.Length < 1
         then  []
         else 
@@ -323,7 +319,7 @@ let drawPortsText (portList: Port List) (listOfNames: string List) (comp: Compon
             |> List.collect id
 
 // Function to draw ports using getPortPos. The ports are equidistant     
-let drawPorts (portList: Port List) (printPorts:bool) (comp: Component)= 
+let private drawPorts (portList: Port List) (printPorts:bool) (comp: Component)= 
     if (portList.Length)  < 1 
     then []
     else
@@ -332,7 +328,7 @@ let drawPorts (portList: Port List) (printPorts:bool) (comp: Component)=
         else []
 
 //------------------------------HELPER FUNCTIONS FOR DRAWING SYMBOLS-------------------------------------
-let createPolygon points colour opacity = 
+let private createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
 
 let createBiColorPolygon points colour strokeColor opacity strokeWidth= 
@@ -450,11 +446,7 @@ let compSymbol (symbol:Symbol) (comp:Component) (colour:string) (showInputPorts:
     |> List.append (additions)
     |> List.append (createBiColorPolygon points colour olColour opacity strokeWidth)
 
-
-
-//----------------------------View Function for Symbols----------------------------//
-
-let init () = //for demo only
+let init () = 
     { Symbols = Map.empty; CopiedSymbols = Map.empty; Ports = Map.empty ; InputPortsConnected= Set.empty ; OutputPortsConnected = Map.empty}, Cmd.none
 
 //----------------------------View Function for Symbols----------------------------//
@@ -759,7 +751,7 @@ let generateLabel (model: Model) (compType: ComponentType) : string =
 /// Currently drag-and-drop
 let pasteSymbols (symModel: Model) (mPos: XYPos) : (Model * ComponentId list) =
     let createNewSymbol (basePos: XYPos) ((currSymbolModel, pastedIdsList) : Model * ComponentId List) (oldSymbol: Symbol): Model * ComponentId List =
-        let newId = uuid()
+        let newId = JSHelpers.uuid()
         let posDiff = posDiff oldSymbol.Pos basePos
         let newPos = posAdd posDiff mPos
         

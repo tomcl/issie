@@ -1,3 +1,7 @@
+(*
+  This module contains some general purpose library functions
+*)
+
 namespace EEExtensions
 /// CHANGELIST
 /// July 2018: add String.regexMatchGroups, correct documentation for regexMatch

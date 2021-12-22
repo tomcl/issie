@@ -1,3 +1,7 @@
+(*
+   Function to perform bus width inference on a canvas
+*)
+
 module BusWidthInferer
 
 open CommonTypes

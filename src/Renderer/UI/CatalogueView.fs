@@ -8,18 +8,13 @@ module CatalogueView
 
 open Fulma
 open Fulma.Extensions.Wikiki
-
-open Fulma
-open Fable.Core.JsInterop
 open Fable.React
 open Fable.React.Props
-
-open Helpers
 open DiagramStyle
 open ModelType
 open CommonTypes
 open PopupView
-open System
+
 
 let private menuItem styles label onClick =
     Menu.Item.li

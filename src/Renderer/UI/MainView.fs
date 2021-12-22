@@ -1,23 +1,13 @@
 ﻿module DiagramMainView
-
-open Elmish
-
 open Fulma
-open Fulma.Extensions.Wikiki
 
 open Fable.React
 open Fable.React.Props
 
 open DiagramStyle
 open ModelType
-open CommonTypes
-open Extractor
-open CatalogueView
-open System
-open Notifications
 open FileMenuView
 open WaveformSimulationView
-open Helpers
 
 open Fable.Core
 open Fable.Core.JsInterop

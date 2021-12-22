@@ -10,7 +10,6 @@ open DiagramStyle
 open CommonTypes
 open FileMenuView
 open Extractor
-open Simulator
 open SimulatorTypes
 
 let maxLastClk = 500u

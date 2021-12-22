@@ -1,4 +1,9 @@
-﻿module TimeHelpers
+﻿(*
+Functions to measure elapsed time and instrument the operation of update and view functions, displaying
+results in various forms.
+*)
+
+module TimeHelpers
 open CommonTypes
 open Helpers
 
@@ -101,36 +106,7 @@ let checkPerformance m n startTimer stopTimer =
         index |> ignore
         stopTimer "Map"   
 
-    let hMapBuffer() = 
-        let third (_,_,x) = x
-        let arr =
-            [|0..m-1|]
-            |> Array.map (fun a -> 
-                let sha = DrawHelpers.uuid()
-                ( sha, (sha |> getFastHash),(a+1) % m))
-        let buff = arr |> arrayToHmap getFastHItem getFastSHA
-        printfn $"hMap count = {hMapCount buff}"
-        let mutable index = 0
-        let mutable el = 0
-        startTimer "HMap"
-        while index < n do
-            index <- index + 1
-            el <- third (Option.get <| hMapTryFind getFastHItem (getFastSHA) arr[el] buff)
-        index |> ignore
-        stopTimer "HMap"   
 
-    let updateHMapBuffer() = 
-        let third (_,_,x) = x
-        let arr =
-            [|0..m-1|]
-            |> Array.map (fun a -> 
-                let sha = DrawHelpers.uuid()
-                ( sha, (sha |> getFastHash),(a+1) % m))
-        let buff = arr |> arrayToHmap getFastHItem getFastSHA
-        printfn $"hMap count = {hMapCount buff}"
-        startTimer "UpdateHMap"
-        let buf = (buff, [|0..n-1|]) ||> Array.fold (fun buff i -> hMapAdd getFastHItem getFastSHA arr[i % m] buff)
-        stopTimer "UpdateHMap" 
         
     let updateMapBuffer() = 
         let buff =
@@ -165,14 +141,10 @@ let checkPerformance m n startTimer stopTimer =
     listBuffer()
     mapBuffer()
     mapBuffer()
-    hMapBuffer()
-    hMapBuffer()
     dictBuffer()
     dictBuffer()
     updateMapBuffer()
     updateMapBuffer()
-    updateHMapBuffer()
-    updateHMapBuffer()
     updateDictBuffer()
 
 //-----------------Code to record and print execution time statistics-------//
@@ -230,8 +202,14 @@ let printStats() =
         printfn "%s time: min=%.3fms max=%.3fms av=%.3fms samples:%d" name st.Min st.Max st.Av (int st.Num))
     executionStats <- Map [] // reset stats
 
-
-let getTimeMs() = Fable.Core.JS.Constructors.Date.now()
+/// returns elapsed time in ms, works under both .Net and Fable
+let getTimeMs() = 
+#if FABLE_COMPILER
+    Fable.Core.JS.Constructors.Date.now()
+#else
+    let start = System.DateTime.UtcNow;           
+    float start.Ticks / float 10000
+#endif
 
 
 let getInterval (startTime:float) =

@@ -1,20 +1,20 @@
-﻿module Renderer
+﻿(*
+Top-level renderer that initialises the app and runs the elmish loop
+The electron built-in menus, and key presses,have actions which are
+are implemented here using elmish subscriptions
+*)
+
+module Renderer
 
 open Elmish
 open Elmish.React
 open Elmish.Debug
 open Elmish.HMR
-
 open Fable.Core
 open Fable.Core.JsInterop
-open Browser.Types
 open ElectronAPI
-open Electron.Helpers
 open ModelType
-
 open Fable.SimpleJson
-open Fable.React
-open Fable.React.Props
 open JSHelpers
 
 

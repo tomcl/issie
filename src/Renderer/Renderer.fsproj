@@ -29,6 +29,7 @@
     <Compile Include="Simulator\FastCreate.fs" />
     <Compile Include="Simulator\FastReduce.fs" />
     <Compile Include="Simulator\FastRun.fs" />
+    <Compile Include="Simulator\TruthTableCreate.fs" />
     <Compile Include="Simulator\Verilog.fs" />
     <Compile Include="Simulator\Runner.fs" />
     <Compile Include="Simulator\DependencyMerger.fs" />

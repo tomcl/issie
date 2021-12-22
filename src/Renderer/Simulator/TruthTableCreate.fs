@@ -36,7 +36,7 @@ let bitCombinations (length: int) (num: int): WireData list =
             |> List.map (fun _ -> [Zero])
         extraZeros @ combination
 
-let tableLHS (inputs: SimulationIO list) =
+let tableLHS (inputs: SimulationIO list): TruthTableRow list =
     let tableCell (comp: SimulationIO) (wd: WireData): TruthTableCell =
         (comp,wd)
     
@@ -45,13 +45,14 @@ let tableLHS (inputs: SimulationIO list) =
         |> List.map (fun wd -> tableCell comp wd)
 
     let numRows = int (2.0**(float inputs.Length))
-
+    printfn "numRows: %i" numRows 
     let rowCombinations = 
         [0 .. numRows-1]
         |> List.map (bitCombinations inputs.Length)
 
-    (inputs,rowCombinations)
-    ||> List.map2 tableRow
+    rowCombinations
+    |> List.map (fun ttRow ->
+        List.map2 tableCell inputs ttRow)
 
 let printTableLHS (input_tuples : (SimulationIO * WireData) list) =
     printf "Printing TT Inputs"
@@ -59,6 +60,12 @@ let printTableLHS (input_tuples : (SimulationIO * WireData) list) =
         input_tuples
         |> List.map fst
     let lhs = tableLHS inputs
+
+    //lhs
+    //|> List.map (fun ttRow ->
+    //    ttRow
+    //    |> List.map (fun (_,wd) ->
+    //        printf "%A ," wd))
     print <| lhs
 
 

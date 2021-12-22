@@ -54,6 +54,50 @@ let tableLHS (inputs: SimulationIO list): TruthTableRow list =
     |> List.map (fun ttRow ->
         List.map2 tableCell inputs ttRow)
 
+let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) (simData: SimulationData): TruthTableRow =
+    let updateOutputs (cell: TruthTableCell) =
+        let ((cid,_,_),wd) = cell
+        FastRun.changeInput cid wd simData.ClockTickNumber simData.FastSim
+    let _ = List.map updateOutputs rowLHS
+
+    (outputs,simData)
+    ||> FastRun.extractFastSimulationIOs
+
+let truthTable (simData: SimulationData) : TruthTable =
+
+    //let tempFastSim = 
+    //    { ClockTick = simData.FastSim.ClockTick
+    //      MaxStepNum = simData.FastSim.MaxStepNum
+    //      MaxArraySize = simData.FastSim.MaxArraySize
+    //      FGlobalInputComps = Array.copy simData.FastSim.FGlobalInputComps
+    //      FConstantComps = Array.copy simData.FastSim.FConstantComps
+    //      FClockedComps = Array.copy simData.FastSim.FClockedComps
+    //      FOrderedComps = Array.copy simData.FastSim.FOrderedComps
+    //      FIOActive = simData.FastSim.FIOActive
+    //      FIOLinks = simData.FastSim.FIOLinks
+    //      FComps = simData.FastSim.FComps
+    //      FSComps = simData.FastSim.FSComps
+    //      FCustomOutputCompLookup = simData.FastSim.FCustomOutputCompLookup
+    //      G = simData.FastSim.G }
+
+    let tempFastSim = FastRun.buildFastSimulation 2 simData.Graph
+    let tempSimData = 
+        match FastRun.buildFastSimulation 2 simData.Graph with
+        | Ok tempFS -> {simData with FastSim = tempFS}
+        | _ -> failwithf "Error in building fast simulation for Truth Table evaluation" 
+    let inputs = List.map fst (FastRun.extractFastSimulationIOs simData.Inputs tempSimData)
+    let outputs = List.map fst (FastRun.extractFastSimulationIOs simData.Outputs tempSimData)
+    let lhs = tableLHS inputs
+    let rhs = List.map (fun i -> rowRHS i outputs tempSimData) lhs
+
+    List.zip lhs rhs
+    |> Map.ofList
+
+let printTruthTable (simData: SimulationData) =
+    let tt = truthTable simData
+    print <| tt
+
+
 let printTableLHS (input_tuples : (SimulationIO * WireData) list) =
     printf "Printing TT Inputs"
     let inputs = 

@@ -14,45 +14,77 @@ type TruthTable = Map<TruthTableRow,TruthTableRow>
 let print x =
     printfn "%A" x
 
-let wdFromBitVal i =
-    match i with
-    | 0 -> [Zero]
-    | 1 -> [One]
-    | _ -> failwithf "what? bits can only be created as 0 or 1"
+let bitCombinations (width: int) (num: int): WireData list =
+    convertIntToWireData width num
+    |> List.map (fun x -> [x])
 
-let bitCombinations (length: int) (num: int): WireData list =
-    let rec bitComb (num: int) (lst: WireData list): WireData list =
-        match num with
-        | 0 -> if lst.IsEmpty then [Zero]::lst else lst
-        | _ -> bitComb (num/2) ((wdFromBitVal (num%2))::lst)
+let multibitCombinations (widths: int list) =
+    printfn "widths: %A" widths
+    let masterList = 
+        widths
+        |> List.map (fun n -> [0 .. int (2.0**n - 1.0) ])
 
-    let combination = bitComb num []
+    let combs =
+        if widths.Length = 0 then
+            []
+        else if widths.Length = 1 then
+            masterList.Head
+            |> List.map (fun n -> [n])
+        else if widths.Length = 2 then
+            List.allPairs (List.head masterList) (List.last masterList)
+            |> List.map (fun (a,b) -> [a;b])
+        else
+            let el1::el2::remaining = masterList
+            let starter = 
+                List.allPairs el1 el2
+                |> List.map (fun (a,b) -> [a;b])
 
-    if combination.Length = length then
-        combination
-    else
-        let extraZeros = 
-            [1 .. (length - combination.Length)]
-            |> List.map (fun _ -> [Zero])
-        extraZeros @ combination
+            let rec numComb (acc: int list list) (rem: int list list) =
+                match rem with 
+                | hd::tl ->
+                    let newAcc = 
+                        acc
+                        |> List.collect (fun l -> List.map (fun i -> l @ [i]) hd)
+                    numComb newAcc tl
+                | [] ->
+                    acc
+
+            numComb starter remaining
+
+    combs
+    |> List.map (fun l -> l |> List.mapi (fun i n -> 
+        printfn "l: %A" l
+        printfn "i = %i" i
+        convertIntToWireData widths[i] n))
+    
 
 let tableLHS (inputs: SimulationIO list): TruthTableRow list =
     let tableCell (comp: SimulationIO) (wd: WireData): TruthTableCell =
         (comp,wd)
+
+    let widthOneInputs = List.filter (fun (_,_,w) -> w = 1) inputs
+    let widthMultiInputs = List.filter (fun (_,_,w) -> w > 1) inputs
     
-    let tableRow (comp: SimulationIO) (wdList: WireData list): TruthTableRow =
-        wdList
-        |> List.map (fun wd -> tableCell comp wd)
+    let widthOneRows = 
+        [0 .. int (2.0**(float widthOneInputs.Length))]
+        |> List.map (bitCombinations widthOneInputs.Length)
+        |> List.map (fun ttRow ->
+            List.map2 tableCell widthOneInputs ttRow)
 
-    let numRows = int (2.0**(float inputs.Length))
-    printfn "numRows: %i" numRows 
-    let rowCombinations = 
-        [0 .. numRows-1]
-        |> List.map (bitCombinations inputs.Length)
+    let widthMultiRows =
+        widthMultiInputs
+        |> List.map (fun (_,_,w)  -> w)
+        |> multibitCombinations
+        |> List.map (fun l -> (widthMultiInputs,l) ||> List.map2 (fun comp wd -> tableCell comp wd))
 
-    rowCombinations
-    |> List.map (fun ttRow ->
-        List.map2 tableCell inputs ttRow)
+    match (widthOneInputs.IsEmpty,widthMultiInputs.IsEmpty) with
+    | (false,true) -> widthOneRows
+    | (true,false) -> widthMultiRows
+    | (false,false) ->
+        (widthMultiRows,widthOneRows)
+        ||> List.allPairs
+        |> List.map (fun (a,b) -> a @ b)
+    | (true,true) -> failwithf "what? Can't create truth table with no inputs"
 
 let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) (simData: SimulationData): TruthTableRow =
     let updateOutputs (cell: TruthTableCell) =
@@ -64,23 +96,6 @@ let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) (simData: Simula
     ||> FastRun.extractFastSimulationIOs
 
 let truthTable (simData: SimulationData) : TruthTable =
-
-    //let tempFastSim = 
-    //    { ClockTick = simData.FastSim.ClockTick
-    //      MaxStepNum = simData.FastSim.MaxStepNum
-    //      MaxArraySize = simData.FastSim.MaxArraySize
-    //      FGlobalInputComps = Array.copy simData.FastSim.FGlobalInputComps
-    //      FConstantComps = Array.copy simData.FastSim.FConstantComps
-    //      FClockedComps = Array.copy simData.FastSim.FClockedComps
-    //      FOrderedComps = Array.copy simData.FastSim.FOrderedComps
-    //      FIOActive = simData.FastSim.FIOActive
-    //      FIOLinks = simData.FastSim.FIOLinks
-    //      FComps = simData.FastSim.FComps
-    //      FSComps = simData.FastSim.FSComps
-    //      FCustomOutputCompLookup = simData.FastSim.FCustomOutputCompLookup
-    //      G = simData.FastSim.G }
-
-    let tempFastSim = FastRun.buildFastSimulation 2 simData.Graph
     let tempSimData = 
         match FastRun.buildFastSimulation 2 simData.Graph with
         | Ok tempFS -> {simData with FastSim = tempFS}

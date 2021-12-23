@@ -170,6 +170,7 @@ let private viewSimulationInputs
         (simulationData : SimulationData)
         (inputs : (SimulationIO * WireData) list)
         dispatch =
+
     let simulationGraph = simulationData.Graph
     let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel, width), wireData) =
 #if ASSERTS
@@ -558,6 +559,7 @@ let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) 
 
 
 let viewSimulation model dispatch =
+    printf "Viewing Simulation"
     let state = model.Sheet.GetCanvasState ()
     // let JSState = model.Diagram.GetCanvasState ()
     let startSimulation () =

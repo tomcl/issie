@@ -321,6 +321,7 @@ let update (msg : Msg) oldModel =
         | Properties -> Cmd.batch <| editCmds
         | Catalogue -> Cmd.batch  <| editCmds
         | Simulation -> Cmd.batch <| editCmds
+        | TruthTable -> Cmd.batch <| editCmds
         | WaveSim -> Cmd.ofMsg (Sheet (Sheet.SetWaveSimMode true))
  
     | SetHighlighted (componentIds, connectionIds) ->

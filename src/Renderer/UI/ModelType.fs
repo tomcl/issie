@@ -16,6 +16,7 @@ type RightTab =
     | Properties
     | Catalogue
     | Simulation
+    | TruthTable
     | WaveSim
 
 type MemoryEditorData = {

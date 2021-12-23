@@ -119,6 +119,11 @@ let private viewRightTab model dispatch =
             Heading.h4 [] [ str "Simulation" ]
             SimulationView.viewSimulation model dispatch
         ]
+    | TruthTable ->
+        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
+            Heading.h4 [] [ str "Truth Table" ]
+            TruthTableView.viewTruthTable model dispatch
+        ]
     | WaveSim -> 
         div [ Style [Width "100%"; Height "calc(100% - 48px)"; MarginTop "15px" ] ]
             ( WaveformSimulationView.viewWaveSim model dispatch )
@@ -277,13 +282,21 @@ let displayView model dispatch =
                                                 then 
                                                     dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ]
                                                     
-                                    (Tabs.tab // simulation tab to do combinational simulation
+                                    Tabs.tab // simulation tab to do combinational simulation
                                         [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
                                         [ a [  OnClick (fun _ -> 
                                                 if model.RightPaneTabVisible <> WaveSim 
                                                 then
                                                     dispatch <| ChangeRightTab Simulation ) 
-                                            ] [str "Simulation"] ] )
+                                            ] [str "Simulation"] ] 
+
+                                    (Tabs.tab // truth table tab to display truth table for combinational logic
+                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = TruthTable) ]
+                                    [ a [  OnClick (fun _ -> 
+                                            if model.RightPaneTabVisible <> WaveSim 
+                                            then
+                                                dispatch <| ChangeRightTab TruthTable ) 
+                                        ] [str "Truth Table"] ] )
                             
                                     // Optional wavesim tab. If present contains waveforms or waveform editor window
                                     (match currWaveSimModel model with

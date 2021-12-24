@@ -24,6 +24,7 @@ open CommonTypes
 open SimulatorTypes
 open Extractor
 open Simulator
+open TruthTableCreate
 
 
 

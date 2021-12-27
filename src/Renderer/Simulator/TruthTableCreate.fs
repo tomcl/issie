@@ -5,11 +5,6 @@ open SimulatorTypes
 open SynchronousUtils
 open NumberHelpers
 
-
-type TruthTableCell = SimulationIO * WireData
-type TruthTableRow = TruthTableCell list
-type TruthTable = Map<TruthTableRow,TruthTableRow>
-
 // REMEMBER TO REMOVE EVENTUALLY!
 let print x =
     printfn "%A" x

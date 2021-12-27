@@ -44,25 +44,25 @@ let isPortInComponents (port: Port) (comps: Component list) =
         List.contains port.Id compPortIds || b)
         
 
-let correctCanvasState (canvasState: CanvasState) =
-    let components,connections = canvasState
+let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: CanvasState) =
+    let components,connections = selectedCanvasState
     let dummyInputPort = {
         Id = "DummyIn"
         PortNumber = None
-        PortType = Input
+        PortType = PortType.Input
         HostId = "DummyIn_Host"
     }
     let dummyOutputPort = {
         Id = "DummyOut"
         PortNumber = None
-        PortType = Output
+        PortType = PortType.Output
         HostId = "DummyOut_Host"
     }
 
     let connectionWidths = 
-        match BusWidthInferer.inferConnectionsWidth canvasState with
+        match BusWidthInferer.inferConnectionsWidth wholeCanvasState with
         | Ok cw -> cw
-        | Error _ -> failwithf "what> WidthInferrer failed to infer widths from whole canvas during TT Calculation"
+        | Error _ -> failwithf "what? WidthInferrer failed to infer widths from whole canvas during TT Calculation"
 
     let portWidths =
         Map.toList connectionWidths
@@ -76,7 +76,7 @@ let correctCanvasState (canvasState: CanvasState) =
     let getPortWidth pId =
         match Map.find pId portWidths with
         | Some w -> w
-        | None -> failwithf "WidthInferrer did not infer a width for a port"
+        | None -> failwithf "what? WidthInferrer did not infer a width for a port"
 
     let addExtraConnections (comps: Component list,conns: Connection list) =
         comps,
@@ -153,19 +153,24 @@ let correctCanvasState (canvasState: CanvasState) =
                 con,acc)
         |> (fun (a,b) -> (b,a))
 
-    match components.Length with
-    | 0 -> Error "No components selected"
-    | _ -> 
-        (components,connections)
-        |> addExtraConnections
-        |> addExtraIOs
-        |> Ok
+    (components,connections)
+    |> addExtraConnections
+    |> addExtraIOs
+
 
 
 //let makeSimDataSelected model =
-//    match model.Sheet.GetSelectedCanvasState , model.CurrentProj with
-//    | _ , None -> None
-//    | 
+//    let (selComponents,selConnections) = model.Sheet.GetSelectedCanvasState
+//    let wholeCanvas = model.Sheet.GetCanvasState()
+
+//    match selComponents, selConnections with
+//    | [],[] -> Error "No components or connections selected"
+//    | [],_ -> Error "No components selected"
+//    | _,_ ->
+//        let (comps,conns) = correctCanvasState (selComponents,selConnections) wholeCanvas
+
+    
+
 
 let viewTruthTable model dispatch =
     let tempPrint simRes =

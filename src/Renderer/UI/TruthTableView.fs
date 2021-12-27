@@ -190,61 +190,82 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
             Some (prepareSimulation project.OpenFileName (correctComps,correctConns) selLoadedComponents , (correctComps,correctConns))
 
         
+let viewTruthTableError simError =
+    printfn "SimError during Truth Table: %A" simError
 
+let viewTruthTableData table =
+    printfn "Truth Table: %A" table
     
 
 
 let viewTruthTable model dispatch =
-    let tempPrint simRes = // Temp, remember to remove
-        match simRes with
-        | Some (Ok sd,_) -> TruthTableCreate.printTruthTable sd
-        | Some (Error e,_) -> print e.Msg
-        | None -> printfn "None"
-    //printf "Viewing Truth Table"
-    let wholeSimRes = SimulationView.makeSimData model
-    let wholeButtonColor, wholeButtonText, wholeButtonAction =
-        match wholeSimRes with
-        | None -> IColor.IsWhite, "", (fun _ -> ())
+    let generateTruthTable simRes =
+        match simRes with 
         | Some (Ok sd,_) -> 
-            if sd.IsSynchronous = false then 
-                IColor.IsSuccess, "Generate Truth Table", tempPrint
-            else 
-                IColor.IsInfo, "Combinational Only!", (fun _ -> ())
-        | Some (Error _,_) -> IColor.IsWarning, "See Problems", tempPrint
-    div [] [
-        str "Generate Truth Tables for combinational logic using this tab."
-        br[]
-        hr[]
-        Heading.h5 [] [str "Truth Table for whole sheet"]
-        br []
-        Button.button
-            [ 
-                Button.Color wholeButtonColor; 
-                Button.OnClick (fun _ -> wholeButtonAction wholeSimRes ) ; 
-            ]
-            [ str wholeButtonText ]
-        hr[]
+            sd
+            |> truthTable
+            |> Ok
+            |> GenerateTruthTable
+            |> dispatch
+        | Some (Error e,_) ->
+            Error e
+            |> GenerateTruthTable
+            |> dispatch
+        | None -> ()
 
-        let selSimRes = makeSimDataSelected model
-        let selButtonColor, selButtonText, selButtonAction =
-            match selSimRes with
+    //let tempPrint simRes = // Temp, remember to remove
+    //    match simRes with
+    //    | Some (Ok sd,_) -> TruthTableCreate.printTruthTable sd
+    //    | Some (Error e,_) -> print e.Msg
+    //    | None -> printfn "None"
+
+    match model.CurrentTruthTable with
+    | None ->
+        let wholeSimRes = SimulationView.makeSimData model
+        let wholeButtonColor, wholeButtonText, wholeButtonAction =
+            match wholeSimRes with
             | None -> IColor.IsWhite, "", (fun _ -> ())
             | Some (Ok sd,_) -> 
                 if sd.IsSynchronous = false then 
-                    IColor.IsSuccess, "Generate Truth Table", tempPrint
+                    IColor.IsSuccess, "Generate Truth Table", generateTruthTable
                 else 
                     IColor.IsInfo, "Combinational Only!", (fun _ -> ())
-            | Some (Error _,_) -> IColor.IsWarning, "See Problems", tempPrint 
-        Heading.h5 [] [str "Truth Table for selected logic"]
-        br []
-        Button.button
-            [ 
-                Button.Color selButtonColor; 
-                Button.OnClick (fun _ -> selButtonAction selSimRes ) ; 
-            ]
-            [ str selButtonText ]
-        hr[]
-        
-        
+            | Some (Error _,_) -> IColor.IsWarning, "See Problems", generateTruthTable
+        div [] [
+            str "Generate Truth Tables for combinational logic using this tab."
+            br[]
+            hr[]
+            Heading.h5 [] [str "Truth Table for whole sheet"]
+            br []
+            Button.button
+                [ 
+                    Button.Color wholeButtonColor; 
+                    Button.OnClick (fun _ -> wholeButtonAction  wholeSimRes ) ; 
+                ]
+                [ str wholeButtonText ]
+            hr[]
 
-    ]
+            let selSimRes = makeSimDataSelected model
+            let selButtonColor, selButtonText, selButtonAction =
+                match selSimRes with
+                | None -> IColor.IsWhite, "", (fun _ -> ())
+                | Some (Ok sd,_) -> 
+                    if sd.IsSynchronous = false then 
+                        IColor.IsSuccess, "Generate Truth Table", generateTruthTable
+                    else 
+                        IColor.IsInfo, "Combinational Only!", (fun _ -> ())
+                | Some (Error _,_) -> IColor.IsWarning, "See Problems", generateTruthTable 
+            Heading.h5 [] [str "Truth Table for selected logic"]
+            br []
+            Button.button
+                [ 
+                    Button.Color selButtonColor; 
+                    Button.OnClick (fun _ -> selButtonAction selSimRes ) ; 
+                ]
+                [ str selButtonText ]
+            hr[]
+        ]
+    | Some tableopt ->
+        match tableopt with
+        | Error e -> viewTruthTableError e; div [] []
+        | Ok table -> viewTruthTableData table; div [] []

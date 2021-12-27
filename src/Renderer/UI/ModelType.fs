@@ -276,6 +276,7 @@ type Msg =
     | IncrementSimulationClockTick of int
     | EndSimulation
     | EndWaveSim
+    | GenerateTruthTable of Result<TruthTable, SimulationError>
     | ChangeRightTab of RightTab
     | SetHighlighted of ComponentId list * ConnectionId list
     | SetSelWavesHighlighted of ConnectionId array
@@ -389,6 +390,8 @@ type Model = {
     SelectedComponent : Component option // None if no component is selected.
     // used during step simulation: simgraph for current clock tick
     CurrentStepSimulationStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
+    // stores the generated truth table 
+    CurrentTruthTable: Result<TruthTable,SimulationError> option // None if no Truth Table is being displayed.
     // which of the tabbed panes is currentlky visible
     RightPaneTabVisible : RightTab
     // components and connections which are highlighted

@@ -55,6 +55,7 @@ let init() = {
     SelectedComponent = None
     LastUsedDialogWidth = 1
     CurrentStepSimulationStep = None
+    CurrentTruthTable = None
     WaveSim = Map.empty, None
     WaveSimSheet = ""
     RightPaneTabVisible = Catalogue

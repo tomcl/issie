@@ -19,7 +19,6 @@ let bitCombinations (width: int) (num: int): WireData list =
     |> List.map (fun x -> [x])
 
 let multibitCombinations (widths: int list) =
-    printfn "widths: %A" widths
     let masterList = 
         widths
         |> List.map (fun n -> [0 .. int (2.0**n - 1.0) ])

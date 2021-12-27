@@ -68,7 +68,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
         Map.toList connectionWidths
         |> List.fold (fun acc (cid,widthopt) ->
             let pIdEntries = 
-                getPortIdsfromConnectionId cid connections
+                getPortIdsfromConnectionId cid (snd wholeCanvasState)
                 |> List.map (fun pId -> (pId,widthopt))
             acc @ pIdEntries) []
         |> Map.ofList
@@ -89,7 +89,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     {
                         Id = JSHelpers.uuid()
                         Source = dummyOutputPort
-                        Target = p
+                        Target = {p with PortNumber = None}
                         Vertices = [(0.0,0.0)] // Irrelevant as we never draw this connection
                     })
             let extraOutputConns =
@@ -98,7 +98,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                 |> List.map (fun p -> 
                     {
                         Id = JSHelpers.uuid()
-                        Source = p
+                        Source = {p with PortNumber = None}
                         Target = dummyInputPort
                         Vertices = [(0.0,0.0)] // Irrelevant as we never draw this connection
                     })
@@ -128,7 +128,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     Y = 0
                     H = 0
                     W = 0}
-                {con with Source = newPort}, acc @ [extraInput]
+                {con with Source = {newPort with PortNumber = None}}, acc @ [extraInput]
             else if not (isPortInComponents con.Target comps) then
                 let newId = JSHelpers.uuid()
                 let newLabel = "TT_OUT" + string outputCount
@@ -148,7 +148,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     Y = 0
                     H = 0
                     W = 0}
-                {con with Target = newPort}, acc @ [extraOutput]
+                {con with Target = {newPort with PortNumber = None}}, acc @ [extraOutput]
             else
                 con,acc)
         |> (fun (a,b) -> (b,a))
@@ -159,44 +159,92 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
 
 
 
-//let makeSimDataSelected model =
-//    let (selComponents,selConnections) = model.Sheet.GetSelectedCanvasState
-//    let wholeCanvas = model.Sheet.GetCanvasState()
+let makeSimDataSelected model : (Result<SimulationData,SimulationError> * CanvasState) option =
+    let (selComponents,selConnections) = model.Sheet.GetSelectedCanvasState
+    let wholeCanvas = model.Sheet.GetCanvasState()
+    let selOtherComponents =
+        ([],selComponents)
+        ||> List.fold (fun acc comp ->
+            match comp.Type with
+            | Custom cc -> acc @ [cc.Name]
+            | _ -> acc)
 
-//    match selComponents, selConnections with
-//    | [],[] -> Error "No components or connections selected"
-//    | [],_ -> Error "No components selected"
-//    | _,_ ->
-//        let (comps,conns) = correctCanvasState (selComponents,selConnections) wholeCanvas
+    match selComponents, selConnections, model.CurrentProj with
+    | _,_,None -> None
+    | [],[],_ -> None
+    | [],_,_ -> Some <| (Error {
+        Msg = "Only connections selected. Please select a combination of connections and components."
+        InDependency = None
+        ComponentsAffected = []
+        ConnectionsAffected =[] }, (selComponents,selConnections))
+    | selComps,selConns,Some project ->
+        let correctComps,correctConns = correctCanvasState (selComps,selConns) wholeCanvas
+        let selLoadedComponents =
+            project.LoadedComponents
+            |> List.filter (fun comp ->
+                comp.Name <> project.OpenFileName
+                && List.contains comp.Name selOtherComponents)
+        match CanvasStateAnalyser.analyseState (correctComps,correctConns) selLoadedComponents with
+        | Some e -> Some (Error e,(correctComps,correctConns))
+        | None ->
+            Some (prepareSimulation project.OpenFileName (correctComps,correctConns) selLoadedComponents , (correctComps,correctConns))
+
+        
 
     
 
 
 let viewTruthTable model dispatch =
-    let tempPrint simRes =
+    let tempPrint simRes = // Temp, remember to remove
         match simRes with
         | Some (Ok sd,_) -> TruthTableCreate.printTruthTable sd
-        | _ -> failwithf "Nothing"
-    printf "Viewing Truth Table"
-    let simRes = SimulationView.makeSimData model
-    let buttonColor, buttonText =
-        match simRes with
-        | None -> IColor.IsWhite, ""
+        | Some (Error e,_) -> print e.Msg
+        | None -> printfn "None"
+    //printf "Viewing Truth Table"
+    let wholeSimRes = SimulationView.makeSimData model
+    let wholeButtonColor, wholeButtonText, wholeButtonAction =
+        match wholeSimRes with
+        | None -> IColor.IsWhite, "", (fun _ -> ())
         | Some (Ok sd,_) -> 
             if sd.IsSynchronous = false then 
-                IColor.IsSuccess, "Generate Truth Table" 
+                IColor.IsSuccess, "Generate Truth Table", tempPrint
             else 
-                IColor.IsInfo, "Combinational Only!"
-        | Some (Error _,_) -> IColor.IsWarning, "See Problems"
+                IColor.IsInfo, "Combinational Only!", (fun _ -> ())
+        | Some (Error _,_) -> IColor.IsWarning, "See Problems", tempPrint
     div [] [
-        str "Generate Truth Tables for the whole sheet using this tab."
+        str "Generate Truth Tables for combinational logic using this tab."
+        br[]
+        hr[]
+        Heading.h5 [] [str "Truth Table for whole sheet"]
         br []
-        str "Please note that Truth Tables can only be generated for Combinational Logic Circuits"
-        br []; br []
         Button.button
             [ 
-                Button.Color buttonColor; 
-                Button.OnClick (fun _ -> tempPrint simRes ) ; 
+                Button.Color wholeButtonColor; 
+                Button.OnClick (fun _ -> wholeButtonAction wholeSimRes ) ; 
             ]
-            [ str buttonText ]
+            [ str wholeButtonText ]
+        hr[]
+
+        let selSimRes = makeSimDataSelected model
+        let selButtonColor, selButtonText, selButtonAction =
+            match selSimRes with
+            | None -> IColor.IsWhite, "", (fun _ -> ())
+            | Some (Ok sd,_) -> 
+                if sd.IsSynchronous = false then 
+                    IColor.IsSuccess, "Generate Truth Table", tempPrint
+                else 
+                    IColor.IsInfo, "Combinational Only!", (fun _ -> ())
+            | Some (Error _,_) -> IColor.IsWarning, "See Problems", tempPrint 
+        Heading.h5 [] [str "Truth Table for selected logic"]
+        br []
+        Button.button
+            [ 
+                Button.Color selButtonColor; 
+                Button.OnClick (fun _ -> selButtonAction selSimRes ) ; 
+            ]
+            [ str selButtonText ]
+        hr[]
+        
+        
+
     ]

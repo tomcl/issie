@@ -74,9 +74,10 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
         |> Map.ofList
 
     let getPortWidth pId =
-        match Map.find pId portWidths with
-        | Some w -> w
-        | None -> failwithf "what? WidthInferrer did not infer a width for a port"
+        match Map.tryFind pId portWidths with
+        | Some(Some w) -> Some w
+        | Some(None) -> failwithf "what? WidthInferrer did not infer a width for a port"
+        | None -> None
 
     let addExtraConnections (comps: Component list,conns: Connection list) =
         comps,
@@ -107,55 +108,89 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
     let addExtraIOs (comps: Component list,conns: Connection list) =
         let mutable inputCount = 0
         let mutable outputCount = 0
-        (comps,conns)
+        let compsOk : Result<Component,SimulationError> list = List.map (fun c -> Ok c) comps
+
+        (compsOk,conns)
         ||> List.mapFold (fun acc con ->
             if not (isPortInComponents con.Source comps) then
-                let newId = JSHelpers.uuid()
-                let newLabel = "TT_IN" + string inputCount
-                inputCount <- inputCount + 1
-                let newPort = {
-                    Id = JSHelpers.uuid()
-                    PortNumber = Some 0
-                    PortType = PortType.Output
-                    HostId = newId}
-                let extraInput = {
-                    Id = newId
-                    Type = Input(getPortWidth con.Target.Id)
-                    Label = newLabel
-                    InputPorts = []
-                    OutputPorts = [newPort]
-                    X = 0
-                    Y = 0
-                    H = 0
-                    W = 0}
-                {con with Source = {newPort with PortNumber = None}}, acc @ [extraInput]
+                match getPortWidth con.Target.Id with
+                | Some pw ->
+                    let newId = JSHelpers.uuid()
+                    let newLabel = "TT_IN" + string inputCount
+                    inputCount <- inputCount + 1
+                    let newPort = {
+                        Id = JSHelpers.uuid()
+                        PortNumber = Some 0
+                        PortType = PortType.Output
+                        HostId = newId}
+                    let extraInput = {
+                        Id = newId
+                        Type = Input(pw)
+                        Label = newLabel
+                        InputPorts = []
+                        OutputPorts = [newPort]
+                        X = 0
+                        Y = 0
+                        H = 0
+                        W = 0}
+                    {con with Source = {newPort with PortNumber = None}}, acc @ [Ok extraInput]
+                | None ->
+                    let error = {
+                        Msg = "Could not infer the width for an input into the selected logic."
+                        InDependency = None
+                        ComponentsAffected = [ComponentId(con.Target.HostId)]
+                        ConnectionsAffected = []
+                    }
+                    con, acc @ [Error error]
             else if not (isPortInComponents con.Target comps) then
-                let newId = JSHelpers.uuid()
-                let newLabel = "TT_OUT" + string outputCount
-                outputCount <- outputCount + 1
-                let newPort = {
-                    Id = JSHelpers.uuid()
-                    PortNumber = Some 0
-                    PortType = PortType.Input
-                    HostId = newId}
-                let extraOutput = {
-                    Id = newId
-                    Type = Output(getPortWidth con.Source.Id)
-                    Label = newLabel
-                    InputPorts = [newPort]
-                    OutputPorts = []
-                    X = 0
-                    Y = 0
-                    H = 0
-                    W = 0}
-                {con with Target = {newPort with PortNumber = None}}, acc @ [extraOutput]
+                match getPortWidth con.Source.Id with
+                | Some pw ->
+                    let newId = JSHelpers.uuid()
+                    let newLabel = "TT_OUT" + string outputCount
+                    outputCount <- outputCount + 1
+                    let newPort = {
+                        Id = JSHelpers.uuid()
+                        PortNumber = Some 0
+                        PortType = PortType.Input
+                        HostId = newId}
+                    let extraOutput = {
+                        Id = newId
+                        Type = Output(pw)
+                        Label = newLabel
+                        InputPorts = [newPort]
+                        OutputPorts = []
+                        X = 0
+                        Y = 0
+                        H = 0
+                        W = 0}
+                    {con with Target = {newPort with PortNumber = None}}, acc @ [Ok extraOutput]
+                | None ->
+                    let error = {
+                        Msg = "Could not infer the width for an output produced by the selected logic."
+                        InDependency = None
+                        ComponentsAffected = [ComponentId(con.Source.HostId)]
+                        ConnectionsAffected = []
+                    }
+                    con, acc @ [Error error]
             else
                 con,acc)
         |> (fun (a,b) -> (b,a))
+    
+    let checkCanvasWasCorrected (compsRes: Result<Component,SimulationError> list,conns) =
+        let errors = List.filter (function Ok _ -> false | Error _ -> true) compsRes
+        let comps = List.collect (function Ok c -> [c] | Error _ -> []) compsRes
+
+        match errors with
+        | [] -> Ok (comps,conns)
+        | (Error e)::tl -> Error e
+        | _ -> failwithf "what? Component should never be present in list of errors"
+        
 
     (components,connections)
     |> addExtraConnections
     |> addExtraIOs
+    |> checkCanvasWasCorrected
+    
 
 
 
@@ -178,16 +213,19 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
         ComponentsAffected = []
         ConnectionsAffected =[] }, (selComponents,selConnections))
     | selComps,selConns,Some project ->
-        let correctComps,correctConns = correctCanvasState (selComps,selConns) wholeCanvas
+        //let correctComps,correctConns = correctCanvasState (selComps,selConns) wholeCanvas
         let selLoadedComponents =
             project.LoadedComponents
             |> List.filter (fun comp ->
                 comp.Name <> project.OpenFileName
                 && List.contains comp.Name selOtherComponents)
-        match CanvasStateAnalyser.analyseState (correctComps,correctConns) selLoadedComponents with
-        | Some e -> Some (Error e,(correctComps,correctConns))
-        | None ->
-            Some (prepareSimulation project.OpenFileName (correctComps,correctConns) selLoadedComponents , (correctComps,correctConns))
+        match correctCanvasState (selComps,selConns) wholeCanvas with
+        | Error e -> Some (Error e, (selComps,selConns))
+        | Ok (correctComps,correctConns) ->
+            match CanvasStateAnalyser.analyseState (correctComps,correctConns) selLoadedComponents with
+            | Some e -> Some (Error e,(correctComps,correctConns))
+            | None ->
+                Some (prepareSimulation project.OpenFileName (correctComps,correctConns) selLoadedComponents , (correctComps,correctConns))
 
 let tableAsList (table: TruthTable): TruthTableRow list =
     table
@@ -346,4 +384,6 @@ let viewTruthTable model dispatch =
                  pressing the \"Generate Truth Table\" button."
             hr []
             body
+            br []
+            hr[]
             ]

@@ -189,12 +189,83 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
         | None ->
             Some (prepareSimulation project.OpenFileName (correctComps,correctConns) selLoadedComponents , (correctComps,correctConns))
 
+let tableAsList (table: TruthTable): TruthTableRow list =
+    table
+    |> Map.toList
+    |> List.map (fun (lhs,rhs) -> List.append lhs rhs)
+
+let viewCellAsHeading (cell: TruthTableCell) = 
+    let ((_,label,_),_) = cell
+    let headingText = string label
+    th [ ] [ str headingText ]
+
+let viewCellAsData (cell: TruthTableCell) =
+    let (_,wd) = cell
+    match wd with 
+    | [] -> failwith "what? Empty wireData while creating a line in Truth Table"
+    | [bit] -> td [] [str <| bitToString bit]
+    | bits ->
+        let width = List.length bits
+        let value = viewFilledNum width Hex <| convertWireDataToInt bits
+        td [] [str value]
+
+let viewRowAsData (row: TruthTableRow) =
+    let cells = 
+        row
+        |> List.map viewCellAsData
+        |> List.toSeq
+    tr [] cells
+        
+
         
 let viewTruthTableError simError =
-    printfn "SimError during Truth Table: %A" simError
+    let error = 
+        match simError.InDependency with
+        | None ->
+            div [] [
+                str simError.Msg
+                br []
+                str <| "Please fix the error and retry."
+            ]
+        | Some dep ->
+            div [] [
+                str <| "Error found in dependency \"" + dep + "\":"
+                br []
+                str simError.Msg
+                br []
+                str <| "Please fix the error in the dependency and retry."
+            ]
+    div [] [
+        Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Errors" ]
+        error
+    ]
 
-let viewTruthTableData table =
-    printfn "Truth Table: %A" table
+let viewTruthTableData (table: TruthTable) =
+    if table.IsEmpty then // Should never be matched
+        div [] [str "No Truth Table to Display"]
+    else
+        let TTasList = tableAsList table
+        let headings =
+            TTasList.Head
+            |> List.map viewCellAsHeading
+            |> List.toSeq
+        let body =
+            TTasList
+            |> List.map viewRowAsData
+            |> List.toSeq
+            
+
+        div [] [
+            Table.table [
+                Table.IsBordered
+                Table.IsFullWidth
+                Table.IsStriped
+                Table.IsHoverable] 
+                [ 
+                    thead [] headings
+                    tbody [] body
+                ]
+        ]
     
 
 
@@ -212,12 +283,6 @@ let viewTruthTable model dispatch =
             |> GenerateTruthTable
             |> dispatch
         | None -> ()
-
-    //let tempPrint simRes = // Temp, remember to remove
-    //    match simRes with
-    //    | Some (Ok sd,_) -> TruthTableCreate.printTruthTable sd
-    //    | Some (Error e,_) -> print e.Msg
-    //    | None -> printfn "None"
 
     match model.CurrentTruthTable with
     | None ->
@@ -266,6 +331,19 @@ let viewTruthTable model dispatch =
             hr[]
         ]
     | Some tableopt ->
-        match tableopt with
-        | Error e -> viewTruthTableError e; div [] []
-        | Ok table -> viewTruthTableData table; div [] []
+        let closeTruthTable _ =
+            dispatch CloseTruthTable
+        let body = 
+            match tableopt with
+            | Error e -> viewTruthTableError e
+            | Ok table -> viewTruthTableData table
+        div [] [
+            Button.button
+                [ Button.Color IsDanger; Button.OnClick closeTruthTable ]
+                [ str "Close Truth Table" ]
+            br []; br []
+            str "The Truth Table generator uses the diagram as it was at the moment of
+                 pressing the \"Generate Truth Table\" button."
+            hr []
+            body
+            ]

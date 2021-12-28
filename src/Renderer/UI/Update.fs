@@ -313,6 +313,7 @@ let update (msg : Msg) oldModel =
     | EndSimulation -> { model with CurrentStepSimulationStep = None }, Cmd.none
     | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
     | GenerateTruthTable table -> {model with CurrentTruthTable = Some table}, Cmd.none
+    | CloseTruthTable -> {model with CurrentTruthTable = None}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg

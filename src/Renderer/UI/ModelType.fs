@@ -277,6 +277,7 @@ type Msg =
     | EndSimulation
     | EndWaveSim
     | GenerateTruthTable of Result<TruthTable, SimulationError>
+    | CloseTruthTable
     | ChangeRightTab of RightTab
     | SetHighlighted of ComponentId list * ConnectionId list
     | SetSelWavesHighlighted of ConnectionId array

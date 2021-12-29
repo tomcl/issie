@@ -42,6 +42,14 @@ let isPortInComponents (port: Port) (comps: Component list) =
     ||> List.fold (fun b c -> 
         let compPortIds = (c.InputPorts @ c.OutputPorts) |> List.map (fun p -> p.Id)
         List.contains port.Id compPortIds || b)
+
+let filterResults results = 
+    let rec filter lst success error =
+        match lst with
+        | [] -> success,error
+        | (Ok c)::tl -> filter tl (success @ [c]) error
+        | (Error e)::tl -> filter tl success (error @ [e])
+    filter results [] []
         
 
 let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: CanvasState) =
@@ -112,7 +120,14 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
 
         (compsOk,conns)
         ||> List.mapFold (fun acc con ->
-            if not (isPortInComponents con.Source comps) then
+            if  not (isPortInComponents con.Source comps) && not (isPortInComponents con.Target comps) then
+                let error = {
+                    Msg = "Selected logic includes a wire connected to no components."
+                    InDependency = None
+                    ComponentsAffected = []
+                    ConnectionsAffected = [ConnectionId(con.Id)]}
+                Error error,acc
+            else if not (isPortInComponents con.Source comps) then
                 match getPortWidth con.Target.Id with
                 | Some pw ->
                     let newId = JSHelpers.uuid()
@@ -133,7 +148,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         Y = 0
                         H = 0
                         W = 0}
-                    {con with Source = {newPort with PortNumber = None}}, acc @ [Ok extraInput]
+                    Ok {con with Source = {newPort with PortNumber = None}}, acc @ [Ok extraInput]
                 | None ->
                     let error = {
                         Msg = "Could not infer the width for an input into the selected logic."
@@ -141,7 +156,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         ComponentsAffected = [ComponentId(con.Target.HostId)]
                         ConnectionsAffected = []
                     }
-                    con, acc @ [Error error]
+                    Ok con, acc @ [Error error]
             else if not (isPortInComponents con.Target comps) then
                 match getPortWidth con.Source.Id with
                 | Some pw ->
@@ -163,7 +178,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         Y = 0
                         H = 0
                         W = 0}
-                    {con with Target = {newPort with PortNumber = None}}, acc @ [Ok extraOutput]
+                    Ok {con with Target = {newPort with PortNumber = None}}, acc @ [Ok extraOutput]
                 | None ->
                     let error = {
                         Msg = "Could not infer the width for an output produced by the selected logic."
@@ -171,19 +186,19 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         ComponentsAffected = [ComponentId(con.Source.HostId)]
                         ConnectionsAffected = []
                     }
-                    con, acc @ [Error error]
+                    Ok con, acc @ [Error error]
             else
-                con,acc)
+                Ok con,acc)
         |> (fun (a,b) -> (b,a))
     
-    let checkCanvasWasCorrected (compsRes: Result<Component,SimulationError> list,conns) =
-        let errors = List.filter (function Ok _ -> false | Error _ -> true) compsRes
-        let comps = List.collect (function Ok c -> [c] | Error _ -> []) compsRes
+    let checkCanvasWasCorrected (compsRes: Result<Component,SimulationError> list,connsRes: Result<Connection,SimulationError> list) =
+        let comps,compErrors = filterResults compsRes
+        let conns,connErrors = filterResults connsRes
 
-        match errors with
-        | [] -> Ok (comps,conns)
-        | (Error e)::tl -> Error e
-        | _ -> failwithf "what? Component should never be present in list of errors"
+        match compErrors,connErrors with
+        | [],[] -> Ok (comps,conns)
+        | e::tl,_ -> Error e
+        | _,e::tl -> Error e
         
 
     (components,connections)
@@ -191,9 +206,6 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
     |> addExtraIOs
     |> checkCanvasWasCorrected
     
-
-
-
 let makeSimDataSelected model : (Result<SimulationData,SimulationError> * CanvasState) option =
     let (selComponents,selConnections) = model.Sheet.GetSelectedCanvasState
     let wholeCanvas = model.Sheet.GetCanvasState()
@@ -213,7 +225,6 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
         ComponentsAffected = []
         ConnectionsAffected =[] }, (selComponents,selConnections))
     | selComps,selConns,Some project ->
-        //let correctComps,correctConns = correctCanvasState (selComps,selConns) wholeCanvas
         let selLoadedComponents =
             project.LoadedComponents
             |> List.filter (fun comp ->
@@ -300,12 +311,10 @@ let viewTruthTableData (table: TruthTable) =
                 Table.IsStriped
                 Table.IsHoverable] 
                 [ 
-                    thead [] headings
+                    thead [] [tr [] headings]
                     tbody [] body
                 ]
         ]
-    
-
 
 let viewTruthTable model dispatch =
     let generateTruthTable simRes =

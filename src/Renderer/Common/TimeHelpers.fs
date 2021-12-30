@@ -231,12 +231,32 @@ let printStats() =
     executionStats <- Map [] // reset stats
 
 
-let getTimeMs() = Fable.Core.JS.Constructors.Date.now()
-
+/// returns absolute time in ms, works under both .Net and Fable
+let getTimeMs() = 
+#if FABLE_COMPILER
+    Fable.Core.JS.Constructors.Date.now()
+#else
+    let start = System.DateTime.UtcNow;           
+    float start.Ticks / float 10000
+#endif
 
 let getInterval (startTime:float) =
     getTimeMs() - startTime
 
+/// Return time taken by thunk()
+/// Run thunk() as many times as is needed
+/// for total elapsed time in ms to be  > limitMs.
+/// Return average time of all runs.
+/// To minimise cache effects run thunk() once before
+/// starting to time.
+let getTimeOfInMs (limitMs: float) (thunk: Unit -> Unit) =
+    thunk()
+    let startT = getTimeMs()
+    let mutable i = 0
+    while getInterval startT < limitMs do
+        i <- i+1
+        thunk()
+    getInterval startT / float i
 
 type AggregatedData = {
     PrintInterval: float

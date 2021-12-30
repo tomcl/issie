@@ -194,7 +194,12 @@ let portCircle = { defaultCircle with R = 5.0; Stroke = "Black"; StrokeWidth = "
 //--------------------------------------------------------------------------//
 
 /// return a v4 (random) universally unique identifier (UUID)
+/// works under .NET and FABLE
+#if FABLE_COMPILER
 let uuid():string = import "v4" "uuid"
+#else
+let uuid():string = System.Guid.NewGuid.ToString()
+#endif
 
 // ----------------------------- SVG Helpers ----------------------------- //
 

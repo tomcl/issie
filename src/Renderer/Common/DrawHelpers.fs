@@ -13,12 +13,44 @@ open Fable.React.Props
 //------------------------------Types--------------------------------------//
 //-------------------------------------------------------------------------//
 
-/// position on SVG canvas
+/// Position on SVG canvas
+/// Positions can be added, subtracted, scaled using overloaded +,-, *  operators
+/// currently these custom operators are not used in Issie - they should be!
 type XYPos =
     {
         X : float
         Y : float
     }
+
+    /// allowed tolerance when comparing positions with floating point errors for equality
+    static member epsilon = 0.0000001
+    /// Add postions as vectors (overlaoded operator)
+
+    static member ( + ) (left: XYPos, right: XYPos) =
+        { X = left.X + right.X; Y = left.Y + right.Y }
+
+    /// Subtract positions as vectors (overloaded operator)
+    static member ( - ) (left: XYPos, right: XYPos) =
+        { X = left.X - right.X; Y = left.Y - right.Y }
+
+    /// Scale a position by a number (overloaded operator).
+    static member ( * ) (pos: XYPos, scaleFactor: float) =
+        { X = pos.X*scaleFactor; Y = pos.Y * scaleFactor }
+
+    /// Compare positions as vectors. Comparison is approximate so 
+    /// it will work even with floating point errors. New infix operator.
+    static member ( =~ ) (left: XYPos, right: XYPos) =
+        abs (left.X - right.X) <= XYPos.epsilon && abs (left.Y - right.Y) <= XYPos.epsilon
+
+let euclideanDistance (pos1: XYPos) (pos2:XYPos) = 
+    let vec = pos1 - pos2
+    sqrt(vec.X**2 + vec.Y**2)
+
+/// example use of comparison operator: note that F# type inference will not work without at least
+/// one of the two operator arguments having a known XYPos type.
+let private testXYPosComparison a  (b:XYPos) = 
+    a =~ b
+
 
 type BoundingBox = {
     X: float
@@ -48,12 +80,30 @@ type MouseT = {
     Movement: XYPos
     Op: MouseOp}
 
-/// Record to help create SVG lines
-type Line = {
+/// Record to help draw SVG circles
+type Circle = {
+    ///  Radius of the circle
+    R: float  
+    /// color of outline: default => black color
     Stroke: string
+    /// width of outline: default => thin
     StrokeWidth: string
+    /// Fill: 0.0 => transparent, 1.0 => opaque
+    FillOpacity: float // transparent fill
+    /// color of fill: default => black color
+    Fill: string
+}
+
+/// Record tonhelp draw SVG lines
+type Line = {
+    /// color of outline: default => black color
+    Stroke: string
+    /// width of outline: default => thin
+    StrokeWidth: string
+    /// what type of line: default => solid
     StrokeDashArray: string
 }
+
 
 /// Record to help create SVG paths (for wire segment jumps ONLY)
 type Path = {
@@ -66,16 +116,6 @@ type Path = {
 
 /// Record to help create SVG polygons
 type Polygon = {
-    Stroke: string
-    StrokeWidth: string
-    FillOpacity: float
-    Fill: string
-}
-
-/// Record to help create SVG circles
-type Circle = {
-    /// Radius of the circle
-    R: float 
     Stroke: string
     StrokeWidth: string
     FillOpacity: float
@@ -153,7 +193,13 @@ let portCircle = { defaultCircle with R = 5.0; Stroke = "Black"; StrokeWidth = "
 //-----------------------------Helpers--------------------------------------//
 //--------------------------------------------------------------------------//
 
-
+/// return a v4 (random) universally unique identifier (UUID)
+/// works under .NET and FABLE
+#if FABLE_COMPILER
+let uuid():string = import "v4" "uuid"
+#else
+let uuid():string = System.Guid.NewGuid.ToString()
+#endif
 
 // ----------------------------- SVG Helpers ----------------------------- //
 

@@ -483,14 +483,14 @@ let getMainHeader (vType:VMode) (fs: FastSimulation) =
 let getMainSignalDefinitions (vType: VMode) (fs: FastSimulation) =
     fs.FComps
     |> mapValues
-    |> Seq.filter (fun fc -> fc.Active)
-    |> Seq.collect
+    |> Array.filter (fun fc -> fc.Active)
+    |> Array.collect
         (fun fc ->
             fc.Outputs
             |> Array.mapi (fun i _ -> fastOutputDefinition vType fc (OutputPortNumber i)))
-    |> Seq.sort
-    |> Seq.append (match vType with | ForSimulation -> [| "reg clk;\n" |] | ForSynthesis -> [||])
-    |> Seq.toArray
+    |> Array.sort
+    |> Array.append (match vType with | ForSimulation -> [| "reg clk;\n" |] | ForSynthesis -> [||])
+    
 
 /// get the module definitions (one per RAM instance) that define RAMs used
 /// TODO: make output more compact by using multiple instances of one module where possible.

@@ -592,7 +592,10 @@ type WaveformSpec = {
 //-----------------------------Truth Table Types---------------------------------------//
 //-------------------------------------------------------------------------------------//
 
-type TruthTableCell = SimulationIO * WireData
+type TruthTableCell = {
+    IO: SimulationIO
+    Data: WireData
+    }
 type TruthTableRow = TruthTableCell list
 type TruthTable = Map<TruthTableRow,TruthTableRow>
 

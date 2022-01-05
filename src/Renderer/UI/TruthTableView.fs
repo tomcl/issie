@@ -239,7 +239,7 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
                 Some (prepareSimulation project.OpenFileName (correctComps,correctConns) selLoadedComponents , (correctComps,correctConns))
 
 let tableAsList (table: TruthTable): TruthTableRow list =
-    table
+    table.TableMap
     |> Map.toList
     |> List.map (fun (lhs,rhs) -> List.append lhs rhs)
 
@@ -289,7 +289,7 @@ let viewTruthTableError simError =
     ]
 
 let viewTruthTableData (table: TruthTable) =
-    if table.IsEmpty then // Should never be matched
+    if table.TableMap.IsEmpty then // Should never be matched
         div [] [str "No Truth Table to Display"]
     else
         let TTasList = tableAsList table

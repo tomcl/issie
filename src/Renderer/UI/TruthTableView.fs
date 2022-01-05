@@ -244,13 +244,12 @@ let tableAsList (table: TruthTable): TruthTableRow list =
     |> List.map (fun (lhs,rhs) -> List.append lhs rhs)
 
 let viewCellAsHeading (cell: TruthTableCell) = 
-    let ((_,label,_),_) = cell
+    let (_,label,_) = cell.IO
     let headingText = string label
     th [ ] [ str headingText ]
 
 let viewCellAsData (cell: TruthTableCell) =
-    let (_,wd) = cell
-    match wd with 
+    match cell.Data with 
     | [] -> failwith "what? Empty wireData while creating a line in Truth Table"
     | [bit] -> td [] [str <| bitToString bit]
     | bits ->

@@ -596,8 +596,13 @@ type TruthTableCell = {
     IO: SimulationIO
     Data: WireData
     }
+
 type TruthTableRow = TruthTableCell list
-type TruthTable = Map<TruthTableRow,TruthTableRow>
+
+type TruthTable = {
+    TableMap: Map<TruthTableRow,TruthTableRow>
+    XRows: Map<TruthTableRow,TruthTableRow> option
+    }
 
 //-------------------------------------------------------------------------------------//
 //-------------------Helper functions for simulation types-----------------------------//

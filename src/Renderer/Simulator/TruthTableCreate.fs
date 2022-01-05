@@ -104,6 +104,7 @@ let truthTable (simData: SimulationData) : TruthTable =
 
     List.zip lhs rhs
     |> Map.ofList
+    |> (fun tableMap -> {TableMap = tableMap; XRows = None})
 
 let printTruthTable (simData: SimulationData) =
     let tt = truthTable simData

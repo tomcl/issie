@@ -250,7 +250,7 @@ let viewCellAsHeading (cell: TruthTableCell) =
 
 let viewCellAsData (cell: TruthTableCell) =
     match cell.Data with 
-    | [] -> failwith "what? Empty wireData while creating a line in Truth Table"
+    | [] -> td [] [str "X"] // Empty WireData represents Don't Care (X)
     | [bit] -> td [] [str <| bitToString bit]
     | bits ->
         let width = List.length bits

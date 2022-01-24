@@ -592,9 +592,14 @@ type WaveformSpec = {
 //-----------------------------Truth Table Types---------------------------------------//
 //-------------------------------------------------------------------------------------//
 
+type CellData = 
+    | Bits of wd: WireData
+    | Algebra of var: string
+    | DC //Don't Care
+
 type TruthTableCell = {
     IO: SimulationIO
-    Data: WireData
+    Data: CellData
     }
 
 type TruthTableRow = TruthTableCell list

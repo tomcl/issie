@@ -16,6 +16,7 @@ open NumberHelpers
 open Helpers
 open TimeHelpers
 open JSHelpers
+open DrawHelpers
 open DiagramStyle
 open Notifications
 open PopupView
@@ -288,12 +289,14 @@ let viewCellAsHeading (cell: TruthTableCell) =
 
 let viewCellAsData (cell: TruthTableCell) =
     match cell.Data with 
-    | [] -> td [] [str "X"] // Empty WireData represents Don't Care (X)
-    | [bit] -> td [] [str <| bitToString bit]
-    | bits ->
+    | Bits [] -> failwithf "what? Empty WireData in TruthTable"
+    | Bits [bit] -> td [] [str <| bitToString bit]
+    | Bits bits ->
         let width = List.length bits
         let value = viewFilledNum width Hex <| convertWireDataToInt bits
         td [] [str value]
+    | Algebra a -> td [] [str <| a]
+    | DC -> td [] [str <| "X"]
 
 let viewRowAsData (row: TruthTableRow) =
     let cells = 

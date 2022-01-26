@@ -16,6 +16,7 @@ open NumberHelpers
 open Helpers
 open TimeHelpers
 open JSHelpers
+open DrawHelpers
 open DiagramStyle
 open Notifications
 open PopupView
@@ -51,7 +52,6 @@ let filterResults results =
         | (Error e)::tl -> filter tl success (error @ [e])
     filter results [] []
         
-
 let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: CanvasState) =
     let components,connections = selectedCanvasState
     let dummyInputPort = {
@@ -87,6 +87,45 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
         | Some(None) -> failwithf "what? WidthInferrer did not infer a width for a port"
         | None -> None
 
+    let inferIOLabel (port: Port) =
+        let hostComponent =
+            components 
+            |> List.filter (fun c -> port.HostId = c.Id)
+            |> function 
+                | [comp] -> comp
+                | [] -> failwithf "what? Port HostId does not match any ComponentIds in model"
+                | _ -> failwithf "what? Port HostId matches multiple ComponentIds in model"
+        let portOnComponent =
+            match port.PortNumber with
+            | Some n -> port
+            | None ->
+                components
+                |> List.collect (fun c -> List.append c.InputPorts c.OutputPorts)
+                |> List.filter (fun cp -> port.Id = cp.Id)
+                |> function
+                    | [p] -> p
+                    | _ -> failwithf "what? connection port does not map to a component port"
+                
+        match portOnComponent.PortNumber, port.PortType with
+        | None,_ -> failwithf "what? no PortNumber. A connection port was probably passed to inferIOLabel"
+        | Some pn, PortType.Input -> 
+            match Symbol.portDecName hostComponent with
+            | ([],_) -> hostComponent.Label + "_IN" + (string pn)
+            | (lst,_) -> 
+                if pn >= lst.Length then
+                    failwithf "what? input PortNumber is greater than number of input port names on component"
+                else
+                    hostComponent.Label + "_" + lst[pn]
+        | Some pn, PortType.Output ->
+            match Symbol.portDecName hostComponent with
+            | (_,[]) -> hostComponent.Label + "_OUT" + (string pn)
+            | (_,lst) ->
+                if pn >= lst.Length then
+                    failwithf "what? output PortNumber is greater than number of output port names on component"
+                else
+                    hostComponent.Label + "_" + lst[pn]
+
+
     let addExtraConnections (comps: Component list,conns: Connection list) =
         comps,
         (conns,comps)
@@ -114,8 +153,8 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
             acc @ extraInputConns @ extraOutputConns)
 
     let addExtraIOs (comps: Component list,conns: Connection list) =
-        let mutable inputCount = 0
-        let mutable outputCount = 0
+        // let mutable inputCount = 0
+        // let mutable outputCount = 0
         let compsOk : Result<Component,SimulationError> list = List.map (fun c -> Ok c) comps
 
         (compsOk,conns)
@@ -131,8 +170,8 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                 match getPortWidth con.Target.Id with
                 | Some pw ->
                     let newId = JSHelpers.uuid()
-                    let newLabel = "TT_IN" + string inputCount
-                    inputCount <- inputCount + 1
+                    let newLabel = inferIOLabel con.Target
+                    // inputCount <- inputCount + 1
                     let newPort = {
                         Id = JSHelpers.uuid()
                         PortNumber = Some 0
@@ -161,8 +200,8 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                 match getPortWidth con.Source.Id with
                 | Some pw ->
                     let newId = JSHelpers.uuid()
-                    let newLabel = "TT_OUT" + string outputCount
-                    outputCount <- outputCount + 1
+                    let newLabel = inferIOLabel con.Source
+                    //outputCount <- outputCount + 1
                     let newPort = {
                         Id = JSHelpers.uuid()
                         PortNumber = Some 0
@@ -239,24 +278,25 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
                 Some (prepareSimulation project.OpenFileName (correctComps,correctConns) selLoadedComponents , (correctComps,correctConns))
 
 let tableAsList (table: TruthTable): TruthTableRow list =
-    table
+    table.TableMap
     |> Map.toList
     |> List.map (fun (lhs,rhs) -> List.append lhs rhs)
 
 let viewCellAsHeading (cell: TruthTableCell) = 
-    let ((_,label,_),_) = cell
+    let (_,label,_) = cell.IO
     let headingText = string label
     th [ ] [ str headingText ]
 
 let viewCellAsData (cell: TruthTableCell) =
-    let (_,wd) = cell
-    match wd with 
-    | [] -> failwith "what? Empty wireData while creating a line in Truth Table"
-    | [bit] -> td [] [str <| bitToString bit]
-    | bits ->
+    match cell.Data with 
+    | Bits [] -> failwithf "what? Empty WireData in TruthTable"
+    | Bits [bit] -> td [] [str <| bitToString bit]
+    | Bits bits ->
         let width = List.length bits
         let value = viewFilledNum width Hex <| convertWireDataToInt bits
         td [] [str value]
+    | Algebra a -> td [] [str <| a]
+    | DC -> td [] [str <| "X"]
 
 let viewRowAsData (row: TruthTableRow) =
     let cells = 
@@ -290,7 +330,7 @@ let viewTruthTableError simError =
     ]
 
 let viewTruthTableData (table: TruthTable) =
-    if table.IsEmpty then // Should never be matched
+    if table.TableMap.IsEmpty then // Should never be matched
         div [] [str "No Truth Table to Display"]
     else
         let TTasList = tableAsList table

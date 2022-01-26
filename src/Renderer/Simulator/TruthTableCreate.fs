@@ -9,9 +9,9 @@ open NumberHelpers
 let print x =
     printfn "%A" x
 
-let bitCombinations (width: int) (num: int): WireData list =
+let bitCombinations (width: int) (num: int): CellData list =
     convertIntToWireData width num
-    |> List.map (fun x -> [x])
+    |> List.map (fun x -> Bits [x])
 
 let multibitCombinations (widths: int list) =
     let masterList = 
@@ -54,7 +54,7 @@ let multibitCombinations (widths: int list) =
 
 let tableLHS (inputs: SimulationIO list): TruthTableRow list =
     let tableCell (comp: SimulationIO) (wd: WireData): TruthTableCell =
-        (comp,wd)
+        {IO = comp; Data = Bits wd}
 
     let widthOneInputs = List.filter (fun (_,_,w) -> w = 1) inputs
     let widthMultiInputs = List.filter (fun (_,_,w) -> w > 1) inputs
@@ -63,13 +63,13 @@ let tableLHS (inputs: SimulationIO list): TruthTableRow list =
         [0 .. int (2.0**(float widthOneInputs.Length))]
         |> List.map (bitCombinations widthOneInputs.Length)
         |> List.map (fun ttRow ->
-            List.map2 tableCell widthOneInputs ttRow)
+            List.map2 (fun comp wd -> {IO = comp; Data = wd}) widthOneInputs ttRow)
 
     let widthMultiRows =
         widthMultiInputs
         |> List.map (fun (_,_,w)  -> w)
         |> multibitCombinations
-        |> List.map (fun l -> (widthMultiInputs,l) ||> List.map2 (fun comp wd -> tableCell comp wd))
+        |> List.map (fun l -> (widthMultiInputs,l) ||> List.map2 (fun comp wd -> {IO = comp; Data = Bits wd}))
 
     match (widthOneInputs.IsEmpty,widthMultiInputs.IsEmpty) with
     | (false,true) -> widthOneRows
@@ -82,12 +82,15 @@ let tableLHS (inputs: SimulationIO list): TruthTableRow list =
 
 let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) (simData: SimulationData): TruthTableRow =
     let updateOutputs (cell: TruthTableCell) =
-        let ((cid,_,_),wd) = cell
-        FastRun.changeInput cid wd simData.ClockTickNumber simData.FastSim
+        let (cid,_,_) = cell.IO
+        match cell.Data with
+        | Bits wd -> FastRun.changeInput cid wd simData.ClockTickNumber simData.FastSim
+        | _ -> failwithf "what? CellData was not WireData during truth table generation"
     let _ = List.map updateOutputs rowLHS
 
     (outputs,simData)
     ||> FastRun.extractFastSimulationIOs
+    |> List.map (fun (comp,wd) -> {IO = comp; Data = Bits wd})
 
 let truthTable (simData: SimulationData) : TruthTable =
     let tempSimData = 
@@ -101,6 +104,7 @@ let truthTable (simData: SimulationData) : TruthTable =
 
     List.zip lhs rhs
     |> Map.ofList
+    |> (fun tableMap -> {TableMap = tableMap; XRows = None})
 
 let printTruthTable (simData: SimulationData) =
     let tt = truthTable simData

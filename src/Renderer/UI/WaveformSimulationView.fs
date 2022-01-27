@@ -563,8 +563,7 @@ let private waveEditorTickBoxRows model wsModel (dispatch: Msg -> unit) =
 /// ReactElement of the bottom section of the WaveAdder.
 /// Contains tick-boxes for NetGroups
 let private waveEditorTickBoxesAndNames (model: Model) wSModel (dispatch: Msg -> unit) =
-    div [ Style [ Position PositionOptions.Absolute
-                  CSSProp.Top "300px" ] ]
+    div [ Style [ Position PositionOptions.Relative; CSSProp.Top "20px" ] ]
         [ table []
                 [ tbody [] 
                         (Array.append [| waveEditorSelectAllRow model wSModel dispatch |] 
@@ -576,8 +575,8 @@ let private waveEditorButtons (model: Model) (wSModel:WaveSimModel) dispatch =
     let closeWaveSimButtonAction _ev =
         dispatch <| StartUICmd CloseWaveSim
         dispatch <| SetWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
-        dispatch <| ChangeRightTab Catalogue
         dispatch <| SetWaveSimIsOutOfDate true
+        dispatch <| UnlockTabsFromWaveSim
         dispatch <| Sheet (SheetT.ResetSelection)
         dispatch <| Sheet (SheetT.SetWaveSimMode false)
         dispatch ClosePropertiesNotification
@@ -755,7 +754,8 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
     dispatch <| SetLastSimulatedCanvasState (Some rState) 
     dispatch <| SetWaveSimIsOutOfDate false
     inputWarningPopup simData dispatch
-    dispatch <| ChangeRightTab WaveSim
+    dispatch <| Sheet (SheetT.SetWaveSimMode true)
+    dispatch <| LockTabsToWaveSim
     dispatch FinishUICmd
 
 //------------------------------------------------------------------------------------------------------------
@@ -773,9 +773,7 @@ let WaveformButtonFunc compIds model dispatch =
                 initFileWS model dispatch
             | None -> ()
             Button.button 
-                [ Button.OnClick(fun _ -> 
-                    dispatch <| ChangeRightTab WaveSim)
-                ]
+                [ Button.OnClick(fun _ -> ())]
         | Some wSModel ->
             match wSModel.WSViewState, model.WaveSimulationIsOutOfDate, SimulationView.makeSimData model with
             | WSClosed, _, Some (Ok simData, rState)
@@ -807,7 +805,6 @@ let WaveformButtonFunc compIds model dispatch =
                     [   Button.Color IsWarning
                         Button.OnClick(fun _ ->
                           dispatch <| SetWSError (Some err) 
-                          dispatch <| ChangeRightTab WaveSim
                           SimulationView.SetSimErrorFeedback err model dispatch) 
                     ]
             | x,y,z ->
@@ -815,10 +812,8 @@ let WaveformButtonFunc compIds model dispatch =
                 Button.button 
                     [ Button.Color IsSuccess
                       Button.IsLight
-                      Button.OnClick(fun _ -> 
-                          dispatch <| ChangeRightTab WaveSim) 
-                    ]
-    simulationButton [ str "Waveforms >>" ]
+                      Button.OnClick(fun _ -> ())]
+    simulationButton [ str "View Waveforms" ]
 
 /// This is the top-level view function entry for the wave simulator after it has been set up.
 /// ReactElement list of the whole waveform simulator
@@ -837,8 +832,20 @@ let viewWaveSim (model: Model) dispatch =
         | WSViewerOpen, _  ->         // otherwise display waveforms 
             waveformsView compIds model netList wSModel dispatch  
         | _, prog  -> 
-            printfn "ViewWaveSim should not be called when WaveSimEditorOpen =%A, inProgress = %A" wSModel.WSViewState prog
-            [ div [] [] ]
+            let compIds = getComponentIds model
+            let button = WaveformButtonFunc compIds model dispatch
+            [ div
+                [ Style
+                    [   Width "90%"
+                        MarginLeft "5%"
+                        MarginTop "15px" ] ]
+            [   Heading.h4 [] [ str "Waveform Simulation" ]
+                str "Use this tab to view Waveforms for sequential logic."
+                str "Test combinational logic by closing this simulator and using Step Simulator tab."
+                hr []
+                br []
+                button
+            ]]
 
     // Set the current simulation error message
     | Some _, Some simError ->

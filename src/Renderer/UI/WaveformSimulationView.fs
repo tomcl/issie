@@ -590,7 +590,6 @@ let private waveEditorButtons (model: Model) (wSModel:WaveSimModel) dispatch =
     let closeWaveSimButtonAction _ev =
         dispatch <| StartUICmd CloseWaveSim
         dispatch <| SetWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
-        dispatch <| ChangeRightTab Catalogue
         dispatch <| SetWaveSimIsOutOfDate true
         dispatch <| UnlockTabsFromWaveSim
         dispatch <| Sheet (Sheet.ResetSelection)

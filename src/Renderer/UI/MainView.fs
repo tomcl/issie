@@ -115,7 +115,7 @@ let viewSimSubTab model dispatch =
             TruthTableView.viewTruthTable model dispatch
         ]
     | WaveSim -> 
-        div [ Style [Width "100%"; Height "calc(100% - 48px)"; MarginTop "15px" ] ]
+        div [ Style [Width "100%"; Height "calc(100% - 72px)"; MarginTop "15px" ] ]
             ( WaveformSimulationView.viewWaveSim model dispatch )
 
 /// Display the content of the right tab.

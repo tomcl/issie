@@ -574,8 +574,8 @@ let private waveEditorTickBoxRows model wsModel (dispatch: Msg -> unit) =
 /// ReactElement of the bottom section of the WaveAdder.
 /// Contains tick-boxes for NetGroups
 let private waveEditorTickBoxesAndNames (model: Model) wSModel (dispatch: Msg -> unit) =
-    div [ Style [ Position PositionOptions.Absolute
-                  Top "300px" ] ]
+    div [ Style [ Position PositionOptions.Relative
+                  Top "20px" ] ]
         [ table []
                 [ tbody [] 
                         (Array.append [| waveEditorSelectAllRow model wSModel dispatch |] 

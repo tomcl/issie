@@ -19,6 +19,11 @@ type RightTab =
     | TruthTable
     | WaveSim
 
+type SimSubTab =
+    | StepSim
+    | TruthTable
+    | WaveSim
+
 type MemoryEditorData = {
     OnlyDiff : bool // Only show diffs in Memory Diff Viewer.
     Address : int64 option // Only show the specified memory address.
@@ -271,6 +276,8 @@ type Msg =
     | SetWSModAndSheet of (WaveSimModel*string)
     | SetWSError of SimulationError option
     | AddWaveSimFile of string * WaveSimModel
+    | LockTabsToWaveSim
+    | UnlockTabsFromWaveSim
     | SetSimulationGraph of SimulationGraph  * FastSimulation
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick of int
@@ -279,6 +286,7 @@ type Msg =
     | GenerateTruthTable of Result<TruthTable, SimulationError>
     | CloseTruthTable
     | ChangeRightTab of RightTab
+    | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list
     | SetSelWavesHighlighted of ConnectionId array
     | SetClipboard of CanvasState
@@ -372,6 +380,9 @@ type Model = {
     // if canvas is now different from that which is currently used by wave sim.
     WaveSimulationIsOutOfDate: bool
 
+    // if a wave simulation is being viewed, used to lock the tabs in place
+    WaveSimulationInProgress: bool
+
     // last time check for changes was made
 
     LastChangeCheckTime: float
@@ -393,8 +404,10 @@ type Model = {
     CurrentStepSimulationStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
     // stores the generated truth table 
     CurrentTruthTable: Result<TruthTable,SimulationError> option // None if no Truth Table is being displayed.
-    // which of the tabbed panes is currentlky visible
+    // which of the tabbed panes is currently visible
     RightPaneTabVisible : RightTab
+    // which of the subtabs for the right pane simulation is visible
+    SimSubTabVisible: SimSubTab
     // components and connections which are highlighted
     Hilighted : (ComponentId list * ConnectionId list) * ConnectionId list
     // Components and connections that have been selected and copied.
@@ -658,5 +671,6 @@ let switchToWaveEditor (model:Model) dispatch =
         printf "What? Can't switch to wave editor when wave sim is closed!"
     | Some ws -> 
         dispatch <| SetWSMod {ws with WSViewState=WSViewT.WSEditorOpen}
-        dispatch <| ChangeRightTab WaveSim
+        dispatch <| ChangeRightTab Simulation
+        dispatch <| ChangeSimSubTab WaveSim
  

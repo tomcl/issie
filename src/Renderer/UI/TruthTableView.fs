@@ -285,7 +285,7 @@ let tableAsList (table: TruthTable): TruthTableRow list =
 let viewCellAsHeading (cell: TruthTableCell) = 
     let (_,label,_) = cell.IO
     let headingText = string label
-    th [ ] [ str headingText ]
+    th [ ] [str headingText]
 
 let viewCellAsData (cell: TruthTableCell) =
     match cell.Data with 
@@ -304,8 +304,6 @@ let viewRowAsData (row: TruthTableRow) =
         |> List.map viewCellAsData
         |> List.toSeq
     tr [] cells
-        
-
         
 let viewTruthTableError simError =
     let error = 
@@ -328,7 +326,7 @@ let viewTruthTableError simError =
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Errors" ]
         error
     ]
-
+    
 let viewTruthTableData (table: TruthTable) =
     if table.TableMap.IsEmpty then // Should never be matched
         div [] [str "No Truth Table to Display"]
@@ -434,5 +432,5 @@ let viewTruthTable model dispatch =
             hr []
             body
             br []
-            hr[]
+            hr []
             ]

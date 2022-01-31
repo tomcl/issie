@@ -186,7 +186,8 @@ let inline setDragMode (modeIsOn:bool) (model:Model) dispatch =
 let dividerbar (model:Model) dispatch =
     let isDraggable = 
         model.RightPaneTabVisible = Simulation 
-        && model.SimSubTabVisible = WaveSim
+        && (model.SimSubTabVisible = WaveSim 
+        || model.SimSubTabVisible = TruthTable)
     let variableStyle = 
         if isDraggable then [
             BackgroundColor "grey"

@@ -51,6 +51,8 @@ let filterResults results =
         | (Ok c)::tl -> filter tl (success @ [c]) error
         | (Error e)::tl -> filter tl success (error @ [e])
     filter results [] []
+
+let convertConnId (ConnectionId cId) = ConnectionId cId
         
 let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: CanvasState) =
     let components,connections = selectedCanvasState
@@ -67,25 +69,28 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
         HostId = "DummyOut_Host"
     }
 
-    let connectionWidths = 
-        match BusWidthInferer.inferConnectionsWidth wholeCanvasState with
-        | Ok cw -> cw
-        | Error _ -> failwithf "what? WidthInferrer failed to infer widths from whole canvas during TT Calculation"
-
     let portWidths =
-        Map.toList connectionWidths
-        |> List.fold (fun acc (cid,widthopt) ->
-            let pIdEntries = 
-                getPortIdsfromConnectionId cid (snd wholeCanvasState)
-                |> List.map (fun pId -> (pId,widthopt))
-            acc @ pIdEntries) []
-        |> Map.ofList
+        match BusWidthInferer.inferConnectionsWidth wholeCanvasState with
+        | Ok cw ->
+            Map.toList cw
+            |> List.fold (fun acc (cid,widthopt) ->
+                let pIdEntries = 
+                    getPortIdsfromConnectionId cid (snd wholeCanvasState)
+                    |> List.map (fun pId -> (pId,widthopt))
+                acc @ pIdEntries) []
+            |> Map.ofList
+            |> Ok
+        | Error e -> Error e
 
     let getPortWidth pId =
-        match Map.tryFind pId portWidths with
-        | Some(Some w) -> Some w
-        | Some(None) -> failwithf "what? WidthInferrer did not infer a width for a port"
-        | None -> None
+        match portWidths with
+        | Error e -> Error e
+        | Ok pw ->
+            (match Map.tryFind pId pw with
+            | Some(Some w) -> Some w
+            | Some(None) -> failwithf "what? WidthInferrer did not infer a width for a port"
+            | None -> None)
+            |> Ok
 
     let inferIOLabel (port: Port) =
         let hostComponent =
@@ -168,7 +173,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                 Error error,acc
             else if not (isPortInComponents con.Source comps) then
                 match getPortWidth con.Target.Id with
-                | Some pw ->
+                | Ok (Some pw) ->
                     let newId = JSHelpers.uuid()
                     let newLabel = inferIOLabel con.Target
                     // inputCount <- inputCount + 1
@@ -188,7 +193,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         H = 0
                         W = 0}
                     Ok {con with Source = {newPort with PortNumber = None}}, acc @ [Ok extraInput]
-                | None ->
+                | Ok (None) ->
                     let error = {
                         Msg = "Could not infer the width for an input into the selected logic."
                         InDependency = None
@@ -196,9 +201,17 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         ConnectionsAffected = []
                     }
                     Ok con, acc @ [Error error]
+                | Error e -> 
+                    let error = {
+                        Msg = e.Msg
+                        InDependency = None
+                        ConnectionsAffected = e.ConnectionsAffected |> List.map convertConnId
+                        ComponentsAffected = []
+                    }
+                    Ok con, acc @ [Error error]
             else if not (isPortInComponents con.Target comps) then
                 match getPortWidth con.Source.Id with
-                | Some pw ->
+                | Ok (Some pw) ->
                     let newId = JSHelpers.uuid()
                     let newLabel = inferIOLabel con.Source
                     //outputCount <- outputCount + 1
@@ -218,12 +231,20 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         H = 0
                         W = 0}
                     Ok {con with Target = {newPort with PortNumber = None}}, acc @ [Ok extraOutput]
-                | None ->
+                | Ok (None) ->
                     let error = {
                         Msg = "Could not infer the width for an output produced by the selected logic."
                         InDependency = None
                         ComponentsAffected = [ComponentId(con.Source.HostId)]
                         ConnectionsAffected = []
+                    }
+                    Ok con, acc @ [Error error]
+                | Error e -> 
+                    let error = {
+                        Msg = e.Msg
+                        InDependency = None
+                        ConnectionsAffected = e.ConnectionsAffected |> List.map convertConnId
+                        ComponentsAffected = []
                     }
                     Ok con, acc @ [Error error]
             else

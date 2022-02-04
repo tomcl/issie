@@ -896,16 +896,19 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
 
             let sTrees = getSheetTrees project
 
-            let rec subSheetsOf sh =
+            let rec subSheetsOf path sh =
                 match Map.tryFind sh sTrees with
                 | Some tree -> tree.SubSheets
                 | None -> []
-                |> List.collect (fun ssh -> ssh.Node :: subSheetsOf ssh.Node)
+                |> List.collect (fun ssh -> 
+                    match List.contains ssh.Node path with
+                    | true -> []
+                    | false -> ssh.Node :: subSheetsOf (ssh.Node :: path) ssh.Node)
                 |> List.distinct
 
             let allSubSheets =
                 mapKeys sTrees
-                |> Seq.collect subSheetsOf
+                |> Seq.collect (subSheetsOf [])
                 |> Set
             let isSubSheet sh = Set.contains sh allSubSheets
 

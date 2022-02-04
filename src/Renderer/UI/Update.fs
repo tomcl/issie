@@ -268,10 +268,13 @@ let update (msg : Msg) oldModel =
     (*| SetExitDialog status ->
         {model with ExitDialog = status}, Cmd.none*)
     | Sheet sMsg ->
-        match sMsg with 
-        | Sheet.ToggleNet canvas -> 
-            model, Cmd.ofMsg (Sheet (Sheet.SelectWires (getNetSelection canvas model)))
-        | _ -> sheetMsg sMsg model
+        match model.PopupViewFunc with
+        | None ->
+            match sMsg with 
+            | Sheet.ToggleNet canvas -> 
+                model, Cmd.ofMsg (Sheet (Sheet.SelectWires (getNetSelection canvas model)))
+            | _ -> sheetMsg sMsg model
+        | _ -> model, Cmd.none
     // special mesages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none
     | SetViewerWidth w -> {model with WaveSimViewerWidth = w}, Cmd.none

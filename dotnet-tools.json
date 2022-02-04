@@ -15,7 +15,8 @@
       ]
     },
     "fable": {
-      "version": "3.7.0-beta-003",
+      "version":  "3.7.0-beta-014",
+      "allowPrerelease": true,
       "commands": [
         "fable"
       ]

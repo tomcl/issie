@@ -93,6 +93,7 @@ let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) (simData: Simula
     |> List.map (fun (comp,wd) -> {IO = comp; Data = Bits wd})
 
 let truthTable (simData: SimulationData) : TruthTable =
+    let start = TimeHelpers.getTimeMs()
     let tempSimData = 
         match FastRun.buildFastSimulation 2 simData.Graph with
         | Ok tempFS -> {simData with FastSim = tempFS}
@@ -105,6 +106,7 @@ let truthTable (simData: SimulationData) : TruthTable =
     List.zip lhs rhs
     |> Map.ofList
     |> (fun tableMap -> {TableMap = tableMap; XRows = None})
+    |> TimeHelpers.instrumentInterval "truthTableGeneration" start
 
 let printTruthTable (simData: SimulationData) =
     let tt = truthTable simData

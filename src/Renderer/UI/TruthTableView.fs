@@ -393,47 +393,72 @@ let viewTruthTable model dispatch =
     match model.CurrentTruthTable with
     | None ->
         let wholeSimRes = SimulationView.makeSimData model
-        let wholeButtonColor, wholeButtonText, wholeButtonAction =
+        let wholeButton =
             match wholeSimRes with
-            | None -> IColor.IsWhite, "", (fun _ -> ())
+            | None -> div [] []
+            | Some (Error _,_) -> 
+                Button.button 
+                    [
+                        Button.Color IColor.IsWarning
+                        Button.OnClick (fun _ -> generateTruthTable wholeSimRes)
+                    ] [str "See Problems"]
             | Some (Ok sd,_) -> 
                 if sd.IsSynchronous = false then 
-                    IColor.IsSuccess, "Generate Truth Table", generateTruthTable
+                    Button.button 
+                        [
+                            Button.Color IColor.IsSuccess
+                            Button.OnClick (fun _ -> generateTruthTable wholeSimRes)
+                        ] [str "Generate Truth Table"]
                 else 
-                    IColor.IsInfo, "Combinational Only!", (fun _ -> ())
-            | Some (Error _,_) -> IColor.IsWarning, "See Problems", generateTruthTable
+                    Button.button 
+                        [
+                            Button.Color IColor.IsSuccess
+                            Button.IsLight
+                            Button.OnClick (fun _ -> 
+                                let popup = Notifications.errorPropsNotification "Truth Table generation only supported for Combinational Logic"
+                                dispatch <| SetPropertiesNotification popup)
+                        ] [str "Generate Truth Table"]
+
+        let selSimRes = makeSimDataSelected model
+        let selButton =
+            match selSimRes with
+            | None -> div [] []
+            | Some (Error _,_) -> 
+                Button.button 
+                    [
+                        Button.Color IColor.IsWarning
+                        Button.OnClick (fun _ -> generateTruthTable selSimRes)
+                    ] [str "See Problems"]
+            | Some (Ok sd,_) -> 
+                if sd.IsSynchronous = false then 
+                    Button.button 
+                        [
+                            Button.Color IColor.IsSuccess
+                            Button.OnClick (fun _ -> generateTruthTable selSimRes)
+                        ] [str "Generate Truth Table"]
+                else 
+                    Button.button 
+                        [
+                            Button.Color IColor.IsSuccess
+                            Button.IsLight
+                            Button.OnClick (fun _ -> 
+                                let popup = Notifications.errorPropsNotification "Truth Table generation only supported for Combinational Logic"
+                                dispatch <| SetPropertiesNotification popup)
+                        ] [str "Generate Truth Table"]
+            
+
         div [] [
             str "Generate Truth Tables for combinational logic using this tab."
             br[]
             hr[]
             Heading.h5 [] [str "Truth Table for whole sheet"]
             br []
-            Button.button
-                [ 
-                    Button.Color wholeButtonColor; 
-                    Button.OnClick (fun _ -> wholeButtonAction  wholeSimRes ) ; 
-                ]
-                [ str wholeButtonText ]
+            wholeButton
             hr[]
-
-            let selSimRes = makeSimDataSelected model
-            let selButtonColor, selButtonText, selButtonAction =
-                match selSimRes with
-                | None -> IColor.IsWhite, "", (fun _ -> ())
-                | Some (Ok sd,_) -> 
-                    if sd.IsSynchronous = false then 
-                        IColor.IsSuccess, "Generate Truth Table", generateTruthTable
-                    else 
-                        IColor.IsInfo, "Combinational Only!", (fun _ -> ())
-                | Some (Error _,_) -> IColor.IsWarning, "See Problems", generateTruthTable 
             Heading.h5 [] [str "Truth Table for selected logic"]
             br []
-            Button.button
-                [ 
-                    Button.Color selButtonColor; 
-                    Button.OnClick (fun _ -> selButtonAction selSimRes ) ; 
-                ]
-                [ str selButtonText ]
+            br []
+            selButton
             hr[]
         ]
     | Some tableopt ->

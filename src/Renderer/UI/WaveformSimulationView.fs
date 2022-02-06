@@ -865,7 +865,7 @@ let viewWaveSim (model: Model) dispatch =
                         MarginLeft "5%"
                         MarginTop "15px" ] ]
             [   Heading.h4 [] [ str "Waveform Simulation" ]
-                str "Use this tab to view Waveforms for sequential logic."
+                str "Use this tab to view Waveforms for sequential logic. "
                 str "Test combinational logic by closing this simulator and using Step Simulator tab."
                 hr []
                 br []

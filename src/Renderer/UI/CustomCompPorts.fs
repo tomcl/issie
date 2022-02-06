@@ -470,15 +470,16 @@ let updateInstance (newSig: Signature) (sheet:string,cid:string,oldSig:Signature
 
 
 
-            
+/// dispatch message to change project in model, returning project           
 let updateDependents (newSig: Signature) (instances:(string*string*Signature) list) model dispatch =
     match model.CurrentProj with
-    | None -> ()
+    | None -> None
     | Some p ->
         (p,instances)
         ||> List.fold (fun p instance -> updateInstance newSig instance p)
-        |> SetProject
-        |> dispatch
+        |> (fun p -> 
+            dispatch <| SetProject p
+            Some p)
 
 let checkCanvasStateIsOk (model:Model) =
     mapOverProject false model (fun p ->
@@ -552,7 +553,8 @@ let optCurrentSheetDependentsPopup (model: Model) =
                 let buttonAction isUpdate dispatch  _ =
                     if isUpdate then
                         updateDependents newSig instances model dispatch
-                        mapOverProject () model  (fun p -> saveAllProjectFilesFromLoadedComponentsToDisk p)
+                        |> Option.map saveAllProjectFilesFromLoadedComponentsToDisk
+                        |> ignore
                     dispatch <| ClosePopup
                 choicePopupFunc 
                     "Update All Sheet Instances" 

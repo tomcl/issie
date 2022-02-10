@@ -88,6 +88,7 @@ type KeyboardMsg =
 type Msg =
     | Wire of BusWire.Msg
     | KeyPress of KeyboardMsg
+    | ToggleGrid
     | KeepZoomCentered of XYPos
     | MouseMsg of MouseT
     | UpdateBoundingBoxes
@@ -829,6 +830,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | Wire wMsg -> 
         let wModel, wCmd = BusWire.update wMsg model.Wire
         { model with Wire = wModel }, Cmd.map Wire wCmd
+    | ToggleGrid ->
+        {model with ShowGrid = not model.ShowGrid}, Cmd.none
     | KeyPress DEL ->
         let wiresConnectedToComponents = BusWire.getConnectedWires model.Wire model.SelectedComponents
         // Ensure there are no duplicate deletions by using a Set
@@ -1051,7 +1054,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             ConnectPortsLine = {X=0.0; Y=0.0}, {X=0.0; Y=0.0}
             TargetPortId = ""
             Action = Idle
-            ShowGrid = true
             LastMousePos = { X = 0.0; Y = 0.0 }
             Snap = { XSnap = None; YSnap = None}
             SnapIndicator = { XLine = None; YLine = None }

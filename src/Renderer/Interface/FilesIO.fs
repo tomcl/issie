@@ -453,6 +453,7 @@ let magnifySheet magnification (comp: Component) =
 
 
 /// Update from old component types to new
+/// In addition do some sanity checks
 /// The standard way to add functionality to an existing component is to create a new
 /// component type, keeping the old type. Then on reading sheets from disk both new and old
 /// will be correctly read. This function will be called on load and will convert from the old
@@ -472,6 +473,11 @@ let getLatestComp (comp: Component) =
     | AsyncROM mem -> { comp with Type = AsyncROM1 (updateMem mem)}
     | Constant(width,cVal) -> {comp with Type = Constant1(width, cVal, $"%d{cVal}")}
     | _ -> comp
+    |> fun comp -> 
+        if comp.X < 0 || comp.Y < 0 then 
+            {comp with X = max 0 comp.X ; Y = max 0 comp.Y}
+        else
+            comp
 
 /// Interface function that can read old-style circuits (without wire vertices)
 /// as well as new circuits with vertices. Old circuits have an expansion parameter

@@ -778,6 +778,7 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
     dispatch <| SetLastSimulatedCanvasState (Some rState) 
     dispatch <| SetWaveSimIsOutOfDate false
     inputWarningPopup simData dispatch
+    dispatch <| Sheet (Sheet.SetWaveSimMode true)
     dispatch <| LockTabsToWaveSim
     dispatch FinishUICmd
 
@@ -895,4 +896,3 @@ let viewWaveSim (model: Model) dispatch =
     | None, _ ->
         initFileWS model dispatch
         []
-

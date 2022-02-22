@@ -336,7 +336,7 @@ let update (msg : Msg) oldModel =
         match subTab with
         | StepSim -> Cmd.batch <| editCmds
         | TruthTable -> Cmd.batch <| editCmds
-        | WaveSim -> Cmd.ofMsg (Sheet (Sheet.SetWaveSimMode true))
+        | WaveSim -> Cmd.batch <| editCmds
     | SetHighlighted (componentIds, connectionIds) ->
         let sModel, sCmd = Sheet.update (Sheet.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
         {model with Sheet = sModel}, Cmd.map Sheet sCmd

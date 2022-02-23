@@ -51,6 +51,8 @@ let filterResults results =
         | (Ok c)::tl -> filter tl (success @ [c]) error
         | (Error e)::tl -> filter tl success (error @ [e])
     filter results [] []
+
+let convertConnId (ConnectionId cId) = ConnectionId cId
         
 let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: CanvasState) =
     let components,connections = selectedCanvasState
@@ -67,25 +69,28 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
         HostId = "DummyOut_Host"
     }
 
-    let connectionWidths = 
-        match BusWidthInferer.inferConnectionsWidth wholeCanvasState with
-        | Ok cw -> cw
-        | Error _ -> failwithf "what? WidthInferrer failed to infer widths from whole canvas during TT Calculation"
-
     let portWidths =
-        Map.toList connectionWidths
-        |> List.fold (fun acc (cid,widthopt) ->
-            let pIdEntries = 
-                getPortIdsfromConnectionId cid (snd wholeCanvasState)
-                |> List.map (fun pId -> (pId,widthopt))
-            acc @ pIdEntries) []
-        |> Map.ofList
+        match BusWidthInferer.inferConnectionsWidth wholeCanvasState with
+        | Ok cw ->
+            Map.toList cw
+            |> List.fold (fun acc (cid,widthopt) ->
+                let pIdEntries = 
+                    getPortIdsfromConnectionId cid (snd wholeCanvasState)
+                    |> List.map (fun pId -> (pId,widthopt))
+                acc @ pIdEntries) []
+            |> Map.ofList
+            |> Ok
+        | Error e -> Error e
 
     let getPortWidth pId =
-        match Map.tryFind pId portWidths with
-        | Some(Some w) -> Some w
-        | Some(None) -> failwithf "what? WidthInferrer did not infer a width for a port"
-        | None -> None
+        match portWidths with
+        | Error e -> Error e
+        | Ok pw ->
+            (match Map.tryFind pId pw with
+            | Some(Some w) -> Some w
+            | Some(None) -> failwithf "what? WidthInferrer did not infer a width for a port"
+            | None -> None)
+            |> Ok
 
     let inferIOLabel (port: Port) =
         let hostComponent =
@@ -168,7 +173,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                 Error error,acc
             else if not (isPortInComponents con.Source comps) then
                 match getPortWidth con.Target.Id with
-                | Some pw ->
+                | Ok (Some pw) ->
                     let newId = JSHelpers.uuid()
                     let newLabel = inferIOLabel con.Target
                     // inputCount <- inputCount + 1
@@ -188,7 +193,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         H = 0
                         W = 0}
                     Ok {con with Source = {newPort with PortNumber = None}}, acc @ [Ok extraInput]
-                | None ->
+                | Ok (None) ->
                     let error = {
                         Msg = "Could not infer the width for an input into the selected logic."
                         InDependency = None
@@ -196,9 +201,17 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         ConnectionsAffected = []
                     }
                     Ok con, acc @ [Error error]
+                | Error e -> 
+                    let error = {
+                        Msg = e.Msg
+                        InDependency = None
+                        ConnectionsAffected = e.ConnectionsAffected |> List.map convertConnId
+                        ComponentsAffected = []
+                    }
+                    Ok con, acc @ [Error error]
             else if not (isPortInComponents con.Target comps) then
                 match getPortWidth con.Source.Id with
-                | Some pw ->
+                | Ok (Some pw) ->
                     let newId = JSHelpers.uuid()
                     let newLabel = inferIOLabel con.Source
                     //outputCount <- outputCount + 1
@@ -218,12 +231,20 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         H = 0
                         W = 0}
                     Ok {con with Target = {newPort with PortNumber = None}}, acc @ [Ok extraOutput]
-                | None ->
+                | Ok (None) ->
                     let error = {
                         Msg = "Could not infer the width for an output produced by the selected logic."
                         InDependency = None
                         ComponentsAffected = [ComponentId(con.Source.HostId)]
                         ConnectionsAffected = []
+                    }
+                    Ok con, acc @ [Error error]
+                | Error e -> 
+                    let error = {
+                        Msg = e.Msg
+                        InDependency = None
+                        ConnectionsAffected = e.ConnectionsAffected |> List.map convertConnId
+                        ComponentsAffected = []
                     }
                     Ok con, acc @ [Error error]
             else
@@ -285,7 +306,7 @@ let tableAsList (table: TruthTable): TruthTableRow list =
 let viewCellAsHeading (cell: TruthTableCell) = 
     let (_,label,_) = cell.IO
     let headingText = string label
-    th [ ] [ str headingText ]
+    th [ ] [str headingText]
 
 let viewCellAsData (cell: TruthTableCell) =
     match cell.Data with 
@@ -304,8 +325,6 @@ let viewRowAsData (row: TruthTableRow) =
         |> List.map viewCellAsData
         |> List.toSeq
     tr [] cells
-        
-
         
 let viewTruthTableError simError =
     let error = 
@@ -328,7 +347,7 @@ let viewTruthTableError simError =
         Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Errors" ]
         error
     ]
-
+    
 let viewTruthTableData (table: TruthTable) =
     if table.TableMap.IsEmpty then // Should never be matched
         div [] [str "No Truth Table to Display"]
@@ -374,47 +393,72 @@ let viewTruthTable model dispatch =
     match model.CurrentTruthTable with
     | None ->
         let wholeSimRes = SimulationView.makeSimData model
-        let wholeButtonColor, wholeButtonText, wholeButtonAction =
+        let wholeButton =
             match wholeSimRes with
-            | None -> IColor.IsWhite, "", (fun _ -> ())
+            | None -> div [] []
+            | Some (Error _,_) -> 
+                Button.button 
+                    [
+                        Button.Color IColor.IsWarning
+                        Button.OnClick (fun _ -> generateTruthTable wholeSimRes)
+                    ] [str "See Problems"]
             | Some (Ok sd,_) -> 
                 if sd.IsSynchronous = false then 
-                    IColor.IsSuccess, "Generate Truth Table", generateTruthTable
+                    Button.button 
+                        [
+                            Button.Color IColor.IsSuccess
+                            Button.OnClick (fun _ -> generateTruthTable wholeSimRes)
+                        ] [str "Generate Truth Table"]
                 else 
-                    IColor.IsInfo, "Combinational Only!", (fun _ -> ())
-            | Some (Error _,_) -> IColor.IsWarning, "See Problems", generateTruthTable
+                    Button.button 
+                        [
+                            Button.Color IColor.IsSuccess
+                            Button.IsLight
+                            Button.OnClick (fun _ -> 
+                                let popup = Notifications.errorPropsNotification "Truth Table generation only supported for Combinational Logic"
+                                dispatch <| SetPropertiesNotification popup)
+                        ] [str "Generate Truth Table"]
+
+        let selSimRes = makeSimDataSelected model
+        let selButton =
+            match selSimRes with
+            | None -> div [] []
+            | Some (Error _,_) -> 
+                Button.button 
+                    [
+                        Button.Color IColor.IsWarning
+                        Button.OnClick (fun _ -> generateTruthTable selSimRes)
+                    ] [str "See Problems"]
+            | Some (Ok sd,_) -> 
+                if sd.IsSynchronous = false then 
+                    Button.button 
+                        [
+                            Button.Color IColor.IsSuccess
+                            Button.OnClick (fun _ -> generateTruthTable selSimRes)
+                        ] [str "Generate Truth Table"]
+                else 
+                    Button.button 
+                        [
+                            Button.Color IColor.IsSuccess
+                            Button.IsLight
+                            Button.OnClick (fun _ -> 
+                                let popup = Notifications.errorPropsNotification "Truth Table generation only supported for Combinational Logic"
+                                dispatch <| SetPropertiesNotification popup)
+                        ] [str "Generate Truth Table"]
+            
+
         div [] [
             str "Generate Truth Tables for combinational logic using this tab."
             br[]
             hr[]
             Heading.h5 [] [str "Truth Table for whole sheet"]
             br []
-            Button.button
-                [ 
-                    Button.Color wholeButtonColor; 
-                    Button.OnClick (fun _ -> wholeButtonAction  wholeSimRes ) ; 
-                ]
-                [ str wholeButtonText ]
+            wholeButton
             hr[]
-
-            let selSimRes = makeSimDataSelected model
-            let selButtonColor, selButtonText, selButtonAction =
-                match selSimRes with
-                | None -> IColor.IsWhite, "", (fun _ -> ())
-                | Some (Ok sd,_) -> 
-                    if sd.IsSynchronous = false then 
-                        IColor.IsSuccess, "Generate Truth Table", generateTruthTable
-                    else 
-                        IColor.IsInfo, "Combinational Only!", (fun _ -> ())
-                | Some (Error _,_) -> IColor.IsWarning, "See Problems", generateTruthTable 
             Heading.h5 [] [str "Truth Table for selected logic"]
             br []
-            Button.button
-                [ 
-                    Button.Color selButtonColor; 
-                    Button.OnClick (fun _ -> selButtonAction selSimRes ) ; 
-                ]
-                [ str selButtonText ]
+            br []
+            selButton
             hr[]
         ]
     | Some tableopt ->
@@ -434,5 +478,5 @@ let viewTruthTable model dispatch =
             hr []
             body
             br []
-            hr[]
+            hr []
             ]

@@ -47,20 +47,26 @@ let multibitCombinations (widths: int list) =
 
     combs
     |> List.map (fun l -> l |> List.mapi (fun i n -> 
-        printfn "l: %A" l
-        printfn "i = %i" i
         convertIntToWireData widths[i] n))
     
 
 let tableLHS (inputs: SimulationIO list): TruthTableRow list =
-    let tableCell (comp: SimulationIO) (wd: WireData): TruthTableCell =
-        {IO = comp; Data = Bits wd}
+    // Bits associated with max rows allowed in Truth Table (2^10 = 1024)
+    let maxBits = 10
 
     let widthOneInputs = List.filter (fun (_,_,w) -> w = 1) inputs
     let widthMultiInputs = List.filter (fun (_,_,w) -> w > 1) inputs
+
+    // Restricts number of rows if there are < 12 single-bit inputs
+    let power =
+        if widthOneInputs.Length > maxBits then
+            printfn "Truth Table truncated over single-bit inputs"
+            maxBits
+        else
+            widthOneInputs.Length
     
     let widthOneRows = 
-        [0 .. int (2.0**(float widthOneInputs.Length))]
+        [0 .. int (2.0**(float power))]
         |> List.map (bitCombinations widthOneInputs.Length)
         |> List.map (fun ttRow ->
             List.map2 (fun comp wd -> {IO = comp; Data = wd}) widthOneInputs ttRow)
@@ -93,6 +99,7 @@ let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) (simData: Simula
     |> List.map (fun (comp,wd) -> {IO = comp; Data = Bits wd})
 
 let truthTable (simData: SimulationData) : TruthTable =
+    let start = TimeHelpers.getTimeMs()
     let tempSimData = 
         match FastRun.buildFastSimulation 2 simData.Graph with
         | Ok tempFS -> {simData with FastSim = tempFS}
@@ -105,6 +112,7 @@ let truthTable (simData: SimulationData) : TruthTable =
     List.zip lhs rhs
     |> Map.ofList
     |> (fun tableMap -> {TableMap = tableMap; XRows = None})
+    |> TimeHelpers.instrumentInterval "truthTableGeneration" start
 
 let printTruthTable (simData: SimulationData) =
     let tt = truthTable simData

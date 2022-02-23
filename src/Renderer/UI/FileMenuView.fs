@@ -1004,10 +1004,11 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                         dispatch <| Sheet(Sheet.DoNothing) //To update the savedsheetisoutofdate send a sheet message
                                         ) ]) [ str "Save" ] ] ]
                       Navbar.End.div []
-                          [ 
-                            Navbar.Item.div [] 
-                                [ simulateButtonFunc compIds model dispatch ] ]
-                      Navbar.End.div []
+                    // Waveform View button was moved to WaveSim subtab in Simulation tab
+                    //       [ 
+                    //         Navbar.Item.div [] 
+                    //             [ simulateButtonFunc compIds model dispatch ] ]
+                    //   Navbar.End.div []
                           [ Navbar.Item.div []
                                 [ Button.button 
                                     [ Button.OnClick(fun _ -> PopupView.viewInfoPopup dispatch) 

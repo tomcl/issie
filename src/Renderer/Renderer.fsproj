@@ -21,6 +21,7 @@
     <Compile Include="Common\WidthInferer.fs" />
     <!-- simulator -->
     <Compile Include="Simulator\SimulatorTypes.fs" />
+    <Compile Include="Simulator\TruthTableTypes.fs" />
     <Compile Include="Simulator\NumberHelpers.fs" />
     <Compile Include="Simulator\SynchronousUtils.fs" />
     <Compile Include="Simulator\CanvasStateAnalyser.fs" />

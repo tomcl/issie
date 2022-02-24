@@ -24,6 +24,7 @@ open MemoryEditorView
 open ModelType
 open CommonTypes
 open SimulatorTypes
+open TruthTableTypes
 open Extractor
 open Simulator
 open TruthTableCreate

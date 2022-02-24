@@ -10,6 +10,7 @@ module rec ModelType
 
 open CommonTypes
 open SimulatorTypes
+open TruthTableTypes
 open Fable.React
 
 type RightTab =
@@ -402,6 +403,10 @@ type Model = {
     CurrentStepSimulationStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
     // stores the generated truth table 
     CurrentTruthTable: Result<TruthTable,SimulationError> option // None if no Truth Table is being displayed.
+    // input constraints on truth table generation
+    TTInputConstraints: ConstraintSet
+    // output constraints on truth table viewing
+    TTOutputConstraints: ConstraintSet
     // which of the tabbed panes is currently visible
     RightPaneTabVisible : RightTab
     // which of the subtabs for the right pane simulation is visible

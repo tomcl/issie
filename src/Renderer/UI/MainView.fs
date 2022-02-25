@@ -57,6 +57,7 @@ let init() = {
     LastUsedDialogWidth = 1
     CurrentStepSimulationStep = None
     CurrentTruthTable = None
+    TTBitLimit = 10
     TTInputConstraints = TruthTableTypes.emptyConstraintSet
     TTOutputConstraints = TruthTableTypes.emptyConstraintSet
     WaveSim = Map.empty, None

@@ -19,8 +19,14 @@ type TruthTableCell = {
 type TruthTableRow = TruthTableCell list
 
 type TruthTable = {
+    // Actual Table: Mapping from Input row to Output row
     TableMap: Map<TruthTableRow,TruthTableRow>
+    // Rows featuring Don't Care Terms - currently unused
     XRows: Map<TruthTableRow,TruthTableRow> option
+    // If the Truth Table has been truncated
+    IsTruncated: bool
+    // Maximum rows the truth table could have with current input constraints
+    MaxRowsWithConstraints: int
     }
 
 //-------------------------------------------------------------------------------------//

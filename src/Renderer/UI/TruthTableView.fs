@@ -380,8 +380,8 @@ let viewTruthTable model dispatch =
     let generateTruthTable simRes =
         match simRes with 
         | Some (Ok sd,_) -> 
-            sd
-            |> truthTable
+            (sd,model.TTInputConstraints)
+            ||> truthTable
             |> Ok
             |> GenerateTruthTable
             |> dispatch
@@ -416,7 +416,9 @@ let viewTruthTable model dispatch =
                             Button.Color IColor.IsSuccess
                             Button.IsLight
                             Button.OnClick (fun _ -> 
-                                let popup = Notifications.errorPropsNotification "Truth Table generation only supported for Combinational Logic"
+                                let popup = 
+                                    Notifications.errorPropsNotification 
+                                        "Truth Table generation only supported for Combinational Logic"
                                 dispatch <| SetPropertiesNotification popup)
                         ] [str "Generate Truth Table"]
 
@@ -468,7 +470,9 @@ let viewTruthTable model dispatch =
         let body = 
             match tableopt with
             | Error e -> viewTruthTableError e
-            | Ok table -> viewTruthTableData table
+            | Ok table ->
+                printfn "Truncation on View: %A" table.IsTruncated
+                viewTruthTableData table
         div [] [
             Button.button
                 [ Button.Color IsDanger; Button.OnClick closeTruthTable ]

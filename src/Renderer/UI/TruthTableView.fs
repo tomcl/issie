@@ -381,6 +381,77 @@ let truncationWarning table =
     to {table.TableMap.Count} input combinations. Not all rows may be shown. Please use more
     restrictive input constraints to avoid truncation."
    
+let viewInputConstraints inputCons dispatch =
+    let makeInConTag(con: Constraint) =
+        let tagText = 
+            match con with
+            | Equality e -> 
+                let (_,label,_) = e.IO
+                $"{label} = {e.Value}" 
+            | Inequality i -> 
+                let (_,label,_) = i.IO
+                $"{i.LowerBound} \u2264 {label} \u2264 {i.UpperBound}"
+        Control.div [] [
+                    Tag.tag [Tag.IsLight] [ 
+                            str tagText
+                            Delete.delete 
+                                [Delete.OnClick(fun _ -> 
+                                    dispatch <| DeleteInputConstraint con)] []
+                        ]
+                    
+        ]
+    let equEls =
+        inputCons.Equalities
+        |> List.map(fun con ->
+            con
+            |> Equality
+            |> makeInConTag)
+    let inequEls =
+        inputCons.Inequalities
+        |> List.map(fun con ->
+            con
+            |> Inequality
+            |> makeInConTag)
+    let tags = List.append equEls inequEls
+
+    Field.div [] tags
+
+let viewOutputConstraints outputCons dispatch =
+    div [] [] // Not yet implemented
+
+let viewConstraints inputCons outputCons dispatch =
+    let makeLine a b =
+        Level.level [] [
+                Level.left [] [
+                    Level.item [] [a]
+                    Level.item [] [b]
+                ]
+            ]
+    let addButton action =
+        Button.button [
+                Button.OnClick action
+                ]
+            [str "Add"]
+    let clearButton action =
+        Button.button [Button.OnClick action]
+            [str "Clear All"]
+    
+    div [] 
+        [
+            Heading.h6 [] [str "Input Constraints"]
+            viewInputConstraints inputCons dispatch
+            br []
+            (makeLine (addButton (fun _ -> dispatch OpenInConAdder)) 
+                (clearButton (fun _ -> dispatch ClearInputConstraints)))
+            Heading.h6 [] [str "Output Constraints"]
+            viewOutputConstraints outputCons dispatch
+            br []
+            (makeLine (addButton (fun _ -> dispatch OpenOutConAdder)) 
+                (clearButton (fun _ -> dispatch ClearOutputConstraints)))
+        ]
+            
+        
+
 
 let viewTruthTable model dispatch =
     let generateTruthTable simRes =
@@ -487,6 +558,9 @@ let viewTruthTable model dispatch =
             br []; br []
             str "The Truth Table generator uses the diagram as it was at the moment of
                  pressing the \"Generate Truth Table\" button."
+            hr []
+            viewConstraints model.TTInputConstraints model.TTOutputConstraints dispatch
+            br []
             hr []
             body
             br []

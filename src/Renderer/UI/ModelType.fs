@@ -284,6 +284,14 @@ type Msg =
     | EndWaveSim
     | GenerateTruthTable of Result<TruthTable, SimulationError>
     | CloseTruthTable
+    | ClearInputConstraints
+    | ClearOutputConstraints
+    | OpenInConAdder
+    | OpenOutConAdder
+    | AddInputConstraint of Constraint
+    | AddOutputConstraint of Constraint
+    | DeleteInputConstraint of Constraint
+    | DeleatInputConstraint of Constraint
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list

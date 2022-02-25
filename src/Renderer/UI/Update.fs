@@ -7,6 +7,7 @@ open Fable.React
 open Fable.React.Props
 open ElectronAPI
 open SimulatorTypes
+open TruthTableTypes
 open ModelType
 open CommonTypes
 open Extractor
@@ -316,8 +317,14 @@ let update (msg : Msg) oldModel =
         { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber + n } |> Ok |> Some }, Cmd.none
     | EndSimulation -> { model with CurrentStepSimulationStep = None }, Cmd.none
     | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
-    | GenerateTruthTable table -> {model with CurrentTruthTable = Some table}, Cmd.none
-    | CloseTruthTable -> {model with CurrentTruthTable = None}, Cmd.none
+    | GenerateTruthTable table -> 
+        {model with CurrentTruthTable = Some table}, Cmd.none
+    | CloseTruthTable -> 
+        {model with CurrentTruthTable = None}, Cmd.none
+    | ClearInputConstraints -> 
+        {model with TTInputConstraints = emptyConstraintSet}, Cmd.none
+    | ClearOutputConstraints -> 
+        {model with TTOutputConstraints = emptyConstraintSet}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg

@@ -48,6 +48,11 @@ and InequalityConstraint = {
     Range: int
 }
 
+type Constraint = 
+    | Equality of EqualityConstraint
+    | Inequality of InequalityConstraint
+
+
 let emptyConstraintSet = {
     Equalities = []
     Inequalities = []

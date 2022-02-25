@@ -403,6 +403,8 @@ type Model = {
     CurrentStepSimulationStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
     // stores the generated truth table 
     CurrentTruthTable: Result<TruthTable,SimulationError> option // None if no Truth Table is being displayed.
+    // Bits associated with the maximum number of input rows allowed in a Truth Table
+    TTBitLimit: int
     // input constraints on truth table generation
     TTInputConstraints: ConstraintSet
     // output constraints on truth table viewing

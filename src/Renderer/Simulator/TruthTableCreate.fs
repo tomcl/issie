@@ -121,10 +121,9 @@ let inputsWithARC limit (tInputs: TableInput list) =
         )
 
 
-let tableLHS (inputs: SimulationIO list) (inputConstraints: ConstraintSet): 
+let tableLHS (inputs: SimulationIO list) (inputConstraints: ConstraintSet) bitLimit: 
     TruthTableRow list * int =
-    // Bits associated with max rows allowed in Truth Table (2^10 = 1024).
-    let bitLimit = 10
+
     // Maximum number of rows on LHS of Truth Table.
     // Limited for speed and memory consumption reasons.
     let rowLimit = int(2.0**bitLimit)
@@ -154,7 +153,7 @@ let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) (simData: Simula
     ||> FastRun.extractFastSimulationIOs
     |> List.map (fun (comp,wd) -> {IO = comp; Data = Bits wd})
 
-let truthTable (simData: SimulationData) (inputConstraints: ConstraintSet): TruthTable =
+let truthTable (simData: SimulationData) (inputConstraints: ConstraintSet) bitLimit: TruthTable =
     let start = TimeHelpers.getTimeMs()
     printfn "Truth Table Gen Called"
     let tempSimData = 
@@ -163,7 +162,7 @@ let truthTable (simData: SimulationData) (inputConstraints: ConstraintSet): Trut
         | _ -> failwithf "Error in building fast simulation for Truth Table evaluation" 
     let inputs = List.map fst (FastRun.extractFastSimulationIOs simData.Inputs tempSimData)
     let outputs = List.map fst (FastRun.extractFastSimulationIOs simData.Outputs tempSimData)
-    let lhs,tCRC = tableLHS inputs inputConstraints
+    let lhs,tCRC = tableLHS inputs inputConstraints bitLimit
     let rhs = List.map (fun i -> rowRHS i outputs tempSimData) lhs
 
     List.zip lhs rhs

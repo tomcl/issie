@@ -376,12 +376,17 @@ let viewTruthTableData (table: TruthTable) =
                 ]
         ]
 
+let truncationWarning table =
+    $"The Truth Table has been truncated from {table.MaxRowsWithConstraints}
+    to {table.TableMap.Count} input combinations. Not all rows may be shown. Please use more
+    restrictive input constraints to avoid truncation."
+   
+
 let viewTruthTable model dispatch =
     let generateTruthTable simRes =
         match simRes with 
         | Some (Ok sd,_) -> 
-            (sd,model.TTInputConstraints)
-            ||> truthTable
+            truthTable sd model.TTInputConstraints model.TTBitLimit
             |> Ok
             |> GenerateTruthTable
             |> dispatch
@@ -471,7 +476,9 @@ let viewTruthTable model dispatch =
             match tableopt with
             | Error e -> viewTruthTableError e
             | Ok table ->
-                printfn "Truncation on View: %A" table.IsTruncated
+                if table.IsTruncated then
+                    let popup = Notifications.warningPropsNotification (truncationWarning table)
+                    dispatch <| SetPropertiesNotification popup
                 viewTruthTableData table
         div [] [
             Button.button

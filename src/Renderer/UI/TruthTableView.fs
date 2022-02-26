@@ -381,16 +381,18 @@ let truncationWarning table =
     to {table.TableMap.Count} input combinations. Not all rows may be shown. Please use more
     restrictive input constraints to avoid truncation."
    
+let inCon2str con =
+    match con with
+    | Equality e -> 
+        let (_,label,_) = e.IO
+        $"{label} = {e.Value}" 
+    | Inequality i -> 
+        let (_,label,_) = i.IO
+        $"{i.LowerBound} \u2264 {label} \u2264 {i.UpperBound}"
+
 let viewInputConstraints inputCons dispatch =
     let makeInConTag(con: Constraint) =
-        let tagText = 
-            match con with
-            | Equality e -> 
-                let (_,label,_) = e.IO
-                $"{label} = {e.Value}" 
-            | Inequality i -> 
-                let (_,label,_) = i.IO
-                $"{i.LowerBound} \u2264 {label} \u2264 {i.UpperBound}"
+        let tagText = inCon2str con
         Control.div [] [
                     Tag.tag [Tag.IsLight] [ 
                             str tagText
@@ -449,8 +451,19 @@ let viewConstraints inputCons outputCons dispatch =
             (makeLine (addButton (fun _ -> dispatch OpenOutConAdder)) 
                 (clearButton (fun _ -> dispatch ClearOutputConstraints)))
         ]
+
+// let validateInputConstraint (con: Constraint) (allConstraints: ConstraintSet)
+//     : Result<Constraint,string> =
+//     let conText = inCon2str con
+//     match con with 
+//     | Equality e -> 
+//         if List.contains e allConstraints.Equalities then
+//             sprintf "Constraint '%s' already exists." conText
+//         else
+//             allConstraints.Inequalities
+//             |> List.filter (fun c -> )
+
             
-        
 
 
 let viewTruthTable model dispatch =

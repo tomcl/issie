@@ -207,12 +207,20 @@ type Model = {
     /// Returns a list of selected components
     member this.GetSelectedComponents =
         this.SelectedComponents
-        |> List.map (Symbol.extractComponent this.Wire.Symbol)
+        |> List.collect ( fun compId ->
+            if Map.containsKey compId this.Wire.Symbol.Symbols then
+                [Symbol.extractComponent this.Wire.Symbol]
+            else
+                [])
         
     /// Returns a list of selected connections
     member this.GetSelectedConnections =
         this.SelectedWires
-        |> List.map (BusWire.extractConnection this.Wire)
+        |> List.collect (fun connId ->
+            if Map.containsKey connId this.Wire.WX then
+                [BusWire.extractConnection this.Wire]
+            else 
+                [])
         
     /// Returns a list of selected components and connections in the form of (Component list * Connection list)
     member this.GetSelectedCanvasState =

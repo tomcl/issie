@@ -366,7 +366,11 @@ let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId li
         |> List.fold (&&) true
     let cVisible =
         comps
-        |> List.map (Symbol.getOneBoundingBox model.Wire.Symbol)
+        |> List.collect (fun comp ->
+            if Map.containsKey comp model.Wire.Symbol.Symbols then 
+                [Symbol.getOneBoundingBox model.Wire.Symbol comp]
+            else
+                [])
         |> List.map isBBoxAllVisible
         |> List.fold (&&) true
     wVisible && cVisible

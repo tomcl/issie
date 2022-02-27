@@ -209,7 +209,7 @@ type Model = {
         this.SelectedComponents
         |> List.collect ( fun compId ->
             if Map.containsKey compId this.Wire.Symbol.Symbols then
-                [Symbol.extractComponent this.Wire.Symbol]
+                [Symbol.extractComponent this.Wire.Symbol compId]
             else
                 [])
         
@@ -218,7 +218,7 @@ type Model = {
         this.SelectedWires
         |> List.collect (fun connId ->
             if Map.containsKey connId this.Wire.WX then
-                [BusWire.extractConnection this.Wire]
+                [BusWire.extractConnection this.Wire connId]
             else 
                 [])
         

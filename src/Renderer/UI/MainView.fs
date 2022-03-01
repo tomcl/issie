@@ -79,6 +79,10 @@ let init() = {
         MemoryEditorData = None
         WaveSetup = None
         Progress = None
+        InputConstraints = None
+        OutputConstraints = None
+        ConstraintTypeSel = None
+        ConstraintIOSel = None
     }
     Notifications = {
         FromDiagram = None

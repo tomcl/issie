@@ -398,6 +398,14 @@ let update (msg : Msg) oldModel =
         { model with PopupDialogData = {model.PopupDialogData with Progress = progOpt} }, Cmd.none
     | UpdatePopupProgress updateFn ->
         { model with PopupDialogData = {model.PopupDialogData with Progress = Option.map updateFn model.PopupDialogData.Progress} }, Cmd.none
+    | SetPopupInputConstraints ic ->
+        { model with PopupDialogData = {model.PopupDialogData with InputConstraints = ic}}, Cmd.none
+    | SetPopupOutputConstraints oc ->
+        { model with PopupDialogData = {model.PopupDialogData with OutputConstraints = oc}}, Cmd.none
+    | SetPopupConstraintTypeSel ct ->
+        { model with PopupDialogData = {model.PopupDialogData with ConstraintTypeSel = ct}}, Cmd.none
+    | SetPopupConstraintIOSel io ->
+        { model with PopupDialogData = {model.PopupDialogData with ConstraintIOSel = io}}, Cmd.none
 
     | SimulateWithProgressBar simPars ->
         SimulationView.simulateWithProgressBar simPars model

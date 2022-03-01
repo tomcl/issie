@@ -52,6 +52,7 @@ type Constraint =
     | Equality of EqualityConstraint
     | Inequality of InequalityConstraint
 
+type ConstraintType = Equ | Ineq
 
 let emptyConstraintSet = {
     Equalities = []

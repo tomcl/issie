@@ -53,6 +53,10 @@ type PopupDialogData = {
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
     WaveSetup: MoreWaveSetup option
     Progress: PopupProgress option
+    InputConstraints: ConstraintSet option
+    OutputConstraints: ConstraintSet option
+    ConstraintTypeSel: ConstraintType option
+    ConstraintIOSel: SimulationIO option
 }
 
 type TopMenu = | Closed | Project | Files
@@ -286,7 +290,6 @@ type Msg =
     | CloseTruthTable
     | ClearInputConstraints
     | ClearOutputConstraints
-    | OpenInConAdder
     | OpenOutConAdder
     | AddInputConstraint of Constraint
     | AddOutputConstraint of Constraint
@@ -312,6 +315,10 @@ type Msg =
     | SetPopupWaveSetup of MoreWaveSetup
     | SetPopupProgress of PopupProgress option
     | UpdatePopupProgress of (PopupProgress -> PopupProgress)
+    | SetPopupInputConstraints of ConstraintSet option
+    | SetPopupOutputConstraints of ConstraintSet option
+    | SetPopupConstraintTypeSel of ConstraintType option
+    | SetPopupConstraintIOSel of SimulationIO option
     | SimulateWithProgressBar of SimulationProgress
     | SetSelectedComponentMemoryLocation of int64 * int64
     | CloseDiagramNotification

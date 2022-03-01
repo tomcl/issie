@@ -376,6 +376,15 @@ let viewTruthTableData (table: TruthTable) =
                 ]
         ]
 
+let makeElementLine (els: ReactElement list) =
+    let itemList =
+        els
+        |> List.map (fun el -> Level.item [] [el])
+    
+    Level.level [] [
+            Level.left [] itemList
+        ]
+
 let truncationWarning table =
     $"The Truth Table has been truncated from {table.MaxRowsWithConstraints}
     to {table.TableMap.Count} input combinations. Not all rows may be shown. Please use more
@@ -400,7 +409,6 @@ let viewInputConstraints inputCons dispatch =
                                 [Delete.OnClick(fun _ -> 
                                     dispatch <| DeleteInputConstraint con)] []
                         ]
-                    
         ]
     let equEls =
         inputCons.Equalities
@@ -420,37 +428,6 @@ let viewInputConstraints inputCons dispatch =
 
 let viewOutputConstraints outputCons dispatch =
     div [] [] // Not yet implemented
-
-let viewConstraints inputCons outputCons dispatch =
-    let makeLine a b =
-        Level.level [] [
-                Level.left [] [
-                    Level.item [] [a]
-                    Level.item [] [b]
-                ]
-            ]
-    let addButton action =
-        Button.button [
-                Button.OnClick action
-                ]
-            [str "Add"]
-    let clearButton action =
-        Button.button [Button.OnClick action]
-            [str "Clear All"]
-    
-    div [] 
-        [
-            Heading.h6 [] [str "Input Constraints"]
-            viewInputConstraints inputCons dispatch
-            br []
-            (makeLine (addButton (fun _ -> dispatch OpenInConAdder)) 
-                (clearButton (fun _ -> dispatch ClearInputConstraints)))
-            Heading.h6 [] [str "Output Constraints"]
-            viewOutputConstraints outputCons dispatch
-            br []
-            (makeLine (addButton (fun _ -> dispatch OpenOutConAdder)) 
-                (clearButton (fun _ -> dispatch ClearOutputConstraints)))
-        ]
 
 let constraintsOverlap (con1: Constraint) (con2: Constraint) =
     let equAndIneqOverlap (equ: EqualityConstraint) (ineq: InequalityConstraint) =
@@ -516,6 +493,69 @@ let validateInputConstraint (con: Constraint) (allConstraints: ConstraintSet)
                         Ok ineqc)
         |> (function | Error err -> Error err | Ok ineqc -> Ok (Inequality ineqc))
 
+let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
+    let dialogPopupInConBody =
+        fun (dialogData: PopupDialogData) -> div [] []
+            // //Default Constraint Type is Equality Constraint
+            // Equ |> Some |> SetPopupConstraintTypeSel |> dispatch
+            // let inputs =
+            //     match model.CurrentTruthTable with
+            //     | None -> failwithf "what? No current Truth Table when adding Input Constraints"
+            //     | Some (Error _) -> failwithf "what? Constraint add option should not exist when there is an error"
+            //     | Some (Ok tt) ->
+            //         tt.TableMap
+            //         |> Map.toList
+            //         |> List.map fst 
+            //         |> List.head
+            //         |> List.map (fun cell -> cell.IO)
+            // // Default IO is the first in the Truth Table
+            // inputs.Head |> Some |> SetPopupConstraintIOSel |> dispatch
+
+            // let radioButtons =
+            //     match dialogData.ConstraintTypeSel with
+            //     | None -> 
+            //         failwithf "what? Default equality constraint setting didn't work"
+            //     | Some Equ ->
+            //         div [ClassName "block"] [
+                        
+            //         ]
+
+    let title = "Add Input Constraint"
+    let body = dialogPopupInConBody
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData: PopupDialogData) -> ()
+    let isDisabled =
+        fun (dialogData: PopupDialogData) -> false
+    dialogPopup title body buttonText buttonAction isDisabled dispatch
+
+let viewConstraints model dispatch =
+    let inputCons = model.TTInputConstraints
+    let outputCons = model.TTOutputConstraints
+    let addButton action =
+        Button.button [
+                Button.OnClick action
+                ]
+            [str "Add"]
+    let clearButton action =
+        Button.button [Button.OnClick action]
+            [str "Clear All"]
+    
+    div [] 
+        [
+            Heading.h6 [] [str "Input Constraints"]
+            viewInputConstraints inputCons dispatch
+            br []
+            makeElementLine [
+                addButton (fun _ -> createInputConstraintPopup model dispatch) 
+                clearButton (fun _ -> dispatch ClearInputConstraints)]
+            Heading.h6 [] [str "Output Constraints"]
+            viewOutputConstraints outputCons dispatch
+            br []
+            makeElementLine [
+                addButton (fun _ -> dispatch OpenOutConAdder)
+                clearButton (fun _ -> dispatch ClearOutputConstraints)]
+        ]
 
 let viewTruthTable model dispatch =
     let generateTruthTable simRes =
@@ -615,6 +655,10 @@ let viewTruthTable model dispatch =
                     let popup = Notifications.warningPropsNotification (truncationWarning table)
                     dispatch <| SetPropertiesNotification popup
                 viewTruthTableData table
+        let constraints =
+            match tableopt with
+            | Error _ -> div [] []
+            | Ok _ -> div [] [hr []; viewConstraints model dispatch]
         div [] [
             Button.button
                 [ Button.Color IsDanger; Button.OnClick closeTruthTable ]
@@ -622,8 +666,7 @@ let viewTruthTable model dispatch =
             br []; br []
             str "The Truth Table generator uses the diagram as it was at the moment of
                  pressing the \"Generate Truth Table\" button."
-            hr []
-            viewConstraints model.TTInputConstraints model.TTOutputConstraints dispatch
+            constraints
             br []
             hr []
             body

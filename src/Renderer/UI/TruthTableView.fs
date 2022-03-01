@@ -452,18 +452,69 @@ let viewConstraints inputCons outputCons dispatch =
                 (clearButton (fun _ -> dispatch ClearOutputConstraints)))
         ]
 
-// let validateInputConstraint (con: Constraint) (allConstraints: ConstraintSet)
-//     : Result<Constraint,string> =
-//     let conText = inCon2str con
-//     match con with 
-//     | Equality e -> 
-//         if List.contains e allConstraints.Equalities then
-//             sprintf "Constraint '%s' already exists." conText
-//         else
-//             allConstraints.Inequalities
-//             |> List.filter (fun c -> )
+let constraintsOverlap (con1: Constraint) (con2: Constraint) =
+    let equAndIneqOverlap (equ: EqualityConstraint) (ineq: InequalityConstraint) =
+        equ.Value >= ineq.LowerBound && equ.Value <= ineq.UpperBound
+    let checkTwoIneq in1 in2 =
+        (in1.LowerBound >= in2.LowerBound && in1.LowerBound <= in2.UpperBound)
+        || (in1.UpperBound >= in2.LowerBound && in1.UpperBound <= in2.UpperBound)
+    match con1, con2 with
+    | Equality c1, Equality c2 -> c1 = c2
+    | Equality c1, Inequality c2 -> equAndIneqOverlap c1 c2
+    | Inequality c1, Equality c2 -> equAndIneqOverlap c2 c1
+    | Inequality c1, Inequality c2 ->
+        (checkTwoIneq c1 c2) || (checkTwoIneq c2 c1)
 
-            
+
+let validateInputConstraint (con: Constraint) (allConstraints: ConstraintSet)
+    : Result<Constraint,string> =
+    let conText = inCon2str con
+    match con with 
+    | Equality e -> 
+        if List.contains e allConstraints.Equalities then
+            Error <| sprintf "Constraint '%s' already exists." conText
+        else
+            (Ok e, allConstraints.Inequalities)
+            ||> List.fold (fun state c -> 
+                match state with
+                | Error err -> Error err
+                | Ok eqc -> 
+                    if constraintsOverlap con (Inequality c) then
+                        let constr = inCon2str(Inequality c)
+                        sprintf "This constraint overlaps with another constraint: %s. 
+                        Please change your new constraint or delete the old one." constr
+                        |> Error
+                    else 
+                        Ok eqc)
+                    
+            |> (function | Error err -> Error err | Ok eqc -> Ok (Equality eqc))
+    | Inequality ineq ->
+        let checkWithEqu =
+            (Ok ineq, allConstraints.Equalities)
+            ||> List.fold (fun state c ->
+                match state with 
+                | Error err -> Error err
+                | Ok ineqc ->
+                    if constraintsOverlap con (Equality c) then
+                        let constr = inCon2str(Equality c)
+                        sprintf "This constraint overlaps with another constraint: %s. 
+                        Please change your new constraint or delete the old one." constr
+                        |> Error
+                    else 
+                        Ok ineqc)
+        (checkWithEqu,allConstraints.Inequalities)
+        ||> List.fold (fun state c ->
+                match state with
+                | Error err -> Error err
+                | Ok ineqc ->
+                    if constraintsOverlap con (Inequality c) then
+                        let constr = inCon2str(Inequality c)
+                        sprintf "This constraint overlaps with another constraint: %s. 
+                        Please change your new constraint or delete the old one." constr
+                        |> Error
+                    else 
+                        Ok ineqc)
+        |> (function | Error err -> Error err | Ok ineqc -> Ok (Inequality ineqc))
 
 
 let viewTruthTable model dispatch =

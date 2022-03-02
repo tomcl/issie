@@ -83,6 +83,7 @@ let init() = {
         OutputConstraints = None
         ConstraintTypeSel = None
         ConstraintIOSel = None
+        ConstraintErrorMsg = None
     }
     Notifications = {
         FromDiagram = None

@@ -160,7 +160,7 @@ let private splittedLine leftContent rightConent =
     ]
 
 /// Pretty print a label with its width.
-let private makeIOLabel label width =
+let makeIOLabel label width =
     let label = cropToLength 15 true label
     match width with
     | 1 -> label

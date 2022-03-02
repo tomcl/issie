@@ -382,6 +382,8 @@ let update (msg : Msg) oldModel =
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
     | SetPopupDialogInt int ->
         { model with PopupDialogData = {model.PopupDialogData with Int = int} }, Cmd.none
+    | SetPopupDialogInt2 int ->
+        { model with PopupDialogData = {model.PopupDialogData with Int2 = int} }, Cmd.none
     | SetPopupDialogTwoInts data ->
         { model with PopupDialogData = 
                         match data with
@@ -406,6 +408,8 @@ let update (msg : Msg) oldModel =
         { model with PopupDialogData = {model.PopupDialogData with ConstraintTypeSel = ct}}, Cmd.none
     | SetPopupConstraintIOSel io ->
         { model with PopupDialogData = {model.PopupDialogData with ConstraintIOSel = io}}, Cmd.none
+    | SetPopupConstraintErrorMsg msg ->
+        { model with PopupDialogData = {model.PopupDialogData with ConstraintErrorMsg = msg}}, Cmd.none
 
     | SimulateWithProgressBar simPars ->
         SimulationView.simulateWithProgressBar simPars model

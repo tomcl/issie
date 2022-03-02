@@ -299,6 +299,10 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
             | None ->
                 Some (prepareSimulation project.OpenFileName (correctComps,correctConns) selLoadedComponents , (correctComps,correctConns))
 
+let labelFromIO (sIO: SimulationIO) =
+    let (_,label,_) = sIO
+    string label
+
 let tableAsList (table: TruthTable): TruthTableRow list =
     table.TableMap
     |> Map.toList
@@ -495,30 +499,173 @@ let validateInputConstraint (con: Constraint) (allConstraints: ConstraintSet)
 
 let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
     let dialogPopupInConBody =
-        fun (dialogData: PopupDialogData) -> div [] []
-            // //Default Constraint Type is Equality Constraint
-            // Equ |> Some |> SetPopupConstraintTypeSel |> dispatch
-            // let inputs =
-            //     match model.CurrentTruthTable with
-            //     | None -> failwithf "what? No current Truth Table when adding Input Constraints"
-            //     | Some (Error _) -> failwithf "what? Constraint add option should not exist when there is an error"
-            //     | Some (Ok tt) ->
-            //         tt.TableMap
-            //         |> Map.toList
-            //         |> List.map fst 
-            //         |> List.head
-            //         |> List.map (fun cell -> cell.IO)
-            // // Default IO is the first in the Truth Table
-            // inputs.Head |> Some |> SetPopupConstraintIOSel |> dispatch
+        fun (dialogData: PopupDialogData) -> //div [] []
+            let inputs =
+                match model.CurrentTruthTable with
+                | None -> failwithf "what? No current Truth Table when adding Input Constraints"
+                | Some (Error _) -> failwithf "what? Constraint add option should not exist when there is an error"
+                | Some (Ok tt) ->
+                    tt.TableMap
+                    |> Map.toList
+                    |> List.map fst 
+                    |> List.head
+                    |> List.map (fun cell -> cell.IO)
 
-            // let radioButtons =
-            //     match dialogData.ConstraintTypeSel with
-            //     | None -> 
-            //         failwithf "what? Default equality constraint setting didn't work"
-            //     | Some Equ ->
-            //         div [ClassName "block"] [
-                        
-            //         ]
+            let selected =
+                match dialogData.ConstraintIOSel with
+                | None -> 
+                    // Default IO is the first in the Truth Table
+                    inputs.Head |> Some |> SetPopupConstraintIOSel |> dispatch
+                    inputs.Head
+                | Some io -> io
+
+            let inputSelect =
+                let buttons =
+                    inputs
+                    |> List.map (fun io ->
+                        let (_,label,_) = io
+                        let action = (fun _ -> io |> Some |> SetPopupConstraintIOSel |> dispatch)
+                        let buttonProps =
+                            if io = selected then
+                                [Button.Color IsPrimary; Button.OnClick action]
+                            else 
+                                [Button.OnClick action]
+                        Button.button buttonProps [str <| (string label)])
+                div [] buttons
+                            
+            // // Code for original input selection interface
+            // // Works, but cannot support a large number of inputs
+            // // as they get cut off.
+            // let menuItem sIO =
+            //     Menu.Item.li [
+            //         Menu.Item.IsActive (sIO = selected)
+            //         Menu.Item.OnClick (fun _ -> 
+            //             sIO |> Some |> SetPopupConstraintIOSel |> dispatch) 
+            //         ] [str <|(labelFromIO sIO)] 
+
+            // let inputSelect =
+            //     Dropdown.dropdown [ Dropdown.IsUp; Dropdown.IsHoverable] [ 
+            //         Dropdown.trigger [] [
+            //             Button.button [Button.Color IsPrimary; Button.IsLight] [
+            //                 str <| (labelFromIO selected)
+            //             ] 
+            //         ]                            
+            //         Dropdown.menu [Props [Style [Width "300px"]]] [
+            //             Dropdown.content [Props [Style [ZIndex 1000]]] [
+            //                 Dropdown.Item.div [] [
+            //                     Menu.menu [Props [Style [OverflowY OverflowOptions.Scroll]]] [
+            //                         Menu.list [] (List.map menuItem inputs) 
+            //                     ]]]]]
+            let typeButtons =
+                let (_,_,selwidth) = selected
+                if selwidth = 1 then
+                    Equ |> Some |> SetPopupConstraintTypeSel |> dispatch
+                    Level.item [ Level.Item.HasTextCentered ] [
+                        Field.div [ Field.HasAddonsCentered ] [
+                            Control.div [] [ Button.button [
+                                Button.Color (IsPrimary)
+                                Button.OnClick (fun _ -> 
+                                    Equ |> Some |> SetPopupConstraintTypeSel |> dispatch)
+                            ] [ str "Equality Constraint" ] ]        
+                        ]
+                    ]
+                else 
+                    match dialogData.ConstraintTypeSel with
+                    | None -> 
+                        //Default Constraint Type is Equality Constraint
+                        Equ |> Some |> SetPopupConstraintTypeSel |> dispatch
+                        div [] []
+                    | Some x ->
+                        Level.item [ Level.Item.HasTextCentered ] [
+                            Field.div [ Field.HasAddonsCentered ] [
+                                Control.div [] [ Button.button [
+                                    Button.Color (if isEqu x then IsPrimary else NoColor)
+                                    Button.OnClick (fun _ -> 
+                                        Equ |> Some |> SetPopupConstraintTypeSel |> dispatch)
+                                ] [ str "Equality Constraint" ] ]
+                                Control.div [] [ Button.button [
+                                    Button.Color (if not (isEqu x) then IsPrimary else NoColor)
+                                    Button.OnClick (fun _ -> 
+                                        Ineq |> Some |> SetPopupConstraintTypeSel |> dispatch)
+                                ] [ str "Inequality Constraint" ] ]        
+                            ]
+                        ]
+            
+            let numField1 width =
+                Input.text [
+                    Input.Key ("Hex")
+                    Input.DefaultValue (viewNum Hex 0)
+                    Input.Props [
+                        constraintNumberStyle
+                        OnChange (getTextEventValue >> (fun text ->
+                            match strToIntCheckWidth width text, 
+                            System.String.IsNullOrWhiteSpace text with
+                            | _, true ->
+                                "Blank constraint field" 
+                                |> Some |> SetPopupConstraintErrorMsg |> dispatch
+                            | Error err, _ ->
+                                err |> Some |> SetPopupConstraintErrorMsg |> dispatch
+                            | Ok num, _ ->
+                                None |> SetPopupConstraintErrorMsg |> dispatch
+                                (int num) |> Some |> SetPopupDialogInt |> dispatch))]]
+
+            let numField2 width =
+                Input.text [
+                    Input.Key ("Hex")
+                    Input.DefaultValue (viewNum Hex 0)
+                    Input.Props [
+                        constraintNumberStyle
+                        OnChange (getTextEventValue >> (fun text ->
+                            match strToIntCheckWidth width text, 
+                            System.String.IsNullOrWhiteSpace text with
+                            | _, true ->
+                                "Blank constraint field" 
+                                |> Some |> SetPopupConstraintErrorMsg |> dispatch
+                            | Error err, _ ->
+                                err |> Some |> SetPopupConstraintErrorMsg |> dispatch
+                            | Ok num, _ ->
+                                None |> SetPopupConstraintErrorMsg |> dispatch
+                                (num |> Some |> SetPopupDialogInt2 |> dispatch)))]]
+            
+            let constraintEditor =
+                match dialogData.ConstraintTypeSel, dialogData.ConstraintIOSel with
+                | None, _ -> div [] []
+                | _, None -> div [] []
+                | Some Equ, Some io ->
+                    let (_,label,width) = io
+                    makeElementLine [
+                        str <| sprintf "%s = " 
+                            (SimulationView.makeIOLabel (string label) width)
+                        numField1 width
+                    ]
+                | Some Ineq, Some io -> 
+                    let (_,label,width) = io
+                    makeElementLine [
+                        numField1 width
+                        str <| sprintf "\u2264 %s \u2264" 
+                            (SimulationView.makeIOLabel (string label) width)
+                        numField2 width
+                    ]
+                    
+
+            let errorMsg =
+                match dialogData.ConstraintErrorMsg with
+                | None -> div [] []
+                | Some msg -> div [] [hr []; str msg]
+            
+            div [] [
+                Heading.h6 [] [str "Select Input"]
+                inputSelect
+                hr []
+                Heading.h6 [] [str "Constraint Type"]
+                typeButtons
+                hr []
+                Heading.h6 [] [str "Edit Constraint"]
+                constraintEditor
+                errorMsg
+
+            ]
+            
 
     let title = "Add Input Constraint"
     let body = dialogPopupInConBody
@@ -526,7 +673,10 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
     let buttonAction =
         fun (dialogData: PopupDialogData) -> ()
     let isDisabled =
-        fun (dialogData: PopupDialogData) -> false
+        fun (dialogData: PopupDialogData) -> 
+            match dialogData.ConstraintErrorMsg with
+            | None -> false
+            | Some _ -> true
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 let viewConstraints model dispatch =

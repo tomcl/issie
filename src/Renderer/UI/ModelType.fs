@@ -57,6 +57,7 @@ type PopupDialogData = {
     OutputConstraints: ConstraintSet option
     ConstraintTypeSel: ConstraintType option
     ConstraintIOSel: SimulationIO option
+    ConstraintErrorMsg: string option
 }
 
 type TopMenu = | Closed | Project | Files
@@ -308,6 +309,7 @@ type Msg =
     | ClosePopup
     | SetPopupDialogText of string option
     | SetPopupDialogInt of int option
+    | SetPopupDialogInt2 of int64 option
     | SetPopupDialogTwoInts of (int64 option * IntMode * string option)
     | SetPropertiesExtraDialogText of string option
     | SetPopupDialogMemorySetup of (int * int * InitMemData * string option) option
@@ -319,6 +321,7 @@ type Msg =
     | SetPopupOutputConstraints of ConstraintSet option
     | SetPopupConstraintTypeSel of ConstraintType option
     | SetPopupConstraintIOSel of SimulationIO option
+    | SetPopupConstraintErrorMsg of string option
     | SimulateWithProgressBar of SimulationProgress
     | SetSelectedComponentMemoryLocation of int64 * int64
     | CloseDiagramNotification

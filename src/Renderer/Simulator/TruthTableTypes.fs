@@ -54,6 +54,11 @@ type Constraint =
 
 type ConstraintType = Equ | Ineq
 
+let isEqu c = 
+    match c with
+    | Equ -> true
+    | _ -> false
+
 let emptyConstraintSet = {
     Equalities = []
     Inequalities = []

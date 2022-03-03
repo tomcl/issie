@@ -60,6 +60,7 @@ let init() = {
     TTBitLimit = 10
     TTInputConstraints = TruthTableTypes.emptyConstraintSet
     TTOutputConstraints = TruthTableTypes.emptyConstraintSet
+    TTIsOutOfDate = false
     WaveSim = Map.empty, None
     WaveSimSheet = ""
     RightPaneTabVisible = Catalogue
@@ -84,6 +85,7 @@ let init() = {
         ConstraintTypeSel = None
         ConstraintIOSel = None
         ConstraintErrorMsg = None
+        NewConstraint = None
     }
     Notifications = {
         FromDiagram = None

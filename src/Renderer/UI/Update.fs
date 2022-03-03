@@ -321,10 +321,32 @@ let update (msg : Msg) oldModel =
         {model with CurrentTruthTable = Some table}, Cmd.none
     | CloseTruthTable -> 
         {model with CurrentTruthTable = None}, Cmd.none
+    | SetTTOutOfDate b ->
+        {model with TTIsOutOfDate = b}, Cmd.none
     | ClearInputConstraints -> 
         {model with TTInputConstraints = emptyConstraintSet}, Cmd.none
     | ClearOutputConstraints -> 
         {model with TTOutputConstraints = emptyConstraintSet}, Cmd.none
+    | AddInputConstraint con ->
+        match con with
+        | Equality e -> 
+            let newEqu = e::model.TTInputConstraints.Equalities
+            {model with TTInputConstraints = {model.TTInputConstraints with Equalities = newEqu}}, Cmd.none
+        | Inequality i ->
+            let newIneq = i::model.TTInputConstraints.Inequalities
+            {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.none
+    | DeleteInputConstraint con ->
+        match con with
+        | Equality e ->
+            let newEqu = 
+                model.TTInputConstraints.Equalities
+                |> List.except [e]
+            {model with TTInputConstraints = {model.TTInputConstraints with Equalities = newEqu}}, Cmd.none
+        | Inequality i ->
+            let newIneq =
+                model.TTInputConstraints.Inequalities
+                |> List.except [i]
+            {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
@@ -410,6 +432,8 @@ let update (msg : Msg) oldModel =
         { model with PopupDialogData = {model.PopupDialogData with ConstraintIOSel = io}}, Cmd.none
     | SetPopupConstraintErrorMsg msg ->
         { model with PopupDialogData = {model.PopupDialogData with ConstraintErrorMsg = msg}}, Cmd.none
+    | SetPopupNewConstraint con ->
+        { model with PopupDialogData = {model.PopupDialogData with NewConstraint = con}}, Cmd.none
 
     | SimulateWithProgressBar simPars ->
         SimulationView.simulateWithProgressBar simPars model

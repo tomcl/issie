@@ -555,7 +555,9 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
                     inputs
                     |> List.map (fun io ->
                         let (_,label,_) = io
-                        let action = (fun _ -> io |> Some |> SetPopupConstraintIOSel |> dispatch)
+                        let action = (fun _ -> 
+                            io |> Some |> SetPopupConstraintIOSel |> dispatch
+                            dispatch <| SetPopupConstraintErrorMsg None)
                         let buttonProps =
                             if io = selected then
                                 [Button.Color IsPrimary; Button.OnClick action]
@@ -613,12 +615,14 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
                                 Control.div [] [ Button.button [
                                     Button.Color (if isEqu x then IsPrimary else NoColor)
                                     Button.OnClick (fun _ -> 
-                                        Equ |> Some |> SetPopupConstraintTypeSel |> dispatch)
+                                        Equ |> Some |> SetPopupConstraintTypeSel |> dispatch
+                                        dispatch <| SetPopupConstraintErrorMsg None)
                                 ] [ str "Equality Constraint" ] ]
                                 Control.div [] [ Button.button [
                                     Button.Color (if not (isEqu x) then IsPrimary else NoColor)
                                     Button.OnClick (fun _ -> 
-                                        Ineq |> Some |> SetPopupConstraintTypeSel |> dispatch)
+                                        Ineq |> Some |> SetPopupConstraintTypeSel |> dispatch
+                                        dispatch <| SetPopupConstraintErrorMsg None)
                                 ] [ str "Inequality Constraint" ] ]        
                             ]
                         ]
@@ -638,7 +642,7 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
                             | Error err, _ ->
                                 err |> Some |> SetPopupConstraintErrorMsg |> dispatch
                             | Ok num, _ ->
-                                None |> SetPopupConstraintErrorMsg |> dispatch
+                                dispatch <| SetPopupConstraintErrorMsg None
                                 (int num) |> Some |> SetPopupDialogInt |> dispatch))]]
 
             let numField2 width =
@@ -656,7 +660,7 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
                             | Error err, _ ->
                                 err |> Some |> SetPopupConstraintErrorMsg |> dispatch
                             | Ok num, _ ->
-                                None |> SetPopupConstraintErrorMsg |> dispatch
+                                dispatch <| SetPopupConstraintErrorMsg None
                                 (num |> Some |> SetPopupDialogInt2 |> dispatch)))]]
             
             let constraintEditor =

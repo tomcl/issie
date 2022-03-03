@@ -53,8 +53,6 @@ type PopupDialogData = {
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
     WaveSetup: MoreWaveSetup option
     Progress: PopupProgress option
-    InputConstraints: ConstraintSet option
-    OutputConstraints: ConstraintSet option
     ConstraintTypeSel: ConstraintType option
     ConstraintIOSel: SimulationIO option
     ConstraintErrorMsg: string option

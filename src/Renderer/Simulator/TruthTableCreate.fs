@@ -174,8 +174,29 @@ let truthTable (simData: SimulationData) (inputConstraints: ConstraintSet) bitLi
             XRows = None
             IsTruncated = (tableMap.Count <> tCRC)
             MaxRowsWithConstraints = tCRC
+            TableSimData = tempSimData
             })
     |> TimeHelpers.instrumentInterval "truthTableGeneration" start
+
+let truthTableRegen tableSD inputConstraints bitLimit =
+    let start = TimeHelpers.getTimeMs()
+    let inputs = List.map fst (FastRun.extractFastSimulationIOs tableSD.Inputs tableSD)
+    let outputs = List.map fst (FastRun.extractFastSimulationIOs tableSD.Outputs tableSD)
+    let lhs,tCRC = tableLHS inputs inputConstraints bitLimit
+    let rhs = List.map (fun i -> rowRHS i outputs tableSD) lhs
+
+    List.zip lhs rhs
+    |> Map.ofList
+    |> (fun tableMap -> 
+        printfn "RealRowCount: %A" tableMap.Count
+        {
+            TableMap = tableMap
+            XRows = None
+            IsTruncated = (tableMap.Count <> tCRC)
+            MaxRowsWithConstraints = tCRC
+            TableSimData = tableSD
+            })
+    |> TimeHelpers.instrumentInterval "truthTableRegen" start
 
 let printTruthTable (simData: SimulationData) =
     let tt = truthTable simData

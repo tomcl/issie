@@ -303,6 +303,18 @@ let labelFromIO (sIO: SimulationIO) =
     let (_,label,_) = sIO
     string label
 
+let regenerateTruthTable model (dispatch: Msg -> Unit) =
+    match model.CurrentTruthTable with
+    | None -> failwithf "what? Adding constraint when no Truth Table exists"
+    | Some (Error e) -> 
+        failwithf "what? Constraint add option should not exist when there is TT error"
+    | Some (Ok table) ->
+        truthTableRegen table.TableSimData model.TTInputConstraints model.TTBitLimit
+        |> Ok
+        |> GenerateTruthTable
+        |> dispatch
+
+
 let tableAsList (table: TruthTable): TruthTableRow list =
     table.TableMap
     |> Map.toList
@@ -390,9 +402,8 @@ let makeElementLine (els: ReactElement list) =
         ]
 
 let truncationWarning table =
-    $"The Truth Table has been truncated from {table.MaxRowsWithConstraints}
-    to {table.TableMap.Count} input combinations. Not all rows may be shown. Please use more
-    restrictive input constraints to avoid truncation."
+    $"The Truth Table has been truncated to {table.TableMap.Count} input combinations. 
+    Not all rows may be shown. Please use more restrictive input constraints to avoid truncation."
    
 let inCon2str con =
     match con with
@@ -406,14 +417,14 @@ let inCon2str con =
 let viewInputConstraints inputCons dispatch =
     let makeInConTag(con: Constraint) =
         let tagText = inCon2str con
-        Control.div [] [
-                    Tag.tag [Tag.IsLight] [ 
-                            str tagText
-                            Delete.delete 
-                                [Delete.OnClick(fun _ -> 
-                                    dispatch <| DeleteInputConstraint con)] []
-                        ]
-        ]
+        Tag.tag [Tag.IsLight] [ 
+                str tagText
+                Delete.delete 
+                    [Delete.OnClick(fun _ -> 
+                        dispatch <| DeleteInputConstraint con
+                        dispatch <| SetTTOutOfDate true)] []
+            ]
+        
     let equEls =
         inputCons.Equalities
         |> List.map(fun con ->
@@ -427,20 +438,21 @@ let viewInputConstraints inputCons dispatch =
             |> Inequality
             |> makeInConTag)
     let tags = List.append equEls inequEls
-
-    Field.div [] tags
+    div [] tags
 
 let viewOutputConstraints outputCons dispatch =
     div [] [] // Not yet implemented
 
 let constraintsOverlap (con1: Constraint) (con2: Constraint) =
     let equAndIneqOverlap (equ: EqualityConstraint) (ineq: InequalityConstraint) =
-        equ.Value >= ineq.LowerBound && equ.Value <= ineq.UpperBound
-    let checkTwoIneq in1 in2 =
-        (in1.LowerBound >= in2.LowerBound && in1.LowerBound <= in2.UpperBound)
-        || (in1.UpperBound >= in2.LowerBound && in1.UpperBound <= in2.UpperBound)
+        equ.IO = ineq.IO && equ.Value >= ineq.LowerBound && equ.Value <= ineq.UpperBound
+        
+    let checkTwoIneq (in1: InequalityConstraint) (in2: InequalityConstraint) =
+        in1.IO = in2.IO &&
+        ((in1.LowerBound >= in2.LowerBound && in1.LowerBound <= in2.UpperBound)
+        || (in1.UpperBound >= in2.LowerBound && in1.UpperBound <= in2.UpperBound))
     match con1, con2 with
-    | Equality c1, Equality c2 -> c1 = c2
+    | Equality c1, Equality c2 -> (c1 = c2)
     | Equality c1, Inequality c2 -> equAndIneqOverlap c1 c2
     | Inequality c1, Equality c2 -> equAndIneqOverlap c2 c1
     | Inequality c1, Inequality c2 ->
@@ -470,40 +482,59 @@ let validateInputConstraint (con: Constraint) (allConstraints: ConstraintSet)
                     
             |> (function | Error err -> Error err | Ok eqc -> Ok (Equality eqc))
     | Inequality ineq ->
-        let checkWithEqu =
-            (Ok ineq, allConstraints.Equalities)
+        let (_,_,width) = ineq.IO
+        // Convert any negative numbers in the bounds to their unsigned equivalents
+        let unsignedLower = 
+            (width,int64 ineq.LowerBound) 
+            ||> convertIntToWireData
+            |> convertWireDataToInt
+        let unsignedUpper = 
+            (width,int64 ineq.UpperBound) 
+            ||> convertIntToWireData
+            |> convertWireDataToInt
+        if unsignedLower = unsignedUpper then
+            "Lower Bound and Upper Bound cannot have the same value."
+            |> Error
+        else if unsignedLower > unsignedUpper then
+            "Lower Bound cannot have a greater value than Upper Bound"
+            |> Error
+        else
+            let checkWithEqu =
+                (Ok ineq, allConstraints.Equalities)
+                ||> List.fold (fun state c ->
+                    match state with 
+                    | Error err -> Error err
+                    | Ok ineqc ->
+                        if constraintsOverlap con (Equality c) then
+                            let constr = inCon2str(Equality c)
+                            sprintf "This constraint overlaps with another constraint: %s. 
+                            Please change your new constraint or delete the old one." constr
+                            |> Error
+                        else 
+                            Ok ineqc)
+            (checkWithEqu,allConstraints.Inequalities)
             ||> List.fold (fun state c ->
-                match state with 
-                | Error err -> Error err
-                | Ok ineqc ->
-                    if constraintsOverlap con (Equality c) then
-                        let constr = inCon2str(Equality c)
-                        sprintf "This constraint overlaps with another constraint: %s. 
-                        Please change your new constraint or delete the old one." constr
-                        |> Error
-                    else 
-                        Ok ineqc)
-        (checkWithEqu,allConstraints.Inequalities)
-        ||> List.fold (fun state c ->
-                match state with
-                | Error err -> Error err
-                | Ok ineqc ->
-                    if constraintsOverlap con (Inequality c) then
-                        let constr = inCon2str(Inequality c)
-                        sprintf "This constraint overlaps with another constraint: %s. 
-                        Please change your new constraint or delete the old one." constr
-                        |> Error
-                    else 
-                        Ok ineqc)
-        |> (function | Error err -> Error err | Ok ineqc -> Ok (Inequality ineqc))
+                    match state with
+                    | Error err -> Error err
+                    | Ok ineqc ->
+                        if constraintsOverlap con (Inequality c) then
+                            let constr = inCon2str(Inequality c)
+                            sprintf "This constraint overlaps with another constraint: %s. 
+                            Please change your new constraint or delete the old one." constr
+                            |> Error
+                        else 
+                            Ok ineqc)
+            |> (function | Error err -> Error err | Ok ineqc -> Ok (Inequality ineqc))
 
 let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
+    0 |> Some |> SetPopupDialogInt |> dispatch
+    (int64 0) |> Some |> SetPopupDialogInt2 |> dispatch
     let dialogPopupInConBody =
         fun (dialogData: PopupDialogData) -> //div [] []
             let inputs =
                 match model.CurrentTruthTable with
                 | None -> failwithf "what? No current Truth Table when adding Input Constraints"
-                | Some (Error _) -> failwithf "what? Constraint add option should not exist when there is an error"
+                | Some (Error _) -> failwithf "what? Constraint add option should not exist when there is TT error"
                 | Some (Ok tt) ->
                     tt.TableMap
                     |> Map.toList
@@ -532,31 +563,32 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
                                 [Button.OnClick action]
                         Button.button buttonProps [str <| (string label)])
                 div [] buttons
-                            
-            // // Code for original input selection interface
-            // // Works, but cannot support a large number of inputs
-            // // as they get cut off.
-            // let menuItem sIO =
-            //     Menu.Item.li [
-            //         Menu.Item.IsActive (sIO = selected)
-            //         Menu.Item.OnClick (fun _ -> 
-            //             sIO |> Some |> SetPopupConstraintIOSel |> dispatch) 
-            //         ] [str <|(labelFromIO sIO)] 
+            (*        
+            // Code for original input selection interface
+            // Works, but cannot support a large number of inputs
+            // as they get cut off.
+            let menuItem sIO =
+                Menu.Item.li [
+                    Menu.Item.IsActive (sIO = selected)
+                    Menu.Item.OnClick (fun _ -> 
+                        sIO |> Some |> SetPopupConstraintIOSel |> dispatch) 
+                    ] [str <|(labelFromIO sIO)] 
 
-            // let inputSelect =
-            //     Dropdown.dropdown [ Dropdown.IsUp; Dropdown.IsHoverable] [ 
-            //         Dropdown.trigger [] [
-            //             Button.button [Button.Color IsPrimary; Button.IsLight] [
-            //                 str <| (labelFromIO selected)
-            //             ] 
-            //         ]                            
-            //         Dropdown.menu [Props [Style [Width "300px"]]] [
-            //             Dropdown.content [Props [Style [ZIndex 1000]]] [
-            //                 Dropdown.Item.div [] [
-            //                     Menu.menu [Props [Style [OverflowY OverflowOptions.Scroll]]] [
-            //                         Menu.list [] (List.map menuItem inputs) 
-            //                     ]]]]]
-            let typeButtons =
+            let inputSelect =
+                Dropdown.dropdown [ Dropdown.IsUp; Dropdown.IsHoverable] [ 
+                    Dropdown.trigger [] [
+                        Button.button [Button.Color IsPrimary; Button.IsLight] [
+                            str <| (labelFromIO selected)
+                        ] 
+                    ]                            
+                    Dropdown.menu [Props [Style [Width "300px"]]] [
+                        Dropdown.content [Props [Style [ZIndex 1000]]] [
+                            Dropdown.Item.div [] [
+                                Menu.menu [Props [Style [OverflowY OverflowOptions.Scroll]]] [
+                                    Menu.list [] (List.map menuItem inputs) 
+                                ]]]]]
+            *)
+            let typeSelect =
                 let (_,_,selwidth) = selected
                 if selwidth = 1 then
                     Equ |> Some |> SetPopupConstraintTypeSel |> dispatch
@@ -646,24 +678,44 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
                             (SimulationView.makeIOLabel (string label) width)
                         numField2 width
                     ]
-                    
 
             let errorMsg =
                 match dialogData.ConstraintErrorMsg with
                 | None -> div [] []
                 | Some msg -> div [] [hr []; str msg]
             
+
+            match dialogData.Int, dialogData.Int2, dialogData.ConstraintErrorMsg, 
+            dialogData.ConstraintIOSel, dialogData.ConstraintTypeSel with
+            | Some v, _, None, Some io, Some Equ -> 
+                let tentative = Equality {IO = io; Value = v}
+                match validateInputConstraint tentative model.TTInputConstraints with
+                | Error err ->
+                    err |> Some |> SetPopupConstraintErrorMsg |> dispatch
+                | Ok c ->
+                    None |> SetPopupConstraintErrorMsg |> dispatch
+                    c |> Some |> SetPopupNewConstraint |> dispatch
+            | Some lower, Some upper, None, Some io, Some Ineq ->
+                let tentative = Inequality <| makeInequalityConstraint lower io (int upper)
+                match validateInputConstraint tentative model.TTInputConstraints with
+                | Error err ->
+                    err |> Some |> SetPopupConstraintErrorMsg |> dispatch
+                | Ok c ->
+                    None |> SetPopupConstraintErrorMsg |> dispatch
+                    c |> Some |> SetPopupNewConstraint |> dispatch
+            | _, _, _, _, _ -> 
+                None |> SetPopupNewConstraint |> dispatch
+            
             div [] [
                 Heading.h6 [] [str "Select Input"]
                 inputSelect
                 hr []
                 Heading.h6 [] [str "Constraint Type"]
-                typeButtons
+                typeSelect
                 hr []
                 Heading.h6 [] [str "Edit Constraint"]
                 constraintEditor
                 errorMsg
-
             ]
             
 
@@ -671,12 +723,18 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
     let body = dialogPopupInConBody
     let buttonText = "Add"
     let buttonAction =
-        fun (dialogData: PopupDialogData) -> ()
+        fun (dialogData: PopupDialogData) ->
+            match dialogData.NewConstraint with
+            | None -> ()
+            | Some con -> 
+                con |> AddInputConstraint |> dispatch
+                true |> SetTTOutOfDate |> dispatch
+                dispatch ClosePopup
     let isDisabled =
         fun (dialogData: PopupDialogData) -> 
-            match dialogData.ConstraintErrorMsg with
-            | None -> false
-            | Some _ -> true
+            match dialogData.ConstraintErrorMsg, dialogData.NewConstraint with
+            | None, Some _ -> false
+            | _, _ -> true
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 let viewConstraints model dispatch =
@@ -698,7 +756,9 @@ let viewConstraints model dispatch =
             br []
             makeElementLine [
                 addButton (fun _ -> createInputConstraintPopup model dispatch) 
-                clearButton (fun _ -> dispatch ClearInputConstraints)]
+                clearButton (fun _ -> 
+                    dispatch ClearInputConstraints
+                    dispatch <| SetTTOutOfDate true)]
             Heading.h6 [] [str "Output Constraints"]
             viewOutputConstraints outputCons dispatch
             br []
@@ -795,7 +855,13 @@ let viewTruthTable model dispatch =
             hr[]
         ]
     | Some tableopt ->
+        if model.TTIsOutOfDate then
+            // Regenerate the truth table to be displayed in the next view cycle
+            regenerateTruthTable model dispatch
+            dispatch <| SetTTOutOfDate false
         let closeTruthTable _ =
+            dispatch <| ClearInputConstraints
+            dispatch <| ClearOutputConstraints
             dispatch CloseTruthTable
         let body = 
             match tableopt with

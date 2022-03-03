@@ -58,6 +58,7 @@ type PopupDialogData = {
     ConstraintTypeSel: ConstraintType option
     ConstraintIOSel: SimulationIO option
     ConstraintErrorMsg: string option
+    NewConstraint: Constraint option
 }
 
 type TopMenu = | Closed | Project | Files
@@ -289,13 +290,14 @@ type Msg =
     | EndWaveSim
     | GenerateTruthTable of Result<TruthTable, SimulationError>
     | CloseTruthTable
+    | SetTTOutOfDate of bool
     | ClearInputConstraints
     | ClearOutputConstraints
     | OpenOutConAdder
     | AddInputConstraint of Constraint
     | AddOutputConstraint of Constraint
     | DeleteInputConstraint of Constraint
-    | DeleatInputConstraint of Constraint
+    | DeleteOutputConstraint of Constraint
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list
@@ -322,6 +324,7 @@ type Msg =
     | SetPopupConstraintTypeSel of ConstraintType option
     | SetPopupConstraintIOSel of SimulationIO option
     | SetPopupConstraintErrorMsg of string option
+    | SetPopupNewConstraint of Constraint option
     | SimulateWithProgressBar of SimulationProgress
     | SetSelectedComponentMemoryLocation of int64 * int64
     | CloseDiagramNotification
@@ -427,6 +430,8 @@ type Model = {
     TTInputConstraints: ConstraintSet
     // output constraints on truth table viewing
     TTOutputConstraints: ConstraintSet
+    // True if existing Truth Table needs to be re-generated
+    TTIsOutOfDate : bool
     // which of the tabbed panes is currently visible
     RightPaneTabVisible : RightTab
     // which of the subtabs for the right pane simulation is visible

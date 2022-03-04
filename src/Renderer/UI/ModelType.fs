@@ -288,7 +288,7 @@ type Msg =
     | EndWaveSim
     | GenerateTruthTable of Result<TruthTable, SimulationError>
     | CloseTruthTable
-    | SetTTOutOfDate of bool
+    | SetTTOutOfDate of ReasonOutOfDate option
     | ClearInputConstraints
     | ClearOutputConstraints
     | OpenOutConAdder
@@ -429,7 +429,7 @@ type Model = {
     // output constraints on truth table viewing
     TTOutputConstraints: ConstraintSet
     // True if existing Truth Table needs to be re-generated
-    TTIsOutOfDate : bool
+    TTIsOutOfDate : ReasonOutOfDate option
     // which of the tabbed panes is currently visible
     RightPaneTabVisible : RightTab
     // which of the subtabs for the right pane simulation is visible

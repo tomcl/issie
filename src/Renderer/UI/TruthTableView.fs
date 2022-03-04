@@ -315,6 +315,55 @@ let regenerateTruthTable model (dispatch: Msg -> Unit) =
         |> GenerateTruthTable
         |> dispatch
 
+let applyNumericalOutputConstraint (table: Map<TruthTableRow,TruthTableRow>) (con: Constraint) =
+    table
+    |> Map.filter (fun _ right ->
+        right
+        |> List.exists (fun cell ->
+            match con with
+            | Equality e ->
+                if e.IO <> cell.IO then 
+                    false
+                else 
+                    match cell.Data with
+                    | Algebra _ -> failwithf "what? Algebra cellData when applying output constraints"
+                    | DC -> true
+                    | Bits wd ->
+                        let cellVal = convertWireDataToInt wd
+                        cellVal = e.Value
+            | Inequality i ->
+                if i.IO <> cell.IO then
+                    false
+                else
+                    match cell.Data with
+                    | Algebra _ -> failwithf "what? Algebra cellData when applying output constraints"
+                    | DC -> true
+                    | Bits wd ->
+                        let cellVal = convertWireDataToInt wd
+                        i.LowerBound <= int cellVal && cellVal <= i.UpperBound
+                        ))
+
+let filterTruthTable model (dispatch: Msg -> Unit) =
+    match model.CurrentTruthTable with
+    | None -> failwithf "what? Trying to filter table when no Truth Table exists"
+    | Some (Error e) ->
+        failwithf "what? Filtering option should not exist when there is TT Error"
+    | Some (Ok table) ->
+        let allOutputConstraints =
+            (model.TTOutputConstraints.Equalities
+            |> List.map Equality)
+            @
+            (model.TTOutputConstraints.Inequalities
+            |> List.map Inequality)
+        let filteredMap = 
+            (table.TableMap, allOutputConstraints)
+            ||> List.fold applyNumericalOutputConstraint
+        {table with TableMap = filteredMap}
+        |> Ok
+        |> GenerateTruthTable
+        |> dispatch
+        
+
 
 let tableAsList (table: TruthTable): TruthTableRow list =
     table.TableMap
@@ -486,10 +535,19 @@ let viewTruthTable model dispatch =
             hr[]
         ]
     | Some tableopt ->
-        if model.TTIsOutOfDate then
-            // Regenerate the truth table to be displayed in the next view cycle
+        // if model.TTIsOutOfDate then
+        //     // Regenerate the truth table to be displayed in the next view cycle
+        //     regenerateTruthTable model dispatch
+        //     dispatch <| SetTTOutOfDate false
+        match model.TTIsOutOfDate with
+        | Some Regenerate ->
             regenerateTruthTable model dispatch
-            dispatch <| SetTTOutOfDate false
+            dispatch <| SetTTOutOfDate None
+        | Some Refilter ->
+            filterTruthTable model dispatch
+            dispatch <| SetTTOutOfDate None
+        | None -> ()
+
         let closeTruthTable _ =
             dispatch <| ClearInputConstraints
             dispatch <| ClearOutputConstraints

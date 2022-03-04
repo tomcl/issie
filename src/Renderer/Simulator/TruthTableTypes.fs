@@ -57,6 +57,8 @@ type Constraint =
 
 type ConstraintType = Equ | Ineq
 
+type ReasonOutOfDate = Regenerate | Refilter
+
 let isEqu c = 
     match c with
     | Equ -> true

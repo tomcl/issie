@@ -347,6 +347,26 @@ let update (msg : Msg) oldModel =
                 model.TTInputConstraints.Inequalities
                 |> List.except [i]
             {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.none
+    | AddOutputConstraint con ->
+        match con with
+        | Equality e -> 
+            let newEqu = e::model.TTOutputConstraints.Equalities
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Equalities = newEqu}}, Cmd.none
+        | Inequality i ->
+            let newIneq = i::model.TTOutputConstraints.Inequalities
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.none
+    | DeleteOutputConstraint con ->
+        match con with
+        | Equality e ->
+            let newEqu = 
+                model.TTOutputConstraints.Equalities
+                |> List.except [e]
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Equalities = newEqu}}, Cmd.none
+        | Inequality i ->
+            let newIneq =
+                model.TTOutputConstraints.Inequalities
+                |> List.except [i]
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg

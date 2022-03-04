@@ -7,6 +7,7 @@ open Fable.React
 open Fable.React.Props
 open ElectronAPI
 open SimulatorTypes
+open TruthTableTypes
 open ModelType
 open CommonTypes
 open Extractor
@@ -316,8 +317,56 @@ let update (msg : Msg) oldModel =
         { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber + n } |> Ok |> Some }, Cmd.none
     | EndSimulation -> { model with CurrentStepSimulationStep = None }, Cmd.none
     | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
-    | GenerateTruthTable table -> {model with CurrentTruthTable = Some table}, Cmd.none
-    | CloseTruthTable -> {model with CurrentTruthTable = None}, Cmd.none
+    | GenerateTruthTable table -> 
+        {model with CurrentTruthTable = Some table}, Cmd.none
+    | CloseTruthTable -> 
+        {model with CurrentTruthTable = None}, Cmd.none
+    | SetTTOutOfDate b ->
+        {model with TTIsOutOfDate = b}, Cmd.none
+    | ClearInputConstraints -> 
+        {model with TTInputConstraints = emptyConstraintSet}, Cmd.none
+    | ClearOutputConstraints -> 
+        {model with TTOutputConstraints = emptyConstraintSet}, Cmd.none
+    | AddInputConstraint con ->
+        match con with
+        | Equality e -> 
+            let newEqu = e::model.TTInputConstraints.Equalities
+            {model with TTInputConstraints = {model.TTInputConstraints with Equalities = newEqu}}, Cmd.none
+        | Inequality i ->
+            let newIneq = i::model.TTInputConstraints.Inequalities
+            {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.none
+    | DeleteInputConstraint con ->
+        match con with
+        | Equality e ->
+            let newEqu = 
+                model.TTInputConstraints.Equalities
+                |> List.except [e]
+            {model with TTInputConstraints = {model.TTInputConstraints with Equalities = newEqu}}, Cmd.none
+        | Inequality i ->
+            let newIneq =
+                model.TTInputConstraints.Inequalities
+                |> List.except [i]
+            {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.none
+    | AddOutputConstraint con ->
+        match con with
+        | Equality e -> 
+            let newEqu = e::model.TTOutputConstraints.Equalities
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Equalities = newEqu}}, Cmd.none
+        | Inequality i ->
+            let newIneq = i::model.TTOutputConstraints.Inequalities
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.none
+    | DeleteOutputConstraint con ->
+        match con with
+        | Equality e ->
+            let newEqu = 
+                model.TTOutputConstraints.Equalities
+                |> List.except [e]
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Equalities = newEqu}}, Cmd.none
+        | Inequality i ->
+            let newIneq =
+                model.TTOutputConstraints.Inequalities
+                |> List.except [i]
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
@@ -375,6 +424,8 @@ let update (msg : Msg) oldModel =
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
     | SetPopupDialogInt int ->
         { model with PopupDialogData = {model.PopupDialogData with Int = int} }, Cmd.none
+    | SetPopupDialogInt2 int ->
+        { model with PopupDialogData = {model.PopupDialogData with Int2 = int} }, Cmd.none
     | SetPopupDialogTwoInts data ->
         { model with PopupDialogData = 
                         match data with
@@ -391,6 +442,14 @@ let update (msg : Msg) oldModel =
         { model with PopupDialogData = {model.PopupDialogData with Progress = progOpt} }, Cmd.none
     | UpdatePopupProgress updateFn ->
         { model with PopupDialogData = {model.PopupDialogData with Progress = Option.map updateFn model.PopupDialogData.Progress} }, Cmd.none
+    | SetPopupConstraintTypeSel ct ->
+        { model with PopupDialogData = {model.PopupDialogData with ConstraintTypeSel = ct}}, Cmd.none
+    | SetPopupConstraintIOSel io ->
+        { model with PopupDialogData = {model.PopupDialogData with ConstraintIOSel = io}}, Cmd.none
+    | SetPopupConstraintErrorMsg msg ->
+        { model with PopupDialogData = {model.PopupDialogData with ConstraintErrorMsg = msg}}, Cmd.none
+    | SetPopupNewConstraint con ->
+        { model with PopupDialogData = {model.PopupDialogData with NewConstraint = con}}, Cmd.none
 
     | SimulateWithProgressBar simPars ->
         SimulationView.simulateWithProgressBar simPars model

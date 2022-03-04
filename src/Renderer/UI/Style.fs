@@ -134,6 +134,11 @@ let simulationNumberStyle = Style [
     Height "30px"
 ]
 
+let constraintNumberStyle = Style [
+    Width "200px"
+    Height "30px"
+]
+
 let simulationBitStyle = Style [
     Width "100px"
     Height "30px"

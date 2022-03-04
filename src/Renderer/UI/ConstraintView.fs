@@ -48,8 +48,8 @@ let makeElementLine (els: ReactElement list) =
             Level.left [] itemList
         ]
 
-let viewInputConstraints inputCons dispatch =
-    let makeInConTag(con: Constraint) =
+let viewNumericalConstraints cons dispatch =
+    let makeConTag(con: Constraint) =
         let tagText = inCon2str con
         Tag.tag [Tag.IsLight] [ 
                 str tagText
@@ -60,17 +60,17 @@ let viewInputConstraints inputCons dispatch =
             ]
         
     let equEls =
-        inputCons.Equalities
+        cons.Equalities
         |> List.map(fun con ->
             con
             |> Equality
-            |> makeInConTag)
+            |> makeConTag)
     let inequEls =
-        inputCons.Inequalities
+        cons.Inequalities
         |> List.map(fun con ->
             con
             |> Inequality
-            |> makeInConTag)
+            |> makeConTag)
     let tags = List.append equEls inequEls
     div [] tags
 
@@ -93,7 +93,7 @@ let constraintsOverlap (con1: Constraint) (con2: Constraint) =
         (checkTwoIneq c1 c2) || (checkTwoIneq c2 c1)
 
 
-let validateInputConstraint (con: Constraint) (allConstraints: ConstraintSet)
+let validateNumericalConstraint (con: Constraint) (allConstraints: ConstraintSet)
     : Result<Constraint,string> =
     let conText = inCon2str con
     match con with 
@@ -159,11 +159,7 @@ let validateInputConstraint (con: Constraint) (allConstraints: ConstraintSet)
                         else 
                             Ok ineqc)
             |> (function | Error err -> Error err | Ok ineqc -> Ok (Inequality ineqc))
-
-let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
-    0 |> Some |> SetPopupDialogInt |> dispatch
-    (int64 0) |> Some |> SetPopupDialogInt2 |> dispatch
-    let dialogPopupInConBody =
+let dialogPopupNumericalConBody existingCons model dispatch =
         fun (dialogData: PopupDialogData) -> //div [] []
             let inputs =
                 match model.CurrentTruthTable with
@@ -327,7 +323,7 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             dialogData.ConstraintIOSel, dialogData.ConstraintTypeSel with
             | Some v, _, None, Some io, Some Equ -> 
                 let tentative = Equality {IO = io; Value = v}
-                match validateInputConstraint tentative model.TTInputConstraints with
+                match validateNumericalConstraint tentative existingCons with
                 | Error err ->
                     err |> Some |> SetPopupConstraintErrorMsg |> dispatch
                 | Ok c ->
@@ -335,7 +331,7 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
                     c |> Some |> SetPopupNewConstraint |> dispatch
             | Some lower, Some upper, None, Some io, Some Ineq ->
                 let tentative = Inequality <| makeInequalityConstraint lower io (int upper)
-                match validateInputConstraint tentative model.TTInputConstraints with
+                match validateNumericalConstraint tentative existingCons with
                 | Error err ->
                     err |> Some |> SetPopupConstraintErrorMsg |> dispatch
                 | Ok c ->
@@ -355,10 +351,12 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
                 constraintEditor
                 errorMsg
             ]
-            
+let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
+    0 |> Some |> SetPopupDialogInt |> dispatch
+    (int64 0) |> Some |> SetPopupDialogInt2 |> dispatch
 
     let title = "Add Input Constraint"
-    let body = dialogPopupInConBody
+    let body = dialogPopupNumericalConBody model.TTInputConstraints model dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData: PopupDialogData) ->
@@ -366,6 +364,28 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             | None -> ()
             | Some con -> 
                 con |> AddInputConstraint |> dispatch
+                true |> SetTTOutOfDate |> dispatch
+                dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData: PopupDialogData) -> 
+            match dialogData.ConstraintErrorMsg, dialogData.NewConstraint with
+            | None, Some _ -> false
+            | _, _ -> true
+    dialogPopup title body buttonText buttonAction isDisabled dispatch
+
+let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
+    0 |> Some |> SetPopupDialogInt |> dispatch
+    (int64 0) |> Some |> SetPopupDialogInt2 |> dispatch
+
+    let title = "Add Output Constraint"
+    let body = dialogPopupNumericalConBody model.TTInputConstraints model dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData: PopupDialogData) ->
+            match dialogData.NewConstraint with
+            | None -> ()
+            | Some con -> 
+                con |> AddOutputConstraint |> dispatch
                 true |> SetTTOutOfDate |> dispatch
                 dispatch ClosePopup
     let isDisabled =
@@ -386,11 +406,11 @@ let viewConstraints model dispatch =
     let clearButton action =
         Button.button [Button.OnClick action]
             [str "Clear All"]
-    
+    //printfn "%A" model.TTOutputConstraints
     div [] 
         [
             Heading.h6 [] [str "Input Constraints"]
-            viewInputConstraints inputCons dispatch
+            viewNumericalConstraints inputCons dispatch
             br []
             makeElementLine [
                 addButton (fun _ -> createInputConstraintPopup model dispatch) 
@@ -398,9 +418,9 @@ let viewConstraints model dispatch =
                     dispatch ClearInputConstraints
                     dispatch <| SetTTOutOfDate true)]
             Heading.h6 [] [str "Output Constraints"]
-            viewOutputConstraints outputCons dispatch
+            viewNumericalConstraints outputCons dispatch
             br []
             makeElementLine [
-                addButton (fun _ -> dispatch OpenOutConAdder)
+                addButton (fun _ -> createOutputConstraintPopup model dispatch)
                 clearButton (fun _ -> dispatch ClearOutputConstraints)]
         ]

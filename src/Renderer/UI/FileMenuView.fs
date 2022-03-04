@@ -351,6 +351,10 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
     | None -> ()
     | Some p ->
         dispatch EndSimulation // Message ends any running simulation.
+        dispatch CloseTruthTable // Message closes any open Truth Table.
+        dispatch <| SetTTOutOfDate None // Just in case.
+        dispatch <| ClearInputConstraints // Clear TT Input Constraints.
+        dispatch <| ClearOutputConstraints // Clear TT Output Constraints.
         // TODO: make each sheet wavesim remember the list of waveforms.
     let waveSim = 
         compToSetup.WaveInfo
@@ -613,6 +617,10 @@ let forceCloseProject model dispatch =
     dispatch (StartUICmd CloseProject)
     let sheetDispatch sMsg = dispatch (Sheet sMsg) 
     dispatch EndSimulation // End any running simulation.
+    dispatch CloseTruthTable // Close any open Truth Table.
+    dispatch <| SetTTOutOfDate None // Just in case.
+    dispatch <| ClearInputConstraints // Clear TT Input Constraints.
+    dispatch <| ClearOutputConstraints // Clear TT Output Constraints.
     model.Sheet.ClearCanvas sheetDispatch
     dispatch FinishUICmd
 
@@ -648,6 +656,10 @@ let private newProject model dispatch  =
             displayFileErrorNotification err dispatch
         | Ok _ ->
             dispatch EndSimulation // End any running simulation.
+            dispatch CloseTruthTable // Close any open Truth Table.
+            dispatch <| SetTTOutOfDate None // Just in case.
+            dispatch <| ClearInputConstraints // Clear TT Input Constraints.
+            dispatch <| ClearOutputConstraints // Clear TT Output Constraints.
             // Create empty placeholder projectFile.
             let projectFile = baseName path + ".dprj"
             writeFile (pathJoin [| path; projectFile |]) ""

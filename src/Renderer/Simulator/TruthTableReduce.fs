@@ -2,6 +2,7 @@
 open CommonTypes
 open TimeHelpers
 open SimulatorTypes
+open TruthTableTypes
 open SynchronousUtils
 open NumberHelpers
 open TruthTableCreate

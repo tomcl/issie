@@ -10,6 +10,7 @@ module rec ModelType
 
 open CommonTypes
 open SimulatorTypes
+open TruthTableTypes
 open Fable.React
 
 type RightTab =
@@ -52,6 +53,10 @@ type PopupDialogData = {
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
     WaveSetup: MoreWaveSetup option
     Progress: PopupProgress option
+    ConstraintTypeSel: ConstraintType option
+    ConstraintIOSel: SimulationIO option
+    ConstraintErrorMsg: string option
+    NewConstraint: Constraint option
 }
 
 type TopMenu = | Closed | Project | Files
@@ -283,6 +288,14 @@ type Msg =
     | EndWaveSim
     | GenerateTruthTable of Result<TruthTable, SimulationError>
     | CloseTruthTable
+    | SetTTOutOfDate of ReasonOutOfDate option
+    | ClearInputConstraints
+    | ClearOutputConstraints
+    | OpenOutConAdder
+    | AddInputConstraint of Constraint
+    | AddOutputConstraint of Constraint
+    | DeleteInputConstraint of Constraint
+    | DeleteOutputConstraint of Constraint
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list
@@ -296,6 +309,7 @@ type Msg =
     | ClosePopup
     | SetPopupDialogText of string option
     | SetPopupDialogInt of int option
+    | SetPopupDialogInt2 of int64 option
     | SetPopupDialogTwoInts of (int64 option * IntMode * string option)
     | SetPropertiesExtraDialogText of string option
     | SetPopupDialogMemorySetup of (int * int * InitMemData * string option) option
@@ -303,6 +317,12 @@ type Msg =
     | SetPopupWaveSetup of MoreWaveSetup
     | SetPopupProgress of PopupProgress option
     | UpdatePopupProgress of (PopupProgress -> PopupProgress)
+    | SetPopupInputConstraints of ConstraintSet option
+    | SetPopupOutputConstraints of ConstraintSet option
+    | SetPopupConstraintTypeSel of ConstraintType option
+    | SetPopupConstraintIOSel of SimulationIO option
+    | SetPopupConstraintErrorMsg of string option
+    | SetPopupNewConstraint of Constraint option
     | SimulateWithProgressBar of SimulationProgress
     | SetSelectedComponentMemoryLocation of int64 * int64
     | CloseDiagramNotification
@@ -402,6 +422,14 @@ type Model = {
     CurrentStepSimulationStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
     // stores the generated truth table 
     CurrentTruthTable: Result<TruthTable,SimulationError> option // None if no Truth Table is being displayed.
+    // Bits associated with the maximum number of input rows allowed in a Truth Table
+    TTBitLimit: int
+    // input constraints on truth table generation
+    TTInputConstraints: ConstraintSet
+    // output constraints on truth table viewing
+    TTOutputConstraints: ConstraintSet
+    // True if existing Truth Table needs to be re-generated
+    TTIsOutOfDate : ReasonOutOfDate option
     // which of the tabbed panes is currently visible
     RightPaneTabVisible : RightTab
     // which of the subtabs for the right pane simulation is visible

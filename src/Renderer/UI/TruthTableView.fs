@@ -24,6 +24,8 @@ open MemoryEditorView
 open ModelType
 open CommonTypes
 open SimulatorTypes
+open TruthTableTypes
+open ConstraintView
 open Extractor
 open Simulator
 open TruthTableCreate
@@ -298,6 +300,71 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
             | None ->
                 Some (prepareSimulation project.OpenFileName (correctComps,correctConns) selLoadedComponents , (correctComps,correctConns))
 
+let labelFromIO (sIO: SimulationIO) =
+    let (_,label,_) = sIO
+    string label
+
+let regenerateTruthTable model (dispatch: Msg -> Unit) =
+    match model.CurrentTruthTable with
+    | None -> failwithf "what? Adding constraint when no Truth Table exists"
+    | Some (Error e) -> 
+        failwithf "what? Constraint add option should not exist when there is TT error"
+    | Some (Ok table) ->
+        truthTableRegen table.TableSimData model.TTInputConstraints model.TTBitLimit
+        |> Ok
+        |> GenerateTruthTable
+        |> dispatch
+
+let applyNumericalOutputConstraint (table: Map<TruthTableRow,TruthTableRow>) (con: Constraint) =
+    table
+    |> Map.filter (fun _ right ->
+        right
+        |> List.exists (fun cell ->
+            match con with
+            | Equality e ->
+                if e.IO <> cell.IO then 
+                    false
+                else 
+                    match cell.Data with
+                    | Algebra _ -> failwithf "what? Algebra cellData when applying output constraints"
+                    | DC -> true
+                    | Bits wd ->
+                        let cellVal = convertWireDataToInt wd
+                        cellVal = e.Value
+            | Inequality i ->
+                if i.IO <> cell.IO then
+                    false
+                else
+                    match cell.Data with
+                    | Algebra _ -> failwithf "what? Algebra cellData when applying output constraints"
+                    | DC -> true
+                    | Bits wd ->
+                        let cellVal = convertWireDataToInt wd
+                        i.LowerBound <= int cellVal && cellVal <= i.UpperBound
+                        ))
+
+let filterTruthTable model (dispatch: Msg -> Unit) =
+    match model.CurrentTruthTable with
+    | None -> failwithf "what? Trying to filter table when no Truth Table exists"
+    | Some (Error e) ->
+        failwithf "what? Filtering option should not exist when there is TT Error"
+    | Some (Ok table) ->
+        let allOutputConstraints =
+            (model.TTOutputConstraints.Equalities
+            |> List.map Equality)
+            @
+            (model.TTOutputConstraints.Inequalities
+            |> List.map Inequality)
+        let filteredMap = 
+            (table.TableMap, allOutputConstraints)
+            ||> List.fold applyNumericalOutputConstraint
+        {table with TableMap = filteredMap}
+        |> Ok
+        |> GenerateTruthTable
+        |> dispatch
+        
+
+
 let tableAsList (table: TruthTable): TruthTableRow list =
     table.TableMap
     |> Map.toList
@@ -375,12 +442,16 @@ let viewTruthTableData (table: TruthTable) =
                 ]
         ]
 
+let truncationWarning table =
+    $"The Truth Table has been truncated to {table.TableMap.Count} input combinations. 
+    Not all rows may be shown. Please use more restrictive input constraints to avoid truncation."
+   
+
 let viewTruthTable model dispatch =
     let generateTruthTable simRes =
         match simRes with 
         | Some (Ok sd,_) -> 
-            sd
-            |> truthTable
+            truthTable sd model.TTInputConstraints model.TTBitLimit
             |> Ok
             |> GenerateTruthTable
             |> dispatch
@@ -415,7 +486,9 @@ let viewTruthTable model dispatch =
                             Button.Color IColor.IsSuccess
                             Button.IsLight
                             Button.OnClick (fun _ -> 
-                                let popup = Notifications.errorPropsNotification "Truth Table generation only supported for Combinational Logic"
+                                let popup = 
+                                    Notifications.errorPropsNotification 
+                                        "Truth Table generation only supported for Combinational Logic"
                                 dispatch <| SetPropertiesNotification popup)
                         ] [str "Generate Truth Table"]
 
@@ -462,12 +535,35 @@ let viewTruthTable model dispatch =
             hr[]
         ]
     | Some tableopt ->
+        // if model.TTIsOutOfDate then
+        //     // Regenerate the truth table to be displayed in the next view cycle
+        //     regenerateTruthTable model dispatch
+        //     dispatch <| SetTTOutOfDate false
+        match model.TTIsOutOfDate with
+        | Some Regenerate ->
+            regenerateTruthTable model dispatch
+            dispatch <| SetTTOutOfDate None
+        | Some Refilter ->
+            filterTruthTable model dispatch
+            dispatch <| SetTTOutOfDate None
+        | None -> ()
+
         let closeTruthTable _ =
+            dispatch <| ClearInputConstraints
+            dispatch <| ClearOutputConstraints
             dispatch CloseTruthTable
         let body = 
             match tableopt with
             | Error e -> viewTruthTableError e
-            | Ok table -> viewTruthTableData table
+            | Ok table ->
+                if table.IsTruncated then
+                    let popup = Notifications.warningPropsNotification (truncationWarning table)
+                    dispatch <| SetPropertiesNotification popup
+                viewTruthTableData table
+        let constraints =
+            match tableopt with
+            | Error _ -> div [] []
+            | Ok _ -> div [] [hr []; viewConstraints model dispatch]
         div [] [
             Button.button
                 [ Button.Color IsDanger; Button.OnClick closeTruthTable ]
@@ -475,6 +571,8 @@ let viewTruthTable model dispatch =
             br []; br []
             str "The Truth Table generator uses the diagram as it was at the moment of
                  pressing the \"Generate Truth Table\" button."
+            constraints
+            br []
             hr []
             body
             br []

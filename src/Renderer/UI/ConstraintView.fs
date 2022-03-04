@@ -56,7 +56,8 @@ let viewNumericalConstraints cons dispatch =
                 Delete.delete 
                     [Delete.OnClick(fun _ -> 
                         dispatch <| DeleteInputConstraint con
-                        dispatch <| SetTTOutOfDate true)] []
+                        dispatch <| DeleteOutputConstraint con
+                        Regenerate |> Some |> SetTTOutOfDate |> dispatch)] []
             ]
         
     let equEls =
@@ -73,9 +74,6 @@ let viewNumericalConstraints cons dispatch =
             |> makeConTag)
     let tags = List.append equEls inequEls
     div [] tags
-
-let viewOutputConstraints outputCons dispatch =
-    div [] [] // Not yet implemented
 
 let constraintsOverlap (con1: Constraint) (con2: Constraint) =
     let equAndIneqOverlap (equ: EqualityConstraint) (ineq: InequalityConstraint) =
@@ -159,30 +157,20 @@ let validateNumericalConstraint (con: Constraint) (allConstraints: ConstraintSet
                         else 
                             Ok ineqc)
             |> (function | Error err -> Error err | Ok ineqc -> Ok (Inequality ineqc))
-let dialogPopupNumericalConBody existingCons model dispatch =
-        fun (dialogData: PopupDialogData) -> //div [] []
-            let inputs =
-                match model.CurrentTruthTable with
-                | None -> failwithf "what? No current Truth Table when adding Input Constraints"
-                | Some (Error _) -> failwithf "what? Constraint add option should not exist when there is TT error"
-                | Some (Ok tt) ->
-                    tt.TableMap
-                    |> Map.toList
-                    |> List.map fst 
-                    |> List.head
-                    |> List.map (fun cell -> cell.IO)
 
+let dialogPopupNumericalConBody (simIOs: SimulationIO list) existingCons model dispatch =
+        fun (dialogData: PopupDialogData) -> //div [] []
             let selected =
                 match dialogData.ConstraintIOSel with
                 | None -> 
                     // Default IO is the first in the Truth Table
-                    inputs.Head |> Some |> SetPopupConstraintIOSel |> dispatch
-                    inputs.Head
+                    simIOs.Head |> Some |> SetPopupConstraintIOSel |> dispatch
+                    simIOs.Head
                 | Some io -> io
 
-            let inputSelect =
+            let ioSelect =
                 let buttons =
-                    inputs
+                    simIOs
                     |> List.map (fun io ->
                         let (_,label,_) = io
                         let action = (fun _ -> 
@@ -342,7 +330,7 @@ let dialogPopupNumericalConBody existingCons model dispatch =
             
             div [] [
                 Heading.h6 [] [str "Select Input"]
-                inputSelect
+                ioSelect
                 hr []
                 Heading.h6 [] [str "Constraint Type"]
                 typeSelect
@@ -351,12 +339,28 @@ let dialogPopupNumericalConBody existingCons model dispatch =
                 constraintEditor
                 errorMsg
             ]
+
 let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
+    // Set Defaults
     0 |> Some |> SetPopupDialogInt |> dispatch
     (int64 0) |> Some |> SetPopupDialogInt2 |> dispatch
+    Equ |> Some |> SetPopupConstraintTypeSel |> dispatch
+    dispatch <| SetPopupConstraintIOSel None
+    dispatch <| SetPopupNewConstraint None
+    
 
     let title = "Add Input Constraint"
-    let body = dialogPopupNumericalConBody model.TTInputConstraints model dispatch
+    let inputs =
+        match model.CurrentTruthTable with
+        | None -> failwithf "what? No current Truth Table when adding Constraints"
+        | Some (Error _) -> failwithf "what? Constraint add option should not exist when there is TT error"
+        | Some (Ok tt) ->
+            tt.TableMap
+            |> Map.toList
+            |> List.map fst 
+            |> List.head
+            |> List.map (fun cell -> cell.IO)
+    let body = dialogPopupNumericalConBody inputs model.TTInputConstraints model dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData: PopupDialogData) ->
@@ -364,7 +368,7 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             | None -> ()
             | Some con -> 
                 con |> AddInputConstraint |> dispatch
-                true |> SetTTOutOfDate |> dispatch
+                Regenerate |> Some |> SetTTOutOfDate |> dispatch
                 dispatch ClosePopup
     let isDisabled =
         fun (dialogData: PopupDialogData) -> 
@@ -374,11 +378,25 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
+    // Set Defaults
     0 |> Some |> SetPopupDialogInt |> dispatch
     (int64 0) |> Some |> SetPopupDialogInt2 |> dispatch
+    Equ |> Some |> SetPopupConstraintTypeSel |> dispatch
+    dispatch <| SetPopupConstraintIOSel None
+    dispatch <| SetPopupNewConstraint None
 
     let title = "Add Output Constraint"
-    let body = dialogPopupNumericalConBody model.TTInputConstraints model dispatch
+    let outputs =
+        match model.CurrentTruthTable with
+        | None -> failwithf "what? No current Truth Table when adding Constraints"
+        | Some (Error _) -> failwithf "what? Constraint add option should not exist when there is TT error"
+        | Some (Ok tt) ->
+            tt.TableMap
+            |> Map.toList
+            |> List.map snd 
+            |> List.head
+            |> List.map (fun cell -> cell.IO)
+    let body = dialogPopupNumericalConBody outputs model.TTInputConstraints model dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData: PopupDialogData) ->
@@ -386,7 +404,7 @@ let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             | None -> ()
             | Some con -> 
                 con |> AddOutputConstraint |> dispatch
-                true |> SetTTOutOfDate |> dispatch
+                Refilter |> Some |> SetTTOutOfDate |> dispatch
                 dispatch ClosePopup
     let isDisabled =
         fun (dialogData: PopupDialogData) -> 
@@ -416,7 +434,7 @@ let viewConstraints model dispatch =
                 addButton (fun _ -> createInputConstraintPopup model dispatch) 
                 clearButton (fun _ -> 
                     dispatch ClearInputConstraints
-                    dispatch <| SetTTOutOfDate true)]
+                    Regenerate |> Some |> SetTTOutOfDate |> dispatch)]
             Heading.h6 [] [str "Output Constraints"]
             viewNumericalConstraints outputCons dispatch
             br []

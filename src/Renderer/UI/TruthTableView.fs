@@ -300,6 +300,10 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
             | None ->
                 Some (prepareSimulation project.OpenFileName (correctComps,correctConns) selLoadedComponents , (correctComps,correctConns))
 
+let truncationWarning table =
+    $"The Truth Table has been truncated to {table.TableMap.Count} input combinations. 
+    Not all rows may be shown. Please use more restrictive input constraints to avoid truncation."
+
 let labelFromIO (sIO: SimulationIO) =
     let (_,label,_) = sIO
     string label
@@ -310,7 +314,11 @@ let regenerateTruthTable model (dispatch: Msg -> Unit) =
     | Some (Error e) -> 
         failwithf "what? Constraint add option should not exist when there is TT error"
     | Some (Ok table) ->
-        truthTableRegen table.TableSimData model.TTInputConstraints model.TTBitLimit
+        let tt = truthTableRegen table.TableSimData model.TTInputConstraints model.TTBitLimit
+        if tt.IsTruncated then
+                    let popup = Notifications.warningPropsNotification (truncationWarning tt)
+                    dispatch <| SetPropertiesNotification popup
+        tt
         |> Ok
         |> GenerateTruthTable
         |> dispatch
@@ -447,16 +455,15 @@ let viewTruthTableData (table: TruthTable) =
                 ]
         ]
 
-let truncationWarning table =
-    $"The Truth Table has been truncated to {table.TableMap.Count} input combinations. 
-    Not all rows may be shown. Please use more restrictive input constraints to avoid truncation."
-   
-
 let viewTruthTable model dispatch =
     let generateTruthTable simRes =
         match simRes with 
         | Some (Ok sd,_) -> 
-            truthTable sd model.TTInputConstraints model.TTBitLimit
+            let tt = truthTable sd model.TTInputConstraints model.TTBitLimit
+            if tt.IsTruncated then
+                let popup = Notifications.warningPropsNotification (truncationWarning tt)
+                dispatch <| SetPropertiesNotification popup
+            tt
             |> Ok
             |> GenerateTruthTable
             |> dispatch
@@ -555,11 +562,7 @@ let viewTruthTable model dispatch =
         let body = 
             match tableopt with
             | Error e -> viewTruthTableError e
-            | Ok table ->
-                if table.IsTruncated then
-                    let popup = Notifications.warningPropsNotification (truncationWarning table)
-                    dispatch <| SetPropertiesNotification popup
-                viewTruthTableData table
+            | Ok table -> viewTruthTableData table
         let constraints =
             match tableopt with
             | Error _ -> div [] []

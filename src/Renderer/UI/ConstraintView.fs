@@ -51,7 +51,7 @@ let makeElementLine (els: ReactElement list) =
 let viewNumericalConstraints cons dispatch =
     let makeConTag(con: Constraint) =
         let tagText = inCon2str con
-        Tag.tag [Tag.IsLight] [ 
+        Tag.tag [Tag.Color IsInfo; Tag.IsLight] [ 
                 str tagText
                 Delete.delete 
                     [Delete.OnClick(fun _ -> 
@@ -73,7 +73,7 @@ let viewNumericalConstraints cons dispatch =
             |> Inequality
             |> makeConTag)
     let tags = List.append equEls inequEls
-    div [] tags
+    Tag.list [] tags
 
 let constraintsOverlap (con1: Constraint) (con2: Constraint) =
     let equAndIneqOverlap (equ: EqualityConstraint) (ineq: InequalityConstraint) =
@@ -417,13 +417,9 @@ let viewConstraints model dispatch =
     let inputCons = model.TTInputConstraints
     let outputCons = model.TTOutputConstraints
     let addButton action =
-        Button.button [
-                Button.OnClick action
-                ]
-            [str "Add"]
+        Button.button [ Button.OnClick action] [str "Add"]
     let clearButton action =
-        Button.button [Button.OnClick action]
-            [str "Clear All"]
+        Button.button [Button.OnClick action] [str "Clear All"]
     //printfn "%A" model.TTOutputConstraints
     div [] 
         [

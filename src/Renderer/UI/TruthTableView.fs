@@ -363,7 +363,11 @@ let filterTruthTable model (dispatch: Msg -> Unit) =
         |> GenerateTruthTable
         |> dispatch
         
-
+let private makeMenuGroup openDefault title menuList =
+    details [Open openDefault] [
+        summary [menuLabelStyle] [ str title ]
+        Menu.list [] menuList
+    ]
 
 let tableAsList (table: TruthTable): TruthTableRow list =
     table.TableMap
@@ -518,8 +522,6 @@ let viewTruthTable model dispatch =
                                 let popup = Notifications.errorPropsNotification "Truth Table generation only supported for Combinational Logic"
                                 dispatch <| SetPropertiesNotification popup)
                         ] [str "Generate Truth Table"]
-            
-
         div [] [
             str "Generate Truth Tables for combinational logic using this tab."
             br[]
@@ -564,6 +566,13 @@ let viewTruthTable model dispatch =
             match tableopt with
             | Error _ -> div [] []
             | Ok _ -> div [] [hr []; viewConstraints model dispatch]
+        
+        let menu = 
+            Menu.menu []  [
+                makeMenuGroup false "Filter" [constraints; br [] ; hr []]
+                makeMenuGroup true "Truth Table" [body; br []; hr []]
+            ]    
+
         div [] [
             Button.button
                 [ Button.Color IsDanger; Button.OnClick closeTruthTable ]
@@ -571,10 +580,11 @@ let viewTruthTable model dispatch =
             br []; br []
             str "The Truth Table generator uses the diagram as it was at the moment of
                  pressing the \"Generate Truth Table\" button."
-            constraints
-            br []
-            hr []
-            body
-            br []
-            hr []
+            // constraints
+            // br []
+            // hr []
+            // body
+            // br []
+            // hr []
+            menu
             ]

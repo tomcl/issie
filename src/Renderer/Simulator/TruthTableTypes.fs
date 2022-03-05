@@ -21,6 +21,8 @@ type TruthTableRow = TruthTableCell list
 type TruthTable = {
     // Actual Table: Mapping from Input row to Output row
     TableMap: Map<TruthTableRow,TruthTableRow>
+    // Truth Table filtered by Output Constraints
+    FilteredMap: Map<TruthTableRow,TruthTableRow>
     // Rows featuring Don't Care Terms - currently unused
     XRows: Map<TruthTableRow,TruthTableRow> option
     // If the Truth Table has been truncated

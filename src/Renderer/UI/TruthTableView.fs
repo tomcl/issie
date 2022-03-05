@@ -344,6 +344,7 @@ let applyNumericalOutputConstraint (table: Map<TruthTableRow,TruthTableRow>) (co
                         ))
 
 let filterTruthTable model (dispatch: Msg -> Unit) =
+    printfn "Refiltering Table"
     match model.CurrentTruthTable with
     | None -> failwithf "what? Trying to filter table when no Truth Table exists"
     | Some (Error e) ->
@@ -358,7 +359,7 @@ let filterTruthTable model (dispatch: Msg -> Unit) =
         let filteredMap = 
             (table.TableMap, allOutputConstraints)
             ||> List.fold applyNumericalOutputConstraint
-        {table with TableMap = filteredMap}
+        {table with FilteredMap = filteredMap}
         |> Ok
         |> GenerateTruthTable
         |> dispatch
@@ -370,7 +371,7 @@ let private makeMenuGroup openDefault title menuList =
     ]
 
 let tableAsList (table: TruthTable): TruthTableRow list =
-    table.TableMap
+    table.FilteredMap
     |> Map.toList
     |> List.map (fun (lhs,rhs) -> List.append lhs rhs)
 
@@ -420,7 +421,7 @@ let viewTruthTableError simError =
     ]
     
 let viewTruthTableData (table: TruthTable) =
-    if table.TableMap.IsEmpty then // Should never be matched
+    if table.FilteredMap.IsEmpty then // Should never be matched
         div [] [str "No Truth Table to Display"]
     else
         let TTasList = tableAsList table
@@ -537,14 +538,11 @@ let viewTruthTable model dispatch =
             hr[]
         ]
     | Some tableopt ->
-        // if model.TTIsOutOfDate then
-        //     // Regenerate the truth table to be displayed in the next view cycle
-        //     regenerateTruthTable model dispatch
-        //     dispatch <| SetTTOutOfDate false
         match model.TTIsOutOfDate with
         | Some Regenerate ->
             regenerateTruthTable model dispatch
-            dispatch <| SetTTOutOfDate None
+            // Refilter after regeneration to apply output constraints
+            Refilter |> Some |> SetTTOutOfDate |> dispatch
         | Some Refilter ->
             filterTruthTable model dispatch
             dispatch <| SetTTOutOfDate None

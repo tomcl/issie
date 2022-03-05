@@ -436,5 +436,7 @@ let viewConstraints model dispatch =
             br []
             makeElementLine [
                 addButton (fun _ -> createOutputConstraintPopup model dispatch)
-                clearButton (fun _ -> dispatch ClearOutputConstraints)]
+                clearButton (fun _ -> 
+                    dispatch ClearOutputConstraints
+                    Refilter |> Some |> SetTTOutOfDate |> dispatch)]
         ]

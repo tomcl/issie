@@ -171,6 +171,7 @@ let truthTable (simData: SimulationData) (inputConstraints: ConstraintSet) bitLi
         printfn "RealRowCount: %A" tableMap.Count
         {
             TableMap = tableMap
+            FilteredMap = tableMap
             XRows = None
             IsTruncated = (tableMap.Count <> tCRC)
             MaxRowsWithConstraints = tCRC
@@ -191,6 +192,7 @@ let truthTableRegen tableSD inputConstraints bitLimit =
         printfn "RealRowCount: %A" tableMap.Count
         {
             TableMap = tableMap
+            FilteredMap = tableMap
             XRows = None
             IsTruncated = (tableMap.Count <> tCRC)
             MaxRowsWithConstraints = tCRC

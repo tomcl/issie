@@ -16,7 +16,7 @@ let inputValues (tInput: TableInput) =
         let (_,_,w) = tInput.IO
         let upper = int(2.0**w - 1.0)
         if upper < tInput.AllowedRowCount then
-            [0..int(2.0**w - 1.0)]
+            [0..upper]
         else
             [0..(tInput.AllowedRowCount-1)]
     | equ, ineq ->
@@ -31,7 +31,10 @@ let inputValues (tInput: TableInput) =
         (values1,ineq)
         ||> List.fold (fun rows con ->
             if rows.Length < tInput.AllowedRowCount then
-                [con.LowerBound..con.UpperBound] @ rows
+                if con.Range < tInput.AllowedRowCount then
+                    [con.LowerBound..con.UpperBound] @ rows
+                else
+                    [con.LowerBound..(con.LowerBound + tInput.AllowedRowCount - 1)]
             else
                 rows)
         |> List.sort

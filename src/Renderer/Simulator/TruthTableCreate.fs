@@ -6,10 +6,6 @@ open TruthTableTypes
 open SynchronousUtils
 open NumberHelpers
 
-// REMEMBER TO REMOVE EVENTUALLY!
-let print x =
-    printfn "%A" x
-
 let inputValues (tInput: TableInput) =
     match tInput.Constraints.Equalities, tInput.Constraints.Inequalities with
     | [], [] ->
@@ -38,10 +34,6 @@ let inputValues (tInput: TableInput) =
             else
                 rows)
         |> List.sort
-
-// let bitCombinations (width: int) (num: int): CellData list =
-//     convertIntToWireData width num
-//     |> List.map (fun x -> Bits [x])
 
 let inputCombinations (tInputs: TableInput list) =
     let masterList = 
@@ -202,24 +194,4 @@ let truthTableRegen tableSD inputConstraints bitLimit =
             TableSimData = tableSD
             })
     |> TimeHelpers.instrumentInterval "truthTableRegen" start
-
-let printTruthTable (simData: SimulationData) =
-    let tt = truthTable simData
-    print <| tt
-
-
-let printTableLHS (input_tuples : (SimulationIO * WireData) list) =
-    printf "Printing TT Inputs"
-    let inputs = 
-        input_tuples
-        |> List.map fst
-    let lhs = tableLHS inputs
-
-    //lhs
-    //|> List.map (fun ttRow ->
-    //    ttRow
-    //    |> List.map (fun (_,wd) ->
-    //        printf "%A ," wd))
-    print <| lhs
-
 

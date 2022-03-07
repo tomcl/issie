@@ -71,7 +71,7 @@ let inputCombinations (tInputs: TableInput list) =
     |> List.map (fun l -> l |> List.mapi (fun i n -> 
         //convertIntToWireData widths[i] n
         let (_,_,w) = tInputs[i].IO
-        {IO = tInputs[i].IO; Data = Bits (convertIntToWireData w n)}
+        {IO = SimIO (tInputs[i].IO); Data = Bits (convertIntToWireData w n)}
         
         ))
 
@@ -115,7 +115,6 @@ let inputsWithARC limit (tInputs: TableInput list) =
             {ti with AllowedRowCount = 1}, newRowCount
         )
 
-
 let tableLHS (inputs: SimulationIO list) (inputConstraints: ConstraintSet) bitLimit: 
     TruthTableRow list * int =
 
@@ -132,21 +131,22 @@ let tableLHS (inputs: SimulationIO list) (inputConstraints: ConstraintSet) bitLi
     (tInputs
     |> inputCombinations), tCRC
 
-
-
-    
-
-let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) (simData: SimulationData): TruthTableRow =
+let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) viewers (simData: SimulationData): TruthTableRow =
     let updateOutputs (cell: TruthTableCell) =
-        let (cid,_,_) = cell.IO
-        match cell.Data with
-        | Bits wd -> FastRun.changeInput cid wd simData.ClockTickNumber simData.FastSim
-        | _ -> failwithf "what? CellData was not WireData during truth table generation"
+        match cell.IO, cell.Data with
+        | SimIO io, Bits wd ->
+            let (cid,_,_) = io
+            FastRun.changeInput cid wd simData.ClockTickNumber simData.FastSim
+        | x, y -> failwithf "what? CellData from input rows has IO: %A, and Data: %A." x y
     let _ = List.map updateOutputs rowLHS
-
-    (outputs,simData)
-    ||> FastRun.extractFastSimulationIOs
-    |> List.map (fun (comp,wd) -> {IO = comp; Data = Bits wd})
+    let outputRow =
+        (outputs,simData)
+        ||> FastRun.extractFastSimulationIOs
+        |> List.map (fun (comp,wd) -> {IO = SimIO comp; Data = Bits wd})
+    let viewerRow =
+        FastRun.extractViewers simData
+        |> List.map (fun ((l,f),w,wd) -> {IO = Viewer ((l,f),w); Data = Bits wd})
+    outputRow @ viewerRow
 
 let truthTable (simData: SimulationData) (inputConstraints: ConstraintSet) bitLimit: TruthTable =
     let start = TimeHelpers.getTimeMs()
@@ -157,8 +157,9 @@ let truthTable (simData: SimulationData) (inputConstraints: ConstraintSet) bitLi
         | _ -> failwithf "Error in building fast simulation for Truth Table evaluation" 
     let inputs = List.map fst (FastRun.extractFastSimulationIOs simData.Inputs tempSimData)
     let outputs = List.map fst (FastRun.extractFastSimulationIOs simData.Outputs tempSimData)
+    let viewers = FastRun.extractViewers simData
     let lhs,tCRC = tableLHS inputs inputConstraints bitLimit
-    let rhs = List.map (fun i -> rowRHS i outputs tempSimData) lhs
+    let rhs = List.map (fun i -> rowRHS i outputs viewers tempSimData) lhs
 
     List.zip lhs rhs
     |> Map.ofList
@@ -178,8 +179,9 @@ let truthTableRegen tableSD inputConstraints bitLimit =
     let start = TimeHelpers.getTimeMs()
     let inputs = List.map fst (FastRun.extractFastSimulationIOs tableSD.Inputs tableSD)
     let outputs = List.map fst (FastRun.extractFastSimulationIOs tableSD.Outputs tableSD)
+    let viewers = FastRun.extractViewers tableSD
     let lhs,tCRC = tableLHS inputs inputConstraints bitLimit
-    let rhs = List.map (fun i -> rowRHS i outputs tableSD) lhs
+    let rhs = List.map (fun i -> rowRHS i outputs viewers tableSD) lhs
 
     List.zip lhs rhs
     |> Map.ofList

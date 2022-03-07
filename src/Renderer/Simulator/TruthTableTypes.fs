@@ -11,8 +11,21 @@ type CellData =
     | Algebra of var: string
     | DC //Don't Care
 
+type CellIO =
+    | SimIO of SimulationIO
+    | Viewer of (string*string)*int
+    with 
+    member this.getLabel =
+        match this with 
+        | SimIO (_,l,_) -> string l
+        | Viewer ((l,_),_) -> l
+    member this.getWidth =
+        match this with
+        | SimIO (_,_,w) -> w
+        | Viewer ((_,_),w) -> w
+
 type TruthTableCell = {
-    IO: SimulationIO
+    IO: CellIO
     Data: CellData
     }
 
@@ -43,12 +56,12 @@ type ConstraintSet = {
     Inequalities: InequalityConstraint list
 }
 and EqualityConstraint = {
-    IO: SimulationIO
+    IO: CellIO
     Value: int
 }
 and InequalityConstraint = {
     LowerBound: int
-    IO: SimulationIO
+    IO: CellIO
     UpperBound: int
     Range: int
 }
@@ -98,10 +111,10 @@ let initTableInput (simIO:SimulationIO) (allConstraints: ConstraintSet) =
     let (_,_,w) = simIO
     let specificEqualities =
         allConstraints.Equalities 
-        |> List.filter (fun con -> con.IO = simIO)
+        |> List.filter (fun con -> con.IO = SimIO simIO)
     let specificInequalities =
         allConstraints.Inequalities
-        |> List.filter (fun con -> con.IO = simIO)
+        |> List.filter (fun con -> con.IO = SimIO simIO)
     {
         IO = simIO
         MaxRowCount = int (2.0**w)

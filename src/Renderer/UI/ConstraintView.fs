@@ -31,13 +31,9 @@ open TruthTableCreate
 let inCon2str con =
     match con with
     | Equality e -> 
-        let (_,label,_) = e.IO
-        //$"{label} = {e.Value}" 
-        sprintf "%s = 0x%X" (string label) e.Value
+        sprintf "%s = 0x%X" (e.IO.getLabel) e.Value
     | Inequality i -> 
-        let (_,label,_) = i.IO
-        //$"{i.LowerBound} \u2264 {label} \u2264 {i.UpperBound}"
-        sprintf "0x%X \u2264 %s \u2264 0x%X" i.LowerBound (string label) i.UpperBound
+        sprintf "0x%X \u2264 %s \u2264 0x%X" i.LowerBound (i.IO.getLabel) i.UpperBound
 
 let makeElementLine (els: ReactElement list) =
     let itemList =
@@ -114,7 +110,7 @@ let validateNumericalConstraint (con: Constraint) (allConstraints: ConstraintSet
                     
             |> (function | Error err -> Error err | Ok eqc -> Ok (Equality eqc))
     | Inequality ineq ->
-        let (_,_,width) = ineq.IO
+        let width = ineq.IO.getWidth
         // Convert any negative numbers in the bounds to their unsigned equivalents
         let unsignedLower = 
             (width,int64 ineq.LowerBound) 
@@ -158,21 +154,20 @@ let validateNumericalConstraint (con: Constraint) (allConstraints: ConstraintSet
                             Ok ineqc)
             |> (function | Error err -> Error err | Ok ineqc -> Ok (Inequality ineqc))
 
-let dialogPopupNumericalConBody (simIOs: SimulationIO list) existingCons model dispatch =
+let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons model dispatch =
         fun (dialogData: PopupDialogData) -> //div [] []
             let selected =
                 match dialogData.ConstraintIOSel with
                 | None -> 
                     // Default IO is the first in the Truth Table
-                    simIOs.Head |> Some |> SetPopupConstraintIOSel |> dispatch
-                    simIOs.Head
+                    cellIOs.Head |> Some |> SetPopupConstraintIOSel |> dispatch
+                    cellIOs.Head
                 | Some io -> io
 
             let ioSelect =
                 let buttons =
-                    simIOs
+                    cellIOs
                     |> List.map (fun io ->
-                        let (_,label,_) = io
                         let action = (fun _ -> 
                             io |> Some |> SetPopupConstraintIOSel |> dispatch
                             dispatch <| SetPopupConstraintErrorMsg None)
@@ -181,7 +176,7 @@ let dialogPopupNumericalConBody (simIOs: SimulationIO list) existingCons model d
                                 [Button.Color IsPrimary; Button.OnClick action]
                             else 
                                 [Button.OnClick action]
-                        Button.button buttonProps [str <| (string label)])
+                        Button.button buttonProps [str <| io.getLabel])
                 div [] buttons
             (*        
             // Code for original input selection interface
@@ -209,8 +204,7 @@ let dialogPopupNumericalConBody (simIOs: SimulationIO list) existingCons model d
                                 ]]]]]
             *)
             let typeSelect =
-                let (_,_,selwidth) = selected
-                if selwidth = 1 then
+                if selected.getWidth = 1 then
                     Equ |> Some |> SetPopupConstraintTypeSel |> dispatch
                     Level.item [ Level.Item.HasTextCentered ] [
                         Field.div [ Field.HasAddonsCentered ] [
@@ -286,14 +280,14 @@ let dialogPopupNumericalConBody (simIOs: SimulationIO list) existingCons model d
                 | None, _ -> div [] []
                 | _, None -> div [] []
                 | Some Equ, Some io ->
-                    let (_,label,width) = io
+                    let label,width = io.getLabel,io.getWidth
                     makeElementLine [
                         str <| sprintf "%s = " 
                             (SimulationView.makeIOLabel (string label) width)
                         numField1 width
                     ]
                 | Some Ineq, Some io -> 
-                    let (_,label,width) = io
+                    let label,width = io.getLabel,io.getWidth
                     makeElementLine [
                         numField1 width
                         str <| sprintf "\u2264 %s \u2264" 

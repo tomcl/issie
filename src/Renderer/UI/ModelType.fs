@@ -54,7 +54,7 @@ type PopupDialogData = {
     WaveSetup: MoreWaveSetup option
     Progress: PopupProgress option
     ConstraintTypeSel: ConstraintType option
-    ConstraintIOSel: SimulationIO option
+    ConstraintIOSel: CellIO option
     ConstraintErrorMsg: string option
     NewConstraint: Constraint option
 }
@@ -320,7 +320,7 @@ type Msg =
     | SetPopupInputConstraints of ConstraintSet option
     | SetPopupOutputConstraints of ConstraintSet option
     | SetPopupConstraintTypeSel of ConstraintType option
-    | SetPopupConstraintIOSel of SimulationIO option
+    | SetPopupConstraintIOSel of CellIO option
     | SetPopupConstraintErrorMsg of string option
     | SetPopupNewConstraint of Constraint option
     | SimulateWithProgressBar of SimulationProgress

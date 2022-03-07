@@ -304,10 +304,6 @@ let truncationWarning table =
     $"The Truth Table has been truncated to {table.TableMap.Count} input combinations. 
     Not all rows may be shown. Please use more restrictive input constraints to avoid truncation."
 
-let labelFromIO (sIO: SimulationIO) =
-    let (_,label,_) = sIO
-    string label
-
 let regenerateTruthTable model (dispatch: Msg -> Unit) =
     match model.CurrentTruthTable with
     | None -> failwithf "what? Adding constraint when no Truth Table exists"
@@ -384,9 +380,21 @@ let tableAsList (table: TruthTable): TruthTableRow list =
     |> List.map (fun (lhs,rhs) -> List.append lhs rhs)
 
 let viewCellAsHeading (cell: TruthTableCell) = 
-    let (_,label,_) = cell.IO
-    let headingText = string label
-    th [ ] [str headingText]
+    let addToolTip tip react = 
+        div [ 
+            HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-top"
+            Tooltip.dataTooltip tip
+        ] [react]
+    match cell.IO with
+    | SimIO (_,label,_) ->
+        let headingText = string label
+        th [] [str headingText]
+    | Viewer ((label,fullName), width) ->
+        let headingEl = 
+            label |> string |> str
+            |> (fun r -> if fullName <> "" then addToolTip fullName r else r)
+        th [] [headingEl]
+
 
 let viewCellAsData (cell: TruthTableCell) =
     match cell.Data with 

@@ -367,6 +367,11 @@ let update (msg : Msg) oldModel =
                 model.TTOutputConstraints.Inequalities
                 |> List.except [i]
             {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.none
+    | HideTTColumn io ->
+        {model with 
+            TTHiddenColumns = io::model.TTHiddenColumns
+            TTOutputConstraints = model.TTOutputConstraints.withoutIO io}, Cmd.none
+
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg

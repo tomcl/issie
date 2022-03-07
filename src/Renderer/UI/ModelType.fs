@@ -291,11 +291,11 @@ type Msg =
     | SetTTOutOfDate of ReasonOutOfDate option
     | ClearInputConstraints
     | ClearOutputConstraints
-    | OpenOutConAdder
     | AddInputConstraint of Constraint
     | AddOutputConstraint of Constraint
     | DeleteInputConstraint of Constraint
     | DeleteOutputConstraint of Constraint
+    | HideTTColumn of CellIO
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list
@@ -430,6 +430,8 @@ type Model = {
     TTOutputConstraints: ConstraintSet
     // True if existing Truth Table needs to be re-generated
     TTIsOutOfDate : ReasonOutOfDate option
+    // Which output or viewer columns in the Truth Table should be hidden
+    TTHiddenColumns: CellIO list
     // which of the tabbed panes is currently visible
     RightPaneTabVisible : RightTab
     // which of the subtabs for the right pane simulation is visible

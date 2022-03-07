@@ -319,6 +319,27 @@ let regenerateTruthTable model (dispatch: Msg -> Unit) =
         |> GenerateTruthTable
         |> dispatch
 
+let hideColumnns model (dispatch: Msg -> Unit) =
+    match model.CurrentTruthTable with
+    | None -> failwithf "what? Hiding columns when no Truth Table exists"
+    | Some (Error e) ->
+        failwithf "what? Hding columns option should not exist when there is TT error"
+    | Some (Ok table) ->
+        let newTableMap =
+            if table.TableMap.IsEmpty then
+                table.TableMap
+            else
+                table.TableMap
+                |> Map.map (fun lhs rhs ->
+                    rhs
+                    |> List.filter (fun cell -> 
+                        List.contains cell.IO model.TTHiddenColumns))
+        {table with TableMap = newTableMap}
+        |> Ok
+        |> GenerateTruthTable
+        |> dispatch
+                
+
 let applyNumericalOutputConstraint (table: Map<TruthTableRow,TruthTableRow>) (con: Constraint) =
     table
     |> Map.filter (fun _ right ->
@@ -395,7 +416,6 @@ let viewCellAsHeading (cell: TruthTableCell) =
             |> (fun r -> if fullName <> "" then addToolTip fullName r else r)
         th [] [headingEl]
 
-
 let viewCellAsData (cell: TruthTableCell) =
     match cell.Data with 
     | Bits [] -> failwithf "what? Empty WireData in TruthTable"
@@ -438,7 +458,7 @@ let viewTruthTableError simError =
     
 let viewTruthTableData (table: TruthTable) =
     if table.FilteredMap.IsEmpty then // Should never be matched
-        div [] [str "No Truth Table to Display"]
+        div [] [str "No Rows in Truth Table"]
     else
         let TTasList = tableAsList table
         let headings =
@@ -556,7 +576,11 @@ let viewTruthTable model dispatch =
         match model.TTIsOutOfDate with
         | Some Regenerate ->
             regenerateTruthTable model dispatch
-            // Refilter after regeneration to apply output constraints
+            // Re-hide columns after regeneration in the next view cycle.
+            // Refilter will be called in the subsequent cycle.
+            HideColumn |> Some |> SetTTOutOfDate |> dispatch
+        | Some HideColumn ->
+            hideColumnns model dispatch
             Refilter |> Some |> SetTTOutOfDate |> dispatch
         | Some Refilter ->
             filterTruthTable model dispatch

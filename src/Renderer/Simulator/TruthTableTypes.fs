@@ -54,7 +54,15 @@ type TruthTable = {
 type ConstraintSet = {
     Equalities: EqualityConstraint list
     Inequalities: InequalityConstraint list
-}
+} with
+    member this.withoutIO io =
+        let newEqu =
+            this.Equalities
+            |> List.filter (fun e -> e.IO <> io)
+        let newIneq =
+            this.Inequalities
+            |> List.filter (fun i -> i.IO <> io)
+        {Equalities = newEqu; Inequalities = newIneq}
 and EqualityConstraint = {
     IO: CellIO
     Value: int
@@ -72,8 +80,11 @@ type Constraint =
 
 type ConstraintType = Equ | Ineq
 
-type ReasonOutOfDate = Regenerate | Refilter
-
+type ReasonOutOfDate = 
+    | Regenerate 
+    | HideColumn
+    | Refilter
+    
 let isEqu c = 
     match c with
     | Equ -> true

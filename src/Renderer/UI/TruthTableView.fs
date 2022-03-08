@@ -326,7 +326,7 @@ let hideColumnns model (dispatch: Msg -> Unit) =
         failwithf "what? Hding columns option should not exist when there is TT error"
     | Some (Ok table) ->
         let newTableMap =
-            if table.TableMap.IsEmpty then
+            if table.TableMap.IsEmpty || model.TTHiddenColumns.IsEmpty then
                 table.TableMap
             else
                 table.TableMap

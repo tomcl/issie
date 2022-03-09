@@ -107,6 +107,8 @@ let prefix compType =
     | BusCompare _ -> "EQ"
     | Decode4 -> "DEC"
     | BusSelection _ -> "SEL"
+    | MergeWires -> "MW"
+    | SplitWire _ -> "SW"
     | _ -> ""
 
 
@@ -725,16 +727,13 @@ let getCompList compType listSymbols =
 let getIndex listSymbols compType =
     let symbolList = 
         getCompList compType listSymbols
-
-    match compType with
-    | MergeWires | SplitWire _ -> ""
-    | _ ->
-        if List.isEmpty symbolList then 1 
-        else symbolList
-            |> List.map (fun sym -> regex sym.Compo.Label)
-            |> List.max
-            |> (+) 1
-        |> string
+    
+    if List.isEmpty symbolList then 1 
+    else symbolList
+        |> List.map (fun sym -> regex sym.Compo.Label)
+        |> List.max
+        |> (+) 1
+    |> string
 
 ///Generates the number to be put in the title of symbols  
 let labelGenNumber (model: Model) (compType: ComponentType) (label : string) = 

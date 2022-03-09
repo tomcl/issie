@@ -31,6 +31,37 @@ open Simulator
 open TruthTableCreate
 open BusWidthInferer
 
+/// Updates MergeWires and SplitWire Component labels to MWx/SWx.
+/// Previous Issie versions had empty labels for these components.
+let updateMergeSplitWireLabels (model: Model) dispatch =
+    let mwStartLabel = 
+        model.Sheet.GenerateLabel MergeWires
+    let mutable mwIdx =
+        (mwStartLabel.[mwStartLabel.Length - 1]
+        |> int) - (int '0')
+
+    let swStartLabel =
+        model.Sheet.GenerateLabel (SplitWire 1)
+    let mutable swIdx =
+        (swStartLabel.[swStartLabel.Length - 1]
+        |> int) - (int '0')
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+
+    model.Sheet.GetCanvasState()
+    |> fst
+    |> List.iter (fun c -> 
+        match c.Type, c.Label with
+        | MergeWires, "" | MergeWires, "L" ->
+            let newLabel = sprintf "MW%i" mwIdx
+            mwIdx <- mwIdx + 1
+            setComponentLabel model sheetDispatch c newLabel
+        | SplitWire _, "" | SplitWire _, "L" ->
+            let newLabel = sprintf "SW%i" swIdx
+            swIdx <- swIdx + 1
+            setComponentLabel model sheetDispatch c newLabel
+        | _ -> ())
+        
+
 let getPortIdsfromConnectionId (cid: ConnectionId) (conns: Connection list) = 
     ([],conns)
     ||> List.fold (fun pIds c -> if c.Id = (string cid) then pIds @ [c.Source.Id;c.Target.Id] else pIds)
@@ -518,6 +549,10 @@ let viewTruthTableData (table: TruthTable) =
         ]
 
 let viewTruthTable model dispatch =
+    // Truth Table Generation for selected components requires all components to have distinct labels.
+    // Older Issie versions did not have labels fro MergeWires and SplitWire components.
+    // This step is needed for backwards compatability with older projects.
+    updateMergeSplitWireLabels model dispatch
     let generateTruthTable simRes =
         match simRes with 
         | Some (Ok sd,_) -> 

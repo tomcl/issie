@@ -367,10 +367,15 @@ let update (msg : Msg) oldModel =
                 model.TTOutputConstraints.Inequalities
                 |> List.except [i]
             {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.none
-    | HideTTColumn io ->
-        {model with 
-            TTHiddenColumns = io::model.TTHiddenColumns
-            TTOutputConstraints = model.TTOutputConstraints.withoutIO io}, Cmd.none
+    | ToggleHideTTColumn io ->
+        // Column is currently hidden, so we unhide
+        if List.contains io model.TTHiddenColumns then
+            let newHC = List.except [io] model.TTHiddenColumns
+            {model with TTHiddenColumns = newHC}, Cmd.none
+        else
+            {model with 
+                TTHiddenColumns = io::model.TTHiddenColumns
+                TTOutputConstraints = model.TTOutputConstraints.withoutIO io}, Cmd.none
 
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()

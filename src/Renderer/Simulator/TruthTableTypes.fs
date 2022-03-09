@@ -34,6 +34,8 @@ type TruthTableRow = TruthTableCell list
 type TruthTable = {
     // Actual Table: Mapping from Input row to Output row
     TableMap: Map<TruthTableRow,TruthTableRow>
+    // Truth Table excluding any hidden output columns
+    HiddenColMap: Map<TruthTableRow,TruthTableRow>
     // Truth Table filtered by Output Constraints
     FilteredMap: Map<TruthTableRow,TruthTableRow>
     // Rows featuring Don't Care Terms - currently unused

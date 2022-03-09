@@ -417,6 +417,8 @@ let viewConstraints model dispatch =
     //printfn "%A" model.TTOutputConstraints
     div [] 
         [
+            str "Filter Rows in the Truth Table using Input or Output constraints"
+            br []; br []
             Heading.h6 [] [str "Input Constraints"]
             viewNumericalConstraints inputCons dispatch
             br []

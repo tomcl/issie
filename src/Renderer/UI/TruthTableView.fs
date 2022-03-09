@@ -319,7 +319,8 @@ let regenerateTruthTable model (dispatch: Msg -> Unit) =
         |> GenerateTruthTable
         |> dispatch
 
-let hideColumnns model (dispatch: Msg -> Unit) =
+let hideColumns model (dispatch: Msg -> Unit) =
+    printfn "Hiding Columns: %A" model.TTHiddenColumns 
     match model.CurrentTruthTable with
     | None -> failwithf "what? Hiding columns when no Truth Table exists"
     | Some (Error e) ->
@@ -333,8 +334,8 @@ let hideColumnns model (dispatch: Msg -> Unit) =
                 |> Map.map (fun lhs rhs ->
                     rhs
                     |> List.filter (fun cell -> 
-                        List.contains cell.IO model.TTHiddenColumns))
-        {table with TableMap = newTableMap}
+                        not <| List.contains cell.IO model.TTHiddenColumns))
+        {table with HiddenColMap = newTableMap}
         |> Ok
         |> GenerateTruthTable
         |> dispatch
@@ -382,7 +383,7 @@ let filterTruthTable model (dispatch: Msg -> Unit) =
             (model.TTOutputConstraints.Inequalities
             |> List.map Inequality)
         let filteredMap = 
-            (table.TableMap, allOutputConstraints)
+            (table.HiddenColMap, allOutputConstraints)
             ||> List.fold applyNumericalOutputConstraint
         {table with FilteredMap = filteredMap}
         |> Ok
@@ -415,6 +416,39 @@ let viewCellAsHeading (cell: TruthTableCell) =
             label |> string |> str
             |> (fun r -> if fullName <> "" then addToolTip fullName r else r)
         th [] [headingEl]
+
+let viewOutputHider table hidden dispatch =
+    let makeCheckboxRow io =
+        let isChecked = not <| List.contains io hidden
+        let box =
+            input [ 
+                Type "checkbox"
+                Class "check"
+                Checked <| isChecked
+                Style [ Float FloatOptions.Left ]
+                OnChange (fun _ -> 
+                    dispatch <| ToggleHideTTColumn io
+                    HideColumn |> Some |> SetTTOutOfDate |> dispatch) ]
+        let ioLabel = str io.getLabel
+        makeElementLine [ioLabel;box]
+    if table.FilteredMap.IsEmpty then
+        div [] [str "No Rows in Truth Table"]
+    else
+        let preamble = div [] [
+            str "Hide or Un-hide Output or Viewer columns in the Truth Table."
+            br []
+            i [] [str "Note: Hiding a column will delete any constraints associated 
+                with that column."]
+            br []; br []
+        ]
+        let checkboxRows =
+            table.TableMap
+            |> Map.toList
+            |> List.head
+            |> snd
+            |> List.map (fun cell -> makeCheckboxRow cell.IO)
+        div [] (preamble::checkboxRows)
+
 
 let viewCellAsData (cell: TruthTableCell) =
     match cell.Data with 
@@ -580,7 +614,7 @@ let viewTruthTable model dispatch =
             // Refilter will be called in the subsequent cycle.
             HideColumn |> Some |> SetTTOutOfDate |> dispatch
         | Some HideColumn ->
-            hideColumnns model dispatch
+            hideColumns model dispatch
             Refilter |> Some |> SetTTOutOfDate |> dispatch
         | Some Refilter ->
             filterTruthTable model dispatch
@@ -598,11 +632,16 @@ let viewTruthTable model dispatch =
         let constraints =
             match tableopt with
             | Error _ -> div [] []
-            | Ok _ -> div [] [hr []; viewConstraints model dispatch]
+            | Ok _ -> div [] [viewConstraints model dispatch]
+        let hidden =
+            match tableopt with
+            | Error _ -> div [] []
+            | Ok table -> div [] [viewOutputHider table model.TTHiddenColumns dispatch]
         
         let menu = 
             Menu.menu []  [
                 makeMenuGroup false "Filter" [constraints; br [] ; hr []]
+                makeMenuGroup false "Hide/Un-hide Columns" [hidden; br []; hr []]
                 makeMenuGroup true "Truth Table" [body; br []; hr []]
             ]    
 

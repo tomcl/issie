@@ -115,15 +115,48 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
             |> Ok
         | Error e -> Error e
 
-    let getPortWidth pId =
+    let rec getPortWidth' (port: Port) pw run =
+        let pId = string port.Id
+        (match Map.tryFind pId pw with
+        | Some(Some w) -> Some w
+        | Some(None) -> failwithf "what? WidthInferrer did not infer a width for a port"
+        | None -> getPortWidthFromComponent port pw run)
+            
+    and
+        getPortWidthFromComponent port pw run =
+            let hostComponent =
+                components 
+                |> List.filter (fun c -> port.HostId = c.Id)
+                |> function 
+                    | [comp] -> comp
+                    | [] -> failwithf "what? Port HostId does not match any ComponentIds in model"
+                    | _ -> failwithf "what? Port HostId matches multiple ComponentIds in model"
+            match hostComponent.Type with
+            | Not | And | Or | Xor | Nand | Nor | Xnor -> Some 1
+            | Input w -> Some w
+            | Output w -> Some w
+            | Constant (w,_) -> Some w
+            | BusCompare (w,_) -> Some w
+            | BusSelection (w,_) -> Some w
+            | NbitsAdder w -> Some w
+            | NbitsXor w -> Some w
+            | IOLabel ->
+                if run > 0 then 
+                    None
+                else 
+                    let otherPort =
+                        if port.PortType = PortType.Input then
+                            hostComponent.OutputPorts.Head
+                        else
+                            hostComponent.InputPorts.Head
+                    getPortWidth' otherPort pw (run+1)
+            | _ -> None
+
+    let getPortWidth (port:Port) =
         match portWidths with
         | Error e -> Error e
         | Ok pw ->
-            (match Map.tryFind pId pw with
-            | Some(Some w) -> Some w
-            | Some(None) -> failwithf "what? WidthInferrer did not infer a width for a port"
-            | None -> None)
-            |> Ok
+            Ok <| getPortWidth' port pw 0
 
     let inferIOLabel (port: Port) =
         let hostComponent =
@@ -163,6 +196,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                 else
                     hostComponent.Label + "_" + lst[pn]
 
+    //let replaceIOLabels (comps: Component list, conns: Connection list) = ()
 
     let addExtraConnections (comps: Component list,conns: Connection list) =
         comps,
@@ -205,7 +239,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     ConnectionsAffected = [ConnectionId(con.Id)]}
                 Error error,acc
             else if not (isPortInComponents con.Source comps) then
-                match getPortWidth con.Target.Id with
+                match getPortWidth con.Target with
                 | Ok (Some pw) ->
                     let newId = JSHelpers.uuid()
                     let newLabel = inferIOLabel con.Target
@@ -243,7 +277,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     }
                     Ok con, acc @ [Error error]
             else if not (isPortInComponents con.Target comps) then
-                match getPortWidth con.Source.Id with
+                match getPortWidth con.Source with
                 | Ok (Some pw) ->
                     let newId = JSHelpers.uuid()
                     let newLabel = inferIOLabel con.Source

@@ -196,7 +196,26 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                 else
                     hostComponent.Label + "_" + lst[pn]
 
-    //let replaceIOLabels (comps: Component list, conns: Connection list) = ()
+    let removeDuplicateConnections (comps: Component list,conns: Connection list) =
+        let checkDuplicate con lst =
+            lst
+            |> List.exists (fun c -> 
+                (c.Source = con.Source)
+                && not (isPortInComponents c.Target comps)
+                && not (isPortInComponents con.Target comps))
+ 
+        comps,
+        ([],conns)
+        ||> List.fold (fun acc con ->
+            match acc with
+            | [] -> [con]
+            | lst -> 
+                if checkDuplicate con lst then
+                    lst
+                else
+                    con::lst)
+
+
 
     let addExtraConnections (comps: Component list,conns: Connection list) =
         comps,
@@ -329,6 +348,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
         
 
     (components,connections)
+    |> removeDuplicateConnections
     |> addExtraConnections
     |> addExtraIOs
     |> checkCanvasWasCorrected

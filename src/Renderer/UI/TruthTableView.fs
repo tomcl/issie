@@ -29,6 +29,7 @@ open ConstraintView
 open Extractor
 open Simulator
 open TruthTableCreate
+open TruthTableReduce
 open BusWidthInferer
 
 /// Updates MergeWires and SplitWire Component labels to MWx/SWx.
@@ -534,7 +535,6 @@ let viewOutputHider table hidden dispatch =
             |> List.map (fun cell -> makeCheckboxRow cell.IO)
         div [] (preamble::checkboxRows)
 
-
 let viewCellAsData (cell: TruthTableCell) =
     match cell.Data with 
     | Bits [] -> failwithf "what? Empty WireData in TruthTable"
@@ -601,6 +601,40 @@ let viewTruthTableData (table: TruthTable) =
                     tbody [] body
                 ]
         ]
+
+let viewDCReducer (table: TruthTable) inputConstraints bitLimit dispatch =
+    //div [] []
+    //let sampleInput = table.Inputs.Head
+    let dcr = 
+        reduceTruthTable inputConstraints table bitLimit
+        |> Map.toList
+        |> List.map (fun (l,r) -> l @ r)
+
+    let headings =
+            dcr.Head
+            |> List.map viewCellAsHeading
+            |> List.toSeq
+    let body =
+        dcr
+        |> List.map viewRowAsData
+        |> List.toSeq
+    
+    div [] [
+            Table.table [
+                Table.IsBordered
+                Table.IsFullWidth
+                Table.IsStriped
+                Table.IsHoverable] 
+                [ 
+                    thead [] [tr [] headings]
+                    tbody [] body
+                ]
+        ]
+
+    // Button.button [Button.OnClick (fun _ -> 
+    //     printfn "DCR: %A" dcr
+    //     printfn "Count = %i" dcr.Length)] 
+    //     [str "DCR"]
 
 let viewTruthTable model dispatch =
     // Truth Table Generation for selected components requires all components to have distinct labels.
@@ -726,11 +760,16 @@ let viewTruthTable model dispatch =
             match tableopt with
             | Error _ -> div [] []
             | Ok table -> div [] [viewOutputHider table model.TTHiddenColumns dispatch]
-        
+        let dcr =
+            match tableopt with
+            | Error _ -> div [] []
+            | Ok table -> viewDCReducer table model.TTInputConstraints model.TTBitLimit dispatch
+
         let menu = 
             Menu.menu []  [
                 makeMenuGroup false "Filter" [constraints; br [] ; hr []]
                 makeMenuGroup false "Hide/Un-hide Columns" [hidden; br []; hr []]
+                makeMenuGroup false "Don't Care Reduction" [dcr; br []; hr []]
                 makeMenuGroup true "Truth Table" [body; br []; hr []]
             ]    
 

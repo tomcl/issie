@@ -42,6 +42,8 @@ type TruthTableCell = {
         | _ -> false
 
 type TruthTableRow = TruthTableCell list
+
+type MapToUse = | Table | HiddenCol | Filtered | DCReduced
         
 type TruthTable = {
     // Actual Table: Mapping from Input row to Output row
@@ -50,8 +52,8 @@ type TruthTable = {
     HiddenColMap: Map<TruthTableRow,TruthTableRow>
     // Truth Table filtered by Output Constraints
     FilteredMap: Map<TruthTableRow,TruthTableRow>
-    // Rows featuring Don't Care Terms - currently unused
-    XRows: Map<TruthTableRow,TruthTableRow> option
+    // Truth Table reduced with Don't Cares on Inputs
+    DCMap: Map<TruthTableRow,TruthTableRow> option
     // If the Truth Table has been truncated
     IsTruncated: bool
     // Maximum rows the truth table could have with current input constraints
@@ -78,6 +80,15 @@ type TruthTable = {
         |> List.head
         |> snd
         |> List.map (fun cell -> cell.IO)
+    member this.getMap (mapType: MapToUse) =
+        match mapType with
+        | Table -> this.TableMap
+        | HiddenCol -> this.HiddenColMap
+        | Filtered -> this.FilteredMap
+        | DCReduced -> 
+            match this.DCMap with
+            | Some m -> m
+            | None -> Map.empty
 
 let rowContainsDC (row: TruthTableRow) =
     row

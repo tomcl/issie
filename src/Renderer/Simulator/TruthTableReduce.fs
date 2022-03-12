@@ -95,9 +95,12 @@ let reduceTruthTable (inputConstraints: ConstraintSet) (table: TruthTable) bitLi
     let remainingRegularRows =
         (Map.toList table.FilteredMap, allDCRows)
         ||> List.fold reduceWithDCRow
+    { table with
+        DCMap = 
+            allDCRows @ remainingRegularRows
+            |> Map.ofList 
+            |> Some}
     
-    allDCRows @ remainingRegularRows
-    |> Map.ofList
     
 
 

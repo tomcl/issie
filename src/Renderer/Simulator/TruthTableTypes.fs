@@ -27,10 +27,22 @@ type CellIO =
 type TruthTableCell = {
     IO: CellIO
     Data: CellData
-    }
+    } with
+    member this.IsBits =
+        match this.Data with 
+        | Bits _ -> true
+        | _ -> false
+    member this.IsDC =
+        match this.Data with 
+        | DC -> true
+        | _ -> false
+    member this.IsAlgebra =
+        match this.Data with
+        | Algebra _ -> true
+        | _ -> false
 
 type TruthTableRow = TruthTableCell list
-
+        
 type TruthTable = {
     // Actual Table: Mapping from Input row to Output row
     TableMap: Map<TruthTableRow,TruthTableRow>
@@ -47,7 +59,33 @@ type TruthTable = {
     // Simulation Data for the Truth Table's own Simulation
     // Used when re-generating the Truth Table on change in input constraints
     TableSimData: SimulationData
-    }
+    } with
+    member this.Inputs =
+        this.TableMap
+        |> Map.toList
+        |> List.head
+        |> fst
+        |> List.map (fun cell -> cell.IO)
+    member this.AllOutputs =
+        this.TableMap
+        |> Map.toList
+        |> List.head
+        |> snd
+        |> List.map (fun cell -> cell.IO)
+    member this.VisibleOutputs =
+        this.FilteredMap
+        |> Map.toList
+        |> List.head
+        |> snd
+        |> List.map (fun cell -> cell.IO)
+
+let rowContainsDC (row: TruthTableRow) =
+    row
+    |> List.exists (fun cell -> cell.IsDC)
+
+let rowContainsAlgebra (row: TruthTableRow) =
+    row
+    |> List.exists (fun cell -> cell.IsAlgebra)
 
 //-------------------------------------------------------------------------------------//
 //-----------------------------Constraint Types----------------------------------------//

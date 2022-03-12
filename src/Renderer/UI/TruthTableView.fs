@@ -482,8 +482,8 @@ let private makeMenuGroup openDefault title menuList =
         Menu.list [] menuList
     ]
 
-let tableAsList (table: TruthTable): TruthTableRow list =
-    table.FilteredMap
+let tableAsList tMap =
+    tMap
     |> Map.toList
     |> List.map (fun (lhs,rhs) -> List.append lhs rhs)
 
@@ -575,11 +575,12 @@ let viewTruthTableError simError =
         error
     ]
     
-let viewTruthTableData (table: TruthTable) =
-    if table.FilteredMap.IsEmpty then // Should never be matched
+let viewTruthTableData (table: TruthTable) (mapType: MapToUse) =
+    let tMap = table.getMap mapType
+    if tMap.IsEmpty then // Should never be matched
         div [] [str "No Rows in Truth Table"]
     else
-        let TTasList = tableAsList table
+        let TTasList = tableAsList tMap
         let headings =
             TTasList.Head
             |> List.map viewCellAsHeading
@@ -603,38 +604,18 @@ let viewTruthTableData (table: TruthTable) =
         ]
 
 let viewDCReducer (table: TruthTable) inputConstraints bitLimit dispatch =
-    //div [] []
-    //let sampleInput = table.Inputs.Head
-    let dcr = 
+    let startReducing () =
         reduceTruthTable inputConstraints table bitLimit
-        |> Map.toList
-        |> List.map (fun (l,r) -> l @ r)
+        |> Ok
+        |> GenerateTruthTable
+        |> dispatch
 
-    let headings =
-            dcr.Head
-            |> List.map viewCellAsHeading
-            |> List.toSeq
-    let body =
-        dcr
-        |> List.map viewRowAsData
-        |> List.toSeq
-    
-    div [] [
-            Table.table [
-                Table.IsBordered
-                Table.IsFullWidth
-                Table.IsStriped
-                Table.IsHoverable] 
-                [ 
-                    thead [] [tr [] headings]
-                    tbody [] body
-                ]
-        ]
-
-    // Button.button [Button.OnClick (fun _ -> 
-    //     printfn "DCR: %A" dcr
-    //     printfn "Count = %i" dcr.Length)] 
-    //     [str "DCR"]
+    match table.DCMap with
+    | None ->
+        Button.button [Button.OnClick (fun _ -> startReducing())] 
+            [str "Reduce"]
+    | Some m ->
+        viewTruthTableData table DCReduced
 
 let viewTruthTable model dispatch =
     // Truth Table Generation for selected components requires all components to have distinct labels.
@@ -751,7 +732,7 @@ let viewTruthTable model dispatch =
         let body = 
             match tableopt with
             | Error e -> viewTruthTableError e
-            | Ok table -> viewTruthTableData table
+            | Ok table -> viewTruthTableData table Filtered
         let constraints =
             match tableopt with
             | Error _ -> div [] []

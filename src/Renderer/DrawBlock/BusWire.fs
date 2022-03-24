@@ -289,14 +289,11 @@ let issieVerticesToSegments
     else 
         match inferDirectionfromVertices xyVerticesList with
         | Some Vertical -> 
-            printfn "Converting vertical"
             xyVerticesToSegments connId true xyVerticesList
         | Some Horizontal -> 
-            printfn "Converting horizontal"
             xyVerticesToSegments connId false xyVerticesList
         | _ ->
             // can't work out what vertices are, so default to auto-routing
-            printfn "Converting unknown"
             makeSegmentsFromVertices xyVerticesList
             
 
@@ -1469,7 +1466,6 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                                             |> Option.map (fun port -> port.HostId)
                                             |> Option.bind (fun symId -> Map.tryFind (ComponentId symId) model.Symbol.Symbols)
                                             |> Option.map (fun sym -> sym.Compo.Label)
-                                        printfn $"Updating loaded wire from {getS conn.Source.Id}->{getS conn.Target.Id} of wire "
                                         updateWire model wire inOut)
                                 
                                 

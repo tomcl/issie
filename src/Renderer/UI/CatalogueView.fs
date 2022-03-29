@@ -38,6 +38,8 @@ let private makeCustom styles model dispatch (loadedComponent: LoadedComponent) 
             Name = loadedComponent.Name
             InputLabels = FilesIO.getOrderedCompLabels (Input 0) canvas
             OutputLabels = FilesIO.getOrderedCompLabels (Output 0) canvas
+            IdToLabel = Map.empty
+            clocked = loadedComponent.clocked
         }
         
         Sheet (Sheet.InitialiseCreateComponent (custom, "")) |> dispatch
@@ -384,7 +386,13 @@ let viewCatalogue model dispatch =
                         "Mux / Demux"
                         [ catTip1 "Mux2" (fun _ -> createCompStdLabel Mux2 model dispatch) "Selects the one of its two input busses numbered by the value of the select input
                                                                                 to be the output. Adjusts bus width to match."
+                          catTip1 "Mux4" (fun _ -> createCompStdLabel Mux4 model dispatch) "Selects the one of its four input busses numbered by the value of the select input
+                                                                                            to be the output. Adjusts bus width to match."
+                          catTip1 "Mux8" (fun _ -> createCompStdLabel Mux8 model dispatch) "Selects the one of its eight input busses numbered by the value of the select input
+                                                                                            to be the output. Adjusts bus width to match."                                                                  
                           catTip1 "Demux2" (fun _ -> createCompStdLabel Demux2 model dispatch)  "The output is equal to the input, the other is 0"
+                          catTip1 "Demux4" (fun _ -> createCompStdLabel Demux4 model dispatch)  "The output is equal to the input"
+                          catTip1 "Demux8" (fun _ -> createCompStdLabel Demux8 model dispatch)  "The output is equal to the input"
                           catTip1 "Decode4" (fun _ -> createCompStdLabel Decode4 model dispatch) "The output numbered by the binary value 
                                                                                                 of the 2 bit sel input is equal to Data, the others are 0"]
                     makeMenuGroup

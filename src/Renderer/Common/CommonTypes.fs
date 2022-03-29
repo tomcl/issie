@@ -230,7 +230,9 @@ module CommonTypes
         Name: string
         // Tuples with (label * connection width).
         InputLabels: (string * int) list
-        OutputLabels: (string * int) list 
+        OutputLabels: (string * int) list
+        IdToLabel: Map<string,string> //maps the unique port id to the label of the port
+        clocked: bool
     }
 
     type Memory = {
@@ -277,8 +279,8 @@ module CommonTypes
         | BusSelection of OutputWidth: int * OutputLSBit: int
         | Constant of Width: int * ConstValue: int64 
         | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
-        | Not | And | Or | Xor | Nand | Nor | Xnor |Decode4
-        | Mux2 | Demux2
+        | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
+        | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
         | NbitsAdder of BusWidth: int | NbitsXor of BusWidth:int
         | Custom of CustomComponentType // schematic sheet used as component
         | MergeWires | SplitWire of BusWidth: int // int is bus width
@@ -305,6 +307,22 @@ module CommonTypes
         | AsyncROM1 _ -> AsyncROM1
         | _ -> failwithf $"Can't get memory type from {cType}"
 
+    // --------------- Types needed for symbol ---------------- //
+    /// Represents the rotation of a symbol in degrees, Degree0 is the default symbol rotation.
+    /// Angle is anticlockwise
+    type Rotation = | Degree0 | Degree90 | Degree180 | Degree270
+    
+    /// Stores the rotation and the flip of the symbol, flipped false by default
+    type STransform = {Rotation: Rotation; flipped: bool}
+    
+    /// Represents the sides of a component
+    type Edge = | Top | Bottom | Left | Right
+    
+    type SymbolInfo = {
+        STransform: STransform
+        PortOrientation: Map<string, Edge>
+        PortOrder: Map<Edge, string list>
+    }
 
     /// JSComponent mapped to F# record.
     /// Id uniquely identifies the component within a sheet.
@@ -319,6 +337,7 @@ module CommonTypes
         Y : int
         H : int
         W : int
+        SymbolInfo : SymbolInfo
     }
 
     /// JSConnection mapped to F# record.
@@ -327,7 +346,7 @@ module CommonTypes
         Id : string
         Source : Port
         Target : Port
-        Vertices : (float * float) list
+        Vertices : (float * float * bool) list
     }
 
     /// F# data describing the contents of a single schematic sheet.
@@ -511,7 +530,22 @@ module CommonTypes
         InputLabels : (string * int) list
         /// Output port names, and port numbers in any created custom component
         OutputLabels : (string * int) list
+
+        clocked : bool //might not need it
     }
+
+    /// Returns true if a component is clocked
+    let isClocked (comp: Component) =
+        match comp.Type with
+        | Custom x ->
+            x.clocked
+        | DFF | DFFE | Register _ | RegisterE _ | RAM _ | ROM _ ->
+            true
+        | _ -> false
+
+    /// Returns whether any of a list of components are clocked
+    let canvasStateClocked (canvas: CanvasState) :bool =
+        fst canvas |> List.exists isClocked
 
     /// Type for an open project which represents a complete design.
     /// ProjectPath is directory containing project files.

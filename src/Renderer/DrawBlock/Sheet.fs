@@ -11,6 +11,7 @@ open Elmish
 open DrawHelpers
 
 
+
 let mutable canvasDiv:Types.Element option = None
 
 
@@ -27,7 +28,7 @@ type MouseOn =
     | Component of CommonTypes.ComponentId
     | Connection of CommonTypes.ConnectionId
     | Canvas
-    
+
 /// Keeps track of the current action that the user is doing
 type CurrentAction =
     | Selecting
@@ -41,22 +42,23 @@ type CurrentAction =
     | Idle
     // ------------------------------ Issie Actions ---------------------------- //
     | InitialisedCreateComponent of ComponentType * string
+    | MovingPort of portId: string//?? should it have the port id?
 
 type UndoAction =
     | MoveBackSymbol of CommonTypes.ComponentId List * XYPos
     | UndoPaste of CommonTypes.ComponentId list
-    
+
 /// Used for Snap-to-Grid, keeps track of mouse coordinates when the snapping started, and the amount to un-snap in the future.
 type LastSnap =
     {
         Pos: float
         SnapLength: float
     }
-    
+
 /// Used for Snap-to-Grid, keeps track of the last snap for each coordinate. None if no snapping has occurred.
-type MouseSnapInfo = 
+type MouseSnapInfo =
     {
-        XSnap: LastSnap Option 
+        XSnap: LastSnap Option
         YSnap: LastSnap Option
     }
 
@@ -67,7 +69,7 @@ type CursorType =
     | NoCursor
     | Spinner
 with
-    member this.Text() = 
+    member this.Text() =
         match this with
         | Default -> "default"
         | ClickablePort -> "move"
@@ -83,7 +85,13 @@ type SnapIndicator =
 
 /// For Keyboard messages
 type KeyboardMsg =
-    | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC
+    | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC 
+
+type RotateMsg =
+    | Right | Left
+
+type WireTypeMsg =
+    | Jump | Radial | Modern
 
 type Msg =
     | Wire of BusWire.Msg
@@ -111,11 +119,16 @@ type Msg =
     | ToggleNet of CanvasState //This message does nothing in sheet, but will be picked up by the update function
     | SelectWires of ConnectionId list
     | SetSpinner of bool
+    | Rotate of RotateMsg
+    | Flip
+    | WireType of WireTypeMsg
+    | MovePort of MouseT //different from mousemsg because ctrl pressed too
+    | SaveSymbols
 
 
 // ------------------ Helper Functions that need to be before the Model type --------------------------- //
 
-/// Creates a command to Symbol    
+/// Creates a command to Symbol
 let symbolCmd (msg: Symbol.Msg) = Cmd.ofMsg (Wire (BusWire.Symbol msg))
 
 /// Creates a command to BusWire
@@ -133,7 +146,7 @@ type Model = {
     DragToSelectBox: BoundingBox
     ConnectPortsLine: XYPos * XYPos // Visual indicator for connecting ports, defines two vertices to draw a line in-between.
     TargetPortId: string // Keeps track of if a target port has been found for connecting two wires in-between.
-    Action: CurrentAction 
+    Action: CurrentAction
     ShowGrid: bool // Always true at the moment, kept in-case we want an optional grid
     Snap: MouseSnapInfo // For Snap-to-Grid
     SnapIndicator: SnapIndicator // For Snap-to-Grid
@@ -154,74 +167,74 @@ type Model = {
     IsWaveSim : bool
     PrevWireSelection : ConnectionId list
     } with
-    
+
     // ---------------------------------- Issie Interfacing functions ----------------------------- //
-    
+
     /// Given a compType, return a label
     member this.GenerateLabel (compType: ComponentType) : string =
         Symbol.generateLabel this.Wire.Symbol compType
-    
+
     /// Given a compId, return the corresponding component
     member this.GetComponentById (compId: ComponentId) =
         Symbol.extractComponent this.Wire.Symbol compId
-        
+
     /// Change the label of Component specified by compId to lbl
     member this.ChangeLabel (dispatch: Dispatch<Msg>) (compId: ComponentId) (lbl: string) =
         dispatch <| (Wire (BusWire.Symbol (Symbol.ChangeLabel (compId, lbl) ) ) )
-        
+
     /// Run Bus Width Inference check
     member this.DoBusWidthInference dispatch =
         dispatch <| (Wire (BusWire.BusWidths))
-        
+
     /// Given a compId and a width, update the width of the Component specified by compId
     member this.ChangeWidth (dispatch: Dispatch<Msg>) (compId: ComponentId) (width: int) =
         dispatch <| (Wire (BusWire.Symbol (Symbol.ChangeNumberOfBits (compId, width) ) ) )
         this.DoBusWidthInference dispatch
-        
+
     /// Given a compId and a LSB, update the LSB of the Component specified by compId
     member this.ChangeLSB (dispatch: Dispatch<Msg>) (compId: ComponentId) (lsb: int64) =
         dispatch <| (Wire (BusWire.Symbol (Symbol.ChangeLsb (compId, lsb) ) ) )
-        
+
     /// Return Some string if Sheet / BusWire / Symbol has a notification, if there is none then return None
     member this.GetNotifications =
         // Currently only BusWire has notifications
         this.Wire.Notifications
-        
+
     /// Get the current canvas state in the form of (Component list * Connection list)
     member this.GetCanvasState () =
         let compList = Symbol.extractComponents this.Wire.Symbol
         let connList = BusWire.extractConnections this.Wire
-        
+
         compList, connList
-        
+
     /// Clears the Undo and Redo stack of Sheet
     member this.FlushCommandStack dispatch =
         dispatch <| FlushCommandStack
-        
+
     /// Clears the canvas, removes all components and connections
     member this.ClearCanvas dispatch =
         dispatch <| ResetModel
         dispatch <| (Wire BusWire.ResetModel)
         dispatch <| (Wire (BusWire.Symbol (Symbol.ResetModel ) ) )
-        
+
     /// Returns a list of selected components
     member this.GetSelectedComponents =
         this.SelectedComponents
         |> List.map (Symbol.extractComponent this.Wire.Symbol)
-        
+
     /// Returns a list of selected connections
     member this.GetSelectedConnections =
         this.SelectedWires
         |> List.map (BusWire.extractConnection this.Wire)
-        
+
     /// Returns a list of selected components and connections in the form of (Component list * Connection list)
     member this.GetSelectedCanvasState =
         this.GetSelectedComponents, this.GetSelectedConnections
-        
+
     /// Given a list of connIds, select those connections
     member this.SelectConnections dispatch on connIds =
         dispatch <| UpdateSelectedWires (connIds, on)
-        
+
     /// Update the memory of component specified by connId at location addr with data value
     member this.WriteMemoryLine dispatch connId addr value =
         dispatch <| (Wire (BusWire.Symbol (Symbol.WriteMemoryLine (connId, addr, value))))
@@ -229,7 +242,7 @@ type Model = {
 // ---------------------------- CONSTANTS ----------------------------- //
 let gridSize = 30.0 // Size of each square grid
 let snapMargin = gridSize / 25.0 // How strongly snap-to-grid snaps to the grid, small value so that there is not excessive snapping when moving symbols
-let unSnapMargin = gridSize / 5.0 // How much movement there needs to be for un-snapping 
+let unSnapMargin = gridSize / 5.0 // How much movement there needs to be for un-snapping
 
 
 // ------------------------------------------- Helper Functions ------------------------------------------- //
@@ -244,7 +257,7 @@ let symDiff lst1 lst2 =
 /// Calculates the change in coordinates of two XYPos
 let posDiff (a: XYPos) (b: XYPos) = {X=a.X-b.X; Y=a.Y-b.Y}
 
-let getScreenEdgeCoords () = 
+let getScreenEdgeCoords () =
     let canvas = document.getElementById "Canvas"
     let wholeApp = document.getElementById "WholeApp"
     let rightSelection = document.getElementById "RightSelection"
@@ -254,52 +267,51 @@ let getScreenEdgeCoords () =
     let topScreenEdge = canvas.scrollTop
     let bottomScreenEdge = topScreenEdge + rightSelection.offsetHeight - topMenu.clientHeight
     (leftScreenEdge, rightScreenEdge,topScreenEdge,bottomScreenEdge)
-    
+
 /// Checks if pos is inside any of the bounding boxes of the components in boundingBoxes
 let insideBox (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>) (pos: XYPos) : CommonTypes.ComponentId Option =
     let insideOneBox _ boundingBox =
-        let {BoundingBox.X=xBox; Y=yBox; H=hBox; W=wBox} = boundingBox
+        let {BoundingBox.TopLeft={X = xBox; Y=yBox}; H=hBox; W=wBox} = boundingBox
         pos.X >= xBox && pos.X <= xBox + wBox && pos.Y >= yBox && pos.Y <= yBox + hBox
-    
+
     boundingBoxes
     |> Map.tryFindKey insideOneBox // If there are multiple components overlapping (should not happen), return first one found
 
 /// return a BB equivalent to input but with (X,Y) = LH Top coord, (X+W,Y+H) = RH bottom coord
 /// note that LH Top is lower end of the two screen coordinates
 let standardiseBox (box:BoundingBox) =
-    let x = min box.X (box.X+box.W)
-    let y = min box.Y (box.Y+box.H)
+    let x = min box.TopLeft.X (box.TopLeft.X+box.W)
+    let y = min box.TopLeft.Y (box.TopLeft.Y+box.H)
     let w = abs box.W
     let h = abs box.H
-    { X=x; Y=y; W=w;H=h}
+    { TopLeft = {X=x; Y=y} ; W=w;H=h}
 
 
 let transformScreenToPos (screenPos:XYPos) (scrollPos:XYPos) mag =
-    {X=(screenPos.X + scrollPos.X)/mag; 
+    {X=(screenPos.X + scrollPos.X)/mag;
      Y=(screenPos.Y + scrollPos.Y)/mag}
-    
+
 
 /// calculates the smallest bounding box that contains two BBs, in form with W,H > 0
 let boxUnion (box:BoundingBox) (box':BoundingBox) =
-    let maxX = max (box.X+box.W) (box'.X + box'.W)
-    let maxY = max (box.Y + box.H) (box'.Y + box'.H)
-    let minX = min box.X box'.X
-    let minY = min box.Y box'.Y
+    let maxX = max (box.TopLeft.X+box.W) (box'.TopLeft.X + box'.W)
+    let maxY = max (box.TopLeft.Y + box.H) (box'.TopLeft.Y + box'.H)
+    let minX = min box.TopLeft.X box'.TopLeft.X
+    let minY = min box.TopLeft.Y box'.TopLeft.Y
     {
-        X = minX
-        Y = minY
+        TopLeft = {X = minX; Y = minY}
         W = maxX - minX
         H = maxY - minY
     }
 
 let symbolToBB (symbol:Symbol.Symbol) =
-    let co = symbol.Compo 
-    {X= float co.X; Y=float co.Y; W=float (co.W); H=float (co.H)}
+    let co = symbol.Component
+    {TopLeft = {X= float co.X; Y=float co.Y}; W=float (co.W); H=float (co.H)}
     
 
 /// Inputs must also have W,H > 0.
 /// Maybe this should include wires as well?
-let symbolBBUnion (model:Model) = 
+let symbolBBUnion (model:Model) =
     let symbols =
         model.Wire.Symbol.Symbols
         |> Map.toList
@@ -308,7 +320,7 @@ let symbolBBUnion (model:Model) =
     | (_,sym) :: rest ->
         (symbolToBB sym, rest)
         ||> List.fold (fun (box:BoundingBox) (_,sym) ->
-                boxUnion box (symbolToBB sym)) 
+                boxUnion box (symbolToBB sym))
         |> Some
 
 let fitCircuitToWindowParas (model:Model) =
@@ -316,11 +328,10 @@ let fitCircuitToWindowParas (model:Model) =
     let boxOpt = symbolBBUnion model
     let sBox =
         match boxOpt with
-        | None -> {X=100.; Y=100.; W=100.; H=100.} // default if sheet is empty
+        | None -> {TopLeft = {X=100.; Y=100.}; W=100.; H=100.} // default if sheet is empty
         | Some box -> 
             {
-                    X = box.X
-                    Y = box.Y
+                    TopLeft = box.TopLeft
                     W = box.W
                     H = box.H
             }
@@ -328,87 +339,87 @@ let fitCircuitToWindowParas (model:Model) =
     let lh,rh,top,bottom = getScreenEdgeCoords()
     let wantedMag = min ((rh - lh)/(sBox.W+2.*boxEdge)) ((bottom-top)/(sBox.H+2.*boxEdge))
     let magToUse = min wantedMag maxMagnification
-    let xMiddle = (sBox.X + sBox.W/2.)*magToUse
+    let xMiddle = (sBox.TopLeft.X + sBox.W/2.)*magToUse
     let xScroll = xMiddle - (rh-lh)/2.
-    let yMiddle = (sBox.Y + (sBox.H)/2.)*magToUse
+    let yMiddle = (sBox.TopLeft.Y + (sBox.H)/2.)*magToUse
     let yScroll = yMiddle - (bottom-top)/2.
 
     {|ScrollX=xScroll; ScrollY=yScroll; MagToUse=magToUse|}
-    
-    
+
+
 let isBBoxAllVisible (bb: BoundingBox) =
     let lh,rh,top,bottom = getScreenEdgeCoords()
     let bbs = standardiseBox bb
-    lh < bb.Y && 
-    top < bb.X && 
-    bb.Y+bb.H < bottom && 
-    bb.X+bb.W < rh
+    lh < bb.TopLeft.Y && 
+    top < bb.TopLeft.X && 
+    bb.TopLeft.Y+bb.H < bottom && 
+    bb.TopLeft.X+bb.W < rh
 
 /// could be made more efficient, since segments contain redundant info
 let getWireBBox (wire: BusWire.Wire) (model: Model) =
-    let coords = 
-        wire.Segments
-        |> List.collect (fun seg -> [seg.Start; seg.End])
-    let xCoords =  coords |> List.map (fun xy -> xy.X)
-    let yCoords =  coords |> List.map (fun xy -> xy.Y)
-    let lh,rh = List.min xCoords, List.max xCoords
-    let top,bottom = List.min yCoords, List.max yCoords
-    {X=lh; Y = top; W = rh - lh; H = bottom - top}
+    let updateBoundingBox segStart (segEnd: XYPos) state seg =
+        let newTop = min state.TopLeft.Y segEnd.Y
+        let newBottom = max (state.TopLeft.Y+state.H) segEnd.Y
+        let newRight = max (state.TopLeft.X+state.W) segEnd.X
+        let newLeft = min state.TopLeft.X segEnd.X
+        {TopLeft={X=newTop; Y=newLeft}; W=newRight-newLeft; H=newBottom-newTop }
+    BusWire.foldOverSegs updateBoundingBox {TopLeft = wire.StartPos; W=0; H=0;} wire
     
 
 let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId list) =
     let wVisible =
         conns
-        |> List.map (fun cid -> Map.tryFind cid model.Wire.WX)
+        |> List.map (fun cid -> Map.tryFind cid model.Wire.Wires)
         |> List.map (Option.map (fun wire -> getWireBBox wire model))
         |> List.map (Option.map isBBoxAllVisible)
         |> List.map (Option.defaultValue true)
         |> List.fold (&&) true
     let cVisible =
         comps
-        |> List.map (Symbol.getOneBoundingBox model.Wire.Symbol)
+        |> List.map (Symbol.getBoundingBox model.Wire.Symbol)
         |> List.map isBBoxAllVisible
         |> List.fold (&&) true
     wVisible && cVisible
 
-    
-    
+
+
 
 
 /// Calculates if two bounding boxes intersect by comparing corner coordinates of each box
 let boxesIntersect (box1: BoundingBox) (box2: BoundingBox) =
     // Requires min and max since H & W can be negative, i.e. we don't know which corner is which automatically
     // Boxes intersect if there is overlap in both x and y coordinates 
-    min box1.X (box1.X + box1.W) < max box2.X (box2.X + box2.W)
-    && min box2.X (box2.X + box2.W) < max box1.X (box1.X + box1.W)
-    && min box1.Y (box1.Y + box1.H) < max box2.Y (box2.Y + box2.H)
-    && min box2.Y (box2.Y + box2.H) < max box1.Y (box1.Y + box1.H)
+    min box1.TopLeft.X (box1.TopLeft.X + box1.W) < max box2.TopLeft.X (box2.TopLeft.X + box2.W)
+    && min box2.TopLeft.X (box2.TopLeft.X + box2.W) < max box1.TopLeft.X (box1.TopLeft.X + box1.W)
+    && min box1.TopLeft.Y (box1.TopLeft.Y + box1.H) < max box2.TopLeft.Y (box2.TopLeft.Y + box2.H)
+    && min box2.TopLeft.Y (box2.TopLeft.Y + box2.H) < max box1.TopLeft.Y (box1.TopLeft.Y + box1.H)
     
 /// Finds all components that touch a bounding box (which is usually the drag-to-select box)
 let findIntersectingComponents (model: Model) (box1: BoundingBox) =
     model.BoundingBoxes
     |> Map.filter (fun _ boundingBox -> boxesIntersect boundingBox box1)
-    |> Map.toList 
+    |> Map.toList
     |> List.map fst
 
 let posAdd (pos : XYPos) (a : float, b : float) : XYPos =
     {X = pos.X + a; Y = pos.Y + b}
-    
+
 /// Finds all components (that are stored in the Sheet model) near pos
-let findNearbyComponents (model: Model) (pos: XYPos) =
-    List.allPairs [-50.0 .. 10.0 .. 50.0] [-50.0 .. 10.0 .. 50.0] // Larger Increments -> More Efficient. But can miss small components then.
+let findNearbyComponents (model: Model) (pos: XYPos) (range: float)  =
+
+    List.allPairs [-range .. 10.0 .. range] [-range .. 10.0 .. range] // Larger Increments -> More Efficient. But can miss small components then.
     |> List.map ((fun x -> posAdd pos x) >> insideBox model.BoundingBoxes)
     |> List.collect ((function | Some x -> [x] | _ -> []))
-    
-/// Checks if pos is inside any of the ports in portList    
+
+/// Checks if pos is inside any of the ports in portList
 let mouseOnPort portList (pos: XYPos) (margin: float) =
     let radius = 5.0
 
-    let insidePortCircle (pos: XYPos) (portLocation: XYPos): bool =        
+    let insidePortCircle (pos: XYPos) (portLocation: XYPos): bool =
         let distance = ((pos.X - portLocation.X) ** 2.0 + (pos.Y - portLocation.Y) ** 2.0) ** 0.5
         distance <= radius + margin
 
-        
+
     match List.tryFind (fun (_, portLocation) -> insidePortCircle pos portLocation) portList with // + 2.5 margin to make it a bit easier to click on, maybe it's due to the stroke width?
     | Some (portId, portLocation) -> Some (portId, portLocation)
     | None -> None
@@ -416,7 +427,7 @@ let mouseOnPort portList (pos: XYPos) (margin: float) =
 /// Returns the ports of all model.NearbyComponents
 let findNearbyPorts (model: Model) =
     let inputPortsMap, outputPortsMap = Symbol.getPortLocations model.Wire.Symbol model.NearbyComponents
-    
+
     (inputPortsMap, outputPortsMap) ||> (fun x y -> (Map.toList x), (Map.toList y))
 
 /// Returns what is located at pos
@@ -425,9 +436,9 @@ let mouseOn (model: Model) (pos: XYPos) : MouseOn =
     let inputPorts, outputPorts = findNearbyPorts model
 
     //TODO FIX THIS - QUICK FIX TO MAKE WORK, NOT IDEAL
-    //The ports/wires are being loaded in the correct place but the detection is not working 
+    //The ports/wires are being loaded in the correct place but the detection is not working
     //Something is wrong with the mouse coordinates somewhere, might be caused by zoom? not sure
-    //let pos = {X = posIn.X - 2.; Y = posIn.Y - 4.} 
+    //let pos = {X = posIn.X - 2.; Y = posIn.Y - 4.}
 
     match mouseOnPort inputPorts pos 2.5 with
     | Some (portId, portLoc) -> InputPort (portId, portLoc)
@@ -437,15 +448,15 @@ let mouseOn (model: Model) (pos: XYPos) : MouseOn =
         | None ->
             match insideBox model.BoundingBoxes pos with
             | Some compId -> Component compId
-            | None -> 
-                match BusWire.getWireIfClicked model.Wire pos (5./model.Zoom) with
+            | None ->
+                match BusWire.getClickedWire model.Wire pos (5./model.Zoom) with
                 | Some connId -> Connection connId
                 | None -> Canvas
 
 let notIntersectingComponents (model: Model) (box1: BoundingBox) (inputId: CommonTypes.ComponentId) =
    model.BoundingBoxes
    |> Map.filter (fun sId boundingBox -> boxesIntersect boundingBox box1 && inputId <> sId)
-   |> Map.isEmpty 
+   |> Map.isEmpty
 
 /// Update function to move symbols in model.SelectedComponents
 let moveSymbols (model: Model) (mMsg: MouseT) =
@@ -453,14 +464,15 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
         match model.Action with
         | DragAndDrop -> DragAndDrop, true
         | _ -> MovingSymbols, false
-    
+
     match model.SelectedComponents.Length with
     | 1 -> // Attempt Snap-to-Grid if there is only one moving component
-        
+
         /// Checks for snap-to-grid in one dimension (x-coordinates or y-coordinates)
         /// Input / output is an anonymous record to deal with too many arguments otherwise
-        let checkForSnap1D (input: {| SnapInfo: LastSnap Option; Indicator: float Option; CurrMPos: float; LastMPos: float; Side1: float; Side2: float; PosDirection: float |}) =
-            
+
+        let checkForSnap1D (input: {| SnapInfo: LastSnap Option; Indicator: float Option; CurrMPos: float; LastMPos: float; Side1: float; Side2: float; PosDirection: float; SymbolMargins: list<float*float> |}) =
+ 
             match input.SnapInfo with
             | Some { Pos = oldPos; SnapLength = previousSnap } -> // Already snapped, see if mouse is far enough to un-snap
                 if abs (input.CurrMPos - oldPos) > unSnapMargin
@@ -470,25 +482,25 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                 let margins = [ (input.Side1 % gridSize), input.Side1
                                 ((input.Side1 % gridSize) - gridSize), input.Side1
                                 (input.Side2 % gridSize), input.Side2
-                                ((input.Side2 % gridSize) - gridSize), input.Side2 ]
-                
-                let getMarginWithDirection (sortedMargins: (float*float)list) (dir: float) = 
-                    if abs(fst(sortedMargins[0]) - fst(sortedMargins[1])) < 0.1 then
-                        //printfn "HERE"
-                        //printfn "%A" dir 
-                        if dir > 0. then 
-                        //    printf "HERE1"
-                            sortedMargins[0] 
-                        else sortedMargins[1]
-                    else 
-                        sortedMargins[0]
+                                ((input.Side2 % gridSize) - gridSize), input.Side2 ] @ input.SymbolMargins
 
-                let sortedMargins = List.rev (List.sortByDescending (fun (margin, _) -> abs margin) margins)
+                let getMarginWithDirection (sortedMargins: (float*float)list) (dir: float) =
+                    if abs(fst(sortedMargins[0]) - fst(sortedMargins[1])) < 0.05 then
+                        //printfn "HERE"
+                        //printfn "%A" dir
+                        if dir > 0. then
+                        //    printf "HERE1"
+                            sortedMargins[0]
+                        else sortedMargins[1]
+                    else
+                        sortedMargins[0]
+                let absMargins = List.map (fun (margin,x) -> (abs margin,x) ) margins
+                let sortedMargins = List.rev (List.sortByDescending (fun (margin, _) -> margin) absMargins)
 
                 //printfn "%A" sortedMargins
 
                 match getMarginWithDirection sortedMargins input.PosDirection with // abs since there negative margins as well (e.g. snap left)
-                | margin, side when abs margin < snapMargin && not model.AutomaticScrolling -> // disable snap if autoscrolling
+                | margin, side when margin < 0.4 && not model.AutomaticScrolling -> // disable snap if autoscrolling
                     // Snap to grid and save info for future un-snapping
                     {| DeltaPos = -margin
                        SnapInfo = Some {Pos = input.CurrMPos; SnapLength = -margin - (input.CurrMPos - input.LastMPos)} // Offset with (CurrMPos - LastMPos), so that the symbol stays aligned with the mouse after un-snapping
@@ -496,14 +508,28 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                 | _ -> // Don't do any snap-to-grid
                     {| DeltaPos = (input.CurrMPos - input.LastMPos)
                        SnapInfo = None
-                       Indicator = None |} 
-        
+                       Indicator = None |}
+
         let compId = model.SelectedComponents.Head
         let boundingBox = model.BoundingBoxes[compId]
-        let x1, x2, y1, y2 = boundingBox.X, boundingBox.X + boundingBox.W, boundingBox.Y, boundingBox.Y + boundingBox.H
+        let x1, x2, y1, y2 = boundingBox.TopLeft.X, boundingBox.TopLeft.X + boundingBox.W, boundingBox.TopLeft.Y, boundingBox.TopLeft.Y + boundingBox.H
         
         // printfn "%A" mMsg.Pos.X
         // printfn "%A" model.LastMousePos.X
+
+        /// Finds margins for moving shaped against other symbol sides 
+        let xMargins, yMargins =
+            let symbols = 
+                Map.toList model.Wire.Symbol.Symbols
+                |> List.map (fun x -> snd x) 
+                |> List.filter (fun (x:Symbol.Symbol) -> (not x.Moving) && (not (x.Id = compId)))
+            let extractEdges (prevList) (sym:Symbol.Symbol) = 
+                (fst prevList @ [sym.Pos.X] @ [sym.Pos.X + float sym.Component.W],snd prevList @ [sym.Pos.Y] @ [sym.Pos.Y + float sym.Component.H])
+            let x,y = List.fold extractEdges ([],[]) symbols
+            let xMarg = List.map (fun margin -> margin-x1, x1) x @ List.map (fun margin -> margin-x2, x2) x
+            let yMarg = List.map (fun margin -> margin-y1, y1) y @ List.map (fun margin -> margin-y2, y2) y
+            xMarg, yMarg
+
 
         let snapX = checkForSnap1D {| SnapInfo = model.Snap.XSnap
                                       Indicator = model.SnapIndicator.XLine
@@ -511,23 +537,25 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                                       LastMPos = model.LastMousePos.X
                                       Side1 = x1
                                       Side2 = x2
-                                      PosDirection = (mMsg.Pos.X - model.LastMousePosForSnap.X)  |}
-                              
+                                      PosDirection = (mMsg.Pos.X - model.LastMousePosForSnap.X)  
+                                      SymbolMargins = xMargins|}
+
         let snapY = checkForSnap1D {| SnapInfo = model.Snap.YSnap
                                       Indicator = model.SnapIndicator.YLine
                                       CurrMPos = mMsg.Pos.Y
                                       LastMPos = model.LastMousePos.Y
                                       Side1 = y1
                                       Side2 = y2
-                                      PosDirection = (mMsg.Pos.Y - model.LastMousePosForSnap.Y) |}
-        
-        let errorComponents  = 
+                                      PosDirection = (mMsg.Pos.Y - model.LastMousePosForSnap.Y) 
+                                      SymbolMargins = yMargins|}
+
+        let errorComponents  =
             if notIntersectingComponents model boundingBox compId then [] else [compId]
 
-        let updateLastMousePosForSnap , updateMouseCounter = 
-                                if model.MouseCounter > 5 then 
+        let updateLastMousePosForSnap , updateMouseCounter =
+                                if model.MouseCounter > 5 then
                                     mMsg.Pos , 0
-                                 else 
+                                 else
                                     model.LastMousePos , model.MouseCounter + 1
         {model with
              Action = nextAction
@@ -539,21 +567,137 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
              MouseCounter = updateMouseCounter
              LastMousePosForSnap = updateLastMousePosForSnap},
         Cmd.batch [ symbolCmd (Symbol.MoveSymbols (model.SelectedComponents, {X = snapX.DeltaPos; Y = snapY.DeltaPos}))
-                    Cmd.ofMsg (UpdateSingleBoundingBox model.SelectedComponents.Head) 
+                    Cmd.ofMsg (UpdateSingleBoundingBox model.SelectedComponents.Head)
                     symbolCmd (Symbol.ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
-                    Cmd.ofMsg CheckAutomaticScrolling 
+                    Cmd.ofMsg CheckAutomaticScrolling
                     wireCmd (BusWire.UpdateWires (model.SelectedComponents, posDiff mMsg.Pos model.LastMousePos))]
     | _ -> // Moving multiple symbols -> don't do snap-to-grid
-        let errorComponents = 
+        let errorComponents =
             model.SelectedComponents
             |> List.filter (fun sId -> not (notIntersectingComponents model model.BoundingBoxes[sId] sId))
         {model with Action = nextAction ; LastMousePos = mMsg.Pos; ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}; ErrorComponents = errorComponents },
         Cmd.batch [ symbolCmd (Symbol.MoveSymbols (model.SelectedComponents, posDiff mMsg.Pos model.LastMousePos))
                     symbolCmd (Symbol.ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
                     Cmd.ofMsg UpdateBoundingBoxes
-                    Cmd.ofMsg CheckAutomaticScrolling 
+                    Cmd.ofMsg CheckAutomaticScrolling
                     wireCmd (BusWire.UpdateWires (model.SelectedComponents, posDiff mMsg.Pos model.LastMousePos))]
+
+
+let snapWire (model: Model) (mMsg: MouseT) (connId: ConnectionId): Model * Cmd<Msg> = 
+    
+    let nextAction, isMovingWire =
+        match model.Action with
+        | MovingWire connId -> MovingWire connId, true
+        | _ -> Idle, false
+
+    let checkForSnap (input: {| SnapInfo: LastSnap Option; Indicator: float Option; CurrMPos: XYPos; LastMPos: XYPos; orientation: BusWire.Orientation |}) =
         
+        let clickedWireId = model.SelectedWires.Head
+        let clickedWire = model.Wire.Wires |> Map.find clickedWireId
+
+        let clickedSegId = BusWire.getClickedSegment model.Wire clickedWireId input.CurrMPos
+
+        let segPositions (wire: BusWire.Wire) (target) =
+            (None, wire)
+            ||> BusWire.foldOverSegs (fun startPos endPos state seg ->
+                                            if seg.Id = target then Some (startPos, endPos)
+                                            else state)
+
+        let segStart, segEnd = Option.get (segPositions clickedWire clickedSegId)
+
+        let segOrientation: BusWire.Orientation = BusWire.getSegmentOrientation segStart segEnd
+
+        let distanceFromPrevGridline: float =
+            match segOrientation with
+            | BusWire.Orientation.Vertical -> segStart.X % gridSize
+            | BusWire.Orientation.Horizontal -> segStart.Y % gridSize
+
+        let margin: float =
+            if distanceFromPrevGridline > (gridSize / 2.0) then
+                gridSize - distanceFromPrevGridline
+            else distanceFromPrevGridline
+        
+        match input.SnapInfo with
+        | Some {Pos = oldPos; SnapLength = previousSnap} -> //already snapped, see if far enough to unsnap
+            match segOrientation, input.orientation with
+            | BusWire.Orientation.Vertical , BusWire.Orientation.Vertical->
+                if abs (input.CurrMPos.X - oldPos) - previousSnap > unSnapMargin then
+                    {| DeltaPos = (input.CurrMPos.X - oldPos) - previousSnap; SnapInfo = None; Indicator = None |} //unSnap
+                else {| DeltaPos = input.CurrMPos.X-input.LastMPos.X; SnapInfo = input.SnapInfo; Indicator = input.Indicator |} // no unSnap
+            | BusWire.Orientation.Horizontal, BusWire.Orientation.Horizontal->
+                if abs (input.CurrMPos.Y - oldPos) - previousSnap > unSnapMargin then
+                    {| DeltaPos = (input.CurrMPos.Y - oldPos) - previousSnap; SnapInfo = None; Indicator = None |}
+                else {| DeltaPos = 0.; SnapInfo = input.SnapInfo; Indicator = input.Indicator |}
+            | _ -> {| DeltaPos = input.CurrMPos.Y-input.LastMPos.Y; SnapInfo = None; Indicator = None |}
+        | None ->
+            match segOrientation, input.orientation with
+            | BusWire.Orientation.Vertical, BusWire.Orientation.Vertical ->
+                match (margin < snapMargin), (not model.AutomaticScrolling), (distanceFromPrevGridline - margin < 1.) with
+                | true, true, true -> 
+                    {| DeltaPos = margin;
+                       SnapInfo = Some {Pos = input.CurrMPos.X; SnapLength = -margin};
+                       Indicator = Some (segStart.X - margin) |}
+                | true, true, false ->
+                    {| DeltaPos = -margin;
+                       SnapInfo = Some {Pos = input.CurrMPos.X; SnapLength = margin};
+                       Indicator = Some (segStart.X + margin) |}
+                | _ ->
+                    {| DeltaPos = (input.CurrMPos.X - input.LastMPos.X);
+                       SnapInfo = None;
+                       Indicator = None |}
+            | BusWire.Orientation.Horizontal, BusWire.Orientation.Horizontal ->
+                match (margin < snapMargin), (not model.AutomaticScrolling), (distanceFromPrevGridline - margin < 1.) with
+                | true, true, true -> 
+                    {| DeltaPos = margin;
+                       SnapInfo = Some {Pos = input.CurrMPos.Y; SnapLength = -margin};
+                       Indicator = Some (segStart.Y - margin) |}
+                | true, true, false -> 
+                    {| DeltaPos = -margin;
+                       SnapInfo = Some {Pos = input.CurrMPos.Y; SnapLength = margin};
+                       Indicator = Some (segStart.Y + margin) |}
+                | _ ->
+                    {| DeltaPos = (input.CurrMPos.Y - input.LastMPos.Y);
+                       SnapInfo = None;
+                       Indicator = None |}
+            | _ ->  {| DeltaPos = 0.; SnapInfo = None; Indicator = None |}
+    
+    let snapX = checkForSnap {| SnapInfo = model.Snap.XSnap;
+                                Indicator = model.SnapIndicator.XLine;
+                                CurrMPos = mMsg.Pos;
+                                LastMPos = model.LastMousePos;
+                                orientation = BusWire.Vertical    |}
+
+    let snapY = checkForSnap {| SnapInfo = model.Snap.YSnap;
+                                Indicator = model.SnapIndicator.YLine;
+                                CurrMPos = mMsg.Pos;   
+                                LastMPos = model.LastMousePos;
+                                orientation = BusWire.Horizontal    |}
+
+    let updateLastMousePosForSnap, updateMouseCounter =
+        if model.MouseCounter > 5 then
+            mMsg.Pos, 0
+        else model.LastMousePos, model.MouseCounter + 1
+    let wirePos = 
+        match snapX.SnapInfo, snapY.SnapInfo with
+        | Some sInfo , None -> {X=sInfo.Pos; Y=mMsg.Pos.Y}
+        | None, Some sInfo -> {X=mMsg.Pos.X; Y=sInfo.Pos}
+        | _ -> mMsg.Pos
+
+    let mMsg' = 
+        {mMsg with Pos = wirePos} 
+                                
+    { model with
+        Action = nextAction;
+        LastMousePos = mMsg.Pos;
+        ScrollingLastMousePos = {Pos = mMsg.Pos; Move = mMsg.Movement};
+        ErrorComponents = [];
+        Snap = {XSnap = snapX.SnapInfo; YSnap = snapY.SnapInfo};
+        SnapIndicator = {XLine = snapX.Indicator; YLine = snapY.Indicator};
+        MouseCounter = updateMouseCounter;
+        LastMousePosForSnap = updateLastMousePosForSnap },
+    Cmd.batch [ wireCmd (BusWire.DragWire (model.SelectedWires.Head, mMsg'));
+                Cmd.ofMsg CheckAutomaticScrolling;
+                wireCmd (BusWire.MakeJumps [connId]) ] 
 // ----------------------------------------- Mouse Update Helper Functions ----------------------------------------- //
 // (Kept in separate functions since Update function got too long otherwise)
 
@@ -571,20 +715,20 @@ let appendUndoList (undoList: Model List) (model_in: Model): Model List =
 
 /// Mouse Down Update, Can have clicked on: InputPort / OutputPort / Component / Wire / Canvas. Do correct action for each.
 let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
-    let newModel = 
-        match model.TmpModel with 
+    let newModel =
+        match model.TmpModel with
         | None -> model
         | Some newModel -> newModel
 
     match model.Action with
     | DragAndDrop ->
-        let errorComponents = 
+        let errorComponents =
             model.SelectedComponents
             |> List.filter (fun sId -> not (notIntersectingComponents model model.BoundingBoxes[sId] sId))
 
-        match List.isEmpty errorComponents with 
+        match List.isEmpty errorComponents with
         | false -> model, Cmd.none
-        | true -> 
+        | true ->
             {model with
                 BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol // TODO: Improve here in group stage when we are concerned with efficiency
                 Action = Idle
@@ -593,25 +737,38 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                 UndoList = appendUndoList model.UndoList newModel
                 RedoList = []
                 AutomaticScrolling = false
-            }, 
+            },
             Cmd.batch [ symbolCmd (Symbol.SelectSymbols model.SelectedComponents)
                         wireCmd (BusWire.SelectWires model.SelectedWires) ]
     | _ ->
         match (mouseOn model mMsg.Pos) with
-        | InputPort (portId, portLoc) -> 
-            {model with Action = ConnectingInput portId; ConnectPortsLine = portLoc, mMsg.Pos; TmpModel=Some model},
-            symbolCmd Symbol.ShowAllOutputPorts
-        | OutputPort (portId, portLoc) -> 
-            {model with Action = ConnectingOutput portId; ConnectPortsLine = portLoc, mMsg.Pos; TmpModel=Some model},
-            symbolCmd Symbol.ShowAllInputPorts
+        | InputPort (portId, portLoc) ->
+            if not model.Toggle then
+                {model with Action = ConnectingInput portId; ConnectPortsLine = portLoc, mMsg.Pos; TmpModel=Some model},
+                symbolCmd Symbol.ShowAllOutputPorts
+            else
+                let  portIdstr = match portId with | InputPortId x -> x
+                {model with Action = MovingPort portIdstr}
+                , symbolCmd (Symbol.MovePort (portIdstr, mMsg.Pos))
+
+        | OutputPort (portId, portLoc) ->
+            if not model.Toggle then
+                {model with Action = ConnectingOutput portId; ConnectPortsLine = portLoc, mMsg.Pos; TmpModel=Some model},
+                symbolCmd Symbol.ShowAllInputPorts
+            else
+                let  portIdstr = match portId with | OutputPortId x -> x
+                {model with Action = MovingPort portIdstr}
+                , symbolCmd (Symbol.MovePort (portIdstr, mMsg.Pos))
+
         | Component compId ->
-            let msg, action = 
-                if model.IsWaveSim then 
+
+            let msg, action =
+                if model.IsWaveSim then
                     ToggleNet ([Symbol.extractComponent model.Wire.Symbol compId], []), Idle
                 else DoNothing, InitialiseMoving compId
 
-            if model.Toggle 
-            then 
+            if model.Toggle
+            then
                 let newComponents =
                     if List.contains compId model.SelectedComponents
                     then List.filter (fun cId -> cId <> compId) model.SelectedComponents // If component selected was already in the list, remove it
@@ -626,18 +783,18 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                     else [compId], [] // If user clicked on a new component, select that one instead
                 {model with SelectedComponents = newComponents; LastValidPos = mMsg.Pos ; LastValidBoundingBoxes=model.BoundingBoxes ; SelectedWires = newWires; Action = action; LastMousePos = mMsg.Pos; TmpModel = Some model},
                 Cmd.batch [ symbolCmd (Symbol.SelectSymbols newComponents)
-                            wireCmd (BusWire.SelectWires newWires) 
+                            wireCmd (BusWire.SelectWires newWires)
                             Cmd.ofMsg msg]
 
         | Connection connId ->
-            let msg = 
-                if model.IsWaveSim then 
-                    ToggleNet ([], [BusWire.extractConnection model.Wire connId]) 
+            let msg =
+                if model.IsWaveSim then
+                    ToggleNet ([], [BusWire.extractConnection model.Wire connId])
                 else DoNothing
 
             if model.Toggle
-            then 
-                let newWires = 
+            then
+                let newWires =
                     if List.contains connId model.SelectedWires
                     then List.filter (fun cId -> cId <> connId) model.SelectedWires // If component selected was already in the list, remove it
                     else connId :: model.SelectedWires // If user clicked on a new component add it to the selected list
@@ -657,67 +814,70 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                 then model.SelectedComponents, model.SelectedWires //do not deselect if in toggle mode
                 else [], []
             // Start Creating Selection Box and Reset Selected Components
-            let initialiseSelection = {model.DragToSelectBox with X=mMsg.Pos.X; Y=mMsg.Pos.Y}
+            let initialiseSelection = 
+                {model.DragToSelectBox with TopLeft= {X=mMsg.Pos.X; Y=mMsg.Pos.Y}}
             {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires },
             Cmd.batch [ symbolCmd (Symbol.SelectSymbols newComponents)
                         wireCmd (BusWire.SelectWires newWires) ]
-        
+
 /// Mouse Drag Update, can be: drag-to-selecting, moving symbols, connecting wire between ports.
-let mDragUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = 
+let mDragUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
     match model.Action with
-    | MovingWire connId -> model, wireCmd (BusWire.DragWire (connId, mMsg))
+    | MovingWire connId -> snapWire model mMsg connId 
     | Selecting ->
-        let initialX = model.DragToSelectBox.X
-        let initialY = model.DragToSelectBox.Y
+        let initialX = model.DragToSelectBox.TopLeft.X
+        let initialY = model.DragToSelectBox.TopLeft.Y
         let newDragToSelectBox = {model.DragToSelectBox with W = (mMsg.Pos.X - initialX); H = (mMsg.Pos.Y - initialY)}
         {model with DragToSelectBox = newDragToSelectBox
                     ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}
                     LastMousePos = mMsg.Pos
          }, Cmd.ofMsg CheckAutomaticScrolling
     | InitialiseMoving _ ->
-        let movingWires = BusWire.getConnectedWires model.Wire model.SelectedComponents
+        let movingWires = BusWire.getConnectedWireIds model.Wire model.SelectedComponents
         let newModel, cmd = moveSymbols model mMsg
         newModel, Cmd.batch [ cmd; wireCmd (BusWire.ResetJumps movingWires) ]
     | MovingSymbols | DragAndDrop ->
         moveSymbols model mMsg
-    | ConnectingInput _ -> 
-        let nearbyComponents = findNearbyComponents model mMsg.Pos
+    | ConnectingInput _ ->
+        let nearbyComponents = findNearbyComponents model mMsg.Pos 50 
         let _, nearbyOutputPorts = findNearbyPorts model
 
-        let targetPort, drawLineTarget = 
+        let targetPort, drawLineTarget =
             match mouseOnPort nearbyOutputPorts mMsg.Pos 12.5 with
             | Some (OutputPortId portId, portLoc) -> (portId, portLoc) // If found target, snap target of the line to the port
             | None -> ("", mMsg.Pos)
-                
+
         { model with
                     NearbyComponents = nearbyComponents
                     ConnectPortsLine = (fst model.ConnectPortsLine, drawLineTarget)
                     TargetPortId = targetPort
                     LastMousePos = mMsg.Pos
-                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}}        
+                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}}
         , Cmd.ofMsg CheckAutomaticScrolling
-    | ConnectingOutput _ -> 
-        let nearbyComponents = findNearbyComponents model mMsg.Pos
+    | ConnectingOutput _ ->
+        let nearbyComponents = findNearbyComponents model mMsg.Pos 50
         let nearbyInputPorts, _ = findNearbyPorts model
-        
-        let targetPort, drawLineTarget = 
+
+        let targetPort, drawLineTarget =
             match mouseOnPort nearbyInputPorts mMsg.Pos 12.5 with
             | Some (InputPortId portId, portLoc) -> (portId, portLoc) // If found target, snap target of the line to the port
             | None -> ("", mMsg.Pos)
-                
+
         { model with
                     NearbyComponents = nearbyComponents
                     ConnectPortsLine = (fst model.ConnectPortsLine, drawLineTarget)
                     TargetPortId = targetPort
                     LastMousePos = mMsg.Pos
-                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement} }        
+                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement} }
         , Cmd.ofMsg CheckAutomaticScrolling
+
+    | MovingPort portId->
+        model, symbolCmd (Symbol.MovePort (portId, mMsg.Pos))
     | _ -> model, Cmd.none
-    
 /// Mouse Up Update, can have: finished drag-to-select, pressed on a component, finished symbol movement, connected a wire between ports
-let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is currently un-used, but kept for future possibilities 
-    let newModel = 
-        match model.TmpModel with 
+let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is currently un-used, but kept for future possibilities
+    let newModel =
+        match model.TmpModel with
         | None -> model
         | Some newModel -> newModel
 
@@ -730,9 +890,9 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
         let newComponents = findIntersectingComponents model model.DragToSelectBox
         let newWires = BusWire.getIntersectingWires model.Wire model.DragToSelectBox
         let resetDragToSelectBox = {model.DragToSelectBox with H = 0.0; W = 0.0}
-        let selectComps, selectWires = 
-            if model.Toggle 
-            then 
+        let selectComps, selectWires =
+            if model.Toggle
+            then
                 symDiff newComponents model.SelectedComponents, symDiff newWires model.SelectedWires
             else newComponents, newWires
 
@@ -746,11 +906,11 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
                         wireCmd (BusWire.SelectWires []) ]
     | MovingSymbols ->
         // Reset Movement State in Model
-        match model.ErrorComponents with 
+        match model.ErrorComponents with
         | [] ->
-            let movingWires = BusWire.getConnectedWires model.Wire model.SelectedComponents
+            let movingWires = BusWire.getConnectedWireIds model.Wire model.SelectedComponents
             {model with
-                // BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol 
+                // BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol
                 Action = Idle
                 Snap = {XSnap = None; YSnap = None}
                 SnapIndicator = {XLine = None; YLine = None }
@@ -759,13 +919,13 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
                 AutomaticScrolling = false },
             wireCmd (BusWire.MakeJumps movingWires)
         | _ ->
-            let movingWires = BusWire.getConnectedWires model.Wire model.SelectedComponents
+            let movingWires = BusWire.getConnectedWireIds model.Wire model.SelectedComponents
             {model with
-                BoundingBoxes = model.LastValidBoundingBoxes 
+                BoundingBoxes = model.LastValidBoundingBoxes
                 Action = Idle
                 Snap = {XSnap = None; YSnap = None}
                 SnapIndicator = {XLine = None; YLine = None }
-                AutomaticScrolling = false }, 
+                AutomaticScrolling = false },
             Cmd.batch [ symbolCmd (Symbol.MoveSymbols (model.SelectedComponents, (posDiff model.LastValidPos mMsg.Pos)))
                         symbolCmd (Symbol.SelectSymbols (model.SelectedComponents))
                         wireCmd (BusWire.UpdateWires (model.SelectedComponents, posDiff model.LastValidPos mMsg.Pos))
@@ -784,8 +944,12 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
                            appendUndoList model.UndoList newModel , []
             else Cmd.none , model.UndoList , model.RedoList
         { model with Action = Idle; TargetPortId = ""; UndoList = undoList ; RedoList = redoList ; AutomaticScrolling = false  }, cmd
+    | MovingPort portId ->
+        {model with Action = Idle},
+        Cmd.batch [symbolCmd (Symbol.MovePortDone (portId, mMsg.Pos));
+        wireCmd (BusWire.RerouteWire portId)]
     | _ -> model, Cmd.none
-    
+
 /// Mouse Move Update, looks for nearby components and looks if mouse is on a port
 let mMoveUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
     match model.Action with
@@ -804,8 +968,8 @@ let mMoveUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                     symbolCmd (Symbol.SelectSymbols [])
                     symbolCmd (Symbol.PasteSymbols [ newCompId ]) ]
     | _ ->
-        let nearbyComponents = findNearbyComponents model mMsg.Pos // TODO Group Stage: Make this more efficient, update less often etc, make a counter?
-        
+        let nearbyComponents = findNearbyComponents model mMsg.Pos 50 // TODO Group Stage: Make this more efficient, update less often etc, make a counter?
+
         let newCursor =
             match model.CursorType with
             | Spinner -> Spinner
@@ -813,42 +977,43 @@ let mMoveUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                 match mouseOn { model with NearbyComponents = nearbyComponents } mMsg.Pos with // model.NearbyComponents can be outdated e.g. if symbols have been deleted -> send with updated nearbyComponents.
                 | InputPort _ | OutputPort _ -> ClickablePort // Change cursor if on port
                 | _ -> Default
-            
+
         { model with NearbyComponents = nearbyComponents; CursorType = newCursor; LastMousePos = mMsg.Pos; ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement} },
         symbolCmd (Symbol.ShowPorts nearbyComponents) // Show Ports of nearbyComponents
-    
+
 let getScreenCentre (model : Model) : XYPos =
     let canvas = document.getElementById "Canvas"
-    { 
+    {
         X = (canvas.scrollLeft + canvas.clientWidth / 2.0) / model.Zoom
-        Y = (canvas.scrollTop + canvas.clientHeight / 2.0) / model.Zoom 
-    } 
+        Y = (canvas.scrollTop + canvas.clientHeight / 2.0) / model.Zoom
+    }
 
 /// Update Function
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     match msg with
-    | Wire wMsg -> 
+    | Wire wMsg ->
         let wModel, wCmd = BusWire.update wMsg model.Wire
         { model with Wire = wModel }, Cmd.map Wire wCmd
     | ToggleGrid ->
         {model with ShowGrid = not model.ShowGrid}, Cmd.none
     | KeyPress DEL ->
-        let wiresConnectedToComponents = BusWire.getConnectedWires model.Wire model.SelectedComponents
+        let wiresConnectedToComponents = BusWire.getConnectedWireIds model.Wire model.SelectedComponents
         // Ensure there are no duplicate deletions by using a Set
         let wireUnion =
             Set.union (Set.ofList wiresConnectedToComponents) (Set.ofList model.SelectedWires)
             |> Set.toList
-            
+
         // let inputPorts, outputPorts = BusWire.getPortIdsOfWires model.Wire wireUnion
         { model with SelectedComponents = []; SelectedWires = []; UndoList = appendUndoList model.UndoList model ; RedoList = [] },
         Cmd.batch [ wireCmd (BusWire.DeleteWires wireUnion) // Delete Wires before components so nothing bad happens
                     symbolCmd (Symbol.DeleteSymbols model.SelectedComponents)
                     Cmd.ofMsg UpdateBoundingBoxes ]
     | KeyPress CtrlS -> // For Demo, Add a new square in upper left corner
+        printfn "saving symbols"
         { model with BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol; UndoList = appendUndoList model.UndoList model ; RedoList = []},
-        Cmd.batch [ symbolCmd (Symbol.AddSymbol ({X = 50.0; Y = 50.0}, And, "test 1")); Cmd.ofMsg UpdateBoundingBoxes ] // Need to update bounding boxes after adding a symbol.
+        Cmd.batch [ symbolCmd (Symbol.AddSymbol ({X = 50.0; Y = 50.0}, And, "test 1")); Cmd.ofMsg UpdateBoundingBoxes; symbolCmd Symbol.SaveSymbols ] // Need to update bounding boxes after adding a symbol.
     | KeyPress AltShiftZ ->
-        TimeHelpers.printStats() 
+        TimeHelpers.printStats()
         model, Cmd.none
     | KeyPress CtrlC ->
         model,
@@ -859,12 +1024,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | KeyPress CtrlV ->
         let newSymbolModel, pastedCompIds = Symbol.pasteSymbols model.Wire.Symbol model.LastMousePos // Symbol has Copied Symbols stored
         let newBusWireModel, pastedConnIds = BusWire.pasteWires { model.Wire with Symbol = newSymbolModel } pastedCompIds
-        
+
         { model with Wire = newBusWireModel
                      SelectedComponents = pastedCompIds
                      SelectedWires = pastedConnIds
                      TmpModel = Some model
-                     Action = DragAndDrop }, 
+                     Action = DragAndDrop },
         Cmd.batch [ Cmd.ofMsg UpdateBoundingBoxes
                     symbolCmd (Symbol.SelectSymbols []) // Select to unhighlight all other symbols
                     symbolCmd (Symbol.PasteSymbols pastedCompIds)
@@ -882,21 +1047,21 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         wireCmd (BusWire.DeleteWires model.SelectedWires)
                         Cmd.ofMsg UpdateBoundingBoxes ]
         | _ -> model, Cmd.none
-    | KeyPress CtrlZ -> 
-        match model.UndoList with 
+    | KeyPress CtrlZ ->
+        match model.UndoList with
         | [] -> model , Cmd.none
-        | prevModel :: lst -> 
+        | prevModel :: lst ->
             let symModel = { prevModel.Wire.Symbol with CopiedSymbols = model.Wire.Symbol.CopiedSymbols }
-            let wireModel = { prevModel.Wire with CopiedWX = model.Wire.CopiedWX ; Symbol = symModel}
+            let wireModel = { prevModel.Wire with CopiedWires = model.Wire.CopiedWires ; Symbol = symModel}
             { prevModel with Wire = wireModel ; UndoList = lst ; RedoList = model :: model.RedoList ; CurrentKeyPresses = Set.empty } , Cmd.none
-    | KeyPress CtrlY -> 
-        match model.RedoList with 
+    | KeyPress CtrlY ->
+        match model.RedoList with
         | [] -> model , Cmd.none
         | newModel :: lst -> { newModel with UndoList = model :: model.UndoList ; RedoList = lst} , Cmd.none
-    | KeyPress CtrlA -> 
+    | KeyPress CtrlA ->
         let symbols = model.Wire.Symbol.Symbols |> Map.toList |> List.map fst
-        let wires = model.Wire.WX |> Map.toList |> List.map fst
-        { model with 
+        let wires = model.Wire.Wires |> Map.toList |> List.map fst
+        { model with
             SelectedComponents = symbols
             SelectedWires = wires
         } , Cmd.batch [ symbolCmd (Symbol.SelectSymbols symbols)
@@ -904,17 +1069,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | KeyPress CtrlW ->
         match canvasDiv with
         | None -> model, Cmd.none
-        | Some el -> 
+        | Some el ->
             let paras = fitCircuitToWindowParas model
             el.scrollTop <- paras.ScrollY
             el.scrollLeft <- paras.ScrollX
             { model with Zoom = paras.MagToUse}, Cmd.ofMsg (UpdateScrollPos (el.scrollLeft, el.scrollTop))
     | ToggleSelectionOpen ->
-        //if List.isEmpty model.SelectedComponents && List.isEmpty model.SelectedWires then  
+        //if List.isEmpty model.SelectedComponents && List.isEmpty model.SelectedWires then
         //    model, Cmd.none
         //else
             {model with Toggle = true}, Cmd.none
-    | ToggleSelectionClose -> 
+    | ToggleSelectionClose ->
         {model with Toggle = false}, Cmd.none
 
     | MouseMsg mMsg -> // Mouse Update Functions can be found above, update function got very messy otherwise
@@ -927,7 +1092,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | UpdateBoundingBoxes -> { model with BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol }, Cmd.none
     | UpdateSingleBoundingBox compId ->
         match Map.containsKey compId model.BoundingBoxes with
-        | true -> {model with BoundingBoxes = model.BoundingBoxes.Add (compId, (Symbol.getOneBoundingBox model.Wire.Symbol compId))}, Cmd.none
+        | true -> {model with BoundingBoxes = model.BoundingBoxes.Add (compId, (Symbol.getBoundingBox model.Wire.Symbol compId))}, Cmd.none
         | false -> model, Cmd.none
     | UpdateScrollPos (scrollX, scrollY) ->
         let scrollDif = posDiff { X = scrollX; Y = scrollY } model.ScrollPos
@@ -936,7 +1101,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
              Pos =
                 {
                     X = model.ScrollingLastMousePos.Pos.X + scrollDif.X / model.Zoom
-                    Y = model.ScrollingLastMousePos.Pos.Y + scrollDif.Y / model.Zoom                
+                    Y = model.ScrollingLastMousePos.Pos.Y + scrollDif.Y / model.Zoom
                 }
              Move = model.ScrollingLastMousePos.Move
             }
@@ -951,20 +1116,20 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | KeyPress ZoomOut ->
         let leftScreenEdge, rightScreenEdge,_,_ = getScreenEdgeCoords()
         //Check if the new zoom will exceed the canvas width
-        let newZoom = 
+        let newZoom =
             if rightScreenEdge - leftScreenEdge < (DrawHelpers.canvasUnscaledSize * (model.Zoom - 0.05)) then model.Zoom - 0.05
             else model.Zoom
 
         { model with Zoom = newZoom }, Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
     | KeepZoomCentered oldScreenCentre ->
         let canvas = document.getElementById "Canvas"
-        let newScreenCentre = getScreenCentre model 
+        let newScreenCentre = getScreenCentre model
         let requiredOffset = posDiff oldScreenCentre newScreenCentre
-        
+
         // Update screen so that the zoom is centred around the middle of the screen.
         canvas.scrollLeft <- canvas.scrollLeft + requiredOffset.X * model.Zoom
         canvas.scrollTop <- canvas.scrollTop + requiredOffset.Y * model.Zoom
-        
+
         model, Cmd.none
     | ManualKeyDown key -> // Needed for e.g. Ctrl + C and Ctrl + V as they are not picked up by Electron
         let newPressedKeys = model.CurrentKeyPresses.Add (key.ToUpper()) // Make it fully upper case to remove CAPS dependency
@@ -982,14 +1147,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 else
                     Cmd.none
             | false -> Cmd.none
-            
+
         { model with CurrentKeyPresses = newPressedKeys }, newCmd
     | ManualKeyUp key -> { model with CurrentKeyPresses = model.CurrentKeyPresses.Remove (key.ToUpper()) }, Cmd.none
     | CheckAutomaticScrolling ->
         let canvas = document.getElementById "Canvas"
         let wholeApp = document.getElementById "WholeApp"
         let rightSelection = document.getElementById "RightSelection"
-        
+
         let leftScreenEdge = canvas.scrollLeft
         let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.clientWidth
         let upperScreenEdge = canvas.scrollTop
@@ -1003,11 +1168,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let scrollMargin = 100.0
             let scrollSpeed = 10.0
             let edgeDistance = abs (edge - mPos)
-            
+
             if edgeDistance < scrollMargin && mMov >= -0.0000001 // just in case there are FP rounding errors
             then scrollSpeed * (scrollMargin - edgeDistance) / scrollMargin // Speed should be faster the closer the mouse is to the screen edge
             else 0.0
-        
+
         canvas.scrollLeft <- canvas.scrollLeft - (checkForAutomaticScrolling1D leftScreenEdge mPosX -mMovX) // Check left-screen edge
         canvas.scrollLeft <- canvas.scrollLeft + (checkForAutomaticScrolling1D rightScreenEdge mPosX mMovX) // Check right-screen edge
         canvas.scrollTop <- canvas.scrollTop - (checkForAutomaticScrolling1D upperScreenEdge mPosY -mMovY) // Check upper-screen edge
@@ -1025,17 +1190,62 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     mMoveUpdate { model with AutomaticScrolling = true } { Pos = newMPos; Op = Move;  Movement = {X=0.;Y=0.}}
                 | MovingSymbols | ConnectingInput _ | ConnectingOutput _ | Selecting ->
                     mDragUpdate { model with AutomaticScrolling = true } { Pos = newMPos; Op = Drag; Movement = {X=0.;Y=0.}}
-                | _ -> 
+                | _ ->
                     { model with AutomaticScrolling = true }, Cmd.none
-            
+
             // Don't want to go into an infinite loop (program would crash), don't check for automatic scrolling immediately (let it be handled by OnScroll listener).
             let filteredOutputCmd = Cmd.map (fun msg -> if msg <> CheckAutomaticScrolling then msg else DoNothing) outputCmd
             // keep model ScrollPos uptodate with real scrolling position
             let outputModel = {outputModel with ScrollPos = {X = canvas.scrollLeft; Y = canvas.scrollTop}}
-            
+
             outputModel, filteredOutputCmd
         else
             { model with AutomaticScrolling = false}, Cmd.none
+
+    | Rotate Left ->
+        model,
+        Cmd.batch [
+            symbolCmd (Symbol.RotateLeft model.SelectedComponents) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
+            wireCmd (BusWire.Rotate model.SelectedComponents)
+        ]
+    | Rotate Right ->
+        model,
+        Cmd.batch [
+            symbolCmd (Symbol.RotateRight model.SelectedComponents) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
+            wireCmd (BusWire.Rotate model.SelectedComponents)
+        ]
+
+    | Flip ->
+        model,
+        Cmd.batch [
+            symbolCmd (Symbol.Flip model.SelectedComponents) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
+            wireCmd (BusWire.Rotate model.SelectedComponents)
+        ]
+    | SaveSymbols ->
+        model, symbolCmd Symbol.SaveSymbols
+    | WireType Jump ->
+        let wires = model.Wire.Wires |> Map.toList |> List.map fst
+        model,
+        Cmd.batch [
+            wireCmd (BusWire.UpdateWireType BusWire.Jump)
+            wireCmd (BusWire.MakeJumps wires)
+        ]
+
+    | WireType Radial ->
+        let wires = model.Wire.Wires |> Map.toList |> List.map fst
+        model,
+        Cmd.batch [
+            wireCmd (BusWire.UpdateWireType BusWire.Radial)
+            wireCmd (BusWire.MakeJumps wires)
+        ]
+       
+    | WireType Modern ->
+        let wires = model.Wire.Wires |> Map.toList |> List.map fst
+        model,
+        Cmd.batch [
+            wireCmd (BusWire.UpdateWireType BusWire.Modern)
+            wireCmd (BusWire.MakeJumps wires)
+        ]
                 
     // ---------------------------- Issie Messages ---------------------------- //
 
@@ -1050,7 +1260,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             SelectedWires = []
             NearbyComponents = []
             ErrorComponents = []
-            DragToSelectBox = {X=0.0; Y=0.0; H=0.0; W=0.0}
+            DragToSelectBox = {TopLeft={X=0.0; Y=0.0}; H=0.0; W=0.0}
             ConnectPortsLine = {X=0.0; Y=0.0}, {X=0.0; Y=0.0}
             TargetPortId = ""
             Action = Idle
@@ -1067,11 +1277,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             AutomaticScrolling = false
             ScrollingLastMousePos = {Pos={ X = 0.0; Y = 0.0 };Move={X=0.0; Y=0.0}}
             MouseCounter = 0
-            LastMousePosForSnap = { X = 0.0; Y = 0.0 }    
+            LastMousePosForSnap = { X = 0.0; Y = 0.0 }
         }, Cmd.none
-    | UpdateSelectedWires (connIds, on) -> 
+    | UpdateSelectedWires (connIds, on) ->
         let oldWires = model.SelectedWires
-        let newWires = 
+        let newWires =
             if on then oldWires @ connIds
             else List.filter (fun conId -> List.contains conId connIds |> not) oldWires
         {model with SelectedWires = newWires}, wireCmd (BusWire.SelectWires newWires)
@@ -1107,7 +1317,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
 
 /// This function zooms an SVG canvas by transforming its content and altering its size.
-/// Currently the zoom expands based on top left corner. 
+/// Currently the zoom expands based on top left corner.
 let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list) (svgReact: ReactElement List) (dispatch: Dispatch<Msg>)=
     // Hacky way to get keypresses such as Ctrl+C to work since Electron does not pick them up.
     document.onkeydown <- (fun key ->
@@ -1127,10 +1337,10 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
     let mouseOp op (ev:Types.MouseEvent) =
         //printfn "%s" $"Op:{ev.movementX},{ev.movementY}"
         dispatch <| MouseMsg {
-            Op = op ; 
+            Op = op ;
             Movement = {X= ev.movementX;Y=ev.movementY}
-            Pos = { 
-                X = (ev.pageX + model.ScrollPos.X) / model.Zoom  ; 
+            Pos = {
+                X = (ev.pageX + model.ScrollPos.X) / model.Zoom  ;
                 Y = (ev.pageY - headerHeight + model.ScrollPos.Y) / model.Zoom}
             }
         // dispatch <| MouseMsg {Op = op ; Pos = { X = (ev.pageX + model.ScrollPos.X) / model.Zoom  ; Y = (ev.pageY - topMenuBarHeight + model.ScrollPos.Y) / model.Zoom }}
@@ -1150,11 +1360,11 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
     div [ HTMLAttr.Id "Canvas"
           Key cursorText // force cursor change to be rendered
           Style (CSSProp.Cursor cursorText :: style)
-          OnMouseDown (fun ev -> (mouseOp Down ev)) 
-          OnMouseUp (fun ev -> (mouseOp Up ev)) 
+          OnMouseDown (fun ev -> (mouseOp Down ev))
+          OnMouseUp (fun ev -> (mouseOp Up ev))
           OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
           OnScroll (fun _ -> scrollUpdate ())
-          Ref (fun el -> 
+          Ref (fun el ->
             canvasDiv <- Some el
             if not (isNull el) then
                 // in case this element is newly created, set scroll position from model
@@ -1162,16 +1372,16 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
                 el.scrollTop <- model.ScrollPos.Y)
           OnWheel wheelUpdate
         ]
-        [ 
+        [
           svg
-            [ Style 
+            [ Style
                 [
                     Height sizeInPixels
-                    Width sizeInPixels 
+                    Width sizeInPixels
                 ]
             ]
             [ g // group list of elements with list of attributes
-                [ Style [Transform (sprintf "scale(%f)" model.Zoom)]] // top-level transform style attribute for zoom  
+                [ Style [Transform (sprintf "scale(%f)" model.Zoom)]] // top-level transform style attribute for zoom
                 svgReact // the application code
             ]
         ]
@@ -1181,8 +1391,8 @@ let view (model:Model) (headerHeight: float) (style) (dispatch : Msg -> unit) =
     let start = TimeHelpers.getTimeMs()
     let wDispatch wMsg = dispatch (Wire wMsg)
     let wireSvg = BusWire.view model.Wire wDispatch
-    
-    let wholeCanvas = $"{max 100.0 (100.0 / model.Zoom)}" + "%" 
+
+    let wholeCanvas = $"{max 100.0 (100.0 / model.Zoom)}" + "%"
     let grid =
         svg [ SVGAttr.Width wholeCanvas; SVGAttr.Height wholeCanvas; SVGAttr.XmlSpace "http://www.w3.org/2000/svg" ] [
             defs [] [
@@ -1199,45 +1409,45 @@ let view (model:Model) (headerHeight: float) (style) (dispatch : Msg -> unit) =
                         SVGAttr.StrokeWidth "0.5"
                         ] []
                 ]
-            ] 
+            ]
             rect [SVGAttr.Width wholeCanvas; SVGAttr.Height wholeCanvas; SVGAttr.Fill "url(#Grid)"] []
         ]
-        
+
     let dragToSelectBox =
-        let {BoundingBox.X=fX; Y=fY; H=fH; W=fW} = model.DragToSelectBox
+        let {BoundingBox.TopLeft = {X=fX; Y=fY}; H=fH; W=fW} = model.DragToSelectBox
         let polygonPoints = $"{fX},{fY} {fX+fW},{fY} {fX+fW},{fY+fH} {fX},{fY+fH}"
         let selectionBox = { defaultPolygon with Stroke = "Black"; StrokeWidth = "0.1px"; Fill = "Blue"; FillOpacity = 0.05 }
-        
+
         makePolygon polygonPoints selectionBox
-    
+
     let snapIndicatorLine = { defaultLine with Stroke = "Red"; StrokeWidth = "0.5px"; StrokeDashArray = "5, 5" }
-        
+
     let connectingPortsWire =
         let connectPortsLine = { defaultLine with Stroke = "Green"; StrokeWidth = "2.0px"; StrokeDashArray = "5, 5" }
         let {XYPos.X = x1; Y = y1}, {XYPos.X = x2; Y = y2} = model.ConnectPortsLine
         [ makeLine x1 y1 x2 y2 connectPortsLine
           makeCircle x2 y2 { portCircle with Fill = "Green" }
         ]
-        
+
     let snapIndicatorLineX =
         match model.SnapIndicator.XLine with
         | Some xPos ->
             [ makeLine xPos 0.0 xPos wholeCanvas snapIndicatorLine ]
         | None ->
             []
-    
+
     let snapIndicatorLineY =
         match model.SnapIndicator.YLine with
         | Some yPos ->
             [ makeLine 0.0 yPos wholeCanvas yPos snapIndicatorLine ]
         | None ->
             []
-    
+
     let displayElements =
         if model.ShowGrid
         then [ grid; wireSvg ]
         else [ wireSvg ]
-        
+
     match model.Action with // Display differently depending on what state Sheet is in
     | Selecting ->
         displaySvgWithZoom model headerHeight style ( displayElements @ [ dragToSelectBox ] ) dispatch
@@ -1245,15 +1455,17 @@ let view (model:Model) (headerHeight: float) (style) (dispatch : Msg -> unit) =
         displaySvgWithZoom model headerHeight style ( displayElements @ connectingPortsWire ) dispatch
     | MovingSymbols | DragAndDrop ->
         displaySvgWithZoom model headerHeight style ( displayElements @ snapIndicatorLineX @ snapIndicatorLineY ) dispatch
+    | MovingWire connId -> 
+        displaySvgWithZoom model headerHeight style (displayElements @ snapIndicatorLineX @ snapIndicatorLineY) dispatch
     | _ ->
         displaySvgWithZoom model headerHeight style displayElements dispatch
     |> TimeHelpers.instrumentInterval "SheetView" start
 
 /// Init function
-let init () = 
+let init () =
     let wireModel, cmds = (BusWire.init ())
     let boundingBoxes = Symbol.getBoundingBoxes wireModel.Symbol
-    
+
     {
         Wire = wireModel
         BoundingBoxes = boundingBoxes
@@ -1262,7 +1474,7 @@ let init () =
         SelectedWires = []
         NearbyComponents = []
         ErrorComponents = []
-        DragToSelectBox = {X=0.0; Y=0.0; H=0.0; W=0.0}
+        DragToSelectBox = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0}
         ConnectPortsLine = {X=0.0; Y=0.0}, {X=0.0; Y=0.0}
         TargetPortId = ""
         Action = Idle

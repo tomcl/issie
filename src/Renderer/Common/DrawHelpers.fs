@@ -53,9 +53,11 @@ let private testXYPosComparison a  (b:XYPos) =
 
 
 type BoundingBox = {
-    X: float
-    Y: float
+    /// Top left corner of the bounding box
+    TopLeft: XYPos
+    /// Width
     W: float
+    /// Height
     H: float
 }
 
@@ -265,8 +267,7 @@ let makeText (posX: float) (posY: float) (displayedText: string) (textParameters
                 FontWeight textParameters.FontWeight
                 FontSize textParameters.FontSize
                 Fill textParameters.Fill
-                UserSelect textParameters.UserSelect
-                
+                UserSelect textParameters.UserSelect 
             ]
         ] [str <| sprintf "%s" (displayedText)]
 

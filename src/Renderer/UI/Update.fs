@@ -437,7 +437,10 @@ let update (msg : Msg) oldModel =
     | SendSeqMsgAsynch msgs ->
         model, SimulationView.doBatchOfMsgsAsynch msgs
     | MenuAction(act,dispatch) ->
-        getMenuView act model dispatch, Cmd.none
+        match act with 
+        | MenuSaveFile -> getMenuView act model dispatch, Cmd.ofMsg (Sheet Sheet.SaveSymbols)
+        | _ -> getMenuView act model dispatch, Cmd.none
+        
     | DiagramMouseEvent -> model, Cmd.none
     | SelectionHasChanged -> 
         match currWaveSimModel model with

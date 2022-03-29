@@ -110,7 +110,7 @@ type Msg =
 let title (t:string) (n:int) : string =  
     match n with
     | 1 -> t
-    | _ when n > 1 -> $"{t}({n-1})"
+    | _ when n > 1 -> $"{t}({n})"
     | _ -> failwith "non positive bus width"
 
 ///Insert titles for bus select

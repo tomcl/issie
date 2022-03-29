@@ -237,7 +237,7 @@ let private calculateOutputPortsWidth
                 Msg = sprintf "Wrong wire width. The four inputs to a multiplexer are expected to have the same width, but 1st input has %d bits, 2nd input has %d bits, 3rd input has %d bits, 4th input has %d bits." n m a b
                 ConnectionsAffected = [getConnectionIdForPort 0; getConnectionIdForPort 1; getConnectionIdForPort 2; getConnectionIdForPort 3]
             }
-        | [_; _; _; _; Some n] when n <> 2 -> makeWidthInferErrorEqual 2 n [getConnectionIdForPort 5]
+        | [_; _; _; _; Some n] when n <> 2 -> makeWidthInferErrorEqual 2 n [getConnectionIdForPort 4]
         | [Some n; Some m; Some a; None; _]
         | [Some n; Some m; None; Some a; _]
         | [Some n; None; Some m; Some a; _]
@@ -257,7 +257,7 @@ let private calculateOutputPortsWidth
                 Msg = sprintf "Wrong wire width. The eight inputs to a multiplexer are expected to have the same width, but 1st input has %d bits, 2nd input has %d bits, 3rd input has %d bits, 4th input has %d bits, 5th input has %d bits, 6th input has %d bits, 7th input has %d bits, 8th input has %d bits." n m a b c d e f
                 ConnectionsAffected = [getConnectionIdForPort 0; getConnectionIdForPort 1; getConnectionIdForPort 2; getConnectionIdForPort 3; getConnectionIdForPort 4; getConnectionIdForPort 5; getConnectionIdForPort 6; getConnectionIdForPort 7]
             }
-        | [_; _; _; _; _; _; _; _; Some n] when n <> 3 -> makeWidthInferErrorEqual 3 n [getConnectionIdForPort 9]
+        | [_; _; _; _; _; _; _; _; Some n] when n <> 3 -> makeWidthInferErrorEqual 3 n [getConnectionIdForPort 8]
         | [Some n; Some m; Some a; Some b; Some c; Some d; Some e; None; _]
         | [Some n; Some m; Some a; Some b; Some c; Some d; None; Some e; _]
         | [Some n; Some m; Some a; Some b; Some c; None; Some d; Some e; _]

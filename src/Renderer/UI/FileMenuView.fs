@@ -1,8 +1,8 @@
-//(*
-//    FileMenuView.fs
-//
-//    View for the top menu, and related functionalities.
-//*)
+(*
+    FileMenuView.fs
+
+    View for the top menu, and related functionalities: renamimg, loadimg, saving, deleting sheets
+*)
 
 module FileMenuView
 
@@ -319,6 +319,7 @@ let private createEmptyDiagramFile projectPath name =
         CanvasState = [],[]
         InputLabels = []
         OutputLabels = []
+        clocked = false
     }
 
 
@@ -332,6 +333,7 @@ let createEmptyComponentAndFile (pPath:string)  (sheetName: string): LoadedCompo
         CanvasState=([],[])
         InputLabels = []
         OutputLabels = []
+        clocked = false
     }
     
 
@@ -589,6 +591,7 @@ let addFileToProject model dispatch =
                         CanvasState = [],[]
                         InputLabels = []
                         OutputLabels = []
+                        clocked = false
                     }
                     let updatedProject =
                         { project with

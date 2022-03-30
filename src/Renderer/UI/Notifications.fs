@@ -9,11 +9,9 @@ open Fulma.Extensions.Wikiki
 
 
 open Fable.React
-open Fable.React.Props
 
 open DiagramStyle
 open ModelType
-open CommonTypes
 
 let errorNotification text closeMsg =
     fun dispatch ->

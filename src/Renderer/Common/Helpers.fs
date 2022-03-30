@@ -10,30 +10,35 @@ open CommonTypes
     [<AutoOpen>]
     module JsonHelpers =
         open Fable.SimpleJson
+        open LegacyCanvas
 
 
         type SavedInfo =
-            | CanvasOnly of CanvasState
-            | CanvasWithFileWaveInfo of CanvasState * SavedWaveInfo option * System.DateTime
-            | CanvasWithFileWaveInfoAndNewConns of CanvasState * SavedWaveInfo option * System.DateTime
+            | CanvasOnly of LegacyCanvasState
+            | CanvasWithFileWaveInfo of LegacyCanvasState * SavedWaveInfo option * System.DateTime
+            | CanvasWithFileWaveInfoAndNewConns of LegacyCanvasState * SavedWaveInfo option * System.DateTime
+            | NewCanvasWithFileWaveInfoAndNewConns of CanvasState * SavedWaveInfo option * System.DateTime
 
             member self.getCanvas = 
                 match self with
-                | CanvasOnly c -> c 
-                | CanvasWithFileWaveInfo (c,_,_) -> c
-                | CanvasWithFileWaveInfoAndNewConns (c,_,_) -> c
+                | CanvasOnly c -> legacyTypesConvert c 
+                | CanvasWithFileWaveInfo (c,_,_) -> legacyTypesConvert c
+                | CanvasWithFileWaveInfoAndNewConns (c,_,_) -> legacyTypesConvert c
+                | NewCanvasWithFileWaveInfoAndNewConns(c,_,_) -> c
 
             member self.getTimeStamp = 
                 match self with
                 | CanvasOnly _ -> System.DateTime.MinValue 
                 | CanvasWithFileWaveInfo (_,_,ts) -> ts
                 | CanvasWithFileWaveInfoAndNewConns (_,_,ts) -> ts
+                | NewCanvasWithFileWaveInfoAndNewConns (_,_,ts) -> ts
 
             member self.getWaveInfo =
                 match self with
                 | CanvasOnly _ -> None 
                 | CanvasWithFileWaveInfo (_,waveInfo,_) -> waveInfo
                 | CanvasWithFileWaveInfoAndNewConns (_,waveInfo,_) -> waveInfo
+                | NewCanvasWithFileWaveInfoAndNewConns (_,waveInfo,_) -> waveInfo
 
 
 
@@ -42,7 +47,7 @@ open CommonTypes
             let time = System.DateTime.Now
             //printfn "%A" cState
             try            
-                 Json.serialize<SavedInfo> (CanvasWithFileWaveInfoAndNewConns (cState, waveInfo, time))
+                 Json.serialize<SavedInfo> (NewCanvasWithFileWaveInfoAndNewConns (cState, waveInfo, time))
             with
             | e -> 
                 printfn "HELP: exception in SimpleJson.stringify %A" e
@@ -50,7 +55,7 @@ open CommonTypes
         
 
         let jsonStringToState (jsonString : string) =
-             Json.tryParseAs<CanvasState> jsonString
+             Json.tryParseAs<LegacyCanvasState> jsonString
              |> (function
                     | Ok state -> Ok (CanvasOnly state)
                     | Error _ ->

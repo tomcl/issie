@@ -129,10 +129,10 @@ let private displayFileErrorNotification err dispatch =
     dispatch <| SetFilesNotification note
 
 /// Send messages to change Diagram Canvas and specified sheet waveSim in model
-let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps model dispatch =
+let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (model:Model) dispatch =
     // it seems still need this, however code has been deleted!
     //Sheet.checkForTopMenu () // A bit hacky, but need to call this once after everything has loaded to compensate mouse coordinates.
-    
+    let ldcs = tryGetLoadedComponents model
     let name = compToSetup.Name
     let components, connections = compToSetup.CanvasState
     //printfn "Loading..."
@@ -150,7 +150,7 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
             //printfn "Check 1..."
     
             //Load components
-            Sheet (Sheet.Wire (BusWire.Symbol (Symbol.LoadComponents components )))
+            Sheet (Sheet.Wire (BusWire.Symbol (Symbol.LoadComponents (ldcs,components ))))
             Sheet Sheet.UpdateBoundingBoxes
     
             Sheet (Sheet.Wire (BusWire.LoadConnections connections))
@@ -319,7 +319,6 @@ let private createEmptyDiagramFile projectPath name =
         CanvasState = [],[]
         InputLabels = []
         OutputLabels = []
-        clocked = false
     }
 
 
@@ -333,7 +332,6 @@ let createEmptyComponentAndFile (pPath:string)  (sheetName: string): LoadedCompo
         CanvasState=([],[])
         InputLabels = []
         OutputLabels = []
-        clocked = false
     }
     
 
@@ -591,7 +589,6 @@ let addFileToProject model dispatch =
                         CanvasState = [],[]
                         InputLabels = []
                         OutputLabels = []
-                        clocked = false
                     }
                     let updatedProject =
                         { project with

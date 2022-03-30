@@ -140,8 +140,8 @@ type Text = {
 let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
 let canvasWidthContext = testCanvas.getContext_2d()
 
-let getTextWidthInPixels(txt:string, font:string) =
-   canvasWidthContext.font <- font; // e.g. "16px times new roman";
+let getTextWidthInPixels(txt:string, font:Text) =
+   canvasWidthContext.font <- String.concat " " [font.FontSize; font.FontWeight; font.FontFamily]; // e.g. "16px times new roman";
    canvasWidthContext.measureText(txt).width;
 
 

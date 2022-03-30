@@ -87,7 +87,7 @@ let private calculateConnectionsAffected
         (connections : Connection list) 
         (cycle : ComponentId list)
         : ConnectionId list =
-    let rec findConnection connections (compIdFrom, compIdTo) : ConnectionId =
+    let rec findConnection (connections: Connection list) (compIdFrom, compIdTo) : ConnectionId =
         match connections with
         | [] -> failwithf "what? Could not find connection among %A and %A" compIdFrom compIdTo
         | conn :: connections' ->

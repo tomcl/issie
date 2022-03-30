@@ -314,7 +314,7 @@ let boxUnion (box:BoundingBox) (box':BoundingBox) =
 
 let symbolToBB (symbol:Symbol.Symbol) =
     let co = symbol.Component
-    {TopLeft = {X= float co.X; Y=float co.Y}; W=float (co.W); H=float (co.H)}
+    {TopLeft = {X= co.X; Y=co.Y}; W=co.W; H=co.H}
     
 
 /// Inputs must also have W,H > 0.

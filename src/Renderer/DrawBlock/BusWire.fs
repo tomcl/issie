@@ -842,7 +842,7 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
                         match wire.OutputPort with
                         | OutputPortId stringId -> stringId
                         
-                    let outputPortLocation = Symbol.getPortLocation model.Symbol stringOutId 
+                    let outputPortLocation = Symbol.getPortLocation None model.Symbol stringOutId 
                     let outputPortEdge = Symbol.getOutputPortOrientation model.Symbol wire.OutputPort 
                     let getAbsSegments wire : AbsSegment List= 
                         segmentsToVertices wire.Segments wire
@@ -876,7 +876,7 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
                     let stringInId =
                             match triangle.InputPort with
                             | InputPortId stringId -> stringId
-                    let InputPortLocation = Symbol.getPortLocation model.Symbol stringInId 
+                    let InputPortLocation = Symbol.getPortLocation None model.Symbol stringInId 
                     let InputPortEdge = Symbol.getInputPortOrientation model.Symbol triangle.InputPort 
                     let str:string = 
                         if InputPortEdge = CommonTypes.Top then
@@ -1403,8 +1403,8 @@ let reverseWire (wire: Wire) =
 let updateWire (model : Model) (wire : Wire) (reverse : bool) =
     let newPort = 
         match reverse with
-        | true -> Symbol.getInputPortLocation model.Symbol wire.InputPort
-        | false -> Symbol.getOutputPortLocation model.Symbol wire.OutputPort
+        | true -> Symbol.getInputPortLocation None model.Symbol wire.InputPort
+        | false -> Symbol.getOutputPortLocation None model.Symbol wire.OutputPort
     if reverse then
         partialAutoroute (reverseWire wire) newPort
         |> Option.map reverseWire
@@ -1757,11 +1757,11 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                                 match inOut with
                                 | true -> 
                                     posMatchesVertex
-                                            (Symbol.getInputPortLocation model.Symbol inputId)
+                                            (Symbol.getInputPortLocation None model.Symbol inputId)
                                             (List.last conn.Vertices |> getVertex)
                                 | false ->
                                     posMatchesVertex
-                                        (Symbol.getOutputPortLocation model.Symbol outputId)
+                                        (Symbol.getOutputPortLocation None model.Symbol outputId)
                                         (List.head conn.Vertices |> getVertex)
                                 |> (fun b ->
                                     if b then
@@ -1783,8 +1783,8 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                               Color = HighLightColor.DarkSlateGrey
                               Width = 1
                               Segments = segments
-                              StartPos = Symbol.getOutputPortLocation model.Symbol outputId
-                              EndPos = Symbol.getInputPortLocation model.Symbol inputId
+                              StartPos = Symbol.getOutputPortLocation None model.Symbol outputId
+                              EndPos = Symbol.getInputPortLocation None model.Symbol inputId
                               InitialOrientation = Symbol.getOutputPortOrientation model.Symbol outputId |> getOrientation
                               EndOrientation = Symbol.getInputPortOrientation model.Symbol inputId |> getOrientation }
                             |> makeWirePosMatchSymbol false

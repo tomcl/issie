@@ -337,10 +337,10 @@ module CommonTypes
             Label : string // All components have a label that may be empty.
             InputPorts : Port list // position on this list determines inputPortNumber
             OutputPorts : Port list // position in this lits determines OutputPortNumber
-            X : int
-            Y : int
-            H : int
-            W : int
+            X : float
+            Y : float
+            H : float
+            W : float
         }
 
         /// JSConnection mapped to F# record.
@@ -365,10 +365,10 @@ module CommonTypes
         Label : string // All components have a label that may be empty.
         InputPorts : Port list // position on this list determines inputPortNumber
         OutputPorts : Port list // position in this lits determines OutputPortNumber
-        X : int
-        Y : int
-        H : int
-        W : int
+        X : float
+        Y : float
+        H : float
+        W : float
         SymbolInfo : SymbolInfo option
     }
 

@@ -452,10 +452,10 @@ let saveStateToFile folderPath baseName state = // TODO: catch error?
 let createEmptyDgmFile folderPath baseName =
     saveStateToFile folderPath baseName (([],[]), None)
 
-let stripVertices (conn: Connection) =
+let stripVertices (conn: LegacyCanvas.LegacyConnection) =
     {conn with Vertices = []}
 
-let magnifySheet magnification (comp: Component) =
+let magnifySheet magnification (comp: LegacyCanvas.LegacyComponent) =
     {comp with 
         X = int <| round (magnification * float (comp.X + comp.W / 2 )); 
         Y = int <| round (magnification * float (comp.Y + comp.H/2))
@@ -496,16 +496,18 @@ let getLatestComp (comp: Component) =
 /// since new symbols are larger (in units) than old ones.
 let getLatestCanvas state =
     let oldCircuitMagnification = 1.25
-    let stripConns canvas =
+    let stripConns (canvas: LegacyCanvas.LegacyCanvasState) =
         let (comps,conns) = canvas
         let noVertexConns = List.map stripVertices conns
         let expandedComps = List.map (magnifySheet oldCircuitMagnification) comps
-        expandedComps, noVertexConns
+        (expandedComps, noVertexConns)
+        |> legacyTypesConvert
     let comps,conns =
         match state  with
         | CanvasOnly canvas -> stripConns canvas
         | CanvasWithFileWaveInfo(canvas, _, _) -> stripConns canvas
-        | CanvasWithFileWaveInfoAndNewConns(canvas, _, _) -> canvas
+        | CanvasWithFileWaveInfoAndNewConns(canvas, _, _) -> legacyTypesConvert canvas
+        | NewCanvasWithFileWaveInfoAndNewConns(canvas,_,_) -> canvas
     List.map getLatestComp comps, conns
 
 

@@ -230,7 +230,7 @@ type Model = {
     member this.GetSelectedConnections =
         this.SelectedWires
         |> List.collect (fun connId ->
-            if Map.containsKey connId this.Wire.WX then
+            if Map.containsKey connId this.Wire.Wires then
                 [BusWire.extractConnection this.Wire connId]
             else 
                 [])
@@ -386,7 +386,7 @@ let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId li
         comps
         |> List.collect (fun comp ->
             if Map.containsKey comp model.Wire.Symbol.Symbols then 
-                [Symbol.getOneBoundingBox model.Wire.Symbol comp]
+                [Symbol.getBoundingBox model.Wire.Symbol comp]
             else
                 [])
         |> List.map isBBoxAllVisible

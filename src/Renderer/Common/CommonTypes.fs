@@ -231,8 +231,7 @@ module CommonTypes
         // Tuples with (label * connection width).
         InputLabels: (string * int) list
         OutputLabels: (string * int) list
-        IdToLabel: Map<string,string> //maps the unique port id to the label of the port
-        clocked: bool
+        clocked: bool option
     }
 
     type Memory = {
@@ -324,6 +323,40 @@ module CommonTypes
         PortOrder: Map<Edge, string list>
     }
 
+    let getSTransformWithDefault (infoOpt: SymbolInfo option) =
+        match infoOpt with
+        | None ->{Rotation=Degree0; flipped=false}
+        | Some inf -> inf.STransform
+
+    module LegacyCanvas =
+        /// JSComponent mapped to F# record.
+        /// Id uniquely identifies the component within a sheet.
+        /// Label is optional descriptor displayed on schematic.
+        type LegacyComponent = {
+            Id : string
+            Type : ComponentType
+            Label : string // All components have a label that may be empty.
+            InputPorts : Port list // position on this list determines inputPortNumber
+            OutputPorts : Port list // position in this lits determines OutputPortNumber
+            X : int
+            Y : int
+            H : int
+            W : int
+        }
+
+        /// JSConnection mapped to F# record.
+        /// Id uniquely identifies connection globally and is used by library.
+        type LegacyConnection = {
+            Id : string
+            Source : Port
+            Target : Port
+            Vertices : (float * float) list
+        }
+
+        /// F# data describing the contents of a single schematic sheet.
+        type LegacyCanvasState = LegacyComponent list * LegacyConnection list
+
+
     /// JSComponent mapped to F# record.
     /// Id uniquely identifies the component within a sheet.
     /// Label is optional descriptor displayed on schematic.
@@ -337,7 +370,7 @@ module CommonTypes
         Y : int
         H : int
         W : int
-        SymbolInfo : SymbolInfo
+        SymbolInfo : SymbolInfo option
     }
 
     /// JSConnection mapped to F# record.
@@ -351,6 +384,48 @@ module CommonTypes
 
     /// F# data describing the contents of a single schematic sheet.
     type CanvasState = Component list * Connection list
+
+
+    //===================================================================================================//
+    //                                         LEGACY TYPES                                              //
+    //===================================================================================================//
+
+
+
+            
+            
+
+    let legacyTypesConvert (lComps, lConns) =
+        let convertConnection (c:LegacyCanvas.LegacyConnection) : Connection =
+            {
+                Id=c.Id; 
+                Source=c.Source;
+                Target=c.Target;
+                Vertices = 
+                    c.Vertices
+                    |> List.map (function 
+                        | (x,y) when x >= 0. && y >= 0. -> (x,y,false)
+                        | (x,y) -> (abs x, abs y, true))
+            }
+        let convertComponent (comp:LegacyCanvas.LegacyComponent) : Component =
+
+            {
+                Id = comp.Id
+                Type = comp.Type
+                Label = comp.Label // All components have a label that may be empty.
+                InputPorts = comp.InputPorts // position on this list determines inputPortNumber
+                OutputPorts = comp.OutputPorts // position in this lits determines OutputPortNumber
+                X = comp.X
+                Y = comp.Y
+                H = comp.H
+                W = comp.W
+                SymbolInfo = None
+                    
+            }
+        let comps = List.map convertComponent lComps
+        let conns = List.map convertConnection lConns
+        (comps,conns)
+
 
     //=======//
     // Other //
@@ -537,8 +612,8 @@ module CommonTypes
     /// Returns true if a component is clocked
     let isClocked (comp: Component) =
         match comp.Type with
-        | Custom x ->
-            x.clocked
+        | Custom {clocked = Some x} -> x
+        | Custom _ -> false
         | DFF | DFFE | Register _ | RegisterE _ | RAM _ | ROM _ ->
             true
         | _ -> false

@@ -12,7 +12,7 @@ let extractReducedState (state : CanvasState) : CanvasState =
     let (components : Component list), (connections : Connection list) = state
     let comps = 
         components
-        |> List.map (fun comp -> {comp with H=0;W=0;X=0;Y=0})
+        |> List.map (fun comp -> {comp with H=0.;W=0.;X=0.;Y=0.})
         |> List.sortBy (fun comp -> comp.Id)
                        
     let conns =                   
@@ -67,7 +67,7 @@ let compareCanvas
     let reduce comps =
         comps
         |> List.toArray
-        |> Array.map (fun comp -> {comp with H=0;W=0;X=0;Y=0})
+        |> Array.map (fun comp -> {comp with H=0.;W=0.;X=0.;Y=0.})
         |> Array.sortBy (fun comp -> comp.Id)
     let compsOk = reduce comps1 = reduce comps2
     let compsSamePos = compareComps tolerance comps1 comps2

@@ -298,8 +298,8 @@ let getCustomPortIdMap (comp: Component)  =
         match comp.Type with
         | Custom customType ->
             let (n, nout, h, w) = getCustomCompArgs customType label
-            let inputPorts = portLists n comp.Id PortType.Input
-            let outputPorts = portLists nout comp.Id PortType.Output
+            let inputPorts = comp.InputPorts
+            let outputPorts = comp.OutputPorts
             let inputPortIdLabels = List.zip inputPorts customType.InputLabels
             let outputPortIdLabels = List.zip outputPorts customType.OutputLabels
 
@@ -312,8 +312,9 @@ let getCustomPortIdMap (comp: Component)  =
 
             finalMap
         | _ -> Map.empty
-
-let autoScaleHAndW (sym:Symbol) : (int*int) =
+/// adjust symbol (and component) dimensions based on current ports and labels of a custom component.
+/// leaves otehr symbols unchanged
+let autoScaleHAndW (sym:Symbol) : Symbol =
     //height same as before, just take max of left and right
         match sym.Component.Type with
         | Custom comp ->
@@ -321,10 +322,8 @@ let autoScaleHAndW (sym:Symbol) : (int*int) =
             let convertIdsToLbls currMap edge idList =
                 let lblLst = List.map (fun id -> portIdMap[id]) idList
                 Map.add edge lblLst currMap
-
             let portLabels = 
                 (Map.empty, sym.PortOrder) ||> Map.fold convertIdsToLbls
-
             let h = GridSize + GridSize * max (List.length portLabels[Left]) (List.length portLabels[Right])
 
             let maxLeftLength = customStringToLength portLabels[Left] 
@@ -339,13 +338,13 @@ let autoScaleHAndW (sym:Symbol) : (int*int) =
                 [(maxLeftLength + maxRightLength + sym.Component.Label.Length)*GridSize/5;
                 (List.length portLabels[Top] + 1)* max (topLength*GridSize/5)GridSize;
                 (List.length portLabels[Bottom]+ 1)*max (bottomLength*GridSize/5) GridSize]
-                |> (fun lst -> printfn $"{lst}"; lst)
                 |> List.max 
-            let scaledW = roundToN GridSize (maxW ) 
-            let w = max scaledW (GridSize * 4) //Ensures a minimum width if the labels are very small
-            let h' = max h (GridSize*2)
-            h', w
-        | _ -> sym.Component.H, sym.Component.W
+            let w = roundToN GridSize (maxW ) 
+            let scaledW = max w (GridSize * 4) //Ensures a minimum width if the labels are very small
+            let scaledH = max h (GridSize*2)
+            {sym with
+                Component={sym.Component with H= float scaledH; W = float scaledW}}
+        | _ -> sym
 
 
 let makeComponent (pos: XYPos) (comptype: ComponentType) (id:string) (label:string) : Component =
@@ -364,10 +363,10 @@ let makeComponent (pos: XYPos) (comptype: ComponentType) (id:string) (label:stri
             Label = label 
             InputPorts = inputPorts
             OutputPorts  = outputPorts
-            X  = int (pos.X - float w / 2.0) 
-            Y = int (pos.Y - float h / 2.0) 
-            H = h 
-            W = w
+            X  = pos.X - float w / 2.0
+            Y = pos.Y - float h / 2.0
+            H = float h 
+            W = float w
             SymbolInfo = Some { STransform=defaultSTransform; PortOrder = Map.empty; PortOrientation=Map.empty}
         }
     
@@ -431,6 +430,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       MovingPort = None
       IsClocked = isClocked [] ldcs comp
     }
+    |> autoScaleHAndW
 
 // Function to add ports to port model     
 let addToPortModel (model: Model) (sym: Symbol) =
@@ -614,9 +614,7 @@ let addHorizontalLine posX1 posX2 posY opacity = // TODO: Line instead of polygo
 let outlineColor (color:string) =
     match color.ToLower() with
     | "lightgray" | "lightgrey" -> "black"
-    | c -> 
-        printfn $"color={color}"
-        c
+    | c -> c
 
 let addHorizontalColorLine posX1 posX2 posY opacity (color:string) = // TODO: Line instead of polygon?
     let points = sprintf $"{posX1},{posY} {posX2},{posY}"
@@ -758,11 +756,11 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
             List.fold (fun og i -> og @ mergeSplitLine splitWiresTextPos[i] (fst values[i]) (snd values[i]) ) [] [0..2]
         | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _  -> 
             (addText clockTxtPos " clk" "middle" "normal" "12px")
-        | BusSelection(x,y) -> (addText {X = (float(w/2)); Y = ((float(h)/2.7)-2.)} (bustitle x y) "middle" "bold" "12px")
-        | BusCompare (_,y) -> (addText {X = (float(w/2)-2.); Y = (float(h)/2.7-1.)} ("=" + NumberHelpers.hex(int y)) "middle" "bold" "10px")
-        | Input (x) -> (addText {X = float(w/2); Y = (float(h)/2.7)-3.} (title "" x) "middle" "normal" "12px")
-        | Output (x) -> (addText {X = float(w/2); Y = (float(h)/2.7)-3.} (title "" x) "middle" "normal" "12px")
-        | Viewer (x) -> (addText {X = float(w/2); Y = (float(h)/2.7)-1.25} (title "" x) "middle" "normal" "9px")
+        | BusSelection(x,y) -> (addText {X = w/2.; Y = (h/2.7)-2.} (bustitle x y) "middle" "bold" "12px")
+        | BusCompare (_,y) -> (addText {X = w/2.-2.; Y = h/2.7-1.} ("=" + NumberHelpers.hex(int y)) "middle" "bold" "10px")
+        | Input (x) -> (addText {X = w/2.; Y = h/2.7-3.} (title "" x) "middle" "normal" "12px")
+        | Output (x) -> (addText {X = w/2.; Y = h/2.7-3.} (title "" x) "middle" "normal" "12px")
+        | Viewer (x) -> (addText {X = w/2.; Y = h/2.7 - 1.25} (title "" x) "middle" "normal" "9px")
         | _ when symbol.IsClocked -> (addText (Array.head (rotatePoints [|{X = 15.; Y = float H - 11.}|] {X=W/2.;Y=H/2.} transform )) " clk" "middle" "normal" "12px")
         | _ -> []
 
@@ -921,25 +919,34 @@ let getOutputPortOrientation (model: Model) (portId: OutputPortId): Edge =
 
 
 /// Returns the location of a given portId, with good efficiency
-let getPortLocation (model: Model) (portId : string) : XYPos=
-    let port = model.Ports[portId]
-    let symbolId = ComponentId port.HostId
-    let sym = model.Symbols[symbolId]
-    getPortPos sym port + sym.Pos
+let getPortLocation (defPos: XYPos option) (model: Model) (portId : string) : XYPos=
+    let portOpt = Map.tryFind portId model.Ports
+    let symbolIdOpt = 
+        portOpt
+        |> Option.map (fun port ->  ComponentId port.HostId)
+    let symOpt = 
+        symbolIdOpt
+        |> Option.bind (fun symbolId -> Map.tryFind symbolId model.Symbols)
+    match defPos, symOpt, portOpt with
+    | _, Some sym, Some port -> getPortPos sym port + sym.Pos
+    | Some pos, _, _ ->
+        printfn $"Can't find port or symbol: Port='{portOpt}', Symbol='{symOpt}"
+        pos       
+    | _ -> failwithf $"Can't find port or symbol: Port='{portOpt}', Symbol='{symOpt}"
 
 /// Returns the location of an input port based on their portId
-let getInputPortLocation (model:Model) (portId: InputPortId)  = 
+let getInputPortLocation defPos (model:Model) (portId: InputPortId)  = 
     let id = getPortIdStr (InputId portId)
-    getPortLocation model id
+    getPortLocation defPos model id
 
 /// Returns the location of an output port based on their portId
-let getOutputPortLocation (model:Model) (portId : OutputPortId) =
+let getOutputPortLocation defPos (model:Model) (portId : OutputPortId) =
     let id = getPortIdStr (OutputId portId)
-    getPortLocation model id
+    getPortLocation defPos model id
 
 /// Returns the locations of a given input port and output port based on their portId
 let getTwoPortLocations (model: Model) (inputPortId: InputPortId ) (outputPortId: OutputPortId) =
-    (getInputPortLocation model inputPortId, getOutputPortLocation model outputPortId)
+    (getInputPortLocation None model inputPortId, getOutputPortLocation None model outputPortId)
 
 ///Returns the input port positions of the specified symbols in model
 let getInputPortsLocationMap (model: Model) (symbols: Symbol list)  = 
@@ -1298,8 +1305,8 @@ let inline moveSymbols (model:Model) (compList: ComponentId list) (offset: XYPos
         let newY = model.Symbols[sId].Pos.Y + offset.Y;
         let newComp = 
             { model.Symbols[sId].Component with 
-                X = int newX;
-                Y = int newY }
+                X = newX;
+                Y = newY }
 
         prevSymbols
         |> Map.add sId 
@@ -1390,42 +1397,46 @@ let inline colorSymbols (model: Model) compList colour =
     { model with Symbols = newSymbols }
 
 /// Given a map of current symbols and a component, initialises a symbol containing the component and returns the updated symbol map containing the new symbol
-let inline createSymbol ldcs prevSymbols comp =
+let createSymbol ldcs prevSymbols comp =
         let clocked = isClocked [] ldcs comp
         let (portOrder, portOrientation) = initPortOrientation comp
-        let xyPos = {X = float comp.X; Y = float comp.Y}
+        let xyPos = {X = comp.X; Y = comp.Y}
         let (h,w) =
             if comp.H = -1 && comp.W = -1 then
+                printfn $"Weird component {comp.Label}"
                 let comp' = makeComponent xyPos comp.Type comp.Id comp.Label
                 comp'.H,comp'.W
             else
                 comp.H, comp.W
-        printfn $"clocked: {clocked}"
-        prevSymbols
-        |> Map.add (ComponentId comp.Id)
-            { Pos = xyPos
-              ShowInputPorts = false //do not show input ports initially
-              ShowOutputPorts = false //do not show output ports initially
-              Colour = "lightgrey"     // initial color 
-              Id = ComponentId comp.Id
-              Component = {comp with H=h ; W = w}
-              Opacity = 1.0
-              Moving = false
-              InWidth0 = None
-              InWidth1 = None
-              STransform = getSTransformWithDefault comp.SymbolInfo
-              PortOrientation = portOrientation
-              PortOrder = portOrder
-              MovingPort = None
-              IsClocked = clocked
+        let newSymbol =
+            { 
+                Pos = xyPos
+                ShowInputPorts = false //do not show input ports initially
+                ShowOutputPorts = false //do not show output ports initially
+                Colour = "lightgrey"     // initial color 
+                Id = ComponentId comp.Id
+                Component = {comp with H=h ; W = w}
+                Opacity = 1.0
+                Moving = false
+                InWidth0 = None
+                InWidth1 = None
+                STransform = getSTransformWithDefault comp.SymbolInfo
+                PortOrientation = portOrientation
+                PortOrder = portOrder
+                MovingPort = None
+                IsClocked = clocked
             }
+            |> autoScaleHAndW
+        prevSymbols
+        |> Map.add (ComponentId comp.Id) newSymbol
+ 
 
 /// Given a model and a list of components, it creates and adds the symbols containing the specified components and returns the updated model.
 let loadComponents loadedComponents model comps=
     printfn "loading components"
     let symbolMap =
         (model.Symbols, comps) ||> List.fold (createSymbol loadedComponents)
-    
+    printfn "Adding ports..."
     let addPortsToModel currModel _ sym =
         { currModel with Ports = addToPortModel currModel sym }
         
@@ -1692,9 +1703,7 @@ let updatePortPos (sym:Symbol) (pos:XYPos) (portId: string) : Symbol =
                     MovingPort = None;
                     PortOrientation = newPortOrientation;
                     PortOrder = newPortOrder}
-            let scaledH, scaledW = autoScaleHAndW newSym
-            {newSym with
-                Component={newSym.Component with H=scaledH; W = scaledW}}
+            autoScaleHAndW newSym
     | _ -> {sym with MovingPort = None;}
 
 let inline replaceSymbol (model: Model) (newSymbol: Symbol) (compId: ComponentId) : Model =
@@ -1817,8 +1826,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                 Component =
                     { symbol.Component with
                         SymbolInfo = Some (getSymbolInfo symbol)
-                        X = int (symbol.Pos.X)
-                        Y = int (symbol.Pos.Y) } }
+                        X = symbol.Pos.X
+                        Y = symbol.Pos.Y} }
 
         let newSymbols = Map.map storeSymbolInfo model.Symbols
         { model with Symbols = newSymbols }, Cmd.none

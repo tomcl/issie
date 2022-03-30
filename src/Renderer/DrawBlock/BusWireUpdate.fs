@@ -1,8 +1,6 @@
 ﻿module BusWireUpdate
 
 open CommonTypes
-open Fable.React
-open Fable.React.Props
 open Elmish
 open DrawHelpers
 

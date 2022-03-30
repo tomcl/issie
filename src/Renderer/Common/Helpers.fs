@@ -270,7 +270,29 @@ let getNetList ((comps,conns) : CanvasState) =
 
     (initNets, conns) ||> List.fold addConnectionsToNets
 
-
+let testMatch (diffX:float) (diffY:float)  normRot=
+    let s:float = 1.0
+    let lengthList() : float list = 
+        match normRot with
+        // Same orientation
+        | 0 when (diffX >= 0) -> [s; 0; diffX; diffY; 0; 0; -s]                                                    
+        | 0 when (diffX < 0) -> [s; 0; 0; diffY; diffX; 0; -s]                                             
+        // Opposite orientation
+        | 180 when (diffX >= 0) -> [s; 0; (diffX - 2.0 * s)/2.0; diffY; (diffX - 2.0 * s)/2.0; 0; s]           
+        | 180 when (diffX < 0) -> [s; diffY/2.0; (diffX - 2.0 * s); diffY/2.0; 0; 0; s]            
+        // Perpendicular orientation: if startPort points to the right, endPort points down
+        | 90 when ((diffX >= 0) && (diffY >= 0)) -> [s; 0; (diffX - s)/2.0; (diffY + s); (diffX - s)/2.0; 0; 0; -s] 
+        | 90 when ((diffX >= 0) && (diffY < 0)) -> [s; 0; (diffX - s); (diffY + s); 0; 0; 0; -s]                
+        | 90 when ((diffX < 0) && (diffY >= 0)) -> [s; 0; 0; (diffY + s); (diffX - s); 0; 0; -s]               
+        | 90 when ((diffX < 0) && (diffY < 0)) -> [s; 0; 0; (diffY+s)/2.0; (diffX-s); (diffY+s)/2.0; 0; -s]    
+        // Perpendicular orientation: if startPort points to the right, endPort points up
+        | 270 when ((diffX >= 0) && (diffY >= 0)) -> [s; 0; (diffX - s); (diffY - s); 0; 0; 0; s]         
+        | 270 when ((diffX >= 0) && (diffY < 0)) -> [s; 0; (diffX - s)/2.0; (diffY - s); (diffX - s)/2.0; 0; 0; s] 
+        | 270 when ((diffX < 0) && (diffY >= 0)) -> [s; 0; 0; (diffY - s)/2.0; (diffX - s); (diffY - s)/2.0; 0; s]   
+        | 270 when ((diffX < 0) && (diffY < 0)) -> [s; 0; 0; (diffY - s); (diffX - s); 0; 0; s]  
+        // Edge case that should never happen
+        | _ -> [s; 0; 0; 0; 0; 0; s]
+    lengthList()
 
 
 

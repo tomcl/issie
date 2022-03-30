@@ -220,13 +220,21 @@ type Model = {
     /// Returns a list of selected components
     member this.GetSelectedComponents =
         this.SelectedComponents
-        |> List.map (Symbol.extractComponent this.Wire.Symbol)
-
+        |> List.collect ( fun compId ->
+            if Map.containsKey compId this.Wire.Symbol.Symbols then
+                [Symbol.extractComponent this.Wire.Symbol compId]
+            else
+                [])
+        
     /// Returns a list of selected connections
     member this.GetSelectedConnections =
         this.SelectedWires
-        |> List.map (BusWire.extractConnection this.Wire)
-
+        |> List.collect (fun connId ->
+            if Map.containsKey connId this.Wire.WX then
+                [BusWire.extractConnection this.Wire connId]
+            else 
+                [])
+        
     /// Returns a list of selected components and connections in the form of (Component list * Connection list)
     member this.GetSelectedCanvasState =
         this.GetSelectedComponents, this.GetSelectedConnections
@@ -376,7 +384,11 @@ let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId li
         |> List.fold (&&) true
     let cVisible =
         comps
-        |> List.map (Symbol.getBoundingBox model.Wire.Symbol)
+        |> List.collect (fun comp ->
+            if Map.containsKey comp model.Wire.Symbol.Symbols then 
+                [Symbol.getOneBoundingBox model.Wire.Symbol comp]
+            else
+                [])
         |> List.map isBBoxAllVisible
         |> List.fold (&&) true
     wVisible && cVisible

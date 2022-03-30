@@ -40,6 +40,7 @@ type Symbol =
         ShowOutputPorts: bool
         Opacity: float
         Moving: bool
+        IsClocked: bool
         STransform: STransform
 
         /// Maps the port ids to which side of the component the port is on
@@ -77,7 +78,7 @@ type Model = {
 /// The different messages coming from sheet, normally represent events
 type Msg =
     | MouseMsg of MouseT
-    | AddSymbol of pos:XYPos * compType:ComponentType * lbl: string
+    | AddSymbol of (LoadedComponent list) * pos:XYPos * compType:ComponentType * lbl: string
     | CopySymbols of ComponentId list
     | DeleteSymbols of sIds:ComponentId list
     | ShowAllInputPorts | ShowAllOutputPorts | DeleteAllPorts 
@@ -93,7 +94,7 @@ type Msg =
     | ChangeLsb of compId: ComponentId * NewBits:int64 
     | ChangeConstant of compId: ComponentId * NewBits:int64 * NewText:string
     | ResetModel // For Issie Integration
-    | LoadComponents of  Component list // For Issie Integration
+    | LoadComponents of  LoadedComponent list * Component list // For Issie Integration
     | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 
     | WriteMemoryType of ComponentId * ComponentType
     | RotateLeft of compList : ComponentId list
@@ -409,7 +410,7 @@ let makeComponent (pos: XYPos) (comptype: ComponentType) (id:string) (label:stri
 
 
 // Function to generate a new symbol
-let createNewSymbol (pos: XYPos) (comptype: ComponentType) (label:string) =
+let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) =
     let id = JSHelpers.uuid ()
     let comp = makeComponent pos comptype id label
     let portOrder, portOrientation = initPortOrientation comp
@@ -428,6 +429,7 @@ let createNewSymbol (pos: XYPos) (comptype: ComponentType) (label:string) =
       PortOrientation = portOrientation
       STransform = {Rotation= Degree0; flipped= false}
       MovingPort = None
+      IsClocked = isClocked [] ldcs comp
     }
 
 // Function to add ports to port model     
@@ -714,7 +716,7 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
                 [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=H/2.};{X=W+9.;Y=H/2.};{X=W;Y=H/2.-8.};{X=W;Y=H/2.};{X=W;Y=0}|]
             | DFF | DFFE | Register _ | RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ -> 
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
-            | Custom x when x.clocked = Some true -> 
+            | Custom x when symbol.IsClocked = true -> 
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
             | _ -> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=0}|]
@@ -761,7 +763,7 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
         | Input (x) -> (addText {X = float(w/2); Y = (float(h)/2.7)-3.} (title "" x) "middle" "normal" "12px")
         | Output (x) -> (addText {X = float(w/2); Y = (float(h)/2.7)-3.} (title "" x) "middle" "normal" "12px")
         | Viewer (x) -> (addText {X = float(w/2); Y = (float(h)/2.7)-1.25} (title "" x) "middle" "normal" "9px")
-        | _ when isClocked comp -> (addText (Array.head (rotatePoints [|{X = 15.; Y = float H - 11.}|] {X=W/2.;Y=H/2.} transform )) " clk" "middle" "normal" "12px")
+        | _ when symbol.IsClocked -> (addText (Array.head (rotatePoints [|{X = 15.; Y = float H - 11.}|] {X=W/2.;Y=H/2.} transform )) " clk" "middle" "normal" "12px")
         | _ -> []
 
     let outlineColour, strokeWidth =
@@ -1159,8 +1161,8 @@ let getEquivalentCopiedPorts (model: Model) (copiedIds) (pastedIds) (InputPortId
     | _ -> None // If either of source or target component of the wire was not copied then we discard the wire
 
 /// Creates and adds a symbol into model, returns the updated model and the component id
-let addSymbol (model: Model) pos compType lbl =
-    let newSym = createNewSymbol pos compType lbl
+let addSymbol (ldcs: LoadedComponent list) (model: Model) pos compType lbl =
+    let newSym = createNewSymbol ldcs pos compType lbl
     let newPorts = addToPortModel model newSym
     let newSymModel = Map.add newSym.Id newSym model.Symbols
     { model with Symbols = newSymModel; Ports = newPorts }, newSym.Id
@@ -1388,7 +1390,8 @@ let inline colorSymbols (model: Model) compList colour =
     { model with Symbols = newSymbols }
 
 /// Given a map of current symbols and a component, initialises a symbol containing the component and returns the updated symbol map containing the new symbol
-let inline createSymbol prevSymbols comp =
+let inline createSymbol ldcs prevSymbols comp =
+        let clocked = isClocked [] ldcs comp
         let (portOrder, portOrientation) = initPortOrientation comp
         let xyPos = {X = float comp.X; Y = float comp.Y}
         let (h,w) =
@@ -1397,7 +1400,7 @@ let inline createSymbol prevSymbols comp =
                 comp'.H,comp'.W
             else
                 comp.H, comp.W
-        printfn $"clocked: {isClocked comp}"
+        printfn $"clocked: {clocked}"
         prevSymbols
         |> Map.add (ComponentId comp.Id)
             { Pos = xyPos
@@ -1414,13 +1417,14 @@ let inline createSymbol prevSymbols comp =
               PortOrientation = portOrientation
               PortOrder = portOrder
               MovingPort = None
+              IsClocked = clocked
             }
 
 /// Given a model and a list of components, it creates and adds the symbols containing the specified components and returns the updated model.
-let inline loadComponents model comps=
+let loadComponents loadedComponents model comps=
     printfn "loading components"
     let symbolMap =
-        (model.Symbols, comps) ||> List.fold createSymbol
+        (model.Symbols, comps) ||> List.fold (createSymbol loadedComponents)
     
     let addPortsToModel currModel _ sym =
         { currModel with Ports = addToPortModel currModel sym }
@@ -1712,8 +1716,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | DeleteSymbols compIds ->
         (deleteSymbols model compIds), Cmd.none
 
-    | AddSymbol (pos,compType, lbl) ->
-        let (newModel, _) = addSymbol model pos compType lbl
+    | AddSymbol (ldcs, pos,compType, lbl) ->
+        let (newModel, _) = addSymbol ldcs model pos compType lbl
         newModel, Cmd.none
 
     | CopySymbols compIds ->
@@ -1772,8 +1776,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | ResetModel -> 
         { model with Symbols = Map.empty; Ports = Map.empty; }, Cmd.none
     
-    | LoadComponents comps ->
-        (loadComponents model comps), Cmd.none
+    | LoadComponents (ldcs,comps) ->
+        (loadComponents ldcs model comps), Cmd.none
  
     | WriteMemoryLine (compId, addr, value) ->
         writeMemoryLine model (compId, addr, value), Cmd.none

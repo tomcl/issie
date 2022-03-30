@@ -41,7 +41,7 @@ type CurrentAction =
     | Scrolling // For Automatic Scrolling by moving mouse to edge to screen
     | Idle
     // ------------------------------ Issie Actions ---------------------------- //
-    | InitialisedCreateComponent of ComponentType * string
+    | InitialisedCreateComponent of LoadedComponent list * ComponentType * string
     | MovingPort of portId: string//?? should it have the port id?
 
 type UndoAction =
@@ -107,7 +107,7 @@ type Msg =
     | CheckAutomaticScrolling
     | DoNothing
     // ------------------- Issie Interface Messages ----------------------
-    | InitialiseCreateComponent of ComponentType * string // Need to initialise for drag-and-drop
+    | InitialiseCreateComponent of LoadedComponent list * ComponentType * string // Need to initialise for drag-and-drop
     | FlushCommandStack
     | ResetModel
     | UpdateSelectedWires of ConnectionId list * bool
@@ -966,9 +966,9 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
 let mMoveUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
     match model.Action with
     | DragAndDrop -> moveSymbols model mMsg
-    | InitialisedCreateComponent (compType, lbl) ->
+    | InitialisedCreateComponent (ldcs, compType, lbl) ->
         let labelTest = if lbl = "" then Symbol.generateLabel model.Wire.Symbol compType else lbl
-        let newSymbolModel, newCompId = Symbol.addSymbol model.Wire.Symbol mMsg.Pos compType labelTest
+        let newSymbolModel, newCompId = Symbol.addSymbol ldcs model.Wire.Symbol mMsg.Pos compType labelTest
 
         { model with Wire = { model.Wire with Symbol = newSymbolModel }
                      Action = DragAndDrop
@@ -1023,7 +1023,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | KeyPress CtrlS -> // For Demo, Add a new square in upper left corner
         printfn "saving symbols"
         { model with BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol; UndoList = appendUndoList model.UndoList model ; RedoList = []},
-        Cmd.batch [ symbolCmd (Symbol.AddSymbol ({X = 50.0; Y = 50.0}, And, "test 1")); Cmd.ofMsg UpdateBoundingBoxes; symbolCmd Symbol.SaveSymbols ] // Need to update bounding boxes after adding a symbol.
+        Cmd.batch [ Cmd.ofMsg UpdateBoundingBoxes; symbolCmd Symbol.SaveSymbols ] // Need to update bounding boxes after adding a symbol.
     | KeyPress AltShiftZ ->
         TimeHelpers.printStats()
         model, Cmd.none
@@ -1261,8 +1261,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 
     // ---------------------------- Issie Messages ---------------------------- //
 
-    | InitialiseCreateComponent (compType, lbl) ->
-        { model with Action = (InitialisedCreateComponent (compType, lbl)) ; TmpModel = Some model}, Cmd.none
+    | InitialiseCreateComponent (ldcs, compType, lbl) ->
+        { model with Action = (InitialisedCreateComponent (ldcs, compType, lbl)) ; TmpModel = Some model}, Cmd.none
     | FlushCommandStack -> { model with UndoList = []; RedoList = []; TmpModel = None }, Cmd.none
     | ResetModel ->
         { model with

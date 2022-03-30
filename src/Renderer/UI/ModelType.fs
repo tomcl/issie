@@ -585,6 +585,11 @@ let spMess msg =
     //| SetLastSimulatedCanvasState canvasOpt-> sprintf "MSG<SetLastSimCanv:%s>>ENDM" (spOpt spState canvasOpt)
     | x -> sprintf "MSG<<%20A>>ENDM" x
 
+let tryGetLoadedComponents model =
+    match model.CurrentProj with
+    | Some p -> p.LoadedComponents
+    | _ -> []
+
 let updateLdComps (name:string) (changeFun: LoadedComponent -> LoadedComponent)  (ldComps: LoadedComponent list)=
     ldComps
     |> List.map (fun ldc -> if ldc.Name=name then changeFun ldc else ldc)

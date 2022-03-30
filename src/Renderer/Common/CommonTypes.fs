@@ -231,7 +231,6 @@ module CommonTypes
         // Tuples with (label * connection width).
         InputLabels: (string * int) list
         OutputLabels: (string * int) list
-        clocked: bool option
     }
 
     type Memory = {
@@ -605,22 +604,29 @@ module CommonTypes
         InputLabels : (string * int) list
         /// Output port names, and port numbers in any created custom component
         OutputLabels : (string * int) list
-
-        clocked : bool //might not need it
     }
 
     /// Returns true if a component is clocked
-    let isClocked (comp: Component) =
+    let rec isClocked (visitedSheets: string list) (ldcs: LoadedComponent list) (comp: Component) =
         match comp.Type with
-        | Custom {clocked = Some x} -> x
-        | Custom _ -> false
+        | Custom ct ->
+            let ldcOpt =
+                ldcs
+                |> List.tryFind (fun ldc -> ldc.Name = ct.Name)
+            match ldcOpt, List.contains ct.Name visitedSheets with
+            | _, true -> false
+            | None, _ -> false
+            | Some ldc, _ ->
+                let (comps, _) = ldc.CanvasState
+                List.exists (isClocked (ct.Name :: visitedSheets) ldcs) comps
+                        
+
+                            
         | DFF | DFFE | Register _ | RegisterE _ | RAM _ | ROM _ ->
             true
         | _ -> false
 
-    /// Returns whether any of a list of components are clocked
-    let canvasStateClocked (canvas: CanvasState) :bool =
-        fst canvas |> List.exists isClocked
+
 
     /// Type for an open project which represents a complete design.
     /// ProjectPath is directory containing project files.

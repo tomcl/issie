@@ -63,6 +63,14 @@ let fileExistsWithExtn extn folderPath baseName =
     let path = path.join [| folderPath; baseName + extn |]
     fs.existsSync (U2.Case1 path)
 
+let tryReadFileSync fPath =
+    if not <| fs.existsSync (U2.Case1 fPath) then
+        Error $"Error: file {fPath} does not exist"
+    else    
+    fs.readFileSync(fPath, "utf8")
+    |> Ok
+
+
 /// Write base64 encoded data to file.
 /// Create file if it does not exist.
 let writeFileBase64 path data =
@@ -372,10 +380,14 @@ let readMemLines (addressWidth:int) (wordWidth: int) (lines: string array) =
     | _ -> failwithf "What? can't happen"
 
 let readMemDefns (addressWidth:int) (wordWidth: int) (fPath: string) =
-    fs.readFileSync(fPath, "utf8")
-    |> String.splitRemoveEmptyEntries [|'\n';'\r'|]
-    |> readMemLines addressWidth wordWidth 
-    |> Result.map Map.ofArray
+    printfn "starting defn read"
+    tryReadFileSync fPath
+    |> Result.bind (
+        (fun contents -> printfn "read file:\n contents={contents}"; contents)
+        >> String.splitRemoveEmptyEntries [|'\n';'\r'|]
+        >> readMemLines addressWidth wordWidth 
+        >> (fun x -> printfn "read lines"; x)
+        >> Result.map Map.ofArray)
 
     
     
@@ -453,6 +465,7 @@ let magnifySheet magnification (comp: Component) =
 
 
 /// Update from old component types to new
+/// In addition do some sanity checks
 /// The standard way to add functionality to an existing component is to create a new
 /// component type, keeping the old type. Then on reading sheets from disk both new and old
 /// will be correctly read. This function will be called on load and will convert from the old
@@ -472,6 +485,11 @@ let getLatestComp (comp: Component) =
     | AsyncROM mem -> { comp with Type = AsyncROM1 (updateMem mem)}
     | Constant(width,cVal) -> {comp with Type = Constant1(width, cVal, $"%d{cVal}")}
     | _ -> comp
+    |> fun comp -> 
+        if comp.X < 0 || comp.Y < 0 then 
+            {comp with X = max 0 comp.X ; Y = max 0 comp.Y}
+        else
+            comp
 
 /// Interface function that can read old-style circuits (without wire vertices)
 /// as well as new circuits with vertices. Old circuits have an expansion parameter
@@ -505,7 +523,7 @@ let checkMemoryContents (projectPath:string) (comp: Component) : Component =
                 let mem = {mem with Data = memDat}
                 {comp with Type = getMemType comp.Type mem}
             | Error msg ->
-                printfn $"Error relaoding component {comp.Label} from its file {fPath}:\n{msg}"
+                printfn $"Error reloading component {comp.Label} from its file {fPath}:\n{msg}"
                 comp // ignore errors for now
         | _ -> comp
     | _ -> comp
@@ -514,13 +532,16 @@ let checkMemoryContents (projectPath:string) (comp: Component) : Component =
 let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp waveInfo =
     let projectPath = path.dirname filePath
     let inputs, outputs = parseDiagramSignature canvas
+    //printfn "parsed component"
     let comps,conns = canvas
     let comps' = List.map (checkMemoryContents projectPath) comps
+    //printfn "checked component"
     let canvas = comps',conns
     let ramChanges = 
         List.zip comps' comps
         |> List.filter (fun (c1,c2) -> c1.Type <> c2.Type)
         |> List.map fst
+    //printfn "ram changes processed"
     let ldc =
         {
             Name = getBaseNameNoExtension filePath
@@ -543,8 +564,9 @@ let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
     | Ok (Result.Error msg) ->
         Error <| sprintf "Can't load component %s because of Error: %s" (getBaseNameNoExtension filePath)  msg
     | Ok (Ok state) ->
+        let canvas = getLatestCanvas state
         makeLoadedComponentFromCanvasData 
-            (getLatestCanvas state) 
+            canvas
             filePath 
             state.getTimeStamp 
             state.getWaveInfo
@@ -579,8 +601,10 @@ let loadAllComponentFiles (folderPath:string)  =
                     File names used as sheets must contain only alphanumeric and space characters before the '.dgm' extension" fileName folderPath
                 else 
                     let filePath = path.join [| folderPath; fileName |]
+                    printfn $"loading {fileName}"
                     let ldComp =  filePath |> tryLoadComponentFromPath
                     let autoComp = filePath + "auto" |> tryLoadComponentFromPath
+                    printfn $"{fileName} Loaded"
                     match (ldComp, autoComp) with
                     | Ok ldComp, Ok autoComp when ldComp.TimeStamp < autoComp.TimeStamp ->
                         Resolve(ldComp,autoComp) |> Ok

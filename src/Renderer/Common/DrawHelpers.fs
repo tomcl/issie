@@ -24,8 +24,8 @@ type XYPos =
 
     /// allowed tolerance when comparing positions with floating point errors for equality
     static member epsilon = 0.0000001
-    /// Add postions as vectors (overlaoded operator)
 
+    /// Add postions as vectors (overlaoded operator)
     static member ( + ) (left: XYPos, right: XYPos) =
         { X = left.X + right.X; Y = left.Y + right.Y }
 

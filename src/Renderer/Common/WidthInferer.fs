@@ -84,12 +84,12 @@ let private getConnectionIdForPort
     | Some (Some (_, connId)) -> connId
 
 let private makeWidthInferErrorEqual expected actual connectionsAffected = Error {
-    Msg = sprintf "Wrong wire width. Target port expects a %d bit(s) signal, but source port produces a %d bit(s) signal." expected actual
+    Msg = sprintf "Wrong wire width. Target port expects a %d-bit signal, but source port produces a %d-bit signal." expected actual
     ConnectionsAffected = connectionsAffected
 }
 
 let private makeWidthInferErrorAtLeast atLeast actual connectionsAffected = Error {
-    Msg = sprintf "Wrong wire width. Target port expects a signal with at least %d bits, but source port produces a %d bit(s) signal." atLeast actual
+    Msg = sprintf "Wrong wire width. Target port expects a signal with at least %d bits, but source port produces a %d-bit signal." atLeast actual
     ConnectionsAffected = connectionsAffected
 }
     
@@ -591,9 +591,9 @@ let private initialiseConnectionsWidth connections : ConnectionsWidth =
 let private getAllInputNodes components : Component list =
     components |> List.filter (fun comp -> match comp.Type with | Input _ -> true | _ -> false)
 
-/// For each connected Input port, map the connection that is connected to it.
+/// For each connected input port, map the connection that is connected to it.
 /// Fail if there are multiple connections connected to the same input port.
-/// Such scenario would mean that a wire is driven by multiple components.
+/// Such a scenario would mean that a wire is driven by multiple components.
 let private mapInputPortIdsToConnectionIds
         (connections : Connection list)
         : Result<Map<InputPortId, ConnectionId>, WidthInferError> =
@@ -620,7 +620,7 @@ let private mapComponentIdsToComponents
 
     
 
-/// return all Connections connected to an output port
+/// return all connections connected to an output port
 let private mapOutputPortIdsToConnections
         (connections : Connection list)
         : Map<OutputPortId, Connection list> =
@@ -628,13 +628,13 @@ let private mapOutputPortIdsToConnections
     |> List.groupBy (fun conn -> OutputPortId conn.Source.Id)
     |> Map.ofList
 
-/// Here each input port has asociated with the connection that drives it.
+/// Here each input port has associated with the connection that drives it.
 /// Normally that is the connection connected to the port.
 /// However BusLabels are a special case because a set of similarly named labels
 /// have outputs all connected together and driven by the single connection that goes to
 /// one of the BusLabel inputs (there must be exactly one such).
 /// In this function any input driven by a connection from a BusLabel output gets associated
-/// with the Buslable set input connection, allowing correct width inference.
+/// with the BusLabel set input connection, allowing correct width inference.
 let private mapInputPortIdsToVirtualConnectionIds (conns: Connection list) (comps:Component list) =
     let mapPortIdToConnId = mapInputPortIdsToConnectionIds conns
 
@@ -660,7 +660,7 @@ let private mapInputPortIdsToVirtualConnectionIds (conns: Connection list) (comp
             match getBusLabelConns compLst  with
             | [cId] -> List.map (fun comp -> (InputPortId comp.InputPorts[0].Id, cId)) compLst |> Ok
             | h when h.Length <> 1 -> Error {
-                Msg = sprintf "A Labelled wire must no more than one driving component. '%s' labels have %d drivers" lab h.Length
+                Msg = sprintf "A wire label must have exactly one driving component but the label '%s' has %d" lab h.Length
                 ConnectionsAffected = h 
                 }            
             | _ -> Ok []

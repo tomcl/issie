@@ -22,7 +22,7 @@ let private menuItem styles label onClick =
         [ str label ]
 
 let private createComponent compType label model dispatch =
-    Sheet (Sheet.InitialiseCreateComponent (compType, label)) |> dispatch
+    Sheet (Sheet.InitialiseCreateComponent (tryGetLoadedComponents model, compType, label)) |> dispatch
 
 // Anything requiring a standard label should be checked and updated with the correct number suffix in Symbol/Sheet, 
 // so give the label ""
@@ -38,11 +38,9 @@ let private makeCustom styles model dispatch (loadedComponent: LoadedComponent) 
             Name = loadedComponent.Name
             InputLabels = FilesIO.getOrderedCompLabels (Input 0) canvas
             OutputLabels = FilesIO.getOrderedCompLabels (Output 0) canvas
-            IdToLabel = Map.empty
-            clocked = loadedComponent.clocked
         }
         
-        Sheet (Sheet.InitialiseCreateComponent (custom, "")) |> dispatch
+        Sheet (Sheet.InitialiseCreateComponent (tryGetLoadedComponents model, custom, "")) |> dispatch
     )
 
 let private makeCustomList styles model dispatch =

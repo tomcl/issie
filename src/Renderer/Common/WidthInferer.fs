@@ -1,3 +1,7 @@
+(*
+   Function to perform bus width inference on a canvas
+*)
+
 module BusWidthInferer
 
 open CommonTypes
@@ -222,6 +226,48 @@ let private calculateOutputPortsWidth
         | [None; Some n; _] -> Ok <| Map.empty.Add (getOutputPortId comp 0, n)
         | [_; _; _] -> Ok Map.empty // Keep on waiting.
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+    | Mux4 ->
+        // Mux also allowes buses.
+        assertInputsSize inputConnectionsWidth 5 comp
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2; InputPortNumber 3; InputPortNumber 4] with
+        | [Some n; Some m; Some a; Some b; Some 2] when (n = m && n = a && n = b) -> Ok <| Map.empty.Add (getOutputPortId comp 0, n)
+        | [Some n; Some m; Some a; Some b; _] when (n <> m || n <> a || n <> b) ->
+            // Two inputs have different widths, this is not allowed.
+            Error {
+                Msg = sprintf "Wrong wire width. The four inputs to a multiplexer are expected to have the same width, but 1st input has %d bits, 2nd input has %d bits, 3rd input has %d bits, 4th input has %d bits." n m a b
+                ConnectionsAffected = [getConnectionIdForPort 0; getConnectionIdForPort 1; getConnectionIdForPort 2; getConnectionIdForPort 3]
+            }
+        | [_; _; _; _; Some n] when n <> 2 -> makeWidthInferErrorEqual 2 n [getConnectionIdForPort 4]
+        | [Some n; Some m; Some a; None; _]
+        | [Some n; Some m; None; Some a; _]
+        | [Some n; None; Some m; Some a; _]
+        | [None; Some n; Some m; Some a; _] -> Ok <| Map.empty.Add (getOutputPortId comp 0, n)
+        | [_; _; _; _; _] -> Ok Map.empty // Keep on waiting.
+        | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+    | Mux8 ->
+        // Mux also allowes buses.
+        assertInputsSize inputConnectionsWidth 9 comp
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2; InputPortNumber 3; InputPortNumber 4;InputPortNumber 5; InputPortNumber 6; InputPortNumber 7; InputPortNumber 8] with
+        | [Some n; Some m; Some a; Some b; Some c; Some d; Some e; Some f; Some 3] when 
+            (n = m && n = a && n = b && n = c && n = d && n = e && n = f) -> Ok <| Map.empty.Add (getOutputPortId comp 0, n)
+        | [Some n; Some m; Some a; Some b; Some c; Some d; Some e; Some f; _] when 
+            (n <> m || n <> a || n <> b || n <> c || n <> d || n <> e || n<>f) ->
+            // Two inputs have different widths, this is not allowed.
+            Error {
+                Msg = sprintf "Wrong wire width. The eight inputs to a multiplexer are expected to have the same width, but 1st input has %d bits, 2nd input has %d bits, 3rd input has %d bits, 4th input has %d bits, 5th input has %d bits, 6th input has %d bits, 7th input has %d bits, 8th input has %d bits." n m a b c d e f
+                ConnectionsAffected = [getConnectionIdForPort 0; getConnectionIdForPort 1; getConnectionIdForPort 2; getConnectionIdForPort 3; getConnectionIdForPort 4; getConnectionIdForPort 5; getConnectionIdForPort 6; getConnectionIdForPort 7]
+            }
+        | [_; _; _; _; _; _; _; _; Some n] when n <> 3 -> makeWidthInferErrorEqual 3 n [getConnectionIdForPort 8]
+        | [Some n; Some m; Some a; Some b; Some c; Some d; Some e; None; _]
+        | [Some n; Some m; Some a; Some b; Some c; Some d; None; Some e; _]
+        | [Some n; Some m; Some a; Some b; Some c; None; Some d; Some e; _]
+        | [Some n; Some m; Some a; Some b; None; Some c; Some d; Some e; _]
+        | [Some n; Some m; Some a; None; Some b; Some c; Some d; Some e; _]
+        | [Some n; Some m; None; Some a; Some b; Some c; Some d; Some e; _]
+        | [Some n; None; Some m; Some a; Some b; Some c; Some d; Some e; _] 
+        | [None; Some n; Some m; Some a; Some b; Some c; Some d; Some e; _] -> Ok <| Map.empty.Add (getOutputPortId comp 0, n)
+        | [_; _; _; _; _; _; _; _; _] -> Ok Map.empty // Keep on waiting.
+        | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
     | Demux2 ->
         // Demux also allowes buses.
         assertInputsSize inputConnectionsWidth 2 comp
@@ -231,6 +277,28 @@ let private calculateOutputPortsWidth
             let out = out.Add (getOutputPortId comp 1, n)
             Ok out
         | [_; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 1]
+        | [_; _] -> Ok Map.empty // Keep on waiting.
+        | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+    | Demux4 ->
+        // Demux also allowes buses.
+        assertInputsSize inputConnectionsWidth 2 comp
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
+        | [Some n; Some 2] | [Some n; None] ->
+            let map = Map.empty.Add (getOutputPortId comp 0 , n)
+            let out = (map, [1..3]) ||> List.fold (fun s v -> s |> Map.add (getOutputPortId comp v) n)
+            Ok out
+        | [_; Some n] when n <> 2 -> makeWidthInferErrorEqual 2 n [getConnectionIdForPort 1]
+        | [_; _] -> Ok Map.empty // Keep on waiting.
+        | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+    | Demux8 ->
+        // Demux also allowes buses.
+        assertInputsSize inputConnectionsWidth 2 comp
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
+        | [Some n; Some 3] | [Some n; None] ->
+            let map = Map.empty.Add (getOutputPortId comp 0 , n)
+            let out = (map, [1..7]) ||> List.fold (fun s v -> s |> Map.add (getOutputPortId comp v) n)
+            Ok out
+        | [_; Some n] when n <> 3 -> makeWidthInferErrorEqual 3 n [getConnectionIdForPort 1]
         | [_; _] -> Ok Map.empty // Keep on waiting.
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
     | NbitsAdder numberOfBits ->

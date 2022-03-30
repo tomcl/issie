@@ -390,7 +390,11 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         |> function
         | Some n -> n
         | None -> failwithf "Can't find output width for output port %d of %A\n" opn fs.FComps[fid]
-
+    
+    let demuxOutput (outputPort: string) (selectPort: string) (w:int) = 
+        if outputPort = selectPort
+        then ins 0
+        else makeBits w (uint64 0)
 
     match fc.FType with
     | Viewer _ -> ""
@@ -428,6 +432,24 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
 
         $"assign %s{outs 0} = %s{ins 1} ? {makeBits w (uint64 0)} : %s{ins 0};\n"
         + $"assign %s{outs 1} = %s{ins 1} ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+    | Demux4 ->
+        let w = outW 0
+        
+        $"assign %s{outs 0} = %s{demuxOutput (outs 0) (ins 1) w};\n"
+        + $"assign %s{outs 1} = %s{demuxOutput (outs 1) (ins 1) w};\n"
+        + $"assign %s{outs 2} = %s{demuxOutput (outs 2) (ins 1) w};\n"
+        + $"assign %s{outs 3} = %s{demuxOutput (outs 3) (ins 1) w};\n"
+    | Demux8 ->
+        let w = outW 0
+        
+        $"assign %s{outs 0} = %s{demuxOutput (outs 0) (ins 1) w};\n"
+        + $"assign %s{outs 1} = %s{demuxOutput (outs 1) (ins 1) w};\n"
+        + $"assign %s{outs 2} = %s{demuxOutput (outs 2) (ins 1) w};\n"
+        + $"assign %s{outs 3} = %s{demuxOutput (outs 3) (ins 1) w};\n"
+        + $"assign %s{outs 4} = %s{demuxOutput (outs 4) (ins 1) w};\n"
+        + $"assign %s{outs 5} = %s{demuxOutput (outs 5) (ins 1) w};\n"
+        + $"assign %s{outs 6} = %s{demuxOutput (outs 6) (ins 1) w};\n"
+        + $"assign %s{outs 7} = %s{demuxOutput (outs 7) (ins 1) w};\n"
     | NbitsAdder n ->
         let cin = ins 0
         let a = ins 1
@@ -441,6 +463,30 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         let xor = outs 0
         $"assign {xor} = {a} ^ {b};\n"
     | Mux2 -> $"assign %s{outs 0} = %s{ins 2} ? %s{ins 1} : %s{ins 0};\n"
+    | Mux4 -> 
+        let outputBit = 
+            match ins 4 with
+            | "0" -> ins 0 
+            | "1" -> ins 1 
+            | "2" -> ins 2
+            | "3" -> ins 3
+            | _ -> failwithf "Cannot happen"
+
+        $"assign %s{outs 0} = %s{outputBit};\n"
+    | Mux8 -> 
+        let outputBit = 
+            match ins 8 with
+            | "0" -> ins 0 
+            | "1" -> ins 1 
+            | "2" -> ins 2
+            | "3" -> ins 3
+            | "4" -> ins 4 
+            | "5" -> ins 5 
+            | "6" -> ins 6
+            | "7" -> ins 7
+            | _ -> failwithf "Cannot happen"
+
+        $"assign %s{outs 0} = %s{outputBit};\n"
     | BusSelection (outW, lsb) ->
         let sel = sprintf "[%d:%d]" (outW + lsb - 1) lsb
         $"assign {outs 0} = {ins 0}{sel};\n"

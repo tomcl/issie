@@ -575,7 +575,7 @@ let private waveEditorTickBoxRows model wsModel (dispatch: Msg -> unit) =
 /// Contains tick-boxes for NetGroups
 let private waveEditorTickBoxesAndNames (model: Model) wSModel (dispatch: Msg -> unit) =
     div [ Style [ Position PositionOptions.Absolute
-                  Top "300px" ] ]
+                  CSSProp.Top "300px" ] ]
         [ table []
                 [ tbody [] 
                         (Array.append [| waveEditorSelectAllRow model wSModel dispatch |] 

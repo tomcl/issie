@@ -1,7 +1,7 @@
 (*
     Helpers.fs
 
-    Some fsharp only (no JS) utility functions.
+    Some miscellaneous fsharp only (no JS) utility functions.
 *)
 
 module Helpers

@@ -6,7 +6,6 @@ open Fulma
 open Fable.React
 open Fable.React.Props
 open ElectronAPI
-open BusWidthInferer
 open SimulatorTypes
 open ModelType
 open CommonTypes
@@ -15,9 +14,6 @@ open CatalogueView
 open PopupView
 open FileMenuView
 open WaveSimHelpers
-
-open Fable.Core
-open Fable.Core.JsInterop
 
 
 
@@ -441,7 +437,10 @@ let update (msg : Msg) oldModel =
     | SendSeqMsgAsynch msgs ->
         model, SimulationView.doBatchOfMsgsAsynch msgs
     | MenuAction(act,dispatch) ->
-        getMenuView act model dispatch, Cmd.none
+        match act with 
+        | MenuSaveFile -> getMenuView act model dispatch, Cmd.ofMsg (Sheet Sheet.SaveSymbols)
+        | _ -> getMenuView act model dispatch, Cmd.none
+        
     | DiagramMouseEvent -> model, Cmd.none
     | SelectionHasChanged -> 
         match currWaveSimModel model with

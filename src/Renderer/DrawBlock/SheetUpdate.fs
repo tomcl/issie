@@ -252,8 +252,7 @@ let snapWire (model: Model) (mMsg: MouseT) (connId: ConnectionId): Model * Cmd<M
         MouseCounter = updateMouseCounter;
         LastMousePosForSnap = updateLastMousePosForSnap },
     Cmd.batch [ wireCmd (BusWire.DragWire (model.SelectedWires.Head, mMsg'));
-                Cmd.ofMsg CheckAutomaticScrolling;
-                wireCmd (BusWire.MakeJumps [connId]) ] 
+                Cmd.ofMsg CheckAutomaticScrolling] 
 // ----------------------------------------- Mouse Update Helper Functions ----------------------------------------- //
 // (Kept in separate functions since Update function got too long otherwise)
 
@@ -391,7 +390,7 @@ let mDragUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
     | InitialiseMoving _ ->
         let movingWires = BusWireUpdate.getConnectedWireIds model.Wire model.SelectedComponents
         let newModel, cmd = moveSymbols model mMsg
-        newModel, Cmd.batch [ cmd; wireCmd (BusWire.ResetJumps movingWires) ]
+        newModel, Cmd.batch [ cmd ]
     | MovingSymbols | DragAndDrop ->
         moveSymbols model mMsg
     | ConnectingInput _ ->
@@ -501,9 +500,12 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
             else Cmd.none , model.UndoList , model.RedoList
         { model with Action = Idle; TargetPortId = ""; UndoList = undoList ; RedoList = redoList ; AutomaticScrolling = false  }, cmd
     | MovingPort portId ->
+        let symbol = Symbol.getCompId model.Wire.Symbol portId
         {model with Action = Idle},
-        Cmd.batch [symbolCmd (Symbol.MovePortDone (portId, mMsg.Pos));
-        wireCmd (BusWire.RerouteWire portId)]
+        Cmd.batch [
+            symbolCmd (Symbol.MovePortDone (portId, mMsg.Pos))
+            wireCmd (BusWire.UpdateSymbolWires symbol);
+            wireCmd (BusWire.RerouteWire portId)]
     | _ -> model, Cmd.none
 
 /// Mouse Move Update, looks for nearby components and looks if mouse is on a port

@@ -85,8 +85,9 @@ open SimulatorTypes
 
 /// maximum width of the waveform simulator viewer
 let maxUsedViewerWidth (wSMod: WaveSimModel) =
+    let waveSimFont = {DrawHelpers.defaultText with FontSize="12px";FontWeight="";FontFamily="segoe ui"}
     let strWidth s = 
-        DrawHelpers.getTextWidthInPixels (s, "12px segoe ui") //not sure which font
+        DrawHelpers.getTextWidthInPixels (s, waveSimFont) //not sure which font
     let curLblColWidth =
         match cursorValueStrings wSMod with
         | [||] -> 0.0

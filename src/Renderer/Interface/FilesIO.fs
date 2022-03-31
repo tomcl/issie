@@ -457,8 +457,8 @@ let stripVertices (conn: LegacyCanvas.LegacyConnection) =
 
 let magnifySheet magnification (comp: LegacyCanvas.LegacyComponent) =
     {comp with 
-        X = int <| round (magnification * float (comp.X + comp.W / 2 )); 
-        Y = int <| round (magnification * float (comp.Y + comp.H/2))
+        X = magnification * (comp.X + comp.W / 2. ); 
+        Y = magnification * (comp.Y + comp.H/2.)
         H = -1 // overwritten correctly by Sheet based on componnet type
         W = -1 // as above
     }
@@ -485,11 +485,7 @@ let getLatestComp (comp: Component) =
     | AsyncROM mem -> { comp with Type = AsyncROM1 (updateMem mem)}
     | Constant(width,cVal) -> {comp with Type = Constant1(width, cVal, $"%d{cVal}")}
     | _ -> comp
-    |> fun comp -> 
-        if comp.X < 0 || comp.Y < 0 then 
-            {comp with X = max 0 comp.X ; Y = max 0 comp.Y}
-        else
-            comp
+
 
 /// Interface function that can read old-style circuits (without wire vertices)
 /// as well as new circuits with vertices. Old circuits have an expansion parameter

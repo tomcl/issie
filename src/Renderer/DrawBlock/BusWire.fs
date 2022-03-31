@@ -14,6 +14,20 @@ open Elmish
 open DrawHelpers
 
 //------------------------------------------------------------------------//
+//------------------------------BusWire Constants-------------------------//
+//------------------------------------------------------------------------//
+
+module Constants =
+    let jumpRadius = 5.
+    /// The minimum length of the initial segments (nubs) leaving the ports
+    let nubLength = 8.
+    /// The standard radius of a radial wire corner
+    let cornerRadius = 5. 
+    /// The standard radius of a modern wire connect circle
+    let modernCircleRadius = 5.
+
+
+//------------------------------------------------------------------------//
 //------------------------------BusWire Types-----------------------------//
 //------------------------------------------------------------------------//
 
@@ -56,12 +70,7 @@ type Wire =
         EndOrientation : Orientation
     }
 
-    /// The minimum length of the initial segments (nubs) leaving the ports
-    with static member nubLength = 8.
-         /// The standard radius of a radial curve, modern circle or jump width
-         static member radius = 5. 
-         /// The standard height of a jump
-         static member jumpHeight = 7.
+
 
 /// Defines offsets used to render wire width text
 type TextOffset =
@@ -91,6 +100,7 @@ type Msg =
     | DeleteWires of list<ConnectionId>
     | SelectWires of list<ConnectionId>
     | UpdateWires of list<ComponentId> * XYPos
+    | UpdateSymbolWires of ComponentId
     | DragWire of ConnectionId * MouseT
     | ColorWires of list<ConnectionId> * HighLightColor
     | ErrorWires of list<ConnectionId>
@@ -102,15 +112,20 @@ type Msg =
     | Rotate of list<ComponentId>
     | RerouteWire of string
 
+
+
+
+
+
 /// Returns an XYPos shifted by length in an X or Y direction defined by orientation.
-let addLengthToPos (position: XYPos) orientation length =
+let inline addLengthToPos (position: XYPos) orientation length =
     match orientation with
     | Horizontal -> { position with X = position.X + length }
     | Vertical -> { position with Y = position.Y + length }
 
 /// Returns the opposite orientation of the input orientation. (i.e. Horizontal becomes Vertical and vice-versa)
-let switchOrientation =
-    function
+let inline switchOrientation orientation =
+    match orientation with
     | Horizontal -> Vertical
     | Vertical -> Horizontal
 
@@ -122,7 +137,7 @@ let switchOrientation =
 /// <param name="state"> The initial state.</param>
 /// <param name="wire"> The wire containing the segment list we are folding over.</param>
 /// <returns> The final state value </returns>
-let foldOverSegs folder state wire =
+let inline foldOverSegs folder state wire =
     let initPos = wire.StartPos
     let initOrientation = wire.InitialOrientation
     ((state, initPos, initOrientation), wire.Segments)
@@ -203,13 +218,23 @@ let logWire wire =
 
 /// Given a segment start and end position, finds the orientation of the segment. 
 /// Returns None if the segment is neither horizontal nor vertical
-let getSegmentOrientation (segStart: XYPos) (segEnd: XYPos) =
+let inline getSegmentOrientation (segStart: XYPos) (segEnd: XYPos) =
     if abs (segStart.X - segEnd.X) < XYPos.epsilon then
         Vertical
     else if abs (segStart.Y - segStart.Y) < XYPos.epsilon then
         Horizontal
     else
         failwithf "ERROR: Diagonal wire" // Should never happen
+
+/// Given a segment start and end position, finds the symbol edge of the segment
+/// based on its segment direction if it starts an outgoing wire.
+let inline getWireOutgoingEdge (wire:Wire) =
+    match wire.InitialOrientation, wire.Segments.[0].Length > 0 with
+    | Horizontal, true -> Edge.Right
+    | Horizontal, false -> Edge.Left
+    | Vertical, true -> Edge.Bottom
+    | Vertical, false -> Edge.Top
+     
 
 /// Tries to find and log a segment identified by segId in a wire identified by wireId in the current model.
 /// Assumes wireId can be found in the current model. Returns unit, used for debugging.
@@ -258,127 +283,129 @@ let segmentsToVertices (segList:Segment list) (wire:Wire) =
 /// this function returns a list of wire vertices
 let makeInitialWireVerticesList (wireStartPos : XYPos) (wireEndPos : XYPos) (portOrientation : Edge) = 
     let xStart, yStart, xEnd, yEnd = wireStartPos.X, wireStartPos.Y, wireEndPos.X, wireEndPos.Y
+
+    let nubLength = Constants.nubLength
     /// This is a fixed-length horizontal stick with a zero-length vertical after it.
     /// It starts nearly all the wires
     let rightNub = [
             {X = xStart; Y = yStart};
-            {X = xStart+Wire.nubLength; Y = yStart}; //Stick horizontal
-            {X = xStart+Wire.nubLength; Y = yStart}; //Length 0 vertical
+            {X = xStart+nubLength; Y = yStart}; //Stick horizontal
+            {X = xStart+nubLength; Y = yStart}; //Length 0 vertical
         ]
-    let leftwards = xStart - xEnd + 20. < 0
+    let rightwards = xStart - xEnd + 20. < 0
     let downwards = yStart - yEnd  < 0
-    match leftwards, downwards with //add 20 to prevent issues in the case that the ports are directly on in line with one another
+    match rightwards, downwards with //add 20 to prevent issues in the case that the ports are directly on in line with one another
     | true, true ->
             match portOrientation with
             | CommonTypes.Top  ->  rightNub @ [
                     {X = xEnd; Y = yStart};
-                    {X = xEnd; Y = yEnd-Wire.nubLength}; 
-                    {X = xEnd; Y = yEnd-Wire.nubLength};// Length 0 horizontal
+                    {X = xEnd; Y = yEnd-nubLength}; 
+                    {X = xEnd; Y = yEnd-nubLength};// Length 0 horizontal
                     {X = xEnd; Y = yEnd}] // Stick vertical
             | CommonTypes.Right ->  rightNub @ [
                     {X = xEnd+10.; Y = yStart};
                     {X = xEnd+10.; Y = yEnd};
-                    {X = xEnd+Wire.nubLength; Y = yEnd}; 
-                    {X = xEnd+Wire.nubLength; Y = yEnd}; //Length 0 vertical
+                    {X = xEnd+nubLength; Y = yEnd}; 
+                    {X = xEnd+nubLength; Y = yEnd}; //Length 0 vertical
                     {X = xEnd; Y = yEnd}] //Stick horizontal
             | CommonTypes.Bottom->  rightNub @ [
                     {X = (xEnd+xStart)/2.; Y = yStart};
                     {X = (xEnd+xStart)/2.; Y = yEnd+10.};
                     {X = xEnd; Y = yEnd+10.};
-                    {X = xEnd; Y = yEnd+Wire.nubLength}; 
-                    {X = xEnd; Y = yEnd+Wire.nubLength}; //Length 0 horizontal
+                    {X = xEnd; Y = yEnd+nubLength}; 
+                    {X = xEnd; Y = yEnd+nubLength}; //Length 0 horizontal
                     {X = xEnd; Y = yEnd}] //Stick vertical
             | CommonTypes.Left ->  rightNub @ [
                     {X = (xEnd+xStart)/2.; Y = yStart};
                     {X = (xEnd+xStart)/2.; Y = yEnd};
-                    {X = xEnd-Wire.nubLength; Y = yEnd}; 
-                    {X = xEnd-Wire.nubLength; Y = yEnd}; //Length 0 horizontal
+                    {X = xEnd-nubLength; Y = yEnd}; 
+                    {X = xEnd-nubLength; Y = yEnd}; //Length 0 horizontal
                     {X = xEnd; Y = yEnd}] //Stick vertical
     | true, false -> 
             match portOrientation with
             | CommonTypes.Bottom ->  rightNub @ [
                     {X = xEnd; Y = yStart};
-                    {X = xEnd; Y = yEnd+Wire.nubLength}; 
-                    {X = xEnd; Y = yEnd+Wire.nubLength}; //Length 0 hortizontal
+                    {X = xEnd; Y = yEnd+nubLength}; 
+                    {X = xEnd; Y = yEnd+nubLength}; //Length 0 hortizontal
                     {X = xEnd; Y = yEnd}] //Stick vertical
             | CommonTypes.Right ->  rightNub @ [
                     {X = xEnd+10.; Y = yStart};
                     {X = xEnd+10.; Y = yEnd};
-                    {X = xEnd+Wire.nubLength; Y = yEnd}; 
-                    {X = xEnd+Wire.nubLength; Y = yEnd}; //Length 0 vertical
+                    {X = xEnd+nubLength; Y = yEnd}; 
+                    {X = xEnd+nubLength; Y = yEnd}; //Length 0 vertical
                     {X = xEnd; Y = yEnd}] //Stick horizontal
             | CommonTypes.Top ->  rightNub @ [
                     {X = (xEnd+xStart)/2.; Y = yStart};
                     {X = (xEnd+xStart)/2.; Y = yEnd-10.};
                     {X = xEnd; Y = yEnd-10.};
-                    {X = xEnd; Y = yEnd-Wire.nubLength}; 
-                    {X = xEnd; Y = yEnd-Wire.nubLength}; //Length 0 horizontal
+                    {X = xEnd; Y = yEnd-nubLength}; 
+                    {X = xEnd; Y = yEnd-nubLength}; //Length 0 horizontal
                     {X = xEnd; Y = yEnd}] //Stick vertical
             | CommonTypes.Left ->  rightNub @ [
                     {X = (xEnd+xStart)/2.; Y = yStart};
                     {X = (xEnd+xStart)/2.; Y = yEnd};
-                    {X = xEnd-Wire.nubLength; Y = yEnd}; 
-                    {X = xEnd-Wire.nubLength; Y = yEnd}; //Length 0 vertical
+                    {X = xEnd-nubLength; Y = yEnd}; 
+                    {X = xEnd-nubLength; Y = yEnd}; //Length 0 vertical
                     {X = xEnd; Y = yEnd}] //Stick horizontal
     | false, true -> 
             match portOrientation with
             | CommonTypes.Bottom ->  rightNub @ [
-                    {X = xStart+Wire.nubLength+10.; Y = yStart}; //Small horizontal for dragging  
-                    {X = xStart+Wire.nubLength+10.; Y = yEnd+10.};
+                    {X = xStart+nubLength+10.; Y = yStart}; //Small horizontal for dragging  
+                    {X = xStart+nubLength+10.; Y = yEnd+10.};
                     {X = xEnd; Y = yEnd+10.};
-                    {X = xEnd; Y = yEnd+Wire.nubLength}; 
-                    {X = xEnd; Y = yEnd+Wire.nubLength}; //Length 0 horizontal
+                    {X = xEnd; Y = yEnd+nubLength}; 
+                    {X = xEnd; Y = yEnd+nubLength}; //Length 0 horizontal
                     {X = xEnd; Y = yEnd}] //Stick vertical
             | CommonTypes.Right ->  rightNub @ [
-                    {X = xStart+Wire.nubLength+10.; Y = yStart}; //Small horizontal for dragging
-                    {X = xStart+Wire.nubLength+10.; Y = yEnd};
-                    {X = xEnd+Wire.nubLength; Y = yEnd}; 
-                    {X = xEnd+Wire.nubLength; Y = yEnd}; //Length 0 vertical
+                    {X = xStart+nubLength+10.; Y = yStart}; //Small horizontal for dragging
+                    {X = xStart+nubLength+10.; Y = yEnd};
+                    {X = xEnd+nubLength; Y = yEnd}; 
+                    {X = xEnd+nubLength; Y = yEnd}; //Length 0 vertical
                     {X = xEnd; Y = yEnd}] //Stick horizontal
             | CommonTypes.Top ->  [{X = xStart; Y = yStart};
-                    {X = xStart+Wire.nubLength; Y = yStart}; //Stick horizontal
-                    {X = xStart+Wire.nubLength; Y = (yStart+yEnd)/2.}; //Length 0 vertical
+                    {X = xStart+nubLength; Y = yStart}; //Stick horizontal
+                    {X = xStart+nubLength; Y = (yStart+yEnd)/2.}; //Length 0 vertical
                     {X = xEnd; Y = (yStart+yEnd)/2.};
-                    {X = xEnd; Y = yEnd-Wire.nubLength}; 
-                    {X = xEnd; Y = yEnd-Wire.nubLength}; //Length 0 horizontal
+                    {X = xEnd; Y = yEnd-nubLength}; 
+                    {X = xEnd; Y = yEnd-nubLength}; //Length 0 horizontal
                     {X = xEnd; Y = yEnd}] //Stick vertical
             | CommonTypes.Left ->  rightNub @ [
-                    {X = xStart+Wire.nubLength+10.; Y = yStart}; //Small horizontal for dragging
-                    {X = xStart+Wire.nubLength+10.; Y = (yStart+yEnd)/2.}; 
+                    {X = xStart+nubLength+10.; Y = yStart}; //Small horizontal for dragging
+                    {X = xStart+nubLength+10.; Y = (yStart+yEnd)/2.}; 
                     {X = xEnd-10.; Y = (yStart+yEnd)/2.}; 
                     {X = xEnd-10.; Y = yEnd};
-                    {X = xEnd-Wire.nubLength; Y = yEnd}; 
-                    {X = xEnd-Wire.nubLength; Y = yEnd}; //Length 0 vertical
+                    {X = xEnd-nubLength; Y = yEnd}; 
+                    {X = xEnd-nubLength; Y = yEnd}; //Length 0 vertical
                     {X = xEnd; Y = yEnd}] //Stick horizontal
         | false, false -> 
             match portOrientation with
             | CommonTypes.Top ->  [{X = xStart; Y = yStart};
-                    {X = xStart+Wire.nubLength; Y = yStart}; //Stick horizontal
-                    {X = xStart+Wire.nubLength; Y = yEnd-10.}; //Length 0 vertical
+                    {X = xStart+nubLength; Y = yStart}; //Stick horizontal
+                    {X = xStart+nubLength; Y = yEnd-10.}; //Length 0 vertical
                     {X = xEnd; Y = yEnd-10.};
-                    {X = xEnd; Y = yEnd-Wire.nubLength}; 
-                    {X = xEnd; Y = yEnd-Wire.nubLength}; //Length 0 horizontal
+                    {X = xEnd; Y = yEnd-nubLength}; 
+                    {X = xEnd; Y = yEnd-nubLength}; //Length 0 horizontal
                     {X = xEnd; Y = yEnd}] //Stick vertical
             | CommonTypes.Right ->  rightNub @ [
-                    {X = xStart+Wire.nubLength+10.; Y = yStart}; //Small horizontal for dragging
-                    {X = xStart+Wire.nubLength+10.; Y = yEnd};
-                    {X = xEnd+Wire.nubLength; Y = yEnd}; 
-                    {X = xEnd+Wire.nubLength; Y = yEnd}; //Lenght 0 vertical
+                    {X = xStart+nubLength+10.; Y = yStart}; //Small horizontal for dragging
+                    {X = xStart+nubLength+10.; Y = yEnd};
+                    {X = xEnd+nubLength; Y = yEnd}; 
+                    {X = xEnd+nubLength; Y = yEnd}; //Lenght 0 vertical
                     {X = xEnd; Y = yEnd}] //Stick horizontal
             | CommonTypes.Bottom ->  [{X = xStart; Y = yStart};
-                    {X = xStart+Wire.nubLength; Y = yStart}; //Stick horizontal
-                    {X = xStart+Wire.nubLength; Y = (yStart+yEnd)/2.}; //Length 0 vertical
+                    {X = xStart+nubLength; Y = yStart}; //Stick horizontal
+                    {X = xStart+nubLength; Y = (yStart+yEnd)/2.}; //Length 0 vertical
                     {X = xEnd; Y = (yStart+yEnd)/2.};
-                    {X = xEnd; Y = yEnd-Wire.nubLength}; 
-                    {X = xEnd; Y = yEnd-Wire.nubLength}; //Length 0 horizontal
+                    {X = xEnd; Y = yEnd+nubLength}; 
+                    {X = xEnd; Y = yEnd+nubLength}; //Length 0 horizontal
                     {X = xEnd; Y = yEnd}] //Stick vertical
             | CommonTypes.Left ->  rightNub @ [
-                    {X = xStart+Wire.nubLength+10.; Y = yStart}; //Small horizontal for dragging
-                    {X = xStart+Wire.nubLength+10.; Y = (yStart+yEnd)/2.}; 
+                    {X = xStart+nubLength+10.; Y = yStart}; //Small horizontal for dragging
+                    {X = xStart+nubLength+10.; Y = (yStart+yEnd)/2.}; 
                     {X = xEnd-10.; Y = (yStart+yEnd)/2.}; 
                     {X = xEnd-10.; Y = yEnd};
-                    {X = xEnd-Wire.nubLength; Y = yEnd}; 
-                    {X = xEnd-Wire.nubLength; Y = yEnd}; //Length 0 vertical
+                    {X = xEnd-nubLength; Y = yEnd}; 
+                    {X = xEnd-nubLength; Y = yEnd}; //Length 0 vertical
                     {X = xEnd; Y = yEnd}] //Stick horizontal
 
 /// Converts a list of vertices into a list of segments
@@ -495,13 +522,20 @@ type AbsSegment =
 type WireRenderProps =
     {
         key: string
-        AbsSegments: list<AbsSegment>
+        Wire: Wire
         ColorP: HighLightColor
         StrokeWidthP: int
         OutputPortEdge : Edge
         OutputPortLocation: XYPos
         DisplayType : WireType
     }
+let getAbsSegments (wire: Wire) : AbsSegment List= 
+    segmentsToVertices wire.Segments wire
+    |> List.map (fun x -> {X=fst(x); Y=snd(x)})
+    |> List.pairwise
+    |> List.zip wire.Segments
+    |> List.map (fun x -> fst(snd(x)),snd(snd(x)), fst(x).IntersectOrJumpList)
+    |> List.map (fun (startVertex,endVertex,intersectList) -> {Start=startVertex; End=endVertex; IntersectCoordinateList=intersectList})
 
 ///Creates the SVG command string required to render the wire 
 /// (apart from the final "nub") with a radial display type 
@@ -514,7 +548,7 @@ let renderRadialWire (state : (string * Orientation)) (segmentpair : {| First : 
     
     let dist1 = euclideanDistance startFirstSegment endFirstSegment
     let dist2 = euclideanDistance startSecondSegment endSecondSegment
-    let rad = System.Math.Floor(min Wire.radius (max 0.0 (min dist1 dist2)))
+    let rad = System.Math.Floor(min Constants.cornerRadius (max 0.0 (min dist1 dist2)))
     let makeCommandString xStart yStart rad sweepflag xEnd yEnd : string =
         $"L {xStart} {yStart} A {rad} {rad}, 45, 0, {sweepflag}, {xEnd} {yEnd}" 
 
@@ -599,79 +633,57 @@ let renderModernSegment (param : {| AbsSegment : AbsSegment; Colour :string; Wid
     else
         [makeLine startVertex.X startVertex.Y endVertex.X endVertex.Y lineParameters]
         
-///Renders a single segment in the display type of jump
-let renderJumpSegment (param : {| AbsSegment : AbsSegment; Colour :string; Width : string|}) = 
-    let startVertex = param.AbsSegment.Start
-    let endVertex = param.AbsSegment.End
-    let widthOpt = EEExtensions.String.tryParseWith System.Int32.TryParse param.Width
-    let renderWidth = 
-        match widthOpt with
-        | Some 1 -> 1.5
-        | Some n when n < int "8" -> 2.5
-        | _ -> 3.5
-    let lineParameters = { defaultLine with Stroke = param.Colour; StrokeWidth = string renderWidth }
-    let pathParameters = { defaultPath with Stroke = param.Colour; StrokeWidth = string renderWidth;}
 
-    //Generate all sections of a left to right segment that don't have jumps
-    let lefttoright (state : (float * ReactElement List)) xPos =
-        let element =
-            makeLine (fst(state)) startVertex.Y (xPos-Wire.radius) endVertex.Y lineParameters
-        (xPos+Wire.radius,List.append (snd(state)) [element])
+let renderSegmentWithJumps (a:AbsSegment) : string list=
+    let sPos = a.Start
+    let ePos = a.End
+    let jR = Constants.jumpRadius
+    /// direction of travel for horizontal segments
+    let rightTravel = ePos.X > sPos.X
+    let dir = if rightTravel then 1.0 else -1.0
+    let makePartArc d1 d2 =
+        if abs d1 > jR || abs d2 > jR then
+            failwithf "d1={d1}, d2={d2}, jR={jR}"
+        let h1 = sqrt (max 0. (jR*jR-d1*d1))
+        let h2 = sqrt (max 0. (jR*jR-d2*d2))
+        makePartArcAttr jR h1 d1 h2 d2
+    let rec makeJumpPathAttr jLst xPos =
+        match jLst with
+        | [] -> 
+            [ makeLineAttr (ePos.X - xPos) 0.0 ]
+        | (xJ,_):: jLst' when abs (xJ - xPos) > jR ->
+            makeLineAttr (xJ - xPos - dir*jR) 0. :: makeJumpPathAttr jLst (xJ - dir*(jR - XYPos.epsilon))
+        | [xJ,_] when abs (ePos.X - xJ) < jR ->
+            [ makePartArc (xJ - xPos) (ePos.X - xJ) ]
+        | [xJ,_] ->
+            makePartArc (xJ - xPos) (dir*jR) :: makeJumpPathAttr [] (xJ + dir * jR)
+        | (xJ,_) :: (((yJ,_) :: _) as jLst') when abs (yJ - xJ) > 2. * jR ->
+            makePartArc (xJ - xPos) (dir*jR) :: makeJumpPathAttr jLst' (xJ + dir*jR)
+        | (xJ,_) :: (((yJ,_) :: _) as jLst') ->
+            makePartArc (xJ - xPos) ((yJ - xJ) / 2.0) :: makeJumpPathAttr jLst' ((yJ+xJ)/ 2.0)
+    let jLst =
+        match rightTravel, a.IntersectCoordinateList with
+        | true, jL -> jL |> List.sortBy fst
+        | false, jL -> jL |> List.sortBy fst
+        |> List.map (fun (f,seg) -> f*dir + sPos.X,seg)
+    match jLst, abs (sPos.X - ePos.X) < XYPos.epsilon with
+    | _, true
+    | [], false -> 
+        [$"L {ePos.X} {ePos.Y}"]
+    | jLst, false -> 
+        makeJumpPathAttr jLst sPos.X
+       
+       
 
-    //Generate all sections of a right to left segment that don't have jumps
-    let righttoleft (state : (float * ReactElement List)) xPos =
-        let element =
-            makeLine (fst(state)) startVertex.Y (xPos+Wire.radius) endVertex.Y lineParameters
-        (xPos-Wire.radius,List.append (snd(state)) [element])
+
     
-    //If no jumps then straight line
-    if List.isEmpty param.AbsSegment.IntersectCoordinateList then 
-        [makeLine startVertex.X startVertex.Y endVertex.X endVertex.Y lineParameters]
-    else
-        if startVertex.X - endVertex.X < 0 then //Segment is left to right
-            let jumps =
-                param.AbsSegment.IntersectCoordinateList 
-                |> List.map (fun x -> startVertex.X + fst(x))
-                |> List.map (fun x -> makePath {X = x - Wire.radius; Y = startVertex.Y} {X = x - Wire.radius; Y = startVertex.Y - Wire.jumpHeight} {X = x + Wire.radius; Y = startVertex.Y - Wire.jumpHeight} {X = x + Wire.radius; Y = startVertex.Y} pathParameters)
-            let lines =
-                param.AbsSegment.IntersectCoordinateList
-                |> List.map (fun x -> startVertex.X + fst(x))
-                |> List.sort
-                |> List.fold lefttoright (startVertex.X,[])
-            let finalLines = 
-                List.append (snd(lines)) [makeLine (fst(lines)) startVertex.Y endVertex.X endVertex.Y lineParameters]
-            
-            //Only ever render intersections on horizontal segments
-            if getSegmentOrientation startVertex endVertex = Horizontal then
-                List.append finalLines jumps
-            else
-                [makeLine startVertex.X startVertex.Y endVertex.X endVertex.Y lineParameters]
-        
-        else                                    //Segment is right to left
-            let jumps =
-                param.AbsSegment.IntersectCoordinateList 
-                |> List.map (fun x -> startVertex.X - fst(x))
-                |> List.map (fun x -> makePath {X = x - Wire.radius; Y = startVertex.Y} {X = x - Wire.radius; Y = startVertex.Y - Wire.jumpHeight} {X = x + Wire.radius; Y = startVertex.Y - Wire.jumpHeight} {X = x + Wire.radius; Y = startVertex.Y} pathParameters)
-            let lines =
-                param.AbsSegment.IntersectCoordinateList
-                |> List.map (fun x -> startVertex.X - fst(x))
-                |> List.sortDescending
-                |> List.fold righttoleft (startVertex.X,[])
-            let finalLines = 
-                List.append (snd(lines)) [makeLine (fst(lines)) startVertex.Y endVertex.X endVertex.Y lineParameters]
-            
-            //Only ever render intersections on horizontal segments
-            if getSegmentOrientation startVertex endVertex = Horizontal then
-                List.append finalLines jumps
-            else
-                [makeLine startVertex.X startVertex.Y endVertex.X endVertex.Y lineParameters]
-
 
 ///Function used to render a single wire if the display type is jump
 let singleWireJumpView props = 
-    let firstVertex = props.AbsSegments.Head.Start
-    let secondVertex = props.AbsSegments.Head.End
-    let lastVertex = (List.last props.AbsSegments).Start
+    let absSegments = getAbsSegments props.Wire
+    let firstVertex = absSegments.Head.Start
+    let secondVertex = absSegments.Head.End
+    let lastVertex = (List.last absSegments).Start
     let colour = props.ColorP.Text()
     let width = string props.StrokeWidthP
     let widthOpt = EEExtensions.String.tryParseWith System.Int32.TryParse width
@@ -682,9 +694,15 @@ let singleWireJumpView props =
         | _ -> 3.5
     
     let renderedSegmentList : ReactElement List = 
-        props.AbsSegments
-        |> List.map (fun x -> {|AbsSegment = x; Colour = colour; Width = width|})
-        |> List.collect renderJumpSegment 
+        let pathPars:Path =
+            { defaultPath with
+                Stroke = colour
+                StrokeWidth = string renderWidth 
+            }
+        absSegments
+        |> List.collect renderSegmentWithJumps
+        |> String.concat " "
+        |> (fun attr -> [makeAnyPath firstVertex attr pathPars])
 
     let renderWireWidthText : ReactElement =
         let textParameters =
@@ -708,9 +726,10 @@ let singleWireJumpView props =
 
 ///Function used to render a single wire if the display type is modern
 let singleWireModernView props = 
-    let firstVertex = props.AbsSegments.Head.Start
-    let secondVertex = props.AbsSegments.Head.End
-    let lastVertex = (List.last props.AbsSegments).End
+    let absSegments = getAbsSegments props.Wire
+    let firstVertex = absSegments.Head.Start
+    let secondVertex = absSegments.Head.End
+    let lastVertex = (List.last absSegments).End
     let colour = props.ColorP.Text()
     let width = string props.StrokeWidthP
     let widthOpt = EEExtensions.String.tryParseWith System.Int32.TryParse width
@@ -721,7 +740,7 @@ let singleWireModernView props =
         | _ -> 3.5
     
     let renderedSegmentList : ReactElement List = 
-        props.AbsSegments
+        absSegments
         |> List.map (fun x -> {|AbsSegment = x; Colour = colour; Width = width|})
         |> List.collect renderModernSegment //colour width //(props.ColorP.Text()) (string props.StrokeWidthP)
 
@@ -747,9 +766,10 @@ let singleWireModernView props =
 
 ///Function used to render a single wire if the display type is radial
 let singleWireRadialView props =
-    let firstVertex = props.AbsSegments.Head.Start
-    let secondVertex = props.AbsSegments.Head.End
-    let lastVertex = (List.last props.AbsSegments).End
+    let absSegments = getAbsSegments props.Wire
+    let firstVertex = absSegments.Head.Start
+    let secondVertex = absSegments.Head.End
+    let lastVertex = (List.last absSegments).End
 
     let width = string props.StrokeWidthP
     let widthOpt = EEExtensions.String.tryParseWith System.Int32.TryParse width
@@ -764,25 +784,14 @@ let singleWireRadialView props =
     let initialState = (initialMoveCommand, getSegmentOrientation firstVertex secondVertex )
     
     let radialPathCommands = fst(
-        props.AbsSegments
+        absSegments
         |> List.pairwise
         |> List.map (fun x -> ( {| First = fst(x); Second = snd(x) |}))
         |> List.fold renderRadialWire (initialState) )
     let finalLineCommand = sprintf "L %f %f" lastVertex.X lastVertex.Y
     let fullPathCommand = radialPathCommands + finalLineCommand
-    
-    let makeCustomPath command (pathParameters: Path) =
-        let dAttrribute = command 
-        path [
-            D dAttrribute
-            SVGAttr.Stroke pathParameters.Stroke
-            SVGAttr.StrokeWidth pathParameters.StrokeWidth
-            SVGAttr.StrokeDasharray pathParameters.StrokeDashArray
-            SVGAttr.StrokeLinecap pathParameters.StrokeLinecap
-            SVGAttr.Fill pathParameters.Fill
-        ]   []
 
-    let renderedSVGPath = makeCustomPath fullPathCommand pathParameters
+    let renderedSVGPath = makePathFromAttr fullPathCommand pathParameters
     let renderWireWidthText : ReactElement =
         let textParameters =
             {
@@ -802,6 +811,8 @@ let singleWireRadialView props =
         | CommonTypes.Left -> makeText (props.OutputPortLocation.X-TextOffset.xLeftOffset) (props.OutputPortLocation.Y-TextOffset.yOffset) (textString) textParameters
 
     g [] ([ renderWireWidthText ] @ [renderedSVGPath])
+
+
 
 /// Function that will render all of the wires within the model, with the display type being set in Model.Type
 let view (model : Model) (dispatch : Dispatch<Msg>) =
@@ -823,18 +834,11 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
                         
                     let outputPortLocation = Symbol.getPortLocation None model.Symbol stringOutId 
                     let outputPortEdge = Symbol.getOutputPortOrientation model.Symbol wire.OutputPort 
-                    let getAbsSegments wire : AbsSegment List= 
-                        segmentsToVertices wire.Segments wire
-                        |> List.map (fun x -> {X=fst(x); Y=snd(x)})
-                        |> List.pairwise
-                        |> List.zip wire.Segments
-                        |> List.map (fun x -> fst(snd(x)),snd(snd(x)), fst(x).IntersectOrJumpList)
-                        |> List.map (fun (startVertex,endVertex,intersectList) -> {Start=startVertex; End=endVertex; IntersectCoordinateList=intersectList})
                     
                     let props =
                         {
                             key = match wire.Id with | ConnectionId s -> s
-                            AbsSegments = getAbsSegments wire
+                            Wire = wire
                             ColorP = wire.Color
                             StrokeWidthP = wire.Width //To test the display of bit width text we can manually change this value, as the function to change it is not correctly implemented in section 3.
                             OutputPortEdge = outputPortEdge

@@ -105,6 +105,7 @@ type Msg =
     | SaveSymbols
 
 
+
 // ----- helper functions for titles ----- //
 
 ///Insert titles compatible with greater than 1 buswidth

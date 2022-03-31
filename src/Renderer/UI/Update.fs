@@ -198,7 +198,7 @@ let getLastMouseMsg msgQueue =
     | lst -> Some lst.Head //First item in the list was the last to be added (most recent)
 
 let sheetMsg sMsg model = 
-    let sModel, sCmd = Sheet.update sMsg model.Sheet
+    let sModel, sCmd = SheetUpdate.update sMsg model.Sheet
     let newModel = { model with Sheet = sModel} 
     {newModel with SavedSheetIsOutOfDate = findChange newModel}, Cmd.map Sheet sCmd
 
@@ -327,10 +327,10 @@ let update (msg : Msg) oldModel =
         | WaveSim -> Cmd.ofMsg (Sheet (Sheet.SetWaveSimMode true))
  
     | SetHighlighted (componentIds, connectionIds) ->
-        let sModel, sCmd = Sheet.update (Sheet.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
+        let sModel, sCmd = SheetUpdate.update (Sheet.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
         {model with Sheet = sModel}, Cmd.map Sheet sCmd
     | SetSelWavesHighlighted connIds ->
-        let wModel, wCmd = Sheet.update (Sheet.ColourSelection ([], Array.toList connIds, HighLightColor.Blue)) model.Sheet
+        let wModel, wCmd = SheetUpdate.update (Sheet.ColourSelection ([], Array.toList connIds, HighLightColor.Blue)) model.Sheet
         {model with Sheet = wModel}, Cmd.map Sheet wCmd
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
     | SetCreateComponent pos -> { model with LastCreatedComponent = Some pos }, Cmd.none

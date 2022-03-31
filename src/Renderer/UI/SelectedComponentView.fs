@@ -396,7 +396,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
         |> (fun chars -> match Seq.length chars with | 0 -> None | _ -> Some (String.concat "" (Seq.map string chars)))
     match model.Sheet.SelectedComponents with
     | [ compId ] ->
-        let comp = Symbol.extractComponent model.Sheet.Wire.Symbol compId
+        let comp = SymbolUpdate.extractComponent model.Sheet.Wire.Symbol compId
         div [Key comp.Id] [
             // let label' = extractLabelBase comp.Label
             // TODO: normalise labels so they only contain allowed chars all uppercase

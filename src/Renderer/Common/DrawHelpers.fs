@@ -140,8 +140,8 @@ type Text = {
 let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
 let canvasWidthContext = testCanvas.getContext_2d()
 
-let getTextWidthInPixels(txt:string, font:string) =
-   canvasWidthContext.font <- font; // e.g. "16px times new roman";
+let getTextWidthInPixels(txt:string, font:Text) =
+   canvasWidthContext.font <- String.concat " " [font.FontSize; font.FontWeight; font.FontFamily]; // e.g. "16px times new roman";
    canvasWidthContext.measureText(txt).width;
 
 
@@ -216,6 +216,39 @@ let makeLine (x1: 'a) (y1: 'b) (x2: 'c) (y2: 'd) (lineParameters: Line) =
             SVGAttr.StrokeWidth lineParameters.StrokeWidth
             SVGAttr.StrokeDasharray lineParameters.StrokeDashArray
     ] []
+
+
+/// Makes path attributes for a horizontal upwards-pointing arc radius r
+let makeArcAttr r =
+    $"a %.2f{r} %.2f{r} 0 0 0 %.3f{2.0*r} 0"
+
+/// Makes a partial arc radius d, heights h1,h2 at ends, distance d1,d2 to centre from ends horizontally
+let makePartArcAttr r h1 d1 h2 d2 =
+    let rot = -(180.0 / System.Math.PI) * System.Math.Asin (max -0.99999 (min 0.99999 ((h1-h2)/(d1+d2))))
+    let flag = if d1 > 0.0 then 1 else 0
+    $"a %.2f{r} %.2f{r} %.2f{rot} 0 {flag} %.3f{d1+d2} %.3f{h1-h2}"
+
+/// makes a line segment offset dx,dy
+let makeLineAttr dx dy =
+    $"l %.3f{dx} %.3f{dy}"
+
+let makePathFromAttr (attr:string) (pathParameters: Path) =
+    path [
+            D attr
+            SVGAttr.Stroke pathParameters.Stroke
+            SVGAttr.StrokeWidth pathParameters.StrokeWidth
+            SVGAttr.StrokeDasharray pathParameters.StrokeDashArray
+            SVGAttr.StrokeLinecap pathParameters.StrokeLinecap
+            SVGAttr.Fill pathParameters.Fill
+    ] []
+
+/// Makes a path ReactElement, points are to be given as an XYPos record element.
+/// Please note that this function is designed to create ONLY "Move to - Bézier Curve"
+///paths (this is what the "M" and "C" attributes stand for) and NOT a generalized SVG path element.
+let makeAnyPath (startingPoint: XYPos) (pathAttr:string) (pathParameters: Path) =
+    let x1, y1 = startingPoint.X, startingPoint.Y
+    let dAttr = sprintf "M %f %f %s" x1 y1 pathAttr
+    makePathFromAttr dAttr pathParameters
 
 /// Makes a path ReactElement, points are to be given as an XYPos record element.
 /// Please note that this function is designed to create ONLY "Move to - Bézier Curve"

@@ -29,6 +29,17 @@ module Constants =
     /// The standard radius of a modern wire connect circle
     let modernCircleRadius = 5.
 
+    let busWidthTextStyle =
+        {
+            TextAnchor = "left";
+            FontSize = "12px";
+            FontWeight = "Bold";
+            FontFamily = "Verdana, Arial, Helvetica, sans-serif";
+            Fill = "" // will be filled in later
+            UserSelect = UserSelectOptions.None;
+            DominantBaseline = "middle";
+        }
+
 
 //------------------------------------------------------------------------//
 //------------------------------BusWire Types-----------------------------//
@@ -419,15 +430,11 @@ let xyVerticesToSegments connId (xyVerticesList: XYPos list) =
             {
                 Id = id
                 Index = i
-                Length = xEnd-xStart+yEnd-yStart
+                Length = xEnd - xStart + yEnd - yStart
                 HostId  = connId;
                 IntersectOrJumpList = [] ; // To test jump and modern wire types need to manually insert elements into this list.
                 Mode = Auto
-                Draggable =
-                    if i = 0 || i = xyVerticesList.Length - 2 then //First and Last should not be draggable
-                        false
-                    else
-                        true
+                Draggable = not (i = 0 || i = xyVerticesList.Length - 2) //First and Last should not be draggable
             })
 
 
@@ -435,8 +442,7 @@ let xyVerticesToSegments connId (xyVerticesList: XYPos list) =
 /// to the endpoints of a wire, as well as the orientation of the final port
 /// this function returns a list of Segment(s).
 let makeInitialSegmentsList (hostId : ConnectionId) (startPos : XYPos) (endPos : XYPos) (portOrientation : Edge) : list<Segment> =
-    let xyPairs = makeInitialWireVerticesList startPos endPos portOrientation
-    xyPairs
+    makeInitialWireVerticesList startPos endPos portOrientation
     |> xyVerticesToSegments hostId 
 
 
@@ -509,65 +515,90 @@ let extractConnections (wModel : Model) : list<Connection> =
     |> Map.toList
     |> List.map (fun (key, _) -> extractConnection wModel key)
 
-
-//----------------------Rendering Functions----------------------//
+//-----------------------------------------------------------------------------------------//
+//----------------------------------Rendering Functions------------------------------------//
+//-----------------------------------------------------------------------------------------//
 
 /// A pair of vertices as well as any intersections or jumps on that segment
-type AbsSegment = 
-    {
-    Start: XYPos
-    End: XYPos
-    IntersectCoordinateList: list<float * SegmentId>
+type AbsSegment = {
+        Start: XYPos
+        End: XYPos
+        IntersectCoordinateList: list<float * SegmentId>
     }
 
-/// Type passed to wire renderer functions
+/// Type passed to wire renderer functions.
+/// The data here is cached by React and if the same as last time
+/// the render function itself is not called.
 type WireRenderProps =
     {
         key: string
         Wire: Wire
         ColorP: HighLightColor
-        StrokeWidthP: int
+        StrokeWidthP: float
         OutputPortEdge : Edge
         OutputPortLocation: XYPos
         DisplayType : WireType
     }
+
+/// extract absolute segments from a wire.
+/// NB - it is more efficient to use various fold functions (foldOverSegs etc)
 let getAbsSegments (wire: Wire) : AbsSegment List= 
     segmentsToVertices wire.Segments wire
     |> List.map (fun x -> {X=fst(x); Y=snd(x)})
     |> List.pairwise
     |> List.zip wire.Segments
     |> List.map (fun x -> fst(snd(x)),snd(snd(x)), fst(x).IntersectOrJumpList)
-    |> List.map (fun (startVertex,endVertex,intersectList) -> {Start=startVertex; End=endVertex; IntersectCoordinateList=intersectList})
+    |> List.map (fun (startVertex,endVertex,intersectList) -> 
+                        {Start=startVertex; End=endVertex; IntersectCoordinateList=intersectList})
 
-///Creates the SVG command string required to render the wire 
+let renderWireWidthText (props: WireRenderProps): ReactElement =
+    let textStyle = 
+        { Constants.busWidthTextStyle with Fill = props.ColorP.Text();}
+
+    let text = if props.Wire.Width = 1 then "" else string props.Wire.Width //Only print width > 1
+    let outPos = props.OutputPortLocation
+    let yOffset = TextOffset.yOffset
+    let xOffset = TextOffset.xOffset
+    let xLeftOffset = TextOffset.xLeftOffset
+    match props.OutputPortEdge with 
+    | CommonTypes.Top -> makeText (outPos.X + xOffset) (outPos.Y - yOffset) text textStyle
+    | CommonTypes.Bottom -> makeText (outPos.X + xOffset) (outPos.Y + yOffset) text textStyle
+    | CommonTypes.Right -> makeText (outPos.X + xOffset) (outPos.Y - yOffset) text textStyle
+    | CommonTypes.Left -> makeText (outPos.X - xLeftOffset) (outPos.Y - yOffset) text textStyle
+
+
+/// Creates the SVG command string required to render the wire
 /// (apart from the final "nub") with a radial display type 
-let renderRadialWire (state : (string * Orientation)) (segmentpair : {| First : AbsSegment; Second :AbsSegment|}) =
+let renderRadialWireSVG 
+    (state : (string * Orientation)) 
+    (segmentpair : {| First : AbsSegment; Second :AbsSegment|}) 
+    : string * Orientation =
     
-    let startFirstSegment = segmentpair.First.Start
-    let endFirstSegment = segmentpair.First.End
-    let startSecondSegment = segmentpair.Second.Start
-    let endSecondSegment = segmentpair.Second.End
+    let seg1Start = segmentpair.First.Start
+    let seg1End = segmentpair.First.End
+    let seg2Start = segmentpair.Second.Start
+    let seg2End = segmentpair.Second.End
     
-    let dist1 = euclideanDistance startFirstSegment endFirstSegment
-    let dist2 = euclideanDistance startSecondSegment endSecondSegment
+    let dist1 = euclideanDistance seg1Start seg1End
+    let dist2 = euclideanDistance seg2Start seg2End
     let rad = System.Math.Floor(min Constants.cornerRadius (max 0.0 (min dist1 dist2)))
     let makeCommandString xStart yStart rad sweepflag xEnd yEnd : string =
         $"L {xStart} {yStart} A {rad} {rad}, 45, 0, {sweepflag}, {xEnd} {yEnd}" 
 
     //Checking if horizontal followed by length 0 vertical
-    if startFirstSegment.X = endFirstSegment.X && 
-       startFirstSegment.X = startSecondSegment.X &&
-       startFirstSegment.X = endSecondSegment.X then
-        let current = sprintf "L %f %f" endFirstSegment.X endFirstSegment.Y
+    if seg1Start.X = seg1End.X && 
+       seg1Start.X = seg2Start.X &&
+       seg1Start.X = seg2End.X then
+        let current = sprintf "L %f %f" seg1End.X seg1End.Y
         if snd(state) = Horizontal then
             (fst(state)+current, Vertical)
         else 
             (fst(state)+current, Horizontal)
     //Checking if vertical followed by length 0 horizontal
-    else if startFirstSegment.Y = endFirstSegment.Y && 
-            startFirstSegment.Y = startSecondSegment.Y && 
-            startFirstSegment.Y = endSecondSegment.Y then
-        let current = sprintf "L %f %f" (endFirstSegment.X) (endFirstSegment.Y)
+    else if seg1Start.Y = seg1End.Y && 
+            seg1Start.Y = seg2Start.Y && 
+            seg1Start.Y = seg2End.Y then
+        let current = sprintf "L %f %f" (seg1End.X) (seg1End.Y)
         if snd(state) = Horizontal then
             (fst(state)+current, Vertical)
         else 
@@ -575,34 +606,34 @@ let renderRadialWire (state : (string * Orientation)) (segmentpair : {| First : 
     
     else
         if snd(state) = Horizontal then
-            if startFirstSegment.X - endFirstSegment.X > 0 then
-                if startSecondSegment.Y - endSecondSegment.Y > 0 then
-                    let current:string = makeCommandString (endFirstSegment.X+rad) endFirstSegment.Y rad 1 startSecondSegment.X (startSecondSegment.Y-rad)
+            if seg1Start.X - seg1End.X > 0 then
+                if seg2Start.Y - seg2End.Y > 0 then
+                    let current:string = makeCommandString (seg1End.X+rad) seg1End.Y rad 1 seg2Start.X (seg2Start.Y-rad)
                     ((fst(state)+current), Vertical)
                 else
-                    let current:string  =  makeCommandString (endFirstSegment.X+rad) endFirstSegment.Y rad 0 startSecondSegment.X (startSecondSegment.Y+rad)
+                    let current:string  =  makeCommandString (seg1End.X+rad) seg1End.Y rad 0 seg2Start.X (seg2Start.Y+rad)
                     ((fst(state)+current), Vertical)
             else
-                if startSecondSegment.Y - endSecondSegment.Y > 0 then
-                    let current:string =  makeCommandString (endFirstSegment.X-rad)endFirstSegment.Y rad 0 startSecondSegment.X (startSecondSegment.Y-rad)
+                if seg2Start.Y - seg2End.Y > 0 then
+                    let current:string =  makeCommandString (seg1End.X-rad)seg1End.Y rad 0 seg2Start.X (seg2Start.Y-rad)
                     ((fst(state)+current), Vertical)
                 else
-                    let current:string = makeCommandString (endFirstSegment.X-rad) endFirstSegment.Y rad 1 startSecondSegment.X (startSecondSegment.Y+rad)
+                    let current:string = makeCommandString (seg1End.X-rad) seg1End.Y rad 1 seg2Start.X (seg2Start.Y+rad)
                     ((fst(state)+current), Vertical)
         else
-            if startFirstSegment.Y - endFirstSegment.Y > 0 then
-                if startSecondSegment.X - endSecondSegment.X > 0 then
-                    let current :string =  makeCommandString endFirstSegment.X (endFirstSegment.Y+rad) rad 0 (startSecondSegment.X-rad) startSecondSegment.Y
+            if seg1Start.Y - seg1End.Y > 0 then
+                if seg2Start.X - seg2End.X > 0 then
+                    let current :string =  makeCommandString seg1End.X (seg1End.Y+rad) rad 0 (seg2Start.X-rad) seg2Start.Y
                     ((fst(state)+current), Horizontal)
                 else
-                    let current :string =  makeCommandString endFirstSegment.X (endFirstSegment.Y+rad) rad 1 (startSecondSegment.X+rad) startSecondSegment.Y
+                    let current :string =  makeCommandString seg1End.X (seg1End.Y+rad) rad 1 (seg2Start.X+rad) seg2Start.Y
                     ((fst(state)+current), Horizontal)
             else
-                if startSecondSegment.X - endSecondSegment.X > 0 then
-                    let current :string =  makeCommandString endFirstSegment.X (endFirstSegment.Y-rad) rad 1 (startSecondSegment.X-rad) startSecondSegment.Y
+                if seg2Start.X - seg2End.X > 0 then
+                    let current :string =  makeCommandString seg1End.X (seg1End.Y-rad) rad 1 (seg2Start.X-rad) seg2Start.Y
                     ((fst(state)+current), Horizontal)
                 else
-                    let current :string =  makeCommandString endFirstSegment.X (endFirstSegment.Y-rad) rad  0 (startSecondSegment.X+rad) startSecondSegment.Y
+                    let current :string =  makeCommandString seg1End.X (seg1End.Y-rad) rad  0 (seg2Start.X+rad) seg2Start.Y
                     ((fst(state)+current), Horizontal)
 
 ///Renders a single segment in the display type of modern
@@ -636,7 +667,7 @@ let renderModernSegment (param : {| AbsSegment : AbsSegment; Colour :string; Wid
         [makeLine startVertex.X startVertex.Y endVertex.X endVertex.Y lineParameters]
         
 
-let renderSegmentWithJumps (a:AbsSegment) : string list=
+let renderJumpSegment (a:AbsSegment) : string list=
     let sPos = a.Start
     let ePos = a.End
     let jR = Constants.jumpRadius
@@ -653,7 +684,7 @@ let renderSegmentWithJumps (a:AbsSegment) : string list=
         match jLst with
         | [] -> 
             [ makeLineAttr (ePos.X - xPos) 0.0 ]
-        | (xJ,_):: jLst' when abs (xJ - xPos) > jR ->
+        | (xJ,_):: _ when abs (xJ - xPos) > jR ->
             makeLineAttr (xJ - xPos - dir*jR) 0. :: makeJumpPathAttr jLst (xJ - dir*(jR - XYPos.epsilon))
         | [xJ,_] when abs (ePos.X - xJ) < jR ->
             [ makePartArc (xJ - xPos) (ePos.X - xJ) ]
@@ -675,25 +706,13 @@ let renderSegmentWithJumps (a:AbsSegment) : string list=
     | jLst, false -> 
         makeJumpPathAttr jLst sPos.X
        
-       
-
-
-    
-
 ///Function used to render a single wire if the display type is jump
-let singleWireJumpView props = 
+let renderJumpWire props = 
     let absSegments = getAbsSegments props.Wire
     let firstVertex = absSegments.Head.Start
-    let secondVertex = absSegments.Head.End
-    let lastVertex = (List.last absSegments).Start
     let colour = props.ColorP.Text()
-    let width = string props.StrokeWidthP
-    let widthOpt = EEExtensions.String.tryParseWith System.Int32.TryParse width
-    let renderWidth = 
-        match widthOpt with
-        | Some 1 -> 1.5
-        | Some n when n < int "8" -> 2.5
-        | _ -> 3.5
+    let renderWidth = float props.StrokeWidthP
+
     
     let renderedSegmentList : ReactElement List = 
         let pathPars:Path =
@@ -702,36 +721,15 @@ let singleWireJumpView props =
                 StrokeWidth = string renderWidth 
             }
         absSegments
-        |> List.collect renderSegmentWithJumps
+        |> List.collect renderJumpSegment
         |> String.concat " "
         |> (fun attr -> [makeAnyPath firstVertex attr pathPars])
 
-    let renderWireWidthText : ReactElement =
-        let textParameters =
-            {
-                    TextAnchor = "left";
-                    FontSize = "12px";
-                    FontWeight = "Bold";
-                    FontFamily = "Verdana, Arial, Helvetica, sans-serif";
-                    Fill = props.ColorP.Text();
-                    UserSelect = UserSelectOptions.None;
-                    DominantBaseline = "middle";
-            }
-        let textString = if props.StrokeWidthP = 1 then "" else string props.StrokeWidthP //Only print width > 1
-        match props.OutputPortEdge with 
-        | CommonTypes.Top -> makeText (props.OutputPortLocation.X+TextOffset.xOffset) (props.OutputPortLocation.Y-TextOffset.yOffset) (textString) textParameters
-        | CommonTypes.Bottom -> makeText (props.OutputPortLocation.X+TextOffset.xOffset) (props.OutputPortLocation.Y+TextOffset.yOffset) (textString) textParameters
-        | CommonTypes.Right -> makeText (props.OutputPortLocation.X+TextOffset.xOffset) (props.OutputPortLocation.Y-TextOffset.yOffset) (textString) textParameters
-        | CommonTypes.Left -> makeText (props.OutputPortLocation.X-TextOffset.xLeftOffset) (props.OutputPortLocation.Y-TextOffset.yOffset) (textString) textParameters
-
-    g [] ([ renderWireWidthText ] @ renderedSegmentList)
+    g [] ([ renderWireWidthText props] @ renderedSegmentList)
 
 ///Function used to render a single wire if the display type is modern
-let singleWireModernView props = 
+let renderModernWire props = 
     let absSegments = getAbsSegments props.Wire
-    let firstVertex = absSegments.Head.Start
-    let secondVertex = absSegments.Head.End
-    let lastVertex = (List.last absSegments).End
     let colour = props.ColorP.Text()
     let width = string props.StrokeWidthP
     let widthOpt = EEExtensions.String.tryParseWith System.Int32.TryParse width
@@ -746,28 +744,10 @@ let singleWireModernView props =
         |> List.map (fun x -> {|AbsSegment = x; Colour = colour; Width = width|})
         |> List.collect renderModernSegment //colour width //(props.ColorP.Text()) (string props.StrokeWidthP)
 
-    let renderWireWidthText : ReactElement =
-        let textParameters =
-            {
-                    TextAnchor = "left";
-                    FontSize = "12px";
-                    FontWeight = "Bold";
-                    FontFamily = "Verdana, Arial, Helvetica, sans-serif";
-                    Fill = props.ColorP.Text();
-                    UserSelect = UserSelectOptions.None;
-                    DominantBaseline = "middle";
-            }
-        let textString = if props.StrokeWidthP = 1 then "" else string props.StrokeWidthP //Only print width > 1
-        match props.OutputPortEdge with 
-        | CommonTypes.Top -> makeText (props.OutputPortLocation.X+TextOffset.xOffset) (props.OutputPortLocation.Y-TextOffset.yOffset) (textString) textParameters
-        | CommonTypes.Bottom -> makeText (props.OutputPortLocation.X+TextOffset.xOffset) (props.OutputPortLocation.Y+TextOffset.yOffset) (textString) textParameters
-        | CommonTypes.Right -> makeText (props.OutputPortLocation.X+TextOffset.xOffset) (props.OutputPortLocation.Y-TextOffset.yOffset) (textString) textParameters
-        | CommonTypes.Left -> makeText (props.OutputPortLocation.X-TextOffset.xLeftOffset) (props.OutputPortLocation.Y-TextOffset.yOffset) (textString) textParameters
-
-    g [] ([ renderWireWidthText ] @ renderedSegmentList)
+    g [] ([ renderWireWidthText props] @ renderedSegmentList)
 
 ///Function used to render a single wire if the display type is radial
-let singleWireRadialView props =
+let renderRadialWire props =
     let absSegments = getAbsSegments props.Wire
     let firstVertex = absSegments.Head.Start
     let secondVertex = absSegments.Head.End
@@ -789,89 +769,65 @@ let singleWireRadialView props =
         absSegments
         |> List.pairwise
         |> List.map (fun x -> ( {| First = fst(x); Second = snd(x) |}))
-        |> List.fold renderRadialWire (initialState) )
+        |> List.fold renderRadialWireSVG (initialState) )
     let finalLineCommand = sprintf "L %f %f" lastVertex.X lastVertex.Y
     let fullPathCommand = radialPathCommands + finalLineCommand
 
     let renderedSVGPath = makePathFromAttr fullPathCommand pathParameters
-    let renderWireWidthText : ReactElement =
-        let textParameters =
-            {
-                    TextAnchor = "left";
-                    FontSize = "12px";
-                    FontWeight = "Bold";
-                    FontFamily = "Verdana, Arial, Helvetica, sans-serif";
-                    Fill = props.ColorP.Text();
-                    UserSelect = UserSelectOptions.None;
-                    DominantBaseline = "middle";
-            }
-        let textString = if props.StrokeWidthP = 1 then "" else string props.StrokeWidthP //Only print width > 1
-        match props.OutputPortEdge with 
-        | CommonTypes.Top -> makeText (props.OutputPortLocation.X+TextOffset.xOffset) (props.OutputPortLocation.Y-TextOffset.yOffset) (textString) textParameters
-        | CommonTypes.Bottom -> makeText (props.OutputPortLocation.X+TextOffset.xOffset) (props.OutputPortLocation.Y+TextOffset.yOffset) (textString) textParameters
-        | CommonTypes.Right -> makeText (props.OutputPortLocation.X+TextOffset.xOffset) (props.OutputPortLocation.Y-TextOffset.yOffset) (textString) textParameters
-        | CommonTypes.Left -> makeText (props.OutputPortLocation.X-TextOffset.xLeftOffset) (props.OutputPortLocation.Y-TextOffset.yOffset) (textString) textParameters
 
-    g [] ([ renderWireWidthText ] @ [renderedSVGPath])
-
-
+    g [] ([ renderWireWidthText props] @ [renderedSVGPath])
 
 /// Function that will render all of the wires within the model, with the display type being set in Model.Type
 let view (model : Model) (dispatch : Dispatch<Msg>) =
     let start = TimeHelpers.getTimeMs()
-    let wires' =
-        model.Wires
-        |> Map.toArray
-        |> Array.map snd
+    let wiresA = model.Wires |> Map.toArray
+  
     TimeHelpers.instrumentTime "WirePropsSort" start
     let rStart = TimeHelpers.getTimeMs()
     let wires =
-        wires'
+        wiresA
         |> Array.map
             (
-                fun wire ->
-                    let stringOutId =
-                        match wire.OutputPort with
-                        | OutputPortId stringId -> stringId
-                        
-                    let outputPortLocation = Symbol.getPortLocation None model.Symbol stringOutId 
+                fun (_, wire) ->
+                    let outPortId = Symbol.getOutputPortIdStr wire.OutputPort
+                    let outputPortLocation = Symbol.getPortLocation None model.Symbol outPortId
                     let outputPortEdge = Symbol.getOutputPortOrientation model.Symbol wire.OutputPort 
-                    
+                    let strokeWidthP =
+                        match wire.Width with
+                        | 1 -> 1.5
+                        | n when n < 8 -> 2.5
+                        | _ -> 3.5
                     let props =
                         {
                             key = match wire.Id with | ConnectionId s -> s
                             Wire = wire
                             ColorP = wire.Color
-                            StrokeWidthP = wire.Width //To test the display of bit width text we can manually change this value, as the function to change it is not correctly implemented in section 3.
+                            StrokeWidthP = strokeWidthP 
                             OutputPortEdge = outputPortEdge
                             OutputPortLocation = outputPortLocation
                             DisplayType = model.Type
                         }
                     match  model.Type with    
-                    | Radial -> singleWireRadialView props
-                    | Jump -> singleWireJumpView props
-                    | Modern -> singleWireModernView props
+                    | Radial -> renderRadialWire props
+                    | Jump -> renderJumpWire props
+                    | Modern -> renderModernWire props
 
             )
-    let wiresAndTriangle = 
-        wires'
+    let wireTriangles = 
+        wiresA
         |> Array.map
             (
-                fun triangle ->
-                    let stringInId =
-                            match triangle.InputPort with
-                            | InputPortId stringId -> stringId
+                fun (_,wire) ->
+                    let stringInId = Symbol.getInputPortIdStr wire.InputPort
                     let InputPortLocation = Symbol.getPortLocation None model.Symbol stringInId 
-                    let InputPortEdge = Symbol.getInputPortOrientation model.Symbol triangle.InputPort 
+                    let InputPortEdge = Symbol.getInputPortOrientation model.Symbol wire.InputPort 
+                    let x,y = InputPortLocation.X, InputPortLocation.Y
                     let str:string = 
-                        if InputPortEdge = CommonTypes.Top then
-                            sprintf "%f,%f %f,%f %f,%f " InputPortLocation.X InputPortLocation.Y (InputPortLocation.X+2.) (InputPortLocation.Y-4.) (InputPortLocation.X-2.) (InputPortLocation.Y-4.)
-                        else if InputPortEdge = CommonTypes.Bottom then
-                            sprintf "%f,%f %f,%f %f,%f " InputPortLocation.X InputPortLocation.Y (InputPortLocation.X+2.) (InputPortLocation.Y+4.) (InputPortLocation.X-2.) (InputPortLocation.Y+4.)
-                        else if InputPortEdge = CommonTypes.Right then
-                            sprintf "%f,%f %f,%f %f,%f " InputPortLocation.X InputPortLocation.Y (InputPortLocation.X+4.) (InputPortLocation.Y+2.) (InputPortLocation.X+4.) (InputPortLocation.Y-2.)
-                        else 
-                            sprintf "%f,%f %f,%f %f,%f " InputPortLocation.X InputPortLocation.Y (InputPortLocation.X-4.) (InputPortLocation.Y+2.) (InputPortLocation.X-4.) (InputPortLocation.Y-2.)
+                        match InputPortEdge with
+                        | CommonTypes.Top -> $"{x},{y},{x+2.},{y-4.},{x-2.},{y-4.}"
+                        | CommonTypes.Bottom -> $"{x},{y},{x+2.},{y+4.},{x-2.},{y+4.}"
+                        | CommonTypes.Right -> $"{x},{y},{x+4.},{y+2.},{x+4.},{y-2.}"
+                        | CommonTypes.Left -> $"{x},{Y},{x-4.},{y+2.},{x-4.},{y-2.}"
 
                     let polygon = {
                         defaultPolygon with
@@ -879,13 +835,10 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
                             }
                     makePolygon str polygon
             )
-    let res = 
-        wires 
-        |> Array.append wiresAndTriangle
-
+    
     TimeHelpers.instrumentInterval "WirePrepareProps" rStart ()
     let symbols = Symbol.view model.Symbol (Symbol >> dispatch)
  
-    g [] [(g [] res); symbols]
+    g [] [(g [] (Array.append wireTriangles wires)); symbols]
     |> TimeHelpers.instrumentInterval "WireView" start
 

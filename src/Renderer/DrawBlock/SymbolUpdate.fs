@@ -616,7 +616,7 @@ let flipSideHorizontal (edge: Edge) : Edge =
     | _ -> edge
 
 /// Takes in a symbol and returns the same symbol flipped
-let flipSymbolHorizontal (sym:Symbol) : Symbol =
+let flipSymbol (orientation: Orientation) (sym:Symbol) : Symbol =
     match sym.Component.Type with
     | Custom _ -> sym
     | _ ->
@@ -630,6 +630,8 @@ let flipSymbolHorizontal (sym:Symbol) : Symbol =
             (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold flipPortList
             |> Map.map (fun edge order -> List.rev order)
 
+        
+
         let newSTransform = 
             {flipped= not sym.STransform.flipped;
             Rotation= sym.STransform.Rotation}
@@ -639,6 +641,13 @@ let flipSymbolHorizontal (sym:Symbol) : Symbol =
             PortOrder = newPortOrder
             STransform = newSTransform
         }
+        |> (fun sym -> 
+            match orientation with
+            | Horizontal -> sym
+            | Vertical -> 
+                sym
+                |> rotateSymbolLeft
+                |> rotateSymbolLeft)
 
 type Rectangle = {TopLeft: XYPos; BottomRight: XYPos}
 
@@ -824,8 +833,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | RotateRight compList ->
         (transformSymbols rotateSymbolRight model compList), Cmd.none
 
-    | Flip compList ->
-        (transformSymbols flipSymbolHorizontal model compList), Cmd.none
+    | Flip(compList, orientation) ->
+        (transformSymbols (flipSymbol orientation) model compList), Cmd.none
 
     | MovePort (portId, pos) ->
         let port = model.Ports[portId]

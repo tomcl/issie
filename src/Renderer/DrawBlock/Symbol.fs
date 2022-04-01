@@ -17,6 +17,9 @@ let GridSize = 30
 
 /// ---------- SYMBOL TYPES ---------- ///
 
+/// Represents the orientation of a wire segment or symbol flip
+type Orientation =  Horizontal | Vertical
+
 
 /// Wraps around the input and output port id types
 type PortId = | InputId of InputPortId | OutputId of OutputPortId
@@ -99,7 +102,7 @@ type Msg =
     | WriteMemoryType of ComponentId * ComponentType
     | RotateLeft of compList : ComponentId list
     | RotateRight of compList: ComponentId list
-    | Flip of compList: ComponentId list
+    | Flip of compList: ComponentId list * orientation: Orientation
     | MovePort of portId: string * move: XYPos
     | MovePortDone of portId: string * move: XYPos
     | SaveSymbols

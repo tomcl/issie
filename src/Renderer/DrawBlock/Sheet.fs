@@ -120,7 +120,7 @@ type Msg =
     | SelectWires of ConnectionId list
     | SetSpinner of bool
     | Rotate of RotateMsg
-    | Flip
+    | Flip of Symbol.Orientation
     | WireType of WireTypeMsg
     | MovePort of MouseT //different from mousemsg because ctrl pressed too
     | SaveSymbols

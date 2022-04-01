@@ -897,34 +897,42 @@ let getCopiedSymbols (symModel: Model) : (ComponentId list) =
 
 
 /// Returns the port object associated with a given portId
-let getPort (symModel: Model) (portId: string) =
+let inline getPort (symModel: Model) (portId: string) =
     symModel.Ports[portId]
 
-let getSymbol (model: Model) (portId: string) =
+let inline getSymbol (model: Model) (portId: string) =
     let port = getPort model portId
     model.Symbols[ComponentId port.HostId]
 
-let getCompId (model: Model) (portId: string) =
+let inline getCompId (model: Model) (portId: string) =
     let symbol = getSymbol model portId
     symbol.Id
 
 /// Returns the string of a PortId
-let getPortIdStr (portId: PortId) = 
+let inline getPortIdStr (portId: PortId) = 
     match portId with
     | InputId (InputPortId id) -> id
     | OutputId (OutputPortId id) -> id
 
+let inline getInputPortIdStr (portId: InputPortId) = 
+    match portId with
+    | InputPortId s -> s
+
+let inline getOutputPortIdStr (portId: OutputPortId) = 
+    match portId with
+    | OutputPortId s -> s
+
 /// returns what side of the symbol the port is on
-let getPortOrientation (model: Model)  (portId: PortId) : Edge =
+let inline getPortOrientation (model: Model)  (portId: PortId) : Edge =
     let portIdStr = getPortIdStr portId
     let port = model.Ports[portIdStr]
     let sId = ComponentId port.HostId
     model.Symbols[sId].PortOrientation[portIdStr]
 
-let getInputPortOrientation (model: Model) (portId: InputPortId): Edge =
+let inline getInputPortOrientation (model: Model) (portId: InputPortId): Edge =
     getPortOrientation model (InputId portId)
 
-let getOutputPortOrientation (model: Model) (portId: OutputPortId): Edge =
+let inline getOutputPortOrientation (model: Model) (portId: OutputPortId): Edge =
     getPortOrientation model (OutputId portId)
 
 
@@ -945,17 +953,17 @@ let getPortLocation (defPos: XYPos option) (model: Model) (portId : string) : XY
     | _ -> failwithf $"Can't find port or symbol: Port='{portOpt}', Symbol='{symOpt}"
 
 /// Returns the location of an input port based on their portId
-let getInputPortLocation defPos (model:Model) (portId: InputPortId)  = 
+let inline getInputPortLocation defPos (model:Model) (portId: InputPortId)  = 
     let id = getPortIdStr (InputId portId)
     getPortLocation defPos model id
 
 /// Returns the location of an output port based on their portId
-let getOutputPortLocation defPos (model:Model) (portId : OutputPortId) =
+let inline getOutputPortLocation defPos (model:Model) (portId : OutputPortId) =
     let id = getPortIdStr (OutputId portId)
     getPortLocation defPos model id
 
 /// Returns the locations of a given input port and output port based on their portId
-let getTwoPortLocations (model: Model) (inputPortId: InputPortId ) (outputPortId: OutputPortId) =
+let inline getTwoPortLocations (model: Model) (inputPortId: InputPortId ) (outputPortId: OutputPortId) =
     (getInputPortLocation None model inputPortId, getOutputPortLocation None model outputPortId)
 
 ///Returns the input port positions of the specified symbols in model

@@ -13,6 +13,9 @@ open Fable.React.Props
 open Elmish
 open DrawHelpers
 
+type Orientation = | Vertical | Horizontal
+
+
 //------------------------------------------------------------------------//
 //------------------------------BusWire Constants-------------------------//
 //------------------------------------------------------------------------//
@@ -31,8 +34,6 @@ module Constants =
 //------------------------------BusWire Types-----------------------------//
 //------------------------------------------------------------------------//
 
-/// Represents the orientation of a wire segment
-type Orientation =  Horizontal | Vertical
 
 ///
 type SnapPosition = High | Mid | Low
@@ -92,9 +93,10 @@ type Model =
 
 //----------------------------Message Type-----------------------------------//
 
+/// BusWire messages: see BusWire.update for more info
 type Msg =
-    | Symbol of Symbol.Msg
-    | AddWire of (InputPortId * OutputPortId)
+    | Symbol of Symbol.Msg // record containing messages from Symbol module
+    | AddWire of (InputPortId * OutputPortId) // add a new wire between these ports to the model
     | BusWidths
     | CopyWires of list<ConnectionId>
     | DeleteWires of list<ConnectionId>
@@ -106,10 +108,10 @@ type Msg =
     | ErrorWires of list<ConnectionId>
     | ResetJumps of list<ConnectionId>
     | MakeJumps of list<ConnectionId>
-    | UpdateWireType of WireType
+    | UpdateWireDisplayType of WireType
     | ResetModel // For Issie Integration
     | LoadConnections of list<Connection> // For Issie Integration
-    | Rotate of list<ComponentId>
+    | UpdateConnectedWires of list<ComponentId> // rotate each symbol separately. TODO - rotate as group? Custom comps do not rotate
     | RerouteWire of string
 
 

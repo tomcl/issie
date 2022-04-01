@@ -764,20 +764,20 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         model,
         Cmd.batch [
             symbolCmd (Symbol.RotateLeft model.SelectedComponents) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
-            wireCmd (BusWire.Rotate model.SelectedComponents)
+            wireCmd (BusWire.UpdateConnectedWires model.SelectedComponents)
         ]
     | Rotate Right ->
         model,
         Cmd.batch [
             symbolCmd (Symbol.RotateRight model.SelectedComponents) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
-            wireCmd (BusWire.Rotate model.SelectedComponents)
+            wireCmd (BusWire.UpdateConnectedWires model.SelectedComponents)
         ]
 
-    | Flip ->
+    | Flip orientation ->
         model,
         Cmd.batch [
-            symbolCmd (Symbol.Flip model.SelectedComponents) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
-            wireCmd (BusWire.Rotate model.SelectedComponents)
+            symbolCmd (Symbol.Flip(model.SelectedComponents,orientation)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
+            wireCmd (BusWire.UpdateConnectedWires model.SelectedComponents)
         ]
     | SaveSymbols ->
         model, symbolCmd Symbol.SaveSymbols
@@ -785,7 +785,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let wires = model.Wire.Wires |> Map.toList |> List.map fst
         model,
         Cmd.batch [
-            wireCmd (BusWire.UpdateWireType BusWire.Jump)
+            wireCmd (BusWire.UpdateWireDisplayType BusWire.Jump)
             wireCmd (BusWire.MakeJumps wires)
         ]
 
@@ -793,7 +793,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let wires = model.Wire.Wires |> Map.toList |> List.map fst
         model,
         Cmd.batch [
-            wireCmd (BusWire.UpdateWireType BusWire.Radial)
+            wireCmd (BusWire.UpdateWireDisplayType BusWire.Radial)
             wireCmd (BusWire.MakeJumps wires)
         ]
        
@@ -801,7 +801,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let wires = model.Wire.Wires |> Map.toList |> List.map fst
         model,
         Cmd.batch [
-            wireCmd (BusWire.UpdateWireType BusWire.Modern)
+            wireCmd (BusWire.UpdateWireDisplayType BusWire.Modern)
             wireCmd (BusWire.MakeJumps wires)
         ]
                 

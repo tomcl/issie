@@ -682,17 +682,27 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
     match msg with
     | Symbol sMsg ->
+        // update Symbol model with a Symbol message
         let sm,sCmd = SymbolUpdate.update sMsg model.Symbol
         {model with Symbol=sm}, Cmd.map Symbol sCmd
 
 
     | UpdateWires (componentIdList, diff) ->
+        // update wires after moving components in componentIdList by diff
+        // wires between components are translated not routed as optimisation
         updateWires model componentIdList diff, Cmd.none
 
     | UpdateSymbolWires compId ->
+        // update all the wires coming from a single symbol
+        // useful if the symbol has been flipped or ports have been moved
+        // partial routing will be done if this makes sense
         updateSymbolWires model compId, Cmd.none
 
     | AddWire ( (inputId, outputId) : (InputPortId * OutputPortId) ) ->
+        // add a newly created wire to the model
+        // then send BusWidths message which will re-infer bus widths
+        // the new wires (extarcted as connections) are not added back into Issie model. 
+        // This happens on save or when starting a simulation (I think)
         let wireId = ConnectionId(JSHelpers.uuid())
         let newWire = 
             {
@@ -713,8 +723,10 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         let newModel = updateWireSegmentJumps [wireId] {model with Wires = wireAddedMap}
         
         newModel, Cmd.ofMsg BusWidths
-
+    
     | BusWidths ->
+        // (1) Call Issie bus inference
+        // (2) Add widths to maps on symbols on wires
         let processConWidths (connWidths: ConnectionsWidth) =
             let addWireWidthFolder (wireMap: Map<ConnectionId, Wire>) _ wire  =
                 let width =
@@ -766,10 +778,14 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 { model with Notifications = Some e.Msg }, Cmd.ofMsg (ErrorWires e.ConnectionsAffected)
 
     | CopyWires (connIds : list<ConnectionId>) ->
+        // add given wires to Copiedwires state (NB, this contains wires at time of copy)
         let copiedWires = Map.filter (fun connId _ -> List.contains connId connIds) model.Wires
         { model with CopiedWires = copiedWires }, Cmd.none
 
     | ErrorWires (connectionIds : list<ConnectionId>) ->
+        // record these wires in model.ErrorWires and highlight them as red.
+        // reset the wires that were remobed from model.ErrorWires dark grey 
+        // (what if they are supposed to be something else?? Colors carry too muhc state!)
         let newWires =
             model.Wires
             |> Map.map
@@ -783,7 +799,8 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
         { model with Wires = newWires ; ErrorWires = connectionIds }, Cmd.none
 
-    | SelectWires (connectionIds : list<ConnectionId>) -> //selects all wires in connectionIds, and also deselects all other wires
+    | SelectWires (connectionIds : list<ConnectionId>) -> 
+        // selects all wires in connectionIds, and also deselects all other wires
         let newWires =
             model.Wires
             |> Map.map
@@ -802,6 +819,9 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         { model with Wires = newWires }, Cmd.none
 
     | DeleteWires (connectionIds : list<ConnectionId>) ->
+        // deletes wires from model, then runs bus inference
+        // Issie model is not affected but will extract connections from wires
+        // at some time.
         let newWires =
              model.Wires
              |> Map.filter (fun id wire -> not (List.contains id connectionIds))
@@ -836,7 +856,8 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         | _ -> model, Cmd.none
 
 
-    | ColorWires (connIds, color) -> // Just Changes the colour of the wires, Sheet calls pasteWires before this
+    | ColorWires (connIds, color) -> 
+        // Just Changes the colour of the wires, Sheet calls pasteWires before this
         let newWires =
             (List.fold (fun prevWires cId ->
                 let oldWireOpt = Map.tryFind cId model.Wires
@@ -849,8 +870,9 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         { model with Wires = newWires }, Cmd.none
 
     | ResetJumps connIds ->
-        //printfn $"resetting jumps on {connIds.Length} wires"
-
+        // removes wire 'jumps' at start of drag operation for neater component movement 
+        // without jump recalculation
+        // makejumps at end of a drag operation restores new jumps
         let newModel =
             model
             |> resetWireSegmentJumps connIds
@@ -858,17 +880,22 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         newModel, Cmd.none
 
     | MakeJumps connIds ->
-        //printfn $"making jumps on {connIds.Length} wires"
-
+        // recalculates (slowly) wire jumps after a drag operation
         let newModel =
             model
             |> updateWireSegmentJumps connIds
 
         newModel, Cmd.none
 
-    | ResetModel -> { model with Wires = Map.empty; ErrorWires = []; Notifications = None }, Cmd.none
+    | ResetModel -> 
+        // How we start with nothing loaded
+        { model with Wires = Map.empty; ErrorWires = []; Notifications = None }, Cmd.none
 
-    | LoadConnections conns -> // we assume components (and hence ports) are loaded before connections
+    | LoadConnections conns -> 
+        // we assume components (and hence ports) are loaded before connections
+        // Issie connections are loaded as wires
+        // vertices on Issie connections contains routing info so wires can be 
+        // reconstructed precisely
         let posMatchesVertex (pos:XYPos) (vertex: float*float) =
             let epsilon = 0.00001
             abs (pos.X - (fst vertex)) < epsilon &&
@@ -877,48 +904,47 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         let newWires =
             conns
             |> List.map ( fun conn ->
-                            let inputId = InputPortId conn.Target.Id
-                            let outputId = OutputPortId conn.Source.Id
-                            let connId = ConnectionId conn.Id
-                            let getVertex (x,y,_) = (x,y)
-                            let segments = issieVerticesToSegments connId conn.Vertices
-                            let makeWirePosMatchSymbol inOut (wire:Wire) =
-                                match inOut with
-                                | true -> 
-                                    posMatchesVertex
-                                            (Symbol.getInputPortLocation None model.Symbol inputId)
-                                            (List.last conn.Vertices |> getVertex)
-                                | false ->
-                                    posMatchesVertex
-                                        (Symbol.getOutputPortLocation None model.Symbol outputId)
-                                        (List.head conn.Vertices |> getVertex)
-                                |> (fun b ->
-                                    if b then
-                                        wire
-                                    else
-                                        let getS (connId:string) =
-                                            Map.tryFind connId model.Symbol.Ports
-                                            |> Option.map (fun port -> port.HostId)
-                                            |> Option.bind (fun symId -> Map.tryFind (ComponentId symId) model.Symbol.Symbols)
-                                            |> Option.map (fun sym -> sym.Component.Label)
-                                        //printfn $"Updating loaded wire from {getS conn.Source.Id}->{getS conn.Target.Id} of wire "
-                                        updateWire model wire inOut)
-
-
-                            connId,
-                            { Id = ConnectionId conn.Id
-                              InputPort = inputId
-                              OutputPort = outputId
-                              Color = HighLightColor.DarkSlateGrey
-                              Width = 1
-                              Segments = segments
-                              StartPos = Symbol.getOutputPortLocation None model.Symbol outputId
-                              EndPos = Symbol.getInputPortLocation None model.Symbol inputId
-                              InitialOrientation = Symbol.getOutputPortOrientation model.Symbol outputId |> getOrientation
-                              EndOrientation = Symbol.getInputPortOrientation model.Symbol inputId |> getOrientation }
-                            |> makeWirePosMatchSymbol false
-                            |> makeWirePosMatchSymbol true
-                        )
+                let inputId = InputPortId conn.Target.Id
+                let outputId = OutputPortId conn.Source.Id
+                let connId = ConnectionId conn.Id
+                let getVertex (x,y,_) = (x,y)
+                let segments = issieVerticesToSegments connId conn.Vertices
+                let makeWirePosMatchSymbol inOut (wire:Wire) =
+                    match inOut with
+                    | true -> 
+                        posMatchesVertex
+                                (Symbol.getInputPortLocation None model.Symbol inputId)
+                                (List.last conn.Vertices |> getVertex)
+                    | false ->
+                        posMatchesVertex
+                            (Symbol.getOutputPortLocation None model.Symbol outputId)
+                            (List.head conn.Vertices |> getVertex)
+                    |> (fun b ->
+                        if b then
+                            wire
+                        else
+                            let getS (connId:string) =
+                                Map.tryFind connId model.Symbol.Ports
+                                |> Option.map (fun port -> port.HostId)
+                                |> Option.bind (fun symId -> Map.tryFind (ComponentId symId) model.Symbol.Symbols)
+                                |> Option.map (fun sym -> sym.Component.Label)
+                            //printfn $"Updating loaded wire from {getS conn.Source.Id}->{getS conn.Target.Id} of wire "
+                            updateWire model wire inOut)
+                connId,
+                { 
+                    Id = ConnectionId conn.Id
+                    InputPort = inputId
+                    OutputPort = outputId
+                    Color = HighLightColor.DarkSlateGrey
+                    Width = 1
+                    Segments = segments
+                    StartPos = Symbol.getOutputPortLocation None model.Symbol outputId
+                    EndPos = Symbol.getInputPortLocation None model.Symbol inputId
+                    InitialOrientation = Symbol.getOutputPortOrientation model.Symbol outputId |> getOrientation
+                    EndOrientation = Symbol.getInputPortOrientation model.Symbol inputId |> getOrientation }
+                |> makeWirePosMatchSymbol false
+                |> makeWirePosMatchSymbol true
+            )
             |> Map.ofList
 
         let connIds =
@@ -927,22 +953,27 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
         { model with Wires = newWires }, Cmd.ofMsg (MakeJumps connIds)
 
-    | UpdateWireType (style: WireType) ->
+    | UpdateWireDisplayType (style: WireType) ->
+        // changes wire display
         { model with Type = style }, Cmd.none
 
-    | Rotate (componentIds: ComponentId list) ->
-        let updatedWireEntries = 
+    | UpdateConnectedWires (componentIds: ComponentId list) ->
+        // partial or full autoroutes all ends of wires conencted to given symbols
+        // typically used after rotating or flipping symbols
+        let updatePortIdMessages = 
             componentIds
-            |> getConnectedWires model
-            |> List.map (autoroute model)
-            |> List.map (fun wire -> wire.Id, wire)
-            |> Map.ofList
-        
-        let updatedWires = Map.fold (fun merged id wire -> Map.add id wire merged) model.Wires updatedWireEntries
-
-        { model with Wires = updatedWires }, Cmd.none
+            |> Symbol.getPortLocations model.Symbol
+            |> (fun (m1,m2) -> 
+                let inputPorts = Seq.map (fun (InputPortId portId) -> portId) m1.Keys |> Seq.toList
+                let outputPorts = Seq.map (fun (OutputPortId portId) -> portId) m2.Keys |> Seq.toList
+                inputPorts @ outputPorts
+                |> List.map (Msg.RerouteWire >> Cmd.ofMsg))
+        model, Cmd.batch updatePortIdMessages
 
     | RerouteWire (portId: string) ->
+        // parially or fully autoroutes wires connected to port
+        // typically used after port has moved
+        // NB if direction of port has changed wire must be autorouted.
         let portOpt = Map.tryFind portId model.Symbol.Ports 
 
         let rerouteInputEnd (wire:Wire) = 

@@ -176,10 +176,10 @@ let editMenu dispatch =
                makeElmItem "Copy" "CmdOrCtrl+C" (fun () -> dispatch Sheet.KeyboardMsg.CtrlC)
                makeElmItem "Paste" "CmdOrCtrl+V" (fun () -> dispatch Sheet.KeyboardMsg.CtrlV)
                menuSeparator
-               makeElmItem "Rotate Left" "CmdOrCtrl+L" (fun () -> rotateDispatch Sheet.RotateMsg.Left)
-               makeElmItem "Rotate Right" "CmdOrCtrl+R" (fun () -> rotateDispatch Sheet.RotateMsg.Right)
-               makeElmItem "Flip Horizontally" "CmdOrCtrl+Shift+F" (fun () -> sheetDispatch <| Sheet.Flip Symbol.Horizontal)
-               makeElmItem "Flip Vertically" "CmdOrCtrl+F" (fun () -> sheetDispatch <| Sheet.Flip Symbol.Vertical)
+               makeElmItem "Rotate Anticlockwise" "CmdOrCtrl+L" (fun () -> rotateDispatch Symbol.RotateAntiClockwise)
+               makeElmItem "Rotate Clockwise" "CmdOrCtrl+R" (fun () -> rotateDispatch Symbol.RotateClockwise)
+               makeElmItem "Flip Horizontally" "CmdOrCtrl+Shift+F" (fun () -> sheetDispatch <| Sheet.Flip Symbol.FlipHorizontal)
+               makeElmItem "Flip Vertically" "CmdOrCtrl+F" (fun () -> sheetDispatch <| Sheet.Flip Symbol.FlipVertical)
                menuSeparator
                makeElmItem "Select All" "CmdOrCtrl+A" (fun () -> dispatch Sheet.KeyboardMsg.CtrlA)
                makeElmItem "Delete"  (if isMac then "Backspace" else "delete") (fun () -> dispatch Sheet.KeyboardMsg.DEL)

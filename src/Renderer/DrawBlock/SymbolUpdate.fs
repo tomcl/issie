@@ -1,7 +1,5 @@
 ﻿module SymbolUpdate
 
-open Fable.React
-open Fable.React.Props
 open Elmish
 open DrawHelpers
 open CommonTypes
@@ -507,116 +505,78 @@ let inline writeMemoryType model compId memory =
     
     { model with Symbols = newSymbols }
 
-let rotateSideLeft (side:Edge) :Edge =
-    match side with
-    | Top -> Left
-    | Left -> Bottom
-    | Bottom -> Right
-    | Right -> Top
+let rotateSide (rotation: RotationType) (side:Edge) :Edge =
+    match rotation, side with
+    | RotateAntiClockwise, Top -> Left
+    | RotateAntiClockwise, Left -> Bottom
+    | RotateAntiClockwise, Bottom -> Right
+    | RotateAntiClockwise, Right -> Top
+    | RotateClockwise, Top -> Right
+    | RotateClockwise, Left -> Top
+    | RotateClockwise, Bottom -> Left
+    | RotateClockwise, Right -> Bottom
 
-let rotateSideRight (side:Edge) :Edge =
-    match side with
-    | Top -> Right
-    | Left -> Top
-    | Bottom -> Left
-    | Right -> Bottom
 
-let rotateAngleLeft (rotation: Rotation) : Rotation =
-    match rotation with
-    | Degree0 -> Degree90
-    | Degree90 -> Degree180
-    | Degree180 -> Degree270
-    | Degree270 -> Degree0
 
-let rotateAngleRight (rotation: Rotation) : Rotation =
-    match rotation with
-    | Degree0 -> Degree270
-    | Degree90 -> Degree0
-    | Degree180 -> Degree90
-    | Degree270 -> Degree180
+let rotateAngle (rot: RotationType) (rotation: Rotation) : Rotation =
+    match rot, rotation with
+    | RotateAntiClockwise, Degree0 -> Degree90
+    | RotateAntiClockwise, Degree90 -> Degree180
+    | RotateAntiClockwise, Degree180 -> Degree270
+    | RotateAntiClockwise, Degree270 -> Degree0
+    | RotateClockwise, Degree0 -> Degree270
+    | RotateClockwise, Degree90 -> Degree0
+    | RotateClockwise, Degree180 -> Degree90
+    | RotateClockwise, Degree270 -> Degree180
 
 /// Takes a symbol in and returns the same symbol rotated left
-let rotateSymbolLeft (sym: Symbol) : Symbol =
+let rotateSymbol (rotation: RotationType) (sym: Symbol) : Symbol =
     // update comp w h
     match sym.Component.Type with
     | Custom _-> sym
     | _ ->
         let h,w = getHAndW sym
-        let newXY = sym.Pos + { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
+        let posOffset =
+            match rotation with
+            | RotateClockwise -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
+            | RotateAntiClockwise -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
+        let newPos = sym.Pos + posOffset
 
         //need to update portOrientation and portOrder
         let newPortOrientation = 
-            sym.PortOrientation |> Map.map (fun id side -> rotateSideLeft side)
+            sym.PortOrientation |> Map.map (fun id side -> rotateSide rotation side)
 
-        let rotatePortListLeft currPortOrder side =
-            currPortOrder |> Map.add (rotateSideLeft side ) sym.PortOrder[side]
+        let rotatePortList currPortOrder side =
+            currPortOrder |> Map.add (rotateSide rotation side) sym.PortOrder[side]
 
         let newPortOrder = 
-            (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold rotatePortListLeft
+            (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold rotatePortList
 
         let newSTransform = 
             match sym.STransform.flipped with
-            | true -> {sym.STransform with Rotation = rotateAngleRight sym.STransform.Rotation} // hack for rotating when flipped 
-            | false -> {sym.STransform with Rotation = rotateAngleLeft sym.STransform.Rotation}
+            | true -> {sym.STransform with Rotation = rotateAngle (invertRotation rotation) sym.STransform.Rotation} // hack for rotating when flipped 
+            | false -> {sym.STransform with Rotation = rotateAngle rotation sym.STransform.Rotation}
 
         { sym with 
-            Pos = newXY;
+            Pos = newPos;
             PortOrientation = newPortOrientation;
             PortOrder = newPortOrder;
             STransform =newSTransform;  
         }
 
-/// Takes in a symbol and returns the same symbol rotated right
-let rotateSymbolRight (sym: Symbol) : Symbol =
-    match sym.Component.Type with
-    | Custom _-> sym
-    | _ ->
-        let h,w = getHAndW sym
-        let newXY = sym.Pos + { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
 
-        //need to update portOrientation and portOrder
-        let newPortOrientation = 
-            sym.PortOrientation |> Map.map (fun id side -> rotateSideRight side)
-
-        let rotatePortListRight currPortOrder side =
-            currPortOrder |> Map.add (rotateSideRight side ) sym.PortOrder[side]
-
-        let newPortOrder = 
-            (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold rotatePortListRight
-
-        let newSTransform = 
-            match sym.STransform.flipped with
-            | true -> {sym.STransform with Rotation = rotateAngleLeft sym.STransform.Rotation}
-            | false -> {sym.STransform with Rotation = rotateAngleRight sym.STransform.Rotation}
-
-
-        { sym with 
-            Pos = newXY;
-            PortOrientation = newPortOrientation;
-            PortOrder = newPortOrder;
-            STransform =newSTransform;  
-        }
-// /// Flips an angle horizontally
-// let flipAngleHorizontal (rotation: Rotation): Rotation =
-//     match rotation with
-//     // | Degree90 | Degree270 | _ -> 
-//     //     rotation
-//     //     |> rotateAngleRight
-//     //     |> rotateAngleRight
-//     | _ -> rotation
-// not needed
 
 /// Flips a side horizontally
 let flipSideHorizontal (edge: Edge) : Edge =
     match edge with
     | Left | Right ->
         edge
-        |> rotateSideRight
-        |> rotateSideRight
+        |> rotateSide RotateClockwise
+        |> rotateSide RotateClockwise
     | _ -> edge
 
 /// Takes in a symbol and returns the same symbol flipped
-let flipSymbol (orientation: Orientation) (sym:Symbol) : Symbol =
+let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
     match sym.Component.Type with
     | Custom _ -> sym
     | _ ->
@@ -643,11 +603,11 @@ let flipSymbol (orientation: Orientation) (sym:Symbol) : Symbol =
         }
         |> (fun sym -> 
             match orientation with
-            | Horizontal -> sym
-            | Vertical -> 
+            | FlipHorizontal -> sym
+            | FlipVertical -> 
                 sym
-                |> rotateSymbolLeft
-                |> rotateSymbolLeft)
+                |> rotateSymbol RotateAntiClockwise
+                |> rotateSymbol RotateAntiClockwise)
 
 type Rectangle = {TopLeft: XYPos; BottomRight: XYPos}
 
@@ -825,13 +785,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
  
     | WriteMemoryLine (compId, addr, value) ->
         writeMemoryLine model (compId, addr, value), Cmd.none
+
     | WriteMemoryType (compId, memory) ->
         (writeMemoryType model compId memory), Cmd.none
 
-    | RotateLeft compList ->
-        (transformSymbols rotateSymbolLeft model compList), Cmd.none
+    | RotateLeft(compList, rotation) ->
+        (transformSymbols (rotateSymbol rotation) model compList), Cmd.none
+
     | RotateRight compList ->
-        (transformSymbols rotateSymbolRight model compList), Cmd.none
+        (transformSymbols (rotateSymbol RotateClockwise) model compList), Cmd.none
 
     | Flip(compList, orientation) ->
         (transformSymbols (flipSymbol orientation) model compList), Cmd.none

@@ -87,11 +87,8 @@ type SnapIndicator =
 type KeyboardMsg =
     | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC 
 
-type RotateMsg =
-    | Right | Left
-
 type WireTypeMsg =
-    | Jump | Radial | Modern
+    | Jump | Radiussed | Modern
 
 type Msg =
     | Wire of BusWire.Msg
@@ -119,8 +116,8 @@ type Msg =
     | ToggleNet of CanvasState //This message does nothing in sheet, but will be picked up by the update function
     | SelectWires of ConnectionId list
     | SetSpinner of bool
-    | Rotate of RotateMsg
-    | Flip
+    | Rotate of Symbol.RotationType
+    | Flip of Symbol.FlipType
     | WireType of WireTypeMsg
     | MovePort of MouseT //different from mousemsg because ctrl pressed too
     | SaveSymbols

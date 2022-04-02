@@ -12,11 +12,15 @@ open CommonTypes
 
 
 /// --------- STATIC VARIABLES --------- ///
-[<Literal>]
-let GridSize = 30 
+module Constants =
+    [<Literal>]
+    let gridSize = 30 
 
 /// ---------- SYMBOL TYPES ---------- ///
 
+/// Represents the orientation of a wire segment or symbol flip
+type FlipType =  FlipHorizontal | FlipVertical
+type RotationType = RotateClockwise | RotateAntiClockwise
 
 /// Wraps around the input and output port id types
 type PortId = | InputId of InputPortId | OutputId of OutputPortId
@@ -97,16 +101,29 @@ type Msg =
     | LoadComponents of  LoadedComponent list * Component list // For Issie Integration
     | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 
     | WriteMemoryType of ComponentId * ComponentType
-    | RotateLeft of compList : ComponentId list
+    | RotateLeft of compList : ComponentId list * RotationType
     | RotateRight of compList: ComponentId list
-    | Flip of compList: ComponentId list
+    | Flip of compList: ComponentId list * orientation: FlipType
     | MovePort of portId: string * move: XYPos
     | MovePortDone of portId: string * move: XYPos
     | SaveSymbols
 
 
+//------------------------------------------------------------------//
+//------------------------ Helper functions ------------------------//
+//------------------------------------------------------------------//
 
-// ----- helper functions for titles ----- //
+let inline inputPortStr (InputPortId s) = s
+let inline outputPortStr (OutputPortId s) = s
+
+let inline invertRotation (rot: RotationType) =
+    match rot with
+    | RotateClockwise -> RotateAntiClockwise
+    | RotateAntiClockwise -> RotateClockwise
+
+//------------------------------------------------------------------//
+//------------------- Helper functions for titles ------------------//
+//------------------------------------------------------------------//
 
 ///Insert titles compatible with greater than 1 buswidth
 let title (t:string) (n:int) : string =  
@@ -149,8 +166,6 @@ let getPrefix compType =
     | BusSelection _ -> "SEL"
     | _ -> ""
 
-
-//-----------------------------Skeleton Model Type for symbols----------------//
 
 // Text to be put inside different Symbols depending on their ComponentType
 let getComponentLabel (componentType:ComponentType) =
@@ -215,7 +230,7 @@ let portLists numOfPorts hostID portType =
 //-----------------------Skeleton Message type for symbols---------------------//
 
 ///Rounds an integer to any given number. The first parameter is the number to round to, the second parameter is the input number that will be rounded
-let roundToN (n : int) (x : int) =
+let inline roundToN (n : int) (x : int) =
     x + abs((x % n) - n)
 
 let customToLength (lst : (string * int) list) =
@@ -285,11 +300,11 @@ let initPortOrientation (comp: Component) =
 
 /// helper function to initialise custom components
 let getCustomCompArgs (x:CustomComponentType) (label:string) =
-    let h = GridSize + GridSize * (List.max [List.length x.InputLabels; List.length x.OutputLabels])
+    let h = Constants.gridSize + Constants.gridSize * (List.max [List.length x.InputLabels; List.length x.OutputLabels])
     let maxInLength, maxOutLength = customToLength x.InputLabels, customToLength x.OutputLabels
     let maxW = maxInLength + maxOutLength + label.Length
-    let scaledW = roundToN GridSize (maxW * GridSize / 5) //Divide by 5 is just abitrary as otherwise the symbols would be too wide 
-    let w = max scaledW (GridSize * 4) //Ensures a minimum width if the labels are very small
+    let scaledW = roundToN Constants.gridSize (maxW * Constants.gridSize / 5) //Divide by 5 is just abitrary as otherwise the symbols would be too wide 
+    let w = max scaledW (Constants.gridSize * 4) //Ensures a minimum width if the labels are very small
     ( List.length x.InputLabels, List.length x.OutputLabels, h ,  w)
 
 /// obtain map from port IDs to port names for Custom Component.
@@ -326,7 +341,7 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
                 Map.add edge lblLst currMap
             let portLabels = 
                 (Map.empty, sym.PortOrder) ||> Map.fold convertIdsToLbls
-            let h = GridSize + GridSize * max (List.length portLabels[Left]) (List.length portLabels[Right])
+            let h = Constants.gridSize + Constants.gridSize * max (List.length portLabels[Left]) (List.length portLabels[Right])
 
             let maxLeftLength = customStringToLength portLabels[Left] 
             let maxRightLength = customStringToLength portLabels[Right]
@@ -337,13 +352,13 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
 
             //Divide by 5 is just abitrary as otherwise the symbols would be too wide 
             let maxW = 
-                [(maxLeftLength + maxRightLength + sym.Component.Label.Length)*GridSize/5;
-                (List.length portLabels[Top] + 1)* max (topLength*GridSize/5)GridSize;
-                (List.length portLabels[Bottom]+ 1)*max (bottomLength*GridSize/5) GridSize]
+                [(maxLeftLength + maxRightLength + sym.Component.Label.Length)*Constants.gridSize/5;
+                (List.length portLabels[Top] + 1)* max (topLength*Constants.gridSize/5)Constants.gridSize;
+                (List.length portLabels[Bottom]+ 1)*max (bottomLength*Constants.gridSize/5) Constants.gridSize]
                 |> List.max 
-            let w = roundToN GridSize (maxW ) 
-            let scaledW = max w (GridSize * 4) //Ensures a minimum width if the labels are very small
-            let scaledH = max h (GridSize*2)
+            let w = roundToN Constants.gridSize (maxW ) 
+            let scaledW = max w (Constants.gridSize * 4) //Ensures a minimum width if the labels are very small
+            let scaledH = max h (Constants.gridSize*2)
             {sym with
                 Component={sym.Component with H= float scaledH; W = float scaledW}}
         | _ -> sym
@@ -374,37 +389,38 @@ let makeComponent (pos: XYPos) (comptype: ComponentType) (id:string) (label:stri
     
     // match statement for each component type. the output is a 4-tuple that is used as an input to makecomponent (see below)
     // 4-tuple of the form ( number of input ports, number of output ports, Height, Width)
+    let gS = Constants.gridSize
     let args = 
         match comptype with
         | ROM _ | RAM _ | AsyncROM _ -> 
             failwithf "What? Legacy RAM component types should never occur"
-        | And | Nand | Or | Nor | Xnor | Xor ->  (2 , 1, 2*GridSize , 2*GridSize) 
-        | Not -> ( 1 , 1, 2*GridSize ,  2*GridSize) 
-        | ComponentType.Input (a) -> ( 0 , 1, GridSize ,  2*GridSize)                
-        | ComponentType.Output (a) -> (  1 , 0, GridSize ,  2*GridSize) 
-        | ComponentType.Viewer a -> (  1 , 0, GridSize ,  GridSize) 
-        | ComponentType.IOLabel  ->(  1 , 1, GridSize ,  2*GridSize) 
-        | Decode4 ->( 2 , 4 , 4*GridSize  , 3*GridSize) 
-        | Constant1 (a, b,_) | Constant(a, b) -> (  0 , 1, GridSize ,  2*GridSize) 
-        | MergeWires -> ( 2 , 1, 2*GridSize ,  2*GridSize) 
-        | SplitWire (a) ->(  1 , 2 , 2*GridSize ,  2*GridSize) 
-        | Mux2 -> ( 3  , 1, 3*GridSize ,  2*GridSize) 
-        | Mux4 -> ( 5  , 1, 5*GridSize ,  2*GridSize)   
-        | Mux8 -> ( 9  , 1, 7*GridSize ,  2*GridSize) 
-        | Demux2 ->( 2  , 2, 3*GridSize ,  2*GridSize) 
+        | And | Nand | Or | Nor | Xnor | Xor ->  (2 , 1, 2*gS , 2*gS) 
+        | Not -> ( 1 , 1, 2*gS ,  2*gS) 
+        | ComponentType.Input (a) -> ( 0 , 1, gS ,  2*gS)                
+        | ComponentType.Output (a) -> (  1 , 0, gS ,  2*gS) 
+        | ComponentType.Viewer a -> (  1 , 0, gS ,  gS) 
+        | ComponentType.IOLabel  ->(  1 , 1, gS ,  2*gS) 
+        | Decode4 ->( 2 , 4 , 4*gS  , 3*gS) 
+        | Constant1 (a, b,_) | Constant(a, b) -> (  0 , 1, gS ,  2*gS) 
+        | MergeWires -> ( 2 , 1, 2*gS ,  2*gS) 
+        | SplitWire (a) ->(  1 , 2 , 2*gS ,  2*gS) 
+        | Mux2 -> ( 3  , 1, 3*gS ,  2*gS) 
+        | Mux4 -> ( 5  , 1, 5*gS ,  2*gS)   
+        | Mux8 -> ( 9  , 1, 7*gS ,  2*gS) 
+        | Demux2 ->( 2  , 2, 3*gS ,  2*gS) 
         | Demux4 -> ( 2  , 4, 150 ,  50) 
         | Demux8 -> ( 2  , 8, 200 ,  50) 
-        | BusSelection (a, b) -> (  1 , 1, GridSize,  2*GridSize) 
-        | BusCompare (a, b) -> ( 1 , 1, GridSize ,  2*GridSize) 
-        | DFF -> (  1 , 1, 3*GridSize  , 3*GridSize) 
-        | DFFE -> ( 2  , 1, 3*GridSize  , 3*GridSize) 
-        | Register (a) -> ( 1 , 1, 3*GridSize  , 4*GridSize )
-        | RegisterE (a) -> ( 2 , 1, 3*GridSize  , 4*GridSize) 
-        | AsyncROM1 (a)  -> (  1 , 1, 4*GridSize  , 5*GridSize) 
-        | ROM1 (a) -> (   1 , 1, 4*GridSize  , 5*GridSize) 
-        | RAM1 (a) | AsyncRAM1 a -> ( 3 , 1, 4*GridSize  , 5*GridSize) 
-        | NbitsXor (n) -> (  2 , 1, 4*GridSize  , 4*GridSize) 
-        | NbitsAdder (n) -> (  3 , 2, 3*GridSize  , 4*GridSize) 
+        | BusSelection (a, b) -> (  1 , 1, gS,  2*gS) 
+        | BusCompare (a, b) -> ( 1 , 1, gS ,  2*gS) 
+        | DFF -> (  1 , 1, 3*gS  , 3*gS) 
+        | DFFE -> ( 2  , 1, 3*gS  , 3*gS) 
+        | Register (a) -> ( 1 , 1, 3*gS  , 4*gS )
+        | RegisterE (a) -> ( 2 , 1, 3*gS  , 4*gS) 
+        | AsyncROM1 (a)  -> (  1 , 1, 4*gS  , 5*gS) 
+        | ROM1 (a) -> (   1 , 1, 4*gS  , 5*gS) 
+        | RAM1 (a) | AsyncRAM1 a -> ( 3 , 1, 4*gS  , 5*gS) 
+        | NbitsXor (n) -> (  2 , 1, 4*gS  , 4*gS) 
+        | NbitsAdder (n) -> (  3 , 2, 3*gS  , 4*gS) 
         | Custom cct -> getCustomCompArgs cct label
                 
     makeComponent' args label
@@ -452,18 +468,18 @@ let inline getPortPosEdgeGap (ct: ComponentType) =
     | _ -> 1.0
 
 ///Given a symbol and a Port, it returns the orientation of the port
-let getSymbolPortOrientation (sym: Symbol) (port: Port): Edge =
+let inline getSymbolPortOrientation (sym: Symbol) (port: Port): Edge =
     let portId = port.Id
     sym.PortOrientation[portId]
 
 /// Returns the height and width of a symbol
-let getHAndW sym =
+let inline getHAndW sym =
     match sym.STransform.Rotation with
     | Degree0 | Degree180 -> sym.Component.H, sym.Component.W
     | _ -> sym.Component.W, sym.Component.H
 
 /// Returns the xy offset of a side relative to the symbol topleft
-let getPortBaseOffset (sym: Symbol) (side: Edge): XYPos=
+let inline getPortBaseOffset (sym: Symbol) (side: Edge): XYPos=
     let h,w = getHAndW sym
     match side with 
     | Right -> {X = w; Y = 0.0}
@@ -534,12 +550,12 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
         baseOffset' + {X = xOffset; Y = 0.0 }
 
 /// Gives the port positions to the render function, it gives the moving port pos where the mouse is, if there is a moving port
-let getPortPosToRender (sym: Symbol) (port: Port) : XYPos =
+let inline getPortPosToRender (sym: Symbol) (port: Port) : XYPos =
     match sym.MovingPort with
     | Some movingPort when port.Id = movingPort.PortId -> movingPort.CurrPos - sym.Pos
     | _ -> getPortPos sym port
 
-let getPortPosModel (model: Model) (port:Port) =
+let inline getPortPosModel (model: Model) (port:Port) =
     getPortPos (Map.find (ComponentId port.HostId) model.Symbols) port
 
 //-----------------------------------------DRAWING HELPERS ---------------------------------------------------
@@ -559,7 +575,7 @@ let private addComponentLabel height width name weight size rotation =
 
 
 /// Generate circles on ports
-let private portCircles (pos: XYPos) = 
+let inline private portCircles (pos: XYPos) = 
     [makeCircle pos.X pos.Y portCircle]
 
 /// Puts name on ports
@@ -860,7 +876,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
 //------------------------GET BOUNDING BOXES FUNCS--------------------------------used by sheet.
 /// Returns the bounding box of a symbol. It is defined by the height and the width as well as the x,y position of the symbol.
 /// Works with rotation.
-let getSymbolBoundingBox (sym:Symbol): BoundingBox =
+let inline getSymbolBoundingBox (sym:Symbol): BoundingBox =
     let h,w = getHAndW sym
     {TopLeft = sym.Pos; H = float(h) ; W = float(w)}
 
@@ -869,7 +885,7 @@ let getBoundingBoxes (symModel: Model): Map<ComponentId, BoundingBox> =
     Map.map (fun sId (sym:Symbol) -> (getSymbolBoundingBox sym)) symModel.Symbols
 
 /// Returns bounding box of a component based on component id
-let getBoundingBox (symModel: Model) (compid: ComponentId ): BoundingBox = 
+let inline getBoundingBox (symModel: Model) (compid: ComponentId ): BoundingBox = 
     let symb = Map.find compid symModel.Symbols
     getSymbolBoundingBox symb
 
@@ -889,34 +905,42 @@ let getCopiedSymbols (symModel: Model) : (ComponentId list) =
 
 
 /// Returns the port object associated with a given portId
-let getPort (symModel: Model) (portId: string) =
+let inline getPort (symModel: Model) (portId: string) =
     symModel.Ports[portId]
 
-let getSymbol (model: Model) (portId: string) =
+let inline getSymbol (model: Model) (portId: string) =
     let port = getPort model portId
     model.Symbols[ComponentId port.HostId]
 
-let getCompId (model: Model) (portId: string) =
+let inline getCompId (model: Model) (portId: string) =
     let symbol = getSymbol model portId
     symbol.Id
 
 /// Returns the string of a PortId
-let getPortIdStr (portId: PortId) = 
+let inline getPortIdStr (portId: PortId) = 
     match portId with
     | InputId (InputPortId id) -> id
     | OutputId (OutputPortId id) -> id
 
+let inline getInputPortIdStr (portId: InputPortId) = 
+    match portId with
+    | InputPortId s -> s
+
+let inline getOutputPortIdStr (portId: OutputPortId) = 
+    match portId with
+    | OutputPortId s -> s
+
 /// returns what side of the symbol the port is on
-let getPortOrientation (model: Model)  (portId: PortId) : Edge =
+let inline getPortOrientation (model: Model)  (portId: PortId) : Edge =
     let portIdStr = getPortIdStr portId
     let port = model.Ports[portIdStr]
     let sId = ComponentId port.HostId
     model.Symbols[sId].PortOrientation[portIdStr]
 
-let getInputPortOrientation (model: Model) (portId: InputPortId): Edge =
+let inline getInputPortOrientation (model: Model) (portId: InputPortId): Edge =
     getPortOrientation model (InputId portId)
 
-let getOutputPortOrientation (model: Model) (portId: OutputPortId): Edge =
+let inline getOutputPortOrientation (model: Model) (portId: OutputPortId): Edge =
     getPortOrientation model (OutputId portId)
 
 
@@ -937,17 +961,17 @@ let getPortLocation (defPos: XYPos option) (model: Model) (portId : string) : XY
     | _ -> failwithf $"Can't find port or symbol: Port='{portOpt}', Symbol='{symOpt}"
 
 /// Returns the location of an input port based on their portId
-let getInputPortLocation defPos (model:Model) (portId: InputPortId)  = 
+let inline getInputPortLocation defPos (model:Model) (portId: InputPortId)  = 
     let id = getPortIdStr (InputId portId)
     getPortLocation defPos model id
 
 /// Returns the location of an output port based on their portId
-let getOutputPortLocation defPos (model:Model) (portId : OutputPortId) =
+let inline getOutputPortLocation defPos (model:Model) (portId : OutputPortId) =
     let id = getPortIdStr (OutputId portId)
     getPortLocation defPos model id
 
 /// Returns the locations of a given input port and output port based on their portId
-let getTwoPortLocations (model: Model) (inputPortId: InputPortId ) (outputPortId: OutputPortId) =
+let inline getTwoPortLocations (model: Model) (inputPortId: InputPortId ) (outputPortId: OutputPortId) =
     (getInputPortLocation None model inputPortId, getOutputPortLocation None model outputPortId)
 
 ///Returns the input port positions of the specified symbols in model

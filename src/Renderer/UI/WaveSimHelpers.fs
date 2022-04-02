@@ -1134,7 +1134,7 @@ let highlightConnectionsFromWaves (model: Model) (dispatch: Msg -> Unit) =
             |> Array.filter ((<>) None)
             |> Array.map Option.get
             |> Array.filter (fun wire -> wire.Color <> HighLightColor.Blue)
-            |> Array.map (fun wire -> wire.Id)
+            |> Array.map (fun wire -> wire.WId)
         // break loop while ensuring that connections are colored if needed
         // nasty fix
         if wrongColorIds <> [||] then

@@ -80,23 +80,26 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
             xMarg, yMarg
 
 
-        let snapX = checkForSnap1D {| SnapInfo = model.Snap.XSnap
-                                      Indicator = model.SnapIndicator.XLine
-                                      CurrMPos = mMsg.Pos.X
-                                      LastMPos = model.LastMousePos.X
-                                      Side1 = x1
-                                      Side2 = x2
-                                      PosDirection = (mMsg.Pos.X - model.LastMousePosForSnap.X)  
-                                      SymbolMargins = xMargins|}
 
-        let snapY = checkForSnap1D {| SnapInfo = model.Snap.YSnap
-                                      Indicator = model.SnapIndicator.YLine
-                                      CurrMPos = mMsg.Pos.Y
-                                      LastMPos = model.LastMousePos.Y
-                                      Side1 = y1
-                                      Side2 = y2
-                                      PosDirection = (mMsg.Pos.Y - model.LastMousePosForSnap.Y) 
-                                      SymbolMargins = yMargins|}
+        let snapX = checkForSnap1D {| 
+            SnapInfo = model.Snap.XSnap
+            Indicator = model.SnapIndicator.XLine
+            CurrMPos = mMsg.Pos.X
+            LastMPos = model.LastMousePos.X
+            Side1 = x1
+            Side2 = x2
+            PosDirection = (mMsg.Pos.X - model.LastMousePosForSnap.X)  
+            SymbolMargins = xMargins|}
+
+        let snapY = checkForSnap1D {| 
+            SnapInfo = model.Snap.YSnap
+            Indicator = model.SnapIndicator.YLine
+            CurrMPos = mMsg.Pos.Y
+            LastMPos = model.LastMousePos.Y
+            Side1 = y1
+            Side2 = y2
+            PosDirection = (mMsg.Pos.Y - model.LastMousePosForSnap.Y) 
+            SymbolMargins = yMargins|}
 
         let errorComponents  =
             if notIntersectingComponents model boundingBox compId then [] else [compId]
@@ -153,13 +156,13 @@ let snapWire (model: Model) (mMsg: MouseT) (connId: ConnectionId): Model * Cmd<M
 
         let clickedSegId = BusWireUpdate.getClickedSegment model.Wire clickedWireId input.CurrMPos
 
-        let segPositions (wire: BusWire.Wire) (target) =
-            (None, wire)
+        let segPositions (index,wId) =
+            (None, model.Wire.Wires[wId])
             ||> BusWire.foldOverSegs (fun startPos endPos state seg ->
-                                            if seg.Id = target then Some (startPos, endPos)
+                                            if seg.Index = index then Some (startPos, endPos)
                                             else state)
 
-        let segStart, segEnd = Option.get (segPositions clickedWire clickedSegId)
+        let segStart, segEnd = Option.get (segPositions clickedSegId)
 
         let segOrientation: BusWire.Orientation = BusWire.getSegmentOrientation segStart segEnd
 
@@ -217,17 +220,19 @@ let snapWire (model: Model) (mMsg: MouseT) (connId: ConnectionId): Model * Cmd<M
                        Indicator = None |}
             | _ ->  {| DeltaPos = 0.; SnapInfo = None; Indicator = None |}
     
-    let snapX = checkForSnap {| SnapInfo = model.Snap.XSnap;
-                                Indicator = model.SnapIndicator.XLine;
-                                CurrMPos = mMsg.Pos;
-                                LastMPos = model.LastMousePos;
-                                orientation = BusWire.Vertical    |}
+    let snapX = checkForSnap {| 
+        SnapInfo = model.Snap.XSnap;
+        Indicator = model.SnapIndicator.XLine;
+        CurrMPos = mMsg.Pos;
+        LastMPos = model.LastMousePos;
+        orientation = BusWire.Vertical    |}
 
-    let snapY = checkForSnap {| SnapInfo = model.Snap.YSnap;
-                                Indicator = model.SnapIndicator.YLine;
-                                CurrMPos = mMsg.Pos;   
-                                LastMPos = model.LastMousePos;
-                                orientation = BusWire.Horizontal    |}
+    let snapY = checkForSnap {| 
+        SnapInfo = model.Snap.YSnap;
+        Indicator = model.SnapIndicator.YLine;
+        CurrMPos = mMsg.Pos;   
+        LastMPos = model.LastMousePos;
+        orientation = BusWire.Horizontal    |}
 
     let updateLastMousePosForSnap, updateMouseCounter =
         if model.MouseCounter > 5 then
@@ -294,7 +299,8 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                 AutomaticScrolling = false
             },
             Cmd.batch [ symbolCmd (Symbol.SelectSymbols model.SelectedComponents)
-                        wireCmd (BusWire.SelectWires model.SelectedWires) ]
+                        wireCmd (BusWire.SelectWires model.SelectedWires)
+                        wireCmd (BusWire.ResetJumps [])]
     | _ ->
         match (mouseOn model mMsg.Pos) with
         | InputPort (portId, portLoc) ->
@@ -760,24 +766,18 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         else
             { model with AutomaticScrolling = false}, Cmd.none
 
-    | Rotate Left ->
+    | Rotate rotation ->
         model,
         Cmd.batch [
-            symbolCmd (Symbol.RotateLeft model.SelectedComponents) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
-            wireCmd (BusWire.Rotate model.SelectedComponents)
-        ]
-    | Rotate Right ->
-        model,
-        Cmd.batch [
-            symbolCmd (Symbol.RotateRight model.SelectedComponents) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
-            wireCmd (BusWire.Rotate model.SelectedComponents)
+            symbolCmd (Symbol.RotateLeft(model.SelectedComponents, rotation)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
+            wireCmd (BusWire.UpdateConnectedWires model.SelectedComponents)
         ]
 
-    | Flip ->
+    | Flip orientation ->
         model,
         Cmd.batch [
-            symbolCmd (Symbol.Flip model.SelectedComponents) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
-            wireCmd (BusWire.Rotate model.SelectedComponents)
+            symbolCmd (Symbol.Flip(model.SelectedComponents,orientation)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
+            wireCmd (BusWire.UpdateConnectedWires model.SelectedComponents)
         ]
     | SaveSymbols ->
         model, symbolCmd Symbol.SaveSymbols
@@ -785,15 +785,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let wires = model.Wire.Wires |> Map.toList |> List.map fst
         model,
         Cmd.batch [
-            wireCmd (BusWire.UpdateWireType BusWire.Jump)
+            wireCmd (BusWire.UpdateWireDisplayType BusWire.Jump)
             wireCmd (BusWire.MakeJumps wires)
         ]
 
-    | WireType Radial ->
+    | WireType Radiussed ->
         let wires = model.Wire.Wires |> Map.toList |> List.map fst
         model,
         Cmd.batch [
-            wireCmd (BusWire.UpdateWireType BusWire.Radial)
+            wireCmd (BusWire.UpdateWireDisplayType BusWire.Radial)
             wireCmd (BusWire.MakeJumps wires)
         ]
        
@@ -801,7 +801,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let wires = model.Wire.Wires |> Map.toList |> List.map fst
         model,
         Cmd.batch [
-            wireCmd (BusWire.UpdateWireType BusWire.Modern)
+            wireCmd (BusWire.UpdateWireDisplayType BusWire.Modern)
             wireCmd (BusWire.MakeJumps wires)
         ]
                 

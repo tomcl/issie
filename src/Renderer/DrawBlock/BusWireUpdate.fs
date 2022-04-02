@@ -547,7 +547,7 @@ let partitionWiresIntoNets (model:Model) =
 
 type SegInfo = {P: float; Qmin: float; Qmax:float; Index: int; OfWire: Wire}
 
-
+/// get segments on wire partitioned horizontal and vertical. Zero-length segments are not included
 let getHVSegs (wire : Wire) =
     let isHorizontal (i:int, seg:ASegment) =
         match wire.InitialOrientation with
@@ -557,10 +557,11 @@ let getHVSegs (wire : Wire) =
     let makeInfo p q1 q2 (i:int) (seg:ASegment) =
         let qMin = min q1 q2
         let qMax = max q1 q2
-        {P=p; Qmin = qMin; Qmax = qMax; Index = i; OfWire=wire}
+        {P=p; Qmin = qMin; Qmax = qMax; Index = seg.Segment.Index; OfWire=wire}
 
     wire
     |> getAbsSegments
+    |> List.filter (fun seg->seg.Segment.Length > XYPos.epsilon)
     |> List.indexed
     |> List.partition isHorizontal
     |> (fun (hSegs,vSegs) ->
@@ -575,31 +576,29 @@ let updateCirclesOnSegments
         (circles: CircleT list) 
         (model: Model) =
 
-    let updateWire (circles: (float list * int) list) (wire: Wire) : Wire =
-        let newSegs =
+    let resetWire (wire:Wire) =
+        let newSegments = 
             wire.Segments
-            |> List.map (fun seg -> {seg with IntersectOrJumpList = []})
-            |> ( fun segs -> 
-                (segs, circles)
-                ||> List.fold (fun segs (circleYCoordL, segIndex) ->
-                    let newSeg = 
-                        {segs[segIndex] with 
-                            IntersectOrJumpList = circleYCoordL}
-                    List.updateAt segIndex newSeg segs)) 
-        { wire with Segments = newSegs}
+            |> List.map (fun seg -> {seg with IntersectOrJumpList=[]})
+        {wire with Segments = newSegments}
 
-    ()
-        
-    
-    
-        
+    let cleanWires =
+        (model.Wires, wiresToUpdate)
+        ||> List.fold (fun wires wire -> Map.add wire.WId (resetWire wire) wires)
 
-
-        
-            
-        
-        
-        
+    (cleanWires, wiresToUpdate)
+    ||> List.fold (fun wires wire ->
+            let tryFindInCircles circles = List.tryFind (fun ((_,_,wire'): CircleT) -> wire'.WId = wire.WId) circles
+            let newWire =
+                match tryFindInCircles circles with
+                | None -> wire
+                | Some (cPos,cIndex, wire) -> 
+                    let seg = wire.Segments[cIndex]
+                    let seg' = {seg with IntersectOrJumpList = cPos::seg.IntersectOrJumpList}
+                    printfn $"Adding {cPos} to segment {cIndex} of Wire {formatWireId wire.WId}"
+                    {wire with Segments = List.updateAt cIndex seg' wire.Segments}
+            Map.add wire.WId newWire wires)
+    |> (fun wires -> {model with Wires = wires})  
 
 let inline samePos (pos1: XYPos) (pos2: XYPos) =
     max (pos1.X-pos2.X) (pos1.Y - pos2.Y) < Constants.modernCirclePositionTolerance
@@ -607,13 +606,14 @@ let inline samePos (pos1: XYPos) (pos2: XYPos) =
 let inline close (a:float) (b:float) = abs (a-b) < Constants.modernCirclePositionTolerance
 
 let updateCirclesOnNet 
-        (wiresInNet: Wire list) 
-        (model: Model) : Model =
+        (model: Model)
+        (wiresInNet: Wire list) : Model =
     let hsL, vsL =
         List.map getHVSegs wiresInNet
         |> List.unzip
         |> fun (a,b) -> List.concat a, List.concat b
-    let e = Constants.modernCirclePositionTolerance
+    printfn $"Net with {wiresInNet.Length} wires, {hsL.Length} H and {vsL.Length} V segments"
+    let e = 3.*Constants.modernCirclePositionTolerance
     /// A circle can be on a V segment intersection with the middle of an H segment or vice versa.
     /// Note that at most one of the H or V segments can intersect at an endpoint.
     let getIntersection (h,v) =
@@ -645,19 +645,27 @@ let updateCirclesOnNet
     let vJoinCircles =
         getJoins vsL
         |> List.collect (fun (x,y,_,_) ->
-            hsL |> List.pick (fun hs -> 
+            hsL 
+            |> List.tryPick (fun hs -> 
                 if not <| close hs.P y then 
                     None 
                 elif close hs.Qmin x then
                     Some [hs.Qmin, hs.Index, hs.OfWire]
                 elif close hs.Qmax x then
                     Some [hs.Qmax, hs.Index, hs.OfWire]
-                else None))
-    let circles = intersectCircles @ vJoinCircles @ hJoinCircles
+                else None)
+            |> Option.defaultValue [])
+    let circles = intersectCircles  @ vJoinCircles @ hJoinCircles
     model
-    //|> updateCirclesOnSegments wiresInNet circles
+    |> updateCirclesOnSegments wiresInNet circles
                     
-
+let updateCirclesOnAllNets (model:Model) =
+    let nets = 
+        partitionWiresIntoNets model
+        |> List.map snd
+        |> List.map (List.map snd)
+    (model, nets)
+    ||> List.fold updateCirclesOnNet
 
 
 
@@ -732,12 +740,19 @@ let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model: Model) =
         else
             wireMap
 
-    let wiresWithJumps = 
-        (model.Wires, wires)
-        ||> Array.fold (fun map wire ->
-                foldOverSegs updateJumpsInWire map wire)
+    match model.Type with
+    | Jump ->
+        let wiresWithJumps = 
+            (model.Wires, wires)
+            ||> Array.fold (fun map wire ->
+                    foldOverSegs updateJumpsInWire map wire)
     
-    { model with Wires = wiresWithJumps }
+        { model with Wires = wiresWithJumps }
+    | Modern ->
+        printfn "Updating modern circles"
+        updateCirclesOnAllNets model
+    | Radial -> 
+        model
 
 let updateWireSegmentJumps (wireList: list<ConnectionId>) (model: Model) : Model =
     let startT = TimeHelpers.getTimeMs()
@@ -1024,11 +1039,15 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         // Issie connections are loaded as wires
         // vertices on Issie connections contains routing info so wires can be 
         // reconstructed precisely
+
+        /// check whether a laoded wires position matches a symbol vertex
         let posMatchesVertex (pos:XYPos) (vertex: float*float) =
             let epsilon = 0.00001
             abs (pos.X - (fst vertex)) < epsilon &&
             abs (pos.Y - (snd vertex)) < epsilon
             |> (fun b -> if not b then printf $"Bad wire endpoint match on {pos} {vertex}"; b else b)
+        
+        // get the newly loaded wires
         let newWires =
             conns
             |> List.map ( fun conn ->
@@ -1049,6 +1068,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                             (List.head conn.Vertices |> getVertex)
                     |> (fun b ->
                         if b then
+                            printfn "Loaded wire OK!"
                             wire
                         else
                             let getS (connId:string) =
@@ -1056,7 +1076,8 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                                 |> Option.map (fun port -> port.HostId)
                                 |> Option.bind (fun symId -> Map.tryFind (ComponentId symId) model.Symbol.Symbols)
                                 |> Option.map (fun sym -> sym.Component.Label)
-                            //printfn $"Updating loaded wire from {getS conn.Source.Id}->{getS conn.Target.Id} of wire "
+                            printfn $"Updating loaded wire from {getS conn.Source.Id}->{getS conn.Target.Id} of wire "
+
                             updateWire model wire inOut)
                 connId,
                 { 

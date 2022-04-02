@@ -149,9 +149,9 @@ let viewMenu dispatch =
         makeItem "Diagram Zoom Out" (Some "Shift+-") (fun ev -> dispatch Sheet.KeyboardMsg.ZoomOut)
         makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch Sheet.KeyboardMsg.CtrlW)
         menuSeparator
-        makeItem "Jump" (Some "CmdOrCtrl+Shift+J") (fun ev -> wireTypeDispatch Sheet.WireTypeMsg.Jump)
-        makeItem "Radial" (Some "CmdOrCtrl+Shift+R") (fun ev -> wireTypeDispatch Sheet.WireTypeMsg.Radial)
-        makeItem "Modern" (Some "CmdOrCtrl+Shift+M") (fun ev -> wireTypeDispatch Sheet.WireTypeMsg.Modern)
+        makeItem "Jump wires" (Some "CmdOrCtrl+Shift+J") (fun ev -> wireTypeDispatch Sheet.WireTypeMsg.Jump)
+        makeItem "Radiussed wires" (Some "CmdOrCtrl+Shift+R") (fun ev -> wireTypeDispatch Sheet.WireTypeMsg.Radiussed)
+        makeItem "Modern wires" (Some "CmdOrCtrl+Shift+M") (fun ev -> wireTypeDispatch Sheet.WireTypeMsg.Modern)
         menuSeparator
         makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ ->
             renderer.ipcRenderer.send("toggle-dev-tools", [||]) |> ignore)
@@ -176,9 +176,10 @@ let editMenu dispatch =
                makeElmItem "Copy" "CmdOrCtrl+C" (fun () -> dispatch Sheet.KeyboardMsg.CtrlC)
                makeElmItem "Paste" "CmdOrCtrl+V" (fun () -> dispatch Sheet.KeyboardMsg.CtrlV)
                menuSeparator
-               makeElmItem "Rotate Left" "CmdOrCtrl+L" (fun () -> rotateDispatch Sheet.RotateMsg.Left)
-               makeElmItem "Rotate Right" "CmdOrCtrl+R" (fun () -> rotateDispatch Sheet.RotateMsg.Right)
-               makeElmItem "Flip Horizontally" "CmdOrCtrl+H" (fun () -> sheetDispatch Sheet.Flip)
+               makeElmItem "Rotate Anticlockwise" "CmdOrCtrl+Shift+R" (fun () -> rotateDispatch Symbol.RotateAntiClockwise)
+               makeElmItem "Rotate Clockwise" "CmdOrCtrl+R" (fun () -> rotateDispatch Symbol.RotateClockwise)
+               makeElmItem "Flip Vertically" "CmdOrCtrl+F" (fun () -> sheetDispatch <| Sheet.Flip Symbol.FlipVertical)
+               makeElmItem "Flip Horizontally" "CmdOrCtrl+Shift+F" (fun () -> sheetDispatch <| Sheet.Flip Symbol.FlipHorizontal)
                menuSeparator
                makeElmItem "Select All" "CmdOrCtrl+A" (fun () -> dispatch Sheet.KeyboardMsg.CtrlA)
                makeElmItem "Delete"  (if isMac then "Backspace" else "delete") (fun () -> dispatch Sheet.KeyboardMsg.DEL)

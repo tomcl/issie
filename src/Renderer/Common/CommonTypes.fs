@@ -464,15 +464,16 @@ module CommonTypes
     [<Erase>]
     type ComponentId      = | ComponentId of string
 
-    /// SHA hash unique to a segment
-    [<Erase>]
-    type SegmentId      = | SegmentId of string
 
     /// SHA hash unique to a connection - common between JS and F#
 
     /// SHA hash unique to a connection - common between JS and F#
     [<Erase>]
     type ConnectionId     = | ConnectionId of string
+
+    /// type to uniquely identify a segment
+    type SegmentId      = int * ConnectionId
+
 
     /// Human-readable name of component as displayed on sheet.
     /// For I/O/labelIO components a width indication eg (7:0) is also displayed, but NOT included here

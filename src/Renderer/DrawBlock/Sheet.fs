@@ -88,7 +88,7 @@ type KeyboardMsg =
     | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC 
 
 type WireTypeMsg =
-    | Jump | Radial | Modern
+    | Jump | Radiussed | Modern
 
 type Msg =
     | Wire of BusWire.Msg

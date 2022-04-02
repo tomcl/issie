@@ -611,9 +611,9 @@ let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
 
 type Rectangle = {TopLeft: XYPos; BottomRight: XYPos}
 
-let getX (pos: XYPos) =
+let inline getX (pos: XYPos) =
     pos.X
-let getY (pos: XYPos) =
+let inline getY (pos: XYPos) =
     pos.Y
 
 /// Checks if 2 rectangles intersect

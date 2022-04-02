@@ -20,6 +20,7 @@ type Orientation = | Vertical | Horizontal
 //------------------------------BusWire Constants-------------------------//
 //------------------------------------------------------------------------//
 
+[<AutoOpen>]
 module Constants =
     let jumpRadius = 5.
     /// The minimum length of the initial segments (nubs) leaving the ports
@@ -28,6 +29,8 @@ module Constants =
     let cornerRadius = 5. 
     /// The standard radius of a modern wire connect circle
     let modernCircleRadius = 5.
+    /// How close same net vertices must be before they are joined by modern routing circles
+    let modernCirclePositionTolerance = 0.5
 
     let busWidthTextStyle =
         {
@@ -58,19 +61,27 @@ type RoutingMode = Manual | Auto
 /// Used to represent a segment in a wire
 type Segment = 
     {
-        Id : SegmentId
         Index: int
         Length : float
-        HostId: ConnectionId
+        WireId: ConnectionId
         /// List of offsets along a segment where jumps or intersects occur. Matches the sign of Length. Only used on horizontal segments.
-        IntersectOrJumpList: list<float * SegmentId>
+        IntersectOrJumpList: float list
         Draggable : bool
         Mode : RoutingMode
     }
 
+    with member this.getId() = this.Index,this.WireId
+
+/// Add absolute vertices to a segment
+type ASegment = {
+        Start: XYPos
+        End: XYPos
+        Segment: Segment
+    }
+
 type Wire =
     {
-        Id: ConnectionId 
+        WId: ConnectionId 
         InputPort: InputPortId
         OutputPort: OutputPortId
         Color: HighLightColor
@@ -95,7 +106,7 @@ type Model =
         Symbol: Symbol.Model
         Wires: Map<ConnectionId, Wire>
         CopiedWires: Map<ConnectionId, Wire> 
-        SelectedSegment: SegmentId
+        SelectedSegment: SegmentId option
         LastMousePos: XYPos
         ErrorWires: list<ConnectionId>
         Notifications: Option<string>
@@ -161,13 +172,14 @@ let inline foldOverSegs folder state wire =
         (nextState, nextPos, nextOrientation))
     |> (fun (state, _, _) -> state)
 
+
+
 //-------------------------Debugging functions---------------------------------//
 
 /// Formats a SegmentId for logging purposes.
-let formatSegmentId (id: SegmentId) =
-    id
-    |> (fun (SegmentId str) -> str)
-    |> (fun str -> str[0..2])
+let formatSegmentId ((index,wid): SegmentId) =
+    let (ConnectionId str) = wid
+    $"{index}:{str[0..2]}"
 
 /// Formats a WireId for logging purposes
 let formatWireId (id: ConnectionId) =
@@ -175,13 +187,13 @@ let formatWireId (id: ConnectionId) =
     |> (fun (ConnectionId str) -> str)
     |> (fun str -> str[0..2])
 
-/// Logs the given SegmentId and returns it unchanged. Used for debugging.
-let logSegmentId (id:SegmentId) =
-    printfn $"{formatSegmentId id}"; id
+let logSegmentId (seg:Segment) =
+    let (ConnectionId wIdStr) = seg.WireId
+    $"{wIdStr[0..3]}:{seg.Index}"
 
 /// Logs the given Segment and returns it unchanged. Used for debugging.
 let logSegment (seg:Segment) =
-    printfn $"|{seg.Index}:{formatSegmentId seg.Id}|-Length: {seg.Length}"; seg
+    printfn $"|{logSegmentId seg}|-Length: {seg.Length}"; seg
 
 /// Logs the given ConnectionId and returns it unchanged. Used for debugging.
 let logConnectionId (id:ConnectionId) =
@@ -205,7 +217,7 @@ let logIntersectionMaps (model:Model) =
             segments
             |> List.collect (fun segment -> 
                 segment.IntersectOrJumpList
-                |> List.map (fun (_, id) -> formatSegmentId id))
+                |> List.map (fun (_) -> logSegmentId segment))
 
         model.Wires
         |> Map.toList
@@ -223,9 +235,9 @@ let formatXY (xy: XYPos) = sprintf $"{(int(xy.X),int(xy.Y))}"
 /// Logs the given wire and returns it unchanged. Used for debugging.
 let logWire wire =
     let formatSegments startPos endPos state seg = 
-        let entry = sprintf $"|{seg.Index}:{formatSegmentId seg.Id}| Start: {formatXY startPos}, End: {formatXY endPos}"
+        let entry = sprintf $"|{seg.Index}:{logSegmentId seg}| Start: {formatXY startPos}, End: {formatXY endPos}"
         String.concat "\n" [state; entry]
-    let start = sprintf $"Wire: {formatWireId wire.Id}"
+    let start = sprintf $"Wire: {formatWireId wire.WId}"
     printfn $"{foldOverSegs formatSegments start wire}"
     wire
 
@@ -249,32 +261,71 @@ let inline getWireOutgoingEdge (wire:Wire) =
     | Vertical, false -> Edge.Top
      
 
-/// Tries to find and log a segment identified by segId in a wire identified by wireId in the current model.
+/// Tries to find and log a segment identified by index in a wire identified by wireId in the current model.
 /// Assumes wireId can be found in the current model. Returns unit, used for debugging.
-let logSegmentInModel model wireId segId  = 
+let logSegmentInModel model wireId index  = 
         let wire = model.Wires[wireId]
         let findAndFormatSeg segStart segEnd (_state: string option) (seg: Segment) =
-            if seg.Id = segId then 
+            if seg.Index = index then 
                 let orientation = 
                     match getSegmentOrientation segStart segEnd with
                     | Vertical -> "V"
                     | Horizontal -> "H"
-                Some (sprintf $"""[{formatSegmentId seg.Id}: {formatXY segStart}->{formatXY segEnd}]-{orientation}-{seg.Index}""")
+                Some (sprintf $"""[{logSegmentId seg}: {formatXY segStart}->{formatXY segEnd}]-{orientation}-{seg.Index}""")
             else None
 
         match foldOverSegs findAndFormatSeg None wire with
         | Some str -> printfn $"{str}"
-        | _ -> printfn $"ERROR: Could not find segment {formatSegmentId segId} in wire {formatWireId wireId}"
+        | _ -> printfn $"ERROR: Could not find segment {index} in wire {formatWireId wireId}"
         
 
 
 /// Tries to find and log each segment to its corresponding wire identified in wireSegmentIdPairs in the current model.
 /// Returns the model unchanged. Used for debugging.
-let logSegmentsInModel (model: Model) (wireSegmentIdPairs: (ConnectionId * SegmentId) list)= 
+let logSegmentsInModel (model: Model) (wireSegmentIdPairs: (int*ConnectionId) list)= 
     wireSegmentIdPairs
-    |> List.map  ( fun (wireId, segId) -> logSegmentInModel model wireId segId)
+    |> List.map  ( fun (index,wireId) -> logSegmentInModel model wireId)
     |> ignore
     model
+
+
+//------------------------------------------------------------------------------//
+//----------------------------------Helper functions----------------------------//
+//------------------------------------------------------------------------------//
+
+/// Returns true if a lies in the open interval (a,b). Endpoints are avoided by a tolerance parameter
+let inline inMiddleOf a x b = 
+    let e = Constants.modernCirclePositionTolerance
+    a + e < x && x < b - e
+
+/// Returns true if a lies in the closed interval (a,b). Endpoints are included by a tolerance parameter
+let inline inMiddleOrEndOf a x b = 
+    let e = Constants.modernCirclePositionTolerance
+    a + e < x && x < b - e
+   
+let inline getSourcePort (model:Model) (wire:Wire) =
+    let portId = Symbol.outputPortStr wire.OutputPort
+    let port = model.Symbol.Ports[portId]
+    port
+
+let inline getTargetPort (model:Model) (wire:Wire) =
+    let portId = Symbol.inputPortStr wire.InputPort
+    let port = model.Symbol.Ports[portId]
+    port
+
+let inline getSourceSymbol (model:Model) (wire:Wire) =
+    let portId = Symbol.outputPortStr wire.OutputPort
+    let port = model.Symbol.Ports[portId]
+    let symbol = model.Symbol.Symbols[ComponentId port.HostId]
+    symbol
+
+let inline getTargetSymbol (model:Model) (wire:Wire) =
+    let portId = Symbol.inputPortStr wire.InputPort
+    let port = model.Symbol.Ports[portId]
+    let symbol = model.Symbol.Symbols[ComponentId port.HostId]
+    symbol
+
+
 
 //-------------------------------Implementation code----------------------------//
 
@@ -426,12 +477,10 @@ let xyVerticesToSegments connId (xyVerticesList: XYPos list) =
     List.pairwise xyVerticesList
     |> List.mapi (
         fun i ({X=xStart; Y=yStart},{X=xEnd; Y=yEnd}) ->    
-            let id = SegmentId(JSHelpers.uuid())
             {
-                Id = id
                 Index = i
                 Length = xEnd - xStart + yEnd - yStart
-                HostId  = connId;
+                WireId  = connId;
                 IntersectOrJumpList = [] ; // To test jump and modern wire types need to manually insert elements into this list.
                 Mode = Auto
                 Draggable = not (i = 0 || i = xyVerticesList.Length - 2) //First and Last should not be draggable
@@ -463,12 +512,10 @@ let issieVerticesToSegments
         List.pairwise xyVerticesList
         |> List.mapi (
             fun i (startVertex,endVertex) ->    
-                let id = SegmentId(JSHelpers.uuid())
                 {
-                    Id = id
                     Index = i
                     Length = endVertex.Pos.X-startVertex.Pos.X+endVertex.Pos.Y-startVertex.Pos.Y
-                    HostId  = connId;
+                    WireId  = connId;
                     IntersectOrJumpList = [] ; // To test jump and modern wire types need to manually insert elements into this list.
                     Mode = endVertex.Mode
                     Draggable =
@@ -498,7 +545,7 @@ let segmentsToIssieVertices (segList:Segment list) (wire:Wire) =
 /// between our implementation and Issie.
 let extractConnection (wModel : Model) (cId : ConnectionId) : Connection =
     let conn = wModel.Wires[cId]
-    let ConnectionId strId, InputPortId strInputPort, OutputPortId strOutputPort = conn.Id, conn.InputPort, conn.OutputPort
+    let ConnectionId strId, InputPortId strInputPort, OutputPortId strOutputPort = conn.WId, conn.InputPort, conn.OutputPort
     {
         Id = strId
         Source = { Symbol.getPort wModel.Symbol strOutputPort with PortNumber = None } // None for connections 
@@ -519,12 +566,7 @@ let extractConnections (wModel : Model) : list<Connection> =
 //----------------------------------Rendering Functions------------------------------------//
 //-----------------------------------------------------------------------------------------//
 
-/// A pair of vertices as well as any intersections or jumps on that segment
-type AbsSegment = {
-        Start: XYPos
-        End: XYPos
-        IntersectCoordinateList: list<float * SegmentId>
-    }
+
 
 /// Type passed to wire renderer functions.
 /// The data here is cached by React and if the same as last time
@@ -542,14 +584,15 @@ type WireRenderProps =
 
 /// extract absolute segments from a wire.
 /// NB - it is more efficient to use various fold functions (foldOverSegs etc)
-let getAbsSegments (wire: Wire) : AbsSegment List= 
+let getAbsSegments (wire: Wire) : ASegment List= 
     segmentsToVertices wire.Segments wire
-    |> List.map (fun x -> {X=fst(x); Y=snd(x)})
+    |> List.map (fun (x,y) -> {X=x; Y=y})
     |> List.pairwise
     |> List.zip wire.Segments
-    |> List.map (fun x -> fst(snd(x)),snd(snd(x)), fst(x).IntersectOrJumpList)
-    |> List.map (fun (startVertex,endVertex,intersectList) -> 
-                        {Start=startVertex; End=endVertex; IntersectCoordinateList=intersectList})
+    |> List.map (fun (seg, (sPos,endPos)) -> 
+        {Start=sPos; End=endPos; Segment = seg })
+
+
 
 let renderWireWidthText (props: WireRenderProps): ReactElement =
     let textStyle = 
@@ -571,7 +614,7 @@ let renderWireWidthText (props: WireRenderProps): ReactElement =
 /// (apart from the final "nub") with a radial display type 
 let renderRadialWireSVG 
     (state : (string * Orientation)) 
-    (segmentpair : {| First : AbsSegment; Second :AbsSegment|}) 
+    (segmentpair : {| First : ASegment; Second :ASegment|}) 
     : string * Orientation =
     
     let seg1Start = segmentpair.First.Start
@@ -637,7 +680,7 @@ let renderRadialWireSVG
                     ((fst(state)+current), Horizontal)
 
 ///Renders a single segment in the display type of modern
-let renderModernSegment (param : {| AbsSegment : AbsSegment; Colour :string; Width : string|}) = 
+let renderModernSegment (param : {| AbsSegment : ASegment; Colour :string; Width : string|}) = 
     let startVertex = param.AbsSegment.Start
     let endVertex = param.AbsSegment.End
     let widthOpt = EEExtensions.String.tryParseWith System.Int32.TryParse param.Width
@@ -651,12 +694,12 @@ let renderModernSegment (param : {| AbsSegment : AbsSegment; Colour :string; Wid
     
     let circles =
         if (startVertex.X - endVertex.X > 0) then //Segment is right to left
-            param.AbsSegment.IntersectCoordinateList 
-            |> List.map (fun x -> startVertex.X - fst(x))
+            param.AbsSegment.Segment.IntersectOrJumpList 
+            |> List.map (fun x -> startVertex.X - x)
             |> List.map (fun x -> makeCircle x startVertex.Y circleParameters)
         else                                      //Segment is left to right
-            param.AbsSegment.IntersectCoordinateList 
-            |> List.map (fun x -> startVertex.X + fst(x))
+            param.AbsSegment.Segment.IntersectOrJumpList 
+            |> List.map (fun x -> startVertex.X + x)
             |> List.map (fun x -> makeCircle x startVertex.Y circleParameters)
     
     //Only ever render intersections on horizontal segments
@@ -667,7 +710,7 @@ let renderModernSegment (param : {| AbsSegment : AbsSegment; Colour :string; Wid
         [makeLine startVertex.X startVertex.Y endVertex.X endVertex.Y lineParameters]
         
 
-let renderJumpSegment (a:AbsSegment) : string list=
+let renderJumpSegment (a:ASegment) : string list=
     let sPos = a.Start
     let ePos = a.End
     let jR = Constants.jumpRadius
@@ -684,21 +727,21 @@ let renderJumpSegment (a:AbsSegment) : string list=
         match jLst with
         | [] -> 
             [ makeLineAttr (ePos.X - xPos) 0.0 ]
-        | (xJ,_):: _ when abs (xJ - xPos) > jR ->
+        | xJ:: _ when abs (xJ - xPos) > jR ->
             makeLineAttr (xJ - xPos - dir*jR) 0. :: makeJumpPathAttr jLst (xJ - dir*(jR - XYPos.epsilon))
-        | [xJ,_] when abs (ePos.X - xJ) < jR ->
+        | [xJ] when abs (ePos.X - xJ) < jR ->
             [ makePartArc (xJ - xPos) (ePos.X - xJ) ]
-        | [xJ,_] ->
+        | [xJ] ->
             makePartArc (xJ - xPos) (dir*jR) :: makeJumpPathAttr [] (xJ + dir * jR)
-        | (xJ,_) :: (((yJ,_) :: _) as jLst') when abs (yJ - xJ) > 2. * jR ->
+        | xJ :: ((yJ :: _) as jLst') when abs (yJ - xJ) > 2. * jR ->
             makePartArc (xJ - xPos) (dir*jR) :: makeJumpPathAttr jLst' (xJ + dir*jR)
-        | (xJ,_) :: (((yJ,_) :: _) as jLst') ->
+        | xJ :: ((yJ :: _) as jLst') ->
             makePartArc (xJ - xPos) ((yJ - xJ) / 2.0) :: makeJumpPathAttr jLst' ((yJ+xJ)/ 2.0)
     let jLst =
-        match rightTravel, a.IntersectCoordinateList with
-        | true, jL -> jL |> List.sortBy fst
-        | false, jL -> jL |> List.sortBy fst
-        |> List.map (fun (f,seg) -> f*dir + sPos.X,seg)
+        match rightTravel, a.Segment.IntersectOrJumpList with
+        | true, jL -> jL |> List.sort
+        | false, jL -> jL |> List.sort
+        |> List.map (fun f -> f*dir + sPos.X)
     match jLst, abs (sPos.X - ePos.X) < XYPos.epsilon with
     | _, true
     | [], false -> 
@@ -799,7 +842,7 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
                         | _ -> 3.5
                     let props =
                         {
-                            key = match wire.Id with | ConnectionId s -> s
+                            key = match wire.WId with | ConnectionId s -> s
                             Wire = wire
                             ColorP = wire.Color
                             StrokeWidthP = strokeWidthP 
@@ -827,7 +870,7 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
                         | CommonTypes.Top -> $"{x},{y},{x+2.},{y-4.},{x-2.},{y-4.}"
                         | CommonTypes.Bottom -> $"{x},{y},{x+2.},{y+4.},{x-2.},{y+4.}"
                         | CommonTypes.Right -> $"{x},{y},{x+4.},{y+2.},{x+4.},{y-2.}"
-                        | CommonTypes.Left -> $"{x},{Y},{x-4.},{y+2.},{x-4.},{y-2.}"
+                        | CommonTypes.Left -> $"{x},{y},{x-4.},{y+2.},{x-4.},{y-2.}"
 
                     let polygon = {
                         defaultPolygon with

@@ -191,9 +191,13 @@ let defaultText = {
 
 /// Port circle, used by both Sheet and Symbol to create ports
 let portCircle = { defaultCircle with R = 5.0; Stroke = "Black"; StrokeWidth = "1.0px"; Fill = "Grey"}
+
+
 //--------------------------------------------------------------------------//
 //-----------------------------Helpers--------------------------------------//
 //--------------------------------------------------------------------------//
+
+
 
 /// return a v4 (random) universally unique identifier (UUID)
 /// works under .NET and FABLE

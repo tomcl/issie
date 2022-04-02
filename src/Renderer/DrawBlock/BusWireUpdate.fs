@@ -13,7 +13,7 @@ let init () =
         Wires = Map.empty;
         Symbol = symbols; 
         CopiedWires = Map.empty; 
-        SelectedSegment = SegmentId(""); 
+        SelectedSegment = None; 
         LastMousePos = {X = 0.0; Y = 0.0};
         ErrorWires = []
         Notifications = None
@@ -29,28 +29,28 @@ type Rectangle = {
 }
 
 /// Returns the X-value of an XYPos
-let toX (pos: XYPos) = pos.X
+let inline toX (pos: XYPos) = pos.X
 
 /// Returns the Y-value of an XYPos
-let toY (pos: XYPos) = pos.Y
+let inline toY (pos: XYPos) = pos.Y
 
 /// Returns the X and Y fields of an XYPos as a pair of floats
-let getXY (pos: XYPos) = pos.X, pos.Y
+let inline getXY (pos: XYPos) = pos.X, pos.Y
 
 /// Returns pos with the X and Y fields scaled by factor (I didn't like the order of parameters for the * operator in XYPos)
-let scalePos (factor: float) (pos: XYPos) : XYPos =
+let inline scalePos (factor: float) (pos: XYPos) : XYPos =
     { X = factor * pos.X; Y = factor * pos.Y}
 
 /// Returns true if p1 is less than or equal to p2 (has both smaller X and Y values
-let lThanEqualPos (p1: XYPos) (p2: XYPos) : bool =
+let inline lThanEqualPos (p1: XYPos) (p2: XYPos) : bool =
     p1.X <= p2.X && p1.Y <= p2.Y
 
 /// Returns the dot product of 2 XYPos
-let dotProduct (p1: XYPos) (p2: XYPos) : float = 
+let inline dotProduct (p1: XYPos) (p2: XYPos) : float = 
     p1.X * p2.X + p1.Y * p2.Y
 
 /// Returns the squared distance between 2 points using Pythagoras
-let squaredDistance (p1: XYPos) (p2: XYPos) = 
+let inline squaredDistance (p1: XYPos) (p2: XYPos) = 
     let diff = p1 - p2
     dotProduct diff diff
 
@@ -114,10 +114,10 @@ let getClickedSegment (model: Model) (wireId: ConnectionId) (mouse: XYPos) : Seg
         | Some (minId, minDist) ->
             let dist = Option.defaultValue minDist currDist
             if dist < minDist then
-                Some (seg.Id, dist)
+                Some (seg.getId(), dist)
             else
                 Some (minId, minDist)
-        | None -> Option.map (fun dist -> (seg.Id, dist)) currDist // Needed to deal with initial state
+        | None -> Option.map (fun dist -> (seg.getId(), dist)) currDist // Needed to deal with initial state
 
     match foldOverSegs closestSegment None model.Wires[wireId] with
     | Some (segmentId, _dist) -> segmentId 
@@ -149,13 +149,13 @@ let getConnectedWires model compIds =
 /// Returns the IDs of the wires in the model connected to a list of components given by compIds
 let getConnectedWireIds model compIds =
     getConnectedWires model compIds
-    |> List.map (fun wire -> wire.Id)
+    |> List.map (fun wire -> wire.WId)
 
 /// Returns a list of wire IDs that meet the given condition
 let getFilteredIdList condition wireLst = 
     wireLst
     |> List.filter condition
-    |> List.map (fun wire -> wire.Id)
+    |> List.map (fun wire -> wire.WId)
 
 /// Given a model and a list of component Ids, returns an anonymous record
 /// containing the id of wires connected to input ports, output ports or both
@@ -260,12 +260,12 @@ let getSafeDistanceForMove (segments: Segment list) (index: int) (distance: floa
 /// a specified distance. The moved segment is tagged as manual so that it is no longer auto-routed.
 /// Throws an error if the index of the segment being moved is not a valid movable segment index.
 let moveSegment (model:Model) (seg:Segment) (distance:float) = 
-    let wire = model.Wires[seg.HostId]
+    let wire = model.Wires[seg.WireId]
     let segments = wire.Segments
     let idx = seg.Index
 
     if idx <= 0 || idx >= segments.Length - 1 then // Should never happen
-        failwithf $"Trying to move wire segment {seg.Index}:{formatSegmentId seg.Id}, out of range in wire length {segments.Length}"
+        failwithf $"Trying to move wire segment {seg.Index}:{logSegmentId seg}, out of range in wire length {segments.Length}"
 
     let safeDistance = getSafeDistanceForMove segments idx distance
     
@@ -292,11 +292,11 @@ type PortInfo = {
 }
 
 /// Returns a PortInfo object given a port edge and position
-let genPortInfo edge position =
+let inline genPortInfo edge position =
     { Edge = edge; Position = position }
 
 /// Returns an edge rotated 90 degrees anticlockwise
-let rotate90Edge (edge: Edge) = 
+let inline rotate90Edge (edge: Edge) = 
     match edge with
     | CommonTypes.Top -> CommonTypes.Left
     | CommonTypes.Left -> CommonTypes.Bottom
@@ -304,7 +304,7 @@ let rotate90Edge (edge: Edge) =
     | CommonTypes.Right -> CommonTypes.Top
 
 /// Returns a port rotated 90 degrees anticlockwise about the origin
-let rotate90Port (port: PortInfo) =
+let inline rotate90Port (port: PortInfo) =
     let newEdge = rotate90Edge port.Edge
 
     let newPos =
@@ -339,7 +339,7 @@ let rec rotateStartDest (target: Edge) ((start, dest): PortInfo * PortInfo) =
 
 
 /// Gets a wire orientation given a port edge
-let getOrientation (edge: Edge) = 
+let inline getOrientation (edge: Edge) = 
     match edge with
     | CommonTypes.Top | CommonTypes.Bottom -> Vertical
     | CommonTypes.Left | CommonTypes.Right -> Horizontal
@@ -375,7 +375,7 @@ let autoroute (model: Model) (wire: Wire) : Wire =
         rotateStartDest CommonTypes.Right (startPort, destPort)
 
     let initialSegments =
-        makeInitialSegmentsList wire.Id normalisedStart.Position normalisedEnd.Position normalisedEnd.Edge
+        makeInitialSegmentsList wire.WId normalisedStart.Position normalisedEnd.Position normalisedEnd.Edge
 
     let segments =
         {| edge = CommonTypes.Right
@@ -529,23 +529,143 @@ let moveWire (wire: Wire) (displacement: XYPos) =
 
 /// Returns an updated wireMap with the IntersectOrJumpList of targetSeg replaced by jumps or modern intersections
 let updateSegmentJumpsOrIntersections targetSeg intersectOrJump wireMap =
-    let wId = targetSeg.HostId
+    let wId = targetSeg.WireId
     let target = targetSeg.Index
 
     let changeSegment (segs: Segment List) =
-        List.map
-            (fun seg ->
-                if seg.Index <> target then
-                    seg
-                else
-                    { seg with IntersectOrJumpList = intersectOrJump })
-            segs
+        List.updateAt target {targetSeg with IntersectOrJumpList = intersectOrJump } segs
 
     wireMap
     |> Map.add wId { wireMap[wId] with Segments = changeSegment wireMap[wId].Segments }
 
+
+let partitionWiresIntoNets (model:Model) =
+    model.Wires
+    |> Map.toList
+    |> List.groupBy (fun (_,wire) -> wire.OutputPort)
+
+
+type SegInfo = {P: float; Qmin: float; Qmax:float; Index: int; OfWire: Wire}
+
+
+let getHVSegs (wire : Wire) =
+    let isHorizontal (i:int, seg:ASegment) =
+        match wire.InitialOrientation with
+        | Horizontal -> i % 2 = 0
+        | Vertical -> i % 2 = 1
+
+    let makeInfo p q1 q2 (i:int) (seg:ASegment) =
+        let qMin = min q1 q2
+        let qMax = max q1 q2
+        {P=p; Qmin = qMin; Qmax = qMax; Index = i; OfWire=wire}
+
+    wire
+    |> getAbsSegments
+    |> List.indexed
+    |> List.partition isHorizontal
+    |> (fun (hSegs,vSegs) ->
+        let hInfo = hSegs |> List.map (fun (i,seg) -> makeInfo seg.Start.Y seg.Start.X seg.End.X i seg)
+        let vInfo = vSegs |> List.map (fun (i,seg) -> makeInfo seg.Start.X seg.Start.Y seg.End.Y i seg)
+        hInfo, vInfo)
+
+type CircleT = float * int * Wire
+
+let updateCirclesOnSegments 
+        (wiresToUpdate: Wire list)
+        (circles: CircleT list) 
+        (model: Model) =
+
+    let updateWire (circles: (float list * int) list) (wire: Wire) : Wire =
+        let newSegs =
+            wire.Segments
+            |> List.map (fun seg -> {seg with IntersectOrJumpList = []})
+            |> ( fun segs -> 
+                (segs, circles)
+                ||> List.fold (fun segs (circleYCoordL, segIndex) ->
+                    let newSeg = 
+                        {segs[segIndex] with 
+                            IntersectOrJumpList = circleYCoordL}
+                    List.updateAt segIndex newSeg segs)) 
+        { wire with Segments = newSegs}
+
+    ()
+        
+    
+    
+        
+
+
+        
+            
+        
+        
+        
+
+let inline samePos (pos1: XYPos) (pos2: XYPos) =
+    max (pos1.X-pos2.X) (pos1.Y - pos2.Y) < Constants.modernCirclePositionTolerance
+
+let inline close (a:float) (b:float) = abs (a-b) < Constants.modernCirclePositionTolerance
+
+let updateCirclesOnNet 
+        (wiresInNet: Wire list) 
+        (model: Model) : Model =
+    let hsL, vsL =
+        List.map getHVSegs wiresInNet
+        |> List.unzip
+        |> fun (a,b) -> List.concat a, List.concat b
+    let e = Constants.modernCirclePositionTolerance
+    /// A circle can be on a V segment intersection with the middle of an H segment or vice versa.
+    /// Note that at most one of the H or V segments can intersect at an endpoint.
+    let getIntersection (h,v) =
+        if inMiddleOf v.Qmin h.P v.Qmax && inMiddleOrEndOf h.Qmin v.P h.Qmax ||
+           inMiddleOrEndOf v.Qmin h.P v.Qmax && inMiddleOf h.Qmin v.P h.Qmax then
+            [v.P, h.Index, h.OfWire]
+        else []
+    /// A join is a point where the ends of two H, or two V segments are coincident (to with a tolerance)
+    /// A circle must be placed whenever a V segment end coincide with an H segment join or vice versa
+    let getJoins segs =
+        List.allPairs segs segs
+        |> List.collect (fun (s1, s2) ->
+            if close s1.P s2.P && close s1.Qmax s2.Qmin then
+                [(s1.P+s2.P)/2., (s1.Qmax+s2.Qmin)/2., s2.Index, s2.OfWire]
+            else 
+                [])
+    /// get all intersections - circles will be placed here
+    let intersectCircles =
+        List.allPairs hsL vsL
+        |> List.collect getIntersection
+    /// all horizontal join circles
+    let hJoinCircles =
+        getJoins hsL
+        |> List.collect (fun (x,y,index,wire) ->
+            if List.exists (fun vs -> close vs.P x && (close vs.Qmin y || close vs.Qmax y)) vsL then
+                [x,index,wire]
+            else [])
+    /// all vertical join circles
+    let vJoinCircles =
+        getJoins vsL
+        |> List.collect (fun (x,y,_,_) ->
+            hsL |> List.pick (fun hs -> 
+                if not <| close hs.P y then 
+                    None 
+                elif close hs.Qmin x then
+                    Some [hs.Qmin, hs.Index, hs.OfWire]
+                elif close hs.Qmax x then
+                    Some [hs.Qmax, hs.Index, hs.OfWire]
+                else None))
+    let circles = intersectCircles @ vJoinCircles @ hJoinCircles
+    model
+    //|> updateCirclesOnSegments wiresInNet circles
+                    
+
+
+
+
+    
+
+
 /// Used as a folder in foldOverSegs. Finds all Modern offsets in a wire for the segment defined in the state
-let findModernIntersects (segStart: XYPos) (segEnd: XYPos) (state: {| Start: XYPos; End: XYPos; JumpsOrIntersections: (float * SegmentId) list |}) (seg: Segment) =
+let findModernIntersects (segStart: XYPos) (segEnd: XYPos) (state: {| Start: XYPos; End: XYPos; JumpsOrIntersections: float list |}) (seg: Segment) =
     let x1Start, x1End, x2Start, x2End = segStart.X, segEnd.X, state.Start.X, state.End.X
     let y1Start, y1End, y2Start, y2End = segStart.Y, segEnd.Y, state.Start.Y, state.End.Y
     let x1hi, x1lo = max x1Start x1End, min x1Start x1End
@@ -554,21 +674,21 @@ let findModernIntersects (segStart: XYPos) (segEnd: XYPos) (state: {| Start: XYP
     let y2hi, y2lo = max y2Start y2End, min y2Start y2End
     if getSegmentOrientation segStart segEnd = Vertical then
         if y2Start < y1hi  && y2Start > y1lo  && (x2Start > x1hi - 0.1 && x2Start < x1hi + 0.1) then
-            {| state with JumpsOrIntersections = (abs(0.0), seg.Id) :: state.JumpsOrIntersections |}
+            {| state with JumpsOrIntersections = 0.0 :: state.JumpsOrIntersections |}
         else if y2End < y1hi  && y2End > y1lo  && (x2End > x1hi - 0.1 && x2End < x1hi + 0.1) then
-            {| state with JumpsOrIntersections = (abs(x2End - x2Start), seg.Id) :: state.JumpsOrIntersections |}
+            {| state with JumpsOrIntersections = abs (x2End - x2Start) :: state.JumpsOrIntersections |}
         else
             state
     else
         if (y2Start > y1hi - 0.1 && y2Start < y1hi + 0.1) && x1hi > x2hi && x1lo < x2lo then
-            {| state with JumpsOrIntersections = (abs(0.0), seg.Id) :: (abs(x2End - x2Start), seg.Id) :: state.JumpsOrIntersections |}
+            {| state with JumpsOrIntersections = 0.0 :: abs(x2End - x2Start) :: state.JumpsOrIntersections |}
         else if (y2Start > y1hi - 0.1 && y2Start < y1hi + 0.1) && x2hi > x1hi && x1hi > x2lo && x2lo > x1lo then
-             {| state with JumpsOrIntersections = (abs(0.0), seg.Id) :: (abs(x1hi - x2lo), seg.Id) :: state.JumpsOrIntersections |}
+             {| state with JumpsOrIntersections = 0.0 :: abs(x1hi - x2lo) :: state.JumpsOrIntersections |}
         else
             state
 
 /// Used as a folder in foldOverSegs. Finds all jump offsets in a wire for the segment defined in the state
-let inline findJumpIntersects (segStart: XYPos) (segEnd: XYPos) (state: {| Start: XYPos; End: XYPos; JumpsOrIntersections: (float * SegmentId) list |}) (seg: Segment) =
+let inline findJumpIntersects (segStart: XYPos) (segEnd: XYPos) (state: {| Start: XYPos; End: XYPos; JumpsOrIntersections: float list |}) (seg: Segment) =
     if getSegmentOrientation segStart segEnd = Vertical then
         let xVStart, xHStart, xHEnd = segStart.X, state.Start.X, state.End.X
         let yVStart, yVEnd, yHEnd = segStart.Y, segEnd.Y, state.End.Y
@@ -576,7 +696,7 @@ let inline findJumpIntersects (segStart: XYPos) (segEnd: XYPos) (state: {| Start
         let yhi, ylo = max yVStart yVEnd, min yVStart yVEnd
 
         if xVStart < xhi  && xVStart > xlo  && yHEnd < yhi && yHEnd > ylo then
-            {| state with JumpsOrIntersections = (abs(xVStart - xHStart), seg.Id) :: state.JumpsOrIntersections |}
+            {| state with JumpsOrIntersections = abs (xVStart - xHStart) :: state.JumpsOrIntersections |}
         else
             state
     else   
@@ -625,12 +745,24 @@ let updateWireSegmentJumps (wireList: list<ConnectionId>) (model: Model) : Model
     TimeHelpers.instrumentTime "UpdateJumps" startT
     model
 
+let resetJumpsOrIntersections (wire: Wire) =
+    let newSegs =
+        wire.Segments
+        |> List.map (fun seg -> {seg with IntersectOrJumpList = []})
+    {wire with Segments = newSegs}
+
+let resetJumps (model:Model) : Model =
+        (model.Wires, model.Wires)
+        ||> Map.fold (fun wires wid wire ->
+                Map.add wid (resetJumpsOrIntersections wire) wires)
+        |> (fun wires -> {model with Wires = wires})
+
 /// This function updates the wire model by removing from the stored lists of intersections
 /// all those generated by wireList wires.
 /// intersetcions are stored in maps on the model and on the horizontal segments containing the jumps
 let resetWireSegmentJumps (wireList : list<ConnectionId>) (model : Model) : Model =
     let startT = TimeHelpers.getTimeMs()
-    makeAllJumps wireList model
+    resetJumps model
     |> TimeHelpers.instrumentInterval "ResetJumps" startT
 
 
@@ -706,7 +838,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         let wireId = ConnectionId(JSHelpers.uuid())
         let newWire = 
             {
-                Id = wireId
+                WId = wireId
                 InputPort = inputId
                 OutputPort = outputId
                 Color = HighLightColor.DarkSlateGrey
@@ -719,7 +851,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             }
             |> autoroute model
         
-        let wireAddedMap = Map.add newWire.Id newWire model.Wires
+        let wireAddedMap = Map.add newWire.WId newWire model.Wires
         let newModel = updateWireSegmentJumps [wireId] {model with Wires = wireAddedMap}
         
         newModel, Cmd.ofMsg BusWidths
@@ -730,12 +862,12 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         let processConWidths (connWidths: ConnectionsWidth) =
             let addWireWidthFolder (wireMap: Map<ConnectionId, Wire>) _ wire  =
                 let width =
-                    match connWidths[wire.Id] with
+                    match connWidths[wire.WId] with
                     | Some a -> a
                     | None -> wire.Width
                 let newColor = 
                     if wire.Color = Purple || wire.Color = Brown then Purple else DarkSlateGrey
-                wireMap.Add ( wire.Id, { wire with Width = width ; Color = newColor} )
+                wireMap.Add ( wire.WId, { wire with Width = width ; Color = newColor} )
 
             let addSymbolWidthFolder (m: Map<ComponentId,Symbol.Symbol>) (_: ConnectionId) (wire: Wire) =
                     let inPort = model.Symbol.Ports[match wire.InputPort with InputPortId ip -> ip]
@@ -833,11 +965,11 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         match mMsg.Op with
         | Down ->
             let segId = getClickedSegment model connId mMsg.Pos
-            {model with SelectedSegment = segId }, Cmd.none
+            {model with SelectedSegment = Some segId }, Cmd.ofMsg (ResetJumps [])
         | Drag ->
             let seg = 
                 model.Wires[connId].Segments
-                |> List.tryFind (fun seg -> model.SelectedSegment = seg.Id) 
+                |> List.tryFind (fun seg -> model.SelectedSegment = Some (seg.getId()))
                 |> function | Some seg -> seg | None -> failwithf $"Segment Id {model.SelectedSegment} not found in segment list"
             if seg.Draggable then
                 let distanceToMove = 
@@ -847,7 +979,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                     | Vertical -> mMsg.Pos.X - segStart.X
 
                 let newWire = moveSegment model seg distanceToMove 
-                let newWires = Map.add seg.HostId newWire model.Wires
+                let newWires = Map.add seg.WireId newWire model.Wires
 
                 { model with Wires = newWires }, Cmd.none
             else
@@ -873,18 +1005,14 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         // removes wire 'jumps' at start of drag operation for neater component movement 
         // without jump recalculation
         // makejumps at end of a drag operation restores new jumps
-        let newModel =
-            model
-            |> resetWireSegmentJumps connIds
-
+        printfn $"Resetting jumps with {connIds.Length} connections"
+        let newModel = resetWireSegmentJumps connIds model
         newModel, Cmd.none
 
     | MakeJumps connIds ->
         // recalculates (slowly) wire jumps after a drag operation
-        let newModel =
-            model
-            |> updateWireSegmentJumps connIds
-
+        printfn $"Making jumps with {connIds.Length} connections"
+        let newModel = updateWireSegmentJumps connIds model
         newModel, Cmd.none
 
     | ResetModel -> 
@@ -932,7 +1060,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                             updateWire model wire inOut)
                 connId,
                 { 
-                    Id = ConnectionId conn.Id
+                    WId = ConnectionId conn.Id
                     InputPort = inputId
                     OutputPort = outputId
                     Color = HighLightColor.DarkSlateGrey
@@ -1036,7 +1164,7 @@ let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list
                 [
                     {
                         oldWire with
-                            Id = newId;
+                            WId = newId;
                             InputPort = InputPortId newInputPort;
                             OutputPort = OutputPortId newOutputPort;
                             Segments = segmentList;
@@ -1051,7 +1179,7 @@ let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list
         |> Map.toList
         |> List.map snd
         |> List.collect createNewWire
-        |> List.map (fun wire -> wire.Id, wire)
+        |> List.map (fun wire -> wire.WId, wire)
         |> Map.ofList
 
     let newWireMap = Map.fold ( fun acc newKey newVal -> Map.add newKey newVal acc ) pastedWires wModel.Wires

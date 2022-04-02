@@ -108,12 +108,22 @@ type Msg =
     | MovePortDone of portId: string * move: XYPos
     | SaveSymbols
 
+
+//------------------------------------------------------------------//
+//------------------------ Helper functions ------------------------//
+//------------------------------------------------------------------//
+
+let inline inputPortStr (InputPortId s) = s
+let inline outputPortStr (OutputPortId s) = s
+
 let inline invertRotation (rot: RotationType) =
     match rot with
     | RotateClockwise -> RotateAntiClockwise
     | RotateAntiClockwise -> RotateClockwise
 
-// ----- helper functions for titles ----- //
+//------------------------------------------------------------------//
+//------------------- Helper functions for titles ------------------//
+//------------------------------------------------------------------//
 
 ///Insert titles compatible with greater than 1 buswidth
 let title (t:string) (n:int) : string =  
@@ -156,8 +166,6 @@ let getPrefix compType =
     | BusSelection _ -> "SEL"
     | _ -> ""
 
-
-//-----------------------------Skeleton Model Type for symbols----------------//
 
 // Text to be put inside different Symbols depending on their ComponentType
 let getComponentLabel (componentType:ComponentType) =
@@ -222,7 +230,7 @@ let portLists numOfPorts hostID portType =
 //-----------------------Skeleton Message type for symbols---------------------//
 
 ///Rounds an integer to any given number. The first parameter is the number to round to, the second parameter is the input number that will be rounded
-let roundToN (n : int) (x : int) =
+let inline roundToN (n : int) (x : int) =
     x + abs((x % n) - n)
 
 let customToLength (lst : (string * int) list) =
@@ -460,18 +468,18 @@ let inline getPortPosEdgeGap (ct: ComponentType) =
     | _ -> 1.0
 
 ///Given a symbol and a Port, it returns the orientation of the port
-let getSymbolPortOrientation (sym: Symbol) (port: Port): Edge =
+let inline getSymbolPortOrientation (sym: Symbol) (port: Port): Edge =
     let portId = port.Id
     sym.PortOrientation[portId]
 
 /// Returns the height and width of a symbol
-let getHAndW sym =
+let inline getHAndW sym =
     match sym.STransform.Rotation with
     | Degree0 | Degree180 -> sym.Component.H, sym.Component.W
     | _ -> sym.Component.W, sym.Component.H
 
 /// Returns the xy offset of a side relative to the symbol topleft
-let getPortBaseOffset (sym: Symbol) (side: Edge): XYPos=
+let inline getPortBaseOffset (sym: Symbol) (side: Edge): XYPos=
     let h,w = getHAndW sym
     match side with 
     | Right -> {X = w; Y = 0.0}
@@ -542,12 +550,12 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
         baseOffset' + {X = xOffset; Y = 0.0 }
 
 /// Gives the port positions to the render function, it gives the moving port pos where the mouse is, if there is a moving port
-let getPortPosToRender (sym: Symbol) (port: Port) : XYPos =
+let inline getPortPosToRender (sym: Symbol) (port: Port) : XYPos =
     match sym.MovingPort with
     | Some movingPort when port.Id = movingPort.PortId -> movingPort.CurrPos - sym.Pos
     | _ -> getPortPos sym port
 
-let getPortPosModel (model: Model) (port:Port) =
+let inline getPortPosModel (model: Model) (port:Port) =
     getPortPos (Map.find (ComponentId port.HostId) model.Symbols) port
 
 //-----------------------------------------DRAWING HELPERS ---------------------------------------------------
@@ -567,7 +575,7 @@ let private addComponentLabel height width name weight size rotation =
 
 
 /// Generate circles on ports
-let private portCircles (pos: XYPos) = 
+let inline private portCircles (pos: XYPos) = 
     [makeCircle pos.X pos.Y portCircle]
 
 /// Puts name on ports
@@ -868,7 +876,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
 //------------------------GET BOUNDING BOXES FUNCS--------------------------------used by sheet.
 /// Returns the bounding box of a symbol. It is defined by the height and the width as well as the x,y position of the symbol.
 /// Works with rotation.
-let getSymbolBoundingBox (sym:Symbol): BoundingBox =
+let inline getSymbolBoundingBox (sym:Symbol): BoundingBox =
     let h,w = getHAndW sym
     {TopLeft = sym.Pos; H = float(h) ; W = float(w)}
 
@@ -877,7 +885,7 @@ let getBoundingBoxes (symModel: Model): Map<ComponentId, BoundingBox> =
     Map.map (fun sId (sym:Symbol) -> (getSymbolBoundingBox sym)) symModel.Symbols
 
 /// Returns bounding box of a component based on component id
-let getBoundingBox (symModel: Model) (compid: ComponentId ): BoundingBox = 
+let inline getBoundingBox (symModel: Model) (compid: ComponentId ): BoundingBox = 
     let symb = Map.find compid symModel.Symbols
     getSymbolBoundingBox symb
 

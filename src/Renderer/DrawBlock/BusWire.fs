@@ -28,9 +28,9 @@ module Constants =
     /// The standard radius of a radial wire corner
     let cornerRadius = 5. 
     /// The standard radius of a modern wire connect circle
-    let modernCircleRadius = 5.
+    let modernCircleRadius = 10.
     /// How close same net vertices must be before they are joined by modern routing circles
-    let modernCirclePositionTolerance = 0.5
+    let modernCirclePositionTolerance = 5.
 
     let busWidthTextStyle =
         {
@@ -301,7 +301,7 @@ let inline inMiddleOf a x b =
 /// Returns true if a lies in the closed interval (a,b). Endpoints are included by a tolerance parameter
 let inline inMiddleOrEndOf a x b = 
     let e = Constants.modernCirclePositionTolerance
-    a + e < x && x < b - e
+    a - e < x && x < b + e
    
 let inline getSourcePort (model:Model) (wire:Wire) =
     let portId = Symbol.outputPortStr wire.OutputPort
@@ -580,6 +580,8 @@ type WireRenderProps =
         OutputPortEdge : Edge
         OutputPortLocation: XYPos
         DisplayType : WireType
+        TriangleEdge : Edge
+        InputPortLocation: XYPos
     }
 
 /// extract absolute segments from a wire.
@@ -692,20 +694,15 @@ let renderModernSegment (param : {| AbsSegment : ASegment; Colour :string; Width
     let lineParameters = { defaultLine with Stroke = param.Colour; StrokeWidth = string renderWidth }
     let circleParameters = { defaultCircle with R = 2.5; Stroke = param.Colour;  Fill = param.Colour } 
     
-    let circles =
-        if (startVertex.X - endVertex.X > 0) then //Segment is right to left
+    let circles() =
             param.AbsSegment.Segment.IntersectOrJumpList 
-            |> List.map (fun x -> startVertex.X - x)
             |> List.map (fun x -> makeCircle x startVertex.Y circleParameters)
-        else                                      //Segment is left to right
-            param.AbsSegment.Segment.IntersectOrJumpList 
-            |> List.map (fun x -> startVertex.X + x)
-            |> List.map (fun x -> makeCircle x startVertex.Y circleParameters)
+
     
     //Only ever render intersections on horizontal segments
     if getSegmentOrientation startVertex endVertex = Horizontal then 
         makeLine startVertex.X startVertex.Y endVertex.X endVertex.Y lineParameters
-        :: circles
+        :: circles()
     else
         [makeLine startVertex.X startVertex.Y endVertex.X endVertex.Y lineParameters]
         
@@ -823,65 +820,65 @@ let renderRadialWire props =
 /// Function that will render all of the wires within the model, with the display type being set in Model.Type
 let view (model : Model) (dispatch : Dispatch<Msg>) =
     let start = TimeHelpers.getTimeMs()
-    let wiresA = model.Wires |> Map.toArray
-  
     TimeHelpers.instrumentTime "WirePropsSort" start
     let rStart = TimeHelpers.getTimeMs()
-    let wires =
-        wiresA
-        |> Array.map
-            (
-                fun (_, wire) ->
-                    let outPortId = Symbol.getOutputPortIdStr wire.OutputPort
-                    let outputPortLocation = Symbol.getPortLocation None model.Symbol outPortId
-                    let outputPortEdge = Symbol.getOutputPortOrientation model.Symbol wire.OutputPort 
-                    let strokeWidthP =
-                        match wire.Width with
-                        | 1 -> 1.5
-                        | n when n < 8 -> 2.5
-                        | _ -> 3.5
-                    let props =
-                        {
-                            key = match wire.WId with | ConnectionId s -> s
-                            Wire = wire
-                            ColorP = wire.Color
-                            StrokeWidthP = strokeWidthP 
-                            OutputPortEdge = outputPortEdge
-                            OutputPortLocation = outputPortLocation
-                            DisplayType = model.Type
-                        }
-                    match  model.Type with    
+    let wireProps wire =
+        let outPortId = Symbol.getOutputPortIdStr wire.OutputPort
+        let outputPortLocation = Symbol.getPortLocation None model.Symbol outPortId
+        let outputPortEdge = Symbol.getOutputPortOrientation model.Symbol wire.OutputPort 
+        let stringInId = Symbol.getInputPortIdStr wire.InputPort
+        let inputPortLocation = Symbol.getPortLocation None model.Symbol stringInId 
+        let strokeWidthP =
+            match wire.Width with
+            | 1 -> 1.5
+            | n when n < 8 -> 2.5
+            | _ -> 3.5
+        {
+            key = match wire.WId with | ConnectionId s -> s
+            Wire = wire
+            ColorP = wire.Color
+            StrokeWidthP = strokeWidthP 
+            OutputPortEdge = outputPortEdge
+            OutputPortLocation = outputPortLocation
+            DisplayType = model.Type
+            TriangleEdge = Symbol.getInputPortOrientation model.Symbol wire.InputPort
+            InputPortLocation = inputPortLocation
+        }
+        
+
+
+
+    let renderWire = 
+        FunctionComponent.Of(
+            fun (props : WireRenderProps) ->
+                let wireReact =
+                    match props.DisplayType with    
                     | Radial -> renderRadialWire props
                     | Jump -> renderJumpWire props
                     | Modern -> renderModernWire props
+                let polygon = {
+                    defaultPolygon with
+                        Fill = "black"
+                        }
+                let x,y = props.InputPortLocation.X, props.InputPortLocation.Y
+                let str:string = 
+                    match props.TriangleEdge with
+                    | CommonTypes.Top -> $"{x},{y},{x+2.},{y-4.},{x-2.},{y-4.}"
+                    | CommonTypes.Bottom -> $"{x},{y},{x+2.},{y+4.},{x-2.},{y+4.}"
+                    | CommonTypes.Right -> $"{x},{y},{x+4.},{y+2.},{x+4.},{y-2.}"
+                    | CommonTypes.Left -> $"{x},{y},{x-4.},{y+2.},{x-4.},{y-2.}"
 
-            )
-    let wireTriangles = 
-        wiresA
-        |> Array.map
-            (
-                fun (_,wire) ->
-                    let stringInId = Symbol.getInputPortIdStr wire.InputPort
-                    let InputPortLocation = Symbol.getPortLocation None model.Symbol stringInId 
-                    let InputPortEdge = Symbol.getInputPortOrientation model.Symbol wire.InputPort 
-                    let x,y = InputPortLocation.X, InputPortLocation.Y
-                    let str:string = 
-                        match InputPortEdge with
-                        | CommonTypes.Top -> $"{x},{y},{x+2.},{y-4.},{x-2.},{y-4.}"
-                        | CommonTypes.Bottom -> $"{x},{y},{x+2.},{y+4.},{x-2.},{y+4.}"
-                        | CommonTypes.Right -> $"{x},{y},{x+4.},{y+2.},{x+4.},{y-2.}"
-                        | CommonTypes.Left -> $"{x},{y},{x-4.},{y+2.},{x-4.},{y-2.}"
-
-                    let polygon = {
-                        defaultPolygon with
-                            Fill = "black"
-                            }
-                    makePolygon str polygon
-            )
+                g [] [ makePolygon str polygon ; wireReact ]           
+            , "Wire"
+            , equalsButFunctions
+        )
     
     TimeHelpers.instrumentInterval "WirePrepareProps" rStart ()
     let symbols = Symbol.view model.Symbol (Symbol >> dispatch)
- 
-    g [] [(g [] (Array.append wireTriangles wires)); symbols]
+    let wires =
+        model.Wires
+        |> Map.toList 
+        |> List.map (fun (_,wire) -> renderWire (wireProps wire))
+    g [] (symbols :: wires)
     |> TimeHelpers.instrumentInterval "WireView" start
 

@@ -717,6 +717,9 @@ let inline transformSymbols transform model compList =
 /// Update function which displays symbols
 let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
+    | UpdateBoundingBoxes ->
+        // message used to update symbol bounding boxes in sheet.
+        failwithf "What? This message is intercepted by Sheet update function and never found here"
     | DeleteSymbols compIds ->
         (deleteSymbols model compIds), Cmd.none
 
@@ -810,7 +813,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let port = model.Ports[portId]
         let oldSymbol = model.Symbols[ComponentId port.HostId]
         let newSymbol = updatePortPos oldSymbol pos portId
-        {model with Symbols = Map.add newSymbol.Id newSymbol model.Symbols}, Cmd.none
+        {model with Symbols = Map.add newSymbol.Id newSymbol model.Symbols}, Cmd.ofMsg (unbox UpdateBoundingBoxes)
     | SaveSymbols -> // want to add this message later, currently not used
         let getSymbolInfo symbol =
             { STransform = symbol.STransform

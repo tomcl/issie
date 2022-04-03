@@ -528,6 +528,7 @@ let update (msg : Msg) oldModel =
                     | _ -> $"U(%.40A{msg})"
                 let debugMsg = Helpers.sprintInitial 40 name
                 if Set.contains "update" JSHelpers.debugTraceUI then
+ 
                     printfn "%s" debugMsg
                 debugMsg)  startUpdate |> ignore
         res)

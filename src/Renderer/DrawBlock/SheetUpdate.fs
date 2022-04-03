@@ -567,6 +567,11 @@ let getScreenCentre (model : Model) : XYPos =
 /// Update Function
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     match msg with
+    | Wire (BusWire.Symbol Symbol.Msg.UpdateBoundingBoxes) -> 
+        // Symbol cannot directly send a message to Sheet box Sheet message type is out of scape. This
+        // is used so that a symbol message can be intercepted by sheet and used there.
+        printfn "UpdateBoundingBoixes from Symbol!!!"
+        model, Cmd.ofMsg UpdateBoundingBoxes
     | Wire wMsg ->
         let wModel, wCmd = BusWireUpdate.update wMsg model.Wire
         { model with Wire = wModel }, Cmd.map Wire wCmd
@@ -785,6 +790,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         Cmd.batch [
             symbolCmd (Symbol.RotateLeft(model.SelectedComponents, rotation)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
             wireCmd (BusWire.UpdateConnectedWires model.SelectedComponents)
+            Cmd.ofMsg Sheet.UpdateBoundingBoxes
         ]
 
     | Flip orientation ->
@@ -792,6 +798,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         Cmd.batch [
             symbolCmd (Symbol.Flip(model.SelectedComponents,orientation)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
             wireCmd (BusWire.UpdateConnectedWires model.SelectedComponents)
+            Cmd.ofMsg Sheet.UpdateBoundingBoxes
         ]
     | SaveSymbols ->
         model, symbolCmd Symbol.SaveSymbols

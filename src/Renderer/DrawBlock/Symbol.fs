@@ -107,6 +107,8 @@ type Msg =
     | MovePort of portId: string * move: XYPos
     | MovePortDone of portId: string * move: XYPos
     | SaveSymbols
+         //------------------------Sheet interface message----------------------------//
+    | UpdateBoundingBoxes
 
 
 //------------------------------------------------------------------//

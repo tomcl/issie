@@ -178,21 +178,19 @@ let exitApp() =
 let isSameMsg = LanguagePrimitives.PhysicalEquality 
 
 ///Used to filter only drag messages for now, is there a better way to do this?
-let matchMouseMsg (msg : Msg) : bool =
+let matchMouseMsg (msgSelect: DrawHelpers.MouseT -> bool) (msg : Msg) : bool =
     match msg with
     | Sheet sMsg ->
         match sMsg with
         | Sheet.MouseMsg mMsg ->
-            match mMsg.Op with
-            | DrawHelpers.Drag -> true
-            | _ -> false
+            msgSelect mMsg
         | _ -> false
     | _ -> false
 
 ///Returns None if no mouse drag message found, returns Some (lastMouseMsg, msgQueueWithoutMouseMsgs) if a drag message was found
 let getLastMouseMsg msgQueue =
     msgQueue
-    |> List.filter matchMouseMsg
+    |> List.filter (matchMouseMsg (fun mMsg -> mMsg.Op = DrawHelpers.Drag))
     |> function
     | [] -> None
     | lst -> Some lst.Head //First item in the list was the last to be added (most recent)
@@ -224,8 +222,10 @@ let update (msg : Msg) oldModel =
     
     //Add the message to the pending queue if it is a mouse drag message
     let model = 
-        if matchMouseMsg msg then {oldModel with Pending = msg :: oldModel.Pending}
-        else oldModel
+        if matchMouseMsg (fun mMsg -> mMsg.Op = DrawHelpers.Drag) msg then 
+            {oldModel with Pending = msg :: oldModel.Pending}
+        else 
+            oldModel
     
     //Check if the current message is stored as pending, if so execute all pending messages currently in the queue
     let testMsg, cmd = 
@@ -527,9 +527,13 @@ let update (msg : Msg) oldModel =
                     | SetPopupMemoryEditorData _ -> "U(SetPopupmemoryEditorData)"
                     | _ -> $"U(%.40A{msg})"
                 let debugMsg = Helpers.sprintInitial 40 name
-                if Set.contains "update" JSHelpers.debugTraceUI then
- 
-                    printfn "%s" debugMsg
+                let noDisplayMouseOp (mMsg:DrawHelpers.MouseT) = mMsg.Op = DrawHelpers.Drag || mMsg.Op = DrawHelpers.Move
+                if Set.contains "update" JSHelpers.debugTraceUI &&
+                   not <| matchMouseMsg noDisplayMouseOp msg &&
+                   (match msg with | Sheet (Sheet.Msg.Wire(BusWire.Msg.Symbol(Symbol.MouseMsg _ | Symbol.ShowPorts _ ))) -> false 
+                                   | _ -> printfn "%s" (Helpers.sprintInitial 40 $"{msg}"); true)
+                then
+                   printfn "%s" debugMsg
                 debugMsg)  startUpdate |> ignore
         res)
 

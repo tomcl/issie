@@ -543,7 +543,11 @@ let partitionWiresIntoNets (model:Model) =
     |> Map.toList
     |> List.groupBy (fun (_,wire) -> wire.OutputPort)
 
-
+/// type used internally by modern wire circle calculation code
+/// For a horizontal segment (x1,y) -> (x2,y):
+/// P = y, Qmin = min y1 y2, Qmax = max y1 y2
+/// For a vertical segment (x,y1) -> (x,y2) x & y are reversed, so P = x etc.
+/// TODO - replace Index by Segment.
 type SegInfo = {P: float; Qmin: float; Qmax:float; Index: int; OfWire: Wire}
 
 /// get segments on wire partitioned horizontal and vertical. 

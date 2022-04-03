@@ -309,7 +309,21 @@ let makeText (posX: float) (posY: float) (displayedText: string) (textParameters
             ]
         ] [str <| sprintf "%s" (displayedText)]
 
-
+/// makes a two-line text ReactElement
+/// Dy parameter determines line spacing
+let makeTwoLinesOfText (posX: float) (posY: float) (line1: string) (line2: string) (textParameters: Text) =
+    text [
+        X posX; 
+        Y posY; 
+        Style [
+            TextAnchor textParameters.TextAnchor
+            DominantBaseline textParameters.DominantBaseline
+            FontWeight textParameters.FontWeight
+            FontSize textParameters.FontSize
+            Fill textParameters.Fill
+            UserSelect textParameters.UserSelect 
+        ]
+    ] [tspan [] [str line1]; tspan [Dy "1.2em"] [str line2] ]
 
 /// deliver string suitable for HTML color from a HighlightColor type value
 let getColorString (col: CommonTypes.HighLightColor) =

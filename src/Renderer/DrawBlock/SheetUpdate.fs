@@ -328,14 +328,21 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                     ToggleNet ([SymbolUpdate.extractComponent model.Wire.Symbol compId], []), Idle
                 else DoNothing, InitialiseMoving compId
 
-            if model.Toggle
+            if model.Toggle || mMsg.ShiftKeyDown
             then
+                printfn "Toggling component"
                 let newComponents =
                     if List.contains compId model.SelectedComponents
                     then List.filter (fun cId -> cId <> compId) model.SelectedComponents // If component selected was already in the list, remove it
                     else compId :: model.SelectedComponents // If user clicked on a new component add it to the selected list
 
-                {model with SelectedComponents = newComponents; LastValidPos = mMsg.Pos ; LastValidBoundingBoxes=model.BoundingBoxes ; Action = action; LastMousePos = mMsg.Pos; TmpModel = Some model; PrevWireSelection = model.SelectedWires},
+                {model with 
+                    SelectedComponents = newComponents; 
+                    LastValidPos = mMsg.Pos ; 
+                    LastValidBoundingBoxes=model.BoundingBoxes ; 
+                    Action = action; LastMousePos = mMsg.Pos; 
+                    TmpModel = Some model; 
+                    PrevWireSelection = model.SelectedWires},
                 Cmd.batch [symbolCmd (Symbol.SelectSymbols newComponents); Cmd.ofMsg msg]
             else
                 let newComponents, newWires =
@@ -440,8 +447,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
     let newModel =
         match model.TmpModel with
         | None -> model
-        | Some newModel -> newModel
-
+        | Some newModel -> {newModel with SelectedComponents = model.SelectedComponents}
     match model.Action with
     | MovingWire connId ->
         { model with Action = Idle ; UndoList = appendUndoList model.UndoList newModel; RedoList = [] },
@@ -452,19 +458,25 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
         let newWires = BusWireUpdate.getIntersectingWires model.Wire model.DragToSelectBox
         let resetDragToSelectBox = {model.DragToSelectBox with H = 0.0; W = 0.0}
         let selectComps, selectWires =
-            if model.Toggle
-            then
+            if mMsg.ShiftKeyDown then
+                model.SelectedComponents, model.SelectedWires
+            elif model.Toggle then
                 symDiff newComponents model.SelectedComponents, symDiff newWires model.SelectedWires
-            else newComponents, newWires
-
-        { model with DragToSelectBox = resetDragToSelectBox; Action = Idle; SelectedComponents = selectComps; SelectedWires = selectWires; AutomaticScrolling = false },
+            else 
+                newComponents, newWires
+        { model with 
+            DragToSelectBox = resetDragToSelectBox; 
+            Action = Idle; SelectedComponents = selectComps; 
+            SelectedWires = selectWires; 
+            AutomaticScrolling = false },
         Cmd.batch [ symbolCmd (Symbol.SelectSymbols selectComps)
                     wireCmd (BusWire.SelectWires selectWires) ]
 
-    | InitialiseMoving compId -> // If user clicked on a component and never moved it, then select that component instead. (resets multi-selection as well)
-            { model with Action = Idle; SelectedComponents = [ compId ]; SelectedWires = [] },
-            Cmd.batch [ symbolCmd (Symbol.SelectSymbols [ compId ])
-                        wireCmd (BusWire.SelectWires []) ]
+    | InitialiseMoving compId -> 
+            // not sure there is any point to running this from mouse UP this now we are not altering selection?
+            // legacy case due for removal?
+            { model with Action = Idle}, wireCmd (BusWire.SelectWires [])
+
     | MovingSymbols ->
         // Reset Movement State in Model
         match model.ErrorComponents with
@@ -751,9 +763,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let outputModel, outputCmd =
                 match model.Action with
                 | DragAndDrop ->
-                    mMoveUpdate { model with AutomaticScrolling = true } { Pos = newMPos; Op = Move;  Movement = {X=0.;Y=0.}}
+                    mMoveUpdate { model with AutomaticScrolling = true } 
+                                { Pos = newMPos; Op = Move;  Movement = {X=0.;Y=0.}; ShiftKeyDown=false}
                 | MovingSymbols | ConnectingInput _ | ConnectingOutput _ | Selecting ->
-                    mDragUpdate { model with AutomaticScrolling = true } { Pos = newMPos; Op = Drag; Movement = {X=0.;Y=0.}}
+                    mDragUpdate { model with AutomaticScrolling = true } 
+                                { Pos = newMPos; Op = Drag; Movement = {X=0.;Y=0.}; ShiftKeyDown = false}
                 | _ ->
                     { model with AutomaticScrolling = true }, Cmd.none
 

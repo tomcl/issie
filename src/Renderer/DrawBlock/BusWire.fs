@@ -681,19 +681,35 @@ let renderRadialWireSVG
                     let current :string =  makeCommandString seg1End.X (seg1End.Y-rad) rad  0 (seg2Start.X+rad) seg2Start.Y
                     ((fst(state)+current), Horizontal)
 
-///Renders a single segment in the display type of modern
-let renderModernSegment  (colour: string) (width: string) (segment: ASegment) = 
-    let startVertex = segment.Start
-    let endVertex = segment.End
-    let lineParameters = { defaultLine with Stroke = colour; StrokeWidth = width }
-    let circleParameters = { defaultCircle with R = Constants.modernCircleRadius; Stroke = colour;  Fill = colour } 
-    
-    let circles() =
-            segment.Segment.IntersectOrJumpList 
-            |> List.map (fun x -> makeCircle x startVertex.Y circleParameters)
 
-    makeLine startVertex.X startVertex.Y endVertex.X endVertex.Y lineParameters :: circles()
  
+let renderModernWire (props:WireRenderProps) =
+    let colour = props.ColorP.Text()
+
+    let segments = getAbsSegments props.Wire
+
+    let lineAttr = 
+        segments
+        |> List.map (fun seg -> $"L %.2f{seg.End.X} %.2f{seg.End.Y}")
+        |> String.concat " "
+
+    let pathPars:Path =
+        { defaultPath with
+            Stroke = colour
+            StrokeWidth = string props.StrokeWidthP
+        }
+
+    let circleParameters = { defaultCircle with R = Constants.modernCircleRadius; Stroke = colour;  Fill = colour }
+
+    let circles segments =
+        segments
+        |> List.collect (fun aseg ->
+            let seg = aseg.Segment
+            seg.IntersectOrJumpList 
+            |> List.map (fun x -> makeCircle x aseg.Start.Y circleParameters))
+
+    g [] (makeAnyPath segments[0].Start lineAttr pathPars :: circles segments)
+
         
 
 let renderJumpSegment (a:ASegment) : string list=
@@ -752,17 +768,6 @@ let renderJumpWire props =
         |> List.collect renderJumpSegment
         |> String.concat " "
         |> (fun attr -> [makeAnyPath firstVertex attr pathPars])
-
-    g [] ([ renderWireWidthText props] @ renderedSegmentList)
-
-///Function used to render a single wire if the display type is modern
-let renderModernWire props = 
-    let absSegments = getAbsSegments props.Wire
-    let colour = props.ColorP.Text()
-    let width = string props.StrokeWidthP
-    let renderedSegmentList : ReactElement List = 
-        absSegments
-        |> List.collect (renderModernSegment colour width)
 
     g [] ([ renderWireWidthText props] @ renderedSegmentList)
 

@@ -127,7 +127,10 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
         let errorComponents =
             model.SelectedComponents
             |> List.filter (fun sId -> not (notIntersectingComponents model model.BoundingBoxes[sId] sId))
-        {model with Action = nextAction ; LastMousePos = mMsg.Pos; ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}; ErrorComponents = errorComponents },
+        {model with Action = nextAction ; 
+                    LastMousePos = mMsg.Pos; 
+                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}; 
+                    ErrorComponents = errorComponents },
         Cmd.batch [ symbolCmd (Symbol.MoveSymbols (model.SelectedComponents, posDiff mMsg.Pos model.LastMousePos))
                     symbolCmd (Symbol.ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
                     Cmd.ofMsg UpdateBoundingBoxes
@@ -500,6 +503,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
                 SnapIndicator = {XLine = None; YLine = None }
                 AutomaticScrolling = false },
             Cmd.batch [ symbolCmd (Symbol.MoveSymbols (model.SelectedComponents, (posDiff model.LastValidPos mMsg.Pos)))
+                        Cmd.ofMsg UpdateBoundingBoxes
                         symbolCmd (Symbol.SelectSymbols (model.SelectedComponents))
                         wireCmd (BusWire.UpdateWires (model.SelectedComponents, posDiff model.LastValidPos mMsg.Pos))
                         wireCmd (BusWire.MakeJumps movingWires) ]
@@ -554,7 +558,11 @@ let mMoveUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                 | InputPort _ | OutputPort _ -> ClickablePort // Change cursor if on port
                 | _ -> Default
 
-        { model with NearbyComponents = nearbyComponents; CursorType = newCursor; LastMousePos = mMsg.Pos; ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement} },
+        { model with 
+            NearbyComponents = nearbyComponents; 
+            CursorType = newCursor; 
+            LastMousePos = mMsg.Pos; 
+            ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement} },
         symbolCmd (Symbol.ShowPorts nearbyComponents) // Show Ports of nearbyComponents
 
 let getScreenCentre (model : Model) : XYPos =

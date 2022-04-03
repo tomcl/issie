@@ -373,7 +373,7 @@ let inline selectSymbols model compList =
         (resetSymbols, compList)
         ||> List.fold updateSymbolColour 
 
-    { model with Symbols = newSymbols }
+    { model with Symbols = newSymbols}
 
 /// Given a model, an error component list, a selected component id list, it updates the selected symbols' color to green if they are not selected, and changes the symbols with errors to red. It returns the updated model.
 let inline errorSymbols model (errorCompList,selectCompList,isDragAndDrop) =
@@ -717,6 +717,9 @@ let inline transformSymbols transform model compList =
 /// Update function which displays symbols
 let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
+    | UpdateBoundingBoxes ->
+        // message used to update symbol bounding boxes in sheet.
+        failwithf "What? This message is intercepted by Sheet update function and never found here"
     | DeleteSymbols compIds ->
         (deleteSymbols model compIds), Cmd.none
 
@@ -810,7 +813,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let port = model.Ports[portId]
         let oldSymbol = model.Symbols[ComponentId port.HostId]
         let newSymbol = updatePortPos oldSymbol pos portId
-        {model with Symbols = Map.add newSymbol.Id newSymbol model.Symbols}, Cmd.none
+        {model with Symbols = Map.add newSymbol.Id newSymbol model.Symbols}, Cmd.ofMsg (unbox UpdateBoundingBoxes)
     | SaveSymbols -> // want to add this message later, currently not used
         let getSymbolInfo symbol =
             { STransform = symbol.STransform

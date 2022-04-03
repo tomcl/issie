@@ -373,7 +373,7 @@ let inline selectSymbols model compList =
         (resetSymbols, compList)
         ||> List.fold updateSymbolColour 
 
-    { model with Symbols = newSymbols }
+    { model with Symbols = newSymbols}
 
 /// Given a model, an error component list, a selected component id list, it updates the selected symbols' color to green if they are not selected, and changes the symbols with errors to red. It returns the updated model.
 let inline errorSymbols model (errorCompList,selectCompList,isDragAndDrop) =

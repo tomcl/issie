@@ -80,6 +80,7 @@ type MouseOp =
 type MouseT = {
     Pos: XYPos
     Movement: XYPos
+    ShiftKeyDown: bool
     Op: MouseOp}
 
 /// Record to help draw SVG circles

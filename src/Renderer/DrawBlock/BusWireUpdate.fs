@@ -86,7 +86,6 @@ let segmentIntersectsBoundingBox (box: BoundingBox) segStart segEnd =
     rectanglesIntersect bbRect segRect
 
 //--------------------------------------------------------------------------------//
-
 //---------------------------getClickedSegment-----------------------------------//
 
 /// Returns Some distance between a point and a segment defined by a start and end XYPos, 
@@ -547,12 +546,15 @@ let partitionWiresIntoNets (model:Model) =
 
 type SegInfo = {P: float; Qmin: float; Qmax:float; Index: int; OfWire: Wire}
 
-/// get segments on wire partitioned horizontal and vertical. Zero-length segments are not included
+/// get segments on wire partitioned horizontal and vertical. 
+/// small length segments are not included, since this is to determine modern circle placement
 let getHVSegs (wire : Wire) =
-    let isHorizontal (i:int, seg:ASegment) =
+    let isHorizontal (seg:ASegment) =
+        let index = seg.Segment.Index
         match wire.InitialOrientation with
-        | Horizontal -> i % 2 = 0
-        | Vertical -> i % 2 = 1
+        | Horizontal -> index % 2 = 0
+        | Vertical -> index % 2 = 1
+        
 
     let makeInfo p q1 q2 (i:int) (seg:ASegment) =
         let qMin = min q1 q2
@@ -561,42 +563,44 @@ let getHVSegs (wire : Wire) =
 
     wire
     |> getAbsSegments
-    |> List.filter (fun seg->seg.Segment.Length > XYPos.epsilon)
-    |> List.indexed
+    |> List.filter (fun (seg)-> abs seg.Segment.Length > Constants.modernCirclePositionTolerance)
     |> List.partition isHorizontal
     |> (fun (hSegs,vSegs) ->
-        let hInfo = hSegs |> List.map (fun (i,seg) -> makeInfo seg.Start.Y seg.Start.X seg.End.X i seg)
-        let vInfo = vSegs |> List.map (fun (i,seg) -> makeInfo seg.Start.X seg.Start.Y seg.End.Y i seg)
+        let hInfo = hSegs |> List.map (fun seg-> makeInfo seg.Start.Y seg.Start.X seg.End.X seg.Segment.Index seg)
+        let vInfo = vSegs |> List.map (fun seg -> makeInfo seg.Start.X seg.Start.Y seg.End.Y seg.Segment.Index seg)
         hInfo, vInfo)
 
 type CircleT = float * int * Wire
+
+let resetWireJumpsOrIntersections (wire:Wire) =
+    let newSegments = 
+        wire.Segments
+        |> List.map (fun seg -> 
+            {seg with IntersectOrJumpList=[]})
+    {wire with Segments = newSegments}
+
+let resetModelJumpsOrIntersections (model: Model) : Model =
+    //printfn "resetting jumps or intersections"
+    let newWires =
+        model.Wires
+        |> Map.map (fun _ w -> resetWireJumpsOrIntersections w)
+    {model  with Wires = newWires}
 
 let updateCirclesOnSegments 
         (wiresToUpdate: Wire list)
         (circles: CircleT list) 
         (model: Model) =
 
-    let resetWire (wire:Wire) =
-        let newSegments = 
-            wire.Segments
-            |> List.map (fun seg -> {seg with IntersectOrJumpList=[]})
-        {wire with Segments = newSegments}
-
-    let cleanWires =
-        (model.Wires, wiresToUpdate)
-        ||> List.fold (fun wires wire -> Map.add wire.WId (resetWire wire) wires)
-
-    (cleanWires, wiresToUpdate)
+    (model.Wires, wiresToUpdate)
     ||> List.fold (fun wires wire ->
-            let tryFindInCircles circles = List.tryFind (fun ((_,_,wire'): CircleT) -> wire'.WId = wire.WId) circles
+            let wire = wires[wire.WId]
+            let findAllCirclesOnWire circles = List.filter (fun ((_,_,wire'): CircleT) -> wire'.WId = wire.WId) circles
             let newWire =
-                match tryFindInCircles circles with
-                | None -> wire
-                | Some (cPos,cIndex, wire) -> 
-                    let seg = wire.Segments[cIndex]
-                    let seg' = {seg with IntersectOrJumpList = cPos::seg.IntersectOrJumpList}
-                    printfn $"Adding {cPos} to segment {cIndex} of Wire {formatWireId wire.WId}"
-                    {wire with Segments = List.updateAt cIndex seg' wire.Segments}
+                (wire, findAllCirclesOnWire circles)
+                ||> List.fold (fun wire (cPos,cIndex, _) -> 
+                        let seg = wire.Segments[cIndex]
+                        let seg' = {seg with IntersectOrJumpList = cPos::seg.IntersectOrJumpList}
+                        {wire with Segments = List.updateAt cIndex seg' wire.Segments})
             Map.add wire.WId newWire wires)
     |> (fun wires -> {model with Wires = wires})  
 
@@ -605,6 +609,7 @@ let inline samePos (pos1: XYPos) (pos2: XYPos) =
 
 let inline close (a:float) (b:float) = abs (a-b) < Constants.modernCirclePositionTolerance
 
+/// Update all the modern routing circles on the net of wires: wiresInNet
 let updateCirclesOnNet 
         (model: Model)
         (wiresInNet: Wire list) : Model =
@@ -612,22 +617,22 @@ let updateCirclesOnNet
         List.map getHVSegs wiresInNet
         |> List.unzip
         |> fun (a,b) -> List.concat a, List.concat b
-    printfn $"Net with {wiresInNet.Length} wires, {hsL.Length} H and {vsL.Length} V segments"
-    let e = 3.*Constants.modernCirclePositionTolerance
+    let e = Constants.modernCirclePositionTolerance
     /// A circle can be on a V segment intersection with the middle of an H segment or vice versa.
-    /// Note that at most one of the H or V segments can intersect at an endpoint.
+    /// Note that at most one of the H or V segments can intersect at its end
     let getIntersection (h,v) =
         if inMiddleOf v.Qmin h.P v.Qmax && inMiddleOrEndOf h.Qmin v.P h.Qmax ||
            inMiddleOrEndOf v.Qmin h.P v.Qmax && inMiddleOf h.Qmin v.P h.Qmax then
             [v.P, h.Index, h.OfWire]
         else []
-    /// A join is a point where the ends of two H, or two V segments are coincident (to with a tolerance)
-    /// A circle must be placed whenever a V segment end coincide with an H segment join or vice versa
+    /// A join is a point where the ends of two H, or two V segments are coincident (to with a tolerance).
+    /// A circle must be placed whenever a V segment end coincides with an H segment join or vice versa.
+    /// This function is called twice to find joins of Horizontal and vertical segments.
     let getJoins segs =
         List.allPairs segs segs
         |> List.collect (fun (s1, s2) ->
             if close s1.P s2.P && close s1.Qmax s2.Qmin then
-                [(s1.P+s2.P)/2., (s1.Qmax+s2.Qmin)/2., s2.Index, s2.OfWire]
+                [{|P=(s1.P+s2.P)/2.;Q=(s1.Qmax+s2.Qmin)/2.; Index=s2.Index; Wire=s2.OfWire|}]
             else 
                 [])
     /// get all intersections - circles will be placed here
@@ -637,34 +642,38 @@ let updateCirclesOnNet
     /// all horizontal join circles
     let hJoinCircles =
         getJoins hsL
-        |> List.collect (fun (x,y,index,wire) ->
-            if List.exists (fun vs -> close vs.P x && (close vs.Qmin y || close vs.Qmax y)) vsL then
-                [x,index,wire]
-            else [])
+        |> List.collect (fun join ->
+            if List.exists (fun vs -> close vs.P join.Q && (close vs.Qmin join.P || close vs.Qmax join.P)) vsL then
+                [join.Q,join.Index,join.Wire]
+            else 
+                [])
     /// all vertical join circles
     let vJoinCircles =
         getJoins vsL
-        |> List.collect (fun (x,y,_,_) ->
+        |> List.collect (fun join ->
             hsL 
             |> List.tryPick (fun hs -> 
-                if not <| close hs.P y then 
-                    None 
-                elif close hs.Qmin x then
+                if close hs.P join.Q && (close hs.Qmin join.P || close hs.Qmax join.P) then
                     Some [hs.Qmin, hs.Index, hs.OfWire]
-                elif close hs.Qmax x then
-                    Some [hs.Qmax, hs.Index, hs.OfWire]
-                else None)
+                else 
+                    None)
             |> Option.defaultValue [])
     let circles = intersectCircles  @ vJoinCircles @ hJoinCircles
     model
     |> updateCirclesOnSegments wiresInNet circles
-                    
+/// Update all the modern routing circles in the model                   
 let updateCirclesOnAllNets (model:Model) =
+    let cleanModel =
+        model
+        |> resetModelJumpsOrIntersections
+    /// A net is a set of electrically connected wires.
+    /// For now this is all wires with given port as source
+    /// TODO: join nets which are on same wire label.
     let nets = 
-        partitionWiresIntoNets model
+        partitionWiresIntoNets cleanModel
         |> List.map snd
         |> List.map (List.map snd)
-    (model, nets)
+    (cleanModel,nets)
     ||> List.fold updateCirclesOnNet
 
 
@@ -672,28 +681,7 @@ let updateCirclesOnAllNets (model:Model) =
     
 
 
-/// Used as a folder in foldOverSegs. Finds all Modern offsets in a wire for the segment defined in the state
-let findModernIntersects (segStart: XYPos) (segEnd: XYPos) (state: {| Start: XYPos; End: XYPos; JumpsOrIntersections: float list |}) (seg: Segment) =
-    let x1Start, x1End, x2Start, x2End = segStart.X, segEnd.X, state.Start.X, state.End.X
-    let y1Start, y1End, y2Start, y2End = segStart.Y, segEnd.Y, state.Start.Y, state.End.Y
-    let x1hi, x1lo = max x1Start x1End, min x1Start x1End
-    let x2hi, x2lo = max x2Start x2End, min x2Start x2End
-    let y1hi, y1lo = max y1Start y1End, min y1Start y1End
-    let y2hi, y2lo = max y2Start y2End, min y2Start y2End
-    if getSegmentOrientation segStart segEnd = Vertical then
-        if y2Start < y1hi  && y2Start > y1lo  && (x2Start > x1hi - 0.1 && x2Start < x1hi + 0.1) then
-            {| state with JumpsOrIntersections = 0.0 :: state.JumpsOrIntersections |}
-        else if y2End < y1hi  && y2End > y1lo  && (x2End > x1hi - 0.1 && x2End < x1hi + 0.1) then
-            {| state with JumpsOrIntersections = abs (x2End - x2Start) :: state.JumpsOrIntersections |}
-        else
-            state
-    else
-        if (y2Start > y1hi - 0.1 && y2Start < y1hi + 0.1) && x1hi > x2hi && x1lo < x2lo then
-            {| state with JumpsOrIntersections = 0.0 :: abs(x2End - x2Start) :: state.JumpsOrIntersections |}
-        else if (y2Start > y1hi - 0.1 && y2Start < y1hi + 0.1) && x2hi > x1hi && x1hi > x2lo && x2lo > x1lo then
-             {| state with JumpsOrIntersections = 0.0 :: abs(x1hi - x2lo) :: state.JumpsOrIntersections |}
-        else
-            state
+
 
 /// Used as a folder in foldOverSegs. Finds all jump offsets in a wire for the segment defined in the state
 let inline findJumpIntersects (segStart: XYPos) (segEnd: XYPos) (state: {| Start: XYPos; End: XYPos; JumpsOrIntersections: float list |}) (seg: Segment) =
@@ -726,11 +714,7 @@ let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model: Model) =
                     foldOverSegs findJumpIntersects {| Start = segStart; End = segEnd; JumpsOrIntersections = [] |} wire
                     |> (fun res -> res.JumpsOrIntersections)
                     |> List.append jumpsOrIntersections
-                else if (model.Type = Modern)  then
-                    foldOverSegs findModernIntersects {| Start = segStart; End = segEnd; JumpsOrIntersections = [] |} wire
-                    |> (fun res -> res.JumpsOrIntersections)
-                    |> List.append jumpsOrIntersections
-                else
+                else 
                     jumpsOrIntersections)
             |> (fun jumpsOrIntersections -> 
                 if jumpsOrIntersections <> seg.IntersectOrJumpList then
@@ -767,6 +751,7 @@ let resetJumpsOrIntersections (wire: Wire) =
     {wire with Segments = newSegs}
 
 let resetJumps (model:Model) : Model =
+        printfn "Reseting jumps or intersections..."
         (model.Wires, model.Wires)
         ||> Map.fold (fun wires wid wire ->
                 Map.add wid (resetJumpsOrIntersections wire) wires)
@@ -1103,8 +1088,9 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         { model with Wires = newWires }, Cmd.ofMsg (MakeJumps connIds)
 
     | UpdateWireDisplayType (style: WireType) ->
-        // changes wire display
-        { model with Type = style }, Cmd.none
+        {model with Type = style }
+        |> updateWireSegmentJumps []
+        |> (fun model -> model,Cmd.none)
 
     | UpdateConnectedWires (componentIds: ComponentId list) ->
         // partial or full autoroutes all ends of wires conencted to given symbols

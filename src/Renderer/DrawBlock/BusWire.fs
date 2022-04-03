@@ -22,15 +22,15 @@ type Orientation = | Vertical | Horizontal
 
 [<AutoOpen>]
 module Constants =
-    let jumpRadius = 5.
+    let jumpRadius: float = 5.
     /// The minimum length of the initial segments (nubs) leaving the ports
-    let nubLength = 8.
+    let nubLength: float = 8.
     /// The standard radius of a radial wire corner
-    let cornerRadius = 5. 
+    let cornerRadius: float  = 5. 
     /// The standard radius of a modern wire connect circle
-    let modernCircleRadius = 10.
+    let modernCircleRadius: float = 3.
     /// How close same net vertices must be before they are joined by modern routing circles
-    let modernCirclePositionTolerance = 5.
+    let modernCirclePositionTolerance : float = 2.
 
     let busWidthTextStyle =
         {
@@ -682,29 +682,18 @@ let renderRadialWireSVG
                     ((fst(state)+current), Horizontal)
 
 ///Renders a single segment in the display type of modern
-let renderModernSegment (param : {| AbsSegment : ASegment; Colour :string; Width : string|}) = 
-    let startVertex = param.AbsSegment.Start
-    let endVertex = param.AbsSegment.End
-    let widthOpt = EEExtensions.String.tryParseWith System.Int32.TryParse param.Width
-    let renderWidth = 
-        match widthOpt with
-        | Some 1 -> 1.5
-        | Some n when n < int "8" -> 2.5
-        | _ -> 3.5
-    let lineParameters = { defaultLine with Stroke = param.Colour; StrokeWidth = string renderWidth }
-    let circleParameters = { defaultCircle with R = 2.5; Stroke = param.Colour;  Fill = param.Colour } 
+let renderModernSegment  (colour: string) (width: string) (segment: ASegment) = 
+    let startVertex = segment.Start
+    let endVertex = segment.End
+    let lineParameters = { defaultLine with Stroke = colour; StrokeWidth = width }
+    let circleParameters = { defaultCircle with R = Constants.modernCircleRadius; Stroke = colour;  Fill = colour } 
     
     let circles() =
-            param.AbsSegment.Segment.IntersectOrJumpList 
+            segment.Segment.IntersectOrJumpList 
             |> List.map (fun x -> makeCircle x startVertex.Y circleParameters)
 
-    
-    //Only ever render intersections on horizontal segments
-    if getSegmentOrientation startVertex endVertex = Horizontal then 
-        makeLine startVertex.X startVertex.Y endVertex.X endVertex.Y lineParameters
-        :: circles()
-    else
-        [makeLine startVertex.X startVertex.Y endVertex.X endVertex.Y lineParameters]
+    makeLine startVertex.X startVertex.Y endVertex.X endVertex.Y lineParameters :: circles()
+ 
         
 
 let renderJumpSegment (a:ASegment) : string list=
@@ -751,14 +740,13 @@ let renderJumpWire props =
     let absSegments = getAbsSegments props.Wire
     let firstVertex = absSegments.Head.Start
     let colour = props.ColorP.Text()
-    let renderWidth = float props.StrokeWidthP
 
     
     let renderedSegmentList : ReactElement List = 
         let pathPars:Path =
             { defaultPath with
                 Stroke = colour
-                StrokeWidth = string renderWidth 
+                StrokeWidth = string props.StrokeWidthP
             }
         absSegments
         |> List.collect renderJumpSegment
@@ -772,17 +760,9 @@ let renderModernWire props =
     let absSegments = getAbsSegments props.Wire
     let colour = props.ColorP.Text()
     let width = string props.StrokeWidthP
-    let widthOpt = EEExtensions.String.tryParseWith System.Int32.TryParse width
-    let renderWidth = 
-        match widthOpt with
-        | Some 1 -> 1.5
-        | Some n when n < int "8" -> 2.5
-        | _ -> 3.5
-    
     let renderedSegmentList : ReactElement List = 
         absSegments
-        |> List.map (fun x -> {|AbsSegment = x; Colour = colour; Width = width|})
-        |> List.collect renderModernSegment //colour width //(props.ColorP.Text()) (string props.StrokeWidthP)
+        |> List.collect (renderModernSegment colour width)
 
     g [] ([ renderWireWidthText props] @ renderedSegmentList)
 
@@ -795,13 +775,8 @@ let renderRadialWire props =
 
     let width = string props.StrokeWidthP
     let widthOpt = EEExtensions.String.tryParseWith System.Int32.TryParse width
-    let renderWidth = 
-        match widthOpt with
-        | Some 1 -> 1.5
-        | Some n when n < int "8" -> 2.5
-        | _ -> 3.5
 
-    let pathParameters = { defaultPath with Stroke = props.ColorP.Text(); StrokeWidth = string renderWidth;}
+    let pathParameters = { defaultPath with Stroke = props.ColorP.Text(); StrokeWidth = width;}
     let initialMoveCommand = sprintf "M %f %f "  firstVertex.X firstVertex.Y
     let initialState = (initialMoveCommand, getSegmentOrientation firstVertex secondVertex )
     

@@ -6,8 +6,9 @@ module Symbol
 open Fable.React
 open Fable.React.Props
 open Elmish
-open DrawHelpers
+
 open CommonTypes
+open DrawHelpers
 
 
 
@@ -15,7 +16,19 @@ open CommonTypes
 module Constants =
     [<Literal>]
     let gridSize = 30 
+    let labelFontSizeInPixels:float = 30. // otehr parameters scale correctly with this
+    // due to a bug in TextMetrics we are restricted to monospace font, bold or normal, if we need accurate font width
+    let componentLabelStyle: Text = {defaultText with TextAnchor = "start"; FontSize = $"{labelFontSizeInPixels}px"; FontFamily = "monospace"}
+    let componentLabelOffsetDistance: float = 10. // offset from symbol outline, otehr parameters scale correctly
+    
+    // This seems to work although I don't see why - it is surely too small given that label width scales as 1.2 * fontsizeinpixels.
+    // Clearly something not quite understood aboit even monospace font dimensions.
+    let componentLabelHeight: float = labelFontSizeInPixels
+    
+    
 
+
+open Constants
 /// ---------- SYMBOL TYPES ---------- ///
 
 /// Represents the orientation of a wire segment or symbol flip
@@ -36,6 +49,10 @@ type Symbol =
 
         /// Width of the output port 1
         InWidth1: int option
+
+        LabelBoundingBox: BoundingBox
+        LabelHasDefaultPos: bool
+        HighlightLabel: bool
 
         Id : ComponentId       
         Component : Component                 
@@ -87,6 +104,7 @@ type Msg =
     | DeleteSymbols of sIds:ComponentId list
     | ShowAllInputPorts | ShowAllOutputPorts | DeleteAllPorts 
     | MoveSymbols of compList: ComponentId list * move: XYPos
+    | MoveLabel of compId: ComponentId * move: XYPos
     | ShowPorts of ComponentId list
     | SelectSymbols of ComponentId list// Issie interface
     | SymbolsHaveError of sIds: ComponentId list
@@ -102,7 +120,6 @@ type Msg =
     | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 
     | WriteMemoryType of ComponentId * ComponentType
     | RotateLeft of compList : ComponentId list * RotationType
-    | RotateRight of compList: ComponentId list
     | Flip of compList: ComponentId list * orientation: FlipType
     | MovePort of portId: string * move: XYPos
     | MovePortDone of portId: string * move: XYPos
@@ -122,6 +139,36 @@ let inline invertRotation (rot: RotationType) =
     match rot with
     | RotateClockwise -> RotateAntiClockwise
     | RotateAntiClockwise -> RotateClockwise
+
+
+/// work out a label bounding box from symbol
+/// the bb has a margin around the label text outline.
+/// This requires accurate label text width estimates.
+/// At the moment that only seems possible with monospaced fonts
+/// due to TextMetrics not working ???
+let calcLabelBoundingBox (textStyle: Text) (comp: Component) (transform: STransform) =
+    let labelRotation = 
+        match transform.flipped with
+        | true -> match transform.Rotation with
+                     | Degree90 -> Degree270
+                     | Degree270 -> Degree90
+                     | _ -> transform.Rotation
+        | false -> transform.Rotation
+    let (dX,dY) = comp.W / 2., comp.H / 2.
+    let centreX = dX + comp.X
+    let centreY = dY + comp.Y
+    let margin = Constants.componentLabelOffsetDistance
+    let labH = Constants.componentLabelHeight / 2.
+    let labW = getMonospaceWidth textStyle.FontSize comp.Label / 2.
+    let boxTopLeft =
+        match labelRotation with 
+        | Degree0 -> {X = centreX - labW/2. - margin; Y = centreY - dY - 2.*labH - margin }
+        | Degree270 -> {X = centreX + dY; Y = centreY - labH/2. - margin}
+        | Degree90 -> {X = centreX - dY - 2.*margin - labW ; Y = centreY - labH/2. - margin}
+        | Degree180 -> {X = centreX - labW/2. - margin; Y = centreY + dY}
+    {TopLeft=boxTopLeft; W = labW+2.*margin; H = labH + 2.*margin}
+
+ 
 
 //------------------------------------------------------------------//
 //------------------- Helper functions for titles ------------------//
@@ -170,7 +217,7 @@ let getPrefix compType =
 
 
 // Text to be put inside different Symbols depending on their ComponentType
-let getComponentLabel (componentType:ComponentType) =
+let getComponentLegend (componentType:ComponentType) =
     match componentType with
     | And | Nand-> "&"
     | Or | Nor-> "≥1"
@@ -386,7 +433,11 @@ let makeComponent (pos: XYPos) (comptype: ComponentType) (id:string) (label:stri
             Y = pos.Y - float h / 2.0
             H = float h 
             W = float w
-            SymbolInfo = Some { STransform=defaultSTransform; PortOrder = Map.empty; PortOrientation=Map.empty}
+            SymbolInfo = Some { 
+                LabelBoundingBox = None
+                STransform=defaultSTransform; 
+                PortOrder = Map.empty; 
+                PortOrientation=Map.empty}
         }
     
     // match statement for each component type. the output is a 4-tuple that is used as an input to makecomponent (see below)
@@ -431,10 +482,15 @@ let makeComponent (pos: XYPos) (comptype: ComponentType) (id:string) (label:stri
 // Function to generate a new symbol
 let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) =
     let id = JSHelpers.uuid ()
+    let style = Constants.componentLabelStyle
     let comp = makeComponent pos comptype id label
+    let transform = {Rotation= Degree0; flipped= false}
     let portOrder, portOrientation = initPortOrientation comp
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
+      LabelBoundingBox = calcLabelBoundingBox style comp transform
+      LabelHasDefaultPos = true
+      HighlightLabel = false
       ShowInputPorts = false
       ShowOutputPorts = false
       InWidth0 = None // set by BusWire
@@ -446,7 +502,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       Moving = false
       PortOrder = portOrder
       PortOrientation = portOrientation
-      STransform = {Rotation= Degree0; flipped= false}
+      STransform = transform
       MovingPort = None
       IsClocked = isClocked [] ldcs comp
     }
@@ -527,6 +583,7 @@ let getMuxSelOffset (sym: Symbol) (side: Edge): XYPos =
     else
         {X=0.0; Y=0.0}
 
+
 ///Given a symbol and a port, it returns the offset of the port from the top left corner of the symbol
 let getPortPos (sym: Symbol) (port: Port) : XYPos =
     //get ports on the same edge first
@@ -567,14 +624,8 @@ let private addText (pos: XYPos) name alignment weight size =
             {defaultText with TextAnchor = alignment; FontWeight = weight; FontSize = size}
     [makeText pos.X pos.Y name text]
 
-/// to deal with additional component text such as label / symbols like &,1,=1
-let private addComponentLabel height width name weight size rotation = 
-    match rotation with 
-    | Degree0 -> addText {X = (float width/2.); Y = -20.} name "middle" weight size
-    | Degree270 -> addText {X = float width + 5.; Y = float height/2. - 7.} name "start" weight size
-    | Degree180 -> addText {X = float width/2.; Y = float height + 5.} name "middle" weight size
-    | Degree90 -> addText {X = -5.; Y = float height/2. - 7.} name "end" weight size
-
+let private addStyledText (style:Text) (pos: XYPos) (name: string) = 
+    makeText pos.X pos.Y name style
 
 /// Generate circles on ports
 let inline private portCircles (pos: XYPos) = 
@@ -642,6 +693,8 @@ let addHorizontalColorLine posX1 posX2 posY opacity (color:string) = // TODO: Li
     [makePolygon points {defaultPolygon with Fill = "olcolor"; Stroke=outlineColor; StrokeWidth = "2.0"; FillOpacity = opacity}]
 
 /// Takes points, height and width of original shape and returns the points for it given a rotation / flipped status.
+/// Degree0 rotation has TopLeft = top left coordinate of the outline, which is a box of dimensions W X H.
+/// Rotation rotates the box about its centre point, keeping TopLeft fixed.
 let rotatePoints (points) (centre:XYPos) (transform:STransform) = 
     let offset = 
             match transform.Rotation with
@@ -672,7 +725,10 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
     |> relativeToTopLeft
 
 
-/// --------------------------------------- SYMBOL DRAWING ------------------------------------------------------ ///   
+/// --------------------------------------- SYMBOL DRAWING ------------------------------------------------------ ///  
+
+
+
 let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutputPorts:bool) (opacity: float) = 
     let comp = symbol.Component
     let h,w = getHAndW symbol
@@ -789,21 +845,46 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
         | SplitWire _ | MergeWires -> outlineColor colour, "2.0"
         | _ -> "black", "1.0"
     
-    let labelRotation = 
-        match transform.flipped with
-        | true -> match transform.Rotation with
-                     | Degree90 -> Degree270
-                     | Degree270 -> Degree90
-                     | _ -> transform.Rotation
-        | false -> transform.Rotation
+
+
+    /// to deal with the label
+    let addComponentLabel (comp: Component) transform = 
+        // we are restricted to monospace font for labels to calc size.
+        // bold and normal fonts work equally well, as do colors.
+        let weight = Constants.componentLabelStyle.FontWeight // bold or normal
+        let fill = Constants.componentLabelStyle.Fill // color
+        let style = {Constants.componentLabelStyle with FontWeight = weight; Fill = fill}
+        let box =
+            match symbol.LabelHasDefaultPos with 
+            | true -> calcLabelBoundingBox style comp transform
+            | false -> symbol.LabelBoundingBox
+        let dimW = {X=box.W; Y=0.}
+        let dimH = {X=0.; Y=box.H}
+        let margin = Constants.componentLabelOffsetDistance
+        // uncomment this to display bounding box corners for testing new fonts etc.
+        (*let corners = 
+            [box.TopLeft; box.TopLeft+dimW; box.TopLeft+dimH; box.TopLeft+dimW+dimH]
+            |> List.map (fun c -> 
+                let c' = c - symbol.Pos
+                makeCircle (c'.X) (c'.Y) {defaultCircle with R=3.})*)
+        
+        addStyledText 
+            {style with DominantBaseline="hanging"} 
+            (box.TopLeft - symbol.Pos + {X=margin;Y=margin}) 
+            comp.Label ::  [] //corners uncomment this to display lavel bounding box corners.
+
+
+ 
+            
+            
    
     // Put everything together 
 
     (drawPorts comp.OutputPorts showOutputPorts symbol)
     |> List.append (drawPorts comp.InputPorts showInputPorts symbol)
     |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
-    |> List.append (addText {X = float w/2.; Y = float h/2. - 7.} (getComponentLabel comp.Type) "middle" "bold" "14px")
-    |> List.append (addComponentLabel h w comp.Label "normal" "16px" labelRotation)
+    |> List.append (addText {X = float w/2.; Y = float h/2. - 7.} (getComponentLegend comp.Type) "middle" "bold" "14px")
+    |> List.append (addComponentLabel comp transform)
     |> List.append (additions)
     |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth)
 
@@ -890,6 +971,16 @@ let getBoundingBoxes (symModel: Model): Map<ComponentId, BoundingBox> =
 let inline getBoundingBox (symModel: Model) (compid: ComponentId ): BoundingBox = 
     let symb = Map.find compid symModel.Symbols
     getSymbolBoundingBox symb
+
+/// Returns the bounding boxes of all symbol labels in the model
+let getLabelBoundingBoxes (model: Model) : Map<ComponentId, BoundingBox> =
+    model.Symbols
+    |> Map.map (fun _ sym -> sym.LabelBoundingBox)
+
+/// Returns the bounding box of the symbol associated with compId
+let getLabelBoundingBox (model: Model) (compId: ComponentId) : BoundingBox =
+    Map.find compId model.Symbols
+    |> (fun sym -> sym.LabelBoundingBox)
 
 
 //--------------------- GETTING PORTS AND THEIR LOCATIONS INTERFACE FUNCTIONS-------------------------------

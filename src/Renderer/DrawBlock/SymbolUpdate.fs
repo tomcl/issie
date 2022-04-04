@@ -318,30 +318,35 @@ let inline showPorts (model: Model) compList =
 
     { model with Symbols = newSymbols }
 
+
+/// Move a symbol by the amount specified by move
+let private moveSymbol (move: XYPos) (sym: Symbol) : Symbol =
+    {sym with
+        Moving = true
+        Pos = {X = sym.Pos.X + move.X; Y = sym.Pos.Y + move.Y}
+        Component = {sym.Component with
+                        X = sym.Component.X + move.X
+                        Y = sym.Component.Y + move.Y
+                    }
+        LabelBoundingBox = {sym.LabelBoundingBox with
+                                TopLeft =  sym.LabelBoundingBox.TopLeft + move}
+    }
+
+
 /// Given a model, a component id list and an offset, moves the components by offset and returns the updated model
-let inline moveSymbols (model:Model) (compList: ComponentId list) (offset: XYPos)=
+let moveSymbols (model:Model) (compList: ComponentId list) (offset: XYPos)=
     let resetSymbols = 
         model.Symbols
         |> Map.map (fun _ sym -> { sym with Moving = false}) 
 
-    let moveSymbol prevSymbols sId =
-        let newX = model.Symbols[sId].Pos.X + offset.X;
-        let newY = model.Symbols[sId].Pos.Y + offset.Y;
-        let newComp = 
-            { model.Symbols[sId].Component with 
-                X = newX;
-                Y = newY }
-
+    let moveSymbolInMap prevSymbols sId =
         prevSymbols
-        |> Map.add sId 
-            { model.Symbols[sId] with 
-                Moving = true; 
-                Pos = { X = newX; Y = newY };
-                Component = newComp } 
+        |> Map.add sId (moveSymbol offset model.Symbols[sId] )
+
 
     let newSymbols =
         (resetSymbols, compList)
-        ||> List.fold moveSymbol
+        ||> List.fold moveSymbolInMap
 
     { model with Symbols = newSymbols }
 
@@ -405,8 +410,13 @@ let inline errorSymbols model (errorCompList,selectCompList,isDragAndDrop) =
 let inline changeLabel (model: Model) sId newLabel=
     let oldSym = model.Symbols[sId]
     let newComp = {oldSym.Component with Label = newLabel}
-    let newSym = {oldSym with Component = newComp}
-    { model with Symbols = Map.add sId newSym model.Symbols }
+    let newSym = {
+        oldSym with 
+            Component = newComp
+            LabelBoundingBox = calcLabelBoundingBox Constants.componentLabelStyle newComp oldSym.STransform}
+    { model with 
+        Symbols = Map.add sId newSym model.Symbols; 
+        }
 
 /// Given a model, a component id list and a color, updates the color of the specified symbols and returns the updated model.
 let inline colorSymbols (model: Model) compList colour =
@@ -432,9 +442,17 @@ let createSymbol ldcs prevSymbols comp =
                 comp'.H,comp'.W
             else
                 comp.H, comp.W
+        let labelBB = calcLabelBoundingBox Constants.componentLabelStyle comp {flipped=false;Rotation=Degree0}
+        let hasDefault, labelBoundingBox =
+            match comp.SymbolInfo with
+            | Some {LabelBoundingBox=Some info} ->  false, info
+            | _ -> true, labelBB
         let newSymbol =
             { 
                 Pos = xyPos
+                LabelBoundingBox = labelBoundingBox
+                LabelHasDefaultPos = hasDefault
+                HighlightLabel = false
                 ShowInputPorts = false //do not show input ports initially
                 ShowOutputPorts = false //do not show output ports initially
                 Colour = "lightgrey"     // initial color 
@@ -557,11 +575,16 @@ let rotateSymbol (rotation: RotationType) (sym: Symbol) : Symbol =
             | true -> {sym.STransform with Rotation = rotateAngle (invertRotation rotation) sym.STransform.Rotation} // hack for rotating when flipped 
             | false -> {sym.STransform with Rotation = rotateAngle rotation sym.STransform.Rotation}
 
+        let newlabelBB = calcLabelBoundingBox Constants.componentLabelStyle sym.Component newSTransform
+
+
         { sym with 
             Pos = newPos;
-            PortOrientation = newPortOrientation;
-            PortOrder = newPortOrder;
-            STransform =newSTransform;  
+            PortOrientation = newPortOrientation
+            PortOrder = newPortOrder
+            STransform =newSTransform 
+            LabelBoundingBox = newlabelBB
+            LabelHasDefaultPos = true
         }
 
 
@@ -596,10 +619,14 @@ let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
             {flipped= not sym.STransform.flipped;
             Rotation= sym.STransform.Rotation}
 
+        let newLabelBB = calcLabelBoundingBox Constants.componentLabelStyle sym.Component newSTransform 
+
         { sym with
             PortOrientation = newPortOrientation
             PortOrder = newPortOrder
             STransform = newSTransform
+            LabelBoundingBox = newLabelBB
+            LabelHasDefaultPos = true
         }
         |> (fun sym -> 
             match orientation with
@@ -714,6 +741,57 @@ let inline transformSymbols transform model compList =
         ||> List.fold (fun currSymMap sym -> currSymMap |> Map.add sym.Id sym)
     { model with Symbols = newSymbolMap }
 
+//------------------------------------------------------------------------//
+//-------------------------------- Label processing code------------------//
+//------------------------------------------------------------------------//
+
+
+//------------------------------------------------------------------------//
+//------------------------------------Update function---------------------//
+//------------------------------------------------------------------------//
+
+/// Move a symbol's label by the amount specified by move
+let private moveLabel (move: XYPos) (sym: Symbol) : Symbol =
+    {sym with
+        LabelBoundingBox = 
+            {sym.LabelBoundingBox with TopLeft = sym.LabelBoundingBox.TopLeft + move}
+        LabelHasDefaultPos = false
+    }
+/// Modifies the symbols in syms that are associated with the ids in compIds using the modifier
+let private modifySymbolsByCompIds
+    (modifier: Symbol -> Symbol)
+    (syms: Map<ComponentId, Symbol>)
+    (compIds: ComponentId list)
+    : Map<ComponentId, Symbol> =
+
+    (syms, compIds)
+    ||> List.fold (fun syms id ->
+            let newSym = modifier syms[id]
+            Map.add id newSym syms
+        )
+
+/// Obtain all layout info on symbol that needs to be saved.
+/// It is saved in extra SymbolInfo type and corresp filed in Component.
+let getLayoutInfoFromSymbol symbol =
+    { STransform = symbol.STransform
+      PortOrientation = symbol.PortOrientation
+      PortOrder = symbol.PortOrder 
+      LabelBoundingBox = 
+        if symbol.LabelHasDefaultPos then 
+            None 
+        else 
+            Some symbol.LabelBoundingBox}
+/// Return a symbol with its embedded component correctly updated with symbol layoiut info.
+/// Should be called juts before saving a component.
+let storeLayoutInfoInComponent _ symbol =
+    { symbol with
+        Component =
+            { symbol.Component with
+                SymbolInfo = Some (getLayoutInfoFromSymbol symbol)
+                X = symbol.Pos.X
+                Y = symbol.Pos.Y} }
+
+
 /// Update function which displays symbols
 let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
@@ -744,6 +822,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     | MoveSymbols (compList, move) -> 
         (moveSymbols model compList move), Cmd.none
+
+    | MoveLabel (compId, move) ->
+         let newSym = model.Symbols[compId] |> moveLabel move
+         {model with Symbols = Map.add compId newSym model.Symbols}, Cmd.none
 
     | SymbolsHaveError compList ->
         (symbolsHaveError model compList), Cmd.none
@@ -795,9 +877,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | RotateLeft(compList, rotation) ->
         (transformSymbols (rotateSymbol rotation) model compList), Cmd.none
 
-    | RotateRight compList ->
-        (transformSymbols (rotateSymbol RotateClockwise) model compList), Cmd.none
-
     | Flip(compList, orientation) ->
         (transformSymbols (flipSymbol orientation) model compList), Cmd.none
 
@@ -815,28 +894,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let newSymbol = updatePortPos oldSymbol pos portId
         {model with Symbols = Map.add newSymbol.Id newSymbol model.Symbols}, Cmd.ofMsg (unbox UpdateBoundingBoxes)
     | SaveSymbols -> // want to add this message later, currently not used
-        let getSymbolInfo symbol =
-            { STransform = symbol.STransform
-              PortOrientation = symbol.PortOrientation
-              PortOrder = symbol.PortOrder }
-        //need to store STransform in the component for reloading and stuffs
-
-        let storeSymbolInfo _ symbol =
-            { symbol with
-                Component =
-                    { symbol.Component with
-                        SymbolInfo = Some (getSymbolInfo symbol)
-                        X = symbol.Pos.X
-                        Y = symbol.Pos.Y} }
-
-        let newSymbols = Map.map storeSymbolInfo model.Symbols
+        let newSymbols = Map.map storeLayoutInfoInComponent model.Symbols
         { model with Symbols = newSymbols }, Cmd.none
 
 
 // ----------------------interface to Issie----------------------------- //
 let extractComponent (symModel: Model) (sId:ComponentId) : Component = 
     let symbol = symModel.Symbols[sId]
-    symbol.Component
+    let symWithInfo = storeLayoutInfoInComponent () symbol
+    symWithInfo.Component
 
 let extractComponents (symModel: Model) : Component list =
     symModel.Symbols

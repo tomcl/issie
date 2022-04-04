@@ -32,7 +32,7 @@ open System
 let quantifyChanges (ldc1:LoadedComponent) (ldc2:LoadedComponent) =
     let comps1,conns1 = ldc1.CanvasState
     let comps2,conns2 = ldc2.CanvasState
-    let reduceComp comp1 =
+    let reduceComp comp1:Component =
         {comp1 with X=0;Y=0}
     let reduceConn conn1 =
         {conn1 with Vertices = []}
@@ -152,6 +152,7 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
             //Load components
             Sheet (Sheet.Wire (BusWire.Symbol (Symbol.LoadComponents (ldcs,components ))))
             Sheet Sheet.UpdateBoundingBoxes
+            Sheet Sheet.UpdateLabelBoundingBoxes
     
             Sheet (Sheet.Wire (BusWire.LoadConnections connections))
 

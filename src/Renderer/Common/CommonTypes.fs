@@ -146,7 +146,43 @@ module CommonTypes
 
                 
 
-        
+    /// Position on SVG canvas
+    /// Positions can be added, subtracted, scaled using overloaded +,-, *  operators
+    /// currently these custom operators are not used in Issie - they should be!
+    type XYPos =
+        {
+            X : float
+            Y : float
+        }
+    
+        /// allowed tolerance when comparing positions with floating point errors for equality
+        static member epsilon = 0.0000001
+    
+        /// Add postions as vectors (overlaoded operator)
+        static member ( + ) (left: XYPos, right: XYPos) =
+            { X = left.X + right.X; Y = left.Y + right.Y }
+    
+        /// Subtract positions as vectors (overloaded operator)
+        static member ( - ) (left: XYPos, right: XYPos) =
+            { X = left.X - right.X; Y = left.Y - right.Y }
+    
+        /// Scale a position by a number (overloaded operator).
+        static member ( * ) (pos: XYPos, scaleFactor: float) =
+            { X = pos.X*scaleFactor; Y = pos.Y * scaleFactor }
+    
+        /// Compare positions as vectors. Comparison is approximate so 
+        /// it will work even with floating point errors. New infix operator.
+        static member ( =~ ) (left: XYPos, right: XYPos) =
+            abs (left.X - right.X) <= XYPos.epsilon && abs (left.Y - right.Y) <= XYPos.epsilon
+    
+    let euclideanDistance (pos1: XYPos) (pos2:XYPos) = 
+        let vec = pos1 - pos2
+        sqrt(vec.X**2 + vec.Y**2)
+    
+    /// example use of comparison operator: note that F# type inference will not work without at least
+    /// one of the two operator arguments having a known XYPos type.
+    let private testXYPosComparison a  (b:XYPos) = 
+        a =~ b   
   
 
     //==========================================//
@@ -315,12 +351,24 @@ module CommonTypes
     
     /// Represents the sides of a component
     type Edge = | Top | Bottom | Left | Right
+
+    type BoundingBox = {
+        /// Top left corner of the bounding box
+        TopLeft: XYPos
+        /// Width
+        W: float
+        /// Height
+        H: float
+    }
     
     type SymbolInfo = {
+        LabelBoundingBox: BoundingBox option
         STransform: STransform
         PortOrientation: Map<string, Edge>
         PortOrder: Map<Edge, string list>
     }
+
+
 
     let getSTransformWithDefault (infoOpt: SymbolInfo option) =
         match infoOpt with

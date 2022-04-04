@@ -7,59 +7,15 @@ open Browser.Types
 open Fable.Core.JsInterop
 open Fable.React
 open Fable.React.Props
+open CommonTypes
 
 
 //-------------------------------------------------------------------------//
 //------------------------------Types--------------------------------------//
 //-------------------------------------------------------------------------//
 
-/// Position on SVG canvas
-/// Positions can be added, subtracted, scaled using overloaded +,-, *  operators
-/// currently these custom operators are not used in Issie - they should be!
-type XYPos =
-    {
-        X : float
-        Y : float
-    }
-
-    /// allowed tolerance when comparing positions with floating point errors for equality
-    static member epsilon = 0.0000001
-
-    /// Add postions as vectors (overlaoded operator)
-    static member ( + ) (left: XYPos, right: XYPos) =
-        { X = left.X + right.X; Y = left.Y + right.Y }
-
-    /// Subtract positions as vectors (overloaded operator)
-    static member ( - ) (left: XYPos, right: XYPos) =
-        { X = left.X - right.X; Y = left.Y - right.Y }
-
-    /// Scale a position by a number (overloaded operator).
-    static member ( * ) (pos: XYPos, scaleFactor: float) =
-        { X = pos.X*scaleFactor; Y = pos.Y * scaleFactor }
-
-    /// Compare positions as vectors. Comparison is approximate so 
-    /// it will work even with floating point errors. New infix operator.
-    static member ( =~ ) (left: XYPos, right: XYPos) =
-        abs (left.X - right.X) <= XYPos.epsilon && abs (left.Y - right.Y) <= XYPos.epsilon
-
-let euclideanDistance (pos1: XYPos) (pos2:XYPos) = 
-    let vec = pos1 - pos2
-    sqrt(vec.X**2 + vec.Y**2)
-
-/// example use of comparison operator: note that F# type inference will not work without at least
-/// one of the two operator arguments having a known XYPos type.
-let private testXYPosComparison a  (b:XYPos) = 
-    a =~ b
 
 
-type BoundingBox = {
-    /// Top left corner of the bounding box
-    TopLeft: XYPos
-    /// Width
-    W: float
-    /// Height
-    H: float
-}
 
 type PortLocation = {
     X: float
@@ -141,10 +97,16 @@ type Text = {
 let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
 let canvasWidthContext = testCanvas.getContext_2d()
 
+/// alas this seems not to work - weirdly
 let getTextWidthInPixels(txt:string, font:Text) =
-   canvasWidthContext.font <- String.concat " " [font.FontSize; font.FontWeight; font.FontFamily]; // e.g. "16px times new roman";
-   canvasWidthContext.measureText(txt).width;
+   canvasWidthContext?font <- String.concat " " [font.FontSize; font.FontWeight; font.FontFamily]; // e.g. "16px times new roman";
+   let ms = canvasWidthContext.measureText(txt)
+   ms.width
 
+/// this is a hack that works for "monospace" font only
+let getMonospaceWidth (font: string) (txt: string) =
+    let sizeInPx = float ((font.ToLower()).Replace("px",""))
+    float txt.Length * 1.20 *sizeInPx 
 
 /// Default line, change this one to create new lines
 let defaultLine = {
@@ -181,13 +143,13 @@ let defaultCircle = {
 
 /// Default text, change this to create new text types
 let defaultText = {
-    TextAnchor = "Middle"
+    TextAnchor = "middle"
     FontSize = "10px"
-    FontFamily = "Verdana, Arial, Helvetica, sans-serif" // Change font family to something good
-    FontWeight = "Normal"
-    Fill = "Black"
+    FontFamily = "sans-serif" //, Arial, Helvetica, sans-serif" // Change font family to something good
+    FontWeight = "normal"
+    Fill = "black"
     UserSelect = UserSelectOptions.None
-    DominantBaseline = "Hanging"
+    DominantBaseline = "hanging"
 }
 
 /// Port circle, used by both Sheet and Symbol to create ports
@@ -304,12 +266,27 @@ let makeText (posX: float) (posY: float) (displayedText: string) (textParameters
                 DominantBaseline textParameters.DominantBaseline
                 FontWeight textParameters.FontWeight
                 FontSize textParameters.FontSize
+                FontFamily textParameters.FontFamily
                 Fill textParameters.Fill
                 UserSelect textParameters.UserSelect 
             ]
         ] [str <| sprintf "%s" (displayedText)]
 
-
+/// makes a two-line text ReactElement
+/// Dy parameter determines line spacing
+let makeTwoLinesOfText (posX: float) (posY: float) (line1: string) (line2: string) (textParameters: Text) =
+    text [
+        X posX; 
+        Y posY; 
+        Style [
+            TextAnchor textParameters.TextAnchor
+            DominantBaseline textParameters.DominantBaseline
+            FontWeight textParameters.FontWeight
+            FontSize textParameters.FontSize
+            Fill textParameters.Fill
+            UserSelect textParameters.UserSelect 
+        ]
+    ] [tspan [] [str line1]; tspan [Dy "1.2em"] [str line2] ]
 
 /// deliver string suitable for HTML color from a HighlightColor type value
 let getColorString (col: CommonTypes.HighLightColor) =

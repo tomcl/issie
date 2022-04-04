@@ -23,6 +23,7 @@ type XYPosMov = {
 
 /// Used to keep track of what the mouse is on
 type MouseOn =
+    | Label of CommonTypes.ComponentId
     | InputPort of CommonTypes.InputPortId * XYPos
     | OutputPort of CommonTypes.OutputPortId * XYPos
     | Component of CommonTypes.ComponentId
@@ -33,7 +34,9 @@ type MouseOn =
 type CurrentAction =
     | Selecting
     | InitialiseMoving of CommonTypes.ComponentId // In case user clicks on a component and never drags the mouse then we'll have saved the component that the user clicked on to reset any multi-selection to that component only.
+    | InitialiseMovingLabel of CommonTypes.ComponentId
     | MovingSymbols
+    | MovingLabel
     | DragAndDrop
     | MovingWire of CommonTypes.ConnectionId // Sends mouse messages on to BusWire
     | ConnectingInput of CommonTypes.InputPortId // When trying to connect a wire from an input
@@ -68,13 +71,17 @@ type CursorType =
     | ClickablePort
     | NoCursor
     | Spinner
+    | Grab
+    | Grabbing
 with
-    member this.Text() =
+    member this.Text() = 
         match this with
         | Default -> "default"
         | ClickablePort -> "move"
         | NoCursor -> "none"
         | Spinner -> "wait"
+        | Grab -> "grab"
+        | Grabbing -> "grabbing"
 
 /// Keeps track of coordinates of visual snap-to-grid indicators.
 type SnapIndicator =
@@ -98,6 +105,8 @@ type Msg =
     | MouseMsg of MouseT
     | UpdateBoundingBoxes
     | UpdateSingleBoundingBox of ComponentId
+    | UpdateLabelBoundingBoxes
+    | UpdateSingleLabelBoundingBox of ComponentId
     | UpdateScrollPos of X: float * Y: float
     | ManualKeyUp of string // For manual key-press checking, e.g. CtrlC
     | ManualKeyDown of string // For manual key-press checking, e.g. CtrlC
@@ -136,6 +145,8 @@ type Model = {
     Wire: BusWire.Model
     BoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
     LastValidBoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
+    LabelBoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
+    SelectedLabel: CommonTypes.ComponentId option
     SelectedComponents: CommonTypes.ComponentId List
     SelectedWires: CommonTypes.ConnectionId list
     NearbyComponents: CommonTypes.ComponentId list
@@ -440,14 +451,10 @@ let findNearbyPorts (model: Model) =
     (inputPortsMap, outputPortsMap) ||> (fun x y -> (Map.toList x), (Map.toList y))
 
 /// Returns what is located at pos
-/// Priority Order: InputPort -> OutputPort -> Component -> Wire -> Canvas
+/// Priority Order: InputPort -> OutputPort -> Component -> Label -> Wire -> Canvas
 let mouseOn (model: Model) (pos: XYPos) : MouseOn =
-    let inputPorts, outputPorts = findNearbyPorts model
 
-    //TODO FIX THIS - QUICK FIX TO MAKE WORK, NOT IDEAL
-    //The ports/wires are being loaded in the correct place but the detection is not working
-    //Something is wrong with the mouse coordinates somewhere, might be caused by zoom? not sure
-    //let pos = {X = posIn.X - 2.; Y = posIn.Y - 4.}
+    let inputPorts, outputPorts = findNearbyPorts model
 
     match mouseOnPort inputPorts pos 2.5 with
     | Some (portId, portLoc) -> InputPort (portId, portLoc)
@@ -458,9 +465,13 @@ let mouseOn (model: Model) (pos: XYPos) : MouseOn =
             match insideBox model.BoundingBoxes pos with
             | Some compId -> Component compId
             | None ->
-                match BusWireUpdate.getClickedWire model.Wire pos (5./model.Zoom) with
-                | Some connId -> Connection connId
-                | None -> Canvas
+                match insideBox model.LabelBoundingBoxes pos with
+                | Some compId -> 
+                    Label compId
+                | None ->
+                    match BusWireUpdate.getClickedWire model.Wire pos (5./model.Zoom) with
+                    | Some connId -> Connection connId
+                    | None -> Canvas
 
 let notIntersectingComponents (model: Model) (box1: BoundingBox) (inputId: CommonTypes.ComponentId) =
    model.BoundingBoxes

@@ -1,5 +1,5 @@
 ﻿module Version
-let VERSION = [ 2 ; 4 ; 5 ]
+let VERSION = [ 2 ; 5 ; 0 ]
 
 // The first 12  white-space separated words in this file must be in the above format - note that spaces are required.
 // This works as valid F# data for displaying the code version and can also be read programmatically from the master branch github file

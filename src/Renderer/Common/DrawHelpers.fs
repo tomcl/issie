@@ -99,7 +99,7 @@ let canvasWidthContext = testCanvas.getContext_2d()
 
 /// alas this seems not to work - weirdly
 let getTextWidthInPixels(txt:string, font:Text) =
-   canvasWidthContext?font <- String.concat " " [font.FontSize; font.FontWeight; font.FontFamily]; // e.g. "16px times new roman";
+   canvasWidthContext?font <- String.concat " " [font.FontSize; font.FontWeight; font.FontFamily]; // e.g. "16px bold sans-serif";
    let ms = canvasWidthContext.measureText(txt)
    ms.width
 

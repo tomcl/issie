@@ -16,20 +16,24 @@ open DrawHelpers
 module Constants =
     [<Literal>]
     let gridSize = 30 
+
+    /// How large are component labels
     let labelFontSizeInPixels:float = 30. // otehr parameters scale correctly with this
-    // due to a bug in TextMetrics we are restricted to monospace font, bold or normal, if we need accurate font width
+
+    /// Due to a bug in TextMetrics we are restricted to monospace font, bold or normal, if we need accurate font width
     let componentLabelStyle: Text = {defaultText with TextAnchor = "start"; FontSize = $"{labelFontSizeInPixels}px"; FontFamily = "monospace"}
+
+    /// Offset between label position and symbol. This is also used as a margin for the label bounding box.
     let componentLabelOffsetDistance: float = 10. // offset from symbol outline, otehr parameters scale correctly
     
-    // This seems to work although I don't see why - it is surely too small given that label width scales as 1.2 * fontsizeinpixels.
-    // Clearly something not quite understood aboit even monospace font dimensions.
+    /// Height of label text - used to determine where to print labels
     let componentLabelHeight: float = labelFontSizeInPixels
+
+    /// Small manual correction added to claculated position for placing labels.
+    /// Used to make labels equidistant on all sides of symbol.
     let labelCorrection = {X= 0.; Y= 2.}
     
     
-
-
-open Constants
 /// ---------- SYMBOL TYPES ---------- ///
 
 /// Represents the orientation of a wire segment or symbol flip
@@ -38,6 +42,26 @@ type RotationType = RotateClockwise | RotateAntiClockwise
 
 /// Wraps around the input and output port id types
 type PortId = | InputId of InputPortId | OutputId of OutputPortId
+
+/// data structures defining where ports are put on symbol boundary
+/// strings here are used for port ids
+type PortMaps =
+    {     
+        /// Maps edge to list of ports on that edge, in correct order
+        Order: Map<Edge, string list>
+        /// Maps the port ids to which side of the component the port is on
+        Orientation: Map<string, Edge>
+    }
+
+/// data here changes how the symbol looks but has no other effect
+type AppearanceT =
+    {
+        ShowInputPorts: bool
+        ShowOutputPorts: bool
+        HighlightLabel: bool
+        Colour: string
+        Opacity: float       
+    }
 
 /// Represents a symbol, that contains a component and all the other information needed to render
 type Symbol =
@@ -53,23 +77,18 @@ type Symbol =
 
         LabelBoundingBox: BoundingBox
         LabelHasDefaultPos: bool
-        HighlightLabel: bool
+        
+
+        Appearance: AppearanceT
 
         Id : ComponentId       
         Component : Component                 
-        Colour: string
-        ShowInputPorts: bool
-        ShowOutputPorts: bool
-        Opacity: float
+
         Moving: bool
         IsClocked: bool
         STransform: STransform
 
-        /// Maps the port ids to which side of the component the port is on
-        PortOrientation: Map<string, Edge>
-
-        /// Maps the sides of the symbol to a list of portIds representing the order of the ports on the specific side
-        PortOrder: Map<Edge, string list>
+        PortMaps : PortMaps
 
         /// Option to represent a port that is being moved, if it's some, it contains the moving port's Id and its current position.
         MovingPort: Option<{|PortId:string; CurrPos: XYPos|}>
@@ -156,7 +175,20 @@ let inline getCompRotatedHAndW (comp: Component) (transform: STransform)  =
 /// NB Pos in component = Pos in Symbol and DOES change with rotation!
 let inline getRotatedHAndW sym  = getCompRotatedHAndW sym.Component sym.STransform
 
+/// Modify port position maps to move an existing Lefthand port (index in the list) to the bottom edge
+let movePortToBottom (portMaps: PortMaps) index =
+    let leftPorts = portMaps.Order[Left]
+    let portId = leftPorts |> List.item index //get id of sel
 
+    let newBottomPorts = [portId]
+    let newLeftPorts = portMaps.Order[Left] |> List.removeAt index
+    let newPortOrder =
+        portMaps.Order
+        |> Map.add Bottom newBottomPorts
+        |> Map.add Left newLeftPorts
+    let newPortOrientation =
+        portMaps.Orientation |> Map.add portId Bottom
+    {Order=newPortOrder; Orientation=newPortOrientation}
 
 
 /// work out a label bounding box from symbol
@@ -185,34 +217,6 @@ let calcLabelBoundingBox (textStyle: Text) (comp: Component) (transform: STransf
         | Degree90 -> {X = comp.X - 2.*margin - labW ; Y = centreY - labH/2. - margin}
         | Degree180 -> {X = centreX - labW/2. - margin; Y = comp.Y + h}
     {TopLeft=boxTopLeft + Constants.labelCorrection; W = labW + 2.*margin; H = labH + 2.*margin}
-
-
-let checkPortIntegrity (sym: Symbol) =
-    let diagnose s = failwithf $"Error found!: {s}"
-    let portSides = sym.PortOrientation
-    let ss (port:string) = port[0..2]
-    let sidesWithPorts = sym.PortOrder
-    let comp = sym.Component
-    portSides
-    |> Map.iter (fun port edge ->
-        match Map.tryFind edge sidesWithPorts with
-        | Some pL when not <| List.contains port pL -> 
-            diagnose $"Bad symbol {comp.Label}: port {ss port} not found in {edge} edge list"
-        | None ->
-            diagnose $"Bad symbol {comp.Label}: can't find edge {edge} in sidesWithPorts map"
-        | _ -> ())
-    sidesWithPorts
-    |> Map.iter (fun edge portL ->
-        portL
-        |> List.iter (fun p -> 
-            match Map.tryFind p portSides with
-            | None -> 
-                diagnose $"Bad symbol {comp.Label}: can't find port {p} in sidesWithPorts map"
-            | Some edge' when edge' <> edge ->
-                diagnose $"Bad symbol {comp.Label}: port {p} in sidesWithPorts map"
-            | _ -> ()))
-    ()
-                
 
 
 //------------------------------------------------------------------//
@@ -306,6 +310,29 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
    // |_ -> ([],[])
    // EXTENSION: Extra Components made that are not currently in Issie. Can be extended later by using this code as it is .
 
+let movePortsToCorrectEdgeForComponentType (ct: ComponentType) (portMaps: PortMaps): PortMaps =
+    match ct with //need to put some ports to different edges
+    | Mux2 -> //need to remove select port from left and move to bottom
+        movePortToBottom portMaps 2
+    | Mux4 -> //need to remove select port from left and move to right
+        movePortToBottom portMaps 4
+    | Mux8 ->
+        movePortToBottom portMaps 8
+    | NbitsAdder _ -> 
+        let rightSide = portMaps.Order[Right]
+        let newRightSide = List.rev rightSide
+        let newPortOrder = Map.add Right newRightSide portMaps.Order
+        let portMaps' = {portMaps with Order = newPortOrder}
+        movePortToBottom portMaps' 0
+    | DFFE ->
+        movePortToBottom portMaps 1
+    | RegisterE _ ->
+        movePortToBottom portMaps 1
+    | Demux2 | Demux4 | Demux8 ->
+        movePortToBottom portMaps 1
+    | _ -> portMaps
+
+
 /// Genererates a list of ports:
 let portLists numOfPorts hostID portType =
     if numOfPorts < 1 
@@ -337,64 +364,37 @@ let customStringToLength (lst: string list) =
     if List.isEmpty labelLengths then 0
     else List.max labelLengths
 
-let addPortToMaps (edge: Edge) ((portOrder:Map<Edge, string list>), portOrientation: Map<string,Edge>) (portId: string) =
-    let portOrder' = portOrder |> Map.add edge (portOrder[edge] @ [portId])
-    portOrder', (portOrientation |> Map.add portId edge)
+let addPortToMaps (edge: Edge) (portMaps: PortMaps) (portId: string) =
+    {
+        Order = portMaps.Order |> Map.add edge (portMaps.Order[edge] @ [portId])
+        Orientation = portMaps.Orientation |> Map.add portId edge
+    }
 
-let deletePortFromMaps (port: string) ((portOrder:Map<Edge, string list>), portOrientation: Map<string,Edge>) =
+let deletePortFromMaps (port: string) (portMaps: PortMaps) =
     let deletePort (ports: string list) = List.filter ((<>) port) ports
-    let pOrder = Map.map (fun edge pL -> deletePort pL) portOrder
-    let pOrient = Map.remove port portOrientation
-    pOrder, pOrient
+    {
+        Order = Map.map (fun edge pL -> deletePort pL) portMaps.Order
+        Orientation = Map.remove port portMaps.Orientation
+    }
 
+/// work out the initial (default) port placing for a componenent.
+/// also used for legacy circuits loaded without port layoiut info.
 let initPortOrientation (comp: Component) =
-    
-    let movePortToBottom (res: Map<Edge, string list>*Map<string, Edge>) index =
-        let leftPorts = (fst res)[Left]
-        let portId = leftPorts |> List.item index //get id of sel
-
-        let newBottomPorts = [portId]
-        let newLeftPorts = (fst res)[Left] |> List.removeAt index
-        let newPortOrder =
-            fst res
-            |> Map.add Bottom newBottomPorts
-            |> Map.add Left newLeftPorts
-        let newPortOrientation =
-            snd res |> Map.add portId Bottom
-        newPortOrder, newPortOrientation
 
     let defaultportOrder = 
         (Map.empty, [Left; Right; Top; Bottom])
         ||> List.fold (fun currMap edge -> Map.add edge [] currMap)
 
-    let inputMaps =
-        ((defaultportOrder, Map.empty), comp.InputPorts)
+    let inputMaps : PortMaps =
+        ({Order=defaultportOrder; Orientation=Map.empty}, comp.InputPorts)
         ||> List.fold (fun maps port -> addPortToMaps Left maps port.Id)
 
     let res = 
         (inputMaps, (List.rev comp.OutputPorts))
         ||> List.fold (fun maps port -> addPortToMaps Right maps port.Id)
+    movePortsToCorrectEdgeForComponentType comp.Type res
 
-    match comp.Type with //need to put some ports to different edges
-    | Mux2 -> //need to remove select port from left and move to bottom
-        movePortToBottom res 2
-    | Mux4 -> //need to remove select port from left and move to right
-        movePortToBottom res 4
-    | Mux8 ->
-        movePortToBottom res 8
-    | NbitsAdder _ -> 
-        let rightSide = (fst res)[Right]
-        let newRightSide = List.rev rightSide
-        let newPortOrder = Map.add Right newRightSide (fst res)
-        let res' = newPortOrder, snd res
-        movePortToBottom res' 0
-    | DFFE ->
-        movePortToBottom res 1
-    | RegisterE _ ->
-        movePortToBottom res 1
-    | Demux2 | Demux4 | Demux8 ->
-        movePortToBottom res 1
-    | _ -> res
+
 
     
 
@@ -434,10 +434,10 @@ let getCustomPortIdMap (comp: Component)  =
 let makeMapsConsistent (portIdMap: Map<string,string>) (sym: Symbol) =
     let edgeToAddTo = Right // TODO - choose Left or Right based on inpit or output
     let newPortIds = Set (portIdMap |> Map.keys)
-    let currentPortIds = Set (sym.PortOrientation |> Map.keys)
+    let currentPortIds = Set (sym.PortMaps.Orientation |> Map.keys)
     let addedPortIds = newPortIds - currentPortIds
     let deletedPortIds = currentPortIds - newPortIds
-    let maps = (sym.PortOrder,sym.PortOrientation)
+    let maps = sym.PortMaps
     (maps, addedPortIds) 
     ||> Set.fold (fun maps port -> addPortToMaps edgeToAddTo maps port)
     |> (fun maps -> maps, deletedPortIds)
@@ -450,12 +450,12 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
         match sym.Component.Type with
         | Custom comp ->
                 let portIdMap = getCustomPortIdMap sym.Component
-                let pOrder, pOrientation = makeMapsConsistent portIdMap sym
+                let portMaps = makeMapsConsistent portIdMap sym
                 let convertIdsToLbls currMap edge idList =
                     let lblLst = List.map (fun id -> portIdMap[id]) idList
                     Map.add edge lblLst currMap
                 let portLabels = 
-                    (Map.empty, pOrder) ||> Map.fold convertIdsToLbls
+                    (Map.empty, portMaps.Order) ||> Map.fold convertIdsToLbls
                 let h = Constants.gridSize + Constants.gridSize * max (List.length portLabels[Left]) (List.length portLabels[Right])
 
                 let maxLeftLength = customStringToLength portLabels[Left] 
@@ -475,9 +475,8 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
                 let scaledW = max w (Constants.gridSize * 4) //Ensures a minimum width if the labels are very small
                 let scaledH = max h (Constants.gridSize*2)
                 {sym with
-                    PortOrientation = pOrientation
-                    PortOrder = pOrder
-                    Component={sym.Component with H= float scaledH; W = float scaledW}}
+                    PortMaps = portMaps
+                    Component = {sym.Component with H= float scaledH; W = float scaledW}}
 
         | _ -> sym
 
@@ -554,23 +553,24 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
     let style = Constants.componentLabelStyle
     let comp = makeComponent pos comptype id label
     let transform = {Rotation= Degree0; flipped= false}
-    let portOrder, portOrientation = initPortOrientation comp
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
       LabelBoundingBox = calcLabelBoundingBox style comp transform
       LabelHasDefaultPos = true
-      HighlightLabel = false
-      ShowInputPorts = false
-      ShowOutputPorts = false
+      Appearance =
+          {
+            HighlightLabel = false
+            ShowInputPorts = false
+            ShowOutputPorts = false
+            Colour = "lightgrey"
+            Opacity = 1.0
+          }
       InWidth0 = None // set by BusWire
       InWidth1 = None
-      Colour = "lightgrey"
       Id = ComponentId id
       Component = comp
-      Opacity = 1.0
       Moving = false
-      PortOrder = portOrder
-      PortOrientation = portOrientation
+      PortMaps = initPortOrientation comp
       STransform = transform
       MovingPort = None
       IsClocked = isClocked [] ldcs comp
@@ -597,7 +597,7 @@ let inline getPortPosEdgeGap (ct: ComponentType) =
 ///Given a symbol and a Port, it returns the orientation of the port
 let inline getSymbolPortOrientation (sym: Symbol) (port: Port): Edge =
     let portId = port.Id
-    sym.PortOrientation[portId]
+    sym.PortMaps.Orientation[portId]
 
 
 /// Returns the xy offset of a side relative to the symbol topleft
@@ -652,7 +652,7 @@ let getMuxSelOffset (sym: Symbol) (side: Edge): XYPos =
 let getPortPos (sym: Symbol) (port: Port) : XYPos =
     //get ports on the same edge first
     let side = getSymbolPortOrientation sym port
-    let ports = sym.PortOrder[side] //list of ports on the same side as port
+    let ports = sym.PortMaps.Order[side] //list of ports on the same side as port
     let index = float( List.findIndex (fun (p:string)  -> p = port.Id) ports )
     let gap = getPortPosEdgeGap sym.Component.Type 
     let baseOffset = getPortBaseOffset sym side  //offset of the side component is on
@@ -713,7 +713,7 @@ let private portText (pos: XYPos) name edge =
 
 /// Print the name of each port 
 let private drawPortsText (portList: list<Port>) (listOfNames: list<string>) (symb: Symbol) = 
-    let getPortName name x = portText (getPortPosToRender symb portList[x]) name (symb.PortOrientation[portList.[x].Id])
+    let getPortName name x = portText (getPortPosToRender symb portList[x]) name (symb.PortMaps.Orientation[portList.[x].Id])
     if listOfNames.Length < 1
     then []
     else 
@@ -973,7 +973,9 @@ let private renderSymbol =
         fun (props : RenderSymbolProps) ->
             let symbol = props.Symbol
             let ({X=fX; Y=fY}:XYPos) = symbol.Pos
-            g ([ Style [ Transform(sprintf $"translate({fX}px, {fY}px)") ] ]) (drawSymbol props.Symbol symbol.Colour symbol.ShowInputPorts symbol.ShowOutputPorts symbol.Opacity)
+            let appear = symbol.Appearance
+            g ([ Style [ Transform(sprintf $"translate({fX}px, {fY}px)") ] ]) 
+                (drawSymbol props.Symbol appear.Colour appear.ShowInputPorts appear.ShowOutputPorts appear.Opacity)
             
         , "Symbol"
         , equalsButFunctions
@@ -1091,7 +1093,7 @@ let inline getPortOrientation (model: Model)  (portId: PortId) : Edge =
     let portIdStr = getPortIdStr portId
     let port = model.Ports[portIdStr]
     let sId = ComponentId port.HostId
-    model.Symbols[sId].PortOrientation[portIdStr]
+    model.Symbols[sId].PortMaps.Orientation[portIdStr]
 
 let inline getInputPortOrientation (model: Model) (portId: InputPortId): Edge =
     getPortOrientation model (InputId portId)

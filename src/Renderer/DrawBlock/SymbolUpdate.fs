@@ -560,7 +560,7 @@ let rotateSymbol (rotation: RotationType) (sym: Symbol) : Symbol =
     match sym.Component.Type with
     | Custom _-> sym
     | _ ->
-        let h,w = getHAndW sym
+        let h,w = getRotatedHAndW sym
         let posOffset =
             match rotation with
             | RotateClockwise -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
@@ -592,6 +592,7 @@ let rotateSymbol (rotation: RotationType) (sym: Symbol) : Symbol =
             STransform =newSTransform 
             LabelBoundingBox = newlabelBB
             LabelHasDefaultPos = true
+            Component = { sym.Component with X = newPos.X; Y = newPos.Y}
         }
 
 
@@ -662,9 +663,9 @@ let rectanglesIntersect (rect1: Rectangle) (rect2: Rectangle) =
 
 /// Returns an Option Edge. Returns Some edge if position is on edge of Symbol, and None if it was not on an edge
 let getCloseByEdge (sym:Symbol) (pos:XYPos) : Option<Edge> =
-    let h',w' = getHAndW sym
+    let h',w' = getRotatedHAndW sym
     let h, w = float h', float w'
-    let symbolOffset = pos-sym.Pos
+    let symbolOffset = pos - sym.Pos
     let (cursorRect: Rectangle) = {TopLeft = symbolOffset; BottomRight = symbolOffset}
     let bbW = 5.
     let edgePosLst = 
@@ -688,7 +689,7 @@ let getPosIndex (sym: Symbol) (pos: XYPos) (edge: Edge): int =
     let gap = getPortPosEdgeGap sym.Component.Type 
     let baseOffset = getPortBaseOffset sym edge  //offset of the side component is on
     let pos' = pos - sym.Pos + baseOffset 
-    let h,w = getHAndW sym
+    let h,w = getRotatedHAndW sym
     match ports.Length, edge with
     | 0, _ -> 0 
     | _, Left ->

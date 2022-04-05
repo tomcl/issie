@@ -24,6 +24,7 @@ module Constants =
     // This seems to work although I don't see why - it is surely too small given that label width scales as 1.2 * fontsizeinpixels.
     // Clearly something not quite understood aboit even monospace font dimensions.
     let componentLabelHeight: float = labelFontSizeInPixels
+    let labelCorrection = {X= 0.; Y= 2.}
     
     
 
@@ -140,6 +141,23 @@ let inline invertRotation (rot: RotationType) =
     | RotateClockwise -> RotateAntiClockwise
     | RotateAntiClockwise -> RotateClockwise
 
+/// Returns the correct height and width of a transformed symbol
+/// as the tuple (real H, real W).
+/// Needed because H & W in Component do not chnage with rotation.
+/// NB Pos in component = Pos in Symbol and DOES change with rotation!
+let inline getCompRotatedHAndW (comp: Component) (transform: STransform)  =
+    match transform.Rotation with
+    | Degree0 | Degree180 -> comp.H, comp.W
+    | Degree90 | Degree270 -> comp.W, comp.H
+
+/// Returns the correct height and width of a transformed symbol
+/// as the tuple (real H, real W).
+/// Needed because H & W in Component do not chnage with rotation.
+/// NB Pos in component = Pos in Symbol and DOES change with rotation!
+let inline getRotatedHAndW sym  = getCompRotatedHAndW sym.Component sym.STransform
+
+
+
 
 /// work out a label bounding box from symbol
 /// the bb has a margin around the label text outline.
@@ -154,19 +172,19 @@ let calcLabelBoundingBox (textStyle: Text) (comp: Component) (transform: STransf
                      | Degree270 -> Degree90
                      | _ -> transform.Rotation
         | false -> transform.Rotation
-    let (dX,dY) = comp.W / 2., comp.H / 2.
-    let centreX = dX + comp.X
-    let centreY = dY + comp.Y
+    let h,w = getCompRotatedHAndW comp transform
+    let centreX = comp.X + w / 2.
+    let centreY = comp.Y + h / 2.
     let margin = Constants.componentLabelOffsetDistance
-    let labH = Constants.componentLabelHeight / 2.
-    let labW = getMonospaceWidth textStyle.FontSize comp.Label / 2.
+    let labH = Constants.componentLabelHeight
+    let labW = getMonospaceWidth textStyle.FontSize comp.Label
     let boxTopLeft =
         match labelRotation with 
-        | Degree0 -> {X = centreX - labW/2. - margin; Y = centreY - dY - 2.*labH - margin }
-        | Degree270 -> {X = centreX + dY; Y = centreY - labH/2. - margin}
-        | Degree90 -> {X = centreX - dY - 2.*margin - labW ; Y = centreY - labH/2. - margin}
-        | Degree180 -> {X = centreX - labW/2. - margin; Y = centreY + dY}
-    {TopLeft=boxTopLeft; W = labW+2.*margin; H = labH + 2.*margin}
+        | Degree0 -> {X = centreX - labW/2. - margin; Y = comp.Y - labH - 2.*margin }
+        | Degree270 -> {X = comp.X + w; Y = centreY - labH/2. - margin}
+        | Degree90 -> {X = comp.X - 2.*margin - labW ; Y = centreY - labH/2. - margin}
+        | Degree180 -> {X = centreX - labW/2. - margin; Y = comp.Y + h}
+    {TopLeft=boxTopLeft + Constants.labelCorrection; W = labW + 2.*margin; H = labH + 2.*margin}
 
 
 let checkPortIntegrity (sym: Symbol) =
@@ -319,6 +337,16 @@ let customStringToLength (lst: string list) =
     if List.isEmpty labelLengths then 0
     else List.max labelLengths
 
+let addPortToMaps (edge: Edge) ((portOrder:Map<Edge, string list>), portOrientation: Map<string,Edge>) (portId: string) =
+    let portOrder' = portOrder |> Map.add edge (portOrder[edge] @ [portId])
+    portOrder', (portOrientation |> Map.add portId edge)
+
+let deletePortFromMaps (port: string) ((portOrder:Map<Edge, string list>), portOrientation: Map<string,Edge>) =
+    let deletePort (ports: string list) = List.filter ((<>) port) ports
+    let pOrder = Map.map (fun edge pL -> deletePort pL) portOrder
+    let pOrient = Map.remove port portOrientation
+    pOrder, pOrient
+
 let initPortOrientation (comp: Component) =
     
     let movePortToBottom (res: Map<Edge, string list>*Map<string, Edge>) index =
@@ -335,20 +363,17 @@ let initPortOrientation (comp: Component) =
             snd res |> Map.add portId Bottom
         newPortOrder, newPortOrientation
 
-    let addPortToMaps (edge: Edge) ((portOrder:Map<Edge, string list>), portOrientation) (port: Port) =
-        let portOrder' = portOrder |> Map.add edge (portOrder[edge] @ [port.Id])
-        portOrder', (portOrientation |> Map.add port.Id edge)
     let defaultportOrder = 
         (Map.empty, [Left; Right; Top; Bottom])
         ||> List.fold (fun currMap edge -> Map.add edge [] currMap)
 
     let inputMaps =
         ((defaultportOrder, Map.empty), comp.InputPorts)
-        ||> List.fold (addPortToMaps Left)
+        ||> List.fold (fun maps port -> addPortToMaps Left maps port.Id)
 
     let res = 
         (inputMaps, (List.rev comp.OutputPorts))
-        ||> List.fold (addPortToMaps Right)
+        ||> List.fold (fun maps port -> addPortToMaps Right maps port.Id)
 
     match comp.Type with //need to put some ports to different edges
     | Mux2 -> //need to remove select port from left and move to bottom
@@ -405,38 +430,55 @@ let getCustomPortIdMap (comp: Component)  =
             finalMap
         | _ -> Map.empty
 
+
+let makeMapsConsistent (portIdMap: Map<string,string>) (sym: Symbol) =
+    let edgeToAddTo = Right // TODO - choose Left or Right based on inpit or output
+    let newPortIds = Set (portIdMap |> Map.keys)
+    let currentPortIds = Set (sym.PortOrientation |> Map.keys)
+    let addedPortIds = newPortIds - currentPortIds
+    let deletedPortIds = currentPortIds - newPortIds
+    let maps = (sym.PortOrder,sym.PortOrientation)
+    (maps, addedPortIds) 
+    ||> Set.fold (fun maps port -> addPortToMaps edgeToAddTo maps port)
+    |> (fun maps -> maps, deletedPortIds)
+    ||> Set.fold (fun maps port -> deletePortFromMaps port maps )
+
 /// adjust symbol (and component) dimensions based on current ports and labels of a custom component.
 /// leaves otehr symbols unchanged
 let autoScaleHAndW (sym:Symbol) : Symbol =
     //height same as before, just take max of left and right
         match sym.Component.Type with
         | Custom comp ->
-            let portIdMap = getCustomPortIdMap sym.Component
-            let convertIdsToLbls currMap edge idList =
-                let lblLst = List.map (fun id -> portIdMap[id]) idList
-                Map.add edge lblLst currMap
-            let portLabels = 
-                (Map.empty, sym.PortOrder) ||> Map.fold convertIdsToLbls
-            let h = Constants.gridSize + Constants.gridSize * max (List.length portLabels[Left]) (List.length portLabels[Right])
+                let portIdMap = getCustomPortIdMap sym.Component
+                let pOrder, pOrientation = makeMapsConsistent portIdMap sym
+                let convertIdsToLbls currMap edge idList =
+                    let lblLst = List.map (fun id -> portIdMap[id]) idList
+                    Map.add edge lblLst currMap
+                let portLabels = 
+                    (Map.empty, pOrder) ||> Map.fold convertIdsToLbls
+                let h = Constants.gridSize + Constants.gridSize * max (List.length portLabels[Left]) (List.length portLabels[Right])
 
-            let maxLeftLength = customStringToLength portLabels[Left] 
-            let maxRightLength = customStringToLength portLabels[Right]
+                let maxLeftLength = customStringToLength portLabels[Left] 
+                let maxRightLength = customStringToLength portLabels[Right]
 
-            //need to check the sum of the lengths of top and bottom
-            let topLength = customStringToLength portLabels[Top] 
-            let bottomLength = customStringToLength portLabels[Bottom]
+                //need to check the sum of the lengths of top and bottom
+                let topLength = customStringToLength portLabels[Top] 
+                let bottomLength = customStringToLength portLabels[Bottom]
 
-            //Divide by 5 is just abitrary as otherwise the symbols would be too wide 
-            let maxW = 
-                [(maxLeftLength + maxRightLength + sym.Component.Label.Length)*Constants.gridSize/5;
-                (List.length portLabels[Top] + 1)* max (topLength*Constants.gridSize/5)Constants.gridSize;
-                (List.length portLabels[Bottom]+ 1)*max (bottomLength*Constants.gridSize/5) Constants.gridSize]
-                |> List.max 
-            let w = roundToN Constants.gridSize (maxW ) 
-            let scaledW = max w (Constants.gridSize * 4) //Ensures a minimum width if the labels are very small
-            let scaledH = max h (Constants.gridSize*2)
-            {sym with
-                Component={sym.Component with H= float scaledH; W = float scaledW}}
+                //Divide by 5 is just abitrary as otherwise the symbols would be too wide 
+                let maxW = 
+                    [(maxLeftLength + maxRightLength + sym.Component.Label.Length)*Constants.gridSize/5;
+                    (List.length portLabels[Top] + 1)* max (topLength*Constants.gridSize/5)Constants.gridSize;
+                    (List.length portLabels[Bottom]+ 1)*max (bottomLength*Constants.gridSize/5) Constants.gridSize]
+                    |> List.max 
+                let w = roundToN Constants.gridSize (maxW ) 
+                let scaledW = max w (Constants.gridSize * 4) //Ensures a minimum width if the labels are very small
+                let scaledH = max h (Constants.gridSize*2)
+                {sym with
+                    PortOrientation = pOrientation
+                    PortOrder = pOrder
+                    Component={sym.Component with H= float scaledH; W = float scaledW}}
+
         | _ -> sym
 
 
@@ -557,15 +599,10 @@ let inline getSymbolPortOrientation (sym: Symbol) (port: Port): Edge =
     let portId = port.Id
     sym.PortOrientation[portId]
 
-/// Returns the height and width of a symbol
-let inline getHAndW sym =
-    match sym.STransform.Rotation with
-    | Degree0 | Degree180 -> sym.Component.H, sym.Component.W
-    | _ -> sym.Component.W, sym.Component.H
 
 /// Returns the xy offset of a side relative to the symbol topleft
 let inline getPortBaseOffset (sym: Symbol) (side: Edge): XYPos=
-    let h,w = getHAndW sym
+    let h,w = getRotatedHAndW sym
     match side with 
     | Right -> {X = w; Y = 0.0}
     | Left -> {X = 0.0; Y = 0.0}
@@ -620,7 +657,7 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
     let gap = getPortPosEdgeGap sym.Component.Type 
     let baseOffset = getPortBaseOffset sym side  //offset of the side component is on
     let baseOffset' = baseOffset + getMuxSelOffset sym side
-    let h,w = getHAndW sym
+    let h,w = getRotatedHAndW sym
     match side with
     | Left ->
         let yOffset = (float(h))* (( index + gap )/( float( ports.Length ) + 2.0*gap - 1.0))
@@ -758,7 +795,7 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
 
 let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutputPorts:bool) (opacity: float) = 
     let comp = symbol.Component
-    let h,w = getHAndW symbol
+    let h,w = getRotatedHAndW symbol
     let H = float comp.H
     let W = float comp.W
     let transform = symbol.STransform
@@ -885,20 +922,19 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
             match symbol.LabelHasDefaultPos with 
             | true -> calcLabelBoundingBox style comp transform
             | false -> symbol.LabelBoundingBox
-        let dimW = {X=box.W; Y=0.}
-        let dimH = {X=0.; Y=box.H}
         let margin = Constants.componentLabelOffsetDistance
-        // uncomment this to display bounding box corners for testing new fonts etc.
+        // uncomment this to display label bounding box corners for testing new fonts etc.
         (*let corners = 
             [box.TopLeft; box.TopLeft+dimW; box.TopLeft+dimH; box.TopLeft+dimW+dimH]
             |> List.map (fun c -> 
                 let c' = c - symbol.Pos
                 makeCircle (c'.X) (c'.Y) {defaultCircle with R=3.})*)
-        
+
         addStyledText 
             {style with DominantBaseline="hanging"} 
             (box.TopLeft - symbol.Pos + {X=margin;Y=margin}) 
             comp.Label ::  [] //corners uncomment this to display lavel bounding box corners.
+
 
 
  
@@ -987,7 +1023,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
 /// Returns the bounding box of a symbol. It is defined by the height and the width as well as the x,y position of the symbol.
 /// Works with rotation.
 let inline getSymbolBoundingBox (sym:Symbol): BoundingBox =
-    let h,w = getHAndW sym
+    let h,w = getRotatedHAndW sym
     {TopLeft = sym.Pos; H = float(h) ; W = float(w)}
 
 /// Returns all the bounding boxes of all components in the model

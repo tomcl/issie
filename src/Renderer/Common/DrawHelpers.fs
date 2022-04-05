@@ -106,7 +106,7 @@ let getTextWidthInPixels(txt:string, font:Text) =
 /// this is a hack that works for "monospace" font only
 let getMonospaceWidth (font: string) (txt: string) =
     let sizeInPx = float ((font.ToLower()).Replace("px",""))
-    float txt.Length * 1.20 *sizeInPx 
+    float txt.Length * 0.6 *sizeInPx 
 
 /// Default line, change this one to create new lines
 let defaultLine = {

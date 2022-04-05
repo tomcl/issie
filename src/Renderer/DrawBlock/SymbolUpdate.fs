@@ -43,8 +43,8 @@ let generateLabel (model: Model) (compType: ComponentType) : string =
     | IOLabel -> prefix
     | _ -> prefix + (generateLabelNumber listSymbols compType)
 
-/// Initialises and returns the new portOrientation and portOrder of a pasted symbol as a tuple
-let initCopiedPorts (oldSymbol:Symbol) (newComp: Component) =
+/// Initialises and returns the PortMaps of a pasted symbol
+let initCopiedPorts (oldSymbol:Symbol) (newComp: Component): PortMaps =
     let inPortIds = List.map (fun (p:Port) -> p.Id)  newComp.InputPorts
     let outPortIds = List.map (fun (p:Port) -> p.Id) newComp.OutputPorts
     let oldInPortIds =  
@@ -55,7 +55,7 @@ let initCopiedPorts (oldSymbol:Symbol) (newComp: Component) =
         List.zip oldInPortIds inPortIds @ List.zip oldOutPortIds outPortIds
         |> Map.ofList
     let portOrientation = 
-        (Map.empty,oldSymbol.PortOrientation)
+        (Map.empty,oldSymbol.PortMaps.Orientation)
         ||> Map.fold 
             (fun currMap oldPortId edge -> Map.add equivPortIds[oldPortId] edge currMap)
 
@@ -63,7 +63,7 @@ let initCopiedPorts (oldSymbol:Symbol) (newComp: Component) =
         (Map.empty, [Top; Bottom; Left; Right])
         ||> List.fold (fun currMap side -> Map.add side [] currMap)
     let portOrder =
-        (emptyPortOrder, oldSymbol.PortOrder)
+        (emptyPortOrder, oldSymbol.PortMaps.Order)
         ||> Map.fold 
             (fun currMap side oldList -> 
                 let newList =
@@ -72,7 +72,7 @@ let initCopiedPorts (oldSymbol:Symbol) (newComp: Component) =
                         (fun currList oldPortId ->
                             currList @ [equivPortIds[oldPortId]])
                 Map.add side newList currMap)
-    portOrientation, portOrder
+    {Order=portOrder; Orientation=portOrientation}
 
 
 /// Interface function to paste symbols. Is a function instead of a message because we want an output.
@@ -88,16 +88,18 @@ let pasteSymbols (model: Model) (newBasePos: XYPos) : (Model * ComponentId list)
             |> generateLabel { model with Symbols = currSymbolModel.Symbols}
 
         let newComp = makeComponent newPos compType newId newLabel
-        let portOrientation, portOrder = initCopiedPorts oldSymbol newComp
+       
         let newSymbol =
             { oldSymbol with
                 Id = ComponentId newId
                 Component = newComp
                 Pos = newPos
-                ShowInputPorts = false
-                ShowOutputPorts = false
-                PortOrientation = portOrientation
-                PortOrder = portOrder
+                Appearance = 
+                    {oldSymbol.Appearance with
+                        ShowInputPorts = false
+                        ShowOutputPorts = false
+                }
+                PortMaps = initCopiedPorts oldSymbol newComp
             }
              
         let newSymbolMap = currSymbolModel.Symbols.Add (ComponentId newId, newSymbol)
@@ -256,17 +258,24 @@ let inline deleteSymbols (model: Model) compIds =
     { model with Symbols = newSymbols }
 
 /// Given a model and a list of component ids copies the specified components and returns the updated model
-let inline copySymbols (model: Model) compIds =
+let copySymbols (model: Model) compIds =
     let copiedSymbols = 
         model.Symbols
         |> Map.filter (fun compId _ -> List.contains compId compIds) 
 
     { model with CopiedSymbols = copiedSymbols }
 
+let inline changeSymbolAppearance ( sym:Symbol) (change: AppearanceT -> AppearanceT) =
+    let app = sym.Appearance
+    {sym with Appearance = change app}
+
+let inline changeSymbolColour (sym:Symbol) (color: string) =
+    changeSymbolAppearance sym (fun app -> {app with Colour = color})
+
 /// Given a model it shows all input ports and hides all output ports, then returns the updated model
 let inline showAllInputPorts (model: Model) =
     let showSymbolInPorts _ sym = 
-        {sym with ShowInputPorts = true; ShowOutputPorts = false}
+        changeSymbolAppearance sym (fun app -> {app with ShowInputPorts = true; ShowOutputPorts = false})
 
     let newSymbols = 
         model.Symbols
@@ -277,7 +286,7 @@ let inline showAllInputPorts (model: Model) =
 /// Given a model it shows all output ports and hides all input ports, then returns the updated model
 let inline showAllOutputPorts (model: Model) =
     let showSymbolOutPorts _ sym = 
-        {sym with ShowInputPorts = false; ShowOutputPorts = true}
+        changeSymbolAppearance sym (fun app -> {app with ShowInputPorts = false; ShowOutputPorts = true})
 
     let newSymbols = 
         model.Symbols
@@ -288,7 +297,7 @@ let inline showAllOutputPorts (model: Model) =
 /// Given a model it hides all ports and returns the updated model
 let inline deleteAllPorts (model: Model) =
     let hideSymbolPorts _ sym = 
-        {sym with ShowInputPorts = false; ShowOutputPorts = false}
+        changeSymbolAppearance sym (fun app -> {app with ShowInputPorts = false; ShowOutputPorts = false})
 
     let updatedSymbols = 
         model.Symbols
@@ -299,10 +308,10 @@ let inline deleteAllPorts (model: Model) =
 /// Given a model it shows all the specified components' ports and hides all the other ones
 let inline showPorts (model: Model) compList =
     let hideSymbolPorts _ sym =
-        {sym with ShowInputPorts = false; ShowOutputPorts = false}
+        changeSymbolAppearance sym (fun app -> {app with ShowInputPorts = false; ShowOutputPorts = false})
 
     let showSymbolPorts sym =
-        {sym with ShowInputPorts = true; ShowOutputPorts = true}
+        changeSymbolAppearance sym (fun app -> {app with ShowInputPorts = true; ShowOutputPorts = true})
 
     let resetSymbols = 
         model.Symbols
@@ -354,10 +363,10 @@ let moveSymbols (model:Model) (compList: ComponentId list) (offset: XYPos)=
 let inline symbolsHaveError model compList =
     let resetSymbols = 
         model.Symbols
-        |> Map.map (fun _ sym -> {sym with Colour = "Lightgray"}) 
+        |> Map.map (fun _ sym -> changeSymbolColour sym "Lightgray")
 
     let setSymColorToRed prevSymbols sId =
-        Map.add sId {resetSymbols[sId] with Colour = "Red"} prevSymbols
+        Map.add sId (changeSymbolColour resetSymbols[sId] "Red") prevSymbols
 
     let newSymbols =
         (resetSymbols, compList)
@@ -369,10 +378,10 @@ let inline selectSymbols model compList =
     let resetSymbols = 
         model.Symbols
         |> Map.map (fun _ sym -> 
-            { sym with Colour = "Lightgray"; Opacity = 1.0 }) 
+            changeSymbolAppearance sym  (fun app -> {app with  Colour= "Lightgray"; Opacity = 1.0 }))
 
     let updateSymbolColour prevSymbols sId =
-        Map.add sId {resetSymbols[sId] with Colour = "lightgreen"} prevSymbols
+        Map.add sId (changeSymbolColour resetSymbols[sId] "lightgreen") prevSymbols
     
     let newSymbols =
         (resetSymbols, compList)
@@ -385,20 +394,20 @@ let inline errorSymbols model (errorCompList,selectCompList,isDragAndDrop) =
     let resetSymbols = 
         model.Symbols
         |> Map.map 
-            (fun _ sym ->  { sym with Colour = "Lightgray"; Opacity = 1.0 })
+            (fun _ sym ->  changeSymbolAppearance sym (fun app -> {app with Colour ="Lightgray"; Opacity = 1.0 }))
             
     let updateSymbolStyle prevSymbols sId =
         if not isDragAndDrop then 
-            Map.add sId {resetSymbols[sId] with Colour = "lightgreen"} prevSymbols
+            Map.add sId (changeSymbolColour resetSymbols[sId] "lightgreen") prevSymbols
         else 
-            Map.add sId { resetSymbols[sId] with Opacity = 0.2 } prevSymbols
+            Map.add sId (changeSymbolAppearance resetSymbols[sId] (fun app -> {app with Opacity = 0.2})) prevSymbols
 
     let selectSymbols =
         (resetSymbols, selectCompList)
         ||> List.fold updateSymbolStyle 
 
     let setSymColourToRed prevSymbols sId =
-        Map.add sId {resetSymbols[sId] with Colour = "Red"} prevSymbols
+        Map.add sId (changeSymbolColour resetSymbols[sId] "Red") prevSymbols
 
     let newSymbols = 
         (selectSymbols, errorCompList)
@@ -421,7 +430,7 @@ let inline changeLabel (model: Model) sId newLabel=
 /// Given a model, a component id list and a color, updates the color of the specified symbols and returns the updated model.
 let inline colorSymbols (model: Model) compList colour =
     let changeSymColour (prevSymbols: Map<ComponentId, Symbol>) (sId: ComponentId) =
-        let newSymbol = {prevSymbols[sId] with Colour = string colour}
+        let newSymbol = changeSymbolColour prevSymbols[sId] (string colour)
         prevSymbols |> Map.add sId newSymbol
 
     let newSymbols =
@@ -433,14 +442,14 @@ let inline colorSymbols (model: Model) compList colour =
 /// Given a map of current symbols and a component, initialises a symbol containing the component and returns the updated symbol map containing the new symbol
 let createSymbol ldcs prevSymbols comp =
         let clocked = isClocked [] ldcs comp
-        let (portOrder, portOrientation) = 
+        let portMaps = 
             match comp.SymbolInfo with
                 | None -> 
                     printfn "Creating default order symbol"
                     initPortOrientation comp
                 | Some info -> 
                     printfn "creating symbol with port order from syminfo"
-                    info.PortOrder, info.PortOrientation
+                    {Order=info.PortOrder; Orientation=info.PortOrientation}
         let xyPos = {X = comp.X; Y = comp.Y}
         let (h,w) =
             if comp.H = -1 && comp.W = -1 then
@@ -459,19 +468,22 @@ let createSymbol ldcs prevSymbols comp =
                 Pos = xyPos
                 LabelBoundingBox = labelBoundingBox
                 LabelHasDefaultPos = hasDefault
-                HighlightLabel = false
-                ShowInputPorts = false //do not show input ports initially
-                ShowOutputPorts = false //do not show output ports initially
-                Colour = "lightgrey"     // initial color 
+                Appearance = {
+                    HighlightLabel = false
+                    ShowInputPorts = false //do not show input ports initially
+                    ShowOutputPorts = false //do not show output ports initially
+                    Colour = "lightgrey"     // initial color 
+                    Opacity = 1.0
+                }
                 Id = ComponentId comp.Id
                 Component = {comp with H=h ; W = w}
-                Opacity = 1.0
+                
                 Moving = false
                 InWidth0 = None
                 InWidth1 = None
                 STransform = getSTransformWithDefault comp.SymbolInfo
-                PortOrientation = portOrientation
-                PortOrder = portOrder
+                PortMaps = portMaps
+                
                 MovingPort = None
                 IsClocked = clocked
             }
@@ -569,10 +581,10 @@ let rotateSymbol (rotation: RotationType) (sym: Symbol) : Symbol =
 
         //need to update portOrientation and portOrder
         let newPortOrientation = 
-            sym.PortOrientation |> Map.map (fun id side -> rotateSide rotation side)
+            sym.PortMaps.Orientation |> Map.map (fun id side -> rotateSide rotation side)
 
         let rotatePortList currPortOrder side =
-            currPortOrder |> Map.add (rotateSide rotation side) sym.PortOrder[side]
+            currPortOrder |> Map.add (rotateSide rotation side) sym.PortMaps.Order[side]
 
         let newPortOrder = 
             (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold rotatePortList
@@ -587,8 +599,7 @@ let rotateSymbol (rotation: RotationType) (sym: Symbol) : Symbol =
 
         { sym with 
             Pos = newPos;
-            PortOrientation = newPortOrientation
-            PortOrder = newPortOrder
+            PortMaps = {Order=newPortOrder; Orientation= newPortOrientation}
             STransform =newSTransform 
             LabelBoundingBox = newlabelBB
             LabelHasDefaultPos = true
@@ -611,13 +622,13 @@ let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
     match sym.Component.Type with
     | Custom _ -> sym
     | _ ->
-        let newPortOrientation = 
-            sym.PortOrientation |> Map.map (fun id side -> flipSideHorizontal side)
+        let portOrientation = 
+            sym.PortMaps.Orientation |> Map.map (fun id side -> flipSideHorizontal side)
 
         let flipPortList currPortOrder side =
-            currPortOrder |> Map.add (flipSideHorizontal side ) sym.PortOrder[side]
+            currPortOrder |> Map.add (flipSideHorizontal side ) sym.PortMaps.Order[side]
 
-        let newPortOrder = 
+        let portOrder = 
             (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold flipPortList
             |> Map.map (fun edge order -> List.rev order)
 
@@ -630,8 +641,7 @@ let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
         let newLabelBB = calcLabelBoundingBox Constants.componentLabelStyle sym.Component newSTransform 
 
         { sym with
-            PortOrientation = newPortOrientation
-            PortOrder = newPortOrder
+            PortMaps = {Order=portOrder;Orientation=portOrientation}
             STransform = newSTransform
             LabelBoundingBox = newLabelBB
             LabelHasDefaultPos = true
@@ -684,7 +694,7 @@ let getCloseByEdge (sym:Symbol) (pos:XYPos) : Option<Edge> =
 
 ///Given a symbol and a port, it returns the offset of the port from the top left corner of the symbol
 let getPosIndex (sym: Symbol) (pos: XYPos) (edge: Edge): int =
-    let ports = sym.PortOrder[edge] //list of ports on the same side as port
+    let ports = sym.PortMaps.Order[edge] //list of ports on the same side as port
     //let index = float( List.findIndex (fun (p:string)  -> p = port.Id) ports ) need to find index
     let gap = getPortPosEdgeGap sym.Component.Type 
     let baseOffset = getPortBaseOffset sym edge  //offset of the side component is on
@@ -704,21 +714,21 @@ let getPosIndex (sym: Symbol) (pos: XYPos) (edge: Edge): int =
 let updatePortPos (sym:Symbol) (pos:XYPos) (portId: string) : Symbol =
     match sym.Component.Type with
     | Custom x ->
-        let oldPortOrder, oldPortOrientation = sym.PortOrder, sym.PortOrientation
+        let oldMaps = sym.PortMaps
         match getCloseByEdge sym pos with
         | None -> 
             printfn "not on edge"
             {sym with MovingPort = None}
         | Some edge -> 
             printfn $"{edge}"
-            let newPortOrientation = oldPortOrientation |> Map.add portId edge
-            let oldEdge = oldPortOrientation[portId]
+            let newPortOrientation = oldMaps.Orientation |> Map.add portId edge
+            let oldEdge = oldMaps.Orientation[portId]
             let newPortIdx = getPosIndex sym pos edge
-            let oldIdx = oldPortOrder[oldEdge] |> List.findIndex (fun el -> el = portId)
+            let oldIdx = oldMaps.Order[oldEdge] |> List.findIndex (fun el -> el = portId)
             
             let oldPortOrder' =
-                oldPortOrder 
-                |> Map.add oldEdge (oldPortOrder[oldEdge] |> List.filter (fun el -> el <> portId))
+                oldMaps.Order 
+                |> Map.add oldEdge (oldMaps.Order[oldEdge] |> List.filter (fun el -> el <> portId))
             let newPortIdx' =
                 if newPortIdx > oldPortOrder'[edge].Length then oldPortOrder'[edge].Length
                 else if edge = oldEdge && oldIdx < newPortIdx then newPortIdx - 1
@@ -731,8 +741,8 @@ let updatePortPos (sym:Symbol) (pos:XYPos) (portId: string) : Symbol =
             let newSym =
                 {sym with 
                     MovingPort = None;
-                    PortOrientation = newPortOrientation;
-                    PortOrder = newPortOrder}
+                    PortMaps = {Orientation = newPortOrientation; Order = newPortOrder}
+                }
             autoScaleHAndW newSym
     | _ -> {sym with MovingPort = None;}
 
@@ -782,8 +792,8 @@ let private modifySymbolsByCompIds
 /// It is saved in extra SymbolInfo type and corresp filed in Component.
 let getLayoutInfoFromSymbol symbol =
     { STransform = symbol.STransform
-      PortOrientation = symbol.PortOrientation
-      PortOrder = symbol.PortOrder 
+      PortOrientation = symbol.PortMaps.Orientation
+      PortOrder = symbol.PortMaps.Order 
       LabelBoundingBox = 
         if symbol.LabelHasDefaultPos then 
             None 
@@ -854,7 +864,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | PasteSymbols compList ->
         let newSymbols =
             (model.Symbols, compList)
-            ||> List.fold (fun prevSymbols sId -> Map.add sId { model.Symbols[sId] with Opacity = 0.4 } prevSymbols) 
+            ||> List.fold (fun prevSymbols sId -> 
+                Map.add sId (changeSymbolAppearance model.Symbols[sId] (fun app -> {app with Opacity = 0.4})) prevSymbols) 
         { model with Symbols = newSymbols }, Cmd.none  
     
     | ColorSymbols (compList, colour) -> 

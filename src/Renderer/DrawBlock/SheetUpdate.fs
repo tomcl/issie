@@ -123,7 +123,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                     Cmd.ofMsg (UpdateSingleLabelBoundingBox model.SelectedComponents.Head)
                     symbolCmd (Symbol.ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
                     Cmd.ofMsg CheckAutomaticScrolling
-                    wireCmd (BusWire.UpdateWires (model.SelectedComponents, posDiff mMsg.Pos model.LastMousePos))]
+                    wireCmd (BusWire.UpdateWires (model.SelectedComponents, mMsg.Pos - model.LastMousePos))]
     | _ -> // Moving multiple symbols -> don't do snap-to-grid
         let errorComponents =
             model.SelectedComponents
@@ -132,12 +132,12 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                     LastMousePos = mMsg.Pos; 
                     ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}; 
                     ErrorComponents = errorComponents },
-        Cmd.batch [ symbolCmd (Symbol.MoveSymbols (model.SelectedComponents, posDiff mMsg.Pos model.LastMousePos))
+        Cmd.batch [ symbolCmd (Symbol.MoveSymbols (model.SelectedComponents, mMsg.Pos - model.LastMousePos))
                     symbolCmd (Symbol.ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
                     Cmd.ofMsg UpdateBoundingBoxes
                     Cmd.ofMsg UpdateLabelBoundingBoxes
                     Cmd.ofMsg CheckAutomaticScrolling
-                    wireCmd (BusWire.UpdateWires (model.SelectedComponents, posDiff mMsg.Pos model.LastMousePos))]
+                    wireCmd (BusWire.UpdateWires (model.SelectedComponents, mMsg.Pos - model.LastMousePos))]
 
 
 let snapWire (model: Model) (mMsg: MouseT) (connId: ConnectionId): Model * Cmd<Msg> = 
@@ -537,11 +537,11 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
                 Snap = {XSnap = None; YSnap = None}
                 SnapIndicator = {XLine = None; YLine = None }
                 AutomaticScrolling = false },
-            Cmd.batch [ symbolCmd (Symbol.MoveSymbols (model.SelectedComponents, (posDiff model.LastValidPos mMsg.Pos)))
+            Cmd.batch [ symbolCmd (Symbol.MoveSymbols (model.SelectedComponents, (model.LastValidPos - mMsg.Pos)))
                         Cmd.ofMsg UpdateBoundingBoxes
                         Cmd.ofMsg UpdateLabelBoundingBoxes
                         symbolCmd (Symbol.SelectSymbols (model.SelectedComponents))
-                        wireCmd (BusWire.UpdateWires (model.SelectedComponents, posDiff model.LastValidPos mMsg.Pos))
+                        wireCmd (BusWire.UpdateWires (model.SelectedComponents, model.LastValidPos - mMsg.Pos))
                         wireCmd (BusWire.MakeJumps movingWires) ]
     | ConnectingInput inputPortId ->
         let cmd, undoList ,redoList =
@@ -736,7 +736,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | false -> model, Cmd.none
  
     | UpdateScrollPos (scrollX, scrollY) ->
-        let scrollDif = posDiff { X = scrollX; Y = scrollY } model.ScrollPos
+        let scrollDif = { X = scrollX; Y = scrollY } - model.ScrollPos
         let newLastScrollingPos =
             {
              Pos =
@@ -765,7 +765,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | KeepZoomCentered oldScreenCentre ->
         let canvas = document.getElementById "Canvas"
         let newScreenCentre = getScreenCentre model
-        let requiredOffset = posDiff oldScreenCentre newScreenCentre
+        let requiredOffset = oldScreenCentre - newScreenCentre
 
         // Update screen so that the zoom is centred around the middle of the screen.
         canvas.scrollLeft <- canvas.scrollLeft + requiredOffset.X * model.Zoom

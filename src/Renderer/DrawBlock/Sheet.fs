@@ -270,8 +270,6 @@ let symDiff lst1 lst2 =
     (a - b) + (b - a)
     |> Set.toList
 
-/// Calculates the change in coordinates of two XYPos
-let posDiff (a: XYPos) (b: XYPos) = {X=a.X-b.X; Y=a.Y-b.Y}
 
 let getScreenEdgeCoords () =
     let canvas = document.getElementById "Canvas"
@@ -285,7 +283,7 @@ let getScreenEdgeCoords () =
     (leftScreenEdge, rightScreenEdge,topScreenEdge,bottomScreenEdge)
 
 /// Checks if pos is inside any of the bounding boxes of the components in boundingBoxes
-let insideBox (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>) (pos: XYPos) : CommonTypes.ComponentId Option =
+let inline insideBox (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>) (pos: XYPos) : CommonTypes.ComponentId Option =
     let insideOneBox _ boundingBox =
         let {BoundingBox.TopLeft={X = xBox; Y=yBox}; H=hBox; W=wBox} = boundingBox
         pos.X >= xBox && pos.X <= xBox + wBox && pos.Y >= yBox && pos.Y <= yBox + hBox
@@ -322,7 +320,7 @@ let boxUnion (box:BoundingBox) (box':BoundingBox) =
 
 let symbolToBB (symbol:Symbol.Symbol) =
     let co = symbol.Component
-    {TopLeft = {X= co.X; Y=co.Y}; W=co.W; H=co.H}
+    {TopLeft = symbol.Pos; W=co.W; H=co.H}
     
 
 /// Inputs must also have W,H > 0.
@@ -451,7 +449,7 @@ let findNearbyPorts (model: Model) =
     (inputPortsMap, outputPortsMap) ||> (fun x y -> (Map.toList x), (Map.toList y))
 
 /// Returns what is located at pos
-/// Priority Order: InputPort -> OutputPort -> Component -> Label -> Wire -> Canvas
+/// Priority Order: InputPort -> OutputPort -> Component -> Label -> Wire -> Component -> Canvas
 let mouseOn (model: Model) (pos: XYPos) : MouseOn =
 
     let inputPorts, outputPorts = findNearbyPorts model
@@ -462,16 +460,17 @@ let mouseOn (model: Model) (pos: XYPos) : MouseOn =
         match mouseOnPort outputPorts pos 2.5 with
         | Some (portId, portLoc) -> OutputPort (portId, portLoc)
         | None ->
-            match insideBox model.BoundingBoxes pos with
-            | Some compId -> Component compId
+            match insideBox model.LabelBoundingBoxes pos with
+            | Some compId -> 
+                Label compId
             | None ->
-                match insideBox model.LabelBoundingBoxes pos with
-                | Some compId -> 
-                    Label compId
+                match BusWireUpdate.getClickedWire model.Wire pos (5./model.Zoom) with
+                | Some connId -> Connection connId
                 | None ->
-                    match BusWireUpdate.getClickedWire model.Wire pos (5./model.Zoom) with
-                    | Some connId -> Connection connId
+                    match insideBox model.BoundingBoxes pos with
+                    | Some compId -> Component compId
                     | None -> Canvas
+
 
 let notIntersectingComponents (model: Model) (box1: BoundingBox) (inputId: CommonTypes.ComponentId) =
    model.BoundingBoxes

@@ -433,7 +433,14 @@ let inline colorSymbols (model: Model) compList colour =
 /// Given a map of current symbols and a component, initialises a symbol containing the component and returns the updated symbol map containing the new symbol
 let createSymbol ldcs prevSymbols comp =
         let clocked = isClocked [] ldcs comp
-        let (portOrder, portOrientation) = initPortOrientation comp
+        let (portOrder, portOrientation) = 
+            match comp.SymbolInfo with
+                | None -> 
+                    printfn "Creating default order symbol"
+                    initPortOrientation comp
+                | Some info -> 
+                    printfn "creating symbol with port order from syminfo"
+                    info.PortOrder, info.PortOrientation
         let xyPos = {X = comp.X; Y = comp.Y}
         let (h,w) =
             if comp.H = -1 && comp.W = -1 then
@@ -791,6 +798,8 @@ let storeLayoutInfoInComponent _ symbol =
                 X = symbol.Pos.X
                 Y = symbol.Pos.Y} }
 
+let checkSymbolIntegrity (sym: Symbol) =
+    failwithf ""
 
 /// Update function which displays symbols
 let update (msg : Msg) (model : Model): Model*Cmd<'a>  =

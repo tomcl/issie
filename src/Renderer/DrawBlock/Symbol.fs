@@ -168,7 +168,34 @@ let calcLabelBoundingBox (textStyle: Text) (comp: Component) (transform: STransf
         | Degree180 -> {X = centreX - labW/2. - margin; Y = centreY + dY}
     {TopLeft=boxTopLeft; W = labW+2.*margin; H = labH + 2.*margin}
 
- 
+
+let checkPortIntegrity (sym: Symbol) =
+    let diagnose s = failwithf $"Error found!: {s}"
+    let portSides = sym.PortOrientation
+    let ss (port:string) = port[0..2]
+    let sidesWithPorts = sym.PortOrder
+    let comp = sym.Component
+    portSides
+    |> Map.iter (fun port edge ->
+        match Map.tryFind edge sidesWithPorts with
+        | Some pL when not <| List.contains port pL -> 
+            diagnose $"Bad symbol {comp.Label}: port {ss port} not found in {edge} edge list"
+        | None ->
+            diagnose $"Bad symbol {comp.Label}: can't find edge {edge} in sidesWithPorts map"
+        | _ -> ())
+    sidesWithPorts
+    |> Map.iter (fun edge portL ->
+        portL
+        |> List.iter (fun p -> 
+            match Map.tryFind p portSides with
+            | None -> 
+                diagnose $"Bad symbol {comp.Label}: can't find port {p} in sidesWithPorts map"
+            | Some edge' when edge' <> edge ->
+                diagnose $"Bad symbol {comp.Label}: port {p} in sidesWithPorts map"
+            | _ -> ()))
+    ()
+                
+
 
 //------------------------------------------------------------------//
 //------------------- Helper functions for titles ------------------//

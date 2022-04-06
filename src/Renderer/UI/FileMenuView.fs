@@ -20,6 +20,9 @@ open Extractor
 open Notifications
 open PopupView
 open CustomCompPorts
+open DrawModelType
+open Sheet.SheetInterface
+
 open System
 //--------------------------------------------------------------------------------------------//
 //--------------------------------------------------------------------------------------------//
@@ -141,26 +144,26 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
             SetHighlighted([], []) // Remove current highlights.
     
             // Clear the canvas.
-            Sheet Sheet.ResetModel
-            Sheet (Sheet.Wire BusWire.ResetModel)
-            Sheet (Sheet.Wire (BusWire.Symbol (Symbol.ResetModel ) ) )
+            Sheet SheetT.ResetModel
+            Sheet (SheetT.Wire BusWireT.ResetModel)
+            Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ResetModel ) ) )
     
             // Finally load the new state in the canvas.
             SetIsLoading true
             //printfn "Check 1..."
     
             //Load components
-            Sheet (Sheet.Wire (BusWire.Symbol (Symbol.LoadComponents (ldcs,components ))))
-            Sheet Sheet.UpdateBoundingBoxes
-            Sheet Sheet.UpdateLabelBoundingBoxes
+            Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.LoadComponents (ldcs,components ))))
+            Sheet SheetT.UpdateBoundingBoxes
+            Sheet SheetT.UpdateLabelBoundingBoxes
     
-            Sheet (Sheet.Wire (BusWire.LoadConnections connections))
+            Sheet (SheetT.Wire (BusWireT.LoadConnections connections))
 
-            Sheet Sheet.FlushCommandStack // Discard all undo/redo.
+            Sheet SheetT.FlushCommandStack // Discard all undo/redo.
             // Run the a connection widths inference.
             //printfn "Check 4..."
     
-            Sheet (Sheet.Wire (BusWire.BusWidths))
+            Sheet (SheetT.Wire (BusWireT.BusWidths))
             // JSdispatch <| InferWidths()
             //printfn "Check 5..."
             // Set no unsaved changes.
@@ -185,7 +188,7 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
     //INFO - Currently the spinner will ALWAYS load after 'SetTopMenu x', probably it is the last command in a chain
     //Ideally it should happen before this, but it is not currently doing this despite the async call
     //This will set a spinner for both Open project and Change sheet which are the two most lengthly processes
-    dispatch <| (Sheet (Sheet.SetSpinner true))
+    dispatch <| (Sheet (SheetT.SetSpinner true))
     dispatch <| SendSeqMsgAsynch msgs
     
 /// Return LoadedComponents with sheet name updated according to setFun.
@@ -274,7 +277,7 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
                             match List.tryFind (fun (c:Component) -> c.Id=comp.Id) ramCheck with
                             | Some newRam -> 
                                 // TODO: create consistent helpers for messages
-                                dispatch <| Sheet (Sheet.Wire (BusWire.Symbol (Symbol.WriteMemoryType (ComponentId comp.Id, newRam.Type))))
+                                dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.WriteMemoryType (ComponentId comp.Id, newRam.Type))))
                                 newRam
                             | _ -> comp), conns)
             writeComponentToBackupFile 4 1. newLdc dispatch
@@ -723,7 +726,7 @@ let rec resolveComponentOpenPopup
 let private openProject model dispatch =
     //trying to force the spinner to load earlier
     //doesn't really work right now
-    dispatch (Sheet (Sheet.SetSpinner true))
+    dispatch (Sheet (SheetT.SetSpinner true))
     match askForExistingProjectPath () with
     | None -> () // User gave no path.
     | Some path ->
@@ -1005,7 +1008,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                       Button.OnClick(fun _ -> 
                                         dispatch (StartUICmd SaveSheet)
                                         saveOpenFileActionWithModelUpdate model dispatch |> ignore
-                                        dispatch <| Sheet(Sheet.DoNothing) //To update the savedsheetisoutofdate send a sheet message
+                                        dispatch <| Sheet(SheetT.DoNothing) //To update the savedsheetisoutofdate send a sheet message
                                         ) ]) [ str "Save" ] ] ]
                       Navbar.End.div []
                           [ 

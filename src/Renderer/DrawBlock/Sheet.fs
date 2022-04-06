@@ -9,251 +9,102 @@ open Fable.React.Props
 open Browser
 open Elmish
 open DrawHelpers
+open DrawModelType
+open DrawModelType.SheetT
 
 
 
 let mutable canvasDiv:Types.Element option = None
 
-
-/// Used to keep mouse movement (AKA velocity) info as well as position
-type XYPosMov = {
-    Pos: XYPos
-    Move: XYPos
-    }
-
-/// Used to keep track of what the mouse is on
-type MouseOn =
-    | Label of CommonTypes.ComponentId
-    | InputPort of CommonTypes.InputPortId * XYPos
-    | OutputPort of CommonTypes.OutputPortId * XYPos
-    | Component of CommonTypes.ComponentId
-    | Connection of CommonTypes.ConnectionId
-    | Canvas
-
-/// Keeps track of the current action that the user is doing
-type CurrentAction =
-    | Selecting
-    | InitialiseMoving of CommonTypes.ComponentId // In case user clicks on a component and never drags the mouse then we'll have saved the component that the user clicked on to reset any multi-selection to that component only.
-    | InitialiseMovingLabel of CommonTypes.ComponentId
-    | MovingSymbols
-    | MovingLabel
-    | DragAndDrop
-    | MovingWire of CommonTypes.ConnectionId // Sends mouse messages on to BusWire
-    | ConnectingInput of CommonTypes.InputPortId // When trying to connect a wire from an input
-    | ConnectingOutput of CommonTypes.OutputPortId // When trying to connect a wire from an output
-    | Scrolling // For Automatic Scrolling by moving mouse to edge to screen
-    | Idle
-    // ------------------------------ Issie Actions ---------------------------- //
-    | InitialisedCreateComponent of LoadedComponent list * ComponentType * string
-    | MovingPort of portId: string//?? should it have the port id?
-
-type UndoAction =
-    | MoveBackSymbol of CommonTypes.ComponentId List * XYPos
-    | UndoPaste of CommonTypes.ComponentId list
-
-/// Used for Snap-to-Grid, keeps track of mouse coordinates when the snapping started, and the amount to un-snap in the future.
-type LastSnap =
-    {
-        Pos: float
-        SnapLength: float
-    }
-
-/// Used for Snap-to-Grid, keeps track of the last snap for each coordinate. None if no snapping has occurred.
-type MouseSnapInfo =
-    {
-        XSnap: LastSnap Option
-        YSnap: LastSnap Option
-    }
-
-/// Keeps track of what cursor to show
-type CursorType =
-    | Default
-    | ClickablePort
-    | NoCursor
-    | Spinner
-    | Grab
-    | Grabbing
-with
-    member this.Text() = 
-        match this with
-        | Default -> "default"
-        | ClickablePort -> "move"
-        | NoCursor -> "none"
-        | Spinner -> "wait"
-        | Grab -> "grab"
-        | Grabbing -> "grabbing"
-
-/// Keeps track of coordinates of visual snap-to-grid indicators.
-type SnapIndicator =
-    {
-        XLine: float Option
-        YLine: float Option
-    }
-
-/// For Keyboard messages
-type KeyboardMsg =
-    | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC 
-
-type WireTypeMsg =
-    | Jump | Radiussed | Modern
-
-type Msg =
-    | Wire of BusWire.Msg
-    | KeyPress of KeyboardMsg
-    | ToggleGrid
-    | KeepZoomCentered of XYPos
-    | MouseMsg of MouseT
-    | UpdateBoundingBoxes
-    | UpdateSingleBoundingBox of ComponentId
-    | UpdateLabelBoundingBoxes
-    | UpdateSingleLabelBoundingBox of ComponentId
-    | UpdateScrollPos of X: float * Y: float
-    | ManualKeyUp of string // For manual key-press checking, e.g. CtrlC
-    | ManualKeyDown of string // For manual key-press checking, e.g. CtrlC
-    | CheckAutomaticScrolling
-    | DoNothing
-    // ------------------- Issie Interface Messages ----------------------
-    | InitialiseCreateComponent of LoadedComponent list * ComponentType * string // Need to initialise for drag-and-drop
-    | FlushCommandStack
-    | ResetModel
-    | UpdateSelectedWires of ConnectionId list * bool
-    | ColourSelection of compIds : ComponentId list * connIds : ConnectionId list * colour : HighLightColor
-    | ToggleSelectionOpen
-    | ToggleSelectionClose
-    | ResetSelection
-    | SetWaveSimMode of bool
-    | ToggleNet of CanvasState //This message does nothing in sheet, but will be picked up by the update function
-    | SelectWires of ConnectionId list
-    | SetSpinner of bool
-    | Rotate of Symbol.RotationType
-    | Flip of Symbol.FlipType
-    | WireType of WireTypeMsg
-    | MovePort of MouseT //different from mousemsg because ctrl pressed too
-    | SaveSymbols
-
-
-// ------------------ Helper Functions that need to be before the Model type --------------------------- //
+// ------------------ Helper Functions that need to be before the Model type extensions ---------- //
 
 /// Creates a command to Symbol
-let symbolCmd (msg: Symbol.Msg) = Cmd.ofMsg (Wire (BusWire.Symbol msg))
+let symbolCmd (msg: SymbolT.Msg) = Cmd.ofMsg (Wire (BusWireT.Symbol msg))
 
 /// Creates a command to BusWire
-let wireCmd (msg: BusWire.Msg) = Cmd.ofMsg (Wire msg)
+let wireCmd (msg: BusWireT.Msg) = Cmd.ofMsg (Wire msg)
 
-
-type Model = {
-    Wire: BusWire.Model
-    BoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
-    LastValidBoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
-    LabelBoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
-    SelectedLabel: CommonTypes.ComponentId option
-    SelectedComponents: CommonTypes.ComponentId List
-    SelectedWires: CommonTypes.ConnectionId list
-    NearbyComponents: CommonTypes.ComponentId list
-    ErrorComponents: CommonTypes.ComponentId list
-    DragToSelectBox: BoundingBox
-    ConnectPortsLine: XYPos * XYPos // Visual indicator for connecting ports, defines two vertices to draw a line in-between.
-    TargetPortId: string // Keeps track of if a target port has been found for connecting two wires in-between.
-    Action: CurrentAction
-    ShowGrid: bool // Always true at the moment, kept in-case we want an optional grid
-    Snap: MouseSnapInfo // For Snap-to-Grid
-    SnapIndicator: SnapIndicator // For Snap-to-Grid
-    CursorType: CursorType
-    LastValidPos: XYPos
-    CurrentKeyPresses: Set<string> // For manual key-press checking, e.g. CtrlC
-    Zoom: float
-    TmpModel: Model Option
-    UndoList: Model List
-    RedoList: Model List
-    AutomaticScrolling: bool // True if mouse is near the edge of the screen and is currently scrolling. This improved performance for manual scrolling with mouse wheel (don't check for automatic scrolling if there is no reason to)
-    ScrollPos: XYPos // copies HTML canvas scrolling position: (canvas.scrollLeft,canvas.scrollTop)
-    LastMousePos: XYPos // For Symbol Movement
-    ScrollingLastMousePos: XYPosMov // For keeping track of mouse movement when scrolling. Can't use LastMousePos as it's used for moving symbols (won't be able to move and scroll symbols at same time)
-    LastMousePosForSnap: XYPos
-    MouseCounter: int
-    Toggle : bool
-    IsWaveSim : bool
-    PrevWireSelection : ConnectionId list
-    } with
 
     // ---------------------------------- Issie Interfacing functions ----------------------------- //
 
-    /// Given a compType, return a label
-    member this.GenerateLabel (compType: ComponentType) : string =
-        SymbolUpdate.generateLabel this.Wire.Symbol compType
+module SheetInterface =
+    type Model with
+        /// Given a compType, return a label
+        member this.GenerateLabel (compType: ComponentType) : string =
+            SymbolUpdate.generateLabel this.Wire.Symbol compType
 
-    /// Given a compId, return the corresponding component
-    member this.GetComponentById (compId: ComponentId) =
-        SymbolUpdate.extractComponent this.Wire.Symbol compId
+        /// Given a compId, return the corresponding component
+        member this.GetComponentById (compId: ComponentId) =
+            SymbolUpdate.extractComponent this.Wire.Symbol compId
 
-    /// Change the label of Component specified by compId to lbl
-    member this.ChangeLabel (dispatch: Dispatch<Msg>) (compId: ComponentId) (lbl: string) =
-        dispatch <| (Wire (BusWire.Symbol (Symbol.ChangeLabel (compId, lbl) ) ) )
+        /// Change the label of Component specified by compId to lbl
+        member this.ChangeLabel (dispatch: Dispatch<Msg>) (compId: ComponentId) (lbl: string) =
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeLabel (compId, lbl) ) ) )
 
-    /// Run Bus Width Inference check
-    member this.DoBusWidthInference dispatch =
-        dispatch <| (Wire (BusWire.BusWidths))
+        /// Run Bus Width Inference check
+        member this.DoBusWidthInference dispatch =
+            dispatch <| (Wire (BusWireT.BusWidths))
 
-    /// Given a compId and a width, update the width of the Component specified by compId
-    member this.ChangeWidth (dispatch: Dispatch<Msg>) (compId: ComponentId) (width: int) =
-        dispatch <| (Wire (BusWire.Symbol (Symbol.ChangeNumberOfBits (compId, width) ) ) )
-        this.DoBusWidthInference dispatch
+        /// Given a compId and a width, update the width of the Component specified by compId
+        member this.ChangeWidth (dispatch: Dispatch<Msg>) (compId: ComponentId) (width: int) =
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeNumberOfBits (compId, width) ) ) )
+            this.DoBusWidthInference dispatch
 
-    /// Given a compId and a LSB, update the LSB of the Component specified by compId
-    member this.ChangeLSB (dispatch: Dispatch<Msg>) (compId: ComponentId) (lsb: int64) =
-        dispatch <| (Wire (BusWire.Symbol (Symbol.ChangeLsb (compId, lsb) ) ) )
+        /// Given a compId and a LSB, update the LSB of the Component specified by compId
+        member this.ChangeLSB (dispatch: Dispatch<Msg>) (compId: ComponentId) (lsb: int64) =
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeLsb (compId, lsb) ) ) )
 
-    /// Return Some string if Sheet / BusWire / Symbol has a notification, if there is none then return None
-    member this.GetNotifications =
-        // Currently only BusWire has notifications
-        this.Wire.Notifications
+        /// Return Some string if Sheet / BusWire / Symbol has a notification, if there is none then return None
+        member this.GetNotifications =
+            // Currently only BusWire has notifications
+            this.Wire.Notifications
 
-    /// Get the current canvas state in the form of (Component list * Connection list)
-    member this.GetCanvasState () =
-        let compList = SymbolUpdate.extractComponents this.Wire.Symbol
-        let connList = BusWire.extractConnections this.Wire
+        /// Get the current canvas state in the form of (Component list * Connection list)
+        member this.GetCanvasState () =
+            let compList = SymbolUpdate.extractComponents this.Wire.Symbol
+            let connList = BusWire.extractConnections this.Wire
 
-        compList, connList
+            compList, connList
 
-    /// Clears the Undo and Redo stack of Sheet
-    member this.FlushCommandStack dispatch =
-        dispatch <| FlushCommandStack
+        /// Clears the Undo and Redo stack of Sheet
+        member this.FlushCommandStack dispatch =
+            dispatch <| FlushCommandStack
 
-    /// Clears the canvas, removes all components and connections
-    member this.ClearCanvas dispatch =
-        dispatch <| ResetModel
-        dispatch <| (Wire BusWire.ResetModel)
-        dispatch <| (Wire (BusWire.Symbol (Symbol.ResetModel ) ) )
+        /// Clears the canvas, removes all components and connections
+        member this.ClearCanvas dispatch =
+            dispatch <| ResetModel
+            dispatch <| (Wire BusWireT.ResetModel)
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ResetModel ) ) )
 
-    /// Returns a list of selected components
-    member this.GetSelectedComponents =
-        this.SelectedComponents
-        |> List.collect ( fun compId ->
-            if Map.containsKey compId this.Wire.Symbol.Symbols then
-                [SymbolUpdate.extractComponent this.Wire.Symbol compId]
-            else
-                [])
+        /// Returns a list of selected components
+        member this.GetSelectedComponents =
+            this.SelectedComponents
+            |> List.collect ( fun compId ->
+                if Map.containsKey compId this.Wire.Symbol.Symbols then
+                    [SymbolUpdate.extractComponent this.Wire.Symbol compId]
+                else
+                    [])
         
-    /// Returns a list of selected connections
-    member this.GetSelectedConnections =
-        this.SelectedWires
-        |> List.collect (fun connId ->
-            if Map.containsKey connId this.Wire.Wires then
-                [BusWire.extractConnection this.Wire connId]
-            else 
-                [])
+        /// Returns a list of selected connections
+        member this.GetSelectedConnections =
+            this.SelectedWires
+            |> List.collect (fun connId ->
+                if Map.containsKey connId this.Wire.Wires then
+                    [BusWire.extractConnection this.Wire connId]
+                else 
+                    [])
         
-    /// Returns a list of selected components and connections in the form of (Component list * Connection list)
-    member this.GetSelectedCanvasState =
-        this.GetSelectedComponents, this.GetSelectedConnections
+        /// Returns a list of selected components and connections in the form of (Component list * Connection list)
+        member this.GetSelectedCanvasState =
+            this.GetSelectedComponents, this.GetSelectedConnections
 
-    /// Given a list of connIds, select those connections
-    member this.SelectConnections dispatch on connIds =
-        dispatch <| UpdateSelectedWires (connIds, on)
+        /// Given a list of connIds, select those connections
+        member this.SelectConnections dispatch on connIds =
+            dispatch <| UpdateSelectedWires (connIds, on)
 
-    /// Update the memory of component specified by connId at location addr with data value
-    member this.WriteMemoryLine dispatch connId addr value =
-        dispatch <| (Wire (BusWire.Symbol (Symbol.WriteMemoryLine (connId, addr, value))))
+        /// Update the memory of component specified by connId at location addr with data value
+        member this.WriteMemoryLine dispatch connId addr value =
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.WriteMemoryLine (connId, addr, value))))
 
 // ---------------------------- CONSTANTS ----------------------------- //
 let gridSize = 30.0 // Size of each square grid
@@ -318,7 +169,7 @@ let boxUnion (box:BoundingBox) (box':BoundingBox) =
         H = maxY - minY
     }
 
-let symbolToBB (symbol:Symbol.Symbol) =
+let symbolToBB (symbol:SymbolT.Symbol) =
     let co = symbol.Component
     {TopLeft = symbol.Pos; W=co.W; H=co.H}
     
@@ -370,7 +221,7 @@ let isBBoxAllVisible (bb: BoundingBox) =
     bb.TopLeft.X+bb.W < rh
 
 /// could be made more efficient, since segments contain redundant info
-let getWireBBox (wire: BusWire.Wire) (model: Model) =
+let getWireBBox (wire: BusWireT.Wire) (model: Model) =
     let updateBoundingBox segStart (segEnd: XYPos) state seg =
         let newTop = min state.TopLeft.Y segEnd.Y
         let newBottom = max (state.TopLeft.Y+state.H) segEnd.Y

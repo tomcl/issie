@@ -16,6 +16,8 @@ open CommonTypes
 open MemoryEditorView
 open PopupView
 open Notifications
+open Sheet.SheetInterface
+open DrawModelType
 
 let private readOnlyFormField name body =
     Field.div [] [
@@ -178,14 +180,14 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
 
 let mockDispatchS msgFun msg =
     match msg with
-    | Sheet (Sheet.Msg.Wire (BusWire.Msg.Symbol sMsg)) ->
+    | Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol sMsg)) ->
         msgFun msg
     | _ -> ()
 
 
 
 let msgToS = 
-    BusWire.Msg.Symbol >> Sheet.Msg.Wire >> Msg.Sheet
+    BusWireT.Msg.Symbol >> SheetT.Msg.Wire >> Msg.Sheet
   
 /// Return dialog fileds used by constant, or default values
 let constantDialogWithDefault (w,cText) dialog =
@@ -206,7 +208,7 @@ let makeConstantDialog (model:Model) (comp: Component) (text:string) (dispatch: 
         | Some (Constant1(w,cVal,cText) as compT) ->
             if compT <> comp.Type then
                 model.Sheet.ChangeWidth (Sheet >> dispatch) (ComponentId comp.Id) w
-                symbolDispatch <| Symbol.ChangeConstant (ComponentId comp.Id, cVal, cText)
+                symbolDispatch <| SymbolT.ChangeConstant (ComponentId comp.Id, cVal, cText)
                 dispatch (ReloadSelectedComponent w)
                 dispatch ClosePropertiesNotification
         | _ -> failwithf "What? impossible"

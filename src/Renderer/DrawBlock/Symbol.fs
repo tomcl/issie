@@ -421,7 +421,7 @@ let makeComponent (pos: XYPos) (comptype: ComponentType) (id:string) (label:stri
         | ComponentType.Input (a) -> ( 0 , 1, gS ,  2*gS)                
         | ComponentType.Output (a) -> (  1 , 0, gS ,  2*gS) 
         | ComponentType.Viewer a -> (  1 , 0, gS ,  gS) 
-        | ComponentType.IOLabel  ->(  1 , 1, gS ,  2*gS) 
+        | ComponentType.IOLabel  ->(  1 , 1, gS/2 ,  gS) 
         | Decode4 ->( 2 , 4 , 4*gS  , 3*gS) 
         | Constant1 (a, b,_) | Constant(a, b) -> (  0 , 1, gS ,  2*gS) 
         | MergeWires -> ( 2 , 1, 2*gS ,  2*gS) 
@@ -733,7 +733,7 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
             | Constant1 _ -> 
                 [|{X=W;Y=H/2.};{X=W/2.;Y=H/2.};{X=0;Y=H};{X=0;Y=0};{X=W/2.;Y=H/2.}|]
             | IOLabel ->
-                [|{X=W/3.;Y=0};{X=0;Y=H/2.};{X=W/3.;Y=H};{X=W*0.66;Y=H};{X=W;Y=H/2.};{X=W*0.66;Y=0}|]
+                [|{X=0.;Y=H/2.};{X=W;Y=H/2.}|]
             | Viewer _ ->
                 [|{X=W/5.;Y=0};{X=0;Y=H/2.};{X=W/5.;Y=H};{X=W;Y=H};{X=W;Y=0}|]
             | MergeWires -> 
@@ -808,7 +808,7 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
 
     let outlineColour, strokeWidth =
         match comp.Type with
-        | SplitWire _ | MergeWires -> outlineColor colour, "2.0"
+        | SplitWire _ | MergeWires | IOLabel -> outlineColor colour, "2.0"
         | _ -> "black", "1.0"
     
 

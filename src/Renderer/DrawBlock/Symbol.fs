@@ -86,8 +86,10 @@ let movePortToBottom (portMaps: PortMaps) index =
     {Order=newPortOrder; Orientation=newPortOrientation}
 
 
-/// work out a label bounding box from symbol
-/// the bb has a margin around the label text outline.
+/// Work out a label bounding box from symbol, return symbol with box added.
+/// The box has a margin Constants. componentLabelOffsetDistance around the label text outline.
+/// This function should be included at the end of any function that changes component 
+/// or label position or orientation or shape.
 let calcLabelBoundingBox (sym: Symbol) =
     let textStyle = Constants.componentLabelStyle
     let transform = sym.STransform
@@ -211,6 +213,9 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
    // |_ -> ([],[])
    // EXTENSION: Extra Components made that are not currently in Issie. Can be extended later by using this code as it is .
 
+/// By default all output ports are on the right, input ports on lefty, (of a normal orientation symbol).
+/// A few symbols have ports on top or bottom as defined here.
+/// Note that custom components can have ports positioned by user.
 let movePortsToCorrectEdgeForComponentType (ct: ComponentType) (portMaps: PortMaps): PortMaps =
     match ct with //need to put some ports to different edges
     | Mux2 -> //need to remove select port from left and move to bottom
@@ -331,21 +336,27 @@ let getCustomPortIdMap (comp: Component)  =
             finalMap
         | _ -> Map.empty
 
-
+/// Needed because the I/Os of a custom component can be changed on anotehr sheet.
+/// When the component is reloaded its port maps will be inconsistent.
+/// This function keeps existing layout, and adds new I/Os or deletes old ones.
 let makeMapsConsistent (portIdMap: Map<string,string>) (sym: Symbol) =
-    let edgeToAddTo = Right // TODO - choose Left or Right based on inpit or output
     let newPortIds = Set (portIdMap |> Map.keys)
     let currentPortIds = Set (sym.PortMaps.Orientation |> Map.keys)
     let addedPortIds = newPortIds - currentPortIds
     let deletedPortIds = currentPortIds - newPortIds
     let maps = sym.PortMaps
     (maps, addedPortIds) 
-    ||> Set.fold (fun maps port -> addPortToMaps edgeToAddTo maps port)
+    ||> Set.fold (fun maps port -> 
+                    let edgeToAddTo = // default add new outputs on right, inputs on left
+                        match List.exists (fun (p:Port) -> p.Id = port) sym.Component.InputPorts with
+                        | true -> Left
+                        | false -> Right
+                    addPortToMaps edgeToAddTo maps port)
     |> (fun maps -> maps, deletedPortIds)
     ||> Set.fold (fun maps port -> deletePortFromMaps port maps )
 
 /// adjust symbol (and component) dimensions based on current ports and labels of a custom component.
-/// leaves otehr symbols unchanged
+/// leaves other symbols unchanged
 let autoScaleHAndW (sym:Symbol) : Symbol =
     //height same as before, just take max of left and right
         match sym.Component.Type with
@@ -380,8 +391,9 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
                     Component = {sym.Component with H= float scaledH; W = float scaledW}}
 
         | _ -> sym
+        |> calcLabelBoundingBox
 
-
+/// make a completely new component
 let makeComponent (pos: XYPos) (comptype: ComponentType) (id:string) (label:string) : Component =
     let defaultSTransform = {Rotation = Degree0; flipped = false}
     // function that helps avoid dublicate code by initialising parameters that are the same for all component types and takes as argument the others

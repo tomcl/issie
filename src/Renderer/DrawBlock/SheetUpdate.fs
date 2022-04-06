@@ -719,7 +719,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with Toggle = false}, Cmd.none
 
     | MouseMsg mMsg -> // Mouse Update Functions can be found above, update function got very messy otherwise
-        //printf "%A" mMsg
         match mMsg.Op with
         | Down -> mDownUpdate model mMsg
         | Drag -> mDragUpdate model mMsg
@@ -960,6 +959,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         else {model with CursorType = Default}, Cmd.none
 
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
+    (* |> (fun (model, cmd) ->
+            model.Wire.Symbol.Symbols
+            |> Map.iter (fun symId sym -> 
+                let symLBox = sym.LabelBoundingBox
+                if Map.containsKey symId model.LabelBoundingBoxes then 
+                    let sheetLBox = model.LabelBoundingBoxes[symId]
+                    let posDiff = symLBox.TopLeft - sheetLBox.TopLeft
+                    printfn "%s" (Helpers.nocr $"\n***\nSym offset = {sym.Pos}\nLabel box offset={posDiff}\n***\n"))
+            model,cmd) *)
 
 
 
@@ -1005,5 +1013,6 @@ let init () =
         IsWaveSim = false
         PrevWireSelection = []
     }, Cmd.none
+
 
 

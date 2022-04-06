@@ -420,10 +420,9 @@ let inline errorSymbols model (errorCompList,selectCompList,isDragAndDrop) =
 let inline changeLabel (model: Model) sId newLabel=
     let oldSym = model.Symbols[sId]
     let newComp = {oldSym.Component with Label = newLabel}
-    let newSym = {
-        oldSym with 
-            Component = newComp
-            LabelBoundingBox = calcLabelBoundingBox Constants.componentLabelStyle newComp oldSym.STransform}
+    let newSym = 
+        { oldSym with Component = newComp}
+        |> calcLabelBoundingBox
     { model with 
         Symbols = Map.add sId newSym model.Symbols; 
         }
@@ -459,16 +458,15 @@ let createSymbol ldcs prevSymbols comp =
                 comp'.H,comp'.W
             else
                 comp.H, comp.W
-        let labelBB = calcLabelBoundingBox Constants.componentLabelStyle comp {flipped=false;Rotation=Degree0}
         let hasDefault, labelBoundingBox =
             match comp.SymbolInfo with
             | Some {LabelBoundingBox=Some info} ->  false, info
-            | _ -> true, labelBB
+            | _ -> true, {TopLeft=xyPos; W=0.;H=0.}
         let newSymbol =
             { 
                 Pos = xyPos
-                LabelBoundingBox = labelBoundingBox
                 LabelHasDefaultPos = hasDefault
+                LabelBoundingBox = labelBoundingBox
                 Appearance = {
                     HighlightLabel = false
                     ShowInputPorts = false //do not show input ports initially
@@ -489,6 +487,7 @@ let createSymbol ldcs prevSymbols comp =
                 IsClocked = clocked
             }
             |> autoScaleHAndW
+            |> calcLabelBoundingBox
         prevSymbols
         |> Map.add (ComponentId comp.Id) newSymbol
  
@@ -580,6 +579,8 @@ let rotateSymbol (rotation: RotationType) (sym: Symbol) : Symbol =
             | RotateAntiClockwise -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
         let newPos = sym.Pos + posOffset
 
+        let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
+
         //need to update portOrientation and portOrder
         let newPortOrientation = 
             sym.PortMaps.Orientation |> Map.map (fun id side -> rotateSide rotation side)
@@ -592,20 +593,20 @@ let rotateSymbol (rotation: RotationType) (sym: Symbol) : Symbol =
 
         let newSTransform = 
             match sym.STransform.flipped with
-            | true -> {sym.STransform with Rotation = rotateAngle (invertRotation rotation) sym.STransform.Rotation} // hack for rotating when flipped 
-            | false -> {sym.STransform with Rotation = rotateAngle rotation sym.STransform.Rotation}
+            | true -> 
+                {sym.STransform with Rotation = rotateAngle (invertRotation rotation) sym.STransform.Rotation} // hack for rotating when flipped 
+            | false -> 
+                {sym.STransform with Rotation = rotateAngle rotation sym.STransform.Rotation}
 
-        let newlabelBB = calcLabelBoundingBox Constants.componentLabelStyle sym.Component newSTransform
 
 
         { sym with 
             Pos = newPos;
             PortMaps = {Order=newPortOrder; Orientation= newPortOrientation}
             STransform =newSTransform 
-            LabelBoundingBox = newlabelBB
             LabelHasDefaultPos = true
-            Component = { sym.Component with X = newPos.X; Y = newPos.Y}
-        }
+            Component = newComponent
+        } |> calcLabelBoundingBox
 
 
 
@@ -637,16 +638,14 @@ let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
 
         let newSTransform = 
             {flipped= not sym.STransform.flipped;
-            Rotation= sym.STransform.Rotation}
-
-        let newLabelBB = calcLabelBoundingBox Constants.componentLabelStyle sym.Component newSTransform 
+            Rotation= sym.STransform.Rotation} 
 
         { sym with
             PortMaps = {Order=portOrder;Orientation=portOrientation}
             STransform = newSTransform
-            LabelBoundingBox = newLabelBB
             LabelHasDefaultPos = true
         }
+        |> calcLabelBoundingBox
         |> (fun sym -> 
             match orientation with
             | FlipHorizontal -> sym
@@ -918,6 +917,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | SaveSymbols -> // want to add this message later, currently not used
         let newSymbols = Map.map storeLayoutInfoInComponent model.Symbols
         { model with Symbols = newSymbols }, Cmd.none
+
+
 
 
 // ----------------------interface to Issie----------------------------- //

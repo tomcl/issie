@@ -37,7 +37,7 @@ module Constants =
 
     /// Small manual correction added to claculated position for placing labels.
     /// Used to make labels equidistant on all sides of symbol.
-    let labelCorrection = {X= 0.; Y= 2.}
+    let labelCorrection = {X= 0.; Y= 0.}
     
     
 
@@ -88,10 +88,10 @@ let movePortToBottom (portMaps: PortMaps) index =
 
 /// work out a label bounding box from symbol
 /// the bb has a margin around the label text outline.
-/// This requires accurate label text width estimates.
-/// At the moment that only seems possible with monospaced fonts
-/// due to TextMetrics not working ???
-let calcLabelBoundingBox (textStyle: Text) (comp: Component) (transform: STransform) =
+let calcLabelBoundingBox (sym: Symbol) =
+    let textStyle = Constants.componentLabelStyle
+    let transform = sym.STransform
+    let comp = sym.Component
     let labelRotation = 
         match transform.flipped with
         | true -> match transform.Rotation with
@@ -100,19 +100,24 @@ let calcLabelBoundingBox (textStyle: Text) (comp: Component) (transform: STransf
                      | _ -> transform.Rotation
         | false -> transform.Rotation
     let h,w = getCompRotatedHAndW comp transform
+    // true component BB is (comp.X,comp.Y), h, w
     let centreX = comp.X + w / 2.
     let centreY = comp.Y + h / 2.
     let margin = Constants.componentLabelOffsetDistance
-    let labH = Constants.componentLabelHeight
-    let labW = getMonospaceWidth textStyle.FontSize comp.Label
-    let labW = getTextWidthInPixels(comp.Label,textStyle)
+    let labH = Constants.componentLabelHeight //height of label text
+    //let labW = getMonospaceWidth textStyle.FontSize comp.Label
+    let labW = getTextWidthInPixels(comp.Label,textStyle)// width of label text
     let boxTopLeft =
         match labelRotation with 
         | Degree0 -> {X = centreX - labW/2. - margin; Y = comp.Y - labH - 2.*margin }
         | Degree270 -> {X = comp.X + w; Y = centreY - labH/2. - margin}
         | Degree90 -> {X = comp.X - 2.*margin - labW ; Y = centreY - labH/2. - margin}
         | Degree180 -> {X = centreX - labW/2. - margin; Y = comp.Y + h}
-    {TopLeft=boxTopLeft + Constants.labelCorrection; W = labW + 2.*margin; H = labH + 2.*margin}
+    let box =
+        match sym.LabelHasDefaultPos with
+        | true -> {TopLeft=boxTopLeft; W = labW + 2.*margin; H = labH + 2.*margin}
+        | fale -> sym.LabelBoundingBox
+    {sym with LabelBoundingBox = box}
 
 
 //------------------------------------------------------------------//
@@ -451,7 +456,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
     let transform = {Rotation= Degree0; flipped= false}
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
-      LabelBoundingBox = calcLabelBoundingBox style comp transform
+      LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
       LabelHasDefaultPos = true
       Appearance =
           {
@@ -472,6 +477,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       IsClocked = isClocked [] ldcs comp
     }
     |> autoScaleHAndW
+    |> calcLabelBoundingBox
 
 // Function to add ports to port model     
 let addToPortModel (model: Model) (sym: Symbol) =
@@ -809,28 +815,23 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
 
     /// to deal with the label
     let addComponentLabel (comp: Component) transform = 
-        // we are restricted to monospace font for labels to calc size.
-        // bold and normal fonts work equally well, as do colors.
         let weight = Constants.componentLabelStyle.FontWeight // bold or normal
         let fill = Constants.componentLabelStyle.Fill // color
         let style = {Constants.componentLabelStyle with FontWeight = weight; Fill = fill}
-        let box =
-            match symbol.LabelHasDefaultPos with 
-            | true -> calcLabelBoundingBox style comp transform
-            | false -> symbol.LabelBoundingBox
+        let box = symbol.LabelBoundingBox
         let margin = Constants.componentLabelOffsetDistance
         // uncomment this to display label bounding box corners for testing new fonts etc.
         let dimW = {X=box.W;Y=0.}
         let dimH = {X=0.;Y=box.H}
-        let corners = 
+        (*let corners = 
             [box.TopLeft; box.TopLeft+dimW; box.TopLeft+dimH; box.TopLeft+dimW+dimH]
             |> List.map (fun c -> 
                 let c' = c - symbol.Pos
-                makeCircle (c'.X) (c'.Y) {defaultCircle with R=3.})
+                makeCircle (c'.X) (c'.Y) {defaultCircle with R=3.})*)
 
         addStyledText 
             {style with DominantBaseline="hanging"} 
-            (box.TopLeft - symbol.Pos + {X=margin;Y=margin}) 
+            (box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection) 
             comp.Label ::  [] //corners uncomment this to display label bounding box corners.
 
 
@@ -840,7 +841,6 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
             
    
     // Put everything together 
-
     (drawPorts comp.OutputPorts showOutputPorts symbol)
     |> List.append (drawPorts comp.InputPorts showInputPorts symbol)
     |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
@@ -921,7 +921,7 @@ let view (model : Model) (dispatch : Msg -> unit) =
 
 //------------------------GET BOUNDING BOXES FUNCS--------------------------------used by sheet.
 /// Returns the bounding box of a symbol. It is defined by the height and the width as well as the x,y position of the symbol.
-/// Works with rotation.
+/// Works with rotation. For a rotated symbol, TopLeft = Pos, and H,W swapped in getrotatedHAndW
 let inline getSymbolBoundingBox (sym:Symbol): BoundingBox =
     let h,w = getRotatedHAndW sym
     {TopLeft = sym.Pos; H = float(h) ; W = float(w)}

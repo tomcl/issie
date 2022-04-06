@@ -87,6 +87,9 @@ let memoizeBy (keyFunc: 'a -> 'k) (funcToMemoize: 'a -> 'c) : 'a -> 'c =
             lastValue <- Some v
             v
 
+/// replace new lines in a string by ';' for easier debug printing of records using %A
+let nocr (s:string) = 
+    s.Replace("\n",";")
 
 // NB mapKeys and mapValues should probably be changed to use F# 6 Map.kets, Map.values
 

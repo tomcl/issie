@@ -304,7 +304,6 @@ let findNearbyPorts (model: Model) =
 let mouseOn (model: Model) (pos: XYPos) : MouseOn =
 
     let inputPorts, outputPorts = findNearbyPorts model
-
     match mouseOnPort inputPorts pos 2.5 with
     | Some (portId, portLoc) -> InputPort (portId, portLoc)
     | None ->
@@ -395,7 +394,10 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
             ]
             [ g // group list of elements with list of attributes
                 [ Style [Transform (sprintf "scale(%f)" model.Zoom)]] // top-level transform style attribute for zoom
-                svgReact // the application code
+                (makeCircle 
+                    model.LastMousePos.X 
+                    model.LastMousePos.Y
+                    {defaultCircle with R= 1.0} :: svgReact) // the application code
             ]
         ]
 

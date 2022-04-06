@@ -369,7 +369,8 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
         else () // Scroll normally if Ctrl is not held down
     let cursorText = model.CursorType.Text()
 
-    div [ HTMLAttr.Id "Canvas"
+    div [ 
+          HTMLAttr.Id "Canvas"
           Key cursorText // force cursor change to be rendered
           Style (CSSProp.Cursor cursorText :: style)
           OnMouseDown (fun ev -> (mouseOp Down ev))
@@ -394,10 +395,7 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
             ]
             [ g // group list of elements with list of attributes
                 [ Style [Transform (sprintf "scale(%f)" model.Zoom)]] // top-level transform style attribute for zoom
-                (makeCircle 
-                    model.LastMousePos.X 
-                    model.LastMousePos.Y
-                    {defaultCircle with R= 1.0} :: svgReact) // the application code
+                    svgReact // the application code
             ]
         ]
 

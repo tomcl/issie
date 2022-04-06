@@ -487,7 +487,6 @@ let createSymbol ldcs prevSymbols comp =
                 IsClocked = clocked
             }
             |> autoScaleHAndW
-            |> calcLabelBoundingBox
         prevSymbols
         |> Map.add (ComponentId comp.Id) newSymbol
  
@@ -554,7 +553,7 @@ let rotateSide (rotation: RotationType) (side:Edge) :Edge =
     | RotateClockwise, Right -> Bottom
 
 
-
+/// return a new orientation based on old one and a rotation
 let rotateAngle (rot: RotationType) (rotation: Rotation) : Rotation =
     match rot, rotation with
     | RotateAntiClockwise, Degree0 -> Degree90
@@ -566,7 +565,7 @@ let rotateAngle (rot: RotationType) (rotation: Rotation) : Rotation =
     | RotateClockwise, Degree180 -> Degree90
     | RotateClockwise, Degree270 -> Degree180
 
-/// Takes a symbol in and returns the same symbol rotated left
+/// Takes a symbol in and returns the same symbol rotated left or right
 let rotateSymbol (rotation: RotationType) (sym: Symbol) : Symbol =
     // update comp w h
     match sym.Component.Type with

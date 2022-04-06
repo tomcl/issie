@@ -97,11 +97,19 @@ type Text = {
 let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
 let canvasWidthContext = testCanvas.getContext_2d()
 
-/// alas this seems not to work - weirdly
+/// To get this to work, note:
+/// its seems only to do 10px size - that is compensated in the code below.
+/// It is more accurate for some fonts than others.
+/// serif fonts are perfectly accurate (try "times").
+/// sans serif fonts have varying accuracy. Helvetica is the best I have found and is perfect.
+/// note  that many fonts get converted to some standard serif or non-serif font.
+/// note that accuracy varies with font weight (normal = 400 usually more accurate than bold = 600).
+/// To test this, switch on label corner display in addComponentLabel
 let getTextWidthInPixels(txt:string, font:Text) =
-   canvasWidthContext?font <- String.concat " " [font.FontSize; font.FontWeight; font.FontFamily]; // e.g. "16px bold sans-serif";
-   let ms = canvasWidthContext.measureText(txt)
-   ms.width
+   canvasWidthContext?font <- String.concat " " ["10px"; font.FontWeight; font.FontFamily]; // e.g. "16px bold sans-serif";
+   let sizeInPx = float ((font.FontSize.ToLower()).Replace("px",""))   
+   let ms = sizeInPx * canvasWidthContext.measureText(txt).width / 10.0
+   ms
 
 /// this is a hack that works for "monospace" font only
 let getMonospaceWidth (font: string) (txt: string) =

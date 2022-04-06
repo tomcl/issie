@@ -19,13 +19,18 @@ module Constants =
     let gridSize = 30 
 
     /// How large are component labels
-    let labelFontSizeInPixels:float = 30. // otehr parameters scale correctly with this
+    let labelFontSizeInPixels:float = 16 // otehr parameters scale correctly with this
 
     /// Due to a bug in TextMetrics we are restricted to monospace font, bold or normal, if we need accurate font width
-    let componentLabelStyle: Text = {defaultText with TextAnchor = "start"; FontSize = $"{labelFontSizeInPixels}px"; FontFamily = "monospace"}
+    let componentLabelStyle: Text = 
+        {defaultText with 
+            TextAnchor = "start"; 
+            FontSize = $"%.0f{labelFontSizeInPixels}px"; 
+            FontFamily = "helvetica"; 
+            FontWeight="600"}
 
     /// Offset between label position and symbol. This is also used as a margin for the label bounding box.
-    let componentLabelOffsetDistance: float = 10. // offset from symbol outline, otehr parameters scale correctly
+    let componentLabelOffsetDistance: float = 7. // offset from symbol outline, otehr parameters scale correctly
     
     /// Height of label text - used to determine where to print labels
     let componentLabelHeight: float = labelFontSizeInPixels
@@ -100,6 +105,7 @@ let calcLabelBoundingBox (textStyle: Text) (comp: Component) (transform: STransf
     let margin = Constants.componentLabelOffsetDistance
     let labH = Constants.componentLabelHeight
     let labW = getMonospaceWidth textStyle.FontSize comp.Label
+    let labW = getTextWidthInPixels(comp.Label,textStyle)
     let boxTopLeft =
         match labelRotation with 
         | Degree0 -> {X = centreX - labW/2. - margin; Y = comp.Y - labH - 2.*margin }
@@ -814,16 +820,18 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
             | false -> symbol.LabelBoundingBox
         let margin = Constants.componentLabelOffsetDistance
         // uncomment this to display label bounding box corners for testing new fonts etc.
-        (*let corners = 
+        let dimW = {X=box.W;Y=0.}
+        let dimH = {X=0.;Y=box.H}
+        let corners = 
             [box.TopLeft; box.TopLeft+dimW; box.TopLeft+dimH; box.TopLeft+dimW+dimH]
             |> List.map (fun c -> 
                 let c' = c - symbol.Pos
-                makeCircle (c'.X) (c'.Y) {defaultCircle with R=3.})*)
+                makeCircle (c'.X) (c'.Y) {defaultCircle with R=3.})
 
         addStyledText 
             {style with DominantBaseline="hanging"} 
             (box.TopLeft - symbol.Pos + {X=margin;Y=margin}) 
-            comp.Label ::  [] //corners uncomment this to display lavel bounding box corners.
+            comp.Label ::  [] //corners uncomment this to display label bounding box corners.
 
 
 

@@ -12,6 +12,7 @@ open Fable.React
 
 open DiagramStyle
 open ModelType
+open Sheet.SheetInterface
 
 let errorNotification text closeMsg =
     fun dispatch ->

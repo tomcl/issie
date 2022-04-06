@@ -11,6 +11,8 @@ open CommonTypes
 open FileMenuView
 open Extractor
 open SimulatorTypes
+open Sheet.SheetInterface
+open DrawModelType
 
 let maxLastClk = 500u
 
@@ -412,7 +414,7 @@ let private appendSimData (model: Model) (wSModel: WaveSimModel) nCycles =
         |> Some
 
 /// get Connection list (1 or 0) from ConnectionId (as a string)
-let private connId2Conn (sheet: Sheet.Model) (connId: ConnectionId) : Connection list =
+let private connId2Conn (sheet: SheetT.Model) (connId: ConnectionId) : Connection list =
     match sheet.GetCanvasState() with
     | (_, conns) -> 
         List.tryFind (fun (conn: Connection) -> ConnectionId conn.Id = connId) conns

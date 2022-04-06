@@ -14,6 +14,8 @@ open DiagramStyle
 open ModelType
 open CommonTypes
 open PopupView
+open Sheet.SheetInterface
+open DrawModelType
 
 
 let private menuItem styles label onClick =
@@ -22,7 +24,7 @@ let private menuItem styles label onClick =
         [ str label ]
 
 let private createComponent compType label model dispatch =
-    Sheet (Sheet.InitialiseCreateComponent (tryGetLoadedComponents model, compType, label)) |> dispatch
+    Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, compType, label)) |> dispatch
 
 // Anything requiring a standard label should be checked and updated with the correct number suffix in Symbol/Sheet, 
 // so give the label ""
@@ -40,7 +42,7 @@ let private makeCustom styles model dispatch (loadedComponent: LoadedComponent) 
             OutputLabels = FilesIO.getOrderedCompLabels (Output 0) canvas
         }
         
-        Sheet (Sheet.InitialiseCreateComponent (tryGetLoadedComponents model, custom, "")) |> dispatch
+        Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, custom, "")) |> dispatch
     )
 
 let private makeCustomList styles model dispatch =
@@ -340,7 +342,7 @@ let viewCatalogue model dispatch =
         let viewCatOfModel = fun model ->                 
             let styles = 
                 match model.Sheet.Action with
-                | Sheet.InitialisedCreateComponent _ -> [Cursor "grabbing"]
+                | SheetT.InitialisedCreateComponent _ -> [Cursor "grabbing"]
                 | _ -> []
 
             let catTip1 name func (tip:string) = 

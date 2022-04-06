@@ -11,6 +11,7 @@ module rec ModelType
 open CommonTypes
 open SimulatorTypes
 open Fable.React
+open Sheet.SheetInterface
 
 type RightTab =
     | Properties
@@ -261,7 +262,7 @@ type PopupProgress =
 
 type Msg =
     | ShowExitDialog
-    | Sheet of Sheet.Msg
+    | Sheet of DrawModelType.SheetT.Msg
     | JSDiagramMsg of JSDiagramMsg
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
@@ -361,7 +362,7 @@ type Model = {
     WaveSimSheet: string
         
     // Draw Canvas
-    Sheet: Sheet.Model
+    Sheet: DrawModelType.SheetT.Model
 
     // true during period when a sheet or project is loading
     IsLoading: bool

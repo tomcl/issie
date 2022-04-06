@@ -16,6 +16,8 @@ open ElectronAPI
 open ModelType
 open Fable.SimpleJson
 open JSHelpers
+open Sheet.SheetInterface
+open DrawModelType
 
 
 let isMac = Node.Api.``process``.platform = Node.Base.Darwin
@@ -133,25 +135,25 @@ let fileMenu (dispatch) =
 
 let viewMenu dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    let dispatch = Sheet.KeyPress >> sheetDispatch
-    let wireTypeDispatch = Sheet.WireType >> sheetDispatch
+    let dispatch = SheetT.KeyPress >> sheetDispatch
+    let wireTypeDispatch = SheetT.WireType >> sheetDispatch
 
     let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
     makeMenu false "View" [
         makeRoleItem "Toggle Fullscreen" (Some "F11") MenuItemRole.Togglefullscreen
-        makeItem "Toggle Grid" None (fun ev -> sheetDispatch Sheet.Msg.ToggleGrid)
+        makeItem "Toggle Grid" None (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
         menuSeparator
         makeRoleItem "Zoom  In" (Some "CmdOrCtrl+Shift+Plus") MenuItemRole.ZoomIn
         makeRoleItem "Zoom  Out" (Some "CmdOrCtrl+Shift+-") MenuItemRole.ZoomOut
         makeRoleItem "Reset Zoom" (Some "CmdOrCtrl+0") MenuItemRole.ResetZoom
         menuSeparator
-        makeItem "Diagram Zoom In" (Some "Shift+Plus") (fun ev -> dispatch Sheet.KeyboardMsg.ZoomIn)
-        makeItem "Diagram Zoom Out" (Some "Shift+-") (fun ev -> dispatch Sheet.KeyboardMsg.ZoomOut)
-        makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch Sheet.KeyboardMsg.CtrlW)
+        makeItem "Diagram Zoom In" (Some "Shift+Plus") (fun ev -> dispatch SheetT.KeyboardMsg.ZoomIn)
+        makeItem "Diagram Zoom Out" (Some "Shift+-") (fun ev -> dispatch SheetT.KeyboardMsg.ZoomOut)
+        makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch SheetT.KeyboardMsg.CtrlW)
         menuSeparator
-        makeItem "Jump wires" (Some "CmdOrCtrl+Shift+J") (fun ev -> wireTypeDispatch Sheet.WireTypeMsg.Jump)
-        makeItem "Radiussed wires" (Some "CmdOrCtrl+Shift+R") (fun ev -> wireTypeDispatch Sheet.WireTypeMsg.Radiussed)
-        makeItem "Modern wires" (Some "CmdOrCtrl+Shift+M") (fun ev -> wireTypeDispatch Sheet.WireTypeMsg.Modern)
+        makeItem "Jump wires" (Some "CmdOrCtrl+Shift+J") (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Jump)
+        makeItem "Radiussed wires" (Some "CmdOrCtrl+Shift+R") (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Radiussed)
+        makeItem "Modern wires" (Some "CmdOrCtrl+Shift+M") (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Modern)
         menuSeparator
         makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ ->
             renderer.ipcRenderer.send("toggle-dev-tools", [||]) |> ignore)
@@ -164,8 +166,8 @@ let viewMenu dispatch =
 // shortcuts is by creating a menu.
 let editMenu dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    let dispatch = Sheet.KeyPress >> sheetDispatch
-    let rotateDispatch = Sheet.Rotate >> sheetDispatch
+    let dispatch = SheetT.KeyPress >> sheetDispatch
+    let rotateDispatch = SheetT.Rotate >> sheetDispatch
 
     jsOptions<MenuItemConstructorOptions> <| fun invisibleMenu ->
         invisibleMenu.``type`` <- Some MenuItemType.Submenu
@@ -173,19 +175,19 @@ let editMenu dispatch =
         invisibleMenu.visible <- Some true
         invisibleMenu.submenu <-
             [| // makeElmItem "Save Sheet" "CmdOrCtrl+S" (fun () -> ())
-               makeElmItem "Copy" "CmdOrCtrl+C" (fun () -> dispatch Sheet.KeyboardMsg.CtrlC)
-               makeElmItem "Paste" "CmdOrCtrl+V" (fun () -> dispatch Sheet.KeyboardMsg.CtrlV)
+               makeElmItem "Copy" "CmdOrCtrl+C" (fun () -> dispatch SheetT.KeyboardMsg.CtrlC)
+               makeElmItem "Paste" "CmdOrCtrl+V" (fun () -> dispatch SheetT.KeyboardMsg.CtrlV)
                menuSeparator
-               makeElmItem "Rotate Anticlockwise" "CmdOrCtrl+Shift+R" (fun () -> rotateDispatch Symbol.RotateAntiClockwise)
-               makeElmItem "Rotate Clockwise" "CmdOrCtrl+R" (fun () -> rotateDispatch Symbol.RotateClockwise)
-               makeElmItem "Flip Vertically" "CmdOrCtrl+F" (fun () -> sheetDispatch <| Sheet.Flip Symbol.FlipVertical)
-               makeElmItem "Flip Horizontally" "CmdOrCtrl+Shift+F" (fun () -> sheetDispatch <| Sheet.Flip Symbol.FlipHorizontal)
+               makeElmItem "Rotate Anticlockwise" "CmdOrCtrl+Shift+R" (fun () -> rotateDispatch SymbolT.RotateAntiClockwise)
+               makeElmItem "Rotate Clockwise" "CmdOrCtrl+R" (fun () -> rotateDispatch SymbolT.RotateClockwise)
+               makeElmItem "Flip Vertically" "CmdOrCtrl+F" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipVertical)
+               makeElmItem "Flip Horizontally" "CmdOrCtrl+Shift+F" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipHorizontal)
                menuSeparator
-               makeElmItem "Select All" "CmdOrCtrl+A" (fun () -> dispatch Sheet.KeyboardMsg.CtrlA)
-               makeElmItem "Delete"  (if isMac then "Backspace" else "delete") (fun () -> dispatch Sheet.KeyboardMsg.DEL)
-               makeElmItem "Undo" "CmdOrCtrl+Z" (fun () -> dispatch Sheet.KeyboardMsg.CtrlZ)
-               makeElmItem "Redo" "CmdOrCtrl+Y" (fun () -> dispatch Sheet.KeyboardMsg.CtrlY)
-               makeElmItem "Cancel" "ESC" (fun () -> dispatch Sheet.KeyboardMsg.ESC)
+               makeElmItem "Select All" "CmdOrCtrl+A" (fun () -> dispatch SheetT.KeyboardMsg.CtrlA)
+               makeElmItem "Delete"  (if isMac then "Backspace" else "delete") (fun () -> dispatch SheetT.KeyboardMsg.DEL)
+               makeElmItem "Undo" "CmdOrCtrl+Z" (fun () -> dispatch SheetT.KeyboardMsg.CtrlZ)
+               makeElmItem "Redo" "CmdOrCtrl+Y" (fun () -> dispatch SheetT.KeyboardMsg.CtrlY)
+               makeElmItem "Cancel" "ESC" (fun () -> dispatch SheetT.KeyboardMsg.ESC)
             |]
             |> ResizeArray
             |> U2.Case1
@@ -249,13 +251,13 @@ let keyPressListener initial =
                                                 let ke: KeyboardEvent = downcast e
                                                 if (jsToBool ke.ctrlKey || jsToBool ke.metaKey) && firstPress then
                                                     firstPress <- false
-                                                    dispatch <| Sheet(Sheet.ToggleSelectionOpen)
+                                                    dispatch <| Sheet(SheetT.ToggleSelectionOpen)
                                                 else
                                                     ())
     let subUp dispatch =
         Browser.Dom.document.addEventListener("keyup", fun e ->
                                                     firstPress <- true
-                                                    dispatch <| Sheet(Sheet.ToggleSelectionClose))
+                                                    dispatch <| Sheet(SheetT.ToggleSelectionClose))
     Cmd.batch [Cmd.ofSub subDown; Cmd.ofSub subUp]
 
 

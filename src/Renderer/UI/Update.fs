@@ -14,7 +14,8 @@ open CatalogueView
 open PopupView
 open FileMenuView
 open WaveSimHelpers
-
+open Sheet.SheetInterface
+open DrawModelType
 
 
 //---------------------------------------------------------------------------------------------//
@@ -182,7 +183,7 @@ let matchMouseMsg (msgSelect: DrawHelpers.MouseT -> bool) (msg : Msg) : bool =
     match msg with
     | Sheet sMsg ->
         match sMsg with
-        | Sheet.MouseMsg mMsg ->
+        | SheetT.MouseMsg mMsg ->
             msgSelect mMsg
         | _ -> false
     | _ -> false
@@ -246,11 +247,11 @@ let update (msg : Msg) oldModel =
             | CloseProject ->
                 {model with CurrentProj = None; UIState = Some uiCmd}, Cmd.none
             | _ -> 
-                {model with UIState = Some uiCmd}, Cmd.ofMsg (Sheet (Sheet.SetSpinner true))
+                {model with UIState = Some uiCmd}, Cmd.ofMsg (Sheet (SheetT.SetSpinner true))
         | _ -> model, Cmd.none //otherwise discard the message
     | FinishUICmd _ ->
         let popup = CustomCompPorts.optCurrentSheetDependentsPopup model
-        {model with UIState = None; PopupViewFunc = popup}, Cmd.ofMsg (Sheet (Sheet.SetSpinner false))
+        {model with UIState = None; PopupViewFunc = popup}, Cmd.ofMsg (Sheet (SheetT.SetSpinner false))
     (*| ShowExitDialog ->
         match model.CurrentProj with
         | Some p when model.SavedSheetIsOutOfDate ->
@@ -265,9 +266,9 @@ let update (msg : Msg) oldModel =
         {model with ExitDialog = status}, Cmd.none*)
     | Sheet sMsg ->
         match sMsg, model.PopupViewFunc with
-        | Sheet.ToggleNet canvas, _ -> 
-            model, Cmd.ofMsg (Sheet (Sheet.SelectWires (getNetSelection canvas model)))
-        | Sheet.KeyPress _, Some _ -> 
+        | SheetT.ToggleNet canvas, _ -> 
+            model, Cmd.ofMsg (Sheet (SheetT.SelectWires (getNetSelection canvas model)))
+        | SheetT.KeyPress _, Some _ -> 
             // do not allow keys to affect Sheet when popup is on.
             model, Cmd.none
         | _ -> sheetMsg sMsg model
@@ -278,10 +279,10 @@ let update (msg : Msg) oldModel =
     | StartSimulation simData -> 
         { model with CurrentStepSimulationStep = Some simData }, 
         Cmd.batch [
-            Cmd.ofMsg (Sheet (Sheet.SetWaveSimMode false)); 
+            Cmd.ofMsg (Sheet (SheetT.SetWaveSimMode false)); 
             // hack to make sure wavesim highlighting is reset - but step simulation error highlighting is not.
             // the state here clearly needs refactoring
-            if model.Sheet.IsWaveSim then Cmd.ofMsg (Sheet(Sheet.ResetSelection)) else Cmd.none
+            if model.Sheet.IsWaveSim then Cmd.ofMsg (Sheet(SheetT.ResetSelection)) else Cmd.none
             ] //Close wavesim
     | SetWSMod wSMod -> 
         setWSMod wSMod model, Cmd.none
@@ -324,13 +325,13 @@ let update (msg : Msg) oldModel =
         | Properties -> Cmd.batch <| editCmds
         | Catalogue -> Cmd.batch  <| editCmds
         | Simulation -> Cmd.batch <| editCmds
-        | WaveSim -> Cmd.ofMsg (Sheet (Sheet.SetWaveSimMode true))
+        | WaveSim -> Cmd.ofMsg (Sheet (SheetT.SetWaveSimMode true))
  
     | SetHighlighted (componentIds, connectionIds) ->
-        let sModel, sCmd = SheetUpdate.update (Sheet.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
+        let sModel, sCmd = SheetUpdate.update (SheetT.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
         {model with Sheet = sModel}, Cmd.map Sheet sCmd
     | SetSelWavesHighlighted connIds ->
-        let wModel, wCmd = SheetUpdate.update (Sheet.ColourSelection ([], Array.toList connIds, HighLightColor.Blue)) model.Sheet
+        let wModel, wCmd = SheetUpdate.update (SheetT.ColourSelection ([], Array.toList connIds, HighLightColor.Blue)) model.Sheet
         {model with Sheet = wModel}, Cmd.map Sheet wCmd
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
     | SetCreateComponent pos -> { model with LastCreatedComponent = Some pos }, Cmd.none
@@ -438,7 +439,7 @@ let update (msg : Msg) oldModel =
         model, SimulationView.doBatchOfMsgsAsynch msgs
     | MenuAction(act,dispatch) ->
         match act with 
-        | MenuSaveFile -> getMenuView act model dispatch, Cmd.ofMsg (Sheet Sheet.SaveSymbols)
+        | MenuSaveFile -> getMenuView act model dispatch, Cmd.ofMsg (Sheet SheetT.SaveSymbols)
         | _ -> getMenuView act model dispatch, Cmd.none
         
     | DiagramMouseEvent -> model, Cmd.none
@@ -451,7 +452,7 @@ let update (msg : Msg) oldModel =
     | SetWaveSimIsOutOfDate b -> 
         changeSimulationIsStale b model, Cmd.none
     | SetIsLoading b ->
-        let cmd = if b then Cmd.none else Cmd.ofMsg (Sheet (Sheet.SetSpinner false)) //Turn off spinner after project/sheet is loaded
+        let cmd = if b then Cmd.none else Cmd.ofMsg (Sheet (SheetT.SetSpinner false)) //Turn off spinner after project/sheet is loaded
         {model with IsLoading = b}, cmd
     | InitiateWaveSimulation (view, paras)  -> 
         updateCurrentWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.ofMsg FinishUICmd
@@ -472,7 +473,7 @@ let update (msg : Msg) oldModel =
             |> setWSMod wsMod'
             |> (fun model -> 
                 {model with CheckWaveformScrollPosition=checkCursor}, 
-                Cmd.ofMsg (Sheet(Sheet.SetSpinner false))) //turn off spinner after wavesim is loaded
+                Cmd.ofMsg (Sheet(SheetT.SetSpinner false))) //turn off spinner after wavesim is loaded
         | Some _, None -> 
             // This case may happen if WaveSimulateNow commands are stacked up due to 
             // repeated view function calls before the WaveSimNow trigger message is processed
@@ -518,8 +519,8 @@ let update (msg : Msg) oldModel =
                 let name =
                     match msg with 
                     | SetWSMod _ -> "U(SetWSMod)"
-                    | Sheet( Sheet.Msg.Wire (BusWire.Msg.Symbol _ )) -> "U(Sheet(Wire(Symbol)))"
-                    | Sheet (Sheet.Msg.Wire (BusWire.UpdateWires _)) -> "U(Sheet(Wire(UpdateWires)))"
+                    | Sheet( SheetT.Msg.Wire (BusWireT.Msg.Symbol _ )) -> "U(Sheet(Wire(Symbol)))"
+                    | Sheet (SheetT.Msg.Wire (BusWireT.UpdateWires _)) -> "U(Sheet(Wire(UpdateWires)))"
                     | SetWaveSimModel _ -> "U(SetWaveSimModel)"
                     | SetWSModAndSheet _ -> "U(SetWsModAndSheet)"
                     | StartSimulation _ -> "U(StartSimulation)"
@@ -530,7 +531,7 @@ let update (msg : Msg) oldModel =
                 let noDisplayMouseOp (mMsg:DrawHelpers.MouseT) = mMsg.Op = DrawHelpers.Drag || mMsg.Op = DrawHelpers.Move
                 if Set.contains "update" JSHelpers.debugTraceUI &&
                    not <| matchMouseMsg noDisplayMouseOp msg &&
-                   (match msg with | Sheet (Sheet.Msg.Wire(BusWire.Msg.Symbol(Symbol.MouseMsg _ | Symbol.ShowPorts _ ))) -> false 
+                   (match msg with | Sheet (SheetT.Msg.Wire(BusWireT.Msg.Symbol(SymbolT.MouseMsg _ | SymbolT.ShowPorts _ ))) -> false 
                                    | _ -> printfn "%s" (Helpers.sprintInitial 40 $"{msg}"); true)
                 then
                    printfn "%s" debugMsg

@@ -4,6 +4,7 @@ open Elmish
 open DrawHelpers
 open CommonTypes
 open System.Text.RegularExpressions
+open DrawModelType.SymbolT
 open Symbol
 
 //--------------------- GENERATING LABEL FUNCTIONS-------------------------------

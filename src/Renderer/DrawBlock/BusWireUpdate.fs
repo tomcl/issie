@@ -3,7 +3,8 @@
 open CommonTypes
 open Elmish
 open DrawHelpers
-
+open DrawModelType.SymbolT
+open DrawModelType.BusWireT
 open BusWire
 
 /// Initialises an empty BusWire Model
@@ -459,8 +460,8 @@ let partialAutoroute (model: Model) (wire: Wire) (newPortPos: XYPos) (reversed: 
         let relativeToFixed = relativePosition fixedPoint
         let portId = 
             match reversed with
-            | false -> Symbol.OutputId wire.OutputPort
-            | true -> Symbol.InputId wire.InputPort
+            | false -> OutputId wire.OutputPort
+            | true -> InputId wire.InputPort
         if  getWireOutgoingEdge wire = Symbol.getPortOrientation model.Symbol portId &&
             relativeToFixed newStartPos = relativeToFixed oldStartPos then
             Some (manualIdx, newStartPos - oldStartPos)
@@ -873,7 +874,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                     if wire.Color = Purple || wire.Color = Brown then Purple else DarkSlateGrey
                 wireMap.Add ( wire.WId, { wire with Width = width ; Color = newColor} )
 
-            let addSymbolWidthFolder (m: Map<ComponentId,Symbol.Symbol>) (_: ConnectionId) (wire: Wire) =
+            let addSymbolWidthFolder (m: Map<ComponentId,Symbol>) (_: ConnectionId) (wire: Wire) =
                     let inPort = model.Symbol.Ports[match wire.InputPort with InputPortId ip -> ip]
                     let symId = ComponentId inPort.HostId
                     let symbol = m[symId]

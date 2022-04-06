@@ -40,6 +40,8 @@
     <Compile Include="Interface\Extractor.fs" />
     <Compile Include="Interface\FilesIO.fs" />
     <None Include="scss\main.scss" />
+    <Compile Include="DrawBlock\DrawModelType.fs" />
+    <Compile Include="DrawBlock\PopupDrawingView.fs" />
 
     <!-- Draw2D diagram -->
     <Compile Include="DrawBlock\Symbol.fs" />
@@ -52,8 +54,8 @@
     <!-- UI -->
     <Compile Include="UI/ModelType.fs" />
     <Compile Include="UI/Style.fs" />
+    <Compile Include="UI\PopupView.fs" />
     <Compile Include="UI\Notifications.fs" />
-    <Compile Include="UI/PopupView.fs" />
     <Compile Include="UI/MemoryEditorView.fs" />
     <Compile Include="UI\CustomCompPorts.fs" />
     <Compile Include="UI/FileMenuView.fs" />

@@ -13,7 +13,10 @@ open Fable.React.Props
 open Elmish
 open DrawHelpers
 
-type Orientation = | Vertical | Horizontal
+open DrawModelType.SymbolT
+open DrawModelType.BusWireT
+
+
 
 
 //------------------------------------------------------------------------//
@@ -44,97 +47,6 @@ module Constants =
         }
 
 
-//------------------------------------------------------------------------//
-//------------------------------BusWire Types-----------------------------//
-//------------------------------------------------------------------------//
-
-
-///
-type SnapPosition = High | Mid | Low
-
-/// Represents how wires are rendered
-type WireType = Radial | Modern | Jump
-
-/// Represents how a wire segment is currently being routed
-type RoutingMode = Manual | Auto
-
-/// Used to represent a segment in a wire
-type Segment = 
-    {
-        Index: int
-        Length : float
-        WireId: ConnectionId
-        /// List of offsets along a segment where jumps or intersects occur. Matches the sign of Length. Only used on horizontal segments.
-        IntersectOrJumpList: float list
-        Draggable : bool
-        Mode : RoutingMode
-    }
-
-    with member this.getId() = this.Index,this.WireId
-
-/// Add absolute vertices to a segment
-type ASegment = {
-        Start: XYPos
-        End: XYPos
-        Segment: Segment
-    }
-
-type Wire =
-    {
-        WId: ConnectionId 
-        InputPort: InputPortId
-        OutputPort: OutputPortId
-        Color: HighLightColor
-        Width: int
-        Segments: list<Segment>
-        StartPos : XYPos
-        EndPos : XYPos
-        InitialOrientation : Orientation
-        EndOrientation : Orientation
-    }
-
-
-
-/// Defines offsets used to render wire width text
-type TextOffset =
-    static member yOffset = 7.
-    static member xOffset = 1.
-    static member xLeftOffset = 20.
-
-type Model =
-    {
-        Symbol: Symbol.Model
-        Wires: Map<ConnectionId, Wire>
-        CopiedWires: Map<ConnectionId, Wire> 
-        SelectedSegment: SegmentId option
-        LastMousePos: XYPos
-        ErrorWires: list<ConnectionId>
-        Notifications: Option<string>
-        Type : WireType
-    }
-
-//----------------------------Message Type-----------------------------------//
-
-/// BusWire messages: see BusWire.update for more info
-type Msg =
-    | Symbol of Symbol.Msg // record containing messages from Symbol module
-    | AddWire of (InputPortId * OutputPortId) // add a new wire between these ports to the model
-    | BusWidths
-    | CopyWires of list<ConnectionId>
-    | DeleteWires of list<ConnectionId>
-    | SelectWires of list<ConnectionId>
-    | UpdateWires of list<ComponentId> * XYPos
-    | UpdateSymbolWires of ComponentId
-    | DragWire of ConnectionId * MouseT
-    | ColorWires of list<ConnectionId> * HighLightColor
-    | ErrorWires of list<ConnectionId>
-    | ResetJumps of list<ConnectionId>
-    | MakeJumps of list<ConnectionId>
-    | UpdateWireDisplayType of WireType
-    | ResetModel // For Issie Integration
-    | LoadConnections of list<Connection> // For Issie Integration
-    | UpdateConnectedWires of list<ComponentId> // rotate each symbol separately. TODO - rotate as group? Custom comps do not rotate
-    | RerouteWire of string
 
 
 

@@ -84,6 +84,18 @@ let inline foldOverSegs folder state wire =
         (nextState, nextPos, nextOrientation))
     |> (fun (state, _, _) -> state)
 
+/// Return absolute segment list from a wire.
+/// NB - it is often more efficient to use various fold functions (foldOverSegs etc)
+let getAbsSegments (wire: Wire) : ASegment list =
+    let convertToAbs ((start,dir): XYPos*Orientation) (seg: Segment) =
+        {Start=start; End = addLengthToPos start dir seg.Length; Segment = seg}
+    (((wire.StartPos,wire.InitialOrientation),[]), wire.Segments)
+    ||> List.fold (fun (posDir, aSegL) seg -> 
+            let nextASeg = convertToAbs posDir seg
+            let posDir' = nextASeg.End, switchOrientation (snd posDir)
+            (posDir', (nextASeg :: aSegL)))
+    |> snd
+    |> List.rev
 
 
 //-------------------------Debugging functions---------------------------------//
@@ -240,19 +252,6 @@ let inline getTargetSymbol (model:Model) (wire:Wire) =
 
 
 //-------------------------------Implementation code----------------------------//
-
-/// Converts a segment list into a list of vertices
-/// Needs wire for starting position
-let segmentsToVertices (segList:Segment list) (wire:Wire) = 
-    ((wire.StartPos, wire.InitialOrientation),segList)
-    ||> List.scan(fun (currPos, currOrientation) seg ->
-        let (nextPos, nextOrientation) =
-            match currOrientation with
-            | Horizontal -> { currPos with X = currPos.X + seg.Length}, Vertical
-            | Vertical -> { currPos with Y = currPos.Y + seg.Length}, Horizontal
-        let nextState = (nextPos,nextOrientation)
-        nextState)
-    |> List.map ( fun (pos,_) -> pos.X,pos.Y)
 
 /// Given the coordinates of two port locations that correspond
 /// to the endpoints of a wire, as well as the final port orientation 
@@ -495,18 +494,6 @@ type WireRenderProps =
         TriangleEdge : Edge
         InputPortLocation: XYPos
     }
-
-/// extract absolute segments from a wire.
-/// NB - it is more efficient to use various fold functions (foldOverSegs etc)
-let getAbsSegments (wire: Wire) : ASegment List= 
-    segmentsToVertices wire.Segments wire
-    |> List.map (fun (x,y) -> {X=x; Y=y})
-    |> List.pairwise
-    |> List.zip wire.Segments
-    |> List.map (fun (seg, (sPos,endPos)) -> 
-        {Start=sPos; End=endPos; Segment = seg })
-
-
 
 let renderWireWidthText (props: WireRenderProps): ReactElement =
     let textStyle = 

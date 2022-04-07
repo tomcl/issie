@@ -457,7 +457,9 @@ let createSymbol ldcs prevSymbols comp =
                 let comp' = makeComponent xyPos comp.Type comp.Id comp.Label
                 comp'.H,comp'.W
             else
-                comp.H, comp.W
+                // recompute height and width on load in case component have changed.
+                let (_, _, height, width) = getComponentProperties comp.Type comp.Label
+                height,width
         let hasDefault, labelBoundingBox =
             match comp.SymbolInfo with
             | Some {LabelBoundingBox=Some info} ->  false, info
@@ -487,6 +489,7 @@ let createSymbol ldcs prevSymbols comp =
                 IsClocked = clocked
             }
             |> autoScaleHAndW
+            |> calcLabelBoundingBox
         prevSymbols
         |> Map.add (ComponentId comp.Id) newSymbol
  

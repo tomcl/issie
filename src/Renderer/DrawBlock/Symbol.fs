@@ -393,20 +393,52 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
         | _ -> sym
         |> calcLabelBoundingBox
 
+let getComponentProperties (compType:ComponentType) (label: string)=
+    // match statement for each component type. the output is a 4-tuple that is used as an input to makecomponent (see below)
+    // 4-tuple of the form ( number of input ports, number of output ports, Height, Width)
+    let gS = Constants.gridSize
+    match compType with
+    | ROM _ | RAM _ | AsyncROM _ -> 
+        failwithf "What? Legacy RAM component types should never occur"
+    | And | Nand | Or | Nor | Xnor | Xor ->  (2 , 1, 2*gS , 2*gS) 
+    | Not -> ( 1 , 1, 2*gS ,  2*gS) 
+    | ComponentType.Input (a) -> ( 0 , 1, gS ,  2*gS)                
+    | ComponentType.Output (a) -> (  1 , 0, gS ,  2*gS) 
+    | ComponentType.Viewer a -> (  1 , 0, gS ,  gS) 
+    | ComponentType.IOLabel  ->(  1 , 1, gS/2 ,  gS) 
+    | Decode4 ->( 2 , 4 , 4*gS  , 3*gS) 
+    | Constant1 (a, b,_) | Constant(a, b) -> (  0 , 1, gS ,  2*gS) 
+    | MergeWires -> ( 2 , 1, 2*gS ,  2*gS) 
+    | SplitWire (a) ->(  1 , 2 , 2*gS ,  2*gS) 
+    | Mux2 -> ( 3  , 1, 3*gS ,  2*gS) 
+    | Mux4 -> ( 5  , 1, 5*gS ,  2*gS)   
+    | Mux8 -> ( 9  , 1, 7*gS ,  2*gS) 
+    | Demux2 ->( 2  , 2, 3*gS ,  2*gS) 
+    | Demux4 -> ( 2  , 4, 150 ,  50) 
+    | Demux8 -> ( 2  , 8, 200 ,  50) 
+    | BusSelection (a, b) -> (  1 , 1, gS,  2*gS) 
+    | BusCompare (a, b) -> ( 1 , 1, gS ,  2*gS) 
+    | DFF -> (  1 , 1, 3*gS  , 3*gS) 
+    | DFFE -> ( 2  , 1, 3*gS  , 3*gS) 
+    | Register (a) -> ( 1 , 1, 3*gS  , 4*gS )
+    | RegisterE (a) -> ( 2 , 1, 3*gS  , 4*gS) 
+    | AsyncROM1 (a)  -> (  1 , 1, 4*gS  , 5*gS) 
+    | ROM1 (a) -> (   1 , 1, 4*gS  , 5*gS) 
+    | RAM1 (a) | AsyncRAM1 a -> ( 3 , 1, 4*gS  , 5*gS) 
+    | NbitsXor (n) -> (  2 , 1, 4*gS  , 4*gS) 
+    | NbitsAdder (n) -> (  3 , 2, 3*gS  , 4*gS) 
+    | Custom cct -> getCustomCompArgs cct label
+
 /// make a completely new component
-let makeComponent (pos: XYPos) (comptype: ComponentType) (id:string) (label:string) : Component =
+let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:string) : Component =
     let defaultSTransform = {Rotation = Degree0; flipped = false}
     // function that helps avoid dublicate code by initialising parameters that are the same for all component types and takes as argument the others
     let makeComponent' (n, nout, h, w) label : Component=
         let inputPorts = portLists n id PortType.Input
         let outputPorts = portLists nout id PortType.Output
-        let comptype' =
-            match comptype with
-
-            | _ -> comptype
         {
             Id = id 
-            Type = comptype' 
+            Type = compType
             Label = label 
             InputPorts = inputPorts
             OutputPorts  = outputPorts
@@ -420,44 +452,8 @@ let makeComponent (pos: XYPos) (comptype: ComponentType) (id:string) (label:stri
                 PortOrder = Map.empty; 
                 PortOrientation=Map.empty}
         }
-    
-    // match statement for each component type. the output is a 4-tuple that is used as an input to makecomponent (see below)
-    // 4-tuple of the form ( number of input ports, number of output ports, Height, Width)
-    let gS = Constants.gridSize
-    let args = 
-        match comptype with
-        | ROM _ | RAM _ | AsyncROM _ -> 
-            failwithf "What? Legacy RAM component types should never occur"
-        | And | Nand | Or | Nor | Xnor | Xor ->  (2 , 1, 2*gS , 2*gS) 
-        | Not -> ( 1 , 1, 2*gS ,  2*gS) 
-        | ComponentType.Input (a) -> ( 0 , 1, gS ,  2*gS)                
-        | ComponentType.Output (a) -> (  1 , 0, gS ,  2*gS) 
-        | ComponentType.Viewer a -> (  1 , 0, gS ,  gS) 
-        | ComponentType.IOLabel  ->(  1 , 1, gS/2 ,  gS) 
-        | Decode4 ->( 2 , 4 , 4*gS  , 3*gS) 
-        | Constant1 (a, b,_) | Constant(a, b) -> (  0 , 1, gS ,  2*gS) 
-        | MergeWires -> ( 2 , 1, 2*gS ,  2*gS) 
-        | SplitWire (a) ->(  1 , 2 , 2*gS ,  2*gS) 
-        | Mux2 -> ( 3  , 1, 3*gS ,  2*gS) 
-        | Mux4 -> ( 5  , 1, 5*gS ,  2*gS)   
-        | Mux8 -> ( 9  , 1, 7*gS ,  2*gS) 
-        | Demux2 ->( 2  , 2, 3*gS ,  2*gS) 
-        | Demux4 -> ( 2  , 4, 150 ,  50) 
-        | Demux8 -> ( 2  , 8, 200 ,  50) 
-        | BusSelection (a, b) -> (  1 , 1, gS,  2*gS) 
-        | BusCompare (a, b) -> ( 1 , 1, gS ,  2*gS) 
-        | DFF -> (  1 , 1, 3*gS  , 3*gS) 
-        | DFFE -> ( 2  , 1, 3*gS  , 3*gS) 
-        | Register (a) -> ( 1 , 1, 3*gS  , 4*gS )
-        | RegisterE (a) -> ( 2 , 1, 3*gS  , 4*gS) 
-        | AsyncROM1 (a)  -> (  1 , 1, 4*gS  , 5*gS) 
-        | ROM1 (a) -> (   1 , 1, 4*gS  , 5*gS) 
-        | RAM1 (a) | AsyncRAM1 a -> ( 3 , 1, 4*gS  , 5*gS) 
-        | NbitsXor (n) -> (  2 , 1, 4*gS  , 4*gS) 
-        | NbitsAdder (n) -> (  3 , 2, 3*gS  , 4*gS) 
-        | Custom cct -> getCustomCompArgs cct label
-                
-    makeComponent' args label
+    let props = getComponentProperties compType label           
+    makeComponent' props label
 
 
 // Function to generate a new symbol

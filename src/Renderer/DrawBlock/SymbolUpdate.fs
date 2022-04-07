@@ -41,7 +41,7 @@ let generateLabel (model: Model) (compType: ComponentType) : string =
     let listSymbols = List.map snd (Map.toList model.Symbols) 
     let prefix = getPrefix compType
     match compType with
-    | IOLabel -> prefix
+    | IOLabel | BusSelection _ -> prefix
     | _ -> prefix + (generateLabelNumber listSymbols compType)
 
 /// Initialises and returns the PortMaps of a pasted symbol

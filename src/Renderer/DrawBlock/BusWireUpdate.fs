@@ -386,9 +386,8 @@ let autoroute (model: Model) (wire: Wire) : Wire =
     { wire with
           Segments = segments
           InitialOrientation = getOrientation startEdge
-          EndOrientation = getOrientation destEdge
           StartPos = startPos
-          EndPos = destPos }
+    }
 
 //--------------------------------------------------------------------------------//
 
@@ -499,9 +498,8 @@ let reverseWire (wire: Wire) =
     { wire with
         Segments = newSegs
         StartPos = wire.EndPos
-        EndPos = wire.StartPos
         InitialOrientation = wire.EndOrientation
-        EndOrientation = wire.InitialOrientation }
+    }
 
 /// Returns a re-routed wire from the given model.
 /// First attempts partial autorouting, and defaults to full autorouting if this is not possible.
@@ -525,7 +523,7 @@ let updateWire (model : Model) (wire : Wire) (reverse : bool) =
 let moveWire (wire: Wire) (displacement: XYPos) =
     { wire with
           StartPos = wire.StartPos + displacement
-          EndPos = wire.EndPos + displacement }
+    }
 
 /// Returns an updated wireMap with the IntersectOrJumpList of targetSeg replaced by jumps or modern intersections
 let updateSegmentJumpsOrIntersections targetSeg intersectOrJump wireMap =
@@ -850,9 +848,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 Width = 1
                 Segments = []
                 StartPos = { X = 0; Y = 0 }
-                EndPos = { X = 0; Y = 0 }
                 InitialOrientation = Horizontal
-                EndOrientation = Horizontal
             }
             |> autoroute model
         
@@ -1078,9 +1074,8 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                     Width = 1
                     Segments = segments
                     StartPos = Symbol.getOutputPortLocation None model.Symbol outputId
-                    EndPos = Symbol.getInputPortLocation None model.Symbol inputId
                     InitialOrientation = Symbol.getOutputPortOrientation model.Symbol outputId |> getOrientation
-                    EndOrientation = Symbol.getInputPortOrientation model.Symbol inputId |> getOrientation }
+                }
                 |> makeWirePosMatchSymbol false
                 |> makeWirePosMatchSymbol true
             )
@@ -1181,7 +1176,6 @@ let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list
                             OutputPort = OutputPortId newOutputPort;
                             Segments = segmentList;
                             StartPos = portOnePos;
-                            EndPos = portTwoPos
                     }
                     |> autoroute wModel
                 ]

@@ -17,6 +17,8 @@ open DrawModelType.SymbolT
 module Constants =
     [<Literal>]
     let gridSize = 30 
+    let mergeSplitTextSize = "9px"
+    let busSelectTextSize = "12px"
 
     /// How large are component labels
     let labelFontSizeInPixels:float = 16 // otehr parameters scale correctly with this
@@ -26,6 +28,14 @@ module Constants =
         {defaultText with 
             TextAnchor = "start"; 
             FontSize = $"%.0f{labelFontSizeInPixels}px"; 
+            FontFamily = "helvetica"; 
+            FontWeight="600"}
+
+    /// Style used by bus select bit legends
+    let busSelectStyle: Text = 
+        {defaultText with 
+            TextAnchor = "start"; 
+            FontSize = "12px"; 
             FontFamily = "helvetica"; 
             FontWeight="600"}
 
@@ -116,9 +126,13 @@ let calcLabelBoundingBox (sym: Symbol) =
         | Degree90 -> {X = comp.X - 2.*margin - labW ; Y = centreY - labH/2. - margin}
         | Degree180 -> {X = centreX - labW/2. - margin; Y = comp.Y + h}
     let box =
-        match sym.LabelHasDefaultPos with
-        | true -> {TopLeft=boxTopLeft; W = labW + 2.*margin; H = labH + 2.*margin}
-        | fale -> sym.LabelBoundingBox
+        match comp.Label, sym.LabelHasDefaultPos with
+        | "", _ -> 
+            {TopLeft=boxTopLeft; W = 0.; H = 0.}
+        | _, true -> 
+            {TopLeft=boxTopLeft; W = labW + 2.*margin; H = labH + 2.*margin}
+        | _, false -> 
+            sym.LabelBoundingBox
     {sym with LabelBoundingBox = box}
 
 
@@ -164,7 +178,6 @@ let getPrefix compType =
     | Constant1 _ -> "C"
     | BusCompare _ -> "EQ"
     | Decode4 -> "DEC"
-    | BusSelection _ -> "SEL"
     | _ -> ""
 
 
@@ -456,7 +469,7 @@ let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:stri
     makeComponent' props label
 
 
-// Function to generate a new symbol
+/// Function to generate a new symbol
 let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) =
     let id = JSHelpers.uuid ()
     let style = Constants.componentLabelStyle
@@ -710,13 +723,33 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
     let W = float comp.W
     let transform = symbol.STransform
 
-    let mergeSplitLine pos msb lsb =
+    let mergeSplitLine pos msb lsb  =
         let text = 
             match msb = lsb, msb >= lsb with
             | _, false -> ""
             | true, _ -> sprintf $"({msb})"
             | false, _ -> sprintf $"({msb}:{lsb})"
-        addText pos text "middle" "bold" "9px"
+        addText pos text "middle" "bold" Constants.mergeSplitTextSize
+
+
+    let busSelectLine msb lsb  =
+        let text = 
+            match msb = lsb  with
+            | true -> sprintf $"({lsb})"
+            | false -> sprintf $"({msb}:{lsb})"
+        let pos, align = 
+            let rotate' = 
+                if not transform.flipped then 
+                    transform.Rotation
+                else
+                    match transform.Rotation with 
+                    | Degree90 -> Degree270 | Degree270 -> Degree90 | r -> r
+            match rotate' with
+            | Degree0 -> {X=w/2.; Y= h/2. + 5.}, "middle"
+            | Degree180 -> {X=w/2.; Y= -0.}, "middle"
+            | Degree270 -> {X= 10.; Y=h/2. - 5.}, "end"
+            | Degree90 -> {X= 4.+ w/2.; Y=h/2. - 5.}, "start"
+        addText pos text align "bold" Constants.busSelectTextSize
 
     let clockTxtPos = 
         match transform.Rotation, transform.flipped with
@@ -758,7 +791,9 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
                 [|{X=0;Y=H/5.};{X=0;Y=H*0.8};{X=W;Y=H};{X=W;Y=0}|]
             | Mux2 | Mux4 | Mux8 -> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H*0.8};{X=W;Y=H/5.}|]
-            | BusSelection _ |BusCompare _ -> 
+            | BusSelection _ -> 
+                [|{X=0;Y=H/2.}; {X=W;Y=H/2.}|]
+            | BusCompare _ -> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W*0.6;Y=H};{X=W*0.8;Y=H*0.7};{X=W;Y=H*0.7};{X=W;Y =H*0.3};{X=W*0.8;Y=H*0.3};{X=W*0.6;Y=0}|]
             | Not | Nand | Nor | Xnor -> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=H/2.};{X=W+9.;Y=H/2.};{X=W;Y=H/2.-8.};{X=W;Y=H/2.};{X=W;Y=0}|]
@@ -786,6 +821,10 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
             | Degree90 | Degree270 -> Array.map (fun pos -> pos + {X=12.;Y=0}) textPoints
             | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +5.}) textPoints
             | _ -> textPoints
+        let rotate1 pos = 
+            match rotatePoints [|pos|] {X=W/2.;Y=H/2.} transform with 
+            | [|pos'|]-> pos' 
+            | _ -> failwithf "What? Can't happen"
 
         match comp.Type with
         | MergeWires -> 
@@ -797,16 +836,25 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
             let midb = lo
             let midt = lo - 1
             let values = [(midt,0);(msb,midb);(msb,0)]
-            List.fold (fun og i -> og @ mergeSplitLine mergeWiresTextPos[i] (fst values[i]) (snd values[i]) ) [] [0..2]
+            List.fold (fun og i ->
+                og @ mergeSplitLine 
+                        mergeWiresTextPos[i] 
+                        (fst values[i]) 
+                        (snd values[i])) [] [0..2]
         | SplitWire mid -> 
             let msb, mid' = match symbol.InWidth0 with | Some n -> n - 1, mid | _ -> -100, -50
             let midb = mid'
             let midt = mid'-1
             let values = [(midt,0);(msb,midb);(msb,0)]
-            List.fold (fun og i -> og @ mergeSplitLine splitWiresTextPos[i] (fst values[i]) (snd values[i]) ) [] [0..2]
+            List.fold (fun og i -> 
+                og @ mergeSplitLine 
+                        splitWiresTextPos[i] 
+                        (fst values[i]) 
+                        (snd values[i])) [] [0..2]
         | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _  -> 
             (addText clockTxtPos " clk" "middle" "normal" "12px")
-        | BusSelection(x,y) -> (addText {X = w/2.; Y = (h/2.7)-2.} (bustitle x y) "middle" "bold" "12px")
+        | BusSelection(nBits,lsb) ->           
+            busSelectLine (lsb + nBits - 1) lsb
         | BusCompare (_,y) -> (addText {X = w/2.-2.; Y = h/2.7-1.} ("=" + NumberHelpers.hex(int y)) "middle" "bold" "10px")
         | Input (x) -> (addText {X = w/2.; Y = h/2.7-3.} (title "" x) "middle" "normal" "12px")
         | Output (x) -> (addText {X = w/2.; Y = h/2.7-3.} (title "" x) "middle" "normal" "12px")
@@ -817,6 +865,7 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
     let outlineColour, strokeWidth =
         match comp.Type with
         | SplitWire _ | MergeWires | IOLabel -> outlineColor colour, "2.0"
+        | BusSelection _ -> outlineColor colour, "3.0"
         | _ -> "black", "1.0"
     
 

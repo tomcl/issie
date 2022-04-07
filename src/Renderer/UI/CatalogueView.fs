@@ -77,7 +77,12 @@ let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
             dispatch ClosePopup
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
-            (getInt dialogData < 1) || (getText dialogData = "")
+            let notGoodLabel =
+                getText dialogData
+                |> Seq.toList
+                |> List.tryHead
+                |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
+            (getInt dialogData < 1) || notGoodLabel
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 let private createNbitsAdderPopup (model:Model) dispatch =

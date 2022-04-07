@@ -390,22 +390,44 @@ let private makeExtraInfo model (comp:Component) text dispatch =
 
 
 let viewSelectedComponent (model: ModelType.Model) dispatch =
+    let allowNoLabel =
+        let symbols = model.Sheet.Wire.Symbol.Symbols
+        match model.Sheet.SelectedComponents with
+        | [cid] ->
+            match Map.tryFind cid symbols with
+            | Some {Component ={Type=MergeWires | SplitWire _ | BusSelection _}} -> true
+            | _ -> false
+        | _ -> false
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let formatLabelText (txt: string) =
         txt.ToUpper()
-        |> Seq.filter (function | ch when System.Char.IsLetterOrDigit ch -> true | '.' -> true | '_' -> true | _ -> false)
+        |> Seq.filter (function | ch when System.Char.IsLetterOrDigit ch -> true 
+                                | '.' -> true 
+                                | '_' -> true 
+                                | _ -> false)
         |> Seq.skipWhile (System.Char.IsLetter >> not)
-        |> (fun chars -> match Seq.length chars with | 0 -> None | _ -> Some (String.concat "" (Seq.map string chars)))
+        |> Seq.map string
+        |> String.concat ""
+        |> (fun chars -> 
+            match String.length chars with 
+            | 0 when allowNoLabel -> 
+                Some ""
+            | 0 -> 
+                None 
+            | _ -> 
+                Some chars)
     match model.Sheet.SelectedComponents with
     | [ compId ] ->
         let comp = SymbolUpdate.extractComponent model.Sheet.Wire.Symbol compId
         div [Key comp.Id] [
             // let label' = extractLabelBase comp.Label
             // TODO: normalise labels so they only contain allowed chars all uppercase
-            let label' = Option.defaultValue "L" (formatLabelText comp.Label) // No formatting atm
+            let label' = Option.defaultValue "" (formatLabelText comp.Label) // No formatting atm
             readOnlyFormField "Description" <| makeDescription comp model dispatch
             makeExtraInfo model comp label' dispatch
-            let required = match comp.Type with | SplitWire _ | MergeWires | BusSelection _ -> false | _ -> true
+            let required = 
+                match comp.Type with 
+                | SplitWire _ | MergeWires | BusSelection _ -> false | _ -> true
             textFormField required "Component Name" label' (fun text ->
                 // TODO: removed formatLabel for now
                 //setComponentLabel model sheetDispatch comp (formatLabel comp text)

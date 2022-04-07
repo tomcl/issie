@@ -170,12 +170,9 @@ module BusWireT =
             Width: int
             Segments: list<Segment>
             StartPos : XYPos
-            EndPos : XYPos
             InitialOrientation : Orientation
-            EndOrientation : Orientation
         }
-    
-    
+   
     
     /// Defines offsets used to render wire width text
     type TextOffset =

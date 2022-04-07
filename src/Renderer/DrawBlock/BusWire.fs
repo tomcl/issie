@@ -97,6 +97,17 @@ let getAbsSegments (wire: Wire) : ASegment list =
     |> snd
     |> List.rev
 
+type Wire with 
+        member inline this.EndOrientation =
+            match this.Segments.Length % 2, this.InitialOrientation with 
+            | 1, _ -> this.InitialOrientation
+            | _, Vertical -> Horizontal
+            | _, Horizontal -> Vertical
+
+        member inline this.EndPos =
+            (this.StartPos, this)
+            ||> foldOverSegs (fun startP endP _ _ -> endP)
+
 
 //-------------------------Debugging functions---------------------------------//
 

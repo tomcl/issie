@@ -489,7 +489,9 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
                     wireCmd (BusWireT.MakeJumps [ connId ] ) ]
     | Selecting ->
         let newComponents = findIntersectingComponents model model.DragToSelectBox
-        let newWires = BusWireUpdate.getIntersectingWires model.Wire model.DragToSelectBox
+        let newWires = 
+            BusWireUpdate.getIntersectingWires model.Wire model.DragToSelectBox
+            |> List.map fst
         let resetDragToSelectBox = {model.DragToSelectBox with H = 0.0; W = 0.0}
         let selectComps, selectWires =
             if mMsg.ShiftKeyDown then

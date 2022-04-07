@@ -282,7 +282,7 @@ module SheetT =
             | ClickablePort -> "move"
             | NoCursor -> "none"
             | Spinner -> "wait"
-            | Grab -> "grab"
+            | Grab -> "crosshair"
             | Grabbing -> "grabbing"
 
     /// Keeps track of coordinates of visual snap-to-grid indicators.

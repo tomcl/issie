@@ -65,7 +65,13 @@ let rectanglesIntersect (rect1: Rectangle) (rect2: Rectangle) =
 
     (intersect1D toX) && (intersect1D toY)
 
+let findPerpendicularDistance (segStart:XYPos) (segEnd:XYPos) (point:XYPos) =
+    match abs (segStart.X - segEnd.X) > abs (segStart.Y - segEnd.Y) with
+    | true -> abs (segStart.Y - point.Y)
+    | false -> abs (segStart.X - point.X)
+
 /// Checks if a segment intersects a bounding box using the segment's start and end XYPos
+/// return how close teh segment runs to the box centre, if it intersects
 let segmentIntersectsBoundingBox (box: BoundingBox) segStart segEnd =
     let toRect p1 p2 =
         let topLeft, bottomRight =
@@ -84,7 +90,10 @@ let segmentIntersectsBoundingBox (box: BoundingBox) segStart segEnd =
     let bbRect = toRect box.TopLeft bbBottomRight
     let segRect = toRect segStart segEnd
 
-    rectanglesIntersect bbRect segRect
+    if rectanglesIntersect bbRect segRect then
+        Some <| findPerpendicularDistance segStart segEnd ((box.TopLeft + bbBottomRight) * 0.5)
+    else
+        None
 
 //--------------------------------------------------------------------------------//
 //---------------------------getClickedSegment-----------------------------------//
@@ -1133,28 +1142,33 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 //---------------Other interface functions--------------------//
 
 /// Checks if a wire intersects a bounding box by checking if any of its segments intersect
+/// returns some of distance to wire, if wire does intersect
 let wireIntersectsBoundingBox (wire : Wire) (box : BoundingBox) =
     let segmentIntersectsBox segStart segEnd state seg =
         match state with
-        | true -> true
-        | false -> segmentIntersectsBoundingBox box segStart segEnd
+        | Some x -> Some x
+        | None -> segmentIntersectsBoundingBox box segStart segEnd
     
-    foldOverSegs segmentIntersectsBox false wire
+    foldOverSegs segmentIntersectsBox None wire
 
 /// Returns a list of wire IDs in the model that intersect the given selectBox
-let getIntersectingWires (wModel : Model) (selectBox : BoundingBox) : list<ConnectionId> =
+/// the wires are sorted by closeness to the centre of the box.
+let getIntersectingWires (wModel : Model) (selectBox : BoundingBox) : list<ConnectionId*float> =
     wModel.Wires
     |> Map.map (fun _id wire -> wireIntersectsBoundingBox wire selectBox)
-    |> Map.filter (fun _id bool -> bool)
+    |> Map.filter (fun _id optDist -> optDist <> None)
     |> Map.toList
-    |> List.map (fun (id, _bool) -> id)
+    |> List.collect (function | (id, Some dist) -> [(id,dist)] | _,None -> [])
+    |> List.sortBy snd
 
-///Searches if the position of the cursor is on a wire in a model,
-///where n is 5 pixels adjusted for top level zoom
+/// Searches if the position of the cursor is on a wire in a model,
+/// where n is 5 pixels adjusted for top level zoom.
+/// If there are multiple hits retrn the closest.
 let getClickedWire (wModel : Model) (pos : XYPos) (n : float) : ConnectionId Option =
     let boundingBox = {BoundingBox.TopLeft = {X = pos.X - n; Y = pos.Y - n}; H = n*2.; W = n*2.}
     let intersectingWires = getIntersectingWires (wModel : Model) boundingBox
     List.tryHead intersectingWires
+    |> Option.map fst
 
 /// Updates the model to have new wires between pasted components
 let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list<ConnectionId>) =

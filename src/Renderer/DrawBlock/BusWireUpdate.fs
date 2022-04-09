@@ -114,22 +114,21 @@ let distanceBetweenPointAndSegment (segStart : XYPos) (segEnd : XYPos) (point : 
             |> (+) segStart
         Some (sqrt (squaredDistance point boundedProjection))
 
-/// Finds the Id of the closest segment in a wire to a mouse click using euclidean distance
-let getClickedSegment (model: Model) (wireId: ConnectionId) (mouse: XYPos) : SegmentId =
+/// Finds the closest non-zero-length segment in a wire to a mouse click using euclidean distance.
+/// Return as an ASegment.
+let getClickedSegment (model: Model) (wireId: ConnectionId) (mouse: XYPos) : ASegment =
     let closestSegment segStart segEnd state (seg: Segment) =
-        let currDist = 
-            distanceBetweenPointAndSegment segStart segEnd mouse
+        let currDist = Option.get <| distanceBetweenPointAndSegment segStart segEnd mouse
+        let aSeg = {Start=segStart; End=segEnd; Segment=seg}
         match state with
-        | Some (minId, minDist) ->
-            let dist = Option.defaultValue minDist currDist
-            if dist < minDist then
-                Some (seg.getId(), dist)
+        | Some (minASeg, minDist) ->
+            if currDist < minDist then
+                Some (aSeg, currDist)
             else
-                Some (minId, minDist)
-        | None -> Option.map (fun dist -> (seg.getId(), dist)) currDist // Needed to deal with initial state
-
-    match foldOverSegs closestSegment None model.Wires[wireId] with
-    | Some (segmentId, _dist) -> segmentId 
+                Some (minASeg, minDist)
+        | None -> Some (aSeg, currDist) // Needed to deal with initial state
+    match foldOverNonZeroSegs closestSegment None model.Wires[wireId] with
+    | Some (segment, _dist) -> segment
     | None -> failwithf "getClosestSegment was given a wire with no segments" // Should never happen
 
 //--------------------------------------------------------------------------------//
@@ -971,22 +970,20 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             {model with Wires = newWires}
         { model with Wires = newWires }, Cmd.ofMsg BusWidths
 
-    | DragWire (connId : ConnectionId, mMsg: MouseT) ->
+    | DragSegment (segId : SegmentId, mMsg: MouseT) ->
         match mMsg.Op with
         | Down ->
-            let segId = getClickedSegment model connId mMsg.Pos
-            {model with SelectedSegment = Some segId }, Cmd.ofMsg (ResetJumps [])
+            {model with SelectedSegment = Some segId}, Cmd.ofMsg (ResetJumps [])
         | Drag ->
-            let seg = 
-                model.Wires[connId].Segments
-                |> List.tryFind (fun seg -> model.SelectedSegment = Some (seg.getId()))
-                |> function | Some seg -> seg | None -> failwithf $"Segment Id {model.SelectedSegment} not found in segment list"
+            let index, connId = segId
+            let wire = model.Wires[connId]
+            let seg = wire.Segments[index]
+            let (startPos,endPos) = getAbsoluteSegmentPos wire index
             if seg.Draggable then
                 let distanceToMove = 
-                    let (segStart, segEnd) = getAbsoluteSegmentPos model.Wires[connId] seg.Index
-                    match getSegmentOrientation segStart segEnd with
-                    | Horizontal -> mMsg.Pos.Y - segStart.Y
-                    | Vertical -> mMsg.Pos.X - segStart.X
+                    match getSegmentOrientation startPos endPos with
+                    | Horizontal -> mMsg.Pos.Y - startPos.Y
+                    | Vertical -> mMsg.Pos.X - startPos.X
 
                 let newWire = moveSegment model seg distanceToMove 
                 let newWires = Map.add seg.WireId newWire model.Wires

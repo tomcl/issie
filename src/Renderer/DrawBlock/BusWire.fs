@@ -84,6 +84,29 @@ let inline foldOverSegs folder state wire =
         (nextState, nextPos, nextOrientation))
     |> (fun (state, _, _) -> state)
 
+
+/// <summary> Applies a function which requires the segment start and end positions to the non-zero-length segments in a wire, 
+/// threading an accumulator argument through the computation. Essentially a List.fold applied to the list of segments of a wire, but with access to each segment's absolute positions. </summary>
+/// <remarks> This is used in cases where absolute segment positions are required. 
+/// These positions are computed on the fly and passed to the folder function. </remarks>
+/// <param name="folder"> The function to update the state given the segment start and end positions, current state and segment itself.</param>
+/// <param name="state"> The initial state.</param>
+/// <param name="wire"> The wire containing the segment list we are folding over.</param>
+/// <returns> The final state value </returns>
+let inline foldOverNonZeroSegs folder state wire =
+    let initPos = wire.StartPos
+    let initOrientation = wire.InitialOrientation
+    ((state, initPos, initOrientation), wire.Segments)
+    ||> List.fold (fun (currState, currPos, currOrientation) seg -> 
+        let nextOrientation = switchOrientation currOrientation
+        if abs seg.Length < XYPos.epsilon then 
+            (currState, currPos, nextOrientation)
+        else
+            let nextPos = addLengthToPos currPos currOrientation seg.Length
+            let nextState = folder currPos nextPos currState seg
+            (nextState, nextPos, nextOrientation))
+    |> (fun (state, _, _) -> state)
+
 /// Return absolute segment list from a wire.
 /// NB - it is often more efficient to use various fold functions (foldOverSegs etc)
 let getAbsSegments (wire: Wire) : ASegment list =
@@ -176,8 +199,20 @@ let logWire wire =
     printfn $"{foldOverSegs formatSegments start wire}"
     wire
 
+
+let inline getSegmentFromId (model: Model) (segId:SegmentId) =
+    let index,Wid = segId
+    model.Wires[Wid].Segments[index]
+
+let inline getASegmentFromId (model: Model) (segId:SegmentId) =
+    let index, Wid = segId
+    let getASeg startPos endPos state (seg:Segment) =
+        if seg.Index = index then Some {Start=startPos; End=endPos;Segment=seg} else state
+    foldOverNonZeroSegs  getASeg None model.Wires[Wid]
+    |> Option.get
+
 /// Given a segment start and end position, finds the orientation of the segment. 
-/// Returns None if the segment is neither horizontal nor vertical
+/// Fails if the segment is neither horizontal nor vertical
 let inline getSegmentOrientation (segStart: XYPos) (segEnd: XYPos) =
     if abs (segStart.X - segEnd.X) < XYPos.epsilon then
         Vertical
@@ -185,6 +220,21 @@ let inline getSegmentOrientation (segStart: XYPos) (segEnd: XYPos) =
         Horizontal
     else
         failwithf "ERROR: Diagonal wire" // Should never happen
+
+/// Given a segment start and end position, finds the orientation of the segment. 
+/// Returns None if the segment is 0 length
+let inline getSegmentOrientationOpt (segStart: XYPos) (segEnd: XYPos) =
+    if abs (segStart.X - segEnd.X) < XYPos.epsilon then
+        Some Vertical
+    else if abs (segStart.Y - segStart.Y) < XYPos.epsilon then
+        Some Horizontal
+    else
+        None
+/// Get the coordinate fixed in an ASegment. NB - ASegments can't be zero length
+let inline getFixedCoord (aSeg: ASegment) =
+    let ori = getSegmentOrientation aSeg.Start aSeg.End
+    match ori with | Vertical -> aSeg.Start.X | Horizontal -> aSeg.Start.Y
+
 
 /// Given a segment start and end position, finds the symbol edge of the segment
 /// based on its segment direction if it starts an outgoing wire.

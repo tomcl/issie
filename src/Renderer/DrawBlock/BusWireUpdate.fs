@@ -347,7 +347,7 @@ let rec rotateStartDest (target: Edge) ((start, dest): PortInfo * PortInfo) =
 
 
 /// Gets a wire orientation given a port edge
-let inline getOrientation (edge: Edge) = 
+let inline getOrientationOfEdge (edge: Edge) = 
     match edge with
     | CommonTypes.Top | CommonTypes.Bottom -> Vertical
     | CommonTypes.Left | CommonTypes.Right -> Horizontal
@@ -359,7 +359,7 @@ let rec rotateSegments (target: Edge) (wire: {| edge: Edge; segments: Segment li
         {| edge = wire.edge; segments = wire.segments |}
     else
         let rotatedSegs =
-            rotateSegments90 (getOrientation wire.edge) wire.segments
+            rotateSegments90 (getOrientationOfEdge wire.edge) wire.segments
         
         {| edge = rotate90Edge wire.edge; segments = rotatedSegs |}
         |> rotateSegments target 
@@ -379,11 +379,11 @@ let autoroute (model: Model) (wire: Wire) : Wire =
     let destPort = genPortInfo destEdge destPos
     
     // Normalise the routing problem to reduce the number of cases in makeInitialSegmentsList
-    let normalisedStart, normalisedEnd = 
+    let normStart, normEnd = 
         rotateStartDest CommonTypes.Right (startPort, destPort)
 
     let initialSegments =
-        makeInitialSegmentsList wire.WId normalisedStart.Position normalisedEnd.Position normalisedEnd.Edge
+        makeInitialSegmentsList wire.WId normStart.Position normEnd.Position normEnd.Edge
 
     let segments =
         {| edge = CommonTypes.Right
@@ -393,7 +393,7 @@ let autoroute (model: Model) (wire: Wire) : Wire =
 
     { wire with
           Segments = segments
-          InitialOrientation = getOrientation startEdge
+          InitialOrientation = getOrientationOfEdge startEdge
           StartPos = startPos
     }
 
@@ -407,7 +407,8 @@ let autoroute (model: Model) (wire: Wire) : Wire =
 let relativePosition (origin: XYPos) (pos:XYPos) = 
     {| isLeft = origin.X > pos.X; isAbove = origin.Y > pos.Y |}
 
-/// Returns the tuple (startPos, endPos) of the segment at the target index in the given wire. Throws an error if the target index isn't found
+/// Returns the tuple (startPos, endPos) of the segment at the target index in the given wire. 
+/// Throws an error if the target index isn't found.
 let getAbsoluteSegmentPos (wire: Wire) (target: int) =
     (None, wire)
     ||> foldOverSegs
@@ -417,7 +418,8 @@ let getAbsoluteSegmentPos (wire: Wire) (target: int) =
         | None -> failwithf $"Couldn't find index {target} in wire"
         | Some pos -> pos)     
 
-/// Returns the length to change a segment represented by startPos -> endPos in the appropriate dimension of the difference vector
+/// Returns the length to change a segment represented by startPos -> endPos 
+/// in the appropriate dimension of the difference vector.
 let getLengthDiff difference startPos endPos =
     match getSegmentOrientation startPos endPos with
     | Horizontal -> toX difference
@@ -459,7 +461,8 @@ let partialAutoroute (model: Model) (wire: Wire) (newPortPos: XYPos) (reversed: 
     let segs = wire.Segments
     let newWire = { wire with StartPos = newPortPos }
 
-    /// Returns the manual index and change in port position if partial routing can be performend, else none
+    /// Returns the manual index and change in port position 
+    /// if partial routing can be performend, else none
     let eligibleForPartialRouting manualIdx =
         let oldStartPos = getPartialRouteStart wire manualIdx
         let newStartPos = getPartialRouteStart newWire manualIdx
@@ -493,8 +496,8 @@ let partialAutoroute (model: Model) (wire: Wire) (newPortPos: XYPos) (reversed: 
     |> Option.map (fun segs -> { wire with Segments = segs; StartPos = newPortPos })
 
 //--------------------------------------------------------------------------------//
-
-//------------------------------updateWire--------------------------------------//
+//--------------------------------updateWire--------------------------------------//
+//--------------------------------------------------------------------------------//
 
 /// Reverses a wire so that it may be processed in the opposite direction. This function is self-inverse.
 let reverseWire (wire: Wire) =
@@ -533,7 +536,8 @@ let moveWire (wire: Wire) (displacement: XYPos) =
           StartPos = wire.StartPos + displacement
     }
 
-/// Returns an updated wireMap with the IntersectOrJumpList of targetSeg replaced by jumps or modern intersections
+/// Returns an updated wireMap with the IntersectOrJumpList of targetSeg 
+/// replaced by jumps or modern intersections.
 let updateSegmentJumpsOrIntersections targetSeg intersectOrJump wireMap =
     let wId = targetSeg.WireId
     let target = targetSeg.Index
@@ -543,7 +547,6 @@ let updateSegmentJumpsOrIntersections targetSeg intersectOrJump wireMap =
 
     wireMap
     |> Map.add wId { wireMap[wId] with Segments = changeSegment wireMap[wId].Segments }
-
 
 let partitionWiresIntoNets (model:Model) =
     model.Wires
@@ -605,7 +608,8 @@ let updateCirclesOnSegments
     (model.Wires, wiresToUpdate)
     ||> List.fold (fun wires wire ->
             let wire = wires[wire.WId]
-            let findAllCirclesOnWire circles = List.filter (fun ((_,_,wire'): CircleT) -> wire'.WId = wire.WId) circles
+            let findAllCirclesOnWire circles = 
+                List.filter (fun ((_,_,wire'): CircleT) -> wire'.WId = wire.WId) circles
             let newWire =
                 (wire, findAllCirclesOnWire circles)
                 ||> List.fold (fun wire (cPos,cIndex, _) -> 
@@ -687,15 +691,12 @@ let updateCirclesOnAllNets (model:Model) =
     (cleanModel,nets)
     ||> List.fold updateCirclesOnNet
 
-
-
-    
-
-
-
-
 /// Used as a folder in foldOverSegs. Finds all jump offsets in a wire for the segment defined in the state
-let inline findJumpIntersects (segStart: XYPos) (segEnd: XYPos) (state: {| Start: XYPos; End: XYPos; JumpsOrIntersections: float list |}) (seg: Segment) =
+let inline findJumpIntersects 
+        (segStart: XYPos) 
+        (segEnd: XYPos) 
+        (state: {| Start: XYPos; End: XYPos; JumpsOrIntersections: float list |}) 
+        (seg: Segment) =
     if getSegmentOrientation segStart segEnd = Vertical then
         let xVStart, xHStart, xHEnd = segStart.X, state.Start.X, state.End.X
         let yVStart, yVEnd, yHEnd = segStart.Y, segEnd.Y, state.End.Y
@@ -776,9 +777,9 @@ let resetWireSegmentJumps (wireList : list<ConnectionId>) (model : Model) : Mode
     resetJumps model
     |> TimeHelpers.instrumentInterval "ResetJumps" startT
 
-
 /// Re-routes the wires in the model based on a list of components that have been altered.
-/// If the wire input and output ports are both in the list of moved components, does not re-route wire but instead translates it.
+/// If the wire input and output ports are both in the list of moved components, 
+/// it does not re-route wire but instead translates it.
 /// Keeps manual wires manual (up to a point).
 /// Otherwise it will auto-route wires connected to components that have moved
 let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
@@ -818,8 +819,6 @@ let updateSymbolWires (model: Model) (compId: ComponentId) =
         |> Map.ofList
     { model with Wires = newWires }
             
-
-
 /// Handles messages
 let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
@@ -1060,16 +1059,8 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                             (List.head conn.Vertices |> getVertex)
                     |> (fun b ->
                         if b then
-                            printfn "Loaded wire OK!"
                             wire
                         else
-                            let getS (connId:string) =
-                                Map.tryFind connId model.Symbol.Ports
-                                |> Option.map (fun port -> port.HostId)
-                                |> Option.bind (fun symId -> Map.tryFind (ComponentId symId) model.Symbol.Symbols)
-                                |> Option.map (fun sym -> sym.Component.Label)
-                            printfn $"Updating loaded wire from {getS conn.Source.Id}->{getS conn.Target.Id} of wire "
-
                             updateWire model wire inOut)
                 connId,
                 { 
@@ -1080,7 +1071,9 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                     Width = 1
                     Segments = segments
                     StartPos = Symbol.getOutputPortLocation None model.Symbol outputId
-                    InitialOrientation = Symbol.getOutputPortOrientation model.Symbol outputId |> getOrientation
+                    InitialOrientation = 
+                        Symbol.getOutputPortOrientation model.Symbol outputId 
+                        |> getOrientationOfEdge
                 }
                 |> makeWirePosMatchSymbol false
                 |> makeWirePosMatchSymbol true
@@ -1134,9 +1127,10 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
         {model with Wires = newWires}, Cmd.none
 
-        
+//---------------------------------------------------------------------------------//        
+//---------------------------Other interface functions-----------------------------//
+//---------------------------------------------------------------------------------//        
 
-//---------------Other interface functions--------------------//
 
 /// Checks if a wire intersects a bounding box by checking if any of its segments intersect
 /// returns some of distance to wire, if wire does intersect
@@ -1173,12 +1167,14 @@ let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list
     let pastedWires =
         let createNewWire (oldWire : Wire) : list<Wire> =
             let newId = ConnectionId(JSHelpers.uuid())
-
-            match SymbolUpdate.getEquivalentCopiedPorts wModel.Symbol oldCompIds newCompIds (oldWire.InputPort, oldWire.OutputPort) with
+            let oldPorts = (oldWire.InputPort, oldWire.OutputPort)
+            match SymbolUpdate.getEquivalentCopiedPorts wModel.Symbol oldCompIds newCompIds  oldPorts with
             | Some (newInputPort, newOutputPort) ->
 
-                let portOnePos, portTwoPos = Symbol.getTwoPortLocations wModel.Symbol (InputPortId newInputPort) (OutputPortId newOutputPort)
-                let segmentList = makeInitialSegmentsList newId portOnePos portTwoPos (Symbol.getOutputPortOrientation wModel.Symbol (OutputPortId newOutputPort))
+                let portOnePos, portTwoPos = 
+                    Symbol.getTwoPortLocations wModel.Symbol (InputPortId newInputPort) (OutputPortId newOutputPort)
+                let outputPortOrientation = Symbol.getOutputPortOrientation wModel.Symbol (OutputPortId newOutputPort)
+                let segmentList = makeInitialSegmentsList newId portOnePos portTwoPos outputPortOrientation
                 [
                     {
                         oldWire with

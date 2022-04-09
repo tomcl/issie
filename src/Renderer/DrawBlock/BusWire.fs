@@ -46,13 +46,6 @@ module Constants =
             DominantBaseline = "middle";
         }
 
-
-
-
-
-
-
-
 /// Returns an XYPos shifted by length in an X or Y direction defined by orientation.
 let inline addLengthToPos (position: XYPos) orientation length =
     match orientation with
@@ -83,7 +76,6 @@ let inline foldOverSegs folder state wire =
         let nextState = folder currPos nextPos currState seg
         (nextState, nextPos, nextOrientation))
     |> (fun (state, _, _) -> state)
-
 
 /// <summary> Applies a function which requires the segment start and end positions to the non-zero-length segments in a wire, 
 /// threading an accumulator argument through the computation. Essentially a List.fold applied to the list of segments of a wire, but with access to each segment's absolute positions. </summary>
@@ -131,8 +123,9 @@ type Wire with
             (this.StartPos, this)
             ||> foldOverSegs (fun startP endP _ _ -> endP)
 
-
+//-----------------------------------------------------------------------------//
 //-------------------------Debugging functions---------------------------------//
+//-----------------------------------------------------------------------------//
 
 /// Formats a SegmentId for logging purposes.
 let formatSegmentId ((index,wid): SegmentId) =
@@ -199,7 +192,6 @@ let logWire wire =
     printfn $"{foldOverSegs formatSegments start wire}"
     wire
 
-
 let inline getSegmentFromId (model: Model) (segId:SegmentId) =
     let index,Wid = segId
     model.Wires[Wid].Segments[index]
@@ -245,7 +237,6 @@ let inline getWireOutgoingEdge (wire:Wire) =
     | Vertical, true -> Edge.Bottom
     | Vertical, false -> Edge.Top
      
-
 /// Tries to find and log a segment identified by index in a wire identified by wireId in the current model.
 /// Assumes wireId can be found in the current model. Returns unit, used for debugging.
 let logSegmentInModel model wireId index  = 
@@ -462,7 +453,12 @@ let xyVerticesToSegments connId (xyVerticesList: XYPos list) =
 /// Given the coordinates of two port locations that correspond
 /// to the endpoints of a wire, as well as the orientation of the final port
 /// this function returns a list of Segment(s).
-let makeInitialSegmentsList (hostId : ConnectionId) (startPos : XYPos) (endPos : XYPos) (portOrientation : Edge) : list<Segment> =
+let makeInitialSegmentsList 
+        (hostId : ConnectionId) 
+        (startPos : XYPos) 
+        (endPos : XYPos) 
+        (portOrientation : Edge) 
+            : list<Segment> =
     makeInitialWireVerticesList startPos endPos portOrientation
     |> xyVerticesToSegments hostId 
 
@@ -570,7 +566,6 @@ let renderWireWidthText (props: WireRenderProps): ReactElement =
     | CommonTypes.Bottom -> makeText (outPos.X + xOffset) (outPos.Y + yOffset) text textStyle
     | CommonTypes.Right -> makeText (outPos.X + xOffset) (outPos.Y - yOffset) text textStyle
     | CommonTypes.Left -> makeText (outPos.X - xLeftOffset) (outPos.Y - yOffset) text textStyle
-
 
 /// Creates the SVG command string required to render the wire
 /// (apart from the final "nub") with a radial display type 
@@ -785,9 +780,6 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
             InputPortLocation = inputPortLocation
         }
         
-
-
-
     let renderWire = 
         FunctionComponent.Of(
             fun (props : WireRenderProps) ->

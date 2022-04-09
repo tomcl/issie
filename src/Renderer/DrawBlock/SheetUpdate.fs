@@ -25,36 +25,12 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
             | None ->
                 failwithf "What? can't move a symbol which does not exist in the model!"
 
-        /// Checks for snap-to-grid in one dimension (x-coordinates or y-coordinates)
-        /// Input / output is an anonymous record to deal with too many arguments otherwise
-
-
-
         let compId = model.SelectedComponents.Head
-        let boundingBox = model.BoundingBoxes[compId]
-        let x1, x2, y1, y2 = boundingBox.TopLeft.X, boundingBox.TopLeft.X + boundingBox.W, boundingBox.TopLeft.Y, boundingBox.TopLeft.Y + boundingBox.H
-        
-        // printfn "%A" mMsg.Pos.X
-        // printfn "%A" model.LastMousePos.X
-
-        /// Finds margins for moving shaped against other symbol sides 
-        let xMargins, yMargins =
-            let symbols = 
-                Map.toList model.Wire.Symbol.Symbols
-                |> List.map (fun x -> snd x) 
-                |> List.filter (fun (x:Symbol) -> (not x.Moving) && (not (x.Id = compId)))
-            let extractEdges (prevList) (sym:Symbol) = 
-                (fst prevList @ [sym.Pos.X] @ [sym.Pos.X + float sym.Component.W],snd prevList @ [sym.Pos.Y] @ [sym.Pos.Y + float sym.Component.H])
-            let x,y = List.fold extractEdges ([],[]) symbols
-            let xMarg = List.map (fun margin -> margin-x1, x1) x @ List.map (fun margin -> margin-x2, x2) x
-            let yMarg = List.map (fun margin -> margin-y1, y1) y @ List.map (fun margin -> margin-y2, y2) y
-            xMarg, yMarg
-
-        let mousePos = mMsg.Pos
+        let bBox = model.BoundingBoxes[compId]
         let snapXY, moveDelta = snap2DSymbol model.AutomaticScrolling mMsg.Pos symbol model
 
         let errorComponents  =
-            if notIntersectingComponents model boundingBox compId then [] else [compId]
+            if notIntersectingComponents model bBox compId then [] else [compId]
 
         {model with
              Action = nextAction
@@ -83,8 +59,15 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                     Cmd.ofMsg CheckAutomaticScrolling
                     wireCmd (BusWireT.UpdateWires (model.SelectedComponents, mMsg.Pos - model.LastMousePos))]
 
-
-let snapWire (model: Model) (mMsg: MouseT) (segId: SegmentId): Model * Cmd<Msg> = 
+/// Inputs are segment ID being dragged and new mouse position.
+/// Performs the Segment Drag operation implementing snaps.
+/// This function must be in update and creates additional commands
+/// to implement the drag oeporation.
+let snapWire 
+        (model: Model) 
+        (mMsg: MouseT) 
+        (segId: SegmentId)
+            : Model * Cmd<Msg> = 
     
     let nextAction, isMovingWire =
         match model.Action with
@@ -106,6 +89,8 @@ let snapWire (model: Model) (mMsg: MouseT) (segId: SegmentId): Model * Cmd<Msg> 
     },
     Cmd.batch [ wireCmd (BusWireT.DragSegment (segId, newmMsg));
                 Cmd.ofMsg CheckAutomaticScrolling] 
+
+
 // ----------------------------------------- Mouse Update Helper Functions ----------------------------------------- //
 // (Kept in separate functions since Update function got too long otherwise)
 
@@ -122,7 +107,10 @@ let appendUndoList (undoList: Model List) (model_in: Model): Model List =
 
 
 /// Mouse Down Update, Can have clicked on: Label, InputPort / OutputPort / Component / Wire / Canvas. Do correct action for each.
-let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
+let mDownUpdate 
+        (model: Model) 
+        (mMsg: MouseT) 
+            : Model * Cmd<Msg> =
     let newModel =
         match model.TmpModel with
         | None -> model
@@ -260,7 +248,10 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                         wireCmd (BusWireT.SelectWires newWires) ]
 
 /// Mouse Drag Update, can be: drag-to-selecting, moving symbols, connecting wire between ports.
-let mDragUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
+let mDragUpdate 
+        (model: Model) 
+        (mMsg: MouseT) 
+            : Model * Cmd<Msg> =
     match model.Action with
     | MovingWire segId -> 
         snapWire model mMsg segId 
@@ -433,7 +424,10 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
     | _ -> model, Cmd.none
 
 /// Mouse Move Update, looks for nearby components and looks if mouse is on a port
-let mMoveUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
+let mMoveUpdate 
+        (model: Model) 
+        (mMsg: MouseT) 
+            : Model * Cmd<Msg> =
     match model.Action with
     | DragAndDrop -> moveSymbols model mMsg
     | InitialisedCreateComponent (ldcs, compType, lbl) ->
@@ -822,17 +816,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         else {model with CursorType = Default}, Cmd.none
 
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
-    (* |> (fun (model, cmd) ->
-            model.Wire.Symbol.Symbols
-            |> Map.iter (fun symId sym -> 
-                let symLBox = sym.LabelBoundingBox
-                if Map.containsKey symId model.LabelBoundingBoxes then 
-                    let sheetLBox = model.LabelBoundingBoxes[symId]
-                    let posDiff = symLBox.TopLeft - sheetLBox.TopLeft
-                    printfn "%s" (Helpers.nocr $"\n***\nSym offset = {sym.Pos}\nLabel box offset={posDiff}\n***\n"))
-            model,cmd) *)
-
-
 
 /// Init function
 let init () =

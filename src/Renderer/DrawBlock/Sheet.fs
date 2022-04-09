@@ -146,7 +146,10 @@ let getScreenEdgeCoords () =
     (leftScreenEdge, rightScreenEdge,topScreenEdge,bottomScreenEdge)
 
 /// Checks if pos is inside any of the bounding boxes of the components in boundingBoxes
-let inline insideBox (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>) (pos: XYPos) : CommonTypes.ComponentId Option =
+let inline insideBox 
+        (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>) 
+        (pos: XYPos) 
+            : CommonTypes.ComponentId Option =
     let insideOneBox _ boundingBox =
         let {BoundingBox.TopLeft={X = xBox; Y=yBox}; H=hBox; W=wBox} = boundingBox
         pos.X >= xBox && pos.X <= xBox + wBox && pos.Y >= yBox && pos.Y <= yBox + hBox
@@ -233,7 +236,7 @@ let isBBoxAllVisible (bb: BoundingBox) =
     bb.TopLeft.X+bb.W < rh
 
 /// could be made more efficient, since segments contain redundant info
-let getWireBBox (wire: BusWireT.Wire) (model: Model) =
+let getWireBBox (wire: BusWireT.Wire) =
     let updateBoundingBox segStart (segEnd: XYPos) state seg =
         let newTop = min state.TopLeft.Y segEnd.Y
         let newBottom = max (state.TopLeft.Y+state.H) segEnd.Y
@@ -247,7 +250,7 @@ let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId li
     let wVisible =
         conns
         |> List.map (fun cid -> Map.tryFind cid model.Wire.Wires)
-        |> List.map (Option.map (fun wire -> getWireBBox wire model))
+        |> List.map (Option.map (fun wire -> getWireBBox wire))
         |> List.map (Option.map isBBoxAllVisible)
         |> List.map (Option.defaultValue true)
         |> List.fold (&&) true
@@ -261,10 +264,6 @@ let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId li
         |> List.map isBBoxAllVisible
         |> List.fold (&&) true
     wVisible && cVisible
-
-
-
-
 
 /// Calculates if two bounding boxes intersect by comparing corner coordinates of each box
 let boxesIntersect (box1: BoundingBox) (box2: BoundingBox) =
@@ -300,7 +299,6 @@ let mouseOnPort portList (pos: XYPos) (margin: float) =
         let distance = ((pos.X - portLocation.X) ** 2.0 + (pos.Y - portLocation.Y) ** 2.0) ** 0.5
         distance <= radius + margin
 
-
     match List.tryFind (fun (_, portLocation) -> insidePortCircle pos portLocation) portList with // + 2.5 margin to make it a bit easier to click on, maybe it's due to the stroke width?
     | Some (portId, portLocation) -> Some (portId, portLocation)
     | None -> None
@@ -311,8 +309,8 @@ let findNearbyPorts (model: Model) =
 
     (inputPortsMap, outputPortsMap) ||> (fun x y -> (Map.toList x), (Map.toList y))
 
-/// Returns what is located at pos
-/// Priority Order: InputPort -> OutputPort -> Component -> Label -> Wire -> Component -> Canvas
+/// Returns what is located at pos.
+/// Priority Order: InputPort -> OutputPort -> Label -> Wire -> Component -> Canvas
 let mouseOn (model: Model) (pos: XYPos) : MouseOn =
 
     let inputPorts, outputPorts = findNearbyPorts model
@@ -340,10 +338,12 @@ let notIntersectingComponents (model: Model) (box1: BoundingBox) (inputId: Commo
    |> Map.isEmpty
 
 
-
+//----------------------------------------------------------------------------------------//
 //-----------------------------------SNAP helper functions--------------------------------//
+//----------------------------------------------------------------------------------------//
 
-let snapIndicatorLine = { defaultLine with Stroke = "Red"; StrokeWidth = "0.5px"; StrokeDashArray = "5, 5" }   
+let snapIndicatorLine = 
+    { defaultLine with Stroke = "Red"; StrokeWidth = "0.5px"; StrokeDashArray = "5, 5" }   
 
 /// a vertical line marking the position of the current symbol or segment snap, if one exists
 let snapIndicatorLineX model wholeCanvas =
@@ -369,7 +369,10 @@ type XOrY = IsX | IsY
 /// a single coordinate array of snap points.
 /// points: array of points to snap to
 /// limit: max distance from a snap point at which snap will happen.
-let makeSnapBounds (limit:float) (points: float array) : SnapData array =
+let makeSnapBounds 
+        (limit:float) 
+        (points: float array) 
+            : SnapData array =
     points
     |> Array.sort
     |> Array.mapi (fun i x -> 
@@ -403,10 +406,14 @@ let emptySnap: SnapXY =
 
 /// Extracts static snap data used to control a symbol snapping when being moved.
 /// Called at start of a symbol drag.
-/// xOrY: which coordinate is processed.
 /// model: schematic positions are extracted from here.
 /// movingSymbol: the symbol which moved.
-let getNewSymbolSnapInfo (model: Model) (movingSymbol: SymbolT.Symbol) : SnapXY =
+let getNewSymbolSnapInfo 
+        (model: Model) 
+        (movingSymbol: SymbolT.Symbol) 
+            : SnapXY =
+    /// xOrY: which coordinate is processed.
+    /// create snap points on the centre of each other same type symbol
     let otherSimilarSymbolData (xOrY: XOrY) = 
         Map.values model.Wire.Symbol.Symbols 
         |> Seq.filter (fun (sym:SymbolT.Symbol) -> sym.Id <> movingSymbol.Id && sym.Component.Type=movingSymbol.Component.Type)
@@ -428,7 +435,10 @@ let getNewSymbolSnapInfo (model: Model) (movingSymbol: SymbolT.Symbol) : SnapXY 
 /// xOrY: which coordinate is processed.
 /// model: segment positions are extracted from here.
 /// movingSegment: the segment which moved.
-let getNewSegmentSnapInfo  (model: Model) (movingSegment: BusWireT.ASegment) : SnapXY =
+let getNewSegmentSnapInfo  
+        (model: Model) 
+        (movingSegment: BusWireT.ASegment) 
+            : SnapXY =
     let getDir (seg: BusWireT.ASegment) = BusWire.getSegmentOrientationOpt seg.Start seg.End
     let thisWire = model.Wire.Wires[movingSegment.Segment.WireId]
     let orientation = getDir movingSegment
@@ -449,9 +459,12 @@ let getNewSegmentSnapInfo  (model: Model) (movingSegment: BusWireT.ASegment) : S
                 |> makeSnapBounds Constants.segmentSnapLimit
 
     {
-        SnapX = {SnapData = (if orientation = Some BusWireT.Vertical then snapBounds else [||]); SnapOpt = None}
-        SnapY = { SnapData = (if orientation = Some BusWireT.Horizontal then snapBounds else [||]); SnapOpt = None}
-            
+        SnapX = {
+            SnapData = (if orientation = Some BusWireT.Vertical then snapBounds else [||]); 
+            SnapOpt = None}
+        SnapY = { 
+            SnapData = (if orientation = Some BusWireT.Horizontal then snapBounds else [||]); 
+            SnapOpt = None}           
     }
 
 /// The main snap function which is called every update that drags a symbol or segment.
@@ -460,7 +473,10 @@ let getNewSegmentSnapInfo  (model: Model) (movingSegment: BusWireT.ASegment) : S
 /// pos.ActualPosition: input the actual position on schematic of the thing being dragged.
 /// pos.MouseDelta: mouse position change between this update and the last one.
 /// snapI: static (where can it snap) and dynamic (if it is snapped) info controlling the snapping process.
-let snap1D (autoScrolling: bool) (pos:{|MouseDelta:float; ActualPosition:float|}) (snapI:SnapInfo) : SnapInfo * float  =
+let snap1D 
+        (autoScrolling: bool) 
+        (pos:{|MouseDelta:float; ActualPosition:float|}) 
+        (snapI:SnapInfo) : SnapInfo * float  =
 
     let mustSnap (pos: float) (d: SnapData) =
         if (not autoScrolling) && pos > d.LowerLimit && pos < d.UpperLimit then 
@@ -485,15 +501,19 @@ let snap1D (autoScrolling: bool) (pos:{|MouseDelta:float; ActualPosition:float|}
 /// Determine how a dragged symbol snaps. Returns updated snap info and offset to add to symbol position.
 /// Symbol position is not updated here, the offset is given to a MoveSymbol message.
 /// Called every mouse movement update in a symbol drag.
-let snap2DSymbol (autoScrolling:bool) (mousePos: XYPos) (symbol: SymbolT.Symbol) (model:Model) =
-    let centrePosition = Symbol.getRotatedSymbolCentre symbol
+let snap2DSymbol 
+        (autoScrolling:bool) 
+        (mousePos: XYPos) 
+        (symbol: SymbolT.Symbol) 
+        (model:Model) : SnapXY * XYPos =
+    let centrePos = Symbol.getRotatedSymbolCentre symbol
     let (snapIX,deltaX) = snap1D 
                             autoScrolling 
-                            {|MouseDelta = mousePos.X - model.LastMousePos.X ; ActualPosition = centrePosition.X|} 
+                            {|MouseDelta = mousePos.X - model.LastMousePos.X ; ActualPosition = centrePos.X|} 
                             model.SnapSymbols.SnapX
     let (snapIY,deltaY) = snap1D 
                             autoScrolling 
-                            {|MouseDelta = mousePos.Y - model.LastMousePos.Y ; ActualPosition = centrePosition.Y|} 
+                            {|MouseDelta = mousePos.Y - model.LastMousePos.Y ; ActualPosition = centrePos.Y|} 
                             model.SnapSymbols.SnapY
     let snapXY = {SnapX = snapIX; SnapY = snapIY}
     snapXY, {X=deltaX; Y=deltaY}
@@ -503,10 +523,10 @@ let snap2DSymbol (autoScrolling:bool) (mousePos: XYPos) (symbol: SymbolT.Symbol)
 /// NB every segment can only be dragged in one cordinate - perpendicular to its orientation.
 /// Called every mouse movement update in a segment drag.
 let snap2DSegment 
-    (autoScrolling:bool) 
-    (mousePos: XYPos) 
-    (aSegment: BusWireT.ASegment) 
-    (model:Model) : SnapXY * XYPos =
+        (autoScrolling:bool) 
+        (mousePos: XYPos) 
+        (aSegment: BusWireT.ASegment) 
+        (model:Model) : SnapXY * XYPos =
     let ori = BusWire.getSegmentOrientation aSegment.Start aSegment.End
     let fixedCoord = BusWire.getFixedCoord aSegment
     let deltaXY = mousePos - model.LastMousePos
@@ -529,7 +549,13 @@ let snap2DSegment
 
 /// This function zooms an SVG canvas by transforming its content and altering its size.
 /// Currently the zoom expands based on top left corner.
-let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list) (svgReact: ReactElement List) (dispatch: Dispatch<Msg>)=
+let displaySvgWithZoom 
+        (model: Model) 
+        (headerHeight: float) 
+        (style: CSSProp list) 
+        (svgReact: ReactElement List) 
+        (dispatch: Dispatch<Msg>) 
+            : ReactElement=
     // Hacky way to get keypresses such as Ctrl+C to work since Electron does not pick them up.
     document.onkeydown <- (fun key ->
         if key.which = 32.0 then// Check for spacebar
@@ -599,7 +625,12 @@ let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list
         ]
 
 /// View function, displays symbols / wires and possibly also a grid / drag-to-select box / connecting ports line / snap-to-grid visualisation
-let view (model:Model) (headerHeight: float) (style) (dispatch : Msg -> unit) =
+let view 
+        (model:Model) 
+        (headerHeight: float) 
+        (style: CSSProp list) 
+        (dispatch : Msg -> unit) 
+            : ReactElement =
     let start = TimeHelpers.getTimeMs()
     let wDispatch wMsg = dispatch (Wire wMsg)
     let wireSvg = BusWire.view model.Wire wDispatch
@@ -635,15 +666,12 @@ let view (model:Model) (headerHeight: float) (style) (dispatch : Msg -> unit) =
 
         makePolygon polygonPoints selectionBox
 
-
     let connectingPortsWire =
         let connectPortsLine = { defaultLine with Stroke = "Green"; StrokeWidth = "2.0px"; StrokeDashArray = "5, 5" }
         let {XYPos.X = x1; Y = y1}, {XYPos.X = x2; Y = y2} = model.ConnectPortsLine
         [ makeLine x1 y1 x2 y2 connectPortsLine
           makeCircle x2 y2 { portCircle with Fill = "Green" }
         ]
-
-
 
     let displayElements =
         if model.ShowGrid

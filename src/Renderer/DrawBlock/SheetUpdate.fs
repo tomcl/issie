@@ -17,50 +17,18 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
         | DragAndDrop -> DragAndDrop, true
         | _ -> MovingSymbols, false
 
-    match model.SelectedComponents.Length with
-    | 1 -> // Attempt Snap-to-Grid if there is only one moving component
+    match model.SelectedComponents with
+    | [symId] -> // Attempt Snap-to-Grid if there is only one moving component
+        let symbol = 
+            match Map.tryFind symId model.Wire.Symbol.Symbols with
+            | Some symbol -> symbol
+            | None ->
+                failwithf "What? can't move a symbol which does not exist in the model!"
 
         /// Checks for snap-to-grid in one dimension (x-coordinates or y-coordinates)
         /// Input / output is an anonymous record to deal with too many arguments otherwise
 
-        let checkForSnap1D (input: {| SnapInfo: LastSnap Option; Indicator: float Option; CurrMPos: float; LastMPos: float; Side1: float; Side2: float; PosDirection: float; SymbolMargins: list<float*float> |}) =
- 
-            match input.SnapInfo with
-            | Some { Pos = oldPos; SnapLength = previousSnap } -> // Already snapped, see if mouse is far enough to un-snap
-                if abs (input.CurrMPos - oldPos) > unSnapMargin
-                then {| DeltaPos = (input.CurrMPos - oldPos) - previousSnap; SnapInfo = None; Indicator = None |} // Un-snap
-                else {| DeltaPos = 0.0; SnapInfo = input.SnapInfo; Indicator = input.Indicator |} // Don't un-snap
-            | None -> // No snapping has occurred yet, check which side is closer to a grid and see if it should snap, also save which side it is
-                let margins = [ (input.Side1 % gridSize), input.Side1
-                                ((input.Side1 % gridSize) - gridSize), input.Side1
-                                (input.Side2 % gridSize), input.Side2
-                                ((input.Side2 % gridSize) - gridSize), input.Side2 ] @ input.SymbolMargins
 
-                let getMarginWithDirection (sortedMargins: (float*float)list) (dir: float) =
-                    if abs(fst(sortedMargins[0]) - fst(sortedMargins[1])) < 0.05 then
-                        //printfn "HERE"
-                        //printfn "%A" dir
-                        if dir > 0. then
-                        //    printf "HERE1"
-                            sortedMargins[0]
-                        else sortedMargins[1]
-                    else
-                        sortedMargins[0]
-                let absMargins = List.map (fun (margin,x) -> (abs margin,x) ) margins
-                let sortedMargins = List.rev (List.sortByDescending (fun (margin, _) -> margin) absMargins)
-
-                //printfn "%A" sortedMargins
-
-                match getMarginWithDirection sortedMargins input.PosDirection with // abs since there negative margins as well (e.g. snap left)
-                | margin, side when margin < 0.4 && not model.AutomaticScrolling -> // disable snap if autoscrolling
-                    // Snap to grid and save info for future un-snapping
-                    {| DeltaPos = -margin
-                       SnapInfo = Some {Pos = input.CurrMPos; SnapLength = -margin - (input.CurrMPos - input.LastMPos)} // Offset with (CurrMPos - LastMPos), so that the symbol stays aligned with the mouse after un-snapping
-                       Indicator = Some (side - margin) |}
-                | _ -> // Don't do any snap-to-grid
-                    {| DeltaPos = (input.CurrMPos - input.LastMPos)
-                       SnapInfo = None
-                       Indicator = None |}
 
         let compId = model.SelectedComponents.Head
         let boundingBox = model.BoundingBoxes[compId]
@@ -82,51 +50,24 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
             let yMarg = List.map (fun margin -> margin-y1, y1) y @ List.map (fun margin -> margin-y2, y2) y
             xMarg, yMarg
 
-
-
-        let snapX = checkForSnap1D {| 
-            SnapInfo = model.Snap.XSnap
-            Indicator = model.SnapIndicator.XLine
-            CurrMPos = mMsg.Pos.X
-            LastMPos = model.LastMousePos.X
-            Side1 = x1
-            Side2 = x2
-            PosDirection = (mMsg.Pos.X - model.LastMousePosForSnap.X)  
-            SymbolMargins = xMargins|}
-
-        let snapY = checkForSnap1D {| 
-            SnapInfo = model.Snap.YSnap
-            Indicator = model.SnapIndicator.YLine
-            CurrMPos = mMsg.Pos.Y
-            LastMPos = model.LastMousePos.Y
-            Side1 = y1
-            Side2 = y2
-            PosDirection = (mMsg.Pos.Y - model.LastMousePosForSnap.Y) 
-            SymbolMargins = yMargins|}
+        let mousePos = mMsg.Pos
+        let snapXY, moveDelta = snap2DSymbol model.AutomaticScrolling mMsg.Pos symbol model
 
         let errorComponents  =
             if notIntersectingComponents model boundingBox compId then [] else [compId]
 
-        let updateLastMousePosForSnap , updateMouseCounter =
-                                if model.MouseCounter > 5 then
-                                    mMsg.Pos , 0
-                                 else
-                                    model.LastMousePos , model.MouseCounter + 1
         {model with
              Action = nextAction
+             SnapSymbols = snapXY
              LastMousePos = mMsg.Pos
              ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}
-             ErrorComponents = errorComponents
-             Snap = {XSnap = snapX.SnapInfo; YSnap = snapY.SnapInfo}
-             SnapIndicator = {XLine = snapX.Indicator; YLine = snapY.Indicator}
-             MouseCounter = updateMouseCounter
-             LastMousePosForSnap = updateLastMousePosForSnap},
-        Cmd.batch [ symbolCmd (MoveSymbols (model.SelectedComponents, {X = snapX.DeltaPos; Y = snapY.DeltaPos}))
+             ErrorComponents = errorComponents},
+        Cmd.batch [ symbolCmd (MoveSymbols (model.SelectedComponents, moveDelta))
                     Cmd.ofMsg (UpdateSingleBoundingBox model.SelectedComponents.Head)
                     Cmd.ofMsg (UpdateSingleLabelBoundingBox model.SelectedComponents.Head)
                     symbolCmd (ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
                     Cmd.ofMsg CheckAutomaticScrolling
-                    wireCmd (BusWireT.UpdateWires (model.SelectedComponents, mMsg.Pos - model.LastMousePos))]
+                    wireCmd (BusWireT.UpdateWires (model.SelectedComponents, moveDelta))]
     | _ -> // Moving multiple symbols -> don't do snap-to-grid
         let errorComponents =
             model.SelectedComponents
@@ -143,128 +84,27 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
                     wireCmd (BusWireT.UpdateWires (model.SelectedComponents, mMsg.Pos - model.LastMousePos))]
 
 
-let snapWire (model: Model) (mMsg: MouseT) (connId: ConnectionId): Model * Cmd<Msg> = 
+let snapWire (model: Model) (mMsg: MouseT) (segId: SegmentId): Model * Cmd<Msg> = 
     
     let nextAction, isMovingWire =
         match model.Action with
-        | MovingWire connId -> MovingWire connId, true
+        | MovingWire segId -> MovingWire segId, true
         | _ -> Idle, false
 
-    let checkForSnap 
-        (input: 
-            {| 
-                SnapInfo: LastSnap Option; 
-                Indicator: float Option; 
-                CurrMPos: XYPos; 
-                LastMPos: XYPos; 
-                orientation: BusWireT.Orientation |}) =
-        
-        let clickedWireId = model.SelectedWires.Head
-        let clickedWire = model.Wire.Wires |> Map.find clickedWireId
-
-        let clickedSegId = BusWireUpdate.getClickedSegment model.Wire clickedWireId input.CurrMPos
-
-        let segPositions (index,wId) =
-            (None, model.Wire.Wires[wId])
-            ||> BusWire.foldOverSegs (fun startPos endPos state seg ->
-                                            if seg.Index = index then Some (startPos, endPos)
-                                            else state)
-
-        let segStart, segEnd = Option.get (segPositions clickedSegId)
-
-        let segOrientation: BusWireT.Orientation = BusWire.getSegmentOrientation segStart segEnd
-
-        let distanceFromPrevGridline: float =
-            match segOrientation with
-            | BusWireT.Orientation.Vertical -> segStart.X % gridSize
-            | BusWireT.Orientation.Horizontal -> segStart.Y % gridSize
-
-        let margin: float =
-            if distanceFromPrevGridline > (gridSize / 2.0) then
-                gridSize - distanceFromPrevGridline
-            else distanceFromPrevGridline
-        
-        match input.SnapInfo with
-        | Some {Pos = oldPos; SnapLength = previousSnap} -> //already snapped, see if far enough to unsnap
-            match segOrientation, input.orientation with
-            | BusWireT.Orientation.Vertical , BusWireT.Orientation.Vertical->
-                if abs (input.CurrMPos.X - oldPos) - previousSnap > unSnapMargin then
-                    {| DeltaPos = (input.CurrMPos.X - oldPos) - previousSnap; SnapInfo = None; Indicator = None |} //unSnap
-                else {| DeltaPos = input.CurrMPos.X-input.LastMPos.X; SnapInfo = input.SnapInfo; Indicator = input.Indicator |} // no unSnap
-            | BusWireT.Orientation.Horizontal, BusWireT.Orientation.Horizontal->
-                if abs (input.CurrMPos.Y - oldPos) - previousSnap > unSnapMargin then
-                    {| DeltaPos = (input.CurrMPos.Y - oldPos) - previousSnap; SnapInfo = None; Indicator = None |}
-                else {| DeltaPos = 0.; SnapInfo = input.SnapInfo; Indicator = input.Indicator |}
-            | _ -> {| DeltaPos = input.CurrMPos.Y-input.LastMPos.Y; SnapInfo = None; Indicator = None |}
-        | None ->
-            match segOrientation, input.orientation with
-            | BusWireT.Orientation.Vertical, BusWireT.Orientation.Vertical ->
-                match (margin < snapMargin), (not model.AutomaticScrolling), (distanceFromPrevGridline - margin < 1.) with
-                | true, true, true -> 
-                    {| DeltaPos = margin;
-                       SnapInfo = Some {Pos = input.CurrMPos.X; SnapLength = -margin};
-                       Indicator = Some (segStart.X - margin) |}
-                | true, true, false ->
-                    {| DeltaPos = -margin;
-                       SnapInfo = Some {Pos = input.CurrMPos.X; SnapLength = margin};
-                       Indicator = Some (segStart.X + margin) |}
-                | _ ->
-                    {| DeltaPos = (input.CurrMPos.X - input.LastMPos.X);
-                       SnapInfo = None;
-                       Indicator = None |}
-            | BusWireT.Orientation.Horizontal, BusWireT.Orientation.Horizontal ->
-                match (margin < snapMargin), (not model.AutomaticScrolling), (distanceFromPrevGridline - margin < 1.) with
-                | true, true, true -> 
-                    {| DeltaPos = margin;
-                       SnapInfo = Some {Pos = input.CurrMPos.Y; SnapLength = -margin};
-                       Indicator = Some (segStart.Y - margin) |}
-                | true, true, false -> 
-                    {| DeltaPos = -margin;
-                       SnapInfo = Some {Pos = input.CurrMPos.Y; SnapLength = margin};
-                       Indicator = Some (segStart.Y + margin) |}
-                | _ ->
-                    {| DeltaPos = (input.CurrMPos.Y - input.LastMPos.Y);
-                       SnapInfo = None;
-                       Indicator = None |}
-            | _ ->  {| DeltaPos = 0.; SnapInfo = None; Indicator = None |}
-    
-    let snapX = checkForSnap {| 
-        SnapInfo = model.Snap.XSnap;
-        Indicator = model.SnapIndicator.XLine;
-        CurrMPos = mMsg.Pos;
-        LastMPos = model.LastMousePos;
-        orientation = BusWireT.Vertical    |}
-
-    let snapY = checkForSnap {| 
-        SnapInfo = model.Snap.YSnap;
-        Indicator = model.SnapIndicator.YLine;
-        CurrMPos = mMsg.Pos;   
-        LastMPos = model.LastMousePos;
-        orientation = BusWireT.Horizontal    |}
-
-    let updateLastMousePosForSnap, updateMouseCounter =
-        if model.MouseCounter > 5 then
-            mMsg.Pos, 0
-        else model.LastMousePos, model.MouseCounter + 1
-    let wirePos = 
-        match snapX.SnapInfo, snapY.SnapInfo with
-        | Some sInfo , None -> {X=sInfo.Pos; Y=mMsg.Pos.Y}
-        | None, Some sInfo -> {X=mMsg.Pos.X; Y=sInfo.Pos}
-        | _ -> mMsg.Pos
-
-    let mMsg' = 
-        {mMsg with Pos = wirePos} 
+    let index,connId = segId
+    let aSegment = BusWire.getASegmentFromId  model.Wire segId
+    let snapXY, delta = snap2DSegment model.AutomaticScrolling mMsg.Pos aSegment model
+    let newPos = aSegment.Start + delta
+    let newmMsg = {mMsg with Pos = newPos} 
                                 
     { model with
         Action = nextAction;
         LastMousePos = mMsg.Pos;
         ScrollingLastMousePos = {Pos = mMsg.Pos; Move = mMsg.Movement};
         ErrorComponents = [];
-        Snap = {XSnap = snapX.SnapInfo; YSnap = snapY.SnapInfo};
-        SnapIndicator = {XLine = snapX.Indicator; YLine = snapY.Indicator};
-        MouseCounter = updateMouseCounter;
-        LastMousePosForSnap = updateLastMousePosForSnap },
-    Cmd.batch [ wireCmd (BusWireT.DragWire (model.SelectedWires.Head, mMsg'));
+        SnapSegments = snapXY
+    },
+    Cmd.batch [ wireCmd (BusWireT.DragSegment (segId, newmMsg));
                 Cmd.ofMsg CheckAutomaticScrolling] 
 // ----------------------------------------- Mouse Update Helper Functions ----------------------------------------- //
 // (Kept in separate functions since Update function got too long otherwise)
@@ -300,8 +140,8 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
             {model with
                 BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol // TODO: Improve here in group stage when we are concerned with efficiency
                 Action = Idle
-                Snap = {XSnap = None; YSnap = None}
-                SnapIndicator = {XLine = None; YLine = None}
+                SnapSymbols = emptySnap
+                SnapSegments = emptySnap
                 UndoList = appendUndoList model.UndoList newModel
                 RedoList = []
                 AutomaticScrolling = false
@@ -347,9 +187,9 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                     if List.contains compId model.SelectedComponents
                     then List.filter (fun cId -> cId <> compId) model.SelectedComponents // If component selected was already in the list, remove it
                     else compId :: model.SelectedComponents // If user clicked on a new component add it to the selected list
-
                 {model with 
                     SelectedComponents = newComponents; 
+                    SnapSymbols = emptySnap
                     LastValidPos = mMsg.Pos ; 
                     LastValidBoundingBoxes=model.BoundingBoxes ; 
                     Action = action; LastMousePos = mMsg.Pos; 
@@ -361,12 +201,25 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                     if List.contains compId model.SelectedComponents
                     then model.SelectedComponents, model.SelectedWires // Keep selection for symbol movement
                     else [compId], [] // If user clicked on a new component, select that one instead
-                {model with SelectedComponents = newComponents; LastValidPos = mMsg.Pos ; LastValidBoundingBoxes=model.BoundingBoxes ; SelectedWires = newWires; Action = action; LastMousePos = mMsg.Pos; TmpModel = Some model},
+                let snapXY =
+                    match newComponents with
+                    | [compId] -> 
+                        getNewSymbolSnapInfo model model.Wire.Symbol.Symbols[compId]
+                    | _ -> emptySnap
+
+                {model with 
+                    SelectedComponents = newComponents; 
+                    SnapSymbols = snapXY
+                    LastValidPos = mMsg.Pos ; 
+                    LastValidBoundingBoxes=model.BoundingBoxes ; 
+                    SelectedWires = newWires; Action = action; 
+                    LastMousePos = mMsg.Pos; TmpModel = Some model},
                 Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
                             wireCmd (BusWireT.SelectWires newWires)
                             Cmd.ofMsg msg]
 
         | Connection connId ->
+            let aSeg = BusWireUpdate.getClickedSegment model.Wire connId mMsg.Pos
             let msg =
                 if model.IsWaveSim then
                     ToggleNet ([], [BusWire.extractConnection model.Wire connId])
@@ -382,10 +235,16 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
                 { model with SelectedWires = newWires; Action = Idle; TmpModel = Some model; PrevWireSelection = model.SelectedWires},
                 Cmd.batch [wireCmd (BusWireT.SelectWires newWires); Cmd.ofMsg msg]
             else
-                { model with SelectedComponents = []; SelectedWires = [ connId ]; Action = MovingWire connId; TmpModel=Some model},
+                let snapXY = getNewSegmentSnapInfo model aSeg
+                { model with 
+                    SelectedComponents = []; 
+                    SelectedWires = [ connId ]; 
+                    SnapSegments = snapXY
+                    Action = MovingWire (aSeg.Segment.getId()); 
+                    TmpModel = Some model},
                 Cmd.batch [ symbolCmd (SymbolT.SelectSymbols [])
                             wireCmd (BusWireT.SelectWires [ connId ])
-                            wireCmd (BusWireT.DragWire (connId, mMsg))
+                            wireCmd (BusWireT.DragSegment (aSeg.Segment.getId(), mMsg))
                             wireCmd (BusWireT.ResetJumps [ connId ] )
                             Cmd.ofMsg msg]
         | Canvas ->
@@ -403,7 +262,8 @@ let mDownUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
 /// Mouse Drag Update, can be: drag-to-selecting, moving symbols, connecting wire between ports.
 let mDragUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> =
     match model.Action with
-    | MovingWire connId -> snapWire model mMsg connId 
+    | MovingWire segId -> 
+        snapWire model mMsg segId 
     | Selecting ->
         let initialX = model.DragToSelectBox.TopLeft.X
         let initialY = model.DragToSelectBox.TopLeft.Y
@@ -483,9 +343,10 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
         | None -> model
         | Some newModel -> {newModel with SelectedComponents = model.SelectedComponents}
     match model.Action with
-    | MovingWire connId ->
+    | MovingWire segId ->
+        let _, connId = segId
         { model with Action = Idle ; UndoList = appendUndoList model.UndoList newModel; RedoList = [] },
-        Cmd.batch [ wireCmd (BusWireT.DragWire (connId, mMsg))
+        Cmd.batch [ wireCmd (BusWireT.DragSegment (segId, mMsg))
                     wireCmd (BusWireT.MakeJumps [ connId ] ) ]
     | Selecting ->
         let newComponents = findIntersectingComponents model model.DragToSelectBox
@@ -528,8 +389,8 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
             {model with
                 // BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol
                 Action = Idle
-                Snap = {XSnap = None; YSnap = None}
-                SnapIndicator = {XLine = None; YLine = None }
+                SnapSymbols = emptySnap
+                SnapSegments = emptySnap
                 UndoList = appendUndoList model.UndoList newModel
                 RedoList = []
                 AutomaticScrolling = false },
@@ -539,8 +400,8 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
             {model with
                 BoundingBoxes = model.LastValidBoundingBoxes
                 Action = Idle
-                Snap = {XSnap = None; YSnap = None}
-                SnapIndicator = {XLine = None; YLine = None }
+                SnapSymbols = emptySnap
+                SnapSegments = emptySnap
                 AutomaticScrolling = false },
             Cmd.batch [ symbolCmd (SymbolT.MoveSymbols (model.SelectedComponents, (model.LastValidPos - mMsg.Pos)))
                         Cmd.ofMsg UpdateBoundingBoxes
@@ -677,8 +538,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | DragAndDrop ->
             { model with SelectedComponents = []
                          SelectedWires = []
-                         Snap = {XSnap = None; YSnap = None}
-                         SnapIndicator = {XLine = None; YLine = None }
+                         SnapSymbols = emptySnap
+                         SnapSegments = emptySnap
                          Action = Idle },
             Cmd.batch [ symbolCmd (SymbolT.DeleteSymbols model.SelectedComponents)
                         wireCmd (BusWireT.DeleteWires model.SelectedWires)
@@ -909,8 +770,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             TargetPortId = ""
             Action = Idle
             LastMousePos = { X = 0.0; Y = 0.0 }
-            Snap = { XSnap = None; YSnap = None}
-            SnapIndicator = { XLine = None; YLine = None }
+            SnapSymbols = emptySnap
+            SnapSegments = emptySnap
             //ScrollPos = { X = 0.0; Y = 0.0 } Fix for scroll bug on changing sheets
             LastValidPos = { X = 0.0; Y = 0.0 }
             CurrentKeyPresses = Set.empty
@@ -997,8 +858,8 @@ let init () =
         Action = Idle
         ShowGrid = true
         LastMousePos = { X = 0.0; Y = 0.0 }
-        Snap = { XSnap = None; YSnap = None}
-        SnapIndicator = { XLine = None; YLine = None }
+        SnapSymbols=emptySnap
+        SnapSegments = emptySnap
         CursorType = Default
         ScrollPos = { X = 0.0; Y = 0.0 }
         LastValidPos = { X = 0.0; Y = 0.0 }

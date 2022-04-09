@@ -7,8 +7,28 @@ open Fable.React
 open Fable.React.Props
 open Elmish
 
-/// ---------- SYMBOL TYPES ---------- ///
+//--------------------------COMMON TYPES------------------------------//
 
+type SnapData = {
+    UpperLimit: float
+    LowerLimit: float
+    Snap: float
+    }
+
+type Snap = {
+    UnSnapPosition: float
+    SnapPosition: float
+}
+
+type SnapInfo = {
+    SnapData: SnapData array
+    SnapOpt: Snap option
+    }
+
+type SnapXY = {SnapX: SnapInfo; SnapY: SnapInfo}
+
+
+/// ---------- SYMBOL TYPES ----------
 module SymbolT =
 
     /// Represents the orientation of a wire segment or symbol flip
@@ -204,7 +224,7 @@ module BusWireT =
         | SelectWires of list<ConnectionId>
         | UpdateWires of list<ComponentId> * XYPos
         | UpdateSymbolWires of ComponentId
-        | DragWire of ConnectionId * MouseT
+        | DragSegment of SegmentId * MouseT
         | ColorWires of list<ConnectionId> * HighLightColor
         | ErrorWires of list<ConnectionId>
         | ResetJumps of list<ConnectionId>
@@ -240,7 +260,7 @@ module SheetT =
         | MovingSymbols
         | MovingLabel
         | DragAndDrop
-        | MovingWire of CommonTypes.ConnectionId // Sends mouse messages on to BusWire
+        | MovingWire of SegmentId // Sends mouse messages on to BusWire
         | ConnectingInput of CommonTypes.InputPortId // When trying to connect a wire from an input
         | ConnectingOutput of CommonTypes.OutputPortId // When trying to connect a wire from an output
         | Scrolling // For Automatic Scrolling by moving mouse to edge to screen
@@ -253,19 +273,7 @@ module SheetT =
         | MoveBackSymbol of CommonTypes.ComponentId List * XYPos
         | UndoPaste of CommonTypes.ComponentId list
 
-    /// Used for Snap-to-Grid, keeps track of mouse coordinates when the snapping started, and the amount to un-snap in the future.
-    type LastSnap =
-        {
-            Pos: float
-            SnapLength: float
-        }
 
-    /// Used for Snap-to-Grid, keeps track of the last snap for each coordinate. None if no snapping has occurred.
-    type MouseSnapInfo =
-        {
-            XSnap: LastSnap Option
-            YSnap: LastSnap Option
-        }
 
     /// Keeps track of what cursor to show
     type CursorType =
@@ -285,12 +293,7 @@ module SheetT =
             | Grab -> "crosshair"
             | Grabbing -> "grabbing"
 
-    /// Keeps track of coordinates of visual snap-to-grid indicators.
-    type SnapIndicator =
-        {
-            XLine: float Option
-            YLine: float Option
-        }
+
 
     /// For Keyboard messages
     type KeyboardMsg =
@@ -365,10 +368,10 @@ module SheetT =
         TargetPortId: string // Keeps track of if a target port has been found for connecting two wires in-between.
         Action: CurrentAction
         ShowGrid: bool // Always true at the moment, kept in-case we want an optional grid
-        Snap: MouseSnapInfo // For Snap-to-Grid
-        SnapIndicator: SnapIndicator // For Snap-to-Grid
         CursorType: CursorType
         LastValidPos: XYPos
+        SnapSymbols: SnapXY
+        SnapSegments: SnapXY
         CurrentKeyPresses: Set<string> // For manual key-press checking, e.g. CtrlC
         Zoom: float
         TmpModel: Model Option

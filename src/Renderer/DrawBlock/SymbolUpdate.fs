@@ -333,7 +333,7 @@ let inline showPorts (model: Model) compList =
 let private moveSymbol (move: XYPos) (sym: Symbol) : Symbol =
     {sym with
         Moving = true
-        Pos = {X = sym.Pos.X + move.X; Y = sym.Pos.Y + move.Y}
+        Pos = sym.Pos + move
         Component = {sym.Component with
                         X = sym.Component.X + move.X
                         Y = sym.Component.Y + move.Y

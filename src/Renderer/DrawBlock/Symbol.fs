@@ -74,6 +74,20 @@ let inline getCompRotatedHAndW (comp: Component) (transform: STransform)  =
     | Degree0 | Degree180 -> comp.H, comp.W
     | Degree90 | Degree270 -> comp.W, comp.H
 
+/// returns the true centre of a component's symbol
+let inline getRotatedCompCentre comp transform =
+    // true component BB is (comp.X,comp.Y), h, w
+    let h,w = getCompRotatedHAndW comp transform
+    let centreX = comp.X + w / 2.
+    let centreY = comp.Y + h / 2.
+    {X=centreX;Y=centreY}
+
+/// returns the true centre of a symbol, taking into account
+/// its current rotation
+let inline getRotatedSymbolCentre (symbol:Symbol) =
+    getRotatedCompCentre symbol.Component symbol.STransform
+
+
 /// Returns the correct height and width of a transformed symbol
 /// as the tuple (real H, real W).
 /// Needed because H & W in Component do not chnage with rotation.
@@ -112,19 +126,18 @@ let calcLabelBoundingBox (sym: Symbol) =
                      | _ -> transform.Rotation
         | false -> transform.Rotation
     let h,w = getCompRotatedHAndW comp transform
-    // true component BB is (comp.X,comp.Y), h, w
-    let centreX = comp.X + w / 2.
-    let centreY = comp.Y + h / 2.
+    let centre = getRotatedCompCentre comp transform
+
     let margin = Constants.componentLabelOffsetDistance
     let labH = Constants.componentLabelHeight //height of label text
     //let labW = getMonospaceWidth textStyle.FontSize comp.Label
     let labW = getTextWidthInPixels(comp.Label,textStyle)// width of label text
     let boxTopLeft =
         match labelRotation with 
-        | Degree0 -> {X = centreX - labW/2. - margin; Y = comp.Y - labH - 2.*margin }
-        | Degree270 -> {X = comp.X + w; Y = centreY - labH/2. - margin}
-        | Degree90 -> {X = comp.X - 2.*margin - labW ; Y = centreY - labH/2. - margin}
-        | Degree180 -> {X = centreX - labW/2. - margin; Y = comp.Y + h}
+        | Degree0 -> {X = centre.X - labW/2. - margin; Y = comp.Y - labH - 2.*margin }
+        | Degree270 -> {X = comp.X + w; Y = centre.Y - labH/2. - margin}
+        | Degree90 -> {X = comp.X - 2.*margin - labW ; Y = centre.Y - labH/2. - margin}
+        | Degree180 -> {X = centre.X - labW/2. - margin; Y = comp.Y + h}
     let box =
         match comp.Label, sym.LabelHasDefaultPos with
         | "", _ -> 

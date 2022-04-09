@@ -16,7 +16,20 @@ open DrawModelType.SheetT
 
 let mutable canvasDiv:Types.Element option = None
 
+//-------------------------------------------------------------------------------------------------//
+//-----------------------------------Constants used in Sheet---------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+
+module Constants =
+    let symbolSnapLimit = 10.
+    let segmentSnapLimit = 10.
+    let gridSize = 30.0 // Size of each square grid
+
+
+//-------------------------------------------------------------------------------------------------//
 // ------------------ Helper Functions that need to be before the Model type extensions ---------- //
+//-------------------------------------------------------------------------------------------------//
+
 
 /// Creates a command to Symbol
 let symbolCmd (msg: SymbolT.Msg) = Cmd.ofMsg (Wire (BusWireT.Symbol msg))
@@ -24,8 +37,9 @@ let symbolCmd (msg: SymbolT.Msg) = Cmd.ofMsg (Wire (BusWireT.Symbol msg))
 /// Creates a command to BusWire
 let wireCmd (msg: BusWireT.Msg) = Cmd.ofMsg (Wire msg)
 
-
-    // ---------------------------------- Issie Interfacing functions ----------------------------- //
+//-------------------------------------------------------------------------------------------------//
+// ------------------------------------- Issie Interfacing functions ----------------------------- //
+//-------------------------------------------------------------------------------------------------//
 
 module SheetInterface =
     type Model with
@@ -106,13 +120,11 @@ module SheetInterface =
         member this.WriteMemoryLine dispatch connId addr value =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.WriteMemoryLine (connId, addr, value))))
 
-// ---------------------------- CONSTANTS ----------------------------- //
-let gridSize = 30.0 // Size of each square grid
-let snapMargin = gridSize / 25.0 // How strongly snap-to-grid snaps to the grid, small value so that there is not excessive snapping when moving symbols
-let unSnapMargin = gridSize / 5.0 // How much movement there needs to be for un-snapping
 
 
+//-------------------------------------------------------------------------------------------------//
 // ------------------------------------------- Helper Functions ------------------------------------------- //
+//-------------------------------------------------------------------------------------------------//
 
 //Calculates the symmetric difference of two lists, returning a list of the given type
 let symDiff lst1 lst2 =
@@ -328,6 +340,193 @@ let notIntersectingComponents (model: Model) (box1: BoundingBox) (inputId: Commo
    |> Map.isEmpty
 
 
+
+//-----------------------------------SNAP helper functions--------------------------------//
+
+let snapIndicatorLine = { defaultLine with Stroke = "Red"; StrokeWidth = "0.5px"; StrokeDashArray = "5, 5" }   
+
+/// a vertical line marking the position of the current symbol or segment snap, if one exists
+let snapIndicatorLineX model wholeCanvas =
+    match model.SnapSymbols.SnapX.SnapOpt, model.SnapSegments.SnapX.SnapOpt with
+    | Some snap, _
+    | None, Some snap ->
+        [ makeLine snap.SnapPosition 0.0 snap.SnapPosition wholeCanvas snapIndicatorLine ]
+    | None, None ->
+        []
+
+/// a horizontal line marking the position of the current symbol or segment snap, if one exists
+let snapIndicatorLineY model wholeCanvas =
+    match model.SnapSymbols.SnapY.SnapOpt, model.SnapSegments.SnapY.SnapOpt with
+    | Some snap, _
+    | None, Some snap ->
+        [ makeLine 0. snap.SnapPosition wholeCanvas snap.SnapPosition  snapIndicatorLine ]
+    | None, None ->
+        []
+
+type XOrY = IsX | IsY
+
+/// Helper function to create 1D static data for use by snapping functions based on 
+/// a single coordinate array of snap points.
+/// points: array of points to snap to
+/// limit: max distance from a snap point at which snap will happen.
+let makeSnapBounds (limit:float) (points: float array) : SnapData array =
+    points
+    |> Array.sort
+    |> Array.mapi (fun i x -> 
+        let (xBefore, xAfter) = Array.tryItem (i - 1) points, Array.tryItem (i + 1) points
+        let lower = 
+            xBefore
+            |> Option.map (fun xb -> max ((x + xb)/2.) (x - limit))
+            |> Option.defaultValue (x - limit)
+        let upper = 
+             xAfter
+             |> Option.map (fun xa -> min ((x + xa)/2.) (x + limit))
+             |> Option.defaultValue (x + limit)
+        {
+            LowerLimit = lower
+            UpperLimit = upper
+            Snap = x           
+        })
+
+/// Select X or Y coordinate based on value 
+let toCoord (sel: XOrY) (pos: XYPos) =
+    match sel with
+    | IsX -> pos.X
+    | IsY -> pos.Y
+
+let emptySnap: SnapXY = 
+    let emptyInfo:SnapInfo = {SnapData = [||]; SnapOpt = None}
+    {
+        SnapX = emptyInfo
+        SnapY = emptyInfo
+    }
+
+/// Extracts static snap data used to control a symbol snapping when being moved.
+/// Called at start of a symbol drag.
+/// xOrY: which coordinate is processed.
+/// model: schematic positions are extracted from here.
+/// movingSymbol: the symbol which moved.
+let getNewSymbolSnapInfo (model: Model) (movingSymbol: SymbolT.Symbol) : SnapXY =
+    let otherSimilarSymbolData (xOrY: XOrY) = 
+        Map.values model.Wire.Symbol.Symbols 
+        |> Seq.filter (fun (sym:SymbolT.Symbol) -> sym.Id <> movingSymbol.Id && sym.Component.Type=movingSymbol.Component.Type)
+        |> Seq.toArray
+        |> Array.map (fun sym -> toCoord xOrY (Symbol.getRotatedSymbolCentre sym))
+        |> makeSnapBounds Constants.symbolSnapLimit 
+
+    {
+        SnapX = {SnapData = otherSimilarSymbolData IsX; SnapOpt = None}
+        SnapY = { SnapData = otherSimilarSymbolData IsY; SnapOpt = None}
+    }
+   
+
+
+    
+
+/// Extracts static snap data used to control a segment snapping when being dragged.
+/// Called at start of a segment drag.
+/// xOrY: which coordinate is processed.
+/// model: segment positions are extracted from here.
+/// movingSegment: the segment which moved.
+let getNewSegmentSnapInfo  (model: Model) (movingSegment: BusWireT.ASegment) : SnapXY =
+    let getDir (seg: BusWireT.ASegment) = BusWire.getSegmentOrientationOpt seg.Start seg.End
+    let thisWire = model.Wire.Wires[movingSegment.Segment.WireId]
+    let orientation = getDir movingSegment
+    let snapBounds = 
+        match orientation with
+        | None ->
+            [||] // probably this should never happen, since we cannot move 0 length segments by dragging
+        | Some ori ->
+                model.Wire.Wires
+                |> Map.filter (fun wid otherWire -> otherWire.OutputPort = thisWire.OutputPort)
+                |> Map.toArray
+                |> Array.map snd
+                |> Array.collect (BusWire.getAbsSegments >> List.toArray)
+                |> Array.collect (function | aSeg when getDir aSeg = Some ori -> 
+                                                [|BusWire.getFixedCoord aSeg|] 
+                                           | _ -> 
+                                                [||])
+                |> makeSnapBounds Constants.segmentSnapLimit
+
+    {
+        SnapX = {SnapData = (if orientation = Some BusWireT.Vertical then snapBounds else [||]); SnapOpt = None}
+        SnapY = { SnapData = (if orientation = Some BusWireT.Horizontal then snapBounds else [||]); SnapOpt = None}
+            
+    }
+
+/// The main snap function which is called every update that drags a symbol or segment.
+/// This function porocesses one coordinate (X or Y) and therefore is called twice.
+/// autoscrolling: if true switch off snapping (and unsnap if needed).
+/// pos.ActualPosition: input the actual position on schematic of the thing being dragged.
+/// pos.MouseDelta: mouse position change between this update and the last one.
+/// snapI: static (where can it snap) and dynamic (if it is snapped) info controlling the snapping process.
+let snap1D (autoScrolling: bool) (pos:{|MouseDelta:float; ActualPosition:float|}) (snapI:SnapInfo) : SnapInfo * float  =
+
+    let mustSnap (pos: float) (d: SnapData) =
+        if (not autoScrolling) && pos > d.LowerLimit && pos < d.UpperLimit then 
+            Some {UnSnapPosition = pos; SnapPosition = d.Snap}
+        else
+            None        
+
+    let unSnapPosition = 
+        snapI.SnapOpt
+        |> Option.map (fun snap -> snap.UnSnapPosition)
+        |> Option.defaultValue pos.ActualPosition 
+    let data = snapI.SnapData
+    let newUnSnapPosition = unSnapPosition + pos.MouseDelta
+
+    let newSnap, newPosition =
+        match Array.tryPick (mustSnap newUnSnapPosition) data with
+        | Some snapPos -> Some snapPos, snapPos.SnapPosition
+        | None -> None, newUnSnapPosition
+
+    {snapI with SnapOpt = newSnap}, newPosition - pos.ActualPosition
+ 
+/// Determine how a dragged symbol snaps. Returns updated snap info and offset to add to symbol position.
+/// Symbol position is not updated here, the offset is given to a MoveSymbol message.
+/// Called every mouse movement update in a symbol drag.
+let snap2DSymbol (autoScrolling:bool) (mousePos: XYPos) (symbol: SymbolT.Symbol) (model:Model) =
+    let centrePosition = Symbol.getRotatedSymbolCentre symbol
+    let (snapIX,deltaX) = snap1D 
+                            autoScrolling 
+                            {|MouseDelta = mousePos.X - model.LastMousePos.X ; ActualPosition = centrePosition.X|} 
+                            model.SnapSymbols.SnapX
+    let (snapIY,deltaY) = snap1D 
+                            autoScrolling 
+                            {|MouseDelta = mousePos.Y - model.LastMousePos.Y ; ActualPosition = centrePosition.Y|} 
+                            model.SnapSymbols.SnapY
+    let snapXY = {SnapX = snapIX; SnapY = snapIY}
+    snapXY, {X=deltaX; Y=deltaY}
+
+/// Determine how a dragged segment snaps. Returns updated snap info and offset to add to ssegment position.
+/// Segment position is not updated here, the offset is given to a MoveSegment message.
+/// NB every segment can only be dragged in one cordinate - perpendicular to its orientation.
+/// Called every mouse movement update in a segment drag.
+let snap2DSegment 
+    (autoScrolling:bool) 
+    (mousePos: XYPos) 
+    (aSegment: BusWireT.ASegment) 
+    (model:Model) : SnapXY * XYPos =
+    let ori = BusWire.getSegmentOrientation aSegment.Start aSegment.End
+    let fixedCoord = BusWire.getFixedCoord aSegment
+    let deltaXY = mousePos - model.LastMousePos
+    let snapXY = model.SnapSegments
+
+    let newSnapXY, newDeltaXY =
+        match ori with
+        | BusWireT.Horizontal -> 
+            let snapY,delta = snap1D autoScrolling {|MouseDelta = deltaXY.Y; ActualPosition = fixedCoord|} snapXY.SnapY
+            {snapXY with SnapY=snapY}, {deltaXY with Y = delta}
+        | BusWireT.Vertical -> 
+            let snapX,delta = snap1D autoScrolling {|MouseDelta = deltaXY.X; ActualPosition = fixedCoord|} snapXY.SnapX
+            {snapXY with SnapX=snapX}, {deltaXY with X = delta}
+    newSnapXY, newDeltaXY
+    
+    
+    
+
+
+
 /// This function zooms an SVG canvas by transforming its content and altering its size.
 /// Currently the zoom expands based on top left corner.
 let displaySvgWithZoom (model: Model) (headerHeight: float) (style: CSSProp list) (svgReact: ReactElement List) (dispatch: Dispatch<Msg>)=
@@ -406,6 +605,9 @@ let view (model:Model) (headerHeight: float) (style) (dispatch : Msg -> unit) =
     let wireSvg = BusWire.view model.Wire wDispatch
 
     let wholeCanvas = $"{max 100.0 (100.0 / model.Zoom)}" + "%"
+    let snapIndicatorLineX = snapIndicatorLineX model wholeCanvas
+    let snapIndicatorLineY = snapIndicatorLineY model wholeCanvas
+    let gridSize = Constants.gridSize
     let grid =
         svg [ SVGAttr.Width wholeCanvas; SVGAttr.Height wholeCanvas; SVGAttr.XmlSpace "http://www.w3.org/2000/svg" ] [
             defs [] [
@@ -433,7 +635,6 @@ let view (model:Model) (headerHeight: float) (style) (dispatch : Msg -> unit) =
 
         makePolygon polygonPoints selectionBox
 
-    let snapIndicatorLine = { defaultLine with Stroke = "Red"; StrokeWidth = "0.5px"; StrokeDashArray = "5, 5" }
 
     let connectingPortsWire =
         let connectPortsLine = { defaultLine with Stroke = "Green"; StrokeWidth = "2.0px"; StrokeDashArray = "5, 5" }
@@ -442,19 +643,7 @@ let view (model:Model) (headerHeight: float) (style) (dispatch : Msg -> unit) =
           makeCircle x2 y2 { portCircle with Fill = "Green" }
         ]
 
-    let snapIndicatorLineX =
-        match model.SnapIndicator.XLine with
-        | Some xPos ->
-            [ makeLine xPos 0.0 xPos wholeCanvas snapIndicatorLine ]
-        | None ->
-            []
 
-    let snapIndicatorLineY =
-        match model.SnapIndicator.YLine with
-        | Some yPos ->
-            [ makeLine 0.0 yPos wholeCanvas yPos snapIndicatorLine ]
-        | None ->
-            []
 
     let displayElements =
         if model.ShowGrid
@@ -468,7 +657,7 @@ let view (model:Model) (headerHeight: float) (style) (dispatch : Msg -> unit) =
         displaySvgWithZoom model headerHeight style ( displayElements @ connectingPortsWire ) dispatch
     | MovingSymbols | DragAndDrop ->
         displaySvgWithZoom model headerHeight style ( displayElements @ snapIndicatorLineX @ snapIndicatorLineY ) dispatch
-    | MovingWire connId -> 
+    | MovingWire _ -> 
         displaySvgWithZoom model headerHeight style (displayElements @ snapIndicatorLineX @ snapIndicatorLineY) dispatch
     | _ ->
         displaySvgWithZoom model headerHeight style displayElements dispatch

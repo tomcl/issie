@@ -101,7 +101,11 @@ let pasteSymbols (model: Model) (newBasePos: XYPos) : (Model * ComponentId list)
                         ShowOutputPorts = false
                 }
                 PortMaps = initCopiedPorts oldSymbol newComp
+                LabelHasDefaultPos = true
             }
+            |> Symbol.autoScaleHAndW
+
+        
              
         let newSymbolMap = currSymbolModel.Symbols.Add (ComponentId newId, newSymbol)
         let newPorts = addToPortModel currSymbolModel newSymbol
@@ -421,7 +425,7 @@ let inline changeLabel (model: Model) sId newLabel=
     let oldSym = model.Symbols[sId]
     let newComp = {oldSym.Component with Label = newLabel}
     let newSym = 
-        { oldSym with Component = newComp}
+        { oldSym with Component = newComp; LabelHasDefaultPos = true}
         |> calcLabelBoundingBox
     { model with 
         Symbols = Map.add sId newSym model.Symbols; 

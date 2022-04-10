@@ -418,9 +418,11 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
                 let scaledH = max h (Constants.gridSize*2)
                 {sym with
                     PortMaps = portMaps
-                    Component = {sym.Component with H= float scaledH; W = float scaledW}}
+                    Component = {sym.Component with H= float scaledH; W = float scaledW; X = sym.Pos.X; Y=sym.Pos.Y}}
 
-        | _ -> sym
+        | _ -> 
+            let comp = sym.Component
+            {sym with Component = {comp with X = sym.Pos.X; Y = sym.Pos.Y}}
         |> calcLabelBoundingBox
 
 let getComponentProperties (compType:ComponentType) (label: string)=

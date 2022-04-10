@@ -13,11 +13,13 @@ type SnapData = {
     UpperLimit: float
     LowerLimit: float
     Snap: float
+    DisplayLine: float
     }
 
 type Snap = {
     UnSnapPosition: float
     SnapPosition: float
+    SnapDisplay: float
 }
 
 type SnapInfo = {

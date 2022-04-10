@@ -18,7 +18,8 @@ let init () =
         LastMousePos = {X = 0.0; Y = 0.0};
         ErrorWires = []
         Notifications = None
-        Type = Jump
+        Type = Constants.initialWireType
+        ArrowDisplay = Constants.initialArrowDisplay
     } , Cmd.none
 
 //-------------------------segmentIntersectsBoundingBox---------------------------------//
@@ -1090,6 +1091,9 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         {model with Type = style }
         |> updateWireSegmentJumps []
         |> (fun model -> model,Cmd.none)
+
+    | ToggleArrowDisplay  ->
+        {model with ArrowDisplay = not model.ArrowDisplay}, Cmd.none
 
     | UpdateConnectedWires (componentIds: ComponentId list) ->
         // partial or full autoroutes all ends of wires conencted to given symbols

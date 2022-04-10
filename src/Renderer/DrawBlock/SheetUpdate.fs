@@ -252,6 +252,13 @@ let mDragUpdate
         (model: Model) 
         (mMsg: MouseT) 
             : Model * Cmd<Msg> =
+    let setDragCursor (model:Model, cmd: Cmd<Msg>) : Model*Cmd<Msg> =
+        let dragCursor = 
+            match model.Action with
+            | MovingLabel _ -> Grabbing
+            | MovingSymbols _ -> Grabbing
+            | _ -> model.CursorType
+        {model with CursorType = dragCursor}, cmd
     match model.Action with
     | MovingWire segId -> 
         snapWire model mMsg segId 
@@ -286,7 +293,6 @@ let mDragUpdate
             Action = MovingLabel
             LastMousePos = mMsg.Pos
             ScrollingLastMousePos = {Pos = mMsg.Pos; Move = mMsg.Movement}
-            CursorType = Grabbing
         },
         Cmd.batch [ symbolCmd (SymbolT.MoveLabel (movingCompId, mMsg.Pos - model.LastMousePos))
                     Cmd.ofMsg UpdateLabelBoundingBoxes ]
@@ -327,6 +333,7 @@ let mDragUpdate
     | MovingPort portId->
         model, symbolCmd (SymbolT.MovePort (portId, mMsg.Pos))
     | _ -> model, Cmd.none
+    |> setDragCursor
 /// Mouse Up Update, can have: finished drag-to-select, pressed on a component, finished symbol movement, connected a wire between ports
 let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is currently un-used, but kept for future possibilities
     let newModel =
@@ -448,12 +455,14 @@ let mMoveUpdate
         let nearbyComponents = findNearbyComponents model mMsg.Pos 50 // TODO Group Stage: Make this more efficient, update less often etc, make a counter?
 
         let newCursor =
-            match model.CursorType with
-            | Spinner -> Spinner
+            match model.CursorType, model.Action with
+            | Spinner,_ -> Spinner
             | _ ->
                 match mouseOn { model with NearbyComponents = nearbyComponents } mMsg.Pos with // model.NearbyComponents can be outdated e.g. if symbols have been deleted -> send with updated nearbyComponents.
                 | InputPort _ | OutputPort _ -> ClickablePort // Change cursor if on port
-                | Label _ | Connection _ -> Grab
+                | Label _ -> GrabLabel
+                | Connection _ -> GrabWire
+                | Component _ -> GrabSymbol
                 | _ -> Default
 
         { model with 

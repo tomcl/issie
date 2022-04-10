@@ -24,6 +24,7 @@ module Constants =
     let symbolSnapLimit = 7.
     let segmentSnapLimit = 7.
     let gridSize = 30.0 // Size of each square grid
+    let wireBoundingBoxSize = 2. // increase to make it easier to select wire segments
 
 
 //-------------------------------------------------------------------------------------------------//
@@ -325,7 +326,7 @@ let mouseOn (model: Model) (pos: XYPos) : MouseOn =
             | Some compId -> 
                 Label compId
             | None ->
-                match BusWireUpdate.getClickedWire model.Wire pos (5./model.Zoom) with
+                match BusWireUpdate.getClickedWire model.Wire pos (Constants.wireBoundingBoxSize/model.Zoom) with
                 | Some connId -> Connection connId
                 | None ->
                     match insideBox model.BoundingBoxes pos with

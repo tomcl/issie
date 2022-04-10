@@ -212,6 +212,7 @@ module BusWireT =
             ErrorWires: list<ConnectionId>
             Notifications: Option<string>
             Type : WireType
+            ArrowDisplay: bool
         }
     
     //----------------------------Message Type-----------------------------------//
@@ -232,6 +233,7 @@ module BusWireT =
         | ResetJumps of list<ConnectionId>
         | MakeJumps of list<ConnectionId>
         | UpdateWireDisplayType of WireType
+        | ToggleArrowDisplay
         | ResetModel // For Issie Integration
         | LoadConnections of list<Connection> // For Issie Integration
         | UpdateConnectedWires of list<ComponentId> // rotate each symbol separately. TODO - rotate as group? Custom comps do not rotate
@@ -283,7 +285,9 @@ module SheetT =
         | ClickablePort
         | NoCursor
         | Spinner
-        | Grab
+        | GrabWire
+        | GrabLabel
+        | GrabSymbol
         | Grabbing
     with
         member this.Text() = 
@@ -292,8 +296,10 @@ module SheetT =
             | ClickablePort -> "move"
             | NoCursor -> "none"
             | Spinner -> "wait"
-            | Grab -> "crosshair"
-            | Grabbing -> "grabbing"
+            | GrabWire -> "crosshair"
+            | GrabSymbol -> "cell"
+            | GrabLabel -> "grab"
+            | Grabbing -> "move"
 
 
 
@@ -303,6 +309,9 @@ module SheetT =
 
     type WireTypeMsg =
         | Jump | Radiussed | Modern
+
+    type IssieInterfaceMsg =
+        | ToggleArrows
 
     /// Possible fields that may (or may not) be used in a dialog popup.
     type PopupDialogData = {
@@ -348,6 +357,7 @@ module SheetT =
         | Rotate of SymbolT.RotationType
         | Flip of SymbolT.FlipType
         | WireType of WireTypeMsg
+        | IssieInterface of IssieInterfaceMsg
         | MovePort of MouseT //different from mousemsg because ctrl pressed too
         | SaveSymbols
 

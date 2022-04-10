@@ -137,6 +137,8 @@ let viewMenu dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let dispatch = SheetT.KeyPress >> sheetDispatch
     let wireTypeDispatch = SheetT.WireType >> sheetDispatch
+    let interfaceDispatch = SheetT.IssieInterface >> sheetDispatch
+    let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
 
     let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
     makeMenu false "View" [
@@ -151,9 +153,12 @@ let viewMenu dispatch =
         makeItem "Diagram Zoom Out" (Some "Shift+-") (fun ev -> dispatch SheetT.KeyboardMsg.ZoomOut)
         makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch SheetT.KeyboardMsg.CtrlW)
         menuSeparator
-        makeItem "Jump wires" (Some "CmdOrCtrl+Shift+J") (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Jump)
-        makeItem "Radiussed wires" (Some "CmdOrCtrl+Shift+R") (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Radiussed)
-        makeItem "Modern wires" (Some "CmdOrCtrl+Shift+M") (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Modern)
+        makeItem "Toggle Wire Arrows" None (fun ev -> busWireDispatch (BusWireT.Msg.ToggleArrowDisplay))
+        makeMenu false "Wire Type" [
+            makeItem "Jump wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Jump)
+            makeItem "Radiussed wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Radiussed)
+            makeItem "Modern wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Modern)
+        ]
         menuSeparator
         makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ ->
             renderer.ipcRenderer.send("toggle-dev-tools", [||]) |> ignore)

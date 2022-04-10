@@ -25,11 +25,15 @@ open DrawModelType.BusWireT
 
 [<AutoOpen>]
 module Constants =
+    /// default style of routing
+    let initialWireType = Radial
+    /// default arrow display
+    let initialArrowDisplay = true
     let jumpRadius: float = 5.
     /// The minimum length of the initial segments (nubs) leaving the ports
     let nubLength: float = 8.
     /// The standard radius of a radial wire corner
-    let cornerRadius: float  = 5. 
+    let cornerRadius: float  = 7. 
     /// The standard radius of a modern wire connect circle
     let modernCircleRadius: float = 3.
     /// How close same net vertices must be before they are joined by modern routing circles
@@ -548,6 +552,7 @@ type WireRenderProps =
         OutputPortEdge : Edge
         OutputPortLocation: XYPos
         DisplayType : WireType
+        ArrowDisplay: bool
         TriangleEdge : Edge
         InputPortLocation: XYPos
     }
@@ -767,7 +772,7 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
             match wire.Width with
             | 1 -> 1.5
             | n when n < 8 -> 2.5
-            | _ -> 3.5
+            | _ -> 3.0
         {
             key = match wire.WId with | ConnectionId s -> s
             Wire = wire
@@ -776,6 +781,7 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
             OutputPortEdge = outputPortEdge
             OutputPortLocation = outputPortLocation
             DisplayType = model.Type
+            ArrowDisplay = model.ArrowDisplay
             TriangleEdge = Symbol.getInputPortOrientation model.Symbol wire.InputPort
             InputPortLocation = inputPortLocation
         }
@@ -793,14 +799,18 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
                         Fill = "black"
                         }
                 let x,y = props.InputPortLocation.X, props.InputPortLocation.Y
+                let ws = min 2.5 props.StrokeWidthP
                 let str:string = 
                     match props.TriangleEdge with
-                    | CommonTypes.Top -> $"{x},{y},{x+2.},{y-4.},{x-2.},{y-4.}"
-                    | CommonTypes.Bottom -> $"{x},{y},{x+2.},{y+4.},{x-2.},{y+4.}"
-                    | CommonTypes.Right -> $"{x},{y},{x+4.},{y+2.},{x+4.},{y-2.}"
-                    | CommonTypes.Left -> $"{x},{y},{x-4.},{y+2.},{x-4.},{y-2.}"
-
-                g [] [ makePolygon str polygon ; wireReact ]           
+                    | CommonTypes.Top -> $"{x},{y},{x+ws},{y-2.*ws},{x-ws},{y-2.*ws}"
+                    | CommonTypes.Bottom -> $"{x},{y},{x+ws},{y+2.*ws},{x-ws},{y+2.*ws}"
+                    | CommonTypes.Right -> $"{x},{y},{x+2.*ws},{y+ws},{x+2.*ws},{y-ws}"
+                    | CommonTypes.Left -> $"{x},{y},{x-2.*ws},{y+ws},{x-2.*ws},{y-ws}"
+                let arrows: ReactElement list =
+                    match props.ArrowDisplay with
+                    | true -> [makePolygon str polygon]
+                    | false -> []
+                g [] (arrows @ [wireReact ])          
             , "Wire"
             , equalsButFunctions
         )

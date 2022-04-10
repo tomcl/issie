@@ -512,57 +512,58 @@ let optCurrentSheetDependentsPopup (model: Model) =
                 let changes = 
                     ioCompareSigs newSig firstSig
                     |> guessAtRenamedPorts
-                let whatChanged = 
-                    match changes |> Array.exists (fun ch -> ch.Old <> ch.New) with
-                    | false -> "the vertical order of inputs or outputs"
-                    | true -> "the inputs or outputs"
-                let headCell heading =  th [ ] [ str heading ]
-                let makeRow (change:PortChange) = 
-                    tr []
-                        [
+                match changes |> Array.exists (fun ch -> ch.Old <> ch.New) with
+                | false -> None
+                | true -> 
+                    let whatChanged ="the inputs or outputs"
+                    
+                    let headCell heading =  th [ ] [ str heading ]
+                    let makeRow (change:PortChange) = 
+                        tr []
+                            [
                        
-                            td [] [str (if change.Direction = InputIO  then "Input" else "Output")]
-                            td [] [makePortName change.New]
-                            td [] [makePortName change.Old]
-                            td [] [str change.Message]
-                        ]
-                let body = 
-                    div [Style [ MarginTop "15px" ] ] 
-                        [
-                            Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [str $"{sheet}"]
-                            str $"You have changed the {whatChanged} of the current '{sheet}' sheet. "
-                            br []
-                            str "This dialog will automatically update all dependent sheets to match this. "
-                            br []
-                            str $"The '{sheet}' sheet is instantiated as a symbol {instances.Length} times in dependent sheets: '{depSheets}'. "
-                            str $"If you do not automatically update the symbols you will need to delete and recreate each one."
-                            br []
-                            str "If you automatically update symbols wires that no longer match will be autorouted correctly when you next load each sheet"
-                            br []
-                            Table.table [
-                                   Table.IsHoverable                               
-                                   Table.IsBordered
-                                   Table.IsNarrow
-                                   Table.Props [Style [ MarginTop "15px" ]]]
-                                [ 
-                                    thead [] [ tr [] (List.map headCell ["Type" ;"New port"; "Old port" ; "Change"]) ]
-                                    tbody []   (Array.map makeRow  changes) 
-                                ]
-                        ]
+                                td [] [str (if change.Direction = InputIO  then "Input" else "Output")]
+                                td [] [makePortName change.New]
+                                td [] [makePortName change.Old]
+                                td [] [str change.Message]
+                            ]
+                    let body = 
+                        div [Style [ MarginTop "15px" ] ] 
+                            [
+                                Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [str $"{sheet}"]
+                                str $"You have changed the {whatChanged} of the current '{sheet}' sheet. "
+                                br []
+                                str "This dialog will automatically update all dependent sheets to match this. "
+                                br []
+                                str $"The '{sheet}' sheet is instantiated as a symbol {instances.Length} times in dependent sheets: '{depSheets}'. "
+                                str $"If you do not automatically update the symbols you will need to delete and recreate each one."
+                                br []
+                                str "If you automatically update symbols wires that no longer match will be autorouted correctly when you next load each sheet"
+                                br []
+                                Table.table [
+                                        Table.IsHoverable                               
+                                        Table.IsBordered
+                                        Table.IsNarrow
+                                        Table.Props [Style [ MarginTop "15px" ]]]
+                                    [ 
+                                        thead [] [ tr [] (List.map headCell ["Type" ;"New port"; "Old port" ; "Change"]) ]
+                                        tbody []   (Array.map makeRow  changes) 
+                                    ]
+                            ]
 
-                let buttonAction isUpdate dispatch  _ =
-                    if isUpdate then
-                        updateDependents newSig instances model dispatch
-                        |> Option.map saveAllProjectFilesFromLoadedComponentsToDisk
-                        |> ignore
-                    dispatch <| ClosePopup
-                choicePopupFunc 
-                    "Update All Sheet Instances" 
-                    (fun _ -> body)
-                    "Update all instances" 
-                    "Save the sheet without updating instances" 
-                    buttonAction 
-                |> Some
+                    let buttonAction isUpdate dispatch  _ =
+                        if isUpdate then
+                            updateDependents newSig instances model dispatch
+                            |> Option.map saveAllProjectFilesFromLoadedComponentsToDisk
+                            |> ignore
+                        dispatch <| ClosePopup
+                    choicePopupFunc 
+                        "Update All Sheet Instances" 
+                        (fun _ -> body)
+                        "Update all instances" 
+                        "Save the sheet without updating instances" 
+                        buttonAction 
+                    |> Some
               
 
             | _ -> failwithf "What? Impossible"

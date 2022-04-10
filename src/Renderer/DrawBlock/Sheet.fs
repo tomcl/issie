@@ -347,6 +347,9 @@ let notIntersectingComponents (model: Model) (box1: BoundingBox) (inputId: Commo
 let snapIndicatorLine = 
     { defaultLine with Stroke = "Red"; StrokeWidth = "1px"; StrokeDashArray = "5, 5" }   
 
+let snapLineHorizontal wholeCanvas y = makeLine 0. y wholeCanvas y  snapIndicatorLine
+let snapLineVertical wholeCanvas x = makeLine x 0. x wholeCanvas snapIndicatorLine
+
 /// a vertical line marking the position of the current symbol or segment snap, if one exists
 let snapIndicatorLineX model wholeCanvas =
     match model.SnapSymbols.SnapX.SnapOpt, model.SnapSegments.SnapX.SnapOpt with
@@ -375,7 +378,7 @@ let makeSnapBounds
         (limit:float) 
         (points: {|Pos: float; Display:float|} array) 
             : SnapData array =
-    let points = Array.sort points
+    let points = points |> Array.sortBy (fun pt -> pt.Pos)
     points
     |> Array.mapi (fun i x -> 
         let (xBefore, xAfter) = Array.tryItem (i - 1) points, Array.tryItem (i + 1) points
@@ -408,6 +411,22 @@ let emptySnap: SnapXY =
         SnapY = emptyInfo
     }
 
+
+let symbolMatch (symbol: SymbolT.Symbol) =
+    match symbol.Component.Type with
+    | Input _ | Output _| IOLabel -> Input 0
+    | BusCompare _
+    | BusSelection _ -> BusCompare (0,0u)
+    | Constant _
+    | Constant1 _ -> Constant (0, 0L)
+    | NbitsAdder _ | NbitsXor _ -> NbitsAdder 0
+    | MergeWires | SplitWire _ -> MergeWires
+    | DFF | DFFE | Register _ | RegisterE _ -> DFF
+    | AsyncROM x | ROM x | RAM x -> RAM x 
+    | AsyncROM1 x | ROM1 x | RAM1 x | AsyncRAM1 x -> ROM1 x
+    | x -> x
+
+
 /// Extracts static snap data used to control a symbol snapping when being moved.
 /// Called at start of a symbol drag.
 /// model: schematic positions are extracted from here.
@@ -419,9 +438,11 @@ let getNewSymbolSnapInfo
     /// xOrY: which coordinate is processed.
     /// create snap points on the centre of each other same type symbol
     /// this will align (same type) symbol centres with centres.
+    let movingSymbolMatch = symbolMatch movingSymbol
     let otherSimilarSymbolData (xOrY: XOrY) = 
         Map.values model.Wire.Symbol.Symbols 
-        |> Seq.filter (fun (sym:SymbolT.Symbol) -> sym.Id <> movingSymbol.Id && sym.Component.Type=movingSymbol.Component.Type)
+        |> Seq.filter (fun (sym:SymbolT.Symbol) -> 
+                            sym.Id <> movingSymbol.Id && symbolMatch sym = movingSymbolMatch)
         |> Seq.toArray
         |> Array.map (fun sym -> toCoord xOrY (Symbol.getRotatedSymbolCentre sym))
         |> Array.map (fun x -> {|Pos=x;Display=x|})
@@ -694,6 +715,15 @@ let view
     let wholeCanvas = $"{max 100.0 (100.0 / model.Zoom)}" + "%"
     let snapIndicatorLineX = snapIndicatorLineX model wholeCanvas
     let snapIndicatorLineY = snapIndicatorLineY model wholeCanvas
+    let snapDisplay (model:Model) =
+        let snapLineY (ypt:SnapData) = snapLineHorizontal wholeCanvas ypt.Snap
+        let snapLineX (xpt:SnapData) = snapLineVertical wholeCanvas xpt.Snap
+        Array.append
+            (model.SnapSymbols.SnapX.SnapData |> Array.map snapLineX)
+            (model.SnapSymbols.SnapY.SnapData |> Array.map snapLineY)
+        |> Array.toList
+
+
     let gridSize = Constants.gridSize
     let grid =
         svg [ SVGAttr.Width wholeCanvas; SVGAttr.Height wholeCanvas; SVGAttr.XmlSpace "http://www.w3.org/2000/svg" ] [
@@ -734,15 +764,18 @@ let view
         then [ grid; wireSvg ]
         else [ wireSvg ]
 
+    // uncomment the display model react for visbility of all snaps
+    let snaps = snapIndicatorLineX @ snapIndicatorLineY // snapDisplay model
+
     match model.Action with // Display differently depending on what state Sheet is in
     | Selecting ->
         displaySvgWithZoom model headerHeight style ( displayElements @ [ dragToSelectBox ] ) dispatch
     | ConnectingInput _ | ConnectingOutput _ ->
         displaySvgWithZoom model headerHeight style ( displayElements @ connectingPortsWire ) dispatch
     | MovingSymbols | DragAndDrop ->
-        displaySvgWithZoom model headerHeight style ( displayElements @ snapIndicatorLineX @ snapIndicatorLineY ) dispatch
+        displaySvgWithZoom model headerHeight style ( displayElements @ snaps) dispatch
     | MovingWire _ -> 
-        displaySvgWithZoom model headerHeight style (displayElements @ snapIndicatorLineX @ snapIndicatorLineY) dispatch
+        displaySvgWithZoom model headerHeight style (displayElements @ snaps) dispatch
     | _ ->
         displaySvgWithZoom model headerHeight style displayElements dispatch
     |> TimeHelpers.instrumentInterval "SheetView" start

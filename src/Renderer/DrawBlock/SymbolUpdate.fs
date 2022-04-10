@@ -364,7 +364,7 @@ let moveSymbols (model:Model) (compList: ComponentId list) (offset: XYPos)=
 let inline symbolsHaveError model compList =
     let resetSymbols = 
         model.Symbols
-        |> Map.map (fun _ sym -> changeSymbolColour sym "Lightgray")
+        |> Map.map (fun _ sym -> changeSymbolColour sym "lightgray")
 
     let setSymColorToRed prevSymbols sId =
         Map.add sId (changeSymbolColour resetSymbols[sId] "Red") prevSymbols
@@ -379,7 +379,7 @@ let inline selectSymbols model compList =
     let resetSymbols = 
         model.Symbols
         |> Map.map (fun _ sym -> 
-            changeSymbolAppearance sym  (fun app -> {app with  Colour= "Lightgray"; Opacity = 1.0 }))
+            changeSymbolAppearance sym  (fun app -> {app with  Colour= "lightgray"; Opacity = 1.0 }))
 
     let updateSymbolColour prevSymbols sId =
         Map.add sId (changeSymbolColour resetSymbols[sId] "lightgreen") prevSymbols
@@ -395,7 +395,7 @@ let inline errorSymbols model (errorCompList,selectCompList,isDragAndDrop) =
     let resetSymbols = 
         model.Symbols
         |> Map.map 
-            (fun _ sym ->  changeSymbolAppearance sym (fun app -> {app with Colour ="Lightgray"; Opacity = 1.0 }))
+            (fun _ sym ->  changeSymbolAppearance sym (fun app -> {app with Colour ="lightgray"; Opacity = 1.0 }))
             
     let updateSymbolStyle prevSymbols sId =
         if not isDragAndDrop then 
@@ -473,7 +473,7 @@ let createSymbol ldcs prevSymbols comp =
                     HighlightLabel = false
                     ShowInputPorts = false //do not show input ports initially
                     ShowOutputPorts = false //do not show output ports initially
-                    Colour = "lightgrey"     // initial color 
+                    Colour = "lightgray"     // initial color 
                     Opacity = 1.0
                 }
                 Id = ComponentId comp.Id
@@ -568,30 +568,49 @@ let rotateAngle (rot: RotationType) (rotation: Rotation) : Rotation =
     | RotateClockwise, Degree180 -> Degree90
     | RotateClockwise, Degree270 -> Degree180
 
+/// rotates the portMap information left or right as per rotation
+let rotatePortInfo (rotation:RotationType) (portMaps:PortMaps) : PortMaps=
+    //need to update portOrientation and portOrder
+    let newPortOrientation = 
+        portMaps.Orientation |> Map.map (fun id side -> rotateSide rotation side)
+
+    let rotatePortList currPortOrder side =
+        currPortOrder |> Map.add (rotateSide rotation side) portMaps.Order[side]
+
+    let newPortOrder = 
+        (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold rotatePortList
+    {Orientation= newPortOrientation; Order = newPortOrder}
+
+let adjustPosForRotation 
+        (rotation:RotationType) 
+        (h: float)
+        (w:float)
+        (pos: XYPos)
+         : XYPos =
+    let posOffset =
+        match rotation with
+        | RotateClockwise -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
+        | RotateAntiClockwise -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
+    pos + posOffset
+
+
 /// Takes a symbol in and returns the same symbol rotated left or right
 let rotateSymbol (rotation: RotationType) (sym: Symbol) : Symbol =
     // update comp w h
     match sym.Component.Type with
-    | Custom _-> sym
+    | Custom _->
+        let portMaps = rotatePortInfo rotation sym.PortMaps
+        let getHW (sym:Symbol) = {X=sym.Component.W;Y=sym.Component.H}
+        let sym' =
+            {sym with PortMaps = portMaps}
+            |> autoScaleHAndW
+        {sym' with Pos = sym.Pos + (getHW sym - getHW sym') * 0.5}
+        
     | _ ->
         let h,w = getRotatedHAndW sym
-        let posOffset =
-            match rotation with
-            | RotateClockwise -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
-            | RotateAntiClockwise -> { X = (float)w/2.0 - (float) h/2.0 ;Y = (float) h/2.0 - (float)w/2.0 }
-        let newPos = sym.Pos + posOffset
 
+        let newPos = adjustPosForRotation rotation h w sym.Pos
         let newComponent = { sym.Component with X = newPos.X; Y = newPos.Y}
-
-        //need to update portOrientation and portOrder
-        let newPortOrientation = 
-            sym.PortMaps.Orientation |> Map.map (fun id side -> rotateSide rotation side)
-
-        let rotatePortList currPortOrder side =
-            currPortOrder |> Map.add (rotateSide rotation side) sym.PortMaps.Order[side]
-
-        let newPortOrder = 
-            (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold rotatePortList
 
         let newSTransform = 
             match sym.STransform.flipped with
@@ -599,12 +618,9 @@ let rotateSymbol (rotation: RotationType) (sym: Symbol) : Symbol =
                 {sym.STransform with Rotation = rotateAngle (invertRotation rotation) sym.STransform.Rotation} // hack for rotating when flipped 
             | false -> 
                 {sym.STransform with Rotation = rotateAngle rotation sym.STransform.Rotation}
-
-
-
         { sym with 
             Pos = newPos;
-            PortMaps = {Order=newPortOrder; Orientation= newPortOrientation}
+            PortMaps = rotatePortInfo rotation sym.PortMaps
             STransform =newSTransform 
             LabelHasDefaultPos = true
             Component = newComponent
@@ -623,38 +639,33 @@ let flipSideHorizontal (edge: Edge) : Edge =
 
 /// Takes in a symbol and returns the same symbol flipped
 let flipSymbol (orientation: FlipType) (sym:Symbol) : Symbol =
-    match sym.Component.Type with
-    | Custom _ -> sym
-    | _ ->
-        let portOrientation = 
-            sym.PortMaps.Orientation |> Map.map (fun id side -> flipSideHorizontal side)
+    let portOrientation = 
+        sym.PortMaps.Orientation |> Map.map (fun id side -> flipSideHorizontal side)
 
-        let flipPortList currPortOrder side =
-            currPortOrder |> Map.add (flipSideHorizontal side ) sym.PortMaps.Order[side]
+    let flipPortList currPortOrder side =
+        currPortOrder |> Map.add (flipSideHorizontal side ) sym.PortMaps.Order[side]
 
-        let portOrder = 
-            (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold flipPortList
-            |> Map.map (fun edge order -> List.rev order)
+    let portOrder = 
+        (Map.empty, [Top; Left; Bottom; Right]) ||> List.fold flipPortList
+        |> Map.map (fun edge order -> List.rev order)       
 
-        
+    let newSTransform = 
+        {flipped= not sym.STransform.flipped;
+        Rotation= sym.STransform.Rotation} 
 
-        let newSTransform = 
-            {flipped= not sym.STransform.flipped;
-            Rotation= sym.STransform.Rotation} 
-
-        { sym with
-            PortMaps = {Order=portOrder;Orientation=portOrientation}
-            STransform = newSTransform
-            LabelHasDefaultPos = true
-        }
-        |> calcLabelBoundingBox
-        |> (fun sym -> 
-            match orientation with
-            | FlipHorizontal -> sym
-            | FlipVertical -> 
-                sym
-                |> rotateSymbol RotateAntiClockwise
-                |> rotateSymbol RotateAntiClockwise)
+    { sym with
+        PortMaps = {Order=portOrder;Orientation=portOrientation}
+        STransform = newSTransform
+        LabelHasDefaultPos = true
+    }
+    |> calcLabelBoundingBox
+    |> (fun sym -> 
+        match orientation with
+        | FlipHorizontal -> sym
+        | FlipVertical -> 
+            sym
+            |> rotateSymbol RotateAntiClockwise
+            |> rotateSymbol RotateAntiClockwise)
 
 type Rectangle = {TopLeft: XYPos; BottomRight: XYPos}
 

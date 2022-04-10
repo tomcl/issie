@@ -501,7 +501,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
             HighlightLabel = false
             ShowInputPorts = false
             ShowOutputPorts = false
-            Colour = "lightgrey"
+            Colour = "lightgray"
             Opacity = 1.0
           }
       InWidth0 = None // set by BusWire
@@ -688,7 +688,7 @@ let addHorizontalLine posX1 posX2 posY opacity = // TODO: Line instead of polygo
 
 let outlineColor (color:string) =
     match color.ToLower() with
-    | "lightgray" | "lightgrey" -> "black"
+    | "lightgray"  -> "black"
     | c -> c
 
 let addHorizontalColorLine posX1 posX2 posY opacity (color:string) = // TODO: Line instead of polygon?
@@ -889,10 +889,9 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
 
 
     /// to deal with the label
-    let addComponentLabel (comp: Component) transform = 
+    let addComponentLabel (comp: Component) transform colour = 
         let weight = Constants.componentLabelStyle.FontWeight // bold or normal
-        let fill = Constants.componentLabelStyle.Fill // color
-        let style = {Constants.componentLabelStyle with FontWeight = weight; Fill = fill}
+        let style = {Constants.componentLabelStyle with FontWeight = weight; Fill = colour;}
         let box = symbol.LabelBoundingBox
         let margin = Constants.componentLabelOffsetDistance
 
@@ -914,14 +913,15 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
 
  
             
-            
+    let labelcolour = outlineColor symbol.Appearance.Colour
+ 
    
     // Put everything together 
     (drawPorts comp.OutputPorts showOutputPorts symbol)
     |> List.append (drawPorts comp.InputPorts showInputPorts symbol)
     |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
     |> List.append (addText {X = float w/2.; Y = float h/2. - 7.} (getComponentLegend comp.Type) "middle" "bold" "14px")
-    |> List.append (addComponentLabel comp transform)
+    |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth)
 

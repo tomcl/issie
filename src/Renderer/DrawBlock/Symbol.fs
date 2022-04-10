@@ -41,6 +41,7 @@ module Constants =
 
     /// Offset between label position and symbol. This is also used as a margin for the label bounding box.
     let componentLabelOffsetDistance: float = 7. // offset from symbol outline, otehr parameters scale correctly
+    let thinComponentLabelOffsetDistance: float = 3.
     
     /// Height of label text - used to determine where to print labels
     let componentLabelHeight: float = labelFontSizeInPixels
@@ -128,7 +129,10 @@ let calcLabelBoundingBox (sym: Symbol) =
     let h,w = getCompRotatedHAndW comp transform
     let centre = getRotatedCompCentre comp transform
 
-    let margin = Constants.componentLabelOffsetDistance
+    let margin = 
+        match sym.Component.Type with
+        | IOLabel | BusSelection _ -> Constants.thinComponentLabelOffsetDistance
+        | _ -> Constants.componentLabelOffsetDistance
     let labH = Constants.componentLabelHeight //height of label text
     //let labW = getMonospaceWidth textStyle.FontSize comp.Label
     let labW = getTextWidthInPixels(comp.Label,textStyle)// width of label text
@@ -154,18 +158,18 @@ let calcLabelBoundingBox (sym: Symbol) =
 //------------------------------------------------------------------//
 
 ///Insert titles compatible with greater than 1 buswidth
-let title (t:string) (n:int) : string =  
+let busTitleAndBits (t:string) (n:int) : string =  
     match n with
     | 1 -> t
-    | _ when n > 1 -> $"{t}({n})"
+    | _ when n > 1 -> $"{t}({n-1}:{0})"
     | _ -> failwith "non positive bus width"
 
 ///Insert titles for bus select
 /// used once 
-let bustitle (wob:int) (lsb:int) : string = 
+let busSelectTitle (wob:int) (lsb:int) : string = 
     match wob with
     | 1 -> $"{lsb}"
-    | _ when wob > 1 -> $"({wob+lsb-1}..{lsb})"
+    | _ when wob > 1 -> $"({wob+lsb-1}:{lsb})"
     | _ -> failwith "non positive bus width in bustitle"
 
 ///Decodes the component type into component labels
@@ -202,15 +206,15 @@ let getComponentLegend (componentType:ComponentType) =
     | Xor | Xnor -> "=1"
     | Not -> "1"
     | Decode4 -> "Decode"
-    | NbitsAdder n -> title "Adder" n
-    | Register n | RegisterE n-> title "Register" n
+    | NbitsAdder n -> busTitleAndBits "Adder" n
+    | Register n | RegisterE n-> busTitleAndBits "Register" n
     | AsyncROM1 _ -> "Async-ROM"
     | ROM1 _ -> "Sync-ROM"
     | RAM1 _ -> "Sync-RAM"
     | AsyncRAM1 _ -> "Async-RAM"
     | DFF -> "DFF"
     | DFFE -> "DFFE"
-    | NbitsXor (x)->   title "N-bits-Xor" x
+    | NbitsXor (x)->   busTitleAndBits "N-bits-Xor" x
     | Custom x -> x.Name
     | _ -> ""
 
@@ -442,7 +446,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | Demux2 ->( 2  , 2, 3*gS ,  2*gS) 
     | Demux4 -> ( 2  , 4, 150 ,  50) 
     | Demux8 -> ( 2  , 8, 200 ,  50) 
-    | BusSelection (a, b) -> (  1 , 1, gS,  2*gS) 
+    | BusSelection (a, b) -> (  1 , 1, gS/2,  2*gS) 
     | BusCompare (a, b) -> ( 1 , 1, gS ,  2*gS) 
     | DFF -> (  1 , 1, 3*gS  , 3*gS) 
     | DFFE -> ( 2  , 1, 3*gS  , 3*gS) 
@@ -758,10 +762,10 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
                     match transform.Rotation with 
                     | Degree90 -> Degree270 | Degree270 -> Degree90 | r -> r
             match rotate' with
-            | Degree0 -> {X=w/2.; Y= h/2. + 5.}, "middle"
-            | Degree180 -> {X=w/2.; Y= -0.}, "middle"
-            | Degree270 -> {X= 10.; Y=h/2. - 5.}, "end"
-            | Degree90 -> {X= 4.+ w/2.; Y=h/2. - 5.}, "start"
+            | Degree0 -> {X=w/2.; Y= h/2. + 7.}, "middle"
+            | Degree180 -> {X=w/2.; Y= -8.}, "middle"
+            | Degree270 -> {X= 4.; Y=h/2. - 7.}, "end"
+            | Degree90 -> {X= 5.+ w/2.; Y=h/2. }, "start"
         addText pos text align "bold" Constants.busSelectTextSize
 
     let clockTxtPos = 
@@ -869,9 +873,9 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
         | BusSelection(nBits,lsb) ->           
             busSelectLine (lsb + nBits - 1) lsb
         | BusCompare (_,y) -> (addText {X = w/2.-2.; Y = h/2.7-1.} ("=" + NumberHelpers.hex(int y)) "middle" "bold" "10px")
-        | Input (x) -> (addText {X = w/2.; Y = h/2.7-3.} (title "" x) "middle" "normal" "12px")
-        | Output (x) -> (addText {X = w/2.; Y = h/2.7-3.} (title "" x) "middle" "normal" "12px")
-        | Viewer (x) -> (addText {X = w/2.; Y = h/2.7 - 1.25} (title "" x) "middle" "normal" "9px")
+        | Input (x) -> (addText {X = w/2.; Y = h/2.7} (busTitleAndBits "" x) "middle" "normal" "12px")
+        | Output (x) -> (addText {X = w/2.; Y = h/2.7} (busTitleAndBits "" x) "middle" "normal" "12px")
+        | Viewer (x) -> (addText {X = w/2.; Y = h/2.7 - 1.25} (busTitleAndBits "" x) "middle" "normal" "9px")
         | _ when symbol.IsClocked -> (addText (Array.head (rotatePoints [|{X = 15.; Y = float H - 11.}|] {X=W/2.;Y=H/2.} transform )) " clk" "middle" "normal" "12px")
         | _ -> []
 
@@ -891,10 +895,11 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
         let style = {Constants.componentLabelStyle with FontWeight = weight; Fill = fill}
         let box = symbol.LabelBoundingBox
         let margin = Constants.componentLabelOffsetDistance
+
         // uncomment this to display label bounding box corners for testing new fonts etc.
-        let dimW = {X=box.W;Y=0.}
+        (*let dimW = {X=box.W;Y=0.}
         let dimH = {X=0.;Y=box.H}
-        (*let corners = 
+        let corners = 
             [box.TopLeft; box.TopLeft+dimW; box.TopLeft+dimH; box.TopLeft+dimW+dimH]
             |> List.map (fun c -> 
                 let c' = c - symbol.Pos

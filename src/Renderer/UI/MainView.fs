@@ -147,7 +147,7 @@ let dividerbar (model:Model) dispatch =
             Width "10px"
 
         ] else [
-            BackgroundColor "lightgrey"
+            BackgroundColor "lightgray"
             Width "2px"
 
         ]

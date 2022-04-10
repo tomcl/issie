@@ -877,8 +877,9 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
 
     let outlineColour, strokeWidth =
         match comp.Type with
-        | SplitWire _ | MergeWires | IOLabel -> outlineColor colour, "2.0"
-        | BusSelection _ -> outlineColor colour, "3.0"
+        | SplitWire _ | MergeWires -> outlineColor colour, "2.0"
+        | IOLabel -> outlineColor colour, "4.0"
+        | BusSelection _ -> outlineColor colour, "4.0"
         | _ -> "black", "1.0"
     
 

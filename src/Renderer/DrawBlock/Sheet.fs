@@ -87,8 +87,8 @@ module SheetInterface =
         /// Clears the canvas, removes all components and connections
         member this.ClearCanvas dispatch =
             dispatch <| ResetModel
-            dispatch <| (Wire BusWireT.ResetModel)
-            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ResetModel ) ) )
+            dispatch <| Wire BusWireT.ResetModel
+            dispatch <| Wire (BusWireT.Symbol (SymbolT.ResetModel ) ) 
 
         /// Returns a list of selected components
         member this.GetSelectedComponents =
@@ -286,8 +286,8 @@ let posAdd (pos : XYPos) (a : float, b : float) : XYPos =
 
 /// Finds all components (that are stored in the Sheet model) near pos
 let findNearbyComponents (model: Model) (pos: XYPos) (range: float)  =
-
-    List.allPairs [-range .. 10.0 .. range] [-range .. 10.0 .. range] // Larger Increments -> More Efficient. But can miss small components then.
+    // Larger Increments -> More Efficient. But can miss small components then.
+    List.allPairs [-range .. 10.0 .. range] [-range .. 10.0 .. range] 
     |> List.map ((fun x -> posAdd pos x) >> insideBox model.BoundingBoxes)
     |> List.collect ((function | Some x -> [x] | _ -> []))
 
@@ -299,7 +299,8 @@ let mouseOnPort portList (pos: XYPos) (margin: float) =
         let distance = ((pos.X - portLocation.X) ** 2.0 + (pos.Y - portLocation.Y) ** 2.0) ** 0.5
         distance <= radius + margin
 
-    match List.tryFind (fun (_, portLocation) -> insidePortCircle pos portLocation) portList with // + 2.5 margin to make it a bit easier to click on, maybe it's due to the stroke width?
+    // + 2.5 margin to make it a bit easier to click on, maybe it's due to the stroke width?
+    match List.tryFind (fun (_, portLocation) -> insidePortCircle pos portLocation) portList with 
     | Some (portId, portLocation) -> Some (portId, portLocation)
     | None -> None
 
@@ -373,8 +374,8 @@ let makeSnapBounds
         (limit:float) 
         (points: {|Pos: float; Display:float|} array) 
             : SnapData array =
+    let points = Array.sort points
     points
-    |> Array.sort
     |> Array.mapi (fun i x -> 
         let (xBefore, xAfter) = Array.tryItem (i - 1) points, Array.tryItem (i + 1) points
         let lower = 
@@ -423,7 +424,6 @@ let getNewSymbolSnapInfo
         |> Seq.toArray
         |> Array.map (fun sym -> toCoord xOrY (Symbol.getRotatedSymbolCentre sym))
         |> Array.map (fun x -> {|Pos=x;Display=x|})
-        |> makeSnapBounds Constants.symbolSnapLimit 
 
     let movingSymbolCentre = Symbol.getRotatedSymbolCentre movingSymbol
 
@@ -436,47 +436,47 @@ let getNewSymbolSnapInfo
         let portMap = model.Wire.Symbol.Ports
         let symbolMap = model.Wire.Symbol.Symbols
                     
-        let getOtherWireEndPort (pId:string) =
+        let getOtherWireEndsPorts (pId:string) =
             wires
-            |> Map.tryPick (fun _ wire -> 
+            |> Map.toArray 
+            |> Array.collect (fun (_,wire) -> 
                 if wire.OutputPort = OutputPortId pId then 
-                    match wire.InputPort with | InputPortId pId -> Some portMap[pId]
+                    match wire.InputPort with | InputPortId pId' -> [|portMap[pId']|]
                 elif wire.InputPort = InputPortId pId then
-                    match wire.OutputPort with | OutputPortId pId -> Some portMap[pId]
+                    match wire.OutputPort with | OutputPortId pId' -> [|portMap[pId']|]
                 else
-                    None)
+                    [||])
         ports
-        |> Map.toList
-        |> List.collect (fun (pId,edge) ->
+        |> Map.toArray
+        |> Array.collect (fun (pId,edge) ->
             let portLocOffset = Symbol.getPortLocation None model.Wire.Symbol pId - movingSymbolCentre
-            let portOpt = getOtherWireEndPort pId
-            match portOpt with
-            | None -> []
-            | Some port ->
+            getOtherWireEndsPorts pId
+            |> Array.collect (fun port ->
                 let symbol = symbolMap[ComponentId port.HostId]
                 let otherPortLoc = Symbol.getPortLocation None model.Wire.Symbol port.Id
                 match symbol.PortMaps.Orientation[port.Id], edge with
-                | Edge.Left, Edge.Right | Edge.Right, Edge.Left-> 
-                    let locDataY = {|Pos=otherPortLoc.Y - portLocOffset.Y; Display = otherPortLoc.Y|}
-                    [BusWireT.Horizontal, locDataY]
+                | Edge.Left, Edge.Right | Edge.Right, Edge.Left -> 
+                    let locDataY = {|Pos = otherPortLoc.Y - portLocOffset.Y; Display = otherPortLoc.Y|}
+                    [|BusWireT.Horizontal, locDataY|]
                 | Edge.Top, Edge.Bottom | Edge.Bottom, Edge.Top -> 
-                    let locDataX = {|Pos=otherPortLoc.X - portLocOffset.X; Display = otherPortLoc.X|}
-                    [BusWireT.Vertical, locDataX]
-                | _ -> [])
-        |> List.partition (fun (ori,pos) -> ori = BusWireT.Horizontal)
+                    let locDataX = {|Pos = otherPortLoc.X - portLocOffset.X; Display = otherPortLoc.X|}
+                    [|BusWireT.Vertical, locDataX|]
+                | _ -> [||]))
+        |> Array.partition (fun (ori,_) -> ori = BusWireT.Horizontal)
         |> (fun (horizL,vertL) ->
-            let makeSnap lst =
-                List.map snd lst
-                |> List.toArray
-                |> makeSnapBounds Constants.symbolSnapLimit
+            let makeSnap = Array.map snd             
             {| YSnaps = makeSnap horizL; XSnaps = makeSnap vertL |})            
 
     {
         SnapX = {
-                    SnapData = Array.append (otherSimilarSymbolData IsX) portSnapData.XSnaps; 
+                    SnapData = 
+                        Array.append (otherSimilarSymbolData IsX) portSnapData.XSnaps
+                        |> makeSnapBounds Constants.symbolSnapLimit
                     SnapOpt = None}
         SnapY = { 
-                    SnapData = Array.append (otherSimilarSymbolData IsY) portSnapData.YSnaps;
+                    SnapData = 
+                        Array.append (otherSimilarSymbolData IsY) portSnapData.YSnaps
+                        |> makeSnapBounds Constants.symbolSnapLimit
                     SnapOpt = None}
     }
    

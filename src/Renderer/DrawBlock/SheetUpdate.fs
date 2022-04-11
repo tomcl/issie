@@ -141,7 +141,7 @@ let mDownUpdate
         match (mouseOn model mMsg.Pos) with
         | Label compId ->
             {model with Action = InitialiseMovingLabel compId},
-            Cmd.ofMsg DoNothing
+            Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
 
         | InputPort (portId, portLoc) ->
             if not model.Toggle then

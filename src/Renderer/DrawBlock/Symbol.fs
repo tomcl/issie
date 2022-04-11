@@ -893,9 +893,12 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
     /// to deal with the label
     let addComponentLabel (comp: Component) transform colour = 
         let weight = Constants.componentLabelStyle.FontWeight // bold or normal
-        let style = {Constants.componentLabelStyle with FontWeight = weight; Fill = colour;}
+        let style = {Constants.componentLabelStyle with FontWeight = weight}
         let box = symbol.LabelBoundingBox
-        let margin = Constants.componentLabelOffsetDistance
+        let margin = 
+            match comp.Type with
+            | BusSelection _ | IOLabel -> Constants.thinComponentLabelOffsetDistance
+            | _ -> Constants.componentLabelOffsetDistance
 
         // uncomment this to display label bounding box corners for testing new fonts etc.
         (*let dimW = {X=box.W;Y=0.}
@@ -905,11 +908,17 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
             |> List.map (fun c -> 
                 let c' = c - symbol.Pos
                 makeCircle (c'.X) (c'.Y) {defaultCircle with R=3.})*)
-
-        addStyledText 
-            {style with DominantBaseline="hanging"} 
-            (box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection) 
-            comp.Label ::  [] //corners uncomment this to display label bounding box corners.
+        let pos = box.TopLeft - symbol.Pos + {X=margin;Y=margin} + Constants.labelCorrection
+        let text = addStyledText {style with DominantBaseline="hanging"} pos comp.Label
+        match colour with
+        | "lightgreen" ->
+            let x,y = pos.X - margin*0.8, pos.Y - margin*0.8
+            let w,h = box.W - margin*0.4, box.H - margin * 0.4
+            let polyStyle = {defaultPolygon with Fill = "lightgreen"; StrokeWidth = "0"}
+            let poly = makePolygon $"{x},{y} {x+w},{y} {x+w},{y+h} {x},{y+h}" polyStyle 
+            [ poly ; text ]
+        | _ ->
+            [text] // add ;corners (uncommenting corners) for box corner display
 
 
 

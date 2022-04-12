@@ -12,7 +12,7 @@ let extractReducedState (state : CanvasState) : CanvasState =
     let (components : Component list), (connections : Connection list) = state
     let comps = 
         components
-        |> List.map (fun comp -> {comp with H=0.;W=0.;X=0.;Y=0.})
+        |> List.map (fun comp -> {comp with H=0.;W=0.;X=0.;Y=0.; SymbolInfo = None})
         |> List.sortBy (fun comp -> comp.Id)
                        
     let conns =                   

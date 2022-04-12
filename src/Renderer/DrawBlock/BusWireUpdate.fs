@@ -129,7 +129,8 @@ let getClickedSegment (model: Model) (wireId: ConnectionId) (mouse: XYPos) : ASe
                 Some (minASeg, minDist)
         | None -> Some (aSeg, currDist) // Needed to deal with initial state
     match foldOverNonZeroSegs closestSegment None model.Wires[wireId] with
-    | Some (segment, _dist) -> segment
+    | Some (segment, _dist) -> 
+        segment
     | None -> failwithf "getClosestSegment was given a wire with no segments" // Should never happen
 
 //--------------------------------------------------------------------------------//
@@ -265,6 +266,61 @@ let getSafeDistanceForMove (segments: Segment list) (index: int) (distance: floa
     |> reduceDistance bindingInputSegs findInputBindingIndex
     |> reduceDistance bindingOutputSegs findOutputBindingIndex
 
+
+/// After coalescing a wire the wire ends may no longer be draggable.
+/// This function checks this and adds two segments to correct the problem
+/// if necessary. The added segments will not alter wire appearance.
+let makeEndsDraggable (segments: Segment list): Segment list =
+    let makeStartDraggable (segments: Segment list) =
+        let seg0 = segments[0]
+        if abs segments[0].Length > Constants.nubLength + XYPos.epsilon ||
+           abs segments[1].Length > XYPos.epsilon
+        then
+            let newSeg0 = {seg0 with Length = Constants.nubLength}
+            let newSeg1 = { seg0 with IntersectOrJumpList = []; Length = 0.; Draggable = true}
+            let newSeg2 = {newSeg1 with Length = seg0.Length - Constants.nubLength}
+            newSeg0 :: newSeg1 :: newSeg2 :: segments[1..]
+        else
+            segments
+    segments
+    |> makeStartDraggable
+    |> (List.rev >> makeStartDraggable >> List.rev)
+    |> List.mapi (fun i seg -> {seg with Index = i})
+
+/// If as the result of a drag a zero length segment separates two other draggable segments
+/// the wire should be simplified by removing the zero-length segment and joining together the
+/// draggables.
+let coalesceInWire (wId: ConnectionId) (model:Model) =
+    let wire = model.Wires[wId]
+    let segments = wire.Segments
+    //printfn $"Before coalesce, seg lengths: {segments |> List.map (fun seg -> seg.Length)}"
+    let segmentsToRemove =
+        segments
+        |> List.indexed
+        |> List.filter (fun (i,seg) -> 
+            abs seg.Length < XYPos.epsilon &&
+            i > 1 && i < segments.Length - 2 &&
+            segments[i-1].Draggable && segments[i+1].Draggable)
+        |> List.map (fun (index,_) -> index)
+        |> List.sortDescending // needed if more than one segment can be removed - not sure this can happen!
+    let newSegments =
+        (segments, segmentsToRemove)
+        ||> List.fold (fun segs index ->
+                let newLength = segs[index+1].Length + segs[index-1].Length
+                List.removeManyAt index 2 segs
+                |> List.updateAt (index-1) {segs[index-1] with Length = newLength})
+        |> (fun segments ->
+                if segmentsToRemove = [] then 
+                    segments 
+                else 
+                    segments |> makeEndsDraggable)
+
+    //printfn $"After coalesce, seg lengths: {newSegments |> List.map (fun seg -> seg.Length)}"
+
+    let newWire = {wire with Segments = newSegments}
+    {model with Wires = Map.add wId newWire model.Wires}
+
+
 /// Returns a wire containing the updated list of segments after a segment is moved by 
 /// a specified distance. The moved segment is tagged as manual so that it is no longer auto-routed.
 /// Throws an error if the index of the segment being moved is not a valid movable segment index.
@@ -286,7 +342,8 @@ let moveSegment (model:Model) (seg:Segment) (distance:float) =
     let newNextSeg = { nextSeg with Length = nextSeg.Length - safeDistance }
     let newMovedSeg = { movedSeg with Mode = Manual }
     
-    let newSegments = segments[.. idx - 2] @ [newPrevSeg; newMovedSeg; newNextSeg] @ segments[idx + 2 ..]
+    let newSegments = 
+        segments[.. idx - 2] @ [newPrevSeg; newMovedSeg; newNextSeg] @ segments[idx + 2 ..]
 
     { wire with Segments = newSegments }
 
@@ -971,29 +1028,40 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         { model with Wires = newWires }, Cmd.ofMsg BusWidths
 
     | DragSegment (segId : SegmentId, mMsg: MouseT) ->
+        let index, connId = segId
+        let wire = model.Wires[connId]
         match mMsg.Op with
         | Down ->
-            {model with SelectedSegment = Some segId}, Cmd.ofMsg (ResetJumps [])
+            match List.tryItem index wire.Segments with
+            | None -> 
+                printfn "Bad segment in DragSegment DOWN... ignoring drag"
+                model,Cmd.none
+            | Some seg ->
+                {model with SelectedSegment = Some segId}, Cmd.ofMsg (ResetJumps [])
         | Drag ->
-            let index, connId = segId
-            let wire = model.Wires[connId]
-            let seg = wire.Segments[index]
-            let (startPos,endPos) = getAbsoluteSegmentPos wire index
-            if seg.Draggable then
-                let distanceToMove = 
-                    match getSegmentOrientation startPos endPos with
-                    | Horizontal -> mMsg.Pos.Y - startPos.Y
-                    | Vertical -> mMsg.Pos.X - startPos.X
+            match List.tryItem index wire.Segments with
+            | None -> 
+                printfn "Bad segment in Dragsegment... ignoring drag"
+                model,Cmd.none
+            | Some seg ->               
+                let (startPos,endPos) = getAbsoluteSegmentPos wire index
+                if seg.Draggable then
+                    let distanceToMove = 
+                        match getSegmentOrientation startPos endPos with
+                        | Horizontal -> mMsg.Pos.Y - startPos.Y
+                        | Vertical -> mMsg.Pos.X - startPos.X
 
-                let newWire = moveSegment model seg distanceToMove 
-                let newWires = Map.add seg.WireId newWire model.Wires
+                    let newWire = moveSegment model seg distanceToMove 
+                    let newWires = Map.add seg.WireId newWire model.Wires
 
-                { model with Wires = newWires }, Cmd.none
-            else
-                model, Cmd.none
+                    { model with Wires = newWires }, Cmd.none
+                else
+                    model, Cmd.none
 
         | _ -> model, Cmd.none
 
+    | CoalesceWire wId ->
+        coalesceInWire wId model, Cmd.none
 
     | ColorWires (connIds, color) -> 
         // Just Changes the colour of the wires, Sheet calls pasteWires before this

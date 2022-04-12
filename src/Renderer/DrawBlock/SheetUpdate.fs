@@ -208,6 +208,10 @@ let mDownUpdate
 
         | Connection connId ->
             let aSeg = BusWireUpdate.getClickedSegment model.Wire connId mMsg.Pos
+            let (i,wId) = aSeg.Segment.getId()
+            let segments = model.Wire.Wires[wId].Segments
+            if i > segments.Length - 1 then
+                failwithf "What? Error in getClcikedSegment: "
             let msg =
                 if model.IsWaveSim then
                     ToggleNet ([], [BusWire.extractConnection model.Wire connId])
@@ -345,6 +349,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
         let _, connId = segId
         { model with Action = Idle ; UndoList = appendUndoList model.UndoList newModel; RedoList = [] },
         Cmd.batch [ wireCmd (BusWireT.DragSegment (segId, mMsg))
+                    wireCmd (BusWireT.CoalesceWire connId)
                     wireCmd (BusWireT.MakeJumps [ connId ] ) ]
     | Selecting ->
         let newComponents = findIntersectingComponents model model.DragToSelectBox

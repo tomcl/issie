@@ -511,12 +511,14 @@ let getNewSymbolSnapInfo
 /// xOrY: which coordinate is processed.
 /// model: segment positions are extracted from here.
 /// movingSegment: the segment which moved.
+/// See SnapXY definition for output.
 let getNewSegmentSnapInfo  
         (model: Model) 
         (movingSegment: BusWireT.ASegment) 
             : SnapXY =
     let getDir (seg: BusWireT.ASegment) = BusWire.getSegmentOrientationOpt seg.Start seg.End
     let thisWire = model.Wire.Wires[movingSegment.Segment.WireId]
+    let thisSegId = movingSegment.Segment.GetId()
     let orientation = getDir movingSegment
     let snapBounds = 
         match orientation with
@@ -527,8 +529,8 @@ let getNewSegmentSnapInfo
                 |> Map.filter (fun wid otherWire -> otherWire.OutputPort = thisWire.OutputPort)
                 |> Map.toArray
                 |> Array.map snd
-                |> Array.collect (BusWire.getAbsSegments >> List.toArray)
-                |> Array.collect (function | aSeg when getDir aSeg = Some ori -> 
+                |> Array.collect (BusWire.getNonZeroAbsSegments >> List.toArray)
+                |> Array.collect (function | aSeg when getDir aSeg = Some ori  && aSeg.Segment.GetId() <> thisSegId-> 
                                                 [|BusWire.getFixedCoord aSeg|] 
                                            | _ -> 
                                                 [||])

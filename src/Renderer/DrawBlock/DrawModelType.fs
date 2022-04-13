@@ -173,8 +173,10 @@ module BusWireT =
             Draggable : bool
             Mode : RoutingMode
         }
-    
-        with member this.getId() = this.Index,this.WireId
+                /// get SegmentID id for segment
+        with  member inline this.GetId() = this.Index,this.WireId
+                /// return true if segment length is 0 to within FP tolerance
+              member inline this.IsZero() = abs this.Length < XYPos.epsilon
     
     /// Add absolute vertices to a segment
     type ASegment = {
@@ -182,6 +184,11 @@ module BusWireT =
             End: XYPos
             Segment: Segment
         }
+                /// get SegmentID id for segment
+        with  member inline this.GetId() = this.Segment.Index,this.Segment.WireId
+                /// return true if segment length is 0 to within FP tolerance
+              member inline this.IsZero() = abs this.Segment.Length < XYPos.epsilon
+
     
     type Wire =
         {

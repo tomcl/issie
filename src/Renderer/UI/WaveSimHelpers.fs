@@ -27,7 +27,6 @@ type WaveGapT = {
 /// Radix conversion ///
 ////////////////////////
 
-
 // TODO: Rationalise by deleting these and using instead the functions in Helpers.
 
 let private charList2String (charLst: char list) = 
@@ -41,7 +40,7 @@ let dec2bin (n:bigint) (nBits:uint32) =
     |> List.map (fun bitNum -> if n &&& (1I <<< int bitNum) = 0I then '0' else '1')
 
 let dec2hex (n: bigint) (nBits: uint32): string =
-    let seqPad = 
+    let seqPad =
         let times = (4 - int nBits % 4) % 4
         Seq.replicate times '0'
 
@@ -90,7 +89,7 @@ let n2StringOfRadix (hasRadixPrefix: bool) (n: bigint) (nBits: uint32) (rad: Num
 /// Get an option of the reduced canvas state, with geometry eliminated, good for electrical
 /// circuit comparisons
 let getReducedCanvState model = extractReducedState <| model.Sheet.GetCanvasState ()
-    
+
 /// get NetList from WaveSimModel
 let wsModel2netList wsModel =
     match wsModel.LastCanvasState with
@@ -118,15 +117,6 @@ let reactTickBoxRow name nameStyle ticked toggleFun =
                     Style [ Float FloatOptions.Left ]
                     OnChange toggleFun ] ]
           td [] [ label [Style nameStyle] [ str name] ] ]           
-
-////////////////////////
-
-
-
- 
-    
-    
-
 
 //-------------------------------------------------------------------------------------------------------//
 //---------------------------------More wave Helpers-----------------------------------------------------//
@@ -178,17 +168,6 @@ let rec getSimComp (sg:SimulationGraph) path =
         | Some sg -> getSimComp sg t
         | None -> failwithf "What? A non-terminal part of a path must have a customSimulationgraph"
 
-/// get component from graph subsheet with given name path
-let rec getSimCompOpt (sg:SimulationGraph) path =
-    match path with
-    | [] -> None
-    | [cid]-> Map.tryFind cid sg
-    | h :: t -> 
-        match Map.tryFind h sg with
-        | Some {CustomSimulationGraph = Some sg} -> getSimCompOpt sg t
-        | Some x -> failwithf "What? Lookup of compnent in simulationgraph failed"
-        | None -> None
-
 /// Get the form data for RAM (and other extra) simulation setup
 let reactMoreWaves ((sheets,ticks): MoreWaveSetup) (sg:SimulationGraph) (dispatch: Msg -> Unit) =
     let makeTableCell r =   td [Style [VerticalAlign Top]] [r]
@@ -219,7 +198,7 @@ let reactMoreWaves ((sheets,ticks): MoreWaveSetup) (sg:SimulationGraph) (dispatc
             table [Style [Display DisplayOptions.InlineBlock; VerticalAlign Top; PaddingLeft "5px"; PaddingRight "5px"]] 
                     [tbody [Style [Display DisplayOptions.Inline]] <| [tr [] [th [ColSpan 2; Style [TextAlign TextAlignOptions.Center]] [str name]]] @ colBody]
         else div [] []
-    
+
     let cols =
         sheets
         |> List.groupBy (fun {Sheet=name}->name)
@@ -227,7 +206,7 @@ let reactMoreWaves ((sheets,ticks): MoreWaveSetup) (sg:SimulationGraph) (dispatc
         |> List.map makeTableCell
     if cols = [] then
         str "There are no memories (RAM or ROM), in this design."
-    else 
+    else
         table [] [tbody [] [tr [] cols]]
 
 let formatMemory (mem:Memory1) =
@@ -243,7 +222,7 @@ let formatMemory (mem:Memory1) =
         match endG - startG with
         | x when x > maxFilledGap -> 
             [ "[...]: 0x0" ]
-        | _ -> 
+        | _ ->
             [startG..endG - 1L]
             |> List.map (fun a -> makeRamLoc a 0L)
 
@@ -252,12 +231,6 @@ let formatMemory (mem:Memory1) =
         | [] -> dispGap ((1L <<< mem.AddressWidth) - 1L) curAddr
         | (addr, dat) :: lst' -> dispGap addr curAddr @ [ makeRamLoc addr dat ] @ fillGaps (addr+1L) lst'
     fillGaps 0L sortedLocs
-
-
-/// return sample at current cursor position
-let getCursorSampleFromGraph (wSMod: WaveSimModel) =
-    let n = int wSMod.SimParams.CursorTime
-    wSMod.SimDataCache[n].Graph
 
 /// get Ram contents as array to display. RAM contents is
 /// determined on cursor sample from wSMod
@@ -274,40 +247,11 @@ let getRamInfoToDisplay wSMod (path: ComponentId list) =
             lab, formatMemory dat
         | _ -> lab, []
     | _ -> "",[]
-    
-
-
 
 
 //------------------------------------------------------------------------------------------------------//
 //--------------------------------------NetGroup Helpers------------------------------------------------//
 //------------------------------------------------------------------------------------------------------//
-
-
-
-
-
-/// Get NetGroup from targets which represents the group of nLTargets connected by IOLabels.
-/// targets:list of inputs connected to a single driving component output (e.g. a connected Net).
-/// Return the containing NetGroup, where Nets connected by IOLabels form single Netgroups.
-let rec private getNetGroup (netList: NetList) targets = failwithf "this function is no longer implemented"
-
-/// returns a bool representing if the given NLTarget is present in the given NetList
-let private isNetListTrgtInNetList (netList: NetList) (nlTrgt: NLTarget) =
-    Map.exists (fun _ (nlComp: NetListComponent) -> 
-                    Map.exists (fun _ nlTrgtLst -> List.contains nlTrgt nlTrgtLst) nlComp.Outputs) netList
-
-                    (*
-/// get array of TrgtLstGroup with the non-existing NLTargets removed
-let private getReloadableNetGroups (model: Model) (netList: NetList) =
-    match currWaveSimModel model with
-    | Some wSModel ->
-        dispWaves wSModel
-        |> Array.map (fun netGroup -> netGroup.driverNet) 
-        |> Array.map (List.filter <| isNetListTrgtInNetList netList)
-        |> Array.filter ((<>) [])
-        |> Array.map (getNetGroup netList)
-    | None -> [||] *)
 
 /// advance SimulationData by 1 clock cycle
 let private clkAdvance (sD: SimulationData) =
@@ -317,8 +261,6 @@ let private clkAdvance (sD: SimulationData) =
             {sD with FastSim = match FastRun.buildFastSimulation (int maxLastClk) sD.Graph with | Ok fs -> fs | Error e -> failwithf "fast simulation error"}
         else
             sD
-    //feedClockTick sD.Graph
-    //|> (fun graph ->
     let newClock = sD.ClockTickNumber + 1
     FastRun.runFastSimulation newClock sD.FastSim
     { sD with
@@ -336,20 +278,6 @@ let extractSimData simData nCycles =
 /// get NLSource option from ComponentId and InputPortNumber
 let private drivingOutput (netList: NetList) compId inPortN =
     netList[compId].Inputs[inPortN]
-
-
-
-/// get array of available NLSource in current canvas state
-let availableNetGroups (model: Model) =
-    match getSheetWaveSimOpt model with
-    | None -> [||]
-    | Some waveSim ->
-        waveSim.LastCanvasState
-        |> Option.defaultValue ([],[])
-        |> Helpers.getNetList
-        |> makeAllNetGroups
-
-
 
 /// get instantaneous value of a port
 let private simWireData2Wire wireData =
@@ -381,9 +309,7 @@ let getSimTime (waves: WaveformSpec array) (simData: SimulationData) =
             printfn "Exception: %A" e.StackTrace
             printSimGraph simData.Graph
             failwithf "What? This error in getSimTime should not be possible"
-
-        )
- 
+    )
 
 /// get all values of waveforms
 let getAllWaveSimDataBySample (wsMod: WaveSimModel) =
@@ -396,9 +322,6 @@ let getWaveSimDataOneSample (wsMod: WaveSimModel) (sample:int) =
     let waves = dispWaves wsMod
     wsMod.SimDataCache[sample]
     |> getSimTime waves
-
-
-
 
 /// extend WaveSimModel.SimData by n cycles
 let private appendSimData (model: Model) (wSModel: WaveSimModel) nCycles = 
@@ -413,22 +336,12 @@ let private appendSimData (model: Model) (wSModel: WaveSimModel) nCycles =
         |> Ok
         |> Some
 
-/// get Connection list (1 or 0) from ConnectionId (as a string)
-let private connId2Conn (sheet: SheetT.Model) (connId: ConnectionId) : Connection list =
-    match sheet.GetCanvasState() with
-    | (_, conns) -> 
-        List.tryFind (fun (conn: Connection) -> ConnectionId conn.Id = connId) conns
-    |> function
-       | Some conn -> [ conn ]
-       | None -> []
-
 /// get Ids of connections in a trgtLstGroup
 let private wave2ConnIds (netGrp: NetGroup) =
     Array.append [|netGrp.driverNet|] netGrp.connectedNets
     |> Array.collect (fun net -> 
         List.toArray net 
         |> Array.map (fun net -> net.TargetConnId))
-
 
 /// select or deselect the connections of a given waveSpec
 let selectWaveConns (model: Model)  (on : bool) (wave: WaveformSpec) (dispatch: Msg -> unit) =
@@ -446,85 +359,6 @@ let selectExactConns (model: Model)  (conns: ConnectionId array) (dispatch: Msg 
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     model.Sheet.SelectConnections sheetDispatch true (conns |> Array.toList)
     model.Sheet.SelectConnections sheetDispatch false (Set.toList otherConns)
-
-
-          
-
-/// returns labels of all custom component instances of sheet in lComp
-let findInstancesOf sheet (lComp:LoadedComponent) =
-    lComp.CanvasState
-    |> fst
-    |> List.collect (function | {Type=(Custom {Name=sheet'})} as comp when sheet' = sheet-> [comp.Label] | _ -> [])
-  
-
-/// finds out if current sheet is used in some other sheet.
-/// works recursively to find root sheet
-/// returns current wavesim sheet if there is a cycle, or more than one path to a root
-let getRootSheet  (model:Model) =
-    match model with
-    | {CurrentProj = (Some ({LoadedComponents=lComps} as proj))} ->
-        let openSheet = model.WaveSimSheet
-        if List.tryFind (fun lc -> lc.Name = openSheet) proj.LoadedComponents = None
-            then failwithf "Can't find wavesim sheet in loadedcomponents"
-        let getParentData (sheet:string) =
-            lComps
-            |> List.filter (fun lComp -> lComp.Name <> sheet) // can't be own parent
-            |> List.collect (fun lComp -> 
-                let parentName = lComp.Name
-                match findInstancesOf sheet lComp with
-                | [] -> [] //not a parent
-                | [_] -> [parentName]
-                | _ -> [openSheet]) // if more than one instance can't analyse
-        let rec findRoot (traversedSheets:string list) (sheet:string) =
-            if List.contains sheet traversedSheets then 
-                openSheet
-            else
-                match getParentData sheet with
-                | [root] -> findRoot (sheet :: traversedSheets) root
-                | [] -> sheet
-                | _ -> openSheet
-        Some <| findRoot [] openSheet
-    | _ -> None // should never happen
-
-let getCustoms (cid:ComponentId,comp:SimulationComponent) =
-    match comp.Type with
-    | Custom c -> [cid, c.Name,comp]
-    | _ -> []
-
-let simGraphOrFail (comp:SimulationComponent) =
-    match comp.CustomSimulationGraph with
-    | Some x -> x
-    | None -> failwithf "What? a Custom component %A appears to have no simulation graph" comp
-
-/// return a function which can extract the correct SimulationGraph from the current simulation
-/// for the given sheet. The parameter is a sample SumulationGraph
-let getSimGraph (sheet:string) (graph:SimulationGraph) =
-    let makeSelector cids =
-        (id, List.rev cids) 
-        ||> List.fold (fun selFun cid -> 
-                            let func graph = simGraphOrFail (Map.find cid graph)
-                            selFun >> func)
-       
-        
-    let rec getGraph (customs:ComponentId list) (thisSheet:string) (graph:SimulationGraph) : (SimulationGraph -> SimulationGraph) array =
-        if sheet = thisSheet 
-        then 
-            [|id|]
-        else          
-            Map.toArray graph
-            |> Array.collect (getCustoms >> List.toArray)
-            |> Array.collect (fun (cid,sheet',comp) -> 
-                if sheet' = sheet then 
-                    [|makeSelector (cid :: customs)|]
-                else 
-                    getGraph (cid :: customs) sheet' (Option.defaultValue (failwithf "What? %A should have a CustomSimulationGraph" comp) comp.CustomSimulationGraph))
-      
-    getGraph [] sheet graph
-    |> function | [|f|] -> f | x -> failwithf "Wrong number of candidates %A to find %s in Simgraph" x sheet
-
-                    
-
-                
 
 //--------------------------//
 //   Naming of waveforms    //
@@ -570,7 +404,6 @@ let netGroup2outputsAndIOLabels netList (netGrp: NetGroup) =
     |> List.collect (net2outputsAndIOLabels netList)
     |> List.distinct
 
-
 let rec private removeSubSeq startC endC chars =
     ((false,[]), chars)
     ||> Seq.fold (fun (removing,res) ch ->
@@ -583,10 +416,6 @@ let rec private removeSubSeq startC endC chars =
     |> List.rev
     |> List.map string
     |> String.concat ""
-                 
-    
-    
-    
 
 /// truncate names to remove redundant width specs
 let private simplifyName name =
@@ -620,7 +449,6 @@ let rec private findName (compIds: ComponentId Set) (sd: SimulationData) (net: N
             match net[nlSource.SourceCompId].Type with
             | ROM _ | RAM _ | AsyncROM _ -> 
                     failwithf "What? Legacy RAM component types should never occur"
-
             | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4 | Mux2 | Mux4 | Mux8 | BusCompare _ -> 
                 [ { LabName = compLbl; BitLimits = 0, 0 } ] 
             | Input w | Output w | Constant1(w, _,_) | Constant(w,_) | Viewer w -> 
@@ -730,14 +558,6 @@ let netGroup2Label compIds (sd:SimulationData) netList (netGrp: NetGroup) =
     |> simplifyName
     |> instrumentInterval "netGroup2Label" start
 
-
-
-
-// Required wSModel with correct simulation.
-// Sets AllWaveNames and AllPorts from netlist derived from simulation
-// filters 
-let setWSAllPorts (availablePorts: NetGroup array) (wSModel:WaveSimModel) : WaveSimModel  = failwithf "not implemented"
-    
 //////////////////
 /// SVG shapes ///
 //////////////////
@@ -761,8 +581,6 @@ let backgroundSvg (model: WaveSimModel) =
 
 let button options func label = 
     Button.button (List.append options [ Button.OnClick func ]) [ str label ]
-
-
 
 //-----------------//
 //   Transitions   //
@@ -831,35 +649,6 @@ let private busLabelRepeats wsMod (busLabelValAndPos: {| WaveValue: Sample; XPos
 //--------------------//
 
 /// get SVG of a single waveform for one clock cycle
-let private makeClkSegment (clkW: float) (xInd: int)  =
-    let top = spacing
-    let bot = top + sigHeight - sigLineThick
-    let left = float xInd * clkW
-    let right = left + float clkW
-    let mid = left + float clkW / 2.
-
-    let makeSigLine =
-        makeLinePoints
-            [ Class "sigLineStyle"
-              Style [ Stroke("blue") ] ]
-
-    let clkPoints = [
-        (left, top)
-        (mid, top)
-        (mid, bot)
-        (right, bot)
-        (right, top)
-    ]
-
-    clkPoints
-    |> List.pairwise
-    |> List.map (fun (p1,p2) -> makeSigLine p1 p2)
-    |> List.toArray
-
-
-
-
-/// get SVG of a single waveform for one clock cycle
 let private makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * int) =
     let top = spacing
     let bot = top + sigHeight - sigLineThick
@@ -904,9 +693,6 @@ let private makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * i
         | _ -> failwith "What? Transition has value other than 0 or 1"
         |> Array.append [| topL; botL |]
 
-
-
-
 /// SVG of the clock numbers above the waveforms
 let clkRulerSvg (model: WaveSimModel) =
     let makeClkRulLbl i =
@@ -917,15 +703,6 @@ let clkRulerSvg (model: WaveSimModel) =
     |> Array.collect makeClkRulLbl
     |> Array.append (backgroundSvg model)
     |> makeSvg (clkRulerStyle model)
-
-
-/// get SVG of a positive edge trigerred CLK waveform
-let makeClkSvg (sampArr: Waveform) (wsMod): ReactElement [] =
-    [|0.. Array.length sampArr - 1|]
-    |> Array.map (makeClkSegment (wsMod.ClkWidth / 2.))
-    |> Array.concat
-
- 
 
 /// get SVG of the array of waveforms in wsMod
 let waveSvg wsMod waveData  =
@@ -957,7 +734,6 @@ let waveSvg wsMod waveData  =
     |> Array.map2 makeWaveSvg (Array.transpose waveData)
     |> Array.map2 Array.append valueLabels
 
-
 /// Calculate and add the waveform SVGs to the current wsModel.
 /// TODO: only recalculate as needed on DispWave change
 let addSVGToWaveSimModel wSModel =
@@ -982,7 +758,6 @@ let addSVGToWaveSimModel wSModel =
     let svgs = {Top =  firstRow ; Waves =  midRows; Bottom = lastRow }
     {wSModel with DispWaveSVGCache = svgs}
 
-
 /// add entry with key: current fileName and data: initWS to model.WaveSim
 let initFileWS (model:Model) dispatch =
     let netListOpt = getSheetWaveNetList model
@@ -993,16 +768,10 @@ let initFileWS (model:Model) dispatch =
         |> dispatch
     | _ -> ()
 
-
-
 /// get wave name labels from waveforms names
 let makeLabels waveNames =
     let makeLbl l = label [ Class "waveLbl" ] [ str l ]
     Array.map makeLbl waveNames
-
-
-
-                     
 
 /// adjust parameters before feeding them into simulateAndMakeWaves 
 let adjustPars (wsMod: WaveSimModel) (pars: SimParamsT) rightLim =
@@ -1038,8 +807,6 @@ let simulateAndMakeWaves (model: Model) (wsMod: WaveSimModel)
     { wsMod with SimDataCache = newData
                  SimParams = par' }
     |> addSVGToWaveSimModel
-
-
 
 //------------------------------------//
 //    Interaction with Model.Diagram  //
@@ -1082,19 +849,12 @@ let isWaveSelected (model:Model) (wSpec: WaveformSpec) =
 //  Functions fed into FileMenuView View function   //
 //--------------------------------------------------//
 
-
-
-let getAllWaves (waveSim:WaveSimModel) = 
-    mapValues waveSim.AllWaves
-
 ///Takes a connection and model, and returns the netgroup as a list of connectionIds associated with that connection
 let getNetSelection (canvas : CanvasState) (model : Model) =
-    
     let netList = 
         model.LastSimulatedCanvasState
         |> Option.map Helpers.getNetList 
         |> Option.defaultValue (Map.empty)
-    
 
     let netGroups = makeAllNetGroups netList
 
@@ -1122,13 +882,12 @@ let highlightConnectionsFromWaves (model: Model) (dispatch: Msg -> Unit) =
                 wSModel.SimParams.DispNames
                 |> Array.map (fun name -> wSModel.AllWaves[name])
             | WSClosed -> [||]
-  
-            
+
         let selectedConnectionIds (wave: WaveformSpec) =
             if isWaveSelected model wave then 
                 wave.Conns
             else [||]
-                
+
         let selectedIds =  Array.collect selectedConnectionIds waves
         let wrongColorIds =
             selectedIds
@@ -1143,11 +902,6 @@ let highlightConnectionsFromWaves (model: Model) (dispatch: Msg -> Unit) =
             dispatch <| SetSelWavesHighlighted selectedIds
     | _ -> ()
 
-
-
-
-
-
 /// actions triggered whenever the fileMenuView function is executed
 let fileMenuViewActions model dispatch =
     match getCurrentWSMod model with
@@ -1155,12 +909,6 @@ let fileMenuViewActions model dispatch =
     | Some {WSViewState = WSClosed} -> ()
     | _ ->
         highlightConnectionsFromWaves  model dispatch
-
-
-
-
-
-
 
 //-----------------------//
 // Auto-scroll functions //
@@ -1256,7 +1004,3 @@ let rec getSubSheets
                 let otherSheets = getSubSheets (sComp.Id :: sheets) (thisSheet.Instance ::instances) graph model
                 thisSheet :: otherSheets
         | _ -> [])
-
-
-            
-

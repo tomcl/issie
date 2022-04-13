@@ -274,7 +274,7 @@ let makeEndsDraggable (segments: Segment list): Segment list =
     let makeStartDraggable (segments: Segment list) =
         let seg0 = segments[0]
         if abs segments[0].Length > Constants.nubLength + XYPos.epsilon ||
-           abs segments[1].Length > XYPos.epsilon
+           not (segments[1].IsZero())
         then
             let newSeg0 = {seg0 with Length = Constants.nubLength}
             let newSeg1 = { seg0 with IntersectOrJumpList = []; Length = 0.; Draggable = true}
@@ -298,7 +298,7 @@ let coalesceInWire (wId: ConnectionId) (model:Model) =
         segments
         |> List.indexed
         |> List.filter (fun (i,seg) -> 
-            abs seg.Length < XYPos.epsilon &&
+            seg.IsZero() &&
             i > 1 && i < segments.Length - 2 &&
             segments[i-1].Draggable && segments[i+1].Draggable)
         |> List.map (fun (index,_) -> index)

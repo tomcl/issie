@@ -156,26 +156,26 @@ module CommonTypes
         }
     
         /// allowed tolerance when comparing positions with floating point errors for equality
-        static member epsilon = 0.0000001
+        static member inline epsilon = 0.0000001
     
         /// Add postions as vectors (overlaoded operator)
-        static member ( + ) (left: XYPos, right: XYPos) =
+        static member inline ( + ) (left: XYPos, right: XYPos) =
             { X = left.X + right.X; Y = left.Y + right.Y }
     
         /// Subtract positions as vectors (overloaded operator)
-        static member ( - ) (left: XYPos, right: XYPos) =
+        static member inline ( - ) (left: XYPos, right: XYPos) =
             { X = left.X - right.X; Y = left.Y - right.Y }
     
         /// Scale a position by a number (overloaded operator).
-        static member ( * ) (pos: XYPos, scaleFactor: float) =
+        static member inline ( * ) (pos: XYPos, scaleFactor: float) =
             { X = pos.X*scaleFactor; Y = pos.Y * scaleFactor }
     
         /// Compare positions as vectors. Comparison is approximate so 
         /// it will work even with floating point errors. New infix operator.
-        static member ( =~ ) (left: XYPos, right: XYPos) =
+        static member inline ( =~ ) (left: XYPos, right: XYPos) =
             abs (left.X - right.X) <= XYPos.epsilon && abs (left.Y - right.Y) <= XYPos.epsilon
     
-    let euclideanDistance (pos1: XYPos) (pos2:XYPos) = 
+    let inline euclideanDistance (pos1: XYPos) (pos2:XYPos) = 
         let vec = pos1 - pos2
         sqrt(vec.X**2 + vec.Y**2)
     

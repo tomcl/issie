@@ -208,7 +208,7 @@ let mDownUpdate
 
         | Connection connId ->
             let aSeg = BusWireUpdate.getClickedSegment model.Wire connId mMsg.Pos
-            let (i,wId) = aSeg.Segment.getId()
+            let (i,wId) = aSeg.Segment.GetId()
             let segments = model.Wire.Wires[wId].Segments
             if i > segments.Length - 1 then
                 failwithf "What? Error in getClcikedSegment: "
@@ -232,11 +232,11 @@ let mDownUpdate
                     SelectedComponents = []; 
                     SelectedWires = [ connId ]; 
                     SnapSegments = snapXY
-                    Action = MovingWire (aSeg.Segment.getId()); 
+                    Action = MovingWire (aSeg.Segment.GetId()); 
                     TmpModel = Some model},
                 Cmd.batch [ symbolCmd (SymbolT.SelectSymbols [])
                             wireCmd (BusWireT.SelectWires [ connId ])
-                            wireCmd (BusWireT.DragSegment (aSeg.Segment.getId(), mMsg))
+                            wireCmd (BusWireT.DragSegment (aSeg.Segment.GetId(), mMsg))
                             wireCmd (BusWireT.ResetJumps [ connId ] )
                             Cmd.ofMsg msg]
         | Canvas ->

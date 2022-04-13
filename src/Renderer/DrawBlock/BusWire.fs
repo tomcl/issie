@@ -95,7 +95,7 @@ let inline foldOverNonZeroSegs folder state wire =
     ((state, initPos, initOrientation), wire.Segments)
     ||> List.fold (fun (currState, currPos, currOrientation) seg -> 
         let nextOrientation = switchOrientation currOrientation
-        if abs seg.Length < XYPos.epsilon then 
+        if seg.IsZero() then 
             (currState, currPos, nextOrientation)
         else
             let nextPos = addLengthToPos currPos currOrientation seg.Length
@@ -112,7 +112,24 @@ let getAbsSegments (wire: Wire) : ASegment list =
     ||> List.fold (fun (posDir, aSegL) seg -> 
             let nextASeg = convertToAbs posDir seg
             let posDir' = nextASeg.End, switchOrientation (snd posDir)
-            (posDir', (nextASeg :: aSegL)))
+            posDir', (nextASeg :: aSegL))
+    |> snd
+    |> List.rev
+
+
+/// Return absolute segment list from a wire.
+/// NB - it is often more efficient to use various fold functions (foldOverSegs etc)
+let getNonZeroAbsSegments (wire: Wire) : ASegment list =
+    let convertToAbs ((start,dir): XYPos*Orientation) (seg: Segment) =
+        {Start=start; End = addLengthToPos start dir seg.Length; Segment = seg}
+    (((wire.StartPos,wire.InitialOrientation),[]), wire.Segments)
+    ||> List.fold (fun (posDir, aSegL) seg -> 
+            let nextASeg = convertToAbs posDir seg
+            let posDir' = nextASeg.End, switchOrientation (snd posDir)
+            if not <| seg.IsZero() then
+                posDir', (nextASeg :: aSegL)
+            else
+                posDir', aSegL)                
     |> snd
     |> List.rev
 
@@ -212,7 +229,7 @@ let inline getASegmentFromId (model: Model) (segId:SegmentId) =
 let inline getSegmentOrientation (segStart: XYPos) (segEnd: XYPos) =
     if abs (segStart.X - segEnd.X) < XYPos.epsilon then
         Vertical
-    else if abs (segStart.Y - segStart.Y) < XYPos.epsilon then
+    else if abs (segStart.Y - segEnd.Y) < XYPos.epsilon then
         Horizontal
     else
         failwithf "ERROR: Diagonal wire" // Should never happen
@@ -222,7 +239,7 @@ let inline getSegmentOrientation (segStart: XYPos) (segEnd: XYPos) =
 let inline getSegmentOrientationOpt (segStart: XYPos) (segEnd: XYPos) =
     if abs (segStart.X - segEnd.X) < XYPos.epsilon then
         Some Vertical
-    else if abs (segStart.Y - segStart.Y) < XYPos.epsilon then
+    else if abs (segStart.Y - segEnd.Y) < XYPos.epsilon then
         Some Horizontal
     else
         None

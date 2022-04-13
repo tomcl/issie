@@ -19,11 +19,20 @@ module Constants =
     let gridSize = 30 
     let mergeSplitTextSize = "9px"
     let busSelectTextSize = "12px"
+    let portTextSize = "12px"
+    let portTextCharWidth = 7.
+    let portTextWeight = "bold"
+    let customPortSpacing = 40.
+    let portPosEdgeGap = 0.7
+    let gatePortPosEdgeGap = 0.5
+    let legendVertOffset = 16.
+    let legendLineSpacingInPixels = 16.
 
     /// How large are component labels
     let labelFontSizeInPixels:float = 16 // otehr parameters scale correctly with this
 
-    /// Due to a bug in TextMetrics we are restricted to monospace font, bold or normal, if we need accurate font width
+    /// Due to a bug in TextMetrics we are restricted to monospace font, bold or normal, or helvetica, if we want
+    /// accurate width
     let componentLabelStyle: Text = 
         {defaultText with 
             TextAnchor = "start"; 
@@ -160,9 +169,14 @@ let calcLabelBoundingBox (sym: Symbol) =
 ///Insert titles compatible with greater than 1 buswidth
 let busTitleAndBits (t:string) (n:int) : string =  
     match n with
-    | 1 -> t
-    | _ when n > 1 -> $"{t}({n-1}:{0})"
-    | _ -> failwith "non positive bus width"
+    | 1 -> 
+        t
+    | _ when t = "" && n > 1 -> 
+        $"{t}({n-1}:{0})"
+    | _ when n > 1 -> 
+        $"{t}.({n-1}:{0})"
+    | _ -> 
+        failwith "non positive bus width"
 
 ///Insert titles for bus select
 /// used once 
@@ -208,14 +222,14 @@ let getComponentLegend (componentType:ComponentType) =
     | Decode4 -> "Decode"
     | NbitsAdder n -> busTitleAndBits "Adder" n
     | Register n | RegisterE n-> busTitleAndBits "Register" n
-    | AsyncROM1 _ -> "Async-ROM"
-    | ROM1 _ -> "Sync-ROM"
-    | RAM1 _ -> "Sync-RAM"
-    | AsyncRAM1 _ -> "Async-RAM"
+    | AsyncROM1 _ -> "Async.ROM"
+    | ROM1 _ -> "Sync.ROM"
+    | RAM1 _ -> "Sync.RAM"
+    | AsyncRAM1 _ -> "Async.RAM"
     | DFF -> "DFF"
     | DFFE -> "DFFE"
-    | NbitsXor (x)->   busTitleAndBits "N-bits-Xor" x
-    | Custom x -> x.Name
+    | NbitsXor (x)->   busTitleAndBits "NBits-Xor" x
+    | Custom x -> x.Name.ToUpper()
     | _ -> ""
 
 // Input and Output names of the ports depending on their ComponentType
@@ -286,19 +300,21 @@ let portLists numOfPorts hostID portType =
 
 //-----------------------Skeleton Message type for symbols---------------------//
 
-///Rounds an integer to any given number. The first parameter is the number to round to, the second parameter is the input number that will be rounded
-let inline roundToN (n : int) (x : int) =
-    x + abs((x % n) - n)
+
 
 let customToLength (lst : (string * int) list) =
     let labelList = List.map (fst >> String.length) lst
     if List.isEmpty labelList then 0 //if a component has no inputs or outputs list max will fail
     else List.max labelList
 
+/// get the max length (in pixels) of any of the Text strings in a list
+/// Hack - for now assume text char width is constant
 let customStringToLength (lst: string list) =
     let labelLengths = List.map String.length lst
     if List.isEmpty labelLengths then 0
     else List.max labelLengths
+    |> float
+    |> (*) Constants.portTextCharWidth
 
 let addPortToMaps (edge: Edge) (portMaps: PortMaps) (portId: string) =
     {
@@ -334,23 +350,22 @@ let initPortOrientation (comp: Component) =
 
     
 
-
+(*
 /// helper function to initialise custom components
 let getCustomCompArgs (x:CustomComponentType) (label:string) =
     let h = Constants.gridSize + Constants.gridSize * (List.max [List.length x.InputLabels; List.length x.OutputLabels])
     let maxInLength, maxOutLength = customToLength x.InputLabels, customToLength x.OutputLabels
     let maxW = maxInLength + maxOutLength + label.Length
-    let scaledW = roundToN Constants.gridSize (maxW * Constants.gridSize / 5) //Divide by 5 is just abitrary as otherwise the symbols would be too wide 
+    let scaledW = (maxW * Constants.gridSize / 5) //Divide by 5 is just abitrary as otherwise the symbols would be too wide 
     let w = max scaledW (Constants.gridSize * 4) //Ensures a minimum width if the labels are very small
     ( List.length x.InputLabels, List.length x.OutputLabels, h ,  w)
-
+*)
 /// obtain map from port IDs to port names for Custom Component.
 /// for other components types this returns empty map
 let getCustomPortIdMap (comp: Component)  =
         let label = comp.Label
         match comp.Type with
         | Custom customType ->
-            let (n, nout, h, w) = getCustomCompArgs customType label
             let inputPorts = comp.InputPorts
             let outputPorts = comp.OutputPorts
             let inputPortIdLabels = List.zip inputPorts customType.InputLabels
@@ -398,7 +413,7 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
                     Map.add edge lblLst currMap
                 let portLabels = 
                     (Map.empty, portMaps.Order) ||> Map.fold convertIdsToLbls
-                let h = Constants.gridSize + Constants.gridSize * max (List.length portLabels[Left]) (List.length portLabels[Right])
+                let h = float Constants.gridSize + Constants.customPortSpacing * float (max portLabels[Left].Length portLabels[Right].Length)
 
                 let maxLeftLength = customStringToLength portLabels[Left] 
                 let maxRightLength = customStringToLength portLabels[Right]
@@ -406,16 +421,17 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
                 //need to check the sum of the lengths of top and bottom
                 let topLength = customStringToLength portLabels[Top] 
                 let bottomLength = customStringToLength portLabels[Bottom]
-
+                let labelLength = customStringToLength [sym.Component.Label]
                 //Divide by 5 is just abitrary as otherwise the symbols would be too wide 
                 let maxW = 
-                    [(maxLeftLength + maxRightLength + sym.Component.Label.Length)*Constants.gridSize/5;
-                    (List.length portLabels[Top] + 1)* max (topLength*Constants.gridSize/5)Constants.gridSize;
-                    (List.length portLabels[Bottom]+ 1)*max (bottomLength*Constants.gridSize/5) Constants.gridSize]
-                    |> List.max 
-                let w = roundToN Constants.gridSize (maxW ) 
-                let scaledW = max w (Constants.gridSize * 4) //Ensures a minimum width if the labels are very small
-                let scaledH = max h (Constants.gridSize*2)
+                    [
+                        (maxLeftLength + maxRightLength + labelLength*1.6)
+                        float (portLabels[Top].Length + 1) * topLength
+                        float (portLabels[Bottom].Length + 1) * bottomLength
+                    ] |> List.max |> (*) 1.1
+                let w = maxW
+                let scaledW = max w (float Constants.gridSize * 4.) //Ensures a minimum width if the labels are very small
+                let scaledH = max h (float Constants.gridSize*2.)
                 {sym with
                     PortMaps = portMaps
                     Component = {sym.Component with H= float scaledH; W = float scaledW; X = sym.Pos.X; Y=sym.Pos.Y}}
@@ -425,41 +441,42 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
             {sym with Component = {comp with X = sym.Pos.X; Y = sym.Pos.Y}}
         |> calcLabelBoundingBox
 
+/// return (num inputs, num outputs, height, width)
 let getComponentProperties (compType:ComponentType) (label: string)=
     // match statement for each component type. the output is a 4-tuple that is used as an input to makecomponent (see below)
     // 4-tuple of the form ( number of input ports, number of output ports, Height, Width)
-    let gS = Constants.gridSize
+    let gS = float Constants.gridSize
     match compType with
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
-    | And | Nand | Or | Nor | Xnor | Xor ->  (2 , 1, 2*gS , 2*gS) 
-    | Not -> ( 1 , 1, 2*gS ,  2*gS) 
-    | ComponentType.Input (a) -> ( 0 , 1, gS ,  2*gS)                
-    | ComponentType.Output (a) -> (  1 , 0, gS ,  2*gS) 
+    | And | Nand | Or | Nor | Xnor | Xor ->  (2 , 1, 1.5*gS , 1.5*gS) 
+    | Not -> ( 1 , 1, 1.5*gS ,  1.5*gS) 
+    | ComponentType.Input (a) -> ( 0 , 1, gS ,  2.*gS)                
+    | ComponentType.Output (a) -> (  1 , 0, gS ,  2.*gS) 
     | ComponentType.Viewer a -> (  1 , 0, gS ,  gS) 
-    | ComponentType.IOLabel  ->(  1 , 1, gS/2 ,  gS) 
-    | Decode4 ->( 2 , 4 , 4*gS  , 3*gS) 
-    | Constant1 (a, b,_) | Constant(a, b) -> (  0 , 1, gS ,  2*gS) 
-    | MergeWires -> ( 2 , 1, 2*gS ,  2*gS) 
-    | SplitWire (a) ->(  1 , 2 , 2*gS ,  2*gS) 
-    | Mux2 -> ( 3  , 1, 3*gS ,  2*gS) 
-    | Mux4 -> ( 5  , 1, 5*gS ,  2*gS)   
-    | Mux8 -> ( 9  , 1, 7*gS ,  2*gS) 
-    | Demux2 ->( 2  , 2, 3*gS ,  2*gS) 
-    | Demux4 -> ( 2  , 4, 150 ,  50) 
-    | Demux8 -> ( 2  , 8, 200 ,  50) 
-    | BusSelection (a, b) -> (  1 , 1, gS/2,  2*gS) 
-    | BusCompare (a, b) -> ( 1 , 1, gS ,  2*gS) 
-    | DFF -> (  1 , 1, 3*gS  , 3*gS) 
-    | DFFE -> ( 2  , 1, 3*gS  , 3*gS) 
-    | Register (a) -> ( 1 , 1, 3*gS  , 4*gS )
-    | RegisterE (a) -> ( 2 , 1, 3*gS  , 4*gS) 
-    | AsyncROM1 (a)  -> (  1 , 1, 4*gS  , 5*gS) 
-    | ROM1 (a) -> (   1 , 1, 4*gS  , 5*gS) 
-    | RAM1 (a) | AsyncRAM1 a -> ( 3 , 1, 4*gS  , 5*gS) 
-    | NbitsXor (n) -> (  2 , 1, 4*gS  , 4*gS) 
-    | NbitsAdder (n) -> (  3 , 2, 3*gS  , 4*gS) 
-    | Custom cct -> getCustomCompArgs cct label
+    | ComponentType.IOLabel  ->(  1 , 1, gS/2. ,  gS) 
+    | Decode4 ->( 2 , 4 , 4.*gS  , 3.*gS) 
+    | Constant1 (a, b,_) | Constant(a, b) -> (  0 , 1, gS ,  2.*gS) 
+    | MergeWires -> ( 2 , 1, 2.*gS ,  2.*gS) 
+    | SplitWire (a) ->(  1 , 2 , 2.*gS ,  2.*gS) 
+    | Mux2 -> ( 3  , 1, 3.*gS ,  2.*gS) 
+    | Mux4 -> ( 5  , 1, 5.*gS ,  2.*gS)   
+    | Mux8 -> ( 9  , 1, 7.*gS ,  2.*gS) 
+    | Demux2 ->( 2  , 2, 3.*gS ,  2.*gS) 
+    | Demux4 -> ( 2  , 4, 150. ,  50.) 
+    | Demux8 -> ( 2  , 8, 200. ,  50.) 
+    | BusSelection (a, b) -> (  1 , 1, gS/2.,  2.*gS) 
+    | BusCompare (a, b) -> ( 1 , 1, gS ,  2.*gS) 
+    | DFF -> (  1 , 1, 2.5*gS, 2.5*gS) 
+    | DFFE -> ( 2  , 1, 2.5*gS  , 2.5*gS) 
+    | Register (a) -> ( 1 , 1, 2.*gS, 4.*gS )
+    | RegisterE (a) -> ( 2 , 1, 2.*gS  , 4.*gS) 
+    | AsyncROM1 (a)  -> (  1 , 1, 4.*gS  , 5.*gS) 
+    | ROM1 (a) -> (   1 , 1, 4.*gS  , 5.*gS) 
+    | RAM1 (a) | AsyncRAM1 a -> ( 3 , 1, 4.*gS  , 5.*gS) 
+    | NbitsXor (n) -> (  2 , 1, 4.*gS  , 4.*gS) 
+    | NbitsAdder (n) -> (  3 , 2, 3.*gS  , 4.*gS) 
+    | Custom cct -> cct.InputLabels.Length, cct.OutputLabels.Length, 0., 0.
 
 /// make a completely new component
 let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:string) : Component =
@@ -534,7 +551,8 @@ let addToPortModel (model: Model) (sym: Symbol) =
 let inline getPortPosEdgeGap (ct: ComponentType) =
     match ct with
     | MergeWires | SplitWire _  -> 0.25
-    | _ -> 1.0
+    | IsBinaryGate | Mux2 -> Constants.gatePortPosEdgeGap
+    | _ -> Constants.portPosEdgeGap
 
 ///Given a symbol and a Port, it returns the orientation of the port
 let inline getSymbolPortOrientation (sym: Symbol) (port: Port): Edge =
@@ -597,21 +615,23 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
     let ports = sym.PortMaps.Order[side] //list of ports on the same side as port
     let index = float( List.findIndex (fun (p:string)  -> p = port.Id) ports )
     let gap = getPortPosEdgeGap sym.Component.Type 
+    let topBottomGap = gap + 0.3 // extra space for clk symbol
     let baseOffset = getPortBaseOffset sym side  //offset of the side component is on
     let baseOffset' = baseOffset + getMuxSelOffset sym side
+    let portDimension = float ports.Length - 1.0
     let h,w = getRotatedHAndW sym
     match side with
     | Left ->
-        let yOffset = (float(h))* (( index + gap )/( float( ports.Length ) + 2.0*gap - 1.0))
+        let yOffset = float h * ( index + gap )/(portDimension + 2.0*gap)
         baseOffset' + {X = 0.0; Y = yOffset }
     | Right -> 
-        let yOffset = (float(h))* (( float( ports.Length ) - index - 1.0 + gap )/( float( ports.Length ) + 2.0*gap - 1.0))
+        let yOffset = float h * (portDimension - index + gap )/(portDimension + 2.0*gap)
         baseOffset' + {X = 0.0; Y = yOffset }
     | Bottom -> 
-        let xOffset = (float(w))* ((index + gap)/(float (ports.Length) + 2.0*gap - 1.0))
+        let xOffset = float  w * (index + topBottomGap)/(portDimension + 2.0*topBottomGap)
         baseOffset' + {X = xOffset; Y = 0.0 }
     | Top ->
-        let xOffset = (float(w))* (( float( ports.Length ) - index - 1.0 + gap)/(float (ports.Length) + 2.0*gap - 1.0))
+        let xOffset = float w * (portDimension - index + topBottomGap)/(portDimension + 2.0*topBottomGap)
         baseOffset' + {X = xOffset; Y = 0.0 }
 
 /// Gives the port positions to the render function, it gives the moving port pos where the mouse is, if there is a moving port
@@ -624,11 +644,25 @@ let inline getPortPosModel (model: Model) (port:Port) =
     getPortPos (Map.find (ComponentId port.HostId) model.Symbols) port
 
 //-----------------------------------------DRAWING HELPERS ---------------------------------------------------
-// Text adding function with many parameters (such as bold, position and text)
+/// Text adding function with many parameters (such as bold, position and text)
 let private addText (pos: XYPos) name alignment weight size =
     let text =
             {defaultText with TextAnchor = alignment; FontWeight = weight; FontSize = size}
     [makeText pos.X pos.Y name text]
+
+/// Add one or two lines of text, two lines are marked by a . delimiter
+let private addLegendText (pos: XYPos) (name:string) alignment weight size =
+    let text =
+            {defaultText with TextAnchor = alignment; FontWeight = weight; FontSize = size}
+    match name.Split([|'.'|]) with
+    | [|oneLine|] -> 
+        [makeText pos.X pos.Y name text]
+    | [|topLine;bottomLine|] ->
+        [makeText pos.X pos.Y topLine text;
+         makeText pos.X (pos.Y+Constants.legendLineSpacingInPixels) bottomLine text]
+    | _ ->
+        failwithf "addLegendText does not work with more than two lines demarcated by ."
+
 
 let private addStyledText (style:Text) (pos: XYPos) (name: string) = 
     makeText pos.X pos.Y name style
@@ -651,7 +685,7 @@ let private portText (pos: XYPos) name edge =
             | Right -> "end"
             | Left -> "start"
             | _ -> "middle"
-    (addText pos' name align "normal" "12px")
+    (addText pos' name align Constants.portTextWeight Constants.portTextSize)
 
 /// Print the name of each port 
 let private drawPortsText (portList: list<Port>) (listOfNames: list<string>) (symb: Symbol) = 
@@ -925,13 +959,40 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
  
             
     let labelcolour = outlineColor symbol.Appearance.Colour
- 
+    let legendOffset (compWidth: float) (compHeight:float) (symbol: Symbol) : XYPos=
+        let pMap = symbol.PortMaps.Order
+        let vertFlip = symbol.STransform.Rotation = Degree180
+        let getNum  (edge: Edge) = 
+            Map.tryFind edge pMap
+            |> Option.map (fun lst -> lst.Length)
+            |> Option.defaultValue 0
+        let lhsPortNum = getNum Edge.Left
+        let rhsPortNum = getNum Edge.Right
+        let offset:XYPos = 
+            match lhsPortNum % 2, rhsPortNum % 2 with
+            | 1, 1 -> {X = 0.; Y = Constants.legendVertOffset * (if vertFlip then 1. else -1.)}
+            | 0, 0 -> {X = 0.; Y = -14.}
+            | 1, 0 -> {X = 10.; Y = 0.}
+            | 0, 1 -> {X = -10.; Y = 0.}
+            | _ -> failwithf "What? Can't happen"
+
+        {X=compWidth / 2.; Y=compHeight / 2. - 7.} + offset
+    let legendFontSize (ct:ComponentType) =
+        match ct with
+        | Custom _ -> "16px"
+        | _ -> "14px"
+
    
     // Put everything together 
     (drawPorts comp.OutputPorts showOutputPorts symbol)
     |> List.append (drawPorts comp.InputPorts showInputPorts symbol)
     |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
-    |> List.append (addText {X = float w/2.; Y = float h/2. - 7.} (getComponentLegend comp.Type) "middle" "bold" "14px")
+    |> List.append (addLegendText 
+                        (legendOffset w h symbol) 
+                        (getComponentLegend comp.Type) 
+                        "middle" 
+                        "bold" 
+                        (legendFontSize comp.Type))
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
     |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth)

@@ -73,7 +73,6 @@ open Fulma
 open Fable.React
 open Fable.React.Props
 
-
 open ModelType
 open DiagramStyle
 open CommonTypes
@@ -82,7 +81,6 @@ open FileMenuView
 open SimulatorTypes
 open Sheet.SheetInterface
 open DrawModelType
-
 
 /// maximum width of the waveform simulator viewer
 let maxUsedViewerWidth (wSMod: WaveSimModel) =
@@ -112,11 +110,6 @@ let maxUsedViewerWidth (wSMod: WaveSimModel) =
     
     curLblColWidth + namesColWidth + svgWaveColWidth + checkBoxCol + extraWidth |> int
 
-
-
-
-
-
 ///////////////////////
 //// WaveSim actions //
 ///////////////////////
@@ -145,7 +138,7 @@ let private changeViewerZoom compIds plus (m: Model) (wsModel: WaveSimModel) dis
         else
             printfn "New LastClk=%d" pars.LastClkTime
             pars.LastClkTime
-        
+
     let netList = wsModel2netList wsModel
     let pars = wsModel.SimParams
     let newClkW =
@@ -166,7 +159,6 @@ let private changeViewerZoom compIds plus (m: Model) (wsModel: WaveSimModel) dis
                     ClkSvgWidth = newClkW 
                 }
     dispatch <| InitiateWaveSimulation(WSViewerOpen, newPars)
-        
 
 /// change cursor value
 let private changeCursorPos (wSModel: WaveSimModel) dispatch newCursorPos =
@@ -223,7 +215,6 @@ let private viewerWaveSet (wavesToSet: WaveformSpec array) (on:bool) (wSMod: Wav
             | _ -> wave)
     dispatch <| SetWSMod {wSMod with AllWaves = waves}
 
-
 /// select all waveforms in the WaveAdder View
 let private waveAdderSelectAll model (wSMod: WaveSimModel) (on: bool) dispatch =
     let waves = mapValues wSMod.AllWaves
@@ -273,8 +264,6 @@ let private makeRamReactCol (wsModel: WaveSimModel) ramPath =
     let ramName, ramLocs = getRamInfoToDisplay wsModel ramPath
     [| label [ Class "ramVals"; ] [p [Style [FontWeight "Bold"; TextAlign TextAlignOptions.Center]] [str ramName]] |] :: List.map makeReactEl ramLocs
     |> List.toArray
-
-
 
 /// tuple of React elements of middle column, left column, right column.
 /// shows waveforms and labels and cursor col.
@@ -494,7 +483,6 @@ let waveSimViewerRamDisplay wSMod ramPath =
     makeRamReactCol wSMod ramPath
     |> Array.map (fun c -> tr [] [ td [ Class "cursValsCol" ] c ])
     |> (fun r -> [|div [Style [Height "calc(100vh - 150px)"; OverflowY OverflowOptions.Auto]] r|])
-  
 
 /// ReactElement of the bottom part of the waveform simulator when waveforms are being displayed
 let private viewWaveformViewer compIds model wSMod (dispatch: Msg -> unit) =
@@ -569,7 +557,6 @@ let sortEditorNameOrder wsModel =
 
 /// ReactElement of all Wave Editor waveform rows
 let private waveEditorTickBoxRows model wsModel (dispatch: Msg -> unit) = 
-    let editorNameOrder = sortEditorNameOrder wsModel
     sortEditorNameOrder wsModel
     |> Array.map (fun name -> waveEditorTickBoxAndNameRow model wsModel name dispatch)
 
@@ -585,9 +572,6 @@ let private waveEditorTickBoxesAndNames (model: Model) wSModel (dispatch: Msg ->
 
 /// ReactElement of the buttons of the WaveAdder
 let private waveEditorButtons (model: Model) (wSModel:WaveSimModel) dispatch =
-        
-
-            
     /// this is what actually gets displayed when editor exits
     let closeWaveSimButtonAction _ev =
         dispatch <| StartUICmd CloseWaveSim
@@ -614,21 +598,17 @@ let private waveEditorButtons (model: Model) (wSModel:WaveSimModel) dispatch =
         dispatch <| SetPopupWaveSetup (getWaveSetup wSModel model)
         PopupView.showWaveSetupPopup (Some "RAM Viewer Setup: tick to view RAM or ROM contents") (getWavePopup dispatch) None [] dispatch
 
-
-    
     let waveEditorViewSimButtonAction =
         let allWaves = wSModel.AllWaves
         let viewableWaves = 
             allWaves
-            
             |> standardOrderWaves wSModel.SimParams.DispNames (fun s -> 
                 Map.containsKey s allWaves && isWaveSelected model allWaves[s])
-    
-        
+
         match viewableWaves.Length with
         | 0 -> [ Button.IsLight; Button.Color IsSuccess ]
         | _ ->
-            [ 
+            [
                 Button.Color IsSuccess
                 Button.IsLoading (showSimulationLoading wSModel dispatch)
                 Button.OnClick(fun _ ->
@@ -689,14 +669,9 @@ let private waveformsView compIds model netList wSMod dispatch =
             viewWaveformViewer compIds model wSMod dispatch
             viewZoomDiv compIds model wSMod dispatch ] ]
 
-
-
 //-------------------------------------------------------------------//
 //         TOP-LEVEL WAVE SIMULATION TRANSITIONS AND VIEWS           //
 //-------------------------------------------------------------------//
-
-
-
 
 
 /// TRANSITION: Switch between WaveformEditor (WSEditorOpen) and WaveformViewer (WSVieweropen) view
@@ -765,7 +740,7 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
                 | ViewerWaveform _, isDisplayed -> {spec with WType = ViewerWaveform isDisplayed}
                 | _ -> spec)
         { 
-        wsModel with       
+        wsModel with
             AllWaves = wSpecs
             SimParams = {wsModel.SimParams with DispNames = allowedNames}
             InitWaveSimGraph = Some simData // start with 0 sample only
@@ -791,7 +766,6 @@ let WaveformButtonFunc compIds model dispatch =
     // based on simulation results determine color of button and what happens if it is clicked
     let simulationButton =
         match currWaveSimModel model with
-
         | None ->
             // If we have never yet run wavesim create initial wSModel
             match model.CurrentProj with
@@ -826,7 +800,7 @@ let WaveformButtonFunc compIds model dispatch =
                                 dispatch <| SetPropertiesNotification popup
                                 )
                         ]
-            | WSClosed, _, Some( Error err,_)        
+            | WSClosed, _, Some( Error err,_)
             | _, true, Some (Error err, _) -> 
                 // display the current error if circuit has errors
                 Button.button
@@ -836,7 +810,7 @@ let WaveformButtonFunc compIds model dispatch =
                           dispatch <| ChangeRightTab WaveSim
                           SimulationView.SetSimErrorFeedback err model dispatch) 
                     ]
-            | x,y,z -> 
+            | x,y,z ->
                 //printfn "other%A %A %A" x y (match z with | None -> "None" | Some ((Error c),_) -> "Some Error" | Some ((Ok _),_) -> "Some Ok")
                 Button.button 
                     [ Button.Color IsSuccess
@@ -851,7 +825,6 @@ let WaveformButtonFunc compIds model dispatch =
 let viewWaveSim (model: Model) dispatch =
     let compIds = getComponentIds model
     match currWaveSimModel model, snd model.WaveSim with
-
     // normal case, display waveform adder editor or waveforms
     | Some wSModel, None ->
         // we derive all the waveSim circuit details from LastSimulatedCanvasState which does not change until a new simulation is run
@@ -869,7 +842,6 @@ let viewWaveSim (model: Model) dispatch =
 
     // Set the current simulation error message
     | Some _, Some simError ->
-
         [ div [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]
               [ SimulationView.viewSimulationError simError
                 button [ Button.Color IsDanger ] (fun _ -> 
@@ -890,4 +862,3 @@ let viewWaveSim (model: Model) dispatch =
     | None, _ ->
         initFileWS model dispatch
         []
-

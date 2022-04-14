@@ -273,12 +273,12 @@ let getSafeDistanceForMove (segments: Segment list) (index: int) (distance: floa
 let makeEndsDraggable (segments: Segment list): Segment list =
     let makeStartDraggable (segments: Segment list) =
         let seg0 = segments[0]
-        if abs segments[0].Length > Constants.nubLength + XYPos.epsilon ||
-           not (segments[1].IsZero())
+        if abs segments[0].Length > Constants.nubLength + XYPos.epsilon
         then
-            let newSeg0 = {seg0 with Length = Constants.nubLength}
+            let delta = float (sign segments[0].Length) * Constants.nubLength
+            let newSeg0 = {seg0 with Length = delta} 
             let newSeg1 = { seg0 with IntersectOrJumpList = []; Length = 0.; Draggable = true}
-            let newSeg2 = {newSeg1 with Length = seg0.Length - Constants.nubLength}
+            let newSeg2 = {newSeg1 with Length = seg0.Length - delta}
             newSeg0 :: newSeg1 :: newSeg2 :: segments[1..]
         else
             segments
@@ -510,6 +510,9 @@ let partitionSegments segs manualIdx =
         | _ -> List.splitAt (manualIdx - 1) segs
 
     let changed, remaining = List.splitAt 2 tmp
+    if (start @ changed @ remaining).Length <> segs.Length then 
+        printfn $"Bad partial routing partition: index=\
+                    {manualIdx}:{start.Length},{changed.Length},{remaining.Length} ({segs.Length})"
     (start, changed, remaining)
 
 /// Returns None if full autoroute is required or applies partial autorouting
@@ -530,14 +533,25 @@ let partialAutoroute (model: Model) (wire: Wire) (newPortPos: XYPos) (reversed: 
             match reversed with
             | false -> OutputId wire.OutputPort
             | true -> InputId wire.InputPort
-        if  getWireOutgoingEdge wire = Symbol.getPortOrientation model.Symbol portId &&
+        let portOrientation =
+            Symbol.getPortOrientation model.Symbol portId
+            |> rotate90Edge
+            |> rotate90Edge
+        if  getWireOutgoingEdge wire = portOrientation &&
             relativeToFixed newStartPos = relativeToFixed oldStartPos then
-            Some (manualIdx, newStartPos - oldStartPos)
+             Some (manualIdx, newStartPos - oldStartPos, portOrientation)
         else
             None
     
     /// Returns the partially routed segment list
-    let updateSegments (manualIdx, diff) =
+    let updateSegments (manualIdx, diff, portOrientation) =
+        let segsRetracePath (segs: Segment list) =
+            [1..segs.Length-2]
+            |> List.exists (fun i -> 
+                    segs[i].IsZero() 
+                    && sign segs[i-1].Length <> sign segs[i+1].Length
+                    && not (segs[i-1].IsZero())
+                    && not (segs[i+1].IsZero()))
         let start, changed, remaining = partitionSegments segs manualIdx
         let changed' = 
             changed
@@ -546,12 +560,17 @@ let partialAutoroute (model: Model) (wire: Wire) (newPortPos: XYPos) (reversed: 
                 { seg with Length = seg.Length - getLengthDiff diff startPos endPos })
 
         start @ changed' @ remaining
+        |> (fun segs -> 
+            let wire' = {wire with Segments = segs; StartPos = newPortPos}
+            match getWireOutgoingEdge wire' = portOrientation  || not (segsRetracePath segs) with
+            | true -> Some wire'
+            | false -> None)
         
     segs
     |> getManualIndex
     |> Option.bind eligibleForPartialRouting
-    |> Option.map updateSegments
-    |> Option.map (fun segs -> { wire with Segments = segs; StartPos = newPortPos })
+    |> Option.bind updateSegments
+    |> Option.map (fun wire -> {wire with Segments = makeEndsDraggable wire.Segments})
 
 //--------------------------------------------------------------------------------//
 //--------------------------------updateWire--------------------------------------//
@@ -1105,7 +1124,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             let epsilon = 0.00001
             abs (pos.X - (fst vertex)) < epsilon &&
             abs (pos.Y - (snd vertex)) < epsilon
-            |> (fun b -> if not b then printf $"Bad wire endpoint match on {pos} {vertex}"; b else b)
+            |> (fun b -> if not b then printf $"Bad wire endpoint match on {pos} {vertex}: converting wire..."; b else b)
         
         // get the newly loaded wires
         let newWires =
@@ -1146,6 +1165,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                 }
                 |> makeWirePosMatchSymbol false
                 |> makeWirePosMatchSymbol true
+                |> (fun wire -> {wire with Segments = makeEndsDraggable wire.Segments})
             )
             |> Map.ofList
 

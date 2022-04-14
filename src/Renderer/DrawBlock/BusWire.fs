@@ -497,10 +497,39 @@ let issieVerticesToSegments
             {| Pos = {X=x;Y=y}; Mode = mode |})
 
     /// Converts a list of vertices into a list of segments
-    let verticesToSegments connId (xyVerticesList: {| Pos: XYPos; Mode: RoutingMode |} list) =
-        List.pairwise xyVerticesList
+    let verticesToSegments connId (xyVerticesList: {| Pos: XYPos; Mode: RoutingMode |} list) =  
+        let segT (v1:XYPos) (v2: XYPos) =
+            let delta = v1 - v2
+            if abs delta.X + abs delta.Y < XYPos.epsilon then
+                None
+            elif abs delta.Y < XYPos.epsilon then
+                Some Horizontal
+            elif abs delta.X < XYPos.epsilon then
+                Some Vertical
+            else 
+                failwithf "Diagonal vertices read in Wire"
+
+        let makeCorrectOrientationPairs (verts: {|Mode: RoutingMode; Pos: XYPos|} list) =
+            match verts with
+            | v1 :: v2 :: lst ->
+                (((v2,v1), []), lst)
+                ||> List.fold (fun ((v2,v1),vL) v3 ->
+                    match segT v1.Pos v2.Pos, segT v2.Pos v3.Pos with
+                    | None, _ -> (v3,v2),vL
+                    | _, None -> (v2,v1), vL
+                    | Some d1, Some d2 when d1 = d2 -> (v3,v1),vL
+                    | _ -> (v3,v2), (v2,v1) :: vL)
+                |> (fun ((v2,v1),vL) -> 
+                    if segT v2.Pos v1.Pos = None then 
+                        vL 
+                    else
+                        (v2,v1) :: vL)
+            | _ -> []
+            |> List.rev
+        xyVerticesList
+        |> makeCorrectOrientationPairs
         |> List.mapi (
-            fun i (startVertex,endVertex) ->    
+            fun i (endVertex, startVertex) -> 
                 {
                     Index = i
                     Length = endVertex.Pos.X-startVertex.Pos.X+endVertex.Pos.Y-startVertex.Pos.Y

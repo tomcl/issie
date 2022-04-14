@@ -24,7 +24,7 @@ module Constants =
     let portTextWeight = "bold"
     let customPortSpacing = 40.
     let portPosEdgeGap = 0.7
-    let gatePortPosEdgeGap = 0.5
+    let gatePortPosEdgeGap = 0.3
     let legendVertOffset = 16.
     let legendLineSpacingInPixels = 16.
 
@@ -449,8 +449,8 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     match compType with
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
-    | And | Nand | Or | Nor | Xnor | Xor ->  (2 , 1, 1.5*gS , 1.5*gS) 
-    | Not -> ( 1 , 1, 1.5*gS ,  1.5*gS) 
+    | And | Or | Nand | Nor | Xor | Xnor ->  (2 , 1, 1.5*gS , 1.5*gS) 
+    | Not -> ( 1 , 1, 1.0*gS ,  1.0*gS) 
     | ComponentType.Input (a) -> ( 0 , 1, gS ,  2.*gS)                
     | ComponentType.Output (a) -> (  1 , 0, gS ,  2.*gS) 
     | ComponentType.Viewer a -> (  1 , 0, gS ,  gS) 
@@ -908,11 +908,24 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
             (addText clockTxtPos " clk" "middle" "normal" "12px")
         | BusSelection(nBits,lsb) ->           
             busSelectLine (lsb + nBits - 1) lsb
-        | BusCompare (_,y) -> (addText {X = w/2.-2.; Y = h/2.7-1.} ("=" + NumberHelpers.hex(int y)) "middle" "bold" "10px")
-        | Input (x) -> (addText {X = w/2.; Y = h/2.7} (busTitleAndBits "" x) "middle" "normal" "12px")
-        | Output (x) -> (addText {X = w/2.; Y = h/2.7} (busTitleAndBits "" x) "middle" "normal" "12px")
-        | Viewer (x) -> (addText {X = w/2.; Y = h/2.7 - 1.25} (busTitleAndBits "" x) "middle" "normal" "9px")
-        | _ when symbol.IsClocked -> (addText (Array.head (rotatePoints [|{X = 15.; Y = float H - 11.}|] {X=W/2.;Y=H/2.} transform )) " clk" "middle" "normal" "12px")
+        | Constant1 (_, _, dialogVal) -> 
+            let align, yOffset, xOffset= 
+                match transform.flipped, transform.Rotation with
+                | false, Degree180
+                | true, Degree0 -> "end",0.,5.
+                | _, Degree90 -> "end",-15.,-5.
+                | _, Degree270 -> "end",0.,-5.
+                | _ -> "start",0.,-5.
+            printfn $"CONSTANT:{align}, {transform}"
+            addText {X = w/2. + xOffset; Y = h/1.5 + yOffset}  dialogVal align "normal" "12px"
+        | BusCompare (_,y) -> 
+            (addText {X = w/2.-2.; Y = h/2.7-1.} ("=" + NumberHelpers.hex(int y)) "middle" "bold" "10px")
+        | Input x | Output x-> 
+            (addText {X = w/2.; Y = h/2.7} (busTitleAndBits "" x) "middle" "normal" "12px")
+        | Viewer (x) -> 
+            (addText {X = w/2.; Y = h/2.7 - 1.25} (busTitleAndBits "" x) "middle" "normal" "9px")
+        | _ when symbol.IsClocked -> 
+            (addText (Array.head (rotatePoints [|{X = 15.; Y = float H - 11.}|] {X=W/2.;Y=H/2.} transform )) " clk" "middle" "normal" "12px")
         | _ -> []
 
     let outlineColour, strokeWidth =
@@ -969,11 +982,13 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
         let lhsPortNum = getNum Edge.Left
         let rhsPortNum = getNum Edge.Right
         let offset:XYPos = 
-            match lhsPortNum % 2, rhsPortNum % 2 with
-            | 1, 1 -> {X = 0.; Y = Constants.legendVertOffset * (if vertFlip then 1. else -1.)}
-            | 0, 0 -> {X = 0.; Y = -14.}
-            | 1, 0 -> {X = 10.; Y = 0.}
-            | 0, 1 -> {X = -10.; Y = 0.}
+            match lhsPortNum % 2, rhsPortNum % 2, symbol.Component.Type with
+            | _, _, Not -> {X=0;Y=0}
+            | _, _, IsBinaryGate -> {X=0;Y=0}
+            | 1, 1, _ -> {X = 0.; Y = Constants.legendVertOffset * (if vertFlip then 1. else -1.)}
+            | 0, 0, _ -> {X = 0.; Y = -14.}
+            | 1, 0, _ -> {X = 10.; Y = 0.}
+            | 0, 1, _ -> {X = -10.; Y = 0.}
             | _ -> failwithf "What? Can't happen"
 
         {X=compWidth / 2.; Y=compHeight / 2. - 7.} + offset

@@ -307,7 +307,7 @@ module SheetT =
             | GrabWire -> "crosshair"
             | GrabSymbol -> "cell"
             | GrabLabel -> "grab"
-            | Grabbing -> "move"
+            | Grabbing -> "grabbing"
 
 
 

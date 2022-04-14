@@ -191,13 +191,13 @@ let getPrefix compType =
     match compType with
     | Not | And | Or | Xor | Nand | Nor | Xnor -> "G"
     | Mux2 -> "MUX"
-    | Mux4 -> "MUX-4."
-    | Mux8 -> "MUX-8."
+    | Mux4 -> "MUX"
+    | Mux8 -> "MUX"
     | Demux2 -> "DM"
-    | Demux4 -> "DM-4."
-    | Demux8 -> "DM-8."
-    | NbitsAdder _ -> "A"
-    | NbitsXor _ -> "XOR"
+    | Demux4 -> "DM"
+    | Demux8 -> "DM"
+    | NbitsAdder _ -> "ADD"
+    | NbitsXor _ -> "NXOR"
     | DFF | DFFE -> "FF"
     | Register _ | RegisterE _ -> "REG"
     | AsyncROM1 _ -> "AROM"
@@ -247,9 +247,9 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
     | Mux2 -> (["0"; "1";"SEL"]@["OUT"])
     | Mux4 -> (["0"; "1"; "2"; "3" ;"SEL"]@["OUT"])
     | Mux8 -> (["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7";"SEL"]@["OUT"])
-    | Demux2 -> (["IN" ; "SEL"]@["0"; "1"])
-    | Demux4 -> (["IN"; "SEL"]@["0"; "1";"2"; "3";])
-    | Demux8 -> (["IN"; "SEL"]@["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7"])
+    | Demux2 -> (["DATA" ; "SEL"]@["0"; "1"])
+    | Demux4 -> (["DATA"; "SEL"]@["0"; "1";"2"; "3";])
+    | Demux8 -> (["DATA"; "SEL"]@["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7"])
     | NbitsXor _ -> (["P"; "Q"]@ ["Out"])
     | Custom x -> (List.map fst x.InputLabels)@ (List.map fst x.OutputLabels)
     | _ -> ([]@[])
@@ -262,7 +262,7 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
 /// Note that custom components can have ports positioned by user.
 let movePortsToCorrectEdgeForComponentType (ct: ComponentType) (portMaps: PortMaps): PortMaps =
     match ct with //need to put some ports to different edges
-    | Mux2 -> //need to remove select port from left and move to bottom
+    | Mux2  -> //need to remove select port from left and move to bottom
         movePortToBottom portMaps 2
     | Mux4 -> //need to remove select port from left and move to right
         movePortToBottom portMaps 4
@@ -455,16 +455,16 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | ComponentType.Output (a) -> (  1 , 0, gS ,  2.*gS) 
     | ComponentType.Viewer a -> (  1 , 0, gS ,  gS) 
     | ComponentType.IOLabel  ->(  1 , 1, gS/2. ,  gS) 
-    | Decode4 ->( 2 , 4 , 4.*gS  , 3.*gS) 
+    | Decode4 ->( 2 , 4 , 8.*gS  , 3.*gS) 
     | Constant1 (a, b,_) | Constant(a, b) -> (  0 , 1, gS ,  2.*gS) 
     | MergeWires -> ( 2 , 1, 2.*gS ,  2.*gS) 
     | SplitWire (a) ->(  1 , 2 , 2.*gS ,  2.*gS) 
     | Mux2 -> ( 3  , 1, 3.*gS ,  2.*gS) 
-    | Mux4 -> ( 5  , 1, 5.*gS ,  2.*gS)   
-    | Mux8 -> ( 9  , 1, 7.*gS ,  2.*gS) 
+    | Mux4 -> ( 5  , 1, 8.*gS ,  2.*gS)   
+    | Mux8 -> ( 9  , 1, 16.*gS ,  2.*gS) 
     | Demux2 ->( 2  , 2, 3.*gS ,  2.*gS) 
-    | Demux4 -> ( 2  , 4, 150. ,  50.) 
-    | Demux8 -> ( 2  , 8, 200. ,  50.) 
+    | Demux4 -> ( 2  , 4, 8. * gS ,  2.*gS) 
+    | Demux8 -> ( 2  , 8, 16.*gS ,  2.*gS) 
     | BusSelection (a, b) -> (  1 , 1, gS/2.,  2.*gS) 
     | BusCompare (a, b) -> ( 1 , 1, gS ,  2.*gS) 
     | DFF -> (  1 , 1, 2.5*gS, 2.5*gS) 
@@ -585,27 +585,23 @@ let isMuxSel (sym:Symbol) (side:Edge): bool =
 
 /// Based on a symbol and an edge, if the port is a mux select, return an extra offset required for the port (because of the weird shape of the mux)
 let getMuxSelOffset (sym: Symbol) (side: Edge): XYPos =
+    let sideOffset offset =
+        match side with 
+            | Top -> {X = 0.0; Y = offset}
+            | Bottom -> {X = 0.0; Y = -offset}
+            | Left -> {X = offset; Y = 0.0}
+            | Right -> {X = -offset; Y = 0.0}
     let compType = sym.Component.Type
-    if isMuxSel sym side && (compType=Mux2 || compType=Demux2) then
-        match side with 
-            | Top -> {X = 0.0; Y = 10}
-            | Bottom -> {X = 0.0; Y = -10}
-            | Left -> {X = 10; Y = 0.0}
-            | Right -> {X = -10; Y = 0.0}
-    elif isMuxSel sym side && (compType=Mux4 || compType=Demux4) then
-        match side with 
-            | Top -> {X = 0.0; Y = 15}
-            | Bottom -> {X = 0.0; Y = -15}
-            | Left -> {X = 15; Y = 0.0}
-            | Right -> {X = -15; Y = 0.0}
-    elif isMuxSel sym side && (compType=Mux8 || compType=Demux8) then
-        match side with 
-            | Top -> {X = 0.0; Y = 20}
-            | Bottom -> {X = 0.0; Y = -20}
-            | Left -> {X = 20; Y = 0.0}
-            | Right -> {X = -20; Y = 0.0}
-    else
-        {X=0.0; Y=0.0}
+    if isMuxSel sym side then
+        match compType with
+        | Mux2 | Demux2 -> sideOffset 10.
+        | Mux4 | Demux4 -> sideOffset 10.
+        | Mux8 | Demux8 -> sideOffset 10.
+        | _ -> {X=0.; Y= 0.}
+    else    
+        {X = 0.; Y = 0.}
+
+    
 
 
 ///Given a symbol and a port, it returns the offset of the port from the top left corner of the symbol
@@ -836,14 +832,10 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
                 [|{X=W;Y=H/6.};{X=W/2.;Y=H/6.};{X=W/2.;Y=H/2.};{X=0;Y=H/2.};{X=W/2.;Y=H/2.};{X=W/2.;Y=5.*H/6.};{X=W;Y=5.*H/6.};{X=W/2.;Y=5.*H/6.};{X=W/2.;Y=H/6.}|]
             // EXTENSION: |Mux4|Mux8 ->(sprintf "%i,%i %i,%f  %i,%f %i,%i" 0 0 w (float(h)*0.2) w (float(h)*0.8) 0 h )
             // EXTENSION: | Demux4 |Demux8 -> (sprintf "%i,%f %i,%f %i,%i %i,%i" 0 (float(h)*0.2) 0 (float(h)*0.8) w h w 0)
-            | Demux2 ->
-                [|{X=0;Y=H/5.};{X=0;Y=H*0.8};{X=W;Y=H};{X=W;Y=0}|]
-            | Mux2 ->
-                [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H*0.8};{X=W;Y=H/5.}|]
             | Demux2 | Demux4 | Demux8 ->
-                [|{X=0;Y=H/5.};{X=0;Y=H*0.8};{X=W;Y=H};{X=W;Y=0}|]
+                [|{X=0;Y=0.3*W};{X=0;Y=H-0.3*W};{X=W;Y=H};{X=W;Y=0}|]
             | Mux2 | Mux4 | Mux8 -> 
-                [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H*0.8};{X=W;Y=H/5.}|]
+                [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H-0.3*W};{X=W;Y=0.3*W}|]
             | BusSelection _ -> 
                 [|{X=0;Y=H/2.}; {X=W;Y=H/2.}|]
             | BusCompare _ -> 
@@ -916,8 +908,8 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
                 | _, Degree90 -> "end",-15.,-5.
                 | _, Degree270 -> "end",0.,-5.
                 | _ -> "start",0.,-5.
-            printfn $"CONSTANT:{align}, {transform}"
-            addText {X = w/2. + xOffset; Y = h/1.5 + yOffset}  dialogVal align "normal" "12px"
+            let fontSize = if dialogVal.Length < 2 then "14px" else "12px"
+            addText {X = w/2. + xOffset; Y = h/1.5 + yOffset}  dialogVal align "normal" fontSize
         | BusCompare (_,y) -> 
             (addText {X = w/2.-2.; Y = h/2.7-1.} ("=" + NumberHelpers.hex(int y)) "middle" "bold" "10px")
         | Input x | Output x-> 
@@ -986,7 +978,7 @@ let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutput
             | _, _, Not -> {X=0;Y=0}
             | _, _, IsBinaryGate -> {X=0;Y=0}
             | 1, 1, _ -> {X = 0.; Y = Constants.legendVertOffset * (if vertFlip then 1. else -1.)}
-            | 0, 0, _ -> {X = 0.; Y = -14.}
+            | 0, 0, _ -> {X = 0.; Y = 0.}
             | 1, 0, _ -> {X = 10.; Y = 0.}
             | 0, 1, _ -> {X = -10.; Y = 0.}
             | _ -> failwithf "What? Can't happen"

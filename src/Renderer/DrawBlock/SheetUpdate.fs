@@ -260,7 +260,7 @@ let mDragUpdate
         let dragCursor = 
             match model.Action with
             | MovingLabel _ -> Grabbing
-            | MovingSymbols _ -> Grabbing
+            | MovingSymbols _ -> CursorType.ClickablePort
             | _ -> model.CursorType
         {model with CursorType = dragCursor}, cmd
     match model.Action with
@@ -295,6 +295,7 @@ let mDragUpdate
                 failwithf "What? no component found for moving label operation"
         {model with
             Action = MovingLabel
+            CursorType = Grabbing
             LastMousePos = mMsg.Pos
             ScrollingLastMousePos = {Pos = mMsg.Pos; Move = mMsg.Movement}
         },

@@ -83,7 +83,7 @@ type Polygon = {
 
 /// Record to help create SVG text
 type Text = {
-    /// left/right/middle: horizontal algnment vs (X,Y)
+    /// start/end/middle: horizontal algnment vs (X,Y)
     TextAnchor: string
     FontSize: string
     FontWeight: string

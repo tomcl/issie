@@ -266,26 +266,37 @@ let getSafeDistanceForMove (segments: Segment list) (index: int) (distance: floa
     |> reduceDistance bindingInputSegs findInputBindingIndex
     |> reduceDistance bindingOutputSegs findOutputBindingIndex
 
+/// Used when two segments can be coalesced by removing a zero segment separating
+/// them
+let removeZeroSegment (segs: Segment list) indexToRemove =
+    let index = indexToRemove
+    let newLength = segs[index+1].Length + segs[index-1].Length
+    List.removeManyAt index 2 segs
+    |> List.updateAt (index-1) {segs[index-1] with Length = newLength}
 
 /// After coalescing a wire the wire ends may no longer be draggable.
 /// This function checks this and adds two segments to correct the problem
 /// if necessary. The added segments will not alter wire appearance.
 let makeEndsDraggable (segments: Segment list): Segment list =
-    let makeStartDraggable (segments: Segment list) =
+    let addNubIfPossible (segments: Segment list) =
         let seg0 = segments[0]
-        if abs segments[0].Length > Constants.nubLength + XYPos.epsilon
+        if abs segments[0].Length > Constants.nubLength + XYPos.epsilon &&
+           (segments.Length = 1 || (not <| segments[1].IsZero()))
         then
             let delta = float (sign segments[0].Length) * Constants.nubLength
             let newSeg0 = {seg0 with Length = delta} 
-            let newSeg1 = { seg0 with IntersectOrJumpList = []; Length = 0.; Draggable = true}
+            let newSeg1 = { seg0 with IntersectOrJumpList = []; Length = 0.; Draggable = true; Mode=Auto}
             let newSeg2 = {newSeg1 with Length = seg0.Length - delta}
             newSeg0 :: newSeg1 :: newSeg2 :: segments[1..]
         else
             segments
     segments
-    |> makeStartDraggable
-    |> (List.rev >> makeStartDraggable >> List.rev)
+    |> addNubIfPossible
+    |> (List.rev >> addNubIfPossible >> List.rev)
     |> List.mapi (fun i seg -> {seg with Index = i})
+
+
+
 
 /// If as the result of a drag a zero length segment separates two other draggable segments
 /// the wire should be simplified by removing the zero-length segment and joining together the
@@ -295,25 +306,27 @@ let coalesceInWire (wId: ConnectionId) (model:Model) =
     let segments = wire.Segments
     //printfn $"Before coalesce, seg lengths: {segments |> List.map (fun seg -> seg.Length)}"
     let segmentsToRemove =
-        segments
-        |> List.indexed
+        List.indexed segments
         |> List.filter (fun (i,seg) -> 
-            seg.IsZero() &&
+            segments[i].IsZero() &&
             i > 1 && i < segments.Length - 2 &&
             segments[i-1].Draggable && segments[i+1].Draggable)
         |> List.map (fun (index,_) -> index)
         |> List.sortDescending // needed if more than one segment can be removed - not sure this can happen!
     let newSegments =
+        let opposite seg1 seg2 = 
+            match sign seg1.Length, sign seg2.Length with
+            | 1, -1 | -1, 1 -> true
+            | _ -> false            
         (segments, segmentsToRemove)
-        ||> List.fold (fun segs index ->
-                let newLength = segs[index+1].Length + segs[index-1].Length
-                List.removeManyAt index 2 segs
-                |> List.updateAt (index-1) {segs[index-1] with Length = newLength})
-        |> (fun segments ->
-                if segmentsToRemove = [] then 
-                    segments 
-                else 
-                    segments |> makeEndsDraggable)
+        ||> List.fold removeZeroSegment
+        |> (fun segments' -> 
+            if opposite segments[0] segments'[0] 
+                || opposite segments[segments.Length-1] segments'[segments'.Length-1] then
+                segments
+            else   
+                segments')
+        |> makeEndsDraggable
 
     //printfn $"After coalesce, seg lengths: {newSegments |> List.map (fun seg -> seg.Length)}"
 
@@ -330,22 +343,23 @@ let moveSegment (model:Model) (seg:Segment) (distance:float) =
     let idx = seg.Index
 
     if idx <= 0 || idx >= segments.Length - 1 then // Should never happen
-        failwithf $"Trying to move wire segment {seg.Index}:{logSegmentId seg}, out of range in wire length {segments.Length}"
-
-    let safeDistance = getSafeDistanceForMove segments idx distance
+        printfn $"Trying to move wire segment {seg.Index}:{logSegmentId seg}, out of range in wire length {segments.Length}"
+        wire
+    else
+        let safeDistance = getSafeDistanceForMove segments idx distance
     
-    let prevSeg = segments[idx - 1]
-    let nextSeg = segments[idx + 1]
-    let movedSeg = segments[idx]
+        let prevSeg = segments[idx - 1]
+        let nextSeg = segments[idx + 1]
+        let movedSeg = segments[idx]
 
-    let newPrevSeg = { prevSeg with Length = prevSeg.Length + safeDistance }
-    let newNextSeg = { nextSeg with Length = nextSeg.Length - safeDistance }
-    let newMovedSeg = { movedSeg with Mode = Manual }
+        let newPrevSeg = { prevSeg with Length = prevSeg.Length + safeDistance }
+        let newNextSeg = { nextSeg with Length = nextSeg.Length - safeDistance }
+        let newMovedSeg = { movedSeg with Mode = Manual }
     
-    let newSegments = 
-        segments[.. idx - 2] @ [newPrevSeg; newMovedSeg; newNextSeg] @ segments[idx + 2 ..]
+        let newSegments = 
+            segments[.. idx - 2] @ [newPrevSeg; newMovedSeg; newNextSeg] @ segments[idx + 2 ..]
 
-    { wire with Segments = newSegments }
+        { wire with Segments = newSegments }
 
 //--------------------------------------------------------------------------------//
 
@@ -535,12 +549,12 @@ let partialAutoroute (model: Model) (wire: Wire) (newPortPos: XYPos) (reversed: 
             | true -> InputId wire.InputPort
         let portOrientation =
             Symbol.getPortOrientation model.Symbol portId
-            |> rotate90Edge
-            |> rotate90Edge
         if  getWireOutgoingEdge wire = portOrientation &&
             relativeToFixed newStartPos = relativeToFixed oldStartPos then
-             Some (manualIdx, newStartPos - oldStartPos, portOrientation)
+                printfn $"Eligible for partial route manualidx={manualIdx}"
+                Some (manualIdx, newStartPos - oldStartPos, portOrientation)
         else
+            printfn $"Not eligible manualidx = {manualIdx}"
             None
     
     /// Returns the partially routed segment list
@@ -562,7 +576,8 @@ let partialAutoroute (model: Model) (wire: Wire) (newPortPos: XYPos) (reversed: 
         start @ changed' @ remaining
         |> (fun segs -> 
             let wire' = {wire with Segments = segs; StartPos = newPortPos}
-            match getWireOutgoingEdge wire' = portOrientation  || not (segsRetracePath segs) with
+            //wire'
+            match getWireOutgoingEdge wire' = portOrientation  (*|| not (segsRetracePath segs)*) with
             | true -> Some wire'
             | false -> None)
         
@@ -1062,6 +1077,9 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             | None -> 
                 printfn "Bad segment in Dragsegment... ignoring drag"
                 model,Cmd.none
+            | Some seg when index < 1 || index > wire.Segments.Length-2 ->
+                printfn "Bad index - can't move that segment"
+                model,Cmd.none
             | Some seg ->               
                 let (startPos,endPos) = getAbsoluteSegmentPos wire index
                 if seg.Draggable then
@@ -1075,6 +1093,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
                     { model with Wires = newWires }, Cmd.none
                 else
+                    printfn "Can't movre undraggable"
                     model, Cmd.none
 
         | _ -> model, Cmd.none

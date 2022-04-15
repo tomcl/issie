@@ -322,6 +322,16 @@ let inline getTargetSymbol (model:Model) (wire:Wire) =
     let symbol = model.Symbol.Symbols[ComponentId port.HostId]
     symbol
 
+let moveWire (offset:XYPos) (wire:Wire) :Wire =
+    {wire with StartPos = wire.StartPos + offset}
+
+let moveWires (offset: XYPos)  (model: Model)  =
+    let wires' =
+        model.Wires
+        |> Map.map (fun _ wire -> moveWire offset wire)
+    {model with Wires = wires'}
+
+
 
 
 //-------------------------------Implementation code----------------------------//

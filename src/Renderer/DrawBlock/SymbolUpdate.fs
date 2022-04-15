@@ -449,10 +449,8 @@ let createSymbol ldcs prevSymbols comp =
         let portMaps = 
             match comp.SymbolInfo with
                 | None -> 
-                    printfn "Creating default order symbol"
                     initPortOrientation comp
                 | Some info -> 
-                    printfn "creating symbol with port order from syminfo"
                     {Order=info.PortOrder; Orientation=info.PortOrientation}
         let xyPos = {X = comp.X; Y = comp.Y}
         let (h,w) =
@@ -500,10 +498,8 @@ let createSymbol ldcs prevSymbols comp =
 
 /// Given a model and a list of components, it creates and adds the symbols containing the specified components and returns the updated model.
 let loadComponents loadedComponents model comps=
-    printfn "loading components"
     let symbolMap =
         (model.Symbols, comps) ||> List.fold (createSymbol loadedComponents)
-    printfn "Adding ports..."
     let addPortsToModel currModel _ sym =
         { currModel with Ports = addToPortModel currModel sym }
         

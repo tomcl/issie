@@ -224,6 +224,7 @@ let filterWiresByCompMoved (model: Model) (compIds: list<ComponentId>) =
 /// Returns a distance for a wire move that has been reduced if needed to enforce minimum first/last segment lengths.
 /// These prevent the first non-zero segment perpendicular to the nubs
 /// to be dragged closer than Constants.nubLength
+/// TODO - this can maybe be simplified given we now coalesce segments
 let getSafeDistanceForMove (segments: Segment list) (index: int) (distance: float) =
     /// Returns a list of segments up to the first non-zero segment perpendicular to the segment leaving the port
     let findBindingSegments portIndex segList = 
@@ -277,6 +278,9 @@ let removeZeroSegment (segs: Segment list) indexToRemove =
 /// After coalescing a wire the wire ends may no longer be draggable.
 /// This function checks this and adds two segments to correct the problem
 /// if necessary. The added segments will not alter wire appearance.
+/// The transformation is: 
+/// BEFORE: 1st seg length x. AFTER: 1st segment length nubLength -> zero-length seg 
+/// -> segment length x - nubLength
 let makeEndsDraggable (segments: Segment list): Segment list =
     let addNubIfPossible (segments: Segment list) =
         let seg0 = segments[0]
@@ -295,6 +299,18 @@ let makeEndsDraggable (segments: Segment list): Segment list =
     |> (List.rev >> addNubIfPossible >> List.rev)
     |> List.mapi (fun i seg -> {seg with Index = i})
 
+//-------------------------------Segment processing-------------------------------------------//
+
+// Wires are lists of Horizontal and Vertical segments. The orientation switches each segment and
+// the first segment in the list has orientation given by Wire.InitOrientation.
+// Two parallel joined together segments can be made by having a zero-length segment in the middle.
+// After snapping, this case is quite common (and the zero-length segment will be exactly zero).
+// This motovates coalescing segments to make longer ones where possible.
+// In addition, to make the ends of a wire draggable the two end segments, if not short, need to be 
+// made as a short non-draggable 'nub' connected to the port, followed by a parallel, variable-length segment.
+// The end three segments are therefore: nub / 0 length / rest of 1st visible segment.
+// Finally, the visible segment from a port must emerge outwards. So coalescing a numb 
+// (which is always outwards direction) with an opposite direction segment is not allowed.
 
 
 
@@ -551,14 +567,13 @@ let partialAutoroute (model: Model) (wire: Wire) (newPortPos: XYPos) (reversed: 
             Symbol.getPortOrientation model.Symbol portId
         if  getWireOutgoingEdge wire = portOrientation &&
             relativeToFixed newStartPos = relativeToFixed oldStartPos then
-                printfn $"Eligible for partial route manualidx={manualIdx}"
                 Some (manualIdx, newStartPos - oldStartPos, portOrientation)
         else
-            printfn $"Not eligible manualidx = {manualIdx}"
             None
     
     /// Returns the partially routed segment list
     let updateSegments (manualIdx, diff, portOrientation) =
+        /// consistency check not needed (does it work?
         let segsRetracePath (segs: Segment list) =
             [1..segs.Length-2]
             |> List.exists (fun i -> 
@@ -1143,7 +1158,6 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             let epsilon = 0.00001
             abs (pos.X - (fst vertex)) < epsilon &&
             abs (pos.Y - (snd vertex)) < epsilon
-            |> (fun b -> if not b then printf $"Bad wire endpoint match on {pos} {vertex}: converting wire..."; b else b)
         
         // get the newly loaded wires
         let newWires =

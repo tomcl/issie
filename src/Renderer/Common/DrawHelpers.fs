@@ -304,8 +304,7 @@ let getColorString (col: CommonTypes.HighLightColor) =
 
 //--------------------------------Constants----------------------------------//
 
-/// these determine the size of the draw block canvas relative to the objects on it.
-let canvasUnscaledSize = 3500.0
+
 
 
 

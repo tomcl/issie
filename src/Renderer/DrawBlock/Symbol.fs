@@ -17,7 +17,7 @@ open DrawModelType.SymbolT
 module Constants =
     [<Literal>]
     let gridSize = 30 
-    let mergeSplitTextSize = "9px"
+    let mergeSplitTextSize = "12px"
     let busSelectTextSize = "12px"
     let portTextSize = "12px"
     let portTextCharWidth = 7.
@@ -66,6 +66,22 @@ module Constants =
 //------------------------------------------------------------------//
 //------------------------ Helper functions ------------------------//
 //------------------------------------------------------------------//
+
+let moveSymbol (offset:XYPos) (sym:Symbol) :Symbol =
+    let newPos = sym.Pos + offset
+    let comp' = {sym.Component with X = newPos.X; Y = newPos.Y}
+    {sym with 
+        Component = comp'
+        Pos = newPos
+        LabelBoundingBox = {sym.LabelBoundingBox with TopLeft = sym.LabelBoundingBox.TopLeft + offset}
+    }
+
+let moveSymbols  (offset: XYPos) (model:Model) =
+    {model with
+        Symbols = 
+            model.Symbols
+            |> Map.map (fun _ symbol -> moveSymbol offset symbol)
+    }
 
 let inline inputPortStr (InputPortId s) = s
 let inline outputPortStr (OutputPortId s) = s

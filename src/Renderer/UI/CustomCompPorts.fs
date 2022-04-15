@@ -252,13 +252,11 @@ let makePortName (nameWidth :(string*int) option) =
 /// returns IO signature of current sheet, and all its instances in other sheets
 let getDependents (model:Model)  =
     mapOverProject None model <| fun p ->
-         printfn "depcheck2a"
          let sheetName = p.OpenFileName
          let newSig = 
              p.LoadedComponents
              |> List.find (fun ldc -> ldc.Name = sheetName)
              |> (fun ldc -> parseDiagramSignature ldc.CanvasState)
-         printfn "depcheck2b"
          let instances =
              p.LoadedComponents
              |> List.filter (fun ldc -> ldc.Name <> sheetName)
@@ -269,7 +267,6 @@ let getDependents (model:Model)  =
                          | {Type = Custom { Name=name; InputLabels=ins; OutputLabels=outs}
                             Id = cid} when name = sheetName-> [ldc.Name, cid,  (ins,outs)]
                          | _ -> []))
-         printfn "depcheck2c"
          Some(newSig, instances)
 
 let dependencyDoesNotMatchSignature newSig oldSig =
@@ -495,12 +492,10 @@ let checkCanvasStateIsOk (model:Model) =
 /// returns a popup function to show the dependents update dialog if this is needed
 /// this dialog drives all subsequent work changing custom component instances
 let optCurrentSheetDependentsPopup (model: Model) =
-        printfn "depcheck1"
         let sheet = model.CurrentProj |> Option.map (fun p -> p.OpenFileName)
         if not <| checkCanvasStateIsOk model then
             None // do nothing if IOs are not currently valid. Can this ever happen?
         else     
-            printfn "depcheck2"
             match getOutOfDateDependents model  with
             | None -> None
             | Some (newSig, (((firstSheet,firstCid,firstSig) :: rest) as instances)) ->

@@ -170,7 +170,6 @@ let mDownUpdate
 
             if model.Toggle || mMsg.ShiftKeyDown
             then
-                printfn "Toggling component"
                 let newComponents =
                     if List.contains compId model.SelectedComponents
                     then List.filter (fun cId -> cId <> compId) model.SelectedComponents // If component selected was already in the list, remove it
@@ -478,7 +477,7 @@ let mMoveUpdate
             ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement} },
         symbolCmd (SymbolT.ShowPorts nearbyComponents) // Show Ports of nearbyComponents
 
-let getScreenCentre (model : Model) : XYPos =
+let getVisibleScreenCentre (model : Model) : XYPos =
     let canvas = document.getElementById "Canvas"
     {
         X = (canvas.scrollLeft + canvas.clientWidth / 2.0) / model.Zoom
@@ -491,7 +490,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | Wire (BusWireT.Symbol SymbolT.Msg.UpdateBoundingBoxes) -> 
         // Symbol cannot directly send a message to Sheet box Sheet message type is out of scape. This
         // is used so that a symbol message can be intercepted by sheet and used there.
-        printfn "UpdateBoundingBoxes from Symbol!!!"
         model, Cmd.batch [
                 Cmd.ofMsg UpdateBoundingBoxes; 
                 Cmd.ofMsg UpdateLabelBoundingBoxes
@@ -542,6 +540,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     symbolCmd (SymbolT.PasteSymbols pastedCompIds)
                     wireCmd (BusWireT.SelectWires [])
                     wireCmd (BusWireT.ColorWires (pastedConnIds, HighLightColor.Thistle)) ]
+
     | KeyPress ESC -> // Cancel Pasting Symbols, and other possible actions in the future
         match model.Action with
         | DragAndDrop ->
@@ -555,6 +554,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         Cmd.ofMsg UpdateBoundingBoxes
                         Cmd.ofMsg UpdateLabelBoundingBoxes]
         | _ -> model, Cmd.none
+
     | KeyPress CtrlZ ->
         match model.UndoList with
         | [] -> model , Cmd.none
@@ -562,10 +562,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let symModel = { prevModel.Wire.Symbol with CopiedSymbols = model.Wire.Symbol.CopiedSymbols }
             let wireModel = { prevModel.Wire with CopiedWires = model.Wire.CopiedWires ; Symbol = symModel}
             { prevModel with Wire = wireModel ; UndoList = lst ; RedoList = model :: model.RedoList ; CurrentKeyPresses = Set.empty } , Cmd.none
+
     | KeyPress CtrlY ->
         match model.RedoList with
         | [] -> model , Cmd.none
         | newModel :: lst -> { newModel with UndoList = model :: model.UndoList ; RedoList = lst} , Cmd.none
+
     | KeyPress CtrlA ->
         let symbols = model.Wire.Symbol.Symbols |> Map.toList |> List.map fst
         let wires = model.Wire.Wires |> Map.toList |> List.map fst
@@ -574,19 +576,23 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             SelectedWires = wires
         } , Cmd.batch [ symbolCmd (SymbolT.SelectSymbols symbols)
                         wireCmd (BusWireT.SelectWires wires) ]
+
     | KeyPress CtrlW ->
-        match canvasDiv with
-        | None -> model, Cmd.none
-        | Some el ->
-            let paras = fitCircuitToWindowParas model
-            el.scrollTop <- paras.ScrollY
-            el.scrollLeft <- paras.ScrollX
-            { model with Zoom = paras.MagToUse}, Cmd.ofMsg (UpdateScrollPos (el.scrollLeft, el.scrollTop))
+            let model', paras = fitCircuitToWindowParas model
+            model', 
+            Cmd.batch 
+                [
+                    Cmd.ofMsg (UpdateScrollPos (paras.ScrollX, paras.ScrollY))
+                    Cmd.ofMsg UpdateBoundingBoxes
+                    Cmd.ofMsg UpdateLabelBoundingBoxes
+                ]
+
     | ToggleSelectionOpen ->
         //if List.isEmpty model.SelectedComponents && List.isEmpty model.SelectedWires then
         //    model, Cmd.none
         //else
             {model with Toggle = true}, Cmd.none
+
     | ToggleSelectionClose ->
         {model with Toggle = false}, Cmd.none
 
@@ -596,12 +602,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | Drag -> mDragUpdate model mMsg
         | Up -> mUpUpdate model mMsg
         | Move -> mMoveUpdate model mMsg
+
     | UpdateBoundingBoxes -> 
         { model with BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol }, Cmd.none
+
     | UpdateSingleBoundingBox compId ->
         match Map.containsKey compId model.BoundingBoxes with
         | true -> {model with BoundingBoxes = model.BoundingBoxes.Add (compId, (Symbol.getBoundingBox model.Wire.Symbol compId))}, Cmd.none
         | false -> model, Cmd.none
+
     | UpdateLabelBoundingBoxes -> 
         { model with LabelBoundingBoxes = Symbol.getLabelBoundingBoxes model.Wire.Symbol }, Cmd.none
     | UpdateSingleLabelBoundingBox compId ->
@@ -610,42 +619,58 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | false -> model, Cmd.none
  
     | UpdateScrollPos (scrollX, scrollY) ->
-        let scrollDif = { X = scrollX; Y = scrollY } - model.ScrollPos
-        let newLastScrollingPos =
-            {
-             Pos =
+        if model.ScrollUpdateIsOutstanding then 
+            model, Cmd.none
+        else
+            let scrollDif = { X = scrollX; Y = scrollY } - model.ScrollPos
+            let newLastScrollingPos =
                 {
-                    X = model.ScrollingLastMousePos.Pos.X + scrollDif.X / model.Zoom
-                    Y = model.ScrollingLastMousePos.Pos.Y + scrollDif.Y / model.Zoom
+                 Pos =
+                    {
+                        X = model.ScrollingLastMousePos.Pos.X + scrollDif.X / model.Zoom
+                        Y = model.ScrollingLastMousePos.Pos.Y + scrollDif.Y / model.Zoom
+                    }
+                 Move = model.ScrollingLastMousePos.Move
                 }
-             Move = model.ScrollingLastMousePos.Move
-            }
-        let cmd =
-            if model.AutomaticScrolling then
-                Cmd.ofMsg CheckAutomaticScrolling // Also check if there is automatic scrolling to continue
-            else
-                Cmd.none
-        { model with ScrollPos = { X = scrollX; Y = scrollY }; ScrollingLastMousePos = newLastScrollingPos }, cmd
-    | KeyPress ZoomIn ->
-        { model with Zoom = model.Zoom + 0.05 }, Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
-    | KeyPress ZoomOut ->
-        let leftScreenEdge, rightScreenEdge,_,_ = getScreenEdgeCoords()
-        //Check if the new zoom will exceed the canvas width
-        let newZoom =
-            if rightScreenEdge - leftScreenEdge < (DrawHelpers.canvasUnscaledSize * (model.Zoom - 0.05)) then model.Zoom - 0.05
-            else model.Zoom
+            let cmd =
+                if model.AutomaticScrolling then
+                    Cmd.ofMsg CheckAutomaticScrolling // Also check if there is automatic scrolling to continue
+                else
+                    Cmd.none
+            { model with 
+                ScrollPos = { X = scrollX; Y = scrollY }
+                ScrollUpdateIsOutstanding = false
+                ScrollingLastMousePos = newLastScrollingPos }, 
+                cmd
 
-        { model with Zoom = newZoom }, Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
+    /// Zooming in increases model.Zoom. The centre of the screen will stay centred (if possible)
+    | KeyPress ZoomIn ->
+        { model with Zoom = min Constants.maxMagnification (model.Zoom*Constants.zoomIncrement) }, 
+        Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
+
+    /// Zooming out decreases the model.Zoom. The centre of the screen will stay centred (if possible)
+    | KeyPress ZoomOut ->
+        // get current screen edge coords
+        let edge = getScreenEdgeCoords model
+        //Check if the new zoom will exceed the canvas width or height
+        let newZoom =
+            let minXZoom = (edge.Right - edge.Left) / Constants.canvasUnscaledSize
+            let minYZoom = (edge.Top - edge.Bottom) / Constants.canvasUnscaledSize
+            List.max [model.Zoom / Constants.zoomIncrement; minXZoom; minYZoom]
+
+        { model with Zoom = newZoom }, 
+        Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
+
     | KeepZoomCentered oldScreenCentre ->
         let canvas = document.getElementById "Canvas"
-        let newScreenCentre = getScreenCentre model
+        let newScreenCentre = getVisibleScreenCentre model
         let requiredOffset = oldScreenCentre - newScreenCentre
 
         // Update screen so that the zoom is centred around the middle of the screen.
         canvas.scrollLeft <- canvas.scrollLeft + requiredOffset.X * model.Zoom
         canvas.scrollTop <- canvas.scrollTop + requiredOffset.Y * model.Zoom
-
         model, Cmd.none
+
     | ManualKeyDown key -> // Needed for e.g. Ctrl + C and Ctrl + V as they are not picked up by Electron
         let newPressedKeys = model.CurrentKeyPresses.Add (key.ToUpper()) // Make it fully upper case to remove CAPS dependency
         let newCmd =
@@ -664,7 +689,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             | false -> Cmd.none
 
         { model with CurrentKeyPresses = newPressedKeys }, newCmd
-    | ManualKeyUp key -> { model with CurrentKeyPresses = model.CurrentKeyPresses.Remove (key.ToUpper()) }, Cmd.none
+
+    | ManualKeyUp key -> 
+        { model with CurrentKeyPresses = model.CurrentKeyPresses.Remove (key.ToUpper()) }, Cmd.none
+
     | CheckAutomaticScrolling ->
         let canvas = document.getElementById "Canvas"
         let wholeApp = document.getElementById "WholeApp"
@@ -737,6 +765,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         ]
     | SaveSymbols ->
         model, symbolCmd SymbolT.SaveSymbols
+
     | WireType Jump ->
         let wires = model.Wire.Wires |> Map.toList |> List.map fst
         model,
@@ -872,6 +901,7 @@ let init () =
         LastMousePosForSnap = { X = 0.0; Y = 0.0 }
         Toggle = false
         IsWaveSim = false
+        ScrollUpdateIsOutstanding = false
         PrevWireSelection = []
     }, Cmd.none
 

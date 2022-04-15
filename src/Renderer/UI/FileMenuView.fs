@@ -154,8 +154,6 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
     
             //Load components
             Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.LoadComponents (ldcs,components ))))
-            Sheet SheetT.UpdateBoundingBoxes
-            Sheet SheetT.UpdateLabelBoundingBoxes
     
             Sheet (SheetT.Wire (BusWireT.LoadConnections connections))
 
@@ -166,9 +164,11 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
             Sheet (SheetT.Wire (BusWireT.BusWidths))
             // JSdispatch <| InferWidths()
             //printfn "Check 5..."
-            // Set no unsaved changes.
-    
-        
+            // Set no unsaved changes.        
+
+            Sheet SheetT.UpdateBoundingBoxes
+            Sheet SheetT.UpdateLabelBoundingBoxes
+
             JSDiagramMsg (SetHasUnsavedChanges false)
             // set waveSim data
             SetWaveSimModel(name, waveSim)
@@ -180,6 +180,8 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
                 }
                 |> SetProject) // this message actually changes the project in model
             SetWaveSimIsOutOfDate true
+            Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
+            Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
             SetIsLoading false 
         
             //printfn "Check 6..."
@@ -377,9 +379,9 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
 /// Closes waveadder if it is open
 let private openFileInProject' saveCurrent name project (model:Model) dispatch =
     printfn "open file"
-    printSheetNames model
+    //printSheetNames model
     let newModel = {model with CurrentProj = Some project}
-    printSheetNames newModel
+    //printSheetNames newModel
     match getFileInProject name project with
     | None -> 
         log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
@@ -388,7 +390,7 @@ let private openFileInProject' saveCurrent name project (model:Model) dispatch =
         | None -> failwithf "What? current project cannot be None at this point in openFileInProject"
         | Some p ->
             let updatedModel = {newModel with CurrentProj = Some p}
-            printSheetNames updatedModel
+            //printSheetNames updatedModel
             let ldcs =
                 if saveCurrent then 
                     let opt = saveOpenFileAction false updatedModel dispatch
@@ -397,7 +399,7 @@ let private openFileInProject' saveCurrent name project (model:Model) dispatch =
                     ldComps
                 else
                     project.LoadedComponents
-            printSheetNames {newModel with CurrentProj = Some {Option.get newModel.CurrentProj with LoadedComponents = ldcs }}
+            //printSheetNames {newModel with CurrentProj = Some {Option.get newModel.CurrentProj with LoadedComponents = ldcs }}
             setupProjectFromComponents name ldcs updatedModel dispatch
 
 let openFileInProject name project (model:Model) dispatch =
@@ -465,8 +467,8 @@ let renameSheet oldName newName (model:Model) dispatch =
             |> displayAlertOnError dispatch)
         let proj' = renameSheetsInProject oldName newName p
         setupProjectFromComponents proj'.OpenFileName proj'.LoadedComponents model dispatch
-        printfn "???Sheets after rename"
-        printSheetNames {model with CurrentProj = Some proj'}
+        //printfn "???Sheets after rename"
+        //printSheetNames {model with CurrentProj = Some proj'}
         // save all the other files
         saveAllProjectFilesFromLoadedComponentsToDisk proj'
         dispatch FinishUICmd
@@ -543,13 +545,13 @@ let private removeFileInProject name project model dispatch =
             failwithf "What? - this cannot happen"
         | nc, true ->
             // open one of the undeleted loadedcomponents
-            printfn $"remove sheet '{name}'"
-            printSheetNames {model with CurrentProj = Some project'}
+            //printfn $"remove sheet '{name}'"
+            //printSheetNames {model with CurrentProj = Some project'}
             openFileInProject' false project'.LoadedComponents[0].Name project' model dispatch
         | nc, false ->
             // nothing chnages except LoadedComponents
-            printfn $"remove sheet '{name}'"
-            printSheetNames {model with CurrentProj = Some project'}
+            //printfn $"remove sheet '{name}'"
+            //printSheetNames {model with CurrentProj = Some project'}
             //dispatch <| SetProject project'
         dispatch FinishUICmd
 
@@ -849,7 +851,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                     Button.Disabled(name = project.OpenFileName)
                                     Button.OnClick(fun _ ->
                                         dispatch (StartUICmd ChangeSheet)
-                                        printSheetNames model
+                                        //printSheetNames model
                                         dispatch <| ExecFuncInMessage(
                                             (fun model dispatch -> 
                                                 let p = Option.get model.CurrentProj
@@ -927,7 +929,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                 [ Navbar.Item.HasDropdown
                   Navbar.Item.Props
                       [ OnClick(fun _ ->
-                          printSheetNames model
+                          //printSheetNames model
                           if model.TopMenuOpenState = Files then Closed else Files
                           |> SetTopMenu
                           |> dispatch) ] ]

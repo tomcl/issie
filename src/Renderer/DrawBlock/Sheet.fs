@@ -24,8 +24,15 @@ module Constants =
     let symbolSnapLimit = 7.
     let segmentSnapLimit = 7.
     let gridSize = 30.0 // Size of each square grid
+    let canvasUnscaledSize = 3500. // total size of canvas (determines how far you can zoom out)
     let wireBoundingBoxSize = 2. // increase to make it easier to select wire segments
+    let maxMagnification = 2. // max zoom beyond which it is not worth going
+    let zoomIncrement = 1.2 // factor by which zoom is increased or decreased
+    
 
+//---------------------------------------Derived constants----------------------------------------//
+
+    let canvasCentre = {X=canvasUnscaledSize/2.; Y=canvasUnscaledSize/2.}
 
 //-------------------------------------------------------------------------------------------------//
 // ------------------ Helper Functions that need to be before the Model type extensions ---------- //
@@ -37,6 +44,17 @@ let symbolCmd (msg: SymbolT.Msg) = Cmd.ofMsg (Wire (BusWireT.Symbol msg))
 
 /// Creates a command to BusWire
 let wireCmd (msg: BusWireT.Msg) = Cmd.ofMsg (Wire msg)
+
+/// lifts a Symbol model change to sheet model
+let liftSymbolModel (symbolModelChange: SymbolT.Model -> SymbolT.Model) (model: Model)  =
+    let sModel' = symbolModelChange model.Wire.Symbol
+    {model with Wire = {model.Wire with Symbol = sModel'}}
+
+/// lifts a BusWire model change to sheet model
+let liftBusWireModel (wireModelChange: BusWireT.Model -> BusWireT.Model) (model: Model)  =
+    let wModel' = wireModelChange model.Wire
+    {model with Wire = wModel'}
+    
 
 //-------------------------------------------------------------------------------------------------//
 // ------------------------------------- Issie Interfacing functions ----------------------------- //
@@ -134,17 +152,18 @@ let symDiff lst1 lst2 =
     (a - b) + (b - a)
     |> Set.toList
 
-
-let getScreenEdgeCoords () =
+/// return screen edge coords
+let getScreenEdgeCoords (model:Model) =
     let canvas = document.getElementById "Canvas"
     let wholeApp = document.getElementById "WholeApp"
     let rightSelection = document.getElementById "RightSelection"
     let topMenu = document.getElementById "TopMenu"
+    let scrollDeviation = model.ScrollPos - {X=canvas.scrollLeft;Y=canvas.scrollTop}
     let leftScreenEdge = canvas.scrollLeft
     let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.offsetWidth
     let topScreenEdge = canvas.scrollTop
     let bottomScreenEdge = topScreenEdge + rightSelection.offsetHeight - topMenu.clientHeight
-    (leftScreenEdge, rightScreenEdge,topScreenEdge,bottomScreenEdge)
+    {|Left=leftScreenEdge;Right=rightScreenEdge;Top=topScreenEdge;Bottom=bottomScreenEdge|}
 
 /// Checks if pos is inside any of the bounding boxes of the components in boundingBoxes
 let inline insideBox 
@@ -185,51 +204,96 @@ let boxUnion (box:BoundingBox) (box':BoundingBox) =
         H = maxY - minY
     }
 
+/// Returns the smallest BB containing box and point.
+/// Could be made more efficient
+let boxPointUnion (box: BoundingBox) (point: XYPos) =
+    let pBox = {TopLeft=point; W=0.;H=0.}
+    boxUnion box pBox
+    
 let symbolToBB (symbol:SymbolT.Symbol) =
     let co = symbol.Component
+    let h,w = Symbol.getRotatedHAndW symbol
     {TopLeft = symbol.Pos; W=co.W; H=co.H}
+
+/// Returns the smallest BB that contains all segments
+/// of wire.
+let wireToBB (wire:BusWireT.Wire) =
+    let initBox = {TopLeft=wire.StartPos;W=0.;H=0.}
+    (initBox,wire)
+    ||> BusWire.foldOverNonZeroSegs (fun _ ePos box _ -> 
+        boxPointUnion box ePos)
+
+
+
     
 
 /// Inputs must also have W,H > 0.
-/// Maybe this should include wires as well?
-let symbolBBUnion (model:Model) =
-    let symbols =
-        model.Wire.Symbol.Symbols
-        |> Map.toList
-    match symbols with
-    | [] -> None
-    | (_,sym) :: rest ->
-        (symbolToBB sym, rest)
-        ||> List.fold (fun (box:BoundingBox) (_,sym) ->
-                boxUnion box (symbolToBB sym))
-        |> Some
+/// Returns the smallest BB that contains all
+/// symbols, labels, and wire segments
+let symbolWireBBUnion (model:Model) =
+    let symbolBB: BoundingBox option =
+        let symbols =
+            model.Wire.Symbol.Symbols
+            |> Map.toList
+        match symbols with
+        | [] -> None
+        | (_,sym) :: rest ->
+            (symbolToBB sym, rest)
+            ||> List.fold (fun (box:BoundingBox) (_,sym) ->
+                    boxUnion box (boxUnion (symbolToBB sym) (sym.LabelBoundingBox)))
+            |> Some
+    let wireBB =
+        let wiresBBA = 
+            model.Wire.Wires
+            |> Helpers.mapValues
+            |> Array.map wireToBB
+        match wiresBBA with
+        | [||] -> None
+        | wiresA ->
+            wiresBBA
+            |> Array.reduce boxUnion
+            |> Some
+    match symbolBB, wireBB with
+    | None, None -> 
+        None
+    | Some bb, None | None, Some bb -> 
+        Some bb
+    | Some bb1, Some bb2 -> 
+        Some <| boxUnion bb1 bb2
 
-let fitCircuitToWindowParas (model:Model) =
-    let maxMagnification = 2.
-    let boxOpt = symbolBBUnion model
-    let sBox =
-        match boxOpt with
-        | None -> {TopLeft = {X=100.; Y=100.}; W=100.; H=100.} // default if sheet is empty
-        | Some box -> 
-            {
-                    TopLeft = box.TopLeft
-                    W = box.W
-                    H = box.H
-            }
-    let boxEdge = max 30. ((max sBox.W sBox.H) * 0.05)
-    let lh,rh,top,bottom = getScreenEdgeCoords()
-    let wantedMag = min ((rh - lh)/(sBox.W+2.*boxEdge)) ((bottom-top)/(sBox.H+2.*boxEdge))
-    let magToUse = min wantedMag maxMagnification
-    let xMiddle = (sBox.TopLeft.X + sBox.W/2.)*magToUse
+let getWindowParasToFitBox model (box: BoundingBox)  =
+    let boxEdge = max 30. ((max box.W box.H) * 0.05)
+    let edge = getScreenEdgeCoords model
+    let lh,rh,top,bottom = edge.Left,edge.Right,edge.Top,edge.Bottom
+    let wantedMag = min ((rh - lh)/(box.W+2.*boxEdge)) ((bottom-top)/(box.H+2.*boxEdge))
+    let magToUse = min wantedMag Constants.maxMagnification
+    let xMiddle = (box.TopLeft.X + box.W/2.)*magToUse
     let xScroll = xMiddle - (rh-lh)/2.
-    let yMiddle = (sBox.TopLeft.Y + (sBox.H)/2.)*magToUse
+    let yMiddle = (box.TopLeft.Y + (box.H)/2.)*magToUse
     let yScroll = yMiddle - (bottom-top)/2.
-
     {|ScrollX=xScroll; ScrollY=yScroll; MagToUse=magToUse|}
 
+let fitCircuitToWindowParas (model:Model) =
+    let minBox = {TopLeft = {X=100.; Y=100.}; W=100.; H=100.}
+    let boxOpt = symbolWireBBUnion model
+    let sBox = Option.defaultValue minBox boxOpt
+    let offsetToCentreCircuit =
+        Constants.canvasCentre - sBox.Centre()
+    let modelWithMovedCircuit =
+        model
+        |> liftSymbolModel (Symbol.moveSymbols offsetToCentreCircuit)
+        |> liftBusWireModel (BusWire.moveWires offsetToCentreCircuit)
+    let sBox = {sBox with TopLeft = sBox.TopLeft + offsetToCentreCircuit} 
+    let paras = getWindowParasToFitBox model sBox
+    //let scrollXY = {X=paras.ScrollX;Y=paras.ScrollY}
+    {modelWithMovedCircuit with
+        Zoom = paras.MagToUse}, paras
 
-let isBBoxAllVisible (bb: BoundingBox) =
-    let lh,rh,top,bottom = getScreenEdgeCoords()
+
+
+let isBBoxAllVisible model (bb: BoundingBox) =
+    let edge = getScreenEdgeCoords model
+    let lh,rh,top,bottom = edge.Left,edge.Right,edge.Top,edge.Bottom
     let bbs = standardiseBox bb
     lh < bb.TopLeft.Y && 
     top < bb.TopLeft.X && 
@@ -252,7 +316,7 @@ let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId li
         conns
         |> List.map (fun cid -> Map.tryFind cid model.Wire.Wires)
         |> List.map (Option.map (fun wire -> getWireBBox wire))
-        |> List.map (Option.map isBBoxAllVisible)
+        |> List.map (Option.map (isBBoxAllVisible model))
         |> List.map (Option.defaultValue true)
         |> List.fold (&&) true
     let cVisible =
@@ -262,7 +326,7 @@ let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId li
                 [Symbol.getBoundingBox model.Wire.Symbol comp]
             else
                 [])
-        |> List.map isBBoxAllVisible
+        |> List.map (isBBoxAllVisible model)
         |> List.fold (&&) true
     wVisible && cVisible
 
@@ -635,6 +699,8 @@ let displaySvgWithZoom
         (svgReact: ReactElement List) 
         (dispatch: Dispatch<Msg>) 
             : ReactElement=
+
+    let zoom = model.Zoom
     // Hacky way to get keypresses such as Ctrl+C to work since Electron does not pick them up.
     document.onkeydown <- (fun key ->
         if key.which = 32.0 then// Check for spacebar
@@ -644,7 +710,7 @@ let displaySvgWithZoom
             dispatch <| (ManualKeyDown key.key) )
     document.onkeyup <- (fun key -> dispatch <| (ManualKeyUp key.key))
 
-    let sizeInPixels = sprintf "%.2fpx" ((DrawHelpers.canvasUnscaledSize * model.Zoom))
+    let sizeInPixels = sprintf "%.2fpx" ((Constants.canvasUnscaledSize * model.Zoom))
 
     /// Is the mouse button currently down?
     let mDown (ev:Types.MouseEvent) = ev.buttons <> 0.
@@ -656,13 +722,15 @@ let displaySvgWithZoom
             ShiftKeyDown = ev.shiftKey
             Movement = {X= ev.movementX;Y=ev.movementY}
             Pos = {
-                X = (ev.pageX + model.ScrollPos.X) / model.Zoom  ;
-                Y = (ev.pageY - headerHeight + model.ScrollPos.Y) / model.Zoom}
+                X = (ev.pageX + model.ScrollPos.X) / zoom  ;
+                Y = (ev.pageY - headerHeight + model.ScrollPos.Y) / zoom}
             }
         // dispatch <| MouseMsg {Op = op ; Pos = { X = (ev.pageX + model.ScrollPos.X) / model.Zoom  ; Y = (ev.pageY - topMenuBarHeight + model.ScrollPos.Y) / model.Zoom }}
-    let scrollUpdate () =
+
+    let scrollUpdate model =
         let canvas = document.getElementById "Canvas"
         dispatch <| UpdateScrollPos (canvas.scrollLeft, canvas.scrollTop) // Add the new scroll offset to the model
+
     let wheelUpdate (ev: Types.WheelEvent) =
         if Set.contains "CONTROL" model.CurrentKeyPresses then
             // ev.preventDefault()
@@ -680,7 +748,7 @@ let displaySvgWithZoom
           OnMouseDown (fun ev -> (mouseOp Down ev))
           OnMouseUp (fun ev -> (mouseOp Up ev))
           OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
-          OnScroll (fun _ -> scrollUpdate ())
+          OnScroll (fun _ -> scrollUpdate model)
           Ref (fun el ->
             canvasDiv <- Some el
             if not (isNull el) then
@@ -698,7 +766,7 @@ let displaySvgWithZoom
                 ]
             ]
             [ g // group list of elements with list of attributes
-                [ Style [Transform (sprintf "scale(%f)" model.Zoom)]] // top-level transform style attribute for zoom
+                [ Style [Transform (sprintf "scale(%f)" zoom)]] // top-level transform style attribute for zoom
                     svgReact // the application code
             ]
         ]
@@ -717,6 +785,7 @@ let view
     let wholeCanvas = $"{max 100.0 (100.0 / model.Zoom)}" + "%"
     let snapIndicatorLineX = snapIndicatorLineX model wholeCanvas
     let snapIndicatorLineY = snapIndicatorLineY model wholeCanvas
+    /// show all the snap lines (used primarily for debugging snap)
     let snapDisplay (model:Model) =
         let snapLineY (ypt:SnapData) = snapLineHorizontal wholeCanvas ypt.Snap
         let snapLineX (xpt:SnapData) = snapLineVertical wholeCanvas xpt.Snap

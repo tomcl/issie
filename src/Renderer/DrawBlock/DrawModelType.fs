@@ -405,6 +405,7 @@ module SheetT =
         MouseCounter: int
         Toggle : bool
         IsWaveSim : bool
+        ScrollUpdateIsOutstanding: bool
         PrevWireSelection : ConnectionId list
         }
     

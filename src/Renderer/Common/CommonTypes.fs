@@ -360,6 +360,7 @@ module CommonTypes
         /// Height
         H: float
     }
+        with member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.}
     
     type SymbolInfo = {
         LabelBoundingBox: BoundingBox option

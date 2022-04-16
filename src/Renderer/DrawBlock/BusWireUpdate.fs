@@ -1154,10 +1154,15 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
         // reconstructed precisely
 
         /// check whether a laoded wires position matches a symbol vertex
-        let posMatchesVertex (pos:XYPos) (vertex: float*float) =
-            let epsilon = 0.00001
-            abs (pos.X - (fst vertex)) < epsilon &&
-            abs (pos.Y - (snd vertex)) < epsilon
+        /// If the vertices lits is empty the evrtex will be None, and not match
+        let posMatchesVertex (pos:XYPos) (vertexOpt: (float*float) option) =
+            match vertexOpt with
+            | None -> 
+                false
+            | Some vertex ->
+                let epsilon = 0.00001
+                abs (pos.X - (fst vertex)) < epsilon &&
+                abs (pos.Y - (snd vertex)) < epsilon
         
         // get the newly loaded wires
         let newWires =
@@ -1173,11 +1178,11 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
                     | true -> 
                         posMatchesVertex
                                 (Symbol.getInputPortLocation None model.Symbol inputId)
-                                (List.last conn.Vertices |> getVertex)
+                                (List.tryLast conn.Vertices |> Option.map getVertex)
                     | false ->
                         posMatchesVertex
                             (Symbol.getOutputPortLocation None model.Symbol outputId)
-                            (List.head conn.Vertices |> getVertex)
+                            (List.tryHead conn.Vertices |> Option.map getVertex)
                     |> (fun b ->
                         if b then
                             wire

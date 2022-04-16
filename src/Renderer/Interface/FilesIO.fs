@@ -364,7 +364,6 @@ let readMemLines (addressWidth:int) (wordWidth: int) (lines: string array) =
     match Array.tryFind (function | Error _ -> true | _ -> false) parse with
     | None ->
         let defs = (Array.map (function |Ok x -> x | _ -> failwithf "What?") parse)
-        Array.iter (fun (a,b) -> printfn "a=%d, b=%d" a b) defs
         let repeats =
             Array.groupBy fst defs
             |> Array.filter (fun (num, vals) -> vals.Length > 1)
@@ -383,8 +382,8 @@ let readMemDefns (addressWidth:int) (wordWidth: int) (fPath: string) =
     printfn "starting defn read"
     tryReadFileSync fPath
     |> Result.bind (
-        (fun contents -> printfn "read file:\n contents={contents}"; contents)
-        >> String.splitRemoveEmptyEntries [|'\n';'\r'|]
+        //(fun contents -> printfn "read file:\n contents={contents}"; contents)
+        String.splitRemoveEmptyEntries [|'\n';'\r'|]
         >> readMemLines addressWidth wordWidth 
         >> (fun x -> printfn "read lines"; x)
         >> Result.map Map.ofArray)

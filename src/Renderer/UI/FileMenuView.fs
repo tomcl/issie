@@ -645,7 +645,7 @@ let doActionWithSaveFileDialog (name: string) (nextAction: Msg)  model dispatch 
 
 /// Create a new project.
 let private newProject model dispatch  =
-    match askForNewProjectPath() with
+    match askForNewProjectPath model.UserData.LastUsedDirectory with
     | None -> () // User gave no path.
     | Some path ->
         match tryCreateFolder path with
@@ -660,6 +660,7 @@ let private newProject model dispatch  =
             |> displayAlertOnError dispatch
             // Create empty initial diagram file.
             let initialComponent = createEmptyComponentAndFile path "main"
+            dispatch <| SetUserData {model.UserData with LastUsedDirectory = Some path}
             setupProjectFromComponents "main" [initialComponent] model dispatch
 
 
@@ -729,9 +730,14 @@ let private openProject model dispatch =
     //trying to force the spinner to load earlier
     //doesn't really work right now
     dispatch (Sheet (SheetT.SetSpinner true))
-    match askForExistingProjectPath () with
+    let dirName =
+        match Option.map readFilesFromDirectory model.UserData.LastUsedDirectory with
+        | Some [] | None -> None
+        | _ -> model.UserData.LastUsedDirectory
+    match askForExistingProjectPath dirName with
     | None -> () // User gave no path.
     | Some path ->
+        dispatch <| SetUserData {model.UserData with LastUsedDirectory = Some path}
         dispatch (ExecFuncAsynch <| fun () ->
             traceIf "project" (fun () -> "loading files")
             match loadAllComponentFiles path with

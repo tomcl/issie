@@ -6,6 +6,7 @@ open Fulma
 open Fable.React
 open Fable.React.Props
 open ElectronAPI
+open FilesIO
 open SimulatorTypes
 open ModelType
 open CommonTypes
@@ -16,12 +17,47 @@ open FileMenuView
 open WaveSimHelpers
 open Sheet.SheetInterface
 open DrawModelType
+open Fable.SimpleJson
 
 
 //---------------------------------------------------------------------------------------------//
 //---------------------------------------------------------------------------------------------//
 //---------------------------------- Update Model ---------------------------------------------//
 //---------------------------------------------------------------------------------------------//
+
+/// Read persistent user data from file in userAppDir.
+/// Store in Model UserData.
+let private readUserData (userAppDir: string) (model: Model) : Model * Cmd<Msg> =
+    let addAppDirToUserData model = 
+        {model with UserData = {model.UserData with UserAppDir = Some userAppDir}}
+    let jsonRes = tryReadFileSync <| pathJoin [|userAppDir;"IssieSettings.json"|]
+    jsonRes
+    |> Result.bind (fun json -> Json.tryParseAs<UserData> json)
+    |> Result.bind (fun (data: UserData) -> Ok {model with UserData = data})
+    |> (function | Ok model -> model | Error _ -> printfn "Error reading user data" ; model)
+    |> addAppDirToUserData 
+    |> userDataToDrawBlockModel
+    , Cmd.none
+
+let private writeUserData (model:Model) =
+    model.UserData.UserAppDir
+    |> Option.map (fun userAppDir ->
+        try
+            let data = drawBlockModelToUserData model model.UserData
+            Json.serialize<UserData> data |> Ok
+        with
+        | e -> Error "Can't write settings on this PC because userAppDir does not exist"
+        |> Result.bind (fun json -> writeFile (pathJoin [|userAppDir;"IssieSettings.json"|]) json)
+        |> Result.mapError (fun mess -> $"Write error on directory {userAppDir}: %s{mess}")
+        |> function | Error mess -> printfn "%s" mess | _ -> ())
+    |> ignore
+    
+        
+        
+
+        
+    
+    
 
 /// subfunction used in model update function
 let private getSimulationDataOrFail model msg =
@@ -170,8 +206,9 @@ let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) 
         Some {comp with Type= update mem' ct}
     | _ -> compOpt
    
-let exitApp() =
+let exitApp (model:Model) =
     // send message to main process to initiate window close and app shutdown
+    writeUserData model
     renderer.ipcRenderer.send("exit-the-app",[||])
 
 ///Tests physical equality on two objects
@@ -260,7 +297,7 @@ let update (msg : Msg) oldModel =
             exitApp()
             model, Cmd.none*)
     | CloseApp ->
-        exitApp()
+        exitApp model
         model, Cmd.none
     (*| SetExitDialog status ->
         {model with ExitDialog = status}, Cmd.none*)
@@ -494,6 +531,15 @@ let update (msg : Msg) oldModel =
             let sims,err = model.WaveSim
             sims.Add(sheetName, wSModel), err
         {model with WaveSim = updateWaveSim sheetName wSModel model}, Cmd.none
+    | ReadUserData userAppDir ->
+        printfn $"Got user app dir of {userAppDir}"
+        let model,cmd = readUserData userAppDir model        
+        model,cmd
+    | SetUserData (data: UserData) ->
+        let model =
+            {model with UserData = data}
+            |> userDataToDrawBlockModel
+        model, Cmd.none
     | ExecutePendingMessages n ->
         if n = (List.length model.Pending)
         then 

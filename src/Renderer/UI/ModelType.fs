@@ -330,6 +330,8 @@ type Msg =
     | DoNothing
     | StartUICmd of UICommandType
     | FinishUICmd
+    | ReadUserData of string
+    | SetUserData of UserData
     | ExecCmd of Elmish.Cmd<Msg>
     | ExecFuncInMessage of (Model -> (Msg->Unit) -> Unit) * (Msg -> Unit)
     | ExecFuncAsynch of (Unit -> Elmish.Cmd<Msg>)
@@ -351,10 +353,17 @@ type Notifications = {
 }
 
 
-
+type UserData = {
+    /// Where to save the persistent app data
+    UserAppDir : string option
+    LastUsedDirectory: string option
+    ArrowDisplay: bool
+    WireType: DrawModelType.BusWireT.WireType
+    }
 
 
 type Model = {
+    UserData: UserData
     // All the data for waveform simulation (separate for each sheet)
     // TODO: remove the simulation error.
     WaveSim : Map<string, WaveSimModel> * (SimulationError option)
@@ -424,7 +433,26 @@ type Model = {
     UIState: UICommandType Option
 } 
 
+/// This is needed because DrawBlock cannot directly access Issie Model.
+/// can be replaced when all Model is placed at start of compile order and DB
+/// model is refactored
+let drawBlockModelToUserData (model: Model) (userData: UserData)=
+    let bwModel =model.Sheet.Wire
+    {userData with WireType = bwModel.Type; ArrowDisplay = bwModel.ArrowDisplay}
 
+/// This is needed because DrawBlock cannot directly access Issie Model.
+/// can be replaced when all Model is placed at start of compile order and DB
+/// model is refactored
+let userDataToDrawBlockModel (model: Model) =
+    let userData = model.UserData
+    {model with 
+        Sheet = 
+            {model.Sheet with 
+                Wire = {
+                    model.Sheet.Wire with 
+                        Type = userData.WireType
+                        ArrowDisplay = userData.ArrowDisplay
+                }}}
 
 let reduce (this: Model) = {|
          RightTab = this.RightPaneTabVisible

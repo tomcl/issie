@@ -13,6 +13,7 @@ open CommonTypes
         open LegacyCanvas
 
 
+
         type SavedInfo =
             | CanvasOnly of LegacyCanvasState
             | CanvasWithFileWaveInfo of LegacyCanvasState * SavedWaveInfo option * System.DateTime

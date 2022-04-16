@@ -13,6 +13,7 @@
   <ItemGroup>
     <!-- Common definitions --> 
     <Compile Include="Common\EEExtensions.fs" /> 
+    <Compile Include="Common\Optics.fs" /> 
     <Compile Include="Common\ElectronAPI.fs" /> 
     <Compile Include="Common\CommonTypes.fs" /> 
     <Compile Include="Common\DrawHelpers.fs" />

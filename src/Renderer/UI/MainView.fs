@@ -45,6 +45,12 @@ let viewOnDiagramButtons model dispatch =
 
 /// Initial value of model
 let init() = {
+    UserData = {
+        WireType = BusWireT.Radial
+        ArrowDisplay = true
+        UserAppDir = None
+        LastUsedDirectory = None
+        }
     LastChangeCheckTime = 0.
     // Diagram = new Draw2dWrapper()
     Sheet = fst (SheetUpdate.init())

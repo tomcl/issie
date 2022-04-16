@@ -61,7 +61,17 @@ let attachExitHandler dispatch =
         // send a message which will process the request to exit
         dispatch <| MenuAction(MenuExit,dispatch)
         )) |> ignore
+(*
+// Set up window close interlock using IPC from/to main process
+let attachGetAppHandler dispatch =
+    // set up callback called when attempt is made to close main window
+    renderer.ipcRenderer.on ("get-user-data", (fun (event: Event)->
+        // send a message which will process the request to exit
+        dispatch <| SetUserAppDir (unbox event. : string)
+        )) |> ignore*)
 
+let getUserAppDir () : string =
+    unbox <| renderer.ipcRenderer.sendSync("get-user-data",None)
 
 /// Make action menu item from name, opt key to trigger, and action.
 let makeItem (label : string) (accelerator : string option) (iAction : KeyboardEvent -> unit) =
@@ -216,6 +226,9 @@ let attachMenusAndKeyShortcuts dispatch =
         dispatch <| Msg.ExecFuncInMessage((fun _ _ ->
             electronRemote.app.applicationMenu <- Some menu), dispatch)
         attachExitHandler dispatch
+        let userAppDir = getUserAppDir()
+        dispatch <| ReadUserData userAppDir
+
 
     Cmd.ofSub sub
 

@@ -91,7 +91,7 @@ let writeFile path data =
     with
         | e -> Result.Error $"Error '{e.Message}' writing file '{path}'"
 
-
+/// read file names from directory: returning [] on any error.
 let readFilesFromDirectory (path:string) : string list =
     if fs.existsSync (U2.Case1 path) then
         try 
@@ -248,19 +248,19 @@ let private projectFilters =
     |> unbox<FileFilter>
     |> Array.singleton
 
-let mutable firstProject = true // should really put this in model...
 
 /// Ask the user to choose a project file, with a dialog window.
 /// Return the folder containing the chosen project file.
 /// Return None if the user exits withouth selecting a path.
-let askForExistingProjectPath () : string option =
+let askForExistingProjectPath (defaultPath: string option) : string option =
     let options = createEmpty<OpenDialogSyncOptions>
     options.filters <- Some (projectFileFilters |> ResizeArray)
-    if firstProject then
-        options.defaultPath <- Some <| electronRemote.app.getPath ElectronAPI.Electron.AppGetPath.Documents
+    options.defaultPath <-
+        defaultPath
+        |> Option.defaultValue (electronRemote.app.getPath ElectronAPI.Electron.AppGetPath.Documents)
+        |> Some
     let w = electronRemote.getCurrentWindow()
     electronRemote.dialog.showOpenDialogSync(w,options)
-    |> Option.map (fun fileName -> firstProject <- false; fileName)
     |> Option.bind (
         Seq.toList
         >> function
@@ -272,11 +272,12 @@ let askForExistingProjectPath () : string option =
 
 /// Ask the user a new project path, with a dialog window.
 /// Return None if the user exits withouth selecting a path.
-let rec askForNewProjectPath () : string option =
+let rec askForNewProjectPath (defaultPath:string option) : string option =
     let options = createEmpty<SaveDialogSyncOptions>
     options.filters <- Some (projectFilters |> ResizeArray)
     options.title <- Some "Enter new ISSIE project directory and name"
     options.nameFieldLabel <- Some "New project name"
+    options.defaultPath <- defaultPath
     options.buttonLabel <- Some "Create Project"
     options.properties <- Some [|
         SaveDialogOptionsPropertiesArray.CreateDirectory
@@ -294,7 +295,7 @@ let rec askForNewProjectPath () : string option =
                     "Invalid project directory",
                     "You are trying to create a new Issie project inside an existing project directory. \
                      This is not allowed, please choose a different directory")
-                askForNewProjectPath()
+                askForNewProjectPath defaultPath
             
             else
                 Some dPath)

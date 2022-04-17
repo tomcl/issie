@@ -48,7 +48,7 @@ let symbolCmd (msg: SymbolT.Msg) = Cmd.ofMsg (Wire (BusWireT.Symbol msg))
 let wireCmd (msg: BusWireT.Msg) = Cmd.ofMsg (Wire msg)
 
 
-    
+
 
 //-------------------------------------------------------------------------------------------------//
 // ------------------------------------- Issie Interfacing functions ----------------------------- //
@@ -139,6 +139,9 @@ module SheetInterface =
 // ------------------------------------------- Helper Functions ------------------------------------------- //
 //-------------------------------------------------------------------------------------------------//
 
+
+  
+
 //Calculates the symmetric difference of two lists, returning a list of the given type
 let symDiff lst1 lst2 =
     let a = Set.ofList lst1
@@ -159,17 +162,27 @@ let getScreenEdgeCoords (model:Model) =
     let bottomScreenEdge = topScreenEdge + rightSelection.offsetHeight - topMenu.clientHeight
     {|Left=leftScreenEdge;Right=rightScreenEdge;Top=topScreenEdge;Bottom=bottomScreenEdge|}
 
+
+/// helper used inside Map.tryFind hence the unused parameter
+/// returns true if pos is insoie boundingbox
+let insideBox (pos: XYPos) boundingBox =
+    let {BoundingBox.TopLeft={X = xBox; Y=yBox}; H=hBox; W=wBox} = boundingBox
+    pos.X >= xBox && pos.X <= xBox + wBox && pos.Y >= yBox && pos.Y <= yBox + hBox
+
 /// Checks if pos is inside any of the bounding boxes of the components in boundingBoxes
-let inline insideBox 
+let inline insideBoxMap 
         (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>) 
         (pos: XYPos) 
             : CommonTypes.ComponentId Option =
-    let insideOneBox _ boundingBox =
-        let {BoundingBox.TopLeft={X = xBox; Y=yBox}; H=hBox; W=wBox} = boundingBox
-        pos.X >= xBox && pos.X <= xBox + wBox && pos.Y >= yBox && pos.Y <= yBox + hBox
-
     boundingBoxes
-    |> Map.tryFindKey insideOneBox // If there are multiple components overlapping (should not happen), return first one found
+    |> Map.tryFindKey (fun k box -> insideBox pos box)// If there are multiple components overlapping (should not happen), return first one found
+
+/// returns the symbol if pos is inside any symbol's LabelBoundingBox
+let inline tryInsideLabelBox  (model: Model) (pos: XYPos) =
+    Optic.get symbols_ model
+    |> Map.tryPick (fun (sId:ComponentId) (sym:SymbolT.Symbol) ->
+        if insideBox pos sym.LabelBoundingBox then Some sym else None)
+    
 
 /// return a BB equivalent to input but with (X,Y) = LH Top coord, (X+W,Y+H) = RH bottom coord
 /// note that LH Top is lower end of the two screen coordinates
@@ -249,6 +262,13 @@ let symbolWireBBUnion (model:Model) =
     let symbolBB =
         symbols
         |> symbolBBUnion false
+    let labelsBB =
+        symbols
+        |> List.map (fun sym -> (Symbol.calcLabelBoundingBox sym).LabelBoundingBox)
+    let labelBB =
+        match labelsBB with
+        | [] -> None
+        | _ -> Some <| List.reduce boxUnion labelsBB
     let wireBB =
         let wiresBBA = 
             model.Wire.Wires
@@ -256,23 +276,20 @@ let symbolWireBBUnion (model:Model) =
             |> Array.map wireToBB
         match wiresBBA with
         | [||] -> None
-        | wiresA ->
+        |  _ ->
             wiresBBA
             |> Array.reduce boxUnion
             |> Some
-    match symbolBB, wireBB with
-    | None, None -> 
-        None
-    | Some bb, None | None, Some bb -> 
-        Some bb
-    | Some bb1, Some bb2 -> 
-        Some <| boxUnion bb1 bb2
+    [symbolBB;labelBB;wireBB]
+    |> List.collect (function | Some bb -> [bb] | _ -> [])
+    |> function | [] -> None
+                | [bb] -> Some bb
+                | bbL -> Some <| List.reduce boxUnion bbL
 
 let getWindowParasToFitBox model (box: BoundingBox)  =
-    let boxEdge = max 30. ((max box.W box.H) * 0.05)
     let edge = getScreenEdgeCoords model
     let lh,rh,top,bottom = edge.Left,edge.Right,edge.Top,edge.Bottom
-    let wantedMag = min ((rh - lh)/(box.W+2.*boxEdge)) ((bottom-top)/(box.H+2.*boxEdge))
+    let wantedMag = min ((rh - lh)/box.W) ((bottom-top)/box.H)
     let magToUse = min wantedMag Constants.maxMagnification
     let xMiddle = (box.TopLeft.X + box.W/2.)*magToUse
     let xScroll = xMiddle - (rh-lh)/2.
@@ -281,9 +298,18 @@ let getWindowParasToFitBox model (box: BoundingBox)  =
     {|ScrollX=xScroll; ScrollY=yScroll; MagToUse=magToUse|}
 
 let fitCircuitToWindowParas (model:Model) =
+    let addBoxMargin (box: BoundingBox) =
+        let boxMargin = max 30. ((max box.W box.H) * 0.05)
+        {box with
+            TopLeft = box.TopLeft - {X = boxMargin; Y = boxMargin}
+            W = box.W + boxMargin*2.
+            H = box.H + boxMargin*2.
+         }
     let minBox = {TopLeft = {X=100.; Y=100.}; W=100.; H=100.}
     let boxOpt = symbolWireBBUnion model
-    let sBox = Option.defaultValue minBox boxOpt
+    let sBox = 
+        Option.defaultValue minBox boxOpt
+        |> addBoxMargin
     let offsetToCentreCircuit =
         Constants.canvasCentre - sBox.Centre()
     let modelWithMovedCircuit =
@@ -360,7 +386,7 @@ let posAdd (pos : XYPos) (a : float, b : float) : XYPos =
 let findNearbyComponents (model: Model) (pos: XYPos) (range: float)  =
     // Larger Increments -> More Efficient. But can miss small components then.
     List.allPairs [-range .. 10.0 .. range] [-range .. 10.0 .. range] 
-    |> List.map ((fun x -> posAdd pos x) >> insideBox model.BoundingBoxes)
+    |> List.map ((fun x -> posAdd pos x) >> insideBoxMap model.BoundingBoxes)
     |> List.collect ((function | Some x -> [x] | _ -> []))
 
 /// Checks if pos is inside any of the ports in portList
@@ -393,14 +419,14 @@ let mouseOn (model: Model) (pos: XYPos) : MouseOn =
         match mouseOnPort outputPorts pos 2.5 with
         | Some (portId, portLoc) -> OutputPort (portId, portLoc)
         | None ->
-            match insideBox model.LabelBoundingBoxes pos with
-            | Some compId -> 
-                Label compId
+            match tryInsideLabelBox model pos with
+            | Some sym -> 
+                Label sym.Id
             | None ->
                 match BusWireUpdate.getClickedWire model.Wire pos (Constants.wireBoundingBoxSize/model.Zoom) with
                 | Some connId -> Connection connId
                 | None ->
-                    match insideBox model.BoundingBoxes pos with
+                    match insideBoxMap model.BoundingBoxes pos with
                     | Some compId -> Component compId
                     | None -> Canvas
 

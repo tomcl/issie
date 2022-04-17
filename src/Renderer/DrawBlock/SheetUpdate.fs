@@ -27,7 +27,7 @@ let rotateSelectedLabelsClockwise (model:Model) =
     ||> List.fold (fun sMap sym -> 
         Map.add sym.Id ((rotateLabel >> Symbol.calcLabelBoundingBox) sym) sMap)
     |> (fun sMap ->
-        Optic.set symbols_ sMap model, Cmd.ofMsg UpdateLabelBoundingBoxes)
+        Optic.set symbols_ sMap model, Cmd.none)
 
 let bbOrientation (bb: BoundingBox) =
     let ratio = Constants.boxAspectRatio
@@ -112,7 +112,6 @@ let arrangeSymbols (arrange: Arrange) (model:Model) : Model * Cmd<Msg> =
     | Ok orientation ->
         let postludeCmds = [ 
             Cmd.ofMsg UpdateBoundingBoxes; 
-            Cmd.ofMsg UpdateLabelBoundingBoxes
             ]
         let cmds =
             match arrange with
@@ -153,7 +152,6 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
              ErrorComponents = errorComponents},
         Cmd.batch [ symbolCmd (MoveSymbols (model.SelectedComponents, moveDelta))
                     Cmd.ofMsg (UpdateSingleBoundingBox model.SelectedComponents.Head)
-                    Cmd.ofMsg (UpdateSingleLabelBoundingBox model.SelectedComponents.Head)
                     symbolCmd (ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
                     Cmd.ofMsg CheckAutomaticScrolling
                     wireCmd (BusWireT.UpdateWires (model.SelectedComponents, moveDelta))]
@@ -168,7 +166,6 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
         Cmd.batch [ symbolCmd (SymbolT.MoveSymbols (model.SelectedComponents, mMsg.Pos - model.LastMousePos))
                     symbolCmd (SymbolT.ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
                     Cmd.ofMsg UpdateBoundingBoxes
-                    Cmd.ofMsg UpdateLabelBoundingBoxes
                     Cmd.ofMsg CheckAutomaticScrolling
                     wireCmd (BusWireT.UpdateWires (model.SelectedComponents, mMsg.Pos - model.LastMousePos))]
 
@@ -411,8 +408,7 @@ let mDragUpdate
             LastMousePos = mMsg.Pos
             ScrollingLastMousePos = {Pos = mMsg.Pos; Move = mMsg.Movement}
         },
-        Cmd.batch [ symbolCmd (SymbolT.MoveLabel (movingCompId, mMsg.Pos - model.LastMousePos))
-                    Cmd.ofMsg UpdateLabelBoundingBoxes ]
+        symbolCmd (SymbolT.MoveLabel (movingCompId, mMsg.Pos - model.LastMousePos))
 
     | ConnectingInput _ ->
         let nearbyComponents = findNearbyComponents model mMsg.Pos 50 
@@ -521,7 +517,6 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
                 AutomaticScrolling = false },
             Cmd.batch [ symbolCmd (SymbolT.MoveSymbols (model.SelectedComponents, (model.LastValidPos - mMsg.Pos)))
                         Cmd.ofMsg UpdateBoundingBoxes
-                        Cmd.ofMsg UpdateLabelBoundingBoxes
                         symbolCmd (SymbolT.SelectSymbols (model.SelectedComponents))
                         wireCmd (BusWireT.UpdateWires (model.SelectedComponents, model.LastValidPos - mMsg.Pos))
                         wireCmd (BusWireT.MakeJumps movingWires) ]
@@ -566,7 +561,6 @@ let mMoveUpdate
                      LastMousePos = mMsg.Pos
                      ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement} },
         Cmd.batch [ Cmd.ofMsg UpdateBoundingBoxes
-                    Cmd.ofMsg UpdateLabelBoundingBoxes
                     symbolCmd (SymbolT.SelectSymbols [])
                     symbolCmd (SymbolT.PasteSymbols [ newCompId ]) ]
     | _ ->
@@ -597,15 +591,38 @@ let getVisibleScreenCentre (model : Model) : XYPos =
         Y = (canvas.scrollTop + canvas.clientHeight / 2.0) / model.Zoom
     }
 
+
+
+
 /// Update Function
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
+    /// check things that might not have been correctly completed in the last update and if so do them
+    /// Mostly thsi is a hack to deal with the fact that dependent state is held separately rather than
+    /// being derived fucntionally from the state it depends on, so it muts be explicitly updated.
+    /// TODO: add something to check whether wires need updating
+
+    let postUpdateChecks (model: Model) =
+        // Executed every update so performance is important.
+        // Since normally state will be correct it is only necessary to make the checking
+        // fast.
+        let sModel = Optic.get symbol_ model
+        sModel.Symbols
+        |> (fun sMap ->
+                (model,sMap)
+                ||> Map.fold (fun model sId sym -> 
+                        if Map.containsKey sId model.BoundingBoxes 
+                           && sym.Pos = model.BoundingBoxes[sId].TopLeft then
+                            model 
+                        else
+                            Optic.set boundingBoxes_ (Symbol.getBoundingBoxes sModel) model))
+
+                                
     match msg with
     | Wire (BusWireT.Symbol SymbolT.Msg.UpdateBoundingBoxes) -> 
         // Symbol cannot directly send a message to Sheet box Sheet message type is out of scape. This
         // is used so that a symbol message can be intercepted by sheet and used there.
         model, Cmd.batch [
                 Cmd.ofMsg UpdateBoundingBoxes; 
-                Cmd.ofMsg UpdateLabelBoundingBoxes
                 ]
     | Wire wMsg ->
         let wModel, wCmd = BusWireUpdate.update wMsg model.Wire
@@ -624,7 +641,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         Cmd.batch [ wireCmd (BusWireT.DeleteWires wireUnion) // Delete Wires before components so nothing bad happens
                     symbolCmd (SymbolT.DeleteSymbols model.SelectedComponents)
                     Cmd.ofMsg UpdateBoundingBoxes
-                    Cmd.ofMsg UpdateLabelBoundingBoxes]
+                  ]
     | KeyPress CtrlS -> // For Demo, Add a new square in upper left corner
         printfn "saving symbols"
         { model with BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol; UndoList = appendUndoList model.UndoList model ; RedoList = []},
@@ -648,7 +665,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                      TmpModel = Some model
                      Action = DragAndDrop },
         Cmd.batch [ Cmd.ofMsg UpdateBoundingBoxes
-                    Cmd.ofMsg UpdateLabelBoundingBoxes
                     symbolCmd (SymbolT.SelectSymbols []) // Select to unhighlight all other symbols
                     symbolCmd (SymbolT.PasteSymbols pastedCompIds)
                     wireCmd (BusWireT.SelectWires [])
@@ -665,7 +681,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             Cmd.batch [ symbolCmd (SymbolT.DeleteSymbols model.SelectedComponents)
                         wireCmd (BusWireT.DeleteWires model.SelectedWires)
                         Cmd.ofMsg UpdateBoundingBoxes
-                        Cmd.ofMsg UpdateLabelBoundingBoxes]
+                      ]
         | _ -> model, Cmd.none
 
     | KeyPress CtrlZ ->
@@ -697,7 +713,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 [
                     Cmd.ofMsg (UpdateScrollPos (paras.ScrollX, paras.ScrollY))
                     Cmd.ofMsg UpdateBoundingBoxes
-                    Cmd.ofMsg UpdateLabelBoundingBoxes
                 ]
 
     | ToggleSelectionOpen ->
@@ -717,18 +732,20 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | Move -> mMoveUpdate model mMsg
 
     | UpdateBoundingBoxes -> 
-        { model with BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol }, Cmd.none
+        let model =
+            model
+            |> Optic.set boundingBoxes_ (Symbol.getBoundingBoxes model.Wire.Symbol)
+            |> Optic.map symbols_ (Map.map (fun sId sym -> Symbol.calcLabelBoundingBox sym))
+
+        model, Cmd.none
 
     | UpdateSingleBoundingBox compId ->
         match Map.containsKey compId model.BoundingBoxes with
-        | true -> {model with BoundingBoxes = model.BoundingBoxes.Add (compId, (Symbol.getBoundingBox model.Wire.Symbol compId))}, Cmd.none
-        | false -> model, Cmd.none
-
-    | UpdateLabelBoundingBoxes -> 
-        { model with LabelBoundingBoxes = Symbol.getLabelBoundingBoxes model.Wire.Symbol }, Cmd.none
-    | UpdateSingleLabelBoundingBox compId ->
-        match Map.containsKey compId model.LabelBoundingBoxes with
-        | true -> {model with LabelBoundingBoxes = model.LabelBoundingBoxes.Add (compId, (Symbol.getLabelBoundingBox model.Wire.Symbol compId))}, Cmd.none
+        | true -> 
+            {model with 
+                BoundingBoxes = model.BoundingBoxes.Add (compId, (Symbol.getBoundingBox model.Wire.Symbol compId))}
+            |> Optic.map symbols_ (Map.change compId (Option.map Symbol.calcLabelBoundingBox))               
+                , Cmd.none
         | false -> model, Cmd.none
  
     | UpdateScrollPos (scrollX, scrollY) ->
@@ -873,7 +890,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             symbolCmd (SymbolT.RotateLeft(model.SelectedComponents, rotation)) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
             wireCmd (BusWireT.UpdateConnectedWires model.SelectedComponents)
             Cmd.ofMsg SheetT.UpdateBoundingBoxes
-            Cmd.ofMsg SheetT.UpdateLabelBoundingBoxes
         ]
 
     | Flip orientation ->
@@ -942,6 +958,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             MouseCounter = 0
             LastMousePosForSnap = { X = 0.0; Y = 0.0 }
         }, Cmd.none
+
     | UpdateSelectedWires (connIds, on) ->
         let oldWires = model.SelectedWires
         let newWires =
@@ -980,19 +997,18 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         else {model with CursorType = Default}, Cmd.none
 
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
+    |> Optic.map fst_ postUpdateChecks
 
 /// Init function
 let init () =
     let wireModel, cmds = (BusWireUpdate.init ())
     let boundingBoxes = Symbol.getBoundingBoxes wireModel.Symbol
-    let labelBoundingBoxes = Symbol.getLabelBoundingBoxes wireModel.Symbol
 
     {
         Wire = wireModel
         PopupViewFunc = None
         PopupDialogData = {Text=None; Int=None; Int2=None}
         BoundingBoxes = boundingBoxes
-        LabelBoundingBoxes = labelBoundingBoxes
         LastValidBoundingBoxes = boundingBoxes
         SelectedComponents = []
         SelectedLabel = None

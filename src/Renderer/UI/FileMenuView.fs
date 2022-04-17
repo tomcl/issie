@@ -167,7 +167,6 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
             // Set no unsaved changes.        
 
             Sheet SheetT.UpdateBoundingBoxes
-            Sheet SheetT.UpdateLabelBoundingBoxes
 
             JSDiagramMsg (SetHasUnsavedChanges false)
             // set waveSim data

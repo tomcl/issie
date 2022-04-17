@@ -11,6 +11,7 @@ open Elmish
 open DrawHelpers
 open DrawModelType
 open DrawModelType.SheetT
+open Optics
 
 
 
@@ -46,15 +47,7 @@ let symbolCmd (msg: SymbolT.Msg) = Cmd.ofMsg (Wire (BusWireT.Symbol msg))
 /// Creates a command to BusWire
 let wireCmd (msg: BusWireT.Msg) = Cmd.ofMsg (Wire msg)
 
-/// lifts a Symbol model change to sheet model
-let liftSymbolModel (symbolModelChange: SymbolT.Model -> SymbolT.Model) (model: Model)  =
-    let sModel' = symbolModelChange model.Wire.Symbol
-    {model with Wire = {model.Wire with Symbol = sModel'}}
 
-/// lifts a BusWire model change to sheet model
-let liftBusWireModel (wireModelChange: BusWireT.Model -> BusWireT.Model) (model: Model)  =
-    let wModel' = wireModelChange model.Wire
-    {model with Wire = wModel'}
     
 
 //-------------------------------------------------------------------------------------------------//
@@ -295,8 +288,8 @@ let fitCircuitToWindowParas (model:Model) =
         Constants.canvasCentre - sBox.Centre()
     let modelWithMovedCircuit =
         model
-        |> liftSymbolModel (Symbol.moveSymbols offsetToCentreCircuit)
-        |> liftBusWireModel (BusWire.moveWires offsetToCentreCircuit)
+        |> Optic.map symbol_ (Symbol.moveSymbols offsetToCentreCircuit)
+        |> Optic.map wire_ (BusWire.moveWires offsetToCentreCircuit)
     let sBox = {sBox with TopLeft = sBox.TopLeft + offsetToCentreCircuit} 
     let paras = getWindowParasToFitBox model sBox
     //let scrollXY = {X=paras.ScrollX;Y=paras.ScrollY}

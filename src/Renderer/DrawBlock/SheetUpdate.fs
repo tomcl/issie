@@ -9,6 +9,7 @@ open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open DrawModelType.SheetT
 open Sheet
+open Optics
 
 let rotateLabel (sym:Symbol) =
     let currentRot = Option.defaultValue Degree0 sym.LabelRotation
@@ -26,9 +27,7 @@ let rotateSelectedLabelsClockwise (model:Model) =
     ||> List.fold (fun sMap sym -> 
         Map.add sym.Id ((rotateLabel >> Symbol.calcLabelBoundingBox) sym) sMap)
     |> (fun sMap ->
-        let symModel = {model.Wire.Symbol with Symbols = sMap}
-        let wireModel = {model.Wire with Symbol = symModel}
-        {model with Wire = wireModel}, Cmd.ofMsg UpdateLabelBoundingBoxes)
+        Optic.set symbols_ sMap model, Cmd.ofMsg UpdateLabelBoundingBoxes)
 
 let bbOrientation (bb: BoundingBox) =
     let ratio = Constants.boxAspectRatio
@@ -111,7 +110,7 @@ let arrangeSymbols (arrange: Arrange) (model:Model) : Model * Cmd<Msg> =
             | DistributeSymbols -> 
                 distributePosition syms (orientation = Horizontal) 
             |> List.map (Msg.Symbol >> Msg.Wire >> Cmd.ofMsg)
-        {model with SelectedComponents = newSelected}, Cmd.batch (cmds @ postludeCmds)   
+        Optic.set selectedComponents_ newSelected model, Cmd.batch (cmds @ postludeCmds)   
 
 /// Update function to move symbols in model.SelectedComponents
 let moveSymbols (model: Model) (mMsg: MouseT) =

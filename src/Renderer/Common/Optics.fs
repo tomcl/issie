@@ -161,6 +161,9 @@ module Lens =
     let ofIsomorphism ((f, t): Isomorphism<'a,'b>) : Lens<'a,'b> =
         f, (fun b _ -> t b)
 
+    let inline create (fGet: 'a -> 'b) (fPut: 'b -> 'a ->'a) : Lens<'a,'b> =
+        fGet, fPut
+
 
 /// Functions for creating or using prisms.
 module Prism =
@@ -168,6 +171,9 @@ module Prism =
     /// Converts an epimorphism into a prism.
     let ofEpimorphism ((f, t): Epimorphism<'a,'b>) : Prism<'a,'b> =
         f, (fun b _ -> t b)
+
+    let inline create (fGet: 'a -> 'b option) (fPut: 'b -> 'a ->'a) : Prism<'a,'b> =
+        fGet, fPut
 
 
 

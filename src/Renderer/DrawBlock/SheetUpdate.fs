@@ -10,6 +10,109 @@ open DrawModelType.BusWireT
 open DrawModelType.SheetT
 open Sheet
 
+let rotateLabel (sym:Symbol) =
+    let currentRot = Option.defaultValue Degree0 sym.LabelRotation
+    {sym with 
+        LabelRotation  = Some <| Symbol.combineRotation Degree270 currentRot
+        LabelHasDefaultPos = true}
+
+let rotateSelectedLabelsClockwise (model:Model) =
+    let symMap = model.Wire.Symbol.Symbols
+    let syms = 
+        model.SelectedComponents
+        |> List.map(fun compId -> symMap[compId])
+        
+    (symMap, syms)
+    ||> List.fold (fun sMap sym -> 
+        Map.add sym.Id ((rotateLabel >> Symbol.calcLabelBoundingBox) sym) sMap)
+    |> (fun sMap ->
+        let symModel = {model.Wire.Symbol with Symbols = sMap}
+        let wireModel = {model.Wire with Symbol = symModel}
+        {model with Wire = wireModel}, Cmd.ofMsg UpdateLabelBoundingBoxes)
+
+let bbOrientation (bb: BoundingBox) =
+    let ratio = Constants.boxAspectRatio
+    printfn $"ratio={ratio},bb.W={bb.W},bb.H={bb.H}"
+    match abs bb.W > ratio*abs bb.H, abs bb.H > ratio*abs bb.W with
+    | true, false when abs bb.W > 10. -> Some (Horizontal, abs bb.W / (abs bb.H+0.1))
+    | false, true when abs bb.H > 10. -> Some (Vertical, abs bb.H / (abs bb.W + 0.1))
+    | _ -> None
+
+let workOutArrangement (arrange: Arrange) (syms: Symbol list) =
+    syms
+    |> List.groupBy symbolMatch
+    |> List.map (fun (sTyp,syms) ->  syms, (symbolBBUnion true >> Option.bind bbOrientation) syms)
+    |> List.filter (fun (_,x) -> x <> None)
+    |> List.sortByDescending (fun (syms, bbData) -> syms.Length, (bbData |> Option.get |> snd))
+    |> List.tryHead
+    |> Option.map (fun (syms,bbData) ->
+        match syms, bbData, arrange with
+        | [], _, _-> 
+            printfn "No alignable symbols found"
+            [], Error "No alignable symbols found"
+        | syms, Some(orient,_), DistributeSymbols _ when syms.Length < 3 ->
+            printfn "3 or more symbols are needed to distribute"
+            syms, Error "3 or more symbols of the same type are needed to distribute"
+        | syms, Some(orient,_), _ ->
+            syms, Ok orient
+        | syms, _, _ ->
+            printfn "alignment failed"
+            syms, Error "alignment failed")
+    |> Option.defaultValue ([], Error "No alignable symnbols found")
+
+
+
+  
+
+let projectXY isX (pos: XYPos) =
+    match isX with | true -> pos.X | false -> pos.Y
+
+let injectXY isX f (pos:XYPos) =
+    match isX with | true -> {pos with X = f} | false -> {pos with Y = f}
+
+let alignPosition (symbols: Symbol list) (isX: bool) =
+    symbols
+    |> List.map (Symbol.getRotatedSymbolCentre >> projectXY isX)
+    |> (fun lst -> 
+        let av = List.sum lst / float lst.Length
+        List.zip lst symbols 
+        |> List.map (fun (c,sym) -> 
+            let offset = av - c
+            MoveSymbols([sym.Id], injectXY isX offset {X=0;Y=0})))
+
+let distributePosition (symbols: Symbol list) (isX: bool) =
+    symbols
+    |> List.map (Symbol.getRotatedSymbolCentre >> projectXY isX)
+    |> (fun lst ->
+            let maxF, minF = List.max lst, List. min lst
+            let incr = (maxF - minF) / ((float lst.Length) - 1.)
+            List.zip lst symbols
+            |> List.sortBy fst
+            |> List.mapi (fun i (f,sym) -> 
+                MoveSymbols ([sym.Id], injectXY isX (minF + (float i)*incr - f ) {X=0;Y=0})))
+
+let arrangeSymbols (arrange: Arrange) (model:Model) : Model * Cmd<Msg> =
+    let syms, result =
+        model.SelectedComponents
+        |> List.map (fun sId -> model.Wire.Symbol.Symbols[sId])
+        |> workOutArrangement arrange
+    printfn $"{syms.Length} symbols to arrange"
+    let newSelected = 
+        syms |> List.map (fun sym -> ComponentId sym.Component.Id)
+    match result with
+    | Error _mess -> 
+        {model with SelectedComponents = newSelected}, Cmd.none
+    | Ok orientation ->
+        let postludeCmds = [ Cmd.ofMsg UpdateBoundingBoxes; Cmd.ofMsg UpdateLabelBoundingBoxes]
+        let cmds =
+            match arrange with
+            | AlignSymbols -> 
+                alignPosition syms (orientation = Vertical)
+            | DistributeSymbols -> 
+                distributePosition syms (orientation = Horizontal) 
+            |> List.map (Msg.Symbol >> Msg.Wire >> Cmd.ofMsg)
+        {model with SelectedComponents = newSelected}, Cmd.batch (cmds @ postludeCmds)   
+
 /// Update function to move symbols in model.SelectedComponents
 let moveSymbols (model: Model) (mMsg: MouseT) =
     let nextAction, isDragAndDrop =
@@ -747,6 +850,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         else
             { model with AutomaticScrolling = false}, Cmd.none
 
+    | Arrangement arrange ->
+        printfn $"arranging {arrange}"
+        arrangeSymbols arrange model
+
+    | RotateLabels ->
+        rotateSelectedLabelsClockwise model
+    
     | Rotate rotation ->
         model,
         Cmd.batch [

@@ -74,6 +74,7 @@ module SymbolT =
 
             LabelBoundingBox: BoundingBox
             LabelHasDefaultPos: bool
+            LabelRotation: Rotation option
         
 
             Appearance: AppearanceT
@@ -328,6 +329,7 @@ module SheetT =
         Int2: int64 option
     }
 
+    type Arrange = | AlignSymbols | DistributeSymbols
 
     type Msg =
         | Wire of BusWireT.Msg
@@ -364,6 +366,8 @@ module SheetT =
         | SetSpinner of bool
         | Rotate of SymbolT.RotationType
         | Flip of SymbolT.FlipType
+        | Arrangement of Arrange
+        | RotateLabels
         | WireType of WireTypeMsg
         | IssieInterface of IssieInterfaceMsg
         | MovePort of MouseT //different from mousemsg because ctrl pressed too

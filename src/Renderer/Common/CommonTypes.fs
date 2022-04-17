@@ -364,6 +364,7 @@ module CommonTypes
     
     type SymbolInfo = {
         LabelBoundingBox: BoundingBox option
+        LabelRotation: Rotation option
         STransform: STransform
         PortOrientation: Map<string, Edge>
         PortOrder: Map<Edge, string list>

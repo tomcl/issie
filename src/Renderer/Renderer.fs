@@ -193,10 +193,14 @@ let editMenu dispatch =
                makeElmItem "Copy" "CmdOrCtrl+C" (fun () -> dispatch SheetT.KeyboardMsg.CtrlC)
                makeElmItem "Paste" "CmdOrCtrl+V" (fun () -> dispatch SheetT.KeyboardMsg.CtrlV)
                menuSeparator
-               makeElmItem "Rotate Anticlockwise" "CmdOrCtrl+Shift+R" (fun () -> rotateDispatch SymbolT.RotateAntiClockwise)
-               makeElmItem "Rotate Clockwise" "CmdOrCtrl+R" (fun () -> rotateDispatch SymbolT.RotateClockwise)
-               makeElmItem "Flip Vertically" "CmdOrCtrl+F" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipVertical)
-               makeElmItem "Flip Horizontally" "CmdOrCtrl+Shift+F" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipHorizontal)
+               makeElmItem "Rotate Anticlockwise" "CmdOrCtrl+Left" (fun () -> rotateDispatch SymbolT.RotateAntiClockwise)
+               makeElmItem "Rotate Clockwise" "CmdOrCtrl+Right" (fun () -> rotateDispatch SymbolT.RotateClockwise)
+               makeElmItem "Flip Vertically" "CmdOrCtrl+Up" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipVertical)
+               makeElmItem "Flip Horizontally" "CmdOrCtrl+Down" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipHorizontal)
+               menuSeparator
+               makeElmItem "Align" "CmdOrCtrl+Shift+A"  (fun ev -> sheetDispatch <| SheetT.Arrangement SheetT.AlignSymbols)
+               makeElmItem "Distribute" "CmdOrCtrl+Shift+D" (fun ev-> sheetDispatch <| SheetT.Arrangement SheetT.DistributeSymbols)
+               makeElmItem "Rotate Label Clockwise" "CmdOrCtrl+Shift+Right" (fun ev-> sheetDispatch <| SheetT.RotateLabels)
                menuSeparator
                makeElmItem "Select All" "CmdOrCtrl+A" (fun () -> dispatch SheetT.KeyboardMsg.CtrlA)
                makeElmItem "Delete"  (if isMac then "Backspace" else "delete") (fun () -> dispatch SheetT.KeyboardMsg.DEL)

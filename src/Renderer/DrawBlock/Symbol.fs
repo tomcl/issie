@@ -113,6 +113,28 @@ let inline getRotatedCompCentre comp transform =
 let inline getRotatedSymbolCentre (symbol:Symbol) =
     getRotatedCompCentre symbol.Component symbol.STransform
 
+let inline combineRotation (r1:Rotation) (r2:Rotation) =
+    let rot90 rot =
+        match rot with
+        | Degree0 -> Degree90
+        | Degree90 -> Degree180
+        | Degree180 -> Degree270
+        | Degree270 -> Degree0
+    let rot180 rot =
+        match rot with 
+        | Degree0 -> Degree180
+        | Degree90 -> Degree270
+        | Degree180 -> Degree0
+        | Degree270 -> Degree90
+    match r1 with
+    | Degree0 -> r2
+    | Degree90 -> rot90 r2
+    | Degree180 -> rot180 r2
+    | Degree270 -> (rot90 >> rot180) r2
+
+
+    
+
 
 /// Returns the correct height and width of a transformed symbol
 /// as the tuple (real H, real W).
@@ -151,6 +173,7 @@ let calcLabelBoundingBox (sym: Symbol) =
                      | Degree270 -> Degree90
                      | _ -> transform.Rotation
         | false -> transform.Rotation
+        |> combineRotation (Option.defaultValue Degree0 sym.LabelRotation)
     let h,w = getCompRotatedHAndW comp transform
     let centre = getRotatedCompCentre comp transform
 
@@ -513,6 +536,7 @@ let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:stri
             W = float w
             SymbolInfo = Some { 
                 LabelBoundingBox = None
+                LabelRotation = None
                 STransform=defaultSTransform; 
                 PortOrder = Map.empty; 
                 PortOrientation=Map.empty}
@@ -531,6 +555,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
       LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
       LabelHasDefaultPos = true
+      LabelRotation = None
       Appearance =
           {
             HighlightLabel = false

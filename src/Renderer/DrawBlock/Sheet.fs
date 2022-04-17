@@ -28,6 +28,7 @@ module Constants =
     let wireBoundingBoxSize = 2. // increase to make it easier to select wire segments
     let maxMagnification = 2. // max zoom beyond which it is not worth going
     let zoomIncrement = 1.2 // factor by which zoom is increased or decreased
+    let boxAspectRatio = 2. // aspect ratio required before align or distribute can be done
     
 
 //---------------------------------------Derived constants----------------------------------------//
@@ -210,10 +211,17 @@ let boxPointUnion (box: BoundingBox) (point: XYPos) =
     let pBox = {TopLeft=point; W=0.;H=0.}
     boxUnion box pBox
     
-let symbolToBB (symbol:SymbolT.Symbol) =
+let symbolToBB (centresOnly: bool) (symbol:SymbolT.Symbol) =
     let co = symbol.Component
     let h,w = Symbol.getRotatedHAndW symbol
-    {TopLeft = symbol.Pos; W=co.W; H=co.H}
+    if centresOnly then
+        {TopLeft = symbol.Pos + {X=w/2.; Y=h/2.}; W=0.;H=0.}
+    else
+        {TopLeft = symbol.Pos; W=w; H=h}
+
+let symbolToCentre (symbol:SymbolT.Symbol) =
+    let h,w = Symbol.getRotatedHAndW symbol
+    {TopLeft = symbol.Pos + {X=w/2.; Y = h / 2.}; W=0.1; H=0.1}
 
 /// Returns the smallest BB that contains all segments
 /// of wire.
@@ -224,24 +232,30 @@ let wireToBB (wire:BusWireT.Wire) =
         boxPointUnion box ePos)
 
 
-
+let symbolBBUnion (centresOnly: bool) (symbols: SymbolT.Symbol list) :BoundingBox option =
+    match symbols with
+    | [] -> None
+    | sym :: rest ->
+        (symbolToBB centresOnly sym, rest)
+        ||> List.fold (fun (box:BoundingBox) sym ->
+                if centresOnly then
+                    boxUnion (symbolToBB centresOnly sym) box
+                else
+                    boxUnion box (boxUnion (symbolToBB centresOnly sym) (sym.LabelBoundingBox)))
+        |> Some
     
 
 /// Inputs must also have W,H > 0.
 /// Returns the smallest BB that contains all
 /// symbols, labels, and wire segments
 let symbolWireBBUnion (model:Model) =
-    let symbolBB: BoundingBox option =
-        let symbols =
-            model.Wire.Symbol.Symbols
-            |> Map.toList
-        match symbols with
-        | [] -> None
-        | (_,sym) :: rest ->
-            (symbolToBB sym, rest)
-            ||> List.fold (fun (box:BoundingBox) (_,sym) ->
-                    boxUnion box (boxUnion (symbolToBB sym) (sym.LabelBoundingBox)))
-            |> Some
+    let symbols =
+        model.Wire.Symbol.Symbols
+        |> Helpers.mapValues
+        |> Array.toList
+    let symbolBB =
+        symbols
+        |> symbolBBUnion false
     let wireBB =
         let wiresBBA = 
             model.Wire.Wires

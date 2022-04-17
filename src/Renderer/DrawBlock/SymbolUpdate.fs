@@ -471,6 +471,7 @@ let createSymbol ldcs prevSymbols comp =
                 Pos = xyPos
                 LabelHasDefaultPos = hasDefault
                 LabelBoundingBox = labelBoundingBox
+                LabelRotation = comp.SymbolInfo |> Option.bind (fun info -> info.LabelRotation)
                 Appearance = {
                     HighlightLabel = false
                     ShowInputPorts = false //do not show input ports initially
@@ -802,11 +803,12 @@ let private modifySymbolsByCompIds
         )
 
 /// Obtain all layout info on symbol that needs to be saved.
-/// It is saved in extra SymbolInfo type and corresp filed in Component.
+/// It is saved in extra SymbolInfo type and corresp field in Component.
 let getLayoutInfoFromSymbol symbol =
     { STransform = symbol.STransform
       PortOrientation = symbol.PortMaps.Orientation
       PortOrder = symbol.PortMaps.Order 
+      LabelRotation = symbol.LabelRotation
       LabelBoundingBox = 
         if symbol.LabelHasDefaultPos then 
             None 

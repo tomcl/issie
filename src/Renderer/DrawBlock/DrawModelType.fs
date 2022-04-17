@@ -374,8 +374,6 @@ module SheetT =
         | MouseMsg of MouseT
         | UpdateBoundingBoxes
         | UpdateSingleBoundingBox of ComponentId
-        | UpdateLabelBoundingBoxes
-        | UpdateSingleLabelBoundingBox of ComponentId
         | UpdateScrollPos of X: float * Y: float
         | ManualKeyUp of string // For manual key-press checking, e.g. CtrlC
         | ManualKeyDown of string // For manual key-press checking, e.g. CtrlC
@@ -416,7 +414,6 @@ module SheetT =
         PopupDialogData : PopupDialogData
         BoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
         LastValidBoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
-        LabelBoundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>
         SelectedLabel: CommonTypes.ComponentId option
         SelectedComponents: CommonTypes.ComponentId List
         SelectedWires: CommonTypes.ConnectionId list
@@ -448,11 +445,12 @@ module SheetT =
         PrevWireSelection : ConnectionId list
         }
     
-    open Optics
     open Operators
     let wire_ = Lens.create (fun m -> m.Wire) (fun w m -> {m with Wire = w})
     let selectedComponents_ = Lens.create (fun m -> m.SelectedComponents) (fun sc m -> {m with SelectedComponents = sc})
     let selectedWires_ = Lens.create (fun m -> m.SelectedWires) (fun sw m -> {m with SelectedWires = sw})
+    let boundingBoxes_ = Lens.create (fun m -> m.BoundingBoxes) (fun bb m -> {m with BoundingBoxes = bb})
+
     let wires_ = wire_ >-> BusWireT.wires_
     let symbol_ = wire_ >-> BusWireT.symbol_
     let symbols_ = wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_

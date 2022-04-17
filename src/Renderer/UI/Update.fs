@@ -30,14 +30,22 @@ open Fable.SimpleJson
 let private readUserData (userAppDir: string) (model: Model) : Model * Cmd<Msg> =
     let addAppDirToUserData model = 
         {model with UserData = {model.UserData with UserAppDir = Some userAppDir}}
-    let jsonRes = tryReadFileSync <| pathJoin [|userAppDir;"IssieSettings.json"|]
-    jsonRes
-    |> Result.bind (fun json -> Json.tryParseAs<UserData> json)
-    |> Result.bind (fun (data: UserData) -> Ok {model with UserData = data})
-    |> (function | Ok model -> model | Error _ -> printfn "Error reading user data" ; model)
-    |> addAppDirToUserData 
-    |> userDataToDrawBlockModel
-    , Cmd.none
+
+    let modelOpt =
+        try
+            let jsonRes = tryReadFileSync <| pathJoin [|userAppDir;"IssieSettings.json"|]
+            jsonRes
+            |> Result.bind (fun json -> Json.tryParseAs<UserData> json)
+            |> Result.bind (fun (data: UserData) -> Ok {model with UserData = data})
+            |> (function | Ok model -> model | Error _ -> printfn "Error reading user data" ; model)
+            |> addAppDirToUserData 
+            |> userDataToDrawBlockModel
+            |> Some
+        with
+        | e -> None
+    match modelOpt with
+    | Some model -> model, Cmd.none
+    | None -> addAppDirToUserData model, Cmd.none
 
 let private writeUserData (model:Model) =
     model.UserData.UserAppDir

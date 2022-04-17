@@ -60,6 +60,62 @@ module Constants =
     let labelCorrection = {X= 0.; Y= 0.}
     
     
+//------------------------GET BOUNDING BOXES FUNCS--------------------------------used by sheet.
+
+/// Returns the correct height and width of a transformed symbol
+/// as the tuple (real H, real W).
+/// Needed because H & W in Component do not chnage with rotation.
+/// NB Pos in component = Pos in Symbol and DOES change with rotation!
+let inline getCompRotatedHAndW (comp: Component) (transform: STransform)  =
+    match transform.Rotation with
+    | Degree0 | Degree180 -> comp.H, comp.W
+    | Degree90 | Degree270 -> comp.W, comp.H
+
+/// Returns the correct height and width of a transformed symbol
+/// as the tuple (real H, real W).
+/// Needed because H & W in Component do not chnage with rotation.
+/// NB Pos in component = Pos in Symbol and DOES change with rotation!
+let inline getRotatedHAndW sym  = getCompRotatedHAndW sym.Component sym.STransform
+
+/// returns the true centre of a component's symbol
+let inline getRotatedCompCentre comp transform =
+    // true component BB is (comp.X,comp.Y), h, w
+    let h,w = getCompRotatedHAndW comp transform
+    let centreX = comp.X + w / 2.
+    let centreY = comp.Y + h / 2.
+    {X=centreX;Y=centreY}
+
+/// returns the true centre of a symbol, taking into account
+/// its current rotation
+let inline getRotatedSymbolCentre (symbol:Symbol) =
+    getRotatedCompCentre symbol.Component symbol.STransform
+/// Returns the bounding box of a symbol. It is defined by the height and the width as well as the x,y position of the symbol.
+/// Works with rotation. For a rotated symbol, TopLeft = Pos, and H,W swapped in getrotatedHAndW
+let inline getSymbolBoundingBox (sym:Symbol): BoundingBox =
+    let h,w = getRotatedHAndW sym
+    {TopLeft = sym.Pos; H = float(h) ; W = float(w)}
+
+type Symbol with
+    member this.SymbolBoundingBox = getSymbolBoundingBox this
+
+/// Returns all the bounding boxes of all components in the model
+let getBoundingBoxes (symModel: Model): Map<ComponentId, BoundingBox> =
+    Map.map (fun sId (sym:Symbol) -> (getSymbolBoundingBox sym)) symModel.Symbols
+
+/// Returns bounding box of a component based on component id
+let inline getBoundingBox (symModel: Model) (compid: ComponentId ): BoundingBox = 
+    let symb = Map.find compid symModel.Symbols
+    getSymbolBoundingBox symb
+
+/// Returns the bounding boxes of all symbol labels in the model
+let getLabelBoundingBoxes (model: Model) : Map<ComponentId, BoundingBox> =
+    model.Symbols
+    |> Map.map (fun _ sym -> sym.LabelBoundingBox)
+
+/// Returns the bounding box of the symbol associated with compId
+let getLabelBoundingBox (model: Model) (compId: ComponentId) : BoundingBox =
+    Map.find compId model.Symbols
+    |> (fun sym -> sym.LabelBoundingBox)
 
 
 
@@ -91,27 +147,7 @@ let inline invertRotation (rot: RotationType) =
     | RotateClockwise -> RotateAntiClockwise
     | RotateAntiClockwise -> RotateClockwise
 
-/// Returns the correct height and width of a transformed symbol
-/// as the tuple (real H, real W).
-/// Needed because H & W in Component do not chnage with rotation.
-/// NB Pos in component = Pos in Symbol and DOES change with rotation!
-let inline getCompRotatedHAndW (comp: Component) (transform: STransform)  =
-    match transform.Rotation with
-    | Degree0 | Degree180 -> comp.H, comp.W
-    | Degree90 | Degree270 -> comp.W, comp.H
 
-/// returns the true centre of a component's symbol
-let inline getRotatedCompCentre comp transform =
-    // true component BB is (comp.X,comp.Y), h, w
-    let h,w = getCompRotatedHAndW comp transform
-    let centreX = comp.X + w / 2.
-    let centreY = comp.Y + h / 2.
-    {X=centreX;Y=centreY}
-
-/// returns the true centre of a symbol, taking into account
-/// its current rotation
-let inline getRotatedSymbolCentre (symbol:Symbol) =
-    getRotatedCompCentre symbol.Component symbol.STransform
 
 let inline combineRotation (r1:Rotation) (r2:Rotation) =
     let rot90 rot =
@@ -136,11 +172,7 @@ let inline combineRotation (r1:Rotation) (r2:Rotation) =
     
 
 
-/// Returns the correct height and width of a transformed symbol
-/// as the tuple (real H, real W).
-/// Needed because H & W in Component do not chnage with rotation.
-/// NB Pos in component = Pos in Symbol and DOES change with rotation!
-let inline getRotatedHAndW sym  = getCompRotatedHAndW sym.Component sym.STransform
+
 
 /// Modify port position maps to move an existing Lefthand port (index in the list) to the bottom edge
 let movePortToBottom (portMaps: PortMaps) index =
@@ -1115,31 +1147,6 @@ let view (model : Model) (dispatch : Msg -> unit) =
     |> ofList
     |> TimeHelpers.instrumentInterval "SymbolView" start
 
-//------------------------GET BOUNDING BOXES FUNCS--------------------------------used by sheet.
-/// Returns the bounding box of a symbol. It is defined by the height and the width as well as the x,y position of the symbol.
-/// Works with rotation. For a rotated symbol, TopLeft = Pos, and H,W swapped in getrotatedHAndW
-let inline getSymbolBoundingBox (sym:Symbol): BoundingBox =
-    let h,w = getRotatedHAndW sym
-    {TopLeft = sym.Pos; H = float(h) ; W = float(w)}
-
-/// Returns all the bounding boxes of all components in the model
-let getBoundingBoxes (symModel: Model): Map<ComponentId, BoundingBox> =
-    Map.map (fun sId (sym:Symbol) -> (getSymbolBoundingBox sym)) symModel.Symbols
-
-/// Returns bounding box of a component based on component id
-let inline getBoundingBox (symModel: Model) (compid: ComponentId ): BoundingBox = 
-    let symb = Map.find compid symModel.Symbols
-    getSymbolBoundingBox symb
-
-/// Returns the bounding boxes of all symbol labels in the model
-let getLabelBoundingBoxes (model: Model) : Map<ComponentId, BoundingBox> =
-    model.Symbols
-    |> Map.map (fun _ sym -> sym.LabelBoundingBox)
-
-/// Returns the bounding box of the symbol associated with compId
-let getLabelBoundingBox (model: Model) (compId: ComponentId) : BoundingBox =
-    Map.find compId model.Symbols
-    |> (fun sym -> sym.LabelBoundingBox)
 
 
 //--------------------- GETTING PORTS AND THEIR LOCATIONS INTERFACE FUNCTIONS-------------------------------

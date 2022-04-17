@@ -6,6 +6,7 @@ open DrawHelpers
 open Fable.React
 open Fable.React.Props
 open Elmish
+open Optics
 
 //--------------------------COMMON TYPES------------------------------//
 
@@ -21,13 +22,22 @@ type Snap = {
     SnapPosition: float
     SnapDisplay: float
 }
+let unSnapPostion_ = Lens.create (fun s -> s.UnSnapPosition) (fun u s -> {s with UnSnapPosition = u})
+let snapPostion_ = Lens.create (fun s -> s.SnapPosition) (fun u s -> {s with SnapPosition = u})
+let snapDisplay_ = Lens.create (fun s -> s.SnapDisplay) (fun u s -> {s with SnapDisplay = u})
+
 
 type SnapInfo = {
     SnapData: SnapData array
     SnapOpt: Snap option
     }
 
+let snapData_ = Lens.create (fun inf -> inf.SnapData) (fun s inf -> {inf with SnapData = s})
+let snapOpt_ = Lens.create (fun inf -> inf.SnapOpt) (fun s inf -> {inf with SnapOpt = s})
+
 type SnapXY = {SnapX: SnapInfo; SnapY: SnapInfo}
+let snapX_ = Lens.create (fun xy -> xy.SnapX) (fun s xy -> {xy with SnapX = s})
+let snapY_ = Lens.create (fun xy -> xy.SnapY) (fun s xy -> {xy with SnapY = s})
 
 
 /// ---------- SYMBOL TYPES ----------
@@ -50,6 +60,10 @@ module SymbolT =
             Orientation: Map<string, Edge>
         }
 
+    let order_ = Lens.create (fun a -> a.Order) (fun s a -> {a with Order = s})
+    let orientation_ = Lens.create (fun a -> a.Orientation) (fun s a -> {a with Orientation = s})
+
+
     /// data here changes how the symbol looks but has no other effect
     type AppearanceT =
         {
@@ -59,6 +73,13 @@ module SymbolT =
             Colour: string
             Opacity: float       
         }
+
+    let showInputPorts_ = Lens.create (fun a -> a.ShowInputPorts) (fun s a -> {a with ShowInputPorts = s})
+    let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
+    let highlightLabel_ = Lens.create (fun a -> a.HighlightLabel) (fun s a -> {a with HighlightLabel = s})
+    let colour_ = Lens.create (fun a -> a.Colour) (fun s a -> {a with Colour = s})
+    let opacity_ = Lens.create (fun a -> a.Opacity) (fun s a -> {a with Opacity = s})
+
 
     /// Represents a symbol, that contains a component and all the other information needed to render
     type Symbol =
@@ -92,6 +113,12 @@ module SymbolT =
             MovingPort: Option<{|PortId:string; CurrPos: XYPos|}>
 
         }
+
+    let appearance_ = Lens.create (fun a -> a.Appearance) (fun s a -> {a with Appearance = s})
+    let portMaps_ = Lens.create (fun a -> a.PortMaps) (fun s a -> {a with PortMaps = s})
+
+
+
 
     /// Represents all the symbols and ports on the sheet
     type Model = {
@@ -144,6 +171,10 @@ module SymbolT =
         | SaveSymbols
              //------------------------Sheet interface message----------------------------//
         | UpdateBoundingBoxes
+
+    open Optics
+    let symbols_ = Lens.create (fun m -> m.Symbols) (fun s m -> {m with Symbols = s})
+    let ports_ = Lens.create (fun m -> m.Ports) (fun w m -> {m with Ports = w})
 
 
         //------------------------------------------------------------------------//
@@ -247,6 +278,10 @@ module BusWireT =
         | LoadConnections of list<Connection> // For Issie Integration
         | UpdateConnectedWires of list<ComponentId> // rotate each symbol separately. TODO - rotate as group? Custom comps do not rotate
         | RerouteWire of string
+
+    open Optics
+    let symbol_ = Lens.create (fun m -> m.Symbol) (fun w m -> {m with Symbol = w})
+    let wires_ = Lens.create (fun m -> m.Wires) (fun w m -> {m with Wires = w})
 
 module SheetT =
 
@@ -413,4 +448,15 @@ module SheetT =
         PrevWireSelection : ConnectionId list
         }
     
+    open Optics
+    open Operators
+    let wire_ = Lens.create (fun m -> m.Wire) (fun w m -> {m with Wire = w})
+    let selectedComponents_ = Lens.create (fun m -> m.SelectedComponents) (fun sc m -> {m with SelectedComponents = sc})
+    let selectedWires_ = Lens.create (fun m -> m.SelectedWires) (fun sw m -> {m with SelectedWires = sw})
+    let wires_ = wire_ >-> BusWireT.wires_
+    let symbol_ = wire_ >-> BusWireT.symbol_
+    let symbols_ = wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_
+
+
+
 

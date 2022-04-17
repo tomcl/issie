@@ -4,8 +4,11 @@ open Elmish
 open DrawHelpers
 open CommonTypes
 open System.Text.RegularExpressions
+open DrawModelType
 open DrawModelType.SymbolT
 open Symbol
+open Optics
+open Operators
 
 //--------------------- GENERATING LABEL FUNCTIONS-------------------------------
 
@@ -270,17 +273,13 @@ let copySymbols (model: Model) compIds =
 
     { model with CopiedSymbols = copiedSymbols }
 
-let inline changeSymbolAppearance ( sym:Symbol) (change: AppearanceT -> AppearanceT) =
-    let app = sym.Appearance
-    {sym with Appearance = change app}
 
-let inline changeSymbolColour (sym:Symbol) (color: string) =
-    changeSymbolAppearance sym (fun app -> {app with Colour = color})
+
 
 /// Given a model it shows all input ports and hides all output ports, then returns the updated model
 let inline showAllInputPorts (model: Model) =
     let showSymbolInPorts _ sym = 
-        changeSymbolAppearance sym (fun app -> {app with ShowInputPorts = true; ShowOutputPorts = false})
+        Optic.map appearance_ (fun app -> {app with ShowInputPorts = true; ShowOutputPorts = false}) sym 
 
     let newSymbols = 
         model.Symbols
@@ -291,7 +290,7 @@ let inline showAllInputPorts (model: Model) =
 /// Given a model it shows all output ports and hides all input ports, then returns the updated model
 let inline showAllOutputPorts (model: Model) =
     let showSymbolOutPorts _ sym = 
-        changeSymbolAppearance sym (fun app -> {app with ShowInputPorts = false; ShowOutputPorts = true})
+        Optic.map appearance_ (fun app -> {app with ShowInputPorts = false; ShowOutputPorts = true}) sym
 
     let newSymbols = 
         model.Symbols
@@ -302,7 +301,7 @@ let inline showAllOutputPorts (model: Model) =
 /// Given a model it hides all ports and returns the updated model
 let inline deleteAllPorts (model: Model) =
     let hideSymbolPorts _ sym = 
-        changeSymbolAppearance sym (fun app -> {app with ShowInputPorts = false; ShowOutputPorts = false})
+        Optic.map appearance_ (fun app -> {app with ShowInputPorts = false; ShowOutputPorts = false}) sym
 
     let updatedSymbols = 
         model.Symbols
@@ -313,10 +312,10 @@ let inline deleteAllPorts (model: Model) =
 /// Given a model it shows all the specified components' ports and hides all the other ones
 let inline showPorts (model: Model) compList =
     let hideSymbolPorts _ sym =
-        changeSymbolAppearance sym (fun app -> {app with ShowInputPorts = false; ShowOutputPorts = false})
+        Optic.map appearance_ (fun app -> {app with ShowInputPorts = false; ShowOutputPorts = false}) sym
 
     let showSymbolPorts sym =
-        changeSymbolAppearance sym (fun app -> {app with ShowInputPorts = true; ShowOutputPorts = true})
+        Optic.map appearance_ (fun app -> {app with ShowInputPorts = true; ShowOutputPorts = true}) sym
 
     let resetSymbols = 
         model.Symbols
@@ -368,10 +367,10 @@ let moveSymbols (model:Model) (compList: ComponentId list) (offset: XYPos)=
 let inline symbolsHaveError model compList =
     let resetSymbols = 
         model.Symbols
-        |> Map.map (fun _ sym -> changeSymbolColour sym "lightgray")
+        |> Map.map (fun _ sym -> Optic.set (appearance_ >-> colour_) "lightgray" sym)
 
     let setSymColorToRed prevSymbols sId =
-        Map.add sId (changeSymbolColour resetSymbols[sId] "Red") prevSymbols
+        Map.add sId (Optic.set (appearance_ >-> colour_)  "Red" resetSymbols[sId]) prevSymbols
 
     let newSymbols =
         (resetSymbols, compList)
@@ -383,10 +382,10 @@ let inline selectSymbols model compList =
     let resetSymbols = 
         model.Symbols
         |> Map.map (fun _ sym -> 
-            changeSymbolAppearance sym  (fun app -> {app with  Colour= "lightgray"; Opacity = 1.0 }))
+            Optic.map appearance_ (Optic.set colour_ "lightgray" >> Optic.set opacity_ 1.0 ) sym)
 
     let updateSymbolColour prevSymbols sId =
-        Map.add sId (changeSymbolColour resetSymbols[sId] "lightgreen") prevSymbols
+        Map.add sId (Optic.set (appearance_ >-> colour_)  "lightgreen" resetSymbols[sId]) prevSymbols
     
     let newSymbols =
         (resetSymbols, compList)
@@ -399,20 +398,20 @@ let inline errorSymbols model (errorCompList,selectCompList,isDragAndDrop) =
     let resetSymbols = 
         model.Symbols
         |> Map.map 
-            (fun _ sym ->  changeSymbolAppearance sym (fun app -> {app with Colour ="lightgray"; Opacity = 1.0 }))
+            (fun _ sym ->  Optic.map appearance_ (Optic.set colour_ "lightgray" >> Optic.set opacity_ 1.0) sym)
             
     let updateSymbolStyle prevSymbols sId =
         if not isDragAndDrop then 
-            Map.add sId (changeSymbolColour resetSymbols[sId] "lightgreen") prevSymbols
+            Map.add sId (Optic.set (appearance_ >-> colour_) "lightgreen" resetSymbols[sId]) prevSymbols
         else 
-            Map.add sId (changeSymbolAppearance resetSymbols[sId] (fun app -> {app with Opacity = 0.2})) prevSymbols
+            Map.add sId (Optic.set (appearance_ >-> opacity_) 0.2 resetSymbols[sId]) prevSymbols
 
     let selectSymbols =
         (resetSymbols, selectCompList)
         ||> List.fold updateSymbolStyle 
 
     let setSymColourToRed prevSymbols sId =
-        Map.add sId (changeSymbolColour resetSymbols[sId] "Red") prevSymbols
+        Map.add sId (Optic.set (appearance_ >-> colour_) "Red" resetSymbols[sId]) prevSymbols
 
     let newSymbols = 
         (selectSymbols, errorCompList)
@@ -434,7 +433,7 @@ let inline changeLabel (model: Model) sId newLabel=
 /// Given a model, a component id list and a color, updates the color of the specified symbols and returns the updated model.
 let inline colorSymbols (model: Model) compList colour =
     let changeSymColour (prevSymbols: Map<ComponentId, Symbol>) (sId: ComponentId) =
-        let newSymbol = changeSymbolColour prevSymbols[sId] (string colour)
+        let newSymbol = Optic.set (appearance_ >-> colour_) (string colour) prevSymbols[sId] 
         prevSymbols |> Map.add sId newSymbol
 
     let newSymbols =
@@ -880,7 +879,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let newSymbols =
             (model.Symbols, compList)
             ||> List.fold (fun prevSymbols sId -> 
-                Map.add sId (changeSymbolAppearance model.Symbols[sId] (fun app -> {app with Opacity = 0.4})) prevSymbols) 
+                Map.add sId (Optic.set (appearance_ >-> opacity_) 0.4 model.Symbols[sId]) prevSymbols) 
         { model with Symbols = newSymbols }, Cmd.none  
     
     | ColorSymbols (compList, colour) -> 

@@ -75,9 +75,12 @@ let alignPosition (symbols: Symbol list) (isX: bool) =
     |> (fun lst -> 
         let av = List.sum lst / float lst.Length
         List.zip lst symbols 
-        |> List.map (fun (c,sym) -> 
+        |> List.collect (fun (c,sym) -> 
             let offset = av - c
-            MoveSymbols([sym.Id], injectXY isX offset {X=0;Y=0})))
+            [
+                Symbol <| MoveSymbols([sym.Id], injectXY isX offset {X=0;Y=0})
+                BusWireT.UpdateSymbolWires sym.Id
+            ]))
 
 let distributePosition (symbols: Symbol list) (isX: bool) =
     symbols
@@ -88,7 +91,12 @@ let distributePosition (symbols: Symbol list) (isX: bool) =
             List.zip lst symbols
             |> List.sortBy fst
             |> List.mapi (fun i (f,sym) -> 
-                MoveSymbols ([sym.Id], injectXY isX (minF + (float i)*incr - f ) {X=0;Y=0})))
+                let offset = injectXY isX (minF + (float i)*incr - f ) {X=0;Y=0}
+                [
+                    Symbol <| MoveSymbols ([sym.Id], offset)
+                    BusWireT.UpdateSymbolWires sym.Id
+                ])
+            |> List.concat)
 
 let arrangeSymbols (arrange: Arrange) (model:Model) : Model * Cmd<Msg> =
     let syms, result =
@@ -102,15 +110,18 @@ let arrangeSymbols (arrange: Arrange) (model:Model) : Model * Cmd<Msg> =
     | Error _mess -> 
         {model with SelectedComponents = newSelected}, Cmd.none
     | Ok orientation ->
-        let postludeCmds = [ Cmd.ofMsg UpdateBoundingBoxes; Cmd.ofMsg UpdateLabelBoundingBoxes]
+        let postludeCmds = [ 
+            Cmd.ofMsg UpdateBoundingBoxes; 
+            Cmd.ofMsg UpdateLabelBoundingBoxes
+            ]
         let cmds =
             match arrange with
             | AlignSymbols -> 
                 alignPosition syms (orientation = Vertical)
             | DistributeSymbols -> 
                 distributePosition syms (orientation = Horizontal) 
-            |> List.map (Msg.Symbol >> Msg.Wire >> Cmd.ofMsg)
-        Optic.set selectedComponents_ newSelected model, Cmd.batch (cmds @ postludeCmds)   
+            |> List.map (Wire >> Cmd.ofMsg)
+        Optic.set selectedComponents_ newSelected model, (Cmd.batch (cmds @ postludeCmds))
 
 /// Update function to move symbols in model.SelectedComponents
 let moveSymbols (model: Model) (mMsg: MouseT) =

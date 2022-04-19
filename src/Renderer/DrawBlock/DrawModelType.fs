@@ -42,6 +42,7 @@ let snapY_ = Lens.create (fun xy -> xy.SnapY) (fun s xy -> {xy with SnapY = s})
 
 /// ---------- SYMBOL TYPES ----------
 module SymbolT =
+    open Optics.Operators
 
     /// Represents the orientation of a wire segment or symbol flip
     type FlipType =  FlipHorizontal | FlipVertical
@@ -116,6 +117,7 @@ module SymbolT =
     let appearance_ = Lens.create (fun a -> a.Appearance) (fun s a -> {a with Appearance = s})
     let portMaps_ = Lens.create (fun a -> a.PortMaps) (fun s a -> {a with PortMaps = s})
     let movingPort_ = Lens.create (fun a -> a.MovingPort) (fun s a -> {a with MovingPort = s})
+    let component_ = Lens.create (fun a -> a.Component) (fun s a -> {a with Component = s})
 
 
     /// Represents all the symbols and ports on the sheet
@@ -170,9 +172,10 @@ module SymbolT =
              //------------------------Sheet interface message----------------------------//
         | UpdateBoundingBoxes
 
-    open Optics
+    
     let symbols_ = Lens.create (fun m -> m.Symbols) (fun s m -> {m with Symbols = s})
     let ports_ = Lens.create (fun m -> m.Ports) (fun w m -> {m with Ports = w})
+    let symbolOf_ k = symbols_ >-> Map.valueForce_ "What? Symbol id lookup in model failed" k
 
 
         //------------------------------------------------------------------------//
@@ -231,6 +234,8 @@ module BusWireT =
             StartPos : XYPos
             InitialOrientation : Orientation
         }
+
+    let segments_ = Lens.create (fun m -> m.Segments) (fun s m -> {m with Segments = s})
    
     
     /// Defines offsets used to render wire width text
@@ -278,8 +283,11 @@ module BusWireT =
         | RerouteWire of string
 
     open Optics
+    open Operators
     let symbol_ = Lens.create (fun m -> m.Symbol) (fun w m -> {m with Symbol = w})
     let wires_ = Lens.create (fun m -> m.Wires) (fun w m -> {m with Wires = w})
+    let wireOf_ k = wires_ >-> Map.valueForce_ "What? Symbol id lookup in model failed" k
+    let symbolOf_ k = symbol_ >-> SymbolT.symbolOf_ k
 
 module SheetT =
 
@@ -452,6 +460,7 @@ module SheetT =
     let wires_ = wire_ >-> BusWireT.wires_
     let symbol_ = wire_ >-> BusWireT.symbol_
     let symbols_ = wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_
+    let symbolOf_ k = symbol_ >-> SymbolT.symbolOf_ k
 
 
 

@@ -293,18 +293,26 @@ module Optics =
     module Map =
 
         /// Prism to a value associated with a key in a map.
-        let key_ (k: 'k) : Prism<Map<'k,'v>,'v> =
+        let inline key_ (k: 'k) : Prism<Map<'k,'v>,'v> =
             Map.tryFind k,
             (fun v x ->
                 if Map.containsKey k x then Map.add k v x else x)
 
         /// Lens to a value option associated with a key in a map.
-        let value_ (k: 'k) : Lens<Map<'k,'v>, 'v option> =
+        let inline value_ (k: 'k) : Lens<Map<'k,'v>, 'v option> =
             Map.tryFind k,
             (fun v x ->
                 match v with
                 | Some v -> Map.add k v x
                 | _ -> Map.remove k x)
+
+        /// Unsafe lens to a value associated with a key in a map.
+        /// Use only when maps are known to be complete
+        let inline valueForce_ (getFailErrorMessage:string) (k: 'k) : Lens<Map<'k,'v>, 'v> =
+            ((Map.tryFind k)
+            >> function | Some v -> v
+                        | None -> failwithf "%s" getFailErrorMessage),
+            (fun v x -> Map.add k v x)
 
         /// Weak Isomorphism to an array of key-value pairs.
         let array_ : Isomorphism<Map<'k,'v>, ('k * 'v)[]> =

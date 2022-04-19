@@ -738,13 +738,13 @@ let viewTruthTable model dispatch =
                 match table.DCMap with
                 | None -> 
                     div [] [
-                        (Button.button [Button.OnClick (fun _ -> startReducing()); Button.Color IsSuccess] 
+                        (Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> startReducing())] 
                         [str "Reduce"])
                         br []; br []
                         viewTruthTableData table Filtered]
                 | Some dc -> 
                     div [] [
-                        (Button.button [Button.OnClick (fun _ -> dispatch ClearDCMap); Button.Color IsWarning] 
+                        (Button.button [Button.Color IsInfo; Button.OnClick (fun _ -> dispatch ClearDCMap)] 
                         [str "Back to Full Table"])
                         br []; br []
                         viewTruthTableData table DCReduced
@@ -762,8 +762,8 @@ let viewTruthTable model dispatch =
                 makeMenuGroup false "Filter" [constraints; br [] ; hr []]
                 makeMenuGroup false "Hide/Un-hide Columns" [hidden; br []; hr []]
                 makeMenuGroup true "Truth Table" [body; br []; hr []]
-            ]    
-
+            ]
+    
         div [] [
             Button.button
                 [ Button.Color IsDanger; Button.OnClick closeTruthTable ]

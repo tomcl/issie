@@ -296,6 +296,8 @@ type Msg =
     | DeleteInputConstraint of Constraint
     | DeleteOutputConstraint of Constraint
     | ToggleHideTTColumn of CellIO
+    | ClearHiddenTTColumns
+    | ClearDCMap
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list

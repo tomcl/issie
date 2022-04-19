@@ -6,6 +6,8 @@ open DrawHelpers
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT
 open BusWire
+open Optics
+open Operators
 
 /// Initialises an empty BusWire Model
 let init () = 
@@ -345,12 +347,10 @@ let coalesceInWire (wId: ConnectionId) (model:Model) =
         |> makeEndsDraggable
 
     //printfn $"After coalesce, seg lengths: {newSegments |> List.map (fun seg -> seg.Length)}"
-
-    let newWire = {wire with Segments = newSegments}
-    {model with Wires = Map.add wId newWire model.Wires}
+    Optic.set (wireOf_ wId >-> segments_) newSegments model
 
 
-/// Returns a wire containing the updated list of segments after a segment is moved by 
+/// Returns a wwireOf_aining the updated list of segments after a segment is moved by 
 /// a specified distance. The moved segment is tagged as manual so that it is no longer auto-routed.
 /// Throws an error if the index of the segment being moved is not a valid movable segment index.
 let moveSegment (model:Model) (seg:Segment) (distance:float) = 
@@ -966,8 +966,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
             }
             |> autoroute model
         
-        let wireAddedMap = Map.add newWire.WId newWire model.Wires
-        let newModel = updateWireSegmentJumps [wireId] {model with Wires = wireAddedMap}
+        let newModel = updateWireSegmentJumps [wireId] (Optic.set (wireOf_ newWire.WId) newWire model)
         
         newModel, Cmd.ofMsg BusWidths
     
@@ -1108,7 +1107,7 @@ let update (msg : Msg) (model : Model) : Model*Cmd<Msg> =
 
                     { model with Wires = newWires }, Cmd.none
                 else
-                    printfn "Can't movre undraggable"
+                    printfn "Can't move undraggable"
                     model, Cmd.none
 
         | _ -> model, Cmd.none

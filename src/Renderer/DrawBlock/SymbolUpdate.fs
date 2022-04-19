@@ -427,9 +427,8 @@ let inline changeLabel (model: Model) sId newLabel=
     let newSym = 
         { oldSym with Component = newComp; LabelHasDefaultPos = true}
         |> calcLabelBoundingBox
-    { model with 
-        Symbols = Map.add sId newSym model.Symbols; 
-        }
+    Optic.set (symbolOf_ sId) newSym model
+
 
 /// Given a model, a component id list and a color, updates the color of the specified symbols and returns the updated model.
 let inline colorSymbols (model: Model) compList colour =
@@ -541,9 +540,7 @@ let inline writeMemoryType model compId memory =
     
     let newComp = { comp with Type = newCompType }
     
-    let newSymbols = Map.add compId { symbol with Component = newComp } model.Symbols
-    
-    { model with Symbols = newSymbols }
+    Optic.set (symbolOf_ compId >-> component_) newComp model
 
 let rotateSide (rotation: RotationType) (side:Edge) :Edge =
     match rotation, side with
@@ -875,8 +872,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         (moveSymbols model compList move), Cmd.none
 
     | MoveLabel (compId, move) ->
-         let newSym = model.Symbols[compId] |> moveLabel move
-         {model with Symbols = Map.add compId newSym model.Symbols}, Cmd.none
+         Optic.map (symbolOf_ compId) (moveLabel move) model, Cmd.none
 
     | SymbolsHaveError compList ->
         (symbolsHaveError model compList), Cmd.none
@@ -934,17 +930,19 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     | MovePort (portId, pos) ->
         let port = model.Ports[portId]
-        let oldSymbol = model.Symbols[ComponentId port.HostId]
+        let symId = ComponentId port.HostId
+        let oldSymbol = model.Symbols[symId]
         match oldSymbol.Component.Type with
         | Custom _ -> 
             let newSymbol = {oldSymbol with MovingPort = Some {|PortId = portId; CurrPos = pos|}}
-            {model with Symbols = Map.add newSymbol.Id newSymbol model.Symbols}, Cmd.none
+            Optic.set (symbolOf_ symId) newSymbol model, Cmd.none
         | _ -> model, Cmd.none
     | MovePortDone (portId, pos)->
         let port = model.Ports[portId]
-        let oldSymbol = model.Symbols[ComponentId port.HostId]
+        let symId = ComponentId port.HostId
+        let oldSymbol = model.Symbols[symId]
         let newSymbol = updatePortPos oldSymbol pos portId
-        {model with Symbols = Map.add newSymbol.Id newSymbol model.Symbols}, Cmd.ofMsg (unbox UpdateBoundingBoxes)
+        Optic.set (symbolOf_ symId) newSymbol model, Cmd.ofMsg (unbox UpdateBoundingBoxes)
     | SaveSymbols -> // want to add this message later, currently not used
         let newSymbols = Map.map storeLayoutInfoInComponent model.Symbols
         { model with Symbols = newSymbols }, Cmd.none

@@ -774,3 +774,6 @@ let viewInfoPopup dispatch =
     let foot _ = div [] []
     dynamicClosablePopup title body foot [Width 800] dispatch
 
+
+
+

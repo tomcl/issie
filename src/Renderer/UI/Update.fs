@@ -390,6 +390,10 @@ let update (msg : Msg) oldModel =
     | UpdateProjectWithoutSyncing update -> 
         CustomCompPorts.updateProjectFiles false update model,Cmd.none
     | ShowPopup popup -> { model with PopupViewFunc = Some popup }, Cmd.none
+    | ShowStaticInfoPopup(title, body, dispatch) ->
+        let foot = div [] []
+        PopupView.closablePopup title body foot [Width 800] dispatch
+        model, Cmd.none
     | ClosePopup ->
         let model' =
             match getSheetWaveSimOpt model, model.PopupDialogData.WaveSetup with

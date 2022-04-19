@@ -475,7 +475,21 @@ let filterTruthTable model (dispatch: Msg -> Unit) =
         |> Ok
         |> GenerateTruthTable
         |> dispatch
-        
+
+let makeOnOffToggle state changeAction onText offText =
+    Level.item [ Level.Item.HasTextCentered ] [
+        Field.div [ Field.HasAddonsCentered ] [
+            Control.div [] [ Button.button [
+                Button.Color (if state = true then IsSuccess else NoColor)
+                Button.OnClick (if state = false then changeAction else (fun _ -> ()))
+            ] [ str onText ] ]
+            Control.div [] [ Button.button [
+                Button.Color (if state = false then IsDanger else NoColor)
+                Button.OnClick (if state = true then changeAction else (fun _ -> ()))
+            ] [ str offText ] ]
+        ]
+    ]
+
 let private makeMenuGroup openDefault title menuList =
     details [Open openDefault] [
         summary [menuLabelStyle] [ str title ]
@@ -504,19 +518,14 @@ let viewCellAsHeading (cell: TruthTableCell) =
         th [] [headingEl]
 
 let viewOutputHider table hidden dispatch =
-    let makeCheckboxRow io =
+    let makeToggleRow io =
         let isChecked = not <| List.contains io hidden
-        let box =
-            input [ 
-                Type "checkbox"
-                Class "check"
-                Checked <| isChecked
-                Style [ Float FloatOptions.Left ]
-                OnChange (fun _ -> 
-                    dispatch <| ToggleHideTTColumn io
-                    HideColumn |> Some |> SetTTOutOfDate |> dispatch) ]
+        let changeAction = (fun _ -> 
+            dispatch <| ToggleHideTTColumn io
+            HideColumn |> Some |> SetTTOutOfDate |> dispatch)
+        let toggle = makeOnOffToggle isChecked changeAction "Visible" "Hidden"
         let ioLabel = str io.getLabel
-        makeElementLine [ioLabel;box]
+        makeElementLine [ioLabel;toggle]
     if table.FilteredMap.IsEmpty then
         div [] [str "No Rows in Truth Table"]
     else
@@ -527,13 +536,13 @@ let viewOutputHider table hidden dispatch =
                 with that column."]
             br []; br []
         ]
-        let checkboxRows =
+        let toggleRows =
             table.TableMap
             |> Map.toList
             |> List.head
             |> snd
-            |> List.map (fun cell -> makeCheckboxRow cell.IO)
-        div [] (preamble::checkboxRows)
+            |> List.map (fun cell -> makeToggleRow cell.IO)
+        div [] (preamble::toggleRows)
 
 let viewCellAsData (cell: TruthTableCell) =
     match cell.Data with 
@@ -577,7 +586,7 @@ let viewTruthTableError simError =
     
 let viewTruthTableData (table: TruthTable) (mapType: MapToUse) =
     let tMap = table.getMap mapType
-    if tMap.IsEmpty then // Should never be matched
+    if tMap.IsEmpty then
         div [] [str "No Rows in Truth Table"]
     else
         let TTasList = tableAsList tMap
@@ -603,25 +612,12 @@ let viewTruthTableData (table: TruthTable) (mapType: MapToUse) =
                 ]
         ]
 
-let viewDCReducer (table: TruthTable) inputConstraints bitLimit dispatch =
-    let startReducing () =
-        reduceTruthTable inputConstraints table bitLimit
-        |> Ok
-        |> GenerateTruthTable
-        |> dispatch
-
-    match table.DCMap with
-    | None ->
-        Button.button [Button.OnClick (fun _ -> startReducing())] 
-            [str "Reduce"]
-    | Some m ->
-        viewTruthTableData table DCReduced
-
 let viewTruthTable model dispatch =
     // Truth Table Generation for selected components requires all components to have distinct labels.
-    // Older Issie versions did not have labels fro MergeWires and SplitWire components.
+    // Older Issie versions did not have labels for MergeWires and SplitWire components.
     // This step is needed for backwards compatability with older projects.
     updateMergeSplitWireLabels model dispatch
+
     let generateTruthTable simRes =
         match simRes with 
         | Some (Ok sd,_) -> 
@@ -726,13 +722,33 @@ let viewTruthTable model dispatch =
         | None -> ()
 
         let closeTruthTable _ =
-            dispatch <| ClearInputConstraints
-            dispatch <| ClearOutputConstraints
+            dispatch ClearInputConstraints
+            dispatch ClearOutputConstraints
+            dispatch ClearHiddenTTColumns
             dispatch CloseTruthTable
         let body = 
             match tableopt with
             | Error e -> viewTruthTableError e
-            | Ok table -> viewTruthTableData table Filtered
+            | Ok table -> 
+                let startReducing () =
+                    reduceTruthTable model.TTInputConstraints table model.TTBitLimit
+                    |> Ok
+                    |> GenerateTruthTable
+                    |> dispatch
+                match table.DCMap with
+                | None -> 
+                    div [] [
+                        (Button.button [Button.OnClick (fun _ -> startReducing()); Button.Color IsSuccess] 
+                        [str "Reduce"])
+                        br []; br []
+                        viewTruthTableData table Filtered]
+                | Some dc -> 
+                    div [] [
+                        (Button.button [Button.OnClick (fun _ -> dispatch ClearDCMap); Button.Color IsWarning] 
+                        [str "Back to Full Table"])
+                        br []; br []
+                        viewTruthTableData table DCReduced
+                    ]
         let constraints =
             match tableopt with
             | Error _ -> div [] []
@@ -741,16 +757,10 @@ let viewTruthTable model dispatch =
             match tableopt with
             | Error _ -> div [] []
             | Ok table -> div [] [viewOutputHider table model.TTHiddenColumns dispatch]
-        let dcr =
-            match tableopt with
-            | Error _ -> div [] []
-            | Ok table -> viewDCReducer table model.TTInputConstraints model.TTBitLimit dispatch
-
         let menu = 
             Menu.menu []  [
                 makeMenuGroup false "Filter" [constraints; br [] ; hr []]
                 makeMenuGroup false "Hide/Un-hide Columns" [hidden; br []; hr []]
-                makeMenuGroup false "Don't Care Reduction" [dcr; br []; hr []]
                 makeMenuGroup true "Truth Table" [body; br []; hr []]
             ]    
 

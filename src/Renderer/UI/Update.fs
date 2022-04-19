@@ -376,7 +376,21 @@ let update (msg : Msg) oldModel =
             {model with 
                 TTHiddenColumns = io::model.TTHiddenColumns
                 TTOutputConstraints = model.TTOutputConstraints.withoutIO io}, Cmd.none
-
+    | ClearHiddenTTColumns -> 
+        {model with TTHiddenColumns = []}, Cmd.none
+    | ClearDCMap ->
+        let newTT = 
+            match model.CurrentTruthTable with
+            | None -> None
+            | Some tableopt ->
+                match tableopt with
+                | Error _ -> failwithf "what? Trying to clear DC Map in TT with error"
+                | Ok table ->
+                    {table with DCMap = None}
+                    |> Ok
+                    |> Some
+        {model with CurrentTruthTable = newTT}, Cmd.none
+        
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg

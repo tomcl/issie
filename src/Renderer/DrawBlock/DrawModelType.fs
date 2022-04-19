@@ -63,7 +63,6 @@ module SymbolT =
     let order_ = Lens.create (fun a -> a.Order) (fun s a -> {a with Order = s})
     let orientation_ = Lens.create (fun a -> a.Orientation) (fun s a -> {a with Orientation = s})
 
-
     /// data here changes how the symbol looks but has no other effect
     type AppearanceT =
         {
@@ -71,7 +70,7 @@ module SymbolT =
             ShowOutputPorts: bool
             HighlightLabel: bool
             Colour: string
-            Opacity: float       
+            Opacity: float  
         }
 
     let showInputPorts_ = Lens.create (fun a -> a.ShowInputPorts) (fun s a -> {a with ShowInputPorts = s})
@@ -116,8 +115,7 @@ module SymbolT =
 
     let appearance_ = Lens.create (fun a -> a.Appearance) (fun s a -> {a with Appearance = s})
     let portMaps_ = Lens.create (fun a -> a.PortMaps) (fun s a -> {a with PortMaps = s})
-
-
+    let movingPort_ = Lens.create (fun a -> a.MovingPort) (fun s a -> {a with MovingPort = s})
 
 
     /// Represents all the symbols and ports on the sheet

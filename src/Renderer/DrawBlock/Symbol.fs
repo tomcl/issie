@@ -838,7 +838,12 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
 
 
 
-let drawSymbol (symbol:Symbol) (colour:string) (showInputPorts:bool) (showOutputPorts:bool) (opacity: float) = 
+let drawSymbol (symbol:Symbol) =
+    let appear = symbol.Appearance
+    let colour = appear.Colour
+    let showInputPorts = appear.ShowInputPorts
+    let showOutputPorts = appear.ShowOutputPorts
+    let opacity = appear.Opacity
     let comp = symbol.Component
     let h,w = getRotatedHAndW symbol
     let H = float comp.H
@@ -1101,7 +1106,7 @@ let private renderSymbol =
             let ({X=fX; Y=fY}:XYPos) = symbol.Pos
             let appear = symbol.Appearance
             g ([ Style [ Transform(sprintf $"translate({fX}px, {fY}px)") ] ]) 
-                (drawSymbol props.Symbol appear.Colour appear.ShowInputPorts appear.ShowOutputPorts appear.Opacity)
+                (drawSymbol props.Symbol)
             
         , "Symbol"
         , equalsButFunctions

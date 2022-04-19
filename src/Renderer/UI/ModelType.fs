@@ -285,6 +285,7 @@ type Msg =
     | UpdateProject of (Project -> Project)
     | UpdateProjectWithoutSyncing of (Project->Project)
     | ShowPopup of ((Msg -> Unit) -> PopupDialogData -> ReactElement)
+    | ShowStaticInfoPopup of (string * ReactElement * (Msg -> Unit))
     | ClosePopup
     | SetPopupDialogText of string option
     | SetPopupDialogInt of int option

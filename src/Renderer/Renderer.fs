@@ -179,8 +179,8 @@ let viewMenu dispatch =
 // Use Elmish subscriptions to attach external source of events such as keyboard
 // shortcuts. According to electron documentation, the way to configure keyboard
 // shortcuts is by creating a menu.
-let editMenu dispatch =
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+let editMenu dispatch' =
+    let sheetDispatch sMsg = dispatch' (Sheet sMsg)
     let dispatch = SheetT.KeyPress >> sheetDispatch
     let rotateDispatch = SheetT.Rotate >> sheetDispatch
 
@@ -197,6 +197,8 @@ let editMenu dispatch =
                makeElmItem "Rotate Clockwise" "CmdOrCtrl+Right" (fun () -> rotateDispatch SymbolT.RotateClockwise)
                makeElmItem "Flip Vertically" "CmdOrCtrl+Up" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipVertical)
                makeElmItem "Flip Horizontally" "CmdOrCtrl+Down" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipHorizontal)
+               makeItem "Move Component Ports" None (fun _ -> 
+                    dispatch' <| ShowStaticInfoPopup("How to move component Ports", SymbolUpdate.moveCustomPortsPopup(), dispatch'))
                menuSeparator
                makeElmItem "Align" "CmdOrCtrl+Shift+A"  (fun ev -> sheetDispatch <| SheetT.Arrangement SheetT.AlignSymbols)
                makeElmItem "Distribute" "CmdOrCtrl+Shift+D" (fun ev-> sheetDispatch <| SheetT.Arrangement SheetT.DistributeSymbols)

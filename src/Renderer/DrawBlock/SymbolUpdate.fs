@@ -3,6 +3,7 @@
 open Elmish
 open DrawHelpers
 open CommonTypes
+open Fable.React
 open System.Text.RegularExpressions
 open DrawModelType
 open DrawModelType.SymbolT
@@ -64,8 +65,8 @@ let initCopiedPorts (oldSymbol:Symbol) (newComp: Component): PortMaps =
             (fun currMap oldPortId edge -> Map.add equivPortIds[oldPortId] edge currMap)
 
     let emptyPortOrder = 
-        (Map.empty, [Top; Bottom; Left; Right])
-        ||> List.fold (fun currMap side -> Map.add side [] currMap)
+        (Map.empty, [Edge.Top; Edge.Bottom; Edge.Left; Edge.Right])
+        ||> List.fold (fun currMap edge -> Map.add edge [] currMap)
     let portOrder =
         (emptyPortOrder, oldSymbol.PortMaps.Order)
         ||> Map.fold 
@@ -683,6 +684,22 @@ let rectanglesIntersect (rect1: Rectangle) (rect2: Rectangle) =
         qLo <= qHi
 
     (intersect1D getX) && (intersect1D getY)
+
+let moveCustomPortsPopup() : ReactElement =
+    div [] [
+        str "Normal components can be rotated and flipped to change port orientation, \
+              however port positions cannot be changed."
+        br []
+        str "Custom components (sheets inserted as components) can have ports moved \
+              to any side of the symbol and reordered."
+        br []
+        str "To move custom component ports press CTRL and use a mouse to drag \
+              a port to another position on the outline of the symbol. \
+              You can reorder ports and place them on any symbol edge including top and bottom."
+        br []
+        str "Note that the symbol will resize itself if you change the edge of a port"
+
+    ]
 
 /// Returns an Option Edge. Returns Some edge if position is on edge of Symbol, and None if it was not on an edge
 let getCloseByEdge (sym:Symbol) (pos:XYPos) : Option<Edge> =

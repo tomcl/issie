@@ -12,8 +12,6 @@ open CommonTypes
         open Fable.SimpleJson
         open LegacyCanvas
 
-
-
         type SavedInfo =
             | CanvasOnly of LegacyCanvasState
             | CanvasWithFileWaveInfo of LegacyCanvasState * SavedWaveInfo option * System.DateTime
@@ -41,9 +39,6 @@ open CommonTypes
                 | CanvasWithFileWaveInfoAndNewConns (_,waveInfo,_) -> waveInfo
                 | NewCanvasWithFileWaveInfoAndNewConns (_,waveInfo,_) -> waveInfo
 
-
-
-
         let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option) : string =
             let time = System.DateTime.Now
             //printfn "%A" cState
@@ -53,7 +48,6 @@ open CommonTypes
             | e -> 
                 printfn "HELP: exception in SimpleJson.stringify %A" e
                 "Error in stringify"
-        
 
         let jsonStringToState (jsonString : string) =
              Json.tryParseAs<LegacyCanvasState> jsonString
@@ -65,8 +59,6 @@ open CommonTypes
                         | Error str -> 
                             printfn "Error in Json parse of %s : %s" jsonString str
                             Error str)
-
-
 
 (*-----------------------------------General helpers-----------------------------------------*)
 

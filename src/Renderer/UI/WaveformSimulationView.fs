@@ -115,7 +115,7 @@ let maxUsedViewerWidth (wSMod: WaveSimModel) =
 ///////////////////////
 
 /// change selection of a waveform's connections
-let private changeWaveConnsSelect  (selFun: WaveformSpec -> bool) (model:Model) (wSModel: WaveSimModel) name (dispatch: Msg -> unit) =
+let private changeWaveConnsSelect (selFun: WaveformSpec -> bool) (model:Model) (wSModel: WaveSimModel) name (dispatch: Msg -> unit) =
     let wave =  wSModel.AllWaves[name] 
     let on = selFun wave
     match wave.WType with
@@ -708,19 +708,19 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
     let startingWsModel =
         let modelWithWaveSimSheet = {model with WaveSimSheet = Option.get (getCurrFile model)}
         let wsModel = getWSModelOrFail modelWithWaveSimSheet "What? Can't get wsModel at start of new simulation"
-        let okCompNum = (Set.intersect compIds (simData.Graph |> mapKeys |> Set)).Count
-        let simCompNum = simData.Graph.Count (*
-        printfn 
-            "DEBUG: sheet=%s, modelSheet=%s, okNum = %d, wavesim num = %d drawNum=%d"
-            modelWithWaveSimSheet.WaveSimSheet 
-            model.WaveSimSheet
-            okCompNum
-            simCompNum
-            compIds.Count
-        printfn
-            "DEBUG: simComps=%A\n\ndrawcomps=%A\n\n"  
-            (simData.Graph |> mapValues |> Array.map (fun c -> c.Label) |> Array.sort)
-            (model.Sheet.GetCanvasState() |> fst |> List.map (fun c -> c.Label) |> List.sort) *)
+        // let okCompNum = (Set.intersect compIds (simData.Graph |> mapKeys |> Set)).Count
+        // let simCompNum = simData.Graph.Count
+        // printfn 
+        //     "DEBUG: sheet=%s, modelSheet=%s, okNum = %d, wavesim num = %d drawNum=%d"
+        //     modelWithWaveSimSheet.WaveSimSheet 
+        //     model.WaveSimSheet
+        //     okCompNum
+        //     simCompNum
+        //     compIds.Count
+        // printfn
+        //     "DEBUG: simComps=%A\n\ndrawcomps=%A\n\n"  
+        //     (simData.Graph |> mapValues |> Array.map (fun c -> c.Label) |> Array.sort)
+        //     (model.Sheet.GetCanvasState() |> fst |> List.map (fun c -> c.Label) |> List.sort)
 
         let wSpecs = 
             SimulatorTypes.getWaveformSpecifications (netGroup2Label compIds) simData rState

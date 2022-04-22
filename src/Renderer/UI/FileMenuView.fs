@@ -126,10 +126,10 @@ let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (d
         | _ -> ()
 
 /// returns a WaveSimModel option if a file is loaded, otherwise None
-// let currWaveSimModel (model: Model) =
-//     match getCurrFile model with
-//     | Some fileName when Map.containsKey fileName (fst model.WaveSim) -> Some ((fst model.WaveSim)[fileName])
-//     | _ -> None
+let currWaveSimModel (model: Model) =
+    match getCurrFile model with
+    // | Some fileName when Map.containsKey fileName (fst model.WaveSim) -> Some ((fst model.WaveSim)[fileName])
+    | _ -> None
 
 let private displayFileErrorNotification err dispatch =
     let note = errorFilesNotification err
@@ -173,7 +173,6 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) ldComps (model:Mode
             // Set no unsaved changes.        
 
             Sheet SheetT.UpdateBoundingBoxes
-            Sheet SheetT.UpdateLabelBoundingBoxes
 
             // set waveSim data
             // SetWaveSimModel(name, waveSim)
@@ -266,8 +265,8 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
         // "DEBUG: Saving Sheet"
         // printfn "DEBUG: %A" project.ProjectPath
         // printfn "DEBUG: %A" project.OpenFileName
-                
-        let savedState = canvasState//, getSavedWave model
+
+        let savedState = canvasState, None //, getSavedWave model
         if isAuto then
             failwithf "Auto saving is no longer used"
             None
@@ -278,10 +277,11 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
             let origLdComp =
                 project.LoadedComponents
                 |> List.find (fun lc -> lc.Name = project.OpenFileName)
-            // let savedWaveSim =
+            let savedWaveSim =
+                None
             //     Map.tryFind project.OpenFileName (fst model.WaveSim)
             //     |> Option.map waveSimModel2SavedWaveInfo
-            let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now //savedWaveSim 
+            let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim 
             let newState =
                 canvasState
                 |> (fun (comps, conns) -> 
@@ -847,10 +847,8 @@ let getSheetTrees (p:Project) =
     |> Map.ofList
 
 /// Display top menu.
-let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
+let viewTopMenu model dispatch =
     let compIds = getComponentIds model
-
-    messagesFunc model dispatch
 
     //printfn "FileView"
     let style = Style [ Width "100%" ; BorderBottom "2px solid lightgray"] //leftSectionWidth model
@@ -1038,12 +1036,12 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                         saveOpenFileActionWithModelUpdate model dispatch |> ignore
                                         dispatch <| Sheet(SheetT.DoNothing) //To update the savedsheetisoutofdate send a sheet message
                                         ) ]) [ str "Save" ] ] ]
-                      Navbar.End.div []
                     // Waveform View button was moved to WaveSim subtab in Simulation tab
                     //       [ 
                     //         Navbar.Item.div [] 
                     //             [ simulateButtonFunc compIds model dispatch ] ]
                     //   Navbar.End.div []
+                      Navbar.End.div []
                           [ Navbar.Item.div []
                                 [ Button.button 
                                     [ Button.OnClick(fun _ -> PopupView.viewInfoPopup dispatch) 

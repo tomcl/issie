@@ -365,6 +365,6 @@ let displayView model dispatch =
                                                 if not model.WaveSimulationInProgress 
                                                 then
                                                     dispatch <| ChangeRightTab Simulation ) 
-                                            ] [str "Simulations"] ] 
+                                            ] [str "Simulations"] ]
                                   ]
                         viewRightTab model dispatch  ] ] ]

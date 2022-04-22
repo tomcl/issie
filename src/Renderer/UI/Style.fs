@@ -150,90 +150,81 @@ let menuLabelStyle = Style [
     TextTransform "uppercase"
 ]
 
+// // Waveform simulator styles
 
+// let clkLineWidth = 0.0125
+// let transLen = 0.1
+// let vPos = 0.0
+// let zoomFactor = 1.3
+// let maxZoom = 3.0
+// let minZoom = 0.2
+// let maxBusValGap = 3
+// let busLabelTextSize = 0.6 // multiplied by signal height
+// let sigLineThick = 0.025;
+// let spacing = 0.4
+// let sigHeight = 0.3 
 
+// let vbWidth m = m.SimParams.ClkSvgWidth * (float m.SimParams.LastClkTime + 1.0)
+// let maxWavesColWidthFloat m = vbWidth m * 40.0 + 4.0
+// let maxWavesColWidth m = string (maxWavesColWidthFloat m) + "px"
+// let waveCellWidth m = Width (maxWavesColWidth m)
 
+// let widthAndVBwave (m : WaveSimModel) : IProp list = [
+//     Style [waveCellWidth m]
+//     ViewBox ("0 0 " + string (vbWidth m) + " 0.7")
+// ]
 
+// let clkRulerStyle m : IProp list = 
+//     List.append (widthAndVBwave m)
+//                 [ Class "clkRulerSvg"
+//                   PreserveAspectRatio "none" ]
 
+// let cursorLeftPx m cursor =
+//     cursor * (m.ClkSvgWidth * 40.0 + 4.0 / (float m.LastClkTime + 1.0)) 
 
+// let cursRectStyle m = Style [
+//         Left (float m.CursorTime |> cursorLeftPx m |> string |> (fun w -> w + "px"))
+//         Width (40.0 * (m.ClkSvgWidth - clkLineWidth))
+// ]
 
+// let cursRectText m i : IProp list = [
+//     Class "clkNumStyle"
+//     X (m.SimParams.ClkSvgWidth * (float i + 0.5)) 
+//     Y 0.5
+// ]
 
+// let inWaveLabel nLabels xInd m : IProp list = [
+//     Class "busValueStyle"
+//     X (xInd * m.ClkSvgWidth)
+//     Y (spacing + sigHeight * 0.7 - 0.3 * sigHeight * (float nLabels - 1.0) / 2.0)
+//     SVGAttr.FontSize (busLabelTextSize * sigHeight / float nLabels) 
+// ]
 
-// Waveform simulator styles
+// let waveCellSvg m last : IProp list = 
+//     List.append (widthAndVBwave m)
+//                 [ match last with
+//                   | true -> Class "lastWaveCellSvg"
+//                   | false -> Class "waveCellSvg"
+//                   PreserveAspectRatio "none" ]
 
-let clkLineWidth = 0.0125
-let transLen = 0.1
-let vPos = 0.0
-let zoomFactor = 1.3
-let maxZoom = 3.0
-let minZoom = 0.2
-let maxBusValGap = 3
-let busLabelTextSize = 0.6 // multiplied by signal height
-let sigLineThick = 0.025;
-let spacing = 0.4
-let sigHeight = 0.3 
+// let waveCell m : IHTMLProp list = [
+//     Class "rowHeight"
+//     Style [waveCellWidth m]
+// ]
 
-let vbWidth m = m.SimParams.ClkSvgWidth * (float m.SimParams.LastClkTime + 1.0)
-let maxWavesColWidthFloat m = vbWidth m * 40.0 + 4.0
-let maxWavesColWidth m = string (maxWavesColWidthFloat m) + "px"
-let waveCellWidth m = Width (maxWavesColWidth m)
+// let lwaveCell m : IHTMLProp list = [
+//     Class "fullHeight"
+//     Style [waveCellWidth m]
+// ]
 
-let widthAndVBwave (m : WaveSimModel) : IProp list = [
-    Style [waveCellWidth m]
-    ViewBox ("0 0 " + string (vbWidth m) + " 0.7")
-]
+// let waveDiv= Style [ 
+//     Width "100%"
+//     Height "100%"
+//     Position PositionOptions.Relative
+//     OverflowX OverflowOptions.Scroll 
+// ]
 
-let clkRulerStyle m : IProp list = 
-    List.append (widthAndVBwave m)
-                [ Class "clkRulerSvg"
-                  PreserveAspectRatio "none" ]
-
-let cursorLeftPx m cursor =
-    cursor * (m.ClkSvgWidth * 40.0 + 4.0 / (float m.LastClkTime + 1.0)) 
-
-let cursRectStyle m = Style [
-        Left (float m.CursorTime |> cursorLeftPx m |> string |> (fun w -> w + "px"))
-        Width (40.0 * (m.ClkSvgWidth - clkLineWidth))
-]
-
-let cursRectText m i : IProp list = [
-    Class "clkNumStyle"
-    X (m.SimParams.ClkSvgWidth * (float i + 0.5)) 
-    Y 0.5
-]
-
-let inWaveLabel nLabels xInd m : IProp list = [
-    Class "busValueStyle"
-    X (xInd * m.ClkSvgWidth)
-    Y (spacing + sigHeight * 0.7 - 0.3 * sigHeight * (float nLabels - 1.0) / 2.0)
-    SVGAttr.FontSize (busLabelTextSize * sigHeight / float nLabels) 
-]
-
-let waveCellSvg m last : IProp list = 
-    List.append (widthAndVBwave m)
-                [ match last with
-                  | true -> Class "lastWaveCellSvg"
-                  | false -> Class "waveCellSvg"
-                  PreserveAspectRatio "none" ]
-
-let waveCell m : IHTMLProp list = [
-    Class "rowHeight"
-    Style [waveCellWidth m]
-]
-
-let lwaveCell m : IHTMLProp list = [
-    Class "fullHeight"
-    Style [waveCellWidth m]
-]
-
-let waveDiv= Style [ 
-    Width "100%"
-    Height "100%"
-    Position PositionOptions.Relative
-    OverflowX OverflowOptions.Scroll 
-]
-
-let wavesTable m : IHTMLProp list = [
-    Class "wavesColTableStyle"
-    Style [waveCellWidth m]
-]
+// let wavesTable m : IHTMLProp list = [
+//     Class "wavesColTableStyle"
+//     Style [waveCellWidth m]
+// ]

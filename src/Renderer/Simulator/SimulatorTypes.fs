@@ -573,16 +573,27 @@ and  GatherData = {
             List.map ( fun cid -> match Map.tryFind cid this.Labels with | Some lab -> lab | None -> "*" ) (ap @ [cid])
             |> String.concat "."
 
+/// ViewerWaveform added in later.
+/// Normally can select top-level waveform and nothing else
+/// Viewers can be on subsheets. Any viewer waveform can be selected.
+/// ViewerWaveform - boolean maybe for whether it is shown or not? Not sure.
 type WaveformType =
     | ViewerWaveform of bool
     //| IOLabelWaveform - not yet
     | NormalWaveform
 
+
 type WaveformSpec = {
+    // Added because previously there were things that were unique enough, but then they stopped being unique
+    // after Viewers were added.
+    // Need a key that is unique and stable for a simulation. Originally used DisplayName but then it stopped being good enough
+    // Not sure if they actually are unique...
     WId: string // unique within one simulation run, mostly conserved across runs
     WType: WaveformType
+    // Set of connections that make up that waveform (essentially a net)
     Conns: ConnectionId array // unique within design sheet (SheetId)
     SheetId: ComponentId list // [] for top-level waveform: path to sheet
+    // Precisely defines the port that is driving that particular waveform
     Driver: FComponentId*OutputPortNumber
     DisplayName:string
     Width: int

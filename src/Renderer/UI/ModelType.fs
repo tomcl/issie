@@ -152,81 +152,121 @@ type SimActionT =
     | MakeSVGs of NetGroup array 
     | ChangeParameters of SimParamsT
 
+type WaveSimState = 
+    | NotRunning
+    | Running
+
+type Wave = {
+    WaveId: string // unique within one simulation run, mostly conserved across runs
+    Selected: bool
+    Conns: ConnectionId list // unique within design sheet (SheetId)
+    SheetId: ComponentId list // [] for top-level waveform: path to sheet
+    DisplayName:string
+}
+
+// type WaveformSpec = {
+//     WId: string // unique within one simulation run, mostly conserved across runs
+//     WType: WaveformType
+//     Conns: ConnectionId array // unique within design sheet (SheetId)
+//     SheetId: ComponentId list // [] for top-level waveform: path to sheet
+//     Driver: FComponentId*OutputPortNumber
+//     DisplayName:string
+//     Width: int
+//     }
 
 type WaveSimModel = {
-    // generate data using this 0 clock simulation, which comes from makeSimData
-    // TODO: get rid of this and use only SimDataCache, since this is SimDataCache[0]
-    InitWaveSimGraph : SimulationData option
-    
-    // parameters determining how and which viewer waves are displayed
-    SimParams: SimParamsT
+    State: WaveSimState
+    // List of all simulatable waves
+    AllWaves: Map<string, Wave>
+    ShownWaves: Map<string, Wave>
+    StartCycle: int
+    EndCycle: int
+    OutOfDate: bool
+    ReducedState: CanvasState
+}
 
-    // Waveform names and details shown in the editor
-    AllWaves: Map<string,WaveformSpec>
-
-    // react SVG for each waveform, indexed by name
-    DispWaveSVGCache: SVGCacheT 
-    // Simulation output sample array of variable length
-    SimDataCache: SimulatorTypes.SimulationData array
+let initWSModel : WaveSimModel = {
+    State = NotRunning
+    AllWaves = Map.empty
+    ShownWaves = Map.empty
+    StartCycle = 0
+    EndCycle = 10
+    OutOfDate = true
+    ReducedState = [], []
+}
+    // // generate data using this 0 clock simulation, which comes from makeSimData
+    // // TODO: get rid of this and use only SimDataCache, since this is SimDataCache[0]
+    // InitWaveSimGraph : SimulationData option
     
-    // Hack to detect when  cursor text box is empty and use 0.
-    // TODO - get rid of this - it should not be needed
-    CursorBoxIsEmpty: bool
+    // // parameters determining how and which viewer waves are displayed
+    // SimParams: SimParamsT
+
+    // // Waveform names and details shown in the editor
+    // AllWaves: Map<string,WaveformSpec>
+
+    // // react SVG for each waveform, indexed by name
+    // DispWaveSVGCache: SVGCacheT 
+    // // Simulation output sample array of variable length
+    // SimDataCache: SimulatorTypes.SimulationData array
+    
+    // // Hack to detect when  cursor text box is empty and use 0.
+    // // TODO - get rid of this - it should not be needed
+    // CursorBoxIsEmpty: bool
    
-    WSViewState: WSViewT
+    // WSViewState: WSViewT
 
-    WSTransition: (SimParamsT * WSViewT) option
-    // the circuit that is being simulated - the canvas may have changed
-    LastCanvasState: CanvasState option 
-    // the top-level sheet thsi is being simulated - the canvas may have changed
-    } 
+    // WSTransition: (SimParamsT * WSViewT) option
+    // // the circuit that is being simulated - the canvas may have changed
+    // LastCanvasState: CanvasState option 
+    // // the top-level sheet thsi is being simulated - the canvas may have changed
+    // } 
 
-let setSimParams (setFn: SimParamsT -> SimParamsT) (wsm:WaveSimModel) =
-    {wsm with SimParams = setFn wsm.SimParams}
+// let setSimParams (setFn: SimParamsT -> SimParamsT) (wsm:WaveSimModel) =
+//     {wsm with SimParams = setFn wsm.SimParams}
 
-let setDispNames names wsMod = 
-    setSimParams (fun sp -> {sp with DispNames=names}) wsMod
+// let setDispNames names wsMod = 
+//     setSimParams (fun sp -> {sp with DispNames=names}) wsMod
 
-let setEditorView view wsModel =
-    {wsModel with WSViewState = view; WSTransition = None}
+// let setEditorView view wsModel =
+//     {wsModel with WSViewState = view; WSTransition = None}
     
-let setEditorNextView nView simParas wsModel =
-    {wsModel with WSTransition = Some(simParas, nView)}   
+// let setEditorNextView nView simParas wsModel =
+//     {wsModel with WSTransition = Some(simParas, nView)}   
 
-let inline getWave (ws:WaveSimModel) (name: string) = ws.AllWaves[name]
+// let inline getWave (ws:WaveSimModel) (name: string) = ws.AllWaves[name]
 
-let inline getDispName (ws:WaveSimModel) (wave:WaveformSpec) =
-    Map.tryFindKey (fun k v -> v = wave) ws.AllWaves
-    |> Option.defaultValue "name not found"
+// let inline getDispName (ws:WaveSimModel) (wave:WaveformSpec) =
+//     Map.tryFindKey (fun k v -> v = wave) ws.AllWaves
+//     |> Option.defaultValue "name not found"
     
-let inline dispWaves (ws: WaveSimModel) =
-    ws.SimParams.DispNames
-    |> Array.map (fun name -> ws.AllWaves[name])
+// let inline dispWaves (ws: WaveSimModel) =
+//     ws.SimParams.DispNames
+//     |> Array.map (fun name -> ws.AllWaves[name])
 
-let inline AllPorts (ws: WaveSimModel) =
-    ws.AllWaves
+// let inline AllPorts (ws: WaveSimModel) =
+//     ws.AllWaves
 
-let initWS (allNames:string array) (allPorts: Map<string,NetGroup>): WaveSimModel =
-    { 
-      InitWaveSimGraph = None
-      AllWaves = Map.empty
-      SimDataCache = [||]
-      DispWaveSVGCache = { Top = [||]; Waves = Map.empty; Bottom = [||]}
-      SimParams = {
-        MoreNames = []
-        DispNames = [||]
-        ClkSvgWidth = 1.0
-        CursorTime = 0u
-        WaveViewerRadix = Bin
-        LastClkTime = 9u 
-        LastScrollPos = None
-        MoreWaves = []
-      }
-      WSViewState = WSClosed
-      WSTransition =None
-      LastCanvasState = None 
-      CursorBoxIsEmpty = false
-    }
+// let initWS (allNames:string array) (allPorts: Map<string,NetGroup>): WaveSimModel =
+//     { 
+//       InitWaveSimGraph = None
+//       AllWaves = Map.empty
+//       SimDataCache = [||]
+//       DispWaveSVGCache = { Top = [||]; Waves = Map.empty; Bottom = [||]}
+//       SimParams = {
+//         MoreNames = []
+//         DispNames = [||]
+//         ClkSvgWidth = 1.0
+//         CursorTime = 0u
+//         WaveViewerRadix = Bin
+//         LastClkTime = 9u 
+//         LastScrollPos = None
+//         MoreWaves = []
+//       }
+//       WSViewState = WSClosed
+//       WSTransition =None
+//       LastCanvasState = None 
+//       CursorBoxIsEmpty = false
+//     }
 
 
 
@@ -326,7 +366,8 @@ type Msg =
     | SetIsLoading of bool
     | SetWaveSimModel of Sheet: string * WSModel: WaveSimModel
     | WaveSimulateNow
-    | InitiateWaveSimulation of (WSViewT * SimParamsT)
+    | InitiateWaveSimulation
+    // | InitiateWaveSimulation of (WSViewT * SimParamsT)
     | SetLastSimulatedCanvasState of CanvasState option
     | StartNewWaveSimulation of CanvasState
     | UpdateScrollPos of bool
@@ -373,11 +414,13 @@ type UserData = {
 
 type Model = {
     UserData: UserData
+
+    WaveSim : WaveSimModel
     // All the data for waveform simulation (separate for each sheet)
     // TODO: remove the simulation error.
-    WaveSim : Map<string, WaveSimModel> * (SimulationError option)
-    // which top-level sheet is used by wavesim
-    WaveSimSheet: string
+    // WaveSim : Map<string, WaveSimModel> * (SimulationError option)
+    // // which top-level sheet is used by wavesim
+    // WaveSimSheet: string
         
     // Draw Canvas
     Sheet: DrawModelType.SheetT.Model
@@ -529,64 +572,64 @@ let getComponentIds (model: Model) =
 // Saving WaveSim Model   //
 //------------------------//
 
-/// get saveable record of waveform setup
-let waveSimModel2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
-    let pars = wsMod.SimParams
-    { 
-        ClkWidth = pars.ClkSvgWidth
-        Cursor = pars.CursorTime
-        Radix = pars.WaveViewerRadix
-        LastClk = pars.LastClkTime
-        DisplayedPortIds = 
-            wsMod.SimParams.DispNames
-    }
+// /// get saveable record of waveform setup
+// let waveSimModel2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
+//     let pars = wsMod.SimParams
+//     { 
+//         ClkWidth = pars.ClkSvgWidth
+//         Cursor = pars.CursorTime
+//         Radix = pars.WaveViewerRadix
+//         LastClk = pars.LastClkTime
+//         DisplayedPortIds = 
+//             wsMod.SimParams.DispNames
+//     }
 
-/// setup current WaveSimModel from saved record
-/// currently only the set of nets displayed by default and the radix is actually preserved
-/// TODO: work out better idea for what should be preserved here.
-/// NB - note that SavedWaveInfo can only be changed if code is added to make loading backwards compatible with
-/// old designs
-let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
-    { 
-        InitWaveSimGraph = None
-        SimDataCache = [||]
-        DispWaveSVGCache = {Top=[||]; Waves = Map.empty; Bottom = [||]}
-        AllWaves = Map.empty // will be reconstituted
-        SimParams = {
-            MoreNames = []
-            DispNames = sWInfo.DisplayedPortIds // actually names not ids
-            ClkSvgWidth = 1.0
-            CursorTime = 0u
-            WaveViewerRadix = sWInfo.Radix
-            LastClkTime = 9u
-            LastScrollPos = None
-            MoreWaves = []
-        }
-        WSViewState =WSClosed
-        WSTransition =None
-        LastCanvasState = None 
-        CursorBoxIsEmpty = false
+// /// setup current WaveSimModel from saved record
+// /// currently only the set of nets displayed by default and the radix is actually preserved
+// /// TODO: work out better idea for what should be preserved here.
+// /// NB - note that SavedWaveInfo can only be changed if code is added to make loading backwards compatible with
+// /// old designs
+// let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
+//     { 
+//         InitWaveSimGraph = None
+//         SimDataCache = [||]
+//         DispWaveSVGCache = {Top=[||]; Waves = Map.empty; Bottom = [||]}
+//         AllWaves = Map.empty // will be reconstituted
+//         SimParams = {
+//             MoreNames = []
+//             DispNames = sWInfo.DisplayedPortIds // actually names not ids
+//             ClkSvgWidth = 1.0
+//             CursorTime = 0u
+//             WaveViewerRadix = sWInfo.Radix
+//             LastClkTime = 9u
+//             LastScrollPos = None
+//             MoreWaves = []
+//         }
+//         WSViewState =WSClosed
+//         WSTransition =None
+//         LastCanvasState = None 
+//         CursorBoxIsEmpty = false
 
-    }
+//     }
 
-let getSheetWaveSimOpt (model:Model) : WaveSimModel option = 
-    model.CurrentProj
-    |> Option.bind (fun p -> Map.tryFind p.OpenFileName (fst model.WaveSim))
+// let getSheetWaveSimOpt (model:Model) : WaveSimModel option = 
+//     model.CurrentProj
+//     |> Option.bind (fun p -> Map.tryFind p.OpenFileName (fst model.WaveSim))
     
 
-let getSheetWaveSimErr (model:Model) =
-    model.CurrentProj
-    |> Option.map (fun p -> snd model.WaveSim)
-    |> Option.defaultValue None
+// let getSheetWaveSimErr (model:Model) =
+//     model.CurrentProj
+//     |> Option.map (fun p -> snd model.WaveSim)
+//     |> Option.defaultValue None
 
-let getSheetWaveCanvasState (model:Model) =
-    getSheetWaveSimOpt model
-    |> Option.map (fun (ws:WaveSimModel) -> ws.LastCanvasState)
-    |> Option.defaultValue None
+// let getSheetWaveCanvasState (model:Model) =
+//     getSheetWaveSimOpt model
+//     |> Option.map (fun (ws:WaveSimModel) -> ws.LastCanvasState)
+//     |> Option.defaultValue None
 
-let getSheetWaveNetList (model:Model) =
-    getSheetWaveCanvasState model
-    |> Option.map Helpers.getNetList
+// let getSheetWaveNetList (model:Model) =
+//     getSheetWaveCanvasState model
+//     |> Option.map Helpers.getNetList
    
 
 //----------------------Print functions-----------------------------//
@@ -645,21 +688,21 @@ let updateLdCompsWithCompOpt (newCompOpt:LoadedComponent option) (ldComps: Loade
         | None -> newComp :: ldComps
         | Some _ -> updateLdComps newComp.Name (fun _ -> newComp) ldComps
 
-let getCurrentWSMod(model: Model) =
-    let wsMap = fst model.WaveSim
-    Map.tryFind model.WaveSimSheet wsMap
+// let getCurrentWSMod(model: Model) =
+//     let wsMap = fst model.WaveSim
+//     Map.tryFind model.WaveSimSheet wsMap
 
-let getWSModelOrFail (model:Model) (errMsg: string) =
-    match getCurrentWSMod model with
-    | Some ws -> ws
-    | None -> failwithf "%s" errMsg
+// let getWSModelOrFail (model:Model) (errMsg: string) =
+//     match getCurrentWSMod model with
+//     | Some ws -> ws
+//     | None -> failwithf "%s" errMsg
 
-let getCurrentWSModNextView(model:Model) =
-    getCurrentWSMod model
-    |> Option.bind (fun ws -> ws.WSTransition)
+// let getCurrentWSModNextView(model:Model) =
+//     getCurrentWSMod model
+//     |> Option.bind (fun ws -> ws.WSTransition)
 
 
-/// returns a string option representig the current file name if file is loaded, otherwise None
+/// returns a string option representing the current file name if file is loaded, otherwise None
 let getCurrFile (model: Model) =
     match model.CurrentProj with
     | Some proj -> Some proj.OpenFileName
@@ -674,32 +717,47 @@ let getCurrSheets (model: Model) =
     | None -> None
 
 let setWSMod (ws: WaveSimModel) (model: Model) =
-    match getCurrSheets model, model.WaveSimSheet with
-    | Some sheets, sheet when List.contains sheet sheets ->
-        { model with WaveSim = Map.add model.WaveSimSheet ws (fst model.WaveSim), 
-                               snd model.WaveSim }
-    | None,_ -> 
-        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
-        model
-    | Some sheets, sheet -> 
-        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, sheets=%A" model.WaveSimSheet sheets
-        model
+    { model with WaveSim = ws }
+
+    // match getCurrSheets model, model.WaveSimSheet with
+    // | Some sheets, sheet when List.contains sheet sheets ->
+    //     let wsMo
+    //     let waveSim = Map.add model.WaveSimSheet ws model.WaveSim
+    //     { model with WaveSim = Map.add model.WaveSimSheet ws model.WaveSim }
+    // | None,_ -> 
+    //     printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
+    //     model
+    // | Some sheets, sheet -> 
+    //     printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, sheets=%A" model.WaveSimSheet sheets
+    //     model
+
+// let setWSMod (ws: WaveSimModel) (model: Model) =
+//     match getCurrSheets model, model.WaveSimSheet with
+//     | Some sheets, sheet when List.contains sheet sheets ->
+//         { model with WaveSim = Map.add model.WaveSimSheet ws model.WaveSim }
+//     | None,_ -> 
+//         printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
+//         model
+//     | Some sheets, sheet -> 
+//         printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, sheets=%A" model.WaveSimSheet sheets
+//         model
 
 
-let updateCurrentWSMod(updateFun: WaveSimModel -> WaveSimModel) (model: Model) =
-   match getCurrentWSMod model with
-    | None -> model // should this be an error?
-    | Some ws ->
-        let ws = updateFun ws
-        setWSMod ws model
+// let updateCurrentWSMod(updateFun: WaveSimModel -> WaveSimModel) (model: Model) =
+//    match getCurrentWSMod model with
+//     | None -> model // should this be an error?
+//     | Some ws ->
+//         let ws = updateFun ws
+//         setWSMod ws model
 
 
-let switchToWaveEditor (model:Model) dispatch =
-    match getCurrentWSMod model with
-    | None -> ()
-    | Some ws when ws.WSViewState = WSClosed ->
-        printf "What? Can't switch to wave editor when wave sim is closed!"
-    | Some ws -> 
-        dispatch <| SetWSMod {ws with WSViewState=WSViewT.WSEditorOpen}
-        dispatch <| ChangeRightTab Simulation
-        dispatch <| ChangeSimSubTab WaveSim
+// let switchToWaveEditor (model:Model) dispatch =
+//     match getCurrentWSMod model with
+//     | None -> ()
+//     | Some ws when ws.WSViewState = WSClosed ->
+//         printf "What? Can't switch to wave editor when wave sim is closed!"
+//     | Some ws -> 
+//         dispatch <| SetWSMod {ws with WSViewState=WSViewT.WSEditorOpen}
+//         dispatch <| ChangeRightTab Simulation
+//         dispatch <| ChangeSimSubTab WaveSim
+ 

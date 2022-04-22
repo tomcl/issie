@@ -1001,7 +1001,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             wireCmd (BusWireT.SelectWires [])
         ]
     | SetWaveSimMode mode ->
-        {model with IsWaveSim = mode}, Cmd.none
+        {model with IsWaveSim = false}, Cmd.none
     | SelectWires cIds ->
         //If any of the cIds of the netgroup given are inside the previous selection (not current as this will always be true)
         //then deselect (remove from the selected list) any wires from the selected list that are in that cId list

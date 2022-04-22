@@ -14,7 +14,7 @@ open Extractor
 open CatalogueView
 open PopupView
 open FileMenuView
-open WaveSimHelpers
+// open WaveSimHelpers
 open Sheet.SheetInterface
 open DrawModelType
 open Fable.SimpleJson
@@ -296,10 +296,10 @@ let update (msg : Msg) oldModel =
         |> Option.map (fun sd -> sd.Graph |> Map.toList |> List.length)
         |> Option.defaultValue -1
    
-    let sdlen = 
-        getCurrentWSMod oldModel 
-        |> Option.bind (fun ws -> ws.InitWaveSimGraph) 
-        |> getGraphSize
+    // let sdlen = 
+    //     getCurrentWSMod oldModel 
+    //     |> Option.bind (fun ws -> ws.InitWaveSimGraph) 
+    //     |> getGraphSize
     
     //Add the message to the pending queue if it is a mouse drag message
     let model = 
@@ -347,7 +347,7 @@ let update (msg : Msg) oldModel =
     | Sheet sMsg ->
         match sMsg, model.PopupViewFunc with
         | SheetT.ToggleNet canvas, _ -> 
-            model, Cmd.ofMsg (Sheet (SheetT.SelectWires (getNetSelection canvas model)))
+            model, Cmd.ofMsg (Sheet (SheetT.SelectWires (WaveformSimulator.getNetSelection canvas model)))
         | SheetT.KeyPress _, Some _ -> 
             // do not allow keys to affect Sheet when popup is on.
             model, Cmd.none
@@ -365,28 +365,30 @@ let update (msg : Msg) oldModel =
             if model.Sheet.IsWaveSim then Cmd.ofMsg (Sheet(SheetT.ResetSelection)) else Cmd.none
             ] //Close wavesim
     | SetWSMod wSMod -> 
+        printf "SetWSMod"
+        printf "%A" wSMod.AllWaves
         setWSMod wSMod model, Cmd.none
-    | UpdateWSModel updateFn ->
-        updateCurrentWSMod updateFn model, Cmd.none
-    | SetWSModAndSheet(ws,sheet) ->
-        match model.CurrentProj with
-        | None -> failwithf "What? SetWSModAndSheet: Can't set wavesim if no project is loaded"
-        | Some p ->
-            let sheets = p.LoadedComponents |> List.map (fun lc -> lc.Name)
-            match List.contains sheet sheets with
-            | false -> 
-                failwithf "What? sheet %A can't be used in wavesim because it does not exist in project sheets %A" sheet sheets
-            | true ->
-                let model =
-                    {model with WaveSimSheet = sheet}
-                    |> setWSMod ws
-                model,Cmd.none
-    | SetWSError err -> 
-        { model with WaveSim = fst model.WaveSim, err}, Cmd.none
-    | AddWaveSimFile (fileName, wSMod') ->
-        { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim}, Cmd.none
+    // | UpdateWSModel updateFn ->
+    //     updateCurrentWSMod updateFn model, Cmd.none
+    // | SetWSModAndSheet(ws,sheet) ->
+    //     match model.CurrentProj with
+    //     | None -> failwithf "What? SetWSModAndSheet: Can't set wavesim if no project is loaded"
+    //     | Some p ->
+    //         let sheets = p.LoadedComponents |> List.map (fun lc -> lc.Name)
+    //         match List.contains sheet sheets with
+    //         | false -> 
+    //             failwithf "What? sheet %A can't be used in wavesim because it does not exist in project sheets %A" sheet sheets
+    //         | true ->
+    //             let model =
+    //                 {model with WaveSimSheet = sheet}
+    //                 |> setWSMod ws
+    //             model,Cmd.none
+    // | SetWSError err -> 
+        // { model with WaveSim = fst model.WaveSim, err}, Cmd.none
+    // | AddWaveSimFile (fileName, wSMod') ->
+        // { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim}, Cmd.none
     | LockTabsToWaveSim -> 
-        {model with WaveSimulationInProgress = true}, Cmd.none
+        {model with WaveSimulationInProgress = false}, Cmd.none
     | UnlockTabsFromWaveSim ->
         {model with WaveSimulationInProgress = false}, Cmd.none
     | SetSimulationGraph (graph, fastSim) ->
@@ -399,7 +401,7 @@ let update (msg : Msg) oldModel =
         let simData = getSimulationDataOrFail model "IncrementSimulationClockTick"
         { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber + n } |> Ok |> Some }, Cmd.none
     | EndSimulation -> { model with CurrentStepSimulationStep = None }, Cmd.none
-    | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
+    // | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
@@ -442,11 +444,11 @@ let update (msg : Msg) oldModel =
         PopupView.closablePopup title body foot [Width 800] dispatch
         model, Cmd.none
     | ClosePopup ->
-        let model' =
-            match getSheetWaveSimOpt model, model.PopupDialogData.WaveSetup with
-            | Some wsMod, Some(sheetWaves, paths) -> 
-                setWSMod (setSimParams (fun sp -> {sp with MoreWaves = Set.toList paths}) wsMod) model
-            | _ -> model
+        let model' = model
+            // match getSheetWaveSimOpt model, model.PopupDialogData.WaveSetup with
+            // | Some wsMod, Some(sheetWaves, paths) -> 
+            //     setWSMod (setSimParams (fun sp -> {sp with MoreWaves = Set.toList paths}) wsMod) model
+            // | _ -> model
         { model' with 
             PopupViewFunc = None;
             PopupDialogData =
@@ -540,56 +542,58 @@ let update (msg : Msg) oldModel =
         
     | DiagramMouseEvent -> model, Cmd.none
     | SelectionHasChanged -> 
-        match currWaveSimModel model with
-        | None | Some {WSViewState=WSClosed} -> model
-        | Some _ ->
-            { model with ConnsOfSelectedWavesAreHighlighted = true }
+        // match currWaveSimModel model with
+        // | None | Some {WSViewState=WSClosed} -> model
+        // | Some _ ->
+            // { model with ConnsOfSelectedWavesAreHighlighted = true }
+        { model with ConnsOfSelectedWavesAreHighlighted = true }
         |> (fun m -> m, Cmd.none)
     | SetWaveSimIsOutOfDate b -> 
         changeSimulationIsStale b model, Cmd.none
     | SetIsLoading b ->
         let cmd = if b then Cmd.none else Cmd.ofMsg (Sheet (SheetT.SetSpinner false)) //Turn off spinner after project/sheet is loaded
         {model with IsLoading = b}, cmd
-    | InitiateWaveSimulation (view, paras)  -> 
-        updateCurrentWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.ofMsg FinishUICmd
+    // | InitiateWaveSimulation ->
+    // | InitiateWaveSimulation (view, paras)  -> 
+        // updateCurrentWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.ofMsg FinishUICmd
     //TODO
-    | WaveSimulateNow ->
-        // do the simulation for WaveSim and generate new SVGs
-        printfn "Starting...!"
-        match getCurrentWSMod model, getCurrentWSModNextView model  with
-        | Some wsMod, Some (pars, nView) -> 
-            let checkCursor = wsMod.SimParams.CursorTime <> pars.CursorTime
-            let pars' = adjustPars wsMod pars wsMod.SimParams.LastScrollPos
-            // does the actual simulation and SVG generation, if needed
-            let wsMod' = 
-                simulateAndMakeWaves model wsMod pars'
-                |> (fun ws -> {ws with WSViewState=nView; WSTransition = None})
-                |> setEditorView nView
-            model
-            |> setWSMod wsMod'
-            |> (fun model -> 
-                {model with CheckWaveformScrollPosition=checkCursor}, 
-                Cmd.ofMsg (Sheet(SheetT.SetSpinner false))) //turn off spinner after wavesim is loaded
-        | Some _, None -> 
-            // This case may happen if WaveSimulateNow commands are stacked up due to 
-            // repeated view function calls before the WaveSimNow trigger message is processed
-            // Only the first one will actually do anything. TODO: eliminate extra calls?
-            model, Cmd.none
-        | _ -> 
-            failwith "SetSimInProgress dispatched when getCurrFileWSMod is None"
+    // | WaveSimulateNow ->
+    //     // do the simulation for WaveSim and generate new SVGs
+    //     printfn "Starting...!"
+    //     match getCurrentWSMod model, getCurrentWSModNextView model  with
+    //     | Some wsMod, Some (pars, nView) -> 
+    //         let checkCursor = wsMod.SimParams.CursorTime <> pars.CursorTime
+    //         let pars' = adjustPars wsMod pars wsMod.SimParams.LastScrollPos
+    //         // does the actual simulation and SVG generation, if needed
+    //         let wsMod' = 
+    //             simulateAndMakeWaves model wsMod pars'
+    //             |> (fun ws -> {ws with WSViewState=nView; WSTransition = None})
+    //             |> setEditorView nView
+    //         model
+    //         |> setWSMod wsMod'
+    //         |> (fun model -> 
+    //             {model with CheckWaveformScrollPosition=checkCursor}, 
+    //             Cmd.ofMsg (Sheet(SheetT.SetSpinner false))) //turn off spinner after wavesim is loaded
+    //     | Some _, None -> 
+    //         // This case may happen if WaveSimulateNow commands are stacked up due to 
+    //         // repeated view function calls before the WaveSimNow trigger message is processed
+    //         // Only the first one will actually do anything. TODO: eliminate extra calls?
+    //         model, Cmd.none
+    //     | _ -> 
+    //         failwith "SetSimInProgress dispatched when getCurrFileWSMod is None"
 
     | SetLastSimulatedCanvasState cS ->
         { model with LastSimulatedCanvasState = cS }, Cmd.none
     | UpdateScrollPos b ->
         { model with CheckWaveformScrollPosition = b}, Cmd.none
-    | SetLastScrollPos posOpt ->
-        let updateParas (sp:SimParamsT) = {sp with LastScrollPos = posOpt}
-        updateCurrentWSMod (fun (ws:WaveSimModel) -> setSimParams updateParas ws) model, Cmd.none
-    | SetWaveSimModel( sheetName, wSModel) -> 
-        let updateWaveSim sheetName wSModel model =
-            let sims,err = model.WaveSim
-            sims.Add(sheetName, wSModel), err
-        {model with WaveSim = updateWaveSim sheetName wSModel model}, Cmd.none
+    // | SetLastScrollPos posOpt ->
+    //     let updateParas (sp:SimParamsT) = {sp with LastScrollPos = posOpt}
+    //     updateCurrentWSMod (fun (ws:WaveSimModel) -> setSimParams updateParas ws) model, Cmd.none
+    // | SetWaveSimModel( sheetName, wSModel) -> 
+    //     let updateWaveSim sheetName wSModel model =
+    //         let sims,err = model.WaveSim
+    //         sims.Add(sheetName, wSModel), err
+    //     {model with WaveSim = updateWaveSim sheetName wSModel model}, Cmd.none
     | ReadUserData userAppDir ->
         printfn $"Got user app dir of {userAppDir}"
         let model,cmd = readUserData userAppDir model        

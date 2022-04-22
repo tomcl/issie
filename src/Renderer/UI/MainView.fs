@@ -1,4 +1,4 @@
-﻿module DiagramMainView
+module DiagramMainView
 open Fulma
 
 open Fable.React
@@ -178,7 +178,6 @@ let private viewRightTab model dispatch =
                 viewSimSubTab model dispatch
             ]
 
-
 /// determine whether moving the mouse drags the bar or not
 let inline setDragMode (modeIsOn:bool) (model:Model) dispatch =
     fun (ev: Browser.Types.MouseEvent) ->        
@@ -255,8 +254,7 @@ let displayView model dispatch =
     let inline processAppClick topMenu dispatch (ev: Browser.Types.MouseEvent) =
         if topMenu <> Closed then 
             dispatch <| Msg.SetTopMenu Closed
-        
- 
+
     /// used only to make the divider bar draggable
     let inline processMouseMove (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
@@ -299,7 +297,7 @@ let displayView model dispatch =
         PopupView.viewPopup model dispatch 
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
         // main top bar function is early in compile order
-        FileMenuView.viewTopMenu model WaveSimHelpers.fileMenuViewActions WaveformSimulationView.WaveformButtonFunc dispatch
+        FileMenuView.viewTopMenu model dispatch
 
         if model.PopupDialogData.Progress = None then
             Sheet.view model.Sheet headerHeight (canvasVisibleStyleList model) sheetDispatch
@@ -354,4 +352,3 @@ let displayView model dispatch =
                                             ] [str "Simulations"] ] 
                                   ]
                         viewRightTab model dispatch  ] ] ]
-

@@ -50,6 +50,7 @@ let init() = {
         ArrowDisplay = true
         UserAppDir = None
         LastUsedDirectory = None
+        RecentProjects = None
         }
     LastChangeCheckTime = 0.
     // Diagram = new Draw2dWrapper()

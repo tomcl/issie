@@ -24,6 +24,10 @@ open DrawModelType
 open Sheet.SheetInterface
 
 open System
+
+module Constants =
+    let numberOfRecentProjects: int  = 5
+    let maxDisplayedPathLengthInRecentProjects: int  = 60
 //--------------------------------------------------------------------------------------------//
 //--------------------------------------------------------------------------------------------//
 //---------------------Code for CanvasState comparison and FILE BACKUP------------------------//
@@ -722,7 +726,35 @@ let rec resolveComponentOpenPopup
          resolveComponentOpenPopup pPath (autoComp::components) rLst model dispatch
     | OkComp comp ::rLst -> 
         resolveComponentOpenPopup pPath (comp::components) rLst model dispatch
- 
+
+let addToRecents path recents =
+    recents
+    |> Option.defaultValue []
+    |> List.filter ((<>) path)
+    |> List.truncate Constants.numberOfRecentProjects
+    |> List.insertAt 0 path
+    |> Some
+
+/// open an rxisting porject from its path
+let openProjectFromPath (path:string) model dispatch =
+    dispatch <| SetUserData {
+        model.UserData with 
+            LastUsedDirectory = Some path; 
+            RecentProjects = addToRecents path model.UserData.RecentProjects
+            }
+    dispatch (ExecFuncAsynch <| fun () ->
+        traceIf "project" (fun () -> "loading files")
+        match loadAllComponentFiles path with
+        | Error err ->
+            log err
+            displayFileErrorNotification err dispatch
+        | Ok componentsToResolve ->
+            traceIf "project" (fun () -> "resolving popups...")
+            
+            resolveComponentOpenPopup path [] componentsToResolve model dispatch
+            traceIf "project" (fun () ->  "project successfully opened.")
+
+        Elmish.Cmd.none)
 
 /// open an existing project
 let private openProject model dispatch =
@@ -735,21 +767,9 @@ let private openProject model dispatch =
         | _ -> model.UserData.LastUsedDirectory
     match askForExistingProjectPath dirName with
     | None -> () // User gave no path.
-    | Some path ->
-        dispatch <| SetUserData {model.UserData with LastUsedDirectory = Some path}
-        dispatch (ExecFuncAsynch <| fun () ->
-            traceIf "project" (fun () -> "loading files")
-            match loadAllComponentFiles path with
-            | Error err ->
-                log err
-                displayFileErrorNotification err dispatch
-            | Ok componentsToResolve ->
-                traceIf "project" (fun () -> "resolving popups...")
-            
-                resolveComponentOpenPopup path [] componentsToResolve model dispatch
-                traceIf "project" (fun () ->  "project successfully opened.")
+    | Some path -> openProjectFromPath path model dispatch
 
-            Elmish.Cmd.none)
+
 
 
     
@@ -761,12 +781,23 @@ let viewNoProjectMenu model dispatch =
         Menu.Item.li
             [ Menu.Item.IsActive false
               Menu.Item.OnClick action ] [ str label ]
+    
+    let recentsList = 
+        model.UserData
+        |> (fun ud -> ud.RecentProjects)
+        |> Option.defaultValue []
+        |> List.map (fun path -> 
+                        menuItem 
+                            (cropToLength  Constants.maxDisplayedPathLengthInRecentProjects false path) 
+                            (fun _ -> openProjectFromPath path model dispatch))
 
     let initialMenu =
         Menu.menu []
             [ Menu.list []
-                  [ menuItem "New project" (fun _ -> newProject model dispatch)
-                    menuItem "Open project" (fun _ -> openProject model dispatch) ]
+                  ([ menuItem "New project" (fun _ -> newProject model dispatch)
+                     menuItem "Open project" (fun _ -> openProject model dispatch)]
+                  @ (if recentsList <> [] then [hr []] else [])
+                  @ recentsList)
             ]
 
     match model.CurrentProj with

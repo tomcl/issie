@@ -410,7 +410,7 @@ type Model = {
     SelectedComponent : Component option // None if no component is selected.
     // used during step simulation: simgraph for current clock tick
     CurrentStepSimulationStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
-    // which of the tabbed panes is currentlky visible
+    // which of the tabbed panes is currently visible
     RightPaneTabVisible : RightTab
     // which of the subtabs for the right pane simulation is visible
     SimSubTabVisible: SimSubTab
@@ -703,4 +703,3 @@ let switchToWaveEditor (model:Model) dispatch =
         dispatch <| SetWSMod {ws with WSViewState=WSViewT.WSEditorOpen}
         dispatch <| ChangeRightTab Simulation
         dispatch <| ChangeSimSubTab WaveSim
- 

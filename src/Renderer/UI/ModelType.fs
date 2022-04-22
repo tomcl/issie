@@ -358,6 +358,7 @@ type UserData = {
     /// Where to save the persistent app data
     UserAppDir : string option
     LastUsedDirectory: string option
+    RecentProjects: string list option
     ArrowDisplay: bool
     WireType: DrawModelType.BusWireT.WireType
     }

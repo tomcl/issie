@@ -25,7 +25,7 @@ let private readOnlyFormField name body =
         body
     ]
 
-let preventDefault (e: Browser.Types.ClipboardEvent) = e.preventDefault()
+
 
 
 let private textFormField isRequired name defaultValue onChange =

@@ -1,4 +1,4 @@
-module Update
+﻿module Update
 
 open Elmish
 
@@ -276,11 +276,33 @@ let getLastMouseMsg msgQueue =
     | [] -> None
     | lst -> Some lst.Head //First item in the list was the last to be added (most recent)
 
-let sheetMsg sMsg model = 
+let sheetMsg sMsg model =
     let sModel, sCmd = SheetUpdate.update sMsg model.Sheet
-    let newModel = { model with Sheet = sModel} 
-    {newModel with SavedSheetIsOutOfDate = findChange newModel}, Cmd.map Sheet sCmd
+    let newModel = { model with Sheet = sModel}
+    let newState = newModel.Sheet.GetCanvasState ()
+    let newReducedState = extractReducedState newState
+    let simData = SimulationView.makeSimData model
+    let allWaves = 
+        match simData with
+                                // | None -> failwithf "simRes has value None" // IColor.IsWhite, ""
+        | Some (Ok simData', reducedState) -> // IsSuccess, "Start Simulation"
+            WaveformSimulator.getWaveforms WaveformSimulator.netGroup2Label simData' reducedState
+        | _ -> 
+            Map.empty
+            // WaveformSimulator.displayErrorMessage e //IsWarning, "See Problems"
+                                    
 
+    let waveSim = {
+        model.WaveSim with
+            AllWaves = allWaves
+            OutOfDate = model.WaveSim.ReducedState <> newReducedState
+            State = 
+                match model.WaveSim.ReducedState <> newReducedState with
+                | true -> NotRunning
+                | _ -> model.WaveSim.State
+    }
+    printf "%A" (model.WaveSim.ReducedState <> newReducedState)
+    {newModel with WaveSim = waveSim; SavedSheetIsOutOfDate = findChange newModel}, Cmd.map Sheet sCmd
 
 //----------------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------UPDATE-----------------------------------------------------------//

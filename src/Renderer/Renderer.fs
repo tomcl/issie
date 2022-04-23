@@ -12,12 +12,28 @@ open Elmish.Debug
 open Elmish.HMR
 open Fable.Core
 open Fable.Core.JsInterop
+open Fable.React
 open ElectronAPI
 open ModelType
 open Fable.SimpleJson
 open JSHelpers
 open Sheet.SheetInterface
 open DrawModelType
+
+
+
+let childWindow = Browser.Dom.window.``open``("","modal")
+childWindow.document.write("<div id = waveSimTop> </div>")
+let topDiv = childWindow.document.getElementById "waveSimTop"
+let makePortal (el: ReactElement) (container: Browser.Types.Element) = 
+    ReactDom.createPortal (el, container)
+
+let portalToChildWindow p = makePortal p topDiv
+
+(*
+Looks like react portals will allow part of a react view to be rendered to a child window as here
+https://reactjs.org/docs/portals.html
+*)
 
 
 let isMac = Node.Api.``process``.platform = Node.Base.Darwin
@@ -264,6 +280,8 @@ printfn "Starting renderer..."
 let view' model dispatch =
     let start = TimeHelpers.getTimeMs()
     view model dispatch
+    |> portalToChildWindow  // uncomment this to play with a portal! For real, the portal should be created somewhere
+                            // in the react Dom - not, as here, covering the whole of it!                            
     |> TimeHelpers.instrumentInterval "View" start
 
 let mutable firstPress = true

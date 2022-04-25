@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="{{ site.lang | default: "en-US" }}">
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link rel="stylesheet" href="{{ '/assets/css/style.css?v=' | append: site.github.build_revision | relative_url }}" media="screen" type="text/css">
+    <link rel="stylesheet" href="{{ '/assets/css/print.css' | relative_url }}" media="print" type="text/css">
+
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <![endif]-->
+
+{% seo %}
+  </head>
+<body>
+  {% include topnav.html  %}
+	<div id="content-wrapper">
+    
+    
+    <!-- Main content -->
+	  <div class="inner clearfix" style="width: 60%;">
+		  
+    <img src="../assets/images/issieIconName.png" width="25%" height="25%" onerror="this.style.display='none'">
+    <img src="../../assets/images/issieIconName.png" width="25%" height="25%" onerror="this.style.display='none'">
+
+    <p style="text-align: center; font-size: larger;">Check our blog to be up-to-date with recent developments in ISSIE community and if you have cool stuff to share (and we're sure you do) send us a PR with your post or a link to your personal project.</p>
+
+  <div id="main-content" style="margin-top: -50px;">
+    <h1></h1>
+    <br><br>
+  </div>
+  
+		<main>
+
+			{{ content }}
+
+	  </main>
+		
+
+    <br><br>
+
+      {% if paginator.total_pages > 1 %}
+      <div style="text-align: center;">
+        {% if paginator.previous_page %}
+          <a href="{{ paginator.previous_page_path | relative_url }}">&laquo; Prev</a>
+        {% else %}
+          <span>&laquo; Prev</span>
+        {% endif %}
+      
+        {% for page in (1..paginator.total_pages) %}
+          {% if page == paginator.page %}
+            <em>{{ page }}</em>
+          {% elsif page == 1 %}
+            <a href="{{ '/' | relative_url }}">{{ page }}</a>
+          {% else %}
+            <a href="{{ site.paginate_path | relative_url | replace: ':num', page }}">{{ page }}</a>
+          {% endif %}
+        {% endfor %}
+      
+        {% if paginator.next_page %}
+          <a href="{{ paginator.next_page_path | relative_url }}">Next &raquo;</a>
+        {% else %}
+          <span>Next &raquo;</span>
+        {% endif %}
+      </div>
+      {% endif %}
+
+	</div>
+</body>
+</html>

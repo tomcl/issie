@@ -16,13 +16,15 @@ open ElectronAPI
 open ModelType
 open Fable.SimpleJson
 open JSHelpers
+open Sheet.SheetInterface
+open DrawModelType
 
 
 let isMac = Node.Api.``process``.platform = Node.Base.Darwin
 
 let testMaps() =
-    let modMap = 
-        [0..1000] 
+    let modMap =
+        [0..1000]
         |> List.map (fun n -> n, (n*256+1) % 1001)
         |> Map.ofList
 
@@ -33,7 +35,7 @@ let testMaps() =
         while i < count do
             x <- modMap[x]
             i <- i + 1
-        
+
     let count = 1000000
     let start = TimeHelpers.getTimeMs()
     let result = iterMap count
@@ -58,8 +60,18 @@ let attachExitHandler dispatch =
     renderer.ipcRenderer.on ("closingWindow", (fun (event: Event)->
         // send a message which will process the request to exit
         dispatch <| MenuAction(MenuExit,dispatch)
-        )) |> ignore 
-    
+        )) |> ignore
+(*
+// Set up window close interlock using IPC from/to main process
+let attachGetAppHandler dispatch =
+    // set up callback called when attempt is made to close main window
+    renderer.ipcRenderer.on ("get-user-data", (fun (event: Event)->
+        // send a message which will process the request to exit
+        dispatch <| SetUserAppDir (unbox event. : string)
+        )) |> ignore*)
+
+let getUserAppDir () : string =
+    unbox <| renderer.ipcRenderer.sendSync("get-user-data",None)
 
 /// Make action menu item from name, opt key to trigger, and action.
 let makeItem (label : string) (accelerator : string option) (iAction : KeyboardEvent -> unit) =
@@ -102,7 +114,7 @@ let makeMenu (topLevel: bool) (name : string) (table : MenuItemConstructorOption
    subMenu.``type`` <- Some (if topLevel then MenuItemType.Normal else MenuItemType.Submenu)
    subMenu.label <-Some name
    subMenu.submenu <- Some (U2.Case1 (table |> ResizeArray))
-   subMenu    
+   subMenu
 
 let displayPerformance n m = TimeHelpers.checkPerformance n m JSHelpers.startTimer JSHelpers.stopAndLogTimer
 
@@ -121,33 +133,44 @@ let fileMenu (dispatch) =
         makeItem "Exit Issie" None (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> PopupView.viewInfoPopup dispatch)
         makeCondRoleItem (JSHelpers.debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
-        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace all" None (fun _ -> 
+        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace all" None (fun _ ->
             JSHelpers.debugTraceUI <- Set.ofList ["update";"view"])
-        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace off" None (fun _ -> 
+        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Trace off" None (fun _ ->
             JSHelpers.debugTraceUI <- Set.ofList [])
-        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Run performance check" None (fun _ -> 
-            testMaps()            
+        makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Run performance check" None (fun _ ->
+            testMaps()
             displayPerformance 100 4000000)
      ]
 
 
 let viewMenu dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    let dispatch = Sheet.KeyPress >> sheetDispatch
-    
+    let dispatch = SheetT.KeyPress >> sheetDispatch
+    let wireTypeDispatch = SheetT.WireType >> sheetDispatch
+    let interfaceDispatch = SheetT.IssieInterface >> sheetDispatch
+    let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
+
     let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
     makeMenu false "View" [
         makeRoleItem "Toggle Fullscreen" (Some "F11") MenuItemRole.Togglefullscreen
+        makeItem "Toggle Grid" None (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
         menuSeparator
         makeRoleItem "Zoom  In" (Some "CmdOrCtrl+Shift+Plus") MenuItemRole.ZoomIn
         makeRoleItem "Zoom  Out" (Some "CmdOrCtrl+Shift+-") MenuItemRole.ZoomOut
         makeRoleItem "Reset Zoom" (Some "CmdOrCtrl+0") MenuItemRole.ResetZoom
         menuSeparator
-        makeItem "Diagram Zoom In" (Some "Shift+Plus") (fun ev -> dispatch Sheet.KeyboardMsg.ZoomIn)
-        makeItem "Diagram Zoom Out" (Some "Shift+-") (fun ev -> dispatch Sheet.KeyboardMsg.ZoomOut)
-        makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch Sheet.KeyboardMsg.CtrlW)
+        makeItem "Diagram Zoom In" (Some "Shift+Plus") (fun ev -> dispatch SheetT.KeyboardMsg.ZoomIn)
+        makeItem "Diagram Zoom Out" (Some "Shift+-") (fun ev -> dispatch SheetT.KeyboardMsg.ZoomOut)
+        makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch SheetT.KeyboardMsg.CtrlW)
         menuSeparator
-        makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ -> 
+        makeItem "Toggle Wire Arrows" None (fun ev -> busWireDispatch (BusWireT.Msg.ToggleArrowDisplay))
+        makeMenu false "Wire Type" [
+            makeItem "Jump wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Jump)
+            makeItem "Radiussed wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Radiussed)
+            makeItem "Modern wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Modern)
+        ]
+        menuSeparator
+        makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ ->
             renderer.ipcRenderer.send("toggle-dev-tools", [||]) |> ignore)
     ]
 
@@ -156,9 +179,10 @@ let viewMenu dispatch =
 // Use Elmish subscriptions to attach external source of events such as keyboard
 // shortcuts. According to electron documentation, the way to configure keyboard
 // shortcuts is by creating a menu.
-let editMenu dispatch =
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    let dispatch = Sheet.KeyPress >> sheetDispatch
+let editMenu dispatch' =
+    let sheetDispatch sMsg = dispatch' (Sheet sMsg)
+    let dispatch = SheetT.KeyPress >> sheetDispatch
+    let rotateDispatch = SheetT.Rotate >> sheetDispatch
 
     jsOptions<MenuItemConstructorOptions> <| fun invisibleMenu ->
         invisibleMenu.``type`` <- Some MenuItemType.Submenu
@@ -166,13 +190,26 @@ let editMenu dispatch =
         invisibleMenu.visible <- Some true
         invisibleMenu.submenu <-
             [| // makeElmItem "Save Sheet" "CmdOrCtrl+S" (fun () -> ())
-               makeElmItem "Copy" "CmdOrCtrl+C" (fun () -> dispatch Sheet.KeyboardMsg.CtrlC)
-               makeElmItem "Paste" "CmdOrCtrl+V" (fun () -> dispatch Sheet.KeyboardMsg.CtrlV)
-               makeElmItem "Select All" "CmdOrCtrl+A" (fun () -> dispatch Sheet.KeyboardMsg.CtrlA)
-               makeElmItem "Delete"  (if isMac then "Backspace" else "delete") (fun () -> dispatch Sheet.KeyboardMsg.DEL)
-               makeElmItem "Undo" "CmdOrCtrl+Z" (fun () -> dispatch Sheet.KeyboardMsg.CtrlZ)
-               makeElmItem "Redo" "CmdOrCtrl+Y" (fun () -> dispatch Sheet.KeyboardMsg.CtrlY)
-               makeElmItem "Cancel" "ESC" (fun () -> dispatch Sheet.KeyboardMsg.ESC)|]
+               makeElmItem "Copy" "CmdOrCtrl+C" (fun () -> dispatch SheetT.KeyboardMsg.CtrlC)
+               makeElmItem "Paste" "CmdOrCtrl+V" (fun () -> dispatch SheetT.KeyboardMsg.CtrlV)
+               menuSeparator
+               makeElmItem "Rotate Anticlockwise" "CmdOrCtrl+Left" (fun () -> rotateDispatch SymbolT.RotateAntiClockwise)
+               makeElmItem "Rotate Clockwise" "CmdOrCtrl+Right" (fun () -> rotateDispatch SymbolT.RotateClockwise)
+               makeElmItem "Flip Vertically" "CmdOrCtrl+Up" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipVertical)
+               makeElmItem "Flip Horizontally" "CmdOrCtrl+Down" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipHorizontal)
+               makeItem "Move Component Ports" None (fun _ -> 
+                    dispatch' <| ShowStaticInfoPopup("How to move component Ports", SymbolUpdate.moveCustomPortsPopup(), dispatch'))
+               menuSeparator
+               makeElmItem "Align" "CmdOrCtrl+Shift+A"  (fun ev -> sheetDispatch <| SheetT.Arrangement SheetT.AlignSymbols)
+               makeElmItem "Distribute" "CmdOrCtrl+Shift+D" (fun ev-> sheetDispatch <| SheetT.Arrangement SheetT.DistributeSymbols)
+               makeElmItem "Rotate Label Clockwise" "CmdOrCtrl+Shift+Right" (fun ev-> sheetDispatch <| SheetT.RotateLabels)
+               menuSeparator
+               makeElmItem "Select All" "CmdOrCtrl+A" (fun () -> dispatch SheetT.KeyboardMsg.CtrlA)
+               makeElmItem "Delete"  (if isMac then "Backspace" else "delete") (fun () -> dispatch SheetT.KeyboardMsg.DEL)
+               makeElmItem "Undo" "CmdOrCtrl+Z" (fun () -> dispatch SheetT.KeyboardMsg.CtrlZ)
+               makeElmItem "Redo" "CmdOrCtrl+Y" (fun () -> dispatch SheetT.KeyboardMsg.CtrlY)
+               makeElmItem "Cancel" "ESC" (fun () -> dispatch SheetT.KeyboardMsg.ESC)
+            |]
             |> ResizeArray
             |> U2.Case1
             |> Some
@@ -180,23 +217,26 @@ let editMenu dispatch =
 let attachMenusAndKeyShortcuts dispatch =
     //setupExitInterlock dispatch
     let sub dispatch =
-        let menu:Menu = 
+        let menu:Menu =
             [|
 
                 fileMenu dispatch
 
-                editMenu dispatch 
+                editMenu dispatch
 
                 viewMenu dispatch
-            |]          
+            |]
             |> Array.map U2.Case1
             |> electronRemote.Menu.buildFromTemplate   //Help? How do we call buildfromtemplate
         menu.items[0].visible <- true
-        dispatch <| Msg.ExecFuncInMessage((fun _ _ -> 
+        dispatch <| Msg.ExecFuncInMessage((fun _ _ ->
             electronRemote.app.applicationMenu <- Some menu), dispatch)
         attachExitHandler dispatch
+        let userAppDir = getUserAppDir()
+        dispatch <| ReadUserData userAppDir
 
-    Cmd.ofSub sub    
+
+    Cmd.ofSub sub
 
 // This setup is useful to add other pages, in case they are needed.
 
@@ -206,7 +246,7 @@ type Messages = ModelType.Msg
 
 // -- Init Model
 
-let init() = 
+let init() =
     JSHelpers.setDebugLevel()
     DiagramMainView.init(), Cmd.none
 
@@ -225,24 +265,24 @@ let view' model dispatch =
     let start = TimeHelpers.getTimeMs()
     view model dispatch
     |> TimeHelpers.instrumentInterval "View" start
-   
+
 let mutable firstPress = true
 
 ///Used to listen for pressing down of Ctrl for selection toggle
-let keyPressListener initial = 
+let keyPressListener initial =
     let subDown dispatch =
         Browser.Dom.document.addEventListener("keydown", fun e ->
                                                 let ke: KeyboardEvent = downcast e
-                                                if (jsToBool ke.ctrlKey || jsToBool ke.metaKey) && firstPress then 
-                                                    firstPress <- false 
-                                                    dispatch <| Sheet(Sheet.ToggleSelectionOpen)
-                                                else 
+                                                if (jsToBool ke.ctrlKey || jsToBool ke.metaKey) && firstPress then
+                                                    firstPress <- false
+                                                    dispatch <| Sheet(SheetT.ToggleSelectionOpen)
+                                                else
                                                     ())
-    let subUp dispatch = 
-        Browser.Dom.document.addEventListener("keyup", fun e -> 
+    let subUp dispatch =
+        Browser.Dom.document.addEventListener("keyup", fun e ->
                                                     firstPress <- true
-                                                    dispatch <| Sheet(Sheet.ToggleSelectionClose))
-    Cmd.batch [Cmd.ofSub subDown; Cmd.ofSub subUp] 
+                                                    dispatch <| Sheet(SheetT.ToggleSelectionClose))
+    Cmd.batch [Cmd.ofSub subDown; Cmd.ofSub subUp]
 
 
 

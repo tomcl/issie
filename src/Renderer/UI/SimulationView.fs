@@ -24,7 +24,8 @@ open CommonTypes
 open SimulatorTypes
 open Extractor
 open Simulator
-open TruthTableCreate
+open Sheet.SheetInterface
+open DrawModelType
 
 
 
@@ -546,7 +547,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
 
 let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) (dispatch: Msg -> Unit) =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    let keyDispatch = Sheet.KeyPress >> sheetDispatch
+    let keyDispatch = SheetT.KeyPress >> sheetDispatch
     if simError.InDependency.IsNone then
         // Highlight the affected components and connection only if
         // the error is in the current diagram and not in a
@@ -555,8 +556,8 @@ let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) 
         dispatch <| SetHighlighted (badComps,badConns)
         if not (Sheet.isAllVisible model.Sheet badConns badComps) then
             // make whole diagram visible if any of the errors are not visible
-            keyDispatch <| Sheet.KeyboardMsg.CtrlW
-        dispatch <| Sheet(Sheet.SetWaveSimMode false)
+            keyDispatch <| SheetT.KeyboardMsg.CtrlW
+        dispatch <| Sheet(SheetT.SetWaveSimMode false)
 
 
 let viewSimulation model dispatch =
@@ -615,7 +616,7 @@ let viewSimulation model dispatch =
                    | Ok simData -> viewSimulationData simData.ClockTickNumber simData model dispatch
         let endSimulation _ =
             dispatch CloseSimulationNotification // Close error notifications.
-            dispatch <| Sheet (Sheet.ResetSelection) // Remove highlights.
+            dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
             dispatch EndSimulation // End simulation.
             dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
         div [] [

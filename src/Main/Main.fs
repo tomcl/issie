@@ -177,6 +177,16 @@ let rec addListeners (window: BrowserWindow) =
         |> Option.iter (fun win -> win.close()))
         |> ignore
 
+    // return user data directory
+    mainProcess.ipcMain.on ("get-user-data", fun (event: IpcMainEvent) args -> 
+        let userAppDirOpt =
+            try
+                Some <| mainProcess.app.getPath AppGetPath.UserData
+            with 
+                | _ -> None
+        event.returnValue <- unbox (Option.defaultValue "" userAppDirOpt)) |> ignore
+
+
     mainProcess.ipcMain.on ("toggle-dev-tools", fun _ _ -> 
         mainWindow
         |> Option.iter (fun win -> win.webContents.toggleDevTools()))

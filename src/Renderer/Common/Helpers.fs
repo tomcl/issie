@@ -10,30 +10,36 @@ open CommonTypes
     [<AutoOpen>]
     module JsonHelpers =
         open Fable.SimpleJson
+        open LegacyCanvas
+
 
 
         type SavedInfo =
-            | CanvasOnly of CanvasState
-            | CanvasWithFileWaveInfo of CanvasState * SavedWaveInfo option * System.DateTime
-            | CanvasWithFileWaveInfoAndNewConns of CanvasState * SavedWaveInfo option * System.DateTime
+            | CanvasOnly of LegacyCanvasState
+            | CanvasWithFileWaveInfo of LegacyCanvasState * SavedWaveInfo option * System.DateTime
+            | CanvasWithFileWaveInfoAndNewConns of LegacyCanvasState * SavedWaveInfo option * System.DateTime
+            | NewCanvasWithFileWaveInfoAndNewConns of CanvasState * SavedWaveInfo option * System.DateTime
 
             member self.getCanvas = 
                 match self with
-                | CanvasOnly c -> c 
-                | CanvasWithFileWaveInfo (c,_,_) -> c
-                | CanvasWithFileWaveInfoAndNewConns (c,_,_) -> c
+                | CanvasOnly c -> legacyTypesConvert c 
+                | CanvasWithFileWaveInfo (c,_,_) -> legacyTypesConvert c
+                | CanvasWithFileWaveInfoAndNewConns (c,_,_) -> legacyTypesConvert c
+                | NewCanvasWithFileWaveInfoAndNewConns(c,_,_) -> c
 
             member self.getTimeStamp = 
                 match self with
                 | CanvasOnly _ -> System.DateTime.MinValue 
                 | CanvasWithFileWaveInfo (_,_,ts) -> ts
                 | CanvasWithFileWaveInfoAndNewConns (_,_,ts) -> ts
+                | NewCanvasWithFileWaveInfoAndNewConns (_,_,ts) -> ts
 
             member self.getWaveInfo =
                 match self with
                 | CanvasOnly _ -> None 
                 | CanvasWithFileWaveInfo (_,waveInfo,_) -> waveInfo
                 | CanvasWithFileWaveInfoAndNewConns (_,waveInfo,_) -> waveInfo
+                | NewCanvasWithFileWaveInfoAndNewConns (_,waveInfo,_) -> waveInfo
 
 
 
@@ -42,7 +48,7 @@ open CommonTypes
             let time = System.DateTime.Now
             //printfn "%A" cState
             try            
-                 Json.serialize<SavedInfo> (CanvasWithFileWaveInfoAndNewConns (cState, waveInfo, time))
+                 Json.serialize<SavedInfo> (NewCanvasWithFileWaveInfoAndNewConns (cState, waveInfo, time))
             with
             | e -> 
                 printfn "HELP: exception in SimpleJson.stringify %A" e
@@ -50,7 +56,7 @@ open CommonTypes
         
 
         let jsonStringToState (jsonString : string) =
-             Json.tryParseAs<CanvasState> jsonString
+             Json.tryParseAs<LegacyCanvasState> jsonString
              |> (function
                     | Ok state -> Ok (CanvasOnly state)
                     | Error _ ->
@@ -82,14 +88,17 @@ let memoizeBy (keyFunc: 'a -> 'k) (funcToMemoize: 'a -> 'c) : 'a -> 'c =
             lastValue <- Some v
             v
 
+/// replace new lines in a string by ';' for easier debug printing of records using %A
+let nocr (s:string) = 
+    s.Replace("\n",";")
 
 // NB mapKeys and mapValues should probably be changed to use F# 6 Map.kets, Map.values
 
 /// Array of map keys
-let inline mapKeys (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map fst
+let inline mapKeys (map:Map<'a,'b>) = map |> Map.toArray |> Array.map fst
 
 /// Array of map values
-let inline mapValues (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map snd 
+let inline mapValues (map:Map<'a,'b>) = map |> Map.toArray |> Array.map snd 
 
 /// Map a function over a pair of elements.
 /// mapPair f (x,y) = f x, f y.
@@ -270,7 +279,29 @@ let getNetList ((comps,conns) : CanvasState) =
 
     (initNets, conns) ||> List.fold addConnectionsToNets
 
-
+let testMatch (diffX:float) (diffY:float)  normRot=
+    let s:float = 1.0
+    let lengthList() : float list = 
+        match normRot with
+        // Same orientation
+        | 0 when (diffX >= 0) -> [s; 0; diffX; diffY; 0; 0; -s]                                                    
+        | 0 when (diffX < 0) -> [s; 0; 0; diffY; diffX; 0; -s]                                             
+        // Opposite orientation
+        | 180 when (diffX >= 0) -> [s; 0; (diffX - 2.0 * s)/2.0; diffY; (diffX - 2.0 * s)/2.0; 0; s]           
+        | 180 when (diffX < 0) -> [s; diffY/2.0; (diffX - 2.0 * s); diffY/2.0; 0; 0; s]            
+        // Perpendicular orientation: if startPort points to the right, endPort points down
+        | 90 when ((diffX >= 0) && (diffY >= 0)) -> [s; 0; (diffX - s)/2.0; (diffY + s); (diffX - s)/2.0; 0; 0; -s] 
+        | 90 when ((diffX >= 0) && (diffY < 0)) -> [s; 0; (diffX - s); (diffY + s); 0; 0; 0; -s]                
+        | 90 when ((diffX < 0) && (diffY >= 0)) -> [s; 0; 0; (diffY + s); (diffX - s); 0; 0; -s]               
+        | 90 when ((diffX < 0) && (diffY < 0)) -> [s; 0; 0; (diffY+s)/2.0; (diffX-s); (diffY+s)/2.0; 0; -s]    
+        // Perpendicular orientation: if startPort points to the right, endPort points up
+        | 270 when ((diffX >= 0) && (diffY >= 0)) -> [s; 0; (diffX - s); (diffY - s); 0; 0; 0; s]         
+        | 270 when ((diffX >= 0) && (diffY < 0)) -> [s; 0; (diffX - s)/2.0; (diffY - s); (diffX - s)/2.0; 0; 0; s] 
+        | 270 when ((diffX < 0) && (diffY >= 0)) -> [s; 0; 0; (diffY - s)/2.0; (diffX - s); (diffY - s)/2.0; 0; s]   
+        | 270 when ((diffX < 0) && (diffY < 0)) -> [s; 0; 0; (diffY - s); (diffX - s); 0; 0; s]  
+        // Edge case that should never happen
+        | _ -> [s; 0; 0; 0; 0; 0; s]
+    lengthList()
 
 
 

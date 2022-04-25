@@ -7,57 +7,15 @@ open Browser.Types
 open Fable.Core.JsInterop
 open Fable.React
 open Fable.React.Props
+open CommonTypes
 
 
 //-------------------------------------------------------------------------//
 //------------------------------Types--------------------------------------//
 //-------------------------------------------------------------------------//
 
-/// Position on SVG canvas
-/// Positions can be added, subtracted, scaled using overloaded +,-, *  operators
-/// currently these custom operators are not used in Issie - they should be!
-type XYPos =
-    {
-        X : float
-        Y : float
-    }
-
-    /// allowed tolerance when comparing positions with floating point errors for equality
-    static member epsilon = 0.0000001
-    /// Add postions as vectors (overlaoded operator)
-
-    static member ( + ) (left: XYPos, right: XYPos) =
-        { X = left.X + right.X; Y = left.Y + right.Y }
-
-    /// Subtract positions as vectors (overloaded operator)
-    static member ( - ) (left: XYPos, right: XYPos) =
-        { X = left.X - right.X; Y = left.Y - right.Y }
-
-    /// Scale a position by a number (overloaded operator).
-    static member ( * ) (pos: XYPos, scaleFactor: float) =
-        { X = pos.X*scaleFactor; Y = pos.Y * scaleFactor }
-
-    /// Compare positions as vectors. Comparison is approximate so 
-    /// it will work even with floating point errors. New infix operator.
-    static member ( =~ ) (left: XYPos, right: XYPos) =
-        abs (left.X - right.X) <= XYPos.epsilon && abs (left.Y - right.Y) <= XYPos.epsilon
-
-let euclideanDistance (pos1: XYPos) (pos2:XYPos) = 
-    let vec = pos1 - pos2
-    sqrt(vec.X**2 + vec.Y**2)
-
-/// example use of comparison operator: note that F# type inference will not work without at least
-/// one of the two operator arguments having a known XYPos type.
-let private testXYPosComparison a  (b:XYPos) = 
-    a =~ b
 
 
-type BoundingBox = {
-    X: float
-    Y: float
-    W: float
-    H: float
-}
 
 type PortLocation = {
     X: float
@@ -78,6 +36,7 @@ type MouseOp =
 type MouseT = {
     Pos: XYPos
     Movement: XYPos
+    ShiftKeyDown: bool
     Op: MouseOp}
 
 /// Record to help draw SVG circles
@@ -124,7 +83,7 @@ type Polygon = {
 
 /// Record to help create SVG text
 type Text = {
-    /// left/right/middle: horizontal algnment vs (X,Y)
+    /// start/end/middle: horizontal algnment vs (X,Y)
     TextAnchor: string
     FontSize: string
     FontWeight: string
@@ -138,10 +97,24 @@ type Text = {
 let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
 let canvasWidthContext = testCanvas.getContext_2d()
 
-let getTextWidthInPixels(txt:string, font:string) =
-   canvasWidthContext.font <- font; // e.g. "16px times new roman";
-   canvasWidthContext.measureText(txt).width;
+/// To get this to work, note:
+/// its seems only to do 10px size - that is compensated in the code below.
+/// It is more accurate for some fonts than others.
+/// serif fonts are perfectly accurate (try "times").
+/// sans serif fonts have varying accuracy. Helvetica is the best I have found and is perfect.
+/// note  that many fonts get converted to some standard serif or non-serif font.
+/// note that accuracy varies with font weight (normal = 400 usually more accurate than bold = 600).
+/// To test this, switch on label corner display in addComponentLabel
+let getTextWidthInPixels(txt:string, font:Text) =
+   canvasWidthContext?font <- String.concat " " ["10px"; font.FontWeight; font.FontFamily]; // e.g. "16px bold sans-serif";
+   let sizeInPx = float ((font.FontSize.ToLower()).Replace("px",""))   
+   let ms = sizeInPx * canvasWidthContext.measureText(txt).width / 10.0
+   ms
 
+/// this is a hack that works for "monospace" font only
+let getMonospaceWidth (font: string) (txt: string) =
+    let sizeInPx = float ((font.ToLower()).Replace("px",""))
+    float txt.Length * 0.6 *sizeInPx 
 
 /// Default line, change this one to create new lines
 let defaultLine = {
@@ -178,22 +151,32 @@ let defaultCircle = {
 
 /// Default text, change this to create new text types
 let defaultText = {
-    TextAnchor = "Middle"
+    TextAnchor = "middle"
     FontSize = "10px"
-    FontFamily = "Verdana, Arial, Helvetica, sans-serif" // Change font family to something good
-    FontWeight = "Normal"
-    Fill = "Black"
+    FontFamily = "helvetica" // helvetica seems to work for computing widths (most fonts don't)
+    FontWeight = "normal"
+    Fill = "black"
     UserSelect = UserSelectOptions.None
-    DominantBaseline = "Hanging"
+    DominantBaseline = "hanging"
 }
 
 /// Port circle, used by both Sheet and Symbol to create ports
 let portCircle = { defaultCircle with R = 5.0; Stroke = "Black"; StrokeWidth = "1.0px"; Fill = "Grey"}
+
+
 //--------------------------------------------------------------------------//
 //-----------------------------Helpers--------------------------------------//
 //--------------------------------------------------------------------------//
 
 
+
+/// return a v4 (random) universally unique identifier (UUID)
+/// works under .NET and FABLE
+#if FABLE_COMPILER
+let uuid():string = import "v4" "uuid"
+#else
+let uuid():string = System.Guid.NewGuid.ToString()
+#endif
 
 // ----------------------------- SVG Helpers ----------------------------- //
 
@@ -208,6 +191,39 @@ let makeLine (x1: 'a) (y1: 'b) (x2: 'c) (y2: 'd) (lineParameters: Line) =
             SVGAttr.StrokeWidth lineParameters.StrokeWidth
             SVGAttr.StrokeDasharray lineParameters.StrokeDashArray
     ] []
+
+
+/// Makes path attributes for a horizontal upwards-pointing arc radius r
+let makeArcAttr r =
+    $"a %.2f{r} %.2f{r} 0 0 0 %.3f{2.0*r} 0"
+
+/// Makes a partial arc radius d, heights h1,h2 at ends, distance d1,d2 to centre from ends horizontally
+let makePartArcAttr r h1 d1 h2 d2 =
+    let rot = -(180.0 / System.Math.PI) * System.Math.Asin (max -0.99999 (min 0.99999 ((h1-h2)/(d1+d2))))
+    let flag = if d1 > 0.0 then 1 else 0
+    $"a %.2f{r} %.2f{r} %.2f{rot} 0 {flag} %.3f{d1+d2} %.3f{h1-h2}"
+
+/// makes a line segment offset dx,dy
+let makeLineAttr dx dy =
+    $"l %.3f{dx} %.3f{dy}"
+
+let makePathFromAttr (attr:string) (pathParameters: Path) =
+    path [
+            D attr
+            SVGAttr.Stroke pathParameters.Stroke
+            SVGAttr.StrokeWidth pathParameters.StrokeWidth
+            SVGAttr.StrokeDasharray pathParameters.StrokeDashArray
+            SVGAttr.StrokeLinecap pathParameters.StrokeLinecap
+            SVGAttr.Fill pathParameters.Fill
+    ] []
+
+/// Makes a path ReactElement, points are to be given as an XYPos record element.
+/// Please note that this function is designed to create ONLY "Move to - Bézier Curve"
+///paths (this is what the "M" and "C" attributes stand for) and NOT a generalized SVG path element.
+let makeAnyPath (startingPoint: XYPos) (pathAttr:string) (pathParameters: Path) =
+    let x1, y1 = startingPoint.X, startingPoint.Y
+    let dAttr = sprintf "M %f %f %s" x1 y1 pathAttr
+    makePathFromAttr dAttr pathParameters
 
 /// Makes a path ReactElement, points are to be given as an XYPos record element.
 /// Please note that this function is designed to create ONLY "Move to - Bézier Curve"
@@ -258,13 +274,27 @@ let makeText (posX: float) (posY: float) (displayedText: string) (textParameters
                 DominantBaseline textParameters.DominantBaseline
                 FontWeight textParameters.FontWeight
                 FontSize textParameters.FontSize
+                FontFamily textParameters.FontFamily
                 Fill textParameters.Fill
-                UserSelect textParameters.UserSelect
-                
+                UserSelect textParameters.UserSelect 
             ]
         ] [str <| sprintf "%s" (displayedText)]
 
-
+/// makes a two-line text ReactElement
+/// Dy parameter determines line spacing
+let makeTwoLinesOfText (posX: float) (posY: float) (line1: string) (line2: string) (textParameters: Text) =
+    text [
+        X posX; 
+        Y posY; 
+        Style [
+            TextAnchor textParameters.TextAnchor
+            DominantBaseline textParameters.DominantBaseline
+            FontWeight textParameters.FontWeight
+            FontSize textParameters.FontSize
+            Fill textParameters.Fill
+            UserSelect textParameters.UserSelect 
+        ]
+    ] [tspan [] [str line1]; tspan [Dy "1.2em"] [str line2] ]
 
 /// deliver string suitable for HTML color from a HighlightColor type value
 let getColorString (col: CommonTypes.HighLightColor) =
@@ -274,8 +304,7 @@ let getColorString (col: CommonTypes.HighLightColor) =
 
 //--------------------------------Constants----------------------------------//
 
-/// these determine the size of the draw block canvas relative to the objects on it.
-let canvasUnscaledSize = 3500.0
+
 
 
 

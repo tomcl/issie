@@ -12,7 +12,7 @@ let extractReducedState (state : CanvasState) : CanvasState =
     let (components : Component list), (connections : Connection list) = state
     let comps = 
         components
-        |> List.map (fun comp -> {comp with H=0;W=0;X=0;Y=0})
+        |> List.map (fun comp -> {comp with H=0.;W=0.;X=0.;Y=0.; SymbolInfo = None})
         |> List.sortBy (fun comp -> comp.Id)
                        
     let conns =                   
@@ -22,11 +22,12 @@ let extractReducedState (state : CanvasState) : CanvasState =
     comps, conns
 
 /// Are two lists of vertices identical
-let verticesAreSame tolerance (conns1:(float*float) list) (conns2: (float*float) list) =
+let verticesAreSame tolerance (conns1:(float*float*bool) list) (conns2: (float*float*bool) list) =
+    let diff m1 m2 = if m1 <> m2 then tolerance else 0.
     let sq x = x*x
     conns1.Length = conns2.Length &&
     List.zip conns1 conns2
-    |> List.map (fun ((x1,y1),(x2,y2)) -> sq(x1-x2) + sq(y1-y2))
+    |> List.map (fun ((x1,y1,m1),(x2,y2,m2)) -> sq(x1-x2) + sq(y1-y2) + diff m1 m2)
     |> List.sum
     |> (fun d -> d < tolerance)
 
@@ -66,7 +67,7 @@ let compareCanvas
     let reduce comps =
         comps
         |> List.toArray
-        |> Array.map (fun comp -> {comp with H=0;W=0;X=0;Y=0})
+        |> Array.map (fun comp -> {comp with H=0.;W=0.;X=0.;Y=0.})
         |> Array.sortBy (fun comp -> comp.Id)
     let compsOk = reduce comps1 = reduce comps2
     let compsSamePos = compareComps tolerance comps1 comps2

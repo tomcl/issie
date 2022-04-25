@@ -146,7 +146,43 @@ module CommonTypes
 
                 
 
-        
+    /// Position on SVG canvas
+    /// Positions can be added, subtracted, scaled using overloaded +,-, *  operators
+    /// currently these custom operators are not used in Issie - they should be!
+    type XYPos =
+        {
+            X : float
+            Y : float
+        }
+    
+        /// allowed tolerance when comparing positions with floating point errors for equality
+        static member inline epsilon = 0.0000001
+    
+        /// Add postions as vectors (overlaoded operator)
+        static member inline ( + ) (left: XYPos, right: XYPos) =
+            { X = left.X + right.X; Y = left.Y + right.Y }
+    
+        /// Subtract positions as vectors (overloaded operator)
+        static member inline ( - ) (left: XYPos, right: XYPos) =
+            { X = left.X - right.X; Y = left.Y - right.Y }
+    
+        /// Scale a position by a number (overloaded operator).
+        static member inline ( * ) (pos: XYPos, scaleFactor: float) =
+            { X = pos.X*scaleFactor; Y = pos.Y * scaleFactor }
+    
+        /// Compare positions as vectors. Comparison is approximate so 
+        /// it will work even with floating point errors. New infix operator.
+        static member inline ( =~ ) (left: XYPos, right: XYPos) =
+            abs (left.X - right.X) <= XYPos.epsilon && abs (left.Y - right.Y) <= XYPos.epsilon
+    
+    let inline euclideanDistance (pos1: XYPos) (pos2:XYPos) = 
+        let vec = pos1 - pos2
+        sqrt(vec.X**2 + vec.Y**2)
+    
+    /// example use of comparison operator: note that F# type inference will not work without at least
+    /// one of the two operator arguments having a known XYPos type.
+    let private testXYPosComparison a  (b:XYPos) = 
+        a =~ b   
   
 
     //==========================================//
@@ -230,7 +266,7 @@ module CommonTypes
         Name: string
         // Tuples with (label * connection width).
         InputLabels: (string * int) list
-        OutputLabels: (string * int) list 
+        OutputLabels: (string * int) list
     }
 
     type Memory = {
@@ -277,8 +313,8 @@ module CommonTypes
         | BusSelection of OutputWidth: int * OutputLSBit: int
         | Constant of Width: int * ConstValue: int64 
         | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
-        | Not | And | Or | Xor | Nand | Nor | Xnor |Decode4
-        | Mux2 | Demux2
+        | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
+        | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
         | NbitsAdder of BusWidth: int | NbitsXor of BusWidth:int
         | Custom of CustomComponentType // schematic sheet used as component
         | MergeWires | SplitWire of BusWidth: int // int is bus width
@@ -305,6 +341,70 @@ module CommonTypes
         | AsyncROM1 _ -> AsyncROM1
         | _ -> failwithf $"Can't get memory type from {cType}"
 
+    // --------------- Types needed for symbol ---------------- //
+    /// Represents the rotation of a symbol in degrees, Degree0 is the default symbol rotation.
+    /// Angle is anticlockwise
+    type Rotation = | Degree0 | Degree90 | Degree180 | Degree270
+    
+    /// Stores the rotation and the flip of the symbol, flipped false by default
+    type STransform = {Rotation: Rotation; flipped: bool}
+    
+    /// Represents the sides of a component
+    type Edge = | Top | Bottom | Left | Right
+
+    type BoundingBox = {
+        /// Top left corner of the bounding box
+        TopLeft: XYPos
+        /// Width
+        W: float
+        /// Height
+        H: float
+    }
+        with member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.}
+    
+    type SymbolInfo = {
+        LabelBoundingBox: BoundingBox option
+        LabelRotation: Rotation option
+        STransform: STransform
+        PortOrientation: Map<string, Edge>
+        PortOrder: Map<Edge, string list>
+    }
+
+
+
+    let getSTransformWithDefault (infoOpt: SymbolInfo option) =
+        match infoOpt with
+        | None ->{Rotation=Degree0; flipped=false}
+        | Some inf -> inf.STransform
+
+    module LegacyCanvas =
+        /// JSComponent mapped to F# record.
+        /// Id uniquely identifies the component within a sheet.
+        /// Label is optional descriptor displayed on schematic.
+        type LegacyComponent = {
+            Id : string
+            Type : ComponentType
+            Label : string // All components have a label that may be empty.
+            InputPorts : Port list // position on this list determines inputPortNumber
+            OutputPorts : Port list // position in this lits determines OutputPortNumber
+            X : float
+            Y : float
+            H : float
+            W : float
+        }
+
+        /// JSConnection mapped to F# record.
+        /// Id uniquely identifies connection globally and is used by library.
+        type LegacyConnection = {
+            Id : string
+            Source : Port
+            Target : Port
+            Vertices : (float * float) list
+        }
+
+        /// F# data describing the contents of a single schematic sheet.
+        type LegacyCanvasState = LegacyComponent list * LegacyConnection list
+
 
     /// JSComponent mapped to F# record.
     /// Id uniquely identifies the component within a sheet.
@@ -315,10 +415,11 @@ module CommonTypes
         Label : string // All components have a label that may be empty.
         InputPorts : Port list // position on this list determines inputPortNumber
         OutputPorts : Port list // position in this lits determines OutputPortNumber
-        X : int
-        Y : int
-        H : int
-        W : int
+        X : float
+        Y : float
+        H : float
+        W : float
+        SymbolInfo : SymbolInfo option
     }
 
     /// JSConnection mapped to F# record.
@@ -327,11 +428,53 @@ module CommonTypes
         Id : string
         Source : Port
         Target : Port
-        Vertices : (float * float) list
+        Vertices : (float * float * bool) list
     }
 
     /// F# data describing the contents of a single schematic sheet.
     type CanvasState = Component list * Connection list
+
+
+    //===================================================================================================//
+    //                                         LEGACY TYPES                                              //
+    //===================================================================================================//
+
+
+
+            
+            
+
+    let legacyTypesConvert (lComps, lConns) =
+        let convertConnection (c:LegacyCanvas.LegacyConnection) : Connection =
+            {
+                Id=c.Id; 
+                Source=c.Source;
+                Target=c.Target;
+                Vertices = 
+                    c.Vertices
+                    |> List.map (function 
+                        | (x,y) when x >= 0. && y >= 0. -> (x,y,false)
+                        | (x,y) -> (abs x, abs y, true))
+            }
+        let convertComponent (comp:LegacyCanvas.LegacyComponent) : Component =
+
+            {
+                Id = comp.Id
+                Type = comp.Type
+                Label = comp.Label // All components have a label that may be empty.
+                InputPorts = comp.InputPorts // position on this list determines inputPortNumber
+                OutputPorts = comp.OutputPorts // position in this lits determines OutputPortNumber
+                X = comp.X
+                Y = comp.Y
+                H = comp.H
+                W = comp.W
+                SymbolInfo = None
+                    
+            }
+        let comps = List.map convertComponent lComps
+        let conns = List.map convertConnection lConns
+        (comps,conns)
+
 
     //=======//
     // Other //
@@ -371,15 +514,16 @@ module CommonTypes
     [<Erase>]
     type ComponentId      = | ComponentId of string
 
-    /// SHA hash unique to a segment
-    [<Erase>]
-    type SegmentId      = | SegmentId of string
 
     /// SHA hash unique to a connection - common between JS and F#
 
     /// SHA hash unique to a connection - common between JS and F#
     [<Erase>]
     type ConnectionId     = | ConnectionId of string
+
+    /// type to uniquely identify a segment
+    type SegmentId      = int * ConnectionId
+
 
     /// Human-readable name of component as displayed on sheet.
     /// For I/O/labelIO components a width indication eg (7:0) is also displayed, but NOT included here
@@ -512,6 +656,28 @@ module CommonTypes
         /// Output port names, and port numbers in any created custom component
         OutputLabels : (string * int) list
     }
+
+    /// Returns true if a component is clocked
+    let rec isClocked (visitedSheets: string list) (ldcs: LoadedComponent list) (comp: Component) =
+        match comp.Type with
+        | Custom ct ->
+            let ldcOpt =
+                ldcs
+                |> List.tryFind (fun ldc -> ldc.Name = ct.Name)
+            match ldcOpt, List.contains ct.Name visitedSheets with
+            | _, true -> false
+            | None, _ -> false
+            | Some ldc, _ ->
+                let (comps, _) = ldc.CanvasState
+                List.exists (isClocked (ct.Name :: visitedSheets) ldcs) comps
+                        
+
+                            
+        | DFF | DFFE | Register _ | RegisterE _ | RAM _ | ROM _ ->
+            true
+        | _ -> false
+
+
 
     /// Type for an open project which represents a complete design.
     /// ProjectPath is directory containing project files.

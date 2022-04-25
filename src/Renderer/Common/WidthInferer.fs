@@ -84,12 +84,12 @@ let private getConnectionIdForPort
     | Some (Some (_, connId)) -> connId
 
 let private makeWidthInferErrorEqual expected actual connectionsAffected = Error {
-    Msg = sprintf "Wrong wire width. Target port expects a %d bit(s) signal, but source port produces a %d bit(s) signal." expected actual
+    Msg = sprintf "Wrong wire width. Target port expects a %d-bit signal, but source port produces a %d-bit signal." expected actual
     ConnectionsAffected = connectionsAffected
 }
 
 let private makeWidthInferErrorAtLeast atLeast actual connectionsAffected = Error {
-    Msg = sprintf "Wrong wire width. Target port expects a signal with at least %d bits, but source port produces a %d bit(s) signal." atLeast actual
+    Msg = sprintf "Wrong wire width. Target port expects a signal with at least %d bits, but source port produces a %d-bit signal." atLeast actual
     ConnectionsAffected = connectionsAffected
 }
     
@@ -226,6 +226,48 @@ let private calculateOutputPortsWidth
         | [None; Some n; _] -> Ok <| Map.empty.Add (getOutputPortId comp 0, n)
         | [_; _; _] -> Ok Map.empty // Keep on waiting.
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+    | Mux4 ->
+        // Mux also allowes buses.
+        assertInputsSize inputConnectionsWidth 5 comp
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2; InputPortNumber 3; InputPortNumber 4] with
+        | [Some n; Some m; Some a; Some b; Some 2] when (n = m && n = a && n = b) -> Ok <| Map.empty.Add (getOutputPortId comp 0, n)
+        | [Some n; Some m; Some a; Some b; _] when (n <> m || n <> a || n <> b) ->
+            // Two inputs have different widths, this is not allowed.
+            Error {
+                Msg = sprintf "Wrong wire width. The four inputs to a multiplexer are expected to have the same width, but 1st input has %d bits, 2nd input has %d bits, 3rd input has %d bits, 4th input has %d bits." n m a b
+                ConnectionsAffected = [getConnectionIdForPort 0; getConnectionIdForPort 1; getConnectionIdForPort 2; getConnectionIdForPort 3]
+            }
+        | [_; _; _; _; Some n] when n <> 2 -> makeWidthInferErrorEqual 2 n [getConnectionIdForPort 4]
+        | [Some n; Some m; Some a; None; _]
+        | [Some n; Some m; None; Some a; _]
+        | [Some n; None; Some m; Some a; _]
+        | [None; Some n; Some m; Some a; _] -> Ok <| Map.empty.Add (getOutputPortId comp 0, n)
+        | [_; _; _; _; _] -> Ok Map.empty // Keep on waiting.
+        | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+    | Mux8 ->
+        // Mux also allowes buses.
+        assertInputsSize inputConnectionsWidth 9 comp
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1; InputPortNumber 2; InputPortNumber 3; InputPortNumber 4;InputPortNumber 5; InputPortNumber 6; InputPortNumber 7; InputPortNumber 8] with
+        | [Some n; Some m; Some a; Some b; Some c; Some d; Some e; Some f; Some 3] when 
+            (n = m && n = a && n = b && n = c && n = d && n = e && n = f) -> Ok <| Map.empty.Add (getOutputPortId comp 0, n)
+        | [Some n; Some m; Some a; Some b; Some c; Some d; Some e; Some f; _] when 
+            (n <> m || n <> a || n <> b || n <> c || n <> d || n <> e || n<>f) ->
+            // Two inputs have different widths, this is not allowed.
+            Error {
+                Msg = sprintf "Wrong wire width. The eight inputs to a multiplexer are expected to have the same width, but 1st input has %d bits, 2nd input has %d bits, 3rd input has %d bits, 4th input has %d bits, 5th input has %d bits, 6th input has %d bits, 7th input has %d bits, 8th input has %d bits." n m a b c d e f
+                ConnectionsAffected = [getConnectionIdForPort 0; getConnectionIdForPort 1; getConnectionIdForPort 2; getConnectionIdForPort 3; getConnectionIdForPort 4; getConnectionIdForPort 5; getConnectionIdForPort 6; getConnectionIdForPort 7]
+            }
+        | [_; _; _; _; _; _; _; _; Some n] when n <> 3 -> makeWidthInferErrorEqual 3 n [getConnectionIdForPort 8]
+        | [Some n; Some m; Some a; Some b; Some c; Some d; Some e; None; _]
+        | [Some n; Some m; Some a; Some b; Some c; Some d; None; Some e; _]
+        | [Some n; Some m; Some a; Some b; Some c; None; Some d; Some e; _]
+        | [Some n; Some m; Some a; Some b; None; Some c; Some d; Some e; _]
+        | [Some n; Some m; Some a; None; Some b; Some c; Some d; Some e; _]
+        | [Some n; Some m; None; Some a; Some b; Some c; Some d; Some e; _]
+        | [Some n; None; Some m; Some a; Some b; Some c; Some d; Some e; _] 
+        | [None; Some n; Some m; Some a; Some b; Some c; Some d; Some e; _] -> Ok <| Map.empty.Add (getOutputPortId comp 0, n)
+        | [_; _; _; _; _; _; _; _; _] -> Ok Map.empty // Keep on waiting.
+        | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
     | Demux2 ->
         // Demux also allowes buses.
         assertInputsSize inputConnectionsWidth 2 comp
@@ -235,6 +277,28 @@ let private calculateOutputPortsWidth
             let out = out.Add (getOutputPortId comp 1, n)
             Ok out
         | [_; Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 1]
+        | [_; _] -> Ok Map.empty // Keep on waiting.
+        | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+    | Demux4 ->
+        // Demux also allowes buses.
+        assertInputsSize inputConnectionsWidth 2 comp
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
+        | [Some n; Some 2] | [Some n; None] ->
+            let map = Map.empty.Add (getOutputPortId comp 0 , n)
+            let out = (map, [1..3]) ||> List.fold (fun s v -> s |> Map.add (getOutputPortId comp v) n)
+            Ok out
+        | [_; Some n] when n <> 2 -> makeWidthInferErrorEqual 2 n [getConnectionIdForPort 1]
+        | [_; _] -> Ok Map.empty // Keep on waiting.
+        | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+    | Demux8 ->
+        // Demux also allowes buses.
+        assertInputsSize inputConnectionsWidth 2 comp
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
+        | [Some n; Some 3] | [Some n; None] ->
+            let map = Map.empty.Add (getOutputPortId comp 0 , n)
+            let out = (map, [1..7]) ||> List.fold (fun s v -> s |> Map.add (getOutputPortId comp v) n)
+            Ok out
+        | [_; Some n] when n <> 3 -> makeWidthInferErrorEqual 3 n [getConnectionIdForPort 1]
         | [_; _] -> Ok Map.empty // Keep on waiting.
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
     | NbitsAdder numberOfBits ->
@@ -527,9 +591,9 @@ let private initialiseConnectionsWidth connections : ConnectionsWidth =
 let private getAllInputNodes components : Component list =
     components |> List.filter (fun comp -> match comp.Type with | Input _ -> true | _ -> false)
 
-/// For each connected Input port, map the connection that is connected to it.
+/// For each connected input port, map the connection that is connected to it.
 /// Fail if there are multiple connections connected to the same input port.
-/// Such scenario would mean that a wire is driven by multiple components.
+/// Such a scenario would mean that a wire is driven by multiple components.
 let private mapInputPortIdsToConnectionIds
         (connections : Connection list)
         : Result<Map<InputPortId, ConnectionId>, WidthInferError> =
@@ -556,7 +620,7 @@ let private mapComponentIdsToComponents
 
     
 
-/// return all Connections connected to an output port
+/// return all connections connected to an output port
 let private mapOutputPortIdsToConnections
         (connections : Connection list)
         : Map<OutputPortId, Connection list> =
@@ -564,13 +628,13 @@ let private mapOutputPortIdsToConnections
     |> List.groupBy (fun conn -> OutputPortId conn.Source.Id)
     |> Map.ofList
 
-/// Here each input port has asociated with the connection that drives it.
+/// Here each input port has associated with the connection that drives it.
 /// Normally that is the connection connected to the port.
 /// However BusLabels are a special case because a set of similarly named labels
 /// have outputs all connected together and driven by the single connection that goes to
 /// one of the BusLabel inputs (there must be exactly one such).
 /// In this function any input driven by a connection from a BusLabel output gets associated
-/// with the Buslable set input connection, allowing correct width inference.
+/// with the BusLabel set input connection, allowing correct width inference.
 let private mapInputPortIdsToVirtualConnectionIds (conns: Connection list) (comps:Component list) =
     let mapPortIdToConnId = mapInputPortIdsToConnectionIds conns
 
@@ -596,7 +660,7 @@ let private mapInputPortIdsToVirtualConnectionIds (conns: Connection list) (comp
             match getBusLabelConns compLst  with
             | [cId] -> List.map (fun comp -> (InputPortId comp.InputPorts[0].Id, cId)) compLst |> Ok
             | h when h.Length <> 1 -> Error {
-                Msg = sprintf "A Labelled wire must no more than one driving component. '%s' labels have %d drivers" lab h.Length
+                Msg = sprintf "A wire label must have exactly one driving component but the label '%s' has %d" lab h.Length
                 ConnectionsAffected = h 
                 }            
             | _ -> Ok []

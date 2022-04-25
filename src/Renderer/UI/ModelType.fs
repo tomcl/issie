@@ -11,6 +11,7 @@ module rec ModelType
 open CommonTypes
 open SimulatorTypes
 open Fable.React
+open Sheet.SheetInterface
 
 type RightTab =
     | Properties
@@ -261,7 +262,7 @@ type PopupProgress =
 
 type Msg =
     | ShowExitDialog
-    | Sheet of Sheet.Msg
+    | Sheet of DrawModelType.SheetT.Msg
     | JSDiagramMsg of JSDiagramMsg
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
@@ -284,6 +285,7 @@ type Msg =
     | UpdateProject of (Project -> Project)
     | UpdateProjectWithoutSyncing of (Project->Project)
     | ShowPopup of ((Msg -> Unit) -> PopupDialogData -> ReactElement)
+    | ShowStaticInfoPopup of (string * ReactElement * (Msg -> Unit))
     | ClosePopup
     | SetPopupDialogText of string option
     | SetPopupDialogInt of int option
@@ -329,6 +331,8 @@ type Msg =
     | DoNothing
     | StartUICmd of UICommandType
     | FinishUICmd
+    | ReadUserData of string
+    | SetUserData of UserData
     | ExecCmd of Elmish.Cmd<Msg>
     | ExecFuncInMessage of (Model -> (Msg->Unit) -> Unit) * (Msg -> Unit)
     | ExecFuncAsynch of (Unit -> Elmish.Cmd<Msg>)
@@ -350,10 +354,18 @@ type Notifications = {
 }
 
 
-
+type UserData = {
+    /// Where to save the persistent app data
+    UserAppDir : string option
+    LastUsedDirectory: string option
+    RecentProjects: string list option
+    ArrowDisplay: bool
+    WireType: DrawModelType.BusWireT.WireType
+    }
 
 
 type Model = {
+    UserData: UserData
     // All the data for waveform simulation (separate for each sheet)
     // TODO: remove the simulation error.
     WaveSim : Map<string, WaveSimModel> * (SimulationError option)
@@ -361,7 +373,7 @@ type Model = {
     WaveSimSheet: string
         
     // Draw Canvas
-    Sheet: Sheet.Model
+    Sheet: DrawModelType.SheetT.Model
 
     // true during period when a sheet or project is loading
     IsLoading: bool
@@ -423,7 +435,26 @@ type Model = {
     UIState: UICommandType Option
 } 
 
+/// This is needed because DrawBlock cannot directly access Issie Model.
+/// can be replaced when all Model is placed at start of compile order and DB
+/// model is refactored
+let drawBlockModelToUserData (model: Model) (userData: UserData)=
+    let bwModel =model.Sheet.Wire
+    {userData with WireType = bwModel.Type; ArrowDisplay = bwModel.ArrowDisplay}
 
+/// This is needed because DrawBlock cannot directly access Issie Model.
+/// can be replaced when all Model is placed at start of compile order and DB
+/// model is refactored
+let userDataToDrawBlockModel (model: Model) =
+    let userData = model.UserData
+    {model with 
+        Sheet = 
+            {model.Sheet with 
+                Wire = {
+                    model.Sheet.Wire with 
+                        Type = userData.WireType
+                        ArrowDisplay = userData.ArrowDisplay
+                }}}
 
 let reduce (this: Model) = {|
          RightTab = this.RightPaneTabVisible
@@ -584,6 +615,11 @@ let spMess msg =
     //| SetProject p -> sprintf "MSG<<SetProject:%s>>ENDM" (spProj p)
     //| SetLastSimulatedCanvasState canvasOpt-> sprintf "MSG<SetLastSimCanv:%s>>ENDM" (spOpt spState canvasOpt)
     | x -> sprintf "MSG<<%20A>>ENDM" x
+
+let tryGetLoadedComponents model =
+    match model.CurrentProj with
+    | Some p -> p.LoadedComponents
+    | _ -> []
 
 let updateLdComps (name:string) (changeFun: LoadedComponent -> LoadedComponent)  (ldComps: LoadedComponent list)=
     ldComps

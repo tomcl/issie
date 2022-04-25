@@ -424,7 +424,13 @@ let rec extractFastSimulationState
     match Map.tryFind (cid, ap) fs.FComps with
     | Some fc ->
         match fc.State with
-        | None -> failwithf "What? extracting State in step %d from %s failed" step fc.FullName
+        | None -> 
+            match fc.SimComponent.Type with
+            // asynch ROMs have no state: value is always the same
+            | AsyncROM1 romContents -> 
+                RamState romContents
+            | _ ->
+                failwithf "What? extracting State in step %d from %s failed" step fc.FullName
         | Some stepArr ->
             match Array.tryItem (step% fs.MaxArraySize) stepArr.Step with
             | Some state -> state

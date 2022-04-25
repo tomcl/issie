@@ -49,6 +49,8 @@ open Helpers
 open ModelType
 open CommonTypes
 open EEExtensions
+open Sheet.SheetInterface
+
 
 
 //=======//
@@ -96,6 +98,8 @@ let setComponentLabel model (sheetDispatch) (comp:Component) (text:string) =
 //========//
 // Popups //
 //========//
+
+let preventDefault (e: Browser.Types.ClipboardEvent) = e.preventDefault()
 
 let getText (dialogData : PopupDialogData) =
     Option.defaultValue "" dialogData.Text
@@ -247,7 +251,7 @@ let dialogPopupBodyOnlyInt beforeInt intDefault dispatch =
             beforeInt dialogData
             br []
             Input.number [
-                Input.Props [Style [Width "60px"]; AutoFocus true]
+                Input.Props [OnPaste preventDefault; Style [Width "60px"]; AutoFocus true]
                 Input.DefaultValue <| sprintf "%d" intDefault
                 Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
             ]
@@ -266,7 +270,7 @@ let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) (wi
             beforeInt1 dialogData
             br []
             Input.number [
-                Input.Props [Style [Width "60px"]; AutoFocus true]
+                Input.Props [OnPaste preventDefault; Style [Width "60px"]; AutoFocus true]
                 Input.DefaultValue <| sprintf "%d" intDefault1
                 Input.OnChange (getIntEventValue >> int64 >> setPopupTwoInts (FirstInt,None))
             ]
@@ -274,7 +278,7 @@ let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) (wi
             beforeInt2 dialogData
             br []
             Input.text [
-                Input.Props [Style [Width width2]; AutoFocus true]
+                Input.Props [OnPaste preventDefault; Style [Width width2]; AutoFocus true]
                 Input.DefaultValue <| sprintf "%d" intDefault2
                 Input.OnChange (fun ev ->
                     let text = getTextEventValue ev
@@ -290,7 +294,7 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
         div [] [
             beforeText dialogData
             Input.text [
-                Input.Props [AutoFocus true; SpellCheck false]
+                Input.Props [OnPaste preventDefault; AutoFocus true; SpellCheck false]
                 Input.Placeholder placeholder
                 Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
             ]
@@ -299,7 +303,7 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
             beforeInt dialogData
             br []
             Input.number [
-                Input.Props [Style [Width "60px"]]
+                Input.Props [OnPaste preventDefault; Style [Width "60px"]]
                 Input.DefaultValue <| sprintf "%d" intDefault
                 Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
             ]
@@ -313,7 +317,7 @@ let dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispat
             beforeInt dialogData
             br []
             Input.number [
-                Input.Props [Style [Width "60px"]]
+                Input.Props [OnPaste preventDefault; Style [Width "60px"]]
                 Input.DefaultValue <| sprintf "%d" intDefault
                 Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
             ]
@@ -321,7 +325,7 @@ let dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispat
             br []
             beforeText dialogData
             Input.text [
-                Input.Props [AutoFocus true; SpellCheck false]
+                Input.Props [OnPaste preventDefault; AutoFocus true; SpellCheck false]
                 Input.Placeholder placeholder
                 Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
             ]
@@ -493,7 +497,7 @@ let dialogPopupBodyMemorySetup intDefault dispatch =
             str <| sprintf "%d bits yield %d memory locations." addressWidth (pow2int64 addressWidth)
             br []; br []
             Input.number [
-                Input.Props [Style [Width "60px"] ; AutoFocus true]
+                Input.Props [OnPaste preventDefault; Style [Width "60px"] ; AutoFocus true]
                 Input.DefaultValue (sprintf "%d" addressWidth)
                 Input.OnChange (getIntEventValue >> fun newAddrWidth ->
                     Some (newAddrWidth, wordWidth, source, None) 
@@ -505,7 +509,7 @@ let dialogPopupBodyMemorySetup intDefault dispatch =
             str "How many bits should each memory word contain?"
             br []; br [];
             Input.number [
-                Input.Props [Style [Width "60px"]]
+                Input.Props [OnPaste preventDefault; Style [Width "60px"]]
                 Input.DefaultValue (sprintf "%d" wordWidth)
                 Input.OnChange (getIntEventValue >> fun newWordWidth ->
                     Some (addressWidth, newWordWidth, source, None) 
@@ -771,4 +775,7 @@ let viewInfoPopup dispatch =
 
     let foot _ = div [] []
     dynamicClosablePopup title body foot [Width 800] dispatch
+
+
+
 

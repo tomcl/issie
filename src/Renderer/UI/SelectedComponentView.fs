@@ -16,6 +16,8 @@ open CommonTypes
 open MemoryEditorView
 open PopupView
 open Notifications
+open Sheet.SheetInterface
+open DrawModelType
 
 let private readOnlyFormField name body =
     Field.div [] [
@@ -23,13 +25,16 @@ let private readOnlyFormField name body =
         body
     ]
 
+
+
+
 let private textFormField isRequired name defaultValue onChange =
     Field.div [] [
         Label.label [] [ str name ]
         Input.text [
-            Input.Props [ SpellCheck false; Name name; AutoFocus true; Style [ Width "200px"]]
+            Input.Props [ OnPaste preventDefault; SpellCheck false; Name name; AutoFocus true; Style [ Width "200px"]]
             Input.DefaultValue defaultValue
-            Input.Type Input.Text
+            Input.CustomClass "www"
             Input.Placeholder (if isRequired then "Name (required)" else "Name (optional)")
             Input.OnChange (getTextEventValue >> onChange)
         ] 
@@ -39,7 +44,7 @@ let private textFormFieldSimple name defaultValue onChange =
     Field.div [] [
         Label.label [] [ str name ]
         Input.text [
-            Input.Props [ SpellCheck false; Name name; AutoFocus true; Style [ Width "200px"]]
+            Input.Props [ OnPaste preventDefault; SpellCheck false; Name name; AutoFocus true; Style [ Width "200px"]]
             Input.DefaultValue defaultValue
             Input.Type Input.Text
             Input.OnChange (getTextEventValue >> onChange)
@@ -178,14 +183,14 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
 
 let mockDispatchS msgFun msg =
     match msg with
-    | Sheet (Sheet.Msg.Wire (BusWire.Msg.Symbol sMsg)) ->
+    | Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol sMsg)) ->
         msgFun msg
     | _ -> ()
 
 
 
 let msgToS = 
-    BusWire.Msg.Symbol >> Sheet.Msg.Wire >> Msg.Sheet
+    BusWireT.Msg.Symbol >> SheetT.Msg.Wire >> Msg.Sheet
   
 /// Return dialog fileds used by constant, or default values
 let constantDialogWithDefault (w,cText) dialog =
@@ -206,7 +211,7 @@ let makeConstantDialog (model:Model) (comp: Component) (text:string) (dispatch: 
         | Some (Constant1(w,cVal,cText) as compT) ->
             if compT <> comp.Type then
                 model.Sheet.ChangeWidth (Sheet >> dispatch) (ComponentId comp.Id) w
-                symbolDispatch <| Symbol.ChangeConstant (ComponentId comp.Id, cVal, cText)
+                symbolDispatch <| SymbolT.ChangeConstant (ComponentId comp.Id, cVal, cText)
                 dispatch (ReloadSelectedComponent w)
                 dispatch ClosePropertiesNotification
         | _ -> failwithf "What? impossible"
@@ -292,7 +297,11 @@ let private makeDescription (comp:Component) model dispatch =
     | Not | And | Or | Xor | Nand | Nor | Xnor ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
     | Mux2 -> div [] [ str "Multiplexer with two inputs and one output." ]
+    | Mux4 -> div [] [ str "Multiplexer with four inputs and one output." ]
+    | Mux8 -> div [] [ str "Multiplexer with eight inputs and one output." ]
     | Demux2 -> div [] [ str "Demultiplexer with one input and two outputs." ]
+    | Demux4 -> div [] [ str "Demultiplexer with one input and four outputs." ]
+    | Demux8 -> div [] [ str "Demultiplexer with one input and eight outputs." ]
     | MergeWires -> div [] [ str "Merge two wires of width n and m into a single wire of width n+m." ]
     | SplitWire _ -> div [] [ str "Split a wire of width n+m into two wires of width n and m."]
     | NbitsAdder numberOfBits -> div [] [ str <| sprintf "%d bit(s) adder." numberOfBits ]
@@ -384,22 +393,44 @@ let private makeExtraInfo model (comp:Component) text dispatch =
 
 
 let viewSelectedComponent (model: ModelType.Model) dispatch =
+    let allowNoLabel =
+        let symbols = model.Sheet.Wire.Symbol.Symbols
+        match model.Sheet.SelectedComponents with
+        | [cid] ->
+            match Map.tryFind cid symbols with
+            | Some {Component ={Type=MergeWires | SplitWire _ | BusSelection _}} -> true
+            | _ -> false
+        | _ -> false
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let formatLabelText (txt: string) =
         txt.ToUpper()
-        |> Seq.filter (function | ch when System.Char.IsLetterOrDigit ch -> true | '.' -> true | '_' -> true | _ -> false)
+        |> Seq.filter (function | ch when System.Char.IsLetterOrDigit ch -> true 
+                                | '.' -> true 
+                                | '_' -> true 
+                                | _ -> false)
         |> Seq.skipWhile (System.Char.IsLetter >> not)
-        |> (fun chars -> match Seq.length chars with | 0 -> None | _ -> Some (String.concat "" (Seq.map string chars)))
+        |> Seq.map string
+        |> String.concat ""
+        |> (fun chars -> 
+            match String.length chars with 
+            | 0 when allowNoLabel -> 
+                Some ""
+            | 0 -> 
+                None 
+            | _ -> 
+                Some chars)
     match model.Sheet.SelectedComponents with
     | [ compId ] ->
-        let comp = Symbol.extractComponent model.Sheet.Wire.Symbol compId
+        let comp = SymbolUpdate.extractComponent model.Sheet.Wire.Symbol compId
         div [Key comp.Id] [
             // let label' = extractLabelBase comp.Label
             // TODO: normalise labels so they only contain allowed chars all uppercase
-            let label' = Option.defaultValue "L" (formatLabelText comp.Label) // No formatting atm
+            let label' = Option.defaultValue "" (formatLabelText comp.Label) // No formatting atm
             readOnlyFormField "Description" <| makeDescription comp model dispatch
             makeExtraInfo model comp label' dispatch
-            let required = match comp.Type with | SplitWire _ | MergeWires | BusSelection _ -> false | _ -> true
+            let required = 
+                match comp.Type with 
+                | SplitWire _ | MergeWires | BusSelection _ -> false | _ -> true
             textFormField required "Component Name" label' (fun text ->
                 // TODO: removed formatLabel for now
                 //setComponentLabel model sheetDispatch comp (formatLabel comp text)

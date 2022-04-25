@@ -20,7 +20,14 @@ open Extractor
 open Notifications
 open PopupView
 open CustomCompPorts
+open DrawModelType
+open Sheet.SheetInterface
+
 open System
+
+module Constants =
+    let numberOfRecentProjects: int  = 5
+    let maxDisplayedPathLengthInRecentProjects: int  = 60
 //--------------------------------------------------------------------------------------------//
 //--------------------------------------------------------------------------------------------//
 //---------------------Code for CanvasState comparison and FILE BACKUP------------------------//
@@ -32,7 +39,7 @@ open System
 let quantifyChanges (ldc1:LoadedComponent) (ldc2:LoadedComponent) =
     let comps1,conns1 = ldc1.CanvasState
     let comps2,conns2 = ldc2.CanvasState
-    let reduceComp comp1 =
+    let reduceComp comp1:Component =
         {comp1 with X=0;Y=0}
     let reduceConn conn1 =
         {conn1 with Vertices = []}
@@ -129,10 +136,10 @@ let private displayFileErrorNotification err dispatch =
     dispatch <| SetFilesNotification note
 
 /// Send messages to change Diagram Canvas and specified sheet waveSim in model
-let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps model dispatch =
+let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (model:Model) dispatch =
     // it seems still need this, however code has been deleted!
     //Sheet.checkForTopMenu () // A bit hacky, but need to call this once after everything has loaded to compensate mouse coordinates.
-    
+    let ldcs = tryGetLoadedComponents model
     let name = compToSetup.Name
     let components, connections = compToSetup.CanvasState
     //printfn "Loading..."
@@ -141,30 +148,30 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
             SetHighlighted([], []) // Remove current highlights.
     
             // Clear the canvas.
-            Sheet Sheet.ResetModel
-            Sheet (Sheet.Wire BusWire.ResetModel)
-            Sheet (Sheet.Wire (BusWire.Symbol (Symbol.ResetModel ) ) )
+            Sheet SheetT.ResetModel
+            Sheet (SheetT.Wire BusWireT.ResetModel)
+            Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ResetModel ) ) )
     
             // Finally load the new state in the canvas.
             SetIsLoading true
             //printfn "Check 1..."
     
             //Load components
-            Sheet (Sheet.Wire (BusWire.Symbol (Symbol.LoadComponents components )))
-            Sheet Sheet.UpdateBoundingBoxes
+            Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.LoadComponents (ldcs,components ))))
     
-            Sheet (Sheet.Wire (BusWire.LoadConnections connections))
+            Sheet (SheetT.Wire (BusWireT.LoadConnections connections))
 
-            Sheet Sheet.FlushCommandStack // Discard all undo/redo.
+            Sheet SheetT.FlushCommandStack // Discard all undo/redo.
             // Run the a connection widths inference.
             //printfn "Check 4..."
     
-            Sheet (Sheet.Wire (BusWire.BusWidths))
+            Sheet (SheetT.Wire (BusWireT.BusWidths))
             // JSdispatch <| InferWidths()
             //printfn "Check 5..."
-            // Set no unsaved changes.
-    
-        
+            // Set no unsaved changes.        
+
+            Sheet SheetT.UpdateBoundingBoxes
+
             JSDiagramMsg (SetHasUnsavedChanges false)
             // set waveSim data
             SetWaveSimModel(name, waveSim)
@@ -176,6 +183,8 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
                 }
                 |> SetProject) // this message actually changes the project in model
             SetWaveSimIsOutOfDate true
+            Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
+            Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
             SetIsLoading false 
         
             //printfn "Check 6..."
@@ -184,7 +193,7 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps mod
     //INFO - Currently the spinner will ALWAYS load after 'SetTopMenu x', probably it is the last command in a chain
     //Ideally it should happen before this, but it is not currently doing this despite the async call
     //This will set a spinner for both Open project and Change sheet which are the two most lengthly processes
-    dispatch <| (Sheet (Sheet.SetSpinner true))
+    dispatch <| (Sheet (SheetT.SetSpinner true))
     dispatch <| SendSeqMsgAsynch msgs
     
 /// Return LoadedComponents with sheet name updated according to setFun.
@@ -273,7 +282,7 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
                             match List.tryFind (fun (c:Component) -> c.Id=comp.Id) ramCheck with
                             | Some newRam -> 
                                 // TODO: create consistent helpers for messages
-                                dispatch <| Sheet (Sheet.Wire (BusWire.Symbol (Symbol.WriteMemoryType (ComponentId comp.Id, newRam.Type))))
+                                dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.WriteMemoryType (ComponentId comp.Id, newRam.Type))))
                                 newRam
                             | _ -> comp), conns)
             writeComponentToBackupFile 4 1. newLdc dispatch
@@ -373,9 +382,9 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
 /// Closes waveadder if it is open
 let private openFileInProject' saveCurrent name project (model:Model) dispatch =
     printfn "open file"
-    printSheetNames model
+    //printSheetNames model
     let newModel = {model with CurrentProj = Some project}
-    printSheetNames newModel
+    //printSheetNames newModel
     match getFileInProject name project with
     | None -> 
         log <| sprintf "Warning: openFileInProject could not find the component %s in the project" name
@@ -384,7 +393,7 @@ let private openFileInProject' saveCurrent name project (model:Model) dispatch =
         | None -> failwithf "What? current project cannot be None at this point in openFileInProject"
         | Some p ->
             let updatedModel = {newModel with CurrentProj = Some p}
-            printSheetNames updatedModel
+            //printSheetNames updatedModel
             let ldcs =
                 if saveCurrent then 
                     let opt = saveOpenFileAction false updatedModel dispatch
@@ -393,7 +402,7 @@ let private openFileInProject' saveCurrent name project (model:Model) dispatch =
                     ldComps
                 else
                     project.LoadedComponents
-            printSheetNames {newModel with CurrentProj = Some {Option.get newModel.CurrentProj with LoadedComponents = ldcs }}
+            //printSheetNames {newModel with CurrentProj = Some {Option.get newModel.CurrentProj with LoadedComponents = ldcs }}
             setupProjectFromComponents name ldcs updatedModel dispatch
 
 let openFileInProject name project (model:Model) dispatch =
@@ -461,8 +470,8 @@ let renameSheet oldName newName (model:Model) dispatch =
             |> displayAlertOnError dispatch)
         let proj' = renameSheetsInProject oldName newName p
         setupProjectFromComponents proj'.OpenFileName proj'.LoadedComponents model dispatch
-        printfn "???Sheets after rename"
-        printSheetNames {model with CurrentProj = Some proj'}
+        //printfn "???Sheets after rename"
+        //printSheetNames {model with CurrentProj = Some proj'}
         // save all the other files
         saveAllProjectFilesFromLoadedComponentsToDisk proj'
         dispatch FinishUICmd
@@ -539,13 +548,13 @@ let private removeFileInProject name project model dispatch =
             failwithf "What? - this cannot happen"
         | nc, true ->
             // open one of the undeleted loadedcomponents
-            printfn $"remove sheet '{name}'"
-            printSheetNames {model with CurrentProj = Some project'}
+            //printfn $"remove sheet '{name}'"
+            //printSheetNames {model with CurrentProj = Some project'}
             openFileInProject' false project'.LoadedComponents[0].Name project' model dispatch
         | nc, false ->
             // nothing chnages except LoadedComponents
-            printfn $"remove sheet '{name}'"
-            printSheetNames {model with CurrentProj = Some project'}
+            //printfn $"remove sheet '{name}'"
+            //printSheetNames {model with CurrentProj = Some project'}
             //dispatch <| SetProject project'
         dispatch FinishUICmd
 
@@ -639,7 +648,7 @@ let doActionWithSaveFileDialog (name: string) (nextAction: Msg)  model dispatch 
 
 /// Create a new project.
 let private newProject model dispatch  =
-    match askForNewProjectPath() with
+    match askForNewProjectPath model.UserData.LastUsedDirectory with
     | None -> () // User gave no path.
     | Some path ->
         match tryCreateFolder path with
@@ -654,6 +663,7 @@ let private newProject model dispatch  =
             |> displayAlertOnError dispatch
             // Create empty initial diagram file.
             let initialComponent = createEmptyComponentAndFile path "main"
+            dispatch <| SetUserData {model.UserData with LastUsedDirectory = Some path}
             setupProjectFromComponents "main" [initialComponent] model dispatch
 
 
@@ -716,29 +726,50 @@ let rec resolveComponentOpenPopup
          resolveComponentOpenPopup pPath (autoComp::components) rLst model dispatch
     | OkComp comp ::rLst -> 
         resolveComponentOpenPopup pPath (comp::components) rLst model dispatch
- 
+
+let addToRecents path recents =
+    recents
+    |> Option.defaultValue []
+    |> List.filter ((<>) path)
+    |> List.truncate Constants.numberOfRecentProjects
+    |> List.insertAt 0 path
+    |> Some
+
+/// open an rxisting porject from its path
+let openProjectFromPath (path:string) model dispatch =
+    dispatch <| SetUserData {
+        model.UserData with 
+            LastUsedDirectory = Some path; 
+            RecentProjects = addToRecents path model.UserData.RecentProjects
+            }
+    dispatch (ExecFuncAsynch <| fun () ->
+        traceIf "project" (fun () -> "loading files")
+        match loadAllComponentFiles path with
+        | Error err ->
+            log err
+            displayFileErrorNotification err dispatch
+        | Ok componentsToResolve ->
+            traceIf "project" (fun () -> "resolving popups...")
+            
+            resolveComponentOpenPopup path [] componentsToResolve model dispatch
+            traceIf "project" (fun () ->  "project successfully opened.")
+
+        Elmish.Cmd.none)
 
 /// open an existing project
 let private openProject model dispatch =
     //trying to force the spinner to load earlier
     //doesn't really work right now
-    dispatch (Sheet (Sheet.SetSpinner true))
-    match askForExistingProjectPath () with
+    dispatch (Sheet (SheetT.SetSpinner true))
+    let dirName =
+        match Option.map readFilesFromDirectory model.UserData.LastUsedDirectory with
+        | Some [] | None -> None
+        | _ -> model.UserData.LastUsedDirectory
+    match askForExistingProjectPath dirName with
     | None -> () // User gave no path.
-    | Some path ->
-        dispatch (ExecFuncAsynch <| fun () ->
-            traceIf "project" (fun () -> "loading files")
-            match loadAllComponentFiles path with
-            | Error err ->
-                log err
-                displayFileErrorNotification err dispatch
-            | Ok componentsToResolve ->
-                traceIf "project" (fun () -> "resolving popups...")
-            
-                resolveComponentOpenPopup path [] componentsToResolve model dispatch
-                traceIf "project" (fun () ->  "project successfully opened.")
+    | Some path -> openProjectFromPath path model dispatch
 
-            Elmish.Cmd.none)
+
 
 
     
@@ -750,12 +781,23 @@ let viewNoProjectMenu model dispatch =
         Menu.Item.li
             [ Menu.Item.IsActive false
               Menu.Item.OnClick action ] [ str label ]
+    
+    let recentsList = 
+        model.UserData
+        |> (fun ud -> ud.RecentProjects)
+        |> Option.defaultValue []
+        |> List.map (fun path -> 
+                        menuItem 
+                            (cropToLength  Constants.maxDisplayedPathLengthInRecentProjects false path) 
+                            (fun _ -> openProjectFromPath path model dispatch))
 
     let initialMenu =
         Menu.menu []
             [ Menu.list []
-                  [ menuItem "New project" (fun _ -> newProject model dispatch)
-                    menuItem "Open project" (fun _ -> openProject model dispatch) ]
+                  ([ menuItem "New project" (fun _ -> newProject model dispatch)
+                     menuItem "Open project" (fun _ -> openProject model dispatch)]
+                  @ (if recentsList <> [] then [hr []] else [])
+                  @ recentsList)
             ]
 
     match model.CurrentProj with
@@ -845,7 +887,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                     Button.Disabled(name = project.OpenFileName)
                                     Button.OnClick(fun _ ->
                                         dispatch (StartUICmd ChangeSheet)
-                                        printSheetNames model
+                                        //printSheetNames model
                                         dispatch <| ExecFuncInMessage(
                                             (fun model dispatch -> 
                                                 let p = Option.get model.CurrentProj
@@ -896,16 +938,19 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
 
             let sTrees = getSheetTrees project
 
-            let rec subSheetsOf sh =
+            let rec subSheetsOf path sh =
                 match Map.tryFind sh sTrees with
                 | Some tree -> tree.SubSheets
                 | None -> []
-                |> List.collect (fun ssh -> ssh.Node :: subSheetsOf ssh.Node)
+                |> List.collect (fun ssh -> 
+                    match List.contains ssh.Node path with
+                    | true -> []
+                    | false -> ssh.Node :: subSheetsOf (ssh.Node :: path) ssh.Node)
                 |> List.distinct
 
             let allSubSheets =
                 mapKeys sTrees
-                |> Seq.collect subSheetsOf
+                |> Seq.collect (subSheetsOf [])
                 |> Set
             let isSubSheet sh = Set.contains sh allSubSheets
 
@@ -920,7 +965,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                 [ Navbar.Item.HasDropdown
                   Navbar.Item.Props
                       [ OnClick(fun _ ->
-                          printSheetNames model
+                          //printSheetNames model
                           if model.TopMenuOpenState = Files then Closed else Files
                           |> SetTopMenu
                           |> dispatch) ] ]
@@ -1001,7 +1046,7 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                       Button.OnClick(fun _ -> 
                                         dispatch (StartUICmd SaveSheet)
                                         saveOpenFileActionWithModelUpdate model dispatch |> ignore
-                                        dispatch <| Sheet(Sheet.DoNothing) //To update the savedsheetisoutofdate send a sheet message
+                                        dispatch <| Sheet(SheetT.DoNothing) //To update the savedsheetisoutofdate send a sheet message
                                         ) ]) [ str "Save" ] ] ]
                       Navbar.End.div []
                           [ 

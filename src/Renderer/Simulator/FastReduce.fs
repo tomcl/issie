@@ -18,12 +18,12 @@ let inline assertThat cond msg =
     then failwithf "what? assert failed: %s" msg
 
 /// Assert that the FData only contain a single bit, and return such bit.
-let inline extractBit (fd: FData) : uint32 =
+let inline extractBit (fd: FData) (busWidth: int) : uint32 =
 #if ASSERTS
-    assertThat (fd.Width = 1)
+    assertThat (fd.Width = 1 || fd.Width=2 || fd.Width=3)
     <| sprintf "extractBit called with wireData: %A" fd
 #endif
-    match fd.Dat with | Word n -> n | BigWord _ -> failwithf $"Can't extract 1 bit from BigWord data {fd.Dat} of width {fd.Width}"
+    match fd.Dat with | Word n -> n | BigWord _ -> failwithf $"Can't extract %d{busWidth} bit from BigWord data {fd.Dat} of width {fd.Width}"
 
 let inline packBit (bit: uint32) : FData = if bit = 0u then {Dat=Word 0u; Width = 1} else {Dat = Word 1u; Width = 1}
 
@@ -152,6 +152,18 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     /// Write current step output data for output port 4
     let inline put4 fd =
         comp.PutOutput(simStep) (OutputPortNumber 4) fd
+    
+    /// Write current step output data for output port 4
+    let inline put5 fd =
+        comp.PutOutput(simStep) (OutputPortNumber 5) fd
+    
+    /// Write current step output data for output port 4
+    let inline put6 fd =
+        comp.PutOutput(simStep) (OutputPortNumber 6) fd
+
+    /// Write current step output data for output port 4
+    let inline put7 fd =
+        comp.PutOutput(simStep) (OutputPortNumber 7) fd
 
     /// Write current State (used only for RAMs, DFFs and registers use previous cycle output as state)
     let inline putState state =
@@ -216,7 +228,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         //printfn "Reducing IOLabel %A" comp.SimComponent.Label
         put0 bits
     | Not ->
-        let bit = extractBit (ins 0)
+        let bit = extractBit (ins 0) 1
         put0 <| packBit (bitNot bit)
     | BusSelection (width, lsb) ->
         let bits = ins 0
@@ -256,10 +268,48 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         <| sprintf "Mux2 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName bits0 bits1
 #endif
         let out =
-            if (extractBit bitSelect) = 0u then
+            if (extractBit bitSelect 1) = 0u then
                 bits0
             else
                 bits1
+
+        put0 out
+        putW 0 bits0.Width
+    | Mux4 ->
+        let bits0, bits1, bits2, bits3, bitSelect = ins 0, ins 1, ins 2, ins 3, ins 4
+#if ASSERT
+        assertThat (bits0.Width = bits1.Width && bits0.Width = bits2.Width)
+        <| sprintf "Mux4 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName bits0 bits1
+#endif
+        
+        let out =
+            match (extractBit bitSelect 2) with
+            | 0u -> bits0
+            | 1u -> bits1
+            | 2u -> bits2 
+            | 3u -> bits3
+            | _ -> failwithf "Cannot happen"
+
+        put0 out
+        putW 0 bits0.Width
+    | Mux8 ->
+        let bits0, bits1, bits2, bits3, bits4, bits5, bits6, bits7, bitSelect = ins 0, ins 1, ins 2, ins 3, ins 4, ins 5, ins 6, ins 7, ins 8
+#if ASSERT
+        assertThat (bits0.Width = bits1.Width && bits0.Width = bits2.Width && bits0.Width = bits3.Width && bits0.Width = bits4.Width && bits0.Width = bits5.Width && bits0.Width = bits6.Width && bits0.Width = bits7.Width)
+        <| sprintf "Mux8 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName bits0 bits1
+#endif
+
+        let out =
+            match (extractBit bitSelect 3) with
+            | 0u -> bits0
+            | 1u -> bits1
+            | 2u -> bits2 
+            | 3u -> bits3
+            | 4u -> bits4
+            | 5u -> bits5
+            | 6u -> bits6 
+            | 7u -> bits7
+            | _ -> failwithf "Cannot happen"
 
         put0 out
         putW 0 bits0.Width
@@ -268,7 +318,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let zeros = convertIntToFastData bitsIn.Width 0u
 
         let out0, out1 =
-            if (extractBit bitSelect) = 0u then
+            if (extractBit bitSelect 1) = 0u then
                 bitsIn, zeros
             else
                 zeros, bitsIn
@@ -278,6 +328,60 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         put1 out1
         putW 0 w
         putW 1 w
+    | Demux4 ->
+        let bitsIn, bitSelect = ins 0, ins 1
+        let zeros = convertIntToFastData bitsIn.Width 0u
+        
+        let out0, out1, out2, out3 = 
+            match (extractBit bitSelect 2) with
+            | 0u -> bitsIn, zeros, zeros, zeros
+            | 1u -> zeros, bitsIn, zeros, zeros
+            | 2u -> zeros, zeros, bitsIn, zeros
+            | 3u -> zeros, zeros, zeros, bitsIn
+            | _ -> failwithf "Cannot happen"
+
+        let w = bitsIn.Width
+        put0 out0
+        put1 out1
+        put2 out2
+        put3 out3
+        putW 0 w
+        putW 1 w
+        putW 2 w
+        putW 3 w
+    | Demux8 ->
+        let bitsIn, bitSelect = ins 0, ins 1
+        let zeros = convertIntToFastData bitsIn.Width 0u
+        
+        let out0, out1, out2, out3, out4, out5, out6, out7 = 
+            match (extractBit bitSelect 3) with
+            | 0u -> bitsIn, zeros, zeros, zeros, zeros, zeros, zeros, zeros
+            | 1u -> zeros, bitsIn, zeros, zeros, zeros, zeros, zeros, zeros
+            | 2u -> zeros, zeros, bitsIn, zeros, zeros, zeros, zeros, zeros
+            | 3u -> zeros, zeros, zeros, bitsIn, zeros, zeros, zeros, zeros
+            | 4u -> zeros, zeros, zeros, zeros, bitsIn, zeros, zeros, zeros
+            | 5u -> zeros, zeros, zeros, zeros, zeros, bitsIn, zeros, zeros
+            | 6u -> zeros, zeros, zeros, zeros, zeros, zeros, bitsIn, zeros
+            | 7u -> zeros, zeros, zeros, zeros, zeros, zeros, zeros, bitsIn
+            | _ -> failwithf "Cannot happen"
+
+        let w = bitsIn.Width
+        put0 out0
+        put1 out1
+        put2 out2
+        put3 out3
+        put4 out4
+        put5 out5
+        put6 out6
+        put7 out7
+        putW 0 w
+        putW 1 w
+        putW 2 w
+        putW 3 w
+        putW 4 w
+        putW 5 w
+        putW 6 w
+        putW 7 w
     | NbitsAdder numberOfBits ->
         let cin, A, B = ins 0, ins 1, ins 2
 
@@ -381,11 +485,11 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         put1 bits1
         putW 1 bits1.Width
     | DFF ->
-        let d = extractBit (insOld 0)
+        let d = extractBit (insOld 0) 1
         put0 (packBit d)
     | DFFE ->
         let d, en =
-            extractBit (insOld 0), extractBit (insOld 1)
+            extractBit (insOld 0) 1, extractBit (insOld 1) 1
 
         if en = 1u then
             put0 <| packBit d
@@ -406,7 +510,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         assertThat (bits.Width = width)
         <| sprintf "RegisterE received data with wrong width: expected %d but got %A" width bits.Width
 #endif
-        if (extractBit enable = 1u) then
+        if (extractBit enable 1 = 1u) then
             put0 bits
         else
             put0 (getLastCycleOut 0)
@@ -440,7 +544,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         assertThat (dataIn.Width = mem.WordWidth)
         <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataIn
 #endif
-        let write = extractBit (insOld 2)
+        let write = extractBit (insOld 2) 1
         // If write flag is on, write the memory content.
         let mem, dataOut =
             match write with
@@ -474,7 +578,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             assertThat (dataIn.Width = mem.WordWidth)
             <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataIn
 #endif
-            let write = extractBit (insOld 2)
+            let write = extractBit (insOld 2) 1
             // If write flag is on, write the memory content.
             let mem =
                 match write with

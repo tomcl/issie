@@ -252,13 +252,11 @@ let makePortName (nameWidth :(string*int) option) =
 /// returns IO signature of current sheet, and all its instances in other sheets
 let getDependents (model:Model)  =
     mapOverProject None model <| fun p ->
-         printfn "depcheck2a"
          let sheetName = p.OpenFileName
          let newSig = 
              p.LoadedComponents
              |> List.find (fun ldc -> ldc.Name = sheetName)
              |> (fun ldc -> parseDiagramSignature ldc.CanvasState)
-         printfn "depcheck2b"
          let instances =
              p.LoadedComponents
              |> List.filter (fun ldc -> ldc.Name <> sheetName)
@@ -269,7 +267,6 @@ let getDependents (model:Model)  =
                          | {Type = Custom { Name=name; InputLabels=ins; OutputLabels=outs}
                             Id = cid} when name = sheetName-> [ldc.Name, cid,  (ins,outs)]
                          | _ -> []))
-         printfn "depcheck2c"
          Some(newSig, instances)
 
 let dependencyDoesNotMatchSignature newSig oldSig =
@@ -470,15 +467,16 @@ let updateInstance (newSig: Signature) (sheet:string,cid:string,oldSig:Signature
 
 
 
-            
+/// dispatch message to change project in model, returning project           
 let updateDependents (newSig: Signature) (instances:(string*string*Signature) list) model dispatch =
     match model.CurrentProj with
-    | None -> ()
+    | None -> None
     | Some p ->
         (p,instances)
         ||> List.fold (fun p instance -> updateInstance newSig instance p)
-        |> SetProject
-        |> dispatch
+        |> (fun p -> 
+            dispatch <| SetProject p
+            Some p)
 
 let checkCanvasStateIsOk (model:Model) =
     mapOverProject false model (fun p ->
@@ -494,12 +492,10 @@ let checkCanvasStateIsOk (model:Model) =
 /// returns a popup function to show the dependents update dialog if this is needed
 /// this dialog drives all subsequent work changing custom component instances
 let optCurrentSheetDependentsPopup (model: Model) =
-        printfn "depcheck1"
         let sheet = model.CurrentProj |> Option.map (fun p -> p.OpenFileName)
         if not <| checkCanvasStateIsOk model then
             None // do nothing if IOs are not currently valid. Can this ever happen?
         else     
-            printfn "depcheck2"
             match getOutOfDateDependents model  with
             | None -> None
             | Some (newSig, (((firstSheet,firstCid,firstSig) :: rest) as instances)) ->
@@ -511,56 +507,58 @@ let optCurrentSheetDependentsPopup (model: Model) =
                 let changes = 
                     ioCompareSigs newSig firstSig
                     |> guessAtRenamedPorts
-                let whatChanged = 
-                    match changes |> Array.exists (fun ch -> ch.Old <> ch.New) with
-                    | false -> "the vertical order of inputs or outputs"
-                    | true -> "the inputs or outputs"
-                let headCell heading =  th [ ] [ str heading ]
-                let makeRow (change:PortChange) = 
-                    tr []
-                        [
+                match changes |> Array.exists (fun ch -> ch.Old <> ch.New) with
+                | false -> None
+                | true -> 
+                    let whatChanged ="the inputs or outputs"
+                    
+                    let headCell heading =  th [ ] [ str heading ]
+                    let makeRow (change:PortChange) = 
+                        tr []
+                            [
                        
-                            td [] [str (if change.Direction = InputIO  then "Input" else "Output")]
-                            td [] [makePortName change.New]
-                            td [] [makePortName change.Old]
-                            td [] [str change.Message]
-                        ]
-                let body = 
-                    div [Style [ MarginTop "15px" ] ] 
-                        [
-                            Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [str $"{sheet}"]
-                            str $"You have changed the {whatChanged} of the current '{sheet}' sheet. "
-                            br []
-                            str "This dialog will automatically update all dependent sheets to match this. "
-                            br []
-                            str $"The '{sheet}' sheet is instantiated as a symbol {instances.Length} times in dependent sheets: '{depSheets}'. "
-                            str $"If you do not automatically update the symbols you will need to delete and recreate each one."
-                            br []
-                            str "If you automatically update symbols wires that no longer match will be autorouted correctly when you next load each sheet"
-                            br []
-                            Table.table [
-                                   Table.IsHoverable                               
-                                   Table.IsBordered
-                                   Table.IsNarrow
-                                   Table.Props [Style [ MarginTop "15px" ]]]
-                                [ 
-                                    thead [] [ tr [] (List.map headCell ["Type" ;"New port"; "Old port" ; "Change"]) ]
-                                    tbody []   (Array.map makeRow  changes) 
-                                ]
-                        ]
+                                td [] [str (if change.Direction = InputIO  then "Input" else "Output")]
+                                td [] [makePortName change.New]
+                                td [] [makePortName change.Old]
+                                td [] [str change.Message]
+                            ]
+                    let body = 
+                        div [Style [ MarginTop "15px" ] ] 
+                            [
+                                Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [str $"{sheet}"]
+                                str $"You have changed the {whatChanged} of the current '{sheet}' sheet. "
+                                br []
+                                str "This dialog will automatically update all dependent sheets to match this. "
+                                br []
+                                str $"The '{sheet}' sheet is instantiated as a symbol {instances.Length} times in dependent sheets: '{depSheets}'. "
+                                str $"If you do not automatically update the symbols you will need to delete and recreate each one."
+                                br []
+                                str "If you automatically update symbols wires that no longer match will be autorouted correctly when you next load each sheet"
+                                br []
+                                Table.table [
+                                        Table.IsHoverable                               
+                                        Table.IsBordered
+                                        Table.IsNarrow
+                                        Table.Props [Style [ MarginTop "15px" ]]]
+                                    [ 
+                                        thead [] [ tr [] (List.map headCell ["Type" ;"New port"; "Old port" ; "Change"]) ]
+                                        tbody []   (Array.map makeRow  changes) 
+                                    ]
+                            ]
 
-                let buttonAction isUpdate dispatch  _ =
-                    if isUpdate then
-                        updateDependents newSig instances model dispatch
-                        mapOverProject () model  (fun p -> saveAllProjectFilesFromLoadedComponentsToDisk p)
-                    dispatch <| ClosePopup
-                choicePopupFunc 
-                    "Update All Sheet Instances" 
-                    (fun _ -> body)
-                    "Update all instances" 
-                    "Save the sheet without updating instances" 
-                    buttonAction 
-                |> Some
+                    let buttonAction isUpdate dispatch  _ =
+                        if isUpdate then
+                            updateDependents newSig instances model dispatch
+                            |> Option.map saveAllProjectFilesFromLoadedComponentsToDisk
+                            |> ignore
+                        dispatch <| ClosePopup
+                    choicePopupFunc 
+                        "Update All Sheet Instances" 
+                        (fun _ -> body)
+                        "Update all instances" 
+                        "Save the sheet without updating instances" 
+                        buttonAction 
+                    |> Some
               
 
             | _ -> failwithf "What? Impossible"

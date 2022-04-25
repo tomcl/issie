@@ -202,7 +202,8 @@ let printStats() =
         printfn "%s time: min=%.3fms max=%.3fms av=%.3fms samples:%d" name st.Min st.Max st.Av (int st.Num))
     executionStats <- Map [] // reset stats
 
-/// returns elapsed time in ms, works under both .Net and Fable
+
+/// returns absolute time in ms, works under both .Net and Fable
 let getTimeMs() = 
 #if FABLE_COMPILER
     Fable.Core.JS.Constructors.Date.now()
@@ -211,10 +212,23 @@ let getTimeMs() =
     float start.Ticks / float 10000
 #endif
 
-
 let getInterval (startTime:float) =
     getTimeMs() - startTime
 
+/// Return time taken by thunk()
+/// Run thunk() as many times as is needed
+/// for total elapsed time in ms to be  > limitMs.
+/// Return average time of all runs.
+/// To minimise cache effects run thunk() once before
+/// starting to time.
+let getTimeOfInMs (limitMs: float) (thunk: Unit -> Unit) =
+    thunk()
+    let startT = getTimeMs()
+    let mutable i = 0
+    while getInterval startT < limitMs do
+        i <- i+1
+        thunk()
+    getInterval startT / float i
 
 type AggregatedData = {
     PrintInterval: float
@@ -249,7 +263,7 @@ let aggregate(printInterval: float ) =
 /// Parameter that controls how recorded times are processed.                     
 let mutable instrumentation: InstrumentationControl = 
     //aggregate 10000.  // for aggregate printing every 10s
-    immediate 20. 50. // for immediate printing
+    immediate 10. 10. // for immediate printing
     // Off // for no printing
 
 /// print out the current aggregate of recorded times if this is requried. 

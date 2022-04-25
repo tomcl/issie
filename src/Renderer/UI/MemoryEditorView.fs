@@ -18,6 +18,9 @@ open ModelType
 open PopupView
 open Notifications
 
+open Sheet.SheetInterface
+
+
 let private popupExtraStyle = [ Width "65%"; Height "80%" ]
 let private headerHeight = 60;
 let private headerStyle = Style [

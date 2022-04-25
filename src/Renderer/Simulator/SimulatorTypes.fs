@@ -627,9 +627,9 @@ let extractLabel (label: ComponentLabel) =
 // every net is therefore part of one netgroup which is either a single net, or a group of nets associated
 // with a set of IOLabel connectors having a given common label.
 
-let mapKeys (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map fst |> Array.ofSeq
-let mapValues (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map snd |> Array.ofSeq
-let mapItems (map:Map<'a,'b>) = map |> Map.toSeq |> Array.ofSeq
+let mapKeys (map:Map<'a,'b>) = Map.keys map |> Array.ofSeq
+let mapValues (map:Map<'a,'b>) = Map.values map |> Array.ofSeq
+let mapItems (map:Map<'a,'b>) = Map.toArray map
 
 let private allNComps (netList:NetList) =
     netList |> mapValues

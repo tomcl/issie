@@ -31,18 +31,22 @@ open Simulator
 open TruthTableCreate
 open TruthTableReduce
 open BusWidthInferer
+open Symbol
+open SymbolUpdate
+open Sheet.SheetInterface
 
 /// Updates MergeWires and SplitWire Component labels to MWx/SWx.
 /// Previous Issie versions had empty labels for these components.
 let updateMergeSplitWireLabels (model: Model) dispatch =
+    let symModel = model.Sheet.Wire.Symbol
     let mwStartLabel = 
-        model.Sheet.GenerateLabel MergeWires
+        SymbolUpdate.generateLabel symModel MergeWires
     let mutable mwIdx =
         (mwStartLabel.[mwStartLabel.Length - 1]
         |> int) - (int '0')
 
     let swStartLabel =
-        model.Sheet.GenerateLabel (SplitWire 1)
+        SymbolUpdate.generateLabel symModel (SplitWire 1)
     let mutable swIdx =
         (swStartLabel.[swStartLabel.Length - 1]
         |> int) - (int '0')
@@ -181,21 +185,22 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
         match portOnComponent.PortNumber, port.PortType with
         | None,_ -> failwithf "what? no PortNumber. A connection port was probably passed to inferIOLabel"
         | Some pn, PortType.Input -> 
-            match Symbol.portDecName hostComponent with
-            | ([],_) -> hostComponent.Label + "_IN" + (string pn)
-            | (lst,_) -> 
+            match Symbol.portNames hostComponent.Type with
+            | ([]) -> hostComponent.Label + "_IN" + (string pn)
+            | lst -> 
                 if pn >= lst.Length then
                     failwithf "what? input PortNumber is greater than number of input port names on component"
                 else
                     hostComponent.Label + "_" + lst[pn]
         | Some pn, PortType.Output ->
-            match Symbol.portDecName hostComponent with
-            | (_,[]) -> hostComponent.Label + "_OUT" + (string pn)
-            | (_,lst) ->
+            match Symbol.portNames hostComponent.Type with
+            | ([]) -> hostComponent.Label + "_OUT" + (string pn)
+            | lst ->
                 if pn >= lst.Length then
                     failwithf "what? output PortNumber is greater than number of output port names on component"
                 else
-                    hostComponent.Label + "_" + lst[pn]
+                    let offset = hostComponent.InputPorts.Length
+                    hostComponent.Label + "_" + lst[offset+pn]
 
     let removeDuplicateConnections (comps: Component list,conns: Connection list) =
         let checkDuplicate con lst =
@@ -230,7 +235,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         Id = JSHelpers.uuid()
                         Source = dummyOutputPort
                         Target = {p with PortNumber = None}
-                        Vertices = [(0.0,0.0)] // Irrelevant as we never draw this connection
+                        Vertices = [(0.0,0.0,false)] // Irrelevant as we never draw this connection
                     })
             let extraOutputConns =
                 comp.OutputPorts
@@ -240,7 +245,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         Id = JSHelpers.uuid()
                         Source = {p with PortNumber = None}
                         Target = dummyInputPort
-                        Vertices = [(0.0,0.0)] // Irrelevant as we never draw this connection
+                        Vertices = [(0.0,0.0,false)] // Irrelevant as we never draw this connection
                     })
             acc @ extraInputConns @ extraOutputConns)
 
@@ -278,7 +283,8 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         X = 0
                         Y = 0
                         H = 0
-                        W = 0}
+                        W = 0
+                        SymbolInfo = None}
                     Ok {con with Source = {newPort with PortNumber = None}}, acc @ [Ok extraInput]
                 | Ok (None) ->
                     let error = {
@@ -316,7 +322,8 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         X = 0
                         Y = 0
                         H = 0
-                        W = 0}
+                        W = 0
+                        SymbolInfo = None}
                     Ok {con with Target = {newPort with PortNumber = None}}, acc @ [Ok extraOutput]
                 | Ok (None) ->
                     let error = {

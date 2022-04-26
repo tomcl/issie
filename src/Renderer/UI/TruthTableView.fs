@@ -37,6 +37,8 @@ open Sheet.SheetInterface
 
 /// Updates MergeWires and SplitWire Component labels to MWx/SWx.
 /// Previous Issie versions had empty labels for these components.
+// This change is necessary as all components must have labels for automatic IO 
+// generation when calculating Truth Tables for partial selections.
 let updateMergeSplitWireLabels (model: Model) dispatch =
     let symModel = model.Sheet.Wire.Symbol
     let mwStartLabel = 
@@ -66,6 +68,9 @@ let updateMergeSplitWireLabels (model: Model) dispatch =
             setComponentLabel model sheetDispatch c newLabel
         | _ -> ())
         
+//-------------------------------------------------------------------------------------//
+//-----------Functions for generating Truth Tables from selection----------------------//
+//-------------------------------------------------------------------------------------//
 
 let getPortIdsfromConnectionId (cid: ConnectionId) (conns: Connection list) = 
     ([],conns)
@@ -82,6 +87,7 @@ let isPortInComponents (port: Port) (comps: Component list) =
         let compPortIds = (c.InputPorts @ c.OutputPorts) |> List.map (fun p -> p.Id)
         List.contains port.Id compPortIds || b)
 
+/// Splits a list of results into a list of Ok and list of Error
 let filterResults results = 
     let rec filter lst success error =
         match lst with
@@ -90,10 +96,14 @@ let filterResults results =
         | (Error e)::tl -> filter tl success (error @ [e])
     filter results [] []
 
-let convertConnId (ConnectionId cId) = ConnectionId cId
-        
+/// Corrects the Selected Canvas State by adding extra connections and IOs to components
+/// not connected to anything. On success returns a new, corrected CanvasState compatible
+/// with Step Simulator. On failure returns SimulationError. 
 let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: CanvasState) =
     let components,connections = selectedCanvasState
+    
+    // Dummy ports for temporary use within function. Connections/Components with these
+    // ports should never be in the CanvasState returned by this function!
     let dummyInputPort = {
         Id = "DummyIn"
         PortNumber = None
@@ -157,12 +167,15 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     getPortWidth' otherPort pw (run+1)
             | _ -> None
 
+    /// Find the width of a port. First try using WidthInferrer, and if that fails then
+    /// try use the properties of the host component.
     let getPortWidth (port:Port) =
         match portWidths with
         | Error e -> Error e
         | Ok pw ->
             Ok <| getPortWidth' port pw 0
 
+    /// Infer the label for newly created IOs so that they can be displayed in Truth Tables.
     let inferIOLabel (port: Port) =
         let hostComponent =
             components 
@@ -221,8 +234,6 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                 else
                     con::lst)
 
-
-
     let addExtraConnections (comps: Component list,conns: Connection list) =
         comps,
         (conns,comps)
@@ -250,8 +261,6 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
             acc @ extraInputConns @ extraOutputConns)
 
     let addExtraIOs (comps: Component list,conns: Connection list) =
-        // let mutable inputCount = 0
-        // let mutable outputCount = 0
         let compsOk : Result<Component,SimulationError> list = List.map (fun c -> Ok c) comps
 
         (compsOk,conns)
@@ -268,7 +277,6 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                 | Ok (Some pw) ->
                     let newId = JSHelpers.uuid()
                     let newLabel = inferIOLabel con.Target
-                    // inputCount <- inputCount + 1
                     let newPort = {
                         Id = JSHelpers.uuid()
                         PortNumber = Some 0
@@ -298,7 +306,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     let error = {
                         Msg = e.Msg
                         InDependency = None
-                        ConnectionsAffected = e.ConnectionsAffected |> List.map convertConnId
+                        ConnectionsAffected = e.ConnectionsAffected 
                         ComponentsAffected = []
                     }
                     Ok con, acc @ [Error error]
@@ -337,7 +345,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                     let error = {
                         Msg = e.Msg
                         InDependency = None
-                        ConnectionsAffected = e.ConnectionsAffected |> List.map convertConnId
+                        ConnectionsAffected = e.ConnectionsAffected
                         ComponentsAffected = []
                     }
                     Ok con, acc @ [Error error]
@@ -361,6 +369,8 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
     |> addExtraIOs
     |> checkCanvasWasCorrected
     
+/// Make and return Simulation Data (or Simulation Error) for the model for selected components.
+/// Identical functionality to SimulationView.makeSimData, but only considers selected components.
 let makeSimDataSelected model : (Result<SimulationData,SimulationError> * CanvasState) option =
     let (selComponents,selConnections) = model.Sheet.GetSelectedCanvasState
     let wholeCanvas = model.Sheet.GetCanvasState()
@@ -397,6 +407,7 @@ let truncationWarning table =
     $"The Truth Table has been truncated to {table.TableMap.Count} input combinations. 
     Not all rows may be shown. Please use more restrictive input constraints to avoid truncation."
 
+/// Regenerate the Truth Table after applying new input constraints
 let regenerateTruthTable model (dispatch: Msg -> Unit) =
     match model.CurrentTruthTable with
     | None -> failwithf "what? Adding constraint when no Truth Table exists"
@@ -412,6 +423,7 @@ let regenerateTruthTable model (dispatch: Msg -> Unit) =
         |> GenerateTruthTable
         |> dispatch
 
+/// Hide output columns in the Table
 let hideColumns model (dispatch: Msg -> Unit) =
     printfn "Hiding Columns: %A" model.TTHiddenColumns 
     match model.CurrentTruthTable with
@@ -420,6 +432,7 @@ let hideColumns model (dispatch: Msg -> Unit) =
         failwithf "what? Hding columns option should not exist when there is TT error"
     | Some (Ok table) ->
         let oldTableMap = 
+            // Apply hiding to DCMap if it exists, otherwise TableMap
             match table.DCMap with
             | Some dc -> dc
             | None -> table.TableMap
@@ -437,7 +450,7 @@ let hideColumns model (dispatch: Msg -> Unit) =
         |> GenerateTruthTable
         |> dispatch
                 
-
+/// Apply a single numerical output constraint to a Truth Table Map
 let applyNumericalOutputConstraint (table: Map<TruthTableRow,TruthTableRow>) (con: Constraint) =
     table
     |> Map.filter (fun _ right ->
@@ -466,6 +479,7 @@ let applyNumericalOutputConstraint (table: Map<TruthTableRow,TruthTableRow>) (co
                         i.LowerBound <= int cellVal && cellVal <= i.UpperBound
                         ))
 
+/// Apply all output constraints to the Truth Table
 let filterTruthTable model (dispatch: Msg -> Unit) =
     printfn "Refiltering Table"
     match model.CurrentTruthTable with
@@ -705,17 +719,17 @@ let viewTruthTable model dispatch =
                         ] [str "Generate Truth Table"]
         div [] [
             str "Generate Truth Tables for combinational logic using this tab."
-            br[]
-            hr[]
+            br []
+            hr []
             Heading.h5 [] [str "Truth Table for whole sheet"]
             br []
             wholeButton
-            hr[]
+            hr []
             Heading.h5 [] [str "Truth Table for selected logic"]
-            br []
-            br []
+            br  []
+            br  []
             selButton
-            hr[]
+            hr []
         ]
     | Some tableopt ->
         match model.TTIsOutOfDate with
@@ -786,11 +800,5 @@ let viewTruthTable model dispatch =
             br []; br []
             str "The Truth Table generator uses the diagram as it was at the moment of
                  pressing the \"Generate Truth Table\" button."
-            // constraints
-            // br []
-            // hr []
-            // body
-            // br []
-            // hr []
             menu
             ]

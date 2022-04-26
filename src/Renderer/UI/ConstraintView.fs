@@ -28,6 +28,7 @@ open Extractor
 open Simulator
 open TruthTableCreate
 
+/// Convert a constraint to its textual representation
 let inCon2str con =
     match con with
     | Equality e -> 
@@ -91,17 +92,19 @@ let constraintsOverlap (con1: Constraint) (con2: Constraint) =
     | Inequality c1, Inequality c2 ->
         (checkTwoIneq c1 c2) || (checkTwoIneq c2 c1)
 
-
+/// Check if a newly added numerical constraint is valid and consistent with current constraints
 let validateNumericalConstraint (con: Constraint) (allConstraints: ConstraintSet)
     : Result<Constraint,string> =
     let conText = inCon2str con
     match con with 
     | Equality e -> 
+        // Check if given constraint already exists
         if List.contains e allConstraints.Equalities then
             Error <| sprintf "Constraint '%s' already exists." conText
         else
             (Ok e, allConstraints.Inequalities)
-            ||> List.fold (fun state c -> 
+            ||> List.fold (fun state c ->
+                // Check if given constraint overlaps with existing inequality constraints
                 match state with
                 | Error err -> Error err
                 | Ok eqc -> 
@@ -125,6 +128,7 @@ let validateNumericalConstraint (con: Constraint) (allConstraints: ConstraintSet
             (width,int64 ineq.UpperBound) 
             ||> convertIntToWireData
             |> convertWireDataToInt
+        // Check that bounds are distinct and the right way round
         if unsignedLower = unsignedUpper then
             "Lower Bound and Upper Bound cannot have the same value."
             |> Error
@@ -132,6 +136,7 @@ let validateNumericalConstraint (con: Constraint) (allConstraints: ConstraintSet
             "Lower Bound cannot have a greater value than Upper Bound"
             |> Error
         else
+            // Check if given constraint overlaps with existing constraints
             let checkWithEqu =
                 (Ok ineq, allConstraints.Equalities)
                 ||> List.fold (fun state c ->
@@ -339,6 +344,7 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons model dispat
                 errorMsg
             ]
 
+/// Popup for creating a new input constraint
 let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
     // Set Defaults
     0 |> Some |> SetPopupDialogInt |> dispatch
@@ -376,6 +382,7 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             | _, _ -> true
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
+/// Popup for creating a new output constraint
 let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
     // Set Defaults
     0 |> Some |> SetPopupDialogInt |> dispatch
@@ -419,7 +426,6 @@ let viewConstraints model dispatch =
         Button.button [ Button.OnClick action] [str "Add"]
     let clearButton action =
         Button.button [Button.OnClick action] [str "Clear All"]
-    //printfn "%A" model.TTOutputConstraints
     div [] 
         [
             str "Filter Rows in the Truth Table using Input or Output constraints"

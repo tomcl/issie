@@ -578,8 +578,8 @@ let private waveEditorButtons (model: Model) (wSModel:WaveSimModel) dispatch =
         dispatch <| SetWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
         dispatch <| SetWaveSimIsOutOfDate true
         dispatch <| UnlockTabsFromWaveSim
-        dispatch <| Sheet (Sheet.ResetSelection)
-        dispatch <| Sheet (Sheet.SetWaveSimMode false)
+        dispatch <| Sheet (SheetT.ResetSelection)
+        dispatch <| Sheet (SheetT.SetWaveSimMode false)
         dispatch ClosePropertiesNotification
         dispatch FinishUICmd
     
@@ -755,7 +755,7 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
     dispatch <| SetLastSimulatedCanvasState (Some rState) 
     dispatch <| SetWaveSimIsOutOfDate false
     inputWarningPopup simData dispatch
-    dispatch <| Sheet (Sheet.SetWaveSimMode true)
+    dispatch <| Sheet (SheetT.SetWaveSimMode true)
     dispatch <| LockTabsToWaveSim
     dispatch FinishUICmd
 

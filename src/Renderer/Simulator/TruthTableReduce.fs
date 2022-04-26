@@ -83,7 +83,7 @@ let reduceWithDCRow regularRows (dcLeft,dcRight) =
 let rec reduceTruthTable (inputConstraints: ConstraintSet) (table: TruthTable) bitLimit =
     let tMap =
         match table.DCMap with
-        | None -> table.FilteredMap
+        | None -> table.TableMap
         | Some m -> m
     
     let allDCRows =

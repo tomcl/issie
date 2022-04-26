@@ -35,13 +35,18 @@ let inCon2str con =
     | Inequality i -> 
         sprintf "0x%X \u2264 %s \u2264 0x%X" i.LowerBound (i.IO.getLabel) i.UpperBound
 
-let makeElementLine (els: ReactElement list) =
-    let itemList =
-        els
+let makeElementLine (elsLeftAlign: ReactElement list) (elsRightAlign: ReactElement list)=
+    let itemListLeft =
+        elsLeftAlign
+        |> List.map (fun el -> Level.item [] [el])
+
+    let itemListRight =
+        elsRightAlign
         |> List.map (fun el -> Level.item [] [el])
     
     Level.level [] [
-            Level.left [] itemList
+            Level.left [] itemListLeft
+            Level.right [] itemListRight
         ]
 
 let viewNumericalConstraints cons dispatch =
@@ -285,7 +290,7 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons model dispat
                         str <| sprintf "%s = " 
                             (SimulationView.makeIOLabel (string label) width)
                         numField1 width
-                    ]
+                    ] []
                 | Some Ineq, Some io -> 
                     let label,width = io.getLabel,io.getWidth
                     makeElementLine [
@@ -293,7 +298,7 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons model dispat
                         str <| sprintf "\u2264 %s \u2264" 
                             (SimulationView.makeIOLabel (string label) width)
                         numField2 width
-                    ]
+                    ] []
 
             let errorMsg =
                 match dialogData.ConstraintErrorMsg with
@@ -426,7 +431,7 @@ let viewConstraints model dispatch =
                 addButton (fun _ -> createInputConstraintPopup model dispatch) 
                 clearButton (fun _ -> 
                     dispatch ClearInputConstraints
-                    Regenerate |> Some |> SetTTOutOfDate |> dispatch)]
+                    Regenerate |> Some |> SetTTOutOfDate |> dispatch)] []
             Heading.h6 [] [str "Output Constraints"]
             viewNumericalConstraints outputCons dispatch
             br []
@@ -434,5 +439,5 @@ let viewConstraints model dispatch =
                 addButton (fun _ -> createOutputConstraintPopup model dispatch)
                 clearButton (fun _ -> 
                     dispatch ClearOutputConstraints
-                    Refilter |> Some |> SetTTOutOfDate |> dispatch)]
+                    Refilter |> Some |> SetTTOutOfDate |> dispatch)] []
         ]

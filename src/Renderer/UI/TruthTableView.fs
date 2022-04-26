@@ -419,11 +419,15 @@ let hideColumns model (dispatch: Msg -> Unit) =
     | Some (Error e) ->
         failwithf "what? Hding columns option should not exist when there is TT error"
     | Some (Ok table) ->
+        let oldTableMap = 
+            match table.DCMap with
+            | Some dc -> dc
+            | None -> table.TableMap
         let newTableMap =
-            if table.TableMap.IsEmpty || model.TTHiddenColumns.IsEmpty then
-                table.TableMap
+            if oldTableMap.IsEmpty || model.TTHiddenColumns.IsEmpty then
+                oldTableMap
             else
-                table.TableMap
+                oldTableMap
                 |> Map.map (fun lhs rhs ->
                     rhs
                     |> List.filter (fun cell -> 
@@ -548,7 +552,7 @@ let viewOutputHider table hidden dispatch =
             |> Map.toList
             |> List.head
             |> snd
-            |> List.map (fun cell -> makeToggleRow cell.IO)
+            |> List.map (fun cell -> makeToggleRow cell.IO [])
         div [] (preamble::toggleRows)
 
 let viewCellAsData (cell: TruthTableCell) =
@@ -742,6 +746,10 @@ let viewTruthTable model dispatch =
                     |> Ok
                     |> GenerateTruthTable
                     |> dispatch
+                    HideColumn |> Some |> SetTTOutOfDate |> dispatch
+                let goBack () =
+                    dispatch ClearDCMap
+                    HideColumn |> Some |> SetTTOutOfDate |> dispatch
                 match table.DCMap with
                 | None -> 
                     div [] [
@@ -751,10 +759,10 @@ let viewTruthTable model dispatch =
                         viewTruthTableData table Filtered]
                 | Some dc -> 
                     div [] [
-                        (Button.button [Button.Color IsInfo; Button.OnClick (fun _ -> dispatch ClearDCMap)] 
+                        (Button.button [Button.Color IsInfo; Button.OnClick (fun _ -> goBack ())] 
                         [str "Back to Full Table"])
                         br []; br []
-                        viewTruthTableData table DCReduced
+                        viewTruthTableData table Filtered
                     ]
         let constraints =
             match tableopt with

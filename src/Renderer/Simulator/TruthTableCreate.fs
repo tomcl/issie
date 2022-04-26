@@ -6,6 +6,7 @@ open TruthTableTypes
 open SynchronousUtils
 open NumberHelpers
 
+/// From a TableInput data structure, find all possible values the input can take
 let inputValues (tInput: TableInput) =
     match tInput.Constraints.Equalities, tInput.Constraints.Inequalities with
     | [], [] ->
@@ -35,6 +36,7 @@ let inputValues (tInput: TableInput) =
                 rows)
         |> List.sort
 
+/// Find all combinations (cartesian product) of all possible values for table inputs
 let inputCombinations (tInputs: TableInput list) =
     let masterList = 
         tInputs
@@ -79,8 +81,8 @@ let inputCombinations (tInputs: TableInput list) =
 /// Allowed Row Counts will be set to zero.
 let inputsWithCRC (inputs: SimulationIO list) (inputConstraints: ConstraintSet) =
     let findConstrainedRowCount (tInput: TableInput) =
-    // We asume that all constraints are validated on entry
-    // Therefore, there should be no overlaps
+    // We asume that all constraints are validated on entry.
+    // Therefore, there should be no overlaps.
         match tInput.Constraints with
         | {Equalities = []; Inequalities = []} -> tInput.MaxRowCount
         | {Equalities = equ; Inequalities = []} -> equ.Length
@@ -115,6 +117,7 @@ let inputsWithARC limit (tInputs: TableInput list) =
             {ti with AllowedRowCount = 1}, newRowCount
         )
 
+/// Find all LHS rows of the Truth Table, limited by input constraints and bit limit
 let tableLHS (inputs: SimulationIO list) (inputConstraints: ConstraintSet) bitLimit: 
     TruthTableRow list * int =
 
@@ -131,6 +134,7 @@ let tableLHS (inputs: SimulationIO list) (inputConstraints: ConstraintSet) bitLi
     (tInputs
     |> inputCombinations), tCRC
 
+/// Find the RHS (output) for every input row by simulating the input combination
 let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) viewers (simData: SimulationData): TruthTableRow =
     let updateOutputs (cell: TruthTableCell) =
         match cell.IO, cell.Data with
@@ -148,6 +152,7 @@ let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) viewers (simData
         |> List.map (fun ((l,f),w,wd) -> {IO = Viewer ((l,f),w); Data = Bits wd})
     outputRow @ viewerRow
 
+/// Create a Truth Table from the Simulation Data and input constraints
 let truthTable (simData: SimulationData) (inputConstraints: ConstraintSet) bitLimit: TruthTable =
     let start = TimeHelpers.getTimeMs()
     printfn "Truth Table Gen Called"
@@ -176,6 +181,7 @@ let truthTable (simData: SimulationData) (inputConstraints: ConstraintSet) bitLi
             })
     |> TimeHelpers.instrumentInterval "truthTableGeneration" start
 
+/// Regenenerate the truth table after the input constraints change
 let truthTableRegen tableSD inputConstraints bitLimit =
     let start = TimeHelpers.getTimeMs()
     let inputs = List.map fst (FastRun.extractFastSimulationIOs tableSD.Inputs tableSD)

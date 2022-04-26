@@ -1,10 +1,37 @@
-﻿module TruthTableTypes
+﻿//(*
+//    TruthTableTypes.fs
+//
+//    Types associated with Truth Tables used in the application.
+//*)
+//
+
+module TruthTableTypes
 
 open SimulatorTypes
 
 //-------------------------------------------------------------------------------------//
 //-----------------------------Truth Table Types---------------------------------------//
 //-------------------------------------------------------------------------------------//
+
+(*
+    Note on Truth Tables
+
+    1. In Issie, Truth Tables are stored as Maps, mapping left-hand side (inputs)
+        to right hand side (outputs).
+    2. The Truth Table type contains multiple Maps along with other relevant data. Multiple
+        Maps are stored for efficiency purposes, this way the Truth Table is only recalculated
+        when absolutely necessary.
+    3. Description of Stored Maps:
+        TableMap: The initial main Map for the Truth Table. Only Input Constraints are applied
+            to this.
+        DCMap option: The Don't Care Reduced version of the Truth Table, calculated from TableMap.
+            None if Table has not been DC Reduced.
+        HiddenColMap: Calculated using TableMap or DCMap depending on which is being displayed.
+            Excludes columns the user wants to hide.
+        FilteredMap: Map with Output Numerical Constraints applied. Map that is dispayed.
+    4. Each cell in the truth table comprises an IO/Viewer (CellIO) and data (CellData).
+    5. TruthTableRows are lists of cells, and Maps store the mapping from row to row.
+*)
 
 type CellData = 
     | Bits of wd: WireData
@@ -43,8 +70,10 @@ type TruthTableCell = {
 
 type TruthTableRow = TruthTableCell list
 
+// Identifiers for Map Type
 type MapToUse = | Table | HiddenCol | Filtered | DCReduced
-        
+
+// Actual Truth Table Data Structure
 type TruthTable = {
     // Actual Table: Mapping from Input row to Output row
     TableMap: Map<TruthTableRow,TruthTableRow>
@@ -90,10 +119,12 @@ type TruthTable = {
             | Some m -> m
             | None -> Map.empty
 
+/// Returns true if a row contains a Don't Care (X)
 let rowContainsDC (row: TruthTableRow) =
     row
     |> List.exists (fun cell -> cell.IsDC)
 
+/// Returns true if a row contains algebra
 let rowContainsAlgebra (row: TruthTableRow) =
     row
     |> List.exists (fun cell -> cell.IsAlgebra)
@@ -102,10 +133,12 @@ let rowContainsAlgebra (row: TruthTableRow) =
 //-----------------------------Constraint Types----------------------------------------//
 //-------------------------------------------------------------------------------------//
 
+// A numerical constraint set contains Equality and Inequality Constraints
 type ConstraintSet = {
     Equalities: EqualityConstraint list
     Inequalities: InequalityConstraint list
 } with
+    /// Returns a new ConstraintSet without constraints for a specific CellIO
     member this.withoutIO io =
         let newEqu =
             this.Equalities
@@ -114,10 +147,12 @@ type ConstraintSet = {
             this.Inequalities
             |> List.filter (fun i -> i.IO <> io)
         {Equalities = newEqu; Inequalities = newIneq}
+// IO = Value
 and EqualityConstraint = {
     IO: CellIO
     Value: int
 }
+// LowerBound < IO < UpperBound
 and InequalityConstraint = {
     LowerBound: int
     IO: CellIO
@@ -131,9 +166,13 @@ type Constraint =
 
 type ConstraintType = Equ | Ineq
 
+// Reason why the current Truth Table Map is out of date
 type ReasonOutOfDate = 
+    // Table needs to be regenerated, likely due to a change in Input Constraints
     | Regenerate 
+    // Columns have been hidden/unhidden, change Map to reflect this
     | HideColumn
+    // Table needs to be refiltered, likely due to change in Output Constraints
     | Refilter
     
 let isEqu c = 
@@ -161,11 +200,17 @@ let orderConstraints set =
         |> List.sortByDescending (fun c -> c.Range)
     {set with Inequalities = ordered}
 
+// Used when calculating the LHS of a Truth Table
 type TableInput = {
+    // SimulationIO associated with the input
     IO: SimulationIO
+    // Number of possible input values, based on width of input
     MaxRowCount: int
+    // Number of possible input values after applying input constraints
     ConstrainedRowCount: int
+    // Number of possible input values that will fit in the Truth Table after truncation
     AllowedRowCount: int
+    // Constraints on the input
     Constraints: ConstraintSet
 }
 

@@ -515,6 +515,23 @@ let makeOnOffToggle state changeAction onText offText =
         ]
     ]
 
+let makeSortingArrows (io:CellIO) =
+    let upArrow = 
+        Button.button
+            [
+                Button.Props [sortArrowStyle]
+                Button.OnClick (fun _ -> printfn "Ascending %s" io.getLabel)
+            ]
+            [str "\ufe3f"]
+    let downArrow =
+        Button.button
+            [
+                Button.Props [sortArrowStyle]
+                Button.OnClick (fun _ -> printfn "Descending %s" io.getLabel)
+            ]
+            [str "\ufe40"]
+    div [] [upArrow; downArrow]
+
 let private makeMenuGroup openDefault title menuList =
     details [Open openDefault] [
         summary [menuLabelStyle] [ str title ]
@@ -535,12 +552,12 @@ let viewCellAsHeading (cell: TruthTableCell) =
     match cell.IO with
     | SimIO (_,label,_) ->
         let headingText = string label
-        th [] [str headingText]
+        th [] [makeElementLine [str headingText] [makeSortingArrows cell.IO]]
     | Viewer ((label,fullName), width) ->
         let headingEl =
             label |> string |> str
             |> (fun r -> if fullName <> "" then addToolTip fullName r else r)
-        th [] [headingEl]
+        th [] [makeElementLine [headingEl] [makeSortingArrows cell.IO]]
 
 let viewOutputHider table hidden dispatch =
     let makeToggleRow io =

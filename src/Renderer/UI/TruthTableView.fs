@@ -393,8 +393,8 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
         let selLoadedComponents =
             project.LoadedComponents
             |> List.filter (fun comp ->
-                comp.Name <> project.OpenFileName
-                && List.contains comp.Name selOtherComponents)
+                comp.Name <> project.OpenFileName)
+                //&& List.contains comp.Name selOtherComponents)
         match correctCanvasState (selComps,selConns) wholeCanvas with
         | Error e -> Some (Error e, (selComps,selConns))
         | Ok (correctComps,correctConns) ->
@@ -402,6 +402,10 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
             | Some e -> Some (Error e,(correctComps,correctConns))
             | None ->
                 Some (prepareSimulation project.OpenFileName (correctComps,correctConns) selLoadedComponents , (correctComps,correctConns))
+
+//-------------------------------------------------------------------------------------//
+//-------------Functions for manipulating existing Truth Tables------------------------//
+//-------------------------------------------------------------------------------------//
 
 let truncationWarning table =
     $"The Truth Table has been truncated to {table.TableMap.Count} input combinations. 
@@ -500,6 +504,10 @@ let filterTruthTable model (dispatch: Msg -> Unit) =
         |> Ok
         |> GenerateTruthTable
         |> dispatch
+
+//-------------------------------------------------------------------------------------//
+//----------View functions for Truth Tables and Tab UI components----------------------//
+//-------------------------------------------------------------------------------------//
 
 let makeOnOffToggle state changeAction onText offText =
     Level.item [ Level.Item.HasTextCentered ] [

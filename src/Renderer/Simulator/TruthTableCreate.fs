@@ -38,7 +38,7 @@ let inputValues (tInput: TableInput) =
 
 /// Find all combinations (cartesian product) of all possible values for table inputs
 let inputCombinations (tInputs: TableInput list) =
-    let masterList = 
+    let masterList =
         tInputs
         |> List.map inputValues
 
@@ -53,14 +53,14 @@ let inputCombinations (tInputs: TableInput list) =
             |> List.map (fun (a,b) -> [a;b])
         else
             let el1::el2::remaining = masterList
-            let starter = 
+            let starter =
                 List.allPairs el1 el2
                 |> List.map (fun (a,b) -> [a;b])
 
             let rec numComb (acc: int list list) (rem: int list list) =
-                match rem with 
+                match rem with
                 | hd::tl ->
-                    let newAcc = 
+                    let newAcc =
                         acc
                         |> List.collect (fun l -> List.map (fun i -> l @ [i]) hd)
                     numComb newAcc tl
@@ -70,11 +70,11 @@ let inputCombinations (tInputs: TableInput list) =
             numComb starter remaining
 
     combs
-    |> List.map (fun l -> l |> List.mapi (fun i n -> 
+    |> List.map (fun l -> l |> List.mapi (fun i n ->
         //convertIntToWireData widths[i] n
         let (_,_,w) = tInputs[i].IO
         {IO = SimIO (tInputs[i].IO); Data = Bits (convertIntToWireData w n)}
-        
+
         ))
 
 /// Returns a TableInput list with Max and Constrained Row Counts correctly calculated.
@@ -86,9 +86,9 @@ let inputsWithCRC (inputs: SimulationIO list) (inputConstraints: ConstraintSet) 
         match tInput.Constraints with
         | {Equalities = []; Inequalities = []} -> tInput.MaxRowCount
         | {Equalities = equ; Inequalities = []} -> equ.Length
-        | {Equalities = equ; Inequalities = ineq} -> 
+        | {Equalities = equ; Inequalities = ineq} ->
             ((0,ineq)
-            ||> List.fold (fun n con -> n + con.Range)) 
+            ||> List.fold (fun n con -> n + con.Range))
             + equ.Length
     inputs
     |> List.map (fun input ->
@@ -97,9 +97,10 @@ let inputsWithCRC (inputs: SimulationIO list) (inputConstraints: ConstraintSet) 
             ||> initTableInput
         let crc = findConstrainedRowCount ti
         {ti with ConstrainedRowCount = crc})
+
 /// Calculates Allowed Row Counts for each Truth Table input.
 /// Also returns the actual row count for the given inputs and constraints.
-let inputsWithARC limit (tInputs: TableInput list) = 
+let inputsWithARC limit (tInputs: TableInput list) =
     let sortedInputs =
         tInputs
         |> List.sortBy (fun ti -> ti.ConstrainedRowCount)
@@ -113,12 +114,12 @@ let inputsWithARC limit (tInputs: TableInput list) =
         // Case where constrained values of this input must be truncated
         else if capacity > 1 then
             {ti with AllowedRowCount = capacity}, newRowCount
-        else 
+        else
             {ti with AllowedRowCount = 1}, newRowCount
         )
 
 /// Find all LHS rows of the Truth Table, limited by input constraints and bit limit
-let tableLHS (inputs: SimulationIO list) (inputConstraints: ConstraintSet) bitLimit: 
+let tableLHS (inputs: SimulationIO list) (inputConstraints: ConstraintSet) bitLimit:
     TruthTableRow list * int =
 
     // Maximum number of rows on LHS of Truth Table.
@@ -156,10 +157,10 @@ let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) viewers (simData
 let truthTable (simData: SimulationData) (inputConstraints: ConstraintSet) bitLimit: TruthTable =
     let start = TimeHelpers.getTimeMs()
     printfn "Truth Table Gen Called"
-    let tempSimData = 
+    let tempSimData =
         match FastRun.buildFastSimulation 2 simData.Graph with
         | Ok tempFS -> {simData with FastSim = tempFS}
-        | _ -> failwithf "Error in building fast simulation for Truth Table evaluation" 
+        | _ -> failwithf "Error in building fast simulation for Truth Table evaluation"
     let inputs = List.map fst (FastRun.extractFastSimulationIOs simData.Inputs tempSimData)
     let outputs = List.map fst (FastRun.extractFastSimulationIOs simData.Outputs tempSimData)
     let viewers = FastRun.extractViewers simData
@@ -168,7 +169,7 @@ let truthTable (simData: SimulationData) (inputConstraints: ConstraintSet) bitLi
 
     List.zip lhs rhs
     |> Map.ofList
-    |> (fun tableMap -> 
+    |> (fun tableMap ->
         printfn "RealRowCount: %A" tableMap.Count
         {
             TableMap = tableMap
@@ -192,7 +193,7 @@ let truthTableRegen tableSD inputConstraints bitLimit =
 
     List.zip lhs rhs
     |> Map.ofList
-    |> (fun tableMap -> 
+    |> (fun tableMap ->
         printfn "RealRowCount: %A" tableMap.Count
         {
             TableMap = tableMap

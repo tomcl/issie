@@ -33,7 +33,7 @@ open SimulatorTypes
     5. TruthTableRows are lists of cells, and Maps store the mapping from row to row.
 *)
 
-type CellData = 
+type CellData =
     | Bits of wd: WireData
     | Algebra of var: string
     | DC //Don't Care
@@ -41,9 +41,9 @@ type CellData =
 type CellIO =
     | SimIO of SimulationIO
     | Viewer of (string*string)*int
-    with 
+    with
     member this.getLabel =
-        match this with 
+        match this with
         | SimIO (_,l,_) -> string l
         | Viewer ((l,_),_) -> l
     member this.getWidth =
@@ -56,11 +56,11 @@ type TruthTableCell = {
     Data: CellData
     } with
     member this.IsBits =
-        match this.Data with 
+        match this.Data with
         | Bits _ -> true
         | _ -> false
     member this.IsDC =
-        match this.Data with 
+        match this.Data with
         | DC -> true
         | _ -> false
     member this.IsAlgebra =
@@ -114,7 +114,7 @@ type TruthTable = {
         | Table -> this.TableMap
         | HiddenCol -> this.HiddenColMap
         | Filtered -> this.FilteredMap
-        | DCReduced -> 
+        | DCReduced ->
             match this.DCMap with
             | Some m -> m
             | None -> Map.empty
@@ -160,22 +160,22 @@ and InequalityConstraint = {
     Range: int
 }
 
-type Constraint = 
+type Constraint =
     | Equality of EqualityConstraint
     | Inequality of InequalityConstraint
 
 type ConstraintType = Equ | Ineq
 
 // Reason why the current Truth Table Map is out of date
-type ReasonOutOfDate = 
+type ReasonOutOfDate =
     // Table needs to be regenerated, likely due to a change in Input Constraints
-    | Regenerate 
+    | Regenerate
     // Columns have been hidden/unhidden, change Map to reflect this
     | HideColumn
     // Table needs to be refiltered, likely due to change in Output Constraints
     | Refilter
-    
-let isEqu c = 
+
+let isEqu c =
     match c with
     | Equ -> true
     | _ -> false
@@ -185,7 +185,7 @@ let emptyConstraintSet = {
     Inequalities = []
 }
 
-let makeInequalityConstraint lower io upper = 
+let makeInequalityConstraint lower io upper =
     let range = upper - lower + 1
     {
         LowerBound = lower
@@ -217,7 +217,7 @@ type TableInput = {
 let initTableInput (simIO:SimulationIO) (allConstraints: ConstraintSet) =
     let (_,_,w) = simIO
     let specificEqualities =
-        allConstraints.Equalities 
+        allConstraints.Equalities
         |> List.filter (fun con -> con.IO = SimIO simIO)
     let specificInequalities =
         allConstraints.Inequalities

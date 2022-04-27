@@ -20,14 +20,14 @@ let rowEquals (row1: TruthTableRow) (row2: TruthTableRow) =
         false
     else
         (row1,row2)
-        ||> List.forall2 (fun c1 c2 -> 
+        ||> List.forall2 (fun c1 c2 ->
             match c1.Data, c2.Data with
             | Bits a, Bits b -> a = b
             | DC, _ -> true
             | _, DC -> true
-            | _, _ -> 
+            | _, _ ->
                 failwithf "what? Rows containing algebraic cells passed to rowEquals")
-            
+
 /// Alternative to Map.tryFind for Table Maps which supports Don't Care terms.
 /// If a row maps to multiple rows (happens with Don't Care Rows), all rows are returned.
 let tableTryFind (row: TruthTableRow) (tMap: Map<TruthTableRow,TruthTableRow>) =
@@ -36,12 +36,12 @@ let tableTryFind (row: TruthTableRow) (tMap: Map<TruthTableRow,TruthTableRow>) =
     | None, false -> None
     | None, true ->
         ([], Map.toList tMap)
-        ||> List.fold (fun acc (lhs,rhs) -> 
+        ||> List.fold (fun acc (lhs,rhs) ->
             if rowEquals row lhs then
                 rhs::acc
-            else 
+            else
                 acc)
-        |> function 
+        |> function
             | [] -> None
             | lst -> Some lst
 
@@ -50,7 +50,7 @@ let tableTryFind (row: TruthTableRow) (tMap: Map<TruthTableRow,TruthTableRow>) =
 let isValidDCRow row table =
     match tableTryFind row table.FilteredMap with
     | None -> None
-    | Some outputs -> 
+    | Some outputs ->
         outputs
         |> List.forall (fun r -> r = outputs.Head)
         |> function
@@ -65,19 +65,19 @@ let inputDCRows (input: CellIO) (inputConstraints: ConstraintSet) (table: TruthT
         match table.DCMap with
         | None -> table.FilteredMap
         | Some m -> m
-    if allInputs.Length = 1 then 
+    if allInputs.Length = 1 then
         []
     else
         let allInputs = table.Inputs
         let inputIdx =
             match List.tryFindIndex (fun c -> c = input) allInputs with
-            | None -> 
+            | None ->
                 failwithf "what? Trying to DC Reduce a table over an input not present in the table"
             | Some idx -> idx
         let tableLst = Map.toList tMap
         ([],tableLst)
         ||> List.fold (fun acc (lhs,rhs) ->
-            let possible: TruthTableRow = 
+            let possible: TruthTableRow =
                 lhs
                 |> List.updateAt inputIdx {IO = input; Data = DC}
             match List.exists (fun (l,r) -> rowEquals (l@r) (possible@rhs)) acc,
@@ -88,7 +88,7 @@ let inputDCRows (input: CellIO) (inputConstraints: ConstraintSet) (table: TruthT
 /// Reduce the Truth Table by removing rows covered by Don't Care Rows.
 let reduceWithDCRow regularRows (dcLeft,dcRight) =
     regularRows
-    |> List.filter (fun (regLeft,regRight) -> 
+    |> List.filter (fun (regLeft,regRight) ->
         rowEquals (dcLeft @ dcRight) (regLeft @ regRight)
         |> not)
 
@@ -100,20 +100,20 @@ let rec reduceTruthTable (inputConstraints: ConstraintSet) (table: TruthTable) b
         match table.DCMap with
         | None -> table.TableMap
         | Some m -> m
-    
+
     let allDCRows =
         table.Inputs
-        |> List.collect (fun input -> 
+        |> List.collect (fun input ->
             inputDCRows input inputConstraints table bitLimit)
-    
+
     let remainingRegularRows =
         (Map.toList tMap, allDCRows)
         ||> List.fold reduceWithDCRow
 
-    let newMap = 
+    let newMap =
         allDCRows @ remainingRegularRows
         |> Map.ofList
-    
+
     if tMap = newMap then
         {table with DCMap = Some newMap}
     else
@@ -122,4 +122,3 @@ let rec reduceTruthTable (inputConstraints: ConstraintSet) (table: TruthTable) b
 
 
 
-            

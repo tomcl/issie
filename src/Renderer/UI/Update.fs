@@ -439,7 +439,8 @@ let update (msg : Msg) oldModel =
                     |> Ok
                     |> Some
         {model with CurrentTruthTable = newTT}, Cmd.none
-        
+    | SetTTSortType stOpt ->
+        {model with TTSortType = stOpt}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg

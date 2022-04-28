@@ -511,6 +511,45 @@ let compareCellData (cd1: CellData) (cd2: CellData) =
         (convertWireDataToInt wd1, convertWireDataToInt wd2)
         ||> compare
 
+let sortByIO (io: CellIO) (lst: TruthTableRow list) = 
+    let idx = 
+        lst.Head
+        |> List.tryFindIndex (fun c ->
+            c.IO = io)
+        |> function
+            | Some i -> i
+            | None -> failwithf "what? Failed to find IO: %s while sorting TT" io.getLabel
+    
+    lst
+    |> List.sortWith (fun r1 r2 ->
+        let cd1 = r1[idx].Data
+        let cd2 = r2[idx].Data
+        compareCellData cd1 cd2)
+
+let sortTruthTable model dispatch =
+    match model.CurrentTruthTable with
+    | None -> failwithf "what? Trying to sort table when no Truth Table exists"
+    | Some (Error e) ->
+        failwithf "what? Sorting option should not exist when there is TT Error"
+    | Some (Ok table) ->
+        let sortedTable =
+            match model.TTSortType, tableAsList table.FilteredMap with
+            | _, [] -> {table with SortedListRep = []}
+            | None, lst ->
+                {table with SortedListRep = lst}
+            | Some (io, Ascending), lst ->
+                let sortedLst = sortByIO io lst
+                {table with SortedListRep = sortedLst}
+            | Some (io, Descending), lst ->
+                let sortedLst = 
+                    sortByIO io lst
+                    |> List.rev
+                {table with SortedListRep = sortedLst}
+        sortedTable
+        |> Ok
+        |> GenerateTruthTable
+        |> dispatch
+
 //-------------------------------------------------------------------------------------//
 //----------View functions for Truth Tables and Tab UI components----------------------//
 //-------------------------------------------------------------------------------------//
@@ -529,19 +568,30 @@ let makeOnOffToggle state changeAction onText offText =
         ]
     ]
 
-let makeSortingArrows (io:CellIO) =
+let makeSortingArrows (io:CellIO) sortInfo dispatch =
+    let upSel, downSel =
+        match sortInfo with
+        | None -> false, false
+        | Some (cio, Ascending) -> cio = io, false
+        | Some (cio, Descending) -> false, cio = io
     let upArrow = 
         Button.button
             [
                 Button.Props [sortArrowStyle]
-                Button.OnClick (fun _ -> printfn "Ascending %s" io.getLabel)
+                if upSel then Button.Color IsInfo
+                Button.OnClick (fun _ -> 
+                    (io,Ascending) |> Some |> SetTTSortType |> dispatch
+                    ReSort |> Some |> SetTTOutOfDate |> dispatch)
             ]
             [str "\ufe3f"]
     let downArrow =
         Button.button
             [
                 Button.Props [sortArrowStyle]
-                Button.OnClick (fun _ -> printfn "Descending %s" io.getLabel)
+                if downSel then Button.Color IsInfo
+                Button.OnClick (fun _ -> 
+                    (io,Descending) |> Some |> SetTTSortType |> dispatch
+                    ReSort |> Some |> SetTTOutOfDate |> dispatch)
             ]
             [str "\ufe40"]
     div [] [upArrow; downArrow]
@@ -552,12 +602,7 @@ let private makeMenuGroup openDefault title menuList =
         Menu.list [] menuList
     ]
 
-let tableAsList tMap =
-    tMap
-    |> Map.toList
-    |> List.map (fun (lhs,rhs) -> List.append lhs rhs)
-
-let viewCellAsHeading (cell: TruthTableCell) =
+let viewCellAsHeading dispatch sortInfo (cell: TruthTableCell) =
     let addToolTip tip react =
         div [
             HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-top"
@@ -566,12 +611,13 @@ let viewCellAsHeading (cell: TruthTableCell) =
     match cell.IO with
     | SimIO (_,label,_) ->
         let headingText = string label
-        th [] [makeElementLine [str headingText] [makeSortingArrows cell.IO]]
+        th [] 
+            [makeElementLine [str headingText] [makeSortingArrows cell.IO sortInfo dispatch]] 
     | Viewer ((label,fullName), width) ->
         let headingEl =
             label |> string |> str
             |> (fun r -> if fullName <> "" then addToolTip fullName r else r)
-        th [] [makeElementLine [headingEl] [makeSortingArrows cell.IO]]
+        th [] [makeElementLine [headingEl] [makeSortingArrows cell.IO sortInfo dispatch]]
 
 let viewOutputHider table hidden dispatch =
     let makeToggleRow io =
@@ -640,18 +686,17 @@ let viewTruthTableError simError =
         error
     ]
 
-let viewTruthTableData (table: TruthTable) (mapType: MapToUse) =
+let viewTruthTableData (table: TruthTable) (mapType: MapToUse) sortInfo dispatch =
     let tMap = table.getMap mapType
     if tMap.IsEmpty then
         div [] [str "No Rows in Truth Table"]
     else
-        let TTasList = tableAsList tMap
         let headings =
-            TTasList.Head
-            |> List.map viewCellAsHeading
+            table.SortedListRep.Head
+            |> List.map (viewCellAsHeading dispatch sortInfo) 
             |> List.toSeq
         let body =
-            TTasList
+            table.SortedListRep
             |> List.map viewRowAsData
             |> List.toSeq
 
@@ -774,13 +819,17 @@ let viewTruthTable model dispatch =
             Refilter |> Some |> SetTTOutOfDate |> dispatch
         | Some Refilter ->
             filterTruthTable model dispatch
-            dispatch <| SetTTOutOfDate None
+            ReSort |> Some |> SetTTOutOfDate |> dispatch
+        | Some ReSort ->
+            sortTruthTable model dispatch
+            None |> SetTTOutOfDate |> dispatch
         | None -> ()
 
         let closeTruthTable _ =
             dispatch ClearInputConstraints
             dispatch ClearOutputConstraints
             dispatch ClearHiddenTTColumns
+            dispatch (SetTTSortType None)
             dispatch CloseTruthTable
         let body =
             match tableopt with
@@ -801,13 +850,13 @@ let viewTruthTable model dispatch =
                         (Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> startReducing())]
                         [str "Reduce"])
                         br []; br []
-                        viewTruthTableData table Filtered]
+                        viewTruthTableData table Filtered model.TTSortType dispatch] 
                 | Some dc ->
                     div [] [
                         (Button.button [Button.Color IsInfo; Button.OnClick (fun _ -> goBack ())]
                         [str "Back to Full Table"])
                         br []; br []
-                        viewTruthTableData table Filtered
+                        viewTruthTableData table Filtered model.TTSortType dispatch
                     ]
         let constraints =
             match tableopt with

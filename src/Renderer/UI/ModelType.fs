@@ -299,6 +299,7 @@ type Msg =
     | ToggleHideTTColumn of CellIO
     | ClearHiddenTTColumns
     | ClearDCMap
+    | SetTTSortType of (CellIO * SortType) option
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list
@@ -446,6 +447,8 @@ type Model = {
     TTIsOutOfDate : ReasonOutOfDate option
     // Which output or viewer columns in the Truth Table should be hidden
     TTHiddenColumns: CellIO list
+    // Which IO and in what way is the Table being sorted
+    TTSortType: (CellIO * SortType) option
     // which of the tabbed panes is currently visible
     RightPaneTabVisible : RightTab
     // which of the subtabs for the right pane simulation is visible

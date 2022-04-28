@@ -73,6 +73,8 @@ type TruthTableRow = TruthTableCell list
 // Identifiers for Map Type
 type MapToUse = | Table | HiddenCol | Filtered | DCReduced
 
+type SortType = | Ascending | Descending
+
 // Actual Truth Table Data Structure
 type TruthTable = {
     // Actual Table: Mapping from Input row to Output row
@@ -83,6 +85,8 @@ type TruthTable = {
     FilteredMap: Map<TruthTableRow,TruthTableRow>
     // Truth Table reduced with Don't Cares on Inputs
     DCMap: Map<TruthTableRow,TruthTableRow> option
+    // List Representation of table to which sorting is applied
+    SortedListRep: TruthTableRow list
     // If the Truth Table has been truncated
     IsTruncated: bool
     // Maximum rows the truth table could have with current input constraints
@@ -174,6 +178,8 @@ type ReasonOutOfDate =
     | HideColumn
     // Table needs to be refiltered, likely due to change in Output Constraints
     | Refilter
+    // Table needs to be sorted
+    | ReSort
 
 let isEqu c =
     match c with

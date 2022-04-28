@@ -71,6 +71,7 @@ let init() = {
     TTOutputConstraints = TruthTableTypes.emptyConstraintSet
     TTIsOutOfDate = None
     TTHiddenColumns = []
+    TTSortType = None
     WaveSim = Map.empty, None
     WaveSimSheet = ""
     RightPaneTabVisible = Catalogue

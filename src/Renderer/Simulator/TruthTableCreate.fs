@@ -6,6 +6,11 @@ open TruthTableTypes
 open SynchronousUtils
 open NumberHelpers
 
+let tableAsList tMap =
+    tMap
+    |> Map.toList
+    |> List.map (fun (lhs,rhs) -> List.append lhs rhs)
+
 /// From a TableInput data structure, find all possible values the input can take
 let inputValues (tInput: TableInput) =
     match tInput.Constraints.Equalities, tInput.Constraints.Inequalities with
@@ -176,6 +181,7 @@ let truthTable (simData: SimulationData) (inputConstraints: ConstraintSet) bitLi
             HiddenColMap = tableMap
             FilteredMap = tableMap
             DCMap = None
+            SortedListRep = tableAsList tableMap
             IsTruncated = (tableMap.Count <> tCRC)
             MaxRowsWithConstraints = tCRC
             TableSimData = tempSimData
@@ -200,6 +206,7 @@ let truthTableRegen tableSD inputConstraints bitLimit =
             HiddenColMap = tableMap
             FilteredMap = tableMap
             DCMap = None
+            SortedListRep = tableAsList tableMap
             IsTruncated = (tableMap.Count <> tCRC)
             MaxRowsWithConstraints = tCRC
             TableSimData = tableSD

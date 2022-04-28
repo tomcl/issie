@@ -497,6 +497,20 @@ let filterTruthTable model (dispatch: Msg -> Unit) =
         |> GenerateTruthTable
         |> dispatch
 
+/// Comparison function for CellData values
+let compareCellData (cd1: CellData) (cd2: CellData) =
+    match cd1, cd2 with
+    | DC, DC -> 0 // X = X
+    | DC, _ -> 1 // DC is considered larger than anything
+    | _, DC -> -1
+    | Algebra _, Bits _ -> 1 // Algebra is considered larger than Bits
+    | Bits _, Algebra _ -> -1
+    | Algebra a1, Algebra a2 -> 
+        compare a1 a2 // Algebra compared by alphabetical order
+    | Bits wd1, Bits wd2 -> // Bits compared by which is largest
+        (convertWireDataToInt wd1, convertWireDataToInt wd2)
+        ||> compare
+
 //-------------------------------------------------------------------------------------//
 //----------View functions for Truth Tables and Tab UI components----------------------//
 //-------------------------------------------------------------------------------------//

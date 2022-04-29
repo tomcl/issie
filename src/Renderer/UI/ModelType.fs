@@ -10,6 +10,7 @@ module rec ModelType
 
 open CommonTypes
 open SimulatorTypes
+open TruthTableTypes
 open Fable.React
 open Sheet.SheetInterface
 
@@ -17,6 +18,10 @@ type RightTab =
     | Properties
     | Catalogue
     | Simulation
+
+type SimSubTab =
+    | StepSim
+    | TruthTable
     | WaveSim
 
 type MemoryEditorData = {
@@ -49,6 +54,10 @@ type PopupDialogData = {
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
     WaveSetup: MoreWaveSetup option
     Progress: PopupProgress option
+    ConstraintTypeSel: ConstraintType option
+    ConstraintIOSel: CellIO option
+    ConstraintErrorMsg: string option
+    NewConstraint: Constraint option
 }
 
 type TopMenu = | Closed | Project | Files
@@ -271,12 +280,30 @@ type Msg =
     | SetWSModAndSheet of (WaveSimModel*string)
     | SetWSError of SimulationError option
     | AddWaveSimFile of string * WaveSimModel
+    | LockTabsToWaveSim
+    | UnlockTabsFromWaveSim
     | SetSimulationGraph of SimulationGraph  * FastSimulation
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick of int
     | EndSimulation
     | EndWaveSim
+    | GenerateTruthTable of Result<TruthTable, SimulationError>
+    | CloseTruthTable
+    | SetTTOutOfDate of ReasonOutOfDate option
+    | ClearInputConstraints
+    | ClearOutputConstraints
+    | AddInputConstraint of Constraint
+    | AddOutputConstraint of Constraint
+    | DeleteInputConstraint of Constraint
+    | DeleteOutputConstraint of Constraint
+    | ToggleHideTTColumn of CellIO
+    | ClearHiddenTTColumns
+    | ClearDCMap
+    | SetTTSortType of (CellIO * SortType) option
+    | MoveColumn of (CellIO * MoveDirection)
+    | SetIOOrder of CellIO []
     | ChangeRightTab of RightTab
+    | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list
     | SetSelWavesHighlighted of ConnectionId array
     | SetClipboard of CanvasState
@@ -289,6 +316,7 @@ type Msg =
     | ClosePopup
     | SetPopupDialogText of string option
     | SetPopupDialogInt of int option
+    | SetPopupDialogInt2 of int64 option
     | SetPopupDialogTwoInts of (int64 option * IntMode * string option)
     | SetPropertiesExtraDialogText of string option
     | SetPopupDialogMemorySetup of (int * int * InitMemData * string option) option
@@ -296,6 +324,12 @@ type Msg =
     | SetPopupWaveSetup of MoreWaveSetup
     | SetPopupProgress of PopupProgress option
     | UpdatePopupProgress of (PopupProgress -> PopupProgress)
+    | SetPopupInputConstraints of ConstraintSet option
+    | SetPopupOutputConstraints of ConstraintSet option
+    | SetPopupConstraintTypeSel of ConstraintType option
+    | SetPopupConstraintIOSel of CellIO option
+    | SetPopupConstraintErrorMsg of string option
+    | SetPopupNewConstraint of Constraint option
     | SimulateWithProgressBar of SimulationProgress
     | SetSelectedComponentMemoryLocation of int64 * int64
     | CloseDiagramNotification
@@ -381,6 +415,9 @@ type Model = {
     // if canvas is now different from that which is currently used by wave sim.
     WaveSimulationIsOutOfDate: bool
 
+    // if a wave simulation is being viewed, used to lock the tabs in place
+    WaveSimulationInProgress: bool
+
     // last time check for changes was made
 
     LastChangeCheckTime: float
@@ -400,8 +437,26 @@ type Model = {
     SelectedComponent : Component option // None if no component is selected.
     // used during step simulation: simgraph for current clock tick
     CurrentStepSimulationStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
-    // which of the tabbed panes is currentlky visible
+    // stores the generated truth table 
+    CurrentTruthTable: Result<TruthTable,SimulationError> option // None if no Truth Table is being displayed.
+    // bits associated with the maximum number of input rows allowed in a Truth Table
+    TTBitLimit: int
+    // input constraints on truth table generation
+    TTInputConstraints: ConstraintSet
+    // output constraints on truth table viewing
+    TTOutputConstraints: ConstraintSet
+    // true if existing Truth Table needs to be re-generated
+    TTIsOutOfDate : ReasonOutOfDate option
+    // which output or viewer columns in the Truth Table should be hidden
+    TTHiddenColumns: CellIO list
+    // by which IO and in what way is the Table being sorted
+    TTSortType: (CellIO * SortType) option
+    // what is the display order of IOs in Table
+    TTIOOrder: CellIO []
+    // which of the tabbed panes is currently visible
     RightPaneTabVisible : RightTab
+    // which of the subtabs for the right pane simulation is visible
+    SimSubTabVisible: SimSubTab
     // components and connections which are highlighted
     Hilighted : (ComponentId list * ConnectionId list) * ConnectionId list
     // Components and connections that have been selected and copied.
@@ -689,5 +744,6 @@ let switchToWaveEditor (model:Model) dispatch =
         printf "What? Can't switch to wave editor when wave sim is closed!"
     | Some ws -> 
         dispatch <| SetWSMod {ws with WSViewState=WSViewT.WSEditorOpen}
-        dispatch <| ChangeRightTab WaveSim
+        dispatch <| ChangeRightTab Simulation
+        dispatch <| ChangeSimSubTab WaveSim
  

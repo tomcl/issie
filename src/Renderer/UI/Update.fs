@@ -19,6 +19,7 @@ open WaveSimHelpers
 open Sheet.SheetInterface
 open DrawModelType
 open Fable.SimpleJson
+open Helpers
 
 
 //---------------------------------------------------------------------------------------------//
@@ -420,11 +421,21 @@ let update (msg : Msg) oldModel =
         // Column is currently hidden, so we unhide
         if List.contains io model.TTHiddenColumns then
             let newHC = List.except [io] model.TTHiddenColumns
-            {model with TTHiddenColumns = newHC}, Cmd.none
+            let newOrder = Array.append model.TTIOOrder [|io|]
+            {model with TTHiddenColumns = newHC; TTIOOrder = newOrder}, Cmd.none
         else
+            let newOrder = Array.except [io] model.TTIOOrder
+            let newSort =
+                match model.TTSortType with
+                | None -> None
+                | Some (cIO,st) ->
+                    if cIO = io then None
+                    else Some (cIO,st)
             {model with 
                 TTHiddenColumns = io::model.TTHiddenColumns
-                TTOutputConstraints = model.TTOutputConstraints.withoutIO io}, Cmd.none
+                TTOutputConstraints = model.TTOutputConstraints.withoutIO io
+                TTIOOrder = newOrder
+                TTSortType = newSort}, Cmd.none
     | ClearHiddenTTColumns -> 
         {model with TTHiddenColumns = []}, Cmd.none
     | ClearDCMap ->
@@ -441,6 +452,30 @@ let update (msg : Msg) oldModel =
         {model with CurrentTruthTable = newTT}, Cmd.none
     | SetTTSortType stOpt ->
         {model with TTSortType = stOpt}, Cmd.none
+    | MoveColumn (io, dir) ->
+        match model.CurrentTruthTable with
+        | None -> failwithf "what? Ordering columns when no Truth Table exists"
+        | Some (Error e) ->
+            failwithf "what? Order column option should not exist when there is TT error"
+        | Some (Ok table) ->
+            let oldOrder = model.TTIOOrder
+            let idx = 
+                oldOrder
+                |> Array.findIndex (fun cIO -> cIO = io)
+            let newOrder =
+                match dir, idx with
+                | MLeft, 0 -> oldOrder
+                | MLeft, i -> swapArrayEls (i) (i-1) oldOrder
+                | MRight, i -> 
+                    if i = (oldOrder.Length-1) then
+                        oldOrder
+                    else
+                        swapArrayEls (idx) (idx+1) oldOrder
+
+            printfn "New Order: %A" newOrder
+            {model with TTIOOrder = newOrder}, Cmd.none
+    | SetIOOrder x -> 
+        {model with TTIOOrder = x}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg

@@ -414,6 +414,11 @@ let regenerateTruthTable model (dispatch: Msg -> Unit) =
         if tt.IsTruncated then
                     let popup = Notifications.warningPropsNotification (truncationWarning tt)
                     dispatch <| SetPropertiesNotification popup
+        tt.IOOrder 
+        |> List.toArray 
+        |> SetIOOrder 
+        |> dispatch
+
         tt
         |> Ok
         |> GenerateTruthTable
@@ -550,6 +555,36 @@ let sortTruthTable model dispatch =
         |> GenerateTruthTable
         |> dispatch
 
+let reorderTruthTable model dispatch =
+    match model.CurrentTruthTable with
+    | None -> failwithf "what? Trying to reorder table when no Truth Table exists"
+    | Some (Error e) ->
+        failwithf "what? Reorder option should not exist when there is TT Error"
+    | Some (Ok table) ->
+        let lstRep = table.SortedListRep
+        let changes =
+            lstRep.Head
+            |> List.mapi (fun i c ->
+                (i,Array.findIndex (fun io -> io = c.IO) model.TTIOOrder))
+
+        let arrayRep =
+            table.SortedListRep
+            |> list2DToArray2D
+        let arrayCopy =
+            table.SortedListRep
+            |> list2DToArray2D
+
+        changes
+        |> List.iter (fun (o,c) ->
+            arrayCopy
+            |> Array.iteri (fun i arr ->
+                arrayRep[i][c] <- arr[o]))
+
+        {table with OrderedArrayRep = arrayRep}
+        |> Ok
+        |> GenerateTruthTable
+        |> dispatch
+        
 //-------------------------------------------------------------------------------------//
 //----------View functions for Truth Tables and Tab UI components----------------------//
 //-------------------------------------------------------------------------------------//
@@ -568,7 +603,7 @@ let makeOnOffToggle state changeAction onText offText =
         ]
     ]
 
-let makeSortingArrows (io:CellIO) sortInfo dispatch =
+let makeSortingArrows (io: CellIO) sortInfo dispatch =
     let upSel, downSel =
         match sortInfo with
         | None -> false, false
@@ -583,7 +618,7 @@ let makeSortingArrows (io:CellIO) sortInfo dispatch =
                     (io,Ascending) |> Some |> SetTTSortType |> dispatch
                     ReSort |> Some |> SetTTOutOfDate |> dispatch)
             ]
-            [str "\ufe3f"]
+            [str "▲"]
     let downArrow =
         Button.button
             [
@@ -593,8 +628,29 @@ let makeSortingArrows (io:CellIO) sortInfo dispatch =
                     (io,Descending) |> Some |> SetTTSortType |> dispatch
                     ReSort |> Some |> SetTTOutOfDate |> dispatch)
             ]
-            [str "\ufe40"]
+            [str "▼"]
     div [] [upArrow; downArrow]
+
+let makeColumnMoveArrows (io: CellIO) headingEl dispatch =
+    let leftArrow = 
+        Button.button
+            [
+                Button.Props [colMoveArrowStyle]
+                Button.OnClick (fun _ -> 
+                    (io,MLeft) |> MoveColumn |> dispatch
+                    OrderColumn |> Some |> SetTTOutOfDate |> dispatch)
+            ]
+            [str "◄"]
+    let rightArrow = 
+        Button.button
+            [
+                Button.Props [colMoveArrowStyle]
+                Button.OnClick (fun _ -> 
+                    (io,MRight) |> MoveColumn |> dispatch
+                    OrderColumn |> Some |> SetTTOutOfDate |> dispatch)
+            ]
+            [str "►"]
+    makeElementLine [leftArrow; headingEl; rightArrow] []
 
 let private makeMenuGroup openDefault title menuList =
     details [Open openDefault] [
@@ -612,12 +668,18 @@ let viewCellAsHeading dispatch sortInfo (cell: TruthTableCell) =
     | SimIO (_,label,_) ->
         let headingText = string label
         th [] 
-            [makeElementLine [str headingText] [makeSortingArrows cell.IO sortInfo dispatch]] 
+            [
+                makeElementLine [makeColumnMoveArrows cell.IO (str headingText) dispatch] 
+                    [makeSortingArrows cell.IO sortInfo dispatch]
+                ] 
     | Viewer ((label,fullName), width) ->
         let headingEl =
             label |> string |> str
             |> (fun r -> if fullName <> "" then addToolTip fullName r else r)
-        th [] [makeElementLine [headingEl] [makeSortingArrows cell.IO sortInfo dispatch]]
+        th [] [
+            makeElementLine [makeColumnMoveArrows cell.IO headingEl dispatch] 
+                [makeSortingArrows cell.IO sortInfo dispatch]
+            ]
 
 let viewOutputHider table hidden dispatch =
     let makeToggleRow io =
@@ -657,11 +719,11 @@ let viewCellAsData (cell: TruthTableCell) =
     | Algebra a -> td [] [str <| a]
     | DC -> td [] [str <| "X"]
 
-let viewRowAsData (row: TruthTableRow) =
+let viewRowAsData (row: TruthTableCell[]) =
     let cells =
         row
-        |> List.map viewCellAsData
-        |> List.toSeq
+        |> Array.map viewCellAsData
+        |> Array.toSeq
     tr [] cells
 
 let viewTruthTableError simError =
@@ -692,13 +754,13 @@ let viewTruthTableData (table: TruthTable) (mapType: MapToUse) sortInfo dispatch
         div [] [str "No Rows in Truth Table"]
     else
         let headings =
-            table.SortedListRep.Head
-            |> List.map (viewCellAsHeading dispatch sortInfo) 
-            |> List.toSeq
+            table.OrderedArrayRep[0]
+            |> Array.map (viewCellAsHeading dispatch sortInfo) 
+            |> Array.toSeq
         let body =
-            table.SortedListRep
-            |> List.map viewRowAsData
-            |> List.toSeq
+            table.OrderedArrayRep
+            |> Array.map viewRowAsData
+            |> Array.toSeq
 
 
         div [] [
@@ -726,6 +788,11 @@ let viewTruthTable model dispatch =
             if tt.IsTruncated then
                 let popup = Notifications.warningPropsNotification (truncationWarning tt)
                 dispatch <| SetPropertiesNotification popup
+            tt.IOOrder 
+            |> List.toArray 
+            |> SetIOOrder 
+            |> dispatch
+
             tt
             |> Ok
             |> GenerateTruthTable
@@ -822,6 +889,9 @@ let viewTruthTable model dispatch =
             ReSort |> Some |> SetTTOutOfDate |> dispatch
         | Some ReSort ->
             sortTruthTable model dispatch
+            OrderColumn |> Some |> SetTTOutOfDate |> dispatch
+        | Some OrderColumn ->
+            reorderTruthTable model dispatch
             None |> SetTTOutOfDate |> dispatch
         | None -> ()
 
@@ -830,6 +900,7 @@ let viewTruthTable model dispatch =
             dispatch ClearOutputConstraints
             dispatch ClearHiddenTTColumns
             dispatch (SetTTSortType None)
+            dispatch (SetIOOrder [||])
             dispatch CloseTruthTable
         let body =
             match tableopt with

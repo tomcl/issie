@@ -155,7 +155,6 @@ let menuLabelStyle = Style [
     TextTransform "uppercase"
 ]
 
-
 let sortArrowStyle = Style [
     Margin "0"
     Display DisplayOptions.Block
@@ -164,6 +163,18 @@ let sortArrowStyle = Style [
     Padding "0 0 0 0"
     Top "0"
     FontSize "50%"
+    Position PositionOptions.Relative
+    BorderColor "white"
+]
+
+let colMoveArrowStyle = Style [
+    Margin "0"
+    Display DisplayOptions.Block
+    Width "100%"
+    Height "50%"
+    Padding "0 0 0 0"
+    Top "0"
+    FontSize "70%"
     Position PositionOptions.Relative
     BorderColor "white"
 ]

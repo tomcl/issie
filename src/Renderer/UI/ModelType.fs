@@ -300,6 +300,8 @@ type Msg =
     | ClearHiddenTTColumns
     | ClearDCMap
     | SetTTSortType of (CellIO * SortType) option
+    | MoveColumn of (CellIO * MoveDirection)
+    | SetIOOrder of CellIO []
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list
@@ -437,18 +439,20 @@ type Model = {
     CurrentStepSimulationStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
     // stores the generated truth table 
     CurrentTruthTable: Result<TruthTable,SimulationError> option // None if no Truth Table is being displayed.
-    // Bits associated with the maximum number of input rows allowed in a Truth Table
+    // bits associated with the maximum number of input rows allowed in a Truth Table
     TTBitLimit: int
     // input constraints on truth table generation
     TTInputConstraints: ConstraintSet
     // output constraints on truth table viewing
     TTOutputConstraints: ConstraintSet
-    // True if existing Truth Table needs to be re-generated
+    // true if existing Truth Table needs to be re-generated
     TTIsOutOfDate : ReasonOutOfDate option
-    // Which output or viewer columns in the Truth Table should be hidden
+    // which output or viewer columns in the Truth Table should be hidden
     TTHiddenColumns: CellIO list
-    // Which IO and in what way is the Table being sorted
+    // by which IO and in what way is the Table being sorted
     TTSortType: (CellIO * SortType) option
+    // what is the display order of IOs in Table
+    TTIOOrder: CellIO []
     // which of the tabbed panes is currently visible
     RightPaneTabVisible : RightTab
     // which of the subtabs for the right pane simulation is visible

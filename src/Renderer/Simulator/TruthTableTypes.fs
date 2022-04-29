@@ -75,6 +75,8 @@ type MapToUse = | Table | HiddenCol | Filtered | DCReduced
 
 type SortType = | Ascending | Descending
 
+type MoveDirection = | MLeft | MRight
+
 // Actual Truth Table Data Structure
 type TruthTable = {
     // Actual Table: Mapping from Input row to Output row
@@ -87,6 +89,9 @@ type TruthTable = {
     DCMap: Map<TruthTableRow,TruthTableRow> option
     // List Representation of table to which sorting is applied
     SortedListRep: TruthTableRow list
+    // 2D Array Representatino of table with columns ordered
+    // 2D Arrays used because F# has better slicing for them
+    OrderedArrayRep: TruthTableCell [] []
     // If the Truth Table has been truncated
     IsTruncated: bool
     // Maximum rows the truth table could have with current input constraints
@@ -94,6 +99,8 @@ type TruthTable = {
     // Simulation Data for the Truth Table's own Simulation
     // Used when re-generating the Truth Table on change in input constraints
     TableSimData: SimulationData
+    // Ordered List of all IOs in the order they originally were
+    IOOrder: CellIO list
     } with
     member this.Inputs =
         this.TableMap
@@ -180,6 +187,8 @@ type ReasonOutOfDate =
     | Refilter
     // Table needs to be sorted
     | ReSort
+    // Columns need to be re-ordered
+    | OrderColumn
 
 let isEqu c =
     match c with

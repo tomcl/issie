@@ -8,6 +8,7 @@ open Fable.React.Props
 open ElectronAPI
 open FilesIO
 open SimulatorTypes
+open TruthTableTypes
 open ModelType
 open CommonTypes
 open Extractor
@@ -18,6 +19,7 @@ open WaveSimHelpers
 open Sheet.SheetInterface
 open DrawModelType
 open Fable.SimpleJson
+open Helpers
 
 
 //---------------------------------------------------------------------------------------------//
@@ -350,6 +352,10 @@ let update (msg : Msg) oldModel =
         { model with WaveSim = fst model.WaveSim, err}, Cmd.none
     | AddWaveSimFile (fileName, wSMod') ->
         { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim}, Cmd.none
+    | LockTabsToWaveSim -> 
+        {model with WaveSimulationInProgress = true}, Cmd.none
+    | UnlockTabsFromWaveSim ->
+        {model with WaveSimulationInProgress = false}, Cmd.none
     | SetSimulationGraph (graph, fastSim) ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
         { model with CurrentStepSimulationStep = { simData with Graph = graph ; FastSim = fastSim} |> Ok |> Some }, Cmd.none
@@ -361,6 +367,115 @@ let update (msg : Msg) oldModel =
         { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber + n } |> Ok |> Some }, Cmd.none
     | EndSimulation -> { model with CurrentStepSimulationStep = None }, Cmd.none
     | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
+    | GenerateTruthTable table -> 
+        {model with CurrentTruthTable = Some table}, Cmd.none
+    | CloseTruthTable -> 
+        {model with CurrentTruthTable = None}, Cmd.none
+    | SetTTOutOfDate b ->
+        {model with TTIsOutOfDate = b}, Cmd.none
+    | ClearInputConstraints -> 
+        {model with TTInputConstraints = emptyConstraintSet}, Cmd.none
+    | ClearOutputConstraints -> 
+        {model with TTOutputConstraints = emptyConstraintSet}, Cmd.none
+    | AddInputConstraint con ->
+        match con with
+        | Equality e -> 
+            let newEqu = e::model.TTInputConstraints.Equalities
+            {model with TTInputConstraints = {model.TTInputConstraints with Equalities = newEqu}}, Cmd.none
+        | Inequality i ->
+            let newIneq = i::model.TTInputConstraints.Inequalities
+            {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.none
+    | DeleteInputConstraint con ->
+        match con with
+        | Equality e ->
+            let newEqu = 
+                model.TTInputConstraints.Equalities
+                |> List.except [e]
+            {model with TTInputConstraints = {model.TTInputConstraints with Equalities = newEqu}}, Cmd.none
+        | Inequality i ->
+            let newIneq =
+                model.TTInputConstraints.Inequalities
+                |> List.except [i]
+            {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.none
+    | AddOutputConstraint con ->
+        match con with
+        | Equality e -> 
+            let newEqu = e::model.TTOutputConstraints.Equalities
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Equalities = newEqu}}, Cmd.none
+        | Inequality i ->
+            let newIneq = i::model.TTOutputConstraints.Inequalities
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.none
+    | DeleteOutputConstraint con ->
+        match con with
+        | Equality e ->
+            let newEqu = 
+                model.TTOutputConstraints.Equalities
+                |> List.except [e]
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Equalities = newEqu}}, Cmd.none
+        | Inequality i ->
+            let newIneq =
+                model.TTOutputConstraints.Inequalities
+                |> List.except [i]
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.none
+    | ToggleHideTTColumn io ->
+        // Column is currently hidden, so we unhide
+        if List.contains io model.TTHiddenColumns then
+            let newHC = List.except [io] model.TTHiddenColumns
+            let newOrder = Array.append model.TTIOOrder [|io|]
+            {model with TTHiddenColumns = newHC; TTIOOrder = newOrder}, Cmd.none
+        else
+            let newOrder = Array.except [io] model.TTIOOrder
+            let newSort =
+                match model.TTSortType with
+                | None -> None
+                | Some (cIO,st) ->
+                    if cIO = io then None
+                    else Some (cIO,st)
+            {model with 
+                TTHiddenColumns = io::model.TTHiddenColumns
+                TTOutputConstraints = model.TTOutputConstraints.withoutIO io
+                TTIOOrder = newOrder
+                TTSortType = newSort}, Cmd.none
+    | ClearHiddenTTColumns -> 
+        {model with TTHiddenColumns = []}, Cmd.none
+    | ClearDCMap ->
+        let newTT = 
+            match model.CurrentTruthTable with
+            | None -> None
+            | Some tableopt ->
+                match tableopt with
+                | Error _ -> failwithf "what? Trying to clear DC Map in TT with error"
+                | Ok table ->
+                    {table with DCMap = None}
+                    |> Ok
+                    |> Some
+        {model with CurrentTruthTable = newTT}, Cmd.none
+    | SetTTSortType stOpt ->
+        {model with TTSortType = stOpt}, Cmd.none
+    | MoveColumn (io, dir) ->
+        match model.CurrentTruthTable with
+        | None -> failwithf "what? Ordering columns when no Truth Table exists"
+        | Some (Error e) ->
+            failwithf "what? Order column option should not exist when there is TT error"
+        | Some (Ok table) ->
+            let oldOrder = model.TTIOOrder
+            let idx = 
+                oldOrder
+                |> Array.findIndex (fun cIO -> cIO = io)
+            let newOrder =
+                match dir, idx with
+                | MLeft, 0 -> oldOrder
+                | MLeft, i -> swapArrayEls (i) (i-1) oldOrder
+                | MRight, i -> 
+                    if i = (oldOrder.Length-1) then
+                        oldOrder
+                    else
+                        swapArrayEls (idx) (idx+1) oldOrder
+
+            printfn "New Order: %A" newOrder
+            {model with TTIOOrder = newOrder}, Cmd.none
+    | SetIOOrder x -> 
+        {model with TTIOOrder = x}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
@@ -370,8 +485,16 @@ let update (msg : Msg) oldModel =
         | Properties -> Cmd.batch <| editCmds
         | Catalogue -> Cmd.batch  <| editCmds
         | Simulation -> Cmd.batch <| editCmds
-        | WaveSim -> Cmd.ofMsg (Sheet (SheetT.SetWaveSimMode true))
- 
+        //| TruthTable -> Cmd.batch <| editCmds
+        //| WaveSim -> Cmd.ofMsg (Sheet (Sheet.SetWaveSimMode true))
+    | ChangeSimSubTab subTab ->
+        let inferMsg = JSDiagramMsg <| InferWidths()
+        let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
+        { model with SimSubTabVisible = subTab},
+        match subTab with
+        | StepSim -> Cmd.batch <| editCmds
+        | TruthTable -> Cmd.batch <| editCmds
+        | WaveSim -> Cmd.batch <| editCmds
     | SetHighlighted (componentIds, connectionIds) ->
         let sModel, sCmd = SheetUpdate.update (SheetT.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
         {model with Sheet = sModel}, Cmd.map Sheet sCmd
@@ -414,6 +537,8 @@ let update (msg : Msg) oldModel =
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
     | SetPopupDialogInt int ->
         { model with PopupDialogData = {model.PopupDialogData with Int = int} }, Cmd.none
+    | SetPopupDialogInt2 int ->
+        { model with PopupDialogData = {model.PopupDialogData with Int2 = int} }, Cmd.none
     | SetPopupDialogTwoInts data ->
         { model with PopupDialogData = 
                         match data with
@@ -430,6 +555,14 @@ let update (msg : Msg) oldModel =
         { model with PopupDialogData = {model.PopupDialogData with Progress = progOpt} }, Cmd.none
     | UpdatePopupProgress updateFn ->
         { model with PopupDialogData = {model.PopupDialogData with Progress = Option.map updateFn model.PopupDialogData.Progress} }, Cmd.none
+    | SetPopupConstraintTypeSel ct ->
+        { model with PopupDialogData = {model.PopupDialogData with ConstraintTypeSel = ct}}, Cmd.none
+    | SetPopupConstraintIOSel io ->
+        { model with PopupDialogData = {model.PopupDialogData with ConstraintIOSel = io}}, Cmd.none
+    | SetPopupConstraintErrorMsg msg ->
+        { model with PopupDialogData = {model.PopupDialogData with ConstraintErrorMsg = msg}}, Cmd.none
+    | SetPopupNewConstraint con ->
+        { model with PopupDialogData = {model.PopupDialogData with NewConstraint = con}}, Cmd.none
 
     | SimulateWithProgressBar simPars ->
         SimulationView.simulateWithProgressBar simPars model

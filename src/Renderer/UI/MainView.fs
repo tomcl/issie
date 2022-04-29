@@ -72,6 +72,7 @@ let init() = {
     TTIsOutOfDate = None
     TTHiddenColumns = []
     TTSortType = None
+    TTIOOrder = [||]
     WaveSim = Map.empty, None
     WaveSimSheet = ""
     RightPaneTabVisible = Catalogue

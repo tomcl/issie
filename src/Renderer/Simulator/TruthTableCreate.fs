@@ -5,6 +5,12 @@ open SimulatorTypes
 open TruthTableTypes
 open SynchronousUtils
 open NumberHelpers
+open Helpers
+
+let toCellIO simIOs viewers =
+    (List.map (fun io -> SimIO io) simIOs
+    @
+    List.map (fun ((l,f),w,_) -> Viewer ((l,f),w)) viewers)
 
 let tableAsList tMap =
     tMap
@@ -176,15 +182,18 @@ let truthTable (simData: SimulationData) (inputConstraints: ConstraintSet) bitLi
     |> Map.ofList
     |> (fun tableMap ->
         printfn "RealRowCount: %A" tableMap.Count
+        let listRep = tableAsList tableMap
         {
             TableMap = tableMap
             HiddenColMap = tableMap
             FilteredMap = tableMap
             DCMap = None
-            SortedListRep = tableAsList tableMap
+            SortedListRep = listRep
+            OrderedArrayRep = list2DToArray2D listRep
             IsTruncated = (tableMap.Count <> tCRC)
             MaxRowsWithConstraints = tCRC
             TableSimData = tempSimData
+            IOOrder = toCellIO (inputs@outputs) viewers
             })
     |> TimeHelpers.instrumentInterval "truthTableGeneration" start
 
@@ -201,15 +210,18 @@ let truthTableRegen tableSD inputConstraints bitLimit =
     |> Map.ofList
     |> (fun tableMap ->
         printfn "RealRowCount: %A" tableMap.Count
+        let listRep = tableAsList tableMap
         {
             TableMap = tableMap
             HiddenColMap = tableMap
             FilteredMap = tableMap
             DCMap = None
-            SortedListRep = tableAsList tableMap
+            SortedListRep = listRep
+            OrderedArrayRep = list2DToArray2D listRep
             IsTruncated = (tableMap.Count <> tCRC)
             MaxRowsWithConstraints = tCRC
             TableSimData = tableSD
+            IOOrder = toCellIO (inputs@outputs) viewers
             })
     |> TimeHelpers.instrumentInterval "truthTableRegen" start
 

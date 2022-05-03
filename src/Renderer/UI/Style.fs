@@ -174,7 +174,7 @@ let colMoveArrowStyle = Style [
     Height "50%"
     Padding "0 0 0 0"
     Top "0"
-    FontSize "70%"
+    FontSize "80%"
     Position PositionOptions.Relative
     BorderColor "white"
 ]

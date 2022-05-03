@@ -640,7 +640,7 @@ let makeColumnMoveArrows (io: CellIO) headingEl dispatch =
                     (io,MLeft) |> MoveColumn |> dispatch
                     OrderColumn |> Some |> SetTTOutOfDate |> dispatch)
             ]
-            [str "◄"]
+            [str "<"]
     let rightArrow = 
         Button.button
             [
@@ -649,7 +649,7 @@ let makeColumnMoveArrows (io: CellIO) headingEl dispatch =
                     (io,MRight) |> MoveColumn |> dispatch
                     OrderColumn |> Some |> SetTTOutOfDate |> dispatch)
             ]
-            [str "►"]
+            [str ">"]
     makeElementLine [leftArrow; headingEl; rightArrow] []
 
 let private makeMenuGroup openDefault title menuList =

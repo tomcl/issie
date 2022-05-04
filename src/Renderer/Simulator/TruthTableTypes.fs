@@ -31,6 +31,10 @@ open SimulatorTypes
         FilteredMap: Map with Output Numerical Constraints applied. Map that is dispayed.
     4. Each cell in the truth table comprises an IO/Viewer (CellIO) and data (CellData).
     5. TruthTableRows are lists of cells, and Maps store the mapping from row to row.
+    6. As Maps in F# are unordered, sorting of Truth Tables is done when the table is a
+        list of rows.
+    7. Re-ordering columns is implemented using 2D Arrays of Truth Table Cells as it is more
+        efficient. Indexed access to lists is O(n), indexed access to arrays is O(1).
 *)
 
 type CellData =
@@ -75,6 +79,7 @@ type MapToUse = | Table | HiddenCol | Filtered | DCReduced
 
 type SortType = | Ascending | Descending
 
+// Direction to move a TT Column in
 type MoveDirection = | MLeft | MRight
 
 // Actual Truth Table Data Structure
@@ -90,7 +95,7 @@ type TruthTable = {
     // List Representation of table to which sorting is applied
     SortedListRep: TruthTableRow list
     // 2D Array Representatino of table with columns ordered
-    // 2D Arrays used because F# has better slicing for them
+    // Arrays used for efficiency purposes
     OrderedArrayRep: TruthTableCell [] []
     // If the Truth Table has been truncated
     IsTruncated: bool

@@ -589,6 +589,18 @@ let reorderTruthTable model dispatch =
 //----------View functions for Truth Tables and Tab UI components----------------------//
 //-------------------------------------------------------------------------------------//
 
+let addToolTipTop tip react =
+        div [
+            HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-top"
+            Tooltip.dataTooltip tip
+        ] [react]
+
+let addToolTipRight tip react =
+        div [
+            HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-right"
+            Tooltip.dataTooltip tip
+        ] [react]
+
 let makeOnOffToggle state changeAction onText offText =
     Level.item [ Level.Item.HasTextCentered ] [
         Field.div [ Field.HasAddonsCentered ] [
@@ -659,11 +671,6 @@ let private makeMenuGroup openDefault title menuList =
     ]
 
 let viewCellAsHeading dispatch sortInfo (cell: TruthTableCell) =
-    let addToolTip tip react =
-        div [
-            HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-top"
-            Tooltip.dataTooltip tip
-        ] [react]
     match cell.IO with
     | SimIO (_,label,_) ->
         let headingText = string label
@@ -675,7 +682,7 @@ let viewCellAsHeading dispatch sortInfo (cell: TruthTableCell) =
     | Viewer ((label,fullName), width) ->
         let headingEl =
             label |> string |> str
-            |> (fun r -> if fullName <> "" then addToolTip fullName r else r)
+            |> (fun r -> if fullName <> "" then addToolTipTop fullName r else r)
         th [] [
             makeElementLine [makeColumnMoveArrows cell.IO headingEl dispatch] 
                 [makeSortingArrows cell.IO sortInfo dispatch]
@@ -915,11 +922,20 @@ let viewTruthTable model dispatch =
                 let goBack () =
                     dispatch ClearDCMap
                     HideColumn |> Some |> SetTTOutOfDate |> dispatch
+                let reduceButton =
+                    if table.IsTruncated then
+                        let textEl = 
+                            str "Reduce"
+                            |> addToolTipRight "DC Reduction unavailable for truncated tables"
+                        (Button.button [Button.Disabled true; Button.OnClick (fun _ -> startReducing())]
+                        [textEl])
+                    else
+                        (Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> startReducing())]
+                        [str "Reduce"])
                 match table.DCMap with
                 | None ->
                     div [] [
-                        (Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> startReducing())]
-                        [str "Reduce"])
+                        reduceButton
                         br []; br []
                         viewTruthTableData table Filtered model.TTSortType dispatch] 
                 | Some dc ->

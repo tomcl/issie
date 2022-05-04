@@ -20,7 +20,9 @@ title: "Home"
 
 **I**nteractive **S**chematic **S**imulator and **I**ntegrated **E**ditor **(ISSIE)** is a very easy to use application for digital circuit design and simulation. It is targeted at students and hobbyists that want to get a grasp of Digital Electronics concepts in a simple and fun way. Issie is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues. Issie is developed and actively used in teaching at [Imperial College London](https://www.imperial.ac.uk/).
 
-Issie has been well tested on designs with up to 15,000 schematic components. We expect it to be reasonably performant on much larger designs as well. The simulation speed is approximately 2000 component-clocks per ms. Thus a circuit with 1000 components would run at 2000 clocks per second. Issie creates fully synchronous circuits with a single clock: logic with asynchronous loops is currently not supported.
+Issie has been well tested on designs with up to 15,000 schematic components. We expect it to be reasonably performant on much larger designs as well. The simulation speed is approximately 4000 component-clocks per ms. Thus a circuit with 1000 components would run at 4000 clocks per second. Issie creates fully synchronous circuits with a single clock: logic with asynchronous loops is currently not supported.
+
+Issie designs can be exported to Verilog and synthesised on FPGAs with a simple workflow.
 
 The application is mostly written in F#, which gets transpiled to JavaScript via the [Fable](https://www.fable.com) compiler. [Electron](https://www.electronjs.org) is then used to convert the developed web-app to a cross-platform application.
 
@@ -110,8 +112,9 @@ The application is mostly written in F#, which gets transpiled to JavaScript via
 
 - Marco Selvatici for the 8K lines of base code written for his 3rd year BEng FYP
 - Edoardo Santi for work improving Issie over Summer 2020.
-- High Level Programming 2020 cohort for providing the base code of the draw block
+- High Level Programming 2020/21 cohort for providing the base code of the schemetic editor
 - Jo Merrick for work improving ISSIE for her 3rd year BEng Project
+- High Level Programming 2021/22 cohort for implemneting a much enhanced schematic editor
 - Dr Tom Clarke for his continued work maintaining and improving ISSIE throughout
 - All 2020/2021 1st year undergraduate students of the EEE department, Imperial College London, for acting as unpaid beta-testers!
 

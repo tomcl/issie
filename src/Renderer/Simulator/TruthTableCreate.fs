@@ -48,27 +48,8 @@ let inputValues (tInput: TableInput) =
         |> List.sort
 
 /// Find all combinations (cartesian product) of all possible values for table inputs
-let inputCombinations (tInputs: TableInput list) =
-    let masterList =
-        tInputs
-        |> List.map inputValues
-
-    let combs =
-        if tInputs.Length = 0 then
-            []
-        else if tInputs.Length = 1 then
-            masterList.Head
-            |> List.map (fun n -> [n])
-        else if tInputs.Length = 2 then
-            List.allPairs (List.head masterList) (List.last masterList)
-            |> List.map (fun (a,b) -> [a;b])
-        else
-            let el1::el2::remaining = masterList
-            let starter =
-                List.allPairs el1 el2
-                |> List.map (fun (a,b) -> [a;b])
-
-            let rec numComb (acc: int list list) (rem: int list list) =
+let inputCombinations (tInputs: TableInput list) =  
+    let rec numComb (acc: int list list) (rem: int list list) =
                 match rem with
                 | hd::tl ->
                     let newAcc =
@@ -77,12 +58,27 @@ let inputCombinations (tInputs: TableInput list) =
                     numComb newAcc tl
                 | [] ->
                     acc
+    
+    let masterList =
+        tInputs
+        |> List.map inputValues
 
+    let combs =
+        match masterList with
+        | [] -> []
+        | [el] ->
+            el |> List.map (fun n -> [n])
+        | [el1;el2] ->
+            List.allPairs el1 el2
+            |> List.map (fun (a,b) -> [a;b])
+        | el1::el2::remaining ->
+            let starter =
+                List.allPairs el1 el2
+                |> List.map (fun (a,b) -> [a;b])
             numComb starter remaining
 
     combs
     |> List.map (fun l -> l |> List.mapi (fun i n ->
-        //convertIntToWireData widths[i] n
         let (_,_,w) = tInputs[i].IO
         {IO = SimIO (tInputs[i].IO); Data = Bits (convertIntToWireData w n)}
 

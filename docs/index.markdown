@@ -16,15 +16,16 @@ title: "Home"
 
 
 
-# What is ISSIE
+# What is ISSIE?
 
-**I**nteractive **S**chematic **S**imulator and **I**ntegrated **E**ditor **(ISSIE)** is a very easy to use application for digital circuit design and simulation. It is targeted at students and hobbyists that want to get a grasp of Digital Electronics concepts in a simple and fun way. Issie is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues. Issie is developed and actively used in teaching at [Imperial College London](https://www.imperial.ac.uk/).
+**I**nteractive **S**chematic **S**imulator and **I**ntegrated **E**ditor **(ISSIE)** is a very easy to use application for digital circuit design and simulation. It is targeted at students and hobbyists that want to get a grasp of Digital Electronics concepts in a simple and fun way. Issie is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues. 
 
-Issie has been well tested on designs with up to 15,000 schematic components. We expect it to be reasonably performant on much larger designs as well. The simulation speed is approximately 4000 component-clocks per ms. Thus a circuit with 1000 components would run at 4000 clocks per second. Issie creates fully synchronous circuits with a single clock: logic with asynchronous loops is currently not supported.
+The motivation for Issie was the observation that during digital lab work in EEE, previously, more time was spent learning to use (or cope with subtle bugs in) large commercial software design tools, than was spent learning digital design. We wanted a tool as powerful as those commercial packages which was more productive.
 
-Issie designs can be exported to Verilog and synthesised on FPGAs with a simple workflow.
-
-The application is mostly written in F#, which gets transpiled to JavaScript via the [Fable](https://www.fable.com) compiler. [Electron](https://www.electronjs.org) is then used to convert the developed web-app to a cross-platform application.
+* Issie is developed by 3rd and 4th year EEE students at Imperial College [Imperial College London](https://www.imperial.ac.uk/).
+* Issie has been well tested on designs with up to 15,000 schematic components. We expect it to be reasonably performant on much larger designs as well. The simulation speed is approximately 4000 component-clocks per ms (on an 11th gen intel laptop). Thus a circuit with 1000 components would run at 4000 clocks per second. Issie creates fully synchronous circuits with a single clock: logic with asynchronous loops is currently not supported.
+* Issie designs can be exported to Verilog and synthesised on FPGAs with a simple workflow.
+* The application is mostly written in F#, a functional programming language taught in the EEE module **High Level Programming**, which gets transpiled to JavaScript via the [Fable](https://www.fable.com) compiler and the [Elmish](https://elmish.github.io/) web framework. [Electron](https://www.electronjs.org) is then used to convert the developed web-app to a cross-platform application.
 
 <br><br>
 

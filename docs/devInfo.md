@@ -111,7 +111,7 @@ Contains static files used in the application.
 
 ## Project versus File in the Issie application
 
-Issie allows the users to create projects and files within those projects. A Issie project is simply a folder named `<project-name>` that contains an empty file named `<project_name>.dprj` (dprj stands for diagram project). The project folder any non-zero number of design files, each named `<component_name>.dgm` (dgm stands for diagram). each deisgn file represents one design sheet of a hierarchical hardware design, sheets can contain, as components, other sheets.
+Issie allows the users to create projects and files within those projects. A Issie project is simply a folder named `<project-name>` that contains an empty file named `<project_name>.dprj` (dprj stands for diagram project). The project folder contains a non-zero number of design files, each named `<component_name>.dgm` (dgm stands for diagram). each design file represents one design sheet of a hierarchical hardware design, sheets can contain, as components, other sheets.
 
 When opening a project, Issie will initially search the given repository for `.dgm` files, parse and load their content, and allow the user to open them in Issie or use them as components in other designs.
 

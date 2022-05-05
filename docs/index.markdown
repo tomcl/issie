@@ -26,7 +26,7 @@ The motivation for Issie was the observation that during digital lab work in EEE
 * Issie has been well tested on hierarchical designs with up to 15,000 schematic components. We expect it to be reasonably performant on much larger designs as well. The simulation speed is approximately 10,000 component-clocks per ms (on an 11th gen Intel low power laptop). Thus a circuit with 1000 components would run at 10,000 clocks per second. Issie creates fully synchronous circuits with a single clock: logic with asynchronous loops is currently not supported.
 * Issie designs can be exported to Verilog and synthesised on FPGAs with a simple workflow.
 * Design entry in an Hardware Design Language is on the Roadmap to be supported soon.
-* The application is mostly written in F#, a functional programming language taught by the EEE department in the module **High Level Programming**, which gets transpiled to JavaScript via the [Fable](https://www.fable.com) compiler and the [Elmish](https://elmish.github.io/) web framework. [Electron](https://www.electronjs.org) is then used to convert the developed web-app to a cross-platform application.
+* The application is mostly written in F#, a functional programming language taught by the EEE department in the module **High Level Programming**, which gets transpiled to JavaScript via the [Fable](https://fable.io/) compiler and the [Elmish](https://elmish.github.io/) web framework. [Electron](https://www.electronjs.org) is then used to convert the developed web-app to a cross-platform application.
 
 <br><br>
 

@@ -108,15 +108,12 @@ The motivation for Issie was the observation that during digital lab work in EEE
     " 
 %}
 
-<br><br>
-
-{% include module.html 
-    image_path="img/issiefiles.png" 
-    title="Running Issie"
-    description="The download button on this page take you to the [Issie latest release page](https://github.com/tomcl/issie/releases). Scroll down the top release on this page till you get the the `Assets` section - this has binaries for windows and macos PCs. Download the appropriate one and unzip it anywhere. No installation is required - Issie runs from the unzipped files if you double-click the top-level `Issie.exe` file with the blue Issie chip icon. See [Getting Started](https://github.com/tomcl/ISSIE#getting-started)"
-%}
 
 <br><br>
+
+# Running Issie
+
+The download button on this page take you to the [Issie latest release page](https://github.com/tomcl/issie/releases). Scroll down the top release on this page till you get the the `Assets` section - this has binaries for windows and macos PCs. Download the appropriate one and unzip it anywhere. No installation is required - Issie runs from the unzipped files under windows if you double-click the top-level `Issie.exe` file with the blue Issie chip icon. For more information see [Getting Started](https://github.com/tomcl/ISSIE#getting-started) or read the [User Guide](https://tomcl.github.io/issie/user-guide/).
 
 # Acknowledgements
 

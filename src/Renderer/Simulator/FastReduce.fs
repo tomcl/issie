@@ -18,21 +18,28 @@ let inline assertThat cond msg =
     then failwithf "what? assert failed: %s" msg
 
 /// Assert that the FData only contain a single bit, and return such bit.
-let inline extractBit (fd: FData) (busWidth: int) : uint32 =
+let inline extractBit (fd_: FData) (busWidth: int) : uint32 =
+    match fd_ with
+        | Alg _ -> failwithf "Can't extract data from Algebra"
+        | Data fd ->
 #if ASSERTS
-    assertThat (fd.Width = 1 || fd.Width=2 || fd.Width=3)
-    <| sprintf "extractBit called with wireData: %A" fd
+        assertThat (fd.Width = 1 || fd.Width=2 || fd.Width=3)
+        <| sprintf "extractBit called with wireData: %A" fd
 #endif
-    match fd.Dat with | Word n -> n | BigWord _ -> failwithf $"Can't extract %d{busWidth} bit from BigWord data {fd.Dat} of width {fd.Width}"
+        match fd.Dat with | Word n -> n | BigWord _ -> failwithf $"Can't extract %d{busWidth} bit from BigWord data {fd.Dat} of width {fd.Width}"
 
-let inline packBit (bit: uint32) : FData = if bit = 0u then {Dat=Word 0u; Width = 1} else {Dat = Word 1u; Width = 1}
+let inline packBit (bit: uint32) : FData = if bit = 0u then Data {Dat=Word 0u; Width = 1} else Data {Dat = Word 1u; Width = 1}
 
 
 /// Read the content of the memory at the specified address.
 let private readMemory (mem: Memory1) (address: FData) : FData =
-    let intAddr = convertFastDataToInt64 address
-    let outDataInt = Helpers.getMemData (int64 intAddr) mem
-    convertInt64ToFastData mem.WordWidth outDataInt
+    match address with
+    | Alg _ -> failwithf "Can't read memory from Algebra"
+    | Data addr ->
+        let intAddr = convertFastDataToInt64 addr
+        let outDataInt = Helpers.getMemData (int64 intAddr) mem
+        convertInt64ToFastData mem.WordWidth outDataInt
+        |> Data
 
 /// Write the content of the memory at the specified address.
 let private writeMemory (mem: Memory1) (address: FastData) (data: FastData) : Memory1 =
@@ -75,6 +82,21 @@ let inline private bitNor bit0 bit1 = bitOr bit0 bit1 |> bitNot
 
 let inline private bitXnor bit0 bit1 = bitXor bit0 bit1 |> bitNot
 
+let inline private algNot exp = UnaryExp (NotOp,exp)
+
+let inline private algAnd exp1 exp2 = BinaryExp (exp1,BitAndOp,exp2)
+
+let inline private algOr exp1 exp2 = BinaryExp (exp1,BitOrOp,exp2)
+
+let inline private algXor exp1 exp2 = BinaryExp (exp1,BitXorOp,exp2)
+
+let inline private algNand exp1 exp2 = algAnd exp1 exp2 |> algNot
+
+let inline private algNor exp1 exp2 = algOr exp1 exp2 |> algNot
+
+let inline private algXnor exp1 exp2 = algXor exp1 exp2 |> algNot
+
+
 
 
 
@@ -111,7 +133,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let fd =
             match comp.OutputWidth[n], numStep with
             | None, _ -> failwithf "Can't reduce %A (%A) because outputwidth is not known" comp.FullName comp.FType
-            | Some w, 0 -> if w < 33 then {Dat=Word 0u; Width = w} else {Dat =BigWord (bigint 0); Width = w}
+            | Some w, 0 -> if w < 33 then Data {Dat=Word 0u; Width = w} else Data {Dat =BigWord (bigint 0); Width = w}
             | Some w, _ -> comp.Outputs[n].Step[simStepOld]
         fd
 
@@ -174,10 +196,24 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     let inline putW num w = comp.OutputWidth[num] <- Some w
 
     /// implement a binary combinational operation
-    let inline getBinaryGateReducer (op: uint32 ->uint32 -> uint32) : Unit =
-        let bit0 = (ins 0).GetQUint32
-        let bit1 = (ins 1).GetQUint32
-        put0 <| {Width=1; Dat = Word (op bit1 bit0)}
+    let inline getBinaryGateReducer 
+        (bitOp: uint32 ->uint32 -> uint32) 
+        (algOp: FastAlgExp ->FastAlgExp -> FastAlgExp) 
+        : Unit =
+        match (ins 0),(ins 1) with
+        | Data d1, Data d2 -> 
+            let bit0 = d1.GetQUint32
+            let bit1 = d1.GetQUint32
+            put0 <| Data {Width=1; Dat = Word (bitOp bit1 bit0)}
+        | Alg exp1, Alg exp2 ->
+            put0 <| Alg (algOp exp1 exp2)
+        | Alg exp1, Data d ->
+            let exp2 = DataLiteral d
+            put0 <| Alg (algOp exp1 exp2)
+        | Data d, Alg exp1 ->
+            let exp2 = DataLiteral d
+            put0 <| Alg (algOp exp1 exp2)
+
 
     /// Error checking (not required in production code) check widths are consistent
     let inline checkWidth width (bits: FData) = 
@@ -210,7 +246,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
 
     | Constant1 (width, cVal,_) | Constant (width,cVal)->
         put0
-        <| convertInt64ToFastData width cVal
+        <| Data (convertInt64ToFastData width cVal)
     | Output width ->
         let bits = ins 0
         //printfn "In output bits=%A, ins = %A" bits comp.InputLinks
@@ -238,7 +274,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             (sprintf "Bus Selection received too few bits: expected at least %d but got %d" (width + lsb) bits.Width)
 #endif
         let outBits = getBits (lsb + width - 1) lsb bits
-        put0 outBits
+        put0 <| Data outBits
     | BusCompare (width, compareVal) ->
         //printfn "Reducing compare %A" comp.SimComponent.Label
         let bits = ins 0
@@ -255,12 +291,12 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
 
 
         put0 outNum
-    | And -> getBinaryGateReducer bitAnd
-    | Or -> getBinaryGateReducer bitOr
-    | Xor -> getBinaryGateReducer bitXor
-    | Nand -> getBinaryGateReducer bitNand
-    | Nor -> getBinaryGateReducer bitNor
-    | Xnor -> getBinaryGateReducer bitXnor
+    | And -> getBinaryGateReducer bitAnd algAnd
+    | Or -> getBinaryGateReducer bitOr algOr
+    | Xor -> getBinaryGateReducer bitXor algXor
+    | Nand -> getBinaryGateReducer bitNand algNand
+    | Nor -> getBinaryGateReducer bitNor algNor
+    | Xnor -> getBinaryGateReducer bitXnor algXnor
     | Mux2 ->
         let bits0, bits1, bitSelect = ins 0, ins 1, ins 2
 #if ASSERT

@@ -189,7 +189,93 @@ type FastData =
         | BigWord n when this.Width <= 32 -> uint32 n
         | _ -> failwithf $"Can't turn {this} into a uint32"
 
+//-------------------------------------------------------------------------------------//
+//-----------------------------TT Algebra Types----------------------------------------//
+//-------------------------------------------------------------------------------------//
 
+// Types used for Algebraic Truth Tables caluclated in the Fast Simulation
+// Defined here instead of in TruthTableTypes.fs because they are used in the FastSimulation
+
+// Binary Algebraic Operators
+type BinaryOp = 
+    | AddOp // A + B (mathematical addition)
+    | SubOp // A - B (mathematical subtraction)
+    | BitAndOp // A & B (bitwise AND)
+    | BitOrOp // A | B (bitwise OR)
+    | BitXorOp // A XOR B (bitwise XOR)
+
+// Unary Algebraic Operators
+type UnaryOp = 
+    | NegOp // -A (mathematical negation, bitwise two's complement)
+    | NotOp // bit inversion (bitwise XOR with -1)
+    | ValueOfOp // value(A) (for A = -5, this would return 5)
+    | BitRangeOp of Lower:int * Upper:int // A[upper:lower] (subset of bits of A)
+    // shows the sign of A, PosVal shows the value of the output
+    // if the sign is positive. (for A = -5, PosVal = 0, this would return 1)
+    | SignOfOp of PosVal: bool
+
+type FastAlgExp =
+    | SingleTerm of SimulationIO
+    | DataLiteral of FastData
+    | UnaryExp of Op: UnaryOp * Exp: FastAlgExp
+    | BinaryExp of Exp1: FastAlgExp * Op: BinaryOp * Exp2: FastAlgExp
+
+type GRInput = | Num of uint32 | Exp of FastAlgExp
+
+let rec getAlgExpWidth (exp: FastAlgExp) =
+    match exp with
+    | SingleTerm (_,_,w) -> w
+    | DataLiteral d -> d.Width
+    | UnaryExp (BitRangeOp(l,u),_) -> u-l+1
+    | UnaryExp (SignOfOp _,_) -> 1
+    // Assuming all other unary operators do not change width of expression
+    | UnaryExp (_,exp) -> getAlgExpWidth exp
+    // Assuming binary operators do not change width of expression
+    // Return the greatest width
+    | BinaryExp (exp1,_,exp2) -> 
+        let w1 = getAlgExpWidth exp1
+        let w2 = getAlgExpWidth exp2
+        if w1 > w2 then w1 else w2
+
+/// Converts an Algebraic Expression to a string for pretty printing
+let rec expToString (exp: FastAlgExp) =
+    match exp with
+    | SingleTerm (_,label,_) -> 
+        string label
+    | DataLiteral {Dat=Word w; Width=_} -> string w
+    | DataLiteral {Dat=BigWord w; Width=_} -> string w
+    | UnaryExp (NegOp,exp) ->
+        let expStr = expToString exp
+        $"- ({expStr})"
+    | UnaryExp (NotOp,exp) ->
+        expToString exp
+        |> String.collect (fun c -> (string c) + "\u203E")
+    | UnaryExp (ValueOfOp,exp) ->
+        let expStr = expToString exp
+        $"value({expStr})"
+    | UnaryExp (BitRangeOp(low,up),exp) ->
+        let expStr = expToString exp
+        $"({expStr})[{up}:{low}]"
+    | UnaryExp (SignOfOp pv,exp) ->
+        let expStr = expToString exp
+        let posVal = if pv then "1" else "0"
+        $"sign({expStr}) (+:{posVal})"
+    | BinaryExp (exp1, AddOp, exp2) ->
+        let expStr1 = expToString exp1
+        let expStr2 = expToString exp2
+        $"({expStr1})+({expStr2})"
+    | BinaryExp (exp1, SubOp, exp2) ->
+        let expStr1 = expToString exp1
+        let expStr2 = expToString exp2
+        $"({expStr1})-({expStr2})"
+    | BinaryExp (exp1, BitAndOp, exp2) ->
+        let expStr1 = expToString exp1
+        let expStr2 = expToString exp2
+        $"({expStr1})&({expStr2})"
+    | BinaryExp (exp1, BitOrOp, exp2) ->
+        let expStr1 = expToString exp1
+        let expStr2 = expToString exp2
+        $"({expStr1})|({expStr2})"
 
 
 //------------------------------------------------------------------------------//
@@ -427,7 +513,7 @@ let appendBits (fMS: FastData) (fLS: FastData) : FastData =
    
 type FComponentId = ComponentId * ComponentId list
 
-type FData = FastData // for now...
+type FData = | Data of FastData | Alg of FastAlgExp
 
 /// Wrapper to allow arrays to be resized for longer simulations while keeping the links between inputs
 /// and outputs
@@ -673,7 +759,9 @@ let makeAllNetGroups (netList:NetList) :NetGroup array=
 
 let getFastOutputWidth (fc: FastComponent) (opn: OutputPortNumber) =
     let (OutputPortNumber n) = opn
-    fc.Outputs[n].Step[0].Width
+    match fc.Outputs[n].Step[0] with
+    | Data fd -> fd.Width
+    | Alg exp -> getAlgExpWidth exp
 
 let getWaveformSpecFromFC (fc: FastComponent) =
     let viewerName = extractLabel fc.SimComponent.Label

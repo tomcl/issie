@@ -44,7 +44,7 @@ The motivation for Issie was the observation that during digital lab work in EEE
 
 <br><br>
 
-{% include m0odule.html 
+{% include module.html 
     image_path="img/wireRouting.gif" 
     title="Wire Routing"
     description="ISSIE schematic component ports are connected using drag-and-drop: each connection represents a wire or bus. ISSIE has two methods of routing wires: **auto-routing** and **manual-routing**. 

@@ -615,6 +615,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                             model 
                         else
                             Optic.set boundingBoxes_ (Symbol.getBoundingBoxes sModel) model))
+        |> ensureCanvasExtendsBeyondScreen
+        |> (fun (model, scrollOpt) -> 
+            match scrollOpt with
+            | Some scroll -> {model with ScrollPos = scroll}
+            | None -> model)
 
                                 
     match msg with
@@ -775,8 +780,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     /// Zooming in increases model.Zoom. The centre of the screen will stay centred (if possible)
     | KeyPress ZoomIn ->
+        let oldScreenCentre = getVisibleScreenCentre model
         { model with Zoom = min Constants.maxMagnification (model.Zoom*Constants.zoomIncrement) }, 
-        Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
+        Cmd.ofMsg (KeepZoomCentered oldScreenCentre)
 
     /// Zooming out decreases the model.Zoom. The centre of the screen will stay centred (if possible)
     | KeyPress ZoomOut ->
@@ -784,12 +790,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let edge = getScreenEdgeCoords model
         //Check if the new zoom will exceed the canvas width or height
         let newZoom =
-            let minXZoom = (edge.Right - edge.Left) / Constants.canvasUnscaledSize
-            let minYZoom = (edge.Top - edge.Bottom) / Constants.canvasUnscaledSize
+            let minXZoom = (edge.Right - edge.Left) / model.UnscaledCanvasSize
+            let minYZoom = (edge.Top - edge.Bottom) / model.UnscaledCanvasSize
             List.max [model.Zoom / Constants.zoomIncrement; minXZoom; minYZoom]
+        let oldScreenCentre = getVisibleScreenCentre model
 
         { model with Zoom = newZoom }, 
-        Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
+        Cmd.ofMsg (KeepZoomCentered oldScreenCentre)
 
     | KeepZoomCentered oldScreenCentre ->
         let canvas = document.getElementById "Canvas"
@@ -1031,6 +1038,7 @@ let init () =
         RedoList = []
         TmpModel = None
         Zoom = 1.0
+        UnscaledCanvasSize = Constants.defaultUnscaledCanvasSize
         AutomaticScrolling = false
         ScrollingLastMousePos = {Pos={ X = 0.0; Y = 0.0 }; Move={X = 0.0; Y  =0.0}}
         MouseCounter = 0

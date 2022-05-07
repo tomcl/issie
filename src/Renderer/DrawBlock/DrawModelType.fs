@@ -436,6 +436,7 @@ module SheetT =
         SnapSegments: SnapXY
         CurrentKeyPresses: Set<string> // For manual key-press checking, e.g. CtrlC
         Zoom: float
+        UnscaledCanvasSize: float // how large is the circuit canvas - can be changed dymamically
         TmpModel: Model Option
         UndoList: Model List
         RedoList: Model List

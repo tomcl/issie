@@ -69,12 +69,9 @@ let inline private bitNot bit = bit ^^^ 1u
 
 let inline private bitAnd bit0 bit1 = bit0 &&& bit1
 
-
 let inline private bitOr bit0 bit1 = bit0 ||| bit1
 
-
 let inline private bitXor bit0 bit1 = bit0 ^^^ bit1
-
 
 let inline private bitNand bit0 bit1 = bitAnd bit0 bit1 |> bitNot
 
@@ -264,33 +261,52 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         //printfn "Reducing IOLabel %A" comp.SimComponent.Label
         put0 bits
     | Not ->
-        let bit = extractBit (ins 0) 1
-        put0 <| packBit (bitNot bit)
+        match (ins 0) with
+        | Data _ ->
+            let bit = extractBit (ins 0) 1
+            put0 <| packBit (bitNot bit)
+        | Alg exp ->
+            put0 <| Alg (algNot exp)
     | BusSelection (width, lsb) ->
-        let bits = ins 0
+        match (ins 0) with
+        | Data bits ->
 #if ASSERTS
-        assertThat
-            (bits.Width >= width + lsb)
-            (sprintf "Bus Selection received too few bits: expected at least %d but got %d" (width + lsb) bits.Width)
+            assertThat
+                (bits.Width >= width + lsb)
+                (sprintf "Bus Selection received too few bits: expected at least %d but got %d" (width + lsb) bits.Width)
 #endif
-        let outBits = getBits (lsb + width - 1) lsb bits
-        put0 <| Data outBits
+            let outBits = getBits (lsb + width - 1) lsb bits
+            put0 <| Data outBits
+        | Alg exp ->
+#if ASSERTS
+            assertThat
+                ((getAlgExpWidth exp) >= width + lsb)
+                (sprintf "Bus Selection received too few bits: expected at least %d but got %d" (width + lsb) (getAlgExpWidth exp))
+#endif
+            let newExp = UnaryExp(BitRangeOp(lsb,lsb+width-1),exp)
+            put0 <| Alg newExp
+
     | BusCompare (width, compareVal) ->
         //printfn "Reducing compare %A" comp.SimComponent.Label
-        let bits = ins 0
+        match (ins 0) with
+        | Data bits ->
 #if ASSERTS
-        assertThat
-            (bits.Width = width)
-            ($"Bus Compare {comp.FullName} received wrong number of bits: expecting  {width} but got {bits.Width}")
+            assertThat
+                (bits.Width = width)
+                ($"Bus Compare {comp.FullName} received wrong number of bits: expecting  {width} but got {bits.Width}")
 #endif
-        let inputNum = convertFastDataToInt bits
-
-        let outNum : FData =
-            if inputNum = compareVal then 1u else 0u
-            |> packBit
-
-
-        put0 outNum
+            let inputNum = convertFastDataToInt bits
+            let outNum : FData =
+                if inputNum = compareVal then 1u else 0u
+                |> packBit
+            put0 outNum
+        | Alg exp ->
+#if ASSERTS
+            assertThat
+                ((getAlgExpWidth exp) = width)
+                ($"Bus Compare {comp.FullName} received wrong number of bits: expecting  {width} but got {(getAlgExpWidth exp)}")
+#endif
+            put0 <| Alg (ComparisonExp(exp,Equals,compareVal))
     | And -> getBinaryGateReducer bitAnd algAnd
     | Or -> getBinaryGateReducer bitOr algOr
     | Xor -> getBinaryGateReducer bitXor algXor
@@ -298,57 +314,122 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | Nor -> getBinaryGateReducer bitNor algNor
     | Xnor -> getBinaryGateReducer bitXnor algXnor
     | Mux2 ->
-        let bits0, bits1, bitSelect = ins 0, ins 1, ins 2
+        match (ins 0),(ins 1),(ins 2) with
+        | Alg exp1, Alg exp2, Data bitSelect ->
 #if ASSERT
-        assertThat (bits0.Width = bits1.Width)
-        <| sprintf "Mux2 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName bits0 bits1
+            assertThat (getAlgExpWidth exp1 = getAlgExpWidth exp2)
+            <| sprintf "Mux2 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName (expToString exp1) (expToString exp2)
 #endif
-        let out =
-            if (extractBit bitSelect 1) = 0u then
-                bits0
-            else
-                bits1
+            let out =
+                if (extractBit (Data bitSelect) 1) = 0u then
+                    Alg exp1
+                else
+                    Alg exp2
+            put0 out
 
-        put0 out
-        putW 0 bits0.Width
-    | Mux4 ->
-        let bits0, bits1, bits2, bits3, bitSelect = ins 0, ins 1, ins 2, ins 3, ins 4
+        | Alg exp, Data bits, Data bitSelect ->
 #if ASSERT
-        assertThat (bits0.Width = bits1.Width && bits0.Width = bits2.Width)
-        <| sprintf "Mux4 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName bits0 bits1
+            assertThat (bits.Width = getAlgExpWidth exp)
+            <| sprintf "Mux2 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName (expToString exp) bits
+#endif
+            let out =
+                if (extractBit (Data bitSelect) 1) = 0u then
+                    Alg exp
+                else
+                    Data bits
+            put0 out
+        | Data bits, Alg exp, Data bitSelect ->
+#if ASSERT
+            assertThat (bits.Width = getAlgExpWidth exp)
+            <| sprintf "Mux2 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName bits (expToString exp)
+#endif
+            let out =
+                if (extractBit (Data bitSelect) 1) = 0u then
+                    Data bits
+                else
+                    Alg exp
+            put0 out
+        | Data bits0, Data bits1, Data bitSelect ->
+#if ASSERT
+            assertThat (bits0.Width = bits1.Width)
+            <| sprintf "Mux2 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName bits0 bits1
+#endif
+            let out =
+                if (extractBit (Data bitSelect) 1) = 0u then
+                    bits0
+                else
+                    bits1
+
+            put0 <| Data out
+            putW 0 bits0.Width
+        | _,_, Alg _ ->
+            let err = {
+                Msg = "Algebra was passed to the SEL port of a MUX2. Ensure that only bits are passed to this port."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            // Algebra at SEL port is not supported
+            raise (AlgebraNotImplemented err)
+    | Mux4 ->
+        match ins 0, ins 1, ins 2, ins 3, ins 4 with
+        | fd0, fd1, fd2, fd3, Data bitSelect ->
+#if ASSERT
+            assertThat (bits0.Width = bits1.Width && bits0.Width = bits2.Width)
+            <| sprintf "Mux4 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName fd0.fdToString fd1.fdToString
 #endif
         
-        let out =
-            match (extractBit bitSelect 2) with
-            | 0u -> bits0
-            | 1u -> bits1
-            | 2u -> bits2 
-            | 3u -> bits3
-            | _ -> failwithf "Cannot happen"
+            let out =
+                match (extractBit (Data bitSelect) 2) with
+                | 0u -> fd0
+                | 1u -> fd1
+                | 2u -> fd2 
+                | 3u -> fd3
+                | _ -> failwithf "Cannot happen"
 
-        put0 out
-        putW 0 bits0.Width
+            put0 out
+            putW 0 fd0.Width
+        | _,_,_,_,Alg _ ->
+            let err = {
+                Msg = "Algebra was passed to the SEL port of a MUX4. Ensure that only bits are passed to this port."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            // Algebra at SEL port is not supported
+            raise (AlgebraNotImplemented err)
     | Mux8 ->
-        let bits0, bits1, bits2, bits3, bits4, bits5, bits6, bits7, bitSelect = ins 0, ins 1, ins 2, ins 3, ins 4, ins 5, ins 6, ins 7, ins 8
+        //let bits0, bits1, bits2, bits3, bits4, bits5, bits6, bits7, bitSelect = ins 0, ins 1, ins 2, ins 3, ins 4, ins 5, ins 6, ins 7, ins 8
+        match ins 0, ins 1, ins 2, ins 3, ins 4, ins 5, ins 6, ins 7, ins 8 with
+        | fd0, fd1, fd2, fd3, fd4, fd5, fd6, fd7, Data bitSelect ->
 #if ASSERT
-        assertThat (bits0.Width = bits1.Width && bits0.Width = bits2.Width && bits0.Width = bits3.Width && bits0.Width = bits4.Width && bits0.Width = bits5.Width && bits0.Width = bits6.Width && bits0.Width = bits7.Width)
-        <| sprintf "Mux8 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName bits0 bits1
+            assertThat (fd0.Width = fd1.Width && fd0.Width = fd2.Width && fd0.Width = fd3.Width && fd0.Width = fd4.Width && fd0.Width = fd5.Width && fd0.Width = fd6.Width && fd0.Width = fd7.Width)
+            <| sprintf "Mux8 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName fd0.fdToString fd1.fdToString
 #endif
 
-        let out =
-            match (extractBit bitSelect 3) with
-            | 0u -> bits0
-            | 1u -> bits1
-            | 2u -> bits2 
-            | 3u -> bits3
-            | 4u -> bits4
-            | 5u -> bits5
-            | 6u -> bits6 
-            | 7u -> bits7
-            | _ -> failwithf "Cannot happen"
+            let out =
+                match (extractBit (Data bitSelect) 3) with
+                | 0u -> fd0
+                | 1u -> fd1
+                | 2u -> fd2 
+                | 3u -> fd3
+                | 4u -> fd4
+                | 5u -> fd5
+                | 6u -> fd6 
+                | 7u -> fd7
+                | _ -> failwithf "Cannot happen"
 
-        put0 out
-        putW 0 bits0.Width
+            put0 out
+            putW 0 fd0.Width
+        | _,_,_,_,_,_,_,_, Alg _ ->
+            let err = {
+                Msg = "Algebra was passed to the SEL port of a MUX8. Ensure that only bits are passed to this port."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            // Algebra at SEL port is not supported
+            raise (AlgebraNotImplemented err)
     | Demux2 ->
         let bitsIn, bitSelect = ins 0, ins 1
         let zeros = convertIntToFastData bitsIn.Width 0u

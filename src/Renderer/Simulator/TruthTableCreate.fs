@@ -86,7 +86,7 @@ let inputCombinations (tInputs: TableInput list) =
 
 /// Returns a TableInput list with Max and Constrained Row Counts correctly calculated.
 /// Allowed Row Counts will be set to zero.
-let inputsWithCRC (inputs: SimulationIO list) (inputConstraints: ConstraintSet) =
+let inputsWithCRC (inputs: SimulationIO list) (inputConstraints: ConstraintSet) (algebraIOs: SimulationIO list) =
     let findConstrainedRowCount (tInput: TableInput) =
     // We asume that all constraints are validated on entry.
     // Therefore, there should be no overlaps.
@@ -99,9 +99,7 @@ let inputsWithCRC (inputs: SimulationIO list) (inputConstraints: ConstraintSet) 
             + equ.Length
     inputs
     |> List.map (fun input ->
-        let ti =
-            (input,inputConstraints)
-            ||> initTableInput
+        let ti = initTableInput input inputConstraints algebraIOs
         let crc = findConstrainedRowCount ti
         {ti with ConstrainedRowCount = crc})
 
@@ -126,7 +124,11 @@ let inputsWithARC limit (tInputs: TableInput list) =
         )
 
 /// Find all LHS rows of the Truth Table, limited by input constraints and bit limit
-let tableLHS (inputs: SimulationIO list) (inputConstraints: ConstraintSet) bitLimit:
+let tableLHS 
+    (inputs: SimulationIO list) 
+    (inputConstraints: ConstraintSet) 
+    (algebraIOs: SimulationIO list)
+    bitLimit:
     TruthTableRow list * int =
 
     // Maximum number of rows on LHS of Truth Table.
@@ -134,8 +136,7 @@ let tableLHS (inputs: SimulationIO list) (inputConstraints: ConstraintSet) bitLi
     let rowLimit = int(2.0**bitLimit)
 
     let tInputs,tCRC =
-        (inputs, inputConstraints)
-        ||> inputsWithCRC
+        inputsWithCRC inputs inputConstraints algebraIOs
         |> inputsWithARC rowLimit
     printfn "Inputs %A" tInputs
 
@@ -149,6 +150,9 @@ let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) viewers (simData
         | SimIO io, Bits wd ->
             let (cid,_,_) = io
             FastRun.changeInput cid (IData wd) simData.ClockTickNumber simData.FastSim
+        | SimIO io, Algebra exp ->
+            let (cid,_,_) = io
+            FastRun.changeInput cid (IAlg (SingleTerm io)) simData.ClockTickNumber simData.FastSim
         | x, y -> failwithf "what? CellData from input rows has IO: %A, and Data: %A." x y
     let _ = List.map updateOutputs rowLHS
     let outputRow =
@@ -164,7 +168,11 @@ let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) viewers (simData
     outputRow @ viewerRow
 
 /// Create a Truth Table from the Simulation Data and input constraints
-let truthTable (simData: SimulationData) (inputConstraints: ConstraintSet) bitLimit: TruthTable =
+let truthTable 
+    (simData: SimulationData) 
+    (inputConstraints: ConstraintSet)
+    (algebraIOs: SimulationIO list)
+    bitLimit: TruthTable =
     let start = TimeHelpers.getTimeMs()
     printfn "Truth Table Gen Called"
     let tempSimData =
@@ -174,7 +182,7 @@ let truthTable (simData: SimulationData) (inputConstraints: ConstraintSet) bitLi
     let inputs = List.map fst (FastRun.extractFastSimulationIOs simData.Inputs tempSimData)
     let outputs = List.map fst (FastRun.extractFastSimulationIOs simData.Outputs tempSimData)
     let viewers = FastRun.extractViewers simData
-    let lhs,tCRC = tableLHS inputs inputConstraints bitLimit
+    let lhs,tCRC = tableLHS inputs inputConstraints algebraIOs bitLimit
     let rhs = List.map (fun i -> rowRHS i outputs viewers tempSimData) lhs
 
     List.zip lhs rhs
@@ -197,12 +205,12 @@ let truthTable (simData: SimulationData) (inputConstraints: ConstraintSet) bitLi
     |> TimeHelpers.instrumentInterval "truthTableGeneration" start
 
 /// Regenenerate the truth table after the input constraints change
-let truthTableRegen tableSD inputConstraints bitLimit =
+let truthTableRegen tableSD inputConstraints (algebraIOs: SimulationIO list) bitLimit =
     let start = TimeHelpers.getTimeMs()
     let inputs = List.map fst (FastRun.extractFastSimulationIOs tableSD.Inputs tableSD)
     let outputs = List.map fst (FastRun.extractFastSimulationIOs tableSD.Outputs tableSD)
     let viewers = FastRun.extractViewers tableSD
-    let lhs,tCRC = tableLHS inputs inputConstraints bitLimit
+    let lhs,tCRC = tableLHS inputs inputConstraints algebraIOs bitLimit
     let rhs = List.map (fun i -> rowRHS i outputs viewers tableSD) lhs
 
     List.zip lhs rhs

@@ -410,7 +410,8 @@ let regenerateTruthTable model (dispatch: Msg -> Unit) =
     | Some (Error e) ->
         failwithf "what? Constraint add option should not exist when there is TT error"
     | Some (Ok table) ->
-        let tt = truthTableRegen table.TableSimData model.TTInputConstraints model.TTBitLimit
+        let tt = 
+            truthTableRegen table.TableSimData model.TTInputConstraints model.TTAlgebraInputs model.TTBitLimit
         if tt.IsTruncated then
                     let popup = Notifications.warningPropsNotification (truncationWarning tt)
                     dispatch <| SetPropertiesNotification popup
@@ -791,7 +792,8 @@ let viewTruthTable model dispatch =
     let generateTruthTable simRes =
         match simRes with
         | Some (Ok sd,_) ->
-            let tt = truthTable sd model.TTInputConstraints model.TTBitLimit
+            let tt = 
+                truthTable sd model.TTInputConstraints model.TTAlgebraInputs model.TTBitLimit
             if tt.IsTruncated then
                 let popup = Notifications.warningPropsNotification (truncationWarning tt)
                 dispatch <| SetPropertiesNotification popup

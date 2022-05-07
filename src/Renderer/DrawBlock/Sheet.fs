@@ -22,24 +22,34 @@ let mutable canvasDiv:Types.Element option = None
 //-------------------------------------------------------------------------------------------------//
 
 module Constants =
-    let symbolSnapLimit = 7.
-    let segmentSnapLimit = 7.
-    let gridSize = 30.0 // Size of each square grid
-    let canvasUnscaledSize = 3500. // total size of canvas (determines how far you can zoom out)
+    let symbolSnapLimit = 7. // how large is the snapping when moving symbols
+    let segmentSnapLimit = 7. // how large is the snapping when moving segments
+    let gridSize = 30.0 // Size of each grid square
+    let defaultUnscaledCanvasSize = 3500. // total size of canvas (determines how far you can zoom out)
     let wireBoundingBoxSize = 2. // increase to make it easier to select wire segments
     let maxMagnification = 2. // max zoom beyond which it is not worth going
+    let minMagnification = 0.1 // how much is it possible to zoom out? this is related to the actual canvas size
     let zoomIncrement = 1.2 // factor by which zoom is increased or decreased
     let boxAspectRatio = 2. // aspect ratio required before align or distribute can be done
+    /// geometry parameters for sizing circuits
+    let boxParameters = {|
+            BoxMin = 30.; // minimum white edge in pixels after ctrlW
+            BoxMarginFraction = 0.1;  // minimum white edge as fraction of screen after ctrlW
+            CanvasBorder = 0.5 // minimum scrollable white space border as fraction of circuit size after ctrlW
+            CanvasExtensionQuantisation = 100. // number of pixels by which canvas is extended if need be
+        |}
     
 
 //---------------------------------------Derived constants----------------------------------------//
 
-    let canvasCentre = {X=canvasUnscaledSize/2.; Y=canvasUnscaledSize/2.}
 
 //-------------------------------------------------------------------------------------------------//
 // ------------------ Helper Functions that need to be before the Model type extensions ---------- //
 //-------------------------------------------------------------------------------------------------//
 
+let centreOfCanvas (model:Model) =
+    let dim = model.UnscaledCanvasSize / 2.
+    {X=dim; Y=dim}
 
 /// Creates a command to Symbol
 let symbolCmd (msg: SymbolT.Msg) = Cmd.ofMsg (Wire (BusWireT.Symbol msg))
@@ -286,6 +296,12 @@ let symbolWireBBUnion (model:Model) =
                 | [bb] -> Some bb
                 | bbL -> Some <| List.reduce boxUnion bbL
 
+let moveCircuit moveDelta (model: Model) =
+    model
+    |> Optic.map symbol_ (Symbol.moveSymbols moveDelta)
+    |> Optic.map wire_ (BusWire.moveWires moveDelta)
+
+/// get scroll and zoom paras to fit box all on screen centred and occupying as much of screen as possible
 let getWindowParasToFitBox model (box: BoundingBox)  =
     let edge = getScreenEdgeCoords model
     let lh,rh,top,bottom = edge.Left,edge.Right,edge.Top,edge.Bottom
@@ -297,9 +313,50 @@ let getWindowParasToFitBox model (box: BoundingBox)  =
     let yScroll = yMiddle - (bottom-top)/2.
     {|ScrollX=xScroll; ScrollY=yScroll; MagToUse=magToUse|}
 
+/// Check that canvas is large enough to have space all round the visible area.
+/// If not, then change model by moving circuit on canvas and/or extending canvas.
+/// Keep components in same visible position during this process.
+/// Optimised to be very fast if no change is needed.
+/// returns new model and (if needed) updated scroll position.
+let ensureCanvasExtendsBeyondScreen model : Model * XYPos option =
+    let edge = getScreenEdgeCoords model
+    let quant = Constants.boxParameters.CanvasExtensionQuantisation
+    if min edge.Left edge.Top >= quant && max edge.Right edge.Bottom <= model.UnscaledCanvasSize - quant
+    then model, None
+    else
+        let circuitBox = symbolWireBBUnion model
+        let circuitDims = 
+            circuitBox
+            |> Option.map (fun bb -> [bb.H ; bb.W])
+            |> Option.defaultValue []
+        let newSize =
+            ([edge.Right - edge.Left; edge.Bottom - edge.Top] @ circuitDims)
+            |> List.map (fun x -> x + 4.*quant)
+            |> List.max
+            |> max model.UnscaledCanvasSize
+        let circuitMove = 
+            circuitBox
+            |> Option.map (fun bb -> {X=newSize/2.; Y=newSize/2.} - bb.Centre())
+            |> Option.defaultValue {X=0.;Y=0.}
+        model 
+        |> moveCircuit circuitMove
+        |> (fun model -> {model with UnscaledCanvasSize = newSize}, Some (model.ScrollPos - circuitMove * model.Zoom))
+
+
+
+
+
+
+
+/// shift circuit to middle of canvas, resizing canvas to allow enough border if needed.
+/// return scroll and zoom paras to display all of circuit in middle of window
 let fitCircuitToWindowParas (model:Model) =
+    let boxParas = Constants.boxParameters
     let addBoxMargin (box: BoundingBox) =
-        let boxMargin = max 30. ((max box.W box.H) * 0.05)
+        let boxMargin = 
+            (max box.W box.H) * boxParas.BoxMarginFraction
+            |> max boxParas.BoxMin 
+           
         {box with
             TopLeft = box.TopLeft - {X = boxMargin; Y = boxMargin}
             W = box.W + boxMargin*2.
@@ -310,12 +367,16 @@ let fitCircuitToWindowParas (model:Model) =
     let sBox = 
         Option.defaultValue minBox boxOpt
         |> addBoxMargin
+    let newCanvasSize = 
+        max sBox.W sBox.H
+        |> ((*) (1. + 2. * boxParas.CanvasBorder))
+        |> max Constants.defaultUnscaledCanvasSize
     let offsetToCentreCircuit =
-        Constants.canvasCentre - sBox.Centre()
+        {X=newCanvasSize / 2.; Y = newCanvasSize/2.} - sBox.Centre()
     let modelWithMovedCircuit =
-        model
-        |> Optic.map symbol_ (Symbol.moveSymbols offsetToCentreCircuit)
-        |> Optic.map wire_ (BusWire.moveWires offsetToCentreCircuit)
+        {model with UnscaledCanvasSize = newCanvasSize}
+        |> moveCircuit offsetToCentreCircuit
+
     let sBox = {sBox with TopLeft = sBox.TopLeft + offsetToCentreCircuit} 
     let paras = getWindowParasToFitBox model sBox
     //let scrollXY = {X=paras.ScrollX;Y=paras.ScrollY}
@@ -743,7 +804,7 @@ let displaySvgWithZoom
             dispatch <| (ManualKeyDown key.key) )
     document.onkeyup <- (fun key -> dispatch <| (ManualKeyUp key.key))
 
-    let sizeInPixels = sprintf "%.2fpx" ((Constants.canvasUnscaledSize * model.Zoom))
+    let sizeInPixels = sprintf "%.2fpx" ((model.UnscaledCanvasSize * model.Zoom))
 
     /// Is the mouse button currently down?
     let mDown (ev:Types.MouseEvent) = ev.buttons <> 0.

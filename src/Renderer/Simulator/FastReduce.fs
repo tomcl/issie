@@ -431,270 +431,423 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             // Algebra at SEL port is not supported
             raise (AlgebraNotImplemented err)
     | Demux2 ->
-        let bitsIn, bitSelect = ins 0, ins 1
-        let zeros = convertIntToFastData bitsIn.Width 0u
-
-        let out0, out1 =
-            if (extractBit bitSelect 1) = 0u then
-                bitsIn, zeros
-            else
-                zeros, bitsIn
-
-        let w = bitsIn.Width
-        put0 out0
-        put1 out1
-        putW 0 w
-        putW 1 w
-    | Demux4 ->
-        let bitsIn, bitSelect = ins 0, ins 1
-        let zeros = convertIntToFastData bitsIn.Width 0u
-        
-        let out0, out1, out2, out3 = 
-            match (extractBit bitSelect 2) with
-            | 0u -> bitsIn, zeros, zeros, zeros
-            | 1u -> zeros, bitsIn, zeros, zeros
-            | 2u -> zeros, zeros, bitsIn, zeros
-            | 3u -> zeros, zeros, zeros, bitsIn
-            | _ -> failwithf "Cannot happen"
-
-        let w = bitsIn.Width
-        put0 out0
-        put1 out1
-        put2 out2
-        put3 out3
-        putW 0 w
-        putW 1 w
-        putW 2 w
-        putW 3 w
-    | Demux8 ->
-        let bitsIn, bitSelect = ins 0, ins 1
-        let zeros = convertIntToFastData bitsIn.Width 0u
-        
-        let out0, out1, out2, out3, out4, out5, out6, out7 = 
-            match (extractBit bitSelect 3) with
-            | 0u -> bitsIn, zeros, zeros, zeros, zeros, zeros, zeros, zeros
-            | 1u -> zeros, bitsIn, zeros, zeros, zeros, zeros, zeros, zeros
-            | 2u -> zeros, zeros, bitsIn, zeros, zeros, zeros, zeros, zeros
-            | 3u -> zeros, zeros, zeros, bitsIn, zeros, zeros, zeros, zeros
-            | 4u -> zeros, zeros, zeros, zeros, bitsIn, zeros, zeros, zeros
-            | 5u -> zeros, zeros, zeros, zeros, zeros, bitsIn, zeros, zeros
-            | 6u -> zeros, zeros, zeros, zeros, zeros, zeros, bitsIn, zeros
-            | 7u -> zeros, zeros, zeros, zeros, zeros, zeros, zeros, bitsIn
-            | _ -> failwithf "Cannot happen"
-
-        let w = bitsIn.Width
-        put0 out0
-        put1 out1
-        put2 out2
-        put3 out3
-        put4 out4
-        put5 out5
-        put6 out6
-        put7 out7
-        putW 0 w
-        putW 1 w
-        putW 2 w
-        putW 3 w
-        putW 4 w
-        putW 5 w
-        putW 6 w
-        putW 7 w
-    | NbitsAdder numberOfBits ->
-        let cin, A, B = ins 0, ins 1, ins 2
-
-        let sum, cout =
-            let cin = convertFastDataToInt cin
-            let w = A.Width
-            match A.Dat, B.Dat with
-            | BigWord a, BigWord b ->
-                let mask = bigIntMask w
-                let a = a &&& mask
-                let b = b &&& mask
-                let sumInt = if cin = 0u then a + b else a + b + bigint 1
-                let sum = {Dat = BigWord (sumInt &&& bigIntMask w); Width = w}
-                let cout = if (sumInt >>> w) = bigint 0 then 0u else 1u
-                sum, packBit cout
-            | Word a, Word b ->
-                let mask = (1ul <<< w) - 1ul
-                if w = 32 then
-                    // mask is not needed, but 64 bit adition is needed!
-                    let sumInt =  uint64 a + uint64 b + uint64 (cin &&& 1u)
-                    let cout = uint32 (sumInt >>> w) &&& 1u
-                    let sum = convertIntToFastData w (uint32 sumInt) 
-                    sum, packBit cout
+        match ins 0, ins 1 with
+        | fdIn, Data bitSelect ->
+            let zeros = Data <| convertIntToFastData fdIn.Width 0u
+            let out0, out1 =
+                if (extractBit (Data bitSelect) 1) = 0u then
+                    fdIn, zeros
                 else
-                    let sumInt =  (a &&& mask) + (b &&& mask) + (cin &&& 1u)
-                    let cout = (sumInt >>> w) &&& 1u
-                    let sum = convertIntToFastData w (sumInt &&& mask) 
+                    zeros, fdIn
+
+            let w = fdIn.Width
+            put0 out0
+            put1 out1
+            putW 0 w
+            putW 1 w
+        | _, Alg _ ->
+            let err = {
+                Msg = "Algebra was passed to the SEL port of a DEMUX2. Ensure that only bits are passed to this port."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            // Algebra at SEL port is not supported
+            raise (AlgebraNotImplemented err)
+    | Demux4 ->
+        match ins 0, ins 1 with
+        | fdIn, Data bitSelect ->
+            let zeros = Data <| convertIntToFastData fdIn.Width 0u
+            let out0, out1, out2, out3 = 
+                match (extractBit (Data bitSelect) 2) with
+                | 0u -> fdIn, zeros, zeros, zeros
+                | 1u -> zeros, fdIn, zeros, zeros
+                | 2u -> zeros, zeros, fdIn, zeros
+                | 3u -> zeros, zeros, zeros, fdIn
+                | _ -> failwithf "Cannot happen"
+
+            let w = fdIn.Width
+            put0 out0
+            put1 out1
+            put2 out2
+            put3 out3
+            putW 0 w
+            putW 1 w
+            putW 2 w
+            putW 3 w
+        | _, Alg _ ->
+            let err = {
+                Msg = "Algebra was passed to the SEL port of a DEMUX4. Ensure that only bits are passed to this port."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            // Algebra at SEL port is not supported
+            raise (AlgebraNotImplemented err)
+    | Demux8 ->
+        match ins 0, ins 1 with
+        | fdIn, Data bitSelect ->
+            let zeros = Data <| convertIntToFastData fdIn.Width 0u
+            let out0, out1, out2, out3, out4, out5, out6, out7 = 
+                match (extractBit (Data bitSelect) 3) with
+                | 0u -> fdIn, zeros, zeros, zeros, zeros, zeros, zeros, zeros
+                | 1u -> zeros, fdIn, zeros, zeros, zeros, zeros, zeros, zeros
+                | 2u -> zeros, zeros, fdIn, zeros, zeros, zeros, zeros, zeros
+                | 3u -> zeros, zeros, zeros, fdIn, zeros, zeros, zeros, zeros
+                | 4u -> zeros, zeros, zeros, zeros, fdIn, zeros, zeros, zeros
+                | 5u -> zeros, zeros, zeros, zeros, zeros, fdIn, zeros, zeros
+                | 6u -> zeros, zeros, zeros, zeros, zeros, zeros, fdIn, zeros
+                | 7u -> zeros, zeros, zeros, zeros, zeros, zeros, zeros, fdIn
+                | _ -> failwithf "Cannot happen"
+
+            let w = fdIn.Width
+            put0 out0
+            put1 out1
+            put2 out2
+            put3 out3
+            put4 out4
+            put5 out5
+            put6 out6
+            put7 out7
+            putW 0 w
+            putW 1 w
+            putW 2 w
+            putW 3 w
+            putW 4 w
+            putW 5 w
+            putW 6 w
+            putW 7 w
+        | _, Alg _ ->
+            let err = {
+                Msg = "Algebra was passed to the SEL port of a DEMUX8. Ensure that only bits are passed to this port."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            // Algebra at SEL port is not supported
+            raise (AlgebraNotImplemented err)
+    | NbitsAdder numberOfBits ->
+        //let cin, A, B = ins 0, ins 1, ins 2
+        match ins 0, ins 1, ins 2 with
+        | Data cin, Data A, Data B ->
+            let sum, cout =
+                let cin = convertFastDataToInt cin
+                let w = A.Width
+                match A.Dat, B.Dat with
+                | BigWord a, BigWord b ->
+                    let mask = bigIntMask w
+                    let a = a &&& mask
+                    let b = b &&& mask
+                    let sumInt = if cin = 0u then a + b else a + b + bigint 1
+                    let sum = {Dat = BigWord (sumInt &&& bigIntMask w); Width = w}
+                    let cout = if (sumInt >>> w) = bigint 0 then 0u else 1u
                     sum, packBit cout
-                    
-            | a, b -> 
-                failwithf $"Inconsistent inputs to NBitsAdder {comp.FullName} A={a},{A}; B={b},{B}"
-
-        put0 sum
-        put1 cout
+                | Word a, Word b ->
+                    let mask = (1ul <<< w) - 1ul
+                    if w = 32 then
+                        // mask is not needed, but 64 bit adition is needed!
+                        let sumInt =  uint64 a + uint64 b + uint64 (cin &&& 1u)
+                        let cout = uint32 (sumInt >>> w) &&& 1u
+                        let sum = convertIntToFastData w (uint32 sumInt) 
+                        sum, packBit cout
+                    else
+                        let sumInt =  (a &&& mask) + (b &&& mask) + (cin &&& 1u)
+                        let cout = (sumInt >>> w) &&& 1u
+                        let sum = convertIntToFastData w (sumInt &&& mask) 
+                        sum, packBit cout
+                | a, b -> 
+                    failwithf $"Inconsistent inputs to NBitsAdder {comp.FullName} A={a},{A}; B={b},{B}"
+            put0 <| Data sum
+            put1 cout
+        // When Cin is 1 and one of the inputs is a bit-inversion, this is subtraction
+        | Data {Dat=(Word 1u);Width=_},Alg (UnaryExp(NotOp,exp)),other 
+        | Data {Dat=(Word 1u);Width=_}, other, Alg (UnaryExp(NotOp,exp))->
+            let othExp = other.toExp
+            let newExp = BinaryExp(othExp,SubOp,exp)
+            let out0 = UnaryExp (ValueOfOp,newExp)
+            let out1 = UnaryExp(SignOfOp false,newExp)
+            put0 <| Alg out0
+            put1 <| Alg out1
+        | cin, A, B ->
+            let cinExp, aExp, bExp =
+                cin.toExp, A.toExp, B.toExp
+            let newExp = BinaryExp(BinaryExp(aExp,AddOp,bExp),AddOp,cinExp)
+            let out0 = UnaryExp(ValueOfOp,newExp)
+            let out1 = UnaryExp(CarryOfOp,newExp)
+            put0 <| Alg out0
+            put1 <| Alg out1
     | NbitsXor numberOfBits ->
-        let A, B = ins 0, ins 1
-        let outDat =
-            match A.Dat, B.Dat with
-            | BigWord a, BigWord b ->
-                BigWord (a ^^^ b)
-            | Word a, Word b -> 
-                Word (a ^^^ b)
-            | a,b -> 
-                failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{A}; B={b},{B}"
+        //let A, B = ins 0, ins 1
+        match ins 0, ins 1 with
+        | Data A, Data B ->
+            let outDat =
+                match A.Dat, B.Dat with
+                | BigWord a, BigWord b ->
+                    BigWord (a ^^^ b)
+                | Word a, Word b -> 
+                    Word (a ^^^ b)
+                | a,b -> 
+                    failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{A}; B={b},{B}"
 
-        put0 {A with Dat = outDat}
+            put0 <| Data {A with Dat = outDat}
+        | Alg exp, Data {Dat=(Word System.UInt32.MaxValue);Width=_}
+        | Data {Dat=(Word System.UInt32.MaxValue);Width=_}, Alg exp ->
+            put0 <| Alg (UnaryExp(NotOp,exp))
+        | A, B ->
+            let aExp, bExp = A.toExp, B.toExp
+            put0 <| Alg (BinaryExp(aExp,BitXorOp,bExp))
     | Decode4 ->
-        let select, data = ins 0, ins 1
-        let selN = convertFastDataToInt select |> int
-        let dataN = convertFastDataToInt data |> int
+        //let select, data = ins 0, ins 1
+        match ins 0, ins 1 with
+        | Data select, Data data ->
+            let selN = convertFastDataToInt select |> int
+            let dataN = convertFastDataToInt data |> int
 
-        let outs =
-            [| 0 .. 3 |]
-            |> Array.map
-                (fun n ->
-                    let outBit = if n = selN then dataN else 0
-                    convertIntToFastData 1 (uint32 outBit))
-
-        put0 outs[0]
-        put1 outs[1]
-        put2 outs[2]
-        put3 outs[3]
+            let outs =
+                [| 0 .. 3 |]
+                |> Array.map
+                    (fun n ->
+                        let outBit = if n = selN then dataN else 0
+                        convertIntToFastData 1 (uint32 outBit))
+            put0 <| Data outs[0]
+            put1 <| Data outs[1]
+            put2 <| Data outs[2]
+            put3 <| Data outs[3]
+        | _,_ ->
+            let err = {
+                Msg = "Algebraic Simulation not implemented for Decode4."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            raise (AlgebraNotImplemented err)
 
     | Custom c ->
         // Custom components are removed
         failwithf "what? Custom components are removed before the fast simulation: %A" c
     | MergeWires ->
-        let bits0, bits1 = ins 0, ins 1
-        // Little endian, bits coming from the top wire are the least
-        // significant.
-        let wOut = bits0.Width + bits1.Width
-        let outBits =
-            if wOut <= 32 then
-                match bits0.Dat, bits1.Dat with
-                | Word b0, Word b1 ->
+        //let bits0, bits1 = ins 0, ins 1
+        match ins 0, ins 1 with
+        | Data bits0, Data bits1 ->
+            // Little endian, bits coming from the top wire are the least
+            // significant.
+            let wOut = bits0.Width + bits1.Width
+            let outBits =
+                if wOut <= 32 then
+                    match bits0.Dat, bits1.Dat with
+                    | Word b0, Word b1 ->
+                        (b1 <<< bits0.Width) ||| b0
+                        |> (fun n ->  convertIntToFastData wOut n)
+                    | _ -> failwithf $"inconsistent merge widths: {bits0},{bits1}"
+                else
+                    let b0 = convertFastDataToBigint bits0
+                    let b1 = convertFastDataToBigint bits1
                     (b1 <<< bits0.Width) ||| b0
-                    |> (fun n ->  convertIntToFastData wOut n)
-                | _ -> failwithf $"inconsistent merge widths: {bits0},{bits1}"
-            else
-                let b0 = convertFastDataToBigint bits0
-                let b1 = convertFastDataToBigint bits1
-                (b1 <<< bits0.Width) ||| b0
-                |> convertBigintToFastData wOut  
-        put0 outBits
-        putW 0 outBits.Width
+                    |> convertBigintToFastData wOut  
+            put0 <| Data outBits
+            putW 0 outBits.Width
+        | fd0, fd1 ->
+            let exp0, exp1 = fd0.toExp, fd1.toExp
+            put0 <| Alg (BinaryExp(exp1,AppendOp,exp0))
+            putW 0 <|(getAlgExpWidth exp0) + (getAlgExpWidth exp1)
     | SplitWire topWireWidth ->
-        let bits = ins 0
+        let fd = ins 0
 #if ASSERTS
-        assertThat (bits.Width >= topWireWidth + 1)
-        <| sprintf "SplitWire received too little bits: expected at least %d but got %d" (topWireWidth + 1) bits.Width
+        assertThat (fd.Width >= topWireWidth + 1)
+        <| sprintf "SplitWire received too little bits: expected at least %d but got %d" (topWireWidth + 1) fd.Width
 #endif
-        let bits0, bits1 =
-                let bits1 = getBits (bits.Width - 1) topWireWidth bits
-                let bits0 = getBits (topWireWidth-1) 0 bits
-                bits0, bits1
-
-            
-        // Little endian, bits leaving from the top wire are the least
-        // significant.
-        put0 bits0
-        put1 bits1
-        putW 1 bits1.Width
+        match fd with
+        | Data bits ->
+            let bits0, bits1 =
+                    let bits1 = getBits (bits.Width - 1) topWireWidth bits
+                    let bits0 = getBits (topWireWidth-1) 0 bits
+                    bits0, bits1
+            // Little endian, bits leaving from the top wire are the least
+            // significant.
+            put0 <| Data bits0
+            put1 <| Data bits1
+            putW 1 bits1.Width
+        | Alg exp ->
+            let w = getAlgExpWidth exp
+            let exp1 = UnaryExp(BitRangeOp(topWireWidth,w-1),exp)
+            let exp0 = UnaryExp(BitRangeOp(0,topWireWidth-1),exp)
+            put0 <| Alg exp0
+            put1 <| Alg exp1
+            putW 1 (getAlgExpWidth exp1)
     | DFF ->
-        let d = extractBit (insOld 0) 1
-        put0 (packBit d)
+        match insOld 0 with
+        | Data bits ->
+            let d = extractBit (Data bits) 1
+            put0 (packBit d)
+        | _ ->
+            let err = {
+                Msg = "Algebraic Simulation not implemented for DFF."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            raise (AlgebraNotImplemented err)
     | DFFE ->
-        let d, en =
-            extractBit (insOld 0) 1, extractBit (insOld 1) 1
-
-        if en = 1u then
-            put0 <| packBit d
-        else
-            put0 (getLastCycleOut 0)
-
+        match insOld 0, insOld 1 with
+        | Data bits0, Data bits1 ->
+            let d, en =
+                extractBit (Data bits0) 1, extractBit (Data bits1) 1
+            if en = 1u then
+                put0 <| packBit d
+            else
+                put0 (getLastCycleOut 0)
+        | _ ->
+            let err = {
+                Msg = "Algebraic Simulation not implemented for DFFE."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            raise (AlgebraNotImplemented err)
     | Register width ->
-        let bits = insOld 0
+        let fd = insOld 0
 #if ASSERTS
-        assertThat (bits.Width = width)
-        <| sprintf "Register received data with wrong width: expected %d but got %A" width bits.Width
+        assertThat (fd.Width = width)
+        <| sprintf "Register received data with wrong width: expected %d but got %A" width fd.Width
 #endif
-        put0 bits
+        match fd with
+        | Data bits -> put0 <| Data bits
+        | _ ->
+            let err = {
+                Msg = "Algebraic Simulation not implemented for Register."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            raise (AlgebraNotImplemented err)
 
     | RegisterE width ->
-        let bits, enable = insOld 0, insOld 1
+        //let bits, enable = insOld 0, insOld 1
+        match insOld 0, insOld 1 with
+        | Data bits, Data enable ->
 #if ASSERTS
-        assertThat (bits.Width = width)
-        <| sprintf "RegisterE received data with wrong width: expected %d but got %A" width bits.Width
+            assertThat (bits.Width = width)
+            <| sprintf "RegisterE received data with wrong width: expected %d but got %A" width bits.Width
 #endif
-        if (extractBit enable 1 = 1u) then
-            put0 bits
-        else
-            put0 (getLastCycleOut 0)
+            if (extractBit (Data enable) 1 = 1u) then
+                put0 <| Data bits
+            else
+                put0 (getLastCycleOut 0)
+        | _ ->
+            let err = {
+                Msg = "Algebraic Simulation not implemented for RegisterE."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            raise (AlgebraNotImplemented err)
     | AsyncROM1 mem -> // Asynchronous ROM.
-        let addr = ins 0
+        let fd = ins 0
 #if ASSERTS
-        assertThat (addr.Width = mem.AddressWidth)
-        <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth addr
+        assertThat (fd.Width = mem.AddressWidth)
+        <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth fd
 #endif
-        let outData = readMemory mem addr
-        put0 outData
+        match fd with
+        | Data addr ->
+            let outData = readMemory mem (Data addr)
+            put0 outData
+        | _ ->
+            let err = {
+                Msg = "Algebraic Simulation not implemented for AsyncRom1."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            raise (AlgebraNotImplemented err)
     | ROM1 mem -> // Synchronous ROM.
-        let addr = insOld 0
+        let fd = insOld 0
 #if ASSERTS
-        assertThat (addr.Width = mem.AddressWidth)
-        <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth addr
+        assertThat (fd.Width = mem.AddressWidth)
+        <| sprintf "ROM received address with wrong width: expected %d but got %A" mem.AddressWidth fd
 #endif
-        let outData = readMemory mem addr
-        put0 outData
+        match fd with
+        | Data addr ->
+            let outData = readMemory mem (Data addr)
+            put0 outData
+        | _ ->
+            let err = {
+                Msg = "Algebraic Simulation not implemented for ROM1."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            raise (AlgebraNotImplemented err)
     | RAM1 memory ->
         let mem =
             getRamStateMemory numStep (simStepOld) comp.State memory
-
-        let address = insOld 0
+        match insOld 0, insOld 1 with
+        | Data address, Data dataIn ->
 #if ASSERTS
-        assertThat (address.Width = mem.AddressWidth)
-        <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth address
+            assertThat (address.Width = mem.AddressWidth)
+            <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth address
 #endif
-        let dataIn = insOld 1
 #if ASSERTS
-        assertThat (dataIn.Width = mem.WordWidth)
-        <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataIn
+            assertThat (dataIn.Width = mem.WordWidth)
+            <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataIn
 #endif
-        let write = extractBit (insOld 2) 1
-        // If write flag is on, write the memory content.
-        let mem, dataOut =
-            match write with
-            | 0u ->
-                // Read memory address and return memory unchanged.
-                mem, readMemory mem address
-            | 1u ->
-                // Update memory and return old content.
-                // NB - this was previously new content - but that is inconsistent and less useful.
-                writeMemory mem address dataIn, readMemory mem address
-            | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
-
-        putState (RamState mem)
-        put0 dataOut
+            let write = extractBit (insOld 2) 1
+            // If write flag is on, write the memory content.
+            let mem, dataOut =
+                match write with
+                | 0u ->
+                    // Read memory address and return memory unchanged.
+                    mem, readMemory mem (Data address)
+                | 1u ->
+                    // Update memory and return old content.
+                    // NB - this was previously new content - but that is inconsistent and less useful.
+                    writeMemory mem address dataIn, readMemory mem (Data address)
+                | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
+            putState (RamState mem)
+            put0 dataOut
+        | _ ->
+            let err = {
+                Msg = "Algebraic Simulation not implemented for RAM1."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            raise (AlgebraNotImplemented err)
     // AsyncRAM1 component must be evaluated twice. Once (first) as clocked component 
     // to update state based on previous cycle. Then again as combinational component to update output
     //
     | AsyncRAM1 memory ->
+        // Exception (just in case)
+        let err = {
+                Msg = "Algebraic Simulation not implemented for AsyncRAM1."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
         if isClockedReduction then
             // here we propagate the state to current timestep, doing a state change if need be.
             let mem =
                 getRamStateMemory numStep (simStepOld) comp.State memory
 
-            let address = insOld 0
+            let address = 
+                match insOld 0 with
+                | Data d -> d
+                | Alg _ -> raise (AlgebraNotImplemented err)
 #if ASSERTS
             assertThat (address.Width = mem.AddressWidth)
             <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth address
 #endif
-            let dataIn = insOld 1
+            let dataIn =
+                match insOld 1 with
+                | Data d -> d
+                | Alg _ -> raise (AlgebraNotImplemented err)
 #if ASSERTS
             assertThat (dataIn.Width = mem.WordWidth)
             <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataIn
 #endif
+            let io2 =
+                match insOld 2 with
+                | Data d -> d
+                | Alg _ -> raise (AlgebraNotImplemented err)
             let write = extractBit (insOld 2) 1
             // If write flag is on, write the memory content.
             let mem =
@@ -714,8 +867,11 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             let mem =
                 getRamStateMemory (numStep+1) simStep comp.State memory
 
-            let address = ins 0
-            let data = readMemory mem address
+            let address = 
+                match ins 0 with
+                | Data d -> d
+                | Alg _ -> raise (AlgebraNotImplemented err)
+            let data = readMemory mem (Data address)
             //printfn $"reading {data} from addr={address} with state = {RamState mem}"
             put0 data
 

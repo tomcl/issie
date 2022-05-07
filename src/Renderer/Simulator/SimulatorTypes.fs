@@ -214,13 +214,15 @@ type UnaryOp =
     // if the sign is positive. (for A = -5, PosVal = 0, this would return 1)
     | SignOfOp of PosVal: bool
 
+// Comparison between expression and constant
+type ComparisonOp = | Equals
+
 type FastAlgExp =
     | SingleTerm of SimulationIO
     | DataLiteral of FastData
     | UnaryExp of Op: UnaryOp * Exp: FastAlgExp
     | BinaryExp of Exp1: FastAlgExp * Op: BinaryOp * Exp2: FastAlgExp
-
-type GRInput = | Num of uint32 | Exp of FastAlgExp
+    | ComparisonExp of Exp: FastAlgExp * Op: ComparisonOp * uint32
 
 let rec getAlgExpWidth (exp: FastAlgExp) =
     match exp with
@@ -236,6 +238,7 @@ let rec getAlgExpWidth (exp: FastAlgExp) =
         let w1 = getAlgExpWidth exp1
         let w2 = getAlgExpWidth exp2
         if w1 > w2 then w1 else w2
+    | ComparisonExp _ -> 1
 
 /// Converts an Algebraic Expression to a string for pretty printing
 let rec expToString (exp: FastAlgExp) =
@@ -276,6 +279,17 @@ let rec expToString (exp: FastAlgExp) =
         let expStr1 = expToString exp1
         let expStr2 = expToString exp2
         $"({expStr1})|({expStr2})"
+    | BinaryExp (exp1, BitXorOp, exp2) ->
+        let expStr1 = expToString exp1
+        let expStr2 = expToString exp2
+        $"({expStr1})⊕({expStr2})"
+    | ComparisonExp (exp, Equals, x) ->
+        let expStr = expToString exp
+        $"(({expStr}) == {string x})"
+
+/// Raised when an Algebraic case is found in FastSim which has not been implemented,
+/// or does not make sense to implement.
+exception AlgebraNotImplemented of SimulationError
 
 
 //------------------------------------------------------------------------------//
@@ -514,6 +528,16 @@ let appendBits (fMS: FastData) (fLS: FastData) : FastData =
 type FComponentId = ComponentId * ComponentId list
 
 type FData = | Data of FastData | Alg of FastAlgExp
+    with
+    member this.Width =
+        match this with
+        | Data d -> d.Width
+        | Alg exp -> getAlgExpWidth exp
+    member this.fdToString =
+        match this with
+        | Data {Dat=Word w; Width=_} -> string w
+        | Data {Dat=BigWord w; Width=_} -> string w
+        | Alg exp ->  expToString exp
 
 /// Wrapper to allow arrays to be resized for longer simulations while keeping the links between inputs
 /// and outputs

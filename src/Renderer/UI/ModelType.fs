@@ -24,6 +24,10 @@ type SimSubTab =
     | TruthTable
     | WaveSim
 
+type ReductionType =
+    | DCR // Don't Care Reduction
+    | AlgR // Algebraic Reduction
+
 type MemoryEditorData = {
     OnlyDiff : bool // Only show diffs in Memory Diff Viewer.
     Address : int64 option // Only show the specified memory address.
@@ -58,6 +62,9 @@ type PopupDialogData = {
     ConstraintIOSel: CellIO option
     ConstraintErrorMsg: string option
     NewConstraint: Constraint option
+    ReduceType: ReductionType option
+    AlgebraInputs: SimulationIO list option
+
 }
 
 type TopMenu = | Closed | Project | Files
@@ -453,6 +460,8 @@ type Model = {
     TTSortType: (CellIO * SortType) option
     // what is the display order of IOs in Table
     TTIOOrder: CellIO []
+    // which of the Truth Table's inputs are currently algebra
+    TTAlgebraInputs: SimulationIO list
     // which of the tabbed panes is currently visible
     RightPaneTabVisible : RightTab
     // which of the subtabs for the right pane simulation is visible

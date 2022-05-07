@@ -73,6 +73,7 @@ let init() = {
     TTHiddenColumns = []
     TTSortType = None
     TTIOOrder = [||]
+    TTAlgebraInputs = []
     WaveSim = Map.empty, None
     WaveSimSheet = ""
     RightPaneTabVisible = Catalogue
@@ -96,6 +97,8 @@ let init() = {
         ConstraintIOSel = None
         ConstraintErrorMsg = None
         NewConstraint = None
+        ReduceType = None
+        AlgebraInputs = None
     }
     Notifications = {
         FromDiagram = None

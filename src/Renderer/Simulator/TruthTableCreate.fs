@@ -148,13 +148,16 @@ let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) viewers (simData
         match cell.IO, cell.Data with
         | SimIO io, Bits wd ->
             let (cid,_,_) = io
-            FastRun.changeInput cid wd simData.ClockTickNumber simData.FastSim
+            FastRun.changeInput cid (IData wd) simData.ClockTickNumber simData.FastSim
         | x, y -> failwithf "what? CellData from input rows has IO: %A, and Data: %A." x y
     let _ = List.map updateOutputs rowLHS
     let outputRow =
         (outputs,simData)
         ||> FastRun.extractFastSimulationIOs
-        |> List.map (fun (comp,wd) -> {IO = SimIO comp; Data = Bits wd})
+        |> List.map (fun (comp,out) -> 
+            match out with
+            | IData wd -> {IO = SimIO comp; Data = Bits wd}
+            | IAlg exp -> {IO = SimIO comp; Data = Algebra (expToString exp)})
     let viewerRow =
         FastRun.extractViewers simData
         |> List.map (fun ((l,f),w,wd) -> {IO = Viewer ((l,f),w); Data = Bits wd})

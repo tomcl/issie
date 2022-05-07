@@ -305,10 +305,10 @@ let rec expToString (exp: FastAlgExp) =
 /// or does not make sense to implement.
 exception AlgebraNotImplemented of SimulationError
 
-// What the Fast Simulation can return
-type SimOut =
-    | Wd of WireData
-    | AlgExp of FastAlgExp
+// Types that can be passed to and retrieved from the Fast Simulation
+type FSInterface =
+    | IData of WireData
+    | IAlg of FastAlgExp
 
 //------------------------------------------------------------------------------//
 //-------------------EXPERIMENTAL - new data structure to replace WireData------//

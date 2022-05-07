@@ -307,9 +307,12 @@ let private runCombinationalLogic (step: int) (fastSim: FastSimulation) =
 
 /// Change an input and make simulation correct. N.B. step must be the latest
 /// time-step since future steps are not rerun (TODO: perhaps they should be!)
-let changeInput (cid: ComponentId) (wd: WireData) (step: int) (fastSim: FastSimulation) =
+let changeInput (cid: ComponentId) (input: FSInterface) (step: int) (fastSim: FastSimulation) =
     //printfn "wd=%A" wd
-    let fd = (wd |> wireToFast |> Data)
+    let fd = 
+        match input with
+        | IData wd -> (wd |> wireToFast |> Data)
+        | IAlg exp -> Alg exp
     setSimulationInput cid fd step fastSim
     //printfn $"Changing {fastSim.FComps[cid,[]].FullName} to {fd}"
     runCombinationalLogic step fastSim
@@ -456,7 +459,7 @@ let rec extractFastSimulationState
 let extractFastSimulationIOs
     (simIOs: SimulationIO list)
     (simulationData: SimulationData)
-    : (SimulationIO * WireData) list =
+    : (SimulationIO * FSInterface) list =
     let fs = simulationData.FastSim
     let inputs = simulationData.Inputs
 
@@ -465,7 +468,7 @@ let extractFastSimulationIOs
         (fun ((cid, label, width) as io) ->
             let wd = extractFastSimulationOutput fs simulationData.ClockTickNumber (cid, []) (OutputPortNumber 0)
             //printfn $"Extrcating: {io} --- {wd}"
-            io, wd)
+            io, IData wd)
 
 let getFLabel (fs:FastSimulation) (fId:FComponentId) =
     let fc = fs.FComps[fId]

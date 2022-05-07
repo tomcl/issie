@@ -203,6 +203,7 @@ type BinaryOp =
     | BitAndOp // A & B (bitwise AND)
     | BitOrOp // A | B (bitwise OR)
     | BitXorOp // A XOR B (bitwise XOR)
+    | AppendOp // B::A (B becomes MSB, A becomes LSB)
 
 // Unary Algebraic Operators
 type UnaryOp = 
@@ -213,6 +214,7 @@ type UnaryOp =
     // shows the sign of A, PosVal shows the value of the output
     // if the sign is positive. (for A = -5, PosVal = 0, this would return 1)
     | SignOfOp of PosVal: bool
+    | CarryOfOp
 
 // Comparison between expression and constant
 type ComparisonOp = | Equals
@@ -229,10 +231,15 @@ let rec getAlgExpWidth (exp: FastAlgExp) =
     | SingleTerm (_,_,w) -> w
     | DataLiteral d -> d.Width
     | UnaryExp (BitRangeOp(l,u),_) -> u-l+1
-    | UnaryExp (SignOfOp _,_) -> 1
+    | UnaryExp (SignOfOp _,_) | UnaryExp (CarryOfOp,_) -> 1
     // Assuming all other unary operators do not change width of expression
     | UnaryExp (_,exp) -> getAlgExpWidth exp
-    // Assuming binary operators do not change width of expression
+    // Sum of the widths of the expressions
+    | BinaryExp (exp1,AppendOp,exp2) ->
+        let w1 = getAlgExpWidth exp1
+        let w2 = getAlgExpWidth exp2
+        w1 + w2
+    // Assuming all other binary operators do not change width of expression
     // Return the greatest width
     | BinaryExp (exp1,_,exp2) -> 
         let w1 = getAlgExpWidth exp1
@@ -263,6 +270,9 @@ let rec expToString (exp: FastAlgExp) =
         let expStr = expToString exp
         let posVal = if pv then "1" else "0"
         $"sign({expStr}) (+:{posVal})"
+    | UnaryExp (CarryOfOp,exp) ->
+        let expStr = expToString exp
+        $"carry({expStr})"
     | BinaryExp (exp1, AddOp, exp2) ->
         let expStr1 = expToString exp1
         let expStr2 = expToString exp2
@@ -283,6 +293,10 @@ let rec expToString (exp: FastAlgExp) =
         let expStr1 = expToString exp1
         let expStr2 = expToString exp2
         $"({expStr1})⊕({expStr2})"
+    | BinaryExp (exp1, AppendOp, exp2) ->
+        let expStr1 = expToString exp1
+        let expStr2 = expToString exp2
+        $"({expStr1})::({expStr2})"
     | ComparisonExp (exp, Equals, x) ->
         let expStr = expToString exp
         $"(({expStr}) == {string x})"
@@ -291,6 +305,10 @@ let rec expToString (exp: FastAlgExp) =
 /// or does not make sense to implement.
 exception AlgebraNotImplemented of SimulationError
 
+// What the Fast Simulation can return
+type SimOut =
+    | Wd of WireData
+    | AlgExp of FastAlgExp
 
 //------------------------------------------------------------------------------//
 //-------------------EXPERIMENTAL - new data structure to replace WireData------//
@@ -538,6 +556,10 @@ type FData = | Data of FastData | Alg of FastAlgExp
         | Data {Dat=Word w; Width=_} -> string w
         | Data {Dat=BigWord w; Width=_} -> string w
         | Alg exp ->  expToString exp
+    member this.toExp =
+        match this with
+        | Alg exp -> exp
+        | Data fd -> DataLiteral fd
 
 /// Wrapper to allow arrays to be resized for longer simulations while keeping the links between inputs
 /// and outputs

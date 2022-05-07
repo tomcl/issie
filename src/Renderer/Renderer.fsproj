@@ -64,7 +64,7 @@
     <Compile Include="UI\CustomCompPorts.fs" />
     <Compile Include="UI/FileMenuView.fs" />
     <Compile Include="UI/SimulationView.fs" />
-    <Compile Include="UI\ConstraintView.fs" />
+    <Compile Include="UI\ConstraintReduceView.fs" />
     <Compile Include="UI\TruthTableView.fs" />
     <Compile Include="UI/CatalogueView.fs" />
     <Compile Include="UI/SelectedComponentView.fs" />

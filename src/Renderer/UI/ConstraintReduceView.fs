@@ -1,10 +1,10 @@
 ﻿//(*
-//    ConstraintView.fs
+//    ConstraintReduceView.fs
 //
-//    View functions for constraints and constraint popup
+//    View functions for constraints + constraint popups, and reduction popups
 //*)
 //
-module ConstraintView
+module ConstraintReduceView
 
 open Fulma
 open Fulma.Extensions.Wikiki

@@ -476,6 +476,8 @@ let update (msg : Msg) oldModel =
             {model with TTIOOrder = newOrder}, Cmd.none
     | SetIOOrder x -> 
         {model with TTIOOrder = x}, Cmd.none
+    | SetTTAlgebraInputs lst ->
+        {model with TTAlgebraInputs = lst}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
@@ -531,7 +533,7 @@ let update (msg : Msg) oldModel =
                         Int = None; 
                         Int2 = None; 
                         MemorySetup = None; 
-                        MemoryEditorData = None; 
+                        MemoryEditorData = None;
                     }}, Cmd.none
     | SetPopupDialogText text ->
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
@@ -563,7 +565,19 @@ let update (msg : Msg) oldModel =
         { model with PopupDialogData = {model.PopupDialogData with ConstraintErrorMsg = msg}}, Cmd.none
     | SetPopupNewConstraint con ->
         { model with PopupDialogData = {model.PopupDialogData with NewConstraint = con}}, Cmd.none
-
+    | TogglePopupAlgebraInput io ->
+        let oldLst =
+            match model.PopupDialogData.AlgebraInputs with
+            | Some l -> l
+            | None -> failwithf  "what? PopupDialogData.AlgebraInputs is None when trying to toggle"
+        if List.contains io oldLst then
+            let newLst = List.except [io] oldLst
+            {model with PopupDialogData = {model.PopupDialogData with AlgebraInputs = Some newLst}}, Cmd.none
+        else
+            let newLst = io::oldLst
+            {model with PopupDialogData = {model.PopupDialogData with AlgebraInputs = Some newLst}}, Cmd.none
+    | SetPopupAlgebraInputs opt ->
+        {model with PopupDialogData = {model.PopupDialogData with AlgebraInputs = opt}}, Cmd.none
     | SimulateWithProgressBar simPars ->
         SimulationView.simulateWithProgressBar simPars model
     | SetSelectedComponentMemoryLocation (addr,data) ->

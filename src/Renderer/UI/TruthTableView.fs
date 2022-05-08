@@ -602,20 +602,6 @@ let addToolTipRight tip react =
             Tooltip.dataTooltip tip
         ] [react]
 
-let makeOnOffToggle state changeAction onText offText =
-    Level.item [ Level.Item.HasTextCentered ] [
-        Field.div [ Field.HasAddonsCentered ] [
-            Control.div [] [ Button.button [
-                Button.Color (if state = true then IsSuccess else NoColor)
-                Button.OnClick (if state = false then changeAction else (fun _ -> ()))
-            ] [ str onText ] ]
-            Control.div [] [ Button.button [
-                Button.Color (if state = false then IsDanger else NoColor)
-                Button.OnClick (if state = true then changeAction else (fun _ -> ()))
-            ] [ str offText ] ]
-        ]
-    ]
-
 let makeSortingArrows (io: CellIO) sortInfo dispatch =
     let upSel, downSel =
         match sortInfo with
@@ -802,6 +788,8 @@ let viewTruthTable model dispatch =
             |> SetIOOrder 
             |> dispatch
 
+            dispatch <| SetPopupAlgebraInputs (Some [])
+
             tt
             |> Ok
             |> GenerateTruthTable
@@ -910,6 +898,8 @@ let viewTruthTable model dispatch =
             dispatch ClearHiddenTTColumns
             dispatch (SetTTSortType None)
             dispatch (SetIOOrder [||])
+            dispatch (SetTTAlgebraInputs [])
+            dispatch <| SetPopupAlgebraInputs None
             dispatch CloseTruthTable
         let body =
             match tableopt with
@@ -934,10 +924,14 @@ let viewTruthTable model dispatch =
                     else
                         (Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> startReducing())]
                         [str "Reduce"])
+                let algebraButton =
+                    Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> createAlgReductionPopup model dispatch)]
+                        [str "Algebra"]
                 match table.DCMap with
                 | None ->
                     div [] [
                         reduceButton
+                        algebraButton
                         br []; br []
                         viewTruthTableData table Filtered model.TTSortType dispatch] 
                 | Some dc ->

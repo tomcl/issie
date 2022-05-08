@@ -24,10 +24,6 @@ type SimSubTab =
     | TruthTable
     | WaveSim
 
-type ReductionType =
-    | DCR // Don't Care Reduction
-    | AlgR // Algebraic Reduction
-
 type MemoryEditorData = {
     OnlyDiff : bool // Only show diffs in Memory Diff Viewer.
     Address : int64 option // Only show the specified memory address.
@@ -62,9 +58,7 @@ type PopupDialogData = {
     ConstraintIOSel: CellIO option
     ConstraintErrorMsg: string option
     NewConstraint: Constraint option
-    ReduceType: ReductionType option
     AlgebraInputs: SimulationIO list option
-
 }
 
 type TopMenu = | Closed | Project | Files
@@ -309,6 +303,8 @@ type Msg =
     | SetTTSortType of (CellIO * SortType) option
     | MoveColumn of (CellIO * MoveDirection)
     | SetIOOrder of CellIO []
+    //| ToggleTTInputType of SimulationIO
+    | SetTTAlgebraInputs of SimulationIO list
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list
@@ -337,6 +333,8 @@ type Msg =
     | SetPopupConstraintIOSel of CellIO option
     | SetPopupConstraintErrorMsg of string option
     | SetPopupNewConstraint of Constraint option
+    | SetPopupAlgebraInputs of SimulationIO list option
+    | TogglePopupAlgebraInput of SimulationIO
     | SimulateWithProgressBar of SimulationProgress
     | SetSelectedComponentMemoryLocation of int64 * int64
     | CloseDiagramNotification

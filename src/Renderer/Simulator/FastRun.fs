@@ -407,7 +407,7 @@ let rec extractFastSimulationOutput
     (fs: FastSimulation)
     (step: int)
     ((cid, ap): ComponentId * ComponentId list)
-    (opn: OutputPortNumber) : WireData =
+    (opn: OutputPortNumber) : FSInterface =
     
    let (OutputPortNumber n) = opn
    match Map.tryFind (cid, ap) fs.FComps with
@@ -419,9 +419,9 @@ let rec extractFastSimulationOutput
             if d.Width=0 then 
                 failwithf $"Can't find valid data in step {step}:index{step % fs.MaxArraySize} from {fc.FullName} with clockTick={fs.ClockTick}"
             else
-                d |> fastToWire
+                d |> fastToWire |> IData
         | Some (Alg exp) ->
-            failwithf "Not yet for algebra!"
+            IAlg exp
         
    | None ->
         // if it is a custom component output extract from the corresponding Output FastComponent
@@ -466,9 +466,9 @@ let extractFastSimulationIOs
     simIOs
     |> List.map
         (fun ((cid, label, width) as io) ->
-            let wd = extractFastSimulationOutput fs simulationData.ClockTickNumber (cid, []) (OutputPortNumber 0)
+            let out = extractFastSimulationOutput fs simulationData.ClockTickNumber (cid, []) (OutputPortNumber 0)
             //printfn $"Extrcating: {io} --- {wd}"
-            io, IData wd)
+            io, out)
 
 let getFLabel (fs:FastSimulation) (fId:FComponentId) =
     let fc = fs.FComps[fId]
@@ -486,7 +486,7 @@ let extractFastSimulationWidth (fs:FastSimulation)   (fid: FComponentId) (opn: O
 /// Extract all Viewer components with names and wire widths. Used by legacy code.
 let extractViewers
     (simulationData: SimulationData)
-    : ((string*string) * int * WireData) list =
+    : ((string*string) * int * FSInterface) list =
     let fs = simulationData.FastSim
 
     let comps = 

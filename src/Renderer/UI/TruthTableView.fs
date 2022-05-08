@@ -410,20 +410,32 @@ let regenerateTruthTable model (dispatch: Msg -> Unit) =
     | Some (Error e) ->
         failwithf "what? Constraint add option should not exist when there is TT error"
     | Some (Ok table) ->
-        let tt = 
-            truthTableRegen table.TableSimData model.TTInputConstraints model.TTAlgebraInputs model.TTBitLimit
-        if tt.IsTruncated then
+        let ttRes = 
+            try
+                let tt =
+                    truthTableRegen 
+                        table.TableSimData
+                        model.TTInputConstraints
+                        model.TTAlgebraInputs 
+                        model.TTBitLimit
+                if tt.IsTruncated then
                     let popup = Notifications.warningPropsNotification (truncationWarning tt)
                     dispatch <| SetPropertiesNotification popup
-        tt.IOOrder 
-        |> List.toArray 
-        |> SetIOOrder 
-        |> dispatch
+                tt.IOOrder 
+                |> List.toArray 
+                |> SetIOOrder 
+                |> dispatch
+                Ok tt
+            with
+            | AlgebraNotImplemented err -> Error err
 
-        tt
-        |> Ok
+        ttRes
         |> GenerateTruthTable
         |> dispatch
+
+        match ttRes with
+        | Error e -> raise (AlgebraNotImplemented e)
+        | Ok _ -> ()
 
 /// Hide output columns in the Table
 let hideColumns model (dispatch: Msg -> Unit) =
@@ -464,7 +476,7 @@ let applyNumericalOutputConstraint (table: Map<TruthTableRow,TruthTableRow>) (co
                     false
                 else
                     match cell.Data with
-                    | Algebra _ -> failwithf "what? Algebra cellData when applying output constraints"
+                    | Algebra _ -> false
                     | DC -> true
                     | Bits wd ->
                         let cellVal = convertWireDataToInt wd
@@ -474,7 +486,7 @@ let applyNumericalOutputConstraint (table: Map<TruthTableRow,TruthTableRow>) (co
                     false
                 else
                     match cell.Data with
-                    | Algebra _ -> failwithf "what? Algebra cellData when applying output constraints"
+                    | Algebra _ -> false
                     | DC -> true
                     | Bits wd ->
                         let cellVal = convertWireDataToInt wd
@@ -563,28 +575,34 @@ let reorderTruthTable model dispatch =
         failwithf "what? Reorder option should not exist when there is TT Error"
     | Some (Ok table) ->
         let lstRep = table.SortedListRep
-        let changes =
-            lstRep.Head
-            |> List.mapi (fun i c ->
-                (i,Array.findIndex (fun io -> io = c.IO) model.TTIOOrder))
+        if lstRep.IsEmpty then 
+            {table with OrderedArrayRep = [||]}
+            |> Ok
+            |> GenerateTruthTable
+            |> dispatch
+        else
+            let changes =
+                lstRep.Head
+                |> List.mapi (fun i c ->
+                    (i,Array.findIndex (fun io -> io = c.IO) model.TTIOOrder))
 
-        let arrayRep =
-            table.SortedListRep
-            |> list2DToArray2D
-        let arrayCopy =
-            table.SortedListRep
-            |> list2DToArray2D
+            let arrayRep =
+                table.SortedListRep
+                |> list2DToArray2D
+            let arrayCopy =
+                table.SortedListRep
+                |> list2DToArray2D
 
-        changes
-        |> List.iter (fun (o,c) ->
-            arrayCopy
-            |> Array.iteri (fun i arr ->
-                arrayRep[i][c] <- arr[o]))
+            changes
+            |> List.iter (fun (o,c) ->
+                arrayCopy
+                |> Array.iteri (fun i arr ->
+                    arrayRep[i][c] <- arr[o]))
 
-        {table with OrderedArrayRep = arrayRep}
-        |> Ok
-        |> GenerateTruthTable
-        |> dispatch
+            {table with OrderedArrayRep = arrayRep}
+            |> Ok
+            |> GenerateTruthTable
+            |> dispatch
         
 //-------------------------------------------------------------------------------------//
 //----------View functions for Truth Tables and Tab UI components----------------------//
@@ -874,10 +892,13 @@ let viewTruthTable model dispatch =
     | Some tableopt ->
         match model.TTIsOutOfDate with
         | Some Regenerate ->
-            regenerateTruthTable model dispatch
-            // Re-hide columns after regeneration in the next view cycle.
-            // Refilter will be called in the subsequent cycle.
-            HideColumn |> Some |> SetTTOutOfDate |> dispatch
+            try
+                regenerateTruthTable model dispatch
+                // Re-hide columns after regeneration in the next view cycle.
+                // Refilter will be called in the subsequent cycle.
+                HideColumn |> Some |> SetTTOutOfDate |> dispatch
+            with
+            | _ -> None |> SetTTOutOfDate |> dispatch
         | Some HideColumn ->
             hideColumns model dispatch
             Refilter |> Some |> SetTTOutOfDate |> dispatch

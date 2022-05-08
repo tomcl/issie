@@ -269,7 +269,7 @@ let rec expToString (exp: FastAlgExp) =
     | UnaryExp (SignOfOp pv,exp) ->
         let expStr = expToString exp
         let posVal = if pv then "1" else "0"
-        $"sign({expStr}) (+:{posVal})"
+        $"sign({expStr}) ({posVal} if +)"
     | UnaryExp (CarryOfOp,exp) ->
         let expStr = expToString exp
         $"carry({expStr})"

@@ -7,6 +7,21 @@ open SynchronousUtils
 open NumberHelpers
 open Helpers
 
+/// Splits one list into two by filtering it using a predicate. If the predicate
+/// evaluates to true, the element will be placed in the first list. If it evaluates
+/// to false, the element will be placed in the second list.
+let splitList (predicate: 'a -> bool) (lst: 'a list) =
+    let rec split mainList lst1 lst2 =
+        match mainList with
+        | [] -> lst1,lst2
+        | hd::tl ->
+            if predicate hd then
+                split tl (hd::lst1) lst2
+            else
+                split tl lst1 (hd::lst2)
+    split lst [] []
+
+
 let toCellIO simIOs viewers =
     (List.map (fun io -> SimIO io) simIOs
     @
@@ -140,8 +155,21 @@ let tableLHS
         |> inputsWithARC rowLimit
     printfn "Inputs %A" tInputs
 
-    (tInputs
-    |> inputCombinations), tCRC
+    let algInputs,numInputs =
+        tInputs
+        |> splitList (fun ti -> ti.IsAlgebra)
+
+    let algRow =
+        algInputs
+        |> List.map (fun ti -> 
+            let (_,label,_) = ti.IO
+            {IO = SimIO ti.IO; Data = Algebra (string label)})
+    if numInputs.IsEmpty then
+        [algRow],tCRC
+    else
+        (numInputs
+        |> inputCombinations
+        |> List.map (fun r -> algRow@r)), tCRC
 
 /// Find the RHS (output) for every input row by simulating the input combination
 let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) viewers (simData: SimulationData): TruthTableRow =
@@ -164,7 +192,10 @@ let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) viewers (simData
             | IAlg exp -> {IO = SimIO comp; Data = Algebra (expToString exp)})
     let viewerRow =
         FastRun.extractViewers simData
-        |> List.map (fun ((l,f),w,wd) -> {IO = Viewer ((l,f),w); Data = Bits wd})
+        |> List.map (fun ((l,f),w,fs) ->
+            match fs with
+            | IData wd -> {IO = Viewer ((l,f),w); Data = Bits wd}
+            | IAlg exp -> {IO = Viewer ((l,f),w); Data = Algebra l})
     outputRow @ viewerRow
 
 /// Create a Truth Table from the Simulation Data and input constraints

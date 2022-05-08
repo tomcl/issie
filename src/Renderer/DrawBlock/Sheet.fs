@@ -338,9 +338,15 @@ let ensureCanvasExtendsBeyondScreen model : Model * XYPos option =
             circuitBox
             |> Option.map (fun bb -> {X=newSize/2.; Y=newSize/2.} - bb.Centre())
             |> Option.defaultValue {X=0.;Y=0.}
+        let newScrollPos = model.ScrollPos + circuitMove * model.Zoom
+        match canvasDiv with
+        | Some el ->
+            el.scrollLeft <- model.ScrollPos.X
+            el.scrollTop <- model.ScrollPos.Y
+        | None -> ()
         model 
         |> moveCircuit circuitMove
-        |> (fun model -> {model with UnscaledCanvasSize = newSize}, Some (model.ScrollPos - circuitMove * model.Zoom))
+        |> (fun model -> {model with UnscaledCanvasSize = newSize}, Some newScrollPos)
 
 
 

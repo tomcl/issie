@@ -341,8 +341,8 @@ let ensureCanvasExtendsBeyondScreen model : Model * XYPos option =
         let newScrollPos = model.ScrollPos + circuitMove * model.Zoom
         match canvasDiv with
         | Some el ->
-            el.scrollLeft <- model.ScrollPos.X
-            el.scrollTop <- model.ScrollPos.Y
+            el.scrollLeft <- newScrollPos.X
+            el.scrollTop <- newScrollPos.Y
         | None -> ()
         model 
         |> moveCircuit circuitMove

@@ -198,6 +198,10 @@ let displayView model dispatch =
             | _ -> ()
         | _ -> ()
 
+    let inline processAppClick topMenu dispatch (ev: Browser.Types.MouseEvent) =
+        if topMenu <> Closed then 
+            dispatch <| Msg.SetTopMenu Closed
+        
  
     /// used only to make the divider bar draggable
     let inline processMouseMove (ev: Browser.Types.MouseEvent) =
@@ -228,6 +232,7 @@ let displayView model dispatch =
     div [ HTMLAttr.Id "WholeApp"
           Key cursorText
           OnMouseMove processMouseMove
+          OnClick (processAppClick model.TopMenuOpenState dispatch)
           Style [ 
             //CSSProp.Cursor cursorText
             UserSelect UserSelectOptions.None

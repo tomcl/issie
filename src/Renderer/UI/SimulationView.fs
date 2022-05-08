@@ -250,17 +250,14 @@ let private viewSimulationOutputs numBase (simOutputs : (SimulationIO * FSInterf
         splittedLine (str <| makeIOLabel outputLabel width) valueHandle
     div [] <| List.map makeOutputLine simOutputs
 
-let private viewViewers numBase (simViewers : ((string*string) * int * WireData) list) =
-    let makeViewerOutputLine ((label,fullName), width, wireData) =
-#if ASSERTS
-        assertThat (List.length wireData = width)
-        <| sprintf "Inconsistent wireData length in viewViewer for %s: expcted %d but got %d" label width wireData.Length
-#endif
+let private viewViewers numBase (simViewers : ((string*string) * int * FSInterface) list) =
+    let makeViewerOutputLine ((label,fullName), width, inputVals) =
         let valueHandle =
-            match wireData with
-            | [] -> failwith "what? Empty wireData while creating a line in simulation output."
-            | [bit] -> staticBitButton bit
-            | bits -> staticNumberBox numBase bits
+            match inputVals with
+            | IData [] -> failwith "what? Empty wireData while creating a line in simulation output."
+            | IData[bit] -> staticBitButton bit
+            | IData bits -> staticNumberBox numBase bits
+            | IAlg _ -> failwithf "what? Algebra in Step Simulation (not yet implemented)"
         let addToolTip tip react = 
             div [ 
                 HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-right"

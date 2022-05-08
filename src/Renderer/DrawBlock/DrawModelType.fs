@@ -297,6 +297,9 @@ module SheetT =
         Move: XYPos
         }
 
+    let move_ = Lens.create (fun m -> m.Move) (fun w m -> {m with Move = w})
+    let pos_ = Lens.create (fun m -> m.Pos) (fun w m -> {m with Pos = w})
+
     /// Used to keep track of what the mouse is on
     type MouseOn =
         | Label of CommonTypes.ComponentId
@@ -314,6 +317,7 @@ module SheetT =
         | MovingSymbols
         | MovingLabel
         | DragAndDrop
+        | Panning // panning sheet using shift/drag
         | MovingWire of SegmentId // Sends mouse messages on to BusWire
         | ConnectingInput of CommonTypes.InputPortId // When trying to connect a wire from an input
         | ConnectingOutput of CommonTypes.OutputPortId // When trying to connect a wire from an output
@@ -435,13 +439,18 @@ module SheetT =
         SnapSymbols: SnapXY
         SnapSegments: SnapXY
         CurrentKeyPresses: Set<string> // For manual key-press checking, e.g. CtrlC
+        /// how X,Y coordinates throughout draw block are scaled into screen pixels.
+        /// All unscaled dimensions (screen pixels) have Screen prepended to name.
         Zoom: float
-        UnscaledCanvasSize: float // how large is the circuit canvas - can be changed dymamically
+        /// the size of teh canvas in DrawBlock units
+        CanvasSize: float // how large is the circuit canvas - can be changed dynamically
         TmpModel: Model Option
         UndoList: Model List
         RedoList: Model List
         AutomaticScrolling: bool // True if mouse is near the edge of the screen and is currently scrolling. This improved performance for manual scrolling with mouse wheel (don't check for automatic scrolling if there is no reason to)
-        ScrollPos: XYPos // copies HTML canvas scrolling position: (canvas.scrollLeft,canvas.scrollTop)
+        /// html scrolling position: this is in screen pixels, draw block X,Y values are 1/model.Zoom of this
+        ScreenScrollPos: XYPos // copies HTML canvas scrolling position: (canvas.scrollLeft,canvas.scrollTop)
+        /// this is Drawblock X,Y values
         LastMousePos: XYPos // For Symbol Movement
         ScrollingLastMousePos: XYPosMov // For keeping track of mouse movement when scrolling. Can't use LastMousePos as it's used for moving symbols (won't be able to move and scroll symbols at same time)
         LastMousePosForSnap: XYPos
@@ -463,6 +472,10 @@ module SheetT =
     let symbols_ = wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_
     let symbolOf_ k = symbol_ >-> SymbolT.symbolOf_ k
 
-
+    let scrollingLastMousePos_ = Lens.create (fun m -> m.ScrollingLastMousePos) (fun w m -> {m with ScrollingLastMousePos = w})
+    let lastMousePos_ = Lens.create (fun m -> m.LastMousePos) (fun w m -> {m with LastMousePos = w})
+    let screenScrollPos_ = Lens.create (fun m -> m.ScreenScrollPos) (fun w m -> {m with ScreenScrollPos = w})
+    let lastMousePosForSnap_ = Lens.create (fun m -> m.LastMousePosForSnap) (fun w m -> {m with LastMousePosForSnap = w})
+    let canvasSize_ = Lens.create (fun m -> m.CanvasSize) (fun w m -> {m with CanvasSize = w})
 
 

@@ -12,6 +12,7 @@ open DrawHelpers
 open DrawModelType
 open DrawModelType.SheetT
 open Optics
+open Operators
 
 
 
@@ -25,7 +26,7 @@ module Constants =
     let symbolSnapLimit = 7. // how large is the snapping when moving symbols
     let segmentSnapLimit = 7. // how large is the snapping when moving segments
     let gridSize = 30.0 // Size of each grid square
-    let defaultUnscaledCanvasSize = 3500. // total size of canvas (determines how far you can zoom out)
+    let defaultCanvasSize = 3500. // total size of canvas (determines how far you can zoom out)
     let wireBoundingBoxSize = 2. // increase to make it easier to select wire segments
     let maxMagnification = 2. // max zoom beyond which it is not worth going
     let minMagnification = 0.1 // how much is it possible to zoom out? this is related to the actual canvas size
@@ -33,10 +34,11 @@ module Constants =
     let boxAspectRatio = 2. // aspect ratio required before align or distribute can be done
     /// geometry parameters for sizing circuits
     let boxParameters = {|
+            BoxOfEmptyCircuit = ({X=100.;Y=100.}:XYPos)
             BoxMin = 30.; // minimum white edge in pixels after ctrlW
             BoxMarginFraction = 0.1;  // minimum white edge as fraction of screen after ctrlW
             CanvasBorder = 0.5 // minimum scrollable white space border as fraction of circuit size after ctrlW
-            CanvasExtensionQuantisation = 100. // number of pixels by which canvas is extended if need be
+            CanvasExtensionFraction = 0.1 // fraction of screen size used to extend canvas by when going off edge
         |}
     
 
@@ -48,7 +50,7 @@ module Constants =
 //-------------------------------------------------------------------------------------------------//
 
 let centreOfCanvas (model:Model) =
-    let dim = model.UnscaledCanvasSize / 2.
+    let dim = model.CanvasSize / 2.
     {X=dim; Y=dim}
 
 /// Creates a command to Symbol
@@ -165,13 +167,19 @@ let getScreenEdgeCoords (model:Model) =
     let wholeApp = document.getElementById "WholeApp"
     let rightSelection = document.getElementById "RightSelection"
     let topMenu = document.getElementById "TopMenu"
-    let scrollDeviation = model.ScrollPos - {X=canvas.scrollLeft;Y=canvas.scrollTop}
+    let scrollDeviation = model.ScreenScrollPos - {X=canvas.scrollLeft;Y=canvas.scrollTop}
     let leftScreenEdge = canvas.scrollLeft
     let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.offsetWidth
     let topScreenEdge = canvas.scrollTop
     let bottomScreenEdge = topScreenEdge + rightSelection.offsetHeight - topMenu.clientHeight
     {|Left=leftScreenEdge;Right=rightScreenEdge;Top=topScreenEdge;Bottom=bottomScreenEdge|}
 
+let centreOfScreen model : XYPos =
+    let edge = getScreenEdgeCoords model
+    {
+        X = (edge.Left + edge.Right)/(2. * model.Zoom)
+        Y = (edge.Top + edge.Bottom)/(2. * model.Zoom)
+    }
 
 /// helper used inside Map.tryFind hence the unused parameter
 /// returns true if pos is insoie boundingbox
@@ -261,9 +269,9 @@ let symbolBBUnion (centresOnly: bool) (symbols: SymbolT.Symbol list) :BoundingBo
         |> Some
     
 
-/// Inputs must also have W,H > 0.
-/// Returns the smallest BB that contains all
-/// symbols, labels, and wire segments
+
+/// Returns the smallest BB that contains all symbols, labels, and wire segments.
+/// For empty circuit a BB is returned in middle of viewable screen.
 let symbolWireBBUnion (model:Model) =
     let symbols =
         model.Wire.Symbol.Symbols
@@ -292,9 +300,9 @@ let symbolWireBBUnion (model:Model) =
             |> Some
     [symbolBB;labelBB;wireBB]
     |> List.collect (function | Some bb -> [bb] | _ -> [])
-    |> function | [] -> None
-                | [bb] -> Some bb
-                | bbL -> Some <| List.reduce boxUnion bbL
+    |> function | [] -> {TopLeft=centreOfScreen model; W=0.;H=0.}
+                | [bb] -> bb
+                | bbL -> List.reduce boxUnion bbL
 
 let moveCircuit moveDelta (model: Model) =
     model
@@ -313,40 +321,66 @@ let getWindowParasToFitBox model (box: BoundingBox)  =
     let yScroll = yMiddle - (bottom-top)/2.
     {|ScrollX=xScroll; ScrollY=yScroll; MagToUse=magToUse|}
 
+let addBoxMargin (fractionalMargin:float) (absoluteMargin:float) (box: BoundingBox) =
+    let boxMargin = 
+        (max box.W box.H) * fractionalMargin
+        |> max absoluteMargin 
+       
+    {box with
+        TopLeft = box.TopLeft - {X = boxMargin; Y = boxMargin}
+        W = box.W + boxMargin*2.
+        H = box.H + boxMargin*2.
+     }
+
 /// Check that canvas is large enough to have space all round the visible area.
 /// If not, then change model by moving circuit on canvas and/or extending canvas.
 /// Keep components in same visible position during this process.
-/// Optimised to be very fast if no change is needed.
 /// returns new model and (if needed) updated scroll position.
-let ensureCanvasExtendsBeyondScreen model : Model * XYPos option =
+let ensureCanvasExtendsBeyondScreen model : Model =
+    let boxParas = Constants.boxParameters
     let edge = getScreenEdgeCoords model
-    let quant = Constants.boxParameters.CanvasExtensionQuantisation
-    if min edge.Left edge.Top >= quant && max edge.Right edge.Bottom <= model.UnscaledCanvasSize - quant
-    then model, None
+    let box = 
+        symbolWireBBUnion model
+        |> addBoxMargin boxParas.CanvasExtensionFraction  boxParas.BoxMin
+    let quant = boxParas.CanvasExtensionFraction * min box.H box.W       
+    let newSize =
+        [box.H;box.W]
+        |> List.map (fun x -> x + 4.*quant)
+        |> List.max
+        |> max model.CanvasSize
+    let bottomRight = box.TopLeft + {X=box.W;Y=box.H}
+    let size = model.CanvasSize
+    let xIsOk = box.TopLeft.X > 0. && bottomRight.X < size
+    let yIsOk = box.TopLeft.Y > 0. &&  bottomRight.Y < size
+    if xIsOk && yIsOk then
+        model
     else
-        let circuitBox = symbolWireBBUnion model
-        let circuitDims = 
-            circuitBox
-            |> Option.map (fun bb -> [bb.H ; bb.W])
-            |> Option.defaultValue []
-        let newSize =
-            ([edge.Right - edge.Left; edge.Bottom - edge.Top] @ circuitDims)
-            |> List.map (fun x -> x + 4.*quant)
-            |> List.max
-            |> max model.UnscaledCanvasSize
         let circuitMove = 
-            circuitBox
-            |> Option.map (fun bb -> {X=newSize/2.; Y=newSize/2.} - bb.Centre())
-            |> Option.defaultValue {X=0.;Y=0.}
-        let newScrollPos = model.ScrollPos + circuitMove * model.Zoom
-        match canvasDiv with
-        | Some el ->
-            el.scrollLeft <- newScrollPos.X
-            el.scrollTop <- newScrollPos.Y
-        | None -> ()
+            box
+            |> (fun bb -> 
+                let centre = bb.Centre()
+                {
+                    X = if xIsOk then 0. else newSize/2.- centre.X
+                    Y = if yIsOk then 0. else newSize/2. - centre.Y
+                })
+
+        //printfn $"scroll move = {newSize}:({circuitMove.X},{circuitMove.Y})"
+        match canvasDiv, model.ScreenScrollPos + circuitMove*model.Zoom with
+        | Some el, pos ->
+            el.scrollLeft <- pos.X
+            el.scrollTop <- pos.Y
+        | None,_-> ()
+        let posDelta :(XYPos -> XYPos) = ((+) circuitMove)
+        let posScreenDelta :(XYPos -> XYPos) = ((+) (circuitMove*model.Zoom))
         model 
         |> moveCircuit circuitMove
-        |> (fun model -> {model with UnscaledCanvasSize = newSize}, Some newScrollPos)
+        |> Optic.map screenScrollPos_ posDelta 
+        |> Optic.set canvasSize_ newSize
+        |> Optic.map screenScrollPos_ posScreenDelta
+        |> Optic.map lastMousePos_ posDelta
+        |> Optic.map lastMousePosForSnap_ posDelta
+        |> Optic.map (scrollingLastMousePos_ >-> pos_) posDelta
+           
 
 
 
@@ -358,29 +392,19 @@ let ensureCanvasExtendsBeyondScreen model : Model * XYPos option =
 /// return scroll and zoom paras to display all of circuit in middle of window
 let fitCircuitToWindowParas (model:Model) =
     let boxParas = Constants.boxParameters
-    let addBoxMargin (box: BoundingBox) =
-        let boxMargin = 
-            (max box.W box.H) * boxParas.BoxMarginFraction
-            |> max boxParas.BoxMin 
-           
-        {box with
-            TopLeft = box.TopLeft - {X = boxMargin; Y = boxMargin}
-            W = box.W + boxMargin*2.
-            H = box.H + boxMargin*2.
-         }
+
     let minBox = {TopLeft = {X=100.; Y=100.}; W=100.; H=100.}
-    let boxOpt = symbolWireBBUnion model
     let sBox = 
-        Option.defaultValue minBox boxOpt
-        |> addBoxMargin
+        symbolWireBBUnion model
+        |> addBoxMargin boxParas.BoxMarginFraction boxParas.BoxMin
     let newCanvasSize = 
         max sBox.W sBox.H
         |> ((*) (1. + 2. * boxParas.CanvasBorder))
-        |> max Constants.defaultUnscaledCanvasSize
+        |> max Constants.defaultCanvasSize
     let offsetToCentreCircuit =
         {X=newCanvasSize / 2.; Y = newCanvasSize/2.} - sBox.Centre()
     let modelWithMovedCircuit =
-        {model with UnscaledCanvasSize = newCanvasSize}
+        {model with CanvasSize = newCanvasSize}
         |> moveCircuit offsetToCentreCircuit
 
     let sBox = {sBox with TopLeft = sBox.TopLeft + offsetToCentreCircuit} 
@@ -393,7 +417,8 @@ let fitCircuitToWindowParas (model:Model) =
 
 let isBBoxAllVisible model (bb: BoundingBox) =
     let edge = getScreenEdgeCoords model
-    let lh,rh,top,bottom = edge.Left,edge.Right,edge.Top,edge.Bottom
+    let z = model.Zoom
+    let lh,rh,top,bottom = edge.Left/z,edge.Right/z,edge.Top/z,edge.Bottom/z
     let bbs = standardiseBox bb
     lh < bb.TopLeft.Y && 
     top < bb.TopLeft.X && 
@@ -810,7 +835,7 @@ let displaySvgWithZoom
             dispatch <| (ManualKeyDown key.key) )
     document.onkeyup <- (fun key -> dispatch <| (ManualKeyUp key.key))
 
-    let sizeInPixels = sprintf "%.2fpx" ((model.UnscaledCanvasSize * model.Zoom))
+    let sizeInPixels = sprintf "%.2fpx" ((model.CanvasSize * model.Zoom))
 
     /// Is the mouse button currently down?
     let mDown (ev:Types.MouseEvent) = ev.buttons <> 0.
@@ -820,10 +845,10 @@ let displaySvgWithZoom
         dispatch <| MouseMsg {
             Op = op ;
             ShiftKeyDown = ev.shiftKey
-            Movement = {X= ev.movementX;Y=ev.movementY}
+            ScreenMovement = {X= ev.movementX;Y=ev.movementY}
             Pos = {
-                X = (ev.pageX + model.ScrollPos.X) / zoom  ;
-                Y = (ev.pageY - headerHeight + model.ScrollPos.Y) / zoom}
+                X = (ev.pageX + model.ScreenScrollPos.X) / zoom  ;
+                Y = (ev.pageY - headerHeight + model.ScreenScrollPos.Y) / zoom}
             }
         // dispatch <| MouseMsg {Op = op ; Pos = { X = (ev.pageX + model.ScrollPos.X) / model.Zoom  ; Y = (ev.pageY - topMenuBarHeight + model.ScrollPos.Y) / model.Zoom }}
 
@@ -853,8 +878,8 @@ let displaySvgWithZoom
             canvasDiv <- Some el
             if not (isNull el) then
                 // in case this element is newly created, set scroll position from model
-                el.scrollLeft <- model.ScrollPos.X
-                el.scrollTop <- model.ScrollPos.Y)
+                el.scrollLeft <- model.ScreenScrollPos.X
+                el.scrollTop <- model.ScreenScrollPos.Y)
           OnWheel wheelUpdate
         ]
         [

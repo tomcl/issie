@@ -493,9 +493,6 @@ let dialogPopupReductionBody inputs (dispatch: Msg -> unit) =
                 let (_,label,_) = io
                 makeElementLine [(str <| string label);toggle] [])
         div [] [
-            h1 [] [str "Reduction using Algebra"]
-            br []
-            hr []
             explanation
             hr []
             div [] toggles
@@ -503,7 +500,7 @@ let dialogPopupReductionBody inputs (dispatch: Msg -> unit) =
 
 
 let createAlgReductionPopup model dispatch =
-    let title = "Reduction Options"
+    let title = "Reduction using Algebraic Inputs"
     let inputs =
         match model.CurrentTruthTable with
         | None -> failwithf "what? No current Truth Table when reducing"
@@ -518,7 +515,7 @@ let createAlgReductionPopup model dispatch =
                 | SimIO s -> s
                 | Viewer _ -> failwithf "what? Found viewer in Truth Table inputs")
     let body = dialogPopupReductionBody inputs dispatch
-    let buttonText = "Reduce with this method"
+    let buttonText = "Apply"
     let buttonAction =
         fun (dialogData: PopupDialogData) ->
             match dialogData.AlgebraInputs with
@@ -528,5 +525,8 @@ let createAlgReductionPopup model dispatch =
                 Regenerate |> Some |> SetTTOutOfDate |> dispatch
                 dispatch ClosePopup
     let isDisabled =
-        fun (dialogData: PopupDialogData) -> false
+        fun (dialogData: PopupDialogData) ->
+            match dialogData.AlgebraInputs with
+            | None | Some [] -> true
+            | Some lst -> false
     dialogPopup title body buttonText buttonAction isDisabled dispatch

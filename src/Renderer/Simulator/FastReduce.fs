@@ -582,9 +582,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 let out1 = UnaryExp(CarryOfOp,newExp)
                 put0 <| Alg out0
                 put1 <| Alg out1
-        | Data {Dat=(Word cin); Width=_}, Data {Dat=(Word w); Width=_}, Alg exp
-        | Data {Dat=(Word cin); Width=_}, Alg exp, Data {Dat=(Word w); Width=_} ->
-            let rhs = (cin + w |> packBit).toExp
+        | Data {Dat=(Word cin); Width=_}, Data {Dat=(Word num); Width=w}, Alg exp
+        | Data {Dat=(Word cin); Width=_}, Alg exp, Data {Dat=(Word num); Width=w} ->
+            let rhs = (Data {Dat = Word (cin+num);Width = w}).toExp
             let newExp = BinaryExp(exp,AddOp,rhs)
             let out0 = UnaryExp(ValueOfOp,newExp)
             let out1 = UnaryExp(CarryOfOp,newExp)
@@ -612,12 +612,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{A}; B={b},{B}"
 
             put0 <| Data {A with Dat = outDat}
-        | Alg exp, Data {Dat=(Word num);Width=_}
-        | Data {Dat=(Word num);Width=_}, Alg exp ->
-            let minusOne =
-                match comp.OutputWidth with
-                | [|Some w|] -> (2.0**w)-1.0 |> uint32
-                | _ -> failwithf "what? NbitsXor has unexpected OutputWidth array"
+        | Alg exp, Data {Dat=(Word num);Width=w}
+        | Data {Dat=(Word num);Width=w}, Alg exp ->
+            let minusOne = (2.0**w)-1.0 |> uint32
             if num = minusOne then
                 put0 <| Alg (UnaryExp(NotOp,exp))
             else 

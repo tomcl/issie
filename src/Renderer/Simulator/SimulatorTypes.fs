@@ -256,10 +256,10 @@ let rec expToString (exp: FastAlgExp) =
     | DataLiteral {Dat=BigWord w; Width=_} -> string w
     | UnaryExp (NegOp,exp) ->
         let expStr = expToString exp
-        $"- ({expStr})"
+        $"-({expStr})"
     | UnaryExp (NotOp,exp) ->
-        expToString exp
-        |> String.collect (fun c -> (string c) + "\u203E")
+        let expStr = expToString exp
+        $"~({expStr})"
     | UnaryExp (ValueOfOp,exp) ->
         let expStr = expToString exp
         $"value({expStr})"

@@ -406,9 +406,9 @@ let truncationWarning table =
 /// Regenerate the Truth Table after applying new input constraints
 let regenerateTruthTable model (dispatch: Msg -> Unit) =
     match model.CurrentTruthTable with
-    | None -> failwithf "what? Adding constraint when no Truth Table exists"
+    | None -> failwithf "what? Regenerating when no Truth Table exists"
     | Some (Error e) ->
-        failwithf "what? Constraint add option should not exist when there is TT error"
+        failwithf "what? Input Constraint add option should not exist when there is TT error"
     | Some (Ok table) ->
         let ttRes = 
             try
@@ -433,6 +433,7 @@ let regenerateTruthTable model (dispatch: Msg -> Unit) =
         |> GenerateTruthTable
         |> dispatch
 
+        // Propagate error back up so that subsequent operations on table do not occur
         match ttRes with
         | Error e -> raise (AlgebraNotImplemented e)
         | Ok _ -> ()
@@ -932,9 +933,20 @@ let viewTruthTable model dispatch =
                     |> GenerateTruthTable
                     |> dispatch
                     HideColumn |> Some |> SetTTOutOfDate |> dispatch
-                let goBack () =
-                    dispatch ClearDCMap
-                    HideColumn |> Some |> SetTTOutOfDate |> dispatch
+                let goBackButton = 
+                    match table.DCMap, model.TTAlgebraInputs with
+                    | Some _, _::_ -> failwithf "what? Table cannot be DC Reduced and Algebraic"
+                    | Some _, [] ->
+                        (Button.button [Button.Color IsInfo; Button.OnClick (fun _ -> 
+                            dispatch ClearDCMap; HideColumn |> Some |> SetTTOutOfDate |> dispatch)]
+                        [str "Back to Full Table"])
+                    | None, _::_ ->
+                        (Button.button [Button.Color IsInfo; Button.OnClick (fun _ ->
+                            dispatch <| SetTTAlgebraInputs []
+                            dispatch <| SetPopupAlgebraInputs (Some [])
+                            Regenerate |> Some |> SetTTOutOfDate |> dispatch)]
+                        [str "Back to Numeric Table"])
+                    | None, [] -> div [] [] // Button is never displayed in this case
                 let reduceButton =
                     if table.IsTruncated then
                         let textEl = 
@@ -948,20 +960,23 @@ let viewTruthTable model dispatch =
                 let algebraButton =
                     Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> createAlgReductionPopup model dispatch)]
                         [str "Algebra"]
-                match table.DCMap with
-                | None ->
+                match table.DCMap, model.TTAlgebraInputs with
+                | None, [] -> // Table is neither DC Reduces or Algebraic
                     div [] [
-                        reduceButton
-                        algebraButton
+                        makeElementLine [reduceButton; str "   ";algebraButton] []
                         br []; br []
                         viewTruthTableData table Filtered model.TTSortType dispatch] 
-                | Some dc ->
+                | Some dc, [] -> // Table is DC Reduced
                     div [] [
-                        (Button.button [Button.Color IsInfo; Button.OnClick (fun _ -> goBack ())]
-                        [str "Back to Full Table"])
+                        goBackButton
                         br []; br []
-                        viewTruthTableData table Filtered model.TTSortType dispatch
-                    ]
+                        viewTruthTableData table Filtered model.TTSortType dispatch]
+                | None, _::_ -> // Table is Algebraic
+                    div [] [
+                        makeElementLine [goBackButton; str "   ";algebraButton] []
+                        br []; br []
+                        viewTruthTableData table Filtered model.TTSortType dispatch]
+                | Some _, _::_ -> failwithf "what? Table cannot be DC Reduced and Algebraic"
         let constraints =
             match tableopt with
             | Error _ -> div [] []

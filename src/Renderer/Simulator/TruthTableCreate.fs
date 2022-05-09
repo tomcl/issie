@@ -105,10 +105,11 @@ let inputsWithCRC (inputs: SimulationIO list) (inputConstraints: ConstraintSet) 
     let findConstrainedRowCount (tInput: TableInput) =
     // We asume that all constraints are validated on entry.
     // Therefore, there should be no overlaps.
-        match tInput.Constraints with
-        | {Equalities = []; Inequalities = []} -> tInput.MaxRowCount
-        | {Equalities = equ; Inequalities = []} -> equ.Length
-        | {Equalities = equ; Inequalities = ineq} ->
+        match tInput.Constraints, tInput.IsAlgebra with
+        | _, true -> 1
+        | {Equalities = []; Inequalities = []}, false -> tInput.MaxRowCount
+        | {Equalities = equ; Inequalities = []}, false -> equ.Length
+        | {Equalities = equ; Inequalities = ineq}, false ->
             ((0,ineq)
             ||> List.fold (fun n con -> n + con.Range))
             + equ.Length
@@ -165,11 +166,11 @@ let tableLHS
             let (_,label,_) = ti.IO
             {IO = SimIO ti.IO; Data = Algebra (string label)})
     if numInputs.IsEmpty then
-        [algRow],tCRC
+        [algRow],1
     else
         (numInputs
         |> inputCombinations
-        |> List.map (fun r -> algRow@r)), tCRC
+        |> List.map (fun r -> algRow@r)), (tCRC)
 
 /// Find the RHS (output) for every input row by simulating the input combination
 let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) viewers (simData: SimulationData): TruthTableRow =
@@ -207,7 +208,7 @@ let truthTable
     let start = TimeHelpers.getTimeMs()
     printfn "Truth Table Gen Called"
     let tempSimData =
-        match FastRun.buildFastSimulation 2 simData.Graph with
+        match FastRun.buildFastSimulation 1 simData.Graph with
         | Ok tempFS -> {simData with FastSim = tempFS}
         | _ -> failwithf "Error in building fast simulation for Truth Table evaluation"
     let inputs = List.map fst (FastRun.extractFastSimulationIOs simData.Inputs tempSimData)

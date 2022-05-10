@@ -172,7 +172,6 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
 
             Sheet SheetT.UpdateBoundingBoxes
 
-            JSDiagramMsg (SetHasUnsavedChanges false)
             // set waveSim data
             SetWaveSimModel(name, waveSim)
             (
@@ -184,7 +183,7 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
                 |> SetProject) // this message actually changes the project in model
             SetWaveSimIsOutOfDate true
             Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
-            Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
+            JSDiagramMsg (SetHasUnsavedChanges false)
             SetIsLoading false 
         
             //printfn "Check 6..."

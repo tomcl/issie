@@ -449,7 +449,7 @@ let mDragUpdate
         model, symbolCmd (SymbolT.MovePort (portId, mMsg.Pos))
     | Panning ->
         let sPos = model.ScreenScrollPos - mMsg.ScreenMovement
-        model, Cmd.ofMsg (Msg.UpdateScrollPos(sPos.X,sPos.Y))
+        model, Cmd.ofMsg (Msg.UpdateScrollPos sPos)
     | Idle 
     | InitialisedCreateComponent _ 
     | Scrolling -> model, Cmd.none
@@ -718,7 +718,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             model', 
             Cmd.batch 
                 [
-                    Cmd.ofMsg (UpdateScrollPos (paras.ScrollX, paras.ScrollY))
+                    Cmd.ofMsg (UpdateScrollPos paras.Scroll)
                     Cmd.ofMsg UpdateBoundingBoxes
                 ]
 
@@ -755,11 +755,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 , Cmd.none
         | false -> model, Cmd.none
  
-    | UpdateScrollPos (scrollX, scrollY) ->
+    | UpdateScrollPos scrollPos ->
         if model.ScrollUpdateIsOutstanding then 
             model, Cmd.none
         else
-            let scrollDif = { X = scrollX; Y = scrollY } - model.ScreenScrollPos
+            let scrollDif = scrollPos - model.ScreenScrollPos
             let newLastScrollingPos =
                 {
                  Pos =
@@ -775,7 +775,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 else
                     Cmd.none
             { model with 
-                ScreenScrollPos = { X = scrollX; Y = scrollY }
+                ScreenScrollPos = scrollPos
                 ScrollUpdateIsOutstanding = false
                 ScrollingLastMousePos = newLastScrollingPos }, 
                 cmd

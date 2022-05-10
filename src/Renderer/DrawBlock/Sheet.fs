@@ -308,6 +308,7 @@ let moveCircuit moveDelta (model: Model) =
     model
     |> Optic.map symbol_ (Symbol.moveSymbols moveDelta)
     |> Optic.map wire_ (BusWire.moveWires moveDelta)
+    |> Optic.map wire_ (BusWireUpdate.updateWireSegmentJumps [])
 
 /// get scroll and zoom paras to fit box all on screen centred and occupying as much of screen as possible
 let getWindowParasToFitBox model (box: BoundingBox)  =
@@ -319,7 +320,7 @@ let getWindowParasToFitBox model (box: BoundingBox)  =
     let xScroll = xMiddle - (rh-lh)/2.
     let yMiddle = (box.TopLeft.Y + (box.H)/2.)*magToUse
     let yScroll = yMiddle - (bottom-top)/2.
-    {|ScrollX=xScroll; ScrollY=yScroll; MagToUse=magToUse|}
+    {|Scroll={X=xScroll; Y=yScroll}; MagToUse=magToUse|}
 
 let addBoxMargin (fractionalMargin:float) (absoluteMargin:float) (box: BoundingBox) =
     let boxMargin = 
@@ -335,7 +336,7 @@ let addBoxMargin (fractionalMargin:float) (absoluteMargin:float) (box: BoundingB
 /// Check that canvas is large enough to have space all round the visible area.
 /// If not, then change model by moving circuit on canvas and/or extending canvas.
 /// Keep components in same visible position during this process.
-/// returns new model and (if needed) updated scroll position.
+/// returns new model with all positions updated if need be.
 let ensureCanvasExtendsBeyondScreen model : Model =
     let boxParas = Constants.boxParameters
     let edge = getScreenEdgeCoords model
@@ -380,6 +381,7 @@ let ensureCanvasExtendsBeyondScreen model : Model =
         |> Optic.map lastMousePos_ posDelta
         |> Optic.map lastMousePosForSnap_ posDelta
         |> Optic.map (scrollingLastMousePos_ >-> pos_) posDelta
+        
            
 
 
@@ -854,7 +856,7 @@ let displaySvgWithZoom
 
     let scrollUpdate model =
         let canvas = document.getElementById "Canvas"
-        dispatch <| UpdateScrollPos (canvas.scrollLeft, canvas.scrollTop) // Add the new scroll offset to the model
+        dispatch <| UpdateScrollPos {X=canvas.scrollLeft; Y=canvas.scrollTop} // Add the new scroll offset to the model
 
     let wheelUpdate (ev: Types.WheelEvent) =
         if Set.contains "CONTROL" model.CurrentKeyPresses then

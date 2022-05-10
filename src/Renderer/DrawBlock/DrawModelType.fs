@@ -384,7 +384,7 @@ module SheetT =
         | MouseMsg of MouseT
         | UpdateBoundingBoxes
         | UpdateSingleBoundingBox of ComponentId
-        | UpdateScrollPos of X: float * Y: float
+        | UpdateScrollPos of XYPos
         | ManualKeyUp of string // For manual key-press checking, e.g. CtrlC
         | ManualKeyDown of string // For manual key-press checking, e.g. CtrlC
         | CheckAutomaticScrolling

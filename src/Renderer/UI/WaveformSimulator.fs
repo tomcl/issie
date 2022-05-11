@@ -783,9 +783,48 @@ let waveformColumn (wsModel: WaveSimModel) : ReactElement =
         // wsModel.SVG
 
 
-let showWaveforms simData rState (model: Model) (dispatch: Msg -> unit) : ReactElement list =
-    [
-        div [] []
+let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
+    // let tableWaves, nameColMiddle, cursValsRows = waveSimViewerRows compIds model wSMod dispatch
+    div
+        [ Style
+            [ Height "calc(100% - 45px)"
+              Width "100%"
+              OverflowY OverflowOptions.Auto ] ]
+        [ div [ Style [ Height "100%" ] ]
+            [
+                waveLabelColumn model.WaveSim dispatch
+                waveformColumn model.WaveSim
+                // allWaveformsTableElement model wSMod tableWaves dispatch
+                valuesColumn (valueRows model.WaveSim)
+            ]
+        ]
+        // ((List.map (fun ramPath -> cursorValuesCol (waveSimViewerRamDisplay wSMod ramPath))
+        //     wSMod.SimParams.MoreWaves
+        // ) @ [
+        //     cursorValuesCol cursValsRows
+        //     div [ Style [ Height "100%" ] ]
+        //         [ nameLabelsCol model wSMod nameColMiddle dispatch
+        //             allWaveformsTableElement model wSMod tableWaves dispatch ] 
+        //     ]
+        // )
+
+
+
+let waveViewerPane simData rState (model: Model) (dispatch: Msg -> unit) : ReactElement list =
+    [ div 
+        [ Style
+            [ Width "calc(100% - 10px)"
+              Height "100%"
+              MarginLeft "0%"
+              MarginTop "0px"
+              OverflowX OverflowOptions.Hidden
+            ]
+        ] [
+            // closeWaveSim, radixTabs, changeClkTick
+            waveSimButtonsBar model dispatch
+            showWaveforms model dispatch
+            // viewZoomDiv
+        ]
     ]
 
     // Calls generateAllLabels, generateAllWaves, generateValuesPerClkCycle

@@ -1,4 +1,4 @@
-﻿module FastRun
+module FastRun
 open CommonTypes
 open TimeHelpers
 open SimulatorTypes
@@ -390,9 +390,8 @@ let findSimulationComponent ((cid, ap): ComponentId * ComponentId list) (sd: Sim
     | None -> failwithf "What? Can't find component %A in SimulationData" fs.FComps[cid, ap].FullName
     | Some sComp -> sComp
 
-
-
-/// return output port data from simulation
+/// return output port data from simulation as a Bit list
+/// Each element in list is one bit
 let rec extractFastSimulationOutput
     (fs: FastSimulation)
     (step: int)

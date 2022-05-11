@@ -65,17 +65,18 @@ module SymbolT =
     let orientation_ = Lens.create (fun a -> a.Orientation) (fun s a -> {a with Orientation = s})
 
     /// data here changes how the symbol looks but has no other effect
+    type ShowPorts = | ShowInput | ShowOutput | ShowBoth | ShowBothForPortMovement | ShowNone | ShowOneTouching of Port | ShowOneNotTouching of Port | ShowTarget  
+    
     type AppearanceT =
         {
-            ShowInputPorts: bool
-            ShowOutputPorts: bool
+            ShowPorts: ShowPorts
             HighlightLabel: bool
             Colour: string
             Opacity: float  
         }
 
-    let showInputPorts_ = Lens.create (fun a -> a.ShowInputPorts) (fun s a -> {a with ShowInputPorts = s})
-    let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
+    let showPorts_ = Lens.create (fun a -> a.ShowPorts) (fun s a -> {a with ShowPorts = s})
+    // let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
     let highlightLabel_ = Lens.create (fun a -> a.HighlightLabel) (fun s a -> {a with HighlightLabel = s})
     let colour_ = Lens.create (fun a -> a.Colour) (fun s a -> {a with Colour = s})
     let opacity_ = Lens.create (fun a -> a.Opacity) (fun s a -> {a with Opacity = s})
@@ -111,6 +112,8 @@ module SymbolT =
 
             /// Option to represent a port that is being moved, if it's some, it contains the moving port's Id and its current position.
             MovingPort: Option<{|PortId:string; CurrPos: XYPos|}>
+
+            MovingPortTarget: (XYPos*XYPos) option
 
         }
 
@@ -151,6 +154,7 @@ module SymbolT =
         | MoveSymbols of compList: ComponentId list * move: XYPos
         | MoveLabel of compId: ComponentId * move: XYPos
         | ShowPorts of ComponentId list
+        | ShowCustomOnlyPorts of ComponentId list
         | SelectSymbols of ComponentId list// Issie interface
         | SymbolsHaveError of sIds: ComponentId list
         | ChangeLabel of sId : ComponentId * newLabel : string
@@ -166,6 +170,7 @@ module SymbolT =
         | WriteMemoryType of ComponentId * ComponentType
         | RotateLeft of compList : ComponentId list * RotationType
         | Flip of compList: ComponentId list * orientation: FlipType
+        /// Taking the input and..
         | MovePort of portId: string * move: XYPos
         | MovePortDone of portId: string * move: XYPos
         | SaveSymbols

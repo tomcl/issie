@@ -161,7 +161,12 @@ type Wave = {
     Selected: bool
     Conns: ConnectionId list // unique within design sheet (SheetId)
     SheetId: ComponentId list // [] for top-level waveform: path to sheet
-    DisplayName:string
+    Driver: FComponentId * OutputPortNumber
+    DisplayName: string
+    Width: int
+    // List indexed by clock cycle
+    WaveValues: WireData list
+    // Store SVG cache here maybe?
 }
 
 // type WaveformSpec = {

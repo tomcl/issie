@@ -202,14 +202,14 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             let bit0 = d1.GetQUint32
             let bit1 = d1.GetQUint32
             put0 <| Data {Width=1; Dat = Word (bitOp bit1 bit0)}
-        | Alg exp1, Alg exp2 ->
-            put0 <| Alg (algOp exp1 exp2)
-        | Alg exp1, Data d ->
-            let exp2 = DataLiteral d
-            put0 <| Alg (algOp exp1 exp2)
-        | Data d, Alg exp1 ->
-            let exp2 = DataLiteral d
-            put0 <| Alg (algOp exp1 exp2)
+        | A, B ->
+            put0 <| Alg (algOp A.toExp B.toExp)
+        // | Alg exp1, Alg exp2 ->
+        //     put0 <| Alg (algOp exp1 exp2)
+        // | Alg exp1, Data d
+        // | Data d, Alg exp1 ->
+        //     let exp2 = DataLiteral d
+        //     put0 <| Alg (algOp exp1 exp2)
 
 
     /// Error checking (not required in production code) check widths are consistent

@@ -726,31 +726,62 @@ let private valuesColumn rows : ReactElement =
               BorderTop "2px solid rgb(219,219,219)"
               BorderLeft "2px solid rgb(219,219,219)" ] ] [ table [] [ tbody [] rightCol ] ]
 
-    // This is only for non-binary waveforms though.
-    let waveValuesSVG = displayValuesOnWave startCycle endCycle waveValues
+let waveformColumn (wsModel: WaveSimModel) : ReactElement =
+    let line = 
+            polyline
+                [ 
+                    SVGAttr.Stroke "blue"
+                    SVGAttr.Fill "none"
+                    SVGAttr.StrokeWidth 5//lineThickness
+                    
+                    Points "0,0 0.25,0.25 5,5 100,100"
 
-    // TODO: Combine waveValuesSVG and wavesSVG
+                //   Points (pointsToString wavePoints)
+                ]
+                []
+    printf "%A" line
+    let wholeCanvas = 100.0 //$"{max 100.0 (100.0 / model.Zoom)}" + "%"
+    // div [] []
 
-    failwithf "generateWave not implemented"
+    let waveTableRow rowClass cellClass svgClass svgChildren =
+        tr rowClass [ td cellClass [ makeSvg svgClass svgChildren ] ]
 
-let generateValues (wave: string) : int array =
-    failwithf "generateValues not implemented"
+    let lastRow = [| waveTableRow [ Class "fullHeight" ] (lwaveCell wSModel) (waveCellSvg wSModel true) bgSvg |]
 
-/// Generates the SVG for all waves
-let generateAllWaves (waves: string list) (startCycle: int) (endCycle: int) : ReactElement array array = 
-    // Iterate over each wave to generate that wave's SVG
-    waves
-    |> List.map generateValues
-    |> List.map (generateWave startCycle endCycle)
-    |> List.toArray
-    // failwithf "Not implemented"
+    table
+        [ Style [ Height "100%" ] ] 
+        [ tbody
+            [ Style [ Height "100%" ] ]
+            [
+                //top
+                //waves
+                //bottom
+            ]
+        ]
 
+    // svg [ SVGAttr.Width wholeCanvas; SVGAttr.Height wholeCanvas; SVGAttr.XmlSpace "http://www.w3.org/2000/svg" ]
+        // [
+        // // defs [] [
+        // //     pattern [
+        // //         Id "Grid"
+        // //         SVGAttr.Width $"{gridSize}"
+        // //         SVGAttr.Height $"{gridSize}"
+        // //         SVGAttr.PatternUnits "userSpaceOnUse"
+        // //     ] [
+        // //         path [
+        // //             SVGAttr.D $"M {gridSize} 0 L 0 0 0 {gridSize}"
+        // //             SVGAttr.Fill "None"
+        // //             SVGAttr.Stroke "Gray"
+        // //             SVGAttr.StrokeWidth "0.5"
+        // //             ] []
+        // //     ]
+        // // ]
+        //     // rect [SVGAttr.Width wholeCanvas; SVGAttr.Height wholeCanvas; SVGAttr.Fill "url(#Grid)"] []
+        //     line
+        //     wsModel.SVG
+        // ]
+        // wsModel.SVG
 
-let generateAllLabels waves =
-    failwithf "generateAllLabels not implemented"
-
-let generateValuesPerClkCycle waves clkCycle =
-    failwithf "generateValuesPerClkCycle not implemented"
 
 let showWaveforms simData rState (model: Model) (dispatch: Msg -> unit) : ReactElement list =
     [

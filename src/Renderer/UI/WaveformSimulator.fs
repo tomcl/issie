@@ -545,12 +545,44 @@ let generateClkCycle (startCoord: XYPos) (transition: Transition) : XYPos list =
         | ConstToChange ->
             failwithf "NonBinaryTransition not implemented"
 
-/// Generates SVG to display waveform values when there is enough space
-let displayValuesOnWave (startCycle: int) (endCycle: int) (waveValues: int array) : ReactElement =
-    // enough space means enough transitions such that the full value can be displayed before a transition occurs
-    // values can be displayed repeatedly if there is enough space
-    // try to centre the displayed values?
-    failwithf "displayValusOnWave not implemented"
+/// ReactElement of the tabs for changing displayed radix
+let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+    let radixString =
+        [ Dec,  "uDec"
+          Bin,  "Bin"
+          Hex,  "Hex"
+          SDec, "sDec" ] |> Map.ofList
+
+    let radTab rad =
+        Tabs.tab
+            [   Tabs.Tab.IsActive(wsModel.Radix = rad)
+                Tabs.Tab.Props
+                    [ Style
+                        [   Width "35px"
+                            Height "30px"
+                        ]
+                    ]
+            ] [ a [ Style
+                        [   Padding "0 0 0 0"
+                            Height "30px"
+                        ]
+                    OnClick(fun _ -> dispatch <| InitiateWaveSimulation {wsModel with Radix = rad})
+                  ] [ str (radixString[rad]) ]
+            ]
+    Tabs.tabs
+        [ Tabs.IsToggle
+          Tabs.Props
+              [ Style
+                  [ Width "140px"
+                    Height "30px"
+                    FontSize "80%"
+                    Float FloatOptions.Right
+                    Margin "0 10px 0 10px" ] ] ]
+        [ radTab Bin
+          radTab Hex
+          radTab Dec
+          radTab SDec ]
+
 
 let determineTransitions (waveValues: int array) : Transition array = 
     // waveValues

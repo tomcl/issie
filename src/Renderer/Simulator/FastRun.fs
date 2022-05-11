@@ -1,4 +1,4 @@
-module FastRun
+﻿module FastRun
 open CommonTypes
 open TimeHelpers
 open SimulatorTypes

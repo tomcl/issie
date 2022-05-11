@@ -604,7 +604,8 @@ let update (msg : Msg) oldModel =
     //         model, Cmd.none
     //     | _ -> 
     //         failwith "SetSimInProgress dispatched when getCurrFileWSMod is None"
-
+    | CloseWaveSim wsModel ->
+        {model with WaveSim = wsModel}, Cmd.none
     | SetLastSimulatedCanvasState cS ->
         { model with LastSimulatedCanvasState = cS }, Cmd.none
     | UpdateScrollPos b ->

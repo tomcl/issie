@@ -583,6 +583,14 @@ let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : React
           radTab Dec
           radTab SDec ]
 
+let waveSimButtonsBar (model: Model) (dispatch: Msg -> unit) : ReactElement = 
+    div [ Style [ Height "45px" ] ]
+        [
+            closeWaveSimButton model.WaveSim dispatch
+            // TODO:
+            // selectClkCycleButtons
+            radixButtons model.WaveSim dispatch
+        ]
 
 let determineTransitions (waveValues: int array) : Transition array = 
     // waveValues

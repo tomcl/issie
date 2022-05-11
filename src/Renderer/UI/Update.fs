@@ -1,4 +1,4 @@
-﻿module Update
+module Update
 
 open Elmish
 
@@ -575,7 +575,8 @@ let update (msg : Msg) oldModel =
     | SetIsLoading b ->
         let cmd = if b then Cmd.none else Cmd.ofMsg (Sheet (SheetT.SetSpinner false)) //Turn off spinner after project/sheet is loaded
         {model with IsLoading = b}, cmd
-    // | InitiateWaveSimulation ->
+    | InitiateWaveSimulation wsMod ->
+        setWSMod wsMod model, Cmd.none
     // | InitiateWaveSimulation (view, paras)  -> 
         // updateCurrentWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.ofMsg FinishUICmd
     //TODO

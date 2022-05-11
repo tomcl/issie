@@ -505,6 +505,12 @@ let selectWaves (model: Model) dispatch =
             ]
         ]
 
+let closeWaveSimButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+    let wsModel' = {wsModel with State = NotRunning}
+    button 
+        [Button.Color IsSuccess]
+        (fun _ -> dispatch <| CloseWaveSim wsModel')
+        "Edit waves / close simulator"
 
 
 /// Generates the points for one clock cycle of a binary or non-binary waveform

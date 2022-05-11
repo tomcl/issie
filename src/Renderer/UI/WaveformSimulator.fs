@@ -746,7 +746,7 @@ let waveformColumn (wsModel: WaveSimModel) : ReactElement =
     let waveTableRow rowClass cellClass svgClass svgChildren =
         tr rowClass [ td cellClass [ makeSvg svgClass svgChildren ] ]
 
-    let lastRow = [| waveTableRow [ Class "fullHeight" ] (lwaveCell wSModel) (waveCellSvg wSModel true) bgSvg |]
+    let lastRow = [||] //[| waveTableRow [ Class "fullHeight" ] (lwaveCell wSModel) (waveCellSvg wSModel true) bgSvg |]
 
     table
         [ Style [ Height "100%" ] ] 
@@ -1033,34 +1033,46 @@ let getWaveFromNetGroup
         (nameOf: NetGroup -> string) 
         (netGroup: NetGroup) : Wave =
     let netGroupName = nameOf netGroup
-    // let fId, opn = getFastDriver fs netGroup.driverComp netGroup.driverPort
+    let fId, opn = getFastDriver fs netGroup.driverComp netGroup.driverPort
     let driverConn = netGroup.driverNet[0].TargetConnId
     let conns =
         Map.tryFind driverConn connMap
         |> Option.defaultValue [||]
     if conns = [||] then
         printfn $"Warning: {netGroupName} has no connections"
+    // Store first 100 values of waveform
+    // TODO: Consider moving the call to this function.
+    FastRun.runFastSimulation 100 fs
+    let waveValues =
+        [ 0 .. 100]
+        |> List.map (fun i -> FastRun.extractFastSimulationOutput fs i fId opn)
     {
         WaveId = netGroupName // not unique yet - may need to be changed
         Selected = true
         Conns = List.ofArray conns
         SheetId = [] // all NetGroups are from top sheet at the moment
-        // Driver = fId,opn
+        Driver = fId, opn
         DisplayName = netGroupName
-        // Width = getFastOutputWidth fs.FComps[fId] opn
+        Width = getFastOutputWidth fs.FComps[fId] opn
+        WaveValues = waveValues
     }
 
 let getWaveFromFC (fc: FastComponent) =
     let viewerName = extractLabel fc.SimComponent.Label
+        // Store first 100 values of waveform
+    // let waveValues =
+    //     [ 0 .. 100]
+    //     |> List.map (fun i -> FastRun.extractFastSimulationOutput fs i fc.fId opn)
     {
         WaveId = viewerName // not unique yet - may need to be changed
         Selected = true
         // WType = ViewerWaveform false
         Conns = [] // don't use connection nets for Viewer (yet)
         SheetId = snd fc.fId
-        // Driver = fc.fId, OutputPortNumber 0
+        Driver = fc.fId, OutputPortNumber 0
         DisplayName = viewerName
-        // Width = getFastOutputWidth fc (OutputPortNumber 0)
+        Width = getFastOutputWidth fc (OutputPortNumber 0)
+        WaveValues = []//waveValues
     }
 
 let getWaveforms
@@ -1104,8 +1116,8 @@ let getWaveforms
     // Allports is the single reference throughout simulation of a circuit that associates names with netgroups
 
     Array.append
-        (Array.map (getWaveFromNetGroup  fastSim connMap nameOf) netGroups)
-        (Array.map getWaveFromFC viewers)
+        (Array.map (getWaveFromNetGroup fastSim connMap nameOf) netGroups)
+        [||]// (Array.map getWaveFromFC viewers)
     |> Array.groupBy (fun wave -> wave.WaveId)
     |> Array.map (fun (root, specs) -> 
         match specs with 
@@ -1151,14 +1163,13 @@ let waveSelectionPane simData reducedState (model: Model) dispatch : ReactElemen
 
 /// Entry point to the waveform simulator.
 let viewWaveSim (model: Model) dispatch : ReactElement list =
-    printf "%A" model.WaveSim.State
-    printf "%A" model.WaveSim.OutOfDate
-    printf "%A" model.WaveSim.AllWaves
-
     let simData = SimulationView.makeSimData model
     match simData with
         | None -> failwithf "simRes has value None" // IColor.IsWhite, ""
         | Some (Ok simData', reducedState) -> // IsSuccess, "Start Simulation"
+            // TODO: Add a check to see if there is synchronous data
+            // let isClocked = SynchronousUtils.hasSynchronousComponents simData.Graph
+
             match model.WaveSim.State with
             // Open waveform adder
             | NotRunning ->
@@ -1168,6 +1179,6 @@ let viewWaveSim (model: Model) dispatch : ReactElement list =
                 waveSelectionPane simData' reducedState model dispatch
             // Open waveform viewer
             | Running ->
-                showWaveforms simData' reducedState model dispatch
+                waveViewerPane simData' reducedState model dispatch
         | Some (Error e, _) -> 
             displayErrorMessage e //IsWarning, "See Problems"

@@ -95,6 +95,100 @@ let getNetSelection (canvas : CanvasState) (model : Model) =
     Array.collect selectedConnectionIds netGroups
     |> Array.toList
 
+let binaryWavePoints (clkCycle: int) (transition: BinaryTransition) : XYPos list * int =
+    let xLeft = float clkCycle * clkCycleWidth
+    let xRight = float (clkCycle + 1) * clkCycleWidth
+    let yTop = 0
+    let yBot = 10//waveHeight
+    let topL = {X = xLeft; Y = yTop}
+    let topR = {X = xRight; Y = yTop}
+    let botL = {X = xLeft; Y = yBot}
+    let botR = {X = xRight; Y = yBot}
+    // Each match condition generates a specific transition type
+    match transition with
+    | ZeroToZero ->
+        [botL; botR], clkCycle + 1
+    | ZeroToOne ->
+        [botL; topL; topR], clkCycle + 1
+    | OneToZero ->
+        [topL; botL; botR], clkCycle + 1
+    | OneToOne ->
+        [topL; topR], clkCycle + 1
+
+let nonBinaryWavePoints (clkCycle: int) (transition: NonBinaryTransition) : (XYPos list * XYPos list) * int =
+    // Use start coord to know where to start the polyline
+    let xLeft = float clkCycle * clkCycleWidth
+    let xRight = float (clkCycle + 1) * clkCycleWidth
+    let yTop = 0
+    let yBot = waveHeight
+    let topL = {X = xLeft; Y = yTop}
+    let topR = {X = xRight; Y = yTop}
+    let botL = {X = xLeft; Y = yBot}
+    let botR = {X = xRight; Y = yBot}
+    let crossHatchTop = {X = xLeft + nonBinaryTransLen; Y = yTop}
+    let crossHatchBot = {X = xLeft + nonBinaryTransLen; Y = yBot}
+    // Each match condition generates a specific transition type
+    match transition with
+    // This needs to account for different zoom levels:
+    // Can probably just look at screen size and zoom level
+    // And then scale the horizontal part accordingly
+    // When zoomed out sufficiently and values changing fast enough,
+    // The horizontal part will have length zero.
+    // May need to account for odd/even clock cycle
+    | Change ->
+        ([topL; crossHatchBot; botR], [botL; crossHatchTop; topR]), clkCycle + 1
+    | Const ->
+        ([topL; topR], [botL; botR]), clkCycle + 1
+    // | ChangeToChange
+    // | ConstToConst
+    // | ChangeToConst
+    // | ConstToChange ->
+
+
+// /// Generates the points for one clock cycle of a binary or non-binary waveform
+// /// When generating points for non-binary transitions, the start of that clock
+// /// cycle is offset to the left a bit so that the full cross-hatch of a transition
+// /// can be generated
+// let generateClkCycle (startCoord: XYPos) (clkCycle: int) (transition: Transition) : XYPos list =
+//     // Use start coord to know where to start the polyline
+//     let xLeft = float clkCycle * clkCycleWidth
+//     let xRight = float (clkCycle + 1) * clkCycleWidth
+//     let yTop = 0
+//     let yBot = waveHeight
+//     let topL = {X = xLeft; Y = yTop}
+//     let topR = {X = xRight; Y = yTop}
+//     let botL = {X = xLeft; Y = yBot}
+//     let botR = {X = xRight; Y = yBot}
+//     let crossHatchTop = {X = xLeft + nonBinaryTransLen; Y = yTop}
+//     let crossHatchBot = {X = xLeft + nonBinaryTransLen; Y = yBot}
+//     // Each match condition generates a specific transition type
+//     match transition with
+//     | BinaryTransition x ->
+//         match x with
+//         | ZeroToZero ->
+//             [botL; botR]
+//         | ZeroToOne ->
+//             [botL; topL; topR]
+//         | OneToZero ->
+//             [topL; botL; botR]
+//         | OneToOne ->
+//             [topL; topR]
+//     | NonBinaryTransition x ->
+//         // This needs to account for different zoom levels:
+//         // Can probably just look at screen size and zoom level
+//         // And then scale the horizontal part accordingly
+//         // When zoomed out sufficiently and values changing fast enough,
+//         // The horizontal part will have length zero.
+//         match x with
+//         // May need to account for odd/even clock cycle
+//         | Change ->
+//             []
+//         | Const ->
+//         // | ChangeToChange
+//         // | ConstToConst
+//         // | ChangeToConst
+//         // | ConstToChange ->
+//             failwithf "NonBinaryTransition not implemented"
 /// TODO: Test if this function actually works.
 let displayErrorMessage error =
     [ div

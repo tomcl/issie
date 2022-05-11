@@ -21,8 +21,6 @@ type BinaryTransition =
     | ZeroToOne
     | OneToZero
     | OneToOne
-    // Is this last transition really necessary?
-    | Start
 
 /// Determines whether a non-binary waveform changes value at the beginning and end of
 /// that clock cycle.

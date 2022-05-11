@@ -377,7 +377,8 @@ type Msg =
     | SetIsLoading of bool
     | SetWaveSimModel of Sheet: string * WSModel: WaveSimModel
     | WaveSimulateNow
-    | InitiateWaveSimulation
+    | InitiateWaveSimulation of WaveSimModel
+    | CloseWaveSim of WaveSimModel
     // | InitiateWaveSimulation of (WSViewT * SimParamsT)
     | SetLastSimulatedCanvasState of CanvasState option
     | StartNewWaveSimulation of CanvasState

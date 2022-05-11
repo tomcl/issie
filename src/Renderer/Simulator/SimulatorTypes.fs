@@ -301,6 +301,67 @@ let rec expToString (exp: FastAlgExp) =
         let expStr = expToString exp
         $"(({expStr}) == {string x})"
 
+let evalExp exp =
+    match exp with
+    | SingleTerm _ -> exp
+    | DataLiteral _ -> exp
+    | UnaryExp (NotOp, exp) ->
+        match evalExp exp with
+        | UnaryExp (NotOp, inner) ->
+            evalExp inner
+        | _ ->
+            let evaluated = evalExp exp
+            UnaryExp (NotOp, evaluated)
+    | UnaryExp (NegOp, UnaryExp(NegOp,exp)) ->
+        match evalExp exp with
+        | UnaryExp (NegOp, inner) ->
+            evalExp inner
+        | _ ->
+            let evaluated = evalExp exp
+            UnaryExp (NegOp, evaluated)
+    | UnaryExp (op,exp) ->
+        let evaluated = evalExp exp
+        UnaryExp (op,evaluated)
+    | BinaryExp (exp1, BitAndOp, exp2) ->
+        let left = evalExp exp1
+        let right = evalExp exp2
+        match left, right with
+        | exp, DataLiteral {Dat= Word 0u;Width=_}
+        | DataLiteral {Dat= Word 0u;Width=_}, exp ->
+            right
+        | exp, DataLiteral {Dat= Word 1u;Width=_}
+        | DataLiteral {Dat= Word 1u;Width=_}, exp ->
+            exp
+        | l,r -> BinaryExp (l,BitAndOp,r)
+    | BinaryExp (exp1, BitOrOp, exp2) ->
+        let left = evalExp exp1
+        let right = evalExp exp2
+        match left, right with
+        | exp, DataLiteral {Dat= Word 0u;Width=_}
+        | DataLiteral {Dat= Word 0u;Width=_}, exp ->
+            exp
+        | exp, DataLiteral {Dat= Word 1u;Width=_}
+        | DataLiteral {Dat= Word 1u;Width=_}, exp ->
+            right
+        | l,r -> BinaryExp (l,BitOrOp,r)
+    | BinaryExp (exp1, BitXorOp, exp2) ->
+        let left = evalExp exp1
+        let right = evalExp exp2
+        match left, right with
+        | exp, DataLiteral {Dat= Word 0u;Width=_}
+        | DataLiteral {Dat= Word 0u;Width=_}, exp ->
+            exp
+        | exp, DataLiteral {Dat= Word 1u;Width=_}
+        | DataLiteral {Dat= Word 1u;Width=_}, exp ->
+            UnaryExp (NotOp,exp)
+        | l,r -> BinaryExp (l,BitXorOp,r)
+    | BinaryExp (exp1, op, exp2) ->
+        let left = evalExp exp1
+        let right = evalExp exp2
+        BinaryExp (left, op, right)
+    | ComparisonExp (exp, Equals, x) ->
+        let evaluated = evalExp exp
+        ComparisonExp (evaluated, Equals, x)
 /// Raised when an Algebraic case is found in FastSim which has not been implemented,
 /// or does not make sense to implement.
 exception AlgebraNotImplemented of SimulationError

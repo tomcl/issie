@@ -577,7 +577,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 put1 <| Alg out1
             else
                 let cinExp = (packBit w).toExp
-                let newExp = BinaryExp(BinaryExp(exp1,AddOp,exp1),AddOp,cinExp)
+                let newExp = BinaryExp(BinaryExp(exp1,AddOp,exp2),AddOp,cinExp)
                 let out0 = UnaryExp(ValueOfOp,newExp)
                 let out1 = UnaryExp(CarryOfOp,newExp)
                 put0 <| Alg out0

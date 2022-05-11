@@ -190,6 +190,13 @@ let nonBinaryWavePoints (clkCycle: int) (transition: NonBinaryTransition) : (XYP
 //         // | ConstToChange ->
 //             failwithf "NonBinaryTransition not implemented"
 
+/// Generates SVG to display waveform values when there is enough space
+let displayValuesOnWave (startCycle: int) (endCycle: int) (waveValues: WireData list) : ReactElement =
+    // enough space means enough transitions such that the full value can be displayed before a transition occurs
+    // values can be displayed repeatedly if there is enough space
+    // try to centre the displayed values?
+    failwithf "displayValuesOnWave not implemented"
+
 let determineBinaryTransitions waveValues =
     let firstValue = List.head waveValues
     (firstValue, waveValues)

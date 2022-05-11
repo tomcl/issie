@@ -178,7 +178,7 @@ type WaveSimModel = {
     State: WaveSimState
     // List of all simulatable waves
     AllWaves: Map<string, Wave>
-    ShownWaves: Map<string, Wave>
+    // ShownWaves: Map<string, Wave>
     StartCycle: int
     EndCycle: int
     OutOfDate: bool
@@ -188,7 +188,7 @@ type WaveSimModel = {
 let initWSModel : WaveSimModel = {
     State = NotRunning
     AllWaves = Map.empty
-    ShownWaves = Map.empty
+    // ShownWaves = Map.empty
     StartCycle = 0
     EndCycle = 10
     OutOfDate = true

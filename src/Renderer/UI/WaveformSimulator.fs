@@ -592,18 +592,83 @@ let waveSimButtonsBar (model: Model) (dispatch: Msg -> unit) : ReactElement =
             radixButtons model.WaveSim dispatch
         ]
 
-let determineTransitions (waveValues: int array) : Transition array = 
-    // waveValues
-    // |> Array.map (fun val ->
+let waveLabelColumn (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement = 
+    let allWaves = wsModel.AllWaves
+    let top =
+        [| tr
+            [ Class "rowHeight" ]
+            [ 
+                th
+                    [ Class "checkboxCol" ]
+                    [ div
+                        [ Class "updownDiv" ]
+                        []
+                            // [ Button.button
+                            //     [ Button.CustomClass "updownBut"
+                            //     Button.OnClick(fun _ -> moveWave model wsMod true |> dispatch) ] [ str "▲" ]
+                            // Button.button
+                            //     [ Button.CustomClass "updownBut"
+                            //         Button.OnClick(fun _ -> moveWave model wsMod false |> dispatch) ] [ str "▼" ] 
+                            // ] 
+                        // ]
+                    ]
+                // waveAddDelBut
+            ]
+        |]
 
-    // )
-    failwithf "determineTransitions not implemented"
+    let selectedWaves =
+        Map.filter (fun _ key -> key.Selected) allWaves
+        |> Map.keys
+        |> Seq.toArray
 
-/// Generates the SVG for a specific waveform
-let generateWave (startCycle: int) (endCycle: int) (waveValues: int array) : ReactElement array =
-    // need to know type of waveValues
-    // fold or iter over each value in waveValues (i.e. once for each clock cycle)
-    // fold function generates an svg for each clock cycle? 
+    let makeLabelElements (waveNames: string array) =
+        let makeLbl l = label [ Class "waveLbl" ] [ str l ]
+        Array.map makeLbl waveNames
+
+    let labelRows = 
+        selectedWaves
+        |> makeLabelElements
+        |> Array.zip selectedWaves
+        |> Array.map (fun (name, lab) ->
+            if Map.tryFind name wsModel.AllWaves = None then
+                printfn "Help - cannot lookup %A in allwaves for label %A" name lab
+                failwithf "Terminating!"
+            tr [ Class "rowHeight" ]
+                [ td [ Class "checkboxCol" ]
+                      [ input
+                            // TODO: Fix these checkboxes
+                          [ Type "checkbox"
+                            Class "check"
+                            Checked <| isWaveSelected wsModel name
+                            Style [ Float FloatOptions.Left ]
+                            OnChange(fun _ -> toggleConnsSelect name wsModel dispatch) ] ]
+                  td
+                      [ Class "waveNamesCol"
+                        Style [ TextAlign TextAlignOptions.Right ] ] [ lab ] ])
+
+    /// Fills vertical space at bottom of label column
+    let bot =
+        [| tr
+            [ Class "fullHeight" ]
+            [
+                td
+                    [ Class "checkboxCol" ]
+                    []
+                td [] []
+            ]
+        |]
+
+    let leftCol = Array.concat [| top; labelRows; bot |]
+
+    div
+        [ Style
+            [ Float FloatOptions.Left
+              Height "100%" ]
+        ] [
+            table
+                [ Class "leftTable" ]
+                [ tbody [] leftCol ]
+        ]
 
 let getWaveValue (currClkCycle: int) (wave: Wave): int64 =
     wave.WaveValues[currClkCycle]

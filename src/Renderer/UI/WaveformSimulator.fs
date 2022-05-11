@@ -357,9 +357,9 @@ let displayErrorMessage error =
 
 /// Upon clicking the View buttonm, the wave selection pane will change to the wave viewer pane.
 let viewWaveformsButton model dispatch =
-    let waveSimModel = model.WaveSim
-    let waveEditorViewSimButtonAction =
-        let selectedWaves = Map.filter (fun _ key -> key.Selected) waveSimModel.AllWaves
+    let wsModel = model.WaveSim
+    let viewButtonAction =
+        let selectedWaves = Map.filter (fun _ key -> key.Selected) wsModel.AllWaves
 
         match Map.count selectedWaves with
         | 0 -> [ Button.IsLight; Button.Color IsSuccess ]
@@ -369,10 +369,13 @@ let viewWaveformsButton model dispatch =
                 // Button.IsLoading (showSimulationLoading wSModel dispatch)
                 Button.OnClick(fun _ ->
                     // let par' = {wSModel.SimParams with DispNames = viewableWaves }
+                    let waveSVGs = generateAllWaves selectedWaves wsModel.StartCycle wsModel.EndCycle
+                    let wsMod' = {wsModel with State = Running; SVG = waveSVGs}
+
                     let msgs = [
                         (StartUICmd ViewWaveSim)
                         ClosePropertiesNotification
-                        // InitiateWaveSimulation
+                        InitiateWaveSimulation wsMod'
                         // (InitiateWaveSimulation( WSViewerOpen, par'))
                     ]
                     dispatch (Sheet (SheetT.SetSpinner true))
@@ -381,17 +384,8 @@ let viewWaveformsButton model dispatch =
         |> (fun lst -> 
                 Button.Props [ Style [ MarginLeft "10px" ] ] :: lst)
 
-    // let refreshButtonAction =
-    //     dispatch <| 
-
-    // let refreshButton =
-    //     Button.button
-    //         [ Button.Color IsSuccess
-    //           Button.OnClick(refreshButtonAction) 
-    //         ] [ str "Close" ]
-
     div [ Style [ Display DisplayOptions.Block ] ]
-        [ Button.button waveEditorViewSimButtonAction [str "View"] ]
+        [ Button.button viewButtonAction [str "View"] ]
 
 // let selectConns (model: Model)  (conns: ConnectionId list) (dispatch: Msg -> unit) =
 //     let allConns =

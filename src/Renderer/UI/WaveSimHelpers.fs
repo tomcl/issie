@@ -649,6 +649,7 @@ let private busLabelRepeats wsMod (busLabelValAndPos: {| WaveValue: Sample; XPos
 //--------------------//
 
 /// get SVG of a single waveform for one clock cycle
+/// xInd is the clock cycle number
 let private makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * int) =
     let top = spacing
     let bot = top + sigHeight - sigLineThick

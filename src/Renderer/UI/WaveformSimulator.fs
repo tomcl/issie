@@ -326,6 +326,26 @@ let generateWave (startCycle: int) (endCycle: int) (waveName: string) (wave: Wav
     // TODO: Combine waveValuesSVG and wavesSVG
 
     // failwithf "generateWave not implemented"
+
+/// Generates the SVG for all waves
+let generateAllWaves (waves: Map<string, Wave>) (startCycle: int) (endCycle: int) : ReactElement array = 
+    // Iterate over each wave to generate that wave's SVG
+    // printf "%A" waves["C2"].WaveValues
+    // printf "%A" waves["C2"]
+
+    waves
+    |> Map.map (generateWave startCycle endCycle)
+    |> Map.values
+    |> Seq.toArray
+    // failwithf "Not implemented"
+
+
+let generateAllLabels waves =
+    failwithf "generateAllLabels not implemented"
+
+let generateValuesPerClkCycle waves clkCycle =
+    failwithf "generateValuesPerClkCycle not implemented"
+
 /// TODO: Test if this function actually works.
 let displayErrorMessage error =
     [ div

@@ -421,7 +421,8 @@ let rec extractFastSimulationOutput
             else
                 d |> fastToWire |> IData
         | Some (Alg exp) ->
-            IAlg exp
+            let evaluated = evalExp exp
+            IAlg evaluated
         
    | None ->
         // if it is a custom component output extract from the corresponding Output FastComponent

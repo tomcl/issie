@@ -189,6 +189,8 @@ type WaveSimModel = {
     OutOfDate: bool
     ReducedState: CanvasState
     SVG: ReactElement array
+    CurrClkCycle: int
+    Radix: NumberBase
 }
 
 let initWSModel : WaveSimModel = {
@@ -200,6 +202,8 @@ let initWSModel : WaveSimModel = {
     OutOfDate = true
     ReducedState = [], []
     SVG = [||]
+    CurrClkCycle = 0
+    Radix = Hex
 }
     // // generate data using this 0 clock simulation, which comes from makeSimData
     // // TODO: get rid of this and use only SimDataCache, since this is SimDataCache[0]

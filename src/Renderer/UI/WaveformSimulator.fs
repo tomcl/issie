@@ -565,13 +565,31 @@ let generateWave (startCycle: int) (endCycle: int) (waveValues: int array) : Rea
     // fold or iter over each value in waveValues (i.e. once for each clock cycle)
     // fold function generates an svg for each clock cycle? 
 
-    // TODO: How to calculate this?
-    let startCoord = {X = 0; Y = 0}
+let getWaveValue (currClkCycle: int) (wave: Wave): int64 =
+    wave.WaveValues[currClkCycle]
+    |> convertWireDataToInt
 
-    let transitions = determineTransitions waveValues
-    let wavePoints = Array.map (generateClkCycle startCoord) transitions
+/// Iterates over each selected wave to generate the SVG of the value for that wave
+let valueRows (wsModel: WaveSimModel) = 
+    let selectedWaves = Map.filter (fun _ key -> key.Selected) wsModel.AllWaves
+    selectedWaves
+    |> Map.values |> Seq.toArray
+    |> Array.map (getWaveValue wsModel.CurrClkCycle)
+    |> Array.map (valToString wsModel.Radix)
+    |> Array.map (fun value -> label [ Class "waveVals" ] [ str value ])
+    |> Array.map (fun row ->
+        tr  [ Class "rowHeight" ] 
+            [ td [ Class "waveValsCol" ] [row] ]
+    )
 
-    // Use wavePoints to generate SVG polyline
+let private valuesColumn rows : ReactElement =
+    let rightCol = Array.append [| tr [ Class "rowHeight" ] [ td [ Class "rowHeight" ] [] ] |] rows
+    div
+        [ Style
+            [ Float FloatOptions.Right
+              Height "100%"
+              BorderTop "2px solid rgb(219,219,219)"
+              BorderLeft "2px solid rgb(219,219,219)" ] ] [ table [] [ tbody [] rightCol ] ]
 
     // This is only for non-binary waveforms though.
     let waveValuesSVG = displayValuesOnWave startCycle endCycle waveValues

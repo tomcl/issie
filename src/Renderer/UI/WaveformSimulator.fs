@@ -223,6 +223,109 @@ let determineNonBinaryTransitions waveValues =
                 Change, value
         )
     |> fst
+
+let makeLinePoints style (x1, y1) (x2, y2) =
+    line
+        (List.append style 
+             [ X1 x1
+               Y1 y1
+               X2 x2
+               Y2 y2 ]) []
+
+let makeSvg style elements = svg style elements
+let makeLine style = line style []
+let makeText style t = text style [ str t ]
+
+let makePolyline style elements = polyline style elements
+
+// let makeLinePoints style (x1, y1) (x2, y2) =
+//     line
+//         (List.append style 
+//              [ X1 x1
+//                Y1 y1
+//                X2 x2
+//                Y2 y2 ]) []
+
+// let makeSigLine =
+//     makeLinePoints
+//         [ Class "sigLineStyle"
+//           Style [ Stroke("blue") ] ]
+
+let pointsToString (points: XYPos list) : string =
+    List.fold (fun str (point: XYPos) ->
+        str + string point.X + "," + string point.Y + " "
+    ) "" points
+
+/// Generates the SVG for a specific waveform
+let generateWave (startCycle: int) (endCycle: int) (waveName: string) (wave: Wave): ReactElement =
+    // need to know type of waveValues
+    // fold or iter over each value in waveValues (i.e. once for each clock cycle)
+    // fold function generates an svg for each clock cycle? 
+
+    // TODO: How to calculate this?
+    let startCoord = {X = 0; Y = 0}
+
+
+
+    // let transitions =
+    match wave.Width with
+        | 0 -> failwithf "Cannot have wave of width 0"
+        | 1 ->
+            let transitions = determineBinaryTransitions wave.WaveValues
+            let wavePoints =
+                List.mapFold binaryWavePoints startCycle transitions
+                |> fst
+                |> List.concat
+
+            printf "%A: %A" wave.DisplayName wavePoints
+
+            let line = 
+                polyline
+                    [ 
+                        SVGAttr.Stroke "blue"
+                        SVGAttr.Fill "none"
+                        SVGAttr.StrokeWidth 5// lineThickness
+                        
+                        // Points "0,0 0.25,0.25 5,5"
+
+                        Points (pointsToString wavePoints)
+                    ]
+                    []
+                    // wavePoints
+            // Generate polyline
+            line
+        | _ -> 
+            let transitions = determineNonBinaryTransitions wave.WaveValues
+            let wavePoints = List.mapFold nonBinaryWavePoints startCycle transitions
+            let line = 
+                polyline
+                    [ Style 
+                        [
+                            Stroke "blue"
+                            Fill "none"
+                            StrokeWidth lineThickness
+                            
+                        ]
+                      Points "0,0 0.25,0.25"
+                    ]
+                    []
+                    // wavePoints
+            // Generate polyline
+            line
+
+
+    // match wave.Width with
+
+    // let wavePoints = Array.map (generateClkCycle startCoord) transitions
+
+    // // Use wavePoints to generate SVG polyline
+
+    // // This is only for non-binary waveforms though.
+    // let waveValuesSVG = displayValuesOnWave startCycle endCycle waveValues
+
+    // TODO: Combine waveValuesSVG and wavesSVG
+
+    // failwithf "generateWave not implemented"
 /// TODO: Test if this function actually works.
 let displayErrorMessage error =
     [ div

@@ -26,10 +26,12 @@ type BinaryTransition =
 /// Determines whether a non-binary waveform changes value at the beginning and end of
 /// that clock cycle.
 type NonBinaryTransition =
-    | ChangeToChange
-    | ConstToConst
-    | ChangeToConst
-    | ConstToChange
+    | Change
+    | Const
+    // | ChangeToChange
+    // | ConstToConst
+    // | ChangeToConst
+    // | ConstToChange
 
 /// Waveforms can be either binary or non-binary; these have different properties.
 type Transition =
@@ -41,6 +43,11 @@ type Transition =
 /// Height of a waveform
 let waveHeight = 0.3
 let clkCycleWidth = 1.0
+let lineThickness = 0.025
+let nonBinaryTransLen = 0.1
+
+let button options func label = 
+    Button.button (List.append options [ Button.OnClick func ]) [ str label ]
 
 // TODO: Originally located in WaveSimHelpers.fs. Not really sure where this should go.
 

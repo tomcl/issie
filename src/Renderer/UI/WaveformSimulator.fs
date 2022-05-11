@@ -401,13 +401,13 @@ let viewWaveformsButton model dispatch =
 let toggleSelectAll newState model dispatch : unit =
     let waveSimModel = model.WaveSim
     let waves = Seq.toList (Map.values waveSimModel.AllWaves)
-    let conns =
-        if newState then
-            waves
-            |> List.collect (fun wave -> wave.Conns)
-        else
-            []
-    let allWaves' = Map.map (fun name wave -> {wave with Selected = newState}) waveSimModel.AllWaves
+    // let conns =
+    //     if newState then
+    //         waves
+    //         |> List.collect (fun wave -> wave.Conns)
+    //     else
+    //         []
+    let allWaves' = Map.map (fun _ wave -> {wave with Selected = newState}) waveSimModel.AllWaves
     dispatch <| SetWSMod {waveSimModel with AllWaves = allWaves'}
     // selectConns model conns dispatch
 
@@ -438,7 +438,7 @@ let selectAll (model: Model) dispatch =
           td [ Style [ FontWeight "bold" ] ] [ str "Select All" ]
         ]
 
-let toggleConnsSelect (name: string) (model: Model) (waveSimModel: WaveSimModel) (dispatch: Msg -> unit) =
+let toggleConnsSelect (name: string) (waveSimModel: WaveSimModel) (dispatch: Msg -> unit) =
     // let newState = not (isWaveSelected waveSimModel name)
     printf "toggleConnsSelect"
     let wave = waveSimModel.AllWaves[name]
@@ -455,8 +455,9 @@ let toggleConnsSelect (name: string) (model: Model) (waveSimModel: WaveSimModel)
 let checkboxAndName (name: string) (model: Model) (dispatch: Msg -> unit) =
     let waveSimModel = model.WaveSim
     let allWaves = waveSimModel.AllWaves
+    // TODO: Fix this to bold only Selected waves
     let getColorProp name  =
-        if Map.containsKey name waveSimModel.ShownWaves then
+        if Map.containsKey name waveSimModel.AllWaves then
             [FontWeight "Bold"]
         else
             []
@@ -477,7 +478,7 @@ let checkboxAndName (name: string) (model: Model) (dispatch: Msg -> unit) =
                         Class "check"
                         Checked <| isWaveSelected waveSimModel name
                         Style [ Float FloatOptions.Left ]
-                        OnChange(fun _ -> toggleConnsSelect name model waveSimModel dispatch)
+                        OnChange(fun _ -> toggleConnsSelect name waveSimModel dispatch)
                     ] 
                 ]
           td [] [ label [Style (getColorProp name)] [ str <| allWaves[name].DisplayName ] ]

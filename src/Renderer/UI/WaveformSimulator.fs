@@ -189,6 +189,33 @@ let nonBinaryWavePoints (clkCycle: int) (transition: NonBinaryTransition) : (XYP
 //         // | ChangeToConst
 //         // | ConstToChange ->
 //             failwithf "NonBinaryTransition not implemented"
+
+let determineBinaryTransitions waveValues =
+    let firstValue = List.head waveValues
+    (firstValue, waveValues)
+    ||> List.mapFold
+        (fun prev value ->
+            match prev, value with
+            | [Zero], [Zero] -> ZeroToZero, value
+            | [Zero], [One] -> ZeroToOne, value
+            | [One], [Zero] -> OneToZero, value
+            | [One], [One] -> OneToOne, value
+            | _ ->
+                failwithf "Unrecognised transition"
+        )
+    |> fst
+
+let determineNonBinaryTransitions waveValues =
+    // Use [] so that first clock cycle always starts with Change
+    ([], waveValues)
+    ||> List.mapFold
+        (fun prev value ->
+            if prev = value then
+                Const, value
+            else
+                Change, value
+        )
+    |> fst
 /// TODO: Test if this function actually works.
 let displayErrorMessage error =
     [ div

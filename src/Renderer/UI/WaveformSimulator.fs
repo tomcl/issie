@@ -518,32 +518,62 @@ let closeWaveSimButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEl
         (fun _ -> dispatch <| CloseWaveSim wsModel')
         "Edit waves / close simulator"
 
+// /// change cursor value
+// let private changeCursorPos (wsModel: WaveSimModel) dispatch newCursorPos =
+//     let pars = wsModel.SimParams
+//     let curs' = min maxLastClk newCursorPos
+//     match 0u <= curs', curs' <= pars.LastClkTime with
+//     | true, true ->
+//         wsModel
+//         |> setSimParams (fun sp -> {sp with CursorTime = curs' })
+//         |> SetWSMod |> dispatch
+//         UpdateScrollPos true |> dispatch
+//     | true, false ->
+//         let pars' = { pars with CursorTime = curs'; ClkSvgWidth = pars.ClkSvgWidth; LastClkTime = pars.LastClkTime }
+//         dispatch <| InitiateWaveSimulation(WSViewerOpen, pars')
+//         UpdateScrollPos true |> dispatch
+//     | false, _ -> ()
 
-/// Generates the points for one clock cycle of a binary or non-binary waveform
-let generateClkCycle (startCoord: XYPos) (transition: Transition) : XYPos list =
-    // Use start coord to know where to start the polyline
-    // Each match condition generates a specific transition type
-    match transition with
-    | BinaryTransition x ->
-        match x with
-        | ZeroToZero
-        | ZeroToOne
-        | OneToZero
-        | OneToOne
-        | Start ->
-            failwithf "BinaryTransition not implemented"
-    | NonBinaryTransition x ->
-        // This needs to account for different zoom levels:
-        // Can probably just look at screen size and zoom level
-        // And then scale the horizontal part accordingly
-        // When zoomed out sufficiently and values changing fast enough,
-        // The horizontal part will have length zero.
-        match x with
-        | ChangeToChange
-        | ConstToConst
-        | ChangeToConst
-        | ConstToChange ->
-            failwithf "NonBinaryTransition not implemented"
+// /// change cursor value by 1 up or down
+// let private stepClkCycle increase (wsModel: WaveSimModel) dispatch =
+//     match increase, wsModel.SimParams.CursorTime with
+//     | true, n -> n + 1u |> changeCursorPos wSMod dispatch
+//     | false, n -> n - 1u |> changeCursorPos wSMod dispatch
+
+// let clkCycleButtons (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+//     div [ Class "clkCycle" ]
+//         [ Button.button
+//             [ Button.CustomClass "cursLeft"
+//               Button.OnClick (fun _ -> stepClkCycle false wsModel dispatch)
+//             ] [ str "◀" ]
+//           Input.number
+//               [ Input.Props
+//                   [ Min 0
+//                     Class "cursor form"
+//                     SpellCheck false
+//                     Step 1 ]
+//                 Input.Id "cursor"
+//                 match currWaveSimModel model with
+//                 | Some wSMod when wSMod.CursorBoxIsEmpty = false -> 
+//                     string wSMod.SimParams.CursorTime
+//                 | Some _ -> ""
+//                 | None -> "0"
+//                 |> Input.Value 
+//                 Input.OnChange(fun c ->
+//                     match System.Int32.TryParse c.Value with
+//                     | true, n when n >= 0 -> 
+//                         { wSMod with CursorBoxIsEmpty = false }
+//                         |> SetWSMod |> dispatch
+//                         changeCursorPos wSMod dispatch <| uint n
+//                     | false, _ when c.Value = "" -> 
+//                         { wSMod with CursorBoxIsEmpty = true }
+//                         |> SetWSMod |> dispatch
+//                         changeCursorPos wSMod dispatch 0u
+//                     | _ -> 
+//                         { wSMod with CursorBoxIsEmpty = false }
+//                         |> SetWSMod |> dispatch ) ]
+//           button [ Button.CustomClass "cursRight" ] (fun _ -> stepClkCycle true wSMod dispatch) "▶"
+//         ]
 
 /// ReactElement of the tabs for changing displayed radix
 let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =

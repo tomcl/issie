@@ -101,8 +101,8 @@ let pasteSymbols (model: Model) (newBasePos: XYPos) : (Model * ComponentId list)
                 Pos = newPos
                 Appearance = 
                     {oldSymbol.Appearance with
-                        ShowInputPorts = false
-                        ShowOutputPorts = false
+                        ShowPorts = ShowNone
+                        // ShowOutputPorts = false
                 }
                 PortMaps = initCopiedPorts oldSymbol newComp
                 LabelHasDefaultPos = true
@@ -280,7 +280,7 @@ let copySymbols (model: Model) compIds =
 /// Given a model it shows all input ports and hides all output ports, then returns the updated model
 let inline showAllInputPorts (model: Model) =
     let showSymbolInPorts _ sym = 
-        Optic.map appearance_ (fun app -> {app with ShowInputPorts = true; ShowOutputPorts = false}) sym 
+        Optic.map appearance_ (fun app -> {app with ShowPorts = ShowInput}) sym 
 
     let newSymbols = 
         model.Symbols
@@ -291,7 +291,7 @@ let inline showAllInputPorts (model: Model) =
 /// Given a model it shows all output ports and hides all input ports, then returns the updated model
 let inline showAllOutputPorts (model: Model) =
     let showSymbolOutPorts _ sym = 
-        Optic.map appearance_ (fun app -> {app with ShowInputPorts = false; ShowOutputPorts = true}) sym
+        Optic.map appearance_ (fun app -> {app with ShowPorts = ShowOutput}) sym
 
     let newSymbols = 
         model.Symbols
@@ -302,7 +302,7 @@ let inline showAllOutputPorts (model: Model) =
 /// Given a model it hides all ports and returns the updated model
 let inline deleteAllPorts (model: Model) =
     let hideSymbolPorts _ sym = 
-        Optic.map appearance_ (fun app -> {app with ShowInputPorts = false; ShowOutputPorts = false}) sym
+        Optic.map appearance_ (fun app -> {app with ShowPorts = ShowNone}) sym
 
     let updatedSymbols = 
         model.Symbols
@@ -313,10 +313,10 @@ let inline deleteAllPorts (model: Model) =
 /// Given a model it shows all the specified components' ports and hides all the other ones
 let inline showPorts (model: Model) compList =
     let hideSymbolPorts _ sym =
-        Optic.map appearance_ (fun app -> {app with ShowInputPorts = false; ShowOutputPorts = false}) sym
+        Optic.map appearance_ (fun app -> {app with ShowPorts = ShowNone}) sym
 
     let showSymbolPorts sym =
-        Optic.map appearance_ (fun app -> {app with ShowInputPorts = true; ShowOutputPorts = true}) sym
+        Optic.map appearance_ (fun app -> {app with ShowPorts = ShowBoth}) sym
 
     let resetSymbols = 
         model.Symbols
@@ -332,7 +332,29 @@ let inline showPorts (model: Model) compList =
 
     { model with Symbols = newSymbols }
 
+/// Given a model it shows only the custom components of all the specified components' ports and hides all the other ones
+/// Different from the above (only custom components).
+let inline showCustomPorts (model: Model) compList =
+    let hideSymbolPorts _ sym =
+        Optic.map appearance_ (fun app -> {app with ShowPorts = ShowNone}) sym
 
+    let showSymbolPorts sym =
+        Optic.map appearance_ (fun app -> {app with ShowPorts = ShowBothForPortMovement}) sym
+
+    let resetSymbols = 
+        model.Symbols
+        |> Map.map hideSymbolPorts
+
+    let addUpdatedSymbol prevSymbols sId =
+        match resetSymbols[sId].Component.Type with
+        | Custom _ -> prevSymbols |> Map.add sId (showSymbolPorts resetSymbols[sId])
+        | _ -> prevSymbols
+    let newSymbols =
+        (resetSymbols, compList)
+        ||> List.fold addUpdatedSymbol
+
+    { model with Symbols = newSymbols }
+    
 /// Move a symbol by the amount specified by move
 let private moveSymbol (move: XYPos) (sym: Symbol) : Symbol =
     {sym with
@@ -473,8 +495,8 @@ let createSymbol ldcs prevSymbols comp =
                 LabelRotation = comp.SymbolInfo |> Option.bind (fun info -> info.LabelRotation)
                 Appearance = {
                     HighlightLabel = false
-                    ShowInputPorts = false //do not show input ports initially
-                    ShowOutputPorts = false //do not show output ports initially
+                    ShowPorts = ShowNone //do not show input ports initially
+                    // ShowOutputPorts = false //do not show output ports initially
                     Colour = "lightgray"     // initial color 
                     Opacity = 1.0
                 }
@@ -489,6 +511,7 @@ let createSymbol ldcs prevSymbols comp =
                 
                 MovingPort = None
                 IsClocked = clocked
+                MovingPortTarget = None
             }
             |> autoScaleHAndW
             |> calcLabelBoundingBox
@@ -698,26 +721,38 @@ let moveCustomPortsPopup() : ReactElement =
 
     ]
 
+   
 /// Returns an Option Edge. Returns Some edge if position is on edge of Symbol, and None if it was not on an edge
-let getCloseByEdge (sym:Symbol) (pos:XYPos) : Option<Edge> =
-    let h',w' = getRotatedHAndW sym
-    let h, w = float h', float w'
-    let symbolOffset = pos - sym.Pos
-    let (cursorRect: Rectangle) = {TopLeft = symbolOffset; BottomRight = symbolOffset}
-    let bbW = 5.
-    let edgePosLst = 
-        [
-            Top, {TopLeft = {X= 0.+bbW; Y= 0.-bbW}; BottomRight = {X= w-bbW; Y= 0.+bbW}};
-            Right, {TopLeft = {X= w-bbW; Y= 0.+bbW}; BottomRight = {X= w+bbW; Y= h-bbW}};
-            Bottom, {TopLeft = {X= 0.+bbW; Y= h-bbW}; BottomRight = {X= w-bbW; Y= h+bbW}};
-            Left, {TopLeft = {X= 0.-bbW; Y= 0.+bbW}; BottomRight = {X= 0.+bbW; Y= h-bbW}};
-        ]
-    let closeByEdges = List.filter (fun (edge, rect) -> (rectanglesIntersect cursorRect rect))  edgePosLst
-    match closeByEdges with
-    | [] -> None
-    | lst -> Some (fst lst[0])
-
-// need a function that takes in the position on the edge and returns the index on that edge
+/// Separates the symbol as shown below where the two triangles have height = 0.3*symbolHeight
+// |-----------|
+// |\   TOP   /|
+// |  \     /  |       
+// |    \ /    |
+// |LEFT |     |
+// |     |RIGHT|
+// |    / \    |
+// |  /     \  |
+// |/ BOTTOM  \|
+// |-----------|
+let getCloseByEdge (sym:Symbol) (mousePos:XYPos) : Option<Edge> =
+    let h,w = getRotatedHAndW sym
+    let triangleCorner = {X=w/2.;Y=h*0.3}
+    let tanTheta = triangleCorner.Y/triangleCorner.X 
+    let mouseOffset = mousePos - sym.Pos
+    let minX = min (abs mouseOffset.X) (abs w-mouseOffset.X)
+    let outMargin = 60.  //how many pixels outside the symbol the port can be when moving it
+    
+    // Top Edge
+    if ((-outMargin <= mouseOffset.Y) && (mouseOffset.Y <= (minX*tanTheta)) && ((-outMargin <= mouseOffset.X)) && ((w+outMargin) >= mouseOffset.X)) then Some Top
+    // Bottom Edge
+    elif (((h+outMargin) >= mouseOffset.Y) && (mouseOffset.Y >= (h - minX*tanTheta)) && ((-outMargin <= mouseOffset.X)) && ((w+outMargin) >= mouseOffset.X)) then Some Bottom
+    // Away from symbol -> None
+    elif ((-outMargin >= mouseOffset.Y) ||  ((h+outMargin) <= mouseOffset.Y) || (-outMargin >= mouseOffset.X) ||  ((w+outMargin) <= mouseOffset.X)) then None
+    // Left Edge
+    elif (-outMargin <= mouseOffset.X) && (mouseOffset.X <= (w/2.0)) then Some Left
+    // Right Edge
+    elif ((w+outMargin) >= mouseOffset.X) && (mouseOffset.X > (w/2.0)) then Some Right
+    else None
 
 ///Given a symbol and a port, it returns the offset of the port from the top left corner of the symbol
 let getPosIndex (sym: Symbol) (pos: XYPos) (edge: Edge): int =
@@ -840,8 +875,138 @@ let storeLayoutInfoInComponent _ symbol =
 let checkSymbolIntegrity (sym: Symbol) =
     failwithf ""
 
+/// Contains the code for the MovePort update msg
+let movePortUpdate (model:Model) (portId:string) (pos:XYPos) : Model*Cmd<'a> =
+    
+    /// Get a port's position given the symbol, the side the port is on, the number of ports on that side and the index of the port on that side  
+    let getPortPosWithIndex (sym: Symbol) portsNumber side portIndex: XYPos =
+        let index = float(portIndex)
+        let gap = getPortPosEdgeGap sym.Component.Type 
+        let topBottomGap = gap + 0.3 // extra space for clk symbol
+        let baseOffset = getPortBaseOffset sym side  //offset of the side component is on
+        let baseOffset' = baseOffset + getMuxSelOffset sym side
+        let portDimension = float portsNumber - 1.0
+        let h,w = getRotatedHAndW sym
+        match side with
+        | Left ->
+            let yOffset = float h * ( index + gap )/(portDimension + 2.0*gap)
+            baseOffset' + {X = 0.0; Y = yOffset }
+        | Right -> 
+            let yOffset = float h * (portDimension - index + gap )/(portDimension + 2.0*gap)
+            baseOffset' + {X = 0.0; Y = yOffset }
+        | Bottom -> 
+            let xOffset = float  w * (index + topBottomGap)/(portDimension + 2.0*topBottomGap)
+            baseOffset' + {X = xOffset; Y = 0.0 }
+        | Top ->
+            let xOffset = float w * (portDimension - index + topBottomGap)/(portDimension + 2.0*topBottomGap)
+            baseOffset' + {X = xOffset; Y = 0.0 }
+    
+    /// Helper function to get the X or Y offset of the Moving Port target, when the target is on the same side the port was before 
+    let findOffsetSameEdge (symbol:Symbol) edge =
+        let portsOnEdge = List.length symbol.PortMaps.Order[edge]
+        if portsOnEdge = 1 then 0.0
+        elif portsOnEdge = 2 then
+            match edge with
+            |Bottom -> ((getPortPosWithIndex symbol 2 edge 0).X)/2.0
+            |Top -> (-(getPortPosWithIndex symbol 2 edge 1).X)/2.0
+            |Left -> ((getPortPosWithIndex symbol 2 edge 0).Y)/2.0
+            |Right -> (-(getPortPosWithIndex symbol 2 edge 1).Y)/2.0
+        elif portsOnEdge > 2 then
+            match edge with
+            |Bottom |Top -> ((getPortPosWithIndex symbol portsOnEdge edge 1).X - (getPortPosWithIndex symbol portsOnEdge edge 0).X)/2.0
+            | _ -> ((getPortPosWithIndex symbol portsOnEdge edge 1).Y - (getPortPosWithIndex symbol portsOnEdge edge 0).Y)/2.0 
+        else 0.0
+
+    /// Helper function to get the X or Y offset of the Moving Port target, when the target is NOT on the same side the port was before        
+    let findOffsetDifferentEdge (symbol:Symbol) edge order=
+        let portsOnEdge = List.length symbol.PortMaps.Order[edge]
+        if portsOnEdge = 0 then 
+            match edge with
+            | Top | Bottom -> ((snd (getRotatedHAndW symbol))/2.0 )
+            | _ -> ((fst (getRotatedHAndW symbol))/2.0 )
+        
+        elif portsOnEdge=1 then
+            let basic = getPortPosWithIndex symbol 1 edge 0
+            let xORy = match edge with | Top | Bottom -> basic.X | _ -> basic.Y
+            match (order,edge) with
+            |(0,Bottom) | (0,Left) | (1,Top) | (1,Right) -> xORy/2.0
+            | _ -> xORy*3.0/2.0
+        
+        elif (portsOnEdge>=2 && ((order=0) || (order=portsOnEdge)) ) then
+            let (h,w) = (getRotatedHAndW symbol)
+            let firstPortPos = getPortPosWithIndex symbol portsOnEdge edge 0
+            let lastPortPos = getPortPosWithIndex symbol portsOnEdge edge (portsOnEdge-1)
+            let firstPortXorY = match edge with |Top |Bottom -> firstPortPos.X | _ -> firstPortPos.Y 
+            let lastPortXorY = match edge with | Top | Bottom ->  lastPortPos.X | _ -> lastPortPos.Y
+            let hORw = match edge with | Top | Bottom -> snd (getRotatedHAndW symbol) |_ -> fst (getRotatedHAndW symbol)
+            match (order,edge) with
+            |(0,Bottom) |(0,Left) -> firstPortXorY/2.0
+            |(0,_) -> (hORw + firstPortXorY)/2.0 
+            |(portsOnEdge,Bottom) | (portsOnEdge,Left) -> (hORw+lastPortXorY)/2.0
+            |(portsOnEdge,_) -> lastPortXorY/2.0
+        
+        else 
+            if ((edge=Top) || (edge=Bottom)) then ((getPortPosWithIndex symbol portsOnEdge edge (order-1)).X + (getPortPosWithIndex symbol portsOnEdge edge order).X)/2.0
+            else ((getPortPosWithIndex symbol portsOnEdge edge (order-1)).Y + (getPortPosWithIndex symbol portsOnEdge edge order).Y)/2.0
+        
+
+    /// Find the position of the target Port given the old/new edge and old/new order
+    let findTargetPos (port:Port) (symbol:Symbol) = 
+        let tempSymbol = updatePortPos symbol pos port.Id
+        let oldEdge = symbol.PortMaps.Orientation[port.Id]
+        let oldOrder = List.findIndex (fun elem -> elem = port.Id) symbol.PortMaps.Order[oldEdge]
+        let newEdge = tempSymbol.PortMaps.Orientation[port.Id]
+        let newOrder = List.findIndex (fun elem -> elem = port.Id) tempSymbol.PortMaps.Order[newEdge]
+        let newPortPos = Symbol.getPortPos tempSymbol port
+        
+        let x = 
+            match newEdge with
+            | Right -> snd (getRotatedHAndW symbol)
+            | _ -> newPortPos.X
+        let y = 
+            match newEdge with
+            | Bottom -> fst (getRotatedHAndW symbol)
+            | _ -> newPortPos.Y
+        
+        if newEdge = oldEdge then
+            let diff = findOffsetSameEdge symbol newEdge
+            if (newEdge = Top) || (newEdge = Bottom) then
+                if oldOrder < newOrder then ({X=x+diff;Y=y},pos)
+                elif oldOrder = newOrder then ({X=x;Y=y},pos)
+                else ({X=x-diff;Y=y},pos)
+            else
+                if oldOrder < newOrder then ({X=x;Y=y+diff},pos)
+                elif oldOrder = newOrder then ({X=x;Y=y},pos)
+                else ({X=x;Y=y-diff},pos)      
+        else 
+            let diff = findOffsetDifferentEdge symbol newEdge newOrder
+            if (newEdge = Top) || (newEdge = Bottom) then ({X=diff;Y=y},pos)
+            else ({X=x;Y=diff},pos)
+    
+    /// return the correctly parameterised symbol given the edge the moving port is (or isn't) on
+    let isTouchingEdge port symId oldSymbol = 
+        match getCloseByEdge oldSymbol pos with
+        | None -> 
+            let newSymbol = {oldSymbol with MovingPort = Some {|PortId = portId; CurrPos = pos|}; MovingPortTarget = None; Appearance = {oldSymbol.Appearance with ShowPorts = ShowOneNotTouching port}}
+            Optic.set (symbolOf_ symId) newSymbol model, Cmd.none            
+        | Some edge -> 
+            let target = Some (findTargetPos port oldSymbol)  
+            let newSymbol = {oldSymbol with MovingPort = Some {|PortId = portId; CurrPos = pos|}; MovingPortTarget = target; Appearance = {oldSymbol.Appearance with ShowPorts = ShowOneTouching port}}
+            Optic.set (symbolOf_ symId) newSymbol model, Cmd.none
+    
+    let port = model.Ports[portId]
+    let symId = ComponentId port.HostId
+    let oldSymbol = model.Symbols[symId]
+    match oldSymbol.Component.Type with
+    | Custom _ -> isTouchingEdge port symId oldSymbol
+    | _ -> model, Cmd.none 
+
+
+
+
+
 /// Update function which displays symbols
-let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
+let update (msg : Msg) (model : Model): Model*Cmd<'a>  =     
     match msg with
     | UpdateBoundingBoxes ->
         // message used to update symbol bounding boxes in sheet.
@@ -868,6 +1033,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | ShowPorts compList ->
         (showPorts model compList), Cmd.none
 
+    | ShowCustomOnlyPorts compList ->
+        (showCustomPorts model compList), Cmd.none
     | MoveSymbols (compList, move) -> 
         (moveSymbols model compList move), Cmd.none
 
@@ -928,20 +1095,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | Flip(compList, orientation) ->
         (transformSymbols (flipSymbol orientation) model compList), Cmd.none
 
-    | MovePort (portId, pos) ->
-        let port = model.Ports[portId]
-        let symId = ComponentId port.HostId
-        let oldSymbol = model.Symbols[symId]
-        match oldSymbol.Component.Type with
-        | Custom _ -> 
-            let newSymbol = {oldSymbol with MovingPort = Some {|PortId = portId; CurrPos = pos|}}
-            Optic.set (symbolOf_ symId) newSymbol model, Cmd.none
-        | _ -> model, Cmd.none
+    | MovePort (portId, pos) ->      
+        movePortUpdate model portId pos
+
     | MovePortDone (portId, pos)->
         let port = model.Ports[portId]
         let symId = ComponentId port.HostId
         let oldSymbol = model.Symbols[symId]
-        let newSymbol = updatePortPos oldSymbol pos portId
+        let newSymbol = {(updatePortPos oldSymbol pos portId) with MovingPortTarget = None}
         Optic.set (symbolOf_ symId) newSymbol model, Cmd.ofMsg (unbox UpdateBoundingBoxes)
     | SaveSymbols -> // want to add this message later, currently not used
         let newSymbols = Map.map storeLayoutInfoInComponent model.Symbols

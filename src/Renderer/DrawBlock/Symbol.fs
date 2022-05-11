@@ -577,6 +577,7 @@ let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:stri
     makeComponent' props label
 
 
+
 /// Function to generate a new symbol
 let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) =
     let id = JSHelpers.uuid ()
@@ -591,8 +592,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       Appearance =
           {
             HighlightLabel = false
-            ShowInputPorts = false
-            ShowOutputPorts = false
+            ShowPorts = ShowNone
             Colour = "lightgray"
             Opacity = 1.0
           }
@@ -605,6 +605,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       STransform = transform
       MovingPort = None
       IsClocked = isClocked [] ldcs comp
+      MovingPortTarget = None
     }
     |> autoScaleHAndW
     |> calcLabelBoundingBox
@@ -737,8 +738,13 @@ let private addStyledText (style:Text) (pos: XYPos) (name: string) =
     makeText pos.X pos.Y name style
 
 /// Generate circles on ports
-let inline private portCircles (pos: XYPos) = 
-    [makeCircle pos.X pos.Y portCircle]
+let inline private portCircles (pos: XYPos) (show:ShowPorts)= 
+    match show with
+    |ShowBothForPortMovement -> [makeCircle pos.X pos.Y {portCircle with Fill="Blue"}]
+    |ShowOneTouching _ -> [makeCircle pos.X pos.Y {portCircle with Fill="Blue"}]
+    |ShowOneNotTouching _ -> [makeCircle pos.X pos.Y {portCircle with Fill="Red"}]
+    |ShowTarget -> [makeCircle pos.X pos.Y portCircleTarget; ]
+    |_ -> [makeCircle pos.X pos.Y portCircle]
 
 /// Puts name on ports
 let private portText (pos: XYPos) name edge =
@@ -756,6 +762,7 @@ let private portText (pos: XYPos) name edge =
             | _ -> "middle"
     (addText pos' name align Constants.portTextWeight Constants.portTextSize)
 
+
 /// Print the name of each port 
 let private drawPortsText (portList: list<Port>) (listOfNames: list<string>) (symb: Symbol) = 
     let getPortName name x = portText (getPortPosToRender symb portList[x]) name (symb.PortMaps.Orientation[portList.[x].Id])
@@ -767,11 +774,25 @@ let private drawPortsText (portList: list<Port>) (listOfNames: list<string>) (sy
         |> List.collect id
 
 /// Function to draw ports using getPortPos. The ports are equidistant     
-let private drawPorts (portList: Port List) (printPorts:bool) (symb: Symbol)= 
-    if not (portList.Length < 1) && printPorts 
-    then [0..(portList.Length-1)] |> List.collect (fun x -> (portCircles (getPortPosToRender symb portList[x])))
+let private drawPorts (portType: PortType) (portList: Port List) (printPorts:ShowPorts) (symb: Symbol)= 
+    if not (portList.Length < 1)
+    then 
+        match (printPorts,portType) with
+        |(ShowBoth,_) |(ShowInput,PortType.Input) |(ShowOutput,PortType.Output) -> [0..(portList.Length-1)] |> List.collect (fun x -> (portCircles (getPortPosToRender symb portList[x]) ShowBoth ))  
+        |(ShowBothForPortMovement,_) -> [0..(portList.Length-1)] |> List.collect (fun x -> (portCircles (getPortPosToRender symb portList[x]) ShowBothForPortMovement ))  
+        |(ShowOneTouching p, _) -> [0..(portList.Length-1)] |> List.collect (fun x -> if portList[x] = p then (portCircles (getPortPosToRender symb portList[x]) (ShowOneTouching p) ) else (portCircles (getPortPosToRender symb portList[x]) ShowNone ))
+        |(ShowOneNotTouching p, _) -> [0..(portList.Length-1)] |> List.collect (fun x -> if portList[x] = p then (portCircles (getPortPosToRender symb portList[x])  (ShowOneNotTouching p) ) else (portCircles (getPortPosToRender symb portList[x]) ShowNone ))
+        |(_,_) -> []
     else []
 
+/// Function to draw the Target of a Moving Port (if there is one)
+let private drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoints = 
+    match pos with
+    |None -> []
+    |Some (targetPos,mousePos) -> 
+        (portCircles targetPos ShowTarget) 
+        |> List.append ([makeLine targetPos.X targetPos.Y (mousePos.X-symbol.Pos.X) (mousePos.Y-symbol.Pos.Y) {defaultLine with Stroke="Blue"; StrokeWidth="2.0px" ;StrokeDashArray="4,4"}])
+        |> List.append [makePolygon outlinePoints {defaultPolygon with Fill = "No"; FillOpacity = 0.0; Stroke = "Blue"; StrokeWidth="2px"}] 
 //------------------------------HELPER FUNCTIONS FOR DRAWING SYMBOLS-------------------------------------
 let private createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]
@@ -841,8 +862,8 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
 let drawSymbol (symbol:Symbol) =
     let appear = symbol.Appearance
     let colour = appear.Colour
-    let showInputPorts = appear.ShowInputPorts
-    let showOutputPorts = appear.ShowOutputPorts
+    let showPorts = appear.ShowPorts
+    // let showOutputPorts = appear.ShowOutputPorts
     let opacity = appear.Opacity
     let comp = symbol.Component
     let h,w = getRotatedHAndW symbol
@@ -1069,8 +1090,8 @@ let drawSymbol (symbol:Symbol) =
 
    
     // Put everything together 
-    (drawPorts comp.OutputPorts showOutputPorts symbol)
-    |> List.append (drawPorts comp.InputPorts showInputPorts symbol)
+    (drawPorts PortType.Output comp.OutputPorts showPorts symbol)
+    |> List.append (drawPorts PortType.Input comp.InputPorts showPorts symbol)
     |> List.append (drawPortsText (comp.InputPorts @ comp.OutputPorts) (portNames comp.Type) symbol)
     |> List.append (addLegendText 
                         (legendOffset w h symbol) 
@@ -1080,7 +1101,10 @@ let drawSymbol (symbol:Symbol) =
                         (legendFontSize comp.Type))
     |> List.append (addComponentLabel comp transform labelcolour)
     |> List.append (additions)
+    |> List.append (drawMovingPortTarget symbol.MovingPortTarget symbol points)
     |> List.append (createBiColorPolygon points colour outlineColour opacity strokeWidth)
+
+
 
 let init () = 
     { 

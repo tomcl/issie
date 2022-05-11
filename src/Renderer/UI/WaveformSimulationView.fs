@@ -422,7 +422,11 @@ let private nameLabelsCol model (wsMod: WaveSimModel) labelRows (dispatch: Msg -
     div
         [ Style
             [ Float FloatOptions.Left
-              Height "100%" ] ] [ table [ Class "leftTable" ] [ tbody [] leftCol ] ]
+              Height "100%" ]
+        ] [ table
+            [ Class "leftTable" ]
+            [ tbody [] leftCol ]
+        ]
 
 /// ReactElement of the waveform SVGs' column
 let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRows dispatch =
@@ -492,13 +496,15 @@ let private viewWaveformViewer compIds model wSMod (dispatch: Msg -> unit) =
             [ Height "calc(100% - 45px)"
               Width "100%"
               OverflowY OverflowOptions.Auto ] ]
-        ((List.map (fun ramPath -> cursorValuesCol (waveSimViewerRamDisplay wSMod ramPath)) wSMod.SimParams.MoreWaves) @
-        [
-          cursorValuesCol cursValsRows
-          div [ Style [ Height "100%" ] ]
-              [ nameLabelsCol model wSMod nameColMiddle dispatch
-                allWaveformsTableElement model wSMod tableWaves dispatch ] 
-        ])
+        ((List.map (fun ramPath -> cursorValuesCol (waveSimViewerRamDisplay wSMod ramPath))
+            wSMod.SimParams.MoreWaves
+        ) @ [
+            cursorValuesCol cursValsRows
+            div [ Style [ Height "100%" ] ]
+                [ nameLabelsCol model wSMod nameColMiddle dispatch
+                    allWaveformsTableElement model wSMod tableWaves dispatch ] 
+            ]
+        )
 
 /// ReactElement of the zoom buttons
 let private viewZoomDiv compIds model wSMod dispatch =

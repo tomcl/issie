@@ -190,6 +190,7 @@ type WaveSimModel = {
     ReducedState: CanvasState
     SVG: ReactElement array
     CurrClkCycle: int
+    ClkCycleBoxIsEmpty: bool
     Radix: NumberBase
 }
 
@@ -203,6 +204,7 @@ let initWSModel : WaveSimModel = {
     ReducedState = [], []
     SVG = [||]
     CurrClkCycle = 0
+    ClkCycleBoxIsEmpty = false
     Radix = Hex
 }
     // // generate data using this 0 clock simulation, which comes from makeSimData

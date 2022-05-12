@@ -1,3 +1,6 @@
+# New Output Folder
+build/
+
 # Output folder
 app/*.eot
 app/*.svg

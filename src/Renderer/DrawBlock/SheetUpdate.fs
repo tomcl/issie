@@ -714,6 +714,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | KeyPress CtrlW ->
             let model', paras = fitCircuitToWindowParas model
+            match canvasDiv with
+            | Some el ->
+                el.scrollLeft <- paras.Scroll.X
+                el.scrollTop <- paras.Scroll.Y
+            | None -> ()
             model', 
             Cmd.batch 
                 [

@@ -593,34 +593,39 @@ let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : React
           SDec, "sDec" ] |> Map.ofList
 
     let radTab rad =
-        Tabs.tab
-            [   Tabs.Tab.IsActive(wsModel.Radix = rad)
-                Tabs.Tab.Props
-                    [ Style
-                        [   Width "35px"
-                            Height "30px"
-                        ]
-                    ]
-            ] [ a [ Style
-                        [   Padding "0 0 0 0"
-                            Height "30px"
-                        ]
-                    OnClick(fun _ -> dispatch <| InitiateWaveSimulation {wsModel with Radix = rad})
-                  ] [ str (radixString[rad]) ]
-            ]
-    Tabs.tabs
-        [ Tabs.IsToggle
-          Tabs.Props
-              [ Style
-                  [ Width "140px"
+        Tabs.tab [
+            Tabs.Tab.IsActive(wsModel.Radix = rad)
+            Tabs.Tab.Props
+                [ Style [
+                    Width "35px"
                     Height "30px"
-                    FontSize "80%"
-                    Float FloatOptions.Right
-                    Margin "0 10px 0 10px" ] ] ]
-        [ radTab Bin
-          radTab Hex
-          radTab Dec
-          radTab SDec ]
+                ] ]
+        ] [ a [
+            Style [
+                Padding "0 0 0 0"
+                Height "30px"
+            ]
+            OnClick(fun _ -> dispatch <| InitiateWaveSimulation {wsModel with Radix = rad})
+            ] [ str (radixString[rad]) ]
+        ]
+
+    Tabs.tabs [
+        Tabs.IsToggle
+        Tabs.Props [
+            Style [
+                Width "140px"
+                Height "30px"
+                FontSize "80%"
+                Float FloatOptions.Right
+                Margin "0 10px 0 10px"
+            ]
+        ]
+    ] [
+        radTab Bin
+        radTab Hex
+        radTab Dec
+        radTab SDec
+    ]
 
 let waveSimButtonsBar (model: Model) (dispatch: Msg -> unit) : ReactElement = 
     div [ Style [ Height "45px" ] ]

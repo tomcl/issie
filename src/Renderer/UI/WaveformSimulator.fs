@@ -286,7 +286,7 @@ let generateWave (startCycle: int) (endCycle: int) (waveName: string) (wave: Wav
                 |> fst
                 |> List.concat
 
-            printf "%A: %A" wave.DisplayName wavePoints
+            // printf "%A: %A" wave.DisplayName wavePoints
 
             let line = 
                 polyline
@@ -388,7 +388,9 @@ let viewWaveformsButton model dispatch =
                         // (InitiateWaveSimulation( WSViewerOpen, par'))
                     ]
                     dispatch (Sheet (SheetT.SetSpinner true))
-                    dispatch <| SendSeqMsgAsynch msgs)
+                    dispatch <| SendSeqMsgAsynch msgs
+                    dispatch FinishUICmd
+                )
             ]
         |> (fun lst -> 
                 Button.Props [ Style [ MarginLeft "10px" ] ] :: lst)
@@ -752,7 +754,7 @@ let waveformColumn (wsModel: WaveSimModel) : ReactElement =
                 //   Points (pointsToString wavePoints)
                 ]
                 []
-    printf "%A" line
+    // printf "%A" line
     let wholeCanvas = 100.0 //$"{max 100.0 (100.0 / model.Zoom)}" + "%"
     // div [] []
 

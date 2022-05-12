@@ -519,7 +519,7 @@ let selectWaves (model: Model) dispatch =
 let closeWaveSimButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     let wsModel' = {wsModel with State = NotRunning}
     button 
-        [Button.Color IsSuccess]
+        [Button.Color IsSuccess; Button.Props [closeWaveSimButtonStyle]]
         (fun _ -> dispatch <| CloseWaveSim wsModel')
         "Edit waves / close simulator"
 

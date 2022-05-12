@@ -45,6 +45,9 @@ let clkCycleWidth = 1.0
 let lineThickness = 0.025
 let nonBinaryTransLen = 0.1
 
+/// TODO: Remove this limit. This stops the waveform simulator moving past 500 clock cycles.
+let maxLastClk = 500
+
 let button options func label = 
     Button.button (List.append options [ Button.OnClick func ]) [ str label ]
 
@@ -518,62 +521,66 @@ let closeWaveSimButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEl
         (fun _ -> dispatch <| CloseWaveSim wsModel')
         "Edit waves / close simulator"
 
-// /// change cursor value
-// let private changeCursorPos (wsModel: WaveSimModel) dispatch newCursorPos =
-//     let pars = wsModel.SimParams
-//     let curs' = min maxLastClk newCursorPos
-//     match 0u <= curs', curs' <= pars.LastClkTime with
-//     | true, true ->
-//         wsModel
-//         |> setSimParams (fun sp -> {sp with CursorTime = curs' })
-//         |> SetWSMod |> dispatch
-//         UpdateScrollPos true |> dispatch
-//     | true, false ->
-//         let pars' = { pars with CursorTime = curs'; ClkSvgWidth = pars.ClkSvgWidth; LastClkTime = pars.LastClkTime }
-//         dispatch <| InitiateWaveSimulation(WSViewerOpen, pars')
-//         UpdateScrollPos true |> dispatch
-//     | false, _ -> ()
+/// Set clock cycle number
+let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkCycle: int) : unit =
+    let newClkCycle' = min maxLastClk newClkCycle
+    if newClkCycle' < 0 then ()
+    else if newClkCycle' <= wsModel.EndCycle then
+        dispatch <| SetWSMod {wsModel with CurrClkCycle = newClkCycle'; ClkCycleBoxIsEmpty = false }
+        // dispatch <| UpdateScrollPos true
+    else
+        dispatch <| InitiateWaveSimulation
+            {wsModel with
+                CurrClkCycle = newClkCycle'
+                EndCycle = newClkCycle'
+                ClkCycleBoxIsEmpty = false
+            }
+        // dispatch <| UpdateScrollPos true
 
-// /// change cursor value by 1 up or down
-// let private stepClkCycle increase (wsModel: WaveSimModel) dispatch =
-//     match increase, wsModel.SimParams.CursorTime with
-//     | true, n -> n + 1u |> changeCursorPos wSMod dispatch
-//     | false, n -> n - 1u |> changeCursorPos wSMod dispatch
+/// Increment or decrement clock cycle number
+let private stepClkCycle (increase: bool) (wsModel: WaveSimModel) (dispatch: Msg -> unit) : unit =
+    let newClkCycle =
+        if increase then wsModel.CurrClkCycle + 1
+        else wsModel.CurrClkCycle - 1
+    setClkCycle wsModel dispatch newClkCycle
 
-// let clkCycleButtons (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-//     div [ Class "clkCycle" ]
-//         [ Button.button
-//             [ Button.CustomClass "cursLeft"
-//               Button.OnClick (fun _ -> stepClkCycle false wsModel dispatch)
-//             ] [ str "◀" ]
-//           Input.number
-//               [ Input.Props
-//                   [ Min 0
-//                     Class "cursor form"
-//                     SpellCheck false
-//                     Step 1 ]
-//                 Input.Id "cursor"
-//                 match currWaveSimModel model with
-//                 | Some wSMod when wSMod.CursorBoxIsEmpty = false -> 
-//                     string wSMod.SimParams.CursorTime
-//                 | Some _ -> ""
-//                 | None -> "0"
-//                 |> Input.Value 
-//                 Input.OnChange(fun c ->
-//                     match System.Int32.TryParse c.Value with
-//                     | true, n when n >= 0 -> 
-//                         { wSMod with CursorBoxIsEmpty = false }
-//                         |> SetWSMod |> dispatch
-//                         changeCursorPos wSMod dispatch <| uint n
-//                     | false, _ when c.Value = "" -> 
-//                         { wSMod with CursorBoxIsEmpty = true }
-//                         |> SetWSMod |> dispatch
-//                         changeCursorPos wSMod dispatch 0u
-//                     | _ -> 
-//                         { wSMod with CursorBoxIsEmpty = false }
-//                         |> SetWSMod |> dispatch ) ]
-//           button [ Button.CustomClass "cursRight" ] (fun _ -> stepClkCycle true wSMod dispatch) "▶"
-//         ]
+let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+    div [ clkCycleButtonStyle ]
+        [
+            button [ Button.Props [clkCycleLeftStyle] ] (fun _ -> stepClkCycle false wsModel dispatch) "◀"
+            Input.number [
+                Input.Props [
+                    Min 0
+                    clkCycleInputStyle
+                    SpellCheck false
+                    Step 1
+                ]
+
+                //TODO: Check what this is actually used for
+                Input.Id "cursor"
+
+                let clkValue =
+                    match wsModel.ClkCycleBoxIsEmpty with
+                    | true -> ""
+                    | false -> string wsModel.CurrClkCycle
+                Input.Value clkValue
+
+                // TODO: Test more properly with invalid inputs (including negative numbers)
+                Input.OnChange(fun c ->
+                    match System.Int32.TryParse c.Value with
+                    // | true, n when n >= 0
+                    | true, n ->
+                        setClkCycle wsModel dispatch n
+                    | false, _ when c.Value = "" ->
+                        printf "fail to parse"
+                        dispatch <| SetWSMod {wsModel with ClkCycleBoxIsEmpty = true}
+                    | _ ->
+                        printf "catch all case"
+                        dispatch <| SetWSMod {wsModel with ClkCycleBoxIsEmpty = false}
+                )
+            ]
+            button [ Button.Props [clkCycleRightStyle] ] (fun _ -> stepClkCycle true wsModel dispatch) "▶"
+        ]
 
 /// ReactElement of the tabs for changing displayed radix
 let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
@@ -617,8 +624,7 @@ let waveSimButtonsBar (model: Model) (dispatch: Msg -> unit) : ReactElement =
     div [ Style [ Height "45px" ] ]
         [
             closeWaveSimButton model.WaveSim dispatch
-            // TODO:
-            // selectClkCycleButtons
+            clkCycleButtons model.WaveSim dispatch
             radixButtons model.WaveSim dispatch
         ]
 
@@ -701,8 +707,15 @@ let waveLabelColumn (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
         ]
 
 let getWaveValue (currClkCycle: int) (wave: Wave): int64 =
-    wave.WaveValues[currClkCycle]
-    |> convertWireDataToInt
+    List.tryItem currClkCycle wave.WaveValues
+    |> function
+    | Some wireData ->
+        convertWireDataToInt wireData
+    | None ->
+        // TODO: Find better default value here
+        // TODO: Should probably make it so that you can't call this function in the first place.
+        printf "Trying to access index %A in wave %A. Default to 0." currClkCycle wave.DisplayName
+        0
 
 /// Iterates over each selected wave to generate the SVG of the value for that wave
 let valueRows (wsModel: WaveSimModel) = 

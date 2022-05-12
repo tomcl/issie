@@ -150,7 +150,62 @@ let menuLabelStyle = Style [
     TextTransform "uppercase"
 ]
 
-// // Waveform simulator styles
+// Waveform simulator styles
+
+let clkCycleButtonStyle = Style [
+    Float FloatOptions.Right
+    Position PositionOptions.Relative
+    Height "30px"
+    TextAlign TextAlignOptions.Center
+    Width "100px"
+    Display DisplayOptions.InlineBlock
+    FontSize "13px"
+    Margin "0 20px 0 20px"
+    Resize "vertical"
+]
+
+// TODO: Can this be nested inside clkCycleButtonStyle
+let clkCycleInputStyle = Style [
+    Margin "0 0 0 0"
+    Float FloatOptions.Left
+    TextAlign TextAlignOptions.Center
+    Width "40px"
+    Height "30px"
+    Display DisplayOptions.InlineBlock
+    FontSize "13px"
+    Resize "vertical"
+    // TODO: -webkit-appearnace: none
+    BorderColor "gray"
+    BorderWidth "1px 1px 1px 1px"
+    BorderRadius 0
+]
+
+let clkCycleBut = [
+    Margin 0
+    Height "30px"
+    Padding 0
+    Width "30px"
+    Position PositionOptions.Relative
+    Float FloatOptions.Left
+    BorderColor "gray"
+    BorderWidth "1px"
+]
+
+let clkCycleLeftStyle = Style (
+    clkCycleBut @ [
+        BorderTopLeftRadius "4px"
+        BorderBottomLeftRadius "4px"
+        BorderTopRightRadius 0
+        BorderBottomRightRadius 0
+    ])
+
+let clkCycleRightStyle = Style (
+    clkCycleBut @ [
+        BorderTopLeftRadius 0
+        BorderBottomLeftRadius 0
+        BorderTopRightRadius "4px"
+        BorderBottomRightRadius "4px"
+    ])
 
 // let clkLineWidth = 0.0125
 // let transLen = 0.1

@@ -152,6 +152,14 @@ let menuLabelStyle = Style [
 
 // Waveform simulator styles
 
+let closeWaveSimButtonStyle = Style [
+    Height "30px"
+    FontSize "16px"
+    Float FloatOptions.Left
+    Position PositionOptions.Relative
+    Margin "0 20px 20px 20px"
+]
+
 let clkCycleButtonStyle = Style [
     Float FloatOptions.Right
     Position PositionOptions.Relative

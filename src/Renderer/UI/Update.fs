@@ -301,7 +301,7 @@ let sheetMsg sMsg model =
                 | true -> NotRunning
                 | _ -> model.WaveSim.State
     }
-    printf "%A" (model.WaveSim.ReducedState <> newReducedState)
+    // printf "%A" (model.WaveSim.ReducedState <> newReducedState)
     {newModel with WaveSim = waveSim; SavedSheetIsOutOfDate = findChange newModel}, Cmd.map Sheet sCmd
 
 //----------------------------------------------------------------------------------------------------------------//
@@ -386,10 +386,10 @@ let update (msg : Msg) oldModel =
             // the state here clearly needs refactoring
             if model.Sheet.IsWaveSim then Cmd.ofMsg (Sheet(SheetT.ResetSelection)) else Cmd.none
             ] //Close wavesim
-    | SetWSMod wSMod -> 
+    | SetWSMod wsModel -> 
         printf "SetWSMod"
-        printf "%A" wSMod.AllWaves
-        setWSMod wSMod model, Cmd.none
+        // printf "%A" wSMod.AllWaves
+        {model with WaveSim = wsModel}, Cmd.none
     // | UpdateWSModel updateFn ->
     //     updateCurrentWSMod updateFn model, Cmd.none
     // | SetWSModAndSheet(ws,sheet) ->
@@ -576,7 +576,7 @@ let update (msg : Msg) oldModel =
         let cmd = if b then Cmd.none else Cmd.ofMsg (Sheet (SheetT.SetSpinner false)) //Turn off spinner after project/sheet is loaded
         {model with IsLoading = b}, cmd
     | InitiateWaveSimulation wsMod ->
-        setWSMod wsMod model, Cmd.none
+        {model with WaveSim = wsMod}, Cmd.ofMsg (Sheet(SheetT.SetSpinner false))
     // | InitiateWaveSimulation (view, paras)  -> 
         // updateCurrentWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.ofMsg FinishUICmd
     //TODO

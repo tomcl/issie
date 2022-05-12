@@ -609,18 +609,6 @@ let reorderTruthTable model dispatch =
 //----------View functions for Truth Tables and Tab UI components----------------------//
 //-------------------------------------------------------------------------------------//
 
-let addToolTipTop tip react =
-        div [
-            HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-top"
-            Tooltip.dataTooltip tip
-        ] [react]
-
-let addToolTipRight tip react =
-        div [
-            HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-right"
-            Tooltip.dataTooltip tip
-        ] [react]
-
 let makeSortingArrows (io: CellIO) sortInfo dispatch =
     let upSel, downSel =
         match sortInfo with
@@ -918,65 +906,21 @@ let viewTruthTable model dispatch =
             dispatch ClearInputConstraints
             dispatch ClearOutputConstraints
             dispatch ClearHiddenTTColumns
-            dispatch (SetTTSortType None)
-            dispatch (SetIOOrder [||])
-            dispatch (SetTTAlgebraInputs [])
+            dispatch <| SetTTSortType None
+            dispatch <| SetIOOrder [||]
+            dispatch <| SetTTAlgebraInputs []
             dispatch <| SetPopupAlgebraInputs None
+            dispatch <| SetPopupAlgebraError None
             dispatch CloseTruthTable
         let body =
             match tableopt with
             | Error e -> viewTruthTableError e
             | Ok table ->
-                let startReducing () =
-                    reduceTruthTable model.TTInputConstraints table model.TTBitLimit
-                    |> Ok
-                    |> GenerateTruthTable
-                    |> dispatch
-                    HideColumn |> Some |> SetTTOutOfDate |> dispatch
-                let goBackButton = 
-                    match table.DCMap, model.TTAlgebraInputs with
-                    | Some _, _::_ -> failwithf "what? Table cannot be DC Reduced and Algebraic"
-                    | Some _, [] ->
-                        (Button.button [Button.Color IsInfo; Button.OnClick (fun _ -> 
-                            dispatch ClearDCMap; HideColumn |> Some |> SetTTOutOfDate |> dispatch)]
-                        [str "Back to Full Table"])
-                    | None, _::_ ->
-                        (Button.button [Button.Color IsInfo; Button.OnClick (fun _ ->
-                            dispatch <| SetTTAlgebraInputs []
-                            dispatch <| SetPopupAlgebraInputs (Some [])
-                            Regenerate |> Some |> SetTTOutOfDate |> dispatch)]
-                        [str "Back to Numeric Table"])
-                    | None, [] -> div [] [] // Button is never displayed in this case
-                let reduceButton =
-                    if table.IsTruncated then
-                        let textEl = 
-                            str "Reduce"
-                            |> addToolTipRight "DC Reduction unavailable for truncated tables"
-                        (Button.button [Button.Disabled true; Button.OnClick (fun _ -> startReducing())]
-                        [textEl])
-                    else
-                        (Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> startReducing())]
-                        [str "Reduce"])
-                let algebraButton =
-                    Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> createAlgReductionPopup model dispatch)]
-                        [str "Algebra"]
-                match table.DCMap, model.TTAlgebraInputs with
-                | None, [] -> // Table is neither DC Reduces or Algebraic
-                    div [] [
-                        makeElementLine [reduceButton; str "   ";algebraButton] []
-                        br []; br []
-                        viewTruthTableData table Filtered model.TTSortType dispatch] 
-                | Some dc, [] -> // Table is DC Reduced
-                    div [] [
-                        goBackButton
-                        br []; br []
-                        viewTruthTableData table Filtered model.TTSortType dispatch]
-                | None, _::_ -> // Table is Algebraic
-                    div [] [
-                        makeElementLine [goBackButton; str "   ";algebraButton] []
-                        br []; br []
-                        viewTruthTableData table Filtered model.TTSortType dispatch]
-                | Some _, _::_ -> failwithf "what? Table cannot be DC Reduced and Algebraic"
+                div [] [
+                    viewReductions table model dispatch
+                    br []; br []
+                    viewTruthTableData table Filtered model.TTSortType dispatch]
+               
         let constraints =
             match tableopt with
             | Error _ -> div [] []

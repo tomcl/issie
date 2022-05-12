@@ -98,6 +98,7 @@ let init() = {
         ConstraintErrorMsg = None
         NewConstraint = None
         AlgebraInputs = None
+        AlgebraError = None
     }
     Notifications = {
         FromDiagram = None

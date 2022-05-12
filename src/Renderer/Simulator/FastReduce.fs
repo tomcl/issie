@@ -364,7 +364,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             putW 0 bits0.Width
         | _,_, Alg _ ->
             let err = {
-                Msg = "Algebra was passed to the SEL port of a MUX2. Ensure that only bits are passed to this port."
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to the 
+                    SEL port of a Mux2. Only values can be passed to this port."
                 InDependency = Some (comp.FullName)
                 ComponentsAffected =[comp.cId]
                 ConnectionsAffected = []
@@ -391,7 +392,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             putW 0 fd0.Width
         | _,_,_,_,Alg _ ->
             let err = {
-                Msg = "Algebra was passed to the SEL port of a MUX4. Ensure that only bits are passed to this port."
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to the 
+                    SEL port of a Mux4. Only values can be passed to this port."
                 InDependency = Some (comp.FullName)
                 ComponentsAffected =[comp.cId]
                 ConnectionsAffected = []
@@ -423,7 +425,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             putW 0 fd0.Width
         | _,_,_,_,_,_,_,_, Alg _ ->
             let err = {
-                Msg = "Algebra was passed to the SEL port of a MUX8. Ensure that only bits are passed to this port."
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to the 
+                    SEL port of a Mux8. Only values can be passed to this port."
                 InDependency = Some (comp.FullName)
                 ComponentsAffected =[comp.cId]
                 ConnectionsAffected = []
@@ -447,7 +450,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             putW 1 w
         | _, Alg _ ->
             let err = {
-                Msg = "Algebra was passed to the SEL port of a DEMUX2. Ensure that only bits are passed to this port."
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to the 
+                    SEL port of a Demux2. Only values can be passed to this port."
                 InDependency = Some (comp.FullName)
                 ComponentsAffected =[comp.cId]
                 ConnectionsAffected = []
@@ -477,7 +481,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             putW 3 w
         | _, Alg _ ->
             let err = {
-                Msg = "Algebra was passed to the SEL port of a DEMUX4. Ensure that only bits are passed to this port."
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to the 
+                    SEL port of a Demux4. Only values can be passed to this port."
                 InDependency = Some (comp.FullName)
                 ComponentsAffected =[comp.cId]
                 ConnectionsAffected = []
@@ -519,7 +524,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             putW 7 w
         | _, Alg _ ->
             let err = {
-                Msg = "Algebra was passed to the SEL port of a DEMUX8. Ensure that only bits are passed to this port."
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to the 
+                    SEL port of a Demux8. Only values can be passed to this port."
                 InDependency = Some (comp.FullName)
                 ComponentsAffected =[comp.cId]
                 ConnectionsAffected = []
@@ -643,7 +649,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             put3 <| Data outs[3]
         | _,_ ->
             let err = {
-                Msg = "Algebraic Simulation not implemented for Decode4."
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to a
+                    Decode4. Algebraic Simulation has not been implemented for this component."
                 InDependency = Some (comp.FullName)
                 ComponentsAffected =[comp.cId]
                 ConnectionsAffected = []
@@ -726,7 +733,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 put0 (getLastCycleOut 0)
         | _ ->
             let err = {
-                Msg = "Algebraic Simulation not implemented for DFFE."
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to a
+                    DFFE. Algebraic Simulation has not been implemented for this component."
                 InDependency = Some (comp.FullName)
                 ComponentsAffected =[comp.cId]
                 ConnectionsAffected = []
@@ -742,7 +750,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         | Data bits -> put0 <| Data bits
         | _ ->
             let err = {
-                Msg = "Algebraic Simulation not implemented for Register."
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to a
+                    Register. Algebraic Simulation has not been implemented for this component."
                 InDependency = Some (comp.FullName)
                 ComponentsAffected =[comp.cId]
                 ConnectionsAffected = []
@@ -763,7 +772,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 put0 (getLastCycleOut 0)
         | _ ->
             let err = {
-                Msg = "Algebraic Simulation not implemented for RegisterE."
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to a
+                    RegisterE. Algebraic Simulation has not been implemented for this component."
                 InDependency = Some (comp.FullName)
                 ComponentsAffected =[comp.cId]
                 ConnectionsAffected = []
@@ -781,7 +791,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             put0 outData
         | _ ->
             let err = {
-                Msg = "Algebraic Simulation not implemented for AsyncRom1."
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to
+                    AsyncRom. Algebraic Simulation has not been implemented for this component."
                 InDependency = Some (comp.FullName)
                 ComponentsAffected =[comp.cId]
                 ConnectionsAffected = []
@@ -799,7 +810,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             put0 outData
         | _ ->
             let err = {
-                Msg = "Algebraic Simulation not implemented for ROM1."
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to
+                    ROM. Algebraic Simulation has not been implemented for this component."
                 InDependency = Some (comp.FullName)
                 ComponentsAffected =[comp.cId]
                 ConnectionsAffected = []
@@ -834,7 +846,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             put0 dataOut
         | _ ->
             let err = {
-                Msg = "Algebraic Simulation not implemented for RAM1."
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to
+                    RAM. Algebraic Simulation has not been implemented for this component."
                 InDependency = Some (comp.FullName)
                 ComponentsAffected =[comp.cId]
                 ConnectionsAffected = []
@@ -846,7 +859,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | AsyncRAM1 memory ->
         // Exception (just in case)
         let err = {
-                Msg = "Algebraic Simulation not implemented for AsyncRAM1."
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to
+                    AsyncRam. Algebraic Simulation has not been implemented for this component."
                 InDependency = Some (comp.FullName)
                 ComponentsAffected =[comp.cId]
                 ConnectionsAffected = []

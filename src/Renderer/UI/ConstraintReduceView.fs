@@ -27,6 +27,19 @@ open TruthTableTypes
 open Extractor
 open Simulator
 open TruthTableCreate
+open TruthTableReduce
+
+let addToolTipTop tip react =
+        div [
+            HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-top"
+            Tooltip.dataTooltip tip
+        ] [react]
+
+let addToolTipRight tip react =
+        div [
+            HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-right"
+            Tooltip.dataTooltip tip
+        ] [react]
 
 //-------------------------------------------------------------------------------------//
 //-----------View/Helper Functions for Constraints & Constraint Popups-----------------//
@@ -471,7 +484,17 @@ let makeOnOffToggle state changeAction onText offText =
         ]
     ]
 
-let dialogPopupReductionBody inputs (dispatch: Msg -> unit) =
+/// Checks if changing an input to Algebra/Values results in a valid simulation
+/// (i.e. an AlgebraNotImplemented exception is not raised)
+let validateAlgebraInput (io: SimulationIO) (fsi: FSInterface) (tableSD: SimulationData) =
+    let (cid,_,_) = io
+    try
+        FastRun.changeInput cid fsi tableSD.ClockTickNumber tableSD.FastSim
+        Ok 0 // Value of the result doesn't matter here, just that it is Ok.
+    with
+    | AlgebraNotImplemented err -> Error err
+
+let dialogPopupReductionBody inputs tableSD (dispatch: Msg -> unit) =
     fun (dialogData: PopupDialogData) ->
         let explanation = 
             str <|
@@ -484,7 +507,7 @@ let dialogPopupReductionBody inputs (dispatch: Msg -> unit) =
             | Some l -> l
             | None -> failwithf "what? PopupDialogData.AlgebraInputs is None in popup body"
         let toggleAction io =
-            fun _ -> dispatch <| TogglePopupAlgebraInput io
+            fun _ -> dispatch <| TogglePopupAlgebraInput (io,tableSD)
         let toggles =
             inputs
             |> List.map (fun io ->
@@ -492,16 +515,31 @@ let dialogPopupReductionBody inputs (dispatch: Msg -> unit) =
                 let toggle = makeOnOffToggle state (toggleAction io) "Values" "Algebra"
                 let (_,label,_) = io
                 makeElementLine [(str <| string label);toggle] [])
+                |> div []
+        let error = 
+            match dialogData.AlgebraError with
+            | None -> div [] []
+            | Some {Msg=m;InDependency=(Some d);ComponentsAffected=_;ConnectionsAffected=_} ->
+                div [] [
+                    str m
+                    br []
+                    str $"Component in question: {d}"
+                ]
+            | _ -> 
+                failwithf "what? SimError for AlgebraNotImplemented should always have an
+                    InDependency field. Error: %A" dialogData.AlgebraError
+                
         div [] [
             explanation
             hr []
-            div [] toggles
+            toggles
+            hr []
+            error
         ]
-
 
 let createAlgReductionPopup model dispatch =
     let title = "Reduction using Algebraic Inputs"
-    let inputs =
+    let inputs, tableSD =
         match model.CurrentTruthTable with
         | None -> failwithf "what? No current Truth Table when reducing"
         | Some (Error _) -> failwithf "what? Reduction option should not exist when there is TT error"
@@ -510,11 +548,12 @@ let createAlgReductionPopup model dispatch =
             |> Map.toList
             |> List.map fst
             |> List.head
-            |> List.map (fun cell ->
+            |> (List.map (fun cell ->
                 match cell.IO with
                 | SimIO s -> s
-                | Viewer _ -> failwithf "what? Found viewer in Truth Table inputs")
-    let body = dialogPopupReductionBody inputs dispatch
+                | Viewer _ -> failwithf "what? Found viewer in Truth Table inputs")),
+                tt.TableSimData
+    let body = dialogPopupReductionBody inputs tableSD dispatch
     let buttonText = "Apply"
     let buttonAction =
         fun (dialogData: PopupDialogData) ->
@@ -526,7 +565,53 @@ let createAlgReductionPopup model dispatch =
                 dispatch ClosePopup
     let isDisabled =
         fun (dialogData: PopupDialogData) ->
-            match dialogData.AlgebraInputs with
-            | None | Some [] -> true
-            | Some lst -> false
+            match dialogData.AlgebraInputs, dialogData.AlgebraError with
+            | _, Some _ | None, _ | Some [], _ -> true
+            | Some lst, None -> false
     dialogPopup title body buttonText buttonAction isDisabled dispatch
+
+let viewReductions (table: TruthTable) (model: Model) dispatch =
+    let startReducing () =
+        reduceTruthTable model.TTInputConstraints table model.TTBitLimit
+        |> Ok
+        |> GenerateTruthTable
+        |> dispatch
+        HideColumn |> Some |> SetTTOutOfDate |> dispatch
+    let goBackButton = 
+        match table.DCMap, model.TTAlgebraInputs with
+        | Some _, _::_ -> failwithf "what? Table cannot be DC Reduced and Algebraic"
+        | Some _, [] ->
+            (Button.button [Button.Color IsInfo; Button.OnClick (fun _ -> 
+                dispatch ClearDCMap; HideColumn |> Some |> SetTTOutOfDate |> dispatch)]
+            [str "Back to Full Table"])
+        | None, _::_ ->
+            (Button.button [Button.Color IsInfo; Button.OnClick (fun _ ->
+                dispatch <| SetTTAlgebraInputs []
+                dispatch <| SetPopupAlgebraInputs (Some [])
+                Regenerate |> Some |> SetTTOutOfDate |> dispatch)]
+            [str "Back to Numeric Table"])
+        | None, [] -> div [] [] // Button is never displayed in this case
+    let reduceButton =
+        if table.IsTruncated then
+            let textEl = 
+                str "Reduce"
+                |> addToolTipRight "DC Reduction unavailable for truncated tables"
+            (Button.button [Button.Disabled true; Button.OnClick (fun _ -> startReducing())]
+            [textEl])
+        else
+            (Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> startReducing())]
+            [str "Reduce"])
+    let algebraButton =
+        Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> createAlgReductionPopup model dispatch)]
+            [str "Algebra"]
+    match table.DCMap, model.TTAlgebraInputs with
+    | None, [] -> // Table is neither DC Reduces or Algebraic
+        div [] [
+            makeElementLine [reduceButton; str "   ";algebraButton] []]
+    | Some dc, [] -> // Table is DC Reduced
+        div [] [
+            goBackButton]
+    | None, _::_ -> // Table is Algebraic
+        div [] [
+            makeElementLine [goBackButton; str "   ";algebraButton] []]
+    | Some _, _::_ -> failwithf "what? Table cannot be DC Reduced and Algebraic"

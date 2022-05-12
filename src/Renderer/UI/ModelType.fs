@@ -59,6 +59,7 @@ type PopupDialogData = {
     ConstraintErrorMsg: string option
     NewConstraint: Constraint option
     AlgebraInputs: SimulationIO list option
+    AlgebraError: SimulationError option
 }
 
 type TopMenu = | Closed | Project | Files
@@ -334,7 +335,8 @@ type Msg =
     | SetPopupConstraintErrorMsg of string option
     | SetPopupNewConstraint of Constraint option
     | SetPopupAlgebraInputs of SimulationIO list option
-    | TogglePopupAlgebraInput of SimulationIO
+    | SetPopupAlgebraError of SimulationError option
+    | TogglePopupAlgebraInput of (SimulationIO * SimulationData)
     | SimulateWithProgressBar of SimulationProgress
     | SetSelectedComponentMemoryLocation of int64 * int64
     | CloseDiagramNotification

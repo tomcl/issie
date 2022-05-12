@@ -20,6 +20,7 @@ open Sheet.SheetInterface
 open DrawModelType
 open Fable.SimpleJson
 open Helpers
+open NumberHelpers
 
 
 //---------------------------------------------------------------------------------------------//
@@ -565,19 +566,81 @@ let update (msg : Msg) oldModel =
         { model with PopupDialogData = {model.PopupDialogData with ConstraintErrorMsg = msg}}, Cmd.none
     | SetPopupNewConstraint con ->
         { model with PopupDialogData = {model.PopupDialogData with NewConstraint = con}}, Cmd.none
-    | TogglePopupAlgebraInput io ->
+    | TogglePopupAlgebraInput (io,sd) ->
+        let (_,_,w) = io
         let oldLst =
             match model.PopupDialogData.AlgebraInputs with
             | Some l -> l
             | None -> failwithf  "what? PopupDialogData.AlgebraInputs is None when trying to toggle"
-        if List.contains io oldLst then
-            let newLst = List.except [io] oldLst
-            {model with PopupDialogData = {model.PopupDialogData with AlgebraInputs = Some newLst}}, Cmd.none
-        else
-            let newLst = io::oldLst
-            {model with PopupDialogData = {model.PopupDialogData with AlgebraInputs = Some newLst}}, Cmd.none
+        if List.contains io oldLst then // Algebra -> Values
+            let zero = IData <| convertIntToWireData w 0
+            match ConstraintReduceView.validateAlgebraInput io zero sd with
+            | Ok _ ->
+                let newLst = List.except [io] oldLst
+                {model with 
+                    PopupDialogData = {
+                    model.PopupDialogData with 
+                        AlgebraInputs = Some newLst
+                        AlgebraError = None}}, Cmd.none
+            | Error err ->
+                let newLst = List.except [io] oldLst
+                {model with 
+                    PopupDialogData = {
+                    model.PopupDialogData with 
+                        AlgebraInputs = Some newLst
+                        AlgebraError = Some err}}, Cmd.none
+        else // Values -> Algebra
+            let alg = IAlg <| SingleTerm io
+            match ConstraintReduceView.validateAlgebraInput io alg sd with
+            | Ok _ ->
+                let newLst = io::oldLst
+                {model with 
+                    PopupDialogData = {
+                    model.PopupDialogData with 
+                        AlgebraInputs = Some newLst
+                        AlgebraError = None}}, Cmd.none
+            | Error err ->
+                let newLst = io::oldLst
+                {model with 
+                    PopupDialogData = {
+                    model.PopupDialogData with 
+                        AlgebraInputs = Some newLst
+                        AlgebraError = Some err}}, Cmd.none
+
+
+        // match List.contains io oldLst, ConstraintReduceView.validateAlgebraInput io sd with
+        // | true, Ok _ ->
+        //     let newLst = List.except [io] oldLst
+        //     {model with 
+        //         PopupDialogData = {
+        //             model.PopupDialogData with 
+        //                 AlgebraInputs = Some newLst
+        //                 AlgebraError = None}}, Cmd.none
+        // | true, Error err ->
+        //     let newLst = List.except [io] oldLst
+        //     {model with 
+        //         PopupDialogData = {
+        //             model.PopupDialogData with 
+        //                 AlgebraInputs = Some newLst
+        //                 AlgebraError = Some err}}, Cmd.none
+        // | false, Ok _ ->
+        //     let newLst = io::oldLst
+        //     {model with 
+        //         PopupDialogData = {
+        //             model.PopupDialogData with 
+        //                 AlgebraInputs = Some newLst
+        //                 AlgebraError = None}}, Cmd.none
+        // | false, Error err ->
+        //     let newLst = io::oldLst
+        //     {model with 
+        //         PopupDialogData = {
+        //             model.PopupDialogData with 
+        //                 AlgebraInputs = Some newLst
+        //                 AlgebraError = Some err}}, Cmd.none
     | SetPopupAlgebraInputs opt ->
         {model with PopupDialogData = {model.PopupDialogData with AlgebraInputs = opt}}, Cmd.none
+    | SetPopupAlgebraError opt ->
+        {model with PopupDialogData = {model.PopupDialogData with AlgebraError = opt}}, Cmd.none
     | SimulateWithProgressBar simPars ->
         SimulationView.simulateWithProgressBar simPars model
     | SetSelectedComponentMemoryLocation (addr,data) ->

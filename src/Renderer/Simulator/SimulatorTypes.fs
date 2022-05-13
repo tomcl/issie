@@ -265,7 +265,10 @@ let rec expToString (exp: FastAlgExp) =
         $"value({expStr})"
     | UnaryExp (BitRangeOp(low,up),exp) ->
         let expStr = expToString exp
-        $"({expStr})[{up}:{low}]"
+        if low = up then
+            $"({expStr})[{up}]"
+        else
+            $"({expStr})[{up}:{low}]"
     | UnaryExp (SignOfOp pv,exp) ->
         let expStr = expToString exp
         let posVal = if pv then "1" else "0"

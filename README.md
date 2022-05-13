@@ -13,8 +13,8 @@ For the Issie website go [here](https://tomcl.github.io/issie/).
 
 The application is mostly written in F#, which gets transpiled to JavaScript via the [Fable](https://fable.io/) compiler. [Electron](https://www.electronjs.org/) is then used to convert the developed web-app to a cross-platform application. [Electron](electronjs.org) provides access to platform-level APIs (such as access to the file system) which would not be available to vanilla browser web-apps.
 
-[Webpack 4](https://webpack.js.org/) is the module bundler responsible for the JavaScript concatenation and automated building process: the electron-webpack build 
-is automated with the all-in-one electron-webpack package.
+[Webpack 5](https://webpack.js.org/) is the module bundler responsible for the JavaScript concatenation and automated building process: the electron-webpack build 
+is automated using the pre-existing scripts under the [scripts](scripts/) directory.
 
 The drawing capabilities are provided (now) by a custom schemetic editor library implemented in F# and specialised for digital components.
 
@@ -35,24 +35,28 @@ Electron bundles Chromium (View) and node.js (Engine), therefore as in every nod
 Additionally, the section `"scripts"`:
 ```
  "scripts": {
-    "compile": "dotnet fable src/main && dotnet fable src/renderer",
-    "dev": "cd src/main && dotnet fable watch . --run npm run devrenderer",
-    "devmain": "cd src/main && dotnet fable watch . --run npm run webpackdev",
-    "devrenderer": "cd src/renderer && dotnet fable watch . --run npm run webpackdev",
-    "webpackdev": "electron-webpack dev",
-    "webpack": "electron-webpack",
-    "dist": "npm run compile && npm run webpack &&  electron-builder",
+    "clean-dev-mac": "sudo killall -9 node && sudo killall -9 dotnet && sudo killall -9 issie",
+    "clean-dev-win": "taskkill /f /im node.exe && taskkill /f /im dotnet.exe && taskkill /f /im issie.exe",
+    "compile": "dotnet fable src/Main -s && dotnet fable src/Renderer -s",
+    "dev": "dotnet fable watch src/Main -s --run npm run devrenderer",
+    "devrenderer": "dotnet fable watch src/Renderer -s --define ASSERTS --run npm run start",
+    "start": "cross-env NODE_ENV=development node scripts/start.js",
+    "build": "cross-env NODE_ENV=production node scripts/build.js",
+    "pack": "npm run compile && npm run build && electron-builder --dir",
+    "dist": "npm run compile && npm run build && electron-builder",
+    "buildonly": "electron-builder",
+    "compile-sass": "cd src/renderer/scss && node-sass main.scss main.css"
   }
 ```
 Defines the in-project shortcut commands as a set of `<key> : <value` lines, so that when we use `npm run <stript_key>` it is equivalent to calling `<script_value>`. 
 For example, in the root of the project, running in the terminal `npm run dev` is equivalent to the command line:
 
 ```
-cd src/main && dotnet fable watch . --run npm run devrenderer
+dotnet fable watch src/Main -s --run npm run devrenderer
 ```
 
 This runs fable 3 to transpile the main process, then (`--run` is an option of fable to run another command) runs script `devrenderer` to transpile to javascript and watch the F# files in the renderer process. After the renderer transpilation is finished 
-`electron-webpack dev` will be run. This invokes `webpack` to pack and lauch the javascript code, under electron, and also watches for changes in the javascript code, and *hot loads* these on the running application
+[start.js script](scripts/start.js) will be run. This invokes `webpack` to pack and lauch the javascript code, under electron, and also watches for changes in the javascript code, and *hot loads* these on the running application
 
 As result of this, at any time saving an edited F# renderer project file causes (nearly) immediate:
 
@@ -153,9 +157,9 @@ Download and install (if you already have these tools installed just check the v
 
 
 * [.Net 6 SDK](https://dotnet.microsoft.com/download/dotnet/5.0).  Version >= 6.0
-* [Node.js v14](https://nodejs.org/dist/latest-v14.x/). **Version 12 or (preferably) v14 - NOT latest 16**
+* [Node.js v16](https://nodejs.org/en/). **Version 14 or (preferably) v16 - NOT latest 18**
     * Node.js includes the `npm` package manager, so this does not need to be installed separately.
-    * The lastest LTS version of Node is now v16. That will currently NOT work.
+      * Note that Node.js v16 doesn't work with versions earlier that v7.0.0
     * If you are using a different version of Node for developmnet on oytehr projects, global install 
     (the default) may interfere with this. You will need to do a more complex local node install.
 * (recommended) Visual Studio 2022 which includes F# 6.0
@@ -174,7 +178,7 @@ That makes things a lot more pleasant. The new [Windows Terminal](https://github
   * HMR: the application will automatically recompile and update while running if you save updated source files
   * To initialise and reload: `File -> reload page`
   * To exit: after you exit the application the auto-compile script will terminate after about 15s
-  * To recompile the application `npm run dev` or `npm run devfast` (devfast switches off some debugging to make simulation run a lot faster).
+  * To recompile the application run `npm run dev` 
   * To generate distributable binaries for dev host system `npm run dist`.
   * If you have changed node modules use `build dev`. Note that this project uses npm, not yarn. If npm gets stuck use `build cleannode` and try again.
   * From time to time run `build killzombies` to terminate orphan node and dotnet processes which accumulate using this dev chain. (Not sure if this is still needed)
@@ -193,7 +197,7 @@ In theory the build should work equally well on macos. Practically that is now (
 One unresolved issue that can occur on Macs is file permission problems. Best practice is for all installation and dev to run under the current (non-admin) user. If any part of the necessary downloaded development files gets written as root then subsequent development commands that modify it will need to be executed using sudo.
 
 ```
-sudo npm run devfast
+sudo npm run dev
 ```
 
 If possible, try to avoid this, but if necessary it can be done. Probably the better solution is to investigate properly which install steps introduce these root owner files, change the file ownership back to current user with `chown -R <username> <directory>`. Please document any progress made with mac builds (detailing which mac OS) on an issue.
@@ -216,6 +220,5 @@ the porblem will go away.
 ## TODO
 
 
-* Should Node be upgraded to v14?
 * Clean up Paket dependencies
 

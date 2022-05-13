@@ -702,6 +702,12 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             put0 <| Data bits0
             put1 <| Data bits1
             putW 1 bits1.Width
+        | Alg (UnaryExp(BitRangeOp(l,u),exp)) ->
+            let exp1 = UnaryExp(BitRangeOp(l+topWireWidth,u),exp)
+            let exp0 = UnaryExp(BitRangeOp(l,l+topWireWidth-1),exp)
+            put0 <| Alg exp0
+            put1 <| Alg exp1
+            putW 1 (getAlgExpWidth exp1)
         | Alg exp ->
             let w = getAlgExpWidth exp
             let exp1 = UnaryExp(BitRangeOp(topWireWidth,w-1),exp)

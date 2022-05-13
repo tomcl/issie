@@ -267,6 +267,8 @@ let rec expToString (exp: FastAlgExp) =
         let expStr = expToString exp
         if low = up then
             $"({expStr})[{up}]"
+        else if getAlgExpWidth exp = (up-low+1) then
+            expToString exp
         else
             $"({expStr})[{up}:{low}]"
     | UnaryExp (SignOfOp pv,exp) ->

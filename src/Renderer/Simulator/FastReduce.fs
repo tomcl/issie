@@ -2,6 +2,7 @@
 open CommonTypes
 open SimulatorTypes
 open NumberHelpers
+open Helpers
 
 //------------------------------------------------------------------------------//
 //-----------------------------Fast Reduction of Components---------------------//
@@ -63,6 +64,15 @@ let getRomStateMemory comp =
     | ROM memory
     | AsyncROM memory -> memory
     | _ -> failwithf "What? getRomStateMemory called with invalid state"
+
+let tryMergeBitRanges (l1,u1,exp1) (l2,u2,exp2) =
+    let lHigh, lLow = if l1 > l2 then l1,l2 else l2,l1 
+    let uHigh, uLow = if u1 > u2 then u1,u2 else u2,u1 
+    if exp1 = exp2 && lHigh = uLow+1 then
+        UnaryExp (BitRangeOp(lLow,uHigh),exp1)
+        |> Some
+    else
+       None
 
 
 let inline private bitNot bit = bit ^^^ 1u
@@ -681,6 +691,14 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     |> convertBigintToFastData wOut  
             put0 <| Data outBits
             putW 0 outBits.Width
+        | Alg (UnaryExp(BitRangeOp(l1,u1),exp0)), Alg (UnaryExp(BitRangeOp(l2,u2),exp1)) ->
+            match tryMergeBitRanges (l1,u1,exp0) (l2,u2,exp1) with
+            | Some newExp ->
+                put0 <| Alg newExp
+                putW 0 <| (getAlgExpWidth exp0) + (getAlgExpWidth exp1)
+            | None ->
+                put0 <| Alg (BinaryExp(exp1,AppendOp,exp0))
+                putW 0 <|(getAlgExpWidth exp0) + (getAlgExpWidth exp1)
         | fd0, fd1 ->
             let exp0, exp1 = fd0.toExp, fd1.toExp
             put0 <| Alg (BinaryExp(exp1,AppendOp,exp0))

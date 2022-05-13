@@ -219,6 +219,7 @@ type UnaryOp =
 // Comparison between expression and constant
 type ComparisonOp = | Equals
 
+// Type for algebraic expressions in Issie
 type FastAlgExp =
     | SingleTerm of SimulationIO
     | DataLiteral of FastData
@@ -226,6 +227,7 @@ type FastAlgExp =
     | BinaryExp of Exp1: FastAlgExp * Op: BinaryOp * Exp2: FastAlgExp
     | ComparisonExp of Exp: FastAlgExp * Op: ComparisonOp * uint32
 
+/// Calculates and returns the expected width of an Algebraic Expression
 let rec getAlgExpWidth (exp: FastAlgExp) =
     match exp with
     | SingleTerm (_,_,w) -> w
@@ -250,9 +252,9 @@ let rec getAlgExpWidth (exp: FastAlgExp) =
 /// Converts an Algebraic Expression to a string for pretty printing
 let rec expToString (exp: FastAlgExp) =
     match exp with
-    | SingleTerm (_,label,_) -> 
+    | SingleTerm (_,label,_) ->
         string label
-    | DataLiteral {Dat=Word w; Width=_} -> string w
+    | DataLiteral {Dat=Word w; Width=_} -> string w  
     | DataLiteral {Dat=BigWord w; Width=_} -> string w
     | UnaryExp (NegOp,exp) ->
         let expStr = expToString exp
@@ -265,9 +267,10 @@ let rec expToString (exp: FastAlgExp) =
         $"value({expStr})"
     | UnaryExp (BitRangeOp(low,up),exp) ->
         let expStr = expToString exp
-        if low = up then
+        if low = up then // Replace A[x:x] with A[x]
             $"({expStr})[{up}]"
         else if getAlgExpWidth exp = (up-low+1) then
+            // Replace A[w-1:0] with A when A has width w
             expToString exp
         else
             $"({expStr})[{up}:{low}]"
@@ -306,18 +309,19 @@ let rec expToString (exp: FastAlgExp) =
         let expStr = expToString exp
         $"(({expStr}) == {string x})"
 
-let evalExp exp =
+/// Recursively evaluates an expression to reduce it to its simplest form
+let rec evalExp exp =
     match exp with
     | SingleTerm _ -> exp
     | DataLiteral _ -> exp
     | UnaryExp (NotOp, exp) ->
         match evalExp exp with
-        | UnaryExp (NotOp, inner) ->
+        | UnaryExp (NotOp, inner) -> // Catch double inversion ~(~(A))
             evalExp inner
         | _ ->
             let evaluated = evalExp exp
             UnaryExp (NotOp, evaluated)
-    | UnaryExp (NegOp, UnaryExp(NegOp,exp)) ->
+    | UnaryExp (NegOp, UnaryExp(NegOp,exp)) -> // Catch double negation -(-(A))
         match evalExp exp with
         | UnaryExp (NegOp, inner) ->
             evalExp inner
@@ -331,9 +335,11 @@ let evalExp exp =
         let left = evalExp exp1
         let right = evalExp exp2
         match left, right with
-        | exp, DataLiteral {Dat= Word 0u;Width=_}
-        | DataLiteral {Dat= Word 0u;Width=_}, exp ->
-            right
+        // AND with 0 is always 0
+        | exp, DataLiteral {Dat= Word 0u;Width=w}
+        | DataLiteral {Dat= Word 0u;Width=w}, exp ->
+            DataLiteral {Dat= Word 0u;Width=w}
+        // AND with 1 is always the other operand
         | exp, DataLiteral {Dat= Word 1u;Width=_}
         | DataLiteral {Dat= Word 1u;Width=_}, exp ->
             exp
@@ -342,20 +348,24 @@ let evalExp exp =
         let left = evalExp exp1
         let right = evalExp exp2
         match left, right with
+        // OR with 0 is always the other operand
         | exp, DataLiteral {Dat= Word 0u;Width=_}
         | DataLiteral {Dat= Word 0u;Width=_}, exp ->
             exp
-        | exp, DataLiteral {Dat= Word 1u;Width=_}
-        | DataLiteral {Dat= Word 1u;Width=_}, exp ->
-            right
+        // OR with 1 is always 1
+        | exp, DataLiteral {Dat= Word 1u;Width=w}
+        | DataLiteral {Dat= Word 1u;Width=w}, exp ->
+            DataLiteral {Dat= Word 1u;Width=w}
         | l,r -> BinaryExp (l,BitOrOp,r)
     | BinaryExp (exp1, BitXorOp, exp2) ->
         let left = evalExp exp1
         let right = evalExp exp2
         match left, right with
+        // XOR with 0 is always the other operand
         | exp, DataLiteral {Dat= Word 0u;Width=_}
         | DataLiteral {Dat= Word 0u;Width=_}, exp ->
             exp
+        // XOR with 1 is always the inverse of the other operand
         | exp, DataLiteral {Dat= Word 1u;Width=_}
         | DataLiteral {Dat= Word 1u;Width=_}, exp ->
             UnaryExp (NotOp,exp)

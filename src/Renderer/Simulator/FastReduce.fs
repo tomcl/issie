@@ -65,6 +65,11 @@ let getRomStateMemory comp =
     | AsyncROM memory -> memory
     | _ -> failwithf "What? getRomStateMemory called with invalid state"
 
+/// Check the Bit Ranges for two expressions, and check if they can be merged.
+/// If they can, return the merged expression, otherwise return None.
+// A[5:3] and A[2:1] -> A[5:1]
+// A[5:4] and A[2:1] -> None
+// A[5:3] and B[2:1] -> None
 let tryMergeBitRanges (l1,u1,exp1) (l2,u2,exp2) =
     let lHigh, lLow = if l1 > l2 then l1,l2 else l2,l1 
     let uHigh, uLow = if u1 > u2 then u1,u2 else u2,u1 

@@ -228,7 +228,7 @@ type FastAlgExp =
     | ComparisonExp of Exp: FastAlgExp * Op: ComparisonOp * uint32
 
 /// Calculates and returns the expected width of an Algebraic Expression
-let rec getAlgExpWidth (exp: FastAlgExp) =
+let rec getAlgExpWidth (exp: FastAlgExp) = 
     match exp with
     | SingleTerm (_,_,w) -> w
     | DataLiteral d -> d.Width
@@ -249,65 +249,84 @@ let rec getAlgExpWidth (exp: FastAlgExp) =
         if w1 > w2 then w1 else w2
     | ComparisonExp _ -> 1
 
-/// Converts an Algebraic Expression to a string for pretty printing
-let rec expToString (exp: FastAlgExp) =
+let rec flattenNestedAppends exp =
     match exp with
-    | SingleTerm (_,label,_) ->
-        string label
-    | DataLiteral {Dat=Word w; Width=_} -> string w  
-    | DataLiteral {Dat=BigWord w; Width=_} -> string w
-    | UnaryExp (NegOp,exp) ->
-        let expStr = expToString exp
-        $"-({expStr})"
-    | UnaryExp (NotOp,exp) ->
-        let expStr = expToString exp
-        $"~({expStr})"
-    | UnaryExp (ValueOfOp,exp) ->
-        let expStr = expToString exp
-        $"value({expStr})"
-    | UnaryExp (BitRangeOp(low,up),exp) ->
-        let expStr = expToString exp
-        if low = up then // Replace A[x:x] with A[x]
-            $"({expStr})[{up}]"
-        else if getAlgExpWidth exp = (up-low+1) then
-            // Replace A[w-1:0] with A when A has width w
-            expToString exp
-        else
-            $"({expStr})[{up}:{low}]"
-    | UnaryExp (SignOfOp pv,exp) ->
-        let expStr = expToString exp
-        let posVal = if pv then "1" else "0"
-        $"sign({expStr}) ({posVal} if +)"
-    | UnaryExp (CarryOfOp,exp) ->
-        let expStr = expToString exp
-        $"carry({expStr})"
-    | BinaryExp (exp1, AddOp, exp2) ->
-        let expStr1 = expToString exp1
-        let expStr2 = expToString exp2
-        $"({expStr1})+({expStr2})"
-    | BinaryExp (exp1, SubOp, exp2) ->
-        let expStr1 = expToString exp1
-        let expStr2 = expToString exp2
-        $"({expStr1})-({expStr2})"
-    | BinaryExp (exp1, BitAndOp, exp2) ->
-        let expStr1 = expToString exp1
-        let expStr2 = expToString exp2
-        $"({expStr1})&({expStr2})"
-    | BinaryExp (exp1, BitOrOp, exp2) ->
-        let expStr1 = expToString exp1
-        let expStr2 = expToString exp2
-        $"({expStr1})|({expStr2})"
-    | BinaryExp (exp1, BitXorOp, exp2) ->
-        let expStr1 = expToString exp1
-        let expStr2 = expToString exp2
-        $"({expStr1})⊕({expStr2})"
-    | BinaryExp (exp1, AppendOp, exp2) ->
-        let expStr1 = expToString exp1
-        let expStr2 = expToString exp2
-        $"({expStr1})::({expStr2})"
-    | ComparisonExp (exp, Equals, x) ->
-        let expStr = expToString exp
-        $"(({expStr}) == {string x})"
+    | BinaryExp (left,AppendOp,right) ->
+        (flattenNestedAppends left) @ (flattenNestedAppends right)
+    | _ -> [exp]
+    
+
+
+/// Converts an Algebraic Expression to a string for pretty printing
+let expToString exp =
+    let rec expToString' (exp: FastAlgExp) =
+        match exp with
+        | SingleTerm (_,label,_) ->
+            string label
+        | DataLiteral {Dat=Word w; Width=_} -> string w  
+        | DataLiteral {Dat=BigWord w; Width=_} -> string w
+        | UnaryExp (NegOp,exp) ->
+            let expStr = expToString' exp
+            $"(-{expStr})"
+        | UnaryExp (NotOp,exp) ->
+            let expStr = expToString' exp
+            $"(~{expStr})"
+        | UnaryExp (ValueOfOp,exp) ->
+            let expStr = expToString' exp
+            $"value({expStr})"
+        | UnaryExp (BitRangeOp(low,up),exp) ->
+            let expStr = expToString' exp
+            if low = up then // Replace A[x:x] with A[x]
+                $"{expStr}[{up}]"
+            else if getAlgExpWidth exp = (up-low+1) then
+                // Replace A[w-1:0] with A when A has width w
+                expStr
+            else
+                $"{expStr}[{up}:{low}]"
+        | UnaryExp (SignOfOp pv,exp) ->
+            let expStr = expToString' exp
+            let posVal = if pv then "1" else "0"
+            $"sign({expStr}) ({posVal} if +)"
+        | UnaryExp (CarryOfOp,exp) ->
+            let expStr = expToString' exp
+            $"carry({expStr})"
+        | BinaryExp (exp1, AddOp, exp2) ->
+            let expStr1 = expToString' exp1
+            let expStr2 = expToString' exp2
+            $"({expStr1}+{expStr2})"
+        | BinaryExp (exp1, SubOp, exp2) ->
+            let expStr1 = expToString' exp1
+            let expStr2 = expToString' exp2
+            $"({expStr1}-{expStr2})"
+        | BinaryExp (exp1, BitAndOp, exp2) ->
+            let expStr1 = expToString' exp1
+            let expStr2 = expToString' exp2
+            $"({expStr1}&{expStr2})"
+        | BinaryExp (exp1, BitOrOp, exp2) ->
+            let expStr1 = expToString' exp1
+            let expStr2 = expToString' exp2
+            $"({expStr1}|{expStr2})"
+        | BinaryExp (exp1, BitXorOp, exp2) ->
+            let expStr1 = expToString' exp1
+            let expStr2 = expToString' exp2
+            $"({expStr1}⊕{expStr2})"
+        | BinaryExp (exp1, AppendOp, exp2) ->
+            BinaryExp (exp1, AppendOp, exp2)
+            |> flattenNestedAppends
+            |> List.map expToString'
+            |> String.concat "::"
+            |> fun s -> $"({s})"
+
+        | ComparisonExp (exp, Equals, x) ->
+            let expStr = expToString' exp
+            $"({expStr} == {string x})"
+
+    let expS = expToString' exp
+    // Remove the parentheses from the outermost expression
+    if expS.StartsWith "(" && expS.EndsWith ")" then
+        expS[1..(expS.Length-2)]
+    else
+        expS
 
 /// Recursively evaluates an expression to reduce it to its simplest form
 let rec evalExp exp =

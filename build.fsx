@@ -50,7 +50,7 @@ Target.create "DotnetRestore" (fun _ ->
     Shell.Exec("dotnet","restore issie.sln") |> ignore)
 
 Target.create "NpmInstall" (fun _ ->
-  Npm.install id
+  Npm.exec "ci" id
 )
 
 Target.create "Build" (fun _ ->

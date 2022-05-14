@@ -201,7 +201,7 @@ let editMenu dispatch' =
                makeItem "Move Component Ports" None (fun _ -> 
                     dispatch' <| ShowStaticInfoPopup("How to move component Ports", SymbolUpdate.moveCustomPortsPopup(), dispatch'))
                menuSeparator
-               makeElmItem "Align" "CmdOrCtrl+Shift+A"  (fun ev -> sheetDispatch <| SheetT.Arrangement SheetT.AlignSymbols)
+               makeElmItem "Align" "CmdOrCtrl+Shift+A"  (fun ev -> failwithf "stop"; sheetDispatch <| SheetT.Arrangement SheetT.AlignSymbols)
                makeElmItem "Distribute" "CmdOrCtrl+Shift+D" (fun ev-> sheetDispatch <| SheetT.Arrangement SheetT.DistributeSymbols)
                makeElmItem "Rotate Label Clockwise" "CmdOrCtrl+Shift+Right" (fun ev-> sheetDispatch <| SheetT.RotateLabels)
                menuSeparator

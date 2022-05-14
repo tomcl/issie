@@ -20,8 +20,8 @@ Target.create "CleanDev" (fun _ ->
   let dirsToClean =
     !! "src/**/bin"
     ++ "src/**/obj"
-    ++ "dist"
-    ++ ".fable"
+    ++ "dist*"
+    ++ ".fable*"
   printfn "Cleaning directories: %A" dirsToClean
   Shell.cleanDirs dirsToClean
   printfn "Clean complete."

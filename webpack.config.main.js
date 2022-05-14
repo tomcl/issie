@@ -10,7 +10,7 @@ const staticPath =
 module.exports = {
   mode,
   target: 'electron-main',
-  devtool: 'cheap-module-source-map',
+  devtool: 'source-map',
   entry: './src/Main/Main.fs.js',
   output: {
     globalObject: 'this',
@@ -23,7 +23,12 @@ module.exports = {
     minimize: false,
   },
   module: {
-    rules: [
+      rules: [
+          {
+              test: /\.js$/,
+              enforce: "pre",
+              use: ["source-map-loader"],
+          },
       {
         test: /\.(m|j|t)s$/,
         exclude: /(node_modules|bower_components)/,

@@ -367,6 +367,7 @@ let displayErrorMessage error =
 
 /// Upon clicking the View buttonm, the wave selection pane will change to the wave viewer pane.
 let viewWaveformsButton model dispatch =
+    printf "update view butotn"
     let wsModel = model.WaveSim
     let viewButtonAction =
         let selectedWaves = Map.filter (fun _ key -> key.Selected) wsModel.AllWaves
@@ -411,6 +412,7 @@ let viewWaveformsButton model dispatch =
 
 /// Sets all waves as selected or not selected depending on value of newState
 let toggleSelectAll newState model dispatch : unit =
+    printf "toggle select all"
     let waveSimModel = model.WaveSim
     let waves = Seq.toList (Map.values waveSimModel.AllWaves)
     // let conns =
@@ -455,10 +457,10 @@ let toggleConnsSelect (name: string) (waveSimModel: WaveSimModel) (dispatch: Msg
     printf "toggleConnsSelect"
     let wave = waveSimModel.AllWaves[name]
     let wave' = {wave with Selected = not wave.Selected}
-    printf "%A" wave'
+    // printf "%A" wave'
 
     let waveSimModel' = {waveSimModel with AllWaves = Map.add name wave' waveSimModel.AllWaves}
-    printf "%A" waveSimModel'.AllWaves[name]
+    // printf "%A" waveSimModel'.AllWaves[name]
     dispatch <| SetWSMod waveSimModel'
 
     // changeWaveSelection name model waveSimModel dispatch
@@ -1002,6 +1004,10 @@ let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
 
 
 let waveViewerPane simData rState (model: Model) (dispatch: Msg -> unit) : ReactElement list =
+    let selectedWaves =
+        Map.filter (fun _ key -> key.Selected) model.WaveSim.AllWaves
+        |> Map.keys
+    // printf "%A" selectedWaves
     [ div 
         [ Style
             [ Width "calc(100% - 10px)"
@@ -1371,6 +1377,13 @@ let viewWaveSim (model: Model) dispatch : ReactElement list =
                 waveSelectionPane simData' reducedState model dispatch
             // Open waveform viewer
             | Running ->
+                printf "running"
+                let selectedWaves =
+                    Map.filter (fun _ key -> key.Selected) model.WaveSim.AllWaves
+                    |> Map.keys
+                    |> Seq.length
+
+                printf "%A" selectedWaves
                 waveViewerPane simData' reducedState model dispatch
         | Some (Error e, _) -> 
             displayErrorMessage e //IsWarning, "See Problems"

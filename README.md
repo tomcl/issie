@@ -67,7 +67,7 @@ The build system depends on a `Fake` file `build.fsx`. Fake is a DSL written in 
 
 * `build <target>` ==> `dotnet fake build -t <target>`
 
-## Code Structure
+## Code Overview
 
 The source code consists of two distinct sections transpiled separately to Javascript to make a complete Electron application.
 
@@ -80,9 +80,8 @@ Both processes run Javascript under Node.
 
 The `src/Main/Main.fs` source configures electron start-up and is boilerplate. It is transpiled to the root project directory so it can be automatically picked up by Electron.
 
-The remaining app code is arranged in four different sections, each being a separate F# project. This separation allows all the non-web-based code (which can equally be run and tested under .Net) to be run and tested under F# directly in addition to being transpiled and run under Electron.
+The remaining app code (in )
 
-The project relies on the draw2d JavaScript (node) library, which is extended to support digital electronics components. The extensions are in the `draw2d` sub-folder of the renderer project source files. 
 
 The code that turns the F# project source into `renderer.js` is the FABLE compiler followed by the Node Webpack bundler that combines multiple Javascript files into a single `renderer.js`.
 
@@ -94,17 +93,19 @@ This is boilerplate which you do not need to change; normally the F# project fil
 
 ### `src` folder
 
-|   Subfolder   |                                             Description                                            |
-|:------------:|:--------------------------------------------------------------------------------------------------:|
-| `main/` | Code for the main electron process that sets everything up - not normally changed |
-| `Renderer/Common/`       | Provides some common types and utilities used by all other sections, including the  WidthInferer |
-| `Renderer/Interface` | Contains low-level interface functions, and all teh low-level file management` |
-| `Renderer/Simulator/`    | Contains the logic to analyse and simulate a schematic sheet. |                                              |
-| `Renderer/UI`     | Contains the UI logic and file read/write logic This amd `main` are the only projects that cannot run under .Net, as they contain JavaScript related functionalities. |
+|   Subfolder or file   |                                             Description                                 |
+|:----------------------|:----------------------------------------------------------------------------------------|
+| `Main/main.fs` | Code for the main electron process that sets everything up - not normally changed |
+| `Renderer/Common/*`       | Provides some common types and utilities, as well as interfaces to libraries APIs and custom libraries |
+| `Renderer/Interface/*` | Contains low-level interface functions, and all the low-level file management              |
+| `Renderer/DrawBlock/*` | Contains all the SVG-based schematic editor code in F#|
+| `Renderer/Simulator/*` | Contains the logic to analyse and simulate a schematic sheet                               |             
+| `Renderer/UI/*`     | Contains the UI logic|
+| `./renderer.fs`     | Top-level file that drives the renderer code: contains Elmish MVU loop and Electron menu code |
 
 ### `Tests` folder
 
-Contains numerous tests for the WidthInferer and Simulator. Based on F# Expecto testing library.
+Currently tests are very old, and will not work. They are based on F# Expecto testing library and in principle the widthinferrer and simulator code (which runs under dotnet) could be tested here.
 
 
 ### `Static` folder
@@ -113,8 +114,7 @@ Contains static files used in the application.
 
 ### `Docs` folder
 
-Contains source information copied (or compiled) into the `docs` directory that controls the project 
-[Github Pages](https://pages.github.com/) website, with url [https://tomcl.github.io/issie/](https://tomcl.github.io/issie/).
+Contains source information that controls the project documentation web site [https://tomcl.github.io/issie/](https://tomcl.github.io/issie/).
 
 ## Project versus File in the Issie application
 

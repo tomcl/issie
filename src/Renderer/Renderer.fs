@@ -141,6 +141,7 @@ let fileMenu (dispatch) =
         makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) "Run performance check" None (fun _ ->
             testMaps()
             displayPerformance 100 4000000)
+        makeCondItem (JSHelpers.debugLevel <> 0) "Force Exception" None  (fun ev -> failwithf "User exception from menus")
      ]
 
 
@@ -201,7 +202,7 @@ let editMenu dispatch' =
                makeItem "Move Component Ports" None (fun _ -> 
                     dispatch' <| ShowStaticInfoPopup("How to move component Ports", SymbolUpdate.moveCustomPortsPopup(), dispatch'))
                menuSeparator
-               makeElmItem "Align" "CmdOrCtrl+Shift+A"  (fun ev -> failwithf "stop"; sheetDispatch <| SheetT.Arrangement SheetT.AlignSymbols)
+               makeElmItem "Align" "CmdOrCtrl+Shift+A"  (fun ev -> sheetDispatch <| SheetT.Arrangement SheetT.AlignSymbols)
                makeElmItem "Distribute" "CmdOrCtrl+Shift+D" (fun ev-> sheetDispatch <| SheetT.Arrangement SheetT.DistributeSymbols)
                makeElmItem "Rotate Label Clockwise" "CmdOrCtrl+Shift+Right" (fun ev-> sheetDispatch <| SheetT.RotateLabels)
                menuSeparator

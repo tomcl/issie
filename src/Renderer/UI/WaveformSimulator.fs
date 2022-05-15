@@ -44,6 +44,7 @@ let waveHeight = 0.3
 let clkCycleWidth = 1.0
 let lineThickness = 0.025
 let nonBinaryTransLen = 0.1
+let spacing = 0.4
 
 /// TODO: Remove this limit. This stops the waveform simulator moving past 500 clock cycles.
 let maxLastClk = 500
@@ -431,12 +432,12 @@ let selectAll (model: Model) dispatch =
     let allWavesSelected = Map.forall (fun name _ -> isWaveSelected waveSimModel name) waveSimModel.AllWaves
     // let allOn = Map.forall (fun k wave -> isWaveSelected model wave) wSModel.AllWaves
     tr
-        [ Class "rowHeight"
+        [ rowHeightStyle
           Style [ VerticalAlign "middle" ]
         ]
         [ td
             [ Class "wACheckboxCol"
-              Class "rowHeight"
+              rowHeightStyle
               Style [ VerticalAlign "middle" ]
             ] [ input [
                     Type "checkbox"
@@ -475,13 +476,13 @@ let checkboxAndName (name: string) (model: Model) (dispatch: Msg -> unit) =
     // printf "checkboxAndName %A"  (str <| allWaves[name].DisplayName )
 
     tr
-        [ Class "rowHeight"
+        [ rowHeightStyle
           Style [ VerticalAlign "middle" ]
         ] 
         [ td
             [ 
                 Class "wAcheckboxCol"
-                Class "rowHeight"
+                rowHeightStyle
                 Style [ VerticalAlign "middle" ] ]
                 [ input
                     [
@@ -631,44 +632,72 @@ let waveSimButtonsBar (model: Model) (dispatch: Msg -> unit) : ReactElement =
     div [ Style [ Height "45px" ] ]
         [
             closeWaveSimButton model.WaveSim dispatch
-            clkCycleButtons model.WaveSim dispatch
             radixButtons model.WaveSim dispatch
+            clkCycleButtons model.WaveSim dispatch
+            // TODO: zoomButtons
         ]
+
+// /// change the order of the waveforms in the simulator
+// let private moveWave (model:Model) (wSMod: WaveSimModel) up =
+//     let moveBy = if up then -1.5 else 1.5
+//     let addLastPort arr p =
+//         Array.mapi (fun i el -> if i <> Array.length arr - 1 then el
+//                                 else fst el, Array.append (snd el) [| p |]) arr
+//     let svgCache = wSMod.DispWaveSVGCache
+//     let movedNames =
+//         wSMod.SimParams.DispNames
+//         |> Array.map (fun name -> isWaveSelected model wSMod.AllWaves[name], name)
+//         |> Array.fold (fun (arr, prevSel) (sel,p) -> 
+//             match sel, prevSel with 
+//             | true, true -> addLastPort arr p, sel
+//             | s, _ -> Array.append arr [| s, [|p|] |], s ) ([||], false)
+//         |> fst
+//         |> Array.mapi (fun i (sel, ports) -> if sel
+//                                                then float i + moveBy, ports
+//                                                else float i, ports)
+//         |> Array.sortBy fst
+//         |> Array.collect snd 
+//     setDispNames movedNames wSMod
+//     |> SetWSMod
+
+let moveWave (wsModel: WaveSimModel) (direction: bool) (dispatch: Msg -> unit) : unit =
+    ()
 
 let waveLabelColumn (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement = 
     let allWaves = wsModel.AllWaves
-    let top =
-        [| tr
-            [ Class "rowHeight" ]
-            [ 
-                th
-                    [ Class "checkboxCol" ]
-                    [ div
-                        [ Class "updownDiv" ]
-                        []
-                            // [ Button.button
-                            //     [ Button.CustomClass "updownBut"
-                            //     Button.OnClick(fun _ -> moveWave model wsMod true |> dispatch) ] [ str "▲" ]
-                            // Button.button
-                            //     [ Button.CustomClass "updownBut"
-                            //         Button.OnClick(fun _ -> moveWave model wsMod false |> dispatch) ] [ str "▼" ] 
-                            // ] 
-                        // ]
-                    ]
-                // waveAddDelBut
-            ]
-        |]
+    // TODO: Change from buttons to drag and drop
+    let top = [| div [ rowHeightStyle] [] |]
+        // [| tr
+        //     [ rowHeightStyle ]
+        //     [ th
+        //         [ checkBoxColStyle ]
+        //         [ div
+        //             [ upDownDivStyle ]
+        //             [ 
+        //                 button
+        //                     [Button.Props [upDownButtonStyle]]
+        //                     (fun _ -> moveWave wsModel true dispatch)
+        //                     "▲"
+        //                 button
+        //                     [Button.Props [upDownButtonStyle]]
+        //                     (fun _ -> moveWave wsModel false dispatch)
+        //                     "▼"
+        //             ] 
+        //         ]
+        //     ]
+        //     // waveAddDelBut
+        // |]
 
     let selectedWaves =
         Map.filter (fun _ key -> key.Selected) allWaves
         |> Map.keys
         |> Seq.toArray
 
-    let makeLabelElements (waveNames: string array) =
-        let makeLbl l = label [ Class "waveLbl" ] [ str l ]
-        Array.map makeLbl waveNames
+    let makeLabelElements (waveNames: string array) : ReactElement array =
+        let makeLabel l = label [ waveLabelStyle ] [ str l ]
+        Array.map makeLabel waveNames
 
-    let labelRows = 
+    let labelRows : ReactElement array =
         selectedWaves
         |> makeLabelElements
         |> Array.zip selectedWaves
@@ -676,18 +705,25 @@ let waveLabelColumn (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
             if Map.tryFind name wsModel.AllWaves = None then
                 printfn "Help - cannot lookup %A in allwaves for label %A" name lab
                 failwithf "Terminating!"
-            tr [ Class "rowHeight" ]
-                [ td [ Class "checkboxCol" ]
-                      [ input
-                            // TODO: Fix these checkboxes
-                          [ Type "checkbox"
-                            Class "check"
-                            Checked <| isWaveSelected wsModel name
-                            Style [ Float FloatOptions.Left ]
-                            OnChange(fun _ -> toggleConnsSelect name wsModel dispatch) ] ]
-                  td
-                      [ Class "waveNamesCol"
-                        Style [ TextAlign TextAlignOptions.Right ] ] [ lab ] ])
+
+            div [ waveNamesColStyle ]
+                [ lab ]
+            // tr  [ rowHeightStyle ]
+            //     [ 
+            //         td  [ checkBoxColStyle ]
+            //             [ input [
+            //                 // TODO: Fix these checkboxes
+            //                 Type "checkbox"
+            //                 Class "check"
+            //                 Checked <| isWaveSelected wsModel name
+            //                 Style [ Float FloatOptions.Left ]
+            //                 OnChange (fun _ -> toggleConnsSelect name wsModel dispatch)
+            //             ] ]
+            //         td  [
+            //                 waveNamesColStyle
+            //             ] [ lab ]
+            //     ]
+        )
 
     /// Fills vertical space at bottom of label column
     let bot =
@@ -695,23 +731,47 @@ let waveLabelColumn (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
             [ Class "fullHeight" ]
             [
                 td
-                    [ Class "checkboxCol" ]
+                    [ checkBoxColStyle ]
                     []
                 td [] []
             ]
         |]
 
-    let leftCol = Array.concat [| top; labelRows; bot |]
+    // let leftCol = Array.concat [| top; labelRows; bot |]
+    let leftCol = Array.concat [| top; labelRows|]
 
-    div
-        [ Style
-            [ Float FloatOptions.Left
-              Height "100%" ]
-        ] [
-            table
-                [ Class "leftTable" ]
-                [ tbody [] leftCol ]
-        ]
+    div [ Style [
+            Float FloatOptions.Left
+            // Position PositionOptions.Sticky
+            // CSSProp.Left 0
+            Height "100%"
+            // Width "100px"
+            BorderTop "2px solid rgb(219,219,219)"
+            BorderRight "2px solid rgb(219,219,219)"
+            // CSSProp.Left 0
+            // CSSProp.Bottom 0
+            // GridAutoRows "30px"
+            // GridAutoColumns "max-content"
+        ] ] leftCol
+        // [
+        //     table
+        //         [ Class "leftTable" ]
+        //         [ tbody [] leftCol ]
+        // ]
+
+    // div [
+    //     Style [
+    //         // Float FloatOptions.Right
+    //         CSSProp.Right 0
+    //         CSSProp.Bottom 0
+    //         Position PositionOptions.Sticky
+    //         Height "100%"
+    //         BorderTop "2px solid rgb(219,219,219)"
+    //         BorderLeft "2px solid rgb(219,219,219)"
+    //         Display DisplayOptions.Grid
+    //         GridAutoRows "30px" 
+    //     ]
+    // ] rows
 
 let getWaveValue (currClkCycle: int) (wave: Wave): int64 =
     List.tryItem currClkCycle wave.WaveValues
@@ -731,22 +791,68 @@ let valueRows (wsModel: WaveSimModel) =
     |> Map.values |> Seq.toArray
     |> Array.map (getWaveValue wsModel.CurrClkCycle)
     |> Array.map (valToString wsModel.Radix)
-    |> Array.map (fun value -> label [ Class "waveVals" ] [ str value ])
-    |> Array.map (fun row ->
-        tr  [ Class "rowHeight" ] 
-            [ td [ Class "waveValsCol" ] [row] ]
-    )
+    |> Array.map (fun value -> label [ waveValsStyle ] [ str value ])
+    // |> Array.map (fun row ->
+    //     tr  [ rowHeightStyle ] 
+    //         [ td [ waveValsColStyle ] [row] ]
+    // )
 
 let private valuesColumn rows : ReactElement =
-    let rightCol = Array.append [| tr [ Class "rowHeight" ] [ td [ Class "rowHeight" ] [] ] |] rows
-    div
-        [ Style
-            [ Float FloatOptions.Right
-              Height "100%"
-              BorderTop "2px solid rgb(219,219,219)"
-              BorderLeft "2px solid rgb(219,219,219)" ] ] [ table [] [ tbody [] rightCol ] ]
+    let rightColProps = 
+        [| tr
+            [ rowHeightStyle ]
+            [ td [
+                rowHeightStyle
+                ] []
+            ]
+        |]
+    let rightCol = Array.append rightColProps rows
+    
+    let top = [| div [ rowHeightStyle] [] |]
 
-let waveformColumn (wsModel: WaveSimModel) : ReactElement =
+    div [
+        Style [
+            Float FloatOptions.Right
+            // CSSProp.Right 0
+            // CSSProp.Top 0
+            // CSSProp.Bottom 0
+            // Position PositionOptions.Relative
+            Height "100%"
+            BorderTop "2px solid rgb(219,219,219)"
+            BorderLeft "2px solid rgb(219,219,219)"
+            Display DisplayOptions.Grid
+            GridAutoRows "30px" 
+            // GridAutoColumns "min-content"
+            VerticalAlign "bottom"
+            FontSize "12px"
+            MinWidth "25px"
+        ]
+    ] (Array.append top rows)
+    
+    // [ table
+    //         []
+    //         [ tbody
+    //             []
+    //             rightCol
+    //         ]
+    // ]
+
+let backgroundSVG (wsModel: WaveSimModel) =
+    let clkLine x = makeLinePoints [ Class "clkLineStyle" ] (x, 0.0) (x, waveHeight + spacing)
+    [| 1 .. wsModel.EndCycle + 1 |] 
+    |> Array.map ((fun x -> float x * wsModel.ClkSVGWidth) >> clkLine)
+
+let clkCycleSVG (wsModel: WaveSimModel) =
+    let makeClkCycleLabel i =
+        match wsModel.ClkSVGWidth with
+        | width when width < 0.5 && i % 5 <> 0 -> [||]
+        | _ -> [| text (cursRectText wsModel i) [str (string i)] |]
+    [| 0 .. wsModel.EndCycle|]
+    |> Array.collect makeClkCycleLabel
+    |> Array.append (backgroundSVG wsModel)
+    |> svg (clkRulerStyle wsModel)
+
+let waveformColumn (model: Model) (wsModel: WaveSimModel) : ReactElement =
     let line = 
             polyline
                 [ 
@@ -768,16 +874,45 @@ let waveformColumn (wsModel: WaveSimModel) : ReactElement =
 
     let lastRow = [||] //[| waveTableRow [ Class "fullHeight" ] (lwaveCell wSModel) (waveCellSvg wSModel true) bgSvg |]
 
-    table
-        [ Style [ Height "100%" ] ] 
-        [ tbody
-            [ Style [ Height "100%" ] ]
-            [
-                //top
-                //waves
-                //bottom
-            ]
-        ]
+
+    let clkCycleRow =
+        div [ waveCellStyle wsModel ] 
+            [ clkCycleSVG wsModel]
+
+    // let waveRows =
+    //     Map.filter (fun _ key -> key.Selected) model.WaveSim.AllWaves
+    //     |> Map.values
+    //     |> Seq.toList
+    //     |> List.map (fun wave -> wave.SVG)
+
+    printf "%dpx" (model.WaveSimViewerWidth - 125)
+    div [ Style [
+            Height "100%" 
+            OverflowX OverflowOptions.Scroll
+            MaxWidth (sprintf "%dpx" (model.WaveSimViewerWidth - 125))
+            GridAutoRows "minmax(30px, auto)"
+            BorderTop "2px solid rgb(219,219,219)"
+        ] ] 
+        (Array.append [|clkCycleRow|] [|(svg [] wsModel.SVG)|])
+
+        // [ 
+            // Array.append [|clkCycleRow|] wsModel.SVG
+            // clkCycleSVG wsModel
+            // tbody
+            //     [ Style [ Height "100%" ] ]
+            //     [
+            //         // str "asdfasdfasdfasdfasdf"
+            //         // thead
+            //         //     []
+            //         //     []
+            //         thead
+            //             [ Class "rowHeight" ]
+            //             [ td (waveCell wsModel) [ clkCycleSVG wsModel ] ]
+            //         //top
+            //         //waves
+            //         //bottom
+            //     ]
+        // ]
 
     // svg [ SVGAttr.Width wholeCanvas; SVGAttr.Height wholeCanvas; SVGAttr.XmlSpace "http://www.w3.org/2000/svg" ]
         // [
@@ -805,19 +940,55 @@ let waveformColumn (wsModel: WaveSimModel) : ReactElement =
 
 let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
     // let tableWaves, nameColMiddle, cursValsRows = waveSimViewerRows compIds model wSMod dispatch
-    div
-        [ Style
-            [ Height "calc(100% - 45px)"
-              Width "100%"
-              OverflowY OverflowOptions.Auto ] ]
-        [ div [ Style [ Height "100%" ] ]
-            [
-                waveLabelColumn model.WaveSim dispatch
-                waveformColumn model.WaveSim
-                // allWaveformsTableElement model wSMod tableWaves dispatch
-                valuesColumn (valueRows model.WaveSim)
-            ]
+    div [ Style [
+            Height "calc(100% - 50px)"
+            Width "100%"
+            // OverflowX OverflowOptions.Clip
+            OverflowY OverflowOptions.Auto
+            Display DisplayOptions.Grid
+            // GridTemplateColumns "100px 200px 25px"
+            // GridAutoColumns "max-content max-content max-content"
+            // Grid "auto auto auto"
+            ColumnCount 3
+            GridAutoFlow "column"
+            GridAutoColumns "auto"
+
+            // GridAutoColumns "minmax(100px, auto) minmax(max-content, auto) minmax(25px, auto)"
+            // GridAutoColumns "minmax(100px, 250px) minmax(25px, auto)"
+
+        ] ]
+        // [ div [ Style [ Height "100%" ] ]
+        [
+
+            waveLabelColumn model.WaveSim dispatch
+            waveformColumn model model.WaveSim
+            valuesColumn (valueRows model.WaveSim)
         ]
+        // ]
+
+        // [ table
+        //     [ Style [
+        //         Height "100%"
+        //         // OverflowX OverflowOptions.Clip
+        //     ] ]
+        //     [ 
+        //         thead
+        //             []
+        //             [str "asdf"]
+                
+        //         tbody
+        //             [ Style [ Height "100%" ] ]
+        //             [
+        //                 //top
+        //                 //waves
+        //                 //bottom
+        //                 td [] [waveLabelColumn model.WaveSim dispatch]
+        //                 td [] [waveformColumn model model.WaveSim]
+        //                 td [] [valuesColumn (valueRows model.WaveSim)]
+
+        //             ]
+        //     ]
+        // ]
         // ((List.map (fun ramPath -> cursorValuesCol (waveSimViewerRamDisplay wSMod ramPath))
         //     wSMod.SimParams.MoreWaves
         // ) @ [
@@ -838,9 +1009,10 @@ let waveViewerPane simData rState (model: Model) (dispatch: Msg -> unit) : React
               MarginLeft "0%"
               MarginTop "0px"
               OverflowX OverflowOptions.Hidden
+              OverflowY OverflowOptions.Visible
             ]
         ] [
-            // closeWaveSim, radixTabs, changeClkTick
+            // closeWaveSim, radixTabs, changeClkTick, zoomButtons
             waveSimButtonsBar model dispatch
             showWaveforms model dispatch
             // viewZoomDiv

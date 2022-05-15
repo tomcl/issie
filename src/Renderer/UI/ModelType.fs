@@ -163,6 +163,7 @@ type Wave = {
     SheetId: ComponentId list // [] for top-level waveform: path to sheet
     Driver: FComponentId * OutputPortNumber
     DisplayName: string
+    // Number of bits in wave
     Width: int
     // List indexed by clock cycle
     WaveValues: WireData list

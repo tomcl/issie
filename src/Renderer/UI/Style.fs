@@ -152,6 +152,16 @@ let menuLabelStyle = Style [
 
 // Waveform simulator styles
 
+let rowHeightStyle = Style [
+    Height "30px"
+]
+
+let checkBoxColStyle = Style [
+    BorderRight "2px solid #dbdbdb"
+    VerticalAlign "bottom"
+    Width "5px"
+]
+
 let closeWaveSimButtonStyle = Style [
     Height "30px"
     FontSize "16px"
@@ -215,6 +225,58 @@ let clkCycleRightStyle = Style (
         BorderBottomRightRadius "4px"
     ])
 
+let upDownDivStyle = Style [
+    Width "100%"
+    Position PositionOptions.Relative
+    Height "30px"
+    Float FloatOptions.Left
+]
+
+let upDownButtonStyle = Style [
+    Margin 0
+    Display DisplayOptions.Block
+    Width "100%"
+    Height "50%"
+    Padding "0 0 0 0"
+    Top 0
+    FontSize "40%"
+    Position PositionOptions.Relative
+    BorderColor "gray"
+    BorderWidth "1px"
+    BorderRadius 0
+]
+
+let waveLabelStyle = Style [
+    Fill "black"
+    Left 0
+    TextAnchor "start"
+    Margin "5px"
+    TextAlign TextAlignOptions.Right
+]
+
+let waveNamesColStyle = Style [
+    TextAlign TextAlignOptions.Right
+    // BorderRight "2px solid #dbdbdb"
+    // WhiteSpace WhiteSpaceOptions.Nowrap
+    // VerticalAlign "bottom"
+    FontSize "12px"
+    MinWidth "100px"
+    Height "30px"
+]
+
+let waveValsStyle = Style [
+    Fill "black"
+    Left 0
+    TextAnchor "start"
+    Margin "5px"
+]
+
+let waveValsColStyle = Style [
+    VerticalAlign "bottom"
+    FontSize "12px"
+    MinWidth "25px"
+]
+
 // let clkLineWidth = 0.0125
 // let transLen = 0.1
 // let vPos = 0.0
@@ -227,20 +289,20 @@ let clkCycleRightStyle = Style (
 // let spacing = 0.4
 // let sigHeight = 0.3 
 
-// let vbWidth m = m.SimParams.ClkSvgWidth * (float m.SimParams.LastClkTime + 1.0)
-// let maxWavesColWidthFloat m = vbWidth m * 40.0 + 4.0
-// let maxWavesColWidth m = string (maxWavesColWidthFloat m) + "px"
-// let waveCellWidth m = Width (maxWavesColWidth m)
+let vbWidth m = m.ClkSVGWidth * (float m.EndCycle + 1.0)
+let maxWavesColWidthFloat m = vbWidth m * 40.0 + 4.0
+let maxWavesColWidth m = string (maxWavesColWidthFloat m) + "px"
+let waveCellWidth m = Width (maxWavesColWidth m)
 
-// let widthAndVBwave (m : WaveSimModel) : IProp list = [
-//     Style [waveCellWidth m]
-//     ViewBox ("0 0 " + string (vbWidth m) + " 0.7")
-// ]
+let widthAndVBwave (m : WaveSimModel) : IProp list = [
+    Style [waveCellWidth m]
+    ViewBox ("0 0 " + string (vbWidth m) + " 0.7")
+]
 
-// let clkRulerStyle m : IProp list = 
-//     List.append (widthAndVBwave m)
-//                 [ Class "clkRulerSvg"
-//                   PreserveAspectRatio "none" ]
+let clkRulerStyle m : IProp list = 
+    List.append (widthAndVBwave m)
+                [ Class "clkRulerSvg"
+                  PreserveAspectRatio "none" ]
 
 // let cursorLeftPx m cursor =
 //     cursor * (m.ClkSvgWidth * 40.0 + 4.0 / (float m.LastClkTime + 1.0)) 
@@ -250,11 +312,18 @@ let clkCycleRightStyle = Style (
 //         Width (40.0 * (m.ClkSvgWidth - clkLineWidth))
 // ]
 
-// let cursRectText m i : IProp list = [
-//     Class "clkNumStyle"
-//     X (m.SimParams.ClkSvgWidth * (float i + 0.5)) 
-//     Y 0.5
-// ]
+let clkNumStyle = [
+
+]
+
+let cursRectText m i : IProp list =
+    [
+        SVGAttr.FontSize "1.5%"
+        SVGAttr.TextAnchor "middle"
+        // SVGAttr.Y 0.5
+        X (m.ClkSVGWidth * (float i + 0.5)) 
+        Y 0.5
+    ]
 
 // let inWaveLabel nLabels xInd m : IProp list = [
 //     Class "busValueStyle"
@@ -270,10 +339,15 @@ let clkCycleRightStyle = Style (
 //                   | false -> Class "waveCellSvg"
 //                   PreserveAspectRatio "none" ]
 
-// let waveCell m : IHTMLProp list = [
-//     Class "rowHeight"
-//     Style [waveCellWidth m]
-// ]
+let waveCell m = [
+    Class "rowHeight"
+    Style [waveCellWidth m]
+]
+
+let waveCellStyle m = Style [
+    Height "30px"
+    waveCellWidth m
+]
 
 // let lwaveCell m : IHTMLProp list = [
 //     Class "fullHeight"

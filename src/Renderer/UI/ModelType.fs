@@ -192,6 +192,7 @@ type WaveSimModel = {
     CurrClkCycle: int
     ClkCycleBoxIsEmpty: bool
     Radix: NumberBase
+    ClkSVGWidth: float
 }
 
 let initWSModel : WaveSimModel = {
@@ -206,6 +207,7 @@ let initWSModel : WaveSimModel = {
     CurrClkCycle = 0
     ClkCycleBoxIsEmpty = false
     Radix = Hex
+    ClkSVGWidth = 1.0
 }
     // // generate data using this 0 clock simulation, which comes from makeSimData
     // // TODO: get rid of this and use only SimDataCache, since this is SimDataCache[0]

@@ -126,7 +126,7 @@ let viewSimSubTab model dispatch =
         ]
     | WaveSim -> 
         div [ Style [Width "100%"; Height "calc(100% - 72px)"; MarginTop "15px" ] ]
-            ( WaveformSimulator.viewWaveSim model dispatch )
+            [ viewWaveSim model dispatch ]
             // ( WaveformSimulationView.viewWaveSim model dispatch )
 
 /// Display the content of the right tab.

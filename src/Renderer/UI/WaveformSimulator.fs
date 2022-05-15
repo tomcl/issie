@@ -358,12 +358,10 @@ let generateValuesPerClkCycle waves clkCycle =
 
 /// TODO: Test if this function actually works.
 let displayErrorMessage error =
-    [ div
-        [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]
+    div [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]
         [
             SimulationView.viewSimulationError error
         ]
-    ]
 
 /// Upon clicking the View buttonm, the wave selection pane will change to the wave viewer pane.
 let viewWaveformsButton model dispatch =
@@ -1003,13 +1001,12 @@ let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
 
 
 
-let waveViewerPane simData rState (model: Model) (dispatch: Msg -> unit) : ReactElement list =
+let waveViewerPane simData rState (model: Model) (dispatch: Msg -> unit) : ReactElement =
     let selectedWaves =
         Map.filter (fun _ key -> key.Selected) model.WaveSim.AllWaves
         |> Map.keys
     // printf "%A" selectedWaves
-    [ div 
-        [ Style
+    div [ Style
             [ Width "calc(100% - 10px)"
               Height "100%"
               MarginLeft "0%"
@@ -1021,12 +1018,7 @@ let waveViewerPane simData rState (model: Model) (dispatch: Msg -> unit) : React
             // closeWaveSim, radixTabs, changeClkTick, zoomButtons
             waveSimButtonsBar model dispatch
             showWaveforms model dispatch
-            // viewZoomDiv
         ]
-    ]
-
-    // Calls generateAllLabels, generateAllWaves, generateValuesPerClkCycle
-    // inputs tbd
 
 /// get common NLSource of list of NLTarget with the same source
 let private nlTrgtLst2CommonNLSource (netList: NetList) (nlTrgtLst: NLTarget list) : NLSource option =
@@ -1328,7 +1320,7 @@ let getWaveforms
 /// This function needs to show a list of what waveforms can be displayed, as well as a
 /// check box list showing which ones are selectable. Should have a 'select all' box
 /// available as well.
-let waveSelectionPane simData reducedState (model: Model) dispatch : ReactElement list = 
+let waveSelectionPane simData reducedState (model: Model) dispatch : ReactElement = 
     /// Generate popup over waveeditor screen if there are undriven input connections
     let inputWarningPopup (simData:SimulatorTypes.SimulationData) dispatch =
         if simData.Inputs <> [] then
@@ -1339,8 +1331,7 @@ let waveSelectionPane simData reducedState (model: Model) dispatch : ReactElemen
             let popup = Notifications.warningPropsNotification (sprintf "Inputs (%s) will be set to 0." inputs)
             dispatch <| SetPropertiesNotification popup
 
-    [ div
-        [ Style
+    div [ Style
             [
                 Width "90%"
                 MarginLeft "5%"
@@ -1357,10 +1348,9 @@ let waveSelectionPane simData reducedState (model: Model) dispatch : ReactElemen
                     selectWaves model dispatch
                 ]
         ]
-    ]
 
 /// Entry point to the waveform simulator.
-let viewWaveSim (model: Model) dispatch : ReactElement list =
+let viewWaveSim (model: Model) dispatch : ReactElement =
     let simData = SimulationView.makeSimData model
     match simData with
         | None -> failwithf "simRes has value None" // IColor.IsWhite, ""

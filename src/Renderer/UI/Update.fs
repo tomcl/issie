@@ -276,6 +276,7 @@ let getLastMouseMsg msgQueue =
     | [] -> None
     | lst -> Some lst.Head //First item in the list was the last to be added (most recent)
 
+// TODO: Fix this by removing the wavesim stuff. Need a better way of updating wavesim list of connections when sheet changes.
 let sheetMsg sMsg model =
     let sModel, sCmd = SheetUpdate.update sMsg model.Sheet
     let newModel = { model with Sheet = sModel}
@@ -301,8 +302,9 @@ let sheetMsg sMsg model =
                 | true -> NotRunning
                 | _ -> model.WaveSim.State
     }
+    printf "sheetMsg %A" sMsg
     // printf "%A" (model.WaveSim.ReducedState <> newReducedState)
-    {newModel with WaveSim = waveSim; SavedSheetIsOutOfDate = findChange newModel}, Cmd.map Sheet sCmd
+    {newModel with SavedSheetIsOutOfDate = findChange newModel}, Cmd.map Sheet sCmd
 
 //----------------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------UPDATE-----------------------------------------------------------//
@@ -576,6 +578,12 @@ let update (msg : Msg) oldModel =
         let cmd = if b then Cmd.none else Cmd.ofMsg (Sheet (SheetT.SetSpinner false)) //Turn off spinner after project/sheet is loaded
         {model with IsLoading = b}, cmd
     | InitiateWaveSimulation wsMod ->
+        printf "initiate wave sim"
+        let selectedWaves =
+            Map.filter (fun _ key -> key.Selected) wsMod.AllWaves
+            |> Map.keys
+
+        printf "%A" selectedWaves
         {model with WaveSim = wsMod}, Cmd.ofMsg (Sheet(SheetT.SetSpinner false))
     // | InitiateWaveSimulation (view, paras)  -> 
         // updateCurrentWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.ofMsg FinishUICmd

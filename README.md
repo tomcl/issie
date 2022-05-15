@@ -97,9 +97,10 @@ This is boilerplate which you do not need to change; normally the F# project fil
 |   Subfolder   |                                             Description                                            |
 |:------------:|:--------------------------------------------------------------------------------------------------:|
 | `main/` | Code for the main electron process that sets everything up - not normally changed |
-| `Common/`       | Provides some common types and utilities used by all other sections, including the  WidthInferer |
-| `Simulator/`    | Contains the logic to analyse and simulate a diagram.                                              |
-| `Renderer/`     | Contains the UI logic, the wrapper to the JavaScript drawing library and a set of utility function to write/read/parse diagram files. This amd `main` are the only projects that cannot run under .Net, as they contain JavaScript related functionalities. |
+| `Renderer/Common/`       | Provides some common types and utilities used by all other sections, including the  WidthInferer |
+| `Renderer/Interface` | Contains low-level interface functions, and all teh low-level file management` |
+| `Renderer/Simulator/`    | Contains the logic to analyse and simulate a schematic sheet. |                                              |
+| `Renderer/UI`     | Contains the UI logic and file read/write logic This amd `main` are the only projects that cannot run under .Net, as they contain JavaScript related functionalities. |
 
 ### `Tests` folder
 
@@ -121,16 +122,17 @@ Issie allows the users to create projects and files within those projects. A Iss
 
 When opening a project, Issie will initially search the given repository for `.dgm` files, parse and load their content, and allow the user to open them in Issie or use them as components in other designs.
 
-## Build Magic
+## Build Overview
 
-This project uses modern F# / dotnet cross-platform build. The build process does not normally concern a developer, but here is an overview for if it needs to be adjusted.
+This project uses modern F# / dotnet cross-platform build. The build process does not normally concern a developer, but here is an overview for if it needs to be adjusted. Details are included below under **Getting Started As A Developer**.
 
-* Before anything can be built Dotnet & Node.js are manually be (globally) installed. Dotnet includes the `paket` tool which will manage other dotnet-related dependencies. Node.js includes `npm` which will do the same for Node-related dependencies. NB - there are other popular packet managers for Node, e.g. Yarn. They do not mix with npm, so make sure you do not use them. Confusingly, they will sort-of work, but cause install incompatibilities.
-  * Dotnet dependencies are executable programs or libraries that run under dotnet and are written in C#'. F#, etc.
-  * Node dependencies are (always) Javascript modules which run under node.
+* Before anything can be built Dotnet & Node.js are manually be (globally) installed. Dotnet includes the `paket` tool which will manage other dotnet-related dependencies. Node.js includes `npm` which will do the same for Node-related dependencies. NB - there are other popular packet managers for Node, e.g. Yarn. They do not mix well with npm, so make sure you do not use them. Confusingly, they will sort-of work, but cause occasional install incompatibilities.
+  * Dotnet dependencies are executable programs or libraries that run under dotnet and are written in C#. F#, etc.
+  * Node dependencies are (always) Javascript modules which run under Node.
 * Initially (the first time `build.cmd` is run) the build tools categorised in `dotnet-tools.json` are installed by `dotnet tool restore`.
-   * fake (with the F# compiler) 
-   * fable
+   * fake (F# build automation tool) 
+   * fable (F# to js compiler)
+   * paket (alt dotnet package manager to Nuget)
 * Next all the project Dotnet dependencies (`paket.dependencies` for the whole project, selected from by the `paket.references` in each project directory, are loaded by the `paket` packet manager.
 * Finally fake runs `build.fsx` (this is platform-independent) which uses `npm` to install all the node (Javascript) dependencies listed in `package.json`. That includes tools like webpack and electron, which run under node, as well as the node libraries that will be used by needed by the running electron app, including electron itself. These are all loaded by the `npm` packet manager. 
 
@@ -143,82 +145,98 @@ download and run the latest prebuilt binary for your platform (Windows or Macos)
 * Macos: Double click the dmg file  and run the application inside the folder, or drag and drop this to install.
     * The binaries are not signed. You will need to [perform a one-off security bypass](https://www.wikihow.com/Install-Software-from-Unsigned-Developers-on-a-Mac).
 
-###
-
 Issie installs and runs without making system changes - all of its code is inside the directory you download. You can delete this and replace it by a later version of Issie. Each design sheet is stored in a similarly named file under the porject directory. The subdirectory `backup` there contains a large numbers of backup snapshots for design recovery. These are not needed for Issie operation so you can delete them - or even the whole `backup` directory, if you wish.
 
 ## Getting Started as Developer
 
 If you want to get started as a developer, follow these steps.
 
-### Development Install Prerequisites
+### Development Install Prerequisites (common to windows, macos, linux)
 
 Download and install (if you already have these tools installed just check the version constraints).
 
 
-* [.Net 6 SDK](https://dotnet.microsoft.com/download/dotnet/5.0).  Version >= 6.0
-* [Node.js v16](https://nodejs.org/en/). **Version 14 or (preferably) v16 - NOT latest 18**
-    * Node.js includes the `npm` package manager, so this does not need to be installed separately.
-      * Note that Node.js v16 doesn't work with versions earlier that v7.0.0
-    * If you are using a different version of Node for developmnet on oytehr projects, global install 
+* [.Net 6 SDK (not runtime)](https://dotnet.microsoft.com/en-us/download).  Version >= 6.0
+* [Node.js v16](https://nodejs.org/en/).
+    * Node.js `v16` includes the `npm` package manager v8.x
+    * If you are using a different version of Node for development on other projects, global install 
     (the default) may interfere with this. You will need to do a more complex local node install.
-* (recommended) Visual Studio 2022 which includes F# 6.0
-* (recommended) install [hyper.js](https://hyper.is/) to have a good command line interface - anything else you like will do.
+* Visual Studio 2022 (for mac or windows) or Visual Studio Code + Ionide extension.
+* (recommended) install [hyper.js](https://hyper.is/) to have a good command-line interpreter program - anything else you like will do.
 
 ### Issie Development
 
-1. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or if contributing clone it locally, or fork it on github and then clone it locally. Make sure you are contributing to the Issie repo - not the Issie parent repo, if cloning (Github desktop gives you this option when you clone).
+1. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or if contributing clone it locally, or fork it on github and then clone it locally. 
 
 3. Navigate to the project root directory (which contains this README) in a command-line interpreter. For Windows usage make sure if possible for convenience 
-that you have a _tabbed_ command-line interpreter that can be started direct from file explorer within a specific directory (by right-clicking on the explorer directory view). 
-That makes things a lot more pleasant. The new [Windows Terminal](https://github.com/microsoft/terminal) works well.
+that you have a command-line interpreter that can be started direct from file explorer within a specific directory (by right-clicking on the explorer directory view). 
+That makes things a lot more pleasant. [Hyper.js](https:hyper.is) works well.
 
-4. Run `build.cmd` under Windows or `build.sh` under linux or macos. This will download and install all dependencies then launch the application with HMR.
+4. Run `build.cmd` under Windows or `build.sh` under linux or macos. This will download and install all dependencies then launch the application in dev mode with HMR.
   
   * HMR: the application will automatically recompile and update while running if you save updated source files
   * To initialise and reload: `File -> reload page`
   * To exit: after you exit the application the auto-compile script will terminate after about 15s
-  * To recompile the application run `npm run dev` 
+  * To recompile the whole application again run `npm run dev`. (NB `npm run fastdev` is the same with debugging switched off to increase simulation speed a lot).
   * To generate distributable binaries for dev host system `npm run dist`.
-  * If you have changed node modules use `build dev`. Note that this project uses npm, not yarn. If npm gets stuck use `build cleannode` and try again.
-  * From time to time run `build killzombies` to terminate orphan node and dotnet processes which accumulate using this dev chain. (Not sure if this is still needed)
+  * If you have changed `packet.json` and therefore need to remake the lock file `paket-lock.json` use `npm install`.
+  * On windows `build killzombies` will terminate orphan node and dotnet processes which occasionally happen using this build chain after unusual terminations
+
+NB - in parallel with the above compilation, Issie code will always compile without errors (but not run)under dotnet. Compilation should be identical but when unsure why there is an error it is **very helpful** to build the current code under VS or VSC and get easier to find error messages. Similarly, VS or VSC can be used with confidence to refactor code, testing with compilation. Building under VS or VSC cannot work because the code depends on electron and Node APIs to work.
+
+#### Node management details
+
+* `package-lock.json` contains exact package versions and is downloaded from the repo. Normally you don't need to change this. The standard build above will run `npm ci` which checks and audits packages but does not change the lock file.
+* If you need to add upgrade a package (in `package.json1`) use `npm install` to recreate a lock file, which can be pushed to the repo.
+* Single packages can conveniently be changed or added using `npm upgrade name` or `npm [-D] install name` instead of editing `package.json`.  
+* If a package audits with a problem use `npm ls name` to find which of the required packages use it (usually upgrading or replacing them will remove the problem).
 
 #### Development on Macos
 
-In theory the build should work equally well on macos. Practically that is now (10/2021) the case. Having installed the normal prerequisites, and Visual Studio for Mac, which itself has the F# compiler, the one-off setup can be done manually from the various build steps needed:
+A clean build will work equally well on macos, however things are more likely to go wrong if you have previously installed conflicting packages:
 
-* git clone to local project directory as normal (with github desktop or command line git - one off)
-* dotnet tool restore  (build tools - one off)
-* dotnet paket install (install dotnet packages one off)
-* npm install (install node packages - one off)
-* npm run dev (run the dev envt) 
+* Legacy versions of `dotnet` - can if needed be removed [as here](https://stackoverflow.com/questions/44089518/how-can-i-uninstall-dotnet-core-from-macos-sierra):
+  ```
+  curl -O https://raw.githubusercontent.com/dotnet/sdk/main/scripts/obtain/uninstall/dotnet-uninstall-pkgs.sh
+  chmod u+x dotnet-uninstall-pkgs.sh
+  sudo ./dotnet-uninstall-pkgs.sh
+  ```
+* Root permissions in dev files. For dev to work smoothly you need every configuration file to be installed under your own username, so you have r/w access. This will break if you ever find yourself using `sudo` to root install software, or if you have done this some time in the past. In that case you can temporarily get round issues by using `sudo` to run the development (or the generated app) with admin privileges. This is the wrong thing to do. Instead you should use
+   * ``chown -R `whoami` dir``
+for each directory that might have the files with bad permissions. Typically your dev directory `.` and `/usr/local`.
+* Uninstalling and reinstalling latest dotnet is helpful if dotnet has been installed wrong.
 
+### Under the hood for developers
 
-One unresolved issue that can occur on Macs is file permission problems. Best practice is for all installation and dev to run under the current (non-admin) user. If any part of the necessary downloaded development files gets written as root then subsequent development commands that modify it will need to be executed using sudo.
+Although the dev chain is complex, it is now very smooth and identical for all platforms. Each of these steps can be performed as needed:
 
-```
-sudo npm run dev
-```
+1. You need `Dotnet SDK` and `Node` installed. Dotnet SDK gives you F#.
+2. `dotnet tool restore` gets you the dev tools: `Fable` compiler, `Fake` build automation, `paket` dotnet package manager. (Node package management is via `npm` which comes with Node).
+3. `dotnet paket install` installs all of the dotnet-side packages needed
+4. `npm ci` downloads and audits correct versions of all of the npm packages. `npm install` will redo the versions if these have changed and generate an updated lock file.
+5. `npm run dev`, `npm run dist`, npm run `devfast`: scripts defined in `package.json` which control developmment (with HMR) or production compilation with Fable, and packing using Webpack 5.
+6. The `build.cmd` and `build.sh` scripts package the above steps adding some not usually necessary directory cleaning - you can run them individually in order if you have problems.
 
-If possible, try to avoid this, but if necessary it can be done. Probably the better solution is to investigate properly which install steps introduce these root owner files, change the file ownership back to current user with `chown -R <username> <directory>`. Please document any progress made with mac builds (detailing which mac OS) on an issue.
+* To update the tool versions (not normally needed) edit `dotnet-tools.json`.
+* To change the dotnet packages used (advanced) change `paket.dependencies` at top level **and** `paket.references` in the directory of the relevant `.fsproj` file. Currently dotnet packages are not pinned to versions so latest compatible versions are always used. This is probably wrong but seems to work well.
+* To interface to a new Node package from F# see the excellent [Fable documentation](https://fable.io/docs/communicate/js-from-fable.html). The **best** way to do this is to write an F# interface file which provides
+static typing (like a typescript definition file). In fact there is a wonderful automatic converter [ts2fable](https://github.com/fable-compiler/ts2fable) which generates F# interfaces from typescript `.d` files. This works well, but manual adjutsment is needed for anything complex. See [the Electon API interface](https://github.com/tomcl/issie/blob/master/src/Renderer/Common/ElectronAPI.fs) in Issie which was generated in this way from a published electron API `.d` files - in that case the manual adjustment was quite unpleasant because Electron API is very complex.
+* To understand Elmish and MVU read the excellent [Elmish book](https://zaid-ajaj.github.io/the-elmish-book/#/)
+* For more documentation on Issie in addition to XML code comments see the [Issie Wiki](https://github.com/tomcl/issie/wiki)
 
 
 ## Reinstalling Compiler and Libraries
 
-To reinstall the build environment (without changing project code) rerun `build.cmd` (Windows) or `build.sh` (Linux and MacOS). You may need first to
-run `build killzombies` to remove orphan processes that lock build files.
+To reinstall the build environment (without changing project code) rerun `build.cmd` (Windows) or `build.sh` (Linux and MacOS). 
 
 ## Creating binaries
 
-`npm run dist` will generate the correct binaries for your system under `/dist`.
+`npm run dist` will generate the correct binaries for your system under `/dist`. 
 
-* There is a very rare bug in the code that downloads electron binaries that is sensitive to fast internet access: 
-going through a VPN makes it go away. It is one-off since the binaries are cached once downloaded. If this hits you
-the workaround is to run the build script again using Imperial College VPN. Having downloaded the binaries once
-the porblem will go away.
+
 
 ## TODO
 
-
 * Clean up Paket dependencies
+* Document and clean up CSS/SCSS build
 

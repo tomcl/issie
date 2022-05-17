@@ -60,7 +60,6 @@ let isValidDCRow row table =
 /// Finds all rows where a given input is Don't Care (X)
 let inputDCRows (input: CellIO) (inputConstraints: ConstraintSet) (table: TruthTable) bitLimit =
     let allInputs = table.Inputs
-    let rowLimit = int(2.0**bitLimit)
     let tMap =
         match table.DCMap with
         | None -> table.FilteredMap
@@ -77,13 +76,20 @@ let inputDCRows (input: CellIO) (inputConstraints: ConstraintSet) (table: TruthT
         let tableLst = Map.toList tMap
         ([],tableLst)
         ||> List.fold (fun acc (lhs,rhs) ->
+            // Is the input value in this row already DC?
+            let alreadyDC = 
+                match lhs[inputIdx].Data with 
+                | DC -> true
+                | _ -> false
+            // Sets the current input value in the row to DC for checking
             let possible: TruthTableRow =
                 lhs
                 |> List.updateAt inputIdx {IO = input; Data = DC}
-            match List.exists (fun (l,r) -> rowEquals (l@r) (possible@rhs)) acc,
-                isValidDCRow possible table with
-            | true, _ | _, None -> acc
-            | _, Some _ -> (possible,rhs)::acc)
+            // If the possible row is valid, and the row was already not DC,
+            // add this to the list of new valid DC rows.
+            match isValidDCRow possible table, alreadyDC with
+            | _,true | None,_ -> acc
+            | Some _,false -> (possible,rhs)::acc)
 
 /// Reduce the Truth Table by removing rows covered by Don't Care Rows.
 let reduceWithDCRow regularRows (dcLeft,dcRight) =

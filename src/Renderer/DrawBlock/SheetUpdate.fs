@@ -726,6 +726,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     Cmd.ofMsg UpdateBoundingBoxes
                 ]
     
+    | KeyPress Ctrl ->
+            model, symbolCmd (SymbolT.ShowCustomOnlyPorts model.NearbyComponents)
+
     | ToggleSelectionOpen ->
         //if List.isEmpty model.SelectedComponents && List.isEmpty model.SelectedWires then
         //    model, Cmd.none
@@ -737,10 +740,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | MouseMsg mMsg -> // Mouse Update Functions can be found above, update function got very messy otherwise
         match mMsg.Op with
-        | Down -> mDownUpdate model mMsg
+        | Down when model.Action = Idle -> mDownUpdate model mMsg
         | Drag -> mDragUpdate model mMsg
         | Up -> mUpUpdate model mMsg
         | Move -> mMoveUpdate model mMsg
+        |_ -> model, Cmd.none 
 
     | UpdateBoundingBoxes -> 
         let model =
@@ -829,6 +833,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     Cmd.ofMsg (KeyPress CtrlW)
                 else
                     Cmd.none
+                    // Cmd.ofMsg (KeyPress Ctrl)
             | false -> Cmd.none
 
         { model with CurrentKeyPresses = newPressedKeys }, newCmd

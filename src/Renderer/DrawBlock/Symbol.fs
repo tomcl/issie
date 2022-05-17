@@ -739,12 +739,14 @@ let private addStyledText (style:Text) (pos: XYPos) (name: string) =
 
 /// Generate circles on ports
 let inline private portCircles (pos: XYPos) (show:ShowPorts)= 
-    match show with
-    |ShowBothForPortMovement -> [makeCircle pos.X pos.Y {portCircle with Fill="Blue"}]
-    |ShowOneTouching _ -> [makeCircle pos.X pos.Y {portCircle with Fill="Blue"}]
-    |ShowOneNotTouching _ -> [makeCircle pos.X pos.Y {portCircle with Fill="Red"}]
-    |ShowTarget -> [makeCircle pos.X pos.Y portCircleTarget; ]
-    |_ -> [makeCircle pos.X pos.Y portCircle]
+    let circle = 
+        match show with
+        |ShowBothForPortMovement |ShowOneTouching _ -> {portCircle with Fill="DodgerBlue";}
+        |ShowOneNotTouching _ -> {portCircle with Fill="Red"}
+        |ShowTarget -> portCircleTarget
+        |_ -> portCircle
+    
+    [makeCircle pos.X pos.Y circle]
 
 /// Puts name on ports
 let private portText (pos: XYPos) name edge =
@@ -774,14 +776,11 @@ let private drawPortsText (portList: list<Port>) (listOfNames: list<string>) (sy
         |> List.collect id
 
 /// Function to draw ports using getPortPos. The ports are equidistant     
-let private drawPorts (portType: PortType) (portList: Port List) (printPorts:ShowPorts) (symb: Symbol)= 
-    if not (portList.Length < 1)
-    then 
-        match (printPorts,portType) with
-        |(ShowBoth,_) |(ShowInput,PortType.Input) |(ShowOutput,PortType.Output) -> [0..(portList.Length-1)] |> List.collect (fun x -> (portCircles (getPortPosToRender symb portList[x]) ShowBoth ))  
-        |(ShowBothForPortMovement,_) -> [0..(portList.Length-1)] |> List.collect (fun x -> (portCircles (getPortPosToRender symb portList[x]) ShowBothForPortMovement ))  
-        |(ShowOneTouching p, _) -> [0..(portList.Length-1)] |> List.collect (fun x -> if portList[x] = p then (portCircles (getPortPosToRender symb portList[x]) (ShowOneTouching p) ) else (portCircles (getPortPosToRender symb portList[x]) ShowNone ))
-        |(ShowOneNotTouching p, _) -> [0..(portList.Length-1)] |> List.collect (fun x -> if portList[x] = p then (portCircles (getPortPosToRender symb portList[x])  (ShowOneNotTouching p) ) else (portCircles (getPortPosToRender symb portList[x]) ShowNone ))
+let private drawPorts (portType: PortType) (portList: Port List) (showPorts:ShowPorts) (symb: Symbol)= 
+    if not (portList.Length < 1) then       
+        match (showPorts,portType) with
+        |(ShowBoth,_) |(ShowInput,PortType.Input) |(ShowOutput,PortType.Output) | (ShowBothForPortMovement,_) -> [0..(portList.Length-1)] |> List.collect (fun x -> (portCircles (getPortPosToRender symb portList[x]) showPorts ))  
+        |(ShowOneTouching p, _) | (ShowOneNotTouching p, _) -> [0..(portList.Length-1)] |> List.collect (fun x -> if portList[x] = p then (portCircles (getPortPosToRender symb portList[x]) (showPorts) ) else (portCircles (getPortPosToRender symb portList[x]) ShowBothForPortMovement ))
         |(_,_) -> []
     else []
 
@@ -791,8 +790,8 @@ let private drawMovingPortTarget (pos: (XYPos*XYPos) option) symbol outlinePoint
     |None -> []
     |Some (targetPos,mousePos) -> 
         (portCircles targetPos ShowTarget) 
-        |> List.append ([makeLine targetPos.X targetPos.Y (mousePos.X-symbol.Pos.X) (mousePos.Y-symbol.Pos.Y) {defaultLine with Stroke="Blue"; StrokeWidth="2.0px" ;StrokeDashArray="4,4"}])
-        |> List.append [makePolygon outlinePoints {defaultPolygon with Fill = "No"; FillOpacity = 0.0; Stroke = "Blue"; StrokeWidth="2px"}] 
+        |> List.append ([makeLine targetPos.X targetPos.Y (mousePos.X-symbol.Pos.X) (mousePos.Y-symbol.Pos.Y) {defaultLine with Stroke="DodgerBlue"; StrokeWidth="2.0px" ;StrokeDashArray="4,4"}])
+        |> List.append [makePolygon outlinePoints {defaultPolygon with Fill = "No"; FillOpacity = 0.0; Stroke = "DodgerBlue"; StrokeWidth="2px"}] 
 //------------------------------HELPER FUNCTIONS FOR DRAWING SYMBOLS-------------------------------------
 let private createPolygon points colour opacity = 
     [makePolygon points {defaultPolygon with Fill = colour; FillOpacity = opacity}]

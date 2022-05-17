@@ -299,6 +299,17 @@ let inline showAllOutputPorts (model: Model) =
 
     { model with Symbols = newSymbols }
 
+/// Given a model it shows all ports of custom components and hides all other ports, then returns the updated model
+let inline showAllCustomPorts (model: Model) =
+    let showSymbolOutPorts _ sym = 
+        Optic.map appearance_ (fun app -> {app with ShowPorts = ShowBothForPortMovement}) sym
+
+    let newSymbols = 
+        model.Symbols
+        |> Map.map showSymbolOutPorts
+
+    { model with Symbols = newSymbols }
+
 /// Given a model it hides all ports and returns the updated model
 let inline deleteAllPorts (model: Model) =
     let hideSymbolPorts _ sym = 
@@ -940,10 +951,10 @@ let movePortUpdate (model:Model) (portId:string) (pos:XYPos) : Model*Cmd<'a> =
             let lastPortXorY = match edge with | Top | Bottom ->  lastPortPos.X | _ -> lastPortPos.Y
             let hORw = match edge with | Top | Bottom -> snd (getRotatedHAndW symbol) |_ -> fst (getRotatedHAndW symbol)
             match (order,edge) with
-            |(0,Bottom) |(0,Left) -> firstPortXorY/2.0
-            |(0,_) -> (hORw + firstPortXorY)/2.0 
-            |(portsOnEdge,Bottom) | (portsOnEdge,Left) -> (hORw+lastPortXorY)/2.0
-            |(portsOnEdge,_) -> lastPortXorY/2.0
+            |(0,Bottom) |(0,Left) -> firstPortXorY/2.0 - 2.5
+            |(0,_) -> (hORw + firstPortXorY)/2.0 + 2.5
+            |(portsOnEdge,Bottom) | (portsOnEdge,Left) -> (hORw+lastPortXorY)/2.0 + 2.5
+            |(portsOnEdge,_) -> lastPortXorY/2.0 - 2.5
         
         else 
             if ((edge=Top) || (edge=Bottom)) then ((getPortPosWithIndex symbol portsOnEdge edge (order-1)).X + (getPortPosWithIndex symbol portsOnEdge edge order).X)/2.0
@@ -989,7 +1000,7 @@ let movePortUpdate (model:Model) (portId:string) (pos:XYPos) : Model*Cmd<'a> =
         | None -> 
             let newSymbol = {oldSymbol with MovingPort = Some {|PortId = portId; CurrPos = pos|}; MovingPortTarget = None; Appearance = {oldSymbol.Appearance with ShowPorts = ShowOneNotTouching port}}
             Optic.set (symbolOf_ symId) newSymbol model, Cmd.none            
-        | Some edge -> 
+        | Some _ -> 
             let target = Some (findTargetPos port oldSymbol)  
             let newSymbol = {oldSymbol with MovingPort = Some {|PortId = portId; CurrPos = pos|}; MovingPortTarget = target; Appearance = {oldSymbol.Appearance with ShowPorts = ShowOneTouching port}}
             Optic.set (symbolOf_ symId) newSymbol model, Cmd.none

@@ -168,6 +168,7 @@ type Wave = {
     // List indexed by clock cycle
     WaveValues: WireData list
     // Store SVG cache here maybe?
+    SVG: ReactElement list option
 }
 
 // type WaveformSpec = {
@@ -189,7 +190,7 @@ type WaveSimModel = {
     EndCycle: int
     OutOfDate: bool
     ReducedState: CanvasState
-    SVG: ReactElement array
+    // SVG: ReactElement array
     CurrClkCycle: int
     ClkCycleBoxIsEmpty: bool
     Radix: NumberBase
@@ -204,11 +205,11 @@ let initWSModel : WaveSimModel = {
     EndCycle = 10
     OutOfDate = true
     ReducedState = [], []
-    SVG = [||]
+    // SVG = [||]
     CurrClkCycle = 0
     ClkCycleBoxIsEmpty = false
     Radix = Hex
-    ClkSVGWidth = 1.0
+    ClkSVGWidth = 1.5
 }
     // // generate data using this 0 clock simulation, which comes from makeSimData
     // // TODO: get rid of this and use only SimDataCache, since this is SimDataCache[0]

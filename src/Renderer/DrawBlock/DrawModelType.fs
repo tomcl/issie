@@ -405,8 +405,8 @@ module SheetT =
         | ResetModel
         | UpdateSelectedWires of ConnectionId list * bool
         | ColourSelection of compIds : ComponentId list * connIds : ConnectionId list * colour : HighLightColor
-        | ToggleSelectionOpen
-        | ToggleSelectionClose
+        | PortMovementStart
+        | PortMovementEnd
         | ResetSelection
         | SetWaveSimMode of bool
         | ToggleNet of CanvasState //This message does nothing in sheet, but will be picked up by the update function
@@ -460,7 +460,7 @@ module SheetT =
         ScrollingLastMousePos: XYPosMov // For keeping track of mouse movement when scrolling. Can't use LastMousePos as it's used for moving symbols (won't be able to move and scroll symbols at same time)
         LastMousePosForSnap: XYPos
         MouseCounter: int
-        Toggle : bool
+        CtrlKeyDown : bool
         IsWaveSim : bool
         ScrollUpdateIsOutstanding: bool
         PrevWireSelection : ConnectionId list

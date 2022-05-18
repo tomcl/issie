@@ -55,6 +55,8 @@ let maxLastClk = 500
 let button options func label = 
     Button.button (List.append options [ Button.OnClick func ]) [ str label ]
 
+let selectedWaves (wsModel: WaveSimModel) : Map<string, Wave> = Map.filter (fun _ key -> key.Selected) wsModel.AllWaves
+
 // TODO: Originally located in WaveSimHelpers.fs. Not really sure where this should go.
 
 //------------------------------------//
@@ -371,9 +373,7 @@ let viewWaveformsButton model dispatch =
     printf "update view butotn"
     let wsModel = model.WaveSim
     let viewButtonAction =
-        let selectedWaves = Map.filter (fun _ key -> key.Selected) wsModel.AllWaves
-
-        match Map.count selectedWaves with
+        match Map.count (selectedWaves model.WaveSim) with
         | 0 -> [ Button.IsLight; Button.Color IsSuccess ]
         | _ ->
             [
@@ -666,8 +666,9 @@ let waveSimButtonsBar (model: Model) (dispatch: Msg -> unit) : ReactElement =
 let moveWave (wsModel: WaveSimModel) (direction: bool) (dispatch: Msg -> unit) : unit =
     ()
 
-let waveLabelColumn (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement = 
-    let allWaves = wsModel.AllWaves
+    selectedWaves wsModel
+    |> Map.keys |> Seq.toList
+    |> List.map (fun l -> label [ labelStyle; tmpStyle ] [ str l ])
     // TODO: Change from buttons to drag and drop
     let top = [| div [ rowHeightStyle] [] |]
 
@@ -716,12 +717,11 @@ let getWaveValue (currClkCycle: int) (wave: Wave): int64 =
 
 /// Iterates over each selected wave to generate the SVG of the value for that wave
 let valueRows (wsModel: WaveSimModel) = 
-    let selectedWaves = Map.filter (fun _ key -> key.Selected) wsModel.AllWaves
-    selectedWaves
-    |> Map.values |> Seq.toArray
-    |> Array.map (getWaveValue wsModel.CurrClkCycle)
-    |> Array.map (valToString wsModel.Radix)
-    |> Array.map (fun value -> label [ waveValsStyle ] [ str value ])
+    selectedWaves wsModel
+    |> Map.values |> Seq.toList
+    |> List.map (getWaveValue wsModel.CurrClkCycle)
+    |> List.map (valToString wsModel.Radix)
+    |> List.map (fun value -> label [ labelStyle; tmpStyle ] [ str value ])
 
 let private valuesColumn rows : ReactElement =
     let top = [| div [ rowHeightStyle] [] |]
@@ -756,20 +756,8 @@ let clkCycleSVG (wsModel: WaveSimModel) =
     |> svg (clkRulerStyle wsModel)
 
 let waveformColumn (model: Model) (wsModel: WaveSimModel) : ReactElement =
-    let waveTableRow rowClass cellClass svgClass svgChildren =
-        tr rowClass [ td cellClass [ makeSvg svgClass svgChildren ] ]
-
-    let lastRow = [||] //[| waveTableRow [ Class "fullHeight" ] (lwaveCell wSModel) (waveCellSvg wSModel true) bgSvg |]
-
-    let clkCycleRow =
-        div [ waveCellStyle wsModel ] 
-            [ clkCycleSVG wsModel]
-
-    // let waveRows =
-    //     Map.filter (fun _ key -> key.Selected) model.WaveSim.AllWaves
-    //     |> Map.values
-    //     |> Seq.toList
-    //     |> List.map (fun wave -> wave.SVG)
+        selectedWaves wsModel
+        |> Map.values |> Seq.toList
 
     printf "%dpx" (model.WaveSimViewerWidth - 125)
     div [ Style [
@@ -842,19 +830,10 @@ let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
         ]
 
 let waveViewerPane simData rState (model: Model) (dispatch: Msg -> unit) : ReactElement =
-    let selectedWaves =
-        Map.filter (fun _ key -> key.Selected) model.WaveSim.AllWaves
-        |> Map.keys
-    // printf "%A" selectedWaves
-    div [ Style
-            [ Width "calc(100% - 10px)"
-              Height "100%"
-              MarginLeft "0%"
-              MarginTop "0px"
-              OverflowX OverflowOptions.Hidden
-              OverflowY OverflowOptions.Visible
-            ]
-        ] [
+    // selectedWaves model.WaveSim
+    // |> Map.keys
+    // |> printf "%A"
+
             // closeWaveSim, radixTabs, changeClkTick, zoomButtons
             waveSimButtonsBar model dispatch
             showWaveforms model dispatch
@@ -1207,13 +1186,12 @@ let viewWaveSim (model: Model) dispatch : ReactElement =
                 waveSelectionPane simData' reducedState model dispatch
             // Open waveform viewer
             | Running ->
-                printf "running"
-                let selectedWaves =
-                    Map.filter (fun _ key -> key.Selected) model.WaveSim.AllWaves
-                    |> Map.keys
-                    |> Seq.length
+                // printf "running"
+                // selectedWaves model.WaveSim
+                // |> Map.keys
+                // |> Seq.length
+                // |> printf "%A"
 
-                printf "%A" selectedWaves
                 waveViewerPane simData' reducedState model dispatch
         | Some (Error e, _) -> 
             displayErrorMessage e //IsWarning, "See Problems"

@@ -183,6 +183,9 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
                 |> SetProject) // this message actually changes the project in model
             SetWaveSimIsOutOfDate true
             Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
+            // a second CtrlW is needed here - something about scroll poistion not being correct
+            // intially?
+            Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
             JSDiagramMsg (SetHasUnsavedChanges false)
             SetIsLoading false 
         
@@ -194,6 +197,8 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
     //This will set a spinner for both Open project and Change sheet which are the two most lengthly processes
     dispatch <| (Sheet (SheetT.SetSpinner true))
     dispatch <| SendSeqMsgAsynch msgs
+    dispatch <| Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
+    dispatch <| JSDiagramMsg (SetHasUnsavedChanges false)
     
 /// Return LoadedComponents with sheet name updated according to setFun.
 /// Do not update model. 

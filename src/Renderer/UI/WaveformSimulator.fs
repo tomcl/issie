@@ -30,10 +30,6 @@ type BinaryTransition =
 type NonBinaryTransition =
     | Change
     | Const
-    // | ChangeToChange
-    // | ConstToConst
-    // | ChangeToConst
-    // | ConstToChange
 
 /// Waveforms can be either binary or non-binary; these have different properties.
 type Transition =
@@ -43,11 +39,9 @@ type Transition =
 /// TODO: Make a Constants module
 /// TODO: Tweak these values
 /// Height of a waveform
-let waveHeight = 0.3
-let clkCycleWidth = 1.0
-let lineThickness = 0.025
-let nonBinaryTransLen = 0.1
-let spacing = 0.4
+let waveHeight : float = 0.9
+let nonBinaryTransLen : float = 0.1
+let spacing : float = viewBoxHeight - waveHeight
 
 /// TODO: Remove this limit. This stops the waveform simulator moving past 500 clock cycles.
 let maxLastClk = 500
@@ -110,11 +104,11 @@ let getNetSelection (canvas : CanvasState) (model : Model) =
     Array.collect selectedConnectionIds netGroups
     |> Array.toList
 
-let binaryWavePoints (clkCycle: int) (transition: BinaryTransition) : XYPos list * int =
+let binaryWavePoints (clkCycleWidth: float) (clkCycle: int) (transition: BinaryTransition)  : XYPos list * int =
     let xLeft = float clkCycle * clkCycleWidth
     let xRight = float (clkCycle + 1) * clkCycleWidth
     let yTop = 0
-    let yBot = 10//waveHeight
+    let yBot = waveHeight
     let topL = {X = xLeft; Y = yTop}
     let topR = {X = xRight; Y = yTop}
     let botL = {X = xLeft; Y = yBot}
@@ -130,7 +124,7 @@ let binaryWavePoints (clkCycle: int) (transition: BinaryTransition) : XYPos list
     | OneToOne ->
         [topL; topR], clkCycle + 1
 
-let nonBinaryWavePoints (clkCycle: int) (transition: NonBinaryTransition) : (XYPos list * XYPos list) * int =
+let nonBinaryWavePoints (clkCycleWidth: float) (clkCycle: int) (transition: NonBinaryTransition) : (XYPos list * XYPos list) * int =
     // Use start coord to know where to start the polyline
     let xLeft = float clkCycle * clkCycleWidth
     let xRight = float (clkCycle + 1) * clkCycleWidth
@@ -154,56 +148,6 @@ let nonBinaryWavePoints (clkCycle: int) (transition: NonBinaryTransition) : (XYP
         ([topL; crossHatchBot; botR], [botL; crossHatchTop; topR]), clkCycle + 1
     | Const ->
         ([topL; topR], [botL; botR]), clkCycle + 1
-    // | ChangeToChange
-    // | ConstToConst
-    // | ChangeToConst
-    // | ConstToChange ->
-
-
-// /// Generates the points for one clock cycle of a binary or non-binary waveform
-// /// When generating points for non-binary transitions, the start of that clock
-// /// cycle is offset to the left a bit so that the full cross-hatch of a transition
-// /// can be generated
-// let generateClkCycle (startCoord: XYPos) (clkCycle: int) (transition: Transition) : XYPos list =
-//     // Use start coord to know where to start the polyline
-//     let xLeft = float clkCycle * clkCycleWidth
-//     let xRight = float (clkCycle + 1) * clkCycleWidth
-//     let yTop = 0
-//     let yBot = waveHeight
-//     let topL = {X = xLeft; Y = yTop}
-//     let topR = {X = xRight; Y = yTop}
-//     let botL = {X = xLeft; Y = yBot}
-//     let botR = {X = xRight; Y = yBot}
-//     let crossHatchTop = {X = xLeft + nonBinaryTransLen; Y = yTop}
-//     let crossHatchBot = {X = xLeft + nonBinaryTransLen; Y = yBot}
-//     // Each match condition generates a specific transition type
-//     match transition with
-//     | BinaryTransition x ->
-//         match x with
-//         | ZeroToZero ->
-//             [botL; botR]
-//         | ZeroToOne ->
-//             [botL; topL; topR]
-//         | OneToZero ->
-//             [topL; botL; botR]
-//         | OneToOne ->
-//             [topL; topR]
-//     | NonBinaryTransition x ->
-//         // This needs to account for different zoom levels:
-//         // Can probably just look at screen size and zoom level
-//         // And then scale the horizontal part accordingly
-//         // When zoomed out sufficiently and values changing fast enough,
-//         // The horizontal part will have length zero.
-//         match x with
-//         // May need to account for odd/even clock cycle
-//         | Change ->
-//             []
-//         | Const ->
-//         // | ChangeToChange
-//         // | ConstToConst
-//         // | ChangeToConst
-//         // | ConstToChange ->
-//             failwithf "NonBinaryTransition not implemented"
 
 /// Generates SVG to display waveform values when there is enough space
 let displayValuesOnWave (startCycle: int) (endCycle: int) (waveValues: WireData list) : ReactElement =
@@ -239,121 +183,48 @@ let determineNonBinaryTransitions waveValues =
         )
     |> fst
 
-let makeLinePoints style (x1, y1) (x2, y2) =
-    line
-        (List.append style 
-             [ X1 x1
-               Y1 y1
-               X2 x2
-               Y2 y2 ]) []
+/// Generates the polyline(s) for a specific waveform
+let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
+    printf "generating wave for %A" waveName
 
-let makeSvg style elements = svg style elements
-let makeLine style = line style []
-let makeText style t = text style [ str t ]
+    if wave.Selected then
+        let waveLine = 
+            match wave.Width with
+            | 0 -> failwithf "Cannot have wave of width 0"
+            | 1 ->
+                let transitions = determineBinaryTransitions wave.WaveValues
+                let wavePoints =
+                    List.mapFold (binaryWavePoints wsModel.ClkSVGWidth) wsModel.StartCycle transitions 
+                    |> fst
+                    |> List.concat
+                    |> List.distinct
 
-let makePolyline style elements = polyline style elements
+                printf "%A: %A" wave.DisplayName wavePoints
 
-// let makeLinePoints style (x1, y1) (x2, y2) =
-//     line
-//         (List.append style 
-//              [ X1 x1
-//                Y1 y1
-//                X2 x2
-//                Y2 y2 ]) []
+                [ polyline (wavePolylineStyle wavePoints) [] ]
+            | _ -> 
+                let transitions = determineNonBinaryTransitions wave.WaveValues
+                let fstPoints, sndPoints =
+                    List.mapFold (nonBinaryWavePoints wsModel.ClkSVGWidth) wsModel.StartCycle transitions 
+                    |> fst
+                    |> List.unzip
+                    
+                let fstWave = List.concat fstPoints |> List.distinct
+                let sndWave = List.concat sndPoints |> List.distinct
 
-// let makeSigLine =
-//     makeLinePoints
-//         [ Class "sigLineStyle"
-//           Style [ Stroke("blue") ] ]
+                printf "%A" fstWave
+                printf "%A" sndWave
 
-let pointsToString (points: XYPos list) : string =
-    List.fold (fun str (point: XYPos) ->
-        str + string point.X + "," + string point.Y + " "
-    ) "" points
+                let fstLine = polyline (wavePolylineStyle fstWave) []
+                let sndLine = polyline (wavePolylineStyle sndWave) []
 
-/// Generates the SVG for a specific waveform
-let generateWave (startCycle: int) (endCycle: int) (waveName: string) (wave: Wave): ReactElement =
-    // need to know type of waveValues
-    // fold or iter over each value in waveValues (i.e. once for each clock cycle)
-    // fold function generates an svg for each clock cycle? 
+                [fstLine; sndLine]
+        
+        let waveform = waveLine
 
-    // TODO: How to calculate this?
-    let startCoord = {X = 0; Y = 0}
-
-
-
-    // let transitions =
-    match wave.Width with
-        | 0 -> failwithf "Cannot have wave of width 0"
-        | 1 ->
-            let transitions = determineBinaryTransitions wave.WaveValues
-            let wavePoints =
-                List.mapFold binaryWavePoints startCycle transitions
-                |> fst
-                |> List.concat
-
-            // printf "%A: %A" wave.DisplayName wavePoints
-
-            let line = 
-                polyline
-                    [ 
-                        SVGAttr.Stroke "blue"
-                        SVGAttr.Fill "none"
-                        SVGAttr.StrokeWidth 5// lineThickness
-                        
-                        // Points "0,0 0.25,0.25 5,5"
-
-                        Points (pointsToString wavePoints)
-                    ]
-                    []
-                    // wavePoints
-            // Generate polyline
-            line
-        | _ -> 
-            let transitions = determineNonBinaryTransitions wave.WaveValues
-            let wavePoints = List.mapFold nonBinaryWavePoints startCycle transitions
-            let line = 
-                polyline
-                    [ Style 
-                        [
-                            Stroke "blue"
-                            Fill "none"
-                            StrokeWidth lineThickness
-                            
-                        ]
-                      Points "0,0 0.25,0.25"
-                    ]
-                    []
-                    // wavePoints
-            // Generate polyline
-            line
-
-
-    // match wave.Width with
-
-    // let wavePoints = Array.map (generateClkCycle startCoord) transitions
-
-    // // Use wavePoints to generate SVG polyline
-
-    // // This is only for non-binary waveforms though.
-    // let waveValuesSVG = displayValuesOnWave startCycle endCycle waveValues
-
-    // TODO: Combine waveValuesSVG and wavesSVG
-
-    // failwithf "generateWave not implemented"
-
-/// Generates the SVG for all waves
-let generateAllWaves (waves: Map<string, Wave>) (startCycle: int) (endCycle: int) : ReactElement array = 
-    // Iterate over each wave to generate that wave's SVG
-    // printf "%A" waves["C2"].WaveValues
-    // printf "%A" waves["C2"]
-
-    waves
-    |> Map.map (generateWave startCycle endCycle)
-    |> Map.values
-    |> Seq.toArray
-    // failwithf "Not implemented"
-
+        {wave with SVG = Some waveform}
+    else
+        wave
 
 let generateAllLabels waves =
     failwithf "generateAllLabels not implemented"
@@ -381,8 +252,8 @@ let viewWaveformsButton model dispatch =
                 // Button.IsLoading (showSimulationLoading wSModel dispatch)
                 Button.OnClick(fun _ ->
                     // let par' = {wSModel.SimParams with DispNames = viewableWaves }
-                    let waveSVGs = generateAllWaves selectedWaves wsModel.StartCycle wsModel.EndCycle
-                    let wsMod' = {wsModel with State = Running; SVG = waveSVGs}
+                    let allWaves = Map.map (generateWave wsModel) wsModel.AllWaves
+                    let wsMod' = {wsModel with State = Running; AllWaves = allWaves}
 
                     let msgs = [
                         (StartUICmd ViewWaveSim)
@@ -465,7 +336,6 @@ let toggleConnsSelect (name: string) (waveSimModel: WaveSimModel) (dispatch: Msg
     dispatch <| SetWSMod waveSimModel'
 
     // changeWaveSelection name model waveSimModel dispatch
-
 
 let checkboxAndName (name: string) (model: Model) (dispatch: Msg -> unit) =
     let waveSimModel = model.WaveSim
@@ -574,7 +444,6 @@ let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
                 // TODO: Test more properly with invalid inputs (including negative numbers)
                 Input.OnChange(fun c ->
                     match System.Int32.TryParse c.Value with
-                    // | true, n when n >= 0
                     | true, n ->
                         setClkCycle wsModel dispatch n
                     | false, _ when c.Value = "" ->
@@ -615,15 +484,7 @@ let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : React
 
     Tabs.tabs [
         Tabs.IsToggle
-        Tabs.Props [
-            Style [
-                Width "140px"
-                Height "30px"
-                FontSize "80%"
-                Float FloatOptions.Right
-                Margin "0 10px 0 10px"
-            ]
-        ]
+        Tabs.Props [ radixTabsStyle ]
     ] [
         radTab Bin
         radTab Hex
@@ -666,43 +527,23 @@ let waveSimButtonsBar (model: Model) (dispatch: Msg -> unit) : ReactElement =
 let moveWave (wsModel: WaveSimModel) (direction: bool) (dispatch: Msg -> unit) : unit =
     ()
 
+let nameRows (wsModel: WaveSimModel) : ReactElement list =
     selectedWaves wsModel
     |> Map.keys |> Seq.toList
     |> List.map (fun l -> label [ labelStyle; tmpStyle ] [ str l ])
+
+let namesColumn rows : ReactElement = 
     // TODO: Change from buttons to drag and drop
-    let top = [| div [ rowHeightStyle] [] |]
+    let top = [ div [ rowHeightStyle; tmpStyle ] [] ]
+    let bottom = [ div [ rowHeightStyle; tmpStyle ] [] ]
 
-    let selectedWaves =
-        Map.filter (fun _ key -> key.Selected) allWaves
-        |> Map.keys
-        |> Seq.toArray
+    // let leftCol = List.concat [ top; rows; bottom ]
 
-    let makeLabelElements (waveNames: string array) : ReactElement array =
-        let makeLabel l = label [ waveLabelStyle ] [ str l ]
-        Array.map makeLabel waveNames
+    div [ namesColumnStyle ]
+        // rows
+        (List.concat [ top; rows ])
 
-    let labelRows : ReactElement array =
-        selectedWaves
-        |> makeLabelElements
-        |> Array.zip selectedWaves
-        |> Array.map (fun (name, lab) ->
-            if Map.tryFind name wsModel.AllWaves = None then
-                printfn "Help - cannot lookup %A in allwaves for label %A" name lab
-                failwithf "Terminating!"
-
-            div [ waveNamesColStyle ]
-                [ lab ]
-        )
-
-    let leftCol = Array.concat [| top; labelRows|]
-
-    div [ Style [
-            Float FloatOptions.Left
-            Height "100%"
-            BorderTop "2px solid rgb(219,219,219)"
-            BorderRight "2px solid rgb(219,219,219)"
-        ] ]
-        leftCol
+        // leftCol
 
 let getWaveValue (currClkCycle: int) (wave: Wave): int64 =
     List.tryItem currClkCycle wave.WaveValues
@@ -724,107 +565,69 @@ let valueRows (wsModel: WaveSimModel) =
     |> List.map (fun value -> label [ labelStyle; tmpStyle ] [ str value ])
 
 let private valuesColumn rows : ReactElement =
-    let top = [| div [ rowHeightStyle] [] |]
+    let top = [ div [ rowHeightStyle; tmpStyle ] [] ]
+    let bottom = [ div [ rowHeightStyle; tmpStyle ] [] ]
 
-    div [
-        Style [
-            Float FloatOptions.Right
-            Height "100%"
-            BorderTop "2px solid rgb(219,219,219)"
-            BorderLeft "2px solid rgb(219,219,219)"
-            Display DisplayOptions.Grid
-            GridAutoRows "30px" 
-            VerticalAlign "bottom"
-            FontSize "12px"
-            MinWidth "25px"
-        ]
-    ] (Array.append top rows)
+    div [ valuesColumnStyle ]
+        // rows
+        (List.concat [ top; rows ])
 
-let backgroundSVG (wsModel: WaveSimModel) =
-    let clkLine x = makeLinePoints [ Class "clkLineStyle" ] (x, 0.0) (x, waveHeight + spacing)
-    [| 1 .. wsModel.EndCycle + 1 |] 
-    |> Array.map ((fun x -> float x * wsModel.ClkSVGWidth) >> clkLine)
+/// Generate list of `line` objects which are the background clock lines.
+/// These need to be wrapped by an SVG canvas.
+let backgroundSVG (wsModel: WaveSimModel) : ReactElement list =
+    let clkLine x = 
+        line [
+            clkLineStyle
+            X1 x
+            Y1 0.0
+            X2 x
+            Y2 (waveHeight + spacing)
+        ] []
+    [ 1 .. wsModel.EndCycle + 1 ] 
+    |> List.map (fun x -> clkLine (float x * wsModel.ClkSVGWidth))
 
 let clkCycleSVG (wsModel: WaveSimModel) =
     let makeClkCycleLabel i =
         match wsModel.ClkSVGWidth with
-        | width when width < 0.5 && i % 5 <> 0 -> [||]
-        | _ -> [| text (cursRectText wsModel i) [str (string i)] |]
-    [| 0 .. wsModel.EndCycle|]
-    |> Array.collect makeClkCycleLabel
-    |> Array.append (backgroundSVG wsModel)
-    |> svg (clkRulerStyle wsModel)
+        | width when width < 0.5 && i % 5 <> 0 -> []
+        | _ -> [ text (clkCycleText wsModel i) [str (string i)] ]
+
+    [ 0 .. wsModel.EndCycle]
+    |> List.collect makeClkCycleLabel
+    |> List.append (backgroundSVG wsModel)
+    |> svg (clkCycleSVGProps wsModel)
 
 let waveformColumn (model: Model) (wsModel: WaveSimModel) : ReactElement =
+    let waveRows : ReactElement list =
         selectedWaves wsModel
         |> Map.values |> Seq.toList
+        |> List.map (fun wave ->
+            match wave.SVG with
+                | Some waveform ->
+                    printf "waveform %A" waveform
+                    waveform
+                // Maybe this shouldn't fail. Could just return a text element saying no waveform was generated
+                | None ->
+                    printf "no waveform generated for %A" wave.DisplayName
+                    [ div [] [] ]//failwithf "No waveform for selected wave %A" wave.DisplayName
+            |> List.append (backgroundSVG wsModel)
+            |> svg (clkCycleSVGProps wsModel)
+        )
 
     printf "%dpx" (model.WaveSimViewerWidth - 125)
-    div [ Style [
-            Height "100%" 
-            OverflowX OverflowOptions.Scroll
-            // TODO: Remove this magic number
-            MaxWidth (sprintf "%dpx" (model.WaveSimViewerWidth - 125))
-            GridAutoRows "minmax(30px, auto)"
-            BorderTop "2px solid rgb(219,219,219)"
-        ] ] 
-        (Array.append [|clkCycleRow|] [|(svg [] wsModel.SVG)|])
-
-        // [ 
-            // Array.append [|clkCycleRow|] wsModel.SVG
-            // clkCycleSVG wsModel
-            // tbody
-            //     [ Style [ Height "100%" ] ]
-            //     [
-            //         // str "asdfasdfasdfasdfasdf"
-            //         // thead
-            //         //     []
-            //         //     []
-            //         thead
-            //             [ Class "rowHeight" ]
-            //             [ td (waveCell wsModel) [ clkCycleSVG wsModel ] ]
-            //         //top
-            //         //waves
-            //         //bottom
-            //     ]
-        // ]
-
-    // svg [ SVGAttr.Width wholeCanvas; SVGAttr.Height wholeCanvas; SVGAttr.XmlSpace "http://www.w3.org/2000/svg" ]
-        // [
-        // // defs [] [
-        // //     pattern [
-        // //         Id "Grid"
-        // //         SVGAttr.Width $"{gridSize}"
-        // //         SVGAttr.Height $"{gridSize}"
-        // //         SVGAttr.PatternUnits "userSpaceOnUse"
-        // //     ] [
-        // //         path [
-        // //             SVGAttr.D $"M {gridSize} 0 L 0 0 0 {gridSize}"
-        // //             SVGAttr.Fill "None"
-        // //             SVGAttr.Stroke "Gray"
-        // //             SVGAttr.StrokeWidth "0.5"
-        // //             ] []
-        // //     ]
-        // // ]
-        //     // rect [SVGAttr.Width wholeCanvas; SVGAttr.Height wholeCanvas; SVGAttr.Fill "url(#Grid)"] []
-        //     line
-        //     wsModel.SVG
-        // ]
-        // wsModel.SVG
-
+    div [ waveformColumnStyle model ]
+        (List.concat
+            [
+                // [| div [cursRectStyle model.WaveSim] [] |]
+                [ clkCycleSVG wsModel ]
+                waveRows
+            ]
+        )
 
 let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
-    div [ Style [
-            Height "calc(100% - 50px)"
-            Width "100%"
-            OverflowY OverflowOptions.Auto
-            Display DisplayOptions.Grid
-            ColumnCount 3
-            GridAutoFlow "column"
-            GridAutoColumns "auto"
-        ] ]
+    div [ showWaveformsStyle ]
         [
-            waveLabelColumn model.WaveSim dispatch
+            namesColumn (nameRows model.WaveSim)
             waveformColumn model model.WaveSim
             valuesColumn (valueRows model.WaveSim)
         ]
@@ -834,6 +637,8 @@ let waveViewerPane simData rState (model: Model) (dispatch: Msg -> unit) : React
     // |> Map.keys
     // |> printf "%A"
 
+    div [ waveViewerPaneStyle ]
+        [
             // closeWaveSim, radixTabs, changeClkTick, zoomButtons
             waveSimButtonsBar model dispatch
             showWaveforms model dispatch
@@ -1064,6 +869,7 @@ let getWaveFromNetGroup
         DisplayName = netGroupName
         Width = getFastOutputWidth fs.FComps[fId] opn
         WaveValues = waveValues
+        SVG = None
     }
 
 let getWaveFromFC (fc: FastComponent) =
@@ -1082,6 +888,7 @@ let getWaveFromFC (fc: FastComponent) =
         DisplayName = viewerName
         Width = getFastOutputWidth fc (OutputPortNumber 0)
         WaveValues = []//waveValues
+        SVG = None
     }
 
 let getWaveforms
@@ -1150,19 +957,16 @@ let waveSelectionPane simData reducedState (model: Model) dispatch : ReactElemen
             let popup = Notifications.warningPropsNotification (sprintf "Inputs (%s) will be set to 0." inputs)
             dispatch <| SetPropertiesNotification popup
 
-    div [ Style
-            [
-                Width "90%"
-                MarginLeft "5%"
-                MarginTop "15px"
-            ]
-        ] [ 
+    div [ Style [
+            Width "90%"
+            MarginLeft "5%"
+            MarginTop "15px"
+        ] ] [
             Heading.h4 [] [ str "Waveform Simulation" ] 
             str "Ctrl-click on diagram connections or use tick boxes below to add or remove waveforms."
             str "Test combinational logic by closing this simulator and using Simulate tab."
             hr []
-            div []
-                [
+            div [] [
                     viewWaveformsButton model dispatch
                     selectWaves model dispatch
                 ]

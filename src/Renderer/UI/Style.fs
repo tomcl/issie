@@ -1,6 +1,6 @@
 module DiagramStyle
 
-
+open CommonTypes
 open ModelType
 open Fable.React.Props
 
@@ -246,35 +246,66 @@ let upDownButtonStyle = Style [
     BorderRadius 0
 ]
 
-let waveLabelStyle = Style [
+let labelStyle = Style [
     Fill "black"
-    Left 0
-    TextAnchor "start"
     Margin "5px"
-    TextAlign TextAlignOptions.Right
 ]
 
-let waveNamesColStyle = Style [
-    TextAlign TextAlignOptions.Right
-    // BorderRight "2px solid #dbdbdb"
-    // WhiteSpace WhiteSpaceOptions.Nowrap
-    // VerticalAlign "bottom"
+let borderProperties = "2px solid rgb(219,219,219)"
+
+let namesColumnStyle = Style [
+    Float FloatOptions.Left
+    Height "100%"
+    BorderTop borderProperties
+    BorderRight borderProperties
+    Display DisplayOptions.Grid
+    GridAutoRows "30px" 
+    VerticalAlign "bottom"
     FontSize "12px"
     MinWidth "100px"
-    Height "30px"
+    TextAlign TextAlignOptions.Right
 ]
 
-let waveValsStyle = Style [
-    Fill "black"
-    Left 0
-    TextAnchor "start"
-    Margin "5px"
-]
-
-let waveValsColStyle = Style [
+let valuesColumnStyle = Style [
+    Float FloatOptions.Right
+    Height "100%"
+    BorderTop borderProperties
+    BorderLeft borderProperties
+    Display DisplayOptions.Grid
+    GridAutoRows "30px" 
     VerticalAlign "bottom"
     FontSize "12px"
     MinWidth "25px"
+]
+
+let showWaveformsStyle = Style [
+    Height "calc(100% - 50px)"
+    Width "100%"
+    OverflowY OverflowOptions.Auto
+    Display DisplayOptions.Grid
+    ColumnCount 3
+    GridAutoFlow "column"
+    GridAutoColumns "auto"
+]
+
+let waveformColumnStyle m = Style [
+    Height "100%" 
+    OverflowX OverflowOptions.Scroll
+    // TODO: Remove this magic number
+    MaxWidth (sprintf "%dpx" (m.WaveSimViewerWidth - 125))
+    Display DisplayOptions.Grid
+    FontSize "12px"
+    GridAutoRows "30px"
+    BorderTop borderProperties
+]
+
+let waveViewerPaneStyle = Style [
+    Width "calc(100% - 10px)"
+    MarginLeft "0%"
+    MarginTop "0px"
+    MarginBottom "100px"
+    OverflowX OverflowOptions.Hidden
+    OverflowY OverflowOptions.Auto
 ]
 
 // let clkLineWidth = 0.0125
@@ -289,41 +320,86 @@ let waveValsColStyle = Style [
 // let spacing = 0.4
 // let sigHeight = 0.3 
 
-let vbWidth m = m.ClkSVGWidth * (float m.EndCycle + 1.0)
-let maxWavesColWidthFloat m = vbWidth m * 40.0 + 4.0
+let viewBoxWidth m = m.ClkSVGWidth * (float m.EndCycle + 1.0)
+let maxWavesColWidthFloat m = viewBoxWidth m * 40.0 + 4.0
 let maxWavesColWidth m = string (maxWavesColWidthFloat m) + "px"
-let waveCellWidth m = Width (maxWavesColWidth m)
 
-let widthAndVBwave (m : WaveSimModel) : IProp list = [
-    Style [waveCellWidth m]
-    ViewBox ("0 0 " + string (vbWidth m) + " 0.7")
+let clkLineWidth = 0.0125
+
+let tmpStyle = Style [
+    BorderBottom borderProperties
 ]
 
-let clkRulerStyle m : IProp list = 
-    List.append (widthAndVBwave m)
-                [ Class "clkRulerSvg"
-                  PreserveAspectRatio "none" ]
-
-// let cursorLeftPx m cursor =
-//     cursor * (m.ClkSvgWidth * 40.0 + 4.0 / (float m.LastClkTime + 1.0)) 
-
-// let cursRectStyle m = Style [
-//         Left (float m.CursorTime |> cursorLeftPx m |> string |> (fun w -> w + "px"))
-//         Width (40.0 * (m.ClkSvgWidth - clkLineWidth))
-// ]
-
-let clkNumStyle = [
-
+let clkLineStyle = Style [
+    Stroke "rgb(200,200,200)"
+    StrokeWidth clkLineWidth
 ]
 
-let cursRectText m i : IProp list =
+let clkCycleText m i : IProp list =
     [
-        SVGAttr.FontSize "1.5%"
+        SVGAttr.FontSize "3.5%"
         SVGAttr.TextAnchor "middle"
-        // SVGAttr.Y 0.5
-        X (m.ClkSVGWidth * (float i + 0.5)) 
-        Y 0.5
+        X (m.ClkSVGWidth * (float i + 0.5))
+        Y 0.65
+        // PreserveAspectRatio "xMidYMid slice"
     ]
+
+let clkCycleSVGStyle m = Style [
+    // Height "30px"
+    // Width ((viewBoxWidth m ) * 40.0)
+    // Width (maxWavesColWidth m)
+    Display DisplayOptions.Block
+    BorderBottom borderProperties
+]
+
+let viewBoxHeight : float = 1.0
+
+let clkCycleSVGProps m : IProp list = [
+    // min-x, min-y, width, height
+    SVGAttr.Height "30px"
+    // SVGAttr.Width (viewBoxWidth m)
+    ViewBox ("0 0 " + string (viewBoxWidth m) + " " + string viewBoxHeight)
+    PreserveAspectRatio "none"
+    clkCycleSVGStyle m
+]
+
+let cursorLeftPx (m: WaveSimModel) cursor =
+    cursor * (m.ClkSVGWidth * 40.0 + 4.0 / (float m.EndCycle + 1.0)) 
+
+// This controls the background highlighting of which clock cycle is selected
+let cursRectStyle (m: WaveSimModel) = Style [
+    Left (float m.CurrClkCycle |> cursorLeftPx m |> string |> (fun w -> w + "px"))
+    Width (40.0 * (m.ClkSVGWidth - clkLineWidth))
+    BackgroundColor "rgb(230,230,230)"
+    StrokeWidth 0
+    Opacity 0.4
+    ZIndex 6
+    Height "100%"
+    Position PositionOptions.Absolute
+]
+
+let lineThickness : float = 0.025
+
+let radixTabsStyle = Style [
+    Width "140px"
+    Height "30px"
+    FontSize "80%"
+    Float FloatOptions.Right
+    Margin "0 10px 0 10px"
+]
+
+let pointsToString (points: XYPos list) : string =
+    List.fold (fun str (point: XYPos) ->
+        str + string point.X + "," + string point.Y + " "
+    ) "" points
+
+let wavePolylineStyle points : IProp list = [
+    SVGAttr.Stroke "blue"
+    SVGAttr.Fill "none"
+    SVGAttr.StrokeWidth lineThickness
+
+    Points (pointsToString points)
+]
 
 // let inWaveLabel nLabels xInd m : IProp list = [
 //     Class "busValueStyle"
@@ -339,19 +415,19 @@ let cursRectText m i : IProp list =
 //                   | false -> Class "waveCellSvg"
 //                   PreserveAspectRatio "none" ]
 
-let waveCell m = [
-    Class "rowHeight"
-    Style [waveCellWidth m]
-]
+// let waveCell m = [
+//     Class "rowHeight"
+//     Style [Width (maxWavesColWidth m)]
+// ]
 
-let waveCellStyle m = Style [
-    Height "30px"
-    waveCellWidth m
-]
+// let waveCellStyle m = Style [
+//     Height "30px"
+//     Width (maxWavesColWidth m)
+// ]
 
 // let lwaveCell m : IHTMLProp list = [
 //     Class "fullHeight"
-//     Style [waveCellWidth m]
+//     Style [Width (maxWavesColWidth m)]
 // ]
 
 // let waveDiv= Style [ 
@@ -363,5 +439,5 @@ let waveCellStyle m = Style [
 
 // let wavesTable m : IHTMLProp list = [
 //     Class "wavesColTableStyle"
-//     Style [waveCellWidth m]
+//     Style [Width (maxWavesColWidth m)]
 // ]

@@ -79,6 +79,19 @@ let tryMergeBitRanges (l1,u1,exp1) (l2,u2,exp2) =
     else
        None
 
+let foldAppends (expressions: FastAlgExp list) =
+    ([],expressions)
+    ||> List.fold (fun acc exp ->
+        match acc, exp with
+        | [], e -> exp::acc
+        | (UnaryExp(BitRangeOp(l1,u1),exp0))::tl, UnaryExp(BitRangeOp(l2,u2),exp1) ->
+            match tryMergeBitRanges (l1,u1,exp0) (l2,u2,exp1) with
+            | Some newExp -> newExp::tl
+            | None -> exp::acc
+        | _,_ -> exp::acc)
+    |> List.rev
+
+
 
 let inline private bitNot bit = bit ^^^ 1u
 
@@ -695,18 +708,45 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     |> convertBigintToFastData wOut  
             put0 <| Data outBits
             putW 0 outBits.Width
-        | Alg (UnaryExp(BitRangeOp(l1,u1),exp0)), Alg (UnaryExp(BitRangeOp(l2,u2),exp1)) ->
-            match tryMergeBitRanges (l1,u1,exp0) (l2,u2,exp1) with
-            | Some newExp ->
-                put0 <| Alg newExp
-                putW 0 <| (getAlgExpWidth exp0) + (getAlgExpWidth exp1)
-            | None ->
-                put0 <| Alg (BinaryExp(exp1,AppendOp,exp0))
-                putW 0 <|(getAlgExpWidth exp0) + (getAlgExpWidth exp1)
+        // | Alg (UnaryExp(BitRangeOp(l1,u1),exp0)), Alg (UnaryExp(BitRangeOp(l2,u2),exp1)) ->
+        //     match tryMergeBitRanges (l1,u1,exp0) (l2,u2,exp1) with
+        //     | Some newExp ->
+        //         put0 <| Alg newExp
+        //         putW 0 <| (getAlgExpWidth exp0) + (getAlgExpWidth exp1)
+        //     | None ->
+        //         put0 <| Alg (AppendExp [exp1;exp0])
+        //         putW 0 <|(getAlgExpWidth exp0) + (getAlgExpWidth exp1)
+        | Alg (AppendExp exps0), Alg (AppendExp exps1) ->
+            let newExp =
+                exps1@exps0
+                |> foldAppends
+                |> AppendExp
+            put0 <| Alg newExp
+            putW 0 <| getAlgExpWidth newExp
+        | Alg (AppendExp exps0), fd1 ->
+            let exp1 = fd1.toExp
+            let newExp =
+                exp1::exps0
+                |> foldAppends
+                |> AppendExp
+            put0 <| Alg newExp
+            putW 0 <| getAlgExpWidth newExp
+        | fd0, Alg (AppendExp exps1) ->
+            let exp0 = fd0.toExp
+            let newExp =
+                exps1@[exp0]
+                |> foldAppends
+                |> AppendExp
+            put0 <| Alg newExp
+            putW 0 <| getAlgExpWidth newExp
         | fd0, fd1 ->
             let exp0, exp1 = fd0.toExp, fd1.toExp
-            put0 <| Alg (BinaryExp(exp1,AppendOp,exp0))
-            putW 0 <|(getAlgExpWidth exp0) + (getAlgExpWidth exp1)
+            let newExp =
+                [exp1;exp0]
+                |> foldAppends
+                |> AppendExp
+            put0 <| Alg newExp
+            putW 0 <| getAlgExpWidth newExp
     | SplitWire topWireWidth ->
         let fd = ins 0
 #if ASSERTS

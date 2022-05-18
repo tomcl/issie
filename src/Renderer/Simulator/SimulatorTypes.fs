@@ -305,7 +305,7 @@ let expToString exp =
             $"(~{expStr})"
         | UnaryExp (ValueOfOp,exp) ->
             let expStr = expToString' exp
-            $"value({expStr})"
+            $"{expStr}"
         | UnaryExp (BitRangeOp(low,up),exp) ->
             let expStr = expToString' exp
             if low = up then // Replace A[x:x] with A[x]

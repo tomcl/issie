@@ -726,8 +726,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     Cmd.ofMsg UpdateBoundingBoxes
                 ]
     
-    | KeyPress Ctrl ->
-            model, symbolCmd (SymbolT.ShowCustomOnlyPorts model.NearbyComponents)
 
     | PortMovementStart ->
         match model.Action with
@@ -835,7 +833,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     Cmd.ofMsg (KeyPress CtrlW)
                 else
                     Cmd.none
-                    // Cmd.ofMsg (KeyPress Ctrl)
             | false -> Cmd.none
 
         { model with CurrentKeyPresses = newPressedKeys }, newCmd

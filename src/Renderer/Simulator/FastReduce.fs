@@ -599,7 +599,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             let othExp = other.toExp
             let newExp = BinaryExp(othExp,SubOp,exp)
             let out0 = UnaryExp (ValueOfOp,newExp)
-            let out1 = UnaryExp(SignOfOp false,newExp)
+            let out1 = UnaryExp(CarryOfOp,newExp)
             put0 <| Alg out0
             put1 <| Alg out1
         | Data {Dat=(Word w);Width=_}, Alg exp1, Alg exp2 ->
@@ -708,14 +708,6 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     |> convertBigintToFastData wOut  
             put0 <| Data outBits
             putW 0 outBits.Width
-        // | Alg (UnaryExp(BitRangeOp(l1,u1),exp0)), Alg (UnaryExp(BitRangeOp(l2,u2),exp1)) ->
-        //     match tryMergeBitRanges (l1,u1,exp0) (l2,u2,exp1) with
-        //     | Some newExp ->
-        //         put0 <| Alg newExp
-        //         putW 0 <| (getAlgExpWidth exp0) + (getAlgExpWidth exp1)
-        //     | None ->
-        //         put0 <| Alg (AppendExp [exp1;exp0])
-        //         putW 0 <|(getAlgExpWidth exp0) + (getAlgExpWidth exp1)
         | Alg (AppendExp exps0), Alg (AppendExp exps1) ->
             let newExp =
                 exps1@exps0
@@ -751,7 +743,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let fd = ins 0
 #if ASSERTS
         assertThat (fd.Width >= topWireWidth + 1)
-        <| sprintf "SplitWire received too little bits: expected at least %d but got %d" (topWireWidth + 1) fd.Width
+        <| sprintf "SplitWire received too few bits: expected at least %d but got %d" (topWireWidth + 1) fd.Width
 #endif
         match fd with
         | Data bits ->
@@ -769,6 +761,13 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             let exp0 = UnaryExp(BitRangeOp(l,l+topWireWidth-1),exp)
             put0 <| Alg exp0
             put1 <| Alg exp1
+            putW 1 (getAlgExpWidth exp1)
+        | Alg (UnaryExp(NotOp,exp)) ->
+            let w = getAlgExpWidth (UnaryExp(NotOp,exp))
+            let exp1 = UnaryExp(BitRangeOp(topWireWidth,w-1),exp)
+            let exp0 = UnaryExp(BitRangeOp(0,topWireWidth-1),exp)
+            put0 <| Alg (UnaryExp(NotOp,exp0))
+            put1 <| Alg (UnaryExp(NotOp,exp1))
             putW 1 (getAlgExpWidth exp1)
         | Alg exp ->
             let w = getAlgExpWidth exp

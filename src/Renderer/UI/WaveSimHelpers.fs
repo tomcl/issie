@@ -300,10 +300,13 @@ let getSimTime (waves: WaveformSpec array) (simData: SimulationData) =
     |> Array.map (fun wave ->
         try 
             let driver,opn = wave.Driver
-            let wD = FastRun.extractFastSimulationOutput fs step driver opn
-            Wire
-                { NBits = uint (List.length wD)
-                  BitData = simWireData2Wire wD }
+            //let wD = FastRun.extractFastSimulationOutput fs step driver opn
+            match FastRun.extractFastSimulationOutput fs step driver opn with
+            | IData wd ->
+                Wire
+                    { NBits = uint (List.length wd);
+                    BitData = simWireData2Wire wd }
+            | IAlg _ -> failwithf "what? Algebra in WaveSim"
         with
         | e -> 
             printfn "Exception: %A" e.StackTrace

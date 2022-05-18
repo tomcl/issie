@@ -73,6 +73,7 @@ let init() = {
     TTHiddenColumns = []
     TTSortType = None
     TTIOOrder = [||]
+    TTAlgebraInputs = []
     WaveSim = Map.empty, None
     WaveSimSheet = ""
     RightPaneTabVisible = Catalogue
@@ -96,6 +97,8 @@ let init() = {
         ConstraintIOSel = None
         ConstraintErrorMsg = None
         NewConstraint = None
+        AlgebraInputs = None
+        AlgebraError = None
     }
     Notifications = {
         FromDiagram = None
@@ -232,6 +235,36 @@ let dividerbar (model:Model) dispatch =
             OnMouseDown (setDragMode true model dispatch)       
         ] []
 
+let viewRightTabs model dispatch =
+    div [HTMLAttr.Id "RightSelection";Style [ Height "100%" ]] [
+        Tabs.tabs [ 
+            Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs"
+            Tabs.Props [Style [Margin 0] ]
+        ] [
+            Tabs.tab // catalogue tab to add components
+                [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
+                [ a [ OnClick (fun _ ->
+                        if not model.WaveSimulationInProgress 
+                        then 
+                            dispatch <| ChangeRightTab Catalogue ) ] [str "Catalogue" ] ]
+            Tabs.tab // Properties tab to view/change component properties
+                [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]                                   
+                [ a [ OnClick (fun _ -> 
+                        if not model.WaveSimulationInProgress  
+                        then 
+                            dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ]
+            Tabs.tab // simulation tab to view all simulators
+                [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
+                [ a [  OnClick (fun _ -> 
+                        if not model.WaveSimulationInProgress 
+                        then
+                            dispatch <| ChangeRightTab Simulation ) 
+                    ] [str "Simulations"] ]
+        ]
+        viewRightTab model dispatch
+
+    ]
+
 //---------------------------------------------------------------------------------------------------------//
 //------------------------------------------VIEW FUNCTION--------------------------------------------------//
 //---------------------------------------------------------------------------------------------------------//
@@ -330,34 +363,5 @@ let displayView model dispatch =
                   // vertical and draggable divider bar
                 [ dividerbar model dispatch
                   // tabs for different functions
-                  div [ 
-                        HTMLAttr.Id "RightSelection"
-                        Style [ Height "100%" ] 
-                      ] 
-                      [ Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs"
-                                    Tabs.Props [Style [Margin 0] ] ]  
-                                    
-                                  [ Tabs.tab // catalogue tab to add components
-                                        [   Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
-                                        [ a [ OnClick (fun _ ->
-                                                if not model.WaveSimulationInProgress 
-                                                then 
-                                                    dispatch <| ChangeRightTab Catalogue ) ] [str "Catalogue" ] ] 
-                                                                  
-                                    Tabs.tab // Properties tab to view/change component properties
-                                        [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]                                   
-                                        [ a [ OnClick (fun _ -> 
-                                                if not model.WaveSimulationInProgress  
-                                                then 
-                                                    dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ]
-                                                    
-                                    Tabs.tab // simulation tab to view all simulators
-                                        [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
-                                        [ a [  OnClick (fun _ -> 
-                                                if not model.WaveSimulationInProgress 
-                                                then
-                                                    dispatch <| ChangeRightTab Simulation ) 
-                                            ] [str "Simulations"] ] 
-                                  ]
-                        viewRightTab model dispatch  ] ] ]
+                  viewRightTabs model dispatch ] ]
 

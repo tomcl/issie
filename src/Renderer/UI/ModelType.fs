@@ -58,6 +58,8 @@ type PopupDialogData = {
     ConstraintIOSel: CellIO option
     ConstraintErrorMsg: string option
     NewConstraint: Constraint option
+    AlgebraInputs: SimulationIO list option
+    AlgebraError: SimulationError option
 }
 
 type TopMenu = | Closed | Project | Files
@@ -302,6 +304,8 @@ type Msg =
     | SetTTSortType of (CellIO * SortType) option
     | MoveColumn of (CellIO * MoveDirection)
     | SetIOOrder of CellIO []
+    //| ToggleTTInputType of SimulationIO
+    | SetTTAlgebraInputs of SimulationIO list
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list
@@ -330,6 +334,9 @@ type Msg =
     | SetPopupConstraintIOSel of CellIO option
     | SetPopupConstraintErrorMsg of string option
     | SetPopupNewConstraint of Constraint option
+    | SetPopupAlgebraInputs of SimulationIO list option
+    | SetPopupAlgebraError of SimulationError option
+    | TogglePopupAlgebraInput of (SimulationIO * SimulationData)
     | SimulateWithProgressBar of SimulationProgress
     | SetSelectedComponentMemoryLocation of int64 * int64
     | CloseDiagramNotification
@@ -453,6 +460,8 @@ type Model = {
     TTSortType: (CellIO * SortType) option
     // what is the display order of IOs in Table
     TTIOOrder: CellIO []
+    // which of the Truth Table's inputs are currently algebra
+    TTAlgebraInputs: SimulationIO list
     // which of the tabbed panes is currently visible
     RightPaneTabVisible : RightTab
     // which of the subtabs for the right pane simulation is visible

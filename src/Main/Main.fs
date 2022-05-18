@@ -83,7 +83,12 @@ let createMainWindow () =
         // fix for icons not working on linux
         // requires better solution for dist, maybe
         //if Api.``process``.platform = Base.Win32 then
-        options.icon <- Some (U2.Case2 (path.join(staticDir(), "icon-1.png")))
+        let isDev = (``process``?defaultApp = true)
+        if isDev then
+            options.icon <- Some (U2.Case2 (path.join(staticDir(), "icon-1.png")))
+        else
+            options.icon <- Some (U2.Case2 ("/static/icon-1.png"))
+
         //elif Api.``process``.platform = Base.Darwin then
             //options.icon <- (U2.Case2 (path.join(staticDir(), "icon.icns")))   (the icns icon does not work)
         options.title <- Some "issie"
@@ -125,7 +130,7 @@ let loadAppIntoWidowWhenReady (window: BrowserWindow) =
             // run the dev tools
             if debug then window.webContents.openDevTools() // default open in this case
 
-            sprintf $"http://localhost:{``process``.env?ELECTRON_WEBPACK_WDS_PORT}"
+            sprintf $"http://localhost:9000"
             |> window.loadURL
             |> ignore
 

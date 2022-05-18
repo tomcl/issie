@@ -742,7 +742,9 @@ let viewInfoPopup dispatch =
             li [] [tSpan "Zoom canvas in: " ; keyOf2  "Shift" "="]
             li [] [tSpan "Zoom canvas out: " ; keyOf2  "Shift" "-"; rule]
             li [] [tSpan "Zoom circuit to fit screen: " ; keyOf2  "Ctrl" "W"]
-            li [] [tSpan "Scroll: " ; bSpan "Two-finger scrolling on touchpad"]
+            li [] [tSpan "Scroll (mouse): " ; keyOf2 "Shift" "Left-Click"; bSpan " on canvas and drag"]
+            li [] [tSpan "Scroll (touch-pad): " ; bSpan "Two-finger scrolling on touchpad"]
+            li [] [tSpan "Scroll (touch-screen): " ; bSpan "One-finger drag on screen"]
         ] ]
     let body (dialogData:PopupDialogData) =
         

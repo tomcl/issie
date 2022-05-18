@@ -34,8 +34,10 @@ type MouseOp =
     | Drag
 
 type MouseT = {
+    /// this is in DrawBlock coords (scaled from screen pixels by 1/zoom)
     Pos: XYPos
-    Movement: XYPos
+    /// this is in screen pixel coords
+    ScreenMovement: XYPos
     ShiftKeyDown: bool
     Op: MouseOp}
 
@@ -162,7 +164,7 @@ let defaultText = {
 
 /// Port circle, used by both Sheet and Symbol to create ports
 let portCircle = { defaultCircle with R = 5.0; Stroke = "Black"; StrokeWidth = "1.0px"; Fill = "Grey"}
-
+let portCircleTarget= { defaultCircle with R = 8.0; Stroke = "DodgerBlue"; StrokeWidth = "2.0px"; Fill = "None"}
 
 //--------------------------------------------------------------------------//
 //-----------------------------Helpers--------------------------------------//

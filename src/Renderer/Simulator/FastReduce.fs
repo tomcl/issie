@@ -643,7 +643,6 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 put0 <| Alg (BinaryExp(exp,BitXorOp,numExp))
         | A, B ->
             let aExp, bExp = A.toExp, B.toExp
-            printfn "aExp: %A, bExp: %A" aExp bExp
             put0 <| Alg (BinaryExp(aExp,BitXorOp,bExp))
     | Decode4 ->
         //let select, data = ins 0, ins 1

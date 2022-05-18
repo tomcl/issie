@@ -876,11 +876,8 @@ let displaySvgWithZoom
           Ref (fun el ->
             canvasDiv <- Some el
             writeCanvasScroll model.ScreenScrollPos
-            if not (isNull el) then
-                // in case this element is newly created, set scroll position from model
-                el.scrollLeft <- model.ScreenScrollPos.X
-                el.scrollTop <- model.ScreenScrollPos.Y
-                )
+            )
+
           OnWheel wheelUpdate
         ]
         [

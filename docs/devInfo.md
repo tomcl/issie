@@ -75,11 +75,7 @@ Electron thus allows code written for a browser (HTML + CSS + JavaScript) to be 
 
 Both processes run Javascript under Node.
 
-The `src/Main/Main.fs` source configures electron start-up and is boilerplate. It is transpiled to the root project directory so it can be automatically picked up by Electron.
-
-The remaining app code is arranged in four different sections, each being a separate F# project. This separation allows all the non-web-based code (which can equally be run and tested under .Net) to be run and tested under F# directly in addition to being transpiled and run under Electron.
-
-The project relies on the draw2d JavaScript (node) library, which is extended to support digital electronics components. The extensions are in the `draw2d` sub-folder of the renderer project source files. 
+The `src/Main/Main.fs` source configures electron start-up and is boilerplate. It is transpiled to the root project directory so it can be automatically picked up by Electron. The remaining app code is arranged in four different sections as shown below.
 
 The code that turns the F# project source into `renderer.js` is the FABLE compiler followed by the Node Webpack bundler that combines multiple Javascript files into a single `renderer.js`.
 
@@ -94,11 +90,12 @@ This is boilerplate which you do not need to change; normally the F# project fil
 
 
 |   Subfolder   |                                             Description                                            |
-|:------------:|:--------------------------------------------------------------------------------------------------:|
+|:------------|:--------------------------------------------------------------------------------------------------|
 | `main/` | Code for the main electron process that sets everything up - not normally changed |
-| `Common/`       | Provides some common types and utilities used by all other sections, including the  WidthInferer |
-| `Simulator/`    | Contains the logic to analyse and simulate a diagram.                                              |
-| `Renderer/`     | Contains the UI logic, the wrapper to the JavaScript drawing library and a set of utility function to write/read/parse diagram files. This amd `main` are the only projects that cannot run under .Net, as they contain JavaScript related functionalities. |
+| `Renderer/Common/`       | Provides some common types and utilities used by all other sections, including the  WidthInferer |
+| `Renderer/Simulator/`    | Contains the logic to analyse and simulate, or export to Verilog, a diagram.   |
+| `Renderer/DrawBlock`  | Code to implement the schematic Editor   |
+| `Renderer/UI`     | Contains the UI logic and a set of utility function to write/read/parse diagram files.  |
 
 ### `Tests` folder
 {:.no_toc}
@@ -114,7 +111,7 @@ Contains static files used in the application.
 
 ## Project versus File in the Issie application
 
-Issie allows the users to create projects and files within those projects. A Issie project is simply a folder named `<project-name>` that contains an empty file named `<project_name>.dprj` (dprj stands for diagram project). The project folder any non-zero number of design files, each named `<component_name>.dgm` (dgm stands for diagram). each deisgn file represents one design sheet of a hierarchical hardware design, sheets can contain, as components, other sheets.
+Issie allows the users to create projects and files within those projects. A Issie project is simply a folder named `<project-name>` that contains an empty file named `<project_name>.dprj` (dprj stands for diagram project). The project folder contains a non-zero number of design files, each named `<component_name>.dgm` (dgm stands for diagram). each design file represents one design sheet of a hierarchical hardware design, sheets can contain, as components, other sheets.
 
 When opening a project, Issie will initially search the given repository for `.dgm` files, parse and load their content, and allow the user to open them in Issie or use them as components in other designs.
 
@@ -199,4 +196,4 @@ run `build killzombies` to remove orphan processes that lock build files.
 * There is a very rare bug in the code that downloads electron binaries that is sensitive to fast internet access: 
 going through a VPN makes it go away. It is one-off since the binaries are cached once downloaded. If this hits you
 the workaround is to run the build script again using Imperial College VPN. Having downloaded the binaries once
-the porblem will go away.
+the problem will go away.

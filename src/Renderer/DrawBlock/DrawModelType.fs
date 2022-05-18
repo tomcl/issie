@@ -65,17 +65,18 @@ module SymbolT =
     let orientation_ = Lens.create (fun a -> a.Orientation) (fun s a -> {a with Orientation = s})
 
     /// data here changes how the symbol looks but has no other effect
+    type ShowPorts = | ShowInput | ShowOutput | ShowBoth | ShowBothForPortMovement | ShowNone | ShowOneTouching of Port | ShowOneNotTouching of Port | ShowTarget  
+    
     type AppearanceT =
         {
-            ShowInputPorts: bool
-            ShowOutputPorts: bool
+            ShowPorts: ShowPorts
             HighlightLabel: bool
             Colour: string
             Opacity: float  
         }
 
-    let showInputPorts_ = Lens.create (fun a -> a.ShowInputPorts) (fun s a -> {a with ShowInputPorts = s})
-    let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
+    let showPorts_ = Lens.create (fun a -> a.ShowPorts) (fun s a -> {a with ShowPorts = s})
+    // let showOutputPorts_ = Lens.create (fun a -> a.ShowOutputPorts) (fun s a -> {a with ShowOutputPorts = s})
     let highlightLabel_ = Lens.create (fun a -> a.HighlightLabel) (fun s a -> {a with HighlightLabel = s})
     let colour_ = Lens.create (fun a -> a.Colour) (fun s a -> {a with Colour = s})
     let opacity_ = Lens.create (fun a -> a.Opacity) (fun s a -> {a with Opacity = s})
@@ -112,6 +113,8 @@ module SymbolT =
             /// Option to represent a port that is being moved, if it's some, it contains the moving port's Id and its current position.
             MovingPort: Option<{|PortId:string; CurrPos: XYPos|}>
 
+            MovingPortTarget: (XYPos*XYPos) option
+
         }
 
     let appearance_ = Lens.create (fun a -> a.Appearance) (fun s a -> {a with Appearance = s})
@@ -147,10 +150,11 @@ module SymbolT =
         | AddSymbol of (LoadedComponent list) * pos:XYPos * compType:ComponentType * lbl: string
         | CopySymbols of ComponentId list
         | DeleteSymbols of sIds:ComponentId list
-        | ShowAllInputPorts | ShowAllOutputPorts | DeleteAllPorts 
+        | ShowAllInputPorts | ShowAllOutputPorts | DeleteAllPorts
         | MoveSymbols of compList: ComponentId list * move: XYPos
         | MoveLabel of compId: ComponentId * move: XYPos
         | ShowPorts of ComponentId list
+        | ShowCustomOnlyPorts of ComponentId list
         | SelectSymbols of ComponentId list// Issie interface
         | SymbolsHaveError of sIds: ComponentId list
         | ChangeLabel of sId : ComponentId * newLabel : string
@@ -166,6 +170,7 @@ module SymbolT =
         | WriteMemoryType of ComponentId * ComponentType
         | RotateLeft of compList : ComponentId list * RotationType
         | Flip of compList: ComponentId list * orientation: FlipType
+        /// Taking the input and..
         | MovePort of portId: string * move: XYPos
         | MovePortDone of portId: string * move: XYPos
         | SaveSymbols
@@ -297,6 +302,9 @@ module SheetT =
         Move: XYPos
         }
 
+    let move_ = Lens.create (fun m -> m.Move) (fun w m -> {m with Move = w})
+    let pos_ = Lens.create (fun m -> m.Pos) (fun w m -> {m with Pos = w})
+
     /// Used to keep track of what the mouse is on
     type MouseOn =
         | Label of CommonTypes.ComponentId
@@ -314,6 +322,7 @@ module SheetT =
         | MovingSymbols
         | MovingLabel
         | DragAndDrop
+        | Panning // panning sheet using shift/drag
         | MovingWire of SegmentId // Sends mouse messages on to BusWire
         | ConnectingInput of CommonTypes.InputPortId // When trying to connect a wire from an input
         | ConnectingOutput of CommonTypes.OutputPortId // When trying to connect a wire from an output
@@ -355,7 +364,7 @@ module SheetT =
 
     /// For Keyboard messages
     type KeyboardMsg =
-        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC 
+        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC | Ctrl
 
     type WireTypeMsg =
         | Jump | Radiussed | Modern
@@ -380,7 +389,7 @@ module SheetT =
         | MouseMsg of MouseT
         | UpdateBoundingBoxes
         | UpdateSingleBoundingBox of ComponentId
-        | UpdateScrollPos of X: float * Y: float
+        | UpdateScrollPos of XYPos
         | ManualKeyUp of string // For manual key-press checking, e.g. CtrlC
         | ManualKeyDown of string // For manual key-press checking, e.g. CtrlC
         | CheckAutomaticScrolling
@@ -435,12 +444,18 @@ module SheetT =
         SnapSymbols: SnapXY
         SnapSegments: SnapXY
         CurrentKeyPresses: Set<string> // For manual key-press checking, e.g. CtrlC
+        /// how X,Y coordinates throughout draw block are scaled into screen pixels.
+        /// All unscaled dimensions (screen pixels) have Screen prepended to name.
         Zoom: float
+        /// the size of teh canvas in DrawBlock units
+        CanvasSize: float // how large is the circuit canvas - can be changed dynamically
         TmpModel: Model Option
         UndoList: Model List
         RedoList: Model List
         AutomaticScrolling: bool // True if mouse is near the edge of the screen and is currently scrolling. This improved performance for manual scrolling with mouse wheel (don't check for automatic scrolling if there is no reason to)
-        ScrollPos: XYPos // copies HTML canvas scrolling position: (canvas.scrollLeft,canvas.scrollTop)
+        /// html scrolling position: this is in screen pixels, draw block X,Y values are 1/model.Zoom of this
+        ScreenScrollPos: XYPos // copies HTML canvas scrolling position: (canvas.scrollLeft,canvas.scrollTop)
+        /// this is Drawblock X,Y values
         LastMousePos: XYPos // For Symbol Movement
         ScrollingLastMousePos: XYPosMov // For keeping track of mouse movement when scrolling. Can't use LastMousePos as it's used for moving symbols (won't be able to move and scroll symbols at same time)
         LastMousePosForSnap: XYPos
@@ -462,6 +477,10 @@ module SheetT =
     let symbols_ = wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_
     let symbolOf_ k = symbol_ >-> SymbolT.symbolOf_ k
 
-
+    let scrollingLastMousePos_ = Lens.create (fun m -> m.ScrollingLastMousePos) (fun w m -> {m with ScrollingLastMousePos = w})
+    let lastMousePos_ = Lens.create (fun m -> m.LastMousePos) (fun w m -> {m with LastMousePos = w})
+    let screenScrollPos_ = Lens.create (fun m -> m.ScreenScrollPos) (fun w m -> {m with ScreenScrollPos = w})
+    let lastMousePosForSnap_ = Lens.create (fun m -> m.LastMousePosForSnap) (fun w m -> {m with LastMousePosForSnap = w})
+    let canvasSize_ = Lens.create (fun m -> m.CanvasSize) (fun w m -> {m with CanvasSize = w})
 
 

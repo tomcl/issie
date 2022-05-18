@@ -19,6 +19,7 @@ open JSHelpers
 open Sheet.SheetInterface
 open DrawModelType
 
+importSideEffects "./scss/main.css"
 
 let isMac = Node.Api.``process``.platform = Node.Base.Darwin
 

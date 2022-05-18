@@ -148,7 +148,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
              Action = nextAction
              SnapSymbols = snapXY
              LastMousePos = mMsg.Pos
-             ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}
+             ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
              ErrorComponents = errorComponents},
         Cmd.batch [ symbolCmd (MoveSymbols (model.SelectedComponents, moveDelta))
                     Cmd.ofMsg (UpdateSingleBoundingBox model.SelectedComponents.Head)
@@ -161,7 +161,7 @@ let moveSymbols (model: Model) (mMsg: MouseT) =
             |> List.filter (fun sId -> not (notIntersectingComponents model model.BoundingBoxes[sId] sId))
         {model with Action = nextAction ; 
                     LastMousePos = mMsg.Pos; 
-                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}; 
+                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}; 
                     ErrorComponents = errorComponents },
         Cmd.batch [ symbolCmd (SymbolT.MoveSymbols (model.SelectedComponents, mMsg.Pos - model.LastMousePos))
                     symbolCmd (SymbolT.ErrorSymbols (errorComponents,model.SelectedComponents,isDragAndDrop))
@@ -193,7 +193,7 @@ let snapWire
     { model with
         Action = nextAction;
         LastMousePos = mMsg.Pos;
-        ScrollingLastMousePos = {Pos = mMsg.Pos; Move = mMsg.Movement};
+        ScrollingLastMousePos = {Pos = mMsg.Pos; Move = mMsg.ScreenMovement};
         ErrorComponents = [];
         SnapSegments = snapXY
     },
@@ -249,6 +249,8 @@ let mDownUpdate
                         wireCmd (BusWireT.ResetJumps [])]
     | _ ->
         match (mouseOn model mMsg.Pos) with
+        | Canvas when mMsg.ShiftKeyDown ->
+            {model with Action = Panning}, Cmd.none
         | Label compId ->
             {model with Action = InitialiseMovingLabel compId},
             Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
@@ -380,14 +382,14 @@ let mDragUpdate
         let initialY = model.DragToSelectBox.TopLeft.Y
         let newDragToSelectBox = {model.DragToSelectBox with W = (mMsg.Pos.X - initialX); H = (mMsg.Pos.Y - initialY)}
         {model with DragToSelectBox = newDragToSelectBox
-                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}
+                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
                     LastMousePos = mMsg.Pos
          }, Cmd.ofMsg CheckAutomaticScrolling
     | InitialiseMovingLabel compId->
         {model with
                 Action = MovingLabel
                 LastMousePos = mMsg.Pos
-                ScrollingLastMousePos = {Pos = mMsg.Pos; Move = mMsg.Movement}
+                ScrollingLastMousePos = {Pos = mMsg.Pos; Move = mMsg.ScreenMovement}
                 SelectedLabel = Some compId
             }, Cmd.ofMsg DoNothing
     | InitialiseMoving _ ->
@@ -406,7 +408,7 @@ let mDragUpdate
             Action = MovingLabel
             CursorType = Grabbing
             LastMousePos = mMsg.Pos
-            ScrollingLastMousePos = {Pos = mMsg.Pos; Move = mMsg.Movement}
+            ScrollingLastMousePos = {Pos = mMsg.Pos; Move = mMsg.ScreenMovement}
         },
         symbolCmd (SymbolT.MoveLabel (movingCompId, mMsg.Pos - model.LastMousePos))
 
@@ -424,7 +426,7 @@ let mDragUpdate
                     ConnectPortsLine = (fst model.ConnectPortsLine, drawLineTarget)
                     TargetPortId = targetPort
                     LastMousePos = mMsg.Pos
-                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement}}
+                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}}
         , Cmd.ofMsg CheckAutomaticScrolling
     | ConnectingOutput _ ->
         let nearbyComponents = findNearbyComponents model mMsg.Pos 50
@@ -440,12 +442,17 @@ let mDragUpdate
                     ConnectPortsLine = (fst model.ConnectPortsLine, drawLineTarget)
                     TargetPortId = targetPort
                     LastMousePos = mMsg.Pos
-                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement} }
+                    ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement} }
         , Cmd.ofMsg CheckAutomaticScrolling
 
     | MovingPort portId->
         model, symbolCmd (SymbolT.MovePort (portId, mMsg.Pos))
-    | _ -> model, Cmd.none
+    | Panning ->
+        let sPos = model.ScreenScrollPos - mMsg.ScreenMovement
+        model, Cmd.ofMsg (Msg.UpdateScrollPos sPos)
+    | Idle 
+    | InitialisedCreateComponent _ 
+    | Scrolling -> model, Cmd.none
     |> setDragCursor
 /// Mouse Up Update, can have: finished drag-to-select, pressed on a component, finished symbol movement, connected a wire between ports
 let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is currently un-used, but kept for future possibilities
@@ -559,7 +566,7 @@ let mMoveUpdate
                      SelectedComponents = [ newCompId ]
                      SelectedWires = []
                      LastMousePos = mMsg.Pos
-                     ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement} },
+                     ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement} },
         Cmd.batch [ Cmd.ofMsg UpdateBoundingBoxes
                     symbolCmd (SymbolT.SelectSymbols [])
                     symbolCmd (SymbolT.PasteSymbols [ newCompId ]) ]
@@ -576,13 +583,12 @@ let mMoveUpdate
                 | Connection _ -> GrabWire
                 | Component _ -> GrabSymbol
                 | _ -> Default
-
-        { model with 
-            NearbyComponents = nearbyComponents; 
-            CursorType = newCursor; 
-            LastMousePos = mMsg.Pos; 
-            ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.Movement} },
-        symbolCmd (SymbolT.ShowPorts nearbyComponents) // Show Ports of nearbyComponents
+        let newModel = { model with NearbyComponents = nearbyComponents; CursorType = newCursor; LastMousePos = mMsg.Pos; ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement} } 
+        
+        if Set.contains "CONTROL" model.CurrentKeyPresses then
+            newModel , symbolCmd (SymbolT.ShowCustomOnlyPorts nearbyComponents)
+        else 
+            newModel, symbolCmd (SymbolT.ShowPorts nearbyComponents) // Show Ports of nearbyComponents
 
 let getVisibleScreenCentre (model : Model) : XYPos =
     let canvas = document.getElementById "Canvas"
@@ -615,7 +621,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                             model 
                         else
                             Optic.set boundingBoxes_ (Symbol.getBoundingBoxes sModel) model))
-
+        |> ensureCanvasExtendsBeyondScreen
                                 
     match msg with
     | Wire (BusWireT.Symbol SymbolT.Msg.UpdateBoundingBoxes) -> 
@@ -708,12 +714,20 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | KeyPress CtrlW ->
             let model', paras = fitCircuitToWindowParas model
+            match canvasDiv with
+            | Some el ->
+                el.scrollLeft <- paras.Scroll.X
+                el.scrollTop <- paras.Scroll.Y
+            | None -> ()
             model', 
             Cmd.batch 
                 [
-                    Cmd.ofMsg (UpdateScrollPos (paras.ScrollX, paras.ScrollY))
+                    Cmd.ofMsg (UpdateScrollPos paras.Scroll)
                     Cmd.ofMsg UpdateBoundingBoxes
                 ]
+    
+    | KeyPress Ctrl ->
+            model, symbolCmd (SymbolT.ShowCustomOnlyPorts model.NearbyComponents)
 
     | ToggleSelectionOpen ->
         //if List.isEmpty model.SelectedComponents && List.isEmpty model.SelectedWires then
@@ -726,10 +740,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | MouseMsg mMsg -> // Mouse Update Functions can be found above, update function got very messy otherwise
         match mMsg.Op with
-        | Down -> mDownUpdate model mMsg
+        | Down when model.Action = Idle -> mDownUpdate model mMsg
         | Drag -> mDragUpdate model mMsg
         | Up -> mUpUpdate model mMsg
         | Move -> mMoveUpdate model mMsg
+        |_ -> model, Cmd.none 
 
     | UpdateBoundingBoxes -> 
         let model =
@@ -748,11 +763,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 , Cmd.none
         | false -> model, Cmd.none
  
-    | UpdateScrollPos (scrollX, scrollY) ->
+    | UpdateScrollPos scrollPos ->
         if model.ScrollUpdateIsOutstanding then 
             model, Cmd.none
         else
-            let scrollDif = { X = scrollX; Y = scrollY } - model.ScrollPos
+            let scrollDif = scrollPos - model.ScreenScrollPos
             let newLastScrollingPos =
                 {
                  Pos =
@@ -768,15 +783,16 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 else
                     Cmd.none
             { model with 
-                ScrollPos = { X = scrollX; Y = scrollY }
+                ScreenScrollPos = scrollPos
                 ScrollUpdateIsOutstanding = false
                 ScrollingLastMousePos = newLastScrollingPos }, 
                 cmd
 
     /// Zooming in increases model.Zoom. The centre of the screen will stay centred (if possible)
     | KeyPress ZoomIn ->
+        let oldScreenCentre = getVisibleScreenCentre model
         { model with Zoom = min Constants.maxMagnification (model.Zoom*Constants.zoomIncrement) }, 
-        Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
+        Cmd.ofMsg (KeepZoomCentered oldScreenCentre)
 
     /// Zooming out decreases the model.Zoom. The centre of the screen will stay centred (if possible)
     | KeyPress ZoomOut ->
@@ -784,12 +800,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let edge = getScreenEdgeCoords model
         //Check if the new zoom will exceed the canvas width or height
         let newZoom =
-            let minXZoom = (edge.Right - edge.Left) / Constants.canvasUnscaledSize
-            let minYZoom = (edge.Top - edge.Bottom) / Constants.canvasUnscaledSize
+            let minXZoom = (edge.Right - edge.Left) / model.CanvasSize
+            let minYZoom = (edge.Top - edge.Bottom) / model.CanvasSize
             List.max [model.Zoom / Constants.zoomIncrement; minXZoom; minYZoom]
+        let oldScreenCentre = getVisibleScreenCentre model
 
         { model with Zoom = newZoom }, 
-        Cmd.ofMsg (KeepZoomCentered model.LastMousePos)
+        Cmd.ofMsg (KeepZoomCentered oldScreenCentre)
 
     | KeepZoomCentered oldScreenCentre ->
         let canvas = document.getElementById "Canvas"
@@ -816,6 +833,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     Cmd.ofMsg (KeyPress CtrlW)
                 else
                     Cmd.none
+                    // Cmd.ofMsg (KeyPress Ctrl)
             | false -> Cmd.none
 
         { model with CurrentKeyPresses = newPressedKeys }, newCmd
@@ -861,17 +879,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 match model.Action with
                 | DragAndDrop ->
                     mMoveUpdate { model with AutomaticScrolling = true } 
-                                { Pos = newMPos; Op = Move;  Movement = {X=0.;Y=0.}; ShiftKeyDown=false}
+                                { Pos = newMPos; Op = Move;  ScreenMovement = {X=0.;Y=0.}; ShiftKeyDown=false}
                 | MovingSymbols | ConnectingInput _ | ConnectingOutput _ | Selecting ->
                     mDragUpdate { model with AutomaticScrolling = true } 
-                                { Pos = newMPos; Op = Drag; Movement = {X=0.;Y=0.}; ShiftKeyDown = false}
+                                { Pos = newMPos; Op = Drag; ScreenMovement = {X=0.;Y=0.}; ShiftKeyDown = false}
                 | _ ->
                     { model with AutomaticScrolling = true }, Cmd.none
             let notAutomaticScrolling msg = match msg with | CheckAutomaticScrolling -> false | _ -> true
             // Don't want to go into an infinite loop (program would crash), don't check for automatic scrolling immediately (let it be handled by OnScroll listener).
             let filteredOutputCmd = Cmd.map (fun msg -> if notAutomaticScrolling msg then msg else DoNothing) outputCmd
             // keep model ScrollPos uptodate with real scrolling position
-            let outputModel = {outputModel with ScrollPos = {X = canvas.scrollLeft; Y = canvas.scrollTop}}
+            let outputModel = {outputModel with ScreenScrollPos = {X = canvas.scrollLeft; Y = canvas.scrollTop}}
 
             outputModel, filteredOutputCmd
         else
@@ -1024,13 +1042,14 @@ let init () =
         SnapSymbols=emptySnap
         SnapSegments = emptySnap
         CursorType = Default
-        ScrollPos = { X = 0.0; Y = 0.0 }
+        ScreenScrollPos = { X = 0.0; Y = 0.0 }
         LastValidPos = { X = 0.0; Y = 0.0 }
         CurrentKeyPresses = Set.empty
         UndoList = []
         RedoList = []
         TmpModel = None
         Zoom = 1.0
+        CanvasSize = Constants.defaultCanvasSize
         AutomaticScrolling = false
         ScrollingLastMousePos = {Pos={ X = 0.0; Y = 0.0 }; Move={X = 0.0; Y  =0.0}}
         MouseCounter = 0

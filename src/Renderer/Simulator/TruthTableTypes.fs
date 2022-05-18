@@ -224,6 +224,8 @@ let orderConstraints set =
 type TableInput = {
     // SimulationIO associated with the input
     IO: SimulationIO
+    // Is the Input algebraic (or numeric)
+    IsAlgebra: bool
     // Number of possible input values, based on width of input
     MaxRowCount: int
     // Number of possible input values after applying input constraints
@@ -234,7 +236,7 @@ type TableInput = {
     Constraints: ConstraintSet
 }
 
-let initTableInput (simIO:SimulationIO) (allConstraints: ConstraintSet) =
+let initTableInput (simIO:SimulationIO) (allConstraints: ConstraintSet) (algebraIOs: SimulationIO list) =
     let (_,_,w) = simIO
     let specificEqualities =
         allConstraints.Equalities
@@ -242,8 +244,10 @@ let initTableInput (simIO:SimulationIO) (allConstraints: ConstraintSet) =
     let specificInequalities =
         allConstraints.Inequalities
         |> List.filter (fun con -> con.IO = SimIO simIO)
+    let isAlg = List.contains simIO algebraIOs
     {
         IO = simIO
+        IsAlgebra = isAlg
         MaxRowCount = int (2.0**w)
         ConstrainedRowCount = 0
         AllowedRowCount = 0

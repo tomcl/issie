@@ -211,9 +211,6 @@ type UnaryOp =
     | NotOp // bit inversion (bitwise XOR with -1)
     | ValueOfOp // value(A) (for A = -5, this would return 5)
     | BitRangeOp of Lower:int * Upper:int // A[upper:lower] (subset of bits of A)
-    // shows the sign of A, PosVal shows the value of the output
-    // if the sign is positive. (for A = -5, PosVal = 0, this would return 1)
-    | SignOfOp of PosVal: bool
     | CarryOfOp
 
 // Comparison between expression and constant
@@ -234,7 +231,7 @@ let rec getAlgExpWidth (exp: FastAlgExp) =
     | SingleTerm (_,_,w) -> w
     | DataLiteral d -> d.Width
     | UnaryExp (BitRangeOp(l,u),_) -> u-l+1
-    | UnaryExp (SignOfOp _,_) | UnaryExp (CarryOfOp,_) -> 1
+    | UnaryExp (CarryOfOp,_) -> 1
     // Assuming all other unary operators do not change width of expression
     | UnaryExp (_,exp) -> getAlgExpWidth exp
     // Assuming all other binary operators do not change width of expression
@@ -315,10 +312,6 @@ let expToString exp =
                 expStr
             else
                 $"{expStr}[{up}:{low}]"
-        | UnaryExp (SignOfOp pv,exp) ->
-            let expStr = expToString' exp
-            let posVal = if pv then "1" else "0"
-            $"sign({expStr}) ({posVal} if +)"
         | UnaryExp (CarryOfOp,exp) ->
             let expStr = expToString' exp
             $"carry({expStr})"

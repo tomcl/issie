@@ -933,30 +933,23 @@ let movePortUpdate (model:Model) (portId:string) (pos:XYPos) : Model*Cmd<'a> =
             | Top | Bottom -> ((snd (getRotatedHAndW symbol))/2.0 )
             | _ -> ((fst (getRotatedHAndW symbol))/2.0 )
         
-        elif portsOnEdge=1 then
-            let basic = getPortPosWithIndex symbol 1 edge 0
-            let xORy = match edge with | Top | Bottom -> basic.X | _ -> basic.Y
-            match (order,edge) with
-            |(0,Bottom) | (0,Left) | (1,Top) | (1,Right) -> xORy/2.0
-            | _ -> xORy*3.0/2.0
-        
-        elif (portsOnEdge>=2 && ((order=0) || (order=portsOnEdge)) ) then
+        elif (portsOnEdge>=1 && ((order=0) || (order=portsOnEdge)) ) then
             let (h,w) = (getRotatedHAndW symbol)
             let firstPortPos = getPortPosWithIndex symbol portsOnEdge edge 0
             let lastPortPos = getPortPosWithIndex symbol portsOnEdge edge (portsOnEdge-1)
             let firstPortXorY = match edge with |Top |Bottom -> firstPortPos.X | _ -> firstPortPos.Y 
             let lastPortXorY = match edge with | Top | Bottom ->  lastPortPos.X | _ -> lastPortPos.Y
-            let hORw = match edge with | Top | Bottom -> snd (getRotatedHAndW symbol) |_ -> fst (getRotatedHAndW symbol)
+            let hORw = match edge with | Top | Bottom -> w |_ -> h
             match (order,edge) with
             |(0,Bottom) |(0,Left) -> firstPortXorY/2.0 - 2.5
             |(0,_) -> (hORw + firstPortXorY)/2.0 + 2.5
-            |(portsOnEdge,Bottom) | (portsOnEdge,Left) -> (hORw+lastPortXorY)/2.0 + 2.5
-            |(portsOnEdge,_) -> lastPortXorY/2.0 - 2.5
+            |(_,Bottom) | (_,Left) -> (hORw+lastPortXorY)/2.0 + 2.5
+            |(_,_) -> lastPortXorY/2.0 - 2.5
         
         else 
-            if ((edge=Top) || (edge=Bottom)) then ((getPortPosWithIndex symbol portsOnEdge edge (order-1)).X + (getPortPosWithIndex symbol portsOnEdge edge order).X)/2.0
-            else ((getPortPosWithIndex symbol portsOnEdge edge (order-1)).Y + (getPortPosWithIndex symbol portsOnEdge edge order).Y)/2.0
-        
+            match edge with
+            | Top | Bottom -> ((getPortPosWithIndex symbol portsOnEdge edge (order-1)).X + (getPortPosWithIndex symbol portsOnEdge edge order).X)/2.0
+            | _ -> ((getPortPosWithIndex symbol portsOnEdge edge (order-1)).Y + (getPortPosWithIndex symbol portsOnEdge edge order).Y)/2.0
 
     /// Find the position of the target Port given the old/new edge and old/new order
     let findTargetPos (port:Port) (symbol:Symbol) = 
@@ -987,9 +980,9 @@ let movePortUpdate (model:Model) (portId:string) (pos:XYPos) : Model*Cmd<'a> =
                 elif oldOrder = newOrder then ({X=x;Y=y},pos)
                 else ({X=x;Y=y-diff},pos)      
         else 
-            let diff = findOffsetDifferentEdge symbol newEdge newOrder
-            if (newEdge = Top) || (newEdge = Bottom) then ({X=diff;Y=y},pos)
-            else ({X=x;Y=diff},pos)
+            let offset = findOffsetDifferentEdge symbol newEdge newOrder
+            if (newEdge = Top) || (newEdge = Bottom) then ({X=offset;Y=y},pos)
+            else ({X=x;Y=offset},pos)
     
     /// return the correctly parameterised symbol given the edge the moving port is (or isn't) on
     let isTouchingEdge port symId oldSymbol = 

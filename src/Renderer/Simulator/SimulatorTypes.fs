@@ -249,12 +249,44 @@ let rec getAlgExpWidth (exp: FastAlgExp) =
         if w1 > w2 then w1 else w2
     | ComparisonExp _ -> 1
 
+/// Converts multiple AppendOps which would usually be nested inside one another
+/// to a list of expressions for easier evaluation and clearer printing
 let rec flattenNestedAppends exp =
     match exp with
     | BinaryExp (left,AppendOp,right) ->
         (flattenNestedAppends left) @ (flattenNestedAppends right)
     | _ -> [exp]
-    
+
+let tryBitwiseOperation (expressions: FastAlgExp list) =
+    match expressions with
+    | [] -> failwithf "what? Expressions List should never be empty"
+    | (BinaryExp(_,AddOp,_))::tl | (BinaryExp(_,SubOp,_))::tl
+    | (BinaryExp(_,AppendOp,_))::tl -> None
+    | (BinaryExp(UnaryExp(BitRangeOp(_,_),left),bop,UnaryExp(BitRangeOp(_,_),right)))::tl ->
+        let rec checkList exps state remBits =
+            match (exps: FastAlgExp list), state with
+            | [], s -> s, remBits
+            | hd::tl, false -> checkList tl false remBits
+            | (BinaryExp (UnaryExp(BitRangeOp(ll,lu),l),op,UnaryExp(BitRangeOp(rl,ru),r)))::tl, true ->
+                if ll = lu && ll = rl && rl = ru && l = left && r = right && op = bop then
+                    let newRemBits = List.except [ll] remBits
+                    checkList tl true newRemBits
+                else 
+                    checkList tl false remBits
+            | _::tl, s ->
+                checkList tl false remBits
+        let widthL, widthR = 
+            getAlgExpWidth left, getAlgExpWidth right
+        if widthL <> widthR then
+            None
+        else
+            let remBits = [0..(widthL-1)]
+            match checkList expressions true remBits with
+            | true, [] ->
+                BinaryExp (left,bop,right)
+                |> Some
+            | _,_ -> None
+    | _ -> None
 
 
 /// Converts an Algebraic Expression to a string for pretty printing
@@ -389,6 +421,16 @@ let rec evalExp exp =
         | DataLiteral {Dat= Word 1u;Width=_}, exp ->
             UnaryExp (NotOp,exp)
         | l,r -> BinaryExp (l,BitXorOp,r)
+    | BinaryExp (exp1,AppendOp,exp2) ->
+        exp
+        |> flattenNestedAppends
+        |> tryBitwiseOperation
+        |> function
+            | Some e -> e
+            | None ->
+                let left = evalExp exp1
+                let right = evalExp exp2
+                BinaryExp (left, AppendOp, right)
     | BinaryExp (exp1, op, exp2) ->
         let left = evalExp exp1
         let right = evalExp exp2

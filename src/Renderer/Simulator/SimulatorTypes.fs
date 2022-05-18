@@ -203,7 +203,7 @@ type BinaryOp =
     | BitAndOp // A & B (bitwise AND)
     | BitOrOp // A | B (bitwise OR)
     | BitXorOp // A XOR B (bitwise XOR)
-    | AppendOp // B::A (B becomes MSB, A becomes LSB)
+    //| AppendOp // B::A (B becomes MSB, A becomes LSB)
 
 // Unary Algebraic Operators
 type UnaryOp = 
@@ -211,9 +211,6 @@ type UnaryOp =
     | NotOp // bit inversion (bitwise XOR with -1)
     | ValueOfOp // value(A) (for A = -5, this would return 5)
     | BitRangeOp of Lower:int * Upper:int // A[upper:lower] (subset of bits of A)
-    // shows the sign of A, PosVal shows the value of the output
-    // if the sign is positive. (for A = -5, PosVal = 0, this would return 1)
-    | SignOfOp of PosVal: bool
     | CarryOfOp
 
 // Comparison between expression and constant
@@ -226,6 +223,7 @@ type FastAlgExp =
     | UnaryExp of Op: UnaryOp * Exp: FastAlgExp
     | BinaryExp of Exp1: FastAlgExp * Op: BinaryOp * Exp2: FastAlgExp
     | ComparisonExp of Exp: FastAlgExp * Op: ComparisonOp * uint32
+    | AppendExp of FastAlgExp list
 
 /// Calculates and returns the expected width of an Algebraic Expression
 let rec getAlgExpWidth (exp: FastAlgExp) = 
@@ -233,14 +231,9 @@ let rec getAlgExpWidth (exp: FastAlgExp) =
     | SingleTerm (_,_,w) -> w
     | DataLiteral d -> d.Width
     | UnaryExp (BitRangeOp(l,u),_) -> u-l+1
-    | UnaryExp (SignOfOp _,_) | UnaryExp (CarryOfOp,_) -> 1
+    | UnaryExp (CarryOfOp,_) -> 1
     // Assuming all other unary operators do not change width of expression
     | UnaryExp (_,exp) -> getAlgExpWidth exp
-    // Sum of the widths of the expressions
-    | BinaryExp (exp1,AppendOp,exp2) ->
-        let w1 = getAlgExpWidth exp1
-        let w2 = getAlgExpWidth exp2
-        w1 + w2
     // Assuming all other binary operators do not change width of expression
     // Return the greatest width
     | BinaryExp (exp1,_,exp2) -> 
@@ -248,20 +241,25 @@ let rec getAlgExpWidth (exp: FastAlgExp) =
         let w2 = getAlgExpWidth exp2
         if w1 > w2 then w1 else w2
     | ComparisonExp _ -> 1
+    | AppendExp exps ->
+        if exps.IsEmpty then
+            failwithf "what? List in AppendExp is empty"
+        else
+            (0,exps)
+            ||> List.fold (fun w exp -> w + getAlgExpWidth exp)
 
-/// Converts multiple AppendOps which would usually be nested inside one another
-/// to a list of expressions for easier evaluation and clearer printing
-let rec flattenNestedAppends exp =
-    match exp with
-    | BinaryExp (left,AppendOp,right) ->
-        (flattenNestedAppends left) @ (flattenNestedAppends right)
-    | _ -> [exp]
+// /// Converts multiple AppendOps which would usually be nested inside one another
+// /// to a list of expressions for easier evaluation and clearer printing
+// let rec flattenNestedAppends exp =
+//     match exp with
+//     | BinaryExp (left,AppendOp,right) ->
+//         (flattenNestedAppends left) @ (flattenNestedAppends right)
+//     | _ -> [exp]
 
 let tryBitwiseOperation (expressions: FastAlgExp list) =
     match expressions with
     | [] -> failwithf "what? Expressions List should never be empty"
-    | (BinaryExp(_,AddOp,_))::tl | (BinaryExp(_,SubOp,_))::tl
-    | (BinaryExp(_,AppendOp,_))::tl -> None
+    | (BinaryExp(_,AddOp,_))::tl | (BinaryExp(_,SubOp,_))::tl -> None
     | (BinaryExp(UnaryExp(BitRangeOp(_,_),left),bop,UnaryExp(BitRangeOp(_,_),right)))::tl ->
         let rec checkList exps state remBits =
             match (exps: FastAlgExp list), state with
@@ -287,7 +285,6 @@ let tryBitwiseOperation (expressions: FastAlgExp list) =
                 |> Some
             | _,_ -> None
     | _ -> None
-
 
 /// Converts an Algebraic Expression to a string for pretty printing
 let expToString exp =
@@ -315,10 +312,6 @@ let expToString exp =
                 expStr
             else
                 $"{expStr}[{up}:{low}]"
-        | UnaryExp (SignOfOp pv,exp) ->
-            let expStr = expToString' exp
-            let posVal = if pv then "1" else "0"
-            $"sign({expStr}) ({posVal} if +)"
         | UnaryExp (CarryOfOp,exp) ->
             let expStr = expToString' exp
             $"carry({expStr})"
@@ -342,16 +335,14 @@ let expToString exp =
             let expStr1 = expToString' exp1
             let expStr2 = expToString' exp2
             $"({expStr1}⊕{expStr2})"
-        | BinaryExp (exp1, AppendOp, exp2) ->
-            BinaryExp (exp1, AppendOp, exp2)
-            |> flattenNestedAppends
-            |> List.map expToString'
-            |> String.concat "::"
-            |> fun s -> $"({s})"
-
         | ComparisonExp (exp, Equals, x) ->
             let expStr = expToString' exp
             $"({expStr} == {string x})"
+        | AppendExp exps ->
+            exps
+            |> List.map expToString'
+            |> String.concat "::"
+            |> fun s -> $"({s})"
 
     let expS = expToString' exp
     // Remove the parentheses from the outermost expression
@@ -421,16 +412,6 @@ let rec evalExp exp =
         | DataLiteral {Dat= Word 1u;Width=_}, exp ->
             UnaryExp (NotOp,exp)
         | l,r -> BinaryExp (l,BitXorOp,r)
-    | BinaryExp (exp1,AppendOp,exp2) ->
-        exp
-        |> flattenNestedAppends
-        |> tryBitwiseOperation
-        |> function
-            | Some e -> e
-            | None ->
-                let left = evalExp exp1
-                let right = evalExp exp2
-                BinaryExp (left, AppendOp, right)
     | BinaryExp (exp1, op, exp2) ->
         let left = evalExp exp1
         let right = evalExp exp2
@@ -438,6 +419,13 @@ let rec evalExp exp =
     | ComparisonExp (exp, Equals, x) ->
         let evaluated = evalExp exp
         ComparisonExp (evaluated, Equals, x)
+    | AppendExp exps ->
+        let evaluated = List.map evalExp exps
+        evaluated
+        |> tryBitwiseOperation
+        |> function
+            | Some e -> e
+            | None -> AppendExp evaluated
 /// Raised when an Algebraic case is found in FastSim which has not been implemented,
 /// or does not make sense to implement.
 exception AlgebraNotImplemented of SimulationError

@@ -128,8 +128,6 @@ let makeSelectionChangeMsg (model:Model) (dispatch: Msg -> Unit) (ev: 'a) =
 let viewSimSubTab model dispatch =
     match model.SimSubTabVisible with
     | StepSim -> 
-        printfn "Toggle: %A" model.Sheet.Toggle
-        printfn "IsWaveSim: %A" model.Sheet.IsWaveSim
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str "Step Simulation" ]
             SimulationView.viewSimulation model dispatch
@@ -140,8 +138,6 @@ let viewSimSubTab model dispatch =
             TruthTableView.viewTruthTable model dispatch
         ]
     | WaveSim -> 
-        printfn "Toggle: %A" model.Sheet.Toggle
-        printfn "IsWaveSim: %A" model.Sheet.IsWaveSim
         div [ Style [Width "100%"; Height "calc(100% - 72px)"; MarginTop "15px" ] ]
             ( WaveformSimulationView.viewWaveSim model dispatch )
 

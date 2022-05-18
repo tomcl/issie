@@ -277,13 +277,13 @@ let keyPressListener initial =
                                                 let ke: KeyboardEvent = downcast e
                                                 if (jsToBool ke.ctrlKey || jsToBool ke.metaKey) && firstPress then
                                                     firstPress <- false
-                                                    dispatch <| Sheet(SheetT.ToggleSelectionOpen)
+                                                    dispatch <| Sheet(SheetT.PortMovementStart)
                                                 else
                                                     ())
     let subUp dispatch =
         Browser.Dom.document.addEventListener("keyup", fun e ->
                                                     firstPress <- true
-                                                    dispatch <| Sheet(SheetT.ToggleSelectionClose))
+                                                    dispatch <| Sheet(SheetT.PortMovementEnd))
     Cmd.batch [Cmd.ofSub subDown; Cmd.ofSub subUp]
 
 

@@ -390,6 +390,7 @@ module SheetT =
         | UpdateBoundingBoxes
         | UpdateSingleBoundingBox of ComponentId
         | UpdateScrollPos of XYPos
+        | UpdateScrollPosFromCanvas
         | ManualKeyUp of string // For manual key-press checking, e.g. CtrlC
         | ManualKeyDown of string // For manual key-press checking, e.g. CtrlC
         | CheckAutomaticScrolling

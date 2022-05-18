@@ -714,11 +714,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | KeyPress CtrlW ->
             let model', paras = fitCircuitToWindowParas model
-            match canvasDiv with
-            | Some el ->
-                el.scrollLeft <- paras.Scroll.X
-                el.scrollTop <- paras.Scroll.Y
-            | None -> ()
+            writeCanvasScroll paras.Scroll
             model', 
             Cmd.batch 
                 [
@@ -758,6 +754,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             |> Optic.map symbols_ (Map.change compId (Option.map Symbol.calcLabelBoundingBox))               
                 , Cmd.none
         | false -> model, Cmd.none
+
+    | UpdateScrollPosFromCanvas ->
+        let model =
+            match canvasDiv with
+            | None -> model
+            | Some el ->
+                {model with ScreenScrollPos = {X= el.scrollLeft; Y = el.scrollTop}}
+        model, Cmd.none
  
     | UpdateScrollPos scrollPos ->
         if model.ScrollUpdateIsOutstanding then 
@@ -778,6 +782,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     Cmd.ofMsg CheckAutomaticScrolling // Also check if there is automatic scrolling to continue
                 else
                     Cmd.none
+            Sheet.writeCanvasScroll scrollPos            
             { model with 
                 ScreenScrollPos = scrollPos
                 ScrollUpdateIsOutstanding = false
@@ -884,6 +889,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             // Don't want to go into an infinite loop (program would crash), don't check for automatic scrolling immediately (let it be handled by OnScroll listener).
             let filteredOutputCmd = Cmd.map (fun msg -> if notAutomaticScrolling msg then msg else DoNothing) outputCmd
             // keep model ScrollPos uptodate with real scrolling position
+            printfn $"setting scroll from check auto scrolling X={canvas.scrollLeft}"
             let outputModel = {outputModel with ScreenScrollPos = {X = canvas.scrollLeft; Y = canvas.scrollTop}}
 
             outputModel, filteredOutputCmd
@@ -891,7 +897,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             { model with AutomaticScrolling = false}, Cmd.none
 
     | Arrangement arrange ->
-        printfn $"arranging {arrange}"
         arrangeSymbols arrange model
 
     | RotateLabels ->

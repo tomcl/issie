@@ -256,7 +256,7 @@ let mDownUpdate
             Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
 
         | InputPort (portId, portLoc) ->
-            if not model.Toggle then
+            if not model.CtrlKeyDown then
                 {model with Action = ConnectingInput portId; ConnectPortsLine = portLoc, mMsg.Pos; TmpModel=Some model},
                 symbolCmd SymbolT.ShowAllOutputPorts
             else
@@ -265,7 +265,7 @@ let mDownUpdate
                 , symbolCmd (SymbolT.MovePort (portIdstr, mMsg.Pos))
 
         | OutputPort (portId, portLoc) ->
-            if not model.Toggle then
+            if not model.CtrlKeyDown then
                 {model with Action = ConnectingOutput portId; ConnectPortsLine = portLoc, mMsg.Pos; TmpModel=Some model},
                 symbolCmd SymbolT.ShowAllInputPorts
             else
@@ -280,7 +280,7 @@ let mDownUpdate
                     ToggleNet ([SymbolUpdate.extractComponent model.Wire.Symbol compId], []), Idle
                 else DoNothing, InitialiseMoving compId
 
-            if model.Toggle || mMsg.ShiftKeyDown
+            if model.CtrlKeyDown || mMsg.ShiftKeyDown
             then
                 let newComponents =
                     if List.contains compId model.SelectedComponents
@@ -328,7 +328,7 @@ let mDownUpdate
                     ToggleNet ([], [BusWire.extractConnection model.Wire connId])
                 else DoNothing
 
-            if model.Toggle
+            if model.CtrlKeyDown
             then
                 let newWires =
                     if List.contains connId model.SelectedWires
@@ -352,8 +352,8 @@ let mDownUpdate
                             Cmd.ofMsg msg]
         | Canvas ->
             let newComponents, newWires =
-                if model.Toggle
-                then model.SelectedComponents, model.SelectedWires //do not deselect if in toggle mode
+                if model.CtrlKeyDown
+                then model.SelectedComponents, model.SelectedWires //do not deselect if in CtrlKeyDown mode
                 else [], []
             // Start Creating Selection Box and Reset Selected Components
             let initialiseSelection = 
@@ -476,7 +476,7 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<Msg> = // mMsg is curr
         let selectComps, selectWires =
             if mMsg.ShiftKeyDown then
                 model.SelectedComponents, model.SelectedWires
-            elif model.Toggle then
+            elif model.CtrlKeyDown then
                 symDiff newComponents model.SelectedComponents, symDiff newWires model.SelectedWires
             else 
                 newComponents, newWires
@@ -726,25 +726,25 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     Cmd.ofMsg UpdateBoundingBoxes
                 ]
     
-    | KeyPress Ctrl ->
-            model, symbolCmd (SymbolT.ShowCustomOnlyPorts model.NearbyComponents)
 
-    | ToggleSelectionOpen ->
-        //if List.isEmpty model.SelectedComponents && List.isEmpty model.SelectedWires then
-        //    model, Cmd.none
-        //else
-            {model with Toggle = true}, Cmd.none
+    | PortMovementStart ->
+        match model.Action with
+        | Idle -> {model with CtrlKeyDown = true}, symbolCmd (SymbolT.ShowCustomOnlyPorts model.NearbyComponents) 
+        | _ -> model, Cmd.none
 
-    | ToggleSelectionClose ->
-        {model with Toggle = false}, Cmd.none
+    | PortMovementEnd ->
+        match model.Action with
+        | Idle -> {model with CtrlKeyDown = false}, symbolCmd (SymbolT.ShowPorts model.NearbyComponents)
+        | _ -> {model with CtrlKeyDown = false}, Cmd.none
 
     | MouseMsg mMsg -> // Mouse Update Functions can be found above, update function got very messy otherwise
+        let mouseAlreadyDown = match model.Action with | MovingPort _ | ConnectingInput _ | ConnectingOutput _ -> true |_ -> false
         match mMsg.Op with
-        | Down when model.Action = Idle -> mDownUpdate model mMsg
+        | Down when mouseAlreadyDown = true -> model, Cmd.none
+        | Down -> mDownUpdate model mMsg
         | Drag -> mDragUpdate model mMsg
         | Up -> mUpUpdate model mMsg
         | Move -> mMoveUpdate model mMsg
-        |_ -> model, Cmd.none 
 
     | UpdateBoundingBoxes -> 
         let model =
@@ -833,7 +833,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     Cmd.ofMsg (KeyPress CtrlW)
                 else
                     Cmd.none
-                    // Cmd.ofMsg (KeyPress Ctrl)
             | false -> Cmd.none
 
         { model with CurrentKeyPresses = newPressedKeys }, newCmd
@@ -1054,7 +1053,7 @@ let init () =
         ScrollingLastMousePos = {Pos={ X = 0.0; Y = 0.0 }; Move={X = 0.0; Y  =0.0}}
         MouseCounter = 0
         LastMousePosForSnap = { X = 0.0; Y = 0.0 }
-        Toggle = false
+        CtrlKeyDown = false
         IsWaveSim = false
         ScrollUpdateIsOutstanding = false
         PrevWireSelection = []

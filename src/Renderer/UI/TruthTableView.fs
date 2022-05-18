@@ -460,6 +460,12 @@ let hideColumns model (dispatch: Msg -> Unit) =
                     rhs
                     |> List.filter (fun cell ->
                         not <| List.contains cell.IO model.TTHiddenColumns))
+        
+        // Removes hidden column IOs from the IO order
+        Array.except model.TTHiddenColumns model.TTIOOrder
+        |> SetIOOrder
+        |> dispatch
+        
         {table with HiddenColMap = newTableMap}
         |> Ok
         |> GenerateTruthTable

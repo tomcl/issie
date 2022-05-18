@@ -740,12 +740,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | _ -> {model with CtrlKeyDown = false}, Cmd.none
 
     | MouseMsg mMsg -> // Mouse Update Functions can be found above, update function got very messy otherwise
+        let mouseAlreadyDown = match model.Action with | MovingPort _ | ConnectingInput _ | ConnectingOutput _ -> true |_ -> false
         match mMsg.Op with
-        | Down when model.Action = Idle -> mDownUpdate model mMsg
+        | Down when mouseAlreadyDown = true -> model, Cmd.none
+        | Down -> mDownUpdate model mMsg
         | Drag -> mDragUpdate model mMsg
         | Up -> mUpUpdate model mMsg
         | Move -> mMoveUpdate model mMsg
-        |_ -> model, Cmd.none 
 
     | UpdateBoundingBoxes -> 
         let model =

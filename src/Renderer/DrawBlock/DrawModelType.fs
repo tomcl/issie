@@ -150,7 +150,7 @@ module SymbolT =
         | AddSymbol of (LoadedComponent list) * pos:XYPos * compType:ComponentType * lbl: string
         | CopySymbols of ComponentId list
         | DeleteSymbols of sIds:ComponentId list
-        | ShowAllInputPorts | ShowAllOutputPorts | DeleteAllPorts 
+        | ShowAllInputPorts | ShowAllOutputPorts | DeleteAllPorts
         | MoveSymbols of compList: ComponentId list * move: XYPos
         | MoveLabel of compId: ComponentId * move: XYPos
         | ShowPorts of ComponentId list
@@ -364,7 +364,7 @@ module SheetT =
 
     /// For Keyboard messages
     type KeyboardMsg =
-        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC 
+        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC | Ctrl
 
     type WireTypeMsg =
         | Jump | Radiussed | Modern

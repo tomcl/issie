@@ -850,6 +850,7 @@ let displaySvgWithZoom
             Op = op ;
             ShiftKeyDown = ev.shiftKey
             ScreenMovement = {X= ev.movementX;Y=ev.movementY}
+            ScreenPage = {X=ev.pageX; Y=ev.pageY}
             Pos = {
                 X = (ev.pageX + model.ScreenScrollPos.X) / zoom  ;
                 Y = (ev.pageY - headerHeight + model.ScreenScrollPos.Y) / zoom}

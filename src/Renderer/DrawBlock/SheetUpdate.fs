@@ -250,7 +250,9 @@ let mDownUpdate
     | _ ->
         match (mouseOn model mMsg.Pos) with
         | Canvas when mMsg.ShiftKeyDown ->
-            {model with Action = Panning}, Cmd.none
+            // Start Panning with drag, setting up offset to calculate scroll poistion during drag.
+            // When panning ScreenScrollPos muts move in opposite direction to ScreenPage.
+            {model with Action = Panning ( model.ScreenScrollPos + mMsg.ScreenPage)}, Cmd.none
         | Label compId ->
             {model with Action = InitialiseMovingLabel compId},
             Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
@@ -447,8 +449,8 @@ let mDragUpdate
 
     | MovingPort portId->
         model, symbolCmd (SymbolT.MovePort (portId, mMsg.Pos))
-    | Panning ->
-        let sPos = model.ScreenScrollPos - mMsg.ScreenMovement
+    | Panning initPos->
+        let sPos = initPos - mMsg.ScreenPage
         model, Cmd.ofMsg (Msg.UpdateScrollPos sPos)
     | Idle 
     | InitialisedCreateComponent _ 
@@ -786,7 +788,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     Cmd.ofMsg CheckAutomaticScrolling // Also check if there is automatic scrolling to continue
                 else
                     Cmd.none
-            Sheet.writeCanvasScroll scrollPos            
+            //Sheet.writeCanvasScroll scrollPos            
             { model with 
                 ScreenScrollPos = scrollPos
                 ScrollUpdateIsOutstanding = false
@@ -879,14 +881,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let newMPos = { X = model.LastMousePos.X + xDiff / model.Zoom ; Y = model.LastMousePos.Y + yDiff / model.Zoom }
             // Need to update mouse movement as well since the scrolling moves the mouse relative to the canvas, but no actual mouse movement will be detected.
             // E.g. a moving symbol should stick to the mouse as the automatic scrolling happens and not lag behind.
+            let zero = {X=0.;Y=0.}
+            let defaultMsg = { Pos = newMPos; Op = Move;  ScreenMovement = zero; ScreenPage=zero; ShiftKeyDown=false}
             let outputModel, outputCmd =
                 match model.Action with
                 | DragAndDrop ->
-                    mMoveUpdate { model with AutomaticScrolling = true } 
-                                { Pos = newMPos; Op = Move;  ScreenMovement = {X=0.;Y=0.}; ShiftKeyDown=false}
+                    mMoveUpdate { model with AutomaticScrolling = true } {defaultMsg with Op = Move}                             
                 | MovingSymbols | ConnectingInput _ | ConnectingOutput _ | Selecting ->
-                    mDragUpdate { model with AutomaticScrolling = true } 
-                                { Pos = newMPos; Op = Drag; ScreenMovement = {X=0.;Y=0.}; ShiftKeyDown = false}
+                    mDragUpdate { model with AutomaticScrolling = true } {defaultMsg with Op = Drag}                               
                 | _ ->
                     { model with AutomaticScrolling = true }, Cmd.none
             let notAutomaticScrolling msg = match msg with | CheckAutomaticScrolling -> false | _ -> true

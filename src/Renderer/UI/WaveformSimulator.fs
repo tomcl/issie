@@ -581,12 +581,12 @@ let backgroundSVG (wsModel: WaveSimModel) : ReactElement list =
             X1 x
             Y1 0.0
             X2 x
-            Y2 (waveHeight + spacing)
+            Y2 viewBoxHeight
         ] []
     [ 1 .. wsModel.EndCycle + 1 ] 
     |> List.map (fun x -> clkLine (float x * wsModel.ClkSVGWidth))
 
-let clkCycleSVG (wsModel: WaveSimModel) =
+let clkCycleNumberRow (wsModel: WaveSimModel) =
     let makeClkCycleLabel i =
         match wsModel.ClkSVGWidth with
         | width when width < 0.5 && i % 5 <> 0 -> []
@@ -595,7 +595,7 @@ let clkCycleSVG (wsModel: WaveSimModel) =
     [ 0 .. wsModel.EndCycle]
     |> List.collect makeClkCycleLabel
     |> List.append (backgroundSVG wsModel)
-    |> svg (clkCycleSVGProps wsModel)
+    |> svg (clkCycleNumberRowProps wsModel)
 
 let waveformColumn (model: Model) (wsModel: WaveSimModel) : ReactElement =
     let waveRows : ReactElement list =
@@ -604,25 +604,26 @@ let waveformColumn (model: Model) (wsModel: WaveSimModel) : ReactElement =
         |> List.map (fun wave ->
             match wave.SVG with
                 | Some waveform ->
-                    printf "waveform %A" waveform
                     waveform
                 // Maybe this shouldn't fail. Could just return a text element saying no waveform was generated
                 | None ->
                     printf "no waveform generated for %A" wave.DisplayName
                     [ div [] [] ]//failwithf "No waveform for selected wave %A" wave.DisplayName
             |> List.append (backgroundSVG wsModel)
-            |> svg (clkCycleSVGProps wsModel)
+            |> svg (waveRowProps wsModel)
         )
 
-    printf "%dpx" (model.WaveSimViewerWidth - 125)
-    div [ waveformColumnStyle model ]
-        (List.concat
-            [
-                // [| div [cursRectStyle model.WaveSim] [] |]
-                [ clkCycleSVG wsModel ]
-                waveRows
-            ]
-        )
+    div [ Style [
+            Display DisplayOptions.Grid
+        ] ]
+        [
+            div [cursRectStyle wsModel] []
+            div [ waveformColumnStyle model ]
+                (List.concat [
+                    [ clkCycleNumberRow wsModel ]
+                    waveRows
+                ])
+        ]
 
 let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
     div [ showWaveformsStyle ]
@@ -633,10 +634,6 @@ let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
         ]
 
 let waveViewerPane simData rState (model: Model) (dispatch: Msg -> unit) : ReactElement =
-    // selectedWaves model.WaveSim
-    // |> Map.keys
-    // |> printf "%A"
-
     div [ waveViewerPaneStyle ]
         [
             // closeWaveSim, radixTabs, changeClkTick, zoomButtons

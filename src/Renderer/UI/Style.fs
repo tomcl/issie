@@ -262,11 +262,14 @@ let namesColumnStyle = Style [
     GridAutoRows "30px" 
     VerticalAlign "bottom"
     FontSize "12px"
-    MinWidth "100px"
+    // MinWidth "100px"
+    Width "100%"
     TextAlign TextAlignOptions.Right
+    // GridColumnStart 1
 ]
 
 let valuesColumnStyle = Style [
+    // GridColumnStart 3
     Float FloatOptions.Right
     Height "100%"
     BorderTop borderProperties
@@ -275,7 +278,7 @@ let valuesColumnStyle = Style [
     GridAutoRows "30px" 
     VerticalAlign "bottom"
     FontSize "12px"
-    MinWidth "25px"
+    Width "100%"
 ]
 
 let showWaveformsStyle = Style [
@@ -292,11 +295,14 @@ let waveformColumnStyle m = Style [
     Height "100%" 
     OverflowX OverflowOptions.Scroll
     // TODO: Remove this magic number
-    MaxWidth (sprintf "%dpx" (m.WaveSimViewerWidth - 125))
+    // MaxWidth (sprintf "%dpx" (m.WaveSimViewerWidth - 125))
     Display DisplayOptions.Grid
     FontSize "12px"
     GridAutoRows "30px"
     BorderTop borderProperties
+    Width "100%"
+    GridColumnStart 1
+    GridRowStart 1
 ]
 
 let waveViewerPaneStyle = Style [
@@ -341,26 +347,30 @@ let clkCycleText m i : IProp list =
         SVGAttr.TextAnchor "middle"
         X (m.ClkSVGWidth * (float i + 0.5))
         Y 0.65
-        // PreserveAspectRatio "xMidYMid slice"
     ]
 
-let clkCycleSVGStyle m = Style [
-    // Height "30px"
-    // Width ((viewBoxWidth m ) * 40.0)
-    // Width (maxWavesColWidth m)
+let clkCycleSVGStyle = Style [
     Display DisplayOptions.Block
     BorderBottom borderProperties
 ]
 
 let viewBoxHeight : float = 1.0
 
-let clkCycleSVGProps m : IProp list = [
+let clkCycleNumberRowProps m : IProp list = [
+    // min-x, min-y, width, height
+    SVGAttr.Height "30px"
+    ViewBox ("0 0 " + string (viewBoxWidth m) + " " + string viewBoxHeight)
+    PreserveAspectRatio "none"
+    clkCycleSVGStyle
+]
+
+let waveRowProps m : IProp list = [
     // min-x, min-y, width, height
     SVGAttr.Height "30px"
     // SVGAttr.Width (viewBoxWidth m)
     ViewBox ("0 0 " + string (viewBoxWidth m) + " " + string viewBoxHeight)
     PreserveAspectRatio "none"
-    clkCycleSVGStyle m
+    clkCycleSVGStyle
 ]
 
 let cursorLeftPx (m: WaveSimModel) cursor =
@@ -368,14 +378,16 @@ let cursorLeftPx (m: WaveSimModel) cursor =
 
 // This controls the background highlighting of which clock cycle is selected
 let cursRectStyle (m: WaveSimModel) = Style [
-    Left (float m.CurrClkCycle |> cursorLeftPx m |> string |> (fun w -> w + "px"))
-    Width (40.0 * (m.ClkSVGWidth - clkLineWidth))
+    Left (string (float m.CurrClkCycle * m.ClkSVGWidth * 28.0) + "px")
+    Position PositionOptions.Relative
+    Width (m.ClkSVGWidth * 28.0)
     BackgroundColor "rgb(230,230,230)"
     StrokeWidth 0
     Opacity 0.4
-    ZIndex 6
+    ZIndex -1
     Height "100%"
-    Position PositionOptions.Absolute
+    GridColumnStart 1
+    GridRowStart 1
 ]
 
 let lineThickness : float = 0.025

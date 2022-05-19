@@ -234,6 +234,11 @@ let closablePopupFunc title (body:(Msg->Unit)->ReactElement) (foot:(Msg->Unit)->
 /// Create the body of a dialog Popup with only text.
 let dialogPopupBodyOnlyText before placeholder dispatch =
     fun (dialogData : PopupDialogData) ->
+        let goodLabel =
+                getText dialogData
+                |> Seq.toList
+                |> List.tryHead
+                |> function | Some ch when  System.Char.IsLetter ch -> true | Some ch -> false | None -> true
         div [] [
             before dialogData
             Input.text [
@@ -241,6 +246,8 @@ let dialogPopupBodyOnlyText before placeholder dispatch =
                 Input.Placeholder placeholder
                 Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
             ]
+            span [Style [FontStyle "Italic"; Color "Red"]; Hidden goodLabel] [str "Name must start with a letter"]            
+
         ]
 
 /// Create the body of a dialog Popup with only an int.
@@ -289,8 +296,14 @@ let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) (wi
 
 /// Create the body of a dialog Popup with both text and int.
 let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch =
+    
     intDefault |> Some |> SetPopupDialogInt |> dispatch
     fun (dialogData : PopupDialogData) ->
+        let goodLabel =
+                getText dialogData
+                |> Seq.toList
+                |> List.tryHead
+                |> function | Some ch when  System.Char.IsLetter ch -> true | Some ch -> false | None -> true
         div [] [
             beforeText dialogData
             Input.text [
@@ -298,6 +311,7 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
                 Input.Placeholder placeholder
                 Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
             ]
+            span [Style [FontStyle "Italic"; Color "Red"]; Hidden goodLabel] [str "Name must start with a letter"]            
             br []
             br []
             beforeInt dialogData
@@ -329,7 +343,6 @@ let dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispat
                 Input.Placeholder placeholder
                 Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
             ]
-
         ]
 
 let makeSourceMenu 

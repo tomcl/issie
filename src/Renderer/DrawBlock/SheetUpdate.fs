@@ -895,7 +895,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             // Don't want to go into an infinite loop (program would crash), don't check for automatic scrolling immediately (let it be handled by OnScroll listener).
             let filteredOutputCmd = Cmd.map (fun msg -> if notAutomaticScrolling msg then msg else DoNothing) outputCmd
             // keep model ScrollPos uptodate with real scrolling position
-            printfn $"setting scroll from check auto scrolling X={canvas.scrollLeft}"
             let outputModel = {outputModel with ScreenScrollPos = {X = canvas.scrollLeft; Y = canvas.scrollTop}}
 
             outputModel, filteredOutputCmd

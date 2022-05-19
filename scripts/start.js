@@ -5,6 +5,7 @@ const configRenderer = require('../webpack.config.renderer');
 const { spawn } = require('child_process');
 const path = require('path');
 const del = require('del');
+const { shell } = require('electron');
 
 const compilerMain = webpack(configMain);
 const compilerRenderer = webpack(configRenderer);
@@ -35,8 +36,13 @@ let electronStarted = false;
      * Start Electron
      */
     const startElectron = () => {
-      const electronPath = path.join(process.cwd(), 'node_modules', '.bin', process.platform === 'win32' ? 'electron.cmd' : 'electron');
-      const electron = spawn(electronPath, [path.join(buildPath, 'index.js')], {stdio: 'inherit'});
+      var electronPath = path.join(process.cwd(), 'node_modules', '.bin', process.platform === 'win32' ? 'electron.cmd' : 'electron');
+      electronPath = '\"' + electronPath + '\"';
+
+      var buildFile = path.join(buildPath, 'index.js');
+      buildFile = '\"' + buildFile + '\"';
+
+      const electron = spawn(electronPath, [buildFile],{stdio: 'inherit', shell:true});
 
       electron.on('exit', function () {
           process.exit(0);

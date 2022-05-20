@@ -2,6 +2,8 @@ module DiagramStyle
 
 open CommonTypes
 open ModelType
+open Fulma
+open Fable.React
 open Fable.React.Props
 
 let headerHeight = "72px"
@@ -279,6 +281,7 @@ let valuesColumnStyle = Style [
     VerticalAlign "bottom"
     FontSize "12px"
     Width "100%"
+    MinWidth "50px"
 ]
 
 let showWaveformsStyle = Style [
@@ -293,7 +296,7 @@ let showWaveformsStyle = Style [
 
 let waveformColumnStyle m = Style [
     Height "100%" 
-    OverflowX OverflowOptions.Scroll
+    OverflowX OverflowOptions.Hidden
     // TODO: Remove this magic number
     // MaxWidth (sprintf "%dpx" (m.WaveSimViewerWidth - 125))
     Display DisplayOptions.Grid
@@ -305,8 +308,8 @@ let waveformColumnStyle m = Style [
     GridRowStart 1
 ]
 
-let waveViewerPaneStyle = Style [
-    Width "calc(100% - 10px)"
+let waveViewerPaneStyle m = Style [
+    // Width (string (m.WaveSimViewerWidth - 10) + "px")
     MarginLeft "0%"
     MarginTop "0px"
     MarginBottom "100px"
@@ -373,9 +376,6 @@ let waveRowProps m : IProp list = [
     clkCycleSVGStyle
 ]
 
-let cursorLeftPx (m: WaveSimModel) cursor =
-    cursor * (m.ClkSVGWidth * 40.0 + 4.0 / (float m.EndCycle + 1.0)) 
-
 // This controls the background highlighting of which clock cycle is selected
 let cursRectStyle (m: WaveSimModel) = Style [
     Left (string (float m.CurrClkCycle * m.ClkSVGWidth * 28.0) + "px")
@@ -389,6 +389,25 @@ let cursRectStyle (m: WaveSimModel) = Style [
     GridColumnStart 1
     GridRowStart 1
 ]
+
+let clkCycleHighlightSVG m count = 
+    svg [
+        Style [
+            GridColumnStart 1
+            GridRowStart 1
+        ]
+        SVGAttr.Height (string ((count + 1)* 30) + "px")
+        SVGAttr.Width "100%"
+        SVGAttr.Fill "rgb(230,230,230)"
+
+        ViewBox ("0 0 " + string (viewBoxWidth m) + " " + string viewBoxHeight)
+    ] [
+        rect [
+            SVGAttr.Width (m.ClkSVGWidth * 5.0)
+            SVGAttr.Height "100%"
+            X (float m.CurrClkCycle * m.ClkSVGWidth * 5.0)
+        ] []
+    ]
 
 let lineThickness : float = 0.025
 

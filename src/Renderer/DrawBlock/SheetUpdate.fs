@@ -1016,6 +1016,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> Optic.map fst_ postUpdateChecks
 
+
 /// Init function
 let init () =
     let wireModel, cmds = (BusWireUpdate.init ())

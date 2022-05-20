@@ -876,7 +876,6 @@ let displaySvgWithZoom
           OnMouseUp (fun ev -> (mouseOp Up ev))
           OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
           OnScroll (fun _ -> dispatch <| (UpdateScrollPosFromCanvas dispatch))
-          //OnScroll (fun _ -> scrollUpdate dispatch)
           Ref (fun el ->
             canvasDiv <- Some el
             writeCanvasScroll model.ScreenScrollPos

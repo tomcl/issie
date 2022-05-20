@@ -613,10 +613,37 @@ let waveformColumn (model: Model) (wsModel: WaveSimModel) : ReactElement =
             |> svg (waveRowProps wsModel)
         )
 
+    let selectedWavesCount = Map.count (selectedWaves wsModel)
+
     div [ Style [
             Display DisplayOptions.Grid
         ] ]
         [
+            svg [
+                Style [
+                    GridColumnStart 1
+                    GridRowStart 1
+                ]
+                SVGAttr.Height (string ((selectedWavesCount + 1)* 30) + "px")
+                SVGAttr.Width "100%"
+                // SVGAttr.Width "28px"
+                // X (float wsModel.CurrClkCycle * wsModel.ClkSVGWidth * 28.0)
+                SVGAttr.Fill "rgb(230,230,230)"
+
+
+                ViewBox ("0 0 " + string (viewBoxWidth wsModel) + " " + string viewBoxHeight)
+                // ViewBox ("0 0 " + "10" + " " + string viewBoxHeight)
+
+
+            ] [
+                rect [
+                    SVGAttr.Width (wsModel.ClkSVGWidth * 5.0)
+                    SVGAttr.Height "100%"
+                    // X wsModel.CurrClkCycle
+                    X (float wsModel.CurrClkCycle * wsModel.ClkSVGWidth * 5.0)
+
+                ] []
+            ]
             div [cursRectStyle wsModel] []
             div [ waveformColumnStyle model ]
                 (List.concat [

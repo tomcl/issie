@@ -795,13 +795,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 ScrollingLastMousePos = newLastScrollingPos }, 
                 cmd
 
-    /// Zooming in increases model.Zoom. The centre of the screen will stay centred (if possible)
+    // Zooming in increases model.Zoom. The centre of the screen will stay centred (if possible)
     | KeyPress ZoomIn ->
         let oldScreenCentre = getVisibleScreenCentre model
         { model with Zoom = min Constants.maxMagnification (model.Zoom*Constants.zoomIncrement) }, 
         Cmd.ofMsg (KeepZoomCentered oldScreenCentre)
 
-    /// Zooming out decreases the model.Zoom. The centre of the screen will stay centred (if possible)
+    // Zooming out decreases the model.Zoom. The centre of the screen will stay centred (if possible)
     | KeyPress ZoomOut ->
         // get current screen edge coords
         let edge = getScreenEdgeCoords model

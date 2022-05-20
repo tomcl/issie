@@ -31,7 +31,6 @@ let rotateSelectedLabelsClockwise (model:Model) =
 
 let bbOrientation (bb: BoundingBox) =
     let ratio = Constants.boxAspectRatio
-    printfn $"ratio={ratio},bb.W={bb.W},bb.H={bb.H}"
     match abs bb.W > ratio*abs bb.H, abs bb.H > ratio*abs bb.W with
     | true, false when abs bb.W > 10. -> Some (Horizontal, abs bb.W / (abs bb.H+0.1))
     | false, true when abs bb.H > 10. -> Some (Vertical, abs bb.H / (abs bb.W + 0.1))
@@ -47,15 +46,12 @@ let workOutArrangement (arrange: Arrange) (syms: Symbol list) =
     |> Option.map (fun (syms,bbData) ->
         match syms, bbData, arrange with
         | [], _, _-> 
-            printfn "No alignable symbols found"
             [], Error "No alignable symbols found"
         | syms, Some(orient,_), DistributeSymbols _ when syms.Length < 3 ->
-            printfn "3 or more symbols are needed to distribute"
             syms, Error "3 or more symbols of the same type are needed to distribute"
         | syms, Some(orient,_), _ ->
             syms, Ok orient
         | syms, _, _ ->
-            printfn "alignment failed"
             syms, Error "alignment failed")
     |> Option.defaultValue ([], Error "No alignable symnbols found")
 
@@ -103,7 +99,6 @@ let arrangeSymbols (arrange: Arrange) (model:Model) : Model * Cmd<Msg> =
         model.SelectedComponents
         |> List.map (fun sId -> model.Wire.Symbol.Symbols[sId])
         |> workOutArrangement arrange
-    printfn $"{syms.Length} symbols to arrange"
     let newSelected = 
         syms |> List.map (fun sym -> ComponentId sym.Component.Id)
     match result with
@@ -651,7 +646,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     Cmd.ofMsg UpdateBoundingBoxes
                   ]
     | KeyPress CtrlS -> // For Demo, Add a new square in upper left corner
-        printfn "saving symbols"
         { model with BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol; UndoList = appendUndoList model.UndoList model ; RedoList = []},
         Cmd.batch [ Cmd.ofMsg UpdateBoundingBoxes; symbolCmd SymbolT.SaveSymbols ] // Need to update bounding boxes after adding a symbol.
     | KeyPress AltShiftZ ->

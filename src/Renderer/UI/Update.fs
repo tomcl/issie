@@ -577,20 +577,18 @@ let update (msg : Msg) oldModel =
                 let name =
                     match msg with 
                     | SetWSMod _ -> "U(SetWSMod)"
-                    | Sheet( SheetT.Msg.Wire (BusWireT.Msg.Symbol _ )) -> "U(Sheet(Wire(Symbol)))"
-                    | Sheet (SheetT.Msg.Wire (BusWireT.UpdateWires _)) -> "U(Sheet(Wire(UpdateWires)))"
                     | SetWaveSimModel _ -> "U(SetWaveSimModel)"
                     | SetWSModAndSheet _ -> "U(SetWsModAndSheet)"
                     | StartSimulation _ -> "U(StartSimulation)"
                     | SetSimulationGraph _ -> "U(SetSimulationGraph)"
                     | SetPopupMemoryEditorData _ -> "U(SetPopupmemoryEditorData)"
-                    | _ -> $"U(%.40A{msg})"
+                    | _ -> $"U(%.60A{msg})"
                 let debugMsg = Helpers.sprintInitial 40 name
                 let noDisplayMouseOp (mMsg:DrawHelpers.MouseT) = mMsg.Op = DrawHelpers.Drag || mMsg.Op = DrawHelpers.Move
                 if Set.contains "update" JSHelpers.debugTraceUI &&
                    not <| matchMouseMsg noDisplayMouseOp msg &&
                    (match msg with | Sheet (SheetT.Msg.Wire(BusWireT.Msg.Symbol(SymbolT.MouseMsg _ | SymbolT.ShowPorts _ ))) -> false 
-                                   | _ -> printfn "%s" (Helpers.sprintInitial 40 $"{msg}"); true)
+                                   | _ -> printfn "%s" (Helpers.sprintInitial 70 $"{msg}"); false)
                 then
                    printfn "%s" debugMsg
                 debugMsg)  startUpdate |> ignore

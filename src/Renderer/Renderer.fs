@@ -254,8 +254,12 @@ let init() =
 
 
 // -- Create View
+let addDebug dispatch (msg:Msg) =
+    let str = Update.getMessageTraceString msg
+    if str <> "" then printfn ">>Dispatch %s" str else ()
+    dispatch msg
 
-let view model dispatch = DiagramMainView.displayView model dispatch
+let view model dispatch = DiagramMainView.displayView model (addDebug dispatch)
 
 // -- Update Model
 

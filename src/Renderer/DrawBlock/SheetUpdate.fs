@@ -755,13 +755,19 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 , Cmd.none
         | false -> model, Cmd.none
 
-    | UpdateScrollPosFromCanvas ->
+    | UpdateScrollPosFromCanvas dispatch ->
         let model =
             match canvasDiv with
             | None -> model
-            | Some el ->
+            | Some el -> 
+                let canvas = document.getElementById "Canvas"
+                // UpdateScrollPos here is needed to make CheckAutomaticScrolling work properly
+                // Possibly UpdateScrollPos must be after view to trigger the next checkAutomaticScrolling
+                // When checkAutomaticScrolling is sone in a better way, this could be removed
+                dispatch <| UpdateScrollPos {X=canvas.scrollLeft; Y=canvas.scrollTop} 
                 {model with ScreenScrollPos = {X= el.scrollLeft; Y = el.scrollTop}}
         model, Cmd.none
+
  
     | UpdateScrollPos scrollPos ->
         if model.ScrollUpdateIsOutstanding then 

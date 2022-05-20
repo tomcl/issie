@@ -819,6 +819,7 @@ let writeCanvasScroll (scrollPos:XYPos) =
     |> Option.iter (fun el -> el.scrollLeft <- scrollPos.X; el.scrollTop <- scrollPos.Y)
 
 
+
 /// This function zooms an SVG canvas by transforming its content and altering its size.
 /// Currently the zoom expands based on top left corner.
 let displaySvgWithZoom 
@@ -843,6 +844,7 @@ let displaySvgWithZoom
 
     /// Is the mouse button currently down?
     let mDown (ev:Types.MouseEvent) = ev.buttons <> 0.
+    
 
     /// Dispatch a MouseMsg (compensated for zoom)
     let mouseOp op (ev:Types.MouseEvent) =
@@ -873,8 +875,8 @@ let displaySvgWithZoom
           OnMouseDown (fun ev -> (mouseOp Down ev))
           OnMouseUp (fun ev -> (mouseOp Up ev))
           OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
-          OnScroll (fun _ -> dispatch <| UpdateScrollPosFromCanvas)
-            
+          OnScroll (fun _ -> dispatch <| (UpdateScrollPosFromCanvas dispatch))
+          //OnScroll (fun _ -> scrollUpdate dispatch)
           Ref (fun el ->
             canvasDiv <- Some el
             writeCanvasScroll model.ScreenScrollPos

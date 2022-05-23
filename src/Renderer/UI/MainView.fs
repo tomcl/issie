@@ -325,8 +325,7 @@ let displayView model dispatch =
             div [] []
         else
             viewOnDiagramButtons model dispatch
-        
-        
+
             //--------------------------------------------------------------------------------------//
             //------------------------ left section for Sheet (NOT USED) ---------------------------//
             // div [ leftSectionStyle model ] [ div [ Style [ Height "100%" ] ] [ Sheet.view model.Sheet sheetDispatch ] ]

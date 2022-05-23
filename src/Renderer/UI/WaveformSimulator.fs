@@ -541,9 +541,6 @@ let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
 let generateAllLabels waves =
     failwithf "generateAllLabels not implemented"
 
-let generateValuesPerClkCycle waves clkCycle =
-    failwithf "generateValuesPerClkCycle not implemented"
-
 /// TODO: Test if this function actually works.
 let displayErrorMessage error =
     div [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]

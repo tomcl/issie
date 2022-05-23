@@ -4,6 +4,8 @@ open Fulma
 open Fable.React
 open Fable.React.Props
 
+open Browser.Types
+
 open CommonTypes
 open ModelType
 open DiagramStyle
@@ -846,7 +848,10 @@ let namesColumn rows : ReactElement =
     let top = [ div [ rowHeightStyle; tmpStyle ] [] ]
     let bottom = [ div [ rowHeightStyle; tmpStyle ] [] ]
 
-    div [ namesColumnStyle ]
+    div [ 
+            Id "namesColumn"
+            namesColumnStyle
+        ]
         (List.concat [ top; rows ])
 
 /// Iterates over each selected wave to generate the SVG of the value for that wave
@@ -861,7 +866,10 @@ let private valuesColumn rows : ReactElement =
     let top = [ div [ rowHeightStyle; tmpStyle ] [] ]
     let bottom = [ div [ rowHeightStyle; tmpStyle ] [] ]
 
-    div [ valuesColumnStyle ]
+    div [ 
+            Id "valuesColumn"
+            valuesColumnStyle
+        ]
         (List.concat [ top; rows ])
 
 /// Generate list of `line` objects which are the background clock lines.
@@ -907,26 +915,65 @@ let waveformColumn (model: Model) (wsModel: WaveSimModel) : ReactElement =
 
     let selectedWavesCount = Map.count (selectedWaves wsModel)
 
-    div [ Style [
-            Display DisplayOptions.Grid
-        ] ]
-        [
-            clkCycleHighlightSVG wsModel selectedWavesCount
-            div [cursRectStyle wsModel] []
-            div [ waveformColumnStyle model ]
-                (List.concat [
-                    [ clkCycleNumberRow wsModel ]
-                    waveRows
-                ])
-        ]
+    let waveColDiv =
+        div [ Style [
+                GridColumnStart 2
+                Display DisplayOptions.Grid
+            ] ]
+            [
+                clkCycleHighlightSVG wsModel selectedWavesCount
+                div [cursRectStyle wsModel] []
+                div [ waveformColumnStyle model ]
+                    (List.concat [
+                        [ clkCycleNumberRow wsModel ]
+                        waveRows
+                    ])
+            ]
+
+    let namesCol = Browser.Dom.document.getElementById "namesColumn"
+    let valuesCol = Browser.Dom.document.getElementById "valuesColumn"
+
+    printf "namesCol: %A" namesCol
+    printf "valuesCol: %A" valuesCol
+
+    // let namesColWidth = namesCol.offsetWidth
+    // let valuesColWidth = valuesCol.offsetWidth
+
+    // printf "namesColWidth: %A" namesColWidth
+    // printf "valuesColWidth: %A" valuesColWidth
+
+    // let wavesColWidth = float model.WaveSimViewerWidth - namesColWidth - valuesColWidth
+
+    // printf "wavesColWidth: %A" wavesColWidth
+
+    waveColDiv
 
 let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
-    div [ showWaveformsStyle ]
-        [
-            namesColumn (nameRows model.WaveSim)
-            waveformColumn model model.WaveSim
-            valuesColumn (valueRows model.WaveSim)
-        ]
+    let waveDiv =
+        div [ showWaveformsStyle ]
+            [
+                namesColumn (nameRows model.WaveSim)
+                valuesColumn (valueRows model.WaveSim)
+                waveformColumn model model.WaveSim
+            ]
+
+    // let namesCol = Browser.Dom.document.getElementById "namesColumn"
+    // let valuesCol = Browser.Dom.document.getElementById "valuesColumn"
+
+    // printf "namesCol: %A" namesCol
+    // printf "valuesCol: %A" valuesCol
+
+    // let namesColWidth = namesCol.offsetWidth
+    // let valuesColWidth = valuesCol.offsetWidth
+
+    // printf "namesColWidth: %A" namesColWidth
+    // printf "valuesColWidth: %A" valuesColWidth
+
+    // let wavesColWidth = float model.WaveSimViewerWidth - namesColWidth - valuesColWidth
+
+    // printf "wavesColWidth: %A" wavesColWidth
+
+    waveDiv
 
 let waveViewerPane simData rState (model: Model) (dispatch: Msg -> unit) : ReactElement =
     printf "WaveSimViewerWidth: %A" model.WaveSimViewerWidth

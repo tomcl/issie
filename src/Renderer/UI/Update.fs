@@ -302,7 +302,7 @@ let sheetMsg sMsg model =
                 | true -> NotRunning
                 | _ -> model.WaveSim.State
     }
-    printf "sheetMsg %A" sMsg
+    // printf "sheetMsg %A" sMsg
     // printf "%A" (model.WaveSim.ReducedState <> newReducedState)
     {newModel with SavedSheetIsOutOfDate = findChange newModel}, Cmd.map Sheet sCmd
 

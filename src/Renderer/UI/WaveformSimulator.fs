@@ -939,14 +939,13 @@ let waveformColumn (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement
             |> svg (clkCycleNumberRowProps wsModel)
         )
 
-    // let selectedWavesCount = Map.count (selectedWaves wsModel)
+    let selectedWavesCount = Map.count (selectedWaves wsModel)
 
     printf "StartCycle: %A" wsModel.StartCycle
     printf "CurrClkCycle: %A" wsModel.CurrClkCycle
     printf "ShownCycles: %A" wsModel.ShownCycles
     printf "EndCycle: %A" (endCycle wsModel)
     printf "%A" (wsModel.ClkSVGWidth * float (endCycle wsModel + 1))
-
 
     div [ 
             Id "wavesColumn"
@@ -955,9 +954,7 @@ let waveformColumn (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement
                 Display DisplayOptions.Grid
             ]
         ] [
-            // clkCycleHighlightSVG wsModel selectedWavesCount
-            // div [cursRectStyle wsModel] []
-            // div [ waveformColumnStyle model wavesColWidth']
+            clkCycleHighlightSVG wsModel selectedWavesCount
             div [ waveformColumnStyle model wsModel.WaveformColumnWidth]
                 (List.concat [
                     [ clkCycleNumberRow wsModel ]

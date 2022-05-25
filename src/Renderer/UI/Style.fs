@@ -255,36 +255,41 @@ let labelStyle = Style [
 
 let borderProperties = "2px solid rgb(219,219,219)"
 
-let namesColumnStyle = Style [
-    Float FloatOptions.Left
+let waveSimColumn = [
     Height "100%"
+    Width "100%"
     BorderTop borderProperties
-    BorderRight borderProperties
     Display DisplayOptions.Grid
     GridAutoRows "30px" 
     VerticalAlign "bottom"
     FontSize "12px"
-    // MinWidth "100px"
-    Width "100%"
-    TextAlign TextAlignOptions.Right
-    // GridColumnStart 1
+    OverflowX OverflowOptions.Scroll
+    WhiteSpace WhiteSpaceOptions.Nowrap
 ]
 
-let valuesColumnStyle = Style [
-    // GridColumnStart 3
-    Float FloatOptions.Right
-    Height "100%"
-    BorderTop borderProperties
-    BorderLeft borderProperties
-    Display DisplayOptions.Grid
-    GridAutoRows "30px" 
-    VerticalAlign "bottom"
-    FontSize "12px"
-    Width "100%"
-    MinWidth "50px"
-]
+let colWidth width =
+    match width with
+    | Some x -> string x
+    | None -> "100%"
 
-let showWaveformsStyle = Style [
+let namesColumnStyle (width: float option) = Style (
+    waveSimColumn @ [
+        MinWidth "20px"
+        Float FloatOptions.Left
+        BorderRight borderProperties
+        GridColumnStart 1
+        TextAlign TextAlignOptions.Right
+    ])
+
+let valuesColumnStyle (width: float option) = Style (
+    waveSimColumn @ [
+        MinWidth "50px"
+        Float FloatOptions.Right
+        BorderLeft borderProperties
+        GridColumnStart 3
+    ])
+
+let showWaveformsStyle m = Style [
     Height "calc(100% - 50px)"
     Width "100%"
     OverflowY OverflowOptions.Auto
@@ -294,7 +299,7 @@ let showWaveformsStyle = Style [
     GridAutoColumns "auto"
 ]
 
-let waveformColumnStyle m = Style [
+let waveformColumnStyle m width = Style [
     Height "100%" 
     OverflowX OverflowOptions.Hidden
     // TODO: Remove this magic number
@@ -303,7 +308,7 @@ let waveformColumnStyle m = Style [
     FontSize "12px"
     GridAutoRows "30px"
     BorderTop borderProperties
-    Width "100%"
+    Width width
     GridColumnStart 1
     GridRowStart 1
 ]
@@ -329,9 +334,7 @@ let waveViewerPaneStyle m = Style [
 // let spacing = 0.4
 // let sigHeight = 0.3 
 
-let viewBoxWidth m = m.ClkSVGWidth * (float m.EndCycle + 1.0)
-let maxWavesColWidthFloat m = viewBoxWidth m * 40.0 + 4.0
-let maxWavesColWidth m = string (maxWavesColWidthFloat m) + "px"
+let viewBoxWidth m = (m.ClkSVGWidth * 30.0) * (float m.EndCycle + 1.0)
 
 let clkLineWidth = 0.0125
 
@@ -359,10 +362,16 @@ let clkCycleSVGStyle = Style [
 
 let viewBoxHeight : float = 1.0
 
-let clkCycleNumberRowProps m : IProp list = [
+let clkCycleNumberRowProps m : IProp list = 
+    printf "EndCycle: %A" m.EndCycle
+    printf "%A" (m.ClkSVGWidth * float (m.EndCycle + 1))
+    [
     // min-x, min-y, width, height
     SVGAttr.Height "30px"
-    ViewBox ("0 0 " + string (viewBoxWidth m) + " " + string viewBoxHeight)
+    // SVGAttr.Width (string (float (m.EndCycle - m.StartCycle) * 30.0) + "px")
+    SVGAttr.Width (string (float (m.EndCycle - m.StartCycle) * 30.0 * m.ClkSVGWidth) + "px")
+    // SVGAttr.Width (string (m.ClkSVGWidth * 20.0) + "px")
+    ViewBox (string m.StartCycle + " 0 " + string (m.ClkSVGWidth * float (m.EndCycle+1)) + " " + string viewBoxHeight)
     PreserveAspectRatio "none"
     clkCycleSVGStyle
 ]
@@ -370,8 +379,12 @@ let clkCycleNumberRowProps m : IProp list = [
 let waveRowProps m : IProp list = [
     // min-x, min-y, width, height
     SVGAttr.Height "30px"
+    // SVGAttr.Width (string (m.ClkSVGWidth * 20.0) + "px")
     // SVGAttr.Width (viewBoxWidth m)
-    ViewBox ("0 0 " + string (viewBoxWidth m) + " " + string viewBoxHeight)
+    SVGAttr.Width (string (float (m.EndCycle - m.StartCycle) * 30.0 * m.ClkSVGWidth) + "px")
+    ViewBox (string m.StartCycle + " 0 " + string (m.ClkSVGWidth * float (m.EndCycle+1)) + " " + string viewBoxHeight)
+
+    // ViewBox ("0 0 " + string (viewBoxWidth m) + " " + string viewBoxHeight)
     PreserveAspectRatio "none"
     clkCycleSVGStyle
 ]

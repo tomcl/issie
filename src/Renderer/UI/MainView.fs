@@ -44,6 +44,22 @@ let viewOnDiagramButtons model dispatch =
 // -- Init Model
 
 
+let initWSModel : WaveSimModel = {
+    State = NotRunning
+    AllWaves = Map.empty
+    // ShownWaves = Map.empty
+    StartCycle = 0
+    ShownCycles = 8
+    // EndCycle = 7
+    OutOfDate = true
+    ReducedState = [], []
+    // SVG = [||]
+    CurrClkCycle = 0
+    ClkCycleBoxIsEmpty = false
+    Radix = CommonTypes.Hex
+    ClkSVGWidth = 1.5
+    WaveformColumnWidth = initialWaveformColWidth
+}
 
 /// Initial value of model
 let init() = {
@@ -255,17 +271,25 @@ let displayView model dispatch =
 //    let y' = sd.SheetTop+sd.SheetY
     // let wsModelOpt = getCurrentWSMod model
 
-    // /// Feed changed viewer width from draggable bar back to Viewer parameters TODO
-    // let inline setViewerWidthInWaveSim w =
-    //     match currWaveSimModel model with
-    //     | Some wSMod when w > maxUsedViewerWidth wSMod && wSMod.WSViewState = WSViewerOpen ->
-    //         match wsModelOpt with
-    //         | Some ws ->
-    //             let simProgressState = 
-    //                 {ws.SimParams with LastClkTime = ws.SimParams.LastClkTime + 10u}
-    //             dispatch <| InitiateWaveSimulation(WSViewerOpen, simProgressState)
-    //         | _ -> ()
-    //     | _ -> ()
+    /// Feed changed viewer width from draggable bar back to Viewer parameters TODO
+    let inline setViewerWidthInWaveSim w =
+        if model.WaveSim.State = Running then
+            let waveColWidth = w - namesColMinWidth - valuesColMinWidth
+            let wholeCycles = waveColWidth / int (singleWaveWidth model.WaveSim)
+            let wholeCycleWidth = wholeCycles * int (singleWaveWidth model.WaveSim)
+            printf "wholeCycles: %A" wholeCycles
+            let viewerWidth = namesColMinWidth + valuesColMinWidth + wholeCycleWidth
+
+            let wsModel = {
+                model.WaveSim with
+                    ShownCycles = wholeCycles
+                    WaveformColumnWidth = wholeCycleWidth
+                }
+            dispatch <| SetWSMod wsModel
+            printf "dispatch in setViewerWidthInWaveSim"
+            printf "viewerWidth: %A" viewerWidth
+            dispatch <| SetViewerWidth viewerWidth
+        else ()
 
     let inline processAppClick topMenu dispatch (ev: Browser.Types.MouseEvent) =
         if topMenu <> Closed then 
@@ -284,7 +308,7 @@ let displayView model dispatch =
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth)
             dispatch <| SetViewerWidth w 
-            // setViewerWidthInWaveSim w
+            setViewerWidthInWaveSim w
             dispatch <| SetDragMode (DragModeOn (int ev.clientX))
         | DragModeOn _, _ ->  
             dispatch <| SetDragMode DragModeOff

@@ -378,7 +378,9 @@ let update (msg : Msg) oldModel =
         | _ -> sheetMsg sMsg model
     // special mesages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none
-    | SetViewerWidth w -> {model with WaveSimViewerWidth = w}, Cmd.none
+    | SetViewerWidth w -> 
+        printf "Set WaveSimViewerWidth: %A" w
+        {model with WaveSimViewerWidth = w}, Cmd.none
     | ReloadSelectedComponent width -> {model with LastUsedDialogWidth=width}, Cmd.none
     | StartSimulation simData -> 
         { model with CurrentStepSimulationStep = Some simData }, 

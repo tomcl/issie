@@ -39,13 +39,16 @@ type Transition =
     | NonBinaryTransition of NonBinaryTransition
 
 let namesCol = Browser.Dom.document.getElementById "namesColumn"
+let wavesCol = Browser.Dom.document.getElementById "wavesColumn"
 let valuesCol = Browser.Dom.document.getElementById "valuesColumn"
 // TODO: See if these need to be reset to None after closing wave sim
 let mutable namesColWidth: float option = None
 let mutable valuesColWidth: float option = None
 let mutable firstRender: bool = true
 
-let wavesColWidth (wsModel: WaveSimModel) = float (wsModel.EndCycle - wsModel.StartCycle) * 30.0 * wsModel.ClkSVGWidth
+let endCycle wsModel = wsModel.StartCycle + wsModel.ShownCycles - 1
+
+let singleWaveWidth wsModel = 30.0 * wsModel.ClkSVGWidth
 
 /// TODO: Make a Constants module
 /// TODO: Tweak these values
@@ -723,14 +726,13 @@ let closeWaveSimButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEl
 let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkCycle: int) : unit =
     let newClkCycle' = min maxLastClk newClkCycle
     if newClkCycle' < 0 then ()
-    else if newClkCycle' <= wsModel.EndCycle then
+    else if newClkCycle' <= endCycle wsModel then
         if newClkCycle' < wsModel.StartCycle then
             dispatch <| SetWSMod
                 {wsModel with 
                     CurrClkCycle = newClkCycle'
                     ClkCycleBoxIsEmpty = false
                     StartCycle = newClkCycle'
-                    EndCycle = newClkCycle' + 6
                 }
         else
             dispatch <| SetWSMod
@@ -743,8 +745,7 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
         dispatch <| InitiateWaveSimulation
             {wsModel with
                 CurrClkCycle = newClkCycle'
-                StartCycle = newClkCycle' - 6
-                EndCycle = newClkCycle'
+                StartCycle = newClkCycle' - (wsModel.ShownCycles - 1)
                 ClkCycleBoxIsEmpty = false
             }
         // dispatch <| UpdateScrollPos true
@@ -907,7 +908,7 @@ let backgroundSVG (wsModel: WaveSimModel) : ReactElement list =
             X2 x
             Y2 viewBoxHeight
         ] []
-    [ wsModel.StartCycle + 1 .. wsModel.EndCycle + 1 ] 
+    [ wsModel.StartCycle + 1 .. endCycle wsModel + 1 ] 
     |> List.map (fun x -> clkLine (float x * wsModel.ClkSVGWidth))
 
 let clkCycleNumberRow (wsModel: WaveSimModel) =
@@ -916,29 +917,10 @@ let clkCycleNumberRow (wsModel: WaveSimModel) =
         | width when width < 0.5 && i % 5 <> 0 -> []
         | _ -> [ text (clkCycleText wsModel i) [str (string i)] ]
 
-    [ wsModel.StartCycle .. wsModel.EndCycle]
+    [ wsModel.StartCycle .. endCycle wsModel]
     |> List.collect makeClkCycleLabel
     |> List.append (backgroundSVG wsModel)
     |> svg (clkCycleNumberRowProps wsModel)
-
-/// This determines the required widths for the names and values columns after
-/// the first render of the waveform viewer, and calculates the required width
-/// of the overall waveform simulator.
-let determineColumnWidths (wsModel: WaveSimModel) (dispatch: Msg -> unit) =
-    if not (isNull namesCol) then
-        namesColWidth <- Some namesCol.offsetWidth
-
-    if not (isNull valuesCol) then
-        valuesColWidth <- Some valuesCol.offsetWidth
-
-    match namesColWidth, valuesColWidth with
-    | Some ncw, Some vcw ->
-        let requiredWaveSimWidth = int (ncw + vcw + wavesColWidth wsModel)
-        if firstRender then
-            firstRender <- false
-            dispatch <| SetViewerWidth requiredWaveSimWidth
-    | _, _ ->
-        printf "first time"
 
 let waveformColumn (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement =
     let waveRows : ReactElement list =
@@ -953,21 +935,30 @@ let waveformColumn (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement
                     printf "no waveform generated for %A" wave.DisplayName
                     [ div [] [] ]//failwithf "No waveform for selected wave %A" wave.DisplayName
             |> List.append (backgroundSVG wsModel)
-            |> svg (waveRowProps wsModel)
+            // TODO: Rename this props object
+            |> svg (clkCycleNumberRowProps wsModel)
         )
 
     // let selectedWavesCount = Map.count (selectedWaves wsModel)
 
+    printf "StartCycle: %A" wsModel.StartCycle
+    printf "CurrClkCycle: %A" wsModel.CurrClkCycle
+    printf "ShownCycles: %A" wsModel.ShownCycles
+    printf "EndCycle: %A" (endCycle wsModel)
+    printf "%A" (wsModel.ClkSVGWidth * float (endCycle wsModel + 1))
 
-    div [ Style [
-            GridColumnStart 2
-            Display DisplayOptions.Grid
-        ] ]
-        [
+
+    div [ 
+            Id "wavesColumn"
+            Style [
+                GridColumnStart 2
+                Display DisplayOptions.Grid
+            ]
+        ] [
             // clkCycleHighlightSVG wsModel selectedWavesCount
             // div [cursRectStyle wsModel] []
             // div [ waveformColumnStyle model wavesColWidth']
-            div [ waveformColumnStyle model (wavesColWidth wsModel)]
+            div [ waveformColumnStyle model wsModel.WaveformColumnWidth]
                 (List.concat [
                     [ clkCycleNumberRow wsModel ]
                     waveRows
@@ -975,8 +966,6 @@ let waveformColumn (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement
         ]
 
 let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
-    determineColumnWidths model.WaveSim dispatch
-
     div [ showWaveformsStyle model]
         [
             namesColumn (nameRows model.WaveSim)

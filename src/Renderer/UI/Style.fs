@@ -154,6 +154,12 @@ let menuLabelStyle = Style [
 
 // Waveform simulator styles
 
+let namesColMinWidth = 215
+let valuesColMinWidth = 75
+// TODO: Explain why: 30*width, width is 1.5, so that's 45. This is 8 cycles (0 to 7)
+// This should be divisible by 45
+let initialWaveformColWidth = rightSectionWidthViewerDefault - namesColMinWidth - valuesColMinWidth
+
 let rowHeightStyle = Style [
     Height "30px"
 ]
@@ -274,7 +280,7 @@ let waveSimColumn width = [
 
 let namesColumnStyle (width: float option) = Style (
     (waveSimColumn width) @ [
-        MinWidth "20px"
+        MinWidth "215px"
         Float FloatOptions.Left
         BorderRight borderProperties
         GridColumnStart 1
@@ -283,7 +289,7 @@ let namesColumnStyle (width: float option) = Style (
 
 let valuesColumnStyle (width: float option) = Style (
     (waveSimColumn width) @ [
-        MinWidth "50px"
+        MinWidth "75px"
         Float FloatOptions.Right
         BorderLeft borderProperties
         GridColumnStart 3
@@ -334,7 +340,7 @@ let waveViewerPaneStyle m = Style [
 // let spacing = 0.4
 // let sigHeight = 0.3 
 
-let viewBoxWidth m = (m.ClkSVGWidth * 30.0) * (float m.EndCycle + 1.0)
+let endCycle wsModel = wsModel.StartCycle + wsModel.ShownCycles - 1
 
 let clkLineWidth = 0.0125
 
@@ -360,34 +366,32 @@ let clkCycleSVGStyle = Style [
     BorderBottom borderProperties
 ]
 
+let viewBoxMinX m = string (float m.StartCycle * m.ClkSVGWidth)
+let viewBoxWidth m = string (float m.ShownCycles * m.ClkSVGWidth)
 let viewBoxHeight : float = 1.0
 
-let clkCycleNumberRowProps m : IProp list = 
-    printf "EndCycle: %A" m.EndCycle
-    printf "%A" (m.ClkSVGWidth * float (m.EndCycle + 1))
+let clkCycleNumberRowProps m : IProp list =
     [
-    // min-x, min-y, width, height
     SVGAttr.Height "30px"
-    // SVGAttr.Width (string (float (m.EndCycle - m.StartCycle) * 30.0) + "px")
-    SVGAttr.Width (string (float (m.EndCycle - m.StartCycle) * 30.0 * m.ClkSVGWidth) + "px")
-    // SVGAttr.Width (string (m.ClkSVGWidth * 20.0) + "px")
-    ViewBox (string m.StartCycle + " 0 " + string (m.ClkSVGWidth * float (m.EndCycle+1)) + " " + string viewBoxHeight)
+    SVGAttr.Width (float m.ShownCycles * 30.0 * m.ClkSVGWidth)
+    // min-x, min-y, width, height
+    ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string viewBoxHeight)
     PreserveAspectRatio "none"
     clkCycleSVGStyle
 ]
 
-let waveRowProps m : IProp list = [
-    // min-x, min-y, width, height
-    SVGAttr.Height "30px"
-    // SVGAttr.Width (string (m.ClkSVGWidth * 20.0) + "px")
-    // SVGAttr.Width (viewBoxWidth m)
-    SVGAttr.Width (string (float (m.EndCycle - m.StartCycle) * 30.0 * m.ClkSVGWidth) + "px")
-    ViewBox (string m.StartCycle + " 0 " + string (m.ClkSVGWidth * float (m.EndCycle+1)) + " " + string viewBoxHeight)
+// let waveRowProps m : IProp list = [
+//     // min-x, min-y, width, height
+//     SVGAttr.Height "30px"
+//     // SVGAttr.Width (string (m.ClkSVGWidth * 20.0) + "px")
+//     // SVGAttr.Width (viewBoxWidth m)
+//     SVGAttr.Width (string (float (m.EndCycle - m.StartCycle) * 30.0 * m.ClkSVGWidth) + "px")
+//     ViewBox (string m.StartCycle + " 0 " + string (m.ClkSVGWidth * float (m.EndCycle+1)) + " " + string viewBoxHeight)
 
-    // ViewBox ("0 0 " + string (viewBoxWidth m) + " " + string viewBoxHeight)
-    PreserveAspectRatio "none"
-    clkCycleSVGStyle
-]
+//     // ViewBox ("0 0 " + string (viewBoxWidth m) + " " + string viewBoxHeight)
+//     PreserveAspectRatio "none"
+//     clkCycleSVGStyle
+// ]
 
 // This controls the background highlighting of which clock cycle is selected
 let cursRectStyle (m: WaveSimModel) = Style [

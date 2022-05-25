@@ -380,33 +380,7 @@ let clkCycleNumberRowProps m : IProp list =
     clkCycleSVGStyle
 ]
 
-// let waveRowProps m : IProp list = [
-//     // min-x, min-y, width, height
-//     SVGAttr.Height "30px"
-//     // SVGAttr.Width (string (m.ClkSVGWidth * 20.0) + "px")
-//     // SVGAttr.Width (viewBoxWidth m)
-//     SVGAttr.Width (string (float (m.EndCycle - m.StartCycle) * 30.0 * m.ClkSVGWidth) + "px")
-//     ViewBox (string m.StartCycle + " 0 " + string (m.ClkSVGWidth * float (m.EndCycle+1)) + " " + string viewBoxHeight)
-
-//     // ViewBox ("0 0 " + string (viewBoxWidth m) + " " + string viewBoxHeight)
-//     PreserveAspectRatio "none"
-//     clkCycleSVGStyle
-// ]
-
 // This controls the background highlighting of which clock cycle is selected
-let cursRectStyle (m: WaveSimModel) = Style [
-    Left (string (float m.CurrClkCycle * m.ClkSVGWidth * 28.0) + "px")
-    Position PositionOptions.Relative
-    Width (m.ClkSVGWidth * 28.0)
-    BackgroundColor "rgb(230,230,230)"
-    StrokeWidth 0
-    Opacity 0.4
-    ZIndex -1
-    Height "100%"
-    GridColumnStart 1
-    GridRowStart 1
-]
-
 let clkCycleHighlightSVG m count = 
     svg [
         Style [
@@ -414,15 +388,15 @@ let clkCycleHighlightSVG m count =
             GridRowStart 1
         ]
         SVGAttr.Height (string ((count + 1)* 30) + "px")
-        SVGAttr.Width "100%"
+        SVGAttr.Width (float m.ShownCycles * 30.0 * m.ClkSVGWidth)
         SVGAttr.Fill "rgb(230,230,230)"
-
-        ViewBox ("0 0 " + string (viewBoxWidth m) + " " + string viewBoxHeight)
+        SVGAttr.Opacity 0.4
+        ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string (viewBoxHeight * float (count + 1)))
     ] [
         rect [
-            SVGAttr.Width (m.ClkSVGWidth * 5.0)
+            SVGAttr.Width (m.ClkSVGWidth)
             SVGAttr.Height "100%"
-            X (float m.CurrClkCycle * m.ClkSVGWidth * 5.0)
+            X (float m.CurrClkCycle * m.ClkSVGWidth)
         ] []
     ]
 

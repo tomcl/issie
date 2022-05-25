@@ -724,8 +724,10 @@ let closeWaveSimButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEl
 
 /// Set clock cycle number
 let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkCycle: int) : unit =
-    let newClkCycle' = min maxLastClk newClkCycle
-    if newClkCycle' < 0 then ()
+    let newClkCycle' = min maxLastClk newClkCycle |> max 0
+
+    if newClkCycle' < 0 then
+        failwithf "newClkCycle' should not be less than zero"
     else if newClkCycle' <= endCycle wsModel then
         if newClkCycle' < wsModel.StartCycle then
             dispatch <| SetWSMod
@@ -750,17 +752,19 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
             }
         // dispatch <| UpdateScrollPos true
 
-/// Increment or decrement clock cycle number
-let private stepClkCycle (increase: bool) (wsModel: WaveSimModel) (dispatch: Msg -> unit) : unit =
-    let newClkCycle =
-        if increase then wsModel.CurrClkCycle + 1
-        else wsModel.CurrClkCycle - 1
-    setClkCycle wsModel dispatch newClkCycle
 
 let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+    let bigStepSize = wsModel.ShownCycles / 2
+
     div [ clkCycleButtonStyle ]
         [
-            button [ Button.Props [clkCycleLeftStyle] ] (fun _ -> stepClkCycle false wsModel dispatch) "◀"
+            button [ Button.Props [clkCycleLeftStyle] ]
+                (fun _ -> setClkCycle wsModel dispatch (wsModel.CurrClkCycle - bigStepSize))
+                "◀◀"
+            button [ Button.Props [clkCycleInnerStyle] ]
+                (fun _ -> setClkCycle wsModel dispatch (wsModel.CurrClkCycle - 1))
+                "◀"
+
             Input.number [
                 Input.Props [
                     Min 0
@@ -768,9 +772,6 @@ let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
                     SpellCheck false
                     Step 1
                 ]
-
-                //TODO: Check what this is actually used for
-                Input.Id "cursor"
 
                 let clkValue =
                     match wsModel.ClkCycleBoxIsEmpty with
@@ -791,7 +792,13 @@ let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
                         dispatch <| SetWSMod {wsModel with ClkCycleBoxIsEmpty = false}
                 )
             ]
-            button [ Button.Props [clkCycleRightStyle] ] (fun _ -> stepClkCycle true wsModel dispatch) "▶"
+
+            button [ Button.Props [clkCycleInnerStyle] ]
+                (fun _ -> setClkCycle wsModel dispatch (wsModel.CurrClkCycle + 1))
+                "▶"
+            button [ Button.Props [clkCycleRightStyle] ]
+                (fun _ -> setClkCycle wsModel dispatch (wsModel.CurrClkCycle + bigStepSize))
+                "▶▶"
         ]
 
 /// ReactElement of the tabs for changing displayed radix

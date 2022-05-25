@@ -183,7 +183,6 @@ let clkCycleButtonStyle = Style [
     Position PositionOptions.Relative
     Height "30px"
     TextAlign TextAlignOptions.Center
-    Width "100px"
     Display DisplayOptions.InlineBlock
     FontSize "13px"
     Margin "0 20px 0 20px"
@@ -216,6 +215,12 @@ let clkCycleBut = [
     BorderColor "gray"
     BorderWidth "1px"
 ]
+
+let clkCycleInnerStyle = Style (
+    clkCycleBut @ [
+        BorderRadius 0
+    ]
+)
 
 let clkCycleLeftStyle = Style (
     clkCycleBut @ [

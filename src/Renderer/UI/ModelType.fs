@@ -187,7 +187,7 @@ type WaveSimModel = {
     AllWaves: Map<string, Wave>
     // ShownWaves: Map<string, Wave>
     StartCycle: int
-    EndCycle: int
+    ShownCycles: int
     OutOfDate: bool
     ReducedState: CanvasState
     // SVG: ReactElement array
@@ -195,22 +195,9 @@ type WaveSimModel = {
     ClkCycleBoxIsEmpty: bool
     Radix: NumberBase
     ClkSVGWidth: float
+    WaveformColumnWidth: int
 }
 
-let initWSModel : WaveSimModel = {
-    State = NotRunning
-    AllWaves = Map.empty
-    // ShownWaves = Map.empty
-    StartCycle = 0
-    EndCycle = 7
-    OutOfDate = true
-    ReducedState = [], []
-    // SVG = [||]
-    CurrClkCycle = 0
-    ClkCycleBoxIsEmpty = false
-    Radix = Hex
-    ClkSVGWidth = 1.5
-}
     // // generate data using this 0 clock simulation, which comes from makeSimData
     // // TODO: get rid of this and use only SimDataCache, since this is SimDataCache[0]
     // InitWaveSimGraph : SimulationData option

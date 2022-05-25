@@ -255,9 +255,14 @@ let labelStyle = Style [
 
 let borderProperties = "2px solid rgb(219,219,219)"
 
-let waveSimColumn = [
+let colWidth width =
+    match width with
+    | Some x -> string x
+    | None -> "100%"
+
+let waveSimColumn width = [
     Height "100%"
-    Width "100%"
+    Width "100%" //(colWidth width)
     BorderTop borderProperties
     Display DisplayOptions.Grid
     GridAutoRows "30px" 
@@ -267,13 +272,8 @@ let waveSimColumn = [
     WhiteSpace WhiteSpaceOptions.Nowrap
 ]
 
-let colWidth width =
-    match width with
-    | Some x -> string x
-    | None -> "100%"
-
 let namesColumnStyle (width: float option) = Style (
-    waveSimColumn @ [
+    (waveSimColumn width) @ [
         MinWidth "20px"
         Float FloatOptions.Left
         BorderRight borderProperties
@@ -282,7 +282,7 @@ let namesColumnStyle (width: float option) = Style (
     ])
 
 let valuesColumnStyle (width: float option) = Style (
-    waveSimColumn @ [
+    (waveSimColumn width) @ [
         MinWidth "50px"
         Float FloatOptions.Right
         BorderLeft borderProperties

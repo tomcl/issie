@@ -921,30 +921,22 @@ let clkCycleNumberRow (wsModel: WaveSimModel) =
     |> List.append (backgroundSVG wsModel)
     |> svg (clkCycleNumberRowProps wsModel)
 
-let determineColumnWidths (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit) =
-    printf "prev namesColWidth: %A" namesColWidth
-    printf "prev valuesColWidth: %A" valuesColWidth
-
+/// This determines the required widths for the names and values columns after
+/// the first render of the waveform viewer, and calculates the required width
+/// of the overall waveform simulator.
+let determineColumnWidths (wsModel: WaveSimModel) (dispatch: Msg -> unit) =
     if not (isNull namesCol) then
         namesColWidth <- Some namesCol.offsetWidth
 
     if not (isNull valuesCol) then
         valuesColWidth <- Some valuesCol.offsetWidth
 
-    printf "namesColWidth: %A" namesColWidth
-    printf "wavesColWidth': %A" (wavesColWidth wsModel)
-    printf "valuesColWidth: %A" valuesColWidth
-
     match namesColWidth, valuesColWidth with
     | Some ncw, Some vcw ->
         let requiredWaveSimWidth = int (ncw + vcw + wavesColWidth wsModel)
         if firstRender then
-            printf "model.WaveSimViewerWidth: %A" model.WaveSimViewerWidth 
-            printf "requiredWaveSimWidth: %A" requiredWaveSimWidth
-
             firstRender <- false
             dispatch <| SetViewerWidth requiredWaveSimWidth
-
     | _, _ ->
         printf "first time"
 
@@ -966,12 +958,10 @@ let waveformColumn (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement
 
     // let selectedWavesCount = Map.count (selectedWaves wsModel)
 
-    determineColumnWidths model wsModel dispatch
 
     div [ Style [
             GridColumnStart 2
             Display DisplayOptions.Grid
-            // Width wavesColWidth
         ] ]
         [
             // clkCycleHighlightSVG wsModel selectedWavesCount
@@ -985,11 +975,8 @@ let waveformColumn (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement
         ]
 
 let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
-    let namesColWidth, valuesColWidth =
-        if firstRender then
-            None, None
-        else
-            namesColWidth, valuesColWidth
+    determineColumnWidths model.WaveSim dispatch
+
     div [ showWaveformsStyle model]
         [
             namesColumn (nameRows model.WaveSim)

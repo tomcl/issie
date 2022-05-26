@@ -50,7 +50,7 @@ let mutable firstRender: bool = true
 
 let endCycle wsModel = wsModel.StartCycle + wsModel.ShownCycles - 1
 
-let singleWaveWidth wsModel = 30.0 * wsModel.ClkSVGWidth
+let singleWaveWidth wsModel = 30.0 * wsModel.ZoomLevel
 
 /// TODO: Make a Constants module
 /// TODO: Tweak these values
@@ -449,6 +449,8 @@ let binaryWavePoints (clkCycleWidth: float) (clkCycle: int) (transition: BinaryT
     | OneToOne ->
         [topL; topR], clkCycle + 1
 
+/// TODO: Account for very low zoom levels.
+/// TODO: Consider: If singleWaveWidth M nonBinaryTransLen, then show crosshatch.
 /// Generates points for non-binary waveforms. Note the left shift by nonBinaryTransLen
 let nonBinaryWavePoints (clkCycleWidth: float) (clkCycle: int) (transition: NonBinaryTransition) : (XYPos list * XYPos list) * int =
     // Use start coord to know where to start the polyline
@@ -526,7 +528,7 @@ let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
             | 1 ->
                 let transitions = determineBinaryTransitions wave.WaveValues
                 let wavePoints =
-                    List.mapFold (binaryWavePoints wsModel.ClkSVGWidth) wsModel.StartCycle transitions 
+                    List.mapFold (binaryWavePoints wsModel.ZoomLevel) wsModel.StartCycle transitions 
                     |> fst
                     |> List.concat
                     |> List.distinct
@@ -537,7 +539,7 @@ let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
             | _ -> 
                 let transitions = determineNonBinaryTransitions wave.WaveValues
                 let fstPoints, sndPoints =
-                    List.mapFold (nonBinaryWavePoints wsModel.ClkSVGWidth) wsModel.StartCycle transitions 
+                    List.mapFold (nonBinaryWavePoints wsModel.ZoomLevel) wsModel.StartCycle transitions 
                     |> fst
                     |> List.unzip
                     
@@ -756,6 +758,42 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
             }
         // dispatch <| UpdateScrollPos true
 
+let zoomLevels = [|
+//   0     1     2    3     4     5    6    7    8    9    10   11    12   13   14   15
+    0.25; 0.33; 0.5; 0.67; 0.75; 0.8; 0.9; 1.0; 1.1; 1.5; 1.75; 2.0; 2.50; 3.0; 4.0; 5.0;
+|]
+
+let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) = 
+    let tryIndex =
+        if zoomIn then wsModel.ZoomLevelIndex + 1
+        else wsModel.ZoomLevelIndex - 1
+
+    let newIndex, newZoom =
+        Array.tryItem tryIndex zoomLevels
+        |> function
+        | Some zoom -> tryIndex, zoom
+        // Index out of range: keep original zoom level
+        | None -> wsModel.ZoomLevelIndex, wsModel.ZoomLevel
+
+    let shownCycles = int <| float wsModel.WaveformColumnWidth / (newZoom * 30.0)
+
+    dispatch <| InitiateWaveSimulation
+        {wsModel with
+            ZoomLevel = newZoom
+            ZoomLevelIndex = newIndex
+            ShownCycles = shownCycles
+        }
+
+let zoomButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+    div [ clkCycleButtonStyle ]
+        [
+            button [ Button.Props [clkCycleLeftStyle] ]
+                (fun _ -> changeZoom wsModel false dispatch)
+                zoomOutSVG
+            button [ Button.Props [clkCycleRightStyle] ]
+                (fun _ -> changeZoom wsModel true dispatch)
+                zoomInSVG
+        ]
 
 let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     let bigStepSize = wsModel.ShownCycles / 2
@@ -843,6 +881,7 @@ let waveSimButtonsBar (model: Model) (dispatch: Msg -> unit) : ReactElement =
     div [ Style [ Height "45px" ] ]
         [
             closeWaveSimButton model.WaveSim dispatch
+            zoomButtons model.WaveSim dispatch
             radixButtons model.WaveSim dispatch
             clkCycleButtons model.WaveSim dispatch
             // TODO: zoomButtons
@@ -919,12 +958,12 @@ let backgroundSVG (wsModel: WaveSimModel) : ReactElement list =
             Y2 viewBoxHeight
         ] []
     [ wsModel.StartCycle + 1 .. endCycle wsModel + 1 ] 
-    |> List.map (fun x -> clkLine (float x * wsModel.ClkSVGWidth))
+    |> List.map (fun x -> clkLine (float x * wsModel.ZoomLevel))
 
 let clkCycleNumberRow (wsModel: WaveSimModel) =
     let makeClkCycleLabel i =
-        match wsModel.ClkSVGWidth with
-        | width when width < 0.5 && i % 5 <> 0 -> []
+        match wsModel.ZoomLevel with
+        | width when width < 0.67 && i % 5 <> 0 -> []
         | _ -> [ text (clkCycleText wsModel i) [str (string i)] ]
 
     [ wsModel.StartCycle .. endCycle wsModel]

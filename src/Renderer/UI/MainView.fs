@@ -49,7 +49,7 @@ let initWSModel : WaveSimModel = {
     AllWaves = Map.empty
     // ShownWaves = Map.empty
     StartCycle = 0
-    ShownCycles = 8
+    ShownCycles = 7
     // EndCycle = 7
     OutOfDate = true
     ReducedState = [], []
@@ -273,7 +273,10 @@ let displayView model dispatch =
 
     /// Feed changed viewer width from draggable bar back to Viewer parameters TODO
     let inline setViewerWidthInWaveSim w =
+        printf "w: %A" w
         if model.WaveSim.State = Running then
+            dispatch <| SetViewerWidth w
+
             let waveColWidth = w - namesColMinWidth - valuesColMinWidth
             let wholeCycles = waveColWidth / int (singleWaveWidth model.WaveSim)
             let wholeCycleWidth = wholeCycles * int (singleWaveWidth model.WaveSim)
@@ -286,10 +289,14 @@ let displayView model dispatch =
                     WaveformColumnWidth = wholeCycleWidth
                 }
             dispatch <| SetWSMod wsModel
-            printf "dispatch in setViewerWidthInWaveSim"
+            // printf "dispatch in setViewerWidthInWaveSim"
             printf "viewerWidth: %A" viewerWidth
             dispatch <| SetViewerWidth viewerWidth
-        else ()
+            // dispatch <| SetViewerWidth w
+
+        else
+            dispatch <| SetViewerWidth w
+
 
     let inline processAppClick topMenu dispatch (ev: Browser.Types.MouseEvent) =
         if topMenu <> Closed then 
@@ -308,9 +315,17 @@ let displayView model dispatch =
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth)
             dispatch <| SetViewerWidth w 
-            setViewerWidthInWaveSim w
+            // setViewerWidthInWaveSim w
             dispatch <| SetDragMode (DragModeOn (int ev.clientX))
-        | DragModeOn _, _ ->  
+        | DragModeOn pos, _ ->
+            printf "this case"
+            let newWidth = model.WaveSimViewerWidth - int ev.clientX + pos
+            let w = 
+                newWidth
+                |> max minViewerWidth
+                |> min (windowX - minEditorWidth)
+            // dispatch <| SetViewerWidth w 
+            setViewerWidthInWaveSim w
             dispatch <| SetDragMode DragModeOff
         | DragModeOff, _-> ()
 

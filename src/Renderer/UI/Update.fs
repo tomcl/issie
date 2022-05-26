@@ -287,10 +287,10 @@ let sheetMsg sMsg model =
         match simData with
                                 // | None -> failwithf "simRes has value None" // IColor.IsWhite, ""
         | Some (Ok simData', reducedState) -> // IsSuccess, "Start Simulation"
-            WaveformSimulator.getWaveforms WaveformSimulator.netGroup2Label simData' reducedState
+            WaveSim.getWaveforms WaveSim.netGroup2Label simData' reducedState
         | _ -> 
             Map.empty
-            // WaveformSimulator.displayErrorMessage e //IsWarning, "See Problems"
+            // WaveSim.displayErrorMessage e //IsWarning, "See Problems"
                                     
 
     let waveSim = {
@@ -371,7 +371,7 @@ let update (msg : Msg) oldModel =
     | Sheet sMsg ->
         match sMsg, model.PopupViewFunc with
         | SheetT.ToggleNet canvas, _ -> 
-            model, Cmd.ofMsg (Sheet (SheetT.SelectWires (WaveformSimulator.getNetSelection canvas model)))
+            model, Cmd.ofMsg (Sheet (SheetT.SelectWires (WaveSim.getNetSelection canvas model)))
         | SheetT.KeyPress _, Some _ -> 
             // do not allow keys to affect Sheet when popup is on.
             model, Cmd.none

@@ -1,4 +1,4 @@
-module WaveformSimulator
+module WaveSim
 
 open Fulma
 open Fable.React
@@ -9,6 +9,8 @@ open Browser.Types
 open CommonTypes
 open ModelType
 open DiagramStyle
+open WaveSimStyle
+open WaveSimHelpers
 open FileMenuView
 open SimulatorTypes
 open NumberHelpers
@@ -663,7 +665,7 @@ let toggleConnsSelect (name: string) (waveSimModel: WaveSimModel) (dispatch: Msg
 
     // changeWaveSelection name model waveSimModel dispatch
 
-let checkboxAndName (name: string) (model: Model) (dispatch: Msg -> unit) =
+let checkboxAndNameRow (name: string) (model: Model) (dispatch: Msg -> unit) =
     let waveSimModel = model.WaveSim
     let allWaves = waveSimModel.AllWaves
     // TODO: Fix this to bold only Selected waves
@@ -697,7 +699,7 @@ let checkboxListOfWaves (model: Model) (dispatch: Msg -> unit) =
     // printf "checkboxListOfWaves"
     let waveSimModel = model.WaveSim
     Seq.toArray (Map.keys waveSimModel.AllWaves)
-    |> Array.map (fun name -> checkboxAndName name model dispatch)
+    |> Array.map (fun name -> checkboxAndNameRow name model dispatch)
     // failwithf "checkboxListOfWaves not implemented"
 
 let selectWaves (model: Model) dispatch = 
@@ -954,16 +956,6 @@ let waveformColumn (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement
 
     let selectedWavesCount = Map.count (selectedWaves wsModel)
 
-    // printf "StartCycle: %A" wsModel.StartCycle
-    // printf "CurrClkCycle: %A" wsModel.CurrClkCycle
-    // printf "ShownCycles: %A" wsModel.ShownCycles
-    // printf "EndCycle: %A" (endCycle wsModel)
-    // printf "%A" (wsModel.ClkSVGWidth * float (endCycle wsModel + 1))
-    // printf "%A" (float wsModel.ShownCycles * wsModel.ClkSVGWidth * 30.0)
-
-    // printf "WaveformColumnWidt: %A" wsModel.WaveformColumnWidth
-    // printf "WaveSimViewerWidth: %A" model.WaveSimViewerWidth
-
     div [ 
             Id "wavesColumn"
             Style [
@@ -988,7 +980,6 @@ let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
         ]
 
 let waveViewerPane simData rState (model: Model) (dispatch: Msg -> unit) : ReactElement =
-    // printf "WaveSimViewerWidth: %A" model.WaveSimViewerWidth
     div [ waveViewerPaneStyle model ]
         [
             // closeWaveSim, radixTabs, changeClkTick, zoomButtons

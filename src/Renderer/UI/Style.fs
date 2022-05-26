@@ -188,6 +188,12 @@ let ttGridColumnProps index = [
     GridColumnEnd <| string (index+2)
 ]
 
+let ttGridHiddenColumnProps gridWidth= [
+    GridColumnStart (string <| gridWidth + 1)
+    GridColumnEnd (string <| gridWidth + 2)
+    Visibility "hidden"
+]
+
 let ttGridContainerStyle = Style [
     Display DisplayOptions.Grid
     GridAutoFlow "column"

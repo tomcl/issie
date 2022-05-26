@@ -314,7 +314,7 @@ type Msg =
     | JSDiagramMsg of JSDiagramMsg
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
-    | SetWSMod of WaveSimModel
+    | SetWSModel of WaveSimModel
     | UpdateWSModel of (WaveSimModel -> WaveSimModel)
     | SetWSModAndSheet of (WaveSimModel*string)
     | SetWSError of SimulationError option
@@ -721,7 +721,7 @@ let getCurrSheets (model: Model) =
         |> Some
     | None -> None
 
-let setWSMod (ws: WaveSimModel) (model: Model) =
+let setWSModel (ws: WaveSimModel) (model: Model) =
     { model with WaveSim = ws }
 
     // match getCurrSheets model, model.WaveSimSheet with
@@ -736,7 +736,7 @@ let setWSMod (ws: WaveSimModel) (model: Model) =
     //     printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, sheets=%A" model.WaveSimSheet sheets
     //     model
 
-// let setWSMod (ws: WaveSimModel) (model: Model) =
+// let setWSModel (ws: WaveSimModel) (model: Model) =
 //     match getCurrSheets model, model.WaveSimSheet with
 //     | Some sheets, sheet when List.contains sheet sheets ->
 //         { model with WaveSim = Map.add model.WaveSimSheet ws model.WaveSim }
@@ -753,7 +753,7 @@ let setWSMod (ws: WaveSimModel) (model: Model) =
 //     | None -> model // should this be an error?
 //     | Some ws ->
 //         let ws = updateFun ws
-//         setWSMod ws model
+//         setWSModel ws model
 
 
 // let switchToWaveEditor (model:Model) dispatch =
@@ -762,7 +762,7 @@ let setWSMod (ws: WaveSimModel) (model: Model) =
 //     | Some ws when ws.WSViewState = WSClosed ->
 //         printf "What? Can't switch to wave editor when wave sim is closed!"
 //     | Some ws -> 
-//         dispatch <| SetWSMod {ws with WSViewState=WSViewT.WSEditorOpen}
+//         dispatch <| SetWSModel {ws with WSViewState=WSViewT.WSEditorOpen}
 //         dispatch <| ChangeRightTab Simulation
 //         dispatch <| ChangeSimSubTab WaveSim
  

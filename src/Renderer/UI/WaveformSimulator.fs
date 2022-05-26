@@ -621,7 +621,7 @@ let toggleSelectAll newState model dispatch : unit =
     //     else
     //         []
     let allWaves' = Map.map (fun _ wave -> {wave with Selected = newState}) waveSimModel.AllWaves
-    dispatch <| SetWSMod {waveSimModel with AllWaves = allWaves'}
+    dispatch <| SetWSModel {waveSimModel with AllWaves = allWaves'}
     // selectConns model conns dispatch
 
 let isWaveSelected (waveSimModel: WaveSimModel) (name: string) : bool =
@@ -659,7 +659,7 @@ let toggleConnsSelect (name: string) (waveSimModel: WaveSimModel) (dispatch: Msg
 
     let waveSimModel' = {waveSimModel with AllWaves = Map.add name wave' waveSimModel.AllWaves}
     // printf "%A" waveSimModel'.AllWaves[name]
-    dispatch <| SetWSMod waveSimModel'
+    dispatch <| SetWSModel waveSimModel'
 
     // changeWaveSelection name model waveSimModel dispatch
 
@@ -735,7 +735,7 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
         if newClkCycle' < wsModel.StartCycle then
             let allWaves = Map.map (generateWave {wsModel with StartCycle = newClkCycle'}) wsModel.AllWaves
             // let wsMod' = {wsModel with State = Running; AllWaves = allWaves}
-            dispatch <| SetWSMod
+            dispatch <| SetWSModel
                 {wsModel with 
                     AllWaves = allWaves
                     CurrClkCycle = newClkCycle'
@@ -743,7 +743,7 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
                     StartCycle = newClkCycle'
                 }
         else
-            dispatch <| SetWSMod
+            dispatch <| SetWSModel
                 {wsModel with
                     CurrClkCycle = newClkCycle'
                     ClkCycleBoxIsEmpty = false
@@ -792,10 +792,10 @@ let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
                         setClkCycle wsModel dispatch n
                     | false, _ when c.Value = "" ->
                         printf "fail to parse"
-                        dispatch <| SetWSMod {wsModel with ClkCycleBoxIsEmpty = true}
+                        dispatch <| SetWSModel {wsModel with ClkCycleBoxIsEmpty = true}
                     | _ ->
                         printf "catch all case"
-                        dispatch <| SetWSMod {wsModel with ClkCycleBoxIsEmpty = false}
+                        dispatch <| SetWSModel {wsModel with ClkCycleBoxIsEmpty = false}
                 )
             ]
 
@@ -872,7 +872,7 @@ let waveSimButtonsBar (model: Model) (dispatch: Msg -> unit) : ReactElement =
 //         |> Array.sortBy fst
 //         |> Array.collect snd 
 //     setDispNames movedNames wSMod
-//     |> SetWSMod
+//     |> SetWSModel
 
 let moveWave (wsModel: WaveSimModel) (direction: bool) (dispatch: Msg -> unit) : unit =
     ()

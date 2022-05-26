@@ -198,7 +198,7 @@ let private viewRightTab model dispatch =
                                             OutOfDate = false
                                             ReducedState = reducedState
                                     }
-                                    dispatch <| SetWSMod wsModel'
+                                    dispatch <| SetWSModel wsModel'
                                 | _ -> failwithf "asdf"
                         ) 
                         ] [str "Wave Simulation"] ])
@@ -288,7 +288,7 @@ let displayView model dispatch =
                     ShownCycles = wholeCycles
                     WaveformColumnWidth = wholeCycleWidth
                 }
-            dispatch <| SetWSMod wsModel
+            dispatch <| SetWSModel wsModel
             // printf "dispatch in setViewerWidthInWaveSim"
             printf "viewerWidth: %A" viewerWidth
             dispatch <| SetViewerWidth viewerWidth

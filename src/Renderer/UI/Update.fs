@@ -1,4 +1,4 @@
-﻿module Update
+module Update
 
 open Elmish
 
@@ -581,14 +581,13 @@ let update (msg : Msg) oldModel =
     | SetIsLoading b ->
         let cmd = if b then Cmd.none else Cmd.ofMsg (Sheet (SheetT.SetSpinner false)) //Turn off spinner after project/sheet is loaded
         {model with IsLoading = b}, cmd
-    | InitiateWaveSimulation wsMod ->
+    | InitiateWaveSimulation wsModel ->
         printf "initiate wave sim"
-        let selectedWaves =
-            Map.filter (fun _ key -> key.Selected) wsMod.AllWaves
-            |> Map.keys
 
-        printf "%A" selectedWaves
-        {model with WaveSim = wsMod}, Cmd.ofMsg (Sheet(SheetT.SetSpinner false))
+        let allWaves = Map.map (WaveSim.generateWave wsModel) wsModel.AllWaves
+        let wsModel' = {wsModel with AllWaves = allWaves}
+
+        {model with WaveSim = wsModel'}, Cmd.ofMsg (Sheet(SheetT.SetSpinner false))
     // | InitiateWaveSimulation (view, paras)  -> 
         // updateCurrentWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.ofMsg FinishUICmd
     //TODO

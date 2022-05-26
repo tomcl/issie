@@ -514,6 +514,7 @@ let determineNonBinaryTransitions waveValues =
         )
     |> fst
 
+/// Called when InitiateWaveSimulation msg is dispatched
 /// Generates the polyline(s) for a specific waveform
 let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
     printf "generating wave for %A" waveName
@@ -580,8 +581,7 @@ let viewWaveformsButton model dispatch =
                 // Button.IsLoading (showSimulationLoading wSModel dispatch)
                 Button.OnClick(fun _ ->
                     // let par' = {wSModel.SimParams with DispNames = viewableWaves }
-                    let allWaves = Map.map (generateWave wsModel) wsModel.AllWaves
-                    let wsMod' = {wsModel with State = Running; AllWaves = allWaves}
+                    let wsMod' = {wsModel with State = Running}
 
                     let msgs = [
                         (StartUICmd ViewWaveSim)
@@ -734,11 +734,8 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
         failwithf "newClkCycle' should not be less than zero"
     else if newClkCycle' <= endCycle wsModel then
         if newClkCycle' < wsModel.StartCycle then
-            let allWaves = Map.map (generateWave {wsModel with StartCycle = newClkCycle'}) wsModel.AllWaves
-            // let wsMod' = {wsModel with State = Running; AllWaves = allWaves}
-            dispatch <| SetWSModel
+            dispatch <| InitiateWaveSimulation
                 {wsModel with 
-                    AllWaves = allWaves
                     CurrClkCycle = newClkCycle'
                     ClkCycleBoxIsEmpty = false
                     StartCycle = newClkCycle'

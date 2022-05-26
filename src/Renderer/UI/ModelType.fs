@@ -194,7 +194,8 @@ type WaveSimModel = {
     CurrClkCycle: int
     ClkCycleBoxIsEmpty: bool
     Radix: NumberBase
-    ClkSVGWidth: float
+    ZoomLevel: float
+    ZoomLevelIndex: int
     WaveformColumnWidth: int
 }
 

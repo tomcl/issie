@@ -58,7 +58,8 @@ let initWSModel : WaveSimModel = {
     CurrClkCycle = 0
     ClkCycleBoxIsEmpty = false
     Radix = CommonTypes.Hex
-    ClkSVGWidth = 1.5
+    ZoomLevel = 1.5
+    ZoomLevelIndex = 9
     WaveformColumnWidth = initialWaveformColWidth
 }
 

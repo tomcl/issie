@@ -32,6 +32,45 @@ let closeWaveSimButtonStyle = Style [
     Margin "0 20px 20px 20px"
 ]
 
+let zoomOutSVG =
+    svg [
+            ViewBox "0 0 192.904 192.904"
+            SVGAttr.Height "20px"
+        ]
+        [
+            path [
+                D "M190.707,180.101l-47.079-47.077c11.702-14.072,18.752-32.142,18.752-51.831C162.381,36.423,125.959,0,81.191,0
+                C36.422,0,0,36.423,0,81.193c0,44.767,36.422,81.187,81.191,81.187c19.689,0,37.759-7.049,51.831-18.75l47.079,47.077
+                c1.464,1.465,3.384,2.197,5.303,2.197c1.919,0,3.839-0.732,5.303-2.197C193.637,187.778,193.637,183.03,190.707,180.101z
+                M15,81.193C15,44.694,44.693,15,81.191,15c36.497,0,66.189,29.694,66.189,66.193c0,36.496-29.692,66.187-66.189,66.187
+                C44.693,147.38,15,117.689,15,81.193z"
+            ] []
+            path [
+                D "M118.035,73.689H44.346c-4.142,0-7.5,3.358-7.5,7.5c0,4.142,3.358,7.5,7.5,7.5h73.689c4.142,0,7.5-3.358,7.5-7.5
+                    C125.535,77.047,122.177,73.689,118.035,73.689z"
+            ] []
+        ]
+
+let zoomInSVG =
+    svg [
+            ViewBox "0 0 192.904 192.904"
+            SVGAttr.Height "20px"
+        ]
+        [
+            path [
+                D "M190.707,180.101l-47.079-47.077c11.702-14.072,18.752-32.142,18.752-51.831C162.381,36.423,125.959,0,81.191,0
+                C36.422,0,0,36.423,0,81.193c0,44.767,36.422,81.187,81.191,81.187c19.689,0,37.759-7.049,51.831-18.75l47.079,47.077
+                c1.464,1.465,3.384,2.197,5.303,2.197c1.919,0,3.839-0.732,5.303-2.197C193.637,187.778,193.637,183.03,190.707,180.101z
+                M15,81.193C15,44.694,44.693,15,81.191,15c36.497,0,66.189,29.694,66.189,66.193c0,36.496-29.692,66.187-66.189,66.187
+                C44.693,147.38,15,117.689,15,81.193z"
+            ] []
+            path [
+                D "M118.035,73.689H88.69V44.345c0-4.142-3.357-7.5-7.5-7.5s-7.5,3.358-7.5,7.5v29.345H44.346c-4.143,0-7.5,3.358-7.5,7.5
+                c0,4.142,3.357,7.5,7.5,7.5H73.69v29.346c0,4.142,3.357,7.5,7.5,7.5s7.5-3.358,7.5-7.5V88.689h29.345c4.143,0,7.5-3.358,7.5-7.5
+                C125.535,77.047,122.178,73.689,118.035,73.689z"
+            ] []
+        ]
+
 let clkCycleButtonStyle = Style [
     Float FloatOptions.Right
     Position PositionOptions.Relative
@@ -53,7 +92,6 @@ let clkCycleInputStyle = Style [
     Display DisplayOptions.InlineBlock
     FontSize "13px"
     Resize "vertical"
-    // TODO: -webkit-appearnace: none
     BorderColor "gray"
     BorderWidth "1px 1px 1px 1px"
     BorderRadius 0
@@ -223,7 +261,7 @@ let clkCycleText m i : IProp list =
     [
         SVGAttr.FontSize "3.5%"
         SVGAttr.TextAnchor "middle"
-        X (m.ClkSVGWidth * (float i + 0.5))
+        X (m.ZoomLevel * (float i + 0.5))
         Y 0.65
     ]
 
@@ -232,14 +270,14 @@ let clkCycleSVGStyle = Style [
     BorderBottom borderProperties
 ]
 
-let viewBoxMinX m = string (float m.StartCycle * m.ClkSVGWidth)
-let viewBoxWidth m = string (float m.ShownCycles * m.ClkSVGWidth)
+let viewBoxMinX m = string (float m.StartCycle * m.ZoomLevel)
+let viewBoxWidth m = string (float m.ShownCycles * m.ZoomLevel)
 let viewBoxHeight : float = 1.0
 
 let clkCycleNumberRowProps m : IProp list =
     [
     SVGAttr.Height "30px"
-    SVGAttr.Width (float m.ShownCycles * 30.0 * m.ClkSVGWidth)
+    SVGAttr.Width (float m.ShownCycles * 30.0 * m.ZoomLevel)
     // min-x, min-y, width, height
     ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string viewBoxHeight)
     PreserveAspectRatio "none"
@@ -254,7 +292,7 @@ let waveRowSVGStyle = Style [
 let waveRowProps m : IProp list =
     [
     SVGAttr.Height "30px"
-    SVGAttr.Width (float m.ShownCycles * 30.0 * m.ClkSVGWidth)
+    SVGAttr.Width (float m.ShownCycles * 30.0 * m.ZoomLevel)
     // min-x, min-y, width, height
     ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string viewBoxHeight)
     PreserveAspectRatio "none"
@@ -269,15 +307,15 @@ let clkCycleHighlightSVG m count =
             GridRowStart 1
         ]
         SVGAttr.Height (string ((count + 1)* 30) + "px")
-        SVGAttr.Width (float m.ShownCycles * 30.0 * m.ClkSVGWidth)
+        SVGAttr.Width (float m.ShownCycles * 30.0 * m.ZoomLevel)
         SVGAttr.Fill "rgb(230,230,230)"
         SVGAttr.Opacity 0.4
         ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string (viewBoxHeight * float (count + 1)))
     ] [
         rect [
-            SVGAttr.Width (m.ClkSVGWidth)
+            SVGAttr.Width (m.ZoomLevel)
             SVGAttr.Height "100%"
-            X (float m.CurrClkCycle * m.ClkSVGWidth)
+            X (float m.CurrClkCycle * m.ZoomLevel)
         ] []
     ]
 

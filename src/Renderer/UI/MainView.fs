@@ -8,7 +8,8 @@ open DiagramStyle
 open ModelType
 open FileMenuView
 // open WaveformSimulationView
-open WaveformSimulator
+open WaveSimStyle
+open WaveSim
 open Sheet.SheetInterface
 open DrawModelType
 

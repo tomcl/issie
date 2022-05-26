@@ -379,7 +379,7 @@ let update (msg : Msg) oldModel =
     // special mesages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none
     | SetViewerWidth w -> 
-        printf "Set WaveSimViewerWidth: %A" w
+        // printf "Set WaveSimViewerWidth: %A" w
         {model with WaveSimViewerWidth = w}, Cmd.none
     | ReloadSelectedComponent width -> {model with LastUsedDialogWidth=width}, Cmd.none
     | StartSimulation simData -> 

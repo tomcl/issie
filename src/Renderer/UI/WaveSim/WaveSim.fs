@@ -62,8 +62,7 @@ let spacing : float = (viewBoxHeight - waveHeight) / 2.
 /// TODO: Remove this limit. This stops the waveform simulator moving past 500 clock cycles.
 let maxLastClk = 500
 
-let button options func label = 
-    Button.button (List.append options [ Button.OnClick func ]) [ str label ]
+let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ label ]
 
 let selectedWaves (wsModel: WaveSimModel) : Map<string, Wave> = Map.filter (fun _ key -> key.Selected) wsModel.AllWaves
 
@@ -725,7 +724,7 @@ let closeWaveSimButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEl
             valuesColWidth <- None
             dispatch <| CloseWaveSim wsModel'
         )
-        "Edit waves / close simulator"
+        (str "Edit waves / close simulator")
 
 /// Set clock cycle number
 let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkCycle: int) : unit =
@@ -768,10 +767,10 @@ let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
         [
             button [ Button.Props [clkCycleLeftStyle] ]
                 (fun _ -> setClkCycle wsModel dispatch (wsModel.CurrClkCycle - bigStepSize))
-                "◀◀"
+                (str "◀◀")
             button [ Button.Props [clkCycleInnerStyle] ]
                 (fun _ -> setClkCycle wsModel dispatch (wsModel.CurrClkCycle - 1))
-                "◀"
+                (str "◀")
 
             Input.number [
                 Input.Props [
@@ -781,12 +780,11 @@ let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
                     Step 1
                 ]
 
-                let clkValue =
+                Input.Value (
                     match wsModel.ClkCycleBoxIsEmpty with
                     | true -> ""
                     | false -> string wsModel.CurrClkCycle
-                Input.Value clkValue
-
+                )
                 // TODO: Test more properly with invalid inputs (including negative numbers)
                 Input.OnChange(fun c ->
                     match System.Int32.TryParse c.Value with
@@ -803,10 +801,10 @@ let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
 
             button [ Button.Props [clkCycleInnerStyle] ]
                 (fun _ -> setClkCycle wsModel dispatch (wsModel.CurrClkCycle + 1))
-                "▶"
+                (str "▶")
             button [ Button.Props [clkCycleRightStyle] ]
                 (fun _ -> setClkCycle wsModel dispatch (wsModel.CurrClkCycle + bigStepSize))
-                "▶▶"
+                (str "▶▶")
         ]
 
 /// ReactElement of the tabs for changing displayed radix

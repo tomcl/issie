@@ -179,6 +179,26 @@ let colMoveArrowStyle = Style [
     BorderColor "white"
 ]
 
+let ttGridColumnProps index = [
+    Border "1px solid gray"
+    Padding "7px"
+    FontSize "18px"
+    TextAlign TextAlignOptions.Left
+    GridColumnStart <| string (index+1)
+    GridColumnEnd <| string (index+2)
+]
+
+let ttGridHiddenColumnProps gridWidth= [
+    GridColumnStart (string <| gridWidth + 1)
+    GridColumnEnd (string <| gridWidth + 2)
+    Visibility "hidden"
+]
+
+let ttGridContainerStyle = Style [
+    Display DisplayOptions.Grid
+    GridAutoFlow "column"
+]
+
 
 
 

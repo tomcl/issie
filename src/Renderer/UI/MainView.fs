@@ -73,6 +73,7 @@ let init() = {
     TTHiddenColumns = []
     TTSortType = None
     TTIOOrder = [||]
+    TTGridStyles = Map.empty
     TTAlgebraInputs = []
     WaveSim = Map.empty, None
     WaveSimSheet = ""

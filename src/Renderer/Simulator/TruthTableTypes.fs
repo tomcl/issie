@@ -94,9 +94,6 @@ type TruthTable = {
     DCMap: Map<TruthTableRow,TruthTableRow> option
     // List Representation of table to which sorting is applied
     SortedListRep: TruthTableRow list
-    // 2D Array Representatino of table with columns ordered
-    // Arrays used for efficiency purposes
-    OrderedArrayRep: TruthTableCell [] []
     // If the Truth Table has been truncated
     IsTruncated: bool
     // Maximum rows the truth table could have with current input constraints
@@ -192,8 +189,6 @@ type ReasonOutOfDate =
     | Refilter
     // Table needs to be sorted
     | ReSort
-    // Columns need to be re-ordered
-    | OrderColumn
 
 let isEqu c =
     match c with

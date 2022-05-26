@@ -228,7 +228,6 @@ let truthTable
             FilteredMap = tableMap
             DCMap = None
             SortedListRep = listRep
-            OrderedArrayRep = list2DToArray2D listRep
             IsTruncated = (tableMap.Count <> tCRC)
             MaxRowsWithConstraints = tCRC
             TableSimData = tempSimData
@@ -256,7 +255,6 @@ let truthTableRegen tableSD inputConstraints (algebraIOs: SimulationIO list) bit
             FilteredMap = tableMap
             DCMap = None
             SortedListRep = listRep
-            OrderedArrayRep = list2DToArray2D listRep
             IsTruncated = (tableMap.Count <> tCRC)
             MaxRowsWithConstraints = tCRC
             TableSimData = tableSD

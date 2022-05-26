@@ -121,7 +121,7 @@ let private changeWaveConnsSelect (selFun: WaveformSpec -> bool) (model:Model) (
     match wave.WType with
     | ViewerWaveform _ -> 
         let wSModel' = {wSModel with AllWaves = Map.add wave.WId {wave with WType = ViewerWaveform on} wSModel.AllWaves}
-        dispatch <| SetWSMod wSModel'
+        dispatch <| SetWSModel wSModel'
     | NormalWaveform ->
         selectWaveConns model (selFun wave) wave  dispatch
 
@@ -168,7 +168,7 @@ let private changeCursorPos (wSModel: WaveSimModel) dispatch newCursorPos =
     | true, true ->
         wSModel
         |> setSimParams (fun sp -> {sp with CursorTime = curs' })
-        |> SetWSMod |> dispatch
+        |> SetWSModel |> dispatch
         UpdateScrollPos true |> dispatch
     | true, false ->
         let pars' = { pars with CursorTime = curs'; ClkSvgWidth = pars.ClkSvgWidth; LastClkTime = pars.LastClkTime }
@@ -203,7 +203,7 @@ let private moveWave (model:Model) (wSMod: WaveSimModel) up =
         |> Array.sortBy fst
         |> Array.collect snd 
     setDispNames movedNames wSMod
-    |> SetWSMod
+    |> SetWSModel
 
 let private viewerWaveSet (wavesToSet: WaveformSpec array) (on:bool) (wSMod: WaveSimModel) dispatch =
     let waves =
@@ -213,7 +213,7 @@ let private viewerWaveSet (wavesToSet: WaveformSpec array) (on:bool) (wSMod: Wav
             | ViewerWaveform _ when Array.contains wave wavesToSet ->
                 {wave with WType = ViewerWaveform on}
             | _ -> wave)
-    dispatch <| SetWSMod {wSMod with AllWaves = waves}
+    dispatch <| SetWSModel {wSMod with AllWaves = waves}
 
 /// select all waveforms in the WaveAdder View
 let private waveAdderSelectAll model (wSMod: WaveSimModel) (on: bool) dispatch =
@@ -356,15 +356,15 @@ let private cursorButtons (model: Model) wSMod dispatch =
                     match System.Int32.TryParse c.Value with
                     | true, n when n >= 0 -> 
                         { wSMod with CursorBoxIsEmpty = false }
-                        |> SetWSMod |> dispatch
+                        |> SetWSModel |> dispatch
                         changeCursorPos wSMod dispatch <| uint n
                     | false, _ when c.Value = "" -> 
                         { wSMod with CursorBoxIsEmpty = true }
-                        |> SetWSMod |> dispatch
+                        |> SetWSModel |> dispatch
                         changeCursorPos wSMod dispatch 0u
                     | _ -> 
                         { wSMod with CursorBoxIsEmpty = false }
-                        |> SetWSMod |> dispatch ) ]
+                        |> SetWSModel |> dispatch ) ]
           button [ Button.CustomClass "cursRight" ] (fun _ -> cursorMove true wSMod dispatch) "▶" ]
 
 /// ReactElement of the loading button
@@ -580,7 +580,7 @@ let private waveEditorButtons (model: Model) (wSModel:WaveSimModel) dispatch =
     /// this is what actually gets displayed when editor exits
     let closeWaveSimButtonAction _ev =
         dispatch <| StartUICmd CloseWaveSim
-        dispatch <| SetWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
+        dispatch <| SetWSModel {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
         dispatch <| SetWaveSimIsOutOfDate true
         dispatch <| UnlockTabsFromWaveSim
         dispatch <| Sheet (SheetT.ResetSelection)
@@ -864,7 +864,7 @@ let viewWaveSim (model: Model) dispatch =
                     dispatch <| SetWSError None
                     match getCurrentWSMod model with
                     | Some ws -> 
-                        dispatch <| SetWSMod {ws with InitWaveSimGraph=None}
+                        dispatch <| SetWSModel {ws with InitWaveSimGraph=None}
                     | _ -> ()                   
                     dispatch <| ChangeRightTab Catalogue 
                     ) 

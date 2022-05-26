@@ -403,214 +403,7 @@ let truncationWarning table =
     $"The Truth Table has been truncated to {table.TableMap.Count} input combinations.
     Not all rows may be shown. Please use more restrictive input constraints to avoid truncation."
 
-/// Regenerate the Truth Table after applying new input constraints
-let regenerateTruthTable model (dispatch: Msg -> Unit) =
-    match model.CurrentTruthTable with
-    | None -> failwithf "what? Regenerating when no Truth Table exists"
-    | Some (Error e) ->
-        failwithf "what? Input Constraint add option should not exist when there is TT error"
-    | Some (Ok table) ->
-        let ttRes = 
-            try
-                let tt =
-                    truthTableRegen 
-                        table.TableSimData
-                        model.TTInputConstraints
-                        model.TTAlgebraInputs 
-                        model.TTBitLimit
-                if tt.IsTruncated then
-                    let popup = Notifications.warningPropsNotification (truncationWarning tt)
-                    dispatch <| SetPropertiesNotification popup
-                tt.IOOrder 
-                |> List.toArray 
-                |> SetIOOrder 
-                |> dispatch
-                Ok tt
-            with
-            | AlgebraNotImplemented err -> Error err
 
-        ttRes
-        |> GenerateTruthTable
-        |> dispatch
-
-        // Propagate error back up so that subsequent operations on table do not occur
-        match ttRes with
-        | Error e -> raise (AlgebraNotImplemented e)
-        | Ok _ -> ()
-
-/// Hide output columns in the Table
-let hideColumns model (dispatch: Msg -> Unit) =
-    printfn "Hiding Columns: %A" model.TTHiddenColumns
-    match model.CurrentTruthTable with
-    | None -> failwithf "what? Hiding columns when no Truth Table exists"
-    | Some (Error e) ->
-        failwithf "what? Hding columns option should not exist when there is TT error"
-    | Some (Ok table) ->
-        let oldTableMap =
-            // Apply hiding to DCMap if it exists, otherwise TableMap
-            match table.DCMap with
-            | Some dc -> dc
-            | None -> table.TableMap
-        let newTableMap =
-            if oldTableMap.IsEmpty || model.TTHiddenColumns.IsEmpty then
-                oldTableMap
-            else
-                oldTableMap
-                |> Map.map (fun lhs rhs ->
-                    rhs
-                    |> List.filter (fun cell ->
-                        not <| List.contains cell.IO model.TTHiddenColumns))
-        
-        // Removes hidden column IOs from the IO order
-        Array.except model.TTHiddenColumns model.TTIOOrder
-        |> SetIOOrder
-        |> dispatch
-        
-        {table with HiddenColMap = newTableMap}
-        |> Ok
-        |> GenerateTruthTable
-        |> dispatch
-
-/// Apply a single numerical output constraint to a Truth Table Map
-let applyNumericalOutputConstraint (table: Map<TruthTableRow,TruthTableRow>) (con: Constraint) =
-    table
-    |> Map.filter (fun _ right ->
-        right
-        |> List.exists (fun cell ->
-            match con with
-            | Equality e ->
-                if e.IO <> cell.IO then
-                    false
-                else
-                    match cell.Data with
-                    | Algebra _ -> false
-                    | DC -> true
-                    | Bits wd ->
-                        let cellVal = convertWireDataToInt wd
-                        cellVal = e.Value
-            | Inequality i ->
-                if i.IO <> cell.IO then
-                    false
-                else
-                    match cell.Data with
-                    | Algebra _ -> false
-                    | DC -> true
-                    | Bits wd ->
-                        let cellVal = convertWireDataToInt wd
-                        i.LowerBound <= int cellVal && cellVal <= i.UpperBound
-                        ))
-
-/// Apply all output constraints to the Truth Table
-let filterTruthTable model (dispatch: Msg -> Unit) =
-    printfn "Refiltering Table"
-    match model.CurrentTruthTable with
-    | None -> failwithf "what? Trying to filter table when no Truth Table exists"
-    | Some (Error e) ->
-        failwithf "what? Filtering option should not exist when there is TT Error"
-    | Some (Ok table) ->
-        let allOutputConstraints =
-            (model.TTOutputConstraints.Equalities
-            |> List.map Equality)
-            @
-            (model.TTOutputConstraints.Inequalities
-            |> List.map Inequality)
-        let filteredMap =
-            (table.HiddenColMap, allOutputConstraints)
-            ||> List.fold applyNumericalOutputConstraint
-        {table with FilteredMap = filteredMap}
-        |> Ok
-        |> GenerateTruthTable
-        |> dispatch
-
-/// Comparison function for CellData values
-let compareCellData (cd1: CellData) (cd2: CellData) =
-    match cd1, cd2 with
-    | DC, DC -> 0 // X = X
-    | DC, _ -> 1 // DC is considered larger than anything
-    | _, DC -> -1
-    | Algebra _, Bits _ -> 1 // Algebra is considered larger than Bits
-    | Bits _, Algebra _ -> -1
-    | Algebra a1, Algebra a2 -> 
-        compare a1 a2 // Algebra compared by alphabetical order
-    | Bits wd1, Bits wd2 -> // Bits compared by which is largest
-        (convertWireDataToInt wd1, convertWireDataToInt wd2)
-        ||> compare
-
-let sortByIO (io: CellIO) (lst: TruthTableRow list) = 
-    let idx = 
-        lst.Head
-        |> List.tryFindIndex (fun c ->
-            c.IO = io)
-        |> function
-            | Some i -> i
-            | None -> failwithf "what? Failed to find IO: %s while sorting TT" io.getLabel
-    
-    lst
-    |> List.sortWith (fun r1 r2 ->
-        let cd1 = r1[idx].Data
-        let cd2 = r2[idx].Data
-        compareCellData cd1 cd2)
-
-let sortTruthTable model dispatch =
-    match model.CurrentTruthTable with
-    | None -> failwithf "what? Trying to sort table when no Truth Table exists"
-    | Some (Error e) ->
-        failwithf "what? Sorting option should not exist when there is TT Error"
-    | Some (Ok table) ->
-        let sortedTable =
-            match model.TTSortType, tableAsList table.FilteredMap with
-            | _, [] -> {table with SortedListRep = []}
-            | None, lst ->
-                {table with SortedListRep = lst}
-            | Some (io, Ascending), lst ->
-                let sortedLst = sortByIO io lst
-                {table with SortedListRep = sortedLst}
-            | Some (io, Descending), lst ->
-                let sortedLst = 
-                    sortByIO io lst
-                    |> List.rev
-                {table with SortedListRep = sortedLst}
-        sortedTable
-        |> Ok
-        |> GenerateTruthTable
-        |> dispatch
-
-let reorderTruthTable model dispatch =
-    match model.CurrentTruthTable with
-    | None -> failwithf "what? Trying to reorder table when no Truth Table exists"
-    | Some (Error e) ->
-        failwithf "what? Reorder option should not exist when there is TT Error"
-    | Some (Ok table) ->
-        let lstRep = table.SortedListRep
-        if lstRep.IsEmpty then 
-            {table with OrderedArrayRep = [||]}
-            |> Ok
-            |> GenerateTruthTable
-            |> dispatch
-        else
-            let changes =
-                lstRep.Head
-                |> List.mapi (fun i c ->
-                    (i,Array.findIndex (fun io -> io = c.IO) model.TTIOOrder))
-
-            let arrayRep =
-                table.SortedListRep
-                |> list2DToArray2D
-            let arrayCopy =
-                table.SortedListRep
-                |> list2DToArray2D
-
-            changes
-            |> List.iter (fun (o,c) ->
-                arrayCopy
-                |> Array.iteri (fun i arr ->
-                    arrayRep[i][c] <- arr[o]))
-
-            {table with OrderedArrayRep = arrayRep}
-            |> Ok
-            |> GenerateTruthTable
-            |> dispatch
-        
 //-------------------------------------------------------------------------------------//
 //----------View functions for Truth Tables and Tab UI components----------------------//
 //-------------------------------------------------------------------------------------//
@@ -649,8 +442,7 @@ let makeColumnMoveArrows (io: CellIO) headingEl dispatch =
             [
                 Button.Props [colMoveArrowStyle]
                 Button.OnClick (fun _ -> 
-                    (io,MLeft) |> MoveColumn |> dispatch
-                    OrderColumn |> Some |> SetTTOutOfDate |> dispatch)
+                    (io,MLeft) |> MoveColumn |> dispatch)
             ]
             [str "<"]
     let rightArrow = 
@@ -658,8 +450,7 @@ let makeColumnMoveArrows (io: CellIO) headingEl dispatch =
             [
                 Button.Props [colMoveArrowStyle]
                 Button.OnClick (fun _ -> 
-                    (io,MRight) |> MoveColumn |> dispatch
-                    OrderColumn |> Some |> SetTTOutOfDate |> dispatch)
+                    (io,MRight) |> MoveColumn |> dispatch)
             ]
             [str ">"]
     makeElementLine [leftArrow; headingEl; rightArrow] []
@@ -669,24 +460,6 @@ let private makeMenuGroup openDefault title menuList =
         summary [menuLabelStyle] [ str title ]
         Menu.list [] menuList
     ]
-
-let viewCellAsHeading dispatch sortInfo (cell: TruthTableCell) =
-    match cell.IO with
-    | SimIO (_,label,_) ->
-        let headingText = string label
-        th [] 
-            [
-                makeElementLine [makeColumnMoveArrows cell.IO (str headingText) dispatch] 
-                    [makeSortingArrows cell.IO sortInfo dispatch]
-                ] 
-    | Viewer ((label,fullName), width) ->
-        let headingEl =
-            label |> string |> str
-            |> (fun r -> if fullName <> "" then addToolTipTop fullName r else r)
-        th [] [
-            makeElementLine [makeColumnMoveArrows cell.IO headingEl dispatch] 
-                [makeSortingArrows cell.IO sortInfo dispatch]
-            ]
 
 let viewOutputHider table hidden dispatch =
     let makeToggleRow io =
@@ -715,23 +488,49 @@ let viewOutputHider table hidden dispatch =
             |> List.map (fun cell -> makeToggleRow cell.IO [])
         div [] (preamble::toggleRows)
 
-let viewCellAsData (cell: TruthTableCell) =
+let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) (cell: TruthTableCell) =
+    let cellStyle =
+        match Map.tryFind cell.IO styleInfo with
+        | None -> failwithf "what? IO %A not found in Grid Styles" cell.IO
+        | Some s -> Style <| (FontWeight "bold")::s
+    match cell.IO with
+    | SimIO (_,label,_) ->
+        let headingText = string label
+        div [cellStyle] 
+            [
+                makeElementLine [makeColumnMoveArrows cell.IO (str headingText) dispatch] 
+                    [makeSortingArrows cell.IO sortInfo dispatch]
+            ] 
+    | Viewer ((label,fullName), width) ->
+        let headingEl =
+            label |> string |> str
+            |> (fun r -> if fullName <> "" then addToolTipTop fullName r else r)
+        div [cellStyle] [
+            makeElementLine [makeColumnMoveArrows cell.IO headingEl dispatch] 
+                [makeSortingArrows cell.IO sortInfo dispatch]
+            ]
+
+let viewCellAsData i styleInfo (cell: TruthTableCell) =
+    let cellStyle =
+        match Map.tryFind cell.IO styleInfo, i%2 with
+        | None, _ -> failwithf "what? IO %A not found in Grid Styles" cell.IO
+        | Some s, 1 -> Style <| (BackgroundColor "whitesmoke")::s
+        | Some s, _ -> Style s
     match cell.Data with
     | Bits [] -> failwithf "what? Empty WireData in TruthTable"
-    | Bits [bit] -> td [] [str <| bitToString bit]
+    | Bits [bit] -> div [cellStyle] [str <| bitToString bit]
     | Bits bits ->
         let width = List.length bits
         let value = viewFilledNum width Hex <| convertWireDataToInt bits
-        td [] [str value]
-    | Algebra a -> td [] [str <| a]
-    | DC -> td [] [str <| "X"]
+        div [cellStyle] [str value]
+    | Algebra a -> div [cellStyle] [str <| a]
+    | DC -> div [cellStyle] [str <| "X"]
 
-let viewRowAsData (row: TruthTableCell[]) =
+let viewRowAsData styleInfo i (row: TruthTableCell list) =
     let cells =
         row
-        |> Array.map viewCellAsData
-        |> Array.toSeq
-    tr [] cells
+        |> List.map (viewCellAsData i styleInfo)
+    cells
 
 let viewTruthTableError simError =
     let error =
@@ -755,63 +554,31 @@ let viewTruthTableError simError =
         error
     ]
 
-let viewTruthTableData (table: TruthTable) (mapType: MapToUse) sortInfo dispatch =
+let viewTruthTableData (table: TruthTable) (mapType: MapToUse) model dispatch =
     let tMap = table.getMap mapType
+    let sortInfo = model.TTSortType
+    let styleInfo = model.TTGridStyles
     if tMap.IsEmpty then
         div [] [str "No Rows in Truth Table"]
     else
         let headings =
-            table.OrderedArrayRep[0]
-            |> Array.map (viewCellAsHeading dispatch sortInfo) 
-            |> Array.toSeq
+            table.SortedListRep.Head
+            |> List.map (viewCellAsHeading dispatch sortInfo styleInfo) 
+            |> List.toSeq
         let body =
-            table.OrderedArrayRep
-            |> Array.map viewRowAsData
-            |> Array.toSeq
+            table.SortedListRep
+            |> List.mapi (viewRowAsData styleInfo)
+            |> List.concat
+            |> List.toSeq
 
-
-        div [] [
-            Table.table [
-                Table.IsBordered
-                Table.IsFullWidth
-                Table.IsStriped
-                Table.IsHoverable]
-                [
-                    thead [] [tr [] headings]
-                    tbody [] body
-                ]
-        ]
+        let all = Seq.append headings body
+        div [ttGridContainerStyle] all
 
 let viewTruthTable model dispatch =
     // Truth Table Generation for selected components requires all components to have distinct labels.
     // Older Issie versions did not have labels for MergeWires and SplitWire components.
     // This step is needed for backwards compatability with older projects.
     updateMergeSplitWireLabels model dispatch
-
-    let generateTruthTable simRes =
-        match simRes with
-        | Some (Ok sd,_) ->
-            let tt = 
-                truthTable sd model.TTInputConstraints model.TTAlgebraInputs model.TTBitLimit
-            if tt.IsTruncated then
-                let popup = Notifications.warningPropsNotification (truncationWarning tt)
-                dispatch <| SetPropertiesNotification popup
-            tt.IOOrder 
-            |> List.toArray 
-            |> SetIOOrder 
-            |> dispatch
-
-            dispatch <| SetPopupAlgebraInputs (Some [])
-
-            tt
-            |> Ok
-            |> GenerateTruthTable
-            |> dispatch
-        | Some (Error e,_) ->
-            Error e
-            |> GenerateTruthTable
-            |> dispatch
-        | None -> ()
 
     match model.CurrentTruthTable with
     | None ->
@@ -823,14 +590,14 @@ let viewTruthTable model dispatch =
                 Button.button
                     [
                         Button.Color IColor.IsWarning
-                        Button.OnClick (fun _ -> generateTruthTable wholeSimRes)
+                        Button.OnClick (fun _ -> GenerateTruthTable wholeSimRes |> dispatch)
                     ] [str "See Problems"]
             | Some (Ok sd,_) ->
                 if sd.IsSynchronous = false then
                     Button.button
                         [
                             Button.Color IColor.IsSuccess
-                            Button.OnClick (fun _ -> generateTruthTable wholeSimRes)
+                            Button.OnClick (fun _ -> GenerateTruthTable wholeSimRes |> dispatch)
                         ] [str "Generate Truth Table"]
                 else
                     Button.button
@@ -852,14 +619,14 @@ let viewTruthTable model dispatch =
                 Button.button
                     [
                         Button.Color IColor.IsWarning
-                        Button.OnClick (fun _ -> generateTruthTable selSimRes)
+                        Button.OnClick (fun _ -> GenerateTruthTable selSimRes |> dispatch)
                     ] [str "See Problems"]
             | Some (Ok sd,_) ->
                 if sd.IsSynchronous = false then
                     Button.button
                         [
                             Button.Color IColor.IsSuccess
-                            Button.OnClick (fun _ -> generateTruthTable selSimRes)
+                            Button.OnClick (fun _ -> GenerateTruthTable selSimRes |> dispatch)
                         ] [str "Generate Truth Table"]
                 else
                     Button.button
@@ -886,25 +653,17 @@ let viewTruthTable model dispatch =
         ]
     | Some tableopt ->
         match model.TTIsOutOfDate with
-        | Some Regenerate ->
-            try
-                regenerateTruthTable model dispatch
-                // Re-hide columns after regeneration in the next view cycle.
-                // Refilter will be called in the subsequent cycle.
-                HideColumn |> Some |> SetTTOutOfDate |> dispatch
-            with
-            | _ -> None |> SetTTOutOfDate |> dispatch
+        | Some Regenerate -> 
+            dispatch RegenerateTruthTable
+            None |> SetTTOutOfDate |> dispatch
+        | Some Refilter -> 
+            dispatch FilterTruthTable
+            None |> SetTTOutOfDate |> dispatch
+        | Some ReSort -> 
+            dispatch SortTruthTable
+            None |> SetTTOutOfDate |> dispatch
         | Some HideColumn ->
-            hideColumns model dispatch
-            Refilter |> Some |> SetTTOutOfDate |> dispatch
-        | Some Refilter ->
-            filterTruthTable model dispatch
-            ReSort |> Some |> SetTTOutOfDate |> dispatch
-        | Some ReSort ->
-            sortTruthTable model dispatch
-            OrderColumn |> Some |> SetTTOutOfDate |> dispatch
-        | Some OrderColumn ->
-            reorderTruthTable model dispatch
+            dispatch HideTTColumns
             None |> SetTTOutOfDate |> dispatch
         | None -> ()
 
@@ -925,7 +684,7 @@ let viewTruthTable model dispatch =
                 div [] [
                     viewReductions table model dispatch
                     br []; br []
-                    viewTruthTableData table Filtered model.TTSortType dispatch]
+                    viewTruthTableData table Filtered model dispatch]
                
         let constraints =
             match tableopt with

@@ -571,12 +571,6 @@ let createAlgReductionPopup model dispatch =
     dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 let viewReductions (table: TruthTable) (model: Model) dispatch =
-    let startDCReducing () =
-        reduceTruthTable model.TTInputConstraints table model.TTBitLimit
-        |> Ok
-        |> GenerateTruthTable
-        |> dispatch
-        HideColumn |> Some |> SetTTOutOfDate |> dispatch
     let goBackButton = 
         match table.DCMap, model.TTAlgebraInputs with
         | Some _, _::_ -> failwithf "what? Table cannot be DC Reduced and Algebraic"
@@ -596,10 +590,10 @@ let viewReductions (table: TruthTable) (model: Model) dispatch =
             let textEl = 
                 str "Reduce"
                 |> addToolTipRight "DC Reduction unavailable for truncated tables"
-            (Button.button [Button.Disabled true; Button.OnClick (fun _ -> startDCReducing())]
+            (Button.button [Button.Disabled true; Button.OnClick (fun _ -> dispatch DCReduceTruthTable)]
             [textEl])
         else
-            (Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> startDCReducing())]
+            (Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> dispatch DCReduceTruthTable)]
             [str "Reduce"])
     let algebraButton =
         Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> createAlgReductionPopup model dispatch)]

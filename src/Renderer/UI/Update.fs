@@ -379,6 +379,8 @@ let update (msg : Msg) oldModel =
     // special mesages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none
     | SetViewerWidth w -> 
+        printf "orig: %A" model.WaveSimViewerWidth
+        printf "w: %A" w
         // printf "Set WaveSimViewerWidth: %A" w
         {model with WaveSimViewerWidth = w}, Cmd.none
     | ReloadSelectedComponent width -> {model with LastUsedDialogWidth=width}, Cmd.none
@@ -390,8 +392,8 @@ let update (msg : Msg) oldModel =
             // the state here clearly needs refactoring
             if model.Sheet.IsWaveSim then Cmd.ofMsg (Sheet(SheetT.ResetSelection)) else Cmd.none
             ] //Close wavesim
-    | SetWSMod wsModel -> 
-        printf "SetWSMod"
+    | SetWSModel wsModel -> 
+        printf "SetWSModel"
         // printf "%A" wSMod.AllWaves
         {model with WaveSim = wsModel}, Cmd.none
     // | UpdateWSModel updateFn ->
@@ -407,7 +409,7 @@ let update (msg : Msg) oldModel =
     //         | true ->
     //             let model =
     //                 {model with WaveSimSheet = sheet}
-    //                 |> setWSMod ws
+    //                 |> setWSModel ws
     //             model,Cmd.none
     // | SetWSError err -> 
         // { model with WaveSim = fst model.WaveSim, err}, Cmd.none
@@ -473,7 +475,7 @@ let update (msg : Msg) oldModel =
         let model' = model
             // match getSheetWaveSimOpt model, model.PopupDialogData.WaveSetup with
             // | Some wsMod, Some(sheetWaves, paths) -> 
-            //     setWSMod (setSimParams (fun sp -> {sp with MoreWaves = Set.toList paths}) wsMod) model
+            //     setWSModel (setSimParams (fun sp -> {sp with MoreWaves = Set.toList paths}) wsMod) model
             // | _ -> model
         { model' with 
             PopupViewFunc = None;
@@ -603,7 +605,7 @@ let update (msg : Msg) oldModel =
     //             |> (fun ws -> {ws with WSViewState=nView; WSTransition = None})
     //             |> setEditorView nView
     //         model
-    //         |> setWSMod wsMod'
+    //         |> setWSModel wsMod'
     //         |> (fun model -> 
     //             {model with CheckWaveformScrollPosition=checkCursor}, 
     //             Cmd.ofMsg (Sheet(SheetT.SetSpinner false))) //turn off spinner after wavesim is loaded

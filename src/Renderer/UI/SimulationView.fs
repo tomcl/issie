@@ -584,7 +584,7 @@ let viewSimulation model dispatch =
             // match Map.tryFind sheetName (fst model.WaveSim) with
             // | Some wSModel ->
             //     printfn "Closing wavesim..."
-            //     dispatch <| SetWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
+            //     dispatch <| SetWSModel {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
             //     dispatch <| SetWaveSimIsOutOfDate true
             // | None -> ()
     match model.CurrentStepSimulationStep with

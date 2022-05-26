@@ -330,9 +330,9 @@ let getWaveFromNetGroup
         printfn $"Warning: {netGroupName} has no connections"
     // Store first 100 values of waveform
     // TODO: Consider moving the call to this function.
-    FastRun.runFastSimulation 100 fs
+    FastRun.runFastSimulation 500 fs
     let waveValues =
-        [ 0 .. 100]
+        [ 0 .. 500]
         |> List.map (fun i -> FastRun.extractFastSimulationOutput fs i fId opn)
     {
         WaveId = netGroupName // not unique yet - may need to be changed
@@ -529,7 +529,7 @@ let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
                     |> List.concat
                     |> List.distinct
 
-                printf "%A: %A" wave.DisplayName wavePoints
+                // printf "%A: %A" wave.DisplayName wavePoints
 
                 [ polyline (wavePolylineStyle wavePoints) [] ]
             | _ -> 
@@ -733,8 +733,11 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
         failwithf "newClkCycle' should not be less than zero"
     else if newClkCycle' <= endCycle wsModel then
         if newClkCycle' < wsModel.StartCycle then
+            let allWaves = Map.map (generateWave {wsModel with StartCycle = newClkCycle'}) wsModel.AllWaves
+            // let wsMod' = {wsModel with State = Running; AllWaves = allWaves}
             dispatch <| SetWSMod
                 {wsModel with 
+                    AllWaves = allWaves
                     CurrClkCycle = newClkCycle'
                     ClkCycleBoxIsEmpty = false
                     StartCycle = newClkCycle'

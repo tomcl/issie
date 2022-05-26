@@ -52,10 +52,10 @@ let singleWaveWidth wsModel = 30.0 * wsModel.ClkSVGWidth
 
 /// TODO: Make a Constants module
 /// TODO: Tweak these values
+let nonBinaryTransLen : float = 0.2
 /// Height of a waveform
-let waveHeight : float = 0.9
-let nonBinaryTransLen : float = 0.1
-let spacing : float = viewBoxHeight - waveHeight
+let waveHeight : float = 0.8
+let spacing : float = (viewBoxHeight - waveHeight) / 2.
 
 /// TODO: Remove this limit. This stops the waveform simulator moving past 500 clock cycles.
 let maxLastClk = 500
@@ -431,8 +431,8 @@ let getWaveValue (currClkCycle: int) (wave: Wave): int64 =
 let binaryWavePoints (clkCycleWidth: float) (clkCycle: int) (transition: BinaryTransition)  : XYPos list * int =
     let xLeft = float clkCycle * clkCycleWidth
     let xRight = float (clkCycle + 1) * clkCycleWidth
-    let yTop = 0
-    let yBot = waveHeight
+    let yTop = spacing
+    let yBot = waveHeight + spacing
     let topL = {X = xLeft; Y = yTop}
     let topR = {X = xRight; Y = yTop}
     let botL = {X = xLeft; Y = yBot}
@@ -448,19 +448,23 @@ let binaryWavePoints (clkCycleWidth: float) (clkCycle: int) (transition: BinaryT
     | OneToOne ->
         [topL; topR], clkCycle + 1
 
+/// Generates points for non-binary waveforms. Note the left shift by nonBinaryTransLen
 let nonBinaryWavePoints (clkCycleWidth: float) (clkCycle: int) (transition: NonBinaryTransition) : (XYPos list * XYPos list) * int =
     // Use start coord to know where to start the polyline
-    let xLeft = float clkCycle * clkCycleWidth
-    let xRight = float (clkCycle + 1) * clkCycleWidth
-    let yTop = 0
-    let yBot = waveHeight
+    let xLeft = float clkCycle * clkCycleWidth - nonBinaryTransLen
+    let xRight = float (clkCycle + 1) * clkCycleWidth  - nonBinaryTransLen
+    let yTop = spacing
+    let yBot = waveHeight + spacing
     let topL = {X = xLeft; Y = yTop}
     let topR = {X = xRight; Y = yTop}
     let botL = {X = xLeft; Y = yBot}
     let botR = {X = xRight; Y = yBot}
-    let crossHatchTop = {X = xLeft + nonBinaryTransLen; Y = yTop}
-    let crossHatchBot = {X = xLeft + nonBinaryTransLen; Y = yBot}
-    // Each match condition generates a specific transition type
+
+    let crossHatchMid = {X = xLeft + nonBinaryTransLen; Y = 0.5}
+
+    let crossHatchTop = {X = xLeft + nonBinaryTransLen * 2.; Y = yTop}
+    let crossHatchBot = {X = xLeft + nonBinaryTransLen * 2.; Y = yBot}
+
     match transition with
     // This needs to account for different zoom levels:
     // Can probably just look at screen size and zoom level
@@ -469,7 +473,9 @@ let nonBinaryWavePoints (clkCycleWidth: float) (clkCycle: int) (transition: NonB
     // The horizontal part will have length zero.
     // May need to account for odd/even clock cycle
     | Change ->
-        ([topL; crossHatchBot; botR], [botL; crossHatchTop; topR]), clkCycle + 1
+        let topStart = [topL; crossHatchMid; crossHatchTop; topR]
+        let botStart = [botL; crossHatchMid; crossHatchBot; botR]
+        (topStart, botStart), clkCycle + 1
     | Const ->
         ([topL; topR], [botL; botR]), clkCycle + 1
 
@@ -543,7 +549,7 @@ let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
                 let sndLine = polyline (wavePolylineStyle sndWave) []
 
                 [fstLine; sndLine]
-        
+
         let waveform = waveLine
 
         {wave with SVG = Some waveform}
@@ -627,13 +633,12 @@ let selectAll (model: Model) dispatch =
     let allWavesSelected = Map.forall (fun name _ -> isWaveSelected waveSimModel name) waveSimModel.AllWaves
     // let allOn = Map.forall (fun k wave -> isWaveSelected model wave) wSModel.AllWaves
     tr
-        [ rowHeightStyle
-          Style [ VerticalAlign "middle" ]
+        [
+          Style [ VerticalAlign "middle"; Height rowHeight ]
         ]
         [ td
             [ Class "wACheckboxCol"
-              rowHeightStyle
-              Style [ VerticalAlign "middle" ]
+              Style [ VerticalAlign "middle"; Height rowHeight  ]
             ] [ input [
                     Type "checkbox"
                     Class "check"
@@ -669,15 +674,13 @@ let checkboxAndName (name: string) (model: Model) (dispatch: Msg -> unit) =
             []
     // printf "checkboxAndName %A"  (str <| allWaves[name].DisplayName )
 
-    tr
-        [ rowHeightStyle
-          Style [ VerticalAlign "middle" ]
+    tr  [
+          Style [ VerticalAlign "middle" ; Height rowHeight]
         ] 
         [ td
             [ 
                 Class "wAcheckboxCol"
-                rowHeightStyle
-                Style [ VerticalAlign "middle" ] ]
+                Style [ VerticalAlign "middle" ; Height rowHeight] ]
                 [ input
                     [
                         Type "checkbox"
@@ -874,11 +877,11 @@ let moveWave (wsModel: WaveSimModel) (direction: bool) (dispatch: Msg -> unit) :
 let nameRows (wsModel: WaveSimModel) : ReactElement list =
     selectedWaves wsModel
     |> Map.keys |> Seq.toList
-    |> List.map (fun l -> label [ labelStyle; tmpStyle ] [ str l ])
+    |> List.map (fun l -> label [ labelStyle ] [ str l ])
 
 let namesColumn rows : ReactElement = 
-    let top = [ div [ rowHeightStyle; tmpStyle ] [] ]
-    let bottom = [ div [ rowHeightStyle; tmpStyle ] [] ]
+    let top = [ div [ topRowStyle ] [] ]
+    // let bottom = [ div [ rowHeightStyle; tmpStyle ] [] ]
 
     div [ 
             Id "namesColumn"
@@ -892,11 +895,11 @@ let valueRows (wsModel: WaveSimModel) =
     |> Map.values |> Seq.toList
     |> List.map (getWaveValue wsModel.CurrClkCycle)
     |> List.map (valToString wsModel.Radix)
-    |> List.map (fun value -> label [ labelStyle; tmpStyle ] [ str value ])
+    |> List.map (fun value -> label [ labelStyle ] [ str value ])
 
 let private valuesColumn rows : ReactElement =
-    let top = [ div [ rowHeightStyle; tmpStyle ] [] ]
-    let bottom = [ div [ rowHeightStyle; tmpStyle ] [] ]
+    let top = [ div [ topRowStyle ] [] ]
+    // let bottom = [ div [ rowHeightStyle; tmpStyle ] [] ]
 
     div [ 
             Id "valuesColumn"
@@ -943,16 +946,20 @@ let waveformColumn (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement
                     [ div [] [] ]//failwithf "No waveform for selected wave %A" wave.DisplayName
             |> List.append (backgroundSVG wsModel)
             // TODO: Rename this props object
-            |> svg (clkCycleNumberRowProps wsModel)
+            |> svg (waveRowProps wsModel)
         )
 
     let selectedWavesCount = Map.count (selectedWaves wsModel)
 
-    printf "StartCycle: %A" wsModel.StartCycle
-    printf "CurrClkCycle: %A" wsModel.CurrClkCycle
-    printf "ShownCycles: %A" wsModel.ShownCycles
-    printf "EndCycle: %A" (endCycle wsModel)
-    printf "%A" (wsModel.ClkSVGWidth * float (endCycle wsModel + 1))
+    // printf "StartCycle: %A" wsModel.StartCycle
+    // printf "CurrClkCycle: %A" wsModel.CurrClkCycle
+    // printf "ShownCycles: %A" wsModel.ShownCycles
+    // printf "EndCycle: %A" (endCycle wsModel)
+    // printf "%A" (wsModel.ClkSVGWidth * float (endCycle wsModel + 1))
+    // printf "%A" (float wsModel.ShownCycles * wsModel.ClkSVGWidth * 30.0)
+
+    // printf "WaveformColumnWidt: %A" wsModel.WaveformColumnWidth
+    // printf "WaveSimViewerWidth: %A" model.WaveSimViewerWidth
 
     div [ 
             Id "wavesColumn"
@@ -978,7 +985,7 @@ let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
         ]
 
 let waveViewerPane simData rState (model: Model) (dispatch: Msg -> unit) : ReactElement =
-    printf "WaveSimViewerWidth: %A" model.WaveSimViewerWidth
+    // printf "WaveSimViewerWidth: %A" model.WaveSimViewerWidth
     div [ waveViewerPaneStyle model ]
         [
             // closeWaveSim, radixTabs, changeClkTick, zoomButtons

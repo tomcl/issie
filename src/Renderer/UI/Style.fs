@@ -154,15 +154,14 @@ let menuLabelStyle = Style [
 
 // Waveform simulator styles
 
-let namesColMinWidth = 215
-let valuesColMinWidth = 75
+let namesColMinWidth = 250
+let valuesColMinWidth = 100
 // TODO: Explain why: 30*width, width is 1.5, so that's 45. This is 8 cycles (0 to 7)
 // This should be divisible by 45
-let initialWaveformColWidth = rightSectionWidthViewerDefault - namesColMinWidth - valuesColMinWidth
+// let initialWaveformColWidth = rightSectionWidthViewerDefault - namesColMinWidth - valuesColMinWidth
+let initialWaveformColWidth = int( 1.5 * float (30 * 7)) //rightSectionWidthViewerDefault - namesColMinWidth - valuesColMinWidth
 
-let rowHeightStyle = Style [
-    Height "30px"
-]
+let rowHeight = "30px"
 
 let checkBoxColStyle = Style [
     BorderRight "2px solid #dbdbdb"
@@ -260,8 +259,8 @@ let upDownButtonStyle = Style [
 ]
 
 let labelStyle = Style [
-    Fill "black"
-    Margin "5px"
+    Height rowHeight
+    BorderBottom "1px solid rgb(219,219,219)"
 ]
 
 let borderProperties = "2px solid rgb(219,219,219)"
@@ -277,10 +276,11 @@ let waveSimColumn width = [
     BorderTop borderProperties
     Display DisplayOptions.Grid
     GridAutoRows "30px" 
-    VerticalAlign "bottom"
+    // VerticalAlign "middle"
     FontSize "12px"
     OverflowX OverflowOptions.Scroll
     WhiteSpace WhiteSpaceOptions.Nowrap
+    LineHeight "25px"
 ]
 
 let namesColumnStyle (width: float option) = Style (
@@ -349,8 +349,14 @@ let endCycle wsModel = wsModel.StartCycle + wsModel.ShownCycles - 1
 
 let clkLineWidth = 0.0125
 
+let topRowStyle = Style [
+    Height rowHeight
+    BorderBottom "2px solid rgb(219,219,219)"
+]
+
 let tmpStyle = Style [
-    BorderBottom borderProperties
+    Height rowHeight
+    BorderBottom "1px solid rgb(219,219,219)"
 ]
 
 let clkLineStyle = Style [
@@ -384,6 +390,23 @@ let clkCycleNumberRowProps m : IProp list =
     PreserveAspectRatio "none"
     clkCycleSVGStyle
 ]
+
+let waveRowSVGStyle = Style [
+    Display DisplayOptions.Block
+    BorderBottom "1px solid rgb(219,219,219)"
+]
+
+let waveRowProps m : IProp list =
+    [
+    SVGAttr.Height "30px"
+    SVGAttr.Width (float m.ShownCycles * 30.0 * m.ClkSVGWidth)
+    // min-x, min-y, width, height
+    ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string viewBoxHeight)
+    PreserveAspectRatio "none"
+    waveRowSVGStyle
+]
+
+
 
 // This controls the background highlighting of which clock cycle is selected
 let clkCycleHighlightSVG m count = 

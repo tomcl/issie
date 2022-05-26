@@ -575,42 +575,6 @@ let sortTruthTable model dispatch =
         |> GenerateTruthTable
         |> dispatch
 
-let reorderTruthTable model dispatch =
-    match model.CurrentTruthTable with
-    | None -> failwithf "what? Trying to reorder table when no Truth Table exists"
-    | Some (Error e) ->
-        failwithf "what? Reorder option should not exist when there is TT Error"
-    | Some (Ok table) ->
-        let lstRep = table.SortedListRep
-        if lstRep.IsEmpty then 
-            {table with OrderedArrayRep = [||]}
-            |> Ok
-            |> GenerateTruthTable
-            |> dispatch
-        else
-            let changes =
-                lstRep.Head
-                |> List.mapi (fun i c ->
-                    (i,Array.findIndex (fun io -> io = c.IO) model.TTIOOrder))
-
-            let arrayRep =
-                table.SortedListRep
-                |> list2DToArray2D
-            let arrayCopy =
-                table.SortedListRep
-                |> list2DToArray2D
-
-            changes
-            |> List.iter (fun (o,c) ->
-                arrayCopy
-                |> Array.iteri (fun i arr ->
-                    arrayRep[i][c] <- arr[o]))
-
-            {table with OrderedArrayRep = arrayRep}
-            |> Ok
-            |> GenerateTruthTable
-            |> dispatch
-        
 //-------------------------------------------------------------------------------------//
 //----------View functions for Truth Tables and Tab UI components----------------------//
 //-------------------------------------------------------------------------------------//
@@ -649,8 +613,7 @@ let makeColumnMoveArrows (io: CellIO) headingEl dispatch =
             [
                 Button.Props [colMoveArrowStyle]
                 Button.OnClick (fun _ -> 
-                    (io,MLeft) |> MoveColumn |> dispatch
-                    OrderColumn |> Some |> SetTTOutOfDate |> dispatch)
+                    (io,MLeft) |> MoveColumn |> dispatch)
             ]
             [str "<"]
     let rightArrow = 
@@ -658,8 +621,7 @@ let makeColumnMoveArrows (io: CellIO) headingEl dispatch =
             [
                 Button.Props [colMoveArrowStyle]
                 Button.OnClick (fun _ -> 
-                    (io,MRight) |> MoveColumn |> dispatch
-                    OrderColumn |> Some |> SetTTOutOfDate |> dispatch)
+                    (io,MRight) |> MoveColumn |> dispatch)
             ]
             [str ">"]
     makeElementLine [leftArrow; headingEl; rightArrow] []
@@ -669,24 +631,6 @@ let private makeMenuGroup openDefault title menuList =
         summary [menuLabelStyle] [ str title ]
         Menu.list [] menuList
     ]
-
-let viewCellAsHeading dispatch sortInfo (cell: TruthTableCell) =
-    match cell.IO with
-    | SimIO (_,label,_) ->
-        let headingText = string label
-        th [] 
-            [
-                makeElementLine [makeColumnMoveArrows cell.IO (str headingText) dispatch] 
-                    [makeSortingArrows cell.IO sortInfo dispatch]
-                ] 
-    | Viewer ((label,fullName), width) ->
-        let headingEl =
-            label |> string |> str
-            |> (fun r -> if fullName <> "" then addToolTipTop fullName r else r)
-        th [] [
-            makeElementLine [makeColumnMoveArrows cell.IO headingEl dispatch] 
-                [makeSortingArrows cell.IO sortInfo dispatch]
-            ]
 
 let viewOutputHider table hidden dispatch =
     let makeToggleRow io =
@@ -715,23 +659,49 @@ let viewOutputHider table hidden dispatch =
             |> List.map (fun cell -> makeToggleRow cell.IO [])
         div [] (preamble::toggleRows)
 
-let viewCellAsData (cell: TruthTableCell) =
+let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) (cell: TruthTableCell) =
+    let cellStyle =
+        match Map.tryFind cell.IO styleInfo with
+        | None -> failwithf "what? IO %A not found in Grid Styles" cell.IO
+        | Some s -> Style <| (FontWeight "bold")::s
+    match cell.IO with
+    | SimIO (_,label,_) ->
+        let headingText = string label
+        div [cellStyle] 
+            [
+                makeElementLine [makeColumnMoveArrows cell.IO (str headingText) dispatch] 
+                    [makeSortingArrows cell.IO sortInfo dispatch]
+            ] 
+    | Viewer ((label,fullName), width) ->
+        let headingEl =
+            label |> string |> str
+            |> (fun r -> if fullName <> "" then addToolTipTop fullName r else r)
+        div [cellStyle] [
+            makeElementLine [makeColumnMoveArrows cell.IO headingEl dispatch] 
+                [makeSortingArrows cell.IO sortInfo dispatch]
+            ]
+
+let viewCellAsData i styleInfo (cell: TruthTableCell) =
+    let cellStyle =
+        match Map.tryFind cell.IO styleInfo, i%2 with
+        | None, _ -> failwithf "what? IO %A not found in Grid Styles" cell.IO
+        | Some s, 1 -> Style <| (BackgroundColor "whitesmoke")::s
+        | Some s, _ -> Style s
     match cell.Data with
     | Bits [] -> failwithf "what? Empty WireData in TruthTable"
-    | Bits [bit] -> td [] [str <| bitToString bit]
+    | Bits [bit] -> div [cellStyle] [str <| bitToString bit]
     | Bits bits ->
         let width = List.length bits
         let value = viewFilledNum width Hex <| convertWireDataToInt bits
-        td [] [str value]
-    | Algebra a -> td [] [str <| a]
-    | DC -> td [] [str <| "X"]
+        div [cellStyle] [str value]
+    | Algebra a -> div [cellStyle] [str <| a]
+    | DC -> div [cellStyle] [str <| "X"]
 
-let viewRowAsData (row: TruthTableCell[]) =
+let viewRowAsData styleInfo i (row: TruthTableCell list) =
     let cells =
         row
-        |> Array.map viewCellAsData
-        |> Array.toSeq
-    tr [] cells
+        |> List.map (viewCellAsData i styleInfo)
+    cells
 
 let viewTruthTableError simError =
     let error =
@@ -755,32 +725,25 @@ let viewTruthTableError simError =
         error
     ]
 
-let viewTruthTableData (table: TruthTable) (mapType: MapToUse) sortInfo dispatch =
+let viewTruthTableData (table: TruthTable) (mapType: MapToUse) model dispatch =
     let tMap = table.getMap mapType
+    let sortInfo = model.TTSortType
+    let styleInfo = model.TTGridStyles
     if tMap.IsEmpty then
         div [] [str "No Rows in Truth Table"]
     else
         let headings =
-            table.OrderedArrayRep[0]
-            |> Array.map (viewCellAsHeading dispatch sortInfo) 
-            |> Array.toSeq
+            table.SortedListRep.Head
+            |> List.map (viewCellAsHeading dispatch sortInfo styleInfo) 
+            |> List.toSeq
         let body =
-            table.OrderedArrayRep
-            |> Array.map viewRowAsData
-            |> Array.toSeq
+            table.SortedListRep
+            |> List.mapi (viewRowAsData styleInfo)
+            |> List.concat
+            |> List.toSeq
 
-
-        div [] [
-            Table.table [
-                Table.IsBordered
-                Table.IsFullWidth
-                Table.IsStriped
-                Table.IsHoverable]
-                [
-                    thead [] [tr [] headings]
-                    tbody [] body
-                ]
-        ]
+        let all = Seq.append headings body
+        div [ttGridContainerStyle] all
 
 let viewTruthTable model dispatch =
     // Truth Table Generation for selected components requires all components to have distinct labels.
@@ -902,9 +865,6 @@ let viewTruthTable model dispatch =
             ReSort |> Some |> SetTTOutOfDate |> dispatch
         | Some ReSort ->
             sortTruthTable model dispatch
-            OrderColumn |> Some |> SetTTOutOfDate |> dispatch
-        | Some OrderColumn ->
-            reorderTruthTable model dispatch
             None |> SetTTOutOfDate |> dispatch
         | None -> ()
 
@@ -925,7 +885,7 @@ let viewTruthTable model dispatch =
                 div [] [
                     viewReductions table model dispatch
                     br []; br []
-                    viewTruthTableData table Filtered model.TTSortType dispatch]
+                    viewTruthTableData table Filtered model dispatch]
                
         let constraints =
             match tableopt with

@@ -21,6 +21,7 @@ open DrawModelType
 open Fable.SimpleJson
 open Helpers
 open NumberHelpers
+open DiagramStyle
 
 
 //---------------------------------------------------------------------------------------------//
@@ -63,13 +64,6 @@ let private writeUserData (model:Model) =
         |> function | Error mess -> printfn "%s" mess | _ -> ())
     |> ignore
     
-        
-        
-
-        
-    
-    
-
 /// subfunction used in model update function
 let private getSimulationDataOrFail model msg =
     match model.CurrentStepSimulationStep with
@@ -79,6 +73,13 @@ let private getSimulationDataOrFail model msg =
         | Error _ -> failwithf "what? Getting simulation data when could not start because of error: %s" msg
         | Ok simData -> simData
 
+let private getTruthTableOrFail model msg =
+    match model.CurrentTruthTable with
+    | None -> failwithf "what? Getting truth table when no table has been generated: %s" msg
+    | Some res ->
+        match res with
+        | Error _ -> failwithf "what? Getting truth table when there is error in generation: %s" msg
+        | Ok tt -> tt
 
 
 let verilogOutputPage sheet fPath  =
@@ -368,8 +369,15 @@ let update (msg : Msg) oldModel =
         { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber + n } |> Ok |> Some }, Cmd.none
     | EndSimulation -> { model with CurrentStepSimulationStep = None }, Cmd.none
     | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
-    | GenerateTruthTable table -> 
-        {model with CurrentTruthTable = Some table}, Cmd.none
+    | GenerateTruthTable table ->
+        let colStyles = 
+            match table with
+            | Error _ -> Map.empty
+            | Ok tt -> 
+                tt.IOOrder
+                |> List.mapi (fun i io -> (io,ttGridColumnProps i))
+                |> Map.ofList 
+        {model with CurrentTruthTable = Some table; TTGridStyles = colStyles}, Cmd.none
     | CloseTruthTable -> 
         {model with CurrentTruthTable = None}, Cmd.none
     | SetTTOutOfDate b ->
@@ -454,27 +462,24 @@ let update (msg : Msg) oldModel =
     | SetTTSortType stOpt ->
         {model with TTSortType = stOpt}, Cmd.none
     | MoveColumn (io, dir) ->
-        match model.CurrentTruthTable with
-        | None -> failwithf "what? Ordering columns when no Truth Table exists"
-        | Some (Error e) ->
-            failwithf "what? Order column option should not exist when there is TT error"
-        | Some (Ok table) ->
-            let oldOrder = model.TTIOOrder
-            let idx = 
-                oldOrder
-                |> Array.findIndex (fun cIO -> cIO = io)
-            let newOrder =
-                match dir, idx with
-                | MLeft, 0 -> oldOrder
-                | MLeft, i -> swapArrayEls (i) (i-1) oldOrder
-                | MRight, i -> 
-                    if i = (oldOrder.Length-1) then
-                        oldOrder
-                    else
-                        swapArrayEls (idx) (idx+1) oldOrder
-
-            printfn "New Order: %A" newOrder
-            {model with TTIOOrder = newOrder}, Cmd.none
+        let oldOrder = model.TTIOOrder
+        let idx = 
+            oldOrder
+            |> Array.findIndex (fun cIO -> cIO = io)
+        let newOrder =
+            match dir, idx with
+            | MLeft, 0 -> oldOrder
+            | MLeft, i -> swapArrayEls (i) (i-1) oldOrder
+            | MRight, i -> 
+                if i = (oldOrder.Length-1) then
+                    oldOrder
+                else
+                    swapArrayEls (idx) (idx+1) oldOrder
+        let newStyles =
+            newOrder
+            |> Array.mapi (fun i io -> (io,ttGridColumnProps i))
+            |> Map.ofArray
+        {model with TTIOOrder = newOrder; TTGridStyles = newStyles}, Cmd.none
     | SetIOOrder x -> 
         {model with TTIOOrder = x}, Cmd.none
     | SetTTAlgebraInputs lst ->

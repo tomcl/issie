@@ -460,6 +460,8 @@ type Model = {
     TTSortType: (CellIO * SortType) option
     // what is the display order of IOs in Table
     TTIOOrder: CellIO []
+    // Grid Styles for each column in the Table
+    TTGridStyles: Map<CellIO,Props.CSSProp list>
     // which of the Truth Table's inputs are currently algebra
     TTAlgebraInputs: SimulationIO list
     // which of the tabbed panes is currently visible

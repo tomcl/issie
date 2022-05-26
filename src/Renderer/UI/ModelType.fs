@@ -289,7 +289,12 @@ type Msg =
     | IncrementSimulationClockTick of int
     | EndSimulation
     | EndWaveSim
-    | GenerateTruthTable of Result<TruthTable, SimulationError>
+    | GenerateTruthTable of option<Result<SimulationData,SimulationError> * CanvasState>
+    | RegenerateTruthTable
+    | FilterTruthTable
+    | SortTruthTable
+    | DCReduceTruthTable
+    | HideTTColumns
     | CloseTruthTable
     | SetTTOutOfDate of ReasonOutOfDate option
     | ClearInputConstraints

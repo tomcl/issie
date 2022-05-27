@@ -156,21 +156,21 @@ If you want to get started as a developer, follow these steps.
 Download and install (if you already have these tools installed just check the version constraints).
 
 
-* [.Net 6 SDK (not runtime)](https://dotnet.microsoft.com/en-us/download).  Version >= 6.0
-* [Node.js v16](https://nodejs.org/en/).
-    * Node.js `v16` includes the `npm` package manager v8.x
-    * If you are using a different version of Node for development on other projects, global install 
+* [.Net 6 SDK](https://dotnet.microsoft.com/download/dotnet/5.0).  Version >= 6.0, < 7
+* [Node.js v16](https://nodejs.org/en/). **v16 LTS - NOT latest 18**
+    * Node.js includes the `npm` package manager, so this does not need to be installed separately.
+    * If you are using a different version of Node for developmnet on other projects, global install 
     (the default) may interfere with this. You will need to do a more complex local node install.
-* Visual Studio 2022 (for mac or windows) or Visual Studio Code + Ionide extension.
-* (recommended) install [hyper.js](https://hyper.is/) to have a good command-line interpreter program - anything else you like will do.
+* (recommended) Visual Studio 2022 which includes F# 6.0, Install with:
+  * Workload: .Net Desktop development
+  * Ticked: F# language support
+* (recommended) install [hyper.js](https://hyper.is/) or (better on Windows is  [Windows Terminal](https://github.com/microsoft/terminal).
 
 ### Issie Development
 
-1. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or if contributing clone it locally, or fork it on github and then clone it locally. 
+1. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or clone it locally, or fork it on github and then clone it locally. 
 
-3. Navigate to the project root directory (which contains this README) in a command-line interpreter. For Windows usage make sure if possible for convenience 
-that you have a command-line interpreter that can be started direct from file explorer within a specific directory (by right-clicking on the explorer directory view). 
-That makes things a lot more pleasant. [Hyper.js](https:hyper.is) works well.
+3. Navigate to the project root directory (which contains this README) in a command-line interpreter, or start one from directory context menu.
 
 4. Run `build.cmd` under Windows or `build.sh` under linux or macos. This will download and install all dependencies then launch the application in dev mode with HMR.
   
@@ -234,9 +234,4 @@ To reinstall the build environment (without changing project code) rerun `build.
 `npm run dist` will generate the correct binaries for your system under `/dist`. 
 
 
-
-## TODO
-
-* Clean up Paket dependencies
-* Document and clean up CSS/SCSS build
 

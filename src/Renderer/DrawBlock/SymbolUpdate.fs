@@ -30,15 +30,12 @@ let generateLabelNumber listSymbols compType =
         listSymbols
         |> List.filter (samePrefix compType)
 
-    match compType with
-    | MergeWires | SplitWire _ -> ""
-    | _ ->
-        if List.isEmpty samePrefixLst then 1 
-        else samePrefixLst
-            |> List.map (fun sym -> getLabelNumber sym.Component.Label)
-            |> List.max
-            |> (+) 1
-        |> string
+    if List.isEmpty samePrefixLst then 1 
+    else samePrefixLst
+        |> List.map (fun sym -> getLabelNumber sym.Component.Label)
+        |> List.max
+        |> (+) 1
+    |> string
 
 /// Generates the label for a component type
 let generateLabel (model: Model) (compType: ComponentType) : string =

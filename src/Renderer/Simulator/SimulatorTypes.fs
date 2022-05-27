@@ -189,8 +189,251 @@ type FastData =
         | BigWord n when this.Width <= 32 -> uint32 n
         | _ -> failwithf $"Can't turn {this} into a uint32"
 
+//-------------------------------------------------------------------------------------//
+//-----------------------------TT Algebra Types----------------------------------------//
+//-------------------------------------------------------------------------------------//
 
+// Types used for Algebraic Truth Tables caluclated in the Fast Simulation
+// Defined here instead of in TruthTableTypes.fs because they are used in the FastSimulation
 
+// Binary Algebraic Operators
+type BinaryOp = 
+    | AddOp // A + B (mathematical addition)
+    | SubOp // A - B (mathematical subtraction)
+    | BitAndOp // A & B (bitwise AND)
+    | BitOrOp // A | B (bitwise OR)
+    | BitXorOp // A XOR B (bitwise XOR)
+    //| AppendOp // B::A (B becomes MSB, A becomes LSB)
+
+// Unary Algebraic Operators
+type UnaryOp = 
+    | NegOp // -A (mathematical negation, bitwise two's complement)
+    | NotOp // bit inversion (bitwise XOR with -1)
+    | ValueOfOp // value(A) (for A = -5, this would return 5)
+    | BitRangeOp of Lower:int * Upper:int // A[upper:lower] (subset of bits of A)
+    | CarryOfOp
+
+// Comparison between expression and constant
+type ComparisonOp = | Equals
+
+// Type for algebraic expressions in Issie
+type FastAlgExp =
+    | SingleTerm of SimulationIO
+    | DataLiteral of FastData
+    | UnaryExp of Op: UnaryOp * Exp: FastAlgExp
+    | BinaryExp of Exp1: FastAlgExp * Op: BinaryOp * Exp2: FastAlgExp
+    | ComparisonExp of Exp: FastAlgExp * Op: ComparisonOp * uint32
+    | AppendExp of FastAlgExp list
+
+/// Calculates and returns the expected width of an Algebraic Expression
+let rec getAlgExpWidth (exp: FastAlgExp) = 
+    match exp with
+    | SingleTerm (_,_,w) -> w
+    | DataLiteral d -> d.Width
+    | UnaryExp (BitRangeOp(l,u),_) -> u-l+1
+    | UnaryExp (CarryOfOp,_) -> 1
+    // Assuming all other unary operators do not change width of expression
+    | UnaryExp (_,exp) -> getAlgExpWidth exp
+    // Assuming all other binary operators do not change width of expression
+    // Return the greatest width
+    | BinaryExp (exp1,_,exp2) -> 
+        let w1 = getAlgExpWidth exp1
+        let w2 = getAlgExpWidth exp2
+        if w1 > w2 then w1 else w2
+    | ComparisonExp _ -> 1
+    | AppendExp exps ->
+        if exps.IsEmpty then
+            failwithf "what? List in AppendExp is empty"
+        else
+            (0,exps)
+            ||> List.fold (fun w exp -> w + getAlgExpWidth exp)
+
+// /// Converts multiple AppendOps which would usually be nested inside one another
+// /// to a list of expressions for easier evaluation and clearer printing
+// let rec flattenNestedAppends exp =
+//     match exp with
+//     | BinaryExp (left,AppendOp,right) ->
+//         (flattenNestedAppends left) @ (flattenNestedAppends right)
+//     | _ -> [exp]
+
+let tryBitwiseOperation (expressions: FastAlgExp list) =
+    match expressions with
+    | [] -> failwithf "what? Expressions List should never be empty"
+    | (BinaryExp(_,AddOp,_))::tl | (BinaryExp(_,SubOp,_))::tl -> None
+    | (BinaryExp(UnaryExp(BitRangeOp(_,_),left),bop,UnaryExp(BitRangeOp(_,_),right)))::tl ->
+        let rec checkList exps state remBits =
+            match (exps: FastAlgExp list), state with
+            | [], s -> s, remBits
+            | hd::tl, false -> checkList tl false remBits
+            | (BinaryExp (UnaryExp(BitRangeOp(ll,lu),l),op,UnaryExp(BitRangeOp(rl,ru),r)))::tl, true ->
+                if ll = lu && ll = rl && rl = ru && l = left && r = right && op = bop then
+                    let newRemBits = List.except [ll] remBits
+                    checkList tl true newRemBits
+                else 
+                    checkList tl false remBits
+            | _::tl, s ->
+                checkList tl false remBits
+        let widthL, widthR = 
+            getAlgExpWidth left, getAlgExpWidth right
+        if widthL <> widthR then
+            None
+        else
+            let remBits = [0..(widthL-1)]
+            match checkList expressions true remBits with
+            | true, [] ->
+                BinaryExp (left,bop,right)
+                |> Some
+            | _,_ -> None
+    | _ -> None
+
+/// Converts an Algebraic Expression to a string for pretty printing
+let expToString exp =
+    let rec expToString' (exp: FastAlgExp) =
+        match exp with
+        | SingleTerm (_,label,_) ->
+            string label
+        | DataLiteral {Dat=Word w; Width=_} -> string w  
+        | DataLiteral {Dat=BigWord w; Width=_} -> string w
+        | UnaryExp (NegOp,exp) ->
+            let expStr = expToString' exp
+            $"(-{expStr})"
+        | UnaryExp (NotOp,exp) ->
+            let expStr = expToString' exp
+            $"(~{expStr})"
+        | UnaryExp (ValueOfOp,exp) ->
+            let expStr = expToString' exp
+            $"{expStr}"
+        | UnaryExp (BitRangeOp(low,up),exp) ->
+            let expStr = expToString' exp
+            if low = up then // Replace A[x:x] with A[x]
+                $"{expStr}[{up}]"
+            else if getAlgExpWidth exp = (up-low+1) then
+                // Replace A[w-1:0] with A when A has width w
+                expStr
+            else
+                $"{expStr}[{up}:{low}]"
+        | UnaryExp (CarryOfOp,exp) ->
+            let expStr = expToString' exp
+            $"carry({expStr})"
+        | BinaryExp (exp1, AddOp, exp2) ->
+            let expStr1 = expToString' exp1
+            let expStr2 = expToString' exp2
+            $"({expStr1}+{expStr2})"
+        | BinaryExp (exp1, SubOp, exp2) ->
+            let expStr1 = expToString' exp1
+            let expStr2 = expToString' exp2
+            $"({expStr1}-{expStr2})"
+        | BinaryExp (exp1, BitAndOp, exp2) ->
+            let expStr1 = expToString' exp1
+            let expStr2 = expToString' exp2
+            $"({expStr1}&{expStr2})"
+        | BinaryExp (exp1, BitOrOp, exp2) ->
+            let expStr1 = expToString' exp1
+            let expStr2 = expToString' exp2
+            $"({expStr1}|{expStr2})"
+        | BinaryExp (exp1, BitXorOp, exp2) ->
+            let expStr1 = expToString' exp1
+            let expStr2 = expToString' exp2
+            $"({expStr1}⊕{expStr2})"
+        | ComparisonExp (exp, Equals, x) ->
+            let expStr = expToString' exp
+            $"({expStr} == {string x})"
+        | AppendExp exps ->
+            exps
+            |> List.map expToString'
+            |> String.concat "::"
+            |> fun s -> $"({s})"
+
+    let expS = expToString' exp
+    // Remove the parentheses from the outermost expression
+    if expS.StartsWith "(" && expS.EndsWith ")" then
+        expS[1..(expS.Length-2)]
+    else
+        expS
+
+/// Recursively evaluates an expression to reduce it to its simplest form
+let rec evalExp exp =
+    match exp with
+    | SingleTerm _ -> exp
+    | DataLiteral _ -> exp
+    | UnaryExp (NotOp, exp) ->
+        match evalExp exp with
+        | UnaryExp (NotOp, inner) -> // Catch double inversion ~(~(A))
+            evalExp inner
+        | _ ->
+            let evaluated = evalExp exp
+            UnaryExp (NotOp, evaluated)
+    | UnaryExp (NegOp, UnaryExp(NegOp,exp)) -> // Catch double negation -(-(A))
+        match evalExp exp with
+        | UnaryExp (NegOp, inner) ->
+            evalExp inner
+        | _ ->
+            let evaluated = evalExp exp
+            UnaryExp (NegOp, evaluated)
+    | UnaryExp (op,exp) ->
+        let evaluated = evalExp exp
+        UnaryExp (op,evaluated)
+    | BinaryExp (exp1, BitAndOp, exp2) ->
+        let left = evalExp exp1
+        let right = evalExp exp2
+        match left, right with
+        // AND with 0 is always 0
+        | exp, DataLiteral {Dat= Word 0u;Width=w}
+        | DataLiteral {Dat= Word 0u;Width=w}, exp ->
+            DataLiteral {Dat= Word 0u;Width=w}
+        // AND with 1 is always the other operand
+        | exp, DataLiteral {Dat= Word 1u;Width=_}
+        | DataLiteral {Dat= Word 1u;Width=_}, exp ->
+            exp
+        | l,r -> BinaryExp (l,BitAndOp,r)
+    | BinaryExp (exp1, BitOrOp, exp2) ->
+        let left = evalExp exp1
+        let right = evalExp exp2
+        match left, right with
+        // OR with 0 is always the other operand
+        | exp, DataLiteral {Dat= Word 0u;Width=_}
+        | DataLiteral {Dat= Word 0u;Width=_}, exp ->
+            exp
+        // OR with 1 is always 1
+        | exp, DataLiteral {Dat= Word 1u;Width=w}
+        | DataLiteral {Dat= Word 1u;Width=w}, exp ->
+            DataLiteral {Dat= Word 1u;Width=w}
+        | l,r -> BinaryExp (l,BitOrOp,r)
+    | BinaryExp (exp1, BitXorOp, exp2) ->
+        let left = evalExp exp1
+        let right = evalExp exp2
+        match left, right with
+        // XOR with 0 is always the other operand
+        | exp, DataLiteral {Dat= Word 0u;Width=_}
+        | DataLiteral {Dat= Word 0u;Width=_}, exp ->
+            exp
+        // XOR with 1 is always the inverse of the other operand
+        | exp, DataLiteral {Dat= Word 1u;Width=_}
+        | DataLiteral {Dat= Word 1u;Width=_}, exp ->
+            UnaryExp (NotOp,exp)
+        | l,r -> BinaryExp (l,BitXorOp,r)
+    | BinaryExp (exp1, op, exp2) ->
+        let left = evalExp exp1
+        let right = evalExp exp2
+        BinaryExp (left, op, right)
+    | ComparisonExp (exp, Equals, x) ->
+        let evaluated = evalExp exp
+        ComparisonExp (evaluated, Equals, x)
+    | AppendExp exps ->
+        let evaluated = List.map evalExp exps
+        evaluated
+        |> tryBitwiseOperation
+        |> function
+            | Some e -> e
+            | None -> AppendExp evaluated
+/// Raised when an Algebraic case is found in FastSim which has not been implemented,
+/// or does not make sense to implement.
+exception AlgebraNotImplemented of SimulationError
+
+// Types that can be passed to and retrieved from the Fast Simulation
+type FSInterface =
+    | IData of WireData
+    | IAlg of FastAlgExp
 
 //------------------------------------------------------------------------------//
 //-------------------EXPERIMENTAL - new data structure to replace WireData------//
@@ -427,7 +670,21 @@ let appendBits (fMS: FastData) (fLS: FastData) : FastData =
    
 type FComponentId = ComponentId * ComponentId list
 
-type FData = FastData // for now...
+type FData = | Data of FastData | Alg of FastAlgExp
+    with
+    member this.Width =
+        match this with
+        | Data d -> d.Width
+        | Alg exp -> getAlgExpWidth exp
+    member this.fdToString =
+        match this with
+        | Data {Dat=Word w; Width=_} -> string w
+        | Data {Dat=BigWord w; Width=_} -> string w
+        | Alg exp ->  expToString exp
+    member this.toExp =
+        match this with
+        | Alg exp -> exp
+        | Data fd -> DataLiteral fd
 
 /// Wrapper to allow arrays to be resized for longer simulations while keeping the links between inputs
 /// and outputs
@@ -588,6 +845,7 @@ type WaveformSpec = {
     Width: int
     }
 
+
 //-------------------------------------------------------------------------------------//
 //-------------------Helper functions for simulation types-----------------------------//
 //-------------------------------------------------------------------------------------//
@@ -672,7 +930,9 @@ let makeAllNetGroups (netList:NetList) :NetGroup array=
 
 let getFastOutputWidth (fc: FastComponent) (opn: OutputPortNumber) =
     let (OutputPortNumber n) = opn
-    fc.Outputs[n].Step[0].Width
+    match fc.Outputs[n].Step[0] with
+    | Data fd -> fd.Width
+    | Alg exp -> getAlgExpWidth exp
 
 let getWaveformSpecFromFC (fc: FastComponent) =
     let viewerName = extractLabel fc.SimComponent.Label

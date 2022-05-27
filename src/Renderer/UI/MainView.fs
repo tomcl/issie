@@ -13,6 +13,7 @@ open DrawModelType
 
 open Fable.Core
 open Fable.Core.JsInterop
+open Browser.Dom
 
 //------------------Buttons overlaid on Draw2D Diagram----------------------------------//
 //--------------------------------------------------------------------------------------//
@@ -212,6 +213,10 @@ let dividerbar (model:Model) dispatch =
         model.RightPaneTabVisible = Simulation 
         && (model.SimSubTabVisible = WaveSim 
         || model.SimSubTabVisible = TruthTable)
+    let heightAttr = 
+        let rightSection = document.getElementById "RightSection"
+        if (isNull rightSection) then Height "100%"
+        else Height rightSection.scrollHeight
     let variableStyle = 
         if isDraggable then [
             BackgroundColor "grey"
@@ -224,7 +229,7 @@ let dividerbar (model:Model) dispatch =
 
         ]
     let commonStyle = [
-            Height "100%"
+            heightAttr
             Float FloatOptions.Left
         ]
     div [
@@ -361,7 +366,7 @@ let displayView model dispatch =
             //--------------------------------------------------------------------------------------//
             //---------------------------------right section----------------------------------------//
             // right section has horizontal divider bar and tabs
-            div [ rightSectionStyle model ]
+            div [ HTMLAttr.Id "RightSection"; rightSectionStyle model ]
                   // vertical and draggable divider bar
                 [ dividerbar model dispatch
                   // tabs for different functions

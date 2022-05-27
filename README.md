@@ -156,69 +156,40 @@ If you want to get started as a developer, follow these steps.
 Download and install (if you already have these tools installed just check the version constraints).
 
 
-* [.Net 6 SDK](https://dotnet.microsoft.com/download/dotnet/5.0).  Version >= 6.0
-* [Node.js v16](https://nodejs.org/en/). **Version 14 or (preferably) v16 - NOT latest 18**
+* [.Net 6 SDK](https://dotnet.microsoft.com/download/dotnet/5.0).  Version >= 6.0, < 7
+* [Node.js v16](https://nodejs.org/en/). **v16 LTS - NOT latest 18**
     * Node.js includes the `npm` package manager, so this does not need to be installed separately.
-      * Note that Node.js v16 doesn't work with versions earlier that v7.0.0
-    * If you are using a different version of Node for developmnet on oytehr projects, global install 
+    * If you are using a different version of Node for developmnet on other projects, global install 
     (the default) may interfere with this. You will need to do a more complex local node install.
-* (recommended) Visual Studio 2022 which includes F# 6.0
-* (recommended) install [hyper.js](https://hyper.is/) to have a good command line interface - anything else you like will do.
+* (recommended) Visual Studio 2022 which includes F# 6.0, Install with:
+  * Workload: .Net Desktop development
+  * Ticked: F# language support
+* (recommended) install [hyper.js](https://hyper.is/) or (better on Windows is  [Windows Terminal](https://github.com/microsoft/terminal).
 
 ### Issie Development
 
-1. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or if contributing clone it locally, or fork it on github and then clone it locally. Make sure you are contributing to the Issie repo - not the Issie parent repo, if cloning (Github desktop gives you this option when you clone).
+1. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or clone it locally, or fork it on github and then clone it locally. 
 
-3. Navigate to the project root directory (which contains this README) in a command-line interpreter. For Windows usage make sure if possible for convenience 
-that you have a _tabbed_ command-line interpreter that can be started direct from file explorer within a specific directory (by right-clicking on the explorer directory view). 
-That makes things a lot more pleasant. The new [Windows Terminal](https://github.com/microsoft/terminal) works well.
+3. Navigate to the project root directory (which contains this README) in a command-line interpreter, or start one from directory context menu.
 
 4. Run `build.cmd` under Windows or `build.sh` under linux or macos. This will download and install all dependencies then launch the application with HMR.
   
   * HMR: the application will automatically recompile and update while running if you save updated source files
   * To initialise and reload: `File -> reload page`
-  * To exit: after you exit the application the auto-compile script will terminate after about 15s
+  * To exit: after you exit the application the auto-compile script will terminate after about 15s, force this with `Ctrl-C Ctrl-C`.
   * To recompile the application run `npm run dev` 
   * To generate distributable binaries for dev host system `npm run dist`.
   * If you have changed node modules use `build dev`. Note that this project uses npm, not yarn. If npm gets stuck use `build cleannode` and try again.
-  * From time to time run `build killzombies` to terminate orphan node and dotnet processes which accumulate using this dev chain. (Not sure if this is still needed)
-
-#### Development on Macos
-
-In theory the build should work equally well on macos. Practically that is now (10/2021) the case. Having installed the normal prerequisites, and Visual Studio for Mac, which itself has the F# compiler, the one-off setup can be done manually from the various build steps needed:
-
-* git clone to local project directory as normal (with github desktop or command line git - one off)
-* dotnet tool restore  (build tools - one off)
-* dotnet paket install (install dotnet packages one off)
-* npm install (install node packages - one off)
-* npm run dev (run the dev envt) 
-
-
-One unresolved issue that can occur on Macs is file permission problems. Best practice is for all installation and dev to run under the current (non-admin) user. If any part of the necessary downloaded development files gets written as root then subsequent development commands that modify it will need to be executed using sudo.
-
-```
-sudo npm run dev
-```
-
-If possible, try to avoid this, but if necessary it can be done. Probably the better solution is to investigate properly which install steps introduce these root owner files, change the file ownership back to current user with `chown -R <username> <directory>`. Please document any progress made with mac builds (detailing which mac OS) on an issue.
+  * If you ever find that orphan processes from previous builds cause problems run `build killzombies` to terminate orphan node and dotnet processes which might accumulate using this dev chain. This is not normally needed. Th killzombines script will kill all node processes - be warned!
 
 
 ## Reinstalling Compiler and Libraries
 
-To reinstall the build environment (without changing project code) rerun `build.cmd` (Windows) or `build.sh` (Linux and MacOS). You may need first to
-run `build killzombies` to remove orphan processes that lock build files.
+To reinstall the build environment (without changing project code) rerun `build.cmd` (Windows) or `build.sh` (Linux and MacOS). 
 
 ## Creating binaries
 
 `npm run dist` will generate the correct binaries for your system under `/dist`.
 
-* There is a very rare bug in the code that downloads electron binaries that is sensitive to fast internet access: 
-going through a VPN makes it go away. It is one-off since the binaries are cached once downloaded. If this hits you
-the workaround is to run the build script again using Imperial College VPN. Having downloaded the binaries once
-the porblem will go away.
 
-## TODO
-
-
-* Clean up Paket dependencies
 

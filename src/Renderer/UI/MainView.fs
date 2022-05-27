@@ -149,13 +149,9 @@ let inline setDragMode (modeIsOn:bool) (model:Model) dispatch =
 let dividerbar (model:Model) dispatch =
     let isDraggable = model.RightPaneTabVisible = WaveSim
     let heightAttr = 
-        // On app startup, the RightSection is not rendered, so using scrollHeight
-        // results in an error. Check if project is opened to avoid this.
-        match model.CurrentProj with
-        | None -> Height "100%"
-        | Some _ -> 
-            let rightSection = document.getElementById "RightSection"
-            Height rightSection.scrollHeight
+        let rightSection = document.getElementById "RightSection"
+        if (isNull rightSection) then Height "100%"
+        else Height rightSection.scrollHeight
     let variableStyle = 
         if isDraggable then [
             BackgroundColor "grey"

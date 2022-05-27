@@ -155,7 +155,7 @@ let dividerbar (model:Model) dispatch =
     let variableStyle = 
         if isDraggable then [
             BackgroundColor "grey"
-            Cursor "grab" 
+            Cursor "ew-resize" 
             Width "10px"
 
         ] else [

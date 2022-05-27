@@ -25,6 +25,49 @@ open Fable.SimpleJson
 //---------------------------------- Update Model ---------------------------------------------//
 //---------------------------------------------------------------------------------------------//
 
+///Used to filter specific mouse messages based on mouse data.
+let matchMouseMsg (msgSelect: DrawHelpers.MouseT -> bool) (msg : Msg) : bool =
+    match msg with
+    | Sheet sMsg ->
+        match sMsg with
+        | SheetT.MouseMsg mMsg ->
+            msgSelect mMsg
+        | _ -> false
+    | _ -> false
+
+/// If debugTrace is on print out human readable info on message.
+/// Be careful not to do this on mouse moves (there are too many).
+/// be careful not to try to ptint simulation result arrays (that would crash the renderer!).
+/// optimise for very quick return in the case that debugLevel = 0 (production version)
+/// optimise for quick return if nothing is printed.
+let getMessageTraceString (msg: Msg) =
+    let noDisplayMouseOp (mMsg:DrawHelpers.MouseT) = 
+        mMsg.Op = DrawHelpers.Drag || mMsg.Op = DrawHelpers.Move
+    let noDisplayMessage = function
+        | Sheet (SheetT.Msg.Wire(BusWireT.Msg.Symbol(SymbolT.MouseMsg _ | SymbolT.ShowPorts _ ))) -> true
+        | _ -> false
+    let shortDisplayMsg = function 
+        | SetWSMod _ -> Some "U(SetWSMod)"
+        | SetWaveSimModel _ -> Some "U(SetWaveSimModel)"
+        | SetWSModAndSheet _ -> Some "U(SetWsModAndSheet)"
+        | StartSimulation _ -> Some "U(StartSimulation)"
+        | SetSimulationGraph _ -> Some "U(SetSimulationGraph)"
+        | SetPopupMemoryEditorData _ -> Some "U(SetPopupmemoryEditorData)"
+        | _ -> None 
+    if JSHelpers.debugLevel = 0 ||
+       not (Set.contains "update" JSHelpers.debugTraceUI) ||
+       matchMouseMsg noDisplayMouseOp msg ||
+       noDisplayMessage msg then
+        ""
+    else 
+        match shortDisplayMsg msg with
+        | Some shortName -> shortName
+        | None ->
+            Helpers.sprintInitial 70 $"{msg}"
+
+
+
+
 /// Read persistent user data from file in userAppDir.
 /// Store in Model UserData.
 let private readUserData (userAppDir: string) (model: Model) : Model * Cmd<Msg> =
@@ -223,15 +266,7 @@ let exitApp (model:Model) =
 ///Used because Msg type does not support structural equality
 let isSameMsg = LanguagePrimitives.PhysicalEquality 
 
-///Used to filter only drag messages for now, is there a better way to do this?
-let matchMouseMsg (msgSelect: DrawHelpers.MouseT -> bool) (msg : Msg) : bool =
-    match msg with
-    | Sheet sMsg ->
-        match sMsg with
-        | SheetT.MouseMsg mMsg ->
-            msgSelect mMsg
-        | _ -> false
-    | _ -> false
+
 
 ///Returns None if no mouse drag message found, returns Some (lastMouseMsg, msgQueueWithoutMouseMsgs) if a drag message was found
 let getLastMouseMsg msgQueue =
@@ -571,30 +606,18 @@ let update (msg : Msg) oldModel =
     | msg ->
         model, Cmd.none
     |> (fun (newModel,cmd) -> resetDialogIfSelectionHasChanged newModel oldModel,cmd)
-    |> (fun res -> 
-        if JSHelpers.debugLevel > 0 then
-            TimeHelpers.instrumentInterval (
-                let name =
-                    match msg with 
-                    | SetWSMod _ -> "U(SetWSMod)"
-                    | Sheet( SheetT.Msg.Wire (BusWireT.Msg.Symbol _ )) -> "U(Sheet(Wire(Symbol)))"
-                    | Sheet (SheetT.Msg.Wire (BusWireT.UpdateWires _)) -> "U(Sheet(Wire(UpdateWires)))"
-                    | SetWaveSimModel _ -> "U(SetWaveSimModel)"
-                    | SetWSModAndSheet _ -> "U(SetWsModAndSheet)"
-                    | StartSimulation _ -> "U(StartSimulation)"
-                    | SetSimulationGraph _ -> "U(SetSimulationGraph)"
-                    | SetPopupMemoryEditorData _ -> "U(SetPopupmemoryEditorData)"
-                    | _ -> $"U(%.40A{msg})"
-                let debugMsg = Helpers.sprintInitial 40 name
-                let noDisplayMouseOp (mMsg:DrawHelpers.MouseT) = mMsg.Op = DrawHelpers.Drag || mMsg.Op = DrawHelpers.Move
-                if Set.contains "update" JSHelpers.debugTraceUI &&
-                   not <| matchMouseMsg noDisplayMouseOp msg &&
-                   (match msg with | Sheet (SheetT.Msg.Wire(BusWireT.Msg.Symbol(SymbolT.MouseMsg _ | SymbolT.ShowPorts _ ))) -> false 
-                                   | _ -> printfn "%s" (Helpers.sprintInitial 40 $"{msg}"); true)
-                then
-                   printfn "%s" debugMsg
-                debugMsg)  startUpdate |> ignore
-        res)
+    |> (fun (model,cmdL) -> 
+            if JSHelpers.debugLevel > 0 then
+                let str = getMessageTraceString msg
+                let rootOfMsg = 
+                    match str.Split [|' ';'('|] with
+                    | ss when ss.Length > 0 -> ss.[0]
+                    | _ -> ""
+                TimeHelpers.instrumentInterval rootOfMsg startUpdate |> ignore
+                if str <> "" then printfn "**Upd:%s" str
+                Cmd.map (fun msg -> printfn ">>Cmd:%s" (getMessageTraceString msg)) |> ignore
+            model,cmdL)
+
 
 
 

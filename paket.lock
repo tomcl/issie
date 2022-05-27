@@ -1,4 +1,4 @@
-RESTRICTION: || (== netcoreapp3.1) (== netstandard2.0)
+RESTRICTION: == netcoreapp3.1
 
 GROUP Electron
 NUGET

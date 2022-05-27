@@ -34,10 +34,12 @@ type MouseOp =
     | Drag
 
 type MouseT = {
-    /// this is in DrawBlock coords (scaled from screen pixels by 1/zoom)
+    /// DrawBlock coords (scaled from screen pixels by 1/zoom)
     Pos: XYPos
-    /// this is in screen pixel coords
+    /// movement in screen pixel coords
     ScreenMovement: XYPos
+    /// position on screen in screen pixel coords
+    ScreenPage: XYPos
     ShiftKeyDown: bool
     Op: MouseOp}
 

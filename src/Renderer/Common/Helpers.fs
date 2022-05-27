@@ -192,6 +192,20 @@ let getMemData (address: int64) (memData: Memory1) =
     Map.tryFind address memData.Data
     |> Option.defaultValue 0L
 
+/// Convert a ('a list list) to an ('a array array)
+let list2DToArray2D (lst: 'a list list) =
+    lst
+    |> List.map(fun l -> List.toArray l)
+    |> List.toArray
+
+/// Returns a new array with the elements at index i1 and index i2 swapped
+let swapArrayEls i1 i2 (arr: 'a[]) =
+    arr
+    |> Array.mapi (fun i x ->
+        if i = i1 then arr[i2]
+        else if i = i2 then arr[i1]
+        else x)
+
 //--------------------Helper Functions-------------------------------//
 //-------------------------------------------------------------------//
 

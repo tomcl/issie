@@ -22,8 +22,10 @@ let getHeaderHeight =
 let rightSectionWidth (model:Model) =
     match model.RightPaneTabVisible with
     | RightTab.Properties | RightTab.Catalogue -> rightSectionWidthS
-    | RightTab.Simulation ->  rightSectionWidthL
-    | RightTab.WaveSim -> sprintf "%dpx" model.WaveSimViewerWidth
+    | RightTab.Simulation -> 
+        match model.SimSubTabVisible with
+        | SimSubTab.StepSim -> rightSectionWidthL
+        | SimSubTab.WaveSim | SimSubTab.TruthTable -> sprintf "%dpx" model.WaveSimViewerWidth
 
 let leftSectionWidth model = Style [
     Width (sprintf "calc(100%s - %s - 10px)" "%" (rightSectionWidth model))
@@ -132,6 +134,11 @@ let simulationNumberStyle = Style [
     Height "30px"
 ]
 
+let constraintNumberStyle = Style [
+    Width "200px"
+    Height "30px"
+]
+
 let simulationBitStyle = Style [
     Width "100px"
     Height "30px"
@@ -148,8 +155,49 @@ let menuLabelStyle = Style [
     TextTransform "uppercase"
 ]
 
+let sortArrowStyle = Style [
+    Margin "0"
+    Display DisplayOptions.Block
+    Width "100%"
+    Height "50%"
+    Padding "0 0 0 0"
+    Top "0"
+    FontSize "50%"
+    Position PositionOptions.Relative
+    BorderColor "white"
+]
 
+let colMoveArrowStyle = Style [
+    Margin "0"
+    Display DisplayOptions.Block
+    Width "100%"
+    Height "50%"
+    Padding "0 0 0 0"
+    Top "0"
+    FontSize "80%"
+    Position PositionOptions.Relative
+    BorderColor "white"
+]
 
+let ttGridColumnProps index = [
+    Border "1px solid gray"
+    Padding "7px"
+    FontSize "18px"
+    TextAlign TextAlignOptions.Left
+    GridColumnStart <| string (index+1)
+    GridColumnEnd <| string (index+2)
+]
+
+let ttGridHiddenColumnProps gridWidth= [
+    GridColumnStart (string <| gridWidth + 1)
+    GridColumnEnd (string <| gridWidth + 2)
+    Visibility "hidden"
+]
+
+let ttGridContainerStyle = Style [
+    Display DisplayOptions.Grid
+    GridAutoFlow "column"
+]
 
 
 

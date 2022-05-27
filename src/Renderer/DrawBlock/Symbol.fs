@@ -280,7 +280,10 @@ let getPrefix compType =
     | Constant1 _ -> "C"
     | BusCompare _ -> "EQ"
     | Decode4 -> "DEC"
+    | MergeWires -> "MW"
+    | SplitWire _ -> "SW"
     | _ -> ""
+
 
 
 // Text to be put inside different Symbols depending on their ComponentType

@@ -8,6 +8,9 @@ open Fable.React.Props
 open ElectronAPI
 open FilesIO
 open SimulatorTypes
+open TruthTableTypes
+open TruthTableCreate
+open TruthTableReduce
 open ModelType
 open CommonTypes
 open Extractor
@@ -18,6 +21,9 @@ open WaveSimHelpers
 open Sheet.SheetInterface
 open DrawModelType
 open Fable.SimpleJson
+open Helpers
+open NumberHelpers
+open DiagramStyle
 
 
 //---------------------------------------------------------------------------------------------//
@@ -60,13 +66,6 @@ let private writeUserData (model:Model) =
         |> function | Error mess -> printfn "%s" mess | _ -> ())
     |> ignore
     
-        
-        
-
-        
-    
-    
-
 /// subfunction used in model update function
 let private getSimulationDataOrFail model msg =
     match model.CurrentStepSimulationStep with
@@ -76,7 +75,75 @@ let private getSimulationDataOrFail model msg =
         | Error _ -> failwithf "what? Getting simulation data when could not start because of error: %s" msg
         | Ok simData -> simData
 
+let private getTruthTableOrFail model msg =
+    match model.CurrentTruthTable with
+    | None -> failwithf "what? Getting truth table when no table has been generated: %s" msg
+    | Some res ->
+        match res with
+        | Error _ -> failwithf "what? Getting truth table when there is error in generation: %s" msg
+        | Ok tt -> tt
 
+let truncationWarning table =
+    $"The Truth Table has been truncated to {table.TableMap.Count} input combinations.
+    Not all rows may be shown. Please use more restrictive input constraints to avoid truncation."
+
+/// Apply a single numerical output constraint to a Truth Table Map
+let applyNumericalOutputConstraint (table: Map<TruthTableRow,TruthTableRow>) (con: Constraint) =
+    table
+    |> Map.filter (fun _ right ->
+        right
+        |> List.exists (fun cell ->
+            match con with
+            | Equality e ->
+                if e.IO <> cell.IO then
+                    false
+                else
+                    match cell.Data with
+                    | Algebra _ -> false
+                    | DC -> true
+                    | Bits wd ->
+                        let cellVal = convertWireDataToInt wd
+                        cellVal = e.Value
+            | Inequality i ->
+                if i.IO <> cell.IO then
+                    false
+                else
+                    match cell.Data with
+                    | Algebra _ -> false
+                    | DC -> true
+                    | Bits wd ->
+                        let cellVal = convertWireDataToInt wd
+                        i.LowerBound <= int cellVal && cellVal <= i.UpperBound
+                        ))
+
+/// Comparison function for CellData values
+let compareCellData (cd1: CellData) (cd2: CellData) =
+    match cd1, cd2 with
+    | DC, DC -> 0 // X = X
+    | DC, _ -> 1 // DC is considered larger than anything
+    | _, DC -> -1
+    | Algebra _, Bits _ -> 1 // Algebra is considered larger than Bits
+    | Bits _, Algebra _ -> -1
+    | Algebra a1, Algebra a2 -> 
+        compare a1 a2 // Algebra compared by alphabetical order
+    | Bits wd1, Bits wd2 -> // Bits compared by which is largest
+        (convertWireDataToInt wd1, convertWireDataToInt wd2)
+        ||> compare
+
+let sortByIO (io: CellIO) (lst: TruthTableRow list) = 
+    let idx = 
+        lst.Head
+        |> List.tryFindIndex (fun c ->
+            c.IO = io)
+        |> function
+            | Some i -> i
+            | None -> failwithf "what? Failed to find IO: %s while sorting TT" io.getLabel
+    
+    lst
+    |> List.sortWith (fun r1 r2 ->
+        let cd1 = r1[idx].Data
+        let cd2 = r2[idx].Data
+        compareCellData cd1 cd2)
 
 let verilogOutputPage sheet fPath  =
     div [] [
@@ -114,7 +181,6 @@ let verilogOutputPage sheet fPath  =
                         ]
                       
                          ] ] ] ] 
-
 
 /// handle Menu actions that may need Model data
 let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
@@ -350,6 +416,10 @@ let update (msg : Msg) oldModel =
         { model with WaveSim = fst model.WaveSim, err}, Cmd.none
     | AddWaveSimFile (fileName, wSMod') ->
         { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim}, Cmd.none
+    | LockTabsToWaveSim -> 
+        {model with WaveSimulationInProgress = true}, Cmd.none
+    | UnlockTabsFromWaveSim ->
+        {model with WaveSimulationInProgress = false}, Cmd.none
     | SetSimulationGraph (graph, fastSim) ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
         { model with CurrentStepSimulationStep = { simData with Graph = graph ; FastSim = fastSim} |> Ok |> Some }, Cmd.none
@@ -361,6 +431,225 @@ let update (msg : Msg) oldModel =
         { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber + n } |> Ok |> Some }, Cmd.none
     | EndSimulation -> { model with CurrentStepSimulationStep = None }, Cmd.none
     | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
+    | GenerateTruthTable simRes ->
+        match simRes with
+        | Some (Ok sd,_) ->
+            // Generate the Truth Table
+            let tt = truthTable sd model.TTInputConstraints model.TTAlgebraInputs model.TTBitLimit
+            // Styles for the grid
+            let colStyles = 
+                tt.IOOrder
+                |> List.mapi (fun i io -> (io,ttGridColumnProps i))
+                |> Map.ofList 
+            // List of messages
+            let commands = 
+                [
+                    // Set the IO Order for the Truth Table
+                    tt.IOOrder 
+                    |> List.toArray 
+                    |> SetIOOrder
+                    // Set the popup Algebra inputs to empty list
+                    SetPopupAlgebraInputs (Some [])
+                    // Truncation warning
+                    if tt.IsTruncated then
+                        Notifications.warningPropsNotification (truncationWarning tt)
+                        |> SetPropertiesNotification
+                ]
+                |> List.map Cmd.ofMsg
+            {model with CurrentTruthTable = Some (Ok tt); TTGridStyles = colStyles}, Cmd.batch <| commands
+        | Some (Error e, _) ->
+            {model with CurrentTruthTable = Some (Error e); TTGridStyles = Map.empty}, Cmd.none
+        | None -> model, Cmd.none
+    | RegenerateTruthTable ->
+        let table = getTruthTableOrFail model "Regeneration"
+        let ttRes, commands =
+            try
+                let tt =
+                    truthTableRegen
+                        table.TableSimData
+                        model.TTInputConstraints
+                        model.TTAlgebraInputs
+                        model.TTBitLimit
+                let comms = 
+                    [
+                        // Set the IO Order for the Truth Table
+                        tt.IOOrder 
+                        |> List.toArray 
+                        |> SetIOOrder
+                        // Truncation warning
+                        if tt.IsTruncated then
+                            Notifications.warningPropsNotification (truncationWarning tt)
+                            |> SetPropertiesNotification
+                        // Filter using output constraints
+                        FilterTruthTable
+                    ]
+                    |> List.map Cmd.ofMsg
+                Ok tt, comms
+            with
+            // Protections when setting algebraic inputs should mean this never occurs,
+            // but leaving this in as a fallback.
+            | AlgebraNotImplemented err -> Error err, []
+        {model with CurrentTruthTable = Some ttRes}, Cmd.batch <| commands
+    | FilterTruthTable ->
+        let table = getTruthTableOrFail model "Refilter"
+        let tMap = 
+            match table.DCMap with
+            | Some m -> m
+            | None -> table.TableMap
+        let allOutputConstraints =
+            (model.TTOutputConstraints.Equalities
+            |> List.map Equality)
+            @
+            (model.TTOutputConstraints.Inequalities
+            |> List.map Inequality)
+        let filteredMap =
+            (tMap, allOutputConstraints)
+            ||> List.fold applyNumericalOutputConstraint
+        let newTable = {table with FilteredMap = filteredMap} |> Ok |> Some
+        {model with CurrentTruthTable = newTable}, Cmd.ofMsg SortTruthTable
+    | SortTruthTable ->
+        let table = getTruthTableOrFail model "Sorting"
+        let sortedTable =
+            match model.TTSortType, tableAsList table.FilteredMap with
+            | _, [] -> {table with SortedListRep = []}
+            | None, lst ->
+                {table with SortedListRep = lst}
+            | Some (io, Ascending), lst ->
+                let sortedLst = sortByIO io lst
+                {table with SortedListRep = sortedLst}
+            | Some (io, Descending), lst ->
+                let sortedLst = 
+                    sortByIO io lst
+                    |> List.rev
+                {table with SortedListRep = sortedLst}
+            |> Ok
+            |> Some
+        {model with CurrentTruthTable = sortedTable}, Cmd.ofMsg HideTTColumns
+    | DCReduceTruthTable ->
+        let table = getTruthTableOrFail model "DC Reduction"
+        let reducedTable = 
+            reduceTruthTable model.TTInputConstraints table model.TTBitLimit
+            |> Ok
+            |> Some
+        {model with CurrentTruthTable = reducedTable}, Cmd.ofMsg FilterTruthTable
+    | HideTTColumns ->
+        /// Recursive function to hide columns and adjust the positions of the remaining
+        /// visible columns.
+        let rec correctProps (index: int) (acc: list<CellIO*list<CSSProp>>) (lst: CellIO list):  list<CellIO*list<CSSProp>>=
+            let hiddenProps = ttGridHiddenColumnProps model.TTIOOrder.Length
+            match lst with
+            | [] -> acc
+            | io::tl ->
+                if List.contains io model.TTHiddenColumns then
+                    correctProps (index) ((io,hiddenProps)::acc) tl
+                else
+                    correctProps (index+1) ((io,ttGridColumnProps index)::acc) tl
+        let newStyles =
+            correctProps 0 [] (Array.toList model.TTIOOrder)
+            |> Map.ofList
+        {model with TTGridStyles = newStyles}, Cmd.none
+    | CloseTruthTable -> 
+        {model with CurrentTruthTable = None}, Cmd.none
+    | SetTTOutOfDate reason ->
+        {model with TTIsOutOfDate = reason}, Cmd.none
+    | ClearInputConstraints -> 
+        {model with TTInputConstraints = emptyConstraintSet}, Cmd.none
+    | ClearOutputConstraints -> 
+        {model with TTOutputConstraints = emptyConstraintSet}, Cmd.none
+    | AddInputConstraint con ->
+        match con with
+        | Equality e -> 
+            let newEqu = e::model.TTInputConstraints.Equalities
+            {model with TTInputConstraints = {model.TTInputConstraints with Equalities = newEqu}}, Cmd.none
+        | Inequality i ->
+            let newIneq = i::model.TTInputConstraints.Inequalities
+            {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.none
+    | DeleteInputConstraint con ->
+        match con with
+        | Equality e ->
+            let newEqu = 
+                model.TTInputConstraints.Equalities
+                |> List.except [e]
+            {model with TTInputConstraints = {model.TTInputConstraints with Equalities = newEqu}}, Cmd.none
+        | Inequality i ->
+            let newIneq =
+                model.TTInputConstraints.Inequalities
+                |> List.except [i]
+            {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.none
+    | AddOutputConstraint con ->
+        match con with
+        | Equality e -> 
+            let newEqu = e::model.TTOutputConstraints.Equalities
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Equalities = newEqu}}, Cmd.none
+        | Inequality i ->
+            let newIneq = i::model.TTOutputConstraints.Inequalities
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.none
+    | DeleteOutputConstraint con ->
+        match con with
+        | Equality e ->
+            let newEqu = 
+                model.TTOutputConstraints.Equalities
+                |> List.except [e]
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Equalities = newEqu}}, Cmd.none
+        | Inequality i ->
+            let newIneq =
+                model.TTOutputConstraints.Inequalities
+                |> List.except [i]
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.none
+    | ToggleHideTTColumn io ->
+        // Column is currently hidden, so we unhide
+        if List.contains io model.TTHiddenColumns then
+            let newHC = List.except [io] model.TTHiddenColumns
+            {model with TTHiddenColumns = newHC}, Cmd.none
+        else
+            let newSort =
+                match model.TTSortType with
+                | None -> None
+                | Some (cIO,st) ->
+                    if cIO = io then None
+                    else Some (cIO,st)
+            {model with 
+                TTHiddenColumns = io::model.TTHiddenColumns
+                TTSortType = newSort}, Cmd.none
+    | ClearHiddenTTColumns -> 
+        {model with TTHiddenColumns = []}, Cmd.none
+    | ClearDCMap ->
+        let newTT = 
+            match model.CurrentTruthTable with
+            | None -> None
+            | Some tableopt ->
+                match tableopt with
+                | Error _ -> failwithf "what? Trying to clear DC Map in TT with error"
+                | Ok table ->
+                    {table with DCMap = None}
+                    |> Ok
+                    |> Some
+        {model with CurrentTruthTable = newTT}, Cmd.none
+    | SetTTSortType stOpt ->
+        {model with TTSortType = stOpt}, Cmd.none
+    | MoveColumn (io, dir) ->
+        let oldOrder = model.TTIOOrder
+        let idx = 
+            oldOrder
+            |> Array.findIndex (fun cIO -> cIO = io)
+        let newOrder =
+            match dir, idx with
+            | MLeft, 0 -> oldOrder
+            | MLeft, i -> swapArrayEls (i) (i-1) oldOrder
+            | MRight, i -> 
+                if i = (oldOrder.Length-1) then
+                    oldOrder
+                else
+                    swapArrayEls (idx) (idx+1) oldOrder
+        let newStyles =
+            newOrder
+            |> Array.mapi (fun i io -> (io,ttGridColumnProps i))
+            |> Map.ofArray
+        {model with TTIOOrder = newOrder; TTGridStyles = newStyles}, Cmd.none
+    | SetIOOrder x -> 
+        {model with TTIOOrder = x}, Cmd.none
+    | SetTTAlgebraInputs lst ->
+        {model with TTAlgebraInputs = lst}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
@@ -370,8 +659,16 @@ let update (msg : Msg) oldModel =
         | Properties -> Cmd.batch <| editCmds
         | Catalogue -> Cmd.batch  <| editCmds
         | Simulation -> Cmd.batch <| editCmds
-        | WaveSim -> Cmd.ofMsg (Sheet (SheetT.SetWaveSimMode true))
- 
+        //| TruthTable -> Cmd.batch <| editCmds
+        //| WaveSim -> Cmd.ofMsg (Sheet (Sheet.SetWaveSimMode true))
+    | ChangeSimSubTab subTab ->
+        let inferMsg = JSDiagramMsg <| InferWidths()
+        let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
+        { model with SimSubTabVisible = subTab},
+        match subTab with
+        | StepSim -> Cmd.batch <| editCmds
+        | TruthTable -> Cmd.batch <| editCmds
+        | WaveSim -> Cmd.batch <| editCmds
     | SetHighlighted (componentIds, connectionIds) ->
         let sModel, sCmd = SheetUpdate.update (SheetT.ColourSelection (componentIds, connectionIds, HighLightColor.Red)) model.Sheet
         {model with Sheet = sModel}, Cmd.map Sheet sCmd
@@ -408,12 +705,14 @@ let update (msg : Msg) oldModel =
                         Int = None; 
                         Int2 = None; 
                         MemorySetup = None; 
-                        MemoryEditorData = None; 
+                        MemoryEditorData = None;
                     }}, Cmd.none
     | SetPopupDialogText text ->
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
     | SetPopupDialogInt int ->
         { model with PopupDialogData = {model.PopupDialogData with Int = int} }, Cmd.none
+    | SetPopupDialogInt2 int ->
+        { model with PopupDialogData = {model.PopupDialogData with Int2 = int} }, Cmd.none
     | SetPopupDialogTwoInts data ->
         { model with PopupDialogData = 
                         match data with
@@ -430,7 +729,58 @@ let update (msg : Msg) oldModel =
         { model with PopupDialogData = {model.PopupDialogData with Progress = progOpt} }, Cmd.none
     | UpdatePopupProgress updateFn ->
         { model with PopupDialogData = {model.PopupDialogData with Progress = Option.map updateFn model.PopupDialogData.Progress} }, Cmd.none
-
+    | SetPopupConstraintTypeSel ct ->
+        { model with PopupDialogData = {model.PopupDialogData with ConstraintTypeSel = ct}}, Cmd.none
+    | SetPopupConstraintIOSel io ->
+        { model with PopupDialogData = {model.PopupDialogData with ConstraintIOSel = io}}, Cmd.none
+    | SetPopupConstraintErrorMsg msg ->
+        { model with PopupDialogData = {model.PopupDialogData with ConstraintErrorMsg = msg}}, Cmd.none
+    | SetPopupNewConstraint con ->
+        { model with PopupDialogData = {model.PopupDialogData with NewConstraint = con}}, Cmd.none
+    | TogglePopupAlgebraInput (io,sd) ->
+        let (_,_,w) = io
+        let oldLst =
+            match model.PopupDialogData.AlgebraInputs with
+            | Some l -> l
+            | None -> failwithf  "what? PopupDialogData.AlgebraInputs is None when trying to toggle"
+        if List.contains io oldLst then // Algebra -> Values
+            let zero = IData <| convertIntToWireData w 0
+            match ConstraintReduceView.validateAlgebraInput io zero sd with
+            | Ok _ ->
+                let newLst = List.except [io] oldLst
+                {model with 
+                    PopupDialogData = {
+                    model.PopupDialogData with 
+                        AlgebraInputs = Some newLst
+                        AlgebraError = None}}, Cmd.none
+            | Error err ->
+                let newLst = List.except [io] oldLst
+                {model with 
+                    PopupDialogData = {
+                    model.PopupDialogData with 
+                        AlgebraInputs = Some newLst
+                        AlgebraError = Some err}}, Cmd.none
+        else // Values -> Algebra
+            let alg = IAlg <| SingleTerm io
+            match ConstraintReduceView.validateAlgebraInput io alg sd with
+            | Ok _ ->
+                let newLst = io::oldLst
+                {model with 
+                    PopupDialogData = {
+                    model.PopupDialogData with 
+                        AlgebraInputs = Some newLst
+                        AlgebraError = None}}, Cmd.none
+            | Error err ->
+                let newLst = io::oldLst
+                {model with 
+                    PopupDialogData = {
+                    model.PopupDialogData with 
+                        AlgebraInputs = Some newLst
+                        AlgebraError = Some err}}, Cmd.none
+    | SetPopupAlgebraInputs opt ->
+        {model with PopupDialogData = {model.PopupDialogData with AlgebraInputs = opt}}, Cmd.none
+    | SetPopupAlgebraError opt ->
+        {model with PopupDialogData = {model.PopupDialogData with AlgebraError = opt}}, Cmd.none
     | SimulateWithProgressBar simPars ->
         SimulationView.simulateWithProgressBar simPars model
     | SetSelectedComponentMemoryLocation (addr,data) ->

@@ -572,7 +572,7 @@ let viewTruthTableData (table: TruthTable) (mapType: MapToUse) model dispatch =
             |> List.toSeq
 
         let all = Seq.append headings body
-        div [ttGridContainerStyle] all
+        div [(ttGridContainerStyle model)] all
 
 let viewTruthTable model dispatch =
     // Truth Table Generation for selected components requires all components to have distinct labels.

@@ -186,18 +186,24 @@ let ttGridColumnProps index = [
     TextAlign TextAlignOptions.Left
     GridColumnStart <| string (index+1)
     GridColumnEnd <| string (index+2)
+    OverflowX OverflowOptions.Auto
+    OverflowWrap "break-word"
 ]
 
 let ttGridHiddenColumnProps gridWidth= [
     GridColumnStart (string <| gridWidth + 1)
     GridColumnEnd (string <| gridWidth + 2)
+    Width 0
+    OverflowX OverflowOptions.Hidden
     Visibility "hidden"
 ]
 
-let ttGridContainerStyle = Style [
-    Display DisplayOptions.Grid
-    GridAutoFlow "column"
-]
+let ttGridContainerStyle model = 
+    let widthRightSec = rightSectionWidth model
+    Style [
+        Display DisplayOptions.Grid
+        GridAutoFlow "column"
+    ]
 
 
 

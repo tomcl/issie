@@ -31,7 +31,6 @@ let rotateSelectedLabelsClockwise (model:Model) =
 
 let bbOrientation (bb: BoundingBox) =
     let ratio = Constants.boxAspectRatio
-    printfn $"ratio={ratio},bb.W={bb.W},bb.H={bb.H}"
     match abs bb.W > ratio*abs bb.H, abs bb.H > ratio*abs bb.W with
     | true, false when abs bb.W > 10. -> Some (Horizontal, abs bb.W / (abs bb.H+0.1))
     | false, true when abs bb.H > 10. -> Some (Vertical, abs bb.H / (abs bb.W + 0.1))
@@ -47,15 +46,12 @@ let workOutArrangement (arrange: Arrange) (syms: Symbol list) =
     |> Option.map (fun (syms,bbData) ->
         match syms, bbData, arrange with
         | [], _, _-> 
-            printfn "No alignable symbols found"
             [], Error "No alignable symbols found"
         | syms, Some(orient,_), DistributeSymbols _ when syms.Length < 3 ->
-            printfn "3 or more symbols are needed to distribute"
             syms, Error "3 or more symbols of the same type are needed to distribute"
         | syms, Some(orient,_), _ ->
             syms, Ok orient
         | syms, _, _ ->
-            printfn "alignment failed"
             syms, Error "alignment failed")
     |> Option.defaultValue ([], Error "No alignable symnbols found")
 
@@ -103,7 +99,6 @@ let arrangeSymbols (arrange: Arrange) (model:Model) : Model * Cmd<Msg> =
         model.SelectedComponents
         |> List.map (fun sId -> model.Wire.Symbol.Symbols[sId])
         |> workOutArrangement arrange
-    printfn $"{syms.Length} symbols to arrange"
     let newSelected = 
         syms |> List.map (fun sym -> ComponentId sym.Component.Id)
     match result with
@@ -250,7 +245,9 @@ let mDownUpdate
     | _ ->
         match (mouseOn model mMsg.Pos) with
         | Canvas when mMsg.ShiftKeyDown ->
-            {model with Action = Panning}, Cmd.none
+            // Start Panning with drag, setting up offset to calculate scroll poistion during drag.
+            // When panning ScreenScrollPos muts move in opposite direction to ScreenPage.
+            {model with Action = Panning ( model.ScreenScrollPos + mMsg.ScreenPage)}, Cmd.none
         | Label compId ->
             {model with Action = InitialiseMovingLabel compId},
             Cmd.ofMsg (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
@@ -447,8 +444,8 @@ let mDragUpdate
 
     | MovingPort portId->
         model, symbolCmd (SymbolT.MovePort (portId, mMsg.Pos))
-    | Panning ->
-        let sPos = model.ScreenScrollPos - mMsg.ScreenMovement
+    | Panning initPos->
+        let sPos = initPos - mMsg.ScreenPage
         model, Cmd.ofMsg (Msg.UpdateScrollPos sPos)
     | Idle 
     | InitialisedCreateComponent _ 
@@ -649,7 +646,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     Cmd.ofMsg UpdateBoundingBoxes
                   ]
     | KeyPress CtrlS -> // For Demo, Add a new square in upper left corner
-        printfn "saving symbols"
         { model with BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol; UndoList = appendUndoList model.UndoList model ; RedoList = []},
         Cmd.batch [ Cmd.ofMsg UpdateBoundingBoxes; symbolCmd SymbolT.SaveSymbols ] // Need to update bounding boxes after adding a symbol.
     | KeyPress AltShiftZ ->
@@ -714,11 +710,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | KeyPress CtrlW ->
             let model', paras = fitCircuitToWindowParas model
-            match canvasDiv with
-            | Some el ->
-                el.scrollLeft <- paras.Scroll.X
-                el.scrollTop <- paras.Scroll.Y
-            | None -> ()
+            writeCanvasScroll paras.Scroll
             model', 
             Cmd.batch 
                 [
@@ -762,6 +754,20 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             |> Optic.map symbols_ (Map.change compId (Option.map Symbol.calcLabelBoundingBox))               
                 , Cmd.none
         | false -> model, Cmd.none
+
+    | UpdateScrollPosFromCanvas dispatch ->
+        let model =
+            match canvasDiv with
+            | None -> model
+            | Some el -> 
+                let canvas = document.getElementById "Canvas"
+                // UpdateScrollPos here is needed to make CheckAutomaticScrolling work properly
+                // Possibly UpdateScrollPos must be after view to trigger the next checkAutomaticScrolling
+                // When checkAutomaticScrolling is sone in a better way, this could be removed
+                dispatch <| UpdateScrollPos {X=canvas.scrollLeft; Y=canvas.scrollTop} 
+                {model with ScreenScrollPos = {X= el.scrollLeft; Y = el.scrollTop}}
+        model, Cmd.none
+
  
     | UpdateScrollPos scrollPos ->
         if model.ScrollUpdateIsOutstanding then 
@@ -782,6 +788,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                     Cmd.ofMsg CheckAutomaticScrolling // Also check if there is automatic scrolling to continue
                 else
                     Cmd.none
+            //Sheet.writeCanvasScroll scrollPos            
             { model with 
                 ScreenScrollPos = scrollPos
                 ScrollUpdateIsOutstanding = false
@@ -874,14 +881,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             let newMPos = { X = model.LastMousePos.X + xDiff / model.Zoom ; Y = model.LastMousePos.Y + yDiff / model.Zoom }
             // Need to update mouse movement as well since the scrolling moves the mouse relative to the canvas, but no actual mouse movement will be detected.
             // E.g. a moving symbol should stick to the mouse as the automatic scrolling happens and not lag behind.
+            let zero = {X=0.;Y=0.}
+            let defaultMsg = { Pos = newMPos; Op = Move;  ScreenMovement = zero; ScreenPage=zero; ShiftKeyDown=false}
             let outputModel, outputCmd =
                 match model.Action with
                 | DragAndDrop ->
-                    mMoveUpdate { model with AutomaticScrolling = true } 
-                                { Pos = newMPos; Op = Move;  ScreenMovement = {X=0.;Y=0.}; ShiftKeyDown=false}
+                    mMoveUpdate { model with AutomaticScrolling = true } {defaultMsg with Op = Move}                             
                 | MovingSymbols | ConnectingInput _ | ConnectingOutput _ | Selecting ->
-                    mDragUpdate { model with AutomaticScrolling = true } 
-                                { Pos = newMPos; Op = Drag; ScreenMovement = {X=0.;Y=0.}; ShiftKeyDown = false}
+                    mDragUpdate { model with AutomaticScrolling = true } {defaultMsg with Op = Drag}                               
                 | _ ->
                     { model with AutomaticScrolling = true }, Cmd.none
             let notAutomaticScrolling msg = match msg with | CheckAutomaticScrolling -> false | _ -> true
@@ -895,7 +902,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             { model with AutomaticScrolling = false}, Cmd.none
 
     | Arrangement arrange ->
-        printfn $"arranging {arrange}"
         arrangeSymbols arrange model
 
     | RotateLabels ->
@@ -1015,6 +1021,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> Optic.map fst_ postUpdateChecks
+
 
 /// Init function
 let init () =

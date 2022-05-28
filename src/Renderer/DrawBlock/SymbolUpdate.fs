@@ -331,8 +331,11 @@ let inline showPorts (model: Model) compList =
         |> Map.map hideSymbolPorts
 
     let addUpdatedSymbol prevSymbols sId =
-        prevSymbols |>
-        Map.add sId (showSymbolPorts resetSymbols[sId])
+        match Map.containsKey sId resetSymbols with
+        | false -> prevSymbols
+        | true ->
+            prevSymbols |>
+            Map.add sId (showSymbolPorts resetSymbols[sId])
 
     let newSymbols =
         (resetSymbols, compList)

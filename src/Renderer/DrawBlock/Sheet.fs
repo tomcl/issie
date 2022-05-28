@@ -365,7 +365,6 @@ let ensureCanvasExtendsBeyondScreen model : Model =
                     Y = if yIsOk then 0. else newSize/2. - centre.Y
                 })
 
-        //printfn $"scroll move = {newSize}:({circuitMove.X},{circuitMove.Y})"
         match canvasDiv, model.ScreenScrollPos + circuitMove*model.Zoom with
         | Some el, pos ->
             el.scrollLeft <- pos.X
@@ -411,9 +410,9 @@ let fitCircuitToWindowParas (model:Model) =
 
     let sBox = {sBox with TopLeft = sBox.TopLeft + offsetToCentreCircuit} 
     let paras = getWindowParasToFitBox model sBox
-    //let scrollXY = {X=paras.ScrollX;Y=paras.ScrollY}
     {modelWithMovedCircuit with
-        Zoom = paras.MagToUse}, paras
+        Zoom = paras.MagToUse
+        ScreenScrollPos = paras.Scroll}, paras
 
 
 
@@ -813,7 +812,11 @@ let snap2DSegment
     newSnapXY, newDeltaXY
     
     
-    
+/// This actually writes to the DOM a new scroll position.
+/// In the special case that DOM has not yel been created it does nothing.
+let writeCanvasScroll (scrollPos:XYPos) =
+    canvasDiv
+    |> Option.iter (fun el -> el.scrollLeft <- scrollPos.X; el.scrollTop <- scrollPos.Y)
 
 
 
@@ -841,6 +844,7 @@ let displaySvgWithZoom
 
     /// Is the mouse button currently down?
     let mDown (ev:Types.MouseEvent) = ev.buttons <> 0.
+    
 
     /// Dispatch a MouseMsg (compensated for zoom)
     let mouseOp op (ev:Types.MouseEvent) =
@@ -848,15 +852,11 @@ let displaySvgWithZoom
             Op = op ;
             ShiftKeyDown = ev.shiftKey
             ScreenMovement = {X= ev.movementX;Y=ev.movementY}
+            ScreenPage = {X=ev.pageX; Y=ev.pageY}
             Pos = {
                 X = (ev.pageX + model.ScreenScrollPos.X) / zoom  ;
                 Y = (ev.pageY - headerHeight + model.ScreenScrollPos.Y) / zoom}
             }
-        // dispatch <| MouseMsg {Op = op ; Pos = { X = (ev.pageX + model.ScrollPos.X) / model.Zoom  ; Y = (ev.pageY - topMenuBarHeight + model.ScrollPos.Y) / model.Zoom }}
-
-    let scrollUpdate model =
-        let canvas = document.getElementById "Canvas"
-        dispatch <| UpdateScrollPos {X=canvas.scrollLeft; Y=canvas.scrollTop} // Add the new scroll offset to the model
 
     let wheelUpdate (ev: Types.WheelEvent) =
         if Set.contains "CONTROL" model.CurrentKeyPresses then
@@ -875,13 +875,12 @@ let displaySvgWithZoom
           OnMouseDown (fun ev -> (mouseOp Down ev))
           OnMouseUp (fun ev -> (mouseOp Up ev))
           OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
-          OnScroll (fun _ -> scrollUpdate model)
+          OnScroll (fun _ -> dispatch <| (UpdateScrollPosFromCanvas dispatch))
           Ref (fun el ->
             canvasDiv <- Some el
-            if not (isNull el) then
-                // in case this element is newly created, set scroll position from model
-                el.scrollLeft <- model.ScreenScrollPos.X
-                el.scrollTop <- model.ScreenScrollPos.Y)
+            writeCanvasScroll model.ScreenScrollPos
+            )
+
           OnWheel wheelUpdate
         ]
         [

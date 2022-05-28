@@ -194,6 +194,12 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
     //This will set a spinner for both Open project and Change sheet which are the two most lengthly processes
     dispatch <| (Sheet (SheetT.SetSpinner true))
     dispatch <| SendSeqMsgAsynch msgs
+    // msgs is bundled together and as a result a scroll from thge ctrl-W scroll chnage is instered in the event queue
+    // after the ctrl-w. We need anotehr ctrl-w to make sure this scroll event does not reset scroll
+    // the order in which messages get processed is problematic here - and the solution ad hoc - a better
+    // solution would be to understand exactly what determines event order in the event queue
+    dispatch <| Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
+    dispatch <| JSDiagramMsg (SetHasUnsavedChanges false)
     
 /// Return LoadedComponents with sheet name updated according to setFun.
 /// Do not update model. 

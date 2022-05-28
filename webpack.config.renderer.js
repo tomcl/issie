@@ -24,7 +24,12 @@ module.exports = {
     minimize: false,
   },
   module: {
-    rules: [
+      rules: [
+          {
+              test: /\.fs\.js$/,
+              enforce: "pre",
+              use: ["source-map-loader"],
+          },
       {
         test: /\.(js|json|ts|tsx)$/,
         exclude: /(node_modules|bower_components)/,
@@ -39,6 +44,7 @@ module.exports = {
           { loader: "css-loader", options: { sourceMap: true } },
         ],
       },
+
       {
         test: /\.(png|jpe?g|gif|svg|eot|ttf|woff|woff2)$/,
         use: ['file-loader'],

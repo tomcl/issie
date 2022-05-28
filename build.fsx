@@ -16,11 +16,15 @@ open Fake.IO.FileSystemOperators
 open Fake.JavaScript
 
 Target.create "CleanDev" (fun _ ->
-  !! "src/**/bin"
-  ++ "src/**/obj"
-  ++ "dist"
-  ++ ".fable"
-  |> Shell.cleanDirs
+  printfn "starting clean..."
+  let dirsToClean =
+    !! "src/**/bin"
+    ++ "src/**/obj"
+    ++ "dist*"
+    ++ ".fable*"
+  printfn "Cleaning directories: %A" dirsToClean
+  Shell.cleanDirs dirsToClean
+  printfn "Clean complete."
 )
 
 Target.create "Clean" (fun _ ->
@@ -46,7 +50,7 @@ Target.create "DotnetRestore" (fun _ ->
     Shell.Exec("dotnet","restore issie.sln") |> ignore)
 
 Target.create "NpmInstall" (fun _ ->
-  Npm.install id
+  Npm.exec "ci" id
 )
 
 Target.create "Build" (fun _ ->

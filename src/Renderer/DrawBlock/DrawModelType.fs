@@ -324,7 +324,7 @@ module SheetT =
         | MovingSymbols
         | MovingLabel
         | DragAndDrop
-        | Panning // panning sheet using shift/drag
+        | Panning of offset: XYPos // panning sheet using shift/drag, offset = (initials) ScreenScrollPos + (initial) ScreenPage
         | MovingWire of SegmentId // Sends mouse messages on to BusWire
         | ConnectingInput of CommonTypes.InputPortId // When trying to connect a wire from an input
         | ConnectingOutput of CommonTypes.OutputPortId // When trying to connect a wire from an output
@@ -392,6 +392,7 @@ module SheetT =
         | UpdateBoundingBoxes
         | UpdateSingleBoundingBox of ComponentId
         | UpdateScrollPos of XYPos
+        | UpdateScrollPosFromCanvas of dispatch: ( Msg -> Unit)
         | ManualKeyUp of string // For manual key-press checking, e.g. CtrlC
         | ManualKeyDown of string // For manual key-press checking, e.g. CtrlC
         | CheckAutomaticScrolling

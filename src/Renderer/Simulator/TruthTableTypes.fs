@@ -21,20 +21,16 @@ open SimulatorTypes
     2. The Truth Table type contains multiple Maps along with other relevant data. Multiple
         Maps are stored for efficiency purposes, this way the Truth Table is only recalculated
         when absolutely necessary.
-    3. Description of Stored Maps:
-        TableMap: The initial main Map for the Truth Table. Only Input Constraints are applied
-            to this.
+    3. Each cell in the truth table comprises an IO/Viewer (CellIO) and data (CellData).
+    4. TruthTableRows are lists of cells, and Maps store the mapping from row to row.
+    5. Description of Stored Maps:
+        TableMap: The initial main Map for the Truth Table. Only Input Constraints or Algebraic Inputs
+            are applied to this.
         DCMap option: The Don't Care Reduced version of the Truth Table, calculated from TableMap.
             None if Table has not been DC Reduced.
-        HiddenColMap: Calculated using TableMap or DCMap depending on which is being displayed.
-            Excludes columns the user wants to hide.
         FilteredMap: Map with Output Numerical Constraints applied. Map that is dispayed.
-    4. Each cell in the truth table comprises an IO/Viewer (CellIO) and data (CellData).
-    5. TruthTableRows are lists of cells, and Maps store the mapping from row to row.
     6. As Maps in F# are unordered, sorting of Truth Tables is done when the table is a
-        list of rows.
-    7. Re-ordering columns is implemented using 2D Arrays of Truth Table Cells as it is more
-        efficient. Indexed access to lists is O(n), indexed access to arrays is O(1).
+        list of rows. This sorted table is stored in SortedListRep.
 *)
 
 type CellData =
@@ -215,22 +211,24 @@ let orderConstraints set =
         |> List.sortByDescending (fun c -> c.Range)
     {set with Inequalities = ordered}
 
-// Used when calculating the LHS of a Truth Table
+// Data structure containing information about an input used when calculating Truth Table LHS.
+// RowCount for an input refers to the number of unique values it contributes to the table
 type TableInput = {
     // SimulationIO associated with the input
     IO: SimulationIO
     // Is the Input algebraic (or numeric)
     IsAlgebra: bool
-    // Number of possible input values, based on width of input
+    // Number of possible unique input values, based on width of input
     MaxRowCount: int
-    // Number of possible input values after applying input constraints
+    // Number of possible unique input values after applying input constraints
     ConstrainedRowCount: int
-    // Number of possible input values that will fit in the Truth Table after truncation
+    // Number of possible unique input values that will fit in the Truth Table after truncation
     AllowedRowCount: int
     // Constraints on the input
     Constraints: ConstraintSet
 }
 
+/// Create a TableInput data structure from a SimulationIO using application state
 let initTableInput (simIO:SimulationIO) (allConstraints: ConstraintSet) (algebraIOs: SimulationIO list) =
     let (_,_,w) = simIO
     let specificEqualities =

@@ -7,32 +7,21 @@ open SynchronousUtils
 open NumberHelpers
 open Helpers
 
-/// Splits one list into two by filtering it using a predicate. If the predicate
-/// evaluates to true, the element will be placed in the first list. If it evaluates
-/// to false, the element will be placed in the second list.
-let splitList (predicate: 'a -> bool) (lst: 'a list) =
-    let rec split mainList lst1 lst2 =
-        match mainList with
-        | [] -> lst1,lst2
-        | hd::tl ->
-            if predicate hd then
-                split tl (hd::lst1) lst2
-            else
-                split tl lst1 (hd::lst2)
-    split lst [] []
-
-
+/// Wraps SimulationIO and Viewer types in the CellIO DU Type
 let toCellIO simIOs viewers =
     (List.map (fun io -> SimIO io) simIOs
     @
     List.map (fun ((l,f),w,_) -> Viewer ((l,f),w)) viewers)
 
+/// Converts a Truth Table from a Mapping to a list of its rows.
+/// Note that separation of inputs and outputs is lost.
 let tableAsList tMap =
     tMap
     |> Map.toList
     |> List.map (fun (lhs,rhs) -> List.append lhs rhs)
 
-/// From a TableInput data structure, find all possible values the input can take
+/// From a TableInput data structure, return all possible values a non-algebraic input can take
+/// without the truth table as a whole exceeding the row limit.
 let inputValues (tInput: TableInput) =
     match tInput.Constraints.Equalities, tInput.Constraints.Inequalities with
     | [], [] ->
@@ -43,6 +32,7 @@ let inputValues (tInput: TableInput) =
         else
             [0..(tInput.AllowedRowCount-1)]
     | equ, ineq ->
+        // First infer values from from equality constraints
         let values1 =
             ([],equ)
             ||> List.fold (fun rows con ->
@@ -50,7 +40,7 @@ let inputValues (tInput: TableInput) =
                     con.Value::rows
                 else
                     rows)
-
+        // Infer values from inequality constraints
         (values1,ineq)
         ||> List.fold (fun rows con ->
             if rows.Length < tInput.AllowedRowCount then
@@ -65,14 +55,14 @@ let inputValues (tInput: TableInput) =
 /// Find all combinations (cartesian product) of all possible values for table inputs
 let inputCombinations (tInputs: TableInput list) =  
     let rec numComb (acc: int list list) (rem: int list list) =
-                match rem with
-                | hd::tl ->
-                    let newAcc =
-                        acc
-                        |> List.collect (fun l -> List.map (fun i -> l @ [i]) hd)
-                    numComb newAcc tl
-                | [] ->
-                    acc
+        match rem with
+        | hd::tl ->
+            let newAcc =
+                acc
+                |> List.collect (fun l -> List.map (fun i -> l @ [i]) hd)
+            numComb newAcc tl
+        | [] ->
+            acc
     
     let masterList =
         tInputs
@@ -95,16 +85,16 @@ let inputCombinations (tInputs: TableInput list) =
     combs
     |> List.map (fun l -> l |> List.mapi (fun i n ->
         let (_,_,w) = tInputs[i].IO
-        {IO = SimIO (tInputs[i].IO); Data = Bits (convertIntToWireData w n)}
-
-        ))
+        {IO = SimIO (tInputs[i].IO); Data = Bits (convertIntToWireData w n)}))
 
 /// Returns a TableInput list with Max and Constrained Row Counts correctly calculated.
-/// Allowed Row Counts will be set to zero.
-let inputsWithCRC (inputs: SimulationIO list) (inputConstraints: ConstraintSet) (algebraIOs: SimulationIO list) =
+/// Allowed Row Counts will be set to zero and calculated later.
+// We assume that all constraints are validated on entry, so they don't overlap.
+let inputsWithCRC 
+    (inputs: SimulationIO list) 
+    (inputConstraints: ConstraintSet) 
+    (algebraIOs: SimulationIO list) =
     let findConstrainedRowCount (tInput: TableInput) =
-    // We asume that all constraints are validated on entry.
-    // Therefore, there should be no overlaps.
         match tInput.Constraints, tInput.IsAlgebra with
         | _, true -> 1
         | {Equalities = []; Inequalities = []}, false -> tInput.MaxRowCount
@@ -119,8 +109,9 @@ let inputsWithCRC (inputs: SimulationIO list) (inputConstraints: ConstraintSet) 
         let crc = findConstrainedRowCount ti
         {ti with ConstrainedRowCount = crc})
 
-/// Calculates Allowed Row Counts for each Truth Table input.
-/// Also returns the actual row count for the given inputs and constraints.
+/// Calculates Allowed Row Counts for each Truth Table input in the list and updates the field in
+/// the TableInput data structure. Also returns the number of rows the constrained truth table
+/// should have in theory (which may be different in practice due to truncation).
 let inputsWithARC limit (tInputs: TableInput list) =
     let sortedInputs =
         tInputs
@@ -154,26 +145,33 @@ let tableLHS
     let tInputs,tCRC =
         inputsWithCRC inputs inputConstraints algebraIOs
         |> inputsWithARC rowLimit
-    printfn "Inputs %A" tInputs
 
     let algInputs,numInputs =
         tInputs
-        |> splitList (fun ti -> ti.IsAlgebra)
+        |> List.partition (fun ti -> ti.IsAlgebra)
 
+    // Subset of a row with algebraic inputs
     let algRow =
         algInputs
         |> List.map (fun ti -> 
             let (_,label,_) = ti.IO
             {IO = SimIO ti.IO; Data = Algebra (string label)})
     if numInputs.IsEmpty then
+        // All inputs are algebraic, so only one row in table with all algebra
         [algRow],1
     else
+        // Append algebra to each numeric row to get full LHS
         (numInputs
         |> inputCombinations
         |> List.map (fun r -> algRow@r)), (tCRC)
 
-/// Find the RHS (output) for every input row by simulating the input combination
-let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) viewers (simData: SimulationData): TruthTableRow =
+/// Find the RHS (output) for an input row by simulating the input combination
+let rowRHS 
+    (rowLHS: TruthTableRow) 
+    (outputs: SimulationIO list) 
+    viewers 
+    (simData: SimulationData)
+    : TruthTableRow =
     let updateOutputs (cell: TruthTableCell) =
         match cell.IO, cell.Data with
         | SimIO io, Bits wd ->
@@ -183,7 +181,10 @@ let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) viewers (simData
             let (cid,_,_) = io
             FastRun.changeInput cid (IAlg (SingleTerm io)) simData.ClockTickNumber simData.FastSim
         | x, y -> failwithf "what? CellData from input rows has IO: %A, and Data: %A." x y
+    // Feed the current input combination to the Fast Simulation
     let _ = List.map updateOutputs rowLHS
+    
+    // Extract Output and Viewer values from the Fast Simulation
     let outputRow =
         (outputs,simData)
         ||> FastRun.extractFastSimulationIOs
@@ -199,7 +200,8 @@ let rowRHS (rowLHS: TruthTableRow) (outputs: SimulationIO list) viewers (simData
             | IAlg exp -> {IO = Viewer ((l,f),w); Data = Algebra l})
     outputRow @ viewerRow
 
-/// Create a Truth Table from the Simulation Data and input constraints
+/// Create a Truth Table from Simulation Data, taking into account 
+/// algebraic inputs and input constriants.
 let truthTable 
     (simData: SimulationData) 
     (inputConstraints: ConstraintSet)
@@ -207,6 +209,8 @@ let truthTable
     bitLimit: TruthTable =
     let start = TimeHelpers.getTimeMs()
     printfn "Truth Table Gen Called"
+
+    // Create a new SimData separate from the one used by the Step Simulator
     let tempSimData =
         match FastRun.buildFastSimulation 1 simData.Graph with
         | Ok tempFS -> {simData with FastSim = tempFS}
@@ -220,7 +224,6 @@ let truthTable
     List.zip lhs rhs
     |> Map.ofList
     |> (fun tableMap ->
-        printfn "RealRowCount: %A" tableMap.Count
         let listRep = tableAsList tableMap
         {
             TableMap = tableMap
@@ -235,7 +238,8 @@ let truthTable
             })
     |> TimeHelpers.instrumentInterval "truthTableGeneration" start
 
-/// Regenenerate the truth table after the input constraints change
+/// Regenenerate the truth table after input constraints change or inputs are toggled between
+/// values and algebra.
 let truthTableRegen tableSD inputConstraints (algebraIOs: SimulationIO list) bitLimit =
     let start = TimeHelpers.getTimeMs()
     let inputs = List.map fst (FastRun.extractFastSimulationIOs tableSD.Inputs tableSD)

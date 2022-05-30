@@ -168,7 +168,7 @@ type Wave = {
     // List indexed by clock cycle
     WaveValues: WireData list
     // Store SVG cache here maybe?
-    SVG: ReactElement list option
+    Polylines: ReactElement list option
 }
 
 // type WaveformSpec = {

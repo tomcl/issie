@@ -3,25 +3,88 @@ module WaveSimStyle
 open CommonTypes
 open ModelType
 open DiagramStyle
+open WaveSimHelpers
+
 open Fulma
 open Fable.React
 open Fable.React.Props
 
-// Waveform simulator styles
+// let maxBusValGap = 3
+// let busLabelTextSize = 0.6 // multiplied by signal height
 
-let namesColMinWidth = 250
-let valuesColMinWidth = 100
-// TODO: Explain why: 30*width, width is 1.5, so that's 45. This is 8 cycles (0 to 7)
-// This should be divisible by 45
-// let initialWaveformColWidth = rightSectionWidthViewerDefault - namesColMinWidth - valuesColMinWidth
-let initialWaveformColWidth = int( 1.5 * float (30 * 7)) //rightSectionWidthViewerDefault - namesColMinWidth - valuesColMinWidth
+module Constants =
+    let namesColMinWidth = 250
+    let valuesColMinWidth = 100
+    // TODO: Explain why: 30*width, width is 1.5, so that's 45. This is 8 cycles (0 to 7)
+    // This should be divisible by 45
+    let initialWaveformColWidth = int( 1.5 * float (30 * 7)) //rightSectionWidthViewerDefault - namesColMinWidth - valuesColMinWidth
 
-let rowHeight = "30px"
+    let rowHeight = "30px"
+    let clkLineWidth = 0.0125
+    let lineThickness : float = 0.025
+
+
+let endCycle wsModel = wsModel.StartCycle + wsModel.ShownCycles - 1
+
+let topRowStyle = Style [
+    Height Constants.rowHeight
+    BorderBottom "2px solid rgb(219,219,219)"
+]
+
+/// Empty row used in namesColumn and valuesColumn. Shifts these down by one
+/// to allow for the row of clk cycle numbers in waveformsColumn.
+let topRow = [ div [ topRowStyle ] [] ]
+
+/// TODO: Tweak these parameters
+let errorMessageStyle = Style [
+    Width "90%"
+    MarginLeft "5%"
+    MarginTop "15px"
+]
+
+let viewButtonStyle = Style [
+    MarginLeft "10px"
+]
+
+let viewButtonProps = [
+    Button.Color IsSuccess
+    Button.Props [viewButtonStyle]
+]
+
+let viewButtonLight = viewButtonProps @ [ Button.IsLight ]
 
 let checkBoxColStyle = Style [
     BorderRight "2px solid #dbdbdb"
     VerticalAlign "bottom"
     Width "5px"
+]
+
+let tableRowStyle = Style [
+    VerticalAlign "middle"
+    Height Constants.rowHeight
+    Width "5px"
+]
+
+let selectAllCheckboxProps : IHTMLProp list = [
+    tableRowStyle
+]
+
+let checkboxStyle = Style [
+    Margin "0 5px 0 5px"
+    Cursor "pointer"
+    Float FloatOptions.Left
+]
+
+let checkboxInputProps : IHTMLProp list = [
+    Type "checkbox"
+    checkboxStyle
+]
+
+let boldFontStyle = Style [ FontWeight "bold" ]
+
+let selectWavesStyle = Style [
+    Position PositionOptions.Relative
+    Top "20px"
 ]
 
 let closeWaveSimButtonStyle = Style [
@@ -97,6 +160,13 @@ let clkCycleInputStyle = Style [
     BorderRadius 0
 ]
 
+let clkCycleInputProps : IHTMLProp list = [
+    Min 0
+    SpellCheck false
+    Step 1
+    clkCycleInputStyle
+]
+
 let clkCycleBut = [
     Margin 0
     Height "30px"
@@ -130,6 +200,8 @@ let clkCycleRightStyle = Style (
         BorderBottomRightRadius "4px"
     ])
 
+let waveSimButtonsBarStyle = Style [ Height "45px" ]
+
 let upDownDivStyle = Style [
     Width "100%"
     Position PositionOptions.Relative
@@ -152,7 +224,7 @@ let upDownButtonStyle = Style [
 ]
 
 let labelStyle = Style [
-    Height rowHeight
+    Height Constants.rowHeight
     BorderBottom "1px solid rgb(219,219,219)"
 ]
 
@@ -163,21 +235,20 @@ let colWidth width =
     | Some x -> string x
     | None -> "100%"
 
-let waveSimColumn width = [
+let waveSimColumn = [
     Height "100%"
-    Width "100%" //(colWidth width)
+    Width "100%"
     BorderTop borderProperties
     Display DisplayOptions.Grid
     GridAutoRows "30px" 
-    // VerticalAlign "middle"
     FontSize "12px"
     OverflowX OverflowOptions.Scroll
     WhiteSpace WhiteSpaceOptions.Nowrap
     LineHeight "25px"
 ]
 
-let namesColumnStyle (width: float option) = Style (
-    (waveSimColumn width) @ [
+let namesColumnStyle = Style (
+    (waveSimColumn) @ [
         MinWidth "215px"
         Float FloatOptions.Left
         BorderRight borderProperties
@@ -185,29 +256,22 @@ let namesColumnStyle (width: float option) = Style (
         TextAlign TextAlignOptions.Right
     ])
 
-let valuesColumnStyle (width: float option) = Style (
-    (waveSimColumn width) @ [
+let valuesColumnStyle = Style (
+    (waveSimColumn) @ [
         MinWidth "75px"
         Float FloatOptions.Right
         BorderLeft borderProperties
         GridColumnStart 3
     ])
 
-let showWaveformsStyle m = Style [
-    Height "calc(100% - 50px)"
-    Width "100%"
-    OverflowY OverflowOptions.Auto
+let waveformColumnStyle = Style [
+    GridColumnStart 2
     Display DisplayOptions.Grid
-    ColumnCount 3
-    GridAutoFlow "column"
-    GridAutoColumns "auto"
 ]
 
-let waveformColumnStyle m width = Style [
+let waveRowsStyle width = Style [
     Height "100%" 
     OverflowX OverflowOptions.Hidden
-    // TODO: Remove this magic number
-    // MaxWidth (sprintf "%dpx" (m.WaveSimViewerWidth - 125))
     Display DisplayOptions.Grid
     FontSize "12px"
     GridAutoRows "30px"
@@ -217,8 +281,17 @@ let waveformColumnStyle m width = Style [
     GridRowStart 1
 ]
 
-let waveViewerPaneStyle m = Style [
-    // Width (string (m.WaveSimViewerWidth - 10) + "px")
+let showWaveformsStyle = Style [
+    Height "calc(100% - 50px)"
+    Width "100%"
+    OverflowY OverflowOptions.Auto
+    Display DisplayOptions.Grid
+    ColumnCount 3
+    GridAutoFlow "column"
+    GridAutoColumns "auto"
+]
+
+let waveViewerPaneStyle = Style [
     MarginLeft "0%"
     MarginTop "0px"
     MarginBottom "100px"
@@ -226,35 +299,15 @@ let waveViewerPaneStyle m = Style [
     OverflowY OverflowOptions.Auto
 ]
 
-// let clkLineWidth = 0.0125
-// let transLen = 0.1
-// let vPos = 0.0
-// let zoomFactor = 1.3
-// let maxZoom = 3.0
-// let minZoom = 0.2
-// let maxBusValGap = 3
-// let busLabelTextSize = 0.6 // multiplied by signal height
-// let sigLineThick = 0.025;
-// let spacing = 0.4
-// let sigHeight = 0.3 
-
-let endCycle wsModel = wsModel.StartCycle + wsModel.ShownCycles - 1
-
-let clkLineWidth = 0.0125
-
-let topRowStyle = Style [
-    Height rowHeight
-    BorderBottom "2px solid rgb(219,219,219)"
-]
-
-let tmpStyle = Style [
-    Height rowHeight
-    BorderBottom "1px solid rgb(219,219,219)"
+let waveSelectionPaneStyle = Style [
+    Width "90%"
+    MarginLeft "5%"
+    MarginTop "15px"
 ]
 
 let clkLineStyle = Style [
     Stroke "rgb(200,200,200)"
-    StrokeWidth clkLineWidth
+    StrokeWidth Constants.clkLineWidth
 ]
 
 let clkCycleText m i : IProp list =
@@ -270,17 +323,16 @@ let clkCycleSVGStyle = Style [
     BorderBottom borderProperties
 ]
 
-let viewBoxMinX m = string (float m.StartCycle * m.ZoomLevel)
-let viewBoxWidth m = string (float m.ShownCycles * m.ZoomLevel)
-let viewBoxHeight : float = 1.0
-
-let clkCycleNumberRowProps m : IProp list =
-    [
+let waveformColumnRowProps m : IProp list = [
     SVGAttr.Height "30px"
     SVGAttr.Width (float m.ShownCycles * 30.0 * m.ZoomLevel)
     // min-x, min-y, width, height
-    ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string viewBoxHeight)
+    ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string Constants.viewBoxHeight)
     PreserveAspectRatio "none"
+]
+
+let clkCycleNumberRowProps m : IProp list = 
+    waveformColumnRowProps m @ [
     clkCycleSVGStyle
 ]
 
@@ -289,17 +341,12 @@ let waveRowSVGStyle = Style [
     BorderBottom "1px solid rgb(219,219,219)"
 ]
 
-let waveRowProps m : IProp list =
-    [
-    SVGAttr.Height "30px"
-    SVGAttr.Width (float m.ShownCycles * 30.0 * m.ZoomLevel)
-    // min-x, min-y, width, height
-    ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string viewBoxHeight)
-    PreserveAspectRatio "none"
+let waveRowProps m : IProp list = 
+    waveformColumnRowProps m @ [
     waveRowSVGStyle
 ]
 
-// This controls the background highlighting of which clock cycle is selected
+/// Controls the background highlighting of which clock cycle is selected
 let clkCycleHighlightSVG m count = 
     svg [
         Style [
@@ -310,7 +357,7 @@ let clkCycleHighlightSVG m count =
         SVGAttr.Width (float m.ShownCycles * 30.0 * m.ZoomLevel)
         SVGAttr.Fill "rgb(230,230,230)"
         SVGAttr.Opacity 0.4
-        ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string (viewBoxHeight * float (count + 1)))
+        ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string (Constants.viewBoxHeight * float (count + 1)))
     ] [
         rect [
             SVGAttr.Width (m.ZoomLevel)
@@ -319,7 +366,18 @@ let clkCycleHighlightSVG m count =
         ] []
     ]
 
-let lineThickness : float = 0.025
+
+let radixTabProps : IHTMLProp list = [
+    Style [
+        Width "35px"
+        Height "30px"
+    ]
+]
+
+let radixTabAStyle = Style [
+    Padding "0 0 0 0"
+    Height "30px"
+]
 
 let radixTabsStyle = Style [
     Width "140px"
@@ -329,15 +387,9 @@ let radixTabsStyle = Style [
     Margin "0 10px 0 10px"
 ]
 
-let pointsToString (points: XYPos list) : string =
-    List.fold (fun str (point: XYPos) ->
-        str + string point.X + "," + string point.Y + " "
-    ) "" points
-
 let wavePolylineStyle points : IProp list = [
     SVGAttr.Stroke "blue"
     SVGAttr.Fill "none"
-    SVGAttr.StrokeWidth lineThickness
-
+    SVGAttr.StrokeWidth Constants.lineThickness
     Points (pointsToString points)
 ]

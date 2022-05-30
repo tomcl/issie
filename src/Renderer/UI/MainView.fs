@@ -7,7 +7,7 @@ open Fable.React.Props
 open DiagramStyle
 open ModelType
 open FileMenuView
-// open WaveformSimulationView
+open WaveSimHelpers
 open WaveSimStyle
 open WaveSim
 open Sheet.SheetInterface
@@ -60,7 +60,7 @@ let initWSModel : WaveSimModel = {
     Radix = CommonTypes.Hex
     ZoomLevel = 1.5
     ZoomLevelIndex = 9
-    WaveformColumnWidth = initialWaveformColWidth
+    WaveformColumnWidth = Constants.initialWaveformColWidth
 }
 
 /// Initial value of model
@@ -279,11 +279,11 @@ let displayView model dispatch =
         if model.WaveSim.State = Running then
             dispatch <| SetViewerWidth w
 
-            let waveColWidth = w - namesColMinWidth - valuesColMinWidth
+            let waveColWidth = w - Constants.namesColMinWidth - Constants.valuesColMinWidth
             let wholeCycles = waveColWidth / int (singleWaveWidth model.WaveSim)
             let wholeCycleWidth = wholeCycles * int (singleWaveWidth model.WaveSim)
             printf "wholeCycles: %A" wholeCycles
-            let viewerWidth = namesColMinWidth + valuesColMinWidth + wholeCycleWidth
+            let viewerWidth = Constants.namesColMinWidth + Constants.valuesColMinWidth + wholeCycleWidth
 
             let wsModel = {
                 model.WaveSim with

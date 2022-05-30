@@ -47,7 +47,7 @@ let getMessageTraceString (msg: Msg) =
         | Sheet (SheetT.Msg.Wire(BusWireT.Msg.Symbol(SymbolT.MouseMsg _ | SymbolT.ShowPorts _ ))) -> true
         | _ -> false
     let shortDisplayMsg = function 
-        | SetWSMod _ -> Some "U(SetWSMod)"
+        | SetWSModel _ -> Some "U(SetWSModel)"
         | SetWaveSimModel _ -> Some "U(SetWaveSimModel)"
         | SetWSModAndSheet _ -> Some "U(SetWsModAndSheet)"
         | StartSimulation _ -> Some "U(StartSimulation)"

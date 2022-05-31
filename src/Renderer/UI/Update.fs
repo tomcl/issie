@@ -685,6 +685,13 @@ let update (msg : Msg) oldModel =
         {model with TTIOOrder = x}, Cmd.none
     | SetTTAlgebraInputs lst ->
         {model with TTAlgebraInputs = lst}, Cmd.none
+    | SetTTBase numBase ->
+        let table = getTruthTableOrFail model "SetTTBase"
+        let updatedTT = 
+            {table with TableSimData = {table.TableSimData with NumberBase = numBase}}
+            |> Ok
+            |> Some
+        {model with CurrentTruthTable = updatedTT}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
@@ -694,8 +701,6 @@ let update (msg : Msg) oldModel =
         | Properties -> Cmd.batch <| editCmds
         | Catalogue -> Cmd.batch  <| editCmds
         | Simulation -> Cmd.batch <| editCmds
-        //| TruthTable -> Cmd.batch <| editCmds
-        //| WaveSim -> Cmd.ofMsg (Sheet (Sheet.SetWaveSimMode true))
     | ChangeSimSubTab subTab ->
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg

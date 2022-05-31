@@ -510,26 +510,26 @@ let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) (c
                 [makeSortingArrows cell.IO sortInfo dispatch]
             ]
 
-let viewCellAsData i styleInfo (cell: TruthTableCell) =
-    let cellStyle =
-        match Map.tryFind cell.IO styleInfo, i%2 with
-        | None, _ -> failwithf "what? IO %A not found in Grid Styles" cell.IO
-        | Some s, 1 -> Style <| (BackgroundColor "whitesmoke")::s
-        | Some s, _ -> Style s
-    match cell.Data with
-    | Bits [] -> failwithf "what? Empty WireData in TruthTable"
-    | Bits [bit] -> div [cellStyle] [str <| bitToString bit]
-    | Bits bits ->
-        let width = List.length bits
-        let value = viewFilledNum width Hex <| convertWireDataToInt bits
-        div [cellStyle] [str value]
-    | Algebra a -> div [cellStyle] [str <| a]
-    | DC -> div [cellStyle] [str <| "X"]
+let viewRowAsData numBase styleInfo i (row: TruthTableCell list) =
+    let viewCellAsData (cell: TruthTableCell) =
+        let cellStyle =
+            match Map.tryFind cell.IO styleInfo, i%2 with
+            | None, _ -> failwithf "what? IO %A not found in Grid Styles" cell.IO
+            | Some s, 1 -> Style <| (BackgroundColor "whitesmoke")::s
+            | Some s, _ -> Style s
+        match cell.Data with
+        | Bits [] -> failwithf "what? Empty WireData in TruthTable"
+        | Bits [bit] -> div [cellStyle] [str <| bitToString bit]
+        | Bits bits ->
+            let width = List.length bits
+            let value = viewFilledNum width numBase <| convertWireDataToInt bits
+            div [cellStyle] [str value]
+        | Algebra a -> div [cellStyle] [str <| a]
+        | DC -> div [cellStyle] [str <| "X"]
 
-let viewRowAsData styleInfo i (row: TruthTableCell list) =
     let cells =
         row
-        |> List.map (viewCellAsData i styleInfo)
+        |> List.map viewCellAsData
     cells
 
 let viewTruthTableError simError =
@@ -567,7 +567,7 @@ let viewTruthTableData (table: TruthTable) (mapType: MapToUse) model dispatch =
             |> List.toSeq
         let body =
             table.SortedListRep
-            |> List.mapi (viewRowAsData styleInfo)
+            |> List.mapi (viewRowAsData table.TableSimData.NumberBase styleInfo)
             |> List.concat
             |> List.toSeq
 
@@ -680,7 +680,7 @@ let viewTruthTable model dispatch =
         let body =
             match tableopt with
             | Error e -> viewTruthTableError e
-            | Ok table ->
+            | Ok table -> 
                 div [] [
                     viewReductions table model dispatch
                     br []; br []

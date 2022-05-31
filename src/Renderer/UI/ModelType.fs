@@ -309,8 +309,8 @@ type Msg =
     | SetTTSortType of (CellIO * SortType) option
     | MoveColumn of (CellIO * MoveDirection)
     | SetIOOrder of CellIO []
-    //| ToggleTTInputType of SimulationIO
     | SetTTAlgebraInputs of SimulationIO list
+    | SetTTBase of NumberBase
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list

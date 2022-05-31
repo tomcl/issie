@@ -10,6 +10,7 @@ open FileMenuView
 open WaveformSimulationView
 open Sheet.SheetInterface
 open DrawModelType
+open CommonTypes
 
 open Fable.Core
 open Fable.Core.JsInterop

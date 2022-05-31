@@ -603,15 +603,22 @@ let viewReductions (table: TruthTable) (model: Model) dispatch =
         |> List.map (fun (_,label,_) ->
             Tag.tag [Tag.Color IsDanger; Tag.IsLight] [str <| string label])
         |> Tag.list []
+    let hasMultiBitOutputs =
+                    table.TableSimData.Outputs 
+                    |> List.filter (fun (_,_,w) -> w > 1) |> List.isEmpty |> not
+    let maybeBaseSelector =
+        match hasMultiBitOutputs with
+        | false -> div [] []
+        | true -> baseSelector table.TableSimData.NumberBase (fun n -> n |> SetTTBase |> dispatch)
     match table.DCMap, model.TTAlgebraInputs with
     | None, [] -> // Table is neither DC Reduces or Algebraic
         div [] [
-            makeElementLine [reduceButton; str "   ";algebraButton] []]
+            makeElementLine [reduceButton; str "   ";algebraButton] [maybeBaseSelector]]
     | Some dc, [] -> // Table is DC Reduced
         div [] [
             goBackButton]
     | None, _::_ -> // Table is Algebraic
         div [] [
-            makeElementLine [goBackButton; str "   ";algebraButton] []
+            makeElementLine [goBackButton; str "   ";algebraButton] [maybeBaseSelector]
             makeElementLine [str "Algebraic Inputs: "; algebraTags] []]
     | Some _, _::_ -> failwithf "what? Table cannot be DC Reduced and Algebraic"

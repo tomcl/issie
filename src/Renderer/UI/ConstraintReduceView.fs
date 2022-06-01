@@ -576,7 +576,7 @@ let viewReductions (table: TruthTable) (model: Model) dispatch =
         | Some _, _::_ -> failwithf "what? Table cannot be DC Reduced and Algebraic"
         | Some _, [] ->
             (Button.button [Button.Color IsInfo; Button.OnClick (fun _ -> 
-                dispatch ClearDCMap; HideColumn |> Some |> SetTTOutOfDate |> dispatch)]
+                dispatch ClearDCMap)]
             [str "Back to Full Table"])
         | None, _::_ ->
             (Button.button [Button.Color IsInfo; Button.OnClick (fun _ ->
@@ -616,7 +616,7 @@ let viewReductions (table: TruthTable) (model: Model) dispatch =
             makeElementLine [reduceButton; str "   ";algebraButton] [maybeBaseSelector]]
     | Some dc, [] -> // Table is DC Reduced
         div [] [
-            goBackButton]
+            makeElementLine [goBackButton] [maybeBaseSelector]]
     | None, _::_ -> // Table is Algebraic
         div [] [
             makeElementLine [goBackButton; str "   ";algebraButton] [maybeBaseSelector]

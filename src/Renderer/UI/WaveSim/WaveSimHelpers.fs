@@ -147,6 +147,7 @@ let nonBinaryWavePoints (clkCycleWidth: float) (clkCycle: int) (transition: NonB
         ([topL; topR], [botL; botR]), clkCycle + 1
 
 /// Determine transitions for each clock cycle of a binary waveform.
+/// Assumes that waveValues starts at clock cycle 0.
 let determineBinaryTransitions waveValues =
     (List.head waveValues, waveValues)
     ||> List.mapFold
@@ -162,6 +163,7 @@ let determineBinaryTransitions waveValues =
     |> fst
 
 /// Determine transitions for each clock cycle of a non-binary waveform.
+/// Assumes that waveValues starts at clock cycle 0.
 let determineNonBinaryTransitions waveValues =
     // Use [] so that first clock cycle always starts with Change
     ([], waveValues)

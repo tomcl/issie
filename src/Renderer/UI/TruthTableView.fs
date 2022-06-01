@@ -554,19 +554,19 @@ let viewTruthTableError simError =
         error
     ]
 
-let viewTruthTableData (table: TruthTable) (mapType: MapToUse) model dispatch =
-    let tMap = table.getMap mapType
+let viewTruthTableData (table: TruthTable) model dispatch =
+    let tLst = table.SortedListRep
     let sortInfo = model.TTSortType
     let styleInfo = model.TTGridStyles
-    if tMap.IsEmpty then
+    if tLst.IsEmpty then
         div [] [str "No Rows in Truth Table"]
     else
         let headings =
-            table.SortedListRep.Head
+            tLst.Head
             |> List.map (viewCellAsHeading dispatch sortInfo styleInfo) 
             |> List.toSeq
         let body =
-            table.SortedListRep
+            tLst
             |> List.mapi (viewRowAsData table.TableSimData.NumberBase styleInfo)
             |> List.concat
             |> List.toSeq
@@ -684,7 +684,7 @@ let viewTruthTable model dispatch =
                 div [] [
                     viewReductions table model dispatch
                     br []; br []
-                    viewTruthTableData table Filtered model dispatch]
+                    viewTruthTableData table model dispatch]
                
         let constraints =
             match tableopt with

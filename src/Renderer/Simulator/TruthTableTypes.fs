@@ -106,27 +106,6 @@ type TruthTable = {
         |> List.head
         |> fst
         |> List.map (fun cell -> cell.IO)
-    member this.AllOutputs =
-        this.TableMap
-        |> Map.toList
-        |> List.head
-        |> snd
-        |> List.map (fun cell -> cell.IO)
-    member this.VisibleOutputs =
-        this.FilteredMap
-        |> Map.toList
-        |> List.head
-        |> snd
-        |> List.map (fun cell -> cell.IO)
-    member this.getMap (mapType: MapToUse) =
-        match mapType with
-        | Table -> this.TableMap
-        | HiddenCol -> this.HiddenColMap
-        | Filtered -> this.FilteredMap
-        | DCReduced ->
-            match this.DCMap with
-            | Some m -> m
-            | None -> Map.empty
 
 /// Returns true if a row contains a Don't Care (X)
 let rowContainsDC (row: TruthTableRow) =

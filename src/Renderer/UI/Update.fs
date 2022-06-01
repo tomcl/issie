@@ -470,7 +470,13 @@ let update (msg : Msg) oldModel =
         match simRes with
         | Some (Ok sd,_) ->
             // Generate the Truth Table
-            let tt = truthTable sd model.TTInputConstraints model.TTAlgebraInputs model.TTBitLimit
+            let tt = 
+                truthTable 
+                    sd 
+                    model.TTInputConstraints 
+                    model.TTAlgebraInputs 
+                    model.TTBitLimit
+                    false
             // Styles for the grid
             let colStyles = 
                 tt.IOOrder
@@ -500,11 +506,12 @@ let update (msg : Msg) oldModel =
         let ttRes, commands =
             try
                 let tt =
-                    truthTableRegen
+                    truthTable
                         table.TableSimData
                         model.TTInputConstraints
                         model.TTAlgebraInputs
                         model.TTBitLimit
+                        true
                 let comms = 
                     [
                         // Set the IO Order for the Truth Table

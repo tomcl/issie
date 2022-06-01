@@ -381,25 +381,30 @@ let displayValuesOnWave (startCycle: int) (endCycle: int) (waveValues: WireData 
 /// Called when InitiateWaveSimulation msg is dispatched
 /// Generates the polyline(s) for a specific waveform
 let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
-    printf "generating wave for %A" waveName
-
     if wave.Selected then
+        printf "generating wave for %A" waveName
         let polylines =
             match wave.Width with
             | 0 -> failwithf "Cannot have wave of width 0"
             | 1 ->
                 let transitions = determineBinaryTransitions wave.WaveValues
+                /// TODO: Fix this so that it does not generate all 500 points.
+                /// Currently takes in 0, but this should ideally only generate the points that
+                /// are shown on screen, rather than all 500 cycles.
                 let wavePoints =
-                    List.mapFold (binaryWavePoints wsModel.ZoomLevel) wsModel.StartCycle transitions 
+                    List.mapFold (binaryWavePoints wsModel.ZoomLevel) 0 transitions 
                     |> fst
                     |> List.concat
                     |> List.distinct
-
+                printf "wavePoints: %A" wavePoints
                 [ polyline (wavePolylineStyle wavePoints) [] ]
             | _ ->
                 let transitions = determineNonBinaryTransitions wave.WaveValues
+                /// TODO: Fix this so that it does not generate all 500 points.
+                /// Currently takes in 0, but this should ideally only generate the points that
+                /// are shown on screen, rather than all 500 cycles.
                 let fstPoints, sndPoints =
-                    List.mapFold (nonBinaryWavePoints wsModel.ZoomLevel) wsModel.StartCycle transitions 
+                    List.mapFold (nonBinaryWavePoints wsModel.ZoomLevel) 0 transitions 
                     |> fst
                     |> List.unzip
                 let makePolyline points = 
@@ -408,6 +413,10 @@ let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
                         |> List.concat
                         |> List.distinct
                     polyline (wavePolylineStyle points) []
+
+                printf "fstPoints: %A" fstPoints
+                printf "sndPoints: %A" sndPoints
+
 
                 [makePolyline fstPoints; makePolyline sndPoints]
 
@@ -538,6 +547,7 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
 
     if newClkCycle <= endCycle wsModel then
         if newClkCycle < wsModel.StartCycle then
+            printf "StartCycle: %A" newClkCycle
             dispatch <| InitiateWaveSimulation
                 {wsModel with 
                     StartCycle = newClkCycle
@@ -551,6 +561,8 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
                     ClkCycleBoxIsEmpty = false
                 }
     else
+        printf "StartCycle: %A" (newClkCycle - (wsModel.ShownCycles - 1))
+        printf "CurrClkCycle: %A" newClkCycle
         dispatch <| InitiateWaveSimulation
             {wsModel with
                 StartCycle = newClkCycle - (wsModel.ShownCycles - 1)

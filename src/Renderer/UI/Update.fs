@@ -666,7 +666,7 @@ let update (msg : Msg) oldModel =
                     {table with DCMap = None}
                     |> Ok
                     |> Some
-        {model with CurrentTruthTable = newTT}, Cmd.none
+        {model with CurrentTruthTable = newTT}, Cmd.ofMsg FilterTruthTable
     | SetTTSortType stOpt ->
         {model with TTSortType = stOpt}, Cmd.none
     | MoveColumn (io, dir) ->

@@ -91,9 +91,9 @@ let inputCombinations (tInputs: TableInput list) =
 /// Allowed Row Counts will be set to zero and calculated later.
 // We assume that all constraints are validated on entry, so they don't overlap.
 let inputsWithCRC 
-    (inputs: SimulationIO list) 
-    (inputConstraints: ConstraintSet) 
-    (algebraIOs: SimulationIO list) =
+        (inputs: SimulationIO list) 
+        (inputConstraints: ConstraintSet) 
+        (algebraIOs: SimulationIO list) =
     let findConstrainedRowCount (tInput: TableInput) =
         match tInput.Constraints, tInput.IsAlgebra with
         | _, true -> 1
@@ -165,13 +165,14 @@ let tableLHS
         |> inputCombinations
         |> List.map (fun r -> algRow@r)), (tCRC)
 
-/// Find the RHS (output) for an input row by simulating the input combination
-let rowRHS 
-    (rowLHS: TruthTableRow) 
-    (outputs: SimulationIO list) 
-    viewers 
-    (simData: SimulationData)
-    : TruthTableRow =
+/// Feeds the given input combination (LHS Row) to the table's Fast Simulation and extracts the
+/// simulated output combination (RHS Row).
+// NOTE: This function mutates the table's Fast Simulation data structure.
+let simulateInputCombination 
+        (rowLHS: TruthTableRow) 
+        (outputs: SimulationIO list)  
+        (simData: SimulationData)
+        : TruthTableRow =
     let updateOutputs (cell: TruthTableCell) =
         match cell.IO, cell.Data with
         | SimIO io, Bits wd ->
@@ -180,7 +181,8 @@ let rowRHS
         | SimIO io, Algebra exp ->
             let (cid,_,_) = io
             FastRun.changeInput cid (IAlg (SingleTerm io)) simData.ClockTickNumber simData.FastSim
-        | x, y -> failwithf "what? CellData from input rows has IO: %A, and Data: %A." x y
+        | x, y -> 
+            failwithf "what? CellData from input rows has IO: %A, and Data: %A." x y
     // Feed the current input combination to the Fast Simulation
     let _ = List.map updateOutputs rowLHS
     
@@ -203,23 +205,29 @@ let rowRHS
 /// Create a Truth Table from Simulation Data, taking into account 
 /// algebraic inputs and input constriants.
 let truthTable 
-    (simData: SimulationData) 
-    (inputConstraints: ConstraintSet)
-    (algebraIOs: SimulationIO list)
-    bitLimit: TruthTable =
+    (simData: SimulationData) // Simulation Data for sheet
+    (inputConstraints: ConstraintSet) // All input constraints to be applied to truth table
+    (algebraIOs: SimulationIO list) // All inputs which are algebraic
+    (bitLimit: int) // Limits the max rows in the truth table (2^bitLimit)
+    (isRegeneration: bool) // Is this function call regeneration (true) or first time (false)
+    : TruthTable =
     let start = TimeHelpers.getTimeMs()
-    printfn "Truth Table Gen Called"
 
     // Create a new SimData separate from the one used by the Step Simulator
-    let tempSimData =
-        match FastRun.buildFastSimulation 1 simData.Graph with
-        | Ok tempFS -> {simData with FastSim = tempFS}
-        | _ -> failwithf "Error in building fast simulation for Truth Table evaluation"
-    let inputs = List.map fst (FastRun.extractFastSimulationIOs simData.Inputs tempSimData)
-    let outputs = List.map fst (FastRun.extractFastSimulationIOs simData.Outputs tempSimData)
+    let tableSimData =
+        if isRegeneration then 
+            simData
+        else
+            match FastRun.buildFastSimulation 1 simData.Graph with
+            | Ok fs -> 
+                {simData with FastSim = fs}
+            | _ -> 
+                failwithf "Error in building fast simulation for Truth Table evaluation"
+    let inputs = List.map fst (FastRun.extractFastSimulationIOs simData.Inputs tableSimData)
+    let outputs = List.map fst (FastRun.extractFastSimulationIOs simData.Outputs tableSimData)
     let viewers = FastRun.extractViewers simData
     let lhs,tCRC = tableLHS inputs inputConstraints algebraIOs bitLimit
-    let rhs = List.map (fun i -> rowRHS i outputs viewers tempSimData) lhs
+    let rhs = List.map (fun i -> simulateInputCombination i outputs tableSimData) lhs
 
     List.zip lhs rhs
     |> Map.ofList
@@ -233,36 +241,8 @@ let truthTable
             SortedListRep = listRep
             IsTruncated = (tableMap.Count <> tCRC)
             MaxRowsWithConstraints = tCRC
-            TableSimData = tempSimData
+            TableSimData = tableSimData
             IOOrder = toCellIO (inputs@outputs) viewers
             })
     |> TimeHelpers.instrumentInterval "truthTableGeneration" start
-
-/// Regenenerate the truth table after input constraints change or inputs are toggled between
-/// values and algebra.
-let truthTableRegen tableSD inputConstraints (algebraIOs: SimulationIO list) bitLimit =
-    let start = TimeHelpers.getTimeMs()
-    let inputs = List.map fst (FastRun.extractFastSimulationIOs tableSD.Inputs tableSD)
-    let outputs = List.map fst (FastRun.extractFastSimulationIOs tableSD.Outputs tableSD)
-    let viewers = FastRun.extractViewers tableSD
-    let lhs,tCRC = tableLHS inputs inputConstraints algebraIOs bitLimit
-    let rhs = List.map (fun i -> rowRHS i outputs viewers tableSD) lhs
-
-    List.zip lhs rhs
-    |> Map.ofList
-    |> (fun tableMap ->
-        printfn "RealRowCount: %A" tableMap.Count
-        let listRep = tableAsList tableMap
-        {
-            TableMap = tableMap
-            HiddenColMap = tableMap
-            FilteredMap = tableMap
-            DCMap = None
-            SortedListRep = listRep
-            IsTruncated = (tableMap.Count <> tCRC)
-            MaxRowsWithConstraints = tCRC
-            TableSimData = tableSD
-            IOOrder = toCellIO (inputs@outputs) viewers
-            })
-    |> TimeHelpers.instrumentInterval "truthTableRegen" start
 

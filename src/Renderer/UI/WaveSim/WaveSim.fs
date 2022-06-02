@@ -387,7 +387,7 @@ let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
             match wave.Width with
             | 0 -> failwithf "Cannot have wave of width 0"
             | 1 ->
-                let transitions = determineBinaryTransitions wave.WaveValues
+                let transitions = calculateBinaryTransitions wave.WaveValues
                 /// TODO: Fix this so that it does not generate all 500 points.
                 /// Currently takes in 0, but this should ideally only generate the points that
                 /// are shown on screen, rather than all 500 cycles.
@@ -399,7 +399,7 @@ let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
                 printf "wavePoints: %A" wavePoints
                 [ polyline (wavePolylineStyle wavePoints) [] ]
             | _ ->
-                let transitions = determineNonBinaryTransitions wave.WaveValues
+                let transitions = calculateNonBinaryTransitions wave.WaveValues
                 /// TODO: Fix this so that it does not generate all 500 points.
                 /// Currently takes in 0, but this should ideally only generate the points that
                 /// are shown on screen, rather than all 500 cycles.

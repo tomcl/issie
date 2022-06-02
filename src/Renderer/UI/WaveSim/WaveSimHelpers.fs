@@ -148,32 +148,31 @@ let nonBinaryWavePoints (clkCycleWidth: float) (clkCycle: int) (transition: NonB
 
 /// Determine transitions for each clock cycle of a binary waveform.
 /// Assumes that waveValues starts at clock cycle 0.
-let determineBinaryTransitions waveValues =
-    (List.head waveValues, waveValues)
-    ||> List.mapFold
-        (fun prev value ->
-            match prev, value with
-            | [Zero], [Zero] -> ZeroToZero, value
-            | [Zero], [One] -> ZeroToOne, value
-            | [One], [Zero] -> OneToZero, value
-            | [One], [One] -> OneToOne, value
-            | _ ->
-                failwithf "Unrecognised transition"
-        )
-    |> fst
+let calculateBinaryTransitions (waveValues: Bit list list) : BinaryTransition list =
+    [List.head waveValues] @ waveValues
+    |> List.pairwise
+    |> List.map (fun (x, y) ->
+        match x, y with
+        | [Zero], [Zero] -> ZeroToZero
+        | [Zero], [One] -> ZeroToOne
+        | [One], [Zero] -> OneToZero
+        | [One], [One] -> OneToOne
+        | _ ->
+            failwithf "Unrecognised transition"
+    )
 
 /// Determine transitions for each clock cycle of a non-binary waveform.
 /// Assumes that waveValues starts at clock cycle 0.
-let determineNonBinaryTransitions waveValues =
-    // Use [] so that first clock cycle always starts with Change
-    ([], waveValues)
-    ||> List.mapFold
-        (fun prev value ->
-            if prev = value then
-                Const, value
-            else
-                Change, value
-        )
-    |> fst
+let calculateNonBinaryTransitions (waveValues: Bit list list) : NonBinaryTransition list =
+    // TODO: See if this will break if the clock cycle isn't 0.
+    // Concat [[]] so first clock cycle always starts with Change
+    [[]] @ waveValues
+    |> List.pairwise
+    |> List.map (fun (x, y) ->
+        if x = y then
+            Const
+        else
+            Change
+    )
 
 let isWaveSelected (waveSimModel: WaveSimModel) (name: string) : bool = waveSimModel.AllWaves[name].Selected

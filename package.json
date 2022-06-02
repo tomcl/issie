@@ -52,14 +52,19 @@
       "target": "zip"
     },
     "mac": {
-      "icon": "public/icons/icon.icns",
-      "target": {
-        "target": "default",
-        "arch": [
-          "x64",
-          "arm64"
-        ]
-      }
+      "category": "public.app-category.productivity",
+      "entitlements": "public/entitlements.mac.plist",
+      "entitlementsInherit": "./public/entitlements.mac.plist",
+      "identity": "F7735AA14D8A32CE021D86077797AE9457C53603",
+      "icon": "public/icon.icns",
+      "target": [
+        "dmg"
+      ],
+      "hardenedRuntime": true,
+      "provisioningProfile": "embedded.provisionprofile"
+    },
+    "dmg": {
+      "icon": false
     },
     "afterAllArtifactBuild": "scripts/afterSignHook.js"
   },
@@ -89,7 +94,7 @@
     "del": "^5.1.0",
     "dotenv": "^16.0.0",
     "electron": "^17.1.0",
-    "electron-builder": "^22.14.13",
+    "electron-builder": "^23.0.2",
     "electron-builder-notarize": "^1.4.0",
     "electron-notarize": "^1.1.1",
     "enzyme": "^3.11.0",

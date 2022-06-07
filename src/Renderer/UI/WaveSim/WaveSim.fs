@@ -392,8 +392,7 @@ let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
                 /// Currently takes in 0, but this should ideally only generate the points that
                 /// are shown on screen, rather than all 500 cycles.
                 let wavePoints =
-                    List.mapFold (binaryWavePoints wsModel.ZoomLevel) 0 transitions 
-                    |> fst
+                    List.mapi (binaryWavePoints wsModel.ZoomLevel 0) transitions 
                     |> List.concat
                     |> List.distinct
                 printf "wavePoints: %A" wavePoints
@@ -404,8 +403,7 @@ let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
                 /// Currently takes in 0, but this should ideally only generate the points that
                 /// are shown on screen, rather than all 500 cycles.
                 let fstPoints, sndPoints =
-                    List.mapFold (nonBinaryWavePoints wsModel.ZoomLevel) 0 transitions 
-                    |> fst
+                    List.mapi (nonBinaryWavePoints wsModel.ZoomLevel 0) transitions 
                     |> List.unzip
                 let makePolyline points = 
                     let points =

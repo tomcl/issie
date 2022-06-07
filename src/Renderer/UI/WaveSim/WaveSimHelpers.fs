@@ -107,26 +107,24 @@ let makeCoords (clkCycleWidth: float) (clkCycle: int) (transition: Transition) :
 
     topL, topR, botL, botR
 
+/// TODO: Is this how to use startCycle?
 /// Generate points for a binary waveform
-let binaryWavePoints (clkCycleWidth: float) (clkCycle: int) (transition: BinaryTransition)  : XYPos list * int =
-    let topL, topR, botL, botR = makeCoords clkCycleWidth clkCycle (BinaryTransition transition)
+let binaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int) (transition: BinaryTransition)  : XYPos list =
+    let topL, topR, botL, botR = makeCoords clkCycleWidth (startCycle + index) (BinaryTransition transition)
     // Each match condition generates a specific transition type
     match transition with
-    | ZeroToZero ->
-        [botL; botR], clkCycle + 1
-    | ZeroToOne ->
-        [botL; topL; topR], clkCycle + 1
-    | OneToZero ->
-        [topL; botL; botR], clkCycle + 1
-    | OneToOne ->
-        [topL; topR], clkCycle + 1
+    | ZeroToZero | OneToZero ->
+        [botL; botR]
+    | ZeroToOne | OneToOne ->
+        [topL; topR]
 
 /// TODO: Account for very low zoom levels.
 /// TODO: Consider: If singleWaveWidth M nonBinaryTransLen, then show crosshatch.
+/// TODO: Is this how to use startCycle??
 /// Generate points for a non-binary waveform.
-let nonBinaryWavePoints (clkCycleWidth: float) (clkCycle: int) (transition: NonBinaryTransition) : (XYPos list * XYPos list) * int =
-    let xLeft, _ = makeXCoords clkCycleWidth clkCycle (NonBinaryTransition transition)
-    let topL, topR, botL, botR = makeCoords clkCycleWidth clkCycle (NonBinaryTransition transition)
+let nonBinaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int)  (transition: NonBinaryTransition) : (XYPos list * XYPos list) =
+    let xLeft, _ = makeXCoords clkCycleWidth (startCycle + index) (NonBinaryTransition transition)
+    let _, topR, _, botR = makeCoords clkCycleWidth (startCycle + index) (NonBinaryTransition transition)
 
     let crossHatchMid = {X = xLeft + Constants.nonBinaryTransLen; Y = 0.5}
     let crossHatchTop = {X = xLeft + Constants.nonBinaryTransLen * 2.; Y = Constants.yTop}
@@ -140,11 +138,11 @@ let nonBinaryWavePoints (clkCycleWidth: float) (clkCycle: int) (transition: NonB
     // The horizontal part will have length zero.
     // May need to account for odd/even clock cycle
     | Change ->
-        let topStart = [topL; crossHatchMid; crossHatchTop; topR]
-        let botStart = [botL; crossHatchMid; crossHatchBot; botR]
-        (topStart, botStart), clkCycle + 1
+        let topStart = [crossHatchMid; crossHatchTop; topR]
+        let botStart = [crossHatchMid; crossHatchBot; botR]
+        (topStart, botStart)
     | Const ->
-        ([topL; topR], [botL; botR]), clkCycle + 1
+        ([topR], [botR])
 
 /// Determine transitions for each clock cycle of a binary waveform.
 /// Assumes that waveValues starts at clock cycle 0.

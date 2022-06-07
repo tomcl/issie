@@ -501,9 +501,8 @@ let toggleConnsSelect (name: string) (waveSimModel: WaveSimModel) (dispatch: Msg
 let checkboxAndNameRow (name: string) (model: Model) (dispatch: Msg -> unit) =
     let wsModel = model.WaveSim
     let allWaves = wsModel.AllWaves
-    // TODO: Fix this to bold only Selected waves
     let getColorProp name  =
-        if Map.containsKey name wsModel.AllWaves then
+        if Map.containsKey name (selectedWaves wsModel) then
             boldFontStyle
         else
             Style []

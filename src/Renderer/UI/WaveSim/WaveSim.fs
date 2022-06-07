@@ -436,23 +436,23 @@ let displayErrorMessage error =
 let viewWaveformsButton model dispatch =
     let wsModel = model.WaveSim
 
-    let viewButtonOptions, viewButtonFunc =
+    let viewButtonOptions, viewButtonAction =
         match Map.count (selectedWaves wsModel) with
         | 0 -> viewButtonLight, (fun _ -> ())
         | _ -> viewButtonProps, (fun _ ->
-            let wsMod' = {wsModel with State = Running}
-            let msgs = [
-                StartUICmd ViewWaveSim
-                ClosePropertiesNotification
-                InitiateWaveSimulation wsMod'
-            ]
-            dispatch (Sheet (SheetT.SetSpinner true))
-            dispatch <| SendSeqMsgAsynch msgs
-            dispatch FinishUICmd
-        )
+                let wsMod' = {wsModel with State = Running}
+                let msgs = [
+                    StartUICmd ViewWaveSim
+                    ClosePropertiesNotification
+                    InitiateWaveSimulation wsMod'
+                ]
+                dispatch (Sheet (SheetT.SetSpinner true))
+                dispatch <| SendSeqMsgAsynch msgs
+                dispatch FinishUICmd
+            )
 
     div [ Style [ Display DisplayOptions.Block ] ]
-        [ button viewButtonOptions viewButtonFunc (str "View") ]
+        [ button viewButtonOptions viewButtonAction (str "View") ]
 
 // let selectConns (model: Model)  (conns: ConnectionId list) (dispatch: Msg -> unit) =
 //     let allConns =

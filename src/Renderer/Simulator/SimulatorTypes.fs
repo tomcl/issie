@@ -15,6 +15,8 @@ type Bit = Zero | One
 
 /// Fixed width bus data used in simulation
 /// TODO: refactor as int64 or bigint for efficiency
+/// The list is little-endian: the LSB is at index 0, and the MSB is at index N,
+/// where N is the length of the list.
 type WireData = Bit list
 
 

@@ -537,7 +537,7 @@ let closeWaveSimButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEl
     let wsModel = {wsModel with State = NotRunning}
     button 
         [Button.Color IsSuccess; Button.Props [closeWaveSimButtonStyle]]
-        (fun _ -> dispatch <| CloseWaveSim wsModel)
+        (fun _ -> dispatch <| SetWSModel wsModel)
         (str "Edit waves / close simulator")
 
 /// Set highlighted clock cycle number
@@ -669,7 +669,7 @@ let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : React
             Tabs.Tab.Props radixTabProps
         ] [ a [
             radixTabAStyle
-            OnClick(fun _ -> dispatch <| InitiateWaveSimulation {wsModel with Radix = radix})
+            OnClick(fun _ -> dispatch <| SetWSModel {wsModel with Radix = radix})
             ] [ str radixStr ]
         ]
 

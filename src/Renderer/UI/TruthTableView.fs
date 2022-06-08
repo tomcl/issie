@@ -398,8 +398,33 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
     |> addExtraIOs
     |> checkCanvasWasCorrected
 
+// Used to store last canvas state, the last corrected canvas, and the selected simulation
+type SelectionCache = {
+    UncorrectedCanvas: CanvasState
+    CorrectedCanvas: CanvasState
+    StoredResult: Result<SimulationData, SimulationError>
+}
+
+let emptySelCache = {
+    UncorrectedCanvas = ([],[])
+    CorrectedCanvas = ([],[])
+    StoredResult = Ok {
+        FastSim = FastCreate.emptyFastSimulation()
+        Graph = Map.empty 
+        Inputs = []
+        Outputs = []
+        IsSynchronous=false
+        NumberBase = NumberBase.Hex
+        ClockTickNumber = 0
+        }
+}
+
+let mutable selCache: SelectionCache = emptySelCache
+
 /// Make and return Simulation Data (or Simulation Error) for the model for selected components.
 /// Identical functionality to SimulationView.makeSimData, but only considers selected components.
+/// Includes memoization: if the selected components have not changed then the cached corrected
+/// canvas and simulation are returned.
 let makeSimDataSelected model : (Result<SimulationData,SimulationError> * CanvasState) option =
     let (selComponents,selConnections) = model.Sheet.GetSelectedCanvasState
     let wholeCanvas = model.Sheet.GetCanvasState()
@@ -412,24 +437,36 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
         ComponentsAffected = []
         ConnectionsAffected =[] }, (selComponents,selConnections))
     | selComps,selConns,Some project ->
-        let selLoadedComponents =
-            project.LoadedComponents
-            |> List.filter (fun comp ->
-                comp.Name <> project.OpenFileName)
-        match correctCanvasState (selComps,selConns) wholeCanvas with
-        | Error e -> Some (Error e, (selComps,selConns))
-        | Ok (correctComps,correctConns) ->
-            match CanvasStateAnalyser.analyseState (correctComps,correctConns) selLoadedComponents with
-            | Some e -> Some (Error e,(correctComps,correctConns))
-            | None ->
-                // Build Simulation
-                (prepareSimulation 
-                    project.OpenFileName 
-                    (correctComps,correctConns) 
-                    selLoadedComponents)
-                // Tuple with Canvas State
-                |> fun s -> (s,(correctComps,correctConns))
-                |> Some
+        let rState = extractReducedState (selComponents,selConnections)
+        // Check if selected components have changed
+        if rState = selCache.UncorrectedCanvas then
+            Some (selCache.StoredResult, selCache.CorrectedCanvas)
+        else
+            let selLoadedComponents =
+                project.LoadedComponents
+                |> List.filter (fun comp ->
+                    comp.Name <> project.OpenFileName)
+            match correctCanvasState (selComps,selConns) wholeCanvas with
+            | Error e -> 
+                selCache <- { emptySelCache with
+                                UncorrectedCanvas = rState
+                                CorrectedCanvas = (selComponents,selConnections) }
+                Some (Error e, (selComps,selConns))
+            | Ok (correctComps,correctConns) ->
+                match CanvasStateAnalyser.analyseState (correctComps,correctConns) selLoadedComponents with
+                | Some e -> Some (Error e,(correctComps,correctConns))
+                | None ->
+                    let sim =
+                        prepareSimulation
+                            project.OpenFileName 
+                            (correctComps,correctConns) 
+                            selLoadedComponents
+                    selCache <- {
+                        UncorrectedCanvas =  rState
+                        CorrectedCanvas = (correctComps,correctConns)
+                        StoredResult = sim
+                    }
+                    Some (sim,(correctComps,correctConns))
 
 //-------------------------------------------------------------------------------------//
 //----------View functions for Truth Tables and Tab UI components----------------------//

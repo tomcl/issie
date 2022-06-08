@@ -52,8 +52,38 @@ module Constants =
     //   0     1     2    3     4     5    6    7    8    9    10   11    12   13   14   15
         0.25; 0.33; 0.5; 0.67; 0.75; 0.8; 0.9; 1.0; 1.1; 1.5; 1.75; 2.0; 2.50; 3.0; 4.0; 5.0;
     |]
+    /// TODO: Explain why: 30*width, width is 1.5, so that's 45. This is 8 cycles (0 to 7)
+    /// This should be divisible by 45
+    let initialWaveformColWidth = int( 1.5 * float (30 * 7)) //rightSectionWidthViewerDefault - namesColMinWidth - valuesColMinWidth
 
 
+let initWSModel : WaveSimModel = {
+    State = NotRunning
+    AllWaves = Map.empty
+    // ShownWaves = Map.empty
+    StartCycle = 0
+    ShownCycles = 7
+    // EndCycle = 7
+    OutOfDate = true
+    ReducedState = [], []
+    // SVG = [||]
+    CurrClkCycle = 0
+    ClkCycleBoxIsEmpty = false
+    Radix = CommonTypes.Hex
+    ZoomLevel = 1.5
+    ZoomLevelIndex = 9
+    WaveformColumnWidth = Constants.initialWaveformColWidth
+}
+
+let getWSModel model : WaveSimModel =
+    Map.tryFind model.WaveSimSheet model.WaveSim
+    |> function
+        | Some wsModel ->
+            printf "Sheet %A found in model" model.WaveSimSheet
+            wsModel
+        | None ->
+            printf "Sheet %A not found in model" model.WaveSimSheet
+            initWSModel
 
 let viewBoxMinX m = string (float m.StartCycle * m.ZoomLevel)
 let viewBoxWidth m = string (float m.ShownCycles * m.ZoomLevel)

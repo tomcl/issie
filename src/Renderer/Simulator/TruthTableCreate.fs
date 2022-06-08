@@ -20,115 +20,34 @@ let tableAsList tMap =
     |> Map.toList
     |> List.map (fun (lhs,rhs) -> List.append lhs rhs)
 
-/// From a TableInput data structure, return all possible values a non-algebraic input can take
-/// without the truth table as a whole exceeding the row limit.
-let inputValues (tInput: TableInput) =
-    match tInput.Constraints.Equalities, tInput.Constraints.Inequalities with
-    | [], [] ->
-        let (_,_,w) = tInput.IO
-        let upper = int(2.0**w - 1.0)
-        if upper < tInput.AllowedRowCount then
-            [0..upper]
-        else
-            [0..(tInput.AllowedRowCount-1)]
-    | equ, ineq ->
-        // First infer values from from equality constraints
-        let values1 =
-            ([],equ)
-            ||> List.fold (fun rows con ->
-                if rows.Length < tInput.AllowedRowCount then
-                    con.Value::rows
-                else
-                    rows)
-        // Infer values from inequality constraints
-        (values1,ineq)
-        ||> List.fold (fun rows con ->
-            if rows.Length < tInput.AllowedRowCount then
-                if con.Range < tInput.AllowedRowCount then
-                    [con.LowerBound..con.UpperBound] @ rows
-                else
-                    [con.LowerBound..(con.LowerBound + tInput.AllowedRowCount - 1)]
-            else
-                rows)
-        |> List.sort
+let product (seq1:'a seq) (seq2:'a seq seq) =
+    seq { for item1 in seq1 do
+              for item2 in seq2 do
+                  yield item1 |> Seq.singleton |> Seq.append item2 }
 
-/// Find all combinations (cartesian product) of all possible values for table inputs
-let inputCombinations (tInputs: TableInput list) =  
-    let rec numComb (acc: int list list) (rem: int list list) =
-        match rem with
-        | hd::tl ->
-            let newAcc =
-                acc
-                |> List.collect (fun l -> List.map (fun i -> l @ [i]) hd)
-            numComb newAcc tl
-        | [] ->
-            acc
-    
-    let masterList =
-        tInputs
-        |> List.map inputValues
+/// Find the Cartesian product of n sets, implemented with Sequences
+let productn (s:seq<#seq<'a>>) =
+    s |> Seq.fold (fun r s -> r |> product s) (seq { yield Seq.empty })
 
-    let combs =
-        match masterList with
-        | [] -> []
-        | [el] ->
-            el |> List.map (fun n -> [n])
-        | [el1;el2] ->
-            List.allPairs el1 el2
-            |> List.map (fun (a,b) -> [a;b])
-        | el1::el2::remaining ->
-            let starter =
-                List.allPairs el1 el2
-                |> List.map (fun (a,b) -> [a;b])
-            numComb starter remaining
+let getConstraintsOnIO io constraints =
+    let newEqu = 
+            constraints.Equalities
+            |> List.filter (fun e -> e.IO = io)
+    let newIneq =
+        constraints.Inequalities
+        |> List.filter (fun i -> i.IO = io)
+    {Equalities = newEqu; Inequalities = newIneq}
 
-    combs
-    |> List.map (fun l -> l |> List.mapi (fun i n ->
-        let (_,_,w) = tInputs[i].IO
-        {IO = SimIO (tInputs[i].IO); Data = Bits (convertIntToWireData w n)}))
-
-/// Returns a TableInput list with Max and Constrained Row Counts correctly calculated.
-/// Allowed Row Counts will be set to zero and calculated later.
-// We assume that all constraints are validated on entry, so they don't overlap.
-let inputsWithCRC 
-        (inputs: SimulationIO list) 
-        (inputConstraints: ConstraintSet) 
-        (algebraIOs: SimulationIO list) =
-    let findConstrainedRowCount (tInput: TableInput) =
-        match tInput.Constraints, tInput.IsAlgebra with
-        | _, true -> 1
-        | {Equalities = []; Inequalities = []}, false -> tInput.MaxRowCount
-        | {Equalities = equ; Inequalities = []}, false -> equ.Length
-        | {Equalities = equ; Inequalities = ineq}, false ->
-            ((0,ineq)
-            ||> List.fold (fun n con -> n + con.Range))
-            + equ.Length
-    inputs
-    |> List.map (fun input ->
-        let ti = initTableInput input inputConstraints algebraIOs
-        let crc = findConstrainedRowCount ti
-        {ti with ConstrainedRowCount = crc})
-
-/// Calculates Allowed Row Counts for each Truth Table input in the list and updates the field in
-/// the TableInput data structure. Also returns the number of rows the constrained truth table
-/// should have in theory (which may be different in practice due to truncation).
-let inputsWithARC limit (tInputs: TableInput list) =
-    let sortedInputs =
-        tInputs
-        |> List.sortBy (fun ti -> ti.ConstrainedRowCount)
-    (1,sortedInputs)
-    ||> List.mapFold (fun rowcount ti ->
-        let newRowCount = rowcount*ti.ConstrainedRowCount
-        let capacity = limit/rowcount
-        // Case where constrained values of this input can be entirely included
-        if capacity >= ti.ConstrainedRowCount then
-            {ti with AllowedRowCount = ti.ConstrainedRowCount}, newRowCount
-        // Case where constrained values of this input must be truncated
-        else if capacity > 1 then
-            {ti with AllowedRowCount = capacity}, newRowCount
-        else
-            {ti with AllowedRowCount = 1}, newRowCount
-        )
+let constrainedValuesandLength {Equalities = equ; Inequalities = ineq} =
+    let equValues =
+        equ
+        |> Seq.map (fun con -> con.Value)
+    let ineqValues, ineqLength =
+        ((Seq.empty,0), ineq)
+        ||> List.fold (fun (seqAcc,count) con ->
+            let values = Seq.init con.Range (fun x -> x + con.LowerBound)
+            Seq.append values seqAcc, count+con.Range)
+    Seq.append equValues ineqValues, equ.Length + ineqLength
 
 /// Find all LHS rows of the Truth Table, limited by input constraints and bit limit
 let tableLHS 
@@ -141,29 +60,55 @@ let tableLHS
     // Maximum number of rows on LHS of Truth Table.
     // Limited for speed and memory consumption reasons.
     let rowLimit = int(2.0**bitLimit)
+    
+    // Find all input values for a given input.
+    // Implemented using Sequences, which are lazily evaluated.
+    let inputValuesSeq count (io: SimulationIO) =
+        let (_,_,w) = io
+        let seqLength = int (2.0**w)
+        match getConstraintsOnIO (SimIO io) inputConstraints with
+        | {Equalities = []; Inequalities = []} ->
+            Seq.init seqLength id, count*seqLength
+        | conSet->
+            constrainedValuesandLength conSet
+            |> fun (vals,seqLength) -> vals,count*seqLength
 
-    let tInputs,tCRC =
-        inputsWithCRC inputs inputConstraints algebraIOs
-        |> inputsWithARC rowLimit
+    // Partition the inputs into algebraic and numeric
+    let algebraInputs, numericInputs =
+        inputs
+        |> List.partition (fun io -> List.contains io algebraIOs)
 
-    let algInputs,numInputs =
-        tInputs
-        |> List.partition (fun ti -> ti.IsAlgebra)
+    let numericVals, constrainedRowCount =
+        (1,numericInputs)
+        ||> List.mapFold inputValuesSeq
 
-    // Subset of a row with algebraic inputs
-    let algRow =
-        algInputs
-        |> List.map (fun ti -> 
-            let (_,label,_) = ti.IO
-            {IO = SimIO ti.IO; Data = Algebra (string label)})
-    if numInputs.IsEmpty then
+    let numericRows =
+        numericVals
+        |> productn
+        |> Seq.truncate rowLimit
+        |> Seq.map (fun l -> 
+            l 
+            |> Seq.mapi (fun i n ->
+                let (_,_,w) = numericInputs[i]
+                {IO = SimIO (numericInputs[i]); Data = Bits (convertIntToWireData w n)})
+            |> Seq.toList)
+        |> Seq.toList
+    
+    let algebraRow =
+        algebraInputs
+        |> List.map (fun io -> 
+            let (_,label,_) = io
+            {IO = SimIO io; Data = Algebra (string label)})
+    
+    if numericInputs.IsEmpty then
         // All inputs are algebraic, so only one row in table with all algebra
-        [algRow],1
+        [algebraRow],1
     else
         // Append algebra to each numeric row to get full LHS
-        (numInputs
-        |> inputCombinations
-        |> List.map (fun r -> algRow@r)), (tCRC)
+        numericRows
+        |> (List.map (fun r -> algebraRow@r)), constrainedRowCount
+
+    
 
 /// Feeds the given input combination (LHS Row) to the table's Fast Simulation and extracts the
 /// simulated output combination (RHS Row).

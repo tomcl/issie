@@ -82,8 +82,6 @@ type MoveDirection = | MLeft | MRight
 type TruthTable = {
     // Actual Table: Mapping from Input row to Output row
     TableMap: Map<TruthTableRow,TruthTableRow>
-    // Truth Table excluding any hidden output columns
-    HiddenColMap: Map<TruthTableRow,TruthTableRow>
     // Truth Table filtered by Output Constraints
     FilteredMap: Map<TruthTableRow,TruthTableRow>
     // Truth Table reduced with Don't Cares on Inputs

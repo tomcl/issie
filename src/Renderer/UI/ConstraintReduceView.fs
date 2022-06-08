@@ -29,12 +29,13 @@ open Simulator
 open TruthTableCreate
 open TruthTableReduce
 
+/// Adds a tooltip to a ReactElement which appears above the element
 let addToolTipTop tip react =
         div [
             HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-top"
             Tooltip.dataTooltip tip
         ] [react]
-
+/// Adds a tooltip to a ReactElement which appears to the right of the element
 let addToolTipRight tip react =
         div [
             HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-right"
@@ -45,7 +46,7 @@ let addToolTipRight tip react =
 //-----------View/Helper Functions for Constraints & Constraint Popups-----------------//
 //-------------------------------------------------------------------------------------//
 
-/// Convert a constraint to its textual representation
+/// Convert a constraint to its string representation
 let inCon2str con =
     match con with
     | Equality e ->
@@ -67,6 +68,7 @@ let makeElementLine (elsLeftAlign: ReactElement list) (elsRightAlign: ReactEleme
             Level.right [] itemListRight
         ]
 
+/// View a list of numerical constraints in tag form, with delete buttons
 let viewNumericalConstraints cons dispatch =
     let makeConTag(con: Constraint) =
         let tagText = inCon2str con
@@ -78,7 +80,6 @@ let viewNumericalConstraints cons dispatch =
                         dispatch <| DeleteOutputConstraint con
                         Regenerate |> Some |> SetTTOutOfDate |> dispatch)] []
             ]
-
     let equEls =
         cons.Equalities
         |> List.map(fun con ->
@@ -94,6 +95,9 @@ let viewNumericalConstraints cons dispatch =
     let tags = List.append equEls inequEls
     Tag.list [] tags
 
+/// Return true if two constraints overlap
+/// Example 1: 2 < X < 7 and 5 < X < 21
+/// Example 2: 2 < X < 7 and X = 4
 let constraintsOverlap (con1: Constraint) (con2: Constraint) =
     let equAndIneqOverlap (equ: EqualityConstraint) (ineq: InequalityConstraint) =
         equ.IO = ineq.IO && equ.Value >= ineq.LowerBound && equ.Value <= ineq.UpperBound
@@ -181,8 +185,12 @@ let validateNumericalConstraint (con: Constraint) (allConstraints: ConstraintSet
                             Ok ineqc)
             |> (function | Error err -> Error err | Ok ineqc -> Ok (Inequality ineqc))
 
-let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons model dispatch =
-    fun (dialogData: PopupDialogData) -> //div [] []
+/// Body of the popup for adding input/output numerical constraints
+let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg dispatch =
+    fun (dialogData: PopupDialogData) ->
+        // Text to be displayed at the top of the body
+        let preamble = str infoMsg
+        // Which IO in the menu is currently selected
         let selected =
             match dialogData.ConstraintIOSel with
             | None ->
@@ -191,6 +199,8 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons model dispat
                 cellIOs.Head
             | Some io -> io
 
+        // Menu for selecting which IO the constraint should apply to.
+        // Currently implemented as a list of buttons.
         let ioSelect =
             let buttons =
                 cellIOs
@@ -206,9 +216,9 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons model dispat
                     Button.button buttonProps [str <| io.getLabel])
             div [] buttons
         (*
-        // Code for original input selection interface
-        // Works, but cannot support a large number of inputs
-        // as they get cut off.
+        // Code for original input selection interface which uses a dropdown menu
+        // instead of buttons.
+        // Works, but cannot support a large number of IOs as they get cut off.
         let menuItem sIO =
             Menu.Item.li [
                 Menu.Item.IsActive (sIO = selected)
@@ -216,7 +226,7 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons model dispat
                     sIO |> Some |> SetPopupConstraintIOSel |> dispatch)
                 ] [str <|(labelFromIO sIO)]
 
-        let inputSelect =
+        let ioSelect =
             Dropdown.dropdown [ Dropdown.IsUp; Dropdown.IsHoverable] [
                 Dropdown.trigger [] [
                     Button.button [Button.Color IsPrimary; Button.IsLight] [
@@ -230,6 +240,8 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons model dispat
                                 Menu.list [] (List.map menuItem inputs)
                             ]]]]]
         *)
+
+        // Toggle for selecting the type of constriant (Equality of Inequality)
         let typeSelect =
             if selected.getWidth = 1 then
                 Equ |> Some |> SetPopupConstraintTypeSel |> dispatch
@@ -302,6 +314,7 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons model dispat
                             dispatch <| SetPopupConstraintErrorMsg None
                             (num |> Some |> SetPopupDialogInt2 |> dispatch)))]]
 
+        // Part of the body where the user can enter the constraint limits in numeric fields
         let constraintEditor =
             match dialogData.ConstraintTypeSel, dialogData.ConstraintIOSel with
             | None, _ -> div [] []
@@ -322,6 +335,7 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons model dispat
                     numField2 width
                 ] []
 
+        // If there is an issue with the constraint, display the error
         let errorMsg =
             match dialogData.ConstraintErrorMsg with
             | None -> div [] []
@@ -350,6 +364,8 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons model dispat
             None |> SetPopupNewConstraint |> dispatch
 
         div [] [
+            preamble
+            hr []
             Heading.h6 [] [str "Select Input"]
             ioSelect
             hr []
@@ -372,6 +388,7 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
 
 
     let title = "Add Input Constraint"
+    let infoMsg = "The Truth Table is re-generated every time Input Constraints change."
     let inputs =
         match model.CurrentTruthTable with
         | None -> failwithf "what? No current Truth Table when adding Constraints"
@@ -382,7 +399,7 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             |> List.map fst
             |> List.head
             |> List.map (fun cell -> cell.IO)
-    let body = dialogPopupNumericalConBody inputs model.TTInputConstraints model dispatch
+    let body = dialogPopupNumericalConBody inputs model.TTInputConstraints infoMsg dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData: PopupDialogData) ->
@@ -409,6 +426,7 @@ let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
     dispatch <| SetPopupNewConstraint None
 
     let title = "Add Output Constraint"
+    let infoMsg = "If the truth table is truncated, results from applying Output Constraints may not be complete."
     let outputs =
         match model.CurrentTruthTable with
         | None -> failwithf "what? No current Truth Table when adding Constraints"
@@ -419,7 +437,7 @@ let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             |> List.map snd
             |> List.head
             |> List.map (fun cell -> cell.IO)
-    let body = dialogPopupNumericalConBody outputs model.TTInputConstraints model dispatch
+    let body = dialogPopupNumericalConBody outputs model.TTInputConstraints infoMsg dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData: PopupDialogData) ->

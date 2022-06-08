@@ -235,7 +235,6 @@ let truthTable
         let listRep = tableAsList tableMap
         {
             TableMap = tableMap
-            HiddenColMap = tableMap
             FilteredMap = tableMap
             DCMap = None
             SortedListRep = listRep
@@ -243,6 +242,6 @@ let truthTable
             MaxRowsWithConstraints = tCRC
             TableSimData = tableSimData
             IOOrder = toCellIO (inputs@outputs) viewers
-            })
+        })
     |> TimeHelpers.instrumentInterval "truthTableGeneration" start
 

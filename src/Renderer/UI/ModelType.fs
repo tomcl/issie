@@ -316,6 +316,7 @@ type Msg =
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
     | SetWSModel of WaveSimModel
+    | SetWSModelAndSheet of WaveSimModel * string
     | UpdateWSModel of (WaveSimModel -> WaveSimModel)
     | SetWSModAndSheet of (WaveSimModel*string)
     | SetWSError of SimulationError option
@@ -372,7 +373,7 @@ type Msg =
     | SetWaveSimModel of Sheet: string * WSModel: WaveSimModel
     | WaveSimulateNow
     | InitiateWaveSimulation of WaveSimModel
-    | CloseWaveSim of WaveSimModel
+    // | CloseWaveSim of WaveSimModel
     // | InitiateWaveSimulation of (WSViewT * SimParamsT)
     | SetLastSimulatedCanvasState of CanvasState option
     | StartNewWaveSimulation of CanvasState
@@ -421,12 +422,12 @@ type UserData = {
 type Model = {
     UserData: UserData
 
-    WaveSim : WaveSimModel
+    WaveSim : Map<string, WaveSimModel>
     // All the data for waveform simulation (separate for each sheet)
     // TODO: remove the simulation error.
     // WaveSim : Map<string, WaveSimModel> * (SimulationError option)
-    // // which top-level sheet is used by wavesim
-    // WaveSimSheet: string
+    // which top-level sheet is used by wavesim
+    WaveSimSheet: string
         
     // Draw Canvas
     Sheet: DrawModelType.SheetT.Model
@@ -722,31 +723,16 @@ let getCurrSheets (model: Model) =
         |> Some
     | None -> None
 
-let setWSModel (ws: WaveSimModel) (model: Model) =
-    { model with WaveSim = ws }
-
-    // match getCurrSheets model, model.WaveSimSheet with
-    // | Some sheets, sheet when List.contains sheet sheets ->
-    //     let wsMo
-    //     let waveSim = Map.add model.WaveSimSheet ws model.WaveSim
-    //     { model with WaveSim = Map.add model.WaveSimSheet ws model.WaveSim }
-    // | None,_ -> 
-    //     printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
-    //     model
-    // | Some sheets, sheet -> 
-    //     printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, sheets=%A" model.WaveSimSheet sheets
-    //     model
-
-// let setWSModel (ws: WaveSimModel) (model: Model) =
-//     match getCurrSheets model, model.WaveSimSheet with
-//     | Some sheets, sheet when List.contains sheet sheets ->
-//         { model with WaveSim = Map.add model.WaveSimSheet ws model.WaveSim }
-//     | None,_ -> 
-//         printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
-//         model
-//     | Some sheets, sheet -> 
-//         printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, sheets=%A" model.WaveSimSheet sheets
-//         model
+let setWSModel (wsModel: WaveSimModel) (model: Model) =
+    match getCurrSheets model, model.WaveSimSheet with
+    | Some sheets, wsSheet when List.contains wsSheet sheets ->
+        { model with WaveSim = Map.add model.WaveSimSheet wsModel model.WaveSim }
+    | None, _ ->
+        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
+        model
+    | Some sheets, wsSheet ->
+        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, sheets=%A" wsSheet sheets
+        model
 
 
 // let updateCurrentWSMod(updateFun: WaveSimModel -> WaveSimModel) (model: Model) =

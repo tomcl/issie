@@ -276,34 +276,9 @@ let getLastMouseMsg msgQueue =
     | [] -> None
     | lst -> Some lst.Head //First item in the list was the last to be added (most recent)
 
-// TODO: Fix this by removing the wavesim stuff. Need a better way of updating wavesim list of connections when sheet changes.
-let sheetMsg sMsg model =
+let sheetMsg sMsg model = 
     let sModel, sCmd = SheetUpdate.update sMsg model.Sheet
-    let newModel = { model with Sheet = sModel}
-    let newState = newModel.Sheet.GetCanvasState ()
-    let newReducedState = extractReducedState newState
-    let simData = SimulationView.makeSimData model
-    let allWaves = 
-        match simData with
-                                // | None -> failwithf "simRes has value None" // IColor.IsWhite, ""
-        | Some (Ok simData', reducedState) -> // IsSuccess, "Start Simulation"
-            WaveSim.getWaveforms WaveSim.netGroup2Label simData' reducedState
-        | _ -> 
-            Map.empty
-            // WaveSim.displayErrorMessage e //IsWarning, "See Problems"
-                                    
-
-    let waveSim = {
-        model.WaveSim with
-            AllWaves = allWaves
-            OutOfDate = model.WaveSim.ReducedState <> newReducedState
-            State = 
-                match model.WaveSim.ReducedState <> newReducedState with
-                | true -> NotRunning
-                | _ -> model.WaveSim.State
-    }
-    // printf "sheetMsg %A" sMsg
-    // printf "%A" (model.WaveSim.ReducedState <> newReducedState)
+    let newModel = { model with Sheet = sModel} 
     {newModel with SavedSheetIsOutOfDate = findChange newModel}, Cmd.map Sheet sCmd
 
 //----------------------------------------------------------------------------------------------------------------//
@@ -394,8 +369,12 @@ let update (msg : Msg) oldModel =
             ] //Close wavesim
     | SetWSModel wsModel -> 
         printf "SetWSModel"
-        // printf "%A" wSMod.AllWaves
-        {model with WaveSim = wsModel}, Cmd.none
+        setWSModel wsModel model, Cmd.none
+    | SetWSModelAndSheet (wsModel, wsSheet) ->
+        let newModel = 
+            {model with WaveSimSheet = wsSheet}
+            |> setWSModel wsModel
+        newModel, Cmd.none
     // | UpdateWSModel updateFn ->
     //     updateCurrentWSMod updateFn model, Cmd.none
     // | SetWSModAndSheet(ws,sheet) ->
@@ -587,7 +566,7 @@ let update (msg : Msg) oldModel =
         let allWaves = Map.map (WaveSim.generateWave wsModel) wsModel.AllWaves
         let wsModel' = {wsModel with AllWaves = allWaves}
 
-        {model with WaveSim = wsModel'}, Cmd.ofMsg (Sheet(SheetT.SetSpinner false))
+        setWSModel wsModel' model, Cmd.ofMsg (Sheet(SheetT.SetSpinner false))
     // | InitiateWaveSimulation (view, paras)  -> 
         // updateCurrentWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.ofMsg FinishUICmd
     //TODO
@@ -615,8 +594,8 @@ let update (msg : Msg) oldModel =
     //         model, Cmd.none
     //     | _ -> 
     //         failwith "SetSimInProgress dispatched when getCurrFileWSMod is None"
-    | CloseWaveSim wsModel ->
-        {model with WaveSim = wsModel}, Cmd.none
+    // | CloseWaveSim wsModel ->
+    //     {model with WaveSim = wsModel}, Cmd.none
     | SetLastSimulatedCanvasState cS ->
         { model with LastSimulatedCanvasState = cS }, Cmd.none
     | UpdateScrollPos b ->

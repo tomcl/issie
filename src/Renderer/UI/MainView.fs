@@ -44,25 +44,6 @@ let viewOnDiagramButtons model dispatch =
 
 // -- Init Model
 
-
-let initWSModel : WaveSimModel = {
-    State = NotRunning
-    AllWaves = Map.empty
-    // ShownWaves = Map.empty
-    StartCycle = 0
-    ShownCycles = 7
-    // EndCycle = 7
-    OutOfDate = true
-    ReducedState = [], []
-    // SVG = [||]
-    CurrClkCycle = 0
-    ClkCycleBoxIsEmpty = false
-    Radix = CommonTypes.Hex
-    ZoomLevel = 1.5
-    ZoomLevelIndex = 9
-    WaveformColumnWidth = Constants.initialWaveformColWidth
-}
-
 /// Initial value of model
 let init() = {
     UserData = {
@@ -85,8 +66,8 @@ let init() = {
     SelectedComponent = None
     LastUsedDialogWidth = 1
     CurrentStepSimulationStep = None
-    WaveSim = initWSModel//Map.empty, None
-    // WaveSimSheet = ""
+    WaveSim = Map.empty
+    WaveSimSheet = ""
     RightPaneTabVisible = Catalogue
     SimSubTabVisible = StepSim
     CurrentProj = None
@@ -189,18 +170,19 @@ let private viewRightTab model dispatch =
                         // if not model.WaveSimulationInProgress
                         // then
                             dispatch <| ChangeSimSubTab WaveSim
+                            let wsSheet = Option.get (getCurrFile model)
                             let simData = SimulationView.makeSimData model
                             match simData with
                                 // | None -> failwithf "simRes has value None" // IColor.IsWhite, ""
                                 | Some (Ok simData', reducedState) -> // IsSuccess, "Start Simulation"
                                     let allWaves = getWaveforms netGroup2Label simData' reducedState
-                                    let wsModel' = {
-                                        model.WaveSim with
+                                    let wsModel = {
+                                        getWSModel model with
                                             AllWaves = allWaves
                                             OutOfDate = false
                                             ReducedState = reducedState
                                     }
-                                    dispatch <| SetWSModel wsModel'
+                                    dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
                                 | _ -> failwithf "asdf"
                         ) 
                         ] [str "Wave Simulation"] ])
@@ -276,17 +258,18 @@ let displayView model dispatch =
     /// Feed changed viewer width from draggable bar back to Viewer parameters TODO
     let inline setViewerWidthInWaveSim w =
         printf "w: %A" w
-        if model.WaveSim.State = Running then
+        let wsModel = getWSModel model
+        if wsModel.State = Running then
             dispatch <| SetViewerWidth w
 
             let waveColWidth = w - Constants.namesColMinWidth - Constants.valuesColMinWidth
-            let wholeCycles = waveColWidth / int (singleWaveWidth model.WaveSim)
-            let wholeCycleWidth = wholeCycles * int (singleWaveWidth model.WaveSim)
+            let wholeCycles = waveColWidth / int (singleWaveWidth wsModel)
+            let wholeCycleWidth = wholeCycles * int (singleWaveWidth wsModel)
             printf "wholeCycles: %A" wholeCycles
             let viewerWidth = Constants.namesColMinWidth + Constants.valuesColMinWidth + wholeCycleWidth
 
             let wsModel = {
-                model.WaveSim with
+                wsModel with
                     ShownCycles = wholeCycles
                     WaveformColumnWidth = wholeCycleWidth
                 }

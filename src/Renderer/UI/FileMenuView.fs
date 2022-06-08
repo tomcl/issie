@@ -125,10 +125,11 @@ let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (d
                 ()
         | _ -> ()
 
+/// TODO: Currently unused.
 /// returns a WaveSimModel option if a file is loaded, otherwise None
 let currWaveSimModel (model: Model) =
     match getCurrFile model with
-    // | Some fileName when Map.containsKey fileName (fst model.WaveSim) -> Some ((fst model.WaveSim)[fileName])
+    | Some fileName when Map.containsKey fileName model.WaveSim -> Some (model.WaveSim[fileName])
     | _ -> None
 
 let private displayFileErrorNotification err dispatch =

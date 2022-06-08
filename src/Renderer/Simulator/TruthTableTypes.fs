@@ -124,15 +124,11 @@ type ConstraintSet = {
     Equalities: EqualityConstraint list
     Inequalities: InequalityConstraint list
 } with
-    /// Returns a new ConstraintSet without constraints for a specific CellIO
-    member this.withoutIO io =
-        let newEqu =
-            this.Equalities
-            |> List.filter (fun e -> e.IO <> io)
-        let newIneq =
-            this.Inequalities
-            |> List.filter (fun i -> i.IO <> io)
-        {Equalities = newEqu; Inequalities = newIneq}
+    // Returns true if the ConstraintSet is empty
+    member this.isEmpty =
+        match this.Equalities, this.Inequalities with
+        | [],[] -> true
+        | _,_ -> false
 // IO = Value
 and EqualityConstraint = {
     IO: CellIO

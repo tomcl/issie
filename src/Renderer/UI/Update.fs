@@ -390,7 +390,7 @@ let update (msg : Msg) oldModel =
     //                 {model with WaveSimSheet = sheet}
     //                 |> setWSModel ws
     //             model,Cmd.none
-    // | SetWSError err -> 
+    // | SetWSError err ->
         // { model with WaveSim = fst model.WaveSim, err}, Cmd.none
     // | AddWaveSimFile (fileName, wSMod') ->
         // { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim}, Cmd.none

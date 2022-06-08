@@ -432,7 +432,7 @@ let displayErrorMessage error =
 
 /// Upon clicking the View buttonm, the wave selection pane will change to the wave viewer pane.
 let viewWaveformsButton model dispatch =
-    let wsModel = model.WaveSim
+    let wsModel = getWSModel model
 
     let viewButtonOptions, viewButtonAction =
         match Map.count (selectedWaves wsModel) with
@@ -464,13 +464,13 @@ let viewWaveformsButton model dispatch =
 
 /// Sets all waves as selected or not selected depending on value of newState
 let toggleSelectAll newState model dispatch : unit =
-    let wsModel = model.WaveSim
+    let wsModel = getWSModel model
     let allWaves' = Map.map (fun _ wave -> {wave with Selected = newState}) wsModel.AllWaves
     dispatch <| SetWSModel {wsModel with AllWaves = allWaves'}
     // selectConns model conns dispatch
 
 let selectAll (model: Model) dispatch =
-    let wsModel = model.WaveSim
+    let wsModel = getWSModel model
     let allWavesSelected = Map.forall (fun name _ -> isWaveSelected wsModel name) wsModel.AllWaves
     tr  [ tableRowStyle ]
         [
@@ -497,7 +497,7 @@ let toggleConnsSelect (name: string) (waveSimModel: WaveSimModel) (dispatch: Msg
     // changeWaveSelection name model waveSimModel dispatch
 
 let checkboxAndNameRow (name: string) (model: Model) (dispatch: Msg -> unit) =
-    let wsModel = model.WaveSim
+    let wsModel = getWSModel model
     let allWaves = wsModel.AllWaves
     let getColorProp name  =
         if Map.containsKey name (selectedWaves wsModel) then
@@ -518,7 +518,8 @@ let checkboxAndNameRow (name: string) (model: Model) (dispatch: Msg -> unit) =
         ]
 
 let checkboxListOfWaves (model: Model) (dispatch: Msg -> unit) =
-    Map.keys model.WaveSim.AllWaves |> Seq.toList
+    let wsModel = getWSModel model
+    Map.keys wsModel.AllWaves |> Seq.toList
     |> List.map (fun name -> checkboxAndNameRow name model dispatch)
 
 let selectWaves (model: Model) dispatch =
@@ -678,12 +679,13 @@ let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : React
 
 /// Display closeWaveSimButton, zoomButtons, radixButtons, clkCycleButtons
 let waveSimButtonsBar (model: Model) (dispatch: Msg -> unit) : ReactElement = 
+    let wsModel = getWSModel model
     div [ waveSimButtonsBarStyle ]
         [
-            closeWaveSimButton model.WaveSim dispatch
-            zoomButtons model.WaveSim dispatch
-            radixButtons model.WaveSim dispatch
-            clkCycleButtons model.WaveSim dispatch
+            closeWaveSimButton wsModel dispatch
+            zoomButtons wsModel dispatch
+            radixButtons wsModel dispatch
+            clkCycleButtons wsModel dispatch
         ]
 
 // /// change the order of the waveforms in the simulator
@@ -795,11 +797,12 @@ let waveformColumn (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement
 
 /// Display the names, waveforms, and values of selected waveforms
 let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
+    let wsModel = getWSModel model
     div [ showWaveformsStyle ]
         [
-            namesColumn model.WaveSim
-            waveformColumn model model.WaveSim dispatch
-            valuesColumn model.WaveSim
+            namesColumn wsModel
+            waveformColumn model wsModel dispatch
+            valuesColumn wsModel
         ]
 
 /// View selected waveforms: show buttons to control simulation parameters, and
@@ -849,8 +852,8 @@ let viewWaveSim (model: Model) dispatch : ReactElement =
         | Some (Ok simData, reducedState) ->
             // TODO: Add a check to see if there is synchronous data
             // let isClocked = SynchronousUtils.hasSynchronousComponents simData.Graph
-
-            match model.WaveSim.State with
+            let wsModel = getWSModel model
+            match wsModel.State with
             // Open waveform adder
             | NotRunning ->
                 waveSelectionPane simData reducedState model dispatch

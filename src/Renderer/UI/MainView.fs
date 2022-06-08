@@ -171,11 +171,10 @@ let private viewRightTab model dispatch =
                         // then
                             dispatch <| ChangeSimSubTab WaveSim
                             let wsSheet = Option.get (getCurrFile model)
-                            let simData = SimulationView.makeSimData model
-                            match simData with
-                                // | None -> failwithf "simRes has value None" // IColor.IsWhite, ""
-                                | Some (Ok simData', reducedState) -> // IsSuccess, "Start Simulation"
-                                    let allWaves = getWaveforms netGroup2Label simData' reducedState
+                            match SimulationView.makeSimData model with
+                                | None -> failwithf "simRes has value None"
+                                | Some (Ok simData, reducedState) -> // IsSuccess, "Start Simulation"
+                                    let allWaves = getWaveforms netGroup2Label simData reducedState
                                     let wsModel = {
                                         getWSModel model with
                                             AllWaves = allWaves
@@ -183,7 +182,8 @@ let private viewRightTab model dispatch =
                                             ReducedState = reducedState
                                     }
                                     dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
-                                | _ -> failwithf "asdf"
+                                // TODO: This does not fail gracefully. Fix it.
+                                | Some (Error e, _) -> failwithf "Simulation failed with error %A" e
                         ) 
                         ] [str "Wave Simulation"] ])
                     ]

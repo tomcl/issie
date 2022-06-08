@@ -807,7 +807,7 @@ let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
 
 /// View selected waveforms: show buttons to control simulation parameters, and
 /// display selected waveforms with their names and values.
-let waveViewerPane simData rState (model: Model) (dispatch: Msg -> unit) : ReactElement =
+let waveViewerPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
     div [ waveViewerPaneStyle ]
         [
             waveSimButtonsBar model dispatch
@@ -818,7 +818,7 @@ let waveViewerPane simData rState (model: Model) (dispatch: Msg -> unit) : React
 /// This function needs to show a list of what waveforms can be displayed, as well as a
 /// check box list showing which ones are selectable. Should have a 'select all' box
 /// available as well.
-let waveSelectionPane simData reducedState (model: Model) dispatch : ReactElement = 
+let waveSelectionPane (model: Model) dispatch : ReactElement = 
     /// Generate popup over waveeditor screen if there are undriven input connections
     let inputWarningPopup (simData:SimulatorTypes.SimulationData) dispatch =
         if simData.Inputs <> [] then
@@ -856,9 +856,9 @@ let viewWaveSim (model: Model) dispatch : ReactElement =
             match wsModel.State with
             // Open waveform adder
             | NotRunning ->
-                waveSelectionPane simData reducedState model dispatch
+                waveSelectionPane model dispatch
             // Open waveform viewer
             | Running ->
-                waveViewerPane simData reducedState model dispatch
+                waveViewerPane model dispatch
         | Some (Error e, _) ->
             displayErrorMessage e

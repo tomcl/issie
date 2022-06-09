@@ -618,11 +618,18 @@ module CommonTypes
     /// This info is not necessarilu uptodate with deletions or additions in the Diagram.
     /// The wavesim code processing this will not fail if non-existent nets are referenced.
     type SavedWaveInfo = {
-        ClkWidth: float
-        Cursor: uint32 
-        Radix: NumberBase
-        LastClk: uint32
-        DisplayedPortIds: string array
+        SelectedWaves: string list option
+        ShownCycles: int option
+        Radix: NumberBase option
+        ZoomLevel: float option
+        ZoomLevelIndex: int option
+        WaveformColumnWidth: int option
+
+        ClkWidth: float option
+        Cursor: uint32 option
+        // Radix: NumberBase
+        LastClk: uint32 option
+        DisplayedPortIds: string array option
     }
 
     (*--------------------------------------------------------------------------------------------------*)

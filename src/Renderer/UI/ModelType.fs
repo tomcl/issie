@@ -337,6 +337,7 @@ type Msg =
     | JSDiagramMsg of JSDiagramMsg
     | KeyboardShortcutMsg of KeyboardShortcutMsg
     | StartSimulation of Result<SimulationData, SimulationError>
+    | AddWSModel of (string * WaveSimModel)
     | SetWSModel of WaveSimModel
     | SetWSModelAndSheet of WaveSimModel * string
     | UpdateWSModel of (WaveSimModel -> WaveSimModel)
@@ -601,45 +602,38 @@ let getComponentIds (model: Model) =
 // Saving WaveSim Model   //
 //------------------------//
 
-// /// get saveable record of waveform setup
-// let waveSimModel2SavedWaveInfo (wsMod: WaveSimModel) : SavedWaveInfo =
-//     let pars = wsMod.SimParams
-//     { 
-//         ClkWidth = pars.ClkSvgWidth
-//         Cursor = pars.CursorTime
-//         Radix = pars.WaveViewerRadix
-//         LastClk = pars.LastClkTime
-//         DisplayedPortIds = 
-//             wsMod.SimParams.DispNames
-//     }
+/// get saveable record of waveform setup
+let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
+    {
+        SelectedWaves = Some wsModel.SelectedWaves
+        ShownCycles = Some wsModel.ShownCycles
+        Radix = Some wsModel.Radix
+        ZoomLevel = Some wsModel.ZoomLevel
+        ZoomLevelIndex = Some wsModel.ZoomLevelIndex
+        WaveformColumnWidth = Some wsModel.WaveformColumnWidth
+        ClkWidth = None
+        Cursor = None
+        LastClk = None
+        DisplayedPortIds = None
+    }
 
-// /// setup current WaveSimModel from saved record
-// /// currently only the set of nets displayed by default and the radix is actually preserved
-// /// TODO: work out better idea for what should be preserved here.
-// /// NB - note that SavedWaveInfo can only be changed if code is added to make loading backwards compatible with
-// /// old designs
-// let savedWaveInfo2WaveSimModel (sWInfo: SavedWaveInfo) : WaveSimModel =
-//     { 
-//         InitWaveSimGraph = None
-//         SimDataCache = [||]
-//         DispWaveSVGCache = {Top=[||]; Waves = Map.empty; Bottom = [||]}
-//         AllWaves = Map.empty // will be reconstituted
-//         SimParams = {
-//             MoreNames = []
-//             DispNames = sWInfo.DisplayedPortIds // actually names not ids
-//             ClkSvgWidth = 1.0
-//             CursorTime = 0u
-//             WaveViewerRadix = sWInfo.Radix
-//             LastClkTime = 9u
-//             LastScrollPos = None
-//             MoreWaves = []
-//         }
-//         WSViewState =WSClosed
-//         WSTransition =None
-//         LastCanvasState = None 
-//         CursorBoxIsEmpty = false
+/// setup current WaveSimModel from saved record
+/// currently only the set of nets displayed by default and the radix is actually preserved
+/// TODO: work out better idea for what should be preserved here.
+/// NB - note that SavedWaveInfo can only be changed if code is added to make loading backwards compatible with
+/// old designs
+let loadWSModelFromSavedWaveInfo (swInfo: SavedWaveInfo) : WaveSimModel = 
+    {
 
-//     }
+
+        initWSModel with
+            SelectedWaves = Option.defaultValue initWSModel.SelectedWaves swInfo.SelectedWaves
+            ShownCycles = Option.defaultValue initWSModel.ShownCycles swInfo.ShownCycles
+            Radix = Option.defaultValue initWSModel.Radix swInfo.Radix
+            ZoomLevel = Option.defaultValue initWSModel.ZoomLevel swInfo.ZoomLevel
+            ZoomLevelIndex = Option.defaultValue initWSModel.ZoomLevelIndex swInfo.ZoomLevelIndex
+            WaveformColumnWidth = Option.defaultValue initWSModel.WaveformColumnWidth swInfo.WaveformColumnWidth
+    }
 
 // let getSheetWaveSimOpt (model:Model) : WaveSimModel option = 
 //     model.CurrentProj

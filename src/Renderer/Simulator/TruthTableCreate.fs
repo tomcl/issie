@@ -118,19 +118,20 @@ let simulateInputCombination
         (outputs: SimulationIO list)  
         (simData: SimulationData)
         : TruthTableRow =
-    let updateOutputs (cell: TruthTableCell) =
+    
+    // Change input values in the table's FastSimulation (THESE ARE MUTABLE!)
+    rowLHS
+    |> List.map (fun cell ->
         match cell.IO, cell.Data with
-        | SimIO io, Bits wd ->
-            let (cid,_,_) = io
-            FastRun.changeInput cid (IData wd) simData.ClockTickNumber simData.FastSim
+        | SimIO (cid,_,_), Bits wd ->
+            (cid,IData wd)
         | SimIO io, Algebra exp ->
             let (cid,_,_) = io
-            FastRun.changeInput cid (IAlg (SingleTerm io)) simData.ClockTickNumber simData.FastSim
-        | x, y -> 
-            failwithf "what? CellData from input rows has IO: %A, and Data: %A." x y
-    // Feed the current input combination to the Fast Simulation
-    let _ = List.map updateOutputs rowLHS
-    
+            (cid,IAlg (SingleTerm io))
+        | x, y ->
+            failwithf "what? CellData from input rows has IO: %A, and Data: %A." x y)
+    |> FastRun.changeInputBatch simData.ClockTickNumber simData.FastSim
+
     // Extract Output and Viewer values from the Fast Simulation
     let outputRow =
         (outputs,simData)

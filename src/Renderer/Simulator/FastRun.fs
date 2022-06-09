@@ -317,6 +317,21 @@ let changeInput (cid: ComponentId) (input: FSInterface) (step: int) (fastSim: Fa
     //printfn $"Changing {fastSim.FComps[cid,[]].FullName} to {fd}"
     runCombinationalLogic step fastSim
 
+/// Change multiple inputs in one batch before re-running the simulation
+let changeInputBatch 
+    (step: int) 
+    (fastSim: FastSimulation)
+    (changes: (ComponentId * FSInterface) list) =
+
+    changes
+    |> List.iter (fun (cid,input) ->
+        let fd = 
+            match input with
+            | IData wd -> (wd |> wireToFast |> Data)
+            | IAlg exp -> Alg exp
+        setSimulationInput cid fd step fastSim)
+    runCombinationalLogic step fastSim
+
 let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
     fastSim.FClockedComps
     |> Array.collect

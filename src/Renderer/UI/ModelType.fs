@@ -158,10 +158,12 @@ type WaveSimState =
     | WaveViewer
 
 type Wave = {
-    WaveId: string // unique within one simulation run, mostly conserved across runs
-    Selected: bool
-    Conns: ConnectionId list // unique within design sheet (SheetId)
-    SheetId: ComponentId list // [] for top-level waveform: path to sheet
+    // unique within one simulation run, mostly conserved across runs
+    WaveId: string
+    // unique within design sheet (SheetId)
+    Conns: ConnectionId list
+    // [] for top-level waveform: path to sheet
+    SheetId: ComponentId list
     Driver: FComponentId * OutputPortNumber
     DisplayName: string
     // Number of bits in wave
@@ -186,12 +188,11 @@ type WaveSimModel = {
     State: WaveSimState
     // List of all simulatable waves
     AllWaves: Map<string, Wave>
-    // ShownWaves: Map<string, Wave>
+    SelectedWaves: string list
     StartCycle: int
     ShownCycles: int
     OutOfDate: bool
     ReducedState: CanvasState
-    // SVG: ReactElement array
     CurrClkCycle: int
     ClkCycleBoxIsEmpty: bool
     Radix: NumberBase
@@ -207,6 +208,7 @@ let initialWaveformColWidth = int( 1.5 * float (30 * 7)) //rightSectionWidthView
 let initWSModel : WaveSimModel = {
     State = WSClosed
     AllWaves = Map.empty
+    SelectedWaves = List.empty
     StartCycle = 0
     ShownCycles = 7
     OutOfDate = true

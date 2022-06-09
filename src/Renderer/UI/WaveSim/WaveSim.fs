@@ -452,6 +452,22 @@ let viewWaveformsButton model dispatch =
     div [ Style [ Display DisplayOptions.Block ] ]
         [ button viewButtonOptions viewButtonAction (str "View") ]
 
+let closeWSButton model dispatch =
+    let wsModel = getWSModel model
+
+    let closeButtonOptions = [
+        Button.Color IsSuccess
+    ]
+
+    let closeButtonAction = fun _ ->
+        dispatch <| SetWSModel {
+            wsModel with
+                State = WSClosed
+        }
+
+    div [ Style [ Display DisplayOptions.Block ] ]
+        [ button closeButtonOptions closeButtonAction (str "Close") ]
+
 // let selectConns (model: Model)  (conns: ConnectionId list) (dispatch: Msg -> unit) =
 //     let allConns =
 //         snd <| model.Sheet.GetCanvasState()
@@ -532,8 +548,9 @@ let selectWaves (model: Model) dispatch =
             ]
         ]
 
+/// TODO: Change name to editWaves
 let closeWaveSimButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    let wsModel = {wsModel with State = NotRunning}
+    let wsModel = {wsModel with State = WaveSelector}
     button 
         [Button.Color IsSuccess; Button.Props [closeWaveSimButtonStyle]]
         (fun _ -> dispatch <| SetWSModel wsModel)
@@ -838,8 +855,46 @@ let waveSelectionPane (model: Model) dispatch : ReactElement =
             hr []
             div [] [
                     viewWaveformsButton model dispatch
+                    closeWSButton model dispatch
                     selectWaves model dispatch
                 ]
+        ]
+
+let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
+    let startButtonOptions = [
+        Button.Color IsSuccess
+    ]
+
+    let startButtonAction simData reducedState = fun _ ->
+        let wsSheet = Option.get (getCurrFile model)
+        let allWaves = getWaveforms netGroup2Label simData reducedState
+        let wsModel = {
+            getWSModel model with
+                State = WaveSelector
+                AllWaves = allWaves
+                OutOfDate = false
+                ReducedState = reducedState
+        }
+
+        dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
+
+    div [ waveSelectionPaneStyle ]
+        [
+            Heading.h4 [] [ str "Waveform Simulator" ] 
+            hr []
+
+            match SimulationView.makeSimData model with
+                | None ->
+                    div [ errorMessageStyle ]
+                        [ str "Please open a project to use the waveform simulator." ]
+                | Some (Error e, _) ->
+                    displayErrorMessage e
+                | Some (Ok simData, reducedState) ->
+                    if simData.IsSynchronous then
+                        button startButtonOptions (startButtonAction simData reducedState) (str "Start Waveform Simulator")
+                    else
+                        div [ errorMessageStyle ]
+                            [ str "There is no sequential logic in this circuit." ]
         ]
 
 /// Entry point to the waveform simulator. This function returns a ReactElement showing
@@ -847,18 +902,11 @@ let waveSelectionPane (model: Model) dispatch : ReactElement =
 /// allows the user to select which waveforms they would like to view, and the Wave
 /// Viewer Pane displays these selected waveforms, along with their names and values.
 let viewWaveSim (model: Model) dispatch : ReactElement =
-    match SimulationView.makeSimData model with
-        | None -> failwithf "simRes has value None"
-        | Some (Ok simData, reducedState) ->
-            // TODO: Add a check to see if there is synchronous data
-            // let isClocked = SynchronousUtils.hasSynchronousComponents simData.Graph
-            let wsModel = getWSModel model
-            match wsModel.State with
-            // Open waveform adder
-            | NotRunning ->
-                waveSelectionPane model dispatch
-            // Open waveform viewer
-            | Running ->
-                waveViewerPane model dispatch
-        | Some (Error e, _) ->
-            displayErrorMessage e
+    let wsModel = getWSModel model
+    match wsModel.State with
+    | WSClosed ->
+        wsClosedPane model dispatch
+    | WaveSelector ->
+        waveSelectionPane model dispatch
+    | WaveViewer ->
+        waveViewerPane model dispatch

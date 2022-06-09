@@ -137,9 +137,7 @@ let private displayFileErrorNotification err dispatch =
     dispatch <| SetFilesNotification note
 
 /// Send messages to change Diagram Canvas and specified sheet waveSim in model
-// let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (model:Model) dispatch =
-let private loadStateIntoModel (compToSetup:LoadedComponent) ldComps (model:Model) dispatch =
-
+let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (model:Model) dispatch =
     // it seems still need this, however code has been deleted!
     //Sheet.checkForTopMenu () // A bit hacky, but need to call this once after everything has loaded to compensate mouse coordinates.
     let ldcs = tryGetLoadedComponents model
@@ -171,20 +169,22 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) ldComps (model:Mode
             Sheet (SheetT.Wire (BusWireT.BusWidths))
             // JSdispatch <| InferWidths()
             //printfn "Check 5..."
-            // Set no unsaved changes.        
+            // Set no unsaved changes.
 
             Sheet SheetT.UpdateBoundingBoxes
 
             // set waveSim data
             // SetWaveSimModel(name, waveSim)
-            // (
-            //     {
-            //         ProjectPath = dirName compToSetup.FilePath
-            //         OpenFileName =  compToSetup.Name
-            //         LoadedComponents = ldComps
-            //     }
-            //     |> SetProject) // this message actually changes the project in model
-            // SetWaveSimIsOutOfDate true
+            AddWSModel (name, waveSim)
+
+            // this message actually changes the project in model
+            SetProject {
+                ProjectPath = dirName compToSetup.FilePath
+                OpenFileName =  compToSetup.Name
+                LoadedComponents = ldComps
+            }
+
+            SetWaveSimIsOutOfDate true
             Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
             JSDiagramMsg (SetHasUnsavedChanges false)
             SetIsLoading false 
@@ -240,21 +240,19 @@ let updateProjectFromCanvas (model:Model) (dispatch:Msg -> Unit) =
                 })
 
 
-// /// extract SavedwaveInfo from model to be saved
-// let getSavedWave (model:Model) : SavedWaveInfo option = 
-//     match currWaveSimModel model with
-//     | Some wSModel -> waveSimModel2SavedWaveInfo wSModel |> Some
-//     | None -> None
+/// extract SavedwaveInfo from model to be saved
+let getSavedWave (model:Model) : SavedWaveInfo option = 
+    match currWaveSimModel model with
+    | Some wsModel -> Some (getSavedWaveInfo wsModel)
+    | None -> None
 
-// /// add waveInfo to model
-// let setSavedWave compIds (wave: SavedWaveInfo option) model : Model =
-//     match wave, getCurrFile model with
-//     | None, _ -> model
-//     | Some waveInfo, Some fileName -> 
-//         { model with WaveSim = Map.add fileName (savedWaveInfo2WaveSimModel waveInfo) 
-//                                                 (fst model.WaveSim), 
-//                                snd model.WaveSim }
-//     | Some waveInfo, _ -> model
+/// add waveInfo to model
+let setSavedWave compIds (wave: SavedWaveInfo option) model : Model =
+    match wave, getCurrFile model with
+    | None, _ -> model
+    | Some waveInfo, Some fileName -> 
+        { model with WaveSim = Map.add fileName (loadWSModelFromSavedWaveInfo waveInfo) model.WaveSim }
+    | Some waveInfo, _ -> model
 
 /// Save the sheet currently open, return  the new sheet's Loadedcomponent if this has changed.
 /// Do not change model.
@@ -267,7 +265,7 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
         // printfn "DEBUG: %A" project.ProjectPath
         // printfn "DEBUG: %A" project.OpenFileName
 
-        let savedState = canvasState, None //, getSavedWave model
+        let savedState = canvasState, getSavedWave model
         if isAuto then
             failwithf "Auto saving is no longer used"
             None
@@ -279,9 +277,8 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
                 project.LoadedComponents
                 |> List.find (fun lc -> lc.Name = project.OpenFileName)
             let savedWaveSim =
-                None
-            //     Map.tryFind project.OpenFileName (fst model.WaveSim)
-            //     |> Option.map waveSimModel2SavedWaveInfo
+                Map.tryFind project.OpenFileName model.WaveSim
+                |> Option.map getSavedWaveInfo
             let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim 
             let newState =
                 canvasState
@@ -370,14 +367,12 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
     | Some p ->
         dispatch EndSimulation // Message ends any running simulation.
         // TODO: make each sheet wavesim remember the list of waveforms.
-    // let waveSim = 
-    //     compToSetup.WaveInfo
-    //     |> Option.map savedWaveInfo2WaveSimModel 
-    //     |> Option.defaultValue (ModelType.initWS [||] Map.empty)
+    let waveSim =
+        compToSetup.WaveInfo
+        |> Option.map loadWSModelFromSavedWaveInfo 
+        |> Option.defaultValue initWSModel
 
-    // TODO
-    // loadStateIntoModel compToSetup waveSim ldComps model dispatch
-    loadStateIntoModel compToSetup ldComps model dispatch
+    loadStateIntoModel compToSetup waveSim ldComps model dispatch
     {
         ProjectPath = dirName compToSetup.FilePath
         OpenFileName =  compToSetup.Name

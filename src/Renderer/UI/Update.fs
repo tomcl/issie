@@ -375,6 +375,10 @@ let update (msg : Msg) oldModel =
             {model with WaveSimSheet = wsSheet}
             |> setWSModel wsModel
         newModel, Cmd.none
+    | AddWSModel (sheet, wsModel) ->
+        { model with 
+            WaveSim = Map.add sheet wsModel model.WaveSim
+        }, Cmd.none
     // | UpdateWSModel updateFn ->
     //     updateCurrentWSMod updateFn model, Cmd.none
     // | SetWSModAndSheet(ws,sheet) ->

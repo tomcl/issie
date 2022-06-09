@@ -777,7 +777,6 @@ let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
 
 let searchBarProps : IHTMLProp list = [
     Style [
-        MarginRight "10px"
     ]
 ]
 
@@ -861,6 +860,54 @@ let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
                             [ str "There is no sequential logic in this circuit." ]
         ]
 
+let selectWavesMenu model dispatch : ReactElement =
+    details [
+        Open true
+    ]
+        [
+            summary [] [str "thingy"]
+            str "aosdifjasodif"
+        ]
+
+
+let waveTableRows (wave: Wave) : ReactElement =
+    
+
+    // Rows in form of:
+    tr []
+        [
+            td  [ OnChange(fun _ -> printf "pressed" ) ]
+                [ Checkbox.checkbox []
+                    [ Checkbox.input [] ]
+                ]
+            td [] [str wave.WaveId]
+            td [] [str wave.WaveId]
+        ]
+
+
+let selectWavesTable (model: Model) (dispatch: Msg -> unit) : ReactElement =
+    let wsModel = getWSModel model
+    Table.table [
+        Table.IsFullWidth
+        Table.IsBordered
+    ] [
+        thead []
+            [
+                tr []
+                    [
+                        th  [ OnChange(fun _ -> printf "pressed" ) ]
+                            [ Checkbox.checkbox []
+                                [ Checkbox.input [] ]
+                            ]
+                        th [] [str "Component"]
+                        th [] [str "Port"]
+                    ]
+            ]
+        tbody []
+            (Map.values wsModel.AllWaves
+            |> Seq.map waveTableRows)
+    ]
+
 let wsOpenPane (model: Model) dispatch : ReactElement =
     div [ waveSelectionPaneStyle ]
         [
@@ -878,6 +925,11 @@ let wsOpenPane (model: Model) dispatch : ReactElement =
                 [
                     searchBar model dispatch
                 ]
+            selectWavesMenu model dispatch
+            selectWavesMenu model dispatch
+
+
+            selectWavesTable model dispatch
 
             selectWaves model dispatch
         ]

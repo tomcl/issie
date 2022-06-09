@@ -544,7 +544,7 @@ let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp w
         {
             Name = getBaseNameNoExtension filePath
             TimeStamp = timeStamp
-            WaveInfo = None
+            WaveInfo = waveInfo
             FilePath = filePath
             CanvasState = canvas
             InputLabels = inputs

@@ -41,6 +41,7 @@ let errorMessageStyle = Style [
 
 let viewButtonStyle = Style [
     MarginLeft "10px"
+    MarginRight "10px"
 ]
 
 let viewButtonProps = [

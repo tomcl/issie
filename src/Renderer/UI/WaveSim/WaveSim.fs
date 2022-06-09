@@ -428,7 +428,7 @@ let displayErrorMessage error =
     div [ errorMessageStyle ]
         [ SimulationView.viewSimulationError error ]
 
-/// Upon clicking the View buttonm, the wave selection pane will change to the wave viewer pane.
+/// Upon clicking the View button, the wave selection pane will change to the wave viewer pane.
 let viewWaveformsButton model dispatch =
     let wsModel = getWSModel model
     printf "%A" (List.length wsModel.SelectedWaves)
@@ -447,14 +447,17 @@ let viewWaveformsButton model dispatch =
                 dispatch FinishUICmd
             )
 
-    div [ Style [ Display DisplayOptions.InlineBlock ] ]
-        [ button viewButtonOptions viewButtonAction (str "View") ]
+    button viewButtonOptions viewButtonAction (str "View")
 
 let closeWSButton model dispatch =
     let wsModel = getWSModel model
 
     let closeButtonOptions = [
         Button.Color IsSuccess
+        Button.Props [Style [
+            MarginLeft "10px"
+            MarginRight "10px"
+        ]]
     ]
 
     let closeButtonAction = fun _ ->
@@ -463,8 +466,7 @@ let closeWSButton model dispatch =
                 State = WSClosed
         }
 
-    div [ Style [ Display DisplayOptions.InlineBlock; Margin "0 20px 0 20px" ] ]
-        [ button closeButtonOptions closeButtonAction (str "Close") ]
+    button closeButtonOptions closeButtonAction (str "Close")
 
 // let selectConns (model: Model)  (conns: ConnectionId list) (dispatch: Msg -> unit) =
 //     let allConns =
@@ -823,6 +825,20 @@ let waveViewerPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
             showWaveforms model dispatch
         ]
 
+let searchBarProps : IHTMLProp list = [
+    Style [
+        MarginRight "10px"
+    ]
+]
+
+let searchBar (model: Model) (dispatch: Msg -> unit) : ReactElement =
+    Input.text [
+        Input.Props searchBarProps
+
+        Input.Placeholder "Search"
+    ]
+
+
 /// TODO: Improve this comment. Update the required inputs.
 /// This function needs to show a list of what waveforms can be displayed, as well as a
 /// check box list showing which ones are selectable. Should have a 'select all' box
@@ -844,8 +860,14 @@ let waveSelectionPane (model: Model) dispatch : ReactElement =
             str "Some instructions here"
 
             hr []
-            viewWaveformsButton model dispatch
-            closeWSButton model dispatch
+
+            Level.level []
+                [
+                    searchBar model dispatch
+                    viewWaveformsButton model dispatch
+                    closeWSButton model dispatch
+                ]
+
             selectWaves model dispatch
         ]
 

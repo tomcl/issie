@@ -245,7 +245,7 @@ let displayView model dispatch =
     let inline setViewerWidthInWaveSim w =
         printf "w: %A" w
         let wsModel = getWSModel model
-        if wsModel.State = WaveViewer then
+        if wsModel.State = WSOpen then
             dispatch <| SetViewerWidth w
 
             let waveColWidth = w - Constants.namesColMinWidth - Constants.valuesColMinWidth

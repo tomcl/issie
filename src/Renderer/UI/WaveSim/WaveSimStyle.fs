@@ -82,7 +82,6 @@ let boldFontStyle = Style [ FontWeight "bold" ]
 
 let selectWavesStyle = Style [
     Position PositionOptions.Relative
-    Top "20px"
 ]
 
 let closeWaveSimButtonStyle = Style [
@@ -90,7 +89,8 @@ let closeWaveSimButtonStyle = Style [
     FontSize "16px"
     Float FloatOptions.Left
     Position PositionOptions.Relative
-    Margin "0 20px 20px 20px"
+    Margin "0 0 0 0"
+
 ]
 
 let zoomOutSVG =
@@ -139,7 +139,6 @@ let clkCycleButtonStyle = Style [
     TextAlign TextAlignOptions.Center
     Display DisplayOptions.InlineBlock
     FontSize "13px"
-    Margin "0 20px 0 20px"
     Resize "vertical"
 ]
 
@@ -287,14 +286,6 @@ let showWaveformsStyle = Style [
     ColumnCount 3
     GridAutoFlow "column"
     GridAutoColumns "auto"
-]
-
-let waveViewerPaneStyle = Style [
-    MarginLeft "0%"
-    MarginTop "0px"
-    MarginBottom "100px"
-    OverflowX OverflowOptions.Hidden
-    OverflowY OverflowOptions.Auto
 ]
 
 let waveSelectionPaneStyle = Style [

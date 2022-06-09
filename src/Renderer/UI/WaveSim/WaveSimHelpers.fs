@@ -79,10 +79,10 @@ let getWSModel model : WaveSimModel =
     Map.tryFind model.WaveSimSheet model.WaveSim
     |> function
         | Some wsModel ->
-            printf "Sheet %A found in model" model.WaveSimSheet
+            // printf "Sheet %A found in model" model.WaveSimSheet
             wsModel
         | None ->
-            printf "Sheet %A not found in model" model.WaveSimSheet
+            // printf "Sheet %A not found in model" model.WaveSimSheet
             initWSModel
 
 let viewBoxMinX m = string (float m.StartCycle * m.ZoomLevel)

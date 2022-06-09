@@ -154,8 +154,7 @@ type SimActionT =
 
 type WaveSimState = 
     | WSClosed
-    | WaveSelector
-    | WaveViewer
+    | WSOpen
 
 type Wave = {
     // unique within one simulation run, mostly conserved across runs

@@ -428,46 +428,6 @@ let displayErrorMessage error =
     div [ errorMessageStyle ]
         [ SimulationView.viewSimulationError error ]
 
-/// Upon clicking the View button, the wave selection pane will change to the wave viewer pane.
-let viewWaveformsButton model dispatch =
-    let wsModel = getWSModel model
-    printf "%A" (List.length wsModel.SelectedWaves)
-    let viewButtonOptions, viewButtonAction =
-        match List.length wsModel.SelectedWaves with
-        | 0 -> viewButtonLight, (fun _ -> ())
-        | _ -> viewButtonProps, (fun _ ->
-                let wsMod' = {wsModel with State = WaveViewer}
-                let msgs = [
-                    StartUICmd ViewWaveSim
-                    ClosePropertiesNotification
-                    InitiateWaveSimulation wsMod'
-                ]
-                dispatch (Sheet (SheetT.SetSpinner true))
-                dispatch <| SendSeqMsgAsynch msgs
-                dispatch FinishUICmd
-            )
-
-    button viewButtonOptions viewButtonAction (str "View")
-
-let closeWSButton model dispatch =
-    let wsModel = getWSModel model
-
-    let closeButtonOptions = [
-        Button.Color IsSuccess
-        Button.Props [Style [
-            MarginLeft "10px"
-            MarginRight "10px"
-        ]]
-    ]
-
-    let closeButtonAction = fun _ ->
-        dispatch <| SetWSModel {
-            wsModel with
-                State = WSClosed
-        }
-
-    button closeButtonOptions closeButtonAction (str "Close")
-
 // let selectConns (model: Model)  (conns: ConnectionId list) (dispatch: Msg -> unit) =
 //     let allConns =
 //         snd <| model.Sheet.GetCanvasState()
@@ -482,7 +442,7 @@ let closeWSButton model dispatch =
 let toggleSelectAll (selected: bool) model dispatch : unit =
     let wsModel = getWSModel model
     let selectedWaves = if selected then Map.keys wsModel.AllWaves |> Seq.toList else []
-    dispatch <| SetWSModel {wsModel with SelectedWaves = selectedWaves}
+    dispatch <| InitiateWaveSimulation {wsModel with SelectedWaves = selectedWaves}
     // selectConns model conns dispatch
 
 let selectAll (model: Model) dispatch =
@@ -506,7 +466,7 @@ let toggleConnsSelect (name: string) (wsModel: WaveSimModel) (dispatch: Msg -> u
         else [name] @ wsModel.SelectedWaves
 
     let wsModel = {wsModel with SelectedWaves = selectedWaves}
-    dispatch <| SetWSModel wsModel
+    dispatch <| InitiateWaveSimulation wsModel
     // changeWaveSelection name model waveSimModel dispatch
 
 let checkboxAndNameRow (name: string) (model: Model) (dispatch: Msg -> unit) =
@@ -544,14 +504,13 @@ let selectWaves (model: Model) dispatch =
                 )
             ]
         ]
-
 /// TODO: Change name to editWaves
 let closeWaveSimButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    let wsModel = {wsModel with State = WaveSelector}
+    let wsModel = {wsModel with State = WSClosed}
     button 
         [Button.Color IsSuccess; Button.Props [closeWaveSimButtonStyle]]
         (fun _ -> dispatch <| SetWSModel wsModel)
-        (str "Edit waves")
+        (str "Close wave simulator")
 
 /// Set highlighted clock cycle number
 let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkCycle: int) : unit =
@@ -816,15 +775,6 @@ let showWaveforms (model: Model) (dispatch: Msg -> unit) : ReactElement =
             valuesColumn wsModel
         ]
 
-/// View selected waveforms: show buttons to control simulation parameters, and
-/// display selected waveforms with their names and values.
-let waveViewerPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
-    div [ waveViewerPaneStyle ]
-        [
-            waveSimButtonsBar model dispatch
-            showWaveforms model dispatch
-        ]
-
 let searchBarProps : IHTMLProp list = [
     Style [
         MarginRight "10px"
@@ -864,8 +814,6 @@ let waveSelectionPane (model: Model) dispatch : ReactElement =
             Level.level []
                 [
                     searchBar model dispatch
-                    viewWaveformsButton model dispatch
-                    closeWSButton model dispatch
                 ]
 
             selectWaves model dispatch
@@ -878,10 +826,13 @@ let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
 
     let startButtonAction simData reducedState = fun _ ->
         let wsSheet = Option.get (getCurrFile model)
-        let allWaves = getWaveforms netGroup2Label simData reducedState
+        let wsModel = getWSModel model
+        let allWaves =
+            getWaveforms netGroup2Label simData reducedState
+            |> Map.map (generateWave wsModel)
         let wsModel = {
-            getWSModel model with
-                State = WaveSelector
+            wsModel with
+                State = WSOpen
                 AllWaves = allWaves
                 OutOfDate = false
                 ReducedState = reducedState
@@ -910,6 +861,27 @@ let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
                             [ str "There is no sequential logic in this circuit." ]
         ]
 
+let wsOpenPane (model: Model) dispatch : ReactElement =
+    div [ waveSelectionPaneStyle ]
+        [
+            Heading.h4 [] [ str "Waveform Simulator" ]
+            str "Some instructions here"
+
+            hr []
+
+            waveSimButtonsBar model dispatch
+            showWaveforms model dispatch
+
+            hr []
+
+            Level.level []
+                [
+                    searchBar model dispatch
+                ]
+
+            selectWaves model dispatch
+        ]
+
 /// Entry point to the waveform simulator. This function returns a ReactElement showing
 /// either the Wave Selection Pane or the Wave Viewer Pane. The Wave Selection Pane
 /// allows the user to select which waveforms they would like to view, and the Wave
@@ -919,7 +891,6 @@ let viewWaveSim (model: Model) dispatch : ReactElement =
     match wsModel.State with
     | WSClosed ->
         wsClosedPane model dispatch
-    | WaveSelector ->
-        waveSelectionPane model dispatch
-    | WaveViewer ->
-        waveViewerPane model dispatch
+    | WSOpen ->
+        wsOpenPane model dispatch
+

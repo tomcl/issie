@@ -170,20 +170,6 @@ let private viewRightTab model dispatch =
                         // if not model.WaveSimulationInProgress
                         // then
                             dispatch <| ChangeSimSubTab WaveSim
-                            let wsSheet = Option.get (getCurrFile model)
-                            match SimulationView.makeSimData model with
-                                | None -> failwithf "simRes has value None"
-                                | Some (Ok simData, reducedState) -> // IsSuccess, "Start Simulation"
-                                    let allWaves = getWaveforms netGroup2Label simData reducedState
-                                    let wsModel = {
-                                        getWSModel model with
-                                            AllWaves = allWaves
-                                            OutOfDate = false
-                                            ReducedState = reducedState
-                                    }
-                                    dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
-                                // TODO: This does not fail gracefully. Fix it.
-                                | Some (Error e, _) -> failwithf "Simulation failed with error %A" e
                         ) 
                         ] [str "Wave Simulation"] ])
                     ]
@@ -259,7 +245,7 @@ let displayView model dispatch =
     let inline setViewerWidthInWaveSim w =
         printf "w: %A" w
         let wsModel = getWSModel model
-        if wsModel.State = Running then
+        if wsModel.State = WaveViewer then
             dispatch <| SetViewerWidth w
 
             let waveColWidth = w - Constants.namesColMinWidth - Constants.valuesColMinWidth

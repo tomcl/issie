@@ -153,8 +153,9 @@ type SimActionT =
     | ChangeParameters of SimParamsT
 
 type WaveSimState = 
-    | NotRunning
-    | Running
+    | WSClosed
+    | WaveSelector
+    | WaveViewer
 
 type Wave = {
     WaveId: string // unique within one simulation run, mostly conserved across runs
@@ -197,6 +198,25 @@ type WaveSimModel = {
     ZoomLevel: float
     ZoomLevelIndex: int
     WaveformColumnWidth: int
+}
+
+/// TODO: Explain why: 30*width, width is 1.5, so that's 45. This is 8 cycles (0 to 7)
+/// This should be divisible by 45
+let initialWaveformColWidth = int( 1.5 * float (30 * 7)) //rightSectionWidthViewerDefault - namesColMinWidth - valuesColMinWidth
+
+let initWSModel : WaveSimModel = {
+    State = WSClosed
+    AllWaves = Map.empty
+    StartCycle = 0
+    ShownCycles = 7
+    OutOfDate = true
+    ReducedState = [], []
+    CurrClkCycle = 0
+    ClkCycleBoxIsEmpty = false
+    Radix = CommonTypes.Hex
+    ZoomLevel = 1.5
+    ZoomLevelIndex = 9
+    WaveformColumnWidth = initialWaveformColWidth
 }
 
     // // generate data using this 0 clock simulation, which comes from makeSimData

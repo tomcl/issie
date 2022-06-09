@@ -447,7 +447,7 @@ let viewWaveformsButton model dispatch =
                 dispatch FinishUICmd
             )
 
-    div [ Style [ Display DisplayOptions.Block ] ]
+    div [ Style [ Display DisplayOptions.InlineBlock ] ]
         [ button viewButtonOptions viewButtonAction (str "View") ]
 
 let closeWSButton model dispatch =
@@ -463,7 +463,7 @@ let closeWSButton model dispatch =
                 State = WSClosed
         }
 
-    div [ Style [ Display DisplayOptions.Block ] ]
+    div [ Style [ Display DisplayOptions.InlineBlock; Margin "0 20px 0 20px" ] ]
         [ button closeButtonOptions closeButtonAction (str "Close") ]
 
 // let selectConns (model: Model)  (conns: ConnectionId list) (dispatch: Msg -> unit) =
@@ -549,7 +549,7 @@ let closeWaveSimButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEl
     button 
         [Button.Color IsSuccess; Button.Props [closeWaveSimButtonStyle]]
         (fun _ -> dispatch <| SetWSModel wsModel)
-        (str "Edit waves / close simulator")
+        (str "Edit waves")
 
 /// Set highlighted clock cycle number
 let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkCycle: int) : unit =
@@ -838,18 +838,15 @@ let waveSelectionPane (model: Model) dispatch : ReactElement =
             let popup = Notifications.warningPropsNotification (sprintf "Inputs (%s) will be set to 0." inputs)
             dispatch <| SetPropertiesNotification popup
 
-    // TODO: Improve the str labels here. Currently out-of-date.
     div [ waveSelectionPaneStyle ]
         [
-            Heading.h4 [] [ str "Waveform Simulator" ] 
-            // str "Ctrl-click on diagram connections or use tick boxes below to add or remove waveforms."
-            // str "Test combinational logic by closing this simulator and using Simulate tab."
+            Heading.h4 [] [ str "Waveform Simulator" ]
+            str "Some instructions here"
+
             hr []
-            div [] [
-                    viewWaveformsButton model dispatch
-                    closeWSButton model dispatch
-                    selectWaves model dispatch
-                ]
+            viewWaveformsButton model dispatch
+            closeWSButton model dispatch
+            selectWaves model dispatch
         ]
 
 let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
@@ -873,6 +870,8 @@ let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
     div [ waveSelectionPaneStyle ]
         [
             Heading.h4 [] [ str "Waveform Simulator" ] 
+            str "Some instructions here"
+
             hr []
 
             match SimulationView.makeSimData model with

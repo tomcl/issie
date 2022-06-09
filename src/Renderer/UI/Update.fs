@@ -411,7 +411,9 @@ let update (msg : Msg) oldModel =
     | IncrementSimulationClockTick n ->
         let simData = getSimulationDataOrFail model "IncrementSimulationClockTick"
         { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber + n } |> Ok |> Some }, Cmd.none
-    | EndSimulation -> { model with CurrentStepSimulationStep = None }, Cmd.none
+    | EndSimulation ->
+        let wsModel =  {WaveSimHelpers.getWSModel model with State = WSClosed }
+        { setWSModel wsModel model with CurrentStepSimulationStep = None }, Cmd.none
     // | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()

@@ -290,7 +290,6 @@ let getWaveFromNetGroup
         |> List.map (fun i -> FastRun.extractFastSimulationOutput fs i fId opn)
     {
         WaveId = netGroupName // not unique yet - may need to be changed
-        Selected = true
         Conns = List.ofArray conns
         SheetId = [] // all NetGroups are from top sheet at the moment
         Driver = fId, opn
@@ -308,7 +307,6 @@ let getWaveFromFC (fc: FastComponent) =
     //     |> List.map (fun i -> FastRun.extractFastSimulationOutput fs i fc.fId opn)
     {
         WaveId = viewerName // not unique yet - may need to be changed
-        Selected = true
         // WType = ViewerWaveform false
         Conns = [] // don't use connection nets for Viewer (yet)
         SheetId = snd fc.fId
@@ -381,7 +379,7 @@ let displayValuesOnWave (startCycle: int) (endCycle: int) (waveValues: WireData 
 /// Called when InitiateWaveSimulation msg is dispatched
 /// Generates the polyline(s) for a specific waveform
 let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
-    if wave.Selected then
+    if List.contains waveName wsModel.SelectedWaves then
         printf "generating wave for %A" waveName
         let polylines =
             match wave.Width with
@@ -433,12 +431,12 @@ let displayErrorMessage error =
 /// Upon clicking the View buttonm, the wave selection pane will change to the wave viewer pane.
 let viewWaveformsButton model dispatch =
     let wsModel = getWSModel model
-
+    printf "%A" (List.length wsModel.SelectedWaves)
     let viewButtonOptions, viewButtonAction =
-        match Map.count (selectedWaves wsModel) with
+        match List.length wsModel.SelectedWaves with
         | 0 -> viewButtonLight, (fun _ -> ())
         | _ -> viewButtonProps, (fun _ ->
-                let wsMod' = {wsModel with State = Running}
+                let wsMod' = {wsModel with State = WaveViewer}
                 let msgs = [
                     StartUICmd ViewWaveSim
                     ClosePropertiesNotification
@@ -479,10 +477,10 @@ let closeWSButton model dispatch =
 //     model.Sheet.SelectConnections sheetDispatch false (Set.toList otherConns)
 
 /// Sets all waves as selected or not selected depending on value of newState
-let toggleSelectAll newState model dispatch : unit =
+let toggleSelectAll (selected: bool) model dispatch : unit =
     let wsModel = getWSModel model
-    let allWaves' = Map.map (fun _ wave -> {wave with Selected = newState}) wsModel.AllWaves
-    dispatch <| SetWSModel {wsModel with AllWaves = allWaves'}
+    let selectedWaves = if selected then Map.keys wsModel.AllWaves |> Seq.toList else []
+    dispatch <| SetWSModel {wsModel with SelectedWaves = selectedWaves}
     // selectConns model conns dispatch
 
 let selectAll (model: Model) dispatch =
@@ -499,24 +497,21 @@ let selectAll (model: Model) dispatch =
             td  [ boldFontStyle ] [ str "Select All" ]
         ]
 
-let toggleConnsSelect (name: string) (waveSimModel: WaveSimModel) (dispatch: Msg -> unit) =
-    // let newState = not (isWaveSelected waveSimModel name)
-    printf "toggleConnsSelect"
-    let wave = waveSimModel.AllWaves[name]
-    let wave' = {wave with Selected = not wave.Selected}
-    // printf "%A" wave'
+let toggleConnsSelect (name: string) (wsModel: WaveSimModel) (dispatch: Msg -> unit) =
+    let selectedWaves =
+        if List.contains name wsModel.SelectedWaves then
+            List.except [name] wsModel.SelectedWaves
+        else [name] @ wsModel.SelectedWaves
 
-    let waveSimModel' = {waveSimModel with AllWaves = Map.add name wave' waveSimModel.AllWaves}
-    // printf "%A" waveSimModel'.AllWaves[name]
-    dispatch <| SetWSModel waveSimModel'
-
+    let wsModel = {wsModel with SelectedWaves = selectedWaves}
+    dispatch <| SetWSModel wsModel
     // changeWaveSelection name model waveSimModel dispatch
 
 let checkboxAndNameRow (name: string) (model: Model) (dispatch: Msg -> unit) =
     let wsModel = getWSModel model
     let allWaves = wsModel.AllWaves
     let getColorProp name  =
-        if Map.containsKey name (selectedWaves wsModel) then
+        if List.contains name wsModel.SelectedWaves then
             boldFontStyle
         else
             Style []
@@ -733,8 +728,7 @@ let waveSimButtonsBar (model: Model) (dispatch: Msg -> unit) : ReactElement =
 
 /// Create label of waveform name for each selected wave
 let nameRows (wsModel: WaveSimModel) : ReactElement list =
-    selectedWaves wsModel
-    |> Map.keys |> Seq.toList
+    wsModel.SelectedWaves
     |> List.map (fun l -> label [ labelStyle ] [ str l ])
 
 /// Create column of waveform names
@@ -747,7 +741,6 @@ let namesColumn wsModel : ReactElement =
 /// Create label of waveform value for each selected wave at a given clk cycle.
 let valueRows (wsModel: WaveSimModel) = 
     selectedWaves wsModel
-    |> Map.values |> Seq.toList
     |> List.map (getWaveValue wsModel.CurrClkCycle)
     |> List.map (valToString wsModel.Radix)
     |> List.map (fun value -> label [ labelStyle ] [ str value ])
@@ -790,7 +783,6 @@ let clkCycleNumberRow (wsModel: WaveSimModel) =
 let waveformColumn (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement =
     let waveRows : ReactElement list =
         selectedWaves wsModel
-        |> Map.values |> Seq.toList
         |> List.map (fun wave ->
             match wave.Polylines with
                 | Some polylines ->
@@ -805,7 +797,7 @@ let waveformColumn (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement
 
     div [ waveformColumnStyle ]
         [
-            clkCycleHighlightSVG wsModel (selectedWavesCount wsModel)
+            clkCycleHighlightSVG wsModel (List.length wsModel.SelectedWaves)
             div [ waveRowsStyle wsModel.WaveformColumnWidth]
                 ([ clkCycleNumberRow wsModel ] @
                 waveRows

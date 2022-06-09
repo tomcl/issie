@@ -94,8 +94,10 @@ let singleWaveWidth wsModel = 30.0 * wsModel.ZoomLevel
 
 let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ label ]
 
-let selectedWaves (wsModel: WaveSimModel) : Map<string, Wave> = Map.filter (fun _ key -> key.Selected) wsModel.AllWaves
-let selectedWavesCount (wsModel: WaveSimModel) = Map.count (selectedWaves wsModel)
+let selectedWaves (wsModel: WaveSimModel) : Wave list =
+    Map.filter (fun name _ -> List.contains name wsModel.SelectedWaves) wsModel.AllWaves
+    |> Map.values
+    |> Seq.toList
 
 let pointsToString (points: XYPos list) : string =
     List.fold (fun str (point: XYPos) ->
@@ -203,4 +205,4 @@ let calculateNonBinaryTransitions (waveValues: Bit list list) : NonBinaryTransit
             Change
     )
 
-let isWaveSelected (waveSimModel: WaveSimModel) (name: string) : bool = waveSimModel.AllWaves[name].Selected
+let isWaveSelected (wsModel: WaveSimModel) (name: string) : bool = List.contains name wsModel.SelectedWaves

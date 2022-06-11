@@ -228,7 +228,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         match (ins 0),(ins 1) with
         | Data d1, Data d2 -> 
             let bit0 = d1.GetQUint32
-            let bit1 = d1.GetQUint32
+            let bit1 = d2.GetQUint32
             put0 <| Data {Width=1; Dat = Word (bitOp bit1 bit0)}
         | A, B ->
             put0 <| Alg (algOp A.toExp B.toExp)

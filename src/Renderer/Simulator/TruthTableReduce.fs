@@ -111,7 +111,7 @@ let rec reduceTruthTable (inputConstraints: ConstraintSet) (table: TruthTable) b
         table.Inputs
         |> List.collect (fun input ->
             inputDCRows input inputConstraints table bitLimit)
-
+            
     let remainingRegularRows =
         (Map.toList tMap, allDCRows)
         ||> List.fold reduceWithDCRow

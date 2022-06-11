@@ -550,6 +550,7 @@ let update (msg : Msg) oldModel =
         let newTable = {table with FilteredMap = filteredMap} |> Ok |> Some
         {model with CurrentTruthTable = newTable}, Cmd.ofMsg SortTruthTable
     | SortTruthTable ->
+        let start = TimeHelpers.getTimeMs()
         let table = getTruthTableOrFail model "Sorting"
         let sortedTable =
             match model.TTSortType, tableAsList table.FilteredMap with
@@ -564,17 +565,21 @@ let update (msg : Msg) oldModel =
                     sortByIO io lst
                     |> List.rev
                 {table with SortedListRep = sortedLst}
+            |> TimeHelpers.instrumentInterval "Sorting Truth Table" start
             |> Ok
             |> Some
         {model with CurrentTruthTable = sortedTable}, Cmd.ofMsg HideTTColumns
     | DCReduceTruthTable ->
         let table = getTruthTableOrFail model "DC Reduction"
+        let start = TimeHelpers.getTimeMs() 
         let reducedTable = 
             reduceTruthTable model.TTInputConstraints table model.TTBitLimit
+            |> TimeHelpers.instrumentInterval "DC Reduction" start
             |> Ok
             |> Some
         {model with CurrentTruthTable = reducedTable}, Cmd.ofMsg FilterTruthTable
     | HideTTColumns ->
+        let start = TimeHelpers.getTimeMs()
         /// Recursive function to hide columns and adjust the positions of the remaining
         /// visible columns.
         let rec correctProps (index: int) (acc: list<CellIO*list<CSSProp>>) (lst: CellIO list):  list<CellIO*list<CSSProp>>=
@@ -589,6 +594,7 @@ let update (msg : Msg) oldModel =
         let newStyles =
             correctProps 0 [] (Array.toList model.TTIOOrder)
             |> Map.ofList
+            |> TimeHelpers.instrumentInterval "Hiding Columns" start
         {model with TTGridStyles = newStyles}, Cmd.none
     | CloseTruthTable -> 
         {model with CurrentTruthTable = None}, Cmd.none

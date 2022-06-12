@@ -209,7 +209,6 @@ type BinaryOp =
 type UnaryOp = 
     | NegOp // -A (mathematical negation, bitwise two's complement)
     | NotOp // bit inversion (bitwise XOR with -1)
-    | ValueOfOp // value(A) (for A = -5, this would return 5)
     | BitRangeOp of Lower:int * Upper:int // A[upper:lower] (subset of bits of A)
     | CarryOfOp
 
@@ -286,6 +285,32 @@ let tryBitwiseOperation (expressions: FastAlgExp list) =
             | _,_ -> None
     | _ -> None
 
+/// Check the Bit Ranges for two expressions, and check if they can be merged.
+/// If they can, return the merged expression, otherwise return None.
+// A[5:3] and A[2:1] -> A[5:1]
+// A[5:4] and A[2:1] -> None
+// A[5:3] and B[2:1] -> None
+let tryMergeBitRanges (l1,u1,exp1) (l2,u2,exp2) =
+    let lHigh, lLow = if l1 > l2 then l1,l2 else l2,l1 
+    let uHigh, uLow = if u1 > u2 then u1,u2 else u2,u1 
+    if exp1 = exp2 && lHigh = uLow+1 then
+        UnaryExp (BitRangeOp(lLow,uHigh),exp1)
+        |> Some
+    else
+       None
+
+let foldAppends (expressions: FastAlgExp list) =
+    ([],expressions)
+    ||> List.fold (fun acc exp ->
+        match acc, exp with
+        | [], e -> exp::acc
+        | (UnaryExp(BitRangeOp(l1,u1),exp0))::tl, UnaryExp(BitRangeOp(l2,u2),exp1) ->
+            match tryMergeBitRanges (l1,u1,exp0) (l2,u2,exp1) with
+            | Some newExp -> newExp::tl
+            | None -> exp::acc
+        | _,_ -> exp::acc)
+    |> List.rev
+
 /// Converts an Algebraic Expression to a string for pretty printing
 let expToString exp =
     let rec expToString' (exp: FastAlgExp) =
@@ -300,9 +325,6 @@ let expToString exp =
         | UnaryExp (NotOp,exp) ->
             let expStr = expToString' exp
             $"(~{expStr})"
-        | UnaryExp (ValueOfOp,exp) ->
-            let expStr = expToString' exp
-            $"{expStr}"
         | UnaryExp (BitRangeOp(low,up),exp) ->
             let expStr = expToString' exp
             if low = up then // Replace A[x:x] with A[x]
@@ -425,7 +447,10 @@ let rec evalExp exp =
         |> tryBitwiseOperation
         |> function
             | Some e -> e
-            | None -> AppendExp evaluated
+            | None -> 
+                evaluated
+                |> foldAppends
+                |> AppendExp
 /// Raised when an Algebraic case is found in FastSim which has not been implemented,
 /// or does not make sense to implement.
 exception AlgebraNotImplemented of SimulationError

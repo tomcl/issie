@@ -65,34 +65,6 @@ let getRomStateMemory comp =
     | AsyncROM memory -> memory
     | _ -> failwithf "What? getRomStateMemory called with invalid state"
 
-/// Check the Bit Ranges for two expressions, and check if they can be merged.
-/// If they can, return the merged expression, otherwise return None.
-// A[5:3] and A[2:1] -> A[5:1]
-// A[5:4] and A[2:1] -> None
-// A[5:3] and B[2:1] -> None
-let tryMergeBitRanges (l1,u1,exp1) (l2,u2,exp2) =
-    let lHigh, lLow = if l1 > l2 then l1,l2 else l2,l1 
-    let uHigh, uLow = if u1 > u2 then u1,u2 else u2,u1 
-    if exp1 = exp2 && lHigh = uLow+1 then
-        UnaryExp (BitRangeOp(lLow,uHigh),exp1)
-        |> Some
-    else
-       None
-
-let foldAppends (expressions: FastAlgExp list) =
-    ([],expressions)
-    ||> List.fold (fun acc exp ->
-        match acc, exp with
-        | [], e -> exp::acc
-        | (UnaryExp(BitRangeOp(l1,u1),exp0))::tl, UnaryExp(BitRangeOp(l2,u2),exp1) ->
-            match tryMergeBitRanges (l1,u1,exp0) (l2,u2,exp1) with
-            | Some newExp -> newExp::tl
-            | None -> exp::acc
-        | _,_ -> exp::acc)
-    |> List.rev
-
-
-
 let inline private bitNot bit = bit ^^^ 1u
 
 let inline private bitAnd bit0 bit1 = bit0 &&& bit1
@@ -598,21 +570,45 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         | Data {Dat=(Word 1u);Width=_}, other, Alg (UnaryExp(NotOp,exp))->
             let othExp = other.toExp
             let newExp = BinaryExp(othExp,SubOp,exp)
-            let out0 = UnaryExp (ValueOfOp,newExp)
+            let out0 = newExp
             let out1 = UnaryExp(CarryOfOp,newExp)
             put0 <| Alg out0
             put1 <| Alg out1
         | Data {Dat=(Word w);Width=_}, Alg exp1, Alg exp2 ->
             if w = 0u then
                 let newExp = BinaryExp(exp1,AddOp,exp2)
-                let out0 = UnaryExp(ValueOfOp,newExp)
+                let out0 = newExp
                 let out1 = UnaryExp(CarryOfOp,newExp)
                 put0 <| Alg out0
                 put1 <| Alg out1
             else
                 let cinExp = (packBit w).toExp
                 let newExp = BinaryExp(BinaryExp(exp1,AddOp,exp2),AddOp,cinExp)
-                let out0 = UnaryExp(ValueOfOp,newExp)
+                let out0 = newExp
+                let out1 = UnaryExp(CarryOfOp,newExp)
+                put0 <| Alg out0
+                put1 <| Alg out1
+
+        | Data {Dat=(Word cin); Width=_}, Data {Dat=(Word num); Width=w},Alg (UnaryExp(NotOp,exp))
+        | Data {Dat=(Word cin); Width=_}, Alg (UnaryExp(NotOp,exp)), Data {Dat=(Word num); Width=w} ->
+            if cin + num = 0u then
+                let oneExp = DataLiteral ({Dat=(Word (1u)); Width=w})
+                let newExp = UnaryExp(NegOp,BinaryExp(exp,AddOp,oneExp))
+                let out0 = newExp
+                let out1 = UnaryExp(CarryOfOp,newExp)
+                put0 <| Alg out0
+                put1 <| Alg out1
+            else if cin + num = 1u then
+                let newExp = UnaryExp(NegOp,exp)
+                let out0 = newExp
+                let out1 = UnaryExp(CarryOfOp,newExp)
+                put0 <| Alg out0
+                put1 <| Alg out1
+            else
+                let value = cin + num - 1u
+                let rhs = DataLiteral ({Dat=(Word value); Width=w})
+                let newExp = BinaryExp(exp,AddOp,rhs)
+                let out0 = newExp
                 let out1 = UnaryExp(CarryOfOp,newExp)
                 put0 <| Alg out0
                 put1 <| Alg out1
@@ -620,7 +616,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         | Data {Dat=(Word cin); Width=_}, Alg exp, Data {Dat=(Word num); Width=w} ->
             let rhs = (Data {Dat = Word (cin+num);Width = w}).toExp
             let newExp = BinaryExp(exp,AddOp,rhs)
-            let out0 = UnaryExp(ValueOfOp,newExp)
+            let out0 = newExp
             let out1 = UnaryExp(CarryOfOp,newExp)
             put0 <| Alg out0
             put1 <| Alg out1
@@ -628,7 +624,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             let cinExp, aExp, bExp =
                 cin.toExp, A.toExp, B.toExp
             let newExp = BinaryExp(BinaryExp(aExp,AddOp,bExp),AddOp,cinExp)
-            let out0 = UnaryExp(ValueOfOp,newExp)
+            let out0 = newExp
             let out1 = UnaryExp(CarryOfOp,newExp)
             put0 <| Alg out0
             put1 <| Alg out1

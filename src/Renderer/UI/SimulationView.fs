@@ -471,6 +471,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                             "Goto Tick"
                             (simulationClockChangeAction dispatch simData)
                             isDisabled
+                            []
                             dispatch)
                         ] [ str "Goto" ]
                 str " "

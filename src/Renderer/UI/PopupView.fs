@@ -39,8 +39,33 @@ Although showPopup
 
 module PopupView
 
+
+//=====================CODE EDITOR BINDINGS=========================//
+
+type State = 
+    | Code of string
+
+type CodeEditorProps = 
+    | Placeholder of string
+    // | Value of (string -> State)
+    | Value of string
+    // | OnValueChange of (string -> obj)
+    | OnValueChange of (string -> unit)
+    | Highlight of (string -> obj) //highlight (string => string | React.Node)
+    | TabSize of int
+    | InsertSpaces of bool
+    | IgnoreTabKey of bool
+    | Padding of int
+    | TextAreaId of string
+    | TextAreaClassName of string
+    | PreClassName of string
+
+//====================================================================//
+
 open Fulma
 open Fulma.Extensions.Wikiki
+open Fable.Core
+open Fable.Core.JsInterop
 open Fable.React
 open Fable.React.Props
 
@@ -52,6 +77,28 @@ open EEExtensions
 open Sheet.SheetInterface
 
 
+
+//====================//
+//Code Editor Bindings//
+//====================//
+
+importSideEffects "./prism.css"
+
+let inline codeEditor (props : CodeEditorProps list) (elems : ReactElement list) : ReactElement =
+    ofImport "default" "react-simple-code-editor" (keyValueList CaseRules.LowerFirst props) elems
+
+
+type PrismCore =
+    abstract highlight : string * obj -> string
+
+[<ImportAll("./prism.js")>]
+let Prism: PrismCore = jsNative
+
+[<Emit("Prism.languages.verilog")>]
+let language : obj = jsNative
+
+// importSideEffects "prismjs/components/prism-verilog"
+importSideEffects "prismjs/components/prism-clike"
 
 //=======//
 //HELPERS//
@@ -103,6 +150,9 @@ let preventDefault (e: Browser.Types.ClipboardEvent) = e.preventDefault()
 
 let getText (dialogData : PopupDialogData) =
     Option.defaultValue "" dialogData.Text
+
+let getCode (dialogData : PopupDialogData) =
+    Option.defaultValue "" dialogData.VerilogCode
 
 let getInt (dialogData : PopupDialogData) =
     Option.defaultValue 1 dialogData.Int
@@ -249,6 +299,66 @@ let dialogPopupBodyOnlyText before placeholder dispatch =
             span [Style [FontStyle "Italic"; Color "Red"]; Hidden goodLabel] [str "Name must start with a letter"]            
 
         ]
+
+/////////////////////   TEMP  /////////////////////////
+// type props = {message : string}
+type CEProps =
+    { Value : string
+      Dispatch : (Msg -> unit)}
+type CEState = { code: string }
+
+type CE (props) =
+    inherit Component<CEProps, CEState> (props)
+    
+    do base.setInitState({ code = "" })
+
+    override this.render () =
+      div [Style [FontFamily ("ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace"); FontSize 16; BackgroundColor "#f5f5f5"; OutlineStyle "solid"; OutlineColor "Blue"]] [
+            codeEditor [
+                CodeEditorProps.Placeholder ("Start Writing your Verilog Code here..."); 
+                CodeEditorProps.Value ((sprintf "%A" this.state.code)); 
+                OnValueChange (fun txt -> 
+                    (this.setState (fun s _ -> {s with code = txt}))
+                    props.Dispatch <| SetPopupDialogCode (Some txt))
+                    // dispatch <| SetPopupDialogCode (Some txt));
+                // Highlight (fun value -> value);]
+                
+                Highlight (fun code -> Prism.highlight(code,language));]
+                []
+        ]
+
+
+
+
+////////////////////////////////////////////////////////
+
+/// Create the body of a Verilog Editor Popup.
+let dialogVerilogCompBody before placeholder dispatch =
+    fun (dialogData : PopupDialogData) ->
+        let code = getCode dialogData
+        let goodLabel =
+                getText dialogData
+                |> Seq.toList
+                |> List.tryHead
+                |> function | Some ch when  System.Char.IsLetter ch -> true | Some ch -> false | None -> true
+        let renderCE value =
+            ofType<CE,_,_> {Value=value; Dispatch=dispatch} 
+        div [] [
+            before dialogData
+            Input.text [
+                Input.Props [AutoFocus true; SpellCheck false]
+                Input.Placeholder placeholder
+                Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
+            ]
+            span [Style [FontStyle "Italic"; Color "Red"]; Hidden goodLabel] [str "Name must start with a letter"]
+            br []
+            br []
+            br []
+            p [] [b [] [str "Verilog Code:"]]
+            br []
+            renderCE code Seq.empty
+        ]
+
 
 /// Create the body of a dialog Popup with only an int.
 let dialogPopupBodyOnlyInt beforeInt intDefault dispatch =
@@ -544,7 +654,7 @@ let dialogPopupBodyMemorySetup intDefault dispatch =
 
 /// Popup with an input textbox and two buttons.
 /// The text is reflected in Model.PopupDialogText.
-let dialogPopup title body buttonText buttonAction isDisabled dispatch =
+let dialogPopup title body buttonText buttonAction isDisabled extraStyle dispatch =
     let foot =
         fun (dialogData : PopupDialogData) ->
             Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
@@ -567,7 +677,42 @@ let dialogPopup title body buttonText buttonAction isDisabled dispatch =
                     ]
                 ]
             ]
-    dynamicClosablePopup title body foot [] dispatch
+    dynamicClosablePopup title body foot extraStyle dispatch
+
+
+/// Popup with an input textbox and two buttons.
+/// The text is reflected in Model.PopupDialogText.
+let dialogVerilogPopup title body buttonText saveButtonAction isDisabled extraStyle dispatch =
+    let foot =
+        fun (dialogData : PopupDialogData) ->
+            Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
+                Level.left [] []
+                Level.right [] [
+                    Level.item [] [
+                        Button.button [
+                            Button.Color IsLight
+                            Button.OnClick (fun _ -> 
+                                dispatch ClosePopup
+                                dispatch FinishUICmd) //In case user presses cancel on 'rename sheet' popup
+                        ] [ str "Cancel" ]
+                    ]
+                    Level.item [] [
+                        Button.button [
+                            Button.Disabled (isDisabled dialogData)
+                            Button.Color IsInfo
+                            Button.OnClick (fun _ -> saveButtonAction dialogData)
+                        ] [ str "Compile" ]
+                    ]
+                    Level.item [] [
+                        Button.button [
+                            Button.Disabled (isDisabled dialogData)
+                            Button.Color IsPrimary
+                            Button.OnClick (fun _ -> saveButtonAction dialogData)
+                        ] [ str buttonText ]
+                    ]
+                ]
+            ]
+    dynamicClosablePopup title body foot extraStyle dispatch
 
 /// A static confirmation popup.
 let confirmationPopup title body buttonText buttonAction dispatch =
@@ -790,7 +935,4 @@ let viewInfoPopup dispatch =
 
     let foot _ = div [] []
     dynamicClosablePopup title body foot [Width 800] dispatch
-
-
-
 

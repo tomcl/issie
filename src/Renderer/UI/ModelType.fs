@@ -49,6 +49,8 @@ type PopupDialogData = {
     Int : int option;
     Int2: int64 option
     ProjectPath: string
+    VerilogCode: string option
+    VerilogErrors: string list
     MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth. 
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
     WaveSetup: MoreWaveSetup option
@@ -248,6 +250,7 @@ type Msg =
     | ShowStaticInfoPopup of (string * ReactElement * (Msg -> Unit))
     | ClosePopup
     | SetPopupDialogText of string option
+    | SetPopupDialogCode of string option
     | SetPopupDialogInt of int option
     | SetPopupDialogTwoInts of (int64 option * IntMode * string option)
     | SetPropertiesExtraDialogText of string option

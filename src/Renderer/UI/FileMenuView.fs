@@ -511,7 +511,7 @@ let renameFileInProject name project model dispatch =
                 let dialogText = getText dialogData
                 (isFileInProject dialogText project) || (dialogText = "")
 
-        dialogPopup title body buttonText buttonAction isDisabled dispatch
+        dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 /// Remove file.
 let private removeFileInProject name project model dispatch =
@@ -595,7 +595,7 @@ let addFileToProject model dispatch =
                 let dialogText = getText dialogData
                 (isFileInProject dialogText project) || (dialogText = "") || (maybeWarning dialogText project <> None)
 
-        dialogPopup title body buttonText buttonAction isDisabled dispatch
+        dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 /// Close current project, if any.
 let forceCloseProject model dispatch =

@@ -86,6 +86,8 @@ let init() = {
         MemoryEditorData = None
         WaveSetup = None
         Progress = None
+        VerilogCode = None
+        VerilogErrors = []
     }
     Notifications = {
         FromDiagram = None

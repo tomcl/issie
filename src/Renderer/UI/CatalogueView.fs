@@ -17,16 +17,91 @@ open PopupView
 open Sheet.SheetInterface
 open DrawModelType
 open FilesIO
-open VerilogTypes
-open NearleyBindings
-open ErrorCheck
 
-open Fable.SimpleJson
+open Fable.Core
 open Fable.Core.JsInterop
+open Fable.SimpleJson
 
-NearleyBindings.importGrammar
-NearleyBindings.importFix
-NearleyBindings.importParser
+//=======================================//
+//           Nearley JS Bindings         //
+//=======================================//
+
+// [<Import("fix", from="./fix.js")>]
+
+[<Import("default", from="nearley")>]
+
+[<Emit("import * as verilogGrammar from './verilog.js' ")>]
+let importGrammar : unit = jsNative
+
+[<Emit("import {fix} from './fix.js' ")>]
+let importFix : unit = jsNative
+
+[<Emit("new nearley.Parser(nearley.Grammar.fromCompiled(verilogGrammar))")>]
+let newParser : obj = jsNative
+
+[<Emit("parser.feed($0)")>]
+let feedParser (data:string): unit = jsNative
+
+[<Emit("fix($0)")>]
+let fix (data:string): string = jsNative
+
+[<Emit("JSON.stringify(parser.results[0])")>]
+let parse : string = jsNative
+
+importGrammar
+importFix
+//========================================//
+
+//////////////////////// Verilog Input Types   ///////////////////////////
+
+// Module Name
+type ModuleNameT = {Type : string; Name : string}
+
+// Module Items
+// type UnsignedT = {Type: string; Value: string}
+type NumberT = {Type: string; NumberType: string; Bits: string option; Base: string option; UnsignedNumber: string option; AllNumber: string option }
+
+
+type RangeT = {Type: string; Start: string; End: string}
+
+type IOItemT = {Type: string; DeclarationType: string; Range : RangeT option; Variables: string array}
+
+
+// type ParameterRHST = {Type: string; NumberType: string; Bits: string; Base: string; Number: string}
+type ParameterT = {Type: string; Name: string; RHS: NumberT}
+type ParameterItemT = {Type: string; DeclarationType: string; Parameter : ParameterT;}
+
+
+type PrimaryT = {Type: string; PrimaryType: string; BitsStart: string option; BitsEnd: string option; Primary: string}
+
+// type ExpressionT = {Type: string; Operator: string option; Expression: ExpressionT option; ExpressionLeft: ExpressionT option; ExpressionRight: ExpressionT option; Primary: PrimaryT option; Number: NumberT option}
+
+
+
+type ExpressionT = {Type: string; Operator: string option; Head: ExpressionT option; Tail: ExpressionT option; Unary: UnaryT option}
+    and UnaryT = {Type: string; Primary: PrimaryT option; Number: NumberT option; Expression: ExpressionT option}
+
+type AssignmentLHST = {Type: string; PrimaryType: string; BitsStart: string; BitsEnd: string; Primary: string}
+type AssignmentT = {Type: string; LHS: AssignmentLHST; RHS: ExpressionT}
+
+type StatementItemT = {Type: string; StatementType: string; Assignment : AssignmentT;}
+
+
+
+type ItemT = {Type: string; ItemType: string; IODecl: IOItemT option; ParamDecl: ParameterItemT option; Statement: StatementItemT option}
+
+type ModuleItemsT = {Type : string; ItemList : ItemT array}
+
+            
+// General
+type ModuleT = {Type : string; ModuleName : string; PortList : string array; ModuleItems : ModuleItemsT}
+type VerilogInput = { Type:string; Module: ModuleT; }
+
+
+///////////////////////////////////////////////////////////
+
+
+
 
 let private menuItem styles label onClick =
     Menu.Item.li
@@ -322,58 +397,73 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
             addressWidth < 1 || wordWidth < 1 || error <> None
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
-
-let getErrorDiv errorList : ReactElement = //seq<ReactElement> =
-    let sortedErrors = List.sortBy (fun e -> e.Line) errorList
-    
-    let children =
-        sortedErrors
-        |> List.indexed
-        |> List.collect (fun (index,err) ->
-            let brakes:ReactElement list = 
-                match index with
-                |0 -> [1..err.Line-1] |> List.collect (fun x -> [br []] )
-                | _ -> [1..err.Line-sortedErrors[index-1].Line-1] |> List.collect (fun x -> [br []] )
-            let spaces = sprintf "%fpx" ((float (err.Col-2))*8.8) 
-            let _line = ("", [1..err.Length]) ||> List.fold (fun s v -> s+"-")
-            let errorElement =
-                p [] [
-                span [Style [Display DisplayOptions.InlineBlock; MarginLeft spaces; PointerEvents "stroke"]] []
-                span [Class "error"; Style [PointerEvents "auto"; FontSize 16; Color "rgb(255,0,0)"; Background "rgba(255,0,0,0)"]] [str ("--"+_line)] 
-                span [Class "hide"] [str err.Message]  
-                ]
-            if (index <> 0) && (err.Line = sortedErrors[index-1].Line) 
-                then brakes
-            else List.append brakes [errorElement]
-        ) 
-    div [
-        Style [Position PositionOptions.Absolute ; 
-            Display DisplayOptions.Block; 
-            Width "100%"; Height "100%"; 
-            CSSProp.Top "8px"; CSSProp.Left "0"; CSSProp.Right "0"; CSSProp.Bottom "0";
-            BackgroundColor "rgba(0,0,0,0)";
-            FontWeight "bold";
-            Color "Red"; 
-            ZIndex "2" ;
-            PointerEvents "none";
-            WhiteSpace WhiteSpaceOptions.PreLine]
-    ] children
-
+let errorCheck ast =
+    printfn "Parsed input: %A" ast
+    printfn "Name of module: %s" ast.Module.ModuleName
+    let portList = ast.Module.PortList |> Array.toList
+    printfn "Ports: %A" portList
+    let items = ast.Module.ModuleItems.ItemList |> Array.toList
+    let decls = 
+        items |> List.collect (fun x -> 
+            match (x.IODecl |> isNullOrUndefined) with
+            | false -> 
+                match x.IODecl with
+                | Some d -> 
+                    d.Variables 
+                    |> Array.toList 
+                    |> List.collect (fun x -> [x]) 
+                | None -> []
+            | true -> []
+        )
+    let portMap = 
+        items |> List.collect (fun x -> 
+                match (x.IODecl |> isNullOrUndefined) with
+                | false -> 
+                    match x.IODecl with
+                    | Some d -> 
+                        d.Variables 
+                        |> Array.toList 
+                        |> List.collect (fun x -> [(x,d.DeclarationType)]) 
+                    | None -> []
+                | true -> []
+        ) |> Map.ofList   
+    printfn "Declared Ports: %A" decls
+    let diff = Seq.except (decls |> List.toSeq) (portList |> List.toSeq)
+    if Seq.isEmpty diff then 
+        printfn "All ports are declared either as input or output"
+    else 
+        printfn"Undeclared ports: %A" diff
+    let errorList = 
+        if Seq.isEmpty diff = false then
+            [sprintf "Undeclared ports: %A" diff]
+        else []
+    printfn "PortMap: %A" portMap
 
 let createVerilogComp model =
-    printfn "Not implemented yet!"
+    match model.CurrentProj with
+            | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
+            | Some project ->
+                let path = pathJoin [| project.ProjectPath; "input.v" |]
+                match tryReadFileSync path with
+                | Error x -> printfn "Error: %s" x
+                | Ok data ->
+                    let parser = newParser
+                    feedParser data
+                    let result = parse
+                    printfn "Input AST: %s" result
+                    let j = fix result
+                    printfn "Fixed AST: %A" j
+                    let js2 = j |> Json.parseAs<VerilogInput>
+                    errorCheck js2
 
-
-let rec private createVerilogPopup model dispatch =
+let private createVerilogPopup model dispatch =
     let title = sprintf "Create Combinational Logic Components using Verilog" 
     let beforeText =
         fun _ -> str <| sprintf "How do you want to name your Verilog Component?"
     let placeholder = "Component name"
-    let errorDiv = getErrorDiv model.PopupDialogData.VerilogErrors
-    let errors = if model.PopupDialogData.VerilogErrors <> [] then errorDiv else null
-    let body= dialogVerilogCompBody beforeText placeholder errors dispatch
+    let body= dialogVerilogCompBody beforeText placeholder dispatch
     let buttonText = "Save"
-    let saveButtonAction =
+    let buttonAction =
         fun (dialogData : PopupDialogData) ->
             // createComponent (compType inputInt) (formatLabelFromType (compType inputInt) inputText) model dispatch            
             match model.CurrentProj with
@@ -388,41 +478,6 @@ let rec private createVerilogPopup model dispatch =
                 | Error _ -> failwithf "Writing verilog file FAILED" 
             // createCompStdLabel (regType inputInt) model dispatch
             dispatch ClosePopup
-    let compileButtonAction =
-        fun (dialogData : PopupDialogData) ->
-            // createComponent (compType inputInt) (formatLabelFromType (compType inputInt) inputText) model dispatch            
-            match model.CurrentProj with
-            | None -> failwithf "What? current project cannot be None at this point in compiling Verilog Component"
-            | Some project ->
-                let code = getCode dialogData
-                let parsedCode = parseFromFile(code)
-                let output = Json.parseAs<ParserOutput> parsedCode
-                if isNullOrUndefined output.Error then
-                    let result = Option.get output.Result
-                    printfn "Input AST: %s" result
-                    let j = fix result
-                    printfn "Fixed AST: %A" j
-                    let linesIndex = Option.get output.NewLinesIndex |> Array.toList
-                    printfn "NewLinesIndex: %A" linesIndex
-                    let js2 = j |> Json.parseAs<VerilogInput>
-                    let errorList = ErrorCheck.getErrors js2 model linesIndex
-                    match List.isEmpty errorList with
-                    | true -> 
-                        printfn "Compiled successfully"
-                        let data = {dialogData with VerilogErrors = errorList} 
-                        createVerilogPopup {model with PopupDialogData = data } dispatch
-                    | false -> 
-                        printfn "Compilation Failed! Errors: %A" errorList
-                        // dispatch <| SetPopupDialogVerilogErrors errorList
-                        let data = {dialogData with VerilogErrors = errorList} 
-                        createVerilogPopup {model with PopupDialogData = data } dispatch
-                else
-                    let err = Option.get output.Error
-                    printfn "Syntax Error: %A" err
-                    let data = {dialogData with VerilogErrors = [err] }
-                    createVerilogPopup {model with PopupDialogData = data } dispatch
-                // createVerilogPopup {model with PopupDialogData = dialogData} dispatch
-                
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
             let notGoodLabel =
@@ -431,7 +486,7 @@ let rec private createVerilogPopup model dispatch =
                 |> List.tryHead
                 |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
             (getInt dialogData < 1) || notGoodLabel
-    dialogVerilogPopup title body buttonText saveButtonAction compileButtonAction isDisabled [Width "50%"] dispatch
+    dialogVerilogPopup title body buttonText buttonAction isDisabled [Width "50%"] dispatch
 
 
 let private makeMenuGroup title menuList =

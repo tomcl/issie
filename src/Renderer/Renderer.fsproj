@@ -19,6 +19,12 @@
     <Compile Include="Common\Helpers.fs" />
     <Compile Include="Common\TimeHelpers.fs" />
     <Compile Include="Common\WidthInferer.fs" />
+    
+    <!-- Verilog Component -->
+    <Compile Include="VerilogComponent\VerilogTypes.fs" />
+    <Compile Include="VerilogComponent\NearleyBindings.fs" />
+    <Compile Include="VerilogComponent\ErrorCheck.fs" />
+    
     <!-- simulator -->
     <Compile Include="Simulator\SimulatorTypes.fs" />
     <Compile Include="Simulator\NumberHelpers.fs" />

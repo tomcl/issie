@@ -416,11 +416,15 @@ let update (msg : Msg) oldModel =
                         Int2 = None;
                         MemorySetup = None;
                         MemoryEditorData = None;
+                        VerilogCode = None;
+                        VerilogErrors = [];
                     }}, Cmd.none
     | SetPopupDialogText text ->
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
     | SetPopupDialogCode code ->
         { model with PopupDialogData = {model.PopupDialogData with VerilogCode = code} }, Cmd.none
+    | SetPopupDialogVerilogErrors errorList ->
+        { model with PopupDialogData = {model.PopupDialogData with VerilogErrors = errorList} }, Cmd.none
     | SetPopupDialogInt int ->
         { model with PopupDialogData = {model.PopupDialogData with Int = int} }, Cmd.none
     | SetPopupDialogTwoInts data ->

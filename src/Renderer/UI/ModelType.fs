@@ -239,6 +239,7 @@ type Msg =
     | ClosePopup
     | SetPopupDialogText of string option
     | SetPopupDialogCode of string option
+    | SetPopupDialogVerilogErrors of string list
     | SetPopupDialogInt of int option
     | SetPopupDialogTwoInts of (int64 option * IntMode * string option)
     | SetPropertiesExtraDialogText of string option

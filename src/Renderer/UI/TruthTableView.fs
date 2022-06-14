@@ -484,8 +484,7 @@ let makeSortingArrows (io: CellIO) sortInfo dispatch =
                 Button.Props [sortArrowStyle]
                 if upSel then Button.Color IsInfo
                 Button.OnClick (fun _ -> 
-                    (io,Ascending) |> Some |> SetTTSortType |> dispatch
-                    ReSort |> Some |> SetTTOutOfDate |> dispatch)
+                    (io,Ascending) |> Some |> SetTTSortType |> dispatch)
             ]
             [str "▲"]
     let downArrow =
@@ -494,8 +493,7 @@ let makeSortingArrows (io: CellIO) sortInfo dispatch =
                 Button.Props [sortArrowStyle]
                 if downSel then Button.Color IsInfo
                 Button.OnClick (fun _ -> 
-                    (io,Descending) |> Some |> SetTTSortType |> dispatch
-                    ReSort |> Some |> SetTTOutOfDate |> dispatch)
+                    (io,Descending) |> Some |> SetTTSortType |> dispatch)
             ]
             [str "▼"]
     div [] [upArrow; downArrow]
@@ -529,8 +527,7 @@ let viewOutputHider table hidden dispatch =
     let makeToggleRow io =
         let isChecked = not <| List.contains io hidden
         let changeAction = (fun _ ->
-            dispatch <| ToggleHideTTColumn io
-            HideColumn |> Some |> SetTTOutOfDate |> dispatch)
+            dispatch <| ToggleHideTTColumn io)
         let toggle = makeOnOffToggle isChecked changeAction "Visible" "Hidden"
         let ioLabel = str io.getLabel
         makeElementLine [ioLabel;toggle]
@@ -716,30 +713,22 @@ let viewTruthTable model dispatch =
             hr []
         ]
     | Some tableopt ->
-        match model.TTIsOutOfDate with
-        | Some Regenerate -> 
-            dispatch RegenerateTruthTable
-            None |> SetTTOutOfDate |> dispatch
-        | Some Refilter -> 
-            dispatch FilterTruthTable
-            None |> SetTTOutOfDate |> dispatch
-        | Some ReSort -> 
-            dispatch SortTruthTable
-            None |> SetTTOutOfDate |> dispatch
-        | Some HideColumn ->
-            dispatch HideTTColumns
-            None |> SetTTOutOfDate |> dispatch
-        | None -> ()
+        // match model.TTIsOutOfDate with
+        // | Some Regenerate -> 
+        //     dispatch RegenerateTruthTable
+        //     None |> SetTTOutOfDate |> dispatch
+        // | Some Refilter -> 
+        //     dispatch FilterTruthTable
+        //     None |> SetTTOutOfDate |> dispatch
+        // | Some ReSort -> 
+        //     dispatch SortTruthTable
+        //     None |> SetTTOutOfDate |> dispatch
+        // | Some HideColumn ->
+        //     dispatch HideTTColumns
+        //     None |> SetTTOutOfDate |> dispatch
+        // | None -> ()
 
         let closeTruthTable _ =
-            dispatch ClearInputConstraints
-            dispatch ClearOutputConstraints
-            dispatch ClearHiddenTTColumns
-            dispatch <| SetTTSortType None
-            dispatch <| SetIOOrder [||]
-            dispatch <| SetTTAlgebraInputs []
-            dispatch <| SetPopupAlgebraInputs None
-            dispatch <| SetPopupAlgebraError None
             dispatch CloseTruthTable
         let body =
             match tableopt with

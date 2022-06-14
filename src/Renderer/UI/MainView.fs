@@ -71,7 +71,6 @@ let init() = {
     TTBitLimit = 10
     TTInputConstraints = TruthTableTypes.emptyConstraintSet
     TTOutputConstraints = TruthTableTypes.emptyConstraintSet
-    TTIsOutOfDate = None
     TTHiddenColumns = []
     TTSortType = None
     TTIOOrder = [||]

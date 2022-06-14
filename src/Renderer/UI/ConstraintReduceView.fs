@@ -77,8 +77,7 @@ let viewNumericalConstraints cons dispatch =
                 Delete.delete
                     [Delete.OnClick(fun _ ->
                         dispatch <| DeleteInputConstraint con
-                        dispatch <| DeleteOutputConstraint con
-                        Regenerate |> Some |> SetTTOutOfDate |> dispatch)] []
+                        dispatch <| DeleteOutputConstraint con)] []
             ]
     let equEls =
         cons.Equalities
@@ -345,7 +344,9 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg disp
         match dialogData.Int, dialogData.Int2, dialogData.ConstraintErrorMsg,
         dialogData.ConstraintIOSel, dialogData.ConstraintTypeSel with
         | Some v, _, None, Some io, Some Equ ->
+            printfn "Existing %A" existingCons
             let tentative = Equality {IO = io; Value = v}
+            printfn "Tentative: %A" (inCon2str tentative)
             match validateNumericalConstraint tentative existingCons with
             | Error err ->
                 err |> Some |> SetPopupConstraintErrorMsg |> dispatch
@@ -407,7 +408,6 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             | None -> ()
             | Some con ->
                 con |> AddInputConstraint |> dispatch
-                Regenerate |> Some |> SetTTOutOfDate |> dispatch
                 dispatch ClosePopup
     let isDisabled =
         fun (dialogData: PopupDialogData) ->
@@ -437,7 +437,7 @@ let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             |> List.map snd
             |> List.head
             |> List.map (fun cell -> cell.IO)
-    let body = dialogPopupNumericalConBody outputs model.TTInputConstraints infoMsg dispatch
+    let body = dialogPopupNumericalConBody outputs model.TTOutputConstraints infoMsg dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData: PopupDialogData) ->
@@ -445,7 +445,6 @@ let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             | None -> ()
             | Some con ->
                 con |> AddOutputConstraint |> dispatch
-                Refilter |> Some |> SetTTOutOfDate |> dispatch
                 dispatch ClosePopup
     let isDisabled =
         fun (dialogData: PopupDialogData) ->
@@ -472,16 +471,14 @@ let viewConstraints model dispatch =
             makeElementLine [
                 addButton (fun _ -> createInputConstraintPopup model dispatch)
                 clearButton (fun _ ->
-                    dispatch ClearInputConstraints
-                    Regenerate |> Some |> SetTTOutOfDate |> dispatch)] []
+                    dispatch ClearInputConstraints)] []
             Heading.h6 [] [str "Output Constraints"]
             viewNumericalConstraints outputCons dispatch
             br []
             makeElementLine [
                 addButton (fun _ -> createOutputConstraintPopup model dispatch)
                 clearButton (fun _ ->
-                    dispatch ClearOutputConstraints
-                    Refilter |> Some |> SetTTOutOfDate |> dispatch)] []
+                    dispatch ClearOutputConstraints)] []
         ]
 
 //-------------------------------------------------------------------------------------//
@@ -579,7 +576,6 @@ let createAlgReductionPopup model dispatch =
             | None -> failwithf "what? what? PopupDialogData.AlgebraInputs is None in popup body"
             | Some l -> 
                 dispatch <| SetTTAlgebraInputs l
-                Regenerate |> Some |> SetTTOutOfDate |> dispatch
                 dispatch ClosePopup
     let isDisabled =
         fun (dialogData: PopupDialogData) ->
@@ -599,8 +595,7 @@ let viewReductions (table: TruthTable) (model: Model) dispatch =
         | None, _::_ ->
             (Button.button [Button.Color IsInfo; Button.OnClick (fun _ ->
                 dispatch <| SetTTAlgebraInputs []
-                dispatch <| SetPopupAlgebraInputs (Some [])
-                Regenerate |> Some |> SetTTOutOfDate |> dispatch)]
+                dispatch <| SetPopupAlgebraInputs (Some []))]
             [str "Back to Numeric Table"])
         | None, [] -> div [] [] // Button is never displayed in this case
     let reduceButton =

@@ -1,0 +1,54 @@
+
+module VerilogTypes
+
+//////////////////////// Code Editor Types /////////////////////////////////
+
+type State = 
+    | Code of string
+
+type CodeEditorProps = 
+    | Placeholder of string
+    // | Value of (string -> State)
+    | Value of string
+    // | OnValueChange of (string -> obj)
+    | OnValueChange of (string -> unit)
+    | Highlight of (string -> obj) //highlight (string => string | React.Node)
+    | TabSize of int
+    | InsertSpaces of bool
+    | IgnoreTabKey of bool
+    | Padding of int
+    | TextAreaId of string
+    | TextAreaClassName of string
+    | PreClassName of string
+
+
+//////////////////////// Verilog Input Types   ///////////////////////////
+
+type ModuleNameT = {Type : string; Name : string}
+
+type NumberT = {Type: string; NumberType: string; Bits: string option; Base: string option; UnsignedNumber: string option; AllNumber: string option }
+
+type RangeT = {Type: string; Start: string; End: string}
+
+type IOItemT = {Type: string; DeclarationType: string; Range : RangeT option; Variables: string array}
+
+type ParameterT = {Type: string; Name: string; RHS: NumberT}
+type ParameterItemT = {Type: string; DeclarationType: string; Parameter : ParameterT;}
+
+type PrimaryT = {Type: string; PrimaryType: string; BitsStart: string option; BitsEnd: string option; Primary: string}
+
+type ExpressionT = {Type: string; Operator: string option; Head: ExpressionT option; Tail: ExpressionT option; Unary: UnaryT option}
+    and UnaryT = {Type: string; Primary: PrimaryT option; Number: NumberT option; Expression: ExpressionT option}
+
+type AssignmentLHST = {Type: string; PrimaryType: string; BitsStart: string; BitsEnd: string; Primary: string}
+type AssignmentT = {Type: string; LHS: AssignmentLHST; RHS: ExpressionT}
+
+type StatementItemT = {Type: string; StatementType: string; Assignment : AssignmentT;}
+
+type ItemT = {Type: string; ItemType: string; IODecl: IOItemT option; ParamDecl: ParameterItemT option; Statement: StatementItemT option}
+
+type ModuleItemsT = {Type : string; ItemList : ItemT array}
+
+type ModuleT = {Type : string; ModuleName : string; PortList : string array; ModuleItems : ModuleItemsT}
+
+type VerilogInput = { Type:string; Module: ModuleT; }

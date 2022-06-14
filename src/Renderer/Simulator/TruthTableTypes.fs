@@ -148,17 +148,6 @@ type Constraint =
 
 type ConstraintType = Equ | Ineq
 
-// Reason why the current Truth Table Map is out of date
-type ReasonOutOfDate =
-    // Table needs to be regenerated, likely due to a change in Input Constraints
-    | Regenerate
-    // Columns have been hidden/unhidden, change Map to reflect this
-    | HideColumn
-    // Table needs to be refiltered, likely due to change in Output Constraints
-    | Refilter
-    // Table needs to be sorted
-    | ReSort
-
 let isEqu c =
     match c with
     | Equ -> true

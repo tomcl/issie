@@ -296,7 +296,6 @@ type Msg =
     | DCReduceTruthTable
     | HideTTColumns
     | CloseTruthTable
-    | SetTTOutOfDate of ReasonOutOfDate option
     | ClearInputConstraints
     | ClearOutputConstraints
     | AddInputConstraint of Constraint
@@ -457,8 +456,6 @@ type Model = {
     TTInputConstraints: ConstraintSet
     // output constraints on truth table viewing
     TTOutputConstraints: ConstraintSet
-    // true if existing Truth Table needs to be re-generated
-    TTIsOutOfDate : ReasonOutOfDate option
     // which output or viewer columns in the Truth Table should be hidden
     TTHiddenColumns: CellIO list
     // by which IO and in what way is the Table being sorted

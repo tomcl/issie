@@ -205,4 +205,9 @@ let calculateNonBinaryTransitions (waveValues: Bit list list) : NonBinaryTransit
             Change
     )
 
-let isWaveSelected (wsModel: WaveSimModel) (name: string) : bool = List.contains name wsModel.SelectedWaves
+let isWaveSelected (wsModel: WaveSimModel) (driver: DriverT) : bool = List.contains driver wsModel.SelectedWaves
+
+let waveNames (wsModel: WaveSimModel) : string list =
+    Map.values wsModel.AllWaves
+    |> Seq.toList
+    |> List.map (fun wave -> wave.DisplayName)

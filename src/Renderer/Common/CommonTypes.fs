@@ -589,8 +589,7 @@ module CommonTypes
         Id : ComponentId
         Type : ComponentType
         Label : string
-        // List of input port numbers, and single mapped driving output port
-        // and component.
+        // List of input port numbers, and single mapped driving output port and component.
         Inputs : Map<InputPortNumber, NLSource option>
         // Mapping from each output port number to all of the input ports and
         // Components connected to that port.
@@ -609,10 +608,11 @@ module CommonTypes
     /// This ties together labelled nets.
     /// should it include the display name(s)? this can be calculated
     type NetGroup = { 
-        driverComp: NetListComponent
-        driverPort: OutputPortNumber
-        driverNet: NLTarget list
-        connectedNets: NLTarget list array }
+        DriverComp: NetListComponent
+        DriverPort: OutputPortNumber
+        DriverNet: NLTarget list
+        ConnectedNets: NLTarget list array
+    }
 
     /// Info saved by Wave Sim.
     /// This info is not necessarilu uptodate with deletions or additions in the Diagram.
@@ -708,11 +708,11 @@ module CommonTypes
         BitLimits : int*int 
     }
 
-    /// Identifies the names of the driving components and the named labels of a waveform
+    /// The names of the driving components and the named labels of a waveform
     type WaveLabel = {
-        /// Identifies the names of Output and IOLabel components connected to the waveform's net
+        /// Names of Output and IOLabel components connected to the waveform's net
         OutputsAndIOLabels : string list
-        /// Identifies the driving components' names
+        /// Names of the driving components
         ComposingLabels : LabelSegment list 
     }
 

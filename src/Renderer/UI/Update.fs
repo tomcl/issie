@@ -102,13 +102,6 @@ let private writeUserData (model:Model) =
         |> Result.mapError (fun mess -> $"Write error on directory {userAppDir}: %s{mess}")
         |> function | Error mess -> printfn "%s" mess | _ -> ())
     |> ignore
-    
-        
-        
-
-        
-    
-    
 
 /// subfunction used in model update function
 let private getSimulationDataOrFail model msg =
@@ -118,8 +111,6 @@ let private getSimulationDataOrFail model msg =
         match sim with
         | Error _ -> failwithf "what? Getting simulation data when could not start because of error: %s" msg
         | Ok simData -> simData
-
-
 
 let verilogOutputPage sheet fPath  =
     div [] [
@@ -569,7 +560,7 @@ let update (msg : Msg) oldModel =
     | InitiateWaveSimulation wsModel ->
         printf "initiate wave sim"
 
-        let allWaves = Map.map (WaveSim.generateWave wsModel) wsModel.AllWaves
+        let allWaves = Map.map (WaveSim.generateWaveform wsModel) wsModel.AllWaves
         let wsModel' = {wsModel with AllWaves = allWaves}
 
         setWSModel wsModel' model, Cmd.ofMsg (Sheet(SheetT.SetSpinner false))

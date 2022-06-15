@@ -691,7 +691,10 @@ let update (msg : Msg) oldModel =
         let oldOrder = model.TTIOOrder
         let idx = 
             oldOrder
-            |> Array.findIndex (fun cIO -> cIO = io)
+            |> Array.tryFindIndex (fun cIO -> cIO = io)
+            |> function
+                | Some i -> i
+                | None -> failwithf "what? IO: %A not found in TTIOOrder" io
         let newOrder =
             match dir, idx with
             | MLeft, 0 -> oldOrder

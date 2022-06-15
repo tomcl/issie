@@ -106,6 +106,68 @@ let assignmentNameCheck ast portMap errorList =
         ) names
     List.append errorList localErrors
 
+
+let checkAllOutputsAssigned ast portMap portSizeMap errorList =
+    
+    // List of declared ports, bit by bit
+    let outputPortList = 
+        portMap 
+        |> Map.filter (fun n s -> s = "output") 
+        |> Map.toList 
+        |> List.map fst
+        |> List.collect (fun x -> 
+            let size = Map.find x portSizeMap
+            let names = [0..size-1] |> List.map (fun y -> x+(string y))
+            names 
+        )
+
+
+    // List of assignments in the form of (port name, BitsStart, BitsEnd)
+    let assignments = 
+        ast.Module.ModuleItems.ItemList
+        |> Array.toList 
+        |> List.collect (fun x -> 
+            match (x.Statement |> isNullOrUndefined) with
+            | false -> 
+                match x.Statement with
+                | Some statement when statement.StatementType = "assign" -> [statement.Assignment.LHS]
+                | _ -> []
+            | true -> []
+        )
+        |> List.map (fun assignment ->
+            match assignment with
+            | a when isNullOrUndefined assignment.BitsStart -> (a.Primary,-1,-1)
+            | a -> (a.Primary,(int a.BitsStart),(int a.BitsEnd))
+        )
+    
+    
+    // List of assigned ports, bit by bit
+    let assignmentPortList =
+        assignments
+        |> List.collect ( fun x ->
+            match x with
+            |(name,-1,-1)->
+                let size = Map.find name portSizeMap
+                let names = [0..size-1] |> List.map (fun y -> name+(string y))
+                names
+            |(name,x,y) when x=y ->
+                [name+(string x)]
+            |(name,bStart,bEnd)->
+                let names = [bEnd..bStart] |> List.map (fun y -> name+(string y))
+                names
+        )
+
+
+    let diff = List.except (List.toSeq assignmentPortList) outputPortList
+    let localErrors =
+        match List.isEmpty diff with
+        |true -> []
+        |false -> 
+            // transform names from "b2" to "b[2]" 
+            let unassignedPorts = diff |> List.map(fun x -> (string x[0])+"["+(string x[1])+"]")
+            [sprintf "The following ports are unassigned: %A" unassignedPorts]
+    List.append errorList localErrors
+
 let getPortSizeMap ast = 
     let items = ast.Module.ModuleItems.ItemList |> Array.toList
     items |> List.collect (fun x -> 
@@ -115,8 +177,8 @@ let getPortSizeMap ast =
                 | Some d -> 
                     let size = 
                         match isNullOrUndefined d.Range with
-                        | true -> 0
-                        | false -> ((Option.get d.Range).Start |> int) - ((Option.get d.Range).End |> int)
+                        | true -> 1
+                        | false -> ((Option.get d.Range).Start |> int) - ((Option.get d.Range).End |> int) + 1
                     d.Variables 
                     |> Array.toList 
                     |> List.collect (fun x -> [(x,size)]) 
@@ -138,6 +200,10 @@ let getPortMap ast =
             | true -> []
     ) |> Map.ofList
 
+
+
+
+
 let getErrors ast model=
     printfn "Parsed input: %A" ast
     let portMap  = getPortMap ast
@@ -149,3 +215,4 @@ let getErrors ast model=
     |> parameterNameCheck ast portMap
     |> wireNameCheck ast portMap
     |> assignmentNameCheck ast portMap
+    |> checkAllOutputsAssigned ast portMap portSizeMap

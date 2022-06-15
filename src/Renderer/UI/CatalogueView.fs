@@ -25,6 +25,7 @@ open Fable.SimpleJson
 
 NearleyBindings.importGrammar
 NearleyBindings.importFix
+NearleyBindings.importParser
 
 let private menuItem styles label onClick =
     Menu.Item.li
@@ -322,21 +323,8 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
 
 
 let createVerilogComp model =
-    match model.CurrentProj with
-            | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
-            | Some project ->
-                let path = pathJoin [| project.ProjectPath; "input.v" |]
-                match tryReadFileSync path with
-                | Error x -> printfn "Error: %s" x
-                | Ok data ->
-                    let parser = newParser
-                    feedParser data
-                    let result = parse
-                    printfn "Input AST: %s" result
-                    let j = fix result
-                    printfn "Fixed AST: %A" j
-                    // let js2 = j |> Json.parseAs<VerilogInput>
-                    // ErrorCheck.errorCheck js2
+    printfn "Not implemented yet!"
+
 
 let private createVerilogPopup model dispatch =
     let title = sprintf "Create Combinational Logic Components using Verilog" 
@@ -368,19 +356,24 @@ let private createVerilogPopup model dispatch =
             | None -> failwithf "What? current project cannot be None at this point in compiling Verilog Component"
             | Some project ->
                 let code = getCode dialogData
-                let parser = newParser
-                feedParser code
-                let result = parse
-                printfn "Input AST: %s" result
-                let j = fix result
-                printfn "Fixed AST: %A" j
-                let js2 = j |> Json.parseAs<VerilogInput>
-                let errorList = ErrorCheck.getErrors js2 model
-                match List.isEmpty errorList with
-                | true -> printfn "Compiled successfully"
-                | false -> 
-                    printfn "Compilation Failed! Errors: %A" errorList
-                    dispatch <| SetPopupDialogVerilogErrors errorList
+                // let parser = newParser
+                // feedParser code
+                // let result = parse
+                let result = parseFromFile(code)
+                if result[0] = '{' then
+                    printfn "Input AST: %s" result
+                    let j = fix result
+                    printfn "Fixed AST: %A" j
+                    let js2 = j |> Json.parseAs<VerilogInput>
+                    let errorList = ErrorCheck.getErrors js2 model
+                    match List.isEmpty errorList with
+                    | true -> printfn "Compiled successfully"
+                    | false -> 
+                        printfn "Compilation Failed! Errors: %A" errorList
+                        dispatch <| SetPopupDialogVerilogErrors errorList
+                else
+                    printfn "Syntax Error: %s" result 
+
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
             let notGoodLabel =

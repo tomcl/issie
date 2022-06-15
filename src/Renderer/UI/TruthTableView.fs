@@ -625,14 +625,12 @@ let viewTruthTableData (table: TruthTable) model dispatch =
         let headings =
             tLst.Head
             |> List.map (viewCellAsHeading dispatch sortInfo styleInfo) 
-            |> List.toSeq
         let body =
             tLst
             |> List.mapi (viewRowAsData table.TableSimData.NumberBase styleInfo)
             |> List.concat
-            |> List.toSeq
 
-        let all = Seq.append headings body
+        let all = headings @ body
         div [(ttGridContainerStyle model)] all
 
 let viewTruthTable model dispatch =

@@ -156,18 +156,29 @@ type WaveSimState =
     | WSClosed
     | WSOpen
 
+type DriverT = {
+    DriverId: FComponentId
+    Port: OutputPortNumber
+}
+
+type WaveIndexT = {
+    Name: string
+    Type: ComponentType
+}
+
 type Wave = {
     // unique within one simulation run, mostly conserved across runs
-    WaveId: string
+    // WaveId: string
     // unique within design sheet (SheetId)
     Conns: ConnectionId list
     // [] for top-level waveform: path to sheet
     SheetId: ComponentId list
-    Driver: FComponentId * OutputPortNumber
+    // This is used to key the AllWaves map, since this is guaranteed to be unique.
+    Driver: DriverT
     DisplayName: string
     // Number of bits in wave
     Width: int
-    // List indexed by clock cycle
+    // Map keyed by clock cycle
     WaveValues: WireData list
     // Store SVG cache here maybe?
     Polylines: ReactElement list option
@@ -186,8 +197,8 @@ type Wave = {
 type WaveSimModel = {
     State: WaveSimState
     // List of all simulatable waves
-    AllWaves: Map<string, Wave>
-    SelectedWaves: string list
+    AllWaves: Map<DriverT, Wave>
+    SelectedWaves: DriverT list
     StartCycle: int
     ShownCycles: int
     OutOfDate: bool
@@ -604,7 +615,7 @@ let getComponentIds (model: Model) =
 /// get saveable record of waveform setup
 let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
     {
-        SelectedWaves = Some wsModel.SelectedWaves
+        SelectedWaves = None //Some wsModel.SelectedWaves
         ShownCycles = Some wsModel.ShownCycles
         Radix = Some wsModel.Radix
         ZoomLevel = Some wsModel.ZoomLevel
@@ -626,7 +637,7 @@ let loadWSModelFromSavedWaveInfo (swInfo: SavedWaveInfo) : WaveSimModel =
 
 
         initWSModel with
-            SelectedWaves = Option.defaultValue initWSModel.SelectedWaves swInfo.SelectedWaves
+            SelectedWaves = Option.defaultValue initWSModel.SelectedWaves None //swInfo.SelectedWaves
             ShownCycles = Option.defaultValue initWSModel.ShownCycles swInfo.ShownCycles
             Radix = Option.defaultValue initWSModel.Radix swInfo.Radix
             ZoomLevel = Option.defaultValue initWSModel.ZoomLevel swInfo.ZoomLevel

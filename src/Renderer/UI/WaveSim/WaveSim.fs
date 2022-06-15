@@ -26,31 +26,31 @@ open Sheet.SheetInterface
 //------------------------------------//
 
 /// is the given connection in the given NLTarget list
-let private isConnInNLTrgtLst (connId: ConnectionId) (nlTrgtLst: NLTarget list) =
-    List.exists (fun nlTrgt -> nlTrgt.TargetConnId = connId) nlTrgtLst
+let private connInNLTargets (connId: ConnectionId) (nlTargets: NLTarget list) =
+    List.exists (fun nlTarget -> nlTarget.TargetConnId = connId) nlTargets
 
 /// is the given component connected to the NLTarget list
-let private isCompInNLTrgtLst (nlComponent: NetListComponent) (nlTrgtLst: NLTarget list) =
-    Map.exists (fun _ compNLTrgtLst -> compNLTrgtLst = nlTrgtLst) nlComponent.Outputs
-    || List.exists (fun nlTrgt -> nlTrgt.TargetCompId = nlComponent.Id) nlTrgtLst
+let private compInNLTargets (nlComp: NetListComponent) (nlTargets: NLTarget list) =
+    Map.exists (fun _ compNLTargets -> compNLTargets = nlTargets) nlComp.Outputs
+    || List.exists (fun nlTarget -> nlTarget.TargetCompId = nlComp.Id) nlTargets
 
 /// is the given NLTarget list selected by the given selection
-let private isNLTrgtLstSelected (netList: NetList) ((comps, conns): CanvasState) (nlTrgtLst: NLTarget list) =
+let private nlTargetsIsSelected (netList: NetList) ((comps, conns): CanvasState) (nlTargets: NLTarget list) =
     List.exists (fun (comp: Component) -> 
         match Map.tryFind (ComponentId comp.Id) netList with
-        | Some comp -> isCompInNLTrgtLst comp nlTrgtLst
+        | Some comp -> compInNLTargets comp nlTargets
         | None -> false ) comps
     || List.exists (fun (conn: Connection) -> 
-           isConnInNLTrgtLst (ConnectionId conn.Id) nlTrgtLst) conns
+           connInNLTargets (ConnectionId conn.Id) nlTargets) conns
 
 /// is the given waveform selected by the given selection
-let private isNetGroupSelected (netList: NetList) ((comps, conns): CanvasState) (trgtLstGroup: NetGroup) =
-    Array.append [|trgtLstGroup.driverNet|] trgtLstGroup.connectedNets
-    |> Array.exists (isNLTrgtLstSelected netList (comps, conns)) 
+let private isNetGroupSelected (netList: NetList) ((comps, conns): CanvasState) (netGroup: NetGroup) =
+    Array.append [|netGroup.DriverNet|] netGroup.ConnectedNets
+    |> Array.exists (nlTargetsIsSelected netList (comps, conns)) 
 
 /// get Ids of connections in a trgtLstGroup
-let private wave2ConnIds (netGrp: NetGroup) =
-    Array.append [|netGrp.driverNet|] netGrp.connectedNets
+let private wave2ConnIds (netGroup: NetGroup) =
+    Array.append [|netGroup.DriverNet|] netGroup.ConnectedNets
     |> Array.collect (fun net -> 
         List.toArray net 
         |> Array.map (fun net -> net.TargetConnId))
@@ -72,155 +72,185 @@ let getNetSelection (canvas : CanvasState) (model : Model) =
     Array.collect selectedConnectionIds netGroups
     |> Array.toList
 
-/// get common NLSource of list of NLTarget with the same source
-let private nlTrgtLst2CommonNLSource (netList: NetList) (nlTrgtLst: NLTarget list) : NLSource option =
-    List.tryPick (fun (nlTrgt: NLTarget) -> 
-        match Map.tryFind nlTrgt.TargetCompId netList with
+/// get common NLSource of NLTarget list with the same source
+let private getCommonNLSource (netList: NetList) (nlTargets: NLTarget list) : NLSource option =
+    List.tryPick (fun (nlTarget: NLTarget) -> 
+        match Map.tryFind nlTarget.TargetCompId netList with
         | Some comp -> 
-            match Map.tryFind nlTrgt.InputPort comp.Inputs with
+            match Map.tryFind nlTarget.InputPort comp.Inputs with
             | Some (Some src) -> Some src
             | _ -> None
-        | None -> None ) nlTrgtLst
+        | None -> None ) nlTargets
 
 /// get label without (x:x) part at the end
-let private labelNoParenthesis (netList: NetList) compId = 
-    let lbl = netList[compId].Label
-    match Seq.tryFindIndexBack ((=) '(') lbl with
-    | Some i -> lbl[0..i - 1]
-    | None -> lbl
+let private labelNoParenthesis (comp: NetListComponent) = 
+    let label = comp.Label
+    match Seq.tryFindIndexBack ((=) '(') label with
+    | Some i -> label[0 .. i - 1]
+    | None -> label
 
-/// get integer from OutputPortInt
-let private outPortInt2int outPortInt =
-    match outPortInt with
+/// get integer from OutputPortNumber
+let private getOutputPortNumber opn =
+    match opn with
     | OutputPortNumber pn -> pn
 
 /// get NLSource option from ComponentId and InputPortNumber
-let private drivingOutput (netList: NetList) compId inPortN =
-    netList[compId].Inputs[inPortN]
+let private drivingSource (netList: NetList) compId (inputPort: InputPortNumber) : NLSource option =
+    netList[compId].Inputs[inputPort]
 
-/// get labels of Output and IOLabel components in nlTargetList
-let net2outputsAndIOLabels (netList: NetList) (netLst: NLTarget list) =
-    let nlTrgt2Lbls st nlTrgt = 
-        match Map.tryFind nlTrgt.TargetCompId netList with
-        | Some nlComp -> match nlComp.Type with
-                         | IOLabel | Output _ -> List.append st [netList[nlTrgt.TargetCompId].Label]
-                         | _ -> st
-        | None -> st
-    List.fold nlTrgt2Lbls [] netLst
+/// get labels of Output and IOLabel components in nlTargets
+let outputAndIOLabels (netList: NetList) (nlTargets: NLTarget list) : string list =
+    let nlTargetToLabels labels nlTarget =
+        match Map.tryFind nlTarget.TargetCompId netList with
+        | Some nlComp ->
+            match nlComp.Type with
+            | IOLabel | Output _ ->
+                List.append labels [netList[nlTarget.TargetCompId].Label]
+            | _ -> labels
+        | None -> labels
+    List.fold nlTargetToLabels [] nlTargets
     |> List.distinct
 
-/// get labels of Output and IOLabel components in TargetListGroup
-let netGroup2outputsAndIOLabels netList (netGrp: NetGroup) =
-    Array.append [|netGrp.driverNet|] netGrp.connectedNets
-    |> Array.toList
-    |> List.collect (net2outputsAndIOLabels netList)
+/// get labels of Output and IOLabel components in netGroup
+let getOutputAndIOLabels (netList: NetList) (netGroup: NetGroup) : string list =
+    let thing = 
+        Array.append [|netGroup.DriverNet|] netGroup.ConnectedNets
+        |> Array.toList
+        |> List.collect (outputAndIOLabels netList)
+    printf "%A" thing
+
+    thing
     |> List.distinct
+
+let composingLabels
+        (fastSim: FastSimulation)
+        (net: NetList)
+        (srcComp: NetListComponent)
+        (compLabel: string)
+        (outputPort: int)
+        (drivingSourceName : InputPortNumber -> WaveLabel)
+        : LabelSegment list =
+
+    match srcComp.Type with
+    | ROM _ | RAM _ | AsyncROM _ -> 
+        failwithf "What? Legacy RAM component types should never occur"
+    | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4 | Mux2 | Mux4 | Mux8 | BusCompare _ -> 
+        [ { LabName = compLabel; BitLimits = 0, 0 } ] 
+    | Input w | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w -> 
+        [ { LabName = compLabel; BitLimits = w - 1, 0 } ] 
+    | Demux2 | Demux4 | Demux8 -> 
+        [ { LabName = compLabel + "." + string outputPort; BitLimits = 0, 0 } ]
+    | NbitsXor w -> 
+        [ { LabName = compLabel; BitLimits = w - 1, 0 } ]
+    | NbitsAdder w ->
+        match outputPort with
+        | 0 -> [ { LabName = compLabel + ".Sum"; BitLimits = w - 1, 0 } ]
+        | _ -> [ { LabName = compLabel + ".Cout"; BitLimits = w - 1, 0 } ]
+    | DFF | DFFE -> 
+        [ { LabName = compLabel + ".Q"; BitLimits = 0, 0 } ]
+    | Register w | RegisterE w -> 
+        [ { LabName = compLabel + ".Q"; BitLimits = w-1, 0 } ]
+    | RAM1 mem | AsyncRAM1 mem | AsyncROM1 mem | ROM1 mem -> 
+        [ { LabName = compLabel + ".Dout"; BitLimits = mem.WordWidth - 1, 0 } ]
+    | Custom c -> 
+        [ { LabName = compLabel + "." + (fst c.OutputLabels[outputPort])
+            BitLimits = snd c.OutputLabels[outputPort] - 1, 0 } ]
+    | MergeWires -> 
+        List.append (drivingSourceName (InputPortNumber 1)).ComposingLabels 
+                    (drivingSourceName (InputPortNumber 0)).ComposingLabels
+        []
+    | SplitWire w ->
+        let mostsigBranch (_, b) =
+            match outputPort with
+            | 0 -> b >= 16 - w
+            | 1 -> b < 16 - w
+            | _ -> failwith "SplitWire output port number greater than 1"
+
+        let split { LabName = name; BitLimits = msb, lsb } st =
+            List.zip [ lsb .. msb ] [ st + msb - lsb .. -1 .. st ]
+            |> List.filter mostsigBranch
+            |> List.unzip
+            |> function
+            | [], _ -> None 
+            | lst, _ -> Some {
+                LabName = name
+                BitLimits = List.max lst, List.min lst
+            } 
+
+        let updateState { LabName = _ ; BitLimits = msb, lsb } st = st + msb - lsb + 1
+
+        (0, (drivingSourceName (InputPortNumber 0)).ComposingLabels)
+        ||> List.mapFold (fun st lstEl -> split lstEl st, updateState lstEl st)
+        |> fst
+        |> List.choose id
+        []
+    | BusSelection(w, oLSB) ->
+        let filtSelec { LabName = name; BitLimits = msb, lsb } st =
+            List.zip [ lsb .. msb ] [ st .. st + msb - lsb ]
+            |> List.filter (fun (_, b) -> oLSB <= b && b <= oLSB + w - 1)
+            |> List.unzip
+            |> function
+            | [], _ -> None
+            | lst, _ -> Some {
+                LabName = name
+                BitLimits = List.max lst, List.min lst
+            }
+
+        let updateState { LabName = _ ; BitLimits = msb, lsb } st = st + msb - lsb + 1 
+
+        ((drivingSourceName (InputPortNumber 0)).ComposingLabels, 0)
+        ||> List.mapFoldBack (fun lstEl st -> filtSelec lstEl st, updateState lstEl st)
+        |> fst
+        |> List.choose id
+        |> List.rev
+        []
+    | IOLabel -> 
+        let drivingComp = fastSim.FIOActive[ComponentLabel srcComp.Label,[]]
+        let labelWidth = FastRun.extractFastSimulationWidth fastSim (drivingComp.Id,[]) (OutputPortNumber 0)
+        match labelWidth with
+        | None ->
+            failwithf $"What? Can't find width for IOLabel {net[srcComp.Id].Label}$ "
+        | Some width ->
+                    
+                    [ { LabName = compLabel
+                        BitLimits = width - 1, 0 } ]
 
 /// get WaveLabel corresponding to a NLTarget list
-let rec private findName (compIds: ComponentId Set) (sd: SimulationData) (net: NetList) netGrp nlTrgtList =
-    let graph = sd.Graph
-    let fs = sd.FastSim
-    match nlTrgtLst2CommonNLSource net nlTrgtList with
-    //nlTrgtLst is not connected to any driving components
+let rec private getWaveLabel
+    (netList: NetList)
+    (compIds: ComponentId Set)
+    (simData: SimulationData)
+    (netGroup: NetGroup)
+    (nlTargets: NLTarget list) : WaveLabel =
+
+    match getCommonNLSource netList nlTargets with
+    // nlTargets is not connected to any driving components
     | None -> { OutputsAndIOLabels = []; ComposingLabels = [] }
     | Some nlSource ->
         //TODO check if its ok to comment this?
         if not (Set.contains nlSource.SourceCompId compIds) then
-            // printfn "DEBUG: In findname, if not \n nlSource = %A \n compIds = %A" nlSource compIds
+            // printfn "DEBUG: In getWaveLabel, if not \n nlSource = %A \n compIds = %A" nlSource compIds
             // printfn "What? graph, net, netGrp, nltrgtList should all be consistent, compIds is deprecated"
             // component is no longer in circuit due to changes
             { OutputsAndIOLabels = []; ComposingLabels = [] }
-        else   
-            let compLbl = labelNoParenthesis net nlSource.SourceCompId
-            let outPortInt = outPortInt2int nlSource.OutputPort
-            let drivingOutputName inPortN =
-                match drivingOutput net nlSource.SourceCompId inPortN with
-                | Some nlSource' ->
-                    net[nlSource'.SourceCompId].Outputs[nlSource'.OutputPort]
-                    |> findName compIds sd net netGrp
-                | None ->  { OutputsAndIOLabels = []; ComposingLabels = [] } 
-            let srcComp = net[nlSource.SourceCompId]
-            match net[nlSource.SourceCompId].Type with
-            | ROM _ | RAM _ | AsyncROM _ -> 
-                    failwithf "What? Legacy RAM component types should never occur"
-            | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4 | Mux2 | Mux4 | Mux8 | BusCompare _ -> 
-                [ { LabName = compLbl; BitLimits = 0, 0 } ] 
-            | Input w | Output w | Constant1(w, _,_) | Constant(w,_) | Viewer w -> 
-                [ { LabName = compLbl; BitLimits = w - 1, 0 } ] 
-            | Demux2 | Demux4 | Demux8 -> 
-                [ { LabName = compLbl + "." + string outPortInt; BitLimits = 0, 0 } ]
-            | NbitsXor w -> 
-                [ { LabName = compLbl; BitLimits = w - 1, 0 } ]
-            | NbitsAdder w ->
-                match outPortInt with
-                | 0 -> [ { LabName = compLbl + ".Sum"; BitLimits = w - 1, 0 } ]
-                | _ -> [ { LabName = compLbl + ".Cout"; BitLimits = w - 1, 0 } ]
-            | DFF | DFFE -> 
-                [ { LabName = compLbl + ".Q"; BitLimits = 0, 0 } ]
-            | Register w | RegisterE w -> 
-                [ { LabName = compLbl + ".Dout"; BitLimits = w-1, 0 } ]
-            | RAM1 mem | AsyncRAM1 mem | AsyncROM1 mem | ROM1 mem -> 
-                [ { LabName = compLbl + ".Dout"; BitLimits = mem.WordWidth - 1, 0 } ]
-            | Custom c -> 
-                [ { LabName = compLbl + "." + (fst c.OutputLabels[outPortInt])
-                    BitLimits = snd c.OutputLabels[outPortInt] - 1, 0 } ]
-            | MergeWires -> 
-                List.append (drivingOutputName (InputPortNumber 1)).ComposingLabels 
-                            (drivingOutputName (InputPortNumber 0)).ComposingLabels
-            | SplitWire w ->
-                let mostsigBranch (_, b) =
-                    match outPortInt with
-                    | 0 -> b >= 16 - w
-                    | 1 -> b < 16 - w
-                    | _ -> failwith "SplitWire output port number greater than 1"
+        else
+            let srcComp = netList[nlSource.SourceCompId]
+            let compLabel = labelNoParenthesis srcComp
 
-                let split { LabName = name; BitLimits = msb, lsb } st =
-                    List.zip [ lsb .. msb ] [ st + msb - lsb .. -1 .. st ]
-                    |> List.filter mostsigBranch
-                    |> List.unzip
-                    |> function
-                    | [], _ -> None 
-                    | lst, _ -> Some { LabName = name
-                                       BitLimits = List.max lst, List.min lst } 
+            let outputPort = getOutputPortNumber nlSource.OutputPort
+            
+            let drivingSourceName (inputPort: InputPortNumber) =
+                match drivingSource netList nlSource.SourceCompId inputPort with
+                | Some nlSource ->
+                    netList[nlSource.SourceCompId].Outputs[nlSource.OutputPort]
+                    |> getWaveLabel netList compIds simData netGroup
+                | None -> { OutputsAndIOLabels = []; ComposingLabels = [] }
 
-                let updateState { LabName = _; BitLimits = msb, lsb } st =
-                    st + msb - lsb + 1
-
-                (0, (drivingOutputName (InputPortNumber 0)).ComposingLabels)
-                ||> List.mapFold (fun st lstEl -> split lstEl st, updateState lstEl st)
-                |> fst
-                |> List.choose id
-            | BusSelection(w, oLSB) ->
-                let filtSelec { LabName = name; BitLimits = msb, lsb } st =
-                    List.zip [ lsb .. msb ] [ st .. st + msb - lsb ]
-                    |> List.filter (fun (_, b) -> oLSB <= b && b <= oLSB + w - 1)
-                    |> List.unzip
-                    |> function
-                    | [], _ -> None
-                    | lst, _ -> Some { LabName = name
-                                       BitLimits = List.max lst, List.min lst } 
-
-                let updateState { LabName = _; BitLimits = msb, lsb } st =
-                    st + msb - lsb + 1 
-
-                ((drivingOutputName (InputPortNumber 0)).ComposingLabels, 0)
-                ||> List.mapFoldBack (fun lstEl st -> filtSelec lstEl st, updateState lstEl st)
-                |> fst
-                |> List.choose id
-                |> List.rev
-            | IOLabel -> 
-                let drivingComp = fs.FIOActive[ComponentLabel srcComp.Label,[]]
-                let ioLblWidth = FastRun.extractFastSimulationWidth fs (drivingComp.Id,[]) (OutputPortNumber 0)
-                match ioLblWidth with
-                | None ->
-                    failwithf $"What? Can't find width for IOLabel {net[srcComp.Id].Label}$ "
-                | Some width ->
-                            
-                            [ { LabName = compLbl
-                                BitLimits = width - 1, 0 } ]
-
-            |> (fun composingLbls -> { OutputsAndIOLabels = netGroup2outputsAndIOLabels net netGrp
-                                       ComposingLabels = composingLbls })
+            composingLabels simData.FastSim netList srcComp compLabel outputPort drivingSourceName
+            |> (fun composingLbls -> {
+                    OutputsAndIOLabels = getOutputAndIOLabels netList netGroup
+                    ComposingLabels = composingLbls
+                })
 
 /// get string in the [x:x] format given the bit limits
 let private bitLimsString (a, b) =
@@ -229,28 +259,32 @@ let private bitLimsString (a, b) =
     | (msb, lsb) when msb = lsb -> sprintf "[%d]" msb
     | (msb, lsb) -> sprintf "[%d:%d]" msb lsb
 
-let rec private removeSubSeq startC endC chars =
-    ((false,[]), chars)
-    ||> Seq.fold (fun (removing,res) ch ->
-                    match removing,ch with
-                    | true, ch when ch = endC -> false,res
-                    | true, _ -> true, res
-                    | false, ch when ch = startC -> true,res
-                    |false, ch -> false, ch :: res)
+let rec private removeSubSeq startC endC (chars: char seq) =
+    (chars, (false, []))
+    ||> Seq.foldBack (
+        fun ch (removing, res) ->
+            match removing, ch with
+            | true, ch when ch = endC -> false, res
+            | true, _ -> true, res
+            | false, ch when ch = startC -> true, res
+            | false, ch -> false, ch :: res
+        )
     |> snd
-    |> List.rev
     |> List.map string
     |> String.concat ""
 
-/// truncate names to remove redundant width specs
-let private simplifyName name =
-    name
-    |> removeSubSeq '(' ')'
-
+/// work out a good human readable name for a Netgroup. Normally this is the
+/// label of the driver of the NetGroup. Merge, Split, and BusSelection components
+/// (as drivers) are removed, replaced by corresponding selectors on busses.
+/// Names are tagged with labels or IO connectors. It is easy to change these
+/// names to make them more human readable.
 /// get the label of a waveform
-let netGroup2Label compIds (sd:SimulationData) netList (netGrp: NetGroup) =
+let getWaveName (compIds: Set<ComponentId>) (sd:SimulationData) (netList: NetList) (netGroup: NetGroup) : string =
+    // component name
+    // port name
+    // wire label?
     // let start = getTimeMs()
-    let waveLabel = findName compIds sd netList netGrp netGrp.driverNet
+    let waveLabel = getWaveLabel netList compIds sd netGroup netGroup.DriverNet
     //printfn "Finding label for %A\n%A\n\n" netGrp.driverComp.Label waveLabel.OutputsAndIOLabels
     let tl =
         match waveLabel.ComposingLabels with
@@ -258,72 +292,78 @@ let netGroup2Label compIds (sd:SimulationData) netList (netGrp: NetGroup) =
         | lst when List.length lst > 0 ->
             let appendName st lblSeg = st + lblSeg.LabName + bitLimsString lblSeg.BitLimits + ", "
             List.fold appendName "{" lst 
-            |> (fun lbl -> lbl[0..String.length lbl - 3] + "}")
+            |> (fun lbl -> lbl[0 .. String.length lbl - 3] + "}")
         |  _ -> ""
-    let appendName st name = st + name + ", "
+
     match waveLabel.OutputsAndIOLabels with
     | [] -> tl
     | hdLbls -> 
-        List.fold appendName "" hdLbls
-        |> (fun hd -> hd[0..String.length hd - 3] + " : " + tl)
-    |> simplifyName
+        String.concat "" hdLbls
+        |> (fun hd ->
+            hd + " : " + tl)
+
+    |> removeSubSeq '(' ')'
     // |> instrumentInterval "netGroup2Label" start
 
 let getWaveFromNetGroup 
-        (fs: FastSimulation)
+        (simData: SimulationData)
         (connMap: Map<ConnectionId,ConnectionId array>)
-        (nameOf: NetGroup -> string) 
-        (netGroup: NetGroup) : Wave =
-    let netGroupName = nameOf netGroup
-    let fId, opn = getFastDriver fs netGroup.driverComp netGroup.driverPort
-    let driverConn = netGroup.driverNet[0].TargetConnId
+        (compIds: Set<ComponentId>)
+        (netList: NetList)
+        (netGroup: NetGroup)
+        : Wave =
+
+    let fastSim = simData.FastSim
+
+    let netGroupName = getWaveName compIds simData netList netGroup
+    let fId, opn = getFastDriver fastSim netGroup.DriverComp netGroup.DriverPort
+    let driverConn = netGroup.DriverNet[0].TargetConnId
     let conns =
         Map.tryFind driverConn connMap
         |> Option.defaultValue [||]
     if conns = [||] then
         printfn $"Warning: {netGroupName} has no connections"
+    
     // Store first 100 values of waveform
     // TODO: Consider moving the call to this function.
-    FastRun.runFastSimulation 500 fs
+    FastRun.runFastSimulation 500 fastSim
     let waveValues =
         [ 0 .. 500]
-        |> List.map (fun i -> FastRun.extractFastSimulationOutput fs i fId opn)
+        |> List.map (fun i -> FastRun.extractFastSimulationOutput fastSim i fId opn)
+    
+    printf "%A" netGroupName
+    
     {
-        WaveId = netGroupName // not unique yet - may need to be changed
+        // WaveId = netGroupName // not unique yet - may need to be changed
         Conns = List.ofArray conns
         SheetId = [] // all NetGroups are from top sheet at the moment
-        Driver = fId, opn
+        Driver = {DriverId = fId; Port = opn}
         DisplayName = netGroupName
-        Width = getFastOutputWidth fs.FComps[fId] opn
+        Width = getFastOutputWidth fastSim.FComps[fId] opn
         WaveValues = waveValues
         Polylines = None
     }
 
-let getWaveFromFC (fc: FastComponent) =
+let getWaveFromFC (fastSim: FastSimulation) (fc: FastComponent) =
     let viewerName = extractLabel fc.SimComponent.Label
         // Store first 100 values of waveform
     // let waveValues =
-    //     [ 0 .. 100]
-    //     |> List.map (fun i -> FastRun.extractFastSimulationOutput fs i fc.fId opn)
+        // [ 0 .. 500]
+        // |> List.map (fun i -> FastRun.extractFastSimulationOutput fastSim i fc.fId opn)
     {
-        WaveId = viewerName // not unique yet - may need to be changed
+        // WaveId = viewerName // not unique yet - may need to be changed
         // WType = ViewerWaveform false
         Conns = [] // don't use connection nets for Viewer (yet)
         SheetId = snd fc.fId
-        Driver = fc.fId, OutputPortNumber 0
+        Driver = {DriverId = fc.fId; Port = OutputPortNumber 0}
         DisplayName = viewerName
         Width = getFastOutputWidth fc (OutputPortNumber 0)
-        WaveValues = []//waveValues
+        WaveValues = [] //waveValues
         Polylines = None
     }
 
-let getWaveforms
-        (netGroupToLabel: Set<ComponentId> -> SimulationData -> NetList -> NetGroup -> string) 
-        (simData: SimulationData) 
-        (reducedState: CanvasState) =
+let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<DriverT, Wave> =
     let comps, conns = reducedState
-    // let compIds = comps |> List.map (fun comp -> comp.Id)
-    // let comps, conns = model.Sheet.GetCanvasState ()
     let compIds = comps |> List.map (fun c -> ComponentId c.Id) |> Set
 
     let fastSim = simData.FastSim
@@ -331,6 +371,9 @@ let getWaveforms
     let viewers = 
         fastComps
         |> Array.filter (fun fc -> match fc.FType with Viewer _ -> true | _ -> false)
+
+    // printf "FastComps:"
+    // printf "%A" fastComps
 
     /// NetList is a simplified version of circuit with connections and layout
     /// info removed. Component ports are connected directly. ConnectionIds are
@@ -342,14 +385,8 @@ let getWaveforms
     let netGroups = makeAllNetGroups netList
     /// connMap maps each connection to the set of connected connections within the same sheet
     let connMap = makeConnectionMap netGroups
-    /// work out a good human readable name for a Netgroup. Normally this is the
-    /// label of the driver of the NetGroup. Merge, Split, and BusSelection components
-    /// (as drivers) are removed, replaced by corresponding selectors on busses.
-    /// Names are tagged with labels or IO connectors. It is easy to change these
-    /// names to make them more human readable.
-    let nameOf ng  = netGroupToLabel compIds simData netList ng
 
-    // findName (via netGroup2Label) will possibly not generate unique names for
+    // getWaveLabel (via netGroup2Label) will possibly not generate unique names for
     // each netgroup. Names are defined via waveSimModel.AllPorts which adds to
     // each name an optional unique numeric suffic (.2 etc). These suffixes are
     // stripped from names when they are displayed
@@ -358,16 +395,26 @@ let getWaveforms
     // Allports is the single reference throughout simulation of a circuit that associates names with netgroups
 
     Array.append
-        (Array.map (getWaveFromNetGroup fastSim connMap nameOf) netGroups)
-        [||]// (Array.map getWaveFromFC viewers)
-    |> Array.groupBy (fun wave -> wave.WaveId)
+        (Array.map (getWaveFromNetGroup simData connMap compIds netList) netGroups)
+        [||] // (Array.map (getWaveFromFC fastSim) viewers)
+    |> Array.groupBy (fun wave -> wave.Driver)
     |> Array.map (fun (root, specs) -> 
         match specs with 
         | [|_|] as oneSpec -> oneSpec
-        | specL -> specL |> Array.mapi (fun i wSpec -> {wSpec with WaveId = $"{wSpec.WaveId}!{i}"}))
+        | specL -> specL |> Array.mapi (fun i wSpec -> {wSpec with DisplayName = $"{wSpec.DisplayName}!{i}"})
+    )
     |> Array.concat
-    |> Array.map (fun wave -> wave.WaveId, wave)
+    |> Array.map (fun wave -> wave.Driver, wave)
     |> Map.ofArray
+
+let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<WaveIndexT, Wave> =
+    let comps, conns = reducedState
+    let compIds = comps |> List.map (fun c -> ComponentId c.Id) |> Set
+
+    let fastSim = simData.FastSim
+    let fastComps = mapValues fastSim.FComps
+
+    failwithf "getWaves not implemented"
 
 /// Generates SVG to display waveform values when there is enough space
 let displayValuesOnWave (startCycle: int) (endCycle: int) (waveValues: WireData list) : ReactElement =
@@ -378,8 +425,9 @@ let displayValuesOnWave (startCycle: int) (endCycle: int) (waveValues: WireData 
 
 /// Called when InitiateWaveSimulation msg is dispatched
 /// Generates the polyline(s) for a specific waveform
-let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
-    if List.contains waveName wsModel.SelectedWaves then
+let generateWaveform (wsModel: WaveSimModel) (driver: DriverT) (wave: Wave): Wave =
+    let waveName = wave.DisplayName
+    if List.contains driver wsModel.SelectedWaves then
         printf "generating wave for %A" waveName
         let polylines =
             match wave.Width with
@@ -393,7 +441,7 @@ let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
                     List.mapi (binaryWavePoints wsModel.ZoomLevel 0) transitions 
                     |> List.concat
                     |> List.distinct
-                printf "wavePoints: %A" wavePoints
+
                 [ polyline (wavePolylineStyle wavePoints) [] ]
             | _ ->
                 let transitions = calculateNonBinaryTransitions wave.WaveValues
@@ -410,17 +458,10 @@ let generateWave (wsModel: WaveSimModel) (waveName: string) (wave: Wave): Wave =
                         |> List.distinct
                     polyline (wavePolylineStyle points) []
 
-                printf "fstPoints: %A" fstPoints
-                printf "sndPoints: %A" sndPoints
-
-
                 [makePolyline fstPoints; makePolyline sndPoints]
 
         {wave with Polylines = Some polylines}
     else wave
-
-let generateAllLabels waves =
-    failwithf "generateAllLabels not implemented"
 
 /// TODO: Test if this function actually works.
 /// Displays error message if there is a simulation error
@@ -447,7 +488,7 @@ let toggleSelectAll (selected: bool) model dispatch : unit =
 
 let selectAll (model: Model) dispatch =
     let wsModel = getWSModel model
-    let allWavesSelected = Map.forall (fun name _ -> isWaveSelected wsModel name) wsModel.AllWaves
+    let allWavesSelected = Map.forall (fun driver _ -> isWaveSelected wsModel driver) wsModel.AllWaves
     tr  [ tableRowStyle ]
         [
             td  selectAllCheckboxProps
@@ -459,17 +500,17 @@ let selectAll (model: Model) dispatch =
             td  [ boldFontStyle ] [ str "Select All" ]
         ]
 
-let toggleConnsSelect (name: string) (wsModel: WaveSimModel) (dispatch: Msg -> unit) =
+let toggleConnsSelect (driver: DriverT) (wsModel: WaveSimModel) (dispatch: Msg -> unit) =
     let selectedWaves =
-        if List.contains name wsModel.SelectedWaves then
-            List.except [name] wsModel.SelectedWaves
-        else [name] @ wsModel.SelectedWaves
+        if List.contains driver wsModel.SelectedWaves then
+            List.except [driver] wsModel.SelectedWaves
+        else [driver] @ wsModel.SelectedWaves
 
     let wsModel = {wsModel with SelectedWaves = selectedWaves}
     dispatch <| InitiateWaveSimulation wsModel
     // changeWaveSelection name model waveSimModel dispatch
 
-let checkboxAndNameRow (name: string) (model: Model) (dispatch: Msg -> unit) =
+let checkboxAndNameRow (driver: DriverT) (model: Model) (dispatch: Msg -> unit) =
     let wsModel = getWSModel model
     let allWaves = wsModel.AllWaves
     let getColorProp name  =
@@ -483,11 +524,11 @@ let checkboxAndNameRow (name: string) (model: Model) (dispatch: Msg -> unit) =
             td  selectAllCheckboxProps
                 [ input
                     (checkboxInputProps @ [
-                    Checked <| isWaveSelected wsModel name
-                    OnChange(fun _ -> toggleConnsSelect name wsModel dispatch)
+                    Checked <| isWaveSelected wsModel driver
+                    OnChange(fun _ -> toggleConnsSelect driver wsModel dispatch)
                 ]) ]
             td  []
-                [ label [ getColorProp name ] [ str allWaves[name].DisplayName ] ]
+                [ label [ getColorProp driver ] [ str allWaves[driver].DisplayName ] ]
         ]
 
 let checkboxListOfWaves (model: Model) (dispatch: Msg -> unit) =
@@ -577,7 +618,7 @@ let zoomButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
 /// Click on these to change the highlighted clock cycle.
 let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     /// Controls the number of cycles moved by the "◀◀" and "▶▶" buttons
-    let bigStepSize = wsModel.ShownCycles / 2
+    let bigStepSize = max 1 (wsModel.ShownCycles / 2)
 
     let scrollWaveformsBy (numCycles: int) =
         setClkCycle wsModel dispatch (wsModel.CurrClkCycle + numCycles)
@@ -690,7 +731,9 @@ let waveSimButtonsBar (model: Model) (dispatch: Msg -> unit) : ReactElement =
 /// Create label of waveform name for each selected wave
 let nameRows (wsModel: WaveSimModel) : ReactElement list =
     wsModel.SelectedWaves
-    |> List.map (fun l -> label [ labelStyle ] [ str l ])
+    |> List.map (fun driver ->
+        label [ labelStyle ] [ str wsModel.AllWaves[driver].DisplayName ]
+    )
 
 /// Create column of waveform names
 let namesColumn wsModel : ReactElement =
@@ -827,8 +870,8 @@ let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
         let wsSheet = Option.get (getCurrFile model)
         let wsModel = getWSModel model
         let allWaves =
-            getWaveforms netGroup2Label simData reducedState
-            |> Map.map (generateWave wsModel)
+            getWaves simData reducedState
+            |> Map.map (generateWaveform wsModel)
         let wsModel = {
             wsModel with
                 State = WSOpen
@@ -865,7 +908,11 @@ let selectWavesMenu model dispatch : ReactElement =
         Open true
     ]
         [
-            summary [] [str "thingy"]
+            summary [] [
+                str "thingy\n"
+                Checkbox.checkbox []
+                    [ Checkbox.input [] ]
+            ]
             str "aosdifjasodif"
         ]
 
@@ -880,8 +927,8 @@ let waveTableRows (wave: Wave) : ReactElement =
                 [ Checkbox.checkbox []
                     [ Checkbox.input [] ]
                 ]
-            td [] [str wave.WaveId]
-            td [] [str wave.WaveId]
+            td [] [str wave.DisplayName]
+            td [] [str wave.DisplayName]
         ]
 
 
@@ -925,11 +972,11 @@ let wsOpenPane (model: Model) dispatch : ReactElement =
                 [
                     searchBar model dispatch
                 ]
-            selectWavesMenu model dispatch
-            selectWavesMenu model dispatch
+            // selectWavesMenu model dispatch
+            // selectWavesMenu model dispatch
 
 
-            selectWavesTable model dispatch
+            // selectWavesTable model dispatch
 
             selectWaves model dispatch
         ]

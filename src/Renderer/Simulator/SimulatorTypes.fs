@@ -653,11 +653,11 @@ type NGrp = {
     Driver: NLTarget list
     }
 
-let makeAllNetGroups (netList:NetList) :NetGroup array=
+let makeAllNetGroups (netList: NetList) : NetGroup array =
 
     let comps = allNComps netList
 
-    let labelConnectedNets: Map<string,NLTarget list array> =       
+    let labelConnectedNets: Map<string, NLTarget list array> =       
         comps
         |> Array.collect (fun comp ->
             if comp.Type = IOLabel then [|comp.Label, comp.Outputs[OutputPortNumber 0]|] else [||])
@@ -665,14 +665,14 @@ let makeAllNetGroups (netList:NetList) :NetGroup array=
         |> Array.map (fun (lab, labOutArr)-> lab, (labOutArr |> Array.map (snd)))
         |> Map.ofArray
 
-    let makeNetGroup (comp: NetListComponent) (opn: OutputPortNumber) (targets:NLTarget list) =
+    let makeNetGroup (comp: NetListComponent) (opn: OutputPortNumber) (targets: NLTarget list) =
         let connected = 
             targets
             |> List.toArray
             |> Array.collect (fun target -> 
                 let comp = netList[target.TargetCompId]
                 if comp.Type = IOLabel then labelConnectedNets[comp.Label] else [||])
-        {driverComp=comp; driverPort=opn; driverNet=targets; connectedNets=connected}
+        {DriverComp = comp; DriverPort = opn; DriverNet = targets; ConnectedNets = connected}
 
 
     let allNetGroups =
@@ -701,7 +701,7 @@ let getWaveformSpecFromFC (fc: FastComponent) =
 
 let makeConnectionMap (ngs: NetGroup array) =
     let connsOfNG (ng: NetGroup) =
-            ng.driverNet :: (List.ofArray ng.connectedNets)
+            ng.DriverNet :: (List.ofArray ng.ConnectedNets)
             |> List.map (List.map (fun tgt -> tgt.TargetConnId))
             |> List.concat
             |> List.toArray
@@ -730,8 +730,8 @@ let getWaveformSpecFromNetGroup
         (nameOf: NetGroup -> string) 
         (ng: NetGroup) =
     let ngName = nameOf ng
-    let fId, opn = getFastDriver fs ng.driverComp ng.driverPort
-    let driverConn = ng.driverNet[0].TargetConnId
+    let fId, opn = getFastDriver fs ng.DriverComp ng.DriverPort
+    let driverConn = ng.DriverNet[0].TargetConnId
     let conns =
         Map.tryFind driverConn connMap
         |> Option.defaultValue [||]

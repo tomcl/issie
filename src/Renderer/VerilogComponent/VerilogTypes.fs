@@ -40,7 +40,7 @@ type PrimaryT = {Type: string; PrimaryType: string; BitsStart: string option; Bi
 type ExpressionT = {Type: string; Operator: string option; Head: ExpressionT option; Tail: ExpressionT option; Unary: UnaryT option}
     and UnaryT = {Type: string; Primary: PrimaryT option; Number: NumberT option; Expression: ExpressionT option}
 
-type AssignmentLHST = {Type: string; PrimaryType: string; BitsStart: string; BitsEnd: string; Primary: string}
+type AssignmentLHST = {Type: string; PrimaryType: string; BitsStart: string option; BitsEnd: string option; Primary: string}
 type AssignmentT = {Type: string; LHS: AssignmentLHST; RHS: ExpressionT}
 
 type StatementItemT = {Type: string; StatementType: string; Assignment : AssignmentT;}

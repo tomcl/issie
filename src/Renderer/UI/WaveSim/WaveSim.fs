@@ -285,6 +285,7 @@ let getWaveName (compIds: Set<ComponentId>) (sd:SimulationData) (netList: NetLis
     // wire label?
     // let start = getTimeMs()
     let waveLabel = getWaveLabel netList compIds sd netGroup netGroup.DriverNet
+
     //printfn "Finding label for %A\n%A\n\n" netGrp.driverComp.Label waveLabel.OutputsAndIOLabels
     let tl =
         match waveLabel.ComposingLabels with
@@ -332,8 +333,14 @@ let getWaveFromNetGroup
         |> List.map (fun i -> FastRun.extractFastSimulationOutput fastSim i fId opn)
     
     printf "%A" netGroupName
+
+    let compName = ""
+    let portName = ""
+    let typ = Mux2
     
+    let id = simData.FastSim.FComps[fId].cId
     {
+        WaveId = {Id = id; OutputPort = opn}
         // WaveId = netGroupName // not unique yet - may need to be changed
         Conns = List.ofArray conns
         SheetId = [] // all NetGroups are from top sheet at the moment
@@ -344,33 +351,33 @@ let getWaveFromNetGroup
         Polylines = None
     }
 
-let getWaveFromFC (fastSim: FastSimulation) (fc: FastComponent) =
-    let viewerName = extractLabel fc.SimComponent.Label
-        // Store first 100 values of waveform
-    // let waveValues =
-        // [ 0 .. 500]
-        // |> List.map (fun i -> FastRun.extractFastSimulationOutput fastSim i fc.fId opn)
-    {
-        // WaveId = viewerName // not unique yet - may need to be changed
-        // WType = ViewerWaveform false
-        Conns = [] // don't use connection nets for Viewer (yet)
-        SheetId = snd fc.fId
-        Driver = {DriverId = fc.fId; Port = OutputPortNumber 0}
-        DisplayName = viewerName
-        Width = getFastOutputWidth fc (OutputPortNumber 0)
-        WaveValues = [] //waveValues
-        Polylines = None
-    }
+// let getWaveFromFC (fastSim: FastSimulation) (fc: FastComponent) =
+//     let viewerName = extractLabel fc.SimComponent.Label
+//         // Store first 100 values of waveform
+//     // let waveValues =
+//         // [ 0 .. 500]
+//         // |> List.map (fun i -> FastRun.extractFastSimulationOutput fastSim i fc.fId opn)
+//     {
+//         // WaveId = viewerName // not unique yet - may need to be changed
+//         // WType = ViewerWaveform false
+//         Conns = [] // don't use connection nets for Viewer (yet)
+//         SheetId = snd fc.fId
+//         Driver = {DriverId = fc.fId; Port = OutputPortNumber 0}
+//         DisplayName = viewerName
+//         Width = getFastOutputWidth fc (OutputPortNumber 0)
+//         WaveValues = [] //waveValues
+//         Polylines = None
+//     }
 
 let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<DriverT, Wave> =
     let comps, conns = reducedState
     let compIds = comps |> List.map (fun c -> ComponentId c.Id) |> Set
 
-    let fastSim = simData.FastSim
-    let fastComps = mapValues fastSim.FComps
-    let viewers = 
-        fastComps
-        |> Array.filter (fun fc -> match fc.FType with Viewer _ -> true | _ -> false)
+    // let fastSim = simData.FastSim
+    // let fastComps = mapValues fastSim.FComps
+    // let viewers = 
+    //     fastComps
+    //     |> Array.filter (fun fc -> match fc.FType with Viewer _ -> true | _ -> false)
 
     // printf "FastComps:"
     // printf "%A" fastComps
@@ -407,14 +414,78 @@ let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<DriverT
     |> Array.map (fun wave -> wave.Driver, wave)
     |> Map.ofArray
 
-let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<WaveIndexT, Wave> =
+let getName (comp: Component) : string = 
+    string comp.Label
+
+let getPorts (comp: Component) : (WaveIndexT * Component) list =
+    let opn = List.length comp.OutputPorts
+    // printf "opn: %A" opn
+    [0 .. opn + 1]
+    |> List.map (fun x ->
+        {Id = ComponentId comp.Id; OutputPort = OutputPortNumber x}, comp
+    )
+
+/// starting with just output ports only: not showing input ports.
+let makeWave (fastSim: FastSimulation) (index: WaveIndexT) (comp: Component) : Wave =
+    // printf "comp: %A" comp
+    printf "wave: %A" comp.Label
+    printf "port: %A" index.OutputPort
+
+    let driverId, driverPort = getFastDriverNew fastSim comp index.OutputPort
+
+    let dispName = getName comp
+
+    FastRun.runFastSimulation 500 fastSim
+    let waveValues =
+        [ 0 .. 500 ]
+        |> List.map (fun i -> FastRun.extractFastSimulationOutput fastSim i driverId driverPort)
+
+    {
+        WaveId = index
+        Conns = []
+        SheetId = []
+        Driver = {DriverId = driverId; Port = driverPort}
+        DisplayName = dispName
+        Width =  getFastOutputWidth fastSim.FComps[driverId] driverPort
+        WaveValues = waveValues
+        Polylines = None
+    }
+
+let getWavesNew (simData: SimulationData) (reducedState: CanvasState) : Map<WaveIndexT, Wave> =
     let comps, conns = reducedState
     let compIds = comps |> List.map (fun c -> ComponentId c.Id) |> Set
 
     let fastSim = simData.FastSim
-    let fastComps = mapValues fastSim.FComps
+    let fastComps = Map.values fastSim.FComps |> Seq.toList
 
-    failwithf "getWaves not implemented"
+    List.map (fun (x: Component) -> printf "%A\n" x.Label) comps
+    // |> printf "comps: %A"
+
+    let netList = Helpers.getNetList reducedState
+
+    comps
+    |> List.map (getPorts)
+    |> List.concat
+    |> Map.ofList
+    |> Map.map (makeWave fastSim)
+
+// type Wave = {
+//     // unique within one simulation run, mostly conserved across runs
+//     // WaveId: string
+//     // unique within design sheet (SheetId)
+//     Conns: ConnectionId list
+//     // [] for top-level waveform: path to sheet
+//     SheetId: ComponentId list
+//     // This is used to key the AllWaves map, since this is guaranteed to be unique.
+//     Driver: DriverT
+//     DisplayName: string
+//     // Number of bits in wave
+//     Width: int
+//     // Map keyed by clock cycle
+//     WaveValues: WireData list
+//     // Store SVG cache here maybe?
+//     Polylines: ReactElement list option
+// }
 
 /// Generates SVG to display waveform values when there is enough space
 let displayValuesOnWave (startCycle: int) (endCycle: int) (waveValues: WireData list) : ReactElement =
@@ -425,9 +496,9 @@ let displayValuesOnWave (startCycle: int) (endCycle: int) (waveValues: WireData 
 
 /// Called when InitiateWaveSimulation msg is dispatched
 /// Generates the polyline(s) for a specific waveform
-let generateWaveform (wsModel: WaveSimModel) (driver: DriverT) (wave: Wave): Wave =
+let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
     let waveName = wave.DisplayName
-    if List.contains driver wsModel.SelectedWaves then
+    if List.contains index wsModel.SelectedWaves then
         printf "generating wave for %A" waveName
         let polylines =
             match wave.Width with
@@ -500,17 +571,17 @@ let selectAll (model: Model) dispatch =
             td  [ boldFontStyle ] [ str "Select All" ]
         ]
 
-let toggleConnsSelect (driver: DriverT) (wsModel: WaveSimModel) (dispatch: Msg -> unit) =
+let toggleConnsSelect (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: Msg -> unit) =
     let selectedWaves =
-        if List.contains driver wsModel.SelectedWaves then
-            List.except [driver] wsModel.SelectedWaves
-        else [driver] @ wsModel.SelectedWaves
+        if List.contains index wsModel.SelectedWaves then
+            List.except [index] wsModel.SelectedWaves
+        else [index] @ wsModel.SelectedWaves
 
     let wsModel = {wsModel with SelectedWaves = selectedWaves}
     dispatch <| InitiateWaveSimulation wsModel
     // changeWaveSelection name model waveSimModel dispatch
 
-let checkboxAndNameRow (driver: DriverT) (model: Model) (dispatch: Msg -> unit) =
+let checkboxAndNameRow (index: WaveIndexT) (model: Model) (dispatch: Msg -> unit) =
     let wsModel = getWSModel model
     let allWaves = wsModel.AllWaves
     let getColorProp name  =
@@ -524,11 +595,11 @@ let checkboxAndNameRow (driver: DriverT) (model: Model) (dispatch: Msg -> unit) 
             td  selectAllCheckboxProps
                 [ input
                     (checkboxInputProps @ [
-                    Checked <| isWaveSelected wsModel driver
-                    OnChange(fun _ -> toggleConnsSelect driver wsModel dispatch)
+                    Checked <| isWaveSelected wsModel index
+                    OnChange(fun _ -> toggleConnsSelect index wsModel dispatch)
                 ]) ]
             td  []
-                [ label [ getColorProp driver ] [ str allWaves[driver].DisplayName ] ]
+                [ label [ getColorProp index ] [ str allWaves[index].DisplayName ] ]
         ]
 
 let checkboxListOfWaves (model: Model) (dispatch: Msg -> unit) =
@@ -870,7 +941,7 @@ let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
         let wsSheet = Option.get (getCurrFile model)
         let wsModel = getWSModel model
         let allWaves =
-            getWaves simData reducedState
+            getWavesNew simData reducedState
             |> Map.map (generateWaveform wsModel)
         let wsModel = {
             wsModel with

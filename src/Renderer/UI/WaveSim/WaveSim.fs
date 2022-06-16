@@ -90,9 +90,14 @@ let private labelNoParenthesis (comp: NetListComponent) =
     | None -> label
 
 /// get integer from OutputPortNumber
-let private getOutputPortNumber opn =
+let private getInputPortNumber (ipn: InputPortNumber) : int =
+    match ipn with
+    | CommonTypes.InputPortNumber pn -> pn
+
+/// get integer from OutputPortNumber
+let private getOutputPortNumber (opn: OutputPortNumber) : int =
     match opn with
-    | OutputPortNumber pn -> pn
+    | CommonTypes.OutputPortNumber pn -> pn
 
 /// get NLSource option from ComponentId and InputPortNumber
 let private drivingSource (netList: NetList) compId (inputPort: InputPortNumber) : NLSource option =
@@ -156,8 +161,8 @@ let composingLabels
         [ { LabName = compLabel + "." + (fst c.OutputLabels[outputPort])
             BitLimits = snd c.OutputLabels[outputPort] - 1, 0 } ]
     | MergeWires -> 
-        List.append (drivingSourceName (InputPortNumber 1)).ComposingLabels 
-                    (drivingSourceName (InputPortNumber 0)).ComposingLabels
+        // List.append (drivingSourceName (InputPortNumber 1)).ComposingLabels 
+                    // (drivingSourceName (InputPortNumber 0)).ComposingLabels
         []
     | SplitWire w ->
         let mostsigBranch (_, b) =
@@ -179,10 +184,10 @@ let composingLabels
 
         let updateState { LabName = _ ; BitLimits = msb, lsb } st = st + msb - lsb + 1
 
-        (0, (drivingSourceName (InputPortNumber 0)).ComposingLabels)
-        ||> List.mapFold (fun st lstEl -> split lstEl st, updateState lstEl st)
-        |> fst
-        |> List.choose id
+        // (0, (drivingSourceName (InputPortNumber 0)).ComposingLabels)
+        // ||> List.mapFold (fun st lstEl -> split lstEl st, updateState lstEl st)
+        // |> fst
+        // |> List.choose id
         []
     | BusSelection(w, oLSB) ->
         let filtSelec { LabName = name; BitLimits = msb, lsb } st =
@@ -198,15 +203,15 @@ let composingLabels
 
         let updateState { LabName = _ ; BitLimits = msb, lsb } st = st + msb - lsb + 1 
 
-        ((drivingSourceName (InputPortNumber 0)).ComposingLabels, 0)
-        ||> List.mapFoldBack (fun lstEl st -> filtSelec lstEl st, updateState lstEl st)
-        |> fst
-        |> List.choose id
-        |> List.rev
+        // ((drivingSourceName (InputPortNumber 0)).ComposingLabels, 0)
+        // ||> List.mapFoldBack (fun lstEl st -> filtSelec lstEl st, updateState lstEl st)
+        // |> fst
+        // |> List.choose id
+        // |> List.rev
         []
     | IOLabel -> 
         let drivingComp = fastSim.FIOActive[ComponentLabel srcComp.Label,[]]
-        let labelWidth = FastRun.extractFastSimulationWidth fastSim (drivingComp.Id,[]) (OutputPortNumber 0)
+        let labelWidth = FastRun.extractFastSimulationWidth fastSim (drivingComp.Id,[]) (CommonTypes.OutputPortNumber 0)
         match labelWidth with
         | None ->
             failwithf $"What? Can't find width for IOLabel {net[srcComp.Id].Label}$ "
@@ -340,7 +345,7 @@ let getWaveFromNetGroup
     
     let id = simData.FastSim.FComps[fId].cId
     {
-        WaveId = {Id = id; OutputPort = opn}
+        WaveId = {Id = id; Port = OutputPortNumber opn}
         // WaveId = netGroupName // not unique yet - may need to be changed
         Conns = List.ofArray conns
         SheetId = [] // all NetGroups are from top sheet at the moment
@@ -414,26 +419,190 @@ let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<DriverT
     |> Array.map (fun wave -> wave.Driver, wave)
     |> Map.ofArray
 
-let getName (comp: Component) : string = 
-    string comp.Label
+let getInputName (comp: NetListComponent) (port: InputPortNumber) (fastSim: FastSimulation): string =
+    match comp.Type with
+    | ROM _ | RAM _ | AsyncROM _ ->
+        failwithf "What? Legacy RAM component types should never occur"
 
-let getPorts (comp: Component) : (WaveIndexT * Component) list =
-    let opn = List.length comp.OutputPorts
-    // printf "opn: %A" opn
-    [0 .. opn + 1]
-    |> List.map (fun x ->
-        {Id = ComponentId comp.Id; OutputPort = OutputPortNumber x}, comp
-    )
+    | Not | BusCompare _ ->
+        let portName = ".IN"
+        comp.Label + portName + bitLimsString (0, 0) 
+
+    | And | Or | Xor | Nand | Nor | Xnor ->
+        let portName = ".IN" + string port
+        comp.Label + portName + bitLimsString (0, 0)
+
+    | Mux2 ->
+        let portName =
+            match port with
+            | CommonTypes.InputPortNumber 2 -> ".SEL"
+            | _ -> "." + string port
+
+        comp.Label + portName + bitLimsString (0, 0)
+
+    | Mux4 ->
+        let portName =
+            match port with
+            | CommonTypes.InputPortNumber 4 -> ".SEL"
+            | _ -> "." + string port
+
+        comp.Label + portName + bitLimsString (0, 0)
+
+    | Mux8 ->
+        let portName =
+            match port with
+            | CommonTypes.InputPortNumber 8 -> ".SEL"
+            | _ -> "." + string port
+
+        comp.Label + portName + bitLimsString (0, 0)
+
+    | Decode4 ->
+        let portName =
+            match port with
+            | CommonTypes.InputPortNumber 0 -> ".SEL"
+            | _ -> ".DATA"
+
+        comp.Label + portName + bitLimsString (0, 0)
+
+    | Output w ->
+        printf "output %A" comp.Label
+        comp.Label + bitLimsString (w - 1, 0)
+
+    | Input w | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w ->
+        comp.Label + bitLimsString (w - 1, 0)
+
+    | Demux2 | Demux4 | Demux8 ->
+        let portName =
+            match port with
+            | CommonTypes.InputPortNumber 0 -> ".DATA"
+            | _ -> ".SEL"
+        comp.Label + "." + portName + bitLimsString (0, 0)
+
+    | NbitsXor w ->
+        let portName =
+            match port with
+            | CommonTypes.InputPortNumber 0 -> ".P"
+            | _ -> ".Q"
+        comp.Label + portName + bitLimsString (w - 1, 0)
+
+    | NbitsAdder w ->
+        let portName =
+            match port with
+            | CommonTypes.InputPortNumber 0 -> ".Cin"
+            | CommonTypes.InputPortNumber 1 -> ".P"
+            | _ -> ".Q"
+        comp.Label + portName + bitLimsString (w - 1, 0)
+
+    | DFF | Register _ ->
+        comp.Label + ".D" + bitLimsString (0, 0)
+
+    | DFFE | RegisterE _ ->
+        let portName =
+            match port with
+            | CommonTypes.InputPortNumber 0 -> ".D"
+            | _ -> ".EN"
+        comp.Label + portName + bitLimsString (0, 0)
+
+    | ROM1 _ | AsyncROM1 _ ->
+        comp.Label + ".ADDR"
+
+    | RAM1 _ | AsyncRAM1 _ ->
+        let portName =
+            match port with
+            | CommonTypes.InputPortNumber 0 -> ".ADDR"
+            | CommonTypes.InputPortNumber 1 -> ".DIN"
+            | _ -> ".WEN"
+        comp.Label + portName
+
+    | Custom c ->
+        comp.Label + "." + fst c.InputLabels[getInputPortNumber port] + bitLimsString (snd c.InputLabels[getInputPortNumber port] - 1, 0)
+
+    | IOLabel -> "input iolabel"
+    | MergeWires -> "mergewires"
+    | SplitWire _ -> "splitwire"
+    | BusSelection _ -> "bus select"
+
+let getOutputName (comp: NetListComponent) (port: OutputPortNumber) (fastSim: FastSimulation): string =
+    match comp.Type with
+    | ROM _ | RAM _ | AsyncROM _ ->
+        failwithf "What? Legacy RAM component types should never occur"
+
+    | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4 | Mux2 | Mux4 | Mux8 | BusCompare _ ->
+        comp.Label + ".OUT" + bitLimsString (0, 0)
+
+    | Output w ->
+        printf "output %A" comp.Label
+        comp.Label + bitLimsString (w - 1, 0)
+
+
+    | Input w | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w ->
+        comp.Label + bitLimsString (w - 1, 0)
+
+    | Demux2 | Demux4 | Demux8 ->
+        comp.Label + "." + string port + bitLimsString (0, 0)
+
+    | NbitsXor w ->
+        comp.Label + bitLimsString (w - 1, 0)
+
+    | NbitsAdder w ->
+        match port with
+        | CommonTypes.OutputPortNumber 0 ->
+            comp.Label + ".SUM" + bitLimsString (w - 1, 0)
+        | _ ->
+            comp.Label + ".COUT" + bitLimsString (w - 1, 0)
+
+    | DFF | DFFE ->
+        comp.Label + ".Q" + bitLimsString (0, 0)
+
+    | Register w | RegisterE w ->
+        comp.Label + ".Q" + bitLimsString (w - 1, 0)
+
+    | RAM1 mem | AsyncRAM1 mem | AsyncROM1 mem | ROM1 mem ->
+        comp.Label + ".DOUT" + bitLimsString (mem.WordWidth - 1, 0)
+
+    | Custom c ->
+        comp.Label + "." + fst c.OutputLabels[getOutputPortNumber port] + bitLimsString (snd c.OutputLabels[getOutputPortNumber port] - 1, 0)
+
+    | IOLabel ->
+        let drivingComp = fastSim.FIOActive[ComponentLabel comp.Label,[]]
+        let labelWidth = FastRun.extractFastSimulationWidth fastSim (drivingComp.Id,[]) (CommonTypes.OutputPortNumber 0)
+        match labelWidth with
+        | None ->
+            failwithf $"What? Can't find width for IOLabel {comp.Label}$ "
+        | Some width ->
+            comp.Label + bitLimsString (width - 1, 0)
+    | MergeWires -> "mergewires"
+    | SplitWire _ -> "splitwire"
+    | BusSelection _ -> "bus select"
+
+let getName (comp: NetListComponent) (port: PortNumber) (fastSim: FastSimulation): string =
+    match port with
+    | InputPortNumber ipn -> getInputName comp ipn fastSim
+    | OutputPortNumber opn -> getOutputName comp opn fastSim
+
 
 /// starting with just output ports only: not showing input ports.
-let makeWave (fastSim: FastSimulation) (index: WaveIndexT) (comp: Component) : Wave =
+let makeWave (fastSim: FastSimulation) (netList: Map<ComponentId, NetListComponent>) (index: WaveIndexT) (comp: NetListComponent) : Wave =
     // printf "comp: %A" comp
     printf "wave: %A" comp.Label
-    printf "port: %A" index.OutputPort
+    printf "port: %A" index.Port
+    printf "type: %A" comp.Type
 
-    let driverId, driverPort = getFastDriverNew fastSim comp index.OutputPort
+    let driverCompId, driverPort =
+        match index.Port with
+        | OutputPortNumber opn -> comp.Id, opn
+        | InputPortNumber ipn ->
+            match Map.tryFind ipn comp.Inputs with
+            | Some (Some nlSource) -> nlSource.SourceCompId, nlSource.OutputPort
+            | Some None -> failwithf "is there an unconnected input?\n wave: %A\n port: %A\n type: %A" comp.Label index.Port comp.Type
+            | None -> failwithf "InputPortNumber %A not in comp.Inputs" ipn
 
-    let dispName = getName comp
+    let driverComp = netList[driverCompId]
+
+    //need to get driving one so needs to be an output
+    let driverId, driverPort = getFastDriverNew fastSim driverComp driverPort
+
+    let dispName = getName comp index.Port fastSim
 
     FastRun.runFastSimulation 500 fastSim
     let waveValues =
@@ -458,16 +627,80 @@ let getWavesNew (simData: SimulationData) (reducedState: CanvasState) : Map<Wave
     let fastSim = simData.FastSim
     let fastComps = Map.values fastSim.FComps |> Seq.toList
 
-    List.map (fun (x: Component) -> printf "%A\n" x.Label) comps
+    // List.map (fun (x: Component) -> printf "%A\n" x.Label) comps
     // |> printf "comps: %A"
 
     let netList = Helpers.getNetList reducedState
+    // Map.map (fun id (comp: NetListComponent) ->
+    //     printf "%A \t %A\n" comp.Label comp.Type
+    //     match comp.Type with
+    //     | Constant1 _ ->
+    //         printf "constant type"
+    //         printf "%A" comp.Inputs
+    //         printf "%A" comp.Outputs
+    //     | Output x ->
+    //         printf "output type"
+    //         printf "%A" comp.Inputs
+    //         printf "%A" comp.Outputs
+    //     | _ -> ()
+    // ) netList
+    // |> ignore
 
-    comps
-    |> List.map (getPorts)
-    |> List.concat
-    |> Map.ofList
-    |> Map.map (makeWave fastSim)
+    let makeNewThing (thing: (ComponentId * NetListComponent)) : (WaveIndexT * NetListComponent) list =
+        let compId = fst thing
+        let nlc : NetListComponent = snd thing
+        let inputNum = Map.count nlc.Inputs
+        let outputNum = Map.count nlc.Outputs
+        
+        let outputs =
+            [0 .. outputNum - 1]
+            |> List.map (fun x -> 
+                let num = CommonTypes.OutputPortNumber x
+                {Id = compId; Port = OutputPortNumber num}, nlc
+            )
+
+        let inputs =
+            match nlc.Type with
+            | IOLabel -> []
+            | _ ->
+                [0 .. inputNum - 1]
+                |> List.map (fun x ->
+                    let num = CommonTypes.InputPortNumber x
+                    {Id = compId; Port = InputPortNumber num}, nlc
+                )
+
+        List.append inputs outputs
+
+
+    let newMap =
+        netList
+        |> Map.toList
+        |> List.collect (makeNewThing)
+        |> Map.ofList
+
+    Map.map (fun id (comp: NetListComponent) ->
+        printf "%A \t %A\n" comp.Label comp.Type
+        match comp.Type with
+        | Constant1 _ ->
+            printf "constant type"
+            printf "%A" comp.Inputs
+            printf "%A" comp.Outputs
+        | Output x ->
+            printf "output type"
+            printf "%A" comp.Inputs
+            printf "%A" comp.Outputs
+        | _ -> ()
+    ) newMap
+    |> ignore
+
+    newMap
+    |> Map.map (makeWave fastSim netList)
+
+
+    // failwithf "getwavesnew not implemented"
+
+    // netList
+    // |> Map.map (makeWave fastSim)
 
 // type Wave = {
 //     // unique within one simulation run, mostly conserved across runs
@@ -499,7 +732,7 @@ let displayValuesOnWave (startCycle: int) (endCycle: int) (waveValues: WireData 
 let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
     let waveName = wave.DisplayName
     if List.contains index wsModel.SelectedWaves then
-        printf "generating wave for %A" waveName
+        // printf "generating wave for %A" waveName
         let polylines =
             match wave.Width with
             | 0 -> failwithf "Cannot have wave of width 0"
@@ -943,10 +1176,13 @@ let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
         let allWaves =
             getWavesNew simData reducedState
             |> Map.map (generateWaveform wsModel)
+
+        let selectedWaves = List.filter (fun key -> Map.containsKey key allWaves) wsModel.SelectedWaves
         let wsModel = {
             wsModel with
                 State = WSOpen
                 AllWaves = allWaves
+                SelectedWaves = selectedWaves
                 OutOfDate = false
                 ReducedState = reducedState
         }

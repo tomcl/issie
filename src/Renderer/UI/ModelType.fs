@@ -156,6 +156,10 @@ type WaveSimState =
     | WSClosed
     | WSOpen
 
+type PortNumber = 
+    | OutputPortNumber of OutputPortNumber
+    | InputPortNumber of InputPortNumber
+
 type DriverT = {
     DriverId: FComponentId
     Port: OutputPortNumber
@@ -163,7 +167,7 @@ type DriverT = {
 
 type WaveIndexT = {
     Id: ComponentId
-    OutputPort: OutputPortNumber
+    Port: PortNumber
 }
 
 type Wave = {

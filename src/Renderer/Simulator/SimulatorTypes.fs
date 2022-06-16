@@ -724,6 +724,25 @@ let getFastDriver (fs: FastSimulation) (driverComp: NetListComponent) (driverPor
     | _ -> 
         (driverComp.Id,[]),driverPort
 
+
+let getFastDriverNew (fs: FastSimulation) (driverComp: Component) (driverPort: OutputPortNumber) =
+    match driverComp.Type with
+    | Custom _ ->
+        let customFId: FComponentId = ComponentId driverComp.Id, []
+        let customOutput =
+            Map.tryFind (customFId, driverPort) fs.FCustomOutputCompLookup
+            |> function
+            | Some x -> x
+            | None -> failwithf "Cannot find custom component %A in fast simulation" (customFId, driverPort)
+#if ASSERTS
+        Helpers.assertThat (Map.containsKey customOutput fs.FComps)
+            (sprintf "Help: can't find custom component output in fast Simulation")
+#endif
+        customOutput, OutputPortNumber 0
+        
+    | _ -> 
+        (ComponentId driverComp.Id, []), driverPort
+
 let getWaveformSpecFromNetGroup 
         (fs: FastSimulation)
         (connMap: Map<ConnectionId,ConnectionId array>)

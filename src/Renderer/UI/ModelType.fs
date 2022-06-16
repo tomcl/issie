@@ -172,7 +172,8 @@ type WaveIndexT = {
 
 type Wave = {
     WaveId: WaveIndexT
-
+    Type: ComponentType
+    CompLabel: string
     // unique within one simulation run, mostly conserved across runs
     // WaveId: string
     // unique within design sheet (SheetId)

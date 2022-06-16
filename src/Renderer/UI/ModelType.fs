@@ -162,11 +162,13 @@ type DriverT = {
 }
 
 type WaveIndexT = {
-    Name: string
-    Type: ComponentType
+    Id: ComponentId
+    OutputPort: OutputPortNumber
 }
 
 type Wave = {
+    WaveId: WaveIndexT
+
     // unique within one simulation run, mostly conserved across runs
     // WaveId: string
     // unique within design sheet (SheetId)
@@ -197,8 +199,8 @@ type Wave = {
 type WaveSimModel = {
     State: WaveSimState
     // List of all simulatable waves
-    AllWaves: Map<DriverT, Wave>
-    SelectedWaves: DriverT list
+    AllWaves: Map<WaveIndexT, Wave>
+    SelectedWaves: WaveIndexT list
     StartCycle: int
     ShownCycles: int
     OutOfDate: bool

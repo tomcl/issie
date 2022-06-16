@@ -646,13 +646,14 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         | Data {Dat=(Word num);Width=w}, Alg exp ->
             let minusOne = (2.0**w)-1.0 |> uint32
             if num = minusOne then
-                put0 <| Alg (UnaryExp(NotOp,exp))
+                put0 <| 
+                    Alg (BinaryExp(UnaryExp(NegOp,exp),SubOp,DataLiteral {Dat = Word 1u; Width=w}))
             else 
                 let numExp = (packBit num).toExp
-                put0 <| Alg (BinaryExp(exp,BitXorOp,numExp))
+                put0 <| Alg (BinaryExp(exp,AddOp,numExp))
         | A, B ->
             let aExp, bExp = A.toExp, B.toExp
-            put0 <| Alg (BinaryExp(aExp,BitXorOp,bExp))
+            put0 <| Alg (BinaryExp(aExp,AddOp,bExp))
     | Decode4 ->
         //let select, data = ins 0, ins 1
         match ins 0, ins 1 with

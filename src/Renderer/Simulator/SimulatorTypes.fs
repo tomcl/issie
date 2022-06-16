@@ -456,16 +456,9 @@ let rec evalExp exp =
         | exp, DataLiteral {Dat= Word 1u;Width=_}
         | DataLiteral {Dat= Word 1u;Width=_}, exp ->
             UnaryExp (NotOp,exp)
-        | l,r -> BinaryExp (l,BitXorOp,r)
+        | l,r -> reduceArithmetic (BinaryExp (l,AddOp,r))
     | BinaryExp (_,AddOp,_) | BinaryExp (_,SubOp,_) ->
         reduceArithmetic exp
-
-    // | BinaryExp (exp1, op, exp2) ->
-    //     let left = evalExp exp1
-    //     let right = evalExp exp2
-    //     let reduced = 
-    //         reduceArithmetic exp
-    //     BinaryExp (left, op, right)
     | ComparisonExp (exp, Equals, x) ->
         let evaluated = evalExp exp
         ComparisonExp (evaluated, Equals, x)
@@ -515,17 +508,15 @@ and reduceArithmetic expression =
 
     let numDataExp =
         numVal %  (int (2.**width))
-        |> uint32
-        |> fun v -> DataLiteral {Dat = Word v; Width = width}
+        |> fun n ->
+            if n > 0 then
+                DataLiteral {Dat = Word (uint32 n); Width = width}
+            else
+                UnaryExp(NegOp,DataLiteral {Dat = Word (uint32 <| abs n); Width = width})
 
     let expressionsToAssemble =
         expCounts
         |> Map.toList
-        // |> fun l ->
-        //     let formatted = l |> List.map (fun (e,c) -> expToString e,c)
-        //     printfn "Counts: %A" formatted
-        //     l
-            
         |> List.collect (fun (exp,count) ->
             if count = 0 then
                 []

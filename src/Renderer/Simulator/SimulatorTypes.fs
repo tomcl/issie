@@ -725,10 +725,10 @@ let getFastDriver (fs: FastSimulation) (driverComp: NetListComponent) (driverPor
         (driverComp.Id,[]),driverPort
 
 
-let getFastDriverNew (fs: FastSimulation) (driverComp: Component) (driverPort: OutputPortNumber) =
+let getFastDriverNew (fs: FastSimulation) (driverComp: NetListComponent) (driverPort: OutputPortNumber) =
     match driverComp.Type with
     | Custom _ ->
-        let customFId: FComponentId = ComponentId driverComp.Id, []
+        let customFId: FComponentId = driverComp.Id, []
         let customOutput =
             Map.tryFind (customFId, driverPort) fs.FCustomOutputCompLookup
             |> function
@@ -741,7 +741,7 @@ let getFastDriverNew (fs: FastSimulation) (driverComp: Component) (driverPort: O
         customOutput, OutputPortNumber 0
         
     | _ -> 
-        (ComponentId driverComp.Id, []), driverPort
+        (driverComp.Id, []), driverPort
 
 let getWaveformSpecFromNetGroup 
         (fs: FastSimulation)

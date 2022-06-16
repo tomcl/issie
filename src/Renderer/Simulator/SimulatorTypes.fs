@@ -255,6 +255,29 @@ let rec getAlgExpWidth (exp: FastAlgExp) =
 //         (flattenNestedAppends left) @ (flattenNestedAppends right)
 //     | _ -> [exp]
 
+let rec flattenNestedArithmetic exp =
+    /// Multiplies an expression by -1: Positive <-> Negative
+    let multiplyByMinusOne exp =
+        match exp with
+        | UnaryExp (NegOp,e) -> e
+        | e -> UnaryExp (NegOp,e)
+    match exp with
+    | BinaryExp (left,AddOp,right) ->
+        (flattenNestedArithmetic left) @ (flattenNestedArithmetic right)
+    | BinaryExp (left,SubOp,right) ->
+        let rhs = 
+            flattenNestedArithmetic right
+            |> List.map multiplyByMinusOne
+        (flattenNestedArithmetic left) @ rhs
+    | _ -> [exp]
+
+let rec assembleArithmetic stateExp currentExp =
+    match currentExp with
+    | UnaryExp (NegOp,e) ->
+        BinaryExp (stateExp,SubOp,e)
+    | _ ->
+        BinaryExp (stateExp,AddOp,currentExp)
+
 let tryBitwiseOperation (expressions: FastAlgExp list) =
     match expressions with
     | [] -> failwithf "what? Expressions List should never be empty"
@@ -434,10 +457,15 @@ let rec evalExp exp =
         | DataLiteral {Dat= Word 1u;Width=_}, exp ->
             UnaryExp (NotOp,exp)
         | l,r -> BinaryExp (l,BitXorOp,r)
-    | BinaryExp (exp1, op, exp2) ->
-        let left = evalExp exp1
-        let right = evalExp exp2
-        BinaryExp (left, op, right)
+    | BinaryExp (_,AddOp,_) | BinaryExp (_,SubOp,_) ->
+        reduceArithmetic exp
+
+    // | BinaryExp (exp1, op, exp2) ->
+    //     let left = evalExp exp1
+    //     let right = evalExp exp2
+    //     let reduced = 
+    //         reduceArithmetic exp
+    //     BinaryExp (left, op, right)
     | ComparisonExp (exp, Equals, x) ->
         let evaluated = evalExp exp
         ComparisonExp (evaluated, Equals, x)
@@ -451,6 +479,83 @@ let rec evalExp exp =
                 evaluated
                 |> foldAppends
                 |> AppendExp
+
+and reduceArithmetic expression =
+    let increment x = x + 1
+    let decrement x = x - 1
+
+    let updateExpCount exp (trackMap: Map<FastAlgExp,int>) action =
+        match Map.tryFind exp trackMap with
+        | Some count ->
+            let newCount = action count
+            Map.add exp newCount trackMap
+        | None ->
+            let newCount = action 0
+            Map.add exp newCount trackMap
+
+    let width = getAlgExpWidth expression
+    let flatLst = 
+        flattenNestedArithmetic expression
+        |> List.map evalExp
+
+    let numVal, expCounts =
+        ((0,Map.empty<FastAlgExp,int>),flatLst)
+        ||> List.fold (fun (numTrack,expTrack) expr ->
+            match expr with
+            | DataLiteral {Dat = Word w; Width = _} ->
+                (numTrack + (int w)) , expTrack
+            | UnaryExp (NegOp, DataLiteral {Dat = Word w; Width = _}) ->
+                (numTrack - (int w)) , expTrack
+            | UnaryExp (NegOp,e) ->
+                let newExpTrack = updateExpCount e expTrack decrement
+                numTrack, newExpTrack
+            | _ ->
+                let newExpTrack = updateExpCount expr expTrack increment
+                numTrack, newExpTrack)
+
+    let numDataExp =
+        numVal %  (int (2.**width))
+        |> uint32
+        |> fun v -> DataLiteral {Dat = Word v; Width = width}
+
+    let expressionsToAssemble =
+        expCounts
+        |> Map.toList
+        // |> fun l ->
+        //     let formatted = l |> List.map (fun (e,c) -> expToString e,c)
+        //     printfn "Counts: %A" formatted
+        //     l
+            
+        |> List.collect (fun (exp,count) ->
+            if count = 0 then
+                []
+            else if count > 0 then
+                [for i in 1..count -> exp]
+            else
+                [for i in 1..(abs count) -> UnaryExp (NegOp,exp)])
+        |> fun l -> 
+            if numVal = 0 then
+                l
+            else
+                l @ [numDataExp]
+    printfn "To Assemble: %A" (List.map expToString expressionsToAssemble)
+
+    match expressionsToAssemble with
+    | [] -> 
+        DataLiteral {Dat = Word 0u; Width = width}
+    | [exp] ->
+        exp
+    | [UnaryExp(NegOp,expN);exp] | [exp;UnaryExp(NegOp,expN)] ->
+        BinaryExp (exp,SubOp,expN)
+    | [exp1;exp2] ->
+        BinaryExp (exp1,AddOp,exp2)
+    | UnaryExp(NegOp,expN)::exp::tl | exp::UnaryExp(NegOp,expN)::tl ->
+        (BinaryExp(exp,SubOp,expN),tl)
+        ||> List.fold assembleArithmetic
+    | exp1::exp2::tl ->
+        (BinaryExp (exp1,AddOp,exp2),tl)
+        ||> List.fold assembleArithmetic
+
 /// Raised when an Algebraic case is found in FastSim which has not been implemented,
 /// or does not make sense to implement.
 exception AlgebraNotImplemented of SimulationError

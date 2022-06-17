@@ -32,6 +32,10 @@ type Transition =
     | BinaryTransition of BinaryTransition
     | NonBinaryTransition of NonBinaryTransition
 
+type SelectionMenu = 
+    | WireLabels
+    | Components of string
+
 module Constants = 
     let nonBinaryTransLen : float = 0.2
 
@@ -211,3 +215,13 @@ let waveNames (wsModel: WaveSimModel) : string list =
     Map.values wsModel.AllWaves
     |> Seq.toList
     |> List.map (fun wave -> wave.DisplayName)
+
+/// get integer from OutputPortNumber
+let getInputPortNumber (ipn: InputPortNumber) : int =
+    match ipn with
+    | CommonTypes.InputPortNumber pn -> pn
+
+/// get integer from OutputPortNumber
+let getOutputPortNumber (opn: OutputPortNumber) : int =
+    match opn with
+    | CommonTypes.OutputPortNumber pn -> pn

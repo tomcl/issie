@@ -336,8 +336,9 @@ let update (msg : Msg) oldModel =
         {model with ExitDialog = status}, Cmd.none*)
     | Sheet sMsg ->
         match sMsg, model.PopupViewFunc with
-        | SheetT.ToggleNet canvas, _ -> 
-            model, Cmd.ofMsg (Sheet (SheetT.SelectWires (WaveSim.getNetSelection canvas model)))
+        | SheetT.ToggleNet canvas, _ ->
+            model, Cmd.none
+            // model, Cmd.ofMsg (Sheet (SheetT.SelectWires (WaveSim.getNetSelection canvas model)))
         | SheetT.KeyPress _, Some _ -> 
             // do not allow keys to affect Sheet when popup is on.
             model, Cmd.none
@@ -558,7 +559,7 @@ let update (msg : Msg) oldModel =
         let cmd = if b then Cmd.none else Cmd.ofMsg (Sheet (SheetT.SetSpinner false)) //Turn off spinner after project/sheet is loaded
         {model with IsLoading = b}, cmd
     | InitiateWaveSimulation wsModel ->
-        printf "initiate wave sim"
+        // printf "initiate wave sim"
 
         let allWaves = Map.map (WaveSim.generateWaveform wsModel) wsModel.AllWaves
         let wsModel' = {wsModel with AllWaves = allWaves}

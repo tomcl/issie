@@ -78,7 +78,19 @@ let checkboxInputProps : IHTMLProp list = [
     checkboxStyle
 ]
 
-let boldFontStyle = Style [ FontWeight "bold" ]
+let boldFontStyle = Style [
+    FontWeight "bold"
+    FontSize "14px"
+]
+
+let normalFontStyle = Style [
+    FontWeight "normal"
+    FontSize "14px"
+]
+
+let noBorderStyle = Style [
+    BorderWidth 0
+]
 
 let selectWavesStyle = Style [
     Position PositionOptions.Relative
@@ -381,4 +393,16 @@ let wavePolylineStyle points : IProp list = [
     SVGAttr.Fill "none"
     SVGAttr.StrokeWidth Constants.lineThickness
     Points (pointsToString points)
+]
+
+let summaryProps : IHTMLProp list = [
+    Style [
+        FontSize "20px"
+        FontWeight "bold"
+    ]
+]
+
+/// TODO: Change Open to true
+let detailsProps : IHTMLProp list = [
+    Open false
 ]

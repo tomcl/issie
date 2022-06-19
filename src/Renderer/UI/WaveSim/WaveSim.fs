@@ -6,7 +6,6 @@ open Fable.React.Props
 
 open CommonTypes
 open ModelType
-open DiagramStyle
 open WaveSimStyle
 open WaveSimHelpers
 open FileMenuView
@@ -17,6 +16,46 @@ open Sheet.SheetInterface
 
 // TODO: Move all Style definitions into Style.fs
 // TODO: Combine Style definitions into same variables where possible
+
+/// Called when InitiateWaveSimulation msg is dispatched
+/// Generates the polyline(s) for a specific waveform
+let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
+    if List.contains index wsModel.SelectedWaves then
+        // let waveName = wave.DisplayName
+        // printf "generating wave for %A" waveName
+        let polylines =
+            match wave.Width with
+            | 0 -> failwithf "Cannot have wave of width 0"
+            | 1 ->
+                let transitions = calculateBinaryTransitions wave.WaveValues
+                /// TODO: Fix this so that it does not generate all 500 points.
+                /// Currently takes in 0, but this should ideally only generate the points that
+                /// are shown on screen, rather than all 500 cycles.
+                let wavePoints =
+                    List.mapi (binaryWavePoints wsModel.ZoomLevel 0) transitions 
+                    |> List.concat
+                    |> List.distinct
+
+                [ polyline (wavePolylineStyle wavePoints) [] ]
+            | _ ->
+                let transitions = calculateNonBinaryTransitions wave.WaveValues
+                /// TODO: Fix this so that it does not generate all 500 points.
+                /// Currently takes in 0, but this should ideally only generate the points that
+                /// are shown on screen, rather than all 500 cycles.
+                let fstPoints, sndPoints =
+                    List.mapi (nonBinaryWavePoints wsModel.ZoomLevel 0) transitions 
+                    |> List.unzip
+                let makePolyline points = 
+                    let points =
+                        points
+                        |> List.concat
+                        |> List.distinct
+                    polyline (wavePolylineStyle points) []
+
+                [makePolyline fstPoints; makePolyline sndPoints]
+
+        {wave with Polylines = Some polylines}
+    else wave
 
 /// get string in the [x:x] format given the bit limits
 let private bitLimsString (a, b) =
@@ -177,7 +216,7 @@ let getOutputName (comp: NetListComponent) (port: OutputPortNumber) (fastSim: Fa
 
     comp.Label + portName + bitLims
 
-let getName (comp: NetListComponent) (index: WaveIndexT) (fastSim: FastSimulation): string =
+let getName (comp: NetListComponent) (index: WaveIndexT) (fastSim: FastSimulation) : string =
     match index.PortType with
     | PortType.Input -> getInputName comp (InputPortNumber index.PortNumber)
     | PortType.Output -> getOutputName comp (OutputPortNumber index.PortNumber) fastSim
@@ -204,7 +243,6 @@ let makeWave (fastSim: FastSimulation) (netList: Map<ComponentId, NetListCompone
         WaveId = index
         Type = comp.Type
         CompLabel = comp.Label
-        Conns = []
         SheetId = []
         Driver = {DriverId = driverId; Port = driverPort}
         DisplayName = getName comp index fastSim
@@ -213,7 +251,7 @@ let makeWave (fastSim: FastSimulation) (netList: Map<ComponentId, NetListCompone
         Polylines = None
     }
 
-let getWavesNew (simData: SimulationData) (reducedState: CanvasState) : Map<WaveIndexT, Wave> =
+let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<WaveIndexT, Wave> =
     let fastSim = simData.FastSim
     let netList = Helpers.getNetList reducedState
 
@@ -255,87 +293,6 @@ let displayValuesOnWave (startCycle: int) (endCycle: int) (waveValues: WireData 
     // values can be displayed repeatedly if there is enough space
     // try to centre the displayed values?
     failwithf "displayValuesOnWave not implemented"
-
-/// Called when InitiateWaveSimulation msg is dispatched
-/// Generates the polyline(s) for a specific waveform
-let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
-    if List.contains index wsModel.SelectedWaves then
-        // let waveName = wave.DisplayName
-        // printf "generating wave for %A" waveName
-        let polylines =
-            match wave.Width with
-            | 0 -> failwithf "Cannot have wave of width 0"
-            | 1 ->
-                let transitions = calculateBinaryTransitions wave.WaveValues
-                /// TODO: Fix this so that it does not generate all 500 points.
-                /// Currently takes in 0, but this should ideally only generate the points that
-                /// are shown on screen, rather than all 500 cycles.
-                let wavePoints =
-                    List.mapi (binaryWavePoints wsModel.ZoomLevel 0) transitions 
-                    |> List.concat
-                    |> List.distinct
-
-                [ polyline (wavePolylineStyle wavePoints) [] ]
-            | _ ->
-                let transitions = calculateNonBinaryTransitions wave.WaveValues
-                /// TODO: Fix this so that it does not generate all 500 points.
-                /// Currently takes in 0, but this should ideally only generate the points that
-                /// are shown on screen, rather than all 500 cycles.
-                let fstPoints, sndPoints =
-                    List.mapi (nonBinaryWavePoints wsModel.ZoomLevel 0) transitions 
-                    |> List.unzip
-                let makePolyline points = 
-                    let points =
-                        points
-                        |> List.concat
-                        |> List.distinct
-                    polyline (wavePolylineStyle points) []
-
-                [makePolyline fstPoints; makePolyline sndPoints]
-
-        {wave with Polylines = Some polylines}
-    else wave
-
-/// TODO: Test if this function actually works.
-/// Displays error message if there is a simulation error
-let displayErrorMessage error =
-    div [ errorMessageStyle ]
-        [ SimulationView.viewSimulationError error ]
-
-/// Sets all waves as selected or not selected depending on value of newState
-let toggleSelectAll (selected: bool) (wsModel: WaveSimModel) dispatch : unit =
-    let selectedWaves = if selected then Map.keys wsModel.AllWaves |> Seq.toList else []
-    dispatch <| InitiateWaveSimulation {wsModel with SelectedWaves = selectedWaves}
-    // selectConns model conns dispatch
-
-let selectAll (wsModel: WaveSimModel) dispatch =
-    let allWavesSelected = Map.forall (fun index _ -> isWaveSelected wsModel index) wsModel.AllWaves
-
-    tr summaryProps
-        [
-            th [] [
-            Checkbox.checkbox []
-                [ Checkbox.input [
-                    Props 
-                        (checkboxInputProps @ [
-                            Checked allWavesSelected
-                            OnChange(fun _ -> toggleSelectAll (not allWavesSelected) wsModel dispatch )
-                    ])
-                ] ]
-            ]
-            th [] [str "Select All"]
-        ]
-        
-
-let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: Msg -> unit) =
-    let selectedWaves =
-        if List.contains index wsModel.SelectedWaves then
-            List.except [index] wsModel.SelectedWaves
-        else [index] @ wsModel.SelectedWaves
-
-    let wsModel = {wsModel with SelectedWaves = selectedWaves}
-    dispatch <| InitiateWaveSimulation wsModel
-    // changeWaveSelection name model waveSimModel dispatch
 
 /// TODO: Change name to editWaves
 let closeWaveSimButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
@@ -595,7 +552,7 @@ let waveformColumn (wsModel: WaveSimModel) : ReactElement =
             clkCycleHighlightSVG wsModel (List.length wsModel.SelectedWaves)
             div [ waveRowsStyle wsModel.WaveformColumnWidth]
                 ([ clkCycleNumberRow wsModel ] @
-                waveRows
+                    waveRows
                 )
         ]
 
@@ -619,7 +576,7 @@ let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
         let wsSheet = Option.get (getCurrFile model)
         let wsModel = getWSModel model
         let allWaves =
-            getWavesNew simData reducedState
+            getWaves simData reducedState
             |> Map.map (generateWaveform wsModel)
 
         let selectedWaves = List.filter (fun key -> Map.containsKey key allWaves) wsModel.SelectedWaves
@@ -628,32 +585,64 @@ let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
                 State = WSOpen
                 AllWaves = allWaves
                 SelectedWaves = selectedWaves
-                OutOfDate = false
-                ReducedState = reducedState
         }
 
         dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
 
     div [ waveSelectionPaneStyle ]
         [
-            Heading.h4 [] [ str "Waveform Simulator" ] 
-            str "Some instructions here"
+            Heading.h4 [] [ str "Waveform Simulator" ]
+            str "Simulate sequential logic using this tab."
 
             hr []
 
             match SimulationView.makeSimData model with
-                | None ->
+            | None ->
+                div [ errorMessageStyle ]
+                    [ str "Please open a project to use the waveform simulator." ]
+            | Some (Error e, _) ->
+                div [ errorMessageStyle ]
+                    [ SimulationView.viewSimulationError e ]
+            | Some (Ok simData, reducedState) ->
+                if simData.IsSynchronous then
+                    button startButtonOptions (startButtonAction simData reducedState) (str "Start Waveform Simulator")
+                else
                     div [ errorMessageStyle ]
-                        [ str "Please open a project to use the waveform simulator." ]
-                | Some (Error e, _) ->
-                    displayErrorMessage e
-                | Some (Ok simData, reducedState) ->
-                    if simData.IsSynchronous then
-                        button startButtonOptions (startButtonAction simData reducedState) (str "Start Waveform Simulator")
-                    else
-                        div [ errorMessageStyle ]
-                            [ str "There is no sequential logic in this circuit." ]
+                        [ str "The circuit must contain sequential logic (clocked components) in order to use the waveform simulator." ]
         ]
+
+/// Sets all waves as selected or not selected depending on value of newState
+let toggleSelectAll (selected: bool) (wsModel: WaveSimModel) dispatch : unit =
+    let selectedWaves = if selected then Map.keys wsModel.AllWaves |> Seq.toList else []
+    dispatch <| InitiateWaveSimulation {wsModel with SelectedWaves = selectedWaves}
+    // selectConns model conns dispatch
+
+let selectAll (wsModel: WaveSimModel) dispatch =
+    let allWavesSelected = Map.forall (fun index _ -> isWaveSelected wsModel index) wsModel.AllWaves
+
+    tr summaryProps [
+        th [] [
+            Checkbox.checkbox []
+                [ Checkbox.input [
+                    Props 
+                        (checkboxInputProps @ [
+                            Checked allWavesSelected
+                            OnChange(fun _ -> toggleSelectAll (not allWavesSelected) wsModel dispatch )
+                    ])
+                ] ]
+            ]
+        th [] [str "Select All"]
+    ]
+
+let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: Msg -> unit) =
+    let selectedWaves =
+        if List.contains index wsModel.SelectedWaves then
+            List.except [index] wsModel.SelectedWaves
+        else [index] @ wsModel.SelectedWaves
+
+    let wsModel = {wsModel with SelectedWaves = selectedWaves}
+    dispatch <| InitiateWaveSimulation wsModel
+    // changeWaveSelection name model waveSimModel dispatch
 
 let toggleSelectSubGroup (wsModel: WaveSimModel) dispatch (selected: bool) (waves: Map<WaveIndexT, Wave>) =
     let toggledWaves = Map.keys waves |> Seq.toList
@@ -727,7 +716,7 @@ let componentRows wsModel dispatch ((compName, waves): string * Wave list) : Rea
         |> List.map (fun (wave: Wave) -> wave.WaveId)
     labelRows (Components compName) waveLabels wsModel dispatch
 
-let selectWavesMenu (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+let selectWaves (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     let wireLabelWaves, compWaves = Map.partition (fun _ (wave: Wave) -> wave.Type = IOLabel) wsModel.AllWaves
     let wireLabels =
         wireLabelWaves
@@ -769,15 +758,15 @@ let wsOpenPane (wsModel: WaveSimModel) dispatch : ReactElement =
 
             hr []
 
-            selectWavesMenu wsModel dispatch
+            selectWaves wsModel dispatch
 
             hr []
         ]
 
 /// Entry point to the waveform simulator. This function returns a ReactElement showing
-/// either the Wave Selection Pane or the Wave Viewer Pane. The Wave Selection Pane
-/// allows the user to select which waveforms they would like to view, and the Wave
-/// Viewer Pane displays these selected waveforms, along with their names and values.
+/// either the WSClosed Pane or the WSOpen pane. The WSClosed Pane allows the user to
+/// start the waveform simulator, or shows an error if there is an error in the circuit.
+/// The WSOpenPane allows the user to view and select waveforms to be simulated.
 let viewWaveSim (model: Model) dispatch : ReactElement =
     let wsModel = getWSModel model
     match wsModel.State with
@@ -785,4 +774,3 @@ let viewWaveSim (model: Model) dispatch : ReactElement =
         wsClosedPane model dispatch
     | WSOpen ->
         wsOpenPane wsModel dispatch
-

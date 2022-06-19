@@ -600,19 +600,8 @@ module CommonTypes
     /// Good for Wavesim calculations.
     type NetList = Map<ComponentId,NetListComponent>
 
-
     (*-----------------------------------------------------------------------------*)
     // Types used within waveform Simulation code, and for saved wavesim configuartion
-
-    /// Identifies a fully connected net
-    /// This ties together labelled nets.
-    /// should it include the display name(s)? this can be calculated
-    type NetGroup = { 
-        DriverComp: NetListComponent
-        DriverPort: OutputPortNumber
-        DriverNet: NLTarget list
-        ConnectedNets: NLTarget list array
-    }
 
     type WaveIndexT = {
         Id: ComponentId
@@ -633,7 +622,6 @@ module CommonTypes
 
         ClkWidth: float option
         Cursor: uint32 option
-        // Radix: NumberBase
         LastClk: uint32 option
         DisplayedPortIds: string array option
     }
@@ -690,8 +678,6 @@ module CommonTypes
             true
         | _ -> false
 
-
-
     /// Type for an open project which represents a complete design.
     /// ProjectPath is directory containing project files.
     /// OpenFileName is name of file from which current schematic sheet is loaded/saved, without extension or path
@@ -704,24 +690,6 @@ module CommonTypes
         /// componnets have one-one correspondence with files
         LoadedComponents : LoadedComponent list
         }
-
-    (*-----------------------------------------------------------------------------*)
-    // Types used for naming of waveforms in the Waveform Simulator
-
-    /// Identifies the name of a single driving component of a waveform
-    type LabelSegment = { 
-        LabName : string
-        BitLimits : int*int 
-    }
-
-    /// The names of the driving components and the named labels of a waveform
-    type WaveLabel = {
-        /// Names of Output and IOLabel components connected to the waveform's net
-        OutputsAndIOLabels : string list
-        /// Names of the driving components
-        ComposingLabels : LabelSegment list 
-    }
-
 
     /// Value set to None if the connection width could not be inferred.
     type ConnectionsWidth = Map<ConnectionId, int option>

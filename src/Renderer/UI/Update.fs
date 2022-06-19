@@ -14,7 +14,6 @@ open Extractor
 open CatalogueView
 open PopupView
 open FileMenuView
-// open WaveSimHelpers
 open Sheet.SheetInterface
 open DrawModelType
 open Fable.SimpleJson
@@ -277,34 +276,23 @@ let sheetMsg sMsg model =
 /// Main MVU model update function
 let update (msg : Msg) oldModel =
     let startUpdate = TimeHelpers.getTimeMs()
-    // number of top-level components in graph
-    // mostly, we only operate on top-level components
-    let getGraphSize g =
-        g
-        |> Option.map (fun sd -> sd.Graph |> Map.toList |> List.length)
-        |> Option.defaultValue -1
-   
-    // let sdlen = 
-    //     getCurrentWSMod oldModel 
-    //     |> Option.bind (fun ws -> ws.InitWaveSimGraph) 
-    //     |> getGraphSize
-    
+
     //Add the message to the pending queue if it is a mouse drag message
-    let model = 
-        if matchMouseMsg (fun mMsg -> mMsg.Op = DrawHelpers.Drag) msg then 
+    let model =
+        if matchMouseMsg (fun mMsg -> mMsg.Op = DrawHelpers.Drag) msg then
             {oldModel with Pending = msg :: oldModel.Pending}
-        else 
+        else
             oldModel
     
     //Check if the current message is stored as pending, if so execute all pending messages currently in the queue
-    let testMsg, cmd = 
-        List.tryFind (fun x -> isSameMsg x msg) model.Pending 
+    let testMsg, cmd =
+        List.tryFind (fun x -> isSameMsg x msg) model.Pending
         |> function
-        | Some _ -> 
+        | Some _ ->
             //Add any message recieved to the pending message queue
             DoNothing, Cmd.ofMsg (ExecutePendingMessages (List.length model.Pending))
         | None ->
-            msg, Cmd.none   
+            msg, Cmd.none
 
     // main message dispatch match expression
     match testMsg with
@@ -336,27 +324,17 @@ let update (msg : Msg) oldModel =
         match sMsg, model.PopupViewFunc with
         | SheetT.ToggleNet canvas, _ ->
             model, Cmd.none
-            // model, Cmd.ofMsg (Sheet (SheetT.SelectWires (WaveSim.getNetSelection canvas model)))
         | SheetT.KeyPress _, Some _ -> 
             // do not allow keys to affect Sheet when popup is on.
             model, Cmd.none
         | _ -> sheetMsg sMsg model
     // special mesages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none
-    | SetViewerWidth w -> 
-        printf "orig: %A" model.WaveSimViewerWidth
-        printf "w: %A" w
-        // printf "Set WaveSimViewerWidth: %A" w
+    | SetViewerWidth w ->
         {model with WaveSimViewerWidth = w}, Cmd.none
     | ReloadSelectedComponent width -> {model with LastUsedDialogWidth=width}, Cmd.none
     | StartSimulation simData -> 
-        { model with CurrentStepSimulationStep = Some simData }, 
-        Cmd.batch [
-            Cmd.ofMsg (Sheet (SheetT.SetWaveSimMode false)); 
-            // hack to make sure wavesim highlighting is reset - but step simulation error highlighting is not.
-            // the state here clearly needs refactoring
-            if model.Sheet.IsWaveSim then Cmd.ofMsg (Sheet(SheetT.ResetSelection)) else Cmd.none
-            ] //Close wavesim
+        { model with CurrentStepSimulationStep = Some simData }, Cmd.none
     | SetWSModel wsModel -> 
         printf "SetWSModel"
         setWSModel wsModel model, Cmd.none
@@ -398,7 +376,6 @@ let update (msg : Msg) oldModel =
         | Catalogue -> Cmd.batch  <| editCmds
         | Simulation -> Cmd.batch <| editCmds
         //| TruthTable -> Cmd.batch <| editCmds
-        //| WaveSim -> Cmd.ofMsg (Sheet (Sheet.SetWaveSimMode true))
     | ChangeSimSubTab subTab ->
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
@@ -415,12 +392,12 @@ let update (msg : Msg) oldModel =
         {model with Sheet = wModel}, Cmd.map Sheet wCmd
     | SetClipboard components -> { model with Clipboard = components }, Cmd.none
     | SetCreateComponent pos -> { model with LastCreatedComponent = Some pos }, Cmd.none
-    | SetProject project -> 
-        { model with 
+    | SetProject project ->
+        { model with
             CurrentProj = Some project
             PopupDialogData = {model.PopupDialogData with ProjectPath = project.ProjectPath}
         }, Cmd.none
-    | UpdateProject update -> 
+    | UpdateProject update ->
         CustomCompPorts.updateProjectFiles true update model, Cmd.none
     | UpdateProjectWithoutSyncing update -> 
         CustomCompPorts.updateProjectFiles false update model,Cmd.none
@@ -430,27 +407,22 @@ let update (msg : Msg) oldModel =
         PopupView.closablePopup title body foot [Width 800] dispatch
         model, Cmd.none
     | ClosePopup ->
-        let model' = model
-            // match getSheetWaveSimOpt model, model.PopupDialogData.WaveSetup with
-            // | Some wsMod, Some(sheetWaves, paths) -> 
-            //     setWSModel (setSimParams (fun sp -> {sp with MoreWaves = Set.toList paths}) wsMod) model
-            // | _ -> model
-        { model' with 
+        { model with
             PopupViewFunc = None;
             PopupDialogData =
                     { model.PopupDialogData with
-                        Text = None; 
-                        Int = None; 
-                        Int2 = None; 
-                        MemorySetup = None; 
-                        MemoryEditorData = None; 
+                        Text = None;
+                        Int = None;
+                        Int2 = None;
+                        MemorySetup = None;
+                        MemoryEditorData = None;
                     }}, Cmd.none
     | SetPopupDialogText text ->
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
     | SetPopupDialogInt int ->
         { model with PopupDialogData = {model.PopupDialogData with Int = int} }, Cmd.none
     | SetPopupDialogTwoInts data ->
-        { model with PopupDialogData = 
+        { model with PopupDialogData =
                         match data with
                         | n, FirstInt,_ ->  {model.PopupDialogData with Int  = Option.map int32 n}
                         | n, SecondInt, optText -> {model.PopupDialogData with Int2 = n}
@@ -528,10 +500,6 @@ let update (msg : Msg) oldModel =
         
     | DiagramMouseEvent -> model, Cmd.none
     | SelectionHasChanged -> 
-        // match currWaveSimModel model with
-        // | None | Some {WSViewState=WSClosed} -> model
-        // | Some _ ->
-            // { model with ConnsOfSelectedWavesAreHighlighted = true }
         { model with ConnsOfSelectedWavesAreHighlighted = true }
         |> (fun m -> m, Cmd.none)
     | SetIsLoading b ->

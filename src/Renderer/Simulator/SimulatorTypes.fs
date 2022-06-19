@@ -8,8 +8,6 @@ module rec SimulatorTypes
 open Fable.Core
 open CommonTypes
 
-
-
 /// Binary data used in simulation
 type Bit = Zero | One
 
@@ -18,7 +16,6 @@ type Bit = Zero | One
 /// The list is little-endian: the LSB is at index 0, and the MSB is at index N,
 /// where N is the length of the list.
 type WireData = Bit list
-
 
 /// State (possibly none) remembered by component
 /// from previous clock cycle. Combinational components
@@ -34,7 +31,6 @@ type SimulationComponentState =
 type IsClockTick =
     | No
     | Yes of SimulationComponentState // Pass the state only for clock ticks.
-
 
 /// Like Component but with additional dynamic info used by simulator
 /// Clocked components have state data.
@@ -110,7 +106,6 @@ and OutputChange = {
     COutputs: Map<OutputPortNumber, WireData>
     }
 
-
 /// For every IO node, keep track of its Id, Label and wire width.
 /// - Id: to feed values into the simulationGraph.
 /// - Label: to display a nice form to the user.
@@ -152,8 +147,6 @@ type JSConnection  = | JSConnection of obj
 /// State retrieves directly from Diagram has Javascript objects
 type JSCanvasState = JSComponent list * JSConnection list
 
-
-
 //----------------------------------------------------------------------------------------------//
 //--------------------------------Fast Digital Bus Data Type------------------------------------//
 //----------------------------------------------------------------------------------------------//
@@ -191,13 +184,9 @@ type FastData =
         | BigWord n when this.Width <= 32 -> uint32 n
         | _ -> failwithf $"Can't turn {this} into a uint32"
 
-
-
-
 //------------------------------------------------------------------------------//
 //-------------------EXPERIMENTAL - new data structure to replace WireData------//
 //------------------------------------------------------------------------------//
-
 
 type BitInt = uint32 array
 
@@ -211,7 +200,6 @@ let inline getUpperField (x:uint32) (width:int) (offset:int) : uint32 =
 /// get the lower 'width' bits, return then offset by 'offset' bits
 let inline getLowerField (x:uint32) (width:int) (offset:int) : uint32 =
     (x &&& ((1u <<< width) - 1u)) <<< offset
-
 
 let getBIBitsInt (bits:BitInt) (msb: int) (lsb:int) : uint32 =
     let width = msb - lsb + 1
@@ -314,19 +302,12 @@ let bigIntMask width =
 
 let bigIntBitMask pos =
     if pos <= 128 then bigIntBitMaskA[pos] else (bigint 1 <<< pos)   
-                
-    
 
 let fastBit (n: uint32) =
 #if ASSERTS
     Helpers.assertThat (n < 2u) (sprintf "Can't convert %d to a single bit FastData" n)
 #endif
     { Dat = Word n; Width = 1}
-
-
-
-
-
 
 let rec bitsToInt (lst: Bit list) =
     match lst with
@@ -383,9 +364,6 @@ let rec b2s (b:bigint) =
         b2s msws + hex
     else
         hex
-
-
-
 
 /// Extract bit field (msb:lsb) from f. Bits are numbered little-endian from 0.
 /// Note that for a single bit result the un-normalised version is used, so it will
@@ -461,15 +439,12 @@ type FastComponent = {
 
     } with
 
-    member inline this.GetInput (epoch)  (InputPortNumber n) = this.InputLinks[n].Step[epoch]
+    member inline this.GetInput (epoch) (InputPortNumber n) = this.InputLinks[n].Step[epoch]
     member this.ShortId =
         let (ComponentId sid,ap) = this.fId
         (EEExtensions.String.substringLength 0 5 sid)
     member inline this.PutOutput (epoch) (OutputPortNumber n) dat = this.Outputs[n].Step[epoch] <- dat
     member inline this.Id = this.SimComponent.Id
-    
-    
-      
 
 // The fast simulation components are similar to the issie components they are based on but with addition of arrays
 // for direct lookup of inputs and fast access of outputs. The input arrays contain pointers to the output arrays the
@@ -570,7 +545,6 @@ and  GatherData = {
     // List of component Input components that are driven externally to simulation
     } with
 
-
     member this.getFullName (cid,ap) = 
             List.map ( fun cid -> match Map.tryFind cid this.Labels with | Some lab -> lab | None -> "*" ) (ap @ [cid])
             |> String.concat "."
@@ -584,23 +558,6 @@ type WaveformType =
     //| IOLabelWaveform - not yet
     | NormalWaveform
 
-
-type WaveformSpec = {
-    // Added because previously there were things that were unique enough, but then they stopped being unique
-    // after Viewers were added.
-    // Need a key that is unique and stable for a simulation. Originally used DisplayName but then it stopped being good enough
-    // Not sure if they actually are unique...
-    WId: string // unique within one simulation run, mostly conserved across runs
-    WType: WaveformType
-    // Set of connections that make up that waveform (essentially a net)
-    Conns: ConnectionId array // unique within design sheet (SheetId)
-    SheetId: ComponentId list // [] for top-level waveform: path to sheet
-    // Precisely defines the port that is driving that particular waveform
-    Driver: FComponentId*OutputPortNumber
-    DisplayName:string
-    Width: int
-    }
-
 //-------------------------------------------------------------------------------------//
 //-------------------Helper functions for simulation types-----------------------------//
 //-------------------------------------------------------------------------------------//
@@ -613,7 +570,6 @@ let shortPSComp (comp:SimulationComponent) =
     match comp.Type with
     | Custom sc -> sprintf "%s:Custom.(%s.%A->%A)" lab sc.Name sc.InputLabels sc.OutputLabels
     | _ -> sprintf "%s:%A.{%A}" lab comp.Type comp.State
-
 
 let printSimGraph (sg: SimulationGraph) =
     printfn "%s" (String.concat "\n" (sg |> Map.toList |> List.map (fun (ComponentId id,comp) -> sprintSimComponent comp + id)))
@@ -644,88 +600,11 @@ let mapKeys (map:Map<'a,'b>) = Map.keys map |> Array.ofSeq
 let mapValues (map:Map<'a,'b>) = Map.values map |> Array.ofSeq
 let mapItems (map:Map<'a,'b>) = Map.toArray map
 
-let private allNComps (netList:NetList) =
-    netList |> mapValues
-
-type NGrp = {
-    Driven: string list; 
-    DriverLabel: string list
-    Driver: NLTarget list
-    }
-
-let makeAllNetGroups (netList: NetList) : NetGroup array =
-
-    let comps = allNComps netList
-
-    let labelConnectedNets: Map<string, NLTarget list array> =       
-        comps
-        |> Array.collect (fun comp ->
-            if comp.Type = IOLabel then [|comp.Label, comp.Outputs[OutputPortNumber 0]|] else [||])
-        |> Array.groupBy (fun (label, _) -> label)
-        |> Array.map (fun (lab, labOutArr)-> lab, (labOutArr |> Array.map (snd)))
-        |> Map.ofArray
-
-    let makeNetGroup (comp: NetListComponent) (opn: OutputPortNumber) (targets: NLTarget list) =
-        let connected = 
-            targets
-            |> List.toArray
-            |> Array.collect (fun target -> 
-                let comp = netList[target.TargetCompId]
-                if comp.Type = IOLabel then labelConnectedNets[comp.Label] else [||])
-        {DriverComp = comp; DriverPort = opn; DriverNet = targets; ConnectedNets = connected}
-
-
-    let allNetGroups =
-        comps
-        |> Array.collect (fun comp -> 
-            match comp.Type with
-            | IOLabel -> [||]
-            | _ -> Map.map (makeNetGroup comp) comp.Outputs |> mapValues)
-    allNetGroups
-
 let getFastOutputWidth (fc: FastComponent) (opn: OutputPortNumber) =
     let (OutputPortNumber n) = opn
     fc.Outputs[n].Step[0].Width
 
-let getWaveformSpecFromFC (fc: FastComponent) =
-    let viewerName = extractLabel fc.SimComponent.Label
-    {
-        WId = viewerName // not unique yet - may need to be changed
-        WType = ViewerWaveform false
-        Conns = [||] // don't use connection nets for Viewer (yet)
-        SheetId = snd fc.fId
-        Driver = fc.fId, OutputPortNumber 0
-        DisplayName = viewerName
-        Width = getFastOutputWidth fc (OutputPortNumber 0)
-    }
-
-let makeConnectionMap (ngs: NetGroup array) =
-    let connsOfNG (ng: NetGroup) =
-            ng.DriverNet :: (List.ofArray ng.ConnectedNets)
-            |> List.map (List.map (fun tgt -> tgt.TargetConnId))
-            |> List.concat
-            |> List.toArray
-    Array.map connsOfNG ngs
-    |> Array.collect(fun conns -> Array.map (fun conn -> conn,conns) conns)
-    |> Map.ofArray
- 
- 
 let getFastDriver (fs: FastSimulation) (driverComp: NetListComponent) (driverPort: OutputPortNumber) =
-    match driverComp.Type with
-    | Custom _ ->
-        let customFId:FComponentId = driverComp.Id,[]
-        let customOutput = fs.FCustomOutputCompLookup[customFId,driverPort]
-#if ASSERTS
-        Helpers.assertThat (Map.containsKey customOutput fs.FComps)
-            (sprintf "Help: can't find custom component output in fast Simulation")
-#endif
-        customOutput, OutputPortNumber 0
-        
-    | _ -> 
-        (driverComp.Id,[]),driverPort
-
-
-let getFastDriverNew (fs: FastSimulation) (driverComp: NetListComponent) (driverPort: OutputPortNumber) =
     match driverComp.Type with
     | Custom _ ->
         let customFId: FComponentId = driverComp.Id, []
@@ -742,96 +621,3 @@ let getFastDriverNew (fs: FastSimulation) (driverComp: NetListComponent) (driver
         
     | _ -> 
         (driverComp.Id, []), driverPort
-
-let getWaveformSpecFromNetGroup 
-        (fs: FastSimulation)
-        (connMap: Map<ConnectionId,ConnectionId array>)
-        (nameOf: NetGroup -> string) 
-        (ng: NetGroup) =
-    let ngName = nameOf ng
-    let fId, opn = getFastDriver fs ng.DriverComp ng.DriverPort
-    let driverConn = ng.DriverNet[0].TargetConnId
-    let conns =
-        Map.tryFind driverConn connMap
-        |> Option.defaultValue [||]
-    if conns = [||] then
-        printfn $"Warning: {ngName} has no connections"
-    {
-        WId = ngName // not unique yet - may need to be changed
-        WType = NormalWaveform
-        Conns = conns
-        SheetId = [] // all NetGroups are from top sheet at the moment
-        Driver = fId,opn
-        DisplayName = ngName
-        Width = getFastOutputWidth fs.FComps[fId] opn
-    }
-
-let standardOrderWaves prevDispNames isWanted (waves: Map<string,WaveformSpec>) =
-    let prev' = 
-        prevDispNames
-        |> Array.filter ( fun name -> Map.containsKey name waves && isWanted name)
-    let others = 
-        waves
-        |> mapKeys
-        |> Array.filter (fun wn -> isWanted wn && not <| Array.contains wn prev')
-        |> Array.sortBy (fun name -> match waves[name].WType with | ViewerWaveform _ -> 0 | _ -> 1)
-    Array.append prev' others
-
-let getWaveformSpecifications 
-        (netGroup2Label: SimulationData -> NetList -> NetGroup -> string) 
-        (sd: SimulationData) 
-        (rState: CanvasState) =
-    let comps,conns = rState
-    let compIds = comps |> List.map (fun comp -> comp.Id)
-    let fs = sd.FastSim
-    let fcL = mapValues fs.FComps
-    let viewers = 
-        fcL
-        |> Array.filter (fun fc -> match fc.FType with Viewer _ -> true | _ -> false)
-   
-
-    /// NetList is a simplified version of circuit with connections and layout info removed.
-    /// Component ports are connected directly
-    /// connection ids are preserved so we can reference connections on diagram
-    let netList = Helpers.getNetList rState
-    /// Netgroups are connected Nets: note the iolabel components can connect together multiple nets
-    /// on the schematic into a single NetGroup
-    /// Wave simulation allows every distinct NetGroup to be named and displayed
-    let netGroups = makeAllNetGroups netList
-    /// connMap maps each connection to the set of connected connections within the same sheet
-    let connMap = makeConnectionMap netGroups
-    /// work out a good human readable name for a Netgroup. Normally this is the label of the driver of the NetGroup.
-    /// Merge and Split and BusSelection components (as drivers) are removed,
-    /// replaced by corresponding selectors on busses. Names are tagged with labels or IO connectors
-    /// It is easy to change these names to make them more human readable.
-    let nameOf ng  = netGroup2Label sd netList ng
-
-    // findName (via netGroup2Label) will possibly not generate unique names for each netgroup
-    // Names are defined via waveSimModel.AllPorts which adds to each name
-    // an optional unique numeric suffic (.2 etc). These suffixes are stripped from names
-    // when they are displayed
-    // TODO: make sure suffixes are uniquely defines based on component ids (which will not change)
-    // display then in wave windows where needed to disambiguate waveforms.        
-    // Allports is the single reference throughout simulation of a circuit that associates names with netgroups
-
-    Array.append
-        (Array.map (getWaveformSpecFromNetGroup  fs connMap nameOf) netGroups)
-        (Array.map getWaveformSpecFromFC viewers)
-
-    |> Array.groupBy (fun wSpec -> wSpec.WId)
-    |> Array.map (fun (root,specs) -> 
-        match specs with 
-        | [|wSpec|] as oneSpec -> oneSpec
-        | specL -> specL |> Array.mapi (fun i wSpec -> {wSpec with WId = $"{wSpec.WId}!{i}"}))
-    |> Array.concat
-    |> Array.map (fun wSpec -> wSpec.WId,wSpec)
-    |> Map.ofArray
-
-
-    
-
-
-
-
-
-

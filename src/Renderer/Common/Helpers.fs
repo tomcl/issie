@@ -196,7 +196,7 @@ let getNetList ((comps,conns) : CanvasState) =
     let id2Ins = id2X (fun (c:Component) -> ComponentId c.Id,c.InputPorts)
     let id2Comp = id2X (fun (c:Component) -> ComponentId c.Id,c)
 
-    let getPortInts sel initV ports = 
+    let getPortInts sel initV (ports: Port list) =
         ports
         |> List.map (fun port -> 
             match port.PortNumber with
@@ -206,7 +206,7 @@ let getNetList ((comps,conns) : CanvasState) =
 
     let initNets =
         comps
-        |> List.map ( fun comp ->
+        |> List.map ( fun (comp: Component) ->
             {
                 Id = ComponentId comp.Id
                 Type = comp.Type
@@ -294,7 +294,3 @@ let testMatch (diffX:float) (diffY:float)  normRot=
         // Edge case that should never happen
         | _ -> [s; 0; 0; 0; 0; 0; s]
     lengthList()
-
-
-
-    

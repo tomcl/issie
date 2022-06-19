@@ -48,8 +48,6 @@ let getMessageTraceString (msg: Msg) =
         | _ -> false
     let shortDisplayMsg = function 
         | SetWSModel _ -> Some "U(SetWSModel)"
-        | SetWaveSimModel _ -> Some "U(SetWaveSimModel)"
-        | SetWSModAndSheet _ -> Some "U(SetWsModAndSheet)"
         | StartSimulation _ -> Some "U(StartSimulation)"
         | SetSimulationGraph _ -> Some "U(SetSimulationGraph)"
         | SetPopupMemoryEditorData _ -> Some "U(SetPopupmemoryEditorData)"
@@ -371,29 +369,13 @@ let update (msg : Msg) oldModel =
         { model with 
             WaveSim = Map.add sheet wsModel model.WaveSim
         }, Cmd.none
-    // | UpdateWSModel updateFn ->
-    //     updateCurrentWSMod updateFn model, Cmd.none
-    // | SetWSModAndSheet(ws,sheet) ->
-    //     match model.CurrentProj with
-    //     | None -> failwithf "What? SetWSModAndSheet: Can't set wavesim if no project is loaded"
-    //     | Some p ->
-    //         let sheets = p.LoadedComponents |> List.map (fun lc -> lc.Name)
-    //         match List.contains sheet sheets with
-    //         | false -> 
-    //             failwithf "What? sheet %A can't be used in wavesim because it does not exist in project sheets %A" sheet sheets
-    //         | true ->
-    //             let model =
-    //                 {model with WaveSimSheet = sheet}
-    //                 |> setWSModel ws
-    //             model,Cmd.none
-    // | SetWSError err ->
-        // { model with WaveSim = fst model.WaveSim, err}, Cmd.none
-    // | AddWaveSimFile (fileName, wSMod') ->
-        // { model with WaveSim = Map.add fileName wSMod' (fst model.WaveSim), snd model.WaveSim}, Cmd.none
-    | LockTabsToWaveSim -> 
-        {model with WaveSimulationInProgress = false}, Cmd.none
-    | UnlockTabsFromWaveSim ->
-        {model with WaveSimulationInProgress = false}, Cmd.none
+    | InitiateWaveSimulation wsModel ->
+        // printf "initiate wave sim"
+
+        let allWaves = Map.map (WaveSim.generateWaveform wsModel) wsModel.AllWaves
+        let wsModel' = {wsModel with AllWaves = allWaves}
+
+        setWSModel wsModel' model, Cmd.ofMsg (Sheet(SheetT.SetSpinner false))
     | SetSimulationGraph (graph, fastSim) ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
         { model with CurrentStepSimulationStep = { simData with Graph = graph ; FastSim = fastSim} |> Ok |> Some }, Cmd.none
@@ -406,7 +388,6 @@ let update (msg : Msg) oldModel =
     | EndSimulation ->
         let wsModel =  {WaveSimHelpers.getWSModel model with State = WSClosed }
         { setWSModel wsModel model with CurrentStepSimulationStep = None }, Cmd.none
-    // | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg
@@ -553,59 +534,9 @@ let update (msg : Msg) oldModel =
             // { model with ConnsOfSelectedWavesAreHighlighted = true }
         { model with ConnsOfSelectedWavesAreHighlighted = true }
         |> (fun m -> m, Cmd.none)
-    | SetWaveSimIsOutOfDate b -> 
-        changeSimulationIsStale b model, Cmd.none
     | SetIsLoading b ->
         let cmd = if b then Cmd.none else Cmd.ofMsg (Sheet (SheetT.SetSpinner false)) //Turn off spinner after project/sheet is loaded
         {model with IsLoading = b}, cmd
-    | InitiateWaveSimulation wsModel ->
-        // printf "initiate wave sim"
-
-        let allWaves = Map.map (WaveSim.generateWaveform wsModel) wsModel.AllWaves
-        let wsModel' = {wsModel with AllWaves = allWaves}
-
-        setWSModel wsModel' model, Cmd.ofMsg (Sheet(SheetT.SetSpinner false))
-    // | InitiateWaveSimulation (view, paras)  -> 
-        // updateCurrentWSMod (fun ws -> setEditorNextView view paras ws) model, Cmd.ofMsg FinishUICmd
-    //TODO
-    // | WaveSimulateNow ->
-    //     // do the simulation for WaveSim and generate new SVGs
-    //     printfn "Starting...!"
-    //     match getCurrentWSMod model, getCurrentWSModNextView model  with
-    //     | Some wsMod, Some (pars, nView) -> 
-    //         let checkCursor = wsMod.SimParams.CursorTime <> pars.CursorTime
-    //         let pars' = adjustPars wsMod pars wsMod.SimParams.LastScrollPos
-    //         // does the actual simulation and SVG generation, if needed
-    //         let wsMod' = 
-    //             simulateAndMakeWaves model wsMod pars'
-    //             |> (fun ws -> {ws with WSViewState=nView; WSTransition = None})
-    //             |> setEditorView nView
-    //         model
-    //         |> setWSModel wsMod'
-    //         |> (fun model -> 
-    //             {model with CheckWaveformScrollPosition=checkCursor}, 
-    //             Cmd.ofMsg (Sheet(SheetT.SetSpinner false))) //turn off spinner after wavesim is loaded
-    //     | Some _, None -> 
-    //         // This case may happen if WaveSimulateNow commands are stacked up due to 
-    //         // repeated view function calls before the WaveSimNow trigger message is processed
-    //         // Only the first one will actually do anything. TODO: eliminate extra calls?
-    //         model, Cmd.none
-    //     | _ -> 
-    //         failwith "SetSimInProgress dispatched when getCurrFileWSMod is None"
-    // | CloseWaveSim wsModel ->
-    //     {model with WaveSim = wsModel}, Cmd.none
-    | SetLastSimulatedCanvasState cS ->
-        { model with LastSimulatedCanvasState = cS }, Cmd.none
-    | UpdateScrollPos b ->
-        { model with CheckWaveformScrollPosition = b}, Cmd.none
-    // | SetLastScrollPos posOpt ->
-    //     let updateParas (sp:SimParamsT) = {sp with LastScrollPos = posOpt}
-    //     updateCurrentWSMod (fun (ws:WaveSimModel) -> setSimParams updateParas ws) model, Cmd.none
-    // | SetWaveSimModel( sheetName, wSModel) -> 
-    //     let updateWaveSim sheetName wSModel model =
-    //         let sims,err = model.WaveSim
-    //         sims.Add(sheetName, wSModel), err
-    //     {model with WaveSim = updateWaveSim sheetName wSModel model}, Cmd.none
     | ReadUserData userAppDir ->
         printfn $"Got user app dir of {userAppDir}"
         let model,cmd = readUserData userAppDir model        

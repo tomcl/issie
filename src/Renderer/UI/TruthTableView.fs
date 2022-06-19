@@ -616,22 +616,28 @@ let viewTruthTableError simError =
     ]
 
 let viewTruthTableData (table: TruthTable) model dispatch =
-    let tLst = table.SortedListRep
-    let sortInfo = model.TTSortType
-    let styleInfo = model.TTGridStyles
-    if tLst.IsEmpty then
-        div [] [str "No Rows in Truth Table"]
-    else
-        let headings =
-            tLst.Head
-            |> List.map (viewCellAsHeading dispatch sortInfo styleInfo) 
-        let body =
-            tLst
-            |> List.mapi (viewRowAsData table.TableSimData.NumberBase styleInfo)
-            |> List.concat
+    match model.TTGridCache with
+    | Some grid -> 
+        grid
+    | None ->
+        let tLst = table.SortedListRep
+        let sortInfo = model.TTSortType
+        let styleInfo = model.TTGridStyles
+        if tLst.IsEmpty then
+            div [] [str "No Rows in Truth Table"]
+        else
+            let headings =
+                tLst.Head
+                |> List.map (viewCellAsHeading dispatch sortInfo styleInfo) 
+            let body =
+                tLst
+                |> List.mapi (viewRowAsData table.TableSimData.NumberBase styleInfo)
+                |> List.concat
 
-        let all = headings @ body
-        div [(ttGridContainerStyle model)] all
+            let all = headings @ body
+            let grid = div [(ttGridContainerStyle model)] all
+            dispatch <| SetTTGridCache (Some grid)
+            grid
 
 let viewTruthTable model dispatch =
     // Truth Table Generation for selected components requires all components to have distinct labels.
@@ -711,22 +717,8 @@ let viewTruthTable model dispatch =
             hr []
         ]
     | Some tableopt ->
-        // match model.TTIsOutOfDate with
-        // | Some Regenerate -> 
-        //     dispatch RegenerateTruthTable
-        //     None |> SetTTOutOfDate |> dispatch
-        // | Some Refilter -> 
-        //     dispatch FilterTruthTable
-        //     None |> SetTTOutOfDate |> dispatch
-        // | Some ReSort -> 
-        //     dispatch SortTruthTable
-        //     None |> SetTTOutOfDate |> dispatch
-        // | Some HideColumn ->
-        //     dispatch HideTTColumns
-        //     None |> SetTTOutOfDate |> dispatch
-        // | None -> ()
-
         let closeTruthTable _ =
+            dispatch ClosePropertiesNotification
             dispatch CloseTruthTable
         let body =
             match tableopt with

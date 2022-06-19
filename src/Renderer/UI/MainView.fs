@@ -75,6 +75,7 @@ let init() = {
     TTSortType = None
     TTIOOrder = [||]
     TTGridStyles = Map.empty
+    TTGridCache = None
     TTAlgebraInputs = []
     WaveSim = Map.empty, None
     WaveSimSheet = ""

@@ -269,14 +269,35 @@ let rec flattenNestedArithmetic exp =
             flattenNestedArithmetic right
             |> List.map multiplyByMinusOne
         (flattenNestedArithmetic left) @ rhs
+    | UnaryExp (NotOp,e) ->
+        let w = getAlgExpWidth e
+        let minusOne = UnaryExp (NegOp,DataLiteral{Dat = Word 1u; Width = w})
+        flattenNestedArithmetic <| BinaryExp (minusOne,SubOp,e)
+
     | _ -> [exp]
 
-let rec assembleArithmetic stateExp currentExp =
-    match currentExp with
-    | UnaryExp (NegOp,e) ->
-        BinaryExp (stateExp,SubOp,e)
-    | _ ->
-        BinaryExp (stateExp,AddOp,currentExp)
+let assembleArithmetic width expLst =
+    let rec assemble stateExp currentExp =
+        match currentExp with
+        | UnaryExp (NegOp,e) ->
+            BinaryExp (stateExp,SubOp,e)
+        | _ ->
+            BinaryExp (stateExp,AddOp,currentExp)
+    match expLst with
+    | [] -> 
+        DataLiteral {Dat = Word 0u; Width = width}
+    | [exp] ->
+        exp
+    | [UnaryExp(NegOp,expN);exp] | [exp;UnaryExp(NegOp,expN)] ->
+        BinaryExp (exp,SubOp,expN)
+    | [exp1;exp2] ->
+        BinaryExp (exp1,AddOp,exp2)
+    | UnaryExp(NegOp,expN)::exp::tl | exp::UnaryExp(NegOp,expN)::tl ->
+        (BinaryExp(exp,SubOp,expN),tl)
+        ||> List.fold assemble
+    | exp1::exp2::tl ->
+        (BinaryExp (exp1,AddOp,exp2),tl)
+        ||> List.fold assemble
 
 let tryBitwiseOperation (expressions: FastAlgExp list) =
     match expressions with
@@ -361,13 +382,15 @@ let expToString exp =
             let expStr = expToString' exp
             $"carry({expStr})"
         | BinaryExp (exp1, AddOp, exp2) ->
-            let expStr1 = expToString' exp1
-            let expStr2 = expToString' exp2
-            $"({expStr1}+{expStr2})"
+            // let expStr1 = expToString' exp1
+            // let expStr2 = expToString' exp2
+            // $"({expStr1}+{expStr2})"
+            $"({arithmeticToString exp})"
         | BinaryExp (exp1, SubOp, exp2) ->
-            let expStr1 = expToString' exp1
-            let expStr2 = expToString' exp2
-            $"({expStr1}-{expStr2})"
+            // let expStr1 = expToString' exp1
+            // let expStr2 = expToString' exp2
+            // $"({expStr1}-{expStr2})"
+            $"({arithmeticToString exp})"
         | BinaryExp (exp1, BitAndOp, exp2) ->
             let expStr1 = expToString' exp1
             let expStr2 = expToString' exp2
@@ -389,13 +412,26 @@ let expToString exp =
             |> String.concat "::"
             |> fun s -> $"({s})"
 
+    and arithmeticToString exp =
+        exp
+        |> flattenNestedArithmetic
+        |> List.mapi (fun i expr ->
+            match i, expr with
+            | 0, e ->
+                expToString' e
+            | _, UnaryExp (NegOp,e) ->
+                $"- {expToString' e}"
+            | _, e ->
+                $"+ {expToString' e}")
+        |> String.concat " "
+
     let expS = expToString' exp
     // Remove the parentheses from the outermost expression
     if expS.StartsWith "(" && expS.EndsWith ")" then
         expS[1..(expS.Length-2)]
     else
         expS
-
+    
 /// Recursively evaluates an expression to reduce it to its simplest form
 let rec evalExp exp =
     match exp with
@@ -422,28 +458,99 @@ let rec evalExp exp =
         let left = evalExp exp1
         let right = evalExp exp2
         match left, right with
-        // AND with 0 is always 0
+        // Annulment: AND with 0 is always 0
         | exp, DataLiteral {Dat= Word 0u;Width=w}
         | DataLiteral {Dat= Word 0u;Width=w}, exp ->
             DataLiteral {Dat= Word 0u;Width=w}
-        // AND with 1 is always the other operand
-        | exp, DataLiteral {Dat= Word 1u;Width=_}
-        | DataLiteral {Dat= Word 1u;Width=_}, exp ->
-            exp
-        | l,r -> BinaryExp (l,BitAndOp,r)
+        // Identity: AND with 1 is always the other operand
+        | exp, DataLiteral {Dat= Word n;Width=w}
+        | DataLiteral {Dat= Word n;Width=w}, exp ->
+            let one = uint32 <| (2.0**w) - 1.0
+            if n = one then
+                exp
+            else
+                BinaryExp (left,BitAndOp,right)
+        // Complement: A AND (NOT A) = 0
+        | e1, UnaryExp(NotOp,e2) ->
+            if e1 = e2 then
+                let w = getAlgExpWidth e1
+                DataLiteral {Dat= Word 0u;Width=w}
+            else
+                BinaryExp (left,BitAndOp,right)
+        // (A OR B) AND (A OR C) = A OR (B AND C)
+        | BinaryExp(e1,BitOrOp,e2), BinaryExp(e3,BitOrOp,e4) ->
+            if e1 = e3 then
+                BinaryExp(e1,BitOrOp,BinaryExp(e2,BitAndOp,e4))
+            else if e1 = e4 then
+                BinaryExp(e1,BitOrOp,BinaryExp(e2,BitAndOp,e3))
+            else if e2 = e3 then
+                BinaryExp(e2,BitOrOp,BinaryExp(e1,BitAndOp,e4))
+            else if e2 = e4 then
+                BinaryExp(e2,BitOrOp,BinaryExp(e1,BitAndOp,e3))
+            else
+                BinaryExp (left,BitAndOp,right)
+        | l,r -> 
+            // Idempotent: A AND A = A
+            if l = r then
+                l
+            else
+                BinaryExp (l,BitAndOp,r)
     | BinaryExp (exp1, BitOrOp, exp2) ->
+        printfn "Or Case Matched"
         let left = evalExp exp1
         let right = evalExp exp2
         match left, right with
-        // OR with 0 is always the other operand
+        // Identity: OR with 0 is always the other operand
         | exp, DataLiteral {Dat= Word 0u;Width=_}
         | DataLiteral {Dat= Word 0u;Width=_}, exp ->
             exp
-        // OR with 1 is always 1
-        | exp, DataLiteral {Dat= Word 1u;Width=w}
-        | DataLiteral {Dat= Word 1u;Width=w}, exp ->
-            DataLiteral {Dat= Word 1u;Width=w}
-        | l,r -> BinaryExp (l,BitOrOp,r)
+        // Annulment: OR with 1 is always 1
+        | exp, DataLiteral {Dat= Word n;Width=w}
+        | DataLiteral {Dat= Word n;Width=w}, exp ->
+            let one = uint32 <| (2.0**w) - 1.0
+            if n = one then
+                DataLiteral {Dat= Word one;Width=w}
+            else
+                BinaryExp (left,BitAndOp,right)
+        // Complement: A OR (NOT A) = 1
+        | e1, UnaryExp(NotOp,e2) ->
+            if e1 = e2 then
+                let w = getAlgExpWidth e1
+                DataLiteral {Dat= Word 1u;Width=w}
+            else
+                BinaryExp (left,BitOrOp,right)
+        // Check for Carry from Full Adder
+        // All combinations of: CIN&(A+B)|(A&B)
+        | BinaryExp(c1,BitAndOp,BinaryExp(a1,AddOp,b1)), BinaryExp(a2,BitAndOp,b2)
+        | BinaryExp(a2,BitAndOp,b2), BinaryExp(c1,BitAndOp,BinaryExp(a1,AddOp,b1))
+        | BinaryExp(BinaryExp(a1,AddOp,b1),BitAndOp,c1), BinaryExp(a2,BitAndOp,b2) 
+        | BinaryExp(a2,BitAndOp,b2), BinaryExp(BinaryExp(a1,AddOp,b1),BitAndOp,c1) ->
+            let a1Eval, a2Eval, b1Eval, b2Eval, c1Eval =
+                evalExp a1, evalExp a2, evalExp b1, evalExp b2, evalExp c1
+            if (a1Eval = a2Eval && b1Eval = b2Eval) || (a1Eval = b2Eval && a2Eval = b1Eval) then
+                let addition = BinaryExp(c1Eval,AddOp,BinaryExp(a1Eval,AddOp,b1Eval))
+                UnaryExp (CarryOfOp,addition)
+            else
+                BinaryExp (left,BitOrOp,right)
+        | e1, BinaryExp(e2,BitAndOp,e3)
+        | BinaryExp(e2,BitAndOp,e3), e1 ->
+            // A OR (A AND B) = A
+            if e1 = e2 || e1 = e3 then
+                e1
+            // A OR ((NOT A) AND B) = A OR B
+            else if e1 = UnaryExp(NotOp,e2) then
+                BinaryExp (e1,BitOrOp,e3)
+            else if e1 = UnaryExp(NotOp,e3) then
+                BinaryExp (e1,BitOrOp,e2)
+            else
+                BinaryExp (left,BitOrOp,right)
+
+        | l,r ->
+            // Idempotent: A OR A = A
+            if l = r then
+                l
+            else
+                BinaryExp (l,BitOrOp,r)
     | BinaryExp (exp1, BitXorOp, exp2) ->
         let left = evalExp exp1
         let right = evalExp exp2
@@ -453,10 +560,15 @@ let rec evalExp exp =
         | DataLiteral {Dat= Word 0u;Width=_}, exp ->
             exp
         // XOR with 1 is always the inverse of the other operand
-        | exp, DataLiteral {Dat= Word 1u;Width=_}
-        | DataLiteral {Dat= Word 1u;Width=_}, exp ->
-            UnaryExp (NotOp,exp)
-        | l,r -> reduceArithmetic (BinaryExp (l,AddOp,r))
+        | exp, DataLiteral {Dat= Word n;Width=w}
+        | DataLiteral {Dat= Word n;Width=w}, exp ->
+            let one = uint32 <| (2.0**w) - 1.0
+            if n = one then
+                UnaryExp (NotOp,exp)
+            else
+                reduceArithmetic (BinaryExp (exp,AddOp,DataLiteral {Dat= Word n;Width=w}))
+        | l,r -> 
+            reduceArithmetic (BinaryExp (l,AddOp,r))
     | BinaryExp (_,AddOp,_) | BinaryExp (_,SubOp,_) ->
         reduceArithmetic exp
     | ComparisonExp (exp, Equals, x) ->
@@ -531,21 +643,8 @@ and reduceArithmetic expression =
                 l @ [numDataExp]
     printfn "To Assemble: %A" (List.map expToString expressionsToAssemble)
 
-    match expressionsToAssemble with
-    | [] -> 
-        DataLiteral {Dat = Word 0u; Width = width}
-    | [exp] ->
-        exp
-    | [UnaryExp(NegOp,expN);exp] | [exp;UnaryExp(NegOp,expN)] ->
-        BinaryExp (exp,SubOp,expN)
-    | [exp1;exp2] ->
-        BinaryExp (exp1,AddOp,exp2)
-    | UnaryExp(NegOp,expN)::exp::tl | exp::UnaryExp(NegOp,expN)::tl ->
-        (BinaryExp(exp,SubOp,expN),tl)
-        ||> List.fold assembleArithmetic
-    | exp1::exp2::tl ->
-        (BinaryExp (exp1,AddOp,exp2),tl)
-        ||> List.fold assembleArithmetic
+    assembleArithmetic width expressionsToAssemble
+    
 
 /// Raised when an Algebraic case is found in FastSim which has not been implemented,
 /// or does not make sense to implement.

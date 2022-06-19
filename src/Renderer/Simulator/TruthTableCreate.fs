@@ -145,7 +145,7 @@ let simulateInputCombination
         |> List.map (fun ((l,f),w,fs) ->
             match fs with
             | IData wd -> {IO = Viewer ((l,f),w); Data = Bits wd}
-            | IAlg exp -> {IO = Viewer ((l,f),w); Data = Algebra l})
+            | IAlg exp -> {IO = Viewer ((l,f),w); Data = Algebra (expToString exp)})
     outputRow @ viewerRow
 
 /// Create a Truth Table from Simulation Data, taking into account 

@@ -565,61 +565,6 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     failwithf $"Inconsistent inputs to NBitsAdder {comp.FullName} A={a},{A}; B={b},{B}"
             put0 <| Data sum
             put1 cout
-        // When Cin is 1 and one of the inputs is a bit-inversion, this is subtraction
-        | Data {Dat=(Word 1u);Width=_},Alg (UnaryExp(NotOp,exp)),other 
-        | Data {Dat=(Word 1u);Width=_}, other, Alg (UnaryExp(NotOp,exp))->
-            let othExp = other.toExp
-            let newExp = BinaryExp(othExp,SubOp,exp)
-            let out0 = newExp
-            let out1 = UnaryExp(CarryOfOp,newExp)
-            put0 <| Alg out0
-            put1 <| Alg out1
-        | Data {Dat=(Word w);Width=_}, Alg exp1, Alg exp2 ->
-            if w = 0u then
-                let newExp = BinaryExp(exp1,AddOp,exp2)
-                let out0 = newExp
-                let out1 = UnaryExp(CarryOfOp,newExp)
-                put0 <| Alg out0
-                put1 <| Alg out1
-            else
-                let cinExp = (packBit w).toExp
-                let newExp = BinaryExp(BinaryExp(exp1,AddOp,exp2),AddOp,cinExp)
-                let out0 = newExp
-                let out1 = UnaryExp(CarryOfOp,newExp)
-                put0 <| Alg out0
-                put1 <| Alg out1
-
-        | Data {Dat=(Word cin); Width=_}, Data {Dat=(Word num); Width=w},Alg (UnaryExp(NotOp,exp))
-        | Data {Dat=(Word cin); Width=_}, Alg (UnaryExp(NotOp,exp)), Data {Dat=(Word num); Width=w} ->
-            if cin + num = 0u then
-                let oneExp = DataLiteral ({Dat=(Word (1u)); Width=w})
-                let newExp = UnaryExp(NegOp,BinaryExp(exp,AddOp,oneExp))
-                let out0 = newExp
-                let out1 = UnaryExp(CarryOfOp,newExp)
-                put0 <| Alg out0
-                put1 <| Alg out1
-            else if cin + num = 1u then
-                let newExp = UnaryExp(NegOp,exp)
-                let out0 = newExp
-                let out1 = UnaryExp(CarryOfOp,newExp)
-                put0 <| Alg out0
-                put1 <| Alg out1
-            else
-                let value = cin + num - 1u
-                let rhs = DataLiteral ({Dat=(Word value); Width=w})
-                let newExp = BinaryExp(exp,AddOp,rhs)
-                let out0 = newExp
-                let out1 = UnaryExp(CarryOfOp,newExp)
-                put0 <| Alg out0
-                put1 <| Alg out1
-        | Data {Dat=(Word cin); Width=_}, Data {Dat=(Word num); Width=w}, Alg exp
-        | Data {Dat=(Word cin); Width=_}, Alg exp, Data {Dat=(Word num); Width=w} ->
-            let rhs = (Data {Dat = Word (cin+num);Width = w}).toExp
-            let newExp = BinaryExp(exp,AddOp,rhs)
-            let out0 = newExp
-            let out1 = UnaryExp(CarryOfOp,newExp)
-            put0 <| Alg out0
-            put1 <| Alg out1
         | cin, A, B ->
             let cinExp, aExp, bExp =
                 cin.toExp, A.toExp, B.toExp
@@ -646,8 +591,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         | Data {Dat=(Word num);Width=w}, Alg exp ->
             let minusOne = (2.0**w)-1.0 |> uint32
             if num = minusOne then
-                put0 <| 
-                    Alg (BinaryExp(UnaryExp(NegOp,exp),SubOp,DataLiteral {Dat = Word 1u; Width=w}))
+                put0 <| Alg (UnaryExp(NotOp,exp))
+                    //Alg (BinaryExp(UnaryExp(NegOp,exp),SubOp,DataLiteral {Dat = Word 1u; Width=w}))
             else 
                 let numExp = (packBit num).toExp
                 put0 <| Alg (BinaryExp(exp,AddOp,numExp))
@@ -671,10 +616,22 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             put1 <| Data outs[1]
             put2 <| Data outs[2]
             put3 <| Data outs[3]
-        | _,_ ->
+        | Data select, Alg exp ->
+            let selN = convertFastDataToInt select |> int
+            let dataExp = Alg exp
+            let zero = convertIntToFastData 1 0u
+            let outs =
+                [|0 .. 3|]
+                |> Array.map (fun n ->
+                    if n = selN then dataExp else Data zero)
+            put0 <| outs[0]
+            put1 <| outs[1]
+            put2 <| outs[2]
+            put3 <| outs[3]
+        | Alg _,_ ->
             let err = {
-                Msg = "The chosen set of Algebraic inputs results in algebra being passed to a
-                    Decode4. Algebraic Simulation has not been implemented for this component."
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to the 
+                    SEL port of a Decode4. Only values can be passed to this port."
                 InDependency = Some (comp.FullName)
                 ComponentsAffected =[comp.cId]
                 ConnectionsAffected = []

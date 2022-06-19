@@ -596,7 +596,7 @@ let update (msg : Msg) oldModel =
             correctProps 0 [] (Array.toList model.TTIOOrder)
             |> Map.ofList
             |> TimeHelpers.instrumentInterval "Hiding Columns" start
-        {model with TTGridStyles = newStyles}, Cmd.none
+        {model with TTGridStyles = newStyles}, Cmd.ofMsg (SetTTGridCache None)
     | CloseTruthTable -> 
         let newPopupData =
             {model.PopupDialogData with 
@@ -708,7 +708,7 @@ let update (msg : Msg) oldModel =
             newOrder
             |> Array.mapi (fun i io -> (io,ttGridColumnProps i))
             |> Map.ofArray
-        {model with TTIOOrder = newOrder; TTGridStyles = newStyles}, Cmd.none
+        {model with TTIOOrder = newOrder; TTGridStyles = newStyles}, Cmd.ofMsg (SetTTGridCache None)
     | SetIOOrder x -> 
         {model with TTIOOrder = x}, Cmd.none
     | SetTTAlgebraInputs lst ->
@@ -720,6 +720,8 @@ let update (msg : Msg) oldModel =
             |> Ok
             |> Some
         {model with CurrentTruthTable = updatedTT}, Cmd.none
+    | SetTTGridCache gridopt ->
+        {model with TTGridCache = gridopt}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg

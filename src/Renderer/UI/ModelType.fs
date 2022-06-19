@@ -310,6 +310,7 @@ type Msg =
     | SetIOOrder of CellIO []
     | SetTTAlgebraInputs of SimulationIO list
     | SetTTBase of NumberBase
+    | SetTTGridCache of ReactElement option
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list
@@ -464,6 +465,8 @@ type Model = {
     TTIOOrder: CellIO []
     // Grid Styles for each column in the Table
     TTGridStyles: Map<CellIO,Props.CSSProp list>
+    // Cached CSS Grid for displaying the Truth Table
+    TTGridCache: ReactElement option
     // which of the Truth Table's inputs are currently algebra
     TTAlgebraInputs: SimulationIO list
     // which of the tabbed panes is currently visible

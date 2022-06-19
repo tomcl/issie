@@ -1,9 +1,6 @@
 module DiagramStyle
 
-open CommonTypes
 open ModelType
-open Fulma
-open Fable.React
 open Fable.React.Props
 
 let headerHeight = "72px"

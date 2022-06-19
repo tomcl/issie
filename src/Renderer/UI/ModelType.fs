@@ -135,7 +135,6 @@ type Wave = {
     // unique within one simulation run, mostly conserved across runs
     // WaveId: string
     // unique within design sheet (SheetId)
-    Conns: ConnectionId list
     // [] for top-level waveform: path to sheet
     SheetId: ComponentId list
     // This is used to key the AllWaves map, since this is guaranteed to be unique.
@@ -149,16 +148,6 @@ type Wave = {
     Polylines: ReactElement list option
 }
 
-// type WaveformSpec = {
-//     WId: string // unique within one simulation run, mostly conserved across runs
-//     WType: WaveformType
-//     Conns: ConnectionId array // unique within design sheet (SheetId)
-//     SheetId: ComponentId list // [] for top-level waveform: path to sheet
-//     Driver: FComponentId*OutputPortNumber
-//     DisplayName:string
-//     Width: int
-//     }
-
 type WaveSimModel = {
     State: WaveSimState
     // List of all simulatable waves
@@ -166,8 +155,6 @@ type WaveSimModel = {
     SelectedWaves: WaveIndexT list
     StartCycle: int
     ShownCycles: int
-    OutOfDate: bool
-    ReducedState: CanvasState
     CurrClkCycle: int
     ClkCycleBoxIsEmpty: bool
     Radix: NumberBase
@@ -176,6 +163,7 @@ type WaveSimModel = {
     WaveformColumnWidth: int
 }
 
+/// TODO: Decide a better number then move to Constants module.
 /// TODO: Explain why: 30*width, width is 1.5, so that's 45. This is 8 cycles (0 to 7)
 /// This should be divisible by 45
 let initialWaveformColWidth = int( 1.5 * float (30 * 7)) //rightSectionWidthViewerDefault - namesColMinWidth - valuesColMinWidth
@@ -186,11 +174,9 @@ let initWSModel : WaveSimModel = {
     SelectedWaves = List.empty
     StartCycle = 0
     ShownCycles = 7
-    OutOfDate = true
-    ReducedState = [], []
     CurrClkCycle = 0
     ClkCycleBoxIsEmpty = false
-    Radix = CommonTypes.Hex
+    Radix = Hex
     ZoomLevel = 1.5
     ZoomLevelIndex = 9
     WaveformColumnWidth = initialWaveformColWidth
@@ -322,9 +308,6 @@ type Model = {
     UserData: UserData
 
     WaveSim : Map<string, WaveSimModel>
-    // All the data for waveform simulation (separate for each sheet)
-    // TODO: remove the simulation error.
-    // WaveSim : Map<string, WaveSimModel> * (SimulationError option)
     // which top-level sheet is used by wavesim
     WaveSimSheet: string
         
@@ -466,6 +449,8 @@ let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
         ZoomLevel = Some wsModel.ZoomLevel
         ZoomLevelIndex = Some wsModel.ZoomLevelIndex
         WaveformColumnWidth = Some wsModel.WaveformColumnWidth
+
+        // The following fields are from the old waveform simulator.
         ClkWidth = None
         Cursor = None
         LastClk = None
@@ -477,7 +462,7 @@ let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
 /// TODO: work out better idea for what should be preserved here.
 /// NB - note that SavedWaveInfo can only be changed if code is added to make loading backwards compatible with
 /// old designs
-let loadWSModelFromSavedWaveInfo (swInfo: SavedWaveInfo) : WaveSimModel = 
+let loadWSModelFromSavedWaveInfo (swInfo: SavedWaveInfo) : WaveSimModel =
     {
         initWSModel with
             SelectedWaves = Option.defaultValue initWSModel.SelectedWaves swInfo.SelectedWaves

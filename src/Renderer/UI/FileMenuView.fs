@@ -125,11 +125,10 @@ let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (d
                 ()
         | _ -> ()
 
-/// TODO: Currently unused.
 /// returns a WaveSimModel option if a file is loaded, otherwise None
 let currWaveSimModel (model: Model) =
     match getCurrFile model with
-    | Some fileName when Map.containsKey fileName model.WaveSim -> Some (model.WaveSim[fileName])
+    | Some fileName -> Map.tryFind fileName model.WaveSim
     | _ -> None
 
 let private displayFileErrorNotification err dispatch =
@@ -174,7 +173,6 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
             Sheet SheetT.UpdateBoundingBoxes
 
             // set waveSim data
-            // SetWaveSimModel(name, waveSim)
             AddWSModel (name, waveSim)
 
             // this message actually changes the project in model
@@ -187,7 +185,7 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
             Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
             JSDiagramMsg (SetHasUnsavedChanges false)
             SetIsLoading false 
-        
+
             //printfn "Check 6..."
         ]
 
@@ -474,14 +472,8 @@ let renameSheet oldName newName (model:Model) dispatch =
 
 /// rename file
 let renameFileInProject name project model dispatch =
-    match model.CurrentProj with //, getCurrentWSMod model with
+    match model.CurrentProj with
     | None -> log "Warning: renameFileInProject called when no project is currently open"
-
-    // | None,_ -> log "Warning: renameFileInProject called when no project is currently open"
-    // | Some project, Some ws when ws.WSViewState<>WSClosed ->
-    //     displayFileErrorNotification "Sorry, you must close the wave simulator before renaming design sheets!" dispatch
-    //     switchToWaveEditor model dispatch
-    // | Some project, _ ->
     | Some project ->
         // Prepare dialog popup.
         let title = "Rename sheet in project"
@@ -521,43 +513,32 @@ let renameFileInProject name project model dispatch =
 
         dialogPopup title body buttonText buttonAction isDisabled dispatch
 
-
-
 /// Remove file.
 let private removeFileInProject name project model dispatch =
-    match model with
-    // match getCurrentWSMod model with
-    // | Some ws when ws.WSViewState<>WSClosed ->
-    //     displayFileErrorNotification "Sorry, you must close the wave simulator before removing design sheets!" dispatch
-    //     switchToWaveEditor model dispatch
-    | _ ->
-        
-        removeFile project.ProjectPath name
-        // Remove the file from the dependencies and update project.
-        let newComponents = List.filter (fun (lc: LoadedComponent) -> lc.Name.ToLower() <> name.ToLower()) project.LoadedComponents
-        // Make sure there is at least one file in the project.
-        let project' = {project with LoadedComponents = newComponents}
-        match newComponents, name = project.OpenFileName with
-        | [],true -> 
-            // reate a new empty file with default name main as sole file in project
-            let newComponents = [ (createEmptyDiagramFile project.ProjectPath "main") ]
-            let project' = {project' with LoadedComponents = newComponents; OpenFileName="main"}
-            openFileInProject' false newComponents[0].Name project' model dispatch
-        | [], false -> 
-            failwithf "What? - this cannot happen"
-        | nc, true ->
-            // open one of the undeleted loadedcomponents
-            //printfn $"remove sheet '{name}'"
-            //printSheetNames {model with CurrentProj = Some project'}
-            openFileInProject' false project'.LoadedComponents[0].Name project' model dispatch
-        | nc, false ->
-            // nothing chnages except LoadedComponents
-            //printfn $"remove sheet '{name}'"
-            //printSheetNames {model with CurrentProj = Some project'}
-            //dispatch <| SetProject project'
-        dispatch FinishUICmd
-
-                
+    removeFile project.ProjectPath name
+    // Remove the file from the dependencies and update project.
+    let newComponents = List.filter (fun (lc: LoadedComponent) -> lc.Name.ToLower() <> name.ToLower()) project.LoadedComponents
+    // Make sure there is at least one file in the project.
+    let project' = {project with LoadedComponents = newComponents}
+    match newComponents, name = project.OpenFileName with
+    | [],true -> 
+        // reate a new empty file with default name main as sole file in project
+        let newComponents = [ (createEmptyDiagramFile project.ProjectPath "main") ]
+        let project' = {project' with LoadedComponents = newComponents; OpenFileName="main"}
+        openFileInProject' false newComponents[0].Name project' model dispatch
+    | [], false -> 
+        failwithf "What? - this cannot happen"
+    | nc, true ->
+        // open one of the undeleted loadedcomponents
+        //printfn $"remove sheet '{name}'"
+        //printSheetNames {model with CurrentProj = Some project'}
+        openFileInProject' false project'.LoadedComponents[0].Name project' model dispatch
+    | nc, false ->
+        // nothing chnages except LoadedComponents
+        //printfn $"remove sheet '{name}'"
+        //printSheetNames {model with CurrentProj = Some project'}
+        //dispatch <| SetProject project'
+    dispatch FinishUICmd
 
 /// Create a new file in this project and open it automatically.
 let addFileToProject model dispatch =
@@ -623,8 +604,6 @@ let forceCloseProject model dispatch =
     dispatch EndSimulation // End any running simulation.
     model.Sheet.ClearCanvas sheetDispatch
     dispatch FinishUICmd
-
-
 
 /// force either save of current file before action, or abort (closeProject is special case of this)
 let doActionWithSaveFileDialog (name: string) (nextAction: Msg)  model dispatch _ =

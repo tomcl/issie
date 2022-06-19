@@ -614,11 +614,17 @@ module CommonTypes
         ConnectedNets: NLTarget list array
     }
 
+    type WaveIndexT = {
+        Id: ComponentId
+        PortType: PortType
+        PortNumber: int
+    }
+
     /// Info saved by Wave Sim.
     /// This info is not necessarilu uptodate with deletions or additions in the Diagram.
     /// The wavesim code processing this will not fail if non-existent nets are referenced.
     type SavedWaveInfo = {
-        SelectedWaves: string list option
+        SelectedWaves: WaveIndexT list option
         ShownCycles: int option
         Radix: NumberBase option
         ZoomLevel: float option

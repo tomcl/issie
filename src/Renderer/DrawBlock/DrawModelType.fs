@@ -421,7 +421,6 @@ module SheetT =
         | PortMovementStart
         | PortMovementEnd
         | ResetSelection
-        | SetWaveSimMode of bool
         | ToggleNet of CanvasState //This message does nothing in sheet, but will be picked up by the update function
         | SelectWires of ConnectionId list
         | SetSpinner of bool

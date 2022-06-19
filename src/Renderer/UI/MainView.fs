@@ -122,7 +122,6 @@ let viewSimSubTab model dispatch =
     | WaveSim -> 
         div [ Style [Width "100%"; Height "calc(100% - 72px)"; MarginTop "15px" ] ]
             [ viewWaveSim model dispatch ]
-            // ( WaveformSimulationView.viewWaveSim model dispatch )
 
 /// Display the content of the right tab.
 let private viewRightTab model dispatch =
@@ -224,11 +223,9 @@ let displayView model dispatch =
 //    let sd = scrollData model
 //    let x' = sd.SheetLeft+sd.SheetX
 //    let y' = sd.SheetTop+sd.SheetY
-    // let wsModelOpt = getCurrentWSMod model
 
     /// Feed changed viewer width from draggable bar back to Viewer parameters TODO
     let inline setViewerWidthInWaveSim w =
-        printf "w: %A" w
         let wsModel = getWSModel model
         if wsModel.State = WSOpen then
             dispatch <| SetViewerWidth w
@@ -236,7 +233,6 @@ let displayView model dispatch =
             let waveColWidth = w - Constants.namesColMinWidth - Constants.valuesColMinWidth
             let wholeCycles = waveColWidth / int (singleWaveWidth wsModel)
             let wholeCycleWidth = wholeCycles * int (singleWaveWidth wsModel)
-            printf "wholeCycles: %A" wholeCycles
             let viewerWidth = Constants.namesColMinWidth + Constants.valuesColMinWidth + wholeCycleWidth
 
             let wsModel = {

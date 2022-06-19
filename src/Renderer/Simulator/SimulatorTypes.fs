@@ -549,6 +549,7 @@ and  GatherData = {
             List.map ( fun cid -> match Map.tryFind cid this.Labels with | Some lab -> lab | None -> "*" ) (ap @ [cid])
             |> String.concat "."
 
+/// TODO: Investigate whether this is required.
 /// ViewerWaveform added in later.
 /// Normally can select top-level waveform and nothing else
 /// Viewers can be on subsheets. Any viewer waveform can be selected.

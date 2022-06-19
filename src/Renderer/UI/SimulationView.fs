@@ -556,8 +556,6 @@ let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) 
         if not (Sheet.isAllVisible model.Sheet badConns badComps) then
             // make whole diagram visible if any of the errors are not visible
             keyDispatch <| SheetT.KeyboardMsg.CtrlW
-        dispatch <| Sheet(SheetT.SetWaveSimMode false)
-
 
 let viewSimulation model dispatch =
     let state = model.Sheet.GetCanvasState ()
@@ -580,13 +578,7 @@ let viewSimulation model dispatch =
                   Error simError
             |> StartSimulation
             |> dispatch
-            // let sheetName = project.OpenFileName
-            // match Map.tryFind sheetName (fst model.WaveSim) with
-            // | Some wSModel ->
-            //     printfn "Closing wavesim..."
-            //     dispatch <| SetWSModel {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
-            //     dispatch <| SetWaveSimIsOutOfDate true
-            // | None -> ()
+
     match model.CurrentStepSimulationStep with
     | None ->
         let simRes = makeSimData model

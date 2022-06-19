@@ -128,7 +128,7 @@ let private getTruthTableOrFail model msg =
 
 let truncationWarning table =
     $"The Truth Table has been truncated to {table.TableMap.Count} input combinations.
-    Not all rows may be shown. Please use more restrictive input constraints to avoid truncation."
+    Not all rows may be shown."
 
 /// Apply a single numerical output constraint to a Truth Table Map
 let applyNumericalOutputConstraint (table: Map<TruthTableRow,TruthTableRow>) (con: Constraint) =
@@ -611,6 +611,7 @@ let update (msg : Msg) oldModel =
             TTIOOrder = [||]
             TTHiddenColumns = []
             TTAlgebraInputs = []
+            TTGridCache = None
             PopupDialogData = newPopupData}, Cmd.none
     | ClearInputConstraints -> 
         {model with TTInputConstraints = emptyConstraintSet}, Cmd.ofMsg RegenerateTruthTable
@@ -719,7 +720,7 @@ let update (msg : Msg) oldModel =
             {table with TableSimData = {table.TableSimData with NumberBase = numBase}}
             |> Ok
             |> Some
-        {model with CurrentTruthTable = updatedTT}, Cmd.none
+        {model with CurrentTruthTable = updatedTT}, Cmd.ofMsg (SetTTGridCache None)
     | SetTTGridCache gridopt ->
         {model with TTGridCache = gridopt}, Cmd.none
     | ChangeRightTab newTab -> 

@@ -536,9 +536,6 @@ let viewOutputHider table hidden dispatch =
     else
         let preamble = div [] [
             str "Hide or Un-hide Output or Viewer columns in the Truth Table."
-            br []
-            i [] [str "Note: Hiding a column will delete any constraints associated
-                with that column."]
             br []; br []
         ]
         let toggleRows =
@@ -724,7 +721,15 @@ let viewTruthTable model dispatch =
             match tableopt with
             | Error e -> viewTruthTableError e
             | Ok table -> 
+                let truncation =
+                    Notification.notification [Notification.Color IsWarning; Notification.IsLight] [
+                        str "Due to a large number of input combinations, caused by inputs that are
+                            too big or too numerous, the truth table has been truncated. Please use
+                            more restrictive input constraints, or set wider inputs as algebra."
+                    ]
                 div [] [
+                    if table.IsTruncated then
+                        truncation
                     viewReductions table model dispatch
                     br []; br []
                     viewTruthTableData table model dispatch]

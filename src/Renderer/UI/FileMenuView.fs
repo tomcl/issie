@@ -184,7 +184,6 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
                 LoadedComponents = ldComps
             }
 
-            SetWaveSimIsOutOfDate true
             Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
             JSDiagramMsg (SetHasUnsavedChanges false)
             SetIsLoading false 
@@ -239,20 +238,11 @@ let updateProjectFromCanvas (model:Model) (dispatch:Msg -> Unit) =
                     p with LoadedComponents = updateLoadedComponents p.OpenFileName setLc p.LoadedComponents dispatch
                 })
 
-
 /// extract SavedwaveInfo from model to be saved
 let getSavedWave (model:Model) : SavedWaveInfo option = 
     match currWaveSimModel model with
     | Some wsModel -> Some (getSavedWaveInfo wsModel)
     | None -> None
-
-/// add waveInfo to model
-let setSavedWave compIds (wave: SavedWaveInfo option) model : Model =
-    match wave, getCurrFile model with
-    | None, _ -> model
-    | Some waveInfo, Some fileName -> 
-        { model with WaveSim = Map.add fileName (loadWSModelFromSavedWaveInfo waveInfo) model.WaveSim }
-    | Some waveInfo, _ -> model
 
 /// Save the sheet currently open, return  the new sheet's Loadedcomponent if this has changed.
 /// Do not change model.

@@ -32,7 +32,7 @@ let mapItems (map:Map<'a,'b>) = map |> Map.toSeq |> List.ofSeq
 /// Extract the port number of a component port. Port numbers on Components
 /// should always be populated (while they are always None for ports in
 /// Connections).
-let private extractComponentPortNumber port =
+let private extractComponentPortNumber (port: Port) =
     match port.PortNumber with
     | None -> failwithf "what? extractComponentPortNumber should always be called with component ports: %A" port
     | Some pNumber -> pNumber

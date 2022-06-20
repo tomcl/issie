@@ -332,7 +332,8 @@ let update (msg : Msg) oldModel =
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none
     | SetViewerWidth w ->
         {model with WaveSimViewerWidth = w}, Cmd.none
-    | ReloadSelectedComponent width -> {model with LastUsedDialogWidth=width}, Cmd.none
+    | ReloadSelectedComponent width ->
+        {model with LastUsedDialogWidth=width}, Cmd.none
     | StartSimulation simData -> 
         { model with CurrentStepSimulationStep = Some simData }, Cmd.none
     | SetWSModel wsModel -> 

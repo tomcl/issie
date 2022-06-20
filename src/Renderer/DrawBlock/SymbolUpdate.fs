@@ -215,7 +215,7 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
 
     let newcompotype = 
         match symbol.Component.Type with
-        | Input _ -> Input newBits
+        | Input (_, defaultVal) -> Input (newBits, defaultVal)
         | Output _ -> Output newBits
         | Viewer _ -> Viewer newBits
         | NbitsAdder _ -> NbitsAdder newBits
@@ -244,6 +244,16 @@ let changeLsbf (symModel:Model) (compId:ComponentId) (newLsb:int64) =
 
     let newcompo = {symbol.Component with Type = newcompotype}
     {symbol with Component = newcompo}
+
+let changeInputValue (symModel: Model) (compId: ComponentId) (newVal: int) =
+    let symbol = Map.find compId symModel.Symbols
+    let width =
+        match symbol.Component.Type with
+        | Input (width, _) -> width
+        | _ -> failwithf "changeInputValue should only be called for Input components"
+
+    let newComp = {symbol.Component with Type = Input (width, Some newVal)}
+    {symbol with Component = newComp}
 
 /// Updates the value of a constant1 component and returns the updated symbol
 let changeConstantf (symModel:Model) (compId:ComponentId) (constantVal:int64) (constantText: string) =
@@ -1079,6 +1089,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | ChangeLsb (compId, newLsb) -> 
         let newsymbol = changeLsbf model compId newLsb
         (replaceSymbol model newsymbol compId), Cmd.none
+
+    | ChangeInputValue (compId, newVal) ->
+        let newSymbol = changeInputValue model compId newVal
+        (replaceSymbol model newSymbol compId), Cmd.none
 
     | ChangeConstant (compId, newVal, newText) -> 
         let newsymbol = changeConstantf model compId newVal newText

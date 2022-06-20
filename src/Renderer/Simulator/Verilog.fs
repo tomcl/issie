@@ -355,7 +355,7 @@ let fastOutputDefinition (vType:VMode) (fc: FastComponent) (opn: OutputPortNumbe
     | Output n, [] -> $"output {vDef};\n"
     | DFF, _
     | DFFE, _ -> $"reg {vDef} = 1'b0;\n"
-    | Input n, [] ->
+    | Input (n, _), [] ->
         match vType with 
         | ForSynthesis -> $"input {vDef};\n"
         | ForSimulation -> $"reg {vDef} = {getZeros n};\n"

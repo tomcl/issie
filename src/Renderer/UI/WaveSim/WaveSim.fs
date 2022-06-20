@@ -476,12 +476,15 @@ let waveSimButtonsBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEle
 // let moveWave (wsModel: WaveSimModel) (direction: bool) (dispatch: Msg -> unit) : unit =
 //     ()
 
-/// Create label of waveform name for each selected wave
+/// Create label of waveform name for each selected wave.
+/// Note that this is generated after calling selectedWaves.
+/// Any changes to this function must also be made to valueRows
+/// and waveRows, as the order of the waves matters here. This is
+/// because the wave viewer is comprised of three columns of many
+/// rows, rather than many rows of three columns.
 let nameRows (wsModel: WaveSimModel) : ReactElement list =
-    wsModel.SelectedWaves
-    |> List.map (fun driver ->
-        label [ labelStyle ] [ str wsModel.AllWaves[driver].DisplayName ]
-    )
+    selectedWaves wsModel
+    |> List.map (fun wave -> label [ labelStyle ] [ str wave.DisplayName ])
 
 /// Create column of waveform names
 let namesColumn wsModel : ReactElement =
@@ -491,6 +494,11 @@ let namesColumn wsModel : ReactElement =
         (List.concat [ topRow; rows ])
 
 /// Create label of waveform value for each selected wave at a given clk cycle.
+/// Note that this is generated after calling selectedWaves.
+/// Any changes to this function must also be made to nameRows
+/// and waveRows, as the order of the waves matters here. This is
+/// because the wave viewer is comprised of three columns of many
+/// rows, rather than many rows of three columns.
 let valueRows (wsModel: WaveSimModel) = 
     selectedWaves wsModel
     |> List.map (getWaveValue wsModel.CurrClkCycle)
@@ -533,6 +541,11 @@ let clkCycleNumberRow (wsModel: WaveSimModel) =
 
 /// Generate a column of waveforms corresponding to selected waves.
 let waveformColumn (wsModel: WaveSimModel) : ReactElement =
+    /// Note that this is generated after calling selectedWaves.
+    /// Any changes to this function must also be made to nameRows
+    /// and valueRows, as the order of the waves matters here. This is
+    /// because the wave viewer is comprised of three columns of many
+    /// rows, rather than many rows of three columns.
     let waveRows : ReactElement list =
         selectedWaves wsModel
         |> List.map (fun wave ->

@@ -522,7 +522,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
         failwithf "What? Legacy RAM component types should never occur"
     | And | Or | Nand | Nor | Xor | Xnor ->  (2 , 1, 1.5*gS , 1.5*gS) 
     | Not -> ( 1 , 1, 1.0*gS ,  1.0*gS) 
-    | ComponentType.Input (a) -> ( 0 , 1, gS ,  2.*gS)                
+    | Input _ -> ( 0 , 1, gS ,  2.*gS)                
     | ComponentType.Output (a) -> (  1 , 0, gS ,  2.*gS) 
     | ComponentType.Viewer a -> (  1 , 0, gS ,  gS) 
     | ComponentType.IOLabel  ->(  1 , 1, gS/2. ,  gS) 
@@ -1010,7 +1010,7 @@ let drawSymbol (symbol:Symbol) =
             addText {X = w/2. + xOffset; Y = h/1.5 + yOffset}  dialogVal align "normal" fontSize
         | BusCompare (_,y) -> 
             (addText {X = w/2.-2.; Y = h/2.7-1.} ("=" + NumberHelpers.hex(int y)) "middle" "bold" "10px")
-        | Input x | Output x-> 
+        | Input (x, _) | Output x-> 
             (addText {X = w/2.; Y = h/2.7} (busTitleAndBits "" x) "middle" "normal" "12px")
         | Viewer (x) -> 
             (addText {X = w/2.; Y = h/2.7 - 1.25} (busTitleAndBits "" x) "middle" "normal" "9px")

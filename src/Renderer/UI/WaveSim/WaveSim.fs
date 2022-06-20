@@ -184,7 +184,7 @@ let getInputName (comp: NetListComponent) (port: InputPortNumber) : string =
         | DFF | Register _ | DFFE | RegisterE _ ->
             bitLimsString (0, 0)
 
-        | Input w | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
+        | Input (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
         | NbitsXor w | NbitsAdder w  ->
             bitLimsString (w - 1, 0)
 
@@ -238,7 +238,7 @@ let getOutputName (comp: NetListComponent) (port: OutputPortNumber) (fastSim: Fa
         | DFF | DFFE ->
             bitLimsString (0, 0)
 
-        | Input w | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
+        | Input (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
         | NbitsXor w | NbitsAdder w | Register w | RegisterE w ->
             bitLimsString (w - 1, 0)
 

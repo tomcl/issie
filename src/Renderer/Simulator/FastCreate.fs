@@ -114,7 +114,7 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     match sc.Type with
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
-    | Input w
+    | Input (w, _)
     | Output w
     | Viewer w
     | Register w
@@ -178,7 +178,7 @@ let createFastComponent (numSteps: int) (sComp: SimulationComponent) (accessPath
         let dat =
             match accessPath, sComp.Type with
             // top-level input needs special inputs because they can't be calculated
-            | [], Input width -> List.replicate width Zero
+            | [], Input (width, defaultVal) -> List.replicate width Zero
             | _ -> []
 
         [| 0 .. inPortNum - 1 |]
@@ -314,7 +314,7 @@ let rec private createFlattenedSimulation (ap: ComponentId list) (graph: Simulat
                         (fun comp ->
                             (comp.Label,
                                 match comp.Type with
-                                | Input n -> n
+                                | Input (n, _) -> n
                                 | Output n -> n
                                 | _ -> -1),
                             comp.Id)

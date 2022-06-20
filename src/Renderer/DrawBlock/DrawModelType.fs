@@ -173,6 +173,7 @@ module SymbolT =
         | ErrorSymbols of errorIds: ComponentId list * selectIds: ComponentId list * isDragAndDrop: bool
         | ChangeNumberOfBits of compId:ComponentId * NewBits:int 
         | ChangeLsb of compId: ComponentId * NewBits:int64 
+        | ChangeInputValue of compId: ComponentId * newVal: int
         | ChangeConstant of compId: ComponentId * NewBits:int64 * NewText:string
         | ResetModel // For Issie Integration
         | LoadComponents of  LoadedComponent list * Component list // For Issie Integration

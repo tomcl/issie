@@ -23,9 +23,6 @@ module Constants =
     let clkLineWidth = 0.0125
     let lineThickness : float = 0.025
 
-
-let endCycle wsModel = wsModel.StartCycle + wsModel.ShownCycles - 1
-
 let topRowStyle = Style [
     Height Constants.rowHeight
     BorderBottom "2px solid rgb(219,219,219)"
@@ -318,7 +315,7 @@ let clkCycleText m i : IProp list =
     [
         SVGAttr.FontSize "3.5%"
         SVGAttr.TextAnchor "middle"
-        X (m.ZoomLevel * (float i + 0.5))
+        X (zoomLevel m * (float i + 0.5))
         Y 0.65
     ]
 
@@ -329,7 +326,7 @@ let clkCycleSVGStyle = Style [
 
 let waveformColumnRowProps m : IProp list = [
     SVGAttr.Height Constants.rowHeight
-    SVGAttr.Width (float m.ShownCycles * 30.0 * m.ZoomLevel)
+    SVGAttr.Width (float (shownCycles m) * singleWaveWidth m)
     // min-x, min-y, width, height
     ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string Constants.viewBoxHeight)
     PreserveAspectRatio "none"
@@ -358,15 +355,15 @@ let clkCycleHighlightSVG m count =
             GridRowStart 1
         ]
         SVGAttr.Height (string ((count + 1) * Constants.rowHeight) + "px")
-        SVGAttr.Width (float m.ShownCycles * 30.0 * m.ZoomLevel)
+        SVGAttr.Width (float (shownCycles m) * singleWaveWidth m)
         SVGAttr.Fill "rgb(230,230,230)"
         SVGAttr.Opacity 0.4
         ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string (Constants.viewBoxHeight * float (count + 1)))
     ] [
         rect [
-            SVGAttr.Width (m.ZoomLevel)
+            SVGAttr.Width (zoomLevel m)
             SVGAttr.Height "100%"
-            X (float m.CurrClkCycle * m.ZoomLevel)
+            X (float m.CurrClkCycle * zoomLevel m)
         ] []
     ]
 

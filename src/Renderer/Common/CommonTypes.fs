@@ -614,9 +614,7 @@ module CommonTypes
     /// The wavesim code processing this will not fail if non-existent nets are referenced.
     type SavedWaveInfo = {
         SelectedWaves: WaveIndexT list option
-        ShownCycles: int option
         Radix: NumberBase option
-        ZoomLevel: float option
         ZoomLevelIndex: int option
         WaveformColumnWidth: int option
 

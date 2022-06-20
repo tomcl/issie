@@ -45,11 +45,13 @@ module PopupView
 
 open Fulma
 open Fulma.Extensions.Wikiki
+open VerilogTypes
 open Fable.Core
 open Fable.Core.JsInterop
 open Fable.React
 open Fable.React.Props
-open VerilogTypes
+open Browser.Types
+
 
 open JSHelpers
 open Helpers
@@ -85,17 +87,16 @@ importSideEffects "prismjs/components/prism-clike"
 
 
 type CEProps =
-    { Value : string
+    { Box : string
       Dispatch : (Msg -> unit)}
 type CEState = { code: string }
 
 type CE (props) =
     inherit Component<CEProps, CEState> (props)
     
-    do base.setInitState({ code = "" })
+    do base.setInitState({ code = "module NAME(); \n \n \n \n \nendmodule" })
 
     override this.render () =
-      div [Style [FontFamily ("ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace"); FontSize 16; BackgroundColor "#f5f5f5"; OutlineStyle "solid"; OutlineColor "Blue"]] [
             codeEditor [
                 CodeEditorProps.Placeholder ("Start Writing your Verilog Code here..."); 
                 CodeEditorProps.Value ((sprintf "%A" this.state.code)); 
@@ -104,7 +105,7 @@ type CE (props) =
                     props.Dispatch <| SetPopupDialogCode (Some txt))             
                 Highlight (fun code -> Prism.highlight(code,language));]
                 []
-        ]
+        
 
 //////////////////////////////////////////////////////////////////////
 
@@ -322,7 +323,7 @@ let dialogVerilogCompBody before placeholder errorList dispatch =
                 |> List.tryHead
                 |> function | Some ch when  System.Char.IsLetter ch -> true | Some ch -> false | None -> true
         let renderCE value =
-            ofType<CE,_,_> {Value=value; Dispatch=dispatch} 
+            ofType<CE,_,_> {Box=getText dialogData; Dispatch=dispatch} 
         // let errorsElement = 
         //     match List.isEmpty errorList with
         //     | true -> p [] []
@@ -345,7 +346,36 @@ let dialogVerilogCompBody before placeholder errorList dispatch =
             br []
             p [] [b [] [str "Verilog Code:"]]
             br []
-            renderCE code Seq.empty
+            div [ Style [Position PositionOptions.Relative; FontFamily ("ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace"); FontSize 16; BackgroundColor "#f5f5f5"; OutlineStyle "solid"; OutlineColor "Blue"]] 
+                [
+                div [
+                    Style [Position PositionOptions.Absolute ; 
+                        Display DisplayOptions.Block; 
+                        Width "100%"; Height "100%"; 
+                        CSSProp.Top "3px"; CSSProp.Left "0"; CSSProp.Right "0"; CSSProp.Bottom "0";
+                        BackgroundColor "rgba(0,0,0,0)";
+                        FontWeight "bold";
+                        Color "Red"; 
+                        ZIndex "2" ;
+                        PointerEvents "none"]
+                        ]
+                    [
+                        p [] [
+                            span [Style [Display DisplayOptions.InlineBlock; MarginLeft "220px"; PointerEvents "stroke"]] []
+                            span [Class "error"; Style [PointerEvents "auto"; FontSize 10; Color "rgb(255,0,0)"; Background "rgba(255,0,0,0.0)"]] [str "___________________"]  //the characters I want *1.6 (because font size = 10 to make the hoverable box small)
+                            span [Class "hide"] [str " variable clkinput is not declared as an input/wire/parameter"]    
+                        ]
+                        br []
+                        br []
+                        p [] [
+                            span [Style [Display DisplayOptions.InlineBlock; MarginLeft "30px"; PointerEvents "stroke"]] []
+                            span [Class "error"; Style [PointerEvents "auto"; FontSize 10; Color "rgb(255,0,0)"; Background "rgba(255,0,0,0.0)"]] [str "______________"]  
+                            span [Class "hide"] [str "variable clkinput is not declared as an input/wire/parameter"]    
+                        ]
+                        
+                    ]
+                renderCE code Seq.empty
+                ]
         ]
 
 let dialogVerilogErrorsBody errorList =

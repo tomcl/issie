@@ -132,9 +132,13 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
         | InputPortNumber 0 -> ".SEL"
         | _ -> ".DATA"
 
-    | Input _ | Output _ | Constant1 _ | Constant _ | Viewer _ 
-    | DFF | Register _ | ROM1 _ | AsyncROM1 _ ->
+    | Input _ | Output _ | Constant1 _ | Constant _ | Viewer _ ->
         ""
+    | DFF | Register _ ->
+        ".D"
+
+    | ROM1 _ | AsyncROM1 _ ->
+        ".ADDR"
 
     | Demux2 | Demux4 | Demux8 ->
         match port with

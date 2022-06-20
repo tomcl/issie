@@ -22,7 +22,6 @@ type CodeEditorProps =
     | TextAreaId of string
     | TextAreaClassName of string
     | PreClassName of string
-    | Style of list<CSSProp>
 
 
 //////////////////////// Verilog Input Record   ///////////////////////////

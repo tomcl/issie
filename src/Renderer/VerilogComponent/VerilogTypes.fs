@@ -1,6 +1,8 @@
 
 module VerilogTypes
 
+open Fable.React.Props
+
 //////////////////////// Code Editor Types /////////////////////////////////
 
 type State = 
@@ -20,6 +22,7 @@ type CodeEditorProps =
     | TextAreaId of string
     | TextAreaClassName of string
     | PreClassName of string
+    | Style of list<CSSProp>
 
 
 //////////////////////// Verilog Input Types   ///////////////////////////

@@ -6,7 +6,6 @@ const fs = require("fs");
 export function parseFromFile(source) {
     try {
       const parser = new nearley.Parser(nearley.Grammar.fromCompiled(verilogGrammar));
-    //   const source = fs.readFileSync(origin, 'utf8');
       parser.feed(source);
       let results = parser.results;
       
@@ -18,15 +17,35 @@ export function parseFromFile(source) {
         let message = e.message;
         let lineCol = message.match(/[0-9]+/g)
         let expected = message.match(/(?<=A ).*(?= based on:)/g).map(s => s.replace(/\s+token/i,''));
-        // console.log(expected);
+        
+        let table = message.substring(message.indexOf(".") + 1);
+        let expectedKeywords = table.match(/assign|input|output|wire|parameter|endmodule/g);
+        let unique = expectedKeywords.filter((v, i, a) => a.indexOf(v) === i);
+
         const index = expected.indexOf('character matching /[\\s]/');
         if (index > -1) {
             expected.splice(index, 1); // 2nd parameter means remove one item only
         }
-    
+        const index2 = expected.indexOf('character matching /[a-zA-Z]/');
+        if (index2 > -1) {
+            expected[index2] = 'IDENTIFIER';
+        }
+        
+        let check = 0;
+        for (let i = 0; i < expected.length; i++) {
+            if (expected[i].match(/[a-z]/i)){
+                expected.splice(i, 1);
+                check=1;
+                i--;
+            }
+        }
+        if(check==1){
+            expected = expected.concat(unique);
+        }
+
         let newMessage = `Unexpected ${token.type} token "${token.value}" `+
         `at line ${lineCol[0]} col ${lineCol[1]}.`;
-        if (expected && expected.length) newMessage += ` Tokens expected: ${[...new Set(expected)]}`;  
+        if (expected && expected.length) newMessage += `\n Expected: ${[...new Set(expected)]}`;  
         // console.log(e.message)
         // console.log(newMessage);
         return newMessage;

@@ -57,6 +57,8 @@ module Constants =
         0.25; 0.33; 0.5; 0.67; 0.75; 0.8; 0.9; 1.0; 1.1; 1.5; 1.75; 2.0; 2.50; 3.0; 4.0; 5.0;
     |]
 
+    let baseWidth = 30.0
+
 let getWSModel model : WaveSimModel =
     Map.tryFind model.WaveSimSheet model.WaveSim
     |> function
@@ -67,12 +69,16 @@ let getWSModel model : WaveSimModel =
             // printf "Sheet %A not found in model" model.WaveSimSheet
             initWSModel
 
-let viewBoxMinX m = string (float m.StartCycle * m.ZoomLevel)
-let viewBoxWidth m = string (float m.ShownCycles * m.ZoomLevel)
+let zoomLevel m = Constants.zoomLevels[m.ZoomLevelIndex]
 
-let endCycle wsModel = wsModel.StartCycle + wsModel.ShownCycles - 1
+let singleWaveWidth wsModel = Constants.baseWidth * (zoomLevel wsModel)
 
-let singleWaveWidth wsModel = 30.0 * wsModel.ZoomLevel
+let shownCycles m = int <| float m.WaveformColumnWidth / singleWaveWidth m
+
+let viewBoxMinX m = string (float m.StartCycle * zoomLevel m)
+let viewBoxWidth m = string (float (shownCycles m) * zoomLevel m)
+
+let endCycle wsModel = wsModel.StartCycle + (shownCycles wsModel) - 1
 
 let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ label ]
 

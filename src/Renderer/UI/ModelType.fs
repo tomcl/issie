@@ -158,7 +158,6 @@ type WaveSimModel = {
     CurrClkCycle: int
     ClkCycleBoxIsEmpty: bool
     Radix: NumberBase
-    ZoomLevel: float
     ZoomLevelIndex: int
     WaveformColumnWidth: int
 }
@@ -173,11 +172,10 @@ let initWSModel : WaveSimModel = {
     AllWaves = Map.empty
     SelectedWaves = List.empty
     StartCycle = 0
-    ShownCycles = 7
+    ShownCycles = 6
     CurrClkCycle = 0
     ClkCycleBoxIsEmpty = false
     Radix = Hex
-    ZoomLevel = 1.5
     ZoomLevelIndex = 9
     WaveformColumnWidth = initialWaveformColWidth
 }
@@ -444,9 +442,7 @@ let getComponentIds (model: Model) =
 let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
     {
         SelectedWaves = Some wsModel.SelectedWaves
-        ShownCycles = Some wsModel.ShownCycles
         Radix = Some wsModel.Radix
-        ZoomLevel = Some wsModel.ZoomLevel
         ZoomLevelIndex = Some wsModel.ZoomLevelIndex
         WaveformColumnWidth = Some wsModel.WaveformColumnWidth
 
@@ -466,9 +462,7 @@ let loadWSModelFromSavedWaveInfo (swInfo: SavedWaveInfo) : WaveSimModel =
     {
         initWSModel with
             SelectedWaves = Option.defaultValue initWSModel.SelectedWaves swInfo.SelectedWaves
-            ShownCycles = Option.defaultValue initWSModel.ShownCycles swInfo.ShownCycles
             Radix = Option.defaultValue initWSModel.Radix swInfo.Radix
-            ZoomLevel = Option.defaultValue initWSModel.ZoomLevel swInfo.ZoomLevel
             ZoomLevelIndex = Option.defaultValue initWSModel.ZoomLevelIndex swInfo.ZoomLevelIndex
             WaveformColumnWidth = Option.defaultValue initWSModel.WaveformColumnWidth swInfo.WaveformColumnWidth
     }

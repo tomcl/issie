@@ -16,7 +16,8 @@ module Constants =
     let namesColMinWidth = 250
     let valuesColMinWidth = 100
 
-    let rowHeight = "30px"
+
+    let rowHeight = 30
     let clkLineWidth = 0.0125
     let lineThickness : float = 0.025
 
@@ -97,7 +98,7 @@ let selectWavesStyle = Style [
 ]
 
 let closeWaveSimButtonStyle = Style [
-    Height "30px"
+    Height Constants.rowHeight
     FontSize "16px"
     Float FloatOptions.Left
     Position PositionOptions.Relative
@@ -147,7 +148,7 @@ let zoomInSVG =
 let clkCycleButtonStyle = Style [
     Float FloatOptions.Right
     Position PositionOptions.Relative
-    Height "30px"
+    Height Constants.rowHeight
     TextAlign TextAlignOptions.Center
     Display DisplayOptions.InlineBlock
     FontSize "13px"
@@ -160,7 +161,7 @@ let clkCycleInputStyle = Style [
     Float FloatOptions.Left
     TextAlign TextAlignOptions.Center
     Width "40px"
-    Height "30px"
+    Height Constants.rowHeight
     Display DisplayOptions.InlineBlock
     FontSize "13px"
     Resize "vertical"
@@ -178,7 +179,7 @@ let clkCycleInputProps : IHTMLProp list = [
 
 let clkCycleBut = [
     Margin 0
-    Height "30px"
+    Height Constants.rowHeight
     Padding 0
     Width "30px"
     Position PositionOptions.Relative
@@ -214,7 +215,7 @@ let waveSimButtonsBarStyle = Style [ Height "45px" ]
 let upDownDivStyle = Style [
     Width "100%"
     Position PositionOptions.Relative
-    Height "30px"
+    Height Constants.rowHeight
     Float FloatOptions.Left
 ]
 
@@ -249,7 +250,7 @@ let waveSimColumn = [
     Width "100%"
     BorderTop borderProperties
     Display DisplayOptions.Grid
-    GridAutoRows "30px" 
+    GridAutoRows Constants.rowHeight
     FontSize "12px"
     OverflowX OverflowOptions.Scroll
     WhiteSpace WhiteSpaceOptions.Nowrap
@@ -283,7 +284,7 @@ let waveRowsStyle width = Style [
     OverflowX OverflowOptions.Hidden
     Display DisplayOptions.Grid
     FontSize "12px"
-    GridAutoRows "30px"
+    GridAutoRows Constants.rowHeight
     BorderTop borderProperties
     Width width
     GridColumnStart 1
@@ -325,7 +326,7 @@ let clkCycleSVGStyle = Style [
 ]
 
 let waveformColumnRowProps m : IProp list = [
-    SVGAttr.Height "30px"
+    SVGAttr.Height Constants.rowHeight
     SVGAttr.Width (float m.ShownCycles * 30.0 * m.ZoomLevel)
     // min-x, min-y, width, height
     ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string Constants.viewBoxHeight)
@@ -354,7 +355,7 @@ let clkCycleHighlightSVG m count =
             GridColumnStart 1
             GridRowStart 1
         ]
-        SVGAttr.Height (string ((count + 1)* 30) + "px")
+        SVGAttr.Height (string ((count + 1) * Constants.rowHeight) + "px")
         SVGAttr.Width (float m.ShownCycles * 30.0 * m.ZoomLevel)
         SVGAttr.Fill "rgb(230,230,230)"
         SVGAttr.Opacity 0.4
@@ -371,18 +372,18 @@ let clkCycleHighlightSVG m count =
 let radixTabProps : IHTMLProp list = [
     Style [
         Width "35px"
-        Height "30px"
+        Height Constants.rowHeight
     ]
 ]
 
 let radixTabAStyle = Style [
     Padding "0 0 0 0"
-    Height "30px"
+    Height Constants.rowHeight
 ]
 
 let radixTabsStyle = Style [
     Width "140px"
-    Height "30px"
+    Height Constants.rowHeight
     FontSize "80%"
     Float FloatOptions.Right
     Margin "0 10px 0 10px"

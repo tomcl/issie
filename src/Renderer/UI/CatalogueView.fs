@@ -38,7 +38,7 @@ let private makeCustom styles model dispatch (loadedComponent: LoadedComponent) 
     menuItem styles loadedComponent.Name (fun _ ->
         let custom = Custom {
             Name = loadedComponent.Name
-            InputLabels = FilesIO.getOrderedCompLabels (Input 0) canvas
+            InputLabels = FilesIO.getOrderedCompLabels (Input (0, None)) canvas
             OutputLabels = FilesIO.getOrderedCompLabels (Output 0) canvas
         }
         
@@ -53,6 +53,37 @@ let private makeCustomList styles model dispatch =
         project.LoadedComponents
         |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         |> List.map (makeCustom styles model dispatch)
+
+let private createInputPopup typeStr (compType: int * int option -> ComponentType) (model:Model) (dispatch: Msg -> unit) =
+    let title = sprintf "Add %s node" typeStr
+    let beforeText =
+        fun _ -> str <| sprintf "How do you want to name your %s?" typeStr
+    let placeholder = "Component name"
+    let beforeInt =
+        fun _ -> str <| sprintf "How many bits should the %s node have?" typeStr
+    let beforeDefaultValue = fun _ -> str <| sprintf "If the input is undriven, what should the default value be?"
+    let intDefault = model.LastUsedDialogWidth
+    let body =
+        dialogPopupBodyTextAndTwoInts (beforeText, placeholder) (beforeInt, beforeDefaultValue) (intDefault, 0) dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            // TODO: format text for only uppercase and allowed chars (-, not number start)
+            // TODO: repeat this throughout this file and selectedcomponentview (use functions)
+            let inputText = getText dialogData
+            let widthInt = getInt dialogData
+            let defaultValueInt = int (getInt2 dialogData)
+            createComponent (compType (widthInt, Some defaultValueInt)) (formatLabelFromType (compType (widthInt, Some defaultValueInt)) inputText) model dispatch
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) ->
+            let notGoodLabel =
+                getText dialogData
+                |> Seq.toList
+                |> List.tryHead
+                |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
+            (getInt dialogData < 1) || notGoodLabel
+    dialogPopup title body buttonText buttonAction isDisabled dispatch
 
 let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
     let title = sprintf "Add %s node" typeStr
@@ -361,7 +392,7 @@ let viewCatalogue model dispatch =
                 // TODO
                     makeMenuGroup
                         "Input / Output"
-                        [ catTip1 "Input"  (fun _ -> createIOPopup true "input" Input model dispatch) "Input connection to current sheet: one or more bits"
+                        [ catTip1 "Input"  (fun _ -> createInputPopup "input" Input model dispatch) "Input connection to current sheet: one or more bits"
                           catTip1 "Output" (fun _ -> createIOPopup true "output" Output model dispatch) "Output connection from current sheet: one or more bits"
                           catTip1 "Viewer" (fun _ -> createIOPopup true "viewer" Viewer model dispatch) "Viewer to expose value in simulation: works in subsheets"
                           catTip1 "Constant" (fun _ -> createConstantPopup model dispatch) "Define a one or more bit constant value, \

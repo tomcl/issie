@@ -257,7 +257,7 @@ let assignmentRHSNameCheck ast inputParameterWireList errorList =
         | true -> 
             errorList
         | false -> 
-            List.append errorList [sprintf "The following ports are not defined as input/parameter/wire: %A" diff + sprintf " in item number: %i" itemNo ]
+            List.append errorList [sprintf "The following variables are not defined as input/parameter/wire: %A" diff + sprintf " in item number: %i" itemNo ]
     
     let items = ast.Module.ModuleItems.ItemList |> Array.toList
     let localErrors = 

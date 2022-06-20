@@ -77,9 +77,7 @@ let singleWaveWidth wsModel = 30.0 * wsModel.ZoomLevel
 let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ label ]
 
 let selectedWaves (wsModel: WaveSimModel) : Wave list =
-    Map.filter (fun name _ -> List.contains name wsModel.SelectedWaves) wsModel.AllWaves
-    |> Map.values
-    |> Seq.toList
+    List.map (fun index -> wsModel.AllWaves[index]) wsModel.SelectedWaves
 
 let pointsToString (points: XYPos list) : string =
     List.fold (fun str (point: XYPos) ->

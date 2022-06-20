@@ -13,9 +13,11 @@ open Fable.React.Props
 // let busLabelTextSize = 0.6 // multiplied by signal height
 
 module Constants =
-    let namesColMinWidth = 250
-    let valuesColMinWidth = 100
+    let namesColWidth = 200
+    let valuesColWidth = 100
 
+    let leftMargin = 50
+    let rightMargin = 50
 
     let rowHeight = 30
     let clkLineWidth = 0.0125
@@ -259,7 +261,7 @@ let waveSimColumn = [
 
 let namesColumnStyle = Style (
     (waveSimColumn) @ [
-        MinWidth "215px"
+        MinWidth Constants.namesColWidth
         Float FloatOptions.Left
         BorderRight borderProperties
         GridColumnStart 1
@@ -268,7 +270,7 @@ let namesColumnStyle = Style (
 
 let valuesColumnStyle = Style (
     (waveSimColumn) @ [
-        MinWidth "75px"
+        MinWidth Constants.valuesColWidth
         Float FloatOptions.Right
         BorderLeft borderProperties
         GridColumnStart 3
@@ -302,8 +304,8 @@ let showWaveformsStyle = Style [
 ]
 
 let waveSelectionPaneStyle = Style [
-    Width "90%"
-    MarginLeft "5%"
+    MarginLeft Constants.leftMargin
+    MarginRight Constants.rightMargin
     MarginTop "15px"
 ]
 

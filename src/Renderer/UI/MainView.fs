@@ -17,6 +17,9 @@ open Fable.Core
 open Fable.Core.JsInterop
 open Browser.Dom
 
+module Constants =
+    let dividerBarWidth = 10
+
 //------------------Buttons overlaid on Draw2D Diagram----------------------------------//
 //--------------------------------------------------------------------------------------//
 
@@ -190,7 +193,7 @@ let dividerbar (model:Model) dispatch =
         if isDraggable then [
             BackgroundColor "grey"
             Cursor "ew-resize" 
-            Width "10px"
+            Width Constants.dividerBarWidth
 
         ] else [
             BackgroundColor "lightgray"
@@ -230,10 +233,14 @@ let displayView model dispatch =
         if wsModel.State = WSOpen then
             dispatch <| SetViewerWidth w
 
-            let waveColWidth = w - Constants.namesColMinWidth - Constants.valuesColMinWidth
+            /// Unsure of why there needs to be 2* in front of dividerBarWidth... but it seems to work.
+            let otherDivWidths = Constants.leftMargin + Constants.rightMargin + 2 * Constants.dividerBarWidth
+
+            let waveColWidth = w - otherDivWidths - Constants.namesColWidth - Constants.valuesColWidth
             let wholeCycles = waveColWidth / int (singleWaveWidth wsModel)
             let wholeCycleWidth = wholeCycles * int (singleWaveWidth wsModel)
-            let viewerWidth = Constants.namesColMinWidth + Constants.valuesColMinWidth + wholeCycleWidth
+
+            let viewerWidth = Constants.namesColWidth + Constants.valuesColWidth + wholeCycleWidth + otherDivWidths
 
             let wsModel = {
                 wsModel with

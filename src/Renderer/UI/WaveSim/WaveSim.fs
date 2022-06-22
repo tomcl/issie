@@ -131,7 +131,7 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
         | InputPortNumber 0 -> ".SEL"
         | _ -> ".DATA"
 
-    | Input _ | Output _ | Constant1 _ | Constant _ | Viewer _ ->
+    | Input1 _ | Output _ | Constant1 _ | Constant _ | Viewer _ ->
         ""
     | DFF | Register _ ->
         ".D"
@@ -184,7 +184,7 @@ let getInputName (comp: NetListComponent) (port: InputPortNumber) : string =
         | DFF | Register _ | DFFE | RegisterE _ ->
             bitLimsString (0, 0)
 
-        | Input (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
+        | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
         | NbitsXor w | NbitsAdder w  ->
             bitLimsString (w - 1, 0)
 
@@ -207,7 +207,7 @@ let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : strin
     match compType with
     | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4 | Mux2 | Mux4 | Mux8 | BusCompare _ | NbitsXor _ ->
         ".OUT"
-    | Input _ | Output _ | Constant1 _ | Constant _ | Viewer _ | IOLabel ->
+    | Input1 _ | Output _ | Constant1 _ | Constant _ | Viewer _ | IOLabel ->
         ""
     | Demux2 | Demux4 | Demux8 ->
         "." + string port
@@ -238,7 +238,7 @@ let getOutputName (comp: NetListComponent) (port: OutputPortNumber) (fastSim: Fa
         | DFF | DFFE ->
             bitLimsString (0, 0)
 
-        | Input (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
+        | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
         | NbitsXor w | NbitsAdder w | Register w | RegisterE w ->
             bitLimsString (w - 1, 0)
 

@@ -77,8 +77,7 @@ let formatLabelAsBus (width:int) (text:string) =
 let formatLabelFromType compType (text:string) =
     let text' = extractLabelBase text
     match compType with
-    | Input (1, _) | Output 1 -> text'
-    //| Input width | Output width -> sprintf "%s(%d:%d)" text' (width-1) 0
+    | Input1 (1, _) | Output 1 -> text'
     | _ -> text'
 
 

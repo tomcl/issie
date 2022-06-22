@@ -15,7 +15,7 @@ open SimulatorTypes
 let couldBeSynchronousComponent compType : bool =
     match compType with
     | DFF | DFFE | Register _ | RegisterE _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ | Custom _ -> true // We have to assume custom components are clocked as they may be.
-    | Input _ | Output _ | IOLabel | Constant1 _ | BusSelection _ | BusCompare _ | MergeWires | SplitWire _ | Not | And | Or | Xor
+    | Input1 _ | Output _ | IOLabel | Constant1 _ | BusSelection _ | BusCompare _ | MergeWires | SplitWire _ | Not | And | Or | Xor
     | Nand | Nor | Xnor | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | NbitsAdder _ | NbitsXor _ | Decode4 | AsyncROM1 _ | Viewer _ -> false
     | _ -> failwithf $"Legacy components {compType} should never be read!"
 
@@ -39,14 +39,14 @@ let rec hasSynchronousComponents graph : bool =
             match comp.Type with
             | DFF | DFFE | Register _ | RegisterE _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ -> true
             | Custom _ -> hasSynchronousComponents <| Option.get comp.CustomSimulationGraph
-            | Input _ | Output _ | IOLabel | BusSelection _ | BusCompare _ | MergeWires | SplitWire _ | Not | And | Or
+            | Input1 _ | Output _ | IOLabel | BusSelection _ | BusCompare _ | MergeWires | SplitWire _ | Not | And | Or
             | Xor | Nand | Nor | Xnor | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | NbitsAdder _ | NbitsXor _ | Decode4 | AsyncROM1 _ | Constant1 _ | Viewer _ -> false
             | _ -> failwithf $"legacy components should never be read {comp.Type}"
         )
     |> Map.tryPick (fun compId isSync -> if isSync then Some () else None)
     |> function | Some _ -> true | None -> false
 
-let isInput = function | Input _ -> true | _ -> false
+let isInput = function | Input1 _ -> true | _ -> false
 let isOutput = function | Output _ -> true | _ -> false
 let isCustom = function | Custom _ -> true | _ -> false
 let isIOLabel = function | IOLabel _ -> true | _ -> false

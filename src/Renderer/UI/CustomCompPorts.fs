@@ -484,7 +484,7 @@ let checkCanvasStateIsOk (model:Model) =
         let comps,conns = ldc.CanvasState
         let ioNames =
             comps
-            |> List.filter (fun comp -> match comp.Type with | Input _ | Output _ -> true | _ -> false)
+            |> List.filter (fun comp -> match comp.Type with | Input1 _ | Output _ -> true | _ -> false)
             |> List.map (fun comp -> comp.Label)
         ioNames.Length = (List.distinct ioNames).Length
         )

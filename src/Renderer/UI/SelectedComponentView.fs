@@ -150,7 +150,7 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
     
     let title, width =
         match comp.Type with
-        | Input (w, _) | Output w | NbitsAdder w | NbitsXor w | Register w | RegisterE w | Viewer w -> "Number of bits", w
+        | Input1 (w, _) | Output w | NbitsAdder w | NbitsXor w | Register w | RegisterE w | Viewer w -> "Number of bits", w
         | SplitWire w -> "Number of bits in the top (LSB) wire", w
         | BusSelection( w, _) -> "Number of bits selected: width", w
         | BusCompare( w, _) -> "Bus width", w
@@ -184,7 +184,7 @@ let makeDefaultValueField (model: Model) (comp: Component) (text: string) dispat
 
     let width, defValue =
         match comp.Type with
-        | Input (w, defValue) ->
+        | Input1 (w, defValue) ->
             match defValue with
             | Some defValue -> w, defValue
             | None -> w, 0
@@ -295,7 +295,7 @@ let private makeDescription (comp:Component) model dispatch =
     match comp.Type with
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
-    | Input _ -> str "Input."
+    | Input1 _ -> str "Input."
     | Constant1 _ | Constant _ -> str "Constant Wire."
     | Output _ -> str "Output."
     | Viewer _ -> str "Viewer."
@@ -394,7 +394,7 @@ let private makeDescription (comp:Component) model dispatch =
 
 let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
     match comp.Type with
-    | Input _ ->
+    | Input1 _ ->
         div []
             [
                 makeNumberOfBitsField model comp text dispatch

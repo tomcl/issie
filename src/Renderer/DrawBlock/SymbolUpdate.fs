@@ -215,7 +215,7 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
 
     let newcompotype = 
         match symbol.Component.Type with
-        | Input (_, defaultVal) -> Input (newBits, defaultVal)
+        | Input1 (_, defaultVal) -> Input1 (newBits, defaultVal)
         | Output _ -> Output newBits
         | Viewer _ -> Viewer newBits
         | NbitsAdder _ -> NbitsAdder newBits
@@ -249,10 +249,10 @@ let changeInputValue (symModel: Model) (compId: ComponentId) (newVal: int) =
     let symbol = Map.find compId symModel.Symbols
     let width =
         match symbol.Component.Type with
-        | Input (width, _) -> width
+        | Input1 (width, _) -> width
         | _ -> failwithf "changeInputValue should only be called for Input components"
 
-    let newComp = {symbol.Component with Type = Input (width, Some newVal)}
+    let newComp = {symbol.Component with Type = Input1 (width, Some newVal)}
     {symbol with Component = newComp}
 
 /// Updates the value of a constant1 component and returns the updated symbol

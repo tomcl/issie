@@ -355,7 +355,7 @@ let fastOutputDefinition (vType:VMode) (fc: FastComponent) (opn: OutputPortNumbe
     | Output n, [] -> $"output {vDef};\n"
     | DFF, _
     | DFFE, _ -> $"reg {vDef} = 1'b0;\n"
-    | Input (n, _), [] ->
+    | Input1 (n, _), [] ->
         match vType with 
         | ForSynthesis -> $"input {vDef};\n"
         | ForSimulation -> $"reg {vDef} = {getZeros n};\n"
@@ -398,12 +398,12 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
 
     match fc.FType with
     | Viewer _ -> ""
-    | Input _ when fc.AccessPath = [] 
+    | Input1 _ when fc.AccessPath = [] 
         -> failwithf "What? cannot call getVerilogComponent to find code for global Input"
     | Output _
     | Viewer _
     | IOLabel _
-    | Input _ -> sprintf $"assign %s{outs 0} = %s{ins 0};\n"
+    | Input1 _ -> sprintf $"assign %s{outs 0} = %s{ins 0};\n"
 
     | Not -> sprintf "assign %s = ! %s;\n" (outs 0) (ins 0)
     | And
@@ -516,7 +516,7 @@ let getMainHeader (vType:VMode) (fs: FastSimulation) =
             match fc.FType, fc.AccessPath with
             | Output _, [] -> // NB - inputs are assigned zero in synthesis and not included in module header
                 [| fc.VerilogOutputName[0] |]
-            | Input _, [] when vType = ForSynthesis -> [| fc.VerilogOutputName[0] |]
+            | Input1 _, [] when vType = ForSynthesis -> [| fc.VerilogOutputName[0] |]
             | _ -> [||])
     |> Array.append (match vType with | ForSynthesis -> [|"clk"|] | ForSimulation -> [||])
     |> String.concat ",\n\t"

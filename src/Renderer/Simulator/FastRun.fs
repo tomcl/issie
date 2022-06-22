@@ -23,7 +23,7 @@ let private isValidData (fd: FastData) = fd <> emptyFastData
 /// True if the component is combinational
 let inline isComb (comp: FastComponent) =
     match comp.FType with
-    | Input _ when comp.AccessPath = [] -> false
+    | Input1 _ when comp.AccessPath = [] -> false
     | AsyncRAM1 _ -> true
     | ct when couldBeSynchronousComponent ct -> false
     | _ -> true
@@ -98,7 +98,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
     let initInput (fc: FastComponent) =
         let inputVal : uint32 =
             match fc.FType with
-            | Input (w, defaultVal) ->
+            | Input1 (w, defaultVal) ->
                 match defaultVal with
                 | Some defaultVal -> defaultVal
                 | None -> 0

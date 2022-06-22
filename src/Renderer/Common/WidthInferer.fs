@@ -161,6 +161,7 @@ let private calculateOutputPortsWidth
     match comp.Type with
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
+    | Input _ -> failwithf "Legacy Input components should never occur"
     | Input1 (width, _) | Constant1(width,_,_) | Constant(width,_)->
         // Expects no inputs, and has an outgoing wire of the given width.
         assertInputsSize inputConnectionsWidth 0 comp

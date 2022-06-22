@@ -310,6 +310,7 @@ module CommonTypes
 
     // Types instantiating objects in the Digital extension.
     type ComponentType =
+        | Input of BusWidth: int // Legacy component: to be deleted
         | Input1 of BusWidth: int * DefaultValue: int option | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel 
         | BusCompare of BusWidth: int * CompareValue: uint32
         | BusSelection of OutputWidth: int * OutputLSBit: int

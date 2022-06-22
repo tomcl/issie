@@ -101,6 +101,7 @@ let getPortNumbers (sc: SimulationComponent) =
         | Not | And | Or | Xor | Nand | Nor | Xnor -> 2,1
         | Custom _ -> failwithf "Custom components should not occur in fast simulation"
         | AsyncROM _ | RAM _ | ROM _ -> failwithf "legacy component type is not supported"
+        | Input _ -> failwithf "Legacy Input component types should never occur"
 
     ins, outs
 
@@ -114,6 +115,7 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     match sc.Type with
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
+    | Input _ -> failwithf "Legacy Input component types should never occur"
     | Input1 (w, _)
     | Output w
     | Viewer w

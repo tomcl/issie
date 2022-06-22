@@ -170,6 +170,7 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
         "." + fst c.InputLabels[getInputPortNumber port]
 
     | ROM _ | RAM _ | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"
+    | Input _ -> failwithf "Legacy Input component types should never occur"
     | IOLabel -> failwithf "IOLabel should not occur in getInputPortName"
     | MergeWires -> failwithf "MergeWires should not occur in getInputPortName"
     | SplitWire _ -> failwithf "SplitWire should not occur in getInputPortName"
@@ -196,6 +197,7 @@ let getInputName (comp: NetListComponent) (port: InputPortNumber) : string =
             bitLimsString (snd c.InputLabels[getInputPortNumber port] - 1, 0)
 
         | ROM _ | RAM _ | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"
+        | Input _ -> failwithf "Legacy Input component types should never occur"
         | IOLabel -> failwithf "IOLabel should not occur in getInputName"
         | MergeWires -> failwithf "MergeWires should not occur in getInputName"
         | SplitWire _ -> failwithf "SplitWire should not occur in getInputName"
@@ -225,6 +227,7 @@ let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : strin
         "." + fst c.OutputLabels[getOutputPortNumber port]
 
     | ROM _ | RAM _ | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"
+    | Input _ -> failwithf "Legacy Input component types should never occur"
     | MergeWires -> failwithf "MergeWires should not occur in getOutputName"
     | SplitWire _ -> failwithf "SplitWire should not occur in getOutputName"
     | BusSelection _ -> failwithf "BusSeleciton should not occur in getOutputName"
@@ -258,9 +261,10 @@ let getOutputName (comp: NetListComponent) (port: OutputPortNumber) (fastSim: Fa
                 bitLimsString (width - 1, 0)
 
         | ROM _ | RAM _ | AsyncROM _ -> failwithf "What? Legacy RAM component types should never occur"
+        | Input _ -> failwithf "Legacy Input component types should never occur"
         | MergeWires -> failwithf "MergeWires should not occur in getOutputName"
         | SplitWire _ -> failwithf "SplitWire should not occur in getOutputName"
-        | BusSelection _ -> failwithf "BusSeleciton should not occur in getOutputName"
+        | BusSelection _ -> failwithf "BusSelection should not occur in getOutputName"
 
     comp.Label + portName + bitLims
 

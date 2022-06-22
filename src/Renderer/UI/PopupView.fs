@@ -369,8 +369,10 @@ let dialogPopupBodyOnlyText before placeholder dispatch =
 
         ]
 
+
+
 /// Create the body of a Verilog Editor Popup.
-let dialogVerilogCompBody before placeholder errorList dispatch =
+let dialogVerilogCompBody before placeholder errorDiv dispatch =
     fun (dialogData : PopupDialogData) ->
         let code = getCode dialogData
         let goodLabel =

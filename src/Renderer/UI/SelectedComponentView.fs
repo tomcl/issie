@@ -295,6 +295,7 @@ let private makeDescription (comp:Component) model dispatch =
     match comp.Type with
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
+    | Input _ -> failwithf "Legacy Input component types should never occur"
     | Input1 _ -> str "Input."
     | Constant1 _ | Constant _ -> str "Constant Wire."
     | Output _ -> str "Output."

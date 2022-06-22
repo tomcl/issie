@@ -215,6 +215,7 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
 
     let newcompotype = 
         match symbol.Component.Type with
+        | Input _ -> failwithf "Legacy Input component types should never occur"
         | Input1 (_, defaultVal) -> Input1 (newBits, defaultVal)
         | Output _ -> Output newBits
         | Viewer _ -> Viewer newBits

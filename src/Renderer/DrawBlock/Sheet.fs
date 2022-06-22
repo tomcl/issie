@@ -611,6 +611,7 @@ let emptySnap: SnapXY =
 /// snap to each other.
 let symbolMatch (symbol: SymbolT.Symbol) =
     match symbol.Component.Type with
+    | Input _ // legacy component - to be deleted
     | Input1 _ | Output _| IOLabel -> 
         Input1 (0, None)
 

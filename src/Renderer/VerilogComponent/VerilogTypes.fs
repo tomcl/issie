@@ -24,7 +24,7 @@ type CodeEditorProps =
     | PreClassName of string
 
 
-//////////////////////// Verilog Input Types   ///////////////////////////
+//////////////////////// Verilog Input Record   ///////////////////////////
 
 type ModuleNameT = {Type : string; Name : string}
 
@@ -47,10 +47,21 @@ type AssignmentT = {Type: string; LHS: AssignmentLHST; RHS: ExpressionT}
 
 type StatementItemT = {Type: string; StatementType: string; Assignment : AssignmentT;}
 
-type ItemT = {Type: string; ItemType: string; IODecl: IOItemT option; ParamDecl: ParameterItemT option; Statement: StatementItemT option}
+type ItemT = {Type: string; ItemType: string; IODecl: IOItemT option; ParamDecl: ParameterItemT option; Statement: StatementItemT option; Location: int}
 
 type ModuleItemsT = {Type : string; ItemList : ItemT array}
 
-type ModuleT = {Type : string; ModuleName : string; PortList : string array; ModuleItems : ModuleItemsT}
+type ModuleT = {Type : string; ModuleName : string; PortList : string array; Locations: string array; ModuleItems : ModuleItemsT}
 
 type VerilogInput = { Type:string; Module: ModuleT; }
+
+
+////////////////////////////////////////////////////////////////////////////
+
+type ErrorInfo = {Line:int; Col:int; Length: int; Message: string}
+
+type ParserOutput = {Result: string option; Error: ErrorInfo option; NewLinesIndex: int array option}
+
+type VerilogError =
+    | SyntaxError of ErrorInfo
+    | SemanticError of ErrorInfo

@@ -22,6 +22,7 @@ open NearleyBindings
 open ErrorCheck
 
 open Fable.SimpleJson
+open Fable.Core.JsInterop
 
 NearleyBindings.importGrammar
 NearleyBindings.importFix
@@ -322,16 +323,54 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
+let getErrorDiv errorList : ReactElement = //seq<ReactElement> =
+    let sortedErrors = List.sortBy (fun e -> e.Line) errorList
+    
+    let children =
+        sortedErrors
+        |> List.indexed
+        |> List.collect (fun (index,err) ->
+            let brakes:ReactElement list = 
+                match index with
+                |0 -> [1..err.Line-1] |> List.collect (fun x -> [br []] )
+                | _ -> [1..err.Line-sortedErrors[index-1].Line-1] |> List.collect (fun x -> [br []] )
+            let spaces = sprintf "%fpx" ((float (err.Col-2))*8.8) 
+            let _line = ("", [1..err.Length]) ||> List.fold (fun s v -> s+"-")
+            let errorElement =
+                p [] [
+                span [Style [Display DisplayOptions.InlineBlock; MarginLeft spaces; PointerEvents "stroke"]] []
+                span [Class "error"; Style [PointerEvents "auto"; FontSize 16; Color "rgb(255,0,0)"; Background "rgba(255,0,0,0)"]] [str ("--"+_line)] 
+                span [Class "hide"] [str err.Message]  
+                ]
+            if (index <> 0) && (err.Line = sortedErrors[index-1].Line) 
+                then brakes
+            else List.append brakes [errorElement]
+        ) 
+    div [
+        Style [Position PositionOptions.Absolute ; 
+            Display DisplayOptions.Block; 
+            Width "100%"; Height "100%"; 
+            CSSProp.Top "8px"; CSSProp.Left "0"; CSSProp.Right "0"; CSSProp.Bottom "0";
+            BackgroundColor "rgba(0,0,0,0)";
+            FontWeight "bold";
+            Color "Red"; 
+            ZIndex "2" ;
+            PointerEvents "none";
+            WhiteSpace WhiteSpaceOptions.PreLine]
+    ] children
+
+
 let createVerilogComp model =
     printfn "Not implemented yet!"
 
 
-let private createVerilogPopup model dispatch =
+let rec private createVerilogPopup model dispatch =
     let title = sprintf "Create Combinational Logic Components using Verilog" 
     let beforeText =
         fun _ -> str <| sprintf "How do you want to name your Verilog Component?"
     let placeholder = "Component name"
-    let errors = model.PopupDialogData.VerilogErrors
+    let errorDiv = getErrorDiv model.PopupDialogData.VerilogErrors
+    let errors = if model.PopupDialogData.VerilogErrors <> [] then errorDiv else null
     let body= dialogVerilogCompBody beforeText placeholder errors dispatch
     let buttonText = "Save"
     let saveButtonAction =
@@ -356,24 +395,34 @@ let private createVerilogPopup model dispatch =
             | None -> failwithf "What? current project cannot be None at this point in compiling Verilog Component"
             | Some project ->
                 let code = getCode dialogData
-                // let parser = newParser
-                // feedParser code
-                // let result = parse
-                let result = parseFromFile(code)
-                if result[0] = '{' then
+                let parsedCode = parseFromFile(code)
+                let output = Json.parseAs<ParserOutput> parsedCode
+                if isNullOrUndefined output.Error then
+                    let result = Option.get output.Result
                     printfn "Input AST: %s" result
                     let j = fix result
                     printfn "Fixed AST: %A" j
+                    let linesIndex = Option.get output.NewLinesIndex |> Array.toList
+                    printfn "NewLinesIndex: %A" linesIndex
                     let js2 = j |> Json.parseAs<VerilogInput>
-                    let errorList = ErrorCheck.getErrors js2 model
+                    let errorList = ErrorCheck.getErrors js2 model linesIndex
                     match List.isEmpty errorList with
-                    | true -> printfn "Compiled successfully"
+                    | true -> 
+                        printfn "Compiled successfully"
+                        let data = {dialogData with VerilogErrors = errorList} 
+                        createVerilogPopup {model with PopupDialogData = data } dispatch
                     | false -> 
                         printfn "Compilation Failed! Errors: %A" errorList
-                        dispatch <| SetPopupDialogVerilogErrors errorList
+                        // dispatch <| SetPopupDialogVerilogErrors errorList
+                        let data = {dialogData with VerilogErrors = errorList} 
+                        createVerilogPopup {model with PopupDialogData = data } dispatch
                 else
-                    printfn "Syntax Error: %s" result 
-
+                    let err = Option.get output.Error
+                    printfn "Syntax Error: %A" err
+                    let data = {dialogData with VerilogErrors = [err] }
+                    createVerilogPopup {model with PopupDialogData = data } dispatch
+                // createVerilogPopup {model with PopupDialogData = dialogData} dispatch
+                
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
             let notGoodLabel =

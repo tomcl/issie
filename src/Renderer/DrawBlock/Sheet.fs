@@ -611,8 +611,8 @@ let emptySnap: SnapXY =
 /// snap to each other.
 let symbolMatch (symbol: SymbolT.Symbol) =
     match symbol.Component.Type with
-    | Input _ | Output _| IOLabel -> 
-        Input (0, None)
+    | Input1 _ | Output _| IOLabel -> 
+        Input1 (0, None)
 
     | BusCompare _
     | BusSelection _ -> 

@@ -196,7 +196,7 @@ let getOrderedCompLabels compType ((comps,_): CanvasState) =
     |> List.collect (fun comp -> 
         let sortKey = comp.Y,comp.X
         match comp.Type, compType with 
-        | Input (n, defaultVal), Input _ -> [sortKey,(comp.Label, n)]
+        | Input1 (n, defaultVal), Input1 _ -> [sortKey,(comp.Label, n)]
         | Output n, Output _ -> [sortKey, (comp.Label,n)] 
         | _ -> [])
     |> List.sortBy fst
@@ -207,7 +207,7 @@ let getOrderedCompLabels compType ((comps,_): CanvasState) =
 /// Form is inputs,outputs
 let parseDiagramSignature canvasState
         : (string * int) list * (string * int) list =
-    let inputs = getOrderedCompLabels (Input (0, None)) canvasState
+    let inputs = getOrderedCompLabels (Input1 (0, None)) canvasState
     let outputs = getOrderedCompLabels (Output 0) canvasState
     inputs, outputs
 

@@ -216,7 +216,7 @@ let checkPropagation (graph : SimulationGraph) : SimulationGraph =
             let comp = graph[cid]
             match comp.Type, couldBeSynchronousComponent comp.Type with
             | _,true -> graph
-            | Input _,_ | Constant1 _, _-> graph
+            | Input1 _,_ | Constant1 _, _-> graph
             | _,false -> 
                 let reducerInput = {
                     Inputs = comp.Inputs
@@ -366,7 +366,7 @@ let getSimulationIOs
         : SimulationIO list * SimulationIO list =
     (([], []), components) ||> List.fold (fun (inputs, outputs) comp ->
         match comp.Type with
-        | Input (w, _)  -> ((ComponentId comp.Id, ComponentLabel comp.Label, w) :: inputs, outputs)
+        | Input1 (w, _)  -> ((ComponentId comp.Id, ComponentLabel comp.Label, w) :: inputs, outputs)
         | Output w -> (inputs, (ComponentId comp.Id, ComponentLabel comp.Label, w) :: outputs)
         | _ -> (inputs, outputs)
     )
@@ -378,7 +378,7 @@ let getSimulationIOsFromGraph
         : SimulationIO list * SimulationIO list =
     (([], []), graph) ||> Map.fold (fun (inputs, outputs) compId comp ->
         match comp.Type with
-        | Input (w, _)  -> ((comp.Id, comp.Label, w) :: inputs, outputs)
+        | Input1 (w, _)  -> ((comp.Id, comp.Label, w) :: inputs, outputs)
         | Output w -> (inputs, (comp.Id, comp.Label, w) :: outputs)
         | _ -> (inputs, outputs)
     )

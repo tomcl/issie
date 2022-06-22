@@ -334,7 +334,7 @@ let private checkIOLabels (canvasState : CanvasState) : SimulationError option =
     let components, _ = canvasState
     let inputs =
         components
-        |> List.filter (fun comp -> match comp.Type with | Input _ -> true | _ -> false)
+        |> List.filter (fun comp -> match comp.Type with | Input1 _ -> true | _ -> false)
     let outputs =
         components
         |> List.filter (fun comp -> match comp.Type with | Output _ -> true | _ -> false)

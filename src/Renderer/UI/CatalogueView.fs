@@ -38,7 +38,7 @@ let private makeCustom styles model dispatch (loadedComponent: LoadedComponent) 
     menuItem styles loadedComponent.Name (fun _ ->
         let custom = Custom {
             Name = loadedComponent.Name
-            InputLabels = FilesIO.getOrderedCompLabels (Input (0, None)) canvas
+            InputLabels = FilesIO.getOrderedCompLabels (Input1 (0, None)) canvas
             OutputLabels = FilesIO.getOrderedCompLabels (Output 0) canvas
         }
         
@@ -392,7 +392,7 @@ let viewCatalogue model dispatch =
                 // TODO
                     makeMenuGroup
                         "Input / Output"
-                        [ catTip1 "Input"  (fun _ -> createInputPopup "input" Input model dispatch) "Input connection to current sheet: one or more bits"
+                        [ catTip1 "Input"  (fun _ -> createInputPopup "input" Input1 model dispatch) "Input connection to current sheet: one or more bits"
                           catTip1 "Output" (fun _ -> createIOPopup true "output" Output model dispatch) "Output connection from current sheet: one or more bits"
                           catTip1 "Viewer" (fun _ -> createIOPopup true "viewer" Viewer model dispatch) "Viewer to expose value in simulation: works in subsheets"
                           catTip1 "Constant" (fun _ -> createConstantPopup model dispatch) "Define a one or more bit constant value, \

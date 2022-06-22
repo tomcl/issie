@@ -12,6 +12,7 @@ open CommonTypes
 open SimulatorTypes
 open Fable.React
 open Sheet.SheetInterface
+open VerilogTypes
 
 type RightTab =
     | Properties
@@ -50,7 +51,7 @@ type PopupDialogData = {
     Int2: int64 option
     ProjectPath: string
     VerilogCode: string option
-    VerilogErrors: string list
+    VerilogErrors: ErrorInfo list
     MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth. 
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
     WaveSetup: MoreWaveSetup option
@@ -239,7 +240,7 @@ type Msg =
     | ClosePopup
     | SetPopupDialogText of string option
     | SetPopupDialogCode of string option
-    | SetPopupDialogVerilogErrors of string list
+    | SetPopupDialogVerilogErrors of ErrorInfo list
     | SetPopupDialogInt of int option
     | SetPopupDialogTwoInts of (int64 option * IntMode * string option)
     | SetPropertiesExtraDialogText of string option

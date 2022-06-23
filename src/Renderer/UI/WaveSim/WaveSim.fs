@@ -26,7 +26,7 @@ let displayValuesOnWave wsModel (waveValues: WireData list) (transitions: NonBin
         |> List.filter (fun (i, x) -> x = Change)
         |> List.map (fun (i, x) -> i)
 
-    let gaps =
+    let gaps : Gap list =
         // Append dummy transition to end to check final gap length
         changeTransitions @ [Constants.maxLastClk]
         |> List.pairwise
@@ -39,7 +39,10 @@ let displayValuesOnWave wsModel (waveValues: WireData list) (transitions: NonBin
 
     gaps
     |> List.map (fun gap ->
-        let waveValue = string (convertWireDataToInt waveValues[gap.Start])
+        let waveValue =
+            convertWireDataToInt waveValues[gap.Start]
+            |> valToString wsModel.Radix
+
         let availableWidth = float gap.Length * (zoomLevel wsModel) - 2. * Constants.nonBinaryTransLen
         let requiredWidth = DrawHelpers.getTextWidthInPixels (waveValue, Constants.valueOnWaveText)
         let widthWithPadding = requiredWidth + Constants.valueOnWavePadding
@@ -462,7 +465,7 @@ let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : React
             Tabs.Tab.Props radixTabProps
         ] [ a [
             radixTabAStyle
-            OnClick(fun _ -> dispatch <| SetWSModel {wsModel with Radix = radix})
+            OnClick(fun _ -> dispatch <| InitiateWaveSimulation {wsModel with Radix = radix})
             ] [ str radixStr ]
         ]
 

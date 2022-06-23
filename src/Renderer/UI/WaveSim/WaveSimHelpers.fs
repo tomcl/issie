@@ -68,6 +68,15 @@ module Constants =
 
     let baseWidth = 30.0
 
+/// If true, then show cross-hatch only for non-binary waves when wave is changing
+/// value very fast.
+let highZoom clkCycleWidth = clkCycleWidth < 2. * Constants.nonBinaryTransLen
+
+let xShift clkCycleWidth =
+    if highZoom clkCycleWidth then
+        clkCycleWidth / 2.
+    else Constants.nonBinaryTransLen
+
 let getWSModel model : WaveSimModel =
     Map.tryFind model.WaveSimSheet model.WaveSim
     |> function
@@ -117,11 +126,11 @@ let makeXCoords (clkCycleWidth: float) (clkCycle: int) (transition: Transition) 
     | BinaryTransition _ ->
         float clkCycle * clkCycleWidth, float (clkCycle + 1) * clkCycleWidth
     | NonBinaryTransition _ ->
-        // These are left-shifted by nonBinaryTransLen: doing this means that for non-binary
+        // These are left-shifted by xShift: doing this means that for non-binary
         // waveforms, only the transition at the start of each cycle needs to be considered,
         // rather than the transition at both the start and end of each cycle.
-        float clkCycle * clkCycleWidth - Constants.nonBinaryTransLen,
-        float (clkCycle + 1) * clkCycleWidth - Constants.nonBinaryTransLen
+        float clkCycle * clkCycleWidth - xShift clkCycleWidth,
+        float (clkCycle + 1) * clkCycleWidth - xShift clkCycleWidth
 
 /// Make top-left, top-right, bottom-left, bottom-right coordinates for a clock cycle.
 let makeCoords (clkCycleWidth: float) (clkCycle: int) (transition: Transition) : XYPos * XYPos * XYPos * XYPos =
@@ -153,23 +162,19 @@ let nonBinaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int)  (
     let xLeft, _ = makeXCoords clkCycleWidth (startCycle + index) (NonBinaryTransition transition)
     let _, topR, _, botR = makeCoords clkCycleWidth (startCycle + index) (NonBinaryTransition transition)
 
-    let crossHatchMid = {X = xLeft + Constants.nonBinaryTransLen; Y = 0.5}
-    let crossHatchTop = {X = xLeft + Constants.nonBinaryTransLen * 2.; Y = Constants.yTop}
-    let crossHatchBot = {X = xLeft + Constants.nonBinaryTransLen * 2.; Y = Constants.yBot}
+    let crossHatchMid, crossHatchTop, crossHatchBot =
+        {X = xLeft +      xShift clkCycleWidth; Y = 0.5},
+        {X = xLeft + 2. * xShift clkCycleWidth; Y = Constants.yTop},
+        {X = xLeft + 2. * xShift clkCycleWidth; Y = Constants.yBot}
 
     match transition with
-    // This needs to account for different zoom levels:
-    // Can probably just look at screen size and zoom level
-    // And then scale the horizontal part accordingly
-    // When zoomed out sufficiently and values changing fast enough,
-    // The horizontal part will have length zero.
-    // May need to account for odd/even clock cycle
     | Change ->
-        let topStart = [crossHatchMid; crossHatchTop; topR]
-        let botStart = [crossHatchMid; crossHatchBot; botR]
-        (topStart, botStart)
+        if highZoom clkCycleWidth then
+            [crossHatchMid; crossHatchTop], [crossHatchMid; crossHatchBot]
+        else
+            [crossHatchMid; crossHatchTop; topR], [crossHatchMid; crossHatchBot; botR]
     | Const ->
-        ([topR], [botR])
+        [topR], [botR]
 
 /// Determine transitions for each clock cycle of a binary waveform.
 /// Assumes that waveValues starts at clock cycle 0.

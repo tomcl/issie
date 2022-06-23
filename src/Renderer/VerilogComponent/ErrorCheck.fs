@@ -16,49 +16,84 @@ let findLineOfItem (newLinesLocations:int list) (currLocation:int) : int*int*int
     (prevIndex+1,newLinesLocations[prevIndex],newLinesLocations[nextIndex])
 
 /// Checks whether all ports given in the beginning of the module are defined as input/output
+/// Also if all ports have distinct names
 let portCheck ast errorList = 
     let portList = ast.Module.PortList |> Array.toList
     printfn "Ports: %A" portList
+    let distinctPortList = portList |> Seq.distinct |> List.ofSeq
+
     let indexList = ast.Module.Locations |> Array.toList
     let indexMap =
         (portList, indexList) ||> List.map2 (fun p i -> (p,int i)) |> Map.ofList
-    let items = ast.Module.ModuleItems.ItemList |> Array.toList
-    let decls = 
-        items |> List.collect (fun x -> 
-            match (x.IODecl |> isNullOrUndefined) with
-            | false -> 
-                match x.IODecl with
-                | Some d -> 
-                    d.Variables 
-                    |> Array.toList 
-                    |> List.collect (fun x -> [x]) 
-                | None -> []
-            | true -> []
-        )
-    let diff = Seq.except (decls |> List.toSeq) (portList |> List.toSeq)
-    match Seq.isEmpty diff with
-    | false -> 
-        let mess = sprintf "Port(s): [%A] are not declared either as input or output" (diff |> Array.ofSeq)
+    
+    match (List.length portList = List.length distinctPortList) with
+    | false ->
+        let mess = sprintf "Ports must have different names"
         let index = indexMap[portList[0]]
         let length = indexMap[(List.last portList)] + String.length (List.last portList) - index            
         
-        List.append errorList [{Line = 1; Col=index+1;Length=length;Message = mess}]
+        List.append errorList [{Line = 1; Col=index+1;Length=length;Message = mess}] 
+    | true ->
+        let items = ast.Module.ModuleItems.ItemList |> Array.toList
+        let decls = 
+            items |> List.collect (fun x -> 
+                match (x.IODecl |> isNullOrUndefined) with
+                | false -> 
+                    match x.IODecl with
+                    | Some d -> 
+                        d.Variables 
+                        |> Array.toList 
+                        |> List.collect (fun x -> [x]) 
+                    | None -> []
+                | true -> []
+            )
+        let diff = Seq.except (decls |> List.toSeq) (portList |> List.toSeq)
+        match Seq.isEmpty diff with
+        | false -> 
+            let mess = sprintf "Port(s): [%A] are not declared either as input or output" (diff |> Array.ofSeq)
+            let index = indexMap[portList[0]]
+            let length = indexMap[(List.last portList)] + String.length (List.last portList) - index            
+            
+            List.append errorList [{Line = 1; Col=index+1;Length=length;Message = mess}]
 
-    | true -> errorList
+        | true -> errorList
 
 /// Checks whether the portSizeMap contains valid size information
-let portSizeCheck portSizeMap portLocationMap linesLocations errorList = 
+let checkIODeclarations ast (portWidthDeclarationMap:Map<string,int*int>) portLocationMap linesLocations errorList = 
+    let portList = ast.Module.PortList |> Array.toList
     let localErrors = 
-        portSizeMap
-        |> Map.filter (fun n s -> s<1)
+        portWidthDeclarationMap
+        |> Map.filter (fun name decl -> 
+            match (List.tryFind (fun p -> p=name) portList) with
+            | None -> true
+            | Some _ ->
+                match decl with
+                |bStart,bEnd when bEnd <> 0 -> true
+                |bStart, bEnd when bStart < bEnd -> true
+                | _ -> false
+            )
         |> Map.toList
         |> List.map fst
         |> List.map (fun port -> 
             let currLocation = Map.find port portLocationMap
             let line,prevLineLocation, nextLineLocation= findLineOfItem linesLocations currLocation
-            {Line = line; Col=currLocation-prevLineLocation+1 ; Length=nextLineLocation-currLocation-1 ; Message = sprintf "Port '%s' has wrong width declaration" port}
+            match (List.tryFind (fun p -> p=port) portList) with
+            | None -> {Line = line; Col=currLocation-prevLineLocation+2 ; Length=nextLineLocation-currLocation-3 ; Message = sprintf "Variable '%s' is not defined as a port in the module declaration" port}
+            | Some _ -> {Line = line; Col=currLocation-prevLineLocation+2 ; Length=nextLineLocation-currLocation-3 ; Message = sprintf "Port '%s' has wrong width declaration" port}
         )
-    List.append errorList localErrors
+    List.append errorList localErrors   
+    
+    // let localErrors = 
+    //     portSizeMap
+    //     |> Map.filter (fun n s -> s<1)
+    //     |> Map.toList
+    //     |> List.map fst
+    //     |> List.map (fun port -> 
+    //         let currLocation = Map.find port portLocationMap
+    //         let line,prevLineLocation, nextLineLocation= findLineOfItem linesLocations currLocation
+    //         {Line = line; Col=currLocation-prevLineLocation+1 ; Length=nextLineLocation-currLocation-1 ; Message = sprintf "Port '%s' has wrong width declaration" port}
+    //     )
+    // List.append errorList localErrors
 
 /// Checks if the name of the module is valid (i.e. starts with a character)
 let nameCheck ast errorList = 
@@ -459,9 +494,8 @@ let getErrors ast model linesLocations =
 
     
     []  //begin with empty list and add errors to it
-    // |> nameCheck ast //valid module name
     |> portCheck ast //all ports are declared as input/output
-    |> portSizeCheck portSizeMap portLocationMap linesLocations//correct port width declaration (e.g. [1:4] -> invalid)
+    |> checkIODeclarations ast portWidthDeclarationMap portLocationMap linesLocations//correct port width declaration (e.g. [1:4] -> invalid)
     |> parameterNameCheck ast parameterNameList portMap parameterLocationMap linesLocations
     |> wireNameCheck ast portMap parameterSizeMap wireNameList
     |> checkAssignments ast portMap portSizeMap portWidthDeclarationMap inputParameterWireSizeMap inputParameterWireList linesLocations

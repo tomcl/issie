@@ -778,6 +778,11 @@ let selectWaves (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
         |> List.sortBy (fun wave -> wave.DisplayName)
         |> List.map (fun wave -> wave.WaveId)
 
+    let wireLabelRows =
+        if List.length wireLabels > 0 then
+            [ labelRows WireLabels wireLabels wsModel dispatch ]
+        else []
+
     let compWaveLabels =
         compWaves
         |> Map.values |> Seq.toList
@@ -793,7 +798,7 @@ let selectWaves (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
             ]
         ] [ thead []
                 ( [selectAll wsModel dispatch] @
-                    [ labelRows WireLabels wireLabels wsModel dispatch ] @
+                    wireLabelRows @
                     (List.map (componentRows wsModel dispatch) compWaveLabels)
                 )
         ]

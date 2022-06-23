@@ -32,6 +32,15 @@ type Transition =
     | BinaryTransition of BinaryTransition
     | NonBinaryTransition of NonBinaryTransition
 
+/// Stores information about gaps between NonBinaryTransitions.
+/// Used in displayValuesOnWave
+type Gap = {
+    // First cycle which is Change after a Const cycle
+    Start: int
+    // How many Const cycles there are immediately after this Change transition
+    Length: int
+}
+
 type SelectionMenu = 
     | WireLabels
     | Components of string

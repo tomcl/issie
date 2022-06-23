@@ -17,6 +17,46 @@ open Sheet.SheetInterface
 // TODO: Move all Style definitions into Style.fs
 // TODO: Combine Style definitions into same variables where possible
 
+/// Generates SVG to display waveform values when there is enough space
+/// TODO: Fix this so it does not generate all 500 cycles.
+let displayValuesOnWave wsModel (waveValues: WireData list) (transitions: NonBinaryTransition list) : ReactElement list =
+    let changeTransitions =
+        transitions
+        |> List.indexed
+        |> List.filter (fun (i, x) -> x = Change)
+        |> List.map (fun (i, x) -> i)
+
+    let gaps =
+        // Append dummy transition to end to check final gap length
+        changeTransitions @ [Constants.maxLastClk]
+        |> List.pairwise
+        // Get start of gap and length of gap
+        |> List.map (fun (i1, i2) -> {
+                Start = i1
+                Length = i2 - i1
+            }
+        )
+
+    gaps
+    |> List.map (fun gap ->
+        let waveValue = string (convertWireDataToInt waveValues[gap.Start])
+        let availableWidth = float gap.Length * (zoomLevel wsModel) - 2. * Constants.nonBinaryTransLen
+        let requiredWidth = DrawHelpers.getTextWidthInPixels (waveValue, Constants.valueOnWaveText)
+        let widthWithPadding = requiredWidth + Constants.valueOnWavePadding
+        // Display nothing if there is not enough space
+        if availableWidth < requiredWidth then
+            []
+        else
+            let valueText i =
+                text (valueOnWaveProps wsModel i gap.Start widthWithPadding)
+                    [ str waveValue ]
+            /// Calculate how many times the value can be shown in the space available
+            let repeats = int <| availableWidth / widthWithPadding
+            [ 0 .. repeats ]
+            |> List.map valueText
+    )
+    |> List.concat
+
 /// Called when InitiateWaveSimulation msg is dispatched
 /// Generates the polyline(s) for a specific waveform
 let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
@@ -52,7 +92,9 @@ let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): W
                         |> List.distinct
                     polyline (wavePolylineStyle points) []
 
-                [makePolyline fstPoints; makePolyline sndPoints]
+                let valuesSVG = displayValuesOnWave wsModel wave.WaveValues transitions
+
+                List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG
 
         {wave with Polylines = Some polylines}
     else wave
@@ -286,13 +328,6 @@ let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<WaveInd
     |> List.collect getAllPorts
     |> Map.ofList
     |> Map.map (makeWave fastSim netList)
-
-/// Generates SVG to display waveform values when there is enough space
-let displayValuesOnWave (startCycle: int) (endCycle: int) (waveValues: WireData list) : ReactElement =
-    // enough space means enough transitions such that the full value can be displayed before a transition occurs
-    // values can be displayed repeatedly if there is enough space
-    // try to centre the displayed values?
-    failwithf "displayValuesOnWave not implemented"
 
 /// TODO: Change name to editWaves
 let closeWaveSimButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =

@@ -23,6 +23,10 @@ module Constants =
     let clkLineWidth = 0.0125
     let lineThickness : float = 0.025
 
+    let fontSizeValueOnWave = "0.3px"
+    let valueOnWaveText = { DrawHelpers.defaultText with FontSize = fontSizeValueOnWave }
+    let valueOnWavePadding = 10.0
+
 let topRowStyle = Style [
     Height Constants.rowHeight
     BorderBottom "2px solid rgb(219,219,219)"
@@ -143,6 +147,15 @@ let zoomInSVG =
                 C125.535,77.047,122.178,73.689,118.035,73.689z"
             ] []
         ]
+
+let valueOnWaveProps m i start width : IProp list =
+    [
+        X (float start * (zoomLevel m) + Constants.nonBinaryTransLen + float i * width)
+        Y 0.6
+        Style [
+            FontSize Constants.fontSizeValueOnWave
+        ]
+    ]
 
 let clkCycleButtonStyle = Style [
     Float FloatOptions.Right

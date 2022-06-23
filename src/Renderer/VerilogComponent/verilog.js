@@ -138,11 +138,11 @@
         {"name": "wire", "symbols": ["wire$string$1"], "postprocess": id},
         {"name": "endmodule$string$1", "symbols": [{"literal":"e"}, {"literal":"n"}, {"literal":"d"}, {"literal":"m"}, {"literal":"o"}, {"literal":"d"}, {"literal":"u"}, {"literal":"l"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
         {"name": "endmodule", "symbols": ["endmodule$string$1"], "postprocess": id},
-        {"name": "IDENTIFIER$ebnf$1", "symbols": [/[a-zA-Z]/]},
-        {"name": "IDENTIFIER$ebnf$1", "symbols": ["IDENTIFIER$ebnf$1", /[a-zA-Z]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
-        {"name": "IDENTIFIER", "symbols": ["IDENTIFIER$ebnf$1"], "postprocess": 
+        {"name": "IDENTIFIER$ebnf$1", "symbols": []},
+        {"name": "IDENTIFIER$ebnf$1", "symbols": ["IDENTIFIER$ebnf$1", /[a-zA-Z_0-9]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+        {"name": "IDENTIFIER", "symbols": [/[a-zA-Z]/, "IDENTIFIER$ebnf$1"], "postprocess": 
             function(d,l, reject) {
-                const name = d[0].join('');
+                const name = d[0] + d[1].join('');
                 if (name === 'if' || name === 'module') {
                     return reject;
                 } else {

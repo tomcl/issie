@@ -313,7 +313,7 @@ let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<WaveInd
 
             let getWavesForEachPort (portNum: int) (portType: PortType) =
                 [0 .. portNum - 1]
-                |> List.map (fun x -> 
+                |> List.map (fun x ->
                     {Id = id; PortType = portType; PortNumber = x}, nlc
                 )
 
@@ -326,8 +326,16 @@ let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<WaveInd
 
             List.append inputs outputs
 
-    netList
-    |> Map.toList
+    let ioLabels, otherComps =
+        netList
+        |> Map.toList
+        |> List.partition (fun (_, nlc) -> nlc.Type = IOLabel)
+
+    /// Remove duplicate IOLabels. These occur when e.g. you have an IOLabel connected to an output, and the same
+    /// IOLabel driving one or more inputs.
+    let ioLabels : (ComponentId * NetListComponent) list = List.distinctBy (fun (_, nlc) -> nlc.Label) ioLabels
+
+    List.append ioLabels otherComps
     |> List.collect getAllPorts
     |> Map.ofList
     |> Map.map (makeWave fastSim netList)
@@ -686,7 +694,6 @@ let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: M
         if List.contains index wsModel.SelectedWaves then
             List.except [index] wsModel.SelectedWaves
         else [index] @ wsModel.SelectedWaves
-
     let wsModel = {wsModel with SelectedWaves = selectedWaves}
     dispatch <| InitiateWaveSimulation wsModel
     // changeWaveSelection name model waveSimModel dispatch

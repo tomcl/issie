@@ -160,6 +160,10 @@ type WaveSimModel = {
     Radix: NumberBase
     ZoomLevelIndex: int
     WaveformColumnWidth: int
+    RamModalActive: bool
+    RamComponents: Component list
+    SelectedRamComponents: Component list
+    FastSim: FastSimulation
 }
 
 /// TODO: Decide a better number then move to Constants module.
@@ -178,6 +182,10 @@ let initWSModel : WaveSimModel = {
     Radix = Hex
     ZoomLevelIndex = 9
     WaveformColumnWidth = initialWaveformColWidth
+    RamModalActive = false
+    RamComponents = []
+    SelectedRamComponents = []
+    FastSim = FastCreate.emptyFastSimulation ()
 }
 
 type DiagEl = | Comp of Component | Conn of Connection

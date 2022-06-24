@@ -320,9 +320,10 @@ module CommonTypes
         | MergeWires | SplitWire of BusWidth: int // int is bus width
         // DFFE is a DFF with an enable signal.
         // No initial state for DFF or Register? Default 0.
-        | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int 
-        | AsyncROM of Memory | ROM of Memory | RAM of Memory // legacy components - to be deleted
+        | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int
         | AsyncROM1 of Memory1 | ROM1 of Memory1 | RAM1 of Memory1 | AsyncRAM1 of Memory1
+        // legacy components - to be deleted
+        | AsyncROM of Memory | ROM of Memory | RAM of Memory
 
     /// Active pattern which matches 2-input gate component types.
     /// NB - NOT gates are not included here.

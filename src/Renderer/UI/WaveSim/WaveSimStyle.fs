@@ -105,8 +105,33 @@ let closeWaveSimButtonStyle = Style [
     FontSize "16px"
     Float FloatOptions.Left
     Position PositionOptions.Relative
-    Margin "0 0 0 0"
+    MarginRight 10
+]
 
+let selectRamButtonProps = [
+    Button.Color IsSuccess
+    Button.Props [closeWaveSimButtonStyle]
+]
+
+let selectRamButtonPropsLight = 
+    selectRamButtonProps @ [Button.IsLight]
+
+let ramTableLevelProps : IHTMLProp list = [
+    Style [
+        Position PositionOptions.Relative
+        Display DisplayOptions.InlineBlock
+        MarginRight 10
+    ]
+]
+
+let centerAlignStyle = Style [
+    TextAlign TextAlignOptions.Center
+]
+
+let ramTablesLevelProps : IHTMLProp list = [
+    Style [
+        OverflowX OverflowOptions.Scroll
+    ]
 ]
 
 let zoomOutSVG =
@@ -248,6 +273,10 @@ let upDownButtonStyle = Style [
 let labelStyle = Style [
     Height Constants.rowHeight
     BorderBottom "1px solid rgb(219,219,219)"
+]
+
+let ramRowStyle = Style [
+    Height Constants.rowHeight
 ]
 
 let borderProperties = "2px solid rgb(219,219,219)"

@@ -344,12 +344,200 @@ let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<WaveInd
     |> Map.ofList
     |> Map.map (makeWave fastSim netList)
 
-let closeWaveSimButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    let wsModel = {wsModel with State = WSClosed}
+/// Sets all waves as selected or not selected depending on value of newState
+let toggleSelectAll (selected: bool) (wsModel: WaveSimModel) dispatch : unit =
+    let selectedWaves = if selected then Map.keys wsModel.AllWaves |> Seq.toList else []
+    dispatch <| InitiateWaveSimulation {wsModel with SelectedWaves = selectedWaves}
+    // selectConns model conns dispatch
+
+let selectAll (wsModel: WaveSimModel) dispatch =
+    let allWavesSelected = Map.forall (fun index _ -> isWaveSelected wsModel index) wsModel.AllWaves
+
+    tr summaryProps [
+        th [] [
+            Checkbox.checkbox []
+                [ Checkbox.input [
+                    Props 
+                        (checkboxInputProps @ [
+                            Checked allWavesSelected
+                            OnChange(fun _ -> toggleSelectAll (not allWavesSelected) wsModel dispatch )
+                    ])
+                ] ]
+            ]
+        th [] [str "Select All"]
+    ]
+
+let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: Msg -> unit) =
+    let selectedWaves =
+        if List.contains index wsModel.SelectedWaves then
+            List.except [index] wsModel.SelectedWaves
+        else [index] @ wsModel.SelectedWaves
+    let wsModel = {wsModel with SelectedWaves = selectedWaves}
+    dispatch <| InitiateWaveSimulation wsModel
+    // changeWaveSelection name model waveSimModel dispatch
+
+let toggleSelectSubGroup (wsModel: WaveSimModel) dispatch (selected: bool) (waves: Map<WaveIndexT, Wave>) =
+    let toggledWaves = Map.keys waves |> Seq.toList
+    let selectedWaves =
+        if selected then
+            List.append wsModel.SelectedWaves toggledWaves
+        else
+            List.except wsModel.SelectedWaves toggledWaves
+    dispatch <| InitiateWaveSimulation {wsModel with SelectedWaves = selectedWaves}
+
+let checkboxRow (wsModel: WaveSimModel) dispatch (index: WaveIndexT) =
+    let fontStyle = if isWaveSelected wsModel index then boldFontStyle else normalFontStyle
+    tr  [ fontStyle ]
+        [
+            td  [ noBorderStyle ]
+                [ Checkbox.checkbox []
+                    [ Checkbox.input [
+                        Props (checkboxInputProps @ [
+                            OnChange(fun _ -> toggleWaveSelection index wsModel dispatch )
+                            Checked <| isWaveSelected wsModel index
+                        ])
+                    ] ]
+                ]
+            td  [ noBorderStyle]
+                [str wsModel.AllWaves[index].DisplayName]
+        ]
+
+let menuSummary menuType =
+    let name =
+        match menuType with
+        | WireLabels -> "Wire Labels"
+        | Components comp -> comp
+
+    summary
+        summaryProps
+        [ str name ]
+
+let labelRows (menuType: SelectionMenu) (labels: WaveIndexT list) (wsModel: WaveSimModel) dispatch : ReactElement =
+    let waves =
+        match menuType with
+        | WireLabels -> Map.filter (fun _ (wave: Wave) -> wave.Type = IOLabel) wsModel.AllWaves
+        | Components compLabel -> Map.filter (fun _ (wave: Wave) -> wave.CompLabel = compLabel) wsModel.AllWaves
+    let subGroupSelected = Map.forall (fun index _ -> isWaveSelected wsModel index) waves
+    
+    tr summaryProps [
+        th [] [
+            Checkbox.checkbox [] [
+                Checkbox.input [
+                    Props [
+                        Checked subGroupSelected
+                        OnChange (fun _ -> toggleSelectSubGroup wsModel dispatch (not subGroupSelected) waves)
+                    ]
+                ]
+            ]
+        ]
+        th [] [
+            details
+                detailsProps
+                [   menuSummary menuType
+                    Table.table [] [
+                        tbody []
+                            (List.map (checkboxRow wsModel dispatch) labels)
+                    ]
+                ]
+        ]
+    ]
+
+let componentRows wsModel dispatch ((compName, waves): string * Wave list) : ReactElement =
+    let waveLabels =
+        List.sortBy (fun (wave: Wave) -> wave.DisplayName) waves
+        |> List.map (fun (wave: Wave) -> wave.WaveId)
+    labelRows (Components compName) waveLabels wsModel dispatch
+
+let selectWaves (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+    let wireLabelWaves, compWaves = Map.partition (fun _ (wave: Wave) -> wave.Type = IOLabel) wsModel.AllWaves
+    let wireLabels =
+        wireLabelWaves
+        |> Map.values |> Seq.toList
+        |> List.sortBy (fun wave -> wave.DisplayName)
+        |> List.map (fun wave -> wave.WaveId)
+
+    let wireLabelRows =
+        if List.length wireLabels > 0 then
+            [ labelRows WireLabels wireLabels wsModel dispatch ]
+        else []
+
+    let compWaveLabels =
+        compWaves
+        |> Map.values |> Seq.toList
+        |> List.sortBy (fun (wave: Wave) -> wave.CompLabel)
+        |> List.groupBy (fun wave -> wave.CompLabel)
+
+    Table.table [
+        Table.IsBordered
+        Table.IsFullWidth
+        Table.Props [
+            Style [BorderWidth 0]
+        ]
+    ] [ thead []
+            ( [selectAll wsModel dispatch] @
+                wireLabelRows @
+                (List.map (componentRows wsModel dispatch) compWaveLabels)
+            )
+    ]
+
+let selectWavesButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+    let waveCount = Map.count wsModel.AllWaves
+    let props, buttonFunc =
+        if waveCount > 0 then
+            selectWavesButtonProps, (fun _ -> dispatch <| SetWSModel {wsModel with WaveModalActive = true})
+        else selectWavesButtonPropsLight, (fun _ -> ())
     button 
-        [Button.Color IsSuccess; Button.Props [closeWaveSimButtonStyle]]
-        (fun _ -> dispatch <| SetWSModel wsModel)
-        (str "Close wave simulator")
+        props
+        buttonFunc
+        (str "Select Waves")
+
+let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+    Modal.modal [
+        Modal.IsActive wsModel.WaveModalActive
+    ] [
+        Modal.background [
+            Props [
+                OnClick (fun _ -> dispatch <| SetWSModel {wsModel with WaveModalActive = false})
+            ]
+        ] []
+        Modal.Card.card [] [
+            Modal.Card.head [] [
+                Modal.Card.title [] [
+                    Level.level [] [
+                        Level.left [] [ str "Select RAM" ]
+                        Level.right [
+                            Modifiers [
+                                Modifier.BackgroundColor IsSuccess
+                            ]
+                        ] [
+                            Level.item [
+                                Level.Item.Option.Modifiers [
+                                    Modifier.BackgroundColor IsSuccess
+                                ]
+                            ] [
+                                Delete.delete [
+                                    Delete.Modifiers [
+                                        Modifier.TextColor IsSuccess
+                                    ]
+                                    Delete.Option.OnClick (fun _ -> dispatch <| SetWSModel {wsModel with WaveModalActive = false})
+                                ] []
+                            ]
+                            Delete.delete [
+                                Delete.Modifiers [
+                                    Modifier.TextColor IsSuccess
+                                ]
+                                Delete.Option.OnClick (fun _ -> dispatch <| SetWSModel {wsModel with WaveModalActive = false})
+                            ] []
+                        ]
+                    ]
+                ]
+            ]
+            Modal.Card.body [] [
+                selectWaves wsModel dispatch
+            ]
+            Modal.Card.foot [] []
+        ]
+    ]
 
 let selectRamButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     let ramCount = List.length wsModel.RamComponents
@@ -423,6 +611,16 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
             Modal.Card.foot [] []
         ]
     ]
+
+/// Buttons to close waveform simulator, select waves, and select RAMs
+let selectBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+    Level.level [ Level.Level.Option.Props [waveSimButtonsBarStyle] ]
+        [
+            selectWavesButton wsModel dispatch
+            selectWavesModal wsModel dispatch
+            selectRamButton wsModel dispatch
+            selectRamModal wsModel dispatch
+        ]
 
 /// Set highlighted clock cycle number
 let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkCycle: int) : unit =
@@ -558,18 +756,18 @@ let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : React
         Tabs.Props [ radixTabsStyle ]
     ] (List.map (radixTab) radixString)
 
-/// Display closeWaveSimButton, zoomButtons, radixButtons, clkCycleButtons
-let waveSimButtonsBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    div [ waveSimButtonsBarStyle ]
-        [
-            closeWaveSimButton wsModel dispatch
-            selectRamButton wsModel dispatch
-            selectRamModal wsModel dispatch
-
-            zoomButtons wsModel dispatch
+/// Buttons to change radix, change zoom, and change clock cycle
+let paramsBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+    Level.level [ Level.Level.Option.Props [waveSimButtonsBarStyle] ]
+        [   
+            // Level.left [] []
+            // Level.right [] [
             radixButtons wsModel dispatch
             clkCycleButtons wsModel dispatch
+            zoomButtons wsModel dispatch
         ]
+    // ]
+
 
 // /// change the order of the waveforms in the simulator
 // let private moveWave (model:Model) (wSMod: WaveSimModel) up =
@@ -751,142 +949,6 @@ let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
                         [ str "The circuit must contain sequential logic (clocked components) in order to use the waveform simulator." ]
         ]
 
-/// Sets all waves as selected or not selected depending on value of newState
-let toggleSelectAll (selected: bool) (wsModel: WaveSimModel) dispatch : unit =
-    let selectedWaves = if selected then Map.keys wsModel.AllWaves |> Seq.toList else []
-    dispatch <| InitiateWaveSimulation {wsModel with SelectedWaves = selectedWaves}
-    // selectConns model conns dispatch
-
-let selectAll (wsModel: WaveSimModel) dispatch =
-    let allWavesSelected = Map.forall (fun index _ -> isWaveSelected wsModel index) wsModel.AllWaves
-
-    tr summaryProps [
-        th [] [
-            Checkbox.checkbox []
-                [ Checkbox.input [
-                    Props 
-                        (checkboxInputProps @ [
-                            Checked allWavesSelected
-                            OnChange(fun _ -> toggleSelectAll (not allWavesSelected) wsModel dispatch )
-                    ])
-                ] ]
-            ]
-        th [] [str "Select All"]
-    ]
-
-let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: Msg -> unit) =
-    let selectedWaves =
-        if List.contains index wsModel.SelectedWaves then
-            List.except [index] wsModel.SelectedWaves
-        else [index] @ wsModel.SelectedWaves
-    let wsModel = {wsModel with SelectedWaves = selectedWaves}
-    dispatch <| InitiateWaveSimulation wsModel
-    // changeWaveSelection name model waveSimModel dispatch
-
-let toggleSelectSubGroup (wsModel: WaveSimModel) dispatch (selected: bool) (waves: Map<WaveIndexT, Wave>) =
-    let toggledWaves = Map.keys waves |> Seq.toList
-    let selectedWaves =
-        if selected then
-            List.append wsModel.SelectedWaves toggledWaves
-        else
-            List.except wsModel.SelectedWaves toggledWaves
-    dispatch <| InitiateWaveSimulation {wsModel with SelectedWaves = selectedWaves}
-
-let checkboxRow (wsModel: WaveSimModel) dispatch (index: WaveIndexT) =
-    let fontStyle = if isWaveSelected wsModel index then boldFontStyle else normalFontStyle
-    tr  [ fontStyle ]
-        [
-            td  [ noBorderStyle ]
-                [ Checkbox.checkbox []
-                    [ Checkbox.input [
-                        Props (checkboxInputProps @ [
-                            OnChange(fun _ -> toggleWaveSelection index wsModel dispatch )
-                            Checked <| isWaveSelected wsModel index
-                        ])
-                    ] ]
-                ]
-            td  [ noBorderStyle]
-                [str wsModel.AllWaves[index].DisplayName]
-        ]
-
-let menuSummary menuType =
-    let name =
-        match menuType with
-        | WireLabels -> "Wire Labels"
-        | Components comp -> comp
-
-    summary
-        summaryProps
-        [ str name ]
-
-let labelRows (menuType: SelectionMenu) (labels: WaveIndexT list) (wsModel: WaveSimModel) dispatch : ReactElement =
-    let waves =
-        match menuType with
-        | WireLabels -> Map.filter (fun _ (wave: Wave) -> wave.Type = IOLabel) wsModel.AllWaves
-        | Components compLabel -> Map.filter (fun _ (wave: Wave) -> wave.CompLabel = compLabel) wsModel.AllWaves
-    let subGroupSelected = Map.forall (fun index _ -> isWaveSelected wsModel index) waves
-    
-    tr summaryProps [
-        th [] [
-            Checkbox.checkbox [] [
-                Checkbox.input [
-                    Props [
-                        Checked subGroupSelected
-                        OnChange (fun _ -> toggleSelectSubGroup wsModel dispatch (not subGroupSelected) waves)
-                    ]
-                ]
-            ]
-        ]
-        th [] [
-            details
-                detailsProps
-                [   menuSummary menuType
-                    Table.table [] [
-                        tbody []
-                            (List.map (checkboxRow wsModel dispatch) labels)
-                    ]
-                ]
-        ]
-    ]
-
-let componentRows wsModel dispatch ((compName, waves): string * Wave list) : ReactElement =
-    let waveLabels =
-        List.sortBy (fun (wave: Wave) -> wave.DisplayName) waves
-        |> List.map (fun (wave: Wave) -> wave.WaveId)
-    labelRows (Components compName) waveLabels wsModel dispatch
-
-let selectWaves (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    let wireLabelWaves, compWaves = Map.partition (fun _ (wave: Wave) -> wave.Type = IOLabel) wsModel.AllWaves
-    let wireLabels =
-        wireLabelWaves
-        |> Map.values |> Seq.toList
-        |> List.sortBy (fun wave -> wave.DisplayName)
-        |> List.map (fun wave -> wave.WaveId)
-
-    let wireLabelRows =
-        if List.length wireLabels > 0 then
-            [ labelRows WireLabels wireLabels wsModel dispatch ]
-        else []
-
-    let compWaveLabels =
-        compWaves
-        |> Map.values |> Seq.toList
-        |> List.sortBy (fun (wave: Wave) -> wave.CompLabel)
-        |> List.groupBy (fun wave -> wave.CompLabel)
-
-    Table.table [
-        Table.IsBordered
-        Table.IsFullWidth
-        Table.Props [
-            Style [BorderWidth 0]
-        ]
-    ] [ thead []
-            ( [selectAll wsModel dispatch] @
-                wireLabelRows @
-                (List.map (componentRows wsModel dispatch) compWaveLabels)
-            )
-    ]
-
 let ramTableRow (wsModel: WaveSimModel) (addr, data): ReactElement =
     tr [] [
         td [] [ str (valToString wsModel.Radix addr) ]
@@ -932,17 +994,28 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
 let wsOpenPane (wsModel: WaveSimModel) dispatch : ReactElement =
     div [ waveSelectionPaneStyle ]
         [
-            Heading.h4 [] [ str "Waveform Simulator" ]
+            Level.level [] [
+                Level.left [] [
+                    Heading.h4 [] [ str "Waveform Simulator" ]
+                ]
+                Level.right [
+                ] [
+                    Delete.delete [
+                        Delete.Option.Size IsLarge
+                        Delete.Option.Modifiers [
+                            Modifier.BackgroundColor IsGreyLight
+                        ]
+                        Delete.Option.OnClick (fun _ -> dispatch <| SetWSModel {wsModel with State = WSClosed})
+                    ] []
+                ]
+            ]
             str "Some instructions here"
 
             hr []
 
-            waveSimButtonsBar wsModel dispatch
+            selectBar wsModel dispatch
+            paramsBar wsModel dispatch
             showWaveforms wsModel dispatch
-
-            hr []
-
-            selectWaves wsModel dispatch
 
             hr []
 

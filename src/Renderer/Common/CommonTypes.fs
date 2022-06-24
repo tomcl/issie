@@ -618,6 +618,7 @@ module CommonTypes
         Radix: NumberBase option
         ZoomLevelIndex: int option
         WaveformColumnWidth: int option
+        SelectedRams: Map<ComponentId, string> option
 
         ClkWidth: float option
         Cursor: uint32 option

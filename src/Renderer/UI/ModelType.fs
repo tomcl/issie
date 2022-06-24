@@ -162,7 +162,7 @@ type WaveSimModel = {
     WaveformColumnWidth: int
     RamModalActive: bool
     RamComponents: Component list
-    SelectedRamComponents: Component list
+    SelectedRams: Map<ComponentId, string>
     FastSim: FastSimulation
 }
 
@@ -184,7 +184,7 @@ let initWSModel : WaveSimModel = {
     WaveformColumnWidth = initialWaveformColWidth
     RamModalActive = false
     RamComponents = []
-    SelectedRamComponents = []
+    SelectedRams = Map.empty
     FastSim = FastCreate.emptyFastSimulation ()
 }
 
@@ -453,6 +453,7 @@ let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
         Radix = Some wsModel.Radix
         ZoomLevelIndex = Some wsModel.ZoomLevelIndex
         WaveformColumnWidth = Some wsModel.WaveformColumnWidth
+        SelectedRams = Some wsModel.SelectedRams
 
         // The following fields are from the old waveform simulator.
         ClkWidth = None
@@ -473,6 +474,7 @@ let loadWSModelFromSavedWaveInfo (swInfo: SavedWaveInfo) : WaveSimModel =
             Radix = Option.defaultValue initWSModel.Radix swInfo.Radix
             ZoomLevelIndex = Option.defaultValue initWSModel.ZoomLevelIndex swInfo.ZoomLevelIndex
             WaveformColumnWidth = Option.defaultValue initWSModel.WaveformColumnWidth swInfo.WaveformColumnWidth
+            SelectedRams = Option.defaultValue initWSModel.SelectedRams swInfo.SelectedRams
     }
 
 //----------------------Print functions-----------------------------//

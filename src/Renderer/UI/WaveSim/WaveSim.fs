@@ -344,13 +344,85 @@ let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<WaveInd
     |> Map.ofList
     |> Map.map (makeWave fastSim netList)
 
-/// TODO: Change name to editWaves
 let closeWaveSimButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     let wsModel = {wsModel with State = WSClosed}
     button 
         [Button.Color IsSuccess; Button.Props [closeWaveSimButtonStyle]]
         (fun _ -> dispatch <| SetWSModel wsModel)
         (str "Close wave simulator")
+
+let selectRamButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+    let ramCount = List.length wsModel.RamComponents
+    let props, buttonFunc =
+        if ramCount > 0 then
+            selectRamButtonProps, (fun _ -> dispatch <| SetWSModel {wsModel with RamModalActive = true})
+        else selectRamButtonPropsLight, (fun _ -> ())
+    button 
+        props
+        buttonFunc
+        (str "Select RAM")
+
+let isRamSelected (ram: Component) (wsModel: WaveSimModel) : bool =
+    List.contains ram wsModel.SelectedRamComponents
+
+let toggleRamSelection (ram: Component) (wsModel: WaveSimModel) dispatch =
+    let selectedRams =
+        if isRamSelected ram wsModel then
+            List.except [ram] wsModel.SelectedRamComponents
+        else
+            [ram] @ wsModel.SelectedRamComponents
+    dispatch <| InitiateWaveSimulation {wsModel with SelectedRamComponents = selectedRams}
+
+let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+    let ramRows (ram: Component) : ReactElement =
+        tr [] [
+            td []
+                [ Checkbox.checkbox []
+                    [ Checkbox.input [
+                        Props (checkboxInputProps @ [
+                            Checked <| isRamSelected ram wsModel
+                            OnChange (fun _ -> toggleRamSelection ram wsModel dispatch)
+                        ])
+                    ] ]
+                ]
+            td [] [ label [ ramRowStyle ] [ str ram.Label ] ]
+        ]
+
+    Modal.modal [
+        Modal.IsActive wsModel.RamModalActive
+    ] [
+        Modal.background [
+            Props [
+                OnClick (fun _ -> dispatch <| SetWSModel {wsModel with RamModalActive = false})
+            ]
+        ] []
+        Modal.Card.card [] [
+            Modal.Card.head [] [
+                Modal.Card.title [] [
+                    Level.level [] [
+                        Level.left [] [ str "Select RAM" ]
+                        Level.right [] [
+                            Delete.delete [
+                                Delete.Option.OnClick (fun _ -> dispatch <| SetWSModel {wsModel with RamModalActive = false})
+                            ] []
+                        ]
+                    ]
+                ]
+            ]
+            Modal.Card.body [] [
+                str "Select synchronous RAM components to view their contents."
+                br []
+                str "Note that asynchronous components cannot be viewed in the waveform simulator."
+                hr []
+                Table.table [] [
+                    tbody []
+                        (List.map (ramRows) wsModel.RamComponents)
+                ]
+            ]
+
+            Modal.Card.foot [] []
+        ]
+    ]
 
 /// Set highlighted clock cycle number
 let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkCycle: int) : unit =
@@ -487,10 +559,13 @@ let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : React
     ] (List.map (radixTab) radixString)
 
 /// Display closeWaveSimButton, zoomButtons, radixButtons, clkCycleButtons
-let waveSimButtonsBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement = 
+let waveSimButtonsBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     div [ waveSimButtonsBarStyle ]
         [
             closeWaveSimButton wsModel dispatch
+            selectRamButton wsModel dispatch
+            selectRamModal wsModel dispatch
+
             zoomButtons wsModel dispatch
             radixButtons wsModel dispatch
             clkCycleButtons wsModel dispatch
@@ -629,14 +704,18 @@ let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
         Button.Color IsSuccess
     ]
 
-    let startButtonAction simData reducedState = fun _ ->
+    let startButtonAction simData (comps, conns) = fun _ ->
         FastRun.runFastSimulation Constants.maxLastClk simData.FastSim
 
         let wsSheet = Option.get (getCurrFile model)
         let wsModel = getWSModel model
         let allWaves =
-            getWaves simData reducedState
+            getWaves simData (comps, conns)
             |> Map.map (generateWaveform wsModel)
+
+        let ramComps =
+            List.filter (fun (comp: Component) -> match comp.Type with | RAM1 _ -> true | _ -> false) comps
+            |> List.sortBy (fun ram -> ram.Label)
 
         let selectedWaves = List.filter (fun key -> Map.containsKey key allWaves) wsModel.SelectedWaves
         let wsModel = {
@@ -644,6 +723,8 @@ let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
                 State = WSOpen
                 AllWaves = allWaves
                 SelectedWaves = selectedWaves
+                RamComponents = ramComps
+                FastSim = simData.FastSim
         }
 
         dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
@@ -793,20 +874,65 @@ let selectWaves (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
         |> List.sortBy (fun (wave: Wave) -> wave.CompLabel)
         |> List.groupBy (fun wave -> wave.CompLabel)
 
-    div [] [
-        Table.table [
-            Table.IsBordered
-            Table.IsFullWidth
-            Table.Props [
-                Style [BorderWidth 0]
-            ]
-        ] [ thead []
-                ( [selectAll wsModel dispatch] @
-                    wireLabelRows @
-                    (List.map (componentRows wsModel dispatch) compWaveLabels)
-                )
+    Table.table [
+        Table.IsBordered
+        Table.IsFullWidth
+        Table.Props [
+            Style [BorderWidth 0]
         ]
+    ] [ thead []
+            ( [selectAll wsModel dispatch] @
+                wireLabelRows @
+                (List.map (componentRows wsModel dispatch) compWaveLabels)
+            )
     ]
+
+let ramTableRow (wsModel: WaveSimModel) (addr, data): ReactElement =
+    tr [] [
+        td [] [ str (valToString wsModel.Radix addr) ]
+        td [] [ str (valToString wsModel.Radix data) ]
+    ]
+
+let ramTable (wsModel: WaveSimModel) (ram: Component) : ReactElement =
+    match ram.Type with
+    | RAM1 _ ->
+        // let memData = Map.toList mem.Data
+        let state = FastRun.extractFastSimulationState wsModel.FastSim wsModel.CurrClkCycle (ComponentId ram.Id, [])
+        let memData =
+            match state with
+            | RamState mem ->
+                mem.Data
+            | _ -> failwithf "Non memory components should not appear here"
+            |> Map.toList
+
+        Level.item [
+            Level.Item.Option.Props ramTableLevelProps
+            Level.Item.Option.HasTextCentered
+        ] [
+            Heading.h4 [
+                Heading.Option.Props [ centerAlignStyle ]
+            ] [ str ram.Label ]
+            Table.table [
+                Table.IsFullWidth
+                Table.IsBordered
+            ] [
+                thead [] [
+                    tr [] [
+                        th [ centerAlignStyle ] [ str "Address"]
+                        th [ centerAlignStyle ] [ str "Data"]
+                    ]
+                ]
+                tbody []
+                    (List.map (ramTableRow wsModel) memData)
+            ]
+            br []
+        ]
+
+    | _ -> failwithf "Only RAM1 components should appear here"
+
+let ramTables (wsModel: WaveSimModel) : ReactElement =
+    Level.level [ Level.Level.Option.Props ramTablesLevelProps ]
+        (List.append (List.map (ramTable wsModel) wsModel.SelectedRamComponents) [ ])
 
 let wsOpenPane (wsModel: WaveSimModel) dispatch : ReactElement =
     div [ waveSelectionPaneStyle ]
@@ -824,6 +950,11 @@ let wsOpenPane (wsModel: WaveSimModel) dispatch : ReactElement =
             selectWaves wsModel dispatch
 
             hr []
+
+            ramTables wsModel
+
+            hr []
+
         ]
 
 /// Entry point to the waveform simulator. This function returns a ReactElement showing

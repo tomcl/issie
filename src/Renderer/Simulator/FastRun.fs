@@ -418,7 +418,7 @@ let rec extractFastSimulationOutput
 let rec extractFastSimulationState
     (fs: FastSimulation)
     (step: int)
-    ((cid, ap): ComponentId * ComponentId list) =
+    ((cid, ap): ComponentId * ComponentId list) : SimulationComponentState =
 
     match Map.tryFind (cid, ap) fs.FComps with
     | Some fc ->

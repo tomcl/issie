@@ -506,26 +506,8 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
                     Level.level [] [
                         Level.left [] [ str "Select RAM" ]
                         Level.right [
-                            Modifiers [
-                                Modifier.BackgroundColor IsSuccess
-                            ]
-                        ] [
-                            Level.item [
-                                Level.Item.Option.Modifiers [
-                                    Modifier.BackgroundColor IsSuccess
-                                ]
-                            ] [
-                                Delete.delete [
-                                    Delete.Modifiers [
-                                        Modifier.TextColor IsSuccess
-                                    ]
-                                    Delete.Option.OnClick (fun _ -> dispatch <| SetWSModel {wsModel with WaveModalActive = false})
-                                ] []
-                            ]
-                            Delete.delete [
-                                Delete.Modifiers [
-                                    Modifier.TextColor IsSuccess
-                                ]
+                        ] [ Delete.delete [
+                                Delete.Option.Size IsMedium
                                 Delete.Option.OnClick (fun _ -> dispatch <| SetWSModel {wsModel with WaveModalActive = false})
                             ] []
                         ]
@@ -591,6 +573,7 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
                         Level.left [] [ str "Select RAM" ]
                         Level.right [] [
                             Delete.delete [
+                                Delete.Option.Size IsMedium
                                 Delete.Option.OnClick (fun _ -> dispatch <| SetWSModel {wsModel with RamModalActive = false})
                             ] []
                         ]
@@ -611,16 +594,6 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
             Modal.Card.foot [] []
         ]
     ]
-
-/// Buttons to close waveform simulator, select waves, and select RAMs
-let selectBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    Level.level [ Level.Level.Option.Props [waveSimButtonsBarStyle] ]
-        [
-            selectWavesButton wsModel dispatch
-            selectWavesModal wsModel dispatch
-            selectRamButton wsModel dispatch
-            selectRamModal wsModel dispatch
-        ]
 
 /// Set highlighted clock cycle number
 let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkCycle: int) : unit =
@@ -755,18 +728,6 @@ let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : React
         Tabs.IsToggle
         Tabs.Props [ radixTabsStyle ]
     ] (List.map (radixTab) radixString)
-
-/// Buttons to change radix, change zoom, and change clock cycle
-let paramsBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    Level.level [ Level.Level.Option.Props [waveSimButtonsBarStyle] ]
-        [   
-            // Level.left [] []
-            // Level.right [] [
-            radixButtons wsModel dispatch
-            clkCycleButtons wsModel dispatch
-            zoomButtons wsModel dispatch
-        ]
-    // ]
 
 
 // /// change the order of the waveforms in the simulator
@@ -1009,12 +970,40 @@ let wsOpenPane (wsModel: WaveSimModel) dispatch : ReactElement =
                     ] []
                 ]
             ]
-            str "Some instructions here"
 
-            hr []
+            Columns.columns [] [
+                Column.column [] [
+                    str "View sequential logic using the waveform simulator by selecting desired waveforms. "
+                    str "Select synchronous RAM components to view their contents during the simulation. "
+                    str "You must restart the waveform simulator to view any changes to the circuit. "
+                ]
 
-            selectBar wsModel dispatch
-            paramsBar wsModel dispatch
+                Column.column [
+                    Column.Option.Width (Screen.All, Column.IsNarrow)
+                ] [ Level.level [] [
+                        Level.item [
+                                Level.Item.Option.HasTextCentered
+                            ] [ Button.list [] [
+                                selectWavesButton wsModel dispatch
+                                selectWavesModal wsModel dispatch
+
+                                selectRamButton wsModel dispatch
+                                selectRamModal wsModel dispatch
+                            ]
+                            ]
+                        ]
+                    Level.level [] [
+                        Level.left [] [
+                            zoomButtons wsModel dispatch
+                        ]
+                        Level.right [] [
+                            radixButtons wsModel dispatch
+                        ]
+                    ]
+                    clkCycleButtons wsModel dispatch
+                ]
+            ]
+
             showWaveforms wsModel dispatch
 
             hr []

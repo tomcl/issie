@@ -103,7 +103,6 @@ let selectWavesStyle = Style [
 let closeWaveSimButtonStyle = Style [
     Height Constants.rowHeight
     FontSize "16px"
-    Float FloatOptions.Left
     Position PositionOptions.Relative
 ]
 
@@ -118,8 +117,6 @@ let selectRamButtonPropsLight =
 let selectWavesButtonStyle = Style [
     Height Constants.rowHeight
     FontSize "16px"
-    Float FloatOptions.Left
-    Position PositionOptions.Relative
 ]
 
 let selectWavesButtonProps = [
@@ -203,7 +200,6 @@ let clkCycleButtonStyle = Style [
     TextAlign TextAlignOptions.Center
     Display DisplayOptions.InlineBlock
     FontSize "13px"
-    Resize "vertical"
 ]
 
 // TODO: Can this be nested inside clkCycleButtonStyle
@@ -215,9 +211,8 @@ let clkCycleInputStyle = Style [
     Height Constants.rowHeight
     Display DisplayOptions.InlineBlock
     FontSize "13px"
-    Resize "vertical"
     BorderColor "gray"
-    BorderWidth "1px 1px 1px 1px"
+    BorderWidth "1px 0.5px 1px 0.5px"
     BorderRadius 0
 ]
 
@@ -236,7 +231,7 @@ let clkCycleBut = [
     Position PositionOptions.Relative
     Float FloatOptions.Left
     BorderColor "gray"
-    BorderWidth "1px"
+    BorderWidth "1px 0.5px 1px 0.5px"
 ]
 
 let clkCycleInnerStyle = Style (
@@ -251,6 +246,7 @@ let clkCycleLeftStyle = Style (
         BorderBottomLeftRadius "4px"
         BorderTopRightRadius 0
         BorderBottomRightRadius 0
+        BorderRightWidth "0.5"
     ])
 
 let clkCycleRightStyle = Style (
@@ -259,6 +255,7 @@ let clkCycleRightStyle = Style (
         BorderBottomLeftRadius 0
         BorderTopRightRadius "4px"
         BorderBottomRightRadius "4px"
+        BorderLeftWidth "0.5"
     ])
 
 let waveSimButtonsBarStyle = Style [ Height "45px" ]
@@ -437,11 +434,9 @@ let radixTabAStyle = Style [
 ]
 
 let radixTabsStyle = Style [
-    Width "140px"
     Height Constants.rowHeight
     FontSize "80%"
     Float FloatOptions.Right
-    Margin "0 10px 0 10px"
 ]
 
 let wavePolylineStyle points : IProp list = [

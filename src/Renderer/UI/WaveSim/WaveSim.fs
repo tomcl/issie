@@ -174,7 +174,7 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
     | IOLabel -> failwithf "IOLabel should not occur in getInputPortName"
     | MergeWires -> failwithf "MergeWires should not occur in getInputPortName"
     | SplitWire _ -> failwithf "SplitWire should not occur in getInputPortName"
-    | BusSelection _ -> failwithf "BusSeleciton should not occur in getInputPortName"
+    | BusSelection _ -> failwithf "BusSelection should not occur in getInputPortName"
 
 let getInputName (comp: NetListComponent) (port: InputPortNumber) : string =
     let portName : string = getInputPortName comp.Type port
@@ -362,16 +362,16 @@ let selectRamButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
         buttonFunc
         (str "Select RAM")
 
-let isRamSelected (ram: Component) (wsModel: WaveSimModel) : bool =
-    List.contains ram wsModel.SelectedRamComponents
+let isRamSelected (ramId: ComponentId) (wsModel: WaveSimModel) : bool =
+    Map.containsKey ramId wsModel.SelectedRams
 
-let toggleRamSelection (ram: Component) (wsModel: WaveSimModel) dispatch =
+let toggleRamSelection (ramId: ComponentId) (ramLabel: string) (wsModel: WaveSimModel) dispatch =
     let selectedRams =
-        if isRamSelected ram wsModel then
-            List.except [ram] wsModel.SelectedRamComponents
+        if isRamSelected ramId wsModel then
+            Map.remove ramId wsModel.SelectedRams
         else
-            [ram] @ wsModel.SelectedRamComponents
-    dispatch <| InitiateWaveSimulation {wsModel with SelectedRamComponents = selectedRams}
+            Map.add ramId ramLabel wsModel.SelectedRams
+    dispatch <| InitiateWaveSimulation {wsModel with SelectedRams = selectedRams}
 
 let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     let ramRows (ram: Component) : ReactElement =
@@ -380,8 +380,8 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
                 [ Checkbox.checkbox []
                     [ Checkbox.input [
                         Props (checkboxInputProps @ [
-                            Checked <| isRamSelected ram wsModel
-                            OnChange (fun _ -> toggleRamSelection ram wsModel dispatch)
+                            Checked <| isRamSelected (ComponentId ram.Id) wsModel
+                            OnChange (fun _ -> toggleRamSelection (ComponentId ram.Id) ram.Label wsModel dispatch)
                         ])
                     ] ]
                 ]
@@ -893,46 +893,41 @@ let ramTableRow (wsModel: WaveSimModel) (addr, data): ReactElement =
         td [] [ str (valToString wsModel.Radix data) ]
     ]
 
-let ramTable (wsModel: WaveSimModel) (ram: Component) : ReactElement =
-    match ram.Type with
-    | RAM1 _ ->
-        // let memData = Map.toList mem.Data
-        let state = FastRun.extractFastSimulationState wsModel.FastSim wsModel.CurrClkCycle (ComponentId ram.Id, [])
-        let memData =
-            match state with
-            | RamState mem ->
-                mem.Data
-            | _ -> failwithf "Non memory components should not appear here"
-            |> Map.toList
+let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): ComponentId * string) : ReactElement =
+    let state = FastRun.extractFastSimulationState wsModel.FastSim wsModel.CurrClkCycle (ramId, [])
+    let memData =
+        match state with
+        | RamState mem ->
+            mem.Data
+        | _ -> failwithf "Non memory components should not appear here"
+        |> Map.toList
 
-        Level.item [
-            Level.Item.Option.Props ramTableLevelProps
-            Level.Item.Option.HasTextCentered
-        ] [
-            Heading.h4 [
-                Heading.Option.Props [ centerAlignStyle ]
-            ] [ str ram.Label ]
-            Table.table [
-                Table.IsFullWidth
-                Table.IsBordered
-            ] [
-                thead [] [
-                    tr [] [
-                        th [ centerAlignStyle ] [ str "Address"]
-                        th [ centerAlignStyle ] [ str "Data"]
-                    ]
+    Level.item [
+        Level.Item.Option.Props ramTableLevelProps
+        Level.Item.Option.HasTextCentered
+    ] [
+        Heading.h4 [
+            Heading.Option.Props [ centerAlignStyle ]
+        ] [ str ramLabel ]
+        Table.table [
+            Table.IsFullWidth
+            Table.IsBordered
+        ] [ thead [] [
+                tr [] [
+                    th [ centerAlignStyle ] [ str "Address"]
+                    th [ centerAlignStyle ] [ str "Data"]
                 ]
-                tbody []
-                    (List.map (ramTableRow wsModel) memData)
             ]
-            br []
+            tbody []
+                (List.map (ramTableRow wsModel) memData)
         ]
-
-    | _ -> failwithf "Only RAM1 components should appear here"
+        br []
+    ]
 
 let ramTables (wsModel: WaveSimModel) : ReactElement =
+    let selectedRams = Map.toList wsModel.SelectedRams
     Level.level [ Level.Level.Option.Props ramTablesLevelProps ]
-        (List.append (List.map (ramTable wsModel) wsModel.SelectedRamComponents) [ ])
+        (List.map (ramTable wsModel) selectedRams)
 
 let wsOpenPane (wsModel: WaveSimModel) dispatch : ReactElement =
     div [ waveSelectionPaneStyle ]

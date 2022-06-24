@@ -160,6 +160,7 @@ type WaveSimModel = {
     Radix: NumberBase
     ZoomLevelIndex: int
     WaveformColumnWidth: int
+    WaveModalActive: bool
     RamModalActive: bool
     RamComponents: Component list
     SelectedRams: Map<ComponentId, string>
@@ -182,6 +183,7 @@ let initWSModel : WaveSimModel = {
     Radix = Hex
     ZoomLevelIndex = 9
     WaveformColumnWidth = initialWaveformColWidth
+    WaveModalActive = false
     RamModalActive = false
     RamComponents = []
     SelectedRams = Map.empty

@@ -105,16 +105,30 @@ let closeWaveSimButtonStyle = Style [
     FontSize "16px"
     Float FloatOptions.Left
     Position PositionOptions.Relative
-    MarginRight 10
 ]
 
 let selectRamButtonProps = [
-    Button.Color IsSuccess
+    Button.Color IsInfo
     Button.Props [closeWaveSimButtonStyle]
 ]
 
 let selectRamButtonPropsLight = 
     selectRamButtonProps @ [Button.IsLight]
+
+let selectWavesButtonStyle = Style [
+    Height Constants.rowHeight
+    FontSize "16px"
+    Float FloatOptions.Left
+    Position PositionOptions.Relative
+]
+
+let selectWavesButtonProps = [
+    Button.Color IsInfo
+    Button.Props [selectWavesButtonStyle]
+]
+
+let selectWavesButtonPropsLight = 
+    selectWavesButtonProps @ [Button.IsLight]
 
 let ramTableLevelProps : IHTMLProp list = [
     Style [

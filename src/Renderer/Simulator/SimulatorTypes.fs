@@ -567,8 +567,11 @@ let rec evalExp exp =
                 UnaryExp (NotOp,exp)
             else
                 reduceArithmetic (BinaryExp (exp,AddOp,DataLiteral {Dat= Word n;Width=w}))
-        | l,r -> 
-            reduceArithmetic (BinaryExp (l,AddOp,r))
+        | l,r ->
+            if getAlgExpWidth l = 1 && getAlgExpWidth r = 1 then
+                reduceArithmetic (BinaryExp (l,AddOp,r))
+            else
+                BinaryExp (l,BitXorOp,r)
     | BinaryExp (_,AddOp,_) | BinaryExp (_,SubOp,_) ->
         reduceArithmetic exp
     | ComparisonExp (exp, Equals, x) ->

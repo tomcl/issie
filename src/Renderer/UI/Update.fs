@@ -128,7 +128,7 @@ let private getTruthTableOrFail model msg =
 
 let truncationWarning table =
     $"The Truth Table has been truncated to {table.TableMap.Count} input combinations.
-    Not all rows may be shown. Please use more restrictive input constraints to avoid truncation."
+    Not all rows may be shown."
 
 /// Apply a single numerical output constraint to a Truth Table Map
 let applyNumericalOutputConstraint (table: Map<TruthTableRow,TruthTableRow>) (con: Constraint) =
@@ -514,10 +514,6 @@ let update (msg : Msg) oldModel =
                         true
                 let comms = 
                     [
-                        // Set the IO Order for the Truth Table
-                        tt.IOOrder 
-                        |> List.toArray 
-                        |> SetIOOrder
                         // Truncation warning
                         if tt.IsTruncated then
                             Notifications.warningPropsNotification (truncationWarning tt)
@@ -553,8 +549,9 @@ let update (msg : Msg) oldModel =
         let start = TimeHelpers.getTimeMs()
         let table = getTruthTableOrFail model "Sorting"
         let sortedTable =
-            match model.TTSortType, tableAsList table.FilteredMap with
-            | _, [] -> {table with SortedListRep = []}
+            match model.TTSortType, tableAsList table.FilteredMap with 
+            | _, [] -> 
+                {table with SortedListRep = []}
             | None, lst ->
                 {table with SortedListRep = lst}
             | Some (io, Ascending), lst ->
@@ -595,60 +592,72 @@ let update (msg : Msg) oldModel =
             correctProps 0 [] (Array.toList model.TTIOOrder)
             |> Map.ofList
             |> TimeHelpers.instrumentInterval "Hiding Columns" start
-        {model with TTGridStyles = newStyles}, Cmd.none
+        {model with TTGridStyles = newStyles}, Cmd.ofMsg (SetTTGridCache None)
     | CloseTruthTable -> 
-        {model with CurrentTruthTable = None}, Cmd.none
-    | SetTTOutOfDate reason ->
-        {model with TTIsOutOfDate = reason}, Cmd.none
+        let newPopupData =
+            {model.PopupDialogData with 
+                AlgebraInputs = None
+                AlgebraError = None
+                ConstraintErrorMsg = None}
+        {model with 
+            CurrentTruthTable = None
+            TTInputConstraints = emptyConstraintSet
+            TTOutputConstraints = emptyConstraintSet
+            TTSortType = None
+            TTIOOrder = [||]
+            TTHiddenColumns = []
+            TTAlgebraInputs = []
+            TTGridCache = None
+            PopupDialogData = newPopupData}, Cmd.none
     | ClearInputConstraints -> 
-        {model with TTInputConstraints = emptyConstraintSet}, Cmd.none
+        {model with TTInputConstraints = emptyConstraintSet}, Cmd.ofMsg RegenerateTruthTable
     | ClearOutputConstraints -> 
-        {model with TTOutputConstraints = emptyConstraintSet}, Cmd.none
+        {model with TTOutputConstraints = emptyConstraintSet}, Cmd.ofMsg RegenerateTruthTable
     | AddInputConstraint con ->
         match con with
         | Equality e -> 
             let newEqu = e::model.TTInputConstraints.Equalities
-            {model with TTInputConstraints = {model.TTInputConstraints with Equalities = newEqu}}, Cmd.none
+            {model with TTInputConstraints = {model.TTInputConstraints with Equalities = newEqu}}, Cmd.ofMsg RegenerateTruthTable
         | Inequality i ->
             let newIneq = i::model.TTInputConstraints.Inequalities
-            {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.none
+            {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.ofMsg RegenerateTruthTable
     | DeleteInputConstraint con ->
         match con with
         | Equality e ->
             let newEqu = 
                 model.TTInputConstraints.Equalities
                 |> List.except [e]
-            {model with TTInputConstraints = {model.TTInputConstraints with Equalities = newEqu}}, Cmd.none
+            {model with TTInputConstraints = {model.TTInputConstraints with Equalities = newEqu}}, Cmd.ofMsg RegenerateTruthTable
         | Inequality i ->
             let newIneq =
                 model.TTInputConstraints.Inequalities
                 |> List.except [i]
-            {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.none
+            {model with TTInputConstraints = {model.TTInputConstraints with Inequalities = newIneq}}, Cmd.ofMsg RegenerateTruthTable
     | AddOutputConstraint con ->
         match con with
         | Equality e -> 
             let newEqu = e::model.TTOutputConstraints.Equalities
-            {model with TTOutputConstraints = {model.TTOutputConstraints with Equalities = newEqu}}, Cmd.none
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Equalities = newEqu}}, Cmd.ofMsg FilterTruthTable
         | Inequality i ->
             let newIneq = i::model.TTOutputConstraints.Inequalities
-            {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.none
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.ofMsg FilterTruthTable
     | DeleteOutputConstraint con ->
         match con with
         | Equality e ->
             let newEqu = 
                 model.TTOutputConstraints.Equalities
                 |> List.except [e]
-            {model with TTOutputConstraints = {model.TTOutputConstraints with Equalities = newEqu}}, Cmd.none
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Equalities = newEqu}}, Cmd.ofMsg FilterTruthTable
         | Inequality i ->
             let newIneq =
                 model.TTOutputConstraints.Inequalities
                 |> List.except [i]
-            {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.none
+            {model with TTOutputConstraints = {model.TTOutputConstraints with Inequalities = newIneq}}, Cmd.ofMsg FilterTruthTable
     | ToggleHideTTColumn io ->
         // Column is currently hidden, so we unhide
         if List.contains io model.TTHiddenColumns then
             let newHC = List.except [io] model.TTHiddenColumns
-            {model with TTHiddenColumns = newHC}, Cmd.none
+            {model with TTHiddenColumns = newHC}, Cmd.ofMsg HideTTColumns
         else
             let newSort =
                 match model.TTSortType with
@@ -658,9 +667,9 @@ let update (msg : Msg) oldModel =
                     else Some (cIO,st)
             {model with 
                 TTHiddenColumns = io::model.TTHiddenColumns
-                TTSortType = newSort}, Cmd.none
+                TTSortType = newSort}, Cmd.ofMsg HideTTColumns
     | ClearHiddenTTColumns -> 
-        {model with TTHiddenColumns = []}, Cmd.none
+        {model with TTHiddenColumns = []}, Cmd.ofMsg HideTTColumns
     | ClearDCMap ->
         let newTT = 
             match model.CurrentTruthTable with
@@ -674,12 +683,15 @@ let update (msg : Msg) oldModel =
                     |> Some
         {model with CurrentTruthTable = newTT}, Cmd.ofMsg FilterTruthTable
     | SetTTSortType stOpt ->
-        {model with TTSortType = stOpt}, Cmd.none
+        {model with TTSortType = stOpt}, Cmd.ofMsg SortTruthTable
     | MoveColumn (io, dir) ->
         let oldOrder = model.TTIOOrder
         let idx = 
             oldOrder
-            |> Array.findIndex (fun cIO -> cIO = io)
+            |> Array.tryFindIndex (fun cIO -> cIO = io)
+            |> function
+                | Some i -> i
+                | None -> failwithf "what? IO: %A not found in TTIOOrder" io
         let newOrder =
             match dir, idx with
             | MLeft, 0 -> oldOrder
@@ -693,18 +705,20 @@ let update (msg : Msg) oldModel =
             newOrder
             |> Array.mapi (fun i io -> (io,ttGridColumnProps i))
             |> Map.ofArray
-        {model with TTIOOrder = newOrder; TTGridStyles = newStyles}, Cmd.none
+        {model with TTIOOrder = newOrder; TTGridStyles = newStyles}, Cmd.ofMsg (SetTTGridCache None)
     | SetIOOrder x -> 
         {model with TTIOOrder = x}, Cmd.none
     | SetTTAlgebraInputs lst ->
-        {model with TTAlgebraInputs = lst}, Cmd.none
+        {model with TTAlgebraInputs = lst}, Cmd.ofMsg RegenerateTruthTable
     | SetTTBase numBase ->
         let table = getTruthTableOrFail model "SetTTBase"
         let updatedTT = 
             {table with TableSimData = {table.TableSimData with NumberBase = numBase}}
             |> Ok
             |> Some
-        {model with CurrentTruthTable = updatedTT}, Cmd.none
+        {model with CurrentTruthTable = updatedTT}, Cmd.ofMsg (SetTTGridCache None)
+    | SetTTGridCache gridopt ->
+        {model with TTGridCache = gridopt}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg

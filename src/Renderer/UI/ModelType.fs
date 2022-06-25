@@ -296,7 +296,6 @@ type Msg =
     | DCReduceTruthTable
     | HideTTColumns
     | CloseTruthTable
-    | SetTTOutOfDate of ReasonOutOfDate option
     | ClearInputConstraints
     | ClearOutputConstraints
     | AddInputConstraint of Constraint
@@ -311,6 +310,7 @@ type Msg =
     | SetIOOrder of CellIO []
     | SetTTAlgebraInputs of SimulationIO list
     | SetTTBase of NumberBase
+    | SetTTGridCache of ReactElement option
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list
@@ -457,8 +457,6 @@ type Model = {
     TTInputConstraints: ConstraintSet
     // output constraints on truth table viewing
     TTOutputConstraints: ConstraintSet
-    // true if existing Truth Table needs to be re-generated
-    TTIsOutOfDate : ReasonOutOfDate option
     // which output or viewer columns in the Truth Table should be hidden
     TTHiddenColumns: CellIO list
     // by which IO and in what way is the Table being sorted
@@ -467,6 +465,8 @@ type Model = {
     TTIOOrder: CellIO []
     // Grid Styles for each column in the Table
     TTGridStyles: Map<CellIO,Props.CSSProp list>
+    // Cached CSS Grid for displaying the Truth Table
+    TTGridCache: ReactElement option
     // which of the Truth Table's inputs are currently algebra
     TTAlgebraInputs: SimulationIO list
     // which of the tabbed panes is currently visible

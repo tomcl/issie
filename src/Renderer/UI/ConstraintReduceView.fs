@@ -77,8 +77,7 @@ let viewNumericalConstraints cons dispatch =
                 Delete.delete
                     [Delete.OnClick(fun _ ->
                         dispatch <| DeleteInputConstraint con
-                        dispatch <| DeleteOutputConstraint con
-                        Regenerate |> Some |> SetTTOutOfDate |> dispatch)] []
+                        dispatch <| DeleteOutputConstraint con)] []
             ]
     let equEls =
         cons.Equalities
@@ -345,7 +344,9 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg disp
         match dialogData.Int, dialogData.Int2, dialogData.ConstraintErrorMsg,
         dialogData.ConstraintIOSel, dialogData.ConstraintTypeSel with
         | Some v, _, None, Some io, Some Equ ->
+            printfn "Existing %A" existingCons
             let tentative = Equality {IO = io; Value = v}
+            printfn "Tentative: %A" (inCon2str tentative)
             match validateNumericalConstraint tentative existingCons with
             | Error err ->
                 err |> Some |> SetPopupConstraintErrorMsg |> dispatch
@@ -407,7 +408,6 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             | None -> ()
             | Some con ->
                 con |> AddInputConstraint |> dispatch
-                Regenerate |> Some |> SetTTOutOfDate |> dispatch
                 dispatch ClosePopup
     let isDisabled =
         fun (dialogData: PopupDialogData) ->
@@ -437,7 +437,7 @@ let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             |> List.map snd
             |> List.head
             |> List.map (fun cell -> cell.IO)
-    let body = dialogPopupNumericalConBody outputs model.TTInputConstraints infoMsg dispatch
+    let body = dialogPopupNumericalConBody outputs model.TTOutputConstraints infoMsg dispatch
     let buttonText = "Add"
     let buttonAction =
         fun (dialogData: PopupDialogData) ->
@@ -445,7 +445,6 @@ let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             | None -> ()
             | Some con ->
                 con |> AddOutputConstraint |> dispatch
-                Refilter |> Some |> SetTTOutOfDate |> dispatch
                 dispatch ClosePopup
     let isDisabled =
         fun (dialogData: PopupDialogData) ->
@@ -472,16 +471,14 @@ let viewConstraints model dispatch =
             makeElementLine [
                 addButton (fun _ -> createInputConstraintPopup model dispatch)
                 clearButton (fun _ ->
-                    dispatch ClearInputConstraints
-                    Regenerate |> Some |> SetTTOutOfDate |> dispatch)] []
+                    dispatch ClearInputConstraints)] []
             Heading.h6 [] [str "Output Constraints"]
             viewNumericalConstraints outputCons dispatch
             br []
             makeElementLine [
                 addButton (fun _ -> createOutputConstraintPopup model dispatch)
                 clearButton (fun _ ->
-                    dispatch ClearOutputConstraints
-                    Refilter |> Some |> SetTTOutOfDate |> dispatch)] []
+                    dispatch ClearOutputConstraints)] []
         ]
 
 //-------------------------------------------------------------------------------------//
@@ -501,6 +498,129 @@ let makeOnOffToggle state changeAction onText offText =
             ] [ str offText ] ]
         ]
     ]
+
+let algebraKey =
+    div [Style [OverflowY OverflowOptions.Scroll]] 
+        [
+            str "Algebraic expressions in Issie consist of input variables, numeric values,
+                and operators which manipulate them."
+            hr []
+            br []
+
+            Heading.h5 [] [str "Variables"]
+            str "Variables in algebraic expressions correspond the input components in your
+                schematic, with the name of each variable being derived from the label of
+                each input. Each variable has a width associated with it, this is the same
+                as the width of its corresponding input component."
+            br []
+            hr []
+
+            Heading.h5 [] [str "Numeric Addition (+)"]
+            b [] [str "Usage: A + B, Example: 1 + 2 = 3"]
+            br []
+            str "Represents the addition of two expressions, just like it would in maths.
+                The width of the result is equal to the width of the operands. If the result
+                exceeds the maximum value for the width, the value will wrap around. For example,
+                0xA + 0xB = 0x6 for a width of 4."
+            br []
+
+            hr []
+            Heading.h5 [] [str "Numeric Subtraction (-)"]
+            b [] [str "Usage: A - B, Example 2 - 1 = 1"]
+            br []
+            str "Represents the subtraction of two expressions, just like it would in maths.
+                The width of the result is equal to the width of the operands. If the result
+                exceeds the maximum value for the width, the value will wrap around."
+            br []
+
+            hr []
+            Heading.h5 [] [str "Carry Of (carry())"]
+            b [] [str "Usage: carry(X-Y+Z), Example: carry(0xA + 0xB) = 1, when width = 4"]
+            br []
+            str "Represents the carry-out of an arithmetic operation"
+            br []
+
+            hr []
+            Heading.h5 [] [str "Numeric Negation (-)"]
+            b [] [str "Usage: -A, Example: - 5"]
+            br []
+            str "Shows that an expression is being negated, (times -1), like it would in maths."
+            br []
+
+            hr []
+            Heading.h5 [] [str "Bitwise And (&)"]
+            b [] [str "Usage: A & B, Example 0 & 1 = 0 "]
+            br []
+            str "Represents an AND operation between two expressions. This is a bitwise operation,
+                meaning that the operator is applied to each bit one-by-one. For example, for inputs
+                with a width of 8 bits: 0xFF & 0xFF = 0xFF"
+            br []
+
+            hr []
+            Heading.h5 [] [str "Bitwise Or (|)"]
+            b [] [str "Usage: A | B, Example: 0 | 1 = 1 "]
+            br []
+            str "Represents an OR operation between two expressions. This is a bitwise operation,
+                meaning that the operator is applied to each bit one-by-one. For example, for inputs
+                with a width of 8 bits: 0xFF | 0x01 = 0xFF."
+            br []
+
+            hr []
+            Heading.h5 [] [str "Bitwise Xor (⊕)"]
+            b [] [str "Usage: A ⊕ B, Example: 0 ⊕ 1 = 1 "]
+            br []
+            str "Represents an XOR operation between two expressions. This is a bitwise operation,
+                meaning that the operator is applied to each bit one-by-one."
+            br []
+
+            hr []
+            Heading.h5 [] [str "Bitwise Not (~)"]
+            b [] [str "Usage: ~A, Example: ~0 = 1 "]
+            br []
+            str "Represents an OR operation between two expressions. This is a bitwise operation,
+                meaning that the operator is applied to each bit one-by-one. For example, for an
+                input with a width of 4 bits: ~(0b1101) = ~(0b0010)."
+            br []
+
+            hr []
+            Heading.h5 [] [str "Bit Range ([u:l])"]
+            b [] [str "Usage: A[u:l], Example: (0b1101)[2:1] = 0b10"]
+            br []
+            str "Represents the selection of a specific range of bits from an expression. The upper
+                bound is the first number, and the lower bound is the second number in the brackets.
+                The bit range defined by these two numbers is inclusive. The width of the result is
+                equal to u + l - 1"
+            br []
+
+            hr []
+            Heading.h5 [] [str "Append (::)"]
+            b [] [str "Usage: A::B"]
+            br []
+            b [] [str "Example: 0b1101 :: 0b1001 = 0b11011001"]
+            br []
+            str "Represents the joining of two expressions together, with the first expression making
+                up the MSBs, and the second the LSBs. The width of the result is the sum of the widths
+                of the two expressions beign appended."
+            br []
+
+            hr []
+            Heading.h5 [] [str "Equals (==)"]
+            b [] [str "Usage: A == number"]
+            br []
+            b [] [str "Example: 0x05 == 0x05 = 1, 0x05 == 0x02 = 0"]
+            br []
+            str "Compares the value of an algebraic expression to a number. If the equality holds (true)
+                then the result is 1. Otherwise (false) the result is 0."
+            br []
+        ]
+
+let createAlgKeyPopup dispatch =
+    let title = "Key for Algebraic Expressions"
+    let body = fun x -> algebraKey
+    let foot _ = div [] []
+
+    dynamicClosablePopup title body foot [Height "60%"; Width "30%"] dispatch
+
 
 /// Checks if changing an input to Algebra/Values results in a valid simulation
 /// (i.e. an AlgebraNotImplemented exception is not raised)
@@ -579,7 +699,6 @@ let createAlgReductionPopup model dispatch =
             | None -> failwithf "what? what? PopupDialogData.AlgebraInputs is None in popup body"
             | Some l -> 
                 dispatch <| SetTTAlgebraInputs l
-                Regenerate |> Some |> SetTTOutOfDate |> dispatch
                 dispatch ClosePopup
     let isDisabled =
         fun (dialogData: PopupDialogData) ->
@@ -599,15 +718,14 @@ let viewReductions (table: TruthTable) (model: Model) dispatch =
         | None, _::_ ->
             (Button.button [Button.Color IsInfo; Button.OnClick (fun _ ->
                 dispatch <| SetTTAlgebraInputs []
-                dispatch <| SetPopupAlgebraInputs (Some [])
-                Regenerate |> Some |> SetTTOutOfDate |> dispatch)]
+                dispatch <| SetPopupAlgebraInputs (Some []))]
             [str "Back to Numeric Table"])
         | None, [] -> div [] [] // Button is never displayed in this case
     let reduceButton =
         if table.IsTruncated then
             let textEl = 
                 str "Reduce"
-                |> addToolTipRight "DC Reduction unavailable for truncated tables"
+                |> addToolTipTop "DC Reduction unavailable for truncated tables"
             (Button.button [Button.Disabled true; Button.OnClick (fun _ -> dispatch DCReduceTruthTable)]
             [textEl])
         else
@@ -616,6 +734,9 @@ let viewReductions (table: TruthTable) (model: Model) dispatch =
     let algebraButton =
         Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> createAlgReductionPopup model dispatch)]
             [str "Algebra"]
+    let keyButton =
+        Button.button [Button.Color IsInfo; Button.OnClick (fun _ -> createAlgKeyPopup dispatch)]
+            [str "Key"]
     let algebraTags =
         model.TTAlgebraInputs
         |> List.map (fun (_,label,_) ->
@@ -637,6 +758,7 @@ let viewReductions (table: TruthTable) (model: Model) dispatch =
             makeElementLine [goBackButton] [maybeBaseSelector]]
     | None, _::_ -> // Table is Algebraic
         div [] [
-            makeElementLine [goBackButton; str "   ";algebraButton] [maybeBaseSelector]
+            makeElementLine [goBackButton; str "   ";algebraButton; str "   ";keyButton] 
+                [maybeBaseSelector]
             makeElementLine [str "Algebraic Inputs: "; algebraTags] []]
     | Some _, _::_ -> failwithf "what? Table cannot be DC Reduced and Algebraic"

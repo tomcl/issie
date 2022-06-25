@@ -34,6 +34,7 @@ open BusWidthInferer
 open Symbol
 open SymbolUpdate
 open Sheet.SheetInterface
+open DrawModelType
 
 /// Updates MergeWires and SplitWire Component labels to MWx/SWx.
 /// Previous Issie versions had empty labels for these components.
@@ -405,7 +406,7 @@ type SelectionCache = {
     StoredResult: Result<SimulationData, SimulationError>
 }
 
-let emptySelCache = {
+let emptySelCache  = {
     UncorrectedCanvas = ([],[])
     CorrectedCanvas = ([],[])
     StoredResult = Ok {
@@ -431,11 +432,15 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
     match selComponents, selConnections, model.CurrentProj with
     | _,_,None -> None
     | [],[],_ -> None
-    | [],_,_ -> Some <| (Error {
-        Msg = "Only connections selected. Please select a combination of connections and components."
-        InDependency = None
-        ComponentsAffected = []
-        ConnectionsAffected =[] }, (selComponents,selConnections))
+    | [],_,_ -> 
+        let affected =
+            selConnections
+            |> List.map (fun c -> ConnectionId c.Id)
+        Some <| (Error {
+            Msg = "Only connections selected. Please select a combination of connections and components."
+            InDependency = None
+            ComponentsAffected = []
+            ConnectionsAffected = affected }, (selComponents,selConnections))
     | selComps,selConns,Some project ->
         let rState = extractReducedState (selComponents,selConnections)
         // Check if selected components have changed
@@ -448,9 +453,11 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
                     comp.Name <> project.OpenFileName)
             match correctCanvasState (selComps,selConns) wholeCanvas with
             | Error e -> 
-                selCache <- { emptySelCache with
-                                UncorrectedCanvas = rState
-                                CorrectedCanvas = (selComponents,selConnections) }
+                selCache <- {
+                    UncorrectedCanvas = rState
+                    CorrectedCanvas = (selComponents,selConnections)
+                    StoredResult = Error e 
+                }
                 Some (Error e, (selComps,selConns))
             | Ok (correctComps,correctConns) ->
                 match CanvasStateAnalyser.analyseState (correctComps,correctConns) selLoadedComponents with
@@ -484,8 +491,7 @@ let makeSortingArrows (io: CellIO) sortInfo dispatch =
                 Button.Props [sortArrowStyle]
                 if upSel then Button.Color IsInfo
                 Button.OnClick (fun _ -> 
-                    (io,Ascending) |> Some |> SetTTSortType |> dispatch
-                    ReSort |> Some |> SetTTOutOfDate |> dispatch)
+                    (io,Ascending) |> Some |> SetTTSortType |> dispatch)
             ]
             [str "▲"]
     let downArrow =
@@ -494,8 +500,7 @@ let makeSortingArrows (io: CellIO) sortInfo dispatch =
                 Button.Props [sortArrowStyle]
                 if downSel then Button.Color IsInfo
                 Button.OnClick (fun _ -> 
-                    (io,Descending) |> Some |> SetTTSortType |> dispatch
-                    ReSort |> Some |> SetTTOutOfDate |> dispatch)
+                    (io,Descending) |> Some |> SetTTSortType |> dispatch)
             ]
             [str "▼"]
     div [] [upArrow; downArrow]
@@ -529,8 +534,7 @@ let viewOutputHider table hidden dispatch =
     let makeToggleRow io =
         let isChecked = not <| List.contains io hidden
         let changeAction = (fun _ ->
-            dispatch <| ToggleHideTTColumn io
-            HideColumn |> Some |> SetTTOutOfDate |> dispatch)
+            dispatch <| ToggleHideTTColumn io)
         let toggle = makeOnOffToggle isChecked changeAction "Visible" "Hidden"
         let ioLabel = str io.getLabel
         makeElementLine [ioLabel;toggle]
@@ -539,9 +543,6 @@ let viewOutputHider table hidden dispatch =
     else
         let preamble = div [] [
             str "Hide or Un-hide Output or Viewer columns in the Truth Table."
-            br []
-            i [] [str "Note: Hiding a column will delete any constraints associated
-                with that column."]
             br []; br []
         ]
         let toggleRows =
@@ -619,24 +620,28 @@ let viewTruthTableError simError =
     ]
 
 let viewTruthTableData (table: TruthTable) model dispatch =
-    let tLst = table.SortedListRep
-    let sortInfo = model.TTSortType
-    let styleInfo = model.TTGridStyles
-    if tLst.IsEmpty then
-        div [] [str "No Rows in Truth Table"]
-    else
-        let headings =
-            tLst.Head
-            |> List.map (viewCellAsHeading dispatch sortInfo styleInfo) 
-            |> List.toSeq
-        let body =
-            tLst
-            |> List.mapi (viewRowAsData table.TableSimData.NumberBase styleInfo)
-            |> List.concat
-            |> List.toSeq
+    match model.TTGridCache with
+    | Some grid -> 
+        grid
+    | None ->
+        let tLst = table.SortedListRep
+        let sortInfo = model.TTSortType
+        let styleInfo = model.TTGridStyles
+        if tLst.IsEmpty then
+            div [] [str "No Rows in Truth Table"]
+        else
+            let headings =
+                tLst.Head
+                |> List.map (viewCellAsHeading dispatch sortInfo styleInfo) 
+            let body =
+                tLst
+                |> List.mapi (viewRowAsData table.TableSimData.NumberBase styleInfo)
+                |> List.concat
 
-        let all = Seq.append headings body
-        div [(ttGridContainerStyle model)] all
+            let all = headings @ body
+            let grid = div [(ttGridContainerStyle model)] all
+            dispatch <| SetTTGridCache (Some grid)
+            grid
 
 let viewTruthTable model dispatch =
     // Truth Table Generation for selected components requires all components to have distinct labels.
@@ -650,11 +655,13 @@ let viewTruthTable model dispatch =
         let wholeButton =
             match wholeSimRes with
             | None -> div [] []
-            | Some (Error _,_) ->
+            | Some (Error simError,_) ->
                 Button.button
                     [
                         Button.Color IColor.IsWarning
-                        Button.OnClick (fun _ -> GenerateTruthTable wholeSimRes |> dispatch)
+                        Button.OnClick (fun _ ->
+                            SimulationView.SetSimErrorFeedback simError model dispatch
+                            GenerateTruthTable wholeSimRes |> dispatch)
                     ] [str "See Problems"]
             | Some (Ok sd,_) ->
                 if sd.IsSynchronous = false then
@@ -679,11 +686,13 @@ let viewTruthTable model dispatch =
         let selButton =
             match selSimRes with
             | None -> div [] []
-            | Some (Error _,_) ->
+            | Some (Error simError,_) ->
                 Button.button
                     [
                         Button.Color IColor.IsWarning
-                        Button.OnClick (fun _ -> GenerateTruthTable selSimRes |> dispatch)
+                        Button.OnClick (fun _ ->
+                            SimulationView.SetSimErrorFeedback simError model dispatch
+                            GenerateTruthTable selSimRes |> dispatch)
                     ] [str "See Problems"]
             | Some (Ok sd,_) ->
                 if sd.IsSynchronous = false then
@@ -716,36 +725,24 @@ let viewTruthTable model dispatch =
             hr []
         ]
     | Some tableopt ->
-        match model.TTIsOutOfDate with
-        | Some Regenerate -> 
-            dispatch RegenerateTruthTable
-            None |> SetTTOutOfDate |> dispatch
-        | Some Refilter -> 
-            dispatch FilterTruthTable
-            None |> SetTTOutOfDate |> dispatch
-        | Some ReSort -> 
-            dispatch SortTruthTable
-            None |> SetTTOutOfDate |> dispatch
-        | Some HideColumn ->
-            dispatch HideTTColumns
-            None |> SetTTOutOfDate |> dispatch
-        | None -> ()
-
         let closeTruthTable _ =
-            dispatch ClearInputConstraints
-            dispatch ClearOutputConstraints
-            dispatch ClearHiddenTTColumns
-            dispatch <| SetTTSortType None
-            dispatch <| SetIOOrder [||]
-            dispatch <| SetTTAlgebraInputs []
-            dispatch <| SetPopupAlgebraInputs None
-            dispatch <| SetPopupAlgebraError None
+            dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
+            dispatch <| (JSDiagramMsg << InferWidths) ()
+            dispatch ClosePropertiesNotification
             dispatch CloseTruthTable
         let body =
             match tableopt with
             | Error e -> viewTruthTableError e
             | Ok table -> 
+                let truncation =
+                    Notification.notification [Notification.Color IsWarning; Notification.IsLight] [
+                        str "Due to a large number of input combinations, caused by inputs that are
+                            too big or too numerous, the truth table has been truncated. Please use
+                            more restrictive input constraints, or set wider inputs as algebra."
+                    ]
                 div [] [
+                    if table.IsTruncated then
+                        truncation
                     viewReductions table model dispatch
                     br []; br []
                     viewTruthTableData table model dispatch]

@@ -514,10 +514,6 @@ let update (msg : Msg) oldModel =
                         true
                 let comms = 
                     [
-                        // Set the IO Order for the Truth Table
-                        tt.IOOrder 
-                        |> List.toArray 
-                        |> SetIOOrder
                         // Truncation warning
                         if tt.IsTruncated then
                             Notifications.warningPropsNotification (truncationWarning tt)

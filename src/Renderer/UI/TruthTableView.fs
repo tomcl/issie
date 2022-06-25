@@ -34,6 +34,7 @@ open BusWidthInferer
 open Symbol
 open SymbolUpdate
 open Sheet.SheetInterface
+open DrawModelType
 
 /// Updates MergeWires and SplitWire Component labels to MWx/SWx.
 /// Previous Issie versions had empty labels for these components.
@@ -405,7 +406,7 @@ type SelectionCache = {
     StoredResult: Result<SimulationData, SimulationError>
 }
 
-let emptySelCache = {
+let emptySelCache  = {
     UncorrectedCanvas = ([],[])
     CorrectedCanvas = ([],[])
     StoredResult = Ok {
@@ -431,11 +432,15 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
     match selComponents, selConnections, model.CurrentProj with
     | _,_,None -> None
     | [],[],_ -> None
-    | [],_,_ -> Some <| (Error {
-        Msg = "Only connections selected. Please select a combination of connections and components."
-        InDependency = None
-        ComponentsAffected = []
-        ConnectionsAffected =[] }, (selComponents,selConnections))
+    | [],_,_ -> 
+        let affected =
+            selConnections
+            |> List.map (fun c -> ConnectionId c.Id)
+        Some <| (Error {
+            Msg = "Only connections selected. Please select a combination of connections and components."
+            InDependency = None
+            ComponentsAffected = []
+            ConnectionsAffected = affected }, (selComponents,selConnections))
     | selComps,selConns,Some project ->
         let rState = extractReducedState (selComponents,selConnections)
         // Check if selected components have changed
@@ -448,9 +453,11 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
                     comp.Name <> project.OpenFileName)
             match correctCanvasState (selComps,selConns) wholeCanvas with
             | Error e -> 
-                selCache <- { emptySelCache with
-                                UncorrectedCanvas = rState
-                                CorrectedCanvas = (selComponents,selConnections) }
+                selCache <- {
+                    UncorrectedCanvas = rState
+                    CorrectedCanvas = (selComponents,selConnections)
+                    StoredResult = Error e 
+                }
                 Some (Error e, (selComps,selConns))
             | Ok (correctComps,correctConns) ->
                 match CanvasStateAnalyser.analyseState (correctComps,correctConns) selLoadedComponents with
@@ -648,11 +655,13 @@ let viewTruthTable model dispatch =
         let wholeButton =
             match wholeSimRes with
             | None -> div [] []
-            | Some (Error _,_) ->
+            | Some (Error simError,_) ->
                 Button.button
                     [
                         Button.Color IColor.IsWarning
-                        Button.OnClick (fun _ -> GenerateTruthTable wholeSimRes |> dispatch)
+                        Button.OnClick (fun _ ->
+                            SimulationView.SetSimErrorFeedback simError model dispatch
+                            GenerateTruthTable wholeSimRes |> dispatch)
                     ] [str "See Problems"]
             | Some (Ok sd,_) ->
                 if sd.IsSynchronous = false then
@@ -677,11 +686,13 @@ let viewTruthTable model dispatch =
         let selButton =
             match selSimRes with
             | None -> div [] []
-            | Some (Error _,_) ->
+            | Some (Error simError,_) ->
                 Button.button
                     [
                         Button.Color IColor.IsWarning
-                        Button.OnClick (fun _ -> GenerateTruthTable selSimRes |> dispatch)
+                        Button.OnClick (fun _ ->
+                            SimulationView.SetSimErrorFeedback simError model dispatch
+                            GenerateTruthTable selSimRes |> dispatch)
                     ] [str "See Problems"]
             | Some (Ok sd,_) ->
                 if sd.IsSynchronous = false then
@@ -715,6 +726,8 @@ let viewTruthTable model dispatch =
         ]
     | Some tableopt ->
         let closeTruthTable _ =
+            dispatch <| Sheet (SheetT.ResetSelection) // Remove highlights.
+            dispatch <| (JSDiagramMsg << InferWidths) ()
             dispatch ClosePropertiesNotification
             dispatch CloseTruthTable
         let body =

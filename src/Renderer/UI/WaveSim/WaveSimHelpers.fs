@@ -41,9 +41,16 @@ type Gap = {
     Length: int
 }
 
-type SelectionMenu = 
-    | WireLabels
-    | Components of string
+type ComponentGroup =
+    | InputOutput
+    | WireLabel
+    | Buses
+    | Gates
+    | MuxDemux
+    | Arithmetic
+    | CustomComp
+    | FFRegister
+    | Memories
 
 module Constants = 
     let nonBinaryTransLen : float = 0.2
@@ -215,9 +222,22 @@ let waveNames (wsModel: WaveSimModel) : string list =
 /// get integer from OutputPortNumber
 let getInputPortNumber (ipn: InputPortNumber) : int =
     match ipn with
-    | CommonTypes.InputPortNumber pn -> pn
+    | InputPortNumber pn -> pn
 
 /// get integer from OutputPortNumber
 let getOutputPortNumber (opn: OutputPortNumber) : int =
     match opn with
-    | CommonTypes.OutputPortNumber pn -> pn
+    | OutputPortNumber pn -> pn
+
+let summaryName (compGroup: ComponentGroup) : ReactElement =
+    match compGroup with
+    | WireLabel -> "Wire Labels"
+    | InputOutput -> "Inputs / Outputs"
+    | Buses -> "Buses"
+    | Gates -> "Logic Gates"
+    | MuxDemux -> "Multiplexers"
+    | Arithmetic -> "Arithmetic"
+    | CustomComp _ -> "Custom Components"
+    | FFRegister -> "Flip Flops and Registers"
+    | Memories -> "RAMs and ROMs"
+    |> str

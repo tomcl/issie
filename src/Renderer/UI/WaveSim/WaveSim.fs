@@ -430,9 +430,23 @@ let labelRows (compGroup: ComponentGroup) (waves: Wave list) (wsModel: WaveSimMo
         ]
     ]
 
+let searchBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+    Input.text [
+        Input.Option.Props [
+            Style [
+                MarginBottom "1rem"
+            ]
+        ]
+        Input.Option.Placeholder "Search"
+        Input.Option.OnChange (fun c ->
+            dispatch <| SetWSModel {wsModel with SearchString = c.Value.ToUpper()}
+        )
+    ]
+
 let selectWaves (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     let selectionRows : ReactElement list =
         Map.values wsModel.AllWaves |> Seq.toList
+        |> List.filter (fun x -> x.DisplayName.ToUpper().Contains(wsModel.SearchString))
         |> List.sortBy (fun wave -> wave.DisplayName)
         |> List.groupBy (fun wave ->
             match wave.Type with
@@ -511,6 +525,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
                 ]
             ]
             Modal.Card.body [] [
+                searchBar wsModel dispatch
                 selectWaves wsModel dispatch
             ]
             Modal.Card.foot [] []

@@ -444,16 +444,17 @@ let selectWaves (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
                 Gates
             | BusCompare _ ->
                 Buses
-            | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | Decode4 ->
-                MuxDemux
-            | NbitsAdder _ | NbitsXor _ ->
-                Arithmetic
-            | Custom _ ->
-                CustomComp
-            | DFF | DFFE | Register _ | RegisterE _ ->
-                FFRegister
+            | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | Decode4
+                // MuxDemux
+            | NbitsAdder _ | NbitsXor _
+                // Arithmetic
+            | Custom _
+                // CustomComp
+            | DFF | DFFE | Register _ | RegisterE _
+                // FFRegister
             | AsyncROM1 _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ ->
-                Memories
+                // Memories
+                Component wave.CompLabel
             | BusSelection _ | MergeWires | SplitWire _ ->
                 failwithf "Bus select, MergeWires, SplitWire should not appear"
             | Constant _ | AsyncROM _ | ROM _ | RAM _ ->

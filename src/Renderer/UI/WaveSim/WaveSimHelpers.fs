@@ -46,11 +46,12 @@ type ComponentGroup =
     | WireLabel
     | Buses
     | Gates
-    | MuxDemux
-    | Arithmetic
-    | CustomComp
-    | FFRegister
-    | Memories
+    // | MuxDemux
+    // | Arithmetic
+    // | CustomComp
+    // | FFRegister
+    // | Memories
+    | Component of string
 
 module Constants = 
     let nonBinaryTransLen : float = 0.2
@@ -235,9 +236,10 @@ let summaryName (compGroup: ComponentGroup) : ReactElement =
     | InputOutput -> "Inputs / Outputs"
     | Buses -> "Buses"
     | Gates -> "Logic Gates"
-    | MuxDemux -> "Multiplexers"
-    | Arithmetic -> "Arithmetic"
-    | CustomComp _ -> "Custom Components"
-    | FFRegister -> "Flip Flops and Registers"
-    | Memories -> "RAMs and ROMs"
+    // | MuxDemux -> "Multiplexers"
+    // | Arithmetic -> "Arithmetic"
+    // | CustomComp _ -> "Custom Components"
+    // | FFRegister -> "Flip Flops and Registers"
+    // | Memories -> "RAMs and ROMs"
+    | Component compLabel -> compLabel
     |> str

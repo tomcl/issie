@@ -465,3 +465,10 @@ let summaryProps : IHTMLProp list = [
 let detailsProps : IHTMLProp list = [
     Open false
 ]
+
+let topHalfStyle = Style [
+    Position PositionOptions.Sticky
+    Top 0
+    BackgroundColor "white"
+    ZIndex 10000
+]

@@ -148,6 +148,11 @@ let ramTablesLevelProps : IHTMLProp list = [
     ]
 ]
 
+let ramTableRowStyle wenHigh correctAddr =
+    if wenHigh && correctAddr then
+        Style [ BackgroundColor "hsl(206, 70%, 96%)" ]
+    else Style []
+
 let zoomOutSVG =
     svg [
             ViewBox "0 0 192.904 192.904"

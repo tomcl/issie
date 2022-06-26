@@ -269,6 +269,8 @@ module CommonTypes
         OutputLabels: (string * int) list
     }
 
+    /// Note that any memory addresses which have not been explicitly set when printing
+    /// out memory data.
     type Memory = {
         // How many bits the address should have.
         // The memory will have 2^AddressWidth memory locations.

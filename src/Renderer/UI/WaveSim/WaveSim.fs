@@ -921,20 +921,40 @@ let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
                         [ str "The circuit must contain sequential logic (clocked components) in order to use the waveform simulator." ]
         ]
 
-let ramTableRow (wsModel: WaveSimModel) (addr, data): ReactElement =
-    tr [] [
-        td [] [ str (valToString wsModel.Radix addr) ]
+let ramTableRow (wsModel: WaveSimModel) (ramId: ComponentId) (memWidth: int) (memData: Map<int64, int64>) (memLoc: int64): ReactElement =
+    let data =
+        match Map.tryFind memLoc memData with
+        | Some data -> data
+        | None -> 0
+
+    let pickWave port waveVal =
+        Map.tryPick (fun _ (wave: Wave) ->
+            if wave.WaveId.Id = ramId && wave.DisplayName = wave.CompLabel + port then
+                Some wave
+            else None
+        ) wsModel.AllWaves
+        |> function
+        | Some wave ->
+            wave.WaveValues[wsModel.CurrClkCycle] = waveVal
+        | None -> false
+
+    let wenHigh = pickWave ".WEN" [One]
+    let correctAddr = pickWave ".ADDR" (convertIntToWireData memWidth memLoc)
+
+    tr [ ramTableRowStyle wenHigh correctAddr ] [
+        td [] [ str (valToString wsModel.Radix memLoc) ]
         td [] [ str (valToString wsModel.Radix data) ]
     ]
 
 let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): ComponentId * string) : ReactElement =
     let state = FastRun.extractFastSimulationState wsModel.FastSim wsModel.CurrClkCycle (ramId, [])
-    let memData =
+    let memWidth, memData =
         match state with
         | RamState mem ->
-            mem.Data
+            mem.AddressWidth, mem.Data
         | _ -> failwithf "Non memory components should not appear here"
-        |> Map.toList
+
+    let endLoc = Helpers.pow2int64 memWidth
 
     Level.item [
         Level.Item.Option.Props ramTableLevelProps
@@ -953,15 +973,17 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): ComponentId * string) :
                 ]
             ]
             tbody []
-                (List.map (ramTableRow wsModel) memData)
+                (List.map (ramTableRow wsModel ramId memWidth memData) [0 .. endLoc - (int64 1)])
         ]
         br []
     ]
 
 let ramTables (wsModel: WaveSimModel) : ReactElement =
     let selectedRams = Map.toList wsModel.SelectedRams
-    Level.level [ Level.Level.Option.Props ramTablesLevelProps ]
-        (List.map (ramTable wsModel) selectedRams)
+    if List.length selectedRams > 0 then
+        Level.level [ Level.Level.Option.Props ramTablesLevelProps ]
+            (List.map (ramTable wsModel) selectedRams)
+    else div [] []
 
 let wsOpenPane (wsModel: WaveSimModel) dispatch : ReactElement =
     div [ waveSelectionPaneStyle ]
@@ -970,8 +992,7 @@ let wsOpenPane (wsModel: WaveSimModel) dispatch : ReactElement =
                 Level.left [] [
                     Heading.h4 [] [ str "Waveform Simulator" ]
                 ]
-                Level.right [
-                ] [
+                Level.right [] [
                     Delete.delete [
                         Delete.Option.Size IsLarge
                         Delete.Option.Modifiers [

@@ -514,10 +514,13 @@ let update (msg : Msg) oldModel =
                         true
                 let comms = 
                     [
-                        // Truncation warning
+                        // If table is truncated, issue truncation warning. 
                         if tt.IsTruncated then
                             Notifications.warningPropsNotification (truncationWarning tt)
                             |> SetPropertiesNotification
+                        // Else, clear any prior truncation warning.
+                        else
+                            ClosePropertiesNotification
                         // Filter using output constraints
                         FilterTruthTable
                     ]
@@ -570,7 +573,7 @@ let update (msg : Msg) oldModel =
         let table = getTruthTableOrFail model "DC Reduction"
         let start = TimeHelpers.getTimeMs() 
         let reducedTable = 
-            reduceTruthTable model.TTInputConstraints table model.TTBitLimit
+            reduceTruthTable table None
             |> TimeHelpers.instrumentInterval "DC Reduction" start
             |> Ok
             |> Some

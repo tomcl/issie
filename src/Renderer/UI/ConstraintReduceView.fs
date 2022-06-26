@@ -367,7 +367,7 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg disp
         div [] [
             preamble
             hr []
-            Heading.h6 [] [str "Select Input"]
+            Heading.h6 [] [str "Select IO"]
             ioSelect
             hr []
             Heading.h6 [] [str "Constraint Type"]
@@ -724,13 +724,19 @@ let viewReductions (table: TruthTable) (model: Model) dispatch =
     let reduceButton =
         if table.IsTruncated then
             let textEl = 
-                str "Reduce"
+                str "Remove Redundancies"
                 |> addToolTipTop "DC Reduction unavailable for truncated tables"
-            (Button.button [Button.Disabled true; Button.OnClick (fun _ -> dispatch DCReduceTruthTable)]
+            (Button.button [Button.Disabled true; Button.OnClick (fun _ -> ())]
+            [textEl])
+        else if not table.HasRedundancies then
+            let textEl = 
+                str "Remove Redundancies"
+                |> addToolTipTop "No redundancies to remove"
+            (Button.button [Button.Disabled true; Button.OnClick (fun _ -> ())]
             [textEl])
         else
             (Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> dispatch DCReduceTruthTable)]
-            [str "Reduce"])
+            [str "Remove Redundancies"])
     let algebraButton =
         Button.button [Button.Color IsSuccess; Button.OnClick (fun _ -> createAlgReductionPopup model dispatch)]
             [str "Algebra"]

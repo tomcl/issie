@@ -100,15 +100,16 @@ let selectWavesStyle = Style [
     Position PositionOptions.Relative
 ]
 
-let closeWaveSimButtonStyle = Style [
+let selectRamButtonStyle = Style [
     Height Constants.rowHeight
     FontSize "16px"
     Position PositionOptions.Relative
+    MarginRight 0
 ]
 
 let selectRamButtonProps = [
     Button.Color IsInfo
-    Button.Props [closeWaveSimButtonStyle]
+    Button.Props [selectRamButtonStyle]
 ]
 
 let selectRamButtonPropsLight = 
@@ -117,6 +118,8 @@ let selectRamButtonPropsLight =
 let selectWavesButtonStyle = Style [
     Height Constants.rowHeight
     FontSize "16px"
+    Position PositionOptions.Relative
+    MarginLeft 0
 ]
 
 let selectWavesButtonProps = [

@@ -985,56 +985,64 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
             (List.map (ramTable wsModel) selectedRams)
     else div [] []
 
+/// ReactElement showing instruments and wave sim buttons
+let topHalf (wsModel: WaveSimModel) dispatch : ReactElement =
+    div [ topHalfStyle ] [
+        br []
+        Level.level [] [
+            Level.left [] [
+                Heading.h4 [] [ str "Waveform Simulator" ]
+            ]
+            Level.right [] [
+                Delete.delete [
+                    Delete.Option.Size IsLarge
+                    Delete.Option.Modifiers [
+                        Modifier.BackgroundColor IsGreyLight
+                    ]
+                    Delete.Option.OnClick (fun _ -> dispatch <| SetWSModel {wsModel with State = WSClosed})
+                ] []
+            ]
+        ]
+
+        Columns.columns [] [
+            Column.column [] [
+                str "View sequential logic using the waveform simulator by selecting desired waveforms. "
+                str "Select synchronous RAM components to view their contents during the simulation. "
+                str "You must restart the waveform simulator to view any changes to the circuit. "
+            ]
+
+            Column.column [
+                Column.Option.Width (Screen.All, Column.IsNarrow)
+            ] [ Level.level [] [
+                    Level.item [ ] [
+                        Button.list [] [
+                            selectWavesButton wsModel dispatch
+                            selectWavesModal wsModel dispatch
+
+                            selectRamButton wsModel dispatch
+                            selectRamModal wsModel dispatch
+                        ]
+                    ]
+                ]
+                Level.level [] [
+                    Level.left [] [
+                        zoomButtons wsModel dispatch
+                    ]
+                    Level.right [] [
+                        radixButtons wsModel dispatch
+                    ]
+                ]
+                clkCycleButtons wsModel dispatch
+            ]
+        ]
+        hr [ Style [ MarginBottom "5px" ] ]
+        br []
+    ]
+
 let wsOpenPane (wsModel: WaveSimModel) dispatch : ReactElement =
     div [ waveSelectionPaneStyle ]
         [
-            Level.level [] [
-                Level.left [] [
-                    Heading.h4 [] [ str "Waveform Simulator" ]
-                ]
-                Level.right [] [
-                    Delete.delete [
-                        Delete.Option.Size IsLarge
-                        Delete.Option.Modifiers [
-                            Modifier.BackgroundColor IsGreyLight
-                        ]
-                        Delete.Option.OnClick (fun _ -> dispatch <| SetWSModel {wsModel with State = WSClosed})
-                    ] []
-                ]
-            ]
-
-            Columns.columns [] [
-                Column.column [] [
-                    str "View sequential logic using the waveform simulator by selecting desired waveforms. "
-                    str "Select synchronous RAM components to view their contents during the simulation. "
-                    str "You must restart the waveform simulator to view any changes to the circuit. "
-                ]
-
-                Column.column [
-                    Column.Option.Width (Screen.All, Column.IsNarrow)
-                ] [ Level.level [] [
-                        Level.item [
-                                Level.Item.Option.HasTextCentered
-                            ] [ Button.list [] [
-                                    selectWavesButton wsModel dispatch
-                                    selectWavesModal wsModel dispatch
-
-                                    selectRamButton wsModel dispatch
-                                    selectRamModal wsModel dispatch
-                                ]
-                            ]
-                        ]
-                    Level.level [] [
-                        Level.left [] [
-                            zoomButtons wsModel dispatch
-                        ]
-                        Level.right [] [
-                            radixButtons wsModel dispatch
-                        ]
-                    ]
-                    clkCycleButtons wsModel dispatch
-                ]
-            ]
+            topHalf wsModel dispatch
 
             showWaveforms wsModel dispatch
 
@@ -1043,7 +1051,6 @@ let wsOpenPane (wsModel: WaveSimModel) dispatch : ReactElement =
             ramTables wsModel
 
             hr []
-
         ]
 
 /// Entry point to the waveform simulator. This function returns a ReactElement showing

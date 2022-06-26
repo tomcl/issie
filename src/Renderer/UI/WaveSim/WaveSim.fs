@@ -376,13 +376,12 @@ let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: M
     dispatch <| InitiateWaveSimulation wsModel
     // changeWaveSelection name model waveSimModel dispatch
 
-let toggleSelectSubGroup (wsModel: WaveSimModel) dispatch (selected: bool) (waves: Map<WaveIndexT, Wave>) =
-    let toggledWaves = Map.keys waves |> Seq.toList
+let toggleSelectSubGroup (wsModel: WaveSimModel) dispatch (selected: bool) (waves: WaveIndexT list) =
     let selectedWaves =
         if selected then
-            List.append wsModel.SelectedWaves toggledWaves
+            List.append wsModel.SelectedWaves waves
         else
-            List.except wsModel.SelectedWaves toggledWaves
+            List.except wsModel.SelectedWaves waves
     dispatch <| InitiateWaveSimulation {wsModel with SelectedWaves = selectedWaves}
 
 let checkboxRow (wsModel: WaveSimModel) dispatch (index: WaveIndexT) =
@@ -402,30 +401,17 @@ let checkboxRow (wsModel: WaveSimModel) dispatch (index: WaveIndexT) =
                 [str wsModel.AllWaves[index].DisplayName]
         ]
 
-let menuSummary menuType =
-    let name =
-        match menuType with
-        | WireLabels -> "Wire Labels"
-        | Components comp -> comp
+let labelRows (compGroup: ComponentGroup) (waves: Wave list) (wsModel: WaveSimModel) dispatch : ReactElement =
+    let indices = List.map (fun x -> x.WaveId) waves
+    let subGroupSelected = List.forall (fun index -> isWaveSelected wsModel index) indices
 
-    summary
-        summaryProps
-        [ str name ]
-
-let labelRows (menuType: SelectionMenu) (labels: WaveIndexT list) (wsModel: WaveSimModel) dispatch : ReactElement =
-    let waves =
-        match menuType with
-        | WireLabels -> Map.filter (fun _ (wave: Wave) -> wave.Type = IOLabel) wsModel.AllWaves
-        | Components compLabel -> Map.filter (fun _ (wave: Wave) -> wave.CompLabel = compLabel) wsModel.AllWaves
-    let subGroupSelected = Map.forall (fun index _ -> isWaveSelected wsModel index) waves
-    
     tr summaryProps [
         th [] [
             Checkbox.checkbox [] [
                 Checkbox.input [
                     Props [
                         Checked subGroupSelected
-                        OnChange (fun _ -> toggleSelectSubGroup wsModel dispatch (not subGroupSelected) waves)
+                        OnChange (fun _ -> toggleSelectSubGroup wsModel dispatch (not subGroupSelected) indices)
                     ]
                 ]
             ]
@@ -433,39 +419,49 @@ let labelRows (menuType: SelectionMenu) (labels: WaveIndexT list) (wsModel: Wave
         th [] [
             details
                 detailsProps
-                [   menuSummary menuType
+                [   summary
+                        summaryProps
+                        [ summaryName compGroup ]
                     Table.table [] [
                         tbody []
-                            (List.map (checkboxRow wsModel dispatch) labels)
+                            (List.map (checkboxRow wsModel dispatch) indices)
                     ]
                 ]
         ]
     ]
 
-let componentRows wsModel dispatch ((compName, waves): string * Wave list) : ReactElement =
-    let waveLabels =
-        List.sortBy (fun (wave: Wave) -> wave.DisplayName) waves
-        |> List.map (fun (wave: Wave) -> wave.WaveId)
-    labelRows (Components compName) waveLabels wsModel dispatch
-
 let selectWaves (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    let wireLabelWaves, compWaves = Map.partition (fun _ (wave: Wave) -> wave.Type = IOLabel) wsModel.AllWaves
-    let wireLabels =
-        wireLabelWaves
-        |> Map.values |> Seq.toList
+    let selectionRows : ReactElement list =
+        Map.values wsModel.AllWaves |> Seq.toList
         |> List.sortBy (fun wave -> wave.DisplayName)
-        |> List.map (fun wave -> wave.WaveId)
-
-    let wireLabelRows =
-        if List.length wireLabels > 0 then
-            [ labelRows WireLabels wireLabels wsModel dispatch ]
-        else []
-
-    let compWaveLabels =
-        compWaves
-        |> Map.values |> Seq.toList
-        |> List.sortBy (fun (wave: Wave) -> wave.CompLabel)
-        |> List.groupBy (fun wave -> wave.CompLabel)
+        |> List.groupBy (fun wave ->
+            match wave.Type with
+            | Input _ | Output _ | Viewer _ | Constant1 _ ->
+                InputOutput
+            | IOLabel ->
+                WireLabel
+            | Not | And | Or | Xor | Nand | Nor | Xnor ->
+                Gates
+            | BusCompare _ ->
+                Buses
+            | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | Decode4 ->
+                MuxDemux
+            | NbitsAdder _ | NbitsXor _ ->
+                Arithmetic
+            | Custom _ ->
+                CustomComp
+            | DFF | DFFE | Register _ | RegisterE _ ->
+                FFRegister
+            | AsyncROM1 _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ ->
+                Memories
+            | BusSelection _ | MergeWires | SplitWire _ ->
+                failwithf "Bus select, MergeWires, SplitWire should not appear"
+            | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
+                failwithf "Legacy component types should not appear"
+        )
+        |> List.map (fun (compGroup, waves) ->
+            labelRows compGroup waves wsModel dispatch
+        )
 
     Table.table [
         Table.IsBordered
@@ -475,8 +471,7 @@ let selectWaves (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
         ]
     ] [ thead []
             ( [selectAll wsModel dispatch] @
-                wireLabelRows @
-                (List.map (componentRows wsModel dispatch) compWaveLabels)
+                selectionRows
             )
     ]
 
@@ -504,7 +499,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
             Modal.Card.head [] [
                 Modal.Card.title [] [
                     Level.level [] [
-                        Level.left [] [ str "Select RAM" ]
+                        Level.left [] [ str "Select Waves" ]
                         Level.right [
                         ] [ Delete.delete [
                                 Delete.Option.Size IsMedium

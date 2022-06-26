@@ -92,6 +92,8 @@ type TruthTable = {
     IsTruncated: bool
     // Maximum rows the truth table could have with current input constraints
     MaxRowsWithConstraints: int
+    // True if the truth table has reduntant rows, and can therefore be DC Reduced
+    HasRedundancies: bool
     // Simulation Data for the Truth Table's own Simulation
     // Used when re-generating the Truth Table on change in input constraints
     TableSimData: SimulationData

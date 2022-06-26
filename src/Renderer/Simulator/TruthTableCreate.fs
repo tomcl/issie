@@ -185,9 +185,16 @@ let truthTable
             DCMap = None
             SortedListRep = listRep
             IsTruncated = (tableMap.Count <> tCRC)
+            HasRedundancies = false
             MaxRowsWithConstraints = tCRC
             TableSimData = tableSimData
             IOOrder = toCellIO (inputs@outputs) viewers
         })
+    |> fun table ->
+        if table.IsTruncated || algebraIOs.Length > 0 then
+            table
+        else
+            let hasRed = TruthTableReduce.hasRedundancies table
+            {table with HasRedundancies = hasRed}
     |> TimeHelpers.instrumentInterval "truthTableGeneration" start
 

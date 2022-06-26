@@ -12,7 +12,6 @@ open SimulatorTypes
 open TruthTableTypes
 open SynchronousUtils
 open NumberHelpers
-open TruthTableCreate
 
 /// Returns true if two rows are equal, supporting Don't Care terms
 let rowEquals (row1: TruthTableRow) (row2: TruthTableRow) =
@@ -58,7 +57,7 @@ let isValidDCRow row table =
             | true -> Some <| outputs.Head
 
 /// Finds all rows where a given input is Don't Care (X)
-let inputDCRows (input: CellIO) (inputConstraints: ConstraintSet) (table: TruthTable) bitLimit =
+let inputDCRows (input: CellIO) (table: TruthTable) =
     let allInputs = table.Inputs
     let tMap =
         match table.DCMap with
@@ -101,7 +100,11 @@ let reduceWithDCRow regularRows (dcLeft,dcRight) =
 /// Recursive function for Don't Care reduction of a Truth Table.
 /// Table is repeatedly reduced until running the reduction logic does not change
 /// the returned table.
-let rec reduceTruthTable (inputConstraints: ConstraintSet) (table: TruthTable) bitLimit =
+let rec reduceTruthTable' 
+        (table: TruthTable)  
+        depth
+        maxDepth =
+
     let tMap =
         match table.DCMap with
         | None -> table.TableMap
@@ -110,7 +113,7 @@ let rec reduceTruthTable (inputConstraints: ConstraintSet) (table: TruthTable) b
     let allDCRows =
         table.Inputs
         |> List.collect (fun input ->
-            inputDCRows input inputConstraints table bitLimit)
+            inputDCRows input table)
             
     let remainingRegularRows =
         (Map.toList tMap, allDCRows)
@@ -120,10 +123,35 @@ let rec reduceTruthTable (inputConstraints: ConstraintSet) (table: TruthTable) b
         allDCRows @ remainingRegularRows
         |> Map.ofList
 
-    if tMap = newMap then
+    match maxDepth with
+    | Some md when md < 1 ->
+            failwithf 
+                $"DC Reduction with maximum depth of recursion {md} called.
+                Maximum Depth must at least 1."
+    | Some md when md = depth ->
         {table with DCMap = Some newMap}
-    else
-        reduceTruthTable inputConstraints {table with DCMap = Some newMap} bitLimit
+    | _ ->
+        if tMap = newMap then
+            {table with DCMap = Some newMap}
+        else
+            reduceTruthTable' 
+                {table with DCMap = Some newMap}  
+                (depth+1) 
+                maxDepth
+
+/// Returns true if a truth table has redundancies
+let hasRedundancies table =
+    let onceReduced = 
+        reduceTruthTable' table 1 (Some 1)
+    match onceReduced.DCMap with
+    | None -> 
+        failwithf "what? reduceTruthTable' should never return with DCMap = None"
+    | Some dcMap ->
+        dcMap <> table.TableMap
+
+/// Top-level function for DC reduction of truth tables
+let reduceTruthTable table maxDepth =
+    reduceTruthTable' table 1 maxDepth
 
 
 

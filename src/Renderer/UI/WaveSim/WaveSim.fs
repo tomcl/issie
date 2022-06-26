@@ -995,12 +995,12 @@ let wsOpenPane (wsModel: WaveSimModel) dispatch : ReactElement =
                         Level.item [
                                 Level.Item.Option.HasTextCentered
                             ] [ Button.list [] [
-                                selectWavesButton wsModel dispatch
-                                selectWavesModal wsModel dispatch
+                                    selectWavesButton wsModel dispatch
+                                    selectWavesModal wsModel dispatch
 
-                                selectRamButton wsModel dispatch
-                                selectRamModal wsModel dispatch
-                            ]
+                                    selectRamButton wsModel dispatch
+                                    selectRamModal wsModel dispatch
+                                ]
                             ]
                         ]
                     Level.level [] [

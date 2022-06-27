@@ -419,7 +419,8 @@ let waveRowProps m : IProp list =
 ]
 
 /// Controls the background highlighting of which clock cycle is selected
-let clkCycleHighlightSVG m count = 
+let clkCycleHighlightSVG m dispatch =
+    let count = List.length m.SelectedWaves
     svg [
         Style [
             GridColumnStart 1
@@ -430,6 +431,17 @@ let clkCycleHighlightSVG m count =
         SVGAttr.Fill "rgb(230,230,230)"
         SVGAttr.Opacity 0.4
         ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string (Constants.viewBoxHeight * float (count + 1)))
+        Id "ClkCycleHighlight"
+        OnClick (fun ev ->
+            let svgEl = Browser.Dom.document.getElementById "ClkCycleHighlight"
+            let bcr = svgEl.getBoundingClientRect ()
+            let cycleWidth = bcr.width / float (shownCycles m)
+            /// ev.clientX is X-coord of mouse click. bcr.left is x-coord of start of SVG.
+            /// getBoundingClientRect only works if ViewBox is 0 0 width height, so
+            /// add m.StartCycle to account for when viewBoxMinX is not 0
+            let cycle = (int <| (ev.clientX - bcr.left) / cycleWidth) + m.StartCycle
+            dispatch <| SetWSModel {m with CurrClkCycle = cycle}
+        )
     ] [
         rect [
             SVGAttr.Width (zoomLevel m)

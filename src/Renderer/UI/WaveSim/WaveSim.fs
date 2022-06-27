@@ -572,7 +572,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
     ]
 
 let selectRamButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    let ramCount = List.length wsModel.RamComponents
+    let ramCount = List.length wsModel.RamComps
     let props, buttonFunc =
         if ramCount > 0 then
             selectRamButtonProps, (fun _ -> dispatch <| SetWSModel {wsModel with RamModalActive = true})
@@ -637,7 +637,7 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
                 hr []
                 Table.table [] [
                     tbody []
-                        (List.map (ramRows) wsModel.RamComponents)
+                        (List.map (ramRows) wsModel.RamComps)
                 ]
             ]
 
@@ -933,13 +933,18 @@ let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
             List.filter (fun (comp: Component) -> match comp.Type with | RAM1 _ -> true | _ -> false) comps
             |> List.sortBy (fun ram -> ram.Label)
 
+        let ramCompIds = List.map (fun (ram: Component) -> ComponentId ram.Id) ramComps
+
         let selectedWaves = List.filter (fun key -> Map.containsKey key allWaves) wsModel.SelectedWaves
+        let selectedRams = Map.filter (fun ramId _ -> List.contains ramId ramCompIds) wsModel.SelectedRams
+
         let wsModel = {
             wsModel with
                 State = WSOpen
                 AllWaves = allWaves
                 SelectedWaves = selectedWaves
-                RamComponents = ramComps
+                RamComps = ramComps
+                SelectedRams = selectedRams
                 FastSim = simData.FastSim
         }
 

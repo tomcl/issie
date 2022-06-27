@@ -831,7 +831,7 @@ let clkCycleNumberRow (wsModel: WaveSimModel) =
     |> svg (clkCycleNumberRowProps wsModel)
 
 /// Generate a column of waveforms corresponding to selected waves.
-let waveformColumn (wsModel: WaveSimModel) : ReactElement =
+let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
     /// Note that this is generated after calling selectedWaves.
     /// Any changes to this function must also be made to nameRows
     /// and valueRows, as the order of the waves matters here. This is
@@ -853,7 +853,7 @@ let waveformColumn (wsModel: WaveSimModel) : ReactElement =
 
     div [ waveformColumnStyle ]
         [
-            clkCycleHighlightSVG wsModel (List.length wsModel.SelectedWaves)
+            clkCycleHighlightSVG wsModel dispatch
             div [ waveRowsStyle wsModel.WaveformColumnWidth]
                 ([ clkCycleNumberRow wsModel ] @
                     waveRows
@@ -865,7 +865,7 @@ let showWaveforms (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement
     div [ showWaveformsStyle ]
         [
             namesColumn wsModel
-            waveformColumn wsModel
+            waveformColumn wsModel dispatch
             valuesColumn wsModel
         ]
 

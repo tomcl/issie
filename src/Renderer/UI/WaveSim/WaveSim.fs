@@ -303,6 +303,28 @@ let makeWave (fastSim: FastSimulation) (netList: Map<ComponentId, NetListCompone
         Polylines = None
     }
 
+let makeViewerWave (fastSim: FastSimulation) (index: WaveIndexT) (viewer: FastComponent) : Wave =
+    let driverId, driverPort =
+        match Array.head viewer.InputDrivers with
+        | Some (fId, opn) -> fId, opn
+        | None -> failwithf "Viewer %A has no driver" viewer.FullName
+
+    let waveValues =
+        [ 0 .. Constants.maxLastClk ]
+        |> List.map (fun i -> FastRun.extractFastSimulationOutput fastSim i driverId driverPort)
+
+    {
+        WaveId = index
+        Type = viewer.FType
+        CompLabel = string viewer.SimComponent.Label
+        SheetId = []
+        Driver = {DriverId = driverId; Port = driverPort}
+        DisplayName = string viewer.SimComponent.Label
+        Width =  getFastOutputWidth fastSim.FComps[driverId] driverPort
+        WaveValues = waveValues
+        Polylines = None
+    }
+
 let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<WaveIndexT, Wave> =
     let fastSim = simData.FastSim
     let netList = Helpers.getNetList reducedState
@@ -342,10 +364,22 @@ let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<WaveInd
     /// IOLabel driving one or more inputs.
     let ioLabels : (ComponentId * NetListComponent) list = List.distinctBy (fun (_, nlc) -> nlc.Label) ioLabels
 
+    let viewerWaves =
+        Map.values fastSim.FComps |> Seq.toList
+        |> List.filter (fun fc -> match fc.FType with Viewer _ -> true | _ -> false)
+        |> List.map (fun viewer ->
+            /// TODO: Should the PortType be Input?
+            let index = {Id = viewer.cId; PortType = PortType.Output; PortNumber = 0}
+            index, viewer
+        )
+        |> Map.ofList
+        |> Map.map (makeViewerWave fastSim)
+
     List.append ioLabels otherComps
     |> List.collect getAllPorts
     |> Map.ofList
     |> Map.map (makeWave fastSim netList)
+    |> Map.fold (fun vMap key value -> Map.add key value vMap) viewerWaves
 
 /// Sets all waves as selected or not selected depending on value of newState
 let toggleSelectAll (selected: bool) (wsModel: WaveSimModel) dispatch : unit =
@@ -453,10 +487,12 @@ let selectWaves (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
         |> List.sortBy (fun wave -> wave.DisplayName)
         |> List.groupBy (fun wave ->
             match wave.Type with
-            | Input _ | Output _ | Viewer _ | Constant1 _ ->
+            | Input _ | Output _ | Constant1 _ ->
                 InputOutput
             | IOLabel ->
                 WireLabel
+            | Viewer _ ->
+                Viewers
             | Not | And | Or | Xor | Nand | Nor | Xnor ->
                 Gates
             | BusCompare _ ->

@@ -42,8 +42,9 @@ type Gap = {
 }
 
 type ComponentGroup =
-    | InputOutput
     | WireLabel
+    | InputOutput
+    | Viewers
     | Buses
     | Gates
     // | MuxDemux
@@ -223,6 +224,7 @@ let summaryName (compGroup: ComponentGroup) : ReactElement =
     match compGroup with
     | WireLabel -> "Wire Labels"
     | InputOutput -> "Inputs / Outputs"
+    | Viewers -> "Viewers"
     | Buses -> "Buses"
     | Gates -> "Logic Gates"
     // | MuxDemux -> "Multiplexers"

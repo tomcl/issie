@@ -111,61 +111,6 @@ type CE (props) =
 //////////////////////////////////////////////////////////////////////
 
 
-//====================//
-//Code Editor Bindings//
-//====================//
-
-importSideEffects "./prism.css"
-
-let inline codeEditor (props : CodeEditorProps list) (elems : ReactElement list) : ReactElement =
-    ofImport "default" "react-simple-code-editor" (keyValueList CaseRules.LowerFirst props) elems
-
-
-type PrismCore =
-    abstract highlight : string * obj -> string
-
-[<ImportAll("./prism.js")>]
-let Prism: PrismCore = jsNative
-
-[<Emit("Prism.languages.verilog")>]
-let language : obj = jsNative
-
-// importSideEffects "prismjs/components/prism-verilog"
-importSideEffects "prismjs/components/prism-clike"
-
-
-/////////////////////   CODE EDITOR CLASS  /////////////////////////
-// Basically: a code editor rendered by a code editor class
-// Class is needed to keep track of the state -> mouse keeps track of its location on value change
-// codeEditor react element is used to store the code into PopupDialogData.Code
-// Code Highlighting is done automatically by PrismJS 
-
-
-type CEProps =
-    { Value : string
-      Dispatch : (Msg -> unit)}
-type CEState = { code: string }
-
-type CE (props) =
-    inherit Component<CEProps, CEState> (props)
-    
-    do base.setInitState({ code = "" })
-
-    override this.render () =
-      div [Style [FontFamily ("ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace"); FontSize 16; BackgroundColor "#f5f5f5"; OutlineStyle "solid"; OutlineColor "Blue"]] [
-            codeEditor [
-                CodeEditorProps.Placeholder ("Start Writing your Verilog Code here..."); 
-                CodeEditorProps.Value ((sprintf "%A" this.state.code)); 
-                OnValueChange (fun txt -> 
-                    (this.setState (fun s _ -> {s with code = txt}))
-                    props.Dispatch <| SetPopupDialogCode (Some txt))             
-                Highlight (fun code -> Prism.highlight(code,language));]
-                []
-        ]
-
-//////////////////////////////////////////////////////////////////////
-
-
 //=======//
 //HELPERS//
 //=======//

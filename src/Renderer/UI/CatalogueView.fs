@@ -323,29 +323,56 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
-let getErrorDiv errorList : ReactElement = //seq<ReactElement> =
-    let sortedErrors = List.sortBy (fun e -> e.Line) errorList
-    
-    let children =
+
+/// Given a list of errors on a specific line, returns a react element with the correct underlines and on-hover messages 
+let getErrorLine errorLineList =
+    let sortedErrors = List.sortBy (fun e -> e.Col) errorLineList
+    let linechildren = 
         sortedErrors
         |> List.indexed
         |> List.collect (fun (index,err) ->
-            let brakes:ReactElement list = 
-                match index with
-                |0 -> [1..err.Line-1] |> List.collect (fun x -> [br []] )
-                | _ -> [1..err.Line-sortedErrors[index-1].Line-1] |> List.collect (fun x -> [br []] )
-            let spaces = sprintf "%fpx" ((float (err.Col-2))*8.8) 
+            let prevErrorEnd = if index = 0 then 0.0 else (float (sortedErrors[index-1].Col+sortedErrors[index-1].Length-1))*8.8
+            let spaces = sprintf "%fpx" ((float (err.Col-1))*8.8 - prevErrorEnd)
             let _line = ("", [1..err.Length]) ||> List.fold (fun s v -> s+"-")
-            let errorElement =
-                p [] [
+            [
                 span [Style [Display DisplayOptions.InlineBlock; MarginLeft spaces; PointerEvents "stroke"]] []
-                span [Class "error"; Style [PointerEvents "auto"; FontSize 16; Color "rgb(255,0,0)"; Background "rgba(255,0,0,0)"]] [str ("--"+_line)] 
-                span [Class "hide"] [str err.Message]  
-                ]
-            if (index <> 0) && (err.Line = sortedErrors[index-1].Line) 
-                then brakes
-            else List.append brakes [errorElement]
-        ) 
+                span [Class "error"; Style [PointerEvents "auto"; FontSize 16; Color "rgb(255,0,0)"; Background "rgba(255,0,0,0)"]] [str (_line)] 
+                span [Class "hide"] [str err.Message]       
+            ]
+        )
+    
+    [p [] linechildren]
+
+/// Returns a map which maps line number to list of errors (type ErrorInfo) on that line
+let getLineToErrorsMap sortedErrorList = 
+    
+    let emptyMap = Map.empty<int,ErrorInfo list>
+    
+    (emptyMap, sortedErrorList)
+    ||> List.fold (fun state err ->
+            match Map.tryFind err.Line state with
+            | Some found -> Map.add err.Line (List.append found [err]) state
+            | None -> Map.add err.Line [err] state
+        )
+
+
+/// Returns the overlay which contains all the errors    
+let getErrorDiv errorList : ReactElement =
+    let sortedByLineErrorList = List.sortBy (fun err -> err.Line) errorList
+    
+    let lineToErrorsMap = getLineToErrorsMap sortedByLineErrorList
+    
+    let childrenElements =
+        match List.tryLast sortedByLineErrorList with
+        | Some lastError ->
+            [1..lastError.Line]
+            |> List.collect (fun line ->
+                match Map.tryFind line lineToErrorsMap with
+                | Some errors -> getErrorLine errors
+                | None -> [br []]
+                )
+        | None -> []
+
     div [
         Style [Position PositionOptions.Absolute ; 
             Display DisplayOptions.Block; 
@@ -357,7 +384,45 @@ let getErrorDiv errorList : ReactElement = //seq<ReactElement> =
             ZIndex "2" ;
             PointerEvents "none";
             WhiteSpace WhiteSpaceOptions.PreLine]
-    ] children
+    ] childrenElements
+
+
+
+// let getErrorDivOld errorList : ReactElement =
+//     let sortedErrors = List.sortBy (fun e -> e.Line) errorList
+    
+//     let children =
+//         sortedErrors
+//         |> List.indexed
+//         |> List.collect (fun (index,err) ->
+//             let brakes:ReactElement list = 
+//                 match index with
+//                 |0 -> [1..err.Line-1] |> List.collect (fun x -> [br []] )
+//                 | _ -> [1..err.Line-sortedErrors[index-1].Line-1] |> List.collect (fun x -> [br []] )
+//             let spaces = sprintf "%fpx" ((float (err.Col-2))*8.8) 
+//             let _line = ("", [1..err.Length]) ||> List.fold (fun s v -> s+"-")
+//             let errorElement =
+//                 p [] [
+//                 span [Style [Display DisplayOptions.InlineBlock; MarginLeft spaces; PointerEvents "stroke"]] []
+//                 span [Class "error"; Style [PointerEvents "auto"; FontSize 16; Color "rgb(255,0,0)"; Background "rgba(255,0,0,0)"]] [str ("--"+_line)] 
+//                 span [Class "hide"] [str err.Message]  
+//                 ]
+//             if (index <> 0) && (err.Line = sortedErrors[index-1].Line) 
+//                 then brakes
+//             else List.append brakes [errorElement]
+//         ) 
+//     div [
+//         Style [Position PositionOptions.Absolute ; 
+//             Display DisplayOptions.Block; 
+//             Width "100%"; Height "100%"; 
+//             CSSProp.Top "8px"; CSSProp.Left "0"; CSSProp.Right "0"; CSSProp.Bottom "0";
+//             BackgroundColor "rgba(0,0,0,0)";
+//             FontWeight "bold";
+//             Color "Red"; 
+//             ZIndex "2" ;
+//             PointerEvents "none";
+//             WhiteSpace WhiteSpaceOptions.PreLine]
+//     ] children
 
 
 let createVerilogComp model =

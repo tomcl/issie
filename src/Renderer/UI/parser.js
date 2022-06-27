@@ -85,11 +85,11 @@ export function fix(json_data){
     
     try{
         while (port_list.Tail != null) {
-            ports.push(port_list.Head.PortName);
+            ports.push(port_list.Head.Port.Name);
             loc.push(port_list.Location)
             port_list = port_list.Tail;
         }
-        ports.push(port_list.Head.PortName);
+        ports.push(port_list.Head.Port.Name);
         loc.push(port_list.Location)
     } catch (e) {
         console.log(e.message);

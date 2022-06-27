@@ -353,7 +353,9 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
     match model.CurrentProj with
     | None -> ()
     | Some p ->
-        dispatch EndSimulation // Message ends any running simulation.
+        // Message ends any running simulation.
+        dispatch EndSimulation
+        dispatch EndWaveSim
         // TODO: make each sheet wavesim remember the list of waveforms.
     let waveSim =
         compToSetup.WaveInfo
@@ -601,7 +603,9 @@ let addFileToProject model dispatch =
 let forceCloseProject model dispatch =
     dispatch (StartUICmd CloseProject)
     let sheetDispatch sMsg = dispatch (Sheet sMsg) 
-    dispatch EndSimulation // End any running simulation.
+    // End any running simulation.
+    dispatch EndSimulation
+    dispatch EndWaveSim
     model.Sheet.ClearCanvas sheetDispatch
     dispatch FinishUICmd
 
@@ -634,7 +638,9 @@ let private newProject model dispatch  =
             log err
             displayFileErrorNotification err dispatch
         | Ok _ ->
-            dispatch EndSimulation // End any running simulation.
+            // End any running simulation.
+            dispatch EndSimulation
+            dispatch EndWaveSim
             // Create empty placeholder projectFile.
             let projectFile = baseName path + ".dprj"
             writeFile (pathJoin [| path; projectFile |]) ""

@@ -161,7 +161,7 @@ type WaveSimModel = {
     WaveformColumnWidth: int
     WaveModalActive: bool
     RamModalActive: bool
-    RamComponents: Component list
+    RamComps: Component list
     SelectedRams: Map<ComponentId, string>
     FastSim: FastSimulation
     SearchString: string
@@ -184,7 +184,7 @@ let initWSModel : WaveSimModel = {
     WaveformColumnWidth = initialWaveformColWidth
     WaveModalActive = false
     RamModalActive = false
-    RamComponents = []
+    RamComps = []
     SelectedRams = Map.empty
     FastSim = FastCreate.emptyFastSimulation ()
     SearchString = ""
@@ -233,6 +233,7 @@ type Msg =
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick of int
     | EndSimulation
+    | EndWaveSim
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list

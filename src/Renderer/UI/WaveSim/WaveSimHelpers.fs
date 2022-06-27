@@ -54,12 +54,12 @@ type ComponentGroup =
     | Component of string
 
 module Constants = 
-    let nonBinaryTransLen : float = 0.2
+    let nonBinaryTransLen : float = 8.
 
-    let viewBoxHeight : float = 1.0
+    let viewBoxHeight : float = 30.0
 
     /// Height of a waveform
-    let waveHeight : float = 0.8
+    let waveHeight : float = 0.8 * viewBoxHeight
     let spacing : float = (viewBoxHeight - waveHeight) / 2.
 
     let yTop = spacing
@@ -68,13 +68,10 @@ module Constants =
     /// TODO: Remove this limit. This stops the waveform simulator moving past 500 clock cycles.
     let maxLastClk = 500
 
-    /// TODO: Use geometric sequence parametrised by startZoom, endZoom, numZoomLevels
-    let zoomLevels = [|
-    //   0     1     2    3     4     5    6    7    8    9    10   11    12   13   14   15
-        0.25; 0.33; 0.5; 0.67; 0.75; 0.8; 0.9; 1.0; 1.1; 1.5; 1.75; 2.0; 2.50; 3.0; 4.0; 5.0;
-    |]
+    let minCycleWidth = 5
 
-    let baseWidth = 30.0
+    let clkCycleNarrowThreshold = 20
+
 
 /// If true, then show cross-hatch only for non-binary waves when wave is changing
 /// value very fast.
@@ -95,16 +92,12 @@ let getWSModel model : WaveSimModel =
             // printf "Sheet %A not found in model" model.WaveSimSheet
             initWSModel
 
-let zoomLevel m = Constants.zoomLevels[m.ZoomLevelIndex]
+let singleWaveWidth m = float m.WaveformColumnWidth / float m.ShownCycles // Constants.baseWidth * (zoomLevel wsModel)
 
-let singleWaveWidth wsModel = Constants.baseWidth * (zoomLevel wsModel)
+let viewBoxMinX m = string (float m.StartCycle * singleWaveWidth m)
+let viewBoxWidth m = string m.WaveformColumnWidth
 
-let shownCycles m = int <| float m.WaveformColumnWidth / singleWaveWidth m
-
-let viewBoxMinX m = string (float m.StartCycle * zoomLevel m)
-let viewBoxWidth m = string (float (shownCycles m) * zoomLevel m)
-
-let endCycle wsModel = wsModel.StartCycle + (shownCycles wsModel) - 1
+let endCycle wsModel = wsModel.StartCycle + (wsModel.ShownCycles) - 1
 
 let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ label ]
 
@@ -151,7 +144,6 @@ let makeCoords (clkCycleWidth: float) (clkCycle: int) (transition: Transition) :
 
     topL, topR, botL, botR
 
-/// TODO: Is this how to use startCycle?
 /// Generate points for a binary waveform
 let binaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int) (transition: BinaryTransition)  : XYPos list =
     let topL, topR, botL, botR = makeCoords clkCycleWidth (startCycle + index) (BinaryTransition transition)
@@ -162,16 +154,13 @@ let binaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int) (tran
     | ZeroToOne | OneToOne ->
         [topL; topR]
 
-/// TODO: Account for very low zoom levels.
-/// TODO: Consider: If singleWaveWidth M nonBinaryTransLen, then show crosshatch.
-/// TODO: Is this how to use startCycle??
 /// Generate points for a non-binary waveform.
 let nonBinaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int)  (transition: NonBinaryTransition) : (XYPos list * XYPos list) =
     let xLeft, _ = makeXCoords clkCycleWidth (startCycle + index) (NonBinaryTransition transition)
     let _, topR, _, botR = makeCoords clkCycleWidth (startCycle + index) (NonBinaryTransition transition)
 
     let crossHatchMid, crossHatchTop, crossHatchBot =
-        {X = xLeft +      xShift clkCycleWidth; Y = 0.5},
+        {X = xLeft +      xShift clkCycleWidth; Y = 0.5 * Constants.viewBoxHeight},
         {X = xLeft + 2. * xShift clkCycleWidth; Y = Constants.yTop},
         {X = xLeft + 2. * xShift clkCycleWidth; Y = Constants.yBot}
 

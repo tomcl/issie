@@ -20,12 +20,12 @@ module Constants =
     let rightMargin = 50
 
     let rowHeight = 30
-    let clkLineWidth = 0.0125
-    let lineThickness : float = 0.025
+    let clkLineWidth = 0.4
+    let lineThickness : float = 0.8
 
-    let fontSizeValueOnWave = "0.3px"
+    let fontSizeValueOnWave = "10px"
     let valueOnWaveText = { DrawHelpers.defaultText with FontSize = fontSizeValueOnWave }
-    let valueOnWavePadding = 10.0
+    let valueOnWavePadding = 150.0
 
 let topRowStyle = Style [
     Height Constants.rowHeight
@@ -204,8 +204,8 @@ let zoomInSVG =
 
 let valueOnWaveProps m i start width : IProp list =
     [
-        X (float start * (zoomLevel m) + Constants.nonBinaryTransLen + float i * width)
-        Y 0.6
+        X (float start * (singleWaveWidth m) + Constants.nonBinaryTransLen + float i * width)
+        Y (0.6 * Constants.viewBoxHeight)
         Style [
             FontSize Constants.fontSizeValueOnWave
         ]
@@ -384,10 +384,10 @@ let clkLineStyle = Style [
 
 let clkCycleText m i : IProp list =
     [
-        SVGAttr.FontSize "3.5%"
+        SVGAttr.FontSize "12px"
         SVGAttr.TextAnchor "middle"
-        X (zoomLevel m * (float i + 0.5))
-        Y 0.65
+        X (singleWaveWidth m * (float i + 0.5))
+        Y (0.6 * Constants.viewBoxHeight)
     ]
 
 let clkCycleSVGStyle = Style [
@@ -397,7 +397,7 @@ let clkCycleSVGStyle = Style [
 
 let waveformColumnRowProps m : IProp list = [
     SVGAttr.Height Constants.rowHeight
-    SVGAttr.Width (float (shownCycles m) * singleWaveWidth m)
+    SVGAttr.Width (viewBoxWidth m)
     // min-x, min-y, width, height
     ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string Constants.viewBoxHeight)
     PreserveAspectRatio "none"
@@ -427,7 +427,7 @@ let clkCycleHighlightSVG m dispatch =
             GridRowStart 1
         ]
         SVGAttr.Height (string ((count + 1) * Constants.rowHeight) + "px")
-        SVGAttr.Width (float (shownCycles m) * singleWaveWidth m)
+        SVGAttr.Width (viewBoxWidth m)
         SVGAttr.Fill "rgb(230,230,230)"
         SVGAttr.Opacity 0.4
         ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string (Constants.viewBoxHeight * float (count + 1)))
@@ -435,18 +435,19 @@ let clkCycleHighlightSVG m dispatch =
         OnClick (fun ev ->
             let svgEl = Browser.Dom.document.getElementById "ClkCycleHighlight"
             let bcr = svgEl.getBoundingClientRect ()
-            let cycleWidth = bcr.width / float (shownCycles m)
+            /// Should be the same as singleWaveWidth
+            let cycleWidth = bcr.width / float m.ShownCycles
             /// ev.clientX is X-coord of mouse click. bcr.left is x-coord of start of SVG.
             /// getBoundingClientRect only works if ViewBox is 0 0 width height, so
             /// add m.StartCycle to account for when viewBoxMinX is not 0
-            let cycle = (int <| (ev.clientX - bcr.left) / cycleWidth) + m.StartCycle
+            let cycle = (int <| (ev.clientX - bcr.left) / singleWaveWidth m) + m.StartCycle
             dispatch <| SetWSModel {m with CurrClkCycle = cycle}
         )
     ] [
         rect [
-            SVGAttr.Width (zoomLevel m)
+            SVGAttr.Width (singleWaveWidth m)
             SVGAttr.Height "100%"
-            X (float m.CurrClkCycle * zoomLevel m)
+            X (float m.CurrClkCycle * (singleWaveWidth m))
         ] []
     ]
 

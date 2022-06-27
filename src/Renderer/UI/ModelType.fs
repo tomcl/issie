@@ -158,7 +158,6 @@ type WaveSimModel = {
     CurrClkCycle: int
     ClkCycleBoxIsEmpty: bool
     Radix: NumberBase
-    ZoomLevelIndex: int
     WaveformColumnWidth: int
     WaveModalActive: bool
     RamModalActive: bool
@@ -182,7 +181,6 @@ let initWSModel : WaveSimModel = {
     CurrClkCycle = 0
     ClkCycleBoxIsEmpty = false
     Radix = Hex
-    ZoomLevelIndex = 9
     WaveformColumnWidth = initialWaveformColWidth
     WaveModalActive = false
     RamModalActive = false
@@ -455,8 +453,8 @@ let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
     {
         SelectedWaves = Some wsModel.SelectedWaves
         Radix = Some wsModel.Radix
-        ZoomLevelIndex = Some wsModel.ZoomLevelIndex
         WaveformColumnWidth = Some wsModel.WaveformColumnWidth
+        ShownCycles = Some wsModel.ShownCycles
         SelectedRams = Some wsModel.SelectedRams
 
         // The following fields are from the old waveform simulator.
@@ -476,8 +474,8 @@ let loadWSModelFromSavedWaveInfo (swInfo: SavedWaveInfo) : WaveSimModel =
         initWSModel with
             SelectedWaves = Option.defaultValue initWSModel.SelectedWaves swInfo.SelectedWaves
             Radix = Option.defaultValue initWSModel.Radix swInfo.Radix
-            ZoomLevelIndex = Option.defaultValue initWSModel.ZoomLevelIndex swInfo.ZoomLevelIndex
             WaveformColumnWidth = Option.defaultValue initWSModel.WaveformColumnWidth swInfo.WaveformColumnWidth
+            ShownCycles = Option.defaultValue initWSModel.ShownCycles swInfo.ShownCycles
             SelectedRams = Option.defaultValue initWSModel.SelectedRams swInfo.SelectedRams
     }
 

@@ -618,8 +618,8 @@ module CommonTypes
     type SavedWaveInfo = {
         SelectedWaves: WaveIndexT list option
         Radix: NumberBase option
-        ZoomLevelIndex: int option
         WaveformColumnWidth: int option
+        ShownCycles: int option
         SelectedRams: Map<ComponentId, string> option
 
         ClkWidth: float option

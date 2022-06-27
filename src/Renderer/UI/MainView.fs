@@ -236,7 +236,8 @@ let displayView model dispatch =
             /// Unsure of why there needs to be 2* in front of dividerBarWidth... but it seems to work.
             let otherDivWidths = Constants.leftMargin + Constants.rightMargin + 2 * Constants.dividerBarWidth
 
-            let waveColWidth = w - otherDivWidths - Constants.namesColWidth - Constants.valuesColWidth
+            /// Require at least one visible clock cycle
+            let waveColWidth = max (int (singleWaveWidth wsModel)) (w - otherDivWidths - Constants.namesColWidth - Constants.valuesColWidth)
             let wholeCycles = waveColWidth / int (singleWaveWidth wsModel)
             let wholeCycleWidth = wholeCycles * int (singleWaveWidth wsModel)
 

@@ -43,9 +43,10 @@ let displayValuesOnWave wsModel (waveValues: WireData list) (transitions: NonBin
             convertWireDataToInt waveValues[gap.Start]
             |> valToString wsModel.Radix
 
-        let availableWidth = float gap.Length * (zoomLevel wsModel) - 2. * Constants.nonBinaryTransLen
+        let availableWidth = (float gap.Length * (singleWaveWidth wsModel)) - 2. * Constants.nonBinaryTransLen
         let requiredWidth = DrawHelpers.getTextWidthInPixels (waveValue, Constants.valueOnWaveText)
-        let widthWithPadding = requiredWidth + Constants.valueOnWavePadding
+        let widthWithPadding = 2. * requiredWidth + Constants.valueOnWavePadding
+
         // Display nothing if there is not enough space
         if availableWidth < requiredWidth then
             []
@@ -53,8 +54,10 @@ let displayValuesOnWave wsModel (waveValues: WireData list) (transitions: NonBin
             let valueText i =
                 text (valueOnWaveProps wsModel i gap.Start widthWithPadding)
                     [ str waveValue ]
+
             /// Calculate how many times the value can be shown in the space available
             let repeats = int <| availableWidth / widthWithPadding
+
             [ 0 .. repeats ]
             |> List.map valueText
     )
@@ -75,7 +78,7 @@ let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): W
                 /// Currently takes in 0, but this should ideally only generate the points that
                 /// are shown on screen, rather than all 500 cycles.
                 let wavePoints =
-                    List.mapi (binaryWavePoints (zoomLevel wsModel) 0) transitions 
+                    List.mapi (binaryWavePoints (singleWaveWidth wsModel) 0) transitions 
                     |> List.concat
                     |> List.distinct
 
@@ -86,7 +89,7 @@ let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): W
                 /// Currently takes in 0, but this should ideally only generate the points that
                 /// are shown on screen, rather than all 500 cycles.
                 let fstPoints, sndPoints =
-                    List.mapi (nonBinaryWavePoints (zoomLevel wsModel) 0) transitions 
+                    List.mapi (nonBinaryWavePoints (singleWaveWidth wsModel) 0) transitions 
                     |> List.unzip
                 let makePolyline points = 
                     let points =
@@ -626,31 +629,38 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
                     ClkCycleBoxIsEmpty = false
                 }
     else
-        printf "StartCycle: %A" (newClkCycle - (shownCycles wsModel - 1))
+        printf "StartCycle: %A" (newClkCycle - (wsModel.ShownCycles - 1))
         printf "CurrClkCycle: %A" newClkCycle
         dispatch <| InitiateWaveSimulation
             {wsModel with
-                StartCycle = newClkCycle - (shownCycles wsModel - 1)
+                StartCycle = newClkCycle - (wsModel.ShownCycles - 1)
                 CurrClkCycle = newClkCycle
                 ClkCycleBoxIsEmpty = false
             }
 
-let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) = 
-    let wantedZoomIndex =
-        if zoomIn then wsModel.ZoomLevelIndex + 1
-        else wsModel.ZoomLevelIndex - 1
+/// if zoomIn, then increase width of clock cycles (i.e.reduce number of visible cycles)
+let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
+    let shownCycles =
+        if zoomIn then
+            let newCycles = int <| float wsModel.ShownCycles * 0.8
 
-    let newIndex =
-        Array.tryItem wantedZoomIndex Constants.zoomLevels
-        |> function
-            | Some zoom -> wantedZoomIndex
-            // Index out of range: keep original zoom level
-            | None -> wsModel.ZoomLevelIndex
+            // If number of cycles after casting to int does not change
+            if newCycles = int wsModel.ShownCycles then
+                wsModel.ShownCycles - 1
+            // Require at least one visible cycle
+            else max 1 (newCycles)
+        else
+            let newCycles = int <| float wsModel.ShownCycles * 1.25
 
-    dispatch <| InitiateWaveSimulation
-        { wsModel with
-            ZoomLevelIndex = newIndex
-        }
+            // If number of cycles after casting to int does not change
+            if newCycles = int wsModel.ShownCycles then
+                wsModel.ShownCycles + 1
+            // If width of clock cycle is too small
+            else if wsModel.WaveformColumnWidth / newCycles < Constants.minCycleWidth then
+                wsModel.ShownCycles
+            else newCycles
+
+    dispatch <| InitiateWaveSimulation { wsModel with ShownCycles = shownCycles }
 
 /// Click on these buttons to change the number of visible clock cycles.
 let zoomButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
@@ -667,7 +677,7 @@ let zoomButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
 /// Click on these to change the highlighted clock cycle.
 let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     /// Controls the number of cycles moved by the "◀◀" and "▶▶" buttons
-    let bigStepSize = max 1 (shownCycles wsModel / 2)
+    let bigStepSize = max 1 (wsModel.ShownCycles / 2)
 
     let scrollWaveformsBy (numCycles: int) =
         setClkCycle wsModel dispatch (wsModel.CurrClkCycle + numCycles)
@@ -815,14 +825,14 @@ let backgroundSVG (wsModel: WaveSimModel) : ReactElement list =
             Y2 Constants.viewBoxHeight
         ] []
     [ wsModel.StartCycle + 1 .. endCycle wsModel + 1 ] 
-    |> List.map (fun x -> clkLine (float x * zoomLevel wsModel))
+    |> List.map (fun x -> clkLine (float x * singleWaveWidth wsModel))
 
 /// Generate a row of numbers in the waveforms column.
 /// Numbers correspond to clock cycles.
 let clkCycleNumberRow (wsModel: WaveSimModel) =
     let makeClkCycleLabel i =
-        match (zoomLevel wsModel) with
-        | width when width < 0.67 && i % 5 <> 0 -> []
+        match (singleWaveWidth wsModel) with
+        | width when width < Constants.clkCycleNarrowThreshold && i % 5 <> 0 -> []
         | _ -> [ text (clkCycleText wsModel i) [str (string i)] ]
 
     [ wsModel.StartCycle .. endCycle wsModel]

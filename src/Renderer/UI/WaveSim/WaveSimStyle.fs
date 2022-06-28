@@ -29,6 +29,7 @@ module Constants =
 
     let borderProperties = "2px solid rgb(219,219,219)"
 
+    let labelPadding = 3
 
 let topRowStyle = Style [
     Height Constants.rowHeight
@@ -303,6 +304,12 @@ let upDownButtonStyle = Style [
 ]
 
 let labelStyle = Style [
+    Height Constants.rowHeight
+    BorderBottom "1px solid rgb(219,219,219)"
+]
+
+let valueLabelStyle = Style [
+    PaddingLeft Constants.labelPadding
     Height Constants.rowHeight
     BorderBottom "1px solid rgb(219,219,219)"
 ]

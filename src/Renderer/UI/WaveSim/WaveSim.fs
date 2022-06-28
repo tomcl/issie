@@ -834,10 +834,9 @@ let nameRows (wsModel: WaveSimModel) dispatch: ReactElement list =
                 OnMouseOut (fun _ -> dispatch <| SetWSModel {wsModel with HoveredLabel = None} )
             ]
         ] [
-            Level.left [
-                Props (nameRowLevelLeftProps visibility)
-            ] [
-                Delete.delete [
+            Level.left
+                [ Props (nameRowLevelLeftProps visibility) ]
+                [ Delete.delete [
                     Delete.Option.Size IsSmall
                     Delete.Option.Props [
                         OnClick (fun _ ->
@@ -845,9 +844,11 @@ let nameRows (wsModel: WaveSimModel) dispatch: ReactElement list =
                             dispatch <| SetWSModel {wsModel with SelectedWaves = selectedWaves}
                         )
                     ]
-                ] []
-            ]
-            Level.right [] [ label [] [ str wave.DisplayName ] ]
+                  ] []
+                ]
+            Level.right
+                [ Props [ Style [ PaddingRight Constants.labelPadding ] ] ]
+                [ label [] [ str wave.DisplayName ] ]
         ]
     )
 
@@ -868,7 +869,7 @@ let valueRows (wsModel: WaveSimModel) =
     selectedWaves wsModel
     |> List.map (getWaveValue wsModel.CurrClkCycle)
     |> List.map (valToString wsModel.Radix)
-    |> List.map (fun value -> label [ labelStyle ] [ str value ])
+    |> List.map (fun value -> label [ valueLabelStyle ] [ str value ])
 
 /// Create column of waveform values
 let private valuesColumn wsModel : ReactElement =

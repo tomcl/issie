@@ -875,7 +875,7 @@ let nameRows (wsModel: WaveSimModel) dispatch: ReactElement list =
 let namesColumn wsModel dispatch : ReactElement =
     let rows = nameRows wsModel dispatch
 
-    div [ namesColumnStyle ]
+    div namesColumnProps
         (List.concat [ topRow; rows ])
 
 /// Create label of waveform value for each selected wave at a given clk cycle.

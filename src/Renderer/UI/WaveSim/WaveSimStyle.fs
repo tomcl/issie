@@ -303,6 +303,8 @@ let upDownButtonStyle = Style [
     BorderRadius 0
 ]
 
+
+
 let labelStyle = Style [
     Height Constants.rowHeight
     BorderBottom "1px solid rgb(219,219,219)"
@@ -310,8 +312,28 @@ let labelStyle = Style [
 
 let valueLabelStyle = Style [
     PaddingLeft Constants.labelPadding
-    Height Constants.rowHeight
-    BorderBottom "1px solid rgb(219,219,219)"
+]
+
+let nameProps : IHTMLProp list = [
+    labelStyle
+    Draggable true
+    OnDrop (fun ev ->
+        
+        let nameColEl = Browser.Dom.document.getElementById "namesColumn"
+        let bcr = nameColEl.getBoundingClientRect ()
+        printf "bcr.left: %A" bcr.left
+        printf "bcr.right: %A" bcr.right
+        printf "bcr.top: %A" bcr.top
+        printf "bcr.bottom: %A" bcr.bottom
+        printf "bcr.height: %A" bcr.height
+        printf "bcr.width: %A" bcr.width
+
+        printf "ev.clientX: %A" ev.clientX
+        printf "ev.clientY: %A" ev.clientY
+
+
+
+    )
 ]
 
 let nameRowLevelLeftProps (visibility: string): IHTMLProp list = [
@@ -324,6 +346,7 @@ let nameRowLevelLeftProps (visibility: string): IHTMLProp list = [
 
 let ramRowStyle = Style [
     Height Constants.rowHeight
+    BorderBottom "1px solid rgb(219,219,219)"
 ]
 
 let waveSimColumn = [
@@ -346,6 +369,11 @@ let namesColumnStyle = Style (
         GridColumnStart 1
         TextAlign TextAlignOptions.Right
     ])
+
+let namesColumnProps : IHTMLProp list = [
+    Id "namesColumn"
+    namesColumnStyle
+]
 
 let valuesColumnStyle = Style (
     (waveSimColumn) @ [

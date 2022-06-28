@@ -137,6 +137,8 @@ type Wave = {
     // unique within design sheet (SheetId)
     // [] for top-level waveform: path to sheet
     SheetId: ComponentId list
+    // Wires connected to this waveform
+    Conns: ConnectionId list
     // This is used to key the AllWaves map, since this is guaranteed to be unique.
     Driver: DriverT
     DisplayName: string

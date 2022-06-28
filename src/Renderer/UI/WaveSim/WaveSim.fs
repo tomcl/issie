@@ -291,11 +291,21 @@ let makeWave (fastSim: FastSimulation) (netList: Map<ComponentId, NetListCompone
         [ 0 .. Constants.maxLastClk ]
         |> List.map (fun i -> FastRun.extractFastSimulationOutput fastSim i driverId driverPort)
 
+    let conns : ConnectionId list =
+        match index.PortType with
+        | PortType.Output ->
+            List.map (fun x -> x.TargetConnId) netList[index.Id].Outputs[OutputPortNumber index.PortNumber]
+        | PortType.Input ->
+            match netList[index.Id].Inputs[InputPortNumber index.PortNumber] with
+            | Some nlSource -> [nlSource.SourceConnId]
+            | None -> []
+
     {
         WaveId = index
         Type = comp.Type
         CompLabel = comp.Label
         SheetId = []
+        Conns = conns
         Driver = {DriverId = driverId; Port = driverPort}
         DisplayName = getName comp index fastSim
         Width =  getFastOutputWidth fastSim.FComps[driverId] driverPort
@@ -318,6 +328,7 @@ let makeViewerWave (fastSim: FastSimulation) (index: WaveIndexT) (viewer: FastCo
         Type = viewer.FType
         CompLabel = string viewer.SimComponent.Label
         SheetId = []
+        Conns = []
         Driver = {DriverId = driverId; Port = driverPort}
         DisplayName = string viewer.SimComponent.Label
         Width =  getFastOutputWidth fastSim.FComps[driverId] driverPort
@@ -830,8 +841,16 @@ let nameRows (wsModel: WaveSimModel) dispatch: ReactElement list =
         Level.level [
             Level.Level.Option.Props [
                 labelStyle
-                OnMouseOver (fun _ -> dispatch <| SetWSModel {wsModel with HoveredLabel = Some wave.WaveId} )
-                OnMouseOut (fun _ -> dispatch <| SetWSModel {wsModel with HoveredLabel = None} )
+                OnMouseOver (fun _ ->
+                    dispatch <| SetWSModel {wsModel with HoveredLabel = Some wave.WaveId}
+                    dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [wave.WaveId.Id])))
+                    dispatch <| Sheet (SheetT.Msg.SelectWires wave.Conns)
+                )
+                OnMouseOut (fun _ ->
+                    dispatch <| SetWSModel {wsModel with HoveredLabel = None}
+                    dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [])))
+                    dispatch <| Sheet (SheetT.Msg.UpdateSelectedWires (wave.Conns, false))
+                )
             ]
         ] [
             Level.left

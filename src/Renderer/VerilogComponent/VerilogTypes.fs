@@ -29,9 +29,9 @@ type IdentifierT = {Name: string; Location: int}
 
 type ModuleNameT = {Type : string; Name : IdentifierT}
 
-type NumberT = {Type: string; NumberType: string; Bits: string option; Base: string option; UnsignedNumber: string option; AllNumber: string option }
+type NumberT = {Type: string; NumberType: string; Bits: string option; Base: string option; UnsignedNumber: string option; AllNumber: string option; Location: int }
 
-type RangeT = {Type: string; Start: string; End: string}
+type RangeT = {Type: string; Start: string; End: string; Location: int}
 
 type IOItemT = {Type: string; DeclarationType: string; Range : RangeT option; Variables: IdentifierT array}
 

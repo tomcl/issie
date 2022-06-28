@@ -324,6 +324,14 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
 
 
 
+let getUnderLineElement marginLeft _line message = 
+    [
+        span [Style [Display DisplayOptions.InlineBlock; MarginLeft marginLeft; PointerEvents "stroke"]] []
+        span [Class "error"; Style [PointerEvents "auto"; FontSize 16; Color "rgb(255,0,0)"; Background "rgba(255,0,0,0)"]] [str (_line)] 
+        span [Class "hide"] [str message]       
+    ]
+
+
 /// Given a list of errors on a specific line, returns a react element with the correct underlines and on-hover messages 
 let getErrorLine errorLineList =
     let sortedErrors = List.sortBy (fun e -> e.Col) errorLineList
@@ -334,11 +342,7 @@ let getErrorLine errorLineList =
             let prevErrorEnd = if index = 0 then 0.0 else (float (sortedErrors[index-1].Col+sortedErrors[index-1].Length-1))*8.8
             let spaces = sprintf "%fpx" ((float (err.Col-1))*8.8 - prevErrorEnd)
             let _line = ("", [1..err.Length]) ||> List.fold (fun s v -> s+"-")
-            [
-                span [Style [Display DisplayOptions.InlineBlock; MarginLeft spaces; PointerEvents "stroke"]] []
-                span [Class "error"; Style [PointerEvents "auto"; FontSize 16; Color "rgb(255,0,0)"; Background "rgba(255,0,0,0)"]] [str (_line)] 
-                span [Class "hide"] [str err.Message]       
-            ]
+            getUnderLineElement spaces _line err.Message
         )
     
     [p [] linechildren]
@@ -387,44 +391,6 @@ let getErrorDiv errorList : ReactElement =
     ] childrenElements
 
 
-
-// let getErrorDivOld errorList : ReactElement =
-//     let sortedErrors = List.sortBy (fun e -> e.Line) errorList
-    
-//     let children =
-//         sortedErrors
-//         |> List.indexed
-//         |> List.collect (fun (index,err) ->
-//             let brakes:ReactElement list = 
-//                 match index with
-//                 |0 -> [1..err.Line-1] |> List.collect (fun x -> [br []] )
-//                 | _ -> [1..err.Line-sortedErrors[index-1].Line-1] |> List.collect (fun x -> [br []] )
-//             let spaces = sprintf "%fpx" ((float (err.Col-2))*8.8) 
-//             let _line = ("", [1..err.Length]) ||> List.fold (fun s v -> s+"-")
-//             let errorElement =
-//                 p [] [
-//                 span [Style [Display DisplayOptions.InlineBlock; MarginLeft spaces; PointerEvents "stroke"]] []
-//                 span [Class "error"; Style [PointerEvents "auto"; FontSize 16; Color "rgb(255,0,0)"; Background "rgba(255,0,0,0)"]] [str ("--"+_line)] 
-//                 span [Class "hide"] [str err.Message]  
-//                 ]
-//             if (index <> 0) && (err.Line = sortedErrors[index-1].Line) 
-//                 then brakes
-//             else List.append brakes [errorElement]
-//         ) 
-//     div [
-//         Style [Position PositionOptions.Absolute ; 
-//             Display DisplayOptions.Block; 
-//             Width "100%"; Height "100%"; 
-//             CSSProp.Top "8px"; CSSProp.Left "0"; CSSProp.Right "0"; CSSProp.Bottom "0";
-//             BackgroundColor "rgba(0,0,0,0)";
-//             FontWeight "bold";
-//             Color "Red"; 
-//             ZIndex "2" ;
-//             PointerEvents "none";
-//             WhiteSpace WhiteSpaceOptions.PreLine]
-//     ] children
-
-
 let createVerilogComp model =
     printfn "Not implemented yet!"
 
@@ -464,13 +430,12 @@ let rec private createVerilogPopup model dispatch =
                 let output = Json.parseAs<ParserOutput> parsedCode
                 if isNullOrUndefined output.Error then
                     let result = Option.get output.Result
-                    printfn "Input AST: %s" result
-                    let j = fix result
-                    printfn "Fixed AST: %A" j
+                    // printfn "Input AST: %s" result
+                    let fixedAST = fix result
                     let linesIndex = Option.get output.NewLinesIndex |> Array.toList
                     printfn "NewLinesIndex: %A" linesIndex
-                    let js2 = j |> Json.parseAs<VerilogInput>
-                    let errorList = ErrorCheck.getErrors js2 model linesIndex
+                    let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
+                    let errorList = ErrorCheck.getErrors parsedAST model linesIndex
                     match List.isEmpty errorList with
                     | true -> 
                         printfn "Compiled successfully"

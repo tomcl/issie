@@ -6,17 +6,18 @@ const fs = require("fs");
 export function parseFromFile(source) {
     try {
         const parser = new nearley.Parser(nearley.Grammar.fromCompiled(verilogGrammar));
-        parser.feed(source);
+        const sourceTrimmed = source.replace(/\s+$/g, '');
+        parser.feed(sourceTrimmed);
         let results = parser.results;
         
-        let lines = source.split(/\n/); 
+        let lines = sourceTrimmed.split(/\n/); 
         let linesIndex = [0];
         let count=0;
         for(let i=0;i<lines.length-1;i++){
             linesIndex.push(lines[i].length+1+count);
             count = lines[i].length+1+count;
         }
-        linesIndex.push(source.length)  
+        linesIndex.push(sourceTrimmed.length)  
         const ast = results[0];
         return JSON.stringify({Result: JSON.stringify(ast), Error: null, NewLinesIndex: linesIndex});
     }

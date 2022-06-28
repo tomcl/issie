@@ -27,6 +27,9 @@ module Constants =
     let valueOnWaveText = { DrawHelpers.defaultText with FontSize = fontSizeValueOnWave }
     let valueOnWavePadding = 150.0
 
+    let borderProperties = "2px solid rgb(219,219,219)"
+
+
 let topRowStyle = Style [
     Height Constants.rowHeight
     BorderBottom "2px solid rgb(219,219,219)"
@@ -316,17 +319,10 @@ let ramRowStyle = Style [
     Height Constants.rowHeight
 ]
 
-let borderProperties = "2px solid rgb(219,219,219)"
-
-let colWidth width =
-    match width with
-    | Some x -> string x
-    | None -> "100%"
-
 let waveSimColumn = [
     Height "100%"
     Width "100%"
-    BorderTop borderProperties
+    BorderTop Constants.borderProperties
     Display DisplayOptions.Grid
     GridAutoRows Constants.rowHeight
     FontSize "12px"
@@ -339,7 +335,7 @@ let namesColumnStyle = Style (
     (waveSimColumn) @ [
         MinWidth Constants.namesColWidth
         Float FloatOptions.Left
-        BorderRight borderProperties
+        BorderRight Constants.borderProperties
         GridColumnStart 1
         TextAlign TextAlignOptions.Right
     ])
@@ -348,7 +344,7 @@ let valuesColumnStyle = Style (
     (waveSimColumn) @ [
         MinWidth Constants.valuesColWidth
         Float FloatOptions.Right
-        BorderLeft borderProperties
+        BorderLeft Constants.borderProperties
         GridColumnStart 3
     ])
 
@@ -363,7 +359,7 @@ let waveRowsStyle width = Style [
     Display DisplayOptions.Grid
     FontSize "12px"
     GridAutoRows Constants.rowHeight
-    BorderTop borderProperties
+    BorderTop Constants.borderProperties
     Width width
     GridColumnStart 1
     GridRowStart 1
@@ -390,17 +386,16 @@ let clkLineStyle = Style [
     StrokeWidth Constants.clkLineWidth
 ]
 
-let clkCycleText m i : IProp list =
-    [
-        SVGAttr.FontSize "12px"
-        SVGAttr.TextAnchor "middle"
-        X (singleWaveWidth m * (float i + 0.5))
-        Y (0.6 * Constants.viewBoxHeight)
-    ]
+let clkCycleText m i : IProp list = [
+    SVGAttr.FontSize "12px"
+    SVGAttr.TextAnchor "middle"
+    X (singleWaveWidth m * (float i + 0.5))
+    Y (0.6 * Constants.viewBoxHeight)
+]
 
 let clkCycleSVGStyle = Style [
     Display DisplayOptions.Block
-    BorderBottom borderProperties
+    BorderBottom Constants.borderProperties
 ]
 
 let waveformColumnRowProps m : IProp list = [

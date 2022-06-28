@@ -973,9 +973,7 @@ let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
 
         let wsSheet = Option.get (getCurrFile model)
         let wsModel = getWSModel model
-        let allWaves =
-            getWaves simData (comps, conns)
-            |> Map.map (generateWaveform wsModel)
+        let allWaves = getWaves simData (comps, conns)
 
         let ramComps =
             List.filter (fun (comp: Component) -> match comp.Type with | RAM1 _ -> true | _ -> false) comps

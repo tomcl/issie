@@ -165,6 +165,7 @@ type WaveSimModel = {
     SelectedRams: Map<ComponentId, string>
     FastSim: FastSimulation
     SearchString: string
+    HoveredLabel: WaveIndexT option
 }
 
 /// TODO: Decide a better number then move to Constants module.
@@ -188,6 +189,7 @@ let initWSModel : WaveSimModel = {
     SelectedRams = Map.empty
     FastSim = FastCreate.emptyFastSimulation ()
     SearchString = ""
+    HoveredLabel = None
 }
 
 type DiagEl = | Comp of Component | Conn of Connection

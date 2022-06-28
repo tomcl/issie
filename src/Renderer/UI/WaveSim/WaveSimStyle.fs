@@ -304,6 +304,14 @@ let labelStyle = Style [
     BorderBottom "1px solid rgb(219,219,219)"
 ]
 
+let nameRowLevelLeftProps (visibility: string): IHTMLProp list = [
+    Style [
+        Position PositionOptions.Sticky
+        Left 0
+        Visibility visibility
+    ]
+]
+
 let ramRowStyle = Style [
     Height Constants.rowHeight
 ]

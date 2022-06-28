@@ -819,13 +819,41 @@ let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : React
 /// and waveRows, as the order of the waves matters here. This is
 /// because the wave viewer is comprised of three columns of many
 /// rows, rather than many rows of three columns.
-let nameRows (wsModel: WaveSimModel) : ReactElement list =
+let nameRows (wsModel: WaveSimModel) dispatch: ReactElement list =
     selectedWaves wsModel
-    |> List.map (fun wave -> label [ labelStyle ] [ str wave.DisplayName ])
+    |> List.map (fun wave ->
+        let visibility =
+            if wsModel.HoveredLabel = Some wave.WaveId then
+                "visible"
+            else "hidden"
+
+        Level.level [
+            Level.Level.Option.Props [
+                labelStyle
+                OnMouseOver (fun _ -> dispatch <| SetWSModel {wsModel with HoveredLabel = Some wave.WaveId} )
+                OnMouseOut (fun _ -> dispatch <| SetWSModel {wsModel with HoveredLabel = None} )
+            ]
+        ] [
+            Level.left [
+                Props (nameRowLevelLeftProps visibility)
+            ] [
+                Delete.delete [
+                    Delete.Option.Size IsSmall
+                    Delete.Option.Props [
+                        OnClick (fun _ ->
+                            let selectedWaves = List.except [wave.WaveId] wsModel.SelectedWaves
+                            dispatch <| SetWSModel {wsModel with SelectedWaves = selectedWaves}
+                        )
+                    ]
+                ] []
+            ]
+            Level.right [] [ label [] [ str wave.DisplayName ] ]
+        ]
+    )
 
 /// Create column of waveform names
-let namesColumn wsModel : ReactElement =
-    let rows = nameRows wsModel
+let namesColumn wsModel dispatch : ReactElement =
+    let rows = nameRows wsModel dispatch
 
     div [ namesColumnStyle ]
         (List.concat [ topRow; rows ])
@@ -910,7 +938,7 @@ let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
 let showWaveforms (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     div [ showWaveformsStyle ]
         [
-            namesColumn wsModel
+            namesColumn wsModel dispatch
             waveformColumn wsModel dispatch
             valuesColumn wsModel
         ]

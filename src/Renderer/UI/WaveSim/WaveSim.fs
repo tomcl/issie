@@ -1024,61 +1024,6 @@ let showWaveforms (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement
             valuesColumn wsModel
         ]
 
-let wsClosedPane (model: Model) (dispatch: Msg -> unit) : ReactElement =
-    let startButtonOptions = [
-        Button.Color IsSuccess
-    ]
-
-    let startButtonAction simData (comps, conns) = fun _ ->
-        FastRun.runFastSimulation Constants.maxLastClk simData.FastSim
-
-        let wsSheet = Option.get (getCurrFile model)
-        let wsModel = getWSModel model
-        let allWaves = getWaves simData (comps, conns)
-
-        let ramComps =
-            List.filter (fun (comp: Component) -> match comp.Type with | RAM1 _ -> true | _ -> false) comps
-            |> List.sortBy (fun ram -> ram.Label)
-
-        let ramCompIds = List.map (fun (ram: Component) -> ComponentId ram.Id) ramComps
-
-        let selectedWaves = List.filter (fun key -> Map.containsKey key allWaves) wsModel.SelectedWaves
-        let selectedRams = Map.filter (fun ramId _ -> List.contains ramId ramCompIds) wsModel.SelectedRams
-
-        let wsModel = {
-            wsModel with
-                State = WSOpen
-                AllWaves = allWaves
-                SelectedWaves = selectedWaves
-                RamComps = ramComps
-                SelectedRams = selectedRams
-                FastSim = simData.FastSim
-        }
-
-        dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
-
-    div [ waveSelectionPaneStyle ]
-        [
-            Heading.h4 [] [ str "Waveform Simulator" ]
-            str "Simulate sequential logic using this tab."
-
-            hr []
-
-            match SimulationView.makeSimData model with
-            | None ->
-                div [ errorMessageStyle ]
-                    [ str "Please open a project to use the waveform simulator." ]
-            | Some (Error e, _) ->
-                div [ errorMessageStyle ]
-                    [ SimulationView.viewSimulationError e ]
-            | Some (Ok simData, reducedState) ->
-                if simData.IsSynchronous then
-                    button startButtonOptions (startButtonAction simData reducedState) (str "Start Waveform Simulator")
-                else
-                    div [ errorMessageStyle ]
-                        [ str "The circuit must contain sequential logic (clocked components) in order to use the waveform simulator." ]
-        ]
-
 let ramTableRow (wsModel: WaveSimModel) (ramId: ComponentId) (memWidth: int) (memData: Map<int64, int64>) (memLoc: int64): ReactElement =
     let data =
         match Map.tryFind memLoc memData with
@@ -1143,8 +1088,48 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
             (List.map (ramTable wsModel) selectedRams)
     else div [] []
 
-/// ReactElement showing instruments and wave sim buttons
-let topHalf (wsModel: WaveSimModel) dispatch : ReactElement =
+let refreshButtonAction model dispatch = fun _ ->
+    let wsSheet = Option.get (getCurrFile model)
+    let wsModel = getWSModel model
+    match SimulationView.makeSimData model with
+    | None ->
+        dispatch <| SetWSModel { wsModel with State = NoProject }
+    | Some (Error e, _) ->
+        dispatch <| SetWSModel { wsModel with State = SimError e }
+    | Some (Ok simData, (comps, conns)) ->
+        if simData.IsSynchronous then
+            FastRun.runFastSimulation Constants.maxLastClk simData.FastSim
+
+            let allWaves =
+                getWaves simData (comps, conns)
+                |> Map.map (generateWaveform wsModel)
+
+            let ramComps =
+                List.filter (fun (comp: Component) -> match comp.Type with | RAM1 _ -> true | _ -> false) comps
+                |> List.sortBy (fun ram -> ram.Label)
+
+            let ramCompIds = List.map (fun (ram: Component) -> ComponentId ram.Id) ramComps
+
+            let selectedWaves = List.filter (fun key -> Map.containsKey key allWaves) wsModel.SelectedWaves
+            let selectedRams = Map.filter (fun ramId _ -> List.contains ramId ramCompIds) wsModel.SelectedRams
+
+            let wsModel = {
+                wsModel with
+                    State = Success
+                    AllWaves = allWaves
+                    SelectedWaves = selectedWaves
+                    RamComps = ramComps
+                    SelectedRams = selectedRams
+                    FastSim = simData.FastSim
+            }
+
+            dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
+        else
+            dispatch <| SetWSModel { wsModel with State = NonSequential }
+
+/// ReactElement showing instructions and wave sim buttons
+let topHalf (model: Model) dispatch : ReactElement =
+    let wsModel = getWSModel model
     div [ topHalfStyle ] [
         br []
         Level.level [] [
@@ -1152,13 +1137,10 @@ let topHalf (wsModel: WaveSimModel) dispatch : ReactElement =
                 Heading.h4 [] [ str "Waveform Simulator" ]
             ]
             Level.right [] [
-                Delete.delete [
-                    Delete.Option.Size IsLarge
-                    Delete.Option.Modifiers [
-                        Modifier.BackgroundColor IsGreyLight
-                    ]
-                    Delete.Option.OnClick (fun _ -> dispatch <| SetWSModel {wsModel with State = WSClosed})
-                ] []
+                Icon.icon [
+                    Icon.Option.Modifiers [ Modifier.IsClickable ]
+                    Icon.Option.Props [ OnClick (refreshButtonAction model dispatch) ]
+                ] [ refreshSvg ]
             ]
         ]
 
@@ -1197,28 +1179,32 @@ let topHalf (wsModel: WaveSimModel) dispatch : ReactElement =
         br []
     ]
 
-let wsOpenPane (wsModel: WaveSimModel) dispatch : ReactElement =
+/// Entry point to the waveform simulator.
+let viewWaveSim (model: Model) dispatch : ReactElement =
+    let wsModel = getWSModel model
     div [ waveSelectionPaneStyle ]
         [
-            topHalf wsModel dispatch
+            topHalf model dispatch
 
-            showWaveforms wsModel dispatch
+            match wsModel.State with
+            | Empty ->
+                div [ errorMessageStyle ]
+                    [ str "Start the waveform simulator by pressing the refresh button." ]
+            | NoProject ->
+                div [ errorMessageStyle ]
+                    [ str "Please open a project to use the waveform simulator." ]
+            | SimError e ->
+                div [ errorMessageStyle ]
+                    [ SimulationView.viewSimulationError e ]
+            | NonSequential ->
+                div [ errorMessageStyle ]
+                    [ str "There is no sequential logic in this circuit." ]
+            | Success ->
+                showWaveforms wsModel dispatch
 
-            hr []
+                hr []
 
-            ramTables wsModel
+                ramTables wsModel
 
             hr []
         ]
-
-/// Entry point to the waveform simulator. This function returns a ReactElement showing
-/// either the WSClosed Pane or the WSOpen pane. The WSClosed Pane allows the user to
-/// start the waveform simulator, or shows an error if there is an error in the circuit.
-/// The WSOpenPane allows the user to view and select waveforms to be simulated.
-let viewWaveSim (model: Model) dispatch : ReactElement =
-    let wsModel = getWSModel model
-    match wsModel.State with
-    | WSClosed ->
-        wsClosedPane model dispatch
-    | WSOpen ->
-        wsOpenPane wsModel dispatch

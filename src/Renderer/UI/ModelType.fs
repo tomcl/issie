@@ -118,10 +118,20 @@ type Sample = | Wire of Wire | StateSample of StateSample
 type SimTime = Sample array
 type Waveform = Sample array
 
-
-type WaveSimState = 
-    | WSClosed
-    | WSOpen
+/// Determines whether the user is able to see the wave viewer pane.
+/// Changes value depending on the state of the circuit and whether
+/// the wave simulator has been run.
+type WaveSimState =
+    /// If the Wave Sim has not been before
+    | Empty
+    /// If no project is open
+    | NoProject
+    /// If there is an error in the circuit diagram
+    | SimError of SimulationError
+    /// If there is no sequential (clocked) logic in the circuit
+    | NonSequential
+    /// If there are no errors in the circuit diagram
+    | Success
 
 type DriverT = {
     DriverId: FComponentId
@@ -178,7 +188,7 @@ type WaveSimModel = {
 let initialWaveformColWidth = int( 1.5 * float (30 * 7)) //rightSectionWidthViewerDefault - namesColMinWidth - valuesColMinWidth
 
 let initWSModel : WaveSimModel = {
-    State = WSClosed
+    State = Empty
     AllWaves = Map.empty
     SelectedWaves = List.empty
     StartCycle = 0

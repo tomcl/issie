@@ -168,6 +168,8 @@ type WaveSimModel = {
     FastSim: FastSimulation
     SearchString: string
     HoveredLabel: WaveIndexT option
+    DraggedIndex: WaveIndexT option
+    PrevSelectedWaves: WaveIndexT list option
 }
 
 /// TODO: Decide a better number then move to Constants module.
@@ -192,6 +194,8 @@ let initWSModel : WaveSimModel = {
     FastSim = FastCreate.emptyFastSimulation ()
     SearchString = ""
     HoveredLabel = None
+    DraggedIndex = None
+    PrevSelectedWaves = None
 }
 
 type DiagEl = | Comp of Component | Conn of Connection

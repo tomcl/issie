@@ -840,16 +840,77 @@ let nameRows (wsModel: WaveSimModel) dispatch: ReactElement list =
 
         Level.level [
             Level.Level.Option.Props [
-                labelStyle
+                nameRowLevelStyle (wsModel.HoveredLabel = Some wave.WaveId)
+
                 OnMouseOver (fun _ ->
-                    dispatch <| SetWSModel {wsModel with HoveredLabel = Some wave.WaveId}
-                    dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [wave.WaveId.Id])))
-                    dispatch <| Sheet (SheetT.Msg.SelectWires wave.Conns)
+                    if wsModel.DraggedIndex = None then
+                        dispatch <| SetWSModel {wsModel with HoveredLabel = Some wave.WaveId}
+                        dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [wave.WaveId.Id])))
+                        dispatch <| Sheet (SheetT.Msg.SelectWires wave.Conns)
                 )
                 OnMouseOut (fun _ ->
                     dispatch <| SetWSModel {wsModel with HoveredLabel = None}
                     dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [])))
                     dispatch <| Sheet (SheetT.Msg.UpdateSelectedWires (wave.Conns, false))
+                )
+
+                Draggable true
+
+                OnDragStart (fun ev ->
+                    ev.dataTransfer.effectAllowed <- "move"
+                    ev.dataTransfer.dropEffect <- "move"
+                    dispatch <| SetWSModel {
+                        wsModel with
+                            DraggedIndex = Some wave.WaveId
+                            PrevSelectedWaves = Some wsModel.SelectedWaves
+                        }
+                )
+
+                OnDrag (fun ev -> 
+                    ev.dataTransfer.dropEffect <- "move"
+                    let nameColEl = Browser.Dom.document.getElementById "namesColumn"
+                    let bcr = nameColEl.getBoundingClientRect ()
+
+                    // If the user drags the label outside the bounds of
+                    // the wave name column
+                    if ev.clientX < bcr.left || ev.clientX > bcr.right ||
+                        ev.clientY < bcr.top || ev.clientY > bcr.bottom
+                    then
+                        // Use wsModel.SelectedValues if somehow PrevSelectedWaves not set
+                        dispatch <| SetWSModel {
+                            wsModel with
+                                HoveredLabel = Some wave.WaveId
+                                SelectedWaves = Option.defaultValue wsModel.SelectedWaves wsModel.PrevSelectedWaves
+                            }
+                )
+
+                OnDragOver (fun ev -> ev.preventDefault ())
+
+                OnDragEnter (fun ev ->
+                    ev.preventDefault ()
+                    ev.dataTransfer.dropEffect <- "move"
+                    let nameColEl = Browser.Dom.document.getElementById "namesColumn"
+                    let bcr = nameColEl.getBoundingClientRect ()
+                    let index = int (ev.clientY - bcr.top) / Constants.rowHeight - 1
+                    let draggedWave =
+                        match wsModel.DraggedIndex with
+                        | Some waveId -> [waveId]
+                        | None -> []
+
+                    let selectedWaves =
+                        wsModel.SelectedWaves
+                        |> List.except draggedWave
+                        |> List.insertManyAt index draggedWave
+
+                    dispatch <| SetWSModel {wsModel with SelectedWaves = selectedWaves}
+                )
+
+                OnDragEnd (fun _ ->
+                    dispatch <| SetWSModel {
+                        wsModel with
+                            DraggedIndex = None
+                            PrevSelectedWaves = None
+                        }
                 )
             ]
         ] [
@@ -867,7 +928,7 @@ let nameRows (wsModel: WaveSimModel) dispatch: ReactElement list =
                 ]
             Level.right
                 [ Props [ Style [ PaddingRight Constants.labelPadding ] ] ]
-                [ label [] [ str wave.DisplayName ] ]
+                [ label [nameLabelStyle (wsModel.HoveredLabel = Some wave.WaveId)] [ str wave.DisplayName ] ]
         ]
     )
 

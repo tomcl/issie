@@ -1,16 +1,11 @@
 module WaveSimStyle
 
-open CommonTypes
 open ModelType
-open DiagramStyle
 open WaveSimHelpers
 
 open Fulma
 open Fable.React
 open Fable.React.Props
-
-// let maxBusValGap = 3
-// let busLabelTextSize = 0.6 // multiplied by signal height
 
 module Constants =
     let namesColWidth = 200
@@ -279,29 +274,6 @@ let clkCycleRightStyle = Style (
         BorderBottomRightRadius "4px"
         BorderLeftWidth "0.5"
     ])
-
-let waveSimButtonsBarStyle = Style [ Height "45px" ]
-
-let upDownDivStyle = Style [
-    Width "100%"
-    Position PositionOptions.Relative
-    Height Constants.rowHeight
-    Float FloatOptions.Left
-]
-
-let upDownButtonStyle = Style [
-    Margin 0
-    Display DisplayOptions.Block
-    Width "100%"
-    Height "50%"
-    Padding "0 0 0 0"
-    Top 0
-    FontSize "40%"
-    Position PositionOptions.Relative
-    BorderColor "gray"
-    BorderWidth "1px"
-    BorderRadius 0
-]
 
 let nameRowLevelStyle isHovered = Style [
     Height Constants.rowHeight

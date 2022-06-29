@@ -2,16 +2,12 @@ module WaveSimHelpers
 
 open Fulma
 open Fable.React
-open Fable.React.Props
 
 open CommonTypes
 open ModelType
-open DiagramStyle
 open FileMenuView
 open SimulatorTypes
 open NumberHelpers
-open DrawModelType
-open Sheet.SheetInterface
 
 /// Determines whether a clock cycle is generated with a vertical bar at the beginning,
 /// denoting that a waveform changes value at the start of that clock cycle. NB this

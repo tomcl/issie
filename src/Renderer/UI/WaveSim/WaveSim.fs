@@ -12,10 +12,6 @@ open FileMenuView
 open SimulatorTypes
 open NumberHelpers
 open DrawModelType
-open Sheet.SheetInterface
-
-// TODO: Move all Style definitions into Style.fs
-// TODO: Combine Style definitions into same variables where possible
 
 /// Generates SVG to display waveform values when there is enough space
 /// TODO: Fix this so it does not generate all 500 cycles.
@@ -396,7 +392,6 @@ let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<WaveInd
 let toggleSelectAll (selected: bool) (wsModel: WaveSimModel) dispatch : unit =
     let selectedWaves = if selected then Map.keys wsModel.AllWaves |> Seq.toList else []
     dispatch <| InitiateWaveSimulation {wsModel with SelectedWaves = selectedWaves}
-    // selectConns model conns dispatch
 
 let selectAll (wsModel: WaveSimModel) dispatch =
     let allWavesSelected = Map.forall (fun index _ -> isWaveSelected wsModel index) wsModel.AllWaves
@@ -422,7 +417,6 @@ let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: M
         else [index] @ wsModel.SelectedWaves
     let wsModel = {wsModel with SelectedWaves = selectedWaves}
     dispatch <| InitiateWaveSimulation wsModel
-    // changeWaveSelection name model waveSimModel dispatch
 
 let toggleSelectSubGroup (wsModel: WaveSimModel) dispatch (selected: bool) (waves: WaveIndexT list) =
     let selectedWaves =
@@ -796,33 +790,6 @@ let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : React
         Tabs.IsToggle
         Tabs.Props [ radixTabsStyle ]
     ] (List.map (radixTab) radixString)
-
-
-// /// change the order of the waveforms in the simulator
-// let private moveWave (model:Model) (wSMod: WaveSimModel) up =
-//     let moveBy = if up then -1.5 else 1.5
-//     let addLastPort arr p =
-//         Array.mapi (fun i el -> if i <> Array.length arr - 1 then el
-//                                 else fst el, Array.append (snd el) [| p |]) arr
-//     let svgCache = wSMod.DispWaveSVGCache
-//     let movedNames =
-//         wSMod.SimParams.DispNames
-//         |> Array.map (fun name -> isWaveSelected model wSMod.AllWaves[name], name)
-//         |> Array.fold (fun (arr, prevSel) (sel,p) -> 
-//             match sel, prevSel with 
-//             | true, true -> addLastPort arr p, sel
-//             | s, _ -> Array.append arr [| s, [|p|] |], s ) ([||], false)
-//         |> fst
-//         |> Array.mapi (fun i (sel, ports) -> if sel
-//                                                then float i + moveBy, ports
-//                                                else float i, ports)
-//         |> Array.sortBy fst
-//         |> Array.collect snd 
-//     setDispNames movedNames wSMod
-//     |> SetWSModel
-
-// let moveWave (wsModel: WaveSimModel) (direction: bool) (dispatch: Msg -> unit) : unit =
-//     ()
 
 /// Create label of waveform name for each selected wave.
 /// Note that this is generated after calling selectedWaves.

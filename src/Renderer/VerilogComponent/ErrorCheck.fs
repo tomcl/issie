@@ -448,6 +448,10 @@ let checkAssignments (ast:VerilogInput) portMap portSizeMap portWidthDeclaration
     List.append errorList localErrors
 /////////////////////////////
 
+
+
+
+
 /// Returns the port-size map (e.g. (port "a" => 4 bits wide))
 let getPortSizeAndLocationMap ast = 
     let items = ast.Module.ModuleItems.ItemList |> Array.toList

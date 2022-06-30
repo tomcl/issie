@@ -496,7 +496,7 @@ let selectWaves (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
         |> List.sortBy (fun wave -> wave.DisplayName)
         |> List.groupBy (fun wave ->
             match wave.Type with
-            | Input _ | Output _ | Constant1 _ ->
+            | Input1 _ | Output _ | Constant1 _ ->
                 InputOutput
             | IOLabel ->
                 WireLabel
@@ -519,7 +519,7 @@ let selectWaves (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
                 Component wave.CompLabel
             | BusSelection _ | MergeWires | SplitWire _ ->
                 failwithf "Bus select, MergeWires, SplitWire should not appear"
-            | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
+            | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
                 failwithf "Legacy component types should not appear"
         )
         |> List.map (fun (compGroup, waves) ->

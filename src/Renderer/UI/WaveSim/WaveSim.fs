@@ -65,7 +65,7 @@ let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): W
     if List.contains index wsModel.SelectedWaves then
         // let waveName = wave.DisplayName
         // printf "generating wave for %A" waveName
-        let polylines =
+        let waveform =
             match wave.Width with
             | 0 -> failwithf "Cannot have wave of width 0"
             | 1 ->
@@ -78,7 +78,8 @@ let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): W
                     |> List.concat
                     |> List.distinct
 
-                [ polyline (wavePolylineStyle wavePoints) [] ]
+                svg (waveRowProps wsModel)
+                    [ polyline (wavePolylineStyle wavePoints) [] ]
             | _ ->
                 let transitions = calculateNonBinaryTransitions wave.WaveValues
                 /// TODO: Fix this so that it does not generate all 500 points.
@@ -96,9 +97,10 @@ let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): W
 
                 let valuesSVG = displayValuesOnWave wsModel wave.WaveValues transitions
 
-                List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG
+                svg (waveRowProps wsModel)
+                    (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG)
 
-        {wave with Polylines = Some polylines}
+        {wave with SVG = Some waveform}
     else wave
 
 /// get string in the [x:x] format given the bit limits
@@ -310,7 +312,7 @@ let makeWave (fastSim: FastSimulation) (netList: Map<ComponentId, NetListCompone
         DisplayName = getName comp index fastSim
         Width =  getFastOutputWidth fastSim.FComps[driverId] driverPort
         WaveValues = waveValues
-        Polylines = None
+        SVG = None
     }
 
 let makeViewerWave (fastSim: FastSimulation) (index: WaveIndexT) (viewer: FastComponent) : Wave =
@@ -333,7 +335,7 @@ let makeViewerWave (fastSim: FastSimulation) (index: WaveIndexT) (viewer: FastCo
         DisplayName = string viewer.SimComponent.Label
         Width =  getFastOutputWidth fastSim.FComps[driverId] driverPort
         WaveValues = waveValues
-        Polylines = None
+        SVG = None
     }
 
 let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<WaveIndexT, Wave> =
@@ -929,20 +931,6 @@ let private valuesColumn wsModel : ReactElement =
     div [ valuesColumnStyle ]
         (List.concat [ topRow; rows ])
 
-/// Generate list of `line` objects which are the background clock lines.
-/// These need to be wrapped by an SVG canvas.
-let backgroundSVG (wsModel: WaveSimModel) : ReactElement list =
-    let clkLine x = 
-        line [
-            clkLineStyle
-            X1 x
-            Y1 0.0
-            X2 x
-            Y2 Constants.viewBoxHeight
-        ] []
-    [ wsModel.StartCycle + 1 .. endCycle wsModel + 1 ] 
-    |> List.map (fun x -> clkLine (float x * singleWaveWidth wsModel))
-
 /// Generate a row of numbers in the waveforms column.
 /// Numbers correspond to clock cycles.
 let clkCycleNumberRow (wsModel: WaveSimModel) =
@@ -953,7 +941,6 @@ let clkCycleNumberRow (wsModel: WaveSimModel) =
 
     [ wsModel.StartCycle .. endCycle wsModel]
     |> List.collect makeClkCycleLabel
-    |> List.append (backgroundSVG wsModel)
     |> svg (clkCycleNumberRowProps wsModel)
 
 /// Generate a column of waveforms corresponding to selected waves.
@@ -966,15 +953,12 @@ let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
     let waveRows : ReactElement list =
         selectedWaves wsModel
         |> List.map (fun wave ->
-            match wave.Polylines with
-                | Some polylines ->
-                    polylines
-                // Maybe this shouldn't fail. Could just return a text element saying no waveform was generated
-                | None ->
-                    printf "no waveform generated for %A" wave.DisplayName
-                    [ div [] [] ]//failwithf "No waveform for selected wave %A" wave.DisplayName
-            |> List.append (backgroundSVG wsModel)
-            |> svg (waveRowProps wsModel)
+            match wave.SVG with
+            | Some waveform ->
+                waveform
+            | None ->
+                printf "no waveform generated for %A" wave.DisplayName
+                div [] []
         )
 
     div [ waveformColumnStyle ]

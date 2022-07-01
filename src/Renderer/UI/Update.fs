@@ -337,7 +337,6 @@ let update (msg : Msg) oldModel =
     | StartSimulation simData -> 
         { model with CurrentStepSimulationStep = Some simData }, Cmd.none
     | SetWSModel wsModel -> 
-        printf "SetWSModel"
         setWSModel wsModel model, Cmd.none
     | SetWSModelAndSheet (wsModel, wsSheet) ->
         let newModel = 
@@ -349,7 +348,6 @@ let update (msg : Msg) oldModel =
             WaveSim = Map.add sheet wsModel model.WaveSim
         }, Cmd.none
     | InitiateWaveSimulation wsModel ->
-        printf "InitiateWaveSimulation"
         let allWaves = Map.map (WaveSim.generateWaveform wsModel) wsModel.AllWaves
         let wsModel' = {wsModel with AllWaves = allWaves}
 

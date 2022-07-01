@@ -63,8 +63,6 @@ let displayValuesOnWave wsModel (waveValues: WireData list) (transitions: NonBin
 /// Generates the polyline(s) for a specific waveform
 let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
     if List.contains index wsModel.SelectedWaves then
-        // let waveName = wave.DisplayName
-        // printf "generating wave for %A" waveName
         let waveform =
             match wave.Width with
             | 0 -> failwithf "Cannot have wave of width 0"
@@ -662,7 +660,6 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
 
     if newClkCycle <= endCycle wsModel then
         if newClkCycle < wsModel.StartCycle then
-            printf "StartCycle: %A" newClkCycle
             dispatch <| InitiateWaveSimulation
                 {wsModel with 
                     StartCycle = newClkCycle
@@ -676,8 +673,6 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
                     ClkCycleBoxIsEmpty = false
                 }
     else
-        printf "StartCycle: %A" (newClkCycle - (wsModel.ShownCycles - 1))
-        printf "CurrClkCycle: %A" newClkCycle
         dispatch <| InitiateWaveSimulation
             {wsModel with
                 StartCycle = newClkCycle - (wsModel.ShownCycles - 1)

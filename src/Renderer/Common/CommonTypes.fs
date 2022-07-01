@@ -310,7 +310,8 @@ module CommonTypes
 
     // Types instantiating objects in the Digital extension.
     type ComponentType =
-        | Input of BusWidth: int | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel 
+        | Input of BusWidth: int // Legacy component: to be deleted
+        | Input1 of BusWidth: int * DefaultValue: int option | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel 
         | BusCompare of BusWidth: int * CompareValue: uint32
         | BusSelection of OutputWidth: int * OutputLSBit: int
         | Constant of Width: int * ConstValue: int64 
@@ -618,8 +619,8 @@ module CommonTypes
     type SavedWaveInfo = {
         SelectedWaves: WaveIndexT list option
         Radix: NumberBase option
-        ZoomLevelIndex: int option
         WaveformColumnWidth: int option
+        ShownCycles: int option
         SelectedRams: Map<ComponentId, string> option
 
         ClkWidth: float option

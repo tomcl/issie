@@ -135,8 +135,7 @@ let formatLabelAsBus (width:int) (text:string) =
 let formatLabelFromType compType (text:string) =
     let text' = extractLabelBase text
     match compType with
-    | Input 1 | Output 1 -> text'
-    //| Input width | Output width -> sprintf "%s(%d:%d)" text' (width-1) 0
+    | Input1 (1, _) | Output 1 -> text'
     | _ -> text'
 
 
@@ -396,6 +395,46 @@ let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) (wi
                     setPopupTwoInts(SecondInt, Some text) n)
             ]
         ]
+
+/// Create the body of a dialog Popup with text and two ints.
+let dialogPopupBodyTextAndTwoInts (beforeText, textPlaceholder) (beforeInt1,beforeInt2) (intDefault1,intDefault2) dispatch =
+
+    let setPopupTwoInts (whichInt:IntMode, optText) =
+        fun (n:int64) -> (Some n, whichInt, optText) |> SetPopupDialogTwoInts |> dispatch
+
+    setPopupTwoInts (FirstInt,None) (int64 intDefault1)
+    setPopupTwoInts (SecondInt, None) intDefault2 
+
+    fun (dialogData : PopupDialogData) ->
+        div [] [
+            beforeText dialogData
+            br []
+            Input.text [
+                Input.Props [OnPaste preventDefault; AutoFocus true; SpellCheck false]
+                Input.Placeholder textPlaceholder
+                Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
+            ]
+
+            beforeInt1 dialogData
+            br []
+            Input.number [
+                Input.Props [OnPaste preventDefault; Style [Width "60px"]; AutoFocus true]
+                Input.DefaultValue <| sprintf "%d" intDefault1
+                Input.OnChange (getIntEventValue >> int64 >> setPopupTwoInts (FirstInt,None))
+            ]
+            br []
+            beforeInt2 dialogData
+            br []
+            Input.text [
+                Input.Props [OnPaste preventDefault; Style [Width "60px"]; AutoFocus true]
+                Input.DefaultValue <| sprintf "%d" intDefault2
+                Input.OnChange (fun ev ->
+                    let text = getTextEventValue ev
+                    let n = getInt64EventValue ev
+                    setPopupTwoInts(SecondInt, Some text) n)
+            ]
+        ]
+
 
 /// Create the body of a dialog Popup with both text and int.
 let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch =

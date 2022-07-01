@@ -60,7 +60,7 @@ let getPortNumbers (sc: SimulationComponent) =
         match sc.Type with
         | Constant1 _ | Constant _ ->
             0,1
-        | Input _
+        | Input1 _
         | Output _
         | Viewer _ 
         | BusSelection _
@@ -101,6 +101,7 @@ let getPortNumbers (sc: SimulationComponent) =
         | Not | And | Or | Xor | Nand | Nor | Xnor -> 2,1
         | Custom _ -> failwithf "Custom components should not occur in fast simulation"
         | AsyncROM _ | RAM _ | ROM _ -> failwithf "legacy component type is not supported"
+        | Input _ -> failwithf "Legacy Input component types should never occur"
 
     ins, outs
 
@@ -114,7 +115,8 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     match sc.Type with
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
-    | Input w
+    | Input _ -> failwithf "Legacy Input component types should never occur"
+    | Input1 (w, _)
     | Output w
     | Viewer w
     | Register w
@@ -178,7 +180,7 @@ let createFastComponent (numSteps: int) (sComp: SimulationComponent) (accessPath
         let dat =
             match accessPath, sComp.Type with
             // top-level input needs special inputs because they can't be calculated
-            | [], Input width -> List.replicate width Zero
+            | [], Input1 (width, defaultVal) -> List.replicate width Zero
             | _ -> []
 
         [| 0 .. inPortNum - 1 |]
@@ -248,7 +250,7 @@ let extendFastComponent (numSteps: int) (fc: FastComponent) =
         // Input inputs at top level are a special case not mapped to outputs.
         // They must be separately extended.
         match fc.FType, fc.AccessPath with
-        | Input _, [] -> extendArray fc.InputLinks[0] fc.InputLinks[0].Step[oldNumSteps - 1]
+        | Input1 _, [] -> extendArray fc.InputLinks[0] fc.InputLinks[0].Step[oldNumSteps - 1]
         | _ -> ()
 
         [| 0 .. outPortNum - 1 |]
@@ -314,7 +316,7 @@ let rec private createFlattenedSimulation (ap: ComponentId list) (graph: Simulat
                         (fun comp ->
                             (comp.Label,
                                 match comp.Type with
-                                | Input n -> n
+                                | Input1 (n, _) -> n
                                 | Output n -> n
                                 | _ -> -1),
                             comp.Id)

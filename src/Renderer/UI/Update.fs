@@ -332,7 +332,8 @@ let update (msg : Msg) oldModel =
     | SetDragMode mode -> {model with DividerDragMode= mode}, Cmd.none
     | SetViewerWidth w ->
         {model with WaveSimViewerWidth = w}, Cmd.none
-    | ReloadSelectedComponent width -> {model with LastUsedDialogWidth=width}, Cmd.none
+    | ReloadSelectedComponent width ->
+        {model with LastUsedDialogWidth=width}, Cmd.none
     | StartSimulation simData -> 
         { model with CurrentStepSimulationStep = Some simData }, Cmd.none
     | SetWSModel wsModel -> 
@@ -363,8 +364,9 @@ let update (msg : Msg) oldModel =
         let simData = getSimulationDataOrFail model "IncrementSimulationClockTick"
         { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber + n } |> Ok |> Some }, Cmd.none
     | EndSimulation ->
-        let wsModel =  {WaveSimHelpers.getWSModel model with State = WSClosed }
-        { setWSModel wsModel model with CurrentStepSimulationStep = None }, Cmd.none
+        { model with CurrentStepSimulationStep = None }, Cmd.none
+    | EndWaveSim -> 
+        { model with WaveSim = Map.empty; WaveSimSheet = ""}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editCmds = [inferMsg; ClosePropertiesNotification] |> List.map Cmd.ofMsg

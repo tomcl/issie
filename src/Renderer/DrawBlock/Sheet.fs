@@ -93,6 +93,9 @@ module SheetInterface =
         member this.ChangeLSB (dispatch: Dispatch<Msg>) (compId: ComponentId) (lsb: int64) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeLsb (compId, lsb) ) ) )
 
+        member this.ChangeInputValue (dispatch: Dispatch<Msg>) (compId: ComponentId) (newVal: int) =
+            dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeInputValue (compId, newVal))))
+
         /// Return Some string if Sheet / BusWire / Symbol has a notification, if there is none then return None
         member this.GetNotifications =
             // Currently only BusWire has notifications
@@ -144,8 +147,6 @@ module SheetInterface =
         /// Update the memory of component specified by connId at location addr with data value
         member this.WriteMemoryLine dispatch connId addr value =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.WriteMemoryLine (connId, addr, value))))
-
-
 
 //-------------------------------------------------------------------------------------------------//
 // ------------------------------------------- Helper Functions ------------------------------------------- //
@@ -610,8 +611,9 @@ let emptySnap: SnapXY =
 /// snap to each other.
 let symbolMatch (symbol: SymbolT.Symbol) =
     match symbol.Component.Type with
-    | Input _ | Output _| IOLabel -> 
-        Input 0
+    | Input _ // legacy component - to be deleted
+    | Input1 _ | Output _| IOLabel -> 
+        Input1 (0, None)
 
     | BusCompare _
     | BusSelection _ -> 

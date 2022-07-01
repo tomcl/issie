@@ -1,16 +1,11 @@
 module WaveSimStyle
 
-open CommonTypes
 open ModelType
-open DiagramStyle
 open WaveSimHelpers
 
 open Fulma
 open Fable.React
 open Fable.React.Props
-
-// let maxBusValGap = 3
-// let busLabelTextSize = 0.6 // multiplied by signal height
 
 module Constants =
     let namesColWidth = 200
@@ -20,12 +15,16 @@ module Constants =
     let rightMargin = 50
 
     let rowHeight = 30
-    let clkLineWidth = 0.0125
-    let lineThickness : float = 0.025
+    let clkLineWidth = 0.4
+    let lineThickness : float = 0.8
 
-    let fontSizeValueOnWave = "0.3px"
+    let fontSizeValueOnWave = "10px"
     let valueOnWaveText = { DrawHelpers.defaultText with FontSize = fontSizeValueOnWave }
-    let valueOnWavePadding = 10.0
+    let valueOnWavePadding = 150.0
+
+    let borderProperties = "2px solid rgb(219,219,219)"
+
+    let labelPadding = 3
 
 let topRowStyle = Style [
     Height Constants.rowHeight
@@ -204,8 +203,8 @@ let zoomInSVG =
 
 let valueOnWaveProps m i start width : IProp list =
     [
-        X (float start * (zoomLevel m) + Constants.nonBinaryTransLen + float i * width)
-        Y 0.6
+        X (float start * (singleWaveWidth m) + Constants.nonBinaryTransLen + float i * width)
+        Y (0.6 * Constants.viewBoxHeight)
         Style [
             FontSize Constants.fontSizeValueOnWave
         ]
@@ -276,49 +275,42 @@ let clkCycleRightStyle = Style (
         BorderLeftWidth "0.5"
     ])
 
-let waveSimButtonsBarStyle = Style [ Height "45px" ]
-
-let upDownDivStyle = Style [
-    Width "100%"
-    Position PositionOptions.Relative
-    Height Constants.rowHeight
-    Float FloatOptions.Left
-]
-
-let upDownButtonStyle = Style [
-    Margin 0
-    Display DisplayOptions.Block
-    Width "100%"
-    Height "50%"
-    Padding "0 0 0 0"
-    Top 0
-    FontSize "40%"
-    Position PositionOptions.Relative
-    BorderColor "gray"
-    BorderWidth "1px"
-    BorderRadius 0
-]
-
-let labelStyle = Style [
+let nameRowLevelStyle isHovered = Style [
     Height Constants.rowHeight
     BorderBottom "1px solid rgb(219,219,219)"
+    if isHovered then
+        BackgroundColor "hsl(0, 0%, 96%)"
+        Cursor "grab"
+]
+
+let nameLabelStyle isHovered = Style [
+    if isHovered then
+        Cursor "grab"
+]
+
+let valueLabelStyle = Style [
+    Height Constants.rowHeight
+    BorderBottom "1px solid rgb(219,219,219)"
+    PaddingLeft Constants.labelPadding
+]
+
+let nameRowLevelLeftProps (visibility: string): IHTMLProp list = [
+    Style [
+        Position PositionOptions.Sticky
+        Left 0
+        Visibility visibility
+    ]
 ]
 
 let ramRowStyle = Style [
     Height Constants.rowHeight
+    BorderBottom "1px solid rgb(219,219,219)"
 ]
-
-let borderProperties = "2px solid rgb(219,219,219)"
-
-let colWidth width =
-    match width with
-    | Some x -> string x
-    | None -> "100%"
 
 let waveSimColumn = [
     Height "100%"
     Width "100%"
-    BorderTop borderProperties
+    BorderTop Constants.borderProperties
     Display DisplayOptions.Grid
     GridAutoRows Constants.rowHeight
     FontSize "12px"
@@ -331,16 +323,21 @@ let namesColumnStyle = Style (
     (waveSimColumn) @ [
         MinWidth Constants.namesColWidth
         Float FloatOptions.Left
-        BorderRight borderProperties
+        BorderRight Constants.borderProperties
         GridColumnStart 1
         TextAlign TextAlignOptions.Right
     ])
+
+let namesColumnProps : IHTMLProp list = [
+    Id "namesColumn"
+    namesColumnStyle
+]
 
 let valuesColumnStyle = Style (
     (waveSimColumn) @ [
         MinWidth Constants.valuesColWidth
         Float FloatOptions.Right
-        BorderLeft borderProperties
+        BorderLeft Constants.borderProperties
         GridColumnStart 3
     ])
 
@@ -355,7 +352,7 @@ let waveRowsStyle width = Style [
     Display DisplayOptions.Grid
     FontSize "12px"
     GridAutoRows Constants.rowHeight
-    BorderTop borderProperties
+    BorderTop Constants.borderProperties
     Width width
     GridColumnStart 1
     GridRowStart 1
@@ -382,22 +379,21 @@ let clkLineStyle = Style [
     StrokeWidth Constants.clkLineWidth
 ]
 
-let clkCycleText m i : IProp list =
-    [
-        SVGAttr.FontSize "3.5%"
-        SVGAttr.TextAnchor "middle"
-        X (zoomLevel m * (float i + 0.5))
-        Y 0.65
-    ]
+let clkCycleText m i : IProp list = [
+    SVGAttr.FontSize "12px"
+    SVGAttr.TextAnchor "middle"
+    X (singleWaveWidth m * (float i + 0.5))
+    Y (0.6 * Constants.viewBoxHeight)
+]
 
 let clkCycleSVGStyle = Style [
     Display DisplayOptions.Block
-    BorderBottom borderProperties
+    BorderBottom Constants.borderProperties
 ]
 
 let waveformColumnRowProps m : IProp list = [
     SVGAttr.Height Constants.rowHeight
-    SVGAttr.Width (float (shownCycles m) * singleWaveWidth m)
+    SVGAttr.Width (viewBoxWidth m)
     // min-x, min-y, width, height
     ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string Constants.viewBoxHeight)
     PreserveAspectRatio "none"
@@ -427,7 +423,7 @@ let clkCycleHighlightSVG m dispatch =
             GridRowStart 1
         ]
         SVGAttr.Height (string ((count + 1) * Constants.rowHeight) + "px")
-        SVGAttr.Width (float (shownCycles m) * singleWaveWidth m)
+        SVGAttr.Width (viewBoxWidth m)
         SVGAttr.Fill "rgb(230,230,230)"
         SVGAttr.Opacity 0.4
         ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string (Constants.viewBoxHeight * float (count + 1)))
@@ -435,18 +431,19 @@ let clkCycleHighlightSVG m dispatch =
         OnClick (fun ev ->
             let svgEl = Browser.Dom.document.getElementById "ClkCycleHighlight"
             let bcr = svgEl.getBoundingClientRect ()
-            let cycleWidth = bcr.width / float (shownCycles m)
+            /// Should be the same as singleWaveWidth
+            let cycleWidth = bcr.width / float m.ShownCycles
             /// ev.clientX is X-coord of mouse click. bcr.left is x-coord of start of SVG.
             /// getBoundingClientRect only works if ViewBox is 0 0 width height, so
             /// add m.StartCycle to account for when viewBoxMinX is not 0
-            let cycle = (int <| (ev.clientX - bcr.left) / cycleWidth) + m.StartCycle
+            let cycle = (int <| (ev.clientX - bcr.left) / singleWaveWidth m) + m.StartCycle
             dispatch <| SetWSModel {m with CurrClkCycle = cycle}
         )
     ] [
         rect [
-            SVGAttr.Width (zoomLevel m)
+            SVGAttr.Width (singleWaveWidth m)
             SVGAttr.Height "100%"
-            X (float m.CurrClkCycle * zoomLevel m)
+            X (float m.CurrClkCycle * (singleWaveWidth m))
         ] []
     ]
 
@@ -494,3 +491,21 @@ let topHalfStyle = Style [
     BackgroundColor "white"
     ZIndex 10000
 ]
+
+let refreshSvg =
+    svg [
+            ViewBox "0 0 512 512"
+            SVGAttr.Height "30"
+        ] [
+            path [
+                D "M496 48V192c0 17.69-14.31 32-32 32H320c-17.69 0-32-14.31-32-32s14.31-32
+                32-32h63.39c-29.97-39.7-77.25-63.78-127.6-63.78C167.7 96.22 96 167.9 96 256s71.69
+                159.8 159.8 159.8c34.88 0 68.03-11.03 95.88-31.94c14.22-10.53 34.22-7.75 44.81
+                6.375c10.59 14.16 7.75 34.22-6.375 44.81c-39.03 29.28-85.36 44.86-134.2 44.86C132.5
+                479.9 32 379.4 32 256s100.5-223.9 223.9-223.9c69.15 0 134 32.47 176.1 86.12V48c0-17.69
+                14.31-32 32-32S496 30.31 496 48z"
+                Style [
+                    Fill "black"
+                ]
+            ] []
+        ]

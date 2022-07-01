@@ -23,7 +23,7 @@ let private isValidData (fd: FastData) = fd <> emptyFastData
 /// True if the component is combinational
 let inline isComb (comp: FastComponent) =
     match comp.FType with
-    | Input _ when comp.AccessPath = [] -> false
+    | Input1 _ when comp.AccessPath = [] -> false
     | AsyncRAM1 _ -> true
     | ct when couldBeSynchronousComponent ct -> false
     | _ -> true
@@ -96,10 +96,20 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
         propagateEval fc
 
     let initInput (fc: FastComponent) =
+        let inputVal : uint32 =
+            match fc.FType with
+            | Input1 (w, defaultVal) ->
+                match defaultVal with
+                | Some defaultVal -> defaultVal
+                | None -> 0
+            | _ ->
+                printf "non-input type component in initInput"
+                0
+            |> uint32
         //printfn "Init input..."
         fc.InputLinks[0].Step
         |> Array.iteri
-            (fun i _ -> fc.InputLinks[0].Step[i] <- (convertIntToFastData (Option.defaultValue 1 fc.OutputWidth[0]) 0u))
+            (fun i _ -> fc.InputLinks[0].Step[i] <- (convertIntToFastData (Option.defaultValue 1 fc.OutputWidth[0]) inputVal))
         //printfn "Initialised input: %A" fc.InputLinks
         fastReduce fs.MaxArraySize 0 false fc
         fc.Touched <- true

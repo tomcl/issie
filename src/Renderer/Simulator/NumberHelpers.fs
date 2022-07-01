@@ -202,7 +202,7 @@ let private countBits (num : int64) : int =
     (String.length <| bin64 num) - 2
 
 /// Check a number is formed by at most <width> bits.
-let rec private checkWidth (width : int) (num : int64) : string option =
+let rec checkWidth (width : int) (num : int64) : string option =
     if num < 0L then
         checkWidth width <| (-num) - 1L
     else    

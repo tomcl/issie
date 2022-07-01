@@ -121,10 +121,20 @@ type Sample = | Wire of Wire | StateSample of StateSample
 type SimTime = Sample array
 type Waveform = Sample array
 
-
-type WaveSimState = 
-    | WSClosed
-    | WSOpen
+/// Determines whether the user is able to see the wave viewer pane.
+/// Changes value depending on the state of the circuit and whether
+/// the wave simulator has been run.
+type WaveSimState =
+    /// If the Wave Sim has not been before
+    | Empty
+    /// If no project is open
+    | NoProject
+    /// If there is an error in the circuit diagram
+    | SimError of SimulationError
+    /// If there is no sequential (clocked) logic in the circuit
+    | NonSequential
+    /// If there are no errors in the circuit diagram
+    | Success
 
 type DriverT = {
     DriverId: FComponentId
@@ -140,6 +150,8 @@ type Wave = {
     // unique within design sheet (SheetId)
     // [] for top-level waveform: path to sheet
     SheetId: ComponentId list
+    // Wires connected to this waveform
+    Conns: ConnectionId list
     // This is used to key the AllWaves map, since this is guaranteed to be unique.
     Driver: DriverT
     DisplayName: string
@@ -161,14 +173,16 @@ type WaveSimModel = {
     CurrClkCycle: int
     ClkCycleBoxIsEmpty: bool
     Radix: NumberBase
-    ZoomLevelIndex: int
     WaveformColumnWidth: int
     WaveModalActive: bool
     RamModalActive: bool
-    RamComponents: Component list
+    RamComps: Component list
     SelectedRams: Map<ComponentId, string>
     FastSim: FastSimulation
     SearchString: string
+    HoveredLabel: WaveIndexT option
+    DraggedIndex: WaveIndexT option
+    PrevSelectedWaves: WaveIndexT list option
 }
 
 /// TODO: Decide a better number then move to Constants module.
@@ -177,7 +191,7 @@ type WaveSimModel = {
 let initialWaveformColWidth = int( 1.5 * float (30 * 7)) //rightSectionWidthViewerDefault - namesColMinWidth - valuesColMinWidth
 
 let initWSModel : WaveSimModel = {
-    State = WSClosed
+    State = Empty
     AllWaves = Map.empty
     SelectedWaves = List.empty
     StartCycle = 0
@@ -185,14 +199,16 @@ let initWSModel : WaveSimModel = {
     CurrClkCycle = 0
     ClkCycleBoxIsEmpty = false
     Radix = Hex
-    ZoomLevelIndex = 9
     WaveformColumnWidth = initialWaveformColWidth
     WaveModalActive = false
     RamModalActive = false
-    RamComponents = []
+    RamComps = []
     SelectedRams = Map.empty
     FastSim = FastCreate.emptyFastSimulation ()
     SearchString = ""
+    HoveredLabel = None
+    DraggedIndex = None
+    PrevSelectedWaves = None
 }
 
 type DiagEl = | Comp of Component | Conn of Connection
@@ -238,6 +254,7 @@ type Msg =
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick of int
     | EndSimulation
+    | EndWaveSim
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list
@@ -460,8 +477,8 @@ let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
     {
         SelectedWaves = Some wsModel.SelectedWaves
         Radix = Some wsModel.Radix
-        ZoomLevelIndex = Some wsModel.ZoomLevelIndex
         WaveformColumnWidth = Some wsModel.WaveformColumnWidth
+        ShownCycles = Some wsModel.ShownCycles
         SelectedRams = Some wsModel.SelectedRams
 
         // The following fields are from the old waveform simulator.
@@ -481,8 +498,8 @@ let loadWSModelFromSavedWaveInfo (swInfo: SavedWaveInfo) : WaveSimModel =
         initWSModel with
             SelectedWaves = Option.defaultValue initWSModel.SelectedWaves swInfo.SelectedWaves
             Radix = Option.defaultValue initWSModel.Radix swInfo.Radix
-            ZoomLevelIndex = Option.defaultValue initWSModel.ZoomLevelIndex swInfo.ZoomLevelIndex
             WaveformColumnWidth = Option.defaultValue initWSModel.WaveformColumnWidth swInfo.WaveformColumnWidth
+            ShownCycles = Option.defaultValue initWSModel.ShownCycles swInfo.ShownCycles
             SelectedRams = Option.defaultValue initWSModel.SelectedRams swInfo.SelectedRams
     }
 

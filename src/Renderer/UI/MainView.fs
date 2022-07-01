@@ -232,31 +232,29 @@ let displayView model dispatch =
     /// Feed changed viewer width from draggable bar back to Viewer parameters TODO
     let inline setViewerWidthInWaveSim w =
         let wsModel = getWSModel model
-        if wsModel.State = WSOpen then
-            dispatch <| SetViewerWidth w
+        dispatch <| SetViewerWidth w
 
-            /// Unsure of why there needs to be 2* in front of dividerBarWidth... but it seems to work.
-            let otherDivWidths = Constants.leftMargin + Constants.rightMargin + 2 * Constants.dividerBarWidth
+        /// Unsure of why there needs to be 2* in front of dividerBarWidth... but it seems to work.
+        let otherDivWidths = Constants.leftMargin + Constants.rightMargin + 2 * Constants.dividerBarWidth
 
-            let waveColWidth = w - otherDivWidths - Constants.namesColWidth - Constants.valuesColWidth
-            let wholeCycles = waveColWidth / int (singleWaveWidth wsModel)
-            let wholeCycleWidth = wholeCycles * int (singleWaveWidth wsModel)
+        /// Require at least one visible clock cycle
+        let waveColWidth = max (int (singleWaveWidth wsModel)) (w - otherDivWidths - Constants.namesColWidth - Constants.valuesColWidth)
+        let wholeCycles = waveColWidth / int (singleWaveWidth wsModel)
+        let wholeCycleWidth = wholeCycles * int (singleWaveWidth wsModel)
 
-            let viewerWidth = Constants.namesColWidth + Constants.valuesColWidth + wholeCycleWidth + otherDivWidths
+        let viewerWidth = Constants.namesColWidth + Constants.valuesColWidth + wholeCycleWidth + otherDivWidths
 
-            let wsModel = {
-                wsModel with
-                    ShownCycles = wholeCycles
-                    WaveformColumnWidth = wholeCycleWidth
-                }
-            dispatch <| SetWSModel wsModel
-            // printf "dispatch in setViewerWidthInWaveSim"
-            printf "viewerWidth: %A" viewerWidth
-            dispatch <| SetViewerWidth viewerWidth
-            // dispatch <| SetViewerWidth w
+        let wsModel = {
+            wsModel with
+                ShownCycles = wholeCycles
+                WaveformColumnWidth = wholeCycleWidth
+            }
+        dispatch <| SetWSModel wsModel
+        // printf "dispatch in setViewerWidthInWaveSim"
+        printf "viewerWidth: %A" viewerWidth
+        dispatch <| SetViewerWidth viewerWidth
+        // dispatch <| SetViewerWidth w
 
-        else
-            dispatch <| SetViewerWidth w
 
 
     let inline processAppClick topMenu dispatch (ev: Browser.Types.MouseEvent) =

@@ -157,7 +157,7 @@ type Wave = {
     // Map keyed by clock cycle
     WaveValues: WireData list
     // Store SVG cache here maybe?
-    Polylines: ReactElement list option
+    SVG: ReactElement option
 }
 
 type WaveSimModel = {

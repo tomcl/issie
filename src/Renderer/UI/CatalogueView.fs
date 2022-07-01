@@ -430,7 +430,7 @@ let rec private createVerilogPopup model dispatch =
                 let output = Json.parseAs<ParserOutput> parsedCode
                 if isNullOrUndefined output.Error then
                     let result = Option.get output.Result
-                    // printfn "Input AST: %s" result
+                    printfn "Input AST: %s" result
                     let fixedAST = fix result
                     let linesIndex = Option.get output.NewLinesIndex |> Array.toList
                     printfn "NewLinesIndex: %A" linesIndex

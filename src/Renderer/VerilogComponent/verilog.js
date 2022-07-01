@@ -35,8 +35,8 @@
         {"name": "PARAM_ASSIGNMENT", "symbols": ["IDENTIFIER", "_", {"literal":"="}, "_", "NUMBER"], "postprocess": function(d) {return {Type: "parameter_assignment", Identifier: d[0], RHS: d[4]};}},
         {"name": "STATEMENT", "symbols": ["assign", "__", "ASSIGNMENT", "_", {"literal":";"}], "postprocess": function(d) {return {Type: "statement", StatementType: "assign", Assignment: d[2]};}},
         {"name": "STATEMENT", "symbols": ["wire", "__", "WIRE_ASSIGNMENT", "_", {"literal":";"}], "postprocess": function(d) {return {Type: "statement", StatementType: "wire", Assignment: d[2]};}},
-        {"name": "ASSIGNMENT", "symbols": ["L_VALUE", "_", {"literal":"="}, "_", "EXPRESSION"], "postprocess": function(d) {return {Type: "assignment", LHS: d[0], RHS: d[4]};}},
-        {"name": "WIRE_ASSIGNMENT", "symbols": ["WIRE_L_VALUE", "_", {"literal":"="}, "_", "EXPRESSION"], "postprocess": function(d) {return {Type: "wire_assignment", LHS: d[0], RHS: d[4]};}},
+        {"name": "ASSIGNMENT", "symbols": ["L_VALUE", "_", {"literal":"="}, "_", "EXPRESSION"], "postprocess": function(d) {return {Type: "assign", LHS: d[0], RHS: d[4]};}},
+        {"name": "WIRE_ASSIGNMENT", "symbols": ["WIRE_L_VALUE", "_", {"literal":"="}, "_", "EXPRESSION"], "postprocess": function(d) {return {Type: "wire", LHS: d[0], RHS: d[4]};}},
         {"name": "WIRE_L_VALUE", "symbols": ["IDENTIFIER"], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier", BitsStart: null, BitsEnd: null, Primary: d[0]};}},
         {"name": "WIRE_L_VALUE", "symbols": [{"literal":"["}, "UNSIGNED_NUMBER", {"literal":":"}, "UNSIGNED_NUMBER", {"literal":"]"}, "_", "IDENTIFIER"], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: d[1], BitsEnd: d[3], Primary: d[6]};}},
         {"name": "L_VALUE", "symbols": ["IDENTIFIER"], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier", BitsStart: null, BitsEnd: null, Primary: d[0]};}},
@@ -51,13 +51,13 @@
         {"name": "LOGICAL_AND", "symbols": ["BITWISE_OR"], "postprocess": id},
         {"name": "BITWISE_OR", "symbols": ["BITWISE_XOR", "_", {"literal":"|"}, "_", "BITWISE_OR"], "postprocess": function(d) {return {Type: "bitwise_OR", Operator:d[2], Head: d[0], Tail: d[4]};}},
         {"name": "BITWISE_OR", "symbols": ["BITWISE_XOR"], "postprocess": id},
-        {"name": "BITWISE_XOR", "symbols": ["BITWISE_AND", "_", "XOR_XNOR_OPERATOR", "_", "BITWISE_XOR"], "postprocess": function(d) {return {Type: "bitwise_XOR", Operator:d[2], Head: d[0], Tail: d[4]};}},
+        {"name": "BITWISE_XOR", "symbols": ["BITWISE_AND", "_", "XOR_XNOR_OPERATOR", "_", "BITWISE_XOR"], "postprocess": function(d) {return {Type: "bitwise_XOR", Operator:d[2][0], Head: d[0], Tail: d[4]};}},
         {"name": "BITWISE_XOR", "symbols": ["BITWISE_AND"], "postprocess": id},
         {"name": "BITWISE_AND", "symbols": ["LOGICAL_SHIFT", "_", {"literal":"&"}, "_", "BITWISE_AND"], "postprocess": function(d) {return {Type: "bitwise_AND", Operator:d[2], Head: d[0], Tail: d[4]};}},
         {"name": "BITWISE_AND", "symbols": ["LOGICAL_SHIFT"], "postprocess": id},
-        {"name": "LOGICAL_SHIFT", "symbols": ["ADDITIVE", "_", "SHIFT_OPERATOR", "_", "LOGICAL_SHIFT"], "postprocess": function(d) {return {Type: "logical_SHIFT", Operator:d[2], Head: d[0], Tail: d[4]};}},
+        {"name": "LOGICAL_SHIFT", "symbols": ["ADDITIVE", "_", "SHIFT_OPERATOR", "_", "LOGICAL_SHIFT"], "postprocess": function(d) {return {Type: "logical_SHIFT", Operator:d[2][0], Head: d[0], Tail: d[4]};}},
         {"name": "LOGICAL_SHIFT", "symbols": ["ADDITIVE"], "postprocess": id},
-        {"name": "ADDITIVE", "symbols": ["REDUCTION_OR_NEGATION", "_", "ADDITIVE_OPERATOR", "_", "ADDITIVE"], "postprocess": function(d) {return {Type: "additive", Operator:d[2], Head: d[0], Tail: d[4]};}},
+        {"name": "ADDITIVE", "symbols": ["REDUCTION_OR_NEGATION", "_", "ADDITIVE_OPERATOR", "_", "ADDITIVE"], "postprocess": function(d) {return {Type: "additive", Operator:d[2][0], Head: d[0], Tail: d[4]};}},
         {"name": "ADDITIVE", "symbols": ["REDUCTION_OR_NEGATION"], "postprocess": id},
         {"name": "REDUCTION_OR_NEGATION", "symbols": ["UNARY_OPERATOR", "_", "UNARY"], "postprocess": function(d) {return {Type: "reduction", Operator:d[0][0], Unary: d[2]};}},
         {"name": "REDUCTION_OR_NEGATION", "symbols": [{"literal":"~"}, "_", "UNARY"], "postprocess": function(d) {return {Type: "negation", Operator: "~", Unary: d[2]};}},
@@ -131,8 +131,10 @@
         {"name": "PRIMARY", "symbols": ["IDENTIFIER", "_", {"literal":"["}, "UNSIGNED_NUMBER", {"literal":"]"}], "postprocess": function(d) {return {Type: "primary", PrimaryType: "identifier_bit", BitsStart: d[3], BitsEnd: d[3], Primary: d[0]};}},
         {"name": "PRIMARY", "symbols": ["IDENTIFIER", "_", {"literal":"["}, "UNSIGNED_NUMBER", {"literal":":"}, "UNSIGNED_NUMBER", {"literal":"]"}], "postprocess": function(d) {return {Type: "primary", PrimaryType: "identifier_bits", BitsStart: d[3], BitsEnd: d[5], Primary: d[0]};}},
         {"name": "NUMBER", "symbols": ["UNSIGNED_NUMBER"], "postprocess": function(d,l,reject) {return {Type: "number", NumberType: "decimal", Bits: null, Base: null, UnsignedNumber: d[0], AllNumber: null, Location: l};}},
-        {"name": "NUMBER", "symbols": ["UNSIGNED_NUMBER", "BASE", "ALL_NUMERIC"], "postprocess": function(d,l,reject) {return {Type: "number", NumberType: "all", Bits: d[0], Base: d[1][0], UnsignedNumber: null, AllNumber: d[2], Location: l};}},
-        {"name": "NUMBER", "symbols": ["BASE", "ALL_NUMERIC"], "postprocess": function(d,l,reject) {return {Type: "number", NumberType: "all", Bits: "32", Base: d[0][0], UnsignedNumber: null, AllNumber: d[1], Location: l};}},
+        {"name": "NUMBER$string$1", "symbols": [{"literal":"'"}, {"literal":"h"}], "postprocess": function joiner(d) {return d.join('');}},
+        {"name": "NUMBER", "symbols": ["UNSIGNED_NUMBER", "NUMBER$string$1", "ALL_NUMERIC"], "postprocess": function(d,l,reject) {return {Type: "number", NumberType: "all", Bits: d[0], Base: "'h", UnsignedNumber: null, AllNumber: d[2], Location: l};}},
+        {"name": "NUMBER$string$2", "symbols": [{"literal":"'"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
+        {"name": "NUMBER", "symbols": ["UNSIGNED_NUMBER", "NUMBER$string$2", "BINARY_NUMBER"], "postprocess": function(d,l,reject) {return {Type: "number", NumberType: "all", Bits: d[0], Base: "'b", UnsignedNumber: null, AllNumber: d[2], Location: l};}},
         {"name": "DECIMAL_NUMBER", "symbols": [{"literal":"+"}, "UNSIGNED_NUMBER"], "postprocess": function(d) {return {Type: "decimal", Sign: "+", Value: d[1]};}},
         {"name": "DECIMAL_NUMBER", "symbols": [{"literal":"-"}, "UNSIGNED_NUMBER"], "postprocess": function(d) {return {Type: "decimal", Sign: "+", Value: d[1]};}},
         {"name": "DECIMAL_NUMBER", "symbols": ["UNSIGNED_NUMBER"], "postprocess": id},
@@ -142,6 +144,9 @@
         {"name": "ALL_NUMERIC$ebnf$1", "symbols": [/[0-9a-fA-F]/]},
         {"name": "ALL_NUMERIC$ebnf$1", "symbols": ["ALL_NUMERIC$ebnf$1", /[0-9a-fA-F]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
         {"name": "ALL_NUMERIC", "symbols": ["ALL_NUMERIC$ebnf$1"], "postprocess": function(d) {return d[0].join('');}},
+        {"name": "BINARY_NUMBER$ebnf$1", "symbols": [/[0-1]/]},
+        {"name": "BINARY_NUMBER$ebnf$1", "symbols": ["BINARY_NUMBER$ebnf$1", /[0-1]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
+        {"name": "BINARY_NUMBER", "symbols": ["BINARY_NUMBER$ebnf$1"], "postprocess": function(d) {return d[0].join('');}},
         {"name": "BASE$string$1", "symbols": [{"literal":"'"}, {"literal":"b"}], "postprocess": function joiner(d) {return d.join('');}},
         {"name": "BASE", "symbols": ["BASE$string$1"]},
         {"name": "BASE$string$2", "symbols": [{"literal":"'"}, {"literal":"h"}], "postprocess": function joiner(d) {return d.join('');}},
@@ -164,8 +169,9 @@
         {"name": "IDENTIFIER$ebnf$1", "symbols": ["IDENTIFIER$ebnf$1", /[a-zA-Z_0-9]/], "postprocess": function arrpush(d) {return d[0].concat([d[1]]);}},
         {"name": "IDENTIFIER", "symbols": [/[a-zA-Z]/, "IDENTIFIER$ebnf$1"], "postprocess": 
             function(d,l, reject) {
+                const keywords = ["alias","and","assert","assign","assume","automatic","before","begin","bind","bins","binsof","bit","break","buf","bufif0","bufif1","byte","case","casex","casez","cell","chandle","class","clocking","cmos","config","const","constraint","context","continue","cover","covergroup","coverpoint","cross","deassign","default","defparam","design","disable","dist","do","edge","else","end","endcase","endclass","endclocking","endconfig","endfunction","endgenerate","endgroup","endinterface","endmodule","endpackage","endprimitive","endprogram","endproperty","endsequence","endspecify","endtable","endtask","enum","event","expect","export","extends","extern","final","first_match","for","force","foreach","forever","fork","forkjoin","function","generate","genvar","highz0","highz1","if","iff","ifnone","ignore_bins","illegal_bins","import","incdir","include","initial","inout","input","inside","instance","int","integer","interface","intersect","join","join_any","join_none","large","liblist","library","local","localparam","logic","longint","macromodule","matches","medium","modport","module","nand","negedge","new","nmos","nor","noshowcancelled","not","notif0","notif1","null","or","output","package","packed","parameter","pmos","posedge","primitive","priority","program","property","protected","pull0","pull1","pulldown","pullup","pulsestyle_ondetect","pulsestyle_onevent","pure","rand","randc","randcase","randsequence","rcmos","real","realtime","ref","reg","release","repeat","return","rnmos","rpmos","rtran","rtranif0","rtranif1","scalared","sequence","shortint","shortreal","showcancelled","signed","small","solve","specify","specparam","static","string","strong0","strong1","struct","super","supply0","supply1","table","tagged","task","this","throughout","time","timeprecision","timeunit","tran","tranif0","tranif1","tri","tri0","tri1","triand","trior","trireg","type","typedef","union","unique","unsigned","use","uwire","var","vectored","virtual","void","wait","wait_order","wand","weak0","weak1","while","wildcard","wire","with","within","wor","xnor","xor"]
                 const name = d[0] + d[1].join('');
-                if (name === 'if' || name === 'module') {
+                if (keywords.includes(name)) {
                     return reject;
                 } else {
                     return  {Name: name, Location: l};

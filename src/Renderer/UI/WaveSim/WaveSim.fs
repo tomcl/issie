@@ -803,7 +803,7 @@ let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : React
 /// and waveRows, as the order of the waves matters here. This is
 /// because the wave viewer is comprised of three columns of many
 /// rows, rather than many rows of three columns.
-let nameRows (wsModel: WaveSimModel) dispatch: ReactElement list =
+let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list =
     selectedWaves wsModel
     |> List.map (fun wave ->
         let visibility =
@@ -818,8 +818,12 @@ let nameRows (wsModel: WaveSimModel) dispatch: ReactElement list =
                 OnMouseOver (fun _ ->
                     if wsModel.DraggedIndex = None then
                         dispatch <| SetWSModel {wsModel with HoveredLabel = Some wave.WaveId}
-                        dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [wave.WaveId.Id])))
-                        dispatch <| Sheet (SheetT.Msg.SelectWires wave.Conns)
+                        // Check if symbol exists on Canvas
+                        if Map.containsKey wave.WaveId.Id model.Sheet.Wire.Symbol.Symbols then
+                            dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [wave.WaveId.Id])))
+                        // Filter out any non-existent wires
+                        let conns = List.filter (fun conn -> Map.containsKey conn model.Sheet.Wire.Wires) wave.Conns 
+                        dispatch <| Sheet (SheetT.Msg.SelectWires conns)
                 )
                 OnMouseOut (fun _ ->
                     dispatch <| SetWSModel {wsModel with HoveredLabel = None}
@@ -906,8 +910,8 @@ let nameRows (wsModel: WaveSimModel) dispatch: ReactElement list =
     )
 
 /// Create column of waveform names
-let namesColumn wsModel dispatch : ReactElement =
-    let rows = nameRows wsModel dispatch
+let namesColumn model wsModel dispatch : ReactElement =
+    let rows = nameRows model wsModel dispatch
 
     div namesColumnProps
         (List.concat [ topRow; rows ])
@@ -971,10 +975,10 @@ let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
         ]
 
 /// Display the names, waveforms, and values of selected waveforms
-let showWaveforms (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     div [ showWaveformsStyle ]
         [
-            namesColumn wsModel dispatch
+            namesColumn model wsModel dispatch
             waveformColumn wsModel dispatch
             valuesColumn wsModel
         ]
@@ -1155,7 +1159,7 @@ let viewWaveSim (model: Model) dispatch : ReactElement =
                 div [ errorMessageStyle ]
                     [ str "There is no sequential logic in this circuit." ]
             | Success ->
-                showWaveforms wsModel dispatch
+                showWaveforms model wsModel dispatch
 
                 hr []
 

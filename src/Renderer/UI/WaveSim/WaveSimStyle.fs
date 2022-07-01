@@ -15,7 +15,7 @@ module Constants =
     let rightMargin = 50
 
     let rowHeight = 30
-    let clkLineWidth = 0.4
+    let clkLineWidth = 0.8
     let lineThickness : float = 0.8
 
     let fontSizeValueOnWave = "10px"
@@ -414,6 +414,18 @@ let waveRowProps m : IProp list =
     waveRowSVGStyle
 ]
 
+let backgroundSVG (wsModel: WaveSimModel) count : ReactElement list =
+    let clkLine x = 
+        line [
+            clkLineStyle
+            X1 x
+            Y1 0.0
+            X2 x
+            Y2 (Constants.viewBoxHeight * float (count + 1))
+        ] []
+    [ wsModel.StartCycle + 1 .. endCycle wsModel + 1 ] 
+    |> List.map (fun x -> clkLine (float x * singleWaveWidth wsModel))
+
 /// Controls the background highlighting of which clock cycle is selected
 let clkCycleHighlightSVG m dispatch =
     let count = List.length m.SelectedWaves
@@ -439,13 +451,17 @@ let clkCycleHighlightSVG m dispatch =
             let cycle = (int <| (ev.clientX - bcr.left) / singleWaveWidth m) + m.StartCycle
             dispatch <| SetWSModel {m with CurrClkCycle = cycle}
         )
-    ] [
-        rect [
-            SVGAttr.Width (singleWaveWidth m)
-            SVGAttr.Height "100%"
-            X (float m.CurrClkCycle * (singleWaveWidth m))
-        ] []
-    ]
+        ]
+        (List.append 
+            [
+                rect [
+                    SVGAttr.Width (singleWaveWidth m)
+                    SVGAttr.Height "100%"
+                    X (float m.CurrClkCycle * (singleWaveWidth m))
+                ] []
+            ]
+            (backgroundSVG m count)
+        )
 
 
 let radixTabProps : IHTMLProp list = [

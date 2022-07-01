@@ -47,6 +47,9 @@ export function parseFromFile(source) {
                 case 'character matching /[0-9]/':
                     expected[i] = '{NUMBER}'
                     break;
+                case 'character matching /[a-zA-Z_0-9]/':
+                    expected[i] = 'More characters \n Keywords cannot be used for port names'
+                    break;
                 default:
                     let char = expected[i][1]
                     

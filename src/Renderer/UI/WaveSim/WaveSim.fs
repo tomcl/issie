@@ -640,9 +640,13 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
                 ]
             ]
             Modal.Card.body [] [
-                str "Select synchronous RAM components to view their contents."
+                str "Select synchronous RAM components to view their contents. "
+                str "Note that asynchronous RAM components cannot be viewed in the waveform simulator. "
                 br []
-                str "Note that asynchronous components cannot be viewed in the waveform simulator."
+                br []
+                str "On a write, the corresponding row will be highlighted in red. "
+                str "On a read, the corresponding row will be highlighted in blue. "
+                str "Any memory address which has not been initialised with a value will not be shown in the table. "
                 hr []
                 Table.table [] [
                     tbody []
@@ -978,12 +982,7 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
             valuesColumn wsModel
         ]
 
-let ramTableRow (wsModel: WaveSimModel) (ramId: ComponentId) (memWidth: int) (memData: Map<int64, int64>) (memLoc: int64): ReactElement =
-    let data =
-        match Map.tryFind memLoc memData with
-        | Some data -> data
-        | None -> 0
-
+let ramTableRow (wsModel: WaveSimModel) (ramId: ComponentId) (memWidth: int) ((addr, data): int64 * int64): ReactElement =
     let pickWave port waveVal =
         Map.tryPick (fun _ (wave: Wave) ->
             if wave.WaveId.Id = ramId && wave.DisplayName = wave.CompLabel + port then
@@ -996,10 +995,10 @@ let ramTableRow (wsModel: WaveSimModel) (ramId: ComponentId) (memWidth: int) (me
         | None -> false
 
     let wenHigh = pickWave ".WEN" [One]
-    let correctAddr = pickWave ".ADDR" (convertIntToWireData memWidth memLoc)
+    let correctAddr = pickWave ".ADDR" (convertIntToWireData memWidth addr)
 
     tr [ ramTableRowStyle wenHigh correctAddr ] [
-        td [] [ str (valToString wsModel.Radix memLoc) ]
+        td [] [ str (valToString wsModel.Radix addr) ]
         td [] [ str (valToString wsModel.Radix data) ]
     ]
 
@@ -1008,10 +1007,8 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): ComponentId * string) :
     let memWidth, memData =
         match state with
         | RamState mem ->
-            mem.AddressWidth, mem.Data
+            mem.AddressWidth, Map.toList mem.Data
         | _ -> failwithf "Non memory components should not appear here"
-
-    let endLoc = Helpers.pow2int64 memWidth
 
     Level.item [
         Level.Item.Option.Props ramTableLevelProps
@@ -1030,7 +1027,7 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): ComponentId * string) :
                 ]
             ]
             tbody []
-                (List.map (ramTableRow wsModel ramId memWidth memData) [0 .. endLoc - (int64 1)])
+                (List.map (ramTableRow wsModel ramId memWidth) memData)
         ]
         br []
     ]

@@ -1039,6 +1039,36 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
             (List.map (ramTable wsModel) selectedRams)
     else div [] []
 
+/// Async function which runs the fast simulator when refreshing the wave sim. Set as
+/// asynchronous since the fast simulator takes some time to run the first time it is
+/// started.
+let refreshWaveSim (wsModel, simData, (comps, conns)) : Async<WaveSimModel> = async {
+    FastRun.runFastSimulation Constants.maxLastClk simData.FastSim
+
+    let allWaves =
+        getWaves simData (comps, conns)
+        |> Map.map (generateWaveform wsModel)
+
+    let ramComps =
+        List.filter (fun (comp: Component) -> match comp.Type with | RAM1 _ -> true | _ -> false) comps
+        |> List.sortBy (fun ram -> ram.Label)
+
+    let ramCompIds = List.map (fun (ram: Component) -> ComponentId ram.Id) ramComps
+
+    let selectedWaves = List.filter (fun key -> Map.containsKey key allWaves) wsModel.SelectedWaves
+    let selectedRams = Map.filter (fun ramId _ -> List.contains ramId ramCompIds) wsModel.SelectedRams
+
+    return {
+        wsModel with
+            State = Success
+            AllWaves = allWaves
+            SelectedWaves = selectedWaves
+            RamComps = ramComps
+            SelectedRams = selectedRams
+            FastSim = simData.FastSim
+    }
+}
+
 let refreshButtonAction model dispatch = fun _ ->
     let wsSheet = Option.get (getCurrFile model)
     let wsModel = getWSModel model
@@ -1049,38 +1079,22 @@ let refreshButtonAction model dispatch = fun _ ->
         dispatch <| SetWSModel { wsModel with State = SimError e }
     | Some (Ok simData, (comps, conns)) ->
         if simData.IsSynchronous then
-            FastRun.runFastSimulation Constants.maxLastClk simData.FastSim
-
-            let allWaves =
-                getWaves simData (comps, conns)
-                |> Map.map (generateWaveform wsModel)
-
-            let ramComps =
-                List.filter (fun (comp: Component) -> match comp.Type with | RAM1 _ -> true | _ -> false) comps
-                |> List.sortBy (fun ram -> ram.Label)
-
-            let ramCompIds = List.map (fun (ram: Component) -> ComponentId ram.Id) ramComps
-
-            let selectedWaves = List.filter (fun key -> Map.containsKey key allWaves) wsModel.SelectedWaves
-            let selectedRams = Map.filter (fun ramId _ -> List.contains ramId ramCompIds) wsModel.SelectedRams
-
-            let wsModel = {
-                wsModel with
-                    State = Success
-                    AllWaves = allWaves
-                    SelectedWaves = selectedWaves
-                    RamComps = ramComps
-                    SelectedRams = selectedRams
-                    FastSim = simData.FastSim
-            }
-
+            let wsModel = { wsModel with State = Loading }
             dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
+            dispatch <| RefreshWaveSim (wsModel, simData, (comps, conns), dispatch)
+
         else
             dispatch <| SetWSModel { wsModel with State = NonSequential }
 
 /// ReactElement showing instructions and wave sim buttons
 let topHalf (model: Model) dispatch : ReactElement =
     let wsModel = getWSModel model
+    let loading =
+        match wsModel.State with
+        | Loading -> true
+        | _ -> false
+    let refreshButtonSvg = if loading then emptyRefreshSVG else refreshSvg
+
     div [ topHalfStyle ] [
         br []
         Level.level [] [
@@ -1088,10 +1102,10 @@ let topHalf (model: Model) dispatch : ReactElement =
                 Heading.h4 [] [ str "Waveform Simulator" ]
             ]
             Level.right [] [
-                Icon.icon [
-                    Icon.Option.Modifiers [ Modifier.IsClickable ]
-                    Icon.Option.Props [ OnClick (refreshButtonAction model dispatch) ]
-                ] [ refreshSvg ]
+                button
+                    [ Button.Option.IsLoading loading ]
+                    (refreshButtonAction model dispatch)
+                    refreshButtonSvg
             ]
         ]
 
@@ -1150,7 +1164,7 @@ let viewWaveSim (model: Model) dispatch : ReactElement =
             | NonSequential ->
                 div [ errorMessageStyle ]
                     [ str "There is no sequential logic in this circuit." ]
-            | Success ->
+            | Loading | Success ->
                 showWaveforms model wsModel dispatch
 
                 hr []

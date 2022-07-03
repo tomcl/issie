@@ -130,6 +130,8 @@ type WaveSimState =
     | SimError of SimulationError
     /// If there is no sequential (clocked) logic in the circuit
     | NonSequential
+    /// While waiting for the fast simulator to finish running
+    | Loading
     /// If there are no errors in the circuit diagram
     | Success
 
@@ -247,6 +249,7 @@ type Msg =
     | SetWSModel of WaveSimModel
     | SetWSModelAndSheet of WaveSimModel * string
     | InitiateWaveSimulation of WaveSimModel
+    | RefreshWaveSim of WaveSimModel * SimulationData * CanvasState * (Msg -> unit)
     | SetSimulationGraph of SimulationGraph  * FastSimulation
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick of int

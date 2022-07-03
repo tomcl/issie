@@ -525,3 +525,9 @@ let refreshSvg =
                 ]
             ] []
         ]
+
+let emptyRefreshSVG =
+    svg [
+        SVGAttr.Height "30"
+        SVGAttr.Width "30"
+    ] []

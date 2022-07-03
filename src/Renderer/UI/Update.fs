@@ -336,13 +336,15 @@ let update (msg : Msg) oldModel =
         {model with LastUsedDialogWidth=width}, Cmd.none
     | StartSimulation simData -> 
         { model with CurrentStepSimulationStep = Some simData }, Cmd.none
-    | SetWSModel wsModel -> 
+    | SetWSModel wsModel ->
         setWSModel wsModel model, Cmd.none
     | SetWSModelAndSheet (wsModel, wsSheet) ->
-        let newModel = 
+        let newModel =
             {model with WaveSimSheet = wsSheet}
             |> setWSModel wsModel
         newModel, Cmd.none
+    | RefreshWaveSim (wsModel, simData, canvState, dispatch) ->
+        model, Cmd.OfAsync.perform WaveSim.refreshWaveSim (wsModel, simData, canvState) SetWSModel
     | AddWSModel (sheet, wsModel) ->
         { model with 
             WaveSim = Map.add sheet wsModel model.WaveSim

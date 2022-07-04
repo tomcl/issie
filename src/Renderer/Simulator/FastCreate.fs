@@ -115,7 +115,8 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     match sc.Type with
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
-    | Input _ -> failwithf "Legacy Input component types should never occur"
+    | Input _ ->
+        failwithf "Legacy Input component types should never occur"
     | Input1 (w, _)
     | Output w
     | Viewer w

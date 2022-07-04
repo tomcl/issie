@@ -520,7 +520,8 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     match compType with
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
-    | Input _ -> failwithf "Legacy Input component types should never occur"
+    | Input _ ->
+        failwithf "Legacy Input component types should never occur"
     | And | Or | Nand | Nor | Xor | Xnor ->  (2 , 1, 1.5*gS , 1.5*gS) 
     | Not -> ( 1 , 1, 1.0*gS ,  1.0*gS) 
     | Input1 _ -> ( 0 , 1, gS ,  2.*gS)                
@@ -915,7 +916,8 @@ let drawSymbol (symbol:Symbol) =
         let toString = Array.fold (fun x (pos:XYPos) -> x + (sprintf $" {pos.X},{pos.Y}")) "" 
         let originalPoints =
             match comp.Type with
-            | Input _ // legacy component: to be deleted
+            // legacy component: to be deleted
+            | Input _
             | Input1 _ -> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W*4./5.;Y=H};{X=W;Y=H/2.};{X=W*0.8;Y=0}|] 
             | Output _ -> 
@@ -1012,7 +1014,8 @@ let drawSymbol (symbol:Symbol) =
             addText {X = w/2. + xOffset; Y = h/1.5 + yOffset}  dialogVal align "normal" fontSize
         | BusCompare (_,y) -> 
             (addText {X = w/2.-2.; Y = h/2.7-1.} ("=" + NumberHelpers.hex(int y)) "middle" "bold" "10px")
-        | Input x // legacy component type: to be deleted
+        // legacy component type: to be deleted
+        | Input x
         | Input1 (x, _) | Output x-> 
             (addText {X = w/2.; Y = h/2.7} (busTitleAndBits "" x) "middle" "normal" "12px")
         | Viewer (x) -> 

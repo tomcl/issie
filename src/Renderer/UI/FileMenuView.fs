@@ -232,12 +232,12 @@ let updateProjectFromCanvas (model:Model) (dispatch:Msg -> Unit) =
                 }
             model.CurrentProj
             |> Option.map (fun p -> 
-                {   
+                {
                     p with LoadedComponents = updateLoadedComponents p.OpenFileName setLc p.LoadedComponents dispatch
                 })
 
-/// extract SavedwaveInfo from model to be saved
-let getSavedWave (model:Model) : SavedWaveInfo option = 
+/// extract SavedWaveInfo from model to be saved
+let getSavedWave (model: Model) : SavedWaveInfo option = 
     match currWaveSimModel model with
     | Some wsModel -> Some (getSavedWaveInfo wsModel)
     | None -> None
@@ -1007,11 +1007,6 @@ let viewTopMenu model dispatch =
                                         saveOpenFileActionWithModelUpdate model dispatch |> ignore
                                         dispatch <| Sheet(SheetT.DoNothing) //To update the savedsheetisoutofdate send a sheet message
                                         ) ]) [ str "Save" ] ] ]
-                    // Waveform View button was moved to WaveSim subtab in Simulation tab
-                    //       [ 
-                    //         Navbar.Item.div [] 
-                    //             [ simulateButtonFunc compIds model dispatch ] ]
-                    //   Navbar.End.div []
                       Navbar.End.div []
                           [ Navbar.Item.div []
                                 [ Button.button 

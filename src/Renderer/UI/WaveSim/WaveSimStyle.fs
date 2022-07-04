@@ -8,24 +8,38 @@ open Fable.React
 open Fable.React.Props
 
 module Constants =
+    /// Width of names column
     let namesColWidth = 200
+    /// Width of values column
     let valuesColWidth = 100
 
+    /// Width of left margin of waveform simulator
     let leftMargin = 50
+    /// Width of right margin of waveform simulator
     let rightMargin = 50
 
+    /// Height of each row in name and value columns.
+    /// Same as SVG ViewBox Height.
     let rowHeight = 30
+
+    /// Width of line that separates each clock cycle.
     let clkLineWidth = 0.8
+    /// Width of each waveform line.
     let lineThickness : float = 0.8
 
     let fontSizeValueOnWave = "10px"
+    /// Text used to display vlaues on non-binary waves
     let valueOnWaveText = { DrawHelpers.defaultText with FontSize = fontSizeValueOnWave }
+    /// Whitespace padding between repeated values displayed on non-binary waves.
     let valueOnWavePadding = 150.0
 
+    /// Border between columns and headers of waveform viewer.
     let borderProperties = "2px solid rgb(219,219,219)"
 
+    /// Padding between name label/value label and waveform column.
     let labelPadding = 3
 
+/// Style for top row in wave viewer.
 let topRowStyle = Style [
     Height Constants.rowHeight
     BorderBottom "2px solid rgb(219,219,219)"
@@ -35,47 +49,21 @@ let topRowStyle = Style [
 /// to allow for the row of clk cycle numbers in waveformsColumn.
 let topRow = [ div [ topRowStyle ] [] ]
 
-/// TODO: Tweak these parameters
+/// Style for showing error messages in waveform simulator.
 let errorMessageStyle = Style [
     Width "90%"
     MarginLeft "5%"
     MarginTop "15px"
 ]
 
-let viewButtonStyle = Style [
-    MarginLeft "10px"
-    MarginRight "10px"
-]
-
-let viewButtonProps = [
-    Button.Color IsSuccess
-    Button.Props [viewButtonStyle]
-]
-
-let viewButtonLight = viewButtonProps @ [ Button.IsLight ]
-
-let checkBoxColStyle = Style [
-    BorderRight "2px solid #dbdbdb"
-    VerticalAlign "bottom"
-    Width "5px"
-]
-
-let tableRowStyle = Style [
-    VerticalAlign "middle"
-    Height Constants.rowHeight
-    Width "5px"
-]
-
-let selectAllCheckboxProps : IHTMLProp list = [
-    tableRowStyle
-]
-
+/// Style of checkboxes
 let checkboxStyle = Style [
     Margin "0 5px 0 5px"
     Cursor "pointer"
     Float FloatOptions.Left
 ]
 
+/// Props for Checkbox.Input
 let checkboxInputProps : IHTMLProp list = [
     Type "checkbox"
     checkboxStyle
@@ -95,10 +83,7 @@ let noBorderStyle = Style [
     BorderWidth 0
 ]
 
-let selectWavesStyle = Style [
-    Position PositionOptions.Relative
-]
-
+/// Style for selectRamButton
 let selectRamButtonStyle = Style [
     Height Constants.rowHeight
     FontSize "16px"
@@ -106,14 +91,17 @@ let selectRamButtonStyle = Style [
     MarginRight 0
 ]
 
+/// Props for selectRamButton
 let selectRamButtonProps = [
     Button.Color IsInfo
     Button.Props [selectRamButtonStyle]
 ]
 
-let selectRamButtonPropsLight = 
+/// Props for selectRamButton when no RAMs are selectable
+let selectRamButtonPropsLight =
     selectRamButtonProps @ [Button.IsLight]
 
+/// Style for selectWavesButton
 let selectWavesButtonStyle = Style [
     Height Constants.rowHeight
     FontSize "16px"
@@ -121,39 +109,36 @@ let selectWavesButtonStyle = Style [
     MarginLeft 0
 ]
 
+/// Props for selectWavesButton
 let selectWavesButtonProps = [
     Button.Color IsInfo
     Button.Props [selectWavesButtonStyle]
 ]
 
-let selectWavesButtonPropsLight = 
+/// Props for selectWavesButton when no waves are selectable
+let selectWavesButtonPropsLight =
     selectWavesButtonProps @ [Button.IsLight]
-
-let ramTableLevelProps : IHTMLProp list = [
-    Style [
-        Position PositionOptions.Relative
-        Display DisplayOptions.InlineBlock
-        MarginRight 10
-    ]
-]
 
 let centerAlignStyle = Style [
     TextAlign TextAlignOptions.Center
 ]
 
-let ramTablesLevelProps : IHTMLProp list = [
-    Style [
-        OverflowX OverflowOptions.Scroll
-    ]
+/// Style for row in ramTable
+let ramRowStyle = Style [
+    Height Constants.rowHeight
+    BorderBottom "1px solid rgb(219,219,219)"
 ]
 
+/// Style for each row of ramTable
 let ramTableRowStyle wenHigh correctAddr =
+    // Highlight in red on write
     if wenHigh && correctAddr then
         Style [
             BackgroundColor "hsl(347, 90%, 96%)"
             Color "hsl(348, 100%, 61%)"
             FontWeight "bold"
         ]
+    // Highlight in blue on write
     else if correctAddr then
         Style [
             BackgroundColor "hsl(206, 70%, 96%)"
@@ -162,13 +147,27 @@ let ramTableRowStyle wenHigh correctAddr =
         ]
     else Style []
 
+/// Props for Bulma Level element for single ramTable
+let ramTableLevelProps : IHTMLProp list = [
+    Style [
+        Position PositionOptions.Relative
+        Display DisplayOptions.InlineBlock
+        MarginRight 10
+    ]
+]
+
+/// Props for Bulma Level element for ramTables
+let ramTablesLevelProps : IHTMLProp list = [
+    Style [
+        OverflowX OverflowOptions.Scroll
+    ]
+]
+
 let zoomOutSVG =
     svg [
             ViewBox "0 0 192.904 192.904"
             SVGAttr.Height "20px"
-        ]
-        [
-            path [
+        ] [ path [
                 D "M190.707,180.101l-47.079-47.077c11.702-14.072,18.752-32.142,18.752-51.831C162.381,36.423,125.959,0,81.191,0
                 C36.422,0,0,36.423,0,81.193c0,44.767,36.422,81.187,81.191,81.187c19.689,0,37.759-7.049,51.831-18.75l47.079,47.077
                 c1.464,1.465,3.384,2.197,5.303,2.197c1.919,0,3.839-0.732,5.303-2.197C193.637,187.778,193.637,183.03,190.707,180.101z
@@ -185,9 +184,7 @@ let zoomInSVG =
     svg [
             ViewBox "0 0 192.904 192.904"
             SVGAttr.Height "20px"
-        ]
-        [
-            path [
+        ] [ path [
                 D "M190.707,180.101l-47.079-47.077c11.702-14.072,18.752-32.142,18.752-51.831C162.381,36.423,125.959,0,81.191,0
                 C36.422,0,0,36.423,0,81.193c0,44.767,36.422,81.187,81.191,81.187c19.689,0,37.759-7.049,51.831-18.75l47.079,47.077
                 c1.464,1.465,3.384,2.197,5.303,2.197c1.919,0,3.839-0.732,5.303-2.197C193.637,187.778,193.637,183.03,190.707,180.101z
@@ -201,15 +198,16 @@ let zoomInSVG =
             ] []
         ]
 
-let valueOnWaveProps m i start width : IProp list =
-    [
-        X (float start * (singleWaveWidth m) + Constants.nonBinaryTransLen + float i * width)
-        Y (0.6 * Constants.viewBoxHeight)
-        Style [
-            FontSize Constants.fontSizeValueOnWave
-        ]
+/// Props for displaying values on non-binary waves
+let valueOnWaveProps m i start width : IProp list = [
+    X (float start * (singleWaveWidth m) + Constants.nonBinaryTransLen + float i * width)
+    Y (0.6 * Constants.viewBoxHeight)
+    Style [
+        FontSize Constants.fontSizeValueOnWave
     ]
+]
 
+/// Style for clock cycle buttons
 let clkCycleButtonStyle = Style [
     Float FloatOptions.Right
     Position PositionOptions.Relative
@@ -219,7 +217,7 @@ let clkCycleButtonStyle = Style [
     FontSize "13px"
 ]
 
-// TODO: Can this be nested inside clkCycleButtonStyle
+/// Style for clock cycle text Input field
 let clkCycleInputStyle = Style [
     Margin "0 0 0 0"
     Float FloatOptions.Left
@@ -233,6 +231,7 @@ let clkCycleInputStyle = Style [
     BorderRadius 0
 ]
 
+/// Props for clock cycle text Input field
 let clkCycleInputProps : IHTMLProp list = [
     Min 0
     SpellCheck false
@@ -240,6 +239,7 @@ let clkCycleInputProps : IHTMLProp list = [
     clkCycleInputStyle
 ]
 
+/// List of Style properties for clock cycle button
 let clkCycleBut = [
     Margin 0
     Height Constants.rowHeight
@@ -251,12 +251,14 @@ let clkCycleBut = [
     BorderWidth "1px 0.5px 1px 0.5px"
 ]
 
+/// Style for inner clock cycle buttons (buttons to move by one clock cycle)
 let clkCycleInnerStyle = Style (
     clkCycleBut @ [
         BorderRadius 0
     ]
 )
 
+/// Style for left-most clock cycle button
 let clkCycleLeftStyle = Style (
     clkCycleBut @ [
         BorderTopLeftRadius "4px"
@@ -266,6 +268,7 @@ let clkCycleLeftStyle = Style (
         BorderRightWidth "0.5"
     ])
 
+/// Style for right-most clock cycle button
 let clkCycleRightStyle = Style (
     clkCycleBut @ [
         BorderTopLeftRadius 0
@@ -275,6 +278,7 @@ let clkCycleRightStyle = Style (
         BorderLeftWidth "0.5"
     ])
 
+/// Style for Bulma level element in name row
 let nameRowLevelStyle isHovered = Style [
     Height Constants.rowHeight
     BorderBottom "1px solid rgb(219,219,219)"
@@ -283,17 +287,20 @@ let nameRowLevelStyle isHovered = Style [
         Cursor "grab"
 ]
 
+/// Style for name label
 let nameLabelStyle isHovered = Style [
     if isHovered then
         Cursor "grab"
 ]
 
+/// Style for value label
 let valueLabelStyle = Style [
     Height Constants.rowHeight
     BorderBottom "1px solid rgb(219,219,219)"
     PaddingLeft Constants.labelPadding
 ]
 
+/// Prop for Level.left in name row.
 let nameRowLevelLeftProps (visibility: string): IHTMLProp list = [
     Style [
         Position PositionOptions.Sticky
@@ -302,11 +309,7 @@ let nameRowLevelLeftProps (visibility: string): IHTMLProp list = [
     ]
 ]
 
-let ramRowStyle = Style [
-    Height Constants.rowHeight
-    BorderBottom "1px solid rgb(219,219,219)"
-]
-
+/// List of Style properties for columns in wave viewer.
 let waveSimColumn = [
     Height "100%"
     Width "100%"
@@ -319,6 +322,7 @@ let waveSimColumn = [
     LineHeight "25px"
 ]
 
+/// Style properties for names column
 let namesColumnStyle = Style (
     (waveSimColumn) @ [
         MinWidth Constants.namesColWidth
@@ -328,11 +332,13 @@ let namesColumnStyle = Style (
         TextAlign TextAlignOptions.Right
     ])
 
+/// Props for names column
 let namesColumnProps : IHTMLProp list = [
     Id "namesColumn"
     namesColumnStyle
 ]
 
+/// Style properties for values column
 let valuesColumnStyle = Style (
     (waveSimColumn) @ [
         MinWidth Constants.valuesColWidth
@@ -341,11 +347,13 @@ let valuesColumnStyle = Style (
         GridColumnStart 3
     ])
 
+/// Style for waveforms column
 let waveformColumnStyle = Style [
     GridColumnStart 2
     Display DisplayOptions.Grid
 ]
 
+/// Style for rows in waveforms column
 let waveRowsStyle width = Style [
     Height "100%" 
     OverflowX OverflowOptions.Hidden
@@ -358,6 +366,7 @@ let waveRowsStyle width = Style [
     GridRowStart 1
 ]
 
+/// Style for waveform viewer
 let showWaveformsStyle = Style [
     Height "calc(100% - 50px)"
     Width "100%"
@@ -368,17 +377,14 @@ let showWaveformsStyle = Style [
     GridAutoColumns "auto"
 ]
 
-let waveSelectionPaneStyle = Style [
+/// Style for viewWaveSim
+let viewWaveSimStyle = Style [
     MarginLeft Constants.leftMargin
     MarginRight Constants.rightMargin
     MarginTop "15px"
 ]
 
-let clkLineStyle = Style [
-    Stroke "rgb(200,200,200)"
-    StrokeWidth Constants.clkLineWidth
-]
-
+/// Props for text in clock cycle row
 let clkCycleText m i : IProp list = [
     SVGAttr.FontSize "12px"
     SVGAttr.TextAnchor "middle"
@@ -386,11 +392,13 @@ let clkCycleText m i : IProp list = [
     Y (0.6 * Constants.viewBoxHeight)
 ]
 
+/// Style for clock cycle number row
 let clkCycleSVGStyle = Style [
     Display DisplayOptions.Block
     BorderBottom Constants.borderProperties
 ]
 
+/// Props for waveform column rows
 let waveformColumnRowProps m : IProp list = [
     SVGAttr.Height Constants.rowHeight
     SVGAttr.Width (viewBoxWidth m)
@@ -399,21 +407,31 @@ let waveformColumnRowProps m : IProp list = [
     PreserveAspectRatio "none"
 ]
 
+/// Props for row of clock cycle numbers
 let clkCycleNumberRowProps m : IProp list = 
     waveformColumnRowProps m @ [
     clkCycleSVGStyle
 ]
 
+/// Style for each row in waveform column
 let waveRowSVGStyle = Style [
     Display DisplayOptions.Block
     BorderBottom "1px solid rgb(219,219,219)"
 ]
 
-let waveRowProps m : IProp list = 
+/// Props for each row in waveform column
+let waveRowProps m : IProp list =
     waveformColumnRowProps m @ [
     waveRowSVGStyle
 ]
 
+/// Style of line separating clock cycles
+let clkLineStyle = Style [
+    Stroke "rgb(200,200,200)"
+    StrokeWidth Constants.clkLineWidth
+]
+
+/// Grid lines separating clock cycles
 let backgroundSVG (wsModel: WaveSimModel) count : ReactElement list =
     let clkLine x = 
         line [
@@ -463,7 +481,7 @@ let clkCycleHighlightSVG m dispatch =
             (backgroundSVG m count)
         )
 
-
+/// Props for radix tabs
 let radixTabProps : IHTMLProp list = [
     Style [
         Width "35px"
@@ -471,17 +489,20 @@ let radixTabProps : IHTMLProp list = [
     ]
 ]
 
+/// Style for A HTML element in radixTabs
 let radixTabAStyle = Style [
     Padding "0 0 0 0"
     Height Constants.rowHeight
 ]
 
+/// Style for radixTabs
 let radixTabsStyle = Style [
     Height Constants.rowHeight
     FontSize "80%"
     Float FloatOptions.Right
 ]
 
+/// Style of polyline used to draw waveforms
 let wavePolylineStyle points : IProp list = [
     SVGAttr.Stroke "blue"
     SVGAttr.Fill "none"
@@ -489,6 +510,7 @@ let wavePolylineStyle points : IProp list = [
     Points (pointsToString points)
 ]
 
+/// Props for HTML Summary element
 let summaryProps : IHTMLProp list = [
     Style [
         FontSize "20px"
@@ -496,11 +518,12 @@ let summaryProps : IHTMLProp list = [
     ]
 ]
 
-/// TODO: Change Open to true
+/// Props for HTML Details element
 let detailsProps : IHTMLProp list = [
     Open false
 ]
 
+/// Style for top half of waveform simulator (instructions and buttons)
 let topHalfStyle = Style [
     Position PositionOptions.Sticky
     Top 0

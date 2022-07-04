@@ -227,7 +227,8 @@ let displayView model dispatch =
 //    let x' = sd.SheetLeft+sd.SheetX
 //    let y' = sd.SheetTop+sd.SheetY
 
-    /// Feed changed viewer width from draggable bar back to Viewer parameters TODO
+    /// Update number of visible cycles and width of waveform column.
+    /// Require viewer width to allow integer number of clock cycles.
     let inline setViewerWidthInWaveSim w =
         let wsModel = getWSModel model
         dispatch <| SetViewerWidth w
@@ -248,12 +249,7 @@ let displayView model dispatch =
                 WaveformColumnWidth = wholeCycleWidth
             }
         dispatch <| SetWSModel wsModel
-        // printf "dispatch in setViewerWidthInWaveSim"
-        printf "viewerWidth: %A" viewerWidth
         dispatch <| SetViewerWidth viewerWidth
-        // dispatch <| SetViewerWidth w
-
-
 
     let inline processAppClick topMenu dispatch (ev: Browser.Types.MouseEvent) =
         if topMenu <> Closed then 
@@ -272,16 +268,13 @@ let displayView model dispatch =
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth)
             dispatch <| SetViewerWidth w 
-            // setViewerWidthInWaveSim w
             dispatch <| SetDragMode (DragModeOn (int ev.clientX))
         | DragModeOn pos, _ ->
-            printf "this case"
             let newWidth = model.WaveSimViewerWidth - int ev.clientX + pos
-            let w = 
+            let w =
                 newWidth
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth)
-            // dispatch <| SetViewerWidth w 
             setViewerWidthInWaveSim w
             dispatch <| SetDragMode DragModeOff
         | DragModeOff, _-> ()
@@ -330,31 +323,31 @@ let displayView model dispatch =
             //---------------------------------right section----------------------------------------//
             // right section has horizontal divider bar and tabs
             div [ HTMLAttr.Id "RightSection"; rightSectionStyle model ]
-                [
-                    // vertical and draggable divider bar
+                [   // vertical and draggable divider bar
                     dividerbar model dispatch
                     // tabs for different functions
-                    div [ 
+                    div [
                             HTMLAttr.Id "RightSelection"
                             Style [ Height "100%" ] 
                         ] 
                         [   Tabs.tabs [
                                 Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs"
                                 Tabs.Props [Style [Margin 0] ]
-                                ] [
-                                    // catalogue tab to add components
-                                    Tabs.tab
-                                        [   Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
-                                        [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Catalogue ) ] [str "Catalogue" ] ] 
-                                     // Properties tab to view/change component properties
-                                    Tabs.tab
-                                        [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]
-                                        [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ]
-                                     // simulation tab to view all simulators
-                                    Tabs.tab
-                                        [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
-                                        [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] [str "Simulations"] ]
-                                ]
+                            ] [ // catalogue tab to add components
+                                Tabs.tab
+                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
+                                    [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Catalogue ) ] [str "Catalogue" ] ] 
+
+                                // Properties tab to view/change component properties
+                                Tabs.tab
+                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]
+                                    [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ]
+
+                                // Simulation tab to view all simulators
+                                Tabs.tab
+                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
+                                    [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] [str "Simulations"] ]
+                            ]
                             viewRightTab model dispatch
                         ]
                 ]

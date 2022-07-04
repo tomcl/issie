@@ -343,7 +343,7 @@ let update (msg : Msg) oldModel =
             {model with WaveSimSheet = wsSheet}
             |> setWSModel wsModel
         newModel, Cmd.none
-    | RefreshWaveSim (wsModel, simData, canvState, dispatch) ->
+    | RefreshWaveSim (wsModel, simData, canvState) ->
         model, Cmd.OfAsync.perform WaveSim.refreshWaveSim (wsModel, simData, canvState) SetWSModel
     | AddWSModel (sheet, wsModel) ->
         { model with 
@@ -365,7 +365,7 @@ let update (msg : Msg) oldModel =
         { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber + n } |> Ok |> Some }, Cmd.none
     | EndSimulation ->
         { model with CurrentStepSimulationStep = None }, Cmd.none
-    | EndWaveSim -> 
+    | EndWaveSim ->
         { model with WaveSim = Map.empty; WaveSimSheet = ""}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()

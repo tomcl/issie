@@ -332,7 +332,6 @@ let dialogPopupBodyTextAndTwoInts (beforeText, textPlaceholder) (beforeInt1,befo
             ]
         ]
 
-
 /// Create the body of a dialog Popup with both text and int.
 let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch =
     

@@ -39,19 +39,6 @@ type MemoryEditorData = {
     NumberBase : NumberBase
 }
 
-
-type SheetWave = {
-    // path to sheet from simulation graph root
-    Path: ComponentId list
-    Sheet: string
-    CSort: string
-    Label: string
-    }
-
-
-type MoreWaveSetup = SheetWave list * Set<ComponentId list>
-   
-
 /// Possible fields that may (or may not) be used in a dialog popup.
 type PopupDialogData = {
     Text : string option;
@@ -60,7 +47,6 @@ type PopupDialogData = {
     ProjectPath: string
     MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth. 
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
-    WaveSetup: MoreWaveSetup option
     Progress: PopupProgress option
 }
 
@@ -86,46 +72,10 @@ type UICommandType =
     | StartWaveSim
     | ViewWaveSim
     | CloseWaveSim
-    
 
 //---------------------------------------------------------------
 //---------------------WaveSim types-----------------------------
 //---------------------------------------------------------------
-
-(*
-WaveSim state.
-
-Principles: 
-1) at any time wavesim simulates a stored model.LastSimulatedCanvas circuit which is guaranteed working if it exists 
-2) pressing "simulate button" updates this circuit
-3) wavesim has two views: editor and waveforms. each waveform is the signal on a NetGroup (set of connections from one driver to multiple inputs).
-4) waveforms display view based on: selected waveforms, zoom, cursor position, etc
-5) simulation is rerun automatically as needed to generate current display
-6) editor view interfaces with current circuit, colouring selected nets green, and allowing selection on nets to determine
-default selected waveforms. If current circuit has changed only driving components still on circuit can be used this way.
-7) simulate button color determines status; if circuit has chnaged from that simulated it will be orange (errors) or green (OK to rerun simulation).
-8) list of currently displayed ports is held in state and saved / restored with each sheet. LastSimulatedCanvas (and simulation data) are not saved/restored but
-are recalculated when needed. List of possible to display ports used by waveadder
-
-Data structures for internal state
-
-SimParams: parameters that can be changed during simulation of one ckt that affect what is displayed.
-
-*)
-
-
-
-type WaveName = string
-
-type Wire = {
-    NBits: uint32
-    BitData: bigint 
-}
-
-type StateSample = string array
-type Sample = | Wire of Wire | StateSample of StateSample
-type SimTime = Sample array
-type Waveform = Sample array
 
 /// Determines whether the user is able to see the wave viewer pane.
 /// Changes value depending on the state of the circuit and whether
@@ -318,7 +268,6 @@ type Msg =
     | SetPropertiesExtraDialogText of string option
     | SetPopupDialogMemorySetup of (int * int * InitMemData * string option) option
     | SetPopupMemoryEditorData of MemoryEditorData option
-    | SetPopupWaveSetup of MoreWaveSetup
     | SetPopupProgress of PopupProgress option
     | UpdatePopupProgress of (PopupProgress -> PopupProgress)
     | SimulateWithProgressBar of SimulationProgress

@@ -430,8 +430,6 @@ let update (msg : Msg) oldModel =
         }, Cmd.none
     | SetPopupDialogMemorySetup m ->
         { model with PopupDialogData = {model.PopupDialogData with MemorySetup = m} }, Cmd.none
-    | SetPopupWaveSetup m ->
-        { model with PopupDialogData = {model.PopupDialogData with WaveSetup = Some m} }, Cmd.none
     | SetPopupMemoryEditorData m ->
         { model with PopupDialogData = {model.PopupDialogData with MemoryEditorData = m} }, Cmd.none
     | SetPopupProgress progOpt ->

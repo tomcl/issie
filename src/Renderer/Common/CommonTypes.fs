@@ -561,11 +561,6 @@ module CommonTypes
 
     (*---------------------------Types for wave Simulation----------------------------------------*)
 
-    
-    type MoreWaveData =
-        | RamWaveData of addr: uint32 * ramPath: ComponentId list * label:string
-        | ExtraData of ramPath: ComponentId list * label:string
-        
     // The "NetList" types contain all the circuit from Diagram in an abstracted form that
     // removed layout info and connections as separate entities. However, connection Ids are
     // available as fileds in components for interface to the Diagram conmponents

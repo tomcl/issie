@@ -248,7 +248,7 @@ let displayView model dispatch =
                 ShownCycles = wholeCycles
                 WaveformColumnWidth = wholeCycleWidth
             }
-        dispatch <| SetWSModel wsModel
+        dispatch <| InitiateWaveSimulation wsModel
         dispatch <| SetViewerWidth viewerWidth
 
     let inline processAppClick topMenu dispatch (ev: Browser.Types.MouseEvent) =

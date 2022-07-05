@@ -1106,7 +1106,7 @@ let refreshButtonAction model dispatch = fun _ ->
     | None ->
         dispatch <| SetWSModel { wsModel with State = NoProject }
     | Some (Error e, _) ->
-        dispatch <| SetWSModel { wsModel with State = SimError e }
+        dispatch <| SetWSModelAndSheet ({ wsModel with State = SimError e }, wsSheet)
     | Some (Ok simData, canvState) ->
         if simData.IsSynchronous then
             let wsModel = { wsModel with State = Loading }
@@ -1114,7 +1114,7 @@ let refreshButtonAction model dispatch = fun _ ->
             dispatch <| RefreshWaveSim (wsModel, simData, canvState)
 
         else
-            dispatch <| SetWSModel { wsModel with State = NonSequential }
+            dispatch <| SetWSModelAndSheet ({ wsModel with State = NonSequential }, wsSheet)
 
 /// ReactElement showing instructions and wave sim buttons
 let topHalf (model: Model) dispatch : ReactElement =

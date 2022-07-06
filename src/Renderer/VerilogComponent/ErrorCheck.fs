@@ -6,7 +6,7 @@ open Fable.Core.JsInterop
 
 /// Helper function to create an Error Message (Type: ErrorInfo) 
 /// given the location, the variable name, and the message
-let createErrorMessage newLinesLocations currLocation message name = 
+let createErrorMessage newLinesLocations currLocation message extraMessages name = 
     let isSmallerThan x y = y <= x
     let isGreaterThan x y = y > x
     
@@ -17,7 +17,7 @@ let createErrorMessage newLinesLocations currLocation message name =
     let nextLineLocation = newLinesLocations[nextIndex]
     let length = String.length name
     
-    [{Line = line; Col=currLocation-prevLineLocation+1;Length=length;Message = message}]
+    [{Line = line; Col=currLocation-prevLineLocation+1;Length=length;Message = message;ExtraErrors=Some extraMessages}]
 
 /// Checks whether all ports given in the beginning of the module are defined as input/output
 /// Also if all ports have distinct names
@@ -37,8 +37,9 @@ let portCheck ast linesLocations errorList  =
         |> Map.toList
         |> List.map fst
         |> List.collect (fun name ->
-            let message = "Ports must have different names"            
-            createErrorMessage linesLocations locationMap[name] message name
+            let message = "Ports must have different names"     
+            let extraMessages = []       
+            createErrorMessage linesLocations locationMap[name] message extraMessages name
             )        
         |> List.append errorList 
     
@@ -63,7 +64,7 @@ let portCheck ast linesLocations errorList  =
             |> List.ofSeq
             |> List.collect (fun name ->
                 let message = sprintf "Port '%s' is not declared either as input or output" name
-                createErrorMessage linesLocations locationMap[name] message name
+                createErrorMessage linesLocations locationMap[name] message [] name
             )
             |> List.append errorList
         | true -> errorList
@@ -80,7 +81,7 @@ let checkIODeclarations ast (portWidthDeclarationMap:Map<string,int*int>) portLo
         | None -> 
             let currLocation = Map.find port portLocationMap
             let message = sprintf "Variable '%s' is not defined as a port in the module declaration" port
-            createErrorMessage linesLocations currLocation message port
+            createErrorMessage linesLocations currLocation message [] port
         | Some _ -> []
     )
     |> List.append errorList   
@@ -99,8 +100,8 @@ let checkIOWidthDeclarations (ast: VerilogInput) linesLocations errorList  =
         | false -> 
             let range = Option.get ioDecl.Range
             if (range.End <> "0" || (int range.Start) <= (int range.End)) then
-                let message = "Wrong width declaration \n Correct form: [X:0]"
-                createErrorMessage linesLocations range.Location message (range.Start+"[:0]")
+                let message = "Wrong width declaration \n Correct form: [X:0] \n Big-endiad format is not allowed yet by ISSIE"
+                createErrorMessage linesLocations range.Location message [] (range.Start+"[:0]")
             else []
     )
     |> List.append errorList
@@ -117,7 +118,7 @@ let nameCheck ast linesLocations errorList =
     match notGoodName with
     | true -> 
         let message = "Module Name must start with a character to be valid"
-        createErrorMessage linesLocations ast.Module.ModuleName.Location message name
+        createErrorMessage linesLocations ast.Module.ModuleName.Location message [] name
     | false -> errorList
 
 
@@ -193,9 +194,14 @@ let checkAllOutputsAssigned ast portMap portSizeMap portLocationMap (linesLocati
                         [name+"["+length+"]"]
                     | None -> []
                 )
-            let currLocation = linesLocations[((List.length linesLocations)-2)]  
-            let message = sprintf "The following ports are declared but not assigned: %A" unassignedPorts
-            createErrorMessage linesLocations currLocation message "endmodule"
+            let currLocation = linesLocations[((List.length linesLocations)-2)]
+            let message = "All output ports must be assigned"  
+            let extraMessages = 
+                [
+                    {Text=sprintf "The following ports are declared but not assigned: %A" unassignedPorts;Copy=false};
+                    {Text=sprintf "assign %s = ..." unassignedPorts[0];Copy=true}
+                ]
+            createErrorMessage linesLocations currLocation message extraMessages "endmodule"
 
 
     diffChecker assignmentPortList outputPortList outputPortListMap "The following ports are declared but not assigned"
@@ -276,12 +282,12 @@ let rec primariesUsedInAssignment inLst (isConcat: bool) (tree: ExpressionT) =
 let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDeclarationMap inputWireSizeMap inputWireList  linesLocations errorList =
     
     
-    let checkWireNameAndWidth wire localErrors =     
+    let checkWireNameAndWidth wire (localErrors:ErrorInfo list) =     
         let lhs = wire.LHS
         match Map.tryFind lhs.Primary.Name portMap with
         | Some name  -> 
             let message = sprintf "Variable '%s' is already used by a port" name
-            createErrorMessage linesLocations lhs.Primary.Location message name
+            createErrorMessage linesLocations lhs.Primary.Location message [] name
         | _ -> 
             match isNullOrUndefined lhs.BitsStart with
             |true -> localErrors
@@ -290,8 +296,9 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
                 let bEnd = int <| Option.get lhs.BitsEnd
                 if (bEnd <> 0 || bStart <= bEnd) then
                     let message = "Wrong width declaration \n Correct form: [X:0]"
-                    createErrorMessage linesLocations lhs.Primary.Location message lhs.Primary.Name
-                else []
+                    createErrorMessage linesLocations lhs.Primary.Location message [] lhs.Primary.Name
+                    // createErrorMessage linesLocations lhs.Primary.Location message [] lhs.Primary.Name
+                else localErrors
 
 
 
@@ -309,14 +316,14 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
                         let message = sprintf "Wrong width of output port: '%s'" lhs.Primary.Name
                         List.append 
                             localErrors 
-                            (createErrorMessage linesLocations lhs.Primary.Location message lhs.Primary.Name)
+                            (createErrorMessage linesLocations lhs.Primary.Location message [] lhs.Primary.Name)
                 | true -> localErrors
             | None -> failwithf "Can't happen! PortMap and PortSizeMap should have the same keys"
         | _ -> 
             let message = sprintf "Variable '%s' is not declared as an output port" lhs.Primary.Name
             List.append 
                 localErrors 
-                (createErrorMessage linesLocations lhs.Primary.Location message lhs.Primary.Name)
+                (createErrorMessage linesLocations lhs.Primary.Location message [] lhs.Primary.Name)
 
 
     let checkNamesOfAssignment (assignment: AssignmentT) localErrors = 
@@ -333,8 +340,8 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
             diff
             |> List.collect (fun name ->
                 let currLocation = Map.find name namesToLocMap
-                let message = sprintf "Variable '%s' is not declared as input/parameter/wire" name
-                createErrorMessage linesLocations currLocation message name
+                let message = sprintf "Variable '%s' is not declared as input or wire" name
+                createErrorMessage linesLocations currLocation message [] name
             )
             
 
@@ -354,7 +361,7 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
                         let message = "Number can't be 0 bits wide"
                         List.append 
                             localErrors 
-                            (createErrorMessage linesLocations x.Primary.Location message "0'b")
+                            (createErrorMessage linesLocations x.Primary.Location message [] "0'b")
                     else localErrors
                 | _ -> 
                     match Map.tryFind name inputWireSizeMap with
@@ -362,10 +369,13 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
                         if (bStart<size) && (bEnd>=0) && (bStart>=bEnd) then
                             localErrors //ok
                         else 
-                            let message = sprintf "Wrong width of variable: '%s'" name
+                            let message =
+                                match size with
+                                |1 -> sprintf "Wrong width of variable: '%s' \n Defined as: %s[0]" name name
+                                |_ -> sprintf "Wrong width of variable: '%s' \n Defined as: %s[%i:0]" name name (size-1)
                             List.append 
                                 localErrors 
-                                (createErrorMessage linesLocations x.Primary.Location message name)        
+                                (createErrorMessage linesLocations x.Primary.Location message [] name)        
                     | None -> localErrors //invalid name, error found by AssignmentRHSNameCheck 
             | true -> localErrors
         )
@@ -529,7 +539,8 @@ let getErrors ast model linesLocations =
     
     []  //begin with empty list and add errors to it
     |> portCheck ast linesLocations //all ports are declared as input/output
-    |> checkIODeclarations ast portWidthDeclarationMap portLocationMap linesLocations //correct port width declaration (e.g. [1:4] -> invalid)
-    |> checkIOWidthDeclarations ast linesLocations
-    |> checkWiresAndAssignments ast portMap portSizeMap portWidthDeclarationMap inputWireSizeMap inputWireList linesLocations
-    |> checkAllOutputsAssigned ast portMap portSizeMap portLocationMap linesLocations
+    |> checkIODeclarations ast portWidthDeclarationMap portLocationMap linesLocations //all ports declared as IO are defined in the module header
+    |> checkIOWidthDeclarations ast linesLocations //correct port width declaration (e.g. [1:4] -> invalid)
+    |> checkWiresAndAssignments ast portMap portSizeMap portWidthDeclarationMap inputWireSizeMap inputWireList linesLocations //checks 1-by-1 all assignments (wires & output ports)
+    |> checkAllOutputsAssigned ast portMap portSizeMap portLocationMap linesLocations //checks whether all output ports have been assined a value
+    |> List.distinct

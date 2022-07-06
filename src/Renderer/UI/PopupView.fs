@@ -51,7 +51,7 @@ open Fable.Core.JsInterop
 open Fable.React
 open Fable.React.Props
 open Browser.Types
-
+open ElectronAPI
 
 open JSHelpers
 open Helpers
@@ -59,6 +59,7 @@ open ModelType
 open CommonTypes
 open EEExtensions
 open Sheet.SheetInterface
+
 
 importSideEffects "./prism.css"
 
@@ -78,6 +79,13 @@ let language : obj = jsNative
 // importSideEffects "prismjs/components/prism-verilog"
 importSideEffects "prismjs/components/prism-clike"
 
+[<Emit("clipboard.writeText($0,'selection')")>]
+let copyToClipboard (text:string) : unit = jsNative
+
+[<Emit("import {clipboard} from \"electron\"")>]
+let importClipboard : unit = jsNative
+
+importClipboard
 
 /////////////////////   CODE EDITOR CLASS  /////////////////////////
 // Basically: a code editor rendered by a code editor class
@@ -88,7 +96,10 @@ importSideEffects "prismjs/components/prism-clike"
 
 type CEProps =
     { Box : string
-      Dispatch : (Msg -> unit)}
+      Dispatch : (Msg -> unit)
+      DialogData: PopupDialogData
+      Compile: (PopupDialogData -> Unit)}
+    //   Compile : (string -> PopupDialogData -> ReactElement)}
 type CEState = { code: string }
 
 type CE (props) =
@@ -103,7 +114,8 @@ type CE (props) =
                 OnValueChange (fun txt -> 
                     (this.setState (fun s _ -> {s with code = txt}))
                     props.Dispatch <| SetPopupDialogCode (Some txt)
-                    )             
+                    props.Compile {props.DialogData with VerilogCode=Some txt}
+                )             
                 Highlight (fun code -> Prism.highlight(code,language));]
                 []
         
@@ -314,9 +326,82 @@ let dialogPopupBodyOnlyText before placeholder dispatch =
         ]
 
 
+let getErrorTableLine (extraMessage:ExtraErrorInfo) line : ReactElement list =
+    let copyable = extraMessage.Copy
+    let text = extraMessage.Text
+    if copyable then
+        [
+            tr [] [
+                td [Style [Color "Black";TextAlign TextAlignOptions.Center; VerticalAlign "Middle"]] [str (sprintf "Line %i" line)]
+                td [] [
+                    p [Style [Color "Red"; FontStyle "Italic"]] [str "Do you mean:"]
+                    p [Style [Color "Black"; WhiteSpace WhiteSpaceOptions.PreWrap]] [str ("\t'"+text+"'")]
+                    ]
+                td [Style [VerticalAlign "Middle";TextAlign TextAlignOptions.Center]] [
+                    Button.button [
+                        Button.OnClick (fun _ -> 
+                            copyToClipboard text)
+                        Button.Option.Size ISize.IsSmall
+                        ] [str "Copy"]
+                ]
+            ]
+        ]
+    else
+        [
+            tr [] [
+                td [Style [Color "Black";TextAlign TextAlignOptions.Center; VerticalAlign "Middle"]] [str (sprintf "Line %i" line)]
+                td [] [str text]
+                td [] []
+            ]
+        ]
+
+let getErrorTableLines error = 
+    let line = error.Line   
+    // let message = 
+    match isNullOrUndefined error.ExtraErrors with
+    |true -> null
+    |false ->
+        let tLine = 
+            (Option.get error.ExtraErrors)
+            |> List.collect (fun mess -> getErrorTableLine mess line)
+        
+        tbody [] tLine
+       
+
+let getErrorTable (errorList: ErrorInfo list) =
+    let tableFormat =
+        [
+        colgroup [] [
+            col [Style [Width "15%"]]
+            col [Style [Width "70%"; WhiteSpace WhiteSpaceOptions.PreLine]]
+            col [Style [Width "15%"]]
+            ]
+        thead [] [
+            tr [] [
+                th [Style [TextAlign TextAlignOptions.Center]] [str "Line"]
+                th [] [str "Message"]
+                th [Style [TextAlign TextAlignOptions.Center]] [str "Copy"]
+            ]
+        ]
+        ]
+
+    
+    let tableLines = List.collect (fun err -> [getErrorTableLines err]) errorList
+    let tableChildren = List.append tableFormat tableLines
+    if List.length tableLines <> 0 then 
+        table 
+            [Style 
+                [ 
+                FontSize "16px"; 
+                Color "Green"; 
+                TableLayout "Fixed"; 
+                Width "100%"]]
+            tableChildren
+    else
+        table [] []
 
 /// Create the body of a Verilog Editor Popup.
-let dialogVerilogCompBody before placeholder errorDiv dispatch =
+let dialogVerilogCompBody before placeholder errorDiv errorList showExtraErrors compileButton dispatch =
     fun (dialogData : PopupDialogData) ->
         let code = getCode dialogData
         let goodLabel =
@@ -324,27 +409,43 @@ let dialogVerilogCompBody before placeholder errorDiv dispatch =
                 |> Seq.toList
                 |> List.tryHead
                 |> function | Some ch when  System.Char.IsLetter ch -> true | Some ch -> false | None -> true
+        
         let renderCE value =
-            ofType<CE,_,_> {Box=getText dialogData; Dispatch=dispatch} 
-
-        div [] [
-            before dialogData
-            Input.text [
-                Input.Props [AutoFocus true; SpellCheck false]
-                Input.Placeholder placeholder
-                Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
+            ofType<CE,_,_> {Box=getText dialogData; Dispatch=dispatch; DialogData=dialogData;Compile=compileButton} 
+        let stringErrors = 
+            errorList |> List.map (fun err ->
+            match err with
+            |{Line= line; Col= col; Length=length; Message=mess}
+                -> sprintf "Error on Line %i, column %i : %s" line col mess   
+            )
+        let stringError = ("",stringErrors) ||> List.fold (fun s v -> s+v+"\n")
+        let ceWidth, errorWidth, hide = if showExtraErrors then "60%","35%",false else "100%","0%",true 
+        div [Style [Width "100%"; Display DisplayOptions.Flex]] [
+            div [Style [Flex ceWidth;]] [
+                before dialogData
+                Input.text [
+                    Input.Props [AutoFocus true; SpellCheck false]
+                    Input.Placeholder placeholder
+                    Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
+                ]
+                span [Style [FontStyle "Italic"; Color "Red"]; Hidden goodLabel] [str "Name must start with a letter"]
+                br []
+                br []
+                // errorsElement
+                br []
+                p [] [b [] [str "Verilog Code:"]]
+                br []
+                div [ Style [Position PositionOptions.Relative; FontFamily ("ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace"); FontSize 16; BackgroundColor "#f5f5f5"; OutlineStyle "solid"; OutlineColor "Blue"]] 
+                    [
+                    errorDiv
+                    renderCE code Seq.empty
+                    ]
+                
             ]
-            span [Style [FontStyle "Italic"; Color "Red"]; Hidden goodLabel] [str "Name must start with a letter"]
-            br []
-            br []
-            // errorsElement
-            br []
-            p [] [b [] [str "Verilog Code:"]]
-            br []
-            div [ Style [Position PositionOptions.Relative; FontFamily ("ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace"); FontSize 16; BackgroundColor "#f5f5f5"; OutlineStyle "solid"; OutlineColor "Blue"]] 
+            div [Style [Flex "5%"]; Hidden hide] []
+            div [Style [Flex errorWidth]; Hidden hide] 
                 [
-                errorDiv
-                renderCE code Seq.empty
+                getErrorTable errorList
                 ]
         ]
 
@@ -713,9 +814,14 @@ let dialogPopup title body buttonText buttonAction isDisabled extraStyle dispatc
 
 /// Popup with an input textbox and two buttons.
 /// The text is reflected in Model.PopupDialogText.
-let dialogVerilogPopup title body buttonText saveButtonAction compileButtonAction isDisabled extraStyle dispatch =
+let dialogVerilogPopup title body noErrors showingExtraInfo saveButtonAction moreInfoButton isDisabled extraStyle dispatch =
     let foot =
         fun (dialogData : PopupDialogData) ->
+            let compileButtonText = 
+                if noErrors then "Compiled" 
+                elif showingExtraInfo then "Hide Info"
+                else "More Info" 
+            let compileButtonColor = if noErrors then IsInfo else IsDanger
             Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
                 Level.left [] []
                 Level.right [] [
@@ -729,17 +835,17 @@ let dialogVerilogPopup title body buttonText saveButtonAction compileButtonActio
                     ]
                     Level.item [] [
                         Button.button [
-                            // Button.Disabled (isDisabled dialogData)
-                            Button.Color IsInfo
-                            Button.OnClick (fun _ -> compileButtonAction dialogData)
-                        ] [ str "Compile" ]
+                            Button.Disabled (noErrors)
+                            Button.Color compileButtonColor
+                            Button.OnClick (fun _ -> moreInfoButton dialogData)
+                        ] [ str compileButtonText ]
                     ]
                     Level.item [] [
                         Button.button [
                             Button.Disabled (isDisabled dialogData)
                             Button.Color IsPrimary
                             Button.OnClick (fun _ -> saveButtonAction dialogData)
-                        ] [ str buttonText ]
+                        ] [ str "Save" ]
                     ]
                 ]
             ]

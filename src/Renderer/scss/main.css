@@ -11555,16 +11555,24 @@ input::-webkit-inner-spin-button {
   border-bottom-right-radius: 4px; }
 
 
-  .hide {
-    display: none;
-  }
+.hide {
+  display: none;
+}
 
-  .error:hover + .hide {
-    display:inline-block;
-    position: absolute;
-    margin-left: 10px;
-    padding: 3px 10px;
-    color: white;
-    font-weight: normal;
-    background-color: rgba(0, 0, 0, 0.7);
-  }
+.error:hover + .hide {
+  display:inline-block;
+  position: absolute;
+  margin-left: 10px;
+  padding: 3px 10px;
+  color: white;
+  font-weight: normal;
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+tbody tr:nth-child(odd){
+  background-color: #f0f0f0;
+}
+
+th, td {
+  border-style: groove;
+}

@@ -59,10 +59,8 @@ type VerilogInput = { Type:string; Module: ModuleT; }
 
 ////////////////////////////////////////////////////////////////////////////
 
-type ErrorInfo = {Line:int; Col:int; Length: int; Message: string}
+type ExtraErrorInfo = {Text: string; Copy: bool}
+
+type ErrorInfo = {Line:int; Col:int; Length: int; Message: string; ExtraErrors: ExtraErrorInfo list option}
 
 type ParserOutput = {Result: string option; Error: ErrorInfo option; NewLinesIndex: int array option}
-
-type VerilogError =
-    | SyntaxError of ErrorInfo
-    | SemanticError of ErrorInfo

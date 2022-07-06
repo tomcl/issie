@@ -93,7 +93,7 @@ let private createInputPopup typeStr (compType: int * int option -> ComponentTyp
                 |> List.tryHead
                 |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
             (getInt dialogData < 1) || notGoodLabel
-    dialogPopup title body buttonText buttonAction isDisabled dispatch
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
     let title = sprintf "Add %s node" typeStr
@@ -426,15 +426,15 @@ let createVerilogComp model =
     printfn "Not implemented yet!"
 
 
-let rec private createVerilogPopup model dispatch =
+let rec private createVerilogPopup model showExtraErrors dispatch =
     let title = sprintf "Create Combinational Logic Components using Verilog" 
     let beforeText =
         fun _ -> str <| sprintf "How do you want to name your Verilog Component?"
     let placeholder = "Component name"
-    let errorDiv = getErrorDiv model.PopupDialogData.VerilogErrors
-    let errors = if model.PopupDialogData.VerilogErrors <> [] then errorDiv else null
-    let body= dialogVerilogCompBody beforeText placeholder errors dispatch
-    let buttonText = "Save"
+    let noErrors = List.isEmpty model.PopupDialogData.VerilogErrors
+    let errorDiv = if noErrors then null else getErrorDiv model.PopupDialogData.VerilogErrors
+    let errorList = if showExtraErrors then model.PopupDialogData.VerilogErrors else [] 
+    // let body= dialogVerilogCompBody beforeText placeholder errorDiv errorList dispatch
     let saveButtonAction =
         fun (dialogData : PopupDialogData) ->
             // createComponent (compType inputInt) (formatLabelFromType (compType inputInt) inputText) model dispatch            
@@ -450,9 +450,8 @@ let rec private createVerilogPopup model dispatch =
                 | Error _ -> failwithf "Writing verilog file FAILED" 
             // createCompStdLabel (regType inputInt) model dispatch
             dispatch ClosePopup
-    let compileButtonAction =
+    let compile =
         fun (dialogData : PopupDialogData) ->
-            // createComponent (compType inputInt) (formatLabelFromType (compType inputInt) inputText) model dispatch            
             match model.CurrentProj with
             | None -> failwithf "What? current project cannot be None at this point in compiling Verilog Component"
             | Some project ->
@@ -471,19 +470,31 @@ let rec private createVerilogPopup model dispatch =
                     | true -> 
                         printfn "Compiled successfully"
                         let data = {dialogData with VerilogErrors = errorList} 
-                        createVerilogPopup {model with PopupDialogData = data } dispatch
+                        // let r = Evaluator.expressionEvaluator (Option.get parsedAST.Module.ModuleItems.ItemList[5].Statement).Assignment.RHS Map.empty<string,bool option>
+                        // printfn "result %i" r
+                        createVerilogPopup {model with PopupDialogData = data } false dispatch
                     | false -> 
                         printfn "Compilation Failed! Errors: %A" errorList
                         // dispatch <| SetPopupDialogVerilogErrors errorList
                         let data = {dialogData with VerilogErrors = errorList} 
-                        createVerilogPopup {model with PopupDialogData = data } dispatch
+                        createVerilogPopup {model with PopupDialogData = data } showExtraErrors dispatch
                 else
                     let err = Option.get output.Error
                     printfn "Syntax Error: %A" err
                     let data = {dialogData with VerilogErrors = [err] }
-                    createVerilogPopup {model with PopupDialogData = data } dispatch
-                // createVerilogPopup {model with PopupDialogData = dialogData} dispatch
-                
+                    createVerilogPopup {model with PopupDialogData = data } showExtraErrors dispatch
+
+
+    let moreInfoButton = 
+        fun (dialogData : PopupDialogData) ->
+            match model.CurrentProj with
+            | None -> failwithf "What? current project cannot be None at this point in compiling Verilog Component"
+            | Some project ->
+                let errors = dialogData.VerilogErrors
+                createVerilogPopup model (not showExtraErrors) dispatch
+
+    let body= dialogVerilogCompBody beforeText placeholder errorDiv errorList showExtraErrors compile dispatch
+
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
             let notGoodLabel =
@@ -491,8 +502,9 @@ let rec private createVerilogPopup model dispatch =
                 |> Seq.toList
                 |> List.tryHead
                 |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
-            (getInt dialogData < 1) || notGoodLabel
-    dialogVerilogPopup title body buttonText saveButtonAction compileButtonAction isDisabled [Width "50%"] dispatch
+            (getInt dialogData < 1) || notGoodLabel || not noErrors
+    let width = if showExtraErrors then "80%" else "50%" 
+    dialogVerilogPopup title body noErrors showExtraErrors saveButtonAction moreInfoButton isDisabled [Width width] dispatch
 
 
 let private makeMenuGroup title menuList =
@@ -525,6 +537,9 @@ let compareModelsApprox (m1:Model) (m2:Model) =
     //printfn "Model equality:%A" b
     //if b = false then printfn "\n\n%A\n\n%A\n\n" m1r m2r
     b
+
+
+
 
 let viewCatalogue model dispatch =
         let viewCatOfModel = fun model ->                 
@@ -614,7 +629,7 @@ let viewCatalogue model dispatch =
 
                     makeMenuGroup
                         "Verilog"
-                        [ catTip1 "New Verilog Component" (fun _ -> createVerilogPopup model dispatch) "Write combinational logic in Verilog. \
+                        [ catTip1 "New Verilog Component" (fun _ -> createVerilogPopup model false dispatch) "Write combinational logic in Verilog. \
                                                     Use it as a Custom Component"
                           catTip1 "decoder.v" (fun _ -> createVerilogComp  model) ""]
                 ]

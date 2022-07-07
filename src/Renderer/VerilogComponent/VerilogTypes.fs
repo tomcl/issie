@@ -61,6 +61,6 @@ type VerilogInput = { Type:string; Module: ModuleT; }
 
 type ExtraErrorInfo = {Text: string; Copy: bool}
 
-type ErrorInfo = {Line:int; Col:int; Length: int; Message: string; ExtraErrors: ExtraErrorInfo list option}
+type ErrorInfo = {Line:int; Col:int; Length: int; Message: string; ExtraErrors: ExtraErrorInfo array option}
 
 type ParserOutput = {Result: string option; Error: ErrorInfo option; NewLinesIndex: int array option}

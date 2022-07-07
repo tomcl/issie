@@ -105,7 +105,7 @@ type CEState = { code: string }
 type CE (props) =
     inherit Component<CEProps, CEState> (props)
     
-    do base.setInitState({ code = "module NAME(); \n \n \n \n \nendmodule" })
+    do base.setInitState({ code = "module NAME();\n  \n  \n  \n  \n  \n  \nendmodule" })
 
     override this.render () =
             codeEditor [
@@ -326,13 +326,14 @@ let dialogPopupBodyOnlyText before placeholder dispatch =
         ]
 
 
-let getErrorTableLine (extraMessage:ExtraErrorInfo) line : ReactElement list =
+let getErrorTableLine index (extraMessage:ExtraErrorInfo) line : ReactElement list =
     let copyable = extraMessage.Copy
     let text = extraMessage.Text
+    let showLine = if index=0 then "Line "+(string line) else ""
     if copyable then
         [
             tr [] [
-                td [Style [Color "Black";TextAlign TextAlignOptions.Center; VerticalAlign "Middle"]] [str (sprintf "Line %i" line)]
+                td [Style [Color "Black";TextAlign TextAlignOptions.Center; VerticalAlign "Middle"]] [str showLine]
                 td [] [
                     p [Style [Color "Red"; FontStyle "Italic"]] [str "Do you mean:"]
                     p [Style [Color "Black"; WhiteSpace WhiteSpaceOptions.PreWrap]] [str ("\t'"+text+"'")]
@@ -349,8 +350,8 @@ let getErrorTableLine (extraMessage:ExtraErrorInfo) line : ReactElement list =
     else
         [
             tr [] [
-                td [Style [Color "Black";TextAlign TextAlignOptions.Center; VerticalAlign "Middle"]] [str (sprintf "Line %i" line)]
-                td [] [str text]
+                td [Style [Color "Black";TextAlign TextAlignOptions.Center; VerticalAlign "Middle"]] [str showLine]
+                td [Style [Color "Black"; WhiteSpace WhiteSpaceOptions.PreWrap]] [str text]
                 td [] []
             ]
         ]
@@ -363,7 +364,9 @@ let getErrorTableLines error =
     |false ->
         let tLine = 
             (Option.get error.ExtraErrors)
-            |> List.collect (fun mess -> getErrorTableLine mess line)
+            |> Array.toList
+            |> List.indexed
+            |> List.collect (fun (index,mess) -> getErrorTableLine index mess line)
         
         tbody [] tLine
        
@@ -400,10 +403,69 @@ let getErrorTable (errorList: ErrorInfo list) =
     else
         table [] []
 
+
+
+let getLineCounterDiv linesNo =
+    let childrenElements=
+        [1..linesNo+1]
+        |> List.collect (fun no ->
+            [p [] [str (sprintf "%i" no)]]
+        )
+    div [
+        Style [Position PositionOptions.Absolute ; 
+            Display DisplayOptions.Block; 
+            Width "48px"; Height "100%"; 
+            CSSProp.Top "0px"; CSSProp.Left "-56px"; CSSProp.Right "0"; CSSProp.Bottom "0";
+            BackgroundColor "rgba(0,0,0,0)";
+            Color "#7f7f7f"; 
+            ZIndex "2" ;
+            PointerEvents "none";
+            TextAlign TextAlignOptions.Right;
+            WhiteSpace WhiteSpaceOptions.PreLine]
+    ] childrenElements
+
+let infoHoverableElement = 
+    let example =
+        "\tTHIS IS AN EXAMPLE OF A VALID VERILOG FILE
+----------------------------------------------------------
+module decoder(instr,n,z,c,mux1sel,aluF,jump);
+\tinput [15:0] instr;
+\tinput n,z,c;
+\toutput mux1sel,jump;
+\toutput [2:0] aluF;
+\twire cond = n|z|c;
+
+\tassign mux1sel = instr[15]&cond | instr[14];
+\tassign j = instr[8]&(n|c);
+\tassign aluF = intr[10:8];
+endmodule"
+    div [
+        Style [Position PositionOptions.Absolute ; 
+            Display DisplayOptions.Block; 
+            Width "100%"; Height "100%"; 
+            CSSProp.Top "-52px"; CSSProp.Left "104px"; CSSProp.Right "0"; CSSProp.Bottom "0";
+            BackgroundColor "rgba(0,0,0,0)";
+            Color "#7f7f7f"; 
+            ZIndex "2" ;
+            PointerEvents "none";
+            TextDecoration "underline";
+            TextDecorationColor "rgb(0,0,255)";
+            TextAlign TextAlignOptions.Left;
+            WhiteSpace WhiteSpaceOptions.PreWrap]
+        ]
+        [p [Class "info"] 
+        [
+            span [Class "error"; Style [PointerEvents "auto"; FontSize 16; Color "rgb(0,0,255)"; Background "rgba(255,0,0,0)"]] [str ("example")] 
+            span [Class "hide"] [str example]
+        ]
+    ]
+
+
 /// Create the body of a Verilog Editor Popup.
 let dialogVerilogCompBody before placeholder errorDiv errorList showExtraErrors compileButton dispatch =
     fun (dialogData : PopupDialogData) ->
         let code = getCode dialogData
+        let linesNo = code |> String.filter (fun ch->ch='\n') |> String.length
         let goodLabel =
                 getText dialogData
                 |> Seq.toList
@@ -418,9 +480,11 @@ let dialogVerilogCompBody before placeholder errorDiv errorList showExtraErrors 
             |{Line= line; Col= col; Length=length; Message=mess}
                 -> sprintf "Error on Line %i, column %i : %s" line col mess   
             )
+        printfn "vv %A" errorList
         let stringError = ("",stringErrors) ||> List.fold (fun s v -> s+v+"\n")
-        let ceWidth, errorWidth, hide = if showExtraErrors then "60%","35%",false else "100%","0%",true 
-        div [Style [Width "100%"; Display DisplayOptions.Flex]] [
+        let ceWidth, errorWidth, hide = if showExtraErrors then "56%","35%",false else "96%","0%",true 
+        div [Style [Width "100%"; Display DisplayOptions.Flex;]] [
+            div [Style [Flex "2%"];] []
             div [Style [Flex ceWidth;]] [
                 before dialogData
                 Input.text [
@@ -437,11 +501,13 @@ let dialogVerilogCompBody before placeholder errorDiv errorList showExtraErrors 
                 br []
                 div [ Style [Position PositionOptions.Relative; FontFamily ("ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace"); FontSize 16; BackgroundColor "#f5f5f5"; OutlineStyle "solid"; OutlineColor "Blue"]] 
                     [
+                    getLineCounterDiv linesNo
+                    infoHoverableElement
                     errorDiv
                     renderCE code Seq.empty
                     ]
-                
             ]
+            div [Style [Flex "2%"];] []
             div [Style [Flex "5%"]; Hidden hide] []
             div [Style [Flex errorWidth]; Hidden hide] 
                 [

@@ -1,7 +1,6 @@
 
 const nearley = require("nearley");
 const verilogGrammar = require("./verilog.js");
-const fs = require("fs");
 
 export function parseFromFile(source) {
     try {
@@ -30,7 +29,8 @@ export function parseFromFile(source) {
         let table = message.substring(message.indexOf(".") + 1);
         let expectedKeywords = table.match(/assign|input|output|wire|parameter|endmodule/g);
         let unique = expectedKeywords.filter((v, i, a) => a.indexOf(v) === i);
-        let check=0;
+        let checkForChars=false;
+        let checkForEqual=false;
         for (let i = 0; i < expected.length; i++) {
             switch (expected[i]) {
                 case '")"':
@@ -48,8 +48,10 @@ export function parseFromFile(source) {
                     expected[i] = '{NUMBER}'
                     break;
                 case 'character matching /[a-zA-Z_0-9]/':
-                    expected[i] = 'More characters \n Keywords cannot be used for port names'
+                    expected[i] = 'More characters \n Keywords cannot be used as variables'
                     break;
+                case '"="':
+                    checkForEqual=1;
                 default:
                     let char = expected[i][1]
                     
@@ -58,25 +60,28 @@ export function parseFromFile(source) {
                         if(char != 'b' && char != 'h'){
                             expected.splice(i,1)
                             i--;
-                            check=1;
+                            checkForChars=true;
                         }
                     }
                     break;
             }
         }
-        if(check==1){
-            expected.unshift('assign','wire','endmodule','input','output','parameter');
+        if(checkForChars){
+            expected.unshift('assign','wire','endmodule','input','output');
         }
-
-        console.log(expected);
+        if(checkForEqual){
+            expected = ['"="']
+        }
+        // console.log(expected);
 
         let newMessage = `Unexpected ${token.type} token "${token.value}" `+
         `at line ${lineCol[0]} col ${lineCol[1]}.`;
         if (expected && expected.length) newMessage += `\n Expected: ${[...new Set(expected)]}`;  
-        // console.log(e.message)
-        // console.log(newMessage);
-        // return newMessage
-        let jsonobj = {Line: parseInt(lineCol[0]), Col: parseInt(lineCol[1]), Length: 1, Message: `Unexpected token "${token.value}".  `+`\n Expected: ${[...new Set(expected)]}`}
+        if (token.value == '\n'){
+            token.value = 'newline';
+        }
+        else{token.value = '"'+token.value+'"'}
+        let jsonobj = {Line: parseInt(lineCol[0]), Col: parseInt(lineCol[1]), Length: 2, Message: `Unexpected token ${token.value}.  `+`\n Expected: ${[...new Set(expected)]}`}
         return JSON.stringify({Result: null, NewLinesIndex: null, Error: JSON.stringify(jsonobj)});
     }
 }

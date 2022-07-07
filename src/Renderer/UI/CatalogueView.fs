@@ -479,9 +479,14 @@ let rec private createVerilogPopup model showExtraErrors dispatch =
                         let data = {dialogData with VerilogErrors = errorList} 
                         createVerilogPopup {model with PopupDialogData = data } showExtraErrors dispatch
                 else
-                    let err = Option.get output.Error
-                    printfn "Syntax Error: %A" err
-                    let data = {dialogData with VerilogErrors = [err] }
+                    let error = Option.get output.Error
+                    printfn "Syntax Error: %A" error
+                    let error'=
+                        if String.exists (fun ch -> ch = ';') error.Message
+                        then {error with ExtraErrors = Some [|{Text= "Your previous line is not terminated with a semicolon (;)"; Copy= false}|]}
+                        else {error with ExtraErrors = Some [|{Text= error.Message; Copy= false}|]}
+
+                    let data = {dialogData with VerilogErrors = [error'] }
                     createVerilogPopup {model with PopupDialogData = data } showExtraErrors dispatch
 
 

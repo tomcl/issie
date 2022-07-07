@@ -11576,3 +11576,7 @@ tbody tr:nth-child(odd){
 th, td {
   border-style: groove;
 }
+
+
+
+.info::before { content: "\1f6c8"; }

@@ -38,7 +38,9 @@ let portCheck ast linesLocations errorList  =
         |> List.map fst
         |> List.collect (fun name ->
             let message = "Ports must have different names"     
-            let extraMessages = []       
+            let extraMessages = [|
+                {Text=sprintf "Name '%s' has already been used for a port \n Please use a different name" name ;Copy=false}
+            |]       
             createErrorMessage linesLocations locationMap[name] message extraMessages name
             )        
         |> List.append errorList 
@@ -64,7 +66,13 @@ let portCheck ast linesLocations errorList  =
             |> List.ofSeq
             |> List.collect (fun name ->
                 let message = sprintf "Port '%s' is not declared either as input or output" name
-                createErrorMessage linesLocations locationMap[name] message [] name
+                let extraMessages = 
+                    [|
+                        {Text=sprintf "Port '%s' must be declared as input or output" name;Copy=false}
+                        {Text=sprintf "input %s;" name;Copy=true}
+                        {Text=sprintf "output %s;" name;Copy=true}
+                    |]
+                createErrorMessage linesLocations locationMap[name] message extraMessages name
             )
             |> List.append errorList
         | true -> errorList
@@ -81,7 +89,11 @@ let checkIODeclarations ast (portWidthDeclarationMap:Map<string,int*int>) portLo
         | None -> 
             let currLocation = Map.find port portLocationMap
             let message = sprintf "Variable '%s' is not defined as a port in the module declaration" port
-            createErrorMessage linesLocations currLocation message [] port
+            let extraMessages =
+                [|
+                    {Text=sprintf "Variable '%s' is not defined as a port \n Please define it in the module declaration" port;Copy=false}
+                |]
+            createErrorMessage linesLocations currLocation message extraMessages port
         | Some _ -> []
     )
     |> List.append errorList   
@@ -100,8 +112,13 @@ let checkIOWidthDeclarations (ast: VerilogInput) linesLocations errorList  =
         | false -> 
             let range = Option.get ioDecl.Range
             if (range.End <> "0" || (int range.Start) <= (int range.End)) then
-                let message = "Wrong width declaration \n Correct form: [X:0] \n Big-endiad format is not allowed yet by ISSIE"
-                createErrorMessage linesLocations range.Location message [] (range.Start+"[:0]")
+                let message = "Wrong width declaration"
+                let temp = if (int range.Start) <= (int range.End) then "\nBig-Endian format is not allowed yet by ISSIE" else ""
+                let extraMessages = 
+                    [|
+                        {Text=(sprintf "A port's width can't be '[%s:%s]'\nCorrect form: [X:0]" range.Start range.End)+temp;Copy=false}
+                    |]
+                createErrorMessage linesLocations range.Location message extraMessages (range.Start+"[:0]")
             else []
     )
     |> List.append errorList
@@ -118,7 +135,7 @@ let nameCheck ast linesLocations errorList =
     match notGoodName with
     | true -> 
         let message = "Module Name must start with a character to be valid"
-        createErrorMessage linesLocations ast.Module.ModuleName.Location message [] name
+        createErrorMessage linesLocations ast.Module.ModuleName.Location message [||] name
     | false -> errorList
 
 
@@ -197,10 +214,10 @@ let checkAllOutputsAssigned ast portMap portSizeMap portLocationMap (linesLocati
             let currLocation = linesLocations[((List.length linesLocations)-2)]
             let message = "All output ports must be assigned"  
             let extraMessages = 
-                [
+                [|
                     {Text=sprintf "The following ports are declared but not assigned: %A" unassignedPorts;Copy=false};
-                    {Text=sprintf "assign %s = ..." unassignedPorts[0];Copy=true}
-                ]
+                    {Text=sprintf "assign %s = 0;" unassignedPorts[0];Copy=true}
+                |]
             createErrorMessage linesLocations currLocation message extraMessages "endmodule"
 
 
@@ -285,9 +302,13 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
     let checkWireNameAndWidth wire (localErrors:ErrorInfo list) =     
         let lhs = wire.LHS
         match Map.tryFind lhs.Primary.Name portMap with
-        | Some name  -> 
-            let message = sprintf "Variable '%s' is already used by a port" name
-            createErrorMessage linesLocations lhs.Primary.Location message [] name
+        | Some portType  -> 
+            let message = sprintf "Variable '%s' is already used by a port" lhs.Primary.Name
+            let extraMessages = 
+                [|
+                    {Text=(sprintf "Variable '%s' is declared as an %s port\nPlease use a different name for this wire" lhs.Primary.Name portType);Copy=false}
+                |]
+            createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name
         | _ -> 
             match isNullOrUndefined lhs.BitsStart with
             |true -> localErrors
@@ -295,9 +316,12 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
                 let bStart = int <| Option.get lhs.BitsStart
                 let bEnd = int <| Option.get lhs.BitsEnd
                 if (bEnd <> 0 || bStart <= bEnd) then
-                    let message = "Wrong width declaration \n Correct form: [X:0]"
-                    createErrorMessage linesLocations lhs.Primary.Location message [] lhs.Primary.Name
-                    // createErrorMessage linesLocations lhs.Primary.Location message [] lhs.Primary.Name
+                    let message = "Wrong width declaration"
+                    let extraMessages = 
+                        [|
+                            {Text=(sprintf "A port's width can't be '[%i:%i]'\nCorrect form: [X:0]" bStart bEnd);Copy=false}
+                        |]
+                    createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name
                 else localErrors
 
 
@@ -313,17 +337,36 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
                     if (bStart >= (int (Option.get lhs.BitsStart))) && (bEnd <= (int (Option.get lhs.BitsEnd))) then
                         localErrors
                     else 
-                        let message = sprintf "Wrong width of output port: '%s'" lhs.Primary.Name
+                        let name = lhs.Primary.Name
+                        let definition =
+                            match bStart=bEnd with
+                            |true -> " a single bit "
+                            |false -> sprintf " %s[%i:0] " name (bStart)
+                        let usedWidth =
+                            match lhs.BitsStart=lhs.BitsEnd with
+                            |true -> sprintf " %s[%s] " name (Option.get lhs.BitsStart)
+                            |false -> sprintf " %s[%s:%s] " name (Option.get lhs.BitsStart) (Option.get lhs.BitsEnd)
+                        let message = sprintf "Wrong width of variable: '%s'" name
+                        let extraMessages = 
+                            [|
+                                {Text=(sprintf "Variable: '%s' is defined as" name)+definition+"\nTherefore,"+usedWidth+"is invalid" ; Copy=false}
+                                {Text=sprintf "assign %s = 0;"name; Copy=true}
+                            |]
                         List.append 
                             localErrors 
-                            (createErrorMessage linesLocations lhs.Primary.Location message [] lhs.Primary.Name)
+                            (createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name)
                 | true -> localErrors
             | None -> failwithf "Can't happen! PortMap and PortSizeMap should have the same keys"
         | _ -> 
             let message = sprintf "Variable '%s' is not declared as an output port" lhs.Primary.Name
+            let extraMessages = 
+                [|
+                    {Text=(sprintf "Variable '%s' is not declared as an output port" lhs.Primary.Name);Copy=false}
+                    {Text=(sprintf "output %s;" lhs.Primary.Name);Copy=true}
+                |]
             List.append 
                 localErrors 
-                (createErrorMessage linesLocations lhs.Primary.Location message [] lhs.Primary.Name)
+                (createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name)
 
 
     let checkNamesOfAssignment (assignment: AssignmentT) localErrors = 
@@ -341,7 +384,13 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
             |> List.collect (fun name ->
                 let currLocation = Map.find name namesToLocMap
                 let message = sprintf "Variable '%s' is not declared as input or wire" name
-                createErrorMessage linesLocations currLocation message [] name
+                let extraMessages = 
+                    [|
+                        {Text=(sprintf "Variable '%s' is not declared as input or wire" name);Copy=false}
+                        {Text=(sprintf "input %s;" name);Copy=true}
+                        {Text=(sprintf "wire %s = 0;" name);Copy=true}
+                    |]
+                createErrorMessage linesLocations currLocation message extraMessages name
             )
             
 
@@ -359,9 +408,14 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
                 |(-3) ->   // number
                     if bEnd = 0 then
                         let message = "Number can't be 0 bits wide"
+                        let extraMessages = 
+                            [|
+                                {Text="Number can't be 0 bits wide"; Copy=false}
+                                {Text=("The integer before 'h/'b represents the width of the number\n e.g. 12'hc7 -> 000011000111");Copy=false}
+                            |]
                         List.append 
                             localErrors 
-                            (createErrorMessage linesLocations x.Primary.Location message [] "0'b")
+                            (createErrorMessage linesLocations x.Primary.Location message extraMessages "0'b")
                     else localErrors
                 | _ -> 
                     match Map.tryFind name inputWireSizeMap with
@@ -369,13 +423,22 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
                         if (bStart<size) && (bEnd>=0) && (bStart>=bEnd) then
                             localErrors //ok
                         else 
-                            let message =
+                            let definition =
                                 match size with
-                                |1 -> sprintf "Wrong width of variable: '%s' \n Defined as: %s[0]" name name
-                                |_ -> sprintf "Wrong width of variable: '%s' \n Defined as: %s[%i:0]" name name (size-1)
+                                |1 -> " a single bit "
+                                |_ -> sprintf " %s[%i:0] " name (size-1)
+                            let usedWidth =
+                                match bStart=bEnd with
+                                |true -> sprintf " %s[%i] " name bStart
+                                |false -> sprintf " %s[%i:%i] " name bStart bEnd
+                            let message = sprintf "Wrong width of variable: '%s'" name
+                            let extraMessages = 
+                                [|
+                                    {Text=(sprintf "Variable: '%s' is defined as" name)+definition+"\nTherefore,"+usedWidth+"is invalid" ; Copy=false}
+                                |]
                             List.append 
                                 localErrors 
-                                (createErrorMessage linesLocations x.Primary.Location message [] name)        
+                                (createErrorMessage linesLocations x.Primary.Location message extraMessages name)        
                     | None -> localErrors //invalid name, error found by AssignmentRHSNameCheck 
             | true -> localErrors
         )

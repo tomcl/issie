@@ -451,7 +451,7 @@ let toggleSelectSubGroup (wsModel: WaveSimModel) dispatch (selected: bool) (wave
         if selected then
             List.append wsModel.SelectedWaves waves
         else
-            List.except wsModel.SelectedWaves waves
+            List.except waves wsModel.SelectedWaves
     dispatch <| InitiateWaveSimulation {wsModel with SelectedWaves = selectedWaves}
 
 /// Table row of a checkbox and name of a wave.

@@ -350,10 +350,15 @@ let update (msg : Msg) oldModel =
             WaveSim = Map.add sheet wsModel model.WaveSim
         }, Cmd.none
     | InitiateWaveSimulation wsModel ->
-        let allWaves = Map.map (WaveSim.generateWaveform wsModel) wsModel.AllWaves
+        let start = TimeHelpers.getTimeMs ()
+        let allWaves =
+            Map.map (WaveSim.generateWaveform wsModel) wsModel.AllWaves
+            |> TimeHelpers.instrumentInterval "InitiateWaveSimulation generateWaveform" start
+
         let wsModel' = {wsModel with AllWaves = allWaves}
 
         setWSModel wsModel' model, Cmd.ofMsg (Sheet(SheetT.SetSpinner false))
+
     | SetSimulationGraph (graph, fastSim) ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
         { model with CurrentStepSimulationStep = { simData with Graph = graph ; FastSim = fastSim} |> Ok |> Some }, Cmd.none

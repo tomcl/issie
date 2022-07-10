@@ -629,7 +629,7 @@ let toggleRamSelection (ramId: ComponentId) (ramLabel: string) (wsModel: WaveSim
             Map.remove ramId wsModel.SelectedRams
         else
             Map.add ramId ramLabel wsModel.SelectedRams
-    dispatch <| InitiateWaveSimulation {wsModel with SelectedRams = selectedRams}
+    dispatch <| SetWSModel {wsModel with SelectedRams = selectedRams}
 
 /// Modal that, when active, allows users to select RAMs to view their contents.
 let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =

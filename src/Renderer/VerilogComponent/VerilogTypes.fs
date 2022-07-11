@@ -59,6 +59,8 @@ type VerilogInput = { Type:string; Module: ModuleT; }
 
 ////////////////////////////////////////////////////////////////////////////
 
+type OneUnary = {Name:string;Size:int;Parenthesis:OneUnary list option}
+
 type ExtraErrorInfo = {Text: string; Copy: bool}
 
 type ErrorInfo = {Line:int; Col:int; Length: int; Message: string; ExtraErrors: ExtraErrorInfo array option}

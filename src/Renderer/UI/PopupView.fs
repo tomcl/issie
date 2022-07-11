@@ -389,7 +389,11 @@ let getErrorTable (errorList: ErrorInfo list) =
         ]
 
     
-    let tableLines = List.collect (fun err -> [getErrorTableLines err]) errorList
+    let tableLines =
+        errorList
+        |> List.sortBy (fun err -> err.Line)
+        |> List.collect (fun err -> [getErrorTableLines err])
+    
     let tableChildren = List.append tableFormat tableLines
     if List.length tableLines <> 0 then 
         table 

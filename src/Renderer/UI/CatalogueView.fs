@@ -359,7 +359,7 @@ let getUnderLineElement marginLeft _line message =
     [
         span [Style [Display DisplayOptions.InlineBlock; MarginLeft marginLeft; PointerEvents "stroke"]] []
         span [Class "error"; Style [PointerEvents "auto"; FontSize 16; Color "rgb(255,0,0)"; Background "rgba(255,0,0,0)"]] [str (_line)] 
-        span [Class "hide"] [str message]       
+        span [Class "hide"] [str message]                                //204 
     ]
 
 
@@ -459,31 +459,33 @@ let rec private createVerilogPopup model showExtraErrors dispatch =
                 let parsedCode = parseFromFile(code)
                 let output = Json.parseAs<ParserOutput> parsedCode
                 if isNullOrUndefined output.Error then
-                    let result = Option.get output.Result
-                    printfn "Input AST: %s" result
-                    let fixedAST = fix result
-                    let linesIndex = Option.get output.NewLinesIndex |> Array.toList
-                    printfn "NewLinesIndex: %A" linesIndex
-                    let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
-                    let errorList = ErrorCheck.getErrors parsedAST model linesIndex
-                    match List.isEmpty errorList with
-                    | true -> 
-                        printfn "Compiled successfully"
-                        let data = {dialogData with VerilogErrors = errorList} 
-                        // let r = Evaluator.expressionEvaluator (Option.get parsedAST.Module.ModuleItems.ItemList[5].Statement).Assignment.RHS Map.empty<string,bool option>
-                        // printfn "result %i" r
-                        createVerilogPopup {model with PopupDialogData = data } false dispatch
-                    | false -> 
-                        printfn "Compilation Failed! Errors: %A" errorList
-                        // dispatch <| SetPopupDialogVerilogErrors errorList
-                        let data = {dialogData with VerilogErrors = errorList} 
-                        createVerilogPopup {model with PopupDialogData = data } showExtraErrors dispatch
+                    match Option.isNone output.Result with 
+                    |true-> () //do nothing if parser failed
+                    |false ->
+                        let result = Option.get output.Result
+                        printfn "Input AST: %s" result
+                        let fixedAST = fix result
+                        let linesIndex = Option.get output.NewLinesIndex |> Array.toList
+                        printfn "NewLinesIndex: %A" linesIndex
+                        let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
+                        let errorList = ErrorCheck.getErrors parsedAST model linesIndex
+                        match List.isEmpty errorList with
+                        | true -> 
+                            printfn "Compiled successfully"
+                            let data = {dialogData with VerilogErrors = errorList} 
+                            createVerilogPopup {model with PopupDialogData = data } false dispatch
+                        | false -> 
+                            printfn "Compilation Failed! Errors: %A" errorList
+                            let data = {dialogData with VerilogErrors = errorList} 
+                            createVerilogPopup {model with PopupDialogData = data } showExtraErrors dispatch
                 else
                     let error = Option.get output.Error
                     printfn "Syntax Error: %A" error
                     let error'=
-                        if String.exists (fun ch -> ch = ';') error.Message
-                        then {error with ExtraErrors = Some [|{Text= "Your previous line is not terminated with a semicolon (;)"; Copy= false}|]}
+                        if (String.exists (fun ch -> ch = ';') error.Message && not (String.exists (fun ch->ch='.') error.Message))
+                            then {error with ExtraErrors = Some [|{Text= "Your previous line is not terminated with a semicolon (;)"; Copy= false}|]}
+                        elif (String.exists (fun ch -> ch = '\'') error.Message)
+                            then {error with ExtraErrors = Some [|{Text= "Numbers must be of format: <size>'<radix><value>\n  e.g. 16'h3fa5;"; Copy= false}|]}
                         else {error with ExtraErrors = Some [|{Text= error.Message; Copy= false}|]}
 
                     let data = {dialogData with VerilogErrors = [error'] }

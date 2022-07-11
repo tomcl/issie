@@ -2,6 +2,7 @@ module ErrorCheck
 
 open VerilogTypes
 open Fable.Core.JsInterop
+open System
 
 
 /// Helper function to create an Error Message (Type: ErrorInfo) 
@@ -225,6 +226,118 @@ let checkAllOutputsAssigned ast portMap portSizeMap portLocationMap (linesLocati
     |> List.append errorList
 
 
+
+
+let RHSUnaryAnalysis assignmentRHS inputWireSizeMap =
+    
+    let findSizeOfUnary (tree: ExpressionT) inputWireSizeMap (lengthLHS:int) =
+        match tree.Type with
+        | "unary" when (Option.get tree.Unary).Type = "primary" ->
+            let primary = Option.get (Option.get tree.Unary).Primary
+            match isNullOrUndefined primary.BitsStart with
+                    | true -> 
+                        match Map.tryFind primary.Primary.Name inputWireSizeMap with
+                        | Some num -> (num)
+                        | None -> (lengthLHS) // if name doesn't exist skip it, error found by assignmentRHSNameCheck
+                    | false -> 
+                        (((Option.get primary.BitsStart) |> int) - ((Option.get primary.BitsEnd) |> int) + 1)
+        | "unary" when (Option.get tree.Unary).Type = "number"  
+            -> match (Option.get (Option.get tree.Unary).Number).NumberType with
+                |"decimal"
+                    -> (-4)  //keep decimal?? else delete
+                | _ -> int <| (Option.get (Option.get (Option.get tree.Unary).Number).Bits) 
+        | _ -> failwithf "Can't happen"
+
+    let rec findSizeOfExpression inLst (tree:ExpressionT) = 
+        match tree.Type with
+        | "unary" when (Option.get tree.Unary).Type = "primary" ->
+            let primary = Option.get (Option.get tree.Unary).Primary
+            match isNullOrUndefined primary.BitsStart with
+                    | true -> 
+                        match Map.tryFind primary.Primary.Name inputWireSizeMap with
+                        | Some num -> [{Name=primary.Primary.Name;Size=num;Parenthesis=None}]
+                        | None -> [] // if name doesn't exist skip it, error found by assignmentRHSNameCheck
+                    | false -> 
+                        [{Name=primary.Primary.Name;Size=((Option.get primary.BitsStart) |> int) - ((Option.get primary.BitsEnd) |> int) + 1;Parenthesis=None}]
+    
+
+        | "negation" when (Option.get tree.Unary).Type = "primary" ->
+            let primary = Option.get (Option.get tree.Unary).Primary
+            match isNullOrUndefined primary.BitsStart with
+                    | true -> 
+                        match Map.tryFind primary.Primary.Name inputWireSizeMap with
+                        | Some num -> [{Name=primary.Primary.Name;Size=num;Parenthesis=None}]
+                        | None -> [] // if name doesn't exist skip it, error found by assignmentRHSNameCheck
+                    | false -> 
+                        [{Name=primary.Primary.Name;Size=((Option.get primary.BitsStart) |> int) - ((Option.get primary.BitsEnd) |> int) + 1;Parenthesis=None}]
+                        
+        | "unary" when (Option.get tree.Unary).Type = "number"  
+            -> match (Option.get (Option.get tree.Unary).Number).NumberType with
+                |"decimal"-> []  //keep decimal?? else delete
+                | _ -> [{Name="[number]";Size=int <| (Option.get (Option.get (Option.get tree.Unary).Number).Bits) ;Parenthesis=None}]
+        
+        | "unary" when (Option.get tree.Unary).Type = "concat" -> 
+            let unariesList = (findSizeOfConcat (Option.get (Option.get tree.Unary).Expression) [])
+            let length= (0,unariesList) ||> List.fold(fun s unary-> s+unary.Size)
+            let result = {Name="{...}";Size=length;Parenthesis=Some unariesList}
+            List.append inLst [result]
+
+            // List.append inLst [(findSizeOfConcat (Option.get (Option.get tree.Unary).Expression) [])]
+        
+        | "unary" when (Option.get tree.Unary).Type = "parenthesis" -> 
+            List.append
+                inLst
+                (findSizeOfParenthesis tree)        
+        
+        | "negation" when (Option.get tree.Unary).Type = "parenthesis" ->
+            List.append
+                inLst
+                (findSizeOfExpression [] (Option.get (Option.get tree.Unary).Expression))
+
+            
+
+
+        | "bitwise_OR" | "bitwise_XOR" | "bitwise_AND" 
+        | "additive" | "logical_AND" 
+        | "logical_OR"  
+            -> List.append 
+                (findSizeOfExpression inLst (Option.get tree.Head))
+                (if isNullOrUndefined tree.Tail 
+                            then inLst 
+                        else findSizeOfExpression inLst (Option.get tree.Tail))
+        | "unary_list" -> findSizeOfConcat tree inLst
+
+        | "SHIFT" ->
+            let result = (findSizeOfExpression [] (Option.get tree.Head))[0] 
+            let size = result.Size
+            List.append inLst [{Name="[shift]";Size=size;Parenthesis=result.Parenthesis}] 
+
+        | "reduction" when (Option.get tree.Unary).Type = "parenthesis" ->
+            let result = findSizeOfExpression [] (Option.get (Option.get tree.Unary).Expression)
+            List.append inLst [{Name="[reduction]";Size=1;Parenthesis=Some result}] 
+
+        | "reduction" -> 
+            List.append inLst [{Name="[reduction]";Size=1;Parenthesis=None}] 
+
+        | _ -> inLst
+    and findSizeOfConcat (tree:ExpressionT) concatList =
+        
+        // let result =
+        match isNullOrUndefined tree.Tail with
+        |true -> (findSizeOfExpression concatList (Option.get tree.Head))
+        |false ->
+            List.append
+                (findSizeOfExpression concatList (Option.get tree.Head))
+                (findSizeOfConcat (Option.get tree.Tail) [])
+    and findSizeOfParenthesis (tree:ExpressionT) =
+        let result = findSizeOfExpression [] (Option.get (Option.get tree.Unary).Expression)
+        let diff = List.distinctBy (fun unary->unary.Size) result
+        [{Name="(...)";Size=diff[0].Size;Parenthesis=Some result}]
+
+    findSizeOfExpression [] assignmentRHS
+
+
+
 /// Recursive function to get all the primaries used in the RHS of an assignment
 let rec primariesUsedInAssignment inLst (isConcat: bool) (tree: ExpressionT) = 
     match tree.Type with
@@ -239,52 +352,8 @@ let rec primariesUsedInAssignment inLst (isConcat: bool) (tree: ExpressionT) =
     | "negation" when (Option.get tree.Unary).Type = "parenthesis" 
         -> primariesUsedInAssignment inLst isConcat (Option.get (Option.get tree.Unary).Expression)    
     
-    // hack for numbers to get their width in BitsEnd (correct?)
-    | "unary" when (Option.get tree.Unary).Type = "number"  
-        -> match (Option.get (Option.get tree.Unary).Number).NumberType with
-            |"decimal"
-                -> List.append inLst 
-                    [(
-                            {
-                            Type= "primary"; 
-                            PrimaryType= "numeric"; 
-                            BitsStart= Some "-4"; 
-                            BitsEnd= Some "-4"; 
-                            Primary= {
-                                Name="delete123";
-                                Location=(Option.get (Option.get tree.Unary).Number).Location
-                                }
-                            }, isConcat
-                        )]
-            | _ -> List.append inLst 
-                        [(
-                                {
-                                Type= "primary"; 
-                                PrimaryType= "numeric"; 
-                                BitsStart= Some "-3"; 
-                                BitsEnd= Some (Option.get (Option.get (Option.get tree.Unary).Number).Bits); 
-                                Primary= {
-                                    Name="delete123";
-                                    Location=(Option.get (Option.get tree.Unary).Number).Location
-                                    }
-                                }, isConcat
-                            )]
-    
-    // hack for reduction to get that its width is 1 (correct?)
-    | "reduction" 
-        -> List.append inLst 
-            [(
-                        {
-                        Type= "primary"; 
-                        PrimaryType= "reduction"; 
-                        BitsStart= Some "-1"; 
-                        BitsEnd= Some "-1"; 
-                        Primary= {Name="delete123";Location=0}
-                        }, isConcat
-                    )] 
-    
     | "bitwise_OR" | "bitwise_XOR" | "bitwise_AND" 
-    | "additive" | "logical_SHIFT" | "logical_AND" 
+    | "additive" | "SHIFT" | "logical_AND" 
     | "logical_OR" | "unary_list" 
         -> List.append 
             (primariesUsedInAssignment inLst isConcat (Option.get tree.Head))
@@ -294,7 +363,41 @@ let rec primariesUsedInAssignment inLst (isConcat: bool) (tree: ExpressionT) =
     | _ -> inLst
 
 
-//////////////////////////////
+let rec sizesToString treeDepth targetLength (unariesList:OneUnary list)  =
+    
+    let unarytoString item =
+        let depthToSpaces = ("",[0..treeDepth])||>List.fold (fun s v -> s+"   ") 
+        let sizeString =
+            match targetLength with
+            |(-1) -> (string item.Size)
+            |x when x=(item.Size)-> (string item.Size)
+            |_ -> (string item.Size)+" -> ERROR! (Exp: "+(string targetLength)+")"
+        let propagatedLength = if item.Name = "{...}" then -1 else item.Size
+        match item.Parenthesis with
+        |Some localList -> 
+            let propagatedLength =
+                match item.Name with
+                |"{...}" -> (-1)
+                |"[reduction]" -> localList[0].Size
+                | _ -> item.Size
+            depthToSpaces+
+            "-'"+
+            item.Name+
+            "' with Width: "+
+            sizeString+
+            "\n"+
+            depthToSpaces+
+            "   "+
+            "Elements: \n"+
+            (sizesToString (treeDepth+2) propagatedLength localList)
+        |None -> 
+            depthToSpaces+"-'"+item.Name+"' with Width: "+sizeString+"\n"
+    
+    ("",unariesList)
+    ||>List.fold (fun s item ->
+        s+(unarytoString item)
+    )
+
 
 let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDeclarationMap inputWireSizeMap inputWireList  linesLocations errorList =
     
@@ -444,6 +547,51 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
         )
 
 
+    let checkBitsOfAssignment (assignment: AssignmentT) location localErrors =
+        let lengthLHS = 
+            match isNullOrUndefined assignment.LHS.BitsStart with
+            | true -> 
+                match Map.tryFind assignment.LHS.Primary.Name portSizeMap with
+                | Some num -> num
+                | None -> (-1)
+            | false -> ((Option.get assignment.LHS.BitsStart) |> int) - ((Option.get assignment.LHS.BitsEnd) |> int)+1
+
+        let unariesList = RHSUnaryAnalysis assignment.RHS inputWireSizeMap
+        let sizesString = sizesToString 1 lengthLHS unariesList
+        
+        let intToBool x =
+            match x with
+            |0 -> false
+            |_ -> true
+        
+        let hasError =
+            sizesString
+            |> String.filter (fun ch -> ch='!')
+            |> String.length
+            // if it contains '!' -> it has an error                
+            |> intToBool
+        
+        match hasError with
+        |false -> localErrors
+        |true ->
+            let text = 
+                "Bit width on LHS and RHS must be equal!\n"+
+                "  *LHS: '"+
+                assignment.LHS.Primary.Name+
+                "' with Width: "+
+                (string lengthLHS)+
+                "\n  *RHS:\n"+
+                sizesString
+
+            let extraMessages =
+                [|
+                    {Text=text;Copy=false}
+                |]
+            List.append 
+                localErrors 
+                (createErrorMessage linesLocations location "Different width on RHS<->LHS" extraMessages "assign")        
+
+
     let assignmentsWithLocation = 
         ast.Module.ModuleItems.ItemList 
         |> Array.toList 
@@ -459,6 +607,7 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
             |> checkAssignmentNameAndWidth assignment
             |> checkNamesOfAssignment assignment
             |> checkSizesOfAssignment assignment
+            |> checkBitsOfAssignment assignment location
         )
 
     let assignmentErrors = List.append errorList localErrors

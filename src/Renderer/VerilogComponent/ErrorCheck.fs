@@ -299,7 +299,7 @@ let RHSUnaryAnalysis assignmentRHS inputWireSizeMap =
 
         | "bitwise_OR" | "bitwise_XOR" | "bitwise_AND" 
         | "additive" | "logical_AND" 
-        | "logical_OR"  
+        | "logical_OR" | "conditional_result" 
             -> List.append 
                 (findSizeOfExpression inLst (Option.get tree.Head))
                 (if isNullOrUndefined tree.Tail 
@@ -307,6 +307,12 @@ let RHSUnaryAnalysis assignmentRHS inputWireSizeMap =
                         else findSizeOfExpression inLst (Option.get tree.Tail))
         | "unary_list" -> findSizeOfConcat tree inLst
 
+        | "conditional_cond" -> 
+            let result = (findSizeOfExpression [] (Option.get tree.Head))[0]
+            let elements = (findSizeOfExpression [] (Option.get tree.Tail))
+            let size = result.Size
+            List.append inLst [{Name="[condition]";Size=size;Parenthesis=Some elements}] 
+        
         | "SHIFT" ->
             let result = (findSizeOfExpression [] (Option.get tree.Head))[0] 
             let size = result.Size
@@ -355,6 +361,7 @@ let rec primariesUsedInAssignment inLst (isConcat: bool) (tree: ExpressionT) =
     | "bitwise_OR" | "bitwise_XOR" | "bitwise_AND" 
     | "additive" | "SHIFT" | "logical_AND" 
     | "logical_OR" | "unary_list" 
+    | "conditional_cond" | "conditional_result"
         -> List.append 
             (primariesUsedInAssignment inLst isConcat (Option.get tree.Head))
             (if isNullOrUndefined tree.Tail 
@@ -366,18 +373,20 @@ let rec primariesUsedInAssignment inLst (isConcat: bool) (tree: ExpressionT) =
 let rec sizesToString treeDepth targetLength (unariesList:OneUnary list)  =
     
     let unarytoString item =
+        let targetLength' = if item.Name = "[condition]" then 1 else targetLength
         let depthToSpaces = ("",[0..treeDepth])||>List.fold (fun s v -> s+"   ") 
         let sizeString =
-            match targetLength with
+            match targetLength' with
             |(-1) -> (string item.Size)
             |x when x=(item.Size)-> (string item.Size)
-            |_ -> (string item.Size)+" -> ERROR! (Exp: "+(string targetLength)+")"
-        let propagatedLength = if item.Name = "{...}" then -1 else item.Size
+            |x when item.Name="[condition]" -> (string item.Size)+" -> ERROR! (Exp: "+(string targetLength')+", condition must be a single bit!)"
+            |_ -> (string item.Size)+" -> ERROR! (Exp: "+(string targetLength')+")"
         match item.Parenthesis with
         |Some localList -> 
             let propagatedLength =
                 match item.Name with
                 |"{...}" -> (-1)
+                |"[condition]" -> targetLength
                 |"[reduction]" -> localList[0].Size
                 | _ -> item.Size
             depthToSpaces+
@@ -558,7 +567,7 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
 
         let unariesList = RHSUnaryAnalysis assignment.RHS inputWireSizeMap
         let sizesString = sizesToString 1 lengthLHS unariesList
-        
+        printfn "result: %A" unariesList
         let intToBool x =
             match x with
             |0 -> false

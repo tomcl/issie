@@ -6,17 +6,19 @@ export function parseFromFile(source) {
     try {
         const parser = new nearley.Parser(nearley.Grammar.fromCompiled(verilogGrammar));
         const sourceTrimmed = source.replace(/\s+$/g, '');
-        parser.feed(sourceTrimmed);
+        const sourceTrimmedComments = sourceTrimmed.replace(/\/\/.*$/gm,' '); //\/\*[\s\S]*?\*\/|([^\\:]|^)
+        console.log(sourceTrimmedComments);
+        parser.feed(sourceTrimmedComments);
         let results = parser.results;
         
-        let lines = sourceTrimmed.split(/\n/); 
+        let lines = sourceTrimmedComments.split(/\n/); 
         let linesIndex = [0];
         let count=0;
         for(let i=0;i<lines.length-1;i++){
             linesIndex.push(lines[i].length+1+count);
             count = lines[i].length+1+count;
         }
-        linesIndex.push(sourceTrimmed.length)  
+        linesIndex.push(sourceTrimmedComments.length)  
         const ast = results[0];
         return JSON.stringify({Result: JSON.stringify(ast), Error: null, NewLinesIndex: linesIndex});
     }
@@ -57,7 +59,7 @@ export function parseFromFile(source) {
                     
                     // if character (except b,h) most likely comes from beginning of line (i.e. missing assign,wire,output...)
                     if(char.toUpperCase() != char.toLowerCase()){
-                        if(char != 'b' && char != 'h'){
+                        if(char != 'b' && char != 'h' && char != 'd'){
                             expected.splice(i,1)
                             i--;
                             checkForChars=true;
@@ -78,10 +80,13 @@ export function parseFromFile(source) {
         `at line ${lineCol[0]} col ${lineCol[1]}.`;
         if (expected && expected.length) newMessage += `\n Expected: ${[...new Set(expected)]}`;  
         if (token.value == '\n'){
-            token.value = 'newline';
+            token.value = '\''+'newline'+'\'';
+        }
+        else if(token.value == ';'){
+            token.value = '"'+token.value+'".';
         }
         else{token.value = '"'+token.value+'"'}
-        let jsonobj = {Line: parseInt(lineCol[0]), Col: parseInt(lineCol[1]), Length: 2, Message: `Unexpected token ${token.value}.  `+`\n Expected: ${[...new Set(expected)]}`}
+        let jsonobj = {Line: parseInt(lineCol[0]), Col: parseInt(lineCol[1]), Length: 2, Message: `Unexpected token ${token.value}  `+`\n Expected: ${[...new Set(expected)]}`}
         return JSON.stringify({Result: null, NewLinesIndex: null, Error: JSON.stringify(jsonobj)});
     }
 }

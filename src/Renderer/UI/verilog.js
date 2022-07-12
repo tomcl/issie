@@ -9,7 +9,7 @@
         {"name": "MODULE$string$1", "symbols": [{"literal":"m"}, {"literal":"o"}, {"literal":"d"}, {"literal":"u"}, {"literal":"l"}, {"literal":"e"}], "postprocess": function joiner(d) {return d.join('');}},
         {"name": "MODULE$ebnf$1", "symbols": ["LIST_OF_PORTS"], "postprocess": id},
         {"name": "MODULE$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
-        {"name": "MODULE", "symbols": ["MODULE$string$1", "__", "NAME_OF_MODULE", "_", {"literal":"("}, "_", "MODULE$ebnf$1", "_", {"literal":")"}, "_", {"literal":";"}, "_", "MODULE_ITEMS", "_", "endmodule", "_"], "postprocess": function(d) {return {Type: "module", ModuleName: d[2], PortList: d[6], ModuleItems: d[12]};}},
+        {"name": "MODULE", "symbols": ["_", "MODULE$string$1", "__", "NAME_OF_MODULE", "_", {"literal":"("}, "_", "MODULE$ebnf$1", "_", {"literal":")"}, "_", {"literal":";"}, "_", "MODULE_ITEMS", "_", "endmodule", "_"], "postprocess": function(d) {return {Type: "module", ModuleName: d[3], PortList: d[7], ModuleItems: d[13]};}},
         {"name": "NAME_OF_MODULE", "symbols": ["IDENTIFIER"], "postprocess": id},
         {"name": "LIST_OF_PORTS", "symbols": ["PORT", "_", {"literal":","}, "_", "LIST_OF_PORTS"], "postprocess": function(d, l, reject) {return {Type: "port_list", Head: d[0], Tail: d[4], Location: l};}},
         {"name": "LIST_OF_PORTS", "symbols": ["PORT"], "postprocess": function(d,l,reject) {return {Type: "port_list", Head: d[0], Tail: null, Location: l};}},

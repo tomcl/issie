@@ -616,7 +616,13 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
                         Level.right [
                         ] [ Delete.delete [
                                 Delete.Option.Size IsMedium
-                                Delete.Option.OnClick (fun _ -> dispatch <| SetWSModel {wsModel with WaveModalActive = false})
+                                Delete.Option.OnClick (fun _ ->
+                                    dispatch <| SetWSModel
+                                        {wsModel with
+                                            WaveModalActive = false
+                                            SearchString = ""
+                                        }
+                                )
                             ] []
                         ]
                     ]

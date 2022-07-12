@@ -59,6 +59,10 @@ type VerilogInput = { Type:string; Module: ModuleT; }
 
 ////////////////////////////////////////////////////////////////////////////
 
+type PortAssignmentError =
+    |Unassigned
+    |DoubleAssignment 
+
 type OneUnary = {Name:string;Size:int;Parenthesis:OneUnary list option}
 
 type ExtraErrorInfo = {Text: string; Copy: bool}

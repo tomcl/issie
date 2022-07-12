@@ -11575,6 +11575,8 @@ tbody tr:nth-child(odd){
 
 th, td {
   border-style: groove;
+  /* border-right: none; */
+  /* border-left: none; */
 }
 
 

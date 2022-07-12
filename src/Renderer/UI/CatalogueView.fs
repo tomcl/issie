@@ -64,6 +64,7 @@ let private makeCustomList styles model dispatch =
         |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         |> List.map (makeCustom styles model dispatch)
 
+
 let private createInputPopup typeStr (compType: int * int option -> ComponentType) (model:Model) (dispatch: Msg -> unit) =
     let title = sprintf "Add %s node" typeStr
     let beforeText =
@@ -487,7 +488,6 @@ let rec private createVerilogPopup model showExtraErrors dispatch =
                         elif (String.exists (fun ch -> ch = '\'') error.Message)
                             then {error with ExtraErrors = Some [|{Text= "Numbers must be of format: <size>'<radix><value>\n  e.g. 16'h3fa5;"; Copy= false}|]}
                         else {error with ExtraErrors = Some [|{Text= error.Message; Copy= false}|]}
-
                     let data = {dialogData with VerilogErrors = [error'] }
                     createVerilogPopup {model with PopupDialogData = data } showExtraErrors dispatch
 

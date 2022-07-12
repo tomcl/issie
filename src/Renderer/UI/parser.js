@@ -33,6 +33,7 @@ export function parseFromFile(source) {
         let unique = expectedKeywords.filter((v, i, a) => a.indexOf(v) === i);
         let checkForChars=false;
         let checkForEqual=false;
+        let checkForKeyword=false
         for (let i = 0; i < expected.length; i++) {
             switch (expected[i]) {
                 case '")"':
@@ -50,7 +51,8 @@ export function parseFromFile(source) {
                     expected[i] = '{NUMBER}'
                     break;
                 case 'character matching /[a-zA-Z_0-9]/':
-                    expected[i] = 'More characters \n Keywords cannot be used as variables'
+                    expected[i] = '{More characters}';
+                    checkForKeyword=true;
                     break;
                 case '"="':
                     checkForEqual=1;
@@ -74,11 +76,16 @@ export function parseFromFile(source) {
         if(checkForEqual){
             expected = ['"="']
         }
+        
+        if(checkForKeyword &&(expected.length==1)){
+            expected = ['{More characters}\nIs the previous variable a keyword?']
+        }
+
         // console.log(expected);
 
         let newMessage = `Unexpected ${token.type} token "${token.value}" `+
         `at line ${lineCol[0]} col ${lineCol[1]}.`;
-        if (expected && expected.length) newMessage += `\n Expected: ${[...new Set(expected)]}`;  
+        if (expected && expected.length) newMessage += `\nExpected: ${[...new Set(expected)]}`;  
         if (token.value == '\n'){
             token.value = '\''+'newline'+'\'';
         }
@@ -86,7 +93,7 @@ export function parseFromFile(source) {
             token.value = '"'+token.value+'".';
         }
         else{token.value = '"'+token.value+'"'}
-        let jsonobj = {Line: parseInt(lineCol[0]), Col: parseInt(lineCol[1]), Length: 2, Message: `Unexpected token ${token.value}  `+`\n Expected: ${[...new Set(expected)]}`}
+        let jsonobj = {Line: parseInt(lineCol[0]), Col: parseInt(lineCol[1]), Length: 2, Message: `Unexpected token ${token.value}  `+`\nExpected: ${[...new Set(expected)]}`}
         return JSON.stringify({Result: null, NewLinesIndex: null, Error: JSON.stringify(jsonobj)});
     }
 }

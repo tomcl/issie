@@ -5,7 +5,7 @@ open Fable.Core.JsInterop
 open System
 
 
-/// Helper function to create an Error Message (Type: ErrorInfo) 
+/// Helper function to create an ErrorInfo-type Error Message 
 /// given the location, the variable name, and the message
 let createErrorMessage newLinesLocations currLocation message extraMessages name = 
     let isSmallerThan x y = y <= x
@@ -79,7 +79,7 @@ let portCheck ast linesLocations errorList  =
         | true -> errorList
 
 /// Checks whether the portSizeMap contains valid size information
-let checkIODeclarations ast (portWidthDeclarationMap:Map<string,int*int>) portLocationMap linesLocations errorList = 
+let checkIODeclarations ast (portWidthDeclarationMap:Map<string,int*int>) portLocationMap linesLocations nonUniquePortDeclarations errorList = 
     let portList = ast.Module.PortList |> Array.toList
     
     portWidthDeclarationMap
@@ -95,7 +95,17 @@ let checkIODeclarations ast (portWidthDeclarationMap:Map<string,int*int>) portLo
                     {Text=sprintf "Variable '%s' is not defined as a port \n Please define it in the module declaration" port;Copy=false}
                 |]
             createErrorMessage linesLocations currLocation message extraMessages port
-        | Some _ -> []
+        | Some _ ->
+            match List.tryFind (fun p -> p=port) nonUniquePortDeclarations with
+            |Some found ->
+                let currLocation = Map.find port portLocationMap
+                let message = sprintf "Port '%s' is already defined" port
+                let extraMessages =
+                    [|
+                        {Text=sprintf "Port '%s' is already defined" port ;Copy=false}
+                    |]
+                createErrorMessage linesLocations currLocation message extraMessages port
+            |None -> []
     )
     |> List.append errorList   
 
@@ -195,16 +205,14 @@ let checkAllOutputsAssigned ast portMap portSizeMap portLocationMap (linesLocati
                 names
         )
     let assignmentPortList = List.map fst assignmentPortListMap
-    
-    /// Returns the unassigned port names given the output port list and the assigned port list 
-    let diffChecker exclude lst mapping message =
-        let diff = List.except (List.toSeq exclude) (lst)
-        match List.isEmpty diff with
-        |true -> errorList
-        |false -> 
+   
+    let genErrorMessage portList mapping errorType mess  = 
+        match List.isEmpty portList with
+        |true -> []
+        |false ->
             // transform names from "b2" to "b[2]" 
-            let unassignedPorts = 
-                diff 
+            let fullNames = 
+                portList 
                 |> List.collect(fun x ->
                     match Map.tryFind x (Map.ofList mapping) with
                     | Some name -> 
@@ -213,17 +221,35 @@ let checkAllOutputsAssigned ast portMap portSizeMap portLocationMap (linesLocati
                     | None -> []
                 )
             let currLocation = linesLocations[((List.length linesLocations)-2)]
-            let message = "All output ports must be assigned"  
+            let message = mess
             let extraMessages = 
-                [|
-                    {Text=sprintf "The following ports are declared but not assigned: %A" unassignedPorts;Copy=false};
-                    {Text=sprintf "assign %s = 0;" unassignedPorts[0];Copy=true}
-                |]
+                match errorType with
+                |Unassigned ->
+                    [|
+                        {Text=sprintf "The following ports are declared but not assigned: %A" fullNames;Copy=false};
+                        {Text=sprintf "assign %s = 0;" fullNames[0];Copy=true}
+                    |]
+                |DoubleAssignment ->
+                    [|
+                    {Text=sprintf "The following ports are assigned more than once: %A" fullNames;Copy=false};
+                    |]
             createErrorMessage linesLocations currLocation message extraMessages "endmodule"
+    
+    let countAssignments = assignmentPortList |> List.countBy id
+    let notUnique = 
+        countAssignments
+        |> List.filter (fun (x,y)->y>1)
+        |> List.map fst
 
+    let unassignedPorts = List.except (List.toSeq assignmentPortList) (outputPortList)
 
-    diffChecker assignmentPortList outputPortList outputPortListMap "The following ports are declared but not assigned"
-    |> List.append errorList
+    let localErrors =
+        match unassignedPorts with
+        |[] -> genErrorMessage notUnique outputPortListMap DoubleAssignment "Some output ports have been assigned more than once"
+        |_ -> genErrorMessage unassignedPorts outputPortListMap Unassigned "All output ports must be assigned"
+
+    
+    List.append errorList localErrors
 
 
 
@@ -308,15 +334,22 @@ let RHSUnaryAnalysis assignmentRHS inputWireSizeMap =
         | "unary_list" -> findSizeOfConcat tree inLst
 
         | "conditional_cond" -> 
-            let result = (findSizeOfExpression [] (Option.get tree.Head))[0]
+            let result = (findSizeOfExpression [] (Option.get tree.Head))
             let elements = (findSizeOfExpression [] (Option.get tree.Tail))
-            let size = result.Size
-            List.append inLst [{Name="[condition]";Size=size;Parenthesis=Some elements}] 
+            match List.isEmpty result with
+            |true -> inLst
+            |false ->
+                let size = result[0].Size
+                List.append inLst [{Name="[condition]";Size=size;Parenthesis=Some elements}] 
         
         | "SHIFT" ->
-            let result = (findSizeOfExpression [] (Option.get tree.Head))[0] 
-            let size = result.Size
-            List.append inLst [{Name="[shift]";Size=size;Parenthesis=result.Parenthesis}] 
+            let results = (findSizeOfExpression [] (Option.get tree.Head))
+            match List.isEmpty results with
+            |true -> inLst
+            |false ->
+                let result = results[0]
+                let size = result.Size
+                List.append inLst [{Name="[shift]";Size=size;Parenthesis=result.Parenthesis}] 
 
         | "reduction" when (Option.get tree.Unary).Type = "parenthesis" ->
             let result = findSizeOfExpression [] (Option.get (Option.get tree.Unary).Expression)
@@ -338,7 +371,9 @@ let RHSUnaryAnalysis assignmentRHS inputWireSizeMap =
     and findSizeOfParenthesis (tree:ExpressionT) =
         let result = findSizeOfExpression [] (Option.get (Option.get tree.Unary).Expression)
         let diff = List.distinctBy (fun unary->unary.Size) result
-        [{Name="(...)";Size=diff[0].Size;Parenthesis=Some result}]
+        match List.isEmpty diff with
+        |true -> []
+        |false -> [{Name="(...)";Size=diff[0].Size;Parenthesis=Some result}]
 
     findSizeOfExpression [] assignmentRHS
 
@@ -358,6 +393,10 @@ let rec primariesUsedInAssignment inLst (isConcat: bool) (tree: ExpressionT) =
     | "negation" when (Option.get tree.Unary).Type = "parenthesis" 
         -> primariesUsedInAssignment inLst isConcat (Option.get (Option.get tree.Unary).Expression)    
     
+    // TODO
+    
+    // | "unary" when (Option.get tree.Unary).Type = "number"
+    //     -> List.append inLst [(Option.get (Option.get tree.Unary).Primary, isConcat)]
     | "bitwise_OR" | "bitwise_XOR" | "bitwise_AND" 
     | "additive" | "SHIFT" | "logical_AND" 
     | "logical_OR" | "unary_list" 
@@ -408,10 +447,10 @@ let rec sizesToString treeDepth targetLength (unariesList:OneUnary list)  =
     )
 
 
-let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDeclarationMap inputWireSizeMap inputWireList  linesLocations errorList =
+let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDeclarationMap inputSizeMap inputNameList  linesLocations wireNameList wireSizeMap wireLocationMap errorList =
     
     
-    let checkWireNameAndWidth wire (localErrors:ErrorInfo list) =     
+    let checkWireNameAndWidth wire notUniqueNames (localErrors:ErrorInfo list) =     
         let lhs = wire.LHS
         match Map.tryFind lhs.Primary.Name portMap with
         | Some portType  -> 
@@ -422,19 +461,28 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
                 |]
             createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name
         | _ -> 
-            match isNullOrUndefined lhs.BitsStart with
-            |true -> localErrors
-            |false -> 
-                let bStart = int <| Option.get lhs.BitsStart
-                let bEnd = int <| Option.get lhs.BitsEnd
-                if (bEnd <> 0 || bStart <= bEnd) then
-                    let message = "Wrong width declaration"
-                    let extraMessages = 
-                        [|
-                            {Text=(sprintf "A port's width can't be '[%i:%i]'\nCorrect form: [X:0]" bStart bEnd);Copy=false}
-                        |]
-                    createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name
-                else localErrors
+            match List.tryFind (fun x -> x=lhs.Primary.Name) notUniqueNames with
+            | Some found  -> 
+                let message = sprintf "Variable '%s' is already used by another wire" lhs.Primary.Name
+                let extraMessages = 
+                    [|
+                        {Text=(sprintf "Variable '%s' is already used by another wire\nPlease use a different name for this wire" lhs.Primary.Name);Copy=false}
+                    |]
+                createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name
+            | _ ->
+                match isNullOrUndefined lhs.BitsStart with
+                |true -> localErrors
+                |false -> 
+                    let bStart = int <| Option.get lhs.BitsStart
+                    let bEnd = int <| Option.get lhs.BitsEnd
+                    if (bEnd <> 0 || bStart <= bEnd) then
+                        let message = "Wrong width declaration"
+                        let extraMessages = 
+                            [|
+                                {Text=(sprintf "A port's width can't be '[%i:%i]'\nCorrect form: [X:0]" bStart bEnd);Copy=false}
+                            |]
+                        createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name
+                    else localErrors
 
 
 
@@ -481,32 +529,48 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
                 (createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name)
 
 
-    let checkNamesOfAssignment (assignment: AssignmentT) localErrors = 
+    let checkNamesOfAssignment (assignment: AssignmentT) currentInputWireList localErrors = 
         let PrimariesRHS = primariesUsedInAssignment [] false assignment.RHS |> List.map fst
         
         let namesWithLocRHS = PrimariesRHS |> List.map (fun x -> (x.Primary.Name, x.Primary.Location))
         let namesRHS = namesWithLocRHS |> List.map fst
         let namesToLocMap = namesWithLocRHS |> Map.ofList
 
-        let diff = List.except (List.toSeq (List.append inputWireList ["delete123"])) namesRHS
+        let diff = List.except (List.toSeq (List.append currentInputWireList ["delete123"])) namesRHS
         match List.isEmpty diff with
         | true -> localErrors
         | false -> 
             diff
             |> List.collect (fun name ->
                 let currLocation = Map.find name namesToLocMap
-                let message = sprintf "Variable '%s' is not declared as input or wire" name
-                let extraMessages = 
-                    [|
-                        {Text=(sprintf "Variable '%s' is not declared as input or wire" name);Copy=false}
-                        {Text=(sprintf "input %s;" name);Copy=true}
-                        {Text=(sprintf "wire %s = 0;" name);Copy=true}
-                    |]
-                createErrorMessage linesLocations currLocation message extraMessages name
+                match List.exists (fun x->x=name) wireNameList with
+                |true ->
+                    let message = sprintf "Wire '%s' is defined after this assignment" name
+                    let extraMessages = 
+                        [|
+                            {Text=(sprintf "Wire '%s' is defined after this assignment" name);Copy=false}
+                            {Text=(sprintf "Move the definition of wire '%s' above this line" name);Copy=false}
+                        |]
+                    createErrorMessage linesLocations currLocation message extraMessages name
+                |false ->
+                    
+                    // TODO: FIND CLOSEST NAME (IF IT EXISTS)
+                    // ELSE :
+                    
+                    
+                    
+                    let message = sprintf "Variable '%s' is not declared as input or wire" name
+                    let extraMessages = 
+                        [|
+                            {Text=(sprintf "Variable '%s' is not declared as input or wire" name);Copy=false}
+                            {Text=(sprintf "input %s;" name);Copy=true}
+                            {Text=(sprintf "wire %s = 0;" name);Copy=true}
+                        |]
+                    createErrorMessage linesLocations currLocation message extraMessages name
             )
             
 
-    let checkSizesOfAssignment (assignment: AssignmentT) localErrors =
+    let checkSizesOfAssignment (assignment: AssignmentT) currentInputWireSizeMap localErrors =
         let primariesRHS = primariesUsedInAssignment []false assignment.RHS |> List.map fst
         primariesRHS
         |> List.collect (fun x -> 
@@ -515,8 +579,7 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
                 let name = x.Primary.Name
                 let bStart = int <| Option.get x.BitsStart 
                 let bEnd = int <| Option.get x.BitsEnd
-                match bStart with
-                |(-4) -> localErrors //unsigned number   
+                match bStart with   
                 |(-3) ->   // number
                     if bEnd = 0 then
                         let message = "Number can't be 0 bits wide"
@@ -530,7 +593,7 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
                             (createErrorMessage linesLocations x.Primary.Location message extraMessages "0'b")
                     else localErrors
                 | _ -> 
-                    match Map.tryFind name inputWireSizeMap with
+                    match Map.tryFind name currentInputWireSizeMap with
                     | Some size -> 
                         if (bStart<size) && (bEnd>=0) && (bStart>=bEnd) then
                             localErrors //ok
@@ -556,18 +619,21 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
         )
 
 
-    let checkBitsOfAssignment (assignment: AssignmentT) location localErrors =
+    let checkBitsOfAssignment (assignment: AssignmentT) currentInputWireSizeMap location localErrors =
         let lengthLHS = 
             match isNullOrUndefined assignment.LHS.BitsStart with
             | true -> 
                 match Map.tryFind assignment.LHS.Primary.Name portSizeMap with
                 | Some num -> num
-                | None -> (-1)
+                | None -> 
+                    match assignment.Type with
+                    |"wire" -> 1
+                    |_ -> (-1)
             | false -> ((Option.get assignment.LHS.BitsStart) |> int) - ((Option.get assignment.LHS.BitsEnd) |> int)+1
 
-        let unariesList = RHSUnaryAnalysis assignment.RHS inputWireSizeMap
+        let unariesList = RHSUnaryAnalysis assignment.RHS currentInputWireSizeMap
         let sizesString = sizesToString 1 lengthLHS unariesList
-        printfn "result: %A" unariesList
+        // printfn "result: %A" unariesList
         let intToBool x =
             match x with
             |0 -> false
@@ -598,50 +664,87 @@ let checkWiresAndAssignments (ast:VerilogInput) portMap portSizeMap portWidthDec
                 |]
             List.append 
                 localErrors 
-                (createErrorMessage linesLocations location "Different width on RHS<->LHS" extraMessages "assign")        
+                (createErrorMessage linesLocations location "Different width on RHS<->LHS" extraMessages assignment.Type)        
 
+    
+    let getCurrentInputWireList location = 
+        wireNameList
+        |> List.filter (fun x -> 
+            match (Map.tryFind x wireLocationMap) with
+            |Some wireLoc -> location>wireLoc  
+            |None -> false
+        )
+        |> List.append inputNameList
+    
+    let getCurrentInputWireSizeMap location = 
+        wireSizeMap
+        |> Map.filter (fun wire size ->
+            match (Map.tryFind wire wireLocationMap) with
+            |Some wireLoc -> location>wireLoc  
+            |None -> false
+        )
+        |> Map.toList
+        |> List.append (Map.toList inputSizeMap)
+        |> Map.ofList
+    
 
-    let assignmentsWithLocation = 
+    let notUniqeWireNames = 
+                wireNameList 
+                |> List.countBy id
+                |> List.filter (fun (name,count) -> count>1)
+                |> List.map fst
+    
+
+    let assignmentsWithLoc = 
         ast.Module.ModuleItems.ItemList 
-        |> Array.toList 
-        |> List.filter (fun item -> item.ItemType = "statement")
-        |> List.map (fun item -> (Option.get item.Statement),item.Location)
-        |> List.filter (fun (statement,loc) -> statement.StatementType = "assign")
-        |> List.map (fun (statement,loc) -> statement.Assignment,loc)
+            |> Array.toList 
+            |> List.filter (fun item -> item.ItemType = "statement")
+            |> List.map (fun item -> (Option.get item.Statement),item.Location)
+            |> List.map (fun (statement,loc) -> statement.Assignment,loc)
 
-    let localErrors = 
-        assignmentsWithLocation
-        |> List.collect (fun (assignment,location) ->
-            []
-            |> checkAssignmentNameAndWidth assignment
-            |> checkNamesOfAssignment assignment
-            |> checkSizesOfAssignment assignment
-            |> checkBitsOfAssignment assignment location
+    
+    let localErrors =
+        assignmentsWithLoc
+        |> List.collect (fun (assignment, location)->
+            let currentInputWireList = getCurrentInputWireList location
+            let currentInputWireSizeMap = getCurrentInputWireSizeMap location
+
+            let nameCheck =
+                match assignment.Type with
+                |"wire" -> checkWireNameAndWidth assignment notUniqeWireNames []
+                |_ -> checkAssignmentNameAndWidth assignment []
+            
+            nameCheck
+            |> checkNamesOfAssignment assignment currentInputWireList
+            |> checkSizesOfAssignment assignment currentInputWireSizeMap
+            |> checkBitsOfAssignment assignment currentInputWireSizeMap location 
         )
 
-    let assignmentErrors = List.append errorList localErrors
 
-    let wiresWithLocation = 
-        ast.Module.ModuleItems.ItemList 
-        |> Array.toList 
-        |> List.filter (fun item -> item.ItemType = "statement")
-        |> List.map (fun item -> (Option.get item.Statement),item.Location)
-        |> List.filter (fun (statement,loc) -> statement.StatementType = "wire")
-        |> List.map (fun (statement,loc) -> statement.Assignment,loc)
+    List.append errorList localErrors
 
-    let localErrors = 
-        wiresWithLocation
-        |> List.collect (fun (wire,location) ->
-            []
-            |> checkWireNameAndWidth wire
-            |> checkNamesOfAssignment wire
-            |> checkSizesOfAssignment wire
-        )
 
-    List.append assignmentErrors localErrors
 
 /////////////////////////////
 
+
+let getNotUniquePortDeclarations ast =
+    ast.Module.ModuleItems.ItemList
+    |> Array.toList
+    |> List.collect (fun x -> 
+        match (x.IODecl |> isNullOrUndefined) with
+        | false -> 
+            match x.IODecl with
+            | Some decl -> 
+                decl.Variables 
+                |> Array.toList 
+                |> List.collect (fun x -> [x.Name]) 
+            | None -> []
+        | true -> []
+    )
+    |> List.countBy id
+    |> List.filter (fun (name, size) -> size>1)
+    |> List.map fst
 
 /// Returns the port-size map (e.g. (port "a" => 4 bits wide))
 let getPortSizeAndLocationMap ast = 
@@ -735,6 +838,36 @@ let getWireSizeMap ast =
         | true -> [])
     |> Map.ofList
 
+
+let getWireNames ast =
+    let items = ast.Module.ModuleItems.ItemList |> Array.toList
+    items 
+    |> List.collect (fun x -> 
+        match (x.Statement |> isNullOrUndefined) with
+        | false -> 
+            match x.Statement with
+            | Some statement when statement.StatementType = "wire" ->
+                let lhs = statement.Assignment.LHS 
+                [lhs.Primary.Name]
+            | _ -> []
+        | true -> [])
+
+let getWireLocationMap ast = 
+    let items = ast.Module.ModuleItems.ItemList |> Array.toList
+    items 
+    |> List.collect (fun x -> 
+        match (x.Statement |> isNullOrUndefined) with
+        | false -> 
+            match x.Statement with
+            | Some statement when statement.StatementType = "wire" ->
+                let lhs = statement.Assignment.LHS 
+                let loc = x.Location
+                [lhs.Primary.Name,loc]
+            | _ -> []
+        | true -> [])
+    |> Map.ofList
+
+
 /// Main error-finder function
 /// Returns a list of errors (strings)
 let getErrors ast model linesLocations =
@@ -743,10 +876,13 @@ let getErrors ast model linesLocations =
     let portMap  = getPortMap ast
     let portSizeMap,portLocationMap = getPortSizeAndLocationMap ast
     let portWidthDeclarationMap = getPortWidthDeclarationMap ast
+    
+    let notUniquePortDeclarations = getNotUniquePortDeclarations ast
+    
     let inputNameList = getInputNames portMap
     let inputSizeMap = getInputSizeMap inputNameList portSizeMap
     let wireSizeMap = getWireSizeMap ast
-    let wireNameList = wireSizeMap |> Map.toList |> List.map fst
+    let wireNameList = getWireNames ast
     let inputWireList =
         inputNameList
         |> List.append wireNameList
@@ -755,13 +891,17 @@ let getErrors ast model linesLocations =
         Map.toList inputSizeMap
         |> List.append (Map.toList wireSizeMap) 
         |> Map.ofList
+    
+    
+    let wireLocationMap = getWireLocationMap ast
+    
     //////////////////////////////////////////////
 
     
     []  //begin with empty list and add errors to it
     |> portCheck ast linesLocations //all ports are declared as input/output
-    |> checkIODeclarations ast portWidthDeclarationMap portLocationMap linesLocations //all ports declared as IO are defined in the module header
+    |> checkIODeclarations ast portWidthDeclarationMap portLocationMap linesLocations notUniquePortDeclarations  //all ports declared as IO are defined in the module header
     |> checkIOWidthDeclarations ast linesLocations //correct port width declaration (e.g. [1:4] -> invalid)
-    |> checkWiresAndAssignments ast portMap portSizeMap portWidthDeclarationMap inputWireSizeMap inputWireList linesLocations //checks 1-by-1 all assignments (wires & output ports)
+    |> checkWiresAndAssignments ast portMap portSizeMap portWidthDeclarationMap inputSizeMap inputNameList linesLocations wireNameList wireSizeMap wireLocationMap //checks 1-by-1 all assignments (wires & output ports)
     |> checkAllOutputsAssigned ast portMap portSizeMap portLocationMap linesLocations //checks whether all output ports have been assined a value
     |> List.distinct

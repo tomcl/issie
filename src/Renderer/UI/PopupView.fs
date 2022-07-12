@@ -105,7 +105,7 @@ type CEState = { code: string }
 type CE (props) =
     inherit Component<CEProps, CEState> (props)
     
-    do base.setInitState({ code = "module NAME();\n  \n  \n  \n  \n  \n  \nendmodule" })
+    do base.setInitState({ code = "module NAME();\n  // Write your IO Port Declarations here\n  \n  \n  \n  // Write your Assignments here\n  \n  \n  \nendmodule" })
 
     override this.render () =
             codeEditor [

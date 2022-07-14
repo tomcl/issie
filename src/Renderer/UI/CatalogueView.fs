@@ -20,7 +20,7 @@ open FilesIO
 open VerilogTypes
 open NearleyBindings
 open ErrorCheck
-
+open CodeEditorHelpers
 open Fable.SimpleJson
 open Fable.Core.JsInterop
 
@@ -356,78 +356,11 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
 
 
 
-let getUnderLineElement marginLeft _line message = 
-    [
-        span [Style [Display DisplayOptions.InlineBlock; MarginLeft marginLeft; PointerEvents "stroke"]] []
-        span [Class "error"; Style [PointerEvents "auto"; FontSize 16; Color "rgb(255,0,0)"; Background "rgba(255,0,0,0)"]] [str (_line)] 
-        span [Class "hide"] [str message]                                //204 
-    ]
-
-
-/// Given a list of errors on a specific line, returns a react element with the correct underlines and on-hover messages 
-let getErrorLine errorLineList =
-    let sortedErrors = List.sortBy (fun e -> e.Col) errorLineList
-    let linechildren = 
-        sortedErrors
-        |> List.indexed
-        |> List.collect (fun (index,err) ->
-            let prevErrorEnd = if index = 0 then 0.0 else (float (sortedErrors[index-1].Col+sortedErrors[index-1].Length-1))*8.8
-            let spaces = sprintf "%fpx" ((float (err.Col-1))*8.8 - prevErrorEnd)
-            let _line = ("", [1..err.Length]) ||> List.fold (fun s v -> s+"-")
-            getUnderLineElement spaces _line err.Message
-        )
-    
-    [p [] linechildren]
-
-/// Returns a map which maps line number to list of errors (type ErrorInfo) on that line
-let getLineToErrorsMap sortedErrorList = 
-    
-    let emptyMap = Map.empty<int,ErrorInfo list>
-    
-    (emptyMap, sortedErrorList)
-    ||> List.fold (fun state err ->
-            match Map.tryFind err.Line state with
-            | Some found -> Map.add err.Line (List.append found [err]) state
-            | None -> Map.add err.Line [err] state
-        )
-
-
-/// Returns the overlay which contains all the errors    
-let getErrorDiv errorList : ReactElement =
-    let sortedByLineErrorList = List.sortBy (fun err -> err.Line) errorList
-    
-    let lineToErrorsMap = getLineToErrorsMap sortedByLineErrorList
-    
-    let childrenElements =
-        match List.tryLast sortedByLineErrorList with
-        | Some lastError ->
-            [1..lastError.Line]
-            |> List.collect (fun line ->
-                match Map.tryFind line lineToErrorsMap with
-                | Some errors -> getErrorLine errors
-                | None -> [br []]
-                )
-        | None -> []
-
-    div [
-        Style [Position PositionOptions.Absolute ; 
-            Display DisplayOptions.Block; 
-            Width "100%"; Height "100%"; 
-            CSSProp.Top "8px"; CSSProp.Left "0"; CSSProp.Right "0"; CSSProp.Bottom "0";
-            BackgroundColor "rgba(0,0,0,0)";
-            FontWeight "bold";
-            Color "Red"; 
-            ZIndex "2" ;
-            PointerEvents "none";
-            WhiteSpace WhiteSpaceOptions.PreLine]
-    ] childrenElements
-
-
 let createVerilogComp model =
     printfn "Not implemented yet!"
 
 
-let rec private createVerilogPopup model showExtraErrors dispatch =
+let rec private createVerilogPopup model showExtraErrors codeToAdd dispatch =
     let title = sprintf "Create Combinational Logic Components using Verilog" 
     let beforeText =
         fun _ -> str <| sprintf "How do you want to name your Verilog Component?"
@@ -457,50 +390,47 @@ let rec private createVerilogPopup model showExtraErrors dispatch =
             | None -> failwithf "What? current project cannot be None at this point in compiling Verilog Component"
             | Some project ->
                 let code = getCode dialogData
-                let parsedCode = parseFromFile(code)
-                let output = Json.parseAs<ParserOutput> parsedCode
+                let parsedCodeNearley = parseFromFile(code)
+                let output = Json.parseAs<ParserOutput> parsedCodeNearley
+                let componentName = getText dialogData
                 if isNullOrUndefined output.Error then
                     match Option.isNone output.Result with 
-                    |true-> () //do nothing if parser failed
+                    |true-> () //do nothing if parser failed for some reason
                     |false ->
                         let result = Option.get output.Result
-                        printfn "Input AST: %s" result
                         let fixedAST = fix result
                         let linesIndex = Option.get output.NewLinesIndex |> Array.toList
-                        printfn "NewLinesIndex: %A" linesIndex
                         let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
-                        let errorList = ErrorCheck.getErrors parsedAST model linesIndex
-                        match List.isEmpty errorList with
-                        | true -> 
-                            printfn "Compiled successfully"
-                            let data = {dialogData with VerilogErrors = errorList} 
-                            createVerilogPopup {model with PopupDialogData = data } false dispatch
-                        | false -> 
-                            printfn "Compilation Failed! Errors: %A" errorList
-                            let data = {dialogData with VerilogErrors = errorList} 
-                            createVerilogPopup {model with PopupDialogData = data } showExtraErrors dispatch
+                        let errorList = ErrorCheck.getSemanticErrors parsedAST componentName linesIndex
+                        let dataUpdated = {dialogData with VerilogErrors = errorList; VerilogCode=Some code}
+                        let showErrors' = 
+                            match List.isEmpty errorList with
+                            | true -> false
+                            | false -> showExtraErrors 
+                        createVerilogPopup {model with PopupDialogData = dataUpdated } showErrors' "" dispatch
+                        // dispatch <| SetPopupDialogVerilogErrors errorList
                 else
                     let error = Option.get output.Error
-                    printfn "Syntax Error: %A" error
-                    let error'=
-                        if (String.exists (fun ch -> ch = ';') error.Message && not (String.exists (fun ch->ch='.') error.Message))
-                            then {error with ExtraErrors = Some [|{Text= "Your previous line is not terminated with a semicolon (;)"; Copy= false}|]}
-                        elif (String.exists (fun ch -> ch = '\'') error.Message)
-                            then {error with ExtraErrors = Some [|{Text= "Numbers must be of format: <size>'<radix><value>\n  e.g. 16'h3fa5;"; Copy= false}|]}
-                        else {error with ExtraErrors = Some [|{Text= error.Message; Copy= false}|]}
-                    let data = {dialogData with VerilogErrors = [error'] }
-                    createVerilogPopup {model with PopupDialogData = data } showExtraErrors dispatch
+                    let error'= CodeEditorHelpers.getSyntaxErrorInfo error
+                    let dataUpdated = {dialogData with VerilogErrors = [error'] }
+                    createVerilogPopup {model with PopupDialogData = dataUpdated } showExtraErrors "" dispatch
+                    // dispatch <| SetPopupDialogVerilogErrors [error']
 
 
+    let addButton =
+        fun (dialogData : PopupDialogData) -> 
+            // dispatch <| SetPopupDialogNewCode (Some ((Option.defaultValue "" dialogData.VerilogCode)+"addd"))
+            createVerilogPopup model showExtraErrors (((Option.defaultValue "" dialogData.VerilogCode)+"addd")) dispatch
+    
     let moreInfoButton = 
         fun (dialogData : PopupDialogData) ->
             match model.CurrentProj with
             | None -> failwithf "What? current project cannot be None at this point in compiling Verilog Component"
             | Some project ->
                 let errors = dialogData.VerilogErrors
-                createVerilogPopup model (not showExtraErrors) dispatch
-
-    let body= dialogVerilogCompBody beforeText placeholder errorDiv errorList showExtraErrors compile dispatch
+                createVerilogPopup model (not showExtraErrors) "" dispatch
+    
+    let body= dialogVerilogCompBody beforeText placeholder errorDiv errorList showExtraErrors codeToAdd compile dispatch
 
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
@@ -511,7 +441,7 @@ let rec private createVerilogPopup model showExtraErrors dispatch =
                 |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
             (getInt dialogData < 1) || notGoodLabel || not noErrors
     let width = if showExtraErrors then "80%" else "50%" 
-    dialogVerilogPopup title body noErrors showExtraErrors saveButtonAction moreInfoButton isDisabled [Width width] dispatch
+    dialogVerilogPopup title body noErrors showExtraErrors saveButtonAction moreInfoButton addButton isDisabled [Width width] dispatch
 
 
 let private makeMenuGroup title menuList =
@@ -636,7 +566,7 @@ let viewCatalogue model dispatch =
 
                     makeMenuGroup
                         "Verilog"
-                        [ catTip1 "New Verilog Component" (fun _ -> createVerilogPopup model false dispatch) "Write combinational logic in Verilog. \
+                        [ catTip1 "New Verilog Component" (fun _ -> createVerilogPopup model false "" dispatch) "Write combinational logic in Verilog. \
                                                     Use it as a Custom Component"
                           catTip1 "decoder.v" (fun _ -> createVerilogComp  model) ""]
                 ]

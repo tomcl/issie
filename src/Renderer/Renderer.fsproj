@@ -24,7 +24,7 @@
     <Compile Include="VerilogComponent\VerilogTypes.fs" />
     <Compile Include="VerilogComponent\NearleyBindings.fs" />
     <Compile Include="VerilogComponent\ErrorCheck.fs" />
-    
+    <Compile Include="VerilogComponent\CodeEditorHelpers.fs" />    
     <!-- simulator -->
     <Compile Include="Simulator\SimulatorTypes.fs" />
     <Compile Include="Simulator\NumberHelpers.fs" />

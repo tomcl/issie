@@ -424,8 +424,6 @@ let update (msg : Msg) oldModel =
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
     | SetPopupDialogCode code ->
         { model with PopupDialogData = {model.PopupDialogData with VerilogCode = code} }, Cmd.none
-    | SetPopupDialogNewCode code ->
-        { model with PopupDialogData = {model.PopupDialogData with NewCode = code} }, Cmd.none
     | SetPopupDialogVerilogErrors errorList ->
         { model with PopupDialogData = {model.PopupDialogData with VerilogErrors = errorList} }, Cmd.none
     | SetPopupDialogInt int ->

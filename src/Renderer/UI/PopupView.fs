@@ -59,25 +59,9 @@ open ModelType
 open CommonTypes
 open EEExtensions
 open Sheet.SheetInterface
+open CodeEditorHelpers
+open System
 
-
-importSideEffects "./prism.css"
-
-let inline codeEditor (props : CodeEditorProps list) (elems : ReactElement list) : ReactElement =
-    ofImport "default" "react-simple-code-editor" (keyValueList CaseRules.LowerFirst props) elems
-
-
-type PrismCore =
-    abstract highlight : string * obj -> string
-
-[<ImportAll("./prism.js")>]
-let Prism: PrismCore = jsNative
-
-[<Emit("Prism.languages.verilog")>]
-let language : obj = jsNative
-
-// importSideEffects "prismjs/components/prism-verilog"
-importSideEffects "prismjs/components/prism-clike"
 
 [<Emit("clipboard.writeText($0,'selection')")>]
 let copyToClipboard (text:string) : unit = jsNative
@@ -87,38 +71,62 @@ let importClipboard : unit = jsNative
 
 importClipboard
 
+
 /////////////////////   CODE EDITOR CLASS  /////////////////////////
 // Basically: a code editor rendered by a code editor class
 // Class is needed to keep track of the state -> mouse keeps track of its location on value change
 // codeEditor react element is used to store the code into PopupDialogData.Code
 // Code Highlighting is done automatically by PrismJS 
 
+importSideEffects "./prism.css"
+
+let inline codeEditor (props : CodeEditorProps list) (elems : ReactElement list) : ReactElement =
+    ofImport "default" "react-simple-code-editor" (keyValueList CaseRules.LowerFirst props) elems
+
+importSideEffects "prismjs/components/prism-clike"
 
 type CEProps =
     { Box : string
+      NewBox : string
       Dispatch : (Msg -> unit)
       DialogData: PopupDialogData
       Compile: (PopupDialogData -> Unit)}
     //   Compile : (string -> PopupDialogData -> ReactElement)}
-type CEState = { code: string }
+type CEState = { code: string; }
 
 type CE (props) =
     inherit Component<CEProps, CEState> (props)
     
     do base.setInitState({ code = "module NAME();\n  // Write your IO Port Declarations here\n  \n  \n  \n  // Write your Assignments here\n  \n  \n  \nendmodule" })
 
+
+    // override this.shouldComponentUpdate (nextProps,nextState) =
+    //     match (props.NewBox = props.Box && props.NewBox <> "") with
+    //     |true -> false
+    //     |false -> true
+
+    // override this.componentDidUpdate (prevProps,prevState) =
+    //     match (props.NewBox <> "" && prevProps.NewBox = "") with
+    //     |true -> this.setState(fun s _-> {s with code = props.NewBox} )
+    //     |false -> ()
+
     override this.render () =
             codeEditor [
-                CodeEditorProps.Placeholder ("Start Writing your Verilog Code here..."); 
-                CodeEditorProps.Value ((sprintf "%A" this.state.code)); 
-                OnValueChange (fun txt -> 
-                    (this.setState (fun s _ -> {s with code = txt}))
-                    props.Dispatch <| SetPopupDialogCode (Some txt)
-                    props.Compile {props.DialogData with VerilogCode=Some txt}
-                )             
-                Highlight (fun code -> Prism.highlight(code,language));]
-                []
-        
+                    CodeEditorProps.Placeholder ("Start Writing your Verilog Code here..."); 
+                    CodeEditorProps.Value ((sprintf "%s" this.state.code)); 
+                    OnValueChange (fun txt -> 
+                        // printfn "valuachange"
+                        (this.setState (fun s p -> 
+                            // match p.NewBox = "" with
+                            // |true -> {s with code = txt}
+                            // |false -> {s with code = p.NewBox}))
+                            {s with code=txt}))
+                        props.Dispatch <| SetPopupDialogCode (Some txt)
+                        props.Dispatch <| SetPopupDialogNewCode (None)
+                        props.Compile {props.DialogData with VerilogCode=Some txt}
+                    )             
+                    Highlight (fun code -> Prism.highlight(code,language));]
+                    []
 
 //////////////////////////////////////////////////////////////////////
 
@@ -175,6 +183,9 @@ let getText (dialogData : PopupDialogData) =
 
 let getCode (dialogData : PopupDialogData) =
     Option.defaultValue "" dialogData.VerilogCode
+
+let getNewCode (dialogData : PopupDialogData) =
+    Option.defaultValue "" dialogData.NewCode
 
 let getErrorList (dialogData : PopupDialogData) =
     dialogData.VerilogErrors
@@ -326,64 +337,81 @@ let dialogPopupBodyOnlyText before placeholder dispatch =
         ]
 
 
-let getErrorTableLine index (extraMessage:ExtraErrorInfo) line : ReactElement list =
-    let copyable = extraMessage.Copy
-    let text = extraMessage.Text
-    let showLine = if index=0 then "Line "+(string line) else ""
-    if copyable then
-        [
-            tr [] [
-                td [Style [Color "Black";TextAlign TextAlignOptions.Center; VerticalAlign "Middle"]] [str showLine]
-                td [] [
-                    p [Style [Color "Red"; FontStyle "Italic"]] [str "Do you mean:"]
-                    p [Style [Color "Black"; WhiteSpace WhiteSpaceOptions.PreWrap]] [str ("\t'"+text+"'")]
-                    ]
-                td [Style [VerticalAlign "Middle";TextAlign TextAlignOptions.Center]] [
+let getErrorTable (errorList: ErrorInfo list) =
+    
+
+    let getSuggestionLine suggestions = 
+        let buttons = 
+            suggestions
+            |> Seq.toList
+            |> List.collect (fun suggestion ->
+                [
+                    span [Style [WhiteSpace WhiteSpaceOptions.Pre]] [str "    "]
                     Button.button [
                         Button.OnClick (fun _ -> 
-                            copyToClipboard text)
+                            copyToClipboard suggestion)
                         Button.Option.Size ISize.IsSmall
-                        ] [str "Copy"]
+                        ] [str suggestion]
+                ]
+            )
+
+        let line = 
+            List.append
+                [span [Style [Color "Red"; FontStyle "Italic"; VerticalAlign "Middle";]] [str "\tDo you mean:"]]
+                buttons
+        
+        td [Style [WhiteSpace WhiteSpaceOptions.Pre ]] line
+
+        
+        
+
+    
+    let getErrorTableLine index (extraMessage:ExtraErrorInfo) line : ReactElement list =
+        let copyable = extraMessage.Copy
+        let text = extraMessage.Text
+        let showLine = if index=0 then "  Line "+(string line) else ""
+        if copyable then
+            let suggestions = text.Split([|"|"|],StringSplitOptions.RemoveEmptyEntries)
+            [
+                tr [] [
+                    td [Style [Color "Black"; VerticalAlign "Middle"; WhiteSpace WhiteSpaceOptions.Pre]] [str showLine]
+                    getSuggestionLine suggestions
                 ]
             ]
-        ]
-    else
-        [
-            tr [] [
-                td [Style [Color "Black";TextAlign TextAlignOptions.Center; VerticalAlign "Middle"]] [str showLine]
-                td [Style [Color "Black"; WhiteSpace WhiteSpaceOptions.PreWrap]] [str text]
-                td [] []
+        else
+            [
+                tr [] [
+                    td [Style [Color "Black"; VerticalAlign "Middle"; WhiteSpace WhiteSpaceOptions.Pre]] [str showLine]
+                    td [Style [Color "Black"; WhiteSpace WhiteSpaceOptions.PreWrap]] [str text]
+                ]
             ]
-        ]
 
-let getErrorTableLines error = 
-    let line = error.Line   
-    // let message = 
-    match isNullOrUndefined error.ExtraErrors with
-    |true -> null
-    |false ->
-        let tLine = 
-            (Option.get error.ExtraErrors)
-            |> Array.toList
-            |> List.indexed
-            |> List.collect (fun (index,mess) -> getErrorTableLine index mess line)
-        
-        tbody [] tLine
-       
-
-let getErrorTable (errorList: ErrorInfo list) =
+    let getErrorTableLines error = 
+        let line = error.Line   
+        // let message = 
+        match isNullOrUndefined error.ExtraErrors with
+        |true -> null
+        |false ->
+            let tLine = 
+                (Option.get error.ExtraErrors)
+                |> Array.toList
+                |> List.indexed
+                |> List.collect (fun (index,mess) -> getErrorTableLine index mess line)
+            
+            tbody [] tLine
+    
+    
+    
     let tableFormat =
         [
         colgroup [] [
-            col [Style [Width "15%"]]
-            col [Style [Width "70%"; WhiteSpace WhiteSpaceOptions.PreLine]]
-            col [Style [Width "15%"]]
+            col [Style [Width "20%";]]
+            col [Style [Width "80%"; WhiteSpace WhiteSpaceOptions.PreLine]]
             ]
         thead [] [
             tr [] [
-                th [Style [TextAlign TextAlignOptions.Center]] [str "Line"]
+                th [Style [WhiteSpace WhiteSpaceOptions.Pre]] [str "  Line"]
                 th [] [str "Message"]
-                th [Style [TextAlign TextAlignOptions.Center]] [str "Copy"]
             ]
         ]
         ]
@@ -400,75 +428,22 @@ let getErrorTable (errorList: ErrorInfo list) =
             [Style 
                 [ 
                 FontSize "16px"; 
-                Color "Green"; 
                 TableLayout "Fixed"; 
-                Width "100%"]]
+                Width "100%";
+                BorderRight "groove";
+                BorderLeft "groove"]]
             tableChildren
     else
         table [] []
 
 
 
-let getLineCounterDiv linesNo =
-    let childrenElements=
-        [1..linesNo+1]
-        |> List.collect (fun no ->
-            [p [] [str (sprintf "%i" no)]]
-        )
-    div [
-        Style [Position PositionOptions.Absolute ; 
-            Display DisplayOptions.Block; 
-            Width "48px"; Height "100%"; 
-            CSSProp.Top "0px"; CSSProp.Left "-56px"; CSSProp.Right "0"; CSSProp.Bottom "0";
-            BackgroundColor "rgba(0,0,0,0)";
-            Color "#7f7f7f"; 
-            ZIndex "2" ;
-            PointerEvents "none";
-            TextAlign TextAlignOptions.Right;
-            WhiteSpace WhiteSpaceOptions.PreLine]
-    ] childrenElements
-
-let infoHoverableElement = 
-    let example =
-        "\tTHIS IS AN EXAMPLE OF A VALID VERILOG FILE
-----------------------------------------------------------
-module decoder(instr,n,z,c,mux1sel,aluF,jump);
-\tinput [15:0] instr;
-\tinput n,z,c;
-\toutput mux1sel,jump;
-\toutput [2:0] aluF;
-\twire cond = n|z|c;
-
-\tassign mux1sel = instr[15]&cond | instr[14];
-\tassign j = instr[8]&(n|c);
-\tassign aluF = intr[10:8];
-endmodule"
-    div [
-        Style [Position PositionOptions.Absolute ; 
-            Display DisplayOptions.Block; 
-            Width "100%"; Height "100%"; 
-            CSSProp.Top "-52px"; CSSProp.Left "104px"; CSSProp.Right "0"; CSSProp.Bottom "0";
-            BackgroundColor "rgba(0,0,0,0)";
-            Color "#7f7f7f"; 
-            ZIndex "2" ;
-            PointerEvents "none";
-            TextDecoration "underline";
-            TextDecorationColor "rgb(0,0,255)";
-            TextAlign TextAlignOptions.Left;
-            WhiteSpace WhiteSpaceOptions.PreWrap]
-        ]
-        [p [Class "info"] 
-        [
-            span [Class "error"; Style [PointerEvents "auto"; FontSize 16; Color "rgb(0,0,255)"; Background "rgba(255,0,0,0)"]] [str ("example")] 
-            span [Class "hide"] [str example]
-        ]
-    ]
-
-
 /// Create the body of a Verilog Editor Popup.
-let dialogVerilogCompBody before placeholder errorDiv errorList showExtraErrors compileButton dispatch =
+let dialogVerilogCompBody before placeholder errorDiv errorList showExtraErrors codeToAdd compileButton dispatch =
     fun (dialogData : PopupDialogData) ->
+        printfn "HERE"
         let code = getCode dialogData
+        // let newCode = getNewCode dialogData
         let linesNo = code |> String.filter (fun ch->ch='\n') |> String.length
         let goodLabel =
                 getText dialogData
@@ -477,19 +452,11 @@ let dialogVerilogCompBody before placeholder errorDiv errorList showExtraErrors 
                 |> function | Some ch when  System.Char.IsLetter ch -> true | Some ch -> false | None -> true
         
         let renderCE value =
-            ofType<CE,_,_> {Box=getText dialogData; Dispatch=dispatch; DialogData=dialogData;Compile=compileButton} 
-        let stringErrors = 
-            errorList |> List.map (fun err ->
-            match err with
-            |{Line= line; Col= col; Length=length; Message=mess}
-                -> sprintf "Error on Line %i, column %i : %s" line col mess   
-            )
-        printfn "vv %A" errorList
-        let stringError = ("",stringErrors) ||> List.fold (fun s v -> s+v+"\n")
-        let ceWidth, errorWidth, hide = if showExtraErrors then "56%","35%",false else "96%","0%",true 
+            ofType<CE,_,_> {Box=code; NewBox=codeToAdd; Dispatch=dispatch; DialogData={dialogData with NewCode=Some codeToAdd};Compile=compileButton} 
+        let codeEditorWidth, errorWidth, hide = if showExtraErrors then "56%","38%",false else "96%","0%",true 
         div [Style [Width "100%"; Display DisplayOptions.Flex;]] [
             div [Style [Flex "2%"];] []
-            div [Style [Flex ceWidth;]] [
+            div [Style [Flex codeEditorWidth;]] [
                 before dialogData
                 Input.text [
                     Input.Props [AutoFocus true; SpellCheck false]
@@ -499,7 +466,6 @@ let dialogVerilogCompBody before placeholder errorDiv errorList showExtraErrors 
                 span [Style [FontStyle "Italic"; Color "Red"]; Hidden goodLabel] [str "Name must start with a letter"]
                 br []
                 br []
-                // errorsElement
                 br []
                 p [] [b [] [str "Verilog Code:"]]
                 br []
@@ -512,7 +478,7 @@ let dialogVerilogCompBody before placeholder errorDiv errorList showExtraErrors 
                     ]
             ]
             div [Style [Flex "2%"];] []
-            div [Style [Flex "5%"]; Hidden hide] []
+            div [Style [Flex "2%"]; Hidden hide] []
             div [Style [Flex errorWidth]; Hidden hide] 
                 [
                 getErrorTable errorList
@@ -884,7 +850,7 @@ let dialogPopup title body buttonText buttonAction isDisabled extraStyle dispatc
 
 /// Popup with an input textbox and two buttons.
 /// The text is reflected in Model.PopupDialogText.
-let dialogVerilogPopup title body noErrors showingExtraInfo saveButtonAction moreInfoButton isDisabled extraStyle dispatch =
+let dialogVerilogPopup title body noErrors showingExtraInfo saveButtonAction moreInfoButton addButton isDisabled extraStyle dispatch =
     let foot =
         fun (dialogData : PopupDialogData) ->
             let compileButtonText = 
@@ -895,6 +861,13 @@ let dialogVerilogPopup title body noErrors showingExtraInfo saveButtonAction mor
             Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
                 Level.left [] []
                 Level.right [] [
+                    // Level.item [] [
+                    //     Button.button [
+                    //         Button.Color IsLight
+                    //         Button.OnClick (fun _ -> 
+                    //             addButton dialogData) //In case user presses cancel on 'rename sheet' popup
+                    //     ] [ str "Add" ]
+                    // ]
                     Level.item [] [
                         Button.button [
                             Button.Color IsLight

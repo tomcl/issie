@@ -7,7 +7,7 @@ export function parseFromFile(source) {
         const parser = new nearley.Parser(nearley.Grammar.fromCompiled(verilogGrammar));
         const sourceTrimmed = source.replace(/\s+$/g, '');
         const sourceTrimmedComments = sourceTrimmed.replace(/\/\/.*$/gm,' '); //\/\*[\s\S]*?\*\/|([^\\:]|^)
-        console.log(sourceTrimmedComments);
+        // console.log(sourceTrimmedComments);
         parser.feed(sourceTrimmedComments);
         let results = parser.results;
         
@@ -113,7 +113,7 @@ export function fix(json_data){
         ports.push(port_list.Head.Port.Name);
         loc.push(port_list.Location)
     } catch (e) {
-        console.log(e.message);
+        // console.log(e.message);
     }
 
     obj.Module.PortList = ports

@@ -88,7 +88,6 @@ let init() = {
         Progress = None
         VerilogCode = None
         VerilogErrors = []
-        NewCode = None
     }
     Notifications = {
         FromDiagram = None

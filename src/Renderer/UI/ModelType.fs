@@ -52,7 +52,6 @@ type PopupDialogData = {
     ProjectPath: string
     VerilogCode: string option
     VerilogErrors: ErrorInfo list
-    NewCode: string option
     MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth. 
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
     WaveSetup: MoreWaveSetup option
@@ -270,7 +269,6 @@ type Msg =
     | ClosePopup
     | SetPopupDialogText of string option
     | SetPopupDialogCode of string option
-    | SetPopupDialogNewCode of string option
     | SetPopupDialogVerilogErrors of ErrorInfo list
     | SetPopupDialogInt of int option
     | SetPopupDialogTwoInts of (int64 option * IntMode * string option)

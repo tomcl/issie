@@ -63,9 +63,15 @@ type PortAssignmentError =
     |Unassigned
     |DoubleAssignment 
 
+type ReplaceType =
+    |IODeclaration
+    |Assignment
+    |Variable of string
+    |NoReplace
+
 type OneUnary = {Name:string;Size:int;Parenthesis:OneUnary list option}
 
-type ExtraErrorInfo = {Text: string; Copy: bool}
+type ExtraErrorInfo = {Text: string; Copy: bool; Replace: ReplaceType}
 
 type ErrorInfo = {Line:int; Col:int; Length: int; Message: string; ExtraErrors: ExtraErrorInfo array option}
 

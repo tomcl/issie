@@ -23,6 +23,7 @@ open ErrorCheck
 open CodeEditorHelpers
 open Fable.SimpleJson
 open Fable.Core.JsInterop
+open System
 
 NearleyBindings.importGrammar
 NearleyBindings.importFix
@@ -360,7 +361,7 @@ let createVerilogComp model =
     printfn "Not implemented yet!"
 
 
-let rec private createVerilogPopup model showExtraErrors codeToAdd dispatch =
+let rec private createVerilogPopup model showExtraErrors correctedCode dispatch =
     let title = sprintf "Create Combinational Logic Components using Verilog" 
     let beforeText =
         fun _ -> str <| sprintf "How do you want to name your Verilog Component?"
@@ -416,11 +417,42 @@ let rec private createVerilogPopup model showExtraErrors codeToAdd dispatch =
                     createVerilogPopup {model with PopupDialogData = dataUpdated } showExtraErrors "" dispatch
                     // dispatch <| SetPopupDialogVerilogErrors [error']
 
+    
+    
 
     let addButton =
-        fun (dialogData : PopupDialogData) -> 
-            // dispatch <| SetPopupDialogNewCode (Some ((Option.defaultValue "" dialogData.VerilogCode)+"addd"))
-            createVerilogPopup model showExtraErrors (((Option.defaultValue "" dialogData.VerilogCode)+"addd")) dispatch
+        fun (dialogData : PopupDialogData) ->
+            fun (suggestion,replaceType,line) -> 
+                
+                let putToCorrectPlace (oldCode:string) suggestion replaceType line =
+                    let sepCode = oldCode.Split([|"\n"|],StringSplitOptions.RemoveEmptyEntries)
+                    let linesList = Seq.toList sepCode
+                    match replaceType with
+                    |IODeclaration ->
+                        let untilError = (linesList[0],[2..line+1])||> List.fold (fun s v -> s+"\n"+linesList[v-1])
+                        let fixedError = untilError+"\n  "+ suggestion
+                        (fixedError,[line+1..(List.length linesList)-1])||> List.fold (fun s v -> s+"\n"+linesList[v])
+                    |Variable error ->
+                        let untilError = ("",[1..line-1])||> List.fold (fun s v -> 
+                            match v with
+                            |1 -> linesList[v-1]
+                            |_ -> s+"\n"+linesList[v-1]
+                        )
+                        let fixedLine = linesList[line-1].Replace(error,suggestion)
+                        let fixedError = 
+                            match line with
+                            |1 -> fixedLine
+                            |_ -> untilError+"\n"+ fixedLine
+                        (fixedError,[line..(List.length linesList)-1])||> List.fold (fun s v -> s+"\n"+linesList[v])
+                    |Assignment -> 
+                        let untilError = (linesList[0],[2..line-1])||> List.fold (fun s v -> s+"\n"+linesList[v-1])
+                        let fixedError = untilError+"\n  "+ suggestion
+                        (fixedError,[line-1..(List.length linesList)-1])||> List.fold (fun s v -> s+"\n"+linesList[v])
+                    |NoReplace ->
+                        oldCode
+                        
+                let correctedCode = putToCorrectPlace (Option.defaultValue "" dialogData.VerilogCode) suggestion replaceType line
+                createVerilogPopup model showExtraErrors correctedCode dispatch
     
     let moreInfoButton = 
         fun (dialogData : PopupDialogData) ->
@@ -430,7 +462,7 @@ let rec private createVerilogPopup model showExtraErrors codeToAdd dispatch =
                 let errors = dialogData.VerilogErrors
                 createVerilogPopup model (not showExtraErrors) "" dispatch
     
-    let body= dialogVerilogCompBody beforeText placeholder errorDiv errorList showExtraErrors codeToAdd compile dispatch
+    let body= dialogVerilogCompBody beforeText placeholder errorDiv errorList showExtraErrors correctedCode compile addButton dispatch
 
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
@@ -441,7 +473,7 @@ let rec private createVerilogPopup model showExtraErrors codeToAdd dispatch =
                 |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
             (getInt dialogData < 1) || notGoodLabel || not noErrors
     let width = if showExtraErrors then "80%" else "50%" 
-    dialogVerilogPopup title body noErrors showExtraErrors saveButtonAction moreInfoButton addButton isDisabled [Width width] dispatch
+    dialogVerilogPopup title body noErrors showExtraErrors saveButtonAction moreInfoButton isDisabled [Width width] dispatch
 
 
 let private makeMenuGroup title menuList =

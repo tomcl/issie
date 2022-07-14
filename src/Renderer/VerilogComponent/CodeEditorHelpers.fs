@@ -108,23 +108,20 @@ let getErrorDiv errorList : ReactElement =
 
 let getSyntaxErrorInfo error = 
     if (String.exists (fun ch -> ch = ';') error.Message && not (String.exists (fun ch->ch='.') error.Message))
-        then {error with ExtraErrors = Some [|{Text= "Your previous line is not terminated with a semicolon (;)"; Copy= false}|]}
+        then {error with ExtraErrors = Some [|{Text= "Your previous line is not terminated with a semicolon (;)"; Copy= false;Replace=NoReplace}|]}
     elif (String.exists (fun ch -> ch = '\'') error.Message)
-        then {error with ExtraErrors = Some [|{Text= "Numbers must be of format: <size>'<radix><value>\n  e.g. 16'h3fa5;"; Copy= false}|]}
-    else {error with ExtraErrors = Some [|{Text= error.Message; Copy= false}|]}
+        then {error with ExtraErrors = Some [|{Text= "Numbers must be of format: <size>'<radix><value>\n  e.g. 16'h3fa5;"; Copy= false;Replace=NoReplace}|]}
+    else {error with ExtraErrors = Some [|{Text= error.Message; Copy= false;Replace=NoReplace}|]}
 
 
 
 //////////
 
-
-
-       
-
-let getErrorTable (errorList: ErrorInfo list) =
+let getErrorTable (errorList: ErrorInfo list) addButton =
     
 
-    let getSuggestionLine suggestions = 
+
+    let getSuggestionLine suggestions replaceType line = 
         let buttons = 
             suggestions
             |> Seq.toList
@@ -133,6 +130,7 @@ let getErrorTable (errorList: ErrorInfo list) =
                     span [Style [WhiteSpace WhiteSpaceOptions.Pre]] [str "    "]
                     Button.button [
                         Button.OnClick (fun _ -> 
+                            addButton (suggestion,replaceType,line)
                             copyToClipboard suggestion)
                         Button.Option.Size ISize.IsSmall
                         ] [str suggestion]
@@ -159,7 +157,7 @@ let getErrorTable (errorList: ErrorInfo list) =
             [
                 tr [] [
                     td [Style [Color "Black"; VerticalAlign "Middle"; WhiteSpace WhiteSpaceOptions.Pre]] [str showLine]
-                    getSuggestionLine suggestions
+                    getSuggestionLine suggestions extraMessage.Replace line
                 ]
             ]
         else

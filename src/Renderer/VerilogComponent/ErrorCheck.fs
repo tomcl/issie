@@ -44,7 +44,7 @@ let portCheck ast linesLocations errorList  =
         |> List.collect (fun name ->
             let message = "Ports must have different names"     
             let extraMessages = [|
-                {Text=sprintf "Name '%s' has already been used for a port \n Please use a different name" name ;Copy=false}
+                {Text=sprintf "Name '%s' has already been used for a port \n Please use a different name" name ;Copy=false;Replace=NoReplace}
             |]       
             createErrorMessage linesLocations locationMap[name] message extraMessages name
             )        
@@ -73,8 +73,8 @@ let portCheck ast linesLocations errorList  =
                 let message = sprintf "Port '%s' is not declared either as input or output" name
                 let extraMessages = 
                     [|
-                        {Text=sprintf "Port '%s' must be declared as input or output" name;Copy=false}
-                        {Text=sprintf "input %s;|output %s;" name name;Copy=true}
+                        {Text=sprintf "Port '%s' must be declared as input or output" name;Copy=false;Replace=NoReplace}
+                        {Text=sprintf "input %s;|output %s;" name name;Copy=true;Replace=IODeclaration}
                     |]
                 createErrorMessage linesLocations locationMap[name] message extraMessages name
             )
@@ -96,7 +96,7 @@ let checkIODeclarations ast (portWidthDeclarationMap:Map<string,int*int>) portLo
             let message = sprintf "Variable '%s' is not defined as a port in the module declaration" port
             let extraMessages =
                 [|
-                    {Text=sprintf "Variable '%s' is not defined as a port \n Please define it in the module declaration" port;Copy=false}
+                    {Text=sprintf "Variable '%s' is not defined as a port \n Please define it in the module declaration" port;Copy=false;Replace=NoReplace}
                 |]
             createErrorMessage linesLocations currLocation message extraMessages port
         | Some _ ->
@@ -106,7 +106,7 @@ let checkIODeclarations ast (portWidthDeclarationMap:Map<string,int*int>) portLo
                 let message = sprintf "Port '%s' is already defined" port
                 let extraMessages =
                     [|
-                        {Text=sprintf "Port '%s' is already defined" port ;Copy=false}
+                        {Text=sprintf "Port '%s' is already defined" port ;Copy=false;Replace=NoReplace}
                     |]
                 createErrorMessage linesLocations currLocation message extraMessages port
             |None -> []
@@ -131,7 +131,7 @@ let checkIOWidthDeclarations (ast: VerilogInput) linesLocations errorList  =
                 let temp = if (int range.Start) <= (int range.End) then "\nBig-Endian format is not allowed yet by ISSIE" else ""
                 let extraMessages = 
                     [|
-                        {Text=(sprintf "A port's width can't be '[%s:%s]'\nCorrect form: [X:0]" range.Start range.End)+temp;Copy=false}
+                        {Text=(sprintf "A port's width can't be '[%s:%s]'\nCorrect form: [X:0]" range.Start range.End)+temp;Copy=false;Replace=NoReplace}
                     |]
                 createErrorMessage linesLocations range.Location message extraMessages (range.Start+"[:0]")
             else []
@@ -141,20 +141,26 @@ let checkIOWidthDeclarations (ast: VerilogInput) linesLocations errorList  =
 
 /// Checks if the name of the module is valid (i.e. starts with a character)
 let nameCheck ast linesLocations compName errorList = 
-    let name =  ast.Module.ModuleName.Name
+    let moduleName =  ast.Module.ModuleName.Name
     let notGoodName =
-        name
+        compName
         |> Seq.toList
         |> List.tryHead
         |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
-    match name=compName with
+    match moduleName=compName with
         | false -> 
             let message = "Module Name must match the Component Name"
             let extraMessages = 
-                [|
-                    {Text="Module Name must match the Component Name";Copy=false}
-                |]
-            createErrorMessage linesLocations ast.Module.ModuleName.Location message extraMessages name
+                if notGoodName then  
+                    [|
+                        {Text="Module Name must match the Component Name";Copy=false;Replace=NoReplace}
+                    |]
+                else
+                    [|
+                        {Text="Module Name must match the Component Name";Copy=false;Replace=NoReplace};
+                        {Text=sprintf "%s" compName ;Copy=true;Replace=Variable moduleName}
+                    |]
+            createErrorMessage linesLocations ast.Module.ModuleName.Location message extraMessages moduleName
         | true -> []
     |> List.append errorList
 
@@ -242,12 +248,12 @@ let checkAllOutputsAssigned
                 match errorType with
                 |Unassigned ->
                     [|
-                        {Text=sprintf "The following ports are declared but not assigned: %A" fullNames;Copy=false};
-                        {Text=sprintf "assign %s = 1'b0;" fullNames[0];Copy=true}
+                        {Text=sprintf "The following ports are declared but not assigned: %A" fullNames;Copy=false;Replace=NoReplace};
+                        {Text=sprintf "assign %s = 1'b0;" fullNames[0];Copy=true;Replace=Assignment}
                     |]
                 |DoubleAssignment ->
                     [|
-                    {Text=sprintf "The following ports are assigned more than once: %A" fullNames;Copy=false};
+                    {Text=sprintf "The following ports are assigned more than once: %A" fullNames;Copy=false;Replace=NoReplace};
                     |]
             createErrorMessage linesLocations currLocation message extraMessages "endmodule"
     
@@ -536,7 +542,7 @@ let checkWiresAndAssignments
             let message = sprintf "Variable '%s' is already used by a port" lhs.Primary.Name
             let extraMessages = 
                 [|
-                    {Text=(sprintf "Variable '%s' is declared as an %s port\nPlease use a different name for this wire" lhs.Primary.Name portType);Copy=false}
+                    {Text=(sprintf "Variable '%s' is declared as an %s port\nPlease use a different name for this wire" lhs.Primary.Name portType);Copy=false;Replace=NoReplace}
                 |]
             createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name
         | _ -> 
@@ -545,7 +551,7 @@ let checkWiresAndAssignments
                 let message = sprintf "Variable '%s' is already used by another wire" lhs.Primary.Name
                 let extraMessages = 
                     [|
-                        {Text=(sprintf "Variable '%s' is already used by another wire\nPlease use a different name for this wire" lhs.Primary.Name);Copy=false}
+                        {Text=(sprintf "Variable '%s' is already used by another wire\nPlease use a different name for this wire" lhs.Primary.Name);Copy=false;Replace=NoReplace}
                     |]
                 createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name
             | _ ->
@@ -558,7 +564,7 @@ let checkWiresAndAssignments
                         let message = "Wrong width declaration"
                         let extraMessages = 
                             [|
-                                {Text=(sprintf "A port's width can't be '[%i:%i]'\nCorrect form: [X:0]" bStart bEnd);Copy=false}
+                                {Text=(sprintf "A port's width can't be '[%i:%i]'\nCorrect form: [X:0]" bStart bEnd);Copy=false;Replace=NoReplace}
                             |]
                         createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name
                     else localErrors
@@ -590,8 +596,8 @@ let checkWiresAndAssignments
                         let message = sprintf "Wrong width of variable: '%s'" name
                         let extraMessages = 
                             [|
-                                {Text=(sprintf "Variable: '%s' is defined as" name)+definition+"\nTherefore,"+usedWidth+"is invalid" ; Copy=false}
-                                {Text=sprintf "assign %s = 0;"name; Copy=true}
+                                {Text=(sprintf "Variable: '%s' is defined as" name)+definition+"\nTherefore,"+usedWidth+"is invalid" ; Copy=false;Replace=NoReplace}
+                                {Text=sprintf "assign %s = 0;"name; Copy=true;Replace=Assignment}
                             |]
                         List.append 
                             localErrors 
@@ -602,8 +608,8 @@ let checkWiresAndAssignments
             let message = sprintf "Variable '%s' is not declared as an output port" lhs.Primary.Name
             let extraMessages = 
                 [|
-                    {Text=(sprintf "Variable '%s' is not declared as an output port" lhs.Primary.Name);Copy=false}
-                    {Text=(sprintf "output %s;" lhs.Primary.Name);Copy=true}
+                    {Text=(sprintf "Variable '%s' is not declared as an output port" lhs.Primary.Name);Copy=false;Replace=NoReplace}
+                    {Text=(sprintf "output %s;" lhs.Primary.Name);Copy=true;Replace=IODeclaration}
                 |]
             List.append 
                 localErrors 
@@ -630,8 +636,8 @@ let checkWiresAndAssignments
                     let message = sprintf "Wire '%s' is defined after this assignment" name
                     let extraMessages = 
                         [|
-                            {Text=(sprintf "Wire '%s' is defined after this assignment" name);Copy=false}
-                            {Text=(sprintf "Move the definition of wire '%s' above this line" name);Copy=false}
+                            {Text=(sprintf "Wire '%s' is defined after this assignment" name);Copy=false;Replace=NoReplace}
+                            {Text=(sprintf "Move the definition of wire '%s' above this line" name);Copy=false;Replace=NoReplace}
                         |]
                     createErrorMessage linesLocations currLocation message extraMessages name
                 |false ->
@@ -641,16 +647,16 @@ let checkWiresAndAssignments
                         let message = sprintf "Variable '%s' is not declared as input or wire" name
                         let extraMessages = 
                             [|
-                                {Text=(sprintf "Variable '%s' is not declared as input or wire" name);Copy=false}
-                                {Text=(sprintf "input %s;|wire %s = 0;" name name);Copy=true}
+                                {Text=(sprintf "Variable '%s' is not declared as input or wire" name);Copy=false;Replace=NoReplace}
+                                {Text=(sprintf "input %s;|wire %s = 0;" name name);Copy=true;Replace=IODeclaration}
                             |]
                         createErrorMessage linesLocations currLocation message extraMessages name
                     |false ->
                         let message = sprintf "Variable '%s' is not declared as input or wire" name
                         let extraMessages = 
                             [|
-                                {Text=(sprintf "Variable '%s' is not declared as input or wire" name);Copy=false}
-                                {Text=(sprintf "%s" closeVariables[0]);Copy=true}
+                                {Text=(sprintf "Variable '%s' is not declared as input or wire" name);Copy=false;Replace=NoReplace}
+                                {Text=(sprintf "%s" closeVariables[0]);Copy=true;Replace=Variable name}
                             |]
                         createErrorMessage linesLocations currLocation message extraMessages name
             )
@@ -672,8 +678,8 @@ let checkWiresAndAssignments
                         let message = "Number can't be 0 bits wide"
                         let extraMessages = 
                             [|
-                                {Text="Number can't be 0 bits wide"; Copy=false}
-                                {Text=("The integer before 'h/'b represents the width of the number\n e.g. 12'hc7 -> 000011000111");Copy=false}
+                                {Text="Number can't be 0 bits wide"; Copy=false;Replace=NoReplace}
+                                {Text=("The integer before 'h/'b represents the width of the number\n e.g. 12'hc7 -> 000011000111");Copy=false;Replace=NoReplace}
                             |]
                         List.append 
                             localErrors 
@@ -696,7 +702,7 @@ let checkWiresAndAssignments
                             let message = sprintf "Wrong width of variable: '%s'" name
                             let extraMessages = 
                                 [|
-                                    {Text=(sprintf "Variable: '%s' is defined as" name)+definition+"\nTherefore,"+usedWidth+"is invalid" ; Copy=false}
+                                    {Text=(sprintf "Variable: '%s' is defined as" name)+definition+"\nTherefore,"+usedWidth+"is invalid" ; Copy=false;Replace=NoReplace}
                                 |]
                             List.append 
                                 localErrors 
@@ -747,7 +753,7 @@ let checkWiresAndAssignments
 
             let extraMessages =
                 [|
-                    {Text=text;Copy=false}
+                    {Text=text;Copy=false;Replace=NoReplace}
                 |]
             List.append 
                 localErrors 

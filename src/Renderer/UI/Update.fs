@@ -336,24 +336,29 @@ let update (msg : Msg) oldModel =
         {model with LastUsedDialogWidth=width}, Cmd.none
     | StartSimulation simData -> 
         { model with CurrentStepSimulationStep = Some simData }, Cmd.none
-    | SetWSModel wsModel -> 
-        printf "SetWSModel"
+    | SetWSModel wsModel ->
         setWSModel wsModel model, Cmd.none
     | SetWSModelAndSheet (wsModel, wsSheet) ->
-        let newModel = 
+        let newModel =
             {model with WaveSimSheet = wsSheet}
             |> setWSModel wsModel
         newModel, Cmd.none
+    | RefreshWaveSim (wsModel, simData, canvState) ->
+        model, Cmd.OfAsync.perform WaveSim.refreshWaveSim (wsModel, simData, canvState) SetWSModel
     | AddWSModel (sheet, wsModel) ->
         { model with 
             WaveSim = Map.add sheet wsModel model.WaveSim
         }, Cmd.none
     | InitiateWaveSimulation wsModel ->
-        printf "InitiateWaveSimulation"
-        let allWaves = Map.map (WaveSim.generateWaveform wsModel) wsModel.AllWaves
+        let start = TimeHelpers.getTimeMs ()
+        let allWaves =
+            Map.map (WaveSim.generateWaveform wsModel) wsModel.AllWaves
+            |> TimeHelpers.instrumentInterval "InitiateWaveSimulation generateWaveform" start
+
         let wsModel' = {wsModel with AllWaves = allWaves}
 
         setWSModel wsModel' model, Cmd.ofMsg (Sheet(SheetT.SetSpinner false))
+
     | SetSimulationGraph (graph, fastSim) ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
         { model with CurrentStepSimulationStep = { simData with Graph = graph ; FastSim = fastSim} |> Ok |> Some }, Cmd.none
@@ -365,7 +370,7 @@ let update (msg : Msg) oldModel =
         { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber + n } |> Ok |> Some }, Cmd.none
     | EndSimulation ->
         { model with CurrentStepSimulationStep = None }, Cmd.none
-    | EndWaveSim -> 
+    | EndWaveSim ->
         { model with WaveSim = Map.empty; WaveSimSheet = ""}, Cmd.none
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
@@ -436,8 +441,6 @@ let update (msg : Msg) oldModel =
         }, Cmd.none
     | SetPopupDialogMemorySetup m ->
         { model with PopupDialogData = {model.PopupDialogData with MemorySetup = m} }, Cmd.none
-    | SetPopupWaveSetup m ->
-        { model with PopupDialogData = {model.PopupDialogData with WaveSetup = Some m} }, Cmd.none
     | SetPopupMemoryEditorData m ->
         { model with PopupDialogData = {model.PopupDialogData with MemoryEditorData = m} }, Cmd.none
     | SetPopupProgress progOpt ->

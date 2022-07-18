@@ -177,7 +177,9 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
                 dispatch ClosePropertiesNotification
     )
 
-let makeDefaultValueField (model: Model) (comp: Component) (text: string) dispatch: ReactElement =
+/// Used for Input1 Component types. Make field for users to enter a default value for
+/// Input1 Components when they are undriven.
+let makeDefaultValueField (model: Model) (comp: Component) dispatch: ReactElement =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
 
     let title = "Default value if input is undriven"
@@ -399,7 +401,7 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
         div []
             [
                 makeNumberOfBitsField model comp text dispatch
-                makeDefaultValueField model comp text dispatch
+                makeDefaultValueField model comp dispatch
             ]
     | Output _ | NbitsAdder _ | NbitsXor _ | Viewer _ ->
         makeNumberOfBitsField model comp text dispatch

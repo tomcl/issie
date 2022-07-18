@@ -41,9 +41,6 @@ open CommonTypes
                 | CanvasWithFileWaveInfoAndNewConns (_,waveInfo,_) -> waveInfo
                 | NewCanvasWithFileWaveInfoAndNewConns (_,waveInfo,_) -> waveInfo
 
-
-
-
         let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option) : string =
             let time = System.DateTime.Now
             //printfn "%A" cState
@@ -54,7 +51,6 @@ open CommonTypes
                 printfn "HELP: exception in SimpleJson.stringify %A" e
                 "Error in stringify"
         
-
         let jsonStringToState (jsonString : string) =
              Json.tryParseAs<LegacyCanvasState> jsonString
              |> (function
@@ -191,12 +187,6 @@ let getMemData (address: int64) (memData: Memory1) =
 #endif
     Map.tryFind address memData.Data
     |> Option.defaultValue 0L
-
-/// Convert a ('a list list) to an ('a array array)
-let list2DToArray2D (lst: 'a list list) =
-    lst
-    |> List.map(fun l -> List.toArray l)
-    |> List.toArray
 
 /// Returns a new array with the elements at index i1 and index i2 swapped
 let swapArrayEls i1 i2 (arr: 'a[]) =

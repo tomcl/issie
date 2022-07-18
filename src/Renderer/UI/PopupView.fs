@@ -252,15 +252,6 @@ let private buildPopup title body foot close extraStyle =
             ]
         ]
 
-
-
-let showWaveSetupPopup maybeTitle (popupBody: MoreWaveSetup option ->ReactElement) maybeFoot extraStyle dispatch =
-    fun _ (dialogData:PopupDialogData)->
-        printfn "starting morewavesetup popup function"
-        unclosablePopup maybeTitle (popupBody dialogData.WaveSetup) maybeFoot extraStyle dispatch
-    |> ShowPopup |> dispatch
-
-
 /// Body and foot are functions that take a string of text and produce a
 /// reactElement. The meaning of the input string to those functions is the
 /// content of PopupDialogText (i.e. in a dialog popup, the string is the
@@ -469,7 +460,6 @@ let dialogPopupBodyTextAndTwoInts (beforeText, textPlaceholder) (beforeInt1,befo
                     setPopupTwoInts(SecondInt, Some text) n)
             ]
         ]
-
 
 /// Create the body of a dialog Popup with both text and int.
 let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch =

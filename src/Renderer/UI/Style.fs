@@ -5,14 +5,15 @@ open Fable.React.Props
 
 let headerHeight = "72px"
 let private headerHeightWithBorderOffset = "74px"
-let private rightSectionWidthS = "400px" // Small right section.
-let private rightSectionWidthL = "665px" // Large right section.
+/// Small right section.
+let private rightSectionWidthS = "400px"
+/// Large right section.
+let private rightSectionWidthL = "650px"
 let minViewerWidth = 400
 let minEditorWidth = 400
 
-let rightSectionWidthViewerDefault = 665
+let rightSectionWidthViewerDefault = 650
 
-// Get 
 let getHeaderHeight =
     headerHeight
     |> String.filter (fun c -> (int(c) <= 57 && int(c) >= 48))

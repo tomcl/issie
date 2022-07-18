@@ -12,6 +12,7 @@ open NumberHelpers
 /// Determines whether a clock cycle is generated with a vertical bar at the beginning,
 /// denoting that a waveform changes value at the start of that clock cycle. NB this
 /// does not determine whether a waveform changes value at the end of that clock cycle.
+/// TODO: Remove this since it is unnecessary. Can use WaveValues instead.
 type BinaryTransition =
     | ZeroToZero
     | ZeroToOne
@@ -37,6 +38,10 @@ type Gap = {
     Length: int
 }
 
+/// Groups components together in the wave selection table.
+/// NB: There are fields which are commented out: these can be added back in
+/// later on if we want to group those components together by type rather than
+/// separately by name.
 type ComponentGroup =
     | WireLabel
     | InputOutput
@@ -50,35 +55,47 @@ type ComponentGroup =
     // | Memories
     | Component of string
 
-module Constants = 
+module Constants =
+    /// The horizontal length of a transition cross-hatch for non-binary waveforms
     let nonBinaryTransLen : float = 8.
 
+    /// The height of the viewbox used for a wave's SVG. This is the same as the height
+    /// of a label in the name and value columns.
+    /// TODO: Combine this with WaveSimStyle.Constants.rowHeight?
     let viewBoxHeight : float = 30.0
 
     /// Height of a waveform
     let waveHeight : float = 0.8 * viewBoxHeight
+    /// Vertical padding between top and bottom of each wave and the row it is in.
     let spacing : float = (viewBoxHeight - waveHeight) / 2.
 
+    /// y-coordinate of the top of a waveform
     let yTop = spacing
+    /// y-coordiante of the bottom of a waveform
     let yBot = waveHeight + spacing
 
     /// TODO: Remove this limit. This stops the waveform simulator moving past 500 clock cycles.
     let maxLastClk = 500
 
+    /// Minimum number of visible clock cycles.
     let minCycleWidth = 5
 
+    /// If the width of a non-binary waveform is less than this value, display a cross-hatch
+    /// to indicate a non-binary wave is rapidly changing value.
     let clkCycleNarrowThreshold = 20
 
 
-/// If true, then show cross-hatch only for non-binary waves when wave is changing
-/// value very fast.
+/// If true, then show cross-hatch only for non-binary waves when wave is changing value very fast.
 let highZoom clkCycleWidth = clkCycleWidth < 2. * Constants.nonBinaryTransLen
 
+/// Left-shift non-binary waveforms by this much.
 let xShift clkCycleWidth =
     if highZoom clkCycleWidth then
         clkCycleWidth / 2.
     else Constants.nonBinaryTransLen
 
+/// Get the current WaveSimModel used by the Model (index the map using the current sheet).
+/// If no WaveSimModel for that sheet, return an empty wave sim model.
 let getWSModel model : WaveSimModel =
     Map.tryFind model.WaveSimSheet model.WaveSim
     |> function
@@ -89,18 +106,25 @@ let getWSModel model : WaveSimModel =
             // printf "Sheet %A not found in model" model.WaveSimSheet
             initWSModel
 
-let singleWaveWidth m = float m.WaveformColumnWidth / float m.ShownCycles // Constants.baseWidth * (zoomLevel wsModel)
+/// Width of one clock cycle.
+let singleWaveWidth m = float m.WaveformColumnWidth / float m.ShownCycles
 
+/// Left-most coordinate of the SVG viewbox.
 let viewBoxMinX m = string (float m.StartCycle * singleWaveWidth m)
+
+/// Total width of the SVG viewbox.
 let viewBoxWidth m = string m.WaveformColumnWidth
 
+/// Right-most visible clock cycle.
 let endCycle wsModel = wsModel.StartCycle + (wsModel.ShownCycles) - 1
 
+/// Helper function to create Bulma buttons
 let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ label ]
 
-let selectedWaves (wsModel: WaveSimModel) : Wave list =
-    List.map (fun index -> wsModel.AllWaves[index]) wsModel.SelectedWaves
+/// List of selected waves (of type Wave)
+let selectedWaves (wsModel: WaveSimModel) : Wave list = List.map (fun index -> wsModel.AllWaves[index]) wsModel.SelectedWaves
 
+/// Convert XYPos list to string
 let pointsToString (points: XYPos list) : string =
     List.fold (fun str (point: XYPos) ->
         str + string point.X + "," + string point.Y + " "
@@ -200,11 +224,7 @@ let calculateNonBinaryTransitions (waveValues: Bit list list) : NonBinaryTransit
     )
 
 let isWaveSelected (wsModel: WaveSimModel) (index: WaveIndexT) : bool = List.contains index wsModel.SelectedWaves
-
-let waveNames (wsModel: WaveSimModel) : string list =
-    Map.values wsModel.AllWaves
-    |> Seq.toList
-    |> List.map (fun wave -> wave.DisplayName)
+let isRamSelected (ramId: ComponentId) (wsModel: WaveSimModel) : bool = Map.containsKey ramId wsModel.SelectedRams
 
 /// get integer from OutputPortNumber
 let getInputPortNumber (ipn: InputPortNumber) : int =
@@ -216,6 +236,10 @@ let getOutputPortNumber (opn: OutputPortNumber) : int =
     match opn with
     | OutputPortNumber pn -> pn
 
+/// Name for summary field in details element.
+/// NB: There are fields which are commented out: these can be added back in
+/// later on if we want to group those components together by type rather than
+/// separately by name.
 let summaryName (compGroup: ComponentGroup) : ReactElement =
     match compGroup with
     | WireLabel -> "Wire Labels"

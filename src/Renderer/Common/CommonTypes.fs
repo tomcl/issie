@@ -310,7 +310,8 @@ module CommonTypes
 
     // Types instantiating objects in the Digital extension.
     type ComponentType =
-        | Input of BusWidth: int // Legacy component: to be deleted
+        // Legacy component: to be deleted
+        | Input of BusWidth: int
         | Input1 of BusWidth: int * DefaultValue: int option | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel 
         | BusCompare of BusWidth: int * CompareValue: uint32
         | BusSelection of OutputWidth: int * OutputLSBit: int
@@ -560,11 +561,6 @@ module CommonTypes
 
     (*---------------------------Types for wave Simulation----------------------------------------*)
 
-    
-    type MoreWaveData =
-        | RamWaveData of addr: uint32 * ramPath: ComponentId list * label:string
-        | ExtraData of ramPath: ComponentId list * label:string
-        
     // The "NetList" types contain all the circuit from Diagram in an abstracted form that
     // removed layout info and connections as separate entities. However, connection Ids are
     // available as fileds in components for interface to the Diagram conmponents
@@ -607,6 +603,9 @@ module CommonTypes
     (*-----------------------------------------------------------------------------*)
     // Types used within waveform Simulation code, and for saved wavesim configuartion
 
+    /// Uniquely identifies a wave by the component it comes from, and the port on which that
+    /// wave is from. Two waves can be identical but have a different index (e.g. a wave with
+    /// PortType Input must be driven by another wave of PortType Output).
     type WaveIndexT = {
         Id: ComponentId
         PortType: PortType
@@ -617,12 +616,18 @@ module CommonTypes
     /// This info is not necessarilu uptodate with deletions or additions in the Diagram.
     /// The wavesim code processing this will not fail if non-existent nets are referenced.
     type SavedWaveInfo = {
+        /// Waves which are selected to be shown in the waveform viewer
         SelectedWaves: WaveIndexT list option
+        /// Radix in which values are displayed in the wave simulator
         Radix: NumberBase option
+        /// Width of the waveform column
         WaveformColumnWidth: int option
+        /// Number of visible cycles in the waveform column
         ShownCycles: int option
+        /// RAMs which are selected to be shown in the RAM tables
         SelectedRams: Map<ComponentId, string> option
 
+        /// The below fields are legacy values and no longer used.
         ClkWidth: float option
         Cursor: uint32 option
         LastClk: uint32 option

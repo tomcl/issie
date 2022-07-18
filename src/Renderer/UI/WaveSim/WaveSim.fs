@@ -13,15 +13,17 @@ open SimulatorTypes
 open NumberHelpers
 open DrawModelType
 
-/// Generates SVG to display waveform values when there is enough space
+/// Generates SVG to display values on non-binary waveforms when there is enough space.
 /// TODO: Fix this so it does not generate all 500 cycles.
 let displayValuesOnWave wsModel (waveValues: WireData list) (transitions: NonBinaryTransition list) : ReactElement list =
+    /// Find all clock cycles where there is a NonBinaryTransition.Change
     let changeTransitions =
         transitions
         |> List.indexed
-        |> List.filter (fun (i, x) -> x = Change)
-        |> List.map (fun (i, x) -> i)
+        |> List.filter (fun (_, x) -> x = Change)
+        |> List.map (fun (i, _) -> i)
 
+    /// Find start and length of each gap between a Change transition
     let gaps : Gap list =
         // Append dummy transition to end to check final gap length
         changeTransitions @ [Constants.maxLastClk]
@@ -34,13 +36,17 @@ let displayValuesOnWave wsModel (waveValues: WireData list) (transitions: NonBin
         )
 
     gaps
+    // Create text react elements for each gap
     |> List.map (fun gap ->
         let waveValue =
             convertWireDataToInt waveValues[gap.Start]
             |> valToString wsModel.Radix
 
+        /// Amount of whitespace between two Change transitions minus the crosshatch
         let availableWidth = (float gap.Length * (singleWaveWidth wsModel)) - 2. * Constants.nonBinaryTransLen
+        /// Required width to display one value
         let requiredWidth = DrawHelpers.getTextWidthInPixels (waveValue, Constants.valueOnWaveText)
+        /// Width of text plus whitespace between a repeat
         let widthWithPadding = 2. * requiredWidth + Constants.valueOnWavePadding
 
         // Display nothing if there is not enough space
@@ -60,15 +66,17 @@ let displayValuesOnWave wsModel (waveValues: WireData list) (transitions: NonBin
     |> List.concat
 
 /// Called when InitiateWaveSimulation msg is dispatched
-/// Generates the polyline(s) for a specific waveform
+/// and when wave simulator is refreshed.
+/// Generates the SVG for a specific waveform.
 let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
+    // Only generate waveforms for selected waves
     if List.contains index wsModel.SelectedWaves then
-        // let waveName = wave.DisplayName
-        // printf "generating wave for %A" waveName
-        let polylines =
+        let waveform =
             match wave.Width with
             | 0 -> failwithf "Cannot have wave of width 0"
+            // Binary waveform
             | 1 ->
+                let start = TimeHelpers.getTimeMs ()
                 let transitions = calculateBinaryTransitions wave.WaveValues
                 /// TODO: Fix this so that it does not generate all 500 points.
                 /// Currently takes in 0, but this should ideally only generate the points that
@@ -78,8 +86,13 @@ let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): W
                     |> List.concat
                     |> List.distinct
 
-                [ polyline (wavePolylineStyle wavePoints) [] ]
+                svg (waveRowProps wsModel)
+                    [ polyline (wavePolylineStyle wavePoints) [] ]
+                |> TimeHelpers.instrumentInterval "binary waveform" start
+            // Non-binary waveform
             | _ ->
+                let start = TimeHelpers.getTimeMs ()
+
                 let transitions = calculateNonBinaryTransitions wave.WaveValues
                 /// TODO: Fix this so that it does not generate all 500 points.
                 /// Currently takes in 0, but this should ideally only generate the points that
@@ -96,9 +109,11 @@ let generateWaveform (wsModel: WaveSimModel) (index: WaveIndexT) (wave: Wave): W
 
                 let valuesSVG = displayValuesOnWave wsModel wave.WaveValues transitions
 
-                List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG
+                svg (waveRowProps wsModel)
+                    (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG)
+                |> TimeHelpers.instrumentInterval "nonbinary waveform" start
 
-        {wave with Polylines = Some polylines}
+        {wave with SVG = Some waveform}
     else wave
 
 /// get string in the [x:x] format given the bit limits
@@ -108,6 +123,8 @@ let private bitLimsString (a, b) =
     | (msb, lsb) when msb = lsb -> sprintf "[%d]" msb
     | (msb, lsb) -> sprintf "[%d:%d]" msb lsb
 
+/// Get port names for waves that are from Input ports.
+/// Appended to comp.Label
 let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string =
     let muxPortName (size: int) : string =
         if port = (InputPortNumber size) then ".SEL"
@@ -176,6 +193,7 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
     | SplitWire _ -> failwithf "SplitWire should not occur in getInputPortName"
     | BusSelection _ -> failwithf "BusSelection should not occur in getInputPortName"
 
+/// Get names for waves that are from Input ports
 let getInputName (comp: NetListComponent) (port: InputPortNumber) : string =
     let portName : string = getInputPortName comp.Type port
     let bitLims : string =
@@ -205,6 +223,8 @@ let getInputName (comp: NetListComponent) (port: InputPortNumber) : string =
 
     comp.Label + portName + bitLims
 
+/// Get port names for waves that are from Output ports
+/// Appended to comp.Label
 let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : string =
     match compType with
     | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4 | Mux2 | Mux4 | Mux8 | BusCompare _ | NbitsXor _ ->
@@ -232,6 +252,7 @@ let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : strin
     | SplitWire _ -> failwithf "SplitWire should not occur in getOutputName"
     | BusSelection _ -> failwithf "BusSeleciton should not occur in getOutputName"
 
+/// Get names for waves that are from Output ports
 let getOutputName (comp: NetListComponent) (port: OutputPortNumber) (fastSim: FastSimulation): string =
     let portName = getOutputPortName comp.Type port
     let bitLims =
@@ -268,13 +289,16 @@ let getOutputName (comp: NetListComponent) (port: OutputPortNumber) (fastSim: Fa
 
     comp.Label + portName + bitLims
 
+/// Get name for a wave. Names are generated from component label, port name, and bit width of wave.
 let getName (comp: NetListComponent) (index: WaveIndexT) (fastSim: FastSimulation) : string =
     match index.PortType with
     | PortType.Input -> getInputName comp (InputPortNumber index.PortNumber)
     | PortType.Output -> getOutputName comp (OutputPortNumber index.PortNumber) fastSim
 
-/// starting with just output ports only: not showing input ports.
+/// Make Wave for each component and port on sheet.
 let makeWave (fastSim: FastSimulation) (netList: Map<ComponentId, NetListComponent>) (index: WaveIndexT) (comp: NetListComponent) : Wave =
+    let start = TimeHelpers.getTimeMs ()
+
     let driverComp, driverPort =
         match index.PortType with
         | PortType.Output -> comp, (OutputPortNumber index.PortNumber)
@@ -284,13 +308,13 @@ let makeWave (fastSim: FastSimulation) (netList: Map<ComponentId, NetListCompone
             | Some None -> failwithf "is there an unconnected input?\n wave: %A\n port: %A %A\n type: %A" comp.Label index.PortType index.PortNumber comp.Type
             | None -> failwithf "InputPortNumber %A not in comp.Inputs" (index.PortNumber)
 
-    //need to get driving one so needs to be an output
     let driverId, driverPort = getFastDriver fastSim driverComp driverPort
 
     let waveValues =
         [ 0 .. Constants.maxLastClk ]
         |> List.map (fun i -> FastRun.extractFastSimulationOutput fastSim i driverId driverPort)
 
+    /// Connections which the wave's port is connected to.
     let conns : ConnectionId list =
         match index.PortType with
         | PortType.Output ->
@@ -310,9 +334,11 @@ let makeWave (fastSim: FastSimulation) (netList: Map<ComponentId, NetListCompone
         DisplayName = getName comp index fastSim
         Width =  getFastOutputWidth fastSim.FComps[driverId] driverPort
         WaveValues = waveValues
-        Polylines = None
+        SVG = None
     }
+    |> TimeHelpers.instrumentInterval "makeWave" start
 
+/// Make wave from Viewer components
 let makeViewerWave (fastSim: FastSimulation) (index: WaveIndexT) (viewer: FastComponent) : Wave =
     let driverId, driverPort =
         match Array.head viewer.InputDrivers with
@@ -333,10 +359,13 @@ let makeViewerWave (fastSim: FastSimulation) (index: WaveIndexT) (viewer: FastCo
         DisplayName = string viewer.SimComponent.Label
         Width =  getFastOutputWidth fastSim.FComps[driverId] driverPort
         WaveValues = waveValues
-        Polylines = None
+        SVG = None
     }
 
+/// Get all simulatable waves from CanvasState. Includes all Input and Output ports.
 let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<WaveIndexT, Wave> =
+    let start = TimeHelpers.getTimeMs ()
+
     let fastSim = simData.FastSim
     let netList = Helpers.getNetList reducedState
 
@@ -375,7 +404,9 @@ let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<WaveInd
     /// IOLabel driving one or more inputs.
     let ioLabels : (ComponentId * NetListComponent) list = List.distinctBy (fun (_, nlc) -> nlc.Label) ioLabels
 
+    /// Add Viewer waves. This requires a slightly different approach since they are not on the CanvasState.
     let viewerWaves =
+        let viewerWavesStart = TimeHelpers.getTimeMs ()
         Map.values fastSim.FComps |> Seq.toList
         |> List.filter (fun fc -> match fc.FType with Viewer _ -> true | _ -> false)
         |> List.map (fun viewer ->
@@ -385,18 +416,29 @@ let getWaves (simData: SimulationData) (reducedState: CanvasState) : Map<WaveInd
         )
         |> Map.ofList
         |> Map.map (makeViewerWave fastSim)
+        |> TimeHelpers.instrumentInterval "viewerWaves" viewerWavesStart
+
 
     List.append ioLabels otherComps
     |> List.collect getAllPorts
+    |> TimeHelpers.instrumentInterval "getAllPorts" start
     |> Map.ofList
     |> Map.map (makeWave fastSim netList)
+    |> TimeHelpers.instrumentInterval "makeWavePipeline" start
+
+    // Combine the viewer waves to the IOLabel waves and other Component waves
     |> Map.fold (fun vMap key value -> Map.add key value vMap) viewerWaves
+    |> TimeHelpers.instrumentInterval "getWaves" start
 
-/// Sets all waves as selected or not selected depending on value of newState
+/// Sets all waves as selected or not selected depending on value of selected
 let toggleSelectAll (selected: bool) (wsModel: WaveSimModel) dispatch : unit =
+    let start = TimeHelpers.getTimeMs ()
     let selectedWaves = if selected then Map.keys wsModel.AllWaves |> Seq.toList else []
+    printf "length: %A" (List.length selectedWaves)
     dispatch <| InitiateWaveSimulation {wsModel with SelectedWaves = selectedWaves}
+    |> TimeHelpers.instrumentInterval "toggleSelectAll" start
 
+/// Row in wave selection table that selects all values in wsModel.AllWaves
 let selectAll (wsModel: WaveSimModel) dispatch =
     let allWavesSelected = Map.forall (fun index _ -> isWaveSelected wsModel index) wsModel.AllWaves
 
@@ -414,6 +456,7 @@ let selectAll (wsModel: WaveSimModel) dispatch =
         th [] [str "Select All"]
     ]
 
+/// Toggle selection for a single wave.
 let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: Msg -> unit) =
     let selectedWaves =
         if List.contains index wsModel.SelectedWaves then
@@ -422,14 +465,16 @@ let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: M
     let wsModel = {wsModel with SelectedWaves = selectedWaves}
     dispatch <| InitiateWaveSimulation wsModel
 
+/// Toggle selection of a list of waves.
 let toggleSelectSubGroup (wsModel: WaveSimModel) dispatch (selected: bool) (waves: WaveIndexT list) =
     let selectedWaves =
         if selected then
             List.append wsModel.SelectedWaves waves
         else
-            List.except wsModel.SelectedWaves waves
+            List.except waves wsModel.SelectedWaves
     dispatch <| InitiateWaveSimulation {wsModel with SelectedWaves = selectedWaves}
 
+/// Table row of a checkbox and name of a wave.
 let checkboxRow (wsModel: WaveSimModel) dispatch (index: WaveIndexT) =
     let fontStyle = if isWaveSelected wsModel index then boldFontStyle else normalFontStyle
     tr  [ fontStyle ]
@@ -443,10 +488,11 @@ let checkboxRow (wsModel: WaveSimModel) dispatch (index: WaveIndexT) =
                         ])
                     ] ]
                 ]
-            td  [ noBorderStyle]
-                [str wsModel.AllWaves[index].DisplayName]
+            td  [ noBorderStyle ]
+                [ str wsModel.AllWaves[index].DisplayName ]
         ]
 
+/// Group of rows for a subgroup of waves. Grouped by ComponentGroups. Waves are hidden in a details element.
 let labelRows (compGroup: ComponentGroup) (waves: Wave list) (wsModel: WaveSimModel) dispatch : ReactElement =
     let indices = List.map (fun x -> x.WaveId) waves
     let subGroupSelected = List.forall (fun index -> isWaveSelected wsModel index) indices
@@ -476,6 +522,7 @@ let labelRows (compGroup: ComponentGroup) (waves: Wave list) (wsModel: WaveSimMo
         ]
     ]
 
+/// Search bar to allow users to filter out waves by DisplayName
 let searchBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     Input.text [
         Input.Option.Props [
@@ -489,6 +536,7 @@ let searchBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
         )
     ]
 
+/// Table of selectable waves. Waves are grouped by their component type.
 let selectWaves (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     let selectionRows : ReactElement list =
         Map.values wsModel.AllWaves |> Seq.toList
@@ -538,6 +586,7 @@ let selectWaves (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
             )
     ]
 
+/// Button to activate wave selection modal
 let selectWavesButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     let waveCount = Map.count wsModel.AllWaves
     let props, buttonFunc =
@@ -549,6 +598,7 @@ let selectWavesButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEle
         buttonFunc
         (str "Select Waves")
 
+/// Modal that, when active, allows users to select waves to be viewed.
 let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     Modal.modal [
         Modal.IsActive wsModel.WaveModalActive
@@ -566,7 +616,13 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
                         Level.right [
                         ] [ Delete.delete [
                                 Delete.Option.Size IsMedium
-                                Delete.Option.OnClick (fun _ -> dispatch <| SetWSModel {wsModel with WaveModalActive = false})
+                                Delete.Option.OnClick (fun _ ->
+                                    dispatch <| SetWSModel
+                                        {wsModel with
+                                            WaveModalActive = false
+                                            SearchString = ""
+                                        }
+                                )
                             ] []
                         ]
                     ]
@@ -580,6 +636,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
         ]
     ]
 
+/// Button to activate RAM selection modal.
 let selectRamButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     let ramCount = List.length wsModel.RamComps
     let props, buttonFunc =
@@ -591,17 +648,16 @@ let selectRamButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
         buttonFunc
         (str "Select RAM")
 
-let isRamSelected (ramId: ComponentId) (wsModel: WaveSimModel) : bool =
-    Map.containsKey ramId wsModel.SelectedRams
-
+/// Toggle if a RAM's contents is selected for viewing.
 let toggleRamSelection (ramId: ComponentId) (ramLabel: string) (wsModel: WaveSimModel) dispatch =
     let selectedRams =
         if isRamSelected ramId wsModel then
             Map.remove ramId wsModel.SelectedRams
         else
             Map.add ramId ramLabel wsModel.SelectedRams
-    dispatch <| InitiateWaveSimulation {wsModel with SelectedRams = selectedRams}
+    dispatch <| SetWSModel {wsModel with SelectedRams = selectedRams}
 
+/// Modal that, when active, allows users to select RAMs to view their contents.
 let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     let ramRows (ram: Component) : ReactElement =
         tr [] [
@@ -640,9 +696,13 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
                 ]
             ]
             Modal.Card.body [] [
-                str "Select synchronous RAM components to view their contents."
+                str "Select synchronous RAM components to view their contents. "
+                str "Note that asynchronous RAM components cannot be viewed in the waveform simulator. "
                 br []
-                str "Note that asynchronous components cannot be viewed in the waveform simulator."
+                br []
+                str "On a write, the corresponding row will be highlighted in red. "
+                str "On a read, the corresponding row will be highlighted in blue. "
+                str "Any memory address which has not been initialised with a value will not be shown in the table. "
                 hr []
                 Table.table [] [
                     tbody []
@@ -656,11 +716,11 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
 
 /// Set highlighted clock cycle number
 let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkCycle: int) : unit =
+    let start = TimeHelpers.getTimeMs ()
     let newClkCycle = min Constants.maxLastClk newClkCycle |> max 0
 
     if newClkCycle <= endCycle wsModel then
         if newClkCycle < wsModel.StartCycle then
-            printf "StartCycle: %A" newClkCycle
             dispatch <| InitiateWaveSimulation
                 {wsModel with 
                     StartCycle = newClkCycle
@@ -674,17 +734,17 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
                     ClkCycleBoxIsEmpty = false
                 }
     else
-        printf "StartCycle: %A" (newClkCycle - (wsModel.ShownCycles - 1))
-        printf "CurrClkCycle: %A" newClkCycle
         dispatch <| InitiateWaveSimulation
             {wsModel with
                 StartCycle = newClkCycle - (wsModel.ShownCycles - 1)
                 CurrClkCycle = newClkCycle
                 ClkCycleBoxIsEmpty = false
             }
+    |> TimeHelpers.instrumentInterval "setClkCycle" start
 
 /// if zoomIn, then increase width of clock cycles (i.e.reduce number of visible cycles)
 let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
+    let start = TimeHelpers.getTimeMs ()
     let shownCycles =
         if zoomIn then
             let newCycles = int <| float wsModel.ShownCycles * 0.8
@@ -706,6 +766,7 @@ let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
             else newCycles
 
     dispatch <| InitiateWaveSimulation { wsModel with ShownCycles = shownCycles }
+    |> TimeHelpers.instrumentInterval "changeZoom" start
 
 /// Click on these buttons to change the number of visible clock cycles.
 let zoomButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
@@ -796,12 +857,11 @@ let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : React
     ] (List.map (radixTab) radixString)
 
 /// Create label of waveform name for each selected wave.
-/// Note that this is generated after calling selectedWaves.
-/// Any changes to this function must also be made to valueRows
-/// and waveRows, as the order of the waves matters here. This is
-/// because the wave viewer is comprised of three columns of many
-/// rows, rather than many rows of three columns.
-let nameRows (wsModel: WaveSimModel) dispatch: ReactElement list =
+/// Note that this is generated after calling selectedWaves. Any changes to this function
+/// must also be made to valueRows and waveRows, as the order of the waves matters here.
+/// This is because the wave viewer is comprised of three columns of many rows, rather
+/// than many rows of three columns.
+let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list =
     selectedWaves wsModel
     |> List.map (fun wave ->
         let visibility =
@@ -816,8 +876,12 @@ let nameRows (wsModel: WaveSimModel) dispatch: ReactElement list =
                 OnMouseOver (fun _ ->
                     if wsModel.DraggedIndex = None then
                         dispatch <| SetWSModel {wsModel with HoveredLabel = Some wave.WaveId}
-                        dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [wave.WaveId.Id])))
-                        dispatch <| Sheet (SheetT.Msg.SelectWires wave.Conns)
+                        // Check if symbol exists on Canvas
+                        if Map.containsKey wave.WaveId.Id model.Sheet.Wire.Symbol.Symbols then
+                            dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [wave.WaveId.Id])))
+                        // Filter out any non-existent wires
+                        let conns = List.filter (fun conn -> Map.containsKey conn model.Sheet.Wire.Wires) wave.Conns 
+                        dispatch <| Sheet (SheetT.Msg.SelectWires conns)
                 )
                 OnMouseOut (fun _ ->
                     dispatch <| SetWSModel {wsModel with HoveredLabel = None}
@@ -842,15 +906,14 @@ let nameRows (wsModel: WaveSimModel) dispatch: ReactElement list =
                     let nameColEl = Browser.Dom.document.getElementById "namesColumn"
                     let bcr = nameColEl.getBoundingClientRect ()
 
-                    // If the user drags the label outside the bounds of
-                    // the wave name column
+                    // If the user drags the label outside the bounds of the wave name column
                     if ev.clientX < bcr.left || ev.clientX > bcr.right ||
                         ev.clientY < bcr.top || ev.clientY > bcr.bottom
                     then
-                        // Use wsModel.SelectedValues if somehow PrevSelectedWaves not set
                         dispatch <| SetWSModel {
                             wsModel with
                                 HoveredLabel = Some wave.WaveId
+                                // Use wsModel.SelectedValues if somehow PrevSelectedWaves not set
                                 SelectedWaves = Option.defaultValue wsModel.SelectedWaves wsModel.PrevSelectedWaves
                             }
                 )
@@ -884,8 +947,7 @@ let nameRows (wsModel: WaveSimModel) dispatch: ReactElement list =
                         }
                 )
             ]
-        ] [
-            Level.left
+        ] [ Level.left
                 [ Props (nameRowLevelLeftProps visibility) ]
                 [ Delete.delete [
                     Delete.Option.Size IsSmall
@@ -899,16 +961,19 @@ let nameRows (wsModel: WaveSimModel) dispatch: ReactElement list =
                 ]
             Level.right
                 [ Props [ Style [ PaddingRight Constants.labelPadding ] ] ]
-                [ label [nameLabelStyle (wsModel.HoveredLabel = Some wave.WaveId)] [ str wave.DisplayName ] ]
+                [ label [ nameLabelStyle (wsModel.HoveredLabel = Some wave.WaveId) ] [ str wave.DisplayName ] ]
         ]
     )
 
 /// Create column of waveform names
-let namesColumn wsModel dispatch : ReactElement =
-    let rows = nameRows wsModel dispatch
+let namesColumn model wsModel dispatch : ReactElement =
+    let start = TimeHelpers.getTimeMs ()
+    let rows = nameRows model wsModel dispatch
 
     div namesColumnProps
         (List.concat [ topRow; rows ])
+    |> TimeHelpers.instrumentInterval "namesColumn" start
+
 
 /// Create label of waveform value for each selected wave at a given clk cycle.
 /// Note that this is generated after calling selectedWaves.
@@ -916,7 +981,7 @@ let namesColumn wsModel dispatch : ReactElement =
 /// and waveRows, as the order of the waves matters here. This is
 /// because the wave viewer is comprised of three columns of many
 /// rows, rather than many rows of three columns.
-let valueRows (wsModel: WaveSimModel) = 
+let valueRows (wsModel: WaveSimModel) =
     selectedWaves wsModel
     |> List.map (getWaveValue wsModel.CurrClkCycle)
     |> List.map (valToString wsModel.Radix)
@@ -924,24 +989,12 @@ let valueRows (wsModel: WaveSimModel) =
 
 /// Create column of waveform values
 let private valuesColumn wsModel : ReactElement =
+    let start = TimeHelpers.getTimeMs ()
     let rows = valueRows wsModel
 
     div [ valuesColumnStyle ]
         (List.concat [ topRow; rows ])
-
-/// Generate list of `line` objects which are the background clock lines.
-/// These need to be wrapped by an SVG canvas.
-let backgroundSVG (wsModel: WaveSimModel) : ReactElement list =
-    let clkLine x = 
-        line [
-            clkLineStyle
-            X1 x
-            Y1 0.0
-            X2 x
-            Y2 Constants.viewBoxHeight
-        ] []
-    [ wsModel.StartCycle + 1 .. endCycle wsModel + 1 ] 
-    |> List.map (fun x -> clkLine (float x * singleWaveWidth wsModel))
+    |> TimeHelpers.instrumentInterval "valuesColumn" start
 
 /// Generate a row of numbers in the waveforms column.
 /// Numbers correspond to clock cycles.
@@ -953,11 +1006,11 @@ let clkCycleNumberRow (wsModel: WaveSimModel) =
 
     [ wsModel.StartCycle .. endCycle wsModel]
     |> List.collect makeClkCycleLabel
-    |> List.append (backgroundSVG wsModel)
     |> svg (clkCycleNumberRowProps wsModel)
 
 /// Generate a column of waveforms corresponding to selected waves.
 let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
+    let start = TimeHelpers.getTimeMs ()
     /// Note that this is generated after calling selectedWaves.
     /// Any changes to this function must also be made to nameRows
     /// and valueRows, as the order of the waves matters here. This is
@@ -966,15 +1019,12 @@ let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
     let waveRows : ReactElement list =
         selectedWaves wsModel
         |> List.map (fun wave ->
-            match wave.Polylines with
-                | Some polylines ->
-                    polylines
-                // Maybe this shouldn't fail. Could just return a text element saying no waveform was generated
-                | None ->
-                    printf "no waveform generated for %A" wave.DisplayName
-                    [ div [] [] ]//failwithf "No waveform for selected wave %A" wave.DisplayName
-            |> List.append (backgroundSVG wsModel)
-            |> svg (waveRowProps wsModel)
+            match wave.SVG with
+            | Some waveform ->
+                waveform
+            | None ->
+                printf "no waveform generated for %A" wave.DisplayName
+                div [] []
         )
 
     div [ waveformColumnStyle ]
@@ -985,22 +1035,19 @@ let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
                     waveRows
                 )
         ]
+    |> TimeHelpers.instrumentInterval "waveformColumn" start
 
 /// Display the names, waveforms, and values of selected waveforms
-let showWaveforms (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     div [ showWaveformsStyle ]
         [
-            namesColumn wsModel dispatch
+            namesColumn model wsModel dispatch
             waveformColumn wsModel dispatch
             valuesColumn wsModel
         ]
 
-let ramTableRow (wsModel: WaveSimModel) (ramId: ComponentId) (memWidth: int) (memData: Map<int64, int64>) (memLoc: int64): ReactElement =
-    let data =
-        match Map.tryFind memLoc memData with
-        | Some data -> data
-        | None -> 0
-
+/// Table row that shows the address and data of a RAM component.
+let ramTableRow (wsModel: WaveSimModel) (ramId: ComponentId) (memWidth: int) ((addr, data): int64 * int64): ReactElement =
     let pickWave port waveVal =
         Map.tryPick (fun _ (wave: Wave) ->
             if wave.WaveId.Id = ramId && wave.DisplayName = wave.CompLabel + port then
@@ -1013,22 +1060,21 @@ let ramTableRow (wsModel: WaveSimModel) (ramId: ComponentId) (memWidth: int) (me
         | None -> false
 
     let wenHigh = pickWave ".WEN" [One]
-    let correctAddr = pickWave ".ADDR" (convertIntToWireData memWidth memLoc)
+    let correctAddr = pickWave ".ADDR" (convertIntToWireData memWidth addr)
 
     tr [ ramTableRowStyle wenHigh correctAddr ] [
-        td [] [ str (valToString wsModel.Radix memLoc) ]
+        td [] [ str (valToString wsModel.Radix addr) ]
         td [] [ str (valToString wsModel.Radix data) ]
     ]
 
+/// Table showing contents of a RAM component.
 let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): ComponentId * string) : ReactElement =
     let state = FastRun.extractFastSimulationState wsModel.FastSim wsModel.CurrClkCycle (ramId, [])
     let memWidth, memData =
         match state with
         | RamState mem ->
-            mem.AddressWidth, mem.Data
+            mem.AddressWidth, Map.toList mem.Data
         | _ -> failwithf "Non memory components should not appear here"
-
-    let endLoc = Helpers.pow2int64 memWidth
 
     Level.item [
         Level.Item.Option.Props ramTableLevelProps
@@ -1047,18 +1093,56 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): ComponentId * string) :
                 ]
             ]
             tbody []
-                (List.map (ramTableRow wsModel ramId memWidth memData) [0 .. endLoc - (int64 1)])
+                (List.map (ramTableRow wsModel ramId memWidth) memData)
         ]
         br []
     ]
 
+/// Bulma Level component of tables showing RAM contents.
 let ramTables (wsModel: WaveSimModel) : ReactElement =
+    let start = TimeHelpers.getTimeMs ()
     let selectedRams = Map.toList wsModel.SelectedRams
     if List.length selectedRams > 0 then
         Level.level [ Level.Level.Option.Props ramTablesLevelProps ]
             (List.map (ramTable wsModel) selectedRams)
     else div [] []
+    |> TimeHelpers.instrumentInterval "ramTables" start
 
+/// Async function which runs the fast simulator when refreshing the wave sim. Set as asynchronous
+/// since the fast simulator takes some time to run the first time it is started.
+let refreshWaveSim (wsModel, simData, (comps, conns)) : Async<WaveSimModel> = async {
+    let start = TimeHelpers.getTimeMs ()
+    FastRun.runFastSimulation Constants.maxLastClk simData.FastSim
+    |> TimeHelpers.instrumentInterval "runFastSimulation" start
+
+    let allWaves =
+        let allWavesStart = TimeHelpers.getTimeMs ()
+        getWaves simData (comps, conns)
+        |> Map.map (generateWaveform wsModel)
+        |> TimeHelpers.instrumentInterval "allWaves" allWavesStart
+
+    let ramComps =
+        List.filter (fun (comp: Component) -> match comp.Type with | RAM1 _ -> true | _ -> false) comps
+        |> List.sortBy (fun ram -> ram.Label)
+
+    let ramCompIds = List.map (fun (ram: Component) -> ComponentId ram.Id) ramComps
+
+    let selectedWaves = List.filter (fun key -> Map.containsKey key allWaves) wsModel.SelectedWaves
+    let selectedRams = Map.filter (fun ramId _ -> List.contains ramId ramCompIds) wsModel.SelectedRams
+
+    return {
+        wsModel with
+            State = Success
+            AllWaves = allWaves
+            SelectedWaves = selectedWaves
+            RamComps = ramComps
+            SelectedRams = selectedRams
+            FastSim = simData.FastSim
+    }
+    |> TimeHelpers.instrumentInterval "refreshWaveSim" start
+}
+
+/// Refresh the state of the wave simulator according to the model and canvas state.
 let refreshButtonAction model dispatch = fun _ ->
     let wsSheet = Option.get (getCurrFile model)
     let wsModel = getWSModel model
@@ -1066,41 +1150,25 @@ let refreshButtonAction model dispatch = fun _ ->
     | None ->
         dispatch <| SetWSModel { wsModel with State = NoProject }
     | Some (Error e, _) ->
-        dispatch <| SetWSModel { wsModel with State = SimError e }
-    | Some (Ok simData, (comps, conns)) ->
+        dispatch <| SetWSModelAndSheet ({ wsModel with State = SimError e }, wsSheet)
+    | Some (Ok simData, canvState) ->
         if simData.IsSynchronous then
-            FastRun.runFastSimulation Constants.maxLastClk simData.FastSim
-
-            let allWaves =
-                getWaves simData (comps, conns)
-                |> Map.map (generateWaveform wsModel)
-
-            let ramComps =
-                List.filter (fun (comp: Component) -> match comp.Type with | RAM1 _ -> true | _ -> false) comps
-                |> List.sortBy (fun ram -> ram.Label)
-
-            let ramCompIds = List.map (fun (ram: Component) -> ComponentId ram.Id) ramComps
-
-            let selectedWaves = List.filter (fun key -> Map.containsKey key allWaves) wsModel.SelectedWaves
-            let selectedRams = Map.filter (fun ramId _ -> List.contains ramId ramCompIds) wsModel.SelectedRams
-
-            let wsModel = {
-                wsModel with
-                    State = Success
-                    AllWaves = allWaves
-                    SelectedWaves = selectedWaves
-                    RamComps = ramComps
-                    SelectedRams = selectedRams
-                    FastSim = simData.FastSim
-            }
-
+            let wsModel = { wsModel with State = Loading }
             dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
+            dispatch <| RefreshWaveSim (wsModel, simData, canvState)
+
         else
-            dispatch <| SetWSModel { wsModel with State = NonSequential }
+            dispatch <| SetWSModelAndSheet ({ wsModel with State = NonSequential }, wsSheet)
 
 /// ReactElement showing instructions and wave sim buttons
 let topHalf (model: Model) dispatch : ReactElement =
     let wsModel = getWSModel model
+    let loading =
+        match wsModel.State with
+        | Loading -> true
+        | _ -> false
+    let refreshButtonSvg = if loading then emptyRefreshSVG else refreshSvg
+
     div [ topHalfStyle ] [
         br []
         Level.level [] [
@@ -1108,10 +1176,10 @@ let topHalf (model: Model) dispatch : ReactElement =
                 Heading.h4 [] [ str "Waveform Simulator" ]
             ]
             Level.right [] [
-                Icon.icon [
-                    Icon.Option.Modifiers [ Modifier.IsClickable ]
-                    Icon.Option.Props [ OnClick (refreshButtonAction model dispatch) ]
-                ] [ refreshSvg ]
+                button
+                    [ Button.Option.IsLoading loading ]
+                    (refreshButtonAction model dispatch)
+                    refreshButtonSvg
             ]
         ]
 
@@ -1153,7 +1221,7 @@ let topHalf (model: Model) dispatch : ReactElement =
 /// Entry point to the waveform simulator.
 let viewWaveSim (model: Model) dispatch : ReactElement =
     let wsModel = getWSModel model
-    div [ waveSelectionPaneStyle ]
+    div [ viewWaveSimStyle ]
         [
             topHalf model dispatch
 
@@ -1170,8 +1238,8 @@ let viewWaveSim (model: Model) dispatch : ReactElement =
             | NonSequential ->
                 div [ errorMessageStyle ]
                     [ str "There is no sequential logic in this circuit." ]
-            | Success ->
-                showWaveforms wsModel dispatch
+            | Loading | Success ->
+                showWaveforms model wsModel dispatch
 
                 hr []
 

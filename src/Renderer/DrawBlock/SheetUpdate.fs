@@ -272,10 +272,7 @@ let mDownUpdate
 
         | Component compId ->
 
-            let msg, action =
-                if model.IsWaveSim then
-                    ToggleNet ([SymbolUpdate.extractComponent model.Wire.Symbol compId], []), Idle
-                else DoNothing, InitialiseMoving compId
+            let msg, action = DoNothing, InitialiseMoving compId
 
             if model.CtrlKeyDown || mMsg.ShiftKeyDown
             then
@@ -320,10 +317,7 @@ let mDownUpdate
             let segments = model.Wire.Wires[wId].Segments
             if i > segments.Length - 1 then
                 failwithf "What? Error in getClcikedSegment: "
-            let msg =
-                if model.IsWaveSim then
-                    ToggleNet ([], [BusWire.extractConnection model.Wire connId])
-                else DoNothing
+            let msg = DoNothing
 
             if model.CtrlKeyDown
             then
@@ -1059,7 +1053,6 @@ let init () =
         MouseCounter = 0
         LastMousePosForSnap = { X = 0.0; Y = 0.0 }
         CtrlKeyDown = false
-        IsWaveSim = false
         ScrollUpdateIsOutstanding = false
         PrevWireSelection = []
     }, Cmd.none

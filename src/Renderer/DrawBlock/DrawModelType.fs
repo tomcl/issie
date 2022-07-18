@@ -474,7 +474,6 @@ module SheetT =
         LastMousePosForSnap: XYPos
         MouseCounter: int
         CtrlKeyDown : bool
-        IsWaveSim : bool
         ScrollUpdateIsOutstanding: bool
         PrevWireSelection : ConnectionId list
         }

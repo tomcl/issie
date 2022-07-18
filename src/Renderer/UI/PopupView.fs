@@ -120,7 +120,6 @@ type CE (props) =
                     OnValueChange (fun txt -> 
                         (this.setState (fun s p -> {s with code=txt}))
                         props.Dispatch <| SetPopupDialogCode (Some txt)
-                        // props.Dispatch <| SetPopupDialogNewCode (None)
                         props.Compile {props.DialogData with VerilogCode=Some txt}
                     )             
                     Highlight (fun code -> Prism.highlight(code,language));]

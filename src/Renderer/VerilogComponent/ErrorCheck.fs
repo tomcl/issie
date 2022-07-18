@@ -648,7 +648,7 @@ let checkWiresAndAssignments
                         let extraMessages = 
                             [|
                                 {Text=(sprintf "Variable '%s' is not declared as input or wire" name);Copy=false;Replace=NoReplace}
-                                {Text=(sprintf "input %s;|wire %s = 0;" name name);Copy=true;Replace=IODeclaration}
+                                {Text=(sprintf "input %s;|wire %s = 1'b0;" name name);Copy=true;Replace=IODeclaration}
                             |]
                         createErrorMessage linesLocations currLocation message extraMessages name
                     |false ->

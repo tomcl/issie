@@ -32,8 +32,6 @@ importClipboard
 
 
 
-
-
 /// Returns the overlay which contains all the errors    
 let getErrorDiv errorList : ReactElement =
     

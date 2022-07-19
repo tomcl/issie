@@ -12,11 +12,13 @@ open Sheet
 open Optics
 open FilesIO
 
+open Fable.Core
 open Fable.Core.JsInterop
 open Node.ChildProcess
 open Node
 
 module node = Node.Api
+
 
 let rotateLabel (sym:Symbol) =
     let currentRot = Option.defaultValue Degree0 sym.LabelRotation
@@ -1038,7 +1040,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             model, Cmd.none
         else 
             // TODO: Make this the issie install path
-            let include_path = "/home/ole/workspace/fyp/hdl"
+            let include_path = "C:/Users/apant/Documents/issie/hdl"
+            let cwd = getCWD ()
+            let include_path = cwd+"/hdl" 
+            // node.process.cwd()+"/hdl"
+            printfn "include_path: %s" include_path
             let pcf = match profile with
                       | Verilog.Release -> $"{include_path}/icestick.pcf"
                       | Verilog.Debug -> $"{include_path}/icestick_debug.pcf"

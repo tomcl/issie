@@ -18,6 +18,7 @@ open PopupView
 open Sheet.SheetInterface
 open DrawModelType
 open FilesIO
+open DrawModelType
 
 open Node.ChildProcess
 module node = Node.Api
@@ -47,7 +48,7 @@ let private makeRowForCompilationStage (name: string) (stage: SheetT.Compilation
                 th [ Style [ BackgroundColor "gray"] ] [str "--"]
     ]
 
-let verilogOutput (vType: Verilog.VMode) (model: Model) (upload: bool) (dispatch: Msg -> Unit) =
+let verilogOutput (vType: Verilog.VMode) (model: Model) (profile: Verilog.CompilationProfile) (dispatch: Msg -> Unit) =
     match FileMenuView.updateProjectFromCanvas model dispatch, model.Sheet.GetCanvasState() with
         | Some proj, state ->
             match model.UIState with
@@ -62,7 +63,7 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (upload: bool) (dispatch
                     //| Error e -> printfn "Couldn't make build folder: %s" e
                     | _ -> 
                         try
-                            let verilog = Verilog.getVerilog vType sim.FastSim
+                            let verilog = Verilog.getVerilog vType sim.FastSim profile
                             let mappings =
                                 sim.FastSim.FOrderedComps
                                 |> Array.filter (fun fc -> match fc.FType with | Viewer _ -> true | _ -> false)
@@ -78,9 +79,7 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (upload: bool) (dispatch
                             printfn $"Error in Verilog output: {e.Message}"
                             Error e.Message
                         |> (function
-                            | Ok () ->
-                                if upload then
-                                    Sheet (SheetT.Msg.StartCompiling (proj.ProjectPath, proj.OpenFileName)) |> dispatch
+                            | Ok () -> Sheet (SheetT.Msg.StartCompiling (proj.ProjectPath, proj.OpenFileName, profile)) |> dispatch
                             | Error e -> ()//oh no
                             )
                 | Error simError ->
@@ -102,12 +101,6 @@ let viewBuild model dispatch =
                     ]
                     [ react ]
             Menu.menu [Props [Class "py-1"; Style styles]]  [
-                    Button.button
-                        [ 
-                            Button.Color IsPrimary;
-                            Button.OnClick (fun _ -> verilogOutput Verilog.VMode.ForSynthesis model false dispatch);
-                        ]
-                        [ str "create verilog" ]
                     if (model.Sheet.Compiling) then
                         Button.button
                             [ 
@@ -119,9 +112,15 @@ let viewBuild model dispatch =
                         Button.button
                             [ 
                                 Button.Color IsSuccess;
-                                Button.OnClick (fun _ -> verilogOutput Verilog.VMode.ForSynthesis model true dispatch);
+                                Button.OnClick (fun _ -> verilogOutput Verilog.VMode.ForSynthesis model Verilog.Release dispatch);
                             ]
                             [ str "Build and upload" ]
+                        Button.button
+                            [ 
+                                Button.Color IsSuccess;
+                                Button.OnClick (fun _ -> verilogOutput Verilog.VMode.ForSynthesis model Verilog.Debug dispatch);
+                            ]
+                            [ str "Build and Debug" ]
 
                     br []; br []
                     Table.table [
@@ -140,84 +139,68 @@ let viewBuild model dispatch =
                         ]
                     ]
 
-                    Button.button
-                        [ 
-                            Button.Color IsSuccess;
-                            Button.OnClick (fun _ -> if (List.isEmpty model.Sheet.ReadLogs) then Sheet (SheetT.Msg.DebugSingleStep) |> dispatch);
-                            Button.IsActive (List.isEmpty model.Sheet.ReadLogs)
-                        ]
-                        [ str "Step" ]
-                    Button.button
-                        [ 
-                            Button.Color IsSuccess;
-                            Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugRead 1) |> dispatch);
-                        ]
-                        [ str "Read" ]
-                    Button.button
-                        [ 
-                            Button.Color IsSuccess;
-                            Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugContinue) |> dispatch);
-                        ]
-                        [ str "Continue" ]
-                    Button.button
-                        [ 
-                            Button.Color IsSuccess;
-                            Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugPause) |> dispatch);
-                        ]
-                        [ str "Pause" ]
-                    Button.button
-                        [ 
-                            Button.Color IsSuccess;
-                            Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugConnect) |> dispatch);
-                        ]
-                        [ str "Connect" ]
-                    Button.button
-                        [ 
-                            Button.Color IsDanger;
-                            Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugDisconnect) |> dispatch);
-                        ]
-                        [ str "Disconnect" ]
-                    br [];
-                    br [];
-                    Table.table [
-                        Table.IsFullWidth
-                        Table.IsBordered
-                    ] [
-                        thead [] [ tr [] [
-                            th [ Style [ BackgroundColor "lightgray"] ] [str "Viewer"]
-                            th [ Style [ BackgroundColor "lightgray"] ] [str "Value"]
-                        ] ]
-                        tbody [] (
-                            let mappings = Array.toList model.Sheet.DebugMappings
-                            //let mappings = [ "debug_stuff"; "debug_stuff"; "v2"; "v2"; "v2"; "v1"  ]
-                            let bits =
-                                model.Sheet.DebugData
-                                |> List.collect (fun byte -> 
-                                    [0..7]
-                                    |> List.rev
-                                    |> List.map (fun i -> Some <| (byte / (pown 2 i)) % 2))
-                            let bits =
-                                List.append bits (List.map (fun _ -> None) [1..256])
+                    if model.Sheet.DebugState = SheetT.Paused then
+                        Button.button
+                            [ 
+                                Button.Color IsSuccess;
+                                Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugSingleStep) |> dispatch);
+                            ]
+                            [ str "Step" ]
+                        Button.button
+                            [ 
+                                Button.Color IsSuccess;
+                                Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugContinue) |> dispatch);
+                            ]
+                            [ str "Continue" ]
+                    elif model.Sheet.DebugState = SheetT.Running then
+                        Button.button
+                            [ 
+                                Button.Color IsSuccess;
+                                Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugPause) |> dispatch);
+                            ]
+                            [ str "Pause" ]
 
-                            let values =
-                                List.zip mappings bits
-                                |> List.fold (fun s (name, bit) ->
-                                    match List.tryHead s with
-                                    | Some (n, bits) when n = name-> (n, bit :: bits) :: (List.tail s)
-                                    | _ -> (name, [bit]) :: s
-                                    ) []
+                    if model.Sheet.DebugState <> SheetT.NotDebugging then
+                        br [];
+                        Table.table [
+                            Table.IsFullWidth
+                            Table.IsBordered
+                        ] [
+                            thead [] [ tr [] [
+                                th [ Style [ BackgroundColor "lightgray"] ] [str "Viewer"]
+                                th [ Style [ BackgroundColor "lightgray"] ] [str "Value"]
+                            ] ]
+                            tbody [] (
+                                let mappings = Array.toList model.Sheet.DebugMappings
+                                //let mappings = [ "debug_stuff"; "debug_stuff"; "v2"; "v2"; "v2"; "v1"  ]
+                                let bits =
+                                    model.Sheet.DebugData
+                                    |> List.collect (fun byte -> 
+                                        [0..7]
+                                        |> List.rev
+                                        |> List.map (fun i -> Some <| (byte / (pown 2 i)) % 2))
+                                let bits =
+                                    List.append bits (List.map (fun _ -> None) [1..256])
 
-                            let numOrX nOpt =
-                                Option.map (fun b -> b.ToString()) nOpt
-                                |> Option.defaultValue "x"
+                                let values =
+                                    List.zip mappings bits
+                                    |> List.fold (fun s (name, bit) ->
+                                        match List.tryHead s with
+                                        | Some (n, bits) when n = name-> (n, bit :: bits) :: (List.tail s)
+                                        | _ -> (name, [bit]) :: s
+                                        ) []
 
-                            values
-                            |> List.map (fun (name, bits) ->
-                                tr [] [
-                                    th [] [str (name + if List.length bits = 1 then "" else $"[{List.length bits - 1}:0]")]
-                                    th [] [ str <| "0b" + (bits |> List.map numOrX |> String.concat "") ]
-                                ]))
-                    ]
+                                let numOrX nOpt =
+                                    Option.map (fun b -> b.ToString()) nOpt
+                                    |> Option.defaultValue "x"
+
+                                values
+                                |> List.map (fun (name, bits) ->
+                                    tr [] [
+                                        th [] [str (name + if List.length bits = 1 then "" else $"[{List.length bits - 1}:0]")]
+                                        th [] [ str <| "0b" + (bits |> List.map numOrX |> String.concat "") ]
+                                    ]))
+                        ]
                 ]
 
         (viewCatOfModel) model 

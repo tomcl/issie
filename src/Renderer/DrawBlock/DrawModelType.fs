@@ -454,8 +454,8 @@ module SheetT =
         | MovePort of MouseT //different from mousemsg because ctrl pressed too
         | SaveSymbols
         // ------------------- Compilation and Debugging ----------------------
-        | StartCompiling of path: string * name: string
-        | StartCompilationStage of CompilationStageLabel * path: string * name: string
+        | StartCompiling of path: string * name: string * profile: Verilog.CompilationProfile
+        | StartCompilationStage of CompilationStageLabel * path: string * name: string * profile: Verilog.CompilationProfile
         | StopCompilation
         | TickCompilation of float
         | FinishedCompilationStage
@@ -469,6 +469,11 @@ module SheetT =
         | DebugPause
 
     type ReadLog = | ReadLog of int
+
+    type DebugState =
+        | NotDebugging
+        | Paused
+        | Running
 
     type Model = {
         Wire: BusWireT.Model
@@ -515,10 +520,11 @@ module SheetT =
         Compiling: bool
         CompilationStatus: CompileStatus
         CompilationProcess: ChildProcess option
+        DebugState: DebugState
         DebugData: int list
         DebugMappings: string array
-        DebugConnection: ChildProcess option
-        ReadLogs: ReadLog list
+        DebugConnection: Node.Fs.ReadStream<string> option
+        DebugReadLogs: ReadLog list
         DebugReadCount: int
         }
     

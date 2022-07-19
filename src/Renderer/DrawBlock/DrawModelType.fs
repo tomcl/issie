@@ -453,8 +453,8 @@ module SheetT =
         | IssieInterface of IssieInterfaceMsg
         | MovePort of MouseT //different from mousemsg because ctrl pressed too
         | SaveSymbols
-        | StartCompiling
-        | StartCompilationStage of CompilationStageLabel
+        | StartCompiling of path: string * name: string
+        | StartCompilationStage of CompilationStageLabel * path: string * name: string
         | StopCompilation
         | TickCompilation of float
         | FinishedCompilationStage

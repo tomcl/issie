@@ -264,6 +264,7 @@ let getInstantiatedModules (fs: FastSimulation) =
             | ROM1 mem -> [| makeRomModule name mem |]
             | AsyncROM1 mem -> [| makeAsyncRomModule name mem |]
             | _ -> [||])
+    |> Array.append [|"`include \"cores/osdvu/uart.v\""|]
 
 let removeHybridComps (fa: FastComponent array) =
     Array.filter (fun fc -> not (isHybridComponent fc.FType)) fa

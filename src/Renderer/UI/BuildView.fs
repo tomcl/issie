@@ -156,6 +156,18 @@ let viewBuild model dispatch =
                     Button.button
                         [ 
                             Button.Color IsSuccess;
+                            Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugContinue) |> dispatch);
+                        ]
+                        [ str "Continue" ]
+                    Button.button
+                        [ 
+                            Button.Color IsSuccess;
+                            Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugPause) |> dispatch);
+                        ]
+                        [ str "Pause" ]
+                    Button.button
+                        [ 
+                            Button.Color IsSuccess;
                             Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugConnect) |> dispatch);
                         ]
                         [ str "Connect" ]

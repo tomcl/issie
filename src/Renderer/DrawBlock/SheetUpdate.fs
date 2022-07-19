@@ -1183,8 +1183,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         // Set up the tty
         node.childProcess.spawnSync (
-            "sudo",
-            ["stty"; "-F"; "/dev/ttyUSB1"; "9600"; "-hupcl"; "brkint"; "ignpar"; "-icrnl";
+            "stty",
+            ["-F"; "/dev/ttyUSB1"; "9600"; "-hupcl"; "brkint"; "ignpar"; "-icrnl";
              "-opost"; "-onlcr"; "-isig"; "-icanon"; "-echo"] |> ResizeArray) |> ignore
         
         let options = {| shell = false |} |> toPlainJsObj
@@ -1209,6 +1209,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | _ -> ()
         { model with DebugConnection = None }, Cmd.none
     | OnDebugRead data ->
+        printfn $"Have read {model.DebugReadCount + 1} messages"
+        printfn $"There are this many logs to receive: {List.length model.ReadLogs}"
         let (ReadLog part) = List.head model.ReadLogs
         let bits =
             [0..7]
@@ -1217,13 +1219,21 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             |> List.map (fun b -> b.ToString())
             |> String.concat ","
         printfn $"read {data} from {part} ([{bits}])"
-        printfn $"There are this many logs to receive: {List.length (List.tail model.ReadLogs)}"
         { model with
+            DebugReadCount = model.DebugReadCount + 1
             DebugData = List.insertAt part data (List.removeAt part model.DebugData)
             ReadLogs = List.tail model.ReadLogs
         }, Cmd.none
     | DebugUpdateMapping mappings ->
         {model with DebugMappings = mappings }, Cmd.none
+    | DebugContinue ->
+        fs.writeFileSync ("/dev/ttyUSB1", "C")
+        printfn "Continued execution"
+        model, Cmd.none
+    | DebugPause ->
+        fs.writeFileSync ("/dev/ttyUSB1", "P")
+        printfn "Continued execution"
+        model, Cmd.none
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> Optic.map fst_ postUpdateChecks
 
@@ -1275,6 +1285,7 @@ let init () =
         DebugConnection = None
         DebugMappings = [||]
         ReadLogs = []
+        DebugReadCount  = 0
     }, Cmd.none
 
 

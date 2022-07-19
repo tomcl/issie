@@ -695,11 +695,14 @@ uart0(
     .recv_error(recv_error),
 );
 reg single_step = 0;
+reg is_running = 0;
 reg clk_is_active = 0;
 assign clk = debug_clk & clk_is_active;
 always @ (negedge debug_clk) begin
     clk_is_active <= 0;
     if (single_step)
+        clk_is_active <= 1;
+    if (is_running)
         clk_is_active <= 1;
 end
 always @ (posedge debug_clk) begin
@@ -713,6 +716,14 @@ always @ (posedge debug_clk) begin
         if (received_bytes[7:0] == 8'h53/*S*/) begin
             num_received <= 4'h0;
             single_step <= 1;
+        end
+    if (received_bytes[7:0] == 8'h43/*C*/) begin
+            num_received <= 4'h0;
+            is_running <= 1;
+        end
+        if (received_bytes[7:0] == 8'h50/*P*/) begin
+            num_received <= 4'h0;
+            is_running <= 0;
         end
     end else if (num_received == 4'd2) begin
         if (received_bytes[15:8] == 8'h52/*R*/) begin // Read value of internal registers/wires

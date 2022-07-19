@@ -17,6 +17,7 @@ open CommonTypes
 open PopupView
 open Sheet.SheetInterface
 open DrawModelType
+open FilesIO
 
 open Node.ChildProcess
 module node = Node.Api
@@ -77,6 +78,38 @@ module AsyncEx =
                 | :? SuccessException<'T> as ex -> return Some ex.Value
             }
 
+let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) =
+    printfn "Verilog output"
+    match FileMenuView.updateProjectFromCanvas model dispatch, model.Sheet.GetCanvasState() with
+        | Some proj, state ->
+            match model.UIState with
+            | Some _ -> () // do nothing if in middle of I/O operation
+            | None ->
+                match Simulator.prepareSimulation proj.OpenFileName state proj.LoadedComponents with
+                | Ok sim -> 
+                    let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
+                    printfn "writing %s" proj.ProjectPath
+                    printfn "should be compiling %s :: %s" proj.ProjectPath proj.OpenFileName
+                    match tryCreateFolder <| pathJoin [| proj.ProjectPath; "/build" |] with
+                    | Error e -> printfn "Couldn't make build folder: %s" e
+                    | Ok _ -> ()
+                    try
+                        let verilog = Verilog.getVerilog vType sim.FastSim
+                        printfn "%s" verilog
+                        FilesIO.writeFile path verilog
+                    with
+                    | e ->
+                        printfn $"Error in Verilog output: {e.Message}"
+                        Error e.Message
+                    |> (function
+                        | Ok () -> Sheet (SheetT.Msg.StartCompiling (proj.ProjectPath, proj.OpenFileName)) |> dispatch
+                        | Error e -> ()//oh no
+                        )
+                    //dispatch <| ChangeRightTab Simulation
+                | Error simError ->
+                   printfn $"Error in simulation prevents verilog output {simError.Msg}"
+        | _ -> ()
+
 let viewBuild model dispatch =
         let viewCatOfModel = fun model ->                 
             let styles = 
@@ -92,6 +125,12 @@ let viewBuild model dispatch =
                     ]
                     [ react ]
             Menu.menu [Props [Class "py-1"; Style styles]]  [
+                    Button.button
+                        [ 
+                            Button.Color IsPrimary;
+                            Button.OnClick (fun _ -> verilogOutput Verilog.VMode.ForSynthesis model dispatch);
+                        ]
+                        [ str "create verilog" ]
                     if (model.Sheet.Compiling) then
                         Button.button
                             [ 
@@ -103,7 +142,7 @@ let viewBuild model dispatch =
                         Button.button
                             [ 
                                 Button.Color IsSuccess;
-                                Button.OnClick (fun _ -> Sheet (SheetT.Msg.StartCompiling) |> dispatch);
+                                Button.OnClick (fun _ -> ());//Sheet (SheetT.Msg.StartCompiling) |> dispatch);
                             ]
                             [ str "Build and upload" ]
 

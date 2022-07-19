@@ -498,7 +498,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         let msbBits = outW 1
 
         $"assign %s{outs 0} = %s{ins 0}[%d{lsbBits - 1}:0];\n"
-        + $"assign %s{outs 1} = %s{ins 0}[%d{msbBits + lsbBits - 1}:%d{msbBits}];\n"
+        + $"assign %s{outs 1} = %s{ins 0}[%d{msbBits + lsbBits - 1}:%d{lsbBits}];\n"
     | AsyncROM1 mem -> sprintf $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0});\n"
     | ROM1 mem -> $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0}, clk);\n"
     | RAM1 mem | AsyncRAM1 mem -> $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0}, %s{ins 1}, %s{ins 2}, clk);\n"

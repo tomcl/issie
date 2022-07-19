@@ -10,6 +10,7 @@ open DrawModelType.BusWireT
 open DrawModelType.SheetT
 open Sheet
 open Optics
+open FilesIO
 
 open Fable.Core.JsInterop
 open Node.ChildProcess
@@ -1016,8 +1017,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         if isOn then {model with CursorType = Spinner}, Cmd.none
         else {model with CursorType = Default}, Cmd.none
 
-    | StartCompiling ->
-        printfn "starting compiling"
+    | StartCompiling (path, name) ->
+        printfn "starting compiling %s :: %s" path name
         {model with
             Compiling = true
             CompilationStatus = {
@@ -1026,8 +1027,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 Generate = Queued
                 Upload = Queued
             }
-        }, Cmd.ofMsg (StartCompilationStage Synthesis)
-    | StartCompilationStage stage ->
+        }, Cmd.ofMsg (StartCompilationStage (Synthesis, path, name))
+    | StartCompilationStage (stage, path, name) ->
         printfn "are we compiling? %A" model.Compiling
         printfn "do we have process? %A" (model.CompilationProcess |> Option.map (fun c -> c.pid))
         if not model.Compiling then
@@ -1037,10 +1038,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             printfn "let's do continue"
             let (prog, args) = 
                 match stage with
-                | Synthesis     -> "yosys", ["-p"; "read_verilog /home/ole/workspace/fyp/hdl/debugger.v; synth_ice40 -flatten -json /home/ole/workspace/fyp/hdl/build/debugger.json"]//"sh", ["-c"; "sleep 4 && echo 'finished synthesis'"]
-                | PlaceAndRoute -> "nextpnr-ice40", ["--hx1k"; "--pcf"; "/home/ole/workspace/fyp/hdl/icestick.pcf"; "--json"; "/home/ole/workspace/fyp/hdl/build/debugger.json"; "--asc"; "/home/ole/workspace/fyp/hdl/build/debugger.asc"]//"sh", ["-c"; "sleep 5 && echo 'finisheded pnr'"]
-                | Generate      -> "icepack", ["/home/ole/workspace/fyp/hdl/build/debugger.asc"; "/home/ole/workspace/fyp/hdl/build/debugger.bin"]//"sh", ["-c"; "sleep 3 && echo 'generated stuff'"]
-                | Upload        -> "iceprog", ["/home/ole/workspace/fyp/hdl/build/debugger.bin"]//"sh", ["-c"; "sleep 2 && echo 'it is alive'"]
+                | Synthesis     -> "yosys", ["-p"; $"read_verilog {path}/{name}.v; synth_ice40 -flatten -json {path}/build/{name}.json"]//"sh", ["-c"; "sleep 4 && echo 'finished synthesis'"]
+                | PlaceAndRoute -> "nextpnr-ice40", ["--hx1k"; "--pcf"; $"{path}/build/icestick.pcf"; "--json"; $"{path}/build/{name}.json"; "--asc"; $"{path}/build/{name}.asc"]//"sh", ["-c"; "sleep 5 && echo 'finisheded pnr'"]
+                | Generate      -> "icepack", [$"{path}/build/{name}.asc"; $"{path}/build/{name}.bin"]//"sh", ["-c"; "sleep 3 && echo 'generated stuff'"]
+                | Upload        -> "iceprog", [$"{path}/build/{name}.bin"]//"sh", ["-c"; "sleep 2 && echo 'it is alive'"]
 
             let options = {| shell = false |} |> toPlainJsObj
             let child = node.childProcess.spawn (prog, args |> ResizeArray, options);
@@ -1068,13 +1069,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         dispatch <| TickCompilation child.pid
                 finally
                     printf "Child finished with exit code: %i" exit_code.Value
-                    dispatch <| FinishedCompilationStage
                     if exit_code.Value = 0 then
                         match stage with
-                        | Synthesis -> dispatch <| StartCompilationStage PlaceAndRoute
-                        | PlaceAndRoute -> dispatch <| StartCompilationStage Generate
-                        | Generate -> dispatch <| StartCompilationStage Upload
+                        | Synthesis -> dispatch <| StartCompilationStage (PlaceAndRoute, path, name)
+                        | PlaceAndRoute -> dispatch <| StartCompilationStage (Generate, path, name)
+                        | Generate -> dispatch <| StartCompilationStage (Upload, path, name)
                         | Upload -> ()
+                    // TODO: Handle errors properly
+                    //else
+                    //    dispatch <| FailCompilationStage
                 })
 
             {model with CompilationProcess = Some child}, Cmd.ofSub <| startComp

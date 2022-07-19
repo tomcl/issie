@@ -381,6 +381,7 @@ let update (msg : Msg) oldModel =
         | Properties -> Cmd.batch <| editCmds
         | Catalogue -> Cmd.batch  <| editCmds
         | Simulation -> Cmd.batch <| editCmds
+        | Build -> Cmd.batch  <| editCmds
         //| TruthTable -> Cmd.batch <| editCmds
     | ChangeSimSubTab subTab ->
         let inferMsg = JSDiagramMsg <| InferWidths()

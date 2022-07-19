@@ -7,6 +7,7 @@ open Fable.React
 open Fable.React.Props
 open Elmish
 open Optics
+open Node.ChildProcess
 
 //--------------------------COMMON TYPES------------------------------//
 
@@ -400,6 +401,12 @@ module SheetT =
         | Failed
         | Queued
     
+    type CompilationStageLabel =
+        | Synthesis
+        | PlaceAndRoute
+        | Generate
+        | Upload
+
     type CompileStatus = {
         Synthesis: CompilationStage;
         PlaceAndRoute: CompilationStage;
@@ -446,8 +453,11 @@ module SheetT =
         | IssieInterface of IssieInterfaceMsg
         | MovePort of MouseT //different from mousemsg because ctrl pressed too
         | SaveSymbols
-        | SetCompiling of bool
-        | UpdateCompilationStatus of CompileStatus
+        | StartCompiling
+        | StartCompilationStage of CompilationStageLabel
+        | StopCompilation
+        | TickCompilation
+        | FinishedCompilationStage
 
     type Model = {
         Wire: BusWireT.Model
@@ -493,6 +503,7 @@ module SheetT =
         PrevWireSelection : ConnectionId list
         Compiling: bool
         CompilationStatus: CompileStatus
+        CompilationProcess: ChildProcess option
         }
     
     open Operators

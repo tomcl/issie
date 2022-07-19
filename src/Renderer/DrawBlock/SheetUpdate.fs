@@ -11,6 +11,11 @@ open DrawModelType.SheetT
 open Sheet
 open Optics
 
+open Fable.Core.JsInterop
+open Node.ChildProcess
+
+module node = Node.Api
+
 let rotateLabel (sym:Symbol) =
     let currentRot = Option.defaultValue Degree0 sym.LabelRotation
     {sym with 
@@ -1011,47 +1016,106 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         if isOn then {model with CursorType = Spinner}, Cmd.none
         else {model with CursorType = Default}, Cmd.none
 
-    | SetCompiling isCompiling ->
-        let startComp dispatch =
-            printf "startin compilation"
-            Async.StartImmediate(async {
-            try
-                for i in [1..3] do
-                    do! Async.Sleep 1000
-                    printf "%i passed" i
-                    dispatch <| UpdateCompilationStatus {
-                        Synthesis = InProgress i
-                        PlaceAndRoute = Queued
-                        Generate = Queued
-                        Upload = Queued
-                    }
-            finally
-                dispatch <| UpdateCompilationStatus {
-                    Synthesis = Completed 3
-                    PlaceAndRoute = Queued
-                    Generate = Queued
-                    Upload = Queued
-                }
-            })
-        let stopComp dispatch =
-            printf "stopping comp"
-            dispatch <| UpdateCompilationStatus {
-                Synthesis = Completed 31
-                PlaceAndRoute = Failed
-                Generate = Queued
-                Upload = Queued
-            }
+    | StartCompiling ->
+        printfn "starting compiling"
         {model with
-            Compiling = isCompiling
+            Compiling = true
             CompilationStatus = {
                 Synthesis = InProgress 0
                 PlaceAndRoute = Queued
                 Generate = Queued
                 Upload = Queued
             }
-        }, Cmd.ofSub <| if isCompiling then startComp else stopComp
-    | UpdateCompilationStatus status ->
-        {model with CompilationStatus = status}, Cmd.none
+        }, Cmd.ofMsg (StartCompilationStage Synthesis)
+        //Cmd.none
+    | StartCompilationStage stage ->
+        let (prog, args) = 
+            match stage with
+            | Synthesis     -> "yosys", ["-p"; "\"read_verilog /home/ole/workspace/fyp/hdl/debugger.v; synth_ice40 -flatten -json /home/ole/workspace/fyp/hdl/build/debugger.json\""]//"sh", ["-c"; "sleep 4 && echo 'finished synthesis'"]
+            | PlaceAndRoute -> "nextpnr-ice40", ["--hx1k"; "--pcf"; "/home/ole/workspace/fyp/hdl/icestick.pcf"; "--json"; "/home/ole/workspace/fyp/hdl/build/debugger.json"; "--asc"; "/home/ole/workspace/fyp/hdl/build/debugger.asc"]//"sh", ["-c"; "sleep 5 && echo 'finisheded pnr'"]
+            | Generate      -> "icepack", ["/home/ole/workspace/fyp/hdl/build/debugger.asc"; "/home/ole/workspace/fyp/hdl/build/debugger.bin"]//"sh", ["-c"; "sleep 3 && echo 'generated stuff'"]
+            | Upload        -> "iceprog", ["/home/ole/workspace/fyp/hdl/build/debugger.bin"]//"sh", ["-c"; "sleep 2 && echo 'it is alive'"]
+
+        let options = {| shell = false |} |> toPlainJsObj
+
+
+        let child = node.childProcess.spawn (prog, args |> ResizeArray, options);
+        printfn "child pid: %A" child.pid
+        let startComp dispatch =
+            printf "starting stage %A" stage
+            Async.StartImmediate(async {
+            let exit_code = ref 0
+            try
+                let keepGoing = ref true
+
+                //child.stdout.on ("data", fun s -> printfn "%s" s) |> ignore
+                match stage with 
+                    | Synthesis -> child.stderr.on ("data", fun s -> eprintfn "error: %s" s) |> ignore
+                    | _ -> ()
+                let emitter: Node.Events.EventEmitter = child.on("exit", fun code ->
+                    keepGoing.Value <- false
+                    exit_code.Value <- code
+                )
+
+                while keepGoing.Value do
+                    do! Async.Sleep 1000
+                    printf "state of child: %A" keepGoing.Value
+
+                    dispatch <| TickCompilation
+
+            finally
+                printf "Child finished with exit code: %i" exit_code.Value
+                dispatch <| FinishedCompilationStage
+                match stage with
+                | Synthesis -> dispatch <| StartCompilationStage PlaceAndRoute
+                | PlaceAndRoute -> dispatch <| StartCompilationStage Generate
+                | Generate -> dispatch <| StartCompilationStage Upload
+                | Upload -> ()
+            })
+
+        {model with CompilationProcess = Some child}, Cmd.ofSub <| startComp
+    | StopCompilation ->
+        match model.CompilationProcess with
+        | Some child -> child.kill()
+        | _ -> ()
+        {model with Compiling = false; CompilationProcess = None }, Cmd.none
+    | TickCompilation ->
+        let tick stage =
+            match stage with
+                | InProgress t -> InProgress (t + 1)
+                | s -> s
+        {model with
+            CompilationStatus = {
+                Synthesis = tick model.CompilationStatus.Synthesis
+                PlaceAndRoute = tick model.CompilationStatus.PlaceAndRoute
+                Generate = tick model.CompilationStatus.Generate
+                Upload = tick model.CompilationStatus.Upload
+            }
+        }, Cmd.none
+    | FinishedCompilationStage ->
+        let finishOrStart cur prev =
+            match (prev, cur) with
+                | (_, InProgress t) -> Completed t
+                | (Some (InProgress _), _) -> InProgress 0
+                | (_, cur) -> cur
+        let synthesis = model.CompilationStatus.Synthesis
+        let placeAndRoute = model.CompilationStatus.PlaceAndRoute
+        let generate = model.CompilationStatus.Generate
+        let upload = model.CompilationStatus.Upload
+        let isCompiling =
+            match upload with
+            | InProgress _ -> false
+            | _ -> true
+        {model with
+            Compiling = isCompiling
+            CompilationStatus = {
+                Synthesis = finishOrStart synthesis None
+                PlaceAndRoute = finishOrStart placeAndRoute <| Some synthesis
+                Generate = finishOrStart generate <| Some placeAndRoute
+                Upload = finishOrStart upload <| Some generate
+            }
+        }, Cmd.none
+
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> Optic.map fst_ postUpdateChecks
 
@@ -1098,6 +1162,7 @@ let init () =
         PrevWireSelection = []
         Compiling = false
         CompilationStatus = {Synthesis = Completed 65; PlaceAndRoute = InProgress 87; Generate = Failed; Upload = Queued}
+        CompilationProcess = None
     }, Cmd.none
 
 

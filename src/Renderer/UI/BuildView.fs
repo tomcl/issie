@@ -47,7 +47,7 @@ let private makeRowForCompilationStage (name: string) (stage: SheetT.Compilation
                 th [ Style [ BackgroundColor "gray"] ] [str "--"]
     ]
 
-let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) =
+let verilogOutput (vType: Verilog.VMode) (model: Model) (upload: bool) (dispatch: Msg -> Unit) =
     match FileMenuView.updateProjectFromCanvas model dispatch, model.Sheet.GetCanvasState() with
         | Some proj, state ->
             match model.UIState with
@@ -78,7 +78,9 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
                             printfn $"Error in Verilog output: {e.Message}"
                             Error e.Message
                         |> (function
-                            | Ok () -> Sheet (SheetT.Msg.StartCompiling (proj.ProjectPath, proj.OpenFileName)) |> dispatch
+                            | Ok () ->
+                                if upload then
+                                    Sheet (SheetT.Msg.StartCompiling (proj.ProjectPath, proj.OpenFileName)) |> dispatch
                             | Error e -> ()//oh no
                             )
                 | Error simError ->
@@ -103,7 +105,7 @@ let viewBuild model dispatch =
                     Button.button
                         [ 
                             Button.Color IsPrimary;
-                            Button.OnClick (fun _ -> verilogOutput Verilog.VMode.ForSynthesis model dispatch);
+                            Button.OnClick (fun _ -> verilogOutput Verilog.VMode.ForSynthesis model false dispatch);
                         ]
                         [ str "create verilog" ]
                     if (model.Sheet.Compiling) then
@@ -117,7 +119,7 @@ let viewBuild model dispatch =
                         Button.button
                             [ 
                                 Button.Color IsSuccess;
-                                Button.OnClick (fun _ -> ());//Sheet (SheetT.Msg.StartCompiling) |> dispatch);
+                                Button.OnClick (fun _ -> verilogOutput Verilog.VMode.ForSynthesis model true dispatch);
                             ]
                             [ str "Build and upload" ]
 
@@ -141,7 +143,8 @@ let viewBuild model dispatch =
                     Button.button
                         [ 
                             Button.Color IsSuccess;
-                            Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugSingleStep) |> dispatch);
+                            Button.OnClick (fun _ -> if (List.isEmpty model.Sheet.ReadLogs) then Sheet (SheetT.Msg.DebugSingleStep) |> dispatch);
+                            Button.IsActive (List.isEmpty model.Sheet.ReadLogs)
                         ]
                         [ str "Step" ]
                     Button.button

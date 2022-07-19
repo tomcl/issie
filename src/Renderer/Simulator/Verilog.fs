@@ -641,7 +641,7 @@ let getInitialSimulationBlock (vType:VMode) (fs: FastSimulation) =
 
 let getDebugController (profile: CompilationProfile) (fs: FastSimulation) =
     let padWithZeros (a: string array) =
-        (Array.toList a, List.replicate 8 "0")
+        (Array.toList a, List.replicate 8 "1'b0")
         ||> List.append
         |> List.take 8
         |> List.toArray

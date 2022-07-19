@@ -21,7 +21,8 @@ let getHeaderHeight =
     
 let rightSectionWidth (model:Model) =
     match model.RightPaneTabVisible with
-    | RightTab.Properties | RightTab.Catalogue | RightTab.Build -> rightSectionWidthS
+    | RightTab.Properties | RightTab.Catalogue -> rightSectionWidthS
+    | RightTab.Build -> rightSectionWidthL
     | RightTab.Simulation -> 
         match model.SimSubTabVisible with
         | SimSubTab.StepSim -> rightSectionWidthL

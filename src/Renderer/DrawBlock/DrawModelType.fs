@@ -458,6 +458,13 @@ module SheetT =
         | StopCompilation
         | TickCompilation of float
         | FinishedCompilationStage
+        | DebugSingleStep
+        | DebugRead of parts: int
+        | OnDebugRead of data: int
+        | DebugConnect
+        | DebugUpdateMapping of string array
+
+    type ReadLog = | ReadLog of int
 
     type Model = {
         Wire: BusWireT.Model
@@ -504,6 +511,10 @@ module SheetT =
         Compiling: bool
         CompilationStatus: CompileStatus
         CompilationProcess: ChildProcess option
+        DebugData: int list
+        DebugMappings: string array
+        DebugConnection: ChildProcess option
+        ReadLogs: ReadLog list
         }
     
     open Operators

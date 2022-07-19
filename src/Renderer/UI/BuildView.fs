@@ -29,57 +29,25 @@ let private menuItem styles label onClick =
 
 
 let private makeRowForCompilationStage (name: string) (stage: SheetT.CompilationStage) =
+    let minutesSeconds t =
+        let minutes = t / 60
+        let seconds = t % 60
+        let zeroPadding = if seconds < 10 then "0" else ""
+        $"{minutes}:{zeroPadding}{seconds}"
     tr [] [
         th [] [str name]
         match stage with
         | SheetT.Completed t ->
-                th [ Style [ BackgroundColor "green"] ] [str $"{t} seconds"]
+                th [ Style [ BackgroundColor "green"] ] [str (minutesSeconds t)]
         | SheetT.InProgress t ->
-                th [ Style [ BackgroundColor "yellow"] ] [str $"{t} seconds"]
+                th [ Style [ BackgroundColor "yellow"] ] [str (minutesSeconds t)]
         | SheetT.Failed ->
                 th [ Style [ BackgroundColor "red"] ] [str "XX"]
         | SheetT.Queued ->
                 th [ Style [ BackgroundColor "gray"] ] [str "--"]
     ]
 
-type WaitForFinish =
-    | Woken
-    | Finished
-
-[<AutoOpen>]
-module AsyncEx = 
-    type private SuccessException<'T>(value : 'T) =
-        inherit Exception()
-        member self.Value = value
-
-    type Microsoft.FSharp.Control.Async with
-        // efficient raise
-        static member Raise (e : #exn) = Async.FromContinuations(fun (_,econt,_) -> econt e)
-  
-        static member CoolChoice<'T>(tasks : seq<Async<'T option>>) : Async<'T option> =
-            let wrap task =
-                async {
-                    let! res = task
-                    match res with
-                    | None -> return None
-                    | Some r -> return! Async.Raise <| SuccessException r
-                }
-
-            async {
-                try
-                    do!
-                        tasks
-                        |> Seq.map wrap
-                        |> Async.Parallel
-                        |> Async.Ignore
-
-                    return None
-                with 
-                | :? SuccessException<'T> as ex -> return Some ex.Value
-            }
-
 let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) =
-    printfn "Verilog output"
     match FileMenuView.updateProjectFromCanvas model dispatch, model.Sheet.GetCanvasState() with
         | Some proj, state ->
             match model.UIState with
@@ -88,24 +56,31 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
                 match Simulator.prepareSimulation proj.OpenFileName state proj.LoadedComponents with
                 | Ok sim -> 
                     let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
-                    printfn "writing %s" proj.ProjectPath
                     printfn "should be compiling %s :: %s" proj.ProjectPath proj.OpenFileName
                     match tryCreateFolder <| pathJoin [| proj.ProjectPath; "/build" |] with
-                    | Error e -> printfn "Couldn't make build folder: %s" e
-                    | Ok _ -> ()
-                    try
-                        let verilog = Verilog.getVerilog vType sim.FastSim
-                        printfn "%s" verilog
-                        FilesIO.writeFile path verilog
-                    with
-                    | e ->
-                        printfn $"Error in Verilog output: {e.Message}"
-                        Error e.Message
-                    |> (function
-                        | Ok () -> Sheet (SheetT.Msg.StartCompiling (proj.ProjectPath, proj.OpenFileName)) |> dispatch
-                        | Error e -> ()//oh no
-                        )
-                    //dispatch <| ChangeRightTab Simulation
+                    // TODO: No way to check for existence
+                    //| Error e -> printfn "Couldn't make build folder: %s" e
+                    | _ -> 
+                        try
+                            let verilog = Verilog.getVerilog vType sim.FastSim
+                            let mappings =
+                                sim.FastSim.FOrderedComps
+                                |> Array.filter (fun fc -> match fc.FType with | Viewer _ -> true | _ -> false)
+                                |> Array.map (fun fc -> fc.FullName, fc.OutputWidth[0])
+                                |> Array.collect (function 
+                                    | (_, None) -> [||]
+                                    | (name, Some width) -> [0 .. width - 1] |> List.toArray |> Array.map (fun i -> $"{name}"))
+                            dispatch (Sheet (SheetT.Msg.DebugUpdateMapping mappings))
+                            printfn "%s" verilog
+                            FilesIO.writeFile path verilog
+                        with
+                        | e ->
+                            printfn $"Error in Verilog output: {e.Message}"
+                            Error e.Message
+                        |> (function
+                            | Ok () -> ()//Sheet (SheetT.Msg.StartCompiling (proj.ProjectPath, proj.OpenFileName)) |> dispatch
+                            | Error e -> ()//oh no
+                            )
                 | Error simError ->
                    printfn $"Error in simulation prevents verilog output {simError.Msg}"
         | _ -> ()
@@ -163,6 +138,58 @@ let viewBuild model dispatch =
                         ]
                     ]
 
+                    Button.button
+                        [ 
+                            Button.Color IsSuccess;
+                            Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugSingleStep) |> dispatch);
+                        ]
+                        [ str "Step" ]
+                    Button.button
+                        [ 
+                            Button.Color IsSuccess;
+                            Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugRead 1) |> dispatch);
+                        ]
+                        [ str "Read" ]
+                    Button.button
+                        [ 
+                            Button.Color IsSuccess;
+                            Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugConnect) |> dispatch);
+                        ]
+                        [ str "Connect" ]
+                    br [];
+                    br [];
+                    Table.table [
+                        Table.IsFullWidth
+                        Table.IsBordered
+                    ] [
+                        thead [] [ tr [] [
+                            th [ Style [ BackgroundColor "lightgray"] ] [str "Viewer"]
+                            th [ Style [ BackgroundColor "lightgray"] ] [str "Value"]
+                        ] ]
+                        tbody [] (
+                            let mappings = Array.toList model.Sheet.DebugMappings
+                            //let mappings = [ "debug_stuff"; "debug_stuff"; "v2"; "v2"; "v2"; "v1"  ]
+                            let bits =
+                                model.Sheet.DebugData
+                                |> List.collect (fun byte -> 
+                                    [0..7]
+                                    |> List.map (fun i -> (byte / (pown 2 i)) % 2))
+
+                            let values =
+                                List.zip mappings bits
+                                |> List.fold (fun s (name, bit) ->
+                                    match List.tryHead s with
+                                    | Some (n, bits) when n = name-> (n, bit :: bits) :: (List.tail s)
+                                    | _ -> (name, [bit]) :: s
+                                    ) []
+
+                            values
+                            |> List.map (fun (name, bits) ->
+                                tr [] [
+                                    th [] [str (name + if List.length bits = 1 then "" else $"[{List.length bits - 1}:0]")]
+                                    th [] [ str <| "0b" + (bits |> List.map (fun b -> b.ToString()) |> String.concat "") ]
+                                ]))
+                    ]
                 ]
 
         (viewCatOfModel) model 

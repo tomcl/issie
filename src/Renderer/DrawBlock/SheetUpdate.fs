@@ -1033,14 +1033,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         printfn "are we compiling? %A" model.Compiling
         printfn "do we have process? %A" (model.CompilationProcess |> Option.map (fun c -> c.pid))
         if not model.Compiling then
-            printfn "let's not continue"
             model, Cmd.none
         else 
-            printfn "let's do continue"
+            let include_path = "C:Documents/issie"
+            let pcf = $"{include_path}/icestick.pcf"
             let (prog, args) = 
                 match stage with
-                | Synthesis     -> "yosys", ["-p"; $"read_verilog {path}/{name}.v; synth_ice40 -flatten -json {path}/build/{name}.json"]//"sh", ["-c"; "sleep 4 && echo 'finished synthesis'"]
-                | PlaceAndRoute -> "nextpnr-ice40", ["--hx1k"; "--pcf"; $"{path}/build/icestick.pcf"; "--json"; $"{path}/build/{name}.json"; "--asc"; $"{path}/build/{name}.asc"]//"sh", ["-c"; "sleep 5 && echo 'finisheded pnr'"]
+                | Synthesis     -> "yosys", ["-p"; $"read_verilog -I{include_path} {path}/{name}.v; synth_ice40 -flatten -json {path}/build/{name}.json"]//"sh", ["-c"; "sleep 4 && echo 'finished synthesis'"]
+                | PlaceAndRoute -> "nextpnr-ice40", ["--hx1k"; "--pcf"; $"{pcf}"; "--json"; $"{path}/build/{name}.json"; "--asc"; $"{path}/build/{name}.asc"]//"sh", ["-c"; "sleep 5 && echo 'finisheded pnr'"]
                 | Generate      -> "icepack", [$"{path}/build/{name}.asc"; $"{path}/build/{name}.bin"]//"sh", ["-c"; "sleep 3 && echo 'generated stuff'"]
                 | Upload        -> "iceprog", [$"{path}/build/{name}.bin"]//"sh", ["-c"; "sleep 2 && echo 'it is alive'"]
 
@@ -1057,7 +1057,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
                     // TODO: record data and display it in special tab
                     child.stdout.on ("data", fun _ -> ()) |> ignore
-                    child.stderr.on ("data", fun _ -> ()) |> ignore
+                    child.stderr.on ("data", fun e -> printfn "Error: %s" e) |> ignore
                     child.on("exit", fun code ->
                         keepGoing.Value <- false
                         exit_code.Value <- code
@@ -1076,9 +1076,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         | PlaceAndRoute -> dispatch <| StartCompilationStage (Generate, path, name)
                         | Generate -> dispatch <| StartCompilationStage (Upload, path, name)
                         | Upload -> ()
-                    // TODO: Handle errors properly
-                    //else
-                    //    dispatch <| FailCompilationStage
+                    else
+                       dispatch <| StopCompilation
                 })
 
             {model with CompilationProcess = Some child}, Cmd.ofSub <| startComp
@@ -1159,40 +1158,63 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             printfn "stepped"
             ()
 
-        model, Cmd.ofSub step
+        model, Cmd.batch [
+            Cmd.ofSub step
+            Cmd.ofMsg (DebugRead 0)
+            Cmd.ofMsg (DebugRead 1)
+            Cmd.ofMsg (DebugRead 2)
+            Cmd.ofMsg (DebugRead 3)
+        ]
     | DebugRead part ->
         printfn "Reading stuff!" 
         let readData dispatch =
             fs.writeFileSync ("/dev/ttyUSB1", $"R{part}")
-            printfn $"reading from {part}" 
-            ()
+            printfn $"reading from {part}"
 
         { model with
             ReadLogs = List.append model.ReadLogs [ReadLog part]
-        }, Cmd.ofSub readData
+        }, Cmd.none
     | DebugConnect ->
         match model.DebugConnection with
         | Some c -> c.kill()
         | _ -> ()
 
+        // Set up the 
+        node.childProcess.spawnSync (
+            "sudo",
+            ["stty"; "-F"; "/dev/ttyUSB1"; "9600"; "-hupcl"; "brkint"; "ignpar"; "-icrnl";
+             "-opost"; "-onlcr"; "-isig"; "-icanon"; "-echo"] |> ResizeArray) |> ignore
+        
         let options = {| shell = false |} |> toPlainJsObj
         let conn = node.childProcess.spawn ("socat", ["stdio"; "/dev/ttyUSB1"] |> ResizeArray, options);
         printfn "Spawned with pid %A" conn.pid
         let spawnListener dispatch =
             conn.stdout.on ("data", fun (data:byte[]) ->
-                printfn "Got (string): %A" (Array.length data)
-                let b = int <| Array.get data 0
-                printfn "Got integer: %d" b
-                OnDebugRead b |> dispatch; ()
+                printfn "Got this many things: %A" (Array.length data)
+                Array.map (fun b ->
+                    printfn "Got integer: %d" (int b)
+                    dispatch <| OnDebugRead (int b)) data
+                |> ignore
                 ) |> ignore
             ()
 
         { model with
             DebugConnection = Some conn
         }, Cmd.ofSub spawnListener
+    | DebugDisconnect ->
+        match model.DebugConnection with
+        | Some c -> c.kill()
+        | _ -> ()
+        { model with DebugConnection = None }, Cmd.none
     | OnDebugRead data ->
         let (ReadLog part) = List.head model.ReadLogs
-        printfn $"read {data} from {part}"
+        let bits =
+            [0..7]
+            |> List.rev
+            |> List.map (fun i -> Some <| (data / (pown 2 i)) % 2)
+            |> List.map (fun b -> b.ToString())
+            |> String.concat ","
+        printfn $"read {data} from {part} ([{bits}])"
         { model with
             DebugData = List.insertAt part data (List.removeAt part model.DebugData)
             ReadLogs = List.tail model.ReadLogs

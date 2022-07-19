@@ -66,7 +66,7 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
                             let mappings =
                                 sim.FastSim.FOrderedComps
                                 |> Array.filter (fun fc -> match fc.FType with | Viewer _ -> true | _ -> false)
-                                |> Array.map (fun fc -> fc.FullName, fc.OutputWidth[0])
+                                |> Array.map (fun fc -> fc.FullName, Array.get fc.OutputWidth 0)
                                 |> Array.collect (function 
                                     | (_, None) -> [||]
                                     | (name, Some width) -> [0 .. width - 1] |> List.toArray |> Array.map (fun i -> $"{name}"))
@@ -78,7 +78,7 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
                             printfn $"Error in Verilog output: {e.Message}"
                             Error e.Message
                         |> (function
-                            | Ok () -> ()//Sheet (SheetT.Msg.StartCompiling (proj.ProjectPath, proj.OpenFileName)) |> dispatch
+                            | Ok () -> Sheet (SheetT.Msg.StartCompiling (proj.ProjectPath, proj.OpenFileName)) |> dispatch
                             | Error e -> ()//oh no
                             )
                 | Error simError ->
@@ -156,6 +156,12 @@ let viewBuild model dispatch =
                             Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugConnect) |> dispatch);
                         ]
                         [ str "Connect" ]
+                    Button.button
+                        [ 
+                            Button.Color IsDanger;
+                            Button.OnClick (fun _ -> Sheet (SheetT.Msg.DebugDisconnect) |> dispatch);
+                        ]
+                        [ str "Disconnect" ]
                     br [];
                     br [];
                     Table.table [
@@ -173,7 +179,10 @@ let viewBuild model dispatch =
                                 model.Sheet.DebugData
                                 |> List.collect (fun byte -> 
                                     [0..7]
-                                    |> List.map (fun i -> (byte / (pown 2 i)) % 2))
+                                    |> List.rev
+                                    |> List.map (fun i -> Some <| (byte / (pown 2 i)) % 2))
+                            let bits =
+                                List.append bits (List.map (fun _ -> None) [1..256])
 
                             let values =
                                 List.zip mappings bits
@@ -183,11 +192,15 @@ let viewBuild model dispatch =
                                     | _ -> (name, [bit]) :: s
                                     ) []
 
+                            let numOrX nOpt =
+                                Option.map (fun b -> b.ToString()) nOpt
+                                |> Option.defaultValue "x"
+
                             values
                             |> List.map (fun (name, bits) ->
                                 tr [] [
                                     th [] [str (name + if List.length bits = 1 then "" else $"[{List.length bits - 1}:0]")]
-                                    th [] [ str <| "0b" + (bits |> List.map (fun b -> b.ToString()) |> String.concat "") ]
+                                    th [] [ str <| "0b" + (bits |> List.map numOrX |> String.concat "") ]
                                 ]))
                     ]
                 ]

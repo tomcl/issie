@@ -453,6 +453,7 @@ module SheetT =
         | IssieInterface of IssieInterfaceMsg
         | MovePort of MouseT //different from mousemsg because ctrl pressed too
         | SaveSymbols
+        // ------------------- Compilation and Debugging ----------------------
         | StartCompiling of path: string * name: string
         | StartCompilationStage of CompilationStageLabel * path: string * name: string
         | StopCompilation
@@ -462,6 +463,7 @@ module SheetT =
         | DebugRead of parts: int
         | OnDebugRead of data: int
         | DebugConnect
+        | DebugDisconnect
         | DebugUpdateMapping of string array
 
     type ReadLog = | ReadLog of int

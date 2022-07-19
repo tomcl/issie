@@ -10,26 +10,26 @@ open Fulma
 open System
 
 
+///// Syntax Highlighting Bindings /////
+
 type PrismCore =
     abstract highlight : string * obj -> string
 
-[<ImportAll("./prism.js")>]
+[<ImportAll("../VerilogComponent/prism.js")>]
 let Prism: PrismCore = jsNative
 
 [<Emit("Prism.languages.verilog")>]
 let language : obj = jsNative
 
+////////////////////////////////////////
 
-[<Emit("clipboard.writeText($0,'selection')")>]
-let copyToClipboard (text:string) : unit = jsNative
+// [<Emit("clipboard.writeText($0,'selection')")>]
+// let copyToClipboard (text:string) : unit = jsNative
 
-[<Emit("import {clipboard} from \"electron\"")>]
-let importClipboard : unit = jsNative
+// [<Emit("import {clipboard} from \"electron\"")>]
+// let importClipboard : unit = jsNative
 
-importClipboard
-
-
-
+// importClipboard
 
 
 /// Returns the overlay which contains all the errors    
@@ -102,8 +102,6 @@ let getErrorDiv errorList : ReactElement =
     ] childrenElements
 
 
-///////////
-
 let getSyntaxErrorInfo error = 
     if (String.exists (fun ch -> ch = ';') error.Message && not (String.exists (fun ch->ch='.') error.Message))
         then {error with ExtraErrors = Some [|{Text= "Your previous line is not terminated with a semicolon (;)"; Copy= false;Replace=NoReplace}|]}
@@ -111,9 +109,6 @@ let getSyntaxErrorInfo error =
         then {error with ExtraErrors = Some [|{Text= "Numbers must be of format: <size>'<radix><value>\n  e.g. 16'h3fa5;"; Copy= false;Replace=NoReplace}|]}
     else {error with ExtraErrors = Some [|{Text= error.Message; Copy= false;Replace=NoReplace}|]}
 
-
-
-//////////
 
 let getErrorTable (errorList: ErrorInfo list) addButton =
     
@@ -129,7 +124,7 @@ let getErrorTable (errorList: ErrorInfo list) addButton =
                     Button.button [
                         Button.OnClick (fun _ -> 
                             addButton (suggestion,replaceType,line)
-                            copyToClipboard suggestion)
+                        )
                         Button.Option.Size ISize.IsSmall
                         ] [str suggestion]
                 ]

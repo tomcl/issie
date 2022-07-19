@@ -360,18 +360,16 @@ let createVerilogComp model =
     printfn "Not implemented yet!"
 
 
-let rec private createVerilogPopup model showExtraErrors correctedCode dispatch =
+let rec private createVerilogPopup model showExtraErrors correctedCode moduleName dispatch =
     let title = sprintf "Create Combinational Logic Components using Verilog" 
     let beforeText =
-        fun _ -> str <| sprintf "How do you want to name your Verilog Component?"
-    let placeholder = "Component name"
+        fun _ -> str <| sprintf "Verilog Component Name"
     let noErrors = List.isEmpty model.PopupDialogData.VerilogErrors
     let errorDiv = if noErrors then null else getErrorDiv model.PopupDialogData.VerilogErrors
     let errorList = if showExtraErrors then model.PopupDialogData.VerilogErrors else [] 
-    // let body= dialogVerilogCompBody beforeText placeholder errorDiv errorList dispatch
+
     let saveButtonAction =
         fun (dialogData : PopupDialogData) ->
-            // createComponent (compType inputInt) (formatLabelFromType (compType inputInt) inputText) model dispatch            
             match model.CurrentProj with
             | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
             | Some project ->
@@ -382,8 +380,8 @@ let rec private createVerilogPopup model showExtraErrors correctedCode dispatch 
                 match writeFile path code with
                 | Ok _ -> ()
                 | Error _ -> failwithf "Writing verilog file FAILED" 
-            // createCompStdLabel (regType inputInt) model dispatch
             dispatch ClosePopup
+
     let compile =
         fun (dialogData : PopupDialogData) ->
             match model.CurrentProj with
@@ -392,7 +390,6 @@ let rec private createVerilogPopup model showExtraErrors correctedCode dispatch 
                 let code = getCode dialogData
                 let parsedCodeNearley = parseFromFile(code)
                 let output = Json.parseAs<ParserOutput> parsedCodeNearley
-                let componentName = getText dialogData
                 if isNullOrUndefined output.Error then
                     match Option.isNone output.Result with 
                     |true-> () //do nothing if parser failed for some reason
@@ -401,23 +398,20 @@ let rec private createVerilogPopup model showExtraErrors correctedCode dispatch 
                         let fixedAST = fix result
                         let linesIndex = Option.get output.NewLinesIndex |> Array.toList
                         let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
-                        let errorList = ErrorCheck.getSemanticErrors parsedAST componentName linesIndex
+                        let moduleName = parsedAST.Module.ModuleName.Name
+                        let errorList = ErrorCheck.getSemanticErrors parsedAST linesIndex
                         let dataUpdated = {dialogData with VerilogErrors = errorList; VerilogCode=Some code}
                         let showErrors' = 
                             match List.isEmpty errorList with
                             | true -> false
                             | false -> showExtraErrors 
-                        createVerilogPopup {model with PopupDialogData = dataUpdated } showErrors' "" dispatch
-                        // dispatch <| SetPopupDialogVerilogErrors errorList
+                        createVerilogPopup {model with PopupDialogData = dataUpdated } showErrors' None (Some moduleName) dispatch
                 else
                     let error = Option.get output.Error
                     let error'= CodeEditorHelpers.getSyntaxErrorInfo error
                     let dataUpdated = {dialogData with VerilogErrors = [error'] }
-                    createVerilogPopup {model with PopupDialogData = dataUpdated } showExtraErrors "" dispatch
-                    // dispatch <| SetPopupDialogVerilogErrors [error']
-
-    
-    
+                    createVerilogPopup {model with PopupDialogData = dataUpdated } showExtraErrors None moduleName dispatch
+ 
 
     let addButton =
         fun (dialogData : PopupDialogData) ->
@@ -450,8 +444,8 @@ let rec private createVerilogPopup model showExtraErrors correctedCode dispatch 
                     |NoReplace ->
                         oldCode
                         
-                let correctedCode = putToCorrectPlace (Option.defaultValue "" dialogData.VerilogCode) suggestion replaceType line
-                createVerilogPopup model showExtraErrors correctedCode dispatch
+                let replacedCode = putToCorrectPlace (Option.defaultValue "" dialogData.VerilogCode) suggestion replaceType line
+                createVerilogPopup model showExtraErrors (Some replacedCode) moduleName dispatch
     
     let moreInfoButton = 
         fun (dialogData : PopupDialogData) ->
@@ -459,9 +453,9 @@ let rec private createVerilogPopup model showExtraErrors correctedCode dispatch 
             | None -> failwithf "What? current project cannot be None at this point in compiling Verilog Component"
             | Some project ->
                 let errors = dialogData.VerilogErrors
-                createVerilogPopup model (not showExtraErrors) "" dispatch
+                createVerilogPopup model (not showExtraErrors) None moduleName dispatch
     
-    let body= dialogVerilogCompBody beforeText placeholder errorDiv errorList showExtraErrors correctedCode compile addButton dispatch
+    let body= dialogVerilogCompBody beforeText moduleName errorDiv errorList showExtraErrors correctedCode compile addButton dispatch
 
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
@@ -471,7 +465,9 @@ let rec private createVerilogPopup model showExtraErrors correctedCode dispatch 
                 |> List.tryHead
                 |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
             (getInt dialogData < 1) || notGoodLabel || not noErrors
+    
     let width = if showExtraErrors then "80%" else "50%" 
+    
     dialogVerilogPopup title body noErrors showExtraErrors saveButtonAction moreInfoButton isDisabled [Width width] dispatch
 
 
@@ -597,7 +593,7 @@ let viewCatalogue model dispatch =
 
                     makeMenuGroup
                         "Verilog"
-                        [ catTip1 "New Verilog Component" (fun _ -> createVerilogPopup model false "" dispatch) "Write combinational logic in Verilog. \
+                        [ catTip1 "New Verilog Component" (fun _ -> createVerilogPopup model false None None dispatch) "Write combinational logic in Verilog. \
                                                     Use it as a Custom Component"
                           catTip1 "decoder.v" (fun _ -> createVerilogComp  model) ""]
                 ]

@@ -63,54 +63,42 @@ open CodeEditorHelpers
 open System
 
 
-[<Emit("clipboard.writeText($0,'selection')")>]
-let copyToClipboard (text:string) : unit = jsNative
-
-[<Emit("import {clipboard} from \"electron\"")>]
-let importClipboard : unit = jsNative
-
-importClipboard
-
-
-/////////////////////   CODE EDITOR CLASS  /////////////////////////
-// Basically: a code editor rendered by a code editor class
-// Class is needed to keep track of the state -> mouse keeps track of its location on value change
+/////////////////////   CODE EDITOR React Component  /////////////////////////
+// Basically: a code editor wrapped in Stateful React Component
+// React Component is needed to keep track of the state -> mouse keeps track of its location on value change
 // codeEditor react element is used to store the code into PopupDialogData.Code
 // Code Highlighting is done automatically by PrismJS 
 
-importSideEffects "./prism.css"
+importSideEffects "../VerilogComponent/prism.css"
 
 let inline codeEditor (props : CodeEditorProps list) (elems : ReactElement list) : ReactElement =
     ofImport "default" "react-simple-code-editor" (keyValueList CaseRules.LowerFirst props) elems
 
 importSideEffects "prismjs/components/prism-clike"
 
-type CEProps =
+type CERSCProps =
     { CurrentCode : string
-      ReplaceCode : string
+      ReplaceCode : string Option
       Dispatch : (Msg -> unit)
       DialogData: PopupDialogData
       Compile: (PopupDialogData -> Unit)}
     //   Compile : (string -> PopupDialogData -> ReactElement)}
-type CEState = { code: string; }
+type CERSCState = { code: string; }
 
-type CE (props) =
-    inherit Component<CEProps, CEState> (props)
+type CodeEditorReactStatefulComponent (props) =
+    inherit Component<CERSCProps, CERSCState> (props)
     
     do base.setInitState({ code = "module NAME();\n  // Write your IO Port Declarations here\n  \n  \n  \n  // Write your Assignments here\n  \n  \n  \nendmodule" })
 
 
     // override this.shouldComponentUpdate (nextProps,nextState) =
-    //     match (props.NewBox = props.Box && props.NewBox <> "") with
-    //     |true -> false
-    //     |false -> true
 
     override this.componentDidUpdate (prevProps,prevState) =
-        match (props.ReplaceCode <> "" && prevProps.ReplaceCode = "") with
+        match (props.ReplaceCode <> None && prevProps.ReplaceCode = None) with
         |true -> 
-            this.setState(fun s _-> {s with code = props.ReplaceCode} )
-            props.Dispatch <| SetPopupDialogCode (Some props.ReplaceCode)
-            props.Compile {props.DialogData with VerilogCode=Some props.ReplaceCode}
+            this.setState(fun s _-> {s with code = Option.get props.ReplaceCode} )
+            props.Dispatch <| SetPopupDialogCode (props.ReplaceCode)
+            props.Compile {props.DialogData with VerilogCode=props.ReplaceCode}
         |false -> ()
 
     override this.render () =
@@ -326,7 +314,7 @@ let dialogPopupBodyOnlyText before placeholder dispatch =
 
 
 /// Create the body of a Verilog Editor Popup.
-let dialogVerilogCompBody before placeholder errorDiv errorList showExtraErrors codeToAdd compileButton addButton dispatch =
+let dialogVerilogCompBody before moduleName errorDiv errorList showExtraErrors codeToAdd compileButton addButton dispatch =
     fun (dialogData : PopupDialogData) ->
         let code = getCode dialogData
         let linesNo = code |> String.filter (fun ch->ch='\n') |> String.length
@@ -336,8 +324,8 @@ let dialogVerilogCompBody before placeholder errorDiv errorList showExtraErrors 
                 |> List.tryHead
                 |> function | Some ch when  System.Char.IsLetter ch -> true | Some ch -> false | None -> true
         
-        let renderCE =
-            ofType<CE,_,_> {CurrentCode=code; ReplaceCode=codeToAdd; Dispatch=dispatch; DialogData=dialogData;Compile=compileButton} 
+        let renderCERSC =
+            ofType<CodeEditorReactStatefulComponent,_,_> {CurrentCode=code; ReplaceCode=codeToAdd; Dispatch=dispatch; DialogData=dialogData;Compile=compileButton} 
         
         let codeEditorWidth, errorWidth, hide = if showExtraErrors then "56%","38%",false else "96%","0%",true 
         
@@ -347,7 +335,9 @@ let dialogVerilogCompBody before placeholder errorDiv errorList showExtraErrors 
                 before dialogData
                 Input.text [
                     Input.Props [AutoFocus true; SpellCheck false]
-                    Input.Placeholder placeholder
+                    Input.Placeholder "Component name (equal to module name)"
+                    Input.Value (Option.defaultValue "" moduleName)
+                    Input.Disabled true
                     Input.OnChange (
                         getTextEventValue >> Some >> SetPopupDialogText >> dispatch
                         )
@@ -363,7 +353,7 @@ let dialogVerilogCompBody before placeholder errorDiv errorList showExtraErrors 
                     getLineCounterDiv linesNo
                     infoHoverableElement
                     errorDiv
-                    renderCE Seq.empty
+                    renderCERSC Seq.empty
                     ]
             ]
             div [Style [Flex "2%"];] []

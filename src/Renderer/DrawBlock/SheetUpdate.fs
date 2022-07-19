@@ -1011,6 +1011,47 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         if isOn then {model with CursorType = Spinner}, Cmd.none
         else {model with CursorType = Default}, Cmd.none
 
+    | SetCompiling isCompiling ->
+        let startComp dispatch =
+            printf "startin compilation"
+            Async.StartImmediate(async {
+            try
+                for i in [1..3] do
+                    do! Async.Sleep 1000
+                    printf "%i passed" i
+                    dispatch <| UpdateCompilationStatus {
+                        Synthesis = InProgress i
+                        PlaceAndRoute = Queued
+                        Generate = Queued
+                        Upload = Queued
+                    }
+            finally
+                dispatch <| UpdateCompilationStatus {
+                    Synthesis = Completed 3
+                    PlaceAndRoute = Queued
+                    Generate = Queued
+                    Upload = Queued
+                }
+            })
+        let stopComp dispatch =
+            printf "stopping comp"
+            dispatch <| UpdateCompilationStatus {
+                Synthesis = Completed 31
+                PlaceAndRoute = Failed
+                Generate = Queued
+                Upload = Queued
+            }
+        {model with
+            Compiling = isCompiling
+            CompilationStatus = {
+                Synthesis = InProgress 0
+                PlaceAndRoute = Queued
+                Generate = Queued
+                Upload = Queued
+            }
+        }, Cmd.ofSub <| if isCompiling then startComp else stopComp
+    | UpdateCompilationStatus status ->
+        {model with CompilationStatus = status}, Cmd.none
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> Optic.map fst_ postUpdateChecks
 
@@ -1055,6 +1096,8 @@ let init () =
         CtrlKeyDown = false
         ScrollUpdateIsOutstanding = false
         PrevWireSelection = []
+        Compiling = false
+        CompilationStatus = {Synthesis = Completed 65; PlaceAndRoute = InProgress 87; Generate = Failed; Upload = Queued}
     }, Cmd.none
 
 

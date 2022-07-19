@@ -26,6 +26,8 @@ type RightTab =
     | Properties
     | Catalogue
     | Simulation
+    | Build
+    
 
 type SimSubTab =
     | StepSim

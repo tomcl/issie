@@ -58,6 +58,7 @@
     <Compile Include="UI/FileMenuView.fs" />
     <Compile Include="UI/SimulationView.fs" />
     <Compile Include="UI/CatalogueView.fs" />
+    <Compile Include="UI/BuildView.fs" />
     <Compile Include="UI/SelectedComponentView.fs" />
     <!-- <Compile Include="UI/WaveSim/WaveformSimulationView.fs" /> -->
     <Compile Include="UI/WaveSim/WaveSimHelpers.fs" />

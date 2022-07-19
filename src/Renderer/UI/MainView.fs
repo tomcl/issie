@@ -165,6 +165,12 @@ let private viewRightTab model dispatch =
                 subtabs
                 viewSimSubTab model dispatch
             ]
+    | Build ->
+        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
+            Heading.h4 [] [ str "Build" ]
+            div [ Style [ MarginBottom "15px" ] ] [ str "Click on a component to add it to the diagram. Hover on components for details." ]
+            BuildView.viewBuild model dispatch
+        ]
 
 /// determine whether moving the mouse drags the bar or not
 let inline setDragMode (modeIsOn:bool) (model:Model) dispatch =
@@ -346,6 +352,14 @@ let displayView model dispatch =
                                 Tabs.tab
                                     [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
                                     [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] [str "Simulations"] ]
+                            
+                                Tabs.tab // simulation tab to do combinational simulation
+                                        [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Build) ]
+                                        [ a [  OnClick (fun _ -> 
+                                                if model.RightPaneTabVisible <> Simulation 
+                                                then
+                                                    dispatch <| ChangeRightTab Build ) 
+                                            ] [str "Build"] ]
                             ]
                             viewRightTab model dispatch
                         ]

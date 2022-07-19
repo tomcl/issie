@@ -19,6 +19,8 @@ open EEExtensions
 open Fable.SimpleJson
 open JSHelpers
 
+[<Emit("process.cwd()")>]
+let getCWD (u:unit): string = jsNative
 
 // [<Emit("__static")>]
 // let staticDir() :string = jsNative

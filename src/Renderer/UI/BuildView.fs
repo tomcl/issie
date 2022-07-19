@@ -92,54 +92,6 @@ let viewBuild model dispatch =
                     ]
                     [ react ]
             Menu.menu [Props [Class "py-1"; Style styles]]  [
-                    Button.button
-                        [ 
-                            Button.Color IsPrimary;
-                            Button.OnClick (fun _ ->
-                                Async.StartImmediate(async {
-                                    let sleep_task = async {
-                                        do! Async.Sleep 1000
-                                        return Some Woken
-                                    }
-                                    let a = Async.FromContinuations (fun (succ, _, _) ->
-                                        let child = node.childProcess.spawn ("sh", ["-c"; "sleep 2 && echo hi"] |> ResizeArray);
-                                        child.stdout.on("data", fun d -> printfn "stuff: %s" d) |> ignore
-                                        child.stderr.on("data", fun s -> eprintfn "error: %s" s) |> ignore
-                                        child.on("exit", fun d -> printfn "done"; succ <| Some Finished ) |> ignore
-                                    )
-                                    let delay (interval: int) result =
-                                        async {
-                                            do! Async.Sleep interval
-                                            return! async {
-                                                printfn "returning %A after %d ms." result interval
-                                                return result }
-                                        }
-
-                                    let first_delay = delay 1500 (Some Finished)
-                                    let a_executed = Async.StartChild a
-
-                                    let get_a = async {
-                                        let! res = a_executed
-                                        return! res
-                                    }
-
-                                
-                                    while true do
-                                        let res =
-                                            [ delay 600 (Some Woken) ; get_a ]
-                                            |> Async.CoolChoice
-                                            |> Async.RunSynchronously
-                                            
-                                        printfn "a_res = %A" res
-
-                                        match res with
-                                        | Some Finished -> return ()
-                                        | Some Woken -> ()
-                                        | _ -> return ()
-                                })
-                            );
-                        ]
-                        [ str "test" ]
                     if (model.Sheet.Compiling) then
                         Button.button
                             [ 

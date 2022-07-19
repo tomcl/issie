@@ -743,8 +743,7 @@ end
 /// data structure.
 /// To simulate this you would need to set up clk as a clock input, and provide stimulus for other inputs if
 /// there are any.
-let getVerilog (vType: VMode) (fs: FastSimulation) =
-    let profile = Debug
+let getVerilog (vType: VMode) (fs: FastSimulation) (profile: CompilationProfile) =
     // make sure we have Ok names to use for output
     writeVerilogNames fs
 

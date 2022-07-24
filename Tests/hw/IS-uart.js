@@ -1,3 +1,15 @@
+//  IssieStick debugger test script
+//    This script tests the debugger functionality of Issie hardware by reading the value of a specified viewer.
+//    It works with Issie designs built in debug mode and loaded onto an IceStick or IssieStick with a FT2232H USB interface.
+//    
+//    Usage: node Tests\hw\IS-uart.js <Viewer Index>
+//      <Viewer Index> is the 8-bit reference assigned to a viewer during compilation.
+//      The index of the first viewer is the character "0" (0x30)
+//    
+//    Prerequisites:
+//      - IceStick or IssieStick with a FT2232H USB interface
+//      - Issie design with at least one viewer, built in debug mode and loaded onto the stick
+
 import { WebUSB } from 'usb';
 
 //USB device settings for FT2232H channel B

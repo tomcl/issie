@@ -10,11 +10,9 @@ type State =
 
 type CodeEditorProps = 
     | Placeholder of string
-    // | Value of (string -> State)
     | Value of string
-    // | OnValueChange of (string -> obj)
     | OnValueChange of (string -> unit)
-    | Highlight of (string -> obj) //highlight (string => string | React.Node)
+    | Highlight of (string -> obj)
     | TabSize of int
     | InsertSpaces of bool
     | IgnoreTabKey of bool

@@ -23,6 +23,7 @@ export function parseFromFile(source) {
         return JSON.stringify({Result: JSON.stringify(ast), Error: null, NewLinesIndex: linesIndex});
     }
     catch(e) {
+        console.log(e.message)
         let token = e.token;
         let message = e.message;
         let lineCol = message.match(/[0-9]+/g)
@@ -59,7 +60,7 @@ export function parseFromFile(source) {
                 default:
                     let char = expected[i][1]
                     
-                    // if character (except b,h) most likely comes from beginning of line (i.e. missing assign,wire,output...)
+                    // if character (except b,h,d) most likely comes from beginning of line (i.e. missing assign,wire,output...)
                     if(char.toUpperCase() != char.toLowerCase()){
                         if(char != 'b' && char != 'h' && char != 'd'){
                             expected.splice(i,1)

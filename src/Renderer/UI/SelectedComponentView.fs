@@ -335,6 +335,7 @@ let private makeDescription (comp:Component) model dispatch =
     | NbitsXor numberOfBits  -> div [] [ str <| sprintf "%d XOR gates with %d outputs." numberOfBits numberOfBits]
     | NbitsAnd numberOfBits  -> div [] [ str <| sprintf "%d AND gates with %d outputs." numberOfBits numberOfBits]
     | NbitsNot numberOfBits  -> div [] [ str <| sprintf "%d NOT gates with %d outputs." numberOfBits numberOfBits]
+    | NbitSpreader numberOfBits  -> div [] [ str <| sprintf "One input Bit Spreader with one %d-bit output." numberOfBits]
     | Decode4 -> div [] [ str <| "4 bit decoder: Data is output on the Sel output, all other outputs are 0."]
     | Custom custom ->
         let styledSpan styles txt = span [Style styles] [str <| txt]

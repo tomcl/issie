@@ -321,6 +321,7 @@ module CommonTypes
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
         | NbitsAdder of BusWidth: int | NbitsXor of BusWidth:int
         | NbitsAnd of BusWidth: int | NbitsNot of BusWidth: int
+        | NbitSpreader of BusWidth: int
         | Custom of CustomComponentType // schematic sheet used as component
         | MergeWires | SplitWire of BusWidth: int // int is bus width
         // DFFE is a DFF with an enable signal.

@@ -71,7 +71,8 @@ let getPortNumbers (sc: SimulationComponent) =
         | IOLabel  
         | ROM1 _ 
         | AsyncROM1 _
-        | NbitsNot _ ->
+        | NbitsNot _ 
+        | NbitSpreader _ ->
             1,1
         | MergeWires
         | NbitsXor _
@@ -130,6 +131,7 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | Constant (w,_)
     | NbitsAnd w
     | NbitsNot w
+    | NbitSpreader w
     | NbitsXor w -> putW0 w
     | NbitsAdder w ->
         putW0 w

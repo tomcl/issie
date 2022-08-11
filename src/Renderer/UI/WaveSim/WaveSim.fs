@@ -133,7 +133,7 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
     match compType with
     | Not | BusCompare _ ->
         ".IN"
-    | And | Or | Xor | Nand | Nor | Xnor |NbitsNot _ ->
+    | And | Or | Xor | Nand | Nor | Xnor |NbitsNot _ |NbitSpreader _ ->
         ".IN" + string port
 
     | Mux2 ->
@@ -200,7 +200,7 @@ let getInputName (comp: NetListComponent) (port: InputPortNumber) : string =
         match comp.Type with
         | Not | BusCompare _ | And | Or | Xor | Nand | Nor | Xnor
         | Mux2 | Mux4 | Mux8 | Decode4 | Demux2 | Demux4 | Demux8
-        | DFF | Register _ | DFFE | RegisterE _ ->
+        | DFF | Register _ | DFFE | RegisterE _ |NbitSpreader _ ->
             bitLimsString (0, 0)
 
         | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
@@ -227,7 +227,7 @@ let getInputName (comp: NetListComponent) (port: InputPortNumber) : string =
 /// Appended to comp.Label
 let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : string =
     match compType with
-    | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4 | Mux2 | Mux4 | Mux8 | BusCompare _ | NbitsXor _ | NbitsNot _ | NbitsAnd _ ->
+    | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4 | Mux2 | Mux4 | Mux8 | BusCompare _ | NbitsXor _ | NbitsNot _  | NbitSpreader _ | NbitsAnd _ ->
         ".OUT"
     | Input1 _ | Output _ | Constant1 _ | Constant _ | Viewer _ | IOLabel ->
         ""
@@ -263,7 +263,7 @@ let getOutputName (comp: NetListComponent) (port: OutputPortNumber) (fastSim: Fa
             bitLimsString (0, 0)
 
         | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
-        | NbitsXor w | NbitsAnd w | NbitsNot w | NbitsAdder w | Register w | RegisterE w ->
+        | NbitsXor w | NbitsAnd w | NbitsNot w | NbitSpreader w | NbitsAdder w | Register w | RegisterE w ->
             bitLimsString (w - 1, 0)
 
         | RAM1 mem | AsyncRAM1 mem | AsyncROM1 mem | ROM1 mem ->
@@ -556,7 +556,7 @@ let selectWaves (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
                 Buses
             | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | Decode4
                 // MuxDemux
-            | NbitsAdder _ | NbitsXor _ | NbitsAnd _ | NbitsNot _
+            | NbitsAdder _ | NbitsXor _ | NbitsAnd _ | NbitsNot _ | NbitSpreader _
                 // Arithmetic
             | Custom _
                 // CustomComp

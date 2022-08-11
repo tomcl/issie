@@ -438,7 +438,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             | Word a, Word b -> 
                 Word (a &&& b)
             | a,b -> 
-                failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{A}; B={b},{B}"
+                failwithf $"Inconsistent inputs to NBitsAnd {comp.FullName} A={a},{A}; B={b},{B}"
         put0 {A with Dat = outDat}
     
     | NbitsNot numberOfBits ->
@@ -451,6 +451,22 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             | Word a -> 
                 Word (~~~a)
         put0 {A with Dat = outDat}
+
+    | NbitSpreader numberOfBits ->
+        let A = ins 0
+        let outDat =
+            match (convertFastDataToInt A) with
+            |0u -> convertIntToFastData numberOfBits 0u
+            |1u -> 
+                match numberOfBits with
+                | n when n<=32 ->
+                    convertIntToFastData numberOfBits ((1u <<< numberOfBits)-1u)
+                | _ -> 
+                    convertBigintToFastData numberOfBits ((bigint 1 <<< numberOfBits)- bigint 1)
+            | _ ->
+                failwithf $"TODO: fable does not support op_OnesComplement function"
+            
+        put0 outDat
 
     | Decode4 ->
         let select, data = ins 0, ins 1

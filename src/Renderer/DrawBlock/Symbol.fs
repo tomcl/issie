@@ -271,6 +271,7 @@ let getPrefix compType =
     | NbitsXor _ -> "NXOR"
     | NbitsAnd _ -> "AND"
     | NbitsNot _ -> "NOT"
+    | NbitSpreader _ -> "SPREAD"
     | DFF | DFFE -> "FF"
     | Register _ | RegisterE _ -> "REG"
     | AsyncROM1 _ -> "AROM"
@@ -304,6 +305,7 @@ let getComponentLegend (componentType:ComponentType) =
     | NbitsXor (x)->   busTitleAndBits "NBits-Xor" x
     | NbitsAnd (x)->   busTitleAndBits "NBits-And" x
     | NbitsNot (x)->   busTitleAndBits "NBits-Not" x
+    | NbitSpreader (x)->   busTitleAndBits "NBit-Spreader" x
     | Custom x -> x.Name.ToUpper()
     | _ -> ""
 
@@ -326,7 +328,7 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
     | Demux4 -> (["DATA"; "SEL"]@["0"; "1";"2"; "3";])
     | Demux8 -> (["DATA"; "SEL"]@["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7"])
     | NbitsXor _ | NbitsAnd _ -> (["P"; "Q"]@ ["OUT"])
-    | NbitsNot _ -> (["IN"]@["OUT"])
+    | NbitsNot _ | NbitSpreader _ -> (["IN"]@["OUT"])
     | Custom x -> (List.map fst x.InputLabels)@ (List.map fst x.OutputLabels)
     | _ -> ([]@[])
    // |Demux8 -> (["IN"; "SEL"],["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7"])
@@ -553,7 +555,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | ROM1 (a) -> (   1 , 1, 4.*gS  , 5.*gS) 
     | RAM1 (a) | AsyncRAM1 a -> ( 3 , 1, 4.*gS  , 5.*gS) 
     | NbitsXor (n) |NbitsAnd (n) -> (  2 , 1, 4.*gS  , 4.*gS) 
-    | NbitsNot (n) -> (1, 1, 2.5*gS, 4.*gS)
+    | NbitsNot (n) | NbitSpreader (n) -> (1, 1, 2.5*gS, 4.*gS)
     | NbitsAdder (n) -> (  3 , 2, 3.*gS  , 4.*gS) 
     | Custom cct -> cct.InputLabels.Length, cct.OutputLabels.Length, 0., 0.
 

@@ -162,6 +162,40 @@ let private createNbitsXorPopup (model:Model) dispatch =
         fun (dialogData : PopupDialogData) -> getInt dialogData < 1
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
+let private createNbitsAndPopup (model:Model) dispatch =
+    let title = sprintf "Add N bits AND gates"
+    let beforeInt =
+        fun _ -> str "How many bits should each operand have?"
+    let intDefault = model.LastUsedDialogWidth
+    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let inputInt = getInt dialogData
+            //printfn "creating XOR %d" inputInt
+            createCompStdLabel (NbitsAnd inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
+let private createNbitsNotPopup (model:Model) dispatch =
+    let title = sprintf "Add N bits NOT gates"
+    let beforeInt =
+        fun _ -> str "How many bits should each operand have?"
+    let intDefault = model.LastUsedDialogWidth
+    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+    let buttonText = "Add"
+    let buttonAction =
+        fun (dialogData : PopupDialogData) ->
+            let inputInt = getInt dialogData
+            //printfn "creating XOR %d" inputInt
+            createCompStdLabel (NbitsNot inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
+            dispatch ClosePopup
+    let isDisabled =
+        fun (dialogData : PopupDialogData) -> getInt dialogData < 1
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
 
 let private createSplitWirePopup model dispatch =
     let title = sprintf "Add SplitWire node" 
@@ -565,7 +599,9 @@ let viewCatalogue model dispatch =
                     makeMenuGroup
                         "Arithmetic"
                         [ catTip1 "N bits adder" (fun _ -> createNbitsAdderPopup model dispatch) "N bit Binary adder with carry in to bit 0 and carry out from bit N-1"
-                          catTip1 "N bits XOR" (fun _ -> createNbitsXorPopup model dispatch) "N bit XOR gates - use to make subtractor or comparator"]
+                          catTip1 "N bits XOR" (fun _ -> createNbitsXorPopup model dispatch) "N bit XOR gates - use to make subtractor or comparator"
+                          catTip1 "N bits AND" (fun _ -> createNbitsAndPopup model dispatch) "N bit AND gates"
+                          catTip1 "N bits NOT" (fun _ -> createNbitsNotPopup model dispatch) "N bit NOT gates"]
 
                     makeMenuGroup
                         "Flip Flops and Registers"

@@ -463,6 +463,15 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         let b = ins 1
         let xor = outs 0
         $"assign {xor} = {a} ^ {b};\n"
+    | NbitsAnd n ->
+        let a = ins 0
+        let b = ins 1
+        let andOut = outs 0
+        $"assign {andOut} = {a} & {b};\n"
+    | NbitsNot n ->
+        let a = ins 0
+        let not = outs 0
+        $"assign {not} = ~{a};\n"
     | Mux2 -> $"assign %s{outs 0} = %s{ins 2} ? %s{ins 1} : %s{ins 0};\n"
     | Mux4 -> 
         let outputBit = 
@@ -506,7 +515,6 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     | Input _
     | AsyncROM _ | RAM _ | ROM _ ->
         failwithf $"Invalid legacy component type '{fc.FType}'"
-    | Input _ -> failwithf "Legacy Input component types should never occur"
 
 /// return the header of the main verilog module with hardware inputs and outputs in header.
 let getMainHeader (vType:VMode) (fs: FastSimulation) =

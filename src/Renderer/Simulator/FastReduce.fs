@@ -428,8 +428,30 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 Word (a ^^^ b)
             | a,b -> 
                 failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{A}; B={b},{B}"
-
         put0 {A with Dat = outDat}
+    | NbitsAnd numberOfBits ->
+        let A, B = ins 0, ins 1
+        let outDat =
+            match A.Dat, B.Dat with
+            | BigWord a, BigWord b ->
+                BigWord (a &&& b)
+            | Word a, Word b -> 
+                Word (a &&& b)
+            | a,b -> 
+                failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{A}; B={b},{B}"
+        put0 {A with Dat = outDat}
+    
+    | NbitsNot numberOfBits ->
+        let A = ins 0
+        let outDat =
+            match A.Dat with
+            | BigWord a ->
+                failwithf $"TODO: fable does not support op_OnesComplement function"
+                // BigWord (System.Numerics.BigInteger.op_OnesComplement a)
+            | Word a -> 
+                Word (~~~a)
+        put0 {A with Dat = outDat}
+
     | Decode4 ->
         let select, data = ins 0, ins 1
         let selN = convertFastDataToInt select |> int

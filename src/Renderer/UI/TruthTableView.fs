@@ -311,7 +311,7 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                         HostId = newId}
                     let extraInput = {
                         Id = newId
-                        Type = Input(pw)
+                        Type = Input1 (pw,None)
                         Label = newLabel
                         InputPorts = []
                         OutputPorts = [newPort]

@@ -26,7 +26,7 @@ let private isValidData (fd: FData) =
 /// True if the component is combinational
 let inline isComb (comp: FastComponent) =
     match comp.FType with
-    | Input _ when comp.AccessPath = [] -> false
+    | Input1 _ when comp.AccessPath = [] -> false
     | AsyncRAM1 _ -> true
     | ct when couldBeSynchronousComponent ct -> false
     | _ -> true
@@ -99,6 +99,16 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
         propagateEval fc
 
     let initInput (fc: FastComponent) =
+        let inputVal : uint32 =
+            match fc.FType with
+            | Input1 (w, defaultVal) ->
+                match defaultVal with
+                | Some defaultVal -> defaultVal
+                | None -> 0
+            | _ ->
+                printf "non-input type component in initInput"
+                0
+            |> uint32
         //printfn "Init input..."
         fc.InputLinks[0].Step
         |> Array.iteri
@@ -415,9 +425,8 @@ let findSimulationComponent ((cid, ap): ComponentId * ComponentId list) (sd: Sim
     | None -> failwithf "What? Can't find component %A in SimulationData" fs.FComps[cid, ap].FullName
     | Some sComp -> sComp
 
-
-
-/// return output port data from simulation
+/// return output port data from simulation as a Bit list
+/// Each element in list is one bit
 let rec extractFastSimulationOutput
     (fs: FastSimulation)
     (step: int)
@@ -449,7 +458,7 @@ let rec extractFastSimulationOutput
 let rec extractFastSimulationState
     (fs: FastSimulation)
     (step: int)
-    ((cid, ap): ComponentId * ComponentId list) =
+    ((cid, ap): ComponentId * ComponentId list) : SimulationComponentState =
 
     match Map.tryFind (cid, ap) fs.FComps with
     | Some fc ->

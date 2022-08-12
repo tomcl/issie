@@ -32,7 +32,7 @@ let mapItems (map:Map<'a,'b>) = map |> Map.toSeq |> List.ofSeq
 /// Extract the port number of a component port. Port numbers on Components
 /// should always be populated (while they are always None for ports in
 /// Connections).
-let private extractComponentPortNumber port =
+let private extractComponentPortNumber (port: Port) =
     match port.PortNumber with
     | None -> failwithf "what? extractComponentPortNumber should always be called with component ports: %A" port
     | Some pNumber -> pNumber
@@ -159,9 +159,11 @@ let private calculateOutputPortsWidth
     let getConnectionIdForPort =
         InputPortNumber >> (getConnectionIdForPort inputConnectionsWidth)
     match comp.Type with
-    | ROM _ | RAM _ | AsyncROM _ -> 
+    | ROM _ | RAM _ | AsyncROM _ ->
         failwithf "What? Legacy RAM component types should never occur"
-    | Input width | Constant1(width,_,_) | Constant(width,_)->
+    | Input _ ->
+        failwithf "Legacy Input components should never occur"
+    | Input1 (width, _) | Constant1(width,_,_) | Constant(width,_)->
         // Expects no inputs, and has an outgoing wire of the given width.
         assertInputsSize inputConnectionsWidth 0 comp
         Ok <| Map.empty.Add (getOutputPortId comp 0, width)
@@ -589,7 +591,7 @@ let private initialiseConnectionsWidth connections : ConnectionsWidth =
     |> Map.ofList
 
 let private getAllInputNodes components : Component list =
-    components |> List.filter (fun comp -> match comp.Type with | Input _ -> true | _ -> false)
+    components |> List.filter (fun comp -> match comp.Type with | Input1 _ -> true | _ -> false)
 
 /// For each connected input port, map the connection that is connected to it.
 /// Fail if there are multiple connections connected to the same input port.

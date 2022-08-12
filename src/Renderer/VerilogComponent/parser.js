@@ -23,7 +23,7 @@ export function parseFromFile(source) {
         return JSON.stringify({Result: JSON.stringify(ast), Error: null, NewLinesIndex: linesIndex});
     }
     catch(e) {
-        console.log(e.message)
+        // console.log(e.message)
         let token = e.token;
         let message = e.message;
         let lineCol = message.match(/[0-9]+/g)

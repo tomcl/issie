@@ -319,7 +319,7 @@ let dialogVerilogCompBody before moduleName errorDiv errorList showExtraErrors c
         let code = getCode dialogData
         let linesNo = code |> String.filter (fun ch->ch='\n') |> String.length
         let goodLabel =
-                getText dialogData
+                (Option.defaultValue "" moduleName)
                 |> Seq.toList
                 |> List.tryHead
                 |> function | Some ch when  System.Char.IsLetter ch -> true | Some ch -> false | None -> true
@@ -364,9 +364,6 @@ let dialogVerilogCompBody before moduleName errorDiv errorList showExtraErrors c
                 ]
         ]
 
-let dialogVerilogErrorsBody errorList =
-    fun (dialogData : PopupDialogData) ->
-        div [] [str <| sprintf "Errors: \n %A" errorList]
 
 /// Create the body of a dialog Popup with only an int.
 let dialogPopupBodyOnlyInt beforeInt intDefault dispatch =

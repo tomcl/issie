@@ -150,7 +150,7 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
     
     let title, width =
         match comp.Type with
-        | Input w | Output w | NbitsAdder w | NbitsXor w | Register w | RegisterE w | Viewer w -> "Number of bits", w
+        | Input1 (w, _) | Output w | NbitsAdder w | NbitsXor w | Register w | RegisterE w | Viewer w -> "Number of bits", w
         | SplitWire w -> "Number of bits in the top (LSB) wire", w
         | BusSelection( w, _) -> "Number of bits selected: width", w
         | BusCompare( w, _) -> "Bus width", w
@@ -177,9 +177,35 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
                 dispatch ClosePropertiesNotification
     )
 
+/// Used for Input1 Component types. Make field for users to enter a default value for
+/// Input1 Components when they are undriven.
+let makeDefaultValueField (model: Model) (comp: Component) dispatch: ReactElement =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
 
+    let title = "Default value if input is undriven"
 
-
+    let width, defValue =
+        match comp.Type with
+        | Input1 (w, defValue) ->
+            match defValue with
+            | Some defValue -> w, defValue
+            | None -> w, 0
+        | _ -> failwithf "Other component types should not call this function."
+    
+    intFormField title "60px" defValue 0 (
+        fun newValue ->
+            // Check if value is within bit range
+            match NumberHelpers.checkWidth width (int64 newValue) with
+            | Some msg ->
+                let props = errorPropsNotification msg
+                dispatch <| SetPropertiesNotification props
+            | None ->
+                model.Sheet.ChangeInputValue sheetDispatch (ComponentId comp.Id) newValue
+                // reload the new component
+                dispatch (ReloadSelectedComponent (model.LastUsedDialogWidth))
+                dispatch <| SetPopupDialogInt (Some newValue)
+                dispatch ClosePropertiesNotification
+    )
 
 let mockDispatchS msgFun msg =
     match msg with
@@ -271,7 +297,8 @@ let private makeDescription (comp:Component) model dispatch =
     match comp.Type with
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
-    | Input _ -> str "Input."
+    | Input _ -> failwithf "Legacy Input component types should never occur"
+    | Input1 _ -> str "Input."
     | Constant1 _ | Constant _ -> str "Constant Wire."
     | Output _ -> str "Output."
     | Viewer _ -> str "Viewer."
@@ -368,9 +395,15 @@ let private makeDescription (comp:Component) model dispatch =
             The component is implicitly connected to the global clock."
         makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
 
-let private makeExtraInfo model (comp:Component) text dispatch =
+let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
     match comp.Type with
-    | Input _ | Output _ | NbitsAdder _ | NbitsXor _ | Viewer _ ->
+    | Input1 _ ->
+        div []
+            [
+                makeNumberOfBitsField model comp text dispatch
+                makeDefaultValueField model comp dispatch
+            ]
+    | Output _ | NbitsAdder _ | NbitsXor _ | Viewer _ ->
         makeNumberOfBitsField model comp text dispatch
     | SplitWire _ ->
         makeNumberOfBitsField model comp text dispatch

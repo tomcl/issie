@@ -272,10 +272,7 @@ let mDownUpdate
 
         | Component compId ->
 
-            let msg, action =
-                if model.IsWaveSim then
-                    ToggleNet ([SymbolUpdate.extractComponent model.Wire.Symbol compId], []), Idle
-                else DoNothing, InitialiseMoving compId
+            let msg, action = DoNothing, InitialiseMoving compId
 
             if model.CtrlKeyDown || mMsg.ShiftKeyDown
             then
@@ -320,10 +317,7 @@ let mDownUpdate
             let segments = model.Wire.Wires[wId].Segments
             if i > segments.Length - 1 then
                 failwithf "What? Error in getClcikedSegment: "
-            let msg =
-                if model.IsWaveSim then
-                    ToggleNet ([], [BusWire.extractConnection model.Wire connId])
-                else DoNothing
+            let msg = DoNothing
 
             if model.CtrlKeyDown
             then
@@ -1000,8 +994,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             symbolCmd (SymbolT.SelectSymbols []) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
             wireCmd (BusWireT.SelectWires [])
         ]
-    | SetWaveSimMode mode ->
-        {model with IsWaveSim = mode}, Cmd.none
     | SelectWires cIds ->
         //If any of the cIds of the netgroup given are inside the previous selection (not current as this will always be true)
         //then deselect (remove from the selected list) any wires from the selected list that are in that cId list
@@ -1061,7 +1053,6 @@ let init () =
         MouseCounter = 0
         LastMousePosForSnap = { X = 0.0; Y = 0.0 }
         CtrlKeyDown = false
-        IsWaveSim = false
         ScrollUpdateIsOutstanding = false
         PrevWireSelection = []
     }, Cmd.none

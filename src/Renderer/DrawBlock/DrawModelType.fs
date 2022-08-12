@@ -10,28 +10,38 @@ open Optics
 
 //--------------------------COMMON TYPES------------------------------//
 
+/// Static 1D data defining position range within which the currently moved thing will "snap"
+/// to fixed point (Snap).
 type SnapData = {
     UpperLimit: float
     LowerLimit: float
     Snap: float
-    DisplayLine: float
+    /// DisplayLine may not be the same as Snap because when two symbols snap together the
+    /// displayed line must go through the centre of each symbol, whereas the TopLeft 
+    /// coordinate is the one which is snapped
+    IndicatorPos: float
     }
 
+/// Dynamic data used when a symbol is being snapped
 type Snap = {
     UnSnapPosition: float
     SnapPosition: float
-    SnapDisplay: float
+    SnapIndicatorPos: float
 }
-let unSnapPostion_ = Lens.create (fun s -> s.UnSnapPosition) (fun u s -> {s with UnSnapPosition = u})
-let snapPostion_ = Lens.create (fun s -> s.SnapPosition) (fun u s -> {s with SnapPosition = u})
-let snapDisplay_ = Lens.create (fun s -> s.SnapDisplay) (fun u s -> {s with SnapDisplay = u})
+// lenses to access fields in above types
+let unSnapPositon_ = Lens.create (fun s -> s.UnSnapPosition) (fun u s -> {s with UnSnapPosition = u})
+let snapPosition_ = Lens.create (fun s -> s.SnapPosition) (fun u s -> {s with SnapPosition = u})
+let snapIndicatorPos_ = Lens.create (fun s -> s.SnapIndicatorPos) (fun u s -> {s with SnapIndicatorPos = u})
 
-
+/// All the 1D data needed to manage snapping of a moving symbol
 type SnapInfo = {
-    SnapData: SnapData array
-    SnapOpt: Snap option
+    /// static data - set of "snap" positions
+    SnapData: SnapData array 
+    /// dynamic data - present if symbol is currently snapped
+    SnapOpt: Snap option 
     }
 
+// lenses to access fields in the above types
 let snapData_ = Lens.create (fun inf -> inf.SnapData) (fun s inf -> {inf with SnapData = s})
 let snapOpt_ = Lens.create (fun inf -> inf.SnapOpt) (fun s inf -> {inf with SnapOpt = s})
 
@@ -163,6 +173,7 @@ module SymbolT =
         | ErrorSymbols of errorIds: ComponentId list * selectIds: ComponentId list * isDragAndDrop: bool
         | ChangeNumberOfBits of compId:ComponentId * NewBits:int 
         | ChangeLsb of compId: ComponentId * NewBits:int64 
+        | ChangeInputValue of compId: ComponentId * newVal: int
         | ChangeConstant of compId: ComponentId * NewBits:int64 * NewText:string
         | ResetModel // For Issie Integration
         | LoadComponents of  LoadedComponent list * Component list // For Issie Integration
@@ -411,7 +422,6 @@ module SheetT =
         | PortMovementStart
         | PortMovementEnd
         | ResetSelection
-        | SetWaveSimMode of bool
         | ToggleNet of CanvasState //This message does nothing in sheet, but will be picked up by the update function
         | SelectWires of ConnectionId list
         | SetSpinner of bool
@@ -464,7 +474,6 @@ module SheetT =
         LastMousePosForSnap: XYPos
         MouseCounter: int
         CtrlKeyDown : bool
-        IsWaveSim : bool
         ScrollUpdateIsOutstanding: bool
         PrevWireSelection : ConnectionId list
         }

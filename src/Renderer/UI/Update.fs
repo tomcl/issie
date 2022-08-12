@@ -443,7 +443,7 @@ let update (msg : Msg) oldModel =
         let simData = getSimulationDataOrFail model "IncrementSimulationClockTick"
         { model with CurrentStepSimulationStep = { simData with ClockTickNumber = simData.ClockTickNumber + n } |> Ok |> Some }, Cmd.none
     | EndSimulation -> { model with CurrentStepSimulationStep = None }, Cmd.none
-    | EndWaveSim -> { model with WaveSim = (Map.empty, None) }, Cmd.none
+    | EndWaveSim -> { model with WaveSim = Map.empty }, Cmd.none
     | GenerateTruthTable simRes ->
         match simRes with
         | Some (Ok sd,_) ->

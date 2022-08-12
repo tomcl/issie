@@ -231,23 +231,13 @@ let viewRightTabs model dispatch =
         ] [
             Tabs.tab // catalogue tab to add components
                 [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
-                [ a [ OnClick (fun _ ->
-                        if not model.WaveSimulationInProgress 
-                        then 
-                            dispatch <| ChangeRightTab Catalogue ) ] [str "Catalogue" ] ]
+                [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Catalogue ) ] [str "Catalogue" ] ]
             Tabs.tab // Properties tab to view/change component properties
                 [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]                                   
-                [ a [ OnClick (fun _ -> 
-                        if not model.WaveSimulationInProgress  
-                        then 
-                            dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ]
+                [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ]
             Tabs.tab // simulation tab to view all simulators
                 [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
-                [ a [  OnClick (fun _ -> 
-                        if not model.WaveSimulationInProgress 
-                        then
-                            dispatch <| ChangeRightTab Simulation ) 
-                    ] [str "Simulations"] ]
+                [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] [str "Simulations"] ]
         ]
         viewRightTab model dispatch
 

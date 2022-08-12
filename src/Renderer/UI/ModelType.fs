@@ -48,7 +48,6 @@ type PopupDialogData = {
     ProjectPath: string
     MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth. 
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
-    WaveSetup: MoreWaveSetup option
     Progress: PopupProgress option
     ConstraintTypeSel: ConstraintType option
     ConstraintIOSel: CellIO option
@@ -301,7 +300,6 @@ type Msg =
     | SetPropertiesExtraDialogText of string option
     | SetPopupDialogMemorySetup of (int * int * InitMemData * string option) option
     | SetPopupMemoryEditorData of MemoryEditorData option
-    | SetPopupWaveSetup of MoreWaveSetup
     | SetPopupProgress of PopupProgress option
     | UpdatePopupProgress of (PopupProgress -> PopupProgress)
     | SetPopupInputConstraints of ConstraintSet option
@@ -385,12 +383,6 @@ type Model = {
 
     /// true during period when a sheet or project is loading
     IsLoading: bool
-
-    /// if canvas is now different from that which is currently used by wave sim.
-    WaveSimulationIsOutOfDate: bool
-
-    /// if a wave simulation is being viewed, used to lock the tabs in place
-    WaveSimulationInProgress: bool
 
     /// last time check for changes was made
     LastChangeCheckTime: float

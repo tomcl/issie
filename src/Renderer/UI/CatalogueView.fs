@@ -24,6 +24,8 @@ open CodeEditorHelpers
 open Fable.SimpleJson
 open Fable.Core.JsInterop
 open System
+open FileMenuView
+open SheetCreator
 
 NearleyBindings.importGrammar
 NearleyBindings.importFix
@@ -64,6 +66,10 @@ let private makeCustomList styles model dispatch =
         project.LoadedComponents
         |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         |> List.map (makeCustom styles model dispatch)
+
+
+
+
 
 let private createInputPopup typeStr (compType: int * int option -> ComponentType) (model:Model) (dispatch: Msg -> unit) =
     let title = sprintf "Add %s node" typeStr
@@ -424,13 +430,18 @@ let rec private createVerilogPopup model showExtraErrors correctedCode moduleNam
             match model.CurrentProj with
             | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
             | Some project ->
-                let name = getText dialogData
+                let name = (Option.get moduleName)
                 let folderPath = project.ProjectPath
                 let path = pathJoin [| folderPath; name + ".v" |]
                 let code = getCode dialogData
                 match writeFile path code with
                 | Ok _ -> ()
-                | Error _ -> failwithf "Writing verilog file FAILED" 
+                | Error _ -> failwithf "Writing verilog file FAILED"
+                let path2 = pathJoin [| folderPath; name + ".dgm" |]
+                let code2 = "{\"NewCanvasWithFileWaveInfoAndNewConns\": [[[]]]"
+                match writeFile path2 code2 with
+                | Ok _ -> ()
+                | Error _ -> failwithf "Writing .dgm file FAILED"
             dispatch ClosePopup
 
     let compile =
@@ -447,8 +458,12 @@ let rec private createVerilogPopup model showExtraErrors correctedCode moduleNam
                     |false ->
                         let result = Option.get output.Result
                         let fixedAST = fix result
+                        printfn "fixed: %s" fixedAST
                         let linesIndex = Option.get output.NewLinesIndex |> Array.toList
                         let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
+                        
+                        let temp = SheetCreator.createSheet parsedAST
+                        
                         let moduleName = parsedAST.Module.ModuleName.Name
                         let errorList = ErrorCheck.getSemanticErrors parsedAST linesIndex
                         let dataUpdated = {dialogData with VerilogErrors = errorList; VerilogCode=Some code}
@@ -510,12 +525,13 @@ let rec private createVerilogPopup model showExtraErrors correctedCode moduleNam
 
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
-            let notGoodLabel =
-                getText dialogData
-                |> Seq.toList
-                |> List.tryHead
-                |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
-            (getInt dialogData < 1) || notGoodLabel || not noErrors
+            // let notGoodLabel =
+            //     getText dialogData
+            //     |> Seq.toList
+            //     |> List.tryHead
+            //     |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
+            // (getInt dialogData < 1) || notGoodLabel || 
+            not noErrors
     
     let width = if showExtraErrors then "80%" else "50%" 
     

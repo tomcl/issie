@@ -22,6 +22,7 @@
     
     <!-- Verilog Component -->
     <Compile Include="VerilogComponent\VerilogTypes.fs" />
+    <Compile Include="VerilogComponent\SheetCreator.fs" />    
     <Compile Include="VerilogComponent\NearleyBindings.fs" />
     <Compile Include="VerilogComponent\ErrorCheck.fs" />
     <Compile Include="VerilogComponent\CodeEditorHelpers.fs" />    

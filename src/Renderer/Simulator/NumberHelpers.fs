@@ -6,6 +6,7 @@
 *)
 
 module NumberHelpers
+open CommonTypes
 open Helpers
 open SimulatorTypes
 
@@ -75,6 +76,14 @@ let fillBin width = addZeros width bin
 /// Convert a bit to string.
 let bitToString (bit : Bit) : string =
     match bit with Zero -> "0" | One -> "1"
+
+/// Convert int64 to string according to provided radix
+let valToString (radix: NumberBase) (value: int64) : string =
+    match radix with
+    | Dec -> dec64 value
+    | Bin -> bin64 value
+    | Hex -> hex64 value
+    | SDec -> sDec64 value
 
 /// Pad wireData with Zeros as the Most Significant Bits (e.g. at position N).
 let private padToWidth width (bits : WireData) : WireData =
@@ -193,7 +202,7 @@ let private countBits (num : int64) : int =
     (String.length <| bin64 num) - 2
 
 /// Check a number is formed by at most <width> bits.
-let rec private checkWidth (width : int) (num : int64) : string option =
+let rec checkWidth (width : int) (num : int64) : string option =
     if num < 0L then
         checkWidth width <| (-num) - 1L
     else    

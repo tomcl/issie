@@ -212,7 +212,8 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
 
     let newcompotype = 
         match symbol.Component.Type with
-        | Input _ -> Input newBits
+        | Input _ -> failwithf "Legacy Input component types should never occur"
+        | Input1 (_, defaultVal) -> Input1 (newBits, defaultVal)
         | Output _ -> Output newBits
         | Viewer _ -> Viewer newBits
         | NbitsAdder _ -> NbitsAdder newBits
@@ -241,6 +242,18 @@ let changeLsbf (symModel:Model) (compId:ComponentId) (newLsb:int64) =
 
     let newcompo = {symbol.Component with Type = newcompotype}
     {symbol with Component = newcompo}
+
+/// This function should be called for Input1 components only. Sets the default
+/// value to be used in simulations for an Input1 component if it is not driven.
+let changeInputValue (symModel: Model) (compId: ComponentId) (newVal: int) =
+    let symbol = Map.find compId symModel.Symbols
+    let width =
+        match symbol.Component.Type with
+        | Input1 (width, _) -> width
+        | _ -> failwithf "changeInputValue should only be called for Input components"
+
+    let newComp = {symbol.Component with Type = Input1 (width, Some newVal)}
+    {symbol with Component = newComp}
 
 /// Updates the value of a constant1 component and returns the updated symbol
 let changeConstantf (symModel:Model) (compId:ComponentId) (constantVal:int64) (constantText: string) =
@@ -1076,6 +1089,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | ChangeLsb (compId, newLsb) -> 
         let newsymbol = changeLsbf model compId newLsb
         (replaceSymbol model newsymbol compId), Cmd.none
+
+    | ChangeInputValue (compId, newVal) ->
+        let newSymbol = changeInputValue model compId newVal
+        (replaceSymbol model newSymbol compId), Cmd.none
 
     | ChangeConstant (compId, newVal, newText) -> 
         let newsymbol = changeConstantf model compId newVal newText

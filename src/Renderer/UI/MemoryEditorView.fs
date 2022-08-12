@@ -248,7 +248,7 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
                 ]
             ]
         ]
-        
+
     div [bodyStyle] [
         str isReadOnly
         br []

@@ -128,7 +128,7 @@ let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (d
 /// returns a WaveSimModel option if a file is loaded, otherwise None
 let currWaveSimModel (model: Model) =
     match getCurrFile model with
-    | Some fileName when Map.containsKey fileName (fst model.WaveSim) -> Some ((fst model.WaveSim)[fileName])
+    | Some fileName -> Map.tryFind fileName model.WaveSim
     | _ -> None
 
 let private displayFileErrorNotification err dispatch =
@@ -168,24 +168,24 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
             Sheet (SheetT.Wire (BusWireT.BusWidths))
             // JSdispatch <| InferWidths()
             //printfn "Check 5..."
-            // Set no unsaved changes.        
+            // Set no unsaved changes.
 
             Sheet SheetT.UpdateBoundingBoxes
 
             // set waveSim data
-            SetWaveSimModel(name, waveSim)
-            (
-                {
-                    ProjectPath = dirName compToSetup.FilePath
-                    OpenFileName =  compToSetup.Name
-                    LoadedComponents = ldComps
-                }
-                |> SetProject) // this message actually changes the project in model
-            SetWaveSimIsOutOfDate true
+            AddWSModel (name, waveSim)
+
+            // this message actually changes the project in model
+            SetProject {
+                ProjectPath = dirName compToSetup.FilePath
+                OpenFileName =  compToSetup.Name
+                LoadedComponents = ldComps
+            }
+
             Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
             JSDiagramMsg (SetHasUnsavedChanges false)
             SetIsLoading false 
-        
+
             //printfn "Check 6..."
         ]
 
@@ -232,26 +232,15 @@ let updateProjectFromCanvas (model:Model) (dispatch:Msg -> Unit) =
                 }
             model.CurrentProj
             |> Option.map (fun p -> 
-                {   
+                {
                     p with LoadedComponents = updateLoadedComponents p.OpenFileName setLc p.LoadedComponents dispatch
                 })
 
-
-/// extract SavedwaveInfo from model to be saved
-let getSavedWave (model:Model) : SavedWaveInfo option = 
+/// extract SavedWaveInfo from model to be saved
+let getSavedWave (model: Model) : SavedWaveInfo option = 
     match currWaveSimModel model with
-    | Some wSModel -> waveSimModel2SavedWaveInfo wSModel |> Some
+    | Some wsModel -> Some (getSavedWaveInfo wsModel)
     | None -> None
-
-/// add waveInfo to model
-let setSavedWave compIds (wave: SavedWaveInfo option) model : Model =
-    match wave, getCurrFile model with
-    | None, _ -> model
-    | Some waveInfo, Some fileName -> 
-        { model with WaveSim = Map.add fileName (savedWaveInfo2WaveSimModel waveInfo) 
-                                                (fst model.WaveSim), 
-                               snd model.WaveSim }
-    | Some waveInfo, _ -> model
 
 /// Save the sheet currently open, return  the new sheet's Loadedcomponent if this has changed.
 /// Do not change model.
@@ -263,7 +252,7 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
         // "DEBUG: Saving Sheet"
         // printfn "DEBUG: %A" project.ProjectPath
         // printfn "DEBUG: %A" project.OpenFileName
-                
+
         let savedState = canvasState, getSavedWave model
         if isAuto then
             failwithf "Auto saving is no longer used"
@@ -276,8 +265,8 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
                 project.LoadedComponents
                 |> List.find (fun lc -> lc.Name = project.OpenFileName)
             let savedWaveSim =
-                Map.tryFind project.OpenFileName (fst model.WaveSim)
-                |> Option.map waveSimModel2SavedWaveInfo
+                Map.tryFind project.OpenFileName model.WaveSim
+                |> Option.map getSavedWaveInfo
             let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim 
             let newState =
                 canvasState
@@ -366,13 +355,13 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
     | Some p ->
         dispatch EndSimulation // Message ends any running simulation.
         dispatch CloseTruthTable // Message closes any open Truth Table.
+        dispatch EndWaveSim
         // TODO: make each sheet wavesim remember the list of waveforms.
-    let waveSim = 
+    let waveSim =
         compToSetup.WaveInfo
-        |> Option.map savedWaveInfo2WaveSimModel 
-        |> Option.defaultValue (ModelType.initWS [||] Map.empty)
+        |> Option.map loadWSModelFromSavedWaveInfo 
+        |> Option.defaultValue initWSModel
 
-    // TODO
     loadStateIntoModel compToSetup waveSim ldComps model dispatch
     {
         ProjectPath = dirName compToSetup.FilePath
@@ -485,12 +474,9 @@ let renameSheet oldName newName (model:Model) dispatch =
 
 /// rename file
 let renameFileInProject name project model dispatch =
-    match model.CurrentProj, getCurrentWSMod model with
-    | None,_ -> log "Warning: renameFileInProject called when no project is currently open"
-    | Some project, Some ws when ws.WSViewState<>WSClosed ->
-        displayFileErrorNotification "Sorry, you must close the wave simulator before renaming design sheets!" dispatch
-        switchToWaveEditor model dispatch
-    | Some project, _ ->
+    match model.CurrentProj with
+    | None -> log "Warning: renameFileInProject called when no project is currently open"
+    | Some project ->
         // Prepare dialog popup.
         let title = "Rename sheet in project"
 
@@ -529,42 +515,32 @@ let renameFileInProject name project model dispatch =
 
         dialogPopup title body buttonText buttonAction isDisabled dispatch
 
-
-
 /// Remove file.
 let private removeFileInProject name project model dispatch =
-    match getCurrentWSMod model with
-    | Some ws when ws.WSViewState<>WSClosed ->
-        displayFileErrorNotification "Sorry, you must close the wave simulator before removing design sheets!" dispatch
-        switchToWaveEditor model dispatch
-    | _ ->
-        
-        removeFile project.ProjectPath name
-        // Remove the file from the dependencies and update project.
-        let newComponents = List.filter (fun (lc: LoadedComponent) -> lc.Name.ToLower() <> name.ToLower()) project.LoadedComponents
-        // Make sure there is at least one file in the project.
-        let project' = {project with LoadedComponents = newComponents}
-        match newComponents, name = project.OpenFileName with
-        | [],true -> 
-            // reate a new empty file with default name main as sole file in project
-            let newComponents = [ (createEmptyDiagramFile project.ProjectPath "main") ]
-            let project' = {project' with LoadedComponents = newComponents; OpenFileName="main"}
-            openFileInProject' false newComponents[0].Name project' model dispatch
-        | [], false -> 
-            failwithf "What? - this cannot happen"
-        | nc, true ->
-            // open one of the undeleted loadedcomponents
-            //printfn $"remove sheet '{name}'"
-            //printSheetNames {model with CurrentProj = Some project'}
-            openFileInProject' false project'.LoadedComponents[0].Name project' model dispatch
-        | nc, false ->
-            // nothing chnages except LoadedComponents
-            //printfn $"remove sheet '{name}'"
-            //printSheetNames {model with CurrentProj = Some project'}
-            //dispatch <| SetProject project'
-        dispatch FinishUICmd
-
-                
+    removeFile project.ProjectPath name
+    // Remove the file from the dependencies and update project.
+    let newComponents = List.filter (fun (lc: LoadedComponent) -> lc.Name.ToLower() <> name.ToLower()) project.LoadedComponents
+    // Make sure there is at least one file in the project.
+    let project' = {project with LoadedComponents = newComponents}
+    match newComponents, name = project.OpenFileName with
+    | [],true -> 
+        // reate a new empty file with default name main as sole file in project
+        let newComponents = [ (createEmptyDiagramFile project.ProjectPath "main") ]
+        let project' = {project' with LoadedComponents = newComponents; OpenFileName="main"}
+        openFileInProject' false newComponents[0].Name project' model dispatch
+    | [], false -> 
+        failwithf "What? - this cannot happen"
+    | nc, true ->
+        // open one of the undeleted loadedcomponents
+        //printfn $"remove sheet '{name}'"
+        //printSheetNames {model with CurrentProj = Some project'}
+        openFileInProject' false project'.LoadedComponents[0].Name project' model dispatch
+    | nc, false ->
+        // nothing chnages except LoadedComponents
+        //printfn $"remove sheet '{name}'"
+        //printSheetNames {model with CurrentProj = Some project'}
+        //dispatch <| SetProject project'
+    dispatch FinishUICmd
 
 /// Create a new file in this project and open it automatically.
 let addFileToProject model dispatch =
@@ -629,10 +605,11 @@ let forceCloseProject model dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg) 
     dispatch EndSimulation // End any running simulation.
     dispatch CloseTruthTable // Close any open Truth Table.
+    // End any running simulation.
+    dispatch EndSimulation
+    dispatch EndWaveSim
     model.Sheet.ClearCanvas sheetDispatch
     dispatch FinishUICmd
-
-
 
 /// force either save of current file before action, or abort (closeProject is special case of this)
 let doActionWithSaveFileDialog (name: string) (nextAction: Msg)  model dispatch _ =
@@ -665,6 +642,7 @@ let private newProject model dispatch  =
         | Ok _ ->
             dispatch EndSimulation // End any running simulation.
             dispatch CloseTruthTable // Close any open Truth Table.
+            dispatch EndWaveSim
             // Create empty placeholder projectFile.
             let projectFile = baseName path + ".dprj"
             writeFile (pathJoin [| path; projectFile |]) ""
@@ -673,15 +651,6 @@ let private newProject model dispatch  =
             let initialComponent = createEmptyComponentAndFile path "main"
             dispatch <| SetUserData {model.UserData with LastUsedDirectory = Some path}
             setupProjectFromComponents "main" [initialComponent] model dispatch
-
-
-
-
-
-
-
-
-
 
 /// work out what to do opening a file
 let rec resolveComponentOpenPopup 
@@ -777,11 +746,6 @@ let private openProject model dispatch =
     | None -> () // User gave no path.
     | Some path -> openProjectFromPath path model dispatch
 
-
-
-
-    
-
 /// Display the initial Open/Create Project menu at the beginning if no project
 /// is open.
 let viewNoProjectMenu model dispatch =
@@ -855,20 +819,9 @@ let getSheetTrees (p:Project) =
     |> List.map (fun ldc ->ldc.Name, subSheets []  ldc.Name)
     |> Map.ofList
 
-
-    
-
-
-    
-    
-    
-        
-
 /// Display top menu.
-let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
+let viewTopMenu model dispatch =
     let compIds = getComponentIds model
-    
-    messagesFunc model dispatch
 
     //printfn "FileView"
     let style = Style [ Width "100%" ; BorderBottom "2px solid lightgray"] //leftSectionWidth model
@@ -1057,11 +1010,6 @@ let viewTopMenu model messagesFunc simulateButtonFunc dispatch =
                                         dispatch <| Sheet(SheetT.DoNothing) //To update the savedsheetisoutofdate send a sheet message
                                         ) ]) [ str "Save" ] ] ]
                       Navbar.End.div []
-                    // Waveform View button was moved to WaveSim subtab in Simulation tab
-                    //       [ 
-                    //         Navbar.Item.div [] 
-                    //             [ simulateButtonFunc compIds model dispatch ] ]
-                    //   Navbar.End.div []
                           [ Navbar.Item.div []
                                 [ Button.button 
                                     [ Button.OnClick(fun _ -> PopupView.viewInfoPopup dispatch) 

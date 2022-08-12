@@ -392,7 +392,6 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
         | e::tl,_ -> Error e
         | _,e::tl -> Error e
 
-
     (components,connections)
     |> removeDuplicateConnections
     |> addExtraConnections

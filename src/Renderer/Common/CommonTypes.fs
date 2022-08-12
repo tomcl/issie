@@ -269,6 +269,8 @@ module CommonTypes
         OutputLabels: (string * int) list
     }
 
+    /// Note that any memory addresses which have not been explicitly set when printing
+    /// out memory data.
     type Memory = {
         // How many bits the address should have.
         // The memory will have 2^AddressWidth memory locations.
@@ -308,7 +310,9 @@ module CommonTypes
 
     // Types instantiating objects in the Digital extension.
     type ComponentType =
-        | Input of BusWidth: int | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel 
+        // Legacy component: to be deleted
+        | Input of BusWidth: int
+        | Input1 of BusWidth: int * DefaultValue: int option | Output of BusWidth: int | Viewer of BusWidth: int | IOLabel 
         | BusCompare of BusWidth: int * CompareValue: uint32
         | BusSelection of OutputWidth: int * OutputLSBit: int
         | Constant of Width: int * ConstValue: int64 
@@ -320,9 +324,10 @@ module CommonTypes
         | MergeWires | SplitWire of BusWidth: int // int is bus width
         // DFFE is a DFF with an enable signal.
         // No initial state for DFF or Register? Default 0.
-        | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int 
-        | AsyncROM of Memory | ROM of Memory | RAM of Memory // legacy components - to be deleted
+        | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int
         | AsyncROM1 of Memory1 | ROM1 of Memory1 | RAM1 of Memory1 | AsyncRAM1 of Memory1
+        // legacy components - to be deleted
+        | AsyncROM of Memory | ROM of Memory | RAM of Memory
 
     /// Active pattern which matches 2-input gate component types.
     /// NB - NOT gates are not included here.
@@ -556,11 +561,6 @@ module CommonTypes
 
     (*---------------------------Types for wave Simulation----------------------------------------*)
 
-    
-    type MoreWaveData =
-        | RamWaveData of addr: uint32 * ramPath: ComponentId list * label:string
-        | ExtraData of ramPath: ComponentId list * label:string
-        
     // The "NetList" types contain all the circuit from Diagram in an abstracted form that
     // removed layout info and connections as separate entities. However, connection Ids are
     // available as fileds in components for interface to the Diagram conmponents
@@ -589,8 +589,7 @@ module CommonTypes
         Id : ComponentId
         Type : ComponentType
         Label : string
-        // List of input port numbers, and single mapped driving output port
-        // and component.
+        // List of input port numbers, and single mapped driving output port and component.
         Inputs : Map<InputPortNumber, NLSource option>
         // Mapping from each output port number to all of the input ports and
         // Components connected to that port.
@@ -601,28 +600,38 @@ module CommonTypes
     /// Good for Wavesim calculations.
     type NetList = Map<ComponentId,NetListComponent>
 
-
     (*-----------------------------------------------------------------------------*)
     // Types used within waveform Simulation code, and for saved wavesim configuartion
 
-    /// Identifies a fully connected net
-    /// This ties together labelled nets.
-    /// should it include the display name(s)? this can be calculated
-    type NetGroup = { 
-        driverComp: NetListComponent
-        driverPort: OutputPortNumber
-        driverNet: NLTarget list
-        connectedNets: NLTarget list array }
+    /// Uniquely identifies a wave by the component it comes from, and the port on which that
+    /// wave is from. Two waves can be identical but have a different index (e.g. a wave with
+    /// PortType Input must be driven by another wave of PortType Output).
+    type WaveIndexT = {
+        Id: ComponentId
+        PortType: PortType
+        PortNumber: int
+    }
 
     /// Info saved by Wave Sim.
     /// This info is not necessarilu uptodate with deletions or additions in the Diagram.
     /// The wavesim code processing this will not fail if non-existent nets are referenced.
     type SavedWaveInfo = {
-        ClkWidth: float
-        Cursor: uint32 
-        Radix: NumberBase
-        LastClk: uint32
-        DisplayedPortIds: string array
+        /// Waves which are selected to be shown in the waveform viewer
+        SelectedWaves: WaveIndexT list option
+        /// Radix in which values are displayed in the wave simulator
+        Radix: NumberBase option
+        /// Width of the waveform column
+        WaveformColumnWidth: int option
+        /// Number of visible cycles in the waveform column
+        ShownCycles: int option
+        /// RAMs which are selected to be shown in the RAM tables
+        SelectedRams: Map<ComponentId, string> option
+
+        /// The below fields are legacy values and no longer used.
+        ClkWidth: float option
+        Cursor: uint32 option
+        LastClk: uint32 option
+        DisplayedPortIds: string array option
     }
 
     (*--------------------------------------------------------------------------------------------------*)
@@ -677,8 +686,6 @@ module CommonTypes
             true
         | _ -> false
 
-
-
     /// Type for an open project which represents a complete design.
     /// ProjectPath is directory containing project files.
     /// OpenFileName is name of file from which current schematic sheet is loaded/saved, without extension or path
@@ -691,24 +698,6 @@ module CommonTypes
         /// componnets have one-one correspondence with files
         LoadedComponents : LoadedComponent list
         }
-
-    (*-----------------------------------------------------------------------------*)
-    // Types used for naming of waveforms in the Waveform Simulator
-
-    /// Identifies the name of a single driving component of a waveform
-    type LabelSegment = { 
-        LabName : string
-        BitLimits : int*int 
-    }
-
-    /// Identifies the names of the driving components and the named labels of a waveform
-    type WaveLabel = {
-        /// Identifies the names of Output and IOLabel components connected to the waveform's net
-        OutputsAndIOLabels : string list
-        /// Identifies the driving components' names
-        ComposingLabels : LabelSegment list 
-    }
-
 
     /// Value set to None if the connection width could not be inferred.
     type ConnectionsWidth = Map<ConnectionId, int option>

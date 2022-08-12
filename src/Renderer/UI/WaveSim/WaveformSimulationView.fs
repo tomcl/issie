@@ -115,13 +115,13 @@ let maxUsedViewerWidth (wSMod: WaveSimModel) =
 ///////////////////////
 
 /// change selection of a waveform's connections
-let private changeWaveConnsSelect  (selFun: WaveformSpec -> bool) (model:Model) (wSModel: WaveSimModel) name (dispatch: Msg -> unit) =
+let private changeWaveConnsSelect (selFun: WaveformSpec -> bool) (model:Model) (wSModel: WaveSimModel) name (dispatch: Msg -> unit) =
     let wave =  wSModel.AllWaves[name] 
     let on = selFun wave
     match wave.WType with
     | ViewerWaveform _ -> 
         let wSModel' = {wSModel with AllWaves = Map.add wave.WId {wave with WType = ViewerWaveform on} wSModel.AllWaves}
-        dispatch <| SetWSMod wSModel'
+        dispatch <| SetWSModel wSModel'
     | NormalWaveform ->
         selectWaveConns model (selFun wave) wave  dispatch
 
@@ -168,7 +168,7 @@ let private changeCursorPos (wSModel: WaveSimModel) dispatch newCursorPos =
     | true, true ->
         wSModel
         |> setSimParams (fun sp -> {sp with CursorTime = curs' })
-        |> SetWSMod |> dispatch
+        |> SetWSModel |> dispatch
         UpdateScrollPos true |> dispatch
     | true, false ->
         let pars' = { pars with CursorTime = curs'; ClkSvgWidth = pars.ClkSvgWidth; LastClkTime = pars.LastClkTime }
@@ -203,7 +203,7 @@ let private moveWave (model:Model) (wSMod: WaveSimModel) up =
         |> Array.sortBy fst
         |> Array.collect snd 
     setDispNames movedNames wSMod
-    |> SetWSMod
+    |> SetWSModel
 
 let private viewerWaveSet (wavesToSet: WaveformSpec array) (on:bool) (wSMod: WaveSimModel) dispatch =
     let waves =
@@ -213,7 +213,7 @@ let private viewerWaveSet (wavesToSet: WaveformSpec array) (on:bool) (wSMod: Wav
             | ViewerWaveform _ when Array.contains wave wavesToSet ->
                 {wave with WType = ViewerWaveform on}
             | _ -> wave)
-    dispatch <| SetWSMod {wSMod with AllWaves = waves}
+    dispatch <| SetWSModel {wSMod with AllWaves = waves}
 
 /// select all waveforms in the WaveAdder View
 let private waveAdderSelectAll model (wSMod: WaveSimModel) (on: bool) dispatch =
@@ -356,15 +356,15 @@ let private cursorButtons (model: Model) wSMod dispatch =
                     match System.Int32.TryParse c.Value with
                     | true, n when n >= 0 -> 
                         { wSMod with CursorBoxIsEmpty = false }
-                        |> SetWSMod |> dispatch
+                        |> SetWSModel |> dispatch
                         changeCursorPos wSMod dispatch <| uint n
                     | false, _ when c.Value = "" -> 
                         { wSMod with CursorBoxIsEmpty = true }
-                        |> SetWSMod |> dispatch
+                        |> SetWSModel |> dispatch
                         changeCursorPos wSMod dispatch 0u
                     | _ -> 
                         { wSMod with CursorBoxIsEmpty = false }
-                        |> SetWSMod |> dispatch ) ]
+                        |> SetWSModel |> dispatch ) ]
           button [ Button.CustomClass "cursRight" ] (fun _ -> cursorMove true wSMod dispatch) "▶" ]
 
 /// ReactElement of the loading button
@@ -422,7 +422,11 @@ let private nameLabelsCol model (wsMod: WaveSimModel) labelRows (dispatch: Msg -
     div
         [ Style
             [ Float FloatOptions.Left
-              Height "100%" ] ] [ table [ Class "leftTable" ] [ tbody [] leftCol ] ]
+              Height "100%" ]
+        ] [ table
+            [ Class "leftTable" ]
+            [ tbody [] leftCol ]
+        ]
 
 /// ReactElement of the waveform SVGs' column
 let private allWaveformsTableElement model (wSModel: WaveSimModel) waveformSvgRows dispatch =
@@ -492,13 +496,15 @@ let private viewWaveformViewer compIds model wSMod (dispatch: Msg -> unit) =
             [ Height "calc(100% - 45px)"
               Width "100%"
               OverflowY OverflowOptions.Auto ] ]
-        ((List.map (fun ramPath -> cursorValuesCol (waveSimViewerRamDisplay wSMod ramPath)) wSMod.SimParams.MoreWaves) @
-        [
-          cursorValuesCol cursValsRows
-          div [ Style [ Height "100%" ] ]
-              [ nameLabelsCol model wSMod nameColMiddle dispatch
-                allWaveformsTableElement model wSMod tableWaves dispatch ] 
-        ])
+        ((List.map (fun ramPath -> cursorValuesCol (waveSimViewerRamDisplay wSMod ramPath))
+            wSMod.SimParams.MoreWaves
+        ) @ [
+            cursorValuesCol cursValsRows
+            div [ Style [ Height "100%" ] ]
+                [ nameLabelsCol model wSMod nameColMiddle dispatch
+                    allWaveformsTableElement model wSMod tableWaves dispatch ] 
+            ]
+        )
 
 /// ReactElement of the zoom buttons
 let private viewZoomDiv compIds model wSMod dispatch =
@@ -563,8 +569,7 @@ let private waveEditorTickBoxRows model wsModel (dispatch: Msg -> unit) =
 /// ReactElement of the bottom section of the WaveAdder.
 /// Contains tick-boxes for NetGroups
 let private waveEditorTickBoxesAndNames (model: Model) wSModel (dispatch: Msg -> unit) =
-    div [ Style [ Position PositionOptions.Absolute
-                  CSSProp.Top "300px" ] ]
+    div [ Style [ Position PositionOptions.Relative; CSSProp.Top "20px" ] ]
         [ table []
                 [ tbody [] 
                         (Array.append [| waveEditorSelectAllRow model wSModel dispatch |] 
@@ -575,7 +580,7 @@ let private waveEditorButtons (model: Model) (wSModel:WaveSimModel) dispatch =
     /// this is what actually gets displayed when editor exits
     let closeWaveSimButtonAction _ev =
         dispatch <| StartUICmd CloseWaveSim
-        dispatch <| SetWSMod {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
+        dispatch <| SetWSModel {wSModel with InitWaveSimGraph=None; WSViewState=WSClosed; WSTransition = None}
         dispatch <| SetWaveSimIsOutOfDate true
         dispatch <| UnlockTabsFromWaveSim
         dispatch <| Sheet (SheetT.ResetSelection)
@@ -709,19 +714,19 @@ let startWaveSim compIds rState (simData: SimulatorTypes.SimulationData) model (
     let startingWsModel =
         let modelWithWaveSimSheet = {model with WaveSimSheet = Option.get (getCurrFile model)}
         let wsModel = getWSModelOrFail modelWithWaveSimSheet "What? Can't get wsModel at start of new simulation"
-        let okCompNum = (Set.intersect compIds (simData.Graph |> mapKeys |> Set)).Count
-        let simCompNum = simData.Graph.Count (*
-        printfn 
-            "DEBUG: sheet=%s, modelSheet=%s, okNum = %d, wavesim num = %d drawNum=%d"
-            modelWithWaveSimSheet.WaveSimSheet 
-            model.WaveSimSheet
-            okCompNum
-            simCompNum
-            compIds.Count
-        printfn
-            "DEBUG: simComps=%A\n\ndrawcomps=%A\n\n"  
-            (simData.Graph |> mapValues |> Array.map (fun c -> c.Label) |> Array.sort)
-            (model.Sheet.GetCanvasState() |> fst |> List.map (fun c -> c.Label) |> List.sort) *)
+        // let okCompNum = (Set.intersect compIds (simData.Graph |> mapKeys |> Set)).Count
+        // let simCompNum = simData.Graph.Count
+        // printfn 
+        //     "DEBUG: sheet=%s, modelSheet=%s, okNum = %d, wavesim num = %d drawNum=%d"
+        //     modelWithWaveSimSheet.WaveSimSheet 
+        //     model.WaveSimSheet
+        //     okCompNum
+        //     simCompNum
+        //     compIds.Count
+        // printfn
+        //     "DEBUG: simComps=%A\n\ndrawcomps=%A\n\n"  
+        //     (simData.Graph |> mapValues |> Array.map (fun c -> c.Label) |> Array.sort)
+        //     (model.Sheet.GetCanvasState() |> fst |> List.map (fun c -> c.Label) |> List.sort)
 
         let wSpecs = 
             SimulatorTypes.getWaveformSpecifications (netGroup2Label compIds) simData rState
@@ -841,7 +846,7 @@ let viewWaveSim (model: Model) dispatch =
                         MarginLeft "5%"
                         MarginTop "15px" ] ]
             [   Heading.h4 [] [ str "Waveform Simulation" ]
-                str "Use this tab to view Waveforms for sequential logic. "
+                str "Use this tab to view Waveforms for sequential logic."
                 str "Test combinational logic by closing this simulator and using Step Simulator tab."
                 hr []
                 br []
@@ -859,7 +864,7 @@ let viewWaveSim (model: Model) dispatch =
                     dispatch <| SetWSError None
                     match getCurrentWSMod model with
                     | Some ws -> 
-                        dispatch <| SetWSMod {ws with InitWaveSimGraph=None}
+                        dispatch <| SetWSModel {ws with InitWaveSimGraph=None}
                     | _ -> ()                   
                     dispatch <| ChangeRightTab Catalogue 
                     ) 

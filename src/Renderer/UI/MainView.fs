@@ -7,7 +7,9 @@ open Fable.React.Props
 open DiagramStyle
 open ModelType
 open FileMenuView
-open WaveformSimulationView
+open WaveSimHelpers
+open WaveSimStyle
+open WaveSim
 open Sheet.SheetInterface
 open DrawModelType
 open CommonTypes
@@ -15,6 +17,9 @@ open CommonTypes
 open Fable.Core
 open Fable.Core.JsInterop
 open Browser.Dom
+
+module Constants =
+    let dividerBarWidth = 10
 
 //------------------Buttons overlaid on Draw2D Diagram----------------------------------//
 //--------------------------------------------------------------------------------------//
@@ -43,8 +48,6 @@ let viewOnDiagramButtons model dispatch =
 
 // -- Init Model
 
-
-
 /// Initial value of model
 let init() = {
     UserData = {
@@ -57,8 +60,6 @@ let init() = {
     LastChangeCheckTime = 0.
     // Diagram = new Draw2dWrapper()
     Sheet = fst (SheetUpdate.init())
-    WaveSimulationIsOutOfDate = true
-    WaveSimulationInProgress = false
     IsLoading = false
     LastDetailedSavedState = ([],[])
     LastSimulatedCanvasState = None
@@ -77,7 +78,7 @@ let init() = {
     TTGridStyles = Map.empty
     TTGridCache = None
     TTAlgebraInputs = []
-    WaveSim = Map.empty, None
+    WaveSim = Map.empty
     WaveSimSheet = ""
     RightPaneTabVisible = Catalogue
     SimSubTabVisible = StepSim
@@ -94,7 +95,6 @@ let init() = {
         Int2 = None
         MemorySetup = None
         MemoryEditorData = None
-        WaveSetup = None
         Progress = None
         ConstraintTypeSel = None
         ConstraintIOSel = None
@@ -114,9 +114,7 @@ let init() = {
     TopMenuOpenState = Closed
     DividerDragMode = DragModeOff
     WaveSimViewerWidth = rightSectionWidthViewerDefault
-    SimulationInProgress = None
     ConnsOfSelectedWavesAreHighlighted= false
-    CheckWaveformScrollPosition = false
     Pending = []
     UIState = None
 }
@@ -142,7 +140,7 @@ let viewSimSubTab model dispatch =
         ]
     | WaveSim -> 
         div [ Style [Width "100%"; Height "calc(100% - 72px)"; MarginTop "15px" ] ]
-            ( WaveformSimulationView.viewWaveSim model dispatch )
+            [ viewWaveSim model dispatch ]
 
 /// Display the content of the right tab.
 let private viewRightTab model dispatch =
@@ -166,27 +164,15 @@ let private viewRightTab model dispatch =
                     [                 
                     Tabs.tab // step simulation subtab
                         [ Tabs.Tab.IsActive (model.SimSubTabVisible = StepSim) ]
-                        [ a [  OnClick (fun _ -> 
-                            if not model.WaveSimulationInProgress
-                            then
-                                dispatch <| ChangeSimSubTab StepSim ) 
-                            ] [str "Step Simulation"] ] 
+                        [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab StepSim ) ] [str "Step Simulation"] ]  
 
                     (Tabs.tab // truth table tab to display truth table for combinational logic
                     [ Tabs.Tab.IsActive (model.SimSubTabVisible = TruthTable) ]
-                    [ a [  OnClick (fun _ -> 
-                        if not model.WaveSimulationInProgress 
-                        then
-                            dispatch <| ChangeSimSubTab TruthTable ) 
-                        ] [str "Truth Table"] ] )
+                    [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab TruthTable ) ] [str "Truth Table"] ])
 
                     (Tabs.tab // wavesim tab
                     [ Tabs.Tab.IsActive (model.SimSubTabVisible = WaveSim) ]
-                    [ a [  OnClick (fun _ -> 
-                        if not model.WaveSimulationInProgress
-                        then
-                            dispatch <| ChangeSimSubTab WaveSim ) 
-                        ] [str "Wave Simulation"] ])
+                    [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab WaveSim) ] [str "Wave Simulation"] ])
                     ]
         div [ HTMLAttr.Id "RightSelection"; Style [ Height "100%" ]] 
             [
@@ -194,7 +180,6 @@ let private viewRightTab model dispatch =
                 subtabs
                 viewSimSubTab model dispatch
             ]
-
 
 /// determine whether moving the mouse drags the bar or not
 let inline setDragMode (modeIsOn:bool) (model:Model) dispatch =
@@ -222,7 +207,7 @@ let dividerbar (model:Model) dispatch =
         if isDraggable then [
             BackgroundColor "grey"
             Cursor "ew-resize" 
-            Width "10px"
+            Width Constants.dividerBarWidth
 
         ] else [
             BackgroundColor "lightgray"
@@ -285,24 +270,32 @@ let displayView model dispatch =
 //    let sd = scrollData model
 //    let x' = sd.SheetLeft+sd.SheetX
 //    let y' = sd.SheetTop+sd.SheetY
-    let wsModelOpt = getCurrentWSMod model
 
-    /// Feed changed viewer width from draggable bar back to Viewer parameters TODO
     let inline setViewerWidthInWaveSim w =
-        match currWaveSimModel model with
-        | Some wSMod when w > maxUsedViewerWidth wSMod && wSMod.WSViewState = WSViewerOpen ->
-            match wsModelOpt with
-            | Some ws ->
-                let simProgressState = 
-                    {ws.SimParams with LastClkTime = ws.SimParams.LastClkTime + 10u}
-                dispatch <| InitiateWaveSimulation(WSViewerOpen, simProgressState)
-            | _ -> ()
-        | _ -> ()
+        let wsModel = getWSModel model
+        dispatch <| SetViewerWidth w
+
+        /// Unsure of why there needs to be 2* in front of dividerBarWidth... but it seems to work.
+        let otherDivWidths = Constants.leftMargin + Constants.rightMargin + 2 * Constants.dividerBarWidth
+
+        /// Require at least one visible clock cycle
+        let waveColWidth = max (int (singleWaveWidth wsModel)) (w - otherDivWidths - Constants.namesColWidth - Constants.valuesColWidth)
+        let wholeCycles = waveColWidth / int (singleWaveWidth wsModel)
+        let wholeCycleWidth = wholeCycles * int (singleWaveWidth wsModel)
+
+        let viewerWidth = Constants.namesColWidth + Constants.valuesColWidth + wholeCycleWidth + otherDivWidths
+
+        let wsModel = {
+            wsModel with
+                ShownCycles = wholeCycles
+                WaveformColumnWidth = wholeCycleWidth
+            }
+        dispatch <| InitiateWaveSimulation wsModel
+        dispatch <| SetViewerWidth viewerWidth
 
     let inline processAppClick topMenu dispatch (ev: Browser.Types.MouseEvent) =
         if topMenu <> Closed then 
             dispatch <| Msg.SetTopMenu Closed
-        
  
     /// used only to make the divider bar draggable
     let inline processMouseMove (ev: Browser.Types.MouseEvent) =
@@ -317,9 +310,14 @@ let displayView model dispatch =
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth)
             dispatch <| SetViewerWidth w 
-            setViewerWidthInWaveSim w
             dispatch <| SetDragMode (DragModeOn (int ev.clientX))
-        | DragModeOn _, _ ->  
+        | DragModeOn pos, _ ->
+            let newWidth = model.WaveSimViewerWidth - int ev.clientX + pos
+            let w =
+                newWidth
+                |> max minViewerWidth
+                |> min (windowX - minEditorWidth)
+            setViewerWidthInWaveSim w
             dispatch <| SetDragMode DragModeOff
         | DragModeOff, _-> ()
 
@@ -346,7 +344,7 @@ let displayView model dispatch =
         PopupView.viewPopup model dispatch 
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
         // main top bar function is early in compile order
-        FileMenuView.viewTopMenu model WaveSimHelpers.fileMenuViewActions WaveformSimulationView.WaveformButtonFunc dispatch
+        FileMenuView.viewTopMenu model dispatch
 
         if model.PopupDialogData.Progress = None then
             Sheet.view model.Sheet headerHeight (canvasVisibleStyleList model) sheetDispatch
@@ -358,8 +356,7 @@ let displayView model dispatch =
             div [] []
         else
             viewOnDiagramButtons model dispatch
-        
-        
+
             //--------------------------------------------------------------------------------------//
             //------------------------ left section for Sheet (NOT USED) ---------------------------//
             // div [ leftSectionStyle model ] [ div [ Style [ Height "100%" ] ] [ Sheet.view model.Sheet sheetDispatch ] ]
@@ -372,4 +369,3 @@ let displayView model dispatch =
                 [ dividerbar model dispatch
                   // tabs for different functions
                   viewRightTabs model dispatch ] ]
-

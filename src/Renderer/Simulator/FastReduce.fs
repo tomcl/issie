@@ -232,7 +232,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     match componentType with
     | ROM _ | RAM _ | AsyncROM _ -> 
         failwithf "What? Legacy RAM component types should never occur"
-    | Input width ->
+    | Input _ ->
+        failwithf "Legacy Input component types should never occur"
+    | Input1 (width, _) ->
         if comp.Active then
             let bits = ins 0
             //printfn "Got input 0 = %A Links=<%A> len=%d" bits comp.InputLinks comp.InputLinks.Length

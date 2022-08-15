@@ -438,7 +438,16 @@ let rec private createVerilogPopup model showExtraErrors correctedCode moduleNam
                 | Ok _ -> ()
                 | Error _ -> failwithf "Writing verilog file FAILED"
                 let path2 = pathJoin [| folderPath; name + ".dgm" |]
-                let code2 = "{\"NewCanvasWithFileWaveInfoAndNewConns\": [[[]]]"
+                // let code2 = "{\"NewCanvasWithFileWaveInfoAndNewConns\": [[[]]]"
+                
+                let parsedCodeNearley = parseFromFile(code)
+                let output = Json.parseAs<ParserOutput> parsedCodeNearley
+                let result = Option.get output.Result
+                let fixedAST = fix result
+                let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
+
+                let code2 = createSheet parsedAST
+                
                 match writeFile path2 code2 with
                 | Ok _ -> ()
                 | Error _ -> failwithf "Writing .dgm file FAILED"
@@ -460,10 +469,7 @@ let rec private createVerilogPopup model showExtraErrors correctedCode moduleNam
                         let fixedAST = fix result
                         printfn "fixed: %s" fixedAST
                         let linesIndex = Option.get output.NewLinesIndex |> Array.toList
-                        let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
-                        
-                        let temp = SheetCreator.createSheet parsedAST
-                        
+                        let parsedAST = fixedAST |> Json.parseAs<VerilogInput>                        
                         let moduleName = parsedAST.Module.ModuleName.Name
                         let errorList = ErrorCheck.getSemanticErrors parsedAST linesIndex
                         let dataUpdated = {dialogData with VerilogErrors = errorList; VerilogCode=Some code}

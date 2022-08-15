@@ -447,7 +447,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             match A.Dat with
             | BigWord a ->
                 failwithf $"TODO: fable does not support op_OnesComplement function"
-                // BigWord (System.Numerics.BigInteger.op_OnesComplement a)
+                // BigWord (System.Numerics.BigInteger.op_OnesComplement a)  FIX: 2^n-1-a
             | Word a -> 
                 Word (~~~a)
         put0 {A with Dat = outDat}

@@ -15,14 +15,17 @@ open SimulatorTypes
 open CanvasStateAnalyser
 
 /// Assert that the FData only contain a single bit, and return such bit.
-let inline extractBit (fd: FData) : uint32 =
+let inline extractBit (fd_: FData) : uint32 =
+    match fd_ with
+    | Alg _ -> failwithf "Can't extract data from Algebra"
+    | Data fd ->
 #if ASSERTS
-    assertThat (fd.Width = 1)
-    <| sprintf "extractBit called with wireData: %A" fd
+        assertThat (fd.Width = 1)
+        <| sprintf "extractBit called with wireData: %A" fd
 #endif
-    match fd.Dat with | Word n -> n | BigWord _ -> failwithf "Can't extract 1 bit from BigWord data {wireData}"
+        match fd.Dat with | Word n -> n | BigWord _ -> failwithf "Can't extract 1 bit from BigWord data {wireData}"
 
-let inline packBit (bit: uint32) : FData = if bit = 0u then {Dat=Word 0u; Width = 1} else {Dat = Word 1u; Width = 1}
+let inline packBit (bit: uint32) : FData = if bit = 0u then Data {Dat=Word 0u; Width = 1} else Data {Dat = Word 1u; Width = 1}
 
 
 /// This function should only be called on Component ports, never on Connection

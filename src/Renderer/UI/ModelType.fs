@@ -10,6 +10,7 @@ module rec ModelType
 
 open CommonTypes
 open SimulatorTypes
+open TruthTableTypes
 open Fable.React
 open Sheet.SheetInterface
 
@@ -48,6 +49,12 @@ type PopupDialogData = {
     MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth. 
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
     Progress: PopupProgress option
+    ConstraintTypeSel: ConstraintType option
+    ConstraintIOSel: CellIO option
+    ConstraintErrorMsg: string option
+    NewConstraint: Constraint option
+    AlgebraInputs: SimulationIO list option
+    AlgebraError: SimulationError option
 }
 
 type TopMenu = | Closed | Project | Files
@@ -72,7 +79,7 @@ type UICommandType =
     | StartWaveSim
     | ViewWaveSim
     | CloseWaveSim
-
+    
 //---------------------------------------------------------------
 //---------------------WaveSim types-----------------------------
 //---------------------------------------------------------------
@@ -244,12 +251,36 @@ type Msg =
     /// This calls an asynchronous function since the FastSim can take
     /// time to run.
     | RefreshWaveSim of WaveSimModel * SimulationData * CanvasState
+    | LockTabsToWaveSim
+    | UnlockTabsFromWaveSim
     | SetSimulationGraph of SimulationGraph  * FastSimulation
     | SetSimulationBase of NumberBase
     | IncrementSimulationClockTick of int
     | EndSimulation
     /// Clears the Model.WaveSim and Model.WaveSimSheet fields.
     | EndWaveSim
+    | GenerateTruthTable of option<Result<SimulationData,SimulationError> * CanvasState>
+    | RegenerateTruthTable
+    | FilterTruthTable
+    | SortTruthTable
+    | DCReduceTruthTable
+    | HideTTColumns
+    | CloseTruthTable
+    | ClearInputConstraints
+    | ClearOutputConstraints
+    | AddInputConstraint of Constraint
+    | AddOutputConstraint of Constraint
+    | DeleteInputConstraint of Constraint
+    | DeleteOutputConstraint of Constraint
+    | ToggleHideTTColumn of CellIO
+    | ClearHiddenTTColumns
+    | ClearDCMap
+    | SetTTSortType of (CellIO * SortType) option
+    | MoveColumn of (CellIO * MoveDirection)
+    | SetIOOrder of CellIO []
+    | SetTTAlgebraInputs of SimulationIO list
+    | SetTTBase of NumberBase
+    | SetTTGridCache of ReactElement option
     | ChangeRightTab of RightTab
     | ChangeSimSubTab of SimSubTab
     | SetHighlighted of ComponentId list * ConnectionId list
@@ -264,12 +295,22 @@ type Msg =
     | ClosePopup
     | SetPopupDialogText of string option
     | SetPopupDialogInt of int option
+    | SetPopupDialogInt2 of int64 option
     | SetPopupDialogTwoInts of (int64 option * IntMode * string option)
     | SetPropertiesExtraDialogText of string option
     | SetPopupDialogMemorySetup of (int * int * InitMemData * string option) option
     | SetPopupMemoryEditorData of MemoryEditorData option
     | SetPopupProgress of PopupProgress option
     | UpdatePopupProgress of (PopupProgress -> PopupProgress)
+    | SetPopupInputConstraints of ConstraintSet option
+    | SetPopupOutputConstraints of ConstraintSet option
+    | SetPopupConstraintTypeSel of ConstraintType option
+    | SetPopupConstraintIOSel of CellIO option
+    | SetPopupConstraintErrorMsg of string option
+    | SetPopupNewConstraint of Constraint option
+    | SetPopupAlgebraInputs of SimulationIO list option
+    | SetPopupAlgebraError of SimulationError option
+    | TogglePopupAlgebraInput of (SimulationIO * SimulationData)
     | SimulateWithProgressBar of SimulationProgress
     | SetSelectedComponentMemoryLocation of int64 * int64
     | CloseDiagramNotification
@@ -331,9 +372,9 @@ type UserData = {
 
 type Model = {
     UserData: UserData
-
     /// Map of sheet name to WaveSimModel
     WaveSim : Map<string, WaveSimModel>
+
     /// which top-level sheet is used by wavesim
     WaveSimSheet: string
         
@@ -351,6 +392,7 @@ type Model = {
     /// used to determine whether current canvas has been saved (includes any change)
     LastDetailedSavedState: CanvasState
     /// components and connections currently selected
+
     CurrentSelected: Component list * Connection list
     /// component ids and connection ids previously selected (used to detect changes)
     LastSelectedIds: string list * string list
@@ -360,6 +402,26 @@ type Model = {
     SelectedComponent : Component option // None if no component is selected.
     /// used during step simulation: simgraph for current clock tick
     CurrentStepSimulationStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
+    /// stores the generated truth table 
+    CurrentTruthTable: Result<TruthTable,SimulationError> option // None if no Truth Table is being displayed.
+    /// bits associated with the maximum number of input rows allowed in a Truth Table
+    TTBitLimit: int
+    /// input constraints on truth table generation
+    TTInputConstraints: ConstraintSet
+    /// output constraints on truth table viewing
+    TTOutputConstraints: ConstraintSet
+    /// which output or viewer columns in the Truth Table should be hidden
+    TTHiddenColumns: CellIO list
+    /// by which IO and in what way is the Table being sorted
+    TTSortType: (CellIO * SortType) option
+    /// what is the display order of IOs in Table
+    TTIOOrder: CellIO []
+    /// Grid Styles for each column in the Table
+    TTGridStyles: Map<CellIO,Props.CSSProp list>
+    /// Cached CSS Grid for displaying the Truth Table
+    TTGridCache: ReactElement option
+    /// which of the Truth Table's inputs are currently algebra
+    TTAlgebraInputs: SimulationIO list
     /// which of the tabbed panes is currently visible
     RightPaneTabVisible : RightTab
     /// which of the subtabs for the right pane simulation is visible
@@ -388,7 +450,7 @@ type Model = {
     WaveSimViewerWidth: int
     /// if true highlight connections from wavesim editor
     ConnsOfSelectedWavesAreHighlighted: bool
-    /// true if wavesim scroll position needs checking
+    /// Contains a list of pending messages
     Pending: Msg list
     UIState: UICommandType Option
 } 
@@ -451,7 +513,6 @@ let mapOverProject defaultValue (model: Model) transform =
     match model.CurrentProj with
     | None -> defaultValue
     | Some p -> transform p
-
 
 let getComponentIds (model: Model) =
     let extractIds ((comps,conns): Component list * Connection list) = 

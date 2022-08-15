@@ -161,7 +161,7 @@ let private splittedLine leftContent rightConent =
     ]
 
 /// Pretty print a label with its width.
-let private makeIOLabel label width =
+let makeIOLabel label width =
     let label = cropToLength 15 true label
     match width with
     | 1 -> label
@@ -170,18 +170,15 @@ let private makeIOLabel label width =
 let private viewSimulationInputs
         (numberBase : NumberBase)
         (simulationData : SimulationData)
-        (inputs : (SimulationIO * WireData) list)
+        (inputs : (SimulationIO * FSInterface) list)
         dispatch =
+
     let simulationGraph = simulationData.Graph
-    let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel, width), wireData) =
-#if ASSERTS
-        assertThat (List.length wireData = width)
-        <| sprintf "Inconsistent wireData length in viewSimulationInput for %s: expected %d but got %A" inputLabel width wireData.Length
-#endif
+    let makeInputLine ((ComponentId inputId, ComponentLabel inputLabel, width), inputVals) =
         let valueHandle =
-            match wireData with
-            | [] -> failwith "what? Empty wireData while creating a line in simulation inputs."
-            | [bit] ->
+            match inputVals with
+            | IData [] -> failwith "what? Empty wireData while creating a line in simulation inputs."
+            | IData [bit] ->
                 // For simple bits, just have a Zero/One button.
                 Button.button [
                     Button.Props [ simulationBitStyle ]
@@ -193,11 +190,11 @@ let private viewSimulationInputs
                                      | Zero -> One
                                      | One -> Zero
                         let graph = simulationGraph
-                        FastRun.changeInput (ComponentId inputId) [newBit] simulationData.ClockTickNumber simulationData.FastSim
+                        FastRun.changeInput (ComponentId inputId) (IData [newBit]) simulationData.ClockTickNumber simulationData.FastSim
                         dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
                     )
                 ] [ str <| bitToString bit ]
-            | bits ->
+            | IData bits ->
                 let defValue = viewNum numberBase <| convertWireDataToInt bits
                 Input.text [
                     Input.Key (numberBase.ToString())
@@ -215,11 +212,12 @@ let private viewSimulationInputs
                                 CloseSimulationNotification |> dispatch
                                 // Feed input.
                                 let graph = simulationGraph
-                                FastRun.changeInput (ComponentId inputId) bits simulationData.ClockTickNumber simulationData.FastSim
+                                FastRun.changeInput (ComponentId inputId) (IData bits) simulationData.ClockTickNumber simulationData.FastSim
                                 dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
                         ))
                     ]
                 ]
+            | IAlg _ -> failwithf "what? Algebra in Step Simulation (not yet implemented)"
         splittedLine (str <| makeIOLabel inputLabel width) valueHandle
     div [] <| List.map makeInputLine inputs
 
@@ -241,31 +239,25 @@ let private staticNumberBox numBase bits =
         Input.Props [simulationNumberStyle]
     ]
 
-let private viewSimulationOutputs numBase (simOutputs : (SimulationIO * WireData) list) =
-    let makeOutputLine ((ComponentId _, ComponentLabel outputLabel, width), wireData) =
-#if ASSERTS
-        assertThat (List.length wireData = width)
-        <| sprintf "Inconsistent wireData length in viewSimulationOutput for %s: expcted %d but got %d" outputLabel width wireData.Length
-#endif
+let private viewSimulationOutputs numBase (simOutputs : (SimulationIO * FSInterface) list) =
+    let makeOutputLine ((ComponentId _, ComponentLabel outputLabel, width), inputVals) =
         let valueHandle =
-            match wireData with
-            | [] -> failwith "what? Empty wireData while creating a line in simulation output."
-            | [bit] -> staticBitButton bit
-            | bits -> staticNumberBox numBase bits
+            match inputVals with
+            | IData [] -> failwith "what? Empty wireData while creating a line in simulation output."
+            | IData [bit] -> staticBitButton bit
+            | IData bits -> staticNumberBox numBase bits
+            | IAlg _ -> failwithf "what? Algebra in Step Simulation (not yet implemented)"
         splittedLine (str <| makeIOLabel outputLabel width) valueHandle
     div [] <| List.map makeOutputLine simOutputs
 
-let private viewViewers numBase (simViewers : ((string*string) * int * WireData) list) =
-    let makeViewerOutputLine ((label,fullName), width, wireData) =
-#if ASSERTS
-        assertThat (List.length wireData = width)
-        <| sprintf "Inconsistent wireData length in viewViewer for %s: expcted %d but got %d" label width wireData.Length
-#endif
+let private viewViewers numBase (simViewers : ((string*string) * int * FSInterface) list) =
+    let makeViewerOutputLine ((label,fullName), width, inputVals) =
         let valueHandle =
-            match wireData with
-            | [] -> failwith "what? Empty wireData while creating a line in simulation output."
-            | [bit] -> staticBitButton bit
-            | bits -> staticNumberBox numBase bits
+            match inputVals with
+            | IData [] -> failwith "what? Empty wireData while creating a line in simulation output."
+            | IData[bit] -> staticBitButton bit
+            | IData bits -> staticNumberBox numBase bits
+            | IAlg _ -> failwithf "what? Algebra in Step Simulation (not yet implemented)"
         let addToolTip tip react = 
             div [ 
                 HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-right"
@@ -558,6 +550,7 @@ let SetSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) 
             keyDispatch <| SheetT.KeyboardMsg.CtrlW
 
 let viewSimulation model dispatch =
+    printf "Viewing Simulation"
     let state = model.Sheet.GetCanvasState ()
     // let JSState = model.Diagram.GetCanvasState ()
     let startSimulation () =

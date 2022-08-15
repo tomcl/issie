@@ -300,10 +300,13 @@ let getSimTime (waves: WaveformSpec array) (simData: SimulationData) =
     |> Array.map (fun wave ->
         try 
             let driver,opn = wave.Driver
-            let wD = FastRun.extractFastSimulationOutput fs step driver opn
-            Wire
-                { NBits = uint (List.length wD)
-                  BitData = simWireData2Wire wD }
+            //let wD = FastRun.extractFastSimulationOutput fs step driver opn
+            match FastRun.extractFastSimulationOutput fs step driver opn with
+            | IData wd ->
+                Wire
+                    { NBits = uint (List.length wd);
+                    BitData = simWireData2Wire wd }
+            | IAlg _ -> failwithf "what? Algebra in WaveSim"
         with
         | e -> 
             printfn "Exception: %A" e.StackTrace
@@ -649,7 +652,6 @@ let private busLabelRepeats wsMod (busLabelValAndPos: {| WaveValue: Sample; XPos
 //--------------------//
 
 /// get SVG of a single waveform for one clock cycle
-/// xInd is the clock cycle number
 let private makeSegment (clkW: float) (xInd: int) (data: Sample) (trans: int * int) =
     let top = spacing
     let bot = top + sigHeight - sigLineThick

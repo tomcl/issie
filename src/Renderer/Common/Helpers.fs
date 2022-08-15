@@ -12,6 +12,8 @@ open CommonTypes
         open Fable.SimpleJson
         open LegacyCanvas
 
+
+
         type SavedInfo =
             | CanvasOnly of LegacyCanvasState
             | CanvasWithFileWaveInfo of LegacyCanvasState * SavedWaveInfo option * System.DateTime
@@ -48,7 +50,7 @@ open CommonTypes
             | e -> 
                 printfn "HELP: exception in SimpleJson.stringify %A" e
                 "Error in stringify"
-
+        
         let jsonStringToState (jsonString : string) =
              Json.tryParseAs<LegacyCanvasState> jsonString
              |> (function
@@ -59,6 +61,8 @@ open CommonTypes
                         | Error str -> 
                             printfn "Error in Json parse of %s : %s" jsonString str
                             Error str)
+
+
 
 (*-----------------------------------General helpers-----------------------------------------*)
 
@@ -184,6 +188,14 @@ let getMemData (address: int64) (memData: Memory1) =
     Map.tryFind address memData.Data
     |> Option.defaultValue 0L
 
+/// Returns a new array with the elements at index i1 and index i2 swapped
+let swapArrayEls i1 i2 (arr: 'a[]) =
+    arr
+    |> Array.mapi (fun i x ->
+        if i = i1 then arr[i2]
+        else if i = i2 then arr[i1]
+        else x)
+
 //--------------------Helper Functions-------------------------------//
 //-------------------------------------------------------------------//
 
@@ -196,7 +208,7 @@ let getNetList ((comps,conns) : CanvasState) =
     let id2Ins = id2X (fun (c:Component) -> ComponentId c.Id,c.InputPorts)
     let id2Comp = id2X (fun (c:Component) -> ComponentId c.Id,c)
 
-    let getPortInts sel initV (ports: Port list) =
+    let getPortInts sel initV (ports: Port list) = 
         ports
         |> List.map (fun port -> 
             match port.PortNumber with
@@ -206,7 +218,7 @@ let getNetList ((comps,conns) : CanvasState) =
 
     let initNets =
         comps
-        |> List.map ( fun (comp: Component) ->
+        |> List.map ( fun comp ->
             {
                 Id = ComponentId comp.Id
                 Type = comp.Type

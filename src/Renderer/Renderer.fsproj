@@ -28,6 +28,7 @@
     <Compile Include="VerilogComponent\CodeEditorHelpers.fs" />    
     <!-- simulator -->
     <Compile Include="Simulator\SimulatorTypes.fs" />
+    <Compile Include="Simulator\TruthTableTypes.fs" />
     <Compile Include="Simulator\NumberHelpers.fs" />
     <Compile Include="Simulator\SynchronousUtils.fs" />
     <Compile Include="Simulator\CanvasStateAnalyser.fs" />
@@ -36,6 +37,8 @@
     <Compile Include="Simulator\FastCreate.fs" />
     <Compile Include="Simulator\FastReduce.fs" />
     <Compile Include="Simulator\FastRun.fs" />
+     <Compile Include="Simulator\TruthTableReduce.fs" />
+    <Compile Include="Simulator\TruthTableCreate.fs" />
     <Compile Include="Simulator\Verilog.fs" />
     <Compile Include="Simulator\Runner.fs" />
     <Compile Include="Simulator\DependencyMerger.fs" />
@@ -64,6 +67,8 @@
     <Compile Include="UI\CustomCompPorts.fs" />
     <Compile Include="UI/FileMenuView.fs" />
     <Compile Include="UI/SimulationView.fs" />
+    <Compile Include="UI\ConstraintReduceView.fs" />
+    <Compile Include="UI\TruthTableView.fs" />
     <Compile Include="UI/CatalogueView.fs" />
     <Compile Include="UI/SelectedComponentView.fs" />
     <!-- <Compile Include="UI/WaveSim/WaveformSimulationView.fs" /> -->

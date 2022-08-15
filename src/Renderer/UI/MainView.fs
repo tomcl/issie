@@ -1,4 +1,4 @@
-module DiagramMainView
+﻿module DiagramMainView
 open Fulma
 
 open Fable.React
@@ -12,6 +12,7 @@ open WaveSimStyle
 open WaveSim
 open Sheet.SheetInterface
 open DrawModelType
+open CommonTypes
 
 open Fable.Core
 open Fable.Core.JsInterop
@@ -67,6 +68,16 @@ let init() = {
     SelectedComponent = None
     LastUsedDialogWidth = 1
     CurrentStepSimulationStep = None
+    CurrentTruthTable = None
+    TTBitLimit = 10
+    TTInputConstraints = TruthTableTypes.emptyConstraintSet
+    TTOutputConstraints = TruthTableTypes.emptyConstraintSet
+    TTHiddenColumns = []
+    TTSortType = None
+    TTIOOrder = [||]
+    TTGridStyles = Map.empty
+    TTGridCache = None
+    TTAlgebraInputs = []
     WaveSim = Map.empty
     WaveSimSheet = ""
     RightPaneTabVisible = Catalogue
@@ -85,8 +96,12 @@ let init() = {
         MemorySetup = None
         MemoryEditorData = None
         Progress = None
-        VerilogCode = None
-        VerilogErrors = []
+        ConstraintTypeSel = None
+        ConstraintIOSel = None
+        ConstraintErrorMsg = None
+        NewConstraint = None
+        AlgebraInputs = None
+        AlgebraError = None
     }
     Notifications = {
         FromDiagram = None
@@ -121,7 +136,7 @@ let viewSimSubTab model dispatch =
     | TruthTable ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str "Truth Table" ]
-            div [] [str "Placeholder for Truth Table"]
+            TruthTableView.viewTruthTable model dispatch
         ]
     | WaveSim -> 
         div [ Style [Width "100%"; Height "calc(100% - 72px)"; MarginTop "15px" ] ]
@@ -143,24 +158,22 @@ let private viewRightTab model dispatch =
         ]
 
     | Simulation ->
-        let subtabs =
-            Tabs.tabs [
-                Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs";
-                Tabs.Props [Style [Margin 0] ]
-                ] [
-                    // step simulation subtab
-                    Tabs.tab
+        let subtabs = 
+            Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs";
+                        Tabs.Props [Style [Margin 0] ] ]  
+                    [                 
+                    Tabs.tab // step simulation subtab
                         [ Tabs.Tab.IsActive (model.SimSubTabVisible = StepSim) ]
-                        [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab StepSim ) ] [str "Step Simulation"] ] 
-                    // truth table tab to display truth table for combinational logic
-                    Tabs.tab
-                        [ Tabs.Tab.IsActive (model.SimSubTabVisible = TruthTable) ]
-                        [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab TruthTable ) ] [str "Truth Table"] ]
-                    // Wave Simulation tab
-                    Tabs.tab
-                        [ Tabs.Tab.IsActive (model.SimSubTabVisible = WaveSim) ]
-                        [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab WaveSim) ] [str "Wave Simulation"] ]
-                ]
+                        [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab StepSim ) ] [str "Step Simulation"] ]  
+
+                    (Tabs.tab // truth table tab to display truth table for combinational logic
+                    [ Tabs.Tab.IsActive (model.SimSubTabVisible = TruthTable) ]
+                    [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab TruthTable ) ] [str "Truth Table"] ])
+
+                    (Tabs.tab // wavesim tab
+                    [ Tabs.Tab.IsActive (model.SimSubTabVisible = WaveSim) ]
+                    [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab WaveSim) ] [str "Wave Simulation"] ])
+                    ]
         div [ HTMLAttr.Id "RightSelection"; Style [ Height "100%" ]] 
             [
                 //br [] // Should there be a gap between tabs and subtabs for clarity?
@@ -210,6 +223,26 @@ let dividerbar (model:Model) dispatch =
             OnMouseDown (setDragMode true model dispatch)       
         ] []
 
+let viewRightTabs model dispatch =
+    div [HTMLAttr.Id "RightSelection";Style [ Height "100%" ]] [
+        Tabs.tabs [ 
+            Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs"
+            Tabs.Props [Style [Margin 0] ]
+        ] [
+            Tabs.tab // catalogue tab to add components
+                [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
+                [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Catalogue ) ] [str "Catalogue" ] ]
+            Tabs.tab // Properties tab to view/change component properties
+                [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]                                   
+                [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ]
+            Tabs.tab // simulation tab to view all simulators
+                [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
+                [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] [str "Simulations"] ]
+        ]
+        viewRightTab model dispatch
+
+    ]
+
 //---------------------------------------------------------------------------------------------------------//
 //------------------------------------------VIEW FUNCTION--------------------------------------------------//
 //---------------------------------------------------------------------------------------------------------//
@@ -228,8 +261,6 @@ let displayView model dispatch =
 //    let x' = sd.SheetLeft+sd.SheetX
 //    let y' = sd.SheetTop+sd.SheetY
 
-    /// Update number of visible cycles and width of waveform column.
-    /// Require viewer width to allow integer number of clock cycles.
     let inline setViewerWidthInWaveSim w =
         let wsModel = getWSModel model
         dispatch <| SetViewerWidth w
@@ -255,7 +286,7 @@ let displayView model dispatch =
     let inline processAppClick topMenu dispatch (ev: Browser.Types.MouseEvent) =
         if topMenu <> Closed then 
             dispatch <| Msg.SetTopMenu Closed
-
+ 
     /// used only to make the divider bar draggable
     let inline processMouseMove (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
@@ -324,32 +355,7 @@ let displayView model dispatch =
             //---------------------------------right section----------------------------------------//
             // right section has horizontal divider bar and tabs
             div [ HTMLAttr.Id "RightSection"; rightSectionStyle model ]
-                [   // vertical and draggable divider bar
-                    dividerbar model dispatch
-                    // tabs for different functions
-                    div [
-                            HTMLAttr.Id "RightSelection"
-                            Style [ Height "100%" ] 
-                        ] 
-                        [   Tabs.tabs [
-                                Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs"
-                                Tabs.Props [Style [Margin 0] ]
-                            ] [ // catalogue tab to add components
-                                Tabs.tab
-                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
-                                    [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Catalogue ) ] [str "Catalogue" ] ] 
-
-                                // Properties tab to view/change component properties
-                                Tabs.tab
-                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]
-                                    [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ]
-
-                                // Simulation tab to view all simulators
-                                Tabs.tab
-                                    [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
-                                    [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] [str "Simulations"] ]
-                            ]
-                            viewRightTab model dispatch
-                        ]
-                ]
-        ]
+                  // vertical and draggable divider bar
+                [ dividerbar model dispatch
+                  // tabs for different functions
+                  viewRightTabs model dispatch ] ]

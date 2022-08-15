@@ -13,6 +13,7 @@ open SimulatorTypes
 open TruthTableTypes
 open Fable.React
 open Sheet.SheetInterface
+open VerilogTypes
 
 module Constants =
     /// DiagramStyle.rightSectinoWidthL = 650,
@@ -55,6 +56,8 @@ type PopupDialogData = {
     NewConstraint: Constraint option
     AlgebraInputs: SimulationIO list option
     AlgebraError: SimulationError option
+    VerilogCode: string option
+    VerilogErrors: ErrorInfo list
 }
 
 type TopMenu = | Closed | Project | Files
@@ -294,6 +297,8 @@ type Msg =
     | ShowStaticInfoPopup of (string * ReactElement * (Msg -> Unit))
     | ClosePopup
     | SetPopupDialogText of string option
+    | SetPopupDialogCode of string option
+    | SetPopupDialogVerilogErrors of ErrorInfo list
     | SetPopupDialogInt of int option
     | SetPopupDialogInt2 of int64 option
     | SetPopupDialogTwoInts of (int64 option * IntMode * string option)

@@ -189,7 +189,7 @@ let verilogOutputPage sheet fPath  =
         str $"You can write sheet '{sheet}' (and its subsheets) in either simulation or synthesis format. The output will be written to:"
         Text.div [ 
             Modifiers [ Modifier.TextWeight TextWeight.Bold]
-            Props [Style [TextAlign TextAlignOptions.Center; Padding "10px"; FontFamily "monospace"; FontSize "15px"]]] [str $"%s{Helpers.cropToLength 55 false fPath}.v"]
+            Props [Style [TextAlign TextAlignOptions.Center; CSSProp.Padding "10px"; FontFamily "monospace"; FontSize "15px"]]] [str $"%s{Helpers.cropToLength 55 false fPath}.v"]
         Columns.columns [ ]
             [ Column.column [ ]
                 [ Panel.panel [ Panel.Color IsInfo ]
@@ -749,9 +749,15 @@ let update (msg : Msg) oldModel =
                         Int2 = None;
                         MemorySetup = None;
                         MemoryEditorData = None;
+                        VerilogCode = None;
+                        VerilogErrors = [];
                     }}, Cmd.none
     | SetPopupDialogText text ->
         { model with PopupDialogData = {model.PopupDialogData with Text = text} }, Cmd.none
+    | SetPopupDialogCode code ->
+        { model with PopupDialogData = {model.PopupDialogData with VerilogCode = code} }, Cmd.none
+    | SetPopupDialogVerilogErrors errorList ->
+        { model with PopupDialogData = {model.PopupDialogData with VerilogErrors = errorList} }, Cmd.none
     | SetPopupDialogInt int ->
         { model with PopupDialogData = {model.PopupDialogData with Int = int} }, Cmd.none
     | SetPopupDialogInt2 int ->

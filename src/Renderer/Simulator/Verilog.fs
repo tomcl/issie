@@ -463,6 +463,22 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         let b = ins 1
         let xor = outs 0
         $"assign {xor} = {a} ^ {b};\n"
+    | NbitsAnd n ->
+        let a = ins 0
+        let b = ins 1
+        let andOut = outs 0
+        $"assign {andOut} = {a} & {b};\n"
+    | NbitsNot n ->
+        let a = ins 0
+        let not = outs 0
+        $"assign {not} = ~{a};\n"
+    | NbitSpreader n ->
+        let a = ins 0
+        let out = outs 0
+        let result1 =
+            ("",[1..n])||>List.fold (fun s v -> s+"1") 
+        // $"assign {out} = {a} << {n});\n"
+        $"assign {out} = {a} ? {n}'b{result1} : {n}'b0;\n"
     | Mux2 -> $"assign %s{outs 0} = %s{ins 2} ? %s{ins 1} : %s{ins 0};\n"
     | Mux4 -> 
         let outputBit = 

@@ -70,10 +70,13 @@ let getPortNumbers (sc: SimulationComponent) =
         | Register _
         | IOLabel  
         | ROM1 _ 
-        | AsyncROM1 _->
+        | AsyncROM1 _
+        | NbitsNot _ 
+        | NbitSpreader _ ->
             1,1
         | MergeWires
         | NbitsXor _
+        | NbitsAnd _
         | RegisterE _
         | DFFE -> 
             2,1
@@ -126,6 +129,9 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | BusSelection (w, _)
     | Constant1 (w, _,_)
     | Constant (w,_)
+    | NbitsAnd w
+    | NbitsNot w
+    | NbitSpreader w
     | NbitsXor w -> putW0 w
     | NbitsAdder w ->
         putW0 w

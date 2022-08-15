@@ -98,7 +98,9 @@
     "html-webpack-plugin": "^5.5.0",
     "jest": "^27.5.1",
     "mini-css-extract-plugin": "^2.6.0",
-    
+    "nearley": "^2.20.1",
+    "prismjs": "^1.15.0",
+    "react-simple-code-editor": "^0.11.0",
     "prettier": "^2.5.1",
     
     "react": "^17.0.0",

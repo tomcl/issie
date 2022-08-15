@@ -7,8 +7,6 @@ open Helpers
 
 //// HELPERS  ////
 
-// type SheetCreationInfo = Component list * Connection list * Map<string,int>
-
 type SheetCreationInfo = {
     Components: Component list
     Connections: Connection list

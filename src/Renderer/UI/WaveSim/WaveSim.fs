@@ -312,7 +312,13 @@ let makeWave (fastSim: FastSimulation) (netList: Map<ComponentId, NetListCompone
 
     let waveValues =
         [ 0 .. Constants.maxLastClk ]
-        |> List.map (fun i -> FastRun.extractFastSimulationOutput fastSim i driverId driverPort)
+        |> List.map (fun i -> 
+            FastRun.extractFastSimulationOutput fastSim i driverId driverPort
+            |> function
+                | IAlg _ -> 
+                    failwithf "what? Algebra in WaveSim waveValues"
+                | IData wd -> 
+                    wd)
 
     /// Connections which the wave's port is connected to.
     let conns : ConnectionId list =
@@ -347,7 +353,13 @@ let makeViewerWave (fastSim: FastSimulation) (index: WaveIndexT) (viewer: FastCo
 
     let waveValues =
         [ 0 .. Constants.maxLastClk ]
-        |> List.map (fun i -> FastRun.extractFastSimulationOutput fastSim i driverId driverPort)
+        |> List.map (fun i -> 
+            FastRun.extractFastSimulationOutput fastSim i driverId driverPort
+            |> function
+                | IAlg _ -> 
+                    failwithf "what? Algebra in WaveSim waveValues"
+                | IData wd -> 
+                    wd)
 
     {
         WaveId = index

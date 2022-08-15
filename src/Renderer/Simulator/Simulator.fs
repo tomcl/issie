@@ -62,6 +62,7 @@ let rec prepareSimulation
                         }
                     | Error  e -> Error  e
                 with
+                | AlgebraNotImplemented e -> Error e
                 | e -> 
                     printfn "\nEXCEPTION:\n\n%A\n%A\n\n" e.Message e.StackTrace
                     Error {

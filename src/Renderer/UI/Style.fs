@@ -134,6 +134,11 @@ let simulationNumberStyle = Style [
     Height "30px"
 ]
 
+let constraintNumberStyle = Style [
+    Width "200px"
+    Height "30px"
+]
+
 let simulationBitStyle = Style [
     Width "100px"
     Height "30px"
@@ -149,3 +154,53 @@ let menuLabelStyle = Style [
     LetterSpacing "0.1em"
     TextTransform "uppercase"
 ]
+
+let sortArrowStyle = Style [
+    Margin "0"
+    Display DisplayOptions.Block
+    Width "100%"
+    Height "50%"
+    Padding "0 0 0 0"
+    Top "0"
+    FontSize "50%"
+    Position PositionOptions.Relative
+    BorderColor "white"
+]
+
+let colMoveArrowStyle = Style [
+    Margin "0"
+    Display DisplayOptions.Block
+    Width "100%"
+    Height "50%"
+    Padding "0 0 0 0"
+    Top "0"
+    FontSize "80%"
+    Position PositionOptions.Relative
+    BorderColor "white"
+]
+
+let ttGridColumnProps index = [
+    Border "1px solid gray"
+    Padding "7px"
+    FontSize "18px"
+    TextAlign TextAlignOptions.Left
+    GridColumnStart <| string (index+1)
+    GridColumnEnd <| string (index+2)
+    OverflowX OverflowOptions.Auto
+    OverflowWrap "break-word"
+]
+
+let ttGridHiddenColumnProps gridWidth= [
+    GridColumnStart (string <| gridWidth + 1)
+    GridColumnEnd (string <| gridWidth + 2)
+    Width 0
+    OverflowX OverflowOptions.Hidden
+    Visibility "hidden"
+]
+
+let ttGridContainerStyle model = 
+    let widthRightSec = rightSectionWidth model
+    Style [
+        Display DisplayOptions.Grid
+        GridAutoFlow "column"
+    ]

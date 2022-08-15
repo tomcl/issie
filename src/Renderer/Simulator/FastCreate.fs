@@ -175,12 +175,12 @@ let createFastComponent (numSteps: int) (sComp: SimulationComponent) (accessPath
     // dummy arrays wil be replaced by real ones when components are linked after being created
     let ins =
         [| 0 .. inPortNum - 1 |]
-        |> Array.map (fun n -> Array.create (numSteps + 1) emptyFastData)
+        |> Array.map (fun n -> Array.create (numSteps + 1) (Data emptyFastData))
         |> Array.map makeStepArray
 
     let outs =
         [| 0 .. outPortNum - 1 |]
-        |> Array.map (fun n -> Array.create (numSteps + 1) emptyFastData)
+        |> Array.map (fun n -> Array.create (numSteps + 1) (Data emptyFastData))
         |> Array.map makeStepArray
 
     let inps =
@@ -261,7 +261,7 @@ let extendFastComponent (numSteps: int) (fc: FastComponent) =
         | _ -> ()
 
         [| 0 .. outPortNum - 1 |]
-        |> Array.iter (fun n -> extendArray fc.Outputs[n] emptyFastData)
+        |> Array.iter (fun n -> extendArray fc.Outputs[n] (Data emptyFastData))
 
         Option.iter
             (fun (stateArr: StepArray<SimulationComponentState>) ->
@@ -405,7 +405,7 @@ let rec createInitFastCompPhase (numSteps: int) (g: GatherData) (f: FastSimulati
         let outs : StepArray<FData> array =
             (if isOutput comp.Type then
                  let outs =
-                     [| Array.create (numSteps + 1) emptyFastData |> makeStepArray |]
+                     [| Array.create (numSteps + 1) (Data emptyFastData) |> makeStepArray |]
 
                  outs
              else

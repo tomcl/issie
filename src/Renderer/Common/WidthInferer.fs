@@ -325,6 +325,36 @@ let private calculateOutputPortsWidth
         | [_; Some n] when n <> numberOfBits -> makeWidthInferErrorEqual numberOfBits n [getConnectionIdForPort 1]
         | [_; _] -> okOutMap
         | x -> failwithf "what? Impossible case (%A) in calculateOutputPortsWidth for: %A" x comp.Type
+    | NbitsAnd numberOfBits ->
+        assertInputsSize inputConnectionsWidth 2 comp
+        let okOutMap =
+            let out = Map.empty.Add (getOutputPortId comp 0, numberOfBits)
+            Ok out
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0; InputPortNumber 1] with
+        | [Some n; _] when n <> numberOfBits -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 0]
+        | [_; Some n] when n <> numberOfBits -> makeWidthInferErrorEqual numberOfBits n [getConnectionIdForPort 1]
+        | [_; _] -> okOutMap
+        | x -> failwithf "what? Impossible case (%A) in calculateOutputPortsWidth for: %A" x comp.Type
+    | NbitsNot numberOfBits ->
+        assertInputsSize inputConnectionsWidth 1 comp
+        let okOutMap =
+            let out = Map.empty.Add (getOutputPortId comp 0, numberOfBits)
+            Ok out
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
+        | [Some n] when n <> numberOfBits -> makeWidthInferErrorEqual numberOfBits n [getConnectionIdForPort 0]
+        | [_] -> okOutMap
+        | x -> failwithf "what? Impossible case (%A) in calculateOutputPortsWidth for: %A" x comp.Type
+    
+    | NbitSpreader numberOfBits ->
+        assertInputsSize inputConnectionsWidth 1 comp
+        let okOutMap =
+            let out = Map.empty.Add (getOutputPortId comp 0, numberOfBits)
+            Ok out
+        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
+        | [Some n] when n <> 1 -> makeWidthInferErrorEqual 1 n [getConnectionIdForPort 0]
+        | [_] -> okOutMap
+        | x -> failwithf "what? Impossible case (%A) in calculateOutputPortsWidth for: %A" x comp.Type
+
     | Decode4  ->
         assertInputsSize inputConnectionsWidth 2 comp
         let okOutMap =
@@ -690,7 +720,7 @@ let private mapInputPortIdsToVirtualConnectionIds (conns: Connection list) (comp
 /// It is to be run when component widths or circuit is changed,
 /// Note that it does not matter (except for performance) if it is run too many times.
 let inferConnectionsWidth
-        ((comps,conns) : CanvasState)
+        ((comps: Component list,conns: Connection list) : CanvasState)
         : Result<ConnectionsWidth, WidthInferError> =
     let start = TimeHelpers.getTimeMs()
     let connectionsWidth = initialiseConnectionsWidth conns // start with all as None 

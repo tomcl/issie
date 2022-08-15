@@ -102,6 +102,8 @@ let init() = {
         NewConstraint = None
         AlgebraInputs = None
         AlgebraError = None
+        VerilogCode = None
+        VerilogErrors = []
     }
     Notifications = {
         FromDiagram = None

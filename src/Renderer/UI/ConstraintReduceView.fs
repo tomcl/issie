@@ -414,7 +414,7 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             match dialogData.ConstraintErrorMsg, dialogData.NewConstraint with
             | None, Some _ -> false
             | _, _ -> true
-    dialogPopup title body buttonText buttonAction isDisabled dispatch
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 /// Popup for creating a new output constraint
 let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
@@ -451,7 +451,7 @@ let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
             match dialogData.ConstraintErrorMsg, dialogData.NewConstraint with
             | None, Some _ -> false
             | _, _ -> true
-    dialogPopup title body buttonText buttonAction isDisabled dispatch
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 /// View function for the constraints section on the right-tab
 let viewConstraints model dispatch =
@@ -705,7 +705,7 @@ let createAlgReductionPopup model dispatch =
             match dialogData.AlgebraInputs, dialogData.AlgebraError with
             | _, Some _ | None, _ | Some [], _ -> true
             | Some lst, None -> false
-    dialogPopup title body buttonText buttonAction isDisabled dispatch
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let viewReductions (table: TruthTable) (model: Model) dispatch =
     let goBackButton = 

@@ -601,6 +601,75 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         | A, B ->
             let aExp, bExp = A.toExp, B.toExp
             put0 <| Alg (BinaryExp(aExp,BitXorOp,bExp))
+    | NbitsAnd numberOfBits ->
+        match ins 0, ins 1 with
+        | Data A, Data B ->
+            let outDat =
+                match A.Dat, B.Dat with
+                | BigWord a, BigWord b ->
+                    BigWord (a &&& b)
+                | Word a, Word b -> 
+                    Word (a &&& b)
+                | a,b -> 
+                    failwithf $"Inconsistent inputs to NBitsAnd {comp.FullName} A={a},{A}; B={b},{B}"
+            put0 <| Data {A with Dat = outDat}
+        | Alg exp, Data {Dat=(Word num);Width=w}
+        | Data {Dat=(Word num);Width=w}, Alg exp ->
+            let minusOne = (2.0**w)-1.0 |> uint32
+            if num = minusOne then
+                printfn "here"
+                put0 <| Alg exp
+            else 
+                let numExp = (Data {Dat=(Word num);Width=w}).toExp
+                put0 <| Alg (BinaryExp(exp,BitAndOp,numExp))
+        | A, B ->
+            let aExp, bExp = A.toExp, B.toExp
+            put0 <| Alg (BinaryExp(aExp,BitAndOp,bExp))
+    | NbitsNot numberOfBits ->
+        match ins 0 with
+        |Data A ->
+            let outDat =
+                match A.Dat with
+                | BigWord a ->
+                    // failwithf $"TODO: fable does not support op_OnesComplement function"
+                    // BigWord (System.Numerics.BigInteger.op_OnesComplement a)  FIX: 2^n-1-a
+                    let w = A.Width
+                    // (bigint^w)
+                    let (minusOne:bigint) = ((bigint 2) <<< w) - (bigint 1)
+                    BigWord (minusOne-a)
+                | Word a -> 
+                    Word (~~~a)
+            put0 <| Data {A with Dat = outDat}
+        |Alg exp ->
+            put0 <| Alg (algNot exp)
+
+    | NbitSpreader numberOfBits ->
+        match ins 0 with
+        |Data A ->
+            let outDat =
+                match (convertFastDataToInt A) with
+                |0u -> convertIntToFastData numberOfBits 0u
+                |1u -> 
+                    match numberOfBits with
+                    | n when n<=32 ->
+                        convertIntToFastData numberOfBits ((1u <<< numberOfBits)-1u)
+                    | _ -> 
+                        convertBigintToFastData numberOfBits ((bigint 1 <<< numberOfBits)- bigint 1)
+                | _ ->
+                    failwithf $"Can't happen"
+                
+            put0 <| Data outDat
+        |_ -> 
+            let err = {
+                Msg = "The chosen set of Algebraic inputs results in algebra being passed to the 
+                    input port of a Bit-Spreader. Only values can be passed to this port."
+                InDependency = Some (comp.FullName)
+                ComponentsAffected =[comp.cId]
+                ConnectionsAffected = []
+            }
+            // Algebra at bit spreader is not supported
+            raise (AlgebraNotImplemented err)
+
     | Decode4 ->
         //let select, data = ins 0, ins 1
         match ins 0, ins 1 with
@@ -939,6 +1008,5 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             let data = readMemory mem (Data address)
             //printfn $"reading {data} from addr={address} with state = {RamState mem}"
             put0 data
-
 
 

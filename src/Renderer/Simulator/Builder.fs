@@ -113,8 +113,8 @@ let private getDefaultState compType =
         failwithf "What? Legacy RAM component types should never occur"
     | Input _ ->
         failwithf "Legacy Input component types should never occur"
-    | Input1 _ | Output _ | IOLabel | BusSelection _ | BusCompare _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 | Mux4 | Mux8 | Decode4
-    | Demux2 | Demux4 | Demux8 | NbitsAdder _ |NbitsXor _ | Custom _ | MergeWires | SplitWire _ | ROM1 _  | Viewer _ -> NoState
+    | Input1 _ | Output _ | IOLabel | BusSelection _ | BusCompare _ | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 | Mux4 | Mux8 | Decode4 | NbitSpreader _
+    | Demux2 | Demux4 | Demux8 | NbitsAdder _ |NbitsXor _ |NbitsAnd _ |NbitsNot _ | Custom _ | MergeWires | SplitWire _ | ROM1 _  | Viewer _ -> NoState
     | Constant1 _ | Constant _ -> NoState 
     | AsyncROM1 _ -> NoState
     | DFF | DFFE -> DffState 0u

@@ -95,6 +95,10 @@ let extractWidth compType =
         |Input1 (width,_) -> width
         |_ -> failwithf "Can't happen"
 
+let extractCircuit (input:(Circuit*string*Slice)) = 
+    match input with
+    |(c,_,_) -> c
+
 let joinCircuits (inCircuits:Circuit list) (inPorts: Port list) (topCircuit: Circuit) : Circuit = 
     let conns = 
         inPorts
@@ -117,7 +121,34 @@ let joinCircuits (inCircuits:Circuit list) (inPorts: Port list) (topCircuit: Cir
     {Comps=comps;Conns=allConns;Out=topCircuit.Out;OutWidth=topCircuit.OutWidth}
 
 
- 
+let rec joinWithMerge (lst:(Circuit*string*Slice) list) = 
+    let extractCircuitAndPortName item =
+        match item with |(x,y,_)->(x,y)
+    
+    let merge2Circuits (c1:Circuit,name:string,slice:Slice) (c2:Circuit,name2:string,slice2:Slice) = 
+        let mergeWiresId = DrawHelpers.uuid();
+        let inputPorts = 
+            [
+                createPort mergeWiresId PortType.Input (Some 0);
+                createPort mergeWiresId PortType.Input (Some 1)
+            ]
+        let outputPorts =
+            [
+                createPort mergeWiresId PortType.Output (Some 0)
+            ]
+
+        let comp = createComponent mergeWiresId MergeWires "" inputPorts outputPorts 0. 0.
+        let topCircuit = {Comps=[comp];Conns=[];Out=outputPorts[0];OutWidth=0}
+        joinCircuits [c1;c2] [inputPorts[0];inputPorts[1]] topCircuit, name, slice
+
+    match List.length lst with 
+    |1 -> lst[0]
+    |2 -> merge2Circuits lst[0] lst[1]
+    |_ ->
+        let _,back = lst |> List.splitAt 2
+        let m1 = merge2Circuits lst[0] lst[1]
+        joinWithMerge (List.append [m1] back)
+
 
 
     
@@ -337,7 +368,7 @@ let createNumberCircuit (number:NumberT) =
     let text = 
         match _base with
         |"'b" -> "0b"+no
-        |"'h" -> "0h"+no
+        |"'h" -> "0x"+no
         |_ -> no
     let constValue =
         match NumberHelpers.strToIntCheckWidth width text with
@@ -377,8 +408,27 @@ and buildUnaryCircuit (unary:UnaryT) ioAndWireToCompMap =
     |"parenthesis" ->
         buildExpressionCircuit (Option.get unary.Expression) ioAndWireToCompMap
     |"concat" ->
-        {Comps=[];Conns=[];Out=tempPort;OutWidth=1}
+        buildUnaryListCircuit (Option.get unary.Expression) ioAndWireToCompMap
     |_ -> failwithf "Can't happen"
+
+and buildUnaryListCircuit (unaryList:ExpressionT) ioAndWireToCompMap = 
+    let head = buildExpressionCircuit (Option.get unaryList.Head) ioAndWireToCompMap
+    let list = 
+        match Option.isSome unaryList.Tail with
+        |true -> 
+            let tail = buildUnaryListCircuit (Option.get unaryList.Tail) ioAndWireToCompMap
+            [head]@[tail]
+        |false -> 
+            [head]
+    
+    let length = List.length list
+    list
+    |> List.mapi (fun index circ -> 
+        (circ,"",{MSB=(length-index);LSB=0}) //length-index to get them in correct order for joinWithMerge function
+    )
+    |> List.sortBy (fun (_,_,slice)->slice.MSB)
+    |> joinWithMerge
+    |> extractCircuit
 
 let buildCanvasStateForAssignment (statement:StatementItemT) (ioToCompMap:Map<string,Component>) (prevSI:SheetCreationInfo) =
     match statement.StatementType with
@@ -465,33 +515,6 @@ let sliceFromBits (lhs:AssignmentLHST) (ioAndWireToCompMap: Map<string,Component
         {MSB = (width-1); LSB=0}
 
 
-let rec joinWithMerge (lst:(Circuit*string*Slice) list) = 
-    let extractCircuitAndPortName item =
-        match item with |(x,y,_)->(x,y)
-    
-    let merge2Circuits (c1:Circuit,name:string,slice:Slice) (c2:Circuit,name2:string,slice2:Slice) = 
-        let mergeWiresId = DrawHelpers.uuid();
-        let inputPorts = 
-            [
-                createPort mergeWiresId PortType.Input (Some 0);
-                createPort mergeWiresId PortType.Input (Some 1)
-            ]
-        let outputPorts =
-            [
-                createPort mergeWiresId PortType.Output (Some 0)
-            ]
-
-        let comp = createComponent mergeWiresId MergeWires "" inputPorts outputPorts 0. 0.
-        let topCircuit = {Comps=[comp];Conns=[];Out=outputPorts[0];OutWidth=0}
-        joinCircuits [c1;c2] [inputPorts[0];inputPorts[1]] topCircuit, name, slice
-
-    match List.length lst with 
-    |1 -> lst[0]
-    |2 -> merge2Circuits lst[0] lst[1]
-    |_ ->
-        let _,back = lst |> List.splitAt 2
-        let m1 = merge2Circuits lst[0] lst[1]
-        joinWithMerge (List.append [m1] back)
 
 
 let attachToOutput (ioAndWireToCompMap: Map<string,Component>) (circuit:Circuit,portName:string,slice:Slice) : CanvasState =

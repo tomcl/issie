@@ -446,7 +446,7 @@ let rec private createVerilogPopup model showExtraErrors correctedCode moduleNam
                 let fixedAST = fix result
                 let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
                 printfn "fixed: %s" fixedAST
-                let code2 = createSheet2 parsedAST
+                let code2 = SheetCreator.createSheet2 parsedAST
                 
                 match writeFile path2 code2 with
                 | Ok _ -> ()

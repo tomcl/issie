@@ -468,6 +468,11 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         let b = ins 1
         let andOut = outs 0
         $"assign {andOut} = {a} & {b};\n"
+    | NbitsOr n ->
+        let a = ins 0
+        let b = ins 1
+        let orOut = outs 0
+        $"assign {orOut} = {a} | {b};\n"
     | NbitsNot n ->
         let a = ins 0
         let not = outs 0

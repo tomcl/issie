@@ -76,6 +76,7 @@ let getPortNumbers (sc: SimulationComponent) =
             1,1
         | MergeWires
         | NbitsXor _
+        | NbitsOr _
         | NbitsAnd _
         | RegisterE _
         | DFFE -> 
@@ -131,6 +132,7 @@ let getOutputWidths (sc: SimulationComponent) (wa: int option array) =
     | Constant (w,_)
     | NbitsAnd w
     | NbitsNot w
+    | NbitsOr w
     | NbitSpreader w
     | NbitsXor w -> putW0 w
     | NbitsAdder w ->

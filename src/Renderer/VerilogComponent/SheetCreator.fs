@@ -349,18 +349,7 @@ let createNumberCircuit (number:NumberT) =
     let constComp = createComponent constId (Constant1 (width,constValue,text)) "C" [] outputPorts 0. 0.
     {Comps=[constComp];Conns=[];Out=constComp.OutputPorts[0];OutWidth=width}
 
-let buildUnaryCircuit (unary:UnaryT) ioAndWireToCompMap =
-    let tempPort = createPort "hostId" PortType.Input (Some 0)
-    match unary.Type with
-    |"primary" ->
-        createPrimaryCircuit (Option.get unary.Primary) ioAndWireToCompMap
-    |"number" ->
-        createNumberCircuit (Option.get unary.Number)
-    |"parenthesis" ->
-        {Comps=[];Conns=[];Out=tempPort;OutWidth=1}
-    |"concat" ->
-        {Comps=[];Conns=[];Out=tempPort;OutWidth=1}
-    |_ -> failwithf "Can't happen"
+
 
 let rec buildExpressionCircuit (expr:ExpressionT) ioAndWireToCompMap = 
     match expr.Type with
@@ -378,6 +367,18 @@ let rec buildExpressionCircuit (expr:ExpressionT) ioAndWireToCompMap =
         let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
         joinCircuits [c1;c2] [topComp.InputPorts[0];topComp.InputPorts[1]] topCircuit
 
+and buildUnaryCircuit (unary:UnaryT) ioAndWireToCompMap =
+    let tempPort = createPort "hostId" PortType.Input (Some 0)
+    match unary.Type with
+    |"primary" ->
+        createPrimaryCircuit (Option.get unary.Primary) ioAndWireToCompMap
+    |"number" ->
+        createNumberCircuit (Option.get unary.Number)
+    |"parenthesis" ->
+        buildExpressionCircuit (Option.get unary.Expression) ioAndWireToCompMap
+    |"concat" ->
+        {Comps=[];Conns=[];Out=tempPort;OutWidth=1}
+    |_ -> failwithf "Can't happen"
 
 let buildCanvasStateForAssignment (statement:StatementItemT) (ioToCompMap:Map<string,Component>) (prevSI:SheetCreationInfo) =
     match statement.StatementType with

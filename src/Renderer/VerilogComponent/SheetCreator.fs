@@ -305,17 +305,28 @@ let buildExpressionComponent2 (rhs:ExpressionT) width =
     let compId = DrawHelpers.uuid()
     let inputPorts = 
         match rhs.Type with
-        | "bitwise_OR" | "bitwise_XOR" | "bitwise_AND" 
-        | "additive" | "logical_AND" | "logical_OR" ->
-            [createPort compId PortType.Input (Some 0); createPort compId PortType.Input (Some 1)]
+        | "bitwise_OR" | "bitwise_XOR" | "bitwise_AND" ->
+            [
+                createPort compId PortType.Input (Some 0); 
+                createPort compId PortType.Input (Some 1)
+            ]
         | "negation" ->
             [createPort compId PortType.Input (Some 0)]
+        | "conditional_cond" | "additive" ->
+            [
+                createPort compId PortType.Input (Some 0); 
+                createPort compId PortType.Input (Some 1);
+                createPort compId PortType.Input (Some 2)
+            ]
         |_ -> [] //TODO
     let outputPorts =
         match rhs.Type with
-        | "bitwise_OR" | "bitwise_XOR" | "bitwise_AND" | "negation" ->
-            [createPort compId PortType.Output (Some 0)]
-        |_ -> [] //TODO
+        | "additive" ->
+            [
+                createPort compId PortType.Output (Some 0)
+                createPort compId PortType.Output (Some 1)
+            ]
+        |_ -> [createPort compId PortType.Output (Some 0)] //TODO
 
     let compType =
         match rhs.Type with
@@ -324,17 +335,19 @@ let buildExpressionComponent2 (rhs:ExpressionT) width =
         | "bitwise_XOR" -> (NbitsXor width)
         | "bitwise_AND" -> (NbitsAnd width)
         | "additive" -> (NbitsAdder width)
+        | "conditional_cond" -> (Mux2)
         // | "logical_AND" -> 
         // | "logical_OR" ->
         |_ -> (NbitsAdder width) //TODO
     
-    let baseName =  //from getPrefix
+    let baseName =  //TODO: GET from getPrefix
         match rhs.Type with
         |"bitwise_OR" -> "OR"
         |"bitwise_XOR" -> "NXOR"
         | "additive" -> "ADD"
         | "bitwise_AND" -> "AND"
         | "negation" -> "NOT"
+        | "conditional_cond" -> "MUX"
         |_ -> "TODO"
 
         
@@ -383,16 +396,22 @@ let createNumberCircuit (number:NumberT) =
     {Comps=[constComp];Conns=[];Out=constComp.OutputPorts[0];OutWidth=width}
 
 
-
 let rec buildExpressionCircuit (expr:ExpressionT) ioAndWireToCompMap = 
     match expr.Type with
     |"unary" -> buildUnaryCircuit (Option.get expr.Unary) ioAndWireToCompMap
-    | "conditional_cond" -> failwithf "todo" //TODO 
     | "negation" ->
         let (c1:Circuit) = buildUnaryCircuit (Option.get expr.Unary) ioAndWireToCompMap
         let topComp = buildExpressionComponent2 expr c1.OutWidth
         let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
         joinCircuits [c1] [topComp.InputPorts[0]] topCircuit
+    | "conditional_cond" -> 
+        let (c3:Circuit) = buildExpressionCircuit (Option.get expr.Head) ioAndWireToCompMap 
+        // c1 is the (case=TRUE) circuit which goes to 1 of MUX, c2 goes to 0
+        //that's why they are given in reverse order in the joinCircuits function 
+        let c1,c2 = buildConditionalCircuit (Option.get expr.Tail) ioAndWireToCompMap
+        let topComp = buildExpressionComponent2 expr c1.OutWidth
+        let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
+        joinCircuits [c2;c1;c3] [topComp.InputPorts[0];topComp.InputPorts[1];topComp.InputPorts[2]] topCircuit
     | _ ->        
         let (c1:Circuit) = buildExpressionCircuit (Option.get expr.Head) ioAndWireToCompMap 
         let (c2:Circuit) = buildExpressionCircuit (Option.get expr.Tail) ioAndWireToCompMap 
@@ -431,6 +450,11 @@ and buildUnaryListCircuit (unaryList:ExpressionT) ioAndWireToCompMap =
     |> List.sortBy (fun (_,_,slice)->slice.MSB)
     |> joinWithMerge
     |> extractCircuit
+
+and buildConditionalCircuit (tail:ExpressionT) ioAndWireToCompMap =
+    let c1 = buildExpressionCircuit (Option.get tail.Head) ioAndWireToCompMap
+    let c2 = buildExpressionCircuit (Option.get tail.Tail) ioAndWireToCompMap
+    (c1,c2)
 
 let buildCanvasStateForAssignment (statement:StatementItemT) (ioToCompMap:Map<string,Component>) (prevSI:SheetCreationInfo) =
     match statement.StatementType with

@@ -151,7 +151,7 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
     let title, width =
         match comp.Type with
         | Input1 (w, _) | Output w | NbitsAdder w 
-        | NbitsXor w | NbitsAnd w |NbitsNot w |NbitSpreader w 
+        | NbitsXor w | NbitsAnd w | NbitsOr w |NbitsNot w |NbitSpreader w 
         | Register w | RegisterE w | Viewer w -> "Number of bits", w
         | SplitWire w -> "Number of bits in the top (LSB) wire", w
         | BusSelection( w, _) -> "Number of bits selected: width", w
@@ -336,6 +336,7 @@ let private makeDescription (comp:Component) model dispatch =
     | NbitsAdder numberOfBits -> div [] [ str <| sprintf "%d bit(s) adder." numberOfBits ]
     | NbitsXor numberOfBits  -> div [] [ str <| sprintf "%d XOR gates with %d outputs." numberOfBits numberOfBits]
     | NbitsAnd numberOfBits  -> div [] [ str <| sprintf "%d AND gates with %d outputs." numberOfBits numberOfBits]
+    | NbitsOr numberOfBits  -> div [] [ str <| sprintf "%d OR gates with %d outputs." numberOfBits numberOfBits]
     | NbitsNot numberOfBits  -> div [] [ str <| sprintf "%d NOT gates with %d outputs." numberOfBits numberOfBits]
     | NbitSpreader numberOfBits  -> div [] [ str <| sprintf "One input Bit Spreader with one %d-bit output." numberOfBits]
     | Decode4 -> div [] [ str <| "4 bit decoder: Data is output on the Sel output, all other outputs are 0."]
@@ -408,7 +409,7 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
                 makeNumberOfBitsField model comp text dispatch
                 makeDefaultValueField model comp dispatch
             ]
-    | Output _ | NbitsAdder _ |NbitsAnd _ |NbitsNot _ |NbitSpreader _ | NbitsXor _ | Viewer _ ->
+    | Output _ | NbitsAdder _ |NbitsAnd _ |NbitsOr _ |NbitsNot _ |NbitSpreader _ | NbitsXor _ | Viewer _ ->
         makeNumberOfBitsField model comp text dispatch
     | SplitWire _ ->
         makeNumberOfBitsField model comp text dispatch

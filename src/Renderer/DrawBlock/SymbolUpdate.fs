@@ -219,6 +219,7 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
         | NbitsAdder _ -> NbitsAdder newBits
         | NbitsXor _ -> NbitsXor newBits
         | NbitsAnd _ -> NbitsAnd newBits
+        | NbitsOr _ -> NbitsOr newBits
         | NbitsNot _ -> NbitsNot newBits
         | NbitSpreader _ -> NbitSpreader newBits 
         | Register _ -> Register newBits

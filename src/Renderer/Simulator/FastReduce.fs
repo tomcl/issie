@@ -601,6 +601,33 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         | A, B ->
             let aExp, bExp = A.toExp, B.toExp
             put0 <| Alg (BinaryExp(aExp,BitXorOp,bExp))
+    | NbitsOr numberOfBits ->
+        //let A, B = ins 0, ins 1
+        match ins 0, ins 1 with
+        | Data A, Data B ->
+            let outDat =
+                match A.Dat, B.Dat with
+                | BigWord a, BigWord b ->
+                    BigWord (a ||| b)
+                | Word a, Word b -> 
+                    Word (a ||| b)
+                | a,b -> 
+                    failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{A}; B={b},{B}"
+
+            put0 <| Data {A with Dat = outDat}
+        | Alg exp, Data {Dat=(Word num);Width=w}
+        | Data {Dat=(Word num);Width=w}, Alg exp ->
+            let minusOne = (2.0**w)-1.0 |> uint32
+            if num = 0u then
+                put0 <| Alg exp
+            // else if num=minusOne
+            //     put0 <| Alg
+            else
+                let numExp = (Data {Dat=(Word num);Width=w}).toExp
+                put0 <| Alg (BinaryExp(exp,BitOrOp,numExp))
+        | A, B ->
+            let aExp, bExp = A.toExp, B.toExp
+            put0 <| Alg (BinaryExp(aExp,BitOrOp,bExp))
     | NbitsAnd numberOfBits ->
         match ins 0, ins 1 with
         | Data A, Data B ->
@@ -617,7 +644,6 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         | Data {Dat=(Word num);Width=w}, Alg exp ->
             let minusOne = (2.0**w)-1.0 |> uint32
             if num = minusOne then
-                printfn "here"
                 put0 <| Alg exp
             else 
                 let numExp = (Data {Dat=(Word num);Width=w}).toExp

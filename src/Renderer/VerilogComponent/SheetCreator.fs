@@ -320,6 +320,7 @@ let buildExpressionComponent2 (rhs:ExpressionT) width =
     let compType =
         match rhs.Type with
         | "negation" -> (NbitsNot width)  
+        | "bitwise_OR" -> (NbitsOr width)
         | "bitwise_XOR" -> (NbitsXor width)
         | "bitwise_AND" -> (NbitsAnd width)
         | "additive" -> (NbitsAdder width)
@@ -329,6 +330,7 @@ let buildExpressionComponent2 (rhs:ExpressionT) width =
     
     let baseName =  //from getPrefix
         match rhs.Type with
+        |"bitwise_OR" -> "OR"
         |"bitwise_XOR" -> "NXOR"
         | "additive" -> "ADD"
         | "bitwise_AND" -> "AND"

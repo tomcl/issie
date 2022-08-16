@@ -26,6 +26,10 @@ type Slice = {
     LSB: int;
 }
 
+type LHSType =
+    |OutputPort
+    |Wire
+
 
 let findEmptyXY (oldMap: (string*Component) list) : XYPos = 
     let size  = List.length oldMap
@@ -93,11 +97,12 @@ let extractWidth compType =
         match compType with
         |Output width -> width
         |Input1 (width,_) -> width
+        |IOLabel -> 1
         |_ -> failwithf "Can't happen"
 
-let extractCircuit (input:(Circuit*string*Slice)) = 
+let extractCircuit (input:(Circuit*string*Slice*LHSType)) = 
     match input with
-    |(c,_,_) -> c
+    |(c,_,_,_) -> c
 
 let joinCircuits (inCircuits:Circuit list) (inPorts: Port list) (topCircuit: Circuit) : Circuit = 
     let conns = 
@@ -121,11 +126,9 @@ let joinCircuits (inCircuits:Circuit list) (inPorts: Port list) (topCircuit: Cir
     {Comps=comps;Conns=allConns;Out=topCircuit.Out;OutWidth=topCircuit.OutWidth}
 
 
-let rec joinWithMerge (lst:(Circuit*string*Slice) list) = 
-    let extractCircuitAndPortName item =
-        match item with |(x,y,_)->(x,y)
+let rec joinWithMerge (lst:(Circuit*string*Slice*LHSType) list) = 
     
-    let merge2Circuits (c1:Circuit,name:string,slice:Slice) (c2:Circuit,name2:string,slice2:Slice) = 
+    let merge2Circuits (c1:Circuit,name:string,slice:Slice,lhsType:LHSType) (c2:Circuit,name2:string,slice2:Slice,lhsType2:LHSType) = 
         let mergeWiresId = DrawHelpers.uuid();
         let inputPorts = 
             [
@@ -139,7 +142,7 @@ let rec joinWithMerge (lst:(Circuit*string*Slice) list) =
 
         let comp = createComponent mergeWiresId MergeWires "" inputPorts outputPorts 0. 0.
         let topCircuit = {Comps=[comp];Conns=[];Out=outputPorts[0];OutWidth=0}
-        joinCircuits [c1;c2] [inputPorts[0];inputPorts[1]] topCircuit, name, slice
+        joinCircuits [c1;c2] [inputPorts[0];inputPorts[1]] topCircuit, name, slice,lhsType
 
     match List.length lst with 
     |1 -> lst[0]
@@ -445,9 +448,9 @@ and buildUnaryListCircuit (unaryList:ExpressionT) ioAndWireToCompMap =
     let length = List.length list
     list
     |> List.mapi (fun index circ -> 
-        (circ,"",{MSB=(length-index);LSB=0}) //length-index to get them in correct order for joinWithMerge function
-    )
-    |> List.sortBy (fun (_,_,slice)->slice.MSB)
+        (circ,"",{MSB=(length-index);LSB=0;},OutputPort) //length-index to get them in correct order for joinWithMerge function
+    )                                         //LSB and lhsType are don't cares in this case
+    |> List.sortBy (fun (_,_,slice,_)->slice.MSB)
     |> joinWithMerge
     |> extractCircuit
 
@@ -543,11 +546,14 @@ let sliceFromBits (lhs:AssignmentLHST) (ioAndWireToCompMap: Map<string,Component
 
 
 
-let attachToOutput (ioAndWireToCompMap: Map<string,Component>) (circuit:Circuit,portName:string,slice:Slice) : CanvasState =
-    let outputPortComp = Map.find portName ioAndWireToCompMap
-    let conn = createConnection circuit.Out outputPortComp.InputPorts[0]
+let attachToOutput (ioAndWireToCompMap: Map<string,Component>) (circuit:Circuit,portName:string,slice:Slice,lhsType:LHSType) : CanvasState =
+    let outputOrWire = Map.find portName ioAndWireToCompMap
+    let conn = createConnection circuit.Out outputOrWire.InputPorts[0]
     
-    let allComps = circuit.Comps@[outputPortComp]
+    let allComps = 
+        match lhsType with
+        |OutputPort -> circuit.Comps@[outputOrWire]
+        |Wire -> circuit.Comps
     let allConns = circuit.Conns@[conn]
     (allComps,allConns)
 
@@ -599,7 +605,7 @@ let createSheet2 input =
             getWireToCompMap wire map
         )
 
-    let ioAndWireComps = ioAndWireToCompMap |> Map.toList |> List.map snd
+    // let ioAndWireComps = ioAndWireToCompMap |> Map.toList |> List.map snd
 
     let perItemCircuits = 
         assignments
@@ -608,14 +614,19 @@ let createSheet2 input =
             let circuit = buildExpressionCircuit assignment.RHS ioAndWireToCompMap
             let outPort = assignment.LHS.Primary.Name
             let bits = sliceFromBits assignment.LHS ioAndWireToCompMap
-            (circuit,outPort,bits)
+            let lhstype = 
+                match (Option.get item.Statement).Assignment.Type with
+                |"wire" -> Wire
+                |"assign" -> OutputPort
+                |_ -> failwithf "Can't happen" 
+            (circuit,outPort,bits,lhstype)
         )
 
     let finalCanvasState = 
         perItemCircuits
-        |> List.groupBy (fun (_,portName,_) -> portName)
+        |> List.groupBy (fun (_,portName,_,_) -> portName)
         |> List.map (fun (portName,circuits) ->
-            let sorted = List.sortBy (fun (_,_,slice)->slice.MSB) circuits
+            let sorted = List.sortBy (fun (_,_,slice,_)->slice.MSB) circuits
             sorted
             |> joinWithMerge
             |> attachToOutput ioAndWireToCompMap

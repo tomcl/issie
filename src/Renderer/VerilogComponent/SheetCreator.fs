@@ -303,6 +303,17 @@ and rhsUpdateCanvasState (expr:ExpressionT) prevComp portNo widthList ioToCompMa
     |"unary" -> createConnectionWithUnaryPort (Option.get expr.Unary) prevComp portNo ioToCompMap prevSI
     |_ -> expressionUpdateCanvasState expr prevComp portNo widthList ioToCompMap prevSI
         
+let buildBusSelComponent outWidth outLSB = 
+    let busSelCompId = DrawHelpers.uuid()
+    let inputPorts = [createPort busSelCompId PortType.Input (Some 0)]
+    let outputPorts = [createPort busSelCompId PortType.Output (Some 0)]
+    createComponent busSelCompId (BusSelection (outWidth,outLSB)) "" inputPorts outputPorts 0. 0.
+
+let buildBitSprederComponent width = 
+    let bitSpreaderId = DrawHelpers.uuid()
+    let inputPorts = [createPort bitSpreaderId PortType.Input (Some 0)]
+    let outputPorts = [createPort bitSpreaderId PortType.Output (Some 0)]
+    createComponent bitSpreaderId (NbitSpreader width) "SPREAD" inputPorts outputPorts 0. 0.
 
 let buildExpressionComponent2 (rhs:ExpressionT) width =
     let compId = DrawHelpers.uuid()
@@ -415,6 +426,66 @@ let rec buildExpressionCircuit (expr:ExpressionT) ioAndWireToCompMap =
         let topComp = buildExpressionComponent2 expr c1.OutWidth
         let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
         joinCircuits [c2;c1;c3] [topComp.InputPorts[0];topComp.InputPorts[1];topComp.InputPorts[2]] topCircuit
+    | "SHIFT" ->
+        let operator = (Option.get expr.Operator)
+        let tail = Option.get expr.Tail
+        let unary = Option.get tail.Unary
+        let number = Option.get unary.Number
+        let shift = number.UnsignedNumber
+        let shiftNo = int <| Option.get (shift)
+        let (c1:Circuit) = buildExpressionCircuit (Option.get expr.Head) ioAndWireToCompMap
+        
+        match operator with
+        |">>" ->
+            let busSelComp = buildBusSelComponent (c1.OutWidth-shiftNo) shiftNo
+            let busSelCircuit = {Comps=[busSelComp];Conns=[];Out=busSelComp.OutputPorts[0];OutWidth=(c1.OutWidth-shiftNo)}
+            let SelectedCircuit = joinCircuits [c1] [busSelComp.InputPorts[0]] busSelCircuit
+            let (tempNumber:NumberT) = {Type="";NumberType="";Bits=shift;Base=(Some "'b");AllNumber=(Some "0");UnsignedNumber=None;Location=100} //location is Don't Care
+            let constantCircuit = createNumberCircuit tempNumber
+
+            [SelectedCircuit;constantCircuit]
+            |> List.mapi(fun index circ ->
+                (circ,"",{MSB=(index);LSB=0;},OutputPort)
+            )
+            // |> List.sortBy (fun (_,_,slice,_)->slice.MSB)
+            |> joinWithMerge
+            |> extractCircuit
+        |"<<" ->
+            let busSelComp = buildBusSelComponent (c1.OutWidth-shiftNo) 0
+            let busSelCircuit = {Comps=[busSelComp];Conns=[];Out=busSelComp.OutputPorts[0];OutWidth=(c1.OutWidth-shiftNo)}
+            let SelectedCircuit = joinCircuits [c1] [busSelComp.InputPorts[0]] busSelCircuit
+            let (tempNumber:NumberT) = {Type="";NumberType="";Bits=shift;Base=(Some "'b");AllNumber=(Some "0");UnsignedNumber=None;Location=100} //location is Don't Care
+            let constantCircuit = createNumberCircuit tempNumber
+
+            [constantCircuit;SelectedCircuit]
+            |> List.mapi(fun index circ ->
+                (circ,"",{MSB=(index);LSB=0;},OutputPort)
+            )
+            // |> List.sortBy (fun (_,_,slice,_)->slice.MSB)
+            |> joinWithMerge
+            |> extractCircuit
+        
+        | _ -> 
+            let busSelComp = buildBusSelComponent (c1.OutWidth-shiftNo) shiftNo
+            let busSelCircuit = {Comps=[busSelComp];Conns=[];Out=busSelComp.OutputPorts[0];OutWidth=(c1.OutWidth-shiftNo)}
+            let SelectedCircuit = joinCircuits [c1] [busSelComp.InputPorts[0]] busSelCircuit
+            
+            let msbSelComp = buildBusSelComponent (1) (c1.OutWidth-1)
+            let msbSelCircuit = {Comps=[msbSelComp];Conns=[];Out=msbSelComp.OutputPorts[0];OutWidth=1}
+            let msbCircuit = joinCircuits [c1] [msbSelComp.InputPorts[0]] msbSelCircuit
+            
+            let spreaderComp = buildBitSprederComponent shiftNo
+            let spreaderCircuit = {Comps=[spreaderComp];Conns=[];Out=spreaderComp.OutputPorts[0];OutWidth=(shiftNo)}
+
+            let constantCircuit = joinCircuits [msbCircuit] [spreaderComp.InputPorts[0]] spreaderCircuit
+
+            [SelectedCircuit;constantCircuit]
+            |> List.mapi(fun index circ ->
+                (circ,"",{MSB=(index);LSB=0;},OutputPort)
+            )
+            // |> List.sortBy (fun (_,_,slice,_)->slice.MSB)
+            |> joinWithMerge
+            |> extractCircuit
     | _ ->        
         let (c1:Circuit) = buildExpressionCircuit (Option.get expr.Head) ioAndWireToCompMap 
         let (c2:Circuit) = buildExpressionCircuit (Option.get expr.Tail) ioAndWireToCompMap 
@@ -459,21 +530,6 @@ and buildConditionalCircuit (tail:ExpressionT) ioAndWireToCompMap =
     let c2 = buildExpressionCircuit (Option.get tail.Tail) ioAndWireToCompMap
     (c1,c2)
 
-let buildCanvasStateForAssignment (statement:StatementItemT) (ioToCompMap:Map<string,Component>) (prevSI:SheetCreationInfo) =
-    match statement.StatementType with
-    |"assign" ->
-        let outputComp = Map.find statement.Assignment.LHS.Primary.Name ioToCompMap
-        let bits = 
-            match (statement.Assignment.LHS.BitsStart,statement.Assignment.LHS.BitsEnd) with
-            |(Some s,Some e) -> [(int e)..(int s)]
-            |_ ->
-                match outputComp.Type with
-                |Output width -> [0..(width-1)]  
-                |_ -> failwithf "Can't happen!"
-        prevSI
-        |> rhsUpdateCanvasState statement.Assignment.RHS outputComp 0 bits ioToCompMap 
-    
-    |_ -> prevSI //TODO: wires
 
 ///////////////////
 
@@ -494,41 +550,6 @@ let collectWiresLHS (assignments:ItemT list) =
     let wires = assignments |> List.filter (fun item -> (Option.get item.Statement).StatementType = "wire")
     wires
     |> List.map (fun item -> (Option.get item.Statement).Assignment.LHS)
-
-//// OLD MAIN FUNCTION ////
-
-let createSheet input = 
-    let items = input.Module.ModuleItems.ItemList |> Array.toList
-    let ioDecls = items |> List.filter (fun item -> Option.isSome item.IODecl)
-    let assignments = items |> List.filter (fun item -> Option.isSome item.Statement) 
-    let wiresLHS = collectWiresLHS assignments
-
-    let ioToCompMap = getIOtoComponentMap ioDecls    
-
-    let ioAndWireToCompMap =
-        (ioToCompMap,wiresLHS) 
-        ||> List.fold(fun map wire ->
-            getWireToCompMap wire map
-        )
-
-
-    let ioAndWireComps = ioAndWireToCompMap |> Map.toList |> List.map snd
-    
-    let initialSheetInfo = 
-        {
-            Components = ioAndWireComps
-            Connections = []
-            UsedNames = Map.empty<string,int> 
-        }
-
-    let finalSheetInfo: SheetCreationInfo = 
-        (initialSheetInfo,assignments)
-        ||> List.fold (fun sheetCreationInfo assignment ->
-            buildCanvasStateForAssignment (Option.get assignment.Statement) ioAndWireToCompMap sheetCreationInfo    
-        )
-    
-    let finalCanvasState = finalSheetInfo.Components,finalSheetInfo.Connections
-    Helpers.JsonHelpers.stateToJsonString (finalCanvasState, None)
 
 ///////////////
 
@@ -591,7 +612,7 @@ let fixCanvasState (oldCanvasState:CanvasState) =
     (fixedComps,snd oldCanvasState)
     
 
-let createSheet2 input = 
+let createSheet input = 
     let items = input.Module.ModuleItems.ItemList |> Array.toList
     let ioDecls = items |> List.filter (fun item -> Option.isSome item.IODecl)
     let assignments = items |> List.filter (fun item -> Option.isSome item.Statement) 

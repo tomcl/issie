@@ -485,57 +485,41 @@ and buildShiftCircuit (expr:ExpressionT) ioAndWireToCompMap =
     let shiftNo = int <| Option.get (shift)
     let (c1:Circuit) = buildExpressionCircuit (Option.get expr.Head) ioAndWireToCompMap
     
-    match operator with
-    |">>" ->
-        let busSelComp = buildBusSelComponent (c1.OutWidth-shiftNo) shiftNo
-        let busSelCircuit = {Comps=[busSelComp];Conns=[];Out=busSelComp.OutputPorts[0];OutWidth=(c1.OutWidth-shiftNo)}
-        let SelectedCircuit = joinCircuits [c1] [busSelComp.InputPorts[0]] busSelCircuit
-        let (tempNumber:NumberT) = {Type="";NumberType="";Bits=shift;Base=(Some "'b");AllNumber=(Some "0");UnsignedNumber=None;Location=100} //location is Don't Care
-        let constantCircuit = createNumberCircuit tempNumber
-
-        [SelectedCircuit;constantCircuit]
-        |> List.mapi(fun index circ ->
-            (circ,"",{MSB=(index);LSB=0;},OutputPort)
-        )
-        // |> List.sortBy (fun (_,_,slice,_)->slice.MSB)
-        |> joinWithMerge
-        |> extractCircuit
-    |"<<" ->
-        let busSelComp = buildBusSelComponent (c1.OutWidth-shiftNo) 0
-        let busSelCircuit = {Comps=[busSelComp];Conns=[];Out=busSelComp.OutputPorts[0];OutWidth=(c1.OutWidth-shiftNo)}
-        let SelectedCircuit = joinCircuits [c1] [busSelComp.InputPorts[0]] busSelCircuit
-        let (tempNumber:NumberT) = {Type="";NumberType="";Bits=shift;Base=(Some "'b");AllNumber=(Some "0");UnsignedNumber=None;Location=100} //location is Don't Care
-        let constantCircuit = createNumberCircuit tempNumber
-
-        [constantCircuit;SelectedCircuit]
-        |> List.mapi(fun index circ ->
-            (circ,"",{MSB=(index);LSB=0;},OutputPort)
-        )
-        // |> List.sortBy (fun (_,_,slice,_)->slice.MSB)
-        |> joinWithMerge
-        |> extractCircuit
+    let busSelComp =
+        match operator with
+        |"<<" -> buildBusSelComponent (c1.OutWidth-shiftNo) 0
+        |_ -> buildBusSelComponent (c1.OutWidth-shiftNo) shiftNo
     
-    | _ -> 
-        let busSelComp = buildBusSelComponent (c1.OutWidth-shiftNo) shiftNo
-        let busSelCircuit = {Comps=[busSelComp];Conns=[];Out=busSelComp.OutputPorts[0];OutWidth=(c1.OutWidth-shiftNo)}
-        let SelectedCircuit = joinCircuits [c1] [busSelComp.InputPorts[0]] busSelCircuit
-        
-        let msbSelComp = buildBusSelComponent (1) (c1.OutWidth-1)
-        let msbSelCircuit = {Comps=[msbSelComp];Conns=[];Out=msbSelComp.OutputPorts[0];OutWidth=1}
-        let msbCircuit = joinCircuits [c1] [msbSelComp.InputPorts[0]] msbSelCircuit
-        
-        let spreaderComp = buildBitSprederComponent shiftNo
-        let spreaderCircuit = {Comps=[spreaderComp];Conns=[];Out=spreaderComp.OutputPorts[0];OutWidth=(shiftNo)}
+    let busSelCircuit = {Comps=[busSelComp];Conns=[];Out=busSelComp.OutputPorts[0];OutWidth=(c1.OutWidth-shiftNo)}
+    let selectedCircuit = joinCircuits [c1] [busSelComp.InputPorts[0]] busSelCircuit
 
-        let constantCircuit = joinCircuits [msbCircuit] [spreaderComp.InputPorts[0]] spreaderCircuit
+    let constantCircuit =
+        match operator with
+        |">>" | "<<" ->
+            let (tempNumber:NumberT) = {Type="";NumberType="";Bits=shift;Base=(Some "'b");AllNumber=(Some "0");UnsignedNumber=None;Location=100} //location is Don't Care
+            createNumberCircuit tempNumber
+        |_ ->
+            let msbSelComp = buildBusSelComponent (1) (c1.OutWidth-1)
+            let msbSelCircuit = {Comps=[msbSelComp];Conns=[];Out=msbSelComp.OutputPorts[0];OutWidth=1}
+            let msbCircuit = joinCircuits [c1] [msbSelComp.InputPorts[0]] msbSelCircuit
+            
+            let spreaderComp = buildBitSprederComponent shiftNo
+            let spreaderCircuit = {Comps=[spreaderComp];Conns=[];Out=spreaderComp.OutputPorts[0];OutWidth=(shiftNo)}
 
-        [SelectedCircuit;constantCircuit]
-        |> List.mapi(fun index circ ->
-            (circ,"",{MSB=(index);LSB=0;},OutputPort)
-        )
-        // |> List.sortBy (fun (_,_,slice,_)->slice.MSB)
-        |> joinWithMerge
-        |> extractCircuit
+            joinCircuits [msbCircuit] [spreaderComp.InputPorts[0]] spreaderCircuit
+
+    let inOrder =
+        match operator with
+        |"<<" -> [constantCircuit;selectedCircuit]
+        |_ -> [selectedCircuit;constantCircuit]
+
+    inOrder
+    |> List.mapi(fun index circ ->
+        (circ,"",{MSB=(index);LSB=0;},OutputPort)
+    )
+    |> joinWithMerge
+    |> extractCircuit
+
 
 and buildReductionAndLogicalCircuit (expr:ExpressionT) ioAndWireToCompMap =
     let (c1:Circuit) = buildUnaryCircuit (Option.get expr.Unary) ioAndWireToCompMap

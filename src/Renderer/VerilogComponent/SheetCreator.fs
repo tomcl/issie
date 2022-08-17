@@ -147,8 +147,6 @@ let sliceFromBits (lhs:AssignmentLHST) (ioAndWireToCompMap: Map<string,Component
         {MSB = (width-1); LSB=0}
 
 
-
-
 let attachToOutput (ioAndWireToCompMap: Map<string,Component>) (circuit:Circuit,portName:string,slice:Slice,lhsType:LHSType) : CanvasState =
     let outputOrWire = Map.find portName ioAndWireToCompMap
     let conn = createConnection circuit.Out outputOrWire.InputPorts[0]
@@ -260,6 +258,24 @@ let buildBitSprederComponent width =
     let inputPorts = [createPort bitSpreaderId PortType.Input (Some 0)]
     let outputPorts = [createPort bitSpreaderId PortType.Output (Some 0)]
     createComponent bitSpreaderId (NbitSpreader width) "SPREAD" inputPorts outputPorts
+
+let buildBusCompareComponent busWidth compareValue = 
+    let id = DrawHelpers.uuid();
+    let inputPorts = [createPort id PortType.Input (Some 0)]
+    let outputPorts = [createPort id PortType.Output (Some 0)]
+    createComponent id (BusCompare (busWidth,compareValue)) "COMP" inputPorts outputPorts
+
+let buildNotGate () = 
+    let id = DrawHelpers.uuid();
+    let inputPorts = [createPort id PortType.Input (Some 0)]
+    let outputPorts = [createPort id PortType.Output (Some 0)]
+    createComponent id Not "G" inputPorts outputPorts
+
+let buildViewer name width =
+    let id = DrawHelpers.uuid()
+    let inputPorts = [createPort id PortType.Input (Some 0)]
+    let outputPorts = []
+    createComponent id (Viewer width) name inputPorts outputPorts
 
 let buildExpressionComponent (rhs:ExpressionT) width =
     let compId = DrawHelpers.uuid()
@@ -375,74 +391,30 @@ let rec buildExpressionCircuit (expr:ExpressionT) ioAndWireToCompMap =
         let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
         joinCircuits [c2;c1;c3] [topComp.InputPorts[0];topComp.InputPorts[1];topComp.InputPorts[2]] topCircuit
     | "SHIFT" ->
-        let operator = (Option.get expr.Operator)
-        let tail = Option.get expr.Tail
-        let unary = Option.get tail.Unary
-        let number = Option.get unary.Number
-        let shift = number.UnsignedNumber
-        let shiftNo = int <| Option.get (shift)
-        let (c1:Circuit) = buildExpressionCircuit (Option.get expr.Head) ioAndWireToCompMap
-        
-        match operator with
-        |">>" ->
-            let busSelComp = buildBusSelComponent (c1.OutWidth-shiftNo) shiftNo
-            let busSelCircuit = {Comps=[busSelComp];Conns=[];Out=busSelComp.OutputPorts[0];OutWidth=(c1.OutWidth-shiftNo)}
-            let SelectedCircuit = joinCircuits [c1] [busSelComp.InputPorts[0]] busSelCircuit
-            let (tempNumber:NumberT) = {Type="";NumberType="";Bits=shift;Base=(Some "'b");AllNumber=(Some "0");UnsignedNumber=None;Location=100} //location is Don't Care
-            let constantCircuit = createNumberCircuit tempNumber
+        buildShiftCircuit expr ioAndWireToCompMap
+    | "reduction" ->
+        buildReductionCircuit expr ioAndWireToCompMap
+    // | "logical_AND" | "logical_OR" ->
+        // buildLogicalCircuit expr ioAndWireToCompMap
 
-            [SelectedCircuit;constantCircuit]
-            |> List.mapi(fun index circ ->
-                (circ,"",{MSB=(index);LSB=0;},OutputPort)
-            )
-            // |> List.sortBy (fun (_,_,slice,_)->slice.MSB)
-            |> joinWithMerge
-            |> extractCircuit
-        |"<<" ->
-            let busSelComp = buildBusSelComponent (c1.OutWidth-shiftNo) 0
-            let busSelCircuit = {Comps=[busSelComp];Conns=[];Out=busSelComp.OutputPorts[0];OutWidth=(c1.OutWidth-shiftNo)}
-            let SelectedCircuit = joinCircuits [c1] [busSelComp.InputPorts[0]] busSelCircuit
-            let (tempNumber:NumberT) = {Type="";NumberType="";Bits=shift;Base=(Some "'b");AllNumber=(Some "0");UnsignedNumber=None;Location=100} //location is Don't Care
-            let constantCircuit = createNumberCircuit tempNumber
-
-            [constantCircuit;SelectedCircuit]
-            |> List.mapi(fun index circ ->
-                (circ,"",{MSB=(index);LSB=0;},OutputPort)
-            )
-            // |> List.sortBy (fun (_,_,slice,_)->slice.MSB)
-            |> joinWithMerge
-            |> extractCircuit
-        
-        | _ -> 
-            let busSelComp = buildBusSelComponent (c1.OutWidth-shiftNo) shiftNo
-            let busSelCircuit = {Comps=[busSelComp];Conns=[];Out=busSelComp.OutputPorts[0];OutWidth=(c1.OutWidth-shiftNo)}
-            let SelectedCircuit = joinCircuits [c1] [busSelComp.InputPorts[0]] busSelCircuit
-            
-            let msbSelComp = buildBusSelComponent (1) (c1.OutWidth-1)
-            let msbSelCircuit = {Comps=[msbSelComp];Conns=[];Out=msbSelComp.OutputPorts[0];OutWidth=1}
-            let msbCircuit = joinCircuits [c1] [msbSelComp.InputPorts[0]] msbSelCircuit
-            
-            let spreaderComp = buildBitSprederComponent shiftNo
-            let spreaderCircuit = {Comps=[spreaderComp];Conns=[];Out=spreaderComp.OutputPorts[0];OutWidth=(shiftNo)}
-
-            let constantCircuit = joinCircuits [msbCircuit] [spreaderComp.InputPorts[0]] spreaderCircuit
-
-            [SelectedCircuit;constantCircuit]
-            |> List.mapi(fun index circ ->
-                (circ,"",{MSB=(index);LSB=0;},OutputPort)
-            )
-            // |> List.sortBy (fun (_,_,slice,_)->slice.MSB)
-            |> joinWithMerge
-            |> extractCircuit
-    | _ ->        
+    | _ ->  //everything else: bitwise gates      
         let (c1:Circuit) = buildExpressionCircuit (Option.get expr.Head) ioAndWireToCompMap 
         let (c2:Circuit) = buildExpressionCircuit (Option.get expr.Tail) ioAndWireToCompMap 
         let topComp = buildExpressionComponent expr c1.OutWidth
-        let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
-        joinCircuits [c1;c2] [topComp.InputPorts[0];topComp.InputPorts[1]] topCircuit
+        match expr.Type with
+        |"additive" ->
+            let (tempNumber:NumberT) = {Type="";NumberType="";Bits=(Some "1");Base=(Some "'b");AllNumber=(Some "0");UnsignedNumber=None;Location=100} //location is Don't Care
+            let cinCircuit = createNumberCircuit tempNumber
+
+            let ioLabelComp = buildViewer "AdderCout" 1
+            let conn = createConnection topComp.OutputPorts[1] ioLabelComp.InputPorts[0] 
+            let topCircuit = {Comps=[topComp;ioLabelComp];Conns=[conn];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
+            joinCircuits [cinCircuit;c1;c2] [topComp.InputPorts[0];topComp.InputPorts[1];topComp.InputPorts[2]] topCircuit
+        |_->                
+            let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
+            joinCircuits [c1;c2] [topComp.InputPorts[0];topComp.InputPorts[1]] topCircuit
 
 and buildUnaryCircuit (unary:UnaryT) ioAndWireToCompMap =
-    let tempPort = createPort "hostId" PortType.Input (Some 0)
     match unary.Type with
     |"primary" ->
         createPrimaryCircuit (Option.get unary.Primary) ioAndWireToCompMap
@@ -478,7 +450,92 @@ and buildConditionalCircuit (tail:ExpressionT) ioAndWireToCompMap =
     let c2 = buildExpressionCircuit (Option.get tail.Tail) ioAndWireToCompMap
     (c1,c2)
 
+and buildShiftCircuit (expr:ExpressionT) ioAndWireToCompMap = 
+    let operator = (Option.get expr.Operator)
+    let tail = Option.get expr.Tail
+    let unary = Option.get tail.Unary
+    let number = Option.get unary.Number
+    let shift = number.UnsignedNumber
+    let shiftNo = int <| Option.get (shift)
+    let (c1:Circuit) = buildExpressionCircuit (Option.get expr.Head) ioAndWireToCompMap
+    
+    match operator with
+    |">>" ->
+        let busSelComp = buildBusSelComponent (c1.OutWidth-shiftNo) shiftNo
+        let busSelCircuit = {Comps=[busSelComp];Conns=[];Out=busSelComp.OutputPorts[0];OutWidth=(c1.OutWidth-shiftNo)}
+        let SelectedCircuit = joinCircuits [c1] [busSelComp.InputPorts[0]] busSelCircuit
+        let (tempNumber:NumberT) = {Type="";NumberType="";Bits=shift;Base=(Some "'b");AllNumber=(Some "0");UnsignedNumber=None;Location=100} //location is Don't Care
+        let constantCircuit = createNumberCircuit tempNumber
 
+        [SelectedCircuit;constantCircuit]
+        |> List.mapi(fun index circ ->
+            (circ,"",{MSB=(index);LSB=0;},OutputPort)
+        )
+        // |> List.sortBy (fun (_,_,slice,_)->slice.MSB)
+        |> joinWithMerge
+        |> extractCircuit
+    |"<<" ->
+        let busSelComp = buildBusSelComponent (c1.OutWidth-shiftNo) 0
+        let busSelCircuit = {Comps=[busSelComp];Conns=[];Out=busSelComp.OutputPorts[0];OutWidth=(c1.OutWidth-shiftNo)}
+        let SelectedCircuit = joinCircuits [c1] [busSelComp.InputPorts[0]] busSelCircuit
+        let (tempNumber:NumberT) = {Type="";NumberType="";Bits=shift;Base=(Some "'b");AllNumber=(Some "0");UnsignedNumber=None;Location=100} //location is Don't Care
+        let constantCircuit = createNumberCircuit tempNumber
+
+        [constantCircuit;SelectedCircuit]
+        |> List.mapi(fun index circ ->
+            (circ,"",{MSB=(index);LSB=0;},OutputPort)
+        )
+        // |> List.sortBy (fun (_,_,slice,_)->slice.MSB)
+        |> joinWithMerge
+        |> extractCircuit
+    
+    | _ -> 
+        let busSelComp = buildBusSelComponent (c1.OutWidth-shiftNo) shiftNo
+        let busSelCircuit = {Comps=[busSelComp];Conns=[];Out=busSelComp.OutputPorts[0];OutWidth=(c1.OutWidth-shiftNo)}
+        let SelectedCircuit = joinCircuits [c1] [busSelComp.InputPorts[0]] busSelCircuit
+        
+        let msbSelComp = buildBusSelComponent (1) (c1.OutWidth-1)
+        let msbSelCircuit = {Comps=[msbSelComp];Conns=[];Out=msbSelComp.OutputPorts[0];OutWidth=1}
+        let msbCircuit = joinCircuits [c1] [msbSelComp.InputPorts[0]] msbSelCircuit
+        
+        let spreaderComp = buildBitSprederComponent shiftNo
+        let spreaderCircuit = {Comps=[spreaderComp];Conns=[];Out=spreaderComp.OutputPorts[0];OutWidth=(shiftNo)}
+
+        let constantCircuit = joinCircuits [msbCircuit] [spreaderComp.InputPorts[0]] spreaderCircuit
+
+        [SelectedCircuit;constantCircuit]
+        |> List.mapi(fun index circ ->
+            (circ,"",{MSB=(index);LSB=0;},OutputPort)
+        )
+        // |> List.sortBy (fun (_,_,slice,_)->slice.MSB)
+        |> joinWithMerge
+        |> extractCircuit
+
+and buildReductionCircuit (expr:ExpressionT) ioAndWireToCompMap =
+    let (c1:Circuit) = buildUnaryCircuit (Option.get expr.Unary) ioAndWireToCompMap
+    
+    let busCompareComp = 
+        match expr.Operator with
+            |Some "&" |Some "~&" ->       
+                buildBusCompareComponent c1.OutWidth (((2. ** c1.OutWidth)-1.) |> uint32)
+            |_ -> //Some "|" or Some "!" or Some "~|"
+                buildBusCompareComponent c1.OutWidth 0u
+
+    let busCompareCircuit = {Comps=[busCompareComp];Conns=[];Out=busCompareComp.OutputPorts[0];OutWidth=1}
+
+    match expr.Operator with
+    |Some "&" | Some "~|" | Some "!" ->
+        joinCircuits [c1] [busCompareComp.InputPorts[0]] busCompareCircuit
+    |Some "~&" |Some "|" ->
+        let comparedCircuit = joinCircuits [c1] [busCompareComp.InputPorts[0]] busCompareCircuit
+
+        let notGateComp = buildNotGate ()
+        let notGateCircuit = {Comps=[notGateComp];Conns=[];Out=notGateComp.OutputPorts[0];OutWidth=1}
+        joinCircuits [comparedCircuit] [notGateComp.InputPorts[0]] notGateCircuit
+    | _ -> failwithf "Can't call reduction with different operator"
+
+// and buildLogicalCircuit (expr:ExpressionT) ioAndWireToCompMap =
+//     let (c1:Circuit) buildExpressionCircuit expr 
 ///////////////////
 
 

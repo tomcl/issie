@@ -44,11 +44,11 @@ let getWidthFromRange (range:RangeT option) =
         let start = r.Start |> int
         start+1
 
-let createComponent id compType name inputPorts outputPorts =
+let createComponent id compType (name:string) inputPorts outputPorts =
     {
         Id = id
         Type = compType
-        Label = name
+        Label = name.ToUpper()
         InputPorts = inputPorts 
         OutputPorts = outputPorts
         X = 0.
@@ -277,6 +277,12 @@ let buildViewer name width =
     let outputPorts = []
     createComponent id (Viewer width) name inputPorts outputPorts
 
+let buildNbitsNot width =
+    let id = DrawHelpers.uuid()
+    let inputPorts = [createPort id PortType.Input (Some 0)]
+    let outputPorts = [createPort id PortType.Output (Some 0)]
+    createComponent id (NbitsNot width) "NOT" inputPorts outputPorts
+
 let buildExpressionComponent (rhs:ExpressionT) width =
     let compId = DrawHelpers.uuid()
     let inputPorts = 
@@ -312,9 +318,9 @@ let buildExpressionComponent (rhs:ExpressionT) width =
         | "bitwise_AND" -> (NbitsAnd width)
         | "additive" -> (NbitsAdder width)
         | "conditional_cond" -> (Mux2)
-        // | "logical_AND" -> 
-        // | "logical_OR" ->
-        |_ -> (NbitsAdder width) //TODO
+        | "logical_AND" -> (And) 
+        | "logical_OR" -> (Or)
+        |_ -> failwithf "Missing component(?) in buildExpressionComponent" 
     
     let baseName =  //TODO: GET from getPrefix
         match rhs.Type with
@@ -324,7 +330,9 @@ let buildExpressionComponent (rhs:ExpressionT) width =
         | "bitwise_AND" -> "AND"
         | "negation" -> "NOT"
         | "conditional_cond" -> "MUX"
-        |_ -> "TODO"
+        | "logical_AND" -> "G"
+        | "logical_OR" -> "G"
+        |_ -> failwithf "Missing component(?) in buildExpressionComponent" 
 
         
     let comp = createComponent compId compType baseName inputPorts outputPorts
@@ -393,9 +401,13 @@ let rec buildExpressionCircuit (expr:ExpressionT) ioAndWireToCompMap =
     | "SHIFT" ->
         buildShiftCircuit expr ioAndWireToCompMap
     | "reduction" ->
-        buildReductionCircuit expr ioAndWireToCompMap
-    // | "logical_AND" | "logical_OR" ->
-        // buildLogicalCircuit expr ioAndWireToCompMap
+        buildReductionAndLogicalCircuit expr ioAndWireToCompMap
+    | "logical_AND" | "logical_OR" ->
+        let (c1:Circuit) = buildReductionAndLogicalCircuit (Option.get expr.Head) ioAndWireToCompMap 
+        let (c2:Circuit) = buildReductionAndLogicalCircuit (Option.get expr.Tail) ioAndWireToCompMap 
+        let topComp = buildExpressionComponent expr c1.OutWidth
+        let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
+        joinCircuits [c1;c2] [topComp.InputPorts[0];topComp.InputPorts[1]] topCircuit
 
     | _ ->  //everything else: bitwise gates      
         let (c1:Circuit) = buildExpressionCircuit (Option.get expr.Head) ioAndWireToCompMap 
@@ -403,13 +415,27 @@ let rec buildExpressionCircuit (expr:ExpressionT) ioAndWireToCompMap =
         let topComp = buildExpressionComponent expr c1.OutWidth
         match expr.Type with
         |"additive" ->
-            let (tempNumber:NumberT) = {Type="";NumberType="";Bits=(Some "1");Base=(Some "'b");AllNumber=(Some "0");UnsignedNumber=None;Location=100} //location is Don't Care
-            let cinCircuit = createNumberCircuit tempNumber
+            let inputB,cin =
+                match expr.Operator with
+                |Some "+" ->
+                    let (tempNumber:NumberT) = {Type="";NumberType="";Bits=(Some "1");Base=(Some "'b");AllNumber=(Some "0");UnsignedNumber=None;Location=100} //location is Don't Care
+                    c2,(createNumberCircuit tempNumber)
+
+                |Some "-" ->
+                    let (tempNumber:NumberT) = {Type="";NumberType="";Bits=(Some "1");Base=(Some "'b");AllNumber=(Some "1");UnsignedNumber=None;Location=100} //location is Don't Care
+                    let cinCircuit = createNumberCircuit tempNumber
+
+                    let nBitsNotComp = buildNbitsNot c2.OutWidth
+                    let nBitsNotCircuit = {Comps=[nBitsNotComp];Conns=[];Out=nBitsNotComp.OutputPorts[0];OutWidth=c2.OutWidth}
+                    let invertedCircuit = joinCircuits [c2] [nBitsNotComp.InputPorts[0]] nBitsNotCircuit
+                    (invertedCircuit,cinCircuit)
+                |_ -> failwithf "Can't happen"
 
             let ioLabelComp = buildViewer "AdderCout" 1
             let conn = createConnection topComp.OutputPorts[1] ioLabelComp.InputPorts[0] 
             let topCircuit = {Comps=[topComp;ioLabelComp];Conns=[conn];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
-            joinCircuits [cinCircuit;c1;c2] [topComp.InputPorts[0];topComp.InputPorts[1];topComp.InputPorts[2]] topCircuit
+            joinCircuits [cin;c1;inputB] [topComp.InputPorts[0];topComp.InputPorts[1];topComp.InputPorts[2]] topCircuit
+
         |_->                
             let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
             joinCircuits [c1;c2] [topComp.InputPorts[0];topComp.InputPorts[1]] topCircuit
@@ -511,7 +537,7 @@ and buildShiftCircuit (expr:ExpressionT) ioAndWireToCompMap =
         |> joinWithMerge
         |> extractCircuit
 
-and buildReductionCircuit (expr:ExpressionT) ioAndWireToCompMap =
+and buildReductionAndLogicalCircuit (expr:ExpressionT) ioAndWireToCompMap =
     let (c1:Circuit) = buildUnaryCircuit (Option.get expr.Unary) ioAndWireToCompMap
     
     let busCompareComp = 
@@ -526,22 +552,16 @@ and buildReductionCircuit (expr:ExpressionT) ioAndWireToCompMap =
     match expr.Operator with
     |Some "&" | Some "~|" | Some "!" ->
         joinCircuits [c1] [busCompareComp.InputPorts[0]] busCompareCircuit
-    |Some "~&" |Some "|" ->
+    |_ ->
         let comparedCircuit = joinCircuits [c1] [busCompareComp.InputPorts[0]] busCompareCircuit
 
         let notGateComp = buildNotGate ()
         let notGateCircuit = {Comps=[notGateComp];Conns=[];Out=notGateComp.OutputPorts[0];OutWidth=1}
         joinCircuits [comparedCircuit] [notGateComp.InputPorts[0]] notGateCircuit
-    | _ -> failwithf "Can't call reduction with different operator"
-
-// and buildLogicalCircuit (expr:ExpressionT) ioAndWireToCompMap =
-//     let (c1:Circuit) buildExpressionCircuit expr 
-///////////////////
 
 
 
-
-///////////////
+/////////   MAIN FUNCTION   //////////
 
 
 

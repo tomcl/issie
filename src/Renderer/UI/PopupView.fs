@@ -101,6 +101,11 @@ type CodeEditorReactStatefulComponent (props) =
             props.Compile {props.DialogData with VerilogCode=props.ReplaceCode}
         |false -> ()
 
+    override this.componentDidMount () =
+        match props.ReplaceCode <> None with
+        |true -> this.setState(fun s _-> {s with code = Option.get props.ReplaceCode} )
+        |false -> ()
+
     override this.render () =
             codeEditor [
                     CodeEditorProps.Placeholder ("Start Writing your Verilog Code here..."); 

@@ -53,6 +53,8 @@ let private makeCustom styles model dispatch (loadedComponent: LoadedComponent) 
             Name = loadedComponent.Name
             InputLabels = FilesIO.getOrderedCompLabels (Input1 (0, None)) canvas
             OutputLabels = FilesIO.getOrderedCompLabels (Output 0) canvas
+            Form = loadedComponent.Form
+            Description = loadedComponent.Description
         }
         
         Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, custom, "")) |> dispatch
@@ -65,8 +67,32 @@ let private makeCustomList styles model dispatch =
         // Do no show the open component in the catalogue.
         project.LoadedComponents
         |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        |> List.filter (fun comp -> comp.Form = Some User)
         |> List.map (makeCustom styles model dispatch)
 
+let private makeVerilog styles model dispatch (loadedComponent: LoadedComponent)  =
+    let canvas = loadedComponent.CanvasState
+    menuItem styles loadedComponent.Name (fun _ ->
+        let verilog = Custom {
+            Name = loadedComponent.Name
+            InputLabels = FilesIO.getOrderedCompLabels (Input1 (0, None)) canvas
+            OutputLabels = FilesIO.getOrderedCompLabels (Output 0) canvas
+            Form = loadedComponent.Form
+            Description = loadedComponent.Description
+        }
+        
+        Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, verilog, "")) |> dispatch
+    )
+
+let private makeVerilogList styles model dispatch =
+    match model.CurrentProj with
+    | None -> []
+    | Some project ->
+        // Do no show the open component in the catalogue.
+        project.LoadedComponents
+        |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        |> List.filter (fun comp -> match comp.Form with Some (Verilog _)-> true |_ -> false)
+        |> List.map (makeVerilog styles model dispatch)
 
 
 
@@ -430,11 +456,7 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
 
 
 
-let createVerilogComp model =
-    printfn "Not implemented yet!"
-
-
-let rec private createVerilogPopup model showExtraErrors correctedCode moduleName dispatch =
+let rec createVerilogPopup model showExtraErrors correctedCode moduleName dispatch =
     let title = sprintf "Create Combinational Logic Components using Verilog" 
     let beforeText =
         fun _ -> str <| sprintf "Verilog Component Name"
@@ -462,13 +484,59 @@ let rec private createVerilogPopup model showExtraErrors correctedCode moduleNam
                 let result = Option.get output.Result
                 let fixedAST = fix result
                 let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
-                printfn "fixed: %s" fixedAST
-                let code2 = SheetCreator.createSheet parsedAST
-                
+                // printfn "fixed: %s" fixedAST
+                let cs = SheetCreator.createSheet parsedAST
+                let code2 = Helpers.JsonHelpers.stateToJsonString (cs, None, Some {Form = Some (Verilog name);Description=None})
+
                 match writeFile path2 code2 with
-                | Ok _ -> ()
+                | Ok _ -> 
+                    let newComponent = 
+                        match tryLoadComponentFromPath path2 with
+                        |Ok comp -> comp
+                        |Error _ -> failwithf "failed to load the created Verilog file"
+                    let updatedProject =
+                        {project with LoadedComponents = newComponent :: project.LoadedComponents}
+                    openFileInProject project.OpenFileName updatedProject model dispatch
                 | Error _ -> failwithf "Writing .dgm file FAILED"
             dispatch ClosePopup
+
+    let updateButton = 
+        fun (dialogData : PopupDialogData) ->
+            match model.CurrentProj with
+            | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
+            | Some project ->
+                let name = (Option.get moduleName)
+                let folderPath = project.ProjectPath
+                let path = pathJoin [| folderPath; name + ".v" |]
+                let code = getCode dialogData
+                match writeFile path code with
+                | Ok _ -> ()
+                | Error _ -> failwithf "Writing verilog file FAILED"
+                let path2 = pathJoin [| folderPath; name + ".dgm" |]
+                
+                let parsedCodeNearley = parseFromFile(code)
+                let output = Json.parseAs<ParserOutput> parsedCodeNearley
+                let result = Option.get output.Result
+                let fixedAST = fix result
+                let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
+                let newCS = SheetCreator.createSheet parsedAST
+
+                dispatch (StartUICmd SaveSheet)
+                updateVerilogFileActionWithModelUpdate newCS name model dispatch |> ignore
+                dispatch <| Sheet(SheetT.DoNothing)
+
+
+                // match writeFile path2 code2 with
+                // | Ok _ -> 
+                //     let newComponent = 
+                //         match tryLoadComponentFromPath path2 with
+                //         |Ok comp -> comp
+                //         |Error _ -> failwithf "failed to load the created Verilog file"
+                //     let updatedProject =
+                //         {project with LoadedComponents = newComponent :: project.LoadedComponents}
+                //     openFileInProject project.OpenFileName updatedProject model dispatch
+                // | Error _ -> failwithf "Writing .dgm file FAILED"
+                // dispatch ClosePopup
 
     let compile =
         fun (dialogData : PopupDialogData) ->
@@ -484,7 +552,7 @@ let rec private createVerilogPopup model showExtraErrors correctedCode moduleNam
                     |false ->
                         let result = Option.get output.Result
                         let fixedAST = fix result
-                        printfn "fixed: %s" fixedAST
+                        // printfn "fixed: %s" fixedAST
                         let linesIndex = Option.get output.NewLinesIndex |> Array.toList
                         let parsedAST = fixedAST |> Json.parseAs<VerilogInput>                        
                         let moduleName = parsedAST.Module.ModuleName.Name
@@ -687,9 +755,11 @@ let viewCatalogue model dispatch =
 
                     makeMenuGroup
                         "Verilog"
-                        [ catTip1 "New Verilog Component" (fun _ -> createVerilogPopup model false None None dispatch) "Write combinational logic in Verilog. \
-                                                    Use it as a Custom Component"
-                          catTip1 "decoder.v" (fun _ -> createVerilogComp  model) ""]
+                        (List.append 
+                            [(catTip1 "New Verilog Component" (fun _ -> createVerilogPopup model false None None dispatch) "Write combinational logic in Verilog. \
+                                                    Use it as a Custom Component")]
+                            (makeVerilogList styles model dispatch))
+                          
                 ]
 
         (viewCatOfModel) model 

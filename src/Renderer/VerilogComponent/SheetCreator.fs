@@ -67,10 +67,12 @@ let createPort hostId portType portNumber =
     }
 
 let createConnection (source:Port) (target:Port) = 
+    let source' = {source with PortNumber=None}
+    let target' = {target with PortNumber=None}
     {
         Id = DrawHelpers.uuid()
-        Source = source
-        Target = target
+        Source = source'
+        Target = target'
         Vertices = []
     }
 
@@ -550,6 +552,7 @@ and buildReductionAndLogicalCircuit (expr:ExpressionT) ioAndWireToCompMap =
 
 
 let createSheet input = 
+    let fileName = input.Module.ModuleName.Name
     let items = input.Module.ModuleItems.ItemList |> Array.toList
     let ioDecls = items |> List.filter (fun item -> Option.isSome item.IODecl)
     let assignments = items |> List.filter (fun item -> Option.isSome item.Statement) 
@@ -562,8 +565,6 @@ let createSheet input =
         ||> List.fold(fun map wire ->
             getWireToCompMap wire map
         )
-
-    // let ioAndWireComps = ioAndWireToCompMap |> Map.toList |> List.map snd
 
     let perItemCircuits = 
         assignments
@@ -593,4 +594,4 @@ let createSheet input =
         |> concatenateCanvasStates (collectInputAndWireComps ioAndWireToCompMap,[])
         |> fixCanvasState
 
-    Helpers.JsonHelpers.stateToJsonString (finalCanvasState, None)
+    finalCanvasState

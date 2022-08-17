@@ -55,7 +55,7 @@ let quantifyChanges (ldc1:LoadedComponent) (ldc2:LoadedComponent) =
 ////------------------------------------------Backup facility-------------------------------------------//
 
 let writeComponentToFile comp =
-    let data =  stateToJsonString (comp.CanvasState,comp.WaveInfo)
+    let data =  stateToJsonString (comp.CanvasState,comp.WaveInfo,Some {Form=comp.Form;Description=comp.Description})
     writeFile comp.FilePath data
 
 /// return an option containing sequence data and file name and directory of the latest
@@ -252,12 +252,13 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
         // "DEBUG: Saving Sheet"
         // printfn "DEBUG: %A" project.ProjectPath
         // printfn "DEBUG: %A" project.OpenFileName
-
-        let savedState = canvasState, getSavedWave model
+        let sheetInfo = {Form=Some User;Description=None} //only user defined sheets are editable and thus saveable
+        let savedState = canvasState, getSavedWave model,(Some sheetInfo)
         if isAuto then
             failwithf "Auto saving is no longer used"
             None
         else 
+            printfn "here"
             saveStateToFile project.ProjectPath project.OpenFileName savedState
             |> displayAlertOnError dispatch
             removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName
@@ -267,7 +268,8 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
             let savedWaveSim =
                 Map.tryFind project.OpenFileName model.WaveSim
                 |> Option.map getSavedWaveInfo
-            let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim 
+            let (SheetInfo:SheetInfo option) = match origLdComp.Form with |None -> None |Some form -> Some {Form=Some form;Description=origLdComp.Description}
+            let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim SheetInfo
             let newState =
                 canvasState
                 |> (fun (comps, conns) -> 
@@ -302,6 +304,69 @@ let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
     dispatch FinishUICmd
     opt
 
+//////////////////
+
+let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=
+    match model.CurrentProj with
+    | None -> failwithf "No project"
+    | Some project ->
+        // "DEBUG: Saving Sheet"
+        // printfn "DEBUG: %A" project.ProjectPath
+        // printfn "DEBUG: %A" project.OpenFileName
+        let sheetInfo = {Form=Some (Verilog name);Description=None} //only user defined sheets are editable and thus saveable
+        let savedState = newCS, getSavedWave model,(Some sheetInfo)
+        saveStateToFile project.ProjectPath name savedState
+        |> displayAlertOnError dispatch
+        removeFileWithExtn ".dgmauto" project.ProjectPath name
+        let origLdComp =
+            project.LoadedComponents
+            |> List.find (fun lc -> lc.Name = name)
+        let savedWaveSim =
+            Map.tryFind name model.WaveSim
+            |> Option.map getSavedWaveInfo
+        let (SheetInfo:SheetInfo option) = match origLdComp.Form with |None -> None |Some form -> Some {Form=Some form;Description=origLdComp.Description}
+        let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData newCS origLdComp.FilePath DateTime.Now savedWaveSim SheetInfo
+        let newState =
+            newCS
+            |> (fun (comps, conns) -> 
+                    comps
+                    |> List.map (fun comp -> 
+                        match List.tryFind (fun (c:Component) -> c.Id=comp.Id) ramCheck with
+                        | Some newRam -> 
+                            // TODO: create consistent helpers for messages
+                            dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.WriteMemoryType (ComponentId comp.Id, newRam.Type))))
+                            newRam
+                        | _ -> comp), conns)
+        writeComponentToBackupFile 4 1. newLdc dispatch
+        Some (newLdc,newState)
+        
+/// save current open file, updating model etc, and returning the loaded component and the saved (unreduced) canvas state
+let updateVerilogFileActionWithModelUpdate (newCS:CanvasState) name (model: Model) (dispatch: Msg -> Unit) =
+    let opt = updateVerilogFileAction newCS name model dispatch
+    let ldcOpt = Option.map fst opt
+    let state = Option.map snd opt |> Option.defaultValue ([],[])
+    match model.CurrentProj with
+    | None -> failwithf "What? Should never be able to save sheet when project=None"
+    | Some p -> 
+        // update loaded components for saved file
+        updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
+        |> (fun lc -> {p with LoadedComponents=lc; OpenFileName=name})
+        |> SetProject
+        |> dispatch
+
+    SetHasUnsavedChanges false
+    |> JSDiagramMsg
+    |> dispatch
+    dispatch FinishUICmd
+    opt
+
+
+//////////////////
+
+
+
+
+
 let private getFileInProject name project = project.LoadedComponents |> List.tryFind (fun comp -> comp.Name = name)
 
 let private isFileInProject name project =
@@ -322,6 +387,8 @@ let private createEmptyDiagramFile projectPath name =
         CanvasState = [],[]
         InputLabels = []
         OutputLabels = []
+        Form = Some User
+        Description = None
     }
 
 
@@ -335,6 +402,8 @@ let createEmptyComponentAndFile (pPath:string)  (sheetName: string): LoadedCompo
         CanvasState=([],[])
         InputLabels = []
         OutputLabels = []
+        Form = Some User
+        Description = None
     }
     
 
@@ -580,6 +649,8 @@ let addFileToProject model dispatch =
                         CanvasState = [],[]
                         InputLabels = []
                         OutputLabels = []
+                        Form = Some User
+                        Description = None
                     }
                     let updatedProject =
                         { project with
@@ -660,7 +731,8 @@ let rec resolveComponentOpenPopup
         (model: Model)
         (dispatch: Msg -> Unit) =
     let chooseWhichToOpen comps =
-        (List.maxBy (fun comp -> comp.TimeStamp) comps).Name
+        let onlyUserCreated = List.filter (fun comp -> match comp.Form with |Some User |None -> true |_ ->false) comps
+        (List.maxBy (fun comp -> comp.TimeStamp) onlyUserCreated).Name
     dispatch ClosePopup
     match resolves with
     | [] -> setupProjectFromComponents (chooseWhichToOpen components) components model dispatch
@@ -725,7 +797,7 @@ let openProjectFromPath (path:string) model dispatch =
         | Error err ->
             log err
             displayFileErrorNotification err dispatch
-        | Ok componentsToResolve ->
+        | Ok (componentsToResolve: LoadStatus list) ->
             traceIf "project" (fun () -> "resolving popups...")
             
             resolveComponentOpenPopup path [] componentsToResolve model dispatch
@@ -917,6 +989,7 @@ let viewTopMenu model dispatch =
 
             let projectFiles = 
                 project.LoadedComponents 
+                |> List.filter (fun comp -> comp.Form = Some User)
                 |> List.map (fun comp -> 
                     let tree = sTrees[comp.Name]
                     makeFileLine (isSubSheet tree.Node) comp.Name project model , tree)

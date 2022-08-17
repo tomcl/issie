@@ -18,6 +18,8 @@ open PopupView
 open Notifications
 open Sheet.SheetInterface
 open DrawModelType
+open FilesIO
+open CatalogueView
 
 let private readOnlyFormField name body =
     Field.div [] [
@@ -144,6 +146,29 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
         ] [str "Write content to file"]
 
     ]
+
+let makeVerilogEditButton model (custom:CustomComponentType) dispatch : ReactElement = 
+    
+    let openCodeEditor code name = 
+        createVerilogPopup model false (Some code) (Some name)  
+    
+    match model.CurrentProj with
+    | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
+    | Some project ->
+        match custom.Form with
+        |Some (Verilog name) ->
+            let folderPath = project.ProjectPath
+            let path = pathJoin [| folderPath; name + ".v" |]
+            let code = 
+                match tryReadFileSync path with
+                |Ok text -> text
+                |Error _ -> "Error in loading file"
+            Button.button [
+                Button.Color IsPrimary
+                Button.OnClick (fun _ -> openCodeEditor code name dispatch)
+            ] [str "View/Edit Verilog code"]
+        |_ -> null
+
 
 let private makeNumberOfBitsField model (comp:Component) text dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
@@ -347,20 +372,37 @@ let private makeDescription (comp:Component) model dispatch =
 
         let toHTMLList =
             List.map (fun (label, width) -> li [] [str <| sprintf "%s: %d bit(s)" label width])
+        
+        let symbolExplanation =
+            match custom.Form with
+            |Some (Verilog _) -> ": Verilog Component."
+            |_ -> ": user defined (custom) component."
+            //TODO: remaining
+
+        let portOrderExplanation =
+            match custom.Form with
+            |Some (Verilog _) -> $"Input or Output ports are displayed on the '{custom.Name}' symbol sorted by the \
+                    port definition order in the original Verilog file."
+            |_ -> $"Input or Output ports are displayed on the '{custom.Name}' symbol sorted by the \
+                    vertical position on the design sheet of the Input or Output components at the time the symbol is added."
+            //TODO: remaining
+
         div [] [
             boldSpan $"{custom.Name}"
-            span [] [str <| ": user defined (custom) component."]
+            span [] [str <| symbolExplanation]
+            br []
+            br []
+            makeVerilogEditButton model custom dispatch
             br []
             br []
             p [  Style [ FontStyle "italic"; FontSize "12px"; LineHeight "1.1"]] [
-                str <| $"Input or Output ports are displayed on the '{custom.Name}' symbol sorted by the \
-                    vertical position on the design sheet of the Input or Output components at the time the symbol is added."]
+                str <| portOrderExplanation]
             
             span [Style [FontWeight "bold"; FontSize "15px"]] [str <| "Inputs"]
             ul [] (toHTMLList custom.InputLabels)
             br []
             span [Style [FontWeight "bold"; FontSize "15px"]] [str <| "Outputs"]
-            ul [] (toHTMLList custom.OutputLabels)
+            ul [] (toHTMLList custom.OutputLabels)            
         ]
     | DFF -> div [] [ str "D-flip-flop. The component is implicitly connected to the global clock." ]
     | DFFE -> div [] [

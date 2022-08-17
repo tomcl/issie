@@ -43,7 +43,8 @@ let syncLoadedComponentsToDisk newProj oldProj =
     let saveToDisk ldc =
         let state = ldc.CanvasState
         let waveInfo = ldc.WaveInfo
-        saveStateToFile newProj.ProjectPath ldc.Name (state,waveInfo)
+        let sheetInfo = {Form=ldc.Form;Description=ldc.Description}
+        saveStateToFile newProj.ProjectPath ldc.Name (state,waveInfo,Some sheetInfo)
         |> ignore
         removeFileWithExtn ".dgmauto" oldProj.ProjectPath ldc.Name
 

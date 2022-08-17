@@ -450,7 +450,7 @@ let saveStateToFile folderPath baseName state = // TODO: catch error?
 
 /// Create new empty diagram file. Automatically add the .dgm suffix.
 let createEmptyDgmFile folderPath baseName =
-    saveStateToFile folderPath baseName (([],[]), None)
+    saveStateToFile folderPath baseName (([],[]), None, Some {Form=Some User;Description=None})
 
 let stripVertices (conn: LegacyCanvas.LegacyConnection) =
     {conn with Vertices = []}
@@ -505,6 +505,7 @@ let getLatestCanvas state =
         | CanvasWithFileWaveInfo(canvas, _, _) -> stripConns canvas
         | CanvasWithFileWaveInfoAndNewConns(canvas, _, _) -> legacyTypesConvert canvas
         | NewCanvasWithFileWaveInfoAndNewConns(canvas,_,_) -> canvas
+        | NewCanvasWithFileWaveSheetInfoAndNewConns (canvas,_,_,_) -> canvas
     List.map getLatestComp comps, conns
 
 
@@ -528,7 +529,7 @@ let checkMemoryContents (projectPath:string) (comp: Component) : Component =
     | _ -> comp
 
 /// load a component from its canvas and other elements
-let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp waveInfo =
+let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp waveInfo (sheetInfo:SheetInfo option) =
     let projectPath = path.dirname filePath
     let inputs, outputs = parseDiagramSignature canvas
     //printfn "parsed component"
@@ -541,6 +542,7 @@ let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp w
         |> List.filter (fun (c1,c2) -> c1.Type <> c2.Type)
         |> List.map fst
     //printfn "ram changes processed"
+    let form,description = match sheetInfo with |None -> (Some User),None |Some sI -> sI.Form,sI.Description
     let ldc =
         {
             Name = getBaseNameNoExtension filePath
@@ -550,6 +552,8 @@ let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp w
             CanvasState = canvas
             InputLabels = inputs
             OutputLabels = outputs
+            Form = form
+            Description = description
         }
     ldc, ramChanges
 
@@ -568,6 +572,7 @@ let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
             filePath 
             state.getTimeStamp 
             state.getWaveInfo
+            state.getSheetInfo
         |> fst // ignore ram change info, they will always be loaded
         |> Result.Ok
 
@@ -636,7 +641,8 @@ let saveAllProjectFilesFromLoadedComponentsToDisk (proj: Project) =
         let name = ldc.Name
         let state = ldc.CanvasState
         let waveInfo = ldc.WaveInfo
-        saveStateToFile proj.ProjectPath name (state,waveInfo) |> ignore
+        let sheetInfo = {Form=ldc.Form;Description=ldc.Description}
+        saveStateToFile proj.ProjectPath name (state,waveInfo,Some sheetInfo) |> ignore
         removeFileWithExtn ".dgmauto" proj.ProjectPath name)
 
 let openWriteDialogAndWriteMemory mem path =

@@ -22,6 +22,11 @@ type CodeEditorProps =
     | PreClassName of string
 
 
+
+type CodeEditorOpen =
+    |NewVerilogFile
+    |UpdateVerilogFile
+    
 //////////////////////// Verilog Input Record   ///////////////////////////
 type IdentifierT = {Name: string; Location: int}
 

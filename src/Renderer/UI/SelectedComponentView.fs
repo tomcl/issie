@@ -19,7 +19,9 @@ open Notifications
 open Sheet.SheetInterface
 open DrawModelType
 open FilesIO
+open VerilogTypes
 open CatalogueView
+
 
 let private readOnlyFormField name body =
     Field.div [] [
@@ -150,7 +152,12 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
 let makeVerilogEditButton model (custom:CustomComponentType) dispatch : ReactElement = 
     
     let openCodeEditor code name = 
-        createVerilogPopup model false (Some code) (Some name)  
+        let project' =
+            match model.CurrentProj with
+            |Some proj -> {proj with WorkingFileName = Some (custom.Name)}
+            |None -> failwithf "Can't happen!"
+        let model'= {model with CurrentProj = Some project'} 
+        createVerilogPopup model false (Some code) (Some name) UpdateVerilogFile 
     
     match model.CurrentProj with
     | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"

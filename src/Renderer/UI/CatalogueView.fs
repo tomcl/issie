@@ -456,7 +456,7 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
 
 
 
-let rec createVerilogPopup model showExtraErrors correctedCode moduleName dispatch =
+let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origin:CodeEditorOpen) dispatch =
     let title = sprintf "Create Combinational Logic Components using Verilog" 
     let beforeText =
         fun _ -> str <| sprintf "Verilog Component Name"
@@ -477,18 +477,17 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName dispat
                 | Ok _ -> ()
                 | Error _ -> failwithf "Writing verilog file FAILED"
                 let path2 = pathJoin [| folderPath; name + ".dgm" |]
-                // let code2 = "{\"NewCanvasWithFileWaveInfoAndNewConns\": [[[]]]"
                 
                 let parsedCodeNearley = parseFromFile(code)
                 let output = Json.parseAs<ParserOutput> parsedCodeNearley
                 let result = Option.get output.Result
                 let fixedAST = fix result
                 let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
-                // printfn "fixed: %s" fixedAST
-                let cs = SheetCreator.createSheet parsedAST
-                let code2 = Helpers.JsonHelpers.stateToJsonString (cs, None, Some {Form = Some (Verilog name);Description=None})
 
-                match writeFile path2 code2 with
+                let cs = SheetCreator.createSheet parsedAST
+                let toSaveCanvasState = Helpers.JsonHelpers.stateToJsonString (cs, None, Some {Form = Some (Verilog name);Description=None})
+
+                match writeFile path2 toSaveCanvasState with
                 | Ok _ -> 
                     let newComponent = 
                         match tryLoadComponentFromPath path2 with
@@ -526,18 +525,6 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName dispat
                 dispatch <| Sheet(SheetT.DoNothing)
 
 
-                // match writeFile path2 code2 with
-                // | Ok _ -> 
-                //     let newComponent = 
-                //         match tryLoadComponentFromPath path2 with
-                //         |Ok comp -> comp
-                //         |Error _ -> failwithf "failed to load the created Verilog file"
-                //     let updatedProject =
-                //         {project with LoadedComponents = newComponent :: project.LoadedComponents}
-                //     openFileInProject project.OpenFileName updatedProject model dispatch
-                // | Error _ -> failwithf "Writing .dgm file FAILED"
-                // dispatch ClosePopup
-
     let compile =
         fun (dialogData : PopupDialogData) ->
             match model.CurrentProj with
@@ -556,29 +543,57 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName dispat
                         let linesIndex = Option.get output.NewLinesIndex |> Array.toList
                         let parsedAST = fixedAST |> Json.parseAs<VerilogInput>                        
                         let moduleName = parsedAST.Module.ModuleName.Name
-                        let errorList = ErrorCheck.getSemanticErrors parsedAST linesIndex
+                        let errorList = ErrorCheck.getSemanticErrors parsedAST linesIndex origin project
                         let dataUpdated = {dialogData with VerilogErrors = errorList; VerilogCode=Some code}
                         let showErrors' = 
                             match List.isEmpty errorList with
                             | true -> false
                             | false -> showExtraErrors 
-                        createVerilogPopup {model with PopupDialogData = dataUpdated } showErrors' None (Some moduleName) dispatch
+                        createVerilogPopup {model with PopupDialogData = dataUpdated } showErrors' None (Some moduleName) origin dispatch
                 else
                     let error = Option.get output.Error
                     let error'= CodeEditorHelpers.getSyntaxErrorInfo error
                     let dataUpdated = {dialogData with VerilogErrors = [error'] }
-                    createVerilogPopup {model with PopupDialogData = dataUpdated } showExtraErrors None moduleName dispatch
+                    createVerilogPopup {model with PopupDialogData = dataUpdated } showExtraErrors None moduleName origin dispatch
  
 
     let addButton =
         fun (dialogData : PopupDialogData) ->
             fun (suggestion,replaceType,line) -> 
                 
+                let findLastIOAndAssignment (oldCode:string) =
+                    let isSmallerThan x y = y <= x
+
+                    let parsedCodeNearley = parseFromFile(oldCode)
+                    let output = Json.parseAs<ParserOutput> parsedCodeNearley
+                    let result = Option.get output.Result
+                    let fixedAST = fix result
+                    let linesIndex = Option.get output.NewLinesIndex |> Array.toList
+                    let parsedAST = fixedAST |> Json.parseAs<VerilogInput>      
+                    let ioDecls = parsedAST.Module.ModuleItems.ItemList |> Array.filter (fun item -> Option.isSome item.IODecl)
+                    let lastIODecl = Array.tryLast ioDecls
+                    let lastIOLocation =
+                        match lastIODecl with
+                        |Some d -> d.Location
+                        |None -> 1
+                    let prevIndexIO = List.findIndexBack (fun x -> isSmallerThan lastIOLocation x) linesIndex
+                    
+                    let assignments = parsedAST.Module.ModuleItems.ItemList |> Array.filter (fun item -> Option.isSome item.Statement)
+                    let lastAssignment = Array.tryLast assignments
+                    let lastAssignmentLocation =
+                        match lastAssignment with
+                        |Some d -> d.Location
+                        |None -> lastIOLocation
+                    let prevIndexA = List.findIndexBack (fun x -> isSmallerThan lastAssignmentLocation x) linesIndex                    
+                    
+                    (prevIndexIO,prevIndexA)
+                
+                
                 let putToCorrectPlace (oldCode:string) suggestion replaceType line =
                     let sepCode = oldCode.Split([|"\n"|],StringSplitOptions.RemoveEmptyEntries)
                     let linesList = Seq.toList sepCode
                     match replaceType with
-                    |IODeclaration ->
+                    |IODeclaration |Assignment ->
                         let untilError = (linesList[0],[2..line+1])||> List.fold (fun s v -> s+"\n"+linesList[v-1])
                         let fixedError = untilError+"\n  "+ suggestion
                         (fixedError,[line+1..(List.length linesList)-1])||> List.fold (fun s v -> s+"\n"+linesList[v])
@@ -594,15 +609,16 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName dispat
                             |1 -> fixedLine
                             |_ -> untilError+"\n"+ fixedLine
                         (fixedError,[line..(List.length linesList)-1])||> List.fold (fun s v -> s+"\n"+linesList[v])
-                    |Assignment -> 
-                        let untilError = (linesList[0],[2..line-1])||> List.fold (fun s v -> s+"\n"+linesList[v-1])
-                        let fixedError = untilError+"\n  "+ suggestion
-                        (fixedError,[line-1..(List.length linesList)-1])||> List.fold (fun s v -> s+"\n"+linesList[v])
                     |NoReplace ->
                         oldCode
-                        
-                let replacedCode = putToCorrectPlace (Option.defaultValue "" dialogData.VerilogCode) suggestion replaceType line
-                createVerilogPopup model showExtraErrors (Some replacedCode) moduleName dispatch
+
+                let lineToPut =
+                    match replaceType with
+                    |IODeclaration -> fst <| findLastIOAndAssignment (Option.defaultValue "" dialogData.VerilogCode)
+                    |Assignment -> snd <| findLastIOAndAssignment (Option.defaultValue "" dialogData.VerilogCode)
+                    |_ -> line
+                let replacedCode = putToCorrectPlace (Option.defaultValue "" dialogData.VerilogCode) suggestion replaceType lineToPut
+                createVerilogPopup model showExtraErrors (Some replacedCode) moduleName origin dispatch
     
     let moreInfoButton = 
         fun (dialogData : PopupDialogData) ->
@@ -610,23 +626,18 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName dispat
             | None -> failwithf "What? current project cannot be None at this point in compiling Verilog Component"
             | Some project ->
                 let errors = dialogData.VerilogErrors
-                createVerilogPopup model (not showExtraErrors) None moduleName dispatch
+                createVerilogPopup model (not showExtraErrors) None moduleName origin dispatch
     
     let body= dialogVerilogCompBody beforeText moduleName errorDiv errorList showExtraErrors correctedCode compile addButton dispatch
 
     let isDisabled =
         fun (dialogData : PopupDialogData) ->
-            // let notGoodLabel =
-            //     getText dialogData
-            //     |> Seq.toList
-            //     |> List.tryHead
-            //     |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
-            // (getInt dialogData < 1) || notGoodLabel || 
             not noErrors
     
     let width = if showExtraErrors then "80%" else "50%" 
-    
-    dialogVerilogPopup title body noErrors showExtraErrors saveButtonAction moreInfoButton isDisabled [Width width] dispatch
+    let saveUpdateText = match origin with |NewVerilogFile -> "Save" |UpdateVerilogFile -> "Update"
+    let saveUpdateButton = match origin with |NewVerilogFile -> saveButtonAction |UpdateVerilogFile -> updateButton
+    dialogVerilogPopup title body saveUpdateText noErrors showExtraErrors saveUpdateButton moreInfoButton isDisabled [Width width] dispatch
 
 
 let private makeMenuGroup title menuList =
@@ -756,7 +767,7 @@ let viewCatalogue model dispatch =
                     makeMenuGroup
                         "Verilog"
                         (List.append 
-                            [(catTip1 "New Verilog Component" (fun _ -> createVerilogPopup model false None None dispatch) "Write combinational logic in Verilog. \
+                            [(catTip1 "New Verilog Component" (fun _ -> createVerilogPopup model false None None NewVerilogFile dispatch) "Write combinational logic in Verilog. \
                                                     Use it as a Custom Component")]
                             (makeVerilogList styles model dispatch))
                           

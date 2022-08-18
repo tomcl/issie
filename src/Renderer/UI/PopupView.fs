@@ -730,7 +730,7 @@ let dialogPopup title body buttonText buttonAction isDisabled extraStyle dispatc
 
 /// Popup with an input textbox and two buttons.
 /// The text is reflected in Model.PopupDialogText.
-let dialogVerilogPopup title body noErrors showingExtraInfo saveButtonAction moreInfoButton isDisabled extraStyle dispatch =
+let dialogVerilogPopup title body saveUpdateText noErrors showingExtraInfo saveButtonAction moreInfoButton isDisabled extraStyle dispatch =
     let foot =
         fun (dialogData : PopupDialogData) ->
             let compileButtonText = 
@@ -761,7 +761,7 @@ let dialogVerilogPopup title body noErrors showingExtraInfo saveButtonAction mor
                             Button.Disabled (isDisabled dialogData)
                             Button.Color IsPrimary
                             Button.OnClick (fun _ -> saveButtonAction dialogData)
-                        ] [ str "Save" ]
+                        ] [ str saveUpdateText ]
                     ]
                 ]
             ]

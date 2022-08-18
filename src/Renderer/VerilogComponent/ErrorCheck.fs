@@ -2,8 +2,15 @@ module ErrorCheck
 
 open VerilogTypes
 open Fable.Core.JsInterop
+open CommonTypes 
 
+let private getFileInProject name project = project.LoadedComponents |> List.tryFind (fun comp -> comp.Name = name)
 
+let private isFileInProject name project =
+    getFileInProject name project
+    |> function
+    | None -> false
+    | Some _ -> true
 
 /// Helper function to create an ErrorInfo-type Error Message 
 /// given the location, the variable name, and the message
@@ -37,6 +44,7 @@ let portCheck ast linesLocations errorList  =
     match List.length portList = List.length distinctPortList with
     | false ->  //CASE 1: ports with same name
         portList
+        |> List.map (fun name -> name.ToUpper())
         |> Seq.countBy id
         |> Map.ofSeq
         |> Map.filter (fun name count -> count > 1)
@@ -149,31 +157,28 @@ let checkIOWidthDeclarations (ast: VerilogInput) linesLocations errorList  =
     |> List.append errorList
 
 
-/// Checks if the name of the module is valid (i.e. starts with a character)
-/// TO DELETE? (comp name is now set to be module name by default)
-let nameCheck ast linesLocations compName errorList = 
+/// Checks if the name of the module is valid (i.e. this sheet doesn't exist)
+let nameCheck ast linesLocations (origin:CodeEditorOpen) (project:Project)  errorList = 
     let moduleName =  ast.Module.ModuleName.Name
-    let notGoodName =
-        compName
-        |> Seq.toList
-        |> List.tryHead
-        |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
-    match moduleName=compName with
-        | false -> 
-            let message = "Module Name must match the Component Name"
+    // printfn "working %s" (Option.defaultValue "" project.WorkingFileName) 
+    let exists = 
+        match origin with
+        |NewVerilogFile -> isFileInProject moduleName project 
+        |UpdateVerilogFile -> false
+
+    let localError = 
+        match exists with
+        |true -> 
+            let message = "A sheet with that name already exists"
             let extraMessages = 
-                if notGoodName then  
-                    [|
-                        {Text="Module Name must match the Component Name";Copy=false;Replace=NoReplace}
-                    |]
-                else
-                    [|
-                        {Text="Module Name must match the Component Name";Copy=false;Replace=NoReplace};
-                        {Text=sprintf "%s" compName ;Copy=true;Replace=Variable moduleName}
-                    |]
+                [|
+                    {Text="Module Name must be different from existing Sheets/Components";Copy=false;Replace=NoReplace}
+                |]
             createErrorMessage linesLocations ast.Module.ModuleName.Location message extraMessages moduleName
-        | true -> []
-    |> List.append errorList
+        |false ->
+            []
+    
+    List.append localError errorList
 
 
 /// Checks if all declared output ports have a value assigned to them
@@ -359,8 +364,7 @@ let RHSUnaryAnalysis
                 (findSizeOfExpression [] (Option.get (Option.get tree.Unary).Expression))
 
         | "bitwise_OR" | "bitwise_XOR" | "bitwise_AND" 
-        | "additive" | "logical_AND" 
-        | "logical_OR" | "conditional_result" 
+        | "additive" | "conditional_result" 
             -> List.append 
                 (findSizeOfExpression inLst (Option.get tree.Head))
                 (if isNullOrUndefined tree.Tail 
@@ -393,6 +397,20 @@ let RHSUnaryAnalysis
         | "reduction" -> 
             List.append inLst [{Name="[reduction]";Size=1;Parenthesis=None}] 
 
+        | "logical_OR" | "logical_AND" ->
+            let result1 = findSizeOfExpression [] (Option.get tree.Head)
+            let result2 = findSizeOfExpression [] (Option.get tree.Tail)
+            match (List.isEmpty result1,List.isEmpty result2) with
+            |false,false ->
+                let all = result1@result2;
+                List.append inLst [{Name="[logical_op]";Size=1;Parenthesis=Some all}] 
+            |false,true ->
+                List.append inLst [{Name="[logical_op]";Size=1;Parenthesis=Some result1}] 
+            |true,false -> 
+                List.append inLst [{Name="[logical_op]";Size=1;Parenthesis=Some result1}] 
+            |true,true -> 
+                List.append inLst [{Name="[logical_op]";Size=1;Parenthesis=None}] 
+
         | _ -> inLst
     
     and findSizeOfConcat (tree:ExpressionT) concatList =
@@ -417,7 +435,7 @@ let RHSUnaryAnalysis
 /// by RHSUnaryAnalysis to a string which can be used for ErrorInfo
 let rec unaryTreeToString treeDepth targetLength (unariesList:OneUnary list)  =
     
-    let unaryToString item =
+    let unaryToString (item:OneUnary) =
         let targetLength' = if item.Name = "[condition]" then 1 else targetLength
         let depthToSpaces = ("",[0..treeDepth])||>List.fold (fun s v -> s+"   ") 
         let sizeString =
@@ -433,6 +451,7 @@ let rec unaryTreeToString treeDepth targetLength (unariesList:OneUnary list)  =
                 |"{...}" -> (-1)
                 |"[condition]" -> targetLength
                 |"[reduction]" -> localList[0].Size
+                |"[logical_op]" -> localList[0].Size
                 | _ -> item.Size
             depthToSpaces+
             "-'"+
@@ -470,12 +489,14 @@ let rec primariesUsedInAssignment inLst (isConcat: bool) (tree: ExpressionT) =
     
     | "unary" when (Option.get tree.Unary).Type = "number" -> 
         match (Option.get (Option.get tree.Unary).Number).NumberType with
-        | "all" -> List.append inLst 
+        | "all" -> 
+            let afterBitsSection = (string ((Option.get (Option.get (Option.get tree.Unary).Number).Base)[1])) + (Option.get (Option.get (Option.get tree.Unary).Number).AllNumber)
+            List.append inLst 
                     [(
                             {
                             Type= "primary"; 
-                            PrimaryType= "numeric"; 
-                            BitsStart= Some "-3"; 
+                            PrimaryType= afterBitsSection; 
+                            BitsStart= Some "-3";
                             BitsEnd= Some (Option.get (Option.get (Option.get tree.Unary).Number).Bits); 
                             Primary= {
                                 Name="delete123";
@@ -693,7 +714,37 @@ let checkWiresAndAssignments
                         List.append 
                             localErrors 
                             (createErrorMessage linesLocations x.Primary.Location message extraMessages "0'b")
-                    else localErrors
+                    else 
+                        let no = 
+                            match x.PrimaryType[0] with
+                            |'b' -> "0"+x.PrimaryType
+                            |'h' ->
+                                let withoutH = 
+                                    String.mapi (fun index char -> 
+                                    match index with
+                                    |0 -> '0'
+                                    |_ -> char
+                                    ) x.PrimaryType
+                                "0x"+withoutH
+                            |_ -> 
+                                String.mapi (fun index char -> 
+                                    match index with
+                                    |0 -> '0'
+                                    |_ -> char
+                                ) x.PrimaryType
+                        match NumberHelpers.strToIntCheckWidth bEnd no with
+                        |Ok n -> localErrors
+                        |Error _ -> 
+                            let message = sprintf "Number can't fit in %i bits" bEnd
+                            let extraMessages = 
+                                [|
+                                    {Text=sprintf "Number can't fit in %i bits" bEnd; Copy=false;Replace=NoReplace}
+                                    {Text=("The integer before 'h/'b represents the width of the number\n e.g. 12'hc7 -> 000011000111");Copy=false;Replace=NoReplace}
+                                |]
+                            List.append 
+                                localErrors 
+                                (createErrorMessage linesLocations x.Primary.Location message extraMessages "0'b")
+                        
                 | _ -> 
                     match Map.tryFind name currentInputWireSizeMap with
                     | Some size -> 
@@ -968,7 +1019,7 @@ let getWireLocationMap items =
 
 /// Main error-finder function
 /// Returns a list of errors (type ErrorInfo)
-let getSemanticErrors ast linesLocations =
+let getSemanticErrors ast linesLocations (origin:CodeEditorOpen) (project:Project) =
     
     let (items: ItemT list) = ast.Module.ModuleItems.ItemList |> Array.toList
     ///////// MAPS, LISTS NEEDED  ////////////////
@@ -986,6 +1037,7 @@ let getSemanticErrors ast linesLocations =
     //////////////////////////////////////////////
     
     []  //begin with empty list and add errors to it
+    |> nameCheck ast linesLocations origin project 
     |> portCheck ast linesLocations //all ports are declared as input/output
     |> checkIODeclarations ast portWidthDeclarationMap portLocationMap linesLocations notUniquePortDeclarations  //all ports declared as IO are defined in the module header
     |> checkIOWidthDeclarations ast linesLocations //correct port width declaration (e.g. [1:4] -> invalid)

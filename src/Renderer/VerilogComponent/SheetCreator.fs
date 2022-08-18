@@ -581,7 +581,7 @@ let createSheet input =
             (circuit,outPort,bits,lhstype)
         )
 
-    let finalCanvasState = 
+    let csList = 
         perItemCircuits
         |> List.groupBy (fun (_,portName,_,_) -> portName)
         |> List.map (fun (portName,circuits) ->
@@ -590,8 +590,16 @@ let createSheet input =
             |> joinWithMerge
             |> attachToOutput ioAndWireToCompMap
         )
-        |> List.reduce (fun cs1 cs2 -> concatenateCanvasStates cs1 cs2)
-        |> concatenateCanvasStates (collectInputAndWireComps ioAndWireToCompMap,[])
-        |> fixCanvasState
+    
+    let finalCanvasState =
+        match List.isEmpty csList with
+        | true ->
+            (collectInputAndWireComps ioAndWireToCompMap,[])
+            |> fixCanvasState
+        |false -> 
+            csList
+            |> List.reduce (fun cs1 cs2 -> concatenateCanvasStates cs1 cs2)
+            |> concatenateCanvasStates (collectInputAndWireComps ioAndWireToCompMap,[])
+            |> fixCanvasState
 
     finalCanvasState

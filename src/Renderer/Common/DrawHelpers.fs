@@ -110,7 +110,7 @@ let canvasWidthContext = testCanvas.getContext_2d()
 /// note that accuracy varies with font weight (normal = 400 usually more accurate than bold = 600).
 /// To test this, switch on label corner display in addComponentLabel
 let getTextWidthInPixels(txt:string, font:Text) =
-   canvasWidthContext?font <- String.concat " " ["10px"; font.FontWeight; font.FontFamily]; // e.g. "16px bold sans-serif";
+   canvasWidthContext.font <- String.concat " " ["10px"; font.FontWeight; font.FontFamily]; // e.g. "16px bold sans-serif";
    let sizeInPx = float ((font.FontSize.ToLower()).Replace("px",""))   
    let ms = sizeInPx * canvasWidthContext.measureText(txt).width / 10.0
    ms

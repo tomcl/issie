@@ -254,3 +254,18 @@ let summaryName (compGroup: ComponentGroup) : ReactElement =
     // | Memories -> "RAMs and ROMs"
     | Component compLabel -> compLabel
     |> str
+
+/// convert a string to CamelCase: 
+let camelCaseDottedWords (text:string) =
+    let camelWord (s:string)=
+        match s.Length with
+        | 0 -> ""
+        | 1 -> s.ToUpper()
+        | _ -> s[0..0].ToUpper() + s[1..s.Length-1].ToLower()
+
+    text.Split([|'.'|])
+    |> Array.map camelWord
+    |> String.concat "."
+
+
+    

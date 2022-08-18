@@ -39,8 +39,9 @@ let displayValuesOnWave wsModel (waveValues: WireData list) (transitions: NonBin
     // Create text react elements for each gap
     |> List.map (fun gap ->
         let waveValue =
-            convertWireDataToInt waveValues[gap.Start]
-            |> valToString wsModel.Radix
+            let wd = waveValues[gap.Start]
+            valToPaddedString wd.Length  wsModel.Radix (convertWireDataToInt wd)
+  
 
         /// Amount of whitespace between two Change transitions minus the crosshatch
         let availableWidth = (float gap.Length * (singleWaveWidth wsModel)) - 2. * Constants.nonBinaryTransLen
@@ -973,16 +974,16 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                 ]
             Level.right
                 [ Props [ Style [ PaddingRight Constants.labelPadding ] ] ]
-                [ label [ nameLabelStyle (wsModel.HoveredLabel = Some wave.WaveId) ] [ str wave.DisplayName ] ]
+                [ label [ nameLabelStyle (wsModel.HoveredLabel = Some wave.WaveId) ] [ wave.DisplayName |> WaveSimHelpers.camelCaseDottedWords |> str ] ]
         ]
     )
 
 /// Create column of waveform names
 let namesColumn model wsModel dispatch : ReactElement =
     let start = TimeHelpers.getTimeMs ()
-    let rows = nameRows model wsModel dispatch
-
-    div namesColumnProps
+    let rows = 
+        nameRows model wsModel dispatch
+    div (namesColumnProps wsModel)
         (List.concat [ topRow; rows ])
     |> TimeHelpers.instrumentInterval "namesColumn" start
 
@@ -1059,7 +1060,7 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
         ]
 
 /// Table row that shows the address and data of a RAM component.
-let ramTableRow (wsModel: WaveSimModel) (ramId: ComponentId) (memWidth: int) ((addr, data): int64 * int64): ReactElement =
+let ramTableRow (wsModel: WaveSimModel) (ramId: ComponentId) (memWidth: int) (wordWidth: int) ((addr, data): int64 * int64): ReactElement =
     let pickWave port waveVal =
         Map.tryPick (fun _ (wave: Wave) ->
             if wave.WaveId.Id = ramId && wave.DisplayName = wave.CompLabel + port then
@@ -1075,26 +1076,27 @@ let ramTableRow (wsModel: WaveSimModel) (ramId: ComponentId) (memWidth: int) ((a
     let correctAddr = pickWave ".ADDR" (convertIntToWireData memWidth addr)
 
     tr [ ramTableRowStyle wenHigh correctAddr ] [
-        td [] [ str (valToString wsModel.Radix addr) ]
-        td [] [ str (valToString wsModel.Radix data) ]
+        td [] [ str (valToPaddedString memWidth wsModel.Radix addr) ]
+        td [] [ str (valToPaddedString wordWidth wsModel.Radix data) ]
     ]
 
 /// Table showing contents of a RAM component.
 let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): ComponentId * string) : ReactElement =
     let state = FastRun.extractFastSimulationState wsModel.FastSim wsModel.CurrClkCycle (ramId, [])
-    let memWidth, memData =
+    let memWidth, wordWidth, memData =
         match state with
         | RamState mem ->
-            mem.AddressWidth, Map.toList mem.Data
+            mem.AddressWidth, mem.WordWidth, Map.toList mem.Data
         | _ -> failwithf "Non memory components should not appear here"
 
     Level.item [
         Level.Item.Option.Props ramTableLevelProps
         Level.Item.Option.HasTextCentered
     ] [
-        Heading.h4 [
+        Heading.h6 [
             Heading.Option.Props [ centerAlignStyle ]
         ] [ str ramLabel ]
+        div [Style [MaxHeight "600px";OverflowY OverflowOptions.Auto]] [
         Table.table [
             Table.IsFullWidth
             Table.IsBordered
@@ -1105,8 +1107,8 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): ComponentId * string) :
                 ]
             ]
             tbody []
-                (List.map (ramTableRow wsModel ramId memWidth) memData)
-        ]
+                (List.map (ramTableRow wsModel ramId memWidth wordWidth) memData)
+        ] ]
         br []
     ]
 
@@ -1251,11 +1253,14 @@ let viewWaveSim (model: Model) dispatch : ReactElement =
                 div [ errorMessageStyle ]
                     [ str "There is no sequential logic in this circuit." ]
             | Loading | Success ->
-                showWaveforms model wsModel dispatch
+                div [showWaveformsAndRamStyle] [
 
-                hr []
+                    showWaveforms model wsModel dispatch
 
-                ramTables wsModel
+                    hr []
+
+                    ramTables wsModel
+                    ]
 
             hr []
         ]

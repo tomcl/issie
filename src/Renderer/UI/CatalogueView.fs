@@ -673,5 +673,4 @@ let viewCatalogue model dispatch =
                                                     Use it as a Custom Component"
                           catTip1 "decoder.v" (fun _ -> createVerilogComp  model) ""]
                 ]
-
         (viewCatOfModel) model 

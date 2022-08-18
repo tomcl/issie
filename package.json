@@ -19,6 +19,8 @@
     "compile": "dotnet fable src/Main -s && dotnet fable src/Renderer -s",
     "dev": "dotnet fable watch src/Main -s --run npm run devrenderer",
     "devrenderer": "dotnet fable watch src/Renderer -s --define ASSERTS --run npm run start",
+    "devfast": "dotnet fable watch src/Main -s --run npm run devrendererfast",
+    "devrendererfast": "dotnet fable watch src/Renderer -s --run npm run start",
     "start": "cross-env NODE_ENV=development node scripts/start.js",
     "build": "cross-env NODE_ENV=production node scripts/build.js",
     "pack": "npm run compile && npm run build && electron-builder --dir",

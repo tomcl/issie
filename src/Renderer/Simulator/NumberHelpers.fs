@@ -85,6 +85,16 @@ let valToString (radix: NumberBase) (value: int64) : string =
     | Hex -> hex64 value
     | SDec -> sDec64 value
 
+/// Convert int64 to string according to radix.
+/// binary and hex numbers are zero padded to width
+/// binary is displayed as hex if wisth > 8
+let valToPaddedString (width: int) (radix: NumberBase) (value: int64) : string =
+    match radix with
+    | Dec -> dec64 value
+    | Bin when width <= 8 -> fillBin64 width value
+    | Hex | Bin -> fillHex64 width value
+    | SDec -> sDec64 value
+
 /// Pad wireData with Zeros as the Most Significant Bits (e.g. at position N).
 let private padToWidth width (bits : WireData) : WireData =
     if bits.Length > width then List.truncate width bits

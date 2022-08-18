@@ -662,7 +662,7 @@ let selectRamButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
         (str "Select RAM")
 
 /// Toggle if a RAM's contents is selected for viewing.
-let toggleRamSelection (ramId: ComponentId) (ramLabel: string) (wsModel: WaveSimModel) dispatch =
+let toggleRamSelection (ramId: FComponentId) (ramLabel: string) (wsModel: WaveSimModel) dispatch =
     let selectedRams =
         if isRamSelected ramId wsModel then
             Map.remove ramId wsModel.SelectedRams
@@ -672,18 +672,18 @@ let toggleRamSelection (ramId: ComponentId) (ramLabel: string) (wsModel: WaveSim
 
 /// Modal that, when active, allows users to select RAMs to view their contents.
 let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    let ramRows (ram: Component) : ReactElement =
+    let ramRows (ram: FastComponent) : ReactElement =
         tr [] [
             td []
                 [ Checkbox.checkbox []
                     [ Checkbox.input [
                         Props (checkboxInputProps @ [
-                            Checked <| isRamSelected (ComponentId ram.Id) wsModel
-                            OnChange (fun _ -> toggleRamSelection (ComponentId ram.Id) ram.Label wsModel dispatch)
+                            Checked <| isRamSelected ram.fId wsModel
+                            OnChange (fun _ -> toggleRamSelection ram.fId ram.FullName wsModel dispatch)
                         ])
                     ] ]
                 ]
-            td [] [ label [ ramRowStyle ] [ str ram.Label ] ]
+            td [] [ label [ ramRowStyle ] [ str ram.FullName ] ]
         ]
 
     Modal.modal [
@@ -1060,34 +1060,138 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
         ]
 
 /// Table row that shows the address and data of a RAM component.
-let ramTableRow (wsModel: WaveSimModel) (ramId: ComponentId) (memWidth: int) (wordWidth: int) ((addr, data): int64 * int64): ReactElement =
-    let pickWave port waveVal =
-        Map.tryPick (fun _ (wave: Wave) ->
-            if wave.WaveId.Id = ramId && wave.DisplayName = wave.CompLabel + port then
-                Some wave
-            else None
-        ) wsModel.AllWaves
-        |> function
-        | Some wave ->
-            wave.WaveValues[wsModel.CurrClkCycle] = waveVal
-        | None -> false
+let ramTableRow ((addr, data,rowType): string * string * RamRowType): ReactElement =
 
-    let wenHigh = pickWave ".WEN" [One]
-    let correctAddr = pickWave ".ADDR" (convertIntToWireData memWidth addr)
-
-    tr [ ramTableRowStyle wenHigh correctAddr ] [
-        td [] [ str (valToPaddedString memWidth wsModel.Radix addr) ]
-        td [] [ str (valToPaddedString wordWidth wsModel.Radix data) ]
+    tr [ ramTableRowStyle rowType ] [
+        td [] [ str addr ]
+        td [] [ str data ]
     ]
 
 /// Table showing contents of a RAM component.
-let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): ComponentId * string) : ReactElement =
-    let state = FastRun.extractFastSimulationState wsModel.FastSim wsModel.CurrClkCycle (ramId, [])
-    let memWidth, wordWidth, memData =
-        match state with
-        | RamState mem ->
-            mem.AddressWidth, mem.WordWidth, Map.toList mem.Data
-        | _ -> failwithf "Non memory components should not appear here"
+let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) : ReactElement =
+
+    let fs = wsModel.FastSim
+    let fc = wsModel.FastSim.FComps[ramId]
+    let step = wsModel.CurrClkCycle
+    let memData =
+        match fc.FType with
+        | ROM1 mem
+        | AsyncROM1 mem -> mem
+        | RAM1 mem
+        | AsyncRAM1 mem -> 
+            match FastRun.extractFastSimulationState fs wsModel.CurrClkCycle ramId with
+            |RamState mem -> mem
+            | _ -> failwithf $"What? Can't find state from RAM component '{ramLabel}'"
+        | _ -> failwithf $"Given a component {fc.FType} which is not a vaild RAM"
+    let aWidth,dWidth = memData.AddressWidth,memData.WordWidth
+
+    let print w = NumberHelpers.valToPaddedString w wsModel.Radix
+
+    let lastLocation = int64 (2 <<< (memData.AddressWidth - 1))
+
+    /// print a single 0 location as one table row
+    let print1 (a:int64,b:int64,rw:RamRowType) = $"{print aWidth a}",$"{print dWidth b}",rw
+    /// print a range of zero locations as one table row
+
+    let print2 (a1:int64) (a2:int64) (d:int64) = $"{print aWidth (a1+1L)}..{print aWidth (a2-1L)}", $"{print dWidth d}",RAMNormal
+    /// print one table row filling the given gap, or no line if there is no gap.
+
+    let printGap (gStart:int64) (gEnd:int64) =
+        match gEnd - gStart with
+        | 1L -> []
+        | 2L -> [print1 ((gEnd + gStart / 2L), 0L,RAMNormal)]
+        | n when n > 2L ->
+            [print2 gStart gEnd 0L]
+        | _ ->
+            failwithf "What? negative or zero gaps are impossible..."
+
+    let addGapLines (items: (int64*int64*RamRowType) list) = 
+        let startItem =
+            match items[0] with
+            | -1L,_,_ -> []
+            | gStart,dStart,rw-> [print1 (gStart,dStart,rw)]
+        List.pairwise items
+        |> List.collect (fun ((gEnd,dEnd,rwe),(gStart,_,_)) -> 
+            let thisItem = if gEnd = lastLocation then [] else [print1 (gEnd,dEnd,rwe)]
+            [printGap gStart gEnd; thisItem])
+        |> List.concat
+
+    let addReadWrite (fc:FastComponent) (step:int) (mem: Map<int64,int64>) =
+        let getFData (fd: FData) =
+            match fd with
+            | Data {Dat= Word w} -> int64 w
+            | Data {Dat=BigWord bw} -> int64 bw
+            | _ -> 
+                printfn $"Help! Can'd find data from {fd}"
+                int64 <| -1
+
+        let readStep =
+            match fc.FType with
+            | AsyncROM1 _ | AsyncRAM1 _ -> step
+            | ROM1 _ | RAM1 _ -> step - 1
+            | _ -> failwithf $"What? {fc.FullName} should be a memory component"
+
+        let addrSteps step = fc.InputLinks[0].Step[step]
+
+        let readOpt =
+            match step, fc.FType with
+            | 0,ROM1 _ | 0, RAM1 _ -> None
+            | _ -> 
+                addrSteps readStep
+                |> getFData
+                |> Some
+        let writeOpt =
+            match step, fc.FType with
+            | _, ROM1 _ 
+            | _, AsyncROM1 _
+            | 0, _ -> None
+            | _, RAM1 _ | _, AsyncRAM1 _ when getFData fc.InputLinks[2].Step[step-1] = 1L -> 
+                    addrSteps (step-1)
+                    |> Some |> ignore
+                    None
+            | _ ->  None
+            |> Option.map getFData
+
+        let addToMap rType addr mem:Map<int64,int64*RamRowType> =
+            match Map.tryFind addr mem with
+            | Some (d,RAMNormal) -> Map.add addr (d,rType) mem
+            | None  ->  Map.add addr (0L,rType) mem
+            | _ -> mem
+
+        Map.map (fun k v -> v,RAMNormal) mem
+        |> (fun mem ->
+            match readOpt with
+            | Some addr -> addToMap RAMRead addr mem
+            | None -> mem
+            |> (fun mem ->
+                match writeOpt with
+                | Some addr -> addToMap RAMWritten addr mem
+                | None -> mem))
+ 
+
+    
+    let addEndPoints (items:(int64*int64*RamRowType) list)  =
+        let ad (a,d,rw) = a
+        match items.Length with
+        | 0 -> [-1L,0L,RAMNormal;  lastLocation,0L,RAMNormal]
+        | _ ->
+            if ad items[0] < 0L then items else List.insertAt 0 (0L,-1L,RAMNormal) items
+            |> (fun items ->
+                if ad items[items.Length-1] = lastLocation then 
+                    items else 
+                List.insertAt items.Length (lastLocation+1L,0L,RAMNormal) items)
+    
+
+    let lineItems =
+        memData.Data
+        |> addReadWrite fc step
+        |> Map.toList
+        |> List.map (fun (a,(d,rw)) -> a,d,rw)
+        |> List.filter (fun (a,d,rw) -> a=0L && rw = RAMNormal)
+        |> List.sort
+        |> addEndPoints 
+        |> addGapLines
+
 
     Level.item [
         Level.Item.Option.Props ramTableLevelProps
@@ -1107,7 +1211,7 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): ComponentId * string) :
                 ]
             ]
             tbody []
-                (List.map (ramTableRow wsModel ramId memWidth wordWidth) memData)
+                (List.map ramTableRow lineItems) 
         ] ]
         br []
     ]
@@ -1117,8 +1221,9 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
     let start = TimeHelpers.getTimeMs ()
     let selectedRams = Map.toList wsModel.SelectedRams
     if List.length selectedRams > 0 then
-        Level.level [ Level.Level.Option.Props ramTablesLevelProps ]
-            (List.map (ramTable wsModel) selectedRams)
+        (List.map (fun ram -> td [Style [BorderColor "white"]] [ramTable wsModel ram])  selectedRams)
+        |> (fun tables -> [tbody [] [tr [Style [Border "10px"]] tables]])
+        |> Fulma.Table.table [Table.TableOption.Props ramTablesLevelProps; Table.IsFullWidth; Table.IsBordered]
     else div [] []
     |> TimeHelpers.instrumentInterval "ramTables" start
 
@@ -1128,6 +1233,7 @@ let refreshWaveSim (wsModel, simData, (comps, conns)) : Async<WaveSimModel> = as
     let start = TimeHelpers.getTimeMs ()
     FastRun.runFastSimulation Constants.maxLastClk simData.FastSim
     |> TimeHelpers.instrumentInterval "runFastSimulation" start
+    let fs = simData.FastSim
 
     let allWaves =
         let allWavesStart = TimeHelpers.getTimeMs ()
@@ -1136,13 +1242,20 @@ let refreshWaveSim (wsModel, simData, (comps, conns)) : Async<WaveSimModel> = as
         |> TimeHelpers.instrumentInterval "allWaves" allWavesStart
 
     let ramComps =
-        List.filter (fun (comp: Component) -> match comp.Type with | RAM1 _ -> true | _ -> false) comps
-        |> List.sortBy (fun ram -> ram.Label)
+        let isRAMOrROM fcid (fc: FastComponent) =
+            match fc.FType with
+            | RAM1 _ | ROM1 _ | AsyncRAM1 _ | AsyncROM1 _ ->
+                true
+            | _ -> false
+        Map.filter isRAMOrROM simData.FastSim.FComps
+        |> Map.toList
+        |> List.map (fun (fcid,fc) -> fc)
+        |> List.sortBy (fun fc -> fc.FullName)
 
-    let ramCompIds = List.map (fun (ram: Component) -> ComponentId ram.Id) ramComps
+    let ramCompIds = List.map (fun (fc: FastComponent) -> fc.fId) ramComps
 
     let selectedWaves = List.filter (fun key -> Map.containsKey key allWaves) wsModel.SelectedWaves
-    let selectedRams = Map.filter (fun ramId _ -> List.contains ramId ramCompIds) wsModel.SelectedRams
+    let selectedRams = Map.filter (fun ramfId _ -> List.contains ramfId ramCompIds) wsModel.SelectedRams
 
     return {
         wsModel with

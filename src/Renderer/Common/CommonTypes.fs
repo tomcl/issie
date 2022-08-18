@@ -713,8 +713,10 @@ module CommonTypes
     type Project = {
         /// directory which contains the project files
         ProjectPath : string
-        /// name of open sheet (without extension)
+        /// name of viewed sheet (Form: User) (without extension)
         OpenFileName : string
+        /// name of sheet performing operation on
+        WorkingFileName : string option
         /// componnets have one-one correspondence with files
         LoadedComponents : LoadedComponent list
         }

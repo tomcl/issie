@@ -179,6 +179,7 @@ let private loadStateIntoModel (compToSetup:LoadedComponent) waveSim ldComps (mo
             SetProject {
                 ProjectPath = dirName compToSetup.FilePath
                 OpenFileName =  compToSetup.Name
+                WorkingFileName = Some compToSetup.Name
                 LoadedComponents = ldComps
             }
 
@@ -350,7 +351,7 @@ let updateVerilogFileActionWithModelUpdate (newCS:CanvasState) name (model: Mode
     | Some p -> 
         // update loaded components for saved file
         updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
-        |> (fun lc -> {p with LoadedComponents=lc; OpenFileName=name})
+        |> (fun lc -> {p with LoadedComponents=lc; WorkingFileName=Some name})
         |> SetProject
         |> dispatch
 
@@ -435,6 +436,7 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
     {
         ProjectPath = dirName compToSetup.FilePath
         OpenFileName =  compToSetup.Name
+        WorkingFileName = Some compToSetup.Name
         LoadedComponents = ldComps
     }
     |> SetProject // this message actually changes the project in model
@@ -508,6 +510,7 @@ let renameSheet oldName newName (model:Model) dispatch =
     let renameSheetsInProject oldName newName proj =
         {proj with
             OpenFileName = if proj.OpenFileName = oldName then newName else proj.OpenFileName
+            WorkingFileName = if proj.OpenFileName = oldName then Some newName else proj.WorkingFileName
             LoadedComponents =
                 proj.LoadedComponents
                 |> List.map (fun ldComp -> 
@@ -595,7 +598,7 @@ let private removeFileInProject name project model dispatch =
     | [],true -> 
         // reate a new empty file with default name main as sole file in project
         let newComponents = [ (createEmptyDiagramFile project.ProjectPath "main") ]
-        let project' = {project' with LoadedComponents = newComponents; OpenFileName="main"}
+        let project' = {project' with LoadedComponents = newComponents; OpenFileName="main"; WorkingFileName=Some "main"}
         openFileInProject' false newComponents[0].Name project' model dispatch
     | [], false -> 
         failwithf "What? - this cannot happen"
@@ -655,7 +658,8 @@ let addFileToProject model dispatch =
                     let updatedProject =
                         { project with
                               LoadedComponents = newComponent :: project.LoadedComponents
-                              OpenFileName = name }
+                              OpenFileName = name
+                              WorkingFileName = Some name }
  
                     // Open the file, updating the project, saving current file
                     openFileInProject' true name updatedProject model dispatch

@@ -874,7 +874,7 @@ let appendBits (fMS: FastData) (fLS: FastData) : FastData =
 //--------------------------------Fast Simulation Data Structure-------------------------//
 //---------------------------------------------------------------------------------------//
    
-type FComponentId = ComponentId * ComponentId list
+// type FComponentId = ComponentId * ComponentId list moved to CommonTypes
 
 type FData = | Data of FastData | Alg of FastAlgExp
     with

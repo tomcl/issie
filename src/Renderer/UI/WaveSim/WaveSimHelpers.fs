@@ -224,7 +224,7 @@ let calculateNonBinaryTransitions (waveValues: Bit list list) : NonBinaryTransit
     )
 
 let isWaveSelected (wsModel: WaveSimModel) (index: WaveIndexT) : bool = List.contains index wsModel.SelectedWaves
-let isRamSelected (ramId: ComponentId) (wsModel: WaveSimModel) : bool = Map.containsKey ramId wsModel.SelectedRams
+let isRamSelected (ramId: FComponentId) (wsModel: WaveSimModel) : bool = Map.containsKey ramId wsModel.SelectedRams
 
 /// get integer from OutputPortNumber
 let getInputPortNumber (ipn: InputPortNumber) : int =
@@ -266,6 +266,7 @@ let camelCaseDottedWords (text:string) =
     text.Split([|'.'|])
     |> Array.map camelWord
     |> String.concat "."
+
 
 
     

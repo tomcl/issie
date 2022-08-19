@@ -22,7 +22,7 @@ module Constants =
     /// 2 * MainView.Constants.dividerBarWidth = 20,
     /// WaveSimStyle.namesColWidth = 200,
     /// WaveSimStyle.valeusColWidth = 100,
-    let initialWaveformColWidth = 650 - 50 - 50 - 20 - 200 - 100
+    let initialWaveformColWidth = 650 - 20 - 20 - 20 - 130 - 100
 
 type RightTab =
     | Properties
@@ -160,7 +160,7 @@ type WaveSimModel = {
     /// Radix in which values are being displayed in the wave simulator.
     Radix: NumberBase
     /// Width of the waveform column.
-    WaveformColumnWidth: int
+    WaveformColumnWidth: float
     /// TODO: Should this be refactored into an ActiveModal type option?
     /// If the wave selection modal is visible.
     WaveModalActive: bool
@@ -188,7 +188,7 @@ let initWSModel : WaveSimModel = {
     AllWaves = Map.empty
     SelectedWaves = List.empty
     StartCycle = 0
-    ShownCycles = 6
+    ShownCycles = 5
     CurrClkCycle = 0
     ClkCycleBoxIsEmpty = false
     Radix = Hex

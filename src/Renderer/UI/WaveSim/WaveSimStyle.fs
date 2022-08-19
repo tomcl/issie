@@ -140,21 +140,21 @@ let ramTableRowStyle (rowType:RamRowType) =
     match rowType with
     // Highlight in red on write
     | RAMWritten ->
-        Style [
+        [
             BackgroundColor "hsl(347, 90%, 96%)"
             Color "hsl(348, 100%, 61%)"
             FontWeight "bold"
         ]
     // Highlight in blue on write
     | RAMRead ->
-        Style [
+        [
             BackgroundColor "hsl(206, 70%, 96%)"
             Color "hsl(204, 86%, 53%)"
             FontWeight "bold"
         ]
 
     | RAMNormal ->
-        Style []
+        []
 
 /// Props for Bulma Level element for single ramTable
 let ramTableLevelProps : IHTMLProp list = [

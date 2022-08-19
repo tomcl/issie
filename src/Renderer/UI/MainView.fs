@@ -274,22 +274,26 @@ let displayView model dispatch =
         let namesColWidth = WaveSimStyle.calcNamesColWidth wsModel
 
         /// Unsure of why there needs to be 2* in front of dividerBarWidth... but it seems to work.
-        let otherDivWidths = Constants.leftMargin + Constants.rightMargin + 2 * Constants.dividerBarWidth + Constants.scrollBarWidth
+        let otherDivWidths = Constants.leftMargin + Constants.rightMargin + Constants.dividerBarWidth //+ Constants.scrollBarWidth
 
-        /// Require at least one visible clock cycle
-        let waveColWidth = max (int (singleWaveWidth wsModel)) (w - otherDivWidths - namesColWidth - Constants.valuesColWidth)
-        let wholeCycles = waveColWidth / int (singleWaveWidth wsModel)
-        let wholeCycleWidth = wholeCycles * int (singleWaveWidth wsModel)
+        /// This is what the overall waveform width must be
+        let waveColWidth = w - otherDivWidths - namesColWidth - Constants.valuesColWidth
 
-        let viewerWidth = namesColWidth + Constants.valuesColWidth + wholeCycleWidth + otherDivWidths
+        /// Require at least one visible clock cycle: otherwise choose number to get close to correct width of 1 cycle
+        let wholeCycles = max 1 (int (float waveColWidth / singleWaveWidth wsModel))
+
+
+        let singleCycleWidth = float waveColWidth / float wholeCycles
+
+        let viewerWidth = namesColWidth + Constants.valuesColWidth + int (singleCycleWidth * float wholeCycles) + otherDivWidths
 
         let wsModel = {
             wsModel with
                 ShownCycles = wholeCycles
-                WaveformColumnWidth = wholeCycleWidth
+                WaveformColumnWidth = singleCycleWidth * float wholeCycles
             }
         dispatch <| InitiateWaveSimulation wsModel
-        dispatch <| SetViewerWidth viewerWidth
+        dispatch <| SetViewerWidth w
 
     let inline processAppClick topMenu dispatch (ev: Browser.Types.MouseEvent) =
         if topMenu <> Closed then 
@@ -308,7 +312,7 @@ let displayView model dispatch =
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth)
             dispatch <| SetViewerWidth w 
-            dispatch <| SetDragMode (DragModeOn (int ev.clientX))
+            dispatch <| SetDragMode (DragModeOn (int ev.clientX - w + newWidth))
         | DragModeOn pos, _ ->
             let newWidth = model.WaveSimViewerWidth - int ev.clientX + pos
             let w =

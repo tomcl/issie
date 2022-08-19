@@ -133,23 +133,28 @@ let ramRowStyle = Style [
     BorderBottom "1px solid rgb(219,219,219)"
 ]
 
+type RamRowType = RAMWritten | RAMRead | RAMNormal 
+
 /// Style for each row of ramTable
-let ramTableRowStyle wenHigh correctAddr =
+let ramTableRowStyle (rowType:RamRowType) =
+    match rowType with
     // Highlight in red on write
-    if wenHigh && correctAddr then
-        Style [
+    | RAMWritten ->
+        [
             BackgroundColor "hsl(347, 90%, 96%)"
             Color "hsl(348, 100%, 61%)"
             FontWeight "bold"
         ]
     // Highlight in blue on write
-    else if correctAddr then
-        Style [
+    | RAMRead ->
+        [
             BackgroundColor "hsl(206, 70%, 96%)"
             Color "hsl(204, 86%, 53%)"
             FontWeight "bold"
         ]
-    else Style []
+
+    | RAMNormal ->
+        []
 
 /// Props for Bulma Level element for single ramTable
 let ramTableLevelProps : IHTMLProp list = [
@@ -158,7 +163,8 @@ let ramTableLevelProps : IHTMLProp list = [
         FontSize Constants.columnFontSize
         Position PositionOptions.Relative
         Display DisplayOptions.InlineBlock
-        MarginRight 10
+        MarginRight 20
+        MarginLeft 20
     ]
 ]
 
@@ -168,6 +174,7 @@ let ramTablesLevelProps : IHTMLProp list = [
         OverflowX OverflowOptions.Auto
         Font Constants.columnFontFamily
         FontSize Constants.columnFontSize
+        
     ]
 ]
 

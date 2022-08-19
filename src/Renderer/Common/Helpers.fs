@@ -12,7 +12,7 @@ open CommonTypes
         open Fable.SimpleJson
         open LegacyCanvas
 
-
+        type SavedCanvasUnknownWaveInfo<'T> = | NewCanvasWithFileWaveInfoAndNewConns of CanvasState * 'T option * System.DateTime
 
         type SavedInfo =
             | CanvasOnly of LegacyCanvasState
@@ -59,8 +59,12 @@ open CommonTypes
                         match Json.tryParseAs<SavedInfo> jsonString with
                         | Ok state -> Ok state
                         | Error str -> 
-                            printfn "Error in Json parse of %s : %s" jsonString str
-                            Error str)
+                            match Json.tryParseAs<SavedCanvasUnknownWaveInfo<obj>> jsonString with
+                            | Ok (SavedCanvasUnknownWaveInfo.NewCanvasWithFileWaveInfoAndNewConns(cState,_,time)) ->
+                                Ok <| NewCanvasWithFileWaveInfoAndNewConns(cState,None,time)                               
+                            | Error str -> 
+                                printfn "Error in Json parse of %s : %s" jsonString str
+                                Error str)
 
 
 

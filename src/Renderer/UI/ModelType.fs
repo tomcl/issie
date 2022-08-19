@@ -167,9 +167,9 @@ type WaveSimModel = {
     /// If the ram selection modal is visible.
     RamModalActive: bool
     /// List of RAM components on the sheet.
-    RamComps: Component list
+    RamComps: FastComponent list
     /// Map of which RAM components have been selected.
-    SelectedRams: Map<ComponentId, string>
+    SelectedRams: Map<FComponentId, string>
     /// FastSimulation used in the wave simulator.
     FastSim: FastSimulation
     /// String which the user is searching the list of waves by.
@@ -536,10 +536,12 @@ let getComponentIds (model: Model) =
 let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
     {
         SelectedWaves = Some wsModel.SelectedWaves
+        SelectedFWaves = None
         Radix = Some wsModel.Radix
         WaveformColumnWidth = Some wsModel.WaveformColumnWidth
         ShownCycles = Some wsModel.ShownCycles
-        SelectedRams = Some wsModel.SelectedRams
+        SelectedFRams = Some wsModel.SelectedRams
+        SelectedRams = None
 
         // The following fields are from the old waveform simulator.
         // They are no longer used.
@@ -559,7 +561,7 @@ let loadWSModelFromSavedWaveInfo (swInfo: SavedWaveInfo) : WaveSimModel =
             Radix = Option.defaultValue initWSModel.Radix swInfo.Radix
             WaveformColumnWidth = Option.defaultValue initWSModel.WaveformColumnWidth swInfo.WaveformColumnWidth
             ShownCycles = Option.defaultValue initWSModel.ShownCycles swInfo.ShownCycles
-            SelectedRams = Option.defaultValue initWSModel.SelectedRams swInfo.SelectedRams
+            SelectedRams = Option.defaultValue initWSModel.SelectedRams swInfo.SelectedFRams
     }
 
 //----------------------Print functions-----------------------------//

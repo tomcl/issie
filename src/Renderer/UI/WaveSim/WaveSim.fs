@@ -1062,7 +1062,7 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
 /// Table row that shows the address and data of a RAM component.
 let ramTableRow ((addr, data,rowType): string * string * RamRowType): ReactElement =
 
-    tr [ ramTableRowStyle rowType ] [
+    tr [ Style <| ramTableRowStyle rowType ] [
         td [] [ str addr ]
         td [] [ str data ]
     ]
@@ -1085,37 +1085,44 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
         | _ -> failwithf $"Given a component {fc.FType} which is not a vaild RAM"
     let aWidth,dWidth = memData.AddressWidth,memData.WordWidth
 
-    let print w = NumberHelpers.valToPaddedString w wsModel.Radix
+    let print w (a:int64) = NumberHelpers.valToPaddedString w wsModel.Radix (((1L <<< w) - 1L) &&& a)
 
-    let lastLocation = int64 (2 <<< (memData.AddressWidth - 1))
+    let lastLocation = int64 ((2 <<< memData.AddressWidth - 1) - 1)
 
     /// print a single 0 location as one table row
     let print1 (a:int64,b:int64,rw:RamRowType) = $"{print aWidth a}",$"{print dWidth b}",rw
     /// print a range of zero locations as one table row
 
     let print2 (a1:int64) (a2:int64) (d:int64) = $"{print aWidth (a1+1L)}..{print aWidth (a2-1L)}", $"{print dWidth d}",RAMNormal
-    /// print one table row filling the given gap, or no line if there is no gap.
 
+    /// output info for one table row filling the given zero memory gap or arbitrary size, or no line if there is no gap.
     let printGap (gStart:int64) (gEnd:int64) =
         match gEnd - gStart with
         | 1L -> []
-        | 2L -> [print1 ((gEnd + gStart / 2L), 0L,RAMNormal)]
+        | 2L -> [print1 ((gEnd + gStart) / 2L, 0L,RAMNormal)]
         | n when n > 2L ->
             [print2 gStart gEnd 0L]
         | _ ->
-            failwithf "What? negative or zero gaps are impossible..."
+            failwithf $"What? gEnd={gEnd},gStart={gStart}: negative or zero gaps are impossible..."
 
+    /// transform Sparse RAM info into strings to print in a table, adding extra lines for zero gaps
+    /// line styling is controlled by a RamRowtype value and added later when the table row react is generated
     let addGapLines (items: (int64*int64*RamRowType) list) = 
         let startItem =
             match items[0] with
             | -1L,_,_ -> []
             | gStart,dStart,rw-> [print1 (gStart,dStart,rw)]
         List.pairwise items
-        |> List.collect (fun ((gEnd,dEnd,rwe),(gStart,_,_)) -> 
-            let thisItem = if gEnd = lastLocation then [] else [print1 (gEnd,dEnd,rwe)]
+        |> List.collect (fun ((gStart,_,_),(gEnd,dEnd,rwe)) -> 
+            let thisItem = if gEnd = lastLocation + 1L then [] else [print1 (gEnd,dEnd,rwe)]
             [printGap gStart gEnd; thisItem])
         |> List.concat
 
+    /// Add a RAMNormal RamRowType value to every location in mem.
+    /// Add in additional locations for read and/or write if needed.
+    /// Set RamRowValue type to RAMWritten or RAMRead for thse locations.
+    /// Write is always 1 cycle after WEN=1 and address.
+    /// Read is 1 (0) cycles after address for sync (asynch) memories.
     let addReadWrite (fc:FastComponent) (step:int) (mem: Map<int64,int64>) =
         let getFData (fd: FData) =
             match fd with
@@ -1146,17 +1153,19 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
             | _, AsyncROM1 _
             | 0, _ -> None
             | _, RAM1 _ | _, AsyncRAM1 _ when getFData fc.InputLinks[2].Step[step-1] = 1L -> 
-                    addrSteps (step-1)
-                    |> Some |> ignore
-                    None
-            | _ ->  None
+                addrSteps (step-1)
+                |> Some
+            | _ ->  
+                None
             |> Option.map getFData
 
+        /// Mark addr in memory map as being rType
+        /// if addr does not exist - create it
         let addToMap rType addr mem:Map<int64,int64*RamRowType> =
             match Map.tryFind addr mem with
-            | Some (d,RAMNormal) -> Map.add addr (d,rType) mem
+            | Some (d,_) -> Map.add addr (d,rType) mem
             | None  ->  Map.add addr (0L,rType) mem
-            | _ -> mem
+    
 
         Map.map (fun k v -> v,RAMNormal) mem
         |> (fun mem ->
@@ -1164,18 +1173,19 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
             | Some addr -> addToMap RAMRead addr mem
             | None -> mem
             |> (fun mem ->
-                match writeOpt with
+                match writeOpt with // overwrite RAMRead here is need be
                 | Some addr -> addToMap RAMWritten addr mem
                 | None -> mem))
  
 
-    
+    /// add fake locations beyong normal address range so that
+    /// addGapLines fills these (if need be). These locations are then removed
     let addEndPoints (items:(int64*int64*RamRowType) list)  =
         let ad (a,d,rw) = a
         match items.Length with
         | 0 -> [-1L,0L,RAMNormal;  lastLocation,0L,RAMNormal]
         | _ ->
-            if ad items[0] < 0L then items else List.insertAt 0 (0L,-1L,RAMNormal) items
+            if ad items[0] < 0L then items else List.insertAt 0 (-1L,-1L,RAMNormal) items
             |> (fun items ->
                 if ad items[items.Length-1] = lastLocation then 
                     items else 
@@ -1187,10 +1197,11 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
         |> addReadWrite fc step
         |> Map.toList
         |> List.map (fun (a,(d,rw)) -> a,d,rw)
-        |> List.filter (fun (a,d,rw) -> a=0L && rw = RAMNormal)
+        |> List.filter (fun (a,d,rw) -> d<>0L || rw <> RAMNormal)
         |> List.sort
         |> addEndPoints 
         |> addGapLines
+        
 
 
     Level.item [
@@ -1218,12 +1229,17 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
 
 /// Bulma Level component of tables showing RAM contents.
 let ramTables (wsModel: WaveSimModel) : ReactElement =
+    let inlineStyle (styles:CSSProp list) = div [Style (Display DisplayOptions.Inline :: styles)]
     let start = TimeHelpers.getTimeMs ()
     let selectedRams = Map.toList wsModel.SelectedRams
     if List.length selectedRams > 0 then
-        (List.map (fun ram -> td [Style [BorderColor "white"]] [ramTable wsModel ram])  selectedRams)
-        |> (fun tables -> [tbody [] [tr [Style [Border "10px"]] tables]])
-        |> Fulma.Table.table [Table.TableOption.Props ramTablesLevelProps; Table.IsFullWidth; Table.IsBordered]
+        let headerRow =
+            ["read", RAMRead; "written",RAMWritten]
+            |> List.map (fun (op, opStyle) -> inlineStyle [] [str "Memory location "; inlineStyle (ramTableRowStyle  opStyle) [str op]])
+            |> fun [a;b] -> [str "Key: " ; a; str ", " ;b; str " In current cycle."]
+        List.map (fun ram -> td [Style [BorderColor "white"]] [ramTable wsModel ram])  selectedRams
+        |> (fun tables -> [tbody [] [tr [] [th [ColSpan selectedRams.Length] [inlineStyle [] headerRow]]; tr [Style [Border "10px"]] tables]])
+        |> Fulma.Table.table [Table.TableOption.Props ramTablesLevelProps; Table.IsFullWidth; Table.IsBordered; Table.Props [Style [Height "100%"]]]
     else div [] []
     |> TimeHelpers.instrumentInterval "ramTables" start
 

@@ -87,7 +87,7 @@ let valToString (radix: NumberBase) (value: int64) : string =
 
 /// Convert int64 to string according to radix.
 /// binary and hex numbers are zero padded to width
-/// binary is displayed as hex if wisth > 8
+/// binary is displayed as hex if width > 8
 let valToPaddedString (width: int) (radix: NumberBase) (value: int64) : string =
     match radix with
     | Dec -> dec64 value

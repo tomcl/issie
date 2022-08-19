@@ -521,6 +521,8 @@ module CommonTypes
     [<Erase>]
     type ComponentId      = | ComponentId of string
 
+    type FComponentId = ComponentId * ComponentId list
+
 
     /// SHA hash unique to a connection - common between JS and F#
 
@@ -614,12 +616,22 @@ module CommonTypes
         PortNumber: int
     }
 
+    type WaveIndexFT = {
+        FId: FComponentId
+        PortType: PortType
+        PortNumber: int
+    }
+
+    
+
+
     /// Info saved by Wave Sim.
     /// This info is not necessarilu uptodate with deletions or additions in the Diagram.
     /// The wavesim code processing this will not fail if non-existent nets are referenced.
     type SavedWaveInfo = {
         /// Waves which are selected to be shown in the waveform viewer
         SelectedWaves: WaveIndexT list option
+        SelectedFWaves: WaveIndexFT list option
         /// Radix in which values are displayed in the wave simulator
         Radix: NumberBase option
         /// Width of the waveform column
@@ -628,6 +640,7 @@ module CommonTypes
         ShownCycles: int option
         /// RAMs which are selected to be shown in the RAM tables
         SelectedRams: Map<ComponentId, string> option
+        SelectedFRams: Map<FComponentId, string> option
 
         /// The below fields are legacy values and no longer used.
         ClkWidth: float option

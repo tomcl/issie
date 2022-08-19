@@ -771,10 +771,10 @@ let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
             let newCycles = int <| float wsModel.ShownCycles * 1.25
 
             // If number of cycles after casting to int does not change
-            if newCycles = int wsModel.ShownCycles then
+            if newCycles = wsModel.ShownCycles then
                 wsModel.ShownCycles + 1
             // If width of clock cycle is too small
-            else if wsModel.WaveformColumnWidth / newCycles < Constants.minCycleWidth then
+            else if wsModel.WaveformColumnWidth / float newCycles < Constants.minCycleWidth then
                 wsModel.ShownCycles
             else newCycles
 
@@ -1236,7 +1236,7 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
         let headerRow =
             ["read", RAMRead; "written",RAMWritten]
             |> List.map (fun (op, opStyle) -> inlineStyle [] [str "Memory location "; inlineStyle (ramTableRowStyle  opStyle) [str op]])
-            |> fun [a;b] -> [str "Key: " ; a; str ", " ;b; str " In current cycle."]
+            |> function | [a;b] -> [str "Key: " ; a; str ", " ;b; str " In current cycle."] | _ -> failwithf "What? Can't happen!"
         List.map (fun ram -> td [Style [BorderColor "white"]] [ramTable wsModel ram])  selectedRams
         |> (fun tables -> [tbody [] [tr [] [th [ColSpan selectedRams.Length] [inlineStyle [] headerRow]]; tr [Style [Border "10px"]] tables]])
         |> Fulma.Table.table [Table.TableOption.Props ramTablesLevelProps; Table.IsFullWidth; Table.IsBordered; Table.Props [Style [Height "100%"]]]

@@ -635,7 +635,7 @@ module CommonTypes
         /// Radix in which values are displayed in the wave simulator
         Radix: NumberBase option
         /// Width of the waveform column
-        WaveformColumnWidth: int option
+        WaveformColumnWidth: float option
         /// Number of visible cycles in the waveform column
         ShownCycles: int option
         /// RAMs which are selected to be shown in the RAM tables

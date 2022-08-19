@@ -8,8 +8,8 @@ open Fable.React
 open Fable.React.Props
 
 module Constants =
-    /// Width of names column - replaced by calcNamesColWidth function
-    //let namesColWidth = 200
+    // Width of names column - replaced by calcNamesColWidth function
+
     /// Width of values column
     let valuesColWidth = 100
     let deleteSymbolWidth = 20
@@ -341,7 +341,7 @@ let calcNamesColWidth (ws:WaveSimModel) : int =
         |> List.max
         |> System.Math.Ceiling
         |> int
-    printfn $"Col with calculated = {cWidth}"
+    printfn $"Col with calculated = {cWidth+1}"
     cWidth + Constants.deleteSymbolWidth
 
 

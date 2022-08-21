@@ -509,7 +509,6 @@ let reduceApprox (this: Model) = {|
          LastUsedDialogWidth = this.LastUsedDialogWidth
          CreateComponent = this.LastCreatedComponent
          HasUnsavedChanges = false
-         CurrProject = match this.PopupViewFunc with None -> false | _ -> true
          PopupDialogData = this.PopupDialogData
          DragMode = this.DividerDragMode
          ViewerWidth = this.WaveSimViewerWidth

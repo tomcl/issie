@@ -341,7 +341,6 @@ let calcNamesColWidth (ws:WaveSimModel) : int =
         |> List.max
         |> System.Math.Ceiling
         |> int
-    printfn $"Col with calculated = {cWidth+1}"
     cWidth + Constants.deleteSymbolWidth
 
 

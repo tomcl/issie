@@ -176,10 +176,8 @@ let private buildSimulationComponent
         Label = ComponentLabel comp.Label
         Inputs = inputs
         Outputs = outputs
-        OutputsPropagated = Array.replicate 0 false // default for non-clocked components
         CustomSimulationGraph = None // Custom components will be augumented by the DependencyMerger.
         State = getDefaultState comp.Type
-        Reducer = getReducer comp.Type
     }
 
 let getLabelConnections (comps:Component list) (conns: Connection list) =

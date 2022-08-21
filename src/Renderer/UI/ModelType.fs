@@ -115,10 +115,6 @@ type DriverT = {
 type Wave = {
     /// Uniquely identifies a waveform
     WaveId: WaveIndexT
-    /// Type of component from which this waveform is obtained
-    Type: ComponentType
-    /// Label of component from which this waveform is obtained
-    CompLabel: string
 
     /// unique within design sheet (SheetId)
     /// [] for top-level waveform: path to sheet
@@ -127,15 +123,14 @@ type Wave = {
     /// Wires connected to this waveform. Used to highlight wires
     /// when hovering over wave label.
     Conns: ConnectionId list
-    /// Identifies which Output port drives this waveform.
-    Driver: DriverT
     /// Name shown in the waveform viewer. Not guaranteed to be unique.
     DisplayName: string
     /// Number of bits in wave
+    CompLabel: string
     Width: int
     /// TODO: Consider changing to a map keyed by clock cycle.
     /// List indexed by clock cycle to show value of wave.
-    WaveValues: WireData list
+    WaveValues: FData array
     /// SVG of waveform
     SVG: ReactElement option
 }
@@ -145,6 +140,10 @@ type Wave = {
 type WaveSimModel = {
     /// Current state of WaveSimModel.
     State: WaveSimState
+    /// Top-level sheet for current waveform simulation
+    TopSheet: string
+    /// Copy of all sheets used with reduced canvasState as simulated
+    Sheets: Map<string,CanvasState>
     /// Map of all simulatable waves
     AllWaves: Map<WaveIndexT, Wave>
     /// List of which waves are currently visible in the waveform viewer.
@@ -183,7 +182,9 @@ type WaveSimModel = {
     PrevSelectedWaves: WaveIndexT list option
 }
 
-let initWSModel : WaveSimModel = {
+let initWSModel  : WaveSimModel = {
+    TopSheet = ""
+    Sheets = Map.empty
     State = Empty
     AllWaves = Map.empty
     SelectedWaves = List.empty
@@ -197,7 +198,7 @@ let initWSModel : WaveSimModel = {
     RamModalActive = false
     RamComps = []
     SelectedRams = Map.empty
-    FastSim = FastCreate.emptyFastSimulation ()
+    FastSim = FastCreate.emptyFastSimulation () // placeholder
     SearchString = ""
     HoveredLabel = None
     DraggedIndex = None
@@ -536,7 +537,6 @@ let getComponentIds (model: Model) =
 let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
     {
         SelectedWaves = Some wsModel.SelectedWaves
-        SelectedFWaves = None
         Radix = Some wsModel.Radix
         WaveformColumnWidth = Some wsModel.WaveformColumnWidth
         ShownCycles = Some wsModel.ShownCycles

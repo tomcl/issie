@@ -125,22 +125,22 @@ let button options func label = Button.button (List.append options [ Button.OnCl
 let selectedWaves (wsModel: WaveSimModel) : Wave list = List.map (fun index -> wsModel.AllWaves[index]) wsModel.SelectedWaves
 
 /// Convert XYPos list to string
-let pointsToString (points: XYPos list) : string =
-    List.fold (fun str (point: XYPos) ->
+let pointsToString (points: XYPos array) : string =
+    Array.fold (fun str (point: XYPos) ->
         str + string point.X + "," + string point.Y + " "
     ) "" points
 
 /// Retrieve value of wave at given clock cycle as an int.
 let getWaveValue (currClkCycle: int) (wave: Wave): int64 =
-    List.tryItem currClkCycle wave.WaveValues
+    Array.tryItem currClkCycle wave.WaveValues
     |> function
-    | Some wireData ->
-        convertWireDataToInt wireData
-    | None ->
-        // TODO: Find better default value here
-        // TODO: Should probably make it so that you can't call this function in the first place.
-        printf "Trying to access index %A in wave %A. Default to 0." currClkCycle wave.DisplayName
-        0
+        | Some (Data fData) ->
+            convertFastDataToInt64 fData |> int64
+        | _ ->
+            // TODO: Find better default value here
+            // TODO: Should probably make it so that you can't call this function in the first place.
+            printf "Trying to access index %A in wave %A. Default to 0." currClkCycle wave.DisplayName
+            0
 
 /// Make left and right x-coordinates for a clock cycle.
 let makeXCoords (clkCycleWidth: float) (clkCycle: int) (transition: Transition) =
@@ -166,17 +166,17 @@ let makeCoords (clkCycleWidth: float) (clkCycle: int) (transition: Transition) :
     topL, topR, botL, botR
 
 /// Generate points for a binary waveform
-let binaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int) (transition: BinaryTransition)  : XYPos list =
+let binaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int) (transition: BinaryTransition)  : XYPos array =
     let topL, topR, botL, botR = makeCoords clkCycleWidth (startCycle + index) (BinaryTransition transition)
     // Each match condition generates a specific transition type
     match transition with
     | ZeroToZero | OneToZero ->
-        [botL; botR]
+        [|botL; botR|]
     | ZeroToOne | OneToOne ->
-        [topL; topR]
+        [|topL; topR|]
 
 /// Generate points for a non-binary waveform.
-let nonBinaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int)  (transition: NonBinaryTransition) : (XYPos list * XYPos list) =
+let nonBinaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int)  (transition: NonBinaryTransition) : (XYPos array * XYPos array) =
     let xLeft, _ = makeXCoords clkCycleWidth (startCycle + index) (NonBinaryTransition transition)
     let _, topR, _, botR = makeCoords clkCycleWidth (startCycle + index) (NonBinaryTransition transition)
 
@@ -188,35 +188,40 @@ let nonBinaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int)  (
     match transition with
     | Change ->
         if highZoom clkCycleWidth then
-            [crossHatchMid; crossHatchTop], [crossHatchMid; crossHatchBot]
+            [|crossHatchMid; crossHatchTop|], [|crossHatchMid; crossHatchBot|]
         else
-            [crossHatchMid; crossHatchTop; topR], [crossHatchMid; crossHatchBot; botR]
+            [|crossHatchMid; crossHatchTop; topR|], [|crossHatchMid; crossHatchBot; botR|]
     | Const ->
-        [topR], [botR]
+        [|topR|], [|botR|]
 
 /// Determine transitions for each clock cycle of a binary waveform.
 /// Assumes that waveValues starts at clock cycle 0.
-let calculateBinaryTransitions (waveValues: Bit list list) : BinaryTransition list =
-    [List.head waveValues] @ waveValues
-    |> List.pairwise
-    |> List.map (fun (x, y) ->
-        match x, y with
-        | [Zero], [Zero] -> ZeroToZero
-        | [Zero], [One] -> ZeroToOne
-        | [One], [Zero] -> OneToZero
-        | [One], [One] -> OneToOne
+let calculateBinaryTransitions (waveValues: FData array) : BinaryTransition array =
+    let getBit = function 
+        | Data {Dat = Word bit} -> int32 bit 
+        | Data {Dat = BigWord bit} -> int32 bit
+        | x -> failwithf $"Malformed data: expecting single bit, not {x}"
+    Array.append [|waveValues[0]|] waveValues
+    |> Array.pairwise
+    |> Array.map (fun (x,y) ->       
+        match getBit x, getBit y with
+        | 0,0 -> ZeroToZero
+        | 0,1 -> ZeroToOne
+        | 1,0 -> OneToZero
+        | 1,1 -> OneToOne
         | _ ->
-            failwithf "Unrecognised transition"
+            failwithf $"Unrecognised transition {getBit x}, {getBit y}"
     )
 
 /// Determine transitions for each clock cycle of a non-binary waveform.
 /// Assumes that waveValues starts at clock cycle 0.
-let calculateNonBinaryTransitions (waveValues: Bit list list) : NonBinaryTransition list =
+let calculateNonBinaryTransitions (waveValues: FData array) : NonBinaryTransition array =
+    let notWaveformValue = Alg (AppendExp [])
     // TODO: See if this will break if the clock cycle isn't 0.
     // Concat [[]] so first clock cycle always starts with Change
-    [[]] @ waveValues
-    |> List.pairwise
-    |> List.map (fun (x, y) ->
+    Array.append [|notWaveformValue|]  waveValues
+    |> Array.pairwise
+    |> Array.map (fun (x, y) ->
         if x = y then
             Const
         else
@@ -266,6 +271,10 @@ let camelCaseDottedWords (text:string) =
     text.Split([|'.'|])
     |> Array.map camelWord
     |> String.concat "."
+
+
+
+    
 
 
 

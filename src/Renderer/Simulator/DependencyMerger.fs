@@ -295,7 +295,6 @@ let rec private merger
             let newComp = {
                 comp with
                     CustomSimulationGraph = Some dependencyGraph
-                    Reducer = fun _ -> failwithf "Reducer should never be used!"
             }
             currGraph.Add(compId, newComp)
         | _ -> currGraph // Ignore non-custom components.

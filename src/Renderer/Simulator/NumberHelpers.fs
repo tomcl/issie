@@ -44,7 +44,7 @@ let addZeros64 (width:int) (pFun:int64 -> string) (n: int64) =
         | 'x' -> 4
         | 'b' -> 1
         | _ -> failwithf "Wrong use of addZeros64: s = %s" s
-    let extra = (width - (s.Length - 2)*bits) / bits
+    let extra = min 64 (max 0 ((width - (s.Length - 2)*bits) / bits))
     s[0..1] + String.replicate extra "0" + s[2..]
 
 let addZeros (width:int) (pFun:int -> string) (n: int) =
@@ -54,7 +54,7 @@ let addZeros (width:int) (pFun:int -> string) (n: int) =
         | 'x' -> 4
         | 'b' -> 1
         | _ -> failwithf "Wrong use of addZeros: s = %s" s
-    let extra = ((width - (s.Length - 2))*bits + (2<<<bits - 1)) / bits
+    let extra = min 64 (max 0 (((width - (s.Length - 2))*bits + (2<<<bits - 1)) / bits))
     s[0..1] + String.replicate extra "0" + s[2..]
 
 let hex64 (num : int64) = "0x" + num.ToString("X")

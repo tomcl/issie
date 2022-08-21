@@ -278,6 +278,7 @@ let buildFastSimulation (numberOfSteps: int) (graph: SimulationGraph) : Result<F
     |> createFastArrays fs
     |> orderCombinationalComponents numberOfSteps
     |> checkAndValidate
+    |> Result.map addDriversToFastSimulation
 
 
 //---------------------------------------------------------------------------------------------------//

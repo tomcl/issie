@@ -19,7 +19,6 @@ open FilesIO
 open Extractor
 open Notifications
 open PopupView
-open CustomCompPorts
 open DrawModelType
 open Sheet.SheetInterface
 
@@ -343,24 +342,37 @@ let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=
         
 /// save current open file, updating model etc, and returning the loaded component and the saved (unreduced) canvas state
 let updateVerilogFileActionWithModelUpdate (newCS:CanvasState) name (model: Model) (dispatch: Msg -> Unit) =
-    let opt = updateVerilogFileAction newCS name model dispatch
+    let p' =
+        match model.CurrentProj with
+        | None -> failwithf "What? Should never be able to save sheet when project=None"
+        | Some p -> {p with WorkingFileName = Some name}
+    let model' = {model with CurrentProj = Some p'}
+
+    let opt = updateVerilogFileAction newCS name model' dispatch
     let ldcOpt = Option.map fst opt
     let state = Option.map snd opt |> Option.defaultValue ([],[])
-    match model.CurrentProj with
+    match model'.CurrentProj with
     | None -> failwithf "What? Should never be able to save sheet when project=None"
     | Some p -> 
         // update loaded components for saved file
         updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
-        |> (fun lc -> {p with LoadedComponents=lc; WorkingFileName=Some name})
+        |> (fun lc -> {p with LoadedComponents=lc})
         |> SetProject
         |> dispatch
+
+    let p'' =
+        match model'.CurrentProj with
+        | None -> failwithf "What? Should never be able to save sheet when project=None"
+        | Some p -> 
+            // update loaded components for saved file
+            updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
+            |> (fun lc -> {p with LoadedComponents=lc})
 
     SetHasUnsavedChanges false
     |> JSDiagramMsg
     |> dispatch
-    dispatch FinishUICmd
-    opt
-
+    dispatch FinishUICmd     
+    p''
 
 //////////////////
 
@@ -446,7 +458,7 @@ let setupProjectFromComponents (sheetName: string) (ldComps: LoadedComponent lis
 /// Creates messages sufficient to do all necessary model and diagram change
 /// Terminates a simulation if one is running
 /// Closes waveadder if it is open
-let private openFileInProject' saveCurrent name project (model:Model) dispatch =
+let openFileInProject' saveCurrent name project (model:Model) dispatch =
     printfn "open file"
     //printSheetNames model
     let newModel = {model with CurrentProj = Some project}

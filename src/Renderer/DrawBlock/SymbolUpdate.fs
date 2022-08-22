@@ -836,6 +836,41 @@ let updatePortPos (sym:Symbol) (pos:XYPos) (portId: string) : Symbol =
             autoScaleHAndW newSym
     | _ -> {sym with MovingPort = None;}
 
+
+let reCreateVerilogSymbol (comp: Component) (oldSym:Symbol) : Symbol =
+    let id = JSHelpers.uuid ()
+    let style = Constants.componentLabelStyle
+    let pos = oldSym.Pos
+    let comp = comp
+    let transform = {Rotation= Degree0; flipped= false}
+    {oldSym with Component=comp}
+    // { 
+    //   Pos = oldSym.Pos
+    //   LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
+    //   LabelHasDefaultPos = true
+    //   LabelRotation = None
+    //   Appearance =
+    //       {
+    //         HighlightLabel = false
+    //         ShowPorts = ShowNone
+    //         Colour = "lightgray"
+    //         Opacity = 1.0
+    //       }
+    //   InWidth0 = None // set by BusWire
+    //   InWidth1 = None
+    //   Id = ComponentId id
+    //   Component = comp
+    //   Moving = false
+    //   PortMaps = initPortOrientation comp
+    //   STransform = transform
+    //   MovingPort = None
+    //   IsClocked = false
+    //   MovingPortTarget = None
+    // }
+    // |> autoScaleHAndW
+    // |> calcLabelBoundingBox
+
+
 let inline replaceSymbol (model: Model) (newSymbol: Symbol) (compId: ComponentId) : Model =
     let symbolswithoutone = model.Symbols.Remove compId
     let newSymbolsWithChangedSymbol = symbolswithoutone.Add (compId, newSymbol)
@@ -1021,9 +1056,6 @@ let movePortUpdate (model:Model) (portId:string) (pos:XYPos) : Model*Cmd<'a> =
     match oldSymbol.Component.Type with
     | Custom _ -> isTouchingEdge port symId oldSymbol
     | _ -> model, Cmd.none 
-
-
-
 
 
 /// Update function which displays symbols

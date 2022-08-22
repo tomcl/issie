@@ -511,7 +511,6 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                 match writeFile path code with
                 | Ok _ -> ()
                 | Error _ -> failwithf "Writing verilog file FAILED"
-                let path2 = pathJoin [| folderPath; name + ".dgm" |]
                 
                 let parsedCodeNearley = parseFromFile(code)
                 let output = Json.parseAs<ParserOutput> parsedCodeNearley
@@ -520,7 +519,7 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                 let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
                 let newCS = SheetCreator.createSheet parsedAST
 
-                dispatch (StartUICmd SaveSheet)
+                dispatch (StartUICmd SaveSheet)               
                 updateVerilogFileActionWithModelUpdate newCS name model dispatch |> ignore
                 dispatch <| Sheet(SheetT.DoNothing)
 
@@ -635,8 +634,8 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
             not noErrors
     
     let width = if showExtraErrors then "80%" else "50%" 
-    let saveUpdateText = match origin with |NewVerilogFile -> "Save" |UpdateVerilogFile -> "Update"
-    let saveUpdateButton = match origin with |NewVerilogFile -> saveButtonAction |UpdateVerilogFile -> updateButton
+    let saveUpdateText = match origin with |NewVerilogFile -> "Save" |UpdateVerilogFile _ -> "Update"
+    let saveUpdateButton = match origin with |NewVerilogFile -> saveButtonAction |UpdateVerilogFile _ -> updateButton
     dialogVerilogPopup title body saveUpdateText noErrors showExtraErrors saveUpdateButton moreInfoButton isDisabled [Width width] dispatch
 
 

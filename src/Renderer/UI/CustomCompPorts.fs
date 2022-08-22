@@ -14,12 +14,13 @@ open Fable.React
 open Fable.React.Props
 
 open Helpers
+open JSHelpers
 open ModelType
 open CommonTypes
 open FilesIO
 open Extractor
 open PopupView
-
+open FileMenuView
 
 
 let printSheetNames (model:Model) =
@@ -33,6 +34,7 @@ let getCorrectFileName (project:Project) =
     match project.WorkingFileName with
     |Some name -> name
     |None -> project.OpenFileName
+
 
 //--------------------------------------------------------------------------------------------//
 //--------------------------------------------------------------------------------------------//
@@ -464,7 +466,6 @@ let updateInstance (newSig: Signature) (sheet:string,cid:string,oldSig:Signature
     let comp' =
         (comp, changes)
         ||> Array.fold (fun comp change ->
-            printfn "Changing!"
             let comp'' = changeInstance comp change
             comp''
             )
@@ -473,7 +474,6 @@ let updateInstance (newSig: Signature) (sheet:string,cid:string,oldSig:Signature
         comps
         |> List.map (fun comp -> 
             if comp.Id = cid then 
-                printfn "changed!: %A" comp'
                 comp' 
             else 
                 comp)
@@ -570,11 +570,23 @@ let optCurrentSheetDependentsPopup (model: Model) =
 
                     let buttonAction isUpdate dispatch  _ =
                         if isUpdate then
-                            printfn "instances: %A" instances
-                            updateDependents newSig instances model dispatch
-                            |> Option.map saveAllProjectFilesFromLoadedComponentsToDisk
-                            |> ignore
+                            // printfn "instances: %A" instances
+                            
+                            let newp = 
+                                updateDependents newSig instances model dispatch
+                            
+                            newp |> Option.map saveAllProjectFilesFromLoadedComponentsToDisk |> ignore
+                            
+                            
+                            let proj = Option.get (newp)
+                            
+                            if proj.OpenFileName <> (Option.defaultValue proj.OpenFileName proj.WorkingFileName) then 
+                                let model' = {model with CurrentProj = Some proj}
+                                openFileInProject' false proj.OpenFileName proj model' dispatch
+                            else ()
+
                         dispatch <| ClosePopup
+                        
                     choicePopupFunc 
                         "Update All Sheet Instances" 
                         (fun _ -> body)

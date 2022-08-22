@@ -21,6 +21,7 @@ open DrawModelType
 open FilesIO
 open VerilogTypes
 open CatalogueView
+open FileMenuView
 
 
 let private readOnlyFormField name body =
@@ -157,7 +158,7 @@ let makeVerilogEditButton model (custom:CustomComponentType) dispatch : ReactEle
             |Some proj -> {proj with WorkingFileName = Some (custom.Name)}
             |None -> failwithf "Can't happen!"
         let model'= {model with CurrentProj = Some project'} 
-        createVerilogPopup model false (Some code) (Some name) UpdateVerilogFile 
+        createVerilogPopup model false (Some code) (Some name) (UpdateVerilogFile name)
     
     match model.CurrentProj with
     | None -> failwithf "What? current project cannot be None at this point in writing Verilog Component"
@@ -172,7 +173,11 @@ let makeVerilogEditButton model (custom:CustomComponentType) dispatch : ReactEle
                 |Error _ -> "Error in loading file"
             Button.button [
                 Button.Color IsPrimary
-                Button.OnClick (fun _ -> openCodeEditor code name dispatch)
+                Button.OnClick (fun _ -> 
+                    dispatch (StartUICmd SaveSheet)
+                    saveOpenFileActionWithModelUpdate model dispatch |> ignore
+                    dispatch <| Sheet(SheetT.DoNothing)
+                    openCodeEditor code name dispatch)
             ] [str "View/Edit Verilog code"]
         |_ -> null
 

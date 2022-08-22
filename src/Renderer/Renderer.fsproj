@@ -67,8 +67,8 @@
     <Compile Include="UI\PopupView.fs" />
     <Compile Include="UI\Notifications.fs" />
     <Compile Include="UI/MemoryEditorView.fs" />
-    <Compile Include="UI\CustomCompPorts.fs" />
     <Compile Include="UI/FileMenuView.fs" />
+    <Compile Include="UI\CustomCompPorts.fs" />
     <Compile Include="UI/SimulationView.fs" />
     <Compile Include="UI\ConstraintReduceView.fs" />
     <Compile Include="UI\TruthTableView.fs" />

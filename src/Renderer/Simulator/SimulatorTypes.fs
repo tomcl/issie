@@ -13,7 +13,7 @@ type Bit = Zero | One
 
 /// Fixed width bus data used in simulation
 /// TODO: refactor as int64 or bigint for efficiency
-/// The list is little-endian: the LSB is at index 0, and the MSB is at index N,
+/// The list is little-endian: the LSB is at index 0, and the MSB is at index N-1,
 /// where N is the length of the list.
 type WireData = Bit list
 
@@ -47,7 +47,7 @@ type SimulationComponent = {
     // Mapping from each input port number to its value (it will be set
     // during the simulation process).
     // TODO: maybe using a list would improve performance?
-    Inputs : Map<InputPortNumber, WireData>
+    Inputs : Map<InputPortNumber,WireData>
     // Mapping from each output port number to all of the ports and
     // Components connected to that port.
     Outputs : Map<OutputPortNumber,(ComponentId * InputPortNumber) list>
@@ -56,28 +56,11 @@ type SimulationComponent = {
     // propagated in propagateStateChanges. Location n corresponds to
     // OutputPortNumber n.
     // not used except for synchronous components and custom components
-    OutputsPropagated: bool array
-    // This CustomSimulationGraph should only be Some when the component Type is
-    // Custom. A custom component keeps track of its internal state using this
-    // CustomSimulationGraph. This graph will be passed to the reducer and
-    // updated from the reducer return value.
     CustomSimulationGraph : SimulationGraph option
     // State for synchronous stateful components, like flip flops and memories.
     // The state should only be changed when clock ticks are fed. Other changes
     // will be ignored.
     State : SimulationComponentState
-    // Function that takes the inputs and transforms them into the outputs,
-    // according to the behaviour of the component.
-    // The size of the Inputs map, must be as expected by the component,
-    // otherwhise the reducer will return None (i.e. keep on waiting for more
-    // inputs to arrive).
-    // The idea is similar to partial application, keep on providing inputs
-    // until the output can be evaluated.
-    // The reducer should fail if more inputs than expected are received.
-    // The reducer accepts a SimulationGraph for custom components only.
-    // The reducer accepts an IsClockTick flag that tells you if that is an
-    // update due to the global clock.
-    Reducer : ReducerInput -> ReducerOutput
 }
 
 /// Map every ComponentId to its SimulationComponent.
@@ -182,7 +165,7 @@ type FastData =
         match this.Dat with
         | Word n -> n
         | BigWord n when this.Width <= 32 -> uint32 n
-        | _ -> failwithf $"Can't turn {this} into a uint32"
+        | _ -> failwithf $"GetQint32 Can't turn Alg into a uint32"
 
 //-------------------------------------------------------------------------------------//
 //-----------------------------TT Algebra Types----------------------------------------//
@@ -874,7 +857,7 @@ let appendBits (fMS: FastData) (fLS: FastData) : FastData =
 //--------------------------------Fast Simulation Data Structure-------------------------//
 //---------------------------------------------------------------------------------------//
    
-type FComponentId = ComponentId * ComponentId list
+// type FComponentId = ComponentId * ComponentId list moved to CommonTypes
 
 type FData = | Data of FastData | Alg of FastAlgExp
     with
@@ -891,12 +874,23 @@ type FData = | Data of FastData | Alg of FastAlgExp
         match this with
         | Alg exp -> exp
         | Data fd -> DataLiteral fd
+    member this.toFastData =
+        match this with
+        | Data fd -> fd
+        | _ -> failwithf "Expected data, found Alg FData"
+    member this.toInt64 =
+        match this with
+        | Data {Width =w} when w > 64 -> failwithf "Help! Can't convert numbers wider than 64 bits to int64."
+        | Data {Dat = Word w} -> int64 (uint64 w)
+        | Data {Dat = BigWord w} -> int64 w
+        | _ -> failwithf "Can't convert Alg style FData to int64"
 
 /// Wrapper to allow arrays to be resized for longer simulations while keeping the links between inputs
 /// and outputs
 type StepArray<'T> = {
     // this field is mutable to allow resizing
     mutable Step: 'T array
+    Index: int
     }
 
 type FastComponent = {
@@ -912,6 +906,8 @@ type FastComponent = {
     SimComponent: SimulationComponent
     AccessPath: ComponentId list
     FullName: string
+    FLabel: string
+    SheetName: string list
     // these fields are used only to determine component ordering for correct evaluation
     mutable Touched: bool // legacy field
     mutable DrivenComponents: FastComponent list
@@ -928,7 +924,14 @@ type FastComponent = {
         (EEExtensions.String.substringLength 0 5 sid)
     member inline this.PutOutput (epoch) (OutputPortNumber n) dat = this.Outputs[n].Step[epoch] <- dat
     member inline this.Id = this.SimComponent.Id
+    member inline this.SubSheet = this.SheetName[0..this.SheetName.Length-1] 
+        
 
+type Driver = {
+    Index: int //index of this driver in the array, also
+    DriverWidth: int
+    DriverData: StepArray<FData>
+}
 // The fast simulation components are similar to the issie components they are based on but with addition of arrays
 // for direct lookup of inputs and fast access of outputs. The input arrays contain pointers to the output arrays the
 // inputs are connected to, the InputPortNumber integer indexes this.
@@ -946,7 +949,6 @@ type FastComponent = {
 // Note that custom component info is still kept because each component in the graph has a path - the list of custom component ids
 // between its graph and root. Following issie this does not include a custom component for the sheet being simulated, which is viewed as
 // root. Since custom components have been removed this no longer complicates the simulation.
-
 type FastSimulation = {
     // last step number (starting from 0) which is simulated.
     mutable ClockTick: int
@@ -971,11 +973,19 @@ type FastSimulation = {
     // Fast components: this array is longer than FOrderedComps because it contains
     // IOlabel components that are redundant in the simulation
     FComps: Map<FComponentId,FastComponent>
+    FCustomComps: Map<FComponentId,FastComponent>
+    // Fast components: this map is longer than FComps because it contains
+    // Custom components not used by Fast simulation but needed in Waveform simulation
+    WaveComps: Map<FComponentId,FastComponent>
     FSComps: Map<FComponentId,SimulationComponent * ComponentId list>
     // look up from output port of custom component to the relevant Output component
     FCustomOutputCompLookup: Map<(ComponentId*ComponentId list)*OutputPortNumber, FComponentId>
     // GatherData from which this simulation was made
     G: GatherData
+    // Total number of step arrays (= drivers)
+    NumStepArrays: int
+    Drivers: Driver option array
+    WaveIndex: WaveIndexT array
     } with
         member this.getSimulationData (step: int) ((cid,ap): FComponentId) (opn: OutputPortNumber) =
             let (OutputPortNumber n) = opn
@@ -1031,6 +1041,10 @@ and  GatherData = {
     member this.getFullName (cid,ap) = 
             List.map ( fun cid -> match Map.tryFind cid this.Labels with | Some lab -> lab | None -> "*" ) (ap @ [cid])
             |> String.concat "."
+
+    member this.getSheetName (cid,ap) = 
+        List.map ( fun cid -> match Map.tryFind cid this.Labels with | Some lab -> lab.ToUpper() | None -> "*" ) (ap @ [cid])
+
 
 //-------------------------------------------------------------------------------------//
 //-------------------Helper functions for simulation types-----------------------------//

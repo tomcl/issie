@@ -22,7 +22,7 @@ module Constants =
     /// 2 * MainView.Constants.dividerBarWidth = 20,
     /// WaveSimStyle.namesColWidth = 200,
     /// WaveSimStyle.valeusColWidth = 100,
-    let initialWaveformColWidth = 650 - 50 - 50 - 20 - 200 - 100
+    let initialWaveformColWidth = 650 - 20 - 20 - 20 - 130 - 100
 
 type RightTab =
     | Properties
@@ -115,10 +115,6 @@ type DriverT = {
 type Wave = {
     /// Uniquely identifies a waveform
     WaveId: WaveIndexT
-    /// Type of component from which this waveform is obtained
-    Type: ComponentType
-    /// Label of component from which this waveform is obtained
-    CompLabel: string
 
     /// unique within design sheet (SheetId)
     /// [] for top-level waveform: path to sheet
@@ -127,15 +123,14 @@ type Wave = {
     /// Wires connected to this waveform. Used to highlight wires
     /// when hovering over wave label.
     Conns: ConnectionId list
-    /// Identifies which Output port drives this waveform.
-    Driver: DriverT
     /// Name shown in the waveform viewer. Not guaranteed to be unique.
     DisplayName: string
+    CompLabel: string
     /// Number of bits in wave
     Width: int
     /// TODO: Consider changing to a map keyed by clock cycle.
     /// List indexed by clock cycle to show value of wave.
-    WaveValues: WireData list
+    WaveValues: FData array
     /// SVG of waveform
     SVG: ReactElement option
 }
@@ -145,6 +140,10 @@ type Wave = {
 type WaveSimModel = {
     /// Current state of WaveSimModel.
     State: WaveSimState
+    /// Top-level sheet for current waveform simulation
+    TopSheet: string
+    /// Copy of all sheets used with reduced canvasState as simulated
+    Sheets: Map<string,CanvasState>
     /// Map of all simulatable waves
     AllWaves: Map<WaveIndexT, Wave>
     /// List of which waves are currently visible in the waveform viewer.
@@ -160,16 +159,16 @@ type WaveSimModel = {
     /// Radix in which values are being displayed in the wave simulator.
     Radix: NumberBase
     /// Width of the waveform column.
-    WaveformColumnWidth: int
+    WaveformColumnWidth: float
     /// TODO: Should this be refactored into an ActiveModal type option?
     /// If the wave selection modal is visible.
     WaveModalActive: bool
     /// If the ram selection modal is visible.
     RamModalActive: bool
     /// List of RAM components on the sheet.
-    RamComps: Component list
+    RamComps: FastComponent list
     /// Map of which RAM components have been selected.
-    SelectedRams: Map<ComponentId, string>
+    SelectedRams: Map<FComponentId, string>
     /// FastSimulation used in the wave simulator.
     FastSim: FastSimulation
     /// String which the user is searching the list of waves by.
@@ -183,12 +182,14 @@ type WaveSimModel = {
     PrevSelectedWaves: WaveIndexT list option
 }
 
-let initWSModel : WaveSimModel = {
+let initWSModel  : WaveSimModel = {
+    TopSheet = ""
+    Sheets = Map.empty
     State = Empty
     AllWaves = Map.empty
     SelectedWaves = List.empty
     StartCycle = 0
-    ShownCycles = 6
+    ShownCycles = 5
     CurrClkCycle = 0
     ClkCycleBoxIsEmpty = false
     Radix = Hex
@@ -197,7 +198,7 @@ let initWSModel : WaveSimModel = {
     RamModalActive = false
     RamComps = []
     SelectedRams = Map.empty
-    FastSim = FastCreate.emptyFastSimulation ()
+    FastSim = FastCreate.emptyFastSimulation () // placeholder
     SearchString = ""
     HoveredLabel = None
     DraggedIndex = None
@@ -508,7 +509,6 @@ let reduceApprox (this: Model) = {|
          LastUsedDialogWidth = this.LastUsedDialogWidth
          CreateComponent = this.LastCreatedComponent
          HasUnsavedChanges = false
-         CurrProject = match this.PopupViewFunc with None -> false | _ -> true
          PopupDialogData = this.PopupDialogData
          DragMode = this.DividerDragMode
          ViewerWidth = this.WaveSimViewerWidth
@@ -539,7 +539,8 @@ let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
         Radix = Some wsModel.Radix
         WaveformColumnWidth = Some wsModel.WaveformColumnWidth
         ShownCycles = Some wsModel.ShownCycles
-        SelectedRams = Some wsModel.SelectedRams
+        SelectedFRams = Some wsModel.SelectedRams
+        SelectedRams = None
 
         // The following fields are from the old waveform simulator.
         // They are no longer used.
@@ -559,7 +560,7 @@ let loadWSModelFromSavedWaveInfo (swInfo: SavedWaveInfo) : WaveSimModel =
             Radix = Option.defaultValue initWSModel.Radix swInfo.Radix
             WaveformColumnWidth = Option.defaultValue initWSModel.WaveformColumnWidth swInfo.WaveformColumnWidth
             ShownCycles = Option.defaultValue initWSModel.ShownCycles swInfo.ShownCycles
-            SelectedRams = Option.defaultValue initWSModel.SelectedRams swInfo.SelectedRams
+            SelectedRams = Option.defaultValue initWSModel.SelectedRams swInfo.SelectedFRams
     }
 
 //----------------------Print functions-----------------------------//
@@ -615,9 +616,7 @@ let updateLdCompsWithCompOpt (newCompOpt:LoadedComponent option) (ldComps: Loade
     | Some newComp -> 
         match List.tryFind (fun (ldc:LoadedComponent) -> ldc.Name = newComp.Name) ldComps with
         | None -> newComp :: ldComps
-        | Some _ -> 
-            printfn "here"
-            updateLdComps newComp.Name (fun _ -> newComp) ldComps
+        | Some _ -> updateLdComps newComp.Name (fun _ -> newComp) ldComps
 
 /// returns a string option representing the current file name if file is loaded, otherwise None
 let getCurrFile (model: Model) =
@@ -644,5 +643,3 @@ let setWSModel (wsModel: WaveSimModel) (model: Model) =
     | Some sheets, wsSheet ->
         printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, sheets=%A" wsSheet sheets
         model
-
-

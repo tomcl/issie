@@ -62,14 +62,20 @@ let rightSectionStyle model =
         Top "0px"
         Height  "100%" //(sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
         Width widthRightSec
-        OverflowX OverflowOptions.Hidden
-        OverflowY OverflowOptions.Scroll
+        OverflowX OverflowOptions.Visible
+        //OverflowY OverflowOptions.Auto
         BorderTop "2px solid lightgray"
         UserSelect UserSelectOptions.None
         ZIndex 31
         BackgroundColor "white"
         //UserSelect UserSelectOptions.None
 ]
+
+let belowHeaderStyle headerSize =
+    Style [
+        OverflowY OverflowOptions.Auto
+        Height $"calc(100%% - {headerSize})"
+        ]
 
 let canvasVisibleStyle model = 
     let widthRightSec = rightSectionWidth model

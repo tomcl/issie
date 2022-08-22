@@ -14,6 +14,7 @@
     <Compile Include="Common\EEExtensions.fs" />
     <Compile Include="Common\Optics.fs" />
     <Compile Include="Common\ElectronAPI.fs" />
+    <Compile Include="Common\HashMap.fs" />
     <Compile Include="Common\CommonTypes.fs" />
     <Compile Include="Common\DrawHelpers.fs" />
     <Compile Include="Common\Helpers.fs" />
@@ -77,6 +78,7 @@
     <!-- <Compile Include="UI/WaveSim/WaveformSimulationView.fs" /> -->
     <Compile Include="UI/WaveSim/WaveSimHelpers.fs" />
     <Compile Include="UI/WaveSim/WaveSimStyle.fs" />
+    <Compile Include="UI\WaveSim\WaveSimSelect.fs" />
     <Compile Include="UI/WaveSim/WaveSim.fs" />
     <Compile Include="UI\MainView.fs" />
     <Compile Include="UI\Update.fs" />

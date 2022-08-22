@@ -77,11 +77,7 @@ let rec prepareSimulation
 
 
 
-/// Expose the feedSimulationInput function from SimulationRunner.
-let feedSimulationInput = SimulationRunner.feedSimulationInput
 
-/// Expose the feedClockTick function from SimulationRunner.
-let feedClockTick = SimulationRunner.feedClockTick
 
 /// Expose the extractSimulationIOs function from SimulationRunner.
 let extractSimulationIOs = SimulationRunner.extractSimulationIOs

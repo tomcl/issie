@@ -31,6 +31,52 @@ let createErrorMessage
     
     [{Line = line; Col=currLocation-prevLineLocation+1;Length=length;Message = message;ExtraErrors=Some extraMessages}]
 
+
+/// Recursive function to get all the primaries used in the RHS of an assignment
+/// Used by checkNamesOnRHSOfAssignment and checkSizesOnRHSOfAssignment
+let rec primariesUsedInAssignment inLst (isConcat: bool) (tree: ExpressionT) = 
+    match tree.Type with
+    | "unary" when (Option.get tree.Unary).Type = "primary" 
+        -> List.append inLst [(Option.get (Option.get tree.Unary).Primary, isConcat)]
+    | "unary" when (Option.get tree.Unary).Type = "parenthesis" 
+        -> primariesUsedInAssignment inLst isConcat  (Option.get (Option.get tree.Unary).Expression)
+    | "unary" when (Option.get tree.Unary).Type = "concat" 
+        -> primariesUsedInAssignment inLst true  (Option.get (Option.get tree.Unary).Expression)
+    | "negation" when (Option.get tree.Unary).Type = "primary" 
+        -> List.append inLst [(Option.get (Option.get tree.Unary).Primary, isConcat)] 
+    | "negation" when (Option.get tree.Unary).Type = "parenthesis" 
+        -> primariesUsedInAssignment inLst isConcat (Option.get (Option.get tree.Unary).Expression)    
+    
+    | "unary" when (Option.get tree.Unary).Type = "number" -> 
+        match (Option.get (Option.get tree.Unary).Number).NumberType with
+        | "all" -> 
+            let afterBitsSection = (string ((Option.get (Option.get (Option.get tree.Unary).Number).Base)[1])) + (Option.get (Option.get (Option.get tree.Unary).Number).AllNumber)
+            List.append inLst 
+                    [(
+                            {
+                            Type= "primary"; 
+                            PrimaryType= afterBitsSection; 
+                            BitsStart= Some "-3";
+                            BitsEnd= Some (Option.get (Option.get (Option.get tree.Unary).Number).Bits); 
+                            Primary= {
+                                Name="delete123";
+                                Location=(Option.get (Option.get tree.Unary).Number).Location
+                                }
+                            }, isConcat
+                        )]
+        | _ -> inLst
+
+    | "bitwise_OR" | "bitwise_XOR" | "bitwise_AND" 
+    | "additive" | "SHIFT" | "logical_AND" 
+    | "logical_OR" | "unary_list" 
+    | "conditional_cond" | "conditional_result"
+        -> List.append 
+            (primariesUsedInAssignment inLst isConcat (Option.get tree.Head))
+            (if isNullOrUndefined tree.Tail 
+                        then inLst 
+                    else primariesUsedInAssignment inLst isConcat (Option.get tree.Tail))
+    | _ -> inLst
+
 /// Checks whether all ports given in the beginning of the module are defined as input/output
 /// Also if all ports have distinct names
 let portCheck ast linesLocations errorList  = 
@@ -98,35 +144,58 @@ let checkIODeclarations
     (portLocationMap: Map<string,int>) 
     (linesLocations: int list) 
     (nonUniquePortDeclarations: string list)
+    (portMap: Map<string,string>)
+    (items: ItemT list)
     (errorList: ErrorInfo list)
         : ErrorInfo list = 
     
     let portList = ast.Module.PortList |> Array.toList
-    
+    let assignments = List.filter (fun item -> (Option.isSome item.Statement)) items
+
+    let allPrimariesUsed =
+        assignments
+        |> List.map (fun x -> 
+            primariesUsedInAssignment [] false (Option.get x.Statement).Assignment.RHS
+            |> List.map fst
+        )
+        |> List.concat
+        |> List.map (fun primary -> primary.Primary.Name)
+
+
     portWidthDeclarationMap
     |> Map.toList
     |> List.map fst
     |> List.collect (fun port -> 
-        match (List.tryFind (fun p -> p=port) portList) with
-        | None -> // CASE 1: Doesn't exist in the module header
+        match ((List.tryFind (fun p -> p=port) allPrimariesUsed),(Map.tryFind port portMap)) with
+        |None, Some "input" -> // CASE 1: port is not used in the assignments
             let currLocation = Map.find port portLocationMap
-            let message = sprintf "Variable '%s' is not defined as a port in the module declaration" port
+            let message = sprintf "Variable '%s' is defined as an input port but is not used" port
             let extraMessages =
                 [|
-                    {Text=sprintf "Variable '%s' is not defined as a port \n Please define it in the module declaration" port;Copy=false;Replace=NoReplace}
+                    {Text=sprintf "Variable '%s' is defined as an input port but is not used \n Please delete it if it is not needed" port;Copy=false;Replace=NoReplace}
                 |]
             createErrorMessage linesLocations currLocation message extraMessages port
-        | Some _ -> // Exists in module header
-            match List.tryFind (fun p -> p=port) nonUniquePortDeclarations with
-            |Some found -> // CASE 2: Double definition
+        | _, _ ->
+            match (List.tryFind (fun p -> p=port) portList) with
+            | None -> // CASE 2: Doesn't exist in the module header
                 let currLocation = Map.find port portLocationMap
-                let message = sprintf "Port '%s' is already defined" port
+                let message = sprintf "Variable '%s' is not defined as a port in the module declaration" port
                 let extraMessages =
                     [|
-                        {Text=sprintf "Port '%s' is already defined" port ;Copy=false;Replace=NoReplace}
+                        {Text=sprintf "Variable '%s' is not defined as a port \n Please define it in the module declaration" port;Copy=false;Replace=NoReplace}
                     |]
                 createErrorMessage linesLocations currLocation message extraMessages port
-            |None -> [] //CASE 3: No errors
+            | Some _ -> // Exists in module header
+                match List.tryFind (fun p -> p=port) nonUniquePortDeclarations with
+                |Some found -> // CASE 3: Double definition
+                    let currLocation = Map.find port portLocationMap
+                    let message = sprintf "Port '%s' is already defined" port
+                    let extraMessages =
+                        [|
+                            {Text=sprintf "Port '%s' is already defined" port ;Copy=false;Replace=NoReplace}
+                        |]
+                    createErrorMessage linesLocations currLocation message extraMessages port
+                |None -> [] //CASE 4: No errors
     )
     |> List.append errorList   
 
@@ -477,53 +546,6 @@ let rec unaryTreeToString treeDepth targetLength (unariesList:OneUnary list)  =
     ||>List.fold (fun s item ->
         s+(unaryToString item)
     )
-
-
-/// Recursive function to get all the primaries used in the RHS of an assignment
-/// Used by checkNamesOnRHSOfAssignment and checkSizesOnRHSOfAssignment
-let rec primariesUsedInAssignment inLst (isConcat: bool) (tree: ExpressionT) = 
-    match tree.Type with
-    | "unary" when (Option.get tree.Unary).Type = "primary" 
-        -> List.append inLst [(Option.get (Option.get tree.Unary).Primary, isConcat)]
-    | "unary" when (Option.get tree.Unary).Type = "parenthesis" 
-        -> primariesUsedInAssignment inLst isConcat  (Option.get (Option.get tree.Unary).Expression)
-    | "unary" when (Option.get tree.Unary).Type = "concat" 
-        -> primariesUsedInAssignment inLst true  (Option.get (Option.get tree.Unary).Expression)
-    | "negation" when (Option.get tree.Unary).Type = "primary" 
-        -> List.append inLst [(Option.get (Option.get tree.Unary).Primary, isConcat)] 
-    | "negation" when (Option.get tree.Unary).Type = "parenthesis" 
-        -> primariesUsedInAssignment inLst isConcat (Option.get (Option.get tree.Unary).Expression)    
-    
-    | "unary" when (Option.get tree.Unary).Type = "number" -> 
-        match (Option.get (Option.get tree.Unary).Number).NumberType with
-        | "all" -> 
-            let afterBitsSection = (string ((Option.get (Option.get (Option.get tree.Unary).Number).Base)[1])) + (Option.get (Option.get (Option.get tree.Unary).Number).AllNumber)
-            List.append inLst 
-                    [(
-                            {
-                            Type= "primary"; 
-                            PrimaryType= afterBitsSection; 
-                            BitsStart= Some "-3";
-                            BitsEnd= Some (Option.get (Option.get (Option.get tree.Unary).Number).Bits); 
-                            Primary= {
-                                Name="delete123";
-                                Location=(Option.get (Option.get tree.Unary).Number).Location
-                                }
-                            }, isConcat
-                        )]
-        | _ -> inLst
-
-    | "bitwise_OR" | "bitwise_XOR" | "bitwise_AND" 
-    | "additive" | "SHIFT" | "logical_AND" 
-    | "logical_OR" | "unary_list" 
-    | "conditional_cond" | "conditional_result"
-        -> List.append 
-            (primariesUsedInAssignment inLst isConcat (Option.get tree.Head))
-            (if isNullOrUndefined tree.Tail 
-                        then inLst 
-                    else primariesUsedInAssignment inLst isConcat (Option.get tree.Tail))
-    | _ -> inLst
-
 
 
 
@@ -1044,9 +1066,9 @@ let getSemanticErrors ast linesLocations (origin:CodeEditorOpen) (project:Projec
     //////////////////////////////////////////////
     
     []  //begin with empty list and add errors to it
-    |> nameCheck ast linesLocations origin project 
+    |> nameCheck ast linesLocations origin project //name is valid (not used by another sheet/component)
     |> portCheck ast linesLocations //all ports are declared as input/output
-    |> checkIODeclarations ast portWidthDeclarationMap portLocationMap linesLocations notUniquePortDeclarations  //all ports declared as IO are defined in the module header
+    |> checkIODeclarations ast portWidthDeclarationMap portLocationMap linesLocations notUniquePortDeclarations portMap items  //all ports declared as IO are defined in the module header
     |> checkIOWidthDeclarations ast linesLocations //correct port width declaration (e.g. [1:4] -> invalid)
     |> checkWiresAndAssignments ast portMap portSizeMap portWidthDeclarationMap inputSizeMap inputNameList linesLocations wireNameList wireSizeMap wireLocationMap //checks 1-by-1 all assignments (wires & output ports)
     |> checkAllOutputsAssigned ast portMap portSizeMap linesLocations //checks whether all output ports have been assined a value

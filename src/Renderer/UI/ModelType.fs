@@ -125,8 +125,8 @@ type Wave = {
     Conns: ConnectionId list
     /// Name shown in the waveform viewer. Not guaranteed to be unique.
     DisplayName: string
-    /// Number of bits in wave
     CompLabel: string
+    /// Number of bits in wave
     Width: int
     /// TODO: Consider changing to a map keyed by clock cycle.
     /// List indexed by clock cycle to show value of wave.

@@ -8,15 +8,17 @@ open Fable.React
 open Fable.React.Props
 
 module Constants =
-    /// Width of names column
-    let namesColWidth = 200
+    // Width of names column - replaced by calcNamesColWidth function
+
     /// Width of values column
     let valuesColWidth = 100
+    let deleteSymbolWidth = 20
+    let scrollBarWidth = 15
 
     /// Width of left margin of waveform simulator
-    let leftMargin = 50
+    let leftMargin = 30
     /// Width of right margin of waveform simulator
-    let rightMargin = 50
+    let rightMargin = 30
 
     /// Height of each row in name and value columns.
     /// Same as SVG ViewBox Height.
@@ -26,6 +28,8 @@ module Constants =
     let clkLineWidth = 0.8
     /// Width of each waveform line.
     let lineThickness : float = 0.8
+    let columnFontSize = "12px"
+    let columnFontFamily = "Helvetica"
 
     let fontSizeValueOnWave = "10px"
     /// Text used to display vlaues on non-binary waves
@@ -129,37 +133,48 @@ let ramRowStyle = Style [
     BorderBottom "1px solid rgb(219,219,219)"
 ]
 
+type RamRowType = RAMWritten | RAMRead | RAMNormal 
+
 /// Style for each row of ramTable
-let ramTableRowStyle wenHigh correctAddr =
+let ramTableRowStyle (rowType:RamRowType) =
+    match rowType with
     // Highlight in red on write
-    if wenHigh && correctAddr then
-        Style [
+    | RAMWritten ->
+        [
             BackgroundColor "hsl(347, 90%, 96%)"
             Color "hsl(348, 100%, 61%)"
             FontWeight "bold"
         ]
     // Highlight in blue on write
-    else if correctAddr then
-        Style [
+    | RAMRead ->
+        [
             BackgroundColor "hsl(206, 70%, 96%)"
             Color "hsl(204, 86%, 53%)"
             FontWeight "bold"
         ]
-    else Style []
+
+    | RAMNormal ->
+        []
 
 /// Props for Bulma Level element for single ramTable
 let ramTableLevelProps : IHTMLProp list = [
     Style [
+        Font Constants.columnFontFamily
+        FontSize Constants.columnFontSize
         Position PositionOptions.Relative
         Display DisplayOptions.InlineBlock
-        MarginRight 10
+        MarginRight 20
+        MarginLeft 20
     ]
 ]
 
 /// Props for Bulma Level element for ramTables
 let ramTablesLevelProps : IHTMLProp list = [
     Style [
-        OverflowX OverflowOptions.Scroll
+        OverflowX OverflowOptions.Auto
+        Font Constants.columnFontFamily
+        FontSize Constants.columnFontSize
+        
     ]
 ]
 
@@ -309,6 +324,26 @@ let nameRowLevelLeftProps (visibility: string): IHTMLProp list = [
     ]
 ]
 
+       
+       
+
+
+let calcNamesColWidth (ws:WaveSimModel) : int =
+    let cWidth =
+        DrawHelpers.canvasWidthContext.font <- String.concat " " ["10px"; Constants.columnFontFamily]; // e.g. "16px bold sans-serif";
+        let getWidth (txt:string) =
+            let sizeInPx = float ((Constants.columnFontSize.ToLower()).Replace("px",""))   
+            sizeInPx * DrawHelpers.canvasWidthContext.measureText(txt).width / 10.0
+        ws.SelectedWaves
+        |> List.map (fun wi -> camelCaseDottedWords ws.AllWaves[wi].DisplayName)
+        |> (fun lst -> "Dummy" :: lst)
+        |> List.map getWidth
+        |> List.max
+        |> System.Math.Ceiling
+        |> int
+    cWidth + Constants.deleteSymbolWidth
+
+
 /// List of Style properties for columns in wave viewer.
 let waveSimColumn = [
     Height "100%"
@@ -316,26 +351,29 @@ let waveSimColumn = [
     BorderTop Constants.borderProperties
     Display DisplayOptions.Grid
     GridAutoRows Constants.rowHeight
-    FontSize "12px"
-    OverflowX OverflowOptions.Scroll
+    FontSize Constants.columnFontSize
+    FontFamily Constants.columnFontFamily
+    OverflowX OverflowOptions.Auto
     WhiteSpace WhiteSpaceOptions.Nowrap
     LineHeight "25px"
 ]
 
 /// Style properties for names column
-let namesColumnStyle = Style (
+let namesColumnStyle (ws:WaveSimModel) = Style (
     (waveSimColumn) @ [
-        MinWidth Constants.namesColWidth
+        MinWidth (calcNamesColWidth ws)
         Float FloatOptions.Left
         BorderRight Constants.borderProperties
         GridColumnStart 1
+        OverflowX OverflowOptions.Auto
         TextAlign TextAlignOptions.Right
     ])
 
 /// Props for names column
-let namesColumnProps : IHTMLProp list = [
+let namesColumnProps (ws:WaveSimModel): IHTMLProp list = [
     Id "namesColumn"
-    namesColumnStyle
+    
+    namesColumnStyle ws
 ]
 
 /// Style properties for values column
@@ -344,6 +382,7 @@ let valuesColumnStyle = Style (
         MinWidth Constants.valuesColWidth
         Float FloatOptions.Right
         BorderLeft Constants.borderProperties
+        OverflowX OverflowOptions.Auto
         GridColumnStart 3
     ])
 
@@ -366,23 +405,31 @@ let waveRowsStyle width = Style [
     GridRowStart 1
 ]
 
-/// Style for waveform viewer
+/// Style for viewWaveSim
+let viewWaveSimStyle = Style [
+    MarginLeft Constants.leftMargin
+    MarginRight Constants.rightMargin
+    MarginTop "15px"
+    Height "calc(100% - 72px)"
+]
+
+// style for waveforms and RAM viewer
+let showWaveformsAndRamStyle = Style [
+    OverflowY OverflowOptions.Auto; Height "calc(100% - 250px)"
+    ]
+
+/// Style for waveforms only path of viewer
 let showWaveformsStyle = Style [
-    Height "calc(100% - 50px)"
+    //Height "calc(100% - 50px)"
     Width "100%"
-    OverflowY OverflowOptions.Auto
+    //OverflowY OverflowOptions.Auto
     Display DisplayOptions.Grid
     ColumnCount 3
     GridAutoFlow "column"
     GridAutoColumns "auto"
 ]
 
-/// Style for viewWaveSim
-let viewWaveSimStyle = Style [
-    MarginLeft Constants.leftMargin
-    MarginRight Constants.rightMargin
-    MarginTop "15px"
-]
+
 
 /// Props for text in clock cycle row
 let clkCycleText m i : IProp list = [

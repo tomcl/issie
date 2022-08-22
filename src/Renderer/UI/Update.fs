@@ -419,13 +419,14 @@ let update (msg : Msg) oldModel =
             |> setWSModel wsModel
         newModel, Cmd.none
     | RefreshWaveSim (wsModel, simData, canvState) ->
-        model, Cmd.OfAsync.perform WaveSim.refreshWaveSim (wsModel, simData, canvState) SetWSModel
+        model, (*Cmd.OfAsync.perform*) Cmd.ofMsg (WaveSim.refreshWaveSim (wsModel, simData, canvState)  |> SetWSModel )
     | AddWSModel (sheet, wsModel) ->
         { model with 
             WaveSim = Map.add sheet wsModel model.WaveSim
         }, Cmd.none
     | InitiateWaveSimulation wsModel ->
         let start = TimeHelpers.getTimeMs ()
+        //printfn "Initiating wave simulation..."
         let allWaves =
             Map.map (WaveSim.generateWaveform wsModel) wsModel.AllWaves
             |> TimeHelpers.instrumentInterval "InitiateWaveSimulation generateWaveform" start

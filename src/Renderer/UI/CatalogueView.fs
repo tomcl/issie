@@ -771,5 +771,4 @@ let viewCatalogue model dispatch =
                             (makeVerilogList styles model dispatch))
                           
                 ]
-
         (viewCatOfModel) model 

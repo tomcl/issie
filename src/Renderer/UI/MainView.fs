@@ -148,9 +148,10 @@ let viewSimSubTab model dispatch =
 let private viewRightTab model dispatch =
     match model.RightPaneTabVisible with
     | Catalogue ->
-        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
+        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ; Height "calc(100%-100px)"] ] [
             Heading.h4 [] [ str "Catalogue" ]
-            div [ Style [ MarginBottom "15px" ] ] [ str "Click on a component to add it to the diagram. Hover on components for details." ]
+            div [ Style [ MarginBottom "15px" ; Height "100%"; OverflowY OverflowOptions.Auto] ] 
+                [ str "Click on a component to add it to the diagram. Hover on components for details." ]
             CatalogueView.viewCatalogue model dispatch
         ]
     | Properties ->
@@ -176,7 +177,7 @@ let private viewRightTab model dispatch =
                     [ Tabs.Tab.IsActive (model.SimSubTabVisible = WaveSim) ]
                     [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab WaveSim) ] [str "Wave Simulation"] ])
                     ]
-        div [ HTMLAttr.Id "RightSelection"; Style [ Height "100%" ]] 
+        div [ HTMLAttr.Id "RightSelection2"; Style [Height "100%"]] 
             [
                 //br [] // Should there be a gap between tabs and subtabs for clarity?
                 subtabs
@@ -204,7 +205,7 @@ let dividerbar (model:Model) dispatch =
     let heightAttr = 
         let rightSection = document.getElementById "RightSection"
         if (isNull rightSection) then Height "100%"
-        else Height rightSection.scrollHeight
+        else Height "100%" //rightSection.scrollHeight
     let variableStyle = 
         if isDraggable then [
             BackgroundColor "grey"
@@ -214,6 +215,7 @@ let dividerbar (model:Model) dispatch =
         ] else [
             BackgroundColor "lightgray"
             Width "2px"
+            Height "100%"
 
         ]
     let commonStyle = [
@@ -226,10 +228,13 @@ let dividerbar (model:Model) dispatch =
         ] []
 
 let viewRightTabs model dispatch =
-    div [HTMLAttr.Id "RightSelection";Style [ Height "100%" ]] [
+    div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Visible]] [
         Tabs.tabs [ 
-            Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs"
-            Tabs.Props [Style [Margin 0] ]
+            Tabs.IsFullWidth; 
+            Tabs.IsBoxed; 
+            Tabs.CustomClass "rightSectionTabs"
+            Tabs.Props [Style [Margin 0]] ; 
+            
         ] [
             Tabs.tab // catalogue tab to add components
                 [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
@@ -241,7 +246,7 @@ let viewRightTabs model dispatch =
                 [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
                 [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] [str "Simulations"] ]
         ]
-        viewRightTab model dispatch
+        div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"] [viewRightTab model dispatch]
 
     ]
 
@@ -265,25 +270,30 @@ let displayView model dispatch =
 
     let inline setViewerWidthInWaveSim w =
         let wsModel = getWSModel model
-        dispatch <| SetViewerWidth w
+        //dispatch <| SetViewerWidth w
+        let namesColWidth = WaveSimStyle.calcNamesColWidth wsModel
 
-        /// Unsure of why there needs to be 2* in front of dividerBarWidth... but it seems to work.
-        let otherDivWidths = Constants.leftMargin + Constants.rightMargin + 2 * Constants.dividerBarWidth
+        /// The +4 is probably because of some unnacounted for padding etc (there is a weird 2px spacer to right of the divider)
+        let otherDivWidths = Constants.leftMargin + Constants.rightMargin + Constants.dividerBarWidth + Constants.scrollBarWidth + 2
 
-        /// Require at least one visible clock cycle
-        let waveColWidth = max (int (singleWaveWidth wsModel)) (w - otherDivWidths - Constants.namesColWidth - Constants.valuesColWidth)
-        let wholeCycles = waveColWidth / int (singleWaveWidth wsModel)
-        let wholeCycleWidth = wholeCycles * int (singleWaveWidth wsModel)
+        /// This is what the overall waveform width must be
+        let waveColWidth = w - otherDivWidths - namesColWidth - Constants.valuesColWidth
 
-        let viewerWidth = Constants.namesColWidth + Constants.valuesColWidth + wholeCycleWidth + otherDivWidths
+        /// Require at least one visible clock cycle: otherwise choose number to get close to correct width of 1 cycle
+        let wholeCycles = max 1 (int (float waveColWidth / singleWaveWidth wsModel))
+
+
+        let singleCycleWidth = float waveColWidth / float wholeCycles
+
+        let viewerWidth = namesColWidth + Constants.valuesColWidth + int (singleCycleWidth * float wholeCycles) + otherDivWidths
 
         let wsModel = {
             wsModel with
                 ShownCycles = wholeCycles
-                WaveformColumnWidth = wholeCycleWidth
+                WaveformColumnWidth = singleCycleWidth * float wholeCycles
             }
         dispatch <| InitiateWaveSimulation wsModel
-        dispatch <| SetViewerWidth viewerWidth
+        dispatch <| SetViewerWidth w
 
     let inline processAppClick topMenu dispatch (ev: Browser.Types.MouseEvent) =
         if topMenu <> Closed then 
@@ -302,7 +312,7 @@ let displayView model dispatch =
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth)
             dispatch <| SetViewerWidth w 
-            dispatch <| SetDragMode (DragModeOn (int ev.clientX))
+            dispatch <| SetDragMode (DragModeOn (int ev.clientX - w + newWidth))
         | DragModeOn pos, _ ->
             let newWidth = model.WaveSimViewerWidth - int ev.clientX + pos
             let w =
@@ -329,6 +339,8 @@ let displayView model dispatch =
             UserSelect UserSelectOptions.None
             BorderTop "2px solid lightgray"
             BorderBottom "2px solid lightgray"
+            OverflowX OverflowOptions.Auto
+            Height "calc(100%-4px)"
             Cursor topCursorText ] ] [
         // transient
         FileMenuView.viewNoProjectMenu model dispatch

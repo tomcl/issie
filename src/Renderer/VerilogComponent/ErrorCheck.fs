@@ -369,186 +369,143 @@ let checkAllOutputsAssigned
     List.append errorList localErrors
 
 
-
 /// Helper function used by checkWidthOfAssignment
 /// with 3 recursive subfunctions
-/// Returns the RHS Unary Size tree of type OneUnary list
-/// where OneUnary={Name:string;Size:int;Elements:OneUnary list option}
-let RHSUnaryAnalysis 
+/// Returns the RHS Unary Size tree of type OneUnary
+/// where OneUnary = {Name:string;ResultWidth:int;Head:OneUnary option;Tail:OneUnary option;Elements:OneUnary list}
+let RHSUnaryAnalysis
     (assignmentRHS:ExpressionT)
     (inputWireSizeMap: Map<string,int>)
-        : OneUnary list =
-    
-    let findSizeOfUnary (tree: ExpressionT) inputWireSizeMap (lengthLHS:int) =
-        match tree.Type with
-        | "unary" when (Option.get tree.Unary).Type = "primary" ->
-            let primary = Option.get (Option.get tree.Unary).Primary
-            match isNullOrUndefined primary.BitsStart with
-                    | true -> 
-                        match Map.tryFind primary.Primary.Name inputWireSizeMap with
-                        | Some num -> (num)
-                        | None -> (lengthLHS) // if name doesn't exist skip it, error found by assignmentRHSNameCheck
-                    | false -> 
-                        (((Option.get primary.BitsStart) |> int) - ((Option.get primary.BitsEnd) |> int) + 1)
-        | "unary" when (Option.get tree.Unary).Type = "number"  
-            -> match (Option.get (Option.get tree.Unary).Number).NumberType with
-                |"decimal"
-                    -> (-4)  //keep decimal?? else delete
-                | _ -> int <| (Option.get (Option.get (Option.get tree.Unary).Number).Bits) 
-        | _ -> failwithf "Can't happen"
+        : OneUnary =
 
-    let rec findSizeOfExpression inLst (tree:ExpressionT) = 
+    let rec findSizeOfExpression (tree:ExpressionT) : OneUnary = 
         match tree.Type with
-        | "unary" when (Option.get tree.Unary).Type = "primary" ->
+        | "unary" |"negation" when (Option.get tree.Unary).Type = "primary" ->
             let primary = Option.get (Option.get tree.Unary).Primary
             match isNullOrUndefined primary.BitsStart with
                     | true -> 
                         match Map.tryFind primary.Primary.Name inputWireSizeMap with
-                        | Some num -> [{Name=primary.Primary.Name;Size=num;Parenthesis=None}]
-                        | None -> [] // if name doesn't exist skip it, error found by assignmentRHSNameCheck
+                        | Some num -> {Name=primary.Primary.Name;ResultWidth=num;Head=None;Tail=None;Elements=[]}
+                        | None -> {Name="undefined";ResultWidth=(0);Head=None;Tail=None;Elements=[]} // if name doesn't exist skip it, error found by assignmentRHSNameCheck
                     | false -> 
-                        [{Name=primary.Primary.Name;Size=((Option.get primary.BitsStart) |> int) - ((Option.get primary.BitsEnd) |> int) + 1;Parenthesis=None}]
-    
-
-        | "negation" when (Option.get tree.Unary).Type = "primary" ->
-            let primary = Option.get (Option.get tree.Unary).Primary
-            match isNullOrUndefined primary.BitsStart with
-                    | true -> 
-                        match Map.tryFind primary.Primary.Name inputWireSizeMap with
-                        | Some num -> [{Name=primary.Primary.Name;Size=num;Parenthesis=None}]
-                        | None -> [] // if name doesn't exist skip it, error found by assignmentRHSNameCheck
-                    | false -> 
-                        [{Name=primary.Primary.Name;Size=((Option.get primary.BitsStart) |> int) - ((Option.get primary.BitsEnd) |> int) + 1;Parenthesis=None}]
+                        {Name=primary.Primary.Name;ResultWidth=((Option.get primary.BitsStart) |> int) - ((Option.get primary.BitsEnd) |> int) + 1;Head=None;Tail=None;Elements=[]}
                         
-        | "unary" when (Option.get tree.Unary).Type = "number"  
-            -> match (Option.get (Option.get tree.Unary).Number).NumberType with
-                |"decimal"-> []  //TODO: keep decimal?? else delete
-                | _ -> [{Name="[number]";Size=int <| (Option.get (Option.get (Option.get tree.Unary).Number).Bits) ;Parenthesis=None}]
+        | "unary" when (Option.get tree.Unary).Type = "number" ->
+                {Name="[number]";ResultWidth=int <| (Option.get (Option.get (Option.get tree.Unary).Number).Bits) ;Head=None;Tail=None;Elements=[]}
         
         | "unary" when (Option.get tree.Unary).Type = "concat" -> 
             let unariesList = (findSizeOfConcat (Option.get (Option.get tree.Unary).Expression) [])
-            let length= (0,unariesList) ||> List.fold(fun s unary-> s+unary.Size)
-            let result = {Name="{...}";Size=length;Parenthesis=Some unariesList}
-            List.append inLst [result]
+            let length= (0,unariesList) ||> List.fold(fun s unary-> s+unary.ResultWidth)
+            {Name="{...}";ResultWidth=length;Head=None;Tail=None;Elements=unariesList}
        
-        | "unary" when (Option.get tree.Unary).Type = "parenthesis" -> 
-            List.append
-                inLst
-                (findSizeOfParenthesis tree)        
-        
-        | "negation" when (Option.get tree.Unary).Type = "parenthesis" ->
-            List.append
-                inLst
-                (findSizeOfExpression [] (Option.get (Option.get tree.Unary).Expression))
+        | "unary" |"negation" when (Option.get tree.Unary).Type = "parenthesis" -> 
+            let elements = (findSizeOfExpression (Option.get (Option.get tree.Unary).Expression))
+            {Name="(...)";ResultWidth=elements.ResultWidth;Head=None;Tail=None;Elements=[elements]}
 
         | "bitwise_OR" | "bitwise_XOR" | "bitwise_AND" 
-        | "additive" | "conditional_result" 
-            -> List.append 
-                (findSizeOfExpression inLst (Option.get tree.Head))
-                (if isNullOrUndefined tree.Tail 
-                            then inLst 
-                        else findSizeOfExpression inLst (Option.get tree.Tail))
-        | "unary_list" -> findSizeOfConcat tree inLst
+        | "additive" 
+            -> 
+            let u1 = findSizeOfExpression (Option.get tree.Head)
+            let u2 = findSizeOfExpression (Option.get tree.Tail)
+            {Name="[bitwise_op]";ResultWidth=u1.ResultWidth;Head=Some u1;Tail=Some u2;Elements=[]}
+            
 
         | "conditional_cond" -> 
-            let result = (findSizeOfExpression [] (Option.get tree.Head))
-            let elements = (findSizeOfExpression [] (Option.get tree.Tail))
-            match List.isEmpty result with
-            |true -> inLst
-            |false ->
-                let size = result[0].Size
-                List.append inLst [{Name="[condition]";Size=size;Parenthesis=Some elements}] 
+            let result = (findSizeOfExpression (Option.get tree.Head))
+            let u1 = (findSizeOfExpression (Option.get (Option.get tree.Tail).Head))
+            let u2 = (findSizeOfExpression (Option.get (Option.get tree.Tail).Tail))
+            {Name="[conditional]";ResultWidth=u1.ResultWidth;Head=Some u1;Tail=Some u2;Elements=[result]}
         
         | "SHIFT" ->
-            let results = (findSizeOfExpression [] (Option.get tree.Head))
-            match List.isEmpty results with
-            |true -> inLst
-            |false ->
-                let result = results[0]
-                let size = result.Size
-                List.append inLst [{Name="[shift]";Size=size;Parenthesis=result.Parenthesis}] 
+            let u1 = (findSizeOfExpression (Option.get tree.Head))
+            {Name="[shift]";ResultWidth=u1.ResultWidth;Head=Some u1;Tail=None;Elements=[]}
 
         | "reduction" when (Option.get tree.Unary).Type = "parenthesis" ->
-            let result = findSizeOfExpression [] (Option.get (Option.get tree.Unary).Expression)
-            List.append inLst [{Name="[reduction]";Size=1;Parenthesis=Some result}] 
+            let result = findSizeOfExpression (Option.get (Option.get tree.Unary).Expression)
+            {Name="[reduction]";ResultWidth=1;Head=None;Tail=None;Elements=[result]} 
 
-        | "reduction" -> 
-            List.append inLst [{Name="[reduction]";Size=1;Parenthesis=None}] 
+        | "reduction" ->
+            {Name="[reduction]";ResultWidth=1;Head=None;Tail=None;Elements=[]} 
 
         | "logical_OR" | "logical_AND" ->
-            let result1 = findSizeOfExpression [] (Option.get tree.Head)
-            let result2 = findSizeOfExpression [] (Option.get tree.Tail)
-            match (List.isEmpty result1,List.isEmpty result2) with
-            |false,false ->
-                let all = result1@result2;
-                List.append inLst [{Name="[logical_op]";Size=1;Parenthesis=Some all}] 
-            |false,true ->
-                List.append inLst [{Name="[logical_op]";Size=1;Parenthesis=Some result1}] 
-            |true,false -> 
-                List.append inLst [{Name="[logical_op]";Size=1;Parenthesis=Some result1}] 
-            |true,true -> 
-                List.append inLst [{Name="[logical_op]";Size=1;Parenthesis=None}] 
+            let u1 = findSizeOfExpression (Option.get tree.Head)
+            let u2 = findSizeOfExpression (Option.get tree.Tail)
+            {Name="[logical_op]";ResultWidth=1;Head=Some u1;Tail=Some u2;Elements=[]}
+        | _ -> failwithf "Case not covered!"
 
-        | _ -> inLst
-    
-    and findSizeOfConcat (tree:ExpressionT) concatList =
+    and findSizeOfConcat (tree:ExpressionT) concatList : OneUnary list=
         
         match isNullOrUndefined tree.Tail with
-        |true -> (findSizeOfExpression concatList (Option.get tree.Head))
+        |true -> concatList@[(findSizeOfExpression (Option.get tree.Head))]
         |false ->
-            List.append
-                (findSizeOfExpression concatList (Option.get tree.Head))
-                (findSizeOfConcat (Option.get tree.Tail) [])
+            let updated = concatList@[(findSizeOfExpression (Option.get tree.Head))]
+            findSizeOfConcat (Option.get tree.Tail) updated
     
-    and findSizeOfParenthesis (tree:ExpressionT) =
-        let result = findSizeOfExpression [] (Option.get (Option.get tree.Unary).Expression)
-        let diff = List.distinctBy (fun unary->unary.Size) result
-        match List.isEmpty diff with
-        |true -> []
-        |false -> [{Name="(...)";Size=diff[0].Size;Parenthesis=Some result}]
 
-    findSizeOfExpression [] assignmentRHS
+    findSizeOfExpression assignmentRHS
+
 
 /// Helper recursive function to transform the produced OneUnary-type tree
 /// by RHSUnaryAnalysis to a string which can be used for ErrorInfo
-let rec unaryTreeToString treeDepth targetLength (unariesList:OneUnary list)  =
+let rec unaryTreeToString treeDepth targetLength (unary:OneUnary)  =
     
-    let unaryToString (item:OneUnary) =
-        let targetLength' = if item.Name = "[condition]" then 1 else targetLength
-        let depthToSpaces = ("",[0..treeDepth])||>List.fold (fun s v -> s+"   ") 
-        let sizeString =
-            match targetLength' with
-            |(-1) -> (string item.Size)
-            |x when x=(item.Size)-> (string item.Size)
-            |x when item.Name="[condition]" -> (string item.Size)+" -> ERROR! (Exp: "+(string targetLength')+", condition must be a single bit!)"
-            |_ -> (string item.Size)+" -> ERROR! (Exp: "+(string targetLength')+")"
-        match item.Parenthesis with
-        |Some localList -> 
-            let propagatedLength =
-                match item.Name with
-                |"{...}" -> (-1)
-                |"[condition]" -> targetLength
-                |"[reduction]" -> localList[0].Size
-                |"[logical_op]" -> localList[0].Size
-                | _ -> item.Size
-            depthToSpaces+
-            "-'"+
-            item.Name+
-            "' with Width: "+
-            sizeString+
-            "\n"+
-            depthToSpaces+
-            "   "+
-            "Elements: \n"+
-            (unaryTreeToString (treeDepth+2) propagatedLength localList)
-        |None -> 
-            depthToSpaces+"-'"+item.Name+"' with Width: "+sizeString+"\n"
+    let targetLength' = targetLength //if targetLength=(-2) then 1 else targetLength
+    let depthToSpaces = ("",[0..treeDepth])||>List.fold (fun s v -> s+"   ") 
+    let sizeString =
+        match targetLength' with
+        |(-1) -> (string unary.ResultWidth)
+        |(-2) when unary.ResultWidth<>1  -> (string unary.ResultWidth)+" -> ERROR! (Exp: 1, condition must be a single bit!)"
+        |(-2) -> (string unary.ResultWidth)
+        |x when x=(unary.ResultWidth)-> (string unary.ResultWidth)
+        |_ -> (string unary.ResultWidth)+" -> ERROR! (Exp: "+(string targetLength')+")"
     
-    ("",unariesList)
-    ||>List.fold (fun s item ->
-        s+(unaryToString item)
-    )
+    let propagatedLength =
+            match unary.Name with
+            |"{...}" -> (-1)
+            |"[condition]" -> targetLength
+            |"[reduction]" -> (-1)
+            |"[logical_op]" -> (-1)
+            | _ -> unary.ResultWidth
 
+    let elem =
+        match unary.Name with
+        |"[bitwise_op]" |"[logical_op]" ->
+            let s1 =  (unaryTreeToString (treeDepth+2) propagatedLength (Option.get unary.Head))
+            let s2 = (unaryTreeToString (treeDepth+2) propagatedLength (Option.get unary.Tail))
+            s1+s2
+        |"[conditional]" ->
+            let cond = unaryTreeToString (treeDepth+2) (-2) unary.Elements[0]
+            let s1 =  (unaryTreeToString (treeDepth+2) propagatedLength (Option.get unary.Head))
+            let s2 = (unaryTreeToString (treeDepth+2) propagatedLength (Option.get unary.Tail))
+            cond+s1+s2
+        |"[reduction]" when unary.Elements = [] -> ""
+        |"[reduction]" |"(...)" ->
+            unaryTreeToString (treeDepth+2) propagatedLength unary.Elements[0]
+        |"[shift]" -> ""    
+        |"{...}" ->
+            ("",[0..((List.length unary.Elements)-1)])||>List.fold (fun s v -> s+(unaryTreeToString (treeDepth+2) propagatedLength unary.Elements[v]))
+        |_ -> ""
+
+    match elem with
+    |"" ->
+        depthToSpaces+
+        "-'"+
+        unary.Name+
+        "' with Width: "+
+        sizeString+
+        "\n"
+    |_ ->
+        depthToSpaces+
+        "-'"+
+        unary.Name+
+        "' with Width: "+
+        sizeString+
+        "\n"+
+        depthToSpaces+
+        "   "+
+        "Elements: \n"+
+        elem
+    
 
 
 /// Checks one-by-one all wire and output port assignments for:

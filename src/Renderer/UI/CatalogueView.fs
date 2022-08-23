@@ -538,9 +538,7 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                     |true-> () //do nothing if parser failed for some reason
                     |false ->
                         let result = Option.get output.Result
-                        printfn "res %s" result
                         let fixedAST = fix result
-                        printfn "fixed: %s" fixedAST
                         let linesIndex = Option.get output.NewLinesIndex |> Array.toList
                         let parsedAST = fixedAST |> Json.parseAs<VerilogInput>                        
                         let moduleName = parsedAST.Module.ModuleName.Name

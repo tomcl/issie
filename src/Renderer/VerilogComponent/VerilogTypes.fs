@@ -72,7 +72,7 @@ type ReplaceType =
     |Variable of string
     |NoReplace
 
-type OneUnary = {Name:string;Size:int;Parenthesis:OneUnary list option}
+type OneUnary = {Name:string;ResultWidth:int;Head:OneUnary option;Tail:OneUnary option;Elements:OneUnary list} 
 
 type ExtraErrorInfo = {Text: string; Copy: bool; Replace: ReplaceType}
 

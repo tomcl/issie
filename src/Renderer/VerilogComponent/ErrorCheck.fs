@@ -86,58 +86,60 @@ let portCheck ast linesLocations errorList  =
     let locationList = ast.Module.Locations |> Array.toList
     let locationMap =
         (portList, locationList) ||> List.map2 (fun p i -> (p,int i)) |> Map.ofList
-    
-    match List.length portList = List.length distinctPortList with
-    | false ->  //CASE 1: ports with same name
-        portList
-        |> List.map (fun name -> name.ToUpper())
-        |> Seq.countBy id
-        |> Map.ofSeq
-        |> Map.filter (fun name count -> count > 1)
-        |> Map.toList
-        |> List.map fst
-        |> List.collect (fun name ->
-            let message = "Ports must have different names"     
-            let extraMessages = [|
-                {Text=sprintf "Name '%s' has already been used for a port \n Please use a different name" name ;Copy=false;Replace=NoReplace}
-            |]       
-            createErrorMessage linesLocations locationMap[name] message extraMessages name
-            )        
-        |> List.append errorList 
-    
-    | true -> // Distinct names
-        let items = ast.Module.ModuleItems.ItemList |> Array.toList
-        let decls = 
-            items |> List.collect (fun x -> 
-                match (x.IODecl |> isNullOrUndefined) with
-                | false -> 
-                    match x.IODecl with
-                    | Some d -> 
-                        d.Variables 
-                        |> Array.toList 
-                        |> List.collect (fun x -> [x.Name]) 
-                    | None -> []
-                | true -> []
-            )
-        let diff = List.except decls portList
-        match Seq.isEmpty diff with
-        | false ->  //CASE 2: ports not declared as input/output
-            diff
+    match ast.Module.Type with
+    |"module_new" -> errorList //if new-style there is no port list
+    |_ ->
+        match List.length portList = List.length distinctPortList with
+        | false ->  //CASE 1: ports with same name
+            portList
+            |> List.map (fun name -> name.ToUpper())
+            |> Seq.countBy id
+            |> Map.ofSeq
+            |> Map.filter (fun name count -> count > 1)
+            |> Map.toList
+            |> List.map fst
             |> List.collect (fun name ->
-                let message = sprintf "Port '%s' is not declared either as input or output" name
-                let extraMessages = 
-                    [|
-                        {Text=sprintf "Port '%s' must be declared as input or output" name;Copy=false;Replace=NoReplace}
-                        {Text=sprintf "input %s;|output %s;" name name;Copy=true;Replace=IODeclaration}
-                    |]
+                let message = "Ports must have different names"     
+                let extraMessages = [|
+                    {Text=sprintf "Name '%s' has already been used for a port \n Please use a different name" name ;Copy=false;Replace=NoReplace}
+                |]       
                 createErrorMessage linesLocations locationMap[name] message extraMessages name
-            )
-            |> List.append errorList
-        | true -> //CASE 3: no errors 
-            errorList
+                )        
+            |> List.append errorList 
+    
+        | true -> // Distinct names
+            let items = ast.Module.ModuleItems.ItemList |> Array.toList
+            let decls = 
+                items |> List.collect (fun x -> 
+                    match (x.IODecl |> isNullOrUndefined) with
+                    | false -> 
+                        match x.IODecl with
+                        | Some d -> 
+                            d.Variables 
+                            |> Array.toList 
+                            |> List.collect (fun x -> [x.Name]) 
+                        | None -> []
+                    | true -> []
+                )
+            let diff = List.except decls portList
+            match Seq.isEmpty diff with
+            | false ->  //CASE 2: ports not declared as input/output
+                diff
+                |> List.collect (fun name ->
+                    let message = sprintf "Port '%s' is not declared either as input or output" name
+                    let extraMessages = 
+                        [|
+                            {Text=sprintf "Port '%s' must be declared as input or output" name;Copy=false;Replace=NoReplace}
+                            {Text=sprintf "input %s;|output %s;" name name;Copy=true;Replace=IODeclaration}
+                        |]
+                    createErrorMessage linesLocations locationMap[name] message extraMessages name
+                )
+                |> List.append errorList
+            | true -> //CASE 3: no errors 
+                errorList
 
 /// Checks whether all ports defined as input/output are declared as ports in the module header
-/// Also checks for double definitions
+/// Also checks for double definitions and for input ports not used in the assignments
 let checkIODeclarations 
     (ast: VerilogInput)
     (portWidthDeclarationMap: Map<string,int*int>) 

@@ -34,19 +34,18 @@ let createErrorMessage
 
 /// Recursive function to get all the primaries used in the RHS of an assignment
 /// Used by checkNamesOnRHSOfAssignment and checkSizesOnRHSOfAssignment
-let rec primariesUsedInAssignment inLst (isConcat: bool) (tree: ExpressionT) = 
+let rec primariesUsedInAssignment inLst (tree: ExpressionT) = 
     match tree.Type with
     | "unary" when (Option.get tree.Unary).Type = "primary" 
-        -> List.append inLst [(Option.get (Option.get tree.Unary).Primary, isConcat)]
+        -> List.append inLst [(Option.get (Option.get tree.Unary).Primary)]
     | "unary" when (Option.get tree.Unary).Type = "parenthesis" 
-        -> primariesUsedInAssignment inLst isConcat  (Option.get (Option.get tree.Unary).Expression)
+        -> primariesUsedInAssignment inLst   (Option.get (Option.get tree.Unary).Expression)
     | "unary" when (Option.get tree.Unary).Type = "concat" 
-        -> primariesUsedInAssignment inLst true  (Option.get (Option.get tree.Unary).Expression)
-    | "negation" when (Option.get tree.Unary).Type = "primary" 
-        -> List.append inLst [(Option.get (Option.get tree.Unary).Primary, isConcat)] 
-    | "negation" when (Option.get tree.Unary).Type = "parenthesis" 
-        -> primariesUsedInAssignment inLst isConcat (Option.get (Option.get tree.Unary).Expression)    
-    
+        -> primariesUsedInAssignment inLst  (Option.get (Option.get tree.Unary).Expression)
+    | "negation" | "reduction" when (Option.get tree.Unary).Type = "primary" 
+        -> List.append inLst [(Option.get (Option.get tree.Unary).Primary)] 
+    | "negation" | "reduction" when (Option.get tree.Unary).Type = "parenthesis" 
+        -> primariesUsedInAssignment inLst (Option.get (Option.get tree.Unary).Expression)    
     | "unary" when (Option.get tree.Unary).Type = "number" -> 
         match (Option.get (Option.get tree.Unary).Number).NumberType with
         | "all" -> 
@@ -62,7 +61,7 @@ let rec primariesUsedInAssignment inLst (isConcat: bool) (tree: ExpressionT) =
                                 Name="delete123";
                                 Location=(Option.get (Option.get tree.Unary).Number).Location
                                 }
-                            }, isConcat
+                            }
                         )]
         | _ -> inLst
 
@@ -71,10 +70,10 @@ let rec primariesUsedInAssignment inLst (isConcat: bool) (tree: ExpressionT) =
     | "logical_OR" | "unary_list" 
     | "conditional_cond" | "conditional_result"
         -> List.append 
-            (primariesUsedInAssignment inLst isConcat (Option.get tree.Head))
+            (primariesUsedInAssignment inLst (Option.get tree.Head))
             (if isNullOrUndefined tree.Tail 
                         then inLst 
-                    else primariesUsedInAssignment inLst isConcat (Option.get tree.Tail))
+                    else primariesUsedInAssignment inLst (Option.get tree.Tail))
     | _ -> inLst
 
 /// Checks whether all ports given in the beginning of the module are defined as input/output
@@ -157,8 +156,7 @@ let checkIODeclarations
     let allPrimariesUsed =
         assignments
         |> List.map (fun x -> 
-            primariesUsedInAssignment [] false (Option.get x.Statement).Assignment.RHS
-            |> List.map fst
+            primariesUsedInAssignment [] (Option.get x.Statement).Assignment.RHS
         )
         |> List.concat
         |> List.map (fun primary -> primary.Primary.Name)
@@ -636,7 +634,7 @@ let checkWiresAndAssignments
     /// Checks if the variables used in the RHS of on assignment
     /// (either output port or wire) have been declared as input or wire
     let checkNamesOnRHSOfAssignment (assignment: AssignmentT) currentInputWireList localErrors = 
-        let PrimariesRHS = primariesUsedInAssignment [] false assignment.RHS |> List.map fst
+        let PrimariesRHS = primariesUsedInAssignment [] assignment.RHS
         
         let namesWithLocRHS = PrimariesRHS |> List.map (fun x -> (x.Primary.Name, x.Primary.Location))
         let namesRHS = namesWithLocRHS |> List.map fst
@@ -682,7 +680,7 @@ let checkWiresAndAssignments
     /// Check if the width of each wire/input used
     /// is within the correct range (defined range)
     let checkSizesOnRHSOfAssignment (assignment: AssignmentT) currentInputWireSizeMap localErrors =
-        let primariesRHS = primariesUsedInAssignment []false assignment.RHS |> List.map fst
+        let primariesRHS = primariesUsedInAssignment [] assignment.RHS
         primariesRHS
         |> List.collect (fun x -> 
             match isNullOrUndefined x.BitsStart with

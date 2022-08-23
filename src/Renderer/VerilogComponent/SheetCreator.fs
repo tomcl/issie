@@ -359,10 +359,10 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap =
         | "SHIFT" ->
             buildShiftCircuit expr
         | "reduction" ->
-            buildReductionAndLogicalCircuit expr
+            buildReductionAndLogicalCircuit expr "reduction"
         | "logical_AND" | "logical_OR" ->
-            let (c1:Circuit) = buildReductionAndLogicalCircuit (Option.get expr.Head) 
-            let (c2:Circuit) = buildReductionAndLogicalCircuit (Option.get expr.Tail) 
+            let (c1:Circuit) = buildReductionAndLogicalCircuit (Option.get expr.Head) "logical"
+            let (c2:Circuit) = buildReductionAndLogicalCircuit (Option.get expr.Tail) "logical"
             let topComp = buildExpressionComponent expr c1.OutWidth
             let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
             joinCircuits [c1;c2] [topComp.InputPorts[0];topComp.InputPorts[1]] topCircuit
@@ -491,26 +491,33 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap =
             createNumberCircuit tempNumber
 
 
-    and buildReductionAndLogicalCircuit (expr:ExpressionT) =
-        let (c1:Circuit) = buildUnaryCircuit (Option.get expr.Unary)
-    
+    and buildReductionAndLogicalCircuit (expr:ExpressionT) circType =
+        let (c1:Circuit) = 
+            match circType with
+            |"reduction" -> buildUnaryCircuit (Option.get expr.Unary)
+            |"logical" -> buildExpressionCircuit expr
+            |_ -> failwithf "Calling buildReductionAndLogicalCircuit with undefined circType"
         // reductions are implemented with compares
         // (&) -> check that value is equal to (2^width - 1)
         // (|) -> check that value is NOT equal to 0
         // (!) -> check if equal to 0 (returns true if input is 0{false}, thus negates it)
         // Same with a not gate at the end for (~&,~|)
         let busCompareComp = 
-            match expr.Operator with
-                |Some "&" |Some "~&" -> createComponent (BusCompare (c1.OutWidth, (((2. ** c1.OutWidth)-1.) |> uint32))) "COMP"      
-                |_ -> //Some "|" or Some "!" or Some "~|"
+            match circType,expr.Operator with
+                |"reduction",Some "&" 
+                |"reduction",Some "~&" 
+                    -> createComponent (BusCompare (c1.OutWidth, (((2. ** c1.OutWidth)-1.) |> uint32))) "COMP"      
+                |_,_ -> //Some "|" or Some "!" or Some "~|"
                     createComponent (BusCompare (c1.OutWidth,0u)) "COMP"
 
         let busCompareCircuit = {Comps=[busCompareComp];Conns=[];Out=busCompareComp.OutputPorts[0];OutWidth=1}
 
-        match expr.Operator with
-        |Some "&" | Some "~|" | Some "!" ->
-            joinCircuits [c1] [busCompareComp.InputPorts[0]] busCompareCircuit
-        |_ ->
+        match circType,expr.Operator with
+        |"reduction",Some "&" 
+        |"reduction",Some "~|" 
+        |"reduction",Some "!" 
+            -> joinCircuits [c1] [busCompareComp.InputPorts[0]] busCompareCircuit
+        |_,_ ->
             let comparedCircuit = joinCircuits [c1] [busCompareComp.InputPorts[0]] busCompareCircuit
 
             let notGateComp = createComponent Not "G"

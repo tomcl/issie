@@ -472,11 +472,12 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                 let name = (Option.get moduleName)
                 let folderPath = project.ProjectPath
                 let path = pathJoin [| folderPath; name + ".v" |]
+                let path2 = pathJoin [| folderPath; name + ".dgm" |]
                 let code = getCode dialogData
+                
                 match writeFile path code with
                 | Ok _ -> ()
                 | Error _ -> failwithf "Writing verilog file FAILED"
-                let path2 = pathJoin [| folderPath; name + ".dgm" |]
                 
                 let parsedCodeNearley = parseFromFile(code)
                 let output = Json.parseAs<ParserOutput> parsedCodeNearley

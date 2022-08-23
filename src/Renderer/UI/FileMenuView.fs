@@ -306,6 +306,8 @@ let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
 
 //////////////////
 
+/// Save the Verilog file currently open, return the new sheet's Loadedcomponent if this has changed.
+/// Do not change model.
 let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=
     match model.CurrentProj with
     | None -> failwithf "No project"
@@ -340,7 +342,7 @@ let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=
         writeComponentToBackupFile 4 1. newLdc dispatch
         Some (newLdc,newState)
         
-/// save current open file, updating model etc, and returning the loaded component and the saved (unreduced) canvas state
+/// save current open Verilog file, updating model etc, and returning the loaded component and the saved (unreduced) canvas state
 let updateVerilogFileActionWithModelUpdate (newCS:CanvasState) name (model: Model) (dispatch: Msg -> Unit) =
     let p' =
         match model.CurrentProj with

@@ -633,10 +633,10 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
         fun (dialogData : PopupDialogData) ->
             not noErrors
     
-    let width = if showExtraErrors then "80%" else "50%" 
+    let extra = if showExtraErrors then [Width "80%";] else [Width "50%";OverflowX OverflowOptions.Hidden]
     let saveUpdateText = match origin with |NewVerilogFile -> "Save" |UpdateVerilogFile _ -> "Update"
     let saveUpdateButton = match origin with |NewVerilogFile -> saveButtonAction |UpdateVerilogFile _ -> updateButton
-    dialogVerilogPopup title body saveUpdateText noErrors showExtraErrors saveUpdateButton moreInfoButton isDisabled [Width width] dispatch
+    dialogVerilogPopup title body saveUpdateText noErrors showExtraErrors saveUpdateButton moreInfoButton isDisabled extra dispatch
 
 
 let private makeMenuGroup title menuList =

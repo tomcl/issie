@@ -335,7 +335,7 @@ let calcNamesColWidth (ws:WaveSimModel) : int =
             let sizeInPx = float ((Constants.columnFontSize.ToLower()).Replace("px",""))   
             sizeInPx * DrawHelpers.canvasWidthContext.measureText(txt).width / 10.0
         ws.SelectedWaves
-        |> List.map (fun wi -> camelCaseDottedWords ws.AllWaves[wi].DisplayName)
+        |> List.map (fun wi -> ws.AllWaves[wi].ViewerDisplayName)
         |> (fun lst -> "Dummy" :: lst)
         |> List.map getWidth
         |> List.max
@@ -558,7 +558,7 @@ let wavePolylineStyle points : IProp list = [
 ]
 
 /// Props for HTML Summary element
-let summaryProps : IHTMLProp list = [
+let summaryProps cBox: IHTMLProp list = [
     Style [
         FontSize "20px"
         FontWeight "bold"
@@ -566,7 +566,7 @@ let summaryProps : IHTMLProp list = [
 ]
 
 /// Props for HTML Details element
-let detailsProps : IHTMLProp list = [
+let detailsProps cBox : IHTMLProp list = [
     Open false
 ]
 

@@ -27,6 +27,7 @@
     <Compile Include="Simulator\TruthTableTypes.fs" />
     <Compile Include="Simulator\NumberHelpers.fs" />
     <Compile Include="Simulator\SynchronousUtils.fs" />
+    <Compile Include="Simulator\Extractor.fs" />
     <Compile Include="Simulator\CanvasStateAnalyser.fs" />
     <Compile Include="Simulator\SimulationGraphAnalyser.fs" />
     <Compile Include="Simulator\Builder.fs" />
@@ -50,7 +51,6 @@
     <!-- JS and File interface -->
     <Compile Include="Interface\Version.fs" />
     <Compile Include="Interface\JSHelpers.fs" />
-    <Compile Include="Interface\Extractor.fs" />
     <Compile Include="Interface\FilesIO.fs" />
     <None Include="scss\main.scss" />
     <Compile Include="DrawBlock\DrawModelType.fs" />

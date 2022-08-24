@@ -48,11 +48,11 @@ type ComponentGroup =
     | Viewers
     | Buses
     | Gates
-    // | MuxDemux
-    // | Arithmetic
+    | MuxDemux
+    | Arithmetic
     // | CustomComp
-    // | FFRegister
-    // | Memories
+    | FFRegister
+    | Memories
     | Component of string
 
 module Constants =
@@ -241,24 +241,69 @@ let getOutputPortNumber (opn: OutputPortNumber) : int =
     match opn with
     | OutputPortNumber pn -> pn
 
+type CheckBoxStyle =
+    | PortItem of Wave * string
+    | ComponentItem of FastComponent
+    | GroupItem of ComponentGroup
+    | SheetItem of string list
+
+let getCompGroup fs wave =
+    match fs.WaveComps[wave.WaveId.Id].FType with
+    | Input1 _ | Output _ | Constant1 _ ->
+        InputOutput
+    | IOLabel ->
+        WireLabel
+    | Viewer _ ->
+        Viewers
+    | Not | And | Or | Xor | Nand | Nor | Xnor ->
+        Gates
+    | BusCompare _ ->
+        Buses
+    | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | Decode4 ->
+        MuxDemux
+    | NbitsAdder _ | NbitsXor _ | NbitsAnd _ | NbitsNot _ | NbitSpreader _ ->
+        Arithmetic
+    | Custom _ ->
+        Component wave.CompLabel
+    | DFF | DFFE | Register _ | RegisterE _ ->
+        FFRegister
+    | AsyncROM1 _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ ->
+        Memories                
+    | BusSelection _ | MergeWires | SplitWire _ ->
+        failwithf "Bus select, MergeWires, SplitWire should not appear"
+    | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
+        failwithf "Legacy component types should not appear"
+
+
+
 /// Name for summary field in details element.
 /// NB: There are fields which are commented out: these can be added back in
 /// later on if we want to group those components together by type rather than
 /// separately by name.
-let summaryName (compGroup: ComponentGroup) : ReactElement =
-    match compGroup with
-    | WireLabel -> "Wire Labels"
-    | InputOutput -> "Inputs / Outputs"
-    | Viewers -> "Viewers"
-    | Buses -> "Buses"
-    | Gates -> "Logic Gates"
-    // | MuxDemux -> "Multiplexers"
-    // | Arithmetic -> "Arithmetic"
-    // | CustomComp _ -> "Custom Components"
-    // | FFRegister -> "Flip Flops and Registers"
-    // | Memories -> "RAMs and ROMs"
-    | Component compLabel -> compLabel
-    |> str
+let summaryName (ws: WaveSimModel) (cBox: CheckBoxStyle) (subSheet: string list) (waves: Wave list): ReactElement =
+    let ss = String.concat "." subSheet
+    match cBox with
+    | PortItem (_,name) ->
+        str name
+    | ComponentItem fc->
+        str <| ss+"."+fc.FLabel.ToUpper()
+        
+    | GroupItem compGroup ->
+        match compGroup with
+        | WireLabel -> "Wire Labels"
+        | InputOutput -> "Inputs / Outputs"
+        | Viewers -> "Viewers"
+        | Buses -> "Buses"
+        | Gates -> "Logic Gates"
+        | MuxDemux -> "Multiplexers"
+        | Arithmetic -> "Arithmetic"
+        | FFRegister -> "Flip Flops and Registers"
+        | Memories -> "RAMs and ROMs"
+        | Component compLabel -> compLabel
+        |> (fun name -> str $"{ss}.{name.ToUpper()}")
+
+    | SheetItem subSheet ->
+        str <| $"Subsheet {ss}"
 
 /// convert a string to CamelCase: 
 let camelCaseDottedWords (text:string) =
@@ -272,6 +317,46 @@ let camelCaseDottedWords (text:string) =
     |> Array.map camelWord
     |> String.concat "."
 
+let path2fId (fastSim: FastSimulation) (path:ComponentId list) : FComponentId option=
+    match path with
+    | [] -> 
+        None
+    | p -> 
+        Some <| (p[p.Length-1], p[0..p.Length-2])
+
+
+let sheetIdToName (fastSim:FastSimulation) sheetId =
+    sheetId
+    |> path2fId fastSim
+    |> function | None -> [] | Some fId -> [fastSim.WaveComps[fId].FLabel]
+
+let sheetIdToSubsheets (fastSim:FastSimulation) (sheetId: ComponentId list) =
+    match sheetId.Length with
+    | 0 -> []
+    | n -> [1..n] |> List.collect (fun i -> sheetId[0..i-1] |> sheetIdToName fastSim)
+
+
+let subSheetsToNameReact (subSheets: string list) =
+    subSheets
+    |> String.concat "."
+    |> camelCaseDottedWords
+    |> str
+
+let prefixOf (pre:'a list) (whole:'a list) =
+    whole.Length >= pre.Length && whole[0..pre.Length-1] = pre
+
+
+let wavesToIds (waves: Wave list) = 
+    waves |> List.map (fun wave -> wave.WaveId)
+
+let getCheckInfo (ws: WaveSimModel) (waves: WaveIndexT list) =
+    let cMap = ws.ShowDetailMap
+    match Map.tryFind  waves cMap with
+    | None -> false
+    | Some b -> b
+
+let tr1 react = tr [] [ react ]
+let td1 react = td [] [ react ]
 
 
     

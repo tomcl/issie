@@ -43,6 +43,9 @@ let emptyFastSimulation () =
       NumStepArrays = 0 // this will be overwritten by createInitFastCompPhase
       Drivers = Array.empty
       WaveIndex = Array.empty
+      ConnectionIdsByPort = Map.empty
+      SimulatedCanvasState = []
+      SimulatedTopSheet=""
       }
 
 let getPathIds (cid, ap) =
@@ -450,7 +453,10 @@ let addComponentWaveDrivers (f:FastSimulation) (fc: FastComponent) (pType: PortT
             | SplitWire _
             | BusSelection _
             | MergeWires 
-            | Custom _ ->
+            | Constant _
+            | Output _ when fc.SubSheet <> [] ->
+                [||]
+            | Input1 _ when fc.SubSheet <> [] ->
                 [||]
             | _ ->
                 [|makeDriver index pn pType stepA|])

@@ -351,6 +351,7 @@ let sheetMsg sMsg model =
 let update (msg : Msg) oldModel =
     let startUpdate = TimeHelpers.getTimeMs()
 
+
     //Add the message to the pending queue if it is a mouse drag message
     let model =
         if matchMouseMsg (fun mMsg -> mMsg.Op = DrawHelpers.Drag) msg then

@@ -249,7 +249,7 @@ let viewRightTabs model dispatch =
         div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"] [viewRightTab model dispatch]
 
     ]
-
+let mutable testState:CanvasState = [],[]
 //---------------------------------------------------------------------------------------------------------//
 //------------------------------------------VIEW FUNCTION--------------------------------------------------//
 //---------------------------------------------------------------------------------------------------------//
@@ -329,6 +329,11 @@ let displayView model dispatch =
     // the whole app window
     let cursorText = model.Sheet.CursorType.Text()
     let topCursorText = match model.Sheet.CursorType with | SheetT.Spinner -> "wait" | _ -> ""
+
+    let conns = BusWire.extractConnections model.Sheet.Wire
+    let comps = SymbolUpdate.extractComponents model.Sheet.Wire.Symbol
+    let cv = comps,conns   
+
 
     div [ HTMLAttr.Id "WholeApp"
           Key cursorText

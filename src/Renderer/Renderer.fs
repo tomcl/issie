@@ -44,6 +44,7 @@ let testMaps() =
     printfn "%d iterations of iterMap took %.1fms" count interval
 
 
+
 (****************************************************************************************************
 *
 *                                  MENU HELPER FUNCTIONS
@@ -142,6 +143,7 @@ let fileMenu (dispatch) =
             testMaps()
             displayPerformance 100 4000000)
         makeCondItem (JSHelpers.debugLevel <> 0) "Force Exception" None  (fun ev -> failwithf "User exception from menus")
+        makeCondItem (JSHelpers.debugLevel <> 0) "Call update" None  (fun ev -> failwithf "User exception from menus")
      ]
 
 

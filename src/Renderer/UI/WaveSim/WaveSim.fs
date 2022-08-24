@@ -373,7 +373,7 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                 ]
             Level.right
                 [ Props [ Style [ PaddingRight Constants.labelPadding ] ] ]
-                [ label [ nameLabelStyle (wsModel.HoveredLabel = Some wave.WaveId) ] [ wave.DisplayName |> WaveSimHelpers.camelCaseDottedWords |> str ] ]
+                [ label [ nameLabelStyle (wsModel.HoveredLabel = Some wave.WaveId) ] [ wave.ViewerDisplayName|> str ] ]
         ]
     )
 

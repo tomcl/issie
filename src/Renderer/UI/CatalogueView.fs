@@ -6,6 +6,7 @@
 
 module CatalogueView
 
+open VerilogTypes
 open Fulma
 open Fulma.Extensions.Wikiki
 open Fable.React
@@ -17,7 +18,6 @@ open PopupView
 open Sheet.SheetInterface
 open DrawModelType
 open FilesIO
-open VerilogTypes
 open NearleyBindings
 open ErrorCheck
 open CodeEditorHelpers
@@ -630,10 +630,10 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
     let body= dialogVerilogCompBody beforeText moduleName errorDiv errorList showExtraErrors correctedCode compile addButton dispatch
 
     let isDisabled =
-        fun (dialogData : PopupDialogData) ->
+        fun (dialogData : PopupDialogData) ->   //OverflowX OverflowOptions.Hidden;OverflowY OverflowOptions.Hidden
             not noErrors
     
-    let extra = if showExtraErrors then [Width "80%";] else [Width "50%";OverflowX OverflowOptions.Hidden]
+    let extra = if showExtraErrors then [Width "80%";Height "75%";OverflowX OverflowOptions.Hidden;Position PositionOptions.Fixed;] else [Width "50%";Height "75%";OverflowX OverflowOptions.Hidden;Position PositionOptions.Fixed;]
     let saveUpdateText = match origin with |NewVerilogFile -> "Save" |UpdateVerilogFile _ -> "Update"
     let saveUpdateButton = match origin with |NewVerilogFile -> saveButtonAction |UpdateVerilogFile _ -> updateButton
     dialogVerilogPopup title body saveUpdateText noErrors showExtraErrors saveUpdateButton moreInfoButton isDisabled extra dispatch

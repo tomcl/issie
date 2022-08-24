@@ -467,9 +467,9 @@ let addComponentWaveDrivers (f:FastSimulation) (fc: FastComponent) (pType: PortT
 /// correct step array references, and returns a WaveIndex vector.
 /// It also creates an array of WaveIndexes - references to component ports
 /// and the relecant simulation data for use by waveform simulator.
-let addWaveDrivers (f:FastSimulation)  =
+let addWaveDrivers (waveComps: Map<FComponentId,FastComponent>) (f:FastSimulation)  =
     let comps =
-        f.WaveComps
+        waveComps
         |> Map.toArray
         |> Array.map snd
     let addDrivers pType = Array.collect (fun  fc -> addComponentWaveDrivers f fc pType)
@@ -517,7 +517,8 @@ let linkFastCustomComponent (fs:FastSimulation) (fid: FComponentId) (fc: FastCom
         
         
     
-/// Adds WaveComps and Drivers fields to a fast simulation. Needs to be run after widths are calculated.
+/// Adds WaveComps and Drivers fields to a fast simulation. 
+/// Needs to be run after widths are calculated.
 /// Also links custom components
 let addDriversToFastSimulation (fs:FastSimulation) : FastSimulation =
     fs.FCustomComps 
@@ -526,7 +527,7 @@ let addDriversToFastSimulation (fs:FastSimulation) : FastSimulation =
         (fs.FComps, fs.FCustomComps)
         ||> Map.fold (fun s fid fc -> Map.add fid fc s)
     let fs = {fs with WaveComps = waveComps; Drivers = Array.create fs.NumStepArrays None}
-    {fs with WaveIndex = addWaveDrivers fs}
+    {fs with WaveIndex = addWaveDrivers waveComps fs}
 
         
     

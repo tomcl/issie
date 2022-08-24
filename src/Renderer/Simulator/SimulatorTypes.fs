@@ -924,7 +924,7 @@ type FastComponent = {
         (EEExtensions.String.substringLength 0 5 sid)
     member inline this.PutOutput (epoch) (OutputPortNumber n) dat = this.Outputs[n].Step[epoch] <- dat
     member inline this.Id = this.SimComponent.Id
-    member inline this.SubSheet = this.SheetName[0..this.SheetName.Length-1] 
+    member inline this.SubSheet = this.SheetName[0..this.SheetName.Length-2] 
         
 
 type Driver = {

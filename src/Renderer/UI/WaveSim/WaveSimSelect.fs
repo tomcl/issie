@@ -227,7 +227,7 @@ let nameWithSheet (fastSim: FastSimulation) (dispName: string) (waveIndex:WaveIn
 /// Make Wave for each component and port on sheet
 let makeWave (fastSim: FastSimulation) (wi: WaveIndexT) : Wave =
     let fc = fastSim.WaveComps[wi.Id]
-    //printfn $"Making wave for {fc.FullName}, portType={wi.PortType}, portNumber={wi.PortNumber}"
+    printfn $"Making wave for {fc.FullName}, portType={wi.PortType}, portNumber={wi.PortNumber}, SubSheet={fc.SubSheet}, SheetName={fc.SheetName}"
     let driver = 
         match fastSim.Drivers[wi.SimArrayIndex] with
         | Some d -> d
@@ -371,6 +371,23 @@ let checkBoxItem  wsModel isChecked waveIds  dispatch =
         ]
     ]
 
+/// Implemements a checkbox, with toggle state determined by SelectedWaves.
+let waveCheckBoxItem  wsModel waveIds  dispatch =
+    let checkBoxState =
+        List.forall (fun w -> List.contains w wsModel.SelectedWaves) waveIds
+    Checkbox.checkbox [] [
+        Checkbox.input [
+            Props [
+                Checked checkBoxState
+                OnChange (fun _ -> toggleSelectSubGroup                                         
+                                        wsModel 
+                                        dispatch
+                                        (not checkBoxState)
+                                        waveIds)                                         
+            ]
+        ]
+    ]
+
 /// implements one row (with one port)
 let makePortRow (ws: WaveSimModel) (dispatch: Msg -> Unit) (waves: Wave list)  =
     let wave = 
@@ -383,7 +400,7 @@ let makePortRow (ws: WaveSimModel) (dispatch: Msg -> Unit) (waves: Wave list)  =
         | _  -> subSheetsToNameReact wave.SubSheet
 
     tr [] [
-        td [] [checkBoxItem ws (getCheckInfo ws (wavesToIds waves)) [wave.WaveId] dispatch]
+        td [] [waveCheckBoxItem ws  [wave.WaveId] dispatch]
         td [] [subSheet]
         td [] [str <| wave.CompLabel.ToUpper()]
         td [] [str wave.PortLabel]
@@ -401,7 +418,7 @@ let makeSelectionGroup
     tr
         (summaryProps cBox) [
             th [] [
-                checkBoxItem ws (getCheckInfo ws wi) wi  dispatch
+                waveCheckBoxItem ws  wi  dispatch
             ]
             th [] [
                 details
@@ -438,7 +455,7 @@ let rec makeSheetRow  (ws: WaveSimModel) (dispatch: Msg -> Unit) (subSheet: stri
         |> List.filter (fun (g,wLst) -> g = subSheet)
         |> List.collect snd
         |> List.groupBy (fun wave -> wave.WaveId.Id)
-        |> List.map (fun (fId,wave) -> makeComponentRow ws dispatch fs.WaveComps[fId] waves)
+        |> List.map (fun (fId,compWaves) -> makeComponentRow ws dispatch fs.WaveComps[fId] compWaves)
 
     let subSheetRows =
         wavesBySheet
@@ -447,7 +464,12 @@ let rec makeSheetRow  (ws: WaveSimModel) (dispatch: Msg -> Unit) (subSheet: stri
     
     let rows = List.append componentRows subSheetRows
     if subSheet = [] then
-        table [] rows
+        Table.table [
+            Table.IsBordered
+            Table.IsFullWidth
+            Table.Props [
+                Style [BorderWidth 0]
+            ]] rows
     else
         makeSelectionGroup ws dispatch (summaryName ws cBox subSheet waves ) rows cBox waves
 

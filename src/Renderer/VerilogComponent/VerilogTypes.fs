@@ -20,7 +20,7 @@ type CodeEditorProps =
     | TextAreaId of string
     | TextAreaClassName of string
     | PreClassName of string
-
+    |Style of CSSProp list
 
 
 type CodeEditorOpen =

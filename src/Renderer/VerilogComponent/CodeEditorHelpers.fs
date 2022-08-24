@@ -32,6 +32,10 @@ let language : obj = jsNative
 // importClipboard
 
 
+[<Emit("window.innerHeight")>]
+let getHeight: int = jsNative
+
+
 
 /// Returns the overlay which contains all the errors    
 let getErrorDiv errorList : ReactElement =
@@ -93,7 +97,7 @@ let getErrorDiv errorList : ReactElement =
         Style [Position PositionOptions.Absolute ; 
             Display DisplayOptions.Block; 
             Width "100%"; Height "100%"; 
-            CSSProp.Top "8px"; CSSProp.Left "0"; CSSProp.Right "0"; CSSProp.Bottom "0";
+            CSSProp.Top "13px"; CSSProp.Left "40px"; CSSProp.Right "0"; CSSProp.Bottom "0";
             BackgroundColor "rgba(0,0,0,0)";
             FontWeight "bold";
             Color "Red"; 
@@ -224,9 +228,9 @@ let getLineCounterDiv linesNo =
     div [
         Style [Position PositionOptions.Absolute ; 
             Display DisplayOptions.Block; 
-            Width "48px"; Height "100%"; 
-            CSSProp.Top "0px"; CSSProp.Left "-56px"; CSSProp.Right "0"; CSSProp.Bottom "0";
-            BackgroundColor "rgba(0,0,0,0)";
+            Width "3%"; Height "100%";
+            CSSProp.Top "5px"; CSSProp.Left "2px"; CSSProp.Right "0"; CSSProp.Bottom "0";
+            BackgroundColor "rgba(255,0,0,0)";
             Color "#7f7f7f"; 
             ZIndex "2" ;
             PointerEvents "none";

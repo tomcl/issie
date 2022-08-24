@@ -6,6 +6,7 @@
 
 module SelectedComponentView
 
+open VerilogTypes
 open Fulma
 open Fable.React
 open Fable.React.Props
@@ -19,7 +20,6 @@ open Notifications
 open Sheet.SheetInterface
 open DrawModelType
 open FilesIO
-open VerilogTypes
 open CatalogueView
 open FileMenuView
 

@@ -333,8 +333,9 @@ let dialogVerilogCompBody before moduleName errorDiv errorList showExtraErrors c
             ofType<CodeEditorReactStatefulComponent,_,_> {CurrentCode=code; ReplaceCode=codeToAdd; Dispatch=dispatch; DialogData=dialogData;Compile=compileButton} 
         
         let codeEditorWidth, errorWidth, hide = if showExtraErrors then "56%","38%",false else "96%","0%",true 
-        
-        div [Style [Width "100%"; Display DisplayOptions.Flex;]] [
+
+
+        div [Style [Width "100%"; Display DisplayOptions.Flex; FlexDirection FlexDirection.Row; JustifyContent "flex-start"]] [
             div [Style [Flex "2%"];] []
             div [Style [Flex codeEditorWidth;]] [
                 before dialogData

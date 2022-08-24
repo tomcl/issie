@@ -118,8 +118,7 @@ type CodeEditorReactStatefulComponent (props) =
                             props.Dispatch <| SetPopupDialogCode (Some txt)
                             props.Compile {props.DialogData with VerilogCode=Some txt}
                         )             
-                        Highlight (fun code -> Prism.highlight(code,language));
-                        CodeEditorProps.Style [Position PositionOptions.Sticky;Height "100%";BorderLeft "2px double blue"]]
+                        Highlight (fun code -> Prism.highlight(code,language));]
                         []
                 ]
 //////////////////////////////////////////////////////////////////////

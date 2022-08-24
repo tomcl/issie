@@ -439,11 +439,11 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
             Msg = "Only connections selected. Please select a combination of connections and components."
             InDependency = None
             ComponentsAffected = []
-            ConnectionsAffected = affected }, (selComponents,selConnections))
+            ConnectionsAffected = affected },  (selComponents,selConnections))
     | selComps,selConns,Some project ->
-        let rState = extractReducedState (selComponents,selConnections)
+        let state = (selComponents,selConnections)
         // Check if selected components have changed
-        if rState = selCache.UncorrectedCanvas then
+        if stateIsEqual state selCache.UncorrectedCanvas then
             Some (selCache.StoredResult, selCache.CorrectedCanvas)
         else
             let selLoadedComponents =
@@ -453,26 +453,27 @@ let makeSimDataSelected model : (Result<SimulationData,SimulationError> * Canvas
             match correctCanvasState (selComps,selConns) wholeCanvas with
             | Error e -> 
                 selCache <- {
-                    UncorrectedCanvas = rState
+                    UncorrectedCanvas = state
                     CorrectedCanvas = (selComponents,selConnections)
                     StoredResult = Error e 
                 }
                 Some (Error e, (selComps,selConns))
             | Ok (correctComps,correctConns) ->
                 match CanvasStateAnalyser.analyseState (correctComps,correctConns) selLoadedComponents with
-                | Some e -> Some (Error e,(correctComps,correctConns))
+                | Some e -> Some (Error e, (correctComps,correctConns))
                 | None ->
                     let sim =
                         prepareSimulation
                             project.OpenFileName 
                             (correctComps,correctConns) 
                             selLoadedComponents
+                    let newState = (correctComps,correctConns)
                     selCache <- {
-                        UncorrectedCanvas =  rState
-                        CorrectedCanvas = (correctComps,correctConns)
+                        UncorrectedCanvas =  state
+                        CorrectedCanvas = newState
                         StoredResult = sim
                     }
-                    Some (sim,(correctComps,correctConns))
+                    Some (sim, newState)
 
 //-------------------------------------------------------------------------------------//
 //----------View functions for Truth Tables and Tab UI components----------------------//

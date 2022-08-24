@@ -310,6 +310,15 @@ module CommonTypes
     /// F# data describing the contents of a single schematic sheet.
     type CanvasState = Component list * Connection list
 
+    
+
+    /// reduced version of CanvasState for electrical comparison, all geometry removed, components ordered
+    type ReducedCanvasState = | ReducedCanvasState of CanvasState
+
+    let unreduced (ReducedCanvasState(rComps,rConns)) = rComps,rConns
+
+    
+
 
     //===================================================================================================//
     //                                         LEGACY TYPES                                              //

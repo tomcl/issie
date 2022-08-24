@@ -120,13 +120,16 @@ type Wave = {
     /// [] for top-level waveform: path to sheet
     /// Currently unused.
     SheetId: ComponentId list
+    SubSheet: string list // SheetId mapped to custom component names
     /// Wires connected to this waveform. Used to highlight wires
     /// when hovering over wave label.
     Conns: ConnectionId list
     /// Name shown in the waveform viewer. Not guaranteed to be unique.
     DisplayName: string
-    CompLabel: string
     /// Number of bits in wave
+    ViewerDisplayName: string
+    CompLabel: string
+    PortLabel: string
     Width: int
     /// TODO: Consider changing to a map keyed by clock cycle.
     /// List indexed by clock cycle to show value of wave.
@@ -173,6 +176,8 @@ type WaveSimModel = {
     FastSim: FastSimulation
     /// String which the user is searching the list of waves by.
     SearchString: string
+    /// map of booleans showing what is shown in selector
+    ShowDetailMap: Map<WaveIndexT list,bool>
     /// The label which a user is hovering over.
     HoveredLabel: WaveIndexT option
     /// The index of the wave which the user is dragging.
@@ -200,6 +205,7 @@ let initWSModel  : WaveSimModel = {
     SelectedRams = Map.empty
     FastSim = FastCreate.emptyFastSimulation () // placeholder
     SearchString = ""
+    ShowDetailMap = Map.empty
     HoveredLabel = None
     DraggedIndex = None
     PrevSelectedWaves = None

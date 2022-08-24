@@ -25,6 +25,67 @@ open SimulationGraphAnalyser
 /// Builds the graph and simulates it with all inputs zeroed.
 
 
+/// upper case a string
+let cap (sheet:string) = sheet.ToUpper()
+
+/// look up a sheet in a set of loaded components
+let getSheet (ldcs: LoadedComponent list) (openSheet: string)  =
+    match List.tryFind (fun ldc -> cap ldc.Name = cap openSheet) ldcs with
+    | None -> failwithf $"getSheet failed to look up '{openSheet}' in {ldcs |> List.map (fun ldc -> ldc.Name)}"
+    | Some name -> name
+
+
+let getDirectDependencies (cs:CanvasState) =
+    fst cs
+    |> List.collect (fun comp -> match comp.Type with | Custom ct-> [comp.Label, ct.Name] | _ -> [])
+
+let childrenOf (ldcs: LoadedComponent list) (sheet:string) =
+    getSheet ldcs sheet
+    |> (fun ldc -> getDirectDependencies ldc.CanvasState)
+
+
+/// sheets needed to simulate sheet with name sheet
+let rec sheetsNeeded (ldcs: LoadedComponent list) (sheet:string): string list =
+    let children = childrenOf ldcs sheet |> List.map snd
+    children
+    |> List.map (sheetsNeeded ldcs)
+    |> List.concat
+    |> List.append children
+    |> List.append [sheet]
+    |> List.distinct
+
+
+
+
+
+let simulationIsValid (canvasState: CanvasState) (project: Project option) (fs:FastSimulation) =
+    match project with
+    | None -> 
+        false
+    | Some p -> 
+        let openLDC = p.OpenFileName
+        fs.SimulatedCanvasState
+        |> List.forall (fun ldc -> 
+            match openLDC = ldc.Name, List.tryFind (fun (ldc':LoadedComponent) -> ldc'.Name = ldc.Name) p.LoadedComponents with
+            | _, None -> false
+            | false, Some ldc' -> Extractor.loadedComponentIsEqual ldc ldc'
+            | true, Some _ -> Extractor.stateIsEqual ldc.CanvasState canvasState)
+
+
+    
+let saveStateInSimulation (canvasState:CanvasState) (project: Project option) (fs:FastSimulation) =
+    match project with
+    | None -> 
+        failwithf "What? Can't save state with project = None"
+    | Some p -> 
+        let ldcs = 
+            let openLDC = p.OpenFileName
+            let ldc' = Extractor.extractLoadedSimulatorComponent canvasState openLDC
+            let ldcs = p.LoadedComponents |> List.map (fun ldc -> if ldc.Name = openLDC then ldc' else ldc)
+            sheetsNeeded ldcs openLDC
+            |> List.map (getSheet ldcs)
+        {fs with SimulatedCanvasState= ldcs; SimulatedTopSheet = p.OpenFileName}
+
 let rec prepareSimulation
         (diagramName : string)
         (canvasState : CanvasState)

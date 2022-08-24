@@ -81,7 +81,7 @@ type SimCache = {
 
 let simCacheInit name = {
     Name = name; 
-    StoredState = ([],[]) // reduced canvas state from extractReducedState
+    StoredState = [],[] // reduced canvas state from extractReducedState
     StoredResult = Ok {
         FastSim = FastCreate.emptyFastSimulation()
         Graph = Map.empty 
@@ -110,24 +110,23 @@ let rec prepareSimulationMemoized
         (canvasState : CanvasState)
         (loadedDependencies : LoadedComponent list)
         : Result<SimulationData, SimulationError> * CanvasState =
-    let rState = extractReducedState canvasState
     if diagramName <> simCache.Name then
         simCache <- simCacheInit diagramName
         // recursive call having initialised the cache state on sheet change
         prepareSimulationMemoized diagramName canvasState loadedDependencies
     else
-        let isSame = rState = simCache.StoredState
+        let isSame = stateIsEqual canvasState  simCache.StoredState
         if  isSame then
-            simCache.StoredResult, rState
+            simCache.StoredResult, canvasState
         else
             printfn "New simulation"
-            let simResult = prepareSimulation diagramName rState loadedDependencies
+            let simResult = prepareSimulation diagramName canvasState loadedDependencies
             simCache <- {
                 Name = diagramName
-                StoredState = rState
+                StoredState = canvasState
                 StoredResult = simResult
                 }
-            simResult, rState
+            simResult, canvasState
    
 
 /// Start simulating the current Diagram.

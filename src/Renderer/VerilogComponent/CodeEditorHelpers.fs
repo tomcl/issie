@@ -225,11 +225,12 @@ let getLineCounterDiv linesNo =
             [p [] [str (sprintf "%i" no)]]
         )
     
+    
     div [
         Style [Position PositionOptions.Absolute ; 
             Display DisplayOptions.Block; 
-            Width "3%"; Height "100%";
-            CSSProp.Top "5px"; CSSProp.Left "2px"; CSSProp.Right "0"; CSSProp.Bottom "0";
+            Width "3%"; Height "-5px";
+            CSSProp.Top "5px"; CSSProp.Left "2px"; CSSProp.Right "0"; CSSProp.Bottom "0px";
             BackgroundColor "rgba(255,0,0,0)";
             Color "#7f7f7f"; 
             ZIndex "2" ;

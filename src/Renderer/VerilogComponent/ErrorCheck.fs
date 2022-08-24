@@ -2,8 +2,15 @@ module ErrorCheck
 
 open VerilogTypes
 open Fable.Core.JsInterop
+open CommonTypes 
 
+let private getFileInProject name project = project.LoadedComponents |> List.tryFind (fun comp -> comp.Name = name)
 
+let private isFileInProject name project =
+    getFileInProject name project
+    |> function
+    | None -> false
+    | Some _ -> true
 
 /// Helper function to create an ErrorInfo-type Error Message 
 /// given the location, the variable name, and the message
@@ -24,6 +31,51 @@ let createErrorMessage
     
     [{Line = line; Col=currLocation-prevLineLocation+1;Length=length;Message = message;ExtraErrors=Some extraMessages}]
 
+
+/// Recursive function to get all the primaries used in the RHS of an assignment
+/// Used by checkNamesOnRHSOfAssignment and checkSizesOnRHSOfAssignment
+let rec primariesUsedInAssignment inLst (tree: ExpressionT) = 
+    match tree.Type with
+    | "unary" when (Option.get tree.Unary).Type = "primary" 
+        -> List.append inLst [(Option.get (Option.get tree.Unary).Primary)]
+    | "unary" when (Option.get tree.Unary).Type = "parenthesis" 
+        -> primariesUsedInAssignment inLst   (Option.get (Option.get tree.Unary).Expression)
+    | "unary" when (Option.get tree.Unary).Type = "concat" 
+        -> primariesUsedInAssignment inLst  (Option.get (Option.get tree.Unary).Expression)
+    | "negation" | "reduction" when (Option.get tree.Unary).Type = "primary" 
+        -> List.append inLst [(Option.get (Option.get tree.Unary).Primary)] 
+    | "negation" | "reduction" when (Option.get tree.Unary).Type = "parenthesis" 
+        -> primariesUsedInAssignment inLst (Option.get (Option.get tree.Unary).Expression)    
+    | "unary" when (Option.get tree.Unary).Type = "number" -> 
+        match (Option.get (Option.get tree.Unary).Number).NumberType with
+        | "all" -> 
+            let afterBitsSection = (string ((Option.get (Option.get (Option.get tree.Unary).Number).Base)[1])) + (Option.get (Option.get (Option.get tree.Unary).Number).AllNumber)
+            List.append inLst 
+                    [(
+                            {
+                            Type= "primary"; 
+                            PrimaryType= afterBitsSection; 
+                            BitsStart= Some "-3";
+                            BitsEnd= Some (Option.get (Option.get (Option.get tree.Unary).Number).Bits); 
+                            Primary= {
+                                Name="delete123";
+                                Location=(Option.get (Option.get tree.Unary).Number).Location
+                                }
+                            }
+                        )]
+        | _ -> inLst
+
+    | "bitwise_OR" | "bitwise_XOR" | "bitwise_AND" 
+    | "additive" | "SHIFT" | "logical_AND" 
+    | "logical_OR" | "unary_list" 
+    | "conditional_cond" | "conditional_result"
+        -> List.append 
+            (primariesUsedInAssignment inLst (Option.get tree.Head))
+            (if isNullOrUndefined tree.Tail 
+                        then inLst 
+                    else primariesUsedInAssignment inLst (Option.get tree.Tail))
+    | _ -> inLst
+
 /// Checks whether all ports given in the beginning of the module are defined as input/output
 /// Also if all ports have distinct names
 let portCheck ast linesLocations errorList  = 
@@ -33,92 +85,117 @@ let portCheck ast linesLocations errorList  =
     let locationList = ast.Module.Locations |> Array.toList
     let locationMap =
         (portList, locationList) ||> List.map2 (fun p i -> (p,int i)) |> Map.ofList
-    
-    match List.length portList = List.length distinctPortList with
-    | false ->  //CASE 1: ports with same name
-        portList
-        |> Seq.countBy id
-        |> Map.ofSeq
-        |> Map.filter (fun name count -> count > 1)
-        |> Map.toList
-        |> List.map fst
-        |> List.collect (fun name ->
-            let message = "Ports must have different names"     
-            let extraMessages = [|
-                {Text=sprintf "Name '%s' has already been used for a port \n Please use a different name" name ;Copy=false;Replace=NoReplace}
-            |]       
-            createErrorMessage linesLocations locationMap[name] message extraMessages name
-            )        
-        |> List.append errorList 
-    
-    | true -> // Distinct names
-        let items = ast.Module.ModuleItems.ItemList |> Array.toList
-        let decls = 
-            items |> List.collect (fun x -> 
-                match (x.IODecl |> isNullOrUndefined) with
-                | false -> 
-                    match x.IODecl with
-                    | Some d -> 
-                        d.Variables 
-                        |> Array.toList 
-                        |> List.collect (fun x -> [x.Name]) 
-                    | None -> []
-                | true -> []
-            )
-        let diff = List.except decls portList
-        match Seq.isEmpty diff with
-        | false ->  //CASE 2: ports not declared as input/output
-            diff
+    match ast.Module.Type with
+    |"module_new" -> errorList //if new-style there is no port list
+    |_ ->
+        match List.length portList = List.length distinctPortList with
+        | false ->  //CASE 1: ports with same name
+            portList
+            |> List.map (fun name -> name.ToUpper())
+            |> Seq.countBy id
+            |> Map.ofSeq
+            |> Map.filter (fun name count -> count > 1)
+            |> Map.toList
+            |> List.map fst
             |> List.collect (fun name ->
-                let message = sprintf "Port '%s' is not declared either as input or output" name
-                let extraMessages = 
-                    [|
-                        {Text=sprintf "Port '%s' must be declared as input or output" name;Copy=false;Replace=NoReplace}
-                        {Text=sprintf "input %s;|output %s;" name name;Copy=true;Replace=IODeclaration}
-                    |]
+                let message = "Ports must have different names"     
+                let extraMessages = [|
+                    {Text=sprintf "Name '%s' has already been used for a port \n Please use a different name" name ;Copy=false;Replace=NoReplace}
+                |]       
                 createErrorMessage linesLocations locationMap[name] message extraMessages name
-            )
-            |> List.append errorList
-        | true -> //CASE 3: no errors 
-            errorList
+                )        
+            |> List.append errorList 
+    
+        | true -> // Distinct names
+            let items = ast.Module.ModuleItems.ItemList |> Array.toList
+            let decls = 
+                items |> List.collect (fun x -> 
+                    match (x.IODecl |> isNullOrUndefined) with
+                    | false -> 
+                        match x.IODecl with
+                        | Some d -> 
+                            d.Variables 
+                            |> Array.toList 
+                            |> List.collect (fun x -> [x.Name]) 
+                        | None -> []
+                    | true -> []
+                )
+            let diff = List.except decls portList
+            match Seq.isEmpty diff with
+            | false ->  //CASE 2: ports not declared as input/output
+                diff
+                |> List.collect (fun name ->
+                    let message = sprintf "Port '%s' is not declared either as input or output" name
+                    let extraMessages = 
+                        [|
+                            {Text=sprintf "Port '%s' must be declared as input or output" name;Copy=false;Replace=NoReplace}
+                            {Text=sprintf "input %s;|output %s;" name name;Copy=true;Replace=IODeclaration}
+                        |]
+                    createErrorMessage linesLocations locationMap[name] message extraMessages name
+                )
+                |> List.append errorList
+            | true -> //CASE 3: no errors 
+                errorList
 
 /// Checks whether all ports defined as input/output are declared as ports in the module header
-/// Also checks for double definitions
+/// Also checks for double definitions and for input ports not used in the assignments
 let checkIODeclarations 
     (ast: VerilogInput)
     (portWidthDeclarationMap: Map<string,int*int>) 
     (portLocationMap: Map<string,int>) 
     (linesLocations: int list) 
     (nonUniquePortDeclarations: string list)
+    (portMap: Map<string,string>)
+    (items: ItemT list)
     (errorList: ErrorInfo list)
         : ErrorInfo list = 
     
     let portList = ast.Module.PortList |> Array.toList
-    
+    let assignments = List.filter (fun item -> (Option.isSome item.Statement)) items
+
+    let allPrimariesUsed =
+        assignments
+        |> List.map (fun x -> 
+            primariesUsedInAssignment [] (Option.get x.Statement).Assignment.RHS
+        )
+        |> List.concat
+        |> List.map (fun primary -> primary.Primary.Name)
+
+
     portWidthDeclarationMap
     |> Map.toList
     |> List.map fst
     |> List.collect (fun port -> 
-        match (List.tryFind (fun p -> p=port) portList) with
-        | None -> // CASE 1: Doesn't exist in the module header
+        match ((List.tryFind (fun p -> p=port) allPrimariesUsed),(Map.tryFind port portMap)) with
+        |None, Some "input" -> // CASE 1: port is not used in the assignments
             let currLocation = Map.find port portLocationMap
-            let message = sprintf "Variable '%s' is not defined as a port in the module declaration" port
+            let message = sprintf "Variable '%s' is defined as an input port but is not used" port
             let extraMessages =
                 [|
-                    {Text=sprintf "Variable '%s' is not defined as a port \n Please define it in the module declaration" port;Copy=false;Replace=NoReplace}
+                    {Text=sprintf "Variable '%s' is defined as an input port but is not used \n Please delete it if it is not needed" port;Copy=false;Replace=NoReplace}
                 |]
             createErrorMessage linesLocations currLocation message extraMessages port
-        | Some _ -> // Exists in module header
-            match List.tryFind (fun p -> p=port) nonUniquePortDeclarations with
-            |Some found -> // CASE 2: Double definition
+        | _, _ ->
+            match (List.tryFind (fun p -> p=port) portList) with
+            | None -> // CASE 2: Doesn't exist in the module header
                 let currLocation = Map.find port portLocationMap
-                let message = sprintf "Port '%s' is already defined" port
+                let message = sprintf "Variable '%s' is not defined as a port in the module declaration" port
                 let extraMessages =
                     [|
-                        {Text=sprintf "Port '%s' is already defined" port ;Copy=false;Replace=NoReplace}
+                        {Text=sprintf "Variable '%s' is not defined as a port \n Please define it in the module declaration" port;Copy=false;Replace=NoReplace}
                     |]
                 createErrorMessage linesLocations currLocation message extraMessages port
-            |None -> [] //CASE 3: No errors
+            | Some _ -> // Exists in module header
+                match List.tryFind (fun p -> p=port) nonUniquePortDeclarations with
+                |Some found -> // CASE 3: Double definition
+                    let currLocation = Map.find port portLocationMap
+                    let message = sprintf "Port '%s' is already defined" port
+                    let extraMessages =
+                        [|
+                            {Text=sprintf "Port '%s' is already defined" port ;Copy=false;Replace=NoReplace}
+                        |]
+                    createErrorMessage linesLocations currLocation message extraMessages port
+                |None -> [] //CASE 4: No errors
     )
     |> List.append errorList   
 
@@ -149,31 +226,35 @@ let checkIOWidthDeclarations (ast: VerilogInput) linesLocations errorList  =
     |> List.append errorList
 
 
-/// Checks if the name of the module is valid (i.e. starts with a character)
-/// TO DELETE? (comp name is now set to be module name by default)
-let nameCheck ast linesLocations compName errorList = 
+/// Checks if the name of the module is valid (i.e. this sheet doesn't exist)
+let nameCheck ast linesLocations (origin:CodeEditorOpen) (project:Project)  errorList = 
     let moduleName =  ast.Module.ModuleName.Name
-    let notGoodName =
-        compName
-        |> Seq.toList
-        |> List.tryHead
-        |> function | Some ch when  System.Char.IsLetter ch -> false | _ -> true
-    match moduleName=compName with
-        | false -> 
-            let message = "Module Name must match the Component Name"
+    // printfn "working %s" (Option.defaultValue "" project.WorkingFileName) 
+    let exists = 
+        match origin with
+        |NewVerilogFile -> isFileInProject moduleName project 
+        |UpdateVerilogFile initialName -> moduleName <> initialName
+
+    let localError = 
+        match (exists,origin) with
+        |true,NewVerilogFile -> 
+            let message = "A sheet with that name already exists"
             let extraMessages = 
-                if notGoodName then  
-                    [|
-                        {Text="Module Name must match the Component Name";Copy=false;Replace=NoReplace}
-                    |]
-                else
-                    [|
-                        {Text="Module Name must match the Component Name";Copy=false;Replace=NoReplace};
-                        {Text=sprintf "%s" compName ;Copy=true;Replace=Variable moduleName}
-                    |]
+                [|
+                    {Text="Module Name must be different from existing Sheets/Components";Copy=false;Replace=NoReplace}
+                |]
             createErrorMessage linesLocations ast.Module.ModuleName.Location message extraMessages moduleName
-        | true -> []
-    |> List.append errorList
+        |true,UpdateVerilogFile _ ->
+            let message = "Verilog component's name cannot be changed "
+            let extraMessages = 
+                [|
+                    {Text="Module Name of Verilog component cannot be changed";Copy=false;Replace=NoReplace}
+                |]
+            createErrorMessage linesLocations ast.Module.ModuleName.Location message extraMessages moduleName
+        |false,_ ->
+            []
+    
+    List.append localError errorList
 
 
 /// Checks if all declared output ports have a value assigned to them
@@ -286,217 +367,143 @@ let checkAllOutputsAssigned
     List.append errorList localErrors
 
 
-
 /// Helper function used by checkWidthOfAssignment
 /// with 3 recursive subfunctions
-/// Returns the RHS Unary Size tree of type OneUnary list
-/// where OneUnary={Name:string;Size:int;Elements:OneUnary list option}
-let RHSUnaryAnalysis 
+/// Returns the RHS Unary Size tree of type OneUnary
+/// where OneUnary = {Name:string;ResultWidth:int;Head:OneUnary option;Tail:OneUnary option;Elements:OneUnary list}
+let RHSUnaryAnalysis
     (assignmentRHS:ExpressionT)
     (inputWireSizeMap: Map<string,int>)
-        : OneUnary list =
-    
-    let findSizeOfUnary (tree: ExpressionT) inputWireSizeMap (lengthLHS:int) =
-        match tree.Type with
-        | "unary" when (Option.get tree.Unary).Type = "primary" ->
-            let primary = Option.get (Option.get tree.Unary).Primary
-            match isNullOrUndefined primary.BitsStart with
-                    | true -> 
-                        match Map.tryFind primary.Primary.Name inputWireSizeMap with
-                        | Some num -> (num)
-                        | None -> (lengthLHS) // if name doesn't exist skip it, error found by assignmentRHSNameCheck
-                    | false -> 
-                        (((Option.get primary.BitsStart) |> int) - ((Option.get primary.BitsEnd) |> int) + 1)
-        | "unary" when (Option.get tree.Unary).Type = "number"  
-            -> match (Option.get (Option.get tree.Unary).Number).NumberType with
-                |"decimal"
-                    -> (-4)  //keep decimal?? else delete
-                | _ -> int <| (Option.get (Option.get (Option.get tree.Unary).Number).Bits) 
-        | _ -> failwithf "Can't happen"
+        : OneUnary =
 
-    let rec findSizeOfExpression inLst (tree:ExpressionT) = 
+    let rec findSizeOfExpression (tree:ExpressionT) : OneUnary = 
         match tree.Type with
-        | "unary" when (Option.get tree.Unary).Type = "primary" ->
+        | "unary" |"negation" when (Option.get tree.Unary).Type = "primary" ->
             let primary = Option.get (Option.get tree.Unary).Primary
             match isNullOrUndefined primary.BitsStart with
                     | true -> 
                         match Map.tryFind primary.Primary.Name inputWireSizeMap with
-                        | Some num -> [{Name=primary.Primary.Name;Size=num;Parenthesis=None}]
-                        | None -> [] // if name doesn't exist skip it, error found by assignmentRHSNameCheck
+                        | Some num -> {Name=primary.Primary.Name;ResultWidth=num;Head=None;Tail=None;Elements=[]}
+                        | None -> {Name="undefined";ResultWidth=(0);Head=None;Tail=None;Elements=[]} // if name doesn't exist skip it, error found by assignmentRHSNameCheck
                     | false -> 
-                        [{Name=primary.Primary.Name;Size=((Option.get primary.BitsStart) |> int) - ((Option.get primary.BitsEnd) |> int) + 1;Parenthesis=None}]
-    
-
-        | "negation" when (Option.get tree.Unary).Type = "primary" ->
-            let primary = Option.get (Option.get tree.Unary).Primary
-            match isNullOrUndefined primary.BitsStart with
-                    | true -> 
-                        match Map.tryFind primary.Primary.Name inputWireSizeMap with
-                        | Some num -> [{Name=primary.Primary.Name;Size=num;Parenthesis=None}]
-                        | None -> [] // if name doesn't exist skip it, error found by assignmentRHSNameCheck
-                    | false -> 
-                        [{Name=primary.Primary.Name;Size=((Option.get primary.BitsStart) |> int) - ((Option.get primary.BitsEnd) |> int) + 1;Parenthesis=None}]
+                        {Name=primary.Primary.Name;ResultWidth=((Option.get primary.BitsStart) |> int) - ((Option.get primary.BitsEnd) |> int) + 1;Head=None;Tail=None;Elements=[]}
                         
-        | "unary" when (Option.get tree.Unary).Type = "number"  
-            -> match (Option.get (Option.get tree.Unary).Number).NumberType with
-                |"decimal"-> []  //TODO: keep decimal?? else delete
-                | _ -> [{Name="[number]";Size=int <| (Option.get (Option.get (Option.get tree.Unary).Number).Bits) ;Parenthesis=None}]
+        | "unary" when (Option.get tree.Unary).Type = "number" ->
+                {Name="[number]";ResultWidth=int <| (Option.get (Option.get (Option.get tree.Unary).Number).Bits) ;Head=None;Tail=None;Elements=[]}
         
         | "unary" when (Option.get tree.Unary).Type = "concat" -> 
             let unariesList = (findSizeOfConcat (Option.get (Option.get tree.Unary).Expression) [])
-            let length= (0,unariesList) ||> List.fold(fun s unary-> s+unary.Size)
-            let result = {Name="{...}";Size=length;Parenthesis=Some unariesList}
-            List.append inLst [result]
+            let length= (0,unariesList) ||> List.fold(fun s unary-> s+unary.ResultWidth)
+            {Name="{...}";ResultWidth=length;Head=None;Tail=None;Elements=unariesList}
        
-        | "unary" when (Option.get tree.Unary).Type = "parenthesis" -> 
-            List.append
-                inLst
-                (findSizeOfParenthesis tree)        
-        
-        | "negation" when (Option.get tree.Unary).Type = "parenthesis" ->
-            List.append
-                inLst
-                (findSizeOfExpression [] (Option.get (Option.get tree.Unary).Expression))
+        | "unary" |"negation" when (Option.get tree.Unary).Type = "parenthesis" -> 
+            let elements = (findSizeOfExpression (Option.get (Option.get tree.Unary).Expression))
+            {Name="(...)";ResultWidth=elements.ResultWidth;Head=None;Tail=None;Elements=[elements]}
 
         | "bitwise_OR" | "bitwise_XOR" | "bitwise_AND" 
-        | "additive" | "logical_AND" 
-        | "logical_OR" | "conditional_result" 
-            -> List.append 
-                (findSizeOfExpression inLst (Option.get tree.Head))
-                (if isNullOrUndefined tree.Tail 
-                            then inLst 
-                        else findSizeOfExpression inLst (Option.get tree.Tail))
-        | "unary_list" -> findSizeOfConcat tree inLst
+        | "additive" 
+            -> 
+            let u1 = findSizeOfExpression (Option.get tree.Head)
+            let u2 = findSizeOfExpression (Option.get tree.Tail)
+            {Name="[bitwise_op]";ResultWidth=u1.ResultWidth;Head=Some u1;Tail=Some u2;Elements=[]}
+            
 
         | "conditional_cond" -> 
-            let result = (findSizeOfExpression [] (Option.get tree.Head))
-            let elements = (findSizeOfExpression [] (Option.get tree.Tail))
-            match List.isEmpty result with
-            |true -> inLst
-            |false ->
-                let size = result[0].Size
-                List.append inLst [{Name="[condition]";Size=size;Parenthesis=Some elements}] 
+            let result = (findSizeOfExpression (Option.get tree.Head))
+            let u1 = (findSizeOfExpression (Option.get (Option.get tree.Tail).Head))
+            let u2 = (findSizeOfExpression (Option.get (Option.get tree.Tail).Tail))
+            {Name="[conditional]";ResultWidth=u1.ResultWidth;Head=Some u1;Tail=Some u2;Elements=[result]}
         
         | "SHIFT" ->
-            let results = (findSizeOfExpression [] (Option.get tree.Head))
-            match List.isEmpty results with
-            |true -> inLst
-            |false ->
-                let result = results[0]
-                let size = result.Size
-                List.append inLst [{Name="[shift]";Size=size;Parenthesis=result.Parenthesis}] 
+            let u1 = (findSizeOfExpression (Option.get tree.Head))
+            {Name="[shift]";ResultWidth=u1.ResultWidth;Head=Some u1;Tail=None;Elements=[]}
 
         | "reduction" when (Option.get tree.Unary).Type = "parenthesis" ->
-            let result = findSizeOfExpression [] (Option.get (Option.get tree.Unary).Expression)
-            List.append inLst [{Name="[reduction]";Size=1;Parenthesis=Some result}] 
+            let result = findSizeOfExpression (Option.get (Option.get tree.Unary).Expression)
+            {Name="[reduction]";ResultWidth=1;Head=None;Tail=None;Elements=[result]} 
 
-        | "reduction" -> 
-            List.append inLst [{Name="[reduction]";Size=1;Parenthesis=None}] 
+        | "reduction" ->
+            {Name="[reduction]";ResultWidth=1;Head=None;Tail=None;Elements=[]} 
 
-        | _ -> inLst
-    
-    and findSizeOfConcat (tree:ExpressionT) concatList =
+        | "logical_OR" | "logical_AND" ->
+            let u1 = findSizeOfExpression (Option.get tree.Head)
+            let u2 = findSizeOfExpression (Option.get tree.Tail)
+            {Name="[logical_op]";ResultWidth=1;Head=Some u1;Tail=Some u2;Elements=[]}
+        | _ -> failwithf "Case not covered!"
+
+    and findSizeOfConcat (tree:ExpressionT) concatList : OneUnary list=
         
         match isNullOrUndefined tree.Tail with
-        |true -> (findSizeOfExpression concatList (Option.get tree.Head))
+        |true -> concatList@[(findSizeOfExpression (Option.get tree.Head))]
         |false ->
-            List.append
-                (findSizeOfExpression concatList (Option.get tree.Head))
-                (findSizeOfConcat (Option.get tree.Tail) [])
+            let updated = concatList@[(findSizeOfExpression (Option.get tree.Head))]
+            findSizeOfConcat (Option.get tree.Tail) updated
     
-    and findSizeOfParenthesis (tree:ExpressionT) =
-        let result = findSizeOfExpression [] (Option.get (Option.get tree.Unary).Expression)
-        let diff = List.distinctBy (fun unary->unary.Size) result
-        match List.isEmpty diff with
-        |true -> []
-        |false -> [{Name="(...)";Size=diff[0].Size;Parenthesis=Some result}]
 
-    findSizeOfExpression [] assignmentRHS
+    findSizeOfExpression assignmentRHS
+
 
 /// Helper recursive function to transform the produced OneUnary-type tree
 /// by RHSUnaryAnalysis to a string which can be used for ErrorInfo
-let rec unaryTreeToString treeDepth targetLength (unariesList:OneUnary list)  =
+let rec unaryTreeToString treeDepth targetLength (unary:OneUnary)  =
     
-    let unaryToString item =
-        let targetLength' = if item.Name = "[condition]" then 1 else targetLength
-        let depthToSpaces = ("",[0..treeDepth])||>List.fold (fun s v -> s+"   ") 
-        let sizeString =
-            match targetLength' with
-            |(-1) -> (string item.Size)
-            |x when x=(item.Size)-> (string item.Size)
-            |x when item.Name="[condition]" -> (string item.Size)+" -> ERROR! (Exp: "+(string targetLength')+", condition must be a single bit!)"
-            |_ -> (string item.Size)+" -> ERROR! (Exp: "+(string targetLength')+")"
-        match item.Parenthesis with
-        |Some localList -> 
-            let propagatedLength =
-                match item.Name with
-                |"{...}" -> (-1)
-                |"[condition]" -> targetLength
-                |"[reduction]" -> localList[0].Size
-                | _ -> item.Size
-            depthToSpaces+
-            "-'"+
-            item.Name+
-            "' with Width: "+
-            sizeString+
-            "\n"+
-            depthToSpaces+
-            "   "+
-            "Elements: \n"+
-            (unaryTreeToString (treeDepth+2) propagatedLength localList)
-        |None -> 
-            depthToSpaces+"-'"+item.Name+"' with Width: "+sizeString+"\n"
+    let targetLength' = targetLength //if targetLength=(-2) then 1 else targetLength
+    let depthToSpaces = ("",[0..treeDepth])||>List.fold (fun s v -> s+"   ") 
+    let sizeString =
+        match targetLength' with
+        |(-1) -> (string unary.ResultWidth)
+        |(-2) when unary.ResultWidth<>1  -> (string unary.ResultWidth)+" -> ERROR! (Exp: 1, condition must be a single bit!)"
+        |(-2) -> (string unary.ResultWidth)
+        |x when x=(unary.ResultWidth)-> (string unary.ResultWidth)
+        |_ -> (string unary.ResultWidth)+" -> ERROR! (Exp: "+(string targetLength')+")"
     
-    ("",unariesList)
-    ||>List.fold (fun s item ->
-        s+(unaryToString item)
-    )
+    let propagatedLength =
+            match unary.Name with
+            |"{...}" -> (-1)
+            |"[condition]" -> targetLength
+            |"[reduction]" -> (-1)
+            |"[logical_op]" -> (-1)
+            | _ -> unary.ResultWidth
 
+    let elem =
+        match unary.Name with
+        |"[bitwise_op]" |"[logical_op]" ->
+            let s1 =  (unaryTreeToString (treeDepth+2) propagatedLength (Option.get unary.Head))
+            let s2 = (unaryTreeToString (treeDepth+2) propagatedLength (Option.get unary.Tail))
+            s1+s2
+        |"[conditional]" ->
+            let cond = unaryTreeToString (treeDepth+2) (-2) unary.Elements[0]
+            let s1 =  (unaryTreeToString (treeDepth+2) propagatedLength (Option.get unary.Head))
+            let s2 = (unaryTreeToString (treeDepth+2) propagatedLength (Option.get unary.Tail))
+            cond+s1+s2
+        |"[reduction]" when unary.Elements = [] -> ""
+        |"[reduction]" |"(...)" ->
+            unaryTreeToString (treeDepth+2) propagatedLength unary.Elements[0]
+        |"[shift]" -> ""    
+        |"{...}" ->
+            ("",[0..((List.length unary.Elements)-1)])||>List.fold (fun s v -> s+(unaryTreeToString (treeDepth+2) propagatedLength unary.Elements[v]))
+        |_ -> ""
 
-/// Recursive function to get all the primaries used in the RHS of an assignment
-/// Used by checkNamesOnRHSOfAssignment and checkSizesOnRHSOfAssignment
-let rec primariesUsedInAssignment inLst (isConcat: bool) (tree: ExpressionT) = 
-    match tree.Type with
-    | "unary" when (Option.get tree.Unary).Type = "primary" 
-        -> List.append inLst [(Option.get (Option.get tree.Unary).Primary, isConcat)]
-    | "unary" when (Option.get tree.Unary).Type = "parenthesis" 
-        -> primariesUsedInAssignment inLst isConcat  (Option.get (Option.get tree.Unary).Expression)
-    | "unary" when (Option.get tree.Unary).Type = "concat" 
-        -> primariesUsedInAssignment inLst true  (Option.get (Option.get tree.Unary).Expression)
-    | "negation" when (Option.get tree.Unary).Type = "primary" 
-        -> List.append inLst [(Option.get (Option.get tree.Unary).Primary, isConcat)] 
-    | "negation" when (Option.get tree.Unary).Type = "parenthesis" 
-        -> primariesUsedInAssignment inLst isConcat (Option.get (Option.get tree.Unary).Expression)    
+    match elem with
+    |"" ->
+        depthToSpaces+
+        "-'"+
+        unary.Name+
+        "' with Width: "+
+        sizeString+
+        "\n"
+    |_ ->
+        depthToSpaces+
+        "-'"+
+        unary.Name+
+        "' with Width: "+
+        sizeString+
+        "\n"+
+        depthToSpaces+
+        "   "+
+        "Elements: \n"+
+        elem
     
-    | "unary" when (Option.get tree.Unary).Type = "number" -> 
-        match (Option.get (Option.get tree.Unary).Number).NumberType with
-        | "all" -> List.append inLst 
-                    [(
-                            {
-                            Type= "primary"; 
-                            PrimaryType= "numeric"; 
-                            BitsStart= Some "-3"; 
-                            BitsEnd= Some (Option.get (Option.get (Option.get tree.Unary).Number).Bits); 
-                            Primary= {
-                                Name="delete123";
-                                Location=(Option.get (Option.get tree.Unary).Number).Location
-                                }
-                            }, isConcat
-                        )]
-        | _ -> inLst
-
-    | "bitwise_OR" | "bitwise_XOR" | "bitwise_AND" 
-    | "additive" | "SHIFT" | "logical_AND" 
-    | "logical_OR" | "unary_list" 
-    | "conditional_cond" | "conditional_result"
-        -> List.append 
-            (primariesUsedInAssignment inLst isConcat (Option.get tree.Head))
-            (if isNullOrUndefined tree.Tail 
-                        then inLst 
-                    else primariesUsedInAssignment inLst isConcat (Option.get tree.Tail))
-    | _ -> inLst
-
-
 
 
 /// Checks one-by-one all wire and output port assignments for:
@@ -627,7 +634,7 @@ let checkWiresAndAssignments
     /// Checks if the variables used in the RHS of on assignment
     /// (either output port or wire) have been declared as input or wire
     let checkNamesOnRHSOfAssignment (assignment: AssignmentT) currentInputWireList localErrors = 
-        let PrimariesRHS = primariesUsedInAssignment [] false assignment.RHS |> List.map fst
+        let PrimariesRHS = primariesUsedInAssignment [] assignment.RHS
         
         let namesWithLocRHS = PrimariesRHS |> List.map (fun x -> (x.Primary.Name, x.Primary.Location))
         let namesRHS = namesWithLocRHS |> List.map fst
@@ -673,7 +680,7 @@ let checkWiresAndAssignments
     /// Check if the width of each wire/input used
     /// is within the correct range (defined range)
     let checkSizesOnRHSOfAssignment (assignment: AssignmentT) currentInputWireSizeMap localErrors =
-        let primariesRHS = primariesUsedInAssignment []false assignment.RHS |> List.map fst
+        let primariesRHS = primariesUsedInAssignment [] assignment.RHS
         primariesRHS
         |> List.collect (fun x -> 
             match isNullOrUndefined x.BitsStart with
@@ -693,7 +700,37 @@ let checkWiresAndAssignments
                         List.append 
                             localErrors 
                             (createErrorMessage linesLocations x.Primary.Location message extraMessages "0'b")
-                    else localErrors
+                    else 
+                        let no = 
+                            match x.PrimaryType[0] with
+                            |'b' -> "0"+x.PrimaryType
+                            |'h' ->
+                                let withoutH = 
+                                    String.mapi (fun index char -> 
+                                    match index with
+                                    |0 -> '0'
+                                    |_ -> char
+                                    ) x.PrimaryType
+                                "0x"+withoutH
+                            |_ -> 
+                                String.mapi (fun index char -> 
+                                    match index with
+                                    |0 -> '0'
+                                    |_ -> char
+                                ) x.PrimaryType
+                        match NumberHelpers.strToIntCheckWidth bEnd no with
+                        |Ok n -> localErrors
+                        |Error _ -> 
+                            let message = sprintf "Number can't fit in %i bits" bEnd
+                            let extraMessages = 
+                                [|
+                                    {Text=sprintf "Number can't fit in %i bits" bEnd; Copy=false;Replace=NoReplace}
+                                    {Text=("The integer before 'h/'b represents the width of the number\n e.g. 12'hc7 -> 000011000111");Copy=false;Replace=NoReplace}
+                                |]
+                            List.append 
+                                localErrors 
+                                (createErrorMessage linesLocations x.Primary.Location message extraMessages "0'b")
+                        
                 | _ -> 
                     match Map.tryFind name currentInputWireSizeMap with
                     | Some size -> 
@@ -968,7 +1005,7 @@ let getWireLocationMap items =
 
 /// Main error-finder function
 /// Returns a list of errors (type ErrorInfo)
-let getSemanticErrors ast linesLocations =
+let getSemanticErrors ast linesLocations (origin:CodeEditorOpen) (project:Project) =
     
     let (items: ItemT list) = ast.Module.ModuleItems.ItemList |> Array.toList
     ///////// MAPS, LISTS NEEDED  ////////////////
@@ -986,8 +1023,9 @@ let getSemanticErrors ast linesLocations =
     //////////////////////////////////////////////
     
     []  //begin with empty list and add errors to it
+    |> nameCheck ast linesLocations origin project //name is valid (not used by another sheet/component)
     |> portCheck ast linesLocations //all ports are declared as input/output
-    |> checkIODeclarations ast portWidthDeclarationMap portLocationMap linesLocations notUniquePortDeclarations  //all ports declared as IO are defined in the module header
+    |> checkIODeclarations ast portWidthDeclarationMap portLocationMap linesLocations notUniquePortDeclarations portMap items  //all ports declared as IO are defined in the module header
     |> checkIOWidthDeclarations ast linesLocations //correct port width declaration (e.g. [1:4] -> invalid)
     |> checkWiresAndAssignments ast portMap portSizeMap portWidthDeclarationMap inputSizeMap inputNameList linesLocations wireNameList wireSizeMap wireLocationMap //checks 1-by-1 all assignments (wires & output ports)
     |> checkAllOutputsAssigned ast portMap portSizeMap linesLocations //checks whether all output ports have been assined a value

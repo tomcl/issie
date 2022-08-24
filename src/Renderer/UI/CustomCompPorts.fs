@@ -14,12 +14,13 @@ open Fable.React
 open Fable.React.Props
 
 open Helpers
+open JSHelpers
 open ModelType
 open CommonTypes
 open FilesIO
 open Extractor
 open PopupView
-
+open FileMenuView
 
 
 let printSheetNames (model:Model) =
@@ -27,6 +28,13 @@ let printSheetNames (model:Model) =
     |> Option.map (fun p -> 
         printf $"SHEETS:{p.LoadedComponents |> List.map (fun ldc -> ldc.Name)}--->{p.OpenFileName}")
     |> ignore
+
+
+let getCorrectFileName (project:Project) = 
+    match project.WorkingFileName with
+    |Some name -> name
+    |None -> project.OpenFileName
+
 
 //--------------------------------------------------------------------------------------------//
 //--------------------------------------------------------------------------------------------//
@@ -43,7 +51,8 @@ let syncLoadedComponentsToDisk newProj oldProj =
     let saveToDisk ldc =
         let state = ldc.CanvasState
         let waveInfo = ldc.WaveInfo
-        saveStateToFile newProj.ProjectPath ldc.Name (state,waveInfo)
+        let sheetInfo = {Form=ldc.Form;Description=ldc.Description}
+        saveStateToFile newProj.ProjectPath ldc.Name (state,waveInfo,Some sheetInfo)
         |> ignore
         removeFileWithExtn ".dgmauto" oldProj.ProjectPath ldc.Name
 
@@ -156,6 +165,7 @@ let ioCompareSigs (sig1: Signature) (sig2: Signature) =
                 | None, Some _ -> "Port and old connections deleted"
                 | Some _, None -> "New Port will be added"
                 | _ -> failwithf $"What? never happens: {newLW} {oldLW}"
+            // printfn "message: %s" message
             {
                 Message = message
                 Direction = fst m
@@ -205,7 +215,7 @@ let guessAtRenamedPorts (matches: PortChange seq)  : PortChange array =
 
 
 let findInstancesOfCurrentSheet (project:Project) =
-    let thisSheet = project.OpenFileName
+    let thisSheet = getCorrectFileName project
     let ldcs = project.LoadedComponents
     let getInstance (comp:Component) =
         match comp.Type with
@@ -252,7 +262,7 @@ let makePortName (nameWidth :(string*int) option) =
 /// returns IO signature of current sheet, and all its instances in other sheets
 let getDependents (model:Model)  =
     mapOverProject None model <| fun p ->
-         let sheetName = p.OpenFileName
+         let sheetName = getCorrectFileName p
          let newSig = 
              p.LoadedComponents
              |> List.find (fun ldc -> ldc.Name = sheetName)
@@ -418,7 +428,7 @@ let updateInstance (newSig: Signature) (sheet:string,cid:string,oldSig:Signature
             |> List.map (fun n -> oldPorts[n])
             |> List.mapi (fun i p -> {p with PortNumber = Some i})
         match comp.Type with
-        | Custom ct ->
+        | Custom ct -> //when ct.Form = Some User ->                
                 if oldSig = newSig then 
                     printfn "Order matches!"
                     comp
@@ -435,10 +445,12 @@ let updateInstance (newSig: Signature) (sheet:string,cid:string,oldSig:Signature
                 else
                     printfn "What? Signatures do not match after changes are made"
                     comp
+        // | Custom ct when ct.Form = Some (Verilog _) ->
+
         | _ -> comp // no change (should never happen?)
 #if ASSERTS
     assertThat 
-        (sheet <> p.OpenFileName)
+        (sheet <> (getCorrectFileName p))
         $"What? Instances to be changed in {sheet} must not be in custom \
         component sheet{p.OpenFileName}"
 #endif
@@ -460,7 +472,11 @@ let updateInstance (newSig: Signature) (sheet:string,cid:string,oldSig:Signature
         |> reorderInstancePorts newSig
     let comps' =
         comps
-        |> List.map (fun comp -> if comp.Id = cid then comp' else comp)
+        |> List.map (fun comp -> 
+            if comp.Id = cid then 
+                comp' 
+            else 
+                comp)
     let ldc' = {ldc with CanvasState = deleteIncompleteConnections (comps',conns)}
     let ldcLst = ldc' :: List.except [ldc] p.LoadedComponents
     {p with LoadedComponents = ldcLst}
@@ -480,7 +496,7 @@ let updateDependents (newSig: Signature) (instances:(string*string*Signature) li
 
 let checkCanvasStateIsOk (model:Model) =
     mapOverProject false model (fun p ->
-        let ldc = List.find (fun ldc -> ldc.Name = p.OpenFileName) p.LoadedComponents
+        let ldc = List.find (fun ldc -> ldc.Name = (getCorrectFileName p)) p.LoadedComponents
         let comps,conns = ldc.CanvasState
         let ioNames =
             comps
@@ -492,7 +508,13 @@ let checkCanvasStateIsOk (model:Model) =
 /// returns a popup function to show the dependents update dialog if this is needed
 /// this dialog drives all subsequent work changing custom component instances
 let optCurrentSheetDependentsPopup (model: Model) =
-        let sheet = model.CurrentProj |> Option.map (fun p -> p.OpenFileName)
+        let sheet = 
+            model.CurrentProj
+            |> Option.map (fun p -> 
+                match p.WorkingFileName with
+                |Some z -> (Option.get p.WorkingFileName)
+                |None -> p.OpenFileName
+            )
         if not <| checkCanvasStateIsOk model then
             None // do nothing if IOs are not currently valid. Can this ever happen?
         else     
@@ -548,10 +570,23 @@ let optCurrentSheetDependentsPopup (model: Model) =
 
                     let buttonAction isUpdate dispatch  _ =
                         if isUpdate then
-                            updateDependents newSig instances model dispatch
-                            |> Option.map saveAllProjectFilesFromLoadedComponentsToDisk
-                            |> ignore
+                            // printfn "instances: %A" instances
+                            
+                            let newp = 
+                                updateDependents newSig instances model dispatch
+                            
+                            newp |> Option.map saveAllProjectFilesFromLoadedComponentsToDisk |> ignore
+                            
+                            
+                            let proj = Option.get (newp)
+                            
+                            if proj.OpenFileName <> (Option.defaultValue proj.OpenFileName proj.WorkingFileName) then 
+                                let model' = {model with CurrentProj = Some proj}
+                                openFileInProject' false proj.OpenFileName proj model' dispatch
+                            else ()
+
                         dispatch <| ClosePopup
+                        
                     choicePopupFunc 
                         "Update All Sheet Instances" 
                         (fun _ -> body)

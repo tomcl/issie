@@ -379,9 +379,10 @@ let update (msg : Msg) oldModel =
             | _ -> 
                 {model with UIState = Some uiCmd}, Cmd.ofMsg (Sheet (SheetT.SetSpinner true))
         | _ -> model, Cmd.none //otherwise discard the message
-    | FinishUICmd _ ->
+    | FinishUICmd _->
         let popup = CustomCompPorts.optCurrentSheetDependentsPopup model
         {model with UIState = None; PopupViewFunc = popup}, Cmd.ofMsg (Sheet (SheetT.SetSpinner false))
+
     (*| ShowExitDialog ->
         match model.CurrentProj with
         | Some p when model.SavedSheetIsOutOfDate ->

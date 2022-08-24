@@ -2,6 +2,8 @@
 const nearley = require("nearley");
 const verilogGrammar = require("./VerilogGrammar.js");
 
+// calls the nearley parser
+// if parser fails it returns the error message provided by the nearley parser in a simple form
 export function parseFromFile(source) {
     try {
         const parser = new nearley.Parser(nearley.Grammar.fromCompiled(verilogGrammar));
@@ -99,48 +101,151 @@ export function parseFromFile(source) {
     }
 }
 
-export function fix(json_data){
+// function used to fix the json produced by the nearley parser
+// two cases:
+// 1. old-style grammar (ports as names in module header, IO declaration in body)
+//      port list is:
+//
+//      LIST_OF_PORTS
+//          -> PORT _ "," _ LIST_OF_PORTS {% function (d, l, reject) { return { Type: "port_list", Head: d[0], Tail: d[4], Location: l }; } %}
+//          | PORT {% function (d, l, reject) { return { Type: "port_list", Head: d[0], Tail: null, Location: l }; } %}
+//
+//      analyses the above and returns a list of all ports
+//
+//      similarly for IO declarations where we can have "input a,b,c;"
+
+// 2. new- style grammar(IO declarations in module header)
+//      as above for IO declarations in module header
+//          ex: (
+//          input a,b,
+//          input [3:0] c,
+//          output c,
+//          )
+//
+//      and then move all IODecl in ItemList (with statements) and create a 'fake' port list with all names from IODecls
+//      so that the rest of the code (errorCheck.fs, SheetCreator.fs) can work as for old-style grammar
+
+export function fix(json_data) {
     var obj = JSON.parse(json_data);
-    var port_list = obj.Module.PortList;
-    var ports = [];
-    var loc = [];
-    
-    try{
-        while (port_list.Tail != null) {
+
+    if (obj.Module.Type == "module_old") {
+
+        ////////  fix port list  ////////  
+
+        var port_list = obj.Module.PortList;
+        var ports = [];
+        var loc = [];
+
+        try {
+            while (port_list.Tail != null) {
+                ports.push(port_list.Head.Port.Name);
+                loc.push(port_list.Location)
+                port_list = port_list.Tail;
+            }
             ports.push(port_list.Head.Port.Name);
             loc.push(port_list.Location)
-            port_list = port_list.Tail;
+        } catch (e) {
+            // console.log(e.message);
         }
-        ports.push(port_list.Head.Port.Name);
-        loc.push(port_list.Location)
-    } catch (e) {
-        // console.log(e.message);
-    }
 
-    obj.Module.PortList = ports
-    obj.Module.Locations = loc
+        obj.Module.PortList = ports
+        obj.Module.Locations = loc
 
-    var item_list = obj.Module.ModuleItems.ItemList;
-    
-    var temp_var = [];
-    
-    try{
-        for (let i=0; i<item_list.length; i++){
-            if((item_list[i].ItemType == "input_decl") | (item_list[i].ItemType == "output_decl")){
-                let variables = item_list[i].IODecl.Variables;
-                while (variables.Tail != null) {
+
+        ////////  fix IO Declarations  ////////
+
+        var item_list = obj.Module.ModuleItems.ItemList;
+
+        var temp_var = [];
+
+        try {
+            for (let i = 0; i < item_list.length; i++) {
+                if ((item_list[i].ItemType == "input_decl") | (item_list[i].ItemType == "output_decl")) {
+                    let variables = item_list[i].IODecl.Variables;
+                    while (variables.Tail != null) {
+                        temp_var.push(variables.Head.Name);
+                        variables = variables.Tail;
+                    }
                     temp_var.push(variables.Head.Name);
-                    variables = variables.Tail;
+                    item_list[i].IODecl.Variables = temp_var;
                 }
-                temp_var.push(variables.Head.Name);
-                item_list[i].IODecl.Variables = temp_var;
+                temp_var = [];
             }
-            temp_var = [];
+        } catch (e) {
+            console.log(e.message);
         }
-    } catch (e) {
-        console.log(e.message);
+
+        obj.Module.ModuleItems.ItemList = item_list
+        return JSON.stringify(obj);
     }
 
-    obj.Module.ModuleItems.ItemList = item_list
-    return JSON.stringify(obj);
+    // CASE: new-grammar
+    else {
+
+        ////////  fix IO Declaration list  ////////
+
+        var io_list = obj.Module.IOItems;
+        var IOs = [];
+
+        try {
+            while (io_list.Tail != null) {
+                IOs.push(io_list.Head);
+                io_list = io_list.Tail;
+            }
+            IOs.push(io_list.Head);
+        } catch (e) {
+            console.log(e.message);
+        }
+
+        var io_list = IOs;
+
+        ////////  get IO Declaration variables to a list  ////////
+
+        var temp_var = [];
+
+        try {
+            for (let i = 0; i < io_list.length; i++) {
+                if ((io_list[i].ItemType == "input_decl") | (io_list[i].ItemType == "output_decl")) {
+                    let variables = io_list[i].IODecl.Variables;
+                    while (variables.Tail != null) {
+                        temp_var.push(variables.Head.Name);
+                        variables = variables.Tail;
+                    }
+                    temp_var.push(variables.Head.Name);
+                    io_list[i].IODecl.Variables = temp_var;
+                }
+                temp_var = [];
+            }
+        } catch (e) {
+            console.log(e.message);
+        }
+
+        var statement_list = obj.Module.ModuleItems.ItemList;
+
+        obj.Module.ModuleItems.ItemList = io_list.concat(statement_list);
+
+        ////////  create a "fake" PortList element  ////////
+
+        var ports = [];
+        var loc = [];
+
+        try {
+            for (let i = 0; i < io_list.length; i++) {
+                for (let j = 0; j < io_list[i].IODecl.Variables.length; j++) {
+                    ports.push(io_list[i].IODecl.Variables[j].Name)
+                    loc.push(0)
+                }
+            }
+        } catch (e) {
+            console.log(e.message);
+        }
+
+        obj.Module.PortList = ports
+        obj.Module.Locations = loc
+
+        // delete IOItems element from JSON obj as it doesn't exist in the old-grammar case
+        delete obj.Module["IOItems"];
+
+        return JSON.stringify(obj);
+    }
 }

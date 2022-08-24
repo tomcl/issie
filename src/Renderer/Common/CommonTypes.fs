@@ -116,6 +116,14 @@ module CommonTypes
             | Eight -> "8px"
             
             
+    /// Type to specify the origin of a custom component
+    type CCForm =
+        |User
+        |Library
+        |Protected of string
+        |Verilog of string
+
+
     /// Name identifies the LoadedComponent used.
     /// The labels define legends on symbol designating inputs or outputs: and are the names of the Input or Output components of the CC sheet.
     /// Label strings are unique per CustomComponent.
@@ -126,6 +134,8 @@ module CommonTypes
         // Tuples with (label * connection width).
         InputLabels: (string * int) list
         OutputLabels: (string * int) list
+        Form : CCForm option
+        Description : string option
     }
 
     /// Note that any memory addresses which have not been explicitly set when printing
@@ -180,7 +190,7 @@ module CommonTypes
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
         | NbitsAdder of BusWidth: int | NbitsXor of BusWidth:int
         | NbitsAnd of BusWidth: int | NbitsNot of BusWidth: int
-        | NbitSpreader of BusWidth: int
+        | NbitsOr of BusWidth: int | NbitSpreader of BusWidth: int
         | Custom of CustomComponentType // schematic sheet used as component
         | MergeWires | SplitWire of BusWidth: int // int is bus width
         // DFFE is a DFF with an enable signal.
@@ -504,6 +514,12 @@ module CommonTypes
         DisplayedPortIds: string array option
     }
 
+    /// Info regarding sheet saved in the .dgm file
+    type SheetInfo = {
+        Form: CCForm option 
+        Description: string option
+    }
+
     (*--------------------------------------------------------------------------------------------------*)
 
     /// Static data describing a schematic sheet loaded as a custom component.
@@ -534,6 +550,8 @@ module CommonTypes
         InputLabels : (string * int) list
         /// Output port names, and port numbers in any created custom component
         OutputLabels : (string * int) list
+        Form : CCForm option
+        Description: string option
     }
 
     /// Returns true if a component is clocked
@@ -563,8 +581,10 @@ module CommonTypes
     type Project = {
         /// directory which contains the project files
         ProjectPath : string
-        /// name of open sheet (without extension)
+        /// name of viewed sheet (Form: User) (without extension)
         OpenFileName : string
+        /// name of sheet performing operation on
+        WorkingFileName : string option
         /// componnets have one-one correspondence with files
         LoadedComponents : LoadedComponent list
         }

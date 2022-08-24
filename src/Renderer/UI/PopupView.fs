@@ -107,17 +107,21 @@ type CodeEditorReactStatefulComponent (props) =
         |false -> ()
 
     override this.render () =
-            codeEditor [
-                    CodeEditorProps.Placeholder ("Start Writing your Verilog Code here..."); 
-                    CodeEditorProps.Value ((sprintf "%s" this.state.code)); 
-                    OnValueChange (fun txt -> 
-                        (this.setState (fun s p -> {s with code=txt}))
-                        props.Dispatch <| SetPopupDialogCode (Some txt)
-                        props.Compile {props.DialogData with VerilogCode=Some txt}
-                    )             
-                    Highlight (fun code -> Prism.highlight(code,language));]
-                    []
-
+            div [Style [Position PositionOptions.Relative; CSSProp.Left "35px";Height "100%";]]
+                [
+                    codeEditor [
+                        CodeEditorProps.Placeholder ("Start Writing your Verilog Code here..."); 
+                        CodeEditorProps.Value ((sprintf "%s" this.state.code)); 
+                        CodeEditorProps.Padding 5
+                        OnValueChange (fun txt -> 
+                            (this.setState (fun s p -> {s with code=txt}))
+                            props.Dispatch <| SetPopupDialogCode (Some txt)
+                            props.Compile {props.DialogData with VerilogCode=Some txt}
+                        )             
+                        Highlight (fun code -> Prism.highlight(code,language));
+                        CodeEditorProps.Style [Position PositionOptions.Sticky;Height "100%";BorderLeft "2px double blue"]]
+                        []
+                ]
 //////////////////////////////////////////////////////////////////////
 
 
@@ -334,10 +338,12 @@ let dialogVerilogCompBody before moduleName errorDiv errorList showExtraErrors c
         
         let codeEditorWidth, errorWidth, hide = if showExtraErrors then "56%","38%",false else "96%","0%",true 
 
-
-        div [Style [Width "100%"; Display DisplayOptions.Flex; FlexDirection FlexDirection.Row; JustifyContent "flex-start"]] [
-            div [Style [Flex "2%"];] []
-            div [Style [Flex codeEditorWidth;]] [
+        let i = getHeight
+        let editorheigth = ((float i)/2.9 |> int |> string)  + "px"
+        let tableHeigth = ((float i)/1.9 |> int |> string)  + "px"
+        div [Style [Width "100%"; Height "100%";Display DisplayOptions.Flex; FlexDirection FlexDirection.Row; JustifyContent "flex-start"]] [
+            div [Style [Flex "2%"; Height "100%";]] []
+            div [Style [Flex codeEditorWidth; Height "100%";]] [
                 before dialogData
                 Input.text [
                     Input.Props [AutoFocus true; SpellCheck false]
@@ -354,21 +360,24 @@ let dialogVerilogCompBody before moduleName errorDiv errorList showExtraErrors c
                 br []
                 p [] [b [] [str "Verilog Code:"]]
                 br []
-                div [ Style [Position PositionOptions.Relative; FontFamily ("ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace"); FontSize 16; BackgroundColor "#f5f5f5"; OutlineStyle "solid"; OutlineColor "Blue"]] 
-                    [
-                    getLineCounterDiv linesNo
-                    infoHoverableElement
-                    errorDiv
-                    renderCERSC Seq.empty
-                    ]
-            ]
+                //BrowserWindowConstructorOptions
+                div [ Style [Position PositionOptions.Relative; MinHeight "0px"; MaxHeight editorheigth; FontFamily ("ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace"); FontSize 16; BackgroundColor "#f5f5f5"; OutlineStyle "solid"; OutlineColor "Blue";OverflowY OverflowOptions.Auto;OverflowX OverflowOptions.Hidden]] 
+                        [
+                        getLineCounterDiv linesNo
+                        infoHoverableElement
+                        errorDiv
+                        renderCERSC Seq.empty
+                        ]
+                ]
             div [Style [Flex "2%"];] []
             div [Style [Flex "2%"]; Hidden hide] []
-            div [Style [Flex errorWidth]; Hidden hide] 
+            div [Style [Position PositionOptions.Relative; Flex errorWidth; MinHeight "0px"; MaxHeight tableHeigth; OverflowY OverflowOptions.Auto;OverflowX OverflowOptions.Hidden]; Hidden hide] 
                 [
                 getErrorTable errorList (addButton dialogData)
                 ]
         ]
+        
+
 
 
 /// Create the body of a dialog Popup with only an int.

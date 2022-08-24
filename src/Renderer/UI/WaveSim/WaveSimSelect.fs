@@ -479,10 +479,10 @@ let rec makeSheetRow  (ws: WaveSimModel) (dispatch: Msg -> Unit) (subSheet: stri
 
 
 /// Table of selectable waves. Waves are grouped by their component type.
-and  selectWaves1 (wsModel: WaveSimModel) (subSheet: string list) (dispatch: Msg -> unit) : ReactElement =
+and  selectWaves1 (wsModel: WaveSimModel) (subSheet: string list) (dispatch: Msg -> unit) =
     let fs = wsModel.FastSim
    
-    let selectionRows : ReactElement list =
+    let selectionRows  =
         Map.values wsModel.AllWaves |> Seq.toList
         |> List.filter (fun x -> x.DisplayName.ToUpper().Contains(wsModel.SearchString))
         |> List.sortBy (fun wave -> wave.DisplayName)
@@ -514,9 +514,11 @@ and  selectWaves1 (wsModel: WaveSimModel) (subSheet: string list) (dispatch: Msg
             | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
                 failwithf "Legacy component types should not appear"
         )
-        |> List.map (fun (compGroup, waves) ->
-            labelRows [] compGroup waves wsModel dispatch
-        )
+
+        
+
+    ()
+
 let  selectWaves (wsModel: WaveSimModel) (subSheet: string list) (dispatch: Msg -> unit) : ReactElement =
     let fs = wsModel.FastSim   
     Map.values wsModel.AllWaves |> Seq.toList

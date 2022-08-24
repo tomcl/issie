@@ -21,12 +21,7 @@
     <Compile Include="Common\TimeHelpers.fs" />
     <Compile Include="Common\WidthInferer.fs" />
     
-    <!-- Verilog Component -->
-    <Compile Include="VerilogComponent\VerilogTypes.fs" />
-    <Compile Include="VerilogComponent\SheetCreator.fs" />    
-    <Compile Include="VerilogComponent\NearleyBindings.fs" />
-    <Compile Include="VerilogComponent\ErrorCheck.fs" />
-    <Compile Include="VerilogComponent\CodeEditorHelpers.fs" />    
+ 
     <!-- simulator -->
     <Compile Include="Simulator\SimulatorTypes.fs" />
     <Compile Include="Simulator\TruthTableTypes.fs" />
@@ -44,6 +39,14 @@
     <Compile Include="Simulator\Runner.fs" />
     <Compile Include="Simulator\DependencyMerger.fs" />
     <Compile Include="Simulator\Simulator.fs" />
+
+    <!-- Verilog Component -->
+    <Compile Include="VerilogComponent\VerilogTypes.fs" />
+    <Compile Include="VerilogComponent\SheetCreator.fs" />    
+    <Compile Include="VerilogComponent\NearleyBindings.fs" />
+    <Compile Include="VerilogComponent\ErrorCheck.fs" />
+    <Compile Include="VerilogComponent\CodeEditorHelpers.fs" />   
+
     <!-- JS and File interface -->
     <Compile Include="Interface\Version.fs" />
     <Compile Include="Interface\JSHelpers.fs" />
@@ -65,8 +68,8 @@
     <Compile Include="UI\PopupView.fs" />
     <Compile Include="UI\Notifications.fs" />
     <Compile Include="UI/MemoryEditorView.fs" />
-    <Compile Include="UI\CustomCompPorts.fs" />
     <Compile Include="UI/FileMenuView.fs" />
+    <Compile Include="UI\CustomCompPorts.fs" />
     <Compile Include="UI/SimulationView.fs" />
     <Compile Include="UI\ConstraintReduceView.fs" />
     <Compile Include="UI\TruthTableView.fs" />

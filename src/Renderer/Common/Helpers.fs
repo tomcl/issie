@@ -12,20 +12,22 @@ open CommonTypes
         open Fable.SimpleJson
         open LegacyCanvas
 
-        type SavedCanvasUnknownWaveInfo<'T> = | NewCanvasWithFileWaveInfoAndNewConns of CanvasState * 'T option * System.DateTime
+        type SavedCanvasUnknownWaveInfo<'T> = | NewCanvasWithFileWaveSheetInfoAndNewConns of CanvasState * 'T option * SheetInfo option * System.DateTime
 
         type SavedInfo =
             | CanvasOnly of LegacyCanvasState
             | CanvasWithFileWaveInfo of LegacyCanvasState * SavedWaveInfo option * System.DateTime
             | CanvasWithFileWaveInfoAndNewConns of LegacyCanvasState * SavedWaveInfo option * System.DateTime
             | NewCanvasWithFileWaveInfoAndNewConns of CanvasState * SavedWaveInfo option * System.DateTime
-
+            | NewCanvasWithFileWaveSheetInfoAndNewConns of CanvasState * SavedWaveInfo option * SheetInfo option * System.DateTime
+            
             member self.getCanvas = 
                 match self with
                 | CanvasOnly c -> legacyTypesConvert c 
                 | CanvasWithFileWaveInfo (c,_,_) -> legacyTypesConvert c
                 | CanvasWithFileWaveInfoAndNewConns (c,_,_) -> legacyTypesConvert c
                 | NewCanvasWithFileWaveInfoAndNewConns(c,_,_) -> c
+                | NewCanvasWithFileWaveSheetInfoAndNewConns (c,_,_,_) -> c
 
             member self.getTimeStamp = 
                 match self with
@@ -33,6 +35,7 @@ open CommonTypes
                 | CanvasWithFileWaveInfo (_,_,ts) -> ts
                 | CanvasWithFileWaveInfoAndNewConns (_,_,ts) -> ts
                 | NewCanvasWithFileWaveInfoAndNewConns (_,_,ts) -> ts
+                | NewCanvasWithFileWaveSheetInfoAndNewConns (_,_,_,ts) -> ts
 
             member self.getWaveInfo =
                 match self with
@@ -40,12 +43,21 @@ open CommonTypes
                 | CanvasWithFileWaveInfo (_,waveInfo,_) -> waveInfo
                 | CanvasWithFileWaveInfoAndNewConns (_,waveInfo,_) -> waveInfo
                 | NewCanvasWithFileWaveInfoAndNewConns (_,waveInfo,_) -> waveInfo
+                | NewCanvasWithFileWaveSheetInfoAndNewConns (_,waveInfo,_,_) -> waveInfo
 
-        let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option) : string =
+            member self.getSheetInfo =
+                match self with
+                | CanvasOnly _ -> None 
+                | CanvasWithFileWaveInfo (_,waveInfo,_) -> None
+                | CanvasWithFileWaveInfoAndNewConns (_,waveInfo,_) -> None
+                | NewCanvasWithFileWaveInfoAndNewConns (_,_,ts) -> None
+                | NewCanvasWithFileWaveSheetInfoAndNewConns (_,_,sheetInfo,_) -> sheetInfo
+
+        let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : string =
             let time = System.DateTime.Now
             //printfn "%A" cState
             try            
-                 Json.serialize<SavedInfo> (NewCanvasWithFileWaveInfoAndNewConns (cState, waveInfo, time))
+                 Json.serialize<SavedInfo> (NewCanvasWithFileWaveSheetInfoAndNewConns (cState, waveInfo, sheetInfo, time))
             with
             | e -> 
                 printfn "HELP: exception in SimpleJson.stringify %A" e
@@ -60,8 +72,8 @@ open CommonTypes
                         | Ok state -> Ok state
                         | Error str -> 
                             match Json.tryParseAs<SavedCanvasUnknownWaveInfo<obj>> jsonString with
-                            | Ok (SavedCanvasUnknownWaveInfo.NewCanvasWithFileWaveInfoAndNewConns(cState,_,time)) ->
-                                Ok <| NewCanvasWithFileWaveInfoAndNewConns(cState,None,time)                               
+                            | Ok (SavedCanvasUnknownWaveInfo.NewCanvasWithFileWaveSheetInfoAndNewConns(cState,_,sheetInfo,time)) ->
+                                Ok <| NewCanvasWithFileWaveSheetInfoAndNewConns(cState,None,sheetInfo,time)                               
                             | Error str -> 
                                 printfn "Error in Json parse of %s : %s" jsonString str
                                 Error str)

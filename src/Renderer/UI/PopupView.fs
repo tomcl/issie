@@ -101,6 +101,11 @@ type CodeEditorReactStatefulComponent (props) =
             props.Compile {props.DialogData with VerilogCode=props.ReplaceCode}
         |false -> ()
 
+    override this.componentDidMount () =
+        match props.ReplaceCode <> None with
+        |true -> this.setState(fun s _-> {s with code = Option.get props.ReplaceCode} )
+        |false -> ()
+
     override this.render () =
             codeEditor [
                     CodeEditorProps.Placeholder ("Start Writing your Verilog Code here..."); 
@@ -328,8 +333,9 @@ let dialogVerilogCompBody before moduleName errorDiv errorList showExtraErrors c
             ofType<CodeEditorReactStatefulComponent,_,_> {CurrentCode=code; ReplaceCode=codeToAdd; Dispatch=dispatch; DialogData=dialogData;Compile=compileButton} 
         
         let codeEditorWidth, errorWidth, hide = if showExtraErrors then "56%","38%",false else "96%","0%",true 
-        
-        div [Style [Width "100%"; Display DisplayOptions.Flex;]] [
+
+
+        div [Style [Width "100%"; Display DisplayOptions.Flex; FlexDirection FlexDirection.Row; JustifyContent "flex-start"]] [
             div [Style [Flex "2%"];] []
             div [Style [Flex codeEditorWidth;]] [
                 before dialogData
@@ -725,7 +731,7 @@ let dialogPopup title body buttonText buttonAction isDisabled extraStyle dispatc
 
 /// Popup with an input textbox and two buttons.
 /// The text is reflected in Model.PopupDialogText.
-let dialogVerilogPopup title body noErrors showingExtraInfo saveButtonAction moreInfoButton isDisabled extraStyle dispatch =
+let dialogVerilogPopup title body saveUpdateText noErrors showingExtraInfo saveButtonAction moreInfoButton isDisabled extraStyle dispatch =
     let foot =
         fun (dialogData : PopupDialogData) ->
             let compileButtonText = 
@@ -756,7 +762,7 @@ let dialogVerilogPopup title body noErrors showingExtraInfo saveButtonAction mor
                             Button.Disabled (isDisabled dialogData)
                             Button.Color IsPrimary
                             Button.OnClick (fun _ -> saveButtonAction dialogData)
-                        ] [ str "Save" ]
+                        ] [ str saveUpdateText ]
                     ]
                 ]
             ]

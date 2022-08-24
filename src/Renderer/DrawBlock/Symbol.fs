@@ -270,6 +270,7 @@ let getPrefix compType =
     | NbitsAdder _ -> "ADD"
     | NbitsXor _ -> "NXOR"
     | NbitsAnd _ -> "AND"
+    | NbitsOr _ -> "OR"
     | NbitsNot _ -> "NOT"
     | NbitSpreader _ -> "SPREAD"
     | DFF | DFFE -> "FF"
@@ -306,6 +307,7 @@ let getComponentLegend (componentType:ComponentType) =
     | DFF -> "DFF"
     | DFFE -> "DFFE"
     | NbitsXor (x)->   busTitleAndBits "NBits-Xor" x
+    | NbitsOr (x)->   busTitleAndBits "NBits-Or" x
     | NbitsAnd (x)->   busTitleAndBits "NBits-And" x
     | NbitsNot (x)->   busTitleAndBits "NBits-Not" x
     | NbitSpreader (x)->   busTitleAndBits "NBit-Spreader" x
@@ -557,7 +559,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | AsyncROM1 (a)  -> (  1 , 1, 4.*gS  , 5.*gS) 
     | ROM1 (a) -> (   1 , 1, 4.*gS  , 5.*gS) 
     | RAM1 (a) | AsyncRAM1 a -> ( 3 , 1, 4.*gS  , 5.*gS) 
-    | NbitsXor (n) |NbitsAnd (n) -> (  2 , 1, 4.*gS  , 4.*gS) 
+    | NbitsXor (n) | NbitsOr (n) |NbitsAnd (n) -> (  2 , 1, 4.*gS  , 4.*gS) 
     | NbitsNot (n) | NbitSpreader (n) -> (1, 1, 2.5*gS, 4.*gS)
     | NbitsAdder (n) -> (  3 , 2, 3.*gS  , 4.*gS) 
     | Custom cct -> cct.InputLabels.Length, cct.OutputLabels.Length, 0., 0.

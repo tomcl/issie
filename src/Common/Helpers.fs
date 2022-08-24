@@ -14,21 +14,28 @@ open CommonTypes
 
         type SavedInfo =
             | CanvasOnly of CanvasState
-            | CanvasWithFileWaveInfo of CanvasState * SavedWaveInfo option * System.DateTime
+            | CanvasWithFileWaveInfo of CanvasState * SavedWaveInfo option * SheetInfo option * System.DateTime
 
             member self.getCanvas = 
                 match self with
                 | CanvasOnly c -> c 
-                | CanvasWithFileWaveInfo (c,_,_) -> c
+                | CanvasWithFileWaveInfo (c,_,_,_) -> c
+
+            member self.getSheetInfo =
+                match self with
+                | CanvasOnly _ -> None 
+                | CanvasWithFileWaveInfo (_,sheetInfo,_,_) -> sheetInfo
 
             member self.getTimeStamp = 
                 match self with
                 | CanvasOnly _ -> System.DateTime.MinValue 
-                | CanvasWithFileWaveInfo (_,_,ts) -> ts
+                | CanvasWithFileWaveInfo (_,_,_,ts) -> ts
             member self.getWaveInfo =
                 match self with
                 | CanvasOnly _ -> None 
-                | CanvasWithFileWaveInfo (_,waveInfo,_) -> waveInfo
+                | CanvasWithFileWaveInfo (_,_,waveInfo,_) -> waveInfo
+            
+            
 
 
 

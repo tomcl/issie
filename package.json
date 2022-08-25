@@ -72,7 +72,7 @@
   
     "font-awesome": "^4.7.0",
     "react-tooltip": "^4.2.19",
-    
+    "usb": "^2.4.3",
     "source-map-support": "0.5.19"
   },
   "devDependencies": {

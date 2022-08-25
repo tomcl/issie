@@ -573,18 +573,21 @@ let summaryProps cBox: IHTMLProp list = [
 
 /// Props for HTML Details element
 let detailsProps cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list = 
+    let thing = match cBox with | ComponentItem fc -> fc.FullName | SheetItem s -> s.ToString() | GroupItem(g,s) ->g.ToString()+s.ToString()|_->""
     let show =
         match cBox with
         | PortItem _ -> false
         | ComponentItem fc -> Set.contains fc.fId ws.ShowComponentDetail
         | SheetItem subGroup -> Set.contains subGroup ws.ShowSheetDetail
         | GroupItem (compGrp, subSheet) -> Set.contains (compGrp,subSheet) ws.ShowGroupDetail
+    printfn $"""Show={show} for {thing}"""
     let clickHandler _ = 
+        printfn "click setting {thing} to {not show}"
         let ws = setSelectionOpen ws cBox (not show)
         dispatch <| SetWSModel ws
     [
         Open show
-        OnClick clickHandler
+        //OnClick clickHandler
     ]
 
 /// Style for top half of waveform simulator (instructions and buttons)

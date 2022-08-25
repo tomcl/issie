@@ -368,7 +368,7 @@ let update (msg : Msg) oldModel =
             DoNothing, Cmd.ofMsg (ExecutePendingMessages (List.length model.Pending))
         | None ->
             msg, Cmd.none
-
+    printfn $"{testMsg}"
     // main message dispatch match expression
     match testMsg with
     | StartUICmd uiCmd ->

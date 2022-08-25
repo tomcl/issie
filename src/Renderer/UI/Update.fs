@@ -368,7 +368,6 @@ let update (msg : Msg) oldModel =
             DoNothing, Cmd.ofMsg (ExecutePendingMessages (List.length model.Pending))
         | None ->
             msg, Cmd.none
-    printfn $"{testMsg}"
     // main message dispatch match expression
     match testMsg with
     | StartUICmd uiCmd ->
@@ -414,6 +413,8 @@ let update (msg : Msg) oldModel =
         { model with CurrentStepSimulationStep = Some simData }, Cmd.none
     | SetWSModel wsModel ->
         setWSModel wsModel model, Cmd.none
+    | UpdateWSModel updateFn ->
+        updateWSModel updateFn model, Cmd.none
     | SetWSModelAndSheet (wsModel, wsSheet) ->
         let newModel =
             {model with WaveSimSheet = wsSheet}

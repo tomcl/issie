@@ -1211,7 +1211,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         match model.DebugConnection with
         | Some c -> model, Cmd.none//c.push None |> ignore; c.destroy()
         | _ -> 
-            //main()
+            main()
             //main2()
             // Set up the tty
             let cwd = getCWD()

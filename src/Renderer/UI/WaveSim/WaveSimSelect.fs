@@ -287,7 +287,7 @@ let toggleSelectAll (selected: bool) (wsModel: WaveSimModel) dispatch : unit =
 let selectAll (wsModel: WaveSimModel) dispatch =
     let allWavesSelected = Map.forall (fun index _ -> isWaveSelected wsModel index) wsModel.AllWaves
 
-    tr (summaryProps (SheetItem [])) [
+    tr (summaryProps false (SheetItem []) wsModel dispatch) [
         th [] [
             Checkbox.checkbox []
                 [ Checkbox.input [
@@ -357,7 +357,7 @@ let searchBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
         ]
         Input.Option.Placeholder "Search"
         Input.Option.OnChange (fun c ->
-            dispatch <| SetWSModel {wsModel with SearchString = c.Value.ToUpper()}
+            dispatch <| UpdateWSModel (fun ws -> {wsModel with SearchString = c.Value.ToUpper()})
         )
     ]
 
@@ -407,8 +407,6 @@ let makePortRow (ws: WaveSimModel) (dispatch: Msg -> Unit) (waves: Wave list)  =
 
     tr [] [
         td [] [waveCheckBoxItem ws  [wave.WaveId] dispatch]
-        td [] [subSheet]
-        td [] [str <| wave.CompLabel.ToUpper()]
         td [] [str wave.PortLabel]
         ]
 
@@ -422,7 +420,7 @@ let makeSelectionGroup
         (waves: Wave list)  =
     let wi = wavesToIds waves
     tr
-        (summaryProps cBox) [
+        (summaryProps false cBox ws dispatch) [
             th [] [
                 waveCheckBoxItem ws  wi  dispatch
             ]
@@ -431,7 +429,7 @@ let makeSelectionGroup
                     (detailsProps cBox ws dispatch)
                     [   
                         summary
-                            (summaryProps cBox)
+                            (summaryProps true cBox ws dispatch)
                             [ summaryItem ]
                     
                         Table.table [] [  tbody [] rowItems                             
@@ -519,7 +517,7 @@ let selectWavesButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEle
     let waveCount = Map.count wsModel.AllWaves
     let props, buttonFunc =
         if waveCount > 0 then
-            selectWavesButtonProps, (fun _ -> dispatch <| SetWSModel {wsModel with WaveModalActive = true})
+            selectWavesButtonProps, (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with WaveModalActive = true}))
         else selectWavesButtonPropsLight, (fun _ -> ())
     button 
         props
@@ -533,7 +531,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
     ] [
         Modal.background [
             Props [
-                OnClick (fun _ -> dispatch <| SetWSModel {wsModel with WaveModalActive = false})
+                OnClick (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with WaveModalActive = false}))
             ]
         ] []
         Modal.Card.card [] [
@@ -545,11 +543,11 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
                         ] [ Delete.delete [
                                 Delete.Option.Size IsMedium
                                 Delete.Option.OnClick (fun _ ->
-                                    dispatch <| SetWSModel
+                                    dispatch <| UpdateWSModel (fun ws ->
                                         {wsModel with
                                             WaveModalActive = false
                                             SearchString = ""
-                                        }
+                                        })
                                 )
                             ] []
                         ]
@@ -575,7 +573,7 @@ let selectRamButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
     let ramCount = List.length wsModel.RamComps
     let props, buttonFunc =
         if ramCount > 0 then
-            selectRamButtonProps, (fun _ -> dispatch <| SetWSModel {wsModel with RamModalActive = true})
+            selectRamButtonProps, (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with RamModalActive = true}))
         else selectRamButtonPropsLight, (fun _ -> ())
     button 
         props
@@ -589,7 +587,7 @@ let toggleRamSelection (ramId: FComponentId) (ramLabel: string) (wsModel: WaveSi
             Map.remove ramId wsModel.SelectedRams
         else
             Map.add ramId ramLabel wsModel.SelectedRams
-    dispatch <| SetWSModel {wsModel with SelectedRams = selectedRams}
+    dispatch <| UpdateWSModel (fun ws -> {wsModel with SelectedRams = selectedRams})
 
 /// Modal that, when active, allows users to select RAMs to view their contents.
 let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
@@ -612,7 +610,7 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
     ] [
         Modal.background [
             Props [
-                OnClick (fun _ -> dispatch <| SetWSModel {wsModel with RamModalActive = false})
+                OnClick (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with RamModalActive = false}))
             ]
         ] []
         Modal.Card.card [] [
@@ -623,7 +621,7 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
                         Level.right [] [
                             Delete.delete [
                                 Delete.Option.Size IsMedium
-                                Delete.Option.OnClick (fun _ -> dispatch <| SetWSModel {wsModel with RamModalActive = false})
+                                Delete.Option.OnClick (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with RamModalActive = false}))
                             ] []
                         ]
                     ]

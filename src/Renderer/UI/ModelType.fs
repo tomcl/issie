@@ -281,6 +281,8 @@ type Msg =
     | AddWSModel of (string * WaveSimModel)
     /// Update the WaveSimModel of the current sheet.
     | SetWSModel of WaveSimModel
+    /// Update the WaveSimModel of the specified sheet from update function
+    | UpdateWSModel of (WaveSimModel -> WaveSimModel)
     /// Set the current WaveSimModel to the specified sheet
     /// and update the WaveSimModel of the specified sheet.
     | SetWSModelAndSheet of WaveSimModel * string

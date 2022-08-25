@@ -514,7 +514,7 @@ let clkCycleHighlightSVG m dispatch =
             /// getBoundingClientRect only works if ViewBox is 0 0 width height, so
             /// add m.StartCycle to account for when viewBoxMinX is not 0
             let cycle = (int <| (ev.clientX - bcr.left) / singleWaveWidth m) + m.StartCycle
-            dispatch <| SetWSModel {m with CurrClkCycle = cycle}
+            dispatch <| UpdateWSModel (fun m -> {m with CurrClkCycle = cycle})
         )
         ]
         (List.append 
@@ -558,7 +558,17 @@ let wavePolylineStyle points : IProp list = [
 ]
 
 /// Props for HTML Summary element
-let summaryProps cBox: IHTMLProp list = [
+let summaryProps (isSummary:bool) cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list = [
+
+    let clickHandler (e:Browser.Types.Event) = 
+        if isSummary then
+            let show =
+                match cBox with
+                | PortItem _ -> false
+                | ComponentItem fc -> Set.contains fc.fId ws.ShowComponentDetail
+                | SheetItem subGroup -> Set.contains subGroup ws.ShowSheetDetail
+                | GroupItem (compGrp, subSheet) -> Set.contains (compGrp,subSheet) ws.ShowGroupDetail
+            dispatch <| UpdateWSModel (fun ws -> setSelectionOpen ws cBox (not show))
     let size,weight =
         match cBox with 
         | SheetItem _ -> "20px", "bold"
@@ -569,25 +579,19 @@ let summaryProps cBox: IHTMLProp list = [
         FontSize size
         FontWeight weight
     ]
+    OnClick clickHandler
 ]
 
 /// Props for HTML Details element
 let detailsProps cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list = 
-    let thing = match cBox with | ComponentItem fc -> fc.FullName | SheetItem s -> s.ToString() | GroupItem(g,s) ->g.ToString()+s.ToString()|_->""
     let show =
         match cBox with
         | PortItem _ -> false
         | ComponentItem fc -> Set.contains fc.fId ws.ShowComponentDetail
         | SheetItem subGroup -> Set.contains subGroup ws.ShowSheetDetail
         | GroupItem (compGrp, subSheet) -> Set.contains (compGrp,subSheet) ws.ShowGroupDetail
-    printfn $"""Show={show} for {thing}"""
-    let clickHandler _ = 
-        printfn "click setting {thing} to {not show}"
-        let ws = setSelectionOpen ws cBox (not show)
-        dispatch <| SetWSModel ws
     [
         Open show
-        //OnClick clickHandler
     ]
 
 /// Style for top half of waveform simulator (instructions and buttons)

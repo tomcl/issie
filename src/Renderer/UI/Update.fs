@@ -940,7 +940,7 @@ let update (msg : Msg) oldModel =
     | SetPropertiesExtraDialogText _ | SetRouterInteractive _ 
     | ShowExitDialog _ -> model, Cmd.none
     | DoNothing -> //Acts as a placeholder to propergrate the ExecutePendingMessages message in a Cmd
-        model, Cmd.none
+        model, cmd
     | JSDiagramMsg _ | KeyboardShortcutMsg _ -> // catch all messages not otherwise processed. Should remove this?
         model, Cmd.none
     |> (fun (newModel,cmd) -> resetDialogIfSelectionHasChanged newModel oldModel,cmd)

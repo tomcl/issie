@@ -261,7 +261,7 @@ let getCompGroup fs wave =
         Buses
     | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | Decode4 ->
         MuxDemux
-    | NbitsAdder _ | NbitsXor _ | NbitsAnd _ | NbitsNot _ | NbitSpreader _ ->
+    | NbitsAdder _ | NbitsXor _ | NbitsAnd _ | NbitsNot _ | NbitSpreader _ | NbitsOr _->
         Arithmetic
     | Custom _ ->
         Component wave.CompLabel
@@ -274,7 +274,17 @@ let getCompGroup fs wave =
     | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
         failwithf "Legacy component types should not appear"
 
+/// convert a string to CamelCase: 
+let camelCaseDottedWords (text:string) =
+    let camelWord (s:string)=
+        match s.Length with
+        | 0 -> ""
+        | 1 -> s.ToUpper()
+        | _ -> s[0..0].ToUpper() + s[1..s.Length-1].ToLower()
 
+    text.Split([|'.'|])
+    |> Array.map camelWord
+    |> String.concat "."
 
 /// Name for summary field in details element.
 /// NB: There are fields which are commented out: these can be added back in
@@ -284,9 +294,9 @@ let summaryName (ws: WaveSimModel) (cBox: CheckBoxStyle) (subSheet: string list)
     let ss = String.concat "." subSheet
     match cBox with
     | PortItem (_,name) ->
-        str name
+        str <| camelCaseDottedWords name
     | ComponentItem fc->
-        str <| ss+"."+fc.FLabel.ToUpper()
+        str <| ss + (if subSheet = [] then "" else ".") + fc.FLabel.ToUpper()
         
     | GroupItem compGroup ->
         match compGroup with
@@ -300,22 +310,12 @@ let summaryName (ws: WaveSimModel) (cBox: CheckBoxStyle) (subSheet: string list)
         | FFRegister -> "Flip Flops and Registers"
         | Memories -> "RAMs and ROMs"
         | Component compLabel -> compLabel
-        |> (fun name -> str $"{ss}.{name.ToUpper()}")
+        |> (fun name -> str $"""{camelCaseDottedWords ss}{if ss = "" then "" else "."}{name.ToUpper()}""")
 
     | SheetItem subSheet ->
-        str <| $"Subsheet {ss}"
+        str <| $"Subsheet {camelCaseDottedWords ss}"
 
-/// convert a string to CamelCase: 
-let camelCaseDottedWords (text:string) =
-    let camelWord (s:string)=
-        match s.Length with
-        | 0 -> ""
-        | 1 -> s.ToUpper()
-        | _ -> s[0..0].ToUpper() + s[1..s.Length-1].ToLower()
 
-    text.Split([|'.'|])
-    |> Array.map camelWord
-    |> String.concat "."
 
 let path2fId (fastSim: FastSimulation) (path:ComponentId list) : FComponentId option=
     match path with

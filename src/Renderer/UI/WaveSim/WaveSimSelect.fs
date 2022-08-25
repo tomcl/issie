@@ -227,7 +227,7 @@ let nameWithSheet (fastSim: FastSimulation) (dispName: string) (waveIndex:WaveIn
 /// Make Wave for each component and port on sheet
 let makeWave (fastSim: FastSimulation) (wi: WaveIndexT) : Wave =
     let fc = fastSim.WaveComps[wi.Id]
-    printfn $"Making wave for {fc.FullName}, portType={wi.PortType}, portNumber={wi.PortNumber}, SubSheet={fc.SubSheet}, SheetName={fc.SheetName}"
+    //printfn $"Making wave for {fc.FullName}, portType={wi.PortType}, portNumber={wi.PortNumber}, SubSheet={fc.SubSheet}, SheetName={fc.SheetName}"
     let driver = 
         match fastSim.Drivers[wi.SimArrayIndex] with
         | Some d -> d
@@ -434,6 +434,7 @@ let makeSelectionGroup
             ]
         ]
 
+
 /// Returns a tr react element representing a component with ports detailed beneath
 let rec makeComponentRow (ws: WaveSimModel) (dispatch: Msg->Unit) (fc: FastComponent) (waves: Wave list)  =
     let cBox = ComponentItem fc
@@ -442,7 +443,24 @@ let rec makeComponentRow (ws: WaveSimModel) (dispatch: Msg->Unit) (fc: FastCompo
         waves
         |> List.map (fun wave -> makePortRow ws dispatch [wave])
     makeSelectionGroup ws dispatch summaryReact rows cBox waves    
-    
+   
+/// Returns a tr react element representing a component with ports detailed beneath
+let rec makeComponentGroup (ws: WaveSimModel) (dispatch: Msg->Unit) (subSheet: string list) (cGroup: ComponentGroup) (waves: Wave list)  =
+    let compWaves = 
+        waves
+        |> List.groupBy (fun wave -> wave.WaveId.Id)
+    if compWaves.Length = 1 then
+        let fc = ws.FastSim.WaveComps[(List.head waves).WaveId.Id]
+        makeComponentRow ws dispatch fc waves
+    else
+        let cBox = GroupItem cGroup
+        let summaryReact = summaryName ws cBox subSheet waves
+        let compRows =
+            compWaves
+            |> List.map (fun (fId,compWaves) -> makeComponentRow ws dispatch ws.FastSim.WaveComps[fId] compWaves)
+
+        makeSelectionGroup ws dispatch summaryReact compRows cBox waves  
+
 let rec makeSheetRow  (ws: WaveSimModel) (dispatch: Msg -> Unit) (subSheet: string list) (waves: Wave list) =  
     let cBox = SheetItem subSheet
     let fs = ws.FastSim
@@ -454,22 +472,22 @@ let rec makeSheetRow  (ws: WaveSimModel) (dispatch: Msg -> Unit) (subSheet: stri
         wavesBySheet
         |> List.filter (fun (g,wLst) -> g = subSheet)
         |> List.collect snd
-        |> List.groupBy (fun wave -> wave.WaveId.Id)
-        |> List.map (fun (fId,compWaves) -> makeComponentRow ws dispatch fs.WaveComps[fId] compWaves)
+        |> List.groupBy (fun wave -> getCompGroup fs wave) 
+        |> List.map (fun (grp,groupWaves) -> makeComponentGroup ws dispatch subSheet grp groupWaves)
 
     let subSheetRows =
         wavesBySheet
         |> List.filter (fun (g,_) -> g <> subSheet)
         |> List.map (fun (subSheet',waves') ->  makeSheetRow ws dispatch subSheet' waves')
     
-    let rows = List.append componentRows subSheetRows
+    let rows = List.append subSheetRows componentRows
     if subSheet = [] then
         Table.table [
             Table.IsBordered
             Table.IsFullWidth
             Table.Props [
                 Style [BorderWidth 0]
-            ]] rows
+            ]] [tbody [] rows]
     else
         makeSelectionGroup ws dispatch (summaryName ws cBox subSheet waves ) rows cBox waves
 
@@ -478,46 +496,7 @@ let rec makeSheetRow  (ws: WaveSimModel) (dispatch: Msg -> Unit) (subSheet: stri
 
 
 
-/// Table of selectable waves. Waves are grouped by their component type.
-and  selectWaves1 (wsModel: WaveSimModel) (subSheet: string list) (dispatch: Msg -> unit) =
-    let fs = wsModel.FastSim
-   
-    let selectionRows  =
-        Map.values wsModel.AllWaves |> Seq.toList
-        |> List.filter (fun x -> x.DisplayName.ToUpper().Contains(wsModel.SearchString))
-        |> List.sortBy (fun wave -> wave.DisplayName)
-        |> List.groupBy (fun wave ->
-            match fs.WaveComps[wave.WaveId.Id].FType with
-            | Input1 _ | Output _ | Constant1 _ ->
-                InputOutput
-            | IOLabel ->
-                WireLabel
-            | Viewer _ ->
-                Viewers
-            | Not | And | Or | Xor | Nand | Nor | Xnor ->
-                Gates
-            | BusCompare _ ->
-                Buses
-            | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 | Decode4
-                // MuxDemux
-            | NbitsAdder _ | NbitsXor _ | NbitsAnd _ | NbitsOr _ | NbitsNot _ | NbitSpreader _
-                // Arithmetic
-            | Custom _
-                // CustomComp
-            | DFF | DFFE | Register _ | RegisterE _
-                // FFRegister
-            | AsyncROM1 _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ ->
-                // Memories
-                Component wave.CompLabel
-            | BusSelection _ | MergeWires | SplitWire _ ->
-                failwithf "Bus select, MergeWires, SplitWire should not appear"
-            | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
-                failwithf "Legacy component types should not appear"
-        )
 
-        
-
-    ()
 
 let  selectWaves (wsModel: WaveSimModel) (subSheet: string list) (dispatch: Msg -> unit) : ReactElement =
     let fs = wsModel.FastSim   

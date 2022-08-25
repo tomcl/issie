@@ -559,16 +559,33 @@ let wavePolylineStyle points : IProp list = [
 
 /// Props for HTML Summary element
 let summaryProps cBox: IHTMLProp list = [
+    let size,weight =
+        match cBox with 
+        | SheetItem _ -> "20px", "bold"
+        | ComponentItem _ -> "16px", "bold"
+        | GroupItem _ -> "18px", "bold"
+        | PortItem _ -> "12px", "normal"
     Style [
-        FontSize "20px"
-        FontWeight "bold"
+        FontSize size
+        FontWeight weight
     ]
 ]
 
 /// Props for HTML Details element
-let detailsProps cBox : IHTMLProp list = [
-    Open false
-]
+let detailsProps cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list = 
+    let show =
+        match cBox with
+        | PortItem _ -> false
+        | ComponentItem fc -> Set.contains fc.fId ws.ShowComponentDetail
+        | SheetItem subGroup -> Set.contains subGroup ws.ShowSheetDetail
+        | GroupItem (compGrp, subSheet) -> Set.contains (compGrp,subSheet) ws.ShowGroupDetail
+    let clickHandler _ = 
+        let ws = setSelectionOpen ws cBox (not show)
+        dispatch <| SetWSModel ws
+    [
+        Open show
+        OnClick clickHandler
+    ]
 
 /// Style for top half of waveform simulator (instructions and buttons)
 let topHalfStyle = Style [

@@ -24,6 +24,31 @@ module Constants =
     /// WaveSimStyle.valeusColWidth = 100,
     let initialWaveformColWidth = 650 - 20 - 20 - 20 - 130 - 100
 
+/// Groups components together in the wave selection table.
+/// NB: There are fields which are commented out: these can be added back in
+/// later on if we want to group those components together by type rather than
+/// separately by name.
+type ComponentGroup =
+    | WireLabel
+    | InputOutput
+    | Viewers
+    | Buses
+    | Gates
+    | MuxDemux
+    | Arithmetic
+    // | CustomComp
+    | FFRegister
+    | Memories
+    | Component of string
+
+
+/// control checkboxes in waveform simulator wave selection
+type CheckBoxStyle =
+    | PortItem of Wave * string
+    | ComponentItem of FastComponent
+    | GroupItem of ComponentGroup * string list
+    | SheetItem of string list
+
 type RightTab =
     | Properties
     | Catalogue
@@ -143,7 +168,7 @@ type Wave = {
 type WaveSimModel = {
     /// Current state of WaveSimModel.
     State: WaveSimState
-    /// Top-level sheet for current waveform simulation
+    /// Top-level sheet for current waveform simulation: copy of model.WaveSimSheet when simulation is running
     TopSheet: string
     /// Copy of all sheets used with reduced canvasState as simulated
     Sheets: Map<string,CanvasState>
@@ -176,9 +201,12 @@ type WaveSimModel = {
     FastSim: FastSimulation
     /// String which the user is searching the list of waves by.
     SearchString: string
-    /// map of booleans showing what is shown in selector
-    ShowDetailMap: Map<WaveIndexT list,bool>
-    /// The label which a user is hovering over.
+    /// What is shown in wave sim sheet detail elements
+    ShowSheetDetail: Set<string list>
+    /// What is shown in wave sim component detail elements
+    ShowComponentDetail: Set<FComponentId>
+    /// What is shown in wave sim group detail elements
+    ShowGroupDetail: Set<ComponentGroup * string list>    /// The label which a user is hovering over.
     HoveredLabel: WaveIndexT option
     /// The index of the wave which the user is dragging.
     DraggedIndex: WaveIndexT option
@@ -205,7 +233,9 @@ let initWSModel  : WaveSimModel = {
     SelectedRams = Map.empty
     FastSim = FastCreate.emptyFastSimulation () // placeholder
     SearchString = ""
-    ShowDetailMap = Map.empty
+    ShowComponentDetail = Set.empty
+    ShowSheetDetail = Set.empty
+    ShowGroupDetail = Set.empty
     HoveredLabel = None
     DraggedIndex = None
     PrevSelectedWaves = None
@@ -261,6 +291,10 @@ type Msg =
     /// This calls an asynchronous function since the FastSim can take
     /// time to run.
     | RefreshWaveSim of WaveSimModel * SimulationData * CanvasState
+    /// Sets or clears ShowSheetDetail (clearing will remove all child values in the set)
+    | SetWaveSheetSelectionOpen of (string list list * bool)
+    /// Sets or clears ShowComponentDetail
+    | SetWaveComponentSelectionOpen of (FComponentId list * bool)
     | LockTabsToWaveSim
     | UnlockTabsFromWaveSim
     | SetSimulationGraph of SimulationGraph  * FastSimulation
@@ -638,11 +672,25 @@ let getCurrSheets (model: Model) =
         |> Some
     | None -> None
 
-/// Update WaveSimModel of current sheet.
+
+/// Set WaveSimModel of current sheet.
 let setWSModel (wsModel: WaveSimModel) (model: Model) =
     match getCurrSheets model, model.WaveSimSheet with
     | Some sheets, wsSheet when List.contains wsSheet sheets ->
         { model with WaveSim = Map.add model.WaveSimSheet wsModel model.WaveSim }
+    | None, _ ->
+        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
+        model
+    | Some sheets, wsSheet ->
+        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, sheets=%A" wsSheet sheets
+        model
+
+/// Update WaveSimModel of current sheet.
+let updateWSModel (updateFn: WaveSimModel -> WaveSimModel) (model: Model) =
+    match getCurrSheets model, model.WaveSimSheet with
+    | Some sheets, wsSheet when List.contains wsSheet sheets ->
+        let ws = model.WaveSim[model.WaveSimSheet]
+        { model with WaveSim = Map.add model.WaveSimSheet (updateFn ws) model.WaveSim }
     | None, _ ->
         printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
         model

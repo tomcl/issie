@@ -1,6 +1,0 @@
-{
-    "type": "module",
-    "dependencies": {
-      "usb": "^2.4.3"
-    }
-}

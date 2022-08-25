@@ -19,6 +19,28 @@ open Node
 
 module node = Node.Api
 
+//type ISUART =
+//    abstract main : unit -> unit
+
+
+//[<ImportAll("../../../Tests/hw/IS-uart.js")>]
+//let ISUart: ISUART = jsNative
+
+//[<Emit("import * as ISuart from '../../../Tests/hw/IS-uart.js' ")>]
+//let importGrammar : unit = jsNative
+[<Emit("import {main,tryRead0,main2} from '../../../Tests/hw/IS-uart.js' ")>]
+let importReadUart : unit = jsNative
+
+[<Emit("main()")>]
+let main (): unit = jsNative
+
+[<Emit("main2()")>]
+let main2 (): unit = jsNative
+
+[<Emit("tryRead0()")>]
+let read (): unit = jsNative
+
+importReadUart
 
 let rotateLabel (sym:Symbol) =
     let currentRot = Option.defaultValue Degree0 sym.LabelRotation
@@ -1167,8 +1189,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         model, Cmd.none
     | DebugSingleStep ->
-        fs.writeFileSync ("/dev/ttyUSB1", "S")
-        printfn "stepped"
+        //fs.writeFileSync ("/dev/ttyUSB1", "S")
+        //printfn "stepped"
 
         let readAllViewersCmd = 
             [0..(Array.length model.DebugMappings) / 8]
@@ -1176,7 +1198,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             |> Cmd.batch
         model, readAllViewersCmd
     | DebugRead part ->
-        fs.writeFileSync ("/dev/ttyUSB1", $"R{part}")
+        //fs.writeFileSync ("/dev/ttyUSB1", $"R{part}")
+        read()
         printfn $"reading from {part}" 
         printfn $"There were this many logs to receive: {List.length model.DebugReadLogs}"
         printfn $"Now there are this many logs to receive: {List.length (List.append model.DebugReadLogs [ReadLog part])}"
@@ -1188,17 +1211,29 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         match model.DebugConnection with
         | Some c -> model, Cmd.none//c.push None |> ignore; c.destroy()
         | _ -> 
+            //main()
+            //main2()
             // Set up the tty
-            node.childProcess.spawnSync (
-                "stty",
-                ["-F"; "/dev/ttyUSB1"; "9600"; "-hupcl"; "brkint"; "ignpar"; "-icrnl";
-                 "-opost"; "-onlcr"; "-isig"; "-icanon"; "-echo"] |> ResizeArray) |> ignore
-            //let options = {| shell = false |} |> toPlainJsObj
-            //let conn = node.childProcess.spawn ("socat", ["stdio"; "/dev/ttyUSB1"] |> ResizeArray, options);
-            let stream: Node.Fs.ReadStream<string> = fs.createReadStream("/dev/ttyUSB1")
-            printfn "Connected to read stream"
+            let cwd = getCWD()
+            let str = cwd+"/Tests/hw/IS-uart2.js"
+            printfn "here"
+            let nd = node.childProcess.spawn (
+                "node",
+                [str] |> ResizeArray)
+            
+            
+            
+            
+            //node.childProcess.spawnSync (
+            //    "stty",
+            //    ["-F"; "/dev/ttyUSB1"; "9600"; "-hupcl"; "brkint"; "ignpar"; "-icrnl";
+            //     "-opost"; "-onlcr"; "-isig"; "-icanon"; "-echo"] |> ResizeArray) |> ignore
+            ////let options = {| shell = false |} |> toPlainJsObj
+            ////let conn = node.childProcess.spawn ("socat", ["stdio"; "/dev/ttyUSB1"] |> ResizeArray, options);
+            //let stream: Node.Fs.ReadStream<string> = fs.createReadStream("/dev/ttyUSB1")
+            //printfn "Connected to read stream"
             let spawnListener dispatch =
-                stream.on("data", fun (data: byte[]) ->
+                nd.stdout.on("data", fun (data: byte[]) ->
                     //printfn "Read (from stream): %A" data
                     printfn "Got this many things: %A" (Array.length data)
                     Array.map (fun b ->
@@ -1206,7 +1241,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         dispatch <| OnDebugRead (int b)) data
                     |> ignore
                 ) |> ignore
-                stream.on("close", fun _ -> printfn "it was closed") |> ignore
+                nd.on("close", fun _ -> printfn "it was closed") |> ignore
                 //conn.stdout.on ("data", fun (data:byte[]) ->
                 //    printfn "Got this many things: %A" (Array.length data)
                 //    Array.map (fun b ->
@@ -1217,9 +1252,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 ()
 
             { model with
-                DebugConnection = Some stream
+                //DebugConnection = Some nd
                 DebugReadLogs = []
-            }, Cmd.ofSub spawnListener
+            }, Cmd.none
     | DebugDisconnect ->
         printfn "Closed read stream"
         match model.DebugConnection with

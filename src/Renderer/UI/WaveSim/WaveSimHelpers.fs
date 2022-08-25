@@ -38,22 +38,7 @@ type Gap = {
     Length: int
 }
 
-/// Groups components together in the wave selection table.
-/// NB: There are fields which are commented out: these can be added back in
-/// later on if we want to group those components together by type rather than
-/// separately by name.
-type ComponentGroup =
-    | WireLabel
-    | InputOutput
-    | Viewers
-    | Buses
-    | Gates
-    | MuxDemux
-    | Arithmetic
-    // | CustomComp
-    | FFRegister
-    | Memories
-    | Component of string
+
 
 module Constants =
     /// The horizontal length of a transition cross-hatch for non-binary waveforms
@@ -241,11 +226,7 @@ let getOutputPortNumber (opn: OutputPortNumber) : int =
     match opn with
     | OutputPortNumber pn -> pn
 
-type CheckBoxStyle =
-    | PortItem of Wave * string
-    | ComponentItem of FastComponent
-    | GroupItem of ComponentGroup
-    | SheetItem of string list
+
 
 let getCompGroup fs wave =
     match fs.WaveComps[wave.WaveId.Id].FType with
@@ -298,7 +279,7 @@ let summaryName (ws: WaveSimModel) (cBox: CheckBoxStyle) (subSheet: string list)
     | ComponentItem fc->
         str <| ss + (if subSheet = [] then "" else ".") + fc.FLabel.ToUpper()
         
-    | GroupItem compGroup ->
+    | GroupItem (compGroup,_) ->
         match compGroup with
         | WireLabel -> "Wire Labels"
         | InputOutput -> "Inputs / Outputs"
@@ -349,15 +330,50 @@ let prefixOf (pre:'a list) (whole:'a list) =
 let wavesToIds (waves: Wave list) = 
     waves |> List.map (fun wave -> wave.WaveId)
 
-let getCheckInfo (ws: WaveSimModel) (waves: WaveIndexT list) =
-    let cMap = ws.ShowDetailMap
-    match Map.tryFind  waves cMap with
-    | None -> false
-    | Some b -> b
+
+
 
 let tr1 react = tr [] [ react ]
 let td1 react = td [] [ react ]
 
+//---------------------------Code for selector details state----------------------------------//
+
+// It would be better to do this with one subfunction and Optics!
+
+/// Sets or clears a subset of ShowSheetDetail
+let setWaveSheetSelectionOpen (wsModel: WaveSimModel) (subSheets: string list list) (show: bool) =
+    let setChange = Set.ofList subSheets
+    let newSelect =
+        match show with
+        | false -> Set.difference wsModel.ShowSheetDetail setChange
+        | true -> Set.union setChange wsModel.ShowSheetDetail
+    {wsModel with ShowSheetDetail = newSelect}   
+
+/// Sets or clears a subset of ShowComponentDetail
+let setWaveComponentSelectionOpen (wsModel: WaveSimModel) (fIds: FComponentId list)  (show: bool) =
+    let fIdSet = Set.ofList fIds
+    let newSelect =
+        match show with
+        | true -> Set.union fIdSet  wsModel.ShowComponentDetail
+        | false -> Set.difference wsModel.ShowComponentDetail fIdSet
+    {wsModel with ShowComponentDetail = newSelect}
+
+
+/// Sets or clears a subset of ShowGroupDetail
+let setWaveGroupSelectionOpen (wsModel: WaveSimModel) (grps :(ComponentGroup*string list) list)  (show: bool) =
+    let grpSet = Set.ofList grps
+    let newSelect =
+        match show with
+        | true -> Set.union grpSet  wsModel.ShowGroupDetail
+        | false -> Set.difference wsModel.ShowGroupDetail grpSet
+    {wsModel with ShowGroupDetail = newSelect}
+
+let setSelectionOpen (wsModel: WaveSimModel) (cBox: CheckBoxStyle) (show:bool) =
+    match cBox with
+    | PortItem _ -> failwithf "What? setselectionopen cannot be called from a Port"
+    | ComponentItem fc -> setWaveComponentSelectionOpen wsModel [fc.fId] show
+    | GroupItem (grp,subSheet) -> setWaveGroupSelectionOpen wsModel [grp,subSheet] show
+    | SheetItem subSheet -> setWaveSheetSelectionOpen wsModel [subSheet] show
 
     
 

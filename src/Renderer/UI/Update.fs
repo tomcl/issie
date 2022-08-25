@@ -436,6 +436,18 @@ let update (msg : Msg) oldModel =
 
         setWSModel wsModel' model, Cmd.ofMsg (Sheet(SheetT.SetSpinner false))
 
+    | SetWaveComponentSelectionOpen (fIdL, show) ->       
+        let model = 
+            model
+            |> updateWSModel (fun ws -> WaveSimHelpers.setWaveComponentSelectionOpen ws fIdL show)
+        model, cmd
+        
+    | SetWaveSheetSelectionOpen (fIdL, show) ->       
+        let model = 
+            model
+            |> updateWSModel (fun ws -> WaveSimHelpers.setWaveSheetSelectionOpen ws fIdL show)
+        model, cmd
+        
     | SetSimulationGraph (graph, fastSim) ->
         let simData = getSimulationDataOrFail model "SetSimulationGraph"
         { model with CurrentStepSimulationStep = { simData with Graph = graph ; FastSim = fastSim} |> Ok |> Some }, Cmd.none
@@ -921,9 +933,15 @@ let update (msg : Msg) oldModel =
         //ignore the exectue message
         else 
             model, Cmd.none
+    // Various messages here that are not implemented as yet, or are no longer used
+    // should be sorted out
+    | LockTabsToWaveSim | UnlockTabsFromWaveSim | SetExitDialog _ 
+    | SetPopupInputConstraints _ | SetPopupOutputConstraints _ 
+    | SetPropertiesExtraDialogText _ | SetRouterInteractive _ 
+    | ShowExitDialog _ -> model, Cmd.none
     | DoNothing -> //Acts as a placeholder to propergrate the ExecutePendingMessages message in a Cmd
-        model, cmd
-    | msg ->
+        model, Cmd.none
+    | JSDiagramMsg _ | KeyboardShortcutMsg _ -> // catch all messages not otherwise processed. Should remove this?
         model, Cmd.none
     |> (fun (newModel,cmd) -> resetDialogIfSelectionHasChanged newModel oldModel,cmd)
     |> (fun (model,cmdL) -> 

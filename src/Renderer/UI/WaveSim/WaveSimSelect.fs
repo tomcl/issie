@@ -311,6 +311,11 @@ let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: M
     let wsModel = {wsModel with SelectedWaves = selectedWaves}
     dispatch <| InitiateWaveSimulation wsModel
 
+
+
+
+    
+
 /// Toggle selection of a list of waves.
 let toggleSelectSubGroup (wsModel: WaveSimModel) dispatch (selected: bool) (waves: WaveIndexT list) =
     let selectedWaves =
@@ -319,6 +324,7 @@ let toggleSelectSubGroup (wsModel: WaveSimModel) dispatch (selected: bool) (wave
         else
             List.except waves wsModel.SelectedWaves
     dispatch <| InitiateWaveSimulation {wsModel with SelectedWaves = selectedWaves}
+
 
 /// Table row of a checkbox and name of a wave.
 let checkboxRow (wsModel: WaveSimModel) dispatch (index: WaveIndexT) =
@@ -422,7 +428,7 @@ let makeSelectionGroup
             ]
             th [] [
                 details
-                    (detailsProps cBox)
+                    (detailsProps cBox ws dispatch)
                     [   
                         summary
                             (summaryProps cBox)
@@ -433,6 +439,7 @@ let makeSelectionGroup
                 ]
             ]
         ]
+    
 
 
 /// Returns a tr react element representing a component with ports detailed beneath
@@ -453,7 +460,7 @@ let rec makeComponentGroup (ws: WaveSimModel) (dispatch: Msg->Unit) (subSheet: s
         let fc = ws.FastSim.WaveComps[(List.head waves).WaveId.Id]
         makeComponentRow ws dispatch fc waves
     else
-        let cBox = GroupItem cGroup
+        let cBox = GroupItem (cGroup,subSheet)
         let summaryReact = summaryName ws cBox subSheet waves
         let compRows =
             compWaves

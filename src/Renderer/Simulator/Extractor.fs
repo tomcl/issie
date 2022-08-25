@@ -154,6 +154,8 @@ let extractLoadedSimulatorComponent (canvas: CanvasState)(name: string)=
                 CanvasState = canvas
                 InputLabels = inputs
                 OutputLabels = outputs
+                Form = None
+                Description = None
             }
         ldc
 

@@ -4,7 +4,7 @@ open VerilogTypes
 open Fable.Core.JsInterop
 open CommonTypes 
 
-let private getFileInProject name project = project.LoadedComponents |> List.tryFind (fun comp -> comp.Name = name)
+let private getFileInProject (name:string) project = project.LoadedComponents |> List.tryFind (fun comp -> comp.Name.ToUpper() = name.ToUpper())
 
 let private isFileInProject name project =
     getFileInProject name project
@@ -238,7 +238,7 @@ let nameCheck ast linesLocations (origin:CodeEditorOpen) (project:Project)  erro
     let localError = 
         match (exists,origin) with
         |true,NewVerilogFile -> 
-            let message = "A sheet with that name already exists"
+            let message = "A sheet/component with that name already exists"
             let extraMessages = 
                 [|
                     {Text="Module Name must be different from existing Sheets/Components";Copy=false;Replace=NoReplace}

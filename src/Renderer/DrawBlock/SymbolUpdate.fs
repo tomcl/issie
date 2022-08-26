@@ -270,6 +270,20 @@ let changeConstantf (symModel:Model) (compId:ComponentId) (constantVal:int64) (c
     printfn "Changing symbol to: %A" newcompotype
     {symbol with Component = newcompo}
 
+
+let changeReversedInputs (symModel: Model) (compId: ComponentId) =
+    let symbol = Map.find compId symModel.Symbols
+    let newValue =
+        match symbol.ReversedInputPorts with
+        |Some false -> Some true
+        |Some true -> Some false
+        |None -> Some true
+    let newSymbolInfo = 
+        match symbol.Component.SymbolInfo with
+        |Some si -> Some {si with ReversedInputPorts = newValue}
+        |None -> None
+    let newcompo = {symbol.Component with SymbolInfo = newSymbolInfo }
+    {symbol with Component = newcompo; ReversedInputPorts = newValue}
 //---------------------Helper functions for the upadte function------------------------------//
 
 
@@ -535,6 +549,7 @@ let createSymbol ldcs prevSymbols comp =
                 InWidth0 = None
                 InWidth1 = None
                 STransform = getSTransformWithDefault comp.SymbolInfo
+                ReversedInputPorts = match comp.SymbolInfo with |Some si -> si.ReversedInputPorts |_ -> None
                 PortMaps = portMaps
                 
                 MovingPort = None
@@ -844,31 +859,7 @@ let reCreateVerilogSymbol (comp: Component) (oldSym:Symbol) : Symbol =
     let comp = comp
     let transform = {Rotation= Degree0; flipped= false}
     {oldSym with Component=comp}
-    // { 
-    //   Pos = oldSym.Pos
-    //   LabelBoundingBox = {TopLeft=pos; W=0.;H=0.} // dummy, will be replaced
-    //   LabelHasDefaultPos = true
-    //   LabelRotation = None
-    //   Appearance =
-    //       {
-    //         HighlightLabel = false
-    //         ShowPorts = ShowNone
-    //         Colour = "lightgray"
-    //         Opacity = 1.0
-    //       }
-    //   InWidth0 = None // set by BusWire
-    //   InWidth1 = None
-    //   Id = ComponentId id
-    //   Component = comp
-    //   Moving = false
-    //   PortMaps = initPortOrientation comp
-    //   STransform = transform
-    //   MovingPort = None
-    //   IsClocked = false
-    //   MovingPortTarget = None
-    // }
-    // |> autoScaleHAndW
-    // |> calcLabelBoundingBox
+
 
 
 let inline replaceSymbol (model: Model) (newSymbol: Symbol) (compId: ComponentId) : Model =
@@ -917,6 +908,7 @@ let private modifySymbolsByCompIds
 /// It is saved in extra SymbolInfo type and corresp field in Component.
 let getLayoutInfoFromSymbol symbol =
     { STransform = symbol.STransform
+      ReversedInputPorts = symbol.ReversedInputPorts
       PortOrientation = symbol.PortMaps.Orientation
       PortOrder = symbol.PortMaps.Order 
       LabelRotation = symbol.LabelRotation
@@ -1128,6 +1120,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     | ChangeInputValue (compId, newVal) ->
         let newSymbol = changeInputValue model compId newVal
+        (replaceSymbol model newSymbol compId), Cmd.none
+
+    | ChangeReversedInputs (compId) ->
+        let newSymbol = changeReversedInputs model compId
         (replaceSymbol model newSymbol compId), Cmd.none
 
     | ChangeConstant (compId, newVal, newText) -> 

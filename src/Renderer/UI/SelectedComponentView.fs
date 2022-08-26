@@ -396,7 +396,16 @@ let private makeDescription (comp:Component) model dispatch =
         ]
     | Not | And | Or | Xor | Nand | Nor | Xnor ->
         div [] [ str <| sprintf "%A gate." comp.Type ]
-    | Mux2 -> div [] [ str "Multiplexer with two inputs and one output." ]
+    | Mux2 -> div [] [ 
+        str "Multiplexer with two inputs and one output." 
+        br []
+        br []
+        Button.button [
+            Button.Color IsPrimary
+            Button.OnClick (fun _ -> model.Sheet.ChangeReversedInputs (Sheet >> dispatch) (ComponentId comp.Id))
+            ] 
+            [str "Reverse Inputs"]
+        ]
     | Mux4 -> div [] [ str "Multiplexer with four inputs and one output." ]
     | Mux8 -> div [] [ str "Multiplexer with eight inputs and one output." ]
     | Demux2 -> div [] [ str "Demultiplexer with one input and two outputs." ]

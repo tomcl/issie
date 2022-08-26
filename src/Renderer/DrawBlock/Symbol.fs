@@ -585,6 +585,7 @@ let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:stri
                 LabelBoundingBox = None
                 LabelRotation = None
                 STransform=defaultSTransform; 
+                ReversedInputPorts=None
                 PortOrder = Map.empty; 
                 PortOrientation=Map.empty}
         }
@@ -618,6 +619,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       Moving = false
       PortMaps = initPortOrientation comp
       STransform = transform
+      ReversedInputPorts = Some false
       MovingPort = None
       IsClocked = isClocked [] ldcs comp
       MovingPortTarget = None
@@ -698,7 +700,9 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
     //get ports on the same edge first
     let side = getSymbolPortOrientation sym port
     let ports = sym.PortMaps.Order[side] //list of ports on the same side as port
-    let index = float( List.findIndex (fun (p:string)  -> p = port.Id) ports )
+    let numberOnSide = List.length ports
+    let index = ( List.findIndex (fun (p:string)  -> p = port.Id) ports )
+    let index' = match sym.ReversedInputPorts with |Some true -> float (numberOnSide-1-index) | _ -> float(index)
     let gap = getPortPosEdgeGap sym.Component.Type 
     let topBottomGap = gap + 0.3 // extra space for clk symbol
     let baseOffset = getPortBaseOffset sym side  //offset of the side component is on
@@ -707,16 +711,16 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
     let h,w = getRotatedHAndW sym
     match side with
     | Left ->
-        let yOffset = float h * ( index + gap )/(portDimension + 2.0*gap)
+        let yOffset = float h * ( index' + gap )/(portDimension + 2.0*gap)
         baseOffset' + {X = 0.0; Y = yOffset }
     | Right -> 
-        let yOffset = float h * (portDimension - index + gap )/(portDimension + 2.0*gap)
+        let yOffset = float h * (portDimension - index' + gap )/(portDimension + 2.0*gap)
         baseOffset' + {X = 0.0; Y = yOffset }
     | Bottom -> 
-        let xOffset = float  w * (index + topBottomGap)/(portDimension + 2.0*topBottomGap)
+        let xOffset = float  w * (index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
         baseOffset' + {X = xOffset; Y = 0.0 }
     | Top ->
-        let xOffset = float w * (portDimension - index + topBottomGap)/(portDimension + 2.0*topBottomGap)
+        let xOffset = float w * (portDimension - index' + topBottomGap)/(portDimension + 2.0*topBottomGap)
         baseOffset' + {X = xOffset; Y = 0.0 }
 
 /// Gives the port positions to the render function, it gives the moving port pos where the mouse is, if there is a moving port

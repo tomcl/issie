@@ -357,13 +357,15 @@ let dialogVerilogCompBody before moduleName errorDiv errorList showExtraErrors c
                 br []
                 br []
                 br []
-                p [] [b [] [str "Verilog Code:"]]
+                div [ Style [Position PositionOptions.Relative;]] [
+                    p [] [b [] [str "Verilog Code:"]]
+                    infoHoverableElement
+                ]
                 br []
                 //BrowserWindowConstructorOptions
                 div [ Style [Position PositionOptions.Relative; MinHeight "0px"; MaxHeight editorheigth; FontFamily ("ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace"); FontSize 16; BackgroundColor "#f5f5f5"; OutlineStyle "solid"; OutlineColor "Blue";OverflowY OverflowOptions.Auto;OverflowX OverflowOptions.Hidden]] 
                         [
                         getLineCounterDiv linesNo
-                        infoHoverableElement
                         errorDiv
                         renderCERSC Seq.empty
                         ]
